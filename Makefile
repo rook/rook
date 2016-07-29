@@ -14,12 +14,12 @@ endif
 
 build: vendor ceph/build/lib/libcephd.a
 	@for i in castled; do \
-		go build -o bin/$$i -installsuffix cgo -ldflags "-extldflags '-static' -linkmode external -X $(REPOPATH)/version.Version=$(VERSION)" ./cmd/$$i; \
+		go build -o bin/$$i -installsuffix cgo -ldflags "-extldflags '-static' -linkmode external -X $(REPOPATH)/pkg/version.Version=$(VERSION)" ./cmd/$$i; \
 	done
 
 ceph/build/Makefile:
 	git submodule update --init --recursive
-	cd ceph && ./do_cmake.sh -DWITH_EMBEDDED=ON -DWITH_FUSE=OFF
+	cd ceph && ./do_cmake.sh -DWITH_EMBEDDED=ON -DWITH_FUSE=OFF -DWITH_NSS=OFF -DUSE_CRYPTOPP=ON
 
 ceph/build/lib/libcephd.a: ceph/build/Makefile
 	cd ceph/build && make -j$(NPROCS) cephd
