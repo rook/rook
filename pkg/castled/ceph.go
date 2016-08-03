@@ -7,7 +7,6 @@ import (
 )
 
 func Start() {
-	cxt, _ := cephd.NewContext()
-	key, _ := cxt.CreateKey()
-	fmt.Println(key)
+	cluster, _ := cephd.NewCluster()
+	fmt.Printf("%v %v %v", cluster.Fsid, cluster.MonitorSecret, cluster.AdminSecret)
 }
