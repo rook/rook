@@ -5,8 +5,8 @@ GOARCH = $(shell go env GOARCH)
 # TODO: support for building outside of a $GOPATH
 # TODO: support for profiling in ceph
 # TODO: support for tracing in ceph
-# TODO: stripping binaries (at least the c binaries since golang does not like to be stripped)
 # TODO: jemalloc and static linking are currently broken due to https://github.com/jemalloc/jemalloc/issues/442
+# TODO: remove leveldb
 
 # Can be used for additional go build flags
 BUILDFLAGS ?=
@@ -25,7 +25,7 @@ CEPHD_CMAKE += \
 	-DWITH_PROFILER=OFF
 
 # set to 1 for a completely static build
-STATIC ?= 0
+STATIC ?= 1
 ifeq ($(STATIC),1)
 LDFLAGS += -extldflags "-static"
 BUILDFLAGS += -installsuffix cgo
@@ -48,6 +48,10 @@ endif
 # additional go build tags
 TAGS ?= 
 
+# if DEBUG is set to 1 debug information is perserved (i.e. not stripped). 
+# the binary size is going to be much larger.
+DEBUG ?= 0
+
 # turn on more verbose build
 V ?= 0
 ifeq ($(V),1)
@@ -67,9 +71,15 @@ all: build test
 .PHONY: build
 build: vendor ceph
 	mkdir -p ceph/build
+	@echo "##### configuring ceph" 
 	cd ceph/build && cmake $(CEPHD_CMAKE) ..
-	cd ceph/build && $(MAKE) $(MAKEFLAGS) cephd
+	@echo "##### building ceph" 
+	cd ceph/build && $(MAKE) $(MFLAGS) cephd
+ifeq ($(DEBUG),0)
+	echo "##### stripping libcephd.a" 
 	strip -S ceph/build/lib/libcephd.a
+endif
+	echo "##### building castled" 
 	go build $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' -o bin/castled ./cmd/castled
 
 ceph:
