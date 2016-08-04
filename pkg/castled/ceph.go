@@ -2,11 +2,117 @@ package castled
 
 import (
 	"fmt"
+	"log"
+	"path"
 
 	"github.com/quantum/castle/pkg/cephd"
+	"github.com/quantum/castle/pkg/kvstore"
+
+	etcd "github.com/coreos/etcd/client"
+	"golang.org/x/net/context"
 )
 
-func Start() {
-	cluster, _ := cephd.NewCluster()
-	fmt.Printf("%v %v %v", cluster.Fsid, cluster.MonitorSecret, cluster.AdminSecret)
+const (
+	CephKey = "/castle/ceph"
+)
+
+type Context struct {
+	EtcdURLs string
+}
+
+func Start(ctx Context) error {
+	if ctx.EtcdURLs == "" {
+		return fmt.Errorf("context is missing EtcdURLs")
+	}
+
+	// get an etcd client to coordinate with the rest of the cluster and load/save config
+	etcdClient, err := kvstore.GetEtcdClient(ctx.EtcdURLs)
+	if err != nil {
+		return fmt.Errorf("failed to get etcdClient: %+v", err)
+	}
+
+	// load any existing cluster info that may have previously been created
+	cluster, err := LoadClusterInfo(etcdClient)
+	if err != nil {
+		return fmt.Errorf("failed to load cluster info: %+v", err)
+	}
+
+	if !isClusterCreated(cluster) {
+		// the cluster is not yet created, go ahead and create it now
+		cluster, err := cephd.NewCluster()
+		if err != nil {
+			return fmt.Errorf("failed to create new cluster: %+v", err)
+		}
+
+		log.Printf("Created new cluster: %+v", cluster)
+		err = SaveClusterInfo(cluster, etcdClient)
+		if err != nil {
+			return fmt.Errorf("failed to save new cluster info: %+v", err)
+		}
+	} else {
+		// the cluster has already been created
+		log.Printf("Cluster already exists: %+v", cluster)
+	}
+
+	return nil
+}
+
+func LoadClusterInfo(etcdClient etcd.KeysAPI) (cephd.Cluster, error) {
+	resp, err := etcdClient.Get(context.Background(), path.Join(CephKey, "fsid"), nil)
+	if err != nil {
+		return handleLoadClusterInfoErr(err)
+	}
+	fsid := resp.Node.Value
+
+	secretsKey := path.Join(CephKey, "_secrets")
+
+	resp, err = etcdClient.Get(context.Background(), path.Join(secretsKey, "monitor"), nil)
+	if err != nil {
+		return handleLoadClusterInfoErr(err)
+	}
+	monSecret := resp.Node.Value
+
+	resp, err = etcdClient.Get(context.Background(), path.Join(secretsKey, "admin"), nil)
+	if err != nil {
+		return handleLoadClusterInfoErr(err)
+	}
+	adminSecret := resp.Node.Value
+
+	return cephd.Cluster{
+		Fsid:          fsid,
+		MonitorSecret: monSecret,
+		AdminSecret:   adminSecret,
+	}, nil
+}
+
+func handleLoadClusterInfoErr(err error) (cephd.Cluster, error) {
+	if kvstore.IsEtcdKeyNotFound(err) {
+		return cephd.Cluster{}, nil
+	}
+	return cephd.Cluster{}, err
+}
+
+func isClusterCreated(c cephd.Cluster) bool {
+	return c.Fsid != "" && c.MonitorSecret != "" && c.AdminSecret != ""
+}
+
+func SaveClusterInfo(c cephd.Cluster, etcdClient etcd.KeysAPI) error {
+	_, err := etcdClient.Set(context.Background(), path.Join(CephKey, "fsid"), c.Fsid, nil)
+	if err != nil {
+		return err
+	}
+
+	secretsKey := path.Join(CephKey, "_secrets")
+
+	_, err = etcdClient.Set(context.Background(), path.Join(secretsKey, "monitor"), c.MonitorSecret, nil)
+	if err != nil {
+		return err
+	}
+
+	_, err = etcdClient.Set(context.Background(), path.Join(secretsKey, "admin"), c.AdminSecret, nil)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
