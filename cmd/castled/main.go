@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/quantum/castle/pkg/castled"
 )
@@ -19,6 +21,13 @@ func main() {
 	if err := castled.Start(ctx); err != nil {
 		log.Fatalf("failed to start castled: %+v", err)
 	}
+
+	// wait for user to interrupt/terminate the process
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, syscall.SIGTERM)
+	log.Printf("waiting for ctrl-c interrupt...")
+	<-c
 }
 
 func printArgsFatal() {
