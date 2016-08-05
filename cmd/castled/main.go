@@ -4,32 +4,51 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"syscall"
+
+	"github.com/namsral/flag"
 
 	"github.com/quantum/castle/pkg/castled"
 )
 
 func main() {
-	if len(os.Args) != 2 {
-		printArgsFatal()
-	}
 
-	// TODO: consider making the only arg to this main entry point be the discovery URL,
+	etcdURLsPtr := flag.String("etcd-urls", "http://127.0.0.1:4001", "comma separated list of etcd listen URLs")
+	privateIPv4Ptr := flag.String("private-ipv4", "", "private IPv4 address for this machine (required)")
+	monNamePtr := flag.String("mon-name", "mon1", "monitor name")
+	initMonSetPtr := flag.String("initial-monitors", "mon1", "comma separated list of initial monitor names")
+
+	flag.Parse()
+
+	verifyRequiredFlags([]*string{etcdURLsPtr, privateIPv4Ptr})
+
+	// TODO: add the discovery URL to the command line/env var config,
 	// then we could just ask the discovery service where to find things like etcd
-	ctx := castled.Context{EtcdURLs: os.Args[1]}
+	cfg := castled.NewConfig(*etcdURLsPtr, *privateIPv4Ptr, *monNamePtr, *initMonSetPtr)
+	go func(cfg castled.Config) {
+		if err := castled.Start(cfg); err != nil {
+			log.Fatalf("failed to start castled: %+v", err)
+		}
 
-	if err := castled.Start(ctx); err != nil {
-		log.Fatalf("failed to start castled: %+v", err)
-	}
+		log.Printf("castled started successfully!")
+	}(cfg)
 
 	// wait for user to interrupt/terminate the process
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
-	signal.Notify(c, syscall.SIGTERM)
 	log.Printf("waiting for ctrl-c interrupt...")
 	<-c
+	log.Printf("terminating due to ctrl-c interrupt...")
 }
 
-func printArgsFatal() {
-	log.Fatal("castled <etcdURLs>")
+func verifyRequiredFlags(requiredFlags []*string) {
+	for i := range requiredFlags {
+		if *(requiredFlags[i]) == "" {
+			handleFlagError()
+		}
+	}
+}
+
+func handleFlagError() {
+	flag.PrintDefaults()
+	os.Exit(1)
 }

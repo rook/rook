@@ -2,7 +2,6 @@ package kvstore
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"time"
 
@@ -12,16 +11,13 @@ import (
 	etcdError "github.com/coreos/etcd/error"
 )
 
-func GetEtcdClient(listenClientURLs string) (etcd.KeysAPI, error) {
-	if listenClientURLs == "" {
+func GetEtcdClient(listenClientURLs []string) (etcd.KeysAPI, error) {
+	if len(listenClientURLs) == 0 {
 		return nil, fmt.Errorf("no listen client URLs specified.")
 	}
 
-	machines := strings.Split(listenClientURLs, ",")
-	log.Printf("etcd machines: %v", machines)
-
 	config := etcd.Config{
-		Endpoints:               machines,
+		Endpoints:               listenClientURLs,
 		Transport:               etcd.DefaultTransport,
 		HeaderTimeoutPerRequest: time.Second,
 	}

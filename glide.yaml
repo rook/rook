@@ -7,3 +7,4 @@ import:
   subpackages:
   - client
   - error
+- package: github.com/namsral/flag

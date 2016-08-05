@@ -1,5 +1,5 @@
-hash: d909252d31bbe876c8dfbff2d406c5dbca1357b11168e2194f649d7046efd439
-updated: 2016-08-03T16:43:33.368276831-07:00
+hash: 37c593748f1247119a8246f1017bffb1317fadc0aeec540424f4a233acc8fcf8
+updated: 2016-08-04T16:38:59.926519624-07:00
 imports:
 - name: github.com/coreos/etcd
   version: d53923c636e0e4ab7f00cb75681b97a8f11f5a9d
@@ -8,6 +8,8 @@ imports:
   - error
   - pkg/pathutil
   - pkg/types
+- name: github.com/namsral/flag
+  version: 7b43f5fa0f712cee3dec3d35be970b845adfa321
 - name: github.com/spf13/cobra
   version: dbb7c2d02e284aa24423e3e6e105969dffe6e4d6
   subpackages:
