@@ -1,14 +1,16 @@
 package castled
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 	"path"
+	"path/filepath"
+	"strings"
 	"time"
-	/*
-		"io/ioutil"
-		"os"
-	*/
+
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/castle/pkg/kvstore"
 
@@ -17,57 +19,40 @@ import (
 )
 
 const (
-	CephKey = "/castle/ceph"
+	cephKey = "/castle/ceph"
+
+	monitorKeyringTemplate = `
+[mon.]
+	key = %s
+	caps mon = "allow *"
+[client.admin]
+	key = %s
+	auid = 0
+	caps mds = "allow"
+	caps mon = "allow *"
+	caps osd = "allow *"
+`
+	globalConfigTemplate = `
+[global]
+	fsid=%s
+	run dir=/tmp/mon
+	mon initial members = %s
+`
+	monitorConfigTemplate = `
+[mon.%s]
+	name = %s
+	mon addr = %s
+`
 )
 
+type clusterInfo struct {
+	FSID          string
+	MonitorSecret string
+	AdminSecret   string
+}
+
 func Start(cfg Config) error {
-	/*
-			var keyring = `
-		[mon.]
-			key = AQBPxaJXi766KRAAfciBEfeqjzmOWiwhNPB5wQ==
-			caps mon = "allow *"
-		[client.admin]
-			key = AQBUxaJXnpilGBAA3s6ONd17S33WHuqJMQrmBQ==
-			auid = 0
-			caps mds = "allow"
-			caps mon = "allow *"
-			caps osd = "allow *"
-		`
-			ioutil.WriteFile("/tmp/mon/tmp_keyring", []byte(keyring), 0644)
-
-			var config = `
-		[global]
-			fsid=2f3c348b-0f62-4b2b-9a46-9dae126b3867
-			run dir=/tmp/mon
-			mon initial members = mon.a mon.b mon.c
-		[mon.a]
-			mon addr = 192.168.0.1
-		[mon.b]
-			mon addr = 192.168.0.2
-		[mon.c]
-			mon addr = 192.168.0.3
-		`
-			ioutil.WriteFile("/tmp/mon/tmp_config", []byte(config), 0644)
-
-			// call mkfs
-			cephd.Mon([]string{
-				os.Args[0], // BUGBUG: remove this?
-				"--mkfs",
-				"--cluster=foo",
-				"--id=mon.a",
-				"--mon-data=/tmp/mon/mon.a",
-				"--conf=/tmp/mon/tmp_config",
-				"--keyring=/tmp/mon/tmp_keyring"})
-
-			/*
-				// run the mon
-				cephd.Mon([]string{
-					os.Args[0], // BUGBUG: remove this?
-					"--cluster=foo",
-					"--id=mon.a",
-					"--mon-data=/tmp/mon/mon.a",
-					"--conf=/tmp/mon/tmp_config"})
-	*/
+	// TODO: some of these operations should be done by only one member of the cluster, (e.g. leader election)
 
 	// get an etcd client to coordinate with the rest of the cluster and load/save config
 	etcdClient, err := kvstore.GetEtcdClient(cfg.EtcdURLs)
@@ -81,14 +66,14 @@ func Start(cfg Config) error {
 		return fmt.Errorf("failed to load cluster info: %+v", err)
 	}
 
-	if !isClusterCreated(cluster) {
-		// the cluster is not yet created, go ahead and create it now
-		cluster, err := cephd.NewCluster()
+	if !isClusterInfoSet(cluster) {
+		// the cluster info is not yet set, go ahead and set it now
+		cluster, err := createClusterInfo()
 		if err != nil {
-			return fmt.Errorf("failed to create new cluster: %+v", err)
+			return fmt.Errorf("failed to create cluster info: %+v", err)
 		}
 
-		log.Printf("Created new cluster: %+v", cluster)
+		log.Printf("Created new cluster info: %+v", cluster)
 		err = SaveClusterInfo(cluster, etcdClient)
 		if err != nil {
 			return fmt.Errorf("failed to save new cluster info: %+v", err)
@@ -107,17 +92,31 @@ func Start(cfg Config) error {
 		return fmt.Errorf("failed to wait for monitors to register: %+v", err)
 	}
 
+	if err := makeMonitorFileSystem(cfg, cluster); err != nil {
+		return fmt.Errorf("failed to make monitor filesystem: %+v", err)
+	}
+
+	/*
+		// run the mon
+		cephd.Mon([]string{
+			os.Args[0], // BUGBUG: remove this?
+			"--cluster=foo",
+			"--id=mon.a",
+			"--mon-data=/tmp/mon/mon.a",
+			"--conf=/tmp/mon/tmp_config"})
+	*/
+
 	return nil
 }
 
-func LoadClusterInfo(etcdClient etcd.KeysAPI) (cephd.Cluster, error) {
-	resp, err := etcdClient.Get(context.Background(), path.Join(CephKey, "fsid"), nil)
+func LoadClusterInfo(etcdClient etcd.KeysAPI) (clusterInfo, error) {
+	resp, err := etcdClient.Get(context.Background(), path.Join(cephKey, "fsid"), nil)
 	if err != nil {
 		return handleLoadClusterInfoErr(err)
 	}
 	fsid := resp.Node.Value
 
-	secretsKey := path.Join(CephKey, "_secrets")
+	secretsKey := path.Join(cephKey, "_secrets")
 
 	resp, err = etcdClient.Get(context.Background(), path.Join(secretsKey, "monitor"), nil)
 	if err != nil {
@@ -131,31 +130,54 @@ func LoadClusterInfo(etcdClient etcd.KeysAPI) (cephd.Cluster, error) {
 	}
 	adminSecret := resp.Node.Value
 
-	return cephd.Cluster{
-		Fsid:          fsid,
+	return clusterInfo{
+		FSID:          fsid,
 		MonitorSecret: monSecret,
 		AdminSecret:   adminSecret,
 	}, nil
 }
 
-func handleLoadClusterInfoErr(err error) (cephd.Cluster, error) {
+func handleLoadClusterInfoErr(err error) (clusterInfo, error) {
 	if kvstore.IsEtcdKeyNotFound(err) {
-		return cephd.Cluster{}, nil
+		return clusterInfo{}, nil
 	}
-	return cephd.Cluster{}, err
+	return clusterInfo{}, err
 }
 
-func isClusterCreated(c cephd.Cluster) bool {
-	return c.Fsid != "" && c.MonitorSecret != "" && c.AdminSecret != ""
+func isClusterInfoSet(c clusterInfo) bool {
+	return c.FSID != "" && c.MonitorSecret != "" && c.AdminSecret != ""
 }
 
-func SaveClusterInfo(c cephd.Cluster, etcdClient etcd.KeysAPI) error {
-	_, err := etcdClient.Set(context.Background(), path.Join(CephKey, "fsid"), c.Fsid, nil)
+func createClusterInfo() (clusterInfo, error) {
+	fsid, err := cephd.NewFsid()
+	if err != nil {
+		return clusterInfo{}, fmt.Errorf("failed to create FSID: %+v", err)
+	}
+
+	monSecret, err := cephd.NewSecretKey()
+	if err != nil {
+		return clusterInfo{}, fmt.Errorf("failed to create monitor secret: %+v", err)
+	}
+
+	adminSecret, err := cephd.NewSecretKey()
+	if err != nil {
+		return clusterInfo{}, fmt.Errorf("failed to create admin secret: %+v", err)
+	}
+
+	return clusterInfo{
+		FSID:          fsid,
+		MonitorSecret: monSecret,
+		AdminSecret:   adminSecret,
+	}, nil
+}
+
+func SaveClusterInfo(c clusterInfo, etcdClient etcd.KeysAPI) error {
+	_, err := etcdClient.Set(context.Background(), path.Join(cephKey, "fsid"), c.FSID, nil)
 	if err != nil {
 		return err
 	}
 
-	secretsKey := path.Join(CephKey, "_secrets")
+	secretsKey := path.Join(cephKey, "_secrets")
 
 	_, err = etcdClient.Set(context.Background(), path.Join(secretsKey, "monitor"), c.MonitorSecret, nil)
 	if err != nil {
@@ -182,7 +204,7 @@ func registerMonitor(cfg Config, etcdClient etcd.KeysAPI) error {
 }
 
 func getMonitorEndpointKey(name string) string {
-	return fmt.Sprintf(path.Join(CephKey, "mons/%s/endpoint"), name)
+	return fmt.Sprintf(path.Join(cephKey, "mons/%s/endpoint"), name)
 }
 
 func waitForMonitorRegistration(cfg Config, etcdClient etcd.KeysAPI) error {
@@ -213,6 +235,75 @@ func waitForMonitorRegistration(cfg Config, etcdClient etcd.KeysAPI) error {
 
 			<-time.After(time.Duration(sleepTime) * time.Second)
 		}
+	}
+
+	return nil
+}
+
+func makeMonitorFileSystem(cfg Config, c clusterInfo) error {
+	// write the keyring to disk
+	keyring := fmt.Sprintf(monitorKeyringTemplate, c.MonitorSecret, c.AdminSecret)
+	keyringPath := "/tmp/mon/tmp_keyring"
+	if err := os.MkdirAll(filepath.Dir(keyringPath), 0744); err != nil {
+		fmt.Printf("failed to create keyring directory for %s: %+v", keyringPath, err)
+	}
+	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0644); err != nil {
+		return fmt.Errorf("failed to write monitor keyring to %s: %+v", keyringPath, err)
+	}
+
+	// extract a list of just the monitor names, which will populate the "mon initial members"
+	// global config field
+	initialMonMembers := make([]string, len(cfg.InitialMonitors))
+	for i := range cfg.InitialMonitors {
+		initialMonMembers[i] = cfg.InitialMonitors[i].Name
+	}
+
+	// write the global config section to the content buffer
+	var contentBuffer bytes.Buffer
+	_, err := contentBuffer.WriteString(fmt.Sprintf(
+		globalConfigTemplate,
+		c.FSID,
+		strings.Join(initialMonMembers, " ")))
+	if err != nil {
+		return fmt.Errorf("failed to write global config section, %+v", err)
+	}
+
+	// write the config for each individual monitor member of the cluster to the content buffer
+	for i := range cfg.InitialMonitors {
+		mon := cfg.InitialMonitors[i]
+		_, err := contentBuffer.WriteString(fmt.Sprintf(monitorConfigTemplate, mon.Name, mon.Name, mon.Endpoint))
+		if err != nil {
+			return fmt.Errorf("failed to write monitor config section for mon %s, %+v", mon.Name, err)
+		}
+	}
+
+	// write the entire config to disk
+	monConfFilePath := "/tmp/mon/tmp_config"
+	if err := os.MkdirAll(filepath.Dir(monConfFilePath), 0744); err != nil {
+		fmt.Printf("failed to create monitor config file directory for %s: %+v", monConfFilePath, err)
+	}
+	if err := ioutil.WriteFile(monConfFilePath, contentBuffer.Bytes(), 0644); err != nil {
+		return fmt.Errorf("failed to write monitor config file to %s: %+v", monConfFilePath, err)
+	}
+
+	// create monitor data dir
+	monDataDir := fmt.Sprintf("/tmp/mon/mon.%s", cfg.MonName)
+	if err := os.MkdirAll(filepath.Dir(monDataDir), 0744); err != nil {
+		fmt.Printf("failed to create monitor data directory at %s: %+v", monDataDir, err)
+	}
+
+	// call ceph-mon --mkfs
+	mkfsArgs := []string{
+		os.Args[0], // BUGBUG: remove this?
+		"--mkfs",
+		fmt.Sprintf("--cluster=%s", cfg.ClusterName),
+		fmt.Sprintf("--id=%s", cfg.MonName),
+		fmt.Sprintf("--mon-data=%s", monDataDir),
+		"--conf=/tmp/mon/tmp_config",
+		"--keyring=/tmp/mon/tmp_keyring"}
+	err = cephd.Mon(mkfsArgs)
+	if err != nil {
+		return fmt.Errorf("failed ceph-mon --mkfs with args: '%+v'.  error: %+v", mkfsArgs, err)
 	}
 
 	return nil

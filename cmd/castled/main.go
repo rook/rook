@@ -12,6 +12,7 @@ import (
 
 func main() {
 
+	clusterNamePtr := flag.String("cluster-name", "defaultCluster", "name of ceph cluster")
 	etcdURLsPtr := flag.String("etcd-urls", "http://127.0.0.1:4001", "comma separated list of etcd listen URLs")
 	privateIPv4Ptr := flag.String("private-ipv4", "", "private IPv4 address for this machine (required)")
 	monNamePtr := flag.String("mon-name", "mon1", "monitor name")
@@ -19,11 +20,11 @@ func main() {
 
 	flag.Parse()
 
-	verifyRequiredFlags([]*string{etcdURLsPtr, privateIPv4Ptr})
+	verifyRequiredFlags([]*string{clusterNamePtr, etcdURLsPtr, privateIPv4Ptr})
 
 	// TODO: add the discovery URL to the command line/env var config,
 	// then we could just ask the discovery service where to find things like etcd
-	cfg := castled.NewConfig(*etcdURLsPtr, *privateIPv4Ptr, *monNamePtr, *initMonSetPtr)
+	cfg := castled.NewConfig(*clusterNamePtr, *etcdURLsPtr, *privateIPv4Ptr, *monNamePtr, *initMonSetPtr)
 	go func(cfg castled.Config) {
 		if err := castled.Start(cfg); err != nil {
 			log.Fatalf("failed to start castled: %+v", err)
