@@ -14,6 +14,7 @@ import "C"
 
 import (
 	"fmt"
+	"os"
 	"unsafe"
 )
 
@@ -53,23 +54,29 @@ func NewSecretKey() (string, error) {
 	return "", cephdError(int(ret))
 }
 
-// Mon runs embedded ceph-mon
-func Mon(args []string) error {
+// Mon runs embedded ceph-mon.
+func Mon(args ...string) error {
+
+	// BUGBUG: the first arg is really not needed but its an artifact
+	// of calling ceph-mon.main(). Should be removed on the C++ side.
+
+	finalArgs := append([]string{os.Args[0]}, args...)
+
 	var cptr *C.char
 	ptrSize := unsafe.Sizeof(cptr)
 
 	// Allocate the char** list.
-	ptr := C.malloc(C.size_t(len(args)) * C.size_t(ptrSize))
+	ptr := C.malloc(C.size_t(len(finalArgs)) * C.size_t(ptrSize))
 	defer C.free(ptr)
 
 	// Assign each byte slice to its appropriate offset.
-	for i := 0; i < len(args); i++ {
+	for i := 0; i < len(finalArgs); i++ {
 		element := (**C.char)(unsafe.Pointer(uintptr(ptr) + uintptr(i)*ptrSize))
-		*element = C.CString(args[i])
+		*element = C.CString(finalArgs[i])
 		defer C.free(unsafe.Pointer(*element))
 	}
 
-	ret := C.cephd_mon(C.int(len(args)), (**C.char)(ptr))
+	ret := C.cephd_mon(C.int(len(finalArgs)), (**C.char)(ptr))
 	if ret < 0 {
 		return cephdError(int(ret))
 	}
