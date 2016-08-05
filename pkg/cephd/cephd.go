@@ -3,7 +3,7 @@ package cephd
 // #cgo CFLAGS: -I${SRCDIR}/../../ceph/src/include
 // #cgo jemalloc LDFLAGS: -ljemalloc
 // #cgo tcmalloc LDFLAGS: -ltcmalloc_minimal
-// #cgo LDFLAGS: -L${SRCDIR}/../../ceph/build/lib -lcephd -lm -ldl -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lz -lsnappy -lcrypto++ -lresolv -lleveldb
+// #cgo LDFLAGS: -L${SRCDIR}/../../ceph/build/lib -lcephd -lm -ldl -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lz -lsnappy -lcrypto++ -lresolv -lleveldb -laio -lblkid -luuid
 // #cgo jemalloc tcmalloc CFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
 // #cgo jemalloc tcmalloc CXXFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
 // #include <errno.h>
@@ -55,7 +55,7 @@ func NewSecretKey() (string, error) {
 }
 
 // Mon runs embedded ceph-mon.
-func Mon(args ...string) error {
+func RunDaemon(daemon string, args ...string) error {
 
 	// BUGBUG: the first arg is really not needed but its an artifact
 	// of calling ceph-mon.main(). Should be removed on the C++ side.
@@ -76,7 +76,13 @@ func Mon(args ...string) error {
 		defer C.free(unsafe.Pointer(*element))
 	}
 
-	ret := C.cephd_mon(C.int(len(finalArgs)), (**C.char)(ptr))
+	var ret C.int
+
+	if daemon == "mon" {
+		ret = C.cephd_mon(C.int(len(finalArgs)), (**C.char)(ptr))
+	} else if daemon == "osd" {
+		ret = C.cephd_osd(C.int(len(finalArgs)), (**C.char)(ptr))
+	}
 	if ret < 0 {
 		return cephdError(int(ret))
 	}
