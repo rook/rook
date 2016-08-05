@@ -12,7 +12,10 @@ package cephd
 // #include "cephd/libcephd.h"
 import "C"
 
-import "fmt"
+import (
+	"fmt"
+	"unsafe"
+)
 
 // cephdError represents an error
 type cephdError int
@@ -22,29 +25,54 @@ func (e cephdError) Error() string {
 	return fmt.Sprintf("cephd: %s", C.GoString(C.strerror(C.int(-e))))
 }
 
-// Cluster bootstrap information
-type Cluster struct {
-	Fsid          string
-	MonitorSecret string
-	AdminSecret   string
-}
-
 // Version returns the version of Ceph
 func Version() string {
 	var cMajor, cMinor, cPatch C.int
 	return C.GoString(C.ceph_version(&cMajor, &cMinor, &cPatch))
 }
 
-// NewCluster creates a new cluster
-func NewCluster() (cluster Cluster, err error) {
-	cCluster := C.struct_cephd_cluster_t{}
-	ret := C.cephd_cluster_create(&cCluster)
-	if ret < 0 {
-		return Cluster{}, cephdError(int(ret))
+// NewFsid generates a new cluster id
+func NewFsid() (string, error) {
+	buf := make([]byte, 37)
+	ret := int(C.cephd_generate_fsid((*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf))))
+	if ret >= 0 {
+		return C.GoString((*C.char)(unsafe.Pointer(&buf[0]))), nil
 	}
-	return Cluster{
-		Fsid:          C.GoString(&cCluster.fsid[0]),
-		MonitorSecret: C.GoString(&cCluster.monitorSecret[0]),
-		AdminSecret:   C.GoString(&cCluster.adminSecret[0]),
-	}, nil
+
+	return "", cephdError(int(ret))
+}
+
+// NewSecretKey generates a new secret key
+func NewSecretKey() (string, error) {
+	buf := make([]byte, 128)
+	ret := int(C.cephd_generate_secret_key((*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf))))
+	if ret >= 0 {
+		return C.GoString((*C.char)(unsafe.Pointer(&buf[0]))), nil
+	}
+
+	return "", cephdError(int(ret))
+}
+
+// Mon runs embedded ceph-mon
+func Mon(args []string) error {
+	var cptr *C.char
+	ptrSize := unsafe.Sizeof(cptr)
+
+	// Allocate the char** list.
+	ptr := C.malloc(C.size_t(len(args)) * C.size_t(ptrSize))
+	defer C.free(ptr)
+
+	// Assign each byte slice to its appropriate offset.
+	for i := 0; i < len(args); i++ {
+		element := (**C.char)(unsafe.Pointer(uintptr(ptr) + uintptr(i)*ptrSize))
+		*element = C.CString(args[i])
+		defer C.free(unsafe.Pointer(*element))
+	}
+
+	ret := C.cephd_mon(C.int(len(args)), (**C.char)(ptr))
+	if ret < 0 {
+		return cephdError(int(ret))
+	}
+
+	return nil
 }
