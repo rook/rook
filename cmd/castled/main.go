@@ -11,6 +11,21 @@ import (
 )
 
 func main() {
+	/*
+		if len(os.Args) > 1 && os.Args[1] == "version" {
+			fmt.Printf("cephd: %v\n", cephd.Version())
+			rmajor, rminor, rpatch := cephd.RadosVersion()
+			fmt.Printf("rados: %v.%v.%v\n", rmajor, rminor, rpatch)
+			return
+		}
+
+		if len(os.Args) > 2 && os.Args[1] == "daemon" {
+			cephd.RunDaemon(os.Args[2], os.Args[3:]...)
+			return
+		}
+
+		castled.StartOneMon()
+	*/
 
 	clusterNamePtr := flag.String("cluster-name", "defaultCluster", "name of ceph cluster")
 	etcdURLsPtr := flag.String("etcd-urls", "http://127.0.0.1:4001", "comma separated list of etcd listen URLs")
