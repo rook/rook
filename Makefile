@@ -7,10 +7,12 @@ GOARCH = $(shell go env GOARCH)
 # TODO: support for tracing in ceph
 # TODO: jemalloc and static linking are currently broken due to https://github.com/jemalloc/jemalloc/issues/442
 # TODO: remove leveldb
+# TODO: can we strip -s all binaries?
 
 # Can be used for additional go build flags
 BUILDFLAGS ?=
 LDFLAGS ?=
+TAGS ?= 
 
 # Additional flags to use when calling cmake on ceph
 CEPHD_CMAKE += \
@@ -24,11 +26,26 @@ CEPHD_CMAKE += \
 	-DWITH_MANPAGE=OFF \
 	-DWITH_PROFILER=OFF
 
-# set to 1 for a completely static build
+# set to 1 for a completely static build. Otherwise if set to 0
+# a dynamic binary is produced that requires glibc to be installed
 STATIC ?= 1
 ifeq ($(STATIC),1)
-LDFLAGS += -extldflags "-static"
 BUILDFLAGS += -installsuffix cgo
+LDFLAGS += -extldflags "-static"
+TAGS += static
+else
+TAGS += dynamic
+endif
+
+# build a position independent executable. This implies dynamic linking
+# since statically-linked PIE is not supported by the linker/glibc
+PIE ?= 0
+ifeq ($(PIE),1)
+ifeq ($(STATIC),1)
+$(error PIE only supported with dynamic linking. Set STATIC=0.)
+endif
+BUILDFLAGS += -buildmode=pie
+TAGS += pie
 endif
 
 # Can be jemalloc, tcmalloc or glibc 
@@ -57,6 +74,9 @@ V ?= 0
 ifeq ($(V),1)
 LDFLAGS += -v
 BUILDFLAGS += -x
+MFLAGS += -w
+else
+MFLAGS += -s
 endif
 
 # set the version number. 
@@ -70,16 +90,16 @@ all: build test
 
 .PHONY: build
 build: vendor ceph
-	mkdir -p ceph/build
+	@mkdir -p ceph/build
 	@echo "##### configuring ceph" 
 	cd ceph/build && cmake $(CEPHD_CMAKE) ..
 	@echo "##### building ceph" 
 	cd ceph/build && $(MAKE) $(MFLAGS) cephd
 ifeq ($(DEBUG),0)
-	echo "##### stripping libcephd.a" 
+	@echo "##### stripping libcephd.a" 
 	strip -S ceph/build/lib/libcephd.a
 endif
-	echo "##### building castled" 
+	@echo "##### building castled" 
 	go build $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' -o bin/castled ./cmd/castled
 
 ceph:

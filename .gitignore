@@ -3,3 +3,4 @@ tools/
 vendor/
 
 .vscode/
+.glide/

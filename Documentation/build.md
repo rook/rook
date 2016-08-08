@@ -1,0 +1,69 @@
+# Building
+
+Castle is golang binary that uses cgo to interface with embedded ceph. The ceph 
+project is a submodule of castle and is built from the top level Makefile.
+
+## Static binary
+
+This is the easiest option and produced static binaries for castled and tools. These
+binaries can easily be used inside minimal or scratch containers, or run on minimal
+linux distributions like CoreOS.
+
+```
+make STATIC=1 build
+```
+
+## Dyanmic binary
+
+If you dont want to distribute a static binary, a dynamically linked binary is 
+supported. The approach we take is to link most of the glibc binaries dynamically
+and the rest of the libraries continue to be linked statically. Ceph has a lot
+of dependencies and we take this approach to simplify the distribution.
+
+```
+make STATIC=0 build
+```
+
+## Hardedened binary (PIE)
+
+You can build a Position Independent executable as follows:
+
+```
+make STATIC=0 PIE=1 build
+```
+
+## Switching Allocators
+
+Using a different memory allocator can impact the overall performance of the system. 
+Three allocators are currently supported: jemalloc, tcmalloc and libc. To specify
+an allocator during the build run the following:
+
+```
+make ALLOCATOR=jemalloc build
+```
+
+## Debug Builds
+
+To build a binary with debug symbols run the following:
+
+```
+make DEBUG=1 build
+```
+
+Note the binary will be significantly larger in size.
+
+## Verbose Builds
+
+To turn on verbose build output run the following
+
+```
+make DEBUG=1 build
+```
+
+## Parallel Builds
+
+You can speed up the build significantly by passing the -j flag to make as follows:
+
+```
+make -j4 build
+```
