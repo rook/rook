@@ -46,67 +46,38 @@ const (
 `
 )
 
-// BUGUBG: we could use a better process manager here with support for rediecting
-// stdout, stderr, and signals. And can monitor the child.
-
-func createCmd(daemon string, args ...string) (cmd *exec.Cmd) {
-	cmd = exec.Command(os.Args[0], append([]string{"daemon", daemon}, args...)...)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd
-}
-
-func runChildProcess(daemon string, args ...string) error {
-	cmd := createCmd(daemon, args...)
-	return cmd.Run()
-}
-
-func startChildProcess(daemon string, args ...string) (cmd *exec.Cmd, err error) {
-	cmd = createCmd(daemon, args...)
-	err = cmd.Start()
-	if err != nil {
-		return nil, err
-	}
-	return cmd, nil
-}
-
-func stopChildProcess(cmd *exec.Cmd) error {
-	return cmd.Process.Kill()
-}
-
 type clusterInfo struct {
 	FSID          string
 	MonitorSecret string
 	AdminSecret   string
 }
 
-func Bootstrap(cfg Config) error {
+func Bootstrap(cfg Config) (*exec.Cmd, error) {
 	// TODO: some of these operations should be done by only one member of the cluster, (e.g. leader election)
 
 	// get an etcd client to coordinate with the rest of the cluster and load/save config
 	etcdClient, err := kvstore.GetEtcdClient(cfg.EtcdURLs)
 	if err != nil {
-		return fmt.Errorf("failed to get etcdClient: %+v", err)
+		return nil, fmt.Errorf("failed to get etcdClient: %+v", err)
 	}
 
 	// load any existing cluster info that may have previously been created
-	cluster, err := LoadClusterInfo(etcdClient)
+	cluster, err := loadClusterInfo(etcdClient)
 	if err != nil {
-		return fmt.Errorf("failed to load cluster info: %+v", err)
+		return nil, fmt.Errorf("failed to load cluster info: %+v", err)
 	}
 
 	if !isClusterInfoSet(cluster) {
 		// the cluster info is not yet set, go ahead and set it now
-		cluster, err := createClusterInfo()
+		cluster, err = createClusterInfo()
 		if err != nil {
-			return fmt.Errorf("failed to create cluster info: %+v", err)
+			return nil, fmt.Errorf("failed to create cluster info: %+v", err)
 		}
 
 		log.Printf("Created new cluster info: %+v", cluster)
-		err = SaveClusterInfo(cluster, etcdClient)
+		err = saveClusterInfo(cluster, etcdClient)
 		if err != nil {
-			return fmt.Errorf("failed to save new cluster info: %+v", err)
+			return nil, fmt.Errorf("failed to save new cluster info: %+v", err)
 		}
 	} else {
 		// the cluster has already been created
@@ -114,28 +85,29 @@ func Bootstrap(cfg Config) error {
 	}
 
 	if err := registerMonitor(cfg, etcdClient); err != nil {
-		return fmt.Errorf("failed to register monitor: %+v", err)
+		return nil, fmt.Errorf("failed to register monitor: %+v", err)
 	}
 
 	// wait for monitor registration to complete for all expected initial monitors
 	if err := waitForMonitorRegistration(cfg, etcdClient); err != nil {
-		return fmt.Errorf("failed to wait for monitors to register: %+v", err)
+		return nil, fmt.Errorf("failed to wait for monitors to register: %+v", err)
 	}
 
 	if err := makeMonitorFileSystem(cfg, cluster); err != nil {
-		return fmt.Errorf("failed to make monitor filesystem: %+v", err)
+		return nil, fmt.Errorf("failed to make monitor filesystem: %+v", err)
 	}
 
-	if err := runMonitor(cfg); err != nil {
-		return fmt.Errorf("failed to run monitor: %+v", err)
+	proc, err := runMonitor(cfg)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run monitor: %+v", err)
 	}
 
 	log.Printf("successfully started monitor %s", cfg.MonName)
 
-	return nil
+	return proc, nil
 }
 
-func LoadClusterInfo(etcdClient etcd.KeysAPI) (clusterInfo, error) {
+func loadClusterInfo(etcdClient etcd.KeysAPI) (clusterInfo, error) {
 	resp, err := etcdClient.Get(context.Background(), path.Join(cephKey, "fsid"), nil)
 	if err != nil {
 		return handleLoadClusterInfoErr(err)
@@ -197,7 +169,7 @@ func createClusterInfo() (clusterInfo, error) {
 	}, nil
 }
 
-func SaveClusterInfo(c clusterInfo, etcdClient etcd.KeysAPI) error {
+func saveClusterInfo(c clusterInfo, etcdClient etcd.KeysAPI) error {
 	_, err := etcdClient.Set(context.Background(), path.Join(cephKey, "fsid"), c.FSID, nil)
 	if err != nil {
 		return err
@@ -268,15 +240,53 @@ func waitForMonitorRegistration(cfg Config, etcdClient etcd.KeysAPI) error {
 
 func makeMonitorFileSystem(cfg Config, c clusterInfo) error {
 	// write the keyring to disk
+	keyringPath, err := writeMonitorKeyring(c)
+	if err != nil {
+		return err
+	}
+
+	// write the config file to disk
+	monConfFilePath, err := writeMonitorConfigFile(cfg, c)
+	if err != nil {
+		return err
+	}
+
+	// create monitor data dir
+	monDataDir := fmt.Sprintf("/tmp/mon/mon.%s", cfg.MonName)
+	if err := os.MkdirAll(filepath.Dir(monDataDir), 0744); err != nil {
+		fmt.Printf("failed to create monitor data directory at %s: %+v", monDataDir, err)
+	}
+
+	// call mon --mkfs in a child process
+	err = runChildProcess(
+		"mon",
+		"--mkfs",
+		fmt.Sprintf("--cluster=%s", cfg.ClusterName),
+		fmt.Sprintf("--name=mon.%s", cfg.MonName),
+		fmt.Sprintf("--mon-data=%s", monDataDir),
+		fmt.Sprintf("--conf=%s", monConfFilePath),
+		fmt.Sprintf("--keyring=%s", keyringPath))
+	if err != nil {
+		return fmt.Errorf("failed mon --mkfs: %+v", err)
+	}
+
+	return nil
+}
+
+func writeMonitorKeyring(c clusterInfo) (string, error) {
 	keyring := fmt.Sprintf(monitorKeyringTemplate, c.MonitorSecret, c.AdminSecret)
 	keyringPath := "/tmp/mon/tmp_keyring"
 	if err := os.MkdirAll(filepath.Dir(keyringPath), 0744); err != nil {
-		fmt.Printf("failed to create keyring directory for %s: %+v", keyringPath, err)
+		return "", fmt.Errorf("failed to create keyring directory for %s: %+v", keyringPath, err)
 	}
 	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0644); err != nil {
-		return fmt.Errorf("failed to write monitor keyring to %s: %+v", keyringPath, err)
+		return "", fmt.Errorf("failed to write monitor keyring to %s: %+v", keyringPath, err)
 	}
 
+	return keyringPath, nil
+}
+
+func writeMonitorConfigFile(cfg Config, c clusterInfo) (string, error) {
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	initialMonMembers := make([]string, len(cfg.InitialMonitors))
@@ -291,7 +301,7 @@ func makeMonitorFileSystem(cfg Config, c clusterInfo) error {
 		c.FSID,
 		strings.Join(initialMonMembers, " ")))
 	if err != nil {
-		return fmt.Errorf("failed to write global config section, %+v", err)
+		return "", fmt.Errorf("failed to write global config section, %+v", err)
 	}
 
 	// write the config for each individual monitor member of the cluster to the content buffer
@@ -299,7 +309,7 @@ func makeMonitorFileSystem(cfg Config, c clusterInfo) error {
 		mon := cfg.InitialMonitors[i]
 		_, err := contentBuffer.WriteString(fmt.Sprintf(monitorConfigTemplate, mon.Name, mon.Name, mon.Endpoint))
 		if err != nil {
-			return fmt.Errorf("failed to write monitor config section for mon %s, %+v", mon.Name, err)
+			return "", fmt.Errorf("failed to write monitor config section for mon %s, %+v", mon.Name, err)
 		}
 	}
 
@@ -309,32 +319,13 @@ func makeMonitorFileSystem(cfg Config, c clusterInfo) error {
 		fmt.Printf("failed to create monitor config file directory for %s: %+v", monConfFilePath, err)
 	}
 	if err := ioutil.WriteFile(monConfFilePath, contentBuffer.Bytes(), 0644); err != nil {
-		return fmt.Errorf("failed to write monitor config file to %s: %+v", monConfFilePath, err)
+		return "", fmt.Errorf("failed to write monitor config file to %s: %+v", monConfFilePath, err)
 	}
 
-	// create monitor data dir
-	monDataDir := fmt.Sprintf("/tmp/mon/mon.%s", cfg.MonName)
-	if err := os.MkdirAll(filepath.Dir(monDataDir), 0744); err != nil {
-		fmt.Printf("failed to create monitor data directory at %s: %+v", monDataDir, err)
-	}
-
-	// call ceph-mon --mkfs
-	err = runChildProcess(
-		"mon",
-		"--mkfs",
-		fmt.Sprintf("--cluster=%s", cfg.ClusterName),
-		fmt.Sprintf("--name=%s", cfg.MonName),
-		fmt.Sprintf("--mon-data=%s", monDataDir),
-		fmt.Sprintf("--conf=%s", monConfFilePath),
-		fmt.Sprintf("--keyring=%s", keyringPath))
-	if err != nil {
-		return fmt.Errorf("failed ceph-mon --mkfs: %+v", err)
-	}
-
-	return nil
+	return monConfFilePath, nil
 }
 
-func runMonitor(cfg Config) error {
+func runMonitor(cfg Config) (*exec.Cmd, error) {
 	monConfFilePath := "/tmp/mon/tmp_config"
 	monDataDir := fmt.Sprintf("/tmp/mon/mon.%s", cfg.MonName)
 
@@ -345,22 +336,22 @@ func runMonitor(cfg Config) error {
 		}
 	}
 	if monEndpoint == "" {
-		return fmt.Errorf("failed to find endpoint for mon %s", cfg.MonName)
+		return nil, fmt.Errorf("failed to find endpoint for mon %s", cfg.MonName)
 	}
 
-	// now run the mon
+	// start the monitor daemon in the foreground with the given config
 	log.Printf("starting monitor %s", cfg.MonName)
-	_, err := startChildProcess(
+	cmd, err := startChildProcess(
 		"mon",
 		"--foreground",
 		fmt.Sprintf("--cluster=%v", cfg.ClusterName),
-		fmt.Sprintf("--name=%v", cfg.MonName),
+		fmt.Sprintf("--name=mon.%v", cfg.MonName),
 		fmt.Sprintf("--mon-data=%s", monDataDir),
 		fmt.Sprintf("--conf=%s", monConfFilePath),
 		fmt.Sprintf("--public-addr=%v", monEndpoint))
 	if err != nil {
-		return fmt.Errorf("failed to start monitor %s: %+v", cfg.MonName, err)
+		return nil, fmt.Errorf("failed to start monitor %s: %+v", cfg.MonName, err)
 	}
 
-	return nil
+	return cmd, nil
 }
