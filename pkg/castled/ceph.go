@@ -75,105 +75,13 @@ func stopChildProcess(cmd *exec.Cmd) error {
 	return cmd.Process.Kill()
 }
 
-func writeKeyRing(filePath, monSecretKey, adminSecretKey string) error {
-	var keyringTemplate = `[mon.]
-	key = %v
-	caps mon = "allow *"
-[client.admin]
-	key = %v
-	auid = 0
-	caps mds = "allow"
-	caps mon = "allow *"
-	caps osd = "allow *"
-`
-	keyring := fmt.Sprintf(keyringTemplate, monSecretKey, adminSecretKey)
-
-	return ioutil.WriteFile(filePath, []byte(keyring), 0644)
-}
-
-func StartOneMon() error {
-
-	// cluster params
-	clusterName := "foo"
-	fsid, _ := cephd.NewFsid()
-	monitorSecretKey, _ := cephd.NewSecretKey()
-	adminSecretKey, _ := cephd.NewSecretKey()
-
-	// mon params
-	monDir := "/tmp/mon"
-	monName := "mon.a"
-	monAddr := "127.0.0.1:6789"
-
-	// kill the monDir directroy
-	os.RemoveAll(monDir)
-	os.Mkdir(monDir, 0755)
-
-	// write the initial keyring
-	writeKeyRing(monDir+"/tmp_keyring", monitorSecretKey, adminSecretKey)
-
-	// write the config
-	var configTemplate = `
-[global]
-	fsid=%v
-	run dir=%v
-	mon initial members = %v
-[%v]
-	host = localhost
-	mon addr = %v
-`
-	config := fmt.Sprintf(configTemplate, fsid, monDir, monName, monName, monAddr)
-
-	var err error
-
-	err = ioutil.WriteFile(monDir+"/config", []byte(config), 0644)
-	if err != nil {
-		return err
-	}
-
-	// call mkfs
-	fmt.Println("calling mkfs")
-	err = runChildProcess(
-		"mon",
-		"--mkfs",
-		fmt.Sprintf("--cluster=%v", clusterName),
-		fmt.Sprintf("--name=%v", monName),
-		fmt.Sprintf("--mon-data=%v/mon.a", monDir),
-		fmt.Sprintf("--conf=%v/config", monDir),
-		fmt.Sprintf("--keyring=%v/tmp_keyring", monDir))
-
-	// now run the mon
-	fmt.Println("starting the mon")
-	cmd, err := startChildProcess(
-		"mon",
-		"--foreground",
-		fmt.Sprintf("--cluster=%v", clusterName),
-		fmt.Sprintf("--name=%v", monName),
-		fmt.Sprintf("--mon-data=%v/%v", monDir, monName),
-		fmt.Sprintf("--conf=%v/config", monDir),
-		fmt.Sprintf("--public-addr=%v", monAddr))
-	if err != nil {
-		return err
-	}
-
-	fmt.Println("sleeping for 30 secs")
-	time.Sleep(30 * time.Second)
-
-	fmt.Println("stopping the mon")
-	stopChildProcess(cmd)
-	cmd.Wait()
-
-	fmt.Println("stopped")
-
-	return nil
-}
-
 type clusterInfo struct {
 	FSID          string
 	MonitorSecret string
 	AdminSecret   string
 }
 
-func Start(cfg Config) error {
+func Bootstrap(cfg Config) error {
 	// TODO: some of these operations should be done by only one member of the cluster, (e.g. leader election)
 
 	// get an etcd client to coordinate with the rest of the cluster and load/save config
@@ -218,15 +126,11 @@ func Start(cfg Config) error {
 		return fmt.Errorf("failed to make monitor filesystem: %+v", err)
 	}
 
-	/*
-		// run the mon
-		cephd.Mon([]string{
-			os.Args[0], // BUGBUG: remove this?
-			"--cluster=foo",
-			"--id=mon.a",
-			"--mon-data=/tmp/mon/mon.a",
-			"--conf=/tmp/mon/tmp_config"})
-	*/
+	if err := runMonitor(cfg); err != nil {
+		return fmt.Errorf("failed to run monitor: %+v", err)
+	}
+
+	log.Printf("successfully started monitor %s", cfg.MonName)
 
 	return nil
 }
@@ -307,9 +211,11 @@ func SaveClusterInfo(c clusterInfo, etcdClient etcd.KeysAPI) error {
 	}
 
 	_, err = etcdClient.Set(context.Background(), path.Join(secretsKey, "admin"), c.AdminSecret, nil)
-	keyring := fmt.Sprintf(keyringTemplate, monSecretKey, adminSecretKey)
+	if err != nil {
+		return err
+	}
 
-	return ioutil.WriteFile(filePath, []byte(keyring), 0644)
+	return nil
 }
 
 func registerMonitor(cfg Config, etcdClient etcd.KeysAPI) error {
@@ -413,17 +319,47 @@ func makeMonitorFileSystem(cfg Config, c clusterInfo) error {
 	}
 
 	// call ceph-mon --mkfs
-	mkfsArgs := []string{
-		os.Args[0], // BUGBUG: remove this?
+	err = runChildProcess(
+		"mon",
 		"--mkfs",
 		fmt.Sprintf("--cluster=%s", cfg.ClusterName),
-		fmt.Sprintf("--id=%s", cfg.MonName),
+		fmt.Sprintf("--name=%s", cfg.MonName),
 		fmt.Sprintf("--mon-data=%s", monDataDir),
-		"--conf=/tmp/mon/tmp_config",
-		"--keyring=/tmp/mon/tmp_keyring"}
-	err = cephd.Mon(mkfsArgs)
+		fmt.Sprintf("--conf=%s", monConfFilePath),
+		fmt.Sprintf("--keyring=%s", keyringPath))
 	if err != nil {
-		return fmt.Errorf("failed ceph-mon --mkfs with args: '%+v'.  error: %+v", mkfsArgs, err)
+		return fmt.Errorf("failed ceph-mon --mkfs: %+v", err)
+	}
+
+	return nil
+}
+
+func runMonitor(cfg Config) error {
+	monConfFilePath := "/tmp/mon/tmp_config"
+	monDataDir := fmt.Sprintf("/tmp/mon/mon.%s", cfg.MonName)
+
+	var monEndpoint string
+	for i := range cfg.InitialMonitors {
+		if cfg.InitialMonitors[i].Name == cfg.MonName {
+			monEndpoint = cfg.InitialMonitors[i].Endpoint
+		}
+	}
+	if monEndpoint == "" {
+		return fmt.Errorf("failed to find endpoint for mon %s", cfg.MonName)
+	}
+
+	// now run the mon
+	log.Printf("starting monitor %s", cfg.MonName)
+	_, err := startChildProcess(
+		"mon",
+		"--foreground",
+		fmt.Sprintf("--cluster=%v", cfg.ClusterName),
+		fmt.Sprintf("--name=%v", cfg.MonName),
+		fmt.Sprintf("--mon-data=%s", monDataDir),
+		fmt.Sprintf("--conf=%s", monConfFilePath),
+		fmt.Sprintf("--public-addr=%v", monEndpoint))
+	if err != nil {
+		return fmt.Errorf("failed to start monitor %s: %+v", cfg.MonName, err)
 	}
 
 	return nil
