@@ -1,6 +1,13 @@
-hash: ed0ac78e36a48a3140bd61be5aba1db8f7a7b3adae518dd6419a49ff46af4424
-updated: 2016-07-24T13:00:22.18839951-07:00
+hash: d8e1942658abe6166ea9f306c3caa1a79a4420b9ea68c8f9acdc3f96476bd0f1
+updated: 2016-08-09T17:19:26.234852718-07:00
 imports:
+- name: github.com/coreos/etcd
+  version: d53923c636e0e4ab7f00cb75681b97a8f11f5a9d
+  subpackages:
+  - client
+  - error
+  - pkg/pathutil
+  - pkg/types
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/spf13/cobra
@@ -8,5 +15,13 @@ imports:
   subpackages:
   - cobra
 - name: github.com/spf13/pflag
-  version: 1560c1005499d61b80f865c04d39ca7505bf7f0b
+  version: f676131e2660dc8cd88de99f7486d34aa8172635
+- name: github.com/ugorji/go
+  version: 3487a5545b3d480987dfb0492035299077fab33a
+  subpackages:
+  - codec
+- name: golang.org/x/net
+  version: 57bfaa875b96fb91b4766077f34470528d4b03e9
+  subpackages:
+  - context
 testImports: []
