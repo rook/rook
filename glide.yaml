@@ -7,4 +7,4 @@ import:
   subpackages:
   - client
   - error
-- package: github.com/namsral/flag
+- package: github.com/spf13/pflag

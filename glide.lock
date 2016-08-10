@@ -1,5 +1,5 @@
-hash: 37c593748f1247119a8246f1017bffb1317fadc0aeec540424f4a233acc8fcf8
-updated: 2016-08-04T16:38:59.926519624-07:00
+hash: d8e1942658abe6166ea9f306c3caa1a79a4420b9ea68c8f9acdc3f96476bd0f1
+updated: 2016-08-09T17:19:26.234852718-07:00
 imports:
 - name: github.com/coreos/etcd
   version: d53923c636e0e4ab7f00cb75681b97a8f11f5a9d
@@ -8,12 +8,14 @@ imports:
   - error
   - pkg/pathutil
   - pkg/types
-- name: github.com/namsral/flag
-  version: 7b43f5fa0f712cee3dec3d35be970b845adfa321
+- name: github.com/inconshreveable/mousetrap
+  version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/spf13/cobra
   version: dbb7c2d02e284aa24423e3e6e105969dffe6e4d6
   subpackages:
   - cobra
+- name: github.com/spf13/pflag
+  version: f676131e2660dc8cd88de99f7486d34aa8172635
 - name: github.com/ugorji/go
   version: 3487a5545b3d480987dfb0492035299077fab33a
   subpackages:
