@@ -13,8 +13,9 @@ var (
 )
 
 var daemonCmd = &cobra.Command{
-	Use:   "daemon",
-	Short: "Runs a castled daemon",
+	Use:    "daemon",
+	Short:  "Runs a castled daemon",
+	Hidden: true,
 }
 
 func init() {
