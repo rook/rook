@@ -6,8 +6,10 @@ import (
 	"os/exec"
 	"os/signal"
 
-	"github.com/quantum/castle/pkg/castled"
 	"github.com/spf13/cobra"
+
+	"github.com/quantum/castle/pkg/castled"
+	"github.com/quantum/castle/pkg/proc"
 )
 
 var (
@@ -17,6 +19,7 @@ var (
 	monNames    string
 	initMonSet  string
 	devices     string
+	forceFormat bool
 )
 
 var rootCmd = &cobra.Command{
@@ -27,11 +30,16 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.Flags().StringVar(&clusterName, "cluster-name", "defaultCluster", "name of ceph cluster (required)")
-	rootCmd.Flags().StringVar(&etcdURLs, "etcd-urls", "http://127.0.0.1:4001", "comma separated list of etcd listen URLs (required)")
+	rootCmd.Flags().StringVar(&etcdURLs, "etcd-urls", "http://127.0.0.1:4001",
+		"comma separated list of etcd listen URLs (required)")
 	rootCmd.Flags().StringVar(&privateIPv4, "private-ipv4", "", "private IPv4 address for this machine (required)")
-	rootCmd.Flags().StringVar(&monNames, "mon-names", "mon1", "comma separated list of monitor names to run on this machine (only 1 recommended)")
-	rootCmd.Flags().StringVar(&initMonSet, "initial-monitors", "mon1", "comma separated list of initial monitor names in the cluster")
+	rootCmd.Flags().StringVar(&monNames, "mon-names", "mon1",
+		"comma separated list of monitor names to run on this machine (only 1 recommended)")
+	rootCmd.Flags().StringVar(&initMonSet, "initial-monitors", "mon1",
+		"comma separated list of initial monitor names in the cluster")
 	rootCmd.Flags().StringVar(&devices, "devices", "", "comma separated list of devices to use")
+	rootCmd.Flags().BoolVar(&forceFormat, "force-format", false,
+		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 
 	rootCmd.MarkFlagRequired("cluster-name")
 	rootCmd.MarkFlagRequired("etcd-urls")
@@ -51,17 +59,17 @@ func addCommands() {
 }
 
 func bootstrap(cmd *cobra.Command, args []string) error {
-	if err := verifyRequiredFlags(rootCmd, []string{"cluster-name", "etcd-urls", "private-ipv4"}); err != nil {
+	if err := verifyRequiredFlags(cmd, []string{"cluster-name", "etcd-urls", "private-ipv4"}); err != nil {
 		return err
 	}
 
 	// TODO: add the discovery URL to the command line/env var config,
 	// then we could just ask the discovery service where to find things like etcd
-	cfg := castled.NewConfig(clusterName, etcdURLs, privateIPv4, monNames, initMonSet, devices)
+	cfg := castled.NewConfig(clusterName, etcdURLs, privateIPv4, monNames, initMonSet, devices, forceFormat)
 	var procs []*exec.Cmd
 	go func(cfg castled.Config) {
 		var err error
-		procs, err = castled.Bootstrap(cfg)
+		procs, err = castled.Bootstrap(cfg, &proc.CommandExecutor{})
 		if err != nil {
 			fmt.Printf("failed to bootstrap castled: %+v", err)
 		} else {
@@ -77,7 +85,7 @@ func bootstrap(cmd *cobra.Command, args []string) error {
 	fmt.Println("terminating due to ctrl-c interrupt...")
 	for i := range procs {
 		fmt.Println("stopping child process")
-		if err := castled.StopChildProcess(procs[i]); err != nil {
+		if err := proc.StopChildProcess(procs[i]); err != nil {
 			fmt.Printf("failed to stop child process: %+v", err)
 		} else {
 			fmt.Println("child process stopped successfully")

@@ -10,11 +10,11 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/castle/pkg/kvstore"
+	"github.com/quantum/castle/pkg/proc"
 
 	etcd "github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
@@ -39,14 +39,25 @@ const (
 	fsid=%s
 	run dir=%s
 	mon initial members = %s
-
+`
+	adminClientConfigTemplate = `
 [client.admin]
     keyring=%s
 `
+	bootstrapOSDClientConfigTemplate = `
+[client.bootstrap-osd]
+    keyring=%s
+`
+
 	monitorConfigTemplate = `
 [mon.%s]
 	name = %s
 	mon addr = %s
+`
+	bootstrapOSDKeyringTemplate = `
+[client.bootstrap-osd]
+	key = %s
+	caps mon = "allow profile bootstrap-osd"
 `
 )
 
@@ -56,7 +67,7 @@ type clusterInfo struct {
 	AdminSecret   string
 }
 
-func Bootstrap(cfg Config) ([]*exec.Cmd, error) {
+func Bootstrap(cfg Config, executor proc.Executor) ([]*exec.Cmd, error) {
 	// TODO: some of these operations should be done by only one member of the cluster, (e.g. leader election)
 
 	// get an etcd client to coordinate with the rest of the cluster and load/save config
@@ -123,9 +134,12 @@ func Bootstrap(cfg Config) ([]*exec.Cmd, error) {
 		return procs, fmt.Errorf("failed to wait for monitors to establish quorum: %+v", err)
 	}
 
-	for _, device := range cfg.Devices {
-		// for each allowed device, bootstrap an OSD on it
-		log.Printf("initializing device %s", device)
+	if len(cfg.Devices) > 0 {
+		osdProcs, err := createOSDs(adminConn, cfg, cluster, executor)
+		procs = append(procs, osdProcs...)
+		if err != nil {
+			return procs, fmt.Errorf("failed to create OSDs: %+v", err)
+		}
 	}
 
 	return procs, nil
@@ -408,7 +422,7 @@ func makeMonitorFileSystems(cfg Config, c clusterInfo) error {
 		}
 
 		// call mon --mkfs in a child process
-		err = runChildProcess(
+		err = proc.RunChildProcess(
 			"mon",
 			"--mkfs",
 			fmt.Sprintf("--cluster=%s", cfg.ClusterName),
@@ -437,42 +451,26 @@ func writeMonitorKeyring(monName string, c clusterInfo) (string, error) {
 	return keyringPath, nil
 }
 
-func writeMonitorConfigFile(monName string, cfg Config, c clusterInfo, keyringPath string) (string, error) {
-	// extract a list of just the monitor names, which will populate the "mon initial members"
-	// global config field
-	initialMonMembers := make([]string, len(cfg.InitialMonitors))
-	for i := range cfg.InitialMonitors {
-		initialMonMembers[i] = cfg.InitialMonitors[i].Name
-	}
-
-	// write the global config section to the content buffer
+func writeMonitorConfigFile(monName string, cfg Config, c clusterInfo, adminKeyringPath string) (string, error) {
 	var contentBuffer bytes.Buffer
-	_, err := contentBuffer.WriteString(fmt.Sprintf(
-		globalConfigTemplate,
-		c.FSID,
-		getMonRunDirPath(monName),
-		strings.Join(initialMonMembers, " "),
-		keyringPath))
-	if err != nil {
+
+	if err := writeGlobalConfigFileSection(&contentBuffer, cfg, c, getMonRunDirPath(monName)); err != nil {
 		return "", fmt.Errorf("failed to write mon %s global config section, %+v", monName, err)
 	}
 
-	// write the config for each individual monitor member of the cluster to the content buffer
-	for i := range cfg.InitialMonitors {
-		mon := cfg.InitialMonitors[i]
-		_, err := contentBuffer.WriteString(fmt.Sprintf(monitorConfigTemplate, mon.Name, mon.Name, mon.Endpoint))
-		if err != nil {
-			return "", fmt.Errorf("failed to write mon %s monitor config section for mon %s, %+v", monName, mon.Name, err)
-		}
+	_, err := contentBuffer.WriteString(fmt.Sprintf(adminClientConfigTemplate, adminKeyringPath))
+	if err != nil {
+		return "", fmt.Errorf("failed to write mon %s admin client config section, %+v", monName, err)
+	}
+
+	if err := writeInitialMonitorsConfigFileSections(&contentBuffer, cfg); err != nil {
+		return "", fmt.Errorf("failed to write mon %s initial monitor config sections, %+v", monName, err)
 	}
 
 	// write the entire config to disk
 	monConfFilePath := getMonConfFilePath(monName)
-	if err := os.MkdirAll(filepath.Dir(monConfFilePath), 0744); err != nil {
-		fmt.Printf("failed to create monitor config file directory for %s: %+v", monConfFilePath, err)
-	}
-	if err := ioutil.WriteFile(monConfFilePath, contentBuffer.Bytes(), 0644); err != nil {
-		return "", fmt.Errorf("failed to write monitor config file to %s: %+v", monConfFilePath, err)
+	if err := writeFile(monConfFilePath, contentBuffer); err != nil {
+		return "", err
 	}
 
 	return monConfFilePath, nil
@@ -498,7 +496,7 @@ func runMonitors(cfg Config) ([]*exec.Cmd, error) {
 
 		// start the monitor daemon in the foreground with the given config
 		log.Printf("starting monitor %s", monName)
-		cmd, err := startChildProcess(
+		cmd, err := proc.StartChildProcess(
 			"mon",
 			"--foreground",
 			fmt.Sprintf("--cluster=%v", cfg.ClusterName),
@@ -522,4 +520,260 @@ func getMonRunDirPath(monName string) string {
 
 func getMonConfFilePath(monName string) string {
 	return filepath.Join(getMonRunDirPath(monName), "tmp_config")
+}
+
+func createOSDs(adminConn *cephd.Conn, cfg Config, c clusterInfo, executor proc.Executor) ([]*exec.Cmd, error) {
+	if err := createOSDBootstrapKeyring(adminConn, cfg.ClusterName, executor); err != nil {
+		return nil, err
+	}
+
+	bootstrapOSDConfFilePath, err := writeBootstrapOSDConfFile(cfg, c, getBootstrapOSDKeyringPath(cfg.ClusterName))
+	if err != nil {
+		return nil, fmt.Errorf("failed to write bootstrap-osd conf file at %s: %+v", bootstrapOSDConfFilePath, err)
+	}
+
+	bootstrapConn, err := connectToCluster(cfg.ClusterName, "client.bootstrap-osd", bootstrapOSDConfFilePath)
+	if err != nil {
+		return nil, err
+	}
+	defer bootstrapConn.Shutdown()
+
+	// initialize all the desired OSD volumes
+	for i, device := range cfg.Devices {
+		done, err := formatOSD(device, cfg.ForceFormat, executor)
+		if err != nil {
+			// attempting to format the volume failed, bail out with error
+			return nil, err
+		} else if !done {
+			// the formatting was not done, probably because the drive already has a filesystem.
+			// just move on to the next OSD.
+			continue
+		}
+
+		osdDataDir := fmt.Sprintf("/tmp/osd%d", i)
+		if err := mountOSD(device, osdDataDir, executor); err != nil {
+			return nil, err
+		}
+
+		/*
+
+			// find the OSD data dir
+			osdDataPath, err := findOSDDataPath(osd.DataDir, ceph.ClusterName)
+			if err != nil {
+				return err
+			}
+			if _, err := os.Stat(filepath.Join(osdDataPath, "whoami")); os.IsNotExist(err) {
+				// osd_data_dir/whoami does not exist yet
+				log.Printf("initializing the osd directory %s", osd.DataDir)
+				osdUUID, err := uuid.NewV4()
+				if err != nil {
+					return fmt.Errorf("failed to generate UUID for %s: %+v", osd.DataDir, err)
+				}
+
+				osdID, err := createOSD(bootstrapConn, osdUUID)
+				if err != nil {
+					return err
+				}
+
+				log.Printf("successfully created OSD %s with ID %d at %s", osdUUID.String(), osdID, osd.DataDir)
+
+				if err := addOSDKeyringToConf(ceph.ClusterName, osdID); err != nil {
+					return err
+				}
+
+				osdDataPath = filepath.Join(osd.DataDir, fmt.Sprintf("%s-%d", ceph.ClusterName, osdID))
+				if err := os.MkdirAll(osdDataPath, 0777); err != nil {
+					return fmt.Errorf("failed to create OSD data dir at %s, %+v", osdDataPath, err)
+				}
+				if err := chownCephPath(osdDataPath, executor); err != nil {
+					return err
+				}
+
+				// create a link from the default location of the OSD directory to our mounted volume
+				osdDefaultPath := filepath.Join(string(filepath.Separator), "var", "lib", "ceph", "osd", fmt.Sprintf("%s-%d", ceph.ClusterName, osdID))
+				if err := os.Symlink(osdDataPath, osdDefaultPath); err != nil {
+					return fmt.Errorf("failed to link OSD default path %s to %s: %+v", osdDefaultPath, osdDataPath, err)
+				}
+
+				monMapRaw, err := getMonMap(bootstrapConn)
+				if err != nil {
+					return fmt.Errorf("failed to get mon map: %+v", err)
+				}
+
+				if err := createOSDFileSystem(ceph, osdID, osdUUID, osdDefaultPath, monMapRaw, executor); err != nil {
+					return err
+				}
+
+				if err := addOSDAuth(bootstrapConn, osdID, osdDefaultPath); err != nil {
+					return err
+				}
+
+				// open a connection using the OSDs creds
+				osdConn, err := connectToCluster(ceph.ClusterName, fmt.Sprintf("osd.%d", osdID))
+				if err != nil {
+					return err
+				}
+				defer osdConn.Shutdown()
+
+				if err := addOSDToCrushMap(osdConn, osdID, osd.DataDir); err != nil {
+					return err
+				}
+
+				if err := chownCephPath(osdDefaultPath+string(filepath.Separator), executor); err != nil {
+					return err
+				}
+
+				// everything should be configured for the OSD, process its units now
+				osdUnits := OSDUnits(ceph, osdID)
+				if err := ProcessUnits(osdUnits, um); err != nil {
+					return err
+				}
+			}
+		*/
+	}
+
+	return nil, nil
+}
+
+func createOSDBootstrapKeyring(conn *cephd.Conn, clusterName string, executor proc.Executor) error {
+	bootstrapOSDKeyringPath := getBootstrapOSDKeyringPath(clusterName)
+	if _, err := os.Stat(bootstrapOSDKeyringPath); os.IsNotExist(err) {
+		// get-or-create-key for client.bootstrap-osd
+		cmd := "auth get-or-create-key"
+		command, err := json.Marshal(map[string]interface{}{
+			"prefix": cmd,
+			"format": "json",
+			"entity": "client.bootstrap-osd",
+			"caps":   []string{"mon", "allow profile bootstrap-osd"},
+		})
+		if err != nil {
+			return fmt.Errorf("command %s marshall failed: %+v", cmd, err)
+		}
+		buf, _, err := conn.MonCommand(command)
+		if err != nil {
+			return fmt.Errorf("mon_command %s failed: %+v", cmd, err)
+		}
+		var resp map[string]interface{}
+		err = json.Unmarshal(buf, &resp)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshall %s response: %+v", cmd, err)
+		}
+		bootstrapOSDKey := resp["key"].(string)
+		log.Printf("succeeded %s command, bootstrapOSDKey: %s", cmd, bootstrapOSDKey)
+
+		// create the bootstrap-osd keyring
+		bootstrapOSDKeyringDir := filepath.Dir(bootstrapOSDKeyringPath)
+		if err := os.MkdirAll(bootstrapOSDKeyringDir, 0744); err != nil {
+			fmt.Printf("failed to create bootstrap OSD keyring dir at %s: %+v", bootstrapOSDKeyringDir, err)
+		}
+		bootstrapOSDKeyring := fmt.Sprintf(bootstrapOSDKeyringTemplate, bootstrapOSDKey)
+		if err := ioutil.WriteFile(bootstrapOSDKeyringPath, []byte(bootstrapOSDKeyring), 0644); err != nil {
+			return fmt.Errorf("failed to write bootstrap-osd keyring to %s: %+v", bootstrapOSDKeyringPath, err)
+		}
+	}
+
+	return nil
+}
+
+func getBootstrapOSDDir() string {
+	return "/tmp/bootstrap-osd"
+}
+
+func getBootstrapOSDKeyringPath(clusterName string) string {
+	return fmt.Sprintf("%s/%s", getBootstrapOSDDir(), fmt.Sprintf("%s.keyring", clusterName))
+}
+
+func getBootstrapOSDConfFilePath() string {
+	return fmt.Sprintf("%s/tmp_config", getBootstrapOSDDir())
+}
+
+func writeBootstrapOSDConfFile(cfg Config, c clusterInfo, bootstrapOSDKeyringPath string) (string, error) {
+	var contentBuffer bytes.Buffer
+	bootstrapOSDConfFilePath := getBootstrapOSDConfFilePath()
+
+	if err := writeGlobalConfigFileSection(&contentBuffer, cfg, c, getBootstrapOSDDir()); err != nil {
+		return bootstrapOSDConfFilePath, fmt.Errorf("failed to write bootstrap-osd global config section, %+v", err)
+	}
+
+	_, err := contentBuffer.WriteString(fmt.Sprintf(bootstrapOSDClientConfigTemplate, bootstrapOSDKeyringPath))
+	if err != nil {
+		return bootstrapOSDConfFilePath, fmt.Errorf("failed to write bootstrap-osd client config section, %+v", err)
+	}
+
+	if err := writeInitialMonitorsConfigFileSections(&contentBuffer, cfg); err != nil {
+		return bootstrapOSDConfFilePath, fmt.Errorf("failed to write bootstrap-osd initial monitor config sections, %+v", err)
+	}
+
+	// write the entire config to disk
+	if err := writeFile(bootstrapOSDConfFilePath, contentBuffer); err != nil {
+		return bootstrapOSDConfFilePath, err
+	}
+
+	return bootstrapOSDConfFilePath, nil
+}
+
+func formatOSD(device string, forceFormat bool, executor proc.Executor) (bool, error) {
+	// format the current volume
+	cmd := fmt.Sprintf("blkid %s", device)
+	devFS, err := executor.ExecuteCommandPipeline(
+		cmd,
+		fmt.Sprintf(`blkid /dev/%s | sed -nr 's/^.*TYPE=\"(.*)\"$/\1/p'`, device))
+	if err != nil {
+		return false, fmt.Errorf("command %s failed: %+v", cmd, err)
+	}
+	if devFS != "" && forceFormat {
+		log.Printf("WARNING: device %s already formatted with %s, but forcing a format!!!", device, devFS)
+	}
+
+	if devFS == "" || forceFormat {
+		cmd = fmt.Sprintf("format %s", device)
+		err = executor.ExecuteCommand(cmd, "sudo", "/usr/sbin/mkfs.btrfs", "-f", "-m", "single", "-n", "32768", fmt.Sprintf("/dev/%s", device))
+		if err != nil {
+			return false, fmt.Errorf("command %s failed: %+v", cmd, err)
+		}
+	} else {
+		log.Printf("device %s already formatted with %s, cannot use for OSD", device, devFS)
+		return false, nil
+	}
+
+	return true, nil
+}
+
+func mountOSD(device string, mountPath string, executor proc.Executor) error {
+	cmd := fmt.Sprintf("lsblk %s", device)
+	var diskUUID string
+
+	retryCount := 0
+	retryMax := 10
+	sleepTime := 2
+	for {
+		var err error
+		diskUUID, err = executor.ExecuteCommandWithOutput(cmd, "lsblk", fmt.Sprintf("/dev/%s", device), "-d", "-n", "-r", "-o", "UUID")
+		if err != nil {
+			return fmt.Errorf("command %s failed: %+v", cmd, err)
+		}
+
+		if diskUUID != "" {
+			if _, err := os.Stat(fmt.Sprintf("/dev/disk/by-uuid/%s", diskUUID)); err == nil {
+				log.Printf("device %s UUID created: %s", device, diskUUID)
+				break
+			}
+		}
+
+		retryCount++
+		if retryCount > retryMax {
+			return fmt.Errorf("exceeded max retry count waiting for device %s UUID to be created", device)
+		}
+
+		<-time.After(time.Duration(sleepTime) * time.Second)
+	}
+
+	// mount the volume
+	os.MkdirAll(mountPath, 0777)
+	cmd = fmt.Sprintf("mount %s", device)
+	if err := executor.ExecuteCommand(cmd, "sudo", "mount", fmt.Sprintf("/dev/disk/by-uuid/%s", diskUUID), mountPath); err != nil {
+		return fmt.Errorf("command %s failed: %+v", cmd, err)
+	}
+
+	return nil
 }
