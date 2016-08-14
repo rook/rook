@@ -1,5 +1,5 @@
-hash: d8e1942658abe6166ea9f306c3caa1a79a4420b9ea68c8f9acdc3f96476bd0f1
-updated: 2016-08-09T17:19:26.234852718-07:00
+hash: 694ee1a5d914d2e03ac46bec40a76e3900cc18ef6a9a71c3a46906c966fda86f
+updated: 2016-08-11T20:36:48.20533737-07:00
 imports:
 - name: github.com/coreos/etcd
   version: d53923c636e0e4ab7f00cb75681b97a8f11f5a9d
@@ -10,6 +10,8 @@ imports:
   - pkg/types
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/nu7hatch/gouuid
+  version: 179d4d0c4d8d407a32af483c2354df1d2c91e6c3
 - name: github.com/spf13/cobra
   version: dbb7c2d02e284aa24423e3e6e105969dffe6e4d6
   subpackages:

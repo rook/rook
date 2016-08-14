@@ -84,11 +84,13 @@ func bootstrap(cmd *cobra.Command, args []string) error {
 	<-ch
 	fmt.Println("terminating due to ctrl-c interrupt...")
 	for i := range procs {
-		fmt.Println("stopping child process")
-		if err := proc.StopChildProcess(procs[i]); err != nil {
-			fmt.Printf("failed to stop child process: %+v", err)
-		} else {
-			fmt.Println("child process stopped successfully")
+		if procs[i] != nil {
+			fmt.Printf("stopping child process %d\n", i)
+			if err := proc.StopChildProcess(procs[i]); err != nil {
+				fmt.Printf("failed to stop child process %d: %+v\n", i, err)
+			} else {
+				fmt.Printf("child process %d stopped successfully\n", i)
+			}
 		}
 	}
 
