@@ -1,5 +1,5 @@
 hash: 694ee1a5d914d2e03ac46bec40a76e3900cc18ef6a9a71c3a46906c966fda86f
-updated: 2016-08-11T20:36:48.20533737-07:00
+updated: 2016-08-17T14:52:01.414403404-07:00
 imports:
 - name: github.com/coreos/etcd
   version: d53923c636e0e4ab7f00cb75681b97a8f11f5a9d
@@ -12,6 +12,12 @@ imports:
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/nu7hatch/gouuid
   version: 179d4d0c4d8d407a32af483c2354df1d2c91e6c3
+- name: github.com/quantum/clusterd
+  version: 63fbb8e55adeb660250098e44675ae995804ef62
+  subpackages:
+  - pkg/orchestrator
+  - pkg/inventory
+  - pkg/store
 - name: github.com/spf13/cobra
   version: dbb7c2d02e284aa24423e3e6e105969dffe6e4d6
   subpackages:

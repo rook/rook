@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nu7hatch/gouuid"
+	uuid "github.com/nu7hatch/gouuid"
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/castle/pkg/proc"
 )
@@ -72,7 +72,7 @@ func getOSDTempMonMapPath(osdDataPath string) string {
 }
 
 // create and initalize OSDs for all the devices specified in the given config
-func createOSDs(adminConn *cephd.Conn, cfg Config, c clusterInfo, executor proc.Executor) ([]*exec.Cmd, error) {
+func createOSDs(adminConn *cephd.Conn, cfg Config, c *clusterInfo, executor proc.Executor) ([]*exec.Cmd, error) {
 	// generate and write the OSD bootstrap keyring
 	if err := createOSDBootstrapKeyring(adminConn, cfg.ClusterName, executor); err != nil {
 		return nil, err
@@ -227,7 +227,7 @@ func createOSDBootstrapKeyring(conn *cephd.Conn, clusterName string, executor pr
 }
 
 // write the bootstrap-osd config file to disk
-func writeBootstrapOSDConfFile(cfg Config, c clusterInfo, bootstrapOSDKeyringPath string) error {
+func writeBootstrapOSDConfFile(cfg Config, c *clusterInfo, bootstrapOSDKeyringPath string) error {
 	var contentBuffer bytes.Buffer
 	bootstrapOSDConfFilePath := getBootstrapOSDConfFilePath()
 
@@ -402,7 +402,7 @@ func createOSD(bootstrapConn *cephd.Conn, osdUUID *uuid.UUID) (int, error) {
 }
 
 // writes a config file to disk for the given OSD and config
-func writeOSDConfFile(cfg Config, c clusterInfo, osdDataPath string, osdID int) error {
+func writeOSDConfFile(cfg Config, c *clusterInfo, osdDataPath string, osdID int) error {
 	var contentBuffer bytes.Buffer
 	osdConfFilePath := getOSDConfFilePath(osdDataPath)
 

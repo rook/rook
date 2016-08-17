@@ -7,11 +7,13 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	etcd "github.com/coreos/etcd/client"
 )
 
 type Config struct {
 	ClusterName     string
-	EtcdURLs        []string
+	EtcdClient      etcd.KeysAPI
 	PrivateIPv4     string
 	MonNames        []string
 	InitialMonitors []CephMonitorConfig
@@ -24,7 +26,7 @@ type CephMonitorConfig struct {
 	Endpoint string
 }
 
-func NewConfig(clusterName, etcdURLs, privateIPv4, monNames, initMonitorNames, devices string, forceFormat bool) Config {
+func NewConfig(etcdClient etcd.KeysAPI, clusterName, privateIPv4, monNames, initMonitorNames, devices string, forceFormat bool) Config {
 	// caller should have provided a comma separated list of monitor names, split those into a
 	// list/slice, then create a slice of CephMonitorConfig structs based off those names
 	initMonNameSet := splitList(initMonitorNames)
@@ -35,7 +37,7 @@ func NewConfig(clusterName, etcdURLs, privateIPv4, monNames, initMonitorNames, d
 
 	return Config{
 		ClusterName:     clusterName,
-		EtcdURLs:        splitList(etcdURLs),
+		EtcdClient:      etcdClient,
 		PrivateIPv4:     privateIPv4,
 		MonNames:        splitList(monNames),
 		InitialMonitors: initMonSet,
@@ -64,7 +66,7 @@ func writeFile(filePath string, contentBuffer bytes.Buffer) error {
 	return nil
 }
 
-func writeGlobalConfigFileSection(contentBuffer *bytes.Buffer, cfg Config, c clusterInfo, runDir string) error {
+func writeGlobalConfigFileSection(contentBuffer *bytes.Buffer, cfg Config, c *clusterInfo, runDir string) error {
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	initialMonMembers := make([]string, len(cfg.InitialMonitors))

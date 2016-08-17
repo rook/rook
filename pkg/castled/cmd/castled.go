@@ -5,10 +5,12 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/quantum/castle/pkg/castled"
+	"github.com/quantum/castle/pkg/kvstore"
 	"github.com/quantum/castle/pkg/proc"
 )
 
@@ -63,9 +65,15 @@ func bootstrap(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// get an etcd client to coordinate with the rest of the cluster and load/save config
+	etcdClient, err := kvstore.GetEtcdClient(strings.Split(etcdURLs, ","))
+	if err != nil {
+		return err
+	}
+
 	// TODO: add the discovery URL to the command line/env var config,
 	// then we could just ask the discovery service where to find things like etcd
-	cfg := castled.NewConfig(clusterName, etcdURLs, privateIPv4, monNames, initMonSet, devices, forceFormat)
+	cfg := castled.NewConfig(etcdClient, clusterName, privateIPv4, monNames, initMonSet, devices, forceFormat)
 	var procs []*exec.Cmd
 	go func(cfg castled.Config) {
 		var err error

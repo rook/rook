@@ -18,6 +18,7 @@ import (
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/castle/pkg/kvstore"
 	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/clusterd/pkg/orchestrator"
 )
 
 const (
@@ -38,6 +39,15 @@ const (
 	mon addr = %s
 `
 )
+
+func NewService() *orchestrator.ClusterService {
+	service := &orchestrator.ClusterService{Name: "ceph-mon"}
+
+	service.Leader = &monLeader{}
+	service.Agent = &monAgent{}
+
+	return service
+}
 
 // get the key value store path for a given monitor's endpoint
 func getMonitorEndpointKey(name string) string {
@@ -223,7 +233,7 @@ func getMonStatus(adminConn *cephd.Conn) (MonStatusResponse, error) {
 }
 
 // creates and initializes the given monitors file systems
-func makeMonitorFileSystems(cfg Config, c clusterInfo) error {
+func makeMonitorFileSystems(cfg Config, c *clusterInfo) error {
 	for _, monName := range cfg.MonNames {
 		// write the keyring to disk
 		if err := writeMonitorKeyring(monName, c); err != nil {
@@ -259,7 +269,7 @@ func makeMonitorFileSystems(cfg Config, c clusterInfo) error {
 }
 
 // writes the monitor keyring to disk
-func writeMonitorKeyring(monName string, c clusterInfo) error {
+func writeMonitorKeyring(monName string, c *clusterInfo) error {
 	keyring := fmt.Sprintf(monitorKeyringTemplate, c.MonitorSecret, c.AdminSecret)
 	keyringPath := getMonKeyringPath(monName)
 	if err := os.MkdirAll(filepath.Dir(keyringPath), 0744); err != nil {
@@ -273,7 +283,7 @@ func writeMonitorKeyring(monName string, c clusterInfo) error {
 }
 
 // generates and writes the monitor config file to disk
-func writeMonitorConfigFile(monName string, cfg Config, c clusterInfo, adminKeyringPath string) error {
+func writeMonitorConfigFile(monName string, cfg Config, c *clusterInfo, adminKeyringPath string) error {
 	var contentBuffer bytes.Buffer
 
 	if err := writeGlobalConfigFileSection(&contentBuffer, cfg, c, getMonRunDirPath(monName)); err != nil {
