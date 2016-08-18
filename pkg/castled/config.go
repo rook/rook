@@ -7,43 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	etcd "github.com/coreos/etcd/client"
 )
-
-type Config struct {
-	ClusterName     string
-	EtcdClient      etcd.KeysAPI
-	PrivateIPv4     string
-	MonNames        []string
-	InitialMonitors []CephMonitorConfig
-	Devices         []string
-	ForceFormat     bool
-}
 
 type CephMonitorConfig struct {
 	Name     string
 	Endpoint string
-}
-
-func NewConfig(etcdClient etcd.KeysAPI, clusterName, privateIPv4, monNames, initMonitorNames, devices string, forceFormat bool) Config {
-	// caller should have provided a comma separated list of monitor names, split those into a
-	// list/slice, then create a slice of CephMonitorConfig structs based off those names
-	initMonNameSet := splitList(initMonitorNames)
-	initMonSet := make([]CephMonitorConfig, len(initMonNameSet))
-	for i := range initMonNameSet {
-		initMonSet[i] = CephMonitorConfig{Name: initMonNameSet[i]}
-	}
-
-	return Config{
-		ClusterName:     clusterName,
-		EtcdClient:      etcdClient,
-		PrivateIPv4:     privateIPv4,
-		MonNames:        splitList(monNames),
-		InitialMonitors: initMonSet,
-		Devices:         splitList(devices),
-		ForceFormat:     forceFormat,
-	}
 }
 
 func splitList(list string) []string {
@@ -94,4 +62,8 @@ func writeInitialMonitorsConfigFileSections(contentBuffer *bytes.Buffer, cfg Con
 	}
 
 	return nil
+}
+
+func getCephConnectionConfig(cluster *clusterInfo) (string, err) {
+	return "config", nil
 }

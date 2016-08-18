@@ -72,7 +72,7 @@ func getOSDTempMonMapPath(osdDataPath string) string {
 }
 
 // create and initalize OSDs for all the devices specified in the given config
-func createOSDs(adminConn *cephd.Conn, cfg Config, c *clusterInfo, executor proc.Executor) ([]*exec.Cmd, error) {
+func createOSDs(adminConn *cephd.Conn, c *clusterInfo, executor proc.Executor) ([]*exec.Cmd, error) {
 	// generate and write the OSD bootstrap keyring
 	if err := createOSDBootstrapKeyring(adminConn, cfg.ClusterName, executor); err != nil {
 		return nil, err

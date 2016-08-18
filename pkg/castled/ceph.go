@@ -26,38 +26,26 @@ type clusterInfo struct {
 	FSID          string
 	MonitorSecret string
 	AdminSecret   string
+	Name          string
 }
 
-func Bootstrap(cfg Config, executor proc.Executor) ([]*exec.Cmd, error) {
-
-	// Start the monitors
-	cluster, procs, err := startMonitors(cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	// Start the OSDs
-	osdProcs, err := startOSDs(cfg, cluster, executor)
-	if err != nil {
-		return nil, err
-	}
-
-	procs = append(procs, osdProcs...)
-
-	return procs, nil
-}
-
-func startOSDs(cfg Config, cluster *clusterInfo, executor proc.Executor) ([]*exec.Cmd, error) {
+func startOSDs(cluster *clusterInfo, executor proc.Executor) ([]*exec.Cmd, error) {
 	user := "client.admin"
-	adminConn, err := connectToCluster(cfg.ClusterName, user, getMonConfFilePath(cfg.MonNames[0]))
+	config, err := getCephConnectionConfig(cluster)
+	if err != nil {
+		return nil, err
+	}
+
+	adminConn, err := connectToCluster(cluster.Name, user, config)
 	if err != nil {
 		return nil, err
 	}
 	defer adminConn.Shutdown()
 
 	// create/start an OSD for each of the specified devices
-	if len(cfg.Devices) > 0 {
-		osdProcs, err := createOSDs(adminConn, cfg, cluster, executor)
+	devices := []string{}
+	if len(devices) > 0 {
+		osdProcs, err := createOSDs(adminConn, cluster, executor)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create OSDs: %+v", err)
 		}

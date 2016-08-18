@@ -3,30 +3,51 @@ package castled
 import (
 	"fmt"
 	"log"
-	"os/exec"
 	"path"
 
 	"golang.org/x/net/context"
 
 	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/cephd"
-	"github.com/quantum/castle/pkg/kvstore"
 	"github.com/quantum/clusterd/pkg/orchestrator"
 )
 
 // Interface implemented by a service that has been elected leader
 type monLeader struct {
+	cluster     clusterInfo
+	privateIPv4 string
+	devices     []string
+	forceFormat bool
+	etcdClient  etcd.KeysAPI
+	monNames    []string
 }
 
 // Load the state of the service from etcd. Typically a service will populate the desired/discovered state and the applied state
 // from etcd, then compute the difference and cache it.
 // Returns whether the service has updates to be applied.
-func (m *monLeader) LoadState(ctx *orchestrator.ClusterContext) (bool, error) {
+func (m *monLeader) LoadState(context *orchestrator.ClusterContext) (bool, error) {
 	return true, nil
 }
 
 // Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
-func (m *monLeader) ApplyState(ctx *orchestrator.ClusterContext) error {
+func (m *monLeader) ApplyState(context *orchestrator.ClusterContext) error {
+
+	// Create or get the basic cluster info
+	var err error
+	m.cluster, err = createOrGetClusterInfo(m.etcdClient)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// TODO: Get existing monitors
+	// TODO: Select new monitors
+	// TODO: Send instructions to monitors
+
+	err = m.waitForQuorum()
+	if err != nil {
+		return nil, err
+	}
+
 	log.Printf("Applied state for the ceph monitor")
 	return nil
 }
@@ -43,7 +64,7 @@ func createOrGetClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 		return nil, fmt.Errorf("failed to load cluster info: %+v", err)
 	}
 
-	if !isClusterInfoSet(cluster) {
+	if cluster == nil {
 		// the cluster info is not yet set, go ahead and set it now
 		cluster, err = createClusterInfo()
 		if err != nil {
@@ -63,71 +84,50 @@ func createOrGetClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 	return cluster, nil
 }
 
-func startMonitors(cfg Config) (*clusterInfo, []*exec.Cmd, error) {
-
-	cluster, err := createOrGetClusterInfo(cfg.EtcdClient)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if err := registerMonitors(cfg, cfg.EtcdClient); err != nil {
-		return cluster, nil, fmt.Errorf("failed to register monitors: %+v", err)
-	}
-
-	// wait for monitor registration to complete for all expected initial monitors
-	if err := waitForMonitorRegistration(cfg, cfg.EtcdClient); err != nil {
-		return cluster, nil, fmt.Errorf("failed to wait for monitors to register: %+v", err)
-	}
-
-	// initialze the file systems for the monitors
-	if err := makeMonitorFileSystems(cfg, cluster); err != nil {
-		return cluster, nil, fmt.Errorf("failed to make monitor filesystems: %+v", err)
-	}
-
-	// run the monitors
-	procs, err := runMonitors(cfg)
-	if err != nil {
-		return cluster, nil, fmt.Errorf("failed to run monitors: %+v", err)
-	}
-
-	log.Printf("successfully started monitors")
+func (m *monLeader) waitForQuorum() error {
 
 	// open an admin connection to the cluster
 	user := "client.admin"
-	adminConn, err := connectToCluster(cfg.ClusterName, user, getMonConfFilePath(cfg.MonNames[0]))
+	adminConn, err := connectToCluster(cluster.Name, user, getCephConnectionConfig(m.cluster))
 	if err != nil {
-		return cluster, procs, err
+		return err
 	}
 	defer adminConn.Shutdown()
 
 	// wait for monitors to establish quorum
-	if err := waitForMonitorQuorum(adminConn, cfg); err != nil {
-		return cluster, procs, fmt.Errorf("failed to wait for monitors to establish quorum: %+v", err)
+	if err := m.waitForMonitorQuorum(adminConn); err != nil {
+		return fmt.Errorf("failed to wait for monitors to establish quorum: %+v", err)
 	}
 
 	log.Printf("monitors formed quorum")
-	return cluster, procs, nil
+	return nil
 }
 
 // attempt to load any previously created and saved cluster info
 func loadClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 	resp, err := etcdClient.Get(context.Background(), path.Join(cephKey, "fsid"), nil)
 	if err != nil {
-		return handleLoadClusterInfoErr(err)
+		return nil, err
 	}
 	fsid := resp.Node.Value
+
+	resp, err = etcdClient.Get(context.Background(), path.Join(cephKey, "name"), nil)
+	if err != nil {
+		return nil, err
+	}
+	name := resp.Node.Value
 
 	secretsKey := path.Join(cephKey, "_secrets")
 
 	resp, err = etcdClient.Get(context.Background(), path.Join(secretsKey, "monitor"), nil)
 	if err != nil {
-		return handleLoadClusterInfoErr(err)
+		return nil, err
 	}
 	monSecret := resp.Node.Value
 
 	resp, err = etcdClient.Get(context.Background(), path.Join(secretsKey, "admin"), nil)
 	if err != nil {
-		return handleLoadClusterInfoErr(err)
+		return nil, err
 	}
 	adminSecret := resp.Node.Value
 
@@ -135,48 +135,43 @@ func loadClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 		FSID:          fsid,
 		MonitorSecret: monSecret,
 		AdminSecret:   adminSecret,
+		Name:          name,
 	}, nil
-}
-
-func handleLoadClusterInfoErr(err error) (*clusterInfo, error) {
-	if kvstore.IsEtcdKeyNotFound(err) {
-		return &clusterInfo{}, nil
-	}
-
-	return nil, err
-}
-
-func isClusterInfoSet(c *clusterInfo) bool {
-	return c.FSID != "" && c.MonitorSecret != "" && c.AdminSecret != ""
 }
 
 // create new cluster info (FSID, shared keys)
 func createClusterInfo() (*clusterInfo, error) {
 	fsid, err := cephd.NewFsid()
 	if err != nil {
-		return handleLoadClusterInfoErr(err)
+		return nil, err
 	}
 
 	monSecret, err := cephd.NewSecretKey()
 	if err != nil {
-		return handleLoadClusterInfoErr(err)
+		return nil, err
 	}
 
 	adminSecret, err := cephd.NewSecretKey()
 	if err != nil {
-		return handleLoadClusterInfoErr(err)
+		return nil, err
 	}
 
 	return &clusterInfo{
 		FSID:          fsid,
 		MonitorSecret: monSecret,
 		AdminSecret:   adminSecret,
+		Name:          "castlecluster",
 	}, nil
 }
 
 // save the given cluster info to the key value store
 func saveClusterInfo(c *clusterInfo, etcdClient etcd.KeysAPI) error {
 	_, err := etcdClient.Set(context.Background(), path.Join(cephKey, "fsid"), c.FSID, nil)
+	if err != nil {
+		return err
+	}
+
+	_, err = etcdClient.Set(context.Background(), path.Join(cephKey, "name"), c.Name, nil)
 	if err != nil {
 		return err
 	}
