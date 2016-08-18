@@ -3,12 +3,10 @@ package castled
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"strings"
 
 	etcd "github.com/coreos/etcd/client"
+	"github.com/quantum/castle/pkg/util"
 )
 
 type Config struct {
@@ -29,7 +27,7 @@ type CephMonitorConfig struct {
 func NewConfig(etcdClient etcd.KeysAPI, clusterName, privateIPv4, monNames, initMonitorNames, devices string, forceFormat bool) Config {
 	// caller should have provided a comma separated list of monitor names, split those into a
 	// list/slice, then create a slice of CephMonitorConfig structs based off those names
-	initMonNameSet := splitList(initMonitorNames)
+	initMonNameSet := util.SplitList(initMonitorNames)
 	initMonSet := make([]CephMonitorConfig, len(initMonNameSet))
 	for i := range initMonNameSet {
 		initMonSet[i] = CephMonitorConfig{Name: initMonNameSet[i]}
@@ -39,31 +37,11 @@ func NewConfig(etcdClient etcd.KeysAPI, clusterName, privateIPv4, monNames, init
 		ClusterName:     clusterName,
 		EtcdClient:      etcdClient,
 		PrivateIPv4:     privateIPv4,
-		MonNames:        splitList(monNames),
+		MonNames:        util.SplitList(monNames),
 		InitialMonitors: initMonSet,
-		Devices:         splitList(devices),
+		Devices:         util.SplitList(devices),
 		ForceFormat:     forceFormat,
 	}
-}
-
-func splitList(list string) []string {
-	if list == "" {
-		return nil
-	}
-
-	return strings.Split(list, ",")
-}
-
-func writeFile(filePath string, contentBuffer bytes.Buffer) error {
-	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0744); err != nil {
-		return fmt.Errorf("failed to create config file directory at %s: %+v", dir, err)
-	}
-	if err := ioutil.WriteFile(filePath, contentBuffer.Bytes(), 0644); err != nil {
-		return fmt.Errorf("failed to write config file to %s: %+v", filePath, err)
-	}
-
-	return nil
 }
 
 func writeGlobalConfigFileSection(contentBuffer *bytes.Buffer, cfg Config, c *clusterInfo, runDir string) error {

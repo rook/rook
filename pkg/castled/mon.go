@@ -19,6 +19,7 @@ import (
 	"github.com/quantum/castle/pkg/kvstore"
 	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/clusterd/pkg/orchestrator"
+	"github.com/quantum/castle/pkg/util"
 )
 
 const (
@@ -300,7 +301,7 @@ func writeMonitorConfigFile(monName string, cfg Config, c *clusterInfo, adminKey
 	}
 
 	// write the entire config to disk
-	if err := writeFile(getMonConfFilePath(monName), contentBuffer); err != nil {
+	if err := util.WriteFile(getMonConfFilePath(monName), contentBuffer); err != nil {
 		return err
 	}
 
