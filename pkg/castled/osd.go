@@ -15,9 +15,10 @@ import (
 	"syscall"
 	"time"
 
-	uuid "github.com/nu7hatch/gouuid"
+	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/castle/pkg/util"
 )
 
 const (
@@ -120,7 +121,7 @@ func createOSDs(adminConn *cephd.Conn, c *clusterInfo, executor proc.Executor) (
 		if _, err := os.Stat(filepath.Join(osdDataPath, "whoami")); os.IsNotExist(err) {
 			// osd_data_dir/whoami does not exist yet, create/initialize the OSD
 			log.Printf("initializing the osd directory %s", osdDataDir)
-			osdUUID, err := uuid.NewV4()
+			osdUUID, err := uuid.NewRandom()
 			if err != nil {
 				return osdProcs, fmt.Errorf("failed to generate UUID for %s: %+v", osdDataDir, err)
 			}
@@ -245,7 +246,7 @@ func writeBootstrapOSDConfFile(cfg Config, c *clusterInfo, bootstrapOSDKeyringPa
 	}
 
 	// write the entire config to disk
-	if err := writeFile(bootstrapOSDConfFilePath, contentBuffer); err != nil {
+	if err := util.WriteFile(bootstrapOSDConfFilePath, contentBuffer); err != nil {
 		return err
 	}
 
@@ -315,7 +316,7 @@ func mountOSD(device string, mountPath string, executor proc.Executor) error {
 					uuidCheckOK = false
 					break
 				}
-				<-time.After(time.Duration(1) * time.Second)
+				<-time.After(time.Duration(500) * time.Millisecond)
 			}
 
 			if uuidCheckOK {
@@ -377,7 +378,7 @@ func findOSDDataPath(osdRoot, clusterName string) (string, error) {
 }
 
 // creates the OSD identity in the cluster via a mon_command
-func createOSD(bootstrapConn *cephd.Conn, osdUUID *uuid.UUID) (int, error) {
+func createOSD(bootstrapConn *cephd.Conn, osdUUID uuid.UUID) (int, error) {
 	cmd := "osd create"
 	command, err := json.Marshal(map[string]interface{}{
 		"prefix": cmd,
@@ -420,7 +421,7 @@ func writeOSDConfFile(cfg Config, c *clusterInfo, osdDataPath string, osdID int)
 	}
 
 	// write the entire config to disk
-	if err := writeFile(osdConfFilePath, contentBuffer); err != nil {
+	if err := util.WriteFile(osdConfFilePath, contentBuffer); err != nil {
 		return err
 	}
 
@@ -446,7 +447,7 @@ func getMonMap(bootstrapConn *cephd.Conn) ([]byte, error) {
 }
 
 // creates/initalizes the OSD filesystem and journal via a child process
-func createOSDFileSystem(clusterName string, osdID int, osdUUID *uuid.UUID, osdDataPath string, monMap []byte) error {
+func createOSDFileSystem(clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string, monMap []byte) error {
 	log.Printf("Initializing OSD %d file system at %s...", osdID, osdDataPath)
 
 	// the current monmap is needed to create the OSD, save it to a temp location so it is accessible
@@ -555,7 +556,7 @@ func addOSDToCrushMap(osdConn *cephd.Conn, osdID int, osdDataPath string) error 
 }
 
 // runs an OSD with the given config in a child process
-func runOSD(clusterName string, osdID int, osdUUID *uuid.UUID, osdDataPath string) (*exec.Cmd, error) {
+func runOSD(clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string) (*exec.Cmd, error) {
 	// start the OSD daemon in the foreground with the given config
 	log.Printf("starting osd %d at %s", osdID, osdDataPath)
 	cmd, err := proc.StartChildProcess(

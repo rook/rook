@@ -24,7 +24,7 @@ of dependencies and we take this approach to simplify the distribution.
 make STATIC=0 build
 ```
 
-## Hardedened binary (PIE)
+## Hardened binary (PIE)
 
 You can build a Position Independent executable as follows:
 

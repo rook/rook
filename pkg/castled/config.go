@@ -3,35 +3,12 @@ package castled
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
 type CephMonitorConfig struct {
 	Name     string
 	Endpoint string
-}
-
-func splitList(list string) []string {
-	if list == "" {
-		return nil
-	}
-
-	return strings.Split(list, ",")
-}
-
-func writeFile(filePath string, contentBuffer bytes.Buffer) error {
-	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0744); err != nil {
-		return fmt.Errorf("failed to create config file directory at %s: %+v", dir, err)
-	}
-	if err := ioutil.WriteFile(filePath, contentBuffer.Bytes(), 0644); err != nil {
-		return fmt.Errorf("failed to write config file to %s: %+v", filePath, err)
-	}
-
-	return nil
 }
 
 func writeGlobalConfigFileSection(contentBuffer *bytes.Buffer, cfg Config, c *clusterInfo, runDir string) error {

@@ -15,6 +15,7 @@ import (
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/clusterd/pkg/orchestrator"
+	"github.com/quantum/castle/pkg/util"
 )
 
 const (
@@ -208,7 +209,7 @@ func (m *monAgent) writeMonitorConfigFile(monName string, adminKeyringPath strin
 	}
 
 	// write the entire config to disk
-	if err := writeFile(getMonConfFilePath(monName), contentBuffer); err != nil {
+	if err := util.WriteFile(getMonConfFilePath(monName), contentBuffer); err != nil {
 		return err
 	}
 
