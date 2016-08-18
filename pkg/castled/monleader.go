@@ -14,12 +14,11 @@ import (
 
 // Interface implemented by a service that has been elected leader
 type monLeader struct {
-	cluster     clusterInfo
+	cluster     *clusterInfo
 	privateIPv4 string
 	devices     []string
 	forceFormat bool
 	etcdClient  etcd.KeysAPI
-	monNames    []string
 }
 
 // Load the state of the service from etcd. Typically a service will populate the desired/discovered state and the applied state
@@ -36,7 +35,7 @@ func (m *monLeader) ApplyState(context *orchestrator.ClusterContext) error {
 	var err error
 	m.cluster, err = createOrGetClusterInfo(m.etcdClient)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	// TODO: Get existing monitors
@@ -45,7 +44,7 @@ func (m *monLeader) ApplyState(context *orchestrator.ClusterContext) error {
 
 	err = m.waitForQuorum()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	log.Printf("Applied state for the ceph monitor")
@@ -86,9 +85,14 @@ func createOrGetClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 
 func (m *monLeader) waitForQuorum() error {
 
-	// open an admin connection to the cluster
+	// open an admin connection to the clufster
 	user := "client.admin"
-	adminConn, err := connectToCluster(cluster.Name, user, getCephConnectionConfig(m.cluster))
+	config, err := getCephConnectionConfig(m.cluster)
+	if err != nil {
+		return err
+	}
+
+	adminConn, err := connectToCluster(m.cluster.Name, user, config)
 	if err != nil {
 		return err
 	}

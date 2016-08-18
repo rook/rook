@@ -15,33 +15,35 @@ import (
 )
 
 type monAgent struct {
-	cluster     clusterInfo
+	cluster     *clusterInfo
 	procMan     *orchestrator.ProcessManager
 	privateIPv4 string
 	etcdClient  etcd.KeysAPI
+	monitors    []CephMonitorConfig
 }
 
 func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext, changeList []orchestrator.ChangeElement) error {
 	monName := "mon1" // FIX
 	port := 6790
 	if err := a.registerMonitor(monName, port); err != nil {
-		return cluster, nil, fmt.Errorf("failed to register monitors: %+v", err)
+		return fmt.Errorf("failed to register monitors: %+v", err)
 	}
 
 	// wait for monitor registration to complete for all expected initial monitors
-	if err := a.waitForMonitorRegistration(); err != nil {
-		return cluster, nil, fmt.Errorf("failed to wait for monitors to register: %+v", err)
+	if err := a.waitForMonitorRegistration(monName); err != nil {
+		return fmt.Errorf("failed to wait for monitors to register: %+v", err)
 	}
 
 	// initialze the file systems for the monitors
 	if err := a.makeMonitorFileSystem(monName); err != nil {
-		return cluster, nil, fmt.Errorf("failed to make monitor filesystems: %+v", err)
+		return fmt.Errorf("failed to make monitor filesystems: %+v", err)
 	}
 
 	// run the monitors
-	procs, err := a.runMonitor()
+	monitor := CephMonitorConfig{Name: monName, Endpoint: fmt.Sprintf("%s:%d", a.privateIPv4, port)}
+	err := a.runMonitor(monitor)
 	if err != nil {
-		return cluster, nil, fmt.Errorf("failed to run monitors: %+v", err)
+		return fmt.Errorf("failed to run monitors: %+v", err)
 	}
 
 	log.Printf("successfully started monitor %s", monName)
@@ -60,7 +62,7 @@ func (a *monAgent) registerMonitor(monName string, port int) error {
 	val := fmt.Sprintf("%s:%d", a.privateIPv4, port)
 
 	_, err := a.etcdClient.Set(context.Background(), key, val, nil)
-	if err == nil || store.IsEtcdNodeExist(err) {
+	if err == nil || !store.IsEtcdNodeExist(err) {
 		log.Printf("registered monitor %s endpoint of %s", monName, val)
 	} else {
 		return fmt.Errorf("failed to register mon %s endpoint: %+v", monName, err)
@@ -73,7 +75,6 @@ func (a *monAgent) registerMonitor(monName string, port int) error {
 func (a *monAgent) waitForMonitorRegistration(monName string) error {
 	key := getMonitorEndpointKey(monName)
 
-	registered := false
 	retryCount := 0
 	retryMax := 40
 	sleepTime := 5
@@ -98,12 +99,12 @@ func (a *monAgent) waitForMonitorRegistration(monName string) error {
 // creates and initializes the given monitors file systems
 func (a *monAgent) makeMonitorFileSystem(monName string) error {
 	// write the keyring to disk
-	if err := a.writeMonitorKeyring(monName); err != nil {
+	if err := writeMonitorKeyring(monName, a.cluster); err != nil {
 		return err
 	}
 
 	// write the config file to disk
-	if err := a.writeMonitorConfigFile(monName, getMonKeyringPath(monName)); err != nil {
+	if err := a.writeMonitorConfigFile(monName, a.monitors, getMonKeyringPath(monName)); err != nil {
 		return err
 	}
 
@@ -117,7 +118,7 @@ func (a *monAgent) makeMonitorFileSystem(monName string) error {
 	err := a.procMan.Start(
 		"mon",
 		"--mkfs",
-		fmt.Sprintf("--cluster=%s", a.clusterName),
+		fmt.Sprintf("--cluster=%s", a.cluster.Name),
 		fmt.Sprintf("--name=mon.%s", monName),
 		fmt.Sprintf("--mon-data=%s", monDataDir),
 		fmt.Sprintf("--conf=%s", getMonConfFilePath(monName)),

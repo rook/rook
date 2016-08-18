@@ -1,5 +1,5 @@
 hash: a3bba25524083cc9a52b745a4fe93617d49303d30e605748cb0c008edf48f237
-updated: 2016-08-17T16:37:57.237500589-07:00
+updated: 2016-08-18T13:54:03.475699396-07:00
 imports:
 - name: github.com/coreos/etcd
   version: d53923c636e0e4ab7f00cb75681b97a8f11f5a9d
@@ -14,20 +14,18 @@ imports:
   version: f3f4b54b2fabcf1f11dcc939025bb0c109b00ed8
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
-- name: github.com/nu7hatch/gouuid
-  version: 179d4d0c4d8d407a32af483c2354df1d2c91e6c3
 - name: github.com/quantum/clusterd
-  version: 63fbb8e55adeb660250098e44675ae995804ef62
+  version: 8ea6609f8b8faf2af112acec6a41cb99122ea0bd
   subpackages:
   - pkg/orchestrator
-  - pkg/inventory
   - pkg/store
+  - pkg/inventory
 - name: github.com/spf13/cobra
   version: dbb7c2d02e284aa24423e3e6e105969dffe6e4d6
   subpackages:
   - cobra
 - name: github.com/spf13/pflag
-  version: 4f9190456aed1c2113ca51ea9b89219747458dc1
+  version: f676131e2660dc8cd88de99f7486d34aa8172635
 - name: github.com/ugorji/go
   version: 3487a5545b3d480987dfb0492035299077fab33a
   subpackages:

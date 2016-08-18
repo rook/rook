@@ -7,15 +7,13 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"path/filepath"
 	"time"
 
 	"github.com/quantum/castle/pkg/cephd"
-	"github.com/quantum/castle/pkg/proc"
-	"github.com/quantum/clusterd/pkg/orchestrator"
 	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/clusterd/pkg/orchestrator"
 )
 
 const (
@@ -113,7 +111,7 @@ func (m *monLeader) waitForMonitorQuorum(adminConn *cephd.Conn) error {
 
 		// check if each of the initial monitors is in quorum
 		allInQuorum := true
-		for _, im := range m.monNames {
+		for _, im := range m.cluster.Monitors {
 			// first get the initial monitors corresponding mon map entry
 			var monMapEntry *MonMapEntry
 			for i := range monStatusResp.MonMap.Mons {
@@ -192,10 +190,10 @@ func writeMonitorKeyring(monName string, c *clusterInfo) error {
 }
 
 // generates and writes the monitor config file to disk
-func (m *monAgent) writeMonitorConfigFile(monName string, adminKeyringPath string) error {
+func (m *monAgent) writeMonitorConfigFile(monName string, monitors []CephMonitorConfig, adminKeyringPath string) error {
 	var contentBuffer bytes.Buffer
 
-	if err := writeGlobalConfigFileSection(&contentBuffer, getMonRunDirPath(monName)); err != nil {
+	if err := writeGlobalConfigFileSection(&contentBuffer, m.cluster, getMonRunDirPath(monName)); err != nil {
 		return fmt.Errorf("failed to write mon %s global config section, %+v", monName, err)
 	}
 
@@ -204,7 +202,7 @@ func (m *monAgent) writeMonitorConfigFile(monName string, adminKeyringPath strin
 		return fmt.Errorf("failed to write mon %s admin client config section, %+v", monName, err)
 	}
 
-	if err := writeInitialMonitorsConfigFileSections(&contentBuffer, cfg); err != nil {
+	if err := writeMonitorsConfigFileSections(&contentBuffer, monitors); err != nil {
 		return fmt.Errorf("failed to write mon %s initial monitor config sections, %+v", monName, err)
 	}
 
@@ -217,38 +215,24 @@ func (m *monAgent) writeMonitorConfigFile(monName string, adminKeyringPath strin
 }
 
 // runs all the given monitors in child processes
-func (m *monAgent) runMonitor() ([]*exec.Cmd, error) {
-	procs := make([]*exec.Cmd, len(cfg.MonNames))
-
-	for i, monName := range cfg.MonNames {
-		// find the current monitor's endpoint
-		var monEndpoint string
-		for i := range cfg.InitialMonitors {
-			if cfg.InitialMonitors[i].Name == monName {
-				monEndpoint = cfg.InitialMonitors[i].Endpoint
-				break
-			}
-		}
-		if monEndpoint == "" {
-			return nil, fmt.Errorf("failed to find endpoint for mon %s", monName)
-		}
-
-		// start the monitor daemon in the foreground with the given config
-		log.Printf("starting monitor %s", monName)
-		cmd, err := proc.StartChildProcess(
-			"mon",
-			"--foreground",
-			fmt.Sprintf("--cluster=%v", m.cluster.Name),
-			fmt.Sprintf("--name=mon.%v", monName),
-			fmt.Sprintf("--mon-data=%s", getMonDataDirPath(monName)),
-			fmt.Sprintf("--conf=%s", getMonConfFilePath(monName)),
-			fmt.Sprintf("--public-addr=%v", monEndpoint))
-		if err != nil {
-			return nil, fmt.Errorf("failed to start monitor %s: %+v", monName, err)
-		}
-
-		procs[i] = cmd
+func (m *monAgent) runMonitor(monitor CephMonitorConfig) error {
+	if monitor.Endpoint == "" {
+		return fmt.Errorf("missing endpoint for mon %s", monitor.Name)
 	}
 
-	return procs, nil
+	// start the monitor daemon in the foreground with the given config
+	log.Printf("starting monitor %s", monitor.Name)
+	err := m.procMan.Start(
+		"mon",
+		"--foreground",
+		fmt.Sprintf("--cluster=%v", m.cluster.Name),
+		fmt.Sprintf("--name=mon.%v", monitor.Name),
+		fmt.Sprintf("--mon-data=%s", getMonDataDirPath(monitor.Name)),
+		fmt.Sprintf("--conf=%s", getMonConfFilePath(monitor.Name)),
+		fmt.Sprintf("--public-addr=%v", monitor.Endpoint))
+	if err != nil {
+		return fmt.Errorf("failed to start monitor %s: %+v", monitor.Name, err)
+	}
+
+	return nil
 }
