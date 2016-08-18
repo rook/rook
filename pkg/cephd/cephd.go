@@ -101,3 +101,105 @@ func RunDaemon(daemon string, args ...string) error {
 
 	return nil
 }
+
+// TODO: the below rados_connect and rados_mon_command is from go-ceph: https://github.com/ceph/go-ceph
+// If it stays, then applicable LICENSE needs to be added.  A better approach would be to create a
+// wrapper in libcephd around MonCommand, and remove this go-ceph code and embedded librados altogether.
+
+// Conn is a connection handle to a Ceph cluster.
+type Conn struct {
+	cluster C.rados_t
+}
+
+// NewConnWithClusterAndUser creates a new connection object for a specific cluster and username.
+// It returns the connection and an error, if any.
+func NewConnWithClusterAndUser(clusterName string, userName string) (*Conn, error) {
+	c_cluster_name := C.CString(clusterName)
+	defer C.free(unsafe.Pointer(c_cluster_name))
+
+	c_name := C.CString(userName)
+	defer C.free(unsafe.Pointer(c_name))
+
+	conn := &Conn{}
+	ret := C.rados_create2(&conn.cluster, c_cluster_name, c_name, 0)
+	if ret == 0 {
+		return conn, nil
+	} else {
+		return nil, cephdError(int(ret))
+	}
+}
+
+// Connect establishes a connection to a RADOS cluster. It returns an error,
+// if any.
+func (c *Conn) Connect() error {
+	ret := C.rados_connect(c.cluster)
+	if ret == 0 {
+		return nil
+	} else {
+		return cephdError(int(ret))
+	}
+}
+
+// Shutdown disconnects from the cluster.
+func (c *Conn) Shutdown() {
+	C.rados_shutdown(c.cluster)
+}
+
+// ReadConfigFile configures the connection using a Ceph configuration file.
+func (c *Conn) ReadConfigFile(path string) error {
+	c_path := C.CString(path)
+	defer C.free(unsafe.Pointer(c_path))
+	ret := C.rados_conf_read_file(c.cluster, c_path)
+	if ret == 0 {
+		return nil
+	} else {
+		return cephdError(int(ret))
+	}
+}
+
+// MonCommand sends a command to one of the monitors
+func (c *Conn) MonCommand(args []byte) (buffer []byte, info string, err error) {
+	return c.monCommand(args, nil)
+}
+
+// MonCommand sends a command to one of the monitors, with an input buffer
+func (c *Conn) MonCommandWithInputBuffer(args, inputBuffer []byte) (buffer []byte, info string, err error) {
+	return c.monCommand(args, inputBuffer)
+}
+
+func (c *Conn) monCommand(args, inputBuffer []byte) (buffer []byte, info string, err error) {
+	argv := C.CString(string(args))
+	defer C.free(unsafe.Pointer(argv))
+
+	var (
+		outs, outbuf       *C.char
+		outslen, outbuflen C.size_t
+	)
+	inbuf := C.CString(string(inputBuffer))
+	inbufLen := len(inputBuffer)
+	defer C.free(unsafe.Pointer(inbuf))
+
+	ret := C.rados_mon_command(c.cluster,
+		&argv, 1,
+		inbuf,              // bulk input (e.g. crush map)
+		C.size_t(inbufLen), // length inbuf
+		&outbuf,            // buffer
+		&outbuflen,         // buffer length
+		&outs,              // status string
+		&outslen)
+
+	if outslen > 0 {
+		info = C.GoStringN(outs, C.int(outslen))
+		C.free(unsafe.Pointer(outs))
+	}
+	if outbuflen > 0 {
+		buffer = C.GoBytes(unsafe.Pointer(outbuf), C.int(outbuflen))
+		C.free(unsafe.Pointer(outbuf))
+	}
+	if ret != 0 {
+		err = cephdError(int(ret))
+		return nil, info, err
+	}
+
+	return
+}

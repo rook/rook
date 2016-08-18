@@ -1,5 +1,5 @@
-hash: d8e1942658abe6166ea9f306c3caa1a79a4420b9ea68c8f9acdc3f96476bd0f1
-updated: 2016-08-09T17:19:26.234852718-07:00
+hash: a3bba25524083cc9a52b745a4fe93617d49303d30e605748cb0c008edf48f237
+updated: 2016-08-17T16:37:57.237500589-07:00
 imports:
 - name: github.com/coreos/etcd
   version: d53923c636e0e4ab7f00cb75681b97a8f11f5a9d
@@ -8,6 +8,10 @@ imports:
   - error
   - pkg/pathutil
   - pkg/types
+- name: github.com/go-ini/ini
+  version: a2610b3a793cfa7fdf0b07038068af5ddc12aba1
+- name: github.com/google/uuid
+  version: f3f4b54b2fabcf1f11dcc939025bb0c109b00ed8
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/spf13/cobra
@@ -15,7 +19,7 @@ imports:
   subpackages:
   - cobra
 - name: github.com/spf13/pflag
-  version: f676131e2660dc8cd88de99f7486d34aa8172635
+  version: 4f9190456aed1c2113ca51ea9b89219747458dc1
 - name: github.com/ugorji/go
   version: 3487a5545b3d480987dfb0492035299077fab33a
   subpackages:
