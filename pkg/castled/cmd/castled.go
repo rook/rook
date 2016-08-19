@@ -10,6 +10,7 @@ import (
 
 	"github.com/quantum/castle/pkg/castled"
 	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/castle/pkg/util"
 )
 
 var (
@@ -59,7 +60,7 @@ func addCommands() {
 }
 
 func bootstrap(cmd *cobra.Command, args []string) error {
-	if err := verifyRequiredFlags(cmd, []string{"cluster-name", "etcd-urls", "private-ipv4"}); err != nil {
+	if err := util.VerifyRequiredFlags(cmd, []string{"cluster-name", "etcd-urls", "private-ipv4"}); err != nil {
 		return err
 	}
 
@@ -91,17 +92,6 @@ func bootstrap(cmd *cobra.Command, args []string) error {
 			} else {
 				fmt.Printf("child process %d stopped successfully\n", i)
 			}
-		}
-	}
-
-	return nil
-}
-
-func verifyRequiredFlags(cmd *cobra.Command, requiredFlags []string) error {
-	for _, reqFlag := range requiredFlags {
-		val, err := cmd.Flags().GetString(reqFlag)
-		if err != nil || val == "" {
-			return fmt.Errorf("%s is required for %s", reqFlag, cmd.Name())
 		}
 	}
 

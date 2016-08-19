@@ -203,3 +203,90 @@ func (c *Conn) monCommand(args, inputBuffer []byte) (buffer []byte, info string,
 
 	return
 }
+
+// PingMonitor sends a ping to a monitor and returns the reply.
+func (c *Conn) PingMonitor(id string) (string, error) {
+	c_id := C.CString(id)
+	defer C.free(unsafe.Pointer(c_id))
+
+	var strlen C.size_t
+	var strout *C.char
+
+	ret := C.rados_ping_monitor(c.cluster, c_id, &strout, &strlen)
+	defer C.rados_buffer_free(strout)
+
+	if ret == 0 {
+		reply := C.GoStringN(strout, (C.int)(strlen))
+		return reply, nil
+	} else {
+		return "", cephdError(int(ret))
+	}
+}
+
+// IOContext represents a context for performing I/O within a pool.
+type IOContext struct {
+	ioctx C.rados_ioctx_t
+}
+
+func (c *Conn) OpenIOContext(pool string) (*IOContext, error) {
+	c_pool := C.CString(pool)
+	defer C.free(unsafe.Pointer(c_pool))
+	ioctx := &IOContext{}
+	ret := C.rados_ioctx_create(c.cluster, c_pool, &ioctx.ioctx)
+	if ret == 0 {
+		return ioctx, nil
+	} else {
+		return nil, cephdError(int(ret))
+	}
+}
+
+// Read reads up to len(data) bytes from the object with key oid starting at byte
+// offset offset. It returns the number of bytes read and an error, if any.
+func (ioctx *IOContext) Read(oid string, data []byte, offset uint64) (int, error) {
+	if len(data) == 0 {
+		return 0, nil
+	}
+
+	c_oid := C.CString(oid)
+	defer C.free(unsafe.Pointer(c_oid))
+
+	ret := C.rados_read(
+		ioctx.ioctx,
+		c_oid,
+		(*C.char)(unsafe.Pointer(&data[0])),
+		(C.size_t)(len(data)),
+		(C.uint64_t)(offset))
+
+	if ret >= 0 {
+		return int(ret), nil
+	} else {
+		return 0, cephdError(int(ret))
+	}
+}
+
+// Write writes len(data) bytes to the object with key oid starting at byte
+// offset offset. It returns an error, if any.
+func (ioctx *IOContext) Write(oid string, data []byte, offset uint64) error {
+	c_oid := C.CString(oid)
+	defer C.free(unsafe.Pointer(c_oid))
+
+	ret := C.rados_write(ioctx.ioctx, c_oid,
+		(*C.char)(unsafe.Pointer(&data[0])),
+		(C.size_t)(len(data)),
+		(C.uint64_t)(offset))
+
+	return cephdError(int(ret))
+}
+
+// WriteFull writes len(data) bytes to the object with key oid.
+// The object is filled with the provided data. If the object exists,
+// it is atomically truncated and then written. It returns an error, if any.
+func (ioctx *IOContext) WriteFull(oid string, data []byte) error {
+	c_oid := C.CString(oid)
+	defer C.free(unsafe.Pointer(c_oid))
+
+	ret := C.rados_write_full(ioctx.ioctx, c_oid,
+		(*C.char)(unsafe.Pointer(&data[0])),
+		(C.size_t)(len(data)))
+	return cephdError(int(ret))
+}
