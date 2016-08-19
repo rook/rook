@@ -5,6 +5,8 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path"
+	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -15,7 +17,6 @@ import (
 )
 
 var (
-	clusterName  string
 	discoveryURL string
 	etcdURLs     string
 	nodeID       string
@@ -32,7 +33,6 @@ var rootCmd = &cobra.Command{
 
 func init() {
 	rootCmd.Flags().StringVar(&nodeID, "node-id", "12345", "unique ID for the node (required)")
-	rootCmd.Flags().StringVar(&clusterName, "cluster-name", "defaultCluster", "name of ceph cluster (required)")
 	rootCmd.Flags().StringVar(&discoveryURL, "discovery-url", "http://discovery.castle.com/26bd83c92e7145e6b103f623263f61df",
 		"etcd discovery URL")
 	rootCmd.Flags().StringVar(&etcdURLs, "etcd-urls", "http://127.0.0.1:4001",
@@ -42,9 +42,7 @@ func init() {
 	rootCmd.Flags().BoolVar(&forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 
-	rootCmd.MarkFlagRequired("cluster-name")
 	rootCmd.MarkFlagRequired("node-id")
-	rootCmd.MarkFlagRequired("etcd-urls")
 	rootCmd.MarkFlagRequired("private-ipv4")
 
 	rootCmd.RunE = joinCluster
@@ -61,7 +59,7 @@ func addCommands() {
 }
 
 func joinCluster(cmd *cobra.Command, args []string) error {
-	if err := verifyRequiredFlags(cmd, []string{"node-id", "cluster-name", "etcd-urls", "private-ipv4"}); err != nil {
+	if err := verifyRequiredFlags(cmd, []string{"node-id", "private-ipv4"}); err != nil {
 		return err
 	}
 
@@ -72,7 +70,16 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// TODO: Write desired state for this machine to etcd
+	// Write desired state for this machine to etcd
+	baseKey := path.Join(orchestrator.DesiredNodesKey, nodeID)
+	properties := map[string]string{
+		"privateIPv4": privateIPv4,
+		"devices":     devices,
+		"forceFormat": strconv.FormatBool(forceFormat),
+	}
+	if err := orchestrator.StoreEtcdProperties(etcdClient, baseKey, properties); err != nil {
+		return err
+	}
 
 	// initialize a leadership lease manager
 	leaseManager, err := orchestrator.InitLeaseManager(etcdClient)

@@ -1,7 +1,9 @@
 package castled
 
 import (
+	"bytes"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -10,6 +12,7 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 
+	"github.com/quantum/castle/pkg/util"
 	"github.com/quantum/clusterd/pkg/orchestrator"
 	"github.com/quantum/clusterd/pkg/store"
 )
@@ -19,7 +22,7 @@ type monAgent struct {
 	procMan     *orchestrator.ProcessManager
 	privateIPv4 string
 	etcdClient  etcd.KeysAPI
-	monitors    []CephMonitorConfig
+	monitors    map[string]*CephMonitorConfig
 }
 
 func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext, changeList []orchestrator.ChangeElement) error {
@@ -125,6 +128,68 @@ func (a *monAgent) makeMonitorFileSystem(monName string) error {
 		fmt.Sprintf("--keyring=%s", getMonKeyringPath(monName)))
 	if err != nil {
 		return fmt.Errorf("failed mon %s --mkfs: %+v", monName, err)
+	}
+
+	return nil
+}
+
+// runs all the given monitors in child processes
+func (m *monAgent) runMonitor(monitor CephMonitorConfig) error {
+	if monitor.Endpoint == "" {
+		return fmt.Errorf("missing endpoint for mon %s", monitor.Name)
+	}
+
+	// start the monitor daemon in the foreground with the given config
+	log.Printf("starting monitor %s", monitor.Name)
+	err := m.procMan.Start(
+		"mon",
+		"--foreground",
+		fmt.Sprintf("--cluster=%v", m.cluster.Name),
+		fmt.Sprintf("--name=mon.%v", monitor.Name),
+		fmt.Sprintf("--mon-data=%s", getMonDataDirPath(monitor.Name)),
+		fmt.Sprintf("--conf=%s", getMonConfFilePath(monitor.Name)),
+		fmt.Sprintf("--public-addr=%v", monitor.Endpoint))
+	if err != nil {
+		return fmt.Errorf("failed to start monitor %s: %+v", monitor.Name, err)
+	}
+
+	return nil
+}
+
+// writes the monitor keyring to disk
+func writeMonitorKeyring(monName string, c *clusterInfo) error {
+	keyring := fmt.Sprintf(monitorKeyringTemplate, c.MonitorSecret, c.AdminSecret)
+	keyringPath := getMonKeyringPath(monName)
+	if err := os.MkdirAll(filepath.Dir(keyringPath), 0744); err != nil {
+		return fmt.Errorf("failed to create keyring directory for %s: %+v", keyringPath, err)
+	}
+	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0644); err != nil {
+		return fmt.Errorf("failed to write monitor keyring to %s: %+v", keyringPath, err)
+	}
+
+	return nil
+}
+
+// generates and writes the monitor config file to disk
+func (m *monAgent) writeMonitorConfigFile(monName string, monitors map[string]*CephMonitorConfig, adminKeyringPath string) error {
+	var contentBuffer bytes.Buffer
+
+	if err := writeGlobalConfigFileSection(&contentBuffer, m.cluster, getMonRunDirPath(monName)); err != nil {
+		return fmt.Errorf("failed to write mon %s global config section, %+v", monName, err)
+	}
+
+	_, err := contentBuffer.WriteString(fmt.Sprintf(adminClientConfigTemplate, adminKeyringPath))
+	if err != nil {
+		return fmt.Errorf("failed to write mon %s admin client config section, %+v", monName, err)
+	}
+
+	if err := writeMonitorsConfigFileSections(&contentBuffer, monitors); err != nil {
+		return fmt.Errorf("failed to write mon %s initial monitor config sections, %+v", monName, err)
+	}
+
+	// write the entire config to disk
+	if err := util.WriteFile(getMonConfFilePath(monName), contentBuffer); err != nil {
+		return err
 	}
 
 	return nil
