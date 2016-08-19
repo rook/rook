@@ -1,7 +1,6 @@
 package castled
 
 import (
-	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -12,7 +11,6 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"golang.org/x/net/context"
 
-	"github.com/quantum/castle/pkg/util"
 	"github.com/quantum/clusterd/pkg/orchestrator"
 	"github.com/quantum/clusterd/pkg/store"
 )
@@ -22,7 +20,6 @@ type monAgent struct {
 	procMan     *orchestrator.ProcessManager
 	privateIPv4 string
 	etcdClient  etcd.KeysAPI
-	monitors    map[string]*CephMonitorConfig
 }
 
 func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext, changeList []orchestrator.ChangeElement) error {
@@ -107,7 +104,7 @@ func (a *monAgent) makeMonitorFileSystem(monName string) error {
 	}
 
 	// write the config file to disk
-	if err := a.writeMonitorConfigFile(monName, a.monitors, getMonKeyringPath(monName)); err != nil {
+	if err := writeMonitorConfigFile(monName, a.cluster, getMonKeyringPath(monName)); err != nil {
 		return err
 	}
 
@@ -171,24 +168,22 @@ func writeMonitorKeyring(monName string, c *clusterInfo) error {
 }
 
 // generates and writes the monitor config file to disk
-func (m *monAgent) writeMonitorConfigFile(monName string, monitors map[string]*CephMonitorConfig, adminKeyringPath string) error {
-	var contentBuffer bytes.Buffer
-
-	if err := writeGlobalConfigFileSection(&contentBuffer, m.cluster, getMonRunDirPath(monName)); err != nil {
-		return fmt.Errorf("failed to write mon %s global config section, %+v", monName, err)
-	}
-
-	_, err := contentBuffer.WriteString(fmt.Sprintf(adminClientConfigTemplate, adminKeyringPath))
+func writeMonitorConfigFile(monName string, cluster *clusterInfo, adminKeyringPath string) error {
+	configFile, err := createGlobalConfigFileSection(cluster, getMonRunDirPath(monName))
 	if err != nil {
-		return fmt.Errorf("failed to write mon %s admin client config section, %+v", monName, err)
+		return fmt.Errorf("failed to create mon %s global config section, %+v", monName, err)
 	}
 
-	if err := writeMonitorsConfigFileSections(&contentBuffer, monitors); err != nil {
-		return fmt.Errorf("failed to write mon %s initial monitor config sections, %+v", monName, err)
+	if err := addClientConfigFileSection(configFile, "client.admin", adminKeyringPath); err != nil {
+		return fmt.Errorf("failed to add mon %s admin client config section, %+v", monName, err)
+	}
+
+	if err := addInitialMonitorsConfigFileSections(configFile, cluster); err != nil {
+		return fmt.Errorf("failed to add mon %s initial monitor config sections, %+v", monName, err)
 	}
 
 	// write the entire config to disk
-	if err := util.WriteFile(getMonConfFilePath(monName), contentBuffer); err != nil {
+	if err := configFile.SaveTo(getMonConfFilePath(monName)); err != nil {
 		return err
 	}
 

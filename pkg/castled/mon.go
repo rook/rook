@@ -24,11 +24,6 @@ const (
 	caps mon = "allow *"
 	caps osd = "allow *"
 `
-	monitorConfigTemplate = `
-[mon.%s]
-	name = %s
-	mon addr = %s
-`
 )
 
 func NewMonitorService() *orchestrator.ClusterService {

@@ -1,9 +1,10 @@
 package castled
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
+
+	"github.com/go-ini/ini"
 )
 
 type CephMonitorConfig struct {
@@ -11,7 +12,24 @@ type CephMonitorConfig struct {
 	Endpoint string
 }
 
-func writeGlobalConfigFileSection(contentBuffer *bytes.Buffer, cluster *clusterInfo, runDir string) error {
+type cephConfig struct {
+	*cephGlobalConfig `ini:"global,omitempty"`
+}
+
+type cephGlobalConfig struct {
+	FSID                  string `ini:"fsid,omitempty"`
+	RunDir                string `ini:"run dir,omitempty"`
+	MonMembers            string `ini:"mon members,omitempty"`
+	OsdPgBits             int    `ini:"osd pg bits,omitempty"`
+	OsdPgpBits            int    `ini:"osd pgp bits,omitempty"`
+	OsdPoolDefaultSize    int    `ini:"osd pool default size,omitempty"`
+	OsdPoolDefaultMinSize int    `ini:"osd pool default min size,omitempty"`
+	OsdPoolDefaultPgNum   int    `ini:"osd pool default pg num,omitempty"`
+	OsdPoolDefaultPgpNum  int    `ini:"osd pool default pgp num,omitempty"`
+	RbdDefaultFeatures    int    `ini:"rbd_default_features,omitempty"`
+}
+
+func createGlobalConfigFileSection(cluster *clusterInfo, runDir string) (*ini.File, error) {
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	monMembers := make([]string, len(cluster.Monitors))
@@ -21,20 +39,53 @@ func writeGlobalConfigFileSection(contentBuffer *bytes.Buffer, cluster *clusterI
 		i++
 	}
 
-	// write the global config section to the content buffer
-	_, err := contentBuffer.WriteString(fmt.Sprintf(
-		globalConfigTemplate,
-		cluster.FSID,
-		runDir,
-		strings.Join(monMembers, " ")))
-	return err
+	ceph := &cephConfig{
+		&cephGlobalConfig{
+			FSID:                  cluster.FSID,
+			RunDir:                runDir,
+			MonMembers:            strings.Join(monMembers, " "),
+			OsdPgBits:             11,
+			OsdPgpBits:            11,
+			OsdPoolDefaultSize:    1,
+			OsdPoolDefaultMinSize: 1,
+			OsdPoolDefaultPgNum:   100,
+			OsdPoolDefaultPgpNum:  100,
+			RbdDefaultFeatures:    3,
+		},
+	}
+
+	configFile := ini.Empty()
+	err := ini.ReflectFrom(configFile, ceph)
+	return configFile, err
 }
 
-func writeMonitorsConfigFileSections(contentBuffer *bytes.Buffer, monitors map[string]*CephMonitorConfig) error {
+func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath string) error {
+	s, err := configFile.NewSection(clientName)
+	if err != nil {
+		return err
+	}
+
+	if _, err := s.NewKey("keyring", keyringPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func addInitialMonitorsConfigFileSections(configFile *ini.File, cluster *clusterInfo) error {
 	// write the config for each individual monitor member of the cluster to the content buffer
-	for _, mon := range monitors {
-		_, err := contentBuffer.WriteString(fmt.Sprintf(monitorConfigTemplate, mon.Name, mon.Name, mon.Endpoint))
+	for _, mon := range cluster.Monitors {
+
+		s, err := configFile.NewSection(fmt.Sprintf("mon.%s", mon.Name))
 		if err != nil {
+			return err
+		}
+
+		if _, err := s.NewKey("name", mon.Name); err != nil {
+			return err
+		}
+
+		if _, err := s.NewKey("mon addr", mon.Endpoint); err != nil {
 			return err
 		}
 	}
