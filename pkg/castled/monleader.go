@@ -23,7 +23,6 @@ type monLeader struct {
 	privateIPv4 string
 	devices     []string
 	forceFormat bool
-	etcdClient  etcd.KeysAPI
 }
 
 // Load the state of the service from etcd. Typically a service will populate the desired/discovered state and the applied state
@@ -39,7 +38,7 @@ func (m *monLeader) ApplyState(context *orchestrator.ClusterContext) error {
 
 	// Create or get the basic cluster info
 	var err error
-	m.cluster, err = createOrGetClusterInfo(m.etcdClient)
+	m.cluster, err = createOrGetClusterInfo(context.EtcdClient)
 	if err != nil {
 		return err
 	}
@@ -89,6 +88,9 @@ func createOrGetClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 func loadClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 	resp, err := etcdClient.Get(ctx.Background(), path.Join(cephKey, "fsid"), nil)
 	if err != nil {
+		if store.IsEtcdKeyNotFound(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	fsid := resp.Node.Value
@@ -284,6 +286,10 @@ func (m *monLeader) chooseMonitorNodes(context *orchestrator.ClusterContext) (ma
 
 	// Choose new monitor nodes
 	nodeCount := len(context.Inventory.Nodes)
+	if nodeCount == 0 {
+		return nil, errors.New("cannot create cluster with 0 nodes")
+	}
+
 	monitorCount := calculateMonitorCount(nodeCount)
 	log.Printf("Selecting %d new monitors from %d discovered nodes", monitorCount, nodeCount)
 
