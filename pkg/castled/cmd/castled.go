@@ -12,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/quantum/castle/pkg/castled"
+	"github.com/quantum/castle/pkg/util"
 	"github.com/quantum/clusterd/pkg/orchestrator"
 	"github.com/quantum/clusterd/pkg/store"
 )
@@ -59,7 +60,7 @@ func addCommands() {
 }
 
 func joinCluster(cmd *cobra.Command, args []string) error {
-	if err := verifyRequiredFlags(cmd, []string{"node-id", "private-ipv4"}); err != nil {
+	if err := util.verifyRequiredFlags(cmd, []string{"node-id", "private-ipv4"}); err != nil {
 		return err
 	}
 
@@ -116,17 +117,6 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 	fmt.Println("waiting for ctrl-c interrupt...")
 	<-ch
 	fmt.Println("terminating due to ctrl-c interrupt...")
-
-	return nil
-}
-
-func verifyRequiredFlags(cmd *cobra.Command, requiredFlags []string) error {
-	for _, reqFlag := range requiredFlags {
-		val, err := cmd.Flags().GetString(reqFlag)
-		if err != nil || val == "" {
-			return fmt.Errorf("%s is required for %s", reqFlag, cmd.Name())
-		}
-	}
 
 	return nil
 }

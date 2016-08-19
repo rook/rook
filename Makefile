@@ -101,6 +101,8 @@ ifeq ($(DEBUG),0)
 endif
 	@echo "##### building castled" 
 	go build $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' -o bin/castled ./cmd/castled
+	@echo "##### building castlectl" 
+	go build $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' -o bin/castlectl ./cmd/castlectl
 
 ceph:
 	git submodule update --init --recursive
