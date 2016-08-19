@@ -60,7 +60,7 @@ func addCommands() {
 }
 
 func joinCluster(cmd *cobra.Command, args []string) error {
-	if err := util.verifyRequiredFlags(cmd, []string{"node-id", "private-ipv4"}); err != nil {
+	if err := util.VerifyRequiredFlags(cmd, []string{"node-id", "private-ipv4"}); err != nil {
 		return err
 	}
 
