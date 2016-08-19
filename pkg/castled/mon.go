@@ -1,7 +1,6 @@
 package castled
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -18,7 +17,6 @@ import (
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/castle/pkg/kvstore"
 	"github.com/quantum/castle/pkg/proc"
-	"github.com/quantum/castle/pkg/util"
 )
 
 const (
@@ -32,11 +30,6 @@ const (
 	caps mds = "allow"
 	caps mon = "allow *"
 	caps osd = "allow *"
-`
-	monitorConfigTemplate = `
-[mon.%s]
-	name = %s
-	mon addr = %s
 `
 )
 
@@ -275,23 +268,21 @@ func writeMonitorKeyring(monName string, c clusterInfo) error {
 
 // generates and writes the monitor config file to disk
 func writeMonitorConfigFile(monName string, cfg Config, c clusterInfo, adminKeyringPath string) error {
-	var contentBuffer bytes.Buffer
-
-	if err := writeGlobalConfigFileSection(&contentBuffer, cfg, c, getMonRunDirPath(monName)); err != nil {
-		return fmt.Errorf("failed to write mon %s global config section, %+v", monName, err)
-	}
-
-	_, err := contentBuffer.WriteString(fmt.Sprintf(adminClientConfigTemplate, adminKeyringPath))
+	configFile, err := createGlobalConfigFileSection(cfg, c, getMonRunDirPath(monName))
 	if err != nil {
-		return fmt.Errorf("failed to write mon %s admin client config section, %+v", monName, err)
+		return fmt.Errorf("failed to create mon %s global config section, %+v", monName, err)
 	}
 
-	if err := writeInitialMonitorsConfigFileSections(&contentBuffer, cfg); err != nil {
-		return fmt.Errorf("failed to write mon %s initial monitor config sections, %+v", monName, err)
+	if err := addClientConfigFileSection(configFile, "client.admin", adminKeyringPath); err != nil {
+		return fmt.Errorf("failed to add mon %s admin client config section, %+v", monName, err)
+	}
+
+	if err := addInitialMonitorsConfigFileSections(configFile, cfg); err != nil {
+		return fmt.Errorf("failed to add mon %s initial monitor config sections, %+v", monName, err)
 	}
 
 	// write the entire config to disk
-	if err := util.WriteFile(getMonConfFilePath(monName), contentBuffer); err != nil {
+	if err := configFile.SaveTo(getMonConfFilePath(monName)); err != nil {
 		return err
 	}
 

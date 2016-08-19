@@ -1,7 +1,6 @@
 package castled
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -18,22 +17,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/castle/pkg/proc"
-	"github.com/quantum/castle/pkg/util"
 )
 
 const (
-	bootstrapOSDClientConfigTemplate = `
-[client.bootstrap-osd]
-    keyring=%s
-`
 	bootstrapOSDKeyringTemplate = `
 [client.bootstrap-osd]
 	key = %s
 	caps mon = "allow profile bootstrap-osd"
-`
-	osdClientConfigTemplate = `
-[osd.%d]
-	keyring=%s
 `
 )
 
@@ -49,7 +39,7 @@ func getBootstrapOSDKeyringPath(clusterName string) string {
 
 // get the full path to the bootstrap OSD config file
 func getBootstrapOSDConfFilePath() string {
-	return fmt.Sprintf("%s/tmp_config", getBootstrapOSDDir())
+	return filepath.Join(getBootstrapOSDDir(), "config")
 }
 
 // get the full path to the given OSD's config file
@@ -229,24 +219,21 @@ func createOSDBootstrapKeyring(conn *cephd.Conn, clusterName string, executor pr
 
 // write the bootstrap-osd config file to disk
 func writeBootstrapOSDConfFile(cfg Config, c clusterInfo, bootstrapOSDKeyringPath string) error {
-	var contentBuffer bytes.Buffer
-	bootstrapOSDConfFilePath := getBootstrapOSDConfFilePath()
-
-	if err := writeGlobalConfigFileSection(&contentBuffer, cfg, c, getBootstrapOSDDir()); err != nil {
-		return fmt.Errorf("failed to write bootstrap-osd global config section, %+v", err)
-	}
-
-	_, err := contentBuffer.WriteString(fmt.Sprintf(bootstrapOSDClientConfigTemplate, bootstrapOSDKeyringPath))
+	configFile, err := createGlobalConfigFileSection(cfg, c, getBootstrapOSDDir())
 	if err != nil {
-		return fmt.Errorf("failed to write bootstrap-osd client config section, %+v", err)
+		return fmt.Errorf("failed to create bootstrap-osd global config section, %+v", err)
 	}
 
-	if err := writeInitialMonitorsConfigFileSections(&contentBuffer, cfg); err != nil {
-		return fmt.Errorf("failed to write bootstrap-osd initial monitor config sections, %+v", err)
+	if err := addClientConfigFileSection(configFile, "client.bootstrap-osd", bootstrapOSDKeyringPath); err != nil {
+		return fmt.Errorf("failed to add bootstrap-osd client config section, %+v", err)
+	}
+
+	if err := addInitialMonitorsConfigFileSections(configFile, cfg); err != nil {
+		return fmt.Errorf("failed to add bootstrap-osd initial monitor config sections, %+v", err)
 	}
 
 	// write the entire config to disk
-	if err := util.WriteFile(bootstrapOSDConfFilePath, contentBuffer); err != nil {
+	if err := configFile.SaveTo(getBootstrapOSDConfFilePath()); err != nil {
 		return err
 	}
 
@@ -404,24 +391,21 @@ func createOSD(bootstrapConn *cephd.Conn, osdUUID uuid.UUID) (int, error) {
 
 // writes a config file to disk for the given OSD and config
 func writeOSDConfFile(cfg Config, c clusterInfo, osdDataPath string, osdID int) error {
-	var contentBuffer bytes.Buffer
-	osdConfFilePath := getOSDConfFilePath(osdDataPath)
-
-	if err := writeGlobalConfigFileSection(&contentBuffer, cfg, c, osdDataPath); err != nil {
-		return fmt.Errorf("failed to write osd %d global config section, %+v", osdID, err)
+	configFile, err := createGlobalConfigFileSection(cfg, c, osdDataPath)
+	if err != nil {
+		return fmt.Errorf("failed to create osd %d global config section, %+v", osdID, err)
 	}
 
-	_, err := contentBuffer.WriteString(fmt.Sprintf(osdClientConfigTemplate, osdID, getOSDKeyringPath(osdDataPath)))
-	if err != nil {
+	if err := addClientConfigFileSection(configFile, fmt.Sprintf("osd.%d", osdID), getOSDKeyringPath(osdDataPath)); err != nil {
 		return fmt.Errorf("failed to write osd %d config section, %+v", osdID, err)
 	}
 
-	if err := writeInitialMonitorsConfigFileSections(&contentBuffer, cfg); err != nil {
+	if err := addInitialMonitorsConfigFileSections(configFile, cfg); err != nil {
 		return fmt.Errorf("failed to write osd %d initial monitor config sections, %+v", osdID, err)
 	}
 
 	// write the entire config to disk
-	if err := util.WriteFile(osdConfFilePath, contentBuffer); err != nil {
+	if err := configFile.SaveTo(getOSDConfFilePath(osdDataPath)); err != nil {
 		return err
 	}
 

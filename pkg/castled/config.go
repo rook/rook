@@ -1,10 +1,10 @@
 package castled
 
 import (
-	"bytes"
 	"fmt"
 	"strings"
 
+	"github.com/go-ini/ini"
 	"github.com/quantum/castle/pkg/util"
 )
 
@@ -21,6 +21,23 @@ type Config struct {
 type CephMonitorConfig struct {
 	Name     string
 	Endpoint string
+}
+
+type cephConfig struct {
+	*cephGlobalConfig `ini:"global,omitempty"`
+}
+
+type cephGlobalConfig struct {
+	FSID                  string `ini:"fsid,omitempty"`
+	RunDir                string `ini:"run dir,omitempty"`
+	MonInitialMembers     string `ini:"mon initial members,omitempty"`
+	OsdPgBits             int    `ini:"osd pg bits,omitempty"`
+	OsdPgpBits            int    `ini:"osd pgp bits,omitempty"`
+	OsdPoolDefaultSize    int    `ini:"osd pool default size,omitempty"`
+	OsdPoolDefaultMinSize int    `ini:"osd pool default min size,omitempty"`
+	OsdPoolDefaultPgNum   int    `ini:"osd pool default pg num,omitempty"`
+	OsdPoolDefaultPgpNum  int    `ini:"osd pool default pgp num,omitempty"`
+	RbdDefaultFeatures    int    `ini:"rbd_default_features,omitempty"`
 }
 
 func NewConfig(clusterName, etcdURLs, privateIPv4, monNames, initMonitorNames, devices string, forceFormat bool) Config {
@@ -43,7 +60,7 @@ func NewConfig(clusterName, etcdURLs, privateIPv4, monNames, initMonitorNames, d
 	}
 }
 
-func writeGlobalConfigFileSection(contentBuffer *bytes.Buffer, cfg Config, c clusterInfo, runDir string) error {
+func createGlobalConfigFileSection(cfg Config, c clusterInfo, runDir string) (*ini.File, error) {
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	initialMonMembers := make([]string, len(cfg.InitialMonitors))
@@ -51,21 +68,54 @@ func writeGlobalConfigFileSection(contentBuffer *bytes.Buffer, cfg Config, c clu
 		initialMonMembers[i] = cfg.InitialMonitors[i].Name
 	}
 
-	// write the global config section to the content buffer
-	_, err := contentBuffer.WriteString(fmt.Sprintf(
-		globalConfigTemplate,
-		c.FSID,
-		runDir,
-		strings.Join(initialMonMembers, " ")))
-	return err
+	ceph := &cephConfig{
+		&cephGlobalConfig{
+			FSID:                  c.FSID,
+			RunDir:                runDir,
+			MonInitialMembers:     strings.Join(initialMonMembers, " "),
+			OsdPgBits:             11,
+			OsdPgpBits:            11,
+			OsdPoolDefaultSize:    1,
+			OsdPoolDefaultMinSize: 1,
+			OsdPoolDefaultPgNum:   100,
+			OsdPoolDefaultPgpNum:  100,
+			RbdDefaultFeatures:    3,
+		},
+	}
+
+	configFile := ini.Empty()
+	err := ini.ReflectFrom(configFile, ceph)
+	return configFile, err
 }
 
-func writeInitialMonitorsConfigFileSections(contentBuffer *bytes.Buffer, cfg Config) error {
+func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath string) error {
+	s, err := configFile.NewSection(clientName)
+	if err != nil {
+		return err
+	}
+
+	if _, err := s.NewKey("keyring", keyringPath); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func addInitialMonitorsConfigFileSections(configFile *ini.File, cfg Config) error {
 	// write the config for each individual monitor member of the cluster to the content buffer
 	for i := range cfg.InitialMonitors {
 		mon := cfg.InitialMonitors[i]
-		_, err := contentBuffer.WriteString(fmt.Sprintf(monitorConfigTemplate, mon.Name, mon.Name, mon.Endpoint))
+
+		s, err := configFile.NewSection(fmt.Sprintf("mon.%s", mon.Name))
 		if err != nil {
+			return err
+		}
+
+		if _, err := s.NewKey("name", mon.Name); err != nil {
+			return err
+		}
+
+		if _, err := s.NewKey("mon addr", mon.Endpoint); err != nil {
 			return err
 		}
 	}
