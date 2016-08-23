@@ -8,8 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	etcd "github.com/coreos/etcd/client"
-	"golang.org/x/net/context"
+	ctx "golang.org/x/net/context"
 
 	"github.com/quantum/clusterd/pkg/orchestrator"
 	"github.com/quantum/clusterd/pkg/store"
@@ -17,12 +16,19 @@ import (
 
 type monAgent struct {
 	cluster     *clusterInfo
-	procMan     *orchestrator.ProcessManager
 	privateIPv4 string
-	etcdClient  etcd.KeysAPI
+	context     *orchestrator.ClusterContext
 }
 
 func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext, changeList []orchestrator.ChangeElement) error {
+	a.context = context
+
+	var err error
+	a.cluster, err = loadClusterInfo(context.EtcdClient)
+	if err != nil {
+		return fmt.Errorf("failed to load cluster info: %+v", err)
+	}
+
 	monName := "mon1" // FIX
 	port := 6790
 	if err := a.registerMonitor(monName, port); err != nil {
@@ -41,7 +47,7 @@ func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext, changeLi
 
 	// run the monitors
 	monitor := CephMonitorConfig{Name: monName, Endpoint: fmt.Sprintf("%s:%d", a.privateIPv4, port)}
-	err := a.runMonitor(monitor)
+	err = a.runMonitor(monitor)
 	if err != nil {
 		return fmt.Errorf("failed to run monitors: %+v", err)
 	}
@@ -51,7 +57,8 @@ func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext, changeLi
 	return err
 }
 
-func (m *monAgent) DestroyAgent(context *orchestrator.ClusterContext) error {
+func (a *monAgent) DestroyAgent(context *orchestrator.ClusterContext) error {
+	a.context = context
 	return nil
 }
 
@@ -61,7 +68,7 @@ func (a *monAgent) registerMonitor(monName string, port int) error {
 	key := getMonitorEndpointKey(monName)
 	val := fmt.Sprintf("%s:%d", a.privateIPv4, port)
 
-	_, err := a.etcdClient.Set(context.Background(), key, val, nil)
+	_, err := a.context.EtcdClient.Set(ctx.Background(), key, val, nil)
 	if err == nil || !store.IsEtcdNodeExist(err) {
 		log.Printf("registered monitor %s endpoint of %s", monName, val)
 	} else {
@@ -79,7 +86,7 @@ func (a *monAgent) waitForMonitorRegistration(monName string) error {
 	retryMax := 40
 	sleepTime := 5
 	for {
-		resp, err := a.etcdClient.Get(context.Background(), key, nil)
+		resp, err := a.context.EtcdClient.Get(ctx.Background(), key, nil)
 		if err == nil && resp != nil && resp.Node != nil && resp.Node.Value != "" {
 			log.Printf("monitor %s registered at %s", monName, resp.Node.Value)
 			break
@@ -115,7 +122,7 @@ func (a *monAgent) makeMonitorFileSystem(monName string) error {
 	}
 
 	// call mon --mkfs in a child process
-	err := a.procMan.Start(
+	err := a.context.ProcMan.Start(
 		"mon",
 		"--mkfs",
 		fmt.Sprintf("--cluster=%s", a.cluster.Name),
@@ -131,17 +138,17 @@ func (a *monAgent) makeMonitorFileSystem(monName string) error {
 }
 
 // runs all the given monitors in child processes
-func (m *monAgent) runMonitor(monitor CephMonitorConfig) error {
+func (a *monAgent) runMonitor(monitor CephMonitorConfig) error {
 	if monitor.Endpoint == "" {
 		return fmt.Errorf("missing endpoint for mon %s", monitor.Name)
 	}
 
 	// start the monitor daemon in the foreground with the given config
 	log.Printf("starting monitor %s", monitor.Name)
-	err := m.procMan.Start(
+	err := a.context.ProcMan.Start(
 		"mon",
 		"--foreground",
-		fmt.Sprintf("--cluster=%v", m.cluster.Name),
+		fmt.Sprintf("--cluster=%v", a.cluster.Name),
 		fmt.Sprintf("--name=mon.%v", monitor.Name),
 		fmt.Sprintf("--mon-data=%s", getMonDataDirPath(monitor.Name)),
 		fmt.Sprintf("--conf=%s", getMonConfFilePath(monitor.Name)),

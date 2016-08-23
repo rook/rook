@@ -89,11 +89,15 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	procMan := &orchestrator.ProcessManager{}
+	defer procMan.Shutdown()
+
 	context := &orchestrator.ClusterContext{
 		EtcdClient: etcdClient,
 		Executor:   &orchestrator.CommandExecutor{},
 		NodeID:     nodeID,
 		Services:   []*orchestrator.ClusterService{castled.NewMonitorService()},
+		ProcMan:    procMan,
 	}
 	clusterLeader := &orchestrator.SimpleLeader{LeaseName: orchestrator.LeaderElectionKey}
 	clusterMember := orchestrator.NewClusterMember(context, leaseManager, clusterLeader)
@@ -104,19 +108,17 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	p := &orchestrator.ProcessManager{}
-	defer p.Shutdown()
 	go func() {
 		// Watch for commands from the leader
-		orchestrator.WatchForAgentServiceConfig(context, p)
+		orchestrator.WatchForAgentServiceConfig(context)
 	}()
 
 	// wait for user to interrupt/terminate the process
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
-	fmt.Println("waiting for ctrl-c interrupt...")
+	fmt.Println("waiting for ctrl-c INTERRUPT...")
 	<-ch
-	fmt.Println("terminating due to ctrl-c interrupt...")
+	fmt.Println("terminating due to ctrl-c INTERRUPT...")
 
 	return nil
 }

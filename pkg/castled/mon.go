@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	monitorKey             = "monitor"
-	osdKey                 = "osd"
+	monitorKey             = "ceph-mon"
+	osdKey                 = "ceph-osd"
 	monitorKeyringTemplate = `
 [mon.]
 	key = %s
@@ -27,7 +27,7 @@ const (
 )
 
 func NewMonitorService() *orchestrator.ClusterService {
-	service := &orchestrator.ClusterService{Name: "ceph-mon"}
+	service := &orchestrator.ClusterService{Name: monitorKey}
 
 	service.Leader = &monLeader{}
 	service.Agent = &monAgent{}

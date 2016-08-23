@@ -28,7 +28,7 @@ const (
 )
 
 func NewOSDService() *orchestrator.ClusterService {
-	service := &orchestrator.ClusterService{Name: "ceph-osd"}
+	service := &orchestrator.ClusterService{Name: osdKey}
 
 	service.Leader = &osdLeader{}
 	service.Agent = &osdAgent{}
