@@ -11,6 +11,7 @@ import (
 )
 
 const (
+	PrivateIPv4Value       = "privateIPv4"
 	monitorKey             = "ceph-mon"
 	osdKey                 = "ceph-osd"
 	monitorKeyringTemplate = `

@@ -297,11 +297,17 @@ func (m *monLeader) chooseMonitorNodes(context *orchestrator.ClusterContext) (ma
 	monitorNum := 0
 	var settings = make(map[string]string)
 	for nodeID, node := range context.Inventory.Nodes {
+		ipaddress, err := getDesiredNodeIPAddress(context, nodeID)
+		if err != nil {
+			log.Printf("failed to discover desired ip address for node %s. %v", nodeID, err)
+			return nil, err
+		}
+
 		// Store the monitor id and connection info
 		monitorID := strconv.FormatInt(int64(monitorNum), 10)
 		port := "6790"
 		settings[path.Join(nodeID, "id")] = monitorID
-		settings[path.Join(nodeID, "ipaddress")] = node.IPAddress
+		settings[path.Join(nodeID, "ipaddress")] = ipaddress
 		settings[path.Join(nodeID, "port")] = port
 
 		monitor := &CephMonitorConfig{Name: monitorID, Endpoint: fmt.Sprintf("%s:%s", node.IPAddress, port)}
@@ -318,6 +324,16 @@ func (m *monLeader) chooseMonitorNodes(context *orchestrator.ClusterContext) (ma
 	}
 
 	return monitors, nil
+}
+
+func getDesiredNodeIPAddress(context *orchestrator.ClusterContext, nodeID string) (string, error) {
+	key := path.Join(orchestrator.DesiredNodesKey, nodeID, PrivateIPv4Value)
+	resp, err := context.EtcdClient.Get(ctx.Background(), key, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Node.Value, nil
 }
 
 // Calculate the number of monitors that should be deployed

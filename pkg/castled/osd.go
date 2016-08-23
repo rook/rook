@@ -20,6 +20,8 @@ import (
 )
 
 const (
+	DevicesValue                = "devices"
+	ForceFormatValue            = "forceFormat"
 	bootstrapOSDKeyringTemplate = `
 [client.bootstrap-osd]
 	key = %s

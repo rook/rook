@@ -74,9 +74,9 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 	// Write desired state for this machine to etcd
 	baseKey := path.Join(orchestrator.DesiredNodesKey, nodeID)
 	properties := map[string]string{
-		"privateIPv4": privateIPv4,
-		"devices":     devices,
-		"forceFormat": strconv.FormatBool(forceFormat),
+		castled.PrivateIPv4Value: privateIPv4,
+		castled.DevicesValue:     devices,
+		castled.ForceFormatValue: strconv.FormatBool(forceFormat),
 	}
 	if err := orchestrator.StoreEtcdProperties(etcdClient, baseKey, properties); err != nil {
 		return err
