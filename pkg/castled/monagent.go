@@ -114,7 +114,7 @@ func (a *monAgent) makeMonitorFileSystem(monName string) error {
 	return nil
 }
 
-// runs all the given monitors in child processes
+// runs the monitor in a child process
 func (a *monAgent) runMonitor(monitor *CephMonitorConfig) error {
 	if monitor.Endpoint == "" {
 		return fmt.Errorf("missing endpoint for mon %s", monitor.Name)
@@ -128,7 +128,7 @@ func (a *monAgent) runMonitor(monitor *CephMonitorConfig) error {
 		fmt.Sprintf("--cluster=%v", a.cluster.Name),
 		fmt.Sprintf("--name=mon.%v", monitor.Name),
 		fmt.Sprintf("--mon-data=%s", getMonDataDirPath(monitor.Name)),
-		fmt.Sprintf("--conf=%s", getConfFilePath("", a.cluster.Name)),
+		fmt.Sprintf("--conf=%s", getConfFilePath(getMonRunDirPath(monitor.Name), a.cluster.Name)),
 		fmt.Sprintf("--public-addr=%s", monitor.Endpoint))
 	if err != nil {
 		return fmt.Errorf("failed to start monitor %s: %v", monitor.Name, err)

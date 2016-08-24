@@ -3,6 +3,8 @@ package castled
 import (
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-ini/ini"
@@ -33,16 +35,21 @@ type cephGlobalConfig struct {
 
 // get the path of a given monitor's config file
 func getConfFilePath(root, clusterName string) string {
-	if root == "" {
-		root = "/tmp/mon0"
-	}
 	return fmt.Sprintf("%s/%s.config", root, clusterName)
 }
 
 // generates and writes the monitor config file to disk
 func generateConfigFile(cluster *clusterInfo, pathRoot, user, keyringPath string) (string, error) {
+	if pathRoot == "" {
+		pathRoot = getMonRunDirPath(getFirstMonitor(cluster))
+	}
 
-	configFile, err := createGlobalConfigFileSection(cluster)
+	// create the config directory
+	if err := os.MkdirAll(filepath.Dir(pathRoot), 0744); err != nil {
+		fmt.Printf("failed to create config directory at %s: %+v", pathRoot, err)
+	}
+
+	configFile, err := createGlobalConfigFileSection(cluster, pathRoot)
 	if err != nil {
 		return "", fmt.Errorf("failed to create global config section, %+v", err)
 	}
@@ -73,20 +80,24 @@ func getQualifiedUser(user string) string {
 	return user
 }
 
-func connectToClusterAsAdmin(cluster *clusterInfo) (*cephd.Conn, error) {
+func getFirstMonitor(cluster *clusterInfo) string {
 	// Get the first monitor
-	var mon *CephMonitorConfig
 	for _, m := range cluster.Monitors {
-		mon = m
-		break
+		return m.Name
 	}
 
+	return ""
+}
+
+func connectToClusterAsAdmin(cluster *clusterInfo) (*cephd.Conn, error) {
+
 	// write the monitor keyring to disk
-	if err := writeMonitorKeyring(mon.Name, cluster); err != nil {
+	monName := getFirstMonitor(cluster)
+	if err := writeMonitorKeyring(monName, cluster); err != nil {
 		return nil, err
 	}
 
-	return connectToCluster(cluster, getQualifiedUser("admin"), getMonKeyringPath(mon.Name))
+	return connectToCluster(cluster, getQualifiedUser("admin"), getMonKeyringPath(monName))
 }
 
 // opens a connection to the cluster that can be used for management operations
@@ -114,7 +125,7 @@ func connectToCluster(cluster *clusterInfo, user, keyringPath string) (*cephd.Co
 	return conn, nil
 }
 
-func createGlobalConfigFileSection(cluster *clusterInfo) (*ini.File, error) {
+func createGlobalConfigFileSection(cluster *clusterInfo, runDir string) (*ini.File, error) {
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	monMembers := make([]string, len(cluster.Monitors))
@@ -127,7 +138,7 @@ func createGlobalConfigFileSection(cluster *clusterInfo) (*ini.File, error) {
 	ceph := &cephConfig{
 		&cephGlobalConfig{
 			FSID:                  cluster.FSID,
-			RunDir:                "/tmp/mon0",
+			RunDir:                runDir,
 			MonMembers:            strings.Join(monMembers, " "),
 			OsdPgBits:             11,
 			OsdPgpBits:            11,
