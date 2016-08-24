@@ -81,6 +81,11 @@ func connectToClusterAsAdmin(cluster *clusterInfo) (*cephd.Conn, error) {
 		break
 	}
 
+	// write the monitor keyring to disk
+	if err := writeMonitorKeyring(mon.Name, cluster); err != nil {
+		return nil, err
+	}
+
 	return connectToCluster(cluster, getQualifiedUser("admin"), getMonKeyringPath(mon.Name))
 }
 

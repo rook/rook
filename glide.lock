@@ -1,5 +1,5 @@
-hash: a3bba25524083cc9a52b745a4fe93617d49303d30e605748cb0c008edf48f237
-updated: 2016-08-18T13:54:03.475699396-07:00
+hash: 3b2a241380e8f2cbb7fd2d5cb6b97720470d0897036750a7754eb237be109122
+updated: 2016-08-24T11:33:35.813971347-07:00
 imports:
 - name: github.com/coreos/etcd
   version: d53923c636e0e4ab7f00cb75681b97a8f11f5a9d
@@ -15,11 +15,12 @@ imports:
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/quantum/clusterd
-  version: 8ea6609f8b8faf2af112acec6a41cb99122ea0bd
+  version: a0f5e7c1eade321d0ba8aa5493258d5656606540
   subpackages:
-  - pkg/orchestrator
-  - pkg/store
   - pkg/inventory
+  - pkg/orchestrator
+  - pkg/proc
+  - pkg/store
 - name: github.com/spf13/cobra
   version: dbb7c2d02e284aa24423e3e6e105969dffe6e4d6
   subpackages:

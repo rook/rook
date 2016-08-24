@@ -15,8 +15,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/cephd"
-	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/clusterd/pkg/orchestrator"
+	"github.com/quantum/clusterd/pkg/proc"
 )
 
 const (

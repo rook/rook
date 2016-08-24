@@ -32,7 +32,6 @@ func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext, changeLi
 	if monitor, ok = a.cluster.Monitors[context.NodeID]; !ok {
 		return fmt.Errorf("failed to find monitor during config")
 	}
-	log.Printf("FOUND monitor %+v from %d monitors", monitor, len(a.cluster.Monitors))
 
 	// initialze the file systems for the monitors
 	if err := a.makeMonitorFileSystem(monitor.Name); err != nil {
@@ -88,7 +87,7 @@ func (a *monAgent) makeMonitorFileSystem(monName string) error {
 	}
 
 	// write the config file to disk
-	confFilePath, err := generateConfigFile(a.cluster, "", "admin", getMonKeyringPath(monName))
+	confFilePath, err := generateConfigFile(a.cluster, getMonRunDirPath(monName), "admin", getMonKeyringPath(monName))
 	if err != nil {
 		return err
 	}
@@ -100,7 +99,7 @@ func (a *monAgent) makeMonitorFileSystem(monName string) error {
 	}
 
 	// call mon --mkfs in a child process
-	err = a.context.ProcMan.Start(
+	err = a.context.ProcMan.Run(
 		"mon",
 		"--mkfs",
 		fmt.Sprintf("--cluster=%s", a.cluster.Name),

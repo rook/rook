@@ -14,6 +14,7 @@ import (
 	"github.com/quantum/castle/pkg/castled"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/quantum/clusterd/pkg/orchestrator"
+	"github.com/quantum/clusterd/pkg/proc"
 	"github.com/quantum/clusterd/pkg/store"
 )
 
@@ -89,12 +90,12 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	procMan := &orchestrator.ProcessManager{}
+	procMan := &proc.Manager{}
 	defer procMan.Shutdown()
 
 	context := &orchestrator.ClusterContext{
 		EtcdClient: etcdClient,
-		Executor:   &orchestrator.CommandExecutor{},
+		Executor:   &proc.CommandExecutor{},
 		NodeID:     nodeID,
 		Services:   []*orchestrator.ClusterService{castled.NewMonitorService()},
 		ProcMan:    procMan,

@@ -12,11 +12,12 @@ import (
 
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/clusterd/pkg/orchestrator"
+	"github.com/quantum/clusterd/pkg/proc"
 )
 
 type osdAgent struct {
 	cluster     *clusterInfo
-	procMan     *orchestrator.ProcessManager
+	procMan     *proc.Manager
 	privateIPv4 string
 	etcdClient  etcd.KeysAPI
 }
