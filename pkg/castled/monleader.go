@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -180,32 +179,13 @@ func saveClusterInfo(c *clusterInfo, etcdClient etcd.KeysAPI) error {
 	return nil
 }
 
-// opens a connection to the cluster that can be used for management operations
-func connectToCluster(clusterName, user, confFilePath string) (*cephd.Conn, error) {
-	log.Printf("connecting to ceph cluster %s with user %s", clusterName, user)
-
-	conn, err := cephd.NewConnWithClusterAndUser(clusterName, user)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create rados connection for cluster %s and user %s: %+v", clusterName, user, err)
-	}
-
-	if err = conn.ReadConfigFile(confFilePath); err != nil {
-		return nil, fmt.Errorf("failed to read config file for cluster %s: %+v", clusterName, err)
-	}
-
-	if err = conn.Connect(); err != nil {
-		return nil, fmt.Errorf("failed to connect to cluster %s: %+v", clusterName, err)
-	}
-
-	return conn, nil
-}
-
 // Create the ceph monitors
 // Must be idempotent
 func (m *monLeader) createMonitors(context *orchestrator.ClusterContext) error {
 
 	// Choose the nodes where the monitors will run
-	monitors, err := m.chooseMonitorNodes(context)
+	var err error
+	m.cluster.Monitors, err = m.chooseMonitorNodes(context)
 	if err != nil {
 		log.Printf("failed to choose monitors. err=%s", err.Error())
 		return err
@@ -213,7 +193,7 @@ func (m *monLeader) createMonitors(context *orchestrator.ClusterContext) error {
 
 	// Trigger the monitors to start on each node
 	monNodes := []string{}
-	for mon := range monitors {
+	for mon := range m.cluster.Monitors {
 		monNodes = append(monNodes, mon)
 	}
 	err = orchestrator.TriggerAgentsAndWaitForCompletion(context.EtcdClient, monNodes, monitorKey, len(monNodes))
@@ -222,7 +202,7 @@ func (m *monLeader) createMonitors(context *orchestrator.ClusterContext) error {
 	}
 
 	// Wait for quorum
-	err = m.waitForQuorum()
+	err = m.waitForQuorum(context)
 	if err != nil {
 		return err
 	}
@@ -296,7 +276,7 @@ func (m *monLeader) chooseMonitorNodes(context *orchestrator.ClusterContext) (ma
 	// Select nodes and assign them a monitor ID
 	monitorNum := 0
 	var settings = make(map[string]string)
-	for nodeID, node := range context.Inventory.Nodes {
+	for nodeID := range context.Inventory.Nodes {
 		ipaddress, err := getDesiredNodeIPAddress(context, nodeID)
 		if err != nil {
 			log.Printf("failed to discover desired ip address for node %s. %v", nodeID, err)
@@ -304,13 +284,13 @@ func (m *monLeader) chooseMonitorNodes(context *orchestrator.ClusterContext) (ma
 		}
 
 		// Store the monitor id and connection info
-		monitorID := strconv.FormatInt(int64(monitorNum), 10)
 		port := "6790"
+		monitorID := fmt.Sprintf("mon%d", monitorNum)
 		settings[path.Join(nodeID, "id")] = monitorID
 		settings[path.Join(nodeID, "ipaddress")] = ipaddress
 		settings[path.Join(nodeID, "port")] = port
 
-		monitor := &CephMonitorConfig{Name: monitorID, Endpoint: fmt.Sprintf("%s:%s", node.IPAddress, port)}
+		monitor := &CephMonitorConfig{Name: monitorID, Endpoint: fmt.Sprintf("%s:%s", ipaddress, port)}
 		monitors[nodeID] = monitor
 
 		monitorNum++
@@ -349,16 +329,10 @@ func calculateMonitorCount(nodeCount int) int {
 	}
 }
 
-func (m *monLeader) waitForQuorum() error {
+func (m *monLeader) waitForQuorum(context *orchestrator.ClusterContext) error {
 
 	// open an admin connection to the clufster
-	user := "client.admin"
-	config, err := getCephConnectionConfig(m.cluster)
-	if err != nil {
-		return err
-	}
-
-	adminConn, err := connectToCluster(m.cluster.Name, user, config)
+	adminConn, err := connectToClusterAsAdmin(m.cluster)
 	if err != nil {
 		return err
 	}

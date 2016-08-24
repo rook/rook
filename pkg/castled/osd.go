@@ -114,29 +114,6 @@ func createOSDBootstrapKeyring(conn *cephd.Conn, clusterName string, executor pr
 	return nil
 }
 
-// write the bootstrap-osd config file to disk
-func writeBootstrapOSDConfFile(cluster *clusterInfo, bootstrapOSDKeyringPath string) error {
-	configFile, err := createGlobalConfigFileSection(cluster, getBootstrapOSDDir())
-	if err != nil {
-		return fmt.Errorf("failed to create bootstrap-osd global config section, %+v", err)
-	}
-
-	if err := addClientConfigFileSection(configFile, "client.bootstrap-osd", bootstrapOSDKeyringPath); err != nil {
-		return fmt.Errorf("failed to add bootstrap-osd client config section, %+v", err)
-	}
-
-	if err := addInitialMonitorsConfigFileSections(configFile, cluster); err != nil {
-		return fmt.Errorf("failed to add bootstrap-osd initial monitor config sections, %+v", err)
-	}
-
-	// write the entire config to disk
-	if err := configFile.SaveTo(getBootstrapOSDConfFilePath()); err != nil {
-		return err
-	}
-
-	return nil
-}
-
 // format the given device for usage by an OSD
 func formatOSD(device string, forceFormat bool, executor proc.Executor) (bool, error) {
 	// format the current volume
@@ -284,29 +261,6 @@ func createOSD(bootstrapConn *cephd.Conn, osdUUID uuid.UUID) (int, error) {
 	}
 
 	return int(resp["osdid"].(float64)), nil
-}
-
-// writes a config file to disk for the given OSD and config
-func writeOSDConfFile(cluster *clusterInfo, osdDataPath string, osdID int) error {
-	configFile, err := createGlobalConfigFileSection(cluster, osdDataPath)
-	if err != nil {
-		return fmt.Errorf("failed to create osd %d global config section, %+v", osdID, err)
-	}
-
-	if err := addClientConfigFileSection(configFile, fmt.Sprintf("osd.%d", osdID), getOSDKeyringPath(osdDataPath)); err != nil {
-		return fmt.Errorf("failed to write osd %d config section, %+v", osdID, err)
-	}
-
-	if err := addInitialMonitorsConfigFileSections(configFile, cluster); err != nil {
-		return fmt.Errorf("failed to write osd %d initial monitor config sections, %+v", osdID, err)
-	}
-
-	// write the entire config to disk
-	if err := configFile.SaveTo(getOSDConfFilePath(osdDataPath)); err != nil {
-		return err
-	}
-
-	return nil
 }
 
 // gets the current mon map for the cluster

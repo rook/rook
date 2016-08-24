@@ -34,13 +34,8 @@ func (a *osdAgent) DestroyAgent(context *orchestrator.ClusterContext) error {
 }
 
 func (a *osdAgent) startOSDs(context *orchestrator.ClusterContext) error {
-	user := "client.admin"
-	config, err := getCephConnectionConfig(a.cluster)
-	if err != nil {
-		return err
-	}
 
-	adminConn, err := connectToCluster(a.cluster.Name, user, config)
+	adminConn, err := connectToCluster(a.cluster, "admin", "")
 	if err != nil {
 		return err
 	}
@@ -66,14 +61,8 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 		return err
 	}
 
-	// write the bootstrap OSD config file to disk
-	bootstrapOSDConfFilePath := getBootstrapOSDConfFilePath()
-	if err := writeBootstrapOSDConfFile(a.cluster, getBootstrapOSDKeyringPath(a.cluster.Name)); err != nil {
-		return fmt.Errorf("failed to write bootstrap-osd conf file at %s: %+v", bootstrapOSDConfFilePath, err)
-	}
-
 	// connect to the cluster using the bootstrap-osd creds, this connection will be used for config operations
-	bootstrapConn, err := connectToCluster(a.cluster.Name, "client.bootstrap-osd", bootstrapOSDConfFilePath)
+	bootstrapConn, err := connectToCluster(a.cluster, "bootstrap-osd", getBootstrapOSDKeyringPath(a.cluster.Name))
 	if err != nil {
 		return err
 	}
@@ -128,7 +117,9 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 			}
 
 			// write the OSD config file to disk
-			if err := writeOSDConfFile(a.cluster, osdDataPath, osdID); err != nil {
+			keyringPath := getOSDKeyringPath(osdDataPath)
+			_, err = generateConfigFile(a.cluster, osdDataPath, fmt.Sprintf("osd.%d", osdID), keyringPath)
+			if err != nil {
 				return fmt.Errorf("failed to write OSD %d config file: %+v", osdID, err)
 			}
 
@@ -149,7 +140,7 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 			}
 
 			// open a connection to the cluster using the OSDs creds
-			osdConn, err := connectToCluster(a.cluster.Name, fmt.Sprintf("osd.%d", osdID), getOSDConfFilePath(osdDataPath))
+			osdConn, err := connectToCluster(a.cluster, fmt.Sprintf("osd.%d", osdID), keyringPath)
 			if err != nil {
 				return err
 			}

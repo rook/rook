@@ -11,13 +11,11 @@ import (
 	ctx "golang.org/x/net/context"
 
 	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/store"
 )
 
 type monAgent struct {
-	cluster     *clusterInfo
-	privateIPv4 string
-	context     *orchestrator.ClusterContext
+	cluster *clusterInfo
+	context *orchestrator.ClusterContext
 }
 
 func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext, changeList []orchestrator.ChangeElement) error {
@@ -29,52 +27,31 @@ func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext, changeLi
 		return fmt.Errorf("failed to load cluster info: %+v", err)
 	}
 
-	monName := "mon1" // FIX
-	port := 6790
-	if err := a.registerMonitor(monName, port); err != nil {
-		return fmt.Errorf("failed to register monitors: %+v", err)
+	var ok bool
+	var monitor *CephMonitorConfig
+	if monitor, ok = a.cluster.Monitors[context.NodeID]; !ok {
+		return fmt.Errorf("failed to find monitor during config")
 	}
-
-	// wait for monitor registration to complete for all expected initial monitors
-	if err := a.waitForMonitorRegistration(monName); err != nil {
-		return fmt.Errorf("failed to wait for monitors to register: %+v", err)
-	}
+	log.Printf("FOUND monitor %+v from %d monitors", monitor, len(a.cluster.Monitors))
 
 	// initialze the file systems for the monitors
-	if err := a.makeMonitorFileSystem(monName); err != nil {
+	if err := a.makeMonitorFileSystem(monitor.Name); err != nil {
 		return fmt.Errorf("failed to make monitor filesystems: %+v", err)
 	}
 
 	// run the monitors
-	monitor := CephMonitorConfig{Name: monName, Endpoint: fmt.Sprintf("%s:%d", a.privateIPv4, port)}
 	err = a.runMonitor(monitor)
 	if err != nil {
 		return fmt.Errorf("failed to run monitors: %+v", err)
 	}
 
-	log.Printf("successfully started monitor %s", monName)
+	log.Printf("successfully started monitor %s", monitor.Name)
 
 	return err
 }
 
 func (a *monAgent) DestroyAgent(context *orchestrator.ClusterContext) error {
 	a.context = context
-	return nil
-}
-
-// register the names and endpoints of all monitors on this machine
-func (a *monAgent) registerMonitor(monName string, port int) error {
-
-	key := getMonitorEndpointKey(monName)
-	val := fmt.Sprintf("%s:%d", a.privateIPv4, port)
-
-	_, err := a.context.EtcdClient.Set(ctx.Background(), key, val, nil)
-	if err == nil || !store.IsEtcdNodeExist(err) {
-		log.Printf("registered monitor %s endpoint of %s", monName, val)
-	} else {
-		return fmt.Errorf("failed to register mon %s endpoint: %+v", monName, err)
-	}
-
 	return nil
 }
 
@@ -111,7 +88,8 @@ func (a *monAgent) makeMonitorFileSystem(monName string) error {
 	}
 
 	// write the config file to disk
-	if err := writeMonitorConfigFile(monName, a.cluster, getMonKeyringPath(monName)); err != nil {
+	confFilePath, err := generateConfigFile(a.cluster, "", "admin", getMonKeyringPath(monName))
+	if err != nil {
 		return err
 	}
 
@@ -122,13 +100,13 @@ func (a *monAgent) makeMonitorFileSystem(monName string) error {
 	}
 
 	// call mon --mkfs in a child process
-	err := a.context.ProcMan.Start(
+	err = a.context.ProcMan.Start(
 		"mon",
 		"--mkfs",
 		fmt.Sprintf("--cluster=%s", a.cluster.Name),
 		fmt.Sprintf("--name=mon.%s", monName),
 		fmt.Sprintf("--mon-data=%s", monDataDir),
-		fmt.Sprintf("--conf=%s", getMonConfFilePath(monName)),
+		fmt.Sprintf("--conf=%s", confFilePath),
 		fmt.Sprintf("--keyring=%s", getMonKeyringPath(monName)))
 	if err != nil {
 		return fmt.Errorf("failed mon %s --mkfs: %+v", monName, err)
@@ -138,7 +116,7 @@ func (a *monAgent) makeMonitorFileSystem(monName string) error {
 }
 
 // runs all the given monitors in child processes
-func (a *monAgent) runMonitor(monitor CephMonitorConfig) error {
+func (a *monAgent) runMonitor(monitor *CephMonitorConfig) error {
 	if monitor.Endpoint == "" {
 		return fmt.Errorf("missing endpoint for mon %s", monitor.Name)
 	}
@@ -151,10 +129,10 @@ func (a *monAgent) runMonitor(monitor CephMonitorConfig) error {
 		fmt.Sprintf("--cluster=%v", a.cluster.Name),
 		fmt.Sprintf("--name=mon.%v", monitor.Name),
 		fmt.Sprintf("--mon-data=%s", getMonDataDirPath(monitor.Name)),
-		fmt.Sprintf("--conf=%s", getMonConfFilePath(monitor.Name)),
-		fmt.Sprintf("--public-addr=%v", monitor.Endpoint))
+		fmt.Sprintf("--conf=%s", getConfFilePath("", a.cluster.Name)),
+		fmt.Sprintf("--public-addr=%s", monitor.Endpoint))
 	if err != nil {
-		return fmt.Errorf("failed to start monitor %s: %+v", monitor.Name, err)
+		return fmt.Errorf("failed to start monitor %s: %v", monitor.Name, err)
 	}
 
 	return nil
@@ -169,29 +147,6 @@ func writeMonitorKeyring(monName string, c *clusterInfo) error {
 	}
 	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0644); err != nil {
 		return fmt.Errorf("failed to write monitor keyring to %s: %+v", keyringPath, err)
-	}
-
-	return nil
-}
-
-// generates and writes the monitor config file to disk
-func writeMonitorConfigFile(monName string, cluster *clusterInfo, adminKeyringPath string) error {
-	configFile, err := createGlobalConfigFileSection(cluster, getMonRunDirPath(monName))
-	if err != nil {
-		return fmt.Errorf("failed to create mon %s global config section, %+v", monName, err)
-	}
-
-	if err := addClientConfigFileSection(configFile, "client.admin", adminKeyringPath); err != nil {
-		return fmt.Errorf("failed to add mon %s admin client config section, %+v", monName, err)
-	}
-
-	if err := addInitialMonitorsConfigFileSections(configFile, cluster); err != nil {
-		return fmt.Errorf("failed to add mon %s initial monitor config sections, %+v", monName, err)
-	}
-
-	// write the entire config to disk
-	if err := configFile.SaveTo(getMonConfFilePath(monName)); err != nil {
-		return err
 	}
 
 	return nil

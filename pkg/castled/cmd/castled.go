@@ -116,9 +116,9 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 	// wait for user to interrupt/terminate the process
 	ch := make(chan os.Signal, 1)
 	signal.Notify(ch, os.Interrupt)
-	fmt.Println("waiting for ctrl-c INTERRUPT...")
+	fmt.Println("waiting for ctrl-c interrupt...")
 	<-ch
-	fmt.Println("terminating due to ctrl-c INTERRUPT...")
+	fmt.Println("terminating due to ctrl-c interrupt...")
 
 	return nil
 }

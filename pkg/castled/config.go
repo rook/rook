@@ -2,9 +2,11 @@ package castled
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/go-ini/ini"
+	"github.com/quantum/castle/pkg/cephd"
 )
 
 type CephMonitorConfig struct {
@@ -19,7 +21,7 @@ type cephConfig struct {
 type cephGlobalConfig struct {
 	FSID                  string `ini:"fsid,omitempty"`
 	RunDir                string `ini:"run dir,omitempty"`
-	MonMembers            string `ini:"mon members,omitempty"`
+	MonMembers            string `ini:"mon initial members,omitempty"`
 	OsdPgBits             int    `ini:"osd pg bits,omitempty"`
 	OsdPgpBits            int    `ini:"osd pgp bits,omitempty"`
 	OsdPoolDefaultSize    int    `ini:"osd pool default size,omitempty"`
@@ -29,7 +31,85 @@ type cephGlobalConfig struct {
 	RbdDefaultFeatures    int    `ini:"rbd_default_features,omitempty"`
 }
 
-func createGlobalConfigFileSection(cluster *clusterInfo, runDir string) (*ini.File, error) {
+// get the path of a given monitor's config file
+func getConfFilePath(root, clusterName string) string {
+	if root == "" {
+		root = "/tmp/mon0"
+	}
+	return fmt.Sprintf("%s/%s.config", root, clusterName)
+}
+
+// generates and writes the monitor config file to disk
+func generateConfigFile(cluster *clusterInfo, pathRoot, user, keyringPath string) (string, error) {
+
+	configFile, err := createGlobalConfigFileSection(cluster)
+	if err != nil {
+		return "", fmt.Errorf("failed to create global config section, %+v", err)
+	}
+
+	if err := addClientConfigFileSection(configFile, getQualifiedUser(user), keyringPath); err != nil {
+		return "", fmt.Errorf("failed to add %s admin client config section, %+v", err)
+	}
+
+	if err := addInitialMonitorsConfigFileSections(configFile, cluster); err != nil {
+		return "", fmt.Errorf("failed to add %s initial monitor config sections, %+v", err)
+	}
+
+	// write the entire config to disk
+	filePath := getConfFilePath(pathRoot, cluster.Name)
+	if err := configFile.SaveTo(filePath); err != nil {
+		return "", err
+	}
+
+	return filePath, nil
+}
+
+// prepends "client." if a user namespace is not already specified
+func getQualifiedUser(user string) string {
+	if strings.Index(user, ".") == -1 {
+		return fmt.Sprintf("client.%s", user)
+	}
+
+	return user
+}
+
+func connectToClusterAsAdmin(cluster *clusterInfo) (*cephd.Conn, error) {
+	// Get the first monitor
+	var mon *CephMonitorConfig
+	for _, m := range cluster.Monitors {
+		mon = m
+		break
+	}
+
+	return connectToCluster(cluster, getQualifiedUser("admin"), getMonKeyringPath(mon.Name))
+}
+
+// opens a connection to the cluster that can be used for management operations
+func connectToCluster(cluster *clusterInfo, user, keyringPath string) (*cephd.Conn, error) {
+	log.Printf("connecting to ceph cluster %s with user %s", cluster.Name, user)
+
+	confFilePath, err := generateConfigFile(cluster, "", user, keyringPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate config file: %v", err)
+	}
+
+	conn, err := cephd.NewConnWithClusterAndUser(cluster.Name, getQualifiedUser(user))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create rados connection for cluster %s and user %s: %+v", cluster.Name, user, err)
+	}
+
+	if err = conn.ReadConfigFile(confFilePath); err != nil {
+		return nil, fmt.Errorf("failed to read config file for cluster %s: %+v", cluster.Name, err)
+	}
+
+	if err = conn.Connect(); err != nil {
+		return nil, fmt.Errorf("failed to connect to cluster %s: %+v", cluster.Name, err)
+	}
+
+	return conn, nil
+}
+
+func createGlobalConfigFileSection(cluster *clusterInfo) (*ini.File, error) {
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	monMembers := make([]string, len(cluster.Monitors))
@@ -42,7 +122,7 @@ func createGlobalConfigFileSection(cluster *clusterInfo, runDir string) (*ini.Fi
 	ceph := &cephConfig{
 		&cephGlobalConfig{
 			FSID:                  cluster.FSID,
-			RunDir:                runDir,
+			RunDir:                "/tmp/mon0",
 			MonMembers:            strings.Join(monMembers, " "),
 			OsdPgBits:             11,
 			OsdPgpBits:            11,
@@ -91,8 +171,4 @@ func addInitialMonitorsConfigFileSections(configFile *ini.File, cluster *cluster
 	}
 
 	return nil
-}
-
-func getCephConnectionConfig(cluster *clusterInfo) (string, error) {
-	return "config", nil
 }
