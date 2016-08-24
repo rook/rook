@@ -97,14 +97,14 @@ func connectToClusterAsAdmin(cluster *clusterInfo) (*cephd.Conn, error) {
 		return nil, err
 	}
 
-	return connectToCluster(cluster, getQualifiedUser("admin"), getMonKeyringPath(monName))
+	return connectToCluster(cluster, getMonRunDirPath(monName), "admin", getMonKeyringPath(monName))
 }
 
 // opens a connection to the cluster that can be used for management operations
-func connectToCluster(cluster *clusterInfo, user, keyringPath string) (*cephd.Conn, error) {
+func connectToCluster(cluster *clusterInfo, basePath, user, keyringPath string) (*cephd.Conn, error) {
 	log.Printf("connecting to ceph cluster %s with user %s", cluster.Name, user)
 
-	confFilePath, err := generateConfigFile(cluster, "", user, keyringPath)
+	confFilePath, err := generateConfigFile(cluster, basePath, user, keyringPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate config file: %v", err)
 	}

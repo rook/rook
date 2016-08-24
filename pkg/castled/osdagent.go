@@ -91,7 +91,7 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 	}
 
 	// connect to the cluster using the bootstrap-osd creds, this connection will be used for config operations
-	bootstrapConn, err := connectToCluster(a.cluster, "bootstrap-osd", getBootstrapOSDKeyringPath(a.cluster.Name))
+	bootstrapConn, err := connectToCluster(a.cluster, getBootstrapOSDDir(), "bootstrap-osd", getBootstrapOSDKeyringPath(a.cluster.Name))
 	if err != nil {
 		return err
 	}
@@ -167,7 +167,7 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 			}
 
 			// open a connection to the cluster using the OSDs creds
-			osdConn, err := connectToCluster(a.cluster, fmt.Sprintf("osd.%d", osdID), keyringPath)
+			osdConn, err := connectToCluster(a.cluster, osdDataDir, fmt.Sprintf("osd.%d", osdID), keyringPath)
 			if err != nil {
 				return err
 			}
