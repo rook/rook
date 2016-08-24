@@ -45,17 +45,12 @@ func getBootstrapOSDDir() string {
 
 // get the full path to the bootstrap OSD keyring
 func getBootstrapOSDKeyringPath(clusterName string) string {
-	return fmt.Sprintf("%s/%s", getBootstrapOSDDir(), fmt.Sprintf("%s.keyring", clusterName))
-}
-
-// get the full path to the bootstrap OSD config file
-func getBootstrapOSDConfFilePath() string {
-	return filepath.Join(getBootstrapOSDDir(), "config")
+	return fmt.Sprintf("%s/%s.keyring", getBootstrapOSDDir(), clusterName)
 }
 
 // get the full path to the given OSD's config file
-func getOSDConfFilePath(osdDataPath string) string {
-	return filepath.Join(osdDataPath, "config")
+func getOSDConfFilePath(osdDataPath, clusterName string) string {
+	return fmt.Sprintf("%s/%s.config", osdDataPath, clusterName)
 }
 
 // get the full path to the given OSD's keyring
@@ -304,7 +299,7 @@ func createOSDFileSystem(clusterName string, osdID int, osdUUID uuid.UUID, osdDa
 		fmt.Sprintf("--cluster=%s", clusterName),
 		fmt.Sprintf("--osd-data=%s", osdDataPath),
 		fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(osdDataPath)),
-		fmt.Sprintf("--conf=%s", getOSDConfFilePath(osdDataPath)),
+		fmt.Sprintf("--conf=%s", getOSDConfFilePath(osdDataPath, clusterName)),
 		fmt.Sprintf("--keyring=%s", getOSDKeyringPath(osdDataPath)),
 		fmt.Sprintf("--osd-uuid=%s", osdUUID.String()),
 		fmt.Sprintf("--monmap=%s", monMapTmpPath))

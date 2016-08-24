@@ -4,27 +4,52 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
+	"strings"
 
-	etcd "github.com/coreos/etcd/client"
+	ctx "golang.org/x/net/context"
+
 	"github.com/google/uuid"
 
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/proc"
 )
 
 type osdAgent struct {
-	cluster     *clusterInfo
-	procMan     *proc.Manager
-	privateIPv4 string
-	etcdClient  etcd.KeysAPI
+	cluster *clusterInfo
 }
 
 func (a *osdAgent) ConfigureAgent(context *orchestrator.ClusterContext, changeList []orchestrator.ChangeElement) error {
-	if err := a.startOSDs(context); err != nil {
+
+	var err error
+	a.cluster, err = loadClusterInfo(context.EtcdClient)
+	if err != nil {
+		return fmt.Errorf("failed to load cluster info: %v", err)
+	}
+
+	// Get the devices where OSDs should be started
+	devices, forceFormat, err := getDevices(context)
+	if err != nil {
 		return err
+	}
+
+	if len(devices) == 0 {
+		return nil
+	}
+
+	// Connect to the ceph cluster
+	adminConn, err := connectToClusterAsAdmin(a.cluster)
+	if err != nil {
+		return err
+	}
+	defer adminConn.Shutdown()
+
+	// Start an OSD for each of the specified devices
+	err = a.createOSDs(adminConn, context, devices, forceFormat)
+	if err != nil {
+		return fmt.Errorf("failed to create OSDs: %+v", err)
 	}
 
 	return nil
@@ -34,29 +59,32 @@ func (a *osdAgent) DestroyAgent(context *orchestrator.ClusterContext) error {
 	return nil
 }
 
-func (a *osdAgent) startOSDs(context *orchestrator.ClusterContext) error {
-
-	adminConn, err := connectToCluster(a.cluster, "admin", "")
-	if err != nil {
-		return err
-	}
-	defer adminConn.Shutdown()
-
-	// create/start an OSD for each of the specified devices
+func getDevices(context *orchestrator.ClusterContext) ([]string, bool, error) {
 	devices := []string{}
-	if len(devices) > 0 {
-		err := a.createOSDs(adminConn, context)
-		if err != nil {
-			return fmt.Errorf("failed to create OSDs: %+v", err)
-		}
-
+	key := fmt.Sprintf("/clusterd/config/desired/nodes/%s", context.NodeID)
+	resp, err := context.EtcdClient.Get(ctx.Background(), path.Join(key, "devices"), nil)
+	if err != nil {
+		return nil, false, err
 	}
 
-	return nil
+	devices = strings.Split(resp.Node.Value, ",")
+
+	resp, err = context.EtcdClient.Get(ctx.Background(), path.Join(key, "forceFormat"), nil)
+	if err != nil {
+		return nil, false, err
+	}
+
+	forceFormat, err := strconv.ParseBool(resp.Node.Value)
+	if err != nil {
+		return nil, false, err
+	}
+
+	log.Printf("Starting OSDs on devices %v. format=%t", devices, forceFormat)
+	return devices, forceFormat, nil
 }
 
 // create and initalize OSDs for all the devices specified in the given config
-func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.ClusterContext) error {
+func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.ClusterContext, devices []string, forceFormat bool) error {
 	// generate and write the OSD bootstrap keyring
 	if err := createOSDBootstrapKeyring(adminConn, a.cluster.Name, context.Executor); err != nil {
 		return err
@@ -70,8 +98,6 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 	defer bootstrapConn.Shutdown()
 
 	// initialize all the desired OSD volumes
-	devices := []string{}
-	forceFormat := false
 	for i, device := range devices {
 		done, err := formatOSD(device, forceFormat, context.Executor)
 		if err != nil {
@@ -153,7 +179,7 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 			}
 
 			// run the OSD in a child process now that it is fully initialized and ready to go
-			err = a.runOSD(a.cluster.Name, osdID, osdUUID, osdDataPath)
+			err = a.runOSD(context, a.cluster.Name, osdID, osdUUID, osdDataPath)
 			if err != nil {
 				return fmt.Errorf("failed to run osd %d: %+v", osdID, err)
 			}
@@ -164,17 +190,17 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 }
 
 // runs an OSD with the given config in a child process
-func (a *osdAgent) runOSD(clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string) error {
+func (a *osdAgent) runOSD(context *orchestrator.ClusterContext, clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string) error {
 	// start the OSD daemon in the foreground with the given config
 	log.Printf("starting osd %d at %s", osdID, osdDataPath)
-	err := a.procMan.Start(
+	err := context.ProcMan.Start(
 		"osd",
 		"--foreground",
 		fmt.Sprintf("--id=%s", strconv.Itoa(osdID)),
 		fmt.Sprintf("--cluster=%s", clusterName),
 		fmt.Sprintf("--osd-data=%s", osdDataPath),
 		fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(osdDataPath)),
-		fmt.Sprintf("--conf=%s", getOSDConfFilePath(osdDataPath)),
+		fmt.Sprintf("--conf=%s", getOSDConfFilePath(osdDataPath, clusterName)),
 		fmt.Sprintf("--keyring=%s", getOSDKeyringPath(osdDataPath)),
 		fmt.Sprintf("--osd-uuid=%s", osdUUID.String()))
 	if err != nil {
