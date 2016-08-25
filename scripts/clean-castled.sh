@@ -11,4 +11,5 @@ for dir in `mount | grep -E '/tmp/osd[0-9]+ ' | awk '{print $3}'`; do sudo umoun
 rm -fr /tmp/osd*
 
 # delete all etcd keys
-etcdctl rm --recursive /castle/ceph
+etcdctl rm --recursive /castle
+etcdctl rm --recursive /clusterd
