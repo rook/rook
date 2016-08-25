@@ -1,5 +1,5 @@
 hash: 3b2a241380e8f2cbb7fd2d5cb6b97720470d0897036750a7754eb237be109122
-updated: 2016-08-24T11:33:35.813971347-07:00
+updated: 2016-08-25T09:52:08.200308572-07:00
 imports:
 - name: github.com/coreos/etcd
   version: d53923c636e0e4ab7f00cb75681b97a8f11f5a9d
@@ -15,7 +15,7 @@ imports:
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/quantum/clusterd
-  version: a0f5e7c1eade321d0ba8aa5493258d5656606540
+  version: 69f5e500a54f87f4430612f133e56f3ac04d6d22
   subpackages:
   - pkg/inventory
   - pkg/orchestrator

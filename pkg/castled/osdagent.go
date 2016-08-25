@@ -21,7 +21,7 @@ type osdAgent struct {
 	cluster *clusterInfo
 }
 
-func (a *osdAgent) ConfigureAgent(context *orchestrator.ClusterContext, changeList []orchestrator.ChangeElement) error {
+func (a *osdAgent) ConfigureAgent(context *orchestrator.ClusterContext) error {
 
 	var err error
 	a.cluster, err = loadClusterInfo(context.EtcdClient)

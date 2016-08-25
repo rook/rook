@@ -18,7 +18,7 @@ type monAgent struct {
 	context *orchestrator.ClusterContext
 }
 
-func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext, changeList []orchestrator.ChangeElement) error {
+func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext) error {
 	a.context = context
 
 	var err error
