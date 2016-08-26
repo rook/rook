@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	cephKey = "/castle/ceph"
+	cephKey          = "/castle/ceph"
+	cephInstanceName = "default"
 )
 
 type clusterInfo struct {
@@ -27,5 +28,5 @@ func GetRootCephServiceKey(applied bool) string {
 		prefix = orchestrator.ClusterConfigDesiredKey
 	}
 
-	return fmt.Sprintf("%s/services/ceph/default", prefix)
+	return fmt.Sprintf("%s/services/ceph/%s", prefix, cephInstanceName)
 }

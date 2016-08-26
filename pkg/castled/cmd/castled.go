@@ -72,7 +72,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// Write desired state for this machine to etcd
+	// Write the command line parameters to etcd for use during the orchestration
 	baseKey := path.Join(orchestrator.DesiredNodesKey, nodeID)
 	properties := map[string]string{
 		castled.PrivateIPv4Value: privateIPv4,

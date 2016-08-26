@@ -61,7 +61,7 @@ func (a *osdAgent) DestroyAgent(context *orchestrator.ClusterContext) error {
 
 func getDevices(context *orchestrator.ClusterContext) ([]string, bool, error) {
 	devices := []string{}
-	key := fmt.Sprintf("/clusterd/config/desired/nodes/%s", context.NodeID)
+	key := path.Join(orchestrator.DesiredNodesKey, context.NodeID)
 	resp, err := context.EtcdClient.Get(ctx.Background(), path.Join(key, "devices"), nil)
 	if err != nil {
 		return nil, false, err
