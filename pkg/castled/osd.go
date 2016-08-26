@@ -29,6 +29,9 @@ const (
 `
 )
 
+// request the current user once and stash it in this global variable
+var currentUser *user.User
+
 func NewOSDService() *orchestrator.ClusterService {
 	service := &orchestrator.ClusterService{Name: osdKey}
 
@@ -198,10 +201,16 @@ func mountOSD(device string, mountPath string, executor proc.Executor) error {
 	}
 
 	// chown for the current user since we had to format and mount with sudo
-	currentUser, err := user.Current()
-	if err != nil {
-		log.Printf("unable to find current user: %+v", err)
-	} else {
+	if currentUser == nil {
+		var err error
+		currentUser, err = user.Current()
+		if err != nil {
+			log.Printf("unable to find current user: %+v", err)
+			return err
+		}
+	}
+
+	if currentUser != nil {
 		cmd = fmt.Sprintf("chown %s", mountPath)
 		if err := executor.ExecuteCommand(cmd, "sudo", "chown", "-R",
 			fmt.Sprintf("%s:%s", currentUser.Username, currentUser.Username), mountPath); err != nil {
