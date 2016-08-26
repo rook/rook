@@ -20,7 +20,7 @@ var pingCmd = &cobra.Command{
 }
 
 func init() {
-	pingCmd.Flags().StringVar(&monitorName, "monitor-name", "mon1", "name of ceph monitor to ping (required)")
+	pingCmd.Flags().StringVar(&monitorName, "monitor-name", "mon0", "name of ceph monitor to ping (required)")
 
 	pingCmd.MarkFlagRequired("monitor-name")
 

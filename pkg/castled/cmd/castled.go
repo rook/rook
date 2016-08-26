@@ -2,25 +2,29 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
-	"os/exec"
 	"os/signal"
+	"path"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/quantum/castle/pkg/castled"
-	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/clusterd/pkg/orchestrator"
+	"github.com/quantum/clusterd/pkg/proc"
+	"github.com/quantum/clusterd/pkg/store"
 )
 
 var (
-	clusterName string
-	etcdURLs    string
-	privateIPv4 string
-	monNames    string
-	initMonSet  string
-	devices     string
-	forceFormat bool
+	discoveryURL string
+	etcdURLs     string
+	nodeID       string
+	privateIPv4  string
+	devices      string
+	forceFormat  bool
 )
 
 var rootCmd = &cobra.Command{
@@ -30,23 +34,20 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.Flags().StringVar(&clusterName, "cluster-name", "defaultCluster", "name of ceph cluster (required)")
+	rootCmd.Flags().StringVar(&nodeID, "node-id", "12345", "unique ID for the node (required)")
+	rootCmd.Flags().StringVar(&discoveryURL, "discovery-url", "http://discovery.castle.com/26bd83c92e7145e6b103f623263f61df",
+		"etcd discovery URL")
 	rootCmd.Flags().StringVar(&etcdURLs, "etcd-urls", "http://127.0.0.1:4001",
-		"comma separated list of etcd listen URLs (required)")
+		"comma separated list of etcd listen URLs (required), ignored if the discovery URL is specified")
 	rootCmd.Flags().StringVar(&privateIPv4, "private-ipv4", "", "private IPv4 address for this machine (required)")
-	rootCmd.Flags().StringVar(&monNames, "mon-names", "mon1",
-		"comma separated list of monitor names to run on this machine (only 1 recommended)")
-	rootCmd.Flags().StringVar(&initMonSet, "initial-monitors", "mon1",
-		"comma separated list of initial monitor names in the cluster")
 	rootCmd.Flags().StringVar(&devices, "devices", "", "comma separated list of devices to use")
 	rootCmd.Flags().BoolVar(&forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 
-	rootCmd.MarkFlagRequired("cluster-name")
-	rootCmd.MarkFlagRequired("etcd-urls")
+	rootCmd.MarkFlagRequired("node-id")
 	rootCmd.MarkFlagRequired("private-ipv4")
 
-	rootCmd.RunE = bootstrap
+	rootCmd.RunE = joinCluster
 }
 
 func Execute() error {
@@ -59,24 +60,59 @@ func addCommands() {
 	rootCmd.AddCommand(daemonCmd)
 }
 
-func bootstrap(cmd *cobra.Command, args []string) error {
-	if err := util.VerifyRequiredFlags(cmd, []string{"cluster-name", "etcd-urls", "private-ipv4"}); err != nil {
+func joinCluster(cmd *cobra.Command, args []string) error {
+	if err := util.VerifyRequiredFlags(cmd, []string{"node-id", "private-ipv4"}); err != nil {
 		return err
 	}
 
-	// TODO: add the discovery URL to the command line/env var config,
-	// then we could just ask the discovery service where to find things like etcd
-	cfg := castled.NewConfig(clusterName, etcdURLs, privateIPv4, monNames, initMonSet, devices, forceFormat)
-	var procs []*exec.Cmd
-	go func(cfg castled.Config) {
-		var err error
-		procs, err = castled.Bootstrap(cfg, &proc.CommandExecutor{})
-		if err != nil {
-			fmt.Printf("failed to bootstrap castled: %+v", err)
-		} else {
-			fmt.Println("castled bootstrapped successfully!")
-		}
-	}(cfg)
+	// TODO: Get the etcd client with the discovery token rather than the etcd endpoints
+	// get an etcd client to coordinate with the rest of the cluster and load/save config
+	etcdClient, err := store.GetEtcdClient(strings.Split(etcdURLs, ","))
+	if err != nil {
+		return err
+	}
+
+	// Write the command line parameters to etcd for use during the orchestration
+	baseKey := path.Join(orchestrator.DesiredNodesKey, nodeID)
+	properties := map[string]string{
+		castled.PrivateIPv4Value: privateIPv4,
+		castled.DevicesValue:     devices,
+		castled.ForceFormatValue: strconv.FormatBool(forceFormat),
+	}
+	if err := orchestrator.StoreEtcdProperties(etcdClient, baseKey, properties); err != nil {
+		return err
+	}
+
+	// initialize a leadership lease manager
+	leaseManager, err := orchestrator.InitLeaseManager(etcdClient)
+	if err != nil {
+		log.Fatalf("failed to initialize lease manager: %s", err.Error())
+		return err
+	}
+
+	procMan := &proc.Manager{}
+	defer procMan.Shutdown()
+
+	context := &orchestrator.ClusterContext{
+		EtcdClient: etcdClient,
+		Executor:   &proc.CommandExecutor{},
+		NodeID:     nodeID,
+		Services:   []*orchestrator.ClusterService{castled.NewMonitorService(), castled.NewOSDService()},
+		ProcMan:    procMan,
+	}
+	clusterLeader := &orchestrator.SimpleLeader{LeaseName: orchestrator.LeaderElectionKey}
+	clusterMember := orchestrator.NewClusterMember(context, leaseManager, clusterLeader)
+
+	err = clusterMember.Initialize()
+	if err != nil {
+		log.Fatalf("failed to initialize local cluster: %v", err)
+		return err
+	}
+
+	go func() {
+		// Watch for commands from the leader
+		orchestrator.WatchForAgentServiceConfig(context)
+	}()
 
 	// wait for user to interrupt/terminate the process
 	ch := make(chan os.Signal, 1)
@@ -84,16 +120,6 @@ func bootstrap(cmd *cobra.Command, args []string) error {
 	fmt.Println("waiting for ctrl-c interrupt...")
 	<-ch
 	fmt.Println("terminating due to ctrl-c interrupt...")
-	for i := range procs {
-		if procs[i] != nil {
-			fmt.Printf("stopping child process %d\n", i)
-			if err := proc.StopChildProcess(procs[i]); err != nil {
-				fmt.Printf("failed to stop child process %d: %+v\n", i, err)
-			} else {
-				fmt.Printf("child process %d stopped successfully\n", i)
-			}
-		}
-	}
 
 	return nil
 }

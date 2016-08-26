@@ -2,21 +2,14 @@ package castled
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/go-ini/ini"
-	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/castle/pkg/cephd"
 )
-
-type Config struct {
-	ClusterName     string
-	EtcdURLs        []string
-	PrivateIPv4     string
-	MonNames        []string
-	InitialMonitors []CephMonitorConfig
-	Devices         []string
-	ForceFormat     bool
-}
 
 type CephMonitorConfig struct {
 	Name     string
@@ -30,7 +23,7 @@ type cephConfig struct {
 type cephGlobalConfig struct {
 	FSID                  string `ini:"fsid,omitempty"`
 	RunDir                string `ini:"run dir,omitempty"`
-	MonInitialMembers     string `ini:"mon initial members,omitempty"`
+	MonMembers            string `ini:"mon initial members,omitempty"`
 	OsdPgBits             int    `ini:"osd pg bits,omitempty"`
 	OsdPgpBits            int    `ini:"osd pgp bits,omitempty"`
 	OsdPoolDefaultSize    int    `ini:"osd pool default size,omitempty"`
@@ -40,39 +33,113 @@ type cephGlobalConfig struct {
 	RbdDefaultFeatures    int    `ini:"rbd_default_features,omitempty"`
 }
 
-func NewConfig(clusterName, etcdURLs, privateIPv4, monNames, initMonitorNames, devices string, forceFormat bool) Config {
-	// caller should have provided a comma separated list of monitor names, split those into a
-	// list/slice, then create a slice of CephMonitorConfig structs based off those names
-	initMonNameSet := util.SplitList(initMonitorNames)
-	initMonSet := make([]CephMonitorConfig, len(initMonNameSet))
-	for i := range initMonNameSet {
-		initMonSet[i] = CephMonitorConfig{Name: initMonNameSet[i]}
-	}
-
-	return Config{
-		ClusterName:     clusterName,
-		EtcdURLs:        util.SplitList(etcdURLs),
-		PrivateIPv4:     privateIPv4,
-		MonNames:        util.SplitList(monNames),
-		InitialMonitors: initMonSet,
-		Devices:         util.SplitList(devices),
-		ForceFormat:     forceFormat,
-	}
+// get the path of a given monitor's config file
+func getConfFilePath(root, clusterName string) string {
+	return fmt.Sprintf("%s/%s.config", root, clusterName)
 }
 
-func createGlobalConfigFileSection(cfg Config, c clusterInfo, runDir string) (*ini.File, error) {
+// generates and writes the monitor config file to disk
+func generateConfigFile(cluster *clusterInfo, pathRoot, user, keyringPath string) (string, error) {
+	if pathRoot == "" {
+		pathRoot = getMonRunDirPath(getFirstMonitor(cluster))
+	}
+
+	// create the config directory
+	if err := os.MkdirAll(filepath.Dir(pathRoot), 0744); err != nil {
+		fmt.Printf("failed to create config directory at %s: %+v", pathRoot, err)
+	}
+
+	configFile, err := createGlobalConfigFileSection(cluster, pathRoot)
+	if err != nil {
+		return "", fmt.Errorf("failed to create global config section, %+v", err)
+	}
+
+	if err := addClientConfigFileSection(configFile, getQualifiedUser(user), keyringPath); err != nil {
+		return "", fmt.Errorf("failed to add %s admin client config section, %+v", err)
+	}
+
+	if err := addInitialMonitorsConfigFileSections(configFile, cluster); err != nil {
+		return "", fmt.Errorf("failed to add %s initial monitor config sections, %+v", err)
+	}
+
+	// write the entire config to disk
+	filePath := getConfFilePath(pathRoot, cluster.Name)
+	if err := configFile.SaveTo(filePath); err != nil {
+		return "", err
+	}
+
+	return filePath, nil
+}
+
+// prepends "client." if a user namespace is not already specified
+func getQualifiedUser(user string) string {
+	if strings.Index(user, ".") == -1 {
+		return fmt.Sprintf("client.%s", user)
+	}
+
+	return user
+}
+
+func getFirstMonitor(cluster *clusterInfo) string {
+	// Get the first monitor
+	for _, m := range cluster.Monitors {
+		return m.Name
+	}
+
+	return ""
+}
+
+func connectToClusterAsAdmin(cluster *clusterInfo) (*cephd.Conn, error) {
+
+	// write the monitor keyring to disk
+	monName := getFirstMonitor(cluster)
+	if err := writeMonitorKeyring(monName, cluster); err != nil {
+		return nil, err
+	}
+
+	return connectToCluster(cluster, getMonRunDirPath(monName), "admin", getMonKeyringPath(monName))
+}
+
+// opens a connection to the cluster that can be used for management operations
+func connectToCluster(cluster *clusterInfo, basePath, user, keyringPath string) (*cephd.Conn, error) {
+	log.Printf("connecting to ceph cluster %s with user %s", cluster.Name, user)
+
+	confFilePath, err := generateConfigFile(cluster, basePath, user, keyringPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate config file: %v", err)
+	}
+
+	conn, err := cephd.NewConnWithClusterAndUser(cluster.Name, getQualifiedUser(user))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create rados connection for cluster %s and user %s: %+v", cluster.Name, user, err)
+	}
+
+	if err = conn.ReadConfigFile(confFilePath); err != nil {
+		return nil, fmt.Errorf("failed to read config file for cluster %s: %+v", cluster.Name, err)
+	}
+
+	if err = conn.Connect(); err != nil {
+		return nil, fmt.Errorf("failed to connect to cluster %s: %+v", cluster.Name, err)
+	}
+
+	return conn, nil
+}
+
+func createGlobalConfigFileSection(cluster *clusterInfo, runDir string) (*ini.File, error) {
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
-	initialMonMembers := make([]string, len(cfg.InitialMonitors))
-	for i := range cfg.InitialMonitors {
-		initialMonMembers[i] = cfg.InitialMonitors[i].Name
+	monMembers := make([]string, len(cluster.Monitors))
+	i := 0
+	for _, monitor := range cluster.Monitors {
+		monMembers[i] = monitor.Name
+		i++
 	}
 
 	ceph := &cephConfig{
 		&cephGlobalConfig{
-			FSID:                  c.FSID,
+			FSID:                  cluster.FSID,
 			RunDir:                runDir,
-			MonInitialMembers:     strings.Join(initialMonMembers, " "),
+			MonMembers:            strings.Join(monMembers, " "),
 			OsdPgBits:             11,
 			OsdPgpBits:            11,
 			OsdPoolDefaultSize:    1,
@@ -101,10 +168,9 @@ func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath st
 	return nil
 }
 
-func addInitialMonitorsConfigFileSections(configFile *ini.File, cfg Config) error {
+func addInitialMonitorsConfigFileSections(configFile *ini.File, cluster *clusterInfo) error {
 	// write the config for each individual monitor member of the cluster to the content buffer
-	for i := range cfg.InitialMonitors {
-		mon := cfg.InitialMonitors[i]
+	for _, mon := range cluster.Monitors {
 
 		s, err := configFile.NewSection(fmt.Sprintf("mon.%s", mon.Name))
 		if err != nil {
