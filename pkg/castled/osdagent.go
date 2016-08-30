@@ -21,7 +21,7 @@ type osdAgent struct {
 	cluster *clusterInfo
 }
 
-func (a *osdAgent) ConfigureAgent(context *orchestrator.ClusterContext) error {
+func (a *osdAgent) ConfigureLocalService(context *orchestrator.ClusterContext) error {
 
 	var err error
 	a.cluster, err = loadClusterInfo(context.EtcdClient)
@@ -55,7 +55,7 @@ func (a *osdAgent) ConfigureAgent(context *orchestrator.ClusterContext) error {
 	return nil
 }
 
-func (a *osdAgent) DestroyAgent(context *orchestrator.ClusterContext) error {
+func (a *osdAgent) DestroyLocalService(context *orchestrator.ClusterContext) error {
 	return nil
 }
 

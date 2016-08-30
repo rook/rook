@@ -27,13 +27,13 @@ type monLeader struct {
 // Load the state of the service from etcd. Typically a service will populate the desired/discovered state and the applied state
 // from etcd, then compute the difference and cache it.
 // Returns whether the service has updates to be applied.
-func (m *monLeader) LoadState(context *orchestrator.ClusterContext) (bool, error) {
+func (m *monLeader) LoadClusterServiceState(context *orchestrator.ClusterContext) (bool, error) {
 
 	return true, nil
 }
 
 // Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
-func (m *monLeader) ApplyState(context *orchestrator.ClusterContext) error {
+func (m *monLeader) ConfigureClusterService(context *orchestrator.ClusterContext) error {
 
 	// Create or get the basic cluster info
 	var err error

@@ -15,12 +15,12 @@ type osdLeader struct {
 // Load the state of the service from etcd. Typically a service will populate the desired/discovered state and the applied state
 // from etcd, then compute the difference and cache it.
 // Returns whether the service has updates to be applied.
-func (m *osdLeader) LoadState(context *orchestrator.ClusterContext) (bool, error) {
+func (m *osdLeader) LoadClusterServiceState(context *orchestrator.ClusterContext) (bool, error) {
 	return len(context.Inventory.Nodes) > 0, nil
 }
 
 // Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
-func (m *osdLeader) ApplyState(context *orchestrator.ClusterContext) error {
+func (m *osdLeader) ConfigureClusterService(context *orchestrator.ClusterContext) error {
 
 	if len(context.Inventory.Nodes) == 0 {
 		// No nodes for OSDs

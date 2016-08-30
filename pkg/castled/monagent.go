@@ -18,7 +18,7 @@ type monAgent struct {
 	context *orchestrator.ClusterContext
 }
 
-func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext) error {
+func (a *monAgent) ConfigureLocalService(context *orchestrator.ClusterContext) error {
 	a.context = context
 
 	var err error
@@ -49,7 +49,7 @@ func (a *monAgent) ConfigureAgent(context *orchestrator.ClusterContext) error {
 	return err
 }
 
-func (a *monAgent) DestroyAgent(context *orchestrator.ClusterContext) error {
+func (a *monAgent) DestroyLocalService(context *orchestrator.ClusterContext) error {
 	a.context = context
 	return nil
 }
