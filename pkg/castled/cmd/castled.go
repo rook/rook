@@ -34,7 +34,6 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.Flags().StringVar(&nodeID, "node-id", "12345", "unique ID for the node (required)")
 	rootCmd.Flags().StringVar(&discoveryURL, "discovery-url", "http://discovery.castle.com/26bd83c92e7145e6b103f623263f61df",
 		"etcd discovery URL")
 	rootCmd.Flags().StringVar(&etcdURLs, "etcd-urls", "http://127.0.0.1:4001",
@@ -44,7 +43,6 @@ func init() {
 	rootCmd.Flags().BoolVar(&forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 
-	rootCmd.MarkFlagRequired("node-id")
 	rootCmd.MarkFlagRequired("private-ipv4")
 
 	rootCmd.RunE = joinCluster
@@ -61,13 +59,18 @@ func addCommands() {
 }
 
 func joinCluster(cmd *cobra.Command, args []string) error {
-	if err := util.VerifyRequiredFlags(cmd, []string{"node-id", "private-ipv4"}); err != nil {
+	if err := util.VerifyRequiredFlags(cmd, []string{"private-ipv4"}); err != nil {
 		return err
 	}
 
 	// TODO: Get the etcd client with the discovery token rather than the etcd endpoints
 	// get an etcd client to coordinate with the rest of the cluster and load/save config
 	etcdClient, err := store.GetEtcdClient(strings.Split(etcdURLs, ","))
+	if err != nil {
+		return err
+	}
+
+	nodeID, err := orchestrator.GetMachineID()
 	if err != nil {
 		return err
 	}
