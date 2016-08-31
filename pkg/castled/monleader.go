@@ -13,7 +13,7 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/store"
+	"github.com/quantum/clusterd/pkg/util"
 )
 
 // Interface implemented by a service that has been elected leader
@@ -87,7 +87,7 @@ func createOrGetClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 func loadClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 	resp, err := etcdClient.Get(ctx.Background(), path.Join(cephKey, "fsid"), nil)
 	if err != nil {
-		if store.IsEtcdKeyNotFound(err) {
+		if util.IsEtcdKeyNotFound(err) {
 			return nil, nil
 		}
 		return nil, err
@@ -215,7 +215,7 @@ func getChosenMonitors(etcdClient etcd.KeysAPI) (map[string]*CephMonitorConfig, 
 	monKey := path.Join(cephKey, "monitors")
 	previousMonitors, err := etcdClient.Get(ctx.Background(), monKey, &etcd.GetOptions{Recursive: true})
 	if err != nil {
-		if store.IsEtcdKeyNotFound(err) {
+		if util.IsEtcdKeyNotFound(err) {
 			return monitors, nil
 		}
 		return nil, err
@@ -227,7 +227,7 @@ func getChosenMonitors(etcdClient etcd.KeysAPI) (map[string]*CephMonitorConfig, 
 	// Load the previously selected monitors
 	log.Printf("Loading previously selected monitors")
 	for _, node := range previousMonitors.Node.Nodes {
-		nodeID := store.GetLeafKeyPath(node.Key)
+		nodeID := util.GetLeafKeyPath(node.Key)
 		mon := &CephMonitorConfig{}
 		ipaddress := ""
 		port := ""

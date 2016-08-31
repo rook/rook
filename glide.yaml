@@ -11,8 +11,7 @@ import:
   subpackages:
   - pkg/inventory
   - pkg/orchestrator
-  - pkg/proc
-  - pkg/store
+  - pkg/util
 - package: github.com/spf13/pflag
 - package: github.com/google/uuid
 - package: github.com/go-ini/ini

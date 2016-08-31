@@ -14,8 +14,7 @@ import (
 	"github.com/quantum/castle/pkg/castled"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/proc"
-	"github.com/quantum/clusterd/pkg/store"
+	clusterutil "github.com/quantum/clusterd/pkg/util"
 )
 
 var (
@@ -65,7 +64,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 
 	// TODO: Get the etcd client with the discovery token rather than the etcd endpoints
 	// get an etcd client to coordinate with the rest of the cluster and load/save config
-	etcdClient, err := store.GetEtcdClient(strings.Split(etcdURLs, ","))
+	etcdClient, err := clusterutil.GetEtcdClient(strings.Split(etcdURLs, ","))
 	if err != nil {
 		return err
 	}
@@ -93,12 +92,12 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	procMan := &proc.Manager{}
+	procMan := &clusterutil.ProcManager{}
 	defer procMan.Shutdown()
 
 	context := &orchestrator.ClusterContext{
 		EtcdClient: etcdClient,
-		Executor:   &proc.CommandExecutor{},
+		Executor:   &clusterutil.CommandExecutor{},
 		NodeID:     nodeID,
 		Services:   []*orchestrator.ClusterService{castled.NewMonitorService(), castled.NewOSDService()},
 		ProcMan:    procMan,
