@@ -4,12 +4,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	ctx "golang.org/x/net/context"
 
 	"github.com/google/uuid"
 
@@ -22,7 +19,14 @@ const (
 )
 
 type osdAgent struct {
-	cluster *clusterInfo
+	cluster     *clusterInfo
+	devices     []string
+	forceFormat bool
+}
+
+func newOSDAgent(rawDevices string, forceFormat bool) *osdAgent {
+	devices := strings.Split(rawDevices, ",")
+	return &osdAgent{devices: devices, forceFormat: forceFormat}
 }
 
 func (a *osdAgent) GetName() string {
@@ -37,13 +41,7 @@ func (a *osdAgent) ConfigureLocalService(context *orchestrator.ClusterContext) e
 		return fmt.Errorf("failed to load cluster info: %v", err)
 	}
 
-	// Get the devices where OSDs should be started
-	devices, forceFormat, err := getDevices(context)
-	if err != nil {
-		return err
-	}
-
-	if len(devices) == 0 {
+	if len(a.devices) == 0 {
 		return nil
 	}
 
@@ -55,7 +53,7 @@ func (a *osdAgent) ConfigureLocalService(context *orchestrator.ClusterContext) e
 	defer adminConn.Shutdown()
 
 	// Start an OSD for each of the specified devices
-	err = a.createOSDs(adminConn, context, devices, forceFormat)
+	err = a.createOSDs(adminConn, context)
 	if err != nil {
 		return fmt.Errorf("failed to create OSDs: %+v", err)
 	}
@@ -67,32 +65,8 @@ func (a *osdAgent) DestroyLocalService(context *orchestrator.ClusterContext) err
 	return nil
 }
 
-func getDevices(context *orchestrator.ClusterContext) ([]string, bool, error) {
-	devices := []string{}
-	key := path.Join(orchestrator.DesiredNodesKey, context.NodeID)
-	resp, err := context.EtcdClient.Get(ctx.Background(), path.Join(key, "devices"), nil)
-	if err != nil {
-		return nil, false, err
-	}
-
-	devices = strings.Split(resp.Node.Value, ",")
-
-	resp, err = context.EtcdClient.Get(ctx.Background(), path.Join(key, "forceFormat"), nil)
-	if err != nil {
-		return nil, false, err
-	}
-
-	forceFormat, err := strconv.ParseBool(resp.Node.Value)
-	if err != nil {
-		return nil, false, err
-	}
-
-	log.Printf("Starting OSDs on devices %v. format=%t", devices, forceFormat)
-	return devices, forceFormat, nil
-}
-
 // create and initalize OSDs for all the devices specified in the given config
-func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.ClusterContext, devices []string, forceFormat bool) error {
+func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.ClusterContext) error {
 	// generate and write the OSD bootstrap keyring
 	if err := createOSDBootstrapKeyring(adminConn, a.cluster.Name, context.Executor); err != nil {
 		return err
@@ -106,8 +80,8 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 	defer bootstrapConn.Shutdown()
 
 	// initialize all the desired OSD volumes
-	for i, device := range devices {
-		done, err := formatOSD(device, forceFormat, context.Executor)
+	for i, device := range a.devices {
+		done, err := formatOSD(device, a.forceFormat, context.Executor)
 		if err != nil {
 			// attempting to format the volume failed, bail out with error
 			return err
