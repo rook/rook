@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	osdAgentName = "ceph-osd"
+	osdAgentName = "osd"
 )
 
 type osdAgent struct {

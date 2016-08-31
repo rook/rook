@@ -15,6 +15,10 @@ import (
 	"github.com/quantum/clusterd/pkg/util"
 )
 
+const (
+	monitorKey = "monitor"
+)
+
 // Create the ceph monitors
 // Must be idempotent
 func createMonitors(context *orchestrator.ClusterContext, cluster *clusterInfo) error {
@@ -48,7 +52,7 @@ func createMonitors(context *orchestrator.ClusterContext, cluster *clusterInfo) 
 
 func getChosenMonitors(etcdClient etcd.KeysAPI) (map[string]*CephMonitorConfig, error) {
 	monitors := make(map[string]*CephMonitorConfig)
-	monKey := path.Join(cephKey, "monitors")
+	monKey := path.Join(cephKey, monitorKey, desiredKey)
 	previousMonitors, err := etcdClient.Get(ctx.Background(), monKey, &etcd.GetOptions{Recursive: true})
 	if err != nil {
 		if util.IsEtcdKeyNotFound(err) {
@@ -132,8 +136,8 @@ func chooseMonitorNodes(context *orchestrator.ClusterContext) (map[string]*CephM
 		monitorNum++
 	}
 
-	monKey := path.Join(cephKey, "monitors")
-	err = orchestrator.StoreEtcdProperties(context.EtcdClient, monKey, settings)
+	monKey := path.Join(cephKey, monitorKey, desiredKey)
+	err = util.StoreEtcdProperties(context.EtcdClient, monKey, settings)
 	if err != nil {
 		log.Printf("failed to save monitor ids. err=%v", err)
 		return nil, err
@@ -143,13 +147,7 @@ func chooseMonitorNodes(context *orchestrator.ClusterContext) (map[string]*CephM
 }
 
 func getDesiredNodeIPAddress(context *orchestrator.ClusterContext, nodeID string) (string, error) {
-	key := path.Join(orchestrator.DesiredNodesKey, nodeID, PrivateIPv4Value)
-	resp, err := context.EtcdClient.Get(ctx.Background(), key, nil)
-	if err != nil {
-		return "", err
-	}
-
-	return resp.Node.Value, nil
+	return context.Inventory.Nodes[nodeID].IPAddress, nil
 }
 
 // Calculate the number of monitors that should be deployed

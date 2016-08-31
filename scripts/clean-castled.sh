@@ -12,4 +12,3 @@ rm -fr /tmp/osd*
 
 # delete all etcd keys
 etcdctl rm --recursive /castle
-etcdctl rm --recursive /clusterd
