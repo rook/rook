@@ -13,9 +13,17 @@ import (
 	"github.com/quantum/clusterd/pkg/orchestrator"
 )
 
+const (
+	monitorAgentName = "monitor"
+)
+
 type monAgent struct {
 	cluster *clusterInfo
 	context *orchestrator.ClusterContext
+}
+
+func (a *monAgent) GetName() string {
+	return monitorAgentName
 }
 
 func (a *monAgent) ConfigureLocalService(context *orchestrator.ClusterContext) error {

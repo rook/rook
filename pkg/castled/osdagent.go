@@ -17,8 +17,16 @@ import (
 	"github.com/quantum/clusterd/pkg/orchestrator"
 )
 
+const (
+	osdAgentName = "ceph-osd"
+)
+
 type osdAgent struct {
 	cluster *clusterInfo
+}
+
+func (a *osdAgent) GetName() string {
+	return osdAgentName
 }
 
 func (a *osdAgent) ConfigureLocalService(context *orchestrator.ClusterContext) error {

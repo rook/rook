@@ -7,7 +7,8 @@ import (
 )
 
 const (
-	cephKey          = "/castle/ceph"
+	cephName         = "ceph"
+	cephKey          = "/castle/services/ceph"
 	cephInstanceName = "default"
 )
 
@@ -17,6 +18,14 @@ type clusterInfo struct {
 	AdminSecret   string
 	Name          string
 	Monitors      map[string]*CephMonitorConfig
+}
+
+func NewCephService() *orchestrator.ClusterService {
+	return &orchestrator.ClusterService{
+		Name:   cephName,
+		Leader: &cephLeader{},
+		Agents: []orchestrator.ServiceAgent{&monAgent{}, &osdAgent{}},
+	}
 }
 
 // Get the root ceph service key

@@ -7,13 +7,10 @@ import (
 	"path/filepath"
 
 	"github.com/quantum/castle/pkg/cephd"
-	"github.com/quantum/clusterd/pkg/orchestrator"
 )
 
 const (
 	PrivateIPv4Value       = "privateIPv4"
-	monitorKey             = "ceph-mon"
-	osdKey                 = "ceph-osd"
 	monitorKeyringTemplate = `
 [mon.]
 	key = %s
@@ -26,15 +23,6 @@ const (
 	caps osd = "allow *"
 `
 )
-
-func NewMonitorService() *orchestrator.ClusterService {
-	service := &orchestrator.ClusterService{Name: monitorKey}
-
-	service.Leader = &monLeader{}
-	service.Agent = &monAgent{}
-
-	return service
-}
 
 // get the key value store path for a given monitor's endpoint
 func getMonitorEndpointKey(name string) string {

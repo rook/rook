@@ -15,7 +15,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/cephd"
-	"github.com/quantum/clusterd/pkg/orchestrator"
 	"github.com/quantum/clusterd/pkg/util"
 )
 
@@ -31,15 +30,6 @@ const (
 
 // request the current user once and stash it in this global variable
 var currentUser *user.User
-
-func NewOSDService() *orchestrator.ClusterService {
-	service := &orchestrator.ClusterService{Name: osdKey}
-
-	service.Leader = &osdLeader{}
-	service.Agent = &osdAgent{}
-
-	return service
-}
 
 // get the bootstrap OSD root dir
 func getBootstrapOSDDir() string {

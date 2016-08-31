@@ -99,7 +99,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 		EtcdClient: etcdClient,
 		Executor:   &clusterutil.CommandExecutor{},
 		NodeID:     nodeID,
-		Services:   []*orchestrator.ClusterService{castled.NewMonitorService(), castled.NewOSDService()},
+		Services:   []*orchestrator.ClusterService{castled.NewCephService()},
 		ProcMan:    procMan,
 	}
 	clusterLeader := &orchestrator.SimpleLeader{LeaseName: orchestrator.LeaderElectionKey}
