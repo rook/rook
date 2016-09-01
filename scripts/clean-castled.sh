@@ -12,7 +12,6 @@ rm -fr /tmp/osd*
 
 # delete all etcd keys
 etcdctl rm --recursive /castle
-etcdctl rm --recursive /clusterd
 
 # ensure castled processes are dead if there was a crash
 ps aux | grep /tmp/castled | awk '{print $2}' | xargs sudo kill

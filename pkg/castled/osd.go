@@ -15,8 +15,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/cephd"
-	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/proc"
+	"github.com/quantum/clusterd/pkg/util"
 )
 
 const (
@@ -31,15 +30,6 @@ const (
 
 // request the current user once and stash it in this global variable
 var currentUser *user.User
-
-func NewOSDService() *orchestrator.ClusterService {
-	service := &orchestrator.ClusterService{Name: osdKey}
-
-	service.Leader = &osdLeader{}
-	service.Agent = &osdAgent{}
-
-	return service
-}
 
 // get the bootstrap OSD root dir
 func getBootstrapOSDDir() string {
@@ -72,7 +62,7 @@ func getOSDTempMonMapPath(osdDataPath string) string {
 }
 
 // create a keyring for the bootstrap-osd client, it gets a limited set of privileges
-func createOSDBootstrapKeyring(conn *cephd.Conn, clusterName string, executor proc.Executor) error {
+func createOSDBootstrapKeyring(conn *cephd.Conn, clusterName string, executor util.Executor) error {
 	bootstrapOSDKeyringPath := getBootstrapOSDKeyringPath(clusterName)
 	if _, err := os.Stat(bootstrapOSDKeyringPath); os.IsNotExist(err) {
 		// get-or-create-key for client.bootstrap-osd
@@ -113,7 +103,7 @@ func createOSDBootstrapKeyring(conn *cephd.Conn, clusterName string, executor pr
 }
 
 // format the given device for usage by an OSD
-func formatOSD(device string, forceFormat bool, executor proc.Executor) (bool, error) {
+func formatOSD(device string, forceFormat bool, executor util.Executor) (bool, error) {
 	// format the current volume
 	cmd := fmt.Sprintf("blkid %s", device)
 	devFS, err := executor.ExecuteCommandPipeline(
@@ -144,7 +134,7 @@ func formatOSD(device string, forceFormat bool, executor proc.Executor) (bool, e
 }
 
 // mount the OSD data directory onto the given device
-func mountOSD(device string, mountPath string, executor proc.Executor) error {
+func mountOSD(device string, mountPath string, executor util.Executor) error {
 	cmd := fmt.Sprintf("lsblk %s", device)
 	var diskUUID string
 
@@ -300,7 +290,7 @@ func createOSDFileSystem(clusterName string, osdID int, osdUUID uuid.UUID, osdDa
 	}
 
 	// create the OSD file system and journal
-	err := proc.RunChildProcess(
+	err := util.RunChildProcess(
 		"osd",
 		"--mkfs",
 		"--mkkey",

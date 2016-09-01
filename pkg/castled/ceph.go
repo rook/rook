@@ -1,14 +1,12 @@
 package castled
 
-import (
-	"fmt"
-
-	"github.com/quantum/clusterd/pkg/orchestrator"
-)
+import "github.com/quantum/clusterd/pkg/orchestrator"
 
 const (
-	cephKey          = "/castle/ceph"
+	cephName         = "ceph"
+	cephKey          = "/castle/services/ceph"
 	cephInstanceName = "default"
+	desiredKey       = "desired"
 )
 
 type clusterInfo struct {
@@ -19,14 +17,10 @@ type clusterInfo struct {
 	Monitors      map[string]*CephMonitorConfig
 }
 
-// Get the root ceph service key
-func GetRootCephServiceKey(applied bool) string {
-	var prefix string
-	if applied {
-		prefix = orchestrator.ClusterConfigAppliedKey
-	} else {
-		prefix = orchestrator.ClusterConfigDesiredKey
+func NewCephService(devices string, forceFormat bool) *orchestrator.ClusterService {
+	return &orchestrator.ClusterService{
+		Name:   cephName,
+		Leader: &cephLeader{},
+		Agents: []orchestrator.ServiceAgent{&monAgent{}, newOSDAgent(devices, forceFormat)},
 	}
-
-	return fmt.Sprintf("%s/services/ceph/%s", prefix, cephInstanceName)
 }
