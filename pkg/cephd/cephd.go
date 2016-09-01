@@ -33,6 +33,13 @@ func RadosVersion() (int, int, int) {
 // cephdError represents an error
 type cephdError int
 
+func GetCephdError(err int) error {
+	if err == 0 {
+		return nil
+	}
+	return cephdError(err)
+}
+
 // Error returns a formatted error string
 func (e cephdError) Error() string {
 	return fmt.Sprintf("cephd: %s", C.GoString(C.strerror(C.int(-e))))
@@ -52,7 +59,7 @@ func NewFsid() (string, error) {
 		return C.GoString((*C.char)(unsafe.Pointer(&buf[0]))), nil
 	}
 
-	return "", cephdError(int(ret))
+	return "", GetCephdError(int(ret))
 }
 
 // NewSecretKey generates a new secret key
@@ -63,7 +70,7 @@ func NewSecretKey() (string, error) {
 		return C.GoString((*C.char)(unsafe.Pointer(&buf[0]))), nil
 	}
 
-	return "", cephdError(int(ret))
+	return "", GetCephdError(int(ret))
 }
 
 // Mon runs embedded ceph-mon.
@@ -96,7 +103,7 @@ func RunDaemon(daemon string, args ...string) error {
 		ret = C.cephd_osd(C.int(len(finalArgs)), (**C.char)(ptr))
 	}
 	if ret < 0 {
-		return cephdError(int(ret))
+		return GetCephdError(int(ret))
 	}
 
 	return nil
@@ -125,7 +132,7 @@ func NewConnWithClusterAndUser(clusterName string, userName string) (*Conn, erro
 	if ret == 0 {
 		return conn, nil
 	} else {
-		return nil, cephdError(int(ret))
+		return nil, GetCephdError(int(ret))
 	}
 }
 
@@ -136,7 +143,7 @@ func (c *Conn) Connect() error {
 	if ret == 0 {
 		return nil
 	} else {
-		return cephdError(int(ret))
+		return GetCephdError(int(ret))
 	}
 }
 
@@ -153,7 +160,7 @@ func (c *Conn) ReadConfigFile(path string) error {
 	if ret == 0 {
 		return nil
 	} else {
-		return cephdError(int(ret))
+		return GetCephdError(int(ret))
 	}
 }
 
@@ -197,7 +204,7 @@ func (c *Conn) monCommand(args, inputBuffer []byte) (buffer []byte, info string,
 		C.free(unsafe.Pointer(outbuf))
 	}
 	if ret != 0 {
-		err = cephdError(int(ret))
+		err = GetCephdError(int(ret))
 		return nil, info, err
 	}
 
@@ -219,7 +226,7 @@ func (c *Conn) PingMonitor(id string) (string, error) {
 		reply := C.GoStringN(strout, (C.int)(strlen))
 		return reply, nil
 	} else {
-		return "", cephdError(int(ret))
+		return "", GetCephdError(int(ret))
 	}
 }
 
@@ -236,7 +243,7 @@ func (c *Conn) OpenIOContext(pool string) (*IOContext, error) {
 	if ret == 0 {
 		return ioctx, nil
 	} else {
-		return nil, cephdError(int(ret))
+		return nil, GetCephdError(int(ret))
 	}
 }
 
@@ -260,7 +267,7 @@ func (ioctx *IOContext) Read(oid string, data []byte, offset uint64) (int, error
 	if ret >= 0 {
 		return int(ret), nil
 	} else {
-		return 0, cephdError(int(ret))
+		return 0, GetCephdError(int(ret))
 	}
 }
 
@@ -275,7 +282,7 @@ func (ioctx *IOContext) Write(oid string, data []byte, offset uint64) error {
 		(C.size_t)(len(data)),
 		(C.uint64_t)(offset))
 
-	return cephdError(int(ret))
+	return GetCephdError(int(ret))
 }
 
 // WriteFull writes len(data) bytes to the object with key oid.
@@ -288,5 +295,5 @@ func (ioctx *IOContext) WriteFull(oid string, data []byte) error {
 	ret := C.rados_write_full(ioctx.ioctx, c_oid,
 		(*C.char)(unsafe.Pointer(&data[0])),
 		(C.size_t)(len(data)))
-	return cephdError(int(ret))
+	return GetCephdError(int(ret))
 }

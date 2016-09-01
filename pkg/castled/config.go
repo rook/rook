@@ -24,13 +24,17 @@ type cephGlobalConfig struct {
 	FSID                  string `ini:"fsid,omitempty"`
 	RunDir                string `ini:"run dir,omitempty"`
 	MonMembers            string `ini:"mon initial members,omitempty"`
-	OsdPgBits             int    `ini:"osd pg bits,omitempty"`
-	OsdPgpBits            int    `ini:"osd pgp bits,omitempty"`
-	OsdPoolDefaultSize    int    `ini:"osd pool default size,omitempty"`
-	OsdPoolDefaultMinSize int    `ini:"osd pool default min size,omitempty"`
-	OsdPoolDefaultPgNum   int    `ini:"osd pool default pg num,omitempty"`
-	OsdPoolDefaultPgpNum  int    `ini:"osd pool default pgp num,omitempty"`
-	RbdDefaultFeatures    int    `ini:"rbd_default_features,omitempty"`
+	LogFile               string `ini:"log file,omitempty"`
+	MonClusterLogFile     string `ini:"mon cluster log file,omitempty"`
+	DebugLogDefaultLevel  int    `ini:"debug default"`
+	DebugLogRadosLevel    int    `ini:"debug rados"`
+	OsdPgBits             int    `ini:"osd pg bits"`
+	OsdPgpBits            int    `ini:"osd pgp bits"`
+	OsdPoolDefaultSize    int    `ini:"osd pool default size"`
+	OsdPoolDefaultMinSize int    `ini:"osd pool default min size"`
+	OsdPoolDefaultPgNum   int    `ini:"osd pool default pg num"`
+	OsdPoolDefaultPgpNum  int    `ini:"osd pool default pgp num"`
+	RbdDefaultFeatures    int    `ini:"rbd_default_features"`
 }
 
 // get the path of a given monitor's config file
@@ -140,6 +144,10 @@ func createGlobalConfigFileSection(cluster *clusterInfo, runDir string) (*ini.Fi
 			FSID:                  cluster.FSID,
 			RunDir:                runDir,
 			MonMembers:            strings.Join(monMembers, " "),
+			LogFile:               "/dev/stdout",
+			MonClusterLogFile:     "/dev/stdout",
+			DebugLogDefaultLevel:  0,
+			DebugLogRadosLevel:    0,
 			OsdPgBits:             11,
 			OsdPgpBits:            11,
 			OsdPoolDefaultSize:    1,

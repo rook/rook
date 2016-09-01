@@ -22,18 +22,17 @@ func commonIOCmdInit(cmd *cobra.Command) {
 	cmd.MarkFlagRequired("object-name")
 }
 
-func prepareIOContext() (*cephd.IOContext, error) {
+func prepareIOContext() (*cephd.Conn, *cephd.IOContext, error) {
 	// connect to the cluster with the client.admin creds
 	adminConn, err := cephclient.ConnectToCluster(clusterName, "client.admin", configFilePath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	defer adminConn.Shutdown()
 
 	log.Printf("listing pools")
 	pools, err := cephclient.ListPools(adminConn)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list pools: %+v", err)
+		return nil, nil, fmt.Errorf("failed to list pools: %+v", err)
 	}
 	poolExists := false
 	for _, p := range pools {
@@ -45,7 +44,7 @@ func prepareIOContext() (*cephd.IOContext, error) {
 	if !poolExists {
 		log.Printf("making pool %s", ioPoolName)
 		if err := cephclient.CreatePool(adminConn, ioPoolName); err != nil {
-			return nil, fmt.Errorf("failed to make pool %s: %+v", ioPoolName, err)
+			return nil, nil, fmt.Errorf("failed to make pool %s: %+v", ioPoolName, err)
 		}
 	}
 
@@ -53,8 +52,8 @@ func prepareIOContext() (*cephd.IOContext, error) {
 	log.Printf("opening IO context")
 	ioctx, err := adminConn.OpenIOContext(ioPoolName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open IO context: %+v", err)
+		return nil, nil, fmt.Errorf("failed to open IO context: %+v", err)
 	}
 
-	return ioctx, nil
+	return adminConn, ioctx, nil
 }

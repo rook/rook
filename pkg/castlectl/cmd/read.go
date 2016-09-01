@@ -23,10 +23,12 @@ func readData(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	ioctx, err := prepareIOContext()
+	conn, ioctx, err := prepareIOContext()
 	if err != nil {
 		return err
 	}
+
+	defer conn.Shutdown()
 
 	// read the object with the given name
 	data_out := make([]byte, 100)
