@@ -117,8 +117,9 @@ func chooseMonitorNodes(context *orchestrator.ClusterContext) (map[string]*CephM
 	monitorNum := 0
 	var settings = make(map[string]string)
 	for nodeID := range context.Inventory.Nodes {
-		ipaddress, err := getDesiredNodeIPAddress(context, nodeID)
-		if err != nil {
+
+		node, ok := context.Inventory.Nodes[nodeID]
+		if !ok || node.IPAddress == "" {
 			log.Printf("failed to discover desired ip address for node %s. %v", nodeID, err)
 			return nil, err
 		}
@@ -127,10 +128,10 @@ func chooseMonitorNodes(context *orchestrator.ClusterContext) (map[string]*CephM
 		port := "6790"
 		monitorID := fmt.Sprintf("mon%d", monitorNum)
 		settings[path.Join(nodeID, "id")] = monitorID
-		settings[path.Join(nodeID, "ipaddress")] = ipaddress
+		settings[path.Join(nodeID, "ipaddress")] = node.IPAddress
 		settings[path.Join(nodeID, "port")] = port
 
-		monitor := &CephMonitorConfig{Name: monitorID, Endpoint: fmt.Sprintf("%s:%s", ipaddress, port)}
+		monitor := &CephMonitorConfig{Name: monitorID, Endpoint: fmt.Sprintf("%s:%s", node.IPAddress, port)}
 		monitors[nodeID] = monitor
 
 		monitorNum++
@@ -144,10 +145,6 @@ func chooseMonitorNodes(context *orchestrator.ClusterContext) (map[string]*CephM
 	}
 
 	return monitors, nil
-}
-
-func getDesiredNodeIPAddress(context *orchestrator.ClusterContext, nodeID string) (string, error) {
-	return context.Inventory.Nodes[nodeID].IPAddress, nil
 }
 
 // Calculate the number of monitors that should be deployed
