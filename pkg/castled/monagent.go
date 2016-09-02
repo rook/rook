@@ -41,12 +41,12 @@ func (a *monAgent) ConfigureLocalService(context *orchestrator.ClusterContext) e
 		return fmt.Errorf("failed to find monitor during config")
 	}
 
-	// initialze the file systems for the monitors
+	// initialize the file system for the monitor
 	if err := a.makeMonitorFileSystem(monitor.Name); err != nil {
 		return fmt.Errorf("failed to make monitor filesystems: %+v", err)
 	}
 
-	// run the monitors
+	// run the monitor
 	err = a.runMonitor(monitor)
 	if err != nil {
 		return fmt.Errorf("failed to run monitors: %+v", err)
