@@ -1,6 +1,12 @@
 package castled
 
-import "github.com/quantum/clusterd/pkg/orchestrator"
+import (
+	"log"
+	"path"
+
+	"github.com/quantum/clusterd/pkg/orchestrator"
+	"github.com/quantum/clusterd/pkg/util"
+)
 
 // Load the state of the OSDs from etcd.
 // Returns whether the service has updates to be applied.
@@ -19,6 +25,13 @@ func configureOSDs(context *orchestrator.ClusterContext) error {
 	// Trigger all of the nodes to configure their OSDs
 	osdNodes := []string{}
 	for nodeID := range context.Inventory.Nodes {
+		key := path.Join(cephKey, osdAgentName, desiredKey, nodeID)
+		err := util.CreateEtcdDir(context.EtcdClient, key)
+		if err != nil {
+			log.Printf("failed to trigger osd %s", nodeID)
+			continue
+		}
+
 		osdNodes = append(osdNodes, nodeID)
 	}
 

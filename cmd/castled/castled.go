@@ -8,6 +8,6 @@ import (
 
 func main() {
 	if err := cmd.Execute(); err != nil {
-		fmt.Printf("castled error: %+v", err)
+		fmt.Printf("castled error: %+v\n", err)
 	}
 }
