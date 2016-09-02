@@ -80,7 +80,10 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 	defer bootstrapConn.Shutdown()
 
 	// initialize all the desired OSD volumes
-	for i, device := range a.devices {
+	for _, device := range a.devices {
+		var osdID int
+		var osdUUID uuid.UUID
+
 		mountPoint, err := getDeviceMountPoint(device, context.Executor)
 		if err != nil {
 			return fmt.Errorf("unable to get mount point for device %s: %+v", device, err)
@@ -93,7 +96,14 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 				return err
 			}
 
-			mountPoint = fmt.Sprintf("/tmp/osd%d", i)
+			// register the OSD with the cluster now to get an official ID
+			osdID, osdUUID, err = registerOSDWithCluster(device, bootstrapConn)
+			if err != nil {
+
+			}
+
+			// mount the device using a mount point that reflects the OSD's ID
+			mountPoint = fmt.Sprintf("/tmp/osd%d", osdID)
 			if err := mountOSD(device, mountPoint, context.Executor); err != nil {
 				return err
 			}
@@ -107,12 +117,9 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 			return err
 		}
 
-		var osdID int
-		var osdUUID uuid.UUID
-
 		if _, err := os.Stat(filepath.Join(osdDataPath, "whoami")); os.IsNotExist(err) {
 			// osd_data_dir/whoami does not exist yet, create/initialize the OSD
-			osdDataPath, osdID, osdUUID, err = initializeOSD(osdDataDir, bootstrapConn, a.cluster)
+			osdDataPath, err = initializeOSD(osdDataDir, osdID, osdUUID, bootstrapConn, a.cluster)
 			if err != nil {
 				return fmt.Errorf("failed to initialize OSD at %s: %+v", osdDataDir, err)
 			}

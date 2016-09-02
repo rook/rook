@@ -233,6 +233,22 @@ func mountOSD(device string, mountPath string, executor util.Executor) error {
 	return nil
 }
 
+func registerOSDWithCluster(device string, bootstrapConn *cephd.Conn) (int, uuid.UUID, error) {
+	osdUUID, err := uuid.NewRandom()
+	if err != nil {
+		return 0, uuid.UUID{}, fmt.Errorf("failed to generate UUID for %s: %+v", device, err)
+	}
+
+	// create the OSD instance via a mon_command, this assigns a cluster wide ID to the OSD
+	osdID, err := createOSD(bootstrapConn, osdUUID)
+	if err != nil {
+		return 0, uuid.UUID{}, err
+	}
+
+	log.Printf("successfully created OSD %s with ID %d for %s", osdUUID.String(), osdID, device)
+	return osdID, osdUUID, nil
+}
+
 // looks for an existing OSD data path under the given root
 func findOSDDataPath(osdRoot, clusterName string) (string, error) {
 	var osdDataPath string
@@ -281,63 +297,49 @@ func getOSDInfo(osdDataPath string) (int, uuid.UUID, error) {
 	return osdID, osdUUID, nil
 }
 
-func initializeOSD(osdDataDir string, bootstrapConn *cephd.Conn, cluster *clusterInfo) (string, int, uuid.UUID, error) {
-	log.Printf("initializing the osd directory %s", osdDataDir)
-	osdUUID, err := uuid.NewRandom()
-	if err != nil {
-		return "", 0, uuid.UUID{}, fmt.Errorf("failed to generate UUID for %s: %+v", osdDataDir, err)
-	}
-
-	// create the OSD instance via a mon_command, this assigns a cluster wide ID to the OSD
-	osdID, err := createOSD(bootstrapConn, osdUUID)
-	if err != nil {
-		return "", 0, uuid.UUID{}, err
-	}
-
-	log.Printf("successfully created OSD %s with ID %d at %s", osdUUID.String(), osdID, osdDataDir)
-
+func initializeOSD(osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn *cephd.Conn, cluster *clusterInfo) (string, error) {
 	// ensure that the OSD data directory is created
 	osdDataPath := filepath.Join(osdDataDir, fmt.Sprintf("%s-%d", cluster.Name, osdID))
 	if err := os.MkdirAll(osdDataPath, 0777); err != nil {
-		return "", 0, uuid.UUID{}, fmt.Errorf("failed to create OSD data dir at %s, %+v", osdDataPath, err)
+		return "", fmt.Errorf("failed to create OSD data dir at %s, %+v", osdDataPath, err)
 	}
 
 	// write the OSD config file to disk
 	keyringPath := getOSDKeyringPath(osdDataPath)
-	_, err = generateConfigFile(cluster, osdDataPath, fmt.Sprintf("osd.%d", osdID), keyringPath)
+	_, err := generateConfigFile(cluster, osdDataPath, fmt.Sprintf("osd.%d", osdID), keyringPath)
 	if err != nil {
-		return "", 0, uuid.UUID{}, fmt.Errorf("failed to write OSD %d config file: %+v", osdID, err)
+		return "", fmt.Errorf("failed to write OSD %d config file: %+v", osdID, err)
 	}
 
 	// get the current monmap, it will be needed for creating the OSD file system
 	monMapRaw, err := getMonMap(bootstrapConn)
 	if err != nil {
-		return "", 0, uuid.UUID{}, fmt.Errorf("failed to get mon map: %+v", err)
+		return "", fmt.Errorf("failed to get mon map: %+v", err)
 	}
 
 	// create/initalize the OSD file system and journal
 	if err := createOSDFileSystem(cluster.Name, osdID, osdUUID, osdDataPath, monMapRaw); err != nil {
-		return "", 0, uuid.UUID{}, err
+		return "", err
 	}
 
 	// add auth privileges for the OSD, the bootstrap-osd privileges were very limited
 	if err := addOSDAuth(bootstrapConn, osdID, osdDataPath); err != nil {
-		return "", 0, uuid.UUID{}, err
+		return "", err
 	}
 
 	// open a connection to the cluster using the OSDs creds
 	osdConn, err := connectToCluster(cluster, osdDataDir, fmt.Sprintf("osd.%d", osdID), keyringPath)
 	if err != nil {
-		return "", 0, uuid.UUID{}, err
+		return "", err
 	}
 	defer osdConn.Shutdown()
 
 	// add the new OSD to the cluster crush map
 	if err := addOSDToCrushMap(osdConn, osdID, osdDataDir); err != nil {
-		return "", 0, uuid.UUID{}, err
+		return "", err
 	}
 
-	return osdDataPath, osdID, osdUUID, nil
+	return osdDataPath, nil
 }
 
 // creates the OSD identity in the cluster via a mon_command
