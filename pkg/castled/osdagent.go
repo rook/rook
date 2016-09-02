@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/clusterd/pkg/orchestrator"
+	"github.com/quantum/clusterd/pkg/util"
 )
 
 const (
@@ -29,13 +31,22 @@ func newOSDAgent(rawDevices string, forceFormat bool) *osdAgent {
 	return &osdAgent{devices: devices, forceFormat: forceFormat}
 }
 
-func (a *osdAgent) GetName() string {
+func (a *osdAgent) Name() string {
 	return osdAgentName
 }
 
 func (a *osdAgent) ConfigureLocalService(context *orchestrator.ClusterContext) error {
 
-	var err error
+	// check if the osd is in the desired state for this node
+	key := path.Join(cephKey, osdAgentName, desiredKey, context.NodeID)
+	osdDesired, err := util.EtcdDirExists(context.EtcdClient, key)
+	if err != nil {
+		return err
+	}
+	if !osdDesired {
+		return nil
+	}
+
 	a.cluster, err = loadClusterInfo(context.EtcdClient)
 	if err != nil {
 		return fmt.Errorf("failed to load cluster info: %v", err)
