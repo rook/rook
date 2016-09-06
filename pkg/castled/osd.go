@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -64,53 +65,74 @@ func getOSDTempMonMapPath(osdDataPath string) string {
 // create a keyring for the bootstrap-osd client, it gets a limited set of privileges
 func createOSDBootstrapKeyring(conn *cephd.Conn, clusterName string, executor util.Executor) error {
 	bootstrapOSDKeyringPath := getBootstrapOSDKeyringPath(clusterName)
-	if _, err := os.Stat(bootstrapOSDKeyringPath); os.IsNotExist(err) {
-		// get-or-create-key for client.bootstrap-osd
-		cmd := "auth get-or-create-key"
-		command, err := json.Marshal(map[string]interface{}{
-			"prefix": cmd,
-			"format": "json",
-			"entity": "client.bootstrap-osd",
-			"caps":   []string{"mon", "allow profile bootstrap-osd"},
-		})
-		if err != nil {
-			return fmt.Errorf("command %s marshall failed: %+v", cmd, err)
-		}
-		buf, _, err := conn.MonCommand(command)
-		if err != nil {
-			return fmt.Errorf("mon_command %s failed: %+v", cmd, err)
-		}
-		var resp map[string]interface{}
-		err = json.Unmarshal(buf, &resp)
-		if err != nil {
-			return fmt.Errorf("failed to unmarshall %s response: %+v", cmd, err)
-		}
-		bootstrapOSDKey := resp["key"].(string)
-		log.Printf("succeeded %s command, bootstrapOSDKey: %s", cmd, bootstrapOSDKey)
+	_, err := os.Stat(bootstrapOSDKeyringPath)
+	if err == nil {
+		// no error, the file exists, bail out with no error
+		log.Printf("bootstrap OSD keyring already exists at %s", bootstrapOSDKeyringPath)
+		return nil
+	} else if !os.IsNotExist(err) {
+		// some other error besides "does not exist", bail out with error
+		return fmt.Errorf("failed to stat %s: %+v", bootstrapOSDKeyringPath, err)
+	}
 
-		// write the bootstrap-osd keyring to disk
-		bootstrapOSDKeyringDir := filepath.Dir(bootstrapOSDKeyringPath)
-		if err := os.MkdirAll(bootstrapOSDKeyringDir, 0744); err != nil {
-			fmt.Printf("failed to create bootstrap OSD keyring dir at %s: %+v", bootstrapOSDKeyringDir, err)
-		}
-		bootstrapOSDKeyring := fmt.Sprintf(bootstrapOSDKeyringTemplate, bootstrapOSDKey)
-		if err := ioutil.WriteFile(bootstrapOSDKeyringPath, []byte(bootstrapOSDKeyring), 0644); err != nil {
-			return fmt.Errorf("failed to write bootstrap-osd keyring to %s: %+v", bootstrapOSDKeyringPath, err)
-		}
+	// get-or-create-key for client.bootstrap-osd
+	cmd := "auth get-or-create-key"
+	command, err := json.Marshal(map[string]interface{}{
+		"prefix": cmd,
+		"format": "json",
+		"entity": "client.bootstrap-osd",
+		"caps":   []string{"mon", "allow profile bootstrap-osd"},
+	})
+	if err != nil {
+		return fmt.Errorf("command %s marshall failed: %+v", cmd, err)
+	}
+	buf, _, err := conn.MonCommand(command)
+	if err != nil {
+		return fmt.Errorf("mon_command %s failed: %+v", cmd, err)
+	}
+	var resp map[string]interface{}
+	err = json.Unmarshal(buf, &resp)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshall %s response: %+v", cmd, err)
+	}
+	bootstrapOSDKey := resp["key"].(string)
+	log.Printf("succeeded %s command, bootstrapOSDKey: %s", cmd, bootstrapOSDKey)
+
+	// write the bootstrap-osd keyring to disk
+	bootstrapOSDKeyringDir := filepath.Dir(bootstrapOSDKeyringPath)
+	if err := os.MkdirAll(bootstrapOSDKeyringDir, 0744); err != nil {
+		fmt.Printf("failed to create bootstrap OSD keyring dir at %s: %+v", bootstrapOSDKeyringDir, err)
+	}
+	bootstrapOSDKeyring := fmt.Sprintf(bootstrapOSDKeyringTemplate, bootstrapOSDKey)
+	if err := ioutil.WriteFile(bootstrapOSDKeyringPath, []byte(bootstrapOSDKeyring), 0644); err != nil {
+		return fmt.Errorf("failed to write bootstrap-osd keyring to %s: %+v", bootstrapOSDKeyringPath, err)
 	}
 
 	return nil
 }
 
+// look up the mount point of the given device.  empty string returned if device is not mounted.
+func getDeviceMountPoint(device string, executor util.Executor) (string, error) {
+	cmd := fmt.Sprintf("get mount point for %s", device)
+	mountPoint, err := executor.ExecuteCommandPipeline(
+		cmd,
+		fmt.Sprintf(`mount | grep '^/dev/%s on' | awk '{print $3}'`, device))
+	if err != nil {
+		return "", fmt.Errorf("command %s failed: %+v", cmd, err)
+	}
+
+	return mountPoint, nil
+}
+
 // format the given device for usage by an OSD
-func formatOSD(device string, forceFormat bool, executor util.Executor) (bool, error) {
+func formatOSD(device string, forceFormat bool, executor util.Executor) error {
 	// format the current volume
-	cmd := fmt.Sprintf("blkid %s", device)
+	cmd := fmt.Sprintf("get filesystem type for %s", device)
 	devFS, err := executor.ExecuteCommandPipeline(
 		cmd,
-		fmt.Sprintf(`blkid /dev/%s | sed -nr 's/^.*TYPE=\"(.*)\"$/\1/p'`, device))
+		fmt.Sprintf(`df --output=source,fstype | grep /dev/%s | awk '{print $2}'`, device))
 	if err != nil {
-		return false, fmt.Errorf("command %s failed: %+v", cmd, err)
+		return fmt.Errorf("command %s failed: %+v", cmd, err)
 	}
 	if devFS != "" && forceFormat {
 		// there's a filesystem on the device, but the user has specified to force a format. give a warning about that.
@@ -122,15 +144,15 @@ func formatOSD(device string, forceFormat bool, executor util.Executor) (bool, e
 		cmd = fmt.Sprintf("format %s", device)
 		err = executor.ExecuteCommand(cmd, "sudo", "/usr/sbin/mkfs.btrfs", "-f", "-m", "single", "-n", "32768", fmt.Sprintf("/dev/%s", device))
 		if err != nil {
-			return false, fmt.Errorf("command %s failed: %+v", cmd, err)
+			return fmt.Errorf("command %s failed: %+v", cmd, err)
 		}
 	} else {
 		// disk is already formatted and the user doesn't want to force it, return no error, but also specify that no format was done
-		log.Printf("device %s already formatted with %s, cannot use for OSD", device, devFS)
-		return false, nil
+		log.Printf("device %s already formatted with %s", device, devFS)
+		return nil
 	}
 
-	return true, nil
+	return nil
 }
 
 // mount the OSD data directory onto the given device
@@ -211,6 +233,22 @@ func mountOSD(device string, mountPath string, executor util.Executor) error {
 	return nil
 }
 
+func registerOSDWithCluster(device string, bootstrapConn *cephd.Conn) (int, uuid.UUID, error) {
+	osdUUID, err := uuid.NewRandom()
+	if err != nil {
+		return 0, uuid.UUID{}, fmt.Errorf("failed to generate UUID for %s: %+v", device, err)
+	}
+
+	// create the OSD instance via a mon_command, this assigns a cluster wide ID to the OSD
+	osdID, err := createOSD(bootstrapConn, osdUUID)
+	if err != nil {
+		return 0, uuid.UUID{}, err
+	}
+
+	log.Printf("successfully created OSD %s with ID %d for %s", osdUUID.String(), osdID, device)
+	return osdID, osdUUID, nil
+}
+
 // looks for an existing OSD data path under the given root
 func findOSDDataPath(osdRoot, clusterName string) (string, error) {
 	var osdDataPath string
@@ -227,6 +265,78 @@ func findOSDDataPath(osdRoot, clusterName string) (string, error) {
 				break
 			}
 		}
+	}
+
+	return osdDataPath, nil
+}
+
+func getOSDInfo(osdDataPath string) (int, uuid.UUID, error) {
+	idFile := filepath.Join(osdDataPath, "whoami")
+	idContent, err := ioutil.ReadFile(idFile)
+	if err != nil {
+		return 0, uuid.UUID{}, fmt.Errorf("failed to read OSD ID from %s: %+v", idFile, err)
+	}
+
+	osdID, err := strconv.Atoi(strings.TrimSpace(string(idContent[:])))
+	if err != nil {
+		return 0, uuid.UUID{}, fmt.Errorf("failed to parse OSD ID from %s with content %s: %+v", idFile, idContent, err)
+	}
+
+	uuidFile := filepath.Join(osdDataPath, "fsid")
+	fsidContent, err := ioutil.ReadFile(uuidFile)
+	if err != nil {
+		return 0, uuid.UUID{}, fmt.Errorf("failed to read UUID from %s: %+v", uuidFile, err)
+	}
+
+	osdUUID, err := uuid.Parse(strings.TrimSpace(string(fsidContent[:])))
+	if err != nil {
+		return 0, uuid.UUID{},
+			fmt.Errorf("failed to parse UUID from %s with content %s: %+v", uuidFile, string(fsidContent[:]), err)
+	}
+
+	return osdID, osdUUID, nil
+}
+
+func initializeOSD(osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn *cephd.Conn, cluster *clusterInfo) (string, error) {
+	// ensure that the OSD data directory is created
+	osdDataPath := filepath.Join(osdDataDir, fmt.Sprintf("%s-%d", cluster.Name, osdID))
+	if err := os.MkdirAll(osdDataPath, 0777); err != nil {
+		return "", fmt.Errorf("failed to create OSD data dir at %s, %+v", osdDataPath, err)
+	}
+
+	// write the OSD config file to disk
+	keyringPath := getOSDKeyringPath(osdDataPath)
+	_, err := generateConfigFile(cluster, osdDataPath, fmt.Sprintf("osd.%d", osdID), keyringPath)
+	if err != nil {
+		return "", fmt.Errorf("failed to write OSD %d config file: %+v", osdID, err)
+	}
+
+	// get the current monmap, it will be needed for creating the OSD file system
+	monMapRaw, err := getMonMap(bootstrapConn)
+	if err != nil {
+		return "", fmt.Errorf("failed to get mon map: %+v", err)
+	}
+
+	// create/initalize the OSD file system and journal
+	if err := createOSDFileSystem(cluster.Name, osdID, osdUUID, osdDataPath, monMapRaw); err != nil {
+		return "", err
+	}
+
+	// add auth privileges for the OSD, the bootstrap-osd privileges were very limited
+	if err := addOSDAuth(bootstrapConn, osdID, osdDataPath); err != nil {
+		return "", err
+	}
+
+	// open a connection to the cluster using the OSDs creds
+	osdConn, err := connectToCluster(cluster, osdDataDir, fmt.Sprintf("osd.%d", osdID), keyringPath)
+	if err != nil {
+		return "", err
+	}
+	defer osdConn.Shutdown()
+
+	// add the new OSD to the cluster crush map
+	if err := addOSDToCrushMap(osdConn, osdID, osdDataDir); err != nil {
+		return "", err
 	}
 
 	return osdDataPath, nil
