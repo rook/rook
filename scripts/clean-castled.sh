@@ -10,8 +10,8 @@ rm -fr /tmp/bootstrap-osd
 for dir in `mount | grep -E '/tmp/osd[0-9]+ ' | awk '{print $3}'`; do sudo umount -f ${dir}; done
 rm -fr /tmp/osd*
 
-# delete all etcd keys
-etcdctl rm --recursive /castle
+# clean the etcd config
+rm -fr ~/etcd
 
 # ensure castled processes are dead if there was a crash
 ps aux | grep /tmp/castled | awk '{print $2}' | xargs sudo kill

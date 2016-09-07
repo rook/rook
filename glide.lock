@@ -1,8 +1,8 @@
 hash: 92b0b86293cd8ff7e45e4b92b4d116a38ea8c3a7b92137fd618742f3c67a7b15
-updated: 2016-08-31T09:18:34.23005271-07:00
+updated: 2016-09-07T13:45:41.708098462-07:00
 imports:
 - name: github.com/coreos/etcd
-  version: d53923c636e0e4ab7f00cb75681b97a8f11f5a9d
+  version: a6d22b96c3813b546494cdc72160c7cb407c3297
   subpackages:
   - client
   - error
@@ -15,7 +15,7 @@ imports:
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/quantum/clusterd
-  version: 27cbadad4d31c6769e8bd3d0cd4d7908f1fe5590
+  version: c5474f7e3c3f9cf06428905f034449fb4bc91f78
   subpackages:
   - pkg/inventory
   - pkg/orchestrator
@@ -27,11 +27,11 @@ imports:
 - name: github.com/spf13/pflag
   version: f676131e2660dc8cd88de99f7486d34aa8172635
 - name: github.com/ugorji/go
-  version: 3487a5545b3d480987dfb0492035299077fab33a
+  version: f1f1a805ed361a0e078bb537e4ea78cd37dcf065
   subpackages:
   - codec
 - name: golang.org/x/net
-  version: 57bfaa875b96fb91b4766077f34470528d4b03e9
+  version: 6acef71eb69611914f7a30939ea9f6e194c78172
   subpackages:
   - context
 testImports: []

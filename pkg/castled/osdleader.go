@@ -15,16 +15,16 @@ func getOSDState(context *orchestrator.ClusterContext) (bool, error) {
 }
 
 // Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
-func configureOSDs(context *orchestrator.ClusterContext) error {
+func configureOSDs(context *orchestrator.ClusterContext, nodes []string) error {
 
-	if len(context.Inventory.Nodes) == 0 {
+	if len(nodes) == 0 {
 		// No nodes for OSDs
 		return nil
 	}
 
 	// Trigger all of the nodes to configure their OSDs
 	osdNodes := []string{}
-	for nodeID := range context.Inventory.Nodes {
+	for _, nodeID := range nodes {
 		key := path.Join(cephKey, osdAgentName, desiredKey, nodeID)
 		err := util.CreateEtcdDir(context.EtcdClient, key)
 		if err != nil {
