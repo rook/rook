@@ -16,18 +16,47 @@ import (
 // Interface implemented by a service that has been elected leader
 type cephLeader struct {
 	cluster *clusterInfo
+	events  chan orchestrator.LeaderEvent
 }
 
-// Load the state of the service from etcd. Typically a service will populate the desired/discovered state and the applied state
-// from etcd, then compute the difference and cache it.
-// Returns whether the service has updates to be applied.
-func (c *cephLeader) LoadClusterServiceState(context *orchestrator.ClusterContext) (bool, error) {
+func (c *cephLeader) StartWatchEvents() {
+	if c.events != nil {
+		close(c.events)
+	}
+	c.events = make(chan orchestrator.LeaderEvent, 10)
+	go c.handleOrchestratorEvents()
+}
 
-	return true, nil
+func (c *cephLeader) Events() chan orchestrator.LeaderEvent {
+	return c.events
+}
+
+func (c *cephLeader) Close() error {
+	close(c.events)
+	c.events = nil
+	return nil
+}
+
+func (c *cephLeader) handleOrchestratorEvents() {
+	// Listen for events from the orchestrator indicating that a refresh is needed or nodes have been added
+	for e := range c.events {
+		log.Printf("ceph leader received event %s", e.Name())
+		if _, ok := e.(*orchestrator.RefreshEvent); ok {
+			// Perform a full refresh of the cluster to ensure the monitors and OSDs are running
+			c.configureCephServices(e.Context())
+
+		} else if nodeAdded, ok := e.(*orchestrator.AddNodeEvent); ok {
+			// When a node is added simply start OSDs on the node
+			configureOSDs(e.Context(), nodeAdded.Nodes())
+
+		} else if _, ok := e.(*orchestrator.StaleNodeEvent); ok {
+			// TODO: Move a monitor to another node and/or declare OSDs dead
+		}
+	}
 }
 
 // Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
-func (c *cephLeader) ConfigureClusterService(context *orchestrator.ClusterContext) error {
+func (c *cephLeader) configureCephServices(context *orchestrator.ClusterContext) error {
 
 	// Create or get the basic cluster info
 	var err error
@@ -42,8 +71,16 @@ func (c *cephLeader) ConfigureClusterService(context *orchestrator.ClusterContex
 		return err
 	}
 
+	// Convert the node IDs to a simple slice
+	nodes := make([]string, len(context.Inventory.Nodes))
+	i := 0
+	for node := range context.Inventory.Nodes {
+		nodes[i] = node
+		i++
+	}
+
 	// Configure the OSDs
-	err = configureOSDs(context)
+	err = configureOSDs(context, nodes)
 	if err != nil {
 		return err
 	}
