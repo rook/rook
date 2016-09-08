@@ -15,7 +15,7 @@ imports:
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/quantum/clusterd
-  version: 3fa5aaab6244e4751ead3192c3aa322e35f8079a
+  version: 2fa9b6678de9c9aaab3a497c703b9540a182272c
   subpackages:
   - pkg/inventory
   - pkg/orchestrator
