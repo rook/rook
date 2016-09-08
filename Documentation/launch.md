@@ -11,7 +11,8 @@ echo $discovery_token
 
 ## Run castle
 Start the castled process on each machine. Don't forget to set or replace your $discovery_token variable 
-   `./castled --discovery-url=$discovery_token --private-ipv4=${COREOS_PRIVATE_IPV4} --devices=sdb,sdc,sdd --force-format=true`
+
+`./castled --discovery-url=$discovery_token --private-ipv4=${COREOS_PRIVATE_IPV4} --devices=sdb,sdc,sdd --force-format=true`
 
 ## Cleanup
 Between runs you may want to clean everything up and start over. In this case, run the script on each of the nodes in the cluster:
