@@ -5,7 +5,7 @@
 2. Generate a discovery token
 ```
 token_size=3
-discovery_token=$(curl -w "\n" 'https://discovery.etcd.io/new?size=$token_size' 2>nil)
+discovery_token=$(curl -w "\n" "https://discovery.etcd.io/new?size=$token_size" 2>nil)
 echo $discovery_token
 ```
 
