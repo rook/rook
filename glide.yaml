@@ -8,10 +8,12 @@ import:
   - client
   - error
 - package: github.com/quantum/clusterd
+  version: dfc6f8c199d906c4206cce9e9f80a301ad1f22b8
   subpackages:
   - pkg/inventory
   - pkg/orchestrator
   - pkg/util
+  - pkg/proc
 - package: github.com/spf13/pflag
 - package: github.com/google/uuid
 - package: github.com/go-ini/ini

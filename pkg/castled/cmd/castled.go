@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/spf13/cobra"
 
 	"github.com/quantum/castle/pkg/castled"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/quantum/clusterd/pkg/orchestrator"
-	clusterutil "github.com/quantum/clusterd/pkg/util"
+	"github.com/quantum/clusterd/pkg/proc"
 )
 
 var (
@@ -56,8 +57,11 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 	}
 
 	services := []*orchestrator.ClusterService{castled.NewCephService(devices, forceFormat)}
-	procMan := &clusterutil.ProcManager{}
-	defer procMan.Shutdown()
+	procMan := &proc.ProcManager{}
+	defer func() {
+		procMan.Shutdown()
+		<-time.After(time.Duration(1) * time.Second)
+	}()
 
 	// start the cluster orchestration services
 	if err := orchestrator.StartJoinCluster(services, procMan, discoveryURL, privateIPv4); err != nil {
