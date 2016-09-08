@@ -20,7 +20,7 @@ type clusterInfo struct {
 func NewCephService(devices string, forceFormat bool) *orchestrator.ClusterService {
 	return &orchestrator.ClusterService{
 		Name:   cephName,
-		Leader: newCephLeader(),
+		Leader: &cephLeader{},
 		Agents: []orchestrator.ServiceAgent{&monAgent{}, newOSDAgent(devices, forceFormat)},
 	}
 }

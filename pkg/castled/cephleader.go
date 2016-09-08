@@ -19,19 +19,21 @@ type cephLeader struct {
 	events  chan orchestrator.LeaderEvent
 }
 
-func newCephLeader() *cephLeader {
-	channel := make(chan orchestrator.LeaderEvent, 10)
-	leader := &cephLeader{events: channel}
-	go leader.handleOrchestratorEvents()
-
-	return leader
+func (c *cephLeader) StartWatchEvents() {
+	if c.events != nil {
+		close(c.events)
+	}
+	c.events = make(chan orchestrator.LeaderEvent, 10)
+	go c.handleOrchestratorEvents()
 }
 
-func (c *cephLeader) Updates() chan orchestrator.LeaderEvent {
+func (c *cephLeader) Events() chan orchestrator.LeaderEvent {
 	return c.events
 }
 
 func (c *cephLeader) Close() error {
+	close(c.events)
+	c.events = nil
 	return nil
 }
 
