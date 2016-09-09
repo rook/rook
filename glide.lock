@@ -1,5 +1,5 @@
-hash: 60544ce02d1efbcc2d4a874a878e6a2055c61a5269384f03d4b10ca254b08340
-updated: 2016-09-08T15:24:10.106276233-07:00
+hash: 03c94526023e69d4ddf4f795690b2d5e77c3de32415c17d668efe9e08b676d51
+updated: 2016-09-08T20:14:35.505788174-07:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -12,54 +12,54 @@ imports:
 - name: github.com/coreos/etcd
   version: a6d22b96c3813b546494cdc72160c7cb407c3297
   subpackages:
+  - client
+  - error
+  - pkg/pathutil
+  - pkg/types
+  - etcdserver
+  - etcdserver/api/v2http
+  - pkg/cors
   - alarm
   - auth
-  - auth/authpb
-  - client
   - compactor
   - discovery
-  - error
-  - etcdserver
   - etcdserver/api
-  - etcdserver/api/v2http
   - etcdserver/api/v2http/httptypes
-  - etcdserver/auth
   - etcdserver/etcdserverpb
   - etcdserver/membership
   - etcdserver/stats
   - lease
   - lease/leasehttp
-  - lease/leasepb
   - mvcc
   - mvcc/backend
   - mvcc/mvccpb
-  - pkg/adt
   - pkg/contention
-  - pkg/cors
-  - pkg/crc
   - pkg/fileutil
   - pkg/httputil
   - pkg/idutil
-  - pkg/ioutil
-  - pkg/logutil
   - pkg/netutil
-  - pkg/pathutil
   - pkg/pbutil
   - pkg/runtime
   - pkg/schedule
-  - pkg/tlsutil
   - pkg/transport
-  - pkg/types
   - pkg/wait
   - raft
   - raft/raftpb
   - rafthttp
   - snap
-  - snap/snappb
   - store
   - version
   - wal
   - wal/walpb
+  - etcdserver/auth
+  - pkg/logutil
+  - auth/authpb
+  - lease/leasepb
+  - pkg/adt
+  - pkg/tlsutil
+  - pkg/ioutil
+  - snap/snappb
+  - pkg/crc
 - name: github.com/coreos/go-semver
   version: 568e959cd89871e61434c1143528d9162da89ef2
   subpackages:
@@ -67,7 +67,9 @@ imports:
 - name: github.com/coreos/go-systemd
   version: bfdc81d0d7e0fb19447b08571f63b774495251ce
   subpackages:
+  - daemon
   - journal
+  - util
 - name: github.com/coreos/pkg
   version: fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
   subpackages:
@@ -119,16 +121,17 @@ imports:
 - name: github.com/prometheus/procfs
   version: 454a56f35412459b5e684fd5ec0f9211b94f002a
 - name: github.com/quantum/clusterd
-  version: 30bcf3dae55b610242549faa9ed3b69cc0bfb848
+  version: a315649618080b8a52479111c1e0ad229d9a36da
   subpackages:
   - pkg/inventory
   - pkg/orchestrator
   - pkg/util
+  - pkg/proc
 - name: github.com/quantum/etcdmgr
   version: f375501d312c13a3f0d2f3e1b8ae844524e43420
   subpackages:
-  - bootstrap
   - manager
+  - bootstrap
 - name: github.com/spf13/cobra
   version: dbb7c2d02e284aa24423e3e6e105969dffe6e4d6
   subpackages:

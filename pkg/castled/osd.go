@@ -16,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/cephd"
+	"github.com/quantum/clusterd/pkg/proc"
 	"github.com/quantum/clusterd/pkg/util"
 )
 
@@ -400,7 +401,7 @@ func createOSDFileSystem(clusterName string, osdID int, osdUUID uuid.UUID, osdDa
 	}
 
 	// create the OSD file system and journal
-	err := util.RunChildProcess(
+	err := proc.RunChildProcess(
 		"osd",
 		"--mkfs",
 		"--mkkey",

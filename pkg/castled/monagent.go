@@ -7,11 +7,13 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	ctx "golang.org/x/net/context"
 
 	"github.com/quantum/clusterd/pkg/orchestrator"
+	"github.com/quantum/clusterd/pkg/proc"
 	"github.com/quantum/clusterd/pkg/util"
 )
 
@@ -138,11 +140,14 @@ func (a *monAgent) runMonitor(context *orchestrator.ClusterContext, monitor *Cep
 
 	// start the monitor daemon in the foreground with the given config
 	log.Printf("starting monitor %s", monitor.Name)
+	monNameArg := fmt.Sprintf("--name=mon.%s", monitor.Name)
 	err := context.ProcMan.Start(
 		"mon",
+		regexp.QuoteMeta(monNameArg),
+		proc.ReuseExisting,
 		"--foreground",
-		fmt.Sprintf("--cluster=%v", a.cluster.Name),
-		fmt.Sprintf("--name=mon.%v", monitor.Name),
+		fmt.Sprintf("--cluster=%s", a.cluster.Name),
+		monNameArg,
 		fmt.Sprintf("--mon-data=%s", getMonDataDirPath(monitor.Name)),
 		fmt.Sprintf("--conf=%s", getConfFilePath(getMonRunDirPath(monitor.Name), a.cluster.Name)),
 		fmt.Sprintf("--public-addr=%s", monitor.Endpoint))

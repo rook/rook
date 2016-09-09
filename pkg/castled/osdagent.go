@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/clusterd/pkg/orchestrator"
+	"github.com/quantum/clusterd/pkg/proc"
 	"github.com/quantum/clusterd/pkg/util"
 )
 
@@ -157,8 +159,11 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 func (a *osdAgent) runOSD(context *orchestrator.ClusterContext, clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string) error {
 	// start the OSD daemon in the foreground with the given config
 	log.Printf("starting osd %d at %s", osdID, osdDataPath)
+	osdUUIDArg := fmt.Sprintf("--osd-uuid=%s", osdUUID.String())
 	err := context.ProcMan.Start(
 		"osd",
+		regexp.QuoteMeta(osdUUIDArg),
+		proc.ReuseExisting,
 		"--foreground",
 		fmt.Sprintf("--id=%s", strconv.Itoa(osdID)),
 		fmt.Sprintf("--cluster=%s", clusterName),
@@ -166,7 +171,7 @@ func (a *osdAgent) runOSD(context *orchestrator.ClusterContext, clusterName stri
 		fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(osdDataPath)),
 		fmt.Sprintf("--conf=%s", getOSDConfFilePath(osdDataPath, clusterName)),
 		fmt.Sprintf("--keyring=%s", getOSDKeyringPath(osdDataPath)),
-		fmt.Sprintf("--osd-uuid=%s", osdUUID.String()))
+		osdUUIDArg)
 	if err != nil {
 		return fmt.Errorf("failed to start osd %d: %+v", osdID, err)
 	}
