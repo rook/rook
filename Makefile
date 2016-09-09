@@ -112,7 +112,7 @@ release: build
 
 .PHONY: test
 test: tools/glide
-	go test --race $(shell ./tools/glide novendor)
+	go test -cover $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' $(shell ./tools/glide novendor)
 
 .PHONY: vet
 vet: tools/glide
