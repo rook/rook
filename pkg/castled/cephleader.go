@@ -15,8 +15,9 @@ import (
 
 // Interface implemented by a service that has been elected leader
 type cephLeader struct {
-	cluster *clusterInfo
-	events  chan orchestrator.LeaderEvent
+	cluster  *clusterInfo
+	events   chan orchestrator.LeaderEvent
+	mockCeph bool
 }
 
 func (c *cephLeader) StartWatchEvents() {
@@ -52,6 +53,7 @@ func (c *cephLeader) handleOrchestratorEvents() {
 		} else if _, ok := e.(*orchestrator.StaleNodeEvent); ok {
 			// TODO: Move a monitor to another node and/or declare OSDs dead
 		}
+		log.Printf("ceph leader completed event %s", e.Name())
 	}
 }
 
@@ -66,7 +68,7 @@ func (c *cephLeader) configureCephServices(context *orchestrator.ClusterContext)
 	}
 
 	// Select the monitors, instruct them to start, and wait for quorum
-	err = createMonitors(context, c.cluster)
+	err = createMonitors(context, c.cluster, c.mockCeph)
 	if err != nil {
 		return err
 	}

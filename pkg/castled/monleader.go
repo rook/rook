@@ -21,7 +21,8 @@ const (
 
 // Create the ceph monitors
 // Must be idempotent
-func createMonitors(context *orchestrator.ClusterContext, cluster *clusterInfo) error {
+func createMonitors(context *orchestrator.ClusterContext, cluster *clusterInfo, skipQuorum bool) error {
+	log.Printf("Creating monitors with %d nodes available", len(context.Inventory.Nodes))
 
 	// Choose the nodes where the monitors will run
 	var err error
@@ -41,10 +42,12 @@ func createMonitors(context *orchestrator.ClusterContext, cluster *clusterInfo) 
 		return err
 	}
 
-	// Wait for quorum
-	err = waitForQuorum(context, cluster)
-	if err != nil {
-		return err
+	if !skipQuorum {
+		// Wait for quorum
+		err = waitForQuorum(context, cluster)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

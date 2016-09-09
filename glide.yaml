@@ -8,7 +8,7 @@ import:
   - client
   - error
 - package: github.com/quantum/clusterd
-  version: a315649618080b8a52479111c1e0ad229d9a36da  
+  version: 186d5668fd1006c30f57a23aaf0fab1be2a5fe12  
   subpackages:
   - pkg/inventory
   - pkg/orchestrator
@@ -18,4 +18,3 @@ import:
 - package: github.com/google/uuid
 - package: github.com/go-ini/ini
 - package: github.com/quantum/etcdmgr
-  version: f375501d312c13a3f0d2f3e1b8ae844524e43420
