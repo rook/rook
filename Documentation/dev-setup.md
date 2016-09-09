@@ -11,3 +11,9 @@ sudo apt-get install cmake python-sphinx libudev-dev libaio-dev libblkid-dev lib
 make -j2 V=1 STATIC=1 ALLOCATOR=tcmalloc build
 ./bin/castled
 ```
+
+# Unit tests
+Due to the static compilation flags the tests also require the same to find ceph even though we don't activate any of the ceph cgo code in the tests.
+```
+go test -installsuffix cgo -tags ' static tcmalloc' -ldflags ' -extldflags "-static"'
+```
