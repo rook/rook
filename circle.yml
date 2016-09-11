@@ -1,0 +1,16 @@
+machine:
+  environment:
+    NPROCS: $(grep -c ^processor /proc/cpuinfo)
+  services:
+    - docker
+
+dependencies:
+  override:
+    - docker info
+    - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
+    - echo -e "machine github.com\n\tlogin quantumbuild\n\tpassword $GITHUB_TOKEN" > ~/.netrc
+    - ./build/run-build.sh make -j$NPROCS build
+
+test:
+  override:
+    - echo no tests

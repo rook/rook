@@ -104,6 +104,7 @@ endif
 	@echo "##### building castlectl" 
 	go build $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' -o bin/castlectl ./cmd/castlectl
 
+.PHONY: ceph
 ceph:
 	git submodule update --init --recursive
 
