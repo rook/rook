@@ -39,6 +39,7 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E1DF1F24 && \
     libsnappy-dev \
     libssl-dev \
     libudev-dev \
+    mercurial \
     python-sphinx \
     python-dev \
     python3-all-dev \
