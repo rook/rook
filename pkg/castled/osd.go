@@ -16,7 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/cephd"
-	"github.com/quantum/clusterd/pkg/proc"
+	"github.com/quantum/clusterd/pkg/orchestrator"
 	"github.com/quantum/clusterd/pkg/util"
 )
 
@@ -298,7 +298,7 @@ func getOSDInfo(osdDataPath string) (int, uuid.UUID, error) {
 	return osdID, osdUUID, nil
 }
 
-func initializeOSD(osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn *cephd.Conn, cluster *clusterInfo) (string, error) {
+func initializeOSD(context *orchestrator.ClusterContext, osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn *cephd.Conn, cluster *clusterInfo) (string, error) {
 	// ensure that the OSD data directory is created
 	osdDataPath := filepath.Join(osdDataDir, fmt.Sprintf("%s-%d", cluster.Name, osdID))
 	if err := os.MkdirAll(osdDataPath, 0777); err != nil {
@@ -319,7 +319,7 @@ func initializeOSD(osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapCon
 	}
 
 	// create/initalize the OSD file system and journal
-	if err := createOSDFileSystem(cluster.Name, osdID, osdUUID, osdDataPath, monMapRaw); err != nil {
+	if err := createOSDFileSystem(context, cluster.Name, osdID, osdUUID, osdDataPath, monMapRaw); err != nil {
 		return "", err
 	}
 
@@ -387,7 +387,7 @@ func getMonMap(bootstrapConn *cephd.Conn) ([]byte, error) {
 }
 
 // creates/initalizes the OSD filesystem and journal via a child process
-func createOSDFileSystem(clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string, monMap []byte) error {
+func createOSDFileSystem(context *orchestrator.ClusterContext, clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string, monMap []byte) error {
 	log.Printf("Initializing OSD %d file system at %s...", osdID, osdDataPath)
 
 	// the current monmap is needed to create the OSD, save it to a temp location so it is accessible
@@ -401,7 +401,7 @@ func createOSDFileSystem(clusterName string, osdID int, osdUUID uuid.UUID, osdDa
 	}
 
 	// create the OSD file system and journal
-	err := proc.RunChildProcess(
+	err := context.ProcMan.Run(
 		"osd",
 		"--mkfs",
 		"--mkkey",

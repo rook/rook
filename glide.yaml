@@ -18,3 +18,4 @@ import:
 - package: github.com/google/uuid
 - package: github.com/go-ini/ini
 - package: github.com/quantum/etcdmgr
+  version: 511ef9a2284ca77ea6b262475150aa264e2bc1df

@@ -1,6 +1,7 @@
 bin/
 tools/
 vendor/
-
 .vscode/
 .glide/
+coverage.out
+coverage.html

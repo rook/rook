@@ -22,7 +22,6 @@ const (
 )
 
 type monAgent struct {
-	cluster *clusterInfo
 }
 
 func (a *monAgent) Name() string {
@@ -41,24 +40,24 @@ func (a *monAgent) ConfigureLocalService(context *orchestrator.ClusterContext) e
 		return nil
 	}
 
-	a.cluster, err = loadClusterInfo(context.EtcdClient)
+	cluster, err := loadClusterInfo(context.EtcdClient)
 	if err != nil {
 		return fmt.Errorf("failed to load cluster info: %+v", err)
 	}
 
 	var ok bool
 	var monitor *CephMonitorConfig
-	if monitor, ok = a.cluster.Monitors[context.NodeID]; !ok {
+	if monitor, ok = cluster.Monitors[context.NodeID]; !ok {
 		return fmt.Errorf("failed to find monitor during config")
 	}
 
 	// initialze the file system for the monitor
-	if err := a.makeMonitorFileSystem(context, monitor.Name); err != nil {
+	if err := a.makeMonitorFileSystem(context, cluster, monitor.Name); err != nil {
 		return fmt.Errorf("failed to make monitor filesystems: %+v", err)
 	}
 
 	// run the monitor
-	err = a.runMonitor(context, monitor)
+	err = a.runMonitor(context, cluster, monitor)
 	if err != nil {
 		return fmt.Errorf("failed to run monitors: %+v", err)
 	}
@@ -98,14 +97,14 @@ func (a *monAgent) waitForMonitorRegistration(context *orchestrator.ClusterConte
 }
 
 // creates and initializes the given monitors file systems
-func (a *monAgent) makeMonitorFileSystem(context *orchestrator.ClusterContext, monName string) error {
+func (a *monAgent) makeMonitorFileSystem(context *orchestrator.ClusterContext, cluster *clusterInfo, monName string) error {
 	// write the keyring to disk
-	if err := writeMonitorKeyring(monName, a.cluster); err != nil {
+	if err := writeMonitorKeyring(monName, cluster); err != nil {
 		return err
 	}
 
 	// write the config file to disk
-	confFilePath, err := generateConfigFile(a.cluster, getMonRunDirPath(monName), "admin", getMonKeyringPath(monName))
+	confFilePath, err := generateConfigFile(cluster, getMonRunDirPath(monName), "admin", getMonKeyringPath(monName))
 	if err != nil {
 		return err
 	}
@@ -120,7 +119,7 @@ func (a *monAgent) makeMonitorFileSystem(context *orchestrator.ClusterContext, m
 	err = context.ProcMan.Run(
 		"mon",
 		"--mkfs",
-		fmt.Sprintf("--cluster=%s", a.cluster.Name),
+		fmt.Sprintf("--cluster=%s", cluster.Name),
 		fmt.Sprintf("--name=mon.%s", monName),
 		fmt.Sprintf("--mon-data=%s", monDataDir),
 		fmt.Sprintf("--conf=%s", confFilePath),
@@ -133,7 +132,7 @@ func (a *monAgent) makeMonitorFileSystem(context *orchestrator.ClusterContext, m
 }
 
 // runs the monitor in a child process
-func (a *monAgent) runMonitor(context *orchestrator.ClusterContext, monitor *CephMonitorConfig) error {
+func (a *monAgent) runMonitor(context *orchestrator.ClusterContext, cluster *clusterInfo, monitor *CephMonitorConfig) error {
 	if monitor.Endpoint == "" {
 		return fmt.Errorf("missing endpoint for mon %s", monitor.Name)
 	}
@@ -146,10 +145,10 @@ func (a *monAgent) runMonitor(context *orchestrator.ClusterContext, monitor *Cep
 		regexp.QuoteMeta(monNameArg),
 		proc.ReuseExisting,
 		"--foreground",
-		fmt.Sprintf("--cluster=%s", a.cluster.Name),
+		fmt.Sprintf("--cluster=%s", cluster.Name),
 		monNameArg,
 		fmt.Sprintf("--mon-data=%s", getMonDataDirPath(monitor.Name)),
-		fmt.Sprintf("--conf=%s", getConfFilePath(getMonRunDirPath(monitor.Name), a.cluster.Name)),
+		fmt.Sprintf("--conf=%s", getConfFilePath(getMonRunDirPath(monitor.Name), cluster.Name)),
 		fmt.Sprintf("--public-addr=%s", monitor.Endpoint))
 	if err != nil {
 		return fmt.Errorf("failed to start monitor %s: %v", monitor.Name, err)
