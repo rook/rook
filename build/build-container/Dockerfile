@@ -1,7 +1,13 @@
 FROM ubuntu:xenial
 MAINTAINER Bassam Tabbara <bassam.tabbara@quantum.com>
 
-RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
+# git version 2.6.6+ through 2.8.3 had a bug with submodules
+# see https://github.com/git/git/blob/master/Documentation/RelNotes/2.8.3.txt#L33
+# this is why we are adding a newer verion of git than is available on xenial
+
+RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E1DF1F24 && \
+    echo "deb http://ppa.launchpad.net/git-core/ppa/ubuntu xenial main" > /etc/apt/sources.list.d/git.list && \
+    apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
     build-essential \
     ca-certificates \
     cmake \
