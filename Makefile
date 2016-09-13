@@ -94,7 +94,7 @@ build: vendor ceph
 	@echo "##### configuring ceph" 
 	cd ceph/build && cmake $(CEPHD_CMAKE) ..
 	@echo "##### building ceph" 
-	cd ceph/build && $(MAKE) $(MAKEFLAGS) $(MFLAGS) cephd
+	cd ceph/build && $(MAKE) $(MFLAGS) $(MAKEFLAGS) cephd
 ifeq ($(DEBUG),0)
 	@echo "##### stripping libcephd.a" 
 	strip -S ceph/build/lib/libcephd.a
