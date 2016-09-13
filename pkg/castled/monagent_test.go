@@ -1,6 +1,7 @@
 package castled
 
 import (
+	"fmt"
 	"os/exec"
 	"path"
 	"testing"
@@ -14,7 +15,7 @@ import (
 func TestMonAgent(t *testing.T) {
 
 	commands := 0
-	procTrap := func(action string, c *exec.Cmd) {
+	procTrap := func(action string, c *exec.Cmd) error {
 		switch {
 		case commands == 0:
 			assert.Equal(t, proc.RunAction, action)
@@ -27,7 +28,6 @@ func TestMonAgent(t *testing.T) {
 			assert.Equal(t, "--mon-data=/tmp/mon0/mon.mon0", c.Args[7])
 			assert.Equal(t, "--conf=/tmp/mon0/castlecluster.config", c.Args[8])
 			assert.Equal(t, "--keyring=/tmp/mon0/keyring", c.Args[9])
-
 		case commands == 1:
 			assert.Equal(t, proc.StartAction, action)
 			assert.Equal(t, "daemon", c.Args[1])
@@ -40,9 +40,10 @@ func TestMonAgent(t *testing.T) {
 			assert.Equal(t, "--conf=/tmp/mon0/castlecluster.config", c.Args[8])
 			assert.Equal(t, "--public-addr=1.2.3.4:2345", c.Args[9])
 		default:
-			assert.Fail(t, "unexpected case %d", commands)
+			return fmt.Errorf("unexpected case %d", commands)
 		}
 		commands++
+		return nil
 	}
 	etcdClient := util.NewMockEtcdClient()
 	context := &orchestrator.ClusterContext{

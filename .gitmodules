@@ -1,4 +1,4 @@
 [submodule "ceph"]
 	path = ceph
-	url = git@github.com:quantum/ceph
+	url = https://github.com/quantum/ceph.git
 	branch = wip-embedded-ceph

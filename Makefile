@@ -94,7 +94,7 @@ build: vendor ceph
 	@echo "##### configuring ceph" 
 	cd ceph/build && cmake $(CEPHD_CMAKE) ..
 	@echo "##### building ceph" 
-	cd ceph/build && $(MAKE) $(MFLAGS) cephd
+	cd ceph/build && $(MAKE) $(MAKEFLAGS) $(MFLAGS) cephd
 ifeq ($(DEBUG),0)
 	@echo "##### stripping libcephd.a" 
 	strip -S ceph/build/lib/libcephd.a
@@ -104,6 +104,7 @@ endif
 	@echo "##### building castlectl" 
 	go build $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' -o bin/castlectl ./cmd/castlectl
 
+.PHONY: ceph
 ceph:
 	git submodule update --init --recursive
 
@@ -131,12 +132,13 @@ clean:
 cleanall: clean
 	rm -rf tools vendor
 
+.PHONY: vendor
 vendor: tools/glide
 	./tools/glide install
 
 tools/glide:
 	@echo "Downloading glide"
 	mkdir -p tools
-	curl -L https://github.com/Masterminds/glide/releases/download/v0.11.1/glide-v0.11.1-$(GOOS)-$(GOARCH).tar.gz | tar -xz -C tools
+	curl -L https://github.com/Masterminds/glide/releases/download/v0.12.1/glide-v0.12.1-$(GOOS)-$(GOARCH).tar.gz | tar -xz -C tools
 	mv tools/$(GOOS)-$(GOARCH)/glide tools/glide
 	rm -r tools/$(GOOS)-$(GOARCH)
