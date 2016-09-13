@@ -8,7 +8,7 @@ import:
   - client
   - error
 - package: github.com/quantum/clusterd
-  version: 0dd2b38c1bbafb55eb0734919ee99e603923cc6d  
+  version: 7d575c308fdec97627e605954ce09d6d44d684a5  
   subpackages:
   - pkg/inventory
   - pkg/orchestrator
