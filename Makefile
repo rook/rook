@@ -113,7 +113,7 @@ release: build
 
 .PHONY: test
 test: tools/glide
-	go test -cover $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' $(shell ./tools/glide novendor)
+	go test -cover -timeout 30s $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' $(shell ./tools/glide novendor)
 
 .PHONY: vet
 vet: tools/glide

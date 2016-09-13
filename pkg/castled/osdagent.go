@@ -132,7 +132,7 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 
 		if _, err := os.Stat(filepath.Join(osdDataPath, "whoami")); os.IsNotExist(err) {
 			// osd_data_dir/whoami does not exist yet, create/initialize the OSD
-			osdDataPath, err = initializeOSD(osdDataDir, osdID, osdUUID, bootstrapConn, a.cluster)
+			osdDataPath, err = initializeOSD(context, osdDataDir, osdID, osdUUID, bootstrapConn, a.cluster)
 			if err != nil {
 				return fmt.Errorf("failed to initialize OSD at %s: %+v", osdDataDir, err)
 			}
