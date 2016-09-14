@@ -79,6 +79,9 @@ else
 MFLAGS += -s
 endif
 
+# skip vendoring option, useful for dev scenarios where vendor dir may be dirty
+SKIPVENDOR ?= 0
+
 # set the version number. 
 ifeq ($(origin VERSION), undefined)
 VERSION = $(shell git describe --dirty --always)
@@ -134,7 +137,9 @@ cleanall: clean
 
 .PHONY: vendor
 vendor: tools/glide
+ifeq ($(SKIPVENDOR),0)
 	./tools/glide install
+endif
 
 tools/glide:
 	@echo "Downloading glide"
