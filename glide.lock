@@ -1,5 +1,5 @@
-hash: cb31830bb94bc7f841afb8023472f541aa1a4bf2297da8c05007c26900b8f7ce
-updated: 2016-09-13T12:37:36.929062201-07:00
+hash: b6857a2bb14d137d9d8a067bf9f3fa4519520ddfddc2105cd4dd99914d9ff1f9
+updated: 2016-09-13T14:08:54.366031279-07:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -38,6 +38,7 @@ imports:
   - pkg/cors
   - pkg/crc
   - pkg/fileutil
+  - pkg/flags
   - pkg/httputil
   - pkg/idutil
   - pkg/ioutil
@@ -119,7 +120,7 @@ imports:
 - name: github.com/prometheus/procfs
   version: 454a56f35412459b5e684fd5ec0f9211b94f002a
 - name: github.com/quantum/clusterd
-  version: a19ae6e0d43166b5e8cec10424cb2dcc9c13c7f3
+  version: 14dec27c9b5e2463555ac74674daf53c625fd619
   subpackages:
   - pkg/inventory
   - pkg/orchestrator
