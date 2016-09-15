@@ -34,7 +34,7 @@ func TriggerClusterHardwareDetection(etcdClient etcd.KeysAPI) {
 	}
 
 	for member := range members.Iter() {
-		hardwareTriggerKey := path.Join(DiscoveredNodesKey, member, TriggerHardwareDetectionKey)
+		hardwareTriggerKey := path.Join(GetNodeConfigKey(member), TriggerHardwareDetectionKey)
 		etcdClient.Set(ctx.Background(), hardwareTriggerKey, "1", nil)
 	}
 }

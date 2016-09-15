@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	etcd "github.com/coreos/etcd/client"
+	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/castle/pkg/util"
 	ctx "golang.org/x/net/context"
 )
@@ -47,6 +48,70 @@ func StrToDiskType(diskType string) (DiskType, error) {
 	default:
 		return -1, errors.New(fmt.Sprintf("unknown disk type: %s", diskType))
 	}
+}
+
+func GetSerialFromDevice(device, nodeID string, etcdClient etcd.KeysAPI) (string, error) {
+	disksKey := path.Join(GetNodeConfigKey(nodeID), DisksKey)
+	serials, err := util.GetDirChildKeys(etcdClient, disksKey)
+	if err != nil {
+		return "", err
+	}
+
+	serialResult := ""
+	for s := range serials.Iter() {
+		resp, err := etcdClient.Get(ctx.Background(), path.Join(disksKey, s, DiskNameKey), nil)
+		if err != nil || resp == nil || resp.Node == nil {
+			continue
+		}
+
+		if resp.Node.Value == device {
+			serialResult = s
+			break
+		}
+	}
+
+	if serialResult == "" {
+		return "", fmt.Errorf("serial for device %s not found", device)
+	}
+
+	return serialResult, nil
+}
+
+func GetDeviceFilesystem(device string, executor proc.Executor) (string, error) {
+	cmd := fmt.Sprintf("get filesystem type for %s", device)
+	devFS, err := executor.ExecuteCommandPipeline(
+		cmd,
+		fmt.Sprintf(`df --output=source,fstype | grep '^/dev/%s ' | awk '{print $2}'`, device))
+	if err != nil {
+		return "", fmt.Errorf("command %s failed: %+v", cmd, err)
+	}
+
+	return devFS, nil
+}
+
+// look up the mount point of the given device.  empty string returned if device is not mounted.
+func GetDeviceMountPoint(device string, executor proc.Executor) (string, error) {
+	cmd := fmt.Sprintf("get mount point for %s", device)
+	mountPoint, err := executor.ExecuteCommandPipeline(
+		cmd,
+		fmt.Sprintf(`mount | grep '^/dev/%s on' | awk '{print $3}'`, device))
+	if err != nil {
+		return "", fmt.Errorf("command %s failed: %+v", cmd, err)
+	}
+
+	return mountPoint, nil
+}
+
+func DoesDeviceHaveChildren(device string, executor proc.Executor) (bool, error) {
+	cmd := fmt.Sprintf("check children for device %s", device)
+	children, err := executor.ExecuteCommandPipeline(
+		cmd,
+		fmt.Sprintf(`lsblk --all -n -l --output PKNAME | grep "^%s$" | awk '{print $0}'`, device))
+	if err != nil {
+		return false, fmt.Errorf("command %s failed: %+v", cmd, err)
+	}
+
+	return children != "", nil
 }
 
 func GetDiskInfo(diskInfo *etcd.Node) (*DiskConfig, error) {
@@ -124,6 +189,98 @@ func itob(i int64) bool {
 	} else {
 		return true
 	}
+}
+
+func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor proc.Executor) error {
+	disksKey := path.Join(nodeConfigKey, DisksKey)
+
+	cmd := "lsblk all"
+	devices, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", "--all", "-n", "-l", "--output", "KNAME")
+	if err != nil {
+		return fmt.Errorf("failed to list all devices: %+v", err)
+	}
+
+	for _, d := range strings.Split(devices, "\n") {
+		cmd := fmt.Sprintf("lsblk /dev/%s", d)
+		diskPropsRaw, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", fmt.Sprintf("/dev/%s", d),
+			"-b", "-d", "-P", "-o", "SERIAL,UUID,SIZE,ROTA,RO,TYPE,PKNAME")
+		if err != nil {
+			log.Printf("failed to get properties of device %s: %+v", d, err)
+			continue
+		}
+
+		diskPropMap := parseKeyValuePairString(diskPropsRaw)
+		serial, ok := diskPropMap["SERIAL"]
+		if !ok || serial == "" {
+			// disk doesn't have a serial, just continue
+			continue
+		}
+
+		diskType, ok := diskPropMap["TYPE"]
+		if !ok || (diskType != "ssd" && diskType != "disk" && diskType != "part") {
+			// unsupported disk type, just continue
+			continue
+		}
+
+		fs, err := GetDeviceFilesystem(d, executor)
+		if err != nil {
+			return err
+		}
+
+		mountPoint, err := GetDeviceMountPoint(d, executor)
+		if err != nil {
+			return err
+		}
+
+		hasChildren, err := DoesDeviceHaveChildren(d, executor)
+		if err != nil {
+			return err
+		}
+
+		dkey := path.Join(disksKey, serial)
+
+		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, DiskNameKey), d, nil); err != nil {
+			return err
+		}
+		if err := setSimpleDiskProperty("UUID", DiskUUIDKey, dkey, diskPropMap, etcdClient); err != nil {
+			return err
+		}
+		if err := setSimpleDiskProperty("SIZE", DiskSizeKey, dkey, diskPropMap, etcdClient); err != nil {
+			return err
+		}
+		if err := setSimpleDiskProperty("ROTA", DiskRotationalKey, dkey, diskPropMap, etcdClient); err != nil {
+			return err
+		}
+		if err := setSimpleDiskProperty("RO", DiskReadonlyKey, dkey, diskPropMap, etcdClient); err != nil {
+			return err
+		}
+		if err := setSimpleDiskProperty("PKNAME", DiskParentKey, dkey, diskPropMap, etcdClient); err != nil {
+			return err
+		}
+		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, DiskHasChildrenKey), strconv.Itoa(btoi(hasChildren)), nil); err != nil {
+			return err
+		}
+		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, DiskFileSystemKey), fs, nil); err != nil {
+			return err
+		}
+		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, DiskMountPointKey), mountPoint, nil); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func setSimpleDiskProperty(propName, keyName, diskKey string, diskPropMap map[string]string, etcdClient etcd.KeysAPI) error {
+	val, ok := diskPropMap[propName]
+	if !ok {
+		return fmt.Errorf("disk property %s not found in map: %+v", propName, diskPropMap)
+	}
+	if _, err := etcdClient.Set(ctx.Background(), path.Join(diskKey, keyName), val, nil); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // test usage only

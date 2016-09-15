@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -10,6 +12,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/quantum/castle/pkg/api"
 	"github.com/quantum/castle/pkg/castled"
 	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/castle/pkg/clusterd"
@@ -94,9 +97,19 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 	}()
 
 	// start the cluster orchestration services
-	if err := clusterd.StartJoinCluster(services, procMan, cfg.discoveryURL, cfg.etcdMembers, cfg.privateIPv4); err != nil {
+	context, err := clusterd.StartJoinCluster(services, procMan, cfg.discoveryURL, cfg.etcdMembers, cfg.privateIPv4)
+	if err != nil {
 		return err
 	}
+
+	go func() {
+		// set up routes and start HTTP server for REST API
+		h := api.NewHandler(context.EtcdClient)
+		r := api.NewRouter(h.GetRoutes())
+		if err := http.ListenAndServe(":8124", r); err != nil {
+			log.Printf("API server error: %+v", err)
+		}
+	}()
 
 	// wait for user to interrupt/terminate the process
 	ch := make(chan os.Signal, 1)

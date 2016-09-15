@@ -190,7 +190,7 @@ func (r *ClusterMember) DiscoverHardwareLoop() {
 }
 
 func (r *ClusterMember) WaitForHardwareChangeNotifications() {
-	hardwareTriggerKey := path.Join(inventory.DiscoveredNodesKey, r.context.NodeID, inventory.TriggerHardwareDetectionKey)
+	hardwareTriggerKey := path.Join(inventory.GetNodeConfigKey(r.context.NodeID), inventory.TriggerHardwareDetectionKey)
 	hardwareWatcher := r.context.EtcdClient.Watcher(hardwareTriggerKey, nil)
 	for {
 		// wait for any changes to the hardware detection trigger key
@@ -277,6 +277,5 @@ func (r *ClusterMember) discoverHardware() error {
 	}
 
 	// Discover current state of the disks and other node properties
-
-	return nil
+	return inventory.DiscoverHardware(r.context.NodeID, r.context.EtcdClient, r.context.Executor)
 }

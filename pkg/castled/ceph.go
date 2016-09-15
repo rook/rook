@@ -17,6 +17,7 @@ const (
 	cephKey          = "/castle/services/ceph"
 	cephInstanceName = "default"
 	desiredKey       = "desired"
+	appliedKey       = "applied"
 )
 
 type clusterInfo struct {

@@ -1,5 +1,5 @@
-hash: bec5ff7ea96efcb57cf3594f7ebf40ee2b3266730c4f73e66e96e3898e24c8d5
-updated: 2016-09-15T08:24:44.092063676-07:00
+hash: 56debf71b3c6c4e77c95db48b7a1b6acb2f9a3d84e862d368059f9781bc2c993
+updated: 2016-09-15T11:41:40.344012877-07:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -87,6 +87,10 @@ imports:
   version: 7d79101e329e5a3adf994758c578dab82b90c017
 - name: github.com/google/uuid
   version: f3f4b54b2fabcf1f11dcc939025bb0c109b00ed8
+- name: github.com/gorilla/context
+  version: 08b5f424b9271eedf6f9f0ce86cb9396ed337a42
+- name: github.com/gorilla/mux
+  version: 0a192a193177452756c362c20087ddafcf6829c4
 - name: github.com/grpc-ecosystem/grpc-gateway
   version: f52d055dc48aec25854ed7d31862f78913cf17d1
   subpackages:
@@ -139,7 +143,6 @@ imports:
   version: 6acef71eb69611914f7a30939ea9f6e194c78172
   subpackages:
   - context
-  - context/ctxhttp
   - http2
   - http2/hpack
   - internal/timeseries
