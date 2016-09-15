@@ -26,11 +26,12 @@ type osdAgent struct {
 	cluster     *clusterInfo
 	devices     []string
 	forceFormat bool
+	location    *CrushLocation
 }
 
-func newOSDAgent(rawDevices string, forceFormat bool) *osdAgent {
+func newOSDAgent(rawDevices string, forceFormat bool, location *CrushLocation) *osdAgent {
 	devices := strings.Split(rawDevices, ",")
-	return &osdAgent{devices: devices, forceFormat: forceFormat}
+	return &osdAgent{devices: devices, forceFormat: forceFormat, location: location}
 }
 
 func (a *osdAgent) Name() string {
@@ -132,7 +133,7 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *clusterd.Context) 
 
 		if _, err := os.Stat(filepath.Join(osdDataPath, "whoami")); os.IsNotExist(err) {
 			// osd_data_dir/whoami does not exist yet, create/initialize the OSD
-			osdDataPath, err = initializeOSD(context, osdDataDir, osdID, osdUUID, bootstrapConn, a.cluster)
+			osdDataPath, err = initializeOSD(context, osdDataDir, osdID, osdUUID, bootstrapConn, a.cluster, a.location)
 			if err != nil {
 				return fmt.Errorf("failed to initialize OSD at %s: %+v", osdDataDir, err)
 			}
