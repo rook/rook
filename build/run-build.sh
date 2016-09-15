@@ -15,7 +15,9 @@ fi
 
 docker run \
     -it \
+    -e CCACHE_DIR=/root/.ccache \
     -v ${HOME}/.netrc:/root/.netrc \
+    -v ${HOME}/.ccache:/root/.ccache \
     -v ${scriptdir}/..:/go/src/github.com/quantum/castle \
     quantum/castle-build \
     "$*"
