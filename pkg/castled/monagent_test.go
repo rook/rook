@@ -6,9 +6,9 @@ import (
 	"path"
 	"testing"
 
-	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/proc"
-	"github.com/quantum/clusterd/pkg/util"
+	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -46,7 +46,7 @@ func TestMonAgent(t *testing.T) {
 		return nil
 	}
 	etcdClient := util.NewMockEtcdClient()
-	context := &orchestrator.ClusterContext{
+	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		NodeID:     "a",
 		ProcMan:    &proc.ProcManager{Trap: procTrap},

@@ -12,9 +12,9 @@ import (
 
 	ctx "golang.org/x/net/context"
 
-	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/proc"
-	"github.com/quantum/clusterd/pkg/util"
+	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/castle/pkg/util"
 )
 
 const (
@@ -28,7 +28,7 @@ func (a *monAgent) Name() string {
 	return monitorAgentName
 }
 
-func (a *monAgent) ConfigureLocalService(context *orchestrator.ClusterContext) error {
+func (a *monAgent) ConfigureLocalService(context *clusterd.Context) error {
 
 	// check if the monitor is in the desired state for this node
 	key := path.Join(cephKey, monitorAgentName, desiredKey, context.NodeID)
@@ -67,12 +67,12 @@ func (a *monAgent) ConfigureLocalService(context *orchestrator.ClusterContext) e
 	return err
 }
 
-func (a *monAgent) DestroyLocalService(context *orchestrator.ClusterContext) error {
+func (a *monAgent) DestroyLocalService(context *clusterd.Context) error {
 	return nil
 }
 
 // wait for all expected initial monitors to register (report their names/endpoints)
-func (a *monAgent) waitForMonitorRegistration(context *orchestrator.ClusterContext, monName string) error {
+func (a *monAgent) waitForMonitorRegistration(context *clusterd.Context, monName string) error {
 	key := getMonitorEndpointKey(monName)
 
 	retryCount := 0
@@ -97,7 +97,7 @@ func (a *monAgent) waitForMonitorRegistration(context *orchestrator.ClusterConte
 }
 
 // creates and initializes the given monitors file systems
-func (a *monAgent) makeMonitorFileSystem(context *orchestrator.ClusterContext, cluster *clusterInfo, monName string) error {
+func (a *monAgent) makeMonitorFileSystem(context *clusterd.Context, cluster *clusterInfo, monName string) error {
 	// write the keyring to disk
 	if err := writeMonitorKeyring(monName, cluster); err != nil {
 		return err
@@ -132,7 +132,7 @@ func (a *monAgent) makeMonitorFileSystem(context *orchestrator.ClusterContext, c
 }
 
 // runs the monitor in a child process
-func (a *monAgent) runMonitor(context *orchestrator.ClusterContext, cluster *clusterInfo, monitor *CephMonitorConfig) error {
+func (a *monAgent) runMonitor(context *clusterd.Context, cluster *clusterInfo, monitor *CephMonitorConfig) error {
 	if monitor.Endpoint == "" {
 		return fmt.Errorf("missing endpoint for mon %s", monitor.Name)
 	}
