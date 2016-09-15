@@ -16,8 +16,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/cephd"
-	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/util"
+	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/proc"
 )
 
 const (
@@ -64,7 +64,7 @@ func getOSDTempMonMapPath(osdDataPath string) string {
 }
 
 // create a keyring for the bootstrap-osd client, it gets a limited set of privileges
-func createOSDBootstrapKeyring(conn *cephd.Conn, clusterName string, executor util.Executor) error {
+func createOSDBootstrapKeyring(conn *cephd.Conn, clusterName string, executor proc.Executor) error {
 	bootstrapOSDKeyringPath := getBootstrapOSDKeyringPath(clusterName)
 	_, err := os.Stat(bootstrapOSDKeyringPath)
 	if err == nil {
@@ -113,7 +113,7 @@ func createOSDBootstrapKeyring(conn *cephd.Conn, clusterName string, executor ut
 }
 
 // look up the mount point of the given device.  empty string returned if device is not mounted.
-func getDeviceMountPoint(device string, executor util.Executor) (string, error) {
+func getDeviceMountPoint(device string, executor proc.Executor) (string, error) {
 	cmd := fmt.Sprintf("get mount point for %s", device)
 	mountPoint, err := executor.ExecuteCommandPipeline(
 		cmd,
@@ -126,7 +126,7 @@ func getDeviceMountPoint(device string, executor util.Executor) (string, error) 
 }
 
 // format the given device for usage by an OSD
-func formatOSD(device string, forceFormat bool, executor util.Executor) error {
+func formatOSD(device string, forceFormat bool, executor proc.Executor) error {
 	// format the current volume
 	cmd := fmt.Sprintf("get filesystem type for %s", device)
 	devFS, err := executor.ExecuteCommandPipeline(
@@ -157,7 +157,7 @@ func formatOSD(device string, forceFormat bool, executor util.Executor) error {
 }
 
 // mount the OSD data directory onto the given device
-func mountOSD(device string, mountPath string, executor util.Executor) error {
+func mountOSD(device string, mountPath string, executor proc.Executor) error {
 	cmd := fmt.Sprintf("lsblk %s", device)
 	var diskUUID string
 
@@ -298,7 +298,7 @@ func getOSDInfo(osdDataPath string) (int, uuid.UUID, error) {
 	return osdID, osdUUID, nil
 }
 
-func initializeOSD(context *orchestrator.ClusterContext, osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn *cephd.Conn, cluster *clusterInfo) (string, error) {
+func initializeOSD(context *clusterd.Context, osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn *cephd.Conn, cluster *clusterInfo) (string, error) {
 	// ensure that the OSD data directory is created
 	osdDataPath := filepath.Join(osdDataDir, fmt.Sprintf("%s-%d", cluster.Name, osdID))
 	if err := os.MkdirAll(osdDataPath, 0777); err != nil {
@@ -387,7 +387,7 @@ func getMonMap(bootstrapConn *cephd.Conn) ([]byte, error) {
 }
 
 // creates/initalizes the OSD filesystem and journal via a child process
-func createOSDFileSystem(context *orchestrator.ClusterContext, clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string, monMap []byte) error {
+func createOSDFileSystem(context *clusterd.Context, clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string, monMap []byte) error {
 	log.Printf("Initializing OSD %d file system at %s...", osdID, osdDataPath)
 
 	// the current monmap is needed to create the OSD, save it to a temp location so it is accessible

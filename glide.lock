@@ -1,5 +1,5 @@
-hash: b6857a2bb14d137d9d8a067bf9f3fa4519520ddfddc2105cd4dd99914d9ff1f9
-updated: 2016-09-13T14:08:54.366031279-07:00
+hash: bec5ff7ea96efcb57cf3594f7ebf40ee2b3266730c4f73e66e96e3898e24c8d5
+updated: 2016-09-15T08:24:44.092063676-07:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
@@ -38,7 +38,6 @@ imports:
   - pkg/cors
   - pkg/crc
   - pkg/fileutil
-  - pkg/flags
   - pkg/httputil
   - pkg/idutil
   - pkg/ioutil
@@ -119,18 +118,6 @@ imports:
   - model
 - name: github.com/prometheus/procfs
   version: 454a56f35412459b5e684fd5ec0f9211b94f002a
-- name: github.com/quantum/clusterd
-  version: 14dec27c9b5e2463555ac74674daf53c625fd619
-  subpackages:
-  - pkg/inventory
-  - pkg/orchestrator
-  - pkg/proc
-  - pkg/util
-- name: github.com/quantum/etcdmgr
-  version: 511ef9a2284ca77ea6b262475150aa264e2bc1df
-  subpackages:
-  - bootstrap
-  - manager
 - name: github.com/spf13/cobra
   version: dbb7c2d02e284aa24423e3e6e105969dffe6e4d6
   subpackages:
