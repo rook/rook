@@ -17,10 +17,10 @@ type clusterInfo struct {
 	Monitors      map[string]*CephMonitorConfig
 }
 
-func NewCephService(devices string, forceFormat bool) *clusterd.ClusterService {
+func NewCephService(devices string, forceFormat bool, location *CrushLocation) *clusterd.ClusterService {
 	return &clusterd.ClusterService{
 		Name:   cephName,
 		Leader: &cephLeader{},
-		Agents: []clusterd.ServiceAgent{&monAgent{}, newOSDAgent(devices, forceFormat)},
+		Agents: []clusterd.ServiceAgent{&monAgent{}, newOSDAgent(devices, forceFormat, location)},
 	}
 }

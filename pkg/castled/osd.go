@@ -2,6 +2,7 @@ package castled
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -29,6 +30,19 @@ const (
 	caps mon = "allow profile bootstrap-osd"
 `
 )
+
+// the location where an osd is in the crush map
+type CrushLocation struct {
+	Root       string
+	Datacenter string
+	Room       string
+	Row        string
+	Pod        string
+	PDU        string
+	Rack       string
+	Chassis    string
+	Host       string
+}
 
 // request the current user once and stash it in this global variable
 var currentUser *user.User
@@ -298,7 +312,7 @@ func getOSDInfo(osdDataPath string) (int, uuid.UUID, error) {
 	return osdID, osdUUID, nil
 }
 
-func initializeOSD(context *clusterd.Context, osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn *cephd.Conn, cluster *clusterInfo) (string, error) {
+func initializeOSD(context *clusterd.Context, osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn *cephd.Conn, cluster *clusterInfo, location *CrushLocation) (string, error) {
 	// ensure that the OSD data directory is created
 	osdDataPath := filepath.Join(osdDataDir, fmt.Sprintf("%s-%d", cluster.Name, osdID))
 	if err := os.MkdirAll(osdDataPath, 0777); err != nil {
@@ -336,7 +350,7 @@ func initializeOSD(context *clusterd.Context, osdDataDir string, osdID int, osdU
 	defer osdConn.Shutdown()
 
 	// add the new OSD to the cluster crush map
-	if err := addOSDToCrushMap(osdConn, osdID, osdDataDir); err != nil {
+	if err := addOSDToCrushMap(osdConn, osdID, osdDataDir, location); err != nil {
 		return "", err
 	}
 
@@ -452,7 +466,7 @@ func addOSDAuth(bootstrapConn *cephd.Conn, osdID int, osdDataPath string) error 
 }
 
 // adds the given OSD to the crush map
-func addOSDToCrushMap(osdConn *cephd.Conn, osdID int, osdDataPath string) error {
+func addOSDToCrushMap(osdConn *cephd.Conn, osdID int, osdDataPath string, location *CrushLocation) error {
 	// get the size of the volume containing the OSD data dir
 	s := syscall.Statfs_t{}
 	if err := syscall.Statfs(osdDataPath, &s); err != nil {
@@ -467,9 +481,14 @@ func addOSDToCrushMap(osdConn *cephd.Conn, osdID int, osdDataPath string) error 
 	osdEntity := fmt.Sprintf("osd.%d", osdID)
 	log.Printf("OSD %s at %s, bytes: %d, weight: %.2f", osdEntity, osdDataPath, all, weight)
 
-	hostName, err := os.Hostname()
+	var err error
+	location.Host, err = os.Hostname()
 	if err != nil {
 		return fmt.Errorf("failed to get hostname, %+v", err)
+	}
+	locArgs, err := formatLocation(location)
+	if err != nil {
+		return err
 	}
 
 	cmd := "osd crush create-or-move"
@@ -478,7 +497,7 @@ func addOSDToCrushMap(osdConn *cephd.Conn, osdID int, osdDataPath string) error 
 		"format": "json",
 		"id":     osdID,
 		"weight": weight,
-		"args":   []string{fmt.Sprintf("host=%s", hostName), "root=default"},
+		"args":   locArgs,
 	})
 	if err != nil {
 		return fmt.Errorf("command %s marshall failed: %+v", cmd, err)
@@ -493,4 +512,46 @@ func addOSDToCrushMap(osdConn *cephd.Conn, osdID int, osdDataPath string) error 
 
 	log.Printf("succeeded adding %s to crush map. info: %s", osdEntity, info)
 	return nil
+}
+
+func formatLocation(location *CrushLocation) ([]string, error) {
+	if location.Root == "" {
+		return nil, errors.New("missing root location")
+	}
+	if location.Host == "" {
+		return nil, errors.New("missing host name")
+	}
+
+	// append the properties in the hierarchy order, though they are not required in that order
+	result := []string{
+		formatProperty("root", location.Root),
+	}
+	if location.Datacenter != "" {
+		result = append(result, formatProperty("datacenter", location.Datacenter))
+	}
+	if location.Room != "" {
+		result = append(result, formatProperty("room", location.Room))
+	}
+	if location.Row != "" {
+		result = append(result, formatProperty("row", location.Row))
+	}
+	if location.Pod != "" {
+		result = append(result, formatProperty("pod", location.Pod))
+	}
+	if location.PDU != "" {
+		result = append(result, formatProperty("pdu", location.PDU))
+	}
+	if location.Rack != "" {
+		result = append(result, formatProperty("rack", location.Rack))
+	}
+	if location.Chassis != "" {
+		result = append(result, formatProperty("chassis", location.Chassis))
+	}
+	result = append(result, formatProperty("hostName", location.Host))
+
+	return result, nil
+}
+
+func formatProperty(name, value string) string {
+	return fmt.Sprintf("%s=%s", name, value)
 }
