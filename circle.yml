@@ -1,10 +1,13 @@
 machine:
   environment:
-    NPROCS: 16
+    NPROCS: $(( ($(grep -c ^processor /proc/cpuinfo) + 1) / 2 ))
   services:
     - docker
 
 dependencies:
+  cache_directories:
+    - ~/.ccache
+  
   override:
     - docker info
     - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS

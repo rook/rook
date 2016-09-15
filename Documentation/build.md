@@ -67,3 +67,37 @@ You can speed up the build significantly by passing the -j flag to make as follo
 ```
 make -j4 build
 ```
+
+## Enabling ccache
+
+C++ code can take time to compile. CCache can increase the speed of compilation. To
+enable make sure you have ccache installed:
+
+```
+apt-get install ccache
+```
+
+to run with ccache enable run the following:
+
+```
+export CCACHE_DIR=~/.ccache
+make CCACHE=1 build
+```
+
+to check ccache stats run:
+
+```
+ccache -s
+```
+
+to clear the stats run:
+
+```
+ccache -z
+```
+
+to clear the cache run:
+
+```
+ccache -C
+```
