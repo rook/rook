@@ -74,9 +74,15 @@ V ?= 0
 ifeq ($(V),1)
 LDFLAGS += -v
 BUILDFLAGS += -x
-MFLAGS += -w
 else
-MFLAGS += -s
+MAKEFLAGS += --no-print-directory
+endif
+
+# set to 0 to disable ccache support
+# must also export CCACHE_DIR to take effect
+CCACHE ?= 1
+ifeq ($(CCACHE),1)
+CEPHD_CMAKE += -DWITH_CCACHE=ON
 endif
 
 # skip vendoring option, useful for dev scenarios where vendor dir may be dirty
@@ -97,7 +103,7 @@ build: vendor ceph
 	@echo "##### configuring ceph" 
 	cd ceph/build && cmake $(CEPHD_CMAKE) ..
 	@echo "##### building ceph" 
-	cd ceph/build && $(MAKE) $(MFLAGS) $(MAKEFLAGS) cephd
+	cd ceph/build && $(MAKE) cephd
 ifeq ($(DEBUG),0)
 	@echo "##### stripping libcephd.a" 
 	strip -S ceph/build/lib/libcephd.a
@@ -129,11 +135,14 @@ fmt: tools/glide
 .PHONY: clean
 clean:
 	rm -rf bin
-	rm -rf ceph/build
+	if [ -d ceph/build ]; then cd ceph/build && $(MAKE) clean; fi
+	if [ -d ceph/src/rocksdb ]; then cd ceph/src/rocksdb && $(MAKE) clean; fi
 
 .PHONY: cleanall
-cleanall: clean
+cleanall:
+	rm -rf bin
 	rm -rf tools vendor
+	rm -rf ceph/build
 
 .PHONY: vendor
 vendor: tools/glide

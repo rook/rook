@@ -10,6 +10,7 @@ RUN apt-key adv --keyserver keyserver.ubuntu.com --recv-keys E1DF1F24 && \
     apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
     build-essential \
     ca-certificates \
+    ccache \
     cmake \
     curl \
     cython \
