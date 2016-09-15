@@ -9,14 +9,14 @@ import (
 
 	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/cephd"
-	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/util"
+	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/util"
 )
 
 // Interface implemented by a service that has been elected leader
 type cephLeader struct {
 	cluster  *clusterInfo
-	events   chan orchestrator.LeaderEvent
+	events   chan clusterd.LeaderEvent
 	mockCeph bool
 }
 
@@ -24,11 +24,11 @@ func (c *cephLeader) StartWatchEvents() {
 	if c.events != nil {
 		close(c.events)
 	}
-	c.events = make(chan orchestrator.LeaderEvent, 10)
+	c.events = make(chan clusterd.LeaderEvent, 10)
 	go c.handleOrchestratorEvents()
 }
 
-func (c *cephLeader) Events() chan orchestrator.LeaderEvent {
+func (c *cephLeader) Events() chan clusterd.LeaderEvent {
 	return c.events
 }
 
@@ -42,15 +42,15 @@ func (c *cephLeader) handleOrchestratorEvents() {
 	// Listen for events from the orchestrator indicating that a refresh is needed or nodes have been added
 	for e := range c.events {
 		log.Printf("ceph leader received event %s", e.Name())
-		if _, ok := e.(*orchestrator.RefreshEvent); ok {
+		if _, ok := e.(*clusterd.RefreshEvent); ok {
 			// Perform a full refresh of the cluster to ensure the monitors and OSDs are running
 			c.configureCephServices(e.Context())
 
-		} else if nodeAdded, ok := e.(*orchestrator.AddNodeEvent); ok {
+		} else if nodeAdded, ok := e.(*clusterd.AddNodeEvent); ok {
 			// When a node is added simply start OSDs on the node
 			configureOSDs(e.Context(), nodeAdded.Nodes())
 
-		} else if _, ok := e.(*orchestrator.StaleNodeEvent); ok {
+		} else if _, ok := e.(*clusterd.StaleNodeEvent); ok {
 			// TODO: Move a monitor to another node and/or declare OSDs dead
 		}
 		log.Printf("ceph leader completed event %s", e.Name())
@@ -58,7 +58,7 @@ func (c *cephLeader) handleOrchestratorEvents() {
 }
 
 // Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
-func (c *cephLeader) configureCephServices(context *orchestrator.ClusterContext) error {
+func (c *cephLeader) configureCephServices(context *clusterd.Context) error {
 
 	// Create or get the basic cluster info
 	var err error

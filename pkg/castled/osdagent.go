@@ -13,9 +13,9 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/quantum/castle/pkg/cephd"
-	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/proc"
-	"github.com/quantum/clusterd/pkg/util"
+	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/castle/pkg/util"
 )
 
 const (
@@ -37,7 +37,7 @@ func (a *osdAgent) Name() string {
 	return osdAgentName
 }
 
-func (a *osdAgent) ConfigureLocalService(context *orchestrator.ClusterContext) error {
+func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 
 	// check if the osd is in the desired state for this node
 	key := path.Join(cephKey, osdAgentName, desiredKey, context.NodeID)
@@ -74,12 +74,12 @@ func (a *osdAgent) ConfigureLocalService(context *orchestrator.ClusterContext) e
 	return nil
 }
 
-func (a *osdAgent) DestroyLocalService(context *orchestrator.ClusterContext) error {
+func (a *osdAgent) DestroyLocalService(context *clusterd.Context) error {
 	return nil
 }
 
 // create and initalize OSDs for all the devices specified in the given config
-func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.ClusterContext) error {
+func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *clusterd.Context) error {
 	// generate and write the OSD bootstrap keyring
 	if err := createOSDBootstrapKeyring(adminConn, a.cluster.Name, context.Executor); err != nil {
 		return err
@@ -156,7 +156,7 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *orchestrator.Clust
 }
 
 // runs an OSD with the given config in a child process
-func (a *osdAgent) runOSD(context *orchestrator.ClusterContext, clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string) error {
+func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string) error {
 	// start the OSD daemon in the foreground with the given config
 	log.Printf("starting osd %d at %s", osdID, osdDataPath)
 	osdUUIDArg := fmt.Sprintf("--osd-uuid=%s", osdUUID.String())
