@@ -11,8 +11,8 @@ import (
 	ctx "golang.org/x/net/context"
 
 	etcd "github.com/coreos/etcd/client"
-	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/util"
+	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/util"
 )
 
 const (
@@ -21,7 +21,7 @@ const (
 
 // Create the ceph monitors
 // Must be idempotent
-func createMonitors(context *orchestrator.ClusterContext, cluster *clusterInfo, skipQuorum bool) error {
+func createMonitors(context *clusterd.Context, cluster *clusterInfo, skipQuorum bool) error {
 	log.Printf("Creating monitors with %d nodes available", len(context.Inventory.Nodes))
 
 	// Choose the nodes where the monitors will run
@@ -37,7 +37,7 @@ func createMonitors(context *orchestrator.ClusterContext, cluster *clusterInfo, 
 	for mon := range cluster.Monitors {
 		monNodes = append(monNodes, mon)
 	}
-	err = orchestrator.TriggerAgentsAndWaitForCompletion(context.EtcdClient, monNodes, monitorAgentName, len(monNodes))
+	err = clusterd.TriggerAgentsAndWaitForCompletion(context.EtcdClient, monNodes, monitorAgentName, len(monNodes))
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func getChosenMonitors(etcdClient etcd.KeysAPI) (map[string]*CephMonitorConfig, 
 	return monitors, nil
 }
 
-func chooseMonitorNodes(context *orchestrator.ClusterContext) (map[string]*CephMonitorConfig, error) {
+func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfig, error) {
 	monitors, err := getChosenMonitors(context.EtcdClient)
 	if err != nil {
 		return nil, err
@@ -163,7 +163,7 @@ func calculateMonitorCount(nodeCount int) int {
 	}
 }
 
-func waitForQuorum(context *orchestrator.ClusterContext, cluster *clusterInfo) error {
+func waitForQuorum(context *clusterd.Context, cluster *clusterInfo) error {
 
 	// open an admin connection to the clufster
 	adminConn, err := connectToClusterAsAdmin(cluster)

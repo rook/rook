@@ -4,9 +4,9 @@ import (
 	"log"
 	"testing"
 
-	"github.com/quantum/clusterd/pkg/inventory"
-	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/util"
+	"github.com/quantum/castle/pkg/clusterd/inventory"
+	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,7 +27,7 @@ func TestCephLeaders(t *testing.T) {
 	nodes["a"] = &inventory.NodeConfig{IPAddress: "1.2.3.4"}
 
 	etcdClient := util.NewMockEtcdClient()
-	context := &orchestrator.ClusterContext{
+	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		Inventory:  inv,
 	}
@@ -39,7 +39,7 @@ func TestCephLeaders(t *testing.T) {
 	etcdClient.WatcherResponses["/castle/_notify/b/osd/status"] = "succeeded"
 
 	// trigger a refresh event
-	refresh := orchestrator.NewRefreshEvent(context)
+	refresh := clusterd.NewRefreshEvent(context)
 	leader.Events() <- refresh
 
 	// wait for the event queue to be empty
@@ -52,7 +52,7 @@ func TestCephLeaders(t *testing.T) {
 
 	// trigger an add node event
 	nodes["b"] = &inventory.NodeConfig{IPAddress: "2.3.4.5"}
-	addNode := orchestrator.NewAddNodeEvent(context, []string{"b"})
+	addNode := clusterd.NewAddNodeEvent(context, []string{"b"})
 	leader.Events() <- addNode
 
 	// wait for the event queue to be empty
@@ -89,6 +89,6 @@ func (e *nonEvent) Name() string {
 	}
 	return "nonevent"
 }
-func (e *nonEvent) Context() *orchestrator.ClusterContext {
+func (e *nonEvent) Context() *clusterd.Context {
 	return nil
 }

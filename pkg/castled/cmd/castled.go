@@ -12,8 +12,8 @@ import (
 
 	"github.com/quantum/castle/pkg/castled"
 	"github.com/quantum/castle/pkg/util"
-	"github.com/quantum/clusterd/pkg/orchestrator"
-	"github.com/quantum/clusterd/pkg/proc"
+	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/proc"
 )
 
 var (
@@ -69,7 +69,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("either discovery-url or etcd-members settings are required")
 	}
 
-	services := []*orchestrator.ClusterService{castled.NewCephService(devices, forceFormat)}
+	services := []*clusterd.ClusterService{castled.NewCephService(devices, forceFormat)}
 	procMan := &proc.ProcManager{}
 	defer func() {
 		procMan.Shutdown()
@@ -77,7 +77,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 	}()
 
 	// start the cluster orchestration services
-	if err := orchestrator.StartJoinCluster(services, procMan, discoveryURL, etcdMembers, privateIPv4); err != nil {
+	if err := clusterd.StartJoinCluster(services, procMan, discoveryURL, etcdMembers, privateIPv4); err != nil {
 		return err
 	}
 

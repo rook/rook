@@ -1,6 +1,6 @@
 package castled
 
-import "github.com/quantum/clusterd/pkg/orchestrator"
+import "github.com/quantum/castle/pkg/clusterd"
 
 const (
 	cephName         = "ceph"
@@ -17,10 +17,10 @@ type clusterInfo struct {
 	Monitors      map[string]*CephMonitorConfig
 }
 
-func NewCephService(devices string, forceFormat bool) *orchestrator.ClusterService {
-	return &orchestrator.ClusterService{
+func NewCephService(devices string, forceFormat bool) *clusterd.ClusterService {
+	return &clusterd.ClusterService{
 		Name:   cephName,
 		Leader: &cephLeader{},
-		Agents: []orchestrator.ServiceAgent{&monAgent{}, newOSDAgent(devices, forceFormat)},
+		Agents: []clusterd.ServiceAgent{&monAgent{}, newOSDAgent(devices, forceFormat)},
 	}
 }
