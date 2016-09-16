@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,7 +23,7 @@ const (
 
 // Create the ceph monitors
 // Must be idempotent
-func createMonitors(factory cephclient.ConnectionFactory, context *clusterd.Context, cluster *clusterInfo) error {
+func configureMonitors(factory cephclient.ConnectionFactory, context *clusterd.Context, cluster *clusterInfo) error {
 	log.Printf("Creating monitors with %d nodes available", len(context.Inventory.Nodes))
 
 	// Choose the nodes where the monitors will run
@@ -96,29 +97,46 @@ func getChosenMonitors(etcdClient etcd.KeysAPI) (map[string]*CephMonitorConfig, 
 }
 
 func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfig, error) {
-	monitors, err := getChosenMonitors(context.EtcdClient)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(monitors) > 0 {
-		// TODO: Support adding and removing monitors
-		return monitors, nil
-	}
-
-	// Choose new monitor nodes
 	nodeCount := len(context.Inventory.Nodes)
 	if nodeCount == 0 {
 		return nil, errors.New("cannot create cluster with 0 nodes")
 	}
 
-	monitorCount := calculateMonitorCount(nodeCount)
-	log.Printf("Selecting %d new monitors from %d discovered nodes", monitorCount, nodeCount)
+	// calculate how many monitors are desired
+	desiredMonitors := calculateMonitorCount(nodeCount)
+
+	// get the monitors that have already been chosen
+	monitors, err := getChosenMonitors(context.EtcdClient)
+	if err != nil {
+		return nil, err
+	}
+
+	newMons := desiredMonitors - len(monitors)
+	if newMons <= 0 {
+		log.Printf("Already have %d monitors on %d discovered nodes", len(monitors), nodeCount)
+		return monitors, nil
+	}
+
+	log.Printf("Selecting %d new monitors (%d existing) from %d discovered nodes", newMons, len(monitors), nodeCount)
 
 	// Select nodes and assign them a monitor ID
-	monitorNum := 0
+	nextMonID, err := getMaxMonitorID(monitors)
+	if err != nil {
+		return monitors, fmt.Errorf("cannot config monitors. %v", err)
+	}
+
+	// increment the id because we were actually given the max known id above and we need the next desired id
+	nextMonID++
+
+	// iterate through the monitors to find the new candidates
 	var settings = make(map[string]string)
+	addedMons := 0
 	for nodeID := range context.Inventory.Nodes {
+		// skip the node if already in the list of monitors
+		if mon, ok := monitors[nodeID]; ok {
+			log.Printf("skipping node %s that is %s", nodeID, mon.Name)
+			continue
+		}
 
 		node, ok := context.Inventory.Nodes[nodeID]
 		if !ok || node.IPAddress == "" {
@@ -128,7 +146,7 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 
 		// Store the monitor id and connection info
 		port := "6790"
-		monitorID := fmt.Sprintf("mon%d", monitorNum)
+		monitorID := fmt.Sprintf("mon%d", nextMonID)
 		settings[path.Join(nodeID, "id")] = monitorID
 		settings[path.Join(nodeID, "ipaddress")] = node.IPAddress
 		settings[path.Join(nodeID, "port")] = port
@@ -136,7 +154,13 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 		monitor := &CephMonitorConfig{Name: monitorID, Endpoint: fmt.Sprintf("%s:%s", node.IPAddress, port)}
 		monitors[nodeID] = monitor
 
-		monitorNum++
+		nextMonID++
+		addedMons++
+
+		// break if we have enough monitors now
+		if addedMons == newMons {
+			break
+		}
 	}
 
 	monKey := path.Join(cephKey, monitorKey, desiredKey)
@@ -147,6 +171,29 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 	}
 
 	return monitors, nil
+}
+
+// get the highest monitor ID from the list of montors
+func getMaxMonitorID(monitors map[string]*CephMonitorConfig) (int, error) {
+	maxMonitorID := -1
+	for _, mon := range monitors {
+		// monitors are expected to have a name of "mon" with an integer suffix
+		if len(mon.Name) < 4 || mon.Name[0:3] != "mon" {
+			return 0, fmt.Errorf("invalid monitor id %s", mon.Name)
+		}
+
+		substr := mon.Name[3:]
+		id, err := strconv.ParseInt(substr, 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("bad monitor id %s. %v", mon.Name, err)
+		}
+
+		if int(id) > maxMonitorID {
+			maxMonitorID = int(id)
+		}
+	}
+
+	return maxMonitorID, nil
 }
 
 // Calculate the number of monitors that should be deployed
