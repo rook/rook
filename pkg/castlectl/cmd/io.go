@@ -22,9 +22,9 @@ func commonIOCmdInit(cmd *cobra.Command) {
 	cmd.MarkFlagRequired("object-name")
 }
 
-func prepareIOContext() (*cephd.Conn, *cephd.IOContext, error) {
+func prepareIOContext() (cephclient.Connection, cephclient.IOContext, error) {
 	// connect to the cluster with the client.admin creds
-	adminConn, err := cephclient.ConnectToCluster(clusterName, "client.admin", configFilePath)
+	adminConn, err := cephclient.ConnectToCluster(cephd.New(), clusterName, "client.admin", configFilePath)
 	if err != nil {
 		return nil, nil, err
 	}

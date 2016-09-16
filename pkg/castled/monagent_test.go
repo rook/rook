@@ -8,6 +8,7 @@ import (
 
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/castle/pkg/testceph"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -52,7 +53,8 @@ func TestMonAgent(t *testing.T) {
 		ProcMan:    &proc.ProcManager{Trap: procTrap},
 	}
 
-	cluster, err := createOrGetClusterInfo(etcdClient)
+	factory := &testceph.MockConnectionFactory{Fsid: "f", SecretKey: "k"}
+	cluster, err := createOrGetClusterInfo(factory, etcdClient)
 	assert.Nil(t, err)
 	assert.NotNil(t, cluster)
 

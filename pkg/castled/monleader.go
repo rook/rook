@@ -11,6 +11,7 @@ import (
 	ctx "golang.org/x/net/context"
 
 	etcd "github.com/coreos/etcd/client"
+	"github.com/quantum/castle/pkg/cephclient"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/util"
 )
@@ -21,7 +22,7 @@ const (
 
 // Create the ceph monitors
 // Must be idempotent
-func createMonitors(context *clusterd.Context, cluster *clusterInfo, skipQuorum bool) error {
+func createMonitors(factory cephclient.ConnectionFactory, context *clusterd.Context, cluster *clusterInfo) error {
 	log.Printf("Creating monitors with %d nodes available", len(context.Inventory.Nodes))
 
 	// Choose the nodes where the monitors will run
@@ -42,12 +43,10 @@ func createMonitors(context *clusterd.Context, cluster *clusterInfo, skipQuorum 
 		return err
 	}
 
-	if !skipQuorum {
-		// Wait for quorum
-		err = waitForQuorum(context, cluster)
-		if err != nil {
-			return err
-		}
+	// Wait for quorum
+	err = waitForQuorum(factory, context, cluster)
+	if err != nil {
+		return err
 	}
 
 	return nil
@@ -163,10 +162,10 @@ func calculateMonitorCount(nodeCount int) int {
 	}
 }
 
-func waitForQuorum(context *clusterd.Context, cluster *clusterInfo) error {
+func waitForQuorum(factory cephclient.ConnectionFactory, context *clusterd.Context, cluster *clusterInfo) error {
 
 	// open an admin connection to the clufster
-	adminConn, err := connectToClusterAsAdmin(cluster)
+	adminConn, err := connectToClusterAsAdmin(factory, cluster)
 	if err != nil {
 		return err
 	}

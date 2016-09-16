@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/quantum/castle/pkg/castled"
+	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/castle/pkg/util"
@@ -85,7 +86,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("either discovery-url or etcd-members settings are required")
 	}
 
-	services := []*clusterd.ClusterService{castled.NewCephService(cfg.devices, cfg.forceFormat, cfg.crushMap)}
+	services := []*clusterd.ClusterService{castled.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.crushMap)}
 	procMan := &proc.ProcManager{}
 	defer func() {
 		procMan.Shutdown()
