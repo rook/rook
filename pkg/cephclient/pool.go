@@ -4,8 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-
-	"github.com/quantum/castle/pkg/cephd"
 )
 
 type CephStoragePool struct {
@@ -13,7 +11,7 @@ type CephStoragePool struct {
 	Name   string `json:"poolname"`
 }
 
-func ListPools(conn *cephd.Conn) ([]CephStoragePool, error) {
+func ListPools(conn Connection) ([]CephStoragePool, error) {
 	cmd := "osd lspools"
 	command, err := json.Marshal(map[string]interface{}{
 		"prefix": cmd,
@@ -37,7 +35,7 @@ func ListPools(conn *cephd.Conn) ([]CephStoragePool, error) {
 	return pools, nil
 }
 
-func CreatePool(conn *cephd.Conn, name string) error {
+func CreatePool(conn Connection, name string) error {
 	cmd := "osd pool create"
 	command, err := json.Marshal(map[string]interface{}{
 		"prefix": cmd,

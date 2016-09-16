@@ -12,7 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/quantum/castle/pkg/cephd"
+	"github.com/quantum/castle/pkg/cephclient"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/castle/pkg/util"
@@ -27,11 +27,12 @@ type osdAgent struct {
 	devices     []string
 	forceFormat bool
 	location    *CrushLocation
+	factory     cephclient.ConnectionFactory
 }
 
-func newOSDAgent(rawDevices string, forceFormat bool, location *CrushLocation) *osdAgent {
+func newOSDAgent(factory cephclient.ConnectionFactory, rawDevices string, forceFormat bool, location *CrushLocation) *osdAgent {
 	devices := strings.Split(rawDevices, ",")
-	return &osdAgent{devices: devices, forceFormat: forceFormat, location: location}
+	return &osdAgent{factory: factory, devices: devices, forceFormat: forceFormat, location: location}
 }
 
 func (a *osdAgent) Name() string {
@@ -60,7 +61,7 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 	}
 
 	// Connect to the ceph cluster
-	adminConn, err := connectToClusterAsAdmin(a.cluster)
+	adminConn, err := connectToClusterAsAdmin(a.factory, a.cluster)
 	if err != nil {
 		return err
 	}
@@ -80,14 +81,14 @@ func (a *osdAgent) DestroyLocalService(context *clusterd.Context) error {
 }
 
 // create and initalize OSDs for all the devices specified in the given config
-func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *clusterd.Context) error {
+func (a *osdAgent) createOSDs(adminConn cephclient.Connection, context *clusterd.Context) error {
 	// generate and write the OSD bootstrap keyring
 	if err := createOSDBootstrapKeyring(adminConn, a.cluster.Name, context.Executor); err != nil {
 		return err
 	}
 
 	// connect to the cluster using the bootstrap-osd creds, this connection will be used for config operations
-	bootstrapConn, err := connectToCluster(a.cluster, getBootstrapOSDDir(), "bootstrap-osd", getBootstrapOSDKeyringPath(a.cluster.Name))
+	bootstrapConn, err := connectToCluster(a.factory, a.cluster, getBootstrapOSDDir(), "bootstrap-osd", getBootstrapOSDKeyringPath(a.cluster.Name))
 	if err != nil {
 		return err
 	}
@@ -133,7 +134,7 @@ func (a *osdAgent) createOSDs(adminConn *cephd.Conn, context *clusterd.Context) 
 
 		if _, err := os.Stat(filepath.Join(osdDataPath, "whoami")); os.IsNotExist(err) {
 			// osd_data_dir/whoami does not exist yet, create/initialize the OSD
-			osdDataPath, err = initializeOSD(context, osdDataDir, osdID, osdUUID, bootstrapConn, a.cluster, a.location)
+			osdDataPath, err = initializeOSD(a.factory, context, osdDataDir, osdID, osdUUID, bootstrapConn, a.cluster, a.location)
 			if err != nil {
 				return fmt.Errorf("failed to initialize OSD at %s: %+v", osdDataDir, err)
 			}

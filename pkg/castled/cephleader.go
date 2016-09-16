@@ -8,16 +8,15 @@ import (
 	ctx "golang.org/x/net/context"
 
 	etcd "github.com/coreos/etcd/client"
-	"github.com/quantum/castle/pkg/cephd"
+	"github.com/quantum/castle/pkg/cephclient"
 	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/util"
 )
 
 // Interface implemented by a service that has been elected leader
 type cephLeader struct {
-	cluster  *clusterInfo
-	events   chan clusterd.LeaderEvent
-	mockCeph bool
+	cluster *clusterInfo
+	events  chan clusterd.LeaderEvent
+	factory cephclient.ConnectionFactory
 }
 
 func (c *cephLeader) StartWatchEvents() {
@@ -62,13 +61,13 @@ func (c *cephLeader) configureCephServices(context *clusterd.Context) error {
 
 	// Create or get the basic cluster info
 	var err error
-	c.cluster, err = createOrGetClusterInfo(context.EtcdClient)
+	c.cluster, err = createOrGetClusterInfo(c.factory, context.EtcdClient)
 	if err != nil {
 		return err
 	}
 
 	// Select the monitors, instruct them to start, and wait for quorum
-	err = createMonitors(context, c.cluster, c.mockCeph)
+	err = createMonitors(c.factory, context, c.cluster)
 	if err != nil {
 		return err
 	}
@@ -90,7 +89,7 @@ func (c *cephLeader) configureCephServices(context *clusterd.Context) error {
 	return nil
 }
 
-func createOrGetClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
+func createOrGetClusterInfo(factory cephclient.ConnectionFactory, etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 	// load any existing cluster info that may have previously been created
 	cluster, err := loadClusterInfo(etcdClient)
 	if err != nil {
@@ -99,7 +98,7 @@ func createOrGetClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 
 	if cluster == nil {
 		// the cluster info is not yet set, go ahead and set it now
-		cluster, err = createClusterInfo()
+		cluster, err = createClusterInfo(factory)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create cluster info: %+v", err)
 		}
@@ -117,63 +116,19 @@ func createOrGetClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 	return cluster, nil
 }
 
-// attempt to load any previously created and saved cluster info
-func loadClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
-	resp, err := etcdClient.Get(ctx.Background(), path.Join(cephKey, "fsid"), nil)
-	if err != nil {
-		if util.IsEtcdKeyNotFound(err) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	fsid := resp.Node.Value
-
-	resp, err = etcdClient.Get(ctx.Background(), path.Join(cephKey, "name"), nil)
-	if err != nil {
-		return nil, err
-	}
-	name := resp.Node.Value
-
-	secretsKey := path.Join(cephKey, "_secrets")
-
-	resp, err = etcdClient.Get(ctx.Background(), path.Join(secretsKey, "monitor"), nil)
-	if err != nil {
-		return nil, err
-	}
-	monSecret := resp.Node.Value
-
-	resp, err = etcdClient.Get(ctx.Background(), path.Join(secretsKey, "admin"), nil)
-	if err != nil {
-		return nil, err
-	}
-	adminSecret := resp.Node.Value
-
-	cluster := &clusterInfo{
-		FSID:          fsid,
-		MonitorSecret: monSecret,
-		AdminSecret:   adminSecret,
-		Name:          name,
-	}
-
-	// Get the monitors that have been applied in a previous orchestration
-	cluster.Monitors, err = getChosenMonitors(etcdClient)
-
-	return cluster, nil
-}
-
 // create new cluster info (FSID, shared keys)
-func createClusterInfo() (*clusterInfo, error) {
-	fsid, err := cephd.NewFsid()
+func createClusterInfo(factory cephclient.ConnectionFactory) (*clusterInfo, error) {
+	fsid, err := factory.NewFsid()
 	if err != nil {
 		return nil, err
 	}
 
-	monSecret, err := cephd.NewSecretKey()
+	monSecret, err := factory.NewSecretKey()
 	if err != nil {
 		return nil, err
 	}
 
-	adminSecret, err := cephd.NewSecretKey()
+	adminSecret, err := factory.NewSecretKey()
 	if err != nil {
 		return nil, err
 	}
