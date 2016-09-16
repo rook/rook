@@ -12,6 +12,7 @@ import (
 
 	ctx "golang.org/x/net/context"
 
+	"github.com/quantum/castle/pkg/cephclient"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/castle/pkg/util"
@@ -22,6 +23,7 @@ const (
 )
 
 type monAgent struct {
+	factory cephclient.ConnectionFactory
 }
 
 func (a *monAgent) Name() string {

@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/go-ini/ini"
-	"github.com/quantum/castle/pkg/cephd"
+	"github.com/quantum/castle/pkg/cephclient"
 )
 
 type CephMonitorConfig struct {
@@ -93,7 +93,7 @@ func getFirstMonitor(cluster *clusterInfo) string {
 	return ""
 }
 
-func connectToClusterAsAdmin(cluster *clusterInfo) (*cephd.Conn, error) {
+func connectToClusterAsAdmin(factory cephclient.ConnectionFactory, cluster *clusterInfo) (cephclient.Connection, error) {
 
 	// write the monitor keyring to disk
 	monName := getFirstMonitor(cluster)
@@ -101,11 +101,11 @@ func connectToClusterAsAdmin(cluster *clusterInfo) (*cephd.Conn, error) {
 		return nil, err
 	}
 
-	return connectToCluster(cluster, getMonRunDirPath(monName), "admin", getMonKeyringPath(monName))
+	return connectToCluster(factory, cluster, getMonRunDirPath(monName), "admin", getMonKeyringPath(monName))
 }
 
 // opens a connection to the cluster that can be used for management operations
-func connectToCluster(cluster *clusterInfo, basePath, user, keyringPath string) (*cephd.Conn, error) {
+func connectToCluster(factory cephclient.ConnectionFactory, cluster *clusterInfo, basePath, user, keyringPath string) (cephclient.Connection, error) {
 	log.Printf("connecting to ceph cluster %s with user %s", cluster.Name, user)
 
 	confFilePath, err := generateConfigFile(cluster, basePath, user, keyringPath)
@@ -113,7 +113,7 @@ func connectToCluster(cluster *clusterInfo, basePath, user, keyringPath string) 
 		return nil, fmt.Errorf("failed to generate config file: %v", err)
 	}
 
-	conn, err := cephd.NewConnWithClusterAndUser(cluster.Name, getQualifiedUser(user))
+	conn, err := factory.NewConnWithClusterAndUser(cluster.Name, getQualifiedUser(user))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create rados connection for cluster %s and user %s: %+v", cluster.Name, user, err)
 	}

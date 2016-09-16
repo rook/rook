@@ -4,8 +4,9 @@ import (
 	"log"
 	"testing"
 
-	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/clusterd/inventory"
+	"github.com/quantum/castle/pkg/testceph"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,7 +19,8 @@ import (
 // ********************************"****************************************************************
 // ************************************************************************************************
 func TestCephLeaders(t *testing.T) {
-	leader := &cephLeader{mockCeph: true}
+	factory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
+	leader := &cephLeader{factory: factory}
 	leader.StartWatchEvents()
 	defer leader.Close()
 
@@ -59,6 +61,8 @@ func TestCephLeaders(t *testing.T) {
 	waitForEvents(leader)
 
 	assert.True(t, etcdClient.GetChildDirs("/castle/services/ceph/osd/desired").Equals(util.CreateSet([]string{"a", "b"})))
+	assert.Equal(t, "myfsid", etcdClient.GetValue("/castle/services/ceph/fsid"))
+	assert.Equal(t, "mykey", etcdClient.GetValue("/castle/services/ceph/_secrets/admin"))
 }
 
 func waitForEvents(leader *cephLeader) {

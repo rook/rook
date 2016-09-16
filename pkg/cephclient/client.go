@@ -4,14 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
-
-	"github.com/quantum/castle/pkg/cephd"
 )
 
 // connect to the ceph cluster with the given cluster name and user name
-func ConnectToCluster(clusterName, user, configFilePath string) (*cephd.Conn, error) {
+func ConnectToCluster(factory ConnectionFactory, clusterName, user, configFilePath string) (Connection, error) {
 	log.Printf("connecting to cluster %s with user %s and config file %s", clusterName, user, configFilePath)
-	conn, err := cephd.NewConnWithClusterAndUser(clusterName, user)
+	conn, err := factory.NewConnWithClusterAndUser(clusterName, user)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create rados connection for cluster %s and user %s: %+v", clusterName, user, err)
 	}
@@ -29,7 +27,7 @@ func ConnectToCluster(clusterName, user, configFilePath string) (*cephd.Conn, er
 }
 
 // run a single mon_command
-func RunMonCommand(conn *cephd.Conn, command []byte) error {
+func RunMonCommand(conn Connection, command []byte) error {
 	buf, info, err := conn.MonCommand(command)
 	if err != nil {
 		return fmt.Errorf("mon_command failed: %+v", err)

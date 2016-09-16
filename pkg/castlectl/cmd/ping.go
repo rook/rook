@@ -6,6 +6,7 @@ import (
 	"log"
 
 	"github.com/quantum/castle/pkg/cephclient"
+	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/spf13/cobra"
 )
@@ -33,7 +34,7 @@ func pingMonitor(cmd *cobra.Command, args []string) error {
 	}
 
 	// connect to the cluster with the client.admin creds
-	adminConn, err := cephclient.ConnectToCluster(clusterName, "client.admin", configFilePath)
+	adminConn, err := cephclient.ConnectToCluster(cephd.New(), clusterName, "client.admin", configFilePath)
 	if err != nil {
 		return err
 	}

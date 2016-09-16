@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"os"
 	"unsafe"
+
+	"github.com/quantum/castle/pkg/cephclient"
 )
 
 // Version returns the major, minor, and patch components of the version of
@@ -45,6 +47,13 @@ func (e cephdError) Error() string {
 	return fmt.Sprintf("cephd: %s", C.GoString(C.strerror(C.int(-e))))
 }
 
+func New() *ceph {
+	return &ceph{}
+}
+
+type ceph struct {
+}
+
 // Version returns the version of Ceph
 func Version() string {
 	var cMajor, cMinor, cPatch C.int
@@ -52,7 +61,7 @@ func Version() string {
 }
 
 // NewFsid generates a new cluster id
-func NewFsid() (string, error) {
+func (c *ceph) NewFsid() (string, error) {
 	buf := make([]byte, 37)
 	ret := int(C.cephd_generate_fsid((*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf))))
 	if ret >= 0 {
@@ -63,7 +72,7 @@ func NewFsid() (string, error) {
 }
 
 // NewSecretKey generates a new secret key
-func NewSecretKey() (string, error) {
+func (c *ceph) NewSecretKey() (string, error) {
 	buf := make([]byte, 128)
 	ret := int(C.cephd_generate_secret_key((*C.char)(unsafe.Pointer(&buf[0])), C.size_t(len(buf))))
 	if ret >= 0 {
@@ -74,7 +83,7 @@ func NewSecretKey() (string, error) {
 }
 
 // Mon runs embedded ceph-mon.
-func RunDaemon(daemon string, args ...string) error {
+func (c *ceph) RunDaemon(daemon string, args ...string) error {
 
 	// BUGBUG: the first arg is really not needed but its an artifact
 	// of calling ceph-mon.main(). Should be removed on the C++ side.
@@ -113,21 +122,21 @@ func RunDaemon(daemon string, args ...string) error {
 // If it stays, then applicable LICENSE needs to be added.  A better approach would be to create a
 // wrapper in libcephd around MonCommand, and remove this go-ceph code and embedded librados altogether.
 
-// Conn is a connection handle to a Ceph cluster.
-type Conn struct {
+// conn is a connection handle to a Ceph cluster.
+type conn struct {
 	cluster C.rados_t
 }
 
 // NewConnWithClusterAndUser creates a new connection object for a specific cluster and username.
 // It returns the connection and an error, if any.
-func NewConnWithClusterAndUser(clusterName string, userName string) (*Conn, error) {
+func (c *ceph) NewConnWithClusterAndUser(clusterName string, userName string) (cephclient.Connection, error) {
 	c_cluster_name := C.CString(clusterName)
 	defer C.free(unsafe.Pointer(c_cluster_name))
 
 	c_name := C.CString(userName)
 	defer C.free(unsafe.Pointer(c_name))
 
-	conn := &Conn{}
+	conn := &conn{}
 	ret := C.rados_create2(&conn.cluster, c_cluster_name, c_name, 0)
 	if ret == 0 {
 		return conn, nil
@@ -138,7 +147,7 @@ func NewConnWithClusterAndUser(clusterName string, userName string) (*Conn, erro
 
 // Connect establishes a connection to a RADOS cluster. It returns an error,
 // if any.
-func (c *Conn) Connect() error {
+func (c *conn) Connect() error {
 	ret := C.rados_connect(c.cluster)
 	if ret == 0 {
 		return nil
@@ -148,12 +157,12 @@ func (c *Conn) Connect() error {
 }
 
 // Shutdown disconnects from the cluster.
-func (c *Conn) Shutdown() {
+func (c *conn) Shutdown() {
 	C.rados_shutdown(c.cluster)
 }
 
 // ReadConfigFile configures the connection using a Ceph configuration file.
-func (c *Conn) ReadConfigFile(path string) error {
+func (c *conn) ReadConfigFile(path string) error {
 	c_path := C.CString(path)
 	defer C.free(unsafe.Pointer(c_path))
 	ret := C.rados_conf_read_file(c.cluster, c_path)
@@ -165,16 +174,16 @@ func (c *Conn) ReadConfigFile(path string) error {
 }
 
 // MonCommand sends a command to one of the monitors
-func (c *Conn) MonCommand(args []byte) (buffer []byte, info string, err error) {
+func (c *conn) MonCommand(args []byte) (buffer []byte, info string, err error) {
 	return c.monCommand(args, nil)
 }
 
 // MonCommand sends a command to one of the monitors, with an input buffer
-func (c *Conn) MonCommandWithInputBuffer(args, inputBuffer []byte) (buffer []byte, info string, err error) {
+func (c *conn) MonCommandWithInputBuffer(args, inputBuffer []byte) (buffer []byte, info string, err error) {
 	return c.monCommand(args, inputBuffer)
 }
 
-func (c *Conn) monCommand(args, inputBuffer []byte) (buffer []byte, info string, err error) {
+func (c *conn) monCommand(args, inputBuffer []byte) (buffer []byte, info string, err error) {
 	argv := C.CString(string(args))
 	defer C.free(unsafe.Pointer(argv))
 
@@ -212,7 +221,7 @@ func (c *Conn) monCommand(args, inputBuffer []byte) (buffer []byte, info string,
 }
 
 // PingMonitor sends a ping to a monitor and returns the reply.
-func (c *Conn) PingMonitor(id string) (string, error) {
+func (c *conn) PingMonitor(id string) (string, error) {
 	c_id := C.CString(id)
 	defer C.free(unsafe.Pointer(c_id))
 
@@ -235,7 +244,7 @@ type IOContext struct {
 	ioctx C.rados_ioctx_t
 }
 
-func (c *Conn) OpenIOContext(pool string) (*IOContext, error) {
+func (c *conn) OpenIOContext(pool string) (cephclient.IOContext, error) {
 	c_pool := C.CString(pool)
 	defer C.free(unsafe.Pointer(c_pool))
 	ioctx := &IOContext{}

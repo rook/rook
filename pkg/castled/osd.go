@@ -2,6 +2,7 @@ package castled
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -15,7 +16,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/quantum/castle/pkg/cephd"
+	"github.com/quantum/castle/pkg/cephclient"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/proc"
 )
@@ -29,6 +30,19 @@ const (
 	caps mon = "allow profile bootstrap-osd"
 `
 )
+
+// the location where an osd is in the crush map
+type CrushLocation struct {
+	Root       string
+	Datacenter string
+	Room       string
+	Row        string
+	Pod        string
+	PDU        string
+	Rack       string
+	Chassis    string
+	Host       string
+}
 
 // request the current user once and stash it in this global variable
 var currentUser *user.User
@@ -64,7 +78,7 @@ func getOSDTempMonMapPath(osdDataPath string) string {
 }
 
 // create a keyring for the bootstrap-osd client, it gets a limited set of privileges
-func createOSDBootstrapKeyring(conn *cephd.Conn, clusterName string, executor proc.Executor) error {
+func createOSDBootstrapKeyring(conn cephclient.Connection, clusterName string, executor proc.Executor) error {
 	bootstrapOSDKeyringPath := getBootstrapOSDKeyringPath(clusterName)
 	_, err := os.Stat(bootstrapOSDKeyringPath)
 	if err == nil {
@@ -234,7 +248,7 @@ func mountOSD(device string, mountPath string, executor proc.Executor) error {
 	return nil
 }
 
-func registerOSDWithCluster(device string, bootstrapConn *cephd.Conn) (int, uuid.UUID, error) {
+func registerOSDWithCluster(device string, bootstrapConn cephclient.Connection) (int, uuid.UUID, error) {
 	osdUUID, err := uuid.NewRandom()
 	if err != nil {
 		return 0, uuid.UUID{}, fmt.Errorf("failed to generate UUID for %s: %+v", device, err)
@@ -298,7 +312,7 @@ func getOSDInfo(osdDataPath string) (int, uuid.UUID, error) {
 	return osdID, osdUUID, nil
 }
 
-func initializeOSD(context *clusterd.Context, osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn *cephd.Conn, cluster *clusterInfo) (string, error) {
+func initializeOSD(factory cephclient.ConnectionFactory, context *clusterd.Context, osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn cephclient.Connection, cluster *clusterInfo, location *CrushLocation) (string, error) {
 	// ensure that the OSD data directory is created
 	osdDataPath := filepath.Join(osdDataDir, fmt.Sprintf("%s-%d", cluster.Name, osdID))
 	if err := os.MkdirAll(osdDataPath, 0777); err != nil {
@@ -329,14 +343,14 @@ func initializeOSD(context *clusterd.Context, osdDataDir string, osdID int, osdU
 	}
 
 	// open a connection to the cluster using the OSDs creds
-	osdConn, err := connectToCluster(cluster, osdDataDir, fmt.Sprintf("osd.%d", osdID), keyringPath)
+	osdConn, err := connectToCluster(factory, cluster, osdDataDir, fmt.Sprintf("osd.%d", osdID), keyringPath)
 	if err != nil {
 		return "", err
 	}
 	defer osdConn.Shutdown()
 
 	// add the new OSD to the cluster crush map
-	if err := addOSDToCrushMap(osdConn, osdID, osdDataDir); err != nil {
+	if err := addOSDToCrushMap(osdConn, osdID, osdDataDir, location); err != nil {
 		return "", err
 	}
 
@@ -344,7 +358,7 @@ func initializeOSD(context *clusterd.Context, osdDataDir string, osdID int, osdU
 }
 
 // creates the OSD identity in the cluster via a mon_command
-func createOSD(bootstrapConn *cephd.Conn, osdUUID uuid.UUID) (int, error) {
+func createOSD(bootstrapConn cephclient.Connection, osdUUID uuid.UUID) (int, error) {
 	cmd := "osd create"
 	command, err := json.Marshal(map[string]interface{}{
 		"prefix": cmd,
@@ -369,7 +383,7 @@ func createOSD(bootstrapConn *cephd.Conn, osdUUID uuid.UUID) (int, error) {
 }
 
 // gets the current mon map for the cluster
-func getMonMap(bootstrapConn *cephd.Conn) ([]byte, error) {
+func getMonMap(bootstrapConn cephclient.Connection) ([]byte, error) {
 	cmd := "mon getmap"
 	command, err := json.Marshal(map[string]interface{}{
 		"prefix": cmd,
@@ -423,7 +437,7 @@ func createOSDFileSystem(context *clusterd.Context, clusterName string, osdID in
 }
 
 // add OSD auth privileges for the given OSD ID.  the bootstrap-osd privileges are limited and a real OSD needs more.
-func addOSDAuth(bootstrapConn *cephd.Conn, osdID int, osdDataPath string) error {
+func addOSDAuth(bootstrapConn cephclient.Connection, osdID int, osdDataPath string) error {
 	// create a new auth for this OSD
 	osdKeyringPath := getOSDKeyringPath(osdDataPath)
 	keyringBuffer, err := ioutil.ReadFile(osdKeyringPath)
@@ -452,7 +466,7 @@ func addOSDAuth(bootstrapConn *cephd.Conn, osdID int, osdDataPath string) error 
 }
 
 // adds the given OSD to the crush map
-func addOSDToCrushMap(osdConn *cephd.Conn, osdID int, osdDataPath string) error {
+func addOSDToCrushMap(osdConn cephclient.Connection, osdID int, osdDataPath string, location *CrushLocation) error {
 	// get the size of the volume containing the OSD data dir
 	s := syscall.Statfs_t{}
 	if err := syscall.Statfs(osdDataPath, &s); err != nil {
@@ -467,9 +481,14 @@ func addOSDToCrushMap(osdConn *cephd.Conn, osdID int, osdDataPath string) error 
 	osdEntity := fmt.Sprintf("osd.%d", osdID)
 	log.Printf("OSD %s at %s, bytes: %d, weight: %.2f", osdEntity, osdDataPath, all, weight)
 
-	hostName, err := os.Hostname()
+	var err error
+	location.Host, err = os.Hostname()
 	if err != nil {
 		return fmt.Errorf("failed to get hostname, %+v", err)
+	}
+	locArgs, err := formatLocation(location)
+	if err != nil {
+		return err
 	}
 
 	cmd := "osd crush create-or-move"
@@ -478,7 +497,7 @@ func addOSDToCrushMap(osdConn *cephd.Conn, osdID int, osdDataPath string) error 
 		"format": "json",
 		"id":     osdID,
 		"weight": weight,
-		"args":   []string{fmt.Sprintf("host=%s", hostName), "root=default"},
+		"args":   locArgs,
 	})
 	if err != nil {
 		return fmt.Errorf("command %s marshall failed: %+v", cmd, err)
@@ -493,4 +512,49 @@ func addOSDToCrushMap(osdConn *cephd.Conn, osdID int, osdDataPath string) error 
 
 	log.Printf("succeeded adding %s to crush map. info: %s", osdEntity, info)
 	return nil
+}
+
+func formatLocation(location *CrushLocation) ([]string, error) {
+	// host name is required
+	if location.Host == "" {
+		return nil, errors.New("missing host name")
+	}
+
+	// set a default root
+	if location.Root == "" {
+		location.Root = "default"
+	}
+
+	// append the properties in the hierarchy order, though they are not required in that order
+	result := []string{
+		formatProperty("root", location.Root),
+	}
+	if location.Datacenter != "" {
+		result = append(result, formatProperty("datacenter", location.Datacenter))
+	}
+	if location.Room != "" {
+		result = append(result, formatProperty("room", location.Room))
+	}
+	if location.Row != "" {
+		result = append(result, formatProperty("row", location.Row))
+	}
+	if location.Pod != "" {
+		result = append(result, formatProperty("pod", location.Pod))
+	}
+	if location.PDU != "" {
+		result = append(result, formatProperty("pdu", location.PDU))
+	}
+	if location.Rack != "" {
+		result = append(result, formatProperty("rack", location.Rack))
+	}
+	if location.Chassis != "" {
+		result = append(result, formatProperty("chassis", location.Chassis))
+	}
+	result = append(result, formatProperty("hostName", location.Host))
+
+	return result, nil
+}
+
+func formatProperty(name, value string) string {
+	return fmt.Sprintf("%s=%s", name, value)
 }
