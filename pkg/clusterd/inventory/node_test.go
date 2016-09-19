@@ -72,11 +72,15 @@ func TestLoadHardwareConfig(t *testing.T) {
 	etcdClient.Set(ctx.Background(), memKey, "", &etcd.SetOptions{Dir: true})
 	memConfig := setMemoryInfo(etcdClient, memKey, 4149252096)
 
+	// set up network info in etcd
 	netKey := path.Join(hardwareKey, NetworkKey)
 	etcdClient.Set(ctx.Background(), netKey, "", &etcd.SetOptions{Dir: true})
 	netsConfig := make([]NetworkConfig, 2)
 	netsConfig[0] = setNetInfo(etcdClient, netKey, "eth0", "172.17.42.1/16", "fe80::42:4aff:fefe:13d7/64", 0)
 	netsConfig[1] = setNetInfo(etcdClient, netKey, "veth2b6453a", "", "fe80::7c0f:acff:feff:478d/64", 10000)
+
+	// set IP address in etcd
+	SetIpAddress(etcdClient, machineId, "10.0.0.43")
 
 	// load the discovered node config
 	nodeConfig, err := loadNodeConfig(etcdClient)
@@ -89,6 +93,7 @@ func TestLoadHardwareConfig(t *testing.T) {
 	verifyProcConfig(t, nodeConfig[machineId], procsConfig)
 	verifyMemoryConfig(t, nodeConfig[machineId], memConfig)
 	verifyNetworkConfig(t, nodeConfig[machineId], netsConfig)
+	assert.Equal(t, "10.0.0.43", nodeConfig[machineId].IPAddress)
 }
 
 func setProcInfo(etcdClient *util.MockEtcdClient, procsKey string, procId uint, physicalId uint, siblings uint,

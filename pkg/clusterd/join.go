@@ -1,8 +1,7 @@
 package clusterd
 
 import (
-	"log"
-	"path"
+	"fmt"
 	"strings"
 
 	"github.com/quantum/castle/pkg/clusterd/inventory"
@@ -12,7 +11,8 @@ import (
 )
 
 // Initialize the cluster services to enable joining the cluster and listening for orchestration.
-func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, discoveryURL, etcdMembers, privateIPv4 string) error {
+func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, discoveryURL, etcdMembers, privateIPv4 string) (*Context, error) {
+
 	etcdClients := []string{}
 	if etcdMembers != "" {
 		// use the etcd members provided by the caller
@@ -23,34 +23,33 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, dis
 		var err error
 		etcdClients, err = manager.GetEtcdClients(discoveryURL, privateIPv4)
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	etcdClient, err := util.GetEtcdClient(etcdClients)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	nodeID, err := GetMachineID()
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// set the basic node config in etcd
-	key := path.Join(inventory.DiscoveredNodesKey, nodeID)
+	key := inventory.GetNodeConfigKey(nodeID)
 	if err := util.CreateEtcdDir(etcdClient, key); err != nil {
-		return err
+		return nil, err
 	}
 	if err := inventory.SetIpAddress(etcdClient, nodeID, privateIPv4); err != nil {
-		return err
+		return nil, err
 	}
 
 	// initialize a leadership lease manager
 	leaseManager, err := initLeaseManager(etcdClient)
 	if err != nil {
-		log.Fatalf("failed to initialize lease manager: %s", err.Error())
-		return err
+		return nil, fmt.Errorf("failed to initialize lease manager: %+v", err)
 	}
 
 	context := &Context{
@@ -64,10 +63,8 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, dis
 	clusterMember := newClusterMember(context, leaseManager, clusterLeader)
 	clusterLeader.parent = clusterMember
 
-	err = clusterMember.initialize()
-	if err != nil {
-		log.Fatalf("failed to initialize local cluster: %v", err)
-		return err
+	if err := clusterMember.initialize(); err != nil {
+		return nil, fmt.Errorf("failed to initialize local cluster: %+v", err)
 	}
 
 	go func() {
@@ -75,5 +72,5 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, dis
 		watchForAgentServiceConfig(context)
 	}()
 
-	return nil
+	return context, nil
 }

@@ -10,6 +10,7 @@ import (
 
 	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
+	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 	ctx "golang.org/x/net/context"
@@ -607,7 +608,7 @@ func createDefaultDependencies() (*util.MockEtcdClient, *Context, *mockLeaseMana
 	mockLeaseManager := &mockLeaseManager{}
 	etcdClient := util.NewMockEtcdClient()
 	machineId := "8e8f532fe96dcae6b1ce335822e5b03c"
-	context := &Context{EtcdClient: etcdClient, NodeID: machineId}
+	context := &Context{EtcdClient: etcdClient, NodeID: machineId, Executor: &proc.MockExecutor{}}
 	return etcdClient, context, mockLeaseManager, &MockLeader{}
 }
 

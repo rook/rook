@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/cephclient"
 	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/proc"
 )
 
@@ -126,29 +127,14 @@ func createOSDBootstrapKeyring(conn cephclient.Connection, clusterName string, e
 	return nil
 }
 
-// look up the mount point of the given device.  empty string returned if device is not mounted.
-func getDeviceMountPoint(device string, executor proc.Executor) (string, error) {
-	cmd := fmt.Sprintf("get mount point for %s", device)
-	mountPoint, err := executor.ExecuteCommandPipeline(
-		cmd,
-		fmt.Sprintf(`mount | grep '^/dev/%s on' | awk '{print $3}'`, device))
-	if err != nil {
-		return "", fmt.Errorf("command %s failed: %+v", cmd, err)
-	}
-
-	return mountPoint, nil
-}
-
 // format the given device for usage by an OSD
 func formatOSD(device string, forceFormat bool, executor proc.Executor) error {
 	// format the current volume
-	cmd := fmt.Sprintf("get filesystem type for %s", device)
-	devFS, err := executor.ExecuteCommandPipeline(
-		cmd,
-		fmt.Sprintf(`df --output=source,fstype | grep /dev/%s | awk '{print $2}'`, device))
+	devFS, err := inventory.GetDeviceFilesystem(device, executor)
 	if err != nil {
-		return fmt.Errorf("command %s failed: %+v", cmd, err)
+		return fmt.Errorf("failed to get device %s filesystem: %+v", device, err)
 	}
+
 	if devFS != "" && forceFormat {
 		// there's a filesystem on the device, but the user has specified to force a format. give a warning about that.
 		log.Printf("WARNING: device %s already formatted with %s, but forcing a format!!!", device, devFS)
@@ -156,7 +142,7 @@ func formatOSD(device string, forceFormat bool, executor proc.Executor) error {
 
 	if devFS == "" || forceFormat {
 		// execute the format operation
-		cmd = fmt.Sprintf("format %s", device)
+		cmd := fmt.Sprintf("format %s", device)
 		err = executor.ExecuteCommand(cmd, "sudo", "/usr/sbin/mkfs.btrfs", "-f", "-m", "single", "-n", "32768", fmt.Sprintf("/dev/%s", device))
 		if err != nil {
 			return fmt.Errorf("command %s failed: %+v", cmd, err)

@@ -10,3 +10,4 @@ import:
 - package: github.com/spf13/pflag
 - package: github.com/google/uuid
 - package: github.com/go-ini/ini
+- package: github.com/gorilla/mux

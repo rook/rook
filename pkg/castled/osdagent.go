@@ -10,10 +10,12 @@ import (
 	"strconv"
 	"strings"
 
+	etcd "github.com/coreos/etcd/client"
 	"github.com/google/uuid"
 
 	"github.com/quantum/castle/pkg/cephclient"
 	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/castle/pkg/util"
 )
@@ -73,11 +75,20 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 		return fmt.Errorf("failed to create OSDs: %+v", err)
 	}
 
+	// successful, ensure all applied devices are saved to the cluster config store
+	if err := a.saveAppliedOSDs(context); err != nil {
+		return fmt.Errorf("failed to save applied OSDs: %+v", err)
+	}
+
 	return nil
 }
 
 func (a *osdAgent) DestroyLocalService(context *clusterd.Context) error {
 	return nil
+}
+
+func getAppliedKey(nodeID string) string {
+	return path.Join(cephKey, osdAgentName, appliedKey, nodeID)
 }
 
 // create and initalize OSDs for all the devices specified in the given config
@@ -99,7 +110,7 @@ func (a *osdAgent) createOSDs(adminConn cephclient.Connection, context *clusterd
 		var osdID int
 		var osdUUID uuid.UUID
 
-		mountPoint, err := getDeviceMountPoint(device, context.Executor)
+		mountPoint, err := inventory.GetDeviceMountPoint(device, context.Executor)
 		if err != nil {
 			return fmt.Errorf("unable to get mount point for device %s: %+v", device, err)
 		}
@@ -176,6 +187,26 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID i
 		osdUUIDArg)
 	if err != nil {
 		return fmt.Errorf("failed to start osd %d: %+v", osdID, err)
+	}
+
+	return nil
+}
+
+func GetAppliedOSDs(nodeID string, etcdClient etcd.KeysAPI) (*util.Set, error) {
+	appliedKey := getAppliedKey(nodeID)
+	return util.GetDirChildKeys(etcdClient, appliedKey)
+}
+
+func (a *osdAgent) saveAppliedOSDs(context *clusterd.Context) error {
+	appliedKey := getAppliedKey(context.NodeID)
+	for _, d := range a.devices {
+		serial, err := inventory.GetSerialFromDevice(d, context.NodeID, context.EtcdClient)
+		if err != nil {
+			return fmt.Errorf("failed to get serial for device %s: %+v", d, err)
+		}
+		if err := util.CreateEtcdDir(context.EtcdClient, path.Join(appliedKey, serial)); err != nil {
+			return fmt.Errorf("failed to mark device %s/%s as applied: %+v", d, serial, err)
+		}
 	}
 
 	return nil

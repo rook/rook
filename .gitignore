@@ -5,3 +5,4 @@ vendor/
 .glide/
 coverage.out
 coverage.html
+debug.test

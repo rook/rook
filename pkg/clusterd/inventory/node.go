@@ -6,9 +6,11 @@ import (
 	"log"
 	"path"
 	"strconv"
+	"strings"
 
 	ctx "golang.org/x/net/context"
 
+	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/castle/pkg/util"
 
 	etcd "github.com/coreos/etcd/client"
@@ -21,12 +23,28 @@ import (
 var fallbackIPaddress string
 
 const (
-	IpAddressKey  = "%s/%s/ipaddress"
+	IpAddressKey  = "ipaddress"
 	DisksKey      = "disks"
 	ProcessorsKey = "cpu"
 	NetworkKey    = "net"
 	MemoryKey     = "mem"
 )
+
+func DiscoverHardware(nodeID string, etcdClient etcd.KeysAPI, executor proc.Executor) error {
+	nodeConfigKey := GetNodeConfigKey(nodeID)
+	if err := discoverDisks(nodeConfigKey, etcdClient, executor); err != nil {
+		return err
+	}
+
+	// TODO: discover more hardware properties
+
+	return nil
+}
+
+// gets the key under which all node hardware/config will be stored
+func GetNodeConfigKey(nodeID string) string {
+	return path.Join(DiscoveredNodesKey, nodeID)
+}
 
 // Load all the nodes' infrastructure configuration
 func loadNodeConfig(etcdClient etcd.KeysAPI) (map[string]*NodeConfig, error) {
@@ -44,7 +62,7 @@ func loadNodeConfig(etcdClient etcd.KeysAPI) (map[string]*NodeConfig, error) {
 		nodeConfig := &NodeConfig{}
 
 		// get all the config information for the current node
-		configKey := path.Join(DiscoveredNodesKey, node)
+		configKey := GetNodeConfigKey(node)
 		nodeInfo, err := etcdClient.Get(ctx.Background(), configKey, &etcd.GetOptions{Recursive: true})
 		if err != nil {
 			if util.IsEtcdKeyNotFound(err) {
@@ -75,7 +93,7 @@ func loadNodeConfig(etcdClient etcd.KeysAPI) (map[string]*NodeConfig, error) {
 
 // Get the IP address for a node
 func GetIpAddress(etcdClient etcd.KeysAPI, nodeId string) (string, error) {
-	key := fmt.Sprintf(IpAddressKey, DiscoveredNodesKey, nodeId)
+	key := path.Join(GetNodeConfigKey(nodeId), IpAddressKey)
 	val, err := etcdClient.Get(ctx.Background(), key, nil)
 	if err != nil {
 		if util.IsEtcdKeyNotFound(err) {
@@ -89,7 +107,7 @@ func GetIpAddress(etcdClient etcd.KeysAPI, nodeId string) (string, error) {
 
 // Set the IP address for a node
 func SetIpAddress(etcdClient etcd.KeysAPI, nodeId, ipaddress string) error {
-	key := fmt.Sprintf(IpAddressKey, DiscoveredNodesKey, nodeId)
+	key := path.Join(GetNodeConfigKey(nodeId), IpAddressKey)
 	_, err := etcdClient.Set(ctx.Background(), key, ipaddress, nil)
 	fallbackIPaddress = ipaddress
 
@@ -125,6 +143,12 @@ func loadHardwareConfig(nodeId string, nodeConfig *NodeConfig, nodeInfo *etcd.Re
 			err := loadNetworkConfig(nodeConfig, nodeConfigRoot)
 			if err != nil {
 				log.Printf("failed to load network config for node %s, %v", nodeId, err)
+				return err
+			}
+		case IpAddressKey:
+			err := loadIPAddressConfig(nodeConfig, nodeConfigRoot)
+			if err != nil {
+				log.Printf("failed to load IP address config for node %s, %v", nodeId, err)
 				return err
 			}
 		default:
@@ -284,4 +308,34 @@ func loadNetworkConfig(nodeConfig *NodeConfig, networkRootNode *etcd.Node) error
 	}
 
 	return nil
+}
+
+func loadIPAddressConfig(nodeConfig *NodeConfig, ipAddressNode *etcd.Node) error {
+	if ipAddressNode.Dir {
+		return fmt.Errorf("IP address node '%s' is a directory, but it's expected to be a key", ipAddressNode.Key)
+	}
+	nodeConfig.IPAddress = ipAddressNode.Value
+	return nil
+}
+
+// converts a raw key value pair string into a map of key value pairs
+// example raw string of `foo="0" bar="1" baz="biz"` is returned as:
+// map[string]string{"foo":"0", "bar":"1", "baz":"biz"}
+func parseKeyValuePairString(propsRaw string) map[string]string {
+	// first split the single raw string on spaces and initialize a map of
+	// a length equal to the number of pairs
+	props := strings.Split(propsRaw, " ")
+	propMap := make(map[string]string, len(props))
+
+	for _, kvpRaw := range props {
+		// split each individual key value pair on the equals sign
+		kvp := strings.Split(kvpRaw, "=")
+		if len(kvp) == 2 {
+			// first element is the final key, second element is the final value
+			// (don't forget to remove surrounding quotes from the value)
+			propMap[kvp[0]] = strings.Replace(kvp[1], `"`, "", -1)
+		}
+	}
+
+	return propMap
 }

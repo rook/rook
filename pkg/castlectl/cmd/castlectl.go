@@ -3,8 +3,7 @@ package cmd
 import "github.com/spf13/cobra"
 
 var (
-	clusterName    string
-	configFilePath string
+	apiServerEndpoint string
 )
 
 var rootCmd = &cobra.Command{
@@ -14,11 +13,9 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().StringVar(&clusterName, "cluster-name", "defaultCluster", "name of ceph cluster (required)")
-	rootCmd.PersistentFlags().StringVar(&configFilePath, "config-file", "", "full path to the ceph config file to use (required)")
+	rootCmd.PersistentFlags().StringVar(&apiServerEndpoint, "api-server-endpoint", "127.0.0.1:8124", "IP endpoint of API server instance (required)")
 
-	rootCmd.MarkFlagRequired("cluster-name")
-	rootCmd.MarkFlagRequired("config-file")
+	rootCmd.MarkFlagRequired("api-server-endpoint")
 }
 
 func Execute() error {
@@ -27,10 +24,5 @@ func Execute() error {
 }
 
 func addCommands() {
-	rootCmd.AddCommand(healthCmd)
-	rootCmd.AddCommand(pingCmd)
-	rootCmd.AddCommand(readCmd)
-	rootCmd.AddCommand(writeCmd)
-	rootCmd.AddCommand(getPoolVarCmd)
-	rootCmd.AddCommand(monCommandCmd)
+	rootCmd.AddCommand(nodeCmd)
 }
