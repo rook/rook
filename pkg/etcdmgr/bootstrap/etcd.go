@@ -20,8 +20,8 @@ type EmbeddedEtcd struct {
 	config          EtcdConfig
 }
 
-// NewEmbeddedEtcd creates a new instance of etcd. .
-func NewEmbeddedEtcd(token string, conf EtcdConfig) (*EmbeddedEtcd, error) {
+// NewEmbeddedEtcd creates a new inproc instance of etcd.
+func NewEmbeddedEtcd(token string, conf EtcdConfig, newCluster bool) (*EmbeddedEtcd, error) {
 	var err error
 	ee := &EmbeddedEtcd{config: conf}
 	err = ee.initializeListeners()
@@ -29,20 +29,7 @@ func NewEmbeddedEtcd(token string, conf EtcdConfig) (*EmbeddedEtcd, error) {
 		return nil, err
 	}
 
-	serverConfig := &etcdserver.ServerConfig{
-		Name:                conf.InstanceName,
-		DiscoveryURL:        token,
-		InitialClusterToken: token,
-		ClientURLs:          conf.AdvertiseClientURLs,
-		PeerURLs:            conf.AdvertisePeerURLs,
-		DataDir:             conf.DataDir,
-		NewCluster:          true,
-		TickMs:              100,
-		ElectionTicks:       10,
-		InitialPeerURLsMap: types.URLsMap{
-			conf.InstanceName: conf.AdvertisePeerURLs,
-		},
-	}
+	serverConfig := getServerConfig(token, conf, newCluster)
 
 	ee.Server, err = etcdserver.NewServer(serverConfig)
 	if err != nil {
@@ -69,6 +56,23 @@ func NewEmbeddedEtcd(token string, conf EtcdConfig) (*EmbeddedEtcd, error) {
 	// wait until server is stable and ready
 	<-ee.Server.ReadyNotify()
 	return ee, nil
+}
+
+func getServerConfig(token string, conf EtcdConfig, newCluster bool) *etcdserver.ServerConfig {
+	return &etcdserver.ServerConfig{
+		Name:                conf.InstanceName,
+		DiscoveryURL:        token,
+		InitialClusterToken: token,
+		ClientURLs:          conf.AdvertiseClientURLs,
+		PeerURLs:            conf.AdvertisePeerURLs,
+		DataDir:             conf.DataDir,
+		NewCluster:          newCluster,
+		TickMs:              100,
+		ElectionTicks:       10,
+		InitialPeerURLsMap: types.URLsMap{
+			conf.InstanceName: conf.AdvertisePeerURLs,
+		},
+	}
 }
 
 func (ee *EmbeddedEtcd) initializeListeners() error {

@@ -2,12 +2,13 @@
 package manager
 
 import (
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/jmcvetta/randutil"
 	"github.com/quantum/castle/pkg/etcdmgr/bootstrap"
@@ -18,6 +19,8 @@ const (
 	DefaultClientPort = "2379"
 	// DefaultPeerPort is the default port for listening to peer traffic
 	DefaultPeerPort = "2380"
+	// DefaultClientTimeout is the default timeout for etcd client
+	DefaultClientTimeout = 30 * time.Second
 )
 
 // GetEtcdClients bootstraps an embedded etcd instance and returns a list of
@@ -25,13 +28,35 @@ const (
 func GetEtcdClients(token, ipAddr string) ([]string, error) {
 	// GODEBUG setting forcing use of Go's resolver
 	os.Setenv("GODEBUG", "netdns=go+1")
+
+	full, err, currentNodes := bootstrap.IsQuorumFull(token)
+	if err != nil {
+		return []string{}, errors.New("error in querying discovery service")
+	}
+
+	localURL := "http://" + ipAddr + ":" + DefaultClientPort
+	// Is it a restart scenario?
+	restart := false
+	log.Println("current localURL: ", localURL)
+	for _, node := range currentNodes {
+		if node == localURL {
+			log.Println("restart scenario detected.")
+			restart = true
+		}
+	}
+	if full && !restart {
+		log.Println("quorum is full, returning current quorum nodes...")
+		log.Println("current nodes: ", currentNodes)
+		return currentNodes, nil
+	}
+	log.Println("creating a new embedded etcd...")
 	conf, err := GenerateEtcdConfig(ipAddr)
 	if err != nil {
 		return []string{}, err
 	}
 	log.Println("conf:", conf)
 
-	ee, err := bootstrap.NewEmbeddedEtcd(token, conf)
+	ee, err := bootstrap.NewEmbeddedEtcd(token, conf, true)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +69,30 @@ func GetEtcdClients(token, ipAddr string) ([]string, error) {
 func GetEtcdClientsWithConfig(token string, config bootstrap.EtcdConfig) ([]string, error) {
 	// GODEBUG setting forcing use of Go's resolver
 	os.Setenv("GODEBUG", "netdns=go+1")
-	ee, err := bootstrap.NewEmbeddedEtcd(token, config)
+	full, err, currentNodes := bootstrap.IsQuorumFull(token)
+	if err != nil {
+		return []string{}, errors.New("error in querying discovery service")
+	}
+
+	//TODO refactor + we assumed we only have one advertiseClient
+	localURL := "http://" + config.AdvertiseClientURLs[0].Host
+	// Is it a restart scenario?
+	restart := false
+	log.Println("current localURL: ", localURL)
+	for _, node := range currentNodes {
+		if node == localURL {
+			log.Println("restart scenario detected.")
+			restart = true
+		}
+	}
+	if full && !restart {
+		log.Println("quorum is full, returning current quorum nodes...")
+		log.Println("current nodes: ", currentNodes)
+		return currentNodes, nil
+	}
+
+	log.Println("creating a new embedded etcd")
+	ee, err := bootstrap.NewEmbeddedEtcd(token, config, true)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +106,7 @@ func getMachineID() (string, error) {
 		if err != nil {
 			return "", err
 		}
-		fmt.Println("err reading machine-id. generated random id: ", randomID)
+		log.Println("err reading machine-id. generated random id: ", randomID)
 		return randomID, nil
 	}
 
