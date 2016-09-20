@@ -20,11 +20,11 @@ func TestGetIpAddress(t *testing.T) {
 
 	ipaddress, err := GetIpAddress(etcdClient, nodeId)
 	assert.Equal(t, "", ipaddress)
-	assert.Nil(t, err)
+	assert.Equal(t, "Key not found (value not found)", err.Error())
 
 	err = SetIpAddress(etcdClient, nodeId, desiredIpaddress)
 
-	assert.Equal(t, desiredIpaddress, etcdClient.GetValue(DiscoveredNodesKey+"/"+nodeId+"/ipaddress"))
+	assert.Equal(t, desiredIpaddress, etcdClient.GetValue(path.Join(DiscoveredNodesKey, nodeId, "ipaddress")))
 	ipaddress, err = GetIpAddress(etcdClient, nodeId)
 	assert.Equal(t, desiredIpaddress, ipaddress)
 	assert.Nil(t, err)
@@ -34,14 +34,14 @@ func TestLoadDiscoveredNodes(t *testing.T) {
 	etcdClient := &util.MockEtcdClient{}
 
 	// Create some test config
-	etcdClient.CreateDir(path.Join(DiscoveredNodesKey, "23"))
-	etcdClient.CreateDir(path.Join(DiscoveredNodesKey, "46"))
+	etcdClient.SetValue(path.Join(DiscoveredNodesKey, "23", "ipaddress"), "1.2.3.4")
+	etcdClient.SetValue(path.Join(DiscoveredNodesKey, "46", "ipaddress"), "4.5.6.7")
 
 	config, err := LoadDiscoveredNodes(etcdClient)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(config.Nodes))
-	assert.NotNil(t, config.Nodes["23"])
-	assert.NotNil(t, config.Nodes["46"])
+	assert.Equal(t, "1.2.3.4", config.Nodes["23"].IPAddress)
+	assert.Equal(t, "4.5.6.7", config.Nodes["46"].IPAddress)
 }
 
 func TestLoadHardwareConfig(t *testing.T) {

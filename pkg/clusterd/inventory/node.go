@@ -16,12 +16,6 @@ import (
 	etcd "github.com/coreos/etcd/client"
 )
 
-// The IP address of a node is stored in etcd. However, in the event that the cluster is cleaned up
-// and the etcd values are wiped out, the ip address is not set again until the agent launches again.
-// The agent will not launch again unless killed by the developer, therefore we cache the IP address
-// so the next configuration can succeed.
-var fallbackIPaddress string
-
 const (
 	IpAddressKey  = "ipaddress"
 	DisksKey      = "disks"
@@ -96,9 +90,7 @@ func GetIpAddress(etcdClient etcd.KeysAPI, nodeId string) (string, error) {
 	key := path.Join(GetNodeConfigKey(nodeId), IpAddressKey)
 	val, err := etcdClient.Get(ctx.Background(), key, nil)
 	if err != nil {
-		if util.IsEtcdKeyNotFound(err) {
-			return fallbackIPaddress, nil
-		}
+		log.Printf("FAILED TO GET nodeID for %s. %v", nodeId, err)
 		return "", err
 	}
 
@@ -109,7 +101,6 @@ func GetIpAddress(etcdClient etcd.KeysAPI, nodeId string) (string, error) {
 func SetIpAddress(etcdClient etcd.KeysAPI, nodeId, ipaddress string) error {
 	key := path.Join(GetNodeConfigKey(nodeId), IpAddressKey)
 	_, err := etcdClient.Set(ctx.Background(), key, ipaddress, nil)
-	fallbackIPaddress = ipaddress
 
 	return err
 }
