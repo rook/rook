@@ -109,9 +109,9 @@ func (c *ceph) RunDaemon(daemon string, args ...string) error {
 	var ret C.int
 
 	if daemon == "mon" {
-		ret = C.cephd_mon(C.int(len(finalArgs)), (**C.char)(ptr))
+		ret = C.cephd_run_mon(C.int(len(finalArgs)), (**C.char)(ptr))
 	} else if daemon == "osd" {
-		ret = C.cephd_osd(C.int(len(finalArgs)), (**C.char)(ptr))
+		ret = C.cephd_run_osd(C.int(len(finalArgs)), (**C.char)(ptr))
 	}
 	if ret < 0 {
 		return GetCephdError(int(ret))

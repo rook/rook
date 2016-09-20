@@ -11,7 +11,7 @@
 # ====================================================================================
 # Configuration
 
-CEPHD_ALLOCATOR ?= tcmalloc
+CEPHD_ALLOCATOR ?= tcmalloc_minimal
 CEPHD_CCACHE ?= 1
 CEPHD_DEBUG ?= 0
 CEPHD_DIR ?= ceph
@@ -51,7 +51,7 @@ CEPHD_SOURCES := $(shell find ceph/src -name .git -prune -o -type f | sed 's/ /\
 # $1 platform name (for example castlectl)
 define cephd-build
 
-$(CEPHD_BUILD_DIR)/$(1)/Makefile:
+$(CEPHD_BUILD_DIR)/$(1)/Makefile: Makefile
 	@mkdir -p $$(@D)
 	@echo "$(CEPHD_CMAKE)" > $$(@D)/cephd.cmake.new
 	@if test ! -f $$(@D)/cephd.cmake || ! diff $$(@D)/cephd.cmake.new $$(@D)/cephd.cmake > /dev/null; then \
@@ -71,14 +71,14 @@ endif
 .PHONY: cephd.clean.$(1)
 cephd.clean.$(1): cephd.clean.rocksdb
 	@echo "====== Running make clean on cephd $(1)"
-	@ [ -d $(CEPHD_BUILD_DIR)/$(1) ] && cd $(CEPHD_BUILD_DIR)/$(1) && $(MAKE) clean
+	@[ -d $(CEPHD_BUILD_DIR)/$(1) ] && cd $(CEPHD_BUILD_DIR)/$(1) && $(MAKE) clean
 endef
 
 # BUGBUG: rocksdb builds out of the source tree which means arm64 and amd64
 # binaries will overwrite each other
 .PHONY: cephd.clean.rocksdb
 cephd.clean.rocksdb:
-	@ [ -d $(CEPHD_BUILD_DIR)/$(1) ] && cd ceph/src/rocksdb && $(MAKE) clean > /dev/null
+	@[ -d ceph/src/rocksdb ] && cd ceph/src/rocksdb && $(MAKE) clean > /dev/null
 
 .PHONY: cephd.clean
 cephd.cleanall: cephd.clean.rocksdb

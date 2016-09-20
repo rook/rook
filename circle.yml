@@ -1,9 +1,9 @@
 machine:
+  services:
+    - docker
   environment:
     NPROCS: $(( ($(grep -c ^processor /proc/cpuinfo) + 1) / 2 ))
     CCACHE_DIR: ${HOME}/.ccache
-  services:
-    - docker
 
 checkout:
   pre:
@@ -24,4 +24,4 @@ dependencies:
 
 test:
   override:
-    - echo no tests
+    - echo no tests yet
