@@ -10,6 +10,7 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/cephclient"
 	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/clusterd/inventory"
 )
 
 // Interface implemented by a service that has been elected leader
@@ -41,23 +42,39 @@ func (c *cephLeader) handleOrchestratorEvents() {
 	// Listen for events from the orchestrator indicating that a refresh is needed or nodes have been added
 	for e := range c.events {
 		log.Printf("ceph leader received event %s", e.Name())
+
+		var nodesToRefresh []string
 		if _, ok := e.(*clusterd.RefreshEvent); ok {
-			// Perform a full refresh of the cluster to ensure the monitors and OSDs are running
-			c.configureCephServices(e.Context())
-
+			nodesToRefresh = getSlice(e.Context().Inventory.Nodes)
 		} else if nodeAdded, ok := e.(*clusterd.AddNodeEvent); ok {
-			// When a node is added simply start OSDs on the node
-			configureOSDs(e.Context(), nodeAdded.Nodes())
-
+			nodesToRefresh = nodeAdded.Nodes()
 		} else if _, ok := e.(*clusterd.StaleNodeEvent); ok {
 			// TODO: Move a monitor to another node and/or declare OSDs dead
 		}
+
+		if nodesToRefresh != nil {
+			// Perform a full refresh of the cluster to ensure the monitors and OSDs are running
+			err := c.configureCephMons(e.Context())
+			if err != nil {
+				log.Printf("failed to configure ceph mons. %v", err)
+				continue
+			}
+
+			// Configure the OSDs
+			err = configureOSDs(e.Context(), nodesToRefresh)
+			if err != nil {
+				log.Printf("failed to configure ceph osds. %v", err)
+				continue
+			}
+
+		}
+
 		log.Printf("ceph leader completed event %s", e.Name())
 	}
 }
 
 // Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
-func (c *cephLeader) configureCephServices(context *clusterd.Context) error {
+func (c *cephLeader) configureCephMons(context *clusterd.Context) error {
 
 	// Create or get the basic cluster info
 	var err error
@@ -67,26 +84,7 @@ func (c *cephLeader) configureCephServices(context *clusterd.Context) error {
 	}
 
 	// Select the monitors, instruct them to start, and wait for quorum
-	err = createMonitors(c.factory, context, c.cluster)
-	if err != nil {
-		return err
-	}
-
-	// Convert the node IDs to a simple slice
-	nodes := make([]string, len(context.Inventory.Nodes))
-	i := 0
-	for node := range context.Inventory.Nodes {
-		nodes[i] = node
-		i++
-	}
-
-	// Configure the OSDs
-	err = configureOSDs(context, nodes)
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return configureMonitors(c.factory, context, c.cluster)
 }
 
 func createOrGetClusterInfo(factory cephclient.ConnectionFactory, etcdClient etcd.KeysAPI) (*clusterInfo, error) {
@@ -166,4 +164,17 @@ func saveClusterInfo(c *clusterInfo, etcdClient etcd.KeysAPI) error {
 	}
 
 	return nil
+}
+
+func getSlice(nodeMap map[string]*inventory.NodeConfig) []string {
+
+	// Convert the node IDs to a simple slice
+	nodes := make([]string, len(nodeMap))
+	i := 0
+	for node := range nodeMap {
+		nodes[i] = node
+		i++
+	}
+
+	return nodes
 }

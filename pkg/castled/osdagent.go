@@ -94,7 +94,7 @@ func getAppliedKey(nodeID string) string {
 // create and initalize OSDs for all the devices specified in the given config
 func (a *osdAgent) createOSDs(adminConn cephclient.Connection, context *clusterd.Context) error {
 	// generate and write the OSD bootstrap keyring
-	if err := createOSDBootstrapKeyring(adminConn, a.cluster.Name, context.Executor); err != nil {
+	if err := createOSDBootstrapKeyring(adminConn, a.cluster.Name); err != nil {
 		return err
 	}
 

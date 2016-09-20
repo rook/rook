@@ -1,6 +1,7 @@
 package castled
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -94,7 +95,9 @@ func getFirstMonitor(cluster *clusterInfo) string {
 }
 
 func connectToClusterAsAdmin(factory cephclient.ConnectionFactory, cluster *clusterInfo) (cephclient.Connection, error) {
-
+	if len(cluster.Monitors) == 0 {
+		return nil, errors.New("no monitors")
+	}
 	// write the monitor keyring to disk
 	monName := getFirstMonitor(cluster)
 	if err := writeMonitorKeyring(monName, cluster); err != nil {

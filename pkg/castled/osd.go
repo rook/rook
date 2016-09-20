@@ -79,7 +79,7 @@ func getOSDTempMonMapPath(osdDataPath string) string {
 }
 
 // create a keyring for the bootstrap-osd client, it gets a limited set of privileges
-func createOSDBootstrapKeyring(conn cephclient.Connection, clusterName string, executor proc.Executor) error {
+func createOSDBootstrapKeyring(conn cephclient.Connection, clusterName string) error {
 	bootstrapOSDKeyringPath := getBootstrapOSDKeyringPath(clusterName)
 	_, err := os.Stat(bootstrapOSDKeyringPath)
 	if err == nil {
@@ -120,6 +120,7 @@ func createOSDBootstrapKeyring(conn cephclient.Connection, clusterName string, e
 		fmt.Printf("failed to create bootstrap OSD keyring dir at %s: %+v", bootstrapOSDKeyringDir, err)
 	}
 	bootstrapOSDKeyring := fmt.Sprintf(bootstrapOSDKeyringTemplate, bootstrapOSDKey)
+	log.Printf("Writing osd keyring to: %s", bootstrapOSDKeyring)
 	if err := ioutil.WriteFile(bootstrapOSDKeyringPath, []byte(bootstrapOSDKeyring), 0644); err != nil {
 		return fmt.Errorf("failed to write bootstrap-osd keyring to %s: %+v", bootstrapOSDKeyringPath, err)
 	}
@@ -173,7 +174,11 @@ func mountOSD(device string, mountPath string, executor proc.Executor) error {
 			return fmt.Errorf("command %s failed: %+v", cmd, err)
 		}
 
-		if diskUUID != "" {
+		if diskUUID == "skip-UUID-verification" {
+			// skip verifying the uuid during tests
+			break
+
+		} else if diskUUID != "" {
 			// we got the UUID from the disk.  Verify this UUID is up to date in the /dev/disk/by-uuid dir by
 			// checking for it multiple times in a row.  For an existing device, the device UUID and the
 			// by-uuid link can take a bit to get updated after getting formatted.  Increase our confidence
