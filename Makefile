@@ -35,6 +35,7 @@ endif
 # the binary size is going to be much larger.
 DEBUG ?= 0
 
+ALLOCATOR ?= tcmalloc_minimal
 CCACHE ?= 1
 
 # turn on more verbose build
