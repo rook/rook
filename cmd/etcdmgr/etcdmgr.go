@@ -38,6 +38,7 @@ func main() {
 
 	flag.Parse()
 
+	conf.InstanceName = instanceName
 	conf.ListenPeerURLs = parseURLs(listenPeerURLs)
 	conf.ListenClientURLs = parseURLs(listenClientURLs)
 	conf.AdvertisePeerURLs = parseURLs(advertisePeerURLs)
