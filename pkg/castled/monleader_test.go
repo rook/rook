@@ -40,6 +40,7 @@ func TestMonSelection(t *testing.T) {
 	assert.Equal(t, "mon0", chosen["a"].Name)
 	assert.True(t, chosen["b"].Name == "mon1" || chosen["b"].Name == "mon2")
 	assert.True(t, chosen["c"].Name == "mon1" || chosen["c"].Name == "mon2")
+	assert.NotEqual(t, chosen["b"].Name, chosen["c"].Name)
 
 	// remove a node, then check that with four nodes we only go to three monitors
 	etcdClient.DeleteDir("/castle/services/ceph/monitor/desired/c")

@@ -3,11 +3,38 @@ package castled
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/quantum/castle/pkg/testceph"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestOSDBootstrap(t *testing.T) {
+	clusterName := "mycluster"
+	targetPath := getBootstrapOSDKeyringPath(clusterName)
+	defer os.Remove(targetPath)
+
+	factory := &testceph.MockConnectionFactory{}
+	conn, _ := factory.NewConnWithClusterAndUser(clusterName, "user")
+	conn.(*testceph.MockConnection).MockMonCommand = func(buf []byte) (buffer []byte, info string, err error) {
+		response := "{\"key\":\"mysecurekey\"}"
+		log.Printf("Returning: %s", response)
+		return []byte(response), "", nil
+	}
+
+	err := createOSDBootstrapKeyring(conn, clusterName)
+	assert.Nil(t, err)
+
+	contents, err := ioutil.ReadFile(targetPath)
+	assert.Nil(t, err)
+	assert.NotEqual(t, -1, strings.Index(string(contents), "[client.bootstrap-osd]"))
+	assert.NotEqual(t, -1, strings.Index(string(contents), "key = mysecurekey"))
+	assert.NotEqual(t, -1, strings.Index(string(contents), "caps mon = \"allow profile bootstrap-osd\""))
+}
 
 func TestCrushMap(t *testing.T) {
 

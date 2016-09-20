@@ -122,7 +122,7 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 	// Select nodes and assign them a monitor ID
 	nextMonID, err := getMaxMonitorID(monitors)
 	if err != nil {
-		return monitors, fmt.Errorf("cannot config monitors. %v", err)
+		return monitors, fmt.Errorf("failed to get max monitor id. %v", err)
 	}
 
 	// increment the id because we were actually given the max known id above and we need the next desired id

@@ -8,9 +8,6 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"time"
-
-	ctx "golang.org/x/net/context"
 
 	"github.com/quantum/castle/pkg/cephclient"
 	"github.com/quantum/castle/pkg/clusterd"
@@ -70,31 +67,6 @@ func (a *monAgent) ConfigureLocalService(context *clusterd.Context) error {
 }
 
 func (a *monAgent) DestroyLocalService(context *clusterd.Context) error {
-	return nil
-}
-
-// wait for all expected initial monitors to register (report their names/endpoints)
-func (a *monAgent) waitForMonitorRegistration(context *clusterd.Context, monName string) error {
-	key := getMonitorEndpointKey(monName)
-
-	retryCount := 0
-	retryMax := 40
-	sleepTime := 5
-	for {
-		resp, err := context.EtcdClient.Get(ctx.Background(), key, nil)
-		if err == nil && resp != nil && resp.Node != nil && resp.Node.Value != "" {
-			log.Printf("monitor %s registered at %s", monName, resp.Node.Value)
-			break
-		}
-
-		retryCount++
-		if retryCount > retryMax {
-			return fmt.Errorf("exceeded max retry count waiting for monitor %s to register", monName)
-		}
-
-		<-time.After(time.Duration(sleepTime) * time.Second)
-	}
-
 	return nil
 }
 
