@@ -1,4 +1,4 @@
-package testceph
+package test
 
 import (
 	"strings"

@@ -104,7 +104,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 
 	go func() {
 		// set up routes and start HTTP server for REST API
-		h := api.NewHandler(context.EtcdClient)
+		h := api.NewHandler(context.EtcdClient, castled.NewConnectionFactory(), cephd.New())
 		r := api.NewRouter(h.GetRoutes())
 		if err := http.ListenAndServe(":8124", r); err != nil {
 			log.Printf("API server error: %+v", err)

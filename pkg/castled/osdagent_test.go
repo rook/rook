@@ -9,10 +9,10 @@ import (
 	"path"
 	"testing"
 
+	testceph "github.com/quantum/castle/pkg/cephclient/test"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/proc"
-	"github.com/quantum/castle/pkg/testceph"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -131,7 +131,7 @@ func TestOSDAgent(t *testing.T) {
 	etcdClient.CreateDir(key)
 
 	// prep the etcd keys as if the leader initiated the orchestration
-	cluster := &clusterInfo{FSID: "id", MonitorSecret: "monsecret", AdminSecret: "adminsecret", Name: clusterName}
+	cluster := &ClusterInfo{FSID: "id", MonitorSecret: "monsecret", AdminSecret: "adminsecret", Name: clusterName}
 	saveClusterInfo(cluster, etcdClient)
 	monKey := path.Join(cephKey, monitorKey, desiredKey, context.NodeID)
 	etcdClient.SetValue(path.Join(monKey, "id"), "1")

@@ -25,7 +25,7 @@ const (
 )
 
 type osdAgent struct {
-	cluster     *clusterInfo
+	cluster     *ClusterInfo
 	devices     []string
 	forceFormat bool
 	location    *CrushLocation
@@ -53,7 +53,7 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 		return nil
 	}
 
-	a.cluster, err = loadClusterInfo(context.EtcdClient)
+	a.cluster, err = LoadClusterInfo(context.EtcdClient)
 	if err != nil {
 		return fmt.Errorf("failed to load cluster info: %v", err)
 	}
@@ -63,7 +63,7 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 	}
 
 	// Connect to the ceph cluster
-	adminConn, err := connectToClusterAsAdmin(a.factory, a.cluster)
+	adminConn, err := ConnectToClusterAsAdmin(a.factory, a.cluster)
 	if err != nil {
 		return err
 	}

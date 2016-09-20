@@ -303,7 +303,7 @@ func getOSDInfo(osdDataPath string) (int, uuid.UUID, error) {
 	return osdID, osdUUID, nil
 }
 
-func initializeOSD(factory cephclient.ConnectionFactory, context *clusterd.Context, osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn cephclient.Connection, cluster *clusterInfo, location *CrushLocation) (string, error) {
+func initializeOSD(factory cephclient.ConnectionFactory, context *clusterd.Context, osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn cephclient.Connection, cluster *ClusterInfo, location *CrushLocation) (string, error) {
 	// ensure that the OSD data directory is created
 	osdDataPath := filepath.Join(osdDataDir, fmt.Sprintf("%s-%d", cluster.Name, osdID))
 	if err := os.MkdirAll(osdDataPath, 0777); err != nil {

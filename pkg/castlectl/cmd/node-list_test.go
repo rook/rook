@@ -6,14 +6,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/quantum/castle/pkg/castlectl/client"
 	"github.com/quantum/castle/pkg/castlectl/test"
+	"github.com/quantum/castle/pkg/model"
 )
 
 func TestListNodes(t *testing.T) {
 	c := &test.MockCastleRestClient{
-		MockGetNodes: func() ([]client.Node, error) {
-			nodes := []client.Node{
+		MockGetNodes: func() ([]model.Node, error) {
+			nodes := []model.Node{
 				{NodeID: "node1", IPAddress: "10.0.0.100", Storage: 100},
 			}
 			return nodes, nil
@@ -27,7 +27,7 @@ func TestListNodes(t *testing.T) {
 
 func TestListNodesError(t *testing.T) {
 	c := &test.MockCastleRestClient{
-		MockGetNodes: func() ([]client.Node, error) {
+		MockGetNodes: func() ([]model.Node, error) {
 			return nil, fmt.Errorf("mock get nodes failed")
 		},
 	}

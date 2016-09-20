@@ -20,7 +20,7 @@ const (
 	appliedKey       = "applied"
 )
 
-type clusterInfo struct {
+type ClusterInfo struct {
 	FSID          string
 	MonitorSecret string
 	AdminSecret   string
@@ -41,7 +41,7 @@ func NewCephService(factory cephclient.ConnectionFactory, devices string, forceF
 }
 
 // attempt to load any previously created and saved cluster info
-func loadClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
+func LoadClusterInfo(etcdClient etcd.KeysAPI) (*ClusterInfo, error) {
 	resp, err := etcdClient.Get(ctx.Background(), path.Join(cephKey, "fsid"), nil)
 	if err != nil {
 		if util.IsEtcdKeyNotFound(err) {
@@ -71,7 +71,7 @@ func loadClusterInfo(etcdClient etcd.KeysAPI) (*clusterInfo, error) {
 	}
 	adminSecret := resp.Node.Value
 
-	cluster := &clusterInfo{
+	cluster := &ClusterInfo{
 		FSID:          fsid,
 		MonitorSecret: monSecret,
 		AdminSecret:   adminSecret,
