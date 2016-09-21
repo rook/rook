@@ -1,5 +1,7 @@
 package inventory
 
+import "time"
+
 type DiskType int
 
 const (
@@ -27,6 +29,7 @@ type NodeConfig struct {
 	Memory          MemoryConfig      `json:"memory"`
 	NetworkAdapters []NetworkConfig   `json:"networkAdapters"`
 	IPAddress       string            `json:"ipAddr"`
+	HeartbeatAge    time.Duration     `json:heartbeatAge`
 }
 
 type DiskConfig struct {

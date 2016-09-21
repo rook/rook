@@ -185,8 +185,8 @@ func TestElectLeaderHeartbeatSucceeds(t *testing.T) {
 	err := clusterMember.ElectLeader()
 
 	assert.Nil(t, err)
-	assert.Equal(t, fmt.Sprintf(inventory.DiscoveredNodesHealthKey+"/%s/heartbeat", context.NodeID), actualKey)
-	assert.Equal(t, uint64(HeartbeatTtlSeconds), actualTtl)
+	assert.Equal(t, fmt.Sprintf(inventory.NodesHealthKey+"/%s/heartbeat", context.NodeID), actualKey)
+	assert.Equal(t, uint64(heartbeatTtlSeconds), actualTtl)
 }
 
 func TestElectLeaderRenewal(t *testing.T) {
@@ -427,7 +427,7 @@ func TestSimpleMembershipChangeWatching(t *testing.T) {
 	}
 
 	machineIds := []string{context.NodeID}
-	etcdClient.SetValue(path.Join(inventory.DiscoveredNodesKey, context.NodeID, "ipaddress"), "5.1.2.3")
+	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, context.NodeID, "ipaddress"), "5.1.2.3")
 	setupGetMachineIds(etcdClient, machineIds)
 
 	// set up a mock watcher that the cluster leader will use
@@ -437,9 +437,9 @@ func TestSimpleMembershipChangeWatching(t *testing.T) {
 			// wait for the test to send a new member ID to the channel, then return an etcd response
 			// to caller of the watcher simulating the new machine has joined the cluster
 			newMemberId := <-newMemberChannel
-			key := path.Join(inventory.DiscoveredNodesKey, newMemberId)
+			key := path.Join(inventory.NodesConfigKey, newMemberId)
 			etcdClient.SetValue(path.Join(key, "ipaddress"), "10.1.2.3")
-			return &etcd.Response{Action: CreateAction, Node: &etcd.Node{Key: key}}, nil
+			return &etcd.Response{Action: createAction, Node: &etcd.Node{Key: key}}, nil
 		},
 	}
 	etcdClient.MockWatcher = func(key string, opts *etcd.WatcherOptions) etcd.Watcher { return membershipWatcher }
@@ -466,10 +466,10 @@ func TestSimpleMembershipChangeWatching(t *testing.T) {
 
 func TestMembershipChangeWatchFiltering(t *testing.T) {
 	// none of the following etcd keys/actions should result in a new cluster member being detected
-	testMembershipChangeWatchFilteringHelper(t, "/castle/resources/", SetAction)
-	testMembershipChangeWatchFilteringHelper(t, "/castle/resources/discovered/nodes", SetAction)
-	testMembershipChangeWatchFilteringHelper(t, inventory.DiscoveredNodesKey+"/123", "update")
-	testMembershipChangeWatchFilteringHelper(t, inventory.DiscoveredNodesKey+"/123/foo", "update")
+	testMembershipChangeWatchFilteringHelper(t, "/castle/resources/", setAction)
+	testMembershipChangeWatchFilteringHelper(t, "/castle/resources/discovered/nodes", setAction)
+	testMembershipChangeWatchFilteringHelper(t, inventory.NodesConfigKey+"/123", "update")
+	testMembershipChangeWatchFilteringHelper(t, inventory.NodesConfigKey+"/123/foo", "update")
 }
 
 func testMembershipChangeWatchFilteringHelper(t *testing.T, key string, action string) {
@@ -518,14 +518,14 @@ func testMembershipChangeWatchFilteringHelper(t *testing.T, key string, action s
 // this test is to ensure that a cluster member listens to changes in etcd that trigger a hardware detection
 func TestHardwareDetectionTrigger(t *testing.T) {
 	etcdClient, context, mockLeaseManager, leader := createDefaultDependencies()
-	key := path.Join(inventory.DiscoveredNodesKey, context.NodeID, "trigger-hardware-detection")
+	key := path.Join(inventory.NodesConfigKey, context.NodeID, "trigger-hardware-detection")
 	nextCount := 0
 	hardwareWatcher := &util.MockWatcher{
 		MockNext: func(c ctx.Context) (*etcd.Response, error) {
 			nextCount++
 			if nextCount <= 2 {
 				// the first/second time, return a "set" on the given trigger hardware detection key
-				return &etcd.Response{Action: SetAction, Node: &etcd.Node{Key: key}}, nil
+				return &etcd.Response{Action: setAction, Node: &etcd.Node{Key: key}}, nil
 			}
 
 			// every other time, return cancelled so the wait for hardware change notifications loop breaks
@@ -545,7 +545,7 @@ func TestHardwareDetectionTrigger(t *testing.T) {
 	clusterMember := newClusterMember(context, mockLeaseManager, leader)
 
 	// wait for hardware changes, which should get triggered twice
-	clusterMember.WaitForHardwareChangeNotifications()
+	clusterMember.waitForHardwareChangeNotifications()
 
 	// verify that the hardware detection trigger key was deleted each time too
 	assert.Equal(t, 2, len(deletedKeys))
@@ -628,7 +628,7 @@ func acquireLeaseSuccessfully(name, machID string, ver int, period time.Duration
 }
 
 func setupGetMachineIds(etcdClient *util.MockEtcdClient, machineIds []string) {
-	etcdClient.CreateDirs(inventory.DiscoveredNodesKey, util.CreateSet(machineIds))
+	etcdClient.CreateDirs(inventory.NodesConfigKey, util.CreateSet(machineIds))
 }
 
 func setupAndRunAcquireLeaseScenario(t *testing.T) (*ClusterMember, *mockLeaseManager, string) {
@@ -652,9 +652,10 @@ func setupAndRunAcquireLeaseScenario(t *testing.T) (*ClusterMember, *mockLeaseMa
 //
 // ************************************************************************************************
 type testServiceLeader struct {
-	events    chan LeaderEvent
-	nodeAdded func(nodeID string)
-	refresh   func()
+	events        chan LeaderEvent
+	nodeAdded     func(nodeID string)
+	refresh       func()
+	unhealthyNode func(nodes []*UnhealthyNode)
 }
 
 func newTestServiceLeader() *testServiceLeader {
@@ -693,8 +694,10 @@ func (t *testServiceLeader) handleOrchestratorEvents() {
 				t.nodeAdded(nodeAdded.Nodes()[0])
 			}
 
-		} else if _, ok := e.(*StaleNodeEvent); ok {
-			// TODO
+		} else if event, ok := e.(*UnhealthyNodeEvent); ok {
+			if t.unhealthyNode != nil {
+				t.unhealthyNode(event.Nodes())
+			}
 		}
 	}
 }

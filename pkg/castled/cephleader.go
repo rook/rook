@@ -48,8 +48,8 @@ func (c *cephLeader) handleOrchestratorEvents() {
 			nodesToRefresh = getSlice(e.Context().Inventory.Nodes)
 		} else if nodeAdded, ok := e.(*clusterd.AddNodeEvent); ok {
 			nodesToRefresh = nodeAdded.Nodes()
-		} else if _, ok := e.(*clusterd.StaleNodeEvent); ok {
-			// TODO: Move a monitor to another node and/or declare OSDs dead
+		} else if _, ok := e.(*clusterd.UnhealthyNodeEvent); ok {
+			log.Printf("Found unhealthy nodes for CEPH to deal with!")
 		}
 
 		if nodesToRefresh != nil {

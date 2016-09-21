@@ -4,6 +4,7 @@ import (
 	"path"
 	"strconv"
 	"testing"
+	"time"
 
 	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
@@ -12,35 +13,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestGetIpAddress(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
-
-	nodeId := "123"
-	desiredIpaddress := "1.2.3.23"
-
-	ipaddress, err := GetIpAddress(etcdClient, nodeId)
-	assert.Equal(t, "", ipaddress)
-	assert.Equal(t, "Key not found (value not found)", err.Error())
-
-	err = SetIpAddress(etcdClient, nodeId, desiredIpaddress)
-
-	assert.Equal(t, desiredIpaddress, etcdClient.GetValue(path.Join(DiscoveredNodesKey, nodeId, "ipaddress")))
-	ipaddress, err = GetIpAddress(etcdClient, nodeId)
-	assert.Equal(t, desiredIpaddress, ipaddress)
-	assert.Nil(t, err)
-}
-
 func TestLoadDiscoveredNodes(t *testing.T) {
 	etcdClient := &util.MockEtcdClient{}
 
 	// Create some test config
-	etcdClient.SetValue(path.Join(DiscoveredNodesKey, "23", "ipaddress"), "1.2.3.4")
-	etcdClient.SetValue(path.Join(DiscoveredNodesKey, "46", "ipaddress"), "4.5.6.7")
+	etcdClient.SetValue(path.Join(NodesConfigKey, "23", "ipaddress"), "1.2.3.4")
+	etcdClient.SetValue(path.Join(NodesConfigKey, "46", "ipaddress"), "4.5.6.7")
 
 	config, err := LoadDiscoveredNodes(etcdClient)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(config.Nodes))
 	assert.Equal(t, "1.2.3.4", config.Nodes["23"].IPAddress)
+	assert.Equal(t, "4.5.6.7", config.Nodes["46"].IPAddress)
+	assert.Equal(t, time.Hour*24*365, config.Nodes["23"].HeartbeatAge) // no heartbeat has an age of a year
+
+	desiredIpaddress := "9.8.7.6"
+	err = SetIPAddress(etcdClient, "23", desiredIpaddress)
+	assert.Nil(t, err)
+
+	config, err = LoadDiscoveredNodes(etcdClient)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(config.Nodes))
+	assert.Equal(t, "9.8.7.6", config.Nodes["23"].IPAddress)
 	assert.Equal(t, "4.5.6.7", config.Nodes["46"].IPAddress)
 }
 
@@ -49,7 +43,7 @@ func TestLoadHardwareConfig(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 
 	// set up the hardware date in etcd
-	hardwareKey := path.Join(DiscoveredNodesKey, machineId)
+	hardwareKey := path.Join(NodesConfigKey, machineId)
 	etcdClient.CreateDir(hardwareKey)
 
 	// setup disk info in etcd
@@ -80,7 +74,7 @@ func TestLoadHardwareConfig(t *testing.T) {
 	netsConfig[1] = setNetInfo(etcdClient, netKey, "veth2b6453a", "", "fe80::7c0f:acff:feff:478d/64", 10000)
 
 	// set IP address in etcd
-	SetIpAddress(etcdClient, machineId, "10.0.0.43")
+	SetIPAddress(etcdClient, machineId, "10.0.0.43")
 
 	// load the discovered node config
 	nodeConfig, err := loadNodeConfig(etcdClient)
@@ -204,7 +198,7 @@ func verifyNetworkConfig(t *testing.T, nodeConfig *NodeConfig, expectedNetsConfi
 func TestGetSimpleDiskPropertiesFromSerial(t *testing.T) {
 	nodeID := "df1c87e8266843f2ab822c0d72f584d3"
 	etcdClient := &util.MockEtcdClient{}
-	hardwareKey := path.Join(DiscoveredNodesKey, nodeID)
+	hardwareKey := path.Join(NodesConfigKey, nodeID)
 	etcdClient.Set(ctx.Background(), hardwareKey, "", &etcd.SetOptions{Dir: true})
 	TestSetDiskInfo(etcdClient, hardwareKey, "MB2CK3F6S5041EPCPJ4T", "sda", "506d4869-29ee-4bfd-bf21-dfd597bd222e",
 		10737418240, true, false, "btrfs", "/mnt/abc", Disk, "", true)

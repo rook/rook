@@ -1,12 +1,10 @@
 package clusterd
 
-import "time"
-
 const (
-	RefreshEventName    = "refresh"
-	AddNodeEventName    = "add-node"
-	RemoveNodeEventName = "remove-node"
-	StaleNodeEventName  = "stale-node"
+	RefreshEventName       = "refresh"
+	AddNodeEventName       = "add-node"
+	RemoveNodeEventName    = "remove-node"
+	UnhealthyNodeEventName = "unhealthy-node"
 )
 
 // LeaderEvent interface implemented by all events
@@ -69,25 +67,26 @@ func (e *RemoveNodeEvent) Context() *Context {
 	return e.context
 }
 
-// StaleNode event. The node has not heartbeated recently.
-type StaleNodeEvent struct {
-	nodes   []string
+// UnhealthyNode event. The node has not heartbeated recently.
+type UnhealthyNodeEvent struct {
+	nodes   []*UnhealthyNode
 	context *Context
-	age     time.Duration
 }
 
-func NewStaleNodeEvent(c *Context, nodes []string, age time.Duration) *StaleNodeEvent {
-	return &StaleNodeEvent{context: c, nodes: nodes, age: age}
+func NewUnhealthyNodeEvent(c *Context, nodes []*UnhealthyNode) *UnhealthyNodeEvent {
+	return &UnhealthyNodeEvent{context: c, nodes: nodes}
 }
-func (e *StaleNodeEvent) Name() string {
-	return StaleNodeEventName
+func (e *UnhealthyNodeEvent) Name() string {
+	return UnhealthyNodeEventName
 }
-func (e *StaleNodeEvent) Nodes() []string {
+func (e *UnhealthyNodeEvent) Nodes() []*UnhealthyNode {
 	return e.nodes
 }
-func (e *StaleNodeEvent) Context() *Context {
+func (e *UnhealthyNodeEvent) Context() *Context {
 	return e.context
 }
-func (e *StaleNodeEvent) Age() time.Duration {
-	return e.age
+
+type UnhealthyNode struct {
+	AgeSeconds int
+	NodeID     string
 }

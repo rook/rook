@@ -38,8 +38,8 @@ func TestGetNodesHandler(t *testing.T) {
 	assert.Equal(t, `[]`, w.Body.String())
 
 	// set up a discovered node in etcd
-	inventory.SetIpAddress(etcdClient, "node1", "10.0.0.11")
-	nodeConfigKey := path.Join(inventory.DiscoveredNodesKey, "node1")
+	inventory.SetIPAddress(etcdClient, "node1", "10.0.0.11")
+	nodeConfigKey := path.Join(inventory.NodesConfigKey, "node1")
 	etcdClient.CreateDir(nodeConfigKey)
 	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "MB2CK3F6S5041EPCPJ4T", "sda", "506d4869-29ee-4bfd-bf21-dfd597bd222e",
 		100, true, false, "btrfs", "/mnt/abc", inventory.Disk, "", false)
