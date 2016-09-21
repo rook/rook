@@ -5,11 +5,15 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/quantum/castle/pkg/model"
 )
 
 type CastleRestClient interface {
 	URL() string
-	GetNodes() ([]Node, error)
+	GetNodes() ([]model.Node, error)
+	GetPools() ([]model.Pool, error)
+	CreatePool(pool model.Pool) (string, error)
 }
 
 type CastleNetworkRestClient struct {
@@ -25,7 +29,7 @@ func NewCastleNetworkRestClient(url string, httpClient *http.Client) *CastleNetw
 }
 
 func GetRestURL(endPoint string) string {
-	return fmt.Sprintf("http://%s/", endPoint)
+	return fmt.Sprintf("http://%s", endPoint)
 }
 
 type CastleRestError struct {
@@ -46,8 +50,8 @@ func (a *CastleNetworkRestClient) DoGet(query string) ([]byte, error) {
 	return a.Do("GET", query, nil)
 }
 
-func (a *CastleNetworkRestClient) DoPut(query string, body io.Reader) ([]byte, error) {
-	return a.Do("PUT", query, body)
+func (a *CastleNetworkRestClient) DoPost(query string, body io.Reader) ([]byte, error) {
+	return a.Do("POST", query, body)
 }
 
 func (a *CastleNetworkRestClient) Do(method, query string, body io.Reader) ([]byte, error) {

@@ -1,20 +1,22 @@
 package client
 
-import "encoding/json"
+import (
+	"encoding/json"
 
-type Node struct {
-	NodeID    string `json:"nodeID"`
-	IPAddress string `json:"ipAddr"`
-	Storage   uint64 `json:"storage"`
-}
+	"github.com/quantum/castle/pkg/model"
+)
 
-func (a *CastleNetworkRestClient) GetNodes() ([]Node, error) {
-	body, err := a.DoGet("node")
+const (
+	NodeQueryName = "node"
+)
+
+func (a *CastleNetworkRestClient) GetNodes() ([]model.Node, error) {
+	body, err := a.DoGet(NodeQueryName)
 	if err != nil {
 		return nil, err
 	}
 
-	var nodes []Node
+	var nodes []model.Node
 	err = json.Unmarshal(body, &nodes)
 	if err != nil {
 		return nil, err

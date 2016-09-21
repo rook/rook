@@ -23,7 +23,7 @@ const (
 
 // Create the ceph monitors
 // Must be idempotent
-func configureMonitors(factory cephclient.ConnectionFactory, context *clusterd.Context, cluster *clusterInfo) error {
+func configureMonitors(factory cephclient.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
 	log.Printf("Creating monitors with %d nodes available", len(context.Inventory.Nodes))
 
 	// Choose the nodes where the monitors will run
@@ -209,10 +209,10 @@ func calculateMonitorCount(nodeCount int) int {
 	}
 }
 
-func waitForQuorum(factory cephclient.ConnectionFactory, context *clusterd.Context, cluster *clusterInfo) error {
+func waitForQuorum(factory cephclient.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
 
 	// open an admin connection to the clufster
-	adminConn, err := connectToClusterAsAdmin(factory, cluster)
+	adminConn, err := ConnectToClusterAsAdmin(factory, cluster)
 	if err != nil {
 		return err
 	}

@@ -25,4 +25,5 @@ func Execute() error {
 
 func addCommands() {
 	rootCmd.AddCommand(nodeCmd)
+	rootCmd.AddCommand(poolCmd)
 }

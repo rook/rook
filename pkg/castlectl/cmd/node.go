@@ -8,5 +8,5 @@ var nodeCmd = &cobra.Command{
 }
 
 func init() {
-	nodeCmd.AddCommand(lsCmd)
+	nodeCmd.AddCommand(nodeListCmd)
 }

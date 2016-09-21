@@ -39,7 +39,7 @@ func (a *monAgent) ConfigureLocalService(context *clusterd.Context) error {
 		return nil
 	}
 
-	cluster, err := loadClusterInfo(context.EtcdClient)
+	cluster, err := LoadClusterInfo(context.EtcdClient)
 	if err != nil {
 		return fmt.Errorf("failed to load cluster info: %+v", err)
 	}
@@ -71,7 +71,7 @@ func (a *monAgent) DestroyLocalService(context *clusterd.Context) error {
 }
 
 // creates and initializes the given monitors file systems
-func (a *monAgent) makeMonitorFileSystem(context *clusterd.Context, cluster *clusterInfo, monName string) error {
+func (a *monAgent) makeMonitorFileSystem(context *clusterd.Context, cluster *ClusterInfo, monName string) error {
 	// write the keyring to disk
 	if err := writeMonitorKeyring(monName, cluster); err != nil {
 		return err
@@ -106,7 +106,7 @@ func (a *monAgent) makeMonitorFileSystem(context *clusterd.Context, cluster *clu
 }
 
 // runs the monitor in a child process
-func (a *monAgent) runMonitor(context *clusterd.Context, cluster *clusterInfo, monitor *CephMonitorConfig) error {
+func (a *monAgent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, monitor *CephMonitorConfig) error {
 	if monitor.Endpoint == "" {
 		return fmt.Errorf("missing endpoint for mon %s", monitor.Name)
 	}
@@ -132,7 +132,7 @@ func (a *monAgent) runMonitor(context *clusterd.Context, cluster *clusterInfo, m
 }
 
 // writes the monitor keyring to disk
-func writeMonitorKeyring(monName string, c *clusterInfo) error {
+func writeMonitorKeyring(monName string, c *ClusterInfo) error {
 	keyring := fmt.Sprintf(monitorKeyringTemplate, c.MonitorSecret, c.AdminSecret)
 	keyringPath := getMonKeyringPath(monName)
 	if err := os.MkdirAll(filepath.Dir(keyringPath), 0744); err != nil {

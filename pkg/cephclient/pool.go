@@ -35,7 +35,7 @@ func ListPools(conn Connection) ([]CephStoragePool, error) {
 	return pools, nil
 }
 
-func CreatePool(conn Connection, name string) error {
+func CreatePool(conn Connection, name string) (string, error) {
 	cmd := "osd pool create"
 	command, err := json.Marshal(map[string]interface{}{
 		"prefix": cmd,
@@ -43,15 +43,15 @@ func CreatePool(conn Connection, name string) error {
 		"pool":   name,
 	})
 	if err != nil {
-		return fmt.Errorf("command %s marshall failed: %+v", cmd, err)
+		return "", fmt.Errorf("command %s marshall failed: %+v", cmd, err)
 	}
 
 	buf, info, err := conn.MonCommand(command)
 	if err != nil {
-		return fmt.Errorf("mon_command %s failed: %+v", cmd, err)
+		return "", fmt.Errorf("mon_command %s failed: %+v", cmd, err)
 	}
 
 	log.Printf("command %s succeeded, info: %s, buf: %s", cmd, info, string(buf[:]))
 
-	return nil
+	return info, nil
 }

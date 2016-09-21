@@ -2,21 +2,29 @@ package api
 
 import (
 	"encoding/json"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 
 	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/castled"
+	"github.com/quantum/castle/pkg/cephclient"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
+	"github.com/quantum/castle/pkg/model"
 )
 
 type Handler struct {
-	EtcdClient etcd.KeysAPI
+	EtcdClient        etcd.KeysAPI
+	ConnectionFactory castled.ConnectionFactory
+	CephFactory       cephclient.ConnectionFactory
 }
 
-func NewHandler(etcdClient etcd.KeysAPI) *Handler {
+func NewHandler(etcdClient etcd.KeysAPI, connFactory castled.ConnectionFactory, cephFactory cephclient.ConnectionFactory) *Handler {
 	return &Handler{
-		EtcdClient: etcdClient,
+		EtcdClient:        etcdClient,
+		ConnectionFactory: connFactory,
+		CephFactory:       cephFactory,
 	}
 }
 
@@ -45,7 +53,7 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	nodes := make([]Node, len(clusterInventory.Nodes))
+	nodes := make([]model.Node, len(clusterInventory.Nodes))
 	i := 0
 	for nodeID, n := range clusterInventory.Nodes {
 		// look up all the disks that the current node has applied OSDs on
@@ -66,7 +74,7 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		nodes[i] = Node{
+		nodes[i] = model.Node{
 			NodeID:    nodeID,
 			IPAddress: n.IPAddress,
 			Storage:   storage,
@@ -76,4 +84,83 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	FormatJsonResponse(w, nodes)
+}
+
+// Gets the storage pools that have been created in this cluster.
+// GET
+// /pool
+func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
+	adminConn, ok := h.connectToCeph(w)
+	if !ok {
+		return
+	}
+	defer adminConn.Shutdown()
+
+	// list pools using the ceph client
+	cephPools, err := cephclient.ListPools(adminConn)
+	if err != nil {
+		log.Printf("failed to list pools: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// convert ceph pools to model pools
+	pools := make([]model.Pool, len(cephPools))
+	for i, p := range cephPools {
+		pools[i] = model.Pool{
+			Name:   p.Name,
+			Number: p.Number,
+		}
+	}
+
+	FormatJsonResponse(w, pools)
+}
+
+// Creates a storage pool as specified by the request body.
+// POST
+// /pool
+func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
+	// read/unmarshal the new pool to create from the request body
+	var newPool model.Pool
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1024))
+	if err == nil {
+		r.Body.Close()
+	} else {
+		log.Printf("failed to read create pool request body: %+v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := json.Unmarshal(body, &newPool); err != nil {
+		log.Printf("failed to unmarshal create pool request body '%s': %+v", string(body), err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	// connect to the ceph cluster and create the storage pool
+	adminConn, ok := h.connectToCeph(w)
+	if !ok {
+		return
+	}
+	defer adminConn.Shutdown()
+
+	info, err := cephclient.CreatePool(adminConn, newPool.Name)
+	if err != nil {
+		log.Printf("failed to create new pool '%+v': %+v", newPool, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(info))
+}
+
+func (h *Handler) connectToCeph(w http.ResponseWriter) (cephclient.Connection, bool) {
+	adminConn, err := h.ConnectionFactory.ConnectAsAdmin(h.CephFactory, h.EtcdClient)
+	if err != nil {
+		log.Printf("failed to connect to cluster as admin: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return nil, false
+	}
+
+	return adminConn, true
 }

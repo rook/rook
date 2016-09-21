@@ -6,9 +6,9 @@ import (
 	"path"
 	"testing"
 
+	testceph "github.com/quantum/castle/pkg/cephclient/test"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/proc"
-	"github.com/quantum/castle/pkg/testceph"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 )

@@ -8,5 +8,17 @@ func (h *Handler) GetRoutes() []Route {
 			"/node",
 			h.GetNodes,
 		},
+		{
+			"GetPools",
+			"GET",
+			"/pool",
+			h.GetPools,
+		},
+		{
+			"CreatePool",
+			"POST",
+			"/pool",
+			h.CreatePool,
+		},
 	}
 }

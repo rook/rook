@@ -7,16 +7,19 @@ import (
 	"net/url"
 	"testing"
 
+	"github.com/quantum/castle/pkg/model"
 	"github.com/stretchr/testify/assert"
 )
 
 const (
-	SuccessCastleGetNodesContent = `[{"nodeID": "node1","ipAddr": "10.0.0.100","storage": 100},{"nodeID": "node2","ipAddr": "10.0.0.101","storage": 200}]`
+	SuccessCastleGetNodesContent   = `[{"nodeID": "node1","ipAddr": "10.0.0.100","storage": 100},{"nodeID": "node2","ipAddr": "10.0.0.101","storage": 200}]`
+	SuccessCastleGetPoolsContent   = `[{"poolname":"pool1","poolnum":1},{"poolname":"pool50","poolnum":50}]`
+	SuccessCastleCreatePoolContent = `created pool1 successfully`
 )
 
 func TestURL(t *testing.T) {
 	client := NewCastleNetworkRestClient(GetRestURL("10.0.1.2:8124"), http.DefaultClient)
-	assert.Equal(t, "http://10.0.1.2:8124/", client.URL())
+	assert.Equal(t, "http://10.0.1.2:8124", client.URL())
 }
 
 func TestCastleRestError(t *testing.T) {
@@ -36,7 +39,7 @@ func TestGetNodes(t *testing.T) {
 	assert.NotNil(t, getNodesResponse)
 	assert.Equal(t, 2, len(getNodesResponse))
 
-	var testNode Node
+	var testNode model.Node
 	for i := range getNodesResponse {
 		if getNodesResponse[i].NodeID == "node1" {
 			testNode = getNodesResponse[i]
@@ -49,19 +52,82 @@ func TestGetNodes(t *testing.T) {
 	assert.Equal(t, uint64(100), testNode.Storage)
 }
 
+func TestGetPools(t *testing.T) {
+	mockServer := NewMockHttpServer(200, SuccessCastleGetPoolsContent)
+	defer mockServer.Close()
+	mockHttpClient := NewMockHttpClient(mockServer.URL)
+	client := NewCastleNetworkRestClient(mockServer.URL, mockHttpClient)
+
+	// invoke the GetPools method that will use our mock http client/server to return a successful response
+	getPoolsResponse, err := client.GetPools()
+	assert.Nil(t, err)
+	assert.NotNil(t, getPoolsResponse)
+	assert.Equal(t, 2, len(getPoolsResponse))
+
+	var testPool model.Pool
+	for i := range getPoolsResponse {
+		if getPoolsResponse[i].Name == "pool1" {
+			testPool = getPoolsResponse[i]
+			break
+		}
+	}
+
+	assert.NotNil(t, testPool)
+	assert.Equal(t, 1, testPool.Number)
+}
+
+func TestCreatePool(t *testing.T) {
+	mockServer := NewMockHttpServer(200, SuccessCastleCreatePoolContent)
+	defer mockServer.Close()
+	mockHttpClient := NewMockHttpClient(mockServer.URL)
+	client := NewCastleNetworkRestClient(mockServer.URL, mockHttpClient)
+
+	// invoke the CreatePool method that will use our mock http client/server to return a successful response
+	createPoolResponse, err := client.CreatePool(model.Pool{Name: "pool1"})
+	assert.Nil(t, err)
+	assert.Equal(t, "created pool1 successfully\n", createPoolResponse)
+}
+
 func TestGetNodesFailure(t *testing.T) {
 	ClientFailureHelper(t, func(client CastleRestClient) (interface{}, error) { return client.GetNodes() })
 }
 
-func ClientFailureHelper(t *testing.T, ClientFunc func(CastleRestClient) (interface{}, error)) {
+func TestGetPoolsFailure(t *testing.T) {
+	ClientFailureHelper(t, func(client CastleRestClient) (interface{}, error) { return client.GetPools() })
+}
+
+func TestCreatePoolFailure(t *testing.T) {
+	clientFunc := func(client CastleRestClient) (interface{}, error) {
+		return client.CreatePool(model.Pool{Name: "pool1"})
+	}
+	verifyFunc := func(resp interface{}, err error) {
+		assert.NotNil(t, err)
+		assert.Equal(t, "", resp.(string))
+	}
+	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
+}
+
+func ClientFailureHelper(t *testing.T, clientFunc func(CastleRestClient) (interface{}, error)) {
+	verifyFunc := func(resp interface{}, err error) {
+		assert.NotNil(t, err)
+		assert.Nil(t, resp)
+	}
+	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
+}
+
+func ClientFailureHelperWithVerification(t *testing.T, clientFunc func(CastleRestClient) (interface{}, error),
+	verifyFunc func(interface{}, error)) {
+
 	mockServer := NewMockHttpServer(500, "something went wrong!")
 	defer mockServer.Close()
 	mockHttpClient := NewMockHttpClient(mockServer.URL)
 	client := NewCastleNetworkRestClient(mockServer.URL, mockHttpClient)
 
-	resp, err := ClientFunc(client)
-	assert.NotNil(t, err)
-	assert.Nil(t, resp)
+	// invoke the client func
+	resp, err := clientFunc(client)
+
+	// invoke the verification func to verify resp and err
+	verifyFunc(resp, err)
 }
 
 func NewMockHttpServer(responseStatusCode int, responseBody string) *httptest.Server {

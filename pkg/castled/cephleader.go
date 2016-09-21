@@ -15,7 +15,7 @@ import (
 
 // Interface implemented by a service that has been elected leader
 type cephLeader struct {
-	cluster *clusterInfo
+	cluster *ClusterInfo
 	events  chan clusterd.LeaderEvent
 	factory cephclient.ConnectionFactory
 }
@@ -87,9 +87,9 @@ func (c *cephLeader) configureCephMons(context *clusterd.Context) error {
 	return configureMonitors(c.factory, context, c.cluster)
 }
 
-func createOrGetClusterInfo(factory cephclient.ConnectionFactory, etcdClient etcd.KeysAPI) (*clusterInfo, error) {
+func createOrGetClusterInfo(factory cephclient.ConnectionFactory, etcdClient etcd.KeysAPI) (*ClusterInfo, error) {
 	// load any existing cluster info that may have previously been created
-	cluster, err := loadClusterInfo(etcdClient)
+	cluster, err := LoadClusterInfo(etcdClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load cluster info: %+v", err)
 	}
@@ -115,7 +115,7 @@ func createOrGetClusterInfo(factory cephclient.ConnectionFactory, etcdClient etc
 }
 
 // create new cluster info (FSID, shared keys)
-func createClusterInfo(factory cephclient.ConnectionFactory) (*clusterInfo, error) {
+func createClusterInfo(factory cephclient.ConnectionFactory) (*ClusterInfo, error) {
 	fsid, err := factory.NewFsid()
 	if err != nil {
 		return nil, err
@@ -131,7 +131,7 @@ func createClusterInfo(factory cephclient.ConnectionFactory) (*clusterInfo, erro
 		return nil, err
 	}
 
-	return &clusterInfo{
+	return &ClusterInfo{
 		FSID:          fsid,
 		MonitorSecret: monSecret,
 		AdminSecret:   adminSecret,
@@ -140,7 +140,7 @@ func createClusterInfo(factory cephclient.ConnectionFactory) (*clusterInfo, erro
 }
 
 // save the given cluster info to the key value store
-func saveClusterInfo(c *clusterInfo, etcdClient etcd.KeysAPI) error {
+func saveClusterInfo(c *ClusterInfo, etcdClient etcd.KeysAPI) error {
 	_, err := etcdClient.Set(ctx.Background(), path.Join(cephKey, "fsid"), c.FSID, nil)
 	if err != nil {
 		return err

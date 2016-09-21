@@ -4,9 +4,9 @@ import (
 	"log"
 	"testing"
 
+	testceph "github.com/quantum/castle/pkg/cephclient/test"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/testceph"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
