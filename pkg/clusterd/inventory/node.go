@@ -128,6 +128,8 @@ func loadSingleNodeHealth(node *NodeConfig, health *etcd.Node) error {
 		case HeartbeatKey:
 			node.HeartbeatAge = HeartbeatTtlDuration - (time.Duration(prop.TTL) * time.Second)
 			log.Printf("Node %s has age of %s", node.IPAddress, node.HeartbeatAge.String())
+		default:
+			return fmt.Errorf("unknown node health key %s", prop.Key)
 		}
 	}
 

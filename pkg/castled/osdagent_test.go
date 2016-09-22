@@ -138,7 +138,7 @@ func TestOSDAgent(t *testing.T) {
 	etcdClient.SetValue(path.Join(monKey, "ipaddress"), "10.6.5.4")
 	etcdClient.SetValue(path.Join(monKey, "port"), "8743")
 
-	// prep the etcd keys the would have been discovered by inventory
+	// prep the etcd keys that would have been discovered by inventory
 	disksKey := path.Join(inventory.GetNodeConfigKey(context.NodeID), inventory.DisksKey)
 	etcdClient.SetValue(path.Join(disksKey, "sdxserial", "name"), "sdx")
 	etcdClient.SetValue(path.Join(disksKey, "sdyserial", "name"), "sdy")
@@ -148,4 +148,9 @@ func TestOSDAgent(t *testing.T) {
 	assert.Equal(t, 6, execCount)
 	assert.Equal(t, 2, outputExecCount)
 	assert.Equal(t, 4, commands)
+	assert.Equal(t, 1, len(agent.osdCmd))
+
+	err = agent.DestroyLocalService(context)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(agent.osdCmd))
 }

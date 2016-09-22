@@ -63,6 +63,7 @@ func TestMonAgent(t *testing.T) {
 	err = agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, commands)
+	assert.Nil(t, agent.monCmd)
 
 	// set the agent in the desired state
 	key := path.Join(cephKey, monitorAgentName, desiredKey, context.NodeID)
@@ -74,4 +75,12 @@ func TestMonAgent(t *testing.T) {
 	err = agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, commands)
+	assert.NotNil(t, agent.monCmd)
+
+	// when the mon is not in desired state, it will be removed
+	etcdClient.DeleteDir(key)
+	err = agent.ConfigureLocalService(context)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, commands)
+	assert.Nil(t, agent.monCmd)
 }

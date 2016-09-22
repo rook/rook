@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -21,6 +22,7 @@ const (
 
 type monAgent struct {
 	factory cephclient.ConnectionFactory
+	monCmd  *exec.Cmd
 }
 
 func (a *monAgent) Name() string {
@@ -36,7 +38,7 @@ func (a *monAgent) ConfigureLocalService(context *clusterd.Context) error {
 		return err
 	}
 	if !monDesired {
-		return nil
+		return a.DestroyLocalService(context)
 	}
 
 	cluster, err := LoadClusterInfo(context.EtcdClient)
@@ -66,7 +68,23 @@ func (a *monAgent) ConfigureLocalService(context *clusterd.Context) error {
 	return err
 }
 
+// stops and removes the monitor from this node
 func (a *monAgent) DestroyLocalService(context *clusterd.Context) error {
+	if a.monCmd == nil {
+		log.Printf("no need to stop a monitor that is not running")
+		return nil
+	}
+
+	if err := context.ProcMan.Stop(a.monCmd); err != nil {
+		log.Printf("failed to stop mon. %v", err)
+		return err
+	}
+
+	log.Printf("stopped ceph monitor")
+	a.monCmd = nil
+
+	// TODO: Clean up the monitor folder
+
 	return nil
 }
 
@@ -114,7 +132,7 @@ func (a *monAgent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, m
 	// start the monitor daemon in the foreground with the given config
 	log.Printf("starting monitor %s", monitor.Name)
 	monNameArg := fmt.Sprintf("--name=mon.%s", monitor.Name)
-	err := context.ProcMan.Start(
+	monCmd, err := context.ProcMan.Start(
 		"mon",
 		regexp.QuoteMeta(monNameArg),
 		proc.ReuseExisting,
@@ -126,6 +144,11 @@ func (a *monAgent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, m
 		fmt.Sprintf("--public-addr=%s", monitor.Endpoint))
 	if err != nil {
 		return fmt.Errorf("failed to start monitor %s: %v", monitor.Name, err)
+	}
+
+	if monCmd != nil {
+		// if the process was already running Start will return nil in which case we don't want to overwrite it
+		a.monCmd = monCmd
 	}
 
 	return nil

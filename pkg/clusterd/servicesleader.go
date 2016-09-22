@@ -153,7 +153,7 @@ func (s *servicesLeader) triggerEvent(event LeaderEvent, delay bool) (bool, erro
 func (s *servicesLeader) startWatchingUnhealthyNodes() {
 	go func() {
 		for {
-			// sleep until it's time to detect hardware again
+			// look for unhealthy nodes at a regular interval
 			<-time.After(detectUnhealthyNodeInterval)
 			if !s.isLeader {
 				// poor man's cancellation when leadership is lost

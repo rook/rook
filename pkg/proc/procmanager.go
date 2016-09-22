@@ -41,22 +41,22 @@ func (p *ProcManager) Run(daemon string, args ...string) error {
 // with the given ProcStartPolicy.  The search pattern will be used to search through the cmdline args of existing
 // processes to find any matching existing process.  Therefore, it should be a regex pattern that can uniquely
 // identify the process (e.g., --id=1)
-func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) error {
+func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*exec.Cmd, error) {
 	// look for an existing process first
 	shouldStart, err := p.checkProcessExists(os.Args[0], procSearchPattern, policy)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !shouldStart {
 		// based on the presence of an existing process and the given policy, we should not start a process, bail out.
-		return nil
+		return nil, nil
 	}
 
 	log.Printf("Starting process %s with args: %v", daemon, args)
 	process, err := p.startChildProcess(daemon, args...)
 	if err != nil {
-		return fmt.Errorf("failed to start daemon %s: %+v", daemon, err)
+		return nil, fmt.Errorf("failed to start daemon %s: %+v", daemon, err)
 	}
 
 	// in a goroutine, wait for and monitor the process
@@ -65,21 +65,30 @@ func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPo
 	p.Lock()
 	p.procs = append(p.procs, process)
 	p.Unlock()
+	return process, nil
+}
+
+func (p *ProcManager) Stop(cmd *exec.Cmd) error {
+	if cmd == nil || cmd.Process == nil {
+		return nil
+	}
+
+	pid := cmd.Process.Pid
+	fmt.Printf("stopping child process %d\n", pid)
+	if err := p.stopChildProcess(cmd); err != nil {
+		fmt.Printf("failed to stop child process %d: %+v\n", pid, err)
+		return err
+	} else {
+		fmt.Printf("child process %d stopped successfully\n", pid)
+	}
+
 	return nil
 }
 
 func (p *ProcManager) Shutdown() {
 	p.RLock()
-	for i := range p.procs {
-		if p.procs[i] != nil && p.procs[i].Process != nil {
-			pid := p.procs[i].Process.Pid
-			fmt.Printf("stopping child process %d\n", pid)
-			if err := p.stopChildProcess(p.procs[i]); err != nil {
-				fmt.Printf("failed to stop child process %d: %+v\n", pid, err)
-			} else {
-				fmt.Printf("child process %d stopped successfully\n", pid)
-			}
-		}
+	for _, proc := range p.procs {
+		p.Stop(proc)
 	}
 	p.RUnlock()
 }
