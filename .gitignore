@@ -3,6 +3,7 @@ tools/
 vendor/
 .vscode/
 .glide/
+.gopath/
 coverage.out
 coverage.html
 debug.test

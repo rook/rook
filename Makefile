@@ -1,12 +1,18 @@
-REPOPATH = github.com/quantum/castle
+ORG = github.com/quantum
+PROJ = castle
+GOPATH = $(CURDIR)/.gopath
+ORGPATH = $(GOPATH)/src/$(ORG)
+REPOPATH = $(ORGPATH)/$(PROJ)
 GOOS = $(shell go env GOOS)
 GOARCH = $(shell go env GOARCH)
 
-# TODO: support for building outside of a $GOPATH
+export GOPATH
+
 # TODO: support for profiling in ceph
 # TODO: support for tracing in ceph
 # TODO: jemalloc and static linking are currently broken due to https://github.com/jemalloc/jemalloc/issues/442
-# TODO: remove leveldb
+# TODO: remove leveldb from ceph
+# TODO: cross compile castlectl?
 # TODO: can we strip -s all binaries?
 
 # Can be used for additional go build flags
@@ -85,74 +91,87 @@ ifeq ($(CCACHE),1)
 CEPHD_CMAKE += -DWITH_CCACHE=ON
 endif
 
-# skip vendoring option, useful for dev scenarios where vendor dir may be dirty
-SKIPVENDOR ?= 0
-
 # set the version number. 
 ifeq ($(origin VERSION), undefined)
 VERSION = $(shell git describe --dirty --always)
 endif
-LDFLAGS += -X $(REPOPATH)/pkg/version.Version=$(VERSION)
+LDFLAGS += -X $(ORG)/$(PROJ)/pkg/version.Version=$(VERSION)
+
+GO_SOURCEDIRS=cmd pkg
+GO_SOURCES := $(shell find $(GO_SOURCEDIRS) -name '*.go')
+GO_PKGS=$(shell go list ./... | grep --invert-match vendor)
 
 .PHONY: all
-all: build test
+all: build
 
 .PHONY: build
-build: vendor ceph
-	@mkdir -p ceph/build
-	@echo "##### configuring ceph" 
-	cd ceph/build && cmake $(CEPHD_CMAKE) ..
-	@echo "##### building ceph" 
-	cd ceph/build && $(MAKE) cephd
-ifeq ($(DEBUG),0)
-	@echo "##### stripping libcephd.a" 
-	strip -S ceph/build/lib/libcephd.a
-endif
-	@echo "##### building castled" 
-	go build $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' -o bin/castled ./cmd/castled
-	@echo "##### building castlectl" 
-	go build $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' -o bin/castlectl ./cmd/castlectl
-
-.PHONY: ceph
-ceph:
-	git submodule update --init --recursive
+build: bin/castled bin/castlectl vet fmt
 
 .PHONY: release
 release: build
 
-.PHONY: test
-test: tools/glide
-	go test -cover -timeout 30s $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' $(shell ./tools/glide novendor)
+.PHONY: check
+check: test
 
-.PHONY: vet
-vet: tools/glide
-	go vet $(shell ./tools/glide novendor)
+$(REPOPATH):
+	@mkdir -p $(ORGPATH)
+	@ln -s ../../../.. $(REPOPATH)
 
-.PHONY: fmt
-fmt: tools/glide
-	go fmt $(shell ./tools/glide novendor)
+bin/castled: $(REPOPATH) vendor/vendor.stamp ceph/build $(GO_SOURCES) 
+	@cd ceph/build && $(MAKE) cephd
+	@if test ceph/build/lib/libcephd.a -nt bin/castled -o ! -f bin/castled; then \
+		if test $(DEBUG) -eq 0; then \
+			strip -S ceph/build/lib/libcephd.a; \
+		fi; \
+		go build $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' -o bin/castled ./cmd/castled; \
+	fi
 
-.PHONY: clean
-clean:
-	rm -rf bin
-	if [ -d ceph/build ]; then cd ceph/build && $(MAKE) clean; fi
-	if [ -d ceph/src/rocksdb ]; then cd ceph/src/rocksdb && $(MAKE) clean; fi
+bin/castlectl: $(REPOPATH) vendor/vendor.stamp $(GO_SOURCES) 
+	@go build $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' -o bin/castlectl ./cmd/castlectl
 
-.PHONY: cleanall
-cleanall:
-	rm -rf bin
-	rm -rf tools vendor
-	rm -rf ceph/build
+# we take a dependency on this Makefile since the ceph cmake config is in it 
+ceph/build: Makefile
+	@mkdir -p ceph/build
+	@cd ceph/build && cmake $(CEPHD_CMAKE) ..
 
 .PHONY: vendor
 vendor: tools/glide
-ifeq ($(SKIPVENDOR),0)
-	./tools/glide install
-endif
+	@./tools/glide install
+
+# the stamp file ensures that we run glide install once. every other time is manual
+vendor/vendor.stamp: tools/glide
+	@./tools/glide install
+	@touch $@
+
+.PHONY: test
+test: build
+	@go test -cover -timeout 30s $(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)' $(GO_PKGS)
+
+.PHONY: vet
+vet: $(REPOPATH) tools/glide $(GO_SOURCES)
+	@go vet $(shell ./tools/glide novendor)
+
+.PHONY: fmt
+fmt: $(REPOPATH) tools/glide $(GO_SOURCES)
+	@go fmt $(shell ./tools/glide novendor)
+
+.PHONY: cleancommon
+cleancommon:
+	@rm -rf bin
+	@rm -fr $(GOPATH)
+	@if [ -d ceph/src/rocksdb ]; then cd ceph/src/rocksdb && $(MAKE) clean > /dev/null; fi
+
+.PHONY: clean
+clean: cleancommon
+	@if [ -d ceph/build ]; then cd ceph/build && $(MAKE) clean; fi
+
+.PHONY: cleanall
+cleanall: cleancommon
+	@rm -rf tools vendor
+	@rm -rf ceph/build
 
 tools/glide:
-	@echo "Downloading glide"
-	mkdir -p tools
-	curl -L https://github.com/Masterminds/glide/releases/download/v0.12.1/glide-v0.12.1-$(GOOS)-$(GOARCH).tar.gz | tar -xz -C tools
-	mv tools/$(GOOS)-$(GOARCH)/glide tools/glide
-	rm -r tools/$(GOOS)-$(GOARCH)
+	@mkdir -p tools
+	@curl -sL https://github.com/Masterminds/glide/releases/download/v0.12.2/glide-v0.12.2-$(GOOS)-$(GOARCH).tar.gz | tar -xz -C tools
+	@mv tools/$(GOOS)-$(GOARCH)/glide tools/glide
+	@rm -r tools/$(GOOS)-$(GOARCH)

@@ -10,7 +10,7 @@ binaries can easily be used inside minimal or scratch containers, or run on mini
 linux distributions like CoreOS.
 
 ```
-make STATIC=1 build
+make STATIC=1
 ```
 
 ## Dyanmic binary
@@ -21,7 +21,7 @@ and the rest of the libraries continue to be linked statically. Ceph has a lot
 of dependencies and we take this approach to simplify the distribution.
 
 ```
-make STATIC=0 build
+make STATIC=0
 ```
 
 ## Hardened binary (PIE)
@@ -29,7 +29,7 @@ make STATIC=0 build
 You can build a Position Independent executable as follows:
 
 ```
-make STATIC=0 PIE=1 build
+make STATIC=0 PIE=1
 ```
 
 ## Switching Allocators
@@ -39,7 +39,7 @@ Three allocators are currently supported: jemalloc, tcmalloc and libc. To specif
 an allocator during the build run the following:
 
 ```
-make ALLOCATOR=jemalloc build
+make ALLOCATOR=jemalloc
 ```
 
 ## Debug Builds
@@ -47,7 +47,7 @@ make ALLOCATOR=jemalloc build
 To build a binary with debug symbols run the following:
 
 ```
-make DEBUG=1 build
+make DEBUG=1
 ```
 
 Note the binary will be significantly larger in size.
@@ -57,7 +57,7 @@ Note the binary will be significantly larger in size.
 To turn on verbose build output run the following
 
 ```
-make DEBUG=1 build
+make V=1
 ```
 
 ## Parallel Builds
@@ -65,7 +65,7 @@ make DEBUG=1 build
 You can speed up the build significantly by passing the -j flag to make as follows:
 
 ```
-make -j4 build
+make -j4
 ```
 
 ## Enabling ccache
@@ -81,7 +81,7 @@ to run with ccache enable run the following:
 
 ```
 export CCACHE_DIR=~/.ccache
-make CCACHE=1 build
+make
 ```
 
 to check ccache stats run:
