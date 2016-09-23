@@ -20,5 +20,11 @@ func (h *Handler) GetRoutes() []Route {
 			"/pool",
 			h.CreatePool,
 		},
+		{
+			"GetMonitors",
+			"GET",
+			"/mon",
+			h.GetMonitors,
+		},
 	}
 }

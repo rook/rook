@@ -79,7 +79,7 @@ func LoadClusterInfo(etcdClient etcd.KeysAPI) (*ClusterInfo, error) {
 	}
 
 	// Get the monitors that have been applied in a previous orchestration
-	cluster.Monitors, err = getChosenMonitors(etcdClient)
+	cluster.Monitors, err = GetDesiredMonitors(etcdClient)
 
 	return cluster, nil
 }

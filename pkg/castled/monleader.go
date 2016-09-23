@@ -137,7 +137,8 @@ func isMonitor(cluster *ClusterInfo, nodeID string) bool {
 	return false
 }
 
-func getChosenMonitors(etcdClient etcd.KeysAPI) (map[string]*CephMonitorConfig, error) {
+func GetDesiredMonitors(etcdClient etcd.KeysAPI) (map[string]*CephMonitorConfig, error) {
+	// query the desired monitors from etcd
 	monitors := make(map[string]*CephMonitorConfig)
 	monKey := path.Join(cephKey, monitorKey, desiredKey)
 	previousMonitors, err := etcdClient.Get(ctx.Background(), monKey, &etcd.GetOptions{Recursive: true})
@@ -151,8 +152,7 @@ func getChosenMonitors(etcdClient etcd.KeysAPI) (map[string]*CephMonitorConfig, 
 		return monitors, nil
 	}
 
-	// Load the previously selected monitors
-	log.Printf("Loading previously selected monitors")
+	// parse the monitor info from etcd
 	for _, node := range previousMonitors.Node.Nodes {
 		nodeID := util.GetLeafKeyPath(node.Key)
 		mon := &CephMonitorConfig{}
@@ -187,7 +187,7 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 	desiredMonitors := calculateMonitorCount(nodeCount)
 
 	// get the monitors that have already been chosen
-	monitors, err := getChosenMonitors(context.EtcdClient)
+	monitors, err := GetDesiredMonitors(context.EtcdClient)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -361,7 +361,7 @@ func waitForQuorum(factory cephclient.ConnectionFactory, context *clusterd.Conte
 
 		// get the mon_status response that contains info about all monitors in the mon map and
 		// their quorum status
-		monStatusResp, err := getMonStatus(adminConn)
+		monStatusResp, err := GetMonStatus(adminConn)
 		if err != nil {
 			log.Printf("failed to get mon_status, err: %+v", err)
 			continue

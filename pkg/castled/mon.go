@@ -77,7 +77,7 @@ type MonMapEntry struct {
 }
 
 // calls mon_status mon_command
-func getMonStatus(adminConn cephclient.Connection) (MonStatusResponse, error) {
+func GetMonStatus(adminConn cephclient.Connection) (MonStatusResponse, error) {
 	monCommand := "mon_status"
 	command, err := json.Marshal(map[string]string{"prefix": monCommand, "format": "json"})
 	if err != nil {
