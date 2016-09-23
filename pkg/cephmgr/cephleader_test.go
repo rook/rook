@@ -1,7 +1,6 @@
 package cephmgr
 
 import (
-	"log"
 	"path"
 	"strings"
 	"testing"
@@ -13,6 +12,7 @@ import (
 	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
+	clusterdtest "github.com/quantum/castle/pkg/clusterd/test"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -52,7 +52,7 @@ func TestCephLeaders(t *testing.T) {
 	leader.Events() <- refresh
 
 	// wait for the event queue to be empty
-	waitForEvents(leader)
+	clusterdtest.WaitForEvents(leader)
 
 	assert.True(t, etcdClient.GetChildDirs("/castle/services/ceph/osd/desired").Equals(util.CreateSet([]string{"a"})))
 	assert.Equal(t, "mon0", etcdClient.GetValue("/castle/services/ceph/monitor/desired/a/id"))
@@ -65,43 +65,11 @@ func TestCephLeaders(t *testing.T) {
 	leader.Events() <- addNode
 
 	// wait for the event queue to be empty
-	waitForEvents(leader)
+	clusterdtest.WaitForEvents(leader)
 
 	assert.True(t, etcdClient.GetChildDirs("/castle/services/ceph/osd/desired").Equals(util.CreateSet([]string{"a", "b"})))
 	assert.Equal(t, "myfsid", etcdClient.GetValue("/castle/services/ceph/fsid"))
 	assert.Equal(t, "mykey", etcdClient.GetValue("/castle/services/ceph/_secrets/admin"))
-}
-
-func waitForEvents(leader *cephLeader) {
-	// add a placeholder event to the queue. When it is dequeued we know the rest of the events have completed.
-	e := newNonEvent()
-	leader.Events() <- e
-
-	// wait for the Name() method to be called on the nonevent, which means it was dequeued
-	log.Printf("waiting for event queue to empty")
-	<-e.signaled
-	log.Printf("event queue is empty")
-}
-
-// Empty event for testing
-type nonEvent struct {
-	signaled   chan bool
-	nameCalled bool
-}
-
-func newNonEvent() *nonEvent {
-	return &nonEvent{signaled: make(chan bool)}
-}
-
-func (e *nonEvent) Name() string {
-	if !e.nameCalled {
-		e.nameCalled = true
-		e.signaled <- true
-	}
-	return "nonevent"
-}
-func (e *nonEvent) Context() *clusterd.Context {
-	return nil
 }
 
 func TestMoveUnhealthyMonitor(t *testing.T) {

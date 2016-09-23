@@ -68,7 +68,6 @@ func (a *osdAgent) Initialize(context *clusterd.Context) error {
 }
 
 func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
-
 	// check if the osd is in the desired state for this node
 	key := path.Join(cephKey, osdAgentName, desiredKey, context.NodeID, "ready")
 	osdDesired, err := context.EtcdClient.Get(ctx.Background(), key, nil)

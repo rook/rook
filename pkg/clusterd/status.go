@@ -89,7 +89,7 @@ func WaitForNodeConfigCompletion(etcdClient etcd.KeysAPI, taskKey string, nodes 
 
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(len(nodes))
-	var nodesSuccessful int32 = 0
+	var nodesSuccessful int32
 
 	// Start a go routine for each node that is expecting status updates for the configuration task
 	for _, node := range nodes {
@@ -114,10 +114,10 @@ func WaitForNodeConfigCompletion(etcdClient etcd.KeysAPI, taskKey string, nodes 
 		}(node)
 	}
 
-	log.Printf("Waiting for %d nodes to complete task %s", len(nodes), taskKey)
+	log.Printf("Waiting for %d nodes to complete task: %s", len(nodes), taskKey)
 	waitgroup.Wait()
 
-	log.Printf("%d/%d nodes successful for task %s", nodesSuccessful, len(nodes), taskKey)
+	log.Printf("%d/%d nodes successful for task: %s", nodesSuccessful, len(nodes), taskKey)
 	if int(nodesSuccessful) < len(nodes) {
 		return int(nodesSuccessful), errors.New("not all nodes succeeded configuration")
 	}
@@ -134,16 +134,16 @@ func GetNodeProgressKey(nodeID string) string {
 func GetNodeStatusKey(service, nodeID string) string {
 	if service == "" {
 		return path.Join(GetNodeProgressKey(nodeID), StatusValue)
-	} else {
-		return path.Join(fmt.Sprintf(NodeStatusServiceKey, nodeID, service), StatusValue)
 	}
+	return path.Join(fmt.Sprintf(NodeStatusServiceKey, nodeID, service), StatusValue)
 }
 
-// Set the node configuration status.
+// SetNodeConfigStatus sets the node configuration status.
 // If a taskKey is specified, set the status for a specific task.
 // If the taskKey is the empty string, set the status for the node.
 func SetNodeConfigStatus(etcdClient etcd.KeysAPI, nodeID, taskKey string, nodeStatus NodeConfigStatus) error {
 	key := GetNodeStatusKey(taskKey, nodeID)
+	fmt.Println("key: ", key)
 	_, err := etcdClient.Set(ctx.Background(), key, nodeStatus.String(), nil)
 	return err
 }
@@ -171,7 +171,7 @@ func GetNodeConfigStatus(etcdClient etcd.KeysAPI, taskKey, nodeID string) (NodeC
 	return retVal, value.Index, nil
 }
 
-// Watch for changes to the node config status etcd key
+// WatchNodeConfigStatus watches for changes to the node config status etcd key
 func WatchNodeConfigStatus(etcdClient etcd.KeysAPI, taskKey, nodeID string, timeout int, index *uint64) (NodeConfigStatus, error) {
 	key := GetNodeStatusKey(taskKey, nodeID)
 	value, timedOut, err := util.WatchEtcdKey(etcdClient, key, index, timeout)

@@ -10,9 +10,8 @@ import (
 	ctx "golang.org/x/net/context"
 )
 
-// Listen for notifications from the orchestrator that components should be installed on the aSSgent
+// Listen for notifications from the orchestrator that components should be installed on the agent
 func watchForAgentServiceConfig(context *Context) {
-
 	restoreDesiredState(context)
 
 	// Get the initial status of the configuration
@@ -77,7 +76,6 @@ func restoreDesiredState(context *Context) {
 
 func ConfigureServiceIfTriggered(context *Context, agent ServiceAgent) bool {
 	state, _, err := GetNodeConfigStatus(context.EtcdClient, agent.Name(), context.NodeID)
-
 	// Start the install action if it was just triggered or if it had already been running and now has restarted
 	if err == nil && (state == NodeConfigStatusTriggered || state == NodeConfigStatusRunning) {
 		RunConfigureAgent(context, agent)
