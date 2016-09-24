@@ -73,11 +73,11 @@ func generateConfigFile(cluster *ClusterInfo, pathRoot, user, keyringPath string
 	}
 
 	if err := addClientConfigFileSection(configFile, getQualifiedUser(user), keyringPath); err != nil {
-		return "", fmt.Errorf("failed to add %s admin client config section, %+v", err)
+		return "", fmt.Errorf("failed to add admin client config section, %+v", err)
 	}
 
 	if err := addInitialMonitorsConfigFileSections(configFile, cluster); err != nil {
-		return "", fmt.Errorf("failed to add %s initial monitor config sections, %+v", err)
+		return "", fmt.Errorf("failed to add initial monitor config sections, %+v", err)
 	}
 
 	// write the entire config to disk

@@ -69,11 +69,11 @@ func GetCurrentNodes(token string) ([]string, error) {
 	nodes := make([]string, 0, len(res.Node.Nodes))
 	for _, nn := range res.Node.Nodes {
 		if nn.Value == nil {
-			log.Println("Skipping %q because no value exists", nn.Key)
+			log.Printf("Skipping %q because no value exists", nn.Key)
 		}
 		n, err := newDiscoveryNode(*nn.Value, 2379)
 		if err != nil {
-			log.Println("invalid peer url %q in discovery service: %v", *nn.Value, err)
+			log.Printf("invalid peer url %q in discovery service: %v", *nn.Value, err)
 			continue
 		}
 		for _, node := range n {
