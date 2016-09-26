@@ -1,4 +1,4 @@
-package castled
+package cephmgr
 
 import (
 	"fmt"

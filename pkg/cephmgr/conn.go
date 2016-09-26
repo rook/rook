@@ -1,4 +1,4 @@
-package castled
+package cephmgr
 
 import (
 	etcd "github.com/coreos/etcd/client"
