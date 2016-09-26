@@ -114,7 +114,7 @@ func loadNodeHealth(etcdClient etcd.KeysAPI, nodes map[string]*NodeConfig) error
 
 		err := loadSingleNodeHealth(nodeConfig, health)
 		if err != nil {
-			return fmt.Errorf("failed to load health for node %s. %v", nodeID)
+			return fmt.Errorf("failed to load health for node %s. %v", nodeID, err)
 		}
 	}
 

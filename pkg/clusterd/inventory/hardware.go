@@ -29,7 +29,7 @@ type NodeConfig struct {
 	Memory          MemoryConfig      `json:"memory"`
 	NetworkAdapters []NetworkConfig   `json:"networkAdapters"`
 	IPAddress       string            `json:"ipAddr"`
-	HeartbeatAge    time.Duration     `json:heartbeatAge`
+	HeartbeatAge    time.Duration     `json:"heartbeatAge"`
 }
 
 type DiskConfig struct {
