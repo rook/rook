@@ -16,25 +16,23 @@ import (
 )
 
 const (
-	HeartbeatKey                     = "heartbeat"
-	SetAction                        = "set"
-	CreateAction                     = "create"
-	LeaseVersion                     = 1
-	LeaseTtlSeconds                  = 15
-	LeaseRetrySeconds                = 5
-	HeartbeatTtlSeconds              = 60 * 60
-	HardwareDiscoveryIntervalSeconds = 120 * 60
-	WatchErrorRetrySeconds           = 2
-	MachineTtlMinutes                = 5
+	setAction                        = "set"
+	createAction                     = "create"
+	leaseVersion                     = 1
+	leaseTtlSeconds                  = 15
+	leaseRetrySeconds                = 5
+	heartbeatTtlSeconds              = 60 * 60
+	hardwareDiscoveryIntervalSeconds = 120 * 60
+	watchErrorRetrySeconds           = 2
+	machineTtlMinutes                = 5
 	maxMachineIDLength               = 12
 )
 
 var (
-	LeaseTtlDuration          = time.Duration(LeaseTtlSeconds) * time.Second
-	LeaseRetryDuration        = time.Duration(LeaseRetrySeconds) * time.Second
-	MachineTtlDuration        = time.Duration(MachineTtlMinutes) * time.Minute
-	HeartbeatTtlDuration      = time.Duration(HeartbeatTtlSeconds) * time.Second
-	HardwareDiscoveryInterval = time.Duration(HardwareDiscoveryIntervalSeconds) * time.Second
+	leaseTtlDuration          = time.Duration(leaseTtlSeconds) * time.Second
+	leaseRetryDuration        = time.Duration(leaseRetrySeconds) * time.Second
+	machineTtlDuration        = time.Duration(machineTtlMinutes) * time.Minute
+	hardwareDiscoveryInterval = time.Duration(hardwareDiscoveryIntervalSeconds) * time.Second
 )
 
 // Interface defining how a leader reacts to gaining or losing election, new members being added, etc.
@@ -105,15 +103,15 @@ func (r *ClusterMember) initialize() error {
 
 	// in a goroutine, begin the monitor cluster loop for changes in membership, leadership, etc.
 	go func() {
-		r.RefreshLeader()
+		r.refreshLeader()
 	}()
 
 	go func() {
-		r.DiscoverHardwareLoop()
+		r.discoverHardwareLoop()
 	}()
 
 	go func() {
-		r.WaitForHardwareChangeNotifications()
+		r.waitForHardwareChangeNotifications()
 	}()
 
 	return nil
@@ -136,7 +134,7 @@ func (r *ClusterMember) ElectLeader() error {
 	var l Lease
 	if existing == nil {
 		// no leader currently exists, try to acquire
-		l, err = r.leaseManager.AcquireLease(r.leader.GetLeaseName(), r.context.NodeID, LeaseVersion, LeaseTtlDuration)
+		l, err = r.leaseManager.AcquireLease(r.leader.GetLeaseName(), r.context.NodeID, leaseVersion, leaseTtlDuration)
 		if err != nil {
 			// failed to acquire lease, ensure our leadership status is updated
 			r.updateLeaderStatus(err)
@@ -151,7 +149,7 @@ func (r *ClusterMember) ElectLeader() error {
 		r.updateLeaderStatus(nil)
 	} else if IsLeader(existing, r.context.NodeID) {
 		// we are the existing leader, attempt to renew the lease then ensure our leadership status is updated
-		err = existing.Renew(LeaseTtlDuration)
+		err = existing.Renew(leaseTtlDuration)
 		r.updateLeaderStatus(err)
 		return err
 	} else if r.isLeader {
@@ -163,10 +161,10 @@ func (r *ClusterMember) ElectLeader() error {
 	return nil
 }
 
-func (r *ClusterMember) RefreshLeader() {
+func (r *ClusterMember) refreshLeader() {
 	for {
 		// sleep for a portion of the lease TTL and try again
-		<-time.After(LeaseRetryDuration)
+		<-time.After(leaseRetryDuration)
 
 		err := r.ElectLeader()
 		if err != nil {
@@ -175,7 +173,7 @@ func (r *ClusterMember) RefreshLeader() {
 	}
 }
 
-func (r *ClusterMember) DiscoverHardwareLoop() {
+func (r *ClusterMember) discoverHardwareLoop() {
 	for {
 		err := r.discoverHardware()
 		if err != nil {
@@ -185,11 +183,11 @@ func (r *ClusterMember) DiscoverHardwareLoop() {
 		}
 
 		// sleep until it's time to detect hardware again
-		<-time.After(HardwareDiscoveryInterval)
+		<-time.After(hardwareDiscoveryInterval)
 	}
 }
 
-func (r *ClusterMember) WaitForHardwareChangeNotifications() {
+func (r *ClusterMember) waitForHardwareChangeNotifications() {
 	hardwareTriggerKey := path.Join(inventory.GetNodeConfigKey(r.context.NodeID), inventory.TriggerHardwareDetectionKey)
 	hardwareWatcher := r.context.EtcdClient.Watcher(hardwareTriggerKey, nil)
 	for {
@@ -200,12 +198,12 @@ func (r *ClusterMember) WaitForHardwareChangeNotifications() {
 				log.Print("hardware change watching cancelled, bailing out...")
 				break
 			} else {
-				<-time.After(time.Duration(WatchErrorRetrySeconds) * time.Second)
+				<-time.After(time.Duration(watchErrorRetrySeconds) * time.Second)
 				continue
 			}
 		}
 
-		if resp != nil && resp.Node != nil && resp.Action == SetAction {
+		if resp != nil && resp.Node != nil && resp.Action == setAction {
 			// the trigger hardware detection key was set, perform a hardware discovery
 			err := r.discoverHardware()
 			if err != nil {
@@ -249,7 +247,7 @@ func (r *ClusterMember) onLeadershipLost() {
 }
 
 func (r *ClusterMember) heartbeat() error {
-	machineKey := path.Join(inventory.DiscoveredNodesHealthKey, r.context.NodeID)
+	machineKey := path.Join(inventory.NodesHealthKey, r.context.NodeID)
 
 	// first ensure the machine key (directory) exists
 	_, err := r.context.EtcdClient.Set(ctx.Background(), machineKey, "", &etcd.SetOptions{Dir: true})
@@ -262,8 +260,8 @@ func (r *ClusterMember) heartbeat() error {
 	// here since cluster member clock may be skewed from etcd cluster clocks.  note that last
 	// heartbeat time can be indirectly determined by getting the key and subtracting the current
 	// TTL from the original TTL
-	heartbeatKey := path.Join(machineKey, HeartbeatKey)
-	_, err = r.context.EtcdClient.Set(ctx.Background(), heartbeatKey, "", &etcd.SetOptions{TTL: HeartbeatTtlDuration})
+	key := path.Join(machineKey, inventory.HeartbeatKey)
+	_, err = r.context.EtcdClient.Set(ctx.Background(), key, "", &etcd.SetOptions{TTL: inventory.HeartbeatTtlDuration})
 	return err
 }
 

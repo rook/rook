@@ -14,17 +14,20 @@ import (
 )
 
 const (
-	triggerRefreshDelaySeconds = 5
+	triggerRefreshDelaySeconds    = 5
+	unhealthyNodeSecondsThreshold = 10
 )
 
 var (
-	triggerRefreshInterval = time.Duration(triggerRefreshDelaySeconds) * time.Second
+	triggerRefreshInterval      = triggerRefreshDelaySeconds * time.Second
+	detectUnhealthyNodeInterval = 5 * time.Second
 )
 
 type servicesLeader struct {
 	leaseName          string
 	context            *Context
 	triggerRefreshLock int32
+	isLeader           bool
 	parent             *ClusterMember
 	watcherCancel      ctx.CancelFunc
 }
@@ -34,6 +37,8 @@ func (s *servicesLeader) OnLeadershipAcquired() error {
 }
 
 func (s *servicesLeader) onLeadershipAcquiredRefresh(refresh bool) error {
+	s.isLeader = true
+
 	// The leaders should start watching for events
 	for _, service := range s.context.Services {
 		service.Leader.StartWatchEvents()
@@ -41,6 +46,7 @@ func (s *servicesLeader) onLeadershipAcquiredRefresh(refresh bool) error {
 
 	// start watching for membership changes and handling any changes to it
 	s.startWatchingDiscoveredNodeChanges()
+	s.startWatchingUnhealthyNodes()
 
 	var err error
 	if refresh {
@@ -52,6 +58,7 @@ func (s *servicesLeader) onLeadershipAcquiredRefresh(refresh bool) error {
 }
 
 func (s *servicesLeader) OnLeadershipLost() error {
+	s.isLeader = false
 	s.stopWatchingDiscoveredNodeChanges()
 
 	// Close down each of the leaders watching for events
@@ -74,23 +81,14 @@ func (s *servicesLeader) triggerNodeAdded(node string) (bool, error) {
 	return s.triggerEvent(&AddNodeEvent{context: copyContext(s.context), nodes: []string{node}}, false)
 }
 
-func (s *servicesLeader) triggerNodeStale(node string) (bool, error) {
-	return s.triggerEvent(&StaleNodeEvent{context: copyContext(s.context), nodes: []string{node}}, false)
+func (s *servicesLeader) triggerNodeUnhealthy(nodes []*UnhealthyNode) (bool, error) {
+	return s.triggerEvent(&UnhealthyNodeEvent{context: copyContext(s.context), nodes: nodes}, false)
 }
 
 func (s *servicesLeader) triggerEvent(event LeaderEvent, delay bool) (bool, error) {
 	// Only start the orchestration if the leader
 	if !s.parent.isLeader {
 		return false, nil
-	}
-
-	// Update the node inventory for the event
-	var err error
-	context := event.Context()
-	context.Inventory, err = inventory.LoadDiscoveredNodes(context.EtcdClient)
-	if err != nil {
-		log.Printf("failed to load node info. err=%v", err)
-		return false, err
 	}
 
 	// Avoid blocking the calling thread. No need to prevent multiple threads from entering this
@@ -127,6 +125,15 @@ func (s *servicesLeader) triggerEvent(event LeaderEvent, delay bool) (bool, erro
 			return
 		}
 
+		// Update the node inventory for the event
+		var err error
+		context := event.Context()
+		context.Inventory, err = inventory.LoadDiscoveredNodes(context.EtcdClient)
+		if err != nil {
+			log.Printf("failed to load node info. err=%v", err)
+			return
+		}
+
 		// Push the event to each of the services
 		for _, service := range s.context.Services {
 			serviceChannel := service.Leader.Events()
@@ -143,9 +150,52 @@ func (s *servicesLeader) triggerEvent(event LeaderEvent, delay bool) (bool, erro
 	return true, nil
 }
 
+func (s *servicesLeader) startWatchingUnhealthyNodes() {
+	go func() {
+		for {
+			// look for unhealthy nodes at a regular interval
+			<-time.After(detectUnhealthyNodeInterval)
+			if !s.isLeader {
+				// poor man's cancellation when leadership is lost
+				break
+			}
+
+			err := s.discoverUnhealthyNodes()
+			if err != nil {
+				log.Printf("error while discovering unhealthy nodes: %+v", err)
+			}
+		}
+	}()
+}
+
+func (s *servicesLeader) discoverUnhealthyNodes() error {
+	// load the state of all the nodes in the cluster
+	config, err := inventory.LoadDiscoveredNodes(s.context.EtcdClient)
+	if err != nil {
+		return err
+	}
+
+	// look for old heartbeats
+	var unhealthyNodes []*UnhealthyNode
+	for nodeID, node := range config.Nodes {
+		age := int(node.HeartbeatAge.Seconds())
+		if age >= unhealthyNodeSecondsThreshold {
+			unhealthyNodes = append(unhealthyNodes, &UnhealthyNode{AgeSeconds: age, NodeID: nodeID})
+		}
+	}
+
+	// if we found unhealthy nodes, raise an event
+	if len(unhealthyNodes) > 0 {
+		log.Printf("Found %d unhealthy nodes", len(unhealthyNodes))
+		s.triggerNodeUnhealthy(unhealthyNodes)
+	}
+
+	return nil
+}
+
 func (s *servicesLeader) startWatchingDiscoveredNodeChanges() {
 	// create an etcd watcher object and initialize a cancellable context for it
-	discoveredNodeWatcher := s.context.EtcdClient.Watcher(inventory.DiscoveredNodesKey, &etcd.WatcherOptions{Recursive: true})
+	discoveredNodeWatcher := s.context.EtcdClient.Watcher(inventory.NodesConfigKey, &etcd.WatcherOptions{Recursive: true})
 	context, cancelFunc := ctx.WithCancel(ctx.Background())
 	s.watcherCancel = cancelFunc
 
@@ -160,14 +210,14 @@ func (s *servicesLeader) startWatchingDiscoveredNodeChanges() {
 				} else {
 					log.Printf(
 						"discovered nodes change watcher Next returned error, sleeping %d sec before retry: %+v",
-						WatchErrorRetrySeconds,
+						watchErrorRetrySeconds,
 						err)
-					<-time.After(time.Duration(WatchErrorRetrySeconds) * time.Second)
+					<-time.After(time.Duration(watchErrorRetrySeconds) * time.Second)
 					continue
 				}
 			}
 
-			if resp != nil && resp.Node != nil && resp.Action == CreateAction {
+			if resp != nil && resp.Node != nil && resp.Action == createAction {
 				newNodeID := util.GetLeafKeyPath(resp.Node.Key)
 				log.Printf("new node discovered: %s", newNodeID)
 

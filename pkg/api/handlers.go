@@ -86,6 +86,53 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 	FormatJsonResponse(w, nodes)
 }
 
+type overallMonStatus struct {
+	Status  castled.MonStatusResponse    `json:"status"`
+	Desired []*castled.CephMonitorConfig `json:"desired"`
+}
+
+// Gets the monitors that have been created in this cluster.
+// GET
+// /mon
+func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
+
+	desiredMons, err := castled.GetDesiredMonitors(h.EtcdClient)
+	if err != nil {
+		log.Printf("failed to load monitors: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	mons := []*castled.CephMonitorConfig{}
+	if len(desiredMons) == 0 {
+		// no monitors to connect to
+		FormatJsonResponse(w, mons)
+		return
+	}
+
+	// connect to ceph
+	adminConn, ok := h.connectToCeph(w)
+	if !ok {
+		return
+	}
+	defer adminConn.Shutdown()
+
+	// get the monitor status
+	monStatusResp, err := castled.GetMonStatus(adminConn)
+	if err != nil {
+		log.Printf("failed to get mon_status, err: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	status := &overallMonStatus{Status: monStatusResp}
+	for _, mon := range desiredMons {
+		status.Desired = append(status.Desired, mon)
+	}
+
+	FormatJsonResponse(w, status)
+}
+
 // Gets the storage pools that have been created in this cluster.
 // GET
 // /pool

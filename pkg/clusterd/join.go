@@ -42,7 +42,7 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, dis
 	if err := util.CreateEtcdDir(etcdClient, key); err != nil {
 		return nil, err
 	}
-	if err := inventory.SetIpAddress(etcdClient, nodeID, privateIPv4); err != nil {
+	if err := inventory.SetIPAddress(etcdClient, nodeID, privateIPv4); err != nil {
 		return nil, err
 	}
 

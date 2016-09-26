@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -30,6 +31,7 @@ type osdAgent struct {
 	forceFormat bool
 	location    *CrushLocation
 	factory     cephclient.ConnectionFactory
+	osdCmd      map[int]*exec.Cmd
 }
 
 func newOSDAgent(factory cephclient.ConnectionFactory, rawDevices string, forceFormat bool, location *CrushLocation) *osdAgent {
@@ -84,6 +86,14 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 }
 
 func (a *osdAgent) DestroyLocalService(context *clusterd.Context) error {
+	// stop the OSD processes
+	for osdID, cmd := range a.osdCmd {
+		log.Printf("stopping osd %d", osdID)
+		context.ProcMan.Stop(cmd)
+	}
+
+	// clear out the osd procs
+	a.osdCmd = map[int]*exec.Cmd{}
 	return nil
 }
 
@@ -173,7 +183,7 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID i
 	// start the OSD daemon in the foreground with the given config
 	log.Printf("starting osd %d at %s", osdID, osdDataPath)
 	osdUUIDArg := fmt.Sprintf("--osd-uuid=%s", osdUUID.String())
-	err := context.ProcMan.Start(
+	cmd, err := context.ProcMan.Start(
 		"osd",
 		regexp.QuoteMeta(osdUUIDArg),
 		proc.ReuseExisting,
@@ -187,6 +197,15 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID i
 		osdUUIDArg)
 	if err != nil {
 		return fmt.Errorf("failed to start osd %d: %+v", osdID, err)
+	}
+
+	if a.osdCmd == nil {
+		// initialize the osd map
+		a.osdCmd = map[int]*exec.Cmd{}
+	}
+	if cmd != nil {
+		// if the process was already running Start will return nil in which case we don't want to overwrite it
+		a.osdCmd[osdID] = cmd
 	}
 
 	return nil

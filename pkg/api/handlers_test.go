@@ -38,8 +38,8 @@ func TestGetNodesHandler(t *testing.T) {
 	assert.Equal(t, `[]`, w.Body.String())
 
 	// set up a discovered node in etcd
-	inventory.SetIpAddress(etcdClient, "node1", "10.0.0.11")
-	nodeConfigKey := path.Join(inventory.DiscoveredNodesKey, "node1")
+	inventory.SetIPAddress(etcdClient, "node1", "10.0.0.11")
+	nodeConfigKey := path.Join(inventory.NodesConfigKey, "node1")
 	etcdClient.CreateDir(nodeConfigKey)
 	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "MB2CK3F6S5041EPCPJ4T", "sda", "506d4869-29ee-4bfd-bf21-dfd597bd222e",
 		100, true, false, "btrfs", "/mnt/abc", inventory.Disk, "", false)
@@ -75,6 +75,36 @@ func TestGetNodesHandlerFailure(t *testing.T) {
 	h.GetNodes(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Equal(t, ``, w.Body.String())
+}
+
+func TestGetMonsHandler(t *testing.T) {
+	etcdClient := util.NewMockEtcdClient()
+	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
+
+	req, err := http.NewRequest("GET", "http://10.0.0.100/mon", nil)
+	assert.Nil(t, err)
+
+	// first return no mons
+	w := httptest.NewRecorder()
+
+	// no mons will be returned, should be empty output
+	h := NewHandler(etcdClient, &test.MockConnectionFactory{}, cephFactory)
+	h.GetMonitors(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, `[]`, w.Body.String())
+
+	// now return some monitors from etcd
+	key := "/castle/services/ceph/monitor/desired/a"
+	etcdClient.SetValue(path.Join(key, "id"), "mon0")
+	etcdClient.SetValue(path.Join(key, "ipaddress"), "1.2.3.4")
+	etcdClient.SetValue(path.Join(key, "port"), "8765")
+
+	// monitors should be returned now, verify the output
+	w = httptest.NewRecorder()
+	h = NewHandler(etcdClient, &test.MockConnectionFactory{}, cephFactory)
+	h.GetMonitors(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "{\"status\":{\"quorum\":[0],\"monmap\":{\"mons\":[{\"name\":\"mon0\",\"rank\":0,\"addr\":\"10.37.129.87:6790\"}]}},\"desired\":[{\"name\":\"mon0\",\"endpoint\":\"1.2.3.4:8765\"}]}", w.Body.String())
 }
 
 func TestGetPoolsHandler(t *testing.T) {

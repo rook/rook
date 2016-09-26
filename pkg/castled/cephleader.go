@@ -43,30 +43,39 @@ func (c *cephLeader) handleOrchestratorEvents() {
 	for e := range c.events {
 		log.Printf("ceph leader received event %s", e.Name())
 
-		var nodesToRefresh []string
+		var osdsToRefresh []string
+		refreshMon := false
 		if _, ok := e.(*clusterd.RefreshEvent); ok {
-			nodesToRefresh = getSlice(e.Context().Inventory.Nodes)
+			refreshMon = true
+			osdsToRefresh = getSlice(e.Context().Inventory.Nodes)
 		} else if nodeAdded, ok := e.(*clusterd.AddNodeEvent); ok {
-			nodesToRefresh = nodeAdded.Nodes()
-		} else if _, ok := e.(*clusterd.StaleNodeEvent); ok {
-			// TODO: Move a monitor to another node and/or declare OSDs dead
+			osdsToRefresh = nodeAdded.Nodes()
+		} else if unhealthyEvent, ok := e.(*clusterd.UnhealthyNodeEvent); ok {
+			var err error
+			refreshMon, err = monsOnUnhealthyNode(e.Context(), unhealthyEvent.Nodes())
+			if err != nil {
+				log.Printf("failed to handle unhealthy nodes. %v", err)
+			}
+		} else {
+			// if we don't recognize the event we will skip the refresh
 		}
 
-		if nodesToRefresh != nil {
-			// Perform a full refresh of the cluster to ensure the monitors and OSDs are running
+		if refreshMon {
+			// Perform a full refresh of the cluster to ensure the monitors are running with quorum
 			err := c.configureCephMons(e.Context())
 			if err != nil {
 				log.Printf("failed to configure ceph mons. %v", err)
 				continue
 			}
+		}
 
+		if osdsToRefresh != nil {
 			// Configure the OSDs
-			err = configureOSDs(e.Context(), nodesToRefresh)
+			err := configureOSDs(e.Context(), osdsToRefresh)
 			if err != nil {
 				log.Printf("failed to configure ceph osds. %v", err)
 				continue
 			}
-
 		}
 
 		log.Printf("ceph leader completed event %s", e.Name())

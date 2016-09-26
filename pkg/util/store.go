@@ -41,7 +41,7 @@ func StoreEtcdProperties(etcdClient etcd.KeysAPI, baseKey string, properties map
 }
 
 // Watch an etcd key for changes since the provided index
-func WatchEtcdKey(etcdClient etcd.KeysAPI, key string, index *uint64, timeout int) (string, error) {
+func WatchEtcdKey(etcdClient etcd.KeysAPI, key string, index *uint64, timeout int) (string, bool, error) {
 	options := &etcd.WatcherOptions{AfterIndex: *index}
 	watcher := etcdClient.Watcher(key, options)
 	cancelableContext, cancelFunc := ctx.WithCancel(ctx.Background())
@@ -78,7 +78,7 @@ func WatchEtcdKey(etcdClient etcd.KeysAPI, key string, index *uint64, timeout in
 		// Wait indefinitely for the etcd watcher to respond
 		//log.Printf("Watching key %s after index %d", key, *index)
 		<-watcherChannel
-		return value, err
+		return value, false, err
 
 	} else {
 		// Start a timer to allow a timeout if the watch doesn't return in a timely manner
@@ -90,11 +90,11 @@ func WatchEtcdKey(etcdClient etcd.KeysAPI, key string, index *uint64, timeout in
 		case <-timer.C:
 			log.Printf("Timed out watching key %s", key)
 			cancelFunc()
-			return "", errors.New("the etcd watch timed out")
+			return "", true, errors.New("the etcd watch timed out")
 		case <-watcherChannel:
 			log.Printf("Completed watching key %s. value=%s", key, value)
 			timer.Stop()
-			return value, err
+			return value, false, err
 		}
 	}
 }

@@ -7,6 +7,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	ctx "golang.org/x/net/context"
 
@@ -17,11 +18,17 @@ import (
 )
 
 const (
-	IpAddressKey  = "ipaddress"
-	DisksKey      = "disks"
-	ProcessorsKey = "cpu"
-	NetworkKey    = "net"
-	MemoryKey     = "mem"
+	HeartbeatKey        = "heartbeat"
+	IpAddressKey        = "ipaddress"
+	DisksKey            = "disks"
+	ProcessorsKey       = "cpu"
+	NetworkKey          = "net"
+	MemoryKey           = "mem"
+	heartbeatTtlSeconds = 60 * 60
+)
+
+var (
+	HeartbeatTtlDuration = time.Duration(heartbeatTtlSeconds) * time.Second
 )
 
 func DiscoverHardware(nodeID string, etcdClient etcd.KeysAPI, executor proc.Executor) error {
@@ -37,80 +44,123 @@ func DiscoverHardware(nodeID string, etcdClient etcd.KeysAPI, executor proc.Exec
 
 // gets the key under which all node hardware/config will be stored
 func GetNodeConfigKey(nodeID string) string {
-	return path.Join(DiscoveredNodesKey, nodeID)
+	return path.Join(NodesConfigKey, nodeID)
 }
 
 // Load all the nodes' infrastructure configuration
 func loadNodeConfig(etcdClient etcd.KeysAPI) (map[string]*NodeConfig, error) {
+	nodesConfig := make(map[string]*NodeConfig)
 
-	// Load the discovered nodes
-	nodes, err := util.GetDirChildKeys(etcdClient, DiscoveredNodesKey)
-	log.Printf("Discovered %d nodes", nodes.Count())
-	if err != nil {
-		log.Printf("failed to get the node ids. err=%s", err.Error())
-		return nil, err
+	// Load the node configuration keys
+	nodeInfo, err := etcdClient.Get(ctx.Background(), NodesConfigKey, &etcd.GetOptions{Recursive: true})
+	if err != nil && !util.IsEtcdKeyNotFound(err) {
+		return nil, fmt.Errorf("failed to get the node config. %v", err)
+	}
+	if nodeInfo == nil || nodeInfo.Node == nil {
+		return nodesConfig, nil
 	}
 
-	nodesConfig := make(map[string]*NodeConfig)
-	for node := range nodes.Iter() {
+	log.Printf("Discovered %d nodes", len(nodeInfo.Node.Nodes))
+
+	for _, etcdNode := range nodeInfo.Node.Nodes {
 		nodeConfig := &NodeConfig{}
+		nodeID := util.GetLeafKeyPath(etcdNode.Key)
 
 		// get all the config information for the current node
-		configKey := GetNodeConfigKey(node)
-		nodeInfo, err := etcdClient.Get(ctx.Background(), configKey, &etcd.GetOptions{Recursive: true})
+		err = loadHardwareConfig(nodeID, nodeConfig, etcdNode)
 		if err != nil {
-			if util.IsEtcdKeyNotFound(err) {
-				log.Printf("skipping node %s with no hardware discovered", node)
-				continue
-			}
-			log.Printf("failed to get hardware info from etcd for node %s, %v", node, err)
-		} else {
-			err = loadHardwareConfig(node, nodeConfig, nodeInfo)
-			if err != nil {
-				log.Printf("failed to parse hardware config for node %s, %v", node, err)
-				return nil, err
-			}
+			log.Printf("failed to parse hardware config for node %s, %v", etcdNode, err)
+			return nil, err
 		}
 
-		ipAddr, err := GetIpAddress(etcdClient, node)
+		ipAddr, err := getIPAddress(nodeID, etcdNode)
 		if err != nil {
-			log.Printf("failed to get IP address for node %s, %+v", node, err)
-			return nil, err
+			return nil, fmt.Errorf("failed to get IP address for node %s. %v", nodeID, err)
 		}
 		nodeConfig.IPAddress = ipAddr
 
-		nodesConfig[node] = nodeConfig
+		nodesConfig[nodeID] = nodeConfig
 	}
 
 	return nodesConfig, nil
 }
 
-// Get the IP address for a node
-func GetIpAddress(etcdClient etcd.KeysAPI, nodeId string) (string, error) {
-	key := path.Join(GetNodeConfigKey(nodeId), IpAddressKey)
-	val, err := etcdClient.Get(ctx.Background(), key, nil)
-	if err != nil {
-		log.Printf("FAILED TO GET nodeID for %s. %v", nodeId, err)
-		return "", err
+func loadNodeHealth(etcdClient etcd.KeysAPI, nodes map[string]*NodeConfig) error {
+	// set the default health info on all the nodes
+	for _, node := range nodes {
+		// If no heartbeat is found, set the age to one year
+		node.HeartbeatAge = time.Hour * 24 * 365
 	}
 
-	return val.Node.Value, nil
+	// Load the node configuration keys
+	healthInfo, err := etcdClient.Get(ctx.Background(), NodesHealthKey, &etcd.GetOptions{Recursive: true})
+	if err != nil && !util.IsEtcdKeyNotFound(err) {
+		return fmt.Errorf("failed to get the node health key. %v", err)
+	}
+	if healthInfo == nil || healthInfo.Node == nil {
+		// no node health found
+		return nil
+	}
+
+	for _, health := range healthInfo.Node.Nodes {
+		nodeID := util.GetLeafKeyPath(health.Key)
+
+		var nodeConfig *NodeConfig
+		var ok bool
+		if nodeConfig, ok = nodes[nodeID]; !ok {
+			log.Printf("found health but no config for node %s", nodeID)
+			continue
+		}
+
+		err := loadSingleNodeHealth(nodeConfig, health)
+		if err != nil {
+			return fmt.Errorf("failed to load health for node %s. %v", nodeID)
+		}
+	}
+
+	return nil
+}
+
+func loadSingleNodeHealth(node *NodeConfig, health *etcd.Node) error {
+
+	for _, prop := range health.Nodes {
+		switch util.GetLeafKeyPath(prop.Key) {
+		case HeartbeatKey:
+			node.HeartbeatAge = HeartbeatTtlDuration - (time.Duration(prop.TTL) * time.Second)
+			log.Printf("Node %s has age of %s", node.IPAddress, node.HeartbeatAge.String())
+		default:
+			return fmt.Errorf("unknown node health key %s", prop.Key)
+		}
+	}
+
+	return nil
 }
 
 // Set the IP address for a node
-func SetIpAddress(etcdClient etcd.KeysAPI, nodeId, ipaddress string) error {
+func SetIPAddress(etcdClient etcd.KeysAPI, nodeId, ipaddress string) error {
 	key := path.Join(GetNodeConfigKey(nodeId), IpAddressKey)
 	_, err := etcdClient.Set(ctx.Background(), key, ipaddress, nil)
 
 	return err
 }
 
-func loadHardwareConfig(nodeId string, nodeConfig *NodeConfig, nodeInfo *etcd.Response) error {
-	if nodeInfo == nil || nodeInfo.Node == nil {
+func getIPAddress(nodeID string, nodeInfo *etcd.Node) (string, error) {
+	for _, prop := range nodeInfo.Nodes {
+		switch util.GetLeafKeyPath(prop.Key) {
+		case "ipaddress":
+			return prop.Value, nil
+		}
+	}
+
+	return "", fmt.Errorf("node %s ip address not found", nodeID)
+}
+
+func loadHardwareConfig(nodeId string, nodeConfig *NodeConfig, nodeInfo *etcd.Node) error {
+	if nodeInfo == nil || nodeInfo.Nodes == nil {
 		return errors.New("hardware info missing")
 	}
 
-	for _, nodeConfigRoot := range nodeInfo.Node.Nodes {
+	for _, nodeConfigRoot := range nodeInfo.Nodes {
 		switch util.GetLeafKeyPath(nodeConfigRoot.Key) {
 		case DisksKey:
 			err := loadDisksConfig(nodeConfig, nodeConfigRoot)

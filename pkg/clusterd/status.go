@@ -26,6 +26,7 @@ const (
 	NodeConfigStatusRunning
 	NodeConfigStatusFailed
 	NodeConfigStatusSucceeded
+	NodeConfigStatusTimeout
 	NodeConfigStatusAbort
 )
 
@@ -44,6 +45,9 @@ func (n NodeConfigStatus) String() string {
 	}
 	if n == NodeConfigStatusSucceeded {
 		return "succeeded"
+	}
+	if n == NodeConfigStatusTimeout {
+		return "timeout"
 	}
 	if n == NodeConfigStatusAbort {
 		return "abort"
@@ -68,6 +72,9 @@ func ParseNodeConfigStatus(status string) NodeConfigStatus {
 	if status == "succeeded" {
 		return NodeConfigStatusSucceeded
 	}
+	if status == "timeout" {
+		return NodeConfigStatusTimeout
+	}
 	if status == "abort" {
 		return NodeConfigStatusAbort
 	}
@@ -76,6 +83,10 @@ func ParseNodeConfigStatus(status string) NodeConfigStatus {
 }
 
 func WaitForNodeConfigCompletion(etcdClient etcd.KeysAPI, taskKey string, nodes []string, timeout int) (int, error) {
+	if len(nodes) == 0 {
+		return 0, nil
+	}
+
 	var waitgroup sync.WaitGroup
 	waitgroup.Add(len(nodes))
 	var nodesSuccessful int32 = 0
@@ -88,7 +99,7 @@ func WaitForNodeConfigCompletion(etcdClient etcd.KeysAPI, taskKey string, nodes 
 			// Watch the status until it is failed or succeeded
 			nodeStatus, statusIndex, _ := GetNodeConfigStatus(etcdClient, taskKey, nodeID)
 			for {
-				if nodeStatus == NodeConfigStatusSucceeded || nodeStatus == NodeConfigStatusFailed {
+				if nodeStatus == NodeConfigStatusSucceeded || nodeStatus == NodeConfigStatusFailed || nodeStatus == NodeConfigStatusTimeout {
 					if nodeStatus == NodeConfigStatusSucceeded {
 						atomic.AddInt32(&nodesSuccessful, 1)
 					}
@@ -98,9 +109,7 @@ func WaitForNodeConfigCompletion(etcdClient etcd.KeysAPI, taskKey string, nodes 
 				}
 
 				//util.DebugPrint("Watching for task %s status on node %s. Last=%s", taskKey, nodeID, nodeStatus.String())
-				// FIX: What should the timeout be for monitoring install status?
-				timeoutSeconds := 300
-				nodeStatus, _ = WatchNodeConfigStatus(etcdClient, taskKey, nodeID, timeoutSeconds, &statusIndex)
+				nodeStatus, _ = WatchNodeConfigStatus(etcdClient, taskKey, nodeID, timeout, &statusIndex)
 			}
 		}(node)
 	}
@@ -165,8 +174,11 @@ func GetNodeConfigStatus(etcdClient etcd.KeysAPI, taskKey, nodeID string) (NodeC
 // Watch for changes to the node config status etcd key
 func WatchNodeConfigStatus(etcdClient etcd.KeysAPI, taskKey, nodeID string, timeout int, index *uint64) (NodeConfigStatus, error) {
 	key := GetNodeStatusKey(taskKey, nodeID)
-	value, err := util.WatchEtcdKey(etcdClient, key, index, timeout)
+	value, timedOut, err := util.WatchEtcdKey(etcdClient, key, index, timeout)
 	if err != nil {
+		if timedOut {
+			return NodeConfigStatusTimeout, nil
+		}
 		return NodeConfigStatusUnknown, err
 	}
 

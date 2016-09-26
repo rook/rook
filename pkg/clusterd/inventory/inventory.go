@@ -1,6 +1,7 @@
 package inventory
 
 import (
+	"fmt"
 	"path"
 
 	etcd "github.com/coreos/etcd/client"
@@ -10,25 +11,25 @@ import (
 )
 
 const (
-	DiscoveredNodesHealthKey    = "/castle/nodes/health"
-	DiscoveredNodesKey          = "/castle/nodes/config"
+	NodesHealthKey              = "/castle/nodes/health"
+	NodesConfigKey              = "/castle/nodes/config"
 	TriggerHardwareDetectionKey = "trigger-hardware-detection"
 )
 
 func LoadDiscoveredNodes(etcdClient etcd.KeysAPI) (*Config, error) {
 
 	// Get the discovered state of the infrastructure
-	discovered, err := loadDiscoveredConfig(etcdClient)
+	nodes, err := loadNodes(etcdClient)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Config{Nodes: discovered.Nodes}, nil
+	return &Config{Nodes: nodes}, nil
 }
 
 func TriggerClusterHardwareDetection(etcdClient etcd.KeysAPI) {
 	// for each member of the cluster, trigger hardware detection
-	members, err := util.GetDirChildKeys(etcdClient, DiscoveredNodesKey)
+	members, err := util.GetDirChildKeys(etcdClient, NodesConfigKey)
 	if err != nil {
 		return
 	}
@@ -59,18 +60,16 @@ func GetNodeIDSet(c *Config) *util.Set {
 }
 
 // Get the cluster configuration from etcd
-func loadDiscoveredConfig(etcdClient etcd.KeysAPI) (*Config, error) {
-	return loadConfig(etcdClient)
-}
-
-// Get the cluster configuration from etcd
-func loadConfig(etcdClient etcd.KeysAPI) (*Config, error) {
+func loadNodes(etcdClient etcd.KeysAPI) (map[string]*NodeConfig, error) {
 	nodes, err := loadNodeConfig(etcdClient)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load node config. %v", err)
 	}
 
-	return &Config{
-		Nodes: nodes,
-	}, nil
+	err = loadNodeHealth(etcdClient, nodes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load node health. %v", err)
+	}
+
+	return nodes, nil
 }

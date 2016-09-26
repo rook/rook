@@ -13,8 +13,8 @@ import (
 )
 
 type CephMonitorConfig struct {
-	Name     string
-	Endpoint string
+	Name     string `json:"name"`
+	Endpoint string `json:"endpoint"`
 }
 
 type cephConfig struct {
