@@ -8,19 +8,19 @@ import (
 	"net/http"
 
 	etcd "github.com/coreos/etcd/client"
-	"github.com/quantum/castle/pkg/castled"
 	"github.com/quantum/castle/pkg/cephclient"
+	"github.com/quantum/castle/pkg/cephmgr"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/model"
 )
 
 type Handler struct {
 	EtcdClient        etcd.KeysAPI
-	ConnectionFactory castled.ConnectionFactory
+	ConnectionFactory cephmgr.ConnectionFactory
 	CephFactory       cephclient.ConnectionFactory
 }
 
-func NewHandler(etcdClient etcd.KeysAPI, connFactory castled.ConnectionFactory, cephFactory cephclient.ConnectionFactory) *Handler {
+func NewHandler(etcdClient etcd.KeysAPI, connFactory cephmgr.ConnectionFactory, cephFactory cephclient.ConnectionFactory) *Handler {
 	return &Handler{
 		EtcdClient:        etcdClient,
 		ConnectionFactory: connFactory,
@@ -57,7 +57,7 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 	i := 0
 	for nodeID, n := range clusterInventory.Nodes {
 		// look up all the disks that the current node has applied OSDs on
-		appliedSerials, err := castled.GetAppliedOSDs(nodeID, h.EtcdClient)
+		appliedSerials, err := cephmgr.GetAppliedOSDs(nodeID, h.EtcdClient)
 		if err != nil {
 			log.Printf("failed to get applied OSDs for node %s: %+v", nodeID, err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -87,8 +87,8 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 }
 
 type overallMonStatus struct {
-	Status  castled.MonStatusResponse    `json:"status"`
-	Desired []*castled.CephMonitorConfig `json:"desired"`
+	Status  cephmgr.MonStatusResponse    `json:"status"`
+	Desired []*cephmgr.CephMonitorConfig `json:"desired"`
 }
 
 // Gets the monitors that have been created in this cluster.
@@ -96,14 +96,14 @@ type overallMonStatus struct {
 // /mon
 func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
 
-	desiredMons, err := castled.GetDesiredMonitors(h.EtcdClient)
+	desiredMons, err := cephmgr.GetDesiredMonitors(h.EtcdClient)
 	if err != nil {
 		log.Printf("failed to load monitors: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	mons := []*castled.CephMonitorConfig{}
+	mons := []*cephmgr.CephMonitorConfig{}
 	if len(desiredMons) == 0 {
 		// no monitors to connect to
 		FormatJsonResponse(w, mons)
@@ -118,7 +118,7 @@ func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
 	defer adminConn.Shutdown()
 
 	// get the monitor status
-	monStatusResp, err := castled.GetMonStatus(adminConn)
+	monStatusResp, err := cephmgr.GetMonStatus(adminConn)
 	if err != nil {
 		log.Printf("failed to get mon_status, err: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)

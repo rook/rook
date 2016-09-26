@@ -13,9 +13,9 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
 
-	"github.com/quantum/castle/pkg/castled/test"
 	"github.com/quantum/castle/pkg/cephclient"
 	testceph "github.com/quantum/castle/pkg/cephclient/test"
+	"github.com/quantum/castle/pkg/cephmgr/test"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"

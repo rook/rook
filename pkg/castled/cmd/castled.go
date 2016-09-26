@@ -13,8 +13,8 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/quantum/castle/pkg/api"
-	"github.com/quantum/castle/pkg/castled"
 	"github.com/quantum/castle/pkg/cephd"
+	"github.com/quantum/castle/pkg/cephmgr"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/castle/pkg/util"
@@ -22,7 +22,7 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "castled",
-	Short: "castled tool for bootstrapping and running castle storage.",
+	Short: "castled tool for bootstrapping and running castle storage",
 	Long:  `https://github.com/quantum/castle`,
 }
 var cfg = newConfig()
@@ -33,11 +33,11 @@ type config struct {
 	privateIPv4  string
 	devices      string
 	forceFormat  bool
-	crushMap     *castled.CrushLocation
+	crushMap     *cephmgr.CrushLocation
 }
 
 func newConfig() *config {
-	return &config{crushMap: &castled.CrushLocation{}}
+	return &config{crushMap: &cephmgr.CrushLocation{}}
 }
 
 // Initialize the configuration parameters. The precedence from lowest to highest is:
@@ -89,7 +89,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("either discovery-url or etcd-members settings are required")
 	}
 
-	services := []*clusterd.ClusterService{castled.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.crushMap)}
+	services := []*clusterd.ClusterService{cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.crushMap)}
 	procMan := &proc.ProcManager{}
 	defer func() {
 		procMan.Shutdown()
@@ -104,7 +104,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 
 	go func() {
 		// set up routes and start HTTP server for REST API
-		h := api.NewHandler(context.EtcdClient, castled.NewConnectionFactory(), cephd.New())
+		h := api.NewHandler(context.EtcdClient, cephmgr.NewConnectionFactory(), cephd.New())
 		r := api.NewRouter(h.GetRoutes())
 		if err := http.ListenAndServe(":8124", r); err != nil {
 			log.Printf("API server error: %+v", err)
