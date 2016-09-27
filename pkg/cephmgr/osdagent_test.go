@@ -130,6 +130,10 @@ func TestOSDAgent(t *testing.T) {
 	key := path.Join(cephKey, osdAgentName, desiredKey, context.NodeID)
 	etcdClient.CreateDir(key)
 
+	err := agent.Initialize(context)
+	etcdClient.SetValue(path.Join(cephKey, osdAgentName, desiredKey, context.NodeID, "ready"), "1")
+	assert.Nil(t, err)
+
 	// prep the etcd keys as if the leader initiated the orchestration
 	cluster := &ClusterInfo{FSID: "id", MonitorSecret: "monsecret", AdminSecret: "adminsecret", Name: clusterName}
 	saveClusterInfo(cluster, etcdClient)
@@ -143,7 +147,7 @@ func TestOSDAgent(t *testing.T) {
 	etcdClient.SetValue(path.Join(disksKey, "sdxserial", "name"), "sdx")
 	etcdClient.SetValue(path.Join(disksKey, "sdyserial", "name"), "sdy")
 
-	err := agent.ConfigureLocalService(context)
+	err = agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
 	assert.Equal(t, 6, execCount)
 	assert.Equal(t, 2, outputExecCount)

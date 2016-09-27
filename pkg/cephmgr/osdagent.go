@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	ctx "golang.org/x/net/context"
+
 	etcd "github.com/coreos/etcd/client"
 	"github.com/google/uuid"
 
@@ -23,19 +25,19 @@ import (
 
 const (
 	osdAgentName = "osd"
+	devicesKey   = "devices"
 )
 
 type osdAgent struct {
 	cluster     *ClusterInfo
-	devices     []string
 	forceFormat bool
 	location    string
 	factory     client.ConnectionFactory
 	osdCmd      map[int]*exec.Cmd
+	devices     string
 }
 
-func newOSDAgent(factory client.ConnectionFactory, rawDevices string, forceFormat bool, location string) *osdAgent {
-	devices := strings.Split(rawDevices, ",")
+func newOSDAgent(factory client.ConnectionFactory, devices string, forceFormat bool, location string) *osdAgent {
 	return &osdAgent{factory: factory, devices: devices, forceFormat: forceFormat, location: location}
 }
 
@@ -43,24 +45,43 @@ func (a *osdAgent) Name() string {
 	return osdAgentName
 }
 
+// set the desired state in etcd
+func (a *osdAgent) Initialize(context *clusterd.Context) error {
+
+	// add the devices to desired state
+	devices := strings.Split(a.devices, ",")
+	for _, device := range devices {
+		err := AddDesiredDevice(context.EtcdClient, &Device{Name: device, NodeID: context.NodeID})
+		if err != nil {
+			return fmt.Errorf("failed to add desired device %s", device)
+		}
+	}
+
+	return nil
+}
+
 func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 
 	// check if the osd is in the desired state for this node
-	key := path.Join(cephKey, osdAgentName, desiredKey, context.NodeID)
-	osdDesired, err := util.EtcdDirExists(context.EtcdClient, key)
-	if err != nil {
-		return err
-	}
-	if !osdDesired {
+	key := path.Join(cephKey, osdAgentName, desiredKey, context.NodeID, "ready")
+	osdDesired, err := context.EtcdClient.Get(ctx.Background(), key, nil)
+	if (err != nil && util.IsEtcdKeyNotFound(err)) || osdDesired.Node.Value != "1" {
 		return nil
+	} else if err != nil {
+		return err
 	}
 
 	a.cluster, err = LoadClusterInfo(context.EtcdClient)
 	if err != nil {
 		return fmt.Errorf("failed to load cluster info: %v", err)
 	}
+	if a.cluster == nil {
+		// the ceph cluster is not initialized yet
+		return nil
+	}
 
-	if len(a.devices) == 0 {
+	devices, err := loadDesiredDevices(context.EtcdClient, context.NodeID)
+	if devices.Count() == 0 {
 		return nil
 	}
 
@@ -72,13 +93,13 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 	defer adminConn.Shutdown()
 
 	// Start an OSD for each of the specified devices
-	err = a.createOSDs(adminConn, context)
+	err = a.createOSDs(adminConn, context, devices)
 	if err != nil {
 		return fmt.Errorf("failed to create OSDs: %+v", err)
 	}
 
 	// successful, ensure all applied devices are saved to the cluster config store
-	if err := a.saveAppliedOSDs(context); err != nil {
+	if err := a.saveAppliedOSDs(context, devices); err != nil {
 		return fmt.Errorf("failed to save applied OSDs: %+v", err)
 	}
 
@@ -102,7 +123,7 @@ func getAppliedKey(nodeID string) string {
 }
 
 // create and initalize OSDs for all the devices specified in the given config
-func (a *osdAgent) createOSDs(adminConn client.Connection, context *clusterd.Context) error {
+func (a *osdAgent) createOSDs(adminConn client.Connection, context *clusterd.Context, devices *util.Set) error {
 	// generate and write the OSD bootstrap keyring
 	if err := createOSDBootstrapKeyring(adminConn, a.cluster.Name); err != nil {
 		return err
@@ -116,7 +137,7 @@ func (a *osdAgent) createOSDs(adminConn client.Connection, context *clusterd.Con
 	defer bootstrapConn.Shutdown()
 
 	// initialize all the desired OSD volumes
-	for _, device := range a.devices {
+	for device := range devices.Iter() {
 		var osdID int
 		var osdUUID uuid.UUID
 
@@ -211,21 +232,45 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID i
 	return nil
 }
 
-func GetAppliedOSDs(nodeID string, etcdClient etcd.KeysAPI) (*util.Set, error) {
-	appliedKey := getAppliedKey(nodeID)
-	return util.GetDirChildKeys(etcdClient, appliedKey)
+func GetAppliedOSDs(nodeID string, etcdClient etcd.KeysAPI) (map[string]string, error) {
+	appliedKey := path.Join(getAppliedKey(nodeID), devicesKey)
+	devices := map[string]string{}
+
+	deviceKeys, err := etcdClient.Get(ctx.Background(), appliedKey, &etcd.GetOptions{Recursive: true})
+	if err != nil {
+		if util.IsEtcdKeyNotFound(err) {
+			return devices, nil
+		}
+		return nil, err
+	}
+
+	// parse the device info from etcd
+	for _, dev := range deviceKeys.Node.Nodes {
+		name := util.GetLeafKeyPath(dev.Key)
+		for _, setting := range dev.Nodes {
+			if strings.HasSuffix(setting.Key, "/serial") {
+				devices[name] = setting.Value
+			}
+		}
+	}
+
+	return devices, nil
 }
 
-func (a *osdAgent) saveAppliedOSDs(context *clusterd.Context) error {
-	appliedKey := getAppliedKey(context.NodeID)
-	for _, d := range a.devices {
+func (a *osdAgent) saveAppliedOSDs(context *clusterd.Context, devices *util.Set) error {
+	appliedKey := path.Join(getAppliedKey(context.NodeID), devicesKey)
+	var settings = make(map[string]string)
+	for d := range devices.Iter() {
 		serial, err := inventory.GetSerialFromDevice(d, context.NodeID, context.EtcdClient)
 		if err != nil {
 			return fmt.Errorf("failed to get serial for device %s: %+v", d, err)
 		}
-		if err := util.CreateEtcdDir(context.EtcdClient, path.Join(appliedKey, serial)); err != nil {
-			return fmt.Errorf("failed to mark device %s/%s as applied: %+v", d, serial, err)
-		}
+
+		settings[path.Join(d, "serial")] = serial
+	}
+
+	if err := util.StoreEtcdProperties(context.EtcdClient, appliedKey, settings); err != nil {
+		return fmt.Errorf("failed to mark devices as applied: %+v", err)
 	}
 
 	return nil

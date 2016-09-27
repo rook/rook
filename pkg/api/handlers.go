@@ -75,7 +75,7 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 
 		storage := uint64(0)
 		for _, d := range n.Disks {
-			for s := range appliedSerials.Iter() {
+			for _, s := range appliedSerials {
 				if s == d.Serial {
 					// current disk is in applied OSD set, add its storage to the running total
 					storage += d.Size

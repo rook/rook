@@ -33,6 +33,9 @@ type ServiceAgent interface {
 	// Get the name of the service agent
 	Name() string
 
+	// Initialize the agents from the context, allowing them to store desired state in etcd before orchestration starts.
+	Initialize(context *Context) error
+
 	// Configure the service according to the changes requested by the leader
 	ConfigureLocalService(context *Context) error
 
