@@ -26,5 +26,17 @@ func (h *Handler) GetRoutes() []Route {
 			"/mon",
 			h.GetMonitors,
 		},
+		{
+			"AddDevice",
+			"POST",
+			"/device",
+			h.AddDevice,
+		},
+		{
+			"RemoveDevice",
+			"POST",
+			"/device/remove",
+			h.RemoveDevice,
+		},
 	}
 }

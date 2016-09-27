@@ -15,6 +15,28 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestDesiredDeviceState(t *testing.T) {
+	etcdClient := util.NewMockEtcdClient()
+
+	// add a device
+	device := &Device{Name: "foo", NodeID: "a"}
+	err := AddDesiredDevice(etcdClient, device)
+	assert.Nil(t, err)
+	devices := etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/a/device")
+	assert.Equal(t, 1, devices.Count())
+	assert.True(t, devices.Contains("foo"))
+
+	// remove the device
+	err = RemoveDesiredDevice(etcdClient, device)
+	assert.Nil(t, err)
+	devices = etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/a/device")
+	assert.Equal(t, 0, devices.Count())
+
+	// removing a non-existent device is a no-op
+	err = RemoveDesiredDevice(etcdClient, device)
+	assert.Nil(t, err)
+}
+
 func TestOSDBootstrap(t *testing.T) {
 	clusterName := "mycluster"
 	targetPath := getBootstrapOSDKeyringPath(clusterName)
