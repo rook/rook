@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/go-ini/ini"
-	"github.com/quantum/castle/pkg/cephclient"
+	"github.com/quantum/castle/pkg/cephmgr/client"
 )
 
 type CephMonitorConfig struct {
@@ -38,7 +38,7 @@ type cephGlobalConfig struct {
 	RbdDefaultFeatures    int    `ini:"rbd_default_features"`
 }
 
-func ConnectToClusterAsAdmin(factory cephclient.ConnectionFactory, cluster *ClusterInfo) (cephclient.Connection, error) {
+func ConnectToClusterAsAdmin(factory client.ConnectionFactory, cluster *ClusterInfo) (client.Connection, error) {
 	if len(cluster.Monitors) == 0 {
 		return nil, errors.New("no monitors")
 	}
@@ -108,7 +108,7 @@ func getFirstMonitor(cluster *ClusterInfo) string {
 }
 
 // opens a connection to the cluster that can be used for management operations
-func connectToCluster(factory cephclient.ConnectionFactory, cluster *ClusterInfo, basePath, user, keyringPath string) (cephclient.Connection, error) {
+func connectToCluster(factory client.ConnectionFactory, cluster *ClusterInfo, basePath, user, keyringPath string) (client.Connection, error) {
 	log.Printf("connecting to ceph cluster %s with user %s", cluster.Name, user)
 
 	confFilePath, err := generateConfigFile(cluster, basePath, user, keyringPath)

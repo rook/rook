@@ -6,7 +6,7 @@ import (
 	"path"
 	"path/filepath"
 
-	"github.com/quantum/castle/pkg/cephclient"
+	"github.com/quantum/castle/pkg/cephmgr/client"
 )
 
 const (
@@ -77,7 +77,7 @@ type MonMapEntry struct {
 }
 
 // calls mon_status mon_command
-func GetMonStatus(adminConn cephclient.Connection) (MonStatusResponse, error) {
+func GetMonStatus(adminConn client.Connection) (MonStatusResponse, error) {
 	monCommand := "mon_status"
 	command, err := json.Marshal(map[string]string{"prefix": monCommand, "format": "json"})
 	if err != nil {

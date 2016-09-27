@@ -8,7 +8,7 @@ import (
 	ctx "golang.org/x/net/context"
 
 	etcd "github.com/coreos/etcd/client"
-	"github.com/quantum/castle/pkg/cephclient"
+	"github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 )
@@ -17,7 +17,7 @@ import (
 type cephLeader struct {
 	cluster *ClusterInfo
 	events  chan clusterd.LeaderEvent
-	factory cephclient.ConnectionFactory
+	factory client.ConnectionFactory
 }
 
 func (c *cephLeader) StartWatchEvents() {
@@ -96,7 +96,7 @@ func (c *cephLeader) configureCephMons(context *clusterd.Context) error {
 	return configureMonitors(c.factory, context, c.cluster)
 }
 
-func createOrGetClusterInfo(factory cephclient.ConnectionFactory, etcdClient etcd.KeysAPI) (*ClusterInfo, error) {
+func createOrGetClusterInfo(factory client.ConnectionFactory, etcdClient etcd.KeysAPI) (*ClusterInfo, error) {
 	// load any existing cluster info that may have previously been created
 	cluster, err := LoadClusterInfo(etcdClient)
 	if err != nil {
@@ -124,7 +124,7 @@ func createOrGetClusterInfo(factory cephclient.ConnectionFactory, etcdClient etc
 }
 
 // create new cluster info (FSID, shared keys)
-func createClusterInfo(factory cephclient.ConnectionFactory) (*ClusterInfo, error) {
+func createClusterInfo(factory client.ConnectionFactory) (*ClusterInfo, error) {
 	fsid, err := factory.NewFsid()
 	if err != nil {
 		return nil, err

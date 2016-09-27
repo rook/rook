@@ -14,7 +14,7 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"github.com/google/uuid"
 
-	"github.com/quantum/castle/pkg/cephclient"
+	"github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/proc"
@@ -30,11 +30,11 @@ type osdAgent struct {
 	devices     []string
 	forceFormat bool
 	location    *CrushLocation
-	factory     cephclient.ConnectionFactory
+	factory     client.ConnectionFactory
 	osdCmd      map[int]*exec.Cmd
 }
 
-func newOSDAgent(factory cephclient.ConnectionFactory, rawDevices string, forceFormat bool, location *CrushLocation) *osdAgent {
+func newOSDAgent(factory client.ConnectionFactory, rawDevices string, forceFormat bool, location *CrushLocation) *osdAgent {
 	devices := strings.Split(rawDevices, ",")
 	return &osdAgent{factory: factory, devices: devices, forceFormat: forceFormat, location: location}
 }
@@ -102,7 +102,7 @@ func getAppliedKey(nodeID string) string {
 }
 
 // create and initalize OSDs for all the devices specified in the given config
-func (a *osdAgent) createOSDs(adminConn cephclient.Connection, context *clusterd.Context) error {
+func (a *osdAgent) createOSDs(adminConn client.Connection, context *clusterd.Context) error {
 	// generate and write the OSD bootstrap keyring
 	if err := createOSDBootstrapKeyring(adminConn, a.cluster.Name); err != nil {
 		return err

@@ -9,7 +9,7 @@ import (
 	"path"
 	"testing"
 
-	testceph "github.com/quantum/castle/pkg/cephclient/test"
+	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/proc"

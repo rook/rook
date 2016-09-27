@@ -7,7 +7,7 @@ import (
 
 	etcd "github.com/coreos/etcd/client"
 
-	"github.com/quantum/castle/pkg/cephclient"
+	"github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/util"
 )
@@ -29,7 +29,7 @@ type ClusterInfo struct {
 }
 
 // create a new ceph service
-func NewCephService(factory cephclient.ConnectionFactory, devices string, forceFormat bool, location *CrushLocation) *clusterd.ClusterService {
+func NewCephService(factory client.ConnectionFactory, devices string, forceFormat bool, location *CrushLocation) *clusterd.ClusterService {
 	return &clusterd.ClusterService{
 		Name:   cephName,
 		Leader: &cephLeader{factory: factory},

@@ -1,4 +1,4 @@
-package cephclient
+package client
 
 import (
 	"encoding/json"

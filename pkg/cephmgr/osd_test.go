@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	testceph "github.com/quantum/castle/pkg/cephclient/test"
+	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
 	"github.com/stretchr/testify/assert"
 )
 

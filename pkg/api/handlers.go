@@ -8,8 +8,8 @@ import (
 	"net/http"
 
 	etcd "github.com/coreos/etcd/client"
-	"github.com/quantum/castle/pkg/cephclient"
 	"github.com/quantum/castle/pkg/cephmgr"
+	ceph "github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/model"
 )
@@ -17,10 +17,10 @@ import (
 type Handler struct {
 	EtcdClient        etcd.KeysAPI
 	ConnectionFactory cephmgr.ConnectionFactory
-	CephFactory       cephclient.ConnectionFactory
+	CephFactory       ceph.ConnectionFactory
 }
 
-func NewHandler(etcdClient etcd.KeysAPI, connFactory cephmgr.ConnectionFactory, cephFactory cephclient.ConnectionFactory) *Handler {
+func NewHandler(etcdClient etcd.KeysAPI, connFactory cephmgr.ConnectionFactory, cephFactory ceph.ConnectionFactory) *Handler {
 	return &Handler{
 		EtcdClient:        etcdClient,
 		ConnectionFactory: connFactory,
@@ -144,7 +144,7 @@ func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
 	defer adminConn.Shutdown()
 
 	// list pools using the ceph client
-	cephPools, err := cephclient.ListPools(adminConn)
+	cephPools, err := ceph.ListPools(adminConn)
 	if err != nil {
 		log.Printf("failed to list pools: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -191,7 +191,7 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 	}
 	defer adminConn.Shutdown()
 
-	info, err := cephclient.CreatePool(adminConn, newPool.Name)
+	info, err := ceph.CreatePool(adminConn, newPool.Name)
 	if err != nil {
 		log.Printf("failed to create new pool '%+v': %+v", newPool, err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -201,7 +201,7 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(info))
 }
 
-func (h *Handler) connectToCeph(w http.ResponseWriter) (cephclient.Connection, bool) {
+func (h *Handler) connectToCeph(w http.ResponseWriter) (ceph.Connection, bool) {
 	adminConn, err := h.ConnectionFactory.ConnectAsAdmin(h.CephFactory, h.EtcdClient)
 	if err != nil {
 		log.Printf("failed to connect to cluster as admin: %+v", err)

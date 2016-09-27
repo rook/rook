@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/quantum/castle/pkg/cephclient"
+	"github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/castle/pkg/util"
@@ -21,7 +21,7 @@ const (
 )
 
 type monAgent struct {
-	factory cephclient.ConnectionFactory
+	factory client.ConnectionFactory
 	monCmd  *exec.Cmd
 }
 
