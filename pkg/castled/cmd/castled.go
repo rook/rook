@@ -13,8 +13,8 @@ import (
 	"github.com/spf13/pflag"
 
 	"github.com/quantum/castle/pkg/api"
-	"github.com/quantum/castle/pkg/cephd"
 	"github.com/quantum/castle/pkg/cephmgr"
+	"github.com/quantum/castle/pkg/cephmgr/cephd"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/castle/pkg/util"

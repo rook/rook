@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/quantum/castle/pkg/cephd"
+	"github.com/quantum/castle/pkg/cephmgr/cephd"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/spf13/cobra"
 )

@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/quantum/castle/pkg/cephclient"
+	"github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/proc"
@@ -79,7 +79,7 @@ func getOSDTempMonMapPath(osdDataPath string) string {
 }
 
 // create a keyring for the bootstrap-osd client, it gets a limited set of privileges
-func createOSDBootstrapKeyring(conn cephclient.Connection, clusterName string) error {
+func createOSDBootstrapKeyring(conn client.Connection, clusterName string) error {
 	bootstrapOSDKeyringPath := getBootstrapOSDKeyringPath(clusterName)
 	_, err := os.Stat(bootstrapOSDKeyringPath)
 	if err == nil {
@@ -239,7 +239,7 @@ func mountOSD(device string, mountPath string, executor proc.Executor) error {
 	return nil
 }
 
-func registerOSDWithCluster(device string, bootstrapConn cephclient.Connection) (int, uuid.UUID, error) {
+func registerOSDWithCluster(device string, bootstrapConn client.Connection) (int, uuid.UUID, error) {
 	osdUUID, err := uuid.NewRandom()
 	if err != nil {
 		return 0, uuid.UUID{}, fmt.Errorf("failed to generate UUID for %s: %+v", device, err)
@@ -303,7 +303,7 @@ func getOSDInfo(osdDataPath string) (int, uuid.UUID, error) {
 	return osdID, osdUUID, nil
 }
 
-func initializeOSD(factory cephclient.ConnectionFactory, context *clusterd.Context, osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn cephclient.Connection, cluster *ClusterInfo, location *CrushLocation) (string, error) {
+func initializeOSD(factory client.ConnectionFactory, context *clusterd.Context, osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn client.Connection, cluster *ClusterInfo, location *CrushLocation) (string, error) {
 	// ensure that the OSD data directory is created
 	osdDataPath := filepath.Join(osdDataDir, fmt.Sprintf("%s-%d", cluster.Name, osdID))
 	if err := os.MkdirAll(osdDataPath, 0777); err != nil {
@@ -349,7 +349,7 @@ func initializeOSD(factory cephclient.ConnectionFactory, context *clusterd.Conte
 }
 
 // creates the OSD identity in the cluster via a mon_command
-func createOSD(bootstrapConn cephclient.Connection, osdUUID uuid.UUID) (int, error) {
+func createOSD(bootstrapConn client.Connection, osdUUID uuid.UUID) (int, error) {
 	cmd := "osd create"
 	command, err := json.Marshal(map[string]interface{}{
 		"prefix": cmd,
@@ -374,7 +374,7 @@ func createOSD(bootstrapConn cephclient.Connection, osdUUID uuid.UUID) (int, err
 }
 
 // gets the current mon map for the cluster
-func getMonMap(bootstrapConn cephclient.Connection) ([]byte, error) {
+func getMonMap(bootstrapConn client.Connection) ([]byte, error) {
 	cmd := "mon getmap"
 	command, err := json.Marshal(map[string]interface{}{
 		"prefix": cmd,
@@ -428,7 +428,7 @@ func createOSDFileSystem(context *clusterd.Context, clusterName string, osdID in
 }
 
 // add OSD auth privileges for the given OSD ID.  the bootstrap-osd privileges are limited and a real OSD needs more.
-func addOSDAuth(bootstrapConn cephclient.Connection, osdID int, osdDataPath string) error {
+func addOSDAuth(bootstrapConn client.Connection, osdID int, osdDataPath string) error {
 	// create a new auth for this OSD
 	osdKeyringPath := getOSDKeyringPath(osdDataPath)
 	keyringBuffer, err := ioutil.ReadFile(osdKeyringPath)
@@ -457,7 +457,7 @@ func addOSDAuth(bootstrapConn cephclient.Connection, osdID int, osdDataPath stri
 }
 
 // adds the given OSD to the crush map
-func addOSDToCrushMap(osdConn cephclient.Connection, osdID int, osdDataPath string, location *CrushLocation) error {
+func addOSDToCrushMap(osdConn client.Connection, osdID int, osdDataPath string, location *CrushLocation) error {
 	// get the size of the volume containing the OSD data dir
 	s := syscall.Statfs_t{}
 	if err := syscall.Statfs(osdDataPath, &s); err != nil {

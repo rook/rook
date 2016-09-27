@@ -13,8 +13,8 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
 
-	"github.com/quantum/castle/pkg/cephclient"
-	testceph "github.com/quantum/castle/pkg/cephclient/test"
+	ceph "github.com/quantum/castle/pkg/cephmgr/client"
+	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
 	"github.com/quantum/castle/pkg/cephmgr/test"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/util"
@@ -123,7 +123,7 @@ func TestGetPoolsHandler(t *testing.T) {
 			return []byte(`[]`), "", nil
 		},
 	}
-	connFactory.MockConnectAsAdmin = func(cephFactory cephclient.ConnectionFactory, etcdClient etcd.KeysAPI) (cephclient.Connection, error) {
+	connFactory.MockConnectAsAdmin = func(cephFactory ceph.ConnectionFactory, etcdClient etcd.KeysAPI) (ceph.Connection, error) {
 		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
 	}
 
@@ -137,7 +137,7 @@ func TestGetPoolsHandler(t *testing.T) {
 	w = httptest.NewRecorder()
 	cephFactory.Conn = &testceph.MockConnection{
 		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
-			cephPools := []cephclient.CephStoragePool{
+			cephPools := []ceph.CephStoragePool{
 				{Number: 0, Name: "pool0"},
 				{Number: 1, Name: "pool1"},
 			}
@@ -166,7 +166,7 @@ func TestGetPoolsHandlerFailure(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
 	connFactory := &test.MockConnectionFactory{}
-	connFactory.MockConnectAsAdmin = func(cephFactory cephclient.ConnectionFactory, etcdClient etcd.KeysAPI) (cephclient.Connection, error) {
+	connFactory.MockConnectAsAdmin = func(cephFactory ceph.ConnectionFactory, etcdClient etcd.KeysAPI) (ceph.Connection, error) {
 		return nil, fmt.Errorf("mock error for connect as admin")
 	}
 
@@ -191,7 +191,7 @@ func TestCreatePoolHandler(t *testing.T) {
 			return []byte(""), "successfully created pool1", nil
 		},
 	}
-	connFactory.MockConnectAsAdmin = func(cephFactory cephclient.ConnectionFactory, etcdClient etcd.KeysAPI) (cephclient.Connection, error) {
+	connFactory.MockConnectAsAdmin = func(cephFactory ceph.ConnectionFactory, etcdClient etcd.KeysAPI) (ceph.Connection, error) {
 		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
 	}
 
@@ -218,7 +218,7 @@ func TestCreatePoolHandlerFailure(t *testing.T) {
 			return []byte(""), errMsg, fmt.Errorf(errMsg)
 		},
 	}
-	connFactory.MockConnectAsAdmin = func(cephFactory cephclient.ConnectionFactory, etcdClient etcd.KeysAPI) (cephclient.Connection, error) {
+	connFactory.MockConnectAsAdmin = func(cephFactory ceph.ConnectionFactory, etcdClient etcd.KeysAPI) (ceph.Connection, error) {
 		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
 	}
 

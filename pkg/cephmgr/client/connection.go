@@ -1,4 +1,4 @@
-package cephclient
+package client
 
 // interface for creating connections to ceph
 type ConnectionFactory interface {

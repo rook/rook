@@ -13,7 +13,7 @@ import (
 	ctx "golang.org/x/net/context"
 
 	etcd "github.com/coreos/etcd/client"
-	"github.com/quantum/castle/pkg/cephclient"
+	"github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/util"
@@ -26,7 +26,7 @@ const (
 
 // Create the ceph monitors
 // Must be idempotent
-func configureMonitors(factory cephclient.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
+func configureMonitors(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
 	log.Printf("Creating monitors with %d nodes available", len(context.Inventory.Nodes))
 
 	// choose the nodes where the monitors will run
@@ -64,7 +64,7 @@ func configureMonitors(factory cephclient.ConnectionFactory, context *clusterd.C
 	return nil
 }
 
-func removeMonitorsFromQuorum(factory cephclient.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo, monitors map[string]*CephMonitorConfig) error {
+func removeMonitorsFromQuorum(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo, monitors map[string]*CephMonitorConfig) error {
 	// trigger the monitors to remove, but don't wait for a response very long since they are likely down
 	waitSeconds := 10
 	err := clusterd.TriggerAgentsAndWait(context.EtcdClient, monIDs(monitors), monitorAgentName, 0, waitSeconds)
@@ -335,7 +335,7 @@ func calculateMonitorCount(nodeCount int) int {
 	}
 }
 
-func waitForQuorum(factory cephclient.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
+func waitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
 
 	// open an admin connection to the cluster
 	adminConn, err := ConnectToClusterAsAdmin(factory, cluster)

@@ -1,14 +1,14 @@
 package cephd
 
-// #cgo CFLAGS: -I${SRCDIR}/../../ceph/src/include
+// #cgo CFLAGS: -I${SRCDIR}/../../../ceph/src/include
 // #cgo jemalloc,static LDFLAGS: -ljemalloc
 // #cgo tcmalloc,static LDFLAGS: -ltcmalloc_minimal
 // #cgo jemalloc,dynamic LDFLAGS: -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic
 // #cgo tcmalloc,dynamic LDFLAGS: -Wl,-Bstatic -ltcmalloc_minimal -Wl,-Bdynamic
 // #cgo jemalloc tcmalloc CFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
 // #cgo jemalloc tcmalloc CXXFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
-// #cgo static LDFLAGS: -L${SRCDIR}/../../ceph/build/lib -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lz -lsnappy -lcrypto++ -lleveldb -laio -lblkid -luuid -lm -ldl -lresolv
-// #cgo dynamic LDFLAGS: -L${SRCDIR}/../../ceph/build/lib -Wl,-Bstatic -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lz -lsnappy -lcrypto++ -lleveldb -laio -lblkid -luuid -Wl,-Bdynamic -ldl -lm -lresolv
+// #cgo static LDFLAGS: -L${SRCDIR}/../../../ceph/build/lib -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lz -lsnappy -lcrypto++ -lleveldb -laio -lblkid -luuid -lm -ldl -lresolv
+// #cgo dynamic LDFLAGS: -L${SRCDIR}/../../../ceph/build/lib -Wl,-Bstatic -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lz -lsnappy -lcrypto++ -lleveldb -laio -lblkid -luuid -Wl,-Bdynamic -ldl -lm -lresolv
 // #include <errno.h>
 // #include <stdlib.h>
 // #include <string.h>
@@ -21,7 +21,7 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/quantum/castle/pkg/cephclient"
+	"github.com/quantum/castle/pkg/cephmgr/client"
 )
 
 // Version returns the major, minor, and patch components of the version of
@@ -129,7 +129,7 @@ type conn struct {
 
 // NewConnWithClusterAndUser creates a new connection object for a specific cluster and username.
 // It returns the connection and an error, if any.
-func (c *ceph) NewConnWithClusterAndUser(clusterName string, userName string) (cephclient.Connection, error) {
+func (c *ceph) NewConnWithClusterAndUser(clusterName string, userName string) (client.Connection, error) {
 	c_cluster_name := C.CString(clusterName)
 	defer C.free(unsafe.Pointer(c_cluster_name))
 
@@ -244,7 +244,7 @@ type IOContext struct {
 	ioctx C.rados_ioctx_t
 }
 
-func (c *conn) OpenIOContext(pool string) (cephclient.IOContext, error) {
+func (c *conn) OpenIOContext(pool string) (client.IOContext, error) {
 	c_pool := C.CString(pool)
 	defer C.free(unsafe.Pointer(c_pool))
 	ioctx := &IOContext{}

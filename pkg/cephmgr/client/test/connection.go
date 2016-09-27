@@ -3,7 +3,7 @@ package test
 import (
 	"strings"
 
-	"github.com/quantum/castle/pkg/cephclient"
+	"github.com/quantum/castle/pkg/cephmgr/client"
 )
 
 /////////////////////////////////////////////////////////////
@@ -15,7 +15,7 @@ type MockConnectionFactory struct {
 	SecretKey string
 }
 
-func (m *MockConnectionFactory) NewConnWithClusterAndUser(clusterName string, userName string) (cephclient.Connection, error) {
+func (m *MockConnectionFactory) NewConnWithClusterAndUser(clusterName string, userName string) (client.Connection, error) {
 	if m.Conn == nil {
 		m.Conn = &MockConnection{}
 	}
@@ -42,7 +42,7 @@ func (m *MockConnection) Connect() error {
 }
 func (m *MockConnection) Shutdown() {
 }
-func (m *MockConnection) OpenIOContext(pool string) (cephclient.IOContext, error) {
+func (m *MockConnection) OpenIOContext(pool string) (client.IOContext, error) {
 	if m.IOContext == nil {
 		m.IOContext = &MockIOContext{}
 	}
