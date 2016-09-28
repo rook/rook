@@ -1,6 +1,7 @@
 machine:
   environment:
     NPROCS: $(( ($(grep -c ^processor /proc/cpuinfo) + 1) / 2 ))
+    CCACHE_DIR: ${HOME}/.ccache
   services:
     - docker
 
@@ -19,7 +20,7 @@ dependencies:
   override:
     - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
     - docker pull quantum/castle-build
-    - ./build/run-build.sh make -j$NPROCS check
+    - build/run-cross-build amd64 make -j$NPROCS check
 
 test:
   override:
