@@ -30,7 +30,7 @@ func listPoolsEntry(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	fmt.Println(out)
+	fmt.Print(out)
 	return nil
 }
 
@@ -40,13 +40,15 @@ func listPools(c client.CastleRestClient) (string, error) {
 		return "", fmt.Errorf("failed to get pools: %+v", err)
 	}
 
-	// TODO: pretty print the pools listing
-
 	var buffer bytes.Buffer
+	w := NewTableWriter(&buffer)
+
+	fmt.Fprintln(w, "NAME\tNUMBER\t")
 
 	for _, p := range pools {
-		buffer.WriteString(fmt.Sprintf("%+v", p))
+		fmt.Fprintf(w, "%s\t%d\t\n", p.Name, p.Number)
 	}
 
+	w.Flush()
 	return buffer.String(), nil
 }

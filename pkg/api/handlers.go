@@ -10,6 +10,7 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/cephmgr"
 	ceph "github.com/quantum/castle/pkg/cephmgr/client"
+	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/model"
 )
@@ -53,6 +54,13 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	clusterName, err := cephmgr.GetClusterName(h.EtcdClient)
+	if err != nil {
+		log.Printf("failed to get cluster name: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	nodes := make([]model.Node, len(clusterInventory.Nodes))
 	i := 0
 	for nodeID, n := range clusterInventory.Nodes {
@@ -74,10 +82,23 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		// determine the node's state/health
+		_, isUnhealthy := clusterd.IsNodeUnhealthy(n)
+		var state model.NodeState
+		if isUnhealthy {
+			state = model.Unhealthy
+		} else {
+			state = model.Healthy
+		}
+
 		nodes[i] = model.Node{
-			NodeID:    nodeID,
-			IPAddress: n.IPAddress,
-			Storage:   storage,
+			NodeID:      nodeID,
+			ClusterName: clusterName,
+			IPAddress:   n.IPAddress,
+			Storage:     storage,
+			LastUpdated: n.HeartbeatAge,
+			State:       state,
+			Location:    n.Location,
 		}
 
 		i++

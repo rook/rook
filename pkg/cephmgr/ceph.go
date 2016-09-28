@@ -29,7 +29,7 @@ type ClusterInfo struct {
 }
 
 // create a new ceph service
-func NewCephService(factory client.ConnectionFactory, devices string, forceFormat bool, location *CrushLocation) *clusterd.ClusterService {
+func NewCephService(factory client.ConnectionFactory, devices string, forceFormat bool, location string) *clusterd.ClusterService {
 	return &clusterd.ClusterService{
 		Name:   cephName,
 		Leader: &cephLeader{factory: factory},
@@ -51,11 +51,10 @@ func LoadClusterInfo(etcdClient etcd.KeysAPI) (*ClusterInfo, error) {
 	}
 	fsid := resp.Node.Value
 
-	resp, err = etcdClient.Get(ctx.Background(), path.Join(cephKey, "name"), nil)
+	name, err := GetClusterName(etcdClient)
 	if err != nil {
 		return nil, err
 	}
-	name := resp.Node.Value
 
 	secretsKey := path.Join(cephKey, "_secrets")
 
@@ -82,4 +81,12 @@ func LoadClusterInfo(etcdClient etcd.KeysAPI) (*ClusterInfo, error) {
 	cluster.Monitors, err = GetDesiredMonitors(etcdClient)
 
 	return cluster, nil
+}
+
+func GetClusterName(etcdClient etcd.KeysAPI) (string, error) {
+	resp, err := etcdClient.Get(ctx.Background(), path.Join(cephKey, "name"), nil)
+	if err != nil {
+		return "", err
+	}
+	return resp.Node.Value, nil
 }

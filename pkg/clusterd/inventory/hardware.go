@@ -30,6 +30,7 @@ type NodeConfig struct {
 	NetworkAdapters []NetworkConfig   `json:"networkAdapters"`
 	IPAddress       string            `json:"ipAddr"`
 	HeartbeatAge    time.Duration     `json:"heartbeatAge"`
+	Location        string            `json:"location"`
 }
 
 type DiskConfig struct {

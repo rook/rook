@@ -1,9 +1,21 @@
 package cmd
 
-import "github.com/spf13/cobra"
+import (
+	"io"
+	"text/tabwriter"
+
+	"github.com/spf13/cobra"
+)
 
 var (
 	apiServerEndpoint string
+)
+
+const (
+	outputPadding  = 3
+	outputMinWidth = 10
+	outputTabWidth = 0
+	outputPadChar  = ' '
 )
 
 var rootCmd = &cobra.Command{
@@ -26,4 +38,8 @@ func Execute() error {
 func addCommands() {
 	rootCmd.AddCommand(nodeCmd)
 	rootCmd.AddCommand(poolCmd)
+}
+
+func NewTableWriter(buffer io.Writer) *tabwriter.Writer {
+	return tabwriter.NewWriter(buffer, outputMinWidth, outputTabWidth, outputPadding, outputPadChar, 0)
 }

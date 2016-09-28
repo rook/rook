@@ -13,13 +13,13 @@ import (
 func TestListPools(t *testing.T) {
 	c := &test.MockCastleRestClient{
 		MockGetPools: func() ([]model.Pool, error) {
-			return []model.Pool{{Name: "pool1", Number: 1}}, nil
+			return []model.Pool{{Name: "pool1", Number: 1}, {Name: "pool2", Number: 2}}, nil
 		},
 	}
 
 	out, err := listPools(c)
 	assert.Nil(t, err)
-	assert.Equal(t, "{Name:pool1 Number:1}", out)
+	assert.Equal(t, "NAME      NUMBER    \npool1     1         \npool2     2         \n", out)
 }
 
 func TestListPoolsError(t *testing.T) {

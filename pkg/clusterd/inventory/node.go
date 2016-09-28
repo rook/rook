@@ -24,6 +24,7 @@ const (
 	ProcessorsKey       = "cpu"
 	NetworkKey          = "net"
 	MemoryKey           = "mem"
+	LocationKey         = "location"
 	heartbeatTtlSeconds = 60 * 60
 )
 
@@ -138,8 +139,16 @@ func loadSingleNodeHealth(node *NodeConfig, health *etcd.Node) error {
 
 // Set the IP address for a node
 func SetIPAddress(etcdClient etcd.KeysAPI, nodeId, ipaddress string) error {
-	key := path.Join(GetNodeConfigKey(nodeId), IpAddressKey)
-	_, err := etcdClient.Set(ctx.Background(), key, ipaddress, nil)
+	return setConfigProperty(etcdClient, nodeId, IpAddressKey, ipaddress)
+}
+
+func SetLocation(etcdClient etcd.KeysAPI, nodeId, location string) error {
+	return setConfigProperty(etcdClient, nodeId, LocationKey, location)
+}
+
+func setConfigProperty(etcdClient etcd.KeysAPI, nodeId, keyName, val string) error {
+	key := path.Join(GetNodeConfigKey(nodeId), keyName)
+	_, err := etcdClient.Set(ctx.Background(), key, val, nil)
 
 	return err
 }
@@ -187,9 +196,15 @@ func loadHardwareConfig(nodeId string, nodeConfig *NodeConfig, nodeInfo *etcd.No
 				return err
 			}
 		case IpAddressKey:
-			err := loadIPAddressConfig(nodeConfig, nodeConfigRoot)
+			err := loadSimpleConfigStringProperty(&(nodeConfig.IPAddress), nodeConfigRoot, "IP Address")
 			if err != nil {
 				log.Printf("failed to load IP address config for node %s, %v", nodeId, err)
+				return err
+			}
+		case LocationKey:
+			err := loadSimpleConfigStringProperty(&(nodeConfig.Location), nodeConfigRoot, "Location")
+			if err != nil {
+				log.Printf("failed to load location config for node %s, %v", nodeId, err)
 				return err
 			}
 		default:
@@ -351,11 +366,11 @@ func loadNetworkConfig(nodeConfig *NodeConfig, networkRootNode *etcd.Node) error
 	return nil
 }
 
-func loadIPAddressConfig(nodeConfig *NodeConfig, ipAddressNode *etcd.Node) error {
-	if ipAddressNode.Dir {
-		return fmt.Errorf("IP address node '%s' is a directory, but it's expected to be a key", ipAddressNode.Key)
+func loadSimpleConfigStringProperty(cfgField *string, cfgNode *etcd.Node, propName string) error {
+	if cfgNode.Dir {
+		return fmt.Errorf("%s node '%s' is a directory, but it's expected to be a key", propName, cfgNode.Key)
 	}
-	nodeConfig.IPAddress = ipAddressNode.Value
+	*cfgField = cfgNode.Value
 	return nil
 }
 

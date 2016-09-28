@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	triggerRefreshDelaySeconds    = 5
-	unhealthyNodeSecondsThreshold = 10
+	triggerRefreshDelaySeconds = 5
 )
 
 var (
@@ -178,8 +177,8 @@ func (s *servicesLeader) discoverUnhealthyNodes() error {
 	// look for old heartbeats
 	var unhealthyNodes []*UnhealthyNode
 	for nodeID, node := range config.Nodes {
-		age := int(node.HeartbeatAge.Seconds())
-		if age >= unhealthyNodeSecondsThreshold {
+		age, unhealthy := IsNodeUnhealthy(node)
+		if unhealthy {
 			unhealthyNodes = append(unhealthyNodes, &UnhealthyNode{AgeSeconds: age, NodeID: nodeID})
 		}
 	}
