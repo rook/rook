@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log"
 	"path"
+	"strings"
 
 	ctx "golang.org/x/net/context"
 
 	etcd "github.com/coreos/etcd/client"
+	"github.com/coreos/etcd/store"
 	"github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
@@ -18,6 +20,15 @@ type cephLeader struct {
 	cluster *ClusterInfo
 	events  chan clusterd.LeaderEvent
 	factory client.ConnectionFactory
+}
+
+func (c *cephLeader) RefreshKeys() []*clusterd.RefreshKey {
+	// when devices are added or removed we will want to trigger an orchestration
+	deviceChange := &clusterd.RefreshKey{
+		Path:      path.Join(cephKey, osdAgentName, desiredKey),
+		Triggered: handleDeviceChanged,
+	}
+	return []*clusterd.RefreshKey{deviceChange}
 }
 
 func (c *cephLeader) StartWatchEvents() {
@@ -45,17 +56,26 @@ func (c *cephLeader) handleOrchestratorEvents() {
 
 		var osdsToRefresh []string
 		refreshMon := false
-		if _, ok := e.(*clusterd.RefreshEvent); ok {
-			refreshMon = true
-			osdsToRefresh = getSlice(e.Context().Inventory.Nodes)
+		if r, ok := e.(*clusterd.RefreshEvent); ok {
+			if r.NodeID() != "" {
+				// refresh a single node, which is currently only for adding and removing devices
+				osdsToRefresh = []string{r.NodeID()}
+			} else {
+				// refresh the whole cluster
+				refreshMon = true
+				osdsToRefresh = getSlice(e.Context().Inventory.Nodes)
+			}
+
 		} else if nodeAdded, ok := e.(*clusterd.AddNodeEvent); ok {
-			osdsToRefresh = nodeAdded.Nodes()
+			osdsToRefresh = []string{nodeAdded.Node()}
+
 		} else if unhealthyEvent, ok := e.(*clusterd.UnhealthyNodeEvent); ok {
 			var err error
 			refreshMon, err = monsOnUnhealthyNode(e.Context(), unhealthyEvent.Nodes())
 			if err != nil {
 				log.Printf("failed to handle unhealthy nodes. %v", err)
 			}
+
 		} else {
 			// if we don't recognize the event we will skip the refresh
 		}
@@ -186,4 +206,14 @@ func getSlice(nodeMap map[string]*inventory.NodeConfig) []string {
 	}
 
 	return nodes
+}
+
+func handleDeviceChanged(response *etcd.Response, refresher *clusterd.ClusterRefresher) {
+	if response.Action == store.Create || response.Action == store.Delete {
+		nodeID := strings.Split(response.Node.Key, "/")[6]
+		log.Printf("device changed: %s", nodeID)
+
+		// trigger an orchestration to add or remove the device
+		refresher.TriggerNodeRefresh(nodeID)
+	}
 }

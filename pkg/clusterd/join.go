@@ -59,7 +59,7 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, dis
 		Services:   services,
 		ProcMan:    procMan,
 	}
-	clusterLeader := &servicesLeader{context: context, leaseName: LeaderElectionKey}
+	clusterLeader := newServicesLeader(context)
 	clusterMember := newClusterMember(context, leaseManager, clusterLeader)
 	clusterLeader.parent = clusterMember
 

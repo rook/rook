@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 	"testing"
 
 	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
@@ -38,13 +39,15 @@ func TestOSDAgent(t *testing.T) {
 	executor := &proc.MockExecutor{}
 	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
 		log.Printf("EXECUTE %d for %s. %s %+v", execCount, name, command, args)
+		parts := strings.Split(name, " ")
+		nameSuffix := parts[len(parts)-1]
 		switch {
 		case execCount == 0:
-			assert.Equal(t, "format sdx", name)
+			assert.Equal(t, "format "+nameSuffix, name)
 			assert.Equal(t, "/usr/sbin/mkfs.btrfs", args[0])
-			assert.Equal(t, "/dev/sdx", args[6])
+			assert.Equal(t, "/dev/"+nameSuffix, args[6])
 		case execCount == 1:
-			assert.Equal(t, "mount sdx", name)
+			assert.Equal(t, "mount "+nameSuffix, name)
 			assert.Equal(t, "sudo", command)
 			assert.Equal(t, "mount", args[0])
 			assert.Equal(t, "user_subvol_rm_allowed", args[2])
@@ -55,12 +58,12 @@ func TestOSDAgent(t *testing.T) {
 			assert.Equal(t, "chown", args[0])
 			assert.Equal(t, "/tmp/osd3", args[3])
 		case execCount == 3:
-			assert.Equal(t, "format sdy", name)
+			assert.Equal(t, "format "+nameSuffix, name)
 			assert.Equal(t, "sudo", command)
 			assert.Equal(t, "/usr/sbin/mkfs.btrfs", args[0])
-			assert.Equal(t, "/dev/sdy", args[6])
+			assert.Equal(t, "/dev/"+nameSuffix, args[6])
 		case execCount == 4:
-			assert.Equal(t, "mount sdy", name)
+			assert.Equal(t, "mount "+nameSuffix, name)
 			assert.Equal(t, "sudo", command)
 			assert.Equal(t, "mount", args[0])
 			assert.Equal(t, "user_subvol_rm_allowed", args[2])
@@ -79,17 +82,15 @@ func TestOSDAgent(t *testing.T) {
 	outputExecCount := 0
 	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
 		log.Printf("OUTPUT EXECUTE %d for %s. %s %+v", outputExecCount, name, command, args)
+		parts := strings.Split(name, " ")
+		nameSuffix := parts[len(parts)-1]
+		assert.Equal(t, "lsblk "+nameSuffix, name)
+		assert.Equal(t, "lsblk", command)
+		assert.Equal(t, "/dev/"+nameSuffix, args[0])
 		switch {
 		case outputExecCount == 0:
-			assert.Equal(t, "lsblk sdx", name)
-			assert.Equal(t, "lsblk", command)
-			assert.Equal(t, "/dev/sdx", args[0])
 		case outputExecCount == 1:
-			assert.Equal(t, "lsblk sdy", name)
-			assert.Equal(t, "lsblk", command)
-			assert.Equal(t, "/dev/sdy", args[0])
 		default:
-
 			assert.Fail(t, fmt.Sprintf("unexpected case %d", outputExecCount))
 		}
 		outputExecCount++

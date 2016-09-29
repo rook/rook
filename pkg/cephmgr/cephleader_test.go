@@ -54,7 +54,7 @@ func TestCephLeaders(t *testing.T) {
 
 	// trigger an add node event
 	nodes["b"] = &inventory.NodeConfig{IPAddress: "2.3.4.5"}
-	addNode := clusterd.NewAddNodeEvent(context, []string{"b"})
+	addNode := clusterd.NewAddNodeEvent(context, "b")
 	leader.Events() <- addNode
 
 	// wait for the event queue to be empty

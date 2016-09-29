@@ -23,7 +23,7 @@ func TestLoadDiscoveredNodes(t *testing.T) {
 	context.Services = []*ClusterService{
 		&ClusterService{Name: "test", Leader: mockHandler},
 	}
-	leader := &servicesLeader{context: context}
+	leader := newServicesLeader(context)
 	leader.parent = &ClusterMember{isLeader: true}
 
 	mockHandler.StartWatchEvents()

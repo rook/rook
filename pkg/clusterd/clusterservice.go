@@ -19,6 +19,9 @@ type ClusterService struct {
 
 // Interface implemented by a service that has been elected leader
 type ServiceLeader interface {
+	// Get the list of etcd keys that when changed should trigger an orchestration
+	RefreshKeys() []*RefreshKey
+
 	// Start a go routine that watches for orchestration events related to the leader
 	StartWatchEvents()
 

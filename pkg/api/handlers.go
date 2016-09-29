@@ -119,7 +119,7 @@ type overallMonStatus struct {
 func (h *Handler) AddDevice(w http.ResponseWriter, r *http.Request) {
 	device, err := loadDeviceFromBody(w, r)
 	if err != nil {
-		log.Printf("failed to add device. %v", err)
+		log.Printf("failed to load request body. %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -138,7 +138,7 @@ func (h *Handler) AddDevice(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) RemoveDevice(w http.ResponseWriter, r *http.Request) {
 	device, err := loadDeviceFromBody(w, r)
 	if err != nil {
-		log.Printf("failed to remove device. %v", err)
+		log.Printf("failed to load request body. %v", err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
