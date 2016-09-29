@@ -2,7 +2,6 @@ package cephmgr
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -31,19 +30,6 @@ const (
 	caps mon = "allow profile bootstrap-osd"
 `
 )
-
-// the location where an osd is in the crush map
-type CrushLocation struct {
-	Root       string
-	Datacenter string
-	Room       string
-	Row        string
-	Pod        string
-	PDU        string
-	Rack       string
-	Chassis    string
-	Host       string
-}
 
 // request the current user once and stash it in this global variable
 var currentUser *user.User
@@ -303,7 +289,9 @@ func getOSDInfo(osdDataPath string) (int, uuid.UUID, error) {
 	return osdID, osdUUID, nil
 }
 
-func initializeOSD(factory client.ConnectionFactory, context *clusterd.Context, osdDataDir string, osdID int, osdUUID uuid.UUID, bootstrapConn client.Connection, cluster *ClusterInfo, location *CrushLocation) (string, error) {
+func initializeOSD(factory client.ConnectionFactory, context *clusterd.Context, osdDataDir string, osdID int, osdUUID uuid.UUID,
+	bootstrapConn client.Connection, cluster *ClusterInfo, location string) (string, error) {
+
 	// ensure that the OSD data directory is created
 	osdDataPath := filepath.Join(osdDataDir, fmt.Sprintf("%s-%d", cluster.Name, osdID))
 	if err := os.MkdirAll(osdDataPath, 0777); err != nil {
@@ -341,7 +329,7 @@ func initializeOSD(factory client.ConnectionFactory, context *clusterd.Context, 
 	defer osdConn.Shutdown()
 
 	// add the new OSD to the cluster crush map
-	if err := addOSDToCrushMap(osdConn, osdID, osdDataDir, location); err != nil {
+	if err := addOSDToCrushMap(osdConn, context, osdID, osdDataDir, location); err != nil {
 		return "", err
 	}
 
@@ -457,7 +445,7 @@ func addOSDAuth(bootstrapConn client.Connection, osdID int, osdDataPath string) 
 }
 
 // adds the given OSD to the crush map
-func addOSDToCrushMap(osdConn client.Connection, osdID int, osdDataPath string, location *CrushLocation) error {
+func addOSDToCrushMap(osdConn client.Connection, context *clusterd.Context, osdID int, osdDataPath, location string) error {
 	// get the size of the volume containing the OSD data dir
 	s := syscall.Statfs_t{}
 	if err := syscall.Statfs(osdDataPath, &s); err != nil {
@@ -472,11 +460,6 @@ func addOSDToCrushMap(osdConn client.Connection, osdID int, osdDataPath string, 
 	osdEntity := fmt.Sprintf("osd.%d", osdID)
 	log.Printf("OSD %s at %s, bytes: %d, weight: %.2f", osdEntity, osdDataPath, all, weight)
 
-	var err error
-	location.Host, err = os.Hostname()
-	if err != nil {
-		return fmt.Errorf("failed to get hostname, %+v", err)
-	}
 	locArgs, err := formatLocation(location)
 	if err != nil {
 		return err
@@ -502,48 +485,60 @@ func addOSDToCrushMap(osdConn client.Connection, osdID int, osdDataPath string, 
 	}
 
 	log.Printf("succeeded adding %s to crush map. info: %s", osdEntity, info)
+
+	if err := inventory.SetLocation(context.EtcdClient, context.NodeID, strings.Join(locArgs, ",")); err != nil {
+		return fmt.Errorf("failed to save CRUSH location for OSD %s: %+v", osdEntity, err)
+	}
+
 	return nil
 }
 
-func formatLocation(location *CrushLocation) ([]string, error) {
-	// host name is required
-	if location.Host == "" {
-		return nil, errors.New("missing host name")
+func formatLocation(location string) ([]string, error) {
+	var pairs []string
+	if location == "" {
+		pairs = []string{}
+	} else {
+		pairs = strings.Split(location, ",")
 	}
 
-	// set a default root
-	if location.Root == "" {
-		location.Root = "default"
+	for _, p := range pairs {
+		if !isValidCrushFieldFormat(p) {
+			return nil, fmt.Errorf("CRUSH location field '%s' is not in a valid format", p)
+		}
 	}
 
-	// append the properties in the hierarchy order, though they are not required in that order
-	result := []string{
-		formatProperty("root", location.Root),
-	}
-	if location.Datacenter != "" {
-		result = append(result, formatProperty("datacenter", location.Datacenter))
-	}
-	if location.Room != "" {
-		result = append(result, formatProperty("room", location.Room))
-	}
-	if location.Row != "" {
-		result = append(result, formatProperty("row", location.Row))
-	}
-	if location.Pod != "" {
-		result = append(result, formatProperty("pod", location.Pod))
-	}
-	if location.PDU != "" {
-		result = append(result, formatProperty("pdu", location.PDU))
-	}
-	if location.Rack != "" {
-		result = append(result, formatProperty("rack", location.Rack))
-	}
-	if location.Chassis != "" {
-		result = append(result, formatProperty("chassis", location.Chassis))
-	}
-	result = append(result, formatProperty("hostName", location.Host))
+	if !isCrushFieldSet("hostName", pairs) {
+		// host name isn't set yet, attempt to set a default
+		hostName, err := os.Hostname()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get hostname, %+v", err)
+		}
 
-	return result, nil
+		pairs = append(pairs, formatProperty("hostName", hostName))
+	}
+
+	// set a default root if it's not already set
+	if !isCrushFieldSet("root", pairs) {
+		pairs = append(pairs, formatProperty("root", "default"))
+	}
+
+	return pairs, nil
+}
+
+func isValidCrushFieldFormat(pair string) bool {
+	matched, err := regexp.MatchString("^.+=.+$", pair)
+	return matched && err == nil
+}
+
+func isCrushFieldSet(fieldName string, pairs []string) bool {
+	for _, p := range pairs {
+		kv := strings.Split(p, "=")
+		if len(kv) == 2 && kv[0] == fieldName && kv[1] != "" {
+			return true
+		}
+	}
+
+	return false
 }
 
 func formatProperty(name, value string) string {

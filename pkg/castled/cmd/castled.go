@@ -33,11 +33,11 @@ type config struct {
 	privateIPv4  string
 	devices      string
 	forceFormat  bool
-	crushMap     *cephmgr.CrushLocation
+	location     string
 }
 
 func newConfig() *config {
-	return &config{crushMap: &cephmgr.CrushLocation{}}
+	return &config{}
 }
 
 // Initialize the configuration parameters. The precedence from lowest to highest is:
@@ -51,16 +51,7 @@ func init() {
 	rootCmd.Flags().StringVar(&cfg.devices, "devices", "", "comma separated list of devices to use")
 	rootCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
-
-	// crush map attributes
-	rootCmd.Flags().StringVar(&cfg.crushMap.Root, "crushmap-root", "", "osd crush map attribute for the root location")
-	rootCmd.Flags().StringVar(&cfg.crushMap.Datacenter, "crushmap-datacenter", "", "osd crush map attribute for the datacenter location")
-	rootCmd.Flags().StringVar(&cfg.crushMap.Room, "crushmap-room", "", "osd crush map attribute for the room location")
-	rootCmd.Flags().StringVar(&cfg.crushMap.Row, "crushmap-row", "", "osd crush map attribute for the row location")
-	rootCmd.Flags().StringVar(&cfg.crushMap.Pod, "crushmap-pod", "", "osd crush map attribute for the pod location")
-	rootCmd.Flags().StringVar(&cfg.crushMap.PDU, "crushmap-pdu", "", "osd crush map attribute for the power distribution unit location")
-	rootCmd.Flags().StringVar(&cfg.crushMap.Rack, "crushmap-rack", "", "osd crush map attribute for the rack location")
-	rootCmd.Flags().StringVar(&cfg.crushMap.Chassis, "crushmap-chassis", "", "osd crush map attribute for the chassis location")
+	rootCmd.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
 
 	// load the environment variables
 	setFlagsFromEnv(rootCmd.Flags())
@@ -89,7 +80,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("either discovery-url or etcd-members settings are required")
 	}
 
-	services := []*clusterd.ClusterService{cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.crushMap)}
+	services := []*clusterd.ClusterService{cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.location)}
 	procMan := &proc.ProcManager{}
 	defer func() {
 		procMan.Shutdown()

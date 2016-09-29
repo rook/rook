@@ -76,6 +76,9 @@ func TestLoadHardwareConfig(t *testing.T) {
 	// set IP address in etcd
 	SetIPAddress(etcdClient, machineId, "10.0.0.43")
 
+	// set location in etcd
+	SetLocation(etcdClient, machineId, "root=default,dc=datacenter1")
+
 	// load the discovered node config
 	nodeConfig, err := loadNodeConfig(etcdClient)
 	assert.Nil(t, err, "loaded node config error should be nil")
@@ -88,6 +91,7 @@ func TestLoadHardwareConfig(t *testing.T) {
 	verifyMemoryConfig(t, nodeConfig[machineId], memConfig)
 	verifyNetworkConfig(t, nodeConfig[machineId], netsConfig)
 	assert.Equal(t, "10.0.0.43", nodeConfig[machineId].IPAddress)
+	assert.Equal(t, "root=default,dc=datacenter1", nodeConfig[machineId].Location)
 }
 
 func setProcInfo(etcdClient *util.MockEtcdClient, procsKey string, procId uint, physicalId uint, siblings uint,

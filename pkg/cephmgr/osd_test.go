@@ -10,6 +10,8 @@ import (
 	"testing"
 
 	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
+	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -38,6 +40,8 @@ func TestOSDBootstrap(t *testing.T) {
 
 func TestCrushMap(t *testing.T) {
 
+	etcdClient := util.NewMockEtcdClient()
+	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: "node1"}
 	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "key"}
 	conn, _ := factory.NewConnWithClusterAndUser("cluster", "user")
 	conn.(*testceph.MockConnection).MockMonCommand = func(buf []byte) (buffer []byte, info string, err error) {
@@ -49,50 +53,52 @@ func TestCrushMap(t *testing.T) {
 		assert.Equal(t, 23, request.ID)
 		assert.NotEqual(t, 0.0, request.Weight)
 		assert.Equal(t, 3, len(request.Args), fmt.Sprintf("args=%v", request.Args))
+
+		// verify the contents of the CRUSH location args
+		argsSet := util.CreateSet(request.Args)
+		assert.True(t, argsSet.Contains("root=default"))
+		assert.True(t, argsSet.Contains("dc=datacenter1"))
+		assert.True(t, argsSet.Contains("hostName=node1"))
+
 		return []byte{}, "", nil
 	}
-	location := &CrushLocation{
-		Root:       "myroot",
-		Datacenter: "dat1",
-	}
-	err := addOSDToCrushMap(conn, 23, "/", location)
+
+	location := "root=default,dc=datacenter1,hostName=node1"
+
+	err := addOSDToCrushMap(conn, context, 23, "/", location)
 	assert.Nil(t, err)
+
+	// location should have been stored in etcd as well
+	assert.Equal(t, location, etcdClient.GetValue("/castle/nodes/config/node1/location"))
 }
 
 func TestCrushLocation(t *testing.T) {
-	loc := &CrushLocation{}
+	loc := "dc=datacenter1"
+	hostName, err := os.Hostname()
+	assert.Nil(t, err)
 
-	// check that host is required
+	// test that host name and root will get filled in with default/runtime values
 	res, err := formatLocation(loc)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(res))
+	locSet := util.CreateSet(res)
+	assert.True(t, locSet.Contains("root=default"))
+	assert.True(t, locSet.Contains("dc=datacenter1"))
+	assert.True(t, locSet.Contains(fmt.Sprintf("hostName=%s", hostName)))
+
+	// test that if host name and root are already set they will be honored
+	loc = "root=otherRoot,dc=datacenter2,hostName=node123"
+	res, err = formatLocation(loc)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(res))
+	locSet = util.CreateSet(res)
+	assert.True(t, locSet.Contains("root=otherRoot"))
+	assert.True(t, locSet.Contains("dc=datacenter2"))
+	assert.True(t, locSet.Contains("hostName=node123"))
+
+	// test an invalid CRUSH location format
+	loc = "root=default,prop:value"
+	_, err = formatLocation(loc)
 	assert.NotNil(t, err)
-	loc.Host = "h"
-
-	// check the default root
-	res, err = formatLocation(loc)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res))
-	assert.Equal(t, "root=default", res[0])
-	assert.Equal(t, "hostName=h", res[1])
-
-	// test all the attributes
-	loc.Root = "r"
-	loc.Chassis = "c"
-	loc.Datacenter = "d"
-	loc.PDU = "p1"
-	loc.Pod = "p2"
-	loc.Rack = "rk"
-	loc.Room = "rm"
-	loc.Row = "rw"
-	res, err = formatLocation(loc)
-	assert.Nil(t, err)
-	assert.Equal(t, 9, len(res))
-	assert.Equal(t, "root=r", res[0])
-	assert.Equal(t, "datacenter=d", res[1])
-	assert.Equal(t, "room=rm", res[2])
-	assert.Equal(t, "row=rw", res[3])
-	assert.Equal(t, "pod=p2", res[4])
-	assert.Equal(t, "pdu=p1", res[5])
-	assert.Equal(t, "rack=rk", res[6])
-	assert.Equal(t, "chassis=c", res[7])
-	assert.Equal(t, "hostName=h", res[8])
+	assert.Contains(t, err.Error(), "is not in a valid format")
 }

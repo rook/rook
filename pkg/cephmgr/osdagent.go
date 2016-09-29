@@ -29,12 +29,12 @@ type osdAgent struct {
 	cluster     *ClusterInfo
 	devices     []string
 	forceFormat bool
-	location    *CrushLocation
+	location    string
 	factory     client.ConnectionFactory
 	osdCmd      map[int]*exec.Cmd
 }
 
-func newOSDAgent(factory client.ConnectionFactory, rawDevices string, forceFormat bool, location *CrushLocation) *osdAgent {
+func newOSDAgent(factory client.ConnectionFactory, rawDevices string, forceFormat bool, location string) *osdAgent {
 	devices := strings.Split(rawDevices, ",")
 	return &osdAgent{factory: factory, devices: devices, forceFormat: forceFormat, location: location}
 }

@@ -31,7 +31,7 @@ func TestOSDAgent(t *testing.T) {
 	}
 	forceFormat := false
 	devices := "sdx,sdy"
-	location := &CrushLocation{Root: "here"}
+	location := "root=here"
 	agent := newOSDAgent(factory, devices, forceFormat, location)
 
 	execCount := 0

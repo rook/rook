@@ -29,6 +29,7 @@ func TestGetNodesHandler(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	etcdClient := util.NewMockEtcdClient()
+	etcdClient.SetValue("/castle/services/ceph/name", "cluster5")
 	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
 	h := NewHandler(etcdClient, &test.MockConnectionFactory{}, cephFactory)
 
@@ -39,6 +40,7 @@ func TestGetNodesHandler(t *testing.T) {
 
 	// set up a discovered node in etcd
 	inventory.SetIPAddress(etcdClient, "node1", "10.0.0.11")
+	inventory.SetLocation(etcdClient, "node1", "root=default,dc=datacenter1")
 	nodeConfigKey := path.Join(inventory.NodesConfigKey, "node1")
 	etcdClient.CreateDir(nodeConfigKey)
 	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "MB2CK3F6S5041EPCPJ4T", "sda", "506d4869-29ee-4bfd-bf21-dfd597bd222e",
@@ -54,7 +56,8 @@ func TestGetNodesHandler(t *testing.T) {
 	h.GetNodes(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "[{\"nodeId\":\"node1\",\"ipAddr\":\"10.0.0.11\",\"storage\":150}]", w.Body.String())
+	assert.Equal(t, "[{\"nodeId\":\"node1\",\"clusterName\":\"cluster5\",\"ipAddr\":\"10.0.0.11\",\"storage\":150,\"lastUpdated\":31536000000000000,\"state\":1,\"location\":\"root=default,dc=datacenter1\"}]",
+		w.Body.String())
 }
 
 func TestGetNodesHandlerFailure(t *testing.T) {
