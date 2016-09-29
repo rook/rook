@@ -159,3 +159,30 @@ func TestOSDAgent(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(agent.osdCmd))
 }
+
+func TestAppliedDevices(t *testing.T) {
+	nodeID := "abc"
+	etcdClient := util.NewMockEtcdClient()
+
+	// no applied osds
+	osds, err := GetAppliedOSDs(nodeID, etcdClient)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(osds))
+
+	// two applied osds
+	nodeConfigKey := path.Join(inventory.NodesConfigKey, nodeID)
+	etcdClient.CreateDir(nodeConfigKey)
+	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "serial1", "sda", "ff6d4869-29ee-4bfd-bf21-dfd597bd222e",
+		100, true, false, "btrfs", "/mnt/xyz", inventory.Disk, "", false)
+	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "serial2", "sdb", "ff6d4869-29ee-4bfd-bf21-dfd597bd222e",
+		50, false, false, "ext4", "/mnt/zyx", inventory.Disk, "", false)
+	appliedOSDKey := "/castle/services/ceph/osd/applied/abc/devices"
+	etcdClient.SetValue(path.Join(appliedOSDKey, "sda", "serial"), "serial1")
+	etcdClient.SetValue(path.Join(appliedOSDKey, "sdb", "serial"), "serial2")
+
+	osds, err = GetAppliedOSDs(nodeID, etcdClient)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(osds))
+	assert.Equal(t, "serial1", osds["sda"])
+	assert.Equal(t, "serial2", osds["sdb"])
+}

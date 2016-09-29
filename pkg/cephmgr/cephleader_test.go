@@ -2,8 +2,11 @@ package cephmgr
 
 import (
 	"log"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/quantum/castle/pkg/cephmgr/client"
 	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
@@ -20,7 +23,8 @@ import (
 // ************************************************************************************************
 func TestCephLeaders(t *testing.T) {
 	factory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	leader := &cephLeader{factory: factory}
+	leader := newCephLeader(factory)
+
 	leader.StartWatchEvents()
 	defer leader.Close()
 
@@ -95,4 +99,78 @@ func (e *nonEvent) Name() string {
 }
 func (e *nonEvent) Context() *clusterd.Context {
 	return nil
+}
+
+func TestMoveUnhealthyMonitor(t *testing.T) {
+	factory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
+	leader := newCephLeader(factory)
+	etcdClient := util.NewMockEtcdClient()
+	leader.monLeader.waitForQuorum = func(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
+		return nil
+	}
+
+	nodes := make(map[string]*inventory.NodeConfig)
+	inv := &inventory.Config{Nodes: nodes}
+	nodes["a"] = &inventory.NodeConfig{IPAddress: "1.2.3.4"}
+	nodes["b"] = &inventory.NodeConfig{IPAddress: "2.3.4.5"}
+	nodes["c"] = &inventory.NodeConfig{IPAddress: "3.4.5.6"}
+
+	context := &clusterd.Context{
+		EtcdClient: etcdClient,
+		Inventory:  inv,
+	}
+
+	// mock the agent responses that the deployments were successful to start mons and osds
+	etcdClient.WatcherResponses["/castle/_notify/a/monitor/status"] = "succeeded"
+	etcdClient.WatcherResponses["/castle/_notify/b/monitor/status"] = "succeeded"
+	etcdClient.WatcherResponses["/castle/_notify/c/monitor/status"] = "succeeded"
+
+	// initialize the first three monitors
+	err := leader.configureCephMons(context)
+	assert.Nil(t, err)
+	assert.True(t, etcdClient.GetChildDirs("/castle/services/ceph/monitor/desired").Equals(util.CreateSet([]string{"a", "b", "c"})))
+
+	// add a new node and mark node a as unhealthy
+	nodes["a"].HeartbeatAge = (unhealthyMonHeatbeatAgeSeconds + 1) * time.Second
+	nodes["d"] = &inventory.NodeConfig{IPAddress: "4.5.6.7"}
+	etcdClient.WatcherResponses["/castle/_notify/d/monitor/status"] = "succeeded"
+
+	err = leader.configureCephMons(context)
+	assert.Nil(t, err)
+	assert.True(t, etcdClient.GetChildDirs("/castle/services/ceph/monitor/desired").Equals(util.CreateSet([]string{"d", "b", "c"})))
+
+	cluster, err := LoadClusterInfo(etcdClient)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(cluster.Monitors))
+	mon1 := false
+	mon2 := false
+	mon3 := false
+	for _, mon := range cluster.Monitors {
+		if strings.Contains(mon.Endpoint, nodes["a"].IPAddress) {
+			assert.Fail(t, "mon a was not removed")
+		}
+		if strings.Contains(mon.Endpoint, nodes["b"].IPAddress) {
+			mon1 = true
+		}
+		if strings.Contains(mon.Endpoint, nodes["c"].IPAddress) {
+			mon2 = true
+		}
+		if strings.Contains(mon.Endpoint, nodes["d"].IPAddress) {
+			mon3 = true
+		}
+	}
+
+	assert.True(t, mon1)
+	assert.True(t, mon2)
+	assert.True(t, mon3)
+}
+
+func TestExtractDesiredDeviceNode(t *testing.T) {
+	node, err := extractNodeIDFromDesiredDevice("/castle/services/ceph/osd/desired/abc/device/sdb")
+	assert.Nil(t, err)
+	assert.Equal(t, "abc", node)
+
+	node, err = extractNodeIDFromDesiredDevice("/castle/services/ceph/osd/desired")
+	assert.NotNil(t, err)
+	assert.Equal(t, "", node)
 }

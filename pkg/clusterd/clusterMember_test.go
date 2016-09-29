@@ -319,37 +319,6 @@ func TestElectLeaderLoseDueToRenewLeaseError(t *testing.T) {
 	assert.False(t, clusterMember.isLeader)
 }
 
-func TestTriggerRefresh(t *testing.T) {
-
-	_, context, mockLeaseManager, _ := createDefaultDependencies()
-	leader := newServicesLeader(context)
-	r := newClusterMember(context, mockLeaseManager, leader)
-	leader.parent = r
-	// Skip the orchestration if not the leader
-	triggered, err := leader.refresher.TriggerRefresh()
-
-	assert.False(t, triggered)
-	assert.Nil(t, err)
-
-	r.isLeader = true
-
-	// FIX: Use channels instead of sleeps
-	triggerRefreshInterval = 250 * time.Millisecond
-
-	// The orchestration is triggered, but multiple triggers will still result in a single orchestrator
-	triggered, _ = leader.refresher.TriggerRefresh()
-	assert.True(t, triggered)
-	triggered, _ = leader.refresher.TriggerRefresh()
-	assert.True(t, triggered)
-	triggered, _ = leader.refresher.TriggerRefresh()
-	assert.True(t, triggered)
-	<-time.After(100 * time.Millisecond)
-	assert.Equal(t, int32(1), leader.refresher.triggerRefreshLock)
-
-	<-time.After(200 * time.Millisecond)
-	assert.Equal(t, int32(0), leader.refresher.triggerRefreshLock)
-}
-
 func TestElectLeaderLoseLocallyButPersistInEtcd(t *testing.T) {
 	// setup the cluster member to first acquire leadership of the cluster
 	clusterMember, mockLeaseManager, machineId := setupAndRunAcquireLeaseScenario(t)
@@ -452,9 +421,8 @@ func TestSimpleMembershipChangeWatching(t *testing.T) {
 	clusterMember := newClusterMember(context, mockLeaseManager, leader)
 	clusterMember.isLeader = true
 	leader.parent = clusterMember
-	err := leader.onLeadershipAcquiredRefresh(false)
+	leader.onLeadershipAcquiredRefresh(false)
 	defer leader.OnLeadershipLost()
-	assert.Nil(t, err)
 
 	// now that we're the leader, simulate a new member joining the cluster by triggering the etcd watcher
 	newMachineId := "1234567890"

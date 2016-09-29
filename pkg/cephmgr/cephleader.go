@@ -17,9 +17,14 @@ import (
 
 // Interface implemented by a service that has been elected leader
 type cephLeader struct {
-	cluster *ClusterInfo
-	events  chan clusterd.LeaderEvent
-	factory client.ConnectionFactory
+	monLeader *monLeader
+	cluster   *ClusterInfo
+	events    chan clusterd.LeaderEvent
+	factory   client.ConnectionFactory
+}
+
+func newCephLeader(factory client.ConnectionFactory) *cephLeader {
+	return &cephLeader{factory: factory, monLeader: newMonLeader()}
 }
 
 func (c *cephLeader) RefreshKeys() []*clusterd.RefreshKey {
@@ -113,7 +118,7 @@ func (c *cephLeader) configureCephMons(context *clusterd.Context) error {
 	}
 
 	// Select the monitors, instruct them to start, and wait for quorum
-	return configureMonitors(c.factory, context, c.cluster)
+	return c.monLeader.configureMonitors(c.factory, context, c.cluster)
 }
 
 func createOrGetClusterInfo(factory client.ConnectionFactory, etcdClient etcd.KeysAPI) (*ClusterInfo, error) {
@@ -210,10 +215,26 @@ func getSlice(nodeMap map[string]*inventory.NodeConfig) []string {
 
 func handleDeviceChanged(response *etcd.Response, refresher *clusterd.ClusterRefresher) {
 	if response.Action == store.Create || response.Action == store.Delete {
-		nodeID := strings.Split(response.Node.Key, "/")[6]
+		nodeID, err := extractNodeIDFromDesiredDevice(response.Node.Key)
+		if err != nil {
+			log.Printf("ignored device changed event. %v", err)
+			return
+		}
+
 		log.Printf("device changed: %s", nodeID)
 
 		// trigger an orchestration to add or remove the device
 		refresher.TriggerNodeRefresh(nodeID)
 	}
+}
+
+// Get the node ID from the etcd key to a desired device
+// For example: /castle/services/ceph/osd/desired/9b69e58300f9/device/sdb
+func extractNodeIDFromDesiredDevice(path string) (string, error) {
+	parts := strings.Split(path, "/")
+	if len(parts) < 7 {
+		return "", fmt.Errorf("cannot get node ID from %s", path)
+	}
+
+	return parts[6], nil
 }

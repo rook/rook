@@ -24,9 +24,17 @@ const (
 	unhealthyMonHeatbeatAgeSeconds = 10
 )
 
+type monLeader struct {
+	waitForQuorum func(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error
+}
+
+func newMonLeader() *monLeader {
+	return &monLeader{waitForQuorum: waitForQuorum}
+}
+
 // Create the ceph monitors
 // Must be idempotent
-func configureMonitors(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
+func (m *monLeader) configureMonitors(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
 	log.Printf("Creating monitors with %d nodes available", len(context.Inventory.Nodes))
 
 	// choose the nodes where the monitors will run
@@ -45,7 +53,7 @@ func configureMonitors(factory client.ConnectionFactory, context *clusterd.Conte
 	}
 
 	// wait for quorum
-	err = waitForQuorum(factory, context, cluster)
+	err = m.waitForQuorum(factory, context, cluster)
 	if err != nil {
 		return err
 	}

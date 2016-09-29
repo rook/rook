@@ -33,10 +33,11 @@ func newServicesLeader(context *Context) *servicesLeader {
 }
 
 func (s *servicesLeader) OnLeadershipAcquired() error {
-	return s.onLeadershipAcquiredRefresh(true)
+	s.onLeadershipAcquiredRefresh(true)
+	return nil
 }
 
-func (s *servicesLeader) onLeadershipAcquiredRefresh(refresh bool) error {
+func (s *servicesLeader) onLeadershipAcquiredRefresh(refresh bool) {
 	s.isLeader = true
 
 	// The leaders should start watching for events
@@ -48,13 +49,10 @@ func (s *servicesLeader) onLeadershipAcquiredRefresh(refresh bool) error {
 	s.startWatchingClusterChanges()
 	s.startWatchingUnhealthyNodes()
 
-	var err error
 	if refresh {
 		// Tell the services to refresh the cluster whenever leadership is acquired
-		_, err = s.refresher.TriggerRefresh()
+		s.refresher.TriggerRefresh()
 	}
-
-	return err
 }
 
 func (s *servicesLeader) OnLeadershipLost() error {

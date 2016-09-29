@@ -28,26 +28,26 @@ type ClusterRefresher struct {
 	triggerRefreshLock int32
 }
 
-func (c *ClusterRefresher) TriggerRefresh() (bool, error) {
+func (c *ClusterRefresher) TriggerRefresh() bool {
 	return c.triggerEvent(&RefreshEvent{context: copyContext(c.leader.context)}, true)
 }
 
-func (c *ClusterRefresher) TriggerNodeRefresh(nodeID string) (bool, error) {
+func (c *ClusterRefresher) TriggerNodeRefresh(nodeID string) bool {
 	return c.triggerEvent(&RefreshEvent{context: copyContext(c.leader.context), nodeID: nodeID}, true)
 }
 
-func (c *ClusterRefresher) triggerNodeAdded(nodeID string) (bool, error) {
+func (c *ClusterRefresher) triggerNodeAdded(nodeID string) bool {
 	return c.triggerEvent(&AddNodeEvent{context: copyContext(c.leader.context), nodeID: nodeID}, false)
 }
 
-func (c *ClusterRefresher) triggerNodeUnhealthy(nodes []*UnhealthyNode) (bool, error) {
+func (c *ClusterRefresher) triggerNodeUnhealthy(nodes []*UnhealthyNode) bool {
 	return c.triggerEvent(&UnhealthyNodeEvent{context: copyContext(c.leader.context), nodes: nodes}, false)
 }
 
-func (c *ClusterRefresher) triggerEvent(event LeaderEvent, delay bool) (bool, error) {
+func (c *ClusterRefresher) triggerEvent(event LeaderEvent, delay bool) bool {
 	// Only start the orchestration if the leader
 	if !c.leader.parent.isLeader {
-		return false, nil
+		return false
 	}
 
 	// Avoid blocking the calling thread. No need to prevent multiple threads from entering this
@@ -106,5 +106,5 @@ func (c *ClusterRefresher) triggerEvent(event LeaderEvent, delay bool) (bool, er
 		}
 	}()
 
-	return true, nil
+	return true
 }

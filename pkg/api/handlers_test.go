@@ -87,9 +87,9 @@ func TestGetNodesHandler(t *testing.T) {
 		100, true, false, "btrfs", "/mnt/abc", inventory.Disk, "", false)
 	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "2B9C7KZN3VBM77PSA63P", "sdb", "506d4869-29ee-4bfd-bf21-dfd597bd222e",
 		50, false, false, "ext4", "/mnt/def", inventory.Disk, "", false)
-	appliedOSDKey := "/castle/services/ceph/osd/applied/node1"
-	etcdClient.CreateDir(path.Join(appliedOSDKey, "MB2CK3F6S5041EPCPJ4T"))
-	etcdClient.CreateDir(path.Join(appliedOSDKey, "2B9C7KZN3VBM77PSA63P"))
+	appliedOSDKey := "/castle/services/ceph/osd/applied/node1/devices"
+	etcdClient.SetValue(path.Join(appliedOSDKey, "sda", "serial"), "MB2CK3F6S5041EPCPJ4T")
+	etcdClient.SetValue(path.Join(appliedOSDKey, "sdb", "serial"), "2B9C7KZN3VBM77PSA63P")
 
 	// since a node exists (with storage), it should be returned now
 	w = httptest.NewRecorder()
