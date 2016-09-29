@@ -232,9 +232,10 @@ func handleDeviceChanged(response *etcd.Response, refresher *clusterd.ClusterRef
 // For example: /castle/services/ceph/osd/desired/9b69e58300f9/device/sdb
 func extractNodeIDFromDesiredDevice(path string) (string, error) {
 	parts := strings.Split(path, "/")
-	if len(parts) < 7 {
+	const nodeIDOffset = 6
+	if len(parts) < nodeIDOffset+1 {
 		return "", fmt.Errorf("cannot get node ID from %s", path)
 	}
 
-	return parts[6], nil
+	return parts[nodeIDOffset], nil
 }

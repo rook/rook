@@ -33,7 +33,7 @@ type osdAgent struct {
 	forceFormat bool
 	location    string
 	factory     client.ConnectionFactory
-	osdCmd      map[int]*exec.Cmd
+	osdCmd      map[string]*exec.Cmd
 	devices     string
 }
 
@@ -80,11 +80,6 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 		return nil
 	}
 
-	devices, err := loadDesiredDevices(context.EtcdClient, context.NodeID)
-	if devices.Count() == 0 {
-		return nil
-	}
-
 	// Connect to the ceph cluster
 	adminConn, err := ConnectToClusterAsAdmin(a.factory, a.cluster)
 	if err != nil {
@@ -92,9 +87,22 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 	}
 	defer adminConn.Shutdown()
 
+	devices, err := loadDesiredDevices(context.EtcdClient, context.NodeID)
+	if devices.Count() == 0 {
+		return nil
+	}
+
+	if err := a.startDesiredDevices(context, adminConn, devices); err != nil {
+		return err
+	}
+
+	return a.stopUndesiredDevices(context, adminConn, devices)
+}
+
+func (a *osdAgent) startDesiredDevices(context *clusterd.Context, connection client.Connection, devices *util.Set) error {
+
 	// Start an OSD for each of the specified devices
-	err = a.createOSDs(adminConn, context, devices)
-	if err != nil {
+	if err := a.createOSDs(connection, context, devices); err != nil {
 		return fmt.Errorf("failed to create OSDs: %+v", err)
 	}
 
@@ -106,15 +114,55 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 	return nil
 }
 
+func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection client.Connection, desired *util.Set) error {
+	applied, err := GetAppliedOSDs(context.NodeID, context.EtcdClient)
+	if err != nil {
+		return fmt.Errorf("failed to get applied OSDs. %v", err)
+	}
+
+	var lastErr error
+	for device := range applied {
+		if desired.Contains(device) {
+			// the osd is desired and applied
+			continue
+		}
+
+		cmd, ok := a.osdCmd[device]
+		if ok {
+			// stop the osd process
+			err = context.ProcMan.Stop(cmd)
+			if err != nil {
+				log.Printf("failed to stop osd for device %s. %v", device, err)
+				lastErr = err
+				continue
+			}
+
+			delete(a.osdCmd, device)
+		}
+
+		appliedKey := path.Join(getAppliedKey(context.NodeID), devicesKey, device)
+		_, err = context.EtcdClient.Delete(ctx.Background(), appliedKey, &etcd.DeleteOptions{Recursive: true, Dir: true})
+		if err != nil {
+			log.Printf("failed to remove device %s from desired state. %v", device, err)
+			lastErr = err
+			continue
+		}
+
+		log.Printf("Stopped and removed osd device %s", device)
+	}
+
+	return lastErr
+}
+
 func (a *osdAgent) DestroyLocalService(context *clusterd.Context) error {
 	// stop the OSD processes
-	for osdID, cmd := range a.osdCmd {
-		log.Printf("stopping osd %d", osdID)
+	for device, cmd := range a.osdCmd {
+		log.Printf("stopping osd on device %s", device)
 		context.ProcMan.Stop(cmd)
 	}
 
 	// clear out the osd procs
-	a.osdCmd = map[int]*exec.Cmd{}
+	a.osdCmd = map[string]*exec.Cmd{}
 	return nil
 }
 
@@ -190,7 +238,7 @@ func (a *osdAgent) createOSDs(adminConn client.Connection, context *clusterd.Con
 		}
 
 		// run the OSD in a child process now that it is fully initialized and ready to go
-		err = a.runOSD(context, a.cluster.Name, osdID, osdUUID, osdDataPath)
+		err = a.runOSD(context, a.cluster.Name, osdID, osdUUID, osdDataPath, device)
 		if err != nil {
 			return fmt.Errorf("failed to run osd %d: %+v", osdID, err)
 		}
@@ -200,7 +248,7 @@ func (a *osdAgent) createOSDs(adminConn client.Connection, context *clusterd.Con
 }
 
 // runs an OSD with the given config in a child process
-func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string) error {
+func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath, device string) error {
 	// start the OSD daemon in the foreground with the given config
 	log.Printf("starting osd %d at %s", osdID, osdDataPath)
 	osdUUIDArg := fmt.Sprintf("--osd-uuid=%s", osdUUID.String())
@@ -222,11 +270,11 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID i
 
 	if a.osdCmd == nil {
 		// initialize the osd map
-		a.osdCmd = map[int]*exec.Cmd{}
+		a.osdCmd = map[string]*exec.Cmd{}
 	}
 	if cmd != nil {
 		// if the process was already running Start will return nil in which case we don't want to overwrite it
-		a.osdCmd[osdID] = cmd
+		a.osdCmd[device] = cmd
 	}
 
 	return nil

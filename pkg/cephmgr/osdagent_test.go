@@ -24,16 +24,7 @@ func TestOSDAgent(t *testing.T) {
 	defer os.Remove(targetPath)
 	defer os.RemoveAll("/tmp/osd3")
 
-	factory := &testceph.MockConnectionFactory{}
-	conn, _ := factory.NewConnWithClusterAndUser(clusterName, "user")
-	conn.(*testceph.MockConnection).MockMonCommand = func(buf []byte) (buffer []byte, info string, err error) {
-		response := "{\"key\":\"mysecurekey\", \"osdid\":3.0}"
-		return []byte(response), "", nil
-	}
-	forceFormat := false
-	devices := "sdx,sdy"
-	location := "root=here"
-	agent := newOSDAgent(factory, devices, forceFormat, location)
+	etcdClient, agent, _ := createTestAgent("sdx,sdy")
 
 	execCount := 0
 	executor := &proc.MockExecutor{}
@@ -121,7 +112,6 @@ func TestOSDAgent(t *testing.T) {
 		return nil
 	}
 
-	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		Executor:   executor,
@@ -153,7 +143,7 @@ func TestOSDAgent(t *testing.T) {
 	assert.Equal(t, 6, execCount)
 	assert.Equal(t, 2, outputExecCount)
 	assert.Equal(t, 4, commands)
-	assert.Equal(t, 1, len(agent.osdCmd))
+	assert.Equal(t, 2, len(agent.osdCmd))
 
 	err = agent.DestroyLocalService(context)
 	assert.Nil(t, err)
@@ -185,4 +175,43 @@ func TestAppliedDevices(t *testing.T) {
 	assert.Equal(t, 2, len(osds))
 	assert.Equal(t, "serial1", osds["sda"])
 	assert.Equal(t, "serial2", osds["sdb"])
+}
+
+func TestRemoveDevice(t *testing.T) {
+	etcdClient, agent, conn := createTestAgent("")
+	executor := &proc.MockExecutor{}
+	procTrap := func(action string, c *exec.Cmd) error {
+		return nil
+	}
+	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: "a", Executor: executor, ProcMan: &proc.ProcManager{Trap: procTrap}}
+	desired := util.CreateSet([]string{"sda"})
+
+	// create two applied osds
+	root := "/castle/services/ceph/osd/applied/a/devices"
+	etcdClient.SetValue(path.Join(root, "sda/serial"), "123")
+	etcdClient.SetValue(path.Join(root, "sdb/serial"), "456")
+	etcdClient.SetValue(path.Join(root, "sdc/serial"), "789")
+
+	err := agent.stopUndesiredDevices(context, conn, desired)
+	assert.Nil(t, err)
+	applied := etcdClient.GetChildDirs(root)
+	assert.True(t, applied.Equals(desired))
+}
+
+func createTestAgent(devices string) (*util.MockEtcdClient, *osdAgent, *testceph.MockConnection) {
+	location := "root=here"
+	forceFormat := false
+	etcdClient := util.NewMockEtcdClient()
+	factory := &testceph.MockConnectionFactory{}
+	agent := newOSDAgent(factory, devices, forceFormat, location)
+	agent.cluster = &ClusterInfo{Name: "myclust"}
+	agent.Initialize(&clusterd.Context{EtcdClient: etcdClient})
+	conn, _ := factory.NewConnWithClusterAndUser("default", "user")
+	mockConn := conn.(*testceph.MockConnection)
+	mockConn.MockMonCommand = func(buf []byte) (buffer []byte, info string, err error) {
+		response := "{\"key\":\"mysecurekey\", \"osdid\":3.0}"
+		return []byte(response), "", nil
+	}
+
+	return etcdClient, agent, mockConn
 }
