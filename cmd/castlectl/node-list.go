@@ -21,9 +21,7 @@ func init() {
 }
 
 func listNodesEntry(cmd *cobra.Command, args []string) error {
-	if err := util.VerifyRequiredFlags(cmd, []string{}); err != nil {
-		return err
-	}
+	// verify required flags. currently there are none
 
 	c := client.NewCastleNetworkRestClient(client.GetRestURL(apiServerEndpoint), http.DefaultClient)
 	out, err := listNodes(c)
