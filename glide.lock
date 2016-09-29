@@ -1,8 +1,9 @@
-hash: 56debf71b3c6c4e77c95db48b7a1b6acb2f9a3d84e862d368059f9781bc2c993
-updated: 2016-09-15T11:41:40.344012877-07:00
+hash: 51a33f29969a30f5e2a1ca0e3dba2d792889b413533d61e6f0b5fc7ebdc646a7
+updated: 2016-10-04T16:25:45.160086265-07:00
 imports:
 - name: bitbucket.org/ww/goautoneg
-  version: 75cd24fc2f2c2a2088577d12123ddee5f54e0675
+  version: a547fc61f48d567d5b4ec6f8aee5573d8efce11d
+  repo: https://github.com/quantum/goautoneg.git
 - name: github.com/beorn7/perks
   version: b965b613227fddccbfffe13eae360ed3fa822f8d
   subpackages:
@@ -67,7 +68,9 @@ imports:
 - name: github.com/coreos/go-systemd
   version: bfdc81d0d7e0fb19447b08571f63b774495251ce
   subpackages:
+  - daemon
   - journal
+  - util
 - name: github.com/coreos/pkg
   version: fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
   subpackages:
@@ -143,6 +146,7 @@ imports:
   version: 6acef71eb69611914f7a30939ea9f6e194c78172
   subpackages:
   - context
+  - context/ctxhttp
   - http2
   - http2/hpack
   - internal/timeseries

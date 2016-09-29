@@ -16,12 +16,12 @@ checkout:
 dependencies:
   cache_directories:
     - ~/.ccache
-  
+    - ~/castle/.work
+
   override:
     - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS
-    - docker pull quantum/castle-build
-    - build/run-cross-build amd64 make -j$NPROCS check
+    - build/run make -j$NPROCS install
 
 test:
   override:
-    - echo no tests yet
+    - build/run make -j$NPROCS check

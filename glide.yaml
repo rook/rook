@@ -11,3 +11,6 @@ import:
 - package: github.com/google/uuid
 - package: github.com/go-ini/ini
 - package: github.com/gorilla/mux
+- package: bitbucket.org/ww/goautoneg
+  version: a547fc61f48d567d5b4ec6f8aee5573d8efce11d
+  repo: https://github.com/quantum/goautoneg.git

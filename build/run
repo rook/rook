@@ -1,0 +1,63 @@
+#!/bin/bash -e
+
+scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+friendly_name=cross-build
+version=$(cat ${scriptdir}/cross-image/version)
+container=quantum/castle-${friendly_name}:${version}
+
+function ver() {
+    printf "%d%03d%03d%03d" $(echo "$1" | tr '.' ' ')
+}
+
+function check_git() {
+    # git version 2.6.6+ through 2.8.3 had a bug with submodules. this makes it hard
+    # to share a cloned directory between host and container
+    # see https://github.com/git/git/blob/master/Documentation/RelNotes/2.8.3.txt#L33
+    gitversion=$(git --version | cut -d" " -f3)
+    if (( $(ver ${gitversion}) > $(ver 2.6.6) && $(ver ${gitversion}) < $(ver 2.8.3) )); then
+        echo WARN: your running git version ${gitversion} which has a bug realted to relative
+        echo WARN: submodule paths. Please consider upgrading to 2.8.3 or later
+    fi
+}
+
+check_git
+
+if [ ! -z $DOCKER_HOST ]; then
+    echo ERROR: we only support the case where docker is running locally for now.
+    return 1
+fi
+
+# if the container does not exist the pull or build it
+if [[ ! $(docker images -q ${container}) ]]; then
+    docker pull ${container}
+fi
+
+USER_ARGS="-e BUILDER_UID=$( id -u ) -e BUILDER_GID=$( id -g ) -e BUILDER_USER=$( id -un ) -e BUILDER_GROUP=$( id -gn )"
+BUILDER_HOME=/home/$( id -un )
+
+if [ -n ${CCACHE_DIR+x} ]; then
+    CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache -e CCACHE_LOG -v ${CCACHE_DIR}:${BUILDER_HOME}/.ccache"
+fi
+
+[[ -f ${HOME}/.netrc ]] && NETRC_ARGS="-v ${HOME}/.netrc:${BUILDER_HOME}/.netrc"
+
+tty -s && TTY_ARGS=-ti || TTY_ARGS=
+
+docker run \
+    --rm \
+    --name "${friendly_name}" \
+    --hostname "${friendly_name}" \
+    -e GOPATH="${BUILDER_HOME}/go" \
+    -e WORKDIR=".work/cross" \
+    -e GO_PKG_DIR="" \
+    ${TTY_ARGS} \
+    ${CCACHE_ARGS} \
+    ${NETRC_ARGS} \
+    ${USER_ARGS} \
+    -v ${scriptdir}/../bin:${BUILDER_HOME}/go/bin \
+    -v ${scriptdir}/../.work/cross/pkg:${BUILDER_HOME}/go/pkg \
+    -v ${scriptdir}/..:${BUILDER_HOME}/go/src/github.com/quantum/castle \
+    -w ${BUILDER_HOME}/go/src/github.com/quantum/castle \
+    ${container} \
+    "$@"
