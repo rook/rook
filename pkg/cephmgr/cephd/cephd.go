@@ -1,14 +1,16 @@
 package cephd
 
 // #cgo CFLAGS: -I${SRCDIR}/../../../ceph/src/include
+// #cgo linux,amd64 LDFLAGS: -L${SRCDIR}/../../../ceph/build/linux_amd64/lib
+// #cgo linux,arm64 LDFLAGS: -L${SRCDIR}/../../../ceph/build/linux_arm64/lib
 // #cgo jemalloc,static LDFLAGS: -ljemalloc
 // #cgo tcmalloc,static LDFLAGS: -ltcmalloc_minimal
 // #cgo jemalloc,dynamic LDFLAGS: -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic
 // #cgo tcmalloc,dynamic LDFLAGS: -Wl,-Bstatic -ltcmalloc_minimal -Wl,-Bdynamic
 // #cgo jemalloc tcmalloc CFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
 // #cgo jemalloc tcmalloc CXXFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
-// #cgo static LDFLAGS: -L${SRCDIR}/../../../ceph/build/lib -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lz -lsnappy -lcrypto++ -lleveldb -laio -lblkid -luuid -lm -ldl -lresolv
-// #cgo dynamic LDFLAGS: -L${SRCDIR}/../../../ceph/build/lib -Wl,-Bstatic -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lz -lsnappy -lcrypto++ -lleveldb -laio -lblkid -luuid -Wl,-Bdynamic -ldl -lm -lresolv
+// #cgo static LDFLAGS: -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcrypto++ -lleveldb -laio -luuid -lm -ldl -lresolv
+// #cgo dynamic LDFLAGS: -Wl,-Bstatic -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcrypto++ -lleveldb -laio -luuid -Wl,-Bdynamic -ldl -lm -lresolv
 // #include <errno.h>
 // #include <stdlib.h>
 // #include <string.h>

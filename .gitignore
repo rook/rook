@@ -1,9 +1,11 @@
+.glide/
+.gowork/
+.vscode/
+
 bin/
 tools/
 vendor/
-.vscode/
-.glide/
-.gopath/
+
 coverage.out
 coverage.html
 debug.test
