@@ -1,11 +1,11 @@
-package cmd
+package main
 
 import (
 	"fmt"
 	"os"
 
 	"github.com/quantum/castle/pkg/cephmgr/cephd"
-	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/castle/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +27,7 @@ func init() {
 }
 
 func runDaemon(cmd *cobra.Command, args []string) error {
-	if err := util.VerifyRequiredFlags(daemonCmd, []string{"type"}); err != nil {
+	if err := flags.VerifyRequiredFlags(daemonCmd, []string{"type"}); err != nil {
 		return err
 	}
 	if daemonType != "mon" && daemonType != "osd" {

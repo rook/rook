@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/quantum/castle/pkg/castlectl/client"
-	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/castle/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +20,7 @@ func init() {
 }
 
 func listPoolsEntry(cmd *cobra.Command, args []string) error {
-	if err := util.VerifyRequiredFlags(cmd, []string{}); err != nil {
+	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
 		return err
 	}
 
