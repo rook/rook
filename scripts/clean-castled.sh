@@ -15,5 +15,8 @@ rm -fr /tmp/etcd-data >/dev/null 2>&1
 etcdctl rm --recursive /castle >/dev/null 2>&1
 rm -fr /tmp/castle-discovery-url
 
+# clean the castle data dir
+rm -fr /tmp/castle >/dev/null 2>&1
+
 # ensure castled processes are dead if there was a crash
 ps aux | grep castled | grep -E -v 'grep|clean-castled' | awk '{print $2}' | xargs kill >/dev/null 2>&1

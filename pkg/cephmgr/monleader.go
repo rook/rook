@@ -1,7 +1,6 @@
 package cephmgr
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -91,16 +90,8 @@ func removeMonitorsFromQuorum(factory client.ConnectionFactory, context *cluster
 	for monID, mon := range monitors {
 		log.Printf("removing monitor %s (%v)", monID, mon)
 
-		command, err := json.Marshal(map[string]interface{}{
-			"prefix": "mon remove",
-			"format": "json",
-			"name":   mon.Name,
-		})
-		if err != nil {
-			return fmt.Errorf("FAILED to remove monitor %s (%+v). %v", monID, mon, err)
-		}
-
-		_, _, err = conn.MonCommand(command)
+		cmd := map[string]interface{}{"prefix": "mon remove", "name": mon.Name}
+		_, err = client.ExecuteMonCommand(conn, cmd, "mon remove")
 		if err != nil {
 			return fmt.Errorf("mon remove failed: %+v", err)
 		}
@@ -369,7 +360,7 @@ func waitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, 
 
 		// get the mon_status response that contains info about all monitors in the mon map and
 		// their quorum status
-		monStatusResp, err := GetMonStatus(adminConn)
+		monStatusResp, err := client.GetMonStatus(adminConn)
 		if err != nil {
 			log.Printf("failed to get mon_status, err: %+v", err)
 			continue
@@ -379,7 +370,7 @@ func waitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, 
 		allInQuorum := true
 		for _, im := range cluster.Monitors {
 			// first get the initial monitors corresponding mon map entry
-			var monMapEntry *MonMapEntry
+			var monMapEntry *client.MonMapEntry
 			for i := range monStatusResp.MonMap.Mons {
 				if im.Name == monStatusResp.MonMap.Mons[i].Name {
 					monMapEntry = &monStatusResp.MonMap.Mons[i]

@@ -6,6 +6,12 @@ import (
 	"github.com/quantum/castle/pkg/cephmgr/client"
 )
 
+const (
+	SuccessfulMonStatusResponse = "{\"name\":\"mon0\",\"rank\":0,\"state\":\"leader\",\"election_epoch\":3,\"quorum\":[0],\"monmap\":{\"epoch\":1," +
+		"\"fsid\":\"22ae0d50-c4bc-4cfb-9cf4-341acbe35302\",\"modified\":\"2016-09-16 04:21:51.635837\",\"created\":\"2016-09-16 04:21:51.635837\"," +
+		"\"mons\":[{\"rank\":0,\"name\":\"mon0\",\"addr\":\"10.37.129.87:6790\"}]}}"
+)
+
 /////////////////////////////////////////////////////////////
 // implement the interface for generating ceph connections
 /////////////////////////////////////////////////////////////
@@ -33,8 +39,8 @@ func (m *MockConnectionFactory) NewSecretKey() (string, error) {
 // implement the interface for connecting to the ceph cluster
 /////////////////////////////////////////////////////////////
 type MockConnection struct {
-	IOContext      *MockIOContext
-	MockMonCommand func(args []byte) (buffer []byte, info string, err error)
+	MockOpenIOContext func(pool string) (client.IOContext, error)
+	MockMonCommand    func(args []byte) (buffer []byte, info string, err error)
 }
 
 func (m *MockConnection) Connect() error {
@@ -43,11 +49,11 @@ func (m *MockConnection) Connect() error {
 func (m *MockConnection) Shutdown() {
 }
 func (m *MockConnection) OpenIOContext(pool string) (client.IOContext, error) {
-	if m.IOContext == nil {
-		m.IOContext = &MockIOContext{}
+	if m.MockOpenIOContext != nil {
+		return m.MockOpenIOContext(pool)
 	}
 
-	return m.IOContext, nil
+	return &MockIOContext{}, nil
 }
 func (m *MockConnection) ReadConfigFile(path string) error {
 	return nil
@@ -60,10 +66,7 @@ func (m *MockConnection) MonCommand(args []byte) (buffer []byte, info string, er
 	// return a response for monitor status
 	switch {
 	case strings.Index(string(args), "mon_status") != -1:
-		response := "{\"name\":\"mon0\",\"rank\":0,\"state\":\"leader\",\"election_epoch\":3,\"quorum\":[0],\"monmap\":{\"epoch\":1," +
-			"\"fsid\":\"22ae0d50-c4bc-4cfb-9cf4-341acbe35302\",\"modified\":\"2016-09-16 04:21:51.635837\",\"created\":\"2016-09-16 04:21:51.635837\"," +
-			"\"mons\":[{\"rank\":0,\"name\":\"mon0\",\"addr\":\"10.37.129.87:6790\"}]}}"
-		return []byte(response), "info", nil
+		return []byte(SuccessfulMonStatusResponse), "info", nil
 	}
 
 	// unhandled response
@@ -74,20 +77,4 @@ func (m *MockConnection) MonCommandWithInputBuffer(args, inputBuffer []byte) (bu
 }
 func (m *MockConnection) PingMonitor(id string) (string, error) {
 	return "pinginfo", nil
-}
-
-/////////////////////////////////////////////////////////////
-// implement the interface for the ceph io context
-/////////////////////////////////////////////////////////////
-type MockIOContext struct {
-}
-
-func (m *MockIOContext) Read(oid string, data []byte, offset uint64) (int, error) {
-	return 0, nil
-}
-func (m *MockIOContext) Write(oid string, data []byte, offset uint64) error {
-	return nil
-}
-func (m *MockIOContext) WriteFull(oid string, data []byte) error {
-	return nil
 }

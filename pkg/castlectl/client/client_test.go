@@ -12,9 +12,12 @@ import (
 )
 
 const (
-	SuccessCastleGetNodesContent   = `[{"nodeID": "node1","ipAddr": "10.0.0.100","storage": 100},{"nodeID": "node2","ipAddr": "10.0.0.101","storage": 200}]`
-	SuccessCastleGetPoolsContent   = `[{"poolname":"pool1","poolnum":1},{"poolname":"pool50","poolnum":50}]`
-	SuccessCastleCreatePoolContent = `created pool1 successfully`
+	SuccessGetNodesContent             = `[{"nodeID": "node1","ipAddr": "10.0.0.100","storage": 100},{"nodeID": "node2","ipAddr": "10.0.0.101","storage": 200}]`
+	SuccessGetPoolsContent             = `[{"poolname":"pool1","poolnum":1},{"poolname":"pool50","poolnum":50}]`
+	SuccessCreatePoolContent           = `created pool1 successfully`
+	SuccessGetBlockImagesContent       = `[{"imageName":"myimage1","poolName":"rbd","size":10485760,"device":"","mountPoint":""},{"imageName":"myimage2","poolName":"rbd2","size":10485761,"device":"","mountPoint":""}]`
+	SuccessCreateBlockImageContent     = `succeeded created image myimage3`
+	SuccessGetBlockImageMapInfoContent = `{"monAddresses":["10.37.129.214:6790/0"],"userName":"admin","secretKey":"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg=="}`
 )
 
 func TestURL(t *testing.T) {
@@ -28,7 +31,7 @@ func TestCastleRestError(t *testing.T) {
 }
 
 func TestGetNodes(t *testing.T) {
-	mockServer := NewMockHttpServer(200, SuccessCastleGetNodesContent)
+	mockServer := NewMockHttpServer(200, SuccessGetNodesContent)
 	defer mockServer.Close()
 	mockHttpClient := NewMockHttpClient(mockServer.URL)
 	client := NewCastleNetworkRestClient(mockServer.URL, mockHttpClient)
@@ -53,7 +56,7 @@ func TestGetNodes(t *testing.T) {
 }
 
 func TestGetPools(t *testing.T) {
-	mockServer := NewMockHttpServer(200, SuccessCastleGetPoolsContent)
+	mockServer := NewMockHttpServer(200, SuccessGetPoolsContent)
 	defer mockServer.Close()
 	mockHttpClient := NewMockHttpClient(mockServer.URL)
 	client := NewCastleNetworkRestClient(mockServer.URL, mockHttpClient)
@@ -77,7 +80,7 @@ func TestGetPools(t *testing.T) {
 }
 
 func TestCreatePool(t *testing.T) {
-	mockServer := NewMockHttpServer(200, SuccessCastleCreatePoolContent)
+	mockServer := NewMockHttpServer(200, SuccessCreatePoolContent)
 	defer mockServer.Close()
 	mockHttpClient := NewMockHttpClient(mockServer.URL)
 	client := NewCastleNetworkRestClient(mockServer.URL, mockHttpClient)
@@ -86,6 +89,66 @@ func TestCreatePool(t *testing.T) {
 	createPoolResponse, err := client.CreatePool(model.Pool{Name: "pool1"})
 	assert.Nil(t, err)
 	assert.Equal(t, "created pool1 successfully\n", createPoolResponse)
+}
+
+func TestGetBlockImages(t *testing.T) {
+	mockServer := NewMockHttpServer(200, SuccessGetBlockImagesContent)
+	defer mockServer.Close()
+	mockHttpClient := NewMockHttpClient(mockServer.URL)
+	client := NewCastleNetworkRestClient(mockServer.URL, mockHttpClient)
+
+	getBlockImagesResponse, err := client.GetBlockImages()
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(getBlockImagesResponse))
+
+	expectedImage := model.BlockImage{
+		Name:     "myimage2",
+		PoolName: "rbd2",
+		Size:     10485761,
+	}
+	var actualImage *model.BlockImage
+	for i := range getBlockImagesResponse {
+		if getBlockImagesResponse[i].Name == expectedImage.Name {
+			actualImage = &(getBlockImagesResponse[i])
+			break
+		}
+	}
+	assert.NotNil(t, actualImage)
+	assert.Equal(t, expectedImage, *actualImage)
+}
+
+func TestCreateBlockImage(t *testing.T) {
+	mockServer := NewMockHttpServer(200, SuccessCreateBlockImageContent)
+	defer mockServer.Close()
+	mockHttpClient := NewMockHttpClient(mockServer.URL)
+	client := NewCastleNetworkRestClient(mockServer.URL, mockHttpClient)
+
+	newImage := model.BlockImage{
+		Name:     "myimage3",
+		PoolName: "rbd2",
+		Size:     10485762,
+	}
+
+	response, err := client.CreateBlockImage(newImage)
+	assert.Nil(t, err)
+	assert.Equal(t, SuccessCreateBlockImageContent+"\n", response)
+}
+
+func TestGetBlockImageMapInfo(t *testing.T) {
+	mockServer := NewMockHttpServer(200, SuccessGetBlockImageMapInfoContent)
+	defer mockServer.Close()
+	mockHttpClient := NewMockHttpClient(mockServer.URL)
+	client := NewCastleNetworkRestClient(mockServer.URL, mockHttpClient)
+
+	expectedImageMapInfo := model.BlockImageMapInfo{
+		MonAddresses: []string{"10.37.129.214:6790/0"},
+		UserName:     "admin",
+		SecretKey:    "AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg==",
+	}
+
+	actualImageMapInfo, err := client.GetBlockImageMapInfo()
+	assert.Nil(t, err)
+	assert.Equal(t, expectedImageMapInfo, actualImageMapInfo)
 }
 
 func TestGetNodesFailure(t *testing.T) {
@@ -100,9 +163,29 @@ func TestCreatePoolFailure(t *testing.T) {
 	clientFunc := func(client CastleRestClient) (interface{}, error) {
 		return client.CreatePool(model.Pool{Name: "pool1"})
 	}
+	verifyFunc := getStringVerifyFunc(t)
+	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
+}
+
+func TestGetBlockImagesFailure(t *testing.T) {
+	ClientFailureHelper(t, func(client CastleRestClient) (interface{}, error) { return client.GetBlockImages() })
+}
+
+func TestCreateBlockImageFailure(t *testing.T) {
+	clientFunc := func(client CastleRestClient) (interface{}, error) {
+		return client.CreateBlockImage(model.BlockImage{Name: "image1"})
+	}
+	verifyFunc := getStringVerifyFunc(t)
+	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
+}
+
+func TestGetBlockImageMapInfoFailure(t *testing.T) {
+	clientFunc := func(client CastleRestClient) (interface{}, error) {
+		return client.GetBlockImageMapInfo()
+	}
 	verifyFunc := func(resp interface{}, err error) {
 		assert.NotNil(t, err)
-		assert.Equal(t, "", resp.(string))
+		assert.Equal(t, model.BlockImageMapInfo{}, resp.(model.BlockImageMapInfo))
 	}
 	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
 }
@@ -128,6 +211,13 @@ func ClientFailureHelperWithVerification(t *testing.T, clientFunc func(CastleRes
 
 	// invoke the verification func to verify resp and err
 	verifyFunc(resp, err)
+}
+
+func getStringVerifyFunc(t *testing.T) func(resp interface{}, err error) {
+	return func(resp interface{}, err error) {
+		assert.NotNil(t, err)
+		assert.Equal(t, "", resp.(string))
+	}
 }
 
 func NewMockHttpServer(responseStatusCode int, responseBody string) *httptest.Server {

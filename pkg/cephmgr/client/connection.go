@@ -17,10 +17,3 @@ type Connection interface {
 	MonCommandWithInputBuffer(args, inputBuffer []byte) (buffer []byte, info string, err error)
 	PingMonitor(id string) (string, error)
 }
-
-// interface for the ceph io context
-type IOContext interface {
-	Read(oid string, data []byte, offset uint64) (int, error)
-	Write(oid string, data []byte, offset uint64) error
-	WriteFull(oid string, data []byte) error
-}

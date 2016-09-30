@@ -21,6 +21,24 @@ func (h *Handler) GetRoutes() []Route {
 			h.CreatePool,
 		},
 		{
+			"GetImages",
+			"GET",
+			"/image",
+			h.GetImages,
+		},
+		{
+			"CreateImage",
+			"POST",
+			"/image",
+			h.CreateImage,
+		},
+		{
+			"GetImageMapInfo",
+			"GET",
+			"/image/mapinfo",
+			h.GetImageMapInfo,
+		},
+		{
 			"GetMonitors",
 			"GET",
 			"/mon",

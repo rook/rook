@@ -14,10 +14,14 @@ package cephd
 // #include <string.h>
 // #include "cephd/libcephd.h"
 // #include "rados/librados.h"
+// #include "rbd/librbd.h"
 import "C"
 
 import (
+	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"unsafe"
 
@@ -244,6 +248,11 @@ type IOContext struct {
 	ioctx C.rados_ioctx_t
 }
 
+// Pointer returns a uintptr representation of the IOContext.
+func (ioctx *IOContext) Pointer() uintptr {
+	return uintptr(ioctx.ioctx)
+}
+
 func (c *conn) OpenIOContext(pool string) (client.IOContext, error) {
 	c_pool := C.CString(pool)
 	defer C.free(unsafe.Pointer(c_pool))
@@ -305,4 +314,170 @@ func (ioctx *IOContext) WriteFull(oid string, data []byte) error {
 		(*C.char)(unsafe.Pointer(&data[0])),
 		(C.size_t)(len(data)))
 	return GetCephdError(int(ret))
+}
+
+// **************** librbd ***************************
+type Image struct {
+	io.Reader
+	io.Writer
+	io.Seeker
+	io.ReaderAt
+	io.WriterAt
+	name   string
+	offset int64
+	ioctx  client.IOContext
+	image  C.rbd_image_t
+}
+
+func (i *Image) Name() string {
+	return i.name
+}
+
+var RbdErrorImageNotOpen = errors.New("RBD image not open")
+var RbdErrorNotFound = errors.New("RBD image not found")
+
+func (ioctx *IOContext) GetImage(name string) client.Image {
+	return &Image{
+		ioctx: ioctx,
+		name:  name,
+	}
+}
+
+// GetImageNames returns the list of current RBD images.
+func (ioctx *IOContext) GetImageNames() (names []string, err error) {
+	buf := make([]byte, 4096)
+	for {
+		size := C.size_t(len(buf))
+		ret := C.rbd_list(C.rados_ioctx_t(ioctx.Pointer()),
+			(*C.char)(unsafe.Pointer(&buf[0])), &size)
+		if ret == -34 { // FIXME
+			buf = make([]byte, size)
+			continue
+		} else if ret < 0 {
+			return nil, GetCephdError(int(ret))
+		}
+		tmp := bytes.Split(buf[:size-1], []byte{0})
+		for _, s := range tmp {
+			if len(s) > 0 {
+				name := C.GoString((*C.char)(unsafe.Pointer(&s[0])))
+				names = append(names, name)
+			}
+		}
+		return names, nil
+	}
+}
+
+// int rbd_create(rados_ioctx_t io, const char *name, uint64_t size, int *order);
+// int rbd_create2(rados_ioctx_t io, const char *name, uint64_t size,
+//          uint64_t features, int *order);
+// int rbd_create3(rados_ioctx_t io, const char *name, uint64_t size,
+//        uint64_t features, int *order,
+//        uint64_t stripe_unit, uint64_t stripe_count);
+func (ioctx *IOContext) CreateImage(name string, size uint64, order int,
+	args ...uint64) (image client.Image, err error) {
+	var ret C.int
+	var c_order C.int = C.int(order)
+	var c_name *C.char = C.CString(name)
+	defer C.free(unsafe.Pointer(c_name))
+
+	switch len(args) {
+	case 2:
+		ret = C.rbd_create3(C.rados_ioctx_t(ioctx.Pointer()),
+			c_name, C.uint64_t(size),
+			C.uint64_t(args[0]), &c_order,
+			C.uint64_t(args[1]), C.uint64_t(args[2]))
+	case 1:
+		ret = C.rbd_create2(C.rados_ioctx_t(ioctx.Pointer()),
+			c_name, C.uint64_t(size),
+			C.uint64_t(args[0]), &c_order)
+	case 0:
+		ret = C.rbd_create(C.rados_ioctx_t(ioctx.Pointer()),
+			c_name, C.uint64_t(size), &c_order)
+	default:
+		return nil, errors.New("Wrong number of argument")
+	}
+
+	if ret < 0 {
+		return nil, GetCephdError(int(ret))
+	}
+
+	return &Image{
+		ioctx: ioctx,
+		name:  name,
+	}, nil
+}
+
+// int rbd_open(rados_ioctx_t io, const char *name, rbd_image_t *image, const char *snap_name);
+// int rbd_open_read_only(rados_ioctx_t io, const char *name, rbd_image_t *image,
+//                const char *snap_name);
+func (image *Image) Open(args ...interface{}) error {
+	var c_image C.rbd_image_t
+	var c_name *C.char = C.CString(image.name)
+	var c_snap_name *C.char
+	var ret C.int
+	var read_only bool = false
+
+	defer C.free(unsafe.Pointer(c_name))
+	for _, arg := range args {
+		switch t := arg.(type) {
+		case string:
+			if t != "" {
+				c_snap_name = C.CString(t)
+				defer C.free(unsafe.Pointer(c_snap_name))
+			}
+		case bool:
+			read_only = t
+		default:
+			return errors.New("Unexpected argument")
+		}
+	}
+
+	if read_only {
+		ret = C.rbd_open_read_only(C.rados_ioctx_t(image.ioctx.Pointer()), c_name,
+			&c_image, c_snap_name)
+	} else {
+		ret = C.rbd_open(C.rados_ioctx_t(image.ioctx.Pointer()), c_name,
+			&c_image, c_snap_name)
+	}
+
+	image.image = c_image
+
+	return GetCephdError(int(ret))
+}
+
+// int rbd_close(rbd_image_t image);
+func (image *Image) Close() error {
+	if image.image == nil {
+		return RbdErrorImageNotOpen
+	}
+
+	ret := C.rbd_close(image.image)
+	if ret != 0 {
+		return GetCephdError(int(ret))
+	}
+	image.image = nil
+	return nil
+}
+
+// int rbd_stat(rbd_image_t image, rbd_image_info_t *info, size_t infosize);
+func (image *Image) Stat() (info *client.ImageInfo, err error) {
+	if image.image == nil {
+		return nil, RbdErrorImageNotOpen
+	}
+
+	var c_stat C.rbd_image_info_t
+	ret := C.rbd_stat(image.image,
+		&c_stat, C.size_t(unsafe.Sizeof(info)))
+	if ret < 0 {
+		return info, GetCephdError(int(ret))
+	}
+
+	return &client.ImageInfo{
+		Size:              uint64(c_stat.size),
+		Obj_size:          uint64(c_stat.obj_size),
+		Num_objs:          uint64(c_stat.num_objs),
+		Order:             int(c_stat.order),
+		Block_name_prefix: C.GoString((*C.char)(&c_stat.block_name_prefix[0])),
+		Parent_pool:       int64(c_stat.parent_pool),
+		Parent_name:       C.GoString((*C.char)(&c_stat.parent_name[0]))}, nil
 }

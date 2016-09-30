@@ -14,6 +14,9 @@ type CastleRestClient interface {
 	GetNodes() ([]model.Node, error)
 	GetPools() ([]model.Pool, error)
 	CreatePool(pool model.Pool) (string, error)
+	GetBlockImages() ([]model.BlockImage, error)
+	CreateBlockImage(image model.BlockImage) (string, error)
+	GetBlockImageMapInfo() (model.BlockImageMapInfo, error)
 }
 
 type CastleNetworkRestClient struct {

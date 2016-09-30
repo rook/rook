@@ -12,18 +12,10 @@ type CephStoragePool struct {
 }
 
 func ListPools(conn Connection) ([]CephStoragePool, error) {
-	cmd := "osd lspools"
-	command, err := json.Marshal(map[string]interface{}{
-		"prefix": cmd,
-		"format": "json",
-	})
+	cmd := map[string]interface{}{"prefix": "osd lspools"}
+	buf, err := ExecuteMonCommand(conn, cmd, "list pools")
 	if err != nil {
-		return nil, fmt.Errorf("command %s marshall failed: %+v", cmd, err)
-	}
-
-	buf, _, err := conn.MonCommand(command)
-	if err != nil {
-		return nil, fmt.Errorf("mon_command %s failed: %+v", cmd, err)
+		return nil, fmt.Errorf("failed to list pools: %+v", err)
 	}
 
 	var pools []CephStoragePool
@@ -36,22 +28,13 @@ func ListPools(conn Connection) ([]CephStoragePool, error) {
 }
 
 func CreatePool(conn Connection, name string) (string, error) {
-	cmd := "osd pool create"
-	command, err := json.Marshal(map[string]interface{}{
-		"prefix": cmd,
-		"format": "json",
-		"pool":   name,
-	})
-	if err != nil {
-		return "", fmt.Errorf("command %s marshall failed: %+v", cmd, err)
-	}
-
-	buf, info, err := conn.MonCommand(command)
+	cmd := map[string]interface{}{"prefix": "osd pool create", "pool": name}
+	buf, info, err := ExecuteMonCommandWithInfo(conn, cmd, "create pool")
 	if err != nil {
 		return "", fmt.Errorf("mon_command %s failed, buf: %s, info: %s: %+v", cmd, string(buf), info, err)
 	}
 
-	log.Printf("command %s succeeded, info: %s, buf: %s", cmd, info, string(buf[:]))
+	log.Printf("creating pool %s succeeded, info: %s, buf: %s", name, info, string(buf[:]))
 
 	return info, nil
 }
