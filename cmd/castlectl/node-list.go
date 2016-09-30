@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"bytes"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/quantum/castle/pkg/castlectl/client"
 	"github.com/quantum/castle/pkg/model"
-	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/castle/pkg/util/display"
 	"github.com/spf13/cobra"
 )
 
@@ -48,7 +48,7 @@ func listNodes(c client.CastleRestClient) (string, error) {
 	// print a row for each node
 	for _, n := range nodes {
 		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s ago\t\n", n.IPAddress, model.NodeStateToString(n.State), n.ClusterName,
-			util.BytesToString(n.Storage), n.Location, n.LastUpdated.String())
+			display.BytesToString(n.Storage), n.Location, n.LastUpdated.String())
 	}
 
 	w.Flush()

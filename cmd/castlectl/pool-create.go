@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 
 	"github.com/quantum/castle/pkg/castlectl/client"
 	"github.com/quantum/castle/pkg/model"
-	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/castle/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
@@ -27,7 +27,7 @@ func init() {
 }
 
 func createPoolsEntry(cmd *cobra.Command, args []string) error {
-	if err := util.VerifyRequiredFlags(cmd, []string{"pool-name"}); err != nil {
+	if err := flags.VerifyRequiredFlags(cmd, []string{"pool-name"}); err != nil {
 		return err
 	}
 

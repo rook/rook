@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"fmt"
@@ -17,7 +17,7 @@ import (
 	"github.com/quantum/castle/pkg/cephmgr/cephd"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/proc"
-	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/castle/pkg/util/flags"
 )
 
 var rootCmd = &cobra.Command{
@@ -76,7 +76,7 @@ func addCommands() {
 
 func joinCluster(cmd *cobra.Command, args []string) error {
 
-	if err := util.VerifyRequiredFlags(cmd, []string{"private-ipv4"}); err != nil {
+	if err := flags.VerifyRequiredFlags(cmd, []string{"private-ipv4"}); err != nil {
 		return err
 	}
 	if cfg.discoveryURL == "" && cfg.etcdMembers == "" {
