@@ -51,7 +51,7 @@ export GOARCH=$(GO_ARCH)
 $(GO_WORK_DIR):
 	@mkdir -p $(GO_WORK_DIR)
 
-$(GO_REPO_PATH): | $(GO_WORK_DIR) 
+$(GO_REPO_PATH): | $(GO_WORK_DIR)
 	@mkdir -p $(GO_ORG_PATH)
 	@ln -s ../../../../.. $(GO_REPO_PATH)
 
@@ -99,7 +99,7 @@ define golang-test
 .PHONY: go.test.$(1)
 go.test.$(1): $$($(1).gosrcs) $(GO_WORK_DIR)/vendor | $(GO_WORK_DIR) $(GO_REPO_PATH)
 	@echo "====== Running go test on target $(1)"
-	@GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go test $(2) $$($(1).gopkgs)
+	@GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go test -cover $(2) $$($(1).gopkgs)
 endef
 
 # generate targets to vet a go project
