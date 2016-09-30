@@ -207,6 +207,7 @@ func TestRemoveDevice(t *testing.T) {
 	procTrap := func(action string, c *exec.Cmd) error {
 		return nil
 	}
+
 	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: "a", Executor: executor, ProcMan: &proc.ProcManager{Trap: procTrap}}
 	desired := util.CreateSet([]string{"sda"})
 
@@ -215,6 +216,19 @@ func TestRemoveDevice(t *testing.T) {
 	etcdClient.SetValue(path.Join(root, "sda/serial"), "123")
 	etcdClient.SetValue(path.Join(root, "sdb/serial"), "456")
 	etcdClient.SetValue(path.Join(root, "sdc/serial"), "789")
+
+	agent.getIDFromName = func(context *clusterd.Context, name string) (int, error) {
+		if name == "sda" {
+			return 1, nil
+		}
+		if name == "sdb" {
+			return 2, nil
+		}
+		if name == "sdc" {
+			return 3, nil
+		}
+		return -1, fmt.Errorf("unknown name %s", name)
+	}
 
 	err := agent.stopUndesiredDevices(context, conn, desired)
 	assert.Nil(t, err)

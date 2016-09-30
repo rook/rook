@@ -29,16 +29,19 @@ const (
 )
 
 type osdAgent struct {
-	cluster     *ClusterInfo
-	forceFormat bool
-	location    string
-	factory     client.ConnectionFactory
-	osdCmd      map[string]*exec.Cmd
-	devices     string
+	cluster       *ClusterInfo
+	forceFormat   bool
+	location      string
+	factory       client.ConnectionFactory
+	osdCmd        map[string]*exec.Cmd
+	devices       string
+	getIDFromName func(context *clusterd.Context, name string) (int, error)
 }
 
 func newOSDAgent(factory client.ConnectionFactory, devices string, forceFormat bool, location string) *osdAgent {
-	return &osdAgent{factory: factory, devices: devices, forceFormat: forceFormat, location: location}
+	a := &osdAgent{factory: factory, devices: devices, forceFormat: forceFormat, location: location}
+	a.getIDFromName = a.getOSDID
+	return a
 }
 
 func (a *osdAgent) Name() string {
@@ -133,31 +136,86 @@ func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection cl
 			continue
 		}
 
-		cmd, ok := a.osdCmd[device]
-		if ok {
-			// stop the osd process
-			err = context.ProcMan.Stop(cmd)
-			if err != nil {
-				log.Printf("failed to stop osd for device %s. %v", device, err)
-				lastErr = err
-				continue
-			}
-
-			delete(a.osdCmd, device)
-		}
-
-		appliedKey := path.Join(getAppliedKey(context.NodeID), devicesKey, device)
-		_, err = context.EtcdClient.Delete(ctx.Background(), appliedKey, &etcd.DeleteOptions{Recursive: true, Dir: true})
+		err := a.removeOSD(context, connection, device)
 		if err != nil {
-			log.Printf("failed to remove device %s from desired state. %v", device, err)
 			lastErr = err
-			continue
 		}
-
-		log.Printf("Stopped and removed osd device %s", device)
 	}
 
 	return lastErr
+}
+
+func (a *osdAgent) getOSDID(context *clusterd.Context, name string) (int, error) {
+	mountPoint, err := inventory.GetDeviceMountPoint(name, context.Executor)
+	if err != nil {
+		return -1, fmt.Errorf("unable to get mount point to remove device %s: %+v", name, err)
+	}
+
+	if mountPoint == "" {
+		return -1, fmt.Errorf("mount point not found for osd %s", name)
+	}
+
+	// find the OSD data path (under the mount point/data dir)
+	osdDataPath, err := findOSDDataPath(mountPoint, a.cluster.Name)
+	if err != nil {
+		return -1, err
+	}
+
+	var osdID int
+	if _, err := os.Stat(filepath.Join(osdDataPath, "whoami")); os.IsNotExist(err) {
+		return -1, fmt.Errorf("cannot identify osd %s to remove", name)
+	}
+
+	// osd_data_dir/whoami already exists, meaning the OSD is already set up.
+	// look up some basic information about it so we can run it.
+	osdID, _, err = getOSDInfo(osdDataPath)
+	if err != nil {
+		return -1, fmt.Errorf("failed to get OSD information from %s: %+v", osdDataPath, err)
+	}
+
+	return osdID, nil
+}
+
+func (a *osdAgent) removeOSD(context *clusterd.Context, connection client.Connection, name string) error {
+	osdID, err := a.getIDFromName(context, name)
+	if err != nil {
+		return fmt.Errorf("failed to get osd %s id. %v", name, err)
+	}
+
+	// mark the OSD as out of the cluster so its data starts to migrate
+	err = markOSDOut(connection, osdID)
+	if err != nil {
+		return fmt.Errorf("failed to mark out osd %s (%d). %v", name, osdID, err)
+	}
+
+	// stop the osd process if running
+	cmd, ok := a.osdCmd[name]
+	if ok {
+		err := context.ProcMan.Stop(cmd)
+		if err != nil {
+			log.Printf("failed to stop osd for device %s. %v", name, err)
+			return err
+		}
+
+		delete(a.osdCmd, name)
+	}
+
+	err = purgeOSD(connection, name, osdID)
+	if err != nil {
+		return fmt.Errorf("faild to remove osd %s from crush map. %v", name, err)
+	}
+
+	// remove the osd from the applied key
+	appliedKey := path.Join(getAppliedKey(context.NodeID), devicesKey, name)
+	_, err = context.EtcdClient.Delete(ctx.Background(), appliedKey, &etcd.DeleteOptions{Recursive: true, Dir: true})
+	if err != nil {
+		log.Printf("failed to remove device %s from desired state. %v", name, err)
+		return err
+	}
+
+	log.Printf("Stopped and removed osd device %s", name)
+
+	return nil
 }
 
 func (a *osdAgent) DestroyLocalService(context *clusterd.Context) error {
