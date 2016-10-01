@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -24,8 +23,9 @@ import (
 )
 
 const (
-	osdAgentName = "osd"
-	devicesKey   = "devices"
+	osdAgentName    = "osd"
+	devicesKey      = "devices"
+	localDeviceName = "<local>"
 )
 
 type osdAgent struct {
@@ -50,6 +50,12 @@ func (a *osdAgent) Initialize(context *clusterd.Context) error {
 
 	// add the devices to desired state
 	devices := strings.Split(a.devices, ",")
+
+	if len(devices) == 1 && devices[0] == "" {
+		// no devices specified, just use the local file system
+		devices = []string{localDeviceName}
+	}
+
 	for _, device := range devices {
 		err := AddDesiredDevice(context.EtcdClient, &Device{Name: device, NodeID: context.NodeID})
 		if err != nil {
@@ -188,45 +194,31 @@ func (a *osdAgent) createOSDs(adminConn client.Connection, context *clusterd.Con
 	for device := range devices.Iter() {
 		var osdID int
 		var osdUUID uuid.UUID
+		var osdDataRoot string
 
-		mountPoint, err := inventory.GetDeviceMountPoint(device, context.Executor)
-		if err != nil {
-			return fmt.Errorf("unable to get mount point for device %s: %+v", device, err)
-		}
-
-		if mountPoint == "" {
-			// the device is not mounted, so proceed with the format and mounting
-			if err := formatOSD(device, a.forceFormat, context.Executor); err != nil {
-				// attempting to format the volume failed, bail out with error
-				return err
-			}
-
-			// register the OSD with the cluster now to get an official ID
-			osdID, osdUUID, err = registerOSDWithCluster(device, bootstrapConn)
+		if device == localDeviceName {
+			osdDataRoot, osdID, osdUUID, err = a.createLocalOSD(bootstrapConn)
 			if err != nil {
-
+				return fmt.Errorf("failed to create local OSD: %+v", err)
 			}
-
-			// mount the device using a mount point that reflects the OSD's ID
-			mountPoint = fmt.Sprintf("/tmp/osd%d", osdID)
-			if err := mountOSD(device, mountPoint, context.Executor); err != nil {
-				return err
+		} else {
+			osdDataRoot, osdID, osdUUID, err = a.createMountedOSD(device, bootstrapConn, context)
+			if err != nil {
+				return fmt.Errorf("failed to create mounted OSD for device %s: %+v", device, err)
 			}
 		}
-
-		osdDataDir := mountPoint
 
 		// find the OSD data path (under the mount point/data dir)
-		osdDataPath, err := findOSDDataPath(osdDataDir, a.cluster.Name)
+		osdDataPath, err := findOSDDataPath(osdDataRoot, a.cluster.Name)
 		if err != nil {
 			return err
 		}
 
-		if _, err := os.Stat(filepath.Join(osdDataPath, "whoami")); os.IsNotExist(err) {
+		if isOSDDataNotExist(osdDataPath) {
 			// osd_data_dir/whoami does not exist yet, create/initialize the OSD
-			osdDataPath, err = initializeOSD(a.factory, context, osdDataDir, osdID, osdUUID, bootstrapConn, a.cluster, a.location)
+			osdDataPath, err = initializeOSD(a.factory, context, osdDataRoot, osdID, osdUUID, device, bootstrapConn, a.cluster, a.location)
 			if err != nil {
-				return fmt.Errorf("failed to initialize OSD at %s: %+v", osdDataDir, err)
+				return fmt.Errorf("failed to initialize OSD at %s: %+v", osdDataRoot, err)
 			}
 		} else {
 			// osd_data_dir/whoami already exists, meaning the OSD is already set up.
@@ -245,6 +237,72 @@ func (a *osdAgent) createOSDs(adminConn client.Connection, context *clusterd.Con
 	}
 
 	return nil
+}
+
+func (a *osdAgent) createMountedOSD(device string, bootstrapConn client.Connection, context *clusterd.Context) (string, int, uuid.UUID, error) {
+	var osdID int
+	var osdUUID uuid.UUID
+
+	mountPoint, err := inventory.GetDeviceMountPoint(device, context.Executor)
+	if err != nil {
+		return "", -1, uuid.UUID{}, fmt.Errorf("unable to get mount point for device %s: %+v", device, err)
+	}
+
+	if mountPoint == "" {
+		// the device is not mounted, so proceed with the format and mounting
+		if err := formatOSD(device, a.forceFormat, context.Executor); err != nil {
+			// attempting to format the volume failed, bail out with error
+			return "", -1, uuid.UUID{}, err
+		}
+
+		// register the OSD with the cluster now to get an official ID
+		osdID, osdUUID, err = registerOSDWithCluster(device, bootstrapConn)
+		if err != nil {
+			return "", -1, uuid.UUID{}, fmt.Errorf("failed to regiser OSD %d with cluster: %+v", osdID, err)
+		}
+
+		// mount the device using a mount point that reflects the OSD's ID
+		mountPoint = getOSDRootDir(osdID)
+		if err := mountOSD(device, mountPoint, context.Executor); err != nil {
+			return "", -1, uuid.UUID{}, err
+		}
+	}
+
+	return mountPoint, osdID, osdUUID, nil
+}
+
+func (a *osdAgent) createLocalOSD(bootstrapConn client.Connection) (string, int, uuid.UUID, error) {
+	var osdID int
+	var osdUUID uuid.UUID
+	var osdDataPath string
+
+	root := "/tmp"
+	osdDataRoot, err := findOSDDataRoot(root)
+	if err != nil {
+		return "", -1, uuid.UUID{}, fmt.Errorf("failed to find OSD data root under %s: %+v", root, err)
+	}
+
+	if osdDataRoot != "" {
+		osdDataPath, err = findOSDDataPath(osdDataRoot, a.cluster.Name)
+		if err != nil {
+			return "", -1, uuid.UUID{}, fmt.Errorf("failed to find osd data path under %s: %+v", osdDataRoot, err)
+		}
+	}
+
+	if isOSDDataNotExist(osdDataPath) {
+		// register the OSD with the cluster now to get an official ID
+		osdID, osdUUID, err = registerOSDWithCluster(osdDataRoot, bootstrapConn)
+		if err != nil {
+			return "", -1, uuid.UUID{}, fmt.Errorf("failed to register OSD %d with cluster: %+v", osdID, err)
+		}
+
+		osdDataRoot = getOSDRootDir(osdID)
+		if err := os.MkdirAll(osdDataRoot, 0744); err != nil {
+			return "", -1, uuid.UUID{}, fmt.Errorf("failed to make osdDataRoot at %s: %+v", osdDataRoot, err)
+		}
+	}
+
+	return osdDataRoot, osdID, osdUUID, nil
 }
 
 // runs an OSD with the given config in a child process
@@ -280,6 +338,7 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID i
 	return nil
 }
 
+// For all applied OSDs, gets a mapping of their device names to their serial numbers
 func GetAppliedOSDs(nodeID string, etcdClient etcd.KeysAPI) (map[string]string, error) {
 	appliedKey := path.Join(getAppliedKey(nodeID), devicesKey)
 	devices := map[string]string{}
@@ -309,9 +368,15 @@ func (a *osdAgent) saveAppliedOSDs(context *clusterd.Context, devices *util.Set)
 	appliedKey := path.Join(getAppliedKey(context.NodeID), devicesKey)
 	var settings = make(map[string]string)
 	for d := range devices.Iter() {
-		serial, err := inventory.GetSerialFromDevice(d, context.NodeID, context.EtcdClient)
-		if err != nil {
-			return fmt.Errorf("failed to get serial for device %s: %+v", d, err)
+		var serial string
+		var err error
+		if d == localDeviceName {
+			serial = localDeviceName
+		} else {
+			serial, err = inventory.GetSerialFromDevice(d, context.NodeID, context.EtcdClient)
+			if err != nil {
+				return fmt.Errorf("failed to get serial for device %s: %+v", d, err)
+			}
 		}
 
 		settings[path.Join(d, "serial")] = serial

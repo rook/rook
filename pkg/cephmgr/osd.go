@@ -82,6 +82,10 @@ func getBootstrapOSDDir() string {
 	return "/tmp/bootstrap-osd"
 }
 
+func getOSDRootDir(osdID int) string {
+	return fmt.Sprintf("/tmp/osd%d", osdID)
+}
+
 // get the full path to the bootstrap OSD keyring
 func getBootstrapOSDKeyringPath(clusterName string) string {
 	return fmt.Sprintf("%s/%s.keyring", getBootstrapOSDDir(), clusterName)
@@ -284,66 +288,86 @@ func registerOSDWithCluster(device string, bootstrapConn client.Connection) (int
 	return osdID, osdUUID, nil
 }
 
+func isOSDDataNotExist(osdDataPath string) bool {
+	_, err := os.Stat(filepath.Join(osdDataPath, "whoami"))
+	return os.IsNotExist(err)
+}
+
+func findOSDDataRoot(dir string) (string, error) {
+	pattern := `osd[0-9]+`
+	return findSubdirByPattern(pattern, dir)
+}
+
 // looks for an existing OSD data path under the given root
 func findOSDDataPath(osdRoot, clusterName string) (string, error) {
-	var osdDataPath string
-	fl, err := ioutil.ReadDir(osdRoot)
+	pattern := fmt.Sprintf(`%s-[A-Za-z0-9._-]+`, clusterName)
+	return findSubdirByPattern(pattern, osdRoot)
+}
+
+func findSubdirByPattern(pattern, dir string) (string, error) {
+	fl, err := ioutil.ReadDir(dir)
 	if err != nil {
-		return "", fmt.Errorf("failed to read dir %s: %+v", osdRoot, err)
+		return "", fmt.Errorf("failed to read dir %s: %+v", dir, err)
 	}
-	p := fmt.Sprintf(`%s-[A-Za-z0-9._-]+`, clusterName)
+
 	for _, f := range fl {
 		if f.IsDir() {
-			matched, err := regexp.MatchString(p, f.Name())
+			matched, err := regexp.MatchString(pattern, f.Name())
 			if err == nil && matched {
-				osdDataPath = filepath.Join(osdRoot, f.Name())
-				break
+				return filepath.Join(dir, f.Name()), nil
 			}
 		}
 	}
-
-	return osdDataPath, nil
+	return "", nil
 }
 
 func getOSDInfo(osdDataPath string) (int, uuid.UUID, error) {
 	idFile := filepath.Join(osdDataPath, "whoami")
 	idContent, err := ioutil.ReadFile(idFile)
 	if err != nil {
-		return 0, uuid.UUID{}, fmt.Errorf("failed to read OSD ID from %s: %+v", idFile, err)
+		return -1, uuid.UUID{}, fmt.Errorf("failed to read OSD ID from %s: %+v", idFile, err)
 	}
 
 	osdID, err := strconv.Atoi(strings.TrimSpace(string(idContent[:])))
 	if err != nil {
-		return 0, uuid.UUID{}, fmt.Errorf("failed to parse OSD ID from %s with content %s: %+v", idFile, idContent, err)
+		return -1, uuid.UUID{}, fmt.Errorf("failed to parse OSD ID from %s with content %s: %+v", idFile, idContent, err)
 	}
 
 	uuidFile := filepath.Join(osdDataPath, "fsid")
 	fsidContent, err := ioutil.ReadFile(uuidFile)
 	if err != nil {
-		return 0, uuid.UUID{}, fmt.Errorf("failed to read UUID from %s: %+v", uuidFile, err)
+		return -1, uuid.UUID{}, fmt.Errorf("failed to read UUID from %s: %+v", uuidFile, err)
 	}
 
 	osdUUID, err := uuid.Parse(strings.TrimSpace(string(fsidContent[:])))
 	if err != nil {
-		return 0, uuid.UUID{},
+		return -1, uuid.UUID{},
 			fmt.Errorf("failed to parse UUID from %s with content %s: %+v", uuidFile, string(fsidContent[:]), err)
 	}
 
 	return osdID, osdUUID, nil
 }
 
-func initializeOSD(factory client.ConnectionFactory, context *clusterd.Context, osdDataDir string, osdID int, osdUUID uuid.UUID,
-	bootstrapConn client.Connection, cluster *ClusterInfo, location string) (string, error) {
+func initializeOSD(factory client.ConnectionFactory, context *clusterd.Context, osdDataRoot string, osdID int, osdUUID uuid.UUID,
+	device string, bootstrapConn client.Connection, cluster *ClusterInfo, location string) (string, error) {
 
 	// ensure that the OSD data directory is created
-	osdDataPath := filepath.Join(osdDataDir, fmt.Sprintf("%s-%d", cluster.Name, osdID))
+	osdDataPath := filepath.Join(osdDataRoot, fmt.Sprintf("%s-%d", cluster.Name, osdID))
 	if err := os.MkdirAll(osdDataPath, 0777); err != nil {
 		return "", fmt.Errorf("failed to create OSD data dir at %s, %+v", osdDataPath, err)
 	}
 
+	cephConfig := createDefaultCephConfig(cluster, osdDataPath)
+	if device == localDeviceName {
+		// using the local file system requires some config overrides
+		// http://docs.ceph.com/docs/jewel/rados/configuration/filesystem-recommendations/#not-recommended
+		cephConfig.cephGlobalConfig.OsdMaxObjectNameLen = 256
+		cephConfig.cephGlobalConfig.OsdMaxObjectNamespaceLen = 64
+	}
+
 	// write the OSD config file to disk
 	keyringPath := getOSDKeyringPath(osdDataPath)
-	_, err := generateConfigFile(cluster, osdDataPath, fmt.Sprintf("osd.%d", osdID), keyringPath)
+	_, err := generateConfigFile(cluster, osdDataPath, fmt.Sprintf("osd.%d", osdID), keyringPath, cephConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to write OSD %d config file: %+v", osdID, err)
 	}
@@ -365,14 +389,14 @@ func initializeOSD(factory client.ConnectionFactory, context *clusterd.Context, 
 	}
 
 	// open a connection to the cluster using the OSDs creds
-	osdConn, err := connectToCluster(factory, cluster, osdDataDir, fmt.Sprintf("osd.%d", osdID), keyringPath)
+	osdConn, err := connectToCluster(factory, cluster, osdDataRoot, fmt.Sprintf("osd.%d", osdID), keyringPath)
 	if err != nil {
 		return "", err
 	}
 	defer osdConn.Shutdown()
 
 	// add the new OSD to the cluster crush map
-	if err := addOSDToCrushMap(osdConn, context, osdID, osdDataDir, location); err != nil {
+	if err := addOSDToCrushMap(osdConn, context, osdID, osdDataRoot, location); err != nil {
 		return "", err
 	}
 

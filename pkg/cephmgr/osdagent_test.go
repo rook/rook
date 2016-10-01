@@ -18,10 +18,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestOSDAgent(t *testing.T) {
+func TestOSDAgentWithDevices(t *testing.T) {
 	clusterName := "mycluster"
-	targetPath := getBootstrapOSDKeyringPath(clusterName)
-	defer os.Remove(targetPath)
+	bootstrapPath := getBootstrapOSDKeyringPath(clusterName)
+	defer os.Remove(bootstrapPath)
 	defer os.RemoveAll("/tmp/osd3")
 
 	etcdClient, agent, _ := createTestAgent("sdx,sdy")
@@ -87,64 +87,88 @@ func TestOSDAgent(t *testing.T) {
 		outputExecCount++
 		return "skip-UUID-verification", nil
 	}
-	commands := 0
-	procTrap := func(action string, c *exec.Cmd) error {
-		log.Printf("PROC TRAP %d for %s. %+v", commands, action, c)
-		assert.Equal(t, "daemon", c.Args[1])
-		assert.Equal(t, "--type=osd", c.Args[2])
-		assert.Equal(t, "--", c.Args[3])
-		switch {
-		case commands == 0:
-			err := ioutil.WriteFile("/tmp/osd3/mycluster-3/keyring", []byte("mykeyring"), 0644)
-			assert.Nil(t, err)
-			assert.Equal(t, "--mkfs", c.Args[4])
-			assert.Equal(t, "--mkkey", c.Args[5])
-		case commands == 1:
-			assert.Equal(t, "--foreground", c.Args[4])
-		case commands == 2:
-			assert.Equal(t, "--mkfs", c.Args[4])
-		case commands == 3:
-			assert.Equal(t, "--foreground", c.Args[4])
-		default:
-			return fmt.Errorf("unexpected case %d", commands)
-		}
-		commands++
-		return nil
-	}
+	procCommands := 0
 
 	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		Executor:   executor,
 		NodeID:     "abc",
-		ProcMan:    &proc.ProcManager{Trap: procTrap},
+		ProcMan:    &proc.ProcManager{Trap: createOSDAgentProcTrap(t, &procCommands)},
 	}
-	key := path.Join(cephKey, osdAgentName, desiredKey, context.NodeID)
-	etcdClient.CreateDir(key)
 
-	err := agent.Initialize(context)
-	etcdClient.SetValue(path.Join(cephKey, osdAgentName, desiredKey, context.NodeID, "ready"), "1")
-	assert.Nil(t, err)
-
-	// prep the etcd keys as if the leader initiated the orchestration
-	cluster := &ClusterInfo{FSID: "id", MonitorSecret: "monsecret", AdminSecret: "adminsecret", Name: clusterName}
-	saveClusterInfo(cluster, etcdClient)
-	monKey := path.Join(cephKey, monitorKey, desiredKey, context.NodeID)
-	etcdClient.SetValue(path.Join(monKey, "id"), "1")
-	etcdClient.SetValue(path.Join(monKey, "ipaddress"), "10.6.5.4")
-	etcdClient.SetValue(path.Join(monKey, "port"), "8743")
+	// prep the OSD agent and related orcehstration data
+	prepAgentOrchestrationData(t, agent, etcdClient, context, clusterName)
 
 	// prep the etcd keys that would have been discovered by inventory
 	disksKey := path.Join(inventory.GetNodeConfigKey(context.NodeID), inventory.DisksKey)
 	etcdClient.SetValue(path.Join(disksKey, "sdxserial", "name"), "sdx")
 	etcdClient.SetValue(path.Join(disksKey, "sdyserial", "name"), "sdy")
 
-	err = agent.ConfigureLocalService(context)
+	err := agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
 	assert.Equal(t, 6, execCount)
 	assert.Equal(t, 2, outputExecCount)
-	assert.Equal(t, 4, commands)
+	assert.Equal(t, 4, procCommands)
 	assert.Equal(t, 2, len(agent.osdCmd))
 
+	err = agent.DestroyLocalService(context)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(agent.osdCmd))
+}
+
+func TestOSDAgentNoDevices(t *testing.T) {
+	clusterName := "mycluster"
+	bootstrapPath := getBootstrapOSDKeyringPath(clusterName)
+	defer os.Remove(bootstrapPath)
+	defer os.RemoveAll("/tmp/osd3")
+
+	// create a test OSD agent with no devices specified
+	etcdClient, agent, _ := createTestAgent("")
+
+	// should be no executeCommand calls
+	execCount := 0
+	executor := &proc.MockExecutor{}
+	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
+		assert.Fail(t, "executeCommand is not expected for OSD local device")
+		execCount++
+		return nil
+	}
+
+	// should be no executeCommandWithOutput calls
+	outputExecCount := 0
+	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
+		assert.Fail(t, "executeCommandWithOutput is not expected for OSD local device")
+		outputExecCount++
+		return "", nil
+	}
+
+	// set up expected ProcManager commands
+	procCommands := 0
+	context := &clusterd.Context{
+		EtcdClient: etcdClient,
+		Executor:   executor,
+		NodeID:     "abc",
+		ProcMan:    &proc.ProcManager{Trap: createOSDAgentProcTrap(t, &procCommands)},
+	}
+
+	// prep the OSD agent and related orcehstration data
+	prepAgentOrchestrationData(t, agent, etcdClient, context, clusterName)
+
+	// configure the OSD and verify the results
+	err := agent.ConfigureLocalService(context)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, execCount)
+	assert.Equal(t, 0, outputExecCount)
+	assert.Equal(t, 2, procCommands)
+	assert.Equal(t, 1, len(agent.osdCmd))
+
+	// the local device should be marked as an applied OSD now
+	osds, err := GetAppliedOSDs(context.NodeID, etcdClient)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(osds))
+	assert.Equal(t, localDeviceName, osds[localDeviceName])
+
+	// destroy the OSD and verify the results
 	err = agent.DestroyLocalService(context)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(agent.osdCmd))
@@ -214,4 +238,47 @@ func createTestAgent(devices string) (*util.MockEtcdClient, *osdAgent, *testceph
 	}
 
 	return etcdClient, agent, mockConn
+}
+
+func prepAgentOrchestrationData(t *testing.T, agent *osdAgent, etcdClient *util.MockEtcdClient, context *clusterd.Context, clusterName string) {
+	key := path.Join(cephKey, osdAgentName, desiredKey, context.NodeID)
+	etcdClient.CreateDir(key)
+
+	err := agent.Initialize(context)
+	etcdClient.SetValue(path.Join(cephKey, osdAgentName, desiredKey, context.NodeID, "ready"), "1")
+	assert.Nil(t, err)
+
+	// prep the etcd keys as if the leader initiated the orchestration
+	cluster := &ClusterInfo{FSID: "id", MonitorSecret: "monsecret", AdminSecret: "adminsecret", Name: clusterName}
+	saveClusterInfo(cluster, etcdClient)
+	monKey := path.Join(cephKey, monitorKey, desiredKey, context.NodeID)
+	etcdClient.SetValue(path.Join(monKey, "id"), "1")
+	etcdClient.SetValue(path.Join(monKey, "ipaddress"), "10.6.5.4")
+	etcdClient.SetValue(path.Join(monKey, "port"), "8743")
+}
+
+func createOSDAgentProcTrap(t *testing.T, commands *int) func(action string, c *exec.Cmd) error {
+	return func(action string, c *exec.Cmd) error {
+		log.Printf("PROC TRAP %d for %s. %+v", commands, action, c)
+		assert.Equal(t, "daemon", c.Args[1])
+		assert.Equal(t, "--type=osd", c.Args[2])
+		assert.Equal(t, "--", c.Args[3])
+		switch {
+		case *commands == 0:
+			err := ioutil.WriteFile("/tmp/osd3/mycluster-3/keyring", []byte("mykeyring"), 0644)
+			assert.Nil(t, err)
+			assert.Equal(t, "--mkfs", c.Args[4])
+			assert.Equal(t, "--mkkey", c.Args[5])
+		case *commands == 1:
+			assert.Equal(t, "--foreground", c.Args[4])
+		case *commands == 2:
+			assert.Equal(t, "--mkfs", c.Args[4])
+		case *commands == 3:
+			assert.Equal(t, "--foreground", c.Args[4])
+		default:
+			return fmt.Errorf("unexpected case %d", *commands)
+		}
+		*commands++
+		return nil
+	}
 }

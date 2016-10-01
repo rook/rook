@@ -205,6 +205,14 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor proc.
 		diskPropsRaw, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", fmt.Sprintf("/dev/%s", d),
 			"-b", "-d", "-P", "-o", "SERIAL,UUID,SIZE,ROTA,RO,TYPE,PKNAME")
 		if err != nil {
+			// try to get more information about the command error
+			cmdErr, ok := err.(*proc.CommandError)
+			if ok && cmdErr.ExitStatus() == 32 {
+				// certain device types (such as loop) return exit status 32 when probed further,
+				// ignore and continue without logging
+				continue
+			}
+
 			log.Printf("failed to get properties of device %s: %+v", d, err)
 			continue
 		}

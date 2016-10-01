@@ -48,7 +48,7 @@ func CreatePool(conn Connection, name string) (string, error) {
 
 	buf, info, err := conn.MonCommand(command)
 	if err != nil {
-		return "", fmt.Errorf("mon_command %s failed: %+v", cmd, err)
+		return "", fmt.Errorf("mon_command %s failed, buf: %s, info: %s: %+v", cmd, string(buf), info, err)
 	}
 
 	log.Printf("command %s succeeded, info: %s, buf: %s", cmd, info, string(buf[:]))
