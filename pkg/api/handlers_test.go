@@ -21,6 +21,46 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestAddRemoveDeviceHandler(t *testing.T) {
+	req, err := http.NewRequest("POST", "http://10.0.0.100/device", strings.NewReader(`{"name":"foo"}`))
+	assert.Nil(t, err)
+
+	w := httptest.NewRecorder()
+	etcdClient := util.NewMockEtcdClient()
+	h := NewHandler(etcdClient, nil, nil)
+
+	// missing the node id
+	h.AddDevice(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	// successful request
+	req, err = http.NewRequest("POST", "http://10.0.0.100/device", strings.NewReader(`{"name":"foo","nodeId":"123"}`))
+	assert.Nil(t, err)
+	h = NewHandler(etcdClient, nil, nil)
+	w = httptest.NewRecorder()
+	h.AddDevice(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	devices := etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/123/device")
+	assert.Equal(t, 1, devices.Count())
+	assert.True(t, devices.Contains("foo"))
+
+	// remove the device
+	req, err = http.NewRequest("POST", "http://10.0.0.100/device/remove", strings.NewReader(`{"name":"foo","nodeId":"123"}`))
+	assert.Nil(t, err)
+	h = NewHandler(etcdClient, nil, nil)
+	w = httptest.NewRecorder()
+	h.RemoveDevice(w, req)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// check the desired state
+	devices = etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/123/device")
+	assert.Equal(t, 0, devices.Count())
+}
+
+func TestRemoveDeviceHandler(t *testing.T) {
+}
+
 func TestGetNodesHandler(t *testing.T) {
 	req, err := http.NewRequest("GET", "http://10.0.0.100/node", nil)
 	if err != nil {
@@ -47,9 +87,9 @@ func TestGetNodesHandler(t *testing.T) {
 		100, true, false, "btrfs", "/mnt/abc", inventory.Disk, "", false)
 	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "2B9C7KZN3VBM77PSA63P", "sdb", "506d4869-29ee-4bfd-bf21-dfd597bd222e",
 		50, false, false, "ext4", "/mnt/def", inventory.Disk, "", false)
-	appliedOSDKey := "/castle/services/ceph/osd/applied/node1"
-	etcdClient.CreateDir(path.Join(appliedOSDKey, "MB2CK3F6S5041EPCPJ4T"))
-	etcdClient.CreateDir(path.Join(appliedOSDKey, "2B9C7KZN3VBM77PSA63P"))
+	appliedOSDKey := "/castle/services/ceph/osd/applied/node1/devices"
+	etcdClient.SetValue(path.Join(appliedOSDKey, "sda", "serial"), "MB2CK3F6S5041EPCPJ4T")
+	etcdClient.SetValue(path.Join(appliedOSDKey, "sdb", "serial"), "2B9C7KZN3VBM77PSA63P")
 
 	// since a node exists (with storage), it should be returned now
 	w = httptest.NewRecorder()

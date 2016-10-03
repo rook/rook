@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -74,7 +75,7 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 
 		storage := uint64(0)
 		for _, d := range n.Disks {
-			for s := range appliedSerials.Iter() {
+			for _, s := range appliedSerials {
 				if s == d.Serial {
 					// current disk is in applied OSD set, add its storage to the running total
 					storage += d.Size
@@ -110,6 +111,65 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 type overallMonStatus struct {
 	Status  cephmgr.MonStatusResponse    `json:"status"`
 	Desired []*cephmgr.CephMonitorConfig `json:"desired"`
+}
+
+// Adds the device and configures an OSD on the device.
+// POST
+// /device
+func (h *Handler) AddDevice(w http.ResponseWriter, r *http.Request) {
+	device, err := loadDeviceFromBody(w, r)
+	if err != nil {
+		log.Printf("failed to load request body. %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	err = cephmgr.AddDesiredDevice(h.EtcdClient, device)
+	if err != nil {
+		log.Printf("failed to add device. %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+// Stops the OSD and removes a device from participating in the cluster.
+// POST
+// /device/remove
+func (h *Handler) RemoveDevice(w http.ResponseWriter, r *http.Request) {
+	device, err := loadDeviceFromBody(w, r)
+	if err != nil {
+		log.Printf("failed to load request body. %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	err = cephmgr.RemoveDesiredDevice(h.EtcdClient, device)
+	if err != nil {
+		log.Printf("failed to remove device. %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+}
+
+func loadDeviceFromBody(w http.ResponseWriter, r *http.Request) (*cephmgr.Device, error) {
+	// read/unmarshal the new pool to create from the request body
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1024))
+	if err == nil {
+		r.Body.Close()
+	} else {
+		return nil, fmt.Errorf("failed to read request body: %+v", err)
+	}
+
+	var device cephmgr.Device
+	if err := json.Unmarshal(body, &device); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal request body '%s': %+v", string(body), err)
+	}
+
+	if device.Name == "" || device.NodeID == "" {
+		return nil, fmt.Errorf("missing name or nodeId")
+	}
+
+	return &device, nil
 }
 
 // Gets the monitors that have been created in this cluster.

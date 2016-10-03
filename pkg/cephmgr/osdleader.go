@@ -4,8 +4,9 @@ import (
 	"log"
 	"path"
 
+	ctx "golang.org/x/net/context"
+
 	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/util"
 )
 
 // Load the state of the OSDs from etcd.
@@ -25,8 +26,8 @@ func configureOSDs(context *clusterd.Context, nodes []string) error {
 	// Trigger all of the nodes to configure their OSDs
 	osdNodes := []string{}
 	for _, nodeID := range nodes {
-		key := path.Join(cephKey, osdAgentName, desiredKey, nodeID)
-		err := util.CreateEtcdDir(context.EtcdClient, key)
+		key := path.Join(cephKey, osdAgentName, desiredKey, nodeID, "ready")
+		_, err := context.EtcdClient.Set(ctx.Background(), key, "1", nil)
 		if err != nil {
 			log.Printf("failed to trigger osd %s", nodeID)
 			continue

@@ -19,6 +19,9 @@ type ClusterService struct {
 
 // Interface implemented by a service that has been elected leader
 type ServiceLeader interface {
+	// Get the list of etcd keys that when changed should trigger an orchestration
+	RefreshKeys() []*RefreshKey
+
 	// Start a go routine that watches for orchestration events related to the leader
 	StartWatchEvents()
 
@@ -32,6 +35,9 @@ type ServiceLeader interface {
 type ServiceAgent interface {
 	// Get the name of the service agent
 	Name() string
+
+	// Initialize the agents from the context, allowing them to store desired state in etcd before orchestration starts.
+	Initialize(context *Context) error
 
 	// Configure the service according to the changes requested by the leader
 	ConfigureLocalService(context *Context) error

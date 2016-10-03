@@ -32,7 +32,7 @@ type ClusterInfo struct {
 func NewCephService(factory client.ConnectionFactory, devices string, forceFormat bool, location string) *clusterd.ClusterService {
 	return &clusterd.ClusterService{
 		Name:   cephName,
-		Leader: &cephLeader{factory: factory},
+		Leader: newCephLeader(factory),
 		Agents: []clusterd.ServiceAgent{
 			&monAgent{factory: factory},
 			newOSDAgent(factory, devices, forceFormat, location),

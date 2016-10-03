@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"os/user"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -14,16 +15,21 @@ import (
 	"syscall"
 	"time"
 
+	etcd "github.com/coreos/etcd/client"
+	ctx "golang.org/x/net/context"
+
 	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/castle/pkg/util"
 )
 
 const (
 	DevicesValue                = "devices"
 	ForceFormatValue            = "forceFormat"
+	deviceDesiredKey            = "/castle/services/ceph/osd/desired/%s/device"
 	bootstrapOSDKeyringTemplate = `
 [client.bootstrap-osd]
 	key = %s
@@ -31,8 +37,45 @@ const (
 `
 )
 
+type Device struct {
+	Name   string `json:"name"`
+	NodeID string `json:"nodeId"`
+}
+
 // request the current user once and stash it in this global variable
 var currentUser *user.User
+
+func loadDesiredDevices(etcdClient etcd.KeysAPI, nodeID string) (*util.Set, error) {
+	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID))
+	children, err := util.GetDirChildKeys(etcdClient, key)
+	if err != nil {
+		return nil, fmt.Errorf("could not get desired devices. %v", err)
+	}
+
+	return children, nil
+}
+
+// add a device to the desired state
+func AddDesiredDevice(etcdClient etcd.KeysAPI, device *Device) error {
+	key := path.Join(fmt.Sprintf(deviceDesiredKey, device.NodeID), device.Name)
+	err := util.CreateEtcdDir(etcdClient, key)
+	if err != nil {
+		return fmt.Errorf("failed to add device %s on node %s to desired. %v", device.Name, device.NodeID, err)
+	}
+
+	return nil
+}
+
+// remove a device from the desired state
+func RemoveDesiredDevice(etcdClient etcd.KeysAPI, device *Device) error {
+	key := path.Join(fmt.Sprintf(deviceDesiredKey, device.NodeID), device.Name)
+	_, err := etcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true})
+	if err != nil {
+		return fmt.Errorf("failed to remove device %s on node %s from desired. %v", device.Name, device.NodeID, err)
+	}
+
+	return nil
+}
 
 // get the bootstrap OSD root dir
 func getBootstrapOSDDir() string {

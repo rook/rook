@@ -10,14 +10,13 @@ import (
 	"time"
 
 	etcd "github.com/coreos/etcd/client"
+	"github.com/coreos/etcd/store"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/util"
 	ctx "golang.org/x/net/context"
 )
 
 const (
-	setAction                        = "set"
-	createAction                     = "create"
 	leaseVersion                     = 1
 	leaseTtlSeconds                  = 15
 	leaseRetrySeconds                = 5
@@ -203,7 +202,7 @@ func (r *ClusterMember) waitForHardwareChangeNotifications() {
 			}
 		}
 
-		if resp != nil && resp.Node != nil && resp.Action == setAction {
+		if resp != nil && resp.Node != nil && resp.Action == store.Set {
 			// the trigger hardware detection key was set, perform a hardware discovery
 			err := r.discoverHardware()
 			if err != nil {

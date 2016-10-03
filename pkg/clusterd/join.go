@@ -59,12 +59,21 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, dis
 		Services:   services,
 		ProcMan:    procMan,
 	}
-	clusterLeader := &servicesLeader{context: context, leaseName: LeaderElectionKey}
+	clusterLeader := newServicesLeader(context)
 	clusterMember := newClusterMember(context, leaseManager, clusterLeader)
 	clusterLeader.parent = clusterMember
 
 	if err := clusterMember.initialize(); err != nil {
 		return nil, fmt.Errorf("failed to initialize local cluster: %+v", err)
+	}
+
+	// initialize the agents
+	for _, service := range services {
+		for _, agent := range service.Agents {
+			if err := agent.Initialize(context); err != nil {
+				return nil, fmt.Errorf("failed to initialize service %s. %v", service.Name, err)
+			}
+		}
 	}
 
 	go func() {

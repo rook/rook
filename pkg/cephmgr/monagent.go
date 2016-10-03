@@ -29,6 +29,10 @@ func (a *monAgent) Name() string {
 	return monitorAgentName
 }
 
+func (a *monAgent) Initialize(context *clusterd.Context) error {
+	return nil
+}
+
 func (a *monAgent) ConfigureLocalService(context *clusterd.Context) error {
 
 	// check if the monitor is in the desired state for this node

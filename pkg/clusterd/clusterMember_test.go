@@ -9,6 +9,7 @@ import (
 	"time"
 
 	etcd "github.com/coreos/etcd/client"
+	"github.com/coreos/etcd/store"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/proc"
 	"github.com/quantum/castle/pkg/util"
@@ -318,35 +319,6 @@ func TestElectLeaderLoseDueToRenewLeaseError(t *testing.T) {
 	assert.False(t, clusterMember.isLeader)
 }
 
-func TestTriggerRefresh(t *testing.T) {
-
-	_, context, mockLeaseManager, _ := createDefaultDependencies()
-	leader := &servicesLeader{context: context}
-	r := newClusterMember(context, mockLeaseManager, leader)
-	leader.parent = r
-	// Skip the orchestration if not the leader
-	triggered, err := leader.triggerRefresh()
-	assert.False(t, triggered)
-	assert.Nil(t, err)
-
-	r.isLeader = true
-	// FIX: Use channels instead of sleeps
-	triggerRefreshInterval = 250 * time.Millisecond
-
-	// The orchestration is triggered, but multiple triggers will still result in a single orchestrator
-	triggered, _ = leader.triggerRefresh()
-	assert.True(t, triggered)
-	triggered, _ = leader.triggerRefresh()
-	assert.True(t, triggered)
-	triggered, _ = leader.triggerRefresh()
-	assert.True(t, triggered)
-	<-time.After(100 * time.Millisecond)
-	assert.Equal(t, int32(1), leader.triggerRefreshLock)
-
-	<-time.After(200 * time.Millisecond)
-	assert.Equal(t, int32(0), leader.triggerRefreshLock)
-}
-
 func TestElectLeaderLoseLocallyButPersistInEtcd(t *testing.T) {
 	// setup the cluster member to first acquire leadership of the cluster
 	clusterMember, mockLeaseManager, machineId := setupAndRunAcquireLeaseScenario(t)
@@ -394,7 +366,7 @@ func TestMembershipChangeWatchingStartStop(t *testing.T) {
 	setupGetMachineIds(etcdClient, machineIds)
 
 	// try to elect a leader, we should win and aqcuire the lease
-	leader := &servicesLeader{context: context}
+	leader := newServicesLeader(context)
 	clusterMember := newClusterMember(context, mockLeaseManager, leader)
 	leader.parent = clusterMember
 	err := clusterMember.ElectLeader()
@@ -439,19 +411,18 @@ func TestSimpleMembershipChangeWatching(t *testing.T) {
 			newMemberId := <-newMemberChannel
 			key := path.Join(inventory.NodesConfigKey, newMemberId)
 			etcdClient.SetValue(path.Join(key, "ipaddress"), "10.1.2.3")
-			return &etcd.Response{Action: createAction, Node: &etcd.Node{Key: key}}, nil
+			return &etcd.Response{Action: store.Create, Node: &etcd.Node{Key: key}}, nil
 		},
 	}
 	etcdClient.MockWatcher = func(key string, opts *etcd.WatcherOptions) etcd.Watcher { return membershipWatcher }
 
 	// try to elect a leader, we should win and aqcuire the lease
-	leader := &servicesLeader{context: context}
+	leader := newServicesLeader(context)
 	clusterMember := newClusterMember(context, mockLeaseManager, leader)
 	clusterMember.isLeader = true
 	leader.parent = clusterMember
-	err := leader.onLeadershipAcquiredRefresh(false)
+	leader.onLeadershipAcquiredRefresh(false)
 	defer leader.OnLeadershipLost()
-	assert.Nil(t, err)
 
 	// now that we're the leader, simulate a new member joining the cluster by triggering the etcd watcher
 	newMachineId := "1234567890"
@@ -466,8 +437,8 @@ func TestSimpleMembershipChangeWatching(t *testing.T) {
 
 func TestMembershipChangeWatchFiltering(t *testing.T) {
 	// none of the following etcd keys/actions should result in a new cluster member being detected
-	testMembershipChangeWatchFilteringHelper(t, "/castle/resources/", setAction)
-	testMembershipChangeWatchFilteringHelper(t, "/castle/resources/discovered/nodes", setAction)
+	testMembershipChangeWatchFilteringHelper(t, "/castle/resources/", store.Set)
+	testMembershipChangeWatchFilteringHelper(t, "/castle/resources/discovered/nodes", store.Set)
 	testMembershipChangeWatchFilteringHelper(t, inventory.NodesConfigKey+"/123", "update")
 	testMembershipChangeWatchFilteringHelper(t, inventory.NodesConfigKey+"/123/foo", "update")
 }
@@ -495,7 +466,7 @@ func testMembershipChangeWatchFilteringHelper(t *testing.T, key string, action s
 	etcdClient.MockWatcher = func(key string, opts *etcd.WatcherOptions) etcd.Watcher { return membershipWatcher }
 
 	// try to elect a leader, we should win and aqcuire the lease
-	leader := &servicesLeader{context: context}
+	leader := newServicesLeader(context)
 	clusterMember := newClusterMember(context, mockLeaseManager, leader)
 	leader.parent = clusterMember
 	err := clusterMember.ElectLeader()
@@ -525,7 +496,7 @@ func TestHardwareDetectionTrigger(t *testing.T) {
 			nextCount++
 			if nextCount <= 2 {
 				// the first/second time, return a "set" on the given trigger hardware detection key
-				return &etcd.Response{Action: setAction, Node: &etcd.Node{Key: key}}, nil
+				return &etcd.Response{Action: store.Set, Node: &etcd.Node{Key: key}}, nil
 			}
 
 			// every other time, return cancelled so the wait for hardware change notifications loop breaks
@@ -662,6 +633,10 @@ func newTestServiceLeader() *testServiceLeader {
 	return &testServiceLeader{}
 }
 
+func (t *testServiceLeader) RefreshKeys() []*RefreshKey {
+	return nil
+}
+
 func (t *testServiceLeader) StartWatchEvents() {
 	if t.events != nil {
 		close(t.events)
@@ -691,7 +666,7 @@ func (t *testServiceLeader) handleOrchestratorEvents() {
 
 		} else if nodeAdded, ok := e.(*AddNodeEvent); ok {
 			if t.nodeAdded != nil {
-				t.nodeAdded(nodeAdded.Nodes()[0])
+				t.nodeAdded(nodeAdded.Node())
 			}
 
 		} else if event, ok := e.(*UnhealthyNodeEvent); ok {
