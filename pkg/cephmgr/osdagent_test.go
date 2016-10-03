@@ -217,20 +217,15 @@ func TestRemoveDevice(t *testing.T) {
 	etcdClient.SetValue(path.Join(root, "sdb/serial"), "456")
 	etcdClient.SetValue(path.Join(root, "sdc/serial"), "789")
 
-	agent.getIDFromName = func(context *clusterd.Context, name string) (int, error) {
-		if name == "sda" {
-			return 1, nil
-		}
-		if name == "sdb" {
-			return 2, nil
-		}
-		if name == "sdc" {
-			return 3, nil
-		}
-		return -1, fmt.Errorf("unknown name %s", name)
-	}
-
+	// the request will fail without the device id set
 	err := agent.stopUndesiredDevices(context, conn, desired)
+	assert.NotNil(t, err)
+
+	etcdClient.SetValue(path.Join(root, "sda/id"), "1")
+	etcdClient.SetValue(path.Join(root, "sdb/id"), "2")
+	etcdClient.SetValue(path.Join(root, "sdc/id"), "3")
+
+	err = agent.stopUndesiredDevices(context, conn, desired)
 	assert.Nil(t, err)
 	applied := etcdClient.GetChildDirs(root)
 	assert.True(t, applied.Equals(desired))

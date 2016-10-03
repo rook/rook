@@ -183,7 +183,7 @@ func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Shutdown()
 
-	// get the monitor status
+	// get the crush map
 	crushmap, err := cephmgr.GetCrushMap(conn)
 	if err != nil {
 		log.Printf("failed to get crush map, err: %+v", err)

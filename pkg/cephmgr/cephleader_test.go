@@ -2,9 +2,12 @@ package cephmgr
 
 import (
 	"log"
+	"path"
 	"strings"
 	"testing"
 	"time"
+
+	etcd "github.com/coreos/etcd/client"
 
 	"github.com/quantum/castle/pkg/cephmgr/client"
 	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
@@ -166,11 +169,40 @@ func TestMoveUnhealthyMonitor(t *testing.T) {
 }
 
 func TestExtractDesiredDeviceNode(t *testing.T) {
+	// valid path with node id
 	node, err := extractNodeIDFromDesiredDevice("/castle/services/ceph/osd/desired/abc/device/sdb")
 	assert.Nil(t, err)
 	assert.Equal(t, "abc", node)
 
-	node, err = extractNodeIDFromDesiredDevice("/castle/services/ceph/osd/desired")
+	// node id not found
+	key := "/castle/services/ceph/osd/desired"
+	node, err = extractNodeIDFromDesiredDevice(key)
 	assert.NotNil(t, err)
 	assert.Equal(t, "", node)
+
+	// ensure the handle device changed event can run without crashing
+	response := &etcd.Response{Action: "create", Node: &etcd.Node{Key: key}}
+	handleDeviceChanged(response, nil)
+
+}
+
+func TestRefreshKeys(t *testing.T) {
+	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "key"}
+	leader := newCephLeader(factory)
+	keys := leader.RefreshKeys()
+	assert.Equal(t, 1, len(keys))
+
+	expected := path.Join(cephKey, osdAgentName, desiredKey)
+	assert.Equal(t, expected, keys[0].Path)
+}
+
+func TestNewCephService(t *testing.T) {
+	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "key"}
+
+	service := NewCephService(factory, "a,b,c", true, "root=default")
+	assert.NotNil(t, service)
+	assert.Equal(t, "/castle/services/ceph/osd/desired", service.Leader.RefreshKeys()[0].Path)
+	assert.Equal(t, 2, len(service.Agents))
+	assert.Equal(t, "monitor", service.Agents[0].Name())
+	assert.Equal(t, "osd", service.Agents[1].Name())
 }

@@ -9,11 +9,35 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/uuid"
 	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
+
+func TestGetOSDInfo(t *testing.T) {
+	// error when no info is found on disk
+	id, guid, err := getOSDInfo("/tmp")
+	assert.Equal(t, -1, id)
+	assert.NotNil(t, err)
+	assert.Equal(t, uuid.UUID{}, guid)
+
+	// write the info to disk
+	whoFile := "/tmp/whoami"
+	ioutil.WriteFile(whoFile, []byte("23"), 0644)
+	defer os.Remove(whoFile)
+	fsidFile := "/tmp/fsid"
+	testUUID, _ := uuid.NewUUID()
+	ioutil.WriteFile(fsidFile, []byte(testUUID.String()), 0644)
+	defer os.Remove(fsidFile)
+
+	// check the successful osd info
+	id, guid, err = getOSDInfo("/tmp")
+	assert.Nil(t, err)
+	assert.Equal(t, 23, id)
+	assert.Equal(t, testUUID, guid)
+}
 
 func TestDesiredDeviceState(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
@@ -92,6 +116,15 @@ func TestCrushMap(t *testing.T) {
 
 	// location should have been stored in etcd as well
 	assert.Equal(t, location, etcdClient.GetValue("/castle/nodes/config/node1/location"))
+}
+
+func TestGetCrushMap(t *testing.T) {
+	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "key"}
+	conn, _ := factory.NewConnWithClusterAndUser("cluster", "user")
+	response, err := GetCrushMap(conn)
+
+	assert.Nil(t, err)
+	assert.Equal(t, "", response)
 }
 
 func TestCrushLocation(t *testing.T) {

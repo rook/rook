@@ -556,7 +556,7 @@ func executeMonCommand(connection client.Connection, cmd map[string]interface{},
 
 	response, info, err := connection.MonCommand(command)
 	if err != nil {
-		return nil, fmt.Errorf("mon_command %s failed: %+v", cmd, err)
+		return nil, fmt.Errorf("mon_command %+v failed: %+v", cmd, err)
 	}
 
 	log.Printf("succeeded %s. info: %s", message, info)
