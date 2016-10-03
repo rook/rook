@@ -606,6 +606,17 @@ func purgeOSD(connection client.Connection, name string, id int) error {
 	return nil
 }
 
+// calls osd getcrushmap
+func GetCrushMap(adminConn client.Connection) (string, error) {
+	cmd := map[string]interface{}{"prefix": "osd crush dump"}
+	buf, err := executeMonCommand(adminConn, cmd, fmt.Sprintf("retrieving crush map"))
+	if err != nil {
+		return "", fmt.Errorf("failed to get crush map. %v", err)
+	}
+
+	return string(buf), nil
+}
+
 func formatLocation(location string) ([]string, error) {
 	var pairs []string
 	if location == "" {

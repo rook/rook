@@ -27,6 +27,12 @@ func (h *Handler) GetRoutes() []Route {
 			h.GetMonitors,
 		},
 		{
+			"GetCrushMap",
+			"GET",
+			"/crushmap",
+			h.GetCrushMap,
+		},
+		{
 			"AddDevice",
 			"POST",
 			"/device",

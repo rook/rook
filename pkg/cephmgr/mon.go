@@ -78,15 +78,8 @@ type MonMapEntry struct {
 
 // calls mon_status mon_command
 func GetMonStatus(adminConn client.Connection) (MonStatusResponse, error) {
-	monCommand := "mon_status"
-	command, err := json.Marshal(map[string]string{"prefix": monCommand, "format": "json"})
-	if err != nil {
-		return MonStatusResponse{}, fmt.Errorf("command %s marshall failed: %+v", monCommand, err)
-	}
-	buf, _, err := adminConn.MonCommand(command)
-	if err != nil {
-		return MonStatusResponse{}, fmt.Errorf("mon_command failed: %+v", err)
-	}
+	cmd := map[string]interface{}{"prefix": "mon_status"}
+	buf, err := executeMonCommand(adminConn, cmd, fmt.Sprintf("retrieving mon_status"))
 
 	var resp MonStatusResponse
 	err = json.Unmarshal(buf, &resp)
