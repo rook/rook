@@ -125,24 +125,20 @@ func createOSDBootstrapKeyring(conn client.Connection, clusterName string) error
 	}
 
 	// get-or-create-key for client.bootstrap-osd
-	cmd := "auth get-or-create-key"
-	command, err := json.Marshal(map[string]interface{}{
-		"prefix": cmd,
-		"format": "json",
+	cmd := map[string]interface{}{
+		"prefix": "auth get-or-create-key",
 		"entity": "client.bootstrap-osd",
 		"caps":   []string{"mon", "allow profile bootstrap-osd"},
-	})
-	if err != nil {
-		return fmt.Errorf("command %s marshall failed: %+v", cmd, err)
 	}
-	buf, _, err := conn.MonCommand(command)
+	buf, err := executeMonCommand(conn, cmd, "create osd bootstrap key")
 	if err != nil {
-		return fmt.Errorf("mon_command %s failed: %+v", cmd, err)
+		return fmt.Errorf("failed to create osd bootstrap key: %+v", err)
 	}
+
 	var resp map[string]interface{}
 	err = json.Unmarshal(buf, &resp)
 	if err != nil {
-		return fmt.Errorf("failed to unmarshall %s response: %+v", cmd, err)
+		return fmt.Errorf("failed to unmarshal %s response: %+v", cmd, err)
 	}
 	bootstrapOSDKey := resp["key"].(string)
 	log.Printf("succeeded %s command, bootstrapOSDKey: %s", cmd, bootstrapOSDKey)
@@ -405,20 +401,16 @@ func initializeOSD(factory client.ConnectionFactory, context *clusterd.Context, 
 
 // creates the OSD identity in the cluster via a mon_command
 func createOSD(bootstrapConn client.Connection, osdUUID uuid.UUID) (int, error) {
-	cmd := "osd create"
-	command, err := json.Marshal(map[string]interface{}{
-		"prefix": cmd,
-		"format": "json",
+	cmd := map[string]interface{}{
+		"prefix": "osd create",
 		"entity": "client.bootstrap-osd",
 		"uuid":   osdUUID.String(),
-	})
-	if err != nil {
-		return 0, fmt.Errorf("command %s marshall failed: %+v", cmd, err)
 	}
-	buf, _, err := bootstrapConn.MonCommand(command)
+	buf, err := executeMonCommand(bootstrapConn, cmd, fmt.Sprintf("create osd %s", osdUUID))
 	if err != nil {
-		return 0, fmt.Errorf("mon_command %s failed: %+v", cmd, err)
+		return 0, fmt.Errorf("failed to create osd %s: %+v", osdUUID, err)
 	}
+
 	var resp map[string]interface{}
 	err = json.Unmarshal(buf, &resp)
 	if err != nil {
@@ -430,18 +422,14 @@ func createOSD(bootstrapConn client.Connection, osdUUID uuid.UUID) (int, error) 
 
 // gets the current mon map for the cluster
 func getMonMap(bootstrapConn client.Connection) ([]byte, error) {
-	cmd := "mon getmap"
-	command, err := json.Marshal(map[string]interface{}{
-		"prefix": cmd,
-		"format": "json",
+	cmd := map[string]interface{}{
+		"prefix": "mon getmap",
 		"entity": "client.bootstrap-osd",
-	})
-	if err != nil {
-		return nil, fmt.Errorf("command %s marshall failed: %+v", cmd, err)
 	}
-	buf, _, err := bootstrapConn.MonCommand(command)
+
+	buf, err := executeMonCommand(bootstrapConn, cmd, "get mon map")
 	if err != nil {
-		return nil, fmt.Errorf("mon_command %s failed: %+v", cmd, err)
+		return nil, fmt.Errorf("failed to get mon map: %+v", cmd, err)
 	}
 	return buf, nil
 }
@@ -532,32 +520,101 @@ func addOSDToCrushMap(osdConn client.Connection, context *clusterd.Context, osdI
 		return err
 	}
 
-	cmd := "osd crush create-or-move"
-	command, err := json.Marshal(map[string]interface{}{
-		"prefix": cmd,
-		"format": "json",
+	cmd := map[string]interface{}{
+		"prefix": "osd crush create-or-move",
 		"id":     osdID,
 		"weight": weight,
 		"args":   locArgs,
-	})
-	if err != nil {
-		return fmt.Errorf("command %s marshall failed: %+v", cmd, err)
 	}
-
-	log.Printf("%s command: '%s'", cmd, string(command))
-
-	_, info, err := osdConn.MonCommand(command)
+	_, err = executeMonCommand(osdConn, cmd, fmt.Sprintf("adding %s to crush map", osdEntity))
 	if err != nil {
-		return fmt.Errorf("mon_command %s failed: %+v", cmd, err)
+		return fmt.Errorf("failed adding %s to crush map: %+v", osdEntity, err)
 	}
-
-	log.Printf("succeeded adding %s to crush map. info: %s", osdEntity, info)
 
 	if err := inventory.SetLocation(context.EtcdClient, context.NodeID, strings.Join(locArgs, ",")); err != nil {
 		return fmt.Errorf("failed to save CRUSH location for OSD %s: %+v", osdEntity, err)
 	}
 
 	return nil
+}
+
+func executeMonCommand(connection client.Connection, cmd map[string]interface{}, message string) ([]byte, error) {
+	// ensure the json attribute is included in the request
+	cmd["format"] = "json"
+
+	prefix, ok := cmd["prefix"]
+	if !ok {
+		return nil, fmt.Errorf("missing prefix for the mon_command")
+	}
+
+	command, err := json.Marshal(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling command %s failed: %+v", prefix, err)
+	}
+
+	log.Printf("mon_command: '%s'", string(command))
+
+	response, info, err := connection.MonCommand(command)
+	if err != nil {
+		return nil, fmt.Errorf("mon_command %+v failed: %+v", cmd, err)
+	}
+
+	log.Printf("succeeded %s. info: %s", message, info)
+	return response, nil
+}
+
+func markOSDOut(connection client.Connection, id int) error {
+	command := map[string]interface{}{
+		"prefix": "osd out",
+		"ids":    []int{id},
+	}
+	_, err := executeMonCommand(connection, command, fmt.Sprintf("mark osd %d out", id))
+	return err
+}
+
+func purgeOSD(connection client.Connection, name string, id int) error {
+	// ceph osd crush remove <name>
+	command := map[string]interface{}{
+		"prefix": "osd crush remove",
+		"name":   fmt.Sprintf("osd.%d", id),
+	}
+	_, err := executeMonCommand(connection, command, fmt.Sprintf("remove osd %s from crush map", name))
+	if err != nil {
+		return fmt.Errorf("failed to remove osd %s from crush map. %v", name, err)
+	}
+
+	// ceph auth del osd.$osd_num
+	command = map[string]interface{}{
+		"prefix": "auth del",
+		"entity": fmt.Sprintf("osd.%d", id),
+	}
+	_, err = executeMonCommand(connection, command, fmt.Sprintf("delete auth for osd %s", name))
+	if err != nil {
+		return fmt.Errorf("failed to delete auth for osd %s. %v", name, err)
+	}
+
+	// ceph osd rm $osd_num
+	command = map[string]interface{}{
+		"prefix": "osd rm",
+		"ids":    []int{id},
+	}
+	_, err = executeMonCommand(connection, command, fmt.Sprintf("rm osds %v", name))
+	if err != nil {
+		return fmt.Errorf("failed to rm osd %s. %v", name, err)
+	}
+
+	return nil
+}
+
+// calls osd getcrushmap
+func GetCrushMap(adminConn client.Connection) (string, error) {
+	cmd := map[string]interface{}{"prefix": "osd crush dump"}
+	buf, err := executeMonCommand(adminConn, cmd, fmt.Sprintf("retrieving crush map"))
+	if err != nil {
+		return "", fmt.Errorf("failed to get crush map. %v", err)
+	}
+
+	return string(buf), nil
 }
 
 func formatLocation(location string) ([]string, error) {

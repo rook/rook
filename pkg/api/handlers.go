@@ -172,6 +172,29 @@ func loadDeviceFromBody(w http.ResponseWriter, r *http.Request) (*cephmgr.Device
 	return &device, nil
 }
 
+// Gets the current crush map for the cluster.
+// GET
+// /crushmap
+func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
+	// connect to ceph
+	conn, ok := h.connectToCeph(w)
+	if !ok {
+		return
+	}
+	defer conn.Shutdown()
+
+	// get the crush map
+	crushmap, err := cephmgr.GetCrushMap(conn)
+	if err != nil {
+		log.Printf("failed to get crush map, err: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.Write([]byte(crushmap))
+}
+
 // Gets the monitors that have been created in this cluster.
 // GET
 // /mon

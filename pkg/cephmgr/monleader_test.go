@@ -2,6 +2,7 @@ package cephmgr
 
 import (
 	"fmt"
+	"path"
 	"testing"
 	"time"
 
@@ -55,7 +56,39 @@ func TestMonSelection(t *testing.T) {
 	assert.Equal(t, 0, len(bad))
 	assert.Equal(t, 3, len(chosen))
 	assert.Equal(t, "mon0", chosen["a"].Name)
+}
 
+func TestMonitorCount(t *testing.T) {
+	assert.Equal(t, 0, calculateMonitorCount(0))
+	assert.Equal(t, 1, calculateMonitorCount(1))
+	assert.Equal(t, 1, calculateMonitorCount(2))
+	assert.Equal(t, 3, calculateMonitorCount(3))
+	assert.Equal(t, 3, calculateMonitorCount(4))
+	assert.Equal(t, 3, calculateMonitorCount(20))
+	assert.Equal(t, 5, calculateMonitorCount(21))
+	assert.Equal(t, 5, calculateMonitorCount(100))
+	assert.Equal(t, 7, calculateMonitorCount(101))
+	assert.Equal(t, 7, calculateMonitorCount(1001))
+}
+
+func TestMonOnUnhealthyNode(t *testing.T) {
+	etcdClient := util.NewMockEtcdClient()
+
+	// mock a monitor
+	createTestClusterInfo(etcdClient, []string{"a"})
+
+	// the monitor is on the bad node
+	badNode := &clusterd.UnhealthyNode{NodeID: "a"}
+	context := &clusterd.Context{EtcdClient: etcdClient}
+	response, err := monsOnUnhealthyNode(context, []*clusterd.UnhealthyNode{badNode})
+	assert.True(t, response)
+	assert.Nil(t, err)
+
+	// the monitor is not on another node
+	badNode.NodeID = "b"
+	response, err = monsOnUnhealthyNode(context, []*clusterd.UnhealthyNode{badNode})
+	assert.False(t, response)
+	assert.Nil(t, err)
 }
 
 func TestMaxMonID(t *testing.T) {
@@ -144,4 +177,19 @@ func TestUnhealthyMon(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, 1, len(bad))
 	assert.Equal(t, cmonName, bad["c"].Name)
+}
+
+func createTestClusterInfo(etcdClient *util.MockEtcdClient, mons []string) {
+	key := "/castle/services/ceph"
+	etcdClient.SetValue(path.Join(key, "fsid"), "12345")
+	etcdClient.SetValue(path.Join(key, "name"), "default")
+	etcdClient.SetValue(path.Join(key, "_secrets/monitor"), "foo")
+	etcdClient.SetValue(path.Join(key, "_secrets/admin"), "bar")
+
+	base := "/castle/services/ceph/monitor/desired"
+	for i, mon := range mons {
+		etcdClient.SetValue(path.Join(base, mon, "id"), fmt.Sprintf("mon%d", i))
+		etcdClient.SetValue(path.Join(base, mon, "ipaddress"), fmt.Sprintf("1.2.3.%d", i))
+		etcdClient.SetValue(path.Join(base, mon, "port"), "4321")
+	}
 }

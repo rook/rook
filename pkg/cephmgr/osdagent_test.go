@@ -207,6 +207,7 @@ func TestRemoveDevice(t *testing.T) {
 	procTrap := func(action string, c *exec.Cmd) error {
 		return nil
 	}
+
 	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: "a", Executor: executor, ProcMan: &proc.ProcManager{Trap: procTrap}}
 	desired := util.CreateSet([]string{"sda"})
 
@@ -216,7 +217,15 @@ func TestRemoveDevice(t *testing.T) {
 	etcdClient.SetValue(path.Join(root, "sdb/serial"), "456")
 	etcdClient.SetValue(path.Join(root, "sdc/serial"), "789")
 
+	// the request will fail without the device id set
 	err := agent.stopUndesiredDevices(context, conn, desired)
+	assert.NotNil(t, err)
+
+	etcdClient.SetValue(path.Join(root, "sda/id"), "1")
+	etcdClient.SetValue(path.Join(root, "sdb/id"), "2")
+	etcdClient.SetValue(path.Join(root, "sdc/id"), "3")
+
+	err = agent.stopUndesiredDevices(context, conn, desired)
 	assert.Nil(t, err)
 	applied := etcdClient.GetChildDirs(root)
 	assert.True(t, applied.Equals(desired))
