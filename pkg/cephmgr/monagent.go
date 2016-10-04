@@ -100,7 +100,7 @@ func (a *monAgent) makeMonitorFileSystem(context *clusterd.Context, cluster *Clu
 	}
 
 	// write the config file to disk
-	confFilePath, err := generateConfigFile(cluster, getMonRunDirPath(monName), "admin", getMonKeyringPath(monName))
+	confFilePath, err := generateConfigFile(cluster, getMonRunDirPath(monName), "admin", getMonKeyringPath(monName), nil)
 	if err != nil {
 		return err
 	}

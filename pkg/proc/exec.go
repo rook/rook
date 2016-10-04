@@ -8,6 +8,7 @@ import (
 	"log"
 	"os/exec"
 	"strings"
+	"syscall"
 )
 
 type Executor interface {
@@ -70,8 +71,29 @@ func logCommand(command string, arg ...string) {
 	log.Printf("Running command: %s %s", command, strings.Join(arg, " "))
 }
 
+type CommandError struct {
+	ActionName string
+	Err        error
+}
+
+func (e *CommandError) Error() string {
+	return fmt.Sprintf("Failed to complete %s: %+v", e.ActionName, e.Err)
+}
+
+func (e *CommandError) ExitStatus() int {
+	exitStatus := -1
+	exitErr, ok := e.Err.(*exec.ExitError)
+	if ok {
+		waitStatus, ok := exitErr.ProcessState.Sys().(syscall.WaitStatus)
+		if ok {
+			exitStatus = waitStatus.ExitStatus()
+		}
+	}
+	return exitStatus
+}
+
 func createCommandError(err error, actionName string) error {
-	return errors.New(fmt.Sprintf("Failed to complete %s. err=%s", actionName, err.Error()))
+	return &CommandError{ActionName: actionName, Err: err}
 }
 
 // ******************** MockExecutor ********************

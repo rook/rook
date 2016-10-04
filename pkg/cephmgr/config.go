@@ -22,20 +22,22 @@ type cephConfig struct {
 }
 
 type cephGlobalConfig struct {
-	FSID                  string `ini:"fsid,omitempty"`
-	RunDir                string `ini:"run dir,omitempty"`
-	MonMembers            string `ini:"mon initial members,omitempty"`
-	LogFile               string `ini:"log file,omitempty"`
-	MonClusterLogFile     string `ini:"mon cluster log file,omitempty"`
-	DebugLogDefaultLevel  int    `ini:"debug default"`
-	DebugLogRadosLevel    int    `ini:"debug rados"`
-	OsdPgBits             int    `ini:"osd pg bits"`
-	OsdPgpBits            int    `ini:"osd pgp bits"`
-	OsdPoolDefaultSize    int    `ini:"osd pool default size"`
-	OsdPoolDefaultMinSize int    `ini:"osd pool default min size"`
-	OsdPoolDefaultPgNum   int    `ini:"osd pool default pg num"`
-	OsdPoolDefaultPgpNum  int    `ini:"osd pool default pgp num"`
-	RbdDefaultFeatures    int    `ini:"rbd_default_features"`
+	FSID                     string `ini:"fsid,omitempty"`
+	RunDir                   string `ini:"run dir,omitempty"`
+	MonMembers               string `ini:"mon initial members,omitempty"`
+	LogFile                  string `ini:"log file,omitempty"`
+	MonClusterLogFile        string `ini:"mon cluster log file,omitempty"`
+	DebugLogDefaultLevel     int    `ini:"debug default"`
+	DebugLogRadosLevel       int    `ini:"debug rados"`
+	OsdPgBits                int    `ini:"osd pg bits,omitempty"`
+	OsdPgpBits               int    `ini:"osd pgp bits,omitempty"`
+	OsdPoolDefaultSize       int    `ini:"osd pool default size,omitempty"`
+	OsdPoolDefaultMinSize    int    `ini:"osd pool default min size,omitempty"`
+	OsdPoolDefaultPgNum      int    `ini:"osd pool default pg num,omitempty"`
+	OsdPoolDefaultPgpNum     int    `ini:"osd pool default pgp num,omitempty"`
+	OsdMaxObjectNameLen      int    `ini:"osd max object name len,omitempty"`
+	OsdMaxObjectNamespaceLen int    `ini:"osd max object namespace len,omitempty"`
+	RbdDefaultFeatures       int    `ini:"rbd_default_features,omitempty"`
 }
 
 func ConnectToClusterAsAdmin(factory client.ConnectionFactory, cluster *ClusterInfo) (client.Connection, error) {
@@ -57,7 +59,7 @@ func getConfFilePath(root, clusterName string) string {
 }
 
 // generates and writes the monitor config file to disk
-func generateConfigFile(cluster *ClusterInfo, pathRoot, user, keyringPath string) (string, error) {
+func generateConfigFile(cluster *ClusterInfo, pathRoot, user, keyringPath string, userConfig *cephConfig) (string, error) {
 	if pathRoot == "" {
 		pathRoot = getMonRunDirPath(getFirstMonitor(cluster))
 	}
@@ -67,7 +69,7 @@ func generateConfigFile(cluster *ClusterInfo, pathRoot, user, keyringPath string
 		fmt.Printf("failed to create config directory at %s: %+v", pathRoot, err)
 	}
 
-	configFile, err := createGlobalConfigFileSection(cluster, pathRoot)
+	configFile, err := createGlobalConfigFileSection(cluster, pathRoot, userConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to create global config section, %+v", err)
 	}
@@ -111,7 +113,7 @@ func getFirstMonitor(cluster *ClusterInfo) string {
 func connectToCluster(factory client.ConnectionFactory, cluster *ClusterInfo, basePath, user, keyringPath string) (client.Connection, error) {
 	log.Printf("connecting to ceph cluster %s with user %s", cluster.Name, user)
 
-	confFilePath, err := generateConfigFile(cluster, basePath, user, keyringPath)
+	confFilePath, err := generateConfigFile(cluster, basePath, user, keyringPath, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate config file: %v", err)
 	}
@@ -132,7 +134,7 @@ func connectToCluster(factory client.ConnectionFactory, cluster *ClusterInfo, ba
 	return conn, nil
 }
 
-func createGlobalConfigFileSection(cluster *ClusterInfo, runDir string) (*ini.File, error) {
+func createDefaultCephConfig(cluster *ClusterInfo, runDir string) *cephConfig {
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	monMembers := make([]string, len(cluster.Monitors))
@@ -142,7 +144,7 @@ func createGlobalConfigFileSection(cluster *ClusterInfo, runDir string) (*ini.Fi
 		i++
 	}
 
-	ceph := &cephConfig{
+	return &cephConfig{
 		&cephGlobalConfig{
 			FSID:                  cluster.FSID,
 			RunDir:                runDir,
@@ -159,6 +161,17 @@ func createGlobalConfigFileSection(cluster *ClusterInfo, runDir string) (*ini.Fi
 			OsdPoolDefaultPgpNum:  100,
 			RbdDefaultFeatures:    3,
 		},
+	}
+}
+
+func createGlobalConfigFileSection(cluster *ClusterInfo, runDir string, userConfig *cephConfig) (*ini.File, error) {
+	var ceph *cephConfig
+
+	if userConfig != nil {
+		// use the user config since it was provided
+		ceph = userConfig
+	} else {
+		ceph = createDefaultCephConfig(cluster, runDir)
 	}
 
 	configFile := ini.Empty()

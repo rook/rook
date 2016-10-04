@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -55,7 +56,7 @@ func main() {
 func init() {
 	rootCmd.Flags().StringVar(&cfg.discoveryURL, "discovery-url", "", "etcd discovery URL. Example: http://discovery.castle.com/26bd83c92e7145e6b103f623263f61df")
 	rootCmd.Flags().StringVar(&cfg.etcdMembers, "etcd-members", "", "etcd members to connect to. Overrides the discovery URL. Example: http://10.23.45.56:2379")
-	rootCmd.Flags().StringVar(&cfg.privateIPv4, "private-ipv4", "", "private IPv4 address for this machine (required)")
+	rootCmd.Flags().StringVar(&cfg.privateIPv4, "private-ipv4", "127.0.0.1", "private IPv4 address for this machine")
 	rootCmd.Flags().StringVar(&cfg.devices, "devices", "", "comma separated list of devices to use")
 	rootCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
@@ -63,8 +64,6 @@ func init() {
 
 	// load the environment variables
 	setFlagsFromEnv(rootCmd.Flags())
-
-	rootCmd.MarkFlagRequired("private-ipv4")
 
 	rootCmd.RunE = joinCluster
 }
@@ -76,11 +75,16 @@ func addCommands() {
 
 func joinCluster(cmd *cobra.Command, args []string) error {
 
-	if err := flags.VerifyRequiredFlags(cmd, []string{"private-ipv4"}); err != nil {
+	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
 		return err
 	}
 	if cfg.discoveryURL == "" && cfg.etcdMembers == "" {
-		return fmt.Errorf("either discovery-url or etcd-members settings are required")
+		// if discovery isn't specified and etcd members aren't specified, try to request a default discovery URL
+		discURL, err := loadDefaultDiscoveryURL()
+		if err != nil {
+			return fmt.Errorf("discovery-url and etcd-members not provided, attempt to request a discovery URL failed: %+v", err)
+		}
+		cfg.discoveryURL = discURL
 	}
 
 	services := []*clusterd.ClusterService{cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.location)}
@@ -126,4 +130,35 @@ func setFlagsFromEnv(flags *pflag.FlagSet) error {
 	})
 
 	return nil
+}
+
+func loadDefaultDiscoveryURL() (string, error) {
+	// try to load the cached discovery URL if it exists
+	cachedPath := "/tmp/castle-discovery-url"
+	fileContent, err := ioutil.ReadFile(cachedPath)
+	if err == nil {
+		return strings.TrimSpace(string(fileContent)), nil
+	}
+
+	// fall back to requesting a discovery URL
+	url := "https://discovery.etcd.io/new?size=1"
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", err
+	}
+
+	defer resp.Body.Close()
+	respBody, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+
+	discoveryURL := strings.TrimSpace(string(respBody))
+
+	// cache the requested discovery URL
+	if err := ioutil.WriteFile(cachedPath, []byte(discoveryURL), 0644); err != nil {
+		return "", err
+	}
+
+	return discoveryURL, nil
 }

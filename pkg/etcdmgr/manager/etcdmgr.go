@@ -129,7 +129,7 @@ func GenerateEtcdConfig(ipAddr string) (bootstrap.EtcdConfig, error) {
 		getURLFromSchemeIPPort("http", ipAddr, DefaultPeerPort))
 	conf.AdvertiseClientURLs = append(conf.AdvertiseClientURLs,
 		getURLFromSchemeIPPort("http", ipAddr, DefaultClientPort))
-	conf.DataDir = "/home/core/etcd"
+	conf.DataDir = "/tmp/etcd-data"
 
 	return conf, nil
 }
