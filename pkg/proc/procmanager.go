@@ -12,16 +12,17 @@ import (
 type ProcStartPolicy int
 
 const (
-	StartAction                     = "start"
-	RunAction                       = "run"
-	StopAction                      = "stop"
+	StartAction = "start"
+	RunAction   = "run"
+	StopAction  = "stop"
+
 	RestartExisting ProcStartPolicy = iota
 	ReuseExisting
 )
 
 type ProcManager struct {
 	sync.RWMutex
-	procs []*exec.Cmd
+	procs []*MonitoredProc
 
 	// test override method to handle starting processes
 	Trap func(action string, cmd *exec.Cmd) error
@@ -41,7 +42,7 @@ func (p *ProcManager) Run(daemon string, args ...string) error {
 // with the given ProcStartPolicy.  The search pattern will be used to search through the cmdline args of existing
 // processes to find any matching existing process.  Therefore, it should be a regex pattern that can uniquely
 // identify the process (e.g., --id=1)
-func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*exec.Cmd, error) {
+func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
 	// look for an existing process first
 	shouldStart, err := p.checkProcessExists(os.Args[0], procSearchPattern, policy)
 	if err != nil {
@@ -59,37 +60,43 @@ func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPo
 		return nil, fmt.Errorf("failed to start daemon %s: %+v", daemon, err)
 	}
 
-	// in a goroutine, wait for and monitor the process
-	go p.monitorProcess(process.Process)
+	proc := newMonitoredProc(p, process)
+
+	// monitor the process if it was not mocked
+	if process != nil && process.Process != nil {
+		go proc.Monitor()
+	}
 
 	p.Lock()
-	p.procs = append(p.procs, process)
+	p.procs = append(p.procs, proc)
 	p.Unlock()
-	return process, nil
+	return proc, nil
 }
 
-func (p *ProcManager) Stop(cmd *exec.Cmd) error {
-	if cmd == nil || cmd.Process == nil {
-		return nil
+func (p *ProcManager) stopChildProcess(cmd *exec.Cmd) error {
+
+	if p.Trap != nil {
+		// mock stopping the process
+		return p.Trap(StopAction, cmd)
 	}
 
 	pid := cmd.Process.Pid
 	fmt.Printf("stopping child process %d\n", pid)
-	if err := p.stopChildProcess(cmd); err != nil {
+	if err := cmd.Process.Kill(); err != nil {
 		fmt.Printf("failed to stop child process %d: %+v\n", pid, err)
 		return err
-	} else {
-		fmt.Printf("child process %d stopped successfully\n", pid)
 	}
 
+	fmt.Printf("child process %d stopped successfully\n", pid)
 	return nil
 }
 
 func (p *ProcManager) Shutdown() {
 	p.RLock()
 	for _, proc := range p.procs {
-		p.Stop(proc)
+		proc.Stop()
 	}
+	p.procs = nil
 	p.RUnlock()
 }
 
@@ -115,8 +122,9 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 	stopped := false
 	p.RLock()
 	for i := range p.procs {
-		if p.procs[i] != nil && p.procs[i].Process != nil && p.procs[i].Process.Pid == existingProc.pid {
-			if err := p.stopChildProcess(p.procs[i]); err != nil {
+		proc := p.procs[i].cmd
+		if proc != nil && proc.Process != nil && proc.Process.Pid == existingProc.pid {
+			if err := p.procs[i].Stop(); err != nil {
 				log.Printf("failed to stop child process %d: %v", existingProc.pid, err)
 				break
 			}
@@ -144,42 +152,13 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 	return true, nil
 }
 
-func (p *ProcManager) monitorProcess(process *os.Process) {
-	if process == nil {
-		// the process was not started, the process was mocked
-		return
-	}
-
-	// wait for the given process to complete
-	state, err := process.Wait()
-	if err != nil {
-		log.Printf("waiting for process %d had an error: %+v", process.Pid, err)
-		return
-	}
-
-	// check the wait status of the process which has all the exit information
-	waitStatus, ok := state.Sys().(syscall.WaitStatus)
-	if !ok {
-		log.Printf("unknown waitStatus for process %d: %+v", process.Pid, state.Sys())
-		return
-	}
-
-	// TODO: improve the process monitoring here.  We know the process has exited, if it was because
-	// of a crash then we should restart the process with the same arguments.
-
-	log.Printf("process %d completed.  Exited: %t, ExitStatus: %d, Signaled: %t, Signal: %d",
-		process.Pid, waitStatus.Exited(), waitStatus.ExitStatus(), waitStatus.Signaled(), waitStatus.Signal())
-
-	// find the managed process and remove it if it exists in our managed set
-	p.removeManagedProc(process.Pid)
-}
-
 func (p *ProcManager) removeManagedProc(pid int) {
 	procNum := -1
 
 	p.Lock()
 	for i := range p.procs {
-		if p.procs[i] != nil && p.procs[i].Process != nil && p.procs[i].Process.Pid == pid {
+		proc := p.procs[i].cmd
+		if proc != nil && proc.Process != nil && proc.Process.Pid == pid {
 			procNum = i
 			break
 		}
@@ -203,28 +182,19 @@ func (p *ProcManager) runChildProcess(daemon string, args ...string) error {
 	return cmd.Run()
 }
 
-func (p *ProcManager) startChildProcess(daemon string, args ...string) (cmd *exec.Cmd, err error) {
-	cmd = createCmd(daemon, args...)
-	if p.Trap != nil {
-		// mock starting the process
-		err := p.Trap(StartAction, cmd)
-		return cmd, err
-	}
-
-	err = cmd.Start()
-	if err != nil {
-		return nil, err
-	}
-	return cmd, nil
+func (p *ProcManager) startChildProcess(daemon string, args ...string) (*exec.Cmd, error) {
+	cmd := createCmd(daemon, args...)
+	err := p.startChildProcessCmd(cmd)
+	return cmd, err
 }
 
-func (p *ProcManager) stopChildProcess(cmd *exec.Cmd) error {
+func (p *ProcManager) startChildProcessCmd(cmd *exec.Cmd) (err error) {
 	if p.Trap != nil {
-		// mock stopping the process
-		return p.Trap(StopAction, cmd)
+		// mock starting the process
+		return p.Trap(StartAction, cmd)
 	}
 
-	return cmd.Process.Kill()
+	return cmd.Start()
 }
 
 func createCmd(daemon string, args ...string) (cmd *exec.Cmd) {

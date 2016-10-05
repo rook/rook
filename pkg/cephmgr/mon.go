@@ -79,7 +79,7 @@ type MonMapEntry struct {
 // calls mon_status mon_command
 func GetMonStatus(adminConn client.Connection) (MonStatusResponse, error) {
 	cmd := map[string]interface{}{"prefix": "mon_status"}
-	buf, err := executeMonCommand(adminConn, cmd, fmt.Sprintf("retrieving mon_status"))
+	buf, err := ExecuteMonCommand(adminConn, cmd, fmt.Sprintf("retrieving mon_status"))
 
 	var resp MonStatusResponse
 	err = json.Unmarshal(buf, &resp)
