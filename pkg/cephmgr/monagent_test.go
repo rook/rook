@@ -9,7 +9,7 @@ import (
 
 	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
 	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 )

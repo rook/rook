@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	etcd "github.com/coreos/etcd/client"
-	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util"
 	ctx "golang.org/x/net/context"
 )
