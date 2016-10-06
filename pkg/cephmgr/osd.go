@@ -22,7 +22,7 @@ import (
 	"github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util"
 )
 
@@ -130,7 +130,7 @@ func createOSDBootstrapKeyring(conn client.Connection, clusterName string) error
 		"entity": "client.bootstrap-osd",
 		"caps":   []string{"mon", "allow profile bootstrap-osd"},
 	}
-	buf, err := executeMonCommand(conn, cmd, "create osd bootstrap key")
+	buf, err := ExecuteMonCommand(conn, cmd, "create osd bootstrap key")
 	if err != nil {
 		return fmt.Errorf("failed to create osd bootstrap key: %+v", err)
 	}
@@ -406,7 +406,7 @@ func createOSD(bootstrapConn client.Connection, osdUUID uuid.UUID) (int, error) 
 		"entity": "client.bootstrap-osd",
 		"uuid":   osdUUID.String(),
 	}
-	buf, err := executeMonCommand(bootstrapConn, cmd, fmt.Sprintf("create osd %s", osdUUID))
+	buf, err := ExecuteMonCommand(bootstrapConn, cmd, fmt.Sprintf("create osd %s", osdUUID))
 	if err != nil {
 		return 0, fmt.Errorf("failed to create osd %s: %+v", osdUUID, err)
 	}
@@ -427,7 +427,7 @@ func getMonMap(bootstrapConn client.Connection) ([]byte, error) {
 		"entity": "client.bootstrap-osd",
 	}
 
-	buf, err := executeMonCommand(bootstrapConn, cmd, "get mon map")
+	buf, err := ExecuteMonCommand(bootstrapConn, cmd, "get mon map")
 	if err != nil {
 		return nil, fmt.Errorf("failed to get mon map: %+v", cmd, err)
 	}
@@ -526,7 +526,7 @@ func addOSDToCrushMap(osdConn client.Connection, context *clusterd.Context, osdI
 		"weight": weight,
 		"args":   locArgs,
 	}
-	_, err = executeMonCommand(osdConn, cmd, fmt.Sprintf("adding %s to crush map", osdEntity))
+	_, err = ExecuteMonCommand(osdConn, cmd, fmt.Sprintf("adding %s to crush map", osdEntity))
 	if err != nil {
 		return fmt.Errorf("failed adding %s to crush map: %+v", osdEntity, err)
 	}
@@ -538,7 +538,7 @@ func addOSDToCrushMap(osdConn client.Connection, context *clusterd.Context, osdI
 	return nil
 }
 
-func executeMonCommand(connection client.Connection, cmd map[string]interface{}, message string) ([]byte, error) {
+func ExecuteMonCommand(connection client.Connection, cmd map[string]interface{}, message string) ([]byte, error) {
 	// ensure the json attribute is included in the request
 	cmd["format"] = "json"
 
@@ -568,7 +568,7 @@ func markOSDOut(connection client.Connection, id int) error {
 		"prefix": "osd out",
 		"ids":    []int{id},
 	}
-	_, err := executeMonCommand(connection, command, fmt.Sprintf("mark osd %d out", id))
+	_, err := ExecuteMonCommand(connection, command, fmt.Sprintf("mark osd %d out", id))
 	return err
 }
 
@@ -578,7 +578,7 @@ func purgeOSD(connection client.Connection, name string, id int) error {
 		"prefix": "osd crush remove",
 		"name":   fmt.Sprintf("osd.%d", id),
 	}
-	_, err := executeMonCommand(connection, command, fmt.Sprintf("remove osd %s from crush map", name))
+	_, err := ExecuteMonCommand(connection, command, fmt.Sprintf("remove osd %s from crush map", name))
 	if err != nil {
 		return fmt.Errorf("failed to remove osd %s from crush map. %v", name, err)
 	}
@@ -588,7 +588,7 @@ func purgeOSD(connection client.Connection, name string, id int) error {
 		"prefix": "auth del",
 		"entity": fmt.Sprintf("osd.%d", id),
 	}
-	_, err = executeMonCommand(connection, command, fmt.Sprintf("delete auth for osd %s", name))
+	_, err = ExecuteMonCommand(connection, command, fmt.Sprintf("delete auth for osd %s", name))
 	if err != nil {
 		return fmt.Errorf("failed to delete auth for osd %s. %v", name, err)
 	}
@@ -598,7 +598,7 @@ func purgeOSD(connection client.Connection, name string, id int) error {
 		"prefix": "osd rm",
 		"ids":    []int{id},
 	}
-	_, err = executeMonCommand(connection, command, fmt.Sprintf("rm osds %v", name))
+	_, err = ExecuteMonCommand(connection, command, fmt.Sprintf("rm osds %v", name))
 	if err != nil {
 		return fmt.Errorf("failed to rm osd %s. %v", name, err)
 	}
@@ -609,7 +609,7 @@ func purgeOSD(connection client.Connection, name string, id int) error {
 // calls osd getcrushmap
 func GetCrushMap(adminConn client.Connection) (string, error) {
 	cmd := map[string]interface{}{"prefix": "osd crush dump"}
-	buf, err := executeMonCommand(adminConn, cmd, fmt.Sprintf("retrieving crush map"))
+	buf, err := ExecuteMonCommand(adminConn, cmd, fmt.Sprintf("retrieving crush map"))
 	if err != nil {
 		return "", fmt.Errorf("failed to get crush map. %v", err)
 	}

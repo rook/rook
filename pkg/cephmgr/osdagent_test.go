@@ -13,7 +13,7 @@ import (
 	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -93,7 +93,7 @@ func TestOSDAgentWithDevices(t *testing.T) {
 		EtcdClient: etcdClient,
 		Executor:   executor,
 		NodeID:     "abc",
-		ProcMan:    &proc.ProcManager{Trap: createOSDAgentProcTrap(t, &procCommands)},
+		ProcMan:    &proc.ProcManager{Trap: createOSDAgentProcTrap(t, &procCommands, map[int]string{1: proc.StartAction, 3: proc.StartAction, 4: proc.StopAction})},
 	}
 
 	// prep the OSD agent and related orcehstration data
@@ -109,11 +109,11 @@ func TestOSDAgentWithDevices(t *testing.T) {
 	assert.Equal(t, 6, execCount)
 	assert.Equal(t, 2, outputExecCount)
 	assert.Equal(t, 4, procCommands)
-	assert.Equal(t, 2, len(agent.osdCmd))
+	assert.Equal(t, 2, len(agent.osdProc))
 
 	err = agent.DestroyLocalService(context)
 	assert.Nil(t, err)
-	assert.Equal(t, 0, len(agent.osdCmd))
+	assert.Equal(t, 0, len(agent.osdProc))
 }
 
 func TestOSDAgentNoDevices(t *testing.T) {
@@ -148,7 +148,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 		EtcdClient: etcdClient,
 		Executor:   executor,
 		NodeID:     "abc",
-		ProcMan:    &proc.ProcManager{Trap: createOSDAgentProcTrap(t, &procCommands)},
+		ProcMan:    &proc.ProcManager{Trap: createOSDAgentProcTrap(t, &procCommands, map[int]string{1: proc.StartAction, 2: proc.StopAction})},
 	}
 
 	// prep the OSD agent and related orcehstration data
@@ -160,7 +160,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 	assert.Equal(t, 0, execCount)
 	assert.Equal(t, 0, outputExecCount)
 	assert.Equal(t, 2, procCommands)
-	assert.Equal(t, 1, len(agent.osdCmd))
+	assert.Equal(t, 1, len(agent.osdProc))
 
 	// the local device should be marked as an applied OSD now
 	osds, err := GetAppliedOSDs(context.NodeID, etcdClient)
@@ -171,7 +171,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 	// destroy the OSD and verify the results
 	err = agent.DestroyLocalService(context)
 	assert.Nil(t, err)
-	assert.Equal(t, 0, len(agent.osdCmd))
+	assert.Equal(t, 0, len(agent.osdProc))
 }
 
 func TestAppliedDevices(t *testing.T) {
@@ -266,12 +266,19 @@ func prepAgentOrchestrationData(t *testing.T, agent *osdAgent, etcdClient *util.
 	etcdClient.SetValue(path.Join(monKey, "port"), "8743")
 }
 
-func createOSDAgentProcTrap(t *testing.T, commands *int) func(action string, c *exec.Cmd) error {
+func createOSDAgentProcTrap(t *testing.T, commands *int, actions map[int]string) func(action string, c *exec.Cmd) error {
 	return func(action string, c *exec.Cmd) error {
-		log.Printf("PROC TRAP %d for %s. %+v", commands, action, c)
+		log.Printf("PROC TRAP %d for %s. %+v", *commands, action, c)
 		assert.Equal(t, "daemon", c.Args[1])
 		assert.Equal(t, "--type=osd", c.Args[2])
 		assert.Equal(t, "--", c.Args[3])
+		if a, ok := actions[*commands]; ok {
+			assert.Equal(t, a, action)
+		} else {
+			// the default action expected is Run
+			assert.Equal(t, proc.RunAction, action, fmt.Sprintf("command=%d, action=%s", *commands, action))
+		}
+
 		switch {
 		case *commands == 0:
 			err := ioutil.WriteFile("/tmp/osd3/mycluster-3/keyring", []byte("mykeyring"), 0644)
@@ -281,7 +288,11 @@ func createOSDAgentProcTrap(t *testing.T, commands *int) func(action string, c *
 		case *commands == 1:
 			assert.Equal(t, "--foreground", c.Args[4])
 		case *commands == 2:
-			assert.Equal(t, "--mkfs", c.Args[4])
+			if action == proc.StopAction {
+				assert.Equal(t, "--foreground", c.Args[4])
+			} else {
+				assert.Equal(t, "--mkfs", c.Args[4])
+			}
 		case *commands == 3:
 			assert.Equal(t, "--foreground", c.Args[4])
 		default:

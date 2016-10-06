@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path"
 	"regexp"
 	"strconv"
@@ -18,7 +17,7 @@ import (
 	"github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/proc"
+	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util"
 )
 
@@ -33,7 +32,7 @@ type osdAgent struct {
 	forceFormat bool
 	location    string
 	factory     client.ConnectionFactory
-	osdCmd      map[string]*exec.Cmd
+	osdProc     map[string]*proc.MonitoredProc
 	devices     string
 }
 
@@ -172,15 +171,15 @@ func (a *osdAgent) removeOSD(context *clusterd.Context, connection client.Connec
 	}
 
 	// stop the osd process if running
-	cmd, ok := a.osdCmd[name]
+	proc, ok := a.osdProc[name]
 	if ok {
-		err := context.ProcMan.Stop(cmd)
+		err := proc.Stop()
 		if err != nil {
 			log.Printf("failed to stop osd for device %s. %v", name, err)
 			return err
 		}
 
-		delete(a.osdCmd, name)
+		delete(a.osdProc, name)
 	}
 
 	err = purgeOSD(connection, name, osdID)
@@ -203,13 +202,13 @@ func (a *osdAgent) removeOSD(context *clusterd.Context, connection client.Connec
 
 func (a *osdAgent) DestroyLocalService(context *clusterd.Context) error {
 	// stop the OSD processes
-	for device, cmd := range a.osdCmd {
+	for device, proc := range a.osdProc {
 		log.Printf("stopping osd on device %s", device)
-		context.ProcMan.Stop(cmd)
+		proc.Stop()
 	}
 
 	// clear out the osd procs
-	a.osdCmd = map[string]*exec.Cmd{}
+	a.osdProc = map[string]*proc.MonitoredProc{}
 	return nil
 }
 
@@ -354,7 +353,7 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID i
 	// start the OSD daemon in the foreground with the given config
 	log.Printf("starting osd %d at %s", osdID, osdDataPath)
 	osdUUIDArg := fmt.Sprintf("--osd-uuid=%s", osdUUID.String())
-	cmd, err := context.ProcMan.Start(
+	process, err := context.ProcMan.Start(
 		"osd",
 		regexp.QuoteMeta(osdUUIDArg),
 		proc.ReuseExisting,
@@ -370,13 +369,13 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID i
 		return fmt.Errorf("failed to start osd %d: %+v", osdID, err)
 	}
 
-	if a.osdCmd == nil {
+	if a.osdProc == nil {
 		// initialize the osd map
-		a.osdCmd = map[string]*exec.Cmd{}
+		a.osdProc = make(map[string]*proc.MonitoredProc)
 	}
-	if cmd != nil {
+	if process != nil {
 		// if the process was already running Start will return nil in which case we don't want to overwrite it
-		a.osdCmd[device] = cmd
+		a.osdProc[device] = process
 	}
 
 	return nil
