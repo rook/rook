@@ -11,8 +11,8 @@ import (
 
 	ctx "golang.org/x/net/context"
 
-	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/castle/pkg/util/proc"
 
 	etcd "github.com/coreos/etcd/client"
 )

@@ -17,8 +17,8 @@ import (
 	"github.com/quantum/castle/pkg/cephmgr"
 	"github.com/quantum/castle/pkg/cephmgr/cephd"
 	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util/flags"
+	"github.com/quantum/castle/pkg/util/proc"
 )
 
 var rootCmd = &cobra.Command{
