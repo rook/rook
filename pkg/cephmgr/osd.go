@@ -22,8 +22,8 @@ import (
 	"github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/castle/pkg/util/proc"
 )
 
 const (
@@ -429,7 +429,7 @@ func getMonMap(bootstrapConn client.Connection) ([]byte, error) {
 
 	buf, err := ExecuteMonCommand(bootstrapConn, cmd, "get mon map")
 	if err != nil {
-		return nil, fmt.Errorf("failed to get mon map: %+v", cmd, err)
+		return nil, fmt.Errorf("failed to get mon map: %+v", err)
 	}
 	return buf, nil
 }
