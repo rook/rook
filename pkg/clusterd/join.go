@@ -6,8 +6,8 @@ import (
 
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/etcdmgr/manager"
-	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/castle/pkg/util/proc"
 )
 
 // Initialize the cluster services to enable joining the cluster and listening for orchestration.
