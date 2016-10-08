@@ -9,8 +9,8 @@ import (
 
 	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
 	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -39,7 +39,6 @@ func TestMonAgent(t *testing.T) {
 			assert.Equal(t, proc.StopAction, action)
 		default:
 			return fmt.Errorf("unexpected case %d", commands)
-			assert.Equal(t, "--foreground", c.Args[4])
 		}
 		commands++
 		return nil
