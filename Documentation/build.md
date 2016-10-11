@@ -1,6 +1,6 @@
 # Building
 
-Castle is golang binary that uses cgo to interface with embedded ceph. The ceph 
+Castle is golang binary that uses cgo to interface with embedded ceph. The ceph
 project is a submodule of castle and is built from the top level Makefile.
 
 ## Static binary
@@ -15,7 +15,7 @@ make STATIC=1
 
 ## Dyanmic binary
 
-If you dont want to distribute a static binary, a dynamically linked binary is 
+If you dont want to distribute a static binary, a dynamically linked binary is
 supported. The approach we take is to link most of the glibc binaries dynamically
 and the rest of the libraries continue to be linked statically. Ceph has a lot
 of dependencies and we take this approach to simplify the distribution.
@@ -34,7 +34,7 @@ make STATIC=0 PIE=1
 
 ## Switching Allocators
 
-Using a different memory allocator can impact the overall performance of the system. 
+Using a different memory allocator can impact the overall performance of the system.
 Three allocators are currently supported: jemalloc, tcmalloc and libc. To specify
 an allocator during the build run the following:
 

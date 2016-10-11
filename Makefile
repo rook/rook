@@ -1,8 +1,12 @@
+# set the shell to bash in case some environments use sh
 .PHONY: all
 all: build
 
 # ====================================================================================
 # Build Options
+
+# set the shell to bash in case some environments use sh
+SHELL := /bin/bash
 
 # Can be used for additional go build flags
 BUILDFLAGS ?=
@@ -13,11 +17,10 @@ TAGS ?=
 # a dynamic binary is produced that requires glibc to be installed
 STATIC ?= 1
 ifeq ($(STATIC),1)
-CASTLED_BUILDFLAGS += -installsuffix cgo
-CASTLED_LDFLAGS += -extldflags "-static"
-CASTLED_TAGS += static
+LDFLAGS += -s -extldflags "-static"
+TAGS += static
 else
-CASTLED_TAGS += dynamic
+TAGS += dynamic
 endif
 
 # build a position independent executable. This implies dynamic linking
@@ -27,15 +30,21 @@ ifeq ($(PIE),1)
 ifeq ($(STATIC),1)
 $(error PIE only supported with dynamic linking. Set STATIC=0.)
 endif
-CASTLED_BUILDFLAGS += -buildmode=pie
-CASTLED_TAGS += pie
+BUILDFLAGS += -buildmode=pie
+TAGS += pie
 endif
 
-# if DEBUG is set to 1 debug information is perserved (i.e. not stripped). 
+# if DEBUG is set to 1 debug information is perserved (i.e. not stripped).
 # the binary size is going to be much larger.
 DEBUG ?= 0
+ifeq ($(DEBUG),0)
+LDFLAGS += -w
+endif
 
+# the memory allocator to use for cephd
 ALLOCATOR ?= tcmalloc_minimal
+
+# whether to use ccache when building cephd
 CCACHE ?= 1
 
 # turn on more verbose build
@@ -47,90 +56,102 @@ else
 MAKEFLAGS += --no-print-directory
 endif
 
-# set the version number. 
+# set the version number.
 ifeq ($(origin VERSION), undefined)
 VERSION = $(shell git describe --dirty --always)
 endif
 LDFLAGS += -X $(REPO)/pkg/version.Version=$(VERSION)
 
-# ====================================================================================
-# Setup Go projects
+# the operating system and arch to build
+GOOS ?= $(shell go env GOOS)
+GOARCH ?= $(shell go env GOARCH)
 
-GO_ORG=github.com/quantum
-GO_PROJ=castle
-include build/golang.mk
-
-# add castlectl and castled. this will define all the necessary
-# rules to build the projects and also set targets such as build, clean, etc.
-$(eval $(call golang-project,castlectl,cmd/castlectl, \
-	$(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)'))
-$(eval $(call golang-project,castled,cmd/castled, \
-	$(BUILDFLAGS) $(CASTLED_BUILDFLAGS) -tags '$(TAGS) $(CASTLED_TAGS)' -ldflags '$(LDFLAGS) $(CASTLED_LDFLAGS)'))
+# the working directory to store packages and intermediate build files
+WORKDIR ?= .work
 
 # ====================================================================================
-# Setup Cephd
+# Setup Castled
+
+# support for cross compiling
+include build/makelib/cross.mk
+
+ifeq ($(GOOS)_$(GOARCH),linux_amd64)
+CASTLED_SUPPORTED := 1
+endif
+
+ifeq ($(GOOS)_$(GOARCH),linux_arm64)
+CASTLED_SUPPORTED := 1
+endif
+
+ifeq ($(CASTLED_SUPPORTED),1)
 
 CEPHD_DEBUG = $(DEBUG)
 CEPHD_CCACHE = $(CCACHE)
 CEPHD_ALLOCATOR = $(ALLOCATOR)
-include build/cephd.mk
+CEPHD_BUILD_DIR = $(WORKDIR)/ceph
+CEPHD_PLATFORM = $(GOOS)_$(GOARCH)
+
+# go does not check dependencies listed in LDFLAGS. we touch the dummy source file
+# to force go to rebuild cephd
+CEPHD_TOUCH_ON_BUILD = pkg/cephmgr/cephd/dummy.cc
+
+GO_CGO_PACKAGES=cmd/castled
+CGO_LDFLAGS = -L$(CURDIR)/$(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/lib
+CGO_PREREQS = cephd.build
+
+include build/makelib/cephd.mk
+
+clean: cephd.clean
+
+endif
 
 # ====================================================================================
-# Targets
+# Setup Go projects
 
-.PHONY: build test check vet fmt clean buildall cleanall
+GO_PROJECT=github.com/quantum/castle
+GO_WORK_DIR = $(WORKDIR)
 
-build: go.build.castlectl
-
-check test: go.test.castlectl
-
-vet: go.vet.castlectl go.vet.castled
-
-fmt: go.fmt.castlectl go.fmt.castled
-
-clean: go.clean.castlectl  go.clean.castled
-
-cleanall: go.cleanall cephd.cleanall
-
-buildall: \
-	go.build.castlectl.linux_amd64 \
-	go.build.castlectl.linux_arm64 \
-	go.build.castlectl.darwin_amd64 \
-	go.build.castlectl.windows_amd64
-
-ifeq ($(GO_HOST_OS),linux)
-ifeq ($(GO_HOST_ARCH),amd64)
-
-$(eval $(call cephd-build,linux_amd64))
-
-go.test.castled bin/linux_amd64/castled: $(CEPHD_BUILD_DIR)/linux_amd64/lib/libcephd.a
-
-clean: cephd.clean.linux_amd64
-
-build: bin/linux_amd64/castled
-
-check test: go.test.castled
-
-buildall: bin/linux_amd64/castled
-
+ifeq ($(STATIC),1)
+GO_STATIC_PACKAGES=cmd/castlectl
 else
-ifeq ($(GO_HOST_ARCH),arm64)
+GO_NONSTATIC_PACKAGES=cmd/castlectl
+endif
 
-$(eval $(call cephd-build,linux_arm64))
+GO_TOOL_FLAGS=$(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)'
+GO_PKG_DIR ?= $(WORKDIR)/pkg
 
-go.test.castled bin/linux_arm64/castled: $(CEPHD_BUILD_DIR)/linux_arm64/lib/libcephd.a
+include build/makelib/golang.mk
 
-clean: cephd.clean.linux_arm64
+build: go.build
 
-build: bin/linux_arm64/castled
+install: go.install
 
-check test: go.test.castled
+check test: go.test
 
-buildall: bin/linux_arm64/castled
+vet: go.vet
 
-endif # arm64
-endif # amd64
-endif # linux
+fmt: go.fmt
+
+vendor: go.vendor
+
+clean: go.clean
+	@rm -fr $(WORKDIR)
+
+distclean: go.distclean clean
+
+build.platform.%:
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) install
+
+build.cross: \
+	build.platform.linux_amd64 \
+	build.platform.linux_arm64 \
+	build.platform.windows_amd64 \
+	build.platform.darwin_amd64
+
+cross:
+	@$(MAKE) build.cross
+
+.PHONY: build install test check vet fmt clean buildall cleanall
 
 # ====================================================================================
 # Help
@@ -140,27 +161,33 @@ help:
 	@echo 'Usage: make <OPTIONS> ... <TARGETS>'
 	@echo ''
 	@echo 'Targets:'
-	@echo '    build              Build project.'
-	@echo '    buildall           Build project for all platforms.'
-	@echo '    check              Builds and runs tests on.'
-	@echo '    clean              Remove binaries.'
-	@echo '    cleanall           Remove binaries for all platforms.'
-	@echo '    fmt                Check formatting of go sources.'
-	@echo '    help               Show this help info.'
-	@echo '    vendor             Installs vendor dependencies.'
-	@echo '    vet                Runs lint checks on go sources.'
+	@echo '    build       Build project for host platform.'
+	@echo '    cross       Build project for all platforms.'
+	@echo '    check       Runs unit tests.'
+	@echo '    clean       Remove all files that are created '
+	@echo '                by building.'
+	@echo '    distclean   Remove all files that are created '
+	@echo '                by building or configuring.'
+	@echo '    fmt         Check formatting of go sources.'
+	@echo '    help        Show this help info.'
+	@echo '    vendor      Installs vendor dependencies.'
+	@echo '    vet         Runs lint checks on go sources.'
 	@echo ''
 	@echo 'Options:'
 	@echo ''
-	@echo '    CCACHE             Set to 1 to enabled ccache, 0 to disable.' 
-	@echo '                       The default is 0.'
-	@echo '    DEBUG              Set to 1 to disable stripping the binaries of.'
-	@echo '                       debug information. The default is 0.'
-	@echo '    PIE                Set to 1 to build build a position independent'
-	@echo '                       executable. Can not be combined with static.'
-	@echo '                       The default is 0.'
-	@echo '    STATIC             Set to 1 for static build, 0 for dynamic.'
-	@echo '                       The default is 1.'
-	@echo '    VERSION            The version information compiled into binaries.'
-	@echo '                       The default is obtained from git.'
-	@echo '    V                  Set to 1 enable verbose build. Default is 0.'
+	@echo '    GOARCH      The arch to build.'
+	@echo '    CCACHE      Set to 1 to enabled ccache, 0 to disable.'
+	@echo '                The default is 0.'
+	@echo '    DEBUG       Set to 1 to disable stripping the binaries of.'
+	@echo '                debug information. The default is 0.'
+	@echo '    PIE         Set to 1 to build build a position independent'
+	@echo '                executable. Can not be combined with static.'
+	@echo '                The default is 0.'
+	@echo '    GOOS        The OS to build for.'
+	@echo '    STATIC      Set to 1 for static build, 0 for dynamic.'
+	@echo '                The default is 1.'
+	@echo '    VERSION     The version information compiled into binaries.'
+	@echo '                The default is obtained from git.'
+	@echo '    V           Set to 1 enable verbose build. Default is 0.'
+	@echo '    WORKDIR     The working directory where most build files'
+	@echo '                are stored. The default is .work'

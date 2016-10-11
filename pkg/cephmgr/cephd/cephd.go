@@ -1,10 +1,6 @@
-// +build !mockceph
-
 package cephd
 
 // #cgo CFLAGS: -I${SRCDIR}/../../../ceph/src/include
-// #cgo linux,amd64 LDFLAGS: -L${SRCDIR}/../../../ceph/build/linux_amd64/lib
-// #cgo linux,arm64 LDFLAGS: -L${SRCDIR}/../../../ceph/build/linux_arm64/lib
 // #cgo jemalloc,static LDFLAGS: -ljemalloc
 // #cgo tcmalloc,static LDFLAGS: -ltcmalloc_minimal
 // #cgo jemalloc,dynamic LDFLAGS: -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic
