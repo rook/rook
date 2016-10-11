@@ -19,6 +19,7 @@ import (
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/quantum/castle/pkg/util/proc"
+	"github.com/quantum/castle/pkg/util/sys"
 )
 
 const (
@@ -286,7 +287,7 @@ func (a *osdAgent) createMountedOSD(device string, bootstrapConn client.Connecti
 	var osdID int
 	var osdUUID uuid.UUID
 
-	mountPoint, err := inventory.GetDeviceMountPoint(device, context.Executor)
+	mountPoint, err := sys.GetDeviceMountPoint(device, context.Executor)
 	if err != nil {
 		return "", -1, uuid.UUID{}, fmt.Errorf("unable to get mount point for device %s: %+v", device, err)
 	}

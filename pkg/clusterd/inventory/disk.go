@@ -11,6 +11,7 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/quantum/castle/pkg/util/proc"
+	"github.com/quantum/castle/pkg/util/sys"
 	ctx "golang.org/x/net/context"
 )
 
@@ -75,43 +76,6 @@ func GetSerialFromDevice(device, nodeID string, etcdClient etcd.KeysAPI) (string
 	}
 
 	return serialResult, nil
-}
-
-func GetDeviceFilesystem(device string, executor proc.Executor) (string, error) {
-	cmd := fmt.Sprintf("get filesystem type for %s", device)
-	devFS, err := executor.ExecuteCommandPipeline(
-		cmd,
-		fmt.Sprintf(`df --output=source,fstype | grep '^/dev/%s ' | awk '{print $2}'`, device))
-	if err != nil {
-		return "", fmt.Errorf("command %s failed: %+v", cmd, err)
-	}
-
-	return devFS, nil
-}
-
-// look up the mount point of the given device.  empty string returned if device is not mounted.
-func GetDeviceMountPoint(device string, executor proc.Executor) (string, error) {
-	cmd := fmt.Sprintf("get mount point for %s", device)
-	mountPoint, err := executor.ExecuteCommandPipeline(
-		cmd,
-		fmt.Sprintf(`mount | grep '^/dev/%s on' | awk '{print $3}'`, device))
-	if err != nil {
-		return "", fmt.Errorf("command %s failed: %+v", cmd, err)
-	}
-
-	return mountPoint, nil
-}
-
-func DoesDeviceHaveChildren(device string, executor proc.Executor) (bool, error) {
-	cmd := fmt.Sprintf("check children for device %s", device)
-	children, err := executor.ExecuteCommandPipeline(
-		cmd,
-		fmt.Sprintf(`lsblk --all -n -l --output PKNAME | grep "^%s$" | awk '{print $0}'`, device))
-	if err != nil {
-		return false, fmt.Errorf("command %s failed: %+v", cmd, err)
-	}
-
-	return children != "", nil
 }
 
 func GetDiskInfo(diskInfo *etcd.Node) (*DiskConfig, error) {
@@ -230,17 +194,17 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor proc.
 			continue
 		}
 
-		fs, err := GetDeviceFilesystem(d, executor)
+		fs, err := sys.GetDeviceFilesystem(d, executor)
 		if err != nil {
 			return err
 		}
 
-		mountPoint, err := GetDeviceMountPoint(d, executor)
+		mountPoint, err := sys.GetDeviceMountPoint(d, executor)
 		if err != nil {
 			return err
 		}
 
-		hasChildren, err := DoesDeviceHaveChildren(d, executor)
+		hasChildren, err := sys.DoesDeviceHaveChildren(d, executor)
 		if err != nil {
 			return err
 		}

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/quantum/castle/pkg/cephmgr/client"
 	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/util"
@@ -91,7 +92,7 @@ func TestCrushMap(t *testing.T) {
 	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "key"}
 	conn, _ := factory.NewConnWithClusterAndUser("cluster", "user")
 	conn.(*testceph.MockConnection).MockMonCommand = func(buf []byte) (buffer []byte, info string, err error) {
-		var request MonStatusRequest
+		var request client.MonStatusRequest
 		err = json.Unmarshal(buf, &request)
 		assert.Nil(t, err)
 		assert.Equal(t, "json", request.Format)

@@ -109,7 +109,7 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 }
 
 type overallMonStatus struct {
-	Status  cephmgr.MonStatusResponse    `json:"status"`
+	Status  ceph.MonStatusResponse       `json:"status"`
 	Desired []*cephmgr.CephMonitorConfig `json:"desired"`
 }
 
@@ -117,14 +117,12 @@ type overallMonStatus struct {
 // POST
 // /device
 func (h *Handler) AddDevice(w http.ResponseWriter, r *http.Request) {
-	device, err := loadDeviceFromBody(w, r)
-	if err != nil {
-		log.Printf("failed to load request body. %v", err)
-		w.WriteHeader(http.StatusBadRequest)
+	device, ok := handleLoadDeviceFromBody(w, r)
+	if !ok {
 		return
 	}
 
-	err = cephmgr.AddDesiredDevice(h.EtcdClient, device)
+	err := cephmgr.AddDesiredDevice(h.EtcdClient, device)
 	if err != nil {
 		log.Printf("failed to add device. %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -136,14 +134,12 @@ func (h *Handler) AddDevice(w http.ResponseWriter, r *http.Request) {
 // POST
 // /device/remove
 func (h *Handler) RemoveDevice(w http.ResponseWriter, r *http.Request) {
-	device, err := loadDeviceFromBody(w, r)
-	if err != nil {
-		log.Printf("failed to load request body. %v", err)
-		w.WriteHeader(http.StatusBadRequest)
+	device, ok := handleLoadDeviceFromBody(w, r)
+	if !ok {
 		return
 	}
 
-	err = cephmgr.RemoveDesiredDevice(h.EtcdClient, device)
+	err := cephmgr.RemoveDesiredDevice(h.EtcdClient, device)
 	if err != nil {
 		log.Printf("failed to remove device. %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -151,25 +147,26 @@ func (h *Handler) RemoveDevice(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func loadDeviceFromBody(w http.ResponseWriter, r *http.Request) (*cephmgr.Device, error) {
-	// read/unmarshal the new pool to create from the request body
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1024))
-	if err == nil {
-		r.Body.Close()
-	} else {
-		return nil, fmt.Errorf("failed to read request body: %+v", err)
+func handleLoadDeviceFromBody(w http.ResponseWriter, r *http.Request) (*cephmgr.Device, bool) {
+	body, ok := handleReadBody(w, r, "load device")
+	if !ok {
+		return nil, false
 	}
 
 	var device cephmgr.Device
 	if err := json.Unmarshal(body, &device); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal request body '%s': %+v", string(body), err)
+		log.Printf("failed to unmarshal request body '%s': %+v", string(body), err)
+		w.WriteHeader(http.StatusBadRequest)
+		return nil, false
 	}
 
 	if device.Name == "" || device.NodeID == "" {
-		return nil, fmt.Errorf("missing name or nodeId")
+		log.Printf("missing name or nodeId: %+v", device)
+		w.WriteHeader(http.StatusBadRequest)
+		return nil, false
 	}
 
-	return &device, nil
+	return &device, true
 }
 
 // Gets the current crush map for the cluster.
@@ -177,7 +174,7 @@ func loadDeviceFromBody(w http.ResponseWriter, r *http.Request) (*cephmgr.Device
 // /crushmap
 func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
 	// connect to ceph
-	conn, ok := h.connectToCeph(w)
+	conn, ok := h.handleConnectToCeph(w)
 	if !ok {
 		return
 	}
@@ -215,14 +212,14 @@ func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// connect to ceph
-	adminConn, ok := h.connectToCeph(w)
+	adminConn, ok := h.handleConnectToCeph(w)
 	if !ok {
 		return
 	}
 	defer adminConn.Shutdown()
 
 	// get the monitor status
-	monStatusResp, err := cephmgr.GetMonStatus(adminConn)
+	monStatusResp, err := ceph.GetMonStatus(adminConn)
 	if err != nil {
 		log.Printf("failed to get mon_status, err: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -241,7 +238,7 @@ func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
 // GET
 // /pool
 func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
-	adminConn, ok := h.connectToCeph(w)
+	adminConn, ok := h.handleConnectToCeph(w)
 	if !ok {
 		return
 	}
@@ -273,12 +270,8 @@ func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 	// read/unmarshal the new pool to create from the request body
 	var newPool model.Pool
-	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1024))
-	if err == nil {
-		r.Body.Close()
-	} else {
-		log.Printf("failed to read create pool request body: %+v", err)
-		w.WriteHeader(http.StatusBadRequest)
+	body, ok := handleReadBody(w, r, "create pool")
+	if !ok {
 		return
 	}
 
@@ -289,7 +282,7 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// connect to the ceph cluster and create the storage pool
-	adminConn, ok := h.connectToCeph(w)
+	adminConn, ok := h.handleConnectToCeph(w)
 	if !ok {
 		return
 	}
@@ -305,7 +298,174 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(info))
 }
 
-func (h *Handler) connectToCeph(w http.ResponseWriter) (ceph.Connection, bool) {
+// Gets the images that have been created in this cluster.
+// GET
+// /image
+func (h *Handler) GetImages(w http.ResponseWriter, r *http.Request) {
+	adminConn, ok := h.handleConnectToCeph(w)
+	if !ok {
+		return
+	}
+	defer adminConn.Shutdown()
+
+	// first list all the pools so that we can retrieve images from all pools
+	pools, err := ceph.ListPools(adminConn)
+	if err != nil {
+		log.Printf("failed to list pools: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	result := []model.BlockImage{}
+
+	// for each pool, open an IO context to get further details about all the images in the pool
+	for _, p := range pools {
+		ioctx, ok := handleOpenIOContext(w, adminConn, p.Name)
+		if !ok {
+			return
+		}
+
+		// get all the image names for the current pool
+		imageNames, err := ioctx.GetImageNames()
+		if err != nil {
+			log.Printf("failed to get image names from pool %s: %+v", p.Name, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		// for each image name, open the image and stat it for further details
+		images := make([]model.BlockImage, len(imageNames))
+		for i, name := range imageNames {
+			image := ioctx.GetImage(name)
+			image.Open(true)
+			defer image.Close()
+			imageStat, err := image.Stat()
+			if err != nil {
+				log.Printf("failed to stat image %s from pool %s: %+v", name, p.Name, err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+
+			// add the current image's details to the result set
+			images[i] = model.BlockImage{
+				Name:     name,
+				PoolName: p.Name,
+				Size:     imageStat.Size,
+			}
+		}
+
+		result = append(result, images...)
+	}
+
+	FormatJsonResponse(w, result)
+}
+
+// Creates a new image in this cluster.
+// POST
+// /image
+func (h *Handler) CreateImage(w http.ResponseWriter, r *http.Request) {
+	var newImage model.BlockImage
+	body, ok := handleReadBody(w, r, "create image")
+	if !ok {
+		return
+	}
+
+	if err := json.Unmarshal(body, &newImage); err != nil {
+		log.Printf("failed to unmarshal create image request body '%s': %+v", string(body), err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if newImage.Name == "" || newImage.PoolName == "" || newImage.Size == 0 {
+		log.Printf("image missing required fields: %+v", newImage)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	adminConn, ok := h.handleConnectToCeph(w)
+	if !ok {
+		return
+	}
+	defer adminConn.Shutdown()
+
+	ioctx, ok := handleOpenIOContext(w, adminConn, newImage.PoolName)
+	if !ok {
+		return
+	}
+
+	createdImage, err := ioctx.CreateImage(newImage.Name, newImage.Size, 22)
+	if err != nil {
+		log.Printf("failed to create image %+v: %+v", newImage, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(fmt.Sprintf("succeeded created image %s", createdImage.Name())))
+}
+
+// Gets information needed to map an image to a local device
+// GET
+// /image/mapinfo
+func (h *Handler) GetImageMapInfo(w http.ResponseWriter, r *http.Request) {
+	// TODO: auth is extremely important here because we are returning cephx credentials
+
+	adminConn, ok := h.handleConnectToCeph(w)
+	if !ok {
+		return
+	}
+	defer adminConn.Shutdown()
+
+	monStatus, err := ceph.GetMonStatus(adminConn)
+	if err != nil {
+		log.Printf("failed to get monitor status, err: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	// TODO: don't always return admin creds
+	entity := "client.admin"
+	user := "admin"
+	secret, err := ceph.AuthGetKey(adminConn, entity)
+	if err != nil {
+		log.Printf("failed to get key for %s: %+v", entity, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	monAddrs := make([]string, len(monStatus.MonMap.Mons))
+	for i, m := range monStatus.MonMap.Mons {
+		monAddrs[i] = m.Address
+	}
+
+	mapInfo := model.BlockImageMapInfo{
+		MonAddresses: monAddrs,
+		UserName:     user,
+		SecretKey:    secret,
+	}
+
+	FormatJsonResponse(w, mapInfo)
+}
+
+func handleReadBody(w http.ResponseWriter, r *http.Request, opName string) ([]byte, bool) {
+	if r.Body == nil {
+		log.Printf("nil request body for %s", opName)
+		w.WriteHeader(http.StatusBadRequest)
+		return nil, false
+	}
+
+	body, err := ioutil.ReadAll(io.LimitReader(r.Body, 1024))
+	if err == nil {
+		r.Body.Close()
+	} else {
+		log.Printf("failed to read %s request body: %+v", opName, err)
+		w.WriteHeader(http.StatusBadRequest)
+		return nil, false
+	}
+
+	return body, true
+}
+
+func (h *Handler) handleConnectToCeph(w http.ResponseWriter) (ceph.Connection, bool) {
 	adminConn, err := h.ConnectionFactory.ConnectAsAdmin(h.CephFactory, h.EtcdClient)
 	if err != nil {
 		log.Printf("failed to connect to cluster as admin: %+v", err)
@@ -314,4 +474,14 @@ func (h *Handler) connectToCeph(w http.ResponseWriter) (ceph.Connection, bool) {
 	}
 
 	return adminConn, true
+}
+
+func handleOpenIOContext(w http.ResponseWriter, conn ceph.Connection, pool string) (ceph.IOContext, bool) {
+	ioctx, err := conn.OpenIOContext(pool)
+	if err != nil {
+		log.Printf("failed to open ioctx on pool %s: %+v", pool, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return nil, false
+	}
+	return ioctx, true
 }
