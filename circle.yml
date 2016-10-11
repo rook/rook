@@ -4,6 +4,7 @@ machine:
   environment:
     NPROCS: $(( ($(grep -c ^processor /proc/cpuinfo) + 1) / 2 ))
     CCACHE_DIR: ${HOME}/.ccache
+    DISABLE_NESTED_DOCKER: 1
 
 checkout:
   pre:

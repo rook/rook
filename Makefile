@@ -69,6 +69,14 @@ GOARCH ?= $(shell go env GOARCH)
 # the working directory to store packages and intermediate build files
 WORKDIR ?= .work
 
+# bin and relase dirs
+BIN_DIR=bin
+RELEASE_DIR=release
+
+CLIENT_SERVER_PLATFORMS ?= linux_amd64 linux_arm64
+CLIENT_ONLY_PLATFORMS ?= darwin_amd64 windows_amd64
+ALL_PLATFORMS ?= $(CLIENT_SERVER_PLATFORMS) $(CLIENT_ONLY_PLATFORMS)
+
 # ====================================================================================
 # Setup Castled
 
@@ -110,6 +118,7 @@ endif
 
 GO_PROJECT=github.com/quantum/castle
 GO_WORK_DIR = $(WORKDIR)
+GO_BIN_DIR = $(BIN_DIR)
 
 ifeq ($(STATIC),1)
 GO_STATIC_PACKAGES=cmd/castlectl
@@ -121,6 +130,18 @@ GO_TOOL_FLAGS=$(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)'
 GO_PKG_DIR ?= $(WORKDIR)/pkg
 
 include build/makelib/golang.mk
+
+# ====================================================================================
+# Setup Distribution
+
+RELEASE_VERSION=$(VERSION)
+RELEASE_BIN_DIR=$(BIN_DIR)
+RELEASE_CLIENT_SERVER_PLATFORMS=$(CLIENT_SERVER_PLATFORMS)
+RELEASE_CLIENT_ONLY_PLATFORMS=$(CLIENT_ONLY_PLATFORMS)
+include build/makelib/release.mk
+
+# ====================================================================================
+# Targets
 
 build: go.build
 
@@ -135,23 +156,25 @@ fmt: go.fmt
 vendor: go.vendor
 
 clean: go.clean
-	@rm -fr $(WORKDIR)
+	@rm -fr $(WORKDIR) $(RELEASE_DIR) $(BIN_DIR)
 
 distclean: go.distclean clean
 
 build.platform.%:
 	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) install
 
-build.cross: \
-	build.platform.linux_amd64 \
-	build.platform.linux_arm64 \
-	build.platform.windows_amd64 \
-	build.platform.darwin_amd64
+build.cross: $(foreach p,$(ALL_PLATFORMS), build.platform.$(p))
 
 cross:
 	@$(MAKE) build.cross
 
-.PHONY: build install test check vet fmt clean buildall cleanall
+release: cross
+	@$(MAKE) release.build
+
+publish: release
+	@$(MAKE) release.publish
+
+.PHONY: build install test check vet fmt vendor clean distclean cross release publish
 
 # ====================================================================================
 # Help
@@ -172,6 +195,10 @@ help:
 	@echo '    help        Show this help info.'
 	@echo '    vendor      Installs vendor dependencies.'
 	@echo '    vet         Runs lint checks on go sources.'
+	@echo ''
+	@echo 'Distribution:'
+	@echo '    release     Builds all packages.'
+	@echo '    publish     Builds and publishes all packages.'
 	@echo ''
 	@echo 'Options:'
 	@echo ''

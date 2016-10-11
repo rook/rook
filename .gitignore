@@ -3,6 +3,7 @@
 .vscode/
 
 bin/
+release/
 tools/
 vendor/
 
