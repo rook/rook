@@ -125,7 +125,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 
 func setFlagsFromEnv(flags *pflag.FlagSet) error {
 	flags.VisitAll(func(f *pflag.Flag) {
-		envVar := "CASTLE_" + strings.Replace(strings.ToUpper(f.Name), "-", "_", -1)
+		envVar := "CASTLED_" + strings.Replace(strings.ToUpper(f.Name), "-", "_", -1)
 		value := os.Getenv(envVar)
 		if value != "" {
 			// Set the environment variable. Will override default values, but be overridden by command line parameters.
