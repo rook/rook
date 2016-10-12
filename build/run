@@ -44,6 +44,12 @@ fi
 
 tty -s && TTY_ARGS=-ti || TTY_ARGS=
 
+if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
+    DOCKER_NESTED_ARGS="\
+    -v ${HOME}/.docker/config.json:${BUILDER_HOME}/.docker/config.json \
+    -v /var/run/docker.sock:/var/run/docker.sock"
+fi
+
 docker run \
     --rm \
     --name "${friendly_name}" \
@@ -51,10 +57,13 @@ docker run \
     -e GOPATH="${BUILDER_HOME}/go" \
     -e WORKDIR=".work/cross" \
     -e GO_PKG_DIR="" \
+    -e GITHUB_TOKEN \
+    -e VERSION \
     ${TTY_ARGS} \
     ${CCACHE_ARGS} \
     ${NETRC_ARGS} \
     ${USER_ARGS} \
+    ${DOCKER_NESTED_ARGS} \
     -v ${scriptdir}/../bin:${BUILDER_HOME}/go/bin \
     -v ${scriptdir}/../.work/cross/pkg:${BUILDER_HOME}/go/pkg \
     -v ${scriptdir}/..:${BUILDER_HOME}/go/src/github.com/quantum/castle \

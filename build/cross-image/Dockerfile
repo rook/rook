@@ -21,6 +21,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
     cmake \
     crossbuild-essential-arm64 \
     curl \
+    docker.io \
     git \
     libxml2-dev \
     llvm-dev \
@@ -30,7 +31,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
     sudo \
     uuid-dev \
     xz-utils \
-    yasm
+    yasm \
+    zip
 
 # install the OSX cross compilers. see https://github.com/tpoechtrager/osxcross
 RUN OSXCROSS_COMMIT_HASH=86879571d33ff7252a55d777609742561dba9953 && \
@@ -38,13 +40,23 @@ RUN OSXCROSS_COMMIT_HASH=86879571d33ff7252a55d777609742561dba9953 && \
     OSXCROSS_SDK_HASH=d75dddc8d820daf38e90a7c8e9771750a8a4371027a2d658a904cffacbf6b09b && \
     git clone https://github.com/quantum/osxcross && \
     git -C osxcross checkout -b castle-build ${OSXCROSS_COMMIT_HASH} && \
-    curl -fsSL https://s3.amazonaws.com/castle-build/osxcross/${OSXCROSS_SDK} -o osxcross/tarballs/${OSXCROSS_SDK} && \
+    curl -fsSL https://castle-cross-build.s3.amazonaws.com/osxcross/${OSXCROSS_SDK} -o osxcross/tarballs/${OSXCROSS_SDK} && \
     echo "${OSXCROSS_SDK_HASH}  osxcross/tarballs/${OSXCROSS_SDK}" | sha256sum -c - && \
     UNATTENDED=yes OSX_VERSION_MIN=10.6 osxcross/build.sh && \
     mv osxcross/target /usr/local/osxcross && \
     rm -rf osxcross
 
 ENV PATH /usr/local/osxcross/bin:$PATH
+
+# install acbuild
+RUN ACBUILD_VERSION=0.4.0 && \
+    curl -fsSLO https://github.com/containers/build/releases/download/v${ACBUILD_VERSION}/acbuild-v${ACBUILD_VERSION}.tar.gz && \
+    tar -C /usr/local/bin --strip-components=1 -xzf acbuild-v${ACBUILD_VERSION}.tar.gz
+
+#install github-release
+RUN GITHUB_RELEASE_VERSION=0.6.2 && \
+    curl -fsSLO https://github.com/aktau/github-release/releases/download/v${GITHUB_RELEASE_VERSION}/linux-amd64-github-release.tar.bz2 && \
+    tar -C /usr/local/bin --strip-components=3 -xjf linux-amd64-github-release.tar.bz2
 
 #
 # install multi-arch packages needed to build ceph
