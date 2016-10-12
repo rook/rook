@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/store"
@@ -16,12 +15,21 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 )
 
-const (
-	Timeout = 30 * time.Second
-)
+// QuorumFormed tries to connect to the etcd cluster. If it fails it interprets it as an incomplete quorum.
+func QuorumFormed(currentNodes []string) bool {
+	_, err := client.New(client.Config{
+		Endpoints:               currentNodes,
+		Transport:               client.DefaultTransport,
+		HeaderTimeoutPerRequest: DefaultClientTimeout,
+	})
+	if err != nil {
+		return false
+	}
+	return true
+}
 
-func IsQuorumFull(discovery string) (bool, error, []string) {
-	res, err := QueryDiscoveryService(discovery + "/_config/size")
+func IsQuorumFull(token string) (bool, error, []string) {
+	res, err := QueryDiscoveryService(token + "/_config/size")
 	if err != nil {
 		return false, fmt.Errorf("cannot get discovery url cluster size: %v", err), []string{}
 	}
@@ -30,7 +38,7 @@ func IsQuorumFull(discovery string) (bool, error, []string) {
 	clusterSize := int(size)
 	log.Println("cluster max size is: ", clusterSize)
 
-	currentNodes, _ := GetCurrentNodes(discovery)
+	currentNodes, _ := GetCurrentNodesFromDiscovery(token)
 	log.Println("currentNodes: ", currentNodes)
 	if len(currentNodes) < clusterSize {
 		return false, nil, []string{}
@@ -41,7 +49,7 @@ func IsQuorumFull(discovery string) (bool, error, []string) {
 
 // QueryDiscoveryService reads a key from a discovery url.
 func QueryDiscoveryService(token string) (*store.Event, error) {
-	ctx, _ := context.WithTimeout(context.Background(), Timeout)
+	ctx, _ := context.WithTimeout(context.Background(), DefaultClientTimeout)
 	resp, err := ctxhttp.Get(ctx, http.DefaultClient, token)
 	if err != nil {
 		return nil, err
@@ -61,7 +69,7 @@ func QueryDiscoveryService(token string) (*store.Event, error) {
 	return &res, nil
 }
 
-func GetCurrentNodes(token string) ([]string, error) {
+func GetCurrentNodesFromDiscovery(token string) ([]string, error) {
 	res, err := QueryDiscoveryService(token)
 	if err != nil {
 		return nil, err
@@ -71,7 +79,8 @@ func GetCurrentNodes(token string) ([]string, error) {
 		if nn.Value == nil {
 			log.Printf("Skipping %q because no value exists", nn.Key)
 		}
-		n, err := newDiscoveryNode(*nn.Value, 2379)
+		clientPort, _ := strconv.Atoi(DefaultClientPort)
+		n, err := newDiscoveryNode(*nn.Value, clientPort)
 		if err != nil {
 			log.Printf("invalid peer url %q in discovery service: %v", *nn.Value, err)
 			continue

@@ -11,8 +11,12 @@ import (
 	"github.com/quantum/castle/pkg/util/proc"
 )
 
-// Initialize the cluster services to enable joining the cluster and listening for orchestration.
+// StartJoinCluster initializes the cluster services to enable joining the cluster and listening for orchestration.
 func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, discoveryURL, etcdMembers, privateIPv4 string) (*Context, error) {
+	nodeID, err := util.GetMachineID()
+	if err != nil {
+		return nil, err
+	}
 
 	etcdClients := []string{}
 	if etcdMembers != "" {
@@ -22,18 +26,13 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, dis
 
 		// use the discovery URL to query the etcdmgr what the etcd client endpoints should be
 		var err error
-		etcdClients, err = manager.GetEtcdClients(discoveryURL, privateIPv4)
+		etcdClients, err = manager.GetEtcdClients(discoveryURL, privateIPv4, nodeID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	etcdClient, err := util.GetEtcdClient(etcdClients)
-	if err != nil {
-		return nil, err
-	}
-
-	nodeID, err := GetMachineID()
 	if err != nil {
 		return nil, err
 	}

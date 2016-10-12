@@ -33,7 +33,6 @@ func (a *monAgent) Initialize(context *clusterd.Context) error {
 }
 
 func (a *monAgent) ConfigureLocalService(context *clusterd.Context) error {
-
 	// check if the monitor is in the desired state for this node
 	key := path.Join(cephKey, monitorAgentName, desiredKey, context.NodeID)
 	monDesired, err := util.EtcdDirExists(context.EtcdClient, key)
