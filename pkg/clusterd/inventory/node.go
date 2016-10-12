@@ -12,7 +12,7 @@ import (
 	ctx "golang.org/x/net/context"
 
 	"github.com/quantum/castle/pkg/util"
-	"github.com/quantum/castle/pkg/util/proc"
+	"github.com/quantum/castle/pkg/util/exec"
 
 	etcd "github.com/coreos/etcd/client"
 )
@@ -32,7 +32,7 @@ var (
 	HeartbeatTtlDuration = time.Duration(heartbeatTtlSeconds) * time.Second
 )
 
-func DiscoverHardware(nodeID string, etcdClient etcd.KeysAPI, executor proc.Executor) error {
+func DiscoverHardware(nodeID string, etcdClient etcd.KeysAPI, executor exec.Executor) error {
 	nodeConfigKey := GetNodeConfigKey(nodeID)
 	if err := discoverDisks(nodeConfigKey, etcdClient, executor); err != nil {
 		return err

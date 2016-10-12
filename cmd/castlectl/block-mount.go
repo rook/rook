@@ -12,9 +12,9 @@ import (
 
 	"github.com/quantum/castle/pkg/castlectl/client"
 	"github.com/quantum/castle/pkg/model"
+	"github.com/quantum/castle/pkg/util/exec"
 	"github.com/quantum/castle/pkg/util/flags"
 	"github.com/quantum/castle/pkg/util/kmod"
-	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util/sys"
 	"github.com/spf13/cobra"
 )
@@ -59,7 +59,7 @@ func mountBlockEntry(cmd *cobra.Command, args []string) error {
 	}
 
 	c := client.NewCastleNetworkRestClient(client.GetRestURL(apiServerEndpoint), http.DefaultClient)
-	e := &proc.CommandExecutor{}
+	e := &exec.CommandExecutor{}
 	out, err := mountBlock(mountImageName, mountImagePoolName, mountImagePath, rbdSysBusPathDefault, c, e)
 	if err != nil {
 		return err
@@ -69,7 +69,7 @@ func mountBlockEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func mountBlock(name, poolName, mountPoint, rbdSysBusPath string, c client.CastleRestClient, executor proc.Executor) (string, error) {
+func mountBlock(name, poolName, mountPoint, rbdSysBusPath string, c client.CastleRestClient, executor exec.Executor) (string, error) {
 	imageMapInfo, err := c.GetBlockImageMapInfo()
 	if err != nil {
 		return "", err
@@ -159,7 +159,7 @@ func getRBDAddData(name, poolName string, imageMapInfo model.BlockImageMapInfo) 
 	return rbdAddData, nil
 }
 
-func checkRBDSingleMajor(executor proc.Executor) bool {
+func checkRBDSingleMajor(executor exec.Executor) bool {
 	// check to see if the rbd kernel module has single_major support
 	hasSingleMajor, err := kmod.CheckKernelModuleParam(rbdKernelModuleName, "single_major", executor)
 	if err != nil {

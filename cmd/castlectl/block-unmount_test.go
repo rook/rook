@@ -10,11 +10,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/quantum/castle/pkg/util/proc"
+	exectest "github.com/quantum/castle/pkg/util/exec/test"
 )
 
 func TestUnmountBlock(t *testing.T) {
-	e := &proc.MockExecutor{
+	e := &exectest.MockExecutor{
 		MockExecuteCommandPipeline: func(actionName string, command string) (string, error) {
 			switch {
 			case strings.HasPrefix(command, "modinfo"):
@@ -48,7 +48,7 @@ func TestUnmountBlock(t *testing.T) {
 }
 
 func TestUnmountBlockFailure(t *testing.T) {
-	e := &proc.MockExecutor{
+	e := &exectest.MockExecutor{
 		MockExecuteCommandPipeline: func(actionName string, command string) (string, error) {
 			switch {
 			case strings.HasPrefix(command, "modinfo"):

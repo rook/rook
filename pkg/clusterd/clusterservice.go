@@ -4,6 +4,7 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/castle/pkg/util/exec"
 	"github.com/quantum/castle/pkg/util/proc"
 )
 
@@ -61,7 +62,7 @@ type Context struct {
 	EtcdClient etcd.KeysAPI
 
 	// The implementation of executing a console command
-	Executor proc.Executor
+	Executor exec.Executor
 
 	// The process manager for launching a process
 	ProcMan *proc.ProcManager
@@ -78,9 +79,9 @@ func copyContext(c *Context) *Context {
 	}
 }
 
-func (c *Context) GetExecutor() proc.Executor {
+func (c *Context) GetExecutor() exec.Executor {
 	if c.Executor == nil {
-		return &proc.CommandExecutor{}
+		return &exec.CommandExecutor{}
 	}
 
 	return c.Executor

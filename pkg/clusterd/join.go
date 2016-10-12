@@ -7,6 +7,7 @@ import (
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/etcdmgr/manager"
 	"github.com/quantum/castle/pkg/util"
+	"github.com/quantum/castle/pkg/util/exec"
 	"github.com/quantum/castle/pkg/util/proc"
 )
 
@@ -54,7 +55,7 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, dis
 
 	context := &Context{
 		EtcdClient: etcdClient,
-		Executor:   &proc.CommandExecutor{},
+		Executor:   &exec.CommandExecutor{},
 		NodeID:     nodeID,
 		Services:   services,
 		ProcMan:    procMan,

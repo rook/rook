@@ -3,10 +3,10 @@ package kmod
 import (
 	"fmt"
 
-	"github.com/quantum/castle/pkg/util/proc"
+	"github.com/quantum/castle/pkg/util/exec"
 )
 
-func LoadKernelModule(name string, options []string, executor proc.Executor) error {
+func LoadKernelModule(name string, options []string, executor exec.Executor) error {
 	if options == nil {
 		options = []string{}
 	}
@@ -20,7 +20,7 @@ func LoadKernelModule(name string, options []string, executor proc.Executor) err
 	return nil
 }
 
-func CheckKernelModuleParam(name, param string, executor proc.Executor) (bool, error) {
+func CheckKernelModuleParam(name, param string, executor exec.Executor) (bool, error) {
 	cmd := fmt.Sprintf(`modinfo -F parm %s | grep "^%s" | awk '{print $0}'`, name, param)
 	out, err := executor.ExecuteCommandPipeline("check kmod param", cmd)
 	if err != nil {

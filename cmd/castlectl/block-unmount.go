@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/quantum/castle/pkg/util/exec"
 	"github.com/quantum/castle/pkg/util/flags"
-	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util/sys"
 	"github.com/spf13/cobra"
 )
@@ -34,7 +34,7 @@ func unmountBlockEntry(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	e := &proc.CommandExecutor{}
+	e := &exec.CommandExecutor{}
 	out, err := unmountBlock(unmountDeviceName, unmountPath, rbdSysBusPathDefault, e)
 	if err != nil {
 		return err
@@ -44,7 +44,7 @@ func unmountBlockEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func unmountBlock(device, path, rbdSysBusPath string, executor proc.Executor) (string, error) {
+func unmountBlock(device, path, rbdSysBusPath string, executor exec.Executor) (string, error) {
 	if device == "" && path == "" {
 		return "", fmt.Errorf("device and path are not specified, one of them must be specified")
 	}

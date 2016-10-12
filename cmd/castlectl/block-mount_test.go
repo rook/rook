@@ -12,7 +12,7 @@ import (
 
 	"github.com/quantum/castle/pkg/castlectl/test"
 	"github.com/quantum/castle/pkg/model"
-	"github.com/quantum/castle/pkg/util/proc"
+	exectest "github.com/quantum/castle/pkg/util/exec/test"
 )
 
 func TestMountBlock(t *testing.T) {
@@ -25,7 +25,7 @@ func TestMountBlock(t *testing.T) {
 			}, nil
 		},
 	}
-	e := &proc.MockExecutor{
+	e := &exectest.MockExecutor{
 		MockExecuteCommandPipeline: func(actionName string, command string) (string, error) {
 			switch {
 			case strings.HasPrefix(command, "modinfo"):
@@ -62,7 +62,7 @@ func TestMountBlockFailure(t *testing.T) {
 			return model.BlockImageMapInfo{}, fmt.Errorf("mock failure for GetBlockImageMapInfo")
 		},
 	}
-	e := &proc.MockExecutor{}
+	e := &exectest.MockExecutor{}
 
 	// expect mountBlock to fail
 	out, err := mountBlock("myimage1", "mypool1", "/tmp/mymount1", "", c, e)

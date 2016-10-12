@@ -8,8 +8,8 @@ import (
 
 	"github.com/quantum/castle/pkg/castlectl/client"
 	"github.com/quantum/castle/pkg/util/display"
+	"github.com/quantum/castle/pkg/util/exec"
 	"github.com/quantum/castle/pkg/util/flags"
-	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/quantum/castle/pkg/util/sys"
 	"github.com/spf13/cobra"
 )
@@ -29,7 +29,7 @@ func listBlocksEntry(cmd *cobra.Command, args []string) error {
 	}
 
 	c := client.NewCastleNetworkRestClient(client.GetRestURL(apiServerEndpoint), http.DefaultClient)
-	e := &proc.CommandExecutor{}
+	e := &exec.CommandExecutor{}
 	out, err := listBlocks(rbdSysBusPathDefault, c, e)
 	if err != nil {
 		return err
@@ -39,7 +39,7 @@ func listBlocksEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func listBlocks(rbdSysBusPath string, c client.CastleRestClient, executor proc.Executor) (string, error) {
+func listBlocks(rbdSysBusPath string, c client.CastleRestClient, executor exec.Executor) (string, error) {
 	images, err := c.GetBlockImages()
 	if err != nil {
 		return "", fmt.Errorf("failed to get block images: %+v", err)
