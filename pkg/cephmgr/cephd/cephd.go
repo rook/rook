@@ -1,3 +1,5 @@
+// +build !mockceph
+
 package cephd
 
 // #cgo CFLAGS: -I${SRCDIR}/../../../ceph/src/include
