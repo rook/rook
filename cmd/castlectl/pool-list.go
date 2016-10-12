@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	"github.com/quantum/castle/pkg/castlectl/client"
+	"github.com/quantum/castle/pkg/model"
+	"github.com/quantum/castle/pkg/util/display"
 	"github.com/quantum/castle/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -43,10 +45,14 @@ func listPools(c client.CastleRestClient) (string, error) {
 	var buffer bytes.Buffer
 	w := NewTableWriter(&buffer)
 
-	fmt.Fprintln(w, "NAME\tNUMBER\t")
+	fmt.Fprintln(w, "NAME\tNUMBER\tTYPE\tSIZE\tDATA\tCODING\tALGORITHM")
 
 	for _, p := range pools {
-		fmt.Fprintf(w, "%s\t%d\t\n", p.Name, p.Number)
+		fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\t%s\t%s\n", p.Name, p.Number, model.PoolTypeToString(p.Type),
+			display.NumToStrOmitEmpty(p.ReplicationConfig.Size),
+			display.NumToStrOmitEmpty(p.ErasureCodedConfig.DataChunkCount),
+			display.NumToStrOmitEmpty(p.ErasureCodedConfig.CodingChunkCount),
+			p.ErasureCodedConfig.Algorithm)
 	}
 
 	w.Flush()

@@ -29,6 +29,7 @@ type cephGlobalConfig struct {
 	MonClusterLogFile        string `ini:"mon cluster log file,omitempty"`
 	DebugLogDefaultLevel     int    `ini:"debug default"`
 	DebugLogRadosLevel       int    `ini:"debug rados"`
+	DebugLogMonLevel         int    `ini:"debug mon"`
 	OsdPgBits                int    `ini:"osd pg bits,omitempty"`
 	OsdPgpBits               int    `ini:"osd pgp bits,omitempty"`
 	OsdPoolDefaultSize       int    `ini:"osd pool default size,omitempty"`
@@ -153,6 +154,7 @@ func createDefaultCephConfig(cluster *ClusterInfo, runDir string) *cephConfig {
 			MonClusterLogFile:     "/dev/stdout",
 			DebugLogDefaultLevel:  0,
 			DebugLogRadosLevel:    0,
+			DebugLogMonLevel:      0,
 			OsdPgBits:             11,
 			OsdPgpBits:            11,
 			OsdPoolDefaultSize:    1,

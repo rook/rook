@@ -4,37 +4,103 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"strings"
 )
 
-type CephStoragePool struct {
-	Number int    `json:"poolnum"`
+type CephStoragePoolSummary struct {
 	Name   string `json:"poolname"`
+	Number int    `json:"poolnum"`
 }
 
-func ListPools(conn Connection) ([]CephStoragePool, error) {
+type CephStoragePoolDetails struct {
+	Name               string `json:"pool"`
+	Number             int    `json:"pool_id"`
+	Size               uint   `json:"size"`
+	ErasureCodeProfile string `json:"erasure_code_profile"`
+}
+
+func ListPoolSummaries(conn Connection) ([]CephStoragePoolSummary, error) {
 	cmd := map[string]interface{}{"prefix": "osd lspools"}
 	buf, err := ExecuteMonCommand(conn, cmd, "list pools")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list pools: %+v", err)
 	}
 
-	var pools []CephStoragePool
+	var pools []CephStoragePoolSummary
 	err = json.Unmarshal(buf, &pools)
 	if err != nil {
-		return nil, fmt.Errorf("unmarhsall failed: %+v.  raw buffer response: %s", err, string(buf[:]))
+		return nil, fmt.Errorf("unmarshal failed: %+v.  raw buffer response: %s", err, string(buf))
 	}
 
 	return pools, nil
 }
 
-func CreatePool(conn Connection, name string) (string, error) {
-	cmd := map[string]interface{}{"prefix": "osd pool create", "pool": name}
+func GetPoolDetails(conn Connection, name string) (CephStoragePoolDetails, error) {
+	cmd := map[string]interface{}{"prefix": "osd pool get", "pool": name, "var": "all"}
+	buf, err := ExecuteMonCommand(conn, cmd, "get pool")
+	if err != nil {
+		return CephStoragePoolDetails{}, fmt.Errorf("failed to get pool %s details: %+v", name, err)
+	}
+
+	// The response for osd pool get when passing var=all is actually malformed JSON similar to:
+	// {"pool":"rbd","size":1}{"pool":"rbd","min_size":2}...
+	// Note the multiple top level entities, one for each property returned.  To workaround this,
+	// we split the JSON response string into its top level entities, then iterate through them, cleaning
+	// up the JSON.  A single pool details object is repeatedly used to unmarshal each JSON snippet into.
+	// Since previously set fields remain intact if they are not overwritten, the result is the JSON
+	// unmarshalling of all properties in the response.
+	var poolDetails CephStoragePoolDetails
+	poolDetailsUnits := strings.Split(string(buf), "}{")
+	for i := range poolDetailsUnits {
+		pdu := poolDetailsUnits[i]
+		if !strings.HasPrefix(pdu, "{") {
+			pdu = "{" + pdu
+		}
+		if !strings.HasSuffix(pdu, "}") {
+			pdu += "}"
+		}
+		err := json.Unmarshal([]byte(pdu), &poolDetails)
+		if err != nil {
+			return CephStoragePoolDetails{}, fmt.Errorf("unmarshal failed: %+v. raw buffer response: %s", err, string(buf))
+		}
+	}
+
+	return poolDetails, nil
+}
+
+func CreatePool(conn Connection, newPool CephStoragePoolDetails) (string, error) {
+	cmd := map[string]interface{}{"prefix": "osd pool create", "pool": newPool.Name}
+
+	if newPool.ErasureCodeProfile != "" {
+		cmd["pool_type"] = "erasure"
+		cmd["erasure_code_profile"] = newPool.ErasureCodeProfile
+	} else {
+		cmd["pool_type"] = "replicated"
+	}
+
 	buf, info, err := ExecuteMonCommandWithInfo(conn, cmd, "create pool")
 	if err != nil {
 		return "", fmt.Errorf("mon_command %s failed, buf: %s, info: %s: %+v", cmd, string(buf), info, err)
 	}
 
-	log.Printf("creating pool %s succeeded, info: %s, buf: %s", name, info, string(buf[:]))
+	if newPool.ErasureCodeProfile == "" && newPool.Size > 0 {
+		// the pool is type replicated, set the size for the pool now that it's been created
+		if err = SetPoolProperty(conn, newPool.Name, "size", newPool.Size); err != nil {
+			return "", err
+		}
+	}
+
+	log.Printf("creating pool %s succeeded, info: %s, buf: %s", newPool.Name, info, string(buf))
 
 	return info, nil
+}
+
+func SetPoolProperty(conn Connection, name, propName string, propVal interface{}) error {
+	cmd := map[string]interface{}{"prefix": "osd pool set", "pool": name, "var": propName, "val": propVal}
+	buf, info, err := ExecuteMonCommandWithInfo(conn, cmd, "set pool")
+	if err != nil {
+		return fmt.Errorf("mon_command %s failed, buf: %s, info: %s: %+v", cmd, string(buf), info, err)
+	}
+
+	return nil
 }
