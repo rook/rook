@@ -6,13 +6,13 @@ import (
 	"os"
 	"os/user"
 
-	"github.com/quantum/castle/pkg/util/proc"
+	"github.com/quantum/castle/pkg/util/exec"
 )
 
 // request the current user once and stash it in this global variable
 var currentUser *user.User
 
-func GetDeviceFilesystem(device string, executor proc.Executor) (string, error) {
+func GetDeviceFilesystem(device string, executor exec.Executor) (string, error) {
 	cmd := fmt.Sprintf("get filesystem type for %s", device)
 	devFS, err := executor.ExecuteCommandPipeline(
 		cmd,
@@ -24,7 +24,7 @@ func GetDeviceFilesystem(device string, executor proc.Executor) (string, error) 
 	return devFS, nil
 }
 
-func FormatDevice(devicePath string, executor proc.Executor) error {
+func FormatDevice(devicePath string, executor exec.Executor) error {
 	cmd := fmt.Sprintf("mkfs.ext4 %s", devicePath)
 	if err := executor.ExecuteCommand(cmd, "sudo", "mkfs.ext4", devicePath); err != nil {
 		return fmt.Errorf("command %s failed: %+v", cmd, err)
@@ -34,7 +34,7 @@ func FormatDevice(devicePath string, executor proc.Executor) error {
 }
 
 // look up the mount point of the given device.  empty string returned if device is not mounted.
-func GetDeviceMountPoint(deviceName string, executor proc.Executor) (string, error) {
+func GetDeviceMountPoint(deviceName string, executor exec.Executor) (string, error) {
 	cmd := fmt.Sprintf("get mount point for %s", deviceName)
 	mountPoint, err := executor.ExecuteCommandPipeline(
 		cmd,
@@ -46,7 +46,7 @@ func GetDeviceMountPoint(deviceName string, executor proc.Executor) (string, err
 	return mountPoint, nil
 }
 
-func GetDeviceFromMountPoint(mountPoint string, executor proc.Executor) (string, error) {
+func GetDeviceFromMountPoint(mountPoint string, executor exec.Executor) (string, error) {
 	cmd := fmt.Sprintf("get device from mount point %s", mountPoint)
 	device, err := executor.ExecuteCommandPipeline(
 		cmd,
@@ -58,12 +58,12 @@ func GetDeviceFromMountPoint(mountPoint string, executor proc.Executor) (string,
 	return device, nil
 }
 
-func MountDevice(devicePath, mountPath string, executor proc.Executor) error {
+func MountDevice(devicePath, mountPath string, executor exec.Executor) error {
 	return MountDeviceWithOptions(devicePath, mountPath, "", executor)
 }
 
 // comma-separated list of mount options passed directly to mount command
-func MountDeviceWithOptions(devicePath, mountPath, options string, executor proc.Executor) error {
+func MountDeviceWithOptions(devicePath, mountPath, options string, executor exec.Executor) error {
 	var args []string
 	if options != "" {
 		args = []string{"mount", "-o", options, devicePath, mountPath}
@@ -80,10 +80,10 @@ func MountDeviceWithOptions(devicePath, mountPath, options string, executor proc
 	return nil
 }
 
-func UnmountDevice(devicePath string, executor proc.Executor) error {
+func UnmountDevice(devicePath string, executor exec.Executor) error {
 	cmd := fmt.Sprintf("umount %s", devicePath)
 	if err := executor.ExecuteCommand(cmd, "sudo", "umount", devicePath); err != nil {
-		cmdErr, ok := err.(*proc.CommandError)
+		cmdErr, ok := err.(*exec.CommandError)
 		if ok && cmdErr.ExitStatus() == 32 {
 			log.Printf("ignoring exit status 32 from unmount of device %s, err:%+v", devicePath, cmdErr)
 		} else {
@@ -94,7 +94,7 @@ func UnmountDevice(devicePath string, executor proc.Executor) error {
 	return nil
 }
 
-func DoesDeviceHaveChildren(device string, executor proc.Executor) (bool, error) {
+func DoesDeviceHaveChildren(device string, executor exec.Executor) (bool, error) {
 	cmd := fmt.Sprintf("check children for device %s", device)
 	children, err := executor.ExecuteCommandPipeline(
 		cmd,
@@ -106,7 +106,7 @@ func DoesDeviceHaveChildren(device string, executor proc.Executor) (bool, error)
 	return children != "", nil
 }
 
-func ChownForCurrentUser(path string, executor proc.Executor) {
+func ChownForCurrentUser(path string, executor exec.Executor) {
 	if currentUser == nil {
 		var err error
 		currentUser, err = user.Current()

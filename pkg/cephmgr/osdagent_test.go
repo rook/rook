@@ -14,6 +14,7 @@ import (
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/util"
+	exectest "github.com/quantum/castle/pkg/util/exec/test"
 	"github.com/quantum/castle/pkg/util/proc"
 	"github.com/stretchr/testify/assert"
 )
@@ -27,7 +28,7 @@ func TestOSDAgentWithDevices(t *testing.T) {
 	etcdClient, agent, _ := createTestAgent("sdx,sdy")
 
 	execCount := 0
-	executor := &proc.MockExecutor{}
+	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
 		log.Printf("EXECUTE %d for %s. %s %+v", execCount, name, command, args)
 		parts := strings.Split(name, " ")
@@ -127,7 +128,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	// should be no executeCommand calls
 	execCount := 0
-	executor := &proc.MockExecutor{}
+	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
 		assert.Fail(t, "executeCommand is not expected for OSD local device")
 		execCount++
@@ -203,7 +204,7 @@ func TestAppliedDevices(t *testing.T) {
 
 func TestRemoveDevice(t *testing.T) {
 	etcdClient, agent, conn := createTestAgent("")
-	executor := &proc.MockExecutor{}
+	executor := &exectest.MockExecutor{}
 	procTrap := func(action string, c *exec.Cmd) error {
 		return nil
 	}

@@ -22,7 +22,7 @@ import (
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/util"
-	"github.com/quantum/castle/pkg/util/proc"
+	"github.com/quantum/castle/pkg/util/exec"
 	"github.com/quantum/castle/pkg/util/sys"
 )
 
@@ -144,7 +144,7 @@ func createOSDBootstrapKeyring(conn client.Connection, clusterName string) error
 }
 
 // format the given device for usage by an OSD
-func formatOSD(device string, forceFormat bool, executor proc.Executor) error {
+func formatOSD(device string, forceFormat bool, executor exec.Executor) error {
 	// format the current volume
 	devFS, err := sys.GetDeviceFilesystem(device, executor)
 	if err != nil {
@@ -173,7 +173,7 @@ func formatOSD(device string, forceFormat bool, executor proc.Executor) error {
 }
 
 // mount the OSD data directory onto the given device
-func mountOSD(device string, mountPath string, executor proc.Executor) error {
+func mountOSD(device string, mountPath string, executor exec.Executor) error {
 	cmd := fmt.Sprintf("lsblk %s", device)
 	var diskUUID string
 

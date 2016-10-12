@@ -10,7 +10,7 @@ import (
 
 	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/util"
-	"github.com/quantum/castle/pkg/util/proc"
+	"github.com/quantum/castle/pkg/util/exec"
 	"github.com/quantum/castle/pkg/util/sys"
 	ctx "golang.org/x/net/context"
 )
@@ -155,7 +155,7 @@ func itob(i int64) bool {
 	}
 }
 
-func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor proc.Executor) error {
+func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.Executor) error {
 	disksKey := path.Join(nodeConfigKey, DisksKey)
 
 	cmd := "lsblk all"
@@ -170,7 +170,7 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor proc.
 			"-b", "-d", "-P", "-o", "SERIAL,UUID,SIZE,ROTA,RO,TYPE,PKNAME")
 		if err != nil {
 			// try to get more information about the command error
-			cmdErr, ok := err.(*proc.CommandError)
+			cmdErr, ok := err.(*exec.CommandError)
 			if ok && cmdErr.ExitStatus() == 32 {
 				// certain device types (such as loop) return exit status 32 when probed further,
 				// ignore and continue without logging

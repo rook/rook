@@ -12,7 +12,7 @@ import (
 
 	"github.com/quantum/castle/pkg/castlectl/test"
 	"github.com/quantum/castle/pkg/model"
-	"github.com/quantum/castle/pkg/util/proc"
+	exectest "github.com/quantum/castle/pkg/util/exec/test"
 )
 
 func TestListBlockImages(t *testing.T) {
@@ -23,7 +23,7 @@ func TestListBlockImages(t *testing.T) {
 			}, nil
 		},
 	}
-	e := &proc.MockExecutor{
+	e := &exectest.MockExecutor{
 		MockExecuteCommandPipeline: func(actionName string, command string) (string, error) {
 			if strings.Contains(command, "rbd5") {
 				return "/tmp/mymount1", nil
@@ -51,7 +51,7 @@ func TestListBlockImagesFailure(t *testing.T) {
 			return nil, fmt.Errorf("mock failure to get block images")
 		},
 	}
-	e := &proc.MockExecutor{}
+	e := &exectest.MockExecutor{}
 
 	out, err := listBlocks("", c, e)
 	assert.NotNil(t, err)
@@ -64,7 +64,7 @@ func TestListBlockImagesZeroImages(t *testing.T) {
 			return []model.BlockImage{}, nil
 		},
 	}
-	e := &proc.MockExecutor{}
+	e := &exectest.MockExecutor{}
 
 	out, err := listBlocks("", c, e)
 	assert.Nil(t, err)
