@@ -17,7 +17,6 @@ import (
 	"github.com/quantum/castle/pkg/cephmgr"
 	"github.com/quantum/castle/pkg/cephmgr/cephd"
 	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/etcdmgr"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/quantum/castle/pkg/util/flags"
 	"github.com/quantum/castle/pkg/util/proc"
@@ -95,7 +94,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 
 	services := []*clusterd.ClusterService{
 		cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.location),
-		etcdmgr.NewEtcdMgrService(cfg.discoveryURL),
+		//etcdmgr.NewEtcdMgrService(cfg.discoveryURL),
 	}
 	procMan := &proc.ProcManager{}
 	defer func() {
