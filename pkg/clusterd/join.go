@@ -12,7 +12,7 @@ import (
 )
 
 // StartJoinCluster initializes the cluster services to enable joining the cluster and listening for orchestration.
-func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, discoveryURL, etcdMembers, privateIPv4 string) (*Context, error) {
+func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, discoveryURL, etcdMembers, publicIPv4, privateIPv4 string) (*Context, error) {
 	nodeID, err := util.GetMachineID()
 	if err != nil {
 		return nil, err

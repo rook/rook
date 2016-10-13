@@ -32,6 +32,7 @@ var cfg = newConfig()
 type config struct {
 	discoveryURL string
 	etcdMembers  string
+	publicIPv4   string
 	privateIPv4  string
 	devices      string
 	forceFormat  bool
@@ -57,6 +58,7 @@ func main() {
 func init() {
 	rootCmd.Flags().StringVar(&cfg.discoveryURL, "discovery-url", "", "etcd discovery URL. Example: http://discovery.castle.com/26bd83c92e7145e6b103f623263f61df")
 	rootCmd.Flags().StringVar(&cfg.etcdMembers, "etcd-members", "", "etcd members to connect to. Overrides the discovery URL. Example: http://10.23.45.56:2379")
+	rootCmd.Flags().StringVar(&cfg.publicIPv4, "public-ipv4", "", "public IPv4 address for this machine")
 	rootCmd.Flags().StringVar(&cfg.privateIPv4, "private-ipv4", "127.0.0.1", "private IPv4 address for this machine")
 	rootCmd.Flags().StringVar(&cfg.devices, "devices", "", "comma separated list of devices to use")
 	rootCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
@@ -99,7 +101,7 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 	}()
 
 	// start the cluster orchestration services
-	context, err := clusterd.StartJoinCluster(services, procMan, cfg.discoveryURL, cfg.etcdMembers, cfg.privateIPv4)
+	context, err := clusterd.StartJoinCluster(services, procMan, cfg.discoveryURL, cfg.etcdMembers, cfg.publicIPv4, cfg.privateIPv4)
 	if err != nil {
 		return err
 	}
