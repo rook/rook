@@ -44,11 +44,17 @@ fi
 
 tty -s && TTY_ARGS=-ti || TTY_ARGS=
 
+if [ -z "${DISABLE_HOST_NETWORK}" ]; then
+    NET_ARGS="--net=host"
+fi
+
 if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
     DOCKER_NESTED_ARGS="\
     -v ${HOME}/.docker/config.json:${BUILDER_HOME}/.docker/config.json \
     -v /var/run/docker.sock:/var/run/docker.sock"
 fi
+
+# NOTE: docker seems more reliable when running with net=host.
 
 docker run \
     --rm \
@@ -64,6 +70,7 @@ docker run \
     ${NETRC_ARGS} \
     ${USER_ARGS} \
     ${DOCKER_NESTED_ARGS} \
+    ${NET_ARGS} \
     -v ${scriptdir}/../bin:${BUILDER_HOME}/go/bin \
     -v ${scriptdir}/../.work/cross/pkg:${BUILDER_HOME}/go/pkg \
     -v ${scriptdir}/..:${BUILDER_HOME}/go/src/github.com/quantum/castle \
