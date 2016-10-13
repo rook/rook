@@ -10,3 +10,6 @@ vendor/
 coverage.out
 coverage.html
 debug.test
+
+.vagrant/
+demo/vagrant/cloud-config.yml
