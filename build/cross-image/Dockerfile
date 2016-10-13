@@ -23,6 +23,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
     curl \
     docker.io \
     git \
+    jq \
     libxml2-dev \
     llvm-dev \
     mingw-w64 \
@@ -52,11 +53,6 @@ ENV PATH /usr/local/osxcross/bin:$PATH
 RUN ACBUILD_VERSION=0.4.0 && \
     curl -fsSLO https://github.com/containers/build/releases/download/v${ACBUILD_VERSION}/acbuild-v${ACBUILD_VERSION}.tar.gz && \
     tar -C /usr/local/bin --strip-components=1 -xzf acbuild-v${ACBUILD_VERSION}.tar.gz
-
-#install github-release
-RUN GITHUB_RELEASE_VERSION=0.6.2 && \
-    curl -fsSLO https://github.com/aktau/github-release/releases/download/v${GITHUB_RELEASE_VERSION}/linux-amd64-github-release.tar.bz2 && \
-    tar -C /usr/local/bin --strip-components=3 -xjf linux-amd64-github-release.tar.bz2
 
 #
 # install multi-arch packages needed to build ceph

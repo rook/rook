@@ -3,7 +3,7 @@
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${scriptdir}/common.sh
 
-container=quantum/castle
+container=quantum/castled
 
 build() {
     local type=$1
@@ -30,7 +30,7 @@ EOF
     fi
 
     echo building docker container ${tag}
-    docker build -t ${tag} $tmpdir
+    docker build -t ${tag} -t quay.io/${tag} $tmpdir
     rm -fr $tmpdir
 }
 
@@ -50,6 +50,9 @@ publish() {
 
     echo pushing docker container ${tag}
     docker push ${tag}
+
+    echo pushing docker container quay.io/${tag}
+    docker push quay.io/${tag}
 }
 
 action=$1
