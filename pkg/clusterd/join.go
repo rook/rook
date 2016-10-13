@@ -2,6 +2,7 @@ package clusterd
 
 import (
 	"fmt"
+	"log"
 	"strings"
 
 	"github.com/quantum/castle/pkg/clusterd/inventory"
@@ -12,11 +13,9 @@ import (
 )
 
 // StartJoinCluster initializes the cluster services to enable joining the cluster and listening for orchestration.
-func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, discoveryURL, etcdMembers, publicIPv4, privateIPv4 string) (*Context, error) {
-	nodeID, err := util.GetMachineID()
-	if err != nil {
-		return nil, err
-	}
+func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4 string) (*Context, error) {
+	log.Printf("Starting cluster. nodeID=%s, url=%s, members=%s, publicIPv4=%s, privateIPv4=%s",
+		nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4)
 
 	etcdClients := []string{}
 	if etcdMembers != "" {

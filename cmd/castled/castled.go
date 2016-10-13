@@ -18,6 +18,7 @@ import (
 	"github.com/quantum/castle/pkg/cephmgr/cephd"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/etcdmgr"
+	"github.com/quantum/castle/pkg/util"
 	"github.com/quantum/castle/pkg/util/flags"
 	"github.com/quantum/castle/pkg/util/proc"
 )
@@ -30,6 +31,7 @@ var rootCmd = &cobra.Command{
 var cfg = newConfig()
 
 type config struct {
+	nodeID       string
 	discoveryURL string
 	etcdMembers  string
 	publicIPv4   string
@@ -56,6 +58,7 @@ func main() {
 //  2) environment variables (upper case, replace - with _, and castle prefix. For example, discovery-url is CASTLE_DISCOVERY_URL)
 //  3) command line parameter
 func init() {
+	rootCmd.Flags().StringVar(&cfg.nodeID, "id", "", "unique identifier in the cluster for this machine. defaults to /etc/machine-id if found.")
 	rootCmd.Flags().StringVar(&cfg.discoveryURL, "discovery-url", "", "etcd discovery URL. Example: http://discovery.castle.com/26bd83c92e7145e6b103f623263f61df")
 	rootCmd.Flags().StringVar(&cfg.etcdMembers, "etcd-members", "", "etcd members to connect to. Overrides the discovery URL. Example: http://10.23.45.56:2379")
 	rootCmd.Flags().StringVar(&cfg.publicIPv4, "public-ipv4", "", "public IPv4 address for this machine")
@@ -100,8 +103,17 @@ func joinCluster(cmd *cobra.Command, args []string) error {
 		<-time.After(time.Duration(1) * time.Second)
 	}()
 
+	if cfg.nodeID == "" {
+		// read /etc/machine-id
+		var err error
+		cfg.nodeID, err = util.GetMachineID()
+		if err != nil {
+			return fmt.Errorf("id not provided and failed to read /etc/machine-id. %v", err)
+		}
+	}
+
 	// start the cluster orchestration services
-	context, err := clusterd.StartJoinCluster(services, procMan, cfg.discoveryURL, cfg.etcdMembers, cfg.publicIPv4, cfg.privateIPv4)
+	context, err := clusterd.StartJoinCluster(services, procMan, cfg.nodeID, cfg.discoveryURL, cfg.etcdMembers, cfg.publicIPv4, cfg.privateIPv4)
 	if err != nil {
 		return err
 	}
