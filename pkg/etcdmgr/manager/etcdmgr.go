@@ -16,13 +16,13 @@ func GetEtcdClients(token, ipAddr, nodeID string) ([]string, error) {
 	// GODEBUG setting forcing use of Go's resolver
 	os.Setenv("GODEBUG", "netdns=go+1")
 
-	currentNodes, err := bootstrap.GetCurrentNodesFromDiscovery(token)
+	full, err, currentNodes := bootstrap.IsQuorumFull(token)
+	//currentNodes, err := bootstrap.GetCurrentNodesFromDiscovery(token)
 	if err != nil {
-		return nil, err
+		return []string{}, errors.New("error querying discovery service")
 	}
 	log.Println("current etcd cluster nodes: ", currentNodes)
 
-	quorum := bootstrap.QuorumFormed(currentNodes)
 	localURL := "http://" + ipAddr + ":" + bootstrap.DefaultClientPort
 	// Is it a restart scenario?
 	restart := false
@@ -33,10 +33,12 @@ func GetEtcdClients(token, ipAddr, nodeID string) ([]string, error) {
 			restart = true
 		}
 	}
-	if quorum && !restart {
+
+	if full && !restart {
 		log.Println("quorum is already formed, returning current cluster members: ", currentNodes)
 		return currentNodes, nil
 	}
+
 	log.Println("quorum is not complete, creating a new embedded etcd member...")
 	conf, err := bootstrap.GenerateConfig(ipAddr, nodeID)
 	if err != nil {
