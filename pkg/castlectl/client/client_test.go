@@ -13,8 +13,8 @@ import (
 
 const (
 	SuccessGetNodesContent             = `[{"nodeID": "node1","ipAddr": "10.0.0.100","storage": 100},{"nodeID": "node2","ipAddr": "10.0.0.101","storage": 200}]`
-	SuccessGetPoolsContent             = `[{"poolname":"pool1","poolnum":1},{"poolname":"pool50","poolnum":50}]`
-	SuccessCreatePoolContent           = `created pool1 successfully`
+	SuccessGetPoolsContent             = "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicationConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicationConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]"
+	SuccessCreatePoolContent           = `pool 'ecPool1' created`
 	SuccessGetBlockImagesContent       = `[{"imageName":"myimage1","poolName":"rbd","size":10485760,"device":"","mountPoint":""},{"imageName":"myimage2","poolName":"rbd2","size":10485761,"device":"","mountPoint":""}]`
 	SuccessCreateBlockImageContent     = `succeeded created image myimage3`
 	SuccessGetBlockImageMapInfoContent = `{"monAddresses":["10.37.129.214:6790/0"],"userName":"admin","secretKey":"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg=="}`
@@ -67,16 +67,26 @@ func TestGetPools(t *testing.T) {
 	assert.NotNil(t, getPoolsResponse)
 	assert.Equal(t, 2, len(getPoolsResponse))
 
-	var testPool model.Pool
+	expectedPool1 := model.Pool{
+		Name:   "ecPool1",
+		Number: 1,
+		Type:   model.ErasureCoded,
+		ErasureCodedConfig: model.ErasureCodedPoolConfig{
+			DataChunkCount:   2,
+			CodingChunkCount: 1,
+			Algorithm:        "jerasure::reed_sol_van",
+		},
+	}
+	var actualPool model.Pool
 	for i := range getPoolsResponse {
-		if getPoolsResponse[i].Name == "pool1" {
-			testPool = getPoolsResponse[i]
+		if getPoolsResponse[i].Name == "ecPool1" {
+			actualPool = getPoolsResponse[i]
 			break
 		}
 	}
 
-	assert.NotNil(t, testPool)
-	assert.Equal(t, 1, testPool.Number)
+	assert.NotNil(t, actualPool)
+	assert.Equal(t, expectedPool1, actualPool)
 }
 
 func TestCreatePool(t *testing.T) {
@@ -86,9 +96,19 @@ func TestCreatePool(t *testing.T) {
 	client := NewCastleNetworkRestClient(mockServer.URL, mockHttpClient)
 
 	// invoke the CreatePool method that will use our mock http client/server to return a successful response
-	createPoolResponse, err := client.CreatePool(model.Pool{Name: "pool1"})
+	newPool := model.Pool{
+		Name:   "ecPool1",
+		Number: 1,
+		Type:   model.ErasureCoded,
+		ErasureCodedConfig: model.ErasureCodedPoolConfig{
+			DataChunkCount:   2,
+			CodingChunkCount: 1,
+			Algorithm:        "jerasure::reed_sol_van",
+		},
+	}
+	createPoolResponse, err := client.CreatePool(newPool)
 	assert.Nil(t, err)
-	assert.Equal(t, "created pool1 successfully\n", createPoolResponse)
+	assert.Equal(t, "pool 'ecPool1' created\n", createPoolResponse)
 }
 
 func TestGetBlockImages(t *testing.T) {

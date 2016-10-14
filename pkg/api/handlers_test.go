@@ -1,7 +1,6 @@
 package api
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -19,6 +18,11 @@ import (
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/stretchr/testify/assert"
+)
+
+const (
+	SuccessGetPoolRBDResponse     = `{"pool":"rbd","pool_id":0,"size":1}{"pool":"rbd","pool_id":0,"min_size":1}{"pool":"rbd","pool_id":0,"crash_replay_interval":0}{"pool":"rbd","pool_id":0,"pg_num":2048}{"pool":"rbd","pool_id":0,"pgp_num":2048}{"pool":"rbd","pool_id":0,"crush_ruleset":0}{"pool":"rbd","pool_id":0,"hashpspool":"true"}{"pool":"rbd","pool_id":0,"nodelete":"false"}{"pool":"rbd","pool_id":0,"nopgchange":"false"}{"pool":"rbd","pool_id":0,"nosizechange":"false"}{"pool":"rbd","pool_id":0,"write_fadvise_dontneed":"false"}{"pool":"rbd","pool_id":0,"noscrub":"false"}{"pool":"rbd","pool_id":0,"nodeep-scrub":"false"}{"pool":"rbd","pool_id":0,"use_gmt_hitset":true}{"pool":"rbd","pool_id":0,"auid":0}{"pool":"rbd","pool_id":0,"min_write_recency_for_promote":0}{"pool":"rbd","pool_id":0,"fast_read":0}{"pool":"rbd","pool_id":0}{"pool":"rbd","pool_id":0}{"pool":"rbd","pool_id":0}{"pool":"rbd","pool_id":0}{"pool":"rbd","pool_id":0}{"pool":"rbd","pool_id":0}`
+	SuccessGetPoolECPool1Response = `{"pool":"ecPool1","pool_id":1,"size":3}{"pool":"ecPool1","pool_id":1,"min_size":3}{"pool":"ecPool1","pool_id":1,"crash_replay_interval":0}{"pool":"ecPool1","pool_id":1,"pg_num":100}{"pool":"ecPool1","pool_id":1,"pgp_num":100}{"pool":"ecPool1","pool_id":1,"crush_ruleset":1}{"pool":"ecPool1","pool_id":1,"hashpspool":"true"}{"pool":"ecPool1","pool_id":1,"nodelete":"false"}{"pool":"ecPool1","pool_id":1,"nopgchange":"false"}{"pool":"ecPool1","pool_id":1,"nosizechange":"false"}{"pool":"ecPool1","pool_id":1,"write_fadvise_dontneed":"false"}{"pool":"ecPool1","pool_id":1,"noscrub":"false"}{"pool":"ecPool1","pool_id":1,"nodeep-scrub":"false"}{"pool":"ecPool1","pool_id":1,"use_gmt_hitset":true}{"pool":"ecPool1","pool_id":1,"auid":0}{"pool":"ecPool1","pool_id":1,"erasure_code_profile":"ecPool1_ecprofile"}{"pool":"ecPool1","pool_id":1,"min_write_recency_for_promote":0}{"pool":"ecPool1","pool_id":1,"fast_read":0}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}`
 )
 
 func TestAddRemoveDeviceHandler(t *testing.T) {
@@ -180,14 +184,25 @@ func TestGetPoolsHandler(t *testing.T) {
 	w = httptest.NewRecorder()
 	cephFactory.Conn = &testceph.MockConnection{
 		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
-			cephPools := []ceph.CephStoragePool{
-				{Number: 0, Name: "pool0"},
-				{Number: 1, Name: "pool1"},
+			switch {
+			case strings.Index(string(args), "osd lspools") != -1:
+				return []byte(`[{"poolnum":0,"poolname":"rbd"},{"poolnum":1,"poolname":"ecPool1"}]`), "info", nil
+			case strings.Index(string(args), "osd pool get") != -1:
+				if strings.Index(string(args), "rbd") != -1 {
+					return []byte(SuccessGetPoolRBDResponse), "info", nil
+				} else if strings.Index(string(args), "ecPool1") != -1 {
+					return []byte(SuccessGetPoolECPool1Response), "info", nil
+				}
+			case strings.Index(string(args), "osd erasure-code-profile ls") != -1:
+				return []byte(`["default","ecPool1_ecprofile"]`), "info", nil
+			case strings.Index(string(args), "osd erasure-code-profile get") != -1:
+				if strings.Index(string(args), "default") != -1 {
+					return []byte(`{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`), "info", nil
+				} else if strings.Index(string(args), "ecPool1") != -1 {
+					return []byte(`{"jerasure-per-chunk-alignment":"false","k":"2","m":"1","plugin":"jerasure","ruleset-failure-domain":"osd","ruleset-root":"default","technique":"reed_sol_van","w":"8"}`), "info", nil
+				}
 			}
-			resp, err := json.Marshal(cephPools)
-			assert.Nil(t, err)
-			return resp, "", nil
-
+			return nil, "", fmt.Errorf("unexpected mon_command '%s'", string(args))
 		},
 	}
 
@@ -195,7 +210,7 @@ func TestGetPoolsHandler(t *testing.T) {
 	h = NewHandler(etcdClient, connFactory, cephFactory)
 	h.GetPools(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "[{\"poolName\":\"pool0\",\"poolNum\":0},{\"poolName\":\"pool1\",\"poolNum\":1}]", w.Body.String())
+	assert.Equal(t, "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicationConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicationConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]", w.Body.String())
 }
 
 func TestGetPoolsHandlerFailure(t *testing.T) {
@@ -220,7 +235,8 @@ func TestGetPoolsHandlerFailure(t *testing.T) {
 }
 
 func TestCreatePoolHandler(t *testing.T) {
-	req, err := http.NewRequest("POST", "http://10.0.0.100/pool", strings.NewReader(`{"poolname":"pool1"}`))
+	req, err := http.NewRequest("POST", "http://10.0.0.100/pool",
+		strings.NewReader(`{"poolName":"ecPool1","poolNum":0,"type":1,"replicationConfig":{"size":0},"erasureCodedConfig":{"dataChunkCount":2,"codingChunkCount":1,"algorithm":""}}`))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -231,7 +247,18 @@ func TestCreatePoolHandler(t *testing.T) {
 	connFactory := &test.MockConnectionFactory{}
 	cephFactory.Conn = &testceph.MockConnection{
 		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
-			return []byte(""), "successfully created pool1", nil
+			switch {
+			case strings.Index(string(args), "osd erasure-code-profile get") != -1:
+				if strings.Index(string(args), "default") != -1 {
+					return []byte(`{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`), "info", nil
+				}
+			case strings.Index(string(args), "osd erasure-code-profile set") != -1:
+				return []byte(""), "", nil
+			case strings.Index(string(args), "osd pool create") != -1:
+				return []byte(""), "pool 'ecPool1' created", nil
+
+			}
+			return nil, "", fmt.Errorf("unexpected mon_command '%s'", string(args))
 		},
 	}
 	connFactory.MockConnectAsAdmin = func(cephFactory ceph.ConnectionFactory, etcdClient etcd.KeysAPI) (ceph.Connection, error) {
@@ -242,7 +269,7 @@ func TestCreatePoolHandler(t *testing.T) {
 
 	h.CreatePool(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "successfully created pool1", w.Body.String())
+	assert.Equal(t, "pool 'ecPool1' created", w.Body.String())
 }
 
 func TestCreatePoolHandlerFailure(t *testing.T) {
@@ -302,13 +329,11 @@ func TestGetImagesHandler(t *testing.T) {
 	w = httptest.NewRecorder()
 	cephFactory.Conn = &testceph.MockConnection{
 		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
-			cephPools := []ceph.CephStoragePool{
-				{Number: 0, Name: "pool0"},
-				{Number: 1, Name: "pool1"},
+			switch {
+			case strings.Index(string(args), "osd lspools") != -1:
+				return []byte(`[{"poolnum":0,"poolname":"pool0"},{"poolnum":1,"poolname":"pool1"}]`), "info", nil
 			}
-			resp, err := json.Marshal(cephPools)
-			assert.Nil(t, err)
-			return resp, "", nil
+			return nil, "", fmt.Errorf("unexpected mon_command '%s'", string(args))
 		},
 		MockOpenIOContext: func(pool string) (ceph.IOContext, error) {
 			return &testceph.MockIOContext{
