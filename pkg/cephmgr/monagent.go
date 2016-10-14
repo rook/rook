@@ -93,18 +93,18 @@ func (a *monAgent) DestroyLocalService(context *clusterd.Context) error {
 // creates and initializes the given monitors file systems
 func (a *monAgent) makeMonitorFileSystem(context *clusterd.Context, cluster *ClusterInfo, monName string) error {
 	// write the keyring to disk
-	if err := writeMonitorKeyring(monName, cluster); err != nil {
+	if err := writeMonitorKeyring(context.ConfigDir, monName, cluster); err != nil {
 		return err
 	}
 
 	// write the config file to disk
-	confFilePath, err := generateConfigFile(cluster, getMonRunDirPath(monName), "admin", getMonKeyringPath(monName), nil)
+	confFilePath, err := generateConnectionConfigFile(context, cluster, getMonRunDirPath(context.ConfigDir, monName), "admin", getMonKeyringPath(context.ConfigDir, monName))
 	if err != nil {
 		return err
 	}
 
 	// create monitor data dir
-	monDataDir := getMonDataDirPath(monName)
+	monDataDir := getMonDataDirPath(context.ConfigDir, monName)
 	if err := os.MkdirAll(filepath.Dir(monDataDir), 0744); err != nil {
 		fmt.Printf("failed to create monitor data directory at %s: %+v", monDataDir, err)
 	}
@@ -117,7 +117,7 @@ func (a *monAgent) makeMonitorFileSystem(context *clusterd.Context, cluster *Clu
 		fmt.Sprintf("--name=mon.%s", monName),
 		fmt.Sprintf("--mon-data=%s", monDataDir),
 		fmt.Sprintf("--conf=%s", confFilePath),
-		fmt.Sprintf("--keyring=%s", getMonKeyringPath(monName)))
+		fmt.Sprintf("--keyring=%s", getMonKeyringPath(context.ConfigDir, monName)))
 	if err != nil {
 		return fmt.Errorf("failed mon %s --mkfs: %+v", monName, err)
 	}
@@ -141,8 +141,8 @@ func (a *monAgent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, m
 		"--foreground",
 		fmt.Sprintf("--cluster=%s", cluster.Name),
 		monNameArg,
-		fmt.Sprintf("--mon-data=%s", getMonDataDirPath(monitor.Name)),
-		fmt.Sprintf("--conf=%s", getConfFilePath(getMonRunDirPath(monitor.Name), cluster.Name)),
+		fmt.Sprintf("--mon-data=%s", getMonDataDirPath(context.ConfigDir, monitor.Name)),
+		fmt.Sprintf("--conf=%s", getConfFilePath(getMonRunDirPath(context.ConfigDir, monitor.Name), cluster.Name)),
 		fmt.Sprintf("--public-addr=%s", monitor.Endpoint))
 	if err != nil {
 		return fmt.Errorf("failed to start monitor %s: %v", monitor.Name, err)
@@ -157,9 +157,9 @@ func (a *monAgent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, m
 }
 
 // writes the monitor keyring to disk
-func writeMonitorKeyring(monName string, c *ClusterInfo) error {
+func writeMonitorKeyring(configDir, monName string, c *ClusterInfo) error {
 	keyring := fmt.Sprintf(monitorKeyringTemplate, c.MonitorSecret, c.AdminSecret)
-	keyringPath := getMonKeyringPath(monName)
+	keyringPath := getMonKeyringPath(configDir, monName)
 	if err := os.MkdirAll(filepath.Dir(keyringPath), 0744); err != nil {
 		return fmt.Errorf("failed to create keyring directory for %s: %+v", keyringPath, err)
 	}

@@ -89,7 +89,7 @@ func (c *cephLeader) handleOrchestratorEvents() {
 			// Perform a full refresh of the cluster to ensure the monitors are running with quorum
 			err := c.configureCephMons(e.Context())
 			if err != nil {
-				log.Printf("failed to configure ceph mons. %v", err)
+				log.Printf("FAILED TO CONFIGURE CEPH MONS. %v", err)
 				continue
 			}
 		}
@@ -98,7 +98,7 @@ func (c *cephLeader) handleOrchestratorEvents() {
 			// Configure the OSDs
 			err := configureOSDs(e.Context(), osdsToRefresh)
 			if err != nil {
-				log.Printf("failed to configure ceph osds. %v", err)
+				log.Printf("FAILED TO CONFIGURE CEPH OSDs. %v", err)
 				continue
 			}
 		}

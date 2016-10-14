@@ -12,7 +12,7 @@ import (
 
 // GetEtcdClients bootstraps an embedded etcd instance and returns a list of
 // current etcd cluster's client URLs. (entrypoint, when it's used as a library)
-func GetEtcdClients(token, ipAddr, nodeID string) ([]string, error) {
+func GetEtcdClients(configDir, token, ipAddr, nodeID string) ([]string, error) {
 	// GODEBUG setting forcing use of Go's resolver
 	os.Setenv("GODEBUG", "netdns=go+1")
 
@@ -40,7 +40,7 @@ func GetEtcdClients(token, ipAddr, nodeID string) ([]string, error) {
 	}
 
 	log.Println("quorum is not complete, creating a new embedded etcd member...")
-	conf, err := bootstrap.GenerateConfig(ipAddr, nodeID)
+	conf, err := bootstrap.GenerateConfig(configDir, ipAddr, nodeID)
 	if err != nil {
 		return []string{}, err
 	}

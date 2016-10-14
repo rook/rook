@@ -1,19 +1,19 @@
 package test
 
 import (
-	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/cephmgr/client"
+	"github.com/quantum/castle/pkg/clusterd"
 )
 
 type MockConnectionFactory struct {
-	MockConnectAsAdmin func(cephFactory client.ConnectionFactory, etcdClient etcd.KeysAPI) (client.Connection, error)
+	MockConnectAsAdmin func(context *clusterd.Context, cephFactory client.ConnectionFactory) (client.Connection, error)
 }
 
 func (m *MockConnectionFactory) ConnectAsAdmin(
-	cephFactory client.ConnectionFactory, etcdClient etcd.KeysAPI) (client.Connection, error) {
+	context *clusterd.Context, cephFactory client.ConnectionFactory) (client.Connection, error) {
 
 	if m.MockConnectAsAdmin != nil {
-		return m.MockConnectAsAdmin(cephFactory, etcdClient)
+		return m.MockConnectAsAdmin(context, cephFactory)
 	}
 
 	return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")

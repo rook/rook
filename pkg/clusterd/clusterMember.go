@@ -2,6 +2,7 @@ package clusterd
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"path"
 	"sync/atomic"
@@ -15,6 +16,7 @@ import (
 )
 
 const (
+	SystemLogDir                     = "/var/log/castle"
 	leaseVersion                     = 1
 	leaseTtlSeconds                  = 15
 	leaseRetrySeconds                = 5
@@ -71,7 +73,13 @@ func newClusterMember(context *Context, leaseManager Manager, leader Leader) *Cl
 func (r *ClusterMember) initialize() error {
 	err := r.ElectLeader()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to elect leader. %+v", err)
+	}
+
+	// initialize the hardware inventory
+	err = r.discoverHardware()
+	if err != nil {
+		return fmt.Errorf("failed to detect initial hardware. %+v", err)
 	}
 
 	// in a goroutine, begin the monitor cluster loop for changes in membership, leadership, etc.
@@ -148,15 +156,16 @@ func (r *ClusterMember) refreshLeader() {
 
 func (r *ClusterMember) discoverHardwareLoop() {
 	for {
+		// sleep until it's time to detect hardware again
+		// assume the initial discovery was already done
+		<-time.After(hardwareDiscoveryInterval)
+
 		err := r.discoverHardware()
 		if err != nil {
 			log.Printf("error while discovering hardware: %+v", err)
 		} else {
 			log.Print("hardware discovery complete")
 		}
-
-		// sleep until it's time to detect hardware again
-		<-time.After(hardwareDiscoveryInterval)
 	}
 }
 

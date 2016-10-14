@@ -3,6 +3,7 @@ package bootstrap
 import (
 	"log"
 	"net/url"
+	"path"
 	"time"
 
 	"github.com/coreos/etcd/pkg/types"
@@ -44,7 +45,7 @@ func CopyConfig(conf *Config) Config {
 }
 
 // GenerateConfig automatically generates a config for embedded etcd
-func GenerateConfig(ipAddr, nodeID string) (*Config, error) {
+func GenerateConfig(configDir, ipAddr, nodeID string) (*Config, error) {
 	conf := &Config{}
 	conf.InstanceName = nodeID
 	conf.ListenPeerURLs = append(conf.ListenPeerURLs,
@@ -55,15 +56,15 @@ func GenerateConfig(ipAddr, nodeID string) (*Config, error) {
 		getURLFromSchemeIPPort("http", ipAddr, DefaultPeerPort))
 	conf.AdvertiseClientURLs = append(conf.AdvertiseClientURLs,
 		getURLFromSchemeIPPort("http", ipAddr, DefaultClientPort))
-	conf.DataDir = "/tmp/etcd-data"
+	conf.DataDir = path.Join(configDir, "etcd-data")
 	conf.URLsMap = types.URLsMap{}
 
 	return conf, nil
 }
 
 // GenerateConfigFromExistingCluster automatically generates a config for joining an existing cluster
-func GenerateConfigFromExistingCluster(Context EtcdMgrContext, ipAddr, nodeID string) (*Config, error) {
-	conf, err := GenerateConfig(ipAddr, nodeID)
+func GenerateConfigFromExistingCluster(Context EtcdMgrContext, configDir, ipAddr, nodeID string) (*Config, error) {
+	conf, err := GenerateConfig(configDir, ipAddr, nodeID)
 	if err != nil {
 		return nil, err
 	}

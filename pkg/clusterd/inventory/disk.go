@@ -51,6 +51,16 @@ func StrToDiskType(diskType string) (DiskType, error) {
 	}
 }
 
+func GetDeviceFromSerial(serial, nodeID string, etcdClient etcd.KeysAPI) (string, error) {
+	key := path.Join(GetNodeConfigKey(nodeID), DisksKey, serial, DiskNameKey)
+	resp, err := etcdClient.Get(ctx.Background(), key, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return resp.Node.Value, nil
+}
+
 func GetSerialFromDevice(device, nodeID string, etcdClient etcd.KeysAPI) (string, error) {
 	disksKey := path.Join(GetNodeConfigKey(nodeID), DisksKey)
 	serials, err := util.GetDirChildKeys(etcdClient, disksKey)

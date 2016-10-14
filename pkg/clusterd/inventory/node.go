@@ -61,7 +61,7 @@ func loadNodeConfig(etcdClient etcd.KeysAPI) (map[string]*NodeConfig, error) {
 		return nodesConfig, nil
 	}
 
-	log.Printf("Discovered %d nodes", len(nodeInfo.Node.Nodes))
+	// verbose: log.Printf("Discovered %d nodes", len(nodeInfo.Node.Nodes))
 
 	for _, etcdNode := range nodeInfo.Node.Nodes {
 		nodeConfig := &NodeConfig{}
@@ -128,7 +128,7 @@ func loadSingleNodeHealth(node *NodeConfig, health *etcd.Node) error {
 		switch util.GetLeafKeyPath(prop.Key) {
 		case HeartbeatKey:
 			node.HeartbeatAge = HeartbeatTtlDuration - (time.Duration(prop.TTL) * time.Second)
-			log.Printf("Node %s has age of %s", node.IPAddress, node.HeartbeatAge.String())
+			// verbose: log.Printf("Node %s has age of %s", node.IPAddress, node.HeartbeatAge.String())
 		default:
 			return fmt.Errorf("unknown node health key %s", prop.Key)
 		}
