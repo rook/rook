@@ -28,7 +28,7 @@ RELEASE_CLIENT_ONLY_PLATFORMS ?=
 RELEASE_HOST_PLATFORM ?= $(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH)
 
 # Optional. the flavors to release
-RELEASE_FLAVORS := binaries docker
+RELEASE_FLAVORS := binaries docker aci
 
 # Optional. Github token repo and user
 GITHUB_TOKEN ?=
@@ -56,11 +56,9 @@ release.build.parallel: $(foreach f,$(RELEASE_FLAVORS), release.build.$(f))
 
 release.publish.parallel: $(foreach f,$(RELEASE_FLAVORS), release.publish.$(f))
 
-release.check:
-	@build/release/release.sh check
-
-release.build: release.check
+release.build:
 	@$(MAKE) release.build.parallel
 
 release.publish: release.build
+	@build/release/release.sh check
 	@$(MAKE) release.publish.parallel

@@ -1,0 +1,66 @@
+#cloud-config
+
+coreos:
+  units:
+  - name: castled.service
+    enable: true
+    command: start
+# enable if you want to run from locally built ACI files
+#    drop-ins:
+#      - name: 10-local-aci.conf
+#        content: |
+#          [Service]
+#          Environment=CASTLED_ACI=/release/castled-dev-linux-amd64.aci
+#          Environment=RKT_OPTIONS=--insecure-options=image
+    content: |
+      [Unit]
+      Description=Castle Daemon - software defined storage
+      Requires=network-online.target
+      After=network-online.target
+
+      [Service]
+      Slice=machine.slice
+      Restart=always
+      KillMode=process
+
+      Environment=CASTLED_ACI=quay.io/quantum/castled:latest
+      Environment=CASTLED_ID=%m
+      Environment=CASTLED_DISCOVERY_URL=%%token%%
+      Environment=CASTLED_PUBLIC_IPV4=$public_ipv4
+      Environment=CASTLED_PRIVATE_IPV4=$private_ipv4
+      Environment=CASTLED_DATA_DIRS=/var/lib/castled/data
+
+      ExecStartPre=/usr/bin/mkdir -p ${CASTLED_DATA_DIRS}
+
+      ExecStart=/usr/bin/rkt run \
+        --trust-keys-from-https \
+        --stage1-from-dir=stage1-fly.aci \
+        --inherit-env \
+        --volume dns,kind=host,source=/run/systemd/resolve/resolv.conf,readOnly=true \
+        --mount volume=dns,target=/etc/resolv.conf \
+        --volume var-lib-castled,kind=host,source=/var/lib/castled \
+        --mount volume=var-lib-castled,target=/var/lib/castled \
+        $RKT_OPTIONS \
+        $CASTLED_ACI
+
+      [Install]
+      WantedBy=multi-user.target
+
+# temporary until we make the repo public.
+write_files:
+  - path: /etc/rkt/auth.d/quantum-demo-auth.json
+    owner: root:root
+    permissions: '0600'
+    content: |
+      {
+        "rktKind": "auth",
+        "rktVersion": "v1",
+        "domains": [
+          "quay.io"
+        ],
+        "type": "basic",
+        "credentials": {
+          "user": "quantum+demo",
+          "password": "OD8HPMSRYOI5TU8ZWNXFHBXRM39HX4X7GB6MLW060SZ2W5DD04TEN5TCW3MHDNPO"
+        }
+      }

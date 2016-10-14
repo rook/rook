@@ -3,7 +3,7 @@
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${scriptdir}/common.sh
 
-container=quantum.com/castle
+container=quantum.com/castled
 
 build() {
     local type=$1
@@ -21,13 +21,15 @@ build() {
     mkdir -p ${RELEASE_DIR}
 
     local acb="acbuild --debug --work-path $tmpdir"
-    local acifile=${RELEASE_DIR}/castle-${version}-${os}-${arch}.aci
+    local acifile=${RELEASE_DIR}/castled-${version}-${os}-${arch}.aci
 
     echo creating aci file ${acifile}
 
     ${acb} begin
     ${acb} set-name ${container}
-    ${acb} copy-to-dir $tmpdir/root /
+    for f in $(find $tmpdir/root -maxdepth 1); do
+        ${acb} copy-to-dir ${f} /
+    done
     ${acb} label add version "$version"
     ${acb} set-exec -- /usr/bin/castled
     ${acb} write --overwrite ${acifile}
@@ -44,7 +46,7 @@ publish() {
 
     [[ ${type} == "both" ]] || return 0
 
-    local aci=${RELEASE_DIR}/castle-${version}-${os}-${arch}.aci
+    local aci=${RELEASE_DIR}/castled-${version}-${os}-${arch}.aci
 
     echo uploading aci file ${acifile}
 }
