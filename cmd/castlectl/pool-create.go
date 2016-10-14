@@ -31,16 +31,16 @@ var poolCreateCmd = &cobra.Command{
 func init() {
 	poolCreateCmd.Flags().StringVarP(&newPoolName, "name", "n", "", "Name of new storage pool to create (required)")
 
-	poolCreateCmd.Flags().StringVarP(&newPoolType, "type", "t", "",
+	poolCreateCmd.Flags().StringVarP(&newPoolType, "type", "t", PoolTypeReplicated,
 		fmt.Sprintf("Type of storage pool, '%s' or '%s' (required)", PoolTypeReplicated, PoolTypeErasureCoded))
 
 	poolCreateCmd.Flags().UintVarP(&newPoolReplicaCount, "replica-count", "r", 0,
 		fmt.Sprintf("Number of copies per object in a replicated storage pool, including the object itself (required for %s pool type)", PoolTypeReplicated))
 
-	poolCreateCmd.Flags().UintVarP(&newPoolDataChunks, "data-chunks", "d", 0,
+	poolCreateCmd.Flags().UintVarP(&newPoolDataChunks, "ec-data-chunks", "d", 0,
 		fmt.Sprintf("Number of data chunks per object in an erasure coded storage pool (required for %s pool type)", PoolTypeErasureCoded))
 
-	poolCreateCmd.Flags().UintVarP(&newPoolCodingChunks, "coding-chunks", "c", 0,
+	poolCreateCmd.Flags().UintVarP(&newPoolCodingChunks, "ec-coding-chunks", "c", 0,
 		fmt.Sprintf("Number of coding chunks per object in an erasure coded storage pool (required for %s pool type)", PoolTypeErasureCoded))
 
 	poolCreateCmd.MarkFlagRequired("name")
@@ -72,6 +72,10 @@ func createPool(poolName, poolType string, replicaCount, dataChunks, codingChunk
 	newPool := model.Pool{Name: poolName}
 
 	if poolType == PoolTypeReplicated {
+		if dataChunks > 0 || codingChunks > 0 {
+			return "", fmt.Errorf("both data chunks and coding chunks must be zero for pool type '%s'", PoolTypeReplicated)
+		}
+
 		// note that a replica count of 0 is okay, the pool will get the ceph default when it's created
 		newPool.Type = model.Replicated
 		newPool.ReplicationConfig.Size = replicaCount

@@ -29,6 +29,14 @@ func TestCreatePoolErasureCodedParamsRequired(t *testing.T) {
 	assert.Equal(t, "", out)
 }
 
+func TestCreatePoolReplicatedErasureCodedParamsNotAllowed(t *testing.T) {
+	c := &test.MockCastleRestClient{}
+	out, err := createPool("pool1", PoolTypeReplicated, 0, 2, 1, c)
+	assert.NotNil(t, err)
+	assert.Equal(t, "both data chunks and coding chunks must be zero for pool type 'replicated'", err.Error())
+	assert.Equal(t, "", out)
+}
+
 func TestCreatePoolReplicatedNoParams(t *testing.T) {
 	c := &test.MockCastleRestClient{
 		MockCreatePool: func(actualPool model.Pool) (string, error) {
