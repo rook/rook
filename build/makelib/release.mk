@@ -28,7 +28,7 @@ RELEASE_CLIENT_ONLY_PLATFORMS ?=
 RELEASE_HOST_PLATFORM ?= $(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH)
 
 # Optional. the flavors to release
-RELEASE_FLAVORS := binaries docker aci
+RELEASE_FLAVORS := binaries containers
 
 # Optional. Github token repo and user
 GITHUB_TOKEN ?=

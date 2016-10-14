@@ -1,11 +1,12 @@
-.glide
-.work/
 .vscode/
 
-bin/
-release/
-tools/
-vendor/
+/.glide
+/.work
+
+/bin
+/tools
+/vendor
+/release
 
 coverage.out
 coverage.html
