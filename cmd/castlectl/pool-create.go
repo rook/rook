@@ -10,9 +10,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	PoolTypeReplicated   = "replicated"
+	PoolTypeErasureCoded = "erasure-coded"
+)
+
 var (
 	newPoolName         string
-	newPoolSize         uint
+	newPoolType         string
+	newPoolReplicaCount uint
 	newPoolDataChunks   uint
 	newPoolCodingChunks uint
 )
@@ -23,25 +29,32 @@ var poolCreateCmd = &cobra.Command{
 }
 
 func init() {
-	poolCreateCmd.Flags().StringVar(&newPoolName, "name", "", "Name of new storage pool to create (required)")
-	poolCreateCmd.Flags().UintVar(&newPoolSize, "size", 0,
-		"Number of copies of objects in the storage pool (including object itself).  Implies a replicated pool.")
-	poolCreateCmd.Flags().UintVar(&newPoolDataChunks, "data-chunks", 0,
-		"Number of data chunks for objects in the storage pool.  Implies an erasure coded pool.")
-	poolCreateCmd.Flags().UintVar(&newPoolCodingChunks, "coding-chunks", 0,
-		"Number of coding chunks for objects in the storage pool.  Implies an erasure coded pool.")
+	poolCreateCmd.Flags().StringVarP(&newPoolName, "name", "n", "", "Name of new storage pool to create (required)")
+
+	poolCreateCmd.Flags().StringVarP(&newPoolType, "type", "t", "",
+		fmt.Sprintf("Type of storage pool, '%s' or '%s' (required)", PoolTypeReplicated, PoolTypeErasureCoded))
+
+	poolCreateCmd.Flags().UintVarP(&newPoolReplicaCount, "replica-count", "r", 0,
+		fmt.Sprintf("Number of copies per object in a replicated storage pool, including the object itself (required for %s pool type)", PoolTypeReplicated))
+
+	poolCreateCmd.Flags().UintVarP(&newPoolDataChunks, "data-chunks", "d", 0,
+		fmt.Sprintf("Number of data chunks per object in an erasure coded storage pool (required for %s pool type)", PoolTypeErasureCoded))
+
+	poolCreateCmd.Flags().UintVarP(&newPoolCodingChunks, "coding-chunks", "c", 0,
+		fmt.Sprintf("Number of coding chunks per object in an erasure coded storage pool (required for %s pool type)", PoolTypeErasureCoded))
 
 	poolCreateCmd.MarkFlagRequired("name")
+	poolCreateCmd.MarkFlagRequired("type")
 	poolCreateCmd.RunE = createPoolsEntry
 }
 
 func createPoolsEntry(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(cmd, []string{"name"}); err != nil {
+	if err := flags.VerifyRequiredFlags(cmd, []string{"name", "type"}); err != nil {
 		return err
 	}
 
 	c := client.NewCastleNetworkRestClient(client.GetRestURL(apiServerEndpoint), http.DefaultClient)
-	out, err := createPool(newPoolName, newPoolSize, newPoolDataChunks, newPoolCodingChunks, c)
+	out, err := createPool(newPoolName, newPoolType, newPoolReplicaCount, newPoolDataChunks, newPoolCodingChunks, c)
 	if err != nil {
 		return err
 	}
@@ -50,22 +63,25 @@ func createPoolsEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func createPool(poolName string, size, dataChunks, codingChunks uint, c client.CastleRestClient) (string, error) {
-	if size > 0 && (dataChunks > 0 || codingChunks > 0) {
-		return "", fmt.Errorf("Pool cannot be both replicated and erasure coded.")
+func createPool(poolName, poolType string, replicaCount, dataChunks, codingChunks uint, c client.CastleRestClient) (string, error) {
+	if poolType != PoolTypeReplicated && poolType != PoolTypeErasureCoded {
+		return "", fmt.Errorf("invalid pool type '%s', allowed pool types are '%s' and '%s'",
+			poolType, PoolTypeReplicated, PoolTypeErasureCoded)
 	}
 
 	newPool := model.Pool{Name: poolName}
 
-	if size > 0 || dataChunks > 0 || codingChunks > 0 {
-		if size > 0 {
-			newPool.Type = model.Replicated
-			newPool.ReplicationConfig.Size = size
-		} else {
-			newPool.Type = model.ErasureCoded
-			newPool.ErasureCodedConfig.DataChunkCount = dataChunks
-			newPool.ErasureCodedConfig.CodingChunkCount = codingChunks
+	if poolType == PoolTypeReplicated {
+		// note that a replica count of 0 is okay, the pool will get the ceph default when it's created
+		newPool.Type = model.Replicated
+		newPool.ReplicationConfig.Size = replicaCount
+	} else {
+		if dataChunks == 0 || codingChunks == 0 {
+			return "", fmt.Errorf("both data chunks and coding chunks must be greater than zero for pool type '%s'", PoolTypeErasureCoded)
 		}
+		newPool.Type = model.ErasureCoded
+		newPool.ErasureCodedConfig.DataChunkCount = dataChunks
+		newPool.ErasureCodedConfig.CodingChunkCount = codingChunks
 	}
 
 	resp, err := c.CreatePool(newPool)
