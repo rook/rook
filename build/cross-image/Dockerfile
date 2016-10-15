@@ -49,10 +49,13 @@ RUN OSXCROSS_COMMIT_HASH=86879571d33ff7252a55d777609742561dba9953 && \
 
 ENV PATH /usr/local/osxcross/bin:$PATH
 
-# install acbuild
+# install acbuild and docker2aci
 RUN ACBUILD_VERSION=0.4.0 && \
     curl -fsSLO https://github.com/containers/build/releases/download/v${ACBUILD_VERSION}/acbuild-v${ACBUILD_VERSION}.tar.gz && \
-    tar -C /usr/local/bin --strip-components=1 -xzf acbuild-v${ACBUILD_VERSION}.tar.gz
+    tar -C /usr/local/bin --strip-components=1 -xzf acbuild-v${ACBUILD_VERSION}.tar.gz && \
+    DOCKER2ACI_VERSION=0.12.3 && \
+    curl -fsSLO https://github.com/appc/docker2aci/releases/download/v${DOCKER2ACI_VERSION}/docker2aci-v${DOCKER2ACI_VERSION}.tar.gz && \
+    tar -C /usr/local/bin --strip-components=1 -xzf docker2aci-v${DOCKER2ACI_VERSION}.tar.gz
 
 #
 # install multi-arch packages needed to build ceph

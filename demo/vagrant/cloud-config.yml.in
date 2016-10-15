@@ -10,7 +10,7 @@ coreos:
 #      - name: 10-local-aci.conf
 #        content: |
 #          [Service]
-#          Environment=CASTLED_ACI=/release/castled-dev-linux-amd64.aci
+#          Environment=CASTLED_ACI=/release/quantum-castled-dev.aci
 #          Environment=RKT_OPTIONS=--insecure-options=image
     content: |
       [Unit]
