@@ -49,7 +49,7 @@ cephd.config:
 	@mkdir -p $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)
 	@echo "$(CEPHD_CMAKE)" > $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake.new
 	@if test ! -f $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake || ! diff $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake.new $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake > /dev/null; then \
-		cd $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM) && cmake $(CEPHD_CMAKE) -DCMAKE_TOOLCHAIN_FILE=$(CURDIR)/build/makelib/toolchain.$(CEPHD_PLATFORM).cmake $(CURDIR)/ceph; \
+		cd $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM) && cmake $(CEPHD_CMAKE) -DCMAKE_TOOLCHAIN_FILE=$(abspath build/makelib/toolchain.$(CEPHD_PLATFORM).cmake) $(abspath ceph); \
 		echo "$(CEPHD_CMAKE)" > cephd.cmake; \
 	fi
 	@rm $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake.new

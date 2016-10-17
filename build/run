@@ -1,10 +1,10 @@
 #!/bin/bash -e
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
 friendly_name=cross-build
 version=$(cat ${scriptdir}/cross-image/version)
 container=quantum/castle-${friendly_name}:${version}
+volume=cross-build
 
 function ver() {
     printf "%d%03d%03d%03d" $(echo "$1" | tr '.' ' ')
@@ -28,40 +28,55 @@ if [ ! -z $DOCKER_HOST ]; then
     return 1
 fi
 
+# if our volume does not exist create one.
+# NOTE: osxfs is really slow so we avoid using it
+if [[ ! $(docker volume ls | grep $volume) ]]; then
+    echo ==== Creating docker volume ${volume}
+    docker volume create --name ${volume}
+fi
+
 # if the container does not exist the pull or build it
 if [[ ! $(docker images -q ${container}) ]]; then
+    echo ==== Pulling ${container}
     docker pull ${container}
 fi
 
-USER_ARGS="-e BUILDER_UID=$( id -u ) -e BUILDER_GID=$( id -g ) -e BUILDER_USER=$( id -un ) -e BUILDER_GROUP=$( id -gn )"
-BUILDER_HOME=/home/$( id -un )
+# on Linux we run the container with the same uid and gid of the user to avoid
+# permissions issues. For docker on macOS this is not needed since we rely on osxfs
+if [ "`uname -s`" == "Linux" ]; then
+  USER_ARGS="-e BUILDER_UID=$( id -u ) -e BUILDER_GID=$( id -g ) -e BUILDER_USER=$( id -un ) -e BUILDER_GROUP=$( id -gn )"
+  BUILDER_HOME=/home/$( id -un )
+else
+  BUILDER_HOME=/root
+fi
 
-if [ -n ${CCACHE_DIR+x} ]; then
+if [[ `which ccache` && -n "${CCACHE_DIR}" ]]; then
     CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache -e CCACHE_LOG -v ${CCACHE_DIR}:${BUILDER_HOME}/.ccache"
 fi
 
+# we copy credential files for github access
 [[ -f ${HOME}/.netrc ]] && NETRC_ARGS="-v ${HOME}/.netrc:${BUILDER_HOME}/.netrc"
 
 tty -s && TTY_ARGS=-ti || TTY_ARGS=
 
+# docker seems more reliable when running with net=host.
 if [ -z "${DISABLE_HOST_NETWORK}" ]; then
     NET_ARGS="--net=host"
 fi
 
+# sometimes we run docker inside docker. bind the docker config and socket
 if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
     DOCKER_NESTED_ARGS="\
     -v ${HOME}/.docker/config.json:${BUILDER_HOME}/.docker/config.json \
     -v /var/run/docker.sock:/var/run/docker.sock"
 fi
 
-# NOTE: docker seems more reliable when running with net=host.
-
 docker run \
     --rm \
     --name "${friendly_name}" \
     --hostname "${friendly_name}" \
     -e GOPATH="${BUILDER_HOME}/go" \
-    -e WORKDIR=".work/cross" \
+    -e WORKDIR="${BUILDER_HOME}/go/.cross" \
     -e GO_PKG_DIR="" \
     -e GITHUB_TOKEN \
     -e VERSION \
@@ -71,8 +86,8 @@ docker run \
     ${USER_ARGS} \
     ${DOCKER_NESTED_ARGS} \
     ${NET_ARGS} \
+    -v cross-build:${BUILDER_HOME}/go \
     -v ${scriptdir}/../bin:${BUILDER_HOME}/go/bin \
-    -v ${scriptdir}/../.work/cross/pkg:${BUILDER_HOME}/go/pkg \
     -v ${scriptdir}/..:${BUILDER_HOME}/go/src/github.com/quantum/castle \
     -w ${BUILDER_HOME}/go/src/github.com/quantum/castle \
     ${container} \

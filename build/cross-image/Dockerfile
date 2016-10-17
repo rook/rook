@@ -1,12 +1,10 @@
 FROM ubuntu:xenial
 MAINTAINER Bassam Tabbara <bassam.tabbara@quantum.com>
 
-RUN echo \
-    "deb [arch=amd64] http://archive.ubuntu.com/ubuntu xenial main universe restricted\n\
-     deb [arch=amd64] http://archive.ubuntu.com/ubuntu xenial-updates main universe restricted\n\
-     deb [arch=arm64] http://ports.ubuntu.com/ xenial main universe restricted\n\
-     deb [arch=arm64] http://ports.ubuntu.com/ xenial-updates main universe restricted\n\
-    " > /etc/apt/sources.list && \
+RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu xenial main universe restricted" > /etc/apt/sources.list &&\
+    echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu xenial-updates main universe restricted" >> /etc/apt/sources.list &&\
+    echo "deb [arch=arm64] http://ports.ubuntu.com/ xenial main universe restricted" >> /etc/apt/sources.list &&\
+    echo "deb [arch=arm64] http://ports.ubuntu.com/ xenial-updates main universe restricted" >> /etc/apt/sources.list &&\
     dpkg --add-architecture arm64 && \
     apt-get update
 
@@ -53,9 +51,11 @@ ENV PATH /usr/local/osxcross/bin:$PATH
 RUN ACBUILD_VERSION=0.4.0 && \
     curl -fsSLO https://github.com/containers/build/releases/download/v${ACBUILD_VERSION}/acbuild-v${ACBUILD_VERSION}.tar.gz && \
     tar -C /usr/local/bin --strip-components=1 -xzf acbuild-v${ACBUILD_VERSION}.tar.gz && \
+    rm -f acbuild-v${ACBUILD_VERSION}.tar.gz && \
     DOCKER2ACI_VERSION=0.12.3 && \
     curl -fsSLO https://github.com/appc/docker2aci/releases/download/v${DOCKER2ACI_VERSION}/docker2aci-v${DOCKER2ACI_VERSION}.tar.gz && \
-    tar -C /usr/local/bin --strip-components=1 -xzf docker2aci-v${DOCKER2ACI_VERSION}.tar.gz
+    tar -C /usr/local/bin --strip-components=1 -xzf docker2aci-v${DOCKER2ACI_VERSION}.tar.gz && \
+    rm -f docker2aci-v${DOCKER2ACI_VERSION}.tar.gz
 
 #
 # install multi-arch packages needed to build ceph

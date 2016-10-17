@@ -63,21 +63,17 @@ unexport CGO_ENABLED
 export CGO_CFLAGS CGO_CPPFLAGS CGO_LDFLAGS GLIDE_HOME
 
 # setup glide
-GLIDE_HOME := $(CURDIR)/.glide
+GLIDE_HOME := $(abspath .glide)
 GLIDE := $(GO_TOOLS_DIR)/glide
 
 GO := go
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 
-ifeq ($(GOOS)_$(GOARCH),$(GOHOSTOS)_$(GOHOSTARCH))
-GO_OUT_DIR := $(CURDIR)/$(GO_BIN_DIR)
-else
-GO_OUT_DIR := $(CURDIR)/$(GO_BIN_DIR)/$(GOOS)_$(GOARCH)
-endif
+GO_OUT_DIR := $(abspath $(GO_BIN_DIR)/$(GOOS)_$(GOARCH))
 
 ifneq ($(GO_PKG_DIR),)
-GO_PKG_FLAGS := -pkgdir $(CURDIR)/$(GO_PKG_DIR)/$(GOOS)_$(GOARCH)
-GO_PKG_STATIC_FLAGS := -pkgdir $(CURDIR)/$(GO_PKG_DIR)/$(GOOS)_$(GOARCH)_static -installsuffix static
+GO_PKG_FLAGS := -pkgdir $(abspath $(GO_PKG_DIR)/$(GOOS)_$(GOARCH))
+GO_PKG_STATIC_FLAGS := -pkgdir $(abspath $(GO_PKG_DIR)/$(GOOS)_$(GOARCH)_static) -installsuffix static
 else
 GO_PKG_STATIC_FLAGS := -installsuffix static
 endif
@@ -85,8 +81,7 @@ endif
 # ====================================================================================
 # Targets
 
-ifneq ($(MAKECMDGOALS), help)
-ifneq ($(MAKECMDGOALS), clean)
+ifeq ($(filter help clean distclean, $(MAKECMDGOALS)),)
 .PHONY: go.check
 go.check:
 ifneq ($(shell $(GO) version | grep -q -E '\bgo($(GO_SUPPORTED_VERSIONS))\b' && echo 0 || echo 1), 0)
@@ -102,7 +97,6 @@ endif
 go.init: $(GO_VENDOR_DIR)/vendor.stamp
 
 -include go.init
-endif
 endif
 
 .PHONY: go.build
