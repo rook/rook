@@ -1,4 +1,4 @@
-package castlectl
+package castle
 
 import (
 	"fmt"

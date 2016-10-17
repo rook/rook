@@ -73,7 +73,7 @@ TODO: show how castle can be configured from cloud-init and started
 
 At this point the storage cluster is up and running.
 
-### 3) Using castlectl
+### 3) Using castle
 
 Now that the cluster is up and running, you can communicate with it using castletctl. First
 you need export an environment variable for the cluster url:
@@ -91,7 +91,7 @@ export CASTLE_DISCOVERY_DNS=mycluster.acme.com
 Let's list the nodes that are part of the cluster:
 
 ```
-castlectl node ls
+castle node ls
 ```
 
 the output shows the nodes that are part of the cluster
@@ -108,7 +108,7 @@ ADDRESS           STATE       CLUSTER             SIZE     LOCATION             
 To create a volume run the following:
 
 ```
-castlectl volume create myvolume 100GiB
+castle volume create myvolume 100GiB
 ```
 
 This creates a volume that can be used as a block device from client nodes.

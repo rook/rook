@@ -1,7 +1,7 @@
 package main
 
-import "github.com/quantum/castle/cmd/castlectl"
+import "github.com/quantum/castle/cmd/castle"
 
 func main() {
-	castlectl.Main()
+	castle.Main()
 }

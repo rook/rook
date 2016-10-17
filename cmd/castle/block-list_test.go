@@ -1,4 +1,4 @@
-package castlectl
+package castle
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/quantum/castle/pkg/castlectl/test"
+	"github.com/quantum/castle/pkg/castle/test"
 	"github.com/quantum/castle/pkg/model"
 	exectest "github.com/quantum/castle/pkg/util/exec/test"
 )

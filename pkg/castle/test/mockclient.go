@@ -3,7 +3,7 @@ package test
 import (
 	"net/http"
 
-	"github.com/quantum/castle/pkg/castlectl/client"
+	"github.com/quantum/castle/pkg/castle/client"
 	"github.com/quantum/castle/pkg/model"
 )
 

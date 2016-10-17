@@ -1,10 +1,10 @@
-package castlectl
+package castle
 
 import (
 	"fmt"
 	"net/http"
 
-	"github.com/quantum/castle/pkg/castlectl/client"
+	"github.com/quantum/castle/pkg/castle/client"
 	"github.com/quantum/castle/pkg/model"
 	"github.com/quantum/castle/pkg/util/flags"
 	"github.com/spf13/cobra"

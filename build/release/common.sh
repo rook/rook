@@ -22,7 +22,7 @@ layout_root() {
     mkdir -p $dir/root/etc/ssl/certs
 
     cp $bindir/castled $dir/root/usr/bin
-    cp $bindir/castlectl $dir/root/usr/bin
+    cp $bindir/castle $dir/root/usr/bin
 
     cp /etc/ssl/certs/ca-certificates.crt $dir/root/etc/ssl/certs
 }

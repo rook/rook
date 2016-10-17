@@ -1,4 +1,4 @@
-package castlectl
+package castle
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/quantum/castle/pkg/castlectl/client"
+	"github.com/quantum/castle/pkg/castle/client"
 	"github.com/quantum/castle/pkg/model"
 	"github.com/quantum/castle/pkg/util/exec"
 	"github.com/quantum/castle/pkg/util/flags"

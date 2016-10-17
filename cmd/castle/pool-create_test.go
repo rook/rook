@@ -1,10 +1,10 @@
-package castlectl
+package castle
 
 import (
 	"fmt"
 	"testing"
 
-	"github.com/quantum/castle/pkg/castlectl/test"
+	"github.com/quantum/castle/pkg/castle/test"
 	"github.com/quantum/castle/pkg/model"
 	"github.com/stretchr/testify/assert"
 )

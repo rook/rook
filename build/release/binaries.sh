@@ -14,7 +14,7 @@ build() {
         local ext=".exe"
     fi
 
-    local files=( castlectl${ext} )
+    local files=( castle${ext} )
 
     if [[ ${type} == "both" ]]; then
         files+=( castled${ext} )

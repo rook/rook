@@ -1,4 +1,4 @@
-package castlectl
+package castle
 
 import (
 	"fmt"
@@ -21,11 +21,11 @@ const (
 	outputTabWidth = 0
 	outputPadChar  = ' '
 	logFileDir     = "/tmp/castle/log"
-	logFileName    = "castlectl.log"
+	logFileName    = "castle.log"
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "castlectl",
+	Use:   "castle",
 	Short: "A command line client for working with a castle cluster",
 	Long:  `https://github.com/quantum/castle`,
 }
@@ -45,7 +45,7 @@ func Main() {
 
 	addCommands()
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Printf("castlectl error: %+v\n", err)
+		fmt.Printf("castle error: %+v\n", err)
 	}
 }
 
