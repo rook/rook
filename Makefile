@@ -104,7 +104,7 @@ CEPHD_PLATFORM = $(GOOS)_$(GOARCH)
 CEPHD_TOUCH_ON_BUILD = pkg/cephmgr/cephd/dummy.cc
 
 GO_CGO_PACKAGES=cmd/castled
-CGO_LDFLAGS = -L$(CURDIR)/$(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/lib
+CGO_LDFLAGS = -L$(abspath $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/lib)
 CGO_PREREQS = cephd.build
 
 include build/makelib/cephd.mk
