@@ -101,15 +101,15 @@ endif
 
 .PHONY: go.build
 go.build: go.vet go.fmt $(CGO_PREREQS)
-	$(foreach p,$(GO_NONSTATIC_PACKAGES),@CGO_ENABLED=1 $(GO) build -v -i $(GO_PKG_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))) $(GO_TOOL_FLAGS) $(GO_PROJECT)/$(p)/...)
-	$(foreach p,$(GO_CGO_PACKAGES),@CGO_ENABLED=1 $(GO) build -v -i $(GO_PKG_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))) $(GO_TOOL_FLAGS) $(GO_PROJECT)/$(p)/...)
-	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) build -v -i $(GO_PKG_STATIC_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))) $(GO_TOOL_FLAGS) $(GO_PROJECT)/$(p)/...)
+	$(foreach p,$(GO_NONSTATIC_PACKAGES),@CGO_ENABLED=1 $(GO) build -v -i $(GO_PKG_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))) $(GO_TOOL_FLAGS) $(p))
+	$(foreach p,$(GO_CGO_PACKAGES),@CGO_ENABLED=1 $(GO) build -v -i $(GO_PKG_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))) $(GO_TOOL_FLAGS) $(p))
+	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) build -v -i $(GO_PKG_STATIC_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))) $(GO_TOOL_FLAGS) $(p))
 
 .PHONY: go.install
 go.install: go.vet go.fmt $(CGO_PREREQS)
-	$(foreach p,$(GO_NONSTATIC_PACKAGES),@CGO_ENABLED=1 $(GO) install -v $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(GO_PROJECT)/$(p)/...)
-	$(foreach p,$(GO_CGO_PACKAGES),@CGO_ENABLED=1 $(GO) install -v $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(GO_PROJECT)/$(p)/...)
-	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) install -v $(GO_PKG_STATIC_FLAGS) $(GO_TOOL_FLAGS) $(GO_PROJECT)/$(p)/...)
+	$(foreach p,$(GO_NONSTATIC_PACKAGES),@CGO_ENABLED=1 $(GO) install -v $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(p))
+	$(foreach p,$(GO_CGO_PACKAGES),@CGO_ENABLED=1 $(GO) install -v $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(p))
+	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) install -v $(GO_PKG_STATIC_FLAGS) $(GO_TOOL_FLAGS) $(p))
 
 .PHONY: go.test
 go.test: go.vet go.fmt $(CGO_PREREQS)

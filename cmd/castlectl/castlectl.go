@@ -1,4 +1,4 @@
-package main
+package castlectl
 
 import (
 	"fmt"
@@ -30,7 +30,7 @@ var rootCmd = &cobra.Command{
 	Long:  `https://github.com/quantum/castle`,
 }
 
-func main() {
+func Main() {
 	// set up logging to a log file instead of stdout (only command output and errors should go to stdout/stderr)
 	if err := os.MkdirAll(logFileDir, 0744); err != nil {
 		log.Fatalf("failed to create logging dir '%s': %+v", logFileDir, err)

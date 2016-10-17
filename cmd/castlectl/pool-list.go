@@ -1,4 +1,4 @@
-package main
+package castlectl
 
 import (
 	"bytes"
