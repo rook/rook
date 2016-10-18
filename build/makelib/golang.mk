@@ -115,7 +115,7 @@ go.install: go.vet go.fmt $(CGO_PREREQS)
 go.test: go.vet go.fmt $(CGO_PREREQS)
 #   this is disabled since it looks like there's a bug in go test where it attempts to install cmd/cgo
 #	@$(GOHOST) test -v -i $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(GO_ALL_PACKAGES)
-	@$(GOHOST) test $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(GO_ALL_PACKAGES)
+	@$(GOHOST) test -cover $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(GO_ALL_PACKAGES)
 
 .PHONY: go.vet
 go.vet:
