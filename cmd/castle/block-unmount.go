@@ -1,4 +1,4 @@
-package main
+package castle
 
 import (
 	"fmt"

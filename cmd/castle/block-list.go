@@ -1,4 +1,4 @@
-package main
+package castle
 
 import (
 	"bytes"
@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/quantum/castle/pkg/castlectl/client"
+	"github.com/quantum/castle/pkg/castle/client"
 	"github.com/quantum/castle/pkg/util/display"
 	"github.com/quantum/castle/pkg/util/exec"
 	"github.com/quantum/castle/pkg/util/flags"

@@ -77,6 +77,8 @@ CLIENT_SERVER_PLATFORMS ?= linux_amd64 linux_arm64
 CLIENT_ONLY_PLATFORMS ?= darwin_amd64 windows_amd64
 ALL_PLATFORMS ?= $(CLIENT_SERVER_PLATFORMS) $(CLIENT_ONLY_PLATFORMS)
 
+GO_PROJECT=github.com/quantum/castle
+
 # ====================================================================================
 # Setup Castled
 
@@ -103,7 +105,7 @@ CEPHD_PLATFORM = $(GOOS)_$(GOARCH)
 # to force go to rebuild cephd
 CEPHD_TOUCH_ON_BUILD = pkg/cephmgr/cephd/dummy.cc
 
-GO_CGO_PACKAGES=cmd/castled
+GO_CGO_PACKAGES=$(GO_PROJECT)/cmd/castled
 CGO_LDFLAGS = -L$(abspath $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/lib)
 CGO_PREREQS = cephd.build
 
@@ -116,14 +118,13 @@ endif
 # ====================================================================================
 # Setup Go projects
 
-GO_PROJECT=github.com/quantum/castle
 GO_WORK_DIR = $(WORKDIR)
 GO_BIN_DIR = $(BIN_DIR)
 
 ifeq ($(STATIC),1)
-GO_STATIC_PACKAGES=cmd/castlectl
+GO_STATIC_PACKAGES=$(GO_PROJECT)
 else
-GO_NONSTATIC_PACKAGES=cmd/castlectl
+GO_NONSTATIC_PACKAGES=$(GO_PROJECT)
 endif
 
 GO_TOOL_FLAGS=$(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)'
