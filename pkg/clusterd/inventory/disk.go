@@ -51,6 +51,21 @@ func StrToDiskType(diskType string) (DiskType, error) {
 	}
 }
 
+func GetSizeFromSerial(serial, nodeID string, etcdClient etcd.KeysAPI) (uint64, error) {
+	key := path.Join(GetNodeConfigKey(nodeID), DisksKey, serial, DiskSizeKey)
+	resp, err := etcdClient.Get(ctx.Background(), key, nil)
+	if err != nil {
+		return 0, err
+	}
+
+	size, err := strconv.ParseUint(resp.Node.Value, 10, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	return size, nil
+}
+
 func GetDeviceFromSerial(serial, nodeID string, etcdClient etcd.KeysAPI) (string, error) {
 	key := path.Join(GetNodeConfigKey(nodeID), DisksKey, serial, DiskNameKey)
 	resp, err := etcdClient.Get(ctx.Background(), key, nil)

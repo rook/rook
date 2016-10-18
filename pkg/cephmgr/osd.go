@@ -18,6 +18,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/cephmgr/client"
+	"github.com/quantum/castle/pkg/cephmgr/partition"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/util"
@@ -33,9 +34,6 @@ const (
 	desiredOsdRootKey           = cephOsdKey + "/" + desiredKey + "/%s"
 	deviceDesiredKey            = desiredOsdRootKey + "/device"
 	dirDesiredKey               = desiredOsdRootKey + "/dir"
-	walPartition                = 1
-	databasePartition           = 2
-	blockPartition              = 3
 	bootstrapOSDKeyringTemplate = `
 [client.bootstrap-osd]
 	key = %s
@@ -210,9 +208,9 @@ func createOSDBootstrapKeyring(conn client.Connection, configDir, clusterName st
 }
 
 // format the given device for usage by an OSD
-func formatDevice(device, serial string, forceFormat bool, executor exec.Executor) error {
+func formatDevice(context *clusterd.Context, device, serial, configDir string, forceFormat bool) error {
 	// format the current volume
-	devFS, err := sys.GetDeviceFilesystem(device, executor)
+	devFS, err := sys.GetDeviceFilesystem(device, context.Executor)
 	if err != nil {
 		return fmt.Errorf("failed to get device %s filesystem: %+v", device, err)
 	}
@@ -225,7 +223,7 @@ func formatDevice(device, serial string, forceFormat bool, executor exec.Executo
 	if devFS == "" || forceFormat {
 		log.Printf("Partitioning device %s for bluestore", device)
 
-		err := partitionBluestoreDevice(device, serial, executor)
+		err := partitionBluestoreDevice(context, device, serial, configDir)
 		if err != nil {
 			return fmt.Errorf("failed to partion device %s. %v", device, err)
 		}
@@ -241,54 +239,47 @@ func formatDevice(device, serial string, forceFormat bool, executor exec.Executo
 
 // Partitions a device for use by a bluestore osd.
 // If there are any partitions or formatting already on the device, it will be wiped.
-// The result will be three partitions:
-// 1. WAL: Write ahead log
-// 2. DB: The bluestore database
-// 3. Block: The raw storage for the data being written to the OSD.
-//     Uses the remainder of the storage space after small partitions for the wal and db.
-func partitionBluestoreDevice(device, serial string, executor exec.Executor) error {
+func partitionBluestoreDevice(context *clusterd.Context, device, serial, configDir string) error {
+	size, err := inventory.GetSizeFromSerial(serial, context.NodeID, context.EtcdClient)
+	if err != nil {
+		return fmt.Errorf("failed to get device %s size. %+v", serial, err)
+	}
+
 	cmd := fmt.Sprintf("zap partitions on %s", device)
-	err := executor.ExecuteCommand(cmd, sgdisk, "--zap-all", "/dev/"+device)
+	err = context.Executor.ExecuteCommand(cmd, sgdisk, "--zap-all", "/dev/"+device)
 	if err != nil {
 		return fmt.Errorf("failed to zap partitions on /dev/%s: %+v", device, err)
 	}
 
-	// This is a simple scheme to create the wal and db each of size 1GB,
-	// with the remainder of the disk being allocated for the raw data.
-	// TODO: Look at the disk size to determine smarter sizes for the wal and db.
-	gb := 1024
-	args := getPartitionArgs(walPartition, 1, gb-1, fmt.Sprintf("osd-%s-wal", serial))
-	args = append(args, getPartitionArgs(databasePartition, gb, gb, fmt.Sprintf("osd-%s-db", serial))...)
-	args = append(args, getPartitionArgs(blockPartition, 2*gb, -1, fmt.Sprintf("osd-%s-block", serial))...)
-	args = append(args, "/dev/"+device)
+	scheme, err := partition.GetSimpleScheme(int(size / 1024 / 1024))
+	if err != nil {
+		return fmt.Errorf("failed to get simple scheme. %+v", err)
+	}
 
-	err = executor.ExecuteCommand(cmd, sgdisk, args...)
+	// get args for creating partitions
+	args := scheme.GetArgs(device)
+	if err != nil {
+		return fmt.Errorf("failed to get partition args. %+v", err)
+	}
+
+	// execute the partition command
+	err = context.Executor.ExecuteCommand(cmd, sgdisk, args...)
 	if err != nil {
 		return fmt.Errorf("failed to partition /dev/%s. %+v", device, err)
 	}
 
+	// ensure the folder exists
+	if err := os.MkdirAll(configDir, 0744); err != nil {
+		log.Fatalf("failed to create config dir %s. %+v", configDir, err)
+	}
+
+	// save the scheme
+	err = scheme.Save(configDir)
+	if err != nil {
+		return fmt.Errorf("failed to save partition scheme. %+v", err)
+	}
+
 	return nil
-}
-
-// Get the arguments necessary to create an sgdisk partition with the given parameters.
-// The id is the partition number.
-// The offset and length are in MB. Under the covers this is translated to sectors.
-// If the length is -1, all remaining space will be assigned to the partition.
-func getPartitionArgs(id, mbOffset, mbLength int, label string) []string {
-	const sectorsPerMB = 2048
-	var newPart string
-	if mbLength == -1 {
-		// The partition gets the remainder of the device
-		newPart = fmt.Sprintf("--largest-new=%d", id)
-	} else {
-		// The partition has a specific offset and length
-		newPart = fmt.Sprintf("--new=%d:%d:+%d", id, mbOffset*sectorsPerMB, mbLength*sectorsPerMB)
-	}
-
-	return []string{
-		newPart,
-		fmt.Sprintf("--change-name=%d:%s", id, label),
-	}
 }
 
 func registerOSDWithCluster(device string, bootstrapConn client.Connection) (int, uuid.UUID, error) {
@@ -380,18 +371,14 @@ func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context 
 	}
 
 	// bluestore has some extra settings
-	settings := map[string]string{}
-	if config.bluestore {
-		settings = map[string]string{
-			"bluestore block wal path": fmt.Sprintf("/dev/%s%d", config.name, walPartition),
-			"bluestore block db path":  fmt.Sprintf("/dev/%s%d", config.name, databasePartition),
-			"bluestore block path":     fmt.Sprintf("/dev/%s%d", config.name, blockPartition),
-		}
+	settings, err := getStoreSettings(context, config)
+	if err != nil {
+		return fmt.Errorf("failed to read store settings. %+v", err)
 	}
 
 	// write the OSD config file to disk
 	keyringPath := getOSDKeyringPath(config.rootPath)
-	_, err := generateConfigFile(context, cluster, config.rootPath, fmt.Sprintf("osd.%d", config.id), keyringPath, config.bluestore, cephConfig, settings)
+	_, err = generateConfigFile(context, cluster, config.rootPath, fmt.Sprintf("osd.%d", config.id), keyringPath, config.bluestore, cephConfig, settings)
 	if err != nil {
 		return fmt.Errorf("failed to write OSD %d config file: %+v", config.id, err)
 	}
@@ -425,6 +412,38 @@ func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context 
 	}
 
 	return nil
+}
+
+func getStoreSettings(context *clusterd.Context, config *osdConfig) (map[string]string, error) {
+	settings := map[string]string{}
+	if !config.bluestore {
+		return settings, nil
+	}
+
+	scheme, err := partition.LoadScheme(config.rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load partition config. %+v", err)
+	}
+
+	walPartition, ok := scheme.PartitionUUIDs[partition.WalPartitionName]
+	if !ok {
+		return nil, fmt.Errorf("failed to find wal partition for osd %d", config.id)
+	}
+	dbPartition, ok := scheme.PartitionUUIDs[partition.DatabasePartitionName]
+	if !ok {
+		return nil, fmt.Errorf("failed to find db partition for osd %d", config.id)
+	}
+	blockPartition, ok := scheme.PartitionUUIDs[partition.BlockPartitionName]
+	if !ok {
+		return nil, fmt.Errorf("failed to find block partition for osd %d", config.id)
+	}
+
+	prefix := "/dev/disk/by-partuuid"
+	settings["bluestore block wal path"] = path.Join(prefix, walPartition)
+	settings["bluestore block db path"] = path.Join(prefix, dbPartition)
+	settings["bluestore block path"] = path.Join(prefix, blockPartition)
+
+	return settings, nil
 }
 
 // creates the OSD identity in the cluster via a mon_command

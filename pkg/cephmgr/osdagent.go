@@ -326,7 +326,7 @@ func (a *osdAgent) prepareDeviceForOSD(device, serial string, bootstrapConn clie
 	configDir := getOSDConfigDir(context.ConfigDir, serial)
 	if isOSDDataNotExist(configDir) {
 		// the device needs to be formatted
-		err := formatDevice(device, serial, a.forceFormat, context.Executor)
+		err := formatDevice(context, device, serial, configDir, a.forceFormat)
 		if err != nil {
 			// attempting to format the volume failed, bail out with error
 			return nil, err
