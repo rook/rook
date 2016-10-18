@@ -157,12 +157,12 @@ fmt: go.fmt
 vendor: go.vendor
 
 clean: go.clean
-	@rm -fr $(WORKDIR) $(RELEASE_DIR) $(BIN_DIR)
+	@rm -fr $(WORKDIR) $(RELEASE_DIR)/* $(BIN_DIR)/*
 
 distclean: go.distclean clean
 
 build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) install
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) build
 
 build.cross: $(foreach p,$(ALL_PLATFORMS), build.platform.$(p))
 

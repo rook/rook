@@ -1,25 +1,7 @@
 #!/bin/bash -e
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-friendly_name=cross-build
-version=$(cat ${scriptdir}/cross-image/version)
-container=quantum/castle-${friendly_name}:${version}
-volume=cross-build
-
-function ver() {
-    printf "%d%03d%03d%03d" $(echo "$1" | tr '.' ' ')
-}
-
-function check_git() {
-    # git version 2.6.6+ through 2.8.3 had a bug with submodules. this makes it hard
-    # to share a cloned directory between host and container
-    # see https://github.com/git/git/blob/master/Documentation/RelNotes/2.8.3.txt#L33
-    gitversion=$(git --version | cut -d" " -f3)
-    if (( $(ver ${gitversion}) > $(ver 2.6.6) && $(ver ${gitversion}) < $(ver 2.8.3) )); then
-        echo WARN: your running git version ${gitversion} which has a bug realted to relative
-        echo WARN: submodule paths. Please consider upgrading to 2.8.3 or later
-    fi
-}
+source "${scriptdir}/common.sh"
 
 check_git
 
@@ -28,17 +10,10 @@ if [ ! -z $DOCKER_HOST ]; then
     return 1
 fi
 
-# if our volume does not exist create one.
-# NOTE: osxfs is really slow so we avoid using it
-if [[ ! $(docker volume ls | grep $volume) ]]; then
-    echo ==== Creating docker volume ${volume}
-    docker volume create --name ${volume}
-fi
-
 # if the container does not exist the pull or build it
-if [[ ! $(docker images -q ${container}) ]]; then
-    echo ==== Pulling ${container}
-    docker pull ${container}
+if [[ ! $(docker images -q ${container_image}) ]]; then
+    echo ==== Pulling ${container_image}
+    docker pull ${container_image}
 fi
 
 # on Linux we run the container with the same uid and gid of the user to avoid
@@ -50,8 +25,100 @@ else
   BUILDER_HOME=/root
 fi
 
-if [[ `which ccache` && -n "${CCACHE_DIR}" ]]; then
-    CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache -e CCACHE_LOG -v ${CCACHE_DIR}:${BUILDER_HOME}/.ccache"
+cleanup() {
+    docker stop ${container_name} &> /dev/null || true
+    docker rm ${container_name} &> /dev/null || true
+}
+
+# mount arguments
+MOUNT_OPTS="\
+    -v ${scriptdir}/../bin:${BUILDER_HOME}/go/src/${source_repo}/bin \
+    -v ${scriptdir}/../release:${BUILDER_HOME}/go/src/${source_repo}/release \
+"
+
+if [ "`uname -s`" != "Linux" ]; then
+
+    # On non-linux hosts, its is EXTREMELY slow to mount the source
+    # tree inside the container. As such we use rsync to copy the source
+    # tree to a new docker volumer on each run. The first rsync take a
+    # little bit of time, but subsequent ones go by fast. This approach
+    # is MUCH faster than using osxfs, NFS or other approaches.
+
+    # On non-linux the layout is as follows:
+    #
+    #  /var/run/docker.sock (bind mounted to host /var/run/docker.sock)
+    #  /${BUILDER_HOME}
+    #    /.netrc (bind mounted to host ${HOME}/.netrc)
+    #    /.docker/config.json (bind mounted to host ${HOME}/.docker/config.json)
+    #    /go (bind mounted to a docker volume)
+    #       /.work
+    #       /.ccache
+    #       /bin  (bind mounted to host <source>/bin)
+    #       /src/github.com/quantum/castle (rsync'd from host <source>)
+    #
+
+    # create a new volume to hold our go workspace
+    if [[ ! $(docker volume ls | grep ${container_volume}) ]]; then
+        echo ==== Syncing sources for first time. This could take a few seconds.
+        docker volume create --name ${container_volume} &> /dev/null
+    fi
+
+    trap "cleanup" EXIT
+    cleanup
+
+    # run the container as an rsyncd daemon so that we can copy the
+    # source tree to the container volume.
+    docker run \
+        --name "${container_name}" \
+        -d \
+        -e MKDIRS="/volume/src/${source_repo}" \
+        -p ${rsync_port}:873 \
+        -v ${container_volume}:/volume \
+        ${container_image} \
+        /build/rsyncd.sh  &> /dev/null
+
+    # wait for rsync to come up
+    wait_for_rsync
+
+    # now copy the source tree to the container volume
+    rsync \
+        --archive \
+        --delete \
+        --prune-empty-dirs \
+        --filter='- /.work/' \
+        --filter='- /.glide/' \
+        --filter='- /.vscode/' \
+        --filter='- /bin/' \
+        --filter='- /release/' \
+        ${scriptdir}/.. \
+        rsync://localhost:${rsync_port}/volume/src/${source_repo}
+
+    MOUNT_OPTS="${MOUNT_OPTS} -v ${container_volume}:${BUILDER_HOME}/go"
+
+else
+
+    # On linux bind mounts are cheap so we dont need to rsync
+    # the layout is as follows:
+    #
+    #  /var/run/docker.sock (bind mounted to host /var/run/docker.sock)
+    #  /${BUILDER_HOME}
+    #    /.netrc (bind mounted to host ${HOME}/.netrc)
+    #    /.docker/config.json (bind mounted to host ${HOME}/.docker/config.json)
+    #    /go
+    #       /.work  (bind mounted to host <source>/.work/cross)
+    #       /.ccache (bind mounted to host CCACHE_DIR)
+    #       /bin     (bind mounted to host <source>/bin)
+    #       /src/github.com/quantum/castle (bind mounted to <source>)
+    #
+    MOUNT_OPTS="${MOUNT_OPTS} \
+        -v ${scriptdir}/../.work/cross:${BUILDER_HOME}/go/.work \
+        -v ${scriptdir}/..:${BUILDER_HOME}/go/src/${source_repo}"
+
+    CCACHE_MOUNT_ARGS="-v ${CCACHE_DIR}:${BUILDER_HOME}/go/.ccache"
+fi
+
+if [[ `which ccache` && -d "${CCACHE_DIR}" ]]; then
+    CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/go/.ccache -e CCACHE_LOG ${CCACHE_MOUNT_ARGS}"
 fi
 
 # we copy credential files for github access
@@ -71,12 +138,14 @@ if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
     -v /var/run/docker.sock:/var/run/docker.sock"
 fi
 
+trap "cleanup" EXIT
+cleanup
+
 docker run \
     --rm \
-    --name "${friendly_name}" \
-    --hostname "${friendly_name}" \
+    --name "${container_name}" \
     -e GOPATH="${BUILDER_HOME}/go" \
-    -e WORKDIR="${BUILDER_HOME}/go/.cross" \
+    -e WORKDIR="${BUILDER_HOME}/go/.work" \
     -e GO_PKG_DIR="" \
     -e GITHUB_TOKEN \
     -e VERSION \
@@ -86,9 +155,7 @@ docker run \
     ${USER_ARGS} \
     ${DOCKER_NESTED_ARGS} \
     ${NET_ARGS} \
-    -v cross-build:${BUILDER_HOME}/go \
-    -v ${scriptdir}/../bin:${BUILDER_HOME}/go/bin \
-    -v ${scriptdir}/..:${BUILDER_HOME}/go/src/github.com/quantum/castle \
-    -w ${BUILDER_HOME}/go/src/github.com/quantum/castle \
-    ${container} \
+    ${MOUNT_OPTS} \
+    -w ${BUILDER_HOME}/go/src/${source_repo} \
+    ${container_image} \
     "$@"

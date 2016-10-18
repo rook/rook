@@ -26,6 +26,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
     llvm-dev \
     mingw-w64 \
     patch \
+    rsync \
     runit \
     sudo \
     uuid-dev \
@@ -154,6 +155,6 @@ RUN \
     CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix race -a std
 
 WORKDIR /build
-COPY entrypoint.sh /build
+COPY entrypoint.sh rsyncd.sh /build/
 
 ENTRYPOINT [ "/build/entrypoint.sh" ]

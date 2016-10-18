@@ -1,0 +1,8 @@
+#!/bin/bash -e
+
+scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${scriptdir}/common.sh"
+
+docker stop ${container_name} &> /dev/null || true
+docker rm ${container_name} &> /dev/null || true
+docker volume rm ${container_volume} &> /dev/null || true

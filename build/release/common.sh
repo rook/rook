@@ -4,11 +4,7 @@ get_bindir() {
     local os=$1
     local arch=$2
 
-    bindir=${RELEASE_BIN_DIR}
-    if [[ ${os}_${arch} != ${RELEASE_HOST_PLATFORM} ]]; then
-        bindir=${bindir}/${os}_${arch}
-    fi
-
+    bindir=${RELEASE_BIN_DIR}/${os}_${arch}
     echo ${bindir}
 }
 
