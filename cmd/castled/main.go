@@ -74,7 +74,7 @@ func init() {
 	// load the environment variables
 	setFlagsFromEnv(rootCmd.Flags())
 
-	rootCmd.RunE = joinCluster
+	rootCmd.RunE = startJoinCluster
 }
 
 func addCommands() {
@@ -82,12 +82,21 @@ func addCommands() {
 	rootCmd.AddCommand(daemonCmd)
 }
 
-func joinCluster(cmd *cobra.Command, args []string) error {
+func startJoinCluster(cmd *cobra.Command, args []string) error {
 	// verify required flags
 	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
 		return err
 	}
 
+	if err := joinCluster(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	return nil
+}
+
+func joinCluster() error {
 	// ensure the data root exists
 	if err := os.MkdirAll(cfg.dataDir, 0744); err != nil {
 		log.Printf("failed to create data directory at %s: %+v", cfg.dataDir, err)

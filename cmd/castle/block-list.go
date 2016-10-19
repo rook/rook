@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/quantum/castle/pkg/castle/client"
@@ -32,7 +33,8 @@ func listBlocksEntry(cmd *cobra.Command, args []string) error {
 	e := &exec.CommandExecutor{}
 	out, err := listBlocks(rbdSysBusPathDefault, c, e)
 	if err != nil {
-		return err
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	fmt.Println(out)

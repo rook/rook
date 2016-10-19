@@ -48,5 +48,10 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 	}
 
 	// run the specified daemon
-	return cephd.New().RunDaemon(daemonType, os.Args[passthruIndex:]...)
+	if err := cephd.New().RunDaemon(daemonType, os.Args[passthruIndex:]...); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	return nil
 }

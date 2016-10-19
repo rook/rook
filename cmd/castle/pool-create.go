@@ -3,6 +3,7 @@ package castle
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/quantum/castle/pkg/castle/client"
 	"github.com/quantum/castle/pkg/model"
@@ -56,7 +57,8 @@ func createPoolsEntry(cmd *cobra.Command, args []string) error {
 	c := client.NewCastleNetworkRestClient(client.GetRestURL(apiServerEndpoint), http.DefaultClient)
 	out, err := createPool(newPoolName, newPoolType, newPoolReplicaCount, newPoolDataChunks, newPoolCodingChunks, c)
 	if err != nil {
-		return err
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	fmt.Println(out)
