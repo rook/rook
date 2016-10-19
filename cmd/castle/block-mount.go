@@ -62,7 +62,8 @@ func mountBlockEntry(cmd *cobra.Command, args []string) error {
 	e := &exec.CommandExecutor{}
 	out, err := mountBlock(mountImageName, mountImagePoolName, mountImagePath, rbdSysBusPathDefault, c, e)
 	if err != nil {
-		return err
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	fmt.Println(out)

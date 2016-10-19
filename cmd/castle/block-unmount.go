@@ -3,6 +3,7 @@ package castle
 import (
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -37,7 +38,8 @@ func unmountBlockEntry(cmd *cobra.Command, args []string) error {
 	e := &exec.CommandExecutor{}
 	out, err := unmountBlock(unmountDeviceName, unmountPath, rbdSysBusPathDefault, e)
 	if err != nil {
-		return err
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	fmt.Println(out)

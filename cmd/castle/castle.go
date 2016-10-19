@@ -45,7 +45,8 @@ func Main() {
 
 	addCommands()
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Printf("castle error: %+v\n", err)
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 }
 

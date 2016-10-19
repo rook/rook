@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/quantum/castle/pkg/castle/client"
 	"github.com/quantum/castle/pkg/model"
@@ -26,7 +27,8 @@ func listNodesEntry(cmd *cobra.Command, args []string) error {
 	c := client.NewCastleNetworkRestClient(client.GetRestURL(apiServerEndpoint), http.DefaultClient)
 	out, err := listNodes(c)
 	if err != nil {
-		return err
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	fmt.Print(out)
