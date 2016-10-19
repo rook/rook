@@ -3,6 +3,13 @@
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${scriptdir}/common.sh"
 
-docker stop ${container_name} &> /dev/null || true
-docker rm ${container_name} &> /dev/null || true
-docker volume rm ${container_volume} &> /dev/null || true
+if [[ $(docker ps -f name=${container_name} | grep -w ${container_name}) ]]; then
+    docker stop ${container_name}
+    docker rm ${container_name}
+fi
+
+if [[ $(docker volume ls | grep ${container_volume}) ]]; then
+    docker volume rm ${container_volume}
+fi
+
+echo SUCCESS

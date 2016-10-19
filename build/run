@@ -71,6 +71,8 @@ if [ "`uname -s`" != "Linux" ]; then
     docker run \
         --name "${container_name}" \
         -d \
+        -e OWNER=root \
+        -e GROUP=root \
         -e MKDIRS="/volume/src/${source_repo}" \
         -p ${rsync_port}:873 \
         -v ${container_volume}:/volume \
@@ -93,7 +95,8 @@ if [ "`uname -s`" != "Linux" ]; then
         ${scriptdir}/.. \
         rsync://localhost:${rsync_port}/volume/src/${source_repo}
 
-    MOUNT_OPTS="${MOUNT_OPTS} -v ${container_volume}:${BUILDER_HOME}/go"
+    MOUNT_OPTS="${MOUNT_OPTS} \
+        -v ${container_volume}:${BUILDER_HOME}/go"
 
 else
 
