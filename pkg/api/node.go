@@ -14,14 +14,14 @@ import (
 // GET
 // /node
 func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
-	clusterInventory, err := inventory.LoadDiscoveredNodes(h.EtcdClient)
+	clusterInventory, err := inventory.LoadDiscoveredNodes(h.context.EtcdClient)
 	if err != nil {
 		log.Printf("failed to load discovered nodes: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	clusterName, err := cephmgr.GetClusterName(h.EtcdClient)
+	clusterName, err := cephmgr.GetClusterName(h.context.EtcdClient)
 	if err != nil {
 		log.Printf("failed to get cluster name: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -32,7 +32,7 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 	i := 0
 	for nodeID, n := range clusterInventory.Nodes {
 		// look up all the disks that the current node has applied OSDs on
-		appliedSerials, err := cephmgr.GetAppliedOSDs(nodeID, h.EtcdClient)
+		appliedSerials, err := cephmgr.GetAppliedOSDs(nodeID, h.context.EtcdClient)
 		if err != nil {
 			log.Printf("failed to get applied OSDs for node %s: %+v", nodeID, err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -41,7 +41,7 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 
 		storage := uint64(0)
 		for _, d := range n.Disks {
-			for _, s := range appliedSerials {
+			for s := range appliedSerials.Iter() {
 				if s == d.Serial {
 					// current disk is in applied OSD set, add its storage to the running total
 					storage += d.Size

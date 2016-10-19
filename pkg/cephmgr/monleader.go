@@ -80,7 +80,7 @@ func removeMonitorsFromQuorum(factory client.ConnectionFactory, context *cluster
 	}
 
 	// open an admin connection to the cluster
-	conn, err := ConnectToClusterAsAdmin(factory, cluster)
+	conn, err := ConnectToClusterAsAdmin(context, factory, cluster)
 	if err != nil {
 		return err
 	}
@@ -337,7 +337,7 @@ func calculateMonitorCount(nodeCount int) int {
 func waitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
 
 	// open an admin connection to the cluster
-	adminConn, err := ConnectToClusterAsAdmin(factory, cluster)
+	adminConn, err := ConnectToClusterAsAdmin(context, factory, cluster)
 	if err != nil {
 		return err
 	}

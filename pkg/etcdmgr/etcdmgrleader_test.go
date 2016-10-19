@@ -81,7 +81,6 @@ func TestEtcdMgrLeaderShrink(t *testing.T) {
 	etcdClient.WatcherResponses["/castle/services/etcd/desired/a/ipaddress"] = "1.2.3.4"
 	etcdClient.WatcherResponses["/castle/services/etcd/desired/b/ipaddress"] = "2.3.4.5"
 	etcdClient.WatcherResponses["/castle/services/etcd/desired/c/ipaddress"] = "2.3.4.5"
-	etcdClient.Dump()
 
 	unhealthyNode := clusterd.UnhealthyNode{AgeSeconds: 10, NodeID: "c"}
 	unhealthyNodeEvt := clusterd.NewUnhealthyNodeEvent(context, []*clusterd.UnhealthyNode{&unhealthyNode})
@@ -89,7 +88,7 @@ func TestEtcdMgrLeaderShrink(t *testing.T) {
 
 	// wait for the event queue to be empty
 	clusterdtest.WaitForEvents(&etcdmgrService)
-	etcdClient.Dump()
+
 	// two possibilities: there might be a&c or b&c in the desired states
 	assert.True(t, etcdClient.GetChildDirs("/castle/services/etcd/desired").Count() == 0)
 }

@@ -48,6 +48,7 @@ func TestMonAgent(t *testing.T) {
 		EtcdClient: etcdClient,
 		NodeID:     "a",
 		ProcMan:    &proc.ProcManager{Trap: procTrap},
+		ConfigDir:  "/tmp",
 	}
 
 	factory := &testceph.MockConnectionFactory{Fsid: "f", SecretKey: "k"}

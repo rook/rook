@@ -20,6 +20,7 @@ func TestMonSelection(t *testing.T) {
 	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		Inventory:  inv,
+		ConfigDir:  "/tmp",
 	}
 
 	// choose 1 mon from the set of 1 nodes
@@ -79,7 +80,7 @@ func TestMonOnUnhealthyNode(t *testing.T) {
 
 	// the monitor is on the bad node
 	badNode := &clusterd.UnhealthyNode{NodeID: "a"}
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{EtcdClient: etcdClient, ConfigDir: "/tmp"}
 	response, err := monsOnUnhealthyNode(context, []*clusterd.UnhealthyNode{badNode})
 	assert.True(t, response)
 	assert.Nil(t, err)
@@ -138,6 +139,7 @@ func TestUnhealthyMon(t *testing.T) {
 	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		Inventory:  inv,
+		ConfigDir:  "/tmp",
 	}
 
 	// choose 3 mons from the set of 4 nodes, but don't choose the unhealthy node 'a'

@@ -13,9 +13,9 @@ import (
 )
 
 // StartJoinCluster initializes the cluster services to enable joining the cluster and listening for orchestration.
-func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4 string) (*Context, error) {
-	log.Printf("Starting cluster. nodeID=%s, url=%s, members=%s, publicIPv4=%s, privateIPv4=%s",
-		nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4)
+func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, configDir, nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4 string) (*Context, error) {
+	log.Printf("Starting cluster. config=%s, nodeID=%s, url=%s, members=%s, publicIPv4=%s, privateIPv4=%s",
+		configDir, nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4)
 
 	etcdClients := []string{}
 	if etcdMembers != "" {
@@ -25,7 +25,7 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, nod
 
 		// use the discovery URL to query the etcdmgr what the etcd client endpoints should be
 		var err error
-		etcdClients, err = manager.GetEtcdClients(discoveryURL, privateIPv4, nodeID)
+		etcdClients, err = manager.GetEtcdClients(configDir, discoveryURL, privateIPv4, nodeID)
 		if err != nil {
 			return nil, err
 		}
@@ -57,6 +57,7 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, nod
 		NodeID:     nodeID,
 		Services:   services,
 		ProcMan:    procMan,
+		ConfigDir:  configDir,
 	}
 	clusterLeader := newServicesLeader(context)
 	clusterMember := newClusterMember(context, leaseManager, clusterLeader)

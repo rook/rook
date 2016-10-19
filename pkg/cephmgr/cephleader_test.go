@@ -39,6 +39,7 @@ func TestCephLeaders(t *testing.T) {
 	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		Inventory:  inv,
+		ConfigDir:  "/tmp",
 	}
 
 	// mock the agent responses that the deployments were successful to start mons and osds
@@ -89,6 +90,7 @@ func TestMoveUnhealthyMonitor(t *testing.T) {
 	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		Inventory:  inv,
+		ConfigDir:  "/tmp",
 	}
 
 	// mock the agent responses that the deployments were successful to start mons and osds

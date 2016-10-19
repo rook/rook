@@ -70,7 +70,7 @@ func (e *etcdMgrAgent) CreateLocalService(context *clusterd.Context, desiredKey 
 	}
 	ipAddr := resp.Node.Value
 	log.Println("ipAddress: ", ipAddr)
-	e.conf, err = bootstrap.GenerateConfigFromExistingCluster(e.context, ipAddr, context.NodeID)
+	e.conf, err = bootstrap.GenerateConfigFromExistingCluster(e.context, context.ConfigDir, ipAddr, context.NodeID)
 	log.Println("config: ", e.conf)
 	if err != nil {
 		return err

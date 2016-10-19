@@ -16,11 +16,11 @@ var (
 )
 
 const (
+	systemLogDir   = "/var/log/castle"
 	outputPadding  = 3
 	outputMinWidth = 10
 	outputTabWidth = 0
 	outputPadChar  = ' '
-	logFileDir     = "/tmp/castle/log"
 	logFileName    = "castle.log"
 )
 
@@ -32,10 +32,10 @@ var rootCmd = &cobra.Command{
 
 func Main() {
 	// set up logging to a log file instead of stdout (only command output and errors should go to stdout/stderr)
-	if err := os.MkdirAll(logFileDir, 0744); err != nil {
-		log.Fatalf("failed to create logging dir '%s': %+v", logFileDir, err)
+	if err := os.MkdirAll(systemLogDir, 0744); err != nil {
+		log.Fatalf("failed to create logging dir '%s': %+v", systemLogDir, err)
 	}
-	logFilePath := filepath.Join(logFileDir, logFileName)
+	logFilePath := filepath.Join(systemLogDir, logFileName)
 	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		log.Fatalf("failed to open log file '%s': %v", logFilePath, err)

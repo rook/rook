@@ -16,16 +16,14 @@ import (
 
 	"github.com/quantum/castle/pkg/cephmgr/client"
 	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/quantum/castle/pkg/util/proc"
-	"github.com/quantum/castle/pkg/util/sys"
 )
 
 const (
-	osdAgentName    = "osd"
-	devicesKey      = "devices"
-	localDeviceName = "<local>"
+	osdAgentName = "osd"
+	deviceKey    = "device"
+	dirKey       = "dir"
 )
 
 type osdAgent struct {
@@ -35,6 +33,20 @@ type osdAgent struct {
 	factory     client.ConnectionFactory
 	osdProc     map[string]*proc.MonitoredProc
 	devices     string
+}
+
+type osdInfo struct {
+	id     int
+	serial string
+	dir    bool
+}
+
+type osdConfig struct {
+	name      string
+	rootPath  string
+	id        int
+	uuid      uuid.UUID
+	bluestore bool
 }
 
 func newOSDAgent(factory client.ConnectionFactory, devices string, forceFormat bool, location string) *osdAgent {
@@ -49,18 +61,24 @@ func (a *osdAgent) Name() string {
 // set the desired state in etcd
 func (a *osdAgent) Initialize(context *clusterd.Context) error {
 
-	// add the devices to desired state
-	devices := strings.Split(a.devices, ",")
-
-	if len(devices) == 1 && devices[0] == "" {
-		// no devices specified, just use the local file system
-		devices = []string{localDeviceName}
+	if len(a.devices) > 0 {
+		// add the devices to desired state
+		devices := strings.Split(a.devices, ",")
+		for _, device := range devices {
+			log.Printf("Adding device %s to desired state", device)
+			err := AddDesiredDevice(context.EtcdClient, device, context.NodeID)
+			if err != nil {
+				return fmt.Errorf("failed to add desired device %s. %v", device, err)
+			}
+		}
 	}
 
-	for _, device := range devices {
-		err := AddDesiredDevice(context.EtcdClient, &Device{Name: device, NodeID: context.NodeID})
+	// if no devices or directories were specified, use the current directory for an osd
+	if len(a.devices) == 0 {
+		log.Printf("Adding local path to local directory %s", context.ConfigDir)
+		err := AddDesiredDir(context.EtcdClient, context.ConfigDir, context.NodeID)
 		if err != nil {
-			return fmt.Errorf("failed to add desired device %s", device)
+			return fmt.Errorf("failed to add current dir %s. %v", context.ConfigDir, err)
 		}
 	}
 
@@ -93,28 +111,33 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 	}
 
 	// Connect to the ceph cluster
-	adminConn, err := ConnectToClusterAsAdmin(a.factory, a.cluster)
+	adminConn, err := ConnectToClusterAsAdmin(context, a.factory, a.cluster)
 	if err != nil {
 		return err
 	}
 	defer adminConn.Shutdown()
 
 	devices, err := loadDesiredDevices(context.EtcdClient, context.NodeID)
-	if devices.Count() == 0 {
-		return nil
+	if err != nil {
+		return fmt.Errorf("failed to load desired devices. %v", err)
 	}
 
-	if err := a.startDesiredDevices(context, adminConn, devices); err != nil {
+	dirs, err := loadDesiredDirs(context.EtcdClient, context.NodeID)
+	if err != nil {
+		return fmt.Errorf("failed to load desired dirs. %v", err)
+	}
+
+	if err := a.startDesiredDevices(context, adminConn, devices, dirs); err != nil {
 		return err
 	}
 
 	return a.stopUndesiredDevices(context, adminConn, devices)
 }
 
-func (a *osdAgent) startDesiredDevices(context *clusterd.Context, connection client.Connection, devices *util.Set) error {
+func (a *osdAgent) startDesiredDevices(context *clusterd.Context, connection client.Connection, devices map[string]string, dirs *util.Set) error {
 
 	// Start an OSD for each of the specified devices
-	deviceMap, err := a.createOSDs(connection, context, devices)
+	deviceMap, err := a.createOSDs(connection, context, devices, dirs)
 	if err != nil {
 		return fmt.Errorf("failed to create OSDs: %+v", err)
 	}
@@ -127,20 +150,25 @@ func (a *osdAgent) startDesiredDevices(context *clusterd.Context, connection cli
 	return nil
 }
 
-func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection client.Connection, desired *util.Set) error {
+func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection client.Connection, desiredDevices map[string]string) error {
 	applied, err := GetAppliedOSDs(context.NodeID, context.EtcdClient)
 	if err != nil {
 		return fmt.Errorf("failed to get applied OSDs. %v", err)
 	}
 
+	desiredSerial := util.NewSet()
+	for _, serial := range desiredDevices {
+		desiredSerial.Add(serial)
+	}
+
 	var lastErr error
-	for device := range applied {
-		if desired.Contains(device) {
+	for appliedSerial := range applied.Iter() {
+		if desiredSerial.Contains(appliedSerial) {
 			// the osd is desired and applied
 			continue
 		}
 
-		err := a.removeOSD(context, connection, device)
+		err := a.removeOSD(context, connection, appliedSerial)
 		if err != nil {
 			lastErr = err
 		}
@@ -149,23 +177,23 @@ func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection cl
 	return lastErr
 }
 
-func getIDFromName(context *clusterd.Context, name string) (int, error) {
-	key := path.Join(getAppliedKey(context.NodeID), devicesKey, name, "id")
+func getIDFromSerial(context *clusterd.Context, serial string) (int, error) {
+	key := path.Join(getAppliedKey(context.NodeID), deviceKey, serial, "id")
 	val, err := context.EtcdClient.Get(ctx.Background(), key, nil)
 	if err != nil {
-		return -1, fmt.Errorf("failed to get device id from name %s. %v", name, err)
+		return -1, fmt.Errorf("failed to get device id from serial %s. %v", serial, err)
 	}
 
 	id, err := strconv.ParseInt(val.Node.Value, 10, 32)
 	if err != nil {
-		return -1, fmt.Errorf("failed to get parse id from name %s. %v", name, err)
+		return -1, fmt.Errorf("failed to get parse id from serial %s. %v", serial, err)
 	}
 
 	return int(id), nil
 }
 
 func (a *osdAgent) removeOSD(context *clusterd.Context, connection client.Connection, name string) error {
-	osdID, err := getIDFromName(context, name)
+	osdID, err := getIDFromSerial(context, name)
 	if err != nil {
 		return fmt.Errorf("failed to get osd %s id. %v", name, err)
 	}
@@ -194,7 +222,7 @@ func (a *osdAgent) removeOSD(context *clusterd.Context, connection client.Connec
 	}
 
 	// remove the osd from the applied key
-	appliedKey := path.Join(getAppliedKey(context.NodeID), devicesKey, name)
+	appliedKey := path.Join(getAppliedKey(context.NodeID), deviceKey, name)
 	_, err = context.EtcdClient.Delete(ctx.Background(), appliedKey, &etcd.DeleteOptions{Recursive: true, Dir: true})
 	if err != nil {
 		log.Printf("failed to remove device %s from desired state. %v", name, err)
@@ -223,156 +251,161 @@ func getAppliedKey(nodeID string) string {
 }
 
 // create and initalize OSDs for all the devices specified in the given config
-func (a *osdAgent) createOSDs(adminConn client.Connection, context *clusterd.Context, devices *util.Set) (map[string]int, error) {
+func (a *osdAgent) createOSDs(adminConn client.Connection, context *clusterd.Context, devices map[string]string, dirs *util.Set) (map[string]*osdInfo, error) {
 	// generate and write the OSD bootstrap keyring
-	if err := createOSDBootstrapKeyring(adminConn, a.cluster.Name); err != nil {
+	if err := createOSDBootstrapKeyring(adminConn, context.ConfigDir, a.cluster.Name); err != nil {
 		return nil, err
 	}
 
 	// connect to the cluster using the bootstrap-osd creds, this connection will be used for config operations
-	bootstrapConn, err := connectToCluster(a.factory, a.cluster, getBootstrapOSDDir(), "bootstrap-osd", getBootstrapOSDKeyringPath(a.cluster.Name))
+	bootstrapConn, err := connectToCluster(context, a.factory, a.cluster, getBootstrapOSDDir(context.ConfigDir), "bootstrap-osd", getBootstrapOSDKeyringPath(context.ConfigDir, a.cluster.Name))
 	if err != nil {
 		return nil, err
 	}
 	defer bootstrapConn.Shutdown()
 
+	deviceMap := map[string]*osdInfo{}
+	for dir := range dirs.Iter() {
+		config, err := a.createLocalOSD(bootstrapConn, dir)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create local OSD: %+v", err)
+		}
+
+		err = a.createOrStartOSD(context, bootstrapConn, config)
+		if err != nil {
+			return nil, fmt.Errorf("failed to start osd on device %s. %v", dir, err)
+		}
+
+		deviceMap[dir] = &osdInfo{id: config.id, dir: true}
+	}
+
 	// initialize all the desired OSD volumes
-	deviceMap := map[string]int{}
-	for device := range devices.Iter() {
-		var osdID int
-		var osdUUID uuid.UUID
-		var osdDataRoot string
-
-		if device == localDeviceName {
-			osdDataRoot, osdID, osdUUID, err = a.createLocalOSD(bootstrapConn)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create local OSD: %+v", err)
-			}
-		} else {
-			osdDataRoot, osdID, osdUUID, err = a.createMountedOSD(device, bootstrapConn, context)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create mounted OSD for device %s: %+v", device, err)
-			}
-		}
-
-		// find the OSD data path (under the mount point/data dir)
-		osdDataPath, err := findOSDDataPath(osdDataRoot, a.cluster.Name)
+	for device, serial := range devices {
+		config, err := a.prepareDeviceForOSD(device, serial, bootstrapConn, context)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create mounted OSD on %s: %+v", device, err)
 		}
 
-		if isOSDDataNotExist(osdDataPath) {
-			// osd_data_dir/whoami does not exist yet, create/initialize the OSD
-			osdDataPath, err = initializeOSD(a.factory, context, osdDataRoot, osdID, osdUUID, device, bootstrapConn, a.cluster, a.location)
-			if err != nil {
-				return nil, fmt.Errorf("failed to initialize OSD at %s: %+v", osdDataRoot, err)
-			}
-		} else {
-			// osd_data_dir/whoami already exists, meaning the OSD is already set up.
-			// look up some basic information about it so we can run it.
-			osdID, osdUUID, err = getOSDInfo(osdDataPath)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get OSD information from %s: %+v", osdDataPath, err)
-			}
-		}
-
-		// run the OSD in a child process now that it is fully initialized and ready to go
-		err = a.runOSD(context, a.cluster.Name, osdID, osdUUID, osdDataPath, device)
+		err = a.createOrStartOSD(context, bootstrapConn, config)
 		if err != nil {
-			return nil, fmt.Errorf("failed to run osd %d: %+v", osdID, err)
+			return nil, fmt.Errorf("failed to start osd on device %s. %v", device, err)
 		}
 
-		deviceMap[device] = osdID
+		deviceMap[device] = &osdInfo{id: config.id, serial: serial}
 	}
 
 	return deviceMap, nil
 }
 
-func (a *osdAgent) createMountedOSD(device string, bootstrapConn client.Connection, context *clusterd.Context) (string, int, uuid.UUID, error) {
+func (a *osdAgent) createOrStartOSD(context *clusterd.Context, connection client.Connection, config *osdConfig) error {
+
+	if isOSDDataNotExist(config.rootPath) {
+
+		// osd_data_dir/whoami does not exist yet, create/initialize the OSD
+		err := initializeOSD(config, a.factory, context, connection, a.cluster, a.location, context.Executor)
+		if err != nil {
+			return fmt.Errorf("failed to initialize OSD at %s: %+v", config.rootPath, err)
+		}
+
+	} else {
+		// osd_data_dir/whoami already exists, meaning the OSD is already set up.
+		// look up some basic information about it so we can run it.
+		err := loadOSDInfo(config)
+		if err != nil {
+			return fmt.Errorf("failed to get OSD information from %s: %+v", config.rootPath, err)
+		}
+	}
+
+	// run the OSD in a child process now that it is fully initialized and ready to go
+	err := a.runOSD(context, a.cluster.Name, config)
+	if err != nil {
+		return fmt.Errorf("failed to run osd %d: %+v", config.id, err)
+	}
+
+	return nil
+}
+
+func (a *osdAgent) prepareDeviceForOSD(device, serial string, bootstrapConn client.Connection, context *clusterd.Context) (*osdConfig, error) {
 	var osdID int
 	var osdUUID uuid.UUID
 
-	mountPoint, err := sys.GetDeviceMountPoint(device, context.Executor)
-	if err != nil {
-		return "", -1, uuid.UUID{}, fmt.Errorf("unable to get mount point for device %s: %+v", device, err)
-	}
-
-	if mountPoint == "" {
-		// the device is not mounted, so proceed with the format and mounting
-		if err := formatOSD(device, a.forceFormat, context.Executor); err != nil {
+	configDir := getOSDConfigDir(context.ConfigDir, serial)
+	if isOSDDataNotExist(configDir) {
+		// the device needs to be formatted
+		err := formatDevice(context, device, serial, configDir, a.forceFormat)
+		if err != nil {
 			// attempting to format the volume failed, bail out with error
-			return "", -1, uuid.UUID{}, err
+			return nil, err
 		}
 
 		// register the OSD with the cluster now to get an official ID
 		osdID, osdUUID, err = registerOSDWithCluster(device, bootstrapConn)
 		if err != nil {
-			return "", -1, uuid.UUID{}, fmt.Errorf("failed to regiser OSD %d with cluster: %+v", osdID, err)
+			return nil, fmt.Errorf("failed to regiser OSD %d with cluster: %+v", osdID, err)
 		}
 
-		// mount the device using a mount point that reflects the OSD's ID
-		mountPoint = getOSDRootDir(osdID)
-		if err := mountOSD(device, mountPoint, context.Executor); err != nil {
-			return "", -1, uuid.UUID{}, err
+		if err := os.MkdirAll(configDir, 0744); err != nil {
+			return nil, fmt.Errorf("failed to create config dir at %s: %+v", configDir, err)
 		}
 	}
 
-	return mountPoint, osdID, osdUUID, nil
+	// configure devices with bluestore, and local directories with filestore
+	return &osdConfig{rootPath: configDir, id: osdID, uuid: osdUUID, name: device, bluestore: true}, nil
 }
 
-func (a *osdAgent) createLocalOSD(bootstrapConn client.Connection) (string, int, uuid.UUID, error) {
+func (a *osdAgent) createLocalOSD(connection client.Connection, root string) (*osdConfig, error) {
 	var osdID int
 	var osdUUID uuid.UUID
 	var osdDataPath string
 
-	root := "/tmp"
 	osdDataRoot, err := findOSDDataRoot(root)
 	if err != nil {
-		return "", -1, uuid.UUID{}, fmt.Errorf("failed to find OSD data root under %s: %+v", root, err)
-	}
-
-	if osdDataRoot != "" {
-		osdDataPath, err = findOSDDataPath(osdDataRoot, a.cluster.Name)
-		if err != nil {
-			return "", -1, uuid.UUID{}, fmt.Errorf("failed to find osd data path under %s: %+v", osdDataRoot, err)
-		}
+		return nil, fmt.Errorf("failed to find OSD data root under %s: %+v", root, err)
 	}
 
 	if isOSDDataNotExist(osdDataPath) {
 		// register the OSD with the cluster now to get an official ID
-		osdID, osdUUID, err = registerOSDWithCluster(osdDataRoot, bootstrapConn)
+		osdID, osdUUID, err = registerOSDWithCluster(root, connection)
 		if err != nil {
-			return "", -1, uuid.UUID{}, fmt.Errorf("failed to register OSD %d with cluster: %+v", osdID, err)
+			return nil, fmt.Errorf("failed to register OSD %d with cluster: %+v", osdID, err)
 		}
 
-		osdDataRoot = getOSDRootDir(osdID)
+		osdDataRoot = getOSDRootDir(root, osdID)
 		if err := os.MkdirAll(osdDataRoot, 0744); err != nil {
-			return "", -1, uuid.UUID{}, fmt.Errorf("failed to make osdDataRoot at %s: %+v", osdDataRoot, err)
+			return nil, fmt.Errorf("failed to make osdDataRoot at %s: %+v", osdDataRoot, err)
 		}
 	}
 
-	return osdDataRoot, osdID, osdUUID, nil
+	return &osdConfig{rootPath: osdDataRoot, id: osdID, uuid: osdUUID, bluestore: false}, nil
 }
 
 // runs an OSD with the given config in a child process
-func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath, device string) error {
+func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, config *osdConfig) error {
 	// start the OSD daemon in the foreground with the given config
-	log.Printf("starting osd %d at %s", osdID, osdDataPath)
-	osdUUIDArg := fmt.Sprintf("--osd-uuid=%s", osdUUID.String())
+	log.Printf("starting osd %d at %s", config.id, config.rootPath)
+
+	osdUUIDArg := fmt.Sprintf("--osd-uuid=%s", config.uuid.String())
+
+	params := []string{"--foreground",
+		fmt.Sprintf("--id=%d", config.id),
+		fmt.Sprintf("--cluster=%s", clusterName),
+		fmt.Sprintf("--osd-data=%s", config.rootPath),
+		fmt.Sprintf("--conf=%s", getOSDConfFilePath(config.rootPath, clusterName)),
+		fmt.Sprintf("--keyring=%s", getOSDKeyringPath(config.rootPath)),
+		osdUUIDArg,
+	}
+
+	if !config.bluestore {
+		params = append(params, fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(config.rootPath)))
+	}
+
 	process, err := context.ProcMan.Start(
 		"osd",
 		regexp.QuoteMeta(osdUUIDArg),
 		proc.ReuseExisting,
-		"--foreground",
-		fmt.Sprintf("--id=%s", strconv.Itoa(osdID)),
-		fmt.Sprintf("--cluster=%s", clusterName),
-		fmt.Sprintf("--osd-data=%s", osdDataPath),
-		fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(osdDataPath)),
-		fmt.Sprintf("--conf=%s", getOSDConfFilePath(osdDataPath, clusterName)),
-		fmt.Sprintf("--keyring=%s", getOSDKeyringPath(osdDataPath)),
-		osdUUIDArg)
+		params...)
 	if err != nil {
-		return fmt.Errorf("failed to start osd %d: %+v", osdID, err)
+		return fmt.Errorf("failed to start osd %d: %+v", config.id, err)
 	}
 
 	if a.osdProc == nil {
@@ -381,60 +414,59 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, osdID i
 	}
 	if process != nil {
 		// if the process was already running Start will return nil in which case we don't want to overwrite it
-		a.osdProc[device] = process
+		a.osdProc[config.name] = process
 	}
 
 	return nil
 }
 
 // For all applied OSDs, gets a mapping of their device names to their serial numbers
-func GetAppliedOSDs(nodeID string, etcdClient etcd.KeysAPI) (map[string]string, error) {
-	appliedKey := path.Join(getAppliedKey(nodeID), devicesKey)
-	devices := map[string]string{}
+func GetAppliedOSDs(nodeID string, etcdClient etcd.KeysAPI) (*util.Set, error) {
+	appliedKey := path.Join(getAppliedKey(nodeID), deviceKey)
 
-	deviceKeys, err := etcdClient.Get(ctx.Background(), appliedKey, &etcd.GetOptions{Recursive: true})
+	devices, err := util.GetDirChildKeys(etcdClient, appliedKey)
 	if err != nil {
 		if util.IsEtcdKeyNotFound(err) {
-			return devices, nil
+			return util.NewSet(), nil
 		}
 		return nil, err
-	}
-
-	// parse the device info from etcd
-	for _, dev := range deviceKeys.Node.Nodes {
-		name := util.GetLeafKeyPath(dev.Key)
-		for _, setting := range dev.Nodes {
-			if strings.HasSuffix(setting.Key, "/serial") {
-				devices[name] = setting.Value
-			}
-		}
 	}
 
 	return devices, nil
 }
 
-func (a *osdAgent) saveAppliedOSDs(context *clusterd.Context, devices map[string]int) error {
-	appliedKey := path.Join(getAppliedKey(context.NodeID), devicesKey)
+func (a *osdAgent) saveAppliedOSDs(context *clusterd.Context, devices map[string]*osdInfo) error {
 	var settings = make(map[string]string)
-	for name, id := range devices {
-		var serial string
-		var err error
-		if name == localDeviceName {
-			serial = localDeviceName
+	for name, info := range devices {
+		var pseudoName string
+		if info.serial == "" {
+			// convert the local path to an id that will not contain path characters in the etcd key
+			pseudoName = getPseudoDir(name)
 		} else {
-			serial, err = inventory.GetSerialFromDevice(name, context.NodeID, context.EtcdClient)
-			if err != nil {
-				return fmt.Errorf("failed to get serial for device %s: %+v", name, err)
-			}
+			pseudoName = info.serial
+		}
+		baseKey := deviceKey
+		if info.dir {
+			baseKey = dirKey
 		}
 
-		settings[path.Join(name, "serial")] = serial
-		settings[path.Join(name, "id")] = strconv.FormatInt(int64(id), 10)
+		settings[path.Join(baseKey, pseudoName, "name")] = name
+		settings[path.Join(baseKey, pseudoName, "id")] = strconv.FormatInt(int64(info.id), 10)
 	}
 
+	appliedKey := path.Join(getAppliedKey(context.NodeID))
 	if err := util.StoreEtcdProperties(context.EtcdClient, appliedKey, settings); err != nil {
 		return fmt.Errorf("failed to mark devices as applied: %+v", err)
 	}
 
 	return nil
+}
+
+func getPseudoDir(path string) string {
+	// cut off the leading slash so we won't end up with a hidden etcd key
+	if strings.HasPrefix(path, "/") {
+		path = path[1:]
+	}
+
+	return strings.Replace(path, "/", "_", -1)
 }

@@ -19,10 +19,10 @@ import (
 
 func TestGetOSDInfo(t *testing.T) {
 	// error when no info is found on disk
-	id, guid, err := getOSDInfo("/tmp")
-	assert.Equal(t, -1, id)
+	config := &osdConfig{rootPath: "/tmp"}
+
+	err := loadOSDInfo(config)
 	assert.NotNil(t, err)
-	assert.Equal(t, uuid.UUID{}, guid)
 
 	// write the info to disk
 	whoFile := "/tmp/whoami"
@@ -34,37 +34,53 @@ func TestGetOSDInfo(t *testing.T) {
 	defer os.Remove(fsidFile)
 
 	// check the successful osd info
-	id, guid, err = getOSDInfo("/tmp")
+	err = loadOSDInfo(config)
 	assert.Nil(t, err)
-	assert.Equal(t, 23, id)
-	assert.Equal(t, testUUID, guid)
+	assert.Equal(t, 23, config.id)
+	assert.Equal(t, testUUID, config.uuid)
 }
 
 func TestDesiredDeviceState(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
+	etcdClient.SetValue("/castle/nodes/config/a/disks/serialno/name", "foo")
 
 	// add a device
-	device := &Device{Name: "foo", NodeID: "a"}
-	err := AddDesiredDevice(etcdClient, device)
+	err := AddDesiredDevice(etcdClient, "foo", "a")
 	assert.Nil(t, err)
 	devices := etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/a/device")
 	assert.Equal(t, 1, devices.Count())
-	assert.True(t, devices.Contains("foo"))
+	assert.True(t, devices.Contains("serialno"))
 
 	// remove the device
-	err = RemoveDesiredDevice(etcdClient, device)
+	err = RemoveDesiredDevice(etcdClient, "foo", "a")
 	assert.Nil(t, err)
 	devices = etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/a/device")
 	assert.Equal(t, 0, devices.Count())
 
 	// removing a non-existent device is a no-op
-	err = RemoveDesiredDevice(etcdClient, device)
+	err = RemoveDesiredDevice(etcdClient, "foo", "a")
 	assert.Nil(t, err)
+}
+
+func TestDesiredDirsState(t *testing.T) {
+	etcdClient := util.NewMockEtcdClient()
+
+	// add a dir
+	err := AddDesiredDir(etcdClient, "/my/dir", "a")
+	assert.Nil(t, err)
+	dirs := etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/a/dir")
+	assert.Equal(t, 1, dirs.Count())
+	assert.True(t, dirs.Contains("my_dir"))
+	assert.Equal(t, "/my/dir", etcdClient.GetValue("/castle/services/ceph/osd/desired/a/dir/my_dir/path"))
+
+	loadedDirs, err := loadDesiredDirs(etcdClient, "a")
+	assert.Nil(t, err)
+	assert.True(t, loadedDirs.Equals(util.CreateSet([]string{"/my/dir"})), fmt.Sprintf("dirs=%v", loadedDirs))
 }
 
 func TestOSDBootstrap(t *testing.T) {
 	clusterName := "mycluster"
-	targetPath := getBootstrapOSDKeyringPath(clusterName)
+	targetPath := getBootstrapOSDKeyringPath("/tmp", clusterName)
 	defer os.Remove(targetPath)
 
 	factory := &testceph.MockConnectionFactory{}
@@ -75,7 +91,7 @@ func TestOSDBootstrap(t *testing.T) {
 		return []byte(response), "", nil
 	}
 
-	err := createOSDBootstrapKeyring(conn, clusterName)
+	err := createOSDBootstrapKeyring(conn, "/tmp", clusterName)
 	assert.Nil(t, err)
 
 	contents, err := ioutil.ReadFile(targetPath)

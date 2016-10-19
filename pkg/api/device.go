@@ -17,7 +17,7 @@ func (h *Handler) AddDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := cephmgr.AddDesiredDevice(h.EtcdClient, device)
+	err := cephmgr.AddDesiredDevice(h.context.EtcdClient, device.Name, device.NodeID)
 	if err != nil {
 		log.Printf("failed to add device. %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -34,7 +34,7 @@ func (h *Handler) RemoveDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := cephmgr.RemoveDesiredDevice(h.EtcdClient, device)
+	err := cephmgr.RemoveDesiredDevice(h.context.EtcdClient, device.Name, device.NodeID)
 	if err != nil {
 		log.Printf("failed to remove device. %v", err)
 		w.WriteHeader(http.StatusInternalServerError)

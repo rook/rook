@@ -66,6 +66,9 @@ type Context struct {
 
 	// The process manager for launching a process
 	ProcMan *proc.ProcManager
+
+	// The root configuration directory used by services
+	ConfigDir string
 }
 
 func copyContext(c *Context) *Context {
@@ -76,6 +79,7 @@ func copyContext(c *Context) *Context {
 		Executor:   c.Executor,
 		ProcMan:    c.ProcMan,
 		Inventory:  c.Inventory,
+		ConfigDir:  c.ConfigDir,
 	}
 }
 

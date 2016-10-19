@@ -143,7 +143,6 @@ func GetNodeStatusKey(service, nodeID string) string {
 // If the taskKey is the empty string, set the status for the node.
 func SetNodeConfigStatus(etcdClient etcd.KeysAPI, nodeID, taskKey string, nodeStatus NodeConfigStatus) error {
 	key := GetNodeStatusKey(taskKey, nodeID)
-	fmt.Println("key: ", key)
 	_, err := etcdClient.Set(ctx.Background(), key, nodeStatus.String(), nil)
 	return err
 }

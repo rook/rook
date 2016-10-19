@@ -7,20 +7,20 @@ import (
 	"log"
 	"net/http"
 
-	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/cephmgr"
 	ceph "github.com/quantum/castle/pkg/cephmgr/client"
+	"github.com/quantum/castle/pkg/clusterd"
 )
 
 type Handler struct {
-	EtcdClient        etcd.KeysAPI
+	context           *clusterd.Context
 	ConnectionFactory cephmgr.ConnectionFactory
 	CephFactory       ceph.ConnectionFactory
 }
 
-func NewHandler(etcdClient etcd.KeysAPI, connFactory cephmgr.ConnectionFactory, cephFactory ceph.ConnectionFactory) *Handler {
+func NewHandler(context *clusterd.Context, connFactory cephmgr.ConnectionFactory, cephFactory ceph.ConnectionFactory) *Handler {
 	return &Handler{
-		EtcdClient:        etcdClient,
+		context:           context,
 		ConnectionFactory: connFactory,
 		CephFactory:       cephFactory,
 	}
@@ -73,7 +73,7 @@ func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
 // /mon
 func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
 
-	desiredMons, err := cephmgr.GetDesiredMonitors(h.EtcdClient)
+	desiredMons, err := cephmgr.GetDesiredMonitors(h.context.EtcdClient)
 	if err != nil {
 		log.Printf("failed to load monitors: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -130,7 +130,7 @@ func handleReadBody(w http.ResponseWriter, r *http.Request, opName string) ([]by
 }
 
 func (h *Handler) handleConnectToCeph(w http.ResponseWriter) (ceph.Connection, bool) {
-	adminConn, err := h.ConnectionFactory.ConnectAsAdmin(h.CephFactory, h.EtcdClient)
+	adminConn, err := h.ConnectionFactory.ConnectAsAdmin(h.context, h.CephFactory)
 	if err != nil {
 		log.Printf("failed to connect to cluster as admin: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)

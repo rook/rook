@@ -10,6 +10,7 @@ import (
 
 	"github.com/go-ini/ini"
 	"github.com/quantum/castle/pkg/cephmgr/client"
+	"github.com/quantum/castle/pkg/clusterd"
 )
 
 type CephMonitorConfig struct {
@@ -22,6 +23,7 @@ type cephConfig struct {
 }
 
 type cephGlobalConfig struct {
+	EnableExperimental       string `ini:"enable experimental unrecoverable data corrupting features"`
 	FSID                     string `ini:"fsid,omitempty"`
 	RunDir                   string `ini:"run dir,omitempty"`
 	MonMembers               string `ini:"mon initial members,omitempty"`
@@ -30,6 +32,7 @@ type cephGlobalConfig struct {
 	DebugLogDefaultLevel     int    `ini:"debug default"`
 	DebugLogRadosLevel       int    `ini:"debug rados"`
 	DebugLogMonLevel         int    `ini:"debug mon"`
+	DebugLogBluestoreLevel   int    `ini:"debug bluestore"`
 	OsdPgBits                int    `ini:"osd pg bits,omitempty"`
 	OsdPgpBits               int    `ini:"osd pgp bits,omitempty"`
 	OsdPoolDefaultSize       int    `ini:"osd pool default size,omitempty"`
@@ -38,20 +41,21 @@ type cephGlobalConfig struct {
 	OsdPoolDefaultPgpNum     int    `ini:"osd pool default pgp num,omitempty"`
 	OsdMaxObjectNameLen      int    `ini:"osd max object name len,omitempty"`
 	OsdMaxObjectNamespaceLen int    `ini:"osd max object namespace len,omitempty"`
+	OsdObjectStore           string `ini:"osd objectstore"`
 	RbdDefaultFeatures       int    `ini:"rbd_default_features,omitempty"`
 }
 
-func ConnectToClusterAsAdmin(factory client.ConnectionFactory, cluster *ClusterInfo) (client.Connection, error) {
+func ConnectToClusterAsAdmin(context *clusterd.Context, factory client.ConnectionFactory, cluster *ClusterInfo) (client.Connection, error) {
 	if len(cluster.Monitors) == 0 {
 		return nil, errors.New("no monitors")
 	}
 	// write the monitor keyring to disk
 	monName := getFirstMonitor(cluster)
-	if err := writeMonitorKeyring(monName, cluster); err != nil {
+	if err := writeMonitorKeyring(context.ConfigDir, monName, cluster); err != nil {
 		return nil, err
 	}
 
-	return connectToCluster(factory, cluster, getMonRunDirPath(monName), "admin", getMonKeyringPath(monName))
+	return connectToCluster(context, factory, cluster, getMonRunDirPath(context.ConfigDir, monName), "admin", getMonKeyringPath(context.ConfigDir, monName))
 }
 
 // get the path of a given monitor's config file
@@ -60,9 +64,14 @@ func getConfFilePath(root, clusterName string) string {
 }
 
 // generates and writes the monitor config file to disk
-func generateConfigFile(cluster *ClusterInfo, pathRoot, user, keyringPath string, userConfig *cephConfig) (string, error) {
+func generateConnectionConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string) (string, error) {
+	return generateConfigFile(context, cluster, pathRoot, user, keyringPath, false, nil, nil)
+}
+
+// generates and writes the monitor config file to disk
+func generateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string, bluestore bool, userConfig *cephConfig, clientSettings map[string]string) (string, error) {
 	if pathRoot == "" {
-		pathRoot = getMonRunDirPath(getFirstMonitor(cluster))
+		pathRoot = getMonRunDirPath(context.ConfigDir, getFirstMonitor(cluster))
 	}
 
 	// create the config directory
@@ -70,12 +79,12 @@ func generateConfigFile(cluster *ClusterInfo, pathRoot, user, keyringPath string
 		fmt.Printf("failed to create config directory at %s: %+v", pathRoot, err)
 	}
 
-	configFile, err := createGlobalConfigFileSection(cluster, pathRoot, userConfig)
+	configFile, err := createGlobalConfigFileSection(cluster, pathRoot, bluestore, userConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to create global config section, %+v", err)
 	}
 
-	if err := addClientConfigFileSection(configFile, getQualifiedUser(user), keyringPath); err != nil {
+	if err := addClientConfigFileSection(configFile, getQualifiedUser(user), keyringPath, clientSettings); err != nil {
 		return "", fmt.Errorf("failed to add admin client config section, %+v", err)
 	}
 
@@ -111,10 +120,10 @@ func getFirstMonitor(cluster *ClusterInfo) string {
 }
 
 // opens a connection to the cluster that can be used for management operations
-func connectToCluster(factory client.ConnectionFactory, cluster *ClusterInfo, basePath, user, keyringPath string) (client.Connection, error) {
+func connectToCluster(context *clusterd.Context, factory client.ConnectionFactory, cluster *ClusterInfo, basePath, user, keyringPath string) (client.Connection, error) {
 	log.Printf("connecting to ceph cluster %s with user %s", cluster.Name, user)
 
-	confFilePath, err := generateConfigFile(cluster, basePath, user, keyringPath, nil)
+	confFilePath, err := generateConnectionConfigFile(context, cluster, basePath, user, keyringPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate config file: %v", err)
 	}
@@ -135,7 +144,7 @@ func connectToCluster(factory client.ConnectionFactory, cluster *ClusterInfo, ba
 	return conn, nil
 }
 
-func createDefaultCephConfig(cluster *ClusterInfo, runDir string) *cephConfig {
+func createDefaultCephConfig(cluster *ClusterInfo, runDir string, bluestore bool) *cephConfig {
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	monMembers := make([]string, len(cluster.Monitors))
@@ -145,35 +154,45 @@ func createDefaultCephConfig(cluster *ClusterInfo, runDir string) *cephConfig {
 		i++
 	}
 
+	experimental := ""
+	store := "filestore"
+	if bluestore {
+		experimental = "bluestore rocksdb"
+		store = "bluestore"
+	}
+
 	return &cephConfig{
 		&cephGlobalConfig{
-			FSID:                  cluster.FSID,
-			RunDir:                runDir,
-			MonMembers:            strings.Join(monMembers, " "),
-			LogFile:               "/dev/stdout",
-			MonClusterLogFile:     "/dev/stdout",
-			DebugLogDefaultLevel:  0,
-			DebugLogRadosLevel:    0,
-			DebugLogMonLevel:      0,
-			OsdPgBits:             11,
-			OsdPgpBits:            11,
-			OsdPoolDefaultSize:    1,
-			OsdPoolDefaultMinSize: 1,
-			OsdPoolDefaultPgNum:   100,
-			OsdPoolDefaultPgpNum:  100,
-			RbdDefaultFeatures:    3,
+			EnableExperimental:     experimental,
+			FSID:                   cluster.FSID,
+			RunDir:                 runDir,
+			MonMembers:             strings.Join(monMembers, " "),
+			LogFile:                "/dev/stdout",
+			MonClusterLogFile:      "/dev/stdout",
+			DebugLogDefaultLevel:   0,
+			DebugLogRadosLevel:     0,
+			DebugLogMonLevel:       0,
+			DebugLogBluestoreLevel: 0,
+			OsdPgBits:              11,
+			OsdPgpBits:             11,
+			OsdPoolDefaultSize:     1,
+			OsdPoolDefaultMinSize:  1,
+			OsdPoolDefaultPgNum:    100,
+			OsdPoolDefaultPgpNum:   100,
+			OsdObjectStore:         store,
+			RbdDefaultFeatures:     3,
 		},
 	}
 }
 
-func createGlobalConfigFileSection(cluster *ClusterInfo, runDir string, userConfig *cephConfig) (*ini.File, error) {
+func createGlobalConfigFileSection(cluster *ClusterInfo, runDir string, bluestore bool, userConfig *cephConfig) (*ini.File, error) {
 	var ceph *cephConfig
 
 	if userConfig != nil {
 		// use the user config since it was provided
 		ceph = userConfig
 	} else {
-		ceph = createDefaultCephConfig(cluster, runDir)
+		ceph = createDefaultCephConfig(cluster, runDir, bluestore)
 	}
 
 	configFile := ini.Empty()
@@ -181,7 +200,7 @@ func createGlobalConfigFileSection(cluster *ClusterInfo, runDir string, userConf
 	return configFile, err
 }
 
-func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath string) error {
+func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath string, settings map[string]string) error {
 	s, err := configFile.NewSection(clientName)
 	if err != nil {
 		return err
@@ -189,6 +208,12 @@ func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath st
 
 	if _, err := s.NewKey("keyring", keyringPath); err != nil {
 		return err
+	}
+
+	for key, val := range settings {
+		if _, err := s.NewKey(key, val); err != nil {
+			return fmt.Errorf("failed to add key %s. %v", key, err)
+		}
 	}
 
 	return nil
