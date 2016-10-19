@@ -5,11 +5,12 @@ ALLOW=${ALLOW:-192.168.0.0/16 172.16.0.0/12 10.0.0.0/8}
 OWNER=${OWNER:-nobody}
 GROUP=${GROUP:-nogroup}
 
-if [ "${GROUP}" != "nogroup" ]; then
-        groupadd -g ${GROUP} rsync
+if [[ "${GROUP}" != "nogroup" && "${GROUP}" != "root" ]]; then
+    groupadd -g ${GROUP} rsync
 fi
-if [ "${OWNER}" != "nobody" ]; then
-        groupadd -u ${OWNER} -G rsync rsync
+
+if [[ "${OWNER}" != "nobody" && "${OWNER}" != "root" ]]; then
+    groupadd -u ${OWNER} -G rsync rsync
 fi
 
 chown "${OWNER}:${GROUP}" "${VOLUME}"
