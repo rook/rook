@@ -12,13 +12,13 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 
 	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
 
 	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/cephmgr/client"
+	"github.com/quantum/castle/pkg/cephmgr/partition"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/util"
@@ -29,7 +29,11 @@ import (
 const (
 	DevicesValue                = "devices"
 	ForceFormatValue            = "forceFormat"
-	deviceDesiredKey            = "/castle/services/ceph/osd/desired/%s/device"
+	sgdisk                      = "sgdisk"
+	cephOsdKey                  = "/castle/services/ceph/osd"
+	desiredOsdRootKey           = cephOsdKey + "/" + desiredKey + "/%s"
+	deviceDesiredKey            = desiredOsdRootKey + "/device"
+	dirDesiredKey               = desiredOsdRootKey + "/dir"
 	bootstrapOSDKeyringTemplate = `
 [client.bootstrap-osd]
 	key = %s
@@ -40,52 +44,111 @@ const (
 type Device struct {
 	Name   string `json:"name"`
 	NodeID string `json:"nodeId"`
+	Dir    bool   `json:"bool"`
 }
 
-func loadDesiredDevices(etcdClient etcd.KeysAPI, nodeID string) (*util.Set, error) {
+func loadDesiredDevices(etcdClient etcd.KeysAPI, nodeID string) (map[string]string, error) {
 	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID))
 	children, err := util.GetDirChildKeys(etcdClient, key)
 	if err != nil {
 		return nil, fmt.Errorf("could not get desired devices. %v", err)
 	}
 
-	return children, nil
+	devices := map[string]string{}
+	for serial := range children.Iter() {
+		device, err := inventory.GetDeviceFromSerial(serial, nodeID, etcdClient)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get device name for serial %s. %v", serial, err)
+		}
+
+		devices[device] = serial
+	}
+
+	return devices, nil
 }
 
 // add a device to the desired state
-func AddDesiredDevice(etcdClient etcd.KeysAPI, device *Device) error {
-	key := path.Join(fmt.Sprintf(deviceDesiredKey, device.NodeID), device.Name)
-	err := util.CreateEtcdDir(etcdClient, key)
+func AddDesiredDevice(etcdClient etcd.KeysAPI, device, nodeID string) error {
+	serial, err := inventory.GetSerialFromDevice(device, nodeID, etcdClient)
 	if err != nil {
-		return fmt.Errorf("failed to add device %s on node %s to desired. %v", device.Name, device.NodeID, err)
+		return fmt.Errorf("failed to get serial for device %s. %v", device, err)
+	}
+
+	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), serial)
+	err = util.CreateEtcdDir(etcdClient, key)
+	if err != nil {
+		return fmt.Errorf("failed to add device %s on node %s to desired. %v", device, nodeID, err)
+	}
+
+	return nil
+}
+
+func loadDesiredDirs(etcdClient etcd.KeysAPI, nodeID string) (*util.Set, error) {
+	dirs := util.NewSet()
+	key := path.Join(fmt.Sprintf(dirDesiredKey, nodeID))
+	dirKeys, err := etcdClient.Get(ctx.Background(), key, &etcd.GetOptions{Recursive: true})
+	if err != nil {
+		if util.IsEtcdKeyNotFound(err) {
+			return dirs, nil
+		}
+		return nil, err
+	}
+
+	// parse the dirs from etcd
+	for _, dev := range dirKeys.Node.Nodes {
+		for _, setting := range dev.Nodes {
+			if strings.HasSuffix(setting.Key, "/path") {
+				dirs.Add(setting.Value)
+			}
+		}
+	}
+
+	return dirs, nil
+}
+
+// add a device to the desired state
+func AddDesiredDir(etcdClient etcd.KeysAPI, dir, nodeID string) error {
+	key := path.Join(fmt.Sprintf(dirDesiredKey, nodeID), getPseudoDir(dir), "path")
+	_, err := etcdClient.Set(ctx.Background(), key, dir, nil)
+	if err != nil {
+		return fmt.Errorf("failed to add desired dir %s on node %s. %v", dir, nodeID, err)
 	}
 
 	return nil
 }
 
 // remove a device from the desired state
-func RemoveDesiredDevice(etcdClient etcd.KeysAPI, device *Device) error {
-	key := path.Join(fmt.Sprintf(deviceDesiredKey, device.NodeID), device.Name)
-	_, err := etcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true})
+func RemoveDesiredDevice(etcdClient etcd.KeysAPI, device, nodeID string) error {
+	serial, err := inventory.GetSerialFromDevice(device, nodeID, etcdClient)
 	if err != nil {
-		return fmt.Errorf("failed to remove device %s on node %s from desired. %v", device.Name, device.NodeID, err)
+		return fmt.Errorf("failed to get serial for device %s. %v", device, err)
+	}
+
+	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), serial)
+	_, err = etcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true})
+	if err != nil {
+		return fmt.Errorf("failed to remove device %s on node %s from desired. %v", device, nodeID, err)
 	}
 
 	return nil
 }
 
 // get the bootstrap OSD root dir
-func getBootstrapOSDDir() string {
-	return "/tmp/bootstrap-osd"
+func getBootstrapOSDDir(configDir string) string {
+	return path.Join(configDir, "bootstrap-osd")
 }
 
-func getOSDRootDir(osdID int) string {
-	return fmt.Sprintf("/tmp/osd%d", osdID)
+func getOSDConfigDir(configDir, serial string) string {
+	return fmt.Sprintf(path.Join(configDir, "device", serial))
+}
+
+func getOSDRootDir(root string, osdID int) string {
+	return fmt.Sprintf("%s/osd%d", root, osdID)
 }
 
 // get the full path to the bootstrap OSD keyring
-func getBootstrapOSDKeyringPath(clusterName string) string {
-	return fmt.Sprintf("%s/%s.keyring", getBootstrapOSDDir(), clusterName)
+func getBootstrapOSDKeyringPath(configDir, clusterName string) string {
+	return fmt.Sprintf("%s/%s.keyring", getBootstrapOSDDir(configDir), clusterName)
 }
 
 // get the full path to the given OSD's config file
@@ -109,8 +172,8 @@ func getOSDTempMonMapPath(osdDataPath string) string {
 }
 
 // create a keyring for the bootstrap-osd client, it gets a limited set of privileges
-func createOSDBootstrapKeyring(conn client.Connection, clusterName string) error {
-	bootstrapOSDKeyringPath := getBootstrapOSDKeyringPath(clusterName)
+func createOSDBootstrapKeyring(conn client.Connection, configDir, clusterName string) error {
+	bootstrapOSDKeyringPath := getBootstrapOSDKeyringPath(configDir, clusterName)
 	_, err := os.Stat(bootstrapOSDKeyringPath)
 	if err == nil {
 		// no error, the file exists, bail out with no error
@@ -124,7 +187,7 @@ func createOSDBootstrapKeyring(conn client.Connection, clusterName string) error
 	// get-or-create-key for client.bootstrap-osd
 	bootstrapOSDKey, err := client.AuthGetOrCreateKey(conn, "client.bootstrap-osd", []string{"mon", "allow profile bootstrap-osd"})
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get or create osd auth key %s. %+v", bootstrapOSDKeyringPath, err)
 	}
 
 	log.Printf("succeeded bootstrap OSD get/create key, bootstrapOSDKey: %s", bootstrapOSDKey)
@@ -132,8 +195,9 @@ func createOSDBootstrapKeyring(conn client.Connection, clusterName string) error
 	// write the bootstrap-osd keyring to disk
 	bootstrapOSDKeyringDir := filepath.Dir(bootstrapOSDKeyringPath)
 	if err := os.MkdirAll(bootstrapOSDKeyringDir, 0744); err != nil {
-		fmt.Printf("failed to create bootstrap OSD keyring dir at %s: %+v", bootstrapOSDKeyringDir, err)
+		return fmt.Errorf("failed to create bootstrap OSD keyring dir at %s: %+v", bootstrapOSDKeyringDir, err)
 	}
+
 	bootstrapOSDKeyring := fmt.Sprintf(bootstrapOSDKeyringTemplate, bootstrapOSDKey)
 	log.Printf("Writing osd keyring to: %s", bootstrapOSDKeyring)
 	if err := ioutil.WriteFile(bootstrapOSDKeyringPath, []byte(bootstrapOSDKeyring), 0644); err != nil {
@@ -144,9 +208,9 @@ func createOSDBootstrapKeyring(conn client.Connection, clusterName string) error
 }
 
 // format the given device for usage by an OSD
-func formatOSD(device string, forceFormat bool, executor exec.Executor) error {
+func formatDevice(context *clusterd.Context, device, serial, configDir string, forceFormat bool) error {
 	// format the current volume
-	devFS, err := sys.GetDeviceFilesystem(device, executor)
+	devFS, err := sys.GetDeviceFilesystem(device, context.Executor)
 	if err != nil {
 		return fmt.Errorf("failed to get device %s filesystem: %+v", device, err)
 	}
@@ -157,12 +221,13 @@ func formatOSD(device string, forceFormat bool, executor exec.Executor) error {
 	}
 
 	if devFS == "" || forceFormat {
-		// execute the format operation
-		cmd := fmt.Sprintf("format %s", device)
-		err = executor.ExecuteCommand(cmd, "sudo", "/usr/sbin/mkfs.btrfs", "-f", "-m", "single", "-n", "32768", fmt.Sprintf("/dev/%s", device))
+		log.Printf("Partitioning device %s for bluestore", device)
+
+		err := partitionBluestoreDevice(context, device, serial, configDir)
 		if err != nil {
-			return fmt.Errorf("command %s failed: %+v", cmd, err)
+			return fmt.Errorf("failed to partion device %s. %v", device, err)
 		}
+
 	} else {
 		// disk is already formatted and the user doesn't want to force it, return no error, but also specify that no format was done
 		log.Printf("device %s already formatted with %s", device, devFS)
@@ -172,67 +237,47 @@ func formatOSD(device string, forceFormat bool, executor exec.Executor) error {
 	return nil
 }
 
-// mount the OSD data directory onto the given device
-func mountOSD(device string, mountPath string, executor exec.Executor) error {
-	cmd := fmt.Sprintf("lsblk %s", device)
-	var diskUUID string
-
-	retryCount := 0
-	retryMax := 10
-	sleepTime := 2
-	for {
-		// there is lag in between when a filesytem is created and its UUID is available.  retry as needed
-		// until we have a usable UUID for the newly formatted filesystem.
-		var err error
-		diskUUID, err = executor.ExecuteCommandWithOutput(cmd, "lsblk", fmt.Sprintf("/dev/%s", device), "-d", "-n", "-r", "-o", "UUID")
-		if err != nil {
-			return fmt.Errorf("command %s failed: %+v", cmd, err)
-		}
-
-		if diskUUID == "skip-UUID-verification" {
-			// skip verifying the uuid during tests
-			break
-
-		} else if diskUUID != "" {
-			// we got the UUID from the disk.  Verify this UUID is up to date in the /dev/disk/by-uuid dir by
-			// checking for it multiple times in a row.  For an existing device, the device UUID and the
-			// by-uuid link can take a bit to get updated after getting formatted.  Increase our confidence
-			// that we have the updated UUID by performing this check multiple times in a row.
-			log.Printf("verifying UUID %s", diskUUID)
-			uuidCheckOK := true
-			uuidCheckCount := 0
-			for uuidCheckCount < 3 {
-				uuidCheckCount++
-				if _, err := os.Stat(fmt.Sprintf("/dev/disk/by-uuid/%s", diskUUID)); os.IsNotExist(err) {
-					// the UUID we got for the disk does not exist under /dev/disk/by-uuid.  Retry.
-					uuidCheckOK = false
-					break
-				}
-				<-time.After(time.Duration(500) * time.Millisecond)
-			}
-
-			if uuidCheckOK {
-				log.Printf("device %s UUID created: %s", device, diskUUID)
-				break
-			}
-		}
-
-		retryCount++
-		if retryCount > retryMax {
-			return fmt.Errorf("exceeded max retry count waiting for device %s UUID to be created", device)
-		}
-
-		<-time.After(time.Duration(sleepTime) * time.Second)
+// Partitions a device for use by a bluestore osd.
+// If there are any partitions or formatting already on the device, it will be wiped.
+func partitionBluestoreDevice(context *clusterd.Context, device, serial, configDir string) error {
+	size, err := inventory.GetSizeFromSerial(serial, context.NodeID, context.EtcdClient)
+	if err != nil {
+		return fmt.Errorf("failed to get device %s size. %+v", serial, err)
 	}
 
-	// mount the volume
-	if err := sys.MountDeviceWithOptions(
-		fmt.Sprintf("/dev/disk/by-uuid/%s", diskUUID), mountPath, "user_subvol_rm_allowed", executor); err != nil {
-		return err
+	cmd := fmt.Sprintf("zap partitions on %s", device)
+	err = context.Executor.ExecuteCommand(cmd, sgdisk, "--zap-all", "/dev/"+device)
+	if err != nil {
+		return fmt.Errorf("failed to zap partitions on /dev/%s: %+v", device, err)
 	}
 
-	// chown for the current user since we had to format and mount with sudo
-	sys.ChownForCurrentUser(mountPath, executor)
+	scheme, err := partition.GetSimpleScheme(int(size / 1024 / 1024))
+	if err != nil {
+		return fmt.Errorf("failed to get simple scheme. %+v", err)
+	}
+
+	// get args for creating partitions
+	args := scheme.GetArgs(device)
+	if err != nil {
+		return fmt.Errorf("failed to get partition args. %+v", err)
+	}
+
+	// execute the partition command
+	err = context.Executor.ExecuteCommand(cmd, sgdisk, args...)
+	if err != nil {
+		return fmt.Errorf("failed to partition /dev/%s. %+v", device, err)
+	}
+
+	// ensure the folder exists
+	if err := os.MkdirAll(configDir, 0744); err != nil {
+		log.Fatalf("failed to create config dir %s. %+v", configDir, err)
+	}
+
+	// save the scheme
+	err = scheme.Save(configDir)
+	if err != nil {
+		return fmt.Errorf("failed to save partition scheme. %+v", err)
+	}
 
 	return nil
 }
@@ -286,86 +331,119 @@ func findSubdirByPattern(pattern, dir string) (string, error) {
 	return "", nil
 }
 
-func getOSDInfo(osdDataPath string) (int, uuid.UUID, error) {
-	idFile := filepath.Join(osdDataPath, "whoami")
+func loadOSDInfo(config *osdConfig) error {
+	idFile := filepath.Join(config.rootPath, "whoami")
 	idContent, err := ioutil.ReadFile(idFile)
 	if err != nil {
-		return -1, uuid.UUID{}, fmt.Errorf("failed to read OSD ID from %s: %+v", idFile, err)
+		return fmt.Errorf("failed to read OSD ID from %s: %+v", idFile, err)
 	}
 
 	osdID, err := strconv.Atoi(strings.TrimSpace(string(idContent[:])))
 	if err != nil {
-		return -1, uuid.UUID{}, fmt.Errorf("failed to parse OSD ID from %s with content %s: %+v", idFile, idContent, err)
+		return fmt.Errorf("failed to parse OSD ID from %s with content %s: %+v", idFile, idContent, err)
 	}
 
-	uuidFile := filepath.Join(osdDataPath, "fsid")
+	uuidFile := filepath.Join(config.rootPath, "fsid")
 	fsidContent, err := ioutil.ReadFile(uuidFile)
 	if err != nil {
-		return -1, uuid.UUID{}, fmt.Errorf("failed to read UUID from %s: %+v", uuidFile, err)
+		return fmt.Errorf("failed to read UUID from %s: %+v", uuidFile, err)
 	}
 
 	osdUUID, err := uuid.Parse(strings.TrimSpace(string(fsidContent[:])))
 	if err != nil {
-		return -1, uuid.UUID{},
-			fmt.Errorf("failed to parse UUID from %s with content %s: %+v", uuidFile, string(fsidContent[:]), err)
+		return fmt.Errorf("failed to parse UUID from %s with content %s: %+v", uuidFile, string(fsidContent[:]), err)
 	}
 
-	return osdID, osdUUID, nil
+	config.id = osdID
+	config.uuid = osdUUID
+	return nil
 }
 
-func initializeOSD(factory client.ConnectionFactory, context *clusterd.Context, osdDataRoot string, osdID int, osdUUID uuid.UUID,
-	device string, bootstrapConn client.Connection, cluster *ClusterInfo, location string) (string, error) {
+func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context *clusterd.Context,
+	bootstrapConn client.Connection, cluster *ClusterInfo, location string, executor exec.Executor) error {
 
-	// ensure that the OSD data directory is created
-	osdDataPath := filepath.Join(osdDataRoot, fmt.Sprintf("%s-%d", cluster.Name, osdID))
-	if err := os.MkdirAll(osdDataPath, 0777); err != nil {
-		return "", fmt.Errorf("failed to create OSD data dir at %s, %+v", osdDataPath, err)
-	}
-
-	cephConfig := createDefaultCephConfig(cluster, osdDataPath)
-	if device == localDeviceName {
+	cephConfig := createDefaultCephConfig(cluster, config.rootPath, config.bluestore)
+	if !config.bluestore {
 		// using the local file system requires some config overrides
 		// http://docs.ceph.com/docs/jewel/rados/configuration/filesystem-recommendations/#not-recommended
 		cephConfig.cephGlobalConfig.OsdMaxObjectNameLen = 256
 		cephConfig.cephGlobalConfig.OsdMaxObjectNamespaceLen = 64
 	}
 
-	// write the OSD config file to disk
-	keyringPath := getOSDKeyringPath(osdDataPath)
-	_, err := generateConfigFile(cluster, osdDataPath, fmt.Sprintf("osd.%d", osdID), keyringPath, cephConfig)
+	// bluestore has some extra settings
+	settings, err := getStoreSettings(context, config)
 	if err != nil {
-		return "", fmt.Errorf("failed to write OSD %d config file: %+v", osdID, err)
+		return fmt.Errorf("failed to read store settings. %+v", err)
+	}
+
+	// write the OSD config file to disk
+	keyringPath := getOSDKeyringPath(config.rootPath)
+	_, err = generateConfigFile(context, cluster, config.rootPath, fmt.Sprintf("osd.%d", config.id), keyringPath, config.bluestore, cephConfig, settings)
+	if err != nil {
+		return fmt.Errorf("failed to write OSD %d config file: %+v", config.id, err)
 	}
 
 	// get the current monmap, it will be needed for creating the OSD file system
 	monMapRaw, err := getMonMap(bootstrapConn)
 	if err != nil {
-		return "", fmt.Errorf("failed to get mon map: %+v", err)
+		return fmt.Errorf("failed to get mon map: %+v", err)
 	}
 
 	// create/initalize the OSD file system and journal
-	if err := createOSDFileSystem(context, cluster.Name, osdID, osdUUID, osdDataPath, monMapRaw); err != nil {
-		return "", err
+	if err := createOSDFileSystem(context, cluster.Name, config, monMapRaw); err != nil {
+		return err
 	}
 
 	// add auth privileges for the OSD, the bootstrap-osd privileges were very limited
-	if err := addOSDAuth(bootstrapConn, osdID, osdDataPath); err != nil {
-		return "", err
+	if err := addOSDAuth(bootstrapConn, config.id, config.rootPath); err != nil {
+		return err
 	}
 
 	// open a connection to the cluster using the OSDs creds
-	osdConn, err := connectToCluster(factory, cluster, osdDataRoot, fmt.Sprintf("osd.%d", osdID), keyringPath)
+	osdConn, err := connectToCluster(context, factory, cluster, path.Join(config.rootPath, "tmp"), fmt.Sprintf("osd.%d", config.id), keyringPath)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer osdConn.Shutdown()
 
 	// add the new OSD to the cluster crush map
-	if err := addOSDToCrushMap(osdConn, context, osdID, osdDataRoot, location); err != nil {
-		return "", err
+	if err := addOSDToCrushMap(osdConn, context, config.id, config.rootPath, location); err != nil {
+		return err
 	}
 
-	return osdDataPath, nil
+	return nil
+}
+
+func getStoreSettings(context *clusterd.Context, config *osdConfig) (map[string]string, error) {
+	settings := map[string]string{}
+	if !config.bluestore {
+		return settings, nil
+	}
+
+	scheme, err := partition.LoadScheme(config.rootPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load partition config. %+v", err)
+	}
+
+	walPartition, ok := scheme.PartitionUUIDs[partition.WalPartitionName]
+	if !ok {
+		return nil, fmt.Errorf("failed to find wal partition for osd %d", config.id)
+	}
+	dbPartition, ok := scheme.PartitionUUIDs[partition.DatabasePartitionName]
+	if !ok {
+		return nil, fmt.Errorf("failed to find db partition for osd %d", config.id)
+	}
+	blockPartition, ok := scheme.PartitionUUIDs[partition.BlockPartitionName]
+	if !ok {
+		return nil, fmt.Errorf("failed to find block partition for osd %d", config.id)
+	}
+
+	prefix := "/dev/disk/by-partuuid"
+	settings["bluestore block wal path"] = path.Join(prefix, walPartition)
+	settings["bluestore block db path"] = path.Join(prefix, dbPartition)
+	settings["bluestore block path"] = path.Join(prefix, blockPartition)
+
+	return settings, nil
 }
 
 // creates the OSD identity in the cluster via a mon_command
@@ -404,11 +482,11 @@ func getMonMap(bootstrapConn client.Connection) ([]byte, error) {
 }
 
 // creates/initalizes the OSD filesystem and journal via a child process
-func createOSDFileSystem(context *clusterd.Context, clusterName string, osdID int, osdUUID uuid.UUID, osdDataPath string, monMap []byte) error {
-	log.Printf("Initializing OSD %d file system at %s...", osdID, osdDataPath)
+func createOSDFileSystem(context *clusterd.Context, clusterName string, config *osdConfig, monMap []byte) error {
+	log.Printf("Initializing OSD %d file system at %s...", config.id, config.rootPath)
 
 	// the current monmap is needed to create the OSD, save it to a temp location so it is accessible
-	monMapTmpPath := getOSDTempMonMapPath(osdDataPath)
+	monMapTmpPath := getOSDTempMonMapPath(config.rootPath)
 	monMapTmpDir := filepath.Dir(monMapTmpPath)
 	if err := os.MkdirAll(monMapTmpDir, 0744); err != nil {
 		return fmt.Errorf("failed to create monmap tmp file directory at %s: %+v", monMapTmpDir, err)
@@ -417,23 +495,30 @@ func createOSDFileSystem(context *clusterd.Context, clusterName string, osdID in
 		return fmt.Errorf("failed to write mon map to tmp file %s, %+v", monMapTmpPath, err)
 	}
 
+	options := []string{
+		"--mkfs",
+		"--mkkey",
+		fmt.Sprintf("--id=%d", config.id),
+		fmt.Sprintf("--cluster=%s", clusterName),
+		fmt.Sprintf("--conf=%s", getConfFilePath(config.rootPath, clusterName)),
+		fmt.Sprintf("--osd-data=%s", config.rootPath),
+		fmt.Sprintf("--osd-uuid=%s", config.uuid.String()),
+		fmt.Sprintf("--monmap=%s", monMapTmpPath),
+	}
+
+	if !config.bluestore {
+		options = append(options, fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(config.rootPath)))
+		options = append(options, fmt.Sprintf("--keyring=%s", getOSDKeyringPath(config.rootPath)))
+	}
+
 	// create the OSD file system and journal
 	err := context.ProcMan.Run(
 		"osd",
-		"--mkfs",
-		"--mkkey",
-		fmt.Sprintf("--id=%s", strconv.Itoa(osdID)),
-		fmt.Sprintf("--cluster=%s", clusterName),
-		fmt.Sprintf("--osd-data=%s", osdDataPath),
-		fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(osdDataPath)),
-		fmt.Sprintf("--conf=%s", getOSDConfFilePath(osdDataPath, clusterName)),
-		fmt.Sprintf("--keyring=%s", getOSDKeyringPath(osdDataPath)),
-		fmt.Sprintf("--osd-uuid=%s", osdUUID.String()),
-		fmt.Sprintf("--monmap=%s", monMapTmpPath))
+		options...)
 
 	if err != nil {
 		return fmt.Errorf("failed osd mkfs for OSD ID %d, UUID %s, dataDir %s: %+v",
-			osdID, osdUUID.String(), osdDataPath, err)
+			config.id, config.uuid.String(), config.rootPath, err)
 	}
 
 	return nil
@@ -479,10 +564,10 @@ func addOSDToCrushMap(osdConn client.Connection, context *clusterd.Context, osdI
 
 	// weight is ratio of (size in KB) / (1 GB)
 	weight := float64(all/1024) / 1073741824.0
-	weight, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", weight), 64)
+	weight, _ = strconv.ParseFloat(fmt.Sprintf("%.4f", weight), 64)
 
 	osdEntity := fmt.Sprintf("osd.%d", osdID)
-	log.Printf("OSD %s at %s, bytes: %d, weight: %.2f", osdEntity, osdDataPath, all, weight)
+	log.Printf("OSD %s at %s, bytes: %d, weight: %.4f", osdEntity, osdDataPath, all, weight)
 
 	locArgs, err := formatLocation(location)
 	if err != nil {

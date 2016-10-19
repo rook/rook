@@ -1,12 +1,12 @@
 package cephmgr
 
 import (
-	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/cephmgr/client"
+	"github.com/quantum/castle/pkg/clusterd"
 )
 
 type ConnectionFactory interface {
-	ConnectAsAdmin(cephFactory client.ConnectionFactory, etcdClient etcd.KeysAPI) (client.Connection, error)
+	ConnectAsAdmin(context *clusterd.Context, cephFactory client.ConnectionFactory) (client.Connection, error)
 }
 
 type castleConnFactory struct {
@@ -15,14 +15,14 @@ type castleConnFactory struct {
 func NewConnectionFactory() ConnectionFactory { return &castleConnFactory{} }
 
 func (c *castleConnFactory) ConnectAsAdmin(
-	cephFactory client.ConnectionFactory, etcdClient etcd.KeysAPI) (client.Connection, error) {
+	context *clusterd.Context, cephFactory client.ConnectionFactory) (client.Connection, error) {
 
 	// load information about the cluster
-	cluster, err := LoadClusterInfo(etcdClient)
+	cluster, err := LoadClusterInfo(context.EtcdClient)
 	if err != nil {
 		return nil, err
 	}
 
 	// open an admin connection to the cluster
-	return ConnectToClusterAsAdmin(cephFactory, cluster)
+	return ConnectToClusterAsAdmin(context, cephFactory, cluster)
 }

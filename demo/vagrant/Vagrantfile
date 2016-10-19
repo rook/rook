@@ -3,6 +3,8 @@ VAGRANTFILE_API_VERSION = "2"
 $channel = "alpha"
 $nodes = 3
 $new_discovery_url="https://discovery.etcd.io/new?size=1"
+$node_disks = 3
+$disk_size = 5
 
 require_relative 'util.rb'
 require 'open-uri'
@@ -14,6 +16,8 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.define name="castle%02d" % i, primary: (i == 0), autostart: (i == 0) do |node|
       node.vm.hostname = name
       node.vm.network "private_network", ip: "172.20.20.#{10+i}"
+
+      attach_volumes(node, $node_disks, $disk_size)
 
       # enable if you want to run for locally build ACI files
       #node.vm.synced_folder "../../release", "/release", id: "release", :nfs => true, :mount_options => ['nolock,vers=3,tcp']

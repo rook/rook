@@ -27,21 +27,16 @@ func getMonitorEndpointKey(name string) string {
 }
 
 // get the path of a given monitor's run dir
-func getMonRunDirPath(monName string) string {
-	return fmt.Sprintf("/tmp/%s", monName)
-}
-
-// get the path of a given monitor's config file
-func getMonConfFilePath(monName string) string {
-	return filepath.Join(getMonRunDirPath(monName), "config")
+func getMonRunDirPath(configDir, monName string) string {
+	return path.Join(configDir, monName)
 }
 
 // get the path of a given monitor's keyring
-func getMonKeyringPath(monName string) string {
-	return filepath.Join(getMonRunDirPath(monName), "keyring")
+func getMonKeyringPath(configDir, monName string) string {
+	return filepath.Join(getMonRunDirPath(configDir, monName), "keyring")
 }
 
 // get the path of a given monitor's data dir
-func getMonDataDirPath(monName string) string {
-	return filepath.Join(getMonRunDirPath(monName), fmt.Sprintf("mon.%s", monName))
+func getMonDataDirPath(configDir, monName string) string {
+	return filepath.Join(getMonRunDirPath(configDir, monName), fmt.Sprintf("mon.%s", monName))
 }

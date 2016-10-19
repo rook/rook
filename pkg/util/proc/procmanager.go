@@ -29,6 +29,7 @@ type ProcManager struct {
 }
 
 func (p *ProcManager) Run(daemon string, args ...string) error {
+
 	log.Printf("Running process %s with args: %v", daemon, args)
 	err := p.runChildProcess(daemon, args...)
 	if err != nil {
@@ -197,8 +198,10 @@ func (p *ProcManager) startChildProcessCmd(cmd *exec.Cmd) (err error) {
 	return cmd.Start()
 }
 
-func createCmd(daemon string, args ...string) (cmd *exec.Cmd) {
-	cmd = exec.Command(os.Args[0], append([]string{"daemon", fmt.Sprintf("--type=%s", daemon), "--"}, args...)...)
+func createCmd(daemon string, args ...string) *exec.Cmd {
+
+	cmd := exec.Command(os.Args[0], append([]string{"daemon", fmt.Sprintf("--type=%s", daemon), "--"}, args...)...)
+
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
