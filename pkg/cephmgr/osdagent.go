@@ -89,10 +89,16 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 	// check if the osd is in the desired state for this node
 	key := path.Join(cephKey, osdAgentName, desiredKey, context.NodeID, "ready")
 	osdDesired, err := context.EtcdClient.Get(ctx.Background(), key, nil)
-	if (err != nil && util.IsEtcdKeyNotFound(err)) || osdDesired.Node.Value != "1" {
+	if err != nil {
+		if util.IsEtcdKeyNotFound(err) {
+			return nil
+		}
+		return fmt.Errorf("failed to get osd desired state. %v", err)
+	}
+
+	if osdDesired.Node.Value != "1" {
+		// The osd is not in desired state
 		return nil
-	} else if err != nil {
-		return err
 	}
 
 	a.cluster, err = LoadClusterInfo(context.EtcdClient)
