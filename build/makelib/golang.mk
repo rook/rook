@@ -71,6 +71,10 @@ GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 
 GO_OUT_DIR := $(abspath $(GO_BIN_DIR)/$(GOOS)_$(GOARCH))
 
+ifeq ($(GOOS),windows)
+GO_OUT_EXT := ".exe"
+endif
+
 ifneq ($(GO_PKG_DIR),)
 GO_PKG_FLAGS := -pkgdir $(abspath $(GO_PKG_DIR)/$(GOOS)_$(GOARCH))
 GO_PKG_STATIC_FLAGS := -pkgdir $(abspath $(GO_PKG_DIR)/$(GOOS)_$(GOARCH)_static) -installsuffix static
@@ -101,9 +105,9 @@ endif
 
 .PHONY: go.build
 go.build: go.vet go.fmt $(CGO_PREREQS)
-	$(foreach p,$(GO_NONSTATIC_PACKAGES),@CGO_ENABLED=1 $(GO) build -v -i $(GO_PKG_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))) $(GO_TOOL_FLAGS) $(p))
-	$(foreach p,$(GO_CGO_PACKAGES),@CGO_ENABLED=1 $(GO) build -v -i $(GO_PKG_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))) $(GO_TOOL_FLAGS) $(p))
-	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) build -v -i $(GO_PKG_STATIC_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))) $(GO_TOOL_FLAGS) $(p))
+	$(foreach p,$(GO_NONSTATIC_PACKAGES),@CGO_ENABLED=1 $(GO) build -v -i $(GO_PKG_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_TOOL_FLAGS) $(p))
+	$(foreach p,$(GO_CGO_PACKAGES),@CGO_ENABLED=1 $(GO) build -v -i $(GO_PKG_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_TOOL_FLAGS) $(p))
+	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) build -v -i $(GO_PKG_STATIC_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_TOOL_FLAGS) $(p))
 
 .PHONY: go.install
 go.install: go.vet go.fmt $(CGO_PREREQS)
@@ -140,7 +144,7 @@ $(GO_TOOLS_DIR)/glide:
 
 .PHONY: go.clean
 go.clean: ;
-	@rm -rf $(GO_BIN_DIR)
+	@rm -rf $(GO_BIN_DIR)/*
 ifneq ($(GO_PKG_DIR),)
 	@rm -rf $(GO_PKG_DIR)
 endif
