@@ -28,9 +28,10 @@ coreos:
       Environment=CASTLED_DISCOVERY_URL=%%token%%
       Environment=CASTLED_PUBLIC_IPV4=$public_ipv4
       Environment=CASTLED_PRIVATE_IPV4=$private_ipv4
-      Environment=CASTLED_DATA_DIRS=/var/lib/castled/data
+      Environment=CASTLED_DATA_DIR=/var/lib/castled
+      #Environment=CASTLED_DATA_DEVICES=sdb,sdc,sdd
 
-      ExecStartPre=/usr/bin/mkdir -p ${CASTLED_DATA_DIRS}
+      ExecStartPre=/usr/bin/mkdir -p ${CASTLED_DATA_DIR}
 
       ExecStart=/usr/bin/rkt run \
         --trust-keys-from-https \

@@ -1,6 +1,6 @@
 def set_coreos_box(config, channel)
   config.vm.box = "coreos-%s" % channel
-  config.vm.box_url = "http://%s.release.core-os.net/amd64-usr/current/coreos_production_vagrant.json" % $coreos_channel
+  config.vm.box_url = "http://%s.release.core-os.net/amd64-usr/current/coreos_production_vagrant.json" % $channel
 
   ["vmware_fusion", "vmware_workstation"].each do |vmware|
     config.vm.provider vmware do |v, override|
@@ -54,3 +54,48 @@ class CloudConfigPlugin < Vagrant.plugin('2')
     Provisioner
   end
 end
+
+class VagrantPlugins::ProviderVirtualBox::Action::SetName
+  alias_method :original_call, :call
+  def call(env)
+    machine = env[:machine]
+    driver = machine.provider.driver
+    uuid = driver.instance_eval { @uuid }
+    ui = env[:ui]
+
+    controller_name="SATA Controller"
+
+    vm_info = driver.execute("showvminfo", uuid)
+    controller_already_exists = vm_info.match("Storage Controller Name.*#{controller_name}")
+
+    if controller_already_exists
+      ui.info "already has the #{controller_name} hdd controller, skipping creation/add"
+    else
+      ui.info "creating #{controller_name} hdd controller"
+      driver.execute(
+        'storagectl',
+        uuid,
+        '--name', "#{controller_name}",
+        '--add', 'sata',
+        '--controller', 'IntelAHCI')
+    end
+
+    original_call(env)
+  end
+end
+
+# Add persistent storage volumes
+def attach_volumes(node, num_volumes, volume_size)
+
+    node.vm.provider :virtualbox do |v, override|
+      (1..num_volumes).each do |disk|
+        diskname = File.join(File.dirname(File.expand_path(__FILE__)), ".virtualbox", "#{node.vm.hostname}-#{disk}.vdi")
+        unless File.exist?(diskname)
+          v.customize ['createhd', '--filename', diskname, '--size', volume_size * 1024]
+        end
+        v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', disk, '--device', 0, '--type', 'hdd', '--medium', diskname]
+      end
+    end
+
+end
+
