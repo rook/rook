@@ -127,27 +127,11 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 		return fmt.Errorf("failed to load desired dirs. %v", err)
 	}
 
-	if err := a.startDesiredDevices(context, adminConn, devices, dirs); err != nil {
+	if err := a.createOSDs(adminConn, context, devices, dirs); err != nil {
 		return err
 	}
 
 	return a.stopUndesiredDevices(context, adminConn, devices)
-}
-
-func (a *osdAgent) startDesiredDevices(context *clusterd.Context, connection client.Connection, devices map[string]string, dirs *util.Set) error {
-
-	// Start an OSD for each of the specified devices
-	deviceMap, err := a.createOSDs(connection, context, devices, dirs)
-	if err != nil {
-		return fmt.Errorf("failed to create OSDs: %+v", err)
-	}
-
-	// successful, ensure all applied devices are saved to the cluster config store
-	if err := a.saveAppliedOSDs(context, deviceMap); err != nil {
-		return fmt.Errorf("failed to save applied OSDs: %+v", err)
-	}
-
-	return nil
 }
 
 func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection client.Connection, desiredDevices map[string]string) error {
@@ -251,50 +235,46 @@ func getAppliedKey(nodeID string) string {
 }
 
 // create and initalize OSDs for all the devices specified in the given config
-func (a *osdAgent) createOSDs(adminConn client.Connection, context *clusterd.Context, devices map[string]string, dirs *util.Set) (map[string]*osdInfo, error) {
+func (a *osdAgent) createOSDs(adminConn client.Connection, context *clusterd.Context, devices map[string]string, dirs *util.Set) error {
 	// generate and write the OSD bootstrap keyring
 	if err := createOSDBootstrapKeyring(adminConn, context.ConfigDir, a.cluster.Name); err != nil {
-		return nil, err
+		return err
 	}
 
 	// connect to the cluster using the bootstrap-osd creds, this connection will be used for config operations
 	bootstrapConn, err := connectToCluster(context, a.factory, a.cluster, getBootstrapOSDDir(context.ConfigDir), "bootstrap-osd", getBootstrapOSDKeyringPath(context.ConfigDir, a.cluster.Name))
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer bootstrapConn.Shutdown()
 
-	deviceMap := map[string]*osdInfo{}
 	for dir := range dirs.Iter() {
 		config, err := a.createLocalOSD(bootstrapConn, dir)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create local OSD: %+v", err)
+			return fmt.Errorf("failed to create local OSD: %+v", err)
 		}
 
 		err = a.createOrStartOSD(context, bootstrapConn, config)
 		if err != nil {
-			return nil, fmt.Errorf("failed to start osd on device %s. %v", dir, err)
+			return fmt.Errorf("failed to start osd on device %s. %v", dir, err)
 		}
-
-		deviceMap[dir] = &osdInfo{id: config.id, dir: true}
 	}
 
 	// initialize all the desired OSD volumes
 	for device, serial := range devices {
 		config, err := a.prepareDeviceForOSD(device, serial, bootstrapConn, context)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create mounted OSD on %s: %+v", device, err)
+			return fmt.Errorf("failed to create mounted OSD on %s: %+v", device, err)
 		}
 
 		err = a.createOrStartOSD(context, bootstrapConn, config)
 		if err != nil {
-			return nil, fmt.Errorf("failed to start osd on device %s. %v", device, err)
+			return fmt.Errorf("failed to start osd on device %s. %v", device, err)
 		}
 
-		deviceMap[device] = &osdInfo{id: config.id, serial: serial}
 	}
 
-	return deviceMap, nil
+	return nil
 }
 
 func (a *osdAgent) createOrStartOSD(context *clusterd.Context, connection client.Connection, config *osdConfig) error {
@@ -307,6 +287,17 @@ func (a *osdAgent) createOrStartOSD(context *clusterd.Context, connection client
 			return fmt.Errorf("failed to initialize OSD at %s: %+v", config.rootPath, err)
 		}
 
+		// save the osd to applied state
+		info := &osdInfo{id: config.id}
+		if config.bluestore {
+			info.serial = config.name
+		} else {
+			info.dir = true
+		}
+
+		if err = a.saveAppliedOSD(context, config.name, info); err != nil {
+			return fmt.Errorf("failed to save applied osd %s. %+v", config.name, err)
+		}
 	} else {
 		// osd_data_dir/whoami already exists, meaning the OSD is already set up.
 		// look up some basic information about it so we can run it.
@@ -435,28 +426,26 @@ func GetAppliedOSDs(nodeID string, etcdClient etcd.KeysAPI) (*util.Set, error) {
 	return devices, nil
 }
 
-func (a *osdAgent) saveAppliedOSDs(context *clusterd.Context, devices map[string]*osdInfo) error {
-	var settings = make(map[string]string)
-	for name, info := range devices {
-		var pseudoName string
-		if info.serial == "" {
-			// convert the local path to an id that will not contain path characters in the etcd key
-			pseudoName = getPseudoDir(name)
-		} else {
-			pseudoName = info.serial
-		}
-		baseKey := deviceKey
-		if info.dir {
-			baseKey = dirKey
-		}
+func (a *osdAgent) saveAppliedOSD(context *clusterd.Context, name string, info *osdInfo) error {
+	var pseudoName string
+	var baseKey string
+	if info.dir {
+		// convert the local path to an id that will not contain path characters in the etcd key
+		pseudoName = getPseudoDir(name)
+		baseKey = dirKey
+	} else {
+		pseudoName = info.serial
+		baseKey = deviceKey
+	}
 
-		settings[path.Join(baseKey, pseudoName, "name")] = name
-		settings[path.Join(baseKey, pseudoName, "id")] = strconv.FormatInt(int64(info.id), 10)
+	settings := map[string]string{
+		path.Join(baseKey, pseudoName, "name"): name,
+		path.Join(baseKey, pseudoName, "id"):   strconv.FormatInt(int64(info.id), 10),
 	}
 
 	appliedKey := path.Join(getAppliedKey(context.NodeID))
 	if err := util.StoreEtcdProperties(context.EtcdClient, appliedKey, settings); err != nil {
-		return fmt.Errorf("failed to mark devices as applied: %+v", err)
+		return fmt.Errorf("failed to mark device %s as applied: %+v", name, err)
 	}
 
 	return nil
