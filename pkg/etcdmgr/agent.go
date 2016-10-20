@@ -8,7 +8,6 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/etcdmgr/bootstrap"
-	"github.com/quantum/castle/pkg/etcdmgr/manager"
 	"github.com/quantum/castle/pkg/util"
 	ctx "golang.org/x/net/context"
 )
@@ -79,7 +78,7 @@ func (e *etcdMgrAgent) CreateLocalService(context *clusterd.Context, desiredKey 
 	if !etcdmgrApplied {
 		log.Println("adding the current node to the etcd cluster...")
 		targetEndpoint := getPeerEndpointFromIP(ipAddr)
-		err = manager.AddMember(e.context, targetEndpoint)
+		err = AddMember(e.context, targetEndpoint)
 		if err != nil {
 			return fmt.Errorf("error in adding a member to the cluster")
 		}
@@ -120,5 +119,5 @@ func getEtcdMgrAppliedKey(nodeID string) string {
 }
 
 func getPeerEndpointFromIP(ip string) string {
-	return "http://" + ip + ":" + bootstrap.DefaultPeerPort
+	return fmt.Sprintf("http://%s:%d", ip, bootstrap.DefaultPeerPort)
 }

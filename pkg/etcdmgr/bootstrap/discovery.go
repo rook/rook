@@ -15,21 +15,8 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 )
 
-// QuorumFormed tries to connect to the etcd cluster. If it fails it interprets it as an incomplete quorum.
-func QuorumFormed(currentNodes []string) bool {
-	_, err := client.New(client.Config{
-		Endpoints:               currentNodes,
-		Transport:               client.DefaultTransport,
-		HeaderTimeoutPerRequest: DefaultClientTimeout,
-	})
-	if err != nil {
-		return false
-	}
-	return true
-}
-
-func IsQuorumFull(token string) (bool, error, []string) {
-	res, err := QueryDiscoveryService(token + "/_config/size")
+func isQuorumFull(token string) (bool, error, []string) {
+	res, err := queryDiscoveryService(token + "/_config/size")
 	if err != nil {
 		return false, fmt.Errorf("cannot get discovery url cluster size: %v", err), []string{}
 	}
@@ -47,8 +34,8 @@ func IsQuorumFull(token string) (bool, error, []string) {
 
 }
 
-// QueryDiscoveryService reads a key from a discovery url.
-func QueryDiscoveryService(token string) (*store.Event, error) {
+// queryDiscoveryService reads a key from a discovery url.
+func queryDiscoveryService(token string) (*store.Event, error) {
 	ctx, _ := context.WithTimeout(context.Background(), DefaultClientTimeout)
 	resp, err := ctxhttp.Get(ctx, http.DefaultClient, token)
 	if err != nil {
@@ -70,25 +57,28 @@ func QueryDiscoveryService(token string) (*store.Event, error) {
 }
 
 func GetCurrentNodesFromDiscovery(token string) ([]string, error) {
-	res, err := QueryDiscoveryService(token)
+	res, err := queryDiscoveryService(token)
 	if err != nil {
 		return nil, err
 	}
+
 	nodes := make([]string, 0, len(res.Node.Nodes))
 	for _, nn := range res.Node.Nodes {
 		if nn.Value == nil {
 			log.Printf("Skipping %q because no value exists", nn.Key)
 		}
-		clientPort, _ := strconv.Atoi(DefaultClientPort)
-		n, err := newDiscoveryNode(*nn.Value, clientPort)
+
+		n, err := newDiscoveryNode(*nn.Value, DefaultClientPort)
 		if err != nil {
 			log.Printf("invalid peer url %q in discovery service: %v", *nn.Value, err)
 			continue
 		}
+
 		for _, node := range n {
 			nodes = append(nodes, node)
 		}
 	}
+
 	return nodes, nil
 }
 

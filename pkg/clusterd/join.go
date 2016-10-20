@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/etcdmgr/manager"
+	"github.com/quantum/castle/pkg/etcdmgr/bootstrap"
 	"github.com/quantum/castle/pkg/util"
 	"github.com/quantum/castle/pkg/util/exec"
 	"github.com/quantum/castle/pkg/util/proc"
@@ -25,7 +25,7 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, con
 
 		// use the discovery URL to query the etcdmgr what the etcd client endpoints should be
 		var err error
-		etcdClients, err = manager.GetEtcdClients(configDir, discoveryURL, privateIPv4, nodeID)
+		etcdClients, err = bootstrap.GetEtcdClients(configDir, discoveryURL, privateIPv4, nodeID)
 		if err != nil {
 			return nil, err
 		}

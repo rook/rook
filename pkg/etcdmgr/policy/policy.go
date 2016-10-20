@@ -33,6 +33,7 @@ func ChooseEtcdCandidatesToAddOrRemove(delta int, currentEtcdNodes, currentNodes
 			sort.Strings(candidates)
 			return candidates[:numOfNodeToRemove], nil
 		}
+
 		//need more candidates from etcd nodes
 		numOfNodeToRemove = numOfNodeToRemove - len(candidates)
 		moreCandidates := util.SetDifference(currentEtcdNodes, candidates).ToSlice()
@@ -44,6 +45,7 @@ func ChooseEtcdCandidatesToAddOrRemove(delta int, currentEtcdNodes, currentNodes
 		}
 		candidates = append(candidates, moreCandidates...)
 	}
+
 	sort.Strings(candidates)
 	return candidates, nil
 }

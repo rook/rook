@@ -12,7 +12,6 @@ import (
 	"github.com/quantum/castle/pkg/clusterd"
 	"github.com/quantum/castle/pkg/clusterd/inventory"
 	"github.com/quantum/castle/pkg/etcdmgr/bootstrap"
-	"github.com/quantum/castle/pkg/etcdmgr/manager"
 	"github.com/quantum/castle/pkg/etcdmgr/policy"
 	ctx "golang.org/x/net/context"
 )
@@ -185,7 +184,7 @@ func (e *etcdMgrLeader) shrinkEtcdQuorum(context *clusterd.Context, candidates [
 			return fmt.Errorf("error in removing desired key for node: %+v err: %+v\n", candidate, err)
 		}
 
-		err = manager.RemoveMember(e.context, targetEndpoint)
+		err = RemoveMember(e.context, targetEndpoint)
 		if err != nil {
 			return fmt.Errorf("error in removing a member from the cluster. %+v\n", err)
 		}
