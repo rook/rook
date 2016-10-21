@@ -34,7 +34,6 @@ type NodeConfig struct {
 }
 
 type DiskConfig struct {
-	Serial      string   `json:"serial"`
 	Name        string   `json:"name"`
 	UUID        string   `json:"uuid"`
 	Size        uint64   `json:"size"`

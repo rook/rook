@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	DiskNameKey        = "name"
 	DiskUUIDKey        = "uuid"
 	DiskSizeKey        = "size"
 	DiskRotationalKey  = "rotational"
@@ -51,8 +50,8 @@ func StrToDiskType(diskType string) (DiskType, error) {
 	}
 }
 
-func GetSizeFromSerial(serial, nodeID string, etcdClient etcd.KeysAPI) (uint64, error) {
-	key := path.Join(GetNodeConfigKey(nodeID), DisksKey, serial, DiskSizeKey)
+func GetDeviceSize(name, nodeID string, etcdClient etcd.KeysAPI) (uint64, error) {
+	key := path.Join(GetNodeConfigKey(nodeID), DisksKey, name, DiskSizeKey)
 	resp, err := etcdClient.Get(ctx.Background(), key, nil)
 	if err != nil {
 		return 0, err
@@ -66,8 +65,35 @@ func GetSizeFromSerial(serial, nodeID string, etcdClient etcd.KeysAPI) (uint64, 
 	return size, nil
 }
 
-func GetDeviceFromSerial(serial, nodeID string, etcdClient etcd.KeysAPI) (string, error) {
-	key := path.Join(GetNodeConfigKey(nodeID), DisksKey, serial, DiskNameKey)
+func GetDeviceFromUUID(uuid, nodeID string, etcdClient etcd.KeysAPI) (string, error) {
+	disksKey := path.Join(GetNodeConfigKey(nodeID), DisksKey)
+	devices, err := util.GetDirChildKeys(etcdClient, disksKey)
+	if err != nil {
+		return "", err
+	}
+
+	for d := range devices.Iter() {
+		resp, err := etcdClient.Get(ctx.Background(), path.Join(disksKey, d, DiskUUIDKey), nil)
+		if err != nil || resp == nil || resp.Node == nil {
+			continue
+		}
+
+		if resp.Node.Value == uuid {
+			return d, nil
+		}
+	}
+
+	return "", fmt.Errorf("device for uuid %s not found", uuid)
+}
+
+func SetDeviceUUID(nodeID, device, uuid string, etcdClient etcd.KeysAPI) error {
+	key := path.Join(GetNodeConfigKey(nodeID), DisksKey, device, DiskUUIDKey)
+	_, err := etcdClient.Set(ctx.Background(), key, uuid, nil)
+	return err
+}
+
+func GetDeviceUUID(device, nodeID string, etcdClient etcd.KeysAPI) (string, error) {
+	key := path.Join(GetNodeConfigKey(nodeID), DisksKey, device, DiskUUIDKey)
 	resp, err := etcdClient.Get(ctx.Background(), key, nil)
 	if err != nil {
 		return "", err
@@ -76,43 +102,14 @@ func GetDeviceFromSerial(serial, nodeID string, etcdClient etcd.KeysAPI) (string
 	return resp.Node.Value, nil
 }
 
-func GetSerialFromDevice(device, nodeID string, etcdClient etcd.KeysAPI) (string, error) {
-	disksKey := path.Join(GetNodeConfigKey(nodeID), DisksKey)
-	serials, err := util.GetDirChildKeys(etcdClient, disksKey)
-	if err != nil {
-		return "", err
-	}
-
-	serialResult := ""
-	for s := range serials.Iter() {
-		resp, err := etcdClient.Get(ctx.Background(), path.Join(disksKey, s, DiskNameKey), nil)
-		if err != nil || resp == nil || resp.Node == nil {
-			continue
-		}
-
-		if resp.Node.Value == device {
-			serialResult = s
-			break
-		}
-	}
-
-	if serialResult == "" {
-		return "", fmt.Errorf("serial for device %s not found", device)
-	}
-
-	return serialResult, nil
-}
-
-func GetDiskInfo(diskInfo *etcd.Node) (*DiskConfig, error) {
+func getDiskInfo(diskInfo *etcd.Node) (*DiskConfig, error) {
 	disk := &DiskConfig{}
-	disk.Serial = util.GetLeafKeyPath(diskInfo.Key)
+	disk.Name = util.GetLeafKeyPath(diskInfo.Key)
 
 	// iterate over all properties of the disk
 	for _, diskProperty := range diskInfo.Nodes {
 		diskPropertyName := util.GetLeafKeyPath(diskProperty.Key)
 		switch diskPropertyName {
-		case DiskNameKey:
-			disk.Name = diskProperty.Value
 		case DiskUUIDKey:
 			disk.UUID = diskProperty.Value
 		case DiskSizeKey:
@@ -192,7 +189,7 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.
 	for _, d := range strings.Split(devices, "\n") {
 		cmd := fmt.Sprintf("lsblk /dev/%s", d)
 		diskPropsRaw, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", fmt.Sprintf("/dev/%s", d),
-			"-b", "-d", "-P", "-o", "SERIAL,UUID,SIZE,ROTA,RO,TYPE,PKNAME")
+			"-b", "-d", "-P", "-o", "SIZE,ROTA,RO,TYPE,PKNAME")
 		if err != nil {
 			// try to get more information about the command error
 			cmdErr, ok := err.(*exec.CommandError)
@@ -207,16 +204,20 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.
 		}
 
 		diskPropMap := parseKeyValuePairString(diskPropsRaw)
-		serial, ok := diskPropMap["SERIAL"]
-		if !ok || serial == "" {
-			// disk doesn't have a serial, just continue
-			continue
-		}
-
 		diskType, ok := diskPropMap["TYPE"]
 		if !ok || (diskType != "ssd" && diskType != "disk" && diskType != "part") {
 			// unsupported disk type, just continue
 			continue
+		}
+
+		// get the UUID for disks
+		var diskUUID string
+		if diskType != "part" {
+			diskUUID, err = sys.GetDiskUUID(d, executor)
+			if err != nil || diskUUID == "" {
+				log.Printf("skipping device %s with an unknown uuid", d)
+				continue
+			}
 		}
 
 		fs, err := sys.GetDeviceFilesystem(d, executor)
@@ -234,12 +235,9 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.
 			return err
 		}
 
-		dkey := path.Join(disksKey, serial)
+		dkey := path.Join(disksKey, d)
 
-		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, DiskNameKey), d, nil); err != nil {
-			return err
-		}
-		if err := setSimpleDiskProperty("UUID", DiskUUIDKey, dkey, diskPropMap, etcdClient); err != nil {
+		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, DiskUUIDKey), diskUUID, nil); err != nil {
 			return err
 		}
 		if err := setSimpleDiskProperty("SIZE", DiskSizeKey, dkey, diskPropMap, etcdClient); err != nil {
@@ -281,16 +279,10 @@ func setSimpleDiskProperty(propName, keyName, diskKey string, diskPropMap map[st
 }
 
 // test usage only
-func TestSetDiskInfo(etcdClient *util.MockEtcdClient, hardwareKey string, serial string, name string, uuid string, size uint64, rotational bool, readonly bool,
+func TestSetDiskInfo(etcdClient *util.MockEtcdClient, hardwareKey string, name string, uuid string, size uint64, rotational bool, readonly bool,
 	filesystem string, mountPoint string, diskType DiskType, parent string, hasChildren bool) DiskConfig {
 
-	disksKey := path.Join(hardwareKey, DisksKey)
-	etcdClient.Set(ctx.Background(), disksKey, "", &etcd.SetOptions{Dir: true})
-
-	diskKey := path.Join(disksKey, serial)
-	etcdClient.Set(ctx.Background(), diskKey, "", &etcd.SetOptions{Dir: true})
-
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskNameKey), name, nil)
+	diskKey := path.Join(hardwareKey, DisksKey, name)
 	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskUUIDKey), uuid, nil)
 	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskSizeKey), strconv.FormatUint(size, 10), nil)
 	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskRotationalKey), strconv.Itoa(btoi(rotational)), nil)
@@ -302,7 +294,6 @@ func TestSetDiskInfo(etcdClient *util.MockEtcdClient, hardwareKey string, serial
 	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskHasChildrenKey), strconv.Itoa(btoi(hasChildren)), nil)
 
 	return DiskConfig{
-		Serial:      serial,
 		Name:        name,
 		UUID:        uuid,
 		Size:        size,

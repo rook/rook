@@ -42,14 +42,14 @@ func TestGetOSDInfo(t *testing.T) {
 
 func TestDesiredDeviceState(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	etcdClient.SetValue("/castle/nodes/config/a/disks/serialno/name", "foo")
+	etcdClient.CreateDir("/castle/nodes/config/a/disks/foo")
 
 	// add a device
 	err := AddDesiredDevice(etcdClient, "foo", "a")
 	assert.Nil(t, err)
 	devices := etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/a/device")
 	assert.Equal(t, 1, devices.Count())
-	assert.True(t, devices.Contains("serialno"))
+	assert.True(t, devices.Contains("foo"))
 
 	// remove the device
 	err = RemoveDesiredDevice(etcdClient, "foo", "a")
@@ -75,7 +75,9 @@ func TestDesiredDirsState(t *testing.T) {
 
 	loadedDirs, err := loadDesiredDirs(etcdClient, "a")
 	assert.Nil(t, err)
-	assert.True(t, loadedDirs.Equals(util.CreateSet([]string{"/my/dir"})), fmt.Sprintf("dirs=%v", loadedDirs))
+
+	assert.Equal(t, 1, len(loadedDirs))
+	assert.Equal(t, unassignedOSDID, loadedDirs["/my/dir"])
 }
 
 func TestOSDBootstrap(t *testing.T) {

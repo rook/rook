@@ -225,7 +225,7 @@ func loadDisksConfig(nodeConfig *NodeConfig, disksRootNode *etcd.Node) error {
 
 	// iterate over all disks from etcd
 	for i, diskInfo := range disksRootNode.Nodes {
-		disk, err := GetDiskInfo(diskInfo)
+		disk, err := getDiskInfo(diskInfo)
 		if err != nil {
 			log.Printf("Failed to get disk. err=%v", err)
 			return err

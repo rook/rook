@@ -48,9 +48,9 @@ func TestLoadHardwareConfig(t *testing.T) {
 
 	// setup disk info in etcd
 	disksConfig := make([]DiskConfig, 2)
-	disksConfig[0] = TestSetDiskInfo(etcdClient, hardwareKey, "MB2CK3F6S5041EPCPJ4T", "sda", "506d4869-29ee-4bfd-bf21-dfd597bd222e",
+	disksConfig[0] = TestSetDiskInfo(etcdClient, hardwareKey, "sda", "12344869-29ee-4bfd-bf21-dfd597bd222e",
 		10737418240, true, false, "btrfs", "/mnt/abc", Disk, "", true)
-	disksConfig[1] = TestSetDiskInfo(etcdClient, hardwareKey, "2B9C7KZN3VBM77PSA63P", "sda2", "506d4869-29ee-4bfd-bf21-dfd597bd222e",
+	disksConfig[1] = TestSetDiskInfo(etcdClient, hardwareKey, "sda2", "23454869-29ee-4bfd-bf21-dfd597bd222e",
 		2097152, false, true, "", "", Part, "sda", false)
 
 	// setup processor info in etcd
@@ -149,13 +149,13 @@ func verifyDiskConfig(t *testing.T, nodeConfig *NodeConfig, expectedDisksConfig 
 	for _, expectedDisk := range expectedDisksConfig {
 		var matchingActual DiskConfig
 		for _, actualDisk := range nodeConfig.Disks {
-			if actualDisk.Serial == expectedDisk.Serial {
+			if actualDisk.UUID == expectedDisk.UUID {
 				matchingActual = actualDisk
 				break
 			}
 		}
 
-		assert.NotNil(t, matchingActual, "missing actual disk %s", expectedDisk.Serial)
+		assert.NotNil(t, matchingActual, "missing actual disk %s", expectedDisk.UUID)
 		assert.Equal(t, expectedDisk, matchingActual)
 	}
 }
@@ -204,13 +204,13 @@ func TestGetSimpleDiskPropertiesFromSerial(t *testing.T) {
 	etcdClient := &util.MockEtcdClient{}
 	hardwareKey := path.Join(NodesConfigKey, nodeID)
 	etcdClient.Set(ctx.Background(), hardwareKey, "", &etcd.SetOptions{Dir: true})
-	TestSetDiskInfo(etcdClient, hardwareKey, "MB2CK3F6S5041EPCPJ4T", "sda", "506d4869-29ee-4bfd-bf21-dfd597bd222e",
+	TestSetDiskInfo(etcdClient, hardwareKey, "sda", "abcd4869-29ee-4bfd-bf21-dfd597bd222e",
 		10737418240, true, false, "btrfs", "/mnt/abc", Disk, "", true)
 
-	diskNode, _ := etcdClient.Get(ctx.Background(), path.Join(hardwareKey, "disks", "MB2CK3F6S5041EPCPJ4T"), nil)
-	disk, err := GetDiskInfo(diskNode.Node)
+	diskNode, _ := etcdClient.Get(ctx.Background(), path.Join(hardwareKey, "disks", "sda"), nil)
+	disk, err := getDiskInfo(diskNode.Node)
 	assert.Nil(t, err)
 
 	assert.Equal(t, "sda", disk.Name)
-	assert.Equal(t, "506d4869-29ee-4bfd-bf21-dfd597bd222e", disk.UUID)
+	assert.Equal(t, "abcd4869-29ee-4bfd-bf21-dfd597bd222e", disk.UUID)
 }

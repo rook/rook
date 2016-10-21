@@ -29,7 +29,7 @@ const (
 func TestAddRemoveDeviceHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{EtcdClient: etcdClient}
-	etcdClient.SetValue("/castle/nodes/config/123/disks/myserial/name", "foo")
+	etcdClient.SetValue("/castle/nodes/config/123/disks/foo/uuid", "12345")
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/device", strings.NewReader(`{"name":"foo"}`))
 	assert.Nil(t, err)
@@ -51,7 +51,7 @@ func TestAddRemoveDeviceHandler(t *testing.T) {
 
 	devices := etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/123/device")
 	assert.Equal(t, 1, devices.Count())
-	assert.True(t, devices.Contains("myserial"))
+	assert.True(t, devices.Contains("foo"))
 
 	// remove the device
 	req, err = http.NewRequest("POST", "http://10.0.0.100/device/remove", strings.NewReader(`{"name":"foo","nodeId":"123"}`))
@@ -93,13 +93,13 @@ func TestGetNodesHandler(t *testing.T) {
 	inventory.SetLocation(etcdClient, "node1", "root=default,dc=datacenter1")
 	nodeConfigKey := path.Join(inventory.NodesConfigKey, "node1")
 	etcdClient.CreateDir(nodeConfigKey)
-	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "serial1", "sda", "506d4869-29ee-4bfd-bf21-dfd597bd222e",
+	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "sda", "123d4869-29ee-4bfd-bf21-dfd597bd222e",
 		100, true, false, "btrfs", "/mnt/abc", inventory.Disk, "", false)
-	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "serial2", "sdb", "506d4869-29ee-4bfd-bf21-dfd597bd222e",
+	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "sdb", "321d4869-29ee-4bfd-bf21-dfd597bdffff",
 		50, false, false, "ext4", "/mnt/def", inventory.Disk, "", false)
-	appliedOSDKey := "/castle/services/ceph/osd/applied/node1/device"
-	etcdClient.CreateDir(path.Join(appliedOSDKey, "serial1"))
-	etcdClient.CreateDir(path.Join(appliedOSDKey, "serial2"))
+	appliedOSDKey := "/castle/services/ceph/osd/applied/node1"
+	etcdClient.SetValue(path.Join(appliedOSDKey, "12", "disk-uuid"), "123d4869-29ee-4bfd-bf21-dfd597bd222e")
+	etcdClient.SetValue(path.Join(appliedOSDKey, "13", "disk-uuid"), "321d4869-29ee-4bfd-bf21-dfd597bdffff")
 
 	// since a node exists (with storage), it should be returned now
 	w = httptest.NewRecorder()

@@ -33,6 +33,20 @@ func FormatDevice(devicePath string, executor exec.Executor) error {
 	return nil
 }
 
+// look up the UUID for a disk.
+func GetDiskUUID(deviceName string, executor exec.Executor) (string, error) {
+	cmd := fmt.Sprintf("get disk %s uuid", deviceName)
+	uuid, err := executor.ExecuteCommandPipeline(
+		cmd,
+		fmt.Sprintf(`sgdisk -p /dev/%s | grep 'Disk identifier (GUID)' | awk '{print $4}'`, deviceName))
+	if err != nil {
+		log.Printf("unknown disk uuid for /dev/%s", deviceName)
+		return "", nil
+	}
+
+	return uuid, nil
+}
+
 // look up the mount point of the given device.  empty string returned if device is not mounted.
 func GetDeviceMountPoint(deviceName string, executor exec.Executor) (string, error) {
 	cmd := fmt.Sprintf("get mount point for %s", deviceName)
