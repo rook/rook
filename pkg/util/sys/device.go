@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"os/user"
+	"strings"
 
 	"github.com/quantum/castle/pkg/util/exec"
 )
@@ -12,16 +13,44 @@ import (
 // request the current user once and stash it in this global variable
 var currentUser *user.User
 
-func GetDeviceFilesystem(device string, executor exec.Executor) (string, error) {
+func ListDevices(executor exec.Executor) ([]string, error) {
+	cmd := "lsblk all"
+	devices, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", "--all", "-n", "-l", "--output", "KNAME")
+	if err != nil {
+		return nil, fmt.Errorf("failed to list all devices: %+v", err)
+	}
+
+	return strings.Split(devices, "\n"), nil
+}
+
+func GetDeviceProperties(device string, executor exec.Executor) (map[string]string, error) {
+	cmd := fmt.Sprintf("lsblk /dev/%s", device)
+	output, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", fmt.Sprintf("/dev/%s", device),
+		"-b", "-d", "-P", "-o", "SIZE,ROTA,RO,TYPE,PKNAME")
+	if err != nil {
+		// try to get more information about the command error
+		cmdErr, ok := err.(*exec.CommandError)
+		if ok && cmdErr.ExitStatus() == 32 {
+			// certain device types (such as loop) return exit status 32 when probed further,
+			// ignore and continue without logging
+			return map[string]string{}, nil
+		}
+
+		return nil, err
+	}
+
+	return parseKeyValuePairString(output), nil
+}
+
+// get the file systems availab
+func GetDeviceFilesystems(device string, executor exec.Executor) (string, error) {
 	cmd := fmt.Sprintf("get filesystem type for %s", device)
-	devFS, err := executor.ExecuteCommandPipeline(
-		cmd,
-		fmt.Sprintf(`df --output=source,fstype | grep '^/dev/%s ' | awk '{print $2}'`, device))
+	output, err := executor.ExecuteCommandWithOutput(cmd, "df", "--output=source,fstype")
 	if err != nil {
 		return "", fmt.Errorf("command %s failed: %+v", cmd, err)
 	}
 
-	return devFS, nil
+	return parseDFOutput(device, output), nil
 }
 
 func FormatDevice(devicePath string, executor exec.Executor) error {
@@ -34,17 +63,15 @@ func FormatDevice(devicePath string, executor exec.Executor) error {
 }
 
 // look up the UUID for a disk.
-func GetDiskUUID(deviceName string, executor exec.Executor) (string, error) {
-	cmd := fmt.Sprintf("get disk %s uuid", deviceName)
-	uuid, err := executor.ExecuteCommandPipeline(
-		cmd,
-		fmt.Sprintf(`sgdisk -p /dev/%s | grep 'Disk identifier (GUID)' | awk '{print $4}'`, deviceName))
+func GetDiskUUID(device string, executor exec.Executor) (string, error) {
+	cmd := fmt.Sprintf("get disk %s uuid", device)
+	output, err := executor.ExecuteCommandWithOutput(cmd,
+		"sgdisk", "-p", fmt.Sprintf("/dev/%s", device))
 	if err != nil {
-		log.Printf("unknown disk uuid for /dev/%s", deviceName)
-		return "", nil
+		return "", err
 	}
 
-	return uuid, nil
+	return parseUUID(device, output)
 }
 
 // look up the mount point of the given device.  empty string returned if device is not mounted.
@@ -137,4 +164,55 @@ func ChownForCurrentUser(path string, executor exec.Executor) {
 			log.Printf("command %s failed: %+v", cmd, err)
 		}
 	}
+}
+
+// finds the file system(s) for the device in the output of 'df'
+func parseDFOutput(device, output string) string {
+	var fs []string
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, fmt.Sprintf("/dev/%s", device)) {
+			words := strings.Split(line, " ")
+			fs = append(fs, words[len(words)-1])
+		}
+	}
+
+	return strings.Join(fs, ",")
+}
+
+// finds the disk uuid in the output of sgdisk
+func parseUUID(device, output string) (string, error) {
+
+	lines := strings.Split(output, "\n")
+	if len(lines) > 3 && strings.HasPrefix(lines[3], "Disk identifier (GUID)") {
+		words := strings.Split(lines[3], " ")
+		if len(words) == 4 {
+			uuid := strings.ToLower(words[3])
+			return uuid, nil
+		}
+	}
+
+	return "", fmt.Errorf("uuid not found for %s", device)
+}
+
+// converts a raw key value pair string into a map of key value pairs
+// example raw string of `foo="0" bar="1" baz="biz"` is returned as:
+// map[string]string{"foo":"0", "bar":"1", "baz":"biz"}
+func parseKeyValuePairString(propsRaw string) map[string]string {
+	// first split the single raw string on spaces and initialize a map of
+	// a length equal to the number of pairs
+	props := strings.Split(propsRaw, " ")
+	propMap := make(map[string]string, len(props))
+
+	for _, kvpRaw := range props {
+		// split each individual key value pair on the equals sign
+		kvp := strings.Split(kvpRaw, "=")
+		if len(kvp) == 2 {
+			// first element is the final key, second element is the final value
+			// (don't forget to remove surrounding quotes from the value)
+			propMap[kvp[0]] = strings.Replace(kvp[1], `"`, "", -1)
+		}
+	}
+
+	return propMap
 }

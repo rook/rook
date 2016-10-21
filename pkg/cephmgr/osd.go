@@ -235,7 +235,7 @@ func createOSDBootstrapKeyring(conn client.Connection, configDir, clusterName st
 // format the given device for usage by an OSD
 func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool) error {
 	// format the current volume
-	devFS, err := sys.GetDeviceFilesystem(config.deviceName, context.Executor)
+	devFS, err := sys.GetDeviceFilesystems(config.deviceName, context.Executor)
 	if err != nil {
 		return fmt.Errorf("failed to get device %s filesystem: %+v", config.deviceName, err)
 	}

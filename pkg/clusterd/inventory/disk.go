@@ -180,31 +180,20 @@ func itob(i int64) bool {
 func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.Executor) error {
 	disksKey := path.Join(nodeConfigKey, DisksKey)
 
-	cmd := "lsblk all"
-	devices, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", "--all", "-n", "-l", "--output", "KNAME")
+	devices, err := sys.ListDevices(executor)
 	if err != nil {
-		return fmt.Errorf("failed to list all devices: %+v", err)
+		return err
 	}
 
-	for _, d := range strings.Split(devices, "\n") {
-		cmd := fmt.Sprintf("lsblk /dev/%s", d)
-		diskPropsRaw, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", fmt.Sprintf("/dev/%s", d),
-			"-b", "-d", "-P", "-o", "SIZE,ROTA,RO,TYPE,PKNAME")
-		if err != nil {
-			// try to get more information about the command error
-			cmdErr, ok := err.(*exec.CommandError)
-			if ok && cmdErr.ExitStatus() == 32 {
-				// certain device types (such as loop) return exit status 32 when probed further,
-				// ignore and continue without logging
-				continue
-			}
+	for _, d := range devices {
 
-			log.Printf("failed to get properties of device %s: %+v", d, err)
+		diskProps, err := sys.GetDeviceProperties(d, executor)
+		if err != nil {
+			log.Printf("skipping device %s: %+v", d, err)
 			continue
 		}
 
-		diskPropMap := parseKeyValuePairString(diskPropsRaw)
-		diskType, ok := diskPropMap["TYPE"]
+		diskType, ok := diskProps["TYPE"]
 		if !ok || (diskType != "ssd" && diskType != "disk" && diskType != "part") {
 			// unsupported disk type, just continue
 			continue
@@ -214,23 +203,13 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.
 		var diskUUID string
 		if diskType != "part" {
 			diskUUID, err = sys.GetDiskUUID(d, executor)
-			if err != nil || diskUUID == "" {
-				log.Printf("skipping device %s with an unknown uuid", d)
+			if err != nil {
+				log.Printf("skipping device %s with an unknown uuid. %+v", d, err)
 				continue
 			}
 		}
 
-		fs, err := sys.GetDeviceFilesystem(d, executor)
-		if err != nil {
-			return err
-		}
-
-		mountPoint, err := sys.GetDeviceMountPoint(d, executor)
-		if err != nil {
-			return err
-		}
-
-		hasChildren, err := sys.DoesDeviceHaveChildren(d, executor)
+		fs, err := sys.GetDeviceFilesystems(d, executor)
 		if err != nil {
 			return err
 		}
@@ -240,25 +219,19 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.
 		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, DiskUUIDKey), diskUUID, nil); err != nil {
 			return err
 		}
-		if err := setSimpleDiskProperty("SIZE", DiskSizeKey, dkey, diskPropMap, etcdClient); err != nil {
+		if err := setSimpleDiskProperty("SIZE", DiskSizeKey, dkey, diskProps, etcdClient); err != nil {
 			return err
 		}
-		if err := setSimpleDiskProperty("ROTA", DiskRotationalKey, dkey, diskPropMap, etcdClient); err != nil {
+		if err := setSimpleDiskProperty("ROTA", DiskRotationalKey, dkey, diskProps, etcdClient); err != nil {
 			return err
 		}
-		if err := setSimpleDiskProperty("RO", DiskReadonlyKey, dkey, diskPropMap, etcdClient); err != nil {
+		if err := setSimpleDiskProperty("RO", DiskReadonlyKey, dkey, diskProps, etcdClient); err != nil {
 			return err
 		}
-		if err := setSimpleDiskProperty("PKNAME", DiskParentKey, dkey, diskPropMap, etcdClient); err != nil {
-			return err
-		}
-		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, DiskHasChildrenKey), strconv.Itoa(btoi(hasChildren)), nil); err != nil {
+		if err := setSimpleDiskProperty("PKNAME", DiskParentKey, dkey, diskProps, etcdClient); err != nil {
 			return err
 		}
 		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, DiskFileSystemKey), fs, nil); err != nil {
-			return err
-		}
-		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, DiskMountPointKey), mountPoint, nil); err != nil {
 			return err
 		}
 	}
