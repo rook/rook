@@ -21,7 +21,7 @@ coreos:
       [Service]
       Slice=machine.slice
       Restart=always
-      KillMode=process
+      KillMode=mixed
 
       Environment=CASTLED_ACI=quay.io/quantum/castled:latest
       Environment=CASTLED_ID=%m
