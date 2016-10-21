@@ -6,7 +6,6 @@ import (
 	"log"
 	"path"
 	"strconv"
-	"strings"
 	"time"
 
 	ctx "golang.org/x/net/context"
@@ -225,7 +224,7 @@ func loadDisksConfig(nodeConfig *NodeConfig, disksRootNode *etcd.Node) error {
 
 	// iterate over all disks from etcd
 	for i, diskInfo := range disksRootNode.Nodes {
-		disk, err := GetDiskInfo(diskInfo)
+		disk, err := getDiskInfo(diskInfo)
 		if err != nil {
 			log.Printf("Failed to get disk. err=%v", err)
 			return err
@@ -372,26 +371,4 @@ func loadSimpleConfigStringProperty(cfgField *string, cfgNode *etcd.Node, propNa
 	}
 	*cfgField = cfgNode.Value
 	return nil
-}
-
-// converts a raw key value pair string into a map of key value pairs
-// example raw string of `foo="0" bar="1" baz="biz"` is returned as:
-// map[string]string{"foo":"0", "bar":"1", "baz":"biz"}
-func parseKeyValuePairString(propsRaw string) map[string]string {
-	// first split the single raw string on spaces and initialize a map of
-	// a length equal to the number of pairs
-	props := strings.Split(propsRaw, " ")
-	propMap := make(map[string]string, len(props))
-
-	for _, kvpRaw := range props {
-		// split each individual key value pair on the equals sign
-		kvp := strings.Split(kvpRaw, "=")
-		if len(kvp) == 2 {
-			// first element is the final key, second element is the final value
-			// (don't forget to remove surrounding quotes from the value)
-			propMap[kvp[0]] = strings.Replace(kvp[1], `"`, "", -1)
-		}
-	}
-
-	return propMap
 }

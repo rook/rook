@@ -1,7 +1,6 @@
 #!/bin/bash
 
 
-sudo rm -fr mon0 mon1 mon2 mon3
 sudo rm -fr /var/lib/castle
 sudo rm -fr /var/log/castle
 

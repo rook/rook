@@ -47,35 +47,57 @@ type Device struct {
 	Dir    bool   `json:"bool"`
 }
 
-func loadDesiredDevices(etcdClient etcd.KeysAPI, nodeID string) (map[string]string, error) {
+func loadDesiredDevices(etcdClient etcd.KeysAPI, nodeID string) (map[string]int, error) {
+	devices := map[string]int{}
 	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID))
-	children, err := util.GetDirChildKeys(etcdClient, key)
+	devKeys, err := etcdClient.Get(ctx.Background(), key, &etcd.GetOptions{Recursive: true})
 	if err != nil {
-		return nil, fmt.Errorf("could not get desired devices. %v", err)
+		if util.IsEtcdKeyNotFound(err) {
+			return devices, nil
+		}
+		return nil, err
 	}
 
-	devices := map[string]string{}
-	for serial := range children.Iter() {
-		device, err := inventory.GetDeviceFromSerial(serial, nodeID, etcdClient)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get device name for serial %s. %v", serial, err)
+	// parse the dirs from etcd
+	for _, dev := range devKeys.Node.Nodes {
+		device := util.GetLeafKeyPath(dev.Key)
+		osdID := unassignedOSDID
+
+		for _, setting := range dev.Nodes {
+			if strings.HasSuffix(setting.Key, "/osd-id") {
+				id, err := strconv.Atoi(setting.Value)
+				if err == nil {
+					osdID = id
+				}
+			}
 		}
 
-		devices[device] = serial
+		devices[device] = osdID
 	}
 
 	return devices, nil
 }
 
-// add a device to the desired state
-func AddDesiredDevice(etcdClient etcd.KeysAPI, device, nodeID string) error {
-	serial, err := inventory.GetSerialFromDevice(device, nodeID, etcdClient)
-	if err != nil {
-		return fmt.Errorf("failed to get serial for device %s. %v", device, err)
+func setOSDOnDevice(etcdClient etcd.KeysAPI, nodeID, name string, id int, dir bool) error {
+	var key string
+	if dir {
+		key = path.Join(fmt.Sprintf(dirDesiredKey, nodeID), getPseudoDir(name))
+	} else {
+		key = path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), name)
 	}
 
-	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), serial)
-	err = util.CreateEtcdDir(etcdClient, key)
+	_, err := etcdClient.Set(ctx.Background(), path.Join(key, "osd-id"), fmt.Sprintf("%d", id), nil)
+	if err != nil {
+		return fmt.Errorf("failed to associate osd %d with %s", id, name)
+	}
+
+	return nil
+}
+
+// add a device to the desired state
+func AddDesiredDevice(etcdClient etcd.KeysAPI, device, nodeID string) error {
+	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), device)
+	err := util.CreateEtcdDir(etcdClient, key)
 	if err != nil {
 		return fmt.Errorf("failed to add device %s on node %s to desired. %v", device, nodeID, err)
 	}
@@ -83,8 +105,8 @@ func AddDesiredDevice(etcdClient etcd.KeysAPI, device, nodeID string) error {
 	return nil
 }
 
-func loadDesiredDirs(etcdClient etcd.KeysAPI, nodeID string) (*util.Set, error) {
-	dirs := util.NewSet()
+func loadDesiredDirs(etcdClient etcd.KeysAPI, nodeID string) (map[string]int, error) {
+	dirs := map[string]int{}
 	key := path.Join(fmt.Sprintf(dirDesiredKey, nodeID))
 	dirKeys, err := etcdClient.Get(ctx.Background(), key, &etcd.GetOptions{Recursive: true})
 	if err != nil {
@@ -96,10 +118,21 @@ func loadDesiredDirs(etcdClient etcd.KeysAPI, nodeID string) (*util.Set, error) 
 
 	// parse the dirs from etcd
 	for _, dev := range dirKeys.Node.Nodes {
+		id := unassignedOSDID
+		var path string
 		for _, setting := range dev.Nodes {
 			if strings.HasSuffix(setting.Key, "/path") {
-				dirs.Add(setting.Value)
+				path = setting.Value
+			} else if strings.HasSuffix(setting.Key, "/osd-id") {
+				osdID, err := strconv.Atoi(setting.Value)
+				if err == nil {
+					id = osdID
+				}
 			}
+		}
+
+		if path != "" {
+			dirs[path] = id
 		}
 	}
 
@@ -119,13 +152,9 @@ func AddDesiredDir(etcdClient etcd.KeysAPI, dir, nodeID string) error {
 
 // remove a device from the desired state
 func RemoveDesiredDevice(etcdClient etcd.KeysAPI, device, nodeID string) error {
-	serial, err := inventory.GetSerialFromDevice(device, nodeID, etcdClient)
-	if err != nil {
-		return fmt.Errorf("failed to get serial for device %s. %v", device, err)
-	}
 
-	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), serial)
-	_, err = etcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true})
+	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), device)
+	_, err := etcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true})
 	if err != nil {
 		return fmt.Errorf("failed to remove device %s on node %s from desired. %v", device, nodeID, err)
 	}
@@ -136,10 +165,6 @@ func RemoveDesiredDevice(etcdClient etcd.KeysAPI, device, nodeID string) error {
 // get the bootstrap OSD root dir
 func getBootstrapOSDDir(configDir string) string {
 	return path.Join(configDir, "bootstrap-osd")
-}
-
-func getOSDConfigDir(configDir, serial string) string {
-	return fmt.Sprintf(path.Join(configDir, "device", serial))
 }
 
 func getOSDRootDir(root string, osdID int) string {
@@ -208,30 +233,29 @@ func createOSDBootstrapKeyring(conn client.Connection, configDir, clusterName st
 }
 
 // format the given device for usage by an OSD
-func formatDevice(context *clusterd.Context, device, serial, configDir string, forceFormat bool) error {
+func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool) error {
 	// format the current volume
-	devFS, err := sys.GetDeviceFilesystem(device, context.Executor)
+	devFS, err := sys.GetDeviceFilesystems(config.deviceName, context.Executor)
 	if err != nil {
-		return fmt.Errorf("failed to get device %s filesystem: %+v", device, err)
+		return fmt.Errorf("failed to get device %s filesystem: %+v", config.deviceName, err)
 	}
 
 	if devFS != "" && forceFormat {
 		// there's a filesystem on the device, but the user has specified to force a format. give a warning about that.
-		log.Printf("WARNING: device %s already formatted with %s, but forcing a format!!!", device, devFS)
+		log.Printf("WARNING: device %s already formatted with %s, but forcing a format!!!", config.deviceName, devFS)
 	}
 
 	if devFS == "" || forceFormat {
-		log.Printf("Partitioning device %s for bluestore", device)
+		log.Printf("Partitioning device %s for bluestore", config.deviceName)
 
-		err := partitionBluestoreDevice(context, device, serial, configDir)
+		err := partitionBluestoreDevice(context, config)
 		if err != nil {
-			return fmt.Errorf("failed to partion device %s. %v", device, err)
+			return fmt.Errorf("failed to partion device %s. %v", config.deviceName, err)
 		}
 
 	} else {
-		// disk is already formatted and the user doesn't want to force it, return no error, but also specify that no format was done
-		log.Printf("device %s already formatted with %s", device, devFS)
-		return nil
+		// disk is already formatted and the user doesn't want to force it, but we require partitioning
+		return fmt.Errorf("device %s already formatted with %s", config.deviceName, devFS)
 	}
 
 	return nil
@@ -239,42 +263,44 @@ func formatDevice(context *clusterd.Context, device, serial, configDir string, f
 
 // Partitions a device for use by a bluestore osd.
 // If there are any partitions or formatting already on the device, it will be wiped.
-func partitionBluestoreDevice(context *clusterd.Context, device, serial, configDir string) error {
-	size, err := inventory.GetSizeFromSerial(serial, context.NodeID, context.EtcdClient)
+func partitionBluestoreDevice(context *clusterd.Context, config *osdConfig) error {
+	size, err := inventory.GetDeviceSize(config.deviceName, context.NodeID, context.EtcdClient)
 	if err != nil {
-		return fmt.Errorf("failed to get device %s size. %+v", serial, err)
+		return fmt.Errorf("failed to get device %s size. %+v", config.deviceName, err)
 	}
 
-	cmd := fmt.Sprintf("zap partitions on %s", device)
-	err = context.Executor.ExecuteCommand(cmd, sgdisk, "--zap-all", "/dev/"+device)
+	cmd := fmt.Sprintf("zap %s", config.deviceName)
+	err = context.Executor.ExecuteCommand(cmd, sgdisk, "--zap-all", "/dev/"+config.deviceName)
 	if err != nil {
-		return fmt.Errorf("failed to zap partitions on /dev/%s: %+v", device, err)
+		return fmt.Errorf("failed to zap partitions on /dev/%s: %+v", config.deviceName, err)
 	}
 
 	scheme, err := partition.GetSimpleScheme(int(size / 1024 / 1024))
 	if err != nil {
 		return fmt.Errorf("failed to get simple scheme. %+v", err)
 	}
+	config.diskUUID = scheme.DiskUUID
 
 	// get args for creating partitions
-	args := scheme.GetArgs(device)
+	args := scheme.GetArgs(config.deviceName)
 	if err != nil {
 		return fmt.Errorf("failed to get partition args. %+v", err)
 	}
 
 	// execute the partition command
+	cmd = fmt.Sprintf("partition %s", config.deviceName)
 	err = context.Executor.ExecuteCommand(cmd, sgdisk, args...)
 	if err != nil {
-		return fmt.Errorf("failed to partition /dev/%s. %+v", device, err)
+		return fmt.Errorf("failed to partition /dev/%s. %+v", config.deviceName, err)
 	}
 
-	// ensure the folder exists
-	if err := os.MkdirAll(configDir, 0744); err != nil {
-		log.Fatalf("failed to create config dir %s. %+v", configDir, err)
+	err = inventory.SetDeviceUUID(context.NodeID, config.deviceName, scheme.DiskUUID, context.EtcdClient)
+	if err != nil {
+		return fmt.Errorf("failed to set uuid %s. %+v", scheme.DiskUUID, err)
 	}
 
 	// save the scheme
-	err = scheme.Save(configDir)
+	err = scheme.Save(config.rootPath)
 	if err != nil {
 		return fmt.Errorf("failed to save partition scheme. %+v", err)
 	}
@@ -282,53 +308,26 @@ func partitionBluestoreDevice(context *clusterd.Context, device, serial, configD
 	return nil
 }
 
-func registerOSDWithCluster(device string, bootstrapConn client.Connection) (int, uuid.UUID, error) {
-	osdUUID, err := uuid.NewRandom()
+func registerOSD(bootstrapConn client.Connection, config *osdConfig) error {
+	var err error
+	config.uuid, err = uuid.NewRandom()
 	if err != nil {
-		return 0, uuid.UUID{}, fmt.Errorf("failed to generate UUID for %s: %+v", device, err)
+		return fmt.Errorf("failed to generate UUID for osd: %+v", err)
 	}
 
 	// create the OSD instance via a mon_command, this assigns a cluster wide ID to the OSD
-	osdID, err := createOSD(bootstrapConn, osdUUID)
+	config.id, err = createOSD(bootstrapConn, config.uuid)
 	if err != nil {
-		return 0, uuid.UUID{}, err
+		return err
 	}
 
-	log.Printf("successfully created OSD %s with ID %d for %s", osdUUID.String(), osdID, device)
-	return osdID, osdUUID, nil
+	log.Printf("successfully created OSD %s with ID %d", config.uuid.String(), config.id)
+	return nil
 }
 
 func isOSDDataNotExist(osdDataPath string) bool {
 	_, err := os.Stat(filepath.Join(osdDataPath, "whoami"))
 	return os.IsNotExist(err)
-}
-
-func findOSDDataRoot(dir string) (string, error) {
-	pattern := `osd[0-9]+`
-	return findSubdirByPattern(pattern, dir)
-}
-
-// looks for an existing OSD data path under the given root
-func findOSDDataPath(osdRoot, clusterName string) (string, error) {
-	pattern := fmt.Sprintf(`%s-[A-Za-z0-9._-]+`, clusterName)
-	return findSubdirByPattern(pattern, osdRoot)
-}
-
-func findSubdirByPattern(pattern, dir string) (string, error) {
-	fl, err := ioutil.ReadDir(dir)
-	if err != nil {
-		return "", fmt.Errorf("failed to read dir %s: %+v", dir, err)
-	}
-
-	for _, f := range fl {
-		if f.IsDir() {
-			matched, err := regexp.MatchString(pattern, f.Name())
-			if err == nil && matched {
-				return filepath.Join(dir, f.Name()), nil
-			}
-		}
-	}
-	return "", nil
 }
 
 func loadOSDInfo(config *osdConfig) error {
@@ -601,15 +600,15 @@ func markOSDOut(connection client.Connection, id int) error {
 	return err
 }
 
-func purgeOSD(connection client.Connection, name string, id int) error {
+func purgeOSD(connection client.Connection, id int) error {
 	// ceph osd crush remove <name>
 	command := map[string]interface{}{
 		"prefix": "osd crush remove",
 		"name":   fmt.Sprintf("osd.%d", id),
 	}
-	_, err := client.ExecuteMonCommand(connection, command, fmt.Sprintf("remove osd %s from crush map", name))
+	_, err := client.ExecuteMonCommand(connection, command, fmt.Sprintf("remove osd %d from crush map", id))
 	if err != nil {
-		return fmt.Errorf("failed to remove osd %s from crush map. %v", name, err)
+		return fmt.Errorf("failed to remove osd %d from crush map. %v", id, err)
 	}
 
 	// ceph auth del osd.$osd_num
@@ -623,9 +622,9 @@ func purgeOSD(connection client.Connection, name string, id int) error {
 		"prefix": "osd rm",
 		"ids":    []int{id},
 	}
-	_, err = client.ExecuteMonCommand(connection, command, fmt.Sprintf("rm osds %v", name))
+	_, err = client.ExecuteMonCommand(connection, command, fmt.Sprintf("rm osd %d", id))
 	if err != nil {
-		return fmt.Errorf("failed to rm osd %s. %v", name, err)
+		return fmt.Errorf("failed to rm osd %d. %v", id, err)
 	}
 
 	return nil
