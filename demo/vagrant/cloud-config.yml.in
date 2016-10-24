@@ -33,12 +33,11 @@ coreos:
 
       Environment=CASTLED_ACI=quay.io/quantum/castled:latest
       Environment=CASTLED_ID=%m
-      Environment=CASTLED_DISCOVERY_URL=%%token%%
       Environment=CASTLED_PUBLIC_IPV4=$public_ipv4
       Environment=CASTLED_PRIVATE_IPV4=$private_ipv4
       Environment=CASTLED_DATA_DIR=/var/lib/castled
       Environment=CASTLED_ETCD_MEMBERS=http://$public_ipv4:2379
-      #Environment=CASTLED_DATA_DEVICES=sdb,sdc,sdd
+      Environment=CASTLED_DATA_DEVICES=sda,sdb,sdc,sdd
 
       ExecStartPre=/usr/bin/mkdir -p ${CASTLED_DATA_DIR}
 

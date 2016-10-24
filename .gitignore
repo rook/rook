@@ -16,3 +16,5 @@ debug.test
 demo/vagrant/cloud-config.yml
 
 .virtualbox/
+
+.discovery-token
