@@ -43,6 +43,7 @@ type cephGlobalConfig struct {
 	OsdMaxObjectNamespaceLen int    `ini:"osd max object namespace len,omitempty"`
 	OsdObjectStore           string `ini:"osd objectstore"`
 	RbdDefaultFeatures       int    `ini:"rbd_default_features,omitempty"`
+	CrushtoolPath            string `ini:"crushtool"`
 }
 
 func ConnectToClusterAsAdmin(context *clusterd.Context, factory client.ConnectionFactory, cluster *ClusterInfo) (client.Connection, error) {
@@ -181,6 +182,7 @@ func createDefaultCephConfig(cluster *ClusterInfo, runDir string, bluestore bool
 			OsdPoolDefaultPgpNum:   100,
 			OsdObjectStore:         store,
 			RbdDefaultFeatures:     3,
+			CrushtoolPath:          "",
 		},
 	}
 }
