@@ -1,6 +1,8 @@
 #cloud-config
 
 coreos:
+  update:
+    reboot-strategy: off
   etcd2:
     discovery: %%token%%
     advertise-client-urls: http://$public_ipv4:2379
