@@ -10,8 +10,8 @@ import (
 
 	ctx "golang.org/x/net/context"
 
-	"github.com/quantum/castle/pkg/util"
-	"github.com/quantum/castle/pkg/util/exec"
+	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/exec"
 
 	etcd "github.com/coreos/etcd/client"
 )

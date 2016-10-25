@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/quantum/castle/pkg/cephmgr/cephd"
-	"github.com/quantum/castle/pkg/util/flags"
+	"github.com/rook/rook/pkg/cephmgr/cephd"
+	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 

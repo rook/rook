@@ -10,9 +10,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/quantum/castle/pkg/castle/test"
-	"github.com/quantum/castle/pkg/model"
-	exectest "github.com/quantum/castle/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/castle/test"
+	"github.com/rook/rook/pkg/model"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 )
 
 func TestMountBlock(t *testing.T) {

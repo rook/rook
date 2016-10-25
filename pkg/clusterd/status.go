@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 
 	etcd "github.com/coreos/etcd/client"
-	"github.com/quantum/castle/pkg/util"
+	"github.com/rook/rook/pkg/util"
 	ctx "golang.org/x/net/context"
 )
 

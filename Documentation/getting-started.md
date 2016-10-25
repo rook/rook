@@ -37,7 +37,7 @@ of different approaches.
 
 #### Running manually
 
-Download castle from http://github.com/quantum/castle/releases
+Download castle from http://github.com/rook/rook/releases
 
 ```
 castle \

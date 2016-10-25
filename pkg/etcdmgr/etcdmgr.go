@@ -3,8 +3,8 @@ package etcdmgr
 import (
 	"log"
 
-	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/etcdmgr/bootstrap"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/etcdmgr/bootstrap"
 )
 
 const (

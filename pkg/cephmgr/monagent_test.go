@@ -7,10 +7,10 @@ import (
 	"path"
 	"testing"
 
-	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
-	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/util"
-	"github.com/quantum/castle/pkg/util/proc"
+	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/proc"
 	"github.com/stretchr/testify/assert"
 )
 

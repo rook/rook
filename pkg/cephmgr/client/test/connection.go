@@ -3,7 +3,7 @@ package test
 import (
 	"strings"
 
-	"github.com/quantum/castle/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/cephmgr/client"
 )
 
 const (

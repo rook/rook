@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
-	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/util"
-	exectest "github.com/quantum/castle/pkg/util/exec/test"
-	"github.com/quantum/castle/pkg/util/proc"
+	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/util"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/util/proc"
 	"github.com/stretchr/testify/assert"
 )
 

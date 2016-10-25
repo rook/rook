@@ -3,11 +3,11 @@ package etcdmgr
 import (
 	"testing"
 
-	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/clusterd/inventory"
-	clusterdtest "github.com/quantum/castle/pkg/clusterd/test"
-	"github.com/quantum/castle/pkg/etcdmgr/test"
-	"github.com/quantum/castle/pkg/util"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/clusterd/inventory"
+	clusterdtest "github.com/rook/rook/pkg/clusterd/test"
+	"github.com/rook/rook/pkg/etcdmgr/test"
+	"github.com/rook/rook/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 

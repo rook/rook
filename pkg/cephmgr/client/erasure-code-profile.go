@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/quantum/castle/pkg/model"
+	"github.com/rook/rook/pkg/model"
 )
 
 type CephErasureCodeProfile struct {

@@ -7,7 +7,7 @@ import (
 
 	etcd "github.com/coreos/etcd/client"
 
-	"github.com/quantum/castle/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/clusterd/inventory"
 )
 
 const (

@@ -25,7 +25,7 @@ import (
 	"os"
 	"unsafe"
 
-	"github.com/quantum/castle/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/cephmgr/client"
 )
 
 // Version returns the major, minor, and patch components of the version of

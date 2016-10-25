@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/quantum/castle/pkg/cephmgr"
+	"github.com/rook/rook/pkg/cephmgr"
 )
 
 // Adds the device and configures an OSD on the device.

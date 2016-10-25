@@ -1,4 +1,4 @@
-package: github.com/quantum/castle
+package: github.com/rook/rook
 import:
 - package: github.com/spf13/cobra
   subpackages:

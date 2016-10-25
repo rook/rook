@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"regexp"
 
-	"github.com/quantum/castle/pkg/cephmgr/client"
-	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/util"
-	"github.com/quantum/castle/pkg/util/proc"
+	"github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/proc"
 )
 
 const (

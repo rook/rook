@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/quantum/castle/pkg/util/exec"
-	"github.com/quantum/castle/pkg/util/flags"
-	"github.com/quantum/castle/pkg/util/sys"
+	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/flags"
+	"github.com/rook/rook/pkg/util/sys"
 	"github.com/spf13/cobra"
 )
 

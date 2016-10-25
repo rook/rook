@@ -77,7 +77,7 @@ CLIENT_SERVER_PLATFORMS ?= linux_amd64 linux_arm64
 CLIENT_ONLY_PLATFORMS ?= darwin_amd64 windows_amd64
 ALL_PLATFORMS ?= $(CLIENT_SERVER_PLATFORMS) $(CLIENT_ONLY_PLATFORMS)
 
-GO_PROJECT=github.com/quantum/castle
+GO_PROJECT=github.com/rook/rook
 
 # ====================================================================================
 # Setup Castled

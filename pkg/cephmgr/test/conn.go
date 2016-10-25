@@ -1,8 +1,8 @@
 package test
 
 import (
-	"github.com/quantum/castle/pkg/cephmgr/client"
-	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/clusterd"
 )
 
 type MockConnectionFactory struct {

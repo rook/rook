@@ -3,7 +3,7 @@ package kmod
 import (
 	"fmt"
 
-	"github.com/quantum/castle/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 func LoadKernelModule(name string, options []string, executor exec.Executor) error {

@@ -12,12 +12,12 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
 
-	ceph "github.com/quantum/castle/pkg/cephmgr/client"
-	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
-	"github.com/quantum/castle/pkg/cephmgr/test"
-	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/util"
+	ceph "github.com/rook/rook/pkg/cephmgr/client"
+	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/cephmgr/test"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 
