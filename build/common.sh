@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-source_repo=github.com/quantum/castle
+source_repo=github.com/rook/rook
 
 container_version=$(cat ${scriptdir}/cross-image/version)
 container_image=quantum/castle-cross-build:${container_version}

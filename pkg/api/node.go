@@ -4,10 +4,10 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/quantum/castle/pkg/cephmgr"
-	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/model"
+	"github.com/rook/rook/pkg/cephmgr"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/model"
 )
 
 // Gets the nodes that are part of this cluster.

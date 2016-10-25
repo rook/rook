@@ -10,10 +10,10 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/quantum/castle/pkg/cephmgr/client"
-	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
-	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/util"
+	"github.com/rook/rook/pkg/cephmgr/client"
+	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 

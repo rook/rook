@@ -27,7 +27,7 @@ const (
 var rootCmd = &cobra.Command{
 	Use:   "castle",
 	Short: "A command line client for working with a castle cluster",
-	Long:  `https://github.com/quantum/castle`,
+	Long:  `https://github.com/rook/rook`,
 }
 
 func Main() {

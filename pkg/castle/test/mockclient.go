@@ -3,8 +3,8 @@ package test
 import (
 	"net/http"
 
-	"github.com/quantum/castle/pkg/castle/client"
-	"github.com/quantum/castle/pkg/model"
+	"github.com/rook/rook/pkg/castle/client"
+	"github.com/rook/rook/pkg/model"
 )
 
 type CastleMockRestClientFactory struct{}

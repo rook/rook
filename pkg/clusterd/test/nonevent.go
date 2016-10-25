@@ -3,7 +3,7 @@ package test
 import (
 	"log"
 
-	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/rook/rook/pkg/clusterd"
 )
 
 func WaitForEvents(leader clusterd.ServiceLeader) {

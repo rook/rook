@@ -3,7 +3,7 @@ package client
 import (
 	"encoding/json"
 
-	"github.com/quantum/castle/pkg/model"
+	"github.com/rook/rook/pkg/model"
 )
 
 const (

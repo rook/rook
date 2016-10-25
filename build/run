@@ -54,7 +54,7 @@ if [ "`uname -s`" != "Linux" ]; then
     #       /.work
     #       /.ccache
     #       /bin  (bind mounted to host <source>/bin)
-    #       /src/github.com/quantum/castle (rsync'd from host <source>)
+    #       /src/github.com/rook/rook (rsync'd from host <source>)
     #
 
     # create a new volume to hold our go workspace
@@ -111,7 +111,7 @@ else
     #       /.work  (bind mounted to host <source>/.work/cross)
     #       /.ccache (bind mounted to host CCACHE_DIR)
     #       /bin     (bind mounted to host <source>/bin)
-    #       /src/github.com/quantum/castle (bind mounted to <source>)
+    #       /src/github.com/rook/rook (bind mounted to <source>)
     #
     MOUNT_OPTS="${MOUNT_OPTS} \
         -v ${scriptdir}/../.work/cross:${BUILDER_HOME}/go/.work \

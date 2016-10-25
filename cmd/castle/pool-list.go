@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/quantum/castle/pkg/castle/client"
-	"github.com/quantum/castle/pkg/model"
-	"github.com/quantum/castle/pkg/util/display"
-	"github.com/quantum/castle/pkg/util/flags"
+	"github.com/rook/rook/pkg/castle/client"
+	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/util/display"
+	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 

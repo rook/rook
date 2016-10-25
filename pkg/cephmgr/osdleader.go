@@ -6,7 +6,7 @@ import (
 
 	ctx "golang.org/x/net/context"
 
-	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/rook/rook/pkg/clusterd"
 )
 
 // Load the state of the OSDs from etcd.

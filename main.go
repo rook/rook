@@ -1,6 +1,6 @@
 package main
 
-import "github.com/quantum/castle/cmd/castle"
+import "github.com/rook/rook/cmd/castle"
 
 func main() {
 	castle.Main()

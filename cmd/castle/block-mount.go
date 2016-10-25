@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/quantum/castle/pkg/castle/client"
-	"github.com/quantum/castle/pkg/model"
-	"github.com/quantum/castle/pkg/util/exec"
-	"github.com/quantum/castle/pkg/util/flags"
-	"github.com/quantum/castle/pkg/util/kmod"
-	"github.com/quantum/castle/pkg/util/sys"
+	"github.com/rook/rook/pkg/castle/client"
+	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/flags"
+	"github.com/rook/rook/pkg/util/kmod"
+	"github.com/rook/rook/pkg/util/sys"
 	"github.com/spf13/cobra"
 )
 

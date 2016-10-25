@@ -7,9 +7,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/quantum/castle/pkg/cephmgr"
-	ceph "github.com/quantum/castle/pkg/cephmgr/client"
-	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/rook/rook/pkg/cephmgr"
+	ceph "github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/clusterd"
 )
 
 type Handler struct {

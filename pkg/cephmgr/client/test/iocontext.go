@@ -1,6 +1,6 @@
 package test
 
-import "github.com/quantum/castle/pkg/cephmgr/client"
+import "github.com/rook/rook/pkg/cephmgr/client"
 
 /////////////////////////////////////////////////////////////
 // implement the interface for the ceph io context

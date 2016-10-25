@@ -10,8 +10,8 @@ import (
 
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/store"
-	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/util"
+	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/util"
 	ctx "golang.org/x/net/context"
 )
 

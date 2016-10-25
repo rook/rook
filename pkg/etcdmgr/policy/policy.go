@@ -5,7 +5,7 @@ import (
 	"log"
 	"sort"
 
-	"github.com/quantum/castle/pkg/util"
+	"github.com/rook/rook/pkg/util"
 )
 
 // ChooseEtcdCandidatesToAddOrRemove decides which node to become member..

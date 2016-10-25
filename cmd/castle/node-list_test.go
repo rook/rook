@@ -7,8 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/quantum/castle/pkg/castle/test"
-	"github.com/quantum/castle/pkg/model"
+	"github.com/rook/rook/pkg/castle/test"
+	"github.com/rook/rook/pkg/model"
 )
 
 func TestListNodes(t *testing.T) {

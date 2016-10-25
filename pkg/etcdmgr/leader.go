@@ -9,10 +9,10 @@ import (
 	"path"
 
 	"github.com/coreos/etcd/client"
-	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/etcdmgr/bootstrap"
-	"github.com/quantum/castle/pkg/etcdmgr/policy"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/etcdmgr/bootstrap"
+	"github.com/rook/rook/pkg/etcdmgr/policy"
 	ctx "golang.org/x/net/context"
 )
 

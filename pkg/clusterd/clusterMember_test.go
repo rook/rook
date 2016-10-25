@@ -10,9 +10,9 @@ import (
 
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/store"
-	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/util"
-	exectest "github.com/quantum/castle/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/util"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	ctx "golang.org/x/net/context"
 )

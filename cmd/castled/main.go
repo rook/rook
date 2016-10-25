@@ -14,20 +14,20 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/quantum/castle/pkg/api"
-	"github.com/quantum/castle/pkg/cephmgr"
-	"github.com/quantum/castle/pkg/cephmgr/cephd"
-	"github.com/quantum/castle/pkg/clusterd"
+	"github.com/rook/rook/pkg/api"
+	"github.com/rook/rook/pkg/cephmgr"
+	"github.com/rook/rook/pkg/cephmgr/cephd"
+	"github.com/rook/rook/pkg/clusterd"
 
-	"github.com/quantum/castle/pkg/util"
-	"github.com/quantum/castle/pkg/util/flags"
-	"github.com/quantum/castle/pkg/util/proc"
+	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/flags"
+	"github.com/rook/rook/pkg/util/proc"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "castled",
 	Short: "castled tool for bootstrapping and running castle storage",
-	Long:  `https://github.com/quantum/castle`,
+	Long:  `https://github.com/rook/rook`,
 }
 var cfg = newConfig()
 

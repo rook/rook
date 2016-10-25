@@ -9,9 +9,9 @@ import (
 	"strings"
 
 	etcd "github.com/coreos/etcd/client"
-	"github.com/quantum/castle/pkg/util"
-	"github.com/quantum/castle/pkg/util/exec"
-	"github.com/quantum/castle/pkg/util/sys"
+	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/sys"
 	ctx "golang.org/x/net/context"
 )
 

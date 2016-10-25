@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/quantum/castle/pkg/model"
+	"github.com/rook/rook/pkg/model"
 	"github.com/stretchr/testify/assert"
 )
 

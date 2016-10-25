@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"path"
 
-	"github.com/quantum/castle/pkg/model"
+	"github.com/rook/rook/pkg/model"
 )
 
 const (

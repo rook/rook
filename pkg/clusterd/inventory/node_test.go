@@ -9,7 +9,7 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
 
-	"github.com/quantum/castle/pkg/util"
+	"github.com/rook/rook/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 

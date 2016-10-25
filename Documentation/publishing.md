@@ -35,7 +35,7 @@ Of course, if you've run `build/clean`, there's no reason to run this command si
 
 ### Building
 #### Temporary vendor workaround
-As described in #93 (https://github.com/quantum/castle/issues/93), before building in the container, you should run vendoring **locally** on your Mac, then the vendored sources will get synced to build container later on.
+As described in #93 (https://github.com/quantum/rook/rook/93), before building in the container, you should run vendoring **locally** on your Mac, then the vendored sources will get synced to build container later on.
 ```
 make vendor
 ```
@@ -54,7 +54,7 @@ build/run make -j4 release
 
 ### Publishing
 The publishing step will upload all release packages to central deployment services, such as dockerhub and quay.io.  There are a few pre-requisites for publishing:  
-1. A release must be tagged in github.  You can do this by going to https://github.com/quantum/castle/releases/new, and creating a new release.  The release should have a sensible semantic version, and it should be for the commit of your choosing (probably HEAD on master).  
+1. A release must be tagged in github.  You can do this by going to https://github.com/rook/rook/releases/new, and creating a new release.  The release should have a sensible semantic version, and it should be for the commit of your choosing (probably HEAD on master).
 2. dockerhub and quay.io credentials.  These will be imported to the container via ~/.docker/config.json, so all you have to do to get them there is `docker login` and `docker login quay.io`  
 3. A github personal access token.  You can get a token from https://github.com/settings/tokens (or reuse one that you're already using on your mac.  I went into Keychain Access -> passwords, and searched for github.  The "application password" entry is probably the one you want)  
 	

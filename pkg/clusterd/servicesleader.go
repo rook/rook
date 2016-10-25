@@ -9,8 +9,8 @@ import (
 
 	ctx "golang.org/x/net/context"
 
-	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/util"
+	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/util"
 )
 
 var (

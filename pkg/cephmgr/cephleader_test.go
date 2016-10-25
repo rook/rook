@@ -8,12 +8,12 @@ import (
 
 	etcd "github.com/coreos/etcd/client"
 
-	"github.com/quantum/castle/pkg/cephmgr/client"
-	testceph "github.com/quantum/castle/pkg/cephmgr/client/test"
-	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/clusterd/inventory"
-	clusterdtest "github.com/quantum/castle/pkg/clusterd/test"
-	"github.com/quantum/castle/pkg/util"
+	"github.com/rook/rook/pkg/cephmgr/client"
+	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/clusterd/inventory"
+	clusterdtest "github.com/rook/rook/pkg/clusterd/test"
+	"github.com/rook/rook/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
 

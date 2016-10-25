@@ -1,6 +1,6 @@
 package clusterd
 
-import "github.com/quantum/castle/pkg/clusterd/inventory"
+import "github.com/rook/rook/pkg/clusterd/inventory"
 
 const (
 	unhealthyNodeSecondsThreshold = 10

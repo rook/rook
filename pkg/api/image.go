@@ -6,8 +6,8 @@ import (
 	"log"
 	"net/http"
 
-	ceph "github.com/quantum/castle/pkg/cephmgr/client"
-	"github.com/quantum/castle/pkg/model"
+	ceph "github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/model"
 )
 
 // Gets the images that have been created in this cluster.

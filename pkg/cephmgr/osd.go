@@ -17,13 +17,13 @@ import (
 	ctx "golang.org/x/net/context"
 
 	"github.com/google/uuid"
-	"github.com/quantum/castle/pkg/cephmgr/client"
-	"github.com/quantum/castle/pkg/cephmgr/partition"
-	"github.com/quantum/castle/pkg/clusterd"
-	"github.com/quantum/castle/pkg/clusterd/inventory"
-	"github.com/quantum/castle/pkg/util"
-	"github.com/quantum/castle/pkg/util/exec"
-	"github.com/quantum/castle/pkg/util/sys"
+	"github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/cephmgr/partition"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/sys"
 )
 
 const (

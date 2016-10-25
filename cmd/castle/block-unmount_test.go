@@ -10,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	exectest "github.com/quantum/castle/pkg/util/exec/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 )
 
 func TestUnmountBlock(t *testing.T) {
