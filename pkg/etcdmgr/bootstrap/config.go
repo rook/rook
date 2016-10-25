@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"fmt"
 	"log"
 	"net/url"
 	"path"
@@ -11,9 +12,9 @@ import (
 
 const (
 	// DefaultClientPort is the default port for listening to client traffic
-	DefaultClientPort = "53379"
+	DefaultClientPort = 53379
 	// DefaultPeerPort is the default port for listening to peer traffic
-	DefaultPeerPort = "53380"
+	DefaultPeerPort = 53380
 	// DefaultClientTimeout is the default timeout for etcd client
 	DefaultClientTimeout = 5 * time.Second
 )
@@ -44,8 +45,8 @@ func CopyConfig(conf *Config) Config {
 	return newConf
 }
 
-// GenerateConfig automatically generates a config for embedded etcd
-func GenerateConfig(configDir, ipAddr, nodeID string) (*Config, error) {
+// generateConfig automatically generates a config for embedded etcd
+func generateConfig(configDir, ipAddr, nodeID string) (*Config, error) {
 	conf := &Config{}
 	conf.InstanceName = nodeID
 	conf.ListenPeerURLs = append(conf.ListenPeerURLs,
@@ -64,7 +65,7 @@ func GenerateConfig(configDir, ipAddr, nodeID string) (*Config, error) {
 
 // GenerateConfigFromExistingCluster automatically generates a config for joining an existing cluster
 func GenerateConfigFromExistingCluster(Context EtcdMgrContext, configDir, ipAddr, nodeID string) (*Config, error) {
-	conf, err := GenerateConfig(configDir, ipAddr, nodeID)
+	conf, err := generateConfig(configDir, ipAddr, nodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -81,10 +82,10 @@ func GenerateConfigFromExistingCluster(Context EtcdMgrContext, configDir, ipAddr
 	return conf, nil
 }
 
-func getURLFromSchemeIPPort(scheme, ip, port string) url.URL {
+func getURLFromSchemeIPPort(scheme, ip string, port int) url.URL {
 	u := url.URL{
 		Scheme: scheme,
-		Host:   ip + ":" + port,
+		Host:   fmt.Sprintf("%s:%d", ip, port),
 	}
 	return u
 }
