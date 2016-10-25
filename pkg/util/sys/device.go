@@ -7,6 +7,7 @@ import (
 	"os/user"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/quantum/castle/pkg/util/exec"
 )
 
@@ -183,16 +184,22 @@ func parseDFOutput(device, output string) string {
 // finds the disk uuid in the output of sgdisk
 func parseUUID(device, output string) (string, error) {
 
+	// find the line with the uuid
 	lines := strings.Split(output, "\n")
-	if len(lines) > 3 && strings.HasPrefix(lines[3], "Disk identifier (GUID)") {
-		words := strings.Split(lines[3], " ")
-		if len(words) == 4 {
-			uuid := strings.ToLower(words[3])
-			return uuid, nil
+	for _, line := range lines {
+		if strings.Index(line, "Disk identifier (GUID)") != -1 {
+			words := strings.Split(line, " ")
+			for _, word := range words {
+				// we expect most words in the line not to be a uuid, but will return the first one that is
+				result, err := uuid.Parse(word)
+				if err == nil {
+					return result.String(), nil
+				}
+			}
 		}
 	}
 
-	return "", fmt.Errorf("uuid not found for %s", device)
+	return "", fmt.Errorf("uuid not found for device %s. output=%s", device, output)
 }
 
 // converts a raw key value pair string into a map of key value pairs
