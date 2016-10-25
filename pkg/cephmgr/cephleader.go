@@ -62,16 +62,19 @@ func (c *cephLeader) handleOrchestratorEvents() {
 		var osdsToRefresh []string
 		refreshMon := false
 		if r, ok := e.(*clusterd.RefreshEvent); ok {
+			log.Printf("Refresh event")
+			refreshMon = true
 			if r.NodeID() != "" {
 				// refresh a single node, which is currently only for adding and removing devices
 				osdsToRefresh = []string{r.NodeID()}
 			} else {
 				// refresh the whole cluster
-				refreshMon = true
 				osdsToRefresh = getSlice(e.Context().Inventory.Nodes)
 			}
 
 		} else if nodeAdded, ok := e.(*clusterd.AddNodeEvent); ok {
+			log.Printf("Added node %s event", nodeAdded.Node())
+			refreshMon = true
 			osdsToRefresh = []string{nodeAdded.Node()}
 
 		} else if unhealthyEvent, ok := e.(*clusterd.UnhealthyNodeEvent); ok {

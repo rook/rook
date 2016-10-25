@@ -9,6 +9,13 @@ $disk_size = 5
 require_relative 'util.rb'
 require 'open-uri'
 
+if File.exists?('.discovery-token')
+  token = IO.readlines(".discovery-token")[0..-1].join
+else
+  token = open($new_discovery_url).read
+  File.open(".discovery-token", 'w') { |file| file.write("#{token}") }
+end
+
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   set_coreos_box(config, $channel)
 
@@ -23,7 +30,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
       #node.vm.synced_folder "../../release", "/release", id: "release", :nfs => true, :mount_options => ['nolock,vers=3,tcp']
 
       node.vm.provision :cloud_config, :template => "cloud-config.yml.in",
-        :subst => { "%%token%%" => open($new_discovery_url).read }
+        :subst => { "%%token%%" => "#{token}" }
     end
   end
 end
