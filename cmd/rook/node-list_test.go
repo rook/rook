@@ -18,7 +18,8 @@ func TestListNodes(t *testing.T) {
 				{
 					NodeID:      "node1",
 					ClusterName: "cluster1",
-					IPAddress:   "10.0.0.100",
+					PublicIP:    "187.1.2.3",
+					PrivateIP:   "10.0.0.100",
 					Storage:     100,
 					LastUpdated: time.Duration(1) * time.Second,
 					State:       model.Healthy,
@@ -31,7 +32,7 @@ func TestListNodes(t *testing.T) {
 
 	out, err := listNodes(c)
 	assert.Nil(t, err)
-	assert.Equal(t, "ADDRESS      STATE     CLUSTER    SIZE      LOCATION                      UPDATED   \n10.0.0.100   OK        cluster1   100 B     root=default,dc=datacenter5   1s ago    \n", out)
+	assert.Equal(t, "PUBLIC      PRIVATE      STATE     CLUSTER    SIZE      LOCATION                      UPDATED   \n187.1.2.3   10.0.0.100   OK        cluster1   100 B     root=default,dc=datacenter5   1s ago    \n", out)
 }
 
 func TestListNodesError(t *testing.T) {

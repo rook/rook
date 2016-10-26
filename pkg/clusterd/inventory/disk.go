@@ -16,15 +16,15 @@ import (
 )
 
 const (
-	DiskUUIDKey        = "uuid"
-	DiskSizeKey        = "size"
-	DiskRotationalKey  = "rotational"
-	DiskReadonlyKey    = "readonly"
-	DiskFileSystemKey  = "filesystem"
-	DiskTypeKey        = "type"
-	DiskParentKey      = "parent"
-	DiskHasChildrenKey = "children"
-	DiskMountPointKey  = "mountpoint"
+	diskUUIDKey        = "uuid"
+	diskSizeKey        = "size"
+	diskRotationalKey  = "rotational"
+	diskReadonlyKey    = "readonly"
+	diskFileSystemKey  = "filesystem"
+	diskTypeKey        = "type"
+	diskParentKey      = "parent"
+	diskHasChildrenKey = "children"
+	diskMountPointKey  = "mountpoint"
 )
 
 func DiskTypeToStr(diskType DiskType) string {
@@ -51,7 +51,7 @@ func StrToDiskType(diskType string) (DiskType, error) {
 }
 
 func GetDeviceSize(name, nodeID string, etcdClient etcd.KeysAPI) (uint64, error) {
-	key := path.Join(GetNodeConfigKey(nodeID), DisksKey, name, DiskSizeKey)
+	key := path.Join(GetNodeConfigKey(nodeID), disksKey, name, diskSizeKey)
 	resp, err := etcdClient.Get(ctx.Background(), key, nil)
 	if err != nil {
 		return 0, err
@@ -66,14 +66,14 @@ func GetDeviceSize(name, nodeID string, etcdClient etcd.KeysAPI) (uint64, error)
 }
 
 func GetDeviceFromUUID(uuid, nodeID string, etcdClient etcd.KeysAPI) (string, error) {
-	disksKey := path.Join(GetNodeConfigKey(nodeID), DisksKey)
-	devices, err := util.GetDirChildKeys(etcdClient, disksKey)
+	key := path.Join(GetNodeConfigKey(nodeID), disksKey)
+	devices, err := util.GetDirChildKeys(etcdClient, key)
 	if err != nil {
 		return "", err
 	}
 
 	for d := range devices.Iter() {
-		resp, err := etcdClient.Get(ctx.Background(), path.Join(disksKey, d, DiskUUIDKey), nil)
+		resp, err := etcdClient.Get(ctx.Background(), path.Join(key, d, diskUUIDKey), nil)
 		if err != nil || resp == nil || resp.Node == nil {
 			continue
 		}
@@ -87,13 +87,13 @@ func GetDeviceFromUUID(uuid, nodeID string, etcdClient etcd.KeysAPI) (string, er
 }
 
 func SetDeviceUUID(nodeID, device, uuid string, etcdClient etcd.KeysAPI) error {
-	key := path.Join(GetNodeConfigKey(nodeID), DisksKey, device, DiskUUIDKey)
+	key := path.Join(GetNodeConfigKey(nodeID), disksKey, device, diskUUIDKey)
 	_, err := etcdClient.Set(ctx.Background(), key, uuid, nil)
 	return err
 }
 
 func GetDeviceUUID(device, nodeID string, etcdClient etcd.KeysAPI) (string, error) {
-	key := path.Join(GetNodeConfigKey(nodeID), DisksKey, device, DiskUUIDKey)
+	key := path.Join(GetNodeConfigKey(nodeID), disksKey, device, diskUUIDKey)
 	resp, err := etcdClient.Get(ctx.Background(), key, nil)
 	if err != nil {
 		return "", err
@@ -110,43 +110,43 @@ func getDiskInfo(diskInfo *etcd.Node) (*DiskConfig, error) {
 	for _, diskProperty := range diskInfo.Nodes {
 		diskPropertyName := util.GetLeafKeyPath(diskProperty.Key)
 		switch diskPropertyName {
-		case DiskUUIDKey:
+		case diskUUIDKey:
 			disk.UUID = diskProperty.Value
-		case DiskSizeKey:
+		case diskSizeKey:
 			size, err := strconv.ParseUint(diskProperty.Value, 10, 64)
 			if err != nil {
 				return nil, err
 			} else {
 				disk.Size = size
 			}
-		case DiskRotationalKey:
+		case diskRotationalKey:
 			rotational, err := strconv.ParseInt(diskProperty.Value, 10, 64)
 			if err != nil {
 				return nil, err
 			} else {
 				disk.Rotational = itob(rotational)
 			}
-		case DiskReadonlyKey:
+		case diskReadonlyKey:
 			readonly, err := strconv.ParseInt(diskProperty.Value, 10, 64)
 			if err != nil {
 				return nil, err
 			} else {
 				disk.Readonly = itob(readonly)
 			}
-		case DiskFileSystemKey:
+		case diskFileSystemKey:
 			disk.FileSystem = diskProperty.Value
-		case DiskMountPointKey:
+		case diskMountPointKey:
 			disk.MountPoint = diskProperty.Value
-		case DiskTypeKey:
+		case diskTypeKey:
 			diskType, err := StrToDiskType(diskProperty.Value)
 			if err != nil {
 				return nil, err
 			} else {
 				disk.Type = diskType
 			}
-		case DiskParentKey:
+		case diskParentKey:
 			disk.Parent = diskProperty.Value
-		case DiskHasChildrenKey:
+		case diskHasChildrenKey:
 			hasChildren, err := strconv.ParseInt(diskProperty.Value, 10, 64)
 			if err != nil {
 				return nil, err
@@ -178,7 +178,6 @@ func itob(i int64) bool {
 }
 
 func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.Executor) error {
-	disksKey := path.Join(nodeConfigKey, DisksKey)
 
 	devices, err := sys.ListDevices(executor)
 	if err != nil {
@@ -214,24 +213,24 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.
 			return err
 		}
 
-		dkey := path.Join(disksKey, d)
+		dkey := path.Join(nodeConfigKey, disksKey, d)
 
-		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, DiskUUIDKey), diskUUID, nil); err != nil {
+		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, diskUUIDKey), diskUUID, nil); err != nil {
 			return err
 		}
-		if err := setSimpleDiskProperty("SIZE", DiskSizeKey, dkey, diskProps, etcdClient); err != nil {
+		if err := setSimpleDiskProperty("SIZE", diskSizeKey, dkey, diskProps, etcdClient); err != nil {
 			return err
 		}
-		if err := setSimpleDiskProperty("ROTA", DiskRotationalKey, dkey, diskProps, etcdClient); err != nil {
+		if err := setSimpleDiskProperty("ROTA", diskRotationalKey, dkey, diskProps, etcdClient); err != nil {
 			return err
 		}
-		if err := setSimpleDiskProperty("RO", DiskReadonlyKey, dkey, diskProps, etcdClient); err != nil {
+		if err := setSimpleDiskProperty("RO", diskReadonlyKey, dkey, diskProps, etcdClient); err != nil {
 			return err
 		}
-		if err := setSimpleDiskProperty("PKNAME", DiskParentKey, dkey, diskProps, etcdClient); err != nil {
+		if err := setSimpleDiskProperty("PKNAME", diskParentKey, dkey, diskProps, etcdClient); err != nil {
 			return err
 		}
-		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, DiskFileSystemKey), fs, nil); err != nil {
+		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, diskFileSystemKey), fs, nil); err != nil {
 			return err
 		}
 	}
@@ -255,16 +254,16 @@ func setSimpleDiskProperty(propName, keyName, diskKey string, diskPropMap map[st
 func TestSetDiskInfo(etcdClient *util.MockEtcdClient, hardwareKey string, name string, uuid string, size uint64, rotational bool, readonly bool,
 	filesystem string, mountPoint string, diskType DiskType, parent string, hasChildren bool) DiskConfig {
 
-	diskKey := path.Join(hardwareKey, DisksKey, name)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskUUIDKey), uuid, nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskSizeKey), strconv.FormatUint(size, 10), nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskRotationalKey), strconv.Itoa(btoi(rotational)), nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskReadonlyKey), strconv.Itoa(btoi(readonly)), nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskFileSystemKey), filesystem, nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskMountPointKey), mountPoint, nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskTypeKey), DiskTypeToStr(diskType), nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskParentKey), parent, nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, DiskHasChildrenKey), strconv.Itoa(btoi(hasChildren)), nil)
+	diskKey := path.Join(hardwareKey, disksKey, name)
+	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskUUIDKey), uuid, nil)
+	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskSizeKey), strconv.FormatUint(size, 10), nil)
+	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskRotationalKey), strconv.Itoa(btoi(rotational)), nil)
+	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskReadonlyKey), strconv.Itoa(btoi(readonly)), nil)
+	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskFileSystemKey), filesystem, nil)
+	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskMountPointKey), mountPoint, nil)
+	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskTypeKey), DiskTypeToStr(diskType), nil)
+	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskParentKey), parent, nil)
+	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskHasChildrenKey), strconv.Itoa(btoi(hasChildren)), nil)
 
 	return DiskConfig{
 		Name:        name,

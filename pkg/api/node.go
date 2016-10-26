@@ -61,7 +61,8 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 		nodes[i] = model.Node{
 			NodeID:      nodeID,
 			ClusterName: clusterName,
-			IPAddress:   n.IPAddress,
+			PublicIP:    n.PublicIP,
+			PrivateIP:   n.PrivateIP,
 			Storage:     storage,
 			LastUpdated: n.HeartbeatAge,
 			State:       state,

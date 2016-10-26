@@ -28,7 +28,8 @@ type NodeConfig struct {
 	Processors      []ProcessorConfig `json:"processors"`
 	Memory          MemoryConfig      `json:"memory"`
 	NetworkAdapters []NetworkConfig   `json:"networkAdapters"`
-	IPAddress       string            `json:"ipAddr"`
+	PublicIP        string            `json:"publicIp"`
+	PrivateIP       string            `json:"privateIp"`
 	HeartbeatAge    time.Duration     `json:"heartbeatAge"`
 	Location        string            `json:"location"`
 }

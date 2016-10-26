@@ -18,14 +18,14 @@ func TestEtcdMgrLeaderGrow(t *testing.T) {
 	inv := &inventory.Config{Nodes: nodes}
 
 	// adding 1.2.3.4 as the first/existing cluster member
-	nodes["a"] = &inventory.NodeConfig{IPAddress: "1.2.3.4"}
+	nodes["a"] = &inventory.NodeConfig{PrivateIP: "1.2.3.4"}
 	mockContext.AddMembers([]string{"http://1.2.3.4:53379"})
 	etcdmgrService := etcdMgrLeader{context: &mockContext}
 	etcdmgrService.StartWatchEvents()
 	defer etcdmgrService.Close()
 
-	nodes["b"] = &inventory.NodeConfig{IPAddress: "2.3.4.5"}
-	nodes["c"] = &inventory.NodeConfig{IPAddress: "3.4.5.6"}
+	nodes["b"] = &inventory.NodeConfig{PrivateIP: "2.3.4.5"}
+	nodes["c"] = &inventory.NodeConfig{PrivateIP: "3.4.5.6"}
 
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{
@@ -55,19 +55,19 @@ func TestEtcdMgrLeaderShrink(t *testing.T) {
 	inv := &inventory.Config{Nodes: nodes}
 
 	// adding 1.2.3.4 as the first/existing cluster member
-	nodes["a"] = &inventory.NodeConfig{IPAddress: "1.2.3.4"}
+	nodes["a"] = &inventory.NodeConfig{PrivateIP: "1.2.3.4"}
 	mockContext.AddMembers([]string{"http://1.2.3.4:53379"})
-	nodes["b"] = &inventory.NodeConfig{IPAddress: "2.3.4.5"}
+	nodes["b"] = &inventory.NodeConfig{PrivateIP: "2.3.4.5"}
 	mockContext.AddMembers([]string{"http://2.3.4.5:53379"})
-	nodes["c"] = &inventory.NodeConfig{IPAddress: "3.4.5.6"}
+	nodes["c"] = &inventory.NodeConfig{PrivateIP: "3.4.5.6"}
 	mockContext.AddMembers([]string{"http://3.4.5.6:53379"})
 	etcdmgrService := etcdMgrLeader{context: &mockContext}
 	etcdmgrService.StartWatchEvents()
 	defer etcdmgrService.Close()
 
-	nodes["a"] = &inventory.NodeConfig{IPAddress: "1.2.3.4"}
-	nodes["b"] = &inventory.NodeConfig{IPAddress: "2.3.4.5"}
-	nodes["c"] = &inventory.NodeConfig{IPAddress: "3.4.5.6"}
+	nodes["a"] = &inventory.NodeConfig{PrivateIP: "1.2.3.4"}
+	nodes["b"] = &inventory.NodeConfig{PrivateIP: "2.3.4.5"}
+	nodes["c"] = &inventory.NodeConfig{PrivateIP: "3.4.5.6"}
 
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{

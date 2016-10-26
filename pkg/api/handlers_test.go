@@ -89,7 +89,7 @@ func TestGetNodesHandler(t *testing.T) {
 	assert.Equal(t, `[]`, w.Body.String())
 
 	// set up a discovered node in etcd
-	inventory.SetIPAddress(etcdClient, "node1", "10.0.0.11")
+	inventory.SetIPAddress(etcdClient, "node1", "1.2.3.4", "10.0.0.11")
 	inventory.SetLocation(etcdClient, "node1", "root=default,dc=datacenter1")
 	nodeConfigKey := path.Join(inventory.NodesConfigKey, "node1")
 	etcdClient.CreateDir(nodeConfigKey)
@@ -106,7 +106,7 @@ func TestGetNodesHandler(t *testing.T) {
 	h.GetNodes(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "[{\"nodeId\":\"node1\",\"clusterName\":\"cluster5\",\"ipAddr\":\"10.0.0.11\",\"storage\":150,\"lastUpdated\":31536000000000000,\"state\":1,\"location\":\"root=default,dc=datacenter1\"}]",
+	assert.Equal(t, "[{\"nodeId\":\"node1\",\"clusterName\":\"cluster5\",\"publicIp\":\"1.2.3.4\",\"privateIp\":\"10.0.0.11\",\"storage\":150,\"lastUpdated\":31536000000000000,\"state\":1,\"location\":\"root=default,dc=datacenter1\"}]",
 		w.Body.String())
 }
 

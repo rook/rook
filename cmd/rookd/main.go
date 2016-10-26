@@ -63,13 +63,16 @@ func init() {
 	rootCmd.Flags().StringVar(&cfg.nodeID, "id", "", "unique identifier in the cluster for this machine. defaults to /etc/machine-id if found.")
 	rootCmd.Flags().StringVar(&cfg.discoveryURL, "discovery-url", "", "etcd discovery URL. Example: http://discovery.rook.com/26bd83c92e7145e6b103f623263f61df")
 	rootCmd.Flags().StringVar(&cfg.etcdMembers, "etcd-members", "", "etcd members to connect to. Overrides the discovery URL. Example: http://10.23.45.56:2379")
-	rootCmd.Flags().StringVar(&cfg.publicIPv4, "public-ipv4", "", "public IPv4 address for this machine")
-	rootCmd.Flags().StringVar(&cfg.privateIPv4, "private-ipv4", "127.0.0.1", "private IPv4 address for this machine")
+	rootCmd.Flags().StringVar(&cfg.publicIPv4, "public-ipv4", "", "public IPv4 address for this machine (required)")
+	rootCmd.Flags().StringVar(&cfg.privateIPv4, "private-ipv4", "", "private IPv4 address for this machine (required)")
 	rootCmd.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
 	rootCmd.Flags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
 	rootCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 	rootCmd.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
+
+	rootCmd.MarkFlagRequired("private-ipv4")
+	rootCmd.MarkFlagRequired("public-ipv4")
 
 	// load the environment variables
 	setFlagsFromEnv(rootCmd.Flags())
@@ -84,7 +87,7 @@ func addCommands() {
 
 func startJoinCluster(cmd *cobra.Command, args []string) error {
 	// verify required flags
-	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
+	if err := flags.VerifyRequiredFlags(cmd, []string{"private-ipv4", "public-ipv4"}); err != nil {
 		return err
 	}
 

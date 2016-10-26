@@ -144,7 +144,7 @@ func (e *etcdMgrLeader) growEtcdQuorum(context *clusterd.Context, candidates []s
 		// add target node to the current etcd cluster
 		var targetIP string
 		if node, ok := context.Inventory.Nodes[candidate]; ok {
-			targetIP = node.IPAddress
+			targetIP = node.PrivateIP
 		} else {
 			return errors.New("candidate ip not found in the inventory")
 		}
@@ -172,7 +172,7 @@ func (e *etcdMgrLeader) shrinkEtcdQuorum(context *clusterd.Context, candidates [
 		// remove target node from the current etcd cluster
 		var targetEndpoint string
 		if node, ok := context.Inventory.Nodes[candidate]; ok {
-			targetEndpoint = getPeerEndpointFromIP(node.IPAddress)
+			targetEndpoint = getPeerEndpointFromIP(node.PrivateIP)
 		} else {
 			return errors.New("candidate endpoint not found in the inventory")
 		}
@@ -213,7 +213,7 @@ func getNodeIDs(nodeURLs []string, Nodes map[string]*inventory.NodeConfig) ([]st
 		ip, _, _ := net.SplitHostPort(uu.Host)
 		for nodeID, config := range Nodes {
 			log.Println("nodeID: ", nodeID)
-			if config.IPAddress == ip {
+			if config.PrivateIP == ip {
 				log.Printf("matched, ip: %v | nodeID: %v\n", ip, nodeID)
 				nodeIDs = append(nodeIDs, nodeID)
 			}
