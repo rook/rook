@@ -13,9 +13,11 @@ import (
 )
 
 // StartJoinCluster initializes the cluster services to enable joining the cluster and listening for orchestration.
-func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, configDir, nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4 string) (*Context, error) {
-	log.Printf("Starting cluster. config=%s, nodeID=%s, url=%s, members=%s, publicIPv4=%s, privateIPv4=%s",
-		configDir, nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4)
+func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, configDir, nodeID, discoveryURL,
+	etcdMembers, publicIPv4, privateIPv4 string, debug bool) (*Context, error) {
+
+	log.Printf("Starting cluster. configDir=%s, nodeID=%s, url=%s, members=%s, publicIPv4=%s, privateIPv4=%s, debug=%t",
+		configDir, nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4, debug)
 
 	etcdClients := []string{}
 	if etcdMembers != "" {
@@ -58,6 +60,7 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, con
 		Services:   services,
 		ProcMan:    procMan,
 		ConfigDir:  configDir,
+		Debug:      debug,
 	}
 	clusterLeader := newServicesLeader(context)
 	clusterMember := newClusterMember(context, leaseManager, clusterLeader)

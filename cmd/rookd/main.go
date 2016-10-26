@@ -41,6 +41,7 @@ type config struct {
 	dataDir      string
 	forceFormat  bool
 	location     string
+	debug        bool
 }
 
 func newConfig() *config {
@@ -70,6 +71,8 @@ func init() {
 	rootCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 	rootCmd.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
+
+	rootCmd.PersistentFlags().BoolVar(&cfg.debug, "debug", false, "true to enable debug logging/tracing")
 
 	rootCmd.MarkFlagRequired("private-ipv4")
 	rootCmd.MarkFlagRequired("public-ipv4")
@@ -136,7 +139,8 @@ func joinCluster() error {
 	}
 
 	// start the cluster orchestration services
-	context, err := clusterd.StartJoinCluster(services, procMan, cfg.dataDir, cfg.nodeID, cfg.discoveryURL, cfg.etcdMembers, cfg.publicIPv4, cfg.privateIPv4)
+	context, err := clusterd.StartJoinCluster(services, procMan, cfg.dataDir, cfg.nodeID, cfg.discoveryURL,
+		cfg.etcdMembers, cfg.publicIPv4, cfg.privateIPv4, cfg.debug)
 	if err != nil {
 		return err
 	}
