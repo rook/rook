@@ -33,7 +33,7 @@ func TestCephLeaders(t *testing.T) {
 
 	nodes := make(map[string]*inventory.NodeConfig)
 	inv := &inventory.Config{Nodes: nodes}
-	nodes["a"] = &inventory.NodeConfig{IPAddress: "1.2.3.4"}
+	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.4"}
 
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{
@@ -61,7 +61,7 @@ func TestCephLeaders(t *testing.T) {
 	assert.Equal(t, "6790", etcdClient.GetValue("/rook/services/ceph/monitor/desired/a/port"))
 
 	// trigger an add node event
-	nodes["b"] = &inventory.NodeConfig{IPAddress: "2.3.4.5"}
+	nodes["b"] = &inventory.NodeConfig{PublicIP: "2.3.4.5"}
 	addNode := clusterd.NewAddNodeEvent(context, "b")
 	leader.Events() <- addNode
 
@@ -83,9 +83,9 @@ func TestMoveUnhealthyMonitor(t *testing.T) {
 
 	nodes := make(map[string]*inventory.NodeConfig)
 	inv := &inventory.Config{Nodes: nodes}
-	nodes["a"] = &inventory.NodeConfig{IPAddress: "1.2.3.4"}
-	nodes["b"] = &inventory.NodeConfig{IPAddress: "2.3.4.5"}
-	nodes["c"] = &inventory.NodeConfig{IPAddress: "3.4.5.6"}
+	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.4"}
+	nodes["b"] = &inventory.NodeConfig{PublicIP: "2.3.4.5"}
+	nodes["c"] = &inventory.NodeConfig{PublicIP: "3.4.5.6"}
 
 	context := &clusterd.Context{
 		EtcdClient: etcdClient,
@@ -105,7 +105,7 @@ func TestMoveUnhealthyMonitor(t *testing.T) {
 
 	// add a new node and mark node a as unhealthy
 	nodes["a"].HeartbeatAge = (unhealthyMonHeatbeatAgeSeconds + 1) * time.Second
-	nodes["d"] = &inventory.NodeConfig{IPAddress: "4.5.6.7"}
+	nodes["d"] = &inventory.NodeConfig{PublicIP: "4.5.6.7"}
 	etcdClient.WatcherResponses["/rook/_notify/d/monitor/status"] = "succeeded"
 
 	err = leader.configureCephMons(context)
@@ -119,16 +119,16 @@ func TestMoveUnhealthyMonitor(t *testing.T) {
 	mon2 := false
 	mon3 := false
 	for _, mon := range cluster.Monitors {
-		if strings.Contains(mon.Endpoint, nodes["a"].IPAddress) {
+		if strings.Contains(mon.Endpoint, nodes["a"].PublicIP) {
 			assert.Fail(t, "mon a was not removed")
 		}
-		if strings.Contains(mon.Endpoint, nodes["b"].IPAddress) {
+		if strings.Contains(mon.Endpoint, nodes["b"].PublicIP) {
 			mon1 = true
 		}
-		if strings.Contains(mon.Endpoint, nodes["c"].IPAddress) {
+		if strings.Contains(mon.Endpoint, nodes["c"].PublicIP) {
 			mon2 = true
 		}
-		if strings.Contains(mon.Endpoint, nodes["d"].IPAddress) {
+		if strings.Contains(mon.Endpoint, nodes["d"].PublicIP) {
 			mon3 = true
 		}
 	}

@@ -221,7 +221,7 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 		}
 
 		node, ok := context.Inventory.Nodes[nodeID]
-		if !ok || node.IPAddress == "" {
+		if !ok || node.PublicIP == "" {
 			log.Printf("failed to discover desired ip address for node %s. %v", nodeID, err)
 			return nil, nil, err
 		}
@@ -234,10 +234,10 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 		port := "6790"
 		monitorID := fmt.Sprintf("mon%d", nextMonID)
 		settings[path.Join(nodeID, "id")] = monitorID
-		settings[path.Join(nodeID, "ipaddress")] = node.IPAddress
+		settings[path.Join(nodeID, "ipaddress")] = node.PublicIP
 		settings[path.Join(nodeID, "port")] = port
 
-		monitor := &CephMonitorConfig{Name: monitorID, Endpoint: fmt.Sprintf("%s:%s", node.IPAddress, port)}
+		monitor := &CephMonitorConfig{Name: monitorID, Endpoint: fmt.Sprintf("%s:%s", node.PublicIP, port)}
 		monitors[nodeID] = monitor
 
 		nextMonID++

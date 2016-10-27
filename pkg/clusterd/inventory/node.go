@@ -18,13 +18,14 @@ import (
 
 const (
 	HeartbeatKey        = "heartbeat"
-	IpAddressKey        = "ipaddress"
-	DisksKey            = "disks"
-	ProcessorsKey       = "cpu"
-	NetworkKey          = "net"
-	MemoryKey           = "mem"
-	LocationKey         = "location"
+	disksKey            = "disks"
+	processorsKey       = "cpu"
+	networkKey          = "net"
+	memoryKey           = "mem"
+	locationKey         = "location"
 	heartbeatTtlSeconds = 60 * 60
+	publicIpAddressKey  = "publicIp"
+	privateIpAddressKey = "privateIp"
 )
 
 var (
@@ -72,12 +73,6 @@ func loadNodeConfig(etcdClient etcd.KeysAPI) (map[string]*NodeConfig, error) {
 			log.Printf("failed to parse hardware config for node %s, %v", etcdNode, err)
 			return nil, err
 		}
-
-		ipAddr, err := getIPAddress(nodeID, etcdNode)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get IP address for node %s. %v", nodeID, err)
-		}
-		nodeConfig.IPAddress = ipAddr
 
 		nodesConfig[nodeID] = nodeConfig
 	}
@@ -137,12 +132,17 @@ func loadSingleNodeHealth(node *NodeConfig, health *etcd.Node) error {
 }
 
 // Set the IP address for a node
-func SetIPAddress(etcdClient etcd.KeysAPI, nodeId, ipaddress string) error {
-	return setConfigProperty(etcdClient, nodeId, IpAddressKey, ipaddress)
+func SetIPAddress(etcdClient etcd.KeysAPI, nodeId, publicIP, privateIP string) error {
+	err := setConfigProperty(etcdClient, nodeId, publicIpAddressKey, publicIP)
+	if err != nil {
+		return err
+	}
+
+	return setConfigProperty(etcdClient, nodeId, privateIpAddressKey, privateIP)
 }
 
 func SetLocation(etcdClient etcd.KeysAPI, nodeId, location string) error {
-	return setConfigProperty(etcdClient, nodeId, LocationKey, location)
+	return setConfigProperty(etcdClient, nodeId, locationKey, location)
 }
 
 func setConfigProperty(etcdClient etcd.KeysAPI, nodeId, keyName, val string) error {
@@ -152,62 +152,43 @@ func setConfigProperty(etcdClient etcd.KeysAPI, nodeId, keyName, val string) err
 	return err
 }
 
-func getIPAddress(nodeID string, nodeInfo *etcd.Node) (string, error) {
-	for _, prop := range nodeInfo.Nodes {
-		switch util.GetLeafKeyPath(prop.Key) {
-		case "ipaddress":
-			return prop.Value, nil
-		}
-	}
-
-	return "", fmt.Errorf("node %s ip address not found", nodeID)
-}
-
 func loadHardwareConfig(nodeId string, nodeConfig *NodeConfig, nodeInfo *etcd.Node) error {
 	if nodeInfo == nil || nodeInfo.Nodes == nil {
 		return errors.New("hardware info missing")
 	}
 
 	for _, nodeConfigRoot := range nodeInfo.Nodes {
-		switch util.GetLeafKeyPath(nodeConfigRoot.Key) {
-		case DisksKey:
-			err := loadDisksConfig(nodeConfig, nodeConfigRoot)
-			if err != nil {
-				log.Printf("failed to load disk config for node %s, %v", nodeId, err)
-				return err
-			}
-		case ProcessorsKey:
-			err := loadProcessorsConfig(nodeConfig, nodeConfigRoot)
-			if err != nil {
-				log.Printf("failed to load processor config for node %s, %v", nodeId, err)
-				return err
-			}
-		case MemoryKey:
-			err := loadMemoryConfig(nodeConfig, nodeConfigRoot)
-			if err != nil {
-				log.Printf("failed to load memory config for node %s, %v", nodeId, err)
-				return err
-			}
-		case NetworkKey:
-			err := loadNetworkConfig(nodeConfig, nodeConfigRoot)
-			if err != nil {
-				log.Printf("failed to load network config for node %s, %v", nodeId, err)
-				return err
-			}
-		case IpAddressKey:
-			err := loadSimpleConfigStringProperty(&(nodeConfig.IPAddress), nodeConfigRoot, "IP Address")
-			if err != nil {
-				log.Printf("failed to load IP address config for node %s, %v", nodeId, err)
-				return err
-			}
-		case LocationKey:
-			err := loadSimpleConfigStringProperty(&(nodeConfig.Location), nodeConfigRoot, "Location")
-			if err != nil {
-				log.Printf("failed to load location config for node %s, %v", nodeId, err)
-				return err
-			}
+		key := util.GetLeafKeyPath(nodeConfigRoot.Key)
+		var err error
+		switch key {
+		case disksKey:
+			err = loadDisksConfig(nodeConfig, nodeConfigRoot)
+
+		case processorsKey:
+			err = loadProcessorsConfig(nodeConfig, nodeConfigRoot)
+
+		case memoryKey:
+			err = loadMemoryConfig(nodeConfig, nodeConfigRoot)
+
+		case networkKey:
+			err = loadNetworkConfig(nodeConfig, nodeConfigRoot)
+
+		case publicIpAddressKey:
+			err = loadSimpleConfigStringProperty(&(nodeConfig.PublicIP), nodeConfigRoot, "Public IP")
+
+		case privateIpAddressKey:
+			err = loadSimpleConfigStringProperty(&(nodeConfig.PrivateIP), nodeConfigRoot, "Private IP")
+
+		case locationKey:
+			err = loadSimpleConfigStringProperty(&(nodeConfig.Location), nodeConfigRoot, "Location")
+
 		default:
 			log.Printf("unexpected hardware component: %s, skipping...", nodeConfigRoot)
+		}
+
+		if err != nil {
+			log.Printf("failed to load %s config for node %s, %v", key, nodeId, err)
+			return err
 		}
 	}
 

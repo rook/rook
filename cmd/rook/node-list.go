@@ -45,11 +45,11 @@ func listNodes(c client.RookRestClient) (string, error) {
 	w := NewTableWriter(&buffer)
 
 	// write header columns
-	fmt.Fprintln(w, "ADDRESS\tSTATE\tCLUSTER\tSIZE\tLOCATION\tUPDATED\t")
+	fmt.Fprintln(w, "PUBLIC\tPRIVATE\tSTATE\tCLUSTER\tSIZE\tLOCATION\tUPDATED\t")
 
 	// print a row for each node
 	for _, n := range nodes {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s ago\t\n", n.IPAddress, model.NodeStateToString(n.State), n.ClusterName,
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s ago\t\n", n.PublicIP, n.PrivateIP, model.NodeStateToString(n.State), n.ClusterName,
 			display.BytesToString(n.Storage), n.Location, n.LastUpdated.String())
 	}
 

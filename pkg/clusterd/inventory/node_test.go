@@ -17,25 +17,32 @@ func TestLoadDiscoveredNodes(t *testing.T) {
 	etcdClient := &util.MockEtcdClient{}
 
 	// Create some test config
-	etcdClient.SetValue(path.Join(NodesConfigKey, "23", "ipaddress"), "1.2.3.4")
-	etcdClient.SetValue(path.Join(NodesConfigKey, "46", "ipaddress"), "4.5.6.7")
+	etcdClient.SetValue(path.Join(NodesConfigKey, "23", "publicIp"), "1.2.3.4")
+	etcdClient.SetValue(path.Join(NodesConfigKey, "23", "privateIp"), "10.2.3.4")
+	etcdClient.SetValue(path.Join(NodesConfigKey, "46", "publicIp"), "4.5.6.7")
+	etcdClient.SetValue(path.Join(NodesConfigKey, "46", "privateIp"), "10.5.6.7")
 
 	config, err := LoadDiscoveredNodes(etcdClient)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(config.Nodes))
-	assert.Equal(t, "1.2.3.4", config.Nodes["23"].IPAddress)
-	assert.Equal(t, "4.5.6.7", config.Nodes["46"].IPAddress)
+	assert.Equal(t, "1.2.3.4", config.Nodes["23"].PublicIP)
+	assert.Equal(t, "10.2.3.4", config.Nodes["23"].PrivateIP)
+	assert.Equal(t, "4.5.6.7", config.Nodes["46"].PublicIP)
+	assert.Equal(t, "10.5.6.7", config.Nodes["46"].PrivateIP)
 	assert.Equal(t, time.Hour*24*365, config.Nodes["23"].HeartbeatAge) // no heartbeat has an age of a year
 
-	desiredIpaddress := "9.8.7.6"
-	err = SetIPAddress(etcdClient, "23", desiredIpaddress)
+	desiredPublicIP := "9.8.7.6"
+	desiredPrivateIP := "10.7.6.7"
+	err = SetIPAddress(etcdClient, "23", desiredPublicIP, desiredPrivateIP)
 	assert.Nil(t, err)
 
 	config, err = LoadDiscoveredNodes(etcdClient)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(config.Nodes))
-	assert.Equal(t, "9.8.7.6", config.Nodes["23"].IPAddress)
-	assert.Equal(t, "4.5.6.7", config.Nodes["46"].IPAddress)
+	assert.Equal(t, "9.8.7.6", config.Nodes["23"].PublicIP)
+	assert.Equal(t, "10.7.6.7", config.Nodes["23"].PrivateIP)
+	assert.Equal(t, "4.5.6.7", config.Nodes["46"].PublicIP)
+	assert.Equal(t, "10.5.6.7", config.Nodes["46"].PrivateIP)
 }
 
 func TestLoadHardwareConfig(t *testing.T) {
@@ -54,7 +61,7 @@ func TestLoadHardwareConfig(t *testing.T) {
 		2097152, false, true, "", "", Part, "sda", false)
 
 	// setup processor info in etcd
-	procsKey := path.Join(hardwareKey, ProcessorsKey)
+	procsKey := path.Join(hardwareKey, processorsKey)
 	etcdClient.Set(ctx.Background(), procsKey, "", &etcd.SetOptions{Dir: true})
 	procsConfig := make([]ProcessorConfig, 3)
 	procsConfig[0] = setProcInfo(etcdClient, procsKey, 0, 0, 1, 0, 1, 1234.56, 64)
@@ -62,19 +69,19 @@ func TestLoadHardwareConfig(t *testing.T) {
 	procsConfig[2] = setProcInfo(etcdClient, procsKey, 2, 1, 2, 1, 2, 4000.01, 32)
 
 	// setup memory info in etcd
-	memKey := path.Join(hardwareKey, MemoryKey)
+	memKey := path.Join(hardwareKey, memoryKey)
 	etcdClient.Set(ctx.Background(), memKey, "", &etcd.SetOptions{Dir: true})
 	memConfig := setMemoryInfo(etcdClient, memKey, 4149252096)
 
 	// set up network info in etcd
-	netKey := path.Join(hardwareKey, NetworkKey)
+	netKey := path.Join(hardwareKey, networkKey)
 	etcdClient.Set(ctx.Background(), netKey, "", &etcd.SetOptions{Dir: true})
 	netsConfig := make([]NetworkConfig, 2)
 	netsConfig[0] = setNetInfo(etcdClient, netKey, "eth0", "172.17.42.1/16", "fe80::42:4aff:fefe:13d7/64", 0)
 	netsConfig[1] = setNetInfo(etcdClient, netKey, "veth2b6453a", "", "fe80::7c0f:acff:feff:478d/64", 10000)
 
 	// set IP address in etcd
-	SetIPAddress(etcdClient, machineId, "10.0.0.43")
+	SetIPAddress(etcdClient, machineId, "10.0.0.43", "10.2.3.4")
 
 	// set location in etcd
 	SetLocation(etcdClient, machineId, "root=default,dc=datacenter1")
@@ -90,7 +97,7 @@ func TestLoadHardwareConfig(t *testing.T) {
 	verifyProcConfig(t, nodeConfig[machineId], procsConfig)
 	verifyMemoryConfig(t, nodeConfig[machineId], memConfig)
 	verifyNetworkConfig(t, nodeConfig[machineId], netsConfig)
-	assert.Equal(t, "10.0.0.43", nodeConfig[machineId].IPAddress)
+	assert.Equal(t, "10.0.0.43", nodeConfig[machineId].PublicIP)
 	assert.Equal(t, "root=default,dc=datacenter1", nodeConfig[machineId].Location)
 }
 

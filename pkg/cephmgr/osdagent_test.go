@@ -65,7 +65,7 @@ func TestOSDAgentWithDevices(t *testing.T) {
 	}
 
 	// prep the etcd keys that would have been discovered by inventory
-	disksKey := path.Join(inventory.GetNodeConfigKey(context.NodeID), inventory.DisksKey)
+	disksKey := path.Join(inventory.GetNodeConfigKey(context.NodeID), "disks")
 	etcdClient.SetValue(path.Join(disksKey, "sdx", "uuid"), "12345")
 	etcdClient.SetValue(path.Join(disksKey, "sdy", "uuid"), "54321")
 	etcdClient.SetValue(path.Join(disksKey, "sdx", "size"), "1234567890")

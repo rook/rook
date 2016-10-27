@@ -16,7 +16,7 @@ func TestMonSelection(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	nodes := make(map[string]*inventory.NodeConfig)
 	inv := &inventory.Config{Nodes: nodes}
-	nodes["a"] = &inventory.NodeConfig{IPAddress: "1.2.3.4"}
+	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.4"}
 	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		Inventory:  inv,
@@ -30,7 +30,7 @@ func TestMonSelection(t *testing.T) {
 	assert.Equal(t, 0, len(bad))
 
 	// no new monitors when we have 2 nodes
-	nodes["b"] = &inventory.NodeConfig{IPAddress: "2.2.3.4"}
+	nodes["b"] = &inventory.NodeConfig{PublicIP: "2.2.3.4"}
 	chosen, bad, err = chooseMonitorNodes(context)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(chosen))
@@ -38,7 +38,7 @@ func TestMonSelection(t *testing.T) {
 	assert.Equal(t, "mon0", chosen["a"].Name)
 
 	// add two more monitors when we hit the threshold of 3 nodes
-	nodes["c"] = &inventory.NodeConfig{IPAddress: "3.2.3.4"}
+	nodes["c"] = &inventory.NodeConfig{PublicIP: "3.2.3.4"}
 	chosen, bad, err = chooseMonitorNodes(context)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(chosen))
@@ -50,8 +50,8 @@ func TestMonSelection(t *testing.T) {
 
 	// remove a node, then check that with four nodes we only go to three monitors
 	etcdClient.DeleteDir("/rook/services/ceph/monitor/desired/c")
-	nodes["c"] = &inventory.NodeConfig{IPAddress: "4.2.3.4"}
-	nodes["d"] = &inventory.NodeConfig{IPAddress: "5.2.3.4"}
+	nodes["c"] = &inventory.NodeConfig{PublicIP: "4.2.3.4"}
+	nodes["d"] = &inventory.NodeConfig{PublicIP: "5.2.3.4"}
 	chosen, bad, err = chooseMonitorNodes(context)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(bad))
@@ -132,10 +132,10 @@ func TestUnhealthyMon(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	nodes := make(map[string]*inventory.NodeConfig)
 	inv := &inventory.Config{Nodes: nodes}
-	nodes["a"] = &inventory.NodeConfig{IPAddress: "1.2.3.4", HeartbeatAge: unhealthyMonHeatbeatAgeSeconds * time.Second}
-	nodes["b"] = &inventory.NodeConfig{IPAddress: "2.2.3.4"}
-	nodes["c"] = &inventory.NodeConfig{IPAddress: "3.2.3.4"}
-	nodes["d"] = &inventory.NodeConfig{IPAddress: "4.2.3.4"}
+	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.4", HeartbeatAge: unhealthyMonHeatbeatAgeSeconds * time.Second}
+	nodes["b"] = &inventory.NodeConfig{PublicIP: "2.2.3.4"}
+	nodes["c"] = &inventory.NodeConfig{PublicIP: "3.2.3.4"}
+	nodes["d"] = &inventory.NodeConfig{PublicIP: "4.2.3.4"}
 	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		Inventory:  inv,

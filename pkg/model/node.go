@@ -12,7 +12,8 @@ const (
 type Node struct {
 	NodeID      string        `json:"nodeId"`
 	ClusterName string        `json:"clusterName"`
-	IPAddress   string        `json:"ipAddr"`
+	PublicIP    string        `json:"publicIp"`
+	PrivateIP   string        `json:"privateIp"`
 	Storage     uint64        `json:"storage"`
 	LastUpdated time.Duration `json:"lastUpdated"`
 	State       NodeState     `json:"state"`

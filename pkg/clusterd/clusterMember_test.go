@@ -386,7 +386,8 @@ func TestSimpleMembershipChangeWatching(t *testing.T) {
 	}
 
 	machineIds := []string{context.NodeID}
-	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, context.NodeID, "ipaddress"), "5.1.2.3")
+	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, context.NodeID, "publicIp"), "5.1.2.3")
+	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, context.NodeID, "privateIp"), "10.2.2.3")
 	setupGetMachineIds(etcdClient, machineIds)
 
 	// set up a mock watcher that the cluster leader will use
@@ -397,7 +398,8 @@ func TestSimpleMembershipChangeWatching(t *testing.T) {
 			// to caller of the watcher simulating the new machine has joined the cluster
 			newMemberId := <-newMemberChannel
 			key := path.Join(inventory.NodesConfigKey, newMemberId)
-			etcdClient.SetValue(path.Join(key, "ipaddress"), "10.1.2.3")
+			etcdClient.SetValue(path.Join(key, "publicIp"), "1.1.2.3")
+			etcdClient.SetValue(path.Join(key, "privateIp"), "10.1.2.3")
 			return &etcd.Response{Action: store.Create, Node: &etcd.Node{Key: key}}, nil
 		},
 	}

@@ -29,7 +29,8 @@ func TestLoadDiscoveredNodes(t *testing.T) {
 	mockHandler.StartWatchEvents()
 	defer mockHandler.Close()
 
-	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, "23", "ipaddress"), "1.2.3.4")
+	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, "23", "publicIp"), "1.2.3.4")
+	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, "23", "privateIp"), "10.2.3.4")
 
 	// one unhealthy nodes to discover
 	err := leader.discoverUnhealthyNodes()

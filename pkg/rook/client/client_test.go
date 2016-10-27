@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	SuccessGetNodesContent             = `[{"nodeID": "node1","ipAddr": "10.0.0.100","storage": 100},{"nodeID": "node2","ipAddr": "10.0.0.101","storage": 200}]`
+	SuccessGetNodesContent             = `[{"nodeID": "node1","publicIp": "1.2.3.100","privateIp": "10.0.0.100","storage": 100},{"nodeID": "node2","ipAddr": "10.0.0.101","storage": 200}]`
 	SuccessGetPoolsContent             = "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicationConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicationConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]"
 	SuccessCreatePoolContent           = `pool 'ecPool1' created`
 	SuccessGetBlockImagesContent       = `[{"imageName":"myimage1","poolName":"rbd","size":10485760,"device":"","mountPoint":""},{"imageName":"myimage2","poolName":"rbd2","size":10485761,"device":"","mountPoint":""}]`
@@ -51,7 +51,8 @@ func TestGetNodes(t *testing.T) {
 	}
 
 	assert.NotNil(t, testNode)
-	assert.Equal(t, "10.0.0.100", testNode.IPAddress)
+	assert.Equal(t, "1.2.3.100", testNode.PublicIP)
+	assert.Equal(t, "10.0.0.100", testNode.PrivateIP)
 	assert.Equal(t, uint64(100), testNode.Storage)
 }
 
