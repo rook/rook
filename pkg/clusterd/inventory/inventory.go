@@ -11,8 +11,8 @@ import (
 )
 
 const (
-	NodesHealthKey              = "/castle/nodes/health"
-	NodesConfigKey              = "/castle/nodes/config"
+	NodesHealthKey              = "/rook/nodes/health"
+	NodesConfigKey              = "/rook/nodes/config"
 	TriggerHardwareDetectionKey = "trigger-hardware-detection"
 )
 

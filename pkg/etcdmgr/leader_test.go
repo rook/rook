@@ -34,8 +34,8 @@ func TestEtcdMgrLeaderGrow(t *testing.T) {
 	}
 
 	// mock the agent responses that the deployments were successful to create an instance of embeddedEtcd
-	etcdClient.WatcherResponses["/castle/_notify/b/etcd/status"] = "succeeded"
-	etcdClient.WatcherResponses["/castle/_notify/c/etcd/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/b/etcd/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/c/etcd/status"] = "succeeded"
 
 	addNodeEvt := clusterd.NewAddNodeEvent(context, "b")
 	etcdmgrService.Events() <- addNodeEvt
@@ -44,9 +44,9 @@ func TestEtcdMgrLeaderGrow(t *testing.T) {
 	clusterdtest.WaitForEvents(&etcdmgrService)
 
 	// there might be a&c or b&c in the desired states
-	assert.True(t, etcdClient.GetChildDirs("/castle/services/etcd/desired").Count() == 2)
-	assert.Equal(t, etcdClient.GetValue("/castle/services/etcd/desired/b/ipaddress"), "2.3.4.5")
-	assert.Equal(t, etcdClient.GetValue("/castle/services/etcd/desired/c/ipaddress"), "3.4.5.6")
+	assert.True(t, etcdClient.GetChildDirs("/rook/services/etcd/desired").Count() == 2)
+	assert.Equal(t, etcdClient.GetValue("/rook/services/etcd/desired/b/ipaddress"), "2.3.4.5")
+	assert.Equal(t, etcdClient.GetValue("/rook/services/etcd/desired/c/ipaddress"), "3.4.5.6")
 }
 
 func TestEtcdMgrLeaderShrink(t *testing.T) {
@@ -76,11 +76,11 @@ func TestEtcdMgrLeaderShrink(t *testing.T) {
 	}
 
 	// mock the agent responses that the deployments were successful to create an instance of embeddedEtcd
-	etcdClient.WatcherResponses["/castle/_notify/a/etcd/status"] = "succeeded"
-	etcdClient.WatcherResponses["/castle/_notify/c/etcd/status"] = "succeeded"
-	etcdClient.WatcherResponses["/castle/services/etcd/desired/a/ipaddress"] = "1.2.3.4"
-	etcdClient.WatcherResponses["/castle/services/etcd/desired/b/ipaddress"] = "2.3.4.5"
-	etcdClient.WatcherResponses["/castle/services/etcd/desired/c/ipaddress"] = "2.3.4.5"
+	etcdClient.WatcherResponses["/rook/_notify/a/etcd/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/c/etcd/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/services/etcd/desired/a/ipaddress"] = "1.2.3.4"
+	etcdClient.WatcherResponses["/rook/services/etcd/desired/b/ipaddress"] = "2.3.4.5"
+	etcdClient.WatcherResponses["/rook/services/etcd/desired/c/ipaddress"] = "2.3.4.5"
 
 	unhealthyNode := clusterd.UnhealthyNode{AgeSeconds: 10, NodeID: "c"}
 	unhealthyNodeEvt := clusterd.NewUnhealthyNodeEvent(context, []*clusterd.UnhealthyNode{&unhealthyNode})
@@ -90,5 +90,5 @@ func TestEtcdMgrLeaderShrink(t *testing.T) {
 	clusterdtest.WaitForEvents(&etcdmgrService)
 
 	// two possibilities: there might be a&c or b&c in the desired states
-	assert.True(t, etcdClient.GetChildDirs("/castle/services/etcd/desired").Count() == 0)
+	assert.True(t, etcdClient.GetChildDirs("/rook/services/etcd/desired").Count() == 0)
 }

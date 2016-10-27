@@ -80,20 +80,20 @@ ALL_PLATFORMS ?= $(CLIENT_SERVER_PLATFORMS) $(CLIENT_ONLY_PLATFORMS)
 GO_PROJECT=github.com/rook/rook
 
 # ====================================================================================
-# Setup Castled
+# Setup rookd
 
 # support for cross compiling
 include build/makelib/cross.mk
 
 ifeq ($(GOOS)_$(GOARCH),linux_amd64)
-CASTLED_SUPPORTED := 1
+ROOKD_SUPPORTED := 1
 endif
 
 ifeq ($(GOOS)_$(GOARCH),linux_arm64)
-CASTLED_SUPPORTED := 1
+ROOKD_SUPPORTED := 1
 endif
 
-ifeq ($(CASTLED_SUPPORTED),1)
+ifeq ($(ROOKD_SUPPORTED),1)
 
 CEPHD_DEBUG = $(DEBUG)
 CEPHD_CCACHE = $(CCACHE)
@@ -105,7 +105,7 @@ CEPHD_PLATFORM = $(GOOS)_$(GOARCH)
 # to force go to rebuild cephd
 CEPHD_TOUCH_ON_BUILD = pkg/cephmgr/cephd/dummy.cc
 
-GO_CGO_PACKAGES=$(GO_PROJECT)/cmd/castled
+GO_CGO_PACKAGES=$(GO_PROJECT)/cmd/rookd
 CGO_LDFLAGS = -L$(abspath $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/lib)
 CGO_PREREQS = cephd.build
 

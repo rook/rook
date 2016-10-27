@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	etcdmgrKey     = "/castle/services/etcd"
+	etcdmgrKey     = "/rook/services/etcd"
 	etcdDesiredKey = "desired"
 	etcdAppliedKey = "applied"
 )

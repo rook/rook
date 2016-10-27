@@ -16,8 +16,8 @@ import (
 type NodeConfigStatus int
 
 const (
-	NodeStatusRootKey       = "/castle/_notify/%s"
-	NodeStatusServiceKey    = "/castle/_notify/%s/%s" // node ID, service name
+	NodeStatusRootKey       = "/rook/_notify/%s"
+	NodeStatusServiceKey    = "/rook/_notify/%s/%s" // node ID, service name
 	InfiniteTimeout         = -1
 	StatusValue             = "status"
 	NodeConfigStatusUnknown = iota

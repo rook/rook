@@ -1,4 +1,4 @@
-# Publishing castled
+# Publishing d
 The below steps will walk you through how to build on your Mac host, using the cross compilation build container, and publishing artifacts to both dockerhub and quay.io.
 
 ### Install Docker for Mac
@@ -35,7 +35,7 @@ Of course, if you've run `build/clean`, there's no reason to run this command si
 
 ### Building
 #### Temporary vendor workaround
-As described in #93 (https://github.com/quantum/rook/rook/93), before building in the container, you should run vendoring **locally** on your Mac, then the vendored sources will get synced to build container later on.
+As described in #93 (https://github.com/rook/rook/93), before building in the container, you should run vendoring **locally** on your Mac, then the vendored sources will get synced to build container later on.
 ```
 make vendor
 ```
@@ -47,7 +47,7 @@ build/run make -j4
 This will build just the binaries for the host OS/arch and copy them to the applicable subfolder of ./bin.
 
 ### Releasing
-Releasing creates not only the binaries but also all the packages and containers for deploying to castled users.  Note that it does **not** publish or upload these release packages off your box.  It is all local.  After the following command is run, all useful packages will be found in ./release.
+Releasing creates not only the binaries but also all the packages and containers for deploying to d users.  Note that it does **not** publish or upload these release packages off your box.  It is all local.  After the following command is run, all useful packages will be found in ./release.
 ```
 build/run make -j4 release
 ```
@@ -65,5 +65,5 @@ build/run make -j4 GITHUB_TOKEN=${your_github_token} VERSION=${release_semantic_
 This will take awhile to upload the many flavors of containers to their destinations, so be patient and don't interrupt it.
 
 Once the containers are uploaded, you will need to manually move the "latest" tag in quay.io to the image you just uploaded.  This can be done at:
-https://quay.io/repository/quantum/castled?tab=tags  
-dockerhub images can be found here: https://hub.docker.com/r/quantum/castled/tags/
+https://quay.io/repository/rook/d?tab=tags
+dockerhub images can be found here: https://hub.docker.com/r/rook/d/tags/

@@ -22,10 +22,10 @@ func TestMonAgent(t *testing.T) {
 		assert.Equal(t, "daemon", c.Args[1])
 		assert.Equal(t, "--type=mon", c.Args[2])
 		assert.Equal(t, "--", c.Args[3])
-		assert.Equal(t, "--cluster=castlecluster", c.Args[5])
+		assert.Equal(t, "--cluster=rookcluster", c.Args[5])
 		assert.Equal(t, "--name=mon.mon0", c.Args[6])
 		assert.Equal(t, "--mon-data=/tmp/mon0/mon.mon0", c.Args[7])
-		assert.Equal(t, "--conf=/tmp/mon0/castlecluster.config", c.Args[8])
+		assert.Equal(t, "--conf=/tmp/mon0/rookcluster.config", c.Args[8])
 		switch {
 		case commands == 0:
 			assert.Equal(t, proc.RunAction, action)

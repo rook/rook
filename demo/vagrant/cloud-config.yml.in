@@ -12,7 +12,7 @@ coreos:
   units:
   - name: etcd2.service
     command: start
-  - name: castled.service
+  - name: rookd.service
     enable: true
     command: start
 # enable if you want to run from locally built ACI files
@@ -20,11 +20,11 @@ coreos:
 #      - name: 10-local-aci.conf
 #        content: |
 #          [Service]
-#          Environment=CASTLED_ACI=/release/quantum-castled-dev.aci
+#          Environment=ROOKD_ACI=/release/quay.io-rook-rookd-dev.aci
 #          Environment=RKT_OPTIONS=--insecure-options=image
     content: |
       [Unit]
-      Description=Castle Daemon - software defined storage
+      Description=Rook Daemon - software defined storage
       Requires=network-online.target
       After=network-online.target
 
@@ -33,15 +33,15 @@ coreos:
       Restart=always
       KillMode=process
 
-      Environment=CASTLED_ACI=quay.io/quantum/castled:latest
-      Environment=CASTLED_ID=%m
-      Environment=CASTLED_PUBLIC_IPV4=$public_ipv4
-      Environment=CASTLED_PRIVATE_IPV4=$private_ipv4
-      Environment=CASTLED_DATA_DIR=/var/lib/castled
-      Environment=CASTLED_ETCD_MEMBERS=http://$public_ipv4:2379
-      Environment=CASTLED_DATA_DEVICES=sda,sdb,sdc,sdd
+      Environment=ROOKD_ACI=quay.io/rook/rookd:latest
+      Environment=ROOKD_ID=%m
+      Environment=ROOKD_PUBLIC_IPV4=$public_ipv4
+      Environment=ROOKD_PRIVATE_IPV4=$private_ipv4
+      Environment=ROOKD_DATA_DIR=/var/lib/rook
+      Environment=ROOKD_ETCD_MEMBERS=http://$public_ipv4:2379
+      Environment=ROOKD_DATA_DEVICES=sda,sdb,sdc,sdd
 
-      ExecStartPre=/usr/bin/mkdir -p ${CASTLED_DATA_DIR}
+      ExecStartPre=/usr/bin/mkdir -p ${ROOKD_DATA_DIR}
 
       ExecStart=/usr/bin/rkt run \
         --trust-keys-from-https \
@@ -49,17 +49,17 @@ coreos:
         --inherit-env \
         --volume dns,kind=host,source=/run/systemd/resolve/resolv.conf,readOnly=true \
         --mount volume=dns,target=/etc/resolv.conf \
-        --volume var-lib-castled,kind=host,source=/var/lib/castled \
-        --mount volume=var-lib-castled,target=/var/lib/castled \
+        --volume var-lib-rook,kind=host,source=/var/lib/rook \
+        --mount volume=var-lib-rook,target=/var/lib/rook \
         $RKT_OPTIONS \
-        $CASTLED_ACI
+        $ROOKD_ACI
 
       [Install]
       WantedBy=multi-user.target
 
 # temporary until we make the repo public.
 write_files:
-  - path: /etc/rkt/auth.d/quantum-demo-auth.json
+  - path: /etc/rkt/auth.d/rook-demo-auth.json
     owner: root:root
     permissions: '0600'
     content: |
@@ -71,7 +71,7 @@ write_files:
         ],
         "type": "basic",
         "credentials": {
-          "user": "quantum+demo",
-          "password": "OD8HPMSRYOI5TU8ZWNXFHBXRM39HX4X7GB6MLW060SZ2W5DD04TEN5TCW3MHDNPO"
+          "user": "rook+demo",
+          "password": "OR2CYSJ3LIQY1DO5Y9UJJSSANTQR2AIZ11B6PJPOZYU20N3E0Z3BT04UUWV6I54Z"
         }
       }

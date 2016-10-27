@@ -14,7 +14,7 @@ import (
 
 const (
 	cephName         = "ceph"
-	cephKey          = "/castle/services/ceph"
+	cephKey          = "/rook/services/ceph"
 	cephInstanceName = "default"
 	desiredKey       = "desired"
 	appliedKey       = "applied"

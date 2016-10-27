@@ -86,10 +86,10 @@ RUN for a in amd64 arm64; do \
 # Some of the packages we need for ceph are either not available in xenial or dont support multi-arch.
 # Hack'em to install in a multi-arch way. Hopefully these will get fixed upstream soon.
 # Bugs opened here https://bugs.launchpad.net/~bassamtabbara
-RUN curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++-dev_5.6.3-8_amd64.deb && \
-    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++-dev_5.6.3-8_arm64.deb && \
-    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++6_5.6.3-8_amd64.deb && \
-    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++6_5.6.3-8_arm64.deb && \
+RUN curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++-dev_5.6.4-2_amd64.deb && \
+    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++-dev_5.6.4-2_arm64.deb && \
+    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++6_5.6.4-2_amd64.deb && \
+    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++6_5.6.4-2_arm64.deb && \
     curl -fsSLO http://archive.ubuntu.com/ubuntu/pool/main/libf/libfcgi/libfcgi-dev_2.4.0-8.4_amd64.deb && \
     curl -fsSLO http://ports.ubuntu.com/pool/main/libf/libfcgi/libfcgi-dev_2.4.0-8.4_arm64.deb && \
     curl -fsSLO http://archive.ubuntu.com/ubuntu/pool/main/libf/libfcgi/libfcgi0ldbl_2.4.0-8.4_amd64.deb && \

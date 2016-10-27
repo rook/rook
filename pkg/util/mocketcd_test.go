@@ -104,16 +104,16 @@ func TestMockEtcdSetDir(t *testing.T) {
 
 func TestGetChildDirs(t *testing.T) {
 	etcdClient := NewMockEtcdClient()
-	etcdClient.CreateDir("/castle/foo/bar")
-	etcdClient.CreateDir("/castle/foo/baz")
+	etcdClient.CreateDir("/rook/foo/bar")
+	etcdClient.CreateDir("/rook/foo/baz")
 
-	children := etcdClient.GetChildDirs("/castle/foo")
+	children := etcdClient.GetChildDirs("/rook/foo")
 	assert.NotNil(t, children)
 	assert.Equal(t, 2, children.Count())
 	assert.True(t, children.Contains("bar"))
 	assert.True(t, children.Contains("baz"))
 
-	children = etcdClient.GetChildDirs("/castle/notfound")
+	children = etcdClient.GetChildDirs("/rook/notfound")
 	assert.NotNil(t, children)
 	assert.Equal(t, 0, children.Count())
 }

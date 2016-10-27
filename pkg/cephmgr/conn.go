@@ -9,12 +9,12 @@ type ConnectionFactory interface {
 	ConnectAsAdmin(context *clusterd.Context, cephFactory client.ConnectionFactory) (client.Connection, error)
 }
 
-type castleConnFactory struct {
+type rookConnFactory struct {
 }
 
-func NewConnectionFactory() ConnectionFactory { return &castleConnFactory{} }
+func NewConnectionFactory() ConnectionFactory { return &rookConnFactory{} }
 
-func (c *castleConnFactory) ConnectAsAdmin(
+func (c *rookConnFactory) ConnectAsAdmin(
 	context *clusterd.Context, cephFactory client.ConnectionFactory) (client.Connection, error) {
 
 	// load information about the cluster

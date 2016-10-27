@@ -1,7 +1,7 @@
 package main
 
-import "github.com/rook/rook/cmd/castle"
+import "github.com/rook/rook/cmd/rook"
 
 func main() {
-	castle.Main()
+	rook.Main()
 }
