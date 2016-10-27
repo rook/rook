@@ -56,7 +56,8 @@ func ConnectToClusterAsAdmin(context *clusterd.Context, factory client.Connectio
 		return nil, err
 	}
 
-	return connectToCluster(context, factory, cluster, getMonRunDirPath(context.ConfigDir, monName), "admin", getMonKeyringPath(context.ConfigDir, monName))
+	return connectToCluster(context, factory, cluster, getMonRunDirPath(context.ConfigDir, monName),
+		"admin", getMonKeyringPath(context.ConfigDir, monName), context.Debug)
 }
 
 // get the path of a given monitor's config file
@@ -65,12 +66,14 @@ func getConfFilePath(root, clusterName string) string {
 }
 
 // generates and writes the monitor config file to disk
-func generateConnectionConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string) (string, error) {
-	return generateConfigFile(context, cluster, pathRoot, user, keyringPath, false, nil, nil)
+func generateConnectionConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string, debug bool) (string, error) {
+	return generateConfigFile(context, cluster, pathRoot, user, keyringPath, debug, false, nil, nil)
 }
 
 // generates and writes the monitor config file to disk
-func generateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string, bluestore bool, userConfig *cephConfig, clientSettings map[string]string) (string, error) {
+func generateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string,
+	debug, bluestore bool, userConfig *cephConfig, clientSettings map[string]string) (string, error) {
+
 	if pathRoot == "" {
 		pathRoot = getMonRunDirPath(context.ConfigDir, getFirstMonitor(cluster))
 	}
@@ -80,7 +83,7 @@ func generateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 		fmt.Printf("failed to create config directory at %s: %+v", pathRoot, err)
 	}
 
-	configFile, err := createGlobalConfigFileSection(cluster, pathRoot, bluestore, userConfig)
+	configFile, err := createGlobalConfigFileSection(cluster, pathRoot, debug, bluestore, userConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to create global config section, %+v", err)
 	}
@@ -121,10 +124,12 @@ func getFirstMonitor(cluster *ClusterInfo) string {
 }
 
 // opens a connection to the cluster that can be used for management operations
-func connectToCluster(context *clusterd.Context, factory client.ConnectionFactory, cluster *ClusterInfo, basePath, user, keyringPath string) (client.Connection, error) {
+func connectToCluster(context *clusterd.Context, factory client.ConnectionFactory, cluster *ClusterInfo,
+	basePath, user, keyringPath string, debug bool) (client.Connection, error) {
+
 	log.Printf("connecting to ceph cluster %s with user %s", cluster.Name, user)
 
-	confFilePath, err := generateConnectionConfigFile(context, cluster, basePath, user, keyringPath)
+	confFilePath, err := generateConnectionConfigFile(context, cluster, basePath, user, keyringPath, debug)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate config file: %v", err)
 	}
@@ -145,7 +150,7 @@ func connectToCluster(context *clusterd.Context, factory client.ConnectionFactor
 	return conn, nil
 }
 
-func createDefaultCephConfig(cluster *ClusterInfo, runDir string, bluestore bool) *cephConfig {
+func createDefaultCephConfig(cluster *ClusterInfo, runDir string, debug, bluestore bool) *cephConfig {
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	monMembers := make([]string, len(cluster.Monitors))
@@ -162,6 +167,11 @@ func createDefaultCephConfig(cluster *ClusterInfo, runDir string, bluestore bool
 		store = "bluestore"
 	}
 
+	loggingLevel := 0
+	if debug {
+		loggingLevel = 20
+	}
+
 	return &cephConfig{
 		&cephGlobalConfig{
 			EnableExperimental:     experimental,
@@ -170,10 +180,10 @@ func createDefaultCephConfig(cluster *ClusterInfo, runDir string, bluestore bool
 			MonMembers:             strings.Join(monMembers, " "),
 			LogFile:                "/dev/stdout",
 			MonClusterLogFile:      "/dev/stdout",
-			DebugLogDefaultLevel:   0,
-			DebugLogRadosLevel:     0,
-			DebugLogMonLevel:       0,
-			DebugLogBluestoreLevel: 0,
+			DebugLogDefaultLevel:   loggingLevel,
+			DebugLogRadosLevel:     loggingLevel,
+			DebugLogMonLevel:       loggingLevel,
+			DebugLogBluestoreLevel: loggingLevel,
 			OsdPgBits:              11,
 			OsdPgpBits:             11,
 			OsdPoolDefaultSize:     1,
@@ -187,14 +197,14 @@ func createDefaultCephConfig(cluster *ClusterInfo, runDir string, bluestore bool
 	}
 }
 
-func createGlobalConfigFileSection(cluster *ClusterInfo, runDir string, bluestore bool, userConfig *cephConfig) (*ini.File, error) {
+func createGlobalConfigFileSection(cluster *ClusterInfo, runDir string, debug, bluestore bool, userConfig *cephConfig) (*ini.File, error) {
 	var ceph *cephConfig
 
 	if userConfig != nil {
 		// use the user config since it was provided
 		ceph = userConfig
 	} else {
-		ceph = createDefaultCephConfig(cluster, runDir, bluestore)
+		ceph = createDefaultCephConfig(cluster, runDir, debug, bluestore)
 	}
 
 	configFile := ini.Empty()

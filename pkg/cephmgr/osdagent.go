@@ -241,7 +241,8 @@ func (a *osdAgent) createDesiredOSDs(adminConn client.Connection, context *clust
 	}
 
 	// connect to the cluster using the bootstrap-osd creds, this connection will be used for config operations
-	bootstrapConn, err := connectToCluster(context, a.factory, a.cluster, getBootstrapOSDDir(context.ConfigDir), "bootstrap-osd", getBootstrapOSDKeyringPath(context.ConfigDir, a.cluster.Name))
+	bootstrapConn, err := connectToCluster(context, a.factory, a.cluster, getBootstrapOSDDir(context.ConfigDir),
+		"bootstrap-osd", getBootstrapOSDKeyringPath(context.ConfigDir, a.cluster.Name), context.Debug)
 	if err != nil {
 		return err
 	}
@@ -320,7 +321,7 @@ func (a *osdAgent) createOrStartOSD(context *clusterd.Context, connection client
 		}
 
 		// osd_data_dir/whoami does not exist yet, create/initialize the OSD
-		err := initializeOSD(config, a.factory, context, connection, a.cluster, a.location, context.Executor)
+		err := initializeOSD(config, a.factory, context, connection, a.cluster, a.location, context.Debug, context.Executor)
 		if err != nil {
 			return fmt.Errorf("failed to initialize OSD at %s: %+v", config.rootPath, err)
 		}

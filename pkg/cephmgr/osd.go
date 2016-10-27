@@ -359,9 +359,9 @@ func loadOSDInfo(config *osdConfig) error {
 }
 
 func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context *clusterd.Context,
-	bootstrapConn client.Connection, cluster *ClusterInfo, location string, executor exec.Executor) error {
+	bootstrapConn client.Connection, cluster *ClusterInfo, location string, debug bool, executor exec.Executor) error {
 
-	cephConfig := createDefaultCephConfig(cluster, config.rootPath, config.bluestore)
+	cephConfig := createDefaultCephConfig(cluster, config.rootPath, debug, config.bluestore)
 	if !config.bluestore {
 		// using the local file system requires some config overrides
 		// http://docs.ceph.com/docs/jewel/rados/configuration/filesystem-recommendations/#not-recommended
@@ -377,7 +377,8 @@ func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context 
 
 	// write the OSD config file to disk
 	keyringPath := getOSDKeyringPath(config.rootPath)
-	_, err = generateConfigFile(context, cluster, config.rootPath, fmt.Sprintf("osd.%d", config.id), keyringPath, config.bluestore, cephConfig, settings)
+	_, err = generateConfigFile(context, cluster, config.rootPath, fmt.Sprintf("osd.%d", config.id),
+		keyringPath, debug, config.bluestore, cephConfig, settings)
 	if err != nil {
 		return fmt.Errorf("failed to write OSD %d config file: %+v", config.id, err)
 	}
@@ -399,7 +400,8 @@ func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context 
 	}
 
 	// open a connection to the cluster using the OSDs creds
-	osdConn, err := connectToCluster(context, factory, cluster, path.Join(config.rootPath, "tmp"), fmt.Sprintf("osd.%d", config.id), keyringPath)
+	osdConn, err := connectToCluster(context, factory, cluster, path.Join(config.rootPath, "tmp"),
+		fmt.Sprintf("osd.%d", config.id), keyringPath, debug)
 	if err != nil {
 		return err
 	}

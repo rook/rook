@@ -69,6 +69,9 @@ type Context struct {
 
 	// The root configuration directory used by services
 	ConfigDir string
+
+	// A value indicating if debug logging/tracing should be enabled
+	Debug bool
 }
 
 func copyContext(c *Context) *Context {
@@ -80,6 +83,7 @@ func copyContext(c *Context) *Context {
 		ProcMan:    c.ProcMan,
 		Inventory:  c.Inventory,
 		ConfigDir:  c.ConfigDir,
+		Debug:      c.Debug,
 	}
 }
 
