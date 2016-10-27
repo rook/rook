@@ -5,7 +5,6 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
-	clusterdtest "github.com/rook/rook/pkg/clusterd/test"
 	"github.com/rook/rook/pkg/etcdmgr/test"
 	"github.com/rook/rook/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -20,28 +19,25 @@ func TestEtcdMgrLeaderGrow(t *testing.T) {
 	// adding 1.2.3.4 as the first/existing cluster member
 	nodes["a"] = &inventory.NodeConfig{PrivateIP: "1.2.3.4"}
 	mockContext.AddMembers([]string{"http://1.2.3.4:53379"})
-	etcdmgrService := etcdMgrLeader{context: &mockContext}
-	etcdmgrService.StartWatchEvents()
-	defer etcdmgrService.Close()
+	service := etcdMgrLeader{context: &mockContext}
 
 	nodes["b"] = &inventory.NodeConfig{PrivateIP: "2.3.4.5"}
 	nodes["c"] = &inventory.NodeConfig{PrivateIP: "3.4.5.6"}
 
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{
-		EtcdClient: etcdClient,
-		Inventory:  inv,
-	}
 
 	// mock the agent responses that the deployments were successful to create an instance of embeddedEtcd
 	etcdClient.WatcherResponses["/rook/_notify/b/etcd/status"] = "succeeded"
 	etcdClient.WatcherResponses["/rook/_notify/c/etcd/status"] = "succeeded"
 
-	addNodeEvt := clusterd.NewAddNodeEvent(context, "b")
-	etcdmgrService.Events() <- addNodeEvt
+	refresh := clusterd.NewRefreshEvent()
+	refresh.NodesAdded.Add("b")
+	refresh.Context = &clusterd.Context{
+		EtcdClient: etcdClient,
+		Inventory:  inv,
+	}
 
-	// wait for the event queue to be empty
-	clusterdtest.WaitForEvents(&etcdmgrService)
+	service.HandleRefresh(refresh)
 
 	// there might be a&c or b&c in the desired states
 	assert.True(t, etcdClient.GetChildDirs("/rook/services/etcd/desired").Count() == 2)
@@ -61,33 +57,29 @@ func TestEtcdMgrLeaderShrink(t *testing.T) {
 	mockContext.AddMembers([]string{"http://2.3.4.5:53379"})
 	nodes["c"] = &inventory.NodeConfig{PrivateIP: "3.4.5.6"}
 	mockContext.AddMembers([]string{"http://3.4.5.6:53379"})
-	etcdmgrService := etcdMgrLeader{context: &mockContext}
-	etcdmgrService.StartWatchEvents()
-	defer etcdmgrService.Close()
+	service := etcdMgrLeader{context: &mockContext}
 
 	nodes["a"] = &inventory.NodeConfig{PrivateIP: "1.2.3.4"}
 	nodes["b"] = &inventory.NodeConfig{PrivateIP: "2.3.4.5"}
 	nodes["c"] = &inventory.NodeConfig{PrivateIP: "3.4.5.6"}
 
-	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{
-		EtcdClient: etcdClient,
-		Inventory:  inv,
-	}
-
 	// mock the agent responses that the deployments were successful to create an instance of embeddedEtcd
+	etcdClient := util.NewMockEtcdClient()
 	etcdClient.WatcherResponses["/rook/_notify/a/etcd/status"] = "succeeded"
 	etcdClient.WatcherResponses["/rook/_notify/c/etcd/status"] = "succeeded"
 	etcdClient.WatcherResponses["/rook/services/etcd/desired/a/ipaddress"] = "1.2.3.4"
 	etcdClient.WatcherResponses["/rook/services/etcd/desired/b/ipaddress"] = "2.3.4.5"
 	etcdClient.WatcherResponses["/rook/services/etcd/desired/c/ipaddress"] = "2.3.4.5"
 
-	unhealthyNode := clusterd.UnhealthyNode{AgeSeconds: 10, NodeID: "c"}
-	unhealthyNodeEvt := clusterd.NewUnhealthyNodeEvent(context, []*clusterd.UnhealthyNode{&unhealthyNode})
-	etcdmgrService.Events() <- unhealthyNodeEvt
+	unhealthyNode := &clusterd.UnhealthyNode{AgeSeconds: 10, ID: "c"}
+	refresh := clusterd.NewRefreshEvent()
+	refresh.NodesUnhealthy["c"] = unhealthyNode
+	refresh.Context = &clusterd.Context{
+		EtcdClient: etcdClient,
+		Inventory:  inv,
+	}
 
-	// wait for the event queue to be empty
-	clusterdtest.WaitForEvents(&etcdmgrService)
+	service.HandleRefresh(refresh)
 
 	// two possibilities: there might be a&c or b&c in the desired states
 	assert.True(t, etcdClient.GetChildDirs("/rook/services/etcd/desired").Count() == 0)

@@ -118,7 +118,7 @@ func monsOnUnhealthyNode(context *clusterd.Context, nodes []*clusterd.UnhealthyN
 	}
 
 	for _, node := range nodes {
-		if isMonitor(cluster, node.NodeID) {
+		if isMonitor(cluster, node.ID) {
 			return true, nil
 		}
 	}

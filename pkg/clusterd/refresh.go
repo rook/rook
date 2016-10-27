@@ -2,109 +2,220 @@ package clusterd
 
 import (
 	"log"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	etcd "github.com/coreos/etcd/client"
 
 	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/util"
 )
 
 const (
-	triggerRefreshDelaySeconds = 5
+	refreshDelaySeconds    = 5
+	periodicRefreshMinutes = 10
 )
 
 var (
-	triggerRefreshInterval = triggerRefreshDelaySeconds * time.Second
+	refreshDelayInterval    = time.Second * refreshDelaySeconds
+	periodicRefreshInterval = time.Minute * periodicRefreshMinutes
 )
 
+// RefreshEvent type
+type RefreshEvent struct {
+	Context        *Context
+	NodesAdded     *util.Set
+	NodesRemoved   *util.Set
+	NodesChanged   *util.Set
+	NodesUnhealthy map[string]*UnhealthyNode
+}
+
+// UnhealthyNode type
+type UnhealthyNode struct {
+	ID         string
+	AgeSeconds int
+}
+
+// RefreshKey type
 type RefreshKey struct {
 	Path      string
 	Triggered func(response *etcd.Response, refresher *ClusterRefresher)
 }
 
+// ClusterRefresher type
 type ClusterRefresher struct {
-	leader             *servicesLeader
-	triggerRefreshLock int32
+	nextEvent    *RefreshEvent
+	leader       *servicesLeader
+	refreshMutex sync.RWMutex
+	changes      bool
+	closed       chan (bool)
+	triggered    chan (bool)
 }
 
+// Create a new cluster refresher
+func NewClusterRefresher() *ClusterRefresher {
+	return &ClusterRefresher{
+		nextEvent: NewRefreshEvent(),
+		closed:    make(chan bool),
+		triggered: make(chan bool),
+	}
+}
+
+// Create a new refresh event
+func NewRefreshEvent() *RefreshEvent {
+	return &RefreshEvent{
+		NodesAdded:     util.NewSet(),
+		NodesRemoved:   util.NewSet(),
+		NodesChanged:   util.NewSet(),
+		NodesUnhealthy: make(map[string]*UnhealthyNode),
+	}
+}
+
+// Start consuming refresh events
+func (c *ClusterRefresher) Start() {
+	go c.eventLoop()
+
+	// wait for the event loop to start
+	<-time.After(time.Millisecond)
+}
+
+// Stop consuming refresh events
+func (c *ClusterRefresher) Stop() {
+	c.closed <- true
+}
+
+// Trigger a general refresh of the cluster
 func (c *ClusterRefresher) TriggerRefresh() bool {
-	return c.triggerEvent(&RefreshEvent{context: copyContext(c.leader.context)}, true)
+	c.refreshMutex.Lock()
+	c.changes = true
+	c.refreshMutex.Unlock()
+
+	return c.triggerRefresh()
 }
 
-func (c *ClusterRefresher) TriggerNodeRefresh(nodeID string) bool {
-	return c.triggerEvent(&RefreshEvent{context: copyContext(c.leader.context), nodeID: nodeID}, true)
+// Trigger an event for a device being added or removed to a node
+func (c *ClusterRefresher) TriggerDevicesChanged(nodeID string) bool {
+	c.refreshMutex.Lock()
+	c.changes = true
+	c.nextEvent.NodesChanged.Add(nodeID)
+	c.refreshMutex.Unlock()
+
+	return c.triggerRefresh()
 }
 
+// Trigger an event for a node being added to the cluster
 func (c *ClusterRefresher) triggerNodeAdded(nodeID string) bool {
-	return c.triggerEvent(&AddNodeEvent{context: copyContext(c.leader.context), nodeID: nodeID}, false)
+	c.refreshMutex.Lock()
+	c.changes = true
+	c.nextEvent.NodesAdded.Add(nodeID)
+	c.refreshMutex.Unlock()
+
+	return c.triggerRefresh()
 }
 
+// Trigger an event for detecting unhealthy nodes
 func (c *ClusterRefresher) triggerNodeUnhealthy(nodes []*UnhealthyNode) bool {
-	return c.triggerEvent(&UnhealthyNodeEvent{context: copyContext(c.leader.context), nodes: nodes}, false)
+	c.refreshMutex.Lock()
+	c.changes = true
+	for _, node := range nodes {
+		c.nextEvent.NodesUnhealthy[node.ID] = node
+	}
+	c.refreshMutex.Unlock()
+
+	return c.triggerRefresh()
 }
 
-func (c *ClusterRefresher) triggerEvent(event LeaderEvent, delay bool) bool {
-	// Only start the orchestration if the leader
+// Produce a refresh event.
+// The pattern is a non-blocking producer with a blocking consumer.
+func (c *ClusterRefresher) triggerRefresh() bool {
+
+	// Only start the orchestration if currently elected leader
 	if !c.leader.parent.isLeader {
 		return false
 	}
 
-	// Avoid blocking the calling thread. No need to prevent multiple threads from entering this
-	// go routine since the orchestrator already prevents multiple orchestrations.
-	go func() {
-		// If the event is to be delayed, only allow the refresh to be triggered once. Other events
-		// will need to be implicitly handled during the refresh.
-		// For example, if a new node is added, the refresh should notice the new node and
-		// a node added event will not be triggered separately.
-		// If a new node is added outside the full refresh cycle, the node added event will be raised immediately.
-		var triggerCount int32
-		if delay {
-			triggerCount = atomic.AddInt32(&c.triggerRefreshLock, 1)
-			defer atomic.AddInt32(&c.triggerRefreshLock, -1)
-			if triggerCount > 1 {
-				log.Printf("refresh already triggered")
-				return
-			}
+	// Trigger the refresh, but only if it is not busy.
+	// If the orchestrator is already busy with a refresh, the new refresh
+	// will be handled in processEvent() immediately after the first orchestration completes.
+	select {
+	case c.triggered <- true:
+		log.Printf("The refresh was idle when triggered")
+		return true
+	default:
+		log.Printf("The refresh was busy when triggered")
+		return true
+	}
+}
 
-			// Wait a few seconds in case multiple machines are coming online at the same time.
-			log.Printf("triggering a refresh in %.1fs", triggerRefreshInterval.Seconds())
-			<-time.After(triggerRefreshInterval)
-		} else {
-			triggerCount = atomic.LoadInt32(&c.triggerRefreshLock)
-			if triggerCount > 0 {
-				log.Printf("refresh already triggered. skipping event %s. %+v", event.Name(), event)
-				return
-			}
-		}
-
-		// Double check that we're still the leader
-		if !c.leader.parent.isLeader {
-			log.Printf("not leader anymore. skipping event %s. %+v", event.Name(), event)
+// Consume the refresh events
+func (c *ClusterRefresher) eventLoop() {
+	for {
+		select {
+		case <-c.closed:
+			log.Printf("refresh event loop closed")
 			return
+		case <-c.triggered:
+			c.processEvent()
+		case <-time.After(periodicRefreshInterval):
+			// periodically check if any refresh is needed
+			if c.refreshNeeded() {
+				c.processEvent()
+			}
 		}
+	}
+}
+
+// Process an individual refresh. If another refresh is triggered after this one has already started,
+// process the new refresh immediately after the first one completes.
+func (c *ClusterRefresher) processEvent() {
+	// Wait a few seconds in case multiple machines are coming online at the same time.
+	log.Printf("triggering a refresh in %.1fs", refreshDelayInterval.Seconds())
+	<-time.After(refreshDelayInterval)
+
+	// Double check that we're still the leader
+	if !c.leader.parent.isLeader {
+		log.Printf("not leader anymore. skipping refresh.")
+		return
+	}
+
+	// Process each of the refresh events until no more are raised during the current refresh
+	for {
+		c.refreshMutex.Lock()
+		c.changes = false
+		event := c.nextEvent
+		c.nextEvent = NewRefreshEvent()
+		c.refreshMutex.Unlock()
 
 		// Update the node inventory for the event
 		var err error
-		context := event.Context()
-		context.Inventory, err = inventory.LoadDiscoveredNodes(context.EtcdClient)
+		event.Context = copyContext(c.leader.context)
+		event.Context.Inventory, err = inventory.LoadDiscoveredNodes(event.Context.EtcdClient)
 		if err != nil {
 			log.Printf("failed to load node info. err=%v", err)
 			return
 		}
 
-		// Push the event to each of the services
-		for _, service := range c.leader.context.Services {
-			serviceChannel := service.Leader.Events()
-
-			// Push the event as long as the buffer is not full
-			if len(serviceChannel) < cap(serviceChannel) {
-				serviceChannel <- event
-			} else {
-				log.Printf("dropping event %s for service %s due to full channel", event.Name(), service.Name)
-			}
+		// Sequentially update the services. We may consider running them in parallel in the future.
+		for _, s := range event.Context.Services {
+			s.Leader.HandleRefresh(event)
 		}
-	}()
 
-	return true
+		// stop refreshing if no more refresh events were raised during this refresh
+		if !c.refreshNeeded() {
+			log.Printf("Done with the orchestration. Waiting for the next event signal.")
+			break
+		}
+
+		// There is a small window where a refresh event could be raised and we will miss processing
+		// the refresh since we are not listening on the triggered channel yet. This will be caught
+		// by the periodic check for refreshNeeded() in the consumer select statement.
+		log.Printf("triggering events that were queued during an active orchestration")
+	}
+}
+
+// check if a refresh is needed
+func (c *ClusterRefresher) refreshNeeded() bool {
+	c.refreshMutex.Lock()
+	defer c.refreshMutex.Unlock()
+	return c.changes
 }

@@ -23,14 +23,8 @@ type ServiceLeader interface {
 	// Get the list of etcd keys that when changed should trigger an orchestration
 	RefreshKeys() []*RefreshKey
 
-	// Start a go routine that watches for orchestration events related to the leader
-	StartWatchEvents()
-
-	// Get the events channel that the orchestration should write events to
-	Events() chan LeaderEvent
-
-	// Close the events channel when leadership is lost
-	Close() error
+	// Refresh the service
+	HandleRefresh(e *RefreshEvent)
 }
 
 type ServiceAgent interface {

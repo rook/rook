@@ -91,6 +91,13 @@ func (s *Set) Count() int {
 	return len(s.values)
 }
 
+// Add other set items
+func (s *Set) AddSet(other *Set) {
+	for value := range other.Iter() {
+		s.add(value)
+	}
+}
+
 // Add multiple items more efficiently
 func (s *Set) AddMultiple(values []string) {
 	for _, value := range values {

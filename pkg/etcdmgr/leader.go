@@ -24,60 +24,26 @@ const (
 
 type etcdMgrLeader struct {
 	context bootstrap.EtcdMgrContext
-	events  chan clusterd.LeaderEvent
 }
 
 func (e *etcdMgrLeader) RefreshKeys() []*clusterd.RefreshKey {
 	return []*clusterd.RefreshKey{}
 }
 
-func (e *etcdMgrLeader) StartWatchEvents() {
-	log.Println("etcdMgrLeader.StartWatchEvents")
-	if e.events != nil {
-		close(e.events)
+func (e *etcdMgrLeader) HandleRefresh(event *clusterd.RefreshEvent) {
+	log.Printf("etcdmgr leader received refresh event")
+
+	var unhealthyNodes []*clusterd.UnhealthyNode
+	for _, node := range event.NodesUnhealthy {
+		unhealthyNodes = append(unhealthyNodes, node)
 	}
-	e.events = make(chan clusterd.LeaderEvent, 10)
-	go e.handleOrchestratorEvents()
-}
 
-func (e *etcdMgrLeader) Events() chan clusterd.LeaderEvent {
-	return e.events
-}
-
-// Close closes the event queue for the etcdmanager
-func (e *etcdMgrLeader) Close() error {
-	close(e.events)
-	e.events = nil
-	return nil
-}
-
-func (e *etcdMgrLeader) handleOrchestratorEvents() {
-	// Listen for events from the orchestrator indicating Refresh, AddNode, RemoveNode, and StaleNode events
-	for evt := range e.events {
-		log.Printf("etcdmgr leader received event %s", evt.Name())
-
-		if refreshEvt, ok := evt.(*clusterd.RefreshEvent); ok {
-			// Perform a full refresh of the cluster to make sure the cluster is in the desired state
-			err := e.ConfigureEtcdServices(refreshEvt.Context(), []*clusterd.UnhealthyNode{})
-			if err != nil {
-				log.Println("the ConfigureEtcdServices wasn't successful for RefreshEvent: ", err)
-			}
-		} else if nodeAddEvt, ok := evt.(*clusterd.AddNodeEvent); ok {
-			err := e.ConfigureEtcdServices(nodeAddEvt.Context(), []*clusterd.UnhealthyNode{})
-			if err != nil {
-				log.Println("the ConfigureEtcdServices wasn't successful for AddNodeEvent: ", err)
-			}
-		} else if unHealthyNodeEvt, ok := evt.(*clusterd.UnhealthyNodeEvent); ok {
-			// if the removed node has been an etcd member, then we need to add a new node to the cluster if needed
-			// and then remove it.
-			err := e.ConfigureEtcdServices(unHealthyNodeEvt.Context(), unHealthyNodeEvt.Nodes())
-			if err != nil {
-				log.Println("the ConfigureEtcdServices wasn't successful for UnhealthyNodeEvent: ", err)
-			}
-		}
-
-		log.Printf("etcdmgr leader completed event %s", evt.Name())
+	err := e.ConfigureEtcdServices(event.Context, unhealthyNodes)
+	if err != nil {
+		log.Printf("failed to refresh etcdmgr: %+v", err)
 	}
+
+	log.Printf("etcdmgr leader completed refresh event")
 }
 
 // ConfigureEtcdServices
@@ -94,6 +60,7 @@ func (e *etcdMgrLeader) ConfigureEtcdServices(context *clusterd.Context, unhealt
 		log.Println("error in converting etcd member urls to node ids.")
 		return err
 	}
+
 	log.Printf("current etcd cluster members: %v | Nodes: %v | IDs: %v | unhealthy nodes: %v",
 		currentEtcdMembers, context.Inventory.Nodes, currentEtcdMemberIDs, unhealthyNodes)
 	currentEtcdQuorumSize := len(currentEtcdMembers)
@@ -106,10 +73,12 @@ func (e *etcdMgrLeader) ConfigureEtcdServices(context *clusterd.Context, unhealt
 	for node := range context.Inventory.Nodes {
 		clusterNodes = append(clusterNodes, node)
 	}
+
 	var unhealthyIDs []string
 	for _, node := range unhealthyNodes {
-		unhealthyIDs = append(unhealthyIDs, node.NodeID)
+		unhealthyIDs = append(unhealthyIDs, node.ID)
 	}
+
 	log.Println("unhealthy nodeIDs: ", unhealthyIDs)
 	if delta != 0 {
 		log.Printf("desiredEtcdQuorumSize: %v, delta: %v, clusterNodes: %v", desiredEtcdQuorumSize, delta, clusterNodes)
