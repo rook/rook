@@ -22,7 +22,7 @@ build() {
 
     cat <<EOF > $tmpdir/Dockerfile
 FROM alpine:3.4
-RUN apk add --no-cache gptfdisk util-linux kmod coreutils grep gawk e2fsprogs btrfs-progs sudo
+RUN apk add --no-cache gptfdisk util-linux coreutils
 COPY root /
 ENTRYPOINT ["/usr/bin/rookd"]
 EOF
