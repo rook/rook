@@ -79,14 +79,14 @@ func TestMonOnUnhealthyNode(t *testing.T) {
 	createTestClusterInfo(etcdClient, []string{"a"})
 
 	// the monitor is on the bad node
-	badNode := &clusterd.UnhealthyNode{NodeID: "a"}
+	badNode := &clusterd.UnhealthyNode{ID: "a"}
 	context := &clusterd.Context{EtcdClient: etcdClient, ConfigDir: "/tmp"}
 	response, err := monsOnUnhealthyNode(context, []*clusterd.UnhealthyNode{badNode})
 	assert.True(t, response)
 	assert.Nil(t, err)
 
 	// the monitor is not on another node
-	badNode.NodeID = "b"
+	badNode.ID = "b"
 	response, err = monsOnUnhealthyNode(context, []*clusterd.UnhealthyNode{badNode})
 	assert.False(t, response)
 	assert.Nil(t, err)

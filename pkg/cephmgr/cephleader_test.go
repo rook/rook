@@ -12,7 +12,6 @@ import (
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
-	clusterdtest "github.com/rook/rook/pkg/clusterd/test"
 	"github.com/rook/rook/pkg/util"
 	"github.com/stretchr/testify/assert"
 )
@@ -27,9 +26,6 @@ import (
 func TestCephLeaders(t *testing.T) {
 	factory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
 	leader := newCephLeader(factory)
-
-	leader.StartWatchEvents()
-	defer leader.Close()
 
 	nodes := make(map[string]*inventory.NodeConfig)
 	inv := &inventory.Config{Nodes: nodes}
@@ -49,11 +45,9 @@ func TestCephLeaders(t *testing.T) {
 	etcdClient.WatcherResponses["/rook/_notify/b/osd/status"] = "succeeded"
 
 	// trigger a refresh event
-	refresh := clusterd.NewRefreshEvent(context)
-	leader.Events() <- refresh
-
-	// wait for the event queue to be empty
-	clusterdtest.WaitForEvents(leader)
+	refresh := clusterd.NewRefreshEvent()
+	refresh.Context = context
+	leader.HandleRefresh(refresh)
 
 	assert.True(t, etcdClient.GetChildDirs("/rook/services/ceph/osd/desired").Equals(util.CreateSet([]string{"a"})))
 	assert.Equal(t, "mon0", etcdClient.GetValue("/rook/services/ceph/monitor/desired/a/id"))
@@ -62,11 +56,8 @@ func TestCephLeaders(t *testing.T) {
 
 	// trigger an add node event
 	nodes["b"] = &inventory.NodeConfig{PublicIP: "2.3.4.5"}
-	addNode := clusterd.NewAddNodeEvent(context, "b")
-	leader.Events() <- addNode
-
-	// wait for the event queue to be empty
-	clusterdtest.WaitForEvents(leader)
+	refresh.NodesAdded.Add("b")
+	leader.HandleRefresh(refresh)
 
 	assert.True(t, etcdClient.GetChildDirs("/rook/services/ceph/osd/desired").Equals(util.CreateSet([]string{"a", "b"})))
 	assert.Equal(t, "myfsid", etcdClient.GetValue("/rook/services/ceph/fsid"))

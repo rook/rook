@@ -13,9 +13,9 @@ func TestLoadDiscoveredNodes(t *testing.T) {
 	etcdClient := &util.MockEtcdClient{}
 	mockHandler := newTestServiceLeader()
 	raised := make(chan bool)
-	mockHandler.unhealthyNode = func(nodes []*UnhealthyNode) {
+	mockHandler.unhealthyNode = func(nodes map[string]*UnhealthyNode) {
 		assert.Equal(t, 1, len(nodes))
-		assert.Equal(t, "23", nodes[0].NodeID)
+		assert.Equal(t, "23", nodes["23"].ID)
 		raised <- true
 	}
 
@@ -24,10 +24,9 @@ func TestLoadDiscoveredNodes(t *testing.T) {
 		&ClusterService{Name: "test", Leader: mockHandler},
 	}
 	leader := newServicesLeader(context)
+	leader.refresher.Start()
+	defer leader.refresher.Stop()
 	leader.parent = &ClusterMember{isLeader: true}
-
-	mockHandler.StartWatchEvents()
-	defer mockHandler.Close()
 
 	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, "23", "publicIp"), "1.2.3.4")
 	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, "23", "privateIp"), "10.2.3.4")

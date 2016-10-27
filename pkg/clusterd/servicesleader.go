@@ -27,7 +27,7 @@ type servicesLeader struct {
 }
 
 func newServicesLeader(context *Context) *servicesLeader {
-	l := &servicesLeader{context: context, refresher: &ClusterRefresher{}, leaseName: LeaderElectionKey}
+	l := &servicesLeader{context: context, refresher: NewClusterRefresher(), leaseName: LeaderElectionKey}
 	l.refresher.leader = l
 	return l
 }
@@ -40,12 +40,8 @@ func (s *servicesLeader) OnLeadershipAcquired() error {
 func (s *servicesLeader) onLeadershipAcquiredRefresh(refresh bool) {
 	s.isLeader = true
 
-	// The leaders should start watching for events
-	for _, service := range s.context.Services {
-		service.Leader.StartWatchEvents()
-	}
-
 	// start watching for membership changes and handling any changes to it
+	s.refresher.Start()
 	s.startWatchingClusterChanges()
 	s.startWatchingUnhealthyNodes()
 
@@ -58,11 +54,7 @@ func (s *servicesLeader) onLeadershipAcquiredRefresh(refresh bool) {
 func (s *servicesLeader) OnLeadershipLost() error {
 	s.isLeader = false
 	s.stopWatchingClusterChanges()
-
-	// Close down each of the leaders watching for events
-	for _, service := range s.context.Services {
-		service.Leader.Close()
-	}
+	s.refresher.Stop()
 
 	return nil
 }
@@ -101,7 +93,7 @@ func (s *servicesLeader) discoverUnhealthyNodes() error {
 	for nodeID, node := range config.Nodes {
 		age, unhealthy := IsNodeUnhealthy(node)
 		if unhealthy {
-			unhealthyNodes = append(unhealthyNodes, &UnhealthyNode{AgeSeconds: age, NodeID: nodeID})
+			unhealthyNodes = append(unhealthyNodes, &UnhealthyNode{AgeSeconds: age, ID: nodeID})
 		}
 	}
 

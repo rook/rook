@@ -13,13 +13,13 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/util"
 )
 
 // Interface implemented by a service that has been elected leader
 type cephLeader struct {
 	monLeader *monLeader
 	cluster   *ClusterInfo
-	events    chan clusterd.LeaderEvent
 	factory   client.ConnectionFactory
 }
 
@@ -36,78 +36,52 @@ func (c *cephLeader) RefreshKeys() []*clusterd.RefreshKey {
 	return []*clusterd.RefreshKey{deviceChange}
 }
 
-func (c *cephLeader) StartWatchEvents() {
-	if c.events != nil {
-		close(c.events)
+func getOSDsToRefresh(e *clusterd.RefreshEvent) *util.Set {
+	osds := util.NewSet()
+	osds.AddSet(e.NodesAdded)
+	osds.AddSet(e.NodesChanged)
+	osds.AddSet(e.NodesRemoved)
+
+	// Nothing changed in the event, so refresh osds on all nodes
+	if osds.Count() == 0 {
+		for nodeID := range e.Context.Inventory.Nodes {
+			osds.Add(nodeID)
+		}
 	}
-	c.events = make(chan clusterd.LeaderEvent, 10)
-	go c.handleOrchestratorEvents()
+
+	return osds
 }
 
-func (c *cephLeader) Events() chan clusterd.LeaderEvent {
-	return c.events
+func getRefreshMons(e *clusterd.RefreshEvent) bool {
+	return true
 }
 
-func (c *cephLeader) Close() error {
-	close(c.events)
-	c.events = nil
-	return nil
-}
-
-func (c *cephLeader) handleOrchestratorEvents() {
+func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 	// Listen for events from the orchestrator indicating that a refresh is needed or nodes have been added
-	for e := range c.events {
-		log.Printf("ceph leader received event %s", e.Name())
+	log.Printf("ceph leader received refresh event")
 
-		var osdsToRefresh []string
-		refreshMon := false
-		if r, ok := e.(*clusterd.RefreshEvent); ok {
-			log.Printf("Refresh event")
-			refreshMon = true
-			if r.NodeID() != "" {
-				// refresh a single node, which is currently only for adding and removing devices
-				osdsToRefresh = []string{r.NodeID()}
-			} else {
-				// refresh the whole cluster
-				osdsToRefresh = getSlice(e.Context().Inventory.Nodes)
-			}
+	refreshMon := getRefreshMons(e)
+	osdsToRefresh := getOSDsToRefresh(e)
 
-		} else if nodeAdded, ok := e.(*clusterd.AddNodeEvent); ok {
-			log.Printf("Added node %s event", nodeAdded.Node())
-			refreshMon = true
-			osdsToRefresh = []string{nodeAdded.Node()}
-
-		} else if unhealthyEvent, ok := e.(*clusterd.UnhealthyNodeEvent); ok {
-			var err error
-			refreshMon, err = monsOnUnhealthyNode(e.Context(), unhealthyEvent.Nodes())
-			if err != nil {
-				log.Printf("failed to handle unhealthy nodes. %v", err)
-			}
-
-		} else {
-			// if we don't recognize the event we will skip the refresh
+	if refreshMon {
+		// Perform a full refresh of the cluster to ensure the monitors are running with quorum
+		err := c.configureCephMons(e.Context)
+		if err != nil {
+			log.Printf("FAILED TO CONFIGURE CEPH MONS. %v", err)
+			return
 		}
-
-		if refreshMon {
-			// Perform a full refresh of the cluster to ensure the monitors are running with quorum
-			err := c.configureCephMons(e.Context())
-			if err != nil {
-				log.Printf("FAILED TO CONFIGURE CEPH MONS. %v", err)
-				continue
-			}
-		}
-
-		if osdsToRefresh != nil {
-			// Configure the OSDs
-			err := configureOSDs(e.Context(), osdsToRefresh)
-			if err != nil {
-				log.Printf("FAILED TO CONFIGURE CEPH OSDs. %v", err)
-				continue
-			}
-		}
-
-		log.Printf("ceph leader completed event %s", e.Name())
 	}
+
+	if osdsToRefresh.Count() > 0 {
+		// Configure the OSDs
+		err := configureOSDs(e.Context, osdsToRefresh.ToSlice())
+		if err != nil {
+			log.Printf("FAILED TO CONFIGURE CEPH OSDs. %v", err)
+			return
+		}
+	}
+
+	log.Printf("ceph leader completed refresh")
 }
 
 // Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
@@ -227,7 +201,7 @@ func handleDeviceChanged(response *etcd.Response, refresher *clusterd.ClusterRef
 		log.Printf("device changed: %s", nodeID)
 
 		// trigger an orchestration to add or remove the device
-		refresher.TriggerNodeRefresh(nodeID)
+		refresher.TriggerDevicesChanged(nodeID)
 	}
 }
 

@@ -354,6 +354,8 @@ func TestMembershipChangeWatchingStartStop(t *testing.T) {
 
 	// try to elect a leader, we should win and aqcuire the lease
 	leader := newServicesLeader(context)
+	leader.refresher.Start()
+	defer leader.refresher.Stop()
 	clusterMember := newClusterMember(context, mockLeaseManager, leader)
 	leader.parent = clusterMember
 	err := clusterMember.ElectLeader()
@@ -456,6 +458,8 @@ func testMembershipChangeWatchFilteringHelper(t *testing.T, key string, action s
 
 	// try to elect a leader, we should win and aqcuire the lease
 	leader := newServicesLeader(context)
+	leader.refresher.Start()
+	defer leader.refresher.Stop()
 	clusterMember := newClusterMember(context, mockLeaseManager, leader)
 	leader.parent = clusterMember
 	err := clusterMember.ElectLeader()
@@ -567,7 +571,7 @@ func TestHardwareDiscoveryLocking(t *testing.T) {
 // ************************************************************************************************
 // ************************************************************************************************
 func createDefaultDependencies() (*util.MockEtcdClient, *Context, *mockLeaseManager, *MockLeader) {
-	triggerRefreshInterval = time.Millisecond
+	refreshDelayInterval = time.Millisecond
 	mockLeaseManager := &mockLeaseManager{}
 	etcdClient := util.NewMockEtcdClient()
 	machineId := "8e8f532fe96dcae6b1ce335822e5b03c"
@@ -612,10 +616,9 @@ func setupAndRunAcquireLeaseScenario(t *testing.T) (*ClusterMember, *mockLeaseMa
 //
 // ************************************************************************************************
 type testServiceLeader struct {
-	events        chan LeaderEvent
 	nodeAdded     func(nodeID string)
 	refresh       func()
-	unhealthyNode func(nodes []*UnhealthyNode)
+	unhealthyNode func(map[string]*UnhealthyNode)
 }
 
 func newTestServiceLeader() *testServiceLeader {
@@ -626,42 +629,16 @@ func (t *testServiceLeader) RefreshKeys() []*RefreshKey {
 	return nil
 }
 
-func (t *testServiceLeader) StartWatchEvents() {
-	if t.events != nil {
-		close(t.events)
-	}
-	t.events = make(chan LeaderEvent, 1)
-	go t.handleOrchestratorEvents()
-}
-
-func (t *testServiceLeader) Events() chan LeaderEvent {
-	return t.events
-}
-
-func (t *testServiceLeader) Close() error {
-	close(t.events)
-
-	t.events = nil
-	return nil
-}
-
-func (t *testServiceLeader) handleOrchestratorEvents() {
-	for e := range t.events {
-		log.Printf("Handling test event %s. %+v", e.Name(), e)
-		if _, ok := e.(*RefreshEvent); ok {
-			if t.refresh != nil {
-				t.refresh()
-			}
-
-		} else if nodeAdded, ok := e.(*AddNodeEvent); ok {
-			if t.nodeAdded != nil {
-				t.nodeAdded(nodeAdded.Node())
-			}
-
-		} else if event, ok := e.(*UnhealthyNodeEvent); ok {
-			if t.unhealthyNode != nil {
-				t.unhealthyNode(event.Nodes())
-			}
+func (t *testServiceLeader) HandleRefresh(e *RefreshEvent) {
+	log.Printf("Handling test event. %+v", e)
+	if len(e.NodesUnhealthy) > 0 {
+		t.unhealthyNode(e.NodesUnhealthy)
+	} else if e.NodesAdded.Count() > 0 {
+		for node := range e.NodesAdded.Iter() {
+			t.nodeAdded(node)
 		}
+	} else {
+		t.refresh()
 	}
+
 }

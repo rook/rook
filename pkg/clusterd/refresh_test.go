@@ -11,6 +11,8 @@ func TestTriggerRefresh(t *testing.T) {
 
 	_, context, mockLeaseManager, _ := createDefaultDependencies()
 	leader := newServicesLeader(context)
+	leader.refresher.Start()
+	defer leader.refresher.Stop()
 	r := newClusterMember(context, mockLeaseManager, leader)
 	leader.parent = r
 	// Skip the orchestration if not the leader
@@ -21,7 +23,7 @@ func TestTriggerRefresh(t *testing.T) {
 	r.isLeader = true
 
 	// FIX: Use channels instead of sleeps
-	triggerRefreshInterval = 250 * time.Millisecond
+	refreshDelayInterval = 250 * time.Millisecond
 
 	// The orchestration is triggered, but multiple triggers will still result in a single orchestrator
 	triggered = leader.refresher.TriggerRefresh()
@@ -31,12 +33,12 @@ func TestTriggerRefresh(t *testing.T) {
 	triggered = leader.refresher.TriggerRefresh()
 	assert.True(t, triggered)
 	<-time.After(100 * time.Millisecond)
-	assert.Equal(t, int32(1), leader.refresher.triggerRefreshLock)
+	assert.True(t, leader.refresher.changes)
 
 	<-time.After(200 * time.Millisecond)
-	assert.Equal(t, int32(0), leader.refresher.triggerRefreshLock)
+	assert.False(t, leader.refresher.changes)
 
-	triggerRefreshInterval = 0
+	refreshDelayInterval = 0
 	triggered = leader.refresher.triggerNodeAdded("abc")
 	assert.True(t, triggered)
 }
