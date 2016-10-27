@@ -37,7 +37,11 @@ func TestListPools(t *testing.T) {
 
 	out, err := listPools(c)
 	assert.Nil(t, err)
-	assert.Equal(t, "NAME        NUMBER    TYPE            SIZE      DATA      CODING    ALGORITHM\nreplPool1   0         replicated      3                             \necPool1     1         erasure coded             2         1         jerasure::reed_sol_van\n", out)
+
+	expectedOut := "NAME        NUMBER    TYPE            SIZE      DATA      CODING    ALGORITHM\n" +
+		"replPool1   0         replicated      3                             \n" +
+		"ecPool1     1         erasure coded             2         1         jerasure::reed_sol_van\n"
+	assert.Equal(t, expectedOut, out)
 }
 
 func TestListPoolsError(t *testing.T) {

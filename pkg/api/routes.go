@@ -3,6 +3,12 @@ package api
 func (h *Handler) GetRoutes() []Route {
 	return []Route{
 		{
+			"GetStatusDetails",
+			"GET",
+			"/status",
+			h.GetStatusDetails,
+		},
+		{
 			"GetNodes",
 			"GET",
 			"/node",

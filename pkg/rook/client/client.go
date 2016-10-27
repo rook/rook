@@ -17,6 +17,7 @@ type RookRestClient interface {
 	GetBlockImages() ([]model.BlockImage, error)
 	CreateBlockImage(image model.BlockImage) (string, error)
 	GetBlockImageMapInfo() (model.BlockImageMapInfo, error)
+	GetStatusDetails() (model.StatusDetails, error)
 }
 
 type RookNetworkRestClient struct {

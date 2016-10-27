@@ -8,11 +8,11 @@ import (
 )
 
 const (
-	PoolQueryName = "pool"
+	poolQueryName = "pool"
 )
 
 func (c *RookNetworkRestClient) GetPools() ([]model.Pool, error) {
-	body, err := c.DoGet(PoolQueryName)
+	body, err := c.DoGet(poolQueryName)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +32,7 @@ func (c *RookNetworkRestClient) CreatePool(newPool model.Pool) (string, error) {
 		return "", err
 	}
 
-	resp, err := c.DoPost(PoolQueryName, bytes.NewReader(body))
+	resp, err := c.DoPost(poolQueryName, bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}

@@ -21,6 +21,7 @@ type MockRookRestClient struct {
 	MockGetBlockImages       func() ([]model.BlockImage, error)
 	MockCreateBlockImage     func(image model.BlockImage) (string, error)
 	MockGetBlockImageMapInfo func() (model.BlockImageMapInfo, error)
+	MockGetStatusDetails     func() (model.StatusDetails, error)
 }
 
 func (m *MockRookRestClient) GetNodes() ([]model.Node, error) {
@@ -69,6 +70,14 @@ func (m *MockRookRestClient) GetBlockImageMapInfo() (model.BlockImageMapInfo, er
 	}
 
 	return model.BlockImageMapInfo{}, nil
+}
+
+func (m *MockRookRestClient) GetStatusDetails() (model.StatusDetails, error) {
+	if m.MockGetStatusDetails != nil {
+		return m.MockGetStatusDetails()
+	}
+
+	return model.StatusDetails{}, nil
 }
 
 func (m *MockRookRestClient) URL() string {
