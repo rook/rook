@@ -49,7 +49,7 @@ func TestMonSelection(t *testing.T) {
 	assert.NotEqual(t, chosen["b"].Name, chosen["c"].Name)
 
 	// remove a node, then check that with four nodes we only go to three monitors
-	etcdClient.DeleteDir("/castle/services/ceph/monitor/desired/c")
+	etcdClient.DeleteDir("/rook/services/ceph/monitor/desired/c")
 	nodes["c"] = &inventory.NodeConfig{IPAddress: "4.2.3.4"}
 	nodes["d"] = &inventory.NodeConfig{IPAddress: "5.2.3.4"}
 	chosen, bad, err = chooseMonitorNodes(context)
@@ -150,7 +150,7 @@ func TestUnhealthyMon(t *testing.T) {
 	assert.False(t, found)
 	bmonName := chosen["b"].Name
 	cmonName := chosen["c"].Name
-	desiredMons := etcdClient.GetChildDirs("/castle/services/ceph/monitor/desired")
+	desiredMons := etcdClient.GetChildDirs("/rook/services/ceph/monitor/desired")
 	assert.True(t, desiredMons.Contains("b"))
 	assert.True(t, desiredMons.Contains("c"))
 	assert.True(t, desiredMons.Contains("d"))
@@ -166,7 +166,7 @@ func TestUnhealthyMon(t *testing.T) {
 	assert.Equal(t, "mon3", chosen["a"].Name)
 	assert.Equal(t, bmonName, bad["b"].Name)
 
-	desiredMons = etcdClient.GetChildDirs("/castle/services/ceph/monitor/desired")
+	desiredMons = etcdClient.GetChildDirs("/rook/services/ceph/monitor/desired")
 	assert.True(t, desiredMons.Contains("a"))
 	assert.True(t, desiredMons.Contains("c"))
 	assert.True(t, desiredMons.Contains("d"))
@@ -182,13 +182,13 @@ func TestUnhealthyMon(t *testing.T) {
 }
 
 func createTestClusterInfo(etcdClient *util.MockEtcdClient, mons []string) {
-	key := "/castle/services/ceph"
+	key := "/rook/services/ceph"
 	etcdClient.SetValue(path.Join(key, "fsid"), "12345")
 	etcdClient.SetValue(path.Join(key, "name"), "default")
 	etcdClient.SetValue(path.Join(key, "_secrets/monitor"), "foo")
 	etcdClient.SetValue(path.Join(key, "_secrets/admin"), "bar")
 
-	base := "/castle/services/ceph/monitor/desired"
+	base := "/rook/services/ceph/monitor/desired"
 	for i, mon := range mons {
 		etcdClient.SetValue(path.Join(base, mon, "id"), fmt.Sprintf("mon%d", i))
 		etcdClient.SetValue(path.Join(base, mon, "ipaddress"), fmt.Sprintf("1.2.3.%d", i))

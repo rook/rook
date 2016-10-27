@@ -1,11 +1,11 @@
 # Building
 
-Castle is golang binary that uses cgo to interface with embedded ceph. The ceph
-project is a submodule of castle and is built from the top level Makefile.
+Rook is golang binary that uses cgo to interface with embedded ceph. The ceph
+project is a submodule of rook and is built from the top level Makefile.
 
 ## Static binary
 
-This is the easiest option and produced static binaries for castled and tools. These
+This is the easiest option and produced static binaries for rookd and tools. These
 binaries can easily be used inside minimal or scratch containers, or run on minimal
 linux distributions like CoreOS.
 

@@ -30,7 +30,7 @@ const (
 	DevicesValue                = "devices"
 	ForceFormatValue            = "forceFormat"
 	sgdisk                      = "sgdisk"
-	cephOsdKey                  = "/castle/services/ceph/osd"
+	cephOsdKey                  = "/rook/services/ceph/osd"
 	desiredOsdRootKey           = cephOsdKey + "/" + desiredKey + "/%s"
 	deviceDesiredKey            = desiredOsdRootKey + "/device"
 	dirDesiredKey               = desiredOsdRootKey + "/dir"

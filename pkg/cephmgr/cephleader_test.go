@@ -43,10 +43,10 @@ func TestCephLeaders(t *testing.T) {
 	}
 
 	// mock the agent responses that the deployments were successful to start mons and osds
-	etcdClient.WatcherResponses["/castle/_notify/a/monitor/status"] = "succeeded"
-	etcdClient.WatcherResponses["/castle/_notify/b/monitor/status"] = "succeeded"
-	etcdClient.WatcherResponses["/castle/_notify/a/osd/status"] = "succeeded"
-	etcdClient.WatcherResponses["/castle/_notify/b/osd/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/a/monitor/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/b/monitor/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/a/osd/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/b/osd/status"] = "succeeded"
 
 	// trigger a refresh event
 	refresh := clusterd.NewRefreshEvent(context)
@@ -55,10 +55,10 @@ func TestCephLeaders(t *testing.T) {
 	// wait for the event queue to be empty
 	clusterdtest.WaitForEvents(leader)
 
-	assert.True(t, etcdClient.GetChildDirs("/castle/services/ceph/osd/desired").Equals(util.CreateSet([]string{"a"})))
-	assert.Equal(t, "mon0", etcdClient.GetValue("/castle/services/ceph/monitor/desired/a/id"))
-	assert.Equal(t, "1.2.3.4", etcdClient.GetValue("/castle/services/ceph/monitor/desired/a/ipaddress"))
-	assert.Equal(t, "6790", etcdClient.GetValue("/castle/services/ceph/monitor/desired/a/port"))
+	assert.True(t, etcdClient.GetChildDirs("/rook/services/ceph/osd/desired").Equals(util.CreateSet([]string{"a"})))
+	assert.Equal(t, "mon0", etcdClient.GetValue("/rook/services/ceph/monitor/desired/a/id"))
+	assert.Equal(t, "1.2.3.4", etcdClient.GetValue("/rook/services/ceph/monitor/desired/a/ipaddress"))
+	assert.Equal(t, "6790", etcdClient.GetValue("/rook/services/ceph/monitor/desired/a/port"))
 
 	// trigger an add node event
 	nodes["b"] = &inventory.NodeConfig{IPAddress: "2.3.4.5"}
@@ -68,9 +68,9 @@ func TestCephLeaders(t *testing.T) {
 	// wait for the event queue to be empty
 	clusterdtest.WaitForEvents(leader)
 
-	assert.True(t, etcdClient.GetChildDirs("/castle/services/ceph/osd/desired").Equals(util.CreateSet([]string{"a", "b"})))
-	assert.Equal(t, "myfsid", etcdClient.GetValue("/castle/services/ceph/fsid"))
-	assert.Equal(t, "mykey", etcdClient.GetValue("/castle/services/ceph/_secrets/admin"))
+	assert.True(t, etcdClient.GetChildDirs("/rook/services/ceph/osd/desired").Equals(util.CreateSet([]string{"a", "b"})))
+	assert.Equal(t, "myfsid", etcdClient.GetValue("/rook/services/ceph/fsid"))
+	assert.Equal(t, "mykey", etcdClient.GetValue("/rook/services/ceph/_secrets/admin"))
 }
 
 func TestMoveUnhealthyMonitor(t *testing.T) {
@@ -94,23 +94,23 @@ func TestMoveUnhealthyMonitor(t *testing.T) {
 	}
 
 	// mock the agent responses that the deployments were successful to start mons and osds
-	etcdClient.WatcherResponses["/castle/_notify/a/monitor/status"] = "succeeded"
-	etcdClient.WatcherResponses["/castle/_notify/b/monitor/status"] = "succeeded"
-	etcdClient.WatcherResponses["/castle/_notify/c/monitor/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/a/monitor/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/b/monitor/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/c/monitor/status"] = "succeeded"
 
 	// initialize the first three monitors
 	err := leader.configureCephMons(context)
 	assert.Nil(t, err)
-	assert.True(t, etcdClient.GetChildDirs("/castle/services/ceph/monitor/desired").Equals(util.CreateSet([]string{"a", "b", "c"})))
+	assert.True(t, etcdClient.GetChildDirs("/rook/services/ceph/monitor/desired").Equals(util.CreateSet([]string{"a", "b", "c"})))
 
 	// add a new node and mark node a as unhealthy
 	nodes["a"].HeartbeatAge = (unhealthyMonHeatbeatAgeSeconds + 1) * time.Second
 	nodes["d"] = &inventory.NodeConfig{IPAddress: "4.5.6.7"}
-	etcdClient.WatcherResponses["/castle/_notify/d/monitor/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/d/monitor/status"] = "succeeded"
 
 	err = leader.configureCephMons(context)
 	assert.Nil(t, err)
-	assert.True(t, etcdClient.GetChildDirs("/castle/services/ceph/monitor/desired").Equals(util.CreateSet([]string{"d", "b", "c"})))
+	assert.True(t, etcdClient.GetChildDirs("/rook/services/ceph/monitor/desired").Equals(util.CreateSet([]string{"d", "b", "c"})))
 
 	cluster, err := LoadClusterInfo(etcdClient)
 	assert.Nil(t, err)
@@ -140,12 +140,12 @@ func TestMoveUnhealthyMonitor(t *testing.T) {
 
 func TestExtractDesiredDeviceNode(t *testing.T) {
 	// valid path with node id
-	node, err := extractNodeIDFromDesiredDevice("/castle/services/ceph/osd/desired/abc/device/sdb")
+	node, err := extractNodeIDFromDesiredDevice("/rook/services/ceph/osd/desired/abc/device/sdb")
 	assert.Nil(t, err)
 	assert.Equal(t, "abc", node)
 
 	// node id not found
-	key := "/castle/services/ceph/osd/desired"
+	key := "/rook/services/ceph/osd/desired"
 	node, err = extractNodeIDFromDesiredDevice(key)
 	assert.NotNil(t, err)
 	assert.Equal(t, "", node)
@@ -171,7 +171,7 @@ func TestNewCephService(t *testing.T) {
 
 	service := NewCephService(factory, "a,b,c", true, "root=default")
 	assert.NotNil(t, service)
-	assert.Equal(t, "/castle/services/ceph/osd/desired", service.Leader.RefreshKeys()[0].Path)
+	assert.Equal(t, "/rook/services/ceph/osd/desired", service.Leader.RefreshKeys()[0].Path)
 	assert.Equal(t, 2, len(service.Agents))
 	assert.Equal(t, "monitor", service.Agents[0].Name())
 	assert.Equal(t, "osd", service.Agents[1].Name())

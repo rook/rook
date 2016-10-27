@@ -14,20 +14,20 @@ build() {
         local ext=".exe"
     fi
 
-    local files=( castle${ext} )
+    local files=( rook${ext} )
 
     if [[ ${type} == "both" ]]; then
-        files+=( castled${ext} )
+        files+=( rookd${ext} )
     fi
 
     mkdir -p ${RELEASE_DIR}
 
     if [[ ${os} == "linux" ]]; then
-        local tarfile=${RELEASE_DIR}/castle-${version}-${os}-${arch}.tar.gz
+        local tarfile=${RELEASE_DIR}/rook-${version}-${os}-${arch}.tar.gz
         echo creating tar ${tarfile}
         tar czf "${tarfile}" -C "${bindir}" ${files[*]}
     else
-        local zipfile=$(realpath ${RELEASE_DIR}/castle-${version}-${os}-${arch}.zip)
+        local zipfile=$(realpath ${RELEASE_DIR}/rook-${version}-${os}-${arch}.zip)
         echo creating zip ${zipfile}
         $(cd ${bindir} && zip -qr ${zipfile} ${files[*]})
     fi
@@ -39,7 +39,7 @@ publish() {
     local arch=$3
     local version=${RELEASE_VERSION}
 
-    local file=${RELEASE_DIR}/castle-${version}-${os}-${arch}
+    local file=${RELEASE_DIR}/rook-${version}-${os}-${arch}
     local ext=tar.gz
     local mediatype=gzip
 

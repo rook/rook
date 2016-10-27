@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	SystemLogDir                     = "/var/log/castle"
+	SystemLogDir                     = "/var/log/rook"
 	leaseVersion                     = 1
 	leaseTtlSeconds                  = 15
 	leaseRetrySeconds                = 5

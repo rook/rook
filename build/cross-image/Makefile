@@ -2,7 +2,7 @@
 all: build
 
 VERSION := $(shell cat version)
-CONTAINER := quantum/castle-cross-build:$(VERSION)
+CONTAINER := quay.io/rook/cross-build:$(VERSION)
 
 build: Dockerfile entrypoint.sh
 	@docker build ${BUILD_ARGS} -t $(CONTAINER) --pull $(CURDIR)

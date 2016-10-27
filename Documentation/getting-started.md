@@ -79,13 +79,13 @@ Now that the cluster is up and running, you can communicate with it using castle
 you need export an environment variable for the cluster url:
 
 ```
-export CASTLE_DISCOVERY_URL=https://discovery.castle.io/6a28e078895c5ec737174db2419bb2f3
+export ROOKD_DISCOVERY_URL=https://discovery.castle.io/6a28e078895c5ec737174db2419bb2f3
 ```
 
 or if you're using DNS:
 
 ```
-export CASTLE_DISCOVERY_DNS=mycluster.acme.com
+export ROOKD_DISCOVERY_DNS=mycluster.acme.com
 ```
 
 Let's list the nodes that are part of the cluster:
@@ -118,7 +118,7 @@ This creates a volume that can be used as a block device from client nodes.
 To mount the volume run the following on the client node:
 
 ```
-export CASTLE_DISCOVERY_DNS=mycluster.acme.com
+export ROOKD_DISCOVERY_DNS=mycluster.acme.com
 sudo castleblk rbd myvolume
 ```
 

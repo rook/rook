@@ -3,7 +3,7 @@
 source_repo=github.com/rook/rook
 
 container_version=$(cat ${scriptdir}/cross-image/version)
-container_image=quantum/castle-cross-build:${container_version}
+container_image=quay.io/rook/cross-build:${container_version}
 container_name=cross-build
 container_volume=${container_name}-volume
 rsync_port=10873

@@ -3,7 +3,8 @@
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${scriptdir}/common.sh
 
-container=quantum/castled
+registry=quay.io/
+repo=rook/rookd
 
 build() {
     local type=$1
@@ -23,16 +24,16 @@ build() {
 FROM alpine:3.4
 RUN apk add --no-cache gptfdisk util-linux kmod coreutils grep gawk e2fsprogs btrfs-progs sudo
 COPY root /
-ENTRYPOINT ["/usr/bin/castled"]
+ENTRYPOINT ["/usr/bin/rookd"]
 EOF
 
-    tag=${container}-${arch}:${version}
+    tag=${repo}-${arch}:${version}
     if [[ ${arch} == "amd64" ]]; then
-        tag=${container}:${version}
+        tag=${repo}:${version}
     fi
 
     echo building docker container ${tag}
-    docker build -t ${tag} -t quay.io/${tag} $tmpdir
+    docker build -t ${registry}${tag} $tmpdir
 
     local file=${tag/\//-}
     local file=${file/:/-}
@@ -40,7 +41,7 @@ EOF
     echo ${file}
 
     echo generate ACIs from docker containers
-    docker save -o ${dockerout} ${tag}
+    docker save -o ${dockerout} ${registry}${tag}
     docker2aci ${dockerout}
     mv *.aci ${RELEASE_DIR}
 
@@ -55,17 +56,13 @@ publish() {
 
     [[ ${type} == "both" ]] || return 0
 
-    tag=${container}-${arch}:${version}
-
+    tag=${repo}-${arch}:${version}
     if [[ ${arch} == "amd64" ]]; then
-        tag=${container}:${version}
+        tag=${repo}:${version}
     fi
 
     echo pushing docker container ${tag}
-    docker push ${tag}
-
-    echo pushing docker container quay.io/${tag}
-    docker push quay.io/${tag}
+    docker push ${registry}${tag}
 }
 
 action=$1

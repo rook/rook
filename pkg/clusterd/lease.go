@@ -12,7 +12,7 @@ import (
 
 const (
 	EtcdRequestTimeout = time.Second
-	LeaderKey          = "/castle/leader"
+	LeaderKey          = "/rook/leader"
 	leasePrefix        = "lease"
 )
 

@@ -424,8 +424,8 @@ func TestSimpleMembershipChangeWatching(t *testing.T) {
 
 func TestMembershipChangeWatchFiltering(t *testing.T) {
 	// none of the following etcd keys/actions should result in a new cluster member being detected
-	testMembershipChangeWatchFilteringHelper(t, "/castle/resources/", store.Set)
-	testMembershipChangeWatchFilteringHelper(t, "/castle/resources/discovered/nodes", store.Set)
+	testMembershipChangeWatchFilteringHelper(t, "/rook/resources/", store.Set)
+	testMembershipChangeWatchFilteringHelper(t, "/rook/resources/discovered/nodes", store.Set)
 	testMembershipChangeWatchFilteringHelper(t, inventory.NodesConfigKey+"/123", "update")
 	testMembershipChangeWatchFilteringHelper(t, inventory.NodesConfigKey+"/123/foo", "update")
 }

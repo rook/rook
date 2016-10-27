@@ -9,7 +9,7 @@ machine:
 
 checkout:
   pre:
-    - echo -e "machine github.com\n\tlogin quantumbuild\n\tpassword $GITHUB_TOKEN" > ~/.netrc
+    - echo -e "machine github.com\n\tlogin quantum-build\n\tpassword $GITHUB_TOKEN" > ~/.netrc
     - rm ~/.gitconfig
   post:
     - git submodule sync --recursive
@@ -18,7 +18,7 @@ checkout:
 dependencies:
   cache_directories:
     - ~/.ccache
-    - ~/castle/.work
+    - ~/rook/.work
 
   override:
     - docker login -e $DOCKER_EMAIL -u $DOCKER_USER -p $DOCKER_PASS

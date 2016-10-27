@@ -29,7 +29,7 @@ const (
 func TestAddRemoveDeviceHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{EtcdClient: etcdClient}
-	etcdClient.SetValue("/castle/nodes/config/123/disks/foo/uuid", "12345")
+	etcdClient.SetValue("/rook/nodes/config/123/disks/foo/uuid", "12345")
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/device", strings.NewReader(`{"name":"foo"}`))
 	assert.Nil(t, err)
@@ -49,7 +49,7 @@ func TestAddRemoveDeviceHandler(t *testing.T) {
 	h.AddDevice(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	devices := etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/123/device")
+	devices := etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/123/device")
 	assert.Equal(t, 1, devices.Count())
 	assert.True(t, devices.Contains("foo"))
 
@@ -62,7 +62,7 @@ func TestAddRemoveDeviceHandler(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	// check the desired state
-	devices = etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/123/device")
+	devices = etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/123/device")
 	assert.Equal(t, 0, devices.Count())
 }
 
@@ -79,7 +79,7 @@ func TestGetNodesHandler(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	etcdClient.SetValue("/castle/services/ceph/name", "cluster5")
+	etcdClient.SetValue("/rook/services/ceph/name", "cluster5")
 	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
 	h := NewHandler(context, &test.MockConnectionFactory{}, cephFactory)
 
@@ -97,7 +97,7 @@ func TestGetNodesHandler(t *testing.T) {
 		100, true, false, "btrfs", "/mnt/abc", inventory.Disk, "", false)
 	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "sdb", "321d4869-29ee-4bfd-bf21-dfd597bdffff",
 		50, false, false, "ext4", "/mnt/def", inventory.Disk, "", false)
-	appliedOSDKey := "/castle/services/ceph/osd/applied/node1"
+	appliedOSDKey := "/rook/services/ceph/osd/applied/node1"
 	etcdClient.SetValue(path.Join(appliedOSDKey, "12", "disk-uuid"), "123d4869-29ee-4bfd-bf21-dfd597bd222e")
 	etcdClient.SetValue(path.Join(appliedOSDKey, "13", "disk-uuid"), "321d4869-29ee-4bfd-bf21-dfd597bdffff")
 
@@ -149,7 +149,7 @@ func TestGetMonsHandler(t *testing.T) {
 	assert.Equal(t, `[]`, w.Body.String())
 
 	// now return some monitors from etcd
-	key := "/castle/services/ceph/monitor/desired/a"
+	key := "/rook/services/ceph/monitor/desired/a"
 	etcdClient.SetValue(path.Join(key, "id"), "mon0")
 	etcdClient.SetValue(path.Join(key, "ipaddress"), "1.2.3.4")
 	etcdClient.SetValue(path.Join(key, "port"), "8765")

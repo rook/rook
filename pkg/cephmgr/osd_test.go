@@ -42,19 +42,19 @@ func TestGetOSDInfo(t *testing.T) {
 
 func TestDesiredDeviceState(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	etcdClient.CreateDir("/castle/nodes/config/a/disks/foo")
+	etcdClient.CreateDir("/rook/nodes/config/a/disks/foo")
 
 	// add a device
 	err := AddDesiredDevice(etcdClient, "foo", "a")
 	assert.Nil(t, err)
-	devices := etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/a/device")
+	devices := etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/a/device")
 	assert.Equal(t, 1, devices.Count())
 	assert.True(t, devices.Contains("foo"))
 
 	// remove the device
 	err = RemoveDesiredDevice(etcdClient, "foo", "a")
 	assert.Nil(t, err)
-	devices = etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/a/device")
+	devices = etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/a/device")
 	assert.Equal(t, 0, devices.Count())
 
 	// removing a non-existent device is a no-op
@@ -68,10 +68,10 @@ func TestDesiredDirsState(t *testing.T) {
 	// add a dir
 	err := AddDesiredDir(etcdClient, "/my/dir", "a")
 	assert.Nil(t, err)
-	dirs := etcdClient.GetChildDirs("/castle/services/ceph/osd/desired/a/dir")
+	dirs := etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/a/dir")
 	assert.Equal(t, 1, dirs.Count())
 	assert.True(t, dirs.Contains("my_dir"))
-	assert.Equal(t, "/my/dir", etcdClient.GetValue("/castle/services/ceph/osd/desired/a/dir/my_dir/path"))
+	assert.Equal(t, "/my/dir", etcdClient.GetValue("/rook/services/ceph/osd/desired/a/dir/my_dir/path"))
 
 	loadedDirs, err := loadDesiredDirs(etcdClient, "a")
 	assert.Nil(t, err)
@@ -134,7 +134,7 @@ func TestCrushMap(t *testing.T) {
 	assert.Nil(t, err)
 
 	// location should have been stored in etcd as well
-	assert.Equal(t, location, etcdClient.GetValue("/castle/nodes/config/node1/location"))
+	assert.Equal(t, location, etcdClient.GetValue("/rook/nodes/config/node1/location"))
 }
 
 func TestGetCrushMap(t *testing.T) {

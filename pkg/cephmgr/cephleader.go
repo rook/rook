@@ -172,7 +172,7 @@ func createClusterInfo(factory client.ConnectionFactory) (*ClusterInfo, error) {
 		FSID:          fsid,
 		MonitorSecret: monSecret,
 		AdminSecret:   adminSecret,
-		Name:          "castlecluster",
+		Name:          "rookcluster",
 	}, nil
 }
 
@@ -232,7 +232,7 @@ func handleDeviceChanged(response *etcd.Response, refresher *clusterd.ClusterRef
 }
 
 // Get the node ID from the etcd key to a desired device
-// For example: /castle/services/ceph/osd/desired/9b69e58300f9/device/sdb
+// For example: /rook/services/ceph/osd/desired/9b69e58300f9/device/sdb
 func extractNodeIDFromDesiredDevice(path string) (string, error) {
 	parts := strings.Split(path, "/")
 	const nodeIDOffset = 6

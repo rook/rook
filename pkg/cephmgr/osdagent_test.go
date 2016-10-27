@@ -73,7 +73,7 @@ func TestOSDAgentWithDevices(t *testing.T) {
 
 	// Set one device as already having an assigned osd id. The other device will go through id selection,
 	// which is mocked in the createTestAgent method to return an id of 3.
-	etcdClient.SetValue(fmt.Sprintf("/castle/services/ceph/osd/desired/%s/device/sdx/osd-id", nodeID), "23")
+	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/%s/device/sdx/osd-id", nodeID), "23")
 
 	// prep the OSD agent and related orcehstration data
 	prepAgentOrchestrationData(t, agent, etcdClient, context, clusterName)
@@ -133,7 +133,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 	// configure the OSD and verify the results
 	err := agent.Initialize(context)
 	assert.Nil(t, err)
-	etcdClient.SetValue("/castle/services/ceph/osd/desired/abc/dir/tmp/osd-id", "3")
+	etcdClient.SetValue("/rook/services/ceph/osd/desired/abc/dir/tmp/osd-id", "3")
 
 	err = agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
@@ -169,7 +169,7 @@ func TestAppliedDevices(t *testing.T) {
 		100, true, false, "btrfs", "/mnt/xyz", inventory.Disk, "", false)
 	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "sdb", "ff6d4869-29ee-4bfd-bf21-dfd597bd222e",
 		50, false, false, "ext4", "/mnt/zyx", inventory.Disk, "", false)
-	appliedOSDKey := "/castle/services/ceph/osd/applied/abc"
+	appliedOSDKey := "/rook/services/ceph/osd/applied/abc"
 	etcdClient.SetValue(path.Join(appliedOSDKey, "1", "disk-uuid"), "1234")
 	etcdClient.SetValue(path.Join(appliedOSDKey, "2", "disk-uuid"), "2345")
 
@@ -189,10 +189,10 @@ func TestRemoveDevice(t *testing.T) {
 	}
 
 	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: nodeID, Executor: executor, ProcMan: &proc.ProcManager{Trap: procTrap}}
-	etcdClient.SetValue("/castle/services/ceph/osd/desired/a/device/sda/osd-id", "23")
+	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/sda/osd-id", "23")
 
 	// create two applied osds, one of which is desired
-	appliedRoot := "/castle/services/ceph/osd/applied/" + nodeID
+	appliedRoot := "/rook/services/ceph/osd/applied/" + nodeID
 	etcdClient.SetValue(path.Join(appliedRoot, "23", "disk-uuid"), "5435435333")
 	etcdClient.SetValue(path.Join(appliedRoot, "56", "disk-uuid"), "2342342343")
 
@@ -213,7 +213,7 @@ func createTestAgent(t *testing.T, nodeID, devices string) (*util.MockEtcdClient
 	agent.cluster = &ClusterInfo{Name: "myclust"}
 	agent.Initialize(&clusterd.Context{EtcdClient: etcdClient, NodeID: nodeID, ConfigDir: "/tmp"})
 	if devices == "" {
-		assert.Equal(t, "/tmp", etcdClient.GetValue(fmt.Sprintf("/castle/services/ceph/osd/desired/%s/dir/tmp/path", nodeID)))
+		assert.Equal(t, "/tmp", etcdClient.GetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/%s/dir/tmp/path", nodeID)))
 	}
 
 	conn, _ := factory.NewConnWithClusterAndUser("default", "user")
