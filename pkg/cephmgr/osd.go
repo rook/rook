@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
@@ -29,7 +30,6 @@ import (
 const (
 	DevicesValue                = "devices"
 	ForceFormatValue            = "forceFormat"
-	sgdisk                      = "sgdisk"
 	cephOsdKey                  = "/rook/services/ceph/osd"
 	desiredOsdRootKey           = cephOsdKey + "/" + desiredKey + "/%s"
 	deviceDesiredKey            = desiredOsdRootKey + "/device"
@@ -269,8 +269,7 @@ func partitionBluestoreDevice(context *clusterd.Context, config *osdConfig) erro
 		return fmt.Errorf("failed to get device %s size. %+v", config.deviceName, err)
 	}
 
-	cmd := fmt.Sprintf("zap %s", config.deviceName)
-	err = context.Executor.ExecuteCommand(cmd, sgdisk, "--zap-all", "/dev/"+config.deviceName)
+	err = sys.ZapPartitions(config.deviceName, context.Executor)
 	if err != nil {
 		return fmt.Errorf("failed to zap partitions on /dev/%s: %+v", config.deviceName, err)
 	}
@@ -288,8 +287,7 @@ func partitionBluestoreDevice(context *clusterd.Context, config *osdConfig) erro
 	}
 
 	// execute the partition command
-	cmd = fmt.Sprintf("partition %s", config.deviceName)
-	err = context.Executor.ExecuteCommand(cmd, sgdisk, args...)
+	err = sys.CreatePartitions(config.deviceName, args, context.Executor)
 	if err != nil {
 		return fmt.Errorf("failed to partition /dev/%s. %+v", config.deviceName, err)
 	}
@@ -383,14 +381,9 @@ func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context 
 		return fmt.Errorf("failed to write OSD %d config file: %+v", config.id, err)
 	}
 
-	// get the current monmap, it will be needed for creating the OSD file system
-	monMapRaw, err := getMonMap(bootstrapConn)
-	if err != nil {
-		return fmt.Errorf("failed to get mon map: %+v", err)
-	}
-
 	// create/initalize the OSD file system and journal
-	if err := createOSDFileSystem(context, cluster.Name, config, monMapRaw); err != nil {
+	err = cephMkfs(context, cluster.Name, config, bootstrapConn)
+	if err != nil {
 		return err
 	}
 
@@ -480,6 +473,40 @@ func getMonMap(bootstrapConn client.Connection) ([]byte, error) {
 		return nil, fmt.Errorf("failed to get mon map: %+v", err)
 	}
 	return buf, nil
+}
+
+// initializes the osd file system. retries if needed.
+func cephMkfs(context *clusterd.Context, clusterName string, config *osdConfig, connection client.Connection) error {
+
+	// get the current monmap for creating the OSD file system
+	monMapRaw, err := getMonMap(connection)
+	if err != nil {
+		return fmt.Errorf("failed to get mon map: %+v", err)
+	}
+
+	// The block partitions may not be ready for usage immediately after the partitioning.
+	// If the ceph mkfs fails, simply retry the mkfs command until it succeeds.
+	const retries = 3
+	for i := 0; i < retries; i++ {
+		err = createOSDFileSystem(context, clusterName, config, monMapRaw)
+		if err == nil {
+			return nil
+		}
+
+		// Remove the symlinks to the block devices if they were created on a previous run.
+		// If the symlinks exist, they will fail the next call to mkfs
+		os.Remove(path.Join(config.rootPath, "block"))
+		os.Remove(path.Join(config.rootPath, "block.db"))
+		os.Remove(path.Join(config.rootPath, "block.wal"))
+
+		if i < retries-1 {
+			// Wait for the block devices to be ready
+			log.Printf("ceph mkfs retry %d failed. trying again in 1s", i)
+			<-time.After(time.Second)
+		}
+	}
+
+	return err
 }
 
 // creates/initalizes the OSD filesystem and journal via a child process
