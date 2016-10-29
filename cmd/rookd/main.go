@@ -21,7 +21,6 @@ import (
 
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/flags"
-	"github.com/rook/rook/pkg/util/proc"
 )
 
 var rootCmd = &cobra.Command{
@@ -123,11 +122,6 @@ func joinCluster() error {
 		cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.location),
 		//etcdmgr.NewEtcdMgrService(cfg.discoveryURL),
 	}
-	procMan := &proc.ProcManager{}
-	defer func() {
-		procMan.Shutdown()
-		<-time.After(time.Duration(1) * time.Second)
-	}()
 
 	if cfg.nodeID == "" {
 		// read /etc/machine-id
@@ -139,11 +133,15 @@ func joinCluster() error {
 	}
 
 	// start the cluster orchestration services
-	context, err := clusterd.StartJoinCluster(services, procMan, cfg.dataDir, cfg.nodeID, cfg.discoveryURL,
+	context, err := clusterd.StartJoinCluster(services, cfg.dataDir, cfg.nodeID, cfg.discoveryURL,
 		cfg.etcdMembers, cfg.publicIPv4, cfg.privateIPv4, cfg.debug)
 	if err != nil {
 		return err
 	}
+	defer func() {
+		context.ProcMan.Shutdown()
+		<-time.After(time.Duration(1) * time.Second)
+	}()
 
 	go func() {
 		// set up routes and start HTTP server for REST API

@@ -1,6 +1,7 @@
 package proc
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"os/exec"
@@ -49,11 +50,8 @@ func (p *MonitoredProc) Monitor() {
 		log.Printf("starting process %v again after %.1f seconds", p.cmd.Args, delaySeconds)
 		<-time.After(time.Second * time.Duration(delaySeconds))
 
-		// initialize a new cmd object with the same arguments
-		p.cmd = exec.Command(p.cmd.Args[0], p.cmd.Args[1:]...)
-
 		// start the process
-		err = p.parent.startChildProcessCmd(p.cmd)
+		p.cmd, err = p.parent.executor.StartExecuteCommand("restart", p.cmd.Args[0], p.cmd.Args[1:]...)
 		if err != nil {
 			log.Printf("retry %d (total %d): process %v failed to restart. %v", p.retries, p.totalRetries, p.cmd.Args, err)
 			p.retries++
@@ -86,7 +84,19 @@ func (p *MonitoredProc) waitForProcessExit() {
 
 func (p *MonitoredProc) Stop() error {
 	p.monitor = false
-	return p.parent.stopChildProcess(p.cmd)
+	if p.cmd == nil || p.cmd.Process == nil {
+		return nil
+	}
+
+	pid := p.cmd.Process.Pid
+	fmt.Printf("stopping child process %d\n", pid)
+	if err := p.cmd.Process.Kill(); err != nil {
+		fmt.Printf("failed to stop child process %d: %+v\n", pid, err)
+		return err
+	}
+
+	fmt.Printf("child process %d stopped successfully\n", pid)
+	return nil
 }
 
 func calcRetryDelay(base float64, power int) float64 {

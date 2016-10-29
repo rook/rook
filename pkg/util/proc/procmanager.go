@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"sync"
 	"syscall"
+
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 type ProcStartPolicy int
@@ -22,16 +23,20 @@ const (
 
 type ProcManager struct {
 	sync.RWMutex
-	procs []*MonitoredProc
-
-	// test override method to handle starting processes
-	Trap func(action string, cmd *exec.Cmd) error
+	procs    []*MonitoredProc
+	executor exec.Executor
 }
 
+// Create a new proc manager
+func New(executor exec.Executor) *ProcManager {
+	return &ProcManager{executor: executor}
+}
+
+// Start a child process and wait for its completion
 func (p *ProcManager) Run(daemon string, args ...string) error {
 
 	log.Printf("Running process %s with args: %v", daemon, args)
-	err := p.runChildProcess(daemon, args...)
+	err := p.executor.ExecuteCommand("daemon "+daemon, os.Args[0], createDaemonArgs(daemon, args...)...)
 	if err != nil {
 		return fmt.Errorf("failed to run %s: %+v", daemon, err)
 	}
@@ -56,15 +61,15 @@ func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPo
 	}
 
 	log.Printf("Starting process %s with args: %v", daemon, args)
-	process, err := p.startChildProcess(daemon, args...)
+	cmd, err := p.executor.StartExecuteCommand("daemon "+daemon, os.Args[0], createDaemonArgs(daemon, args...)...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start daemon %s: %+v", daemon, err)
 	}
 
-	proc := newMonitoredProc(p, process)
+	proc := newMonitoredProc(p, cmd)
 
 	// monitor the process if it was not mocked
-	if process != nil && process.Process != nil {
+	if cmd != nil && cmd.Process != nil {
 		go proc.Monitor()
 	}
 
@@ -72,24 +77,6 @@ func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPo
 	p.procs = append(p.procs, proc)
 	p.Unlock()
 	return proc, nil
-}
-
-func (p *ProcManager) stopChildProcess(cmd *exec.Cmd) error {
-
-	if p.Trap != nil {
-		// mock stopping the process
-		return p.Trap(StopAction, cmd)
-	}
-
-	pid := cmd.Process.Pid
-	fmt.Printf("stopping child process %d\n", pid)
-	if err := cmd.Process.Kill(); err != nil {
-		fmt.Printf("failed to stop child process %d: %+v\n", pid, err)
-		return err
-	}
-
-	fmt.Printf("child process %d stopped successfully\n", pid)
-	return nil
 }
 
 func (p *ProcManager) Shutdown() {
@@ -173,37 +160,8 @@ func (p *ProcManager) removeManagedProc(pid int) {
 	p.Unlock()
 }
 
-func (p *ProcManager) runChildProcess(daemon string, args ...string) error {
-	cmd := createCmd(daemon, args...)
-	if p.Trap != nil {
-		// mock running the process
-		return p.Trap(RunAction, cmd)
-	}
-
-	return cmd.Run()
-}
-
-func (p *ProcManager) startChildProcess(daemon string, args ...string) (*exec.Cmd, error) {
-	cmd := createCmd(daemon, args...)
-	err := p.startChildProcessCmd(cmd)
-	return cmd, err
-}
-
-func (p *ProcManager) startChildProcessCmd(cmd *exec.Cmd) (err error) {
-	if p.Trap != nil {
-		// mock starting the process
-		return p.Trap(StartAction, cmd)
-	}
-
-	return cmd.Start()
-}
-
-func createCmd(daemon string, args ...string) *exec.Cmd {
-
-	cmd := exec.Command(os.Args[0], append([]string{"daemon", fmt.Sprintf("--type=%s", daemon), "--"}, args...)...)
-
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	return cmd
+func createDaemonArgs(daemon string, args ...string) []string {
+	return append(
+		[]string{"daemon", fmt.Sprintf("--type=%s", daemon), "--"},
+		args...)
 }
