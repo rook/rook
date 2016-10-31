@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	ctx "golang.org/x/net/context"
@@ -29,12 +30,14 @@ const (
 )
 
 type osdAgent struct {
-	cluster     *ClusterInfo
-	forceFormat bool
-	location    string
-	factory     client.ConnectionFactory
-	osdProc     map[int]*proc.MonitoredProc
-	devices     string
+	cluster       *ClusterInfo
+	forceFormat   bool
+	location      string
+	factory       client.ConnectionFactory
+	osdProc       map[int]*proc.MonitoredProc
+	devices       string
+	configCounter int32
+	osdsCompleted chan struct{}
 }
 
 type osdInfo struct {
@@ -89,20 +92,20 @@ func (a *osdAgent) Initialize(context *clusterd.Context) error {
 }
 
 func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
-	// check if the osd is in the desired state for this node
-	key := path.Join(cephKey, osdAgentName, desiredKey, context.NodeID, "ready")
-	osdDesired, err := context.EtcdClient.Get(ctx.Background(), key, nil)
+	required, err := a.osdConfigRequired(context)
 	if err != nil {
-		if util.IsEtcdKeyNotFound(err) {
-			return nil
-		}
-		return fmt.Errorf("failed to get osd desired state. %v", err)
+		return err
 	}
-
-	if osdDesired.Node.Value != "1" {
-		// The osd is not in desired state
+	if !required {
 		return nil
 	}
+
+	// check if osd configuration is already in progress from a previous request
+	if !a.tryStartConfig() {
+		return nil
+	}
+
+	defer a.decrementConfigCounter()
 
 	a.cluster, err = LoadClusterInfo(context.EtcdClient)
 	if err != nil {
@@ -125,6 +128,52 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 	}
 
 	return a.stopUndesiredDevices(context, adminConn)
+}
+
+// check if osd configured is required at this time
+// 1) the node should be marked in the desired state
+// 2) osd configuration must not already be in progress from a previous orchestration
+func (a *osdAgent) osdConfigRequired(context *clusterd.Context) (bool, error) {
+	key := path.Join(cephKey, osdAgentName, desiredKey, context.NodeID, "ready")
+	osdsDesired, err := context.EtcdClient.Get(ctx.Background(), key, nil)
+	if err != nil {
+		if util.IsEtcdKeyNotFound(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get osd desired state. %v", err)
+	}
+
+	if osdsDesired.Node.Value != "1" {
+		// The osd is not in desired state
+		return false, nil
+	}
+
+	return true, nil
+}
+
+// Try to enter the critical section for configuring osds.
+// If a configuration is already in progress, returns false.
+// If configuration can be started, returns true.
+// The caller of this method must call decrementConfigCounter() if true is returned.
+func (a *osdAgent) tryStartConfig() bool {
+	counter := atomic.AddInt32(&a.configCounter, 1)
+	if counter > 1 {
+		counter = atomic.AddInt32(&a.configCounter, -1)
+		log.Printf("osd configuration is already running. counter=%d", counter)
+		return false
+	}
+
+	return true
+}
+
+// increment the config counter when a config step starts
+func (a *osdAgent) incrementConfigCounter() {
+	atomic.AddInt32(&a.configCounter, 1)
+}
+
+// decrement the config counter when a config step is completed.
+func (a *osdAgent) decrementConfigCounter() {
+	atomic.AddInt32(&a.configCounter, -1)
 }
 
 func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection client.Connection) error {
@@ -249,32 +298,68 @@ func (a *osdAgent) createDesiredOSDs(adminConn client.Connection, context *clust
 	defer bootstrapConn.Shutdown()
 
 	// initialize the desired OSD directories
-	failed := 0
+	err = a.configureDirs(context, bootstrapConn, dirs)
+	if err != nil {
+		return err
+	}
+
+	return a.configureDevices(context, bootstrapConn, devices)
+}
+
+func (a *osdAgent) configureDirs(context *clusterd.Context, connection client.Connection, dirs map[string]int) error {
+	if len(dirs) == 0 {
+		return nil
+	}
+
+	succeeded := 0
+	var lastErr error
 	for dir, osdID := range dirs {
 		config := &osdConfig{id: osdID}
-		err := a.createOrStartOSD(context, bootstrapConn, config, dir, true)
+		err := a.createOrStartOSD(context, connection, config, dir, true)
 		if err != nil {
 			log.Printf("ERROR: failed to config osd in path %s. %+v", dir, err)
-			failed++
+			lastErr = err
+		} else {
+			succeeded++
 		}
 	}
 
-	// initialize all the desired OSD volumes
-	for device, osdID := range devices {
-		config := &osdConfig{id: osdID, deviceName: device, bluestore: true}
-		err := a.createOrStartOSD(context, bootstrapConn, config, context.ConfigDir, false)
-		if err != nil {
-			log.Printf("ERROR: failed to config osd on device %s. %+v", device, err)
-			failed++
+	log.Printf("%d/%d osds (filestore) succeeded on this node", succeeded, len(dirs))
+	return lastErr
+
+}
+
+func (a *osdAgent) configureDevices(context *clusterd.Context, connection client.Connection, devices map[string]int) error {
+	if len(devices) == 0 {
+		return nil
+	}
+
+	// reset the signal that the osd config is in progress
+	a.osdsCompleted = make(chan struct{})
+
+	// asynchronously configure all of the devices with osds
+	go func() {
+		a.incrementConfigCounter()
+		defer a.decrementConfigCounter()
+
+		// initialize all the desired OSD volumes
+		succeeded := 0
+		for device, osdID := range devices {
+			config := &osdConfig{id: osdID, deviceName: device, bluestore: true}
+			err := a.createOrStartOSD(context, connection, config, context.ConfigDir, false)
+			if err != nil {
+				log.Printf("ERROR: failed to config osd on device %s. %+v", device, err)
+			} else {
+				succeeded++
+			}
 		}
-	}
 
-	totalOSDs := len(dirs) + len(devices)
-	if failed > totalOSDs/2 {
-		return fmt.Errorf("too many osds (%d/%d) failed configuration", failed, totalOSDs)
-	}
+		log.Printf("%d/%d bluestore osds succeeded on this node", succeeded, len(devices))
 
-	log.Printf("%d/%d osds succeeded on this node", (totalOSDs - failed), totalOSDs)
+		// set the signal that the osd config is completed
+		close(a.osdsCompleted)
+	}()
+
 	return nil
 }
 
