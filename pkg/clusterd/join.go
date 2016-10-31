@@ -13,7 +13,7 @@ import (
 )
 
 // StartJoinCluster initializes the cluster services to enable joining the cluster and listening for orchestration.
-func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, configDir, nodeID, discoveryURL,
+func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryURL,
 	etcdMembers, publicIPv4, privateIPv4 string, debug bool) (*Context, error) {
 
 	log.Printf("Starting cluster. configDir=%s, nodeID=%s, url=%s, members=%s, publicIPv4=%s, privateIPv4=%s, debug=%t",
@@ -53,12 +53,13 @@ func StartJoinCluster(services []*ClusterService, procMan *proc.ProcManager, con
 		return nil, fmt.Errorf("failed to initialize lease manager: %+v", err)
 	}
 
+	executor := &exec.CommandExecutor{}
 	context := &Context{
 		EtcdClient: etcdClient,
-		Executor:   &exec.CommandExecutor{},
+		Executor:   executor,
 		NodeID:     nodeID,
 		Services:   services,
-		ProcMan:    procMan,
+		ProcMan:    proc.New(executor),
 		ConfigDir:  configDir,
 		Debug:      debug,
 	}

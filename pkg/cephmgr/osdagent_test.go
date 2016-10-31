@@ -28,20 +28,37 @@ func TestOSDAgentWithDevices(t *testing.T) {
 
 	etcdClient, agent, _ := createTestAgent(t, nodeID, "sdx,sdy")
 
-	execCount := 0
+	startCount := 0
 	executor := &exectest.MockExecutor{}
+	executor.MockStartExecuteCommand = func(name string, command string, args ...string) (*exec.Cmd, error) {
+		log.Printf("START %d for %s. %s %+v", startCount, name, command, args)
+		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
+
+		switch {
+		case startCount < 2:
+			assert.Equal(t, "--type=osd", args[1])
+		default:
+			assert.Fail(t, fmt.Sprintf("unexpected case %d", startCount))
+		}
+		startCount++
+		return cmd, nil
+	}
+
+	execCount := 0
 	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
-		log.Printf("EXECUTE %d for %s. %s %+v", execCount, name, command, args)
+		log.Printf("RUN %d for %s. %s %+v", execCount, name, command, args)
 		parts := strings.Split(name, " ")
 		nameSuffix := parts[len(parts)-1]
-		assert.Equal(t, "sgdisk", command)
 		switch {
-		case execCount == 0:
-		case execCount%2 == 0:
+		case execCount%3 == 0:
+			assert.Equal(t, "sgdisk", command)
 			assert.Equal(t, "--zap-all", args[0])
 			assert.Equal(t, "/dev/"+nameSuffix, args[1])
-		case execCount%2 == 1:
+		case execCount%3 == 1:
 			assert.Equal(t, "/dev/"+nameSuffix, args[10])
+		case execCount%3 == 2:
+			assert.Equal(t, "--mkfs", args[3])
+			createTestKeyring(t, args)
 		default:
 			assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
 		}
@@ -50,18 +67,17 @@ func TestOSDAgentWithDevices(t *testing.T) {
 	}
 	outputExecCount := 0
 	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
-		log.Printf("OUTPUT EXECUTE %d for %s. %s %+v", outputExecCount, name, command, args)
+		log.Printf("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
 		outputExecCount++
 		return "", nil
 	}
-	procCommands := 0
 
 	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		Executor:   executor,
 		NodeID:     nodeID,
 		ConfigDir:  "/tmp",
-		ProcMan:    &proc.ProcManager{Trap: createOSDAgentProcTrap(t, &procCommands, map[int]string{1: proc.StartAction, 3: proc.StartAction, 4: proc.StopAction, 5: proc.StopAction})},
+		ProcMan:    proc.New(executor),
 	}
 
 	// prep the etcd keys that would have been discovered by inventory
@@ -80,9 +96,9 @@ func TestOSDAgentWithDevices(t *testing.T) {
 
 	err := agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
-	assert.Equal(t, 4, execCount)
+	assert.Equal(t, 6, execCount)
 	assert.Equal(t, 2, outputExecCount)
-	assert.Equal(t, 4, procCommands)
+	assert.Equal(t, 2, startCount)
 	assert.Equal(t, 2, len(agent.osdProc), fmt.Sprintf("procs=%+v", agent.osdProc))
 
 	err = agent.DestroyLocalService(context)
@@ -101,11 +117,19 @@ func TestOSDAgentNoDevices(t *testing.T) {
 	nodeID := "abc"
 	etcdClient, agent, _ := createTestAgent(t, nodeID, "")
 
-	// should be no executeCommand calls
-	execCount := 0
+	startCount := 0
 	executor := &exectest.MockExecutor{}
+	executor.MockStartExecuteCommand = func(name string, command string, args ...string) (*exec.Cmd, error) {
+		startCount++
+		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
+		return cmd, nil
+	}
+
+	// should be no executeCommand calls
+	runCount := 0
 	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
-		execCount++
+		runCount++
+		createTestKeyring(t, args)
 		return nil
 	}
 
@@ -118,12 +142,11 @@ func TestOSDAgentNoDevices(t *testing.T) {
 	}
 
 	// set up expected ProcManager commands
-	procCommands := 0
 	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		Executor:   executor,
 		NodeID:     nodeID,
-		ProcMan:    &proc.ProcManager{Trap: createOSDAgentProcTrap(t, &procCommands, map[int]string{1: proc.StartAction, 2: proc.StopAction})},
+		ProcMan:    proc.New(executor),
 		ConfigDir:  "/tmp",
 	}
 
@@ -137,9 +160,9 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	err = agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
-	assert.Equal(t, 0, execCount)
+	assert.Equal(t, 1, runCount)
+	assert.Equal(t, 1, startCount)
 	assert.Equal(t, 0, outputExecCount)
-	assert.Equal(t, 2, procCommands)
 	assert.Equal(t, 1, len(agent.osdProc))
 
 	// the local device should be marked as an applied OSD now
@@ -184,11 +207,8 @@ func TestRemoveDevice(t *testing.T) {
 	nodeID := "a"
 	etcdClient, agent, conn := createTestAgent(t, nodeID, "")
 	executor := &exectest.MockExecutor{}
-	procTrap := func(action string, c *exec.Cmd) error {
-		return nil
-	}
 
-	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: nodeID, Executor: executor, ProcMan: &proc.ProcManager{Trap: procTrap}}
+	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: nodeID, Executor: executor, ProcMan: proc.New(executor)}
 	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/sda/osd-id", "23")
 
 	// create two applied osds, one of which is desired
@@ -243,48 +263,13 @@ func prepAgentOrchestrationData(t *testing.T, agent *osdAgent, etcdClient *util.
 	etcdClient.SetValue(path.Join(monKey, "port"), "8743")
 }
 
-func createOSDAgentProcTrap(t *testing.T, commands *int, actions map[int]string) func(action string, c *exec.Cmd) error {
-	return func(action string, c *exec.Cmd) error {
-		log.Printf("PROC TRAP %d for %s. %+v", *commands, action, c)
-		command := fmt.Sprintf("[%d] %s %+v", *commands, action, c)
-
-		assert.Equal(t, "daemon", c.Args[1])
-		assert.Equal(t, "--type=osd", c.Args[2])
-		assert.Equal(t, "--", c.Args[3])
-		if a, ok := actions[*commands]; ok {
-			assert.Equal(t, a, action, command)
-		} else {
-			// the default action expected is Run
-			assert.Equal(t, proc.RunAction, action, fmt.Sprintf("command=%d, action=%s", *commands, action))
-		}
-
-		var configDir string
-		if len(c.Args) > 6 && strings.HasPrefix(c.Args[6], "--id") {
-			configDir = "/tmp/osd" + c.Args[6][5:]
-			err := os.MkdirAll(configDir, 0744)
-			assert.Nil(t, err)
-			err = ioutil.WriteFile(path.Join(configDir, "keyring"), []byte("mykeyring"), 0644)
-			assert.Nil(t, err)
-		}
-
-		switch {
-		case *commands == 0:
-			assert.Equal(t, "--mkfs", c.Args[4], command)
-			assert.Equal(t, "--mkkey", c.Args[5], command)
-		case *commands == 1:
-			assert.Equal(t, "--foreground", c.Args[4], command)
-		case *commands == 2:
-			if action == proc.StopAction {
-				assert.Equal(t, "--foreground", c.Args[4], command)
-			} else {
-				assert.Equal(t, "--mkfs", c.Args[4], command)
-			}
-		case *commands >= 3 && *commands <= 5:
-			assert.Equal(t, "--foreground", c.Args[4], command)
-		default:
-			assert.Fail(t, "unexpected case %d. %s", *commands, command)
-		}
-		*commands++
-		return nil
+func createTestKeyring(t *testing.T, args []string) {
+	var configDir string
+	if len(args) > 5 && strings.HasPrefix(args[5], "--id") {
+		configDir = "/tmp/osd" + args[5][5:]
+		err := os.MkdirAll(configDir, 0744)
+		assert.Nil(t, err)
+		err = ioutil.WriteFile(path.Join(configDir, "keyring"), []byte("mykeyring"), 0644)
+		assert.Nil(t, err)
 	}
 }

@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"testing"
 
+	"github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,22 +21,24 @@ func TestRestartDelay(t *testing.T) {
 }
 
 func TestMonitoredRestart(t *testing.T) {
-	procMgr := &ProcManager{}
+	executor := &test.MockExecutor{}
+	procMgr := New(executor)
 	cmd := &exec.Cmd{Args: []string{"/my/path", "1", "2", "3"}}
 	proc := newMonitoredProc(procMgr, cmd)
 	proc.retrySecondsExponentBase = 0.0
 
-	traps := 0
-	procMgr.Trap = func(action string, cmd *exec.Cmd) error {
-		traps++
+	commands := 0
+	executor.MockStartExecuteCommand = func(name string, command string, args ...string) (*exec.Cmd, error) {
+		commands++
+		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 		switch {
-		case traps == 1:
-			return errors.New("test failure")
-		case traps == 2:
+		case commands == 1:
+			return cmd, errors.New("test failure")
+		case commands == 2:
 			assert.Equal(t, 1, proc.retries)
 			break
 		}
-		return nil
+		return cmd, nil
 	}
 
 	iter := 0

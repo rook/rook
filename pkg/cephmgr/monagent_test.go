@@ -10,44 +10,55 @@ import (
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/proc"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMonAgent(t *testing.T) {
+	executor := &test.MockExecutor{}
 
-	commands := 0
-	procTrap := func(action string, c *exec.Cmd) error {
-		log.Printf("PROC TRAP %d for %s. %+v", commands, action, c)
-		assert.Equal(t, "daemon", c.Args[1])
-		assert.Equal(t, "--type=mon", c.Args[2])
-		assert.Equal(t, "--", c.Args[3])
-		assert.Equal(t, "--cluster=rookcluster", c.Args[5])
-		assert.Equal(t, "--name=mon.mon0", c.Args[6])
-		assert.Equal(t, "--mon-data=/tmp/mon0/mon.mon0", c.Args[7])
-		assert.Equal(t, "--conf=/tmp/mon0/rookcluster.config", c.Args[8])
+	runCommands := 0
+	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
+		log.Printf("RUN %d. %s %+v", runCommands, command, args)
 		switch {
-		case commands == 0:
-			assert.Equal(t, proc.RunAction, action)
-			assert.Equal(t, "--mkfs", c.Args[4])
-			assert.Equal(t, "--keyring=/tmp/mon0/keyring", c.Args[9])
-		case commands == 1:
-			assert.Equal(t, proc.StartAction, action)
-			assert.Equal(t, "--foreground", c.Args[4])
-			assert.Equal(t, "--public-addr=1.2.3.4:2345", c.Args[9])
-		case commands == 2:
-			assert.Equal(t, proc.StopAction, action)
+		case runCommands == 0:
+			assert.Equal(t, "--mkfs", args[3])
 		default:
-			return fmt.Errorf("unexpected case %d", commands)
+			assert.Fail(t, fmt.Sprintf("unexpected case %d", runCommands))
 		}
-		commands++
+
+		runCommands++
 		return nil
 	}
+
+	startCommands := 0
+	executor.MockStartExecuteCommand = func(name string, command string, args ...string) (*exec.Cmd, error) {
+		log.Printf("START %d. %s %+v", startCommands, command, args)
+		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
+		assert.Equal(t, "daemon", args[0])
+		assert.Equal(t, "--type=mon", args[1])
+		assert.Equal(t, "--", args[2])
+		assert.Equal(t, "--cluster=rookcluster", args[4])
+		assert.Equal(t, "--name=mon.mon0", args[5])
+		assert.Equal(t, "--mon-data=/tmp/mon0/mon.mon0", args[6])
+		assert.Equal(t, "--conf=/tmp/mon0/rookcluster.config", args[7])
+		switch {
+		case startCommands == 0:
+			assert.Equal(t, "--foreground", args[3])
+			assert.Equal(t, "--public-addr=1.2.3.4:2345", args[8])
+		default:
+			return cmd, fmt.Errorf("unexpected case %d", startCommands)
+		}
+		startCommands++
+		return cmd, nil
+	}
+
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{
 		EtcdClient: etcdClient,
 		NodeID:     "a",
-		ProcMan:    &proc.ProcManager{Trap: procTrap},
+		ProcMan:    proc.New(executor),
 		ConfigDir:  "/tmp",
 	}
 
@@ -60,7 +71,8 @@ func TestMonAgent(t *testing.T) {
 	agent := &monAgent{}
 	err = agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
-	assert.Equal(t, 0, commands)
+	assert.Equal(t, 0, runCommands)
+	assert.Equal(t, 0, startCommands)
 	assert.Nil(t, agent.monProc)
 
 	// set the agent in the desired state
@@ -72,13 +84,15 @@ func TestMonAgent(t *testing.T) {
 	// now the monitor will be configured
 	err = agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, commands)
+	assert.Equal(t, 1, runCommands)
+	assert.Equal(t, 1, startCommands)
 	assert.NotNil(t, agent.monProc)
 
 	// when the mon is not in desired state, it will be removed
 	etcdClient.DeleteDir(key)
 	err = agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
-	assert.Equal(t, 3, commands)
+	assert.Equal(t, 1, runCommands)
+	assert.Equal(t, 1, startCommands)
 	assert.Nil(t, agent.monProc)
 }
