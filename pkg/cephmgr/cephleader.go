@@ -68,7 +68,6 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 		err := c.configureCephMons(e.Context)
 		if err != nil {
 			log.Printf("FAILED TO CONFIGURE CEPH MONS. %v", err)
-			return
 		}
 	}
 
@@ -77,7 +76,6 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 		err := configureOSDs(e.Context, osdsToRefresh.ToSlice())
 		if err != nil {
 			log.Printf("FAILED TO CONFIGURE CEPH OSDs. %v", err)
-			return
 		}
 	}
 
