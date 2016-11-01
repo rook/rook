@@ -7,11 +7,11 @@ import (
 )
 
 const (
-	NodeQueryName = "node"
+	nodeQueryName = "node"
 )
 
 func (a *RookNetworkRestClient) GetNodes() ([]model.Node, error) {
-	body, err := a.DoGet(NodeQueryName)
+	body, err := a.DoGet(nodeQueryName)
 	if err != nil {
 		return nil, err
 	}

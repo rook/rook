@@ -1,0 +1,131 @@
+package client
+
+import (
+	"encoding/json"
+	"fmt"
+
+	"github.com/rook/rook/pkg/model"
+)
+
+type CephStatus struct {
+	Health        HealthStatus `json:"health"`
+	FSID          string       `json:"fsid"`
+	ElectionEpoch int          `json:"election_epoch"`
+	Quorum        []int        `json:"quorum"`
+	QuorumNames   []string     `json:"quorum_names"`
+	MonMap        MonMap       `json:"monmap"`
+	OsdMap        struct {
+		OsdMap OsdMap `json:"osdmap"`
+	} `json:"osdmap"`
+	PgMap PgMap `json:"pgmap"`
+}
+
+type HealthStatus struct {
+	Details struct {
+		Services []map[string][]HealthService `json:"health_services"`
+	} `json:"health"`
+	Timechecks struct {
+		Epoch       int    `json:"epoch"`
+		Round       int    `json:"round"`
+		RoundStatus string `json:"round_status"`
+	} `json:"timechecks"`
+	Summary       []HealthSummary `json:"summary"`
+	OverallStatus string          `json:"overall_status"`
+	Detail        []interface{}   `json:"detail"`
+}
+
+type HealthService struct {
+	Name             string `json:"name"`
+	Health           string `json:"health"`
+	KbTotal          uint64 `json:"kb_total"`
+	KbUsed           uint64 `json:"kb_used"`
+	KbAvailable      uint64 `json:"kb_avail"`
+	AvailablePercent int    `json:"avail_percent"`
+	LastUpdated      string `json:"last_updated"`
+	StoreStats       struct {
+		BytesTotal  uint64 `json:"bytes_total"`
+		BytesSst    uint64 `json:"bytes_sst"`
+		BytesLog    uint64 `json:"bytes_log"`
+		BytesMisc   uint64 `json:"bytes_misc"`
+		LastUpdated string `json:"last_updated"`
+	} `json:"store_stats"`
+}
+
+type HealthSummary struct {
+	Severity string `json:"severity"`
+	Summary  string `json:"summary"`
+}
+
+type MonMap struct {
+	Epoch        int           `json:"epoch"`
+	FSID         string        `json:"fsid"`
+	CreatedTime  string        `json:"created"`
+	ModifiedTime string        `json:"modified"`
+	Mons         []MonMapEntry `json:"mons"`
+}
+
+type OsdMap struct {
+	Epoch          int  `json:"epoch"`
+	NumOsd         int  `json:"num_osds"`
+	NumUpOsd       int  `json:"num_up_osds"`
+	NumInOsd       int  `json:"num_in_osds"`
+	Full           bool `json:"full"`
+	NearFull       bool `json:"nearfull"`
+	NumRemappedPgs int  `json:"num_remapped_pgs"`
+}
+
+type PgMap struct {
+	PgsByState     []PgStateEntry `json:"pgs_by_state"`
+	Version        int            `json:"version"`
+	NumPgs         int            `json:"num_pgs"`
+	DataBytes      uint64         `json:"data_bytes"`
+	UsedBytes      uint64         `json:"bytes_used"`
+	AvailableBytes uint64         `json:"bytes_avail"`
+	TotalBytes     uint64         `json:"bytes_total"`
+}
+
+type PgStateEntry struct {
+	StateName string `json:"state_name"`
+	Count     int    `json:"count"`
+}
+
+func Status(conn Connection) (CephStatus, error) {
+	cmd := map[string]interface{}{"prefix": "status"}
+	buf, err := ExecuteMonCommand(conn, cmd, "status")
+	if err != nil {
+		return CephStatus{}, fmt.Errorf("failed to get status: %+v", err)
+	}
+
+	var status CephStatus
+	if err := json.Unmarshal(buf, &status); err != nil {
+		return CephStatus{}, fmt.Errorf("failed to unmarshal status response: %+v", err)
+	}
+
+	return status, nil
+}
+
+func HealthToModelHealthStatus(cephHealth string) model.HealthStatus {
+	switch cephHealth {
+	case "HEALTH_OK":
+		return model.HealthOK
+	case "HEALTH_WARN":
+		return model.HealthWarning
+	case "HEALTH_ERR":
+		return model.HealthError
+	default:
+		return model.HealthUnknown
+	}
+}
+
+func GetMonitorHealthSummaries(cephStatus CephStatus) []HealthService {
+	// of all the available health services, we are looking for the one called "mons",
+	// which will then be a collection of monitor healths
+	for _, hs := range cephStatus.Health.Details.Services {
+		monsHealth, ok := hs["mons"]
+		if ok {
+			return monsHealth
+		}
+	}
+
+	return nil
+}

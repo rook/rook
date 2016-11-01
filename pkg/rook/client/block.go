@@ -9,12 +9,12 @@ import (
 )
 
 const (
-	ImageQueryName        = "image"
-	ImageMapInfoQueryName = "mapinfo"
+	imageQueryName        = "image"
+	imageMapInfoQueryName = "mapinfo"
 )
 
 func (c *RookNetworkRestClient) GetBlockImages() ([]model.BlockImage, error) {
-	body, err := c.DoGet(ImageQueryName)
+	body, err := c.DoGet(imageQueryName)
 	if err != nil {
 		return nil, err
 	}
@@ -34,7 +34,7 @@ func (c *RookNetworkRestClient) CreateBlockImage(newImage model.BlockImage) (str
 		return "", err
 	}
 
-	resp, err := c.DoPost(ImageQueryName, bytes.NewReader(body))
+	resp, err := c.DoPost(imageQueryName, bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}
@@ -43,7 +43,7 @@ func (c *RookNetworkRestClient) CreateBlockImage(newImage model.BlockImage) (str
 }
 
 func (c *RookNetworkRestClient) GetBlockImageMapInfo() (model.BlockImageMapInfo, error) {
-	body, err := c.DoGet(path.Join(ImageQueryName, ImageMapInfoQueryName))
+	body, err := c.DoGet(path.Join(imageQueryName, imageMapInfoQueryName))
 	if err != nil {
 		return model.BlockImageMapInfo{}, err
 	}

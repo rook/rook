@@ -42,7 +42,10 @@ func TestListBlockImages(t *testing.T) {
 
 	out, err := listBlocks(mockRBDSysBusPath, c, e)
 	assert.Nil(t, err)
-	assert.Equal(t, "NAME       POOL      SIZE       DEVICE    MOUNT\nmyimage1   mypool1   1.00 KiB   rbd5      /tmp/mymount1\n", out)
+
+	expectedOut := "NAME       POOL      SIZE       DEVICE    MOUNT\n" +
+		"myimage1   mypool1   1.00 KiB   rbd5      /tmp/mymount1\n"
+	assert.Equal(t, expectedOut, out)
 }
 
 func TestListBlockImagesFailure(t *testing.T) {
