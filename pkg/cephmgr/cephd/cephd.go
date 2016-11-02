@@ -7,7 +7,7 @@ package cephd
 // #cgo tcmalloc,dynamic LDFLAGS: -Wl,-Bstatic -ltcmalloc_minimal -Wl,-Bdynamic
 // #cgo jemalloc tcmalloc CFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
 // #cgo jemalloc tcmalloc CXXFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
-// #cgo static LDFLAGS: -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcrypto++ -lleveldb -laio -luuid -lm -ldl -lresolv
+// #cgo static LDFLAGS: -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcrypto++ -lleveldb -laio -luuid -lm -ldl -lresolv
 // #cgo dynamic LDFLAGS: -Wl,-Bstatic -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcrypto++ -lleveldb -laio -luuid -Wl,-Bdynamic -ldl -lm -lresolv
 // #include <errno.h>
 // #include <stdlib.h>
