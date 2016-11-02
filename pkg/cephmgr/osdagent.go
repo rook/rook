@@ -289,27 +289,26 @@ func (a *osdAgent) createDesiredOSDs(adminConn client.Connection, context *clust
 		return err
 	}
 
-	// connect to the cluster using the bootstrap-osd creds, this connection will be used for config operations
-	bootstrapConn, err := connectToCluster(context, a.factory, a.cluster, getBootstrapOSDDir(context.ConfigDir),
-		"bootstrap-osd", getBootstrapOSDKeyringPath(context.ConfigDir, a.cluster.Name), context.Debug)
-	if err != nil {
-		return err
-	}
-	defer bootstrapConn.Shutdown()
-
 	// initialize the desired OSD directories
-	err = a.configureDirs(context, bootstrapConn, dirs)
+	err = a.configureDirs(context, dirs)
 	if err != nil {
 		return err
 	}
 
-	return a.configureDevices(context, bootstrapConn, devices)
+	return a.configureDevices(context, devices)
 }
 
-func (a *osdAgent) configureDirs(context *clusterd.Context, connection client.Connection, dirs map[string]int) error {
+func (a *osdAgent) configureDirs(context *clusterd.Context, dirs map[string]int) error {
 	if len(dirs) == 0 {
 		return nil
 	}
+
+	// connect to the cluster using the bootstrap-osd creds, this connection will be used for config operations
+	connection, err := a.getBoostrapOSDConnection(context)
+	if err != nil {
+		return fmt.Errorf("failed to connect to cluster to config filestore osds. %+v", err)
+	}
+	defer connection.Shutdown()
 
 	succeeded := 0
 	var lastErr error
@@ -329,7 +328,13 @@ func (a *osdAgent) configureDirs(context *clusterd.Context, connection client.Co
 
 }
 
-func (a *osdAgent) configureDevices(context *clusterd.Context, connection client.Connection, devices map[string]int) error {
+func (a *osdAgent) getBoostrapOSDConnection(context *clusterd.Context) (client.Connection, error) {
+	return connectToCluster(context, a.factory, a.cluster,
+		getBootstrapOSDDir(context.ConfigDir), "bootstrap-osd",
+		getBootstrapOSDKeyringPath(context.ConfigDir, a.cluster.Name), context.Debug)
+}
+
+func (a *osdAgent) configureDevices(context *clusterd.Context, devices map[string]int) error {
 	if len(devices) == 0 {
 		return nil
 	}
@@ -337,8 +342,16 @@ func (a *osdAgent) configureDevices(context *clusterd.Context, connection client
 	// reset the signal that the osd config is in progress
 	a.osdsCompleted = make(chan struct{})
 
+	// connect to the cluster using the bootstrap-osd creds, this connection will be used for config operations
+	connection, err := a.getBoostrapOSDConnection(context)
+	if err != nil {
+		return fmt.Errorf("failed to connect to cluster to config bluestore osds. %+v", err)
+	}
+
 	// asynchronously configure all of the devices with osds
 	go func() {
+		defer connection.Shutdown()
+
 		a.incrementConfigCounter()
 		defer a.decrementConfigCounter()
 
