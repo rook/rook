@@ -84,7 +84,7 @@ func (ee *EmbeddedEtcd) InitializeListeners() error {
 		if err != nil {
 			return err
 		}
-		ee.peerListeners = append(ee.clientListeners, l)
+		ee.peerListeners = append(ee.peerListeners, l)
 	}
 
 	return nil
