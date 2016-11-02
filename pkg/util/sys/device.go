@@ -11,6 +11,10 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 )
 
+const (
+	sgdisk = "sgdisk"
+)
+
 // request the current user once and stash it in this global variable
 var currentUser *user.User
 
@@ -52,6 +56,24 @@ func GetDeviceFilesystems(device string, executor exec.Executor) (string, error)
 	}
 
 	return parseDFOutput(device, output), nil
+}
+
+func ZapPartitions(device string, executor exec.Executor) error {
+	return executor.ExecuteCommand(fmt.Sprintf("zap %s", device), sgdisk, "--zap-all", "/dev/"+device)
+}
+
+func CreatePartitions(device string, args []string, executor exec.Executor) error {
+	err := executor.ExecuteCommand(fmt.Sprintf("partition %s", device), sgdisk, args...)
+	if err != nil {
+		return err
+	}
+
+	err = executor.ExecuteCommand("wait for udev", "udevadm", "settle", "--timeout=10")
+	if err != nil {
+		log.Printf("udevadm settle failed. %+v", err)
+	}
+
+	return nil
 }
 
 func FormatDevice(devicePath string, executor exec.Executor) error {

@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"time"
 
 	ctx "golang.org/x/net/context"
 
@@ -315,9 +314,6 @@ func (a *osdAgent) createOrStartOSD(context *clusterd.Context, connection client
 			if err != nil {
 				return fmt.Errorf("failed device %s. %+v", config.deviceName, err)
 			}
-
-			log.Printf("waiting after bluestore partition/format...")
-			<-time.After(2 * time.Second)
 		}
 
 		// osd_data_dir/whoami does not exist yet, create/initialize the OSD
