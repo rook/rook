@@ -96,6 +96,11 @@ func TestOSDAgentWithDevices(t *testing.T) {
 
 	err := agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
+
+	// wait for the async osds to complete
+	<-agent.osdsCompleted
+
+	assert.Equal(t, 0, agent.configCounter)
 	assert.Equal(t, 6, execCount)
 	assert.Equal(t, 2, outputExecCount)
 	assert.Equal(t, 2, startCount)
