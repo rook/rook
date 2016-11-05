@@ -15,38 +15,41 @@
 FROM ubuntu:xenial
 MAINTAINER Bassam Tabbara <bassam.tabbara@quantum.com>
 
+#
+# install build tools, compilers and cross compilers for all supported platforms
+#
+
 RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu xenial main universe restricted" > /etc/apt/sources.list &&\
     echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu xenial-updates main universe restricted" >> /etc/apt/sources.list &&\
     echo "deb [arch=arm64] http://ports.ubuntu.com/ xenial main universe restricted" >> /etc/apt/sources.list &&\
     echo "deb [arch=arm64] http://ports.ubuntu.com/ xenial-updates main universe restricted" >> /etc/apt/sources.list &&\
     dpkg --add-architecture arm64 && \
-    apt-get update
-
-#
-# install build tools, compilers and cross compilers for all supported platforms
-#
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
-    build-essential \
-    ca-certificates \
-    ccache \
-    clang \
-    cmake \
-    crossbuild-essential-arm64 \
-    curl \
-    docker.io \
-    git \
-    jq \
-    libxml2-dev \
-    llvm-dev \
-    mingw-w64 \
-    patch \
-    rsync \
-    runit \
-    sudo \
-    uuid-dev \
-    xz-utils \
-    yasm \
-    zip
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        ccache \
+        clang \
+        cmake \
+        crossbuild-essential-arm64 \
+        curl \
+        cython \
+        docker.io \
+        git \
+        jq \
+        libxml2-dev \
+        llvm-dev \
+        mingw-w64 \
+        patch \
+        python \
+        python-dev \
+        rsync \
+        runit \
+        sudo \
+        uuid-dev \
+        xz-utils \
+        yasm \
+        zip
 
 # install the OSX cross compilers. see https://github.com/tpoechtrager/osxcross
 RUN OSXCROSS_COMMIT_HASH=86879571d33ff7252a55d777609742561dba9953 && \
@@ -120,6 +123,7 @@ RUN curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libc
         apt-get download libunwind8-dev:${a} 2> /dev/null && \
         apt-get download libunwind8:${a} 2> /dev/null && \
         apt-get download liblzma5:${a} 2> /dev/null; \
+        apt-get download liblzma-dev:${a} 2> /dev/null; \
     done
 
 RUN for d in *.deb; do \
@@ -148,8 +152,8 @@ RUN for d in *.deb; do \
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # install go-lang
-RUN GO_VERSION=1.7.1 && \
-    GO_HASH=43ad621c9b014cde8db17393dc108378d37bc853aa351a6c74bf6432c1bbd182 && \
+RUN GO_VERSION=1.7.3 && \
+    GO_HASH=508028aac0654e993564b6e2014bf2d4a9751e3b286661b0b0040046cf18028e && \
     curl -fsSL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
     echo "${GO_HASH}  golang.tar.gz" | sha256sum -c - && \
     tar -C /usr/local -xzf golang.tar.gz && \
