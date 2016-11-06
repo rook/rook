@@ -18,13 +18,14 @@ import (
 
 // Interface implemented by a service that has been elected leader
 type cephLeader struct {
-	monLeader *monLeader
-	cluster   *ClusterInfo
-	factory   client.ConnectionFactory
+	monLeader   *monLeader
+	cluster     *ClusterInfo
+	factory     client.ConnectionFactory
+	adminSecret string
 }
 
-func newCephLeader(factory client.ConnectionFactory) *cephLeader {
-	return &cephLeader{factory: factory, monLeader: newMonLeader()}
+func newCephLeader(factory client.ConnectionFactory, adminSecret string) *cephLeader {
+	return &cephLeader{factory: factory, monLeader: newMonLeader(), adminSecret: adminSecret}
 }
 
 func (c *cephLeader) RefreshKeys() []*clusterd.RefreshKey {
@@ -87,7 +88,7 @@ func (c *cephLeader) configureCephMons(context *clusterd.Context) error {
 
 	// Create or get the basic cluster info
 	var err error
-	c.cluster, err = createOrGetClusterInfo(c.factory, context.EtcdClient)
+	c.cluster, err = createOrGetClusterInfo(c.factory, context.EtcdClient, c.adminSecret)
 	if err != nil {
 		return err
 	}
@@ -96,7 +97,7 @@ func (c *cephLeader) configureCephMons(context *clusterd.Context) error {
 	return c.monLeader.configureMonitors(c.factory, context, c.cluster)
 }
 
-func createOrGetClusterInfo(factory client.ConnectionFactory, etcdClient etcd.KeysAPI) (*ClusterInfo, error) {
+func createOrGetClusterInfo(factory client.ConnectionFactory, etcdClient etcd.KeysAPI, adminSecret string) (*ClusterInfo, error) {
 	// load any existing cluster info that may have previously been created
 	cluster, err := LoadClusterInfo(etcdClient)
 	if err != nil {
@@ -105,7 +106,7 @@ func createOrGetClusterInfo(factory client.ConnectionFactory, etcdClient etcd.Ke
 
 	if cluster == nil {
 		// the cluster info is not yet set, go ahead and set it now
-		cluster, err = createClusterInfo(factory)
+		cluster, err = createClusterInfo(factory, adminSecret)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create cluster info: %+v", err)
 		}
@@ -124,7 +125,7 @@ func createOrGetClusterInfo(factory client.ConnectionFactory, etcdClient etcd.Ke
 }
 
 // create new cluster info (FSID, shared keys)
-func createClusterInfo(factory client.ConnectionFactory) (*ClusterInfo, error) {
+func createClusterInfo(factory client.ConnectionFactory, adminSecret string) (*ClusterInfo, error) {
 	fsid, err := factory.NewFsid()
 	if err != nil {
 		return nil, err
@@ -135,9 +136,12 @@ func createClusterInfo(factory client.ConnectionFactory) (*ClusterInfo, error) {
 		return nil, err
 	}
 
-	adminSecret, err := factory.NewSecretKey()
-	if err != nil {
-		return nil, err
+	// generate the admin secret if one was not provided at the command line
+	if adminSecret == "" {
+		adminSecret, err = factory.NewSecretKey()
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &ClusterInfo{

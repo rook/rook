@@ -63,7 +63,7 @@ func TestMonAgent(t *testing.T) {
 	}
 
 	factory := &testceph.MockConnectionFactory{Fsid: "f", SecretKey: "k"}
-	cluster, err := createOrGetClusterInfo(factory, etcdClient)
+	cluster, err := createOrGetClusterInfo(factory, etcdClient, "")
 	assert.Nil(t, err)
 	assert.NotNil(t, cluster)
 

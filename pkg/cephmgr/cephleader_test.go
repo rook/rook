@@ -25,7 +25,7 @@ import (
 // ************************************************************************************************
 func TestCephLeaders(t *testing.T) {
 	factory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	leader := newCephLeader(factory)
+	leader := newCephLeader(factory, "")
 
 	nodes := make(map[string]*inventory.NodeConfig)
 	inv := &inventory.Config{Nodes: nodes}
@@ -66,7 +66,7 @@ func TestCephLeaders(t *testing.T) {
 
 func TestMoveUnhealthyMonitor(t *testing.T) {
 	factory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	leader := newCephLeader(factory)
+	leader := newCephLeader(factory, "")
 	etcdClient := util.NewMockEtcdClient()
 	leader.monLeader.waitForQuorum = func(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
 		return nil
@@ -149,7 +149,7 @@ func TestExtractDesiredDeviceNode(t *testing.T) {
 
 func TestRefreshKeys(t *testing.T) {
 	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "key"}
-	leader := newCephLeader(factory)
+	leader := newCephLeader(factory, "")
 	keys := leader.RefreshKeys()
 	assert.Equal(t, 1, len(keys))
 
@@ -160,10 +160,26 @@ func TestRefreshKeys(t *testing.T) {
 func TestNewCephService(t *testing.T) {
 	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "key"}
 
-	service := NewCephService(factory, "a,b,c", true, "root=default")
+	service := NewCephService(factory, "a,b,c", true, "root=default", "")
 	assert.NotNil(t, service)
 	assert.Equal(t, "/rook/services/ceph/osd/desired", service.Leader.RefreshKeys()[0].Path)
 	assert.Equal(t, 2, len(service.Agents))
 	assert.Equal(t, "monitor", service.Agents[0].Name())
 	assert.Equal(t, "osd", service.Agents[1].Name())
+}
+
+func TestCreateClusterInfo(t *testing.T) {
+	// generate the secret key from the factory
+	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "admin1"}
+	info, err := createClusterInfo(factory, "")
+	assert.Nil(t, err)
+	assert.Equal(t, "fsid", info.FSID)
+	assert.Equal(t, "admin1", info.AdminSecret)
+	assert.Equal(t, "rookcluster", info.Name)
+
+	// specify the desired secret key
+	factory = &testceph.MockConnectionFactory{Fsid: "fsid"}
+	info, err = createClusterInfo(factory, "mysupersecret")
+	assert.Equal(t, "fsid", info.FSID)
+	assert.Equal(t, "mysupersecret", info.AdminSecret)
 }

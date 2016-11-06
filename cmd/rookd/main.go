@@ -38,6 +38,7 @@ type config struct {
 	privateIPv4  string
 	devices      string
 	dataDir      string
+	adminSecret  string
 	forceFormat  bool
 	location     string
 	debug        bool
@@ -60,6 +61,7 @@ func main() {
 //  2) environment variables (upper case, replace - with _, and rook prefix. For example, discovery-url is ROOK_DISCOVERY_URL)
 //  3) command line parameter
 func init() {
+	rootCmd.Flags().StringVar(&cfg.adminSecret, "admin-secret", "", "secret for the admin user (random if not specified)")
 	rootCmd.Flags().StringVar(&cfg.nodeID, "id", "", "unique identifier in the cluster for this machine. defaults to /etc/machine-id if found.")
 	rootCmd.Flags().StringVar(&cfg.discoveryURL, "discovery-url", "", "etcd discovery URL. Example: http://discovery.rook.com/26bd83c92e7145e6b103f623263f61df")
 	rootCmd.Flags().StringVar(&cfg.etcdMembers, "etcd-members", "", "etcd members to connect to. Overrides the discovery URL. Example: http://10.23.45.56:2379")
@@ -119,8 +121,7 @@ func joinCluster() error {
 	}
 
 	services := []*clusterd.ClusterService{
-		cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.location),
-		//etcdmgr.NewEtcdMgrService(cfg.discoveryURL),
+		cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.location, cfg.adminSecret),
 	}
 
 	if cfg.nodeID == "" {
