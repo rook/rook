@@ -29,10 +29,10 @@ type ClusterInfo struct {
 }
 
 // create a new ceph service
-func NewCephService(factory client.ConnectionFactory, devices string, forceFormat bool, location string) *clusterd.ClusterService {
+func NewCephService(factory client.ConnectionFactory, devices string, forceFormat bool, location, adminSecret string) *clusterd.ClusterService {
 	return &clusterd.ClusterService{
 		Name:   cephName,
-		Leader: newCephLeader(factory),
+		Leader: newCephLeader(factory, adminSecret),
 		Agents: []clusterd.ServiceAgent{
 			&monAgent{factory: factory},
 			newOSDAgent(factory, devices, forceFormat, location),
