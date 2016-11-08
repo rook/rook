@@ -1,7 +1,6 @@
 ![logo](Documentation/media/logo.png?raw=true "Rook")
 
-[![Circle CI](https://circleci.com/gh/rook/rook.svg?style=svg&circle-token=2b2ee7eb7f621e612a76f861353e141a8caaf8dd)](https://circleci.com/gh/rook/rook)
-[![Build Status](https://jenkins.rook.io/job/ci-build-stateful/badge/icon)](https://jenkins.rook.io/job/ci-build-stateful/)
+[![Build Status](https://jenkins.rook.io/job/ci-rook/badge/icon)](https://jenkins.rook.io/job/ci-rook/)
 
 ## Open, Cloud Native, and Universal Distributed Storage
 
@@ -41,34 +40,42 @@ On a modern Linux host run the following:
 
 1. Download the latest  binaries
 
-```bash
-$ wget https://github.com/rook/rook/releases/download/v0.0.6/rook-v0.0.6-linux-amd64.tar.gz
-$ tar xvf rook-v0.0.6-linux-amd64.tar.gz
-```
+    ```bash
+    $ wget https://github.com/rook/rook/releases/download/v0.1.0/rook-v0.1.0-linux-amd64.tar.gz
+    $ tar xvf rook-v0.1.0-linux-amd64.tar.gz
+    ```
 
 2. Start a one node Rook cluster
 
-```bash
-$ ./rookd --data-dir /tmp/rook-test
-```
+    ```bash
+    $ ./rookd --data-dir /tmp/rook-test
+    ```
 
 3. Now in a different shell (in the same path) create a new volume image (10MB)
 
-```bash
-$ ./rook block create --name test --size 10485760
-```
+    ```bash
+    $ ./rook block create --name test --size 10485760
+    ```
 
 4. Mount the block volume and format it
 
-```bash
-sudo ./rook block mount --name test --path /tmp/rook-volume
-```
+    ```bash
+    sudo ./rook block mount --name test --path /tmp/rook-volume
+    sudo chown $USER:$USER /tmp/rook-volume
+    ```
 
 5. Write and read a file
-```bash
-echo "Hello Rook!" > /tmp/rook-volume/hello
-cat /tmp/rook-volume/hello
-```
+
+    ```bash
+    echo "Hello Rook!" > /tmp/rook-volume/hello
+    cat /tmp/rook-volume/hello
+    ```
+
+6. Cleanup
+
+    ```bash
+    sudo ./rook block unmount --path /tmp/rook-volume
+    ```
 
 ### Kubernetes
 
@@ -131,4 +138,6 @@ Please use the following to reach members of the community:
 
 ## Licensing
 
-Rook is under the Apache 2.0 license.
+Rook and Etcd are under the Apache 2.0 license. Ceph is mostly under the LGPL 2.0 license. Some portions
+of the code are under different licenses. The appropriate license information can be found in the headers
+of the source files.
