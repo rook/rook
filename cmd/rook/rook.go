@@ -61,6 +61,7 @@ func addCommands() {
 	rootCmd.AddCommand(poolCmd)
 	rootCmd.AddCommand(blockCmd)
 	rootCmd.AddCommand(statusCmd)
+	rootCmd.AddCommand(versionCmd)
 }
 
 func NewTableWriter(buffer io.Writer) *tabwriter.Writer {
