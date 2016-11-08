@@ -5,18 +5,19 @@ package main
 import (
 	"fmt"
 
-	"github.com/spf13/cobra"
-
+	etcdversion "github.com/coreos/etcd/version"
 	"github.com/rook/rook/pkg/cephmgr/cephd"
+	"github.com/rook/rook/pkg/version"
+	"github.com/spf13/cobra"
 )
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version number of rookd",
 	RunE: func(cmd *cobra.Command, args []string) error {
+		fmt.Printf("rookd: %s\n", version.Version)
 		fmt.Printf("cephd: %v\n", cephd.Version())
-		rmajor, rminor, rpatch := cephd.RadosVersion()
-		fmt.Printf("rados: %v.%v.%v\n", rmajor, rminor, rpatch)
+		fmt.Printf(" etcd: %s\n", etcdversion.Version)
 		return nil
 	},
 }
