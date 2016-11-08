@@ -19,14 +19,11 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"os"
 )
 
 // GetEtcdClients bootstraps an embedded etcd instance and returns a list of
 // current etcd cluster's client URLs. (entrypoint, when it's used as a library)
 func GetEtcdClients(configDir, token, ipAddr, nodeID string) ([]string, error) {
-	// GODEBUG setting forcing use of Go's resolver
-	os.Setenv("GODEBUG", "netdns=go+1")
 
 	full, err, currentNodes := isQuorumFull(token)
 	//currentNodes, err := GetCurrentNodesFromDiscovery(token)
