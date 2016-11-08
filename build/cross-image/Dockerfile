@@ -159,13 +159,13 @@ ENV PATH /usr/local/go/bin:$PATH
 # precompile the go standard library for all supported platforms and configurations
 RUN \
     CGO_ENABLED=1 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -a std && \
-    CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -installsuffix static -a std && \
+    CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -tags netgo -installsuffix static -a std && \
     CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -a std && \
-    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -installsuffix static -a std &&\
+    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -tags netgo -installsuffix static -a std &&\
     CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -a std && \
-    CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -installsuffix static -a std && \
+    CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -tags netgo -installsuffix static -a std && \
     CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -a std && \
-    CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix static -a std && \
+    CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -tags netgo -installsuffix static -a std && \
     CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix race -a std
 
 WORKDIR /build
