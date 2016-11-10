@@ -46,14 +46,14 @@ func TestEtcdMgrAgent(t *testing.T) {
 	assert.Nil(t, err)
 
 	//set the agent in the desired state
-	desiredKey := path.Join(etcdmgrKey, etcdDesiredKey, context2.NodeID)
-	etcdClient2.SetValue(path.Join(desiredKey, "ipaddress"), "2.3.4.5")
+	key := path.Join(etcdmgrKey, clusterd.DesiredKey, context2.NodeID)
+	etcdClient2.SetValue(path.Join(key, "ipaddress"), "2.3.4.5")
 
 	err = agent2.ConfigureLocalService(context2)
 	assert.Nil(t, err)
 	assert.NotNil(t, agent2.embeddedEtcd)
 	//remove the desired status
-	etcdClient2.DeleteDir(desiredKey)
+	etcdClient2.DeleteDir(key)
 	err = agent2.ConfigureLocalService(context2)
 	assert.Nil(t, err)
 	assert.Nil(t, agent2.embeddedEtcd)

@@ -13,14 +13,18 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cephmgr
+package mon
 
 import (
 	"fmt"
 	"path"
+	"strings"
 	"testing"
 	"time"
 
+	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
+
+	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
@@ -107,6 +111,71 @@ func TestMonOnUnhealthyNode(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestMoveUnhealthyMonitor(t *testing.T) {
+	factory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
+	etcdClient := util.NewMockEtcdClient()
+	waitForQuorum := func(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
+		return nil
+	}
+	leader := &Leader{waitForQuorum: waitForQuorum}
+
+	nodes := make(map[string]*inventory.NodeConfig)
+	inv := &inventory.Config{Nodes: nodes}
+	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.4"}
+	nodes["b"] = &inventory.NodeConfig{PublicIP: "2.3.4.5"}
+	nodes["c"] = &inventory.NodeConfig{PublicIP: "3.4.5.6"}
+
+	context := &clusterd.Context{
+		EtcdClient: etcdClient,
+		Inventory:  inv,
+		ConfigDir:  "/tmp",
+	}
+
+	// mock the agent responses that the deployments were successful to start mons and osds
+	etcdClient.WatcherResponses["/rook/_notify/a/monitor/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/b/monitor/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/c/monitor/status"] = "succeeded"
+
+	// initialize the first three monitors
+	err := leader.Configure(context, factory, "mykey")
+	assert.Nil(t, err)
+	assert.True(t, etcdClient.GetChildDirs("/rook/services/ceph/monitor/desired").Equals(util.CreateSet([]string{"a", "b", "c"})))
+
+	// add a new node and mark node a as unhealthy
+	nodes["a"].HeartbeatAge = (UnhealthyHeartbeatAgeSeconds + 1) * time.Second
+	nodes["d"] = &inventory.NodeConfig{PublicIP: "4.5.6.7"}
+	etcdClient.WatcherResponses["/rook/_notify/d/monitor/status"] = "succeeded"
+
+	err = leader.Configure(context, factory, "mykey")
+	assert.Nil(t, err)
+	assert.True(t, etcdClient.GetChildDirs("/rook/services/ceph/monitor/desired").Equals(util.CreateSet([]string{"d", "b", "c"})))
+
+	cluster, err := LoadClusterInfo(etcdClient)
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(cluster.Monitors))
+	mon1 := false
+	mon2 := false
+	mon3 := false
+	for _, mon := range cluster.Monitors {
+		if strings.Contains(mon.Endpoint, nodes["a"].PublicIP) {
+			assert.Fail(t, "mon a was not removed")
+		}
+		if strings.Contains(mon.Endpoint, nodes["b"].PublicIP) {
+			mon1 = true
+		}
+		if strings.Contains(mon.Endpoint, nodes["c"].PublicIP) {
+			mon2 = true
+		}
+		if strings.Contains(mon.Endpoint, nodes["d"].PublicIP) {
+			mon3 = true
+		}
+	}
+
+	assert.True(t, mon1)
+	assert.True(t, mon2)
+	assert.True(t, mon3)
+}
+
 func TestMaxMonID(t *testing.T) {
 
 	// the empty list returns -1
@@ -147,7 +216,7 @@ func TestUnhealthyMon(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	nodes := make(map[string]*inventory.NodeConfig)
 	inv := &inventory.Config{Nodes: nodes}
-	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.4", HeartbeatAge: unhealthyMonHeatbeatAgeSeconds * time.Second}
+	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.4", HeartbeatAge: UnhealthyHeartbeatAgeSeconds * time.Second}
 	nodes["b"] = &inventory.NodeConfig{PublicIP: "2.2.3.4"}
 	nodes["c"] = &inventory.NodeConfig{PublicIP: "3.2.3.4"}
 	nodes["d"] = &inventory.NodeConfig{PublicIP: "4.2.3.4"}
@@ -173,7 +242,7 @@ func TestUnhealthyMon(t *testing.T) {
 
 	// now we expect to add a and remove b from the desired state
 	nodes["a"].HeartbeatAge = 0
-	nodes["b"].HeartbeatAge = unhealthyMonHeatbeatAgeSeconds * time.Second
+	nodes["b"].HeartbeatAge = UnhealthyHeartbeatAgeSeconds * time.Second
 	chosen, bad, err = chooseMonitorNodes(context)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(chosen))
@@ -189,7 +258,7 @@ func TestUnhealthyMon(t *testing.T) {
 
 	// fail choosing the nodes if we don't have enough healthy nodes to move.
 	// 'b' is still unhealthy and 'c' now becomes unhealthy
-	nodes["c"].HeartbeatAge = unhealthyMonHeatbeatAgeSeconds * time.Second
+	nodes["c"].HeartbeatAge = UnhealthyHeartbeatAgeSeconds * time.Second
 	chosen, bad, err = chooseMonitorNodes(context)
 	assert.NotNil(t, err)
 	assert.Equal(t, 1, len(bad))

@@ -32,6 +32,7 @@ import (
 	"github.com/rook/rook/pkg/api"
 	"github.com/rook/rook/pkg/cephmgr"
 	"github.com/rook/rook/pkg/cephmgr/cephd"
+	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
 
 	"github.com/rook/rook/pkg/util"
@@ -158,7 +159,7 @@ func joinCluster() error {
 
 	go func() {
 		// set up routes and start HTTP server for REST API
-		h := api.NewHandler(context, cephmgr.NewConnectionFactory(), cephd.New())
+		h := api.NewHandler(context, mon.NewConnectionFactory(), cephd.New())
 		r := api.NewRouter(h.GetRoutes())
 		if err := http.ListenAndServe(":8124", r); err != nil {
 			log.Printf("API server error: %+v", err)

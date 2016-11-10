@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cephmgr
+package mon
 
 import (
 	"strings"
@@ -36,16 +36,16 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 
 	monMembers := "mon0 mon1"
 
-	cephConfig := createDefaultCephConfig(clusterInfo, "/var/lib/rook1", false, false)
+	cephConfig := CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", false, false)
 	verifyConfig(t, cephConfig, monMembers, "", "filestore", 0)
 
-	cephConfig = createDefaultCephConfig(clusterInfo, "/var/lib/rook1", false, true)
+	cephConfig = CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", false, true)
 	verifyConfig(t, cephConfig, monMembers, "bluestore rocksdb", "bluestore", 0)
 
-	cephConfig = createDefaultCephConfig(clusterInfo, "/var/lib/rook1", true, false)
+	cephConfig = CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", true, false)
 	verifyConfig(t, cephConfig, monMembers, "", "filestore", 20)
 
-	cephConfig = createDefaultCephConfig(clusterInfo, "/var/lib/rook1", true, true)
+	cephConfig = CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", true, true)
 	verifyConfig(t, cephConfig, monMembers, "bluestore rocksdb", "bluestore", 20)
 }
 

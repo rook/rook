@@ -13,13 +13,14 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cephmgr
+package mon
 
 import (
 	"errors"
 	"fmt"
 	"log"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -34,10 +35,10 @@ type CephMonitorConfig struct {
 }
 
 type cephConfig struct {
-	*cephGlobalConfig `ini:"global,omitempty"`
+	*GlobalConfig `ini:"global,omitempty"`
 }
 
-type cephGlobalConfig struct {
+type GlobalConfig struct {
 	EnableExperimental       string `ini:"enable experimental unrecoverable data corrupting features"`
 	FSID                     string `ini:"fsid,omitempty"`
 	RunDir                   string `ini:"run dir,omitempty"`
@@ -61,6 +62,21 @@ type cephGlobalConfig struct {
 	CrushtoolPath            string `ini:"crushtool"`
 }
 
+// get the path of a given monitor's run dir
+func getMonRunDirPath(configDir, monName string) string {
+	return path.Join(configDir, monName)
+}
+
+// get the path of a given monitor's keyring
+func getMonKeyringPath(configDir, monName string) string {
+	return filepath.Join(getMonRunDirPath(configDir, monName), "keyring")
+}
+
+// get the path of a given monitor's data dir
+func getMonDataDirPath(configDir, monName string) string {
+	return filepath.Join(getMonRunDirPath(configDir, monName), fmt.Sprintf("mon.%s", monName))
+}
+
 func ConnectToClusterAsAdmin(context *clusterd.Context, factory client.ConnectionFactory, cluster *ClusterInfo) (client.Connection, error) {
 	if len(cluster.Monitors) == 0 {
 		return nil, errors.New("no monitors")
@@ -71,22 +87,22 @@ func ConnectToClusterAsAdmin(context *clusterd.Context, factory client.Connectio
 		return nil, err
 	}
 
-	return connectToCluster(context, factory, cluster, getMonRunDirPath(context.ConfigDir, monName),
+	return ConnectToCluster(context, factory, cluster, getMonRunDirPath(context.ConfigDir, monName),
 		"admin", getMonKeyringPath(context.ConfigDir, monName), context.Debug)
 }
 
 // get the path of a given monitor's config file
-func getConfFilePath(root, clusterName string) string {
+func GetConfFilePath(root, clusterName string) string {
 	return fmt.Sprintf("%s/%s.config", root, clusterName)
 }
 
 // generates and writes the monitor config file to disk
-func generateConnectionConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string, debug bool) (string, error) {
-	return generateConfigFile(context, cluster, pathRoot, user, keyringPath, debug, false, nil, nil)
+func GenerateConnectionConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string, debug bool) (string, error) {
+	return GenerateConfigFile(context, cluster, pathRoot, user, keyringPath, debug, false, nil, nil)
 }
 
 // generates and writes the monitor config file to disk
-func generateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string,
+func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string,
 	debug, bluestore bool, userConfig *cephConfig, clientSettings map[string]string) (string, error) {
 
 	if pathRoot == "" {
@@ -112,7 +128,7 @@ func generateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 	}
 
 	// write the entire config to disk
-	filePath := getConfFilePath(pathRoot, cluster.Name)
+	filePath := GetConfFilePath(pathRoot, cluster.Name)
 	if err := configFile.SaveTo(filePath); err != nil {
 		return "", err
 	}
@@ -139,12 +155,12 @@ func getFirstMonitor(cluster *ClusterInfo) string {
 }
 
 // opens a connection to the cluster that can be used for management operations
-func connectToCluster(context *clusterd.Context, factory client.ConnectionFactory, cluster *ClusterInfo,
+func ConnectToCluster(context *clusterd.Context, factory client.ConnectionFactory, cluster *ClusterInfo,
 	basePath, user, keyringPath string, debug bool) (client.Connection, error) {
 
 	log.Printf("connecting to ceph cluster %s with user %s", cluster.Name, user)
 
-	confFilePath, err := generateConnectionConfigFile(context, cluster, basePath, user, keyringPath, debug)
+	confFilePath, err := GenerateConnectionConfigFile(context, cluster, basePath, user, keyringPath, debug)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate config file: %v", err)
 	}
@@ -165,7 +181,7 @@ func connectToCluster(context *clusterd.Context, factory client.ConnectionFactor
 	return conn, nil
 }
 
-func createDefaultCephConfig(cluster *ClusterInfo, runDir string, debug, bluestore bool) *cephConfig {
+func CreateDefaultCephConfig(cluster *ClusterInfo, runDir string, debug, bluestore bool) *cephConfig {
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	monMembers := make([]string, len(cluster.Monitors))
@@ -188,7 +204,7 @@ func createDefaultCephConfig(cluster *ClusterInfo, runDir string, debug, bluesto
 	}
 
 	return &cephConfig{
-		&cephGlobalConfig{
+		&GlobalConfig{
 			EnableExperimental:     experimental,
 			FSID:                   cluster.FSID,
 			RunDir:                 runDir,
@@ -219,7 +235,7 @@ func createGlobalConfigFileSection(cluster *ClusterInfo, runDir string, debug, b
 		// use the user config since it was provided
 		ceph = userConfig
 	} else {
-		ceph = createDefaultCephConfig(cluster, runDir, debug, bluestore)
+		ceph = CreateDefaultCephConfig(cluster, runDir, debug, bluestore)
 	}
 
 	configFile := ini.Empty()

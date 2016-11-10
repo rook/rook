@@ -19,7 +19,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/rook/rook/pkg/cephmgr"
+	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/cephmgr/osd"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/model"
@@ -36,7 +37,7 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clusterName, err := cephmgr.GetClusterName(h.context.EtcdClient)
+	clusterName, err := mon.GetClusterName(h.context.EtcdClient)
 	if err != nil {
 		log.Printf("failed to get cluster name: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -47,7 +48,7 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 	i := 0
 	for nodeID, n := range clusterInventory.Nodes {
 		// look up all the disks that the current node has applied OSDs on
-		appliedIDs, err := cephmgr.GetAppliedOSDs(nodeID, h.context.EtcdClient)
+		appliedIDs, err := osd.GetAppliedOSDs(nodeID, h.context.EtcdClient)
 		if err != nil {
 			log.Printf("failed to get applied OSDs for node %s: %+v", nodeID, err)
 			w.WriteHeader(http.StatusInternalServerError)

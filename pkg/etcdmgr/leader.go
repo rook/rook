@@ -32,9 +32,7 @@ import (
 )
 
 const (
-	etcdmgrKey     = "/rook/services/etcd"
-	etcdDesiredKey = "desired"
-	etcdAppliedKey = "applied"
+	etcdmgrKey = "/rook/services/etcd"
 )
 
 type etcdMgrLeader struct {
@@ -134,7 +132,7 @@ func (e *etcdMgrLeader) growEtcdQuorum(context *clusterd.Context, candidates []s
 		}
 
 		// set ip address for the target agent (will be used to bootstrap embedded etcd)
-		ipKey := path.Join(etcdmgrKey, etcdDesiredKey, candidate, "ipaddress")
+		ipKey := path.Join(etcdmgrKey, clusterd.DesiredKey, candidate, "ipaddress")
 		log.Println("address key for new instance: ", ipKey)
 		_, err := context.EtcdClient.Set(ctx.Background(), ipKey, targetIP, nil)
 		if err != nil {
@@ -161,7 +159,7 @@ func (e *etcdMgrLeader) shrinkEtcdQuorum(context *clusterd.Context, candidates [
 			return errors.New("candidate endpoint not found in the inventory")
 		}
 
-		key := path.Join(etcdmgrKey, etcdDesiredKey, candidate, "ipaddress")
+		key := path.Join(etcdmgrKey, clusterd.DesiredKey, candidate, "ipaddress")
 		log.Println("address key for new instance: ", key)
 		_, err := context.EtcdClient.Delete(ctx.Background(), key, &client.DeleteOptions{Dir: true, Recursive: true})
 		if err != nil {

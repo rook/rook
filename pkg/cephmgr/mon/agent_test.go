@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cephmgr
+package mon
 
 import (
 	"fmt"
@@ -83,7 +83,7 @@ func TestMonAgent(t *testing.T) {
 	assert.NotNil(t, cluster)
 
 	// nothing expected to be configured because the node is not in the desired state
-	agent := &monAgent{}
+	agent := &agent{}
 	err = agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, runCommands)
@@ -91,7 +91,7 @@ func TestMonAgent(t *testing.T) {
 	assert.Nil(t, agent.monProc)
 
 	// set the agent in the desired state
-	key := path.Join(cephKey, monitorAgentName, desiredKey, context.NodeID)
+	key := path.Join(CephKey, monitorAgentName, clusterd.DesiredKey, context.NodeID)
 	etcdClient.SetValue(path.Join(key, "id"), "mon0")
 	etcdClient.SetValue(path.Join(key, "ipaddress"), "1.2.3.4")
 	etcdClient.SetValue(path.Join(key, "port"), "2345")

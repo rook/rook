@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cephmgr
+package mon
 
 import (
 	"errors"
@@ -34,25 +34,33 @@ import (
 )
 
 const (
-	monitorKey                     = "monitor"
-	unhealthyMonHeatbeatAgeSeconds = 10
+	monitorKey                   = "monitor"
+	UnhealthyHeartbeatAgeSeconds = 10
 )
 
-type monLeader struct {
+type Leader struct {
 	waitForQuorum func(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error
 }
 
-func newMonLeader() *monLeader {
-	return &monLeader{waitForQuorum: waitForQuorum}
+func NewLeader() *Leader {
+	return &Leader{waitForQuorum: waitForQuorum}
 }
 
+// Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
 // Create the ceph monitors
 // Must be idempotent
-func (m *monLeader) configureMonitors(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
+func (m *Leader) Configure(context *clusterd.Context, factory client.ConnectionFactory, adminSecret string) error {
+
+	// Create or get the basic cluster info
+	var err error
+	cluster, err := createOrGetClusterInfo(factory, context.EtcdClient, adminSecret)
+	if err != nil {
+		return err
+	}
+
 	log.Printf("Creating monitors with %d nodes available", len(context.Inventory.Nodes))
 
 	// choose the nodes where the monitors will run
-	var err error
 	var monitorsToRemove map[string]*CephMonitorConfig
 	cluster.Monitors, monitorsToRemove, err = chooseMonitorNodes(context)
 	if err != nil {
@@ -154,7 +162,7 @@ func isMonitor(cluster *ClusterInfo, nodeID string) bool {
 func GetDesiredMonitors(etcdClient etcd.KeysAPI) (map[string]*CephMonitorConfig, error) {
 	// query the desired monitors from etcd
 	monitors := make(map[string]*CephMonitorConfig)
-	monKey := path.Join(cephKey, monitorKey, desiredKey)
+	monKey := path.Join(CephKey, monitorKey, clusterd.DesiredKey)
 	previousMonitors, err := etcdClient.Get(ctx.Background(), monKey, &etcd.GetOptions{Recursive: true})
 	if err != nil {
 		if util.IsEtcdKeyNotFound(err) {
@@ -271,7 +279,7 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 	// FIX: Use an etcd3 transaction to add the monitor keys and remove unhealhty monitors
 
 	// store the properties for the new monitors
-	monKey := path.Join(cephKey, monitorKey, desiredKey)
+	monKey := path.Join(CephKey, monitorKey, clusterd.DesiredKey)
 	err = util.StoreEtcdProperties(context.EtcdClient, monKey, settings)
 	if err != nil {
 		log.Printf("failed to save monitor ids. err=%v", err)
@@ -293,7 +301,7 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 }
 
 func isNodeHealthyForMon(node *inventory.NodeConfig) bool {
-	return int(node.HeartbeatAge.Seconds()) < unhealthyMonHeatbeatAgeSeconds
+	return int(node.HeartbeatAge.Seconds()) < UnhealthyHeartbeatAgeSeconds
 }
 
 func getUnhealthyMonitors(context *clusterd.Context, monitors map[string]*CephMonitorConfig) map[string]*CephMonitorConfig {

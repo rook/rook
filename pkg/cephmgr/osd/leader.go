@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cephmgr
+package osd
 
 import (
 	"log"
@@ -21,8 +21,16 @@ import (
 
 	ctx "golang.org/x/net/context"
 
+	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
 )
+
+type Leader struct {
+}
+
+func NewLeader() *Leader {
+	return &Leader{}
+}
 
 // Load the state of the OSDs from etcd.
 // Returns whether the service has updates to be applied.
@@ -31,7 +39,7 @@ func getOSDState(context *clusterd.Context) (bool, error) {
 }
 
 // Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
-func configureOSDs(context *clusterd.Context, nodes []string) error {
+func (l *Leader) Configure(context *clusterd.Context, nodes []string) error {
 
 	if len(nodes) == 0 {
 		// No nodes for OSDs
@@ -41,7 +49,7 @@ func configureOSDs(context *clusterd.Context, nodes []string) error {
 	// Trigger all of the nodes to configure their OSDs
 	osdNodes := []string{}
 	for _, nodeID := range nodes {
-		key := path.Join(cephKey, osdAgentName, desiredKey, nodeID, "ready")
+		key := path.Join(mon.CephKey, osdAgentName, clusterd.DesiredKey, nodeID, "ready")
 		_, err := context.EtcdClient.Set(ctx.Background(), key, "1", nil)
 		if err != nil {
 			log.Printf("failed to trigger osd %s", nodeID)
