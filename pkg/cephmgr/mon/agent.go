@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cephmgr
+package mon
 
 import (
 	"fmt"
@@ -31,25 +31,40 @@ import (
 )
 
 const (
-	monitorAgentName = "monitor"
+	monitorAgentName       = "monitor"
+	monitorKeyringTemplate = `
+[mon.]
+	key = %s
+	caps mon = "allow *"
+[client.admin]
+	key = %s
+	auid = 0
+	caps mds = "allow"
+	caps mon = "allow *"
+	caps osd = "allow *"
+`
 )
 
-type monAgent struct {
+type agent struct {
 	factory client.ConnectionFactory
 	monProc *proc.MonitoredProc
 }
 
-func (a *monAgent) Name() string {
+func NewAgent(factory client.ConnectionFactory) clusterd.ServiceAgent {
+	return &agent{factory: factory}
+}
+
+func (a *agent) Name() string {
 	return monitorAgentName
 }
 
-func (a *monAgent) Initialize(context *clusterd.Context) error {
+func (a *agent) Initialize(context *clusterd.Context) error {
 	return nil
 }
 
-func (a *monAgent) ConfigureLocalService(context *clusterd.Context) error {
+func (a *agent) ConfigureLocalService(context *clusterd.Context) error {
 	// check if the monitor is in the desired state for this node
-	key := path.Join(cephKey, monitorAgentName, desiredKey, context.NodeID)
+	key := path.Join(CephKey, monitorAgentName, clusterd.DesiredKey, context.NodeID)
 	monDesired, err := util.EtcdDirExists(context.EtcdClient, key)
 	if err != nil {
 		return err
@@ -86,7 +101,7 @@ func (a *monAgent) ConfigureLocalService(context *clusterd.Context) error {
 }
 
 // stops and removes the monitor from this node
-func (a *monAgent) DestroyLocalService(context *clusterd.Context) error {
+func (a *agent) DestroyLocalService(context *clusterd.Context) error {
 	if a.monProc == nil {
 		log.Printf("no need to stop a monitor that is not running")
 		return nil
@@ -106,14 +121,14 @@ func (a *monAgent) DestroyLocalService(context *clusterd.Context) error {
 }
 
 // creates and initializes the given monitors file systems
-func (a *monAgent) makeMonitorFileSystem(context *clusterd.Context, cluster *ClusterInfo, monName string) error {
+func (a *agent) makeMonitorFileSystem(context *clusterd.Context, cluster *ClusterInfo, monName string) error {
 	// write the keyring to disk
 	if err := writeMonitorKeyring(context.ConfigDir, monName, cluster); err != nil {
 		return err
 	}
 
 	// write the config file to disk
-	confFilePath, err := generateConnectionConfigFile(context, cluster, getMonRunDirPath(context.ConfigDir, monName),
+	confFilePath, err := GenerateConnectionConfigFile(context, cluster, getMonRunDirPath(context.ConfigDir, monName),
 		"admin", getMonKeyringPath(context.ConfigDir, monName), context.Debug)
 	if err != nil {
 		return err
@@ -142,7 +157,7 @@ func (a *monAgent) makeMonitorFileSystem(context *clusterd.Context, cluster *Clu
 }
 
 // runs the monitor in a child process
-func (a *monAgent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, monitor *CephMonitorConfig) error {
+func (a *agent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, monitor *CephMonitorConfig) error {
 	if monitor.Endpoint == "" {
 		return fmt.Errorf("missing endpoint for mon %s", monitor.Name)
 	}
@@ -158,7 +173,7 @@ func (a *monAgent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, m
 		fmt.Sprintf("--cluster=%s", cluster.Name),
 		monNameArg,
 		fmt.Sprintf("--mon-data=%s", getMonDataDirPath(context.ConfigDir, monitor.Name)),
-		fmt.Sprintf("--conf=%s", getConfFilePath(getMonRunDirPath(context.ConfigDir, monitor.Name), cluster.Name)),
+		fmt.Sprintf("--conf=%s", GetConfFilePath(getMonRunDirPath(context.ConfigDir, monitor.Name), cluster.Name)),
 		fmt.Sprintf("--public-addr=%s", monitor.Endpoint))
 	if err != nil {
 		return fmt.Errorf("failed to start monitor %s: %v", monitor.Name, err)

@@ -17,14 +17,12 @@ package cephmgr
 
 import (
 	"path"
-	"strings"
 	"testing"
-	"time"
 
 	etcd "github.com/coreos/etcd/client"
 
-	"github.com/rook/rook/pkg/cephmgr/client"
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
@@ -40,7 +38,7 @@ import (
 // ************************************************************************************************
 func TestCephLeaders(t *testing.T) {
 	factory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	leader := newCephLeader(factory, "")
+	leader := newLeader(factory, "")
 
 	nodes := make(map[string]*inventory.NodeConfig)
 	inv := &inventory.Config{Nodes: nodes}
@@ -79,71 +77,6 @@ func TestCephLeaders(t *testing.T) {
 	assert.Equal(t, "mykey", etcdClient.GetValue("/rook/services/ceph/_secrets/admin"))
 }
 
-func TestMoveUnhealthyMonitor(t *testing.T) {
-	factory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	leader := newCephLeader(factory, "")
-	etcdClient := util.NewMockEtcdClient()
-	leader.monLeader.waitForQuorum = func(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
-		return nil
-	}
-
-	nodes := make(map[string]*inventory.NodeConfig)
-	inv := &inventory.Config{Nodes: nodes}
-	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.4"}
-	nodes["b"] = &inventory.NodeConfig{PublicIP: "2.3.4.5"}
-	nodes["c"] = &inventory.NodeConfig{PublicIP: "3.4.5.6"}
-
-	context := &clusterd.Context{
-		EtcdClient: etcdClient,
-		Inventory:  inv,
-		ConfigDir:  "/tmp",
-	}
-
-	// mock the agent responses that the deployments were successful to start mons and osds
-	etcdClient.WatcherResponses["/rook/_notify/a/monitor/status"] = "succeeded"
-	etcdClient.WatcherResponses["/rook/_notify/b/monitor/status"] = "succeeded"
-	etcdClient.WatcherResponses["/rook/_notify/c/monitor/status"] = "succeeded"
-
-	// initialize the first three monitors
-	err := leader.configureCephMons(context)
-	assert.Nil(t, err)
-	assert.True(t, etcdClient.GetChildDirs("/rook/services/ceph/monitor/desired").Equals(util.CreateSet([]string{"a", "b", "c"})))
-
-	// add a new node and mark node a as unhealthy
-	nodes["a"].HeartbeatAge = (unhealthyMonHeatbeatAgeSeconds + 1) * time.Second
-	nodes["d"] = &inventory.NodeConfig{PublicIP: "4.5.6.7"}
-	etcdClient.WatcherResponses["/rook/_notify/d/monitor/status"] = "succeeded"
-
-	err = leader.configureCephMons(context)
-	assert.Nil(t, err)
-	assert.True(t, etcdClient.GetChildDirs("/rook/services/ceph/monitor/desired").Equals(util.CreateSet([]string{"d", "b", "c"})))
-
-	cluster, err := LoadClusterInfo(etcdClient)
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(cluster.Monitors))
-	mon1 := false
-	mon2 := false
-	mon3 := false
-	for _, mon := range cluster.Monitors {
-		if strings.Contains(mon.Endpoint, nodes["a"].PublicIP) {
-			assert.Fail(t, "mon a was not removed")
-		}
-		if strings.Contains(mon.Endpoint, nodes["b"].PublicIP) {
-			mon1 = true
-		}
-		if strings.Contains(mon.Endpoint, nodes["c"].PublicIP) {
-			mon2 = true
-		}
-		if strings.Contains(mon.Endpoint, nodes["d"].PublicIP) {
-			mon3 = true
-		}
-	}
-
-	assert.True(t, mon1)
-	assert.True(t, mon2)
-	assert.True(t, mon3)
-}
-
 func TestExtractDesiredDeviceNode(t *testing.T) {
 	// valid path with node id
 	node, err := extractNodeIDFromDesiredDevice("/rook/services/ceph/osd/desired/abc/device/sdb")
@@ -164,11 +97,11 @@ func TestExtractDesiredDeviceNode(t *testing.T) {
 
 func TestRefreshKeys(t *testing.T) {
 	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "key"}
-	leader := newCephLeader(factory, "")
+	leader := newLeader(factory, "")
 	keys := leader.RefreshKeys()
 	assert.Equal(t, 1, len(keys))
 
-	expected := path.Join(cephKey, osdAgentName, desiredKey)
+	expected := path.Join(mon.CephKey, "osd", clusterd.DesiredKey)
 	assert.Equal(t, expected, keys[0].Path)
 }
 
@@ -186,7 +119,7 @@ func TestNewCephService(t *testing.T) {
 func TestCreateClusterInfo(t *testing.T) {
 	// generate the secret key from the factory
 	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "admin1"}
-	info, err := createClusterInfo(factory, "")
+	info, err := mon.CreateClusterInfo(factory, "")
 	assert.Nil(t, err)
 	assert.Equal(t, "fsid", info.FSID)
 	assert.Equal(t, "admin1", info.AdminSecret)
@@ -194,7 +127,7 @@ func TestCreateClusterInfo(t *testing.T) {
 
 	// specify the desired secret key
 	factory = &testceph.MockConnectionFactory{Fsid: "fsid"}
-	info, err = createClusterInfo(factory, "mysupersecret")
+	info, err = mon.CreateClusterInfo(factory, "mysupersecret")
 	assert.Equal(t, "fsid", info.FSID)
 	assert.Equal(t, "mysupersecret", info.AdminSecret)
 }

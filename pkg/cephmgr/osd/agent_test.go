@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package cephmgr
+package osd
 
 import (
 	"fmt"
@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
@@ -249,8 +250,8 @@ func createTestAgent(t *testing.T, nodeID, devices string) (*util.MockEtcdClient
 	forceFormat := false
 	etcdClient := util.NewMockEtcdClient()
 	factory := &testceph.MockConnectionFactory{}
-	agent := newOSDAgent(factory, devices, forceFormat, location)
-	agent.cluster = &ClusterInfo{Name: "myclust"}
+	agent := NewAgent(factory, devices, forceFormat, location)
+	agent.cluster = &mon.ClusterInfo{Name: "myclust"}
 	agent.Initialize(&clusterd.Context{EtcdClient: etcdClient, NodeID: nodeID, ConfigDir: "/tmp"})
 	if devices == "" {
 		assert.Equal(t, "/tmp", etcdClient.GetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/%s/dir/tmp/path", nodeID)))
@@ -267,17 +268,20 @@ func createTestAgent(t *testing.T, nodeID, devices string) (*util.MockEtcdClient
 }
 
 func prepAgentOrchestrationData(t *testing.T, agent *osdAgent, etcdClient *util.MockEtcdClient, context *clusterd.Context, clusterName string) {
-	key := path.Join(cephKey, osdAgentName, desiredKey, context.NodeID)
+	key := path.Join(mon.CephKey, osdAgentName, clusterd.DesiredKey, context.NodeID)
 	etcdClient.CreateDir(key)
 
 	err := agent.Initialize(context)
-	etcdClient.SetValue(path.Join(cephKey, osdAgentName, desiredKey, context.NodeID, "ready"), "1")
+	etcdClient.SetValue(path.Join(mon.CephKey, osdAgentName, clusterd.DesiredKey, context.NodeID, "ready"), "1")
 	assert.Nil(t, err)
 
 	// prep the etcd keys as if the leader initiated the orchestration
-	cluster := &ClusterInfo{FSID: "id", MonitorSecret: "monsecret", AdminSecret: "adminsecret", Name: clusterName}
-	saveClusterInfo(cluster, etcdClient)
-	monKey := path.Join(cephKey, monitorKey, desiredKey, context.NodeID)
+	etcdClient.SetValue(path.Join(mon.CephKey, "fsid"), "id")
+	etcdClient.SetValue(path.Join(mon.CephKey, "name"), clusterName)
+	etcdClient.SetValue(path.Join(mon.CephKey, "_secrets", "monitor"), "monsecret")
+	etcdClient.SetValue(path.Join(mon.CephKey, "_secrets", "admin"), "adminsecret")
+
+	monKey := path.Join(mon.CephKey, "monitor", clusterd.DesiredKey, context.NodeID)
 	etcdClient.SetValue(path.Join(monKey, "id"), "1")
 	etcdClient.SetValue(path.Join(monKey, "ipaddress"), "10.6.5.4")
 	etcdClient.SetValue(path.Join(monKey, "port"), "8743")
@@ -292,4 +296,44 @@ func createTestKeyring(t *testing.T, args []string) {
 		err = ioutil.WriteFile(path.Join(configDir, "keyring"), []byte("mykeyring"), 0644)
 		assert.Nil(t, err)
 	}
+}
+
+func TestDesiredDeviceState(t *testing.T) {
+	etcdClient := util.NewMockEtcdClient()
+	etcdClient.CreateDir("/rook/nodes/config/a/disks/foo")
+
+	// add a device
+	err := AddDesiredDevice(etcdClient, "foo", "a")
+	assert.Nil(t, err)
+	devices := etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/a/device")
+	assert.Equal(t, 1, devices.Count())
+	assert.True(t, devices.Contains("foo"))
+
+	// remove the device
+	err = RemoveDesiredDevice(etcdClient, "foo", "a")
+	assert.Nil(t, err)
+	devices = etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/a/device")
+	assert.Equal(t, 0, devices.Count())
+
+	// removing a non-existent device is a no-op
+	err = RemoveDesiredDevice(etcdClient, "foo", "a")
+	assert.Nil(t, err)
+}
+
+func TestDesiredDirsState(t *testing.T) {
+	etcdClient := util.NewMockEtcdClient()
+
+	// add a dir
+	err := AddDesiredDir(etcdClient, "/my/dir", "a")
+	assert.Nil(t, err)
+	dirs := etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/a/dir")
+	assert.Equal(t, 1, dirs.Count())
+	assert.True(t, dirs.Contains("my_dir"))
+	assert.Equal(t, "/my/dir", etcdClient.GetValue("/rook/services/ceph/osd/desired/a/dir/my_dir/path"))
+
+	loadedDirs, err := loadDesiredDirs(etcdClient, "a")
+	assert.Nil(t, err)
+
+	assert.Equal(t, 1, len(loadedDirs))
+	assert.Equal(t, unassignedOSDID, loadedDirs["/my/dir"])
 }

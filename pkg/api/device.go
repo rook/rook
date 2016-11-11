@@ -20,7 +20,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/rook/rook/pkg/cephmgr"
+	"github.com/rook/rook/pkg/cephmgr/osd"
 )
 
 // Adds the device and configures an OSD on the device.
@@ -32,7 +32,7 @@ func (h *Handler) AddDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := cephmgr.AddDesiredDevice(h.context.EtcdClient, device.Name, device.NodeID)
+	err := osd.AddDesiredDevice(h.context.EtcdClient, device.Name, device.NodeID)
 	if err != nil {
 		log.Printf("failed to add device. %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -49,7 +49,7 @@ func (h *Handler) RemoveDevice(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := cephmgr.RemoveDesiredDevice(h.context.EtcdClient, device.Name, device.NodeID)
+	err := osd.RemoveDesiredDevice(h.context.EtcdClient, device.Name, device.NodeID)
 	if err != nil {
 		log.Printf("failed to remove device. %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -57,13 +57,13 @@ func (h *Handler) RemoveDevice(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func handleLoadDeviceFromBody(w http.ResponseWriter, r *http.Request) (*cephmgr.Device, bool) {
+func handleLoadDeviceFromBody(w http.ResponseWriter, r *http.Request) (*osd.Device, bool) {
 	body, ok := handleReadBody(w, r, "load device")
 	if !ok {
 		return nil, false
 	}
 
-	var device cephmgr.Device
+	var device osd.Device
 	if err := json.Unmarshal(body, &device); err != nil {
 		log.Printf("failed to unmarshal request body '%s': %+v", string(body), err)
 		w.WriteHeader(http.StatusBadRequest)

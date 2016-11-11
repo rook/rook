@@ -49,7 +49,7 @@ func (e *etcdMgrAgent) Initialize(context *clusterd.Context) error {
 func (e *etcdMgrAgent) ConfigureLocalService(context *clusterd.Context) error {
 	log.Printf("inside ConfigureLocalService")
 	// check if the etcdmgr is in the desired state for this node
-	desiredKey := path.Join(etcdmgrKey, etcdDesiredKey, context.NodeID)
+	desiredKey := path.Join(etcdmgrKey, clusterd.DesiredKey, context.NodeID)
 	etcdmgrDesired, err := util.EtcdDirExists(context.EtcdClient, desiredKey)
 	if err != nil {
 		return fmt.Errorf("error in checking existence of desired key: %+v", err)
@@ -98,7 +98,7 @@ func (e *etcdMgrAgent) CreateLocalService(context *clusterd.Context, desiredKey 
 			return fmt.Errorf("error in adding a member to the cluster")
 		}
 
-		ipKey := path.Join(etcdmgrKey, etcdAppliedKey, context.NodeID, "ipaddress")
+		ipKey := path.Join(etcdmgrKey, clusterd.AppliedKey, context.NodeID, "ipaddress")
 		log.Println("ipKey for new instance: ", ipKey)
 		_, err = context.EtcdClient.Set(ctx.Background(), ipKey, ipAddr, nil)
 		if err != nil {
@@ -130,7 +130,7 @@ func (e *etcdMgrAgent) DestroyLocalService(context *clusterd.Context) error {
 }
 
 func getEtcdMgrAppliedKey(nodeID string) string {
-	return path.Join(etcdmgrKey, etcdAppliedKey, nodeID)
+	return path.Join(etcdmgrKey, clusterd.AppliedKey, nodeID)
 }
 
 func getPeerEndpointFromIP(ip string) string {

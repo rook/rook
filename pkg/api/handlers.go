@@ -22,18 +22,19 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/rook/rook/pkg/cephmgr"
 	ceph "github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/cephmgr/osd"
 	"github.com/rook/rook/pkg/clusterd"
 )
 
 type Handler struct {
 	context           *clusterd.Context
-	ConnectionFactory cephmgr.ConnectionFactory
+	ConnectionFactory mon.ConnectionFactory
 	CephFactory       ceph.ConnectionFactory
 }
 
-func NewHandler(context *clusterd.Context, connFactory cephmgr.ConnectionFactory, cephFactory ceph.ConnectionFactory) *Handler {
+func NewHandler(context *clusterd.Context, connFactory mon.ConnectionFactory, cephFactory ceph.ConnectionFactory) *Handler {
 	return &Handler{
 		context:           context,
 		ConnectionFactory: connFactory,
@@ -56,8 +57,8 @@ func FormatJsonResponse(w http.ResponseWriter, object interface{}) {
 }
 
 type overallMonStatus struct {
-	Status  ceph.MonStatusResponse       `json:"status"`
-	Desired []*cephmgr.CephMonitorConfig `json:"desired"`
+	Status  ceph.MonStatusResponse   `json:"status"`
+	Desired []*mon.CephMonitorConfig `json:"desired"`
 }
 
 // Gets the current crush map for the cluster.
@@ -72,7 +73,7 @@ func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
 	defer conn.Shutdown()
 
 	// get the crush map
-	crushmap, err := cephmgr.GetCrushMap(conn)
+	crushmap, err := osd.GetCrushMap(conn)
 	if err != nil {
 		log.Printf("failed to get crush map, err: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -88,14 +89,14 @@ func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
 // /mon
 func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
 
-	desiredMons, err := cephmgr.GetDesiredMonitors(h.context.EtcdClient)
+	desiredMons, err := mon.GetDesiredMonitors(h.context.EtcdClient)
 	if err != nil {
 		log.Printf("failed to load monitors: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	mons := []*cephmgr.CephMonitorConfig{}
+	mons := []*mon.CephMonitorConfig{}
 	if len(desiredMons) == 0 {
 		// no monitors to connect to
 		FormatJsonResponse(w, mons)
