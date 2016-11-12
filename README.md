@@ -108,16 +108,16 @@ binaries) or a dynamic binary that takes a dependency on mostly libc. It can run
 hypervisor, or directly on the host on most Linux distributions.
 
 `rookd` uses an embedded version of Ceph for storing all data -- there are no changes to the data path. An embedded version
-of Ceph was created specifically for Rook scenarios and has been pushed upstream. Rook does attempt to maintain full fidelity
+of Ceph was created specifically for Rook scenarios and has been pushed upstream. Rook does not attempt to maintain full fidelity
 with Ceph, for example, most of the Ceph concepts like OSDs, MONs, placement groups, etc. are hidden. Instead Rook creates
 a much simplified UX for admins that is in terms of physical resources, pools, volumes, filesystems, and buckets.
 
-`rookd` embeds Etcd within the cluster store configuration, and coordinates cluster-wide management operations. `rookd` will automatically
+`rookd` embeds Etcd to store configuration and coordinate cluster-wide management operations. `rookd` will automatically
 bootstrap Etcd, manage it, and scale it as the cluster grows. Its also possible to use an external Etcd instead of the embedded one
 if needed.
 
-Rook and etcd are implementd in golang. Ceph is implemented in C++ where the data is highly optimized. We believe
-the combination offers the best of both worlds.
+Rook and etcd are implementd in golang. Ceph is implemented in C++ where the data path is highly optimized. We believe
+this combination offers the best of both worlds.
 
 See [Design](https://github.com/rook/rook/wiki/Design) wiki for more details.
 
