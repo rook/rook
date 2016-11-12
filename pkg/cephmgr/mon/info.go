@@ -17,7 +17,6 @@ package mon
 
 import (
 	"fmt"
-	"log"
 	"path"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
@@ -54,14 +53,14 @@ func createOrGetClusterInfo(factory client.ConnectionFactory, etcdClient etcd.Ke
 			return nil, fmt.Errorf("failed to create cluster info: %+v", err)
 		}
 
-		log.Printf("Created new cluster info: %+v", cluster)
+		logger.Infof("Created new cluster info: %+v", cluster)
 		err = saveClusterInfo(cluster, etcdClient)
 		if err != nil {
 			return nil, fmt.Errorf("failed to save new cluster info: %+v", err)
 		}
 	} else {
 		// the cluster has already been created
-		log.Printf("Cluster already exists: %+v", cluster)
+		logger.Debugf("Cluster already exists: %+v", cluster)
 	}
 
 	return cluster, nil

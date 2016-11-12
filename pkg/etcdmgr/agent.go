@@ -17,7 +17,6 @@ package etcdmgr
 
 import (
 	"fmt"
-	"log"
 	"path"
 
 	etcd "github.com/coreos/etcd/client"
@@ -47,7 +46,7 @@ func (e *etcdMgrAgent) Initialize(context *clusterd.Context) error {
 }
 
 func (e *etcdMgrAgent) ConfigureLocalService(context *clusterd.Context) error {
-	log.Printf("inside ConfigureLocalService")
+	logger.Tracef("inside ConfigureLocalService")
 	// check if the etcdmgr is in the desired state for this node
 	desiredKey := path.Join(etcdmgrKey, clusterd.DesiredKey, context.NodeID)
 	etcdmgrDesired, err := util.EtcdDirExists(context.EtcdClient, desiredKey)
@@ -83,15 +82,15 @@ func (e *etcdMgrAgent) CreateLocalService(context *clusterd.Context, desiredKey 
 		return fmt.Errorf("error in getting the ip address key: %+v. err: %+v", ipAddrKey, err)
 	}
 	ipAddr := resp.Node.Value
-	log.Println("ipAddress: ", ipAddr)
+	logger.Infof("ipAddress: %s", ipAddr)
 	e.conf, err = bootstrap.GenerateConfigFromExistingCluster(e.context, context.ConfigDir, ipAddr, context.NodeID)
-	log.Println("config: ", e.conf)
+	logger.Infof("config: %s", e.conf)
 	if err != nil {
 		return err
 	}
 
 	if !etcdmgrApplied {
-		log.Println("adding the current node to the etcd cluster...")
+		logger.Infof("adding the current node to the etcd cluster...")
 		targetEndpoint := getPeerEndpointFromIP(ipAddr)
 		err = AddMember(e.context, targetEndpoint)
 		if err != nil {
@@ -99,7 +98,7 @@ func (e *etcdMgrAgent) CreateLocalService(context *clusterd.Context, desiredKey 
 		}
 
 		ipKey := path.Join(etcdmgrKey, clusterd.AppliedKey, context.NodeID, "ipaddress")
-		log.Println("ipKey for new instance: ", ipKey)
+		logger.Infof("ipKey for new instance: %s", ipKey)
 		_, err = context.EtcdClient.Set(ctx.Background(), ipKey, ipAddr, nil)
 		if err != nil {
 			return fmt.Errorf("error in setting applied key for ip key. %+v", err)
@@ -114,7 +113,7 @@ func (e *etcdMgrAgent) CreateLocalService(context *clusterd.Context, desiredKey 
 }
 
 func (e *etcdMgrAgent) DestroyLocalService(context *clusterd.Context) error {
-	fmt.Println("destroying the local embedded etcd instance")
+	logger.Debugf("destroying the local embedded etcd instance")
 	err := e.embeddedEtcd.Destroy(e.conf)
 	e.embeddedEtcd = nil
 	if err != nil {

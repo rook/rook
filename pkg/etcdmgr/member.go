@@ -18,7 +18,6 @@ package etcdmgr
 import (
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/rook/rook/pkg/etcdmgr/bootstrap"
 	ctx "golang.org/x/net/context"
@@ -26,7 +25,7 @@ import (
 
 // AddMember adds a node to the etcd cluster as a member
 func AddMember(context bootstrap.EtcdMgrContext, node string) error {
-	log.Println("Adding a node to the etcd cluster as a member: ", node)
+	logger.Infof("Adding a node to the etcd cluster as a member: %s", node)
 	mapi, err := context.MembersAPI()
 	if err != nil {
 		return fmt.Errorf("error in Context.MembersAPI(). %+v", err)
@@ -35,13 +34,13 @@ func AddMember(context bootstrap.EtcdMgrContext, node string) error {
 	if err != nil {
 		return err
 	}
-	log.Println("New member added: ", *member)
+	logger.Infof("New member added: %+v", *member)
 	return nil
 }
 
 // RemoveMember removes a member from the etcd cluster
 func RemoveMember(context bootstrap.EtcdMgrContext, node string) error {
-	log.Println("removing a member from the etcd cluster: ", node)
+	logger.Infof("removing a member from the etcd cluster: %s", node)
 	mapi, err := context.MembersAPI()
 	if err != nil {
 		return err
@@ -51,7 +50,7 @@ func RemoveMember(context bootstrap.EtcdMgrContext, node string) error {
 	if err != nil {
 		return err
 	}
-	log.Println("members: ", members)
+	logger.Infof("members: %+v", members)
 	var nodeID string
 	for _, m := range members {
 		// PeerURLs is taken from the etcd's terminology. It means what endpoints a member use to communicates by its peers.
@@ -68,7 +67,7 @@ func RemoveMember(context bootstrap.EtcdMgrContext, node string) error {
 	if err != nil {
 		return err
 	}
-	log.Println("New member removed: ", node)
+	logger.Infof("New member removed: %s", node)
 	return nil
 }
 

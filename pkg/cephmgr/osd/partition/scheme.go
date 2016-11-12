@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"path"
 
 	"github.com/google/uuid"
@@ -149,7 +148,7 @@ func (s *Scheme) getPartitionArgs(name string, id int, offset, length int, label
 
 	guid, ok := s.PartitionUUIDs[name]
 	if !ok {
-		log.Printf("could not find uuid for partition %s", name)
+		logger.Warningf("could not find uuid for partition %s", name)
 	}
 
 	return []string{

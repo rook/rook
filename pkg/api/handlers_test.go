@@ -17,7 +17,6 @@ package api
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"path"
@@ -90,7 +89,7 @@ func TestGetNodesHandler(t *testing.T) {
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/node", nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	w := httptest.NewRecorder()
@@ -130,7 +129,7 @@ func TestGetNodesHandlerFailure(t *testing.T) {
 	context := &clusterd.Context{EtcdClient: etcdClient}
 	req, err := http.NewRequest("GET", "http://10.0.0.100/node", nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	w := httptest.NewRecorder()
@@ -183,7 +182,7 @@ func TestGetPoolsHandler(t *testing.T) {
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/pool", nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	// first return no storage pools
@@ -244,7 +243,7 @@ func TestGetPoolsHandlerFailure(t *testing.T) {
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/pool", nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	// encounter an error during GetPools
@@ -268,7 +267,7 @@ func TestCreatePoolHandler(t *testing.T) {
 	req, err := http.NewRequest("POST", "http://10.0.0.100/pool",
 		strings.NewReader(`{"poolName":"ecPool1","poolNum":0,"type":1,"replicationConfig":{"size":0},"erasureCodedConfig":{"dataChunkCount":2,"codingChunkCount":1,"algorithm":""}}`))
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	w := httptest.NewRecorder()
@@ -307,7 +306,7 @@ func TestCreatePoolHandlerFailure(t *testing.T) {
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/pool", strings.NewReader(`{"poolname":"pool1"}`))
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	w := httptest.NewRecorder()
@@ -336,7 +335,7 @@ func TestGetImagesHandler(t *testing.T) {
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/image", nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	// first return no storage pools, which means no images will be returned either
@@ -400,7 +399,7 @@ func TestGetImagesHandlerFailure(t *testing.T) {
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/image", nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	cephFactory := &testceph.MockConnectionFactory{
@@ -431,7 +430,7 @@ func TestCreateImageHandler(t *testing.T) {
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/image", nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	w := httptest.NewRecorder()
@@ -450,7 +449,7 @@ func TestCreateImageHandler(t *testing.T) {
 	// request body exists but it's bad json, should be bad request
 	req, err = http.NewRequest("POST", "http://10.0.0.100/image", strings.NewReader(`bad json`))
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	w = httptest.NewRecorder()
 	h = NewHandler(context, connFactory, cephFactory)
@@ -461,7 +460,7 @@ func TestCreateImageHandler(t *testing.T) {
 	// missing fields for the image passed via request body, should be bad request
 	req, err = http.NewRequest("POST", "http://10.0.0.100/image", strings.NewReader(`{"imageName":"myImage1"}`))
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	w = httptest.NewRecorder()
 	h = NewHandler(context, connFactory, cephFactory)
@@ -472,7 +471,7 @@ func TestCreateImageHandler(t *testing.T) {
 	// well formed successful request to create an image
 	req, err = http.NewRequest("POST", "http://10.0.0.100/image", strings.NewReader(`{"imageName":"myImage1","poolName":"myPool1","size":1024}`))
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	cephFactory.Conn = &testceph.MockConnection{
 		MockOpenIOContext: func(pool string) (ceph.IOContext, error) {
@@ -496,7 +495,7 @@ func TestCreateImageHandlerFailure(t *testing.T) {
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/image", strings.NewReader(`{"imageName":"myImage1","poolName":"myPool1","size":1024}`))
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	w := httptest.NewRecorder()
@@ -529,7 +528,7 @@ func TestGetImageMapInfoHandler(t *testing.T) {
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/image/mapinfo", nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	w := httptest.NewRecorder()
@@ -563,7 +562,7 @@ func TestGetImageMapInfoHandlerFailure(t *testing.T) {
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/image/mapinfo", nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	w := httptest.NewRecorder()

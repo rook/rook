@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -45,7 +44,7 @@ func TestGetStatusDetailsHandler(t *testing.T) {
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/status", nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
@@ -101,7 +100,7 @@ func TestGetStatusDetailsEmptyResponseFromCeph(t *testing.T) {
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/status", nil)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 
 	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}

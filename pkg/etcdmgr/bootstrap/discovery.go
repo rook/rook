@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -38,10 +37,10 @@ func isQuorumFull(token string) (bool, error, []string) {
 
 	size, _ := strconv.ParseInt(*res.Node.Value, 10, 16)
 	clusterSize := int(size)
-	log.Println("cluster max size is: ", clusterSize)
+	logger.Infof("cluster max size is: %d", clusterSize)
 
 	currentNodes, _ := GetCurrentNodesFromDiscovery(token)
-	log.Println("currentNodes: ", currentNodes)
+	logger.Infof("currentNodes: %+v", currentNodes)
 	if len(currentNodes) < clusterSize {
 		return false, nil, []string{}
 	}
@@ -80,12 +79,12 @@ func GetCurrentNodesFromDiscovery(token string) ([]string, error) {
 	nodes := make([]string, 0, len(res.Node.Nodes))
 	for _, nn := range res.Node.Nodes {
 		if nn.Value == nil {
-			log.Printf("Skipping %q because no value exists", nn.Key)
+			logger.Debugf("Skipping %q because no value exists", nn.Key)
 		}
 
 		n, err := newDiscoveryNode(*nn.Value, DefaultClientPort)
 		if err != nil {
-			log.Printf("invalid peer url %q in discovery service: %v", *nn.Value, err)
+			logger.Warningf("invalid peer url %q in discovery service: %v", *nn.Value, err)
 			continue
 		}
 

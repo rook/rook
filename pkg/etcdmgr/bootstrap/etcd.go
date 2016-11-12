@@ -17,7 +17,6 @@ package bootstrap
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"net/http"
 	"os"
@@ -83,7 +82,7 @@ func (e *EmbeddedEtcdFactory) NewEmbeddedEtcd(token string, conf *Config, newClu
 
 func (ee *EmbeddedEtcd) InitializeListeners() error {
 	//initializing client listeners
-	log.Println("client urls to set listeners for: ", ee.config.ListenClientURLs)
+	logger.Infof("client urls to set listeners for: %+v", ee.config.ListenClientURLs)
 	for _, url := range ee.config.ListenClientURLs {
 		l, err := net.Listen("tcp", url.Host)
 		if err != nil {
@@ -93,7 +92,7 @@ func (ee *EmbeddedEtcd) InitializeListeners() error {
 	}
 
 	//initialize peer listeners
-	log.Println("peer urls to set listeners for: ", ee.config.ListenPeerURLs)
+	logger.Infof("peer urls to set listeners for: %+v", ee.config.ListenPeerURLs)
 	for _, url := range ee.config.ListenPeerURLs {
 		l, err := net.Listen("tcp", url.Host)
 		if err != nil {

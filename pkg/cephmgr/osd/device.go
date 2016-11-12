@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -27,6 +26,7 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/google/uuid"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
@@ -78,11 +78,11 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 
 	if devFS != "" && forceFormat {
 		// there's a filesystem on the device, but the user has specified to force a format. give a warning about that.
-		log.Printf("WARNING: device %s already formatted with %s, but forcing a format!!!", config.deviceName, devFS)
+		logger.Warningf("device %s already formatted with %s, but forcing a format!!!", config.deviceName, devFS)
 	}
 
 	if devFS == "" || forceFormat {
-		log.Printf("Partitioning device %s for bluestore", config.deviceName)
+		logger.Infof("Partitioning device %s for bluestore", config.deviceName)
 
 		err := partitionBluestoreDevice(context, config)
 		if err != nil {
@@ -157,7 +157,7 @@ func registerOSD(bootstrapConn client.Connection, config *osdConfig) error {
 		return err
 	}
 
-	log.Printf("successfully created OSD %s with ID %d", config.uuid.String(), config.id)
+	logger.Infof("successfully created OSD %s with ID %d", config.uuid.String(), config.id)
 	return nil
 }
 
@@ -194,9 +194,10 @@ func getStoreSettings(context *clusterd.Context, config *osdConfig) (map[string]
 }
 
 func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context *clusterd.Context,
-	bootstrapConn client.Connection, cluster *mon.ClusterInfo, location string, debug bool, executor exec.Executor) error {
+	bootstrapConn client.Connection, cluster *mon.ClusterInfo, location string, logLevel capnslog.LogLevel, executor exec.Executor) error {
 
-	cephConfig := mon.CreateDefaultCephConfig(cluster, config.rootPath, debug, config.bluestore)
+	cephConfig := mon.CreateDefaultCephConfig(cluster, config.rootPath, logLevel, config.bluestore)
+
 	if !config.bluestore {
 		// using the local file system requires some config overrides
 		// http://docs.ceph.com/docs/jewel/rados/configuration/filesystem-recommendations/#not-recommended
@@ -213,7 +214,7 @@ func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context 
 	// write the OSD config file to disk
 	keyringPath := getOSDKeyringPath(config.rootPath)
 	_, err = mon.GenerateConfigFile(context, cluster, config.rootPath, fmt.Sprintf("osd.%d", config.id),
-		keyringPath, debug, config.bluestore, cephConfig, settings)
+		keyringPath, logLevel, config.bluestore, cephConfig, settings)
 	if err != nil {
 		return fmt.Errorf("failed to write OSD %d config file: %+v", config.id, err)
 	}
@@ -236,7 +237,7 @@ func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context 
 
 	// open a connection to the cluster using the OSDs creds
 	osdConn, err := mon.ConnectToCluster(context, factory, cluster, path.Join(config.rootPath, "tmp"),
-		fmt.Sprintf("osd.%d", config.id), keyringPath, debug)
+		fmt.Sprintf("osd.%d", config.id), keyringPath, logLevel)
 	if err != nil {
 		return err
 	}
@@ -287,7 +288,7 @@ func getMonMap(bootstrapConn client.Connection) ([]byte, error) {
 
 // creates/initalizes the OSD filesystem and journal via a child process
 func createOSDFileSystem(context *clusterd.Context, clusterName string, config *osdConfig, monMap []byte) error {
-	log.Printf("Initializing OSD %d file system at %s...", config.id, config.rootPath)
+	logger.Infof("Initializing OSD %d file system at %s...", config.id, config.rootPath)
 
 	// the current monmap is needed to create the OSD, save it to a temp location so it is accessible
 	monMapTmpPath := getOSDTempMonMapPath(config.rootPath)
@@ -353,7 +354,7 @@ func addOSDAuth(bootstrapConn client.Connection, osdID int, osdDataPath string) 
 		return fmt.Errorf("mon_command %s failed: %+v", cmd, err)
 	}
 
-	log.Printf("succeeded %s command for %s. info: %s", cmd, osdEntity, info)
+	logger.Debugf("succeeded %s command for %s. info: %s", cmd, osdEntity, info)
 	return nil
 }
 
@@ -371,7 +372,7 @@ func addOSDToCrushMap(osdConn client.Connection, context *clusterd.Context, osdI
 	weight, _ = strconv.ParseFloat(fmt.Sprintf("%.4f", weight), 64)
 
 	osdEntity := fmt.Sprintf("osd.%d", osdID)
-	log.Printf("OSD %s at %s, bytes: %d, weight: %.4f", osdEntity, osdDataPath, all, weight)
+	logger.Infof("OSD %s at %s, bytes: %d, weight: %.4f", osdEntity, osdDataPath, all, weight)
 
 	locArgs, err := formatLocation(location)
 	if err != nil {

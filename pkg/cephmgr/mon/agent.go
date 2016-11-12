@@ -18,7 +18,6 @@ package mon
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -95,7 +94,7 @@ func (a *agent) ConfigureLocalService(context *clusterd.Context) error {
 		return fmt.Errorf("failed to run monitors: %+v", err)
 	}
 
-	log.Printf("successfully started monitor %s", monitor.Name)
+	logger.Infof("successfully started monitor %s", monitor.Name)
 
 	return err
 }
@@ -103,16 +102,16 @@ func (a *agent) ConfigureLocalService(context *clusterd.Context) error {
 // stops and removes the monitor from this node
 func (a *agent) DestroyLocalService(context *clusterd.Context) error {
 	if a.monProc == nil {
-		log.Printf("no need to stop a monitor that is not running")
+		logger.Debugf("no need to stop a monitor that is not running")
 		return nil
 	}
 
 	if err := a.monProc.Stop(); err != nil {
-		log.Printf("failed to stop mon. %v", err)
+		logger.Errorf("failed to stop mon. %v", err)
 		return err
 	}
 
-	log.Printf("stopped ceph monitor")
+	logger.Debug("stopped ceph monitor")
 	a.monProc = nil
 
 	// TODO: Clean up the monitor folder
@@ -129,7 +128,7 @@ func (a *agent) makeMonitorFileSystem(context *clusterd.Context, cluster *Cluste
 
 	// write the config file to disk
 	confFilePath, err := GenerateConnectionConfigFile(context, cluster, getMonRunDirPath(context.ConfigDir, monName),
-		"admin", getMonKeyringPath(context.ConfigDir, monName), context.Debug)
+		"admin", getMonKeyringPath(context.ConfigDir, monName), context.LogLevel)
 	if err != nil {
 		return err
 	}
@@ -137,7 +136,7 @@ func (a *agent) makeMonitorFileSystem(context *clusterd.Context, cluster *Cluste
 	// create monitor data dir
 	monDataDir := getMonDataDirPath(context.ConfigDir, monName)
 	if err := os.MkdirAll(filepath.Dir(monDataDir), 0744); err != nil {
-		fmt.Printf("failed to create monitor data directory at %s: %+v", monDataDir, err)
+		logger.Warningf("failed to create monitor data directory at %s: %+v", monDataDir, err)
 	}
 
 	// call mon --mkfs in a child process
@@ -163,7 +162,7 @@ func (a *agent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, moni
 	}
 
 	// start the monitor daemon in the foreground with the given config
-	log.Printf("starting monitor %s", monitor.Name)
+	logger.Infof("starting monitor %s", monitor.Name)
 	monNameArg := fmt.Sprintf("--name=mon.%s", monitor.Name)
 	monProc, err := context.ProcMan.Start(
 		"mon",

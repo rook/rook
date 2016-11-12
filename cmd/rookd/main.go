@@ -18,7 +18,6 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -26,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -46,6 +46,9 @@ var rootCmd = &cobra.Command{
 }
 var cfg = newConfig()
 
+var logLevelRaw string
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rookd")
+
 type config struct {
 	nodeID       string
 	discoveryURL string
@@ -57,7 +60,7 @@ type config struct {
 	adminSecret  string
 	forceFormat  bool
 	location     string
-	debug        bool
+	logLevel     capnslog.LogLevel
 }
 
 func newConfig() *config {
@@ -89,7 +92,7 @@ func init() {
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 	rootCmd.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
 
-	rootCmd.PersistentFlags().BoolVar(&cfg.debug, "debug", false, "true to enable debug logging/tracing")
+	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 
 	// load the environment variables
 	setFlagsFromEnv(rootCmd.Flags())
@@ -108,6 +111,14 @@ func startJoinCluster(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// parse given log level string then set up corresponding global logging level
+	ll, err := capnslog.ParseLevel(logLevelRaw)
+	if err != nil {
+		return err
+	}
+	cfg.logLevel = ll
+	capnslog.SetGlobalLogLevel(cfg.logLevel)
+
 	if err := joinCluster(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -119,7 +130,7 @@ func startJoinCluster(cmd *cobra.Command, args []string) error {
 func joinCluster() error {
 	// ensure the data root exists
 	if err := os.MkdirAll(cfg.dataDir, 0744); err != nil {
-		log.Printf("failed to create data directory at %s: %+v", cfg.dataDir, err)
+		logger.Warningf("failed to create data directory at %s: %+v", cfg.dataDir, err)
 		return nil
 	}
 
@@ -148,7 +159,7 @@ func joinCluster() error {
 
 	// start the cluster orchestration services
 	context, err := clusterd.StartJoinCluster(services, cfg.dataDir, cfg.nodeID, cfg.discoveryURL,
-		cfg.etcdMembers, cfg.publicIPv4, cfg.privateIPv4, cfg.debug)
+		cfg.etcdMembers, cfg.publicIPv4, cfg.privateIPv4, cfg.logLevel)
 	if err != nil {
 		return err
 	}
@@ -162,7 +173,7 @@ func joinCluster() error {
 		h := api.NewHandler(context, mon.NewConnectionFactory(), cephd.New())
 		r := api.NewRouter(h.GetRoutes())
 		if err := http.ListenAndServe(":8124", r); err != nil {
-			log.Printf("API server error: %+v", err)
+			logger.Errorf("API server error: %+v", err)
 		}
 	}()
 

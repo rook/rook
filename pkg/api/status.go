@@ -16,7 +16,6 @@ limitations under the License.
 package api
 
 import (
-	"log"
 	"net/http"
 
 	ceph "github.com/rook/rook/pkg/cephmgr/client"
@@ -35,7 +34,7 @@ func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
 
 	cephStatus, err := ceph.Status(adminConn)
 	if err != nil {
-		log.Printf("failed to get status: %+v", err)
+		logger.Errorf("failed to get status: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

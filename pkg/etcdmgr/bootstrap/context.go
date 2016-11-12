@@ -16,8 +16,6 @@ limitations under the License.
 package bootstrap
 
 import (
-	"log"
-
 	"github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/pkg/types"
 	ctx "golang.org/x/net/context"
@@ -78,7 +76,7 @@ func (e *Context) Members() ([]string, types.URLsMap, error) {
 	var nodes []string
 	initialNodes, err := GetCurrentNodesFromDiscovery(e.ClusterToken)
 	if err != nil {
-		log.Println("error in GetCurrentNodesFromDiscovery")
+		logger.Errorf("error in GetCurrentNodesFromDiscovery: %+v", err)
 		return nodes, urlsMap, err
 	}
 

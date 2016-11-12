@@ -17,7 +17,6 @@ package proc
 
 import (
 	"errors"
-	"log"
 	"os/exec"
 	"testing"
 
@@ -58,13 +57,13 @@ func TestMonitoredRestart(t *testing.T) {
 
 	iter := 0
 	proc.waitForExit = func() {
-		log.Printf("waited for process")
+		logger.Debugf("waited for process")
 		assert.True(t, proc.monitor)
 		switch {
 		case iter == 0:
 		case iter == 1:
 			assert.True(t, proc.monitor)
-			log.Printf("stop monitoring")
+			logger.Debugf("stop monitoring")
 			proc.monitor = false
 			break
 		}

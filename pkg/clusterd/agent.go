@@ -17,7 +17,6 @@ package clusterd
 
 import (
 	"errors"
-	"log"
 	"time"
 
 	etcd "github.com/coreos/etcd/client"
@@ -63,11 +62,11 @@ func watchForAgentServiceConfig(context *Context) {
 		if err != nil {
 			if util.IsEtcdKeyReset(err) {
 				// Reset the watch index
-				log.Printf("Config status key was reset. Refreshing the index. err=%v", err)
+				logger.Infof("Config status key was reset. Refreshing the index. err=%v", err)
 				configStatus, configStatusIndex, _ = GetNodeConfigStatus(context.EtcdClient, "", context.NodeID)
 			} else {
 				// Unknown error
-				log.Printf("Failed to watch orchestration state. Sleeping 5s. err=%s", err.Error())
+				logger.Warningf("Failed to watch orchestration state. Sleeping 5s. err=%s", err.Error())
 				<-time.After(5 * time.Second)
 			}
 			continue
@@ -83,7 +82,7 @@ func restoreDesiredState(context *Context) {
 		for _, agent := range service.Agents {
 			err := agent.ConfigureLocalService(context)
 			if err != nil {
-				log.Printf("Failed to restore agent %s. %v", agent.Name(), err)
+				logger.Warningf("Failed to restore agent %s. %v", agent.Name(), err)
 			}
 		}
 	}
@@ -105,12 +104,12 @@ func RunConfigureAgent(context *Context, agent ServiceAgent) error {
 
 	err := agent.ConfigureLocalService(context)
 	if err != nil {
-		log.Printf("AGENT: Service %s failed configuration: %v", agent.Name(), err)
+		logger.Errorf("AGENT: Service %s failed configuration: %v", agent.Name(), err)
 		SetNodeConfigStatus(context.EtcdClient, context.NodeID, agent.Name(), NodeConfigStatusFailed)
 		return err
 	}
 
-	log.Printf("AGENT: Service %s succeeded the configuration", agent.Name())
+	logger.Infof("AGENT: Service %s succeeded the configuration", agent.Name())
 	SetNodeConfigStatus(context.EtcdClient, context.NodeID, agent.Name(), NodeConfigStatusSucceeded)
 
 	return nil
@@ -146,7 +145,7 @@ func watchEtcdKey(etcdClient etcd.KeysAPI, key string, index *uint64, timeout in
 	var err error = nil
 	watcherChannel := make(chan bool, 1)
 	go func() {
-		//log.Printf("waiting for response")
+		logger.Tracef("waiting for response")
 		var response *etcd.Response
 		response, err = watcher.Next(cancelableContext)
 		if err != nil {
@@ -156,14 +155,14 @@ func watchEtcdKey(etcdClient etcd.KeysAPI, key string, index *uint64, timeout in
 				// "The event in requested index is outdated and cleared"
 				response, geterr := etcdClient.Get(ctx.Background(), key, nil)
 				if geterr == nil {
-					log.Printf("Watching %s failed on index %d, but Get succeeded with index %d", key, *index, response.Index)
+					logger.Infof("Watching %s failed on index %d, but Get succeeded with index %d", key, *index, response.Index)
 					*index = response.Index
 					value = response.Node.Value
 					err = nil
 				}
 			}
 		} else {
-			//log.Printf("Watched key %s, value=%s, index=%d", key, response.Node.Value, *index)
+			logger.Tracef("Watched key %s, value=%s, index=%d", key, response.Node.Value, *index)
 			*index = response.Index
 			value = response.Node.Value
 		}
@@ -172,7 +171,7 @@ func watchEtcdKey(etcdClient etcd.KeysAPI, key string, index *uint64, timeout in
 
 	if timeout == InfiniteTimeout {
 		// Wait indefinitely for the etcd watcher to respond
-		//log.Printf("Watching key %s after index %d", key, *index)
+		logger.Tracef("Watching key %s after index %d", key, *index)
 		<-watcherChannel
 		return value, err
 
@@ -181,14 +180,14 @@ func watchEtcdKey(etcdClient etcd.KeysAPI, key string, index *uint64, timeout in
 		timer := time.NewTimer(time.Second * time.Duration(timeout))
 
 		// Return when the first channel completes
-		//log.Printf("Watching key %s after index %d for at most %d seconds", key, *index, timeout)
+		logger.Tracef("Watching key %s after index %d for at most %d seconds", key, *index, timeout)
 		select {
 		case <-timer.C:
-			log.Printf("Timed out watching key %s", key)
+			logger.Errorf("Timed out watching key %s", key)
 			cancelFunc()
 			return "", errors.New("the etcd watch timed out")
 		case <-watcherChannel:
-			//log.Printf("Completed watching key %s. value=%s", key, value)
+			logger.Debugf("Completed watching key %s. value=%s", key, value)
 			timer.Stop()
 			return value, err
 		}

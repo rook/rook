@@ -16,8 +16,6 @@ limitations under the License.
 package etcdmgr
 
 import (
-	"log"
-
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/etcdmgr/bootstrap"
 )
@@ -28,7 +26,7 @@ const (
 
 // NewEtcdMgrService creates a new etcdmgr service
 func NewEtcdMgrService(token string) *clusterd.ClusterService {
-	log.Println("creating instances of etcdMgrLeader and etcdMgrAgent")
+	logger.Debugf("creating instances of etcdMgrLeader and etcdMgrAgent")
 
 	return &clusterd.ClusterService{
 		Name:   etcdMgrName,

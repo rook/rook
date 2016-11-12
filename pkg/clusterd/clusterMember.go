@@ -18,7 +18,6 @@ package clusterd
 import (
 	"errors"
 	"fmt"
-	"log"
 	"path"
 	"sync/atomic"
 	"time"
@@ -117,7 +116,7 @@ func (r *ClusterMember) ElectLeader() error {
 	// keep our cluster membership up to date
 	err := r.heartbeat()
 	if err != nil {
-		log.Printf("failed to heartbeat, will try again later: err=%v", err)
+		logger.Warningf("failed to heartbeat, will try again later: err=%v", err)
 	}
 
 	existing, err := r.leaseManager.GetLease(r.leader.GetLeaseName())
@@ -164,7 +163,7 @@ func (r *ClusterMember) refreshLeader() {
 
 		err := r.ElectLeader()
 		if err != nil {
-			log.Printf("error while electing leader: %s", err.Error())
+			logger.Warningf("error while electing leader: %s", err.Error())
 		}
 	}
 }
@@ -177,9 +176,9 @@ func (r *ClusterMember) discoverHardwareLoop() {
 
 		err := r.discoverHardware()
 		if err != nil {
-			log.Printf("error while discovering hardware: %+v", err)
+			logger.Warningf("error while discovering hardware: %+v", err)
 		} else {
-			log.Print("hardware discovery complete")
+			logger.Infof("hardware discovery complete")
 		}
 	}
 }
@@ -192,7 +191,7 @@ func (r *ClusterMember) waitForHardwareChangeNotifications() {
 		resp, err := hardwareWatcher.Next(ctx.Background())
 		if err != nil {
 			if err == ctx.Canceled {
-				log.Print("hardware change watching cancelled, bailing out...")
+				logger.Infof("hardware change watching cancelled, bailing out...")
 				break
 			} else {
 				<-time.After(time.Duration(watchErrorRetrySeconds) * time.Second)
@@ -204,9 +203,9 @@ func (r *ClusterMember) waitForHardwareChangeNotifications() {
 			// the trigger hardware detection key was set, perform a hardware discovery
 			err := r.discoverHardware()
 			if err != nil {
-				log.Printf("error while discovering hardware after a change notification: %+v", err)
+				logger.Warningf("error while discovering hardware after a change notification: %+v", err)
 			} else {
-				log.Print("hardware discovery after a change notification complete")
+				logger.Infof("hardware discovery after a change notification complete")
 			}
 
 			// clear out the hardware detection trigger key now so it can fire again later
@@ -232,13 +231,13 @@ func (r *ClusterMember) updateLeaderStatus(err error) error {
 
 func (r *ClusterMember) onLeadershipAcquired() error {
 	r.isLeader = true
-	log.Printf("cluster leadership acquired by this machine (%s)", r.context.NodeID)
+	logger.Infof("cluster leadership acquired by this machine (%s)", r.context.NodeID)
 
 	return r.leader.OnLeadershipAcquired()
 }
 
 func (r *ClusterMember) onLeadershipLost() {
-	log.Print("leadership lost by this machine")
+	logger.Infof("leadership lost by this machine")
 	r.isLeader = false
 	r.leader.OnLeadershipLost()
 }
@@ -267,7 +266,7 @@ func (r *ClusterMember) discoverHardware() error {
 	defer atomic.AddInt32(&r.hardwareDiscoveryLock, -1)
 
 	if hardwareDiscoveryCount != 1 {
-		log.Print("local hardware discovery already in progress, skipping...")
+		logger.Debugf("local hardware discovery already in progress, skipping...")
 		return nil
 	}
 

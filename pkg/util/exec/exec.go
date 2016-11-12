@@ -18,9 +18,10 @@ package exec
 import (
 	"bufio"
 	"io"
-	"log"
 	"os/exec"
 	"strings"
+
+	"github.com/coreos/pkg/capnslog"
 )
 
 type Executor interface {
@@ -87,8 +88,19 @@ func startCommand(command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.R
 
 func logOutput(stdout, stderr io.ReadCloser) {
 	if stdout == nil || stderr == nil {
-		log.Printf("failed to collect stdout and stderr")
+		logger.Warningf("failed to collect stdout and stderr")
 		return
+	}
+
+	// The logger for this exec package is responsible for logging output from other processes.
+	// Those child processes should appropriately be outputting at the desired global level.  Therefore,
+	// we always log at INFO level here, so that log statements from child procs at higher levels
+	// (e.g., WARNING) will still be displayed.  We are relying on the child procs to output appropriately.
+	if !logger.LevelAt(capnslog.INFO) {
+		rl, err := capnslog.GetRepoLogger("github.com/rook/rook")
+		if err == nil {
+			rl.SetLogLevel(map[string]capnslog.LogLevel{"exec": capnslog.INFO})
+		}
 	}
 
 	// read command's stdout line by line and write it to the log
@@ -96,7 +108,7 @@ func logOutput(stdout, stderr io.ReadCloser) {
 	lastLine := ""
 	for in.Scan() {
 		lastLine = in.Text()
-		log.Printf(lastLine)
+		logger.Infof(lastLine)
 	}
 }
 
@@ -110,5 +122,5 @@ func runCommandWithOutput(actionName string, cmd *exec.Cmd) (string, error) {
 }
 
 func logCommand(command string, arg ...string) {
-	log.Printf("Running command: %s %s", command, strings.Join(arg, " "))
+	logger.Infof("Running command: %s %s", command, strings.Join(arg, " "))
 }

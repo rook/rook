@@ -17,7 +17,6 @@ package util
 
 import (
 	"errors"
-	"log"
 	"os"
 	"path"
 	"strings"
@@ -49,7 +48,7 @@ func StoreEtcdProperties(etcdClient etcd.KeysAPI, baseKey string, properties map
 	}
 
 	if failedCount > 0 {
-		log.Printf("Failed to update %d properties in %s", failedCount, baseKey)
+		logger.Errorf("Failed to update %d properties in %s", failedCount, baseKey)
 		return lastError
 	}
 	return nil
@@ -65,7 +64,7 @@ func WatchEtcdKey(etcdClient etcd.KeysAPI, key string, index *uint64, timeout in
 	var err error = nil
 	watcherChannel := make(chan bool, 1)
 	go func() {
-		//log.Printf("waiting for response")
+		logger.Tracef("waiting for response")
 		var response *etcd.Response
 		response, err = watcher.Next(cancelableContext)
 		if err != nil {
@@ -75,14 +74,14 @@ func WatchEtcdKey(etcdClient etcd.KeysAPI, key string, index *uint64, timeout in
 				// "The event in requested index is outdated and cleared"
 				response, geterr := etcdClient.Get(ctx.Background(), key, nil)
 				if geterr == nil {
-					log.Printf("Watching %s failed on index %d, but Get succeeded with index %d", key, *index, response.Index)
+					logger.Infof("Watching %s failed on index %d, but Get succeeded with index %d", key, *index, response.Index)
 					*index = response.Index
 					value = response.Node.Value
 					err = nil
 				}
 			}
 		} else {
-			//log.Printf("Watched key %s, value=%s, index=%d", key, response.Node.Value, *index)
+			logger.Tracef("Watched key %s, value=%s, index=%d", key, response.Node.Value, *index)
 			*index = response.Index
 			value = response.Node.Value
 		}
@@ -91,7 +90,7 @@ func WatchEtcdKey(etcdClient etcd.KeysAPI, key string, index *uint64, timeout in
 
 	if timeout == InfiniteTimeout {
 		// Wait indefinitely for the etcd watcher to respond
-		//log.Printf("Watching key %s after index %d", key, *index)
+		logger.Tracef("Watching key %s after index %d", key, *index)
 		<-watcherChannel
 		return value, false, err
 
@@ -100,14 +99,14 @@ func WatchEtcdKey(etcdClient etcd.KeysAPI, key string, index *uint64, timeout in
 		timer := time.NewTimer(time.Second * time.Duration(timeout))
 
 		// Return when the first channel completes
-		log.Printf("Watching key %s after index %d for at most %d seconds", key, *index, timeout)
+		logger.Infof("Watching key %s after index %d for at most %d seconds", key, *index, timeout)
 		select {
 		case <-timer.C:
-			log.Printf("Timed out watching key %s", key)
+			logger.Warningf("Timed out watching key %s", key)
 			cancelFunc()
 			return "", true, errors.New("the etcd watch timed out")
 		case <-watcherChannel:
-			log.Printf("Completed watching key %s. value=%s", key, value)
+			logger.Infof("Completed watching key %s. value=%s", key, value)
 			timer.Stop()
 			return value, false, err
 		}
@@ -156,7 +155,7 @@ func GetEtcdPeers() ([]string, error) {
 	}
 
 	machines := strings.Split(etcdPeers, ",")
-	log.Printf("etcd machines: %v", machines)
+	logger.Debugf("etcd machines: %v", machines)
 	return machines, nil
 }
 

@@ -18,7 +18,6 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 )
 
 func ExecuteMonCommand(connection Connection, cmd map[string]interface{}, message string) ([]byte, error) {
@@ -40,14 +39,14 @@ func ExecuteMonCommandWithInfo(connection Connection, cmd map[string]interface{}
 		return nil, "", fmt.Errorf("marshalling command %s failed: %+v", prefix, err)
 	}
 
-	log.Printf("mon_command: '%s'", string(command))
+	logger.Debugf("mon_command: '%s'", string(command))
 
 	response, info, err := connection.MonCommand(command)
 	if err != nil {
 		return nil, "", fmt.Errorf("mon_command %+v failed: %+v", cmd, err)
 	}
 
-	log.Printf("succeeded %s. info: %s", message, info)
+	logger.Debugf("succeeded %s. info: %s", message, info)
 	return response, info, err
 }
 

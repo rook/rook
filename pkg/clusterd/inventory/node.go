@@ -18,7 +18,6 @@ package inventory
 import (
 	"errors"
 	"fmt"
-	"log"
 	"path"
 	"strconv"
 	"time"
@@ -76,7 +75,7 @@ func loadNodeConfig(etcdClient etcd.KeysAPI) (map[string]*NodeConfig, error) {
 		return nodesConfig, nil
 	}
 
-	// verbose: log.Printf("Discovered %d nodes", len(nodeInfo.Node.Nodes))
+	logger.Tracef("Discovered %d nodes", len(nodeInfo.Node.Nodes))
 
 	for _, etcdNode := range nodeInfo.Node.Nodes {
 		nodeConfig := &NodeConfig{}
@@ -85,7 +84,7 @@ func loadNodeConfig(etcdClient etcd.KeysAPI) (map[string]*NodeConfig, error) {
 		// get all the config information for the current node
 		err = loadHardwareConfig(nodeID, nodeConfig, etcdNode)
 		if err != nil {
-			log.Printf("failed to parse hardware config for node %s, %v", etcdNode, err)
+			logger.Errorf("failed to parse hardware config for node %s, %v", etcdNode, err)
 			return nil, err
 		}
 
@@ -118,7 +117,7 @@ func loadNodeHealth(etcdClient etcd.KeysAPI, nodes map[string]*NodeConfig) error
 		var nodeConfig *NodeConfig
 		var ok bool
 		if nodeConfig, ok = nodes[nodeID]; !ok {
-			log.Printf("found health but no config for node %s", nodeID)
+			logger.Warningf("found health but no config for node %s", nodeID)
 			continue
 		}
 
@@ -137,7 +136,7 @@ func loadSingleNodeHealth(node *NodeConfig, health *etcd.Node) error {
 		switch util.GetLeafKeyPath(prop.Key) {
 		case HeartbeatKey:
 			node.HeartbeatAge = HeartbeatTtlDuration - (time.Duration(prop.TTL) * time.Second)
-			// verbose: log.Printf("Node %s has age of %s", node.IPAddress, node.HeartbeatAge.String())
+			logger.Tracef("Node %s has age of %s", node.PrivateIP, node.HeartbeatAge.String())
 		default:
 			return fmt.Errorf("unknown node health key %s", prop.Key)
 		}
@@ -198,11 +197,11 @@ func loadHardwareConfig(nodeId string, nodeConfig *NodeConfig, nodeInfo *etcd.No
 			err = loadSimpleConfigStringProperty(&(nodeConfig.Location), nodeConfigRoot, "Location")
 
 		default:
-			log.Printf("unexpected hardware component: %s, skipping...", nodeConfigRoot)
+			logger.Warningf("unexpected hardware component: %s, skipping...", nodeConfigRoot)
 		}
 
 		if err != nil {
-			log.Printf("failed to load %s config for node %s, %v", key, nodeId, err)
+			logger.Errorf("failed to load %s config for node %s, %v", key, nodeId, err)
 			return err
 		}
 	}
@@ -222,7 +221,7 @@ func loadDisksConfig(nodeConfig *NodeConfig, disksRootNode *etcd.Node) error {
 	for i, diskInfo := range disksRootNode.Nodes {
 		disk, err := getDiskInfo(diskInfo)
 		if err != nil {
-			log.Printf("Failed to get disk. err=%v", err)
+			logger.Errorf("Failed to get disk. err=%v", err)
 			return err
 		}
 
@@ -291,7 +290,7 @@ func loadProcessorsConfig(nodeConfig *NodeConfig, procsRootNode *etcd.Node) erro
 					proc.Bits = uint(numBits)
 				}
 			default:
-				log.Printf("unknown processor property key %s, skipping", procPropertyName)
+				logger.Warningf("unknown processor property key %s, skipping", procPropertyName)
 			}
 		}
 
@@ -313,7 +312,7 @@ func loadMemoryConfig(nodeConfig *NodeConfig, memoryRootNode *etcd.Node) error {
 				mem.TotalSize = size
 			}
 		default:
-			log.Printf("unknown memory property key %s, skipping", memPropertyName)
+			logger.Warningf("unknown memory property key %s, skipping", memPropertyName)
 		}
 	}
 
@@ -351,7 +350,7 @@ func loadNetworkConfig(nodeConfig *NodeConfig, networkRootNode *etcd.Node) error
 					net.Speed = speed
 				}
 			default:
-				log.Printf("unknown network adapter property key %s, skipping", netPropertyName)
+				logger.Warningf("unknown network adapter property key %s, skipping", netPropertyName)
 			}
 		}
 

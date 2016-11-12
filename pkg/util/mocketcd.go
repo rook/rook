@@ -18,7 +18,6 @@ package util
 import (
 	"errors"
 	"fmt"
-	"log"
 	"path"
 	"sort"
 	"strings"
@@ -161,7 +160,7 @@ func (r *MockEtcdClient) Dump() {
 }
 
 func (d *MockEtcdDir) dumpSortedSubdirs() {
-	log.Printf("%s  (%d subkeys, %d values)", d.Path, len(d.Dirs), len(d.Values))
+	logger.Infof("%s  (%d subkeys, %d values)", d.Path, len(d.Dirs), len(d.Values))
 
 	// first make a copy of the keys from the dir store so we can sort it and not affect the original
 	dirs := make([]string, len(d.Dirs))
@@ -193,7 +192,7 @@ func (d *MockEtcdDir) dumpSortedValues() {
 	// now sort our copy and then print out the key/value pairs
 	sort.Strings(keys)
 	for _, key := range keys {
-		log.Printf("%s/%s=%s", d.Path, key, d.Values[key])
+		logger.Infof("%s/%s=%s", d.Path, key, d.Values[key])
 	}
 }
 
@@ -201,7 +200,7 @@ func (d *MockEtcdDir) dumpSortedValues() {
 func (r *MockEtcdClient) GetChildDirs(key string) *Set {
 	children, err := GetDirChildKeys(r, key)
 	if err != nil {
-		log.Printf("failed to get children of key %s. err=%v", key, err)
+		logger.Warningf("failed to get children of key %s. err=%v", key, err)
 		return nil
 	}
 	return children
@@ -250,7 +249,7 @@ func (r *MockEtcdClient) memoryGet(ctx context.Context, key string, opts *etcd.G
 
 	parent, child, err := r.store.getParentDir(key)
 	if err == nil {
-		//log.Printf("memoryGet: parent=%s, child=%s, values=%d, dirs=%d", parent.Path, child, len(parent.Values), len(parent.Dirs))
+		logger.Debugf("memoryGet: parent=%s, child=%s, values=%d, dirs=%d", parent.Path, child, len(parent.Values), len(parent.Dirs))
 		if existingValue, ok := parent.Values[child]; ok {
 			return MockEtcdValueResponse(key, existingValue, r.index), nil
 		}
