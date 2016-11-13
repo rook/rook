@@ -92,7 +92,7 @@ vagrant up
 
 ## Building
 
-See [Building](https://github.com/rook/rook/wiki/Design) in the wiki for more details.
+See [Building](https://github.com/rook/rook/wiki/Building) in the wiki for more details.
 
 ## Design
 
