@@ -69,12 +69,6 @@ else
 MAKEFLAGS += --no-print-directory
 endif
 
-# set the version number.
-ifeq ($(origin VERSION), undefined)
-VERSION = $(shell git describe --dirty --always)
-endif
-LDFLAGS += -X $(REPO)/pkg/version.Version=$(VERSION)
-
 # the operating system and arch to build
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
@@ -91,6 +85,12 @@ CLIENT_ONLY_PLATFORMS ?= darwin_amd64 windows_amd64
 ALL_PLATFORMS ?= $(CLIENT_SERVER_PLATFORMS) $(CLIENT_ONLY_PLATFORMS)
 
 GO_PROJECT=github.com/rook/rook
+
+# set the version number.
+ifeq ($(origin VERSION), undefined)
+VERSION = $(shell git describe --dirty --always)
+endif
+LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 
 # ====================================================================================
 # Setup rookd
