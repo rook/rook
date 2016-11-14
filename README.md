@@ -113,10 +113,10 @@ with Ceph, for example, most of the Ceph concepts like OSDs, MONs, placement gro
 a much simplified UX for admins that is in terms of physical resources, pools, volumes, filesystems, and buckets.
 
 `rookd` embeds Etcd to store configuration and coordinate cluster-wide management operations. `rookd` will automatically
-bootstrap Etcd, manage it, and scale it as the cluster grows. Its also possible to use an external Etcd instead of the embedded one
+bootstrap Etcd, manage it, and scale it as the cluster grows. It's also possible to use an external Etcd instead of the embedded one
 if needed.
 
-Rook and etcd are implementd in golang. Ceph is implemented in C++ where the data path is highly optimized. We believe
+Rook and etcd are implemented in golang. Ceph is implemented in C++ where the data path is highly optimized. We believe
 this combination offers the best of both worlds.
 
 See [Design](https://github.com/rook/rook/wiki/Design) wiki for more details.
