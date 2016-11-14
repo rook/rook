@@ -25,7 +25,7 @@ largest storage clusters in the world.
 
 ## Status
 
-Rook is in **alpha** state. We're just getting started. Not all planned feature are complete. The API
+Rook is in **alpha** state. We're just getting started. Not all planned features are complete. The API
 and other user-facing objects are subject to change. Backward-compability is not supported for this
 release. See our [Roadmap](https://github.com/rook/rook/wiki/Roadmap) and [Issues](https://github.com/rook/rook/issues).
 Please help us by [Contributing](CONTRIBUTING.md) to the project.
