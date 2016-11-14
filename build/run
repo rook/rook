@@ -30,14 +30,10 @@ if [[ ! $(docker images -q ${container_image}) ]]; then
     docker pull ${container_image}
 fi
 
-# on Linux we run the container with the same uid and gid of the user to avoid
-# permissions issues. For docker on macOS this is not needed since we rely on osxfs
-if [ "`uname -s`" == "Linux" ]; then
-  USER_ARGS="-e BUILDER_UID=$( id -u ) -e BUILDER_GID=$( id -g ) -e BUILDER_USER=$( id -un ) -e BUILDER_GROUP=$( id -gn )"
-  BUILDER_HOME=/home/$( id -un )
-else
-  BUILDER_HOME=/root
-fi
+# run the container with the same uid and gid of the user to avoid
+# permissions issues when sharing volumes with the host
+USER_ARGS="-e BUILDER_UID=$( id -u ) -e BUILDER_GID=$( id -g )"
+BUILDER_HOME=/home/rook
 
 cleanup() {
     docker stop ${container_name} &> /dev/null || true
@@ -89,6 +85,7 @@ if [ "`uname -s`" != "Linux" ]; then
         -e GROUP=root \
         -e MKDIRS="/volume/src/${source_repo}" \
         -p ${rsync_port}:873 \
+        --entrypoint /bin/bash \
         -v ${container_volume}:/volume \
         ${container_image} \
         /build/rsyncd.sh  &> /dev/null
