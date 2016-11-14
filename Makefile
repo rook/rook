@@ -31,7 +31,6 @@ TAGS ?=
 # a dynamic binary is produced that requires glibc to be installed
 STATIC ?= 1
 ifeq ($(STATIC),1)
-LDFLAGS += -s -extldflags "-static"
 TAGS += static
 else
 TAGS += dynamic
@@ -141,7 +140,10 @@ else
 GO_NONSTATIC_PACKAGES=$(GO_PROJECT)
 endif
 
-GO_TOOL_FLAGS=$(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)'
+GO_BUILDFLAGS=$(BUILDFLAGS)
+GO_LDFLAGS=$(LDFLAGS)
+GO_TAGS=$(TAGS)
+
 GO_PKG_DIR ?= $(WORKDIR)/pkg
 
 include build/makelib/golang.mk

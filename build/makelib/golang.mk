@@ -47,7 +47,9 @@ GO_VENDOR_DIR ?= vendor
 GO_PKG_DIR ?=
 
 # Optional build flags passed to go tools
-GO_TOOL_FLAGS ?=
+GO_BUILDFLAGS ?=
+GO_LDFLAGS ?=
+GO_TAGS ?=
 
 # Optional CGO flags directories
 CGO_CFLAGS ?=
@@ -96,6 +98,9 @@ else
 GO_PKG_STATIC_FLAGS := -installsuffix static
 endif
 
+GO_TOOL_FLAGS=$(GO_BUILDFLAGS) -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
+GO_STATIC_TOOL_FLAGS=$(GO_BUILDFLAGS) -tags '$(GO_TAGS) netgo' -ldflags '$(GO_LDFLAGS) -s -extldflags "-static"'
+
 # ====================================================================================
 # Targets
 
@@ -121,13 +126,13 @@ endif
 go.build: go.vet go.fmt $(CGO_PREREQS)
 	$(foreach p,$(GO_NONSTATIC_PACKAGES),@CGO_ENABLED=1 $(GO) build -v -i $(GO_PKG_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_TOOL_FLAGS) $(p))
 	$(foreach p,$(GO_CGO_PACKAGES),@CGO_ENABLED=1 $(GO) build -v -i $(GO_PKG_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_TOOL_FLAGS) $(p))
-	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) build -v -i $(GO_PKG_STATIC_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_TOOL_FLAGS) $(p))
+	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) build -v -i $(GO_PKG_STATIC_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_TOOL_FLAGS) $(p))
 
 .PHONY: go.install
 go.install: go.vet go.fmt $(CGO_PREREQS)
 	$(foreach p,$(GO_NONSTATIC_PACKAGES),@CGO_ENABLED=1 $(GO) install -v $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(p))
 	$(foreach p,$(GO_CGO_PACKAGES),@CGO_ENABLED=1 $(GO) install -v $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(p))
-	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) install -v $(GO_PKG_STATIC_FLAGS) $(GO_TOOL_FLAGS) $(p))
+	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) install -v $(GO_PKG_STATIC_FLAGS) $(GO_STATIC_TOOL_FLAGS) $(p))
 
 .PHONY: go.test
 go.test: go.vet go.fmt $(CGO_PREREQS)
