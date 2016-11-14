@@ -48,22 +48,3 @@ coreos:
 
       [Install]
       WantedBy=multi-user.target
-
-# temporary until we make the repo public.
-write_files:
-  - path: /etc/rkt/auth.d/rook-demo-auth.json
-    owner: root:root
-    permissions: '0600'
-    content: |
-      {
-        "rktKind": "auth",
-        "rktVersion": "v1",
-        "domains": [
-          "quay.io"
-        ],
-        "type": "basic",
-        "credentials": {
-          "user": "rook+demo",
-          "password": "OR2CYSJ3LIQY1DO5Y9UJJSSANTQR2AIZ11B6PJPOZYU20N3E0Z3BT04UUWV6I54Z"
-        }
-      }
