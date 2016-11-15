@@ -85,6 +85,7 @@ if [ "`uname -s`" != "Linux" ]; then
     MOUNT_OPTS="${MOUNT_OPTS} \
         -v ${container_volume}:${BUILDER_HOME}/go"
 
+    CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/go/.ccache -e CCACHE_LOG"
 else
 
     # On linux bind mounts are cheap so we dont need to rsync
@@ -104,11 +105,10 @@ else
         -v ${scriptdir}/../.work/cross:${BUILDER_HOME}/go/.work \
         -v ${scriptdir}/..:${BUILDER_HOME}/go/src/${source_repo}"
 
-    CCACHE_MOUNT_ARGS="-v ${CCACHE_DIR}:${BUILDER_HOME}/go/.ccache"
-fi
-
-if [[ `which ccache` && -d "${CCACHE_DIR}" ]]; then
-    CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/go/.ccache -e CCACHE_LOG ${CCACHE_MOUNT_ARGS}"
+    if [[ -d "${CCACHE_DIR}" ]]; then
+        CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/go/.ccache -e CCACHE_LOG \
+            -v ${CCACHE_DIR}:${BUILDER_HOME}/go/.ccache"
+    fi
 fi
 
 # we copy credential files for github access
