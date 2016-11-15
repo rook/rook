@@ -50,3 +50,36 @@ function wait_for_rsync() {
     echo ERROR: rsyncd did not come up >&2
     exit 1
 }
+
+function start_and_wait_for_rsyncd() {
+    # run the container as an rsyncd daemon so that we can copy the
+    # source tree to the container volume.
+    docker run \
+        --name "${container_name}" \
+        -d \
+        -e OWNER=root \
+        -e GROUP=root \
+        -e MKDIRS="/volume/src/${source_repo}" \
+        -p ${rsync_port}:873 \
+        --entrypoint /bin/bash \
+        -v ${container_volume}:/volume \
+        ${container_image} \
+        /build/rsyncd.sh  &> /dev/null
+
+    # wait for rsync to come up
+    wait_for_rsync
+}
+
+function run_rsync() {
+    rsync \
+        --archive \
+        --delete \
+        --prune-empty-dirs \
+        --filter='- /.work/' \
+        --filter='- /.glide/' \
+        --filter='- /.vscode/' \
+        --filter='- /bin/' \
+        --filter='- /release/' \
+        ${1} \
+        ${2}
+}

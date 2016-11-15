@@ -76,35 +76,11 @@ if [ "`uname -s`" != "Linux" ]; then
     trap "cleanup" EXIT
     cleanup
 
-    # run the container as an rsyncd daemon so that we can copy the
-    # source tree to the container volume.
-    docker run \
-        --name "${container_name}" \
-        -d \
-        -e OWNER=root \
-        -e GROUP=root \
-        -e MKDIRS="/volume/src/${source_repo}" \
-        -p ${rsync_port}:873 \
-        --entrypoint /bin/bash \
-        -v ${container_volume}:/volume \
-        ${container_image} \
-        /build/rsyncd.sh  &> /dev/null
-
-    # wait for rsync to come up
-    wait_for_rsync
+    # start rsyncd inside the container so that we can rsync files into it
+    start_and_wait_for_rsyncd
 
     # now copy the source tree to the container volume
-    rsync \
-        --archive \
-        --delete \
-        --prune-empty-dirs \
-        --filter='- /.work/' \
-        --filter='- /.glide/' \
-        --filter='- /.vscode/' \
-        --filter='- /bin/' \
-        --filter='- /release/' \
-        ${scriptdir}/.. \
-        rsync://localhost:${rsync_port}/volume/src/${source_repo}
+    run_rsync ${scriptdir}/.. rsync://localhost:${rsync_port}/volume/src/${source_repo}
 
     MOUNT_OPTS="${MOUNT_OPTS} \
         -v ${container_volume}:${BUILDER_HOME}/go"
@@ -173,3 +149,15 @@ docker run \
     -w ${BUILDER_HOME}/go/src/${source_repo} \
     ${container_image} \
     "$@"
+
+
+# copy some folders back to the source. We avoid a bind mount here
+# due to https://github.com/rook/rook/issues/93
+if [ "`uname -s`" != "Linux" ]; then
+
+    start_and_wait_for_rsyncd
+
+    run_rsync rsync://localhost:${rsync_port}/volume/src/${source_repo}/vendor ${scriptdir}/..
+    run_rsync rsync://localhost:${rsync_port}/volume/src/${source_repo}/tools ${scriptdir}/..
+
+fi
