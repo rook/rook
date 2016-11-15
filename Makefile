@@ -31,7 +31,6 @@ TAGS ?=
 # a dynamic binary is produced that requires glibc to be installed
 STATIC ?= 1
 ifeq ($(STATIC),1)
-LDFLAGS += -s -extldflags "-static"
 TAGS += static
 else
 TAGS += dynamic
@@ -70,12 +69,6 @@ else
 MAKEFLAGS += --no-print-directory
 endif
 
-# set the version number.
-ifeq ($(origin VERSION), undefined)
-VERSION = $(shell git describe --dirty --always)
-endif
-LDFLAGS += -X $(REPO)/pkg/version.Version=$(VERSION)
-
 # the operating system and arch to build
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
@@ -92,6 +85,12 @@ CLIENT_ONLY_PLATFORMS ?= darwin_amd64 windows_amd64
 ALL_PLATFORMS ?= $(CLIENT_SERVER_PLATFORMS) $(CLIENT_ONLY_PLATFORMS)
 
 GO_PROJECT=github.com/rook/rook
+
+# set the version number.
+ifeq ($(origin VERSION), undefined)
+VERSION = $(shell git describe --dirty --always)
+endif
+LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 
 # ====================================================================================
 # Setup rookd
@@ -141,7 +140,10 @@ else
 GO_NONSTATIC_PACKAGES=$(GO_PROJECT)
 endif
 
-GO_TOOL_FLAGS=$(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)'
+GO_BUILDFLAGS=$(BUILDFLAGS)
+GO_LDFLAGS=$(LDFLAGS)
+GO_TAGS=$(TAGS)
+
 GO_PKG_DIR ?= $(WORKDIR)/pkg
 
 include build/makelib/golang.mk
