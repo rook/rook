@@ -18,11 +18,10 @@ package rook
 import (
 	"fmt"
 	"io"
-	"log"
 	"os"
-	"path/filepath"
 	"text/tabwriter"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/spf13/cobra"
 )
 
@@ -31,8 +30,6 @@ var (
 )
 
 const (
-	debugLogVar    = "ROOK_DEBUG_DIR"
-	logFileName    = "rook.log"
 	outputPadding  = 3
 	outputMinWidth = 10
 	outputTabWidth = 0
@@ -45,20 +42,30 @@ var rootCmd = &cobra.Command{
 	Long:  `https://github.com/rook/rook`,
 }
 
+var logLevelRaw string
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rook")
+
+func init() {
+	rootCmd.PersistentFlags().StringVar(&apiServerEndpoint, "api-server-endpoint", "127.0.0.1:8124", "IP endpoint of API server instance (required)")
+	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "WARNING", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
+
+	rootCmd.MarkFlagRequired("api-server-endpoint")
+}
+
 func Main() {
-	enableLogging()
+	// parse the given log level and set it at a global level
+	logLevel, err := capnslog.ParseLevel(logLevelRaw)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	capnslog.SetGlobalLogLevel(logLevel)
 
 	addCommands()
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-func init() {
-	rootCmd.PersistentFlags().StringVar(&apiServerEndpoint, "api-server-endpoint", "127.0.0.1:8124", "IP endpoint of API server instance (required)")
-
-	rootCmd.MarkFlagRequired("api-server-endpoint")
 }
 
 func addCommands() {
@@ -71,23 +78,4 @@ func addCommands() {
 
 func NewTableWriter(buffer io.Writer) *tabwriter.Writer {
 	return tabwriter.NewWriter(buffer, outputMinWidth, outputTabWidth, outputPadding, outputPadChar, 0)
-}
-
-func enableLogging() {
-	debugDir := os.Getenv(debugLogVar)
-	if debugDir == "" {
-		return
-	}
-
-	// set up logging to a log file instead of stdout (only command output and errors should go to stdout/stderr)
-	if err := os.MkdirAll(debugDir, 0744); err != nil {
-		log.Fatalf("failed to create logging dir '%s': %+v", debugDir, err)
-	}
-	logFilePath := filepath.Join(debugDir, logFileName)
-	logFile, err := os.OpenFile(logFilePath, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		log.Fatalf("failed to open log file '%s': %v", logFilePath, err)
-	}
-	defer logFile.Close()
-	log.SetOutput(logFile)
 }

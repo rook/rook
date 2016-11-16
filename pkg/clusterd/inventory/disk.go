@@ -18,7 +18,6 @@ package inventory
 import (
 	"errors"
 	"fmt"
-	"log"
 	"path"
 	"strconv"
 	"strings"
@@ -169,7 +168,7 @@ func getDiskInfo(diskInfo *etcd.Node) (*DiskConfig, error) {
 				disk.HasChildren = itob(hasChildren)
 			}
 		default:
-			log.Printf("unknown disk property key %s, skipping...", diskPropertyName)
+			logger.Warningf("unknown disk property key %s, skipping...", diskPropertyName)
 		}
 	}
 
@@ -203,7 +202,7 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.
 
 		diskProps, err := sys.GetDeviceProperties(d, executor)
 		if err != nil {
-			log.Printf("skipping device %s: %+v", d, err)
+			logger.Warningf("skipping device %s: %+v", d, err)
 			continue
 		}
 
@@ -218,7 +217,7 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.
 		if diskType != "part" {
 			diskUUID, err = sys.GetDiskUUID(d, executor)
 			if err != nil {
-				log.Printf("skipping device %s with an unknown uuid. %+v", d, err)
+				logger.Warningf("skipping device %s with an unknown uuid. %+v", d, err)
 				continue
 			}
 		}

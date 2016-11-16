@@ -18,7 +18,6 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	ceph "github.com/rook/rook/pkg/cephmgr/client"
@@ -38,7 +37,7 @@ func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
 	// list pool summaries using the ceph client
 	cephPoolSummaries, err := ceph.ListPoolSummaries(adminConn)
 	if err != nil {
-		log.Printf("failed to list pools: %+v", err)
+		logger.Errorf("failed to list pools: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -48,7 +47,7 @@ func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
 	for i := range cephPoolSummaries {
 		poolDetails, err := ceph.GetPoolDetails(adminConn, cephPoolSummaries[i].Name)
 		if err != nil {
-			log.Printf("%+v", err)
+			logger.Errorf("%+v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -69,7 +68,7 @@ func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
 		// list each erasure code profile
 		ecProfileNames, err := ceph.ListErasureCodeProfiles(adminConn)
 		if err != nil {
-			log.Printf("failed to list erasure code profiles: %+v", err)
+			logger.Errorf("failed to list erasure code profiles: %+v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -79,7 +78,7 @@ func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
 		for _, name := range ecProfileNames {
 			ecp, err := ceph.GetErasureCodeProfileDetails(adminConn, name)
 			if err != nil {
-				log.Printf("failed to get erasure code profile details for '%s': %+v", name, err)
+				logger.Errorf("failed to get erasure code profile details for '%s': %+v", name, err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -92,7 +91,7 @@ func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
 	for i, p := range cephPools {
 		pool, err := cephPoolToModelPool(p, ecProfileDetails)
 		if err != nil {
-			log.Printf("%+v", err)
+			logger.Errorf("%+v", err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -114,7 +113,7 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.Unmarshal(body, &newPoolReq); err != nil {
-		log.Printf("failed to unmarshal create pool request body '%s': %+v", string(body), err)
+		logger.Errorf("failed to unmarshal create pool request body '%s': %+v", string(body), err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -131,7 +130,7 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 	if newPoolReq.Type == model.ErasureCoded {
 		// create a new erasure code profile for the new pool
 		if err := ceph.CreateErasureCodeProfile(adminConn, newPoolReq.ErasureCodedConfig, newPool.ErasureCodeProfile); err != nil {
-			log.Printf("failed to create erasure code profile for pool '%s': %+v", newPoolReq.Name, err)
+			logger.Errorf("failed to create erasure code profile for pool '%s': %+v", newPoolReq.Name, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -139,7 +138,7 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 
 	info, err := ceph.CreatePool(adminConn, newPool)
 	if err != nil {
-		log.Printf("failed to create new pool '%s': %+v", newPool.Name, err)
+		logger.Errorf("failed to create new pool '%s': %+v", newPool.Name, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

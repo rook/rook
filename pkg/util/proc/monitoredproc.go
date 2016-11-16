@@ -16,8 +16,6 @@ limitations under the License.
 package proc
 
 import (
-	"fmt"
-	"log"
 	"math"
 	"os/exec"
 	"syscall"
@@ -55,23 +53,23 @@ func (p *MonitoredProc) Monitor() {
 		}
 
 		if !p.monitor {
-			log.Printf("done monitoring process %v", p.cmd.Args)
+			logger.Infof("done monitoring process %v", p.cmd.Args)
 			break
 		}
 
 		// calculate the delay
 		delaySeconds := calcRetryDelay(p.retrySecondsExponentBase, p.retries)
 
-		log.Printf("starting process %v again after %.1f seconds", p.cmd.Args, delaySeconds)
+		logger.Infof("starting process %v again after %.1f seconds", p.cmd.Args, delaySeconds)
 		<-time.After(time.Second * time.Duration(delaySeconds))
 
 		// start the process
 		p.cmd, err = p.parent.executor.StartExecuteCommand("restart", p.cmd.Args[0], p.cmd.Args[1:]...)
 		if err != nil {
-			log.Printf("retry %d (total %d): process %v failed to restart. %v", p.retries, p.totalRetries, p.cmd.Args, err)
+			logger.Warningf("retry %d (total %d): process %v failed to restart. %v", p.retries, p.totalRetries, p.cmd.Args, err)
 			p.retries++
 		} else {
-			log.Printf("retry (total %d). started process %v", p.totalRetries, p.cmd.Args)
+			logger.Infof("retry (total %d). started process %v", p.totalRetries, p.cmd.Args)
 			p.retries = 0
 		}
 
@@ -82,18 +80,18 @@ func (p *MonitoredProc) Monitor() {
 func (p *MonitoredProc) waitForProcessExit() {
 	state, err := p.cmd.Process.Wait()
 	if err != nil {
-		log.Printf("waiting for process %d had an error: %+v", p.cmd.Process.Pid, err)
+		logger.Errorf("waiting for process %d had an error: %+v", p.cmd.Process.Pid, err)
 		return
 	}
 
 	// check the wait status of the process which has all the exit information
 	waitStatus, ok := state.Sys().(syscall.WaitStatus)
 	if !ok {
-		log.Printf("unknown waitStatus for process %d: %+v", p.cmd.Process.Pid, state.Sys())
+		logger.Errorf("unknown waitStatus for process %d: %+v", p.cmd.Process.Pid, state.Sys())
 		return
 	}
 
-	log.Printf("process %d completed.  Exited: %t, ExitStatus: %d, Signaled: %t, Signal: %d",
+	logger.Infof("process %d completed.  Exited: %t, ExitStatus: %d, Signaled: %t, Signal: %d",
 		p.cmd.Process.Pid, waitStatus.Exited(), waitStatus.ExitStatus(), waitStatus.Signaled(), waitStatus.Signal())
 }
 
@@ -104,13 +102,13 @@ func (p *MonitoredProc) Stop() error {
 	}
 
 	pid := p.cmd.Process.Pid
-	fmt.Printf("stopping child process %d\n", pid)
+	logger.Infof("stopping child process %d\n", pid)
 	if err := p.cmd.Process.Kill(); err != nil {
-		fmt.Printf("failed to stop child process %d: %+v\n", pid, err)
+		logger.Errorf("failed to stop child process %d: %+v\n", pid, err)
 		return err
 	}
 
-	fmt.Printf("child process %d stopped successfully\n", pid)
+	logger.Infof("child process %d stopped successfully\n", pid)
 	return nil
 }
 

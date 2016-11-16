@@ -17,7 +17,6 @@ package osd
 
 import (
 	"io/ioutil"
-	"log"
 	"os"
 	"strings"
 	"testing"
@@ -59,7 +58,7 @@ func TestOSDBootstrap(t *testing.T) {
 	conn, _ := factory.NewConnWithClusterAndUser(clusterName, "user")
 	conn.(*testceph.MockConnection).MockMonCommand = func(buf []byte) (buffer []byte, info string, err error) {
 		response := "{\"key\":\"mysecurekey\"}"
-		log.Printf("Returning: %s", response)
+		logger.Infof("Returning: %s", response)
 		return []byte(response), "", nil
 	}
 

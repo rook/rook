@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -67,7 +66,7 @@ func createOSDBootstrapKeyring(conn client.Connection, configDir, clusterName st
 	_, err := os.Stat(bootstrapOSDKeyringPath)
 	if err == nil {
 		// no error, the file exists, bail out with no error
-		log.Printf("bootstrap OSD keyring already exists at %s", bootstrapOSDKeyringPath)
+		logger.Debugf("bootstrap OSD keyring already exists at %s", bootstrapOSDKeyringPath)
 		return nil
 	} else if !os.IsNotExist(err) {
 		// some other error besides "does not exist", bail out with error
@@ -80,7 +79,7 @@ func createOSDBootstrapKeyring(conn client.Connection, configDir, clusterName st
 		return fmt.Errorf("failed to get or create osd auth key %s. %+v", bootstrapOSDKeyringPath, err)
 	}
 
-	log.Printf("succeeded bootstrap OSD get/create key, bootstrapOSDKey: %s", bootstrapOSDKey)
+	logger.Debugf("succeeded bootstrap OSD get/create key, bootstrapOSDKey: %s", bootstrapOSDKey)
 
 	// write the bootstrap-osd keyring to disk
 	bootstrapOSDKeyringDir := filepath.Dir(bootstrapOSDKeyringPath)
@@ -89,7 +88,7 @@ func createOSDBootstrapKeyring(conn client.Connection, configDir, clusterName st
 	}
 
 	bootstrapOSDKeyring := fmt.Sprintf(bootstrapOSDKeyringTemplate, bootstrapOSDKey)
-	log.Printf("Writing osd keyring to: %s", bootstrapOSDKeyring)
+	logger.Debugf("Writing osd keyring to: %s", bootstrapOSDKeyring)
 	if err := ioutil.WriteFile(bootstrapOSDKeyringPath, []byte(bootstrapOSDKeyring), 0644); err != nil {
 		return fmt.Errorf("failed to write bootstrap-osd keyring to %s: %+v", bootstrapOSDKeyringPath, err)
 	}

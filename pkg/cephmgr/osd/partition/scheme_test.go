@@ -16,7 +16,6 @@ limitations under the License.
 package partition
 
 import (
-	"log"
 	"os"
 	"path"
 	"testing"
@@ -42,5 +41,5 @@ func TestSimpleScheme(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(loaded.PartitionUUIDs))
 
-	log.Printf("scheme=%+v", scheme)
+	logger.Infof("scheme=%+v", scheme)
 }

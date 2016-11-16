@@ -17,7 +17,6 @@ package api
 
 import (
 	"encoding/json"
-	"log"
 	"net/http"
 
 	"github.com/rook/rook/pkg/cephmgr/osd"
@@ -34,7 +33,7 @@ func (h *Handler) AddDevice(w http.ResponseWriter, r *http.Request) {
 
 	err := osd.AddDesiredDevice(h.context.EtcdClient, device.Name, device.NodeID)
 	if err != nil {
-		log.Printf("failed to add device. %v", err)
+		logger.Errorf("failed to add device. %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -51,7 +50,7 @@ func (h *Handler) RemoveDevice(w http.ResponseWriter, r *http.Request) {
 
 	err := osd.RemoveDesiredDevice(h.context.EtcdClient, device.Name, device.NodeID)
 	if err != nil {
-		log.Printf("failed to remove device. %v", err)
+		logger.Errorf("failed to remove device. %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -65,13 +64,13 @@ func handleLoadDeviceFromBody(w http.ResponseWriter, r *http.Request) (*osd.Devi
 
 	var device osd.Device
 	if err := json.Unmarshal(body, &device); err != nil {
-		log.Printf("failed to unmarshal request body '%s': %+v", string(body), err)
+		logger.Errorf("failed to unmarshal request body '%s': %+v", string(body), err)
 		w.WriteHeader(http.StatusBadRequest)
 		return nil, false
 	}
 
 	if device.Name == "" || device.NodeID == "" {
-		log.Printf("missing name or nodeId: %+v", device)
+		logger.Errorf("missing name or nodeId: %+v", device)
 		w.WriteHeader(http.StatusBadRequest)
 		return nil, false
 	}

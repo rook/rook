@@ -18,7 +18,6 @@ package rook
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -179,7 +178,7 @@ func checkRBDSingleMajor(executor exec.Executor) bool {
 	// check to see if the rbd kernel module has single_major support
 	hasSingleMajor, err := kmod.CheckKernelModuleParam(rbdKernelModuleName, "single_major", executor)
 	if err != nil {
-		log.Printf("failed %s single_major check, assuming it's unsupported: %+v", rbdKernelModuleName, err)
+		logger.Noticef("failed %s single_major check, assuming it's unsupported: %+v", rbdKernelModuleName, err)
 		hasSingleMajor = false
 	}
 
@@ -194,7 +193,7 @@ func openRBDFile(hasSingleMajor bool, singleMajorPath, path string) (*os.File, e
 	if hasSingleMajor {
 		fd, err = os.OpenFile(singleMajorPath, os.O_WRONLY, 0200)
 		if err != nil {
-			log.Printf("failed to open %s, falling back to %s: %+v", singleMajorPath, path, err)
+			logger.Noticef("failed to open %s, falling back to %s: %+v", singleMajorPath, path, err)
 			fd = nil
 		}
 	}
@@ -245,7 +244,7 @@ func waitForDevicePath(imageName, poolName, rbdSysBusPath string, maxRetries, sl
 			return "", fmt.Errorf("exceeded retry count while finding device path: %+v", err)
 		}
 
-		log.Printf("failed to find device path, sleeping %d seconds: %+v", sleepSecs, err)
+		logger.Noticef("failed to find device path, sleeping %d seconds: %+v", sleepSecs, err)
 		<-time.After(time.Duration(sleepSecs) * time.Second)
 	}
 }

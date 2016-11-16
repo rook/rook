@@ -16,7 +16,6 @@ limitations under the License.
 package osd
 
 import (
-	"log"
 	"path"
 
 	ctx "golang.org/x/net/context"
@@ -52,7 +51,7 @@ func (l *Leader) Configure(context *clusterd.Context, nodes []string) error {
 		key := path.Join(mon.CephKey, osdAgentName, clusterd.DesiredKey, nodeID, "ready")
 		_, err := context.EtcdClient.Set(ctx.Background(), key, "1", nil)
 		if err != nil {
-			log.Printf("failed to trigger osd %s", nodeID)
+			logger.Warningf("failed to trigger osd %s", nodeID)
 			continue
 		}
 

@@ -17,7 +17,6 @@ package mon
 
 import (
 	"fmt"
-	"log"
 	"os/exec"
 	"path"
 	"testing"
@@ -35,7 +34,7 @@ func TestMonAgent(t *testing.T) {
 
 	runCommands := 0
 	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
-		log.Printf("RUN %d. %s %+v", runCommands, command, args)
+		logger.Infof("RUN %d. %s %+v", runCommands, command, args)
 		switch {
 		case runCommands == 0:
 			assert.Equal(t, "--mkfs", args[3])
@@ -49,7 +48,7 @@ func TestMonAgent(t *testing.T) {
 
 	startCommands := 0
 	executor.MockStartExecuteCommand = func(name string, command string, args ...string) (*exec.Cmd, error) {
-		log.Printf("START %d. %s %+v", startCommands, command, args)
+		logger.Infof("START %d. %s %+v", startCommands, command, args)
 		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 		assert.Equal(t, "daemon", args[0])
 		assert.Equal(t, "--type=mon", args[1])

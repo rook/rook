@@ -19,7 +19,6 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 
 	ceph "github.com/rook/rook/pkg/cephmgr/client"
@@ -48,7 +47,7 @@ func FormatJsonResponse(w http.ResponseWriter, object interface{}) {
 
 	output, err := json.Marshal(object)
 	if err != nil {
-		log.Printf("failed to marshal object '%+v': %+v", object, err)
+		logger.Errorf("failed to marshal object '%+v': %+v", object, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -75,7 +74,7 @@ func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
 	// get the crush map
 	crushmap, err := osd.GetCrushMap(conn)
 	if err != nil {
-		log.Printf("failed to get crush map, err: %+v", err)
+		logger.Errorf("failed to get crush map, err: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -91,7 +90,7 @@ func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
 
 	desiredMons, err := mon.GetDesiredMonitors(h.context.EtcdClient)
 	if err != nil {
-		log.Printf("failed to load monitors: %+v", err)
+		logger.Errorf("failed to load monitors: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -113,7 +112,7 @@ func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
 	// get the monitor status
 	monStatusResp, err := ceph.GetMonStatus(adminConn)
 	if err != nil {
-		log.Printf("failed to get mon_status, err: %+v", err)
+		logger.Errorf("failed to get mon_status, err: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -128,7 +127,7 @@ func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
 
 func handleReadBody(w http.ResponseWriter, r *http.Request, opName string) ([]byte, bool) {
 	if r.Body == nil {
-		log.Printf("nil request body for %s", opName)
+		logger.Errorf("nil request body for %s", opName)
 		w.WriteHeader(http.StatusBadRequest)
 		return nil, false
 	}
@@ -137,7 +136,7 @@ func handleReadBody(w http.ResponseWriter, r *http.Request, opName string) ([]by
 	if err == nil {
 		r.Body.Close()
 	} else {
-		log.Printf("failed to read %s request body: %+v", opName, err)
+		logger.Errorf("failed to read %s request body: %+v", opName, err)
 		w.WriteHeader(http.StatusBadRequest)
 		return nil, false
 	}
@@ -148,7 +147,7 @@ func handleReadBody(w http.ResponseWriter, r *http.Request, opName string) ([]by
 func (h *Handler) handleConnectToCeph(w http.ResponseWriter) (ceph.Connection, bool) {
 	adminConn, err := h.ConnectionFactory.ConnectAsAdmin(h.context, h.CephFactory)
 	if err != nil {
-		log.Printf("failed to connect to cluster as admin: %+v", err)
+		logger.Errorf("failed to connect to cluster as admin: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return nil, false
 	}
@@ -159,7 +158,7 @@ func (h *Handler) handleConnectToCeph(w http.ResponseWriter) (ceph.Connection, b
 func handleOpenIOContext(w http.ResponseWriter, conn ceph.Connection, pool string) (ceph.IOContext, bool) {
 	ioctx, err := conn.OpenIOContext(pool)
 	if err != nil {
-		log.Printf("failed to open ioctx on pool %s: %+v", pool, err)
+		logger.Errorf("failed to open ioctx on pool %s: %+v", pool, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return nil, false
 	}

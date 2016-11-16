@@ -18,7 +18,6 @@ package mon
 import (
 	"errors"
 	"fmt"
-	"log"
 	"path"
 	"strconv"
 	"strings"
@@ -58,13 +57,13 @@ func (m *Leader) Configure(context *clusterd.Context, factory client.ConnectionF
 		return err
 	}
 
-	log.Printf("Creating monitors with %d nodes available", len(context.Inventory.Nodes))
+	logger.Infof("Creating monitors with %d nodes available", len(context.Inventory.Nodes))
 
 	// choose the nodes where the monitors will run
 	var monitorsToRemove map[string]*CephMonitorConfig
 	cluster.Monitors, monitorsToRemove, err = chooseMonitorNodes(context)
 	if err != nil {
-		log.Printf("failed to choose monitors. err=%s", err.Error())
+		logger.Errorf("failed to choose monitors. err=%s", err.Error())
 		return err
 	}
 
@@ -88,7 +87,7 @@ func (m *Leader) Configure(context *clusterd.Context, factory client.ConnectionF
 	// notify the quorum to remove the bad members
 	err = removeMonitorsFromQuorum(factory, context, cluster, monitorsToRemove)
 	if err != nil {
-		log.Printf("failed to remove monitors from quorum. %v", err)
+		logger.Warningf("failed to remove monitors from quorum. %v", err)
 	}
 
 	return nil
@@ -109,9 +108,9 @@ func removeMonitorsFromQuorum(factory client.ConnectionFactory, context *cluster
 	}
 	defer conn.Shutdown()
 
-	log.Printf("removing %d monitors from quorum", len(monitors))
+	logger.Infof("removing %d monitors from quorum", len(monitors))
 	for monID, mon := range monitors {
-		log.Printf("removing monitor %s (%v)", monID, mon)
+		logger.Debugf("removing monitor %s (%v)", monID, mon)
 
 		cmd := map[string]interface{}{"prefix": "mon remove", "name": mon.Name}
 		_, err = client.ExecuteMonCommand(conn, cmd, "mon remove")
@@ -119,7 +118,7 @@ func removeMonitorsFromQuorum(factory client.ConnectionFactory, context *cluster
 			return fmt.Errorf("mon remove failed: %+v", err)
 		}
 
-		log.Printf("removed monitor %s from node %s", mon.Name, monID)
+		logger.Infof("removed monitor %s from node %s", mon.Name, monID)
 	}
 
 	return nil
@@ -218,9 +217,9 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 	monitorsToRemove := getUnhealthyMonitors(context, monitors)
 
 	newMons := desiredMonitors + len(monitorsToRemove) - len(monitors)
-	log.Printf("Monitor state. current=%d, desired=%d, unhealthy=%d, toAdd=%d", len(monitors), desiredMonitors, len(monitorsToRemove), newMons)
+	logger.Infof("Monitor state. current=%d, desired=%d, unhealthy=%d, toAdd=%d", len(monitors), desiredMonitors, len(monitorsToRemove), newMons)
 	if newMons <= 0 {
-		log.Printf("No need for new monitors")
+		logger.Debugf("No need for new monitors")
 		return monitors, monitorsToRemove, nil
 	}
 
@@ -239,17 +238,17 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 	for nodeID := range context.Inventory.Nodes {
 		// skip the node if already in the list of monitors
 		if mon, ok := monitors[nodeID]; ok {
-			log.Printf("skipping node %s that is %s", nodeID, mon.Name)
+			logger.Debugf("skipping node %s that is %s", nodeID, mon.Name)
 			continue
 		}
 
 		node, ok := context.Inventory.Nodes[nodeID]
 		if !ok || node.PublicIP == "" {
-			log.Printf("failed to discover desired ip address for node %s. %v", nodeID, err)
+			logger.Errorf("failed to discover desired ip address for node %s. %v", nodeID, err)
 			return nil, nil, err
 		}
 		if !isNodeHealthyForMon(node) {
-			log.Printf("skipping selection of unhealthy node %s as a monitor (age=%s)", nodeID, node.HeartbeatAge)
+			logger.Infof("skipping selection of unhealthy node %s as a monitor (age=%s)", nodeID, node.HeartbeatAge)
 			continue
 		}
 
@@ -282,13 +281,13 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 	monKey := path.Join(CephKey, monitorKey, clusterd.DesiredKey)
 	err = util.StoreEtcdProperties(context.EtcdClient, monKey, settings)
 	if err != nil {
-		log.Printf("failed to save monitor ids. err=%v", err)
+		logger.Errorf("failed to save monitor ids. err=%v", err)
 		return nil, nil, err
 	}
 
 	// remove the unhealthy monitors from the desired state
 	for monID, monitor := range monitorsToRemove {
-		log.Printf("removing monitor %s (%+v) from desired state", monID, monitor)
+		logger.Infof("removing monitor %s (%+v) from desired state", monID, monitor)
 		key := path.Join(monKey, monID)
 		_, err = context.EtcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true, Recursive: true})
 		if err != nil {
@@ -385,7 +384,7 @@ func waitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, 
 		// their quorum status
 		monStatusResp, err := client.GetMonStatus(adminConn)
 		if err != nil {
-			log.Printf("failed to get mon_status, err: %+v", err)
+			logger.Debugf("failed to get mon_status, err: %+v", err)
 			continue
 		}
 
@@ -403,7 +402,7 @@ func waitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, 
 
 			if monMapEntry == nil {
 				// found an initial monitor that is not in the mon map, bail out of this retry
-				log.Printf("failed to find initial monitor %s in mon map", im.Name)
+				logger.Warningf("failed to find initial monitor %s in mon map", im.Name)
 				allInQuorum = false
 				break
 			}
@@ -420,18 +419,18 @@ func waitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, 
 
 			if !inQuorumList {
 				// found an initial monitor that is not in quorum, bail out of this retry
-				log.Printf("initial monitor %s is not in quorum list", im.Name)
+				logger.Warningf("initial monitor %s is not in quorum list", im.Name)
 				allInQuorum = false
 				break
 			}
 		}
 
 		if allInQuorum {
-			log.Printf("all initial monitors are in quorum")
+			logger.Debugf("all initial monitors are in quorum")
 			break
 		}
 	}
 
-	log.Printf("Ceph monitors formed quorum")
+	logger.Infof("Ceph monitors formed quorum")
 	return nil
 }

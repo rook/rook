@@ -17,7 +17,6 @@ package sys
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"os/user"
 	"strings"
@@ -142,7 +141,7 @@ func UnmountDevice(devicePath string, executor exec.Executor) error {
 	if err := executor.ExecuteCommand(cmd, "sudo", "umount", devicePath); err != nil {
 		cmdErr, ok := err.(*exec.CommandError)
 		if ok && cmdErr.ExitStatus() == 32 {
-			log.Printf("ignoring exit status 32 from unmount of device %s, err:%+v", devicePath, cmdErr)
+			logger.Infof("ignoring exit status 32 from unmount of device %s, err:%+v", devicePath, cmdErr)
 		} else {
 			return fmt.Errorf("command %s failed: %+v", cmd, err)
 		}
@@ -168,7 +167,7 @@ func ChownForCurrentUser(path string, executor exec.Executor) {
 		var err error
 		currentUser, err = user.Current()
 		if err != nil {
-			log.Printf("unable to find current user: %+v", err)
+			logger.Warningf("unable to find current user: %+v", err)
 			return
 		}
 	}
@@ -177,7 +176,7 @@ func ChownForCurrentUser(path string, executor exec.Executor) {
 		cmd := fmt.Sprintf("chown %s", path)
 		if err := executor.ExecuteCommand(cmd, "sudo", "chown", "-R",
 			fmt.Sprintf("%s:%s", currentUser.Username, currentUser.Username), path); err != nil {
-			log.Printf("command %s failed: %+v", cmd, err)
+			logger.Warningf("command %s failed: %+v", cmd, err)
 		}
 	}
 }
