@@ -161,15 +161,26 @@ RUN GO_VERSION=1.7.3 && \
 ENV PATH /usr/local/go/bin:$PATH
 
 # precompile the go standard library for all supported platforms and configurations
+# there are three configurations that we compile for:
+#    - default: CGO_ENABLED=1, defaults tags
+#    - netgo: CGO_ENABLED=1, enable pure go DNS resolver
+#    - nocgo: CGO_ENABLED=0, defaults tags, pure Go resolver is the default
 RUN \
     CGO_ENABLED=1 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -a std && \
-    CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -tags netgo -installsuffix static -a std && \
+    CGO_ENABLED=1 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -installsuffix nocgo -a std && \
     CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -a std && \
-    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -tags netgo -installsuffix static -a std &&\
+    CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -installsuffix nocgo -a std && \
     CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -a std && \
-    CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -tags netgo -installsuffix static -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -buildmode pie -installsuffix pie -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -installsuffix nocgo -a std && \
     CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -a std && \
-    CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -tags netgo -installsuffix static -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -buildmode pie -installsuffix pie -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix nocgo -a std && \
+    \
     CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix race -a std
 
 WORKDIR /build
