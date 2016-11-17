@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"os/user"
+	"path/filepath"
 	"strings"
 
 	"github.com/google/uuid"
@@ -103,6 +104,7 @@ func GetDeviceMountPoint(deviceName string, executor exec.Executor) (string, err
 }
 
 func GetDeviceFromMountPoint(mountPoint string, executor exec.Executor) (string, error) {
+	mountPoint = filepath.Clean(mountPoint)
 	cmd := fmt.Sprintf("get device from mount point %s", mountPoint)
 	device, err := executor.ExecuteCommandPipeline(
 		cmd,
