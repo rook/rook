@@ -16,8 +16,10 @@ limitations under the License.
 package sys
 
 import (
+	"strings"
 	"testing"
 
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,4 +56,34 @@ sdc            tmpfs`
 
 	result = parseDFOutput("sdc", output)
 	assert.Equal(t, "", result)
+}
+
+func TestGetDeviceFromMountPoint(t *testing.T) {
+	const device = "/dev/rbd3"
+	e := &exectest.MockExecutor{
+		MockExecuteCommandPipeline: func(actionName string, command string) (string, error) {
+			switch {
+			case strings.HasPrefix(actionName, "get device from mount point"):
+				// verify that the mount path being searched for has been cleaned
+				assert.Contains(t, command, " /tmp/mymountpath ")
+				return device, nil
+			}
+			return "", nil
+		},
+	}
+
+	// no trailing slash should work OK
+	d, err := GetDeviceFromMountPoint("/tmp/mymountpath", e)
+	assert.Nil(t, err)
+	assert.Equal(t, device, d)
+
+	// a trailing slash should be cleaned and work OK
+	d, err = GetDeviceFromMountPoint("/tmp/mymountpath/", e)
+	assert.Nil(t, err)
+	assert.Equal(t, device, d)
+
+	// a parent directory '..' in the middle of the path should work OK
+	d, err = GetDeviceFromMountPoint("/tmp/somedir/../mymountpath/", e)
+	assert.Nil(t, err)
+	assert.Equal(t, device, d)
 }
