@@ -17,21 +17,22 @@ package rook
 
 import (
 	"runtime"
+	"testing"
 
-	"github.com/spf13/cobra"
+	"github.com/stretchr/testify/assert"
 )
 
-var blockCmd = &cobra.Command{
-	Use:   "block",
-	Short: "Performs commands and operations on block devices and images in the cluster",
-}
+func TestBlockCommand(t *testing.T) {
+	assert.Equal(t, "block", blockCmd.Use)
 
-func init() {
-	blockCmd.AddCommand(blockListCmd)
-	blockCmd.AddCommand(blockCreateCmd)
+	commands := []string{}
+	for _, command := range blockCmd.Commands() {
+		commands = append(commands, command.Name())
+	}
 
 	if runtime.GOOS == "linux" {
-		blockCmd.AddCommand(blockMountCmd)
-		blockCmd.AddCommand(blockUnmountCmd)
+		assert.Equal(t, []string{"create", "ls", "mount", "unmount"}, commands)
+	} else {
+		assert.Equal(t, []string{"create", "ls"}, commands)
 	}
 }
