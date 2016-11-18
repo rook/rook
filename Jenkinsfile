@@ -44,9 +44,11 @@ try {
 }
 catch (Exception e) {
     echo 'Failure encountered'
-} finally {
+
     node("ec2-stateful") {
         echo 'Cleaning up workspace'
         deleteDir()
     }
+
+    exit 1
 }
