@@ -35,11 +35,6 @@ fi
 USER_ARGS="-e BUILDER_UID=$( id -u ) -e BUILDER_GID=$( id -g )"
 BUILDER_HOME=/home/rook
 
-cleanup() {
-    docker stop ${container_name} &> /dev/null || true
-    docker rm ${container_name} &> /dev/null || true
-}
-
 # mount arguments
 MOUNT_OPTS="\
     -v ${scriptdir}/../bin:${BUILDER_HOME}/go/src/${source_repo}/bin \
@@ -67,17 +62,15 @@ if [ "`uname -s`" != "Linux" ]; then
     #       /src/github.com/rook/rook (rsync'd from host <source>)
     #
 
-    # create a new volume to hold our go workspace
+    # create a new volume to hold our go workspace. NOTE: while concurrent
+    # runs of the build container are supported they will share the same volume
+    # and we will be rsyncing to it at different times. This could lead to
+    # undefined behavior but this should be a rare case on non-linux envs.
     if [[ ! $(docker volume ls | grep ${container_volume}) ]]; then
-        echo ==== Syncing sources for first time. This could take a few seconds.
+        echo ==== Creating docker volume "${container_volume}" and syncing sources
+        echo ==== for first time. This could take a few seconds.
         docker volume create --name ${container_volume} &> /dev/null
     fi
-
-    trap "cleanup" EXIT
-    cleanup
-
-    # start rsyncd inside the container so that we can rsync files into it
-    start_and_wait_for_rsyncd
 
     # now copy the source tree to the container volume
     run_rsync ${scriptdir}/.. rsync://localhost:${rsync_port}/volume/src/${source_repo}
@@ -128,12 +121,8 @@ if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
     -v /var/run/docker.sock:/var/run/docker.sock"
 fi
 
-trap "cleanup" EXIT
-cleanup
-
 docker run \
     --rm \
-    --name "${container_name}" \
     -e GOPATH="${BUILDER_HOME}/go" \
     -e WORKDIR="${BUILDER_HOME}/go/.work" \
     -e GO_PKG_DIR="" \
@@ -154,10 +143,6 @@ docker run \
 # copy some folders back to the source. We avoid a bind mount here
 # due to https://github.com/rook/rook/issues/93
 if [ "`uname -s`" != "Linux" ]; then
-
-    start_and_wait_for_rsyncd
-
     run_rsync rsync://localhost:${rsync_port}/volume/src/${source_repo}/vendor ${scriptdir}/..
     run_rsync rsync://localhost:${rsync_port}/volume/src/${source_repo}/tools ${scriptdir}/..
-
 fi

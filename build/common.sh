@@ -18,8 +18,7 @@ source_repo=github.com/rook/rook
 
 container_version=$(cat ${scriptdir}/cross-image/version)
 container_image=quay.io/rook/cross-build:${container_version}
-container_name=cross-build
-container_volume=${container_name}-volume
+container_volume=cross-build-volume
 rsync_port=10873
 
 function ver() {
@@ -51,11 +50,20 @@ function wait_for_rsync() {
     exit 1
 }
 
-function start_and_wait_for_rsyncd() {
+function cleanup_container() {
+    id=$1
+
+    docker stop ${id} &> /dev/null || true
+    docker rm ${id} &> /dev/null || true
+}
+
+function run_rsync() {
+    source=$1
+    dest=$2
+
     # run the container as an rsyncd daemon so that we can copy the
     # source tree to the container volume.
-    docker run \
-        --name "${container_name}" \
+    id=$(docker run \
         -d \
         -e OWNER=root \
         -e GROUP=root \
@@ -64,13 +72,11 @@ function start_and_wait_for_rsyncd() {
         --entrypoint /bin/bash \
         -v ${container_volume}:/volume \
         ${container_image} \
-        /build/rsyncd.sh  &> /dev/null
+        /build/rsyncd.sh)
 
     # wait for rsync to come up
-    wait_for_rsync
-}
+    wait_for_rsync || cleanup_container ${id}
 
-function run_rsync() {
     rsync \
         --archive \
         --delete \
@@ -80,6 +86,8 @@ function run_rsync() {
         --filter='- /.vscode/' \
         --filter='- /bin/' \
         --filter='- /release/' \
-        ${1} \
-        ${2}
+        ${source} \
+        ${dest} || cleanup_container ${id}
+
+    cleanup_container ${id}
 }
