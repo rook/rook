@@ -155,6 +155,8 @@ func (c *ceph) RunDaemon(daemon string, args ...string) error {
 		ret = C.cephd_run_mon(C.int(len(finalArgs)), (**C.char)(ptr))
 	} else if daemon == "osd" {
 		ret = C.cephd_run_osd(C.int(len(finalArgs)), (**C.char)(ptr))
+	} else if daemon == "mds" {
+		ret = C.cephd_run_mds(C.int(len(finalArgs)), (**C.char)(ptr))
 	}
 	if ret < 0 {
 		return GetCephdError(int(ret))
