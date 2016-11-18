@@ -36,6 +36,19 @@ function check_git() {
     fi
 }
 
+function start_rsync_container() {
+    docker run \
+        -d \
+        -e OWNER=root \
+        -e GROUP=root \
+        -e MKDIRS="/volume/src/${source_repo}" \
+        -p ${rsync_port}:873 \
+        --entrypoint /bin/bash \
+        -v ${container_volume}:/volume \
+        ${container_image} \
+        /build/rsyncd.sh
+}
+
 function wait_for_rsync() {
     # wait for rsync to come up
     tries=100
@@ -50,7 +63,7 @@ function wait_for_rsync() {
     exit 1
 }
 
-function cleanup_container() {
+function stop_rsync_container() {
     id=$1
 
     docker stop ${id} &> /dev/null || true
@@ -58,36 +71,30 @@ function cleanup_container() {
 }
 
 function run_rsync() {
-    source=$1
-    dest=$2
 
     # run the container as an rsyncd daemon so that we can copy the
     # source tree to the container volume.
-    id=$(docker run \
-        -d \
-        -e OWNER=root \
-        -e GROUP=root \
-        -e MKDIRS="/volume/src/${source_repo}" \
-        -p ${rsync_port}:873 \
-        --entrypoint /bin/bash \
-        -v ${container_volume}:/volume \
-        ${container_image} \
-        /build/rsyncd.sh)
+    id=$(start_rsync_container)
 
     # wait for rsync to come up
-    wait_for_rsync || cleanup_container ${id}
+    wait_for_rsync || stop_rsync_container ${id}
 
-    rsync \
-        --archive \
-        --delete \
-        --prune-empty-dirs \
-        --filter='- /.work/' \
-        --filter='- /.glide/' \
-        --filter='- /.vscode/' \
-        --filter='- /bin/' \
-        --filter='- /release/' \
-        ${source} \
-        ${dest} || cleanup_container ${id}
+    for pair in "$*" ; do
+        src="${pair%%-->*}"
+        dst="${pair##*-->}"
 
-    cleanup_container ${id}
+        rsync \
+            --archive \
+            --delete \
+            --prune-empty-dirs \
+            --filter='- /.work/' \
+            --filter='- /.glide/' \
+            --filter='- /.vscode/' \
+            --filter='- /bin/' \
+            --filter='- /release/' \
+            $src $dst || { stop_rsync_container ${id}; return 1; }
+    done
+
+
+    stop_rsync_container ${id}
 }
