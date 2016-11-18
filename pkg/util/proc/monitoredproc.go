@@ -42,7 +42,7 @@ func newMonitoredProc(p *ProcManager, cmd *exec.Cmd) *MonitoredProc {
 	return m
 }
 
-func (p *MonitoredProc) Monitor() {
+func (p *MonitoredProc) Monitor(logName string) {
 	p.monitor = true
 	var err error
 
@@ -64,7 +64,7 @@ func (p *MonitoredProc) Monitor() {
 		<-time.After(time.Second * time.Duration(delaySeconds))
 
 		// start the process
-		p.cmd, err = p.parent.executor.StartExecuteCommand("restart", p.cmd.Args[0], p.cmd.Args[1:]...)
+		p.cmd, err = p.parent.executor.StartExecuteCommand(logName, p.cmd.Args[0], p.cmd.Args[1:]...)
 		if err != nil {
 			logger.Warningf("retry %d (total %d): process %v failed to restart. %v", p.retries, p.totalRetries, p.cmd.Args, err)
 			p.retries++

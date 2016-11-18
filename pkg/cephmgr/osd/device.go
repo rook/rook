@@ -318,6 +318,7 @@ func createOSDFileSystem(context *clusterd.Context, clusterName string, config *
 
 	// create the OSD file system and journal
 	err := context.ProcMan.Run(
+		fmt.Sprintf("mkfs-osd%d", config.id),
 		"osd",
 		options...)
 

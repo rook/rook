@@ -41,7 +41,7 @@ func (*CommandExecutor) StartExecuteCommand(actionName string, command string, a
 		return cmd, createCommandError(err, actionName)
 	}
 
-	go logOutput(stdout, stderr)
+	go logOutput(actionName, stdout, stderr)
 
 	return cmd, nil
 }
@@ -53,7 +53,7 @@ func (*CommandExecutor) ExecuteCommand(actionName string, command string, arg ..
 		return createCommandError(err, actionName)
 	}
 
-	logOutput(stdout, stderr)
+	logOutput(actionName, stdout, stderr)
 
 	if err := cmd.Wait(); err != nil {
 		return createCommandError(err, actionName)
@@ -86,20 +86,20 @@ func startCommand(command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.R
 	return cmd, stdout, stderr, err
 }
 
-func logOutput(stdout, stderr io.ReadCloser) {
+func logOutput(name string, stdout, stderr io.ReadCloser) {
 	if stdout == nil || stderr == nil {
 		logger.Warningf("failed to collect stdout and stderr")
 		return
 	}
 
-	// The logger for this exec package is responsible for logging output from other processes.
-	// Those child processes should appropriately be outputting at the desired global level.  Therefore,
+	// The child processes should appropriately be outputting at the desired global level.  Therefore,
 	// we always log at INFO level here, so that log statements from child procs at higher levels
 	// (e.g., WARNING) will still be displayed.  We are relying on the child procs to output appropriately.
-	if !logger.LevelAt(capnslog.INFO) {
+	childLogger := capnslog.NewPackageLogger("github.com/rook/rook", name)
+	if !childLogger.LevelAt(capnslog.INFO) {
 		rl, err := capnslog.GetRepoLogger("github.com/rook/rook")
 		if err == nil {
-			rl.SetLogLevel(map[string]capnslog.LogLevel{"exec": capnslog.INFO})
+			rl.SetLogLevel(map[string]capnslog.LogLevel{name: capnslog.INFO})
 		}
 	}
 
@@ -108,7 +108,7 @@ func logOutput(stdout, stderr io.ReadCloser) {
 	lastLine := ""
 	for in.Scan() {
 		lastLine = in.Text()
-		logger.Infof(lastLine)
+		childLogger.Infof(lastLine)
 	}
 }
 

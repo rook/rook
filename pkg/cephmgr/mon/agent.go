@@ -146,6 +146,7 @@ func (a *agent) makeMonitorFileSystem(context *clusterd.Context, cluster *Cluste
 
 	// call mon --mkfs in a child process
 	err = context.ProcMan.Run(
+		fmt.Sprintf("mkfs-%s", monName),
 		"mon",
 		"--mkfs",
 		fmt.Sprintf("--cluster=%s", cluster.Name),
@@ -170,6 +171,7 @@ func (a *agent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, moni
 	logger.Infof("starting monitor %s", monitor.Name)
 	monNameArg := fmt.Sprintf("--name=mon.%s", monitor.Name)
 	monProc, err := context.ProcMan.Start(
+		monitor.Name,
 		"mon",
 		regexp.QuoteMeta(monNameArg),
 		proc.ReuseExisting,
