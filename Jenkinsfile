@@ -11,9 +11,9 @@ try {
         def VERSION
         // this parameter is used only as an override to build specific commits when debugging
         def sha1
-        
+
         stage('Preparation') {
-            parallel = '12'         
+            parallel = '12'
             CCACHE_DIR = '~/ccache'
             VERSION = 'dev'
             sh "mkdir -p ${CCACHE_DIR}"
@@ -21,21 +21,21 @@ try {
             sh "git submodule sync --recursive"
             sh "git submodule update --init --recursive"
         }
-        
+
         stage('Build') {
             sh "CCACHE_DIR=${CCACHE_DIR} VERSION=${VERSION} build/run make -j${parallel} release"
         }
-        
+
         stage('Unit Tests') {
             sh "CCACHE_DIR=${CCACHE_DIR} VERSION=${VERSION} build/run make -j${parallel} check"
         }
-        
+
         stage('Results') {
             // not yet handling artifacts
             //junit '**/target/reports/TEST-*.xml'
             //archive 'target/*.tgz'
         }
-        
+
         stage('Cleanup') {
             deleteDir()
         }
