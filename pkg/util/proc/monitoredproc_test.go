@@ -70,7 +70,7 @@ func TestMonitoredRestart(t *testing.T) {
 		iter++
 	}
 
-	proc.Monitor()
+	proc.Monitor("testproc")
 	assert.False(t, proc.monitor)
 	assert.Equal(t, proc.retries, 0)
 	assert.Equal(t, proc.totalRetries, 2)

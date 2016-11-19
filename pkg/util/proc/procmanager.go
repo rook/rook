@@ -47,10 +47,10 @@ func New(executor exec.Executor) *ProcManager {
 }
 
 // Start a child process and wait for its completion
-func (p *ProcManager) Run(daemon string, args ...string) error {
+func (p *ProcManager) Run(logName, daemon string, args ...string) error {
 
 	logger.Infof("Running process %s with args: %v", daemon, args)
-	err := p.executor.ExecuteCommand("daemon "+daemon, os.Args[0], createDaemonArgs(daemon, args...)...)
+	err := p.executor.ExecuteCommand(logName, os.Args[0], createDaemonArgs(daemon, args...)...)
 	if err != nil {
 		return fmt.Errorf("failed to run %s: %+v", daemon, err)
 	}
@@ -62,7 +62,7 @@ func (p *ProcManager) Run(daemon string, args ...string) error {
 // with the given ProcStartPolicy.  The search pattern will be used to search through the cmdline args of existing
 // processes to find any matching existing process.  Therefore, it should be a regex pattern that can uniquely
 // identify the process (e.g., --id=1)
-func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
+func (p *ProcManager) Start(logName, daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
 	// look for an existing process first
 	shouldStart, err := p.checkProcessExists(os.Args[0], procSearchPattern, policy)
 	if err != nil {
@@ -75,7 +75,7 @@ func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPo
 	}
 
 	logger.Infof("Starting process %s with args: %v", daemon, args)
-	cmd, err := p.executor.StartExecuteCommand("daemon "+daemon, os.Args[0], createDaemonArgs(daemon, args...)...)
+	cmd, err := p.executor.StartExecuteCommand(logName, os.Args[0], createDaemonArgs(daemon, args...)...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start daemon %s: %+v", daemon, err)
 	}
@@ -84,7 +84,7 @@ func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPo
 
 	// monitor the process if it was not mocked
 	if cmd != nil && cmd.Process != nil {
-		go proc.Monitor()
+		go proc.Monitor(logName)
 	}
 
 	p.Lock()

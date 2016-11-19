@@ -476,6 +476,7 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, config 
 	}
 
 	process, err := context.ProcMan.Start(
+		fmt.Sprintf("osd%d", config.id),
 		"osd",
 		regexp.QuoteMeta(osdUUIDArg),
 		proc.ReuseExisting,
