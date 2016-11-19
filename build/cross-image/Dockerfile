@@ -94,7 +94,6 @@ RUN for a in amd64 arm64; do \
     libexpat1-dev:${a} \
     libkeyutils-dev:${a} \
     libldap2-dev:${a} \
-    libleveldb-dev:${a} \
     libsnappy-dev:${a} \
     libssl-dev:${a} \
     libudev-dev:${a} \
