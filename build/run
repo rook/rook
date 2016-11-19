@@ -73,7 +73,7 @@ if [ "`uname -s`" != "Linux" ]; then
     fi
 
     # now copy the source tree to the container volume
-    run_rsync ${scriptdir}/.. rsync://localhost:${rsync_port}/volume/src/${source_repo}
+    run_rsync "${scriptdir}/..-->rsync://localhost:${rsync_port}/volume/src/${source_repo}"
 
     MOUNT_OPTS="${MOUNT_OPTS} \
         -v ${container_volume}:${BUILDER_HOME}/go"
@@ -143,6 +143,9 @@ docker run \
 # copy some folders back to the source. We avoid a bind mount here
 # due to https://github.com/rook/rook/issues/93
 if [ "`uname -s`" != "Linux" ]; then
-    run_rsync rsync://localhost:${rsync_port}/volume/src/${source_repo}/vendor ${scriptdir}/..
-    run_rsync rsync://localhost:${rsync_port}/volume/src/${source_repo}/tools ${scriptdir}/..
+
+    run_rsync \
+        "rsync://localhost:${rsync_port}/volume/src/${source_repo}/vendor-->${scriptdir}/.." \
+        "rsync://localhost:${rsync_port}/volume/src/${source_repo}/tools-->${scriptdir}/.."
+
 fi
