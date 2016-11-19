@@ -45,6 +45,7 @@ type GlobalConfig struct {
 	MonMembers               string `ini:"mon initial members,omitempty"`
 	LogFile                  string `ini:"log file,omitempty"`
 	MonClusterLogFile        string `ini:"mon cluster log file,omitempty"`
+	MonKeyValueDb            string `ini:"mon keyvaluedb"`
 	DebugLogDefaultLevel     int    `ini:"debug default"`
 	DebugLogRadosLevel       int    `ini:"debug rados"`
 	DebugLogMonLevel         int    `ini:"debug mon"`
@@ -53,6 +54,7 @@ type GlobalConfig struct {
 	DebugLogFilestoreLevel   int    `ini:"debug filestore"`
 	DebugLogJournalLevel     int    `ini:"debug journal"`
 	DebugLogLevelDBLevel     int    `ini:"debug leveldb"`
+	FileStoreOmapBackend     string `ini:"filestore_omap_backend"`
 	OsdPgBits                int    `ini:"osd pg bits,omitempty"`
 	OsdPgpBits               int    `ini:"osd pgp bits,omitempty"`
 	OsdPoolDefaultSize       int    `ini:"osd pool default size,omitempty"`
@@ -212,6 +214,7 @@ func CreateDefaultCephConfig(cluster *ClusterInfo, runDir string, logLevel capns
 			MonMembers:             strings.Join(monMembers, " "),
 			LogFile:                "/dev/stdout",
 			MonClusterLogFile:      "/dev/stdout",
+			MonKeyValueDb:          "rocksdb",
 			DebugLogDefaultLevel:   cephLogLevel,
 			DebugLogRadosLevel:     cephLogLevel,
 			DebugLogMonLevel:       cephLogLevel,
@@ -220,6 +223,7 @@ func CreateDefaultCephConfig(cluster *ClusterInfo, runDir string, logLevel capns
 			DebugLogFilestoreLevel: cephLogLevel,
 			DebugLogJournalLevel:   cephLogLevel,
 			DebugLogLevelDBLevel:   cephLogLevel,
+			FileStoreOmapBackend:   "rocksdb",
 			OsdPgBits:              11,
 			OsdPgpBits:             11,
 			OsdPoolDefaultSize:     1,

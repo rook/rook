@@ -135,8 +135,13 @@ func (a *agent) makeMonitorFileSystem(context *clusterd.Context, cluster *Cluste
 
 	// create monitor data dir
 	monDataDir := getMonDataDirPath(context.ConfigDir, monName)
-	if err := os.MkdirAll(filepath.Dir(monDataDir), 0744); err != nil {
+	if err := os.MkdirAll(monDataDir, 0744); err != nil {
 		logger.Warningf("failed to create monitor data directory at %s: %+v", monDataDir, err)
+	}
+
+	// write the kv_backend file to force ceph to use rocksdb for the MON store
+	if err := writeBackendFile(monDataDir, "rocksdb"); err != nil {
+		return err
 	}
 
 	// call mon --mkfs in a child process
@@ -197,5 +202,14 @@ func writeMonitorKeyring(configDir, monName string, c *ClusterInfo) error {
 		return fmt.Errorf("failed to write monitor keyring to %s: %+v", keyringPath, err)
 	}
 
+	return nil
+}
+
+// writes the monitor backend file to disk
+func writeBackendFile(monDataDir, backend string) error {
+	backendPath := filepath.Join(monDataDir, "kv_backend")
+	if err := ioutil.WriteFile(backendPath, []byte(backend), 0644); err != nil {
+		return fmt.Errorf("failed to write kv_backend to %s: %+v", backendPath, err)
+	}
 	return nil
 }
