@@ -128,7 +128,7 @@ func (a *agent) makeMonitorFileSystem(context *clusterd.Context, cluster *Cluste
 
 	// write the config file to disk
 	confFilePath, err := GenerateConnectionConfigFile(context, cluster, getMonRunDirPath(context.ConfigDir, monName),
-		"admin", getMonKeyringPath(context.ConfigDir, monName), context.LogLevel)
+		"admin", getMonKeyringPath(context.ConfigDir, monName))
 	if err != nil {
 		return err
 	}

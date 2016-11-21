@@ -334,7 +334,7 @@ func (a *osdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 func (a *osdAgent) getBoostrapOSDConnection(context *clusterd.Context) (client.Connection, error) {
 	return mon.ConnectToCluster(context, a.factory, a.cluster,
 		getBootstrapOSDDir(context.ConfigDir), "bootstrap-osd",
-		getBootstrapOSDKeyringPath(context.ConfigDir, a.cluster.Name), context.LogLevel)
+		getBootstrapOSDKeyringPath(context.ConfigDir, a.cluster.Name))
 }
 
 func (a *osdAgent) configureDevices(context *clusterd.Context, devices map[string]int) error {
@@ -422,7 +422,7 @@ func (a *osdAgent) createOrStartOSD(context *clusterd.Context, connection client
 		}
 
 		// osd_data_dir/whoami does not exist yet, create/initialize the OSD
-		err := initializeOSD(config, a.factory, context, connection, a.cluster, a.location, context.LogLevel, context.Executor)
+		err := initializeOSD(config, a.factory, context, connection, a.cluster, a.location, context.Executor)
 		if err != nil {
 			return fmt.Errorf("failed to initialize OSD at %s: %+v", config.rootPath, err)
 		}

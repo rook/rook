@@ -17,12 +17,12 @@ package mon
 
 import (
 	"fmt"
-	"path"
 	"strings"
 	"testing"
 	"time"
 
-	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/cephmgr/client/test"
+	cephtest "github.com/rook/rook/pkg/cephmgr/test"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/clusterd"
@@ -95,7 +95,7 @@ func TestMonOnUnhealthyNode(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 
 	// mock a monitor
-	createTestClusterInfo(etcdClient, []string{"a"})
+	cephtest.CreateClusterInfo(etcdClient, []string{"a"})
 
 	// the monitor is on the bad node
 	badNode := &clusterd.UnhealthyNode{ID: "a"}
@@ -112,7 +112,7 @@ func TestMonOnUnhealthyNode(t *testing.T) {
 }
 
 func TestMoveUnhealthyMonitor(t *testing.T) {
-	factory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
+	factory := &test.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
 	etcdClient := util.NewMockEtcdClient()
 	waitForQuorum := func(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
 		return nil
@@ -263,19 +263,4 @@ func TestUnhealthyMon(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, 1, len(bad))
 	assert.Equal(t, cmonName, bad["c"].Name)
-}
-
-func createTestClusterInfo(etcdClient *util.MockEtcdClient, mons []string) {
-	key := "/rook/services/ceph"
-	etcdClient.SetValue(path.Join(key, "fsid"), "12345")
-	etcdClient.SetValue(path.Join(key, "name"), "default")
-	etcdClient.SetValue(path.Join(key, "_secrets/monitor"), "foo")
-	etcdClient.SetValue(path.Join(key, "_secrets/admin"), "bar")
-
-	base := "/rook/services/ceph/monitor/desired"
-	for i, mon := range mons {
-		etcdClient.SetValue(path.Join(base, mon, "id"), fmt.Sprintf("mon%d", i))
-		etcdClient.SetValue(path.Join(base, mon, "ipaddress"), fmt.Sprintf("1.2.3.%d", i))
-		etcdClient.SetValue(path.Join(base, mon, "port"), "4321")
-	}
 }
