@@ -72,6 +72,18 @@ func (h *Handler) GetRoutes() []Route {
 			h.GetCrushMap,
 		},
 		{
+			"CreateFileSystem",
+			"POST",
+			"/filesystem",
+			h.CreateFileSystem,
+		},
+		{
+			"RemoveFileSystem",
+			"POST",
+			"/filesystem/remove",
+			h.RemoveFileSystem,
+		},
+		{
 			"AddDevice",
 			"POST",
 			"/device",
