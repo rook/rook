@@ -34,8 +34,8 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/cephd"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
-
 	"github.com/rook/rook/pkg/util"
+
 	"github.com/rook/rook/pkg/util/flags"
 )
 
@@ -81,7 +81,6 @@ func main() {
 //  3) command line parameter
 func init() {
 	rootCmd.Flags().StringVar(&cfg.adminSecret, "admin-secret", "", "secret for the admin user (random if not specified)")
-	rootCmd.Flags().StringVar(&cfg.nodeID, "id", "", "unique identifier in the cluster for this machine. defaults to /etc/machine-id if found.")
 	rootCmd.Flags().StringVar(&cfg.discoveryURL, "discovery-url", "", "etcd discovery URL. Example: http://discovery.rook.com/26bd83c92e7145e6b103f623263f61df")
 	rootCmd.Flags().StringVar(&cfg.etcdMembers, "etcd-members", "", "etcd members to connect to. Overrides the discovery URL. Example: http://10.23.45.56:2379")
 	rootCmd.Flags().StringVar(&cfg.publicIPv4, "public-ipv4", "127.0.0.1", "public IPv4 address for this machine")
@@ -148,13 +147,10 @@ func joinCluster() error {
 		cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.location, cfg.adminSecret),
 	}
 
-	if cfg.nodeID == "" {
-		// read /etc/machine-id
-		var err error
-		cfg.nodeID, err = util.GetMachineID()
-		if err != nil {
-			return fmt.Errorf("id not provided and failed to read /etc/machine-id. %v", err)
-		}
+	var err error
+	cfg.nodeID, err = util.LoadPersistedNodeID(cfg.dataDir)
+	if err != nil {
+		return fmt.Errorf("failed to load the id. %v", err)
 	}
 
 	// start the cluster orchestration services

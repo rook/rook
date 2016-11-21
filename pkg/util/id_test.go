@@ -16,21 +16,74 @@ limitations under the License.
 package util
 
 import (
+	"io/ioutil"
+	"os"
+	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTrimMachineID(t *testing.T) {
-	testTrimMachineID(t, " 123 		", "123")
-	testTrimMachineID(t, " 1234567890", "1234567890")
-	testTrimMachineID(t, " 123456789012", "123456789012")
-	testTrimMachineID(t, " 1234567890123", "123456789012")
-	testTrimMachineID(t, "1234567890123", "123456789012")
-	testTrimMachineID(t, "123456789012345678", "123456789012")
+	testTrimNodeID(t, " 123 		", "123")
+	testTrimNodeID(t, " 1234567890", "1234567890")
+	testTrimNodeID(t, " 123456789012", "123456789012")
+	testTrimNodeID(t, " 1234567890123", "123456789012")
+	testTrimNodeID(t, "1234567890123", "123456789012")
+	testTrimNodeID(t, "123456789012345678", "123456789012")
 }
 
-func testTrimMachineID(t *testing.T, input, expected string) {
-	result := trimMachineID(input)
+func testTrimNodeID(t *testing.T, input, expected string) {
+	result := trimNodeID(input)
 	assert.Equal(t, expected, result)
+}
+
+func TestRandomID(t *testing.T) {
+	id := randomID()
+	assert.Equal(t, 12, len(id))
+	assert.NotEqual(t, "000000000000", id)
+}
+
+// Test loading the IDs in reverse priority order
+func TestLoadNodeID(t *testing.T) {
+	dataDir := "/tmp"
+	cachedIDFile := path.Join(dataDir, idFilename)
+	defer os.Remove(cachedIDFile)
+
+	// generate a random id
+	id, save, err := loadNodeID(dataDir)
+	assert.Nil(t, err)
+	assert.Equal(t, 12, len(id))
+	assert.NotEqual(t, "000000000000", id)
+	assert.True(t, save)
+
+	// return an error if the cached id is empty
+	err = ioutil.WriteFile(cachedIDFile, []byte(" "), 0644)
+	assert.Nil(t, err)
+	id, save, err = loadNodeID(dataDir)
+	assert.NotNil(t, err)
+	assert.False(t, save)
+
+	// return the id in the cached file
+	cachedID := "543211234567890"
+	err = ioutil.WriteFile(cachedIDFile, []byte(cachedID), 0644)
+	assert.Nil(t, err)
+	id, save, err = loadNodeID(dataDir)
+	assert.Nil(t, err)
+	assert.False(t, save)
+	assert.Equal(t, cachedID, id)
+}
+
+func TestSaveNodeID(t *testing.T) {
+	dataDir := "/tmp"
+	cachedIDFile := path.Join(dataDir, idFilename)
+	defer os.Remove(cachedIDFile)
+
+	// confirm that the node id is persisted
+	id, err := LoadPersistedNodeID(dataDir)
+	assert.Nil(t, err)
+
+	cachedID, err := ioutil.ReadFile(cachedIDFile)
+	assert.Nil(t, err)
+	assert.Equal(t, id, string(cachedID))
 }

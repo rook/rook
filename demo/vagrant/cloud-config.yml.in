@@ -26,7 +26,6 @@ coreos:
       KillMode=process
 
       Environment=ROOKD_ACI=quay.io/rook/rookd:latest
-      Environment=ROOKD_ID=%m
       Environment=ROOKD_PUBLIC_IPV4=$public_ipv4
       Environment=ROOKD_PRIVATE_IPV4=$private_ipv4
       Environment=ROOKD_DATA_DIR=/var/lib/rook
