@@ -16,7 +16,6 @@ limitations under the License.
 package clusterd
 
 import (
-	"log"
 	"sync"
 	"time"
 
@@ -154,10 +153,10 @@ func (c *ClusterRefresher) triggerRefresh() bool {
 	// will be handled in processEvent() immediately after the first orchestration completes.
 	select {
 	case c.triggered <- true:
-		log.Printf("The refresh was idle when triggered")
+		logger.Debugf("The refresh was idle when triggered")
 		return true
 	default:
-		log.Printf("The refresh was busy when triggered")
+		logger.Debugf("The refresh was busy when triggered")
 		return true
 	}
 }
@@ -167,7 +166,7 @@ func (c *ClusterRefresher) eventLoop() {
 	for {
 		select {
 		case <-c.closed:
-			log.Printf("refresh event loop closed")
+			logger.Debugf("refresh event loop closed")
 			return
 		case <-c.triggered:
 			c.processEvent()
@@ -184,12 +183,12 @@ func (c *ClusterRefresher) eventLoop() {
 // process the new refresh immediately after the first one completes.
 func (c *ClusterRefresher) processEvent() {
 	// Wait a few seconds in case multiple machines are coming online at the same time.
-	log.Printf("triggering a refresh in %.1fs", refreshDelayInterval.Seconds())
+	logger.Infof("triggering a refresh in %.1fs", refreshDelayInterval.Seconds())
 	<-time.After(refreshDelayInterval)
 
 	// Double check that we're still the leader
 	if !c.leader.parent.isLeader {
-		log.Printf("not leader anymore. skipping refresh.")
+		logger.Infof("not leader anymore. skipping refresh.")
 		return
 	}
 
@@ -206,7 +205,7 @@ func (c *ClusterRefresher) processEvent() {
 		event.Context = copyContext(c.leader.context)
 		event.Context.Inventory, err = inventory.LoadDiscoveredNodes(event.Context.EtcdClient)
 		if err != nil {
-			log.Printf("failed to load node info. err=%v", err)
+			logger.Errorf("failed to load node info. err=%v", err)
 			return
 		}
 
@@ -217,14 +216,14 @@ func (c *ClusterRefresher) processEvent() {
 
 		// stop refreshing if no more refresh events were raised during this refresh
 		if !c.refreshNeeded() {
-			log.Printf("Done with the orchestration. Waiting for the next event signal.")
+			logger.Infof("Done with the orchestration. Waiting for the next event signal.")
 			break
 		}
 
 		// There is a small window where a refresh event could be raised and we will miss processing
 		// the refresh since we are not listening on the triggered channel yet. This will be caught
 		// by the periodic check for refreshNeeded() in the consumer select statement.
-		log.Printf("triggering events that were queued during an active orchestration")
+		logger.Infof("triggering events that were queued during an active orchestration")
 	}
 }
 

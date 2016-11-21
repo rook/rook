@@ -17,7 +17,6 @@ package rook
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -92,7 +91,7 @@ func unmountBlock(device, path, rbdSysBusPath string, executor exec.Executor) (s
 	}
 
 	rbdNum := strings.TrimPrefix(device, rbdDevicePathPrefix)
-	log.Printf("removing rbd device %s (%s)", rbdNum, device)
+	logger.Infof("removing rbd device %s (%s)", rbdNum, device)
 
 	// determine if the rbd kernel module supports single_major and open the
 	// correct file handle to write the rbd remove command to

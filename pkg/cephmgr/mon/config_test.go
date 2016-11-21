@@ -19,6 +19,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,17 +37,17 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 
 	monMembers := "mon0 mon1"
 
-	cephConfig := CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", false, false)
+	cephConfig := CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", capnslog.INFO, false)
 	verifyConfig(t, cephConfig, monMembers, "", "filestore", 0)
 
-	cephConfig = CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", false, true)
+	cephConfig = CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", capnslog.INFO, true)
 	verifyConfig(t, cephConfig, monMembers, "bluestore rocksdb", "bluestore", 0)
 
-	cephConfig = CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", true, false)
-	verifyConfig(t, cephConfig, monMembers, "", "filestore", 20)
+	cephConfig = CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", capnslog.DEBUG, false)
+	verifyConfig(t, cephConfig, monMembers, "", "filestore", 10)
 
-	cephConfig = CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", true, true)
-	verifyConfig(t, cephConfig, monMembers, "bluestore rocksdb", "bluestore", 20)
+	cephConfig = CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", capnslog.DEBUG, true)
+	verifyConfig(t, cephConfig, monMembers, "bluestore rocksdb", "bluestore", 10)
 }
 
 func verifyConfig(t *testing.T, cephConfig *cephConfig, expectedMonMembers, experimental, objectStore string, loggingLevel int) {

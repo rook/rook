@@ -17,7 +17,6 @@ package clusterd
 
 import (
 	"fmt"
-	"log"
 	"path"
 
 	etcd "github.com/coreos/etcd/client"
@@ -66,14 +65,14 @@ func TriggerAgents(etcdClient etcd.KeysAPI, nodeIDs []string, agentKey string) e
 	for _, nodeID := range nodeIDs {
 
 		if err := SetNodeConfigStatus(etcdClient, nodeID, agentKey, NodeConfigStatusTriggered); err != nil {
-			log.Printf("Failed to set status value. node=%s, agent=%s, err=: %v", nodeID, agentKey, err)
+			logger.Errorf("Failed to set status value. node=%s, agent=%s, err=: %v", nodeID, agentKey, err)
 			return err
 		}
 
 		// trigger the agent to configure the service
 		key := path.Join(GetNodeProgressKey(nodeID), StatusValue)
 		if _, err := etcdClient.Set(ctx.Background(), key, triggeredValue, nil); err != nil {
-			log.Printf("Failed to trigger changes on node %s. err: %v", nodeID, err)
+			logger.Errorf("Failed to trigger changes on node %s. err: %v", nodeID, err)
 			return err
 		}
 	}

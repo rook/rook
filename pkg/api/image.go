@@ -18,7 +18,6 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 
 	ceph "github.com/rook/rook/pkg/cephmgr/client"
@@ -38,7 +37,7 @@ func (h *Handler) GetImages(w http.ResponseWriter, r *http.Request) {
 	// first list all the pools so that we can retrieve images from all pools
 	pools, err := ceph.ListPoolSummaries(adminConn)
 	if err != nil {
-		log.Printf("failed to list pools: %+v", err)
+		logger.Errorf("failed to list pools: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -55,7 +54,7 @@ func (h *Handler) GetImages(w http.ResponseWriter, r *http.Request) {
 		// get all the image names for the current pool
 		imageNames, err := ioctx.GetImageNames()
 		if err != nil {
-			log.Printf("failed to get image names from pool %s: %+v", p.Name, err)
+			logger.Errorf("failed to get image names from pool %s: %+v", p.Name, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
@@ -68,7 +67,7 @@ func (h *Handler) GetImages(w http.ResponseWriter, r *http.Request) {
 			defer image.Close()
 			imageStat, err := image.Stat()
 			if err != nil {
-				log.Printf("failed to stat image %s from pool %s: %+v", name, p.Name, err)
+				logger.Errorf("failed to stat image %s from pool %s: %+v", name, p.Name, err)
 				w.WriteHeader(http.StatusInternalServerError)
 				return
 			}
@@ -98,13 +97,13 @@ func (h *Handler) CreateImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.Unmarshal(body, &newImage); err != nil {
-		log.Printf("failed to unmarshal create image request body '%s': %+v", string(body), err)
+		logger.Errorf("failed to unmarshal create image request body '%s': %+v", string(body), err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	if newImage.Name == "" || newImage.PoolName == "" || newImage.Size == 0 {
-		log.Printf("image missing required fields: %+v", newImage)
+		logger.Errorf("image missing required fields: %+v", newImage)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -122,7 +121,7 @@ func (h *Handler) CreateImage(w http.ResponseWriter, r *http.Request) {
 
 	createdImage, err := ioctx.CreateImage(newImage.Name, newImage.Size, 22)
 	if err != nil {
-		log.Printf("failed to create image %+v: %+v", newImage, err)
+		logger.Errorf("failed to create image %+v: %+v", newImage, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -144,7 +143,7 @@ func (h *Handler) GetImageMapInfo(w http.ResponseWriter, r *http.Request) {
 
 	monStatus, err := ceph.GetMonStatus(adminConn)
 	if err != nil {
-		log.Printf("failed to get monitor status, err: %+v", err)
+		logger.Errorf("failed to get monitor status, err: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -154,7 +153,7 @@ func (h *Handler) GetImageMapInfo(w http.ResponseWriter, r *http.Request) {
 	user := "admin"
 	secret, err := ceph.AuthGetKey(adminConn, entity)
 	if err != nil {
-		log.Printf("failed to get key for %s: %+v", entity, err)
+		logger.Errorf("failed to get key for %s: %+v", entity, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

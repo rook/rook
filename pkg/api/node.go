@@ -16,7 +16,6 @@ limitations under the License.
 package api
 
 import (
-	"log"
 	"net/http"
 
 	"github.com/rook/rook/pkg/cephmgr/mon"
@@ -32,14 +31,14 @@ import (
 func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 	clusterInventory, err := inventory.LoadDiscoveredNodes(h.context.EtcdClient)
 	if err != nil {
-		log.Printf("failed to load discovered nodes: %+v", err)
+		logger.Errorf("failed to load discovered nodes: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	clusterName, err := mon.GetClusterName(h.context.EtcdClient)
 	if err != nil {
-		log.Printf("failed to get cluster name: %+v", err)
+		logger.Errorf("failed to get cluster name: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -50,7 +49,7 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 		// look up all the disks that the current node has applied OSDs on
 		appliedIDs, err := osd.GetAppliedOSDs(nodeID, h.context.EtcdClient)
 		if err != nil {
-			log.Printf("failed to get applied OSDs for node %s: %+v", nodeID, err)
+			logger.Errorf("failed to get applied OSDs for node %s: %+v", nodeID, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}

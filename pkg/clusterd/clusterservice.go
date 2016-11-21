@@ -17,6 +17,7 @@ package clusterd
 
 import (
 	etcd "github.com/coreos/etcd/client"
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
@@ -79,8 +80,8 @@ type Context struct {
 	// The root configuration directory used by services
 	ConfigDir string
 
-	// A value indicating if debug logging/tracing should be enabled
-	Debug bool
+	// A value indicating the desired logging/tracing level
+	LogLevel capnslog.LogLevel
 }
 
 func copyContext(c *Context) *Context {
@@ -92,7 +93,7 @@ func copyContext(c *Context) *Context {
 		ProcMan:    c.ProcMan,
 		Inventory:  c.Inventory,
 		ConfigDir:  c.ConfigDir,
-		Debug:      c.Debug,
+		LogLevel:   c.LogLevel,
 	}
 }
 

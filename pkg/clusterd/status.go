@@ -18,7 +18,6 @@ package clusterd
 import (
 	"errors"
 	"fmt"
-	"log"
 	"path"
 	"sync"
 	"sync/atomic"
@@ -121,7 +120,7 @@ func WaitForNodeConfigCompletion(etcdClient etcd.KeysAPI, taskKey string, nodes 
 						atomic.AddInt32(&nodesSuccessful, 1)
 					}
 
-					log.Printf("Completed task %s with result %s on node %s", taskKey, nodeStatus.String(), nodeID)
+					logger.Infof("Completed task %s with result %s on node %s", taskKey, nodeStatus.String(), nodeID)
 					break
 				}
 
@@ -131,10 +130,10 @@ func WaitForNodeConfigCompletion(etcdClient etcd.KeysAPI, taskKey string, nodes 
 		}(node)
 	}
 
-	log.Printf("Waiting for %d nodes to complete task: %s", len(nodes), taskKey)
+	logger.Infof("Waiting for %d nodes to complete task: %s", len(nodes), taskKey)
 	waitgroup.Wait()
 
-	log.Printf("%d/%d nodes successful for task: %s", nodesSuccessful, len(nodes), taskKey)
+	logger.Infof("%d/%d nodes successful for task: %s", nodesSuccessful, len(nodes), taskKey)
 	if int(nodesSuccessful) < len(nodes) {
 		return int(nodesSuccessful), errors.New("not all nodes succeeded configuration")
 	}

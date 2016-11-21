@@ -17,7 +17,6 @@ package bootstrap
 
 import (
 	"fmt"
-	"log"
 	"net/url"
 	"path"
 	"time"
@@ -93,7 +92,7 @@ func GenerateConfigFromExistingCluster(Context EtcdMgrContext, configDir, ipAddr
 
 	// add the entry for the new member
 	conf.URLsMap[conf.InstanceName] = conf.AdvertisePeerURLs
-	log.Println("conf.URLsMap: ", conf.URLsMap)
+	logger.Infof("conf.URLsMap: %+v", conf.URLsMap)
 	return conf, nil
 }
 

@@ -1,5 +1,5 @@
-hash: 51a33f29969a30f5e2a1ca0e3dba2d792889b413533d61e6f0b5fc7ebdc646a7
-updated: 2016-10-04T16:25:45.160086265-07:00
+hash: 6b127577a871ff8e66cd84563cd19e9b2c339a81c9e27adc37808dab3c8a1d5a
+updated: 2016-11-14T09:22:05.45573152-08:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: a547fc61f48d567d5b4ec6f8aee5573d8efce11d
@@ -68,9 +68,7 @@ imports:
 - name: github.com/coreos/go-systemd
   version: bfdc81d0d7e0fb19447b08571f63b774495251ce
   subpackages:
-  - daemon
   - journal
-  - util
 - name: github.com/coreos/pkg
   version: fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
   subpackages:
@@ -102,8 +100,6 @@ imports:
   - utilities
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
-- name: github.com/jmcvetta/randutil
-  version: 2bb1b664bcff821e02b2a0644cd29c7e824d54f8
 - name: github.com/jonboulle/clockwork
   version: 2eee05ed794112d45db504eb05aa693efd2b8b09
 - name: github.com/matttproud/golang_protobuf_extensions

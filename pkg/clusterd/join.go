@@ -17,9 +17,9 @@ package clusterd
 
 import (
 	"fmt"
-	"log"
 	"strings"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/etcdmgr/bootstrap"
 	"github.com/rook/rook/pkg/util"
@@ -29,10 +29,10 @@ import (
 
 // StartJoinCluster initializes the cluster services to enable joining the cluster and listening for orchestration.
 func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryURL,
-	etcdMembers, publicIPv4, privateIPv4 string, debug bool) (*Context, error) {
+	etcdMembers, publicIPv4, privateIPv4 string, logLevel capnslog.LogLevel) (*Context, error) {
 
-	log.Printf("Starting cluster. configDir=%s, nodeID=%s, url=%s, members=%s, publicIPv4=%s, privateIPv4=%s, debug=%t",
-		configDir, nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4, debug)
+	logger.Infof("Starting cluster. configDir=%s, nodeID=%s, url=%s, members=%s, publicIPv4=%s, privateIPv4=%s, logLevel=%s",
+		configDir, nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4, logLevel)
 
 	etcdClients := []string{}
 	if etcdMembers != "" {
@@ -76,7 +76,7 @@ func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryUR
 		Services:   services,
 		ProcMan:    proc.New(executor),
 		ConfigDir:  configDir,
-		Debug:      debug,
+		LogLevel:   logLevel,
 	}
 	clusterLeader := newServicesLeader(context)
 	clusterMember := newClusterMember(context, leaseManager, clusterLeader)

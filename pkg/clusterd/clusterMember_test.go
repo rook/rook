@@ -18,7 +18,6 @@ package clusterd
 import (
 	"errors"
 	"fmt"
-	"log"
 	"path"
 	"testing"
 	"time"
@@ -434,7 +433,7 @@ func TestSimpleMembershipChangeWatching(t *testing.T) {
 	newMachineId := "1234567890"
 	newMemberChannel <- newMachineId
 
-	log.Printf("Waiting for node to be added")
+	logger.Infof("Waiting for node to be added")
 	<-nodeAddedChannel
 
 	// the cluster leader should have added the new node
@@ -645,7 +644,7 @@ func (t *testServiceLeader) RefreshKeys() []*RefreshKey {
 }
 
 func (t *testServiceLeader) HandleRefresh(e *RefreshEvent) {
-	log.Printf("Handling test event. %+v", e)
+	logger.Infof("Handling test event. %+v", e)
 	if len(e.NodesUnhealthy) > 0 {
 		t.unhealthyNode(e.NodesUnhealthy)
 	} else if e.NodesAdded.Count() > 0 {

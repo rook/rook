@@ -1,6 +1,6 @@
 ![logo](Documentation/media/logo.png?raw=true "Rook")
 
-[![Build Status](https://jenkins.rook.io/job/ci-rook/badge/icon)](https://jenkins.rook.io/job/ci-rook/)
+[![Build Status](https://jenkins.rook.io/buildStatus/icon?job=rook/rook/master)](https://jenkins.rook.io/blue/organizations/jenkins/rook%2Frook/activity)
 
 ## Open, Cloud Native, and Universal Distributed Storage
 

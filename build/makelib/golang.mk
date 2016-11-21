@@ -20,21 +20,24 @@ ifeq ($(GO_PROJECT),)
 $(error the variable $$GO_PROJECT must be set prior to including golang.mk)
 endif
 
-# These target do not use cgo ir SWIG and contain all pure go code. They will be
-# statically or dynamically linked depending on whether they import the standard
-# net, os/user packages.
+# These targets will statically or dynamically linked depending on whether they
+# import the standard net, os/user packages.
 GO_NONSTATIC_PACKAGES ?=
 
-# These targets do not use cgo ir SWIG and contain all pure go code. They will
+# These targets will statically or dynamically linked depending on whether they
+# import the standard net, os/user packages. Buildmode PIE will be enabled.
+GO_NONSTATIC_PIE_PACKAGES ?=
+
+# These targets do not use cgo or SWIG and contain all pure go code. They will
 # be forced to link statically even if they import the net or os/user packages.
 GO_STATIC_PACKAGES ?=
 
 # These targets are a mix of go and non-go code. They will be linked statically
 # or dynamically based on the linker flags passed through ldflags.
-GO_CGO_PACKAGES ?=
+GO_STATIC_CGO_PACKAGES ?=
 
-ifeq ($(GO_NONSTATIC_PACKAGES)$(GO_STATIC_PACKAGES)$(GO_CGO_PACKAGES),)
-$(error please set GO_STATIC_PACKAGES, GO_NONSTATIC_PACKAGES, and/or GO_CGO_PACKAGES prior to including golang.mk)
+ifeq ($(GO_NONSTATIC_PACKAGES)$(GO_NONSTATIC_PIE_PACKAGES)$(GO_STATIC_PACKAGES)$(GO_STATIC_CGO_PACKAGES),)
+$(error please set GO_NONSTATIC_PACKAGES, GO_NONSTATIC_PIE_PACKAGES, GO_STATIC_PACKAGES and/or GO_STATIC_CGO_PACKAGES prior to including golang.mk)
 endif
 
 # Optional. These are sudirs that we look for all go files to test, vet, and fmt
@@ -47,7 +50,9 @@ GO_VENDOR_DIR ?= vendor
 GO_PKG_DIR ?=
 
 # Optional build flags passed to go tools
-GO_TOOL_FLAGS ?=
+GO_BUILDFLAGS ?=
+GO_LDFLAGS ?=
+GO_TAGS ?=
 
 # Optional CGO flags directories
 CGO_CFLAGS ?=
@@ -86,15 +91,18 @@ GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 GO_OUT_DIR := $(abspath $(GO_BIN_DIR)/$(GOOS)_$(GOARCH))
 
 ifeq ($(GOOS),windows)
-GO_OUT_EXT := ".exe"
+GO_OUT_EXT := .exe
 endif
 
 ifneq ($(GO_PKG_DIR),)
 GO_PKG_FLAGS := -pkgdir $(abspath $(GO_PKG_DIR)/$(GOOS)_$(GOARCH))
-GO_PKG_STATIC_FLAGS := -pkgdir $(abspath $(GO_PKG_DIR)/$(GOOS)_$(GOARCH)_static) -installsuffix static
-else
-GO_PKG_STATIC_FLAGS := -installsuffix static
 endif
+
+# these configurations are matched with the ones in build/cross-image/Dockerfile
+GO_NONSTATIC_FLAGS      = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
+GO_NONSTATIC_PIE_FLAGS  = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -installsuffix pie -buildmode pie -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
+GO_STATIC_FLAGS         = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -installsuffix nocgo -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
+GO_STATIC_CGO_FLAGS     = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -installsuffix netgo -tags '$(GO_TAGS) netgo' -ldflags '$(GO_LDFLAGS) -s -extldflags "-static"'
 
 # ====================================================================================
 # Targets
@@ -119,25 +127,27 @@ endif
 
 .PHONY: go.build
 go.build: go.vet go.fmt $(CGO_PREREQS)
-	$(foreach p,$(GO_NONSTATIC_PACKAGES),@CGO_ENABLED=1 $(GO) build -v -i $(GO_PKG_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_TOOL_FLAGS) $(p))
-	$(foreach p,$(GO_CGO_PACKAGES),@CGO_ENABLED=1 $(GO) build -v -i $(GO_PKG_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_TOOL_FLAGS) $(p))
-	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) build -v -i $(GO_PKG_STATIC_FLAGS) -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_TOOL_FLAGS) $(p))
+	@$(foreach p,$(GO_NONSTATIC_PACKAGES),CGO_ENABLED=1 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_NONSTATIC_FLAGS) $(p);)
+	@$(foreach p,$(GO_NONSTATIC_PIE_PACKAGES),CGO_ENABLED=1 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_NONSTATIC_PIE_FLAGS) $(p);)
+	@$(foreach p,$(GO_STATIC_PACKAGES),CGO_ENABLED=0 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p);)
+	@$(foreach p,$(GO_STATIC_CGO_PACKAGES),CGO_ENABLED=1 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_CGO_FLAGS) $(p);)
 
 .PHONY: go.install
 go.install: go.vet go.fmt $(CGO_PREREQS)
-	$(foreach p,$(GO_NONSTATIC_PACKAGES),@CGO_ENABLED=1 $(GO) install -v $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(p))
-	$(foreach p,$(GO_CGO_PACKAGES),@CGO_ENABLED=1 $(GO) install -v $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(p))
-	$(foreach p,$(GO_STATIC_PACKAGES),@CGO_ENABLED=0 $(GO) install -v $(GO_PKG_STATIC_FLAGS) $(GO_TOOL_FLAGS) $(p))
+	@$(foreach p,$(GO_NONSTATIC_PACKAGES),CGO_ENABLED=1 $(GO) install -v $(GO_NONSTATIC_FLAGS) $(p);)
+	@$(foreach p,$(GO_NONSTATIC_PIE_PACKAGES),CGO_ENABLED=1 $(GO) install -v $(GO_NONSTATIC_PIE_FLAGS) $(p);)
+	@$(foreach p,$(GO_STATIC_PACKAGES),CGO_ENABLED=0 $(GO) install -v $(GO_STATIC_FLAGS) $(p);)
+	@$(foreach p,$(GO_STATIC_CGO_PACKAGES),CGO_ENABLED=1 $(GO) install -v $(GO_STATIC_CGO_FLAGS) $(p);)
 
 .PHONY: go.test
 go.test: go.vet go.fmt $(CGO_PREREQS)
 #   this is disabled since it looks like there's a bug in go test where it attempts to install cmd/cgo
-#	@$(GOHOST) test -v -i $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(GO_ALL_PACKAGES)
-	@$(GOHOST) test -cover $(GO_PKG_FLAGS) $(GO_TOOL_FLAGS) $(GO_ALL_PACKAGES)
+#	@$(GOHOST) test -v -i $(GO_PKG_FLAGS) $(GO_NONSTATIC_FLAGS) $(GO_ALL_PACKAGES)
+	@$(GOHOST) test -cover $(GO_PKG_FLAGS) $(GO_NONSTATIC_FLAGS) $(GO_ALL_PACKAGES)
 
 .PHONY: go.vet
 go.vet:
-	@$(GOHOST) vet $(GO_TOOL_FLAGS) $(GO_ALL_PACKAGES)
+	@$(GOHOST) vet $(GO_NONSTATIC_FLAGS) $(GO_ALL_PACKAGES)
 
 .PHONY: go.fmt
 go.fmt:

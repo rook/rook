@@ -17,7 +17,6 @@ package proc
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"sync"
 	"syscall"
@@ -48,10 +47,10 @@ func New(executor exec.Executor) *ProcManager {
 }
 
 // Start a child process and wait for its completion
-func (p *ProcManager) Run(daemon string, args ...string) error {
+func (p *ProcManager) Run(logName, daemon string, args ...string) error {
 
-	log.Printf("Running process %s with args: %v", daemon, args)
-	err := p.executor.ExecuteCommand("daemon "+daemon, os.Args[0], createDaemonArgs(daemon, args...)...)
+	logger.Infof("Running process %s with args: %v", daemon, args)
+	err := p.executor.ExecuteCommand(logName, os.Args[0], createDaemonArgs(daemon, args...)...)
 	if err != nil {
 		return fmt.Errorf("failed to run %s: %+v", daemon, err)
 	}
@@ -63,7 +62,7 @@ func (p *ProcManager) Run(daemon string, args ...string) error {
 // with the given ProcStartPolicy.  The search pattern will be used to search through the cmdline args of existing
 // processes to find any matching existing process.  Therefore, it should be a regex pattern that can uniquely
 // identify the process (e.g., --id=1)
-func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
+func (p *ProcManager) Start(logName, daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
 	// look for an existing process first
 	shouldStart, err := p.checkProcessExists(os.Args[0], procSearchPattern, policy)
 	if err != nil {
@@ -75,8 +74,8 @@ func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPo
 		return nil, nil
 	}
 
-	log.Printf("Starting process %s with args: %v", daemon, args)
-	cmd, err := p.executor.StartExecuteCommand("daemon "+daemon, os.Args[0], createDaemonArgs(daemon, args...)...)
+	logger.Infof("Starting process %s with args: %v", daemon, args)
+	cmd, err := p.executor.StartExecuteCommand(logName, os.Args[0], createDaemonArgs(daemon, args...)...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start daemon %s: %+v", daemon, err)
 	}
@@ -85,7 +84,7 @@ func (p *ProcManager) Start(daemon, procSearchPattern string, policy ProcStartPo
 
 	// monitor the process if it was not mocked
 	if cmd != nil && cmd.Process != nil {
-		go proc.Monitor()
+		go proc.Monitor(logName)
 	}
 
 	p.Lock()
@@ -110,17 +109,17 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 	}
 
 	if existingProc == nil {
-		log.Printf("no existing process found for binary %s and pattern '%s'", binary, procSearchPattern)
+		logger.Infof("no existing process found for binary %s and pattern '%s'", binary, procSearchPattern)
 		return true, nil
 	}
 
-	log.Printf("existing process found for binary %s with pid %d, cmdline '%s'.", binary, existingProc.pid, existingProc.cmdline)
+	logger.Infof("existing process found for binary %s with pid %d, cmdline '%s'.", binary, existingProc.pid, existingProc.cmdline)
 	if policy == ReuseExisting {
-		log.Printf("Policy is 'reuse', reusing existing process.")
+		logger.Infof("Policy is 'reuse', reusing existing process.")
 		return false, nil
 	}
 
-	log.Printf("Policy is 'restart', restarting existing process.")
+	logger.Infof("Policy is 'restart', restarting existing process.")
 	// find our managed instance and try to stop the process through that
 	stopped := false
 	p.RLock()
@@ -128,7 +127,7 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 		proc := p.procs[i].cmd
 		if proc != nil && proc.Process != nil && proc.Process.Pid == existingProc.pid {
 			if err := p.procs[i].Stop(); err != nil {
-				log.Printf("failed to stop child process %d: %v", existingProc.pid, err)
+				logger.Warningf("failed to stop child process %d: %v", existingProc.pid, err)
 				break
 			}
 

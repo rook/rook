@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -58,8 +59,12 @@ func TestListBlockImages(t *testing.T) {
 	out, err := listBlocks(mockRBDSysBusPath, c, e)
 	assert.Nil(t, err)
 
-	expectedOut := "NAME       POOL      SIZE       DEVICE    MOUNT\n" +
-		"myimage1   mypool1   1.00 KiB   rbd5      /tmp/mymount1\n"
+	expectedOut := "NAME       POOL      SIZE       DEVICE    MOUNT\n"
+	if runtime.GOOS == "linux" {
+		expectedOut += "myimage1   mypool1   1.00 KiB   rbd5      /tmp/mymount1\n"
+	} else {
+		expectedOut += "myimage1   mypool1   1.00 KiB             \n"
+	}
 	assert.Equal(t, expectedOut, out)
 }
 

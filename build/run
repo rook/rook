@@ -30,19 +30,10 @@ if [[ ! $(docker images -q ${container_image}) ]]; then
     docker pull ${container_image}
 fi
 
-# on Linux we run the container with the same uid and gid of the user to avoid
-# permissions issues. For docker on macOS this is not needed since we rely on osxfs
-if [ "`uname -s`" == "Linux" ]; then
-  USER_ARGS="-e BUILDER_UID=$( id -u ) -e BUILDER_GID=$( id -g ) -e BUILDER_USER=$( id -un ) -e BUILDER_GROUP=$( id -gn )"
-  BUILDER_HOME=/home/$( id -un )
-else
-  BUILDER_HOME=/root
-fi
-
-cleanup() {
-    docker stop ${container_name} &> /dev/null || true
-    docker rm ${container_name} &> /dev/null || true
-}
+# run the container with the same uid and gid of the user to avoid
+# permissions issues when sharing volumes with the host
+USER_ARGS="-e BUILDER_UID=$( id -u ) -e BUILDER_GID=$( id -g )"
+BUILDER_HOME=/home/rook
 
 # mount arguments
 MOUNT_OPTS="\
@@ -71,47 +62,23 @@ if [ "`uname -s`" != "Linux" ]; then
     #       /src/github.com/rook/rook (rsync'd from host <source>)
     #
 
-    # create a new volume to hold our go workspace
+    # create a new volume to hold our go workspace. NOTE: while concurrent
+    # runs of the build container are supported they will share the same volume
+    # and we will be rsyncing to it at different times. This could lead to
+    # undefined behavior but this should be a rare case on non-linux envs.
     if [[ ! $(docker volume ls | grep ${container_volume}) ]]; then
-        echo ==== Syncing sources for first time. This could take a few seconds.
+        echo ==== Creating docker volume "${container_volume}" and syncing sources
+        echo ==== for first time. This could take a few seconds.
         docker volume create --name ${container_volume} &> /dev/null
     fi
 
-    trap "cleanup" EXIT
-    cleanup
-
-    # run the container as an rsyncd daemon so that we can copy the
-    # source tree to the container volume.
-    docker run \
-        --name "${container_name}" \
-        -d \
-        -e OWNER=root \
-        -e GROUP=root \
-        -e MKDIRS="/volume/src/${source_repo}" \
-        -p ${rsync_port}:873 \
-        -v ${container_volume}:/volume \
-        ${container_image} \
-        /build/rsyncd.sh  &> /dev/null
-
-    # wait for rsync to come up
-    wait_for_rsync
-
     # now copy the source tree to the container volume
-    rsync \
-        --archive \
-        --delete \
-        --prune-empty-dirs \
-        --filter='- /.work/' \
-        --filter='- /.glide/' \
-        --filter='- /.vscode/' \
-        --filter='- /bin/' \
-        --filter='- /release/' \
-        ${scriptdir}/.. \
-        rsync://localhost:${rsync_port}/volume/src/${source_repo}
+    run_rsync "${scriptdir}/..-->rsync://localhost:${rsync_port}/volume/src/${source_repo}"
 
     MOUNT_OPTS="${MOUNT_OPTS} \
         -v ${container_volume}:${BUILDER_HOME}/go"
 
+    CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/go/.ccache -e CCACHE_LOG"
 else
 
     # On linux bind mounts are cheap so we dont need to rsync
@@ -131,11 +98,10 @@ else
         -v ${scriptdir}/../.work/cross:${BUILDER_HOME}/go/.work \
         -v ${scriptdir}/..:${BUILDER_HOME}/go/src/${source_repo}"
 
-    CCACHE_MOUNT_ARGS="-v ${CCACHE_DIR}:${BUILDER_HOME}/go/.ccache"
-fi
-
-if [[ `which ccache` && -d "${CCACHE_DIR}" ]]; then
-    CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/go/.ccache -e CCACHE_LOG ${CCACHE_MOUNT_ARGS}"
+    if [[ -d "${CCACHE_DIR}" ]]; then
+        CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/go/.ccache -e CCACHE_LOG \
+            -v ${CCACHE_DIR}:${BUILDER_HOME}/go/.ccache"
+    fi
 fi
 
 # we copy credential files for github access
@@ -155,12 +121,8 @@ if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
     -v /var/run/docker.sock:/var/run/docker.sock"
 fi
 
-trap "cleanup" EXIT
-cleanup
-
 docker run \
     --rm \
-    --name "${container_name}" \
     -e GOPATH="${BUILDER_HOME}/go" \
     -e WORKDIR="${BUILDER_HOME}/go/.work" \
     -e GO_PKG_DIR="" \
@@ -176,3 +138,14 @@ docker run \
     -w ${BUILDER_HOME}/go/src/${source_repo} \
     ${container_image} \
     "$@"
+
+
+# copy some folders back to the source. We avoid a bind mount here
+# due to https://github.com/rook/rook/issues/93
+if [ "`uname -s`" != "Linux" ]; then
+
+    run_rsync \
+        "rsync://localhost:${rsync_port}/volume/src/${source_repo}/vendor-->${scriptdir}/.." \
+        "rsync://localhost:${rsync_port}/volume/src/${source_repo}/tools-->${scriptdir}/.."
+
+fi

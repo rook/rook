@@ -17,7 +17,6 @@ package policy
 
 import (
 	"errors"
-	"log"
 	"sort"
 
 	"github.com/rook/rook/pkg/util"
@@ -41,7 +40,7 @@ func ChooseEtcdCandidatesToAddOrRemove(delta int, currentEtcdNodes, currentNodes
 		currentEtcdNodeSet := util.CreateSet(currentEtcdNodes)
 		currentEtcdNodeSet.Subtract(util.SetDifference(currentEtcdNodes, unhealthyNodes))
 		unhealthyEtcdNodes := currentEtcdNodeSet.ToSlice()
-		log.Println("unhealthyEtcdNodes: ", unhealthyEtcdNodes)
+		logger.Infof("unhealthyEtcdNodes: %+v", unhealthyEtcdNodes)
 		candidates = unhealthyEtcdNodes
 		numOfNodeToRemove := -delta
 		if len(candidates) >= numOfNodeToRemove {

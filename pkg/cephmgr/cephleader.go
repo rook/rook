@@ -17,7 +17,6 @@ package cephmgr
 
 import (
 	"fmt"
-	"log"
 	"path"
 	"strings"
 
@@ -73,7 +72,7 @@ func getRefreshMons(e *clusterd.RefreshEvent) bool {
 
 func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 	// Listen for events from the orchestrator indicating that a refresh is needed or nodes have been added
-	log.Printf("ceph leader received refresh event")
+	logger.Infof("ceph leader received refresh event")
 
 	refreshMon := getRefreshMons(e)
 	osdsToRefresh := getOSDsToRefresh(e)
@@ -82,7 +81,7 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 		// Perform a full refresh of the cluster to ensure the monitors are running with quorum
 		err := c.monLeader.Configure(e.Context, c.factory, c.adminSecret)
 		if err != nil {
-			log.Printf("FAILED TO CONFIGURE CEPH MONS. %v", err)
+			logger.Errorf("FAILED TO CONFIGURE CEPH MONS. %v", err)
 		}
 	}
 
@@ -90,22 +89,22 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 		// Configure the OSDs
 		err := c.osdLeader.Configure(e.Context, osdsToRefresh.ToSlice())
 		if err != nil {
-			log.Printf("FAILED TO CONFIGURE CEPH OSDs. %v", err)
+			logger.Errorf("FAILED TO CONFIGURE CEPH OSDs. %v", err)
 		}
 	}
 
-	log.Printf("ceph leader completed refresh")
+	logger.Infof("ceph leader completed refresh")
 }
 
 func handleDeviceChanged(response *etcd.Response, refresher *clusterd.ClusterRefresher) {
 	if response.Action == store.Create || response.Action == store.Delete {
 		nodeID, err := extractNodeIDFromDesiredDevice(response.Node.Key)
 		if err != nil {
-			log.Printf("ignored device changed event. %v", err)
+			logger.Warningf("ignored device changed event. %v", err)
 			return
 		}
 
-		log.Printf("device changed: %s", nodeID)
+		logger.Infof("device changed: %s", nodeID)
 
 		// trigger an orchestration to add or remove the device
 		refresher.TriggerDevicesChanged(nodeID)

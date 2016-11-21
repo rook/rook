@@ -18,7 +18,6 @@ package osd
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path"
 	"path/filepath"
@@ -75,7 +74,7 @@ func (a *osdAgent) Initialize(context *clusterd.Context) error {
 		// add the devices to desired state
 		devices := strings.Split(a.devices, ",")
 		for _, device := range devices {
-			log.Printf("Adding device %s to desired state", device)
+			logger.Infof("Adding device %s to desired state", device)
 			err := AddDesiredDevice(context.EtcdClient, device, context.NodeID)
 			if err != nil {
 				return fmt.Errorf("failed to add desired device %s. %v", device, err)
@@ -85,7 +84,7 @@ func (a *osdAgent) Initialize(context *clusterd.Context) error {
 
 	// if no devices or directories were specified, use the current directory for an osd
 	if len(a.devices) == 0 {
-		log.Printf("Adding local path to local directory %s", context.ConfigDir)
+		logger.Infof("Adding local path to local directory %s", context.ConfigDir)
 		err := AddDesiredDir(context.EtcdClient, context.ConfigDir, context.NodeID)
 		if err != nil {
 			return fmt.Errorf("failed to add current dir %s. %v", context.ConfigDir, err)
@@ -163,7 +162,7 @@ func (a *osdAgent) tryStartConfig() bool {
 	counter := atomic.AddInt32(&a.configCounter, 1)
 	if counter > 1 {
 		counter = atomic.AddInt32(&a.configCounter, -1)
-		log.Printf("osd configuration is already running. counter=%d", counter)
+		logger.Debugf("osd configuration is already running. counter=%d", counter)
 		return false
 	}
 
@@ -204,7 +203,7 @@ func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection cl
 		desiredOSDs[id] = nil
 	}
 
-	log.Printf("stopUndesiredDevices. applied=%+v, desired=%+v", applied, desiredOSDs)
+	logger.Debugf("stopUndesiredDevices. applied=%+v, desired=%+v", applied, desiredOSDs)
 	var lastErr error
 	for appliedOSD := range applied {
 		if _, ok := desiredOSDs[appliedOSD]; ok {
@@ -212,7 +211,7 @@ func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection cl
 			continue
 		}
 
-		log.Printf("removing osd %d", appliedOSD)
+		logger.Infof("removing osd %d", appliedOSD)
 		err := a.removeOSD(context, connection, appliedOSD)
 		if err != nil {
 			lastErr = err
@@ -235,7 +234,7 @@ func (a *osdAgent) removeOSD(context *clusterd.Context, connection client.Connec
 	if ok {
 		err := proc.Stop()
 		if err != nil {
-			log.Printf("failed to stop osd %d. %v", id, err)
+			logger.Errorf("failed to stop osd %d. %v", id, err)
 			return err
 		}
 
@@ -251,11 +250,11 @@ func (a *osdAgent) removeOSD(context *clusterd.Context, connection client.Connec
 	appliedKey := path.Join(getAppliedKey(context.NodeID), fmt.Sprintf("%d", id))
 	_, err = context.EtcdClient.Delete(ctx.Background(), appliedKey, &etcd.DeleteOptions{Recursive: true, Dir: true})
 	if err != nil {
-		log.Printf("failed to remove osd %d from applied state. %v", id, err)
+		logger.Errorf("failed to remove osd %d from applied state. %v", id, err)
 		return err
 	}
 
-	log.Printf("Stopped and removed osd device %d", id)
+	logger.Infof("Stopped and removed osd device %d", id)
 
 	return nil
 }
@@ -263,7 +262,7 @@ func (a *osdAgent) removeOSD(context *clusterd.Context, connection client.Connec
 func (a *osdAgent) DestroyLocalService(context *clusterd.Context) error {
 	// stop the OSD processes
 	for id, proc := range a.osdProc {
-		log.Printf("stopping osd %d", id)
+		logger.Infof("stopping osd %d", id)
 		proc.Stop()
 	}
 
@@ -320,14 +319,14 @@ func (a *osdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 		config := &osdConfig{id: osdID}
 		err := a.createOrStartOSD(context, connection, config, dir, true)
 		if err != nil {
-			log.Printf("ERROR: failed to config osd in path %s. %+v", dir, err)
+			logger.Errorf("failed to config osd in path %s. %+v", dir, err)
 			lastErr = err
 		} else {
 			succeeded++
 		}
 	}
 
-	log.Printf("%d/%d osds (filestore) succeeded on this node", succeeded, len(dirs))
+	logger.Infof("%d/%d osds (filestore) succeeded on this node", succeeded, len(dirs))
 	return lastErr
 
 }
@@ -335,7 +334,7 @@ func (a *osdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 func (a *osdAgent) getBoostrapOSDConnection(context *clusterd.Context) (client.Connection, error) {
 	return mon.ConnectToCluster(context, a.factory, a.cluster,
 		getBootstrapOSDDir(context.ConfigDir), "bootstrap-osd",
-		getBootstrapOSDKeyringPath(context.ConfigDir, a.cluster.Name), context.Debug)
+		getBootstrapOSDKeyringPath(context.ConfigDir, a.cluster.Name), context.LogLevel)
 }
 
 func (a *osdAgent) configureDevices(context *clusterd.Context, devices map[string]int) error {
@@ -365,13 +364,13 @@ func (a *osdAgent) configureDevices(context *clusterd.Context, devices map[strin
 			config := &osdConfig{id: osdID, deviceName: device, bluestore: true}
 			err := a.createOrStartOSD(context, connection, config, context.ConfigDir, false)
 			if err != nil {
-				log.Printf("ERROR: failed to config osd on device %s. %+v", device, err)
+				logger.Errorf("failed to config osd on device %s. %+v", device, err)
 			} else {
 				succeeded++
 			}
 		}
 
-		log.Printf("%d/%d bluestore osds succeeded on this node", succeeded, len(devices))
+		logger.Infof("%d/%d bluestore osds succeeded on this node", succeeded, len(devices))
 
 		// set the signal that the osd config is completed
 		close(a.osdsCompleted)
@@ -418,12 +417,12 @@ func (a *osdAgent) createOrStartOSD(context *clusterd.Context, connection client
 				return fmt.Errorf("failed device %s. %+v", config.deviceName, err)
 			}
 
-			log.Printf("waiting after bluestore partition/format...")
+			logger.Notice("waiting after bluestore partition/format...")
 			<-time.After(2 * time.Second)
 		}
 
 		// osd_data_dir/whoami does not exist yet, create/initialize the OSD
-		err := initializeOSD(config, a.factory, context, connection, a.cluster, a.location, context.Debug, context.Executor)
+		err := initializeOSD(config, a.factory, context, connection, a.cluster, a.location, context.LogLevel, context.Executor)
 		if err != nil {
 			return fmt.Errorf("failed to initialize OSD at %s: %+v", config.rootPath, err)
 		}
@@ -459,7 +458,7 @@ func (a *osdAgent) createOrStartOSD(context *clusterd.Context, connection client
 // runs an OSD with the given config in a child process
 func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, config *osdConfig) error {
 	// start the OSD daemon in the foreground with the given config
-	log.Printf("starting osd %d at %s", config.id, config.rootPath)
+	logger.Infof("starting osd %d at %s", config.id, config.rootPath)
 
 	osdUUIDArg := fmt.Sprintf("--osd-uuid=%s", config.uuid.String())
 
@@ -477,6 +476,7 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, config 
 	}
 
 	process, err := context.ProcMan.Start(
+		fmt.Sprintf("osd%d", config.id),
 		"osd",
 		regexp.QuoteMeta(osdUUIDArg),
 		proc.ReuseExisting,

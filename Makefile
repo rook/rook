@@ -31,21 +31,19 @@ TAGS ?=
 # a dynamic binary is produced that requires glibc to be installed
 STATIC ?= 1
 ifeq ($(STATIC),1)
-LDFLAGS += -s -extldflags "-static"
 TAGS += static
 else
 TAGS += dynamic
 endif
 
 # build a position independent executable. This implies dynamic linking
-# since statically-linked PIE is not supported by the linker/glibc
+# since statically-linked PIE is not supported by the linker/glibc. PIE
+# is only supported on Linux.
 PIE ?= 0
 ifeq ($(PIE),1)
 ifeq ($(STATIC),1)
 $(error PIE only supported with dynamic linking. Set STATIC=0.)
 endif
-BUILDFLAGS += -buildmode=pie
-TAGS += pie
 endif
 
 # if DEBUG is set to 1 debug information is perserved (i.e. not stripped).
@@ -70,12 +68,6 @@ else
 MAKEFLAGS += --no-print-directory
 endif
 
-# set the version number.
-ifeq ($(origin VERSION), undefined)
-VERSION = $(shell git describe --dirty --always)
-endif
-LDFLAGS += -X $(REPO)/pkg/version.Version=$(VERSION)
-
 # the operating system and arch to build
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
@@ -92,6 +84,12 @@ CLIENT_ONLY_PLATFORMS ?= darwin_amd64 windows_amd64
 ALL_PLATFORMS ?= $(CLIENT_SERVER_PLATFORMS) $(CLIENT_ONLY_PLATFORMS)
 
 GO_PROJECT=github.com/rook/rook
+
+# set the version number.
+ifeq ($(origin VERSION), undefined)
+VERSION = $(shell git describe --dirty --always)
+endif
+LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 
 # ====================================================================================
 # Setup rookd
@@ -119,7 +117,6 @@ CEPHD_PLATFORM = $(GOOS)_$(GOARCH)
 # to force go to rebuild cephd
 CEPHD_TOUCH_ON_BUILD = pkg/cephmgr/cephd/dummy.cc
 
-GO_CGO_PACKAGES=$(GO_PROJECT)/cmd/rookd
 CGO_LDFLAGS = -L$(abspath $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/lib)
 CGO_PREREQS = cephd.build
 
@@ -137,11 +134,24 @@ GO_BIN_DIR = $(BIN_DIR)
 
 ifeq ($(STATIC),1)
 GO_STATIC_PACKAGES=$(GO_PROJECT)
+ifeq ($(ROOKD_SUPPORTED),1)
+GO_STATIC_CGO_PACKAGES=$(GO_PROJECT)/cmd/rookd
+endif
 else
 GO_NONSTATIC_PACKAGES=$(GO_PROJECT)
+ifeq ($(ROOKD_SUPPORTED),1)
+ifeq ($(PIE),1)
+GO_NONSTATIC_PIE_PACKAGES+=$(GO_PROJECT)/cmd/rookd
+else
+GO_NONSTATIC_PACKAGES+= $(GO_PROJECT)/cmd/rookd
+endif
+endif
 endif
 
-GO_TOOL_FLAGS=$(BUILDFLAGS) -tags '$(TAGS)' -ldflags '$(LDFLAGS)'
+GO_BUILDFLAGS=$(BUILDFLAGS)
+GO_LDFLAGS=$(LDFLAGS)
+GO_TAGS=$(TAGS)
+
 GO_PKG_DIR ?= $(WORKDIR)/pkg
 
 include build/makelib/golang.mk

@@ -18,7 +18,6 @@ package etcdmgr
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net"
 	"net/url"
 	"path"
@@ -44,7 +43,7 @@ func (e *etcdMgrLeader) RefreshKeys() []*clusterd.RefreshKey {
 }
 
 func (e *etcdMgrLeader) HandleRefresh(event *clusterd.RefreshEvent) {
-	log.Printf("etcdmgr leader received refresh event")
+	logger.Debugf("etcdmgr leader received refresh event")
 
 	var unhealthyNodes []*clusterd.UnhealthyNode
 	for _, node := range event.NodesUnhealthy {
@@ -53,15 +52,15 @@ func (e *etcdMgrLeader) HandleRefresh(event *clusterd.RefreshEvent) {
 
 	err := e.ConfigureEtcdServices(event.Context, unhealthyNodes)
 	if err != nil {
-		log.Printf("failed to refresh etcdmgr: %+v", err)
+		logger.Warningf("failed to refresh etcdmgr: %+v", err)
 	}
 
-	log.Printf("etcdmgr leader completed refresh event")
+	logger.Infof("etcdmgr leader completed refresh event")
 }
 
 // ConfigureEtcdServices
 func (e *etcdMgrLeader) ConfigureEtcdServices(context *clusterd.Context, unhealthyNodes []*clusterd.UnhealthyNode) error {
-	log.Printf("entered etcdMgr.ConfigureEtcdservices")
+	logger.Tracef("entered etcdMgr.ConfigureEtcdservices")
 
 	currentEtcdMembers, _, err := e.context.Members()
 	if err != nil {
@@ -70,15 +69,15 @@ func (e *etcdMgrLeader) ConfigureEtcdServices(context *clusterd.Context, unhealt
 	// currentEtcdMembers are full URLs (scheme, ip, port). We want to convert them to a list of node IDs.
 	currentEtcdMemberIDs, err := getNodeIDs(currentEtcdMembers, context.Inventory.Nodes)
 	if err != nil {
-		log.Println("error in converting etcd member urls to node ids.")
+		logger.Errorf("error in converting etcd member urls to node ids.")
 		return err
 	}
 
-	log.Printf("current etcd cluster members: %v | Nodes: %v | IDs: %v | unhealthy nodes: %v",
+	logger.Infof("current etcd cluster members: %v | Nodes: %v | IDs: %v | unhealthy nodes: %v",
 		currentEtcdMembers, context.Inventory.Nodes, currentEtcdMemberIDs, unhealthyNodes)
 	currentEtcdQuorumSize := len(currentEtcdMembers)
 	currentClusterSize := len(context.Inventory.Nodes) - len(unhealthyNodes)
-	log.Printf("currentEtcdQuorumSize: %v | currentClusterSize: %v ", currentEtcdQuorumSize, currentClusterSize)
+	logger.Infof("currentEtcdQuorumSize: %v | currentClusterSize: %v ", currentEtcdQuorumSize, currentClusterSize)
 	desiredEtcdQuorumSize := policy.CalculateDesiredEtcdCount(currentClusterSize)
 	var candidates []string
 	delta := desiredEtcdQuorumSize - currentEtcdQuorumSize
@@ -92,26 +91,26 @@ func (e *etcdMgrLeader) ConfigureEtcdServices(context *clusterd.Context, unhealt
 		unhealthyIDs = append(unhealthyIDs, node.ID)
 	}
 
-	log.Println("unhealthy nodeIDs: ", unhealthyIDs)
+	logger.Infof("unhealthy nodeIDs: %+v", unhealthyIDs)
 	if delta != 0 {
-		log.Printf("desiredEtcdQuorumSize: %v, delta: %v, clusterNodes: %v", desiredEtcdQuorumSize, delta, clusterNodes)
-		log.Println("currentEtcdMemberIDs: ", currentEtcdMemberIDs)
+		logger.Infof("desiredEtcdQuorumSize: %v, delta: %v, clusterNodes: %v", desiredEtcdQuorumSize, delta, clusterNodes)
+		logger.Infof("currentEtcdMemberIDs: %+v", currentEtcdMemberIDs)
 		candidates, err = policy.ChooseEtcdCandidatesToAddOrRemove(delta, currentEtcdMemberIDs, clusterNodes, unhealthyIDs)
 		if err != nil {
 			return err
 		}
-		log.Println("candidates: ", candidates)
+		logger.Infof("candidates: %+v", candidates)
 	}
 
 	if delta > 0 {
-		log.Println("target nodes to run new instances of embedded etcds on: ", candidates)
+		logger.Infof("target nodes to run new instances of embedded etcds on: %+v", candidates)
 		err := e.growEtcdQuorum(context, candidates)
 		if err != nil {
 			return fmt.Errorf("error in growing etcd quorum: %+v", err)
 		}
 
 	} else if delta < 0 {
-		log.Println("target nodes to remove the instances of embedded etcds from: ", candidates)
+		logger.Infof("target nodes to remove the instances of embedded etcds from: %+v", candidates)
 		err := e.shrinkEtcdQuorum(context, candidates)
 		if err != nil {
 			return fmt.Errorf("error in shrinking etcd quorum: %+v", err)
@@ -133,13 +132,13 @@ func (e *etcdMgrLeader) growEtcdQuorum(context *clusterd.Context, candidates []s
 
 		// set ip address for the target agent (will be used to bootstrap embedded etcd)
 		ipKey := path.Join(etcdmgrKey, clusterd.DesiredKey, candidate, "ipaddress")
-		log.Println("address key for new instance: ", ipKey)
+		logger.Infof("address key for new instance: %s", ipKey)
 		_, err := context.EtcdClient.Set(ctx.Background(), ipKey, targetIP, nil)
 		if err != nil {
 			return err
 		}
 
-		log.Printf("triggering the agent on %v to create an instance of embedded etcd\n", targetIP)
+		logger.Infof("triggering the agent on %v to create an instance of embedded etcd", targetIP)
 		err = clusterd.TriggerAgentsAndWaitForCompletion(context.EtcdClient, []string{candidate}, etcdMgrAgentName, len(candidates))
 		if err != nil {
 			return err
@@ -160,20 +159,20 @@ func (e *etcdMgrLeader) shrinkEtcdQuorum(context *clusterd.Context, candidates [
 		}
 
 		key := path.Join(etcdmgrKey, clusterd.DesiredKey, candidate, "ipaddress")
-		log.Println("address key for new instance: ", key)
+		logger.Infof("address key for new instance: %s", key)
 		_, err := context.EtcdClient.Delete(ctx.Background(), key, &client.DeleteOptions{Dir: true, Recursive: true})
 		if err != nil {
-			return fmt.Errorf("error in removing desired key for node: %+v err: %+v\n", candidate, err)
+			return fmt.Errorf("error in removing desired key for node: %+v err: %+v", candidate, err)
 		}
 
 		err = RemoveMember(e.context, targetEndpoint)
 		if err != nil {
-			return fmt.Errorf("error in removing a member from the cluster. %+v\n", err)
+			return fmt.Errorf("error in removing a member from the cluster. %+v", err)
 		}
 
 		// Note: For remove, we first try to remove it from cluster and then delete the corresponding instance. (different from add case)
 		// handling a case when a node is not down but demoted.
-		log.Println("node was successfully removed from the cluster. Now triggering the agent to cleanup the etcd instance...")
+		logger.Infof("node was successfully removed from the cluster. Now triggering the agent to cleanup the etcd instance...")
 		// we set the timout to 10sec since the node might already be failed
 		err = clusterd.TriggerAgentsAndWait(context.EtcdClient, []string{candidate}, etcdMgrAgentName, len(candidates), 10)
 		if err != nil {
@@ -185,7 +184,7 @@ func (e *etcdMgrLeader) shrinkEtcdQuorum(context *clusterd.Context, candidates [
 
 // TODO: can we make it more efficient?
 func getNodeIDs(nodeURLs []string, Nodes map[string]*inventory.NodeConfig) ([]string, error) {
-	log.Println("nodeURLs: ", nodeURLs)
+	logger.Debugf("nodeURLs: %+v", nodeURLs)
 	nodeIDs := []string{}
 	for _, u := range nodeURLs {
 		uu, err := url.Parse(u)
@@ -194,9 +193,9 @@ func getNodeIDs(nodeURLs []string, Nodes map[string]*inventory.NodeConfig) ([]st
 		}
 		ip, _, _ := net.SplitHostPort(uu.Host)
 		for nodeID, config := range Nodes {
-			log.Println("nodeID: ", nodeID)
+			logger.Debugf("nodeID: %s", nodeID)
 			if config.PrivateIP == ip {
-				log.Printf("matched, ip: %v | nodeID: %v\n", ip, nodeID)
+				logger.Debugf("matched, ip: %v | nodeID: %v", ip, nodeID)
 				nodeIDs = append(nodeIDs, nodeID)
 			}
 		}

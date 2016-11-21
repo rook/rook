@@ -16,31 +16,84 @@ limitations under the License.
 package util
 
 import (
+	"fmt"
 	"io/ioutil"
+	"os"
+	"path"
 	"strings"
+
+	"github.com/google/uuid"
 )
 
-const maxMachineIDLength = 12
+const (
+	maxNodeIDLength = 12
+	idFilename      = "id"
+)
 
-func GetMachineID() (string, error) {
-	buf, err := ioutil.ReadFile("/etc/machine-id")
+// To ensure a constant node ID between runs, the id will be persisted in the data directory.
+func LoadPersistedNodeID(dataDir string) (string, error) {
+	id, save, err := loadNodeID(dataDir)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to load node id. %+v", err)
 	}
 
-	return trimMachineID(string(buf)), nil
+	if save {
+		err = saveNodeID(dataDir, id)
+		if err != nil {
+			return "", fmt.Errorf("failed to save node id. %+v", err)
+		}
+	}
+
+	return id, nil
 }
 
-func trimMachineID(id string) string {
-	// Trim the machine ID to a length that is statistically unlikely to collide with another node in the cluster
+// Attempt to load the node from the data dir. If not found,
+// generate a new random id
+func loadNodeID(dataDir string) (string, bool, error) {
+	// first read the id from the cache
+	buf, err := ioutil.ReadFile(path.Join(dataDir, idFilename))
+	if err == nil {
+		// successfully loaded the id from the file
+		id := strings.TrimSpace(string(buf))
+		if len(id) == 0 {
+			return "", false, fmt.Errorf("the id cannot be empty")
+		}
+
+		logger.Infof("loaded id from data dir")
+		return id, false, nil
+	} else if !os.IsNotExist(err) {
+		return "", false, fmt.Errorf("unexpected error reading node id. %+v", err)
+	}
+
+	// as the last resort, generate a random id
+	logger.Infof("generating a random id")
+	return randomID(), true, nil
+}
+
+func randomID() string {
+	u := strings.Replace(uuid.New().String(), "-", "", -1)
+	return trimNodeID(u)
+}
+
+func saveNodeID(dataDir, id string) error {
+	// cache the requested discovery URL
+	if err := ioutil.WriteFile(path.Join(dataDir, idFilename), []byte(id), 0644); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func trimNodeID(id string) string {
+	// Trim the node ID to a length that is statistically unlikely to collide with another node in the cluster
 	// while allowing us to use an ID that is both unique and succinct.
 	// Using the birthday collision algorithm, if we have a length of 12 hex characters, that gives us
 	// 16^12 possibilities. If we have a cluster with 1,000 nodes, we have a likelihood with node IDs
 	// colliding in less than 1 in a billion clusters.
 	id = strings.TrimSpace(id)
-	if len(id) <= maxMachineIDLength {
+	if len(id) <= maxNodeIDLength {
 		return id
 	}
 
-	return id[0:maxMachineIDLength]
+	return id[0:maxNodeIDLength]
 }

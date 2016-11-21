@@ -18,7 +18,6 @@ package osd
 import (
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -47,7 +46,7 @@ func TestOSDAgentWithDevices(t *testing.T) {
 	startCount := 0
 	executor := &exectest.MockExecutor{}
 	executor.MockStartExecuteCommand = func(name string, command string, args ...string) (*exec.Cmd, error) {
-		log.Printf("START %d for %s. %s %+v", startCount, name, command, args)
+		logger.Infof("START %d for %s. %s %+v", startCount, name, command, args)
 		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 
 		switch {
@@ -62,7 +61,7 @@ func TestOSDAgentWithDevices(t *testing.T) {
 
 	execCount := 0
 	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
-		log.Printf("RUN %d for %s. %s %+v", execCount, name, command, args)
+		logger.Infof("RUN %d for %s. %s %+v", execCount, name, command, args)
 		parts := strings.Split(name, " ")
 		nameSuffix := parts[len(parts)-1]
 		switch {
@@ -83,7 +82,7 @@ func TestOSDAgentWithDevices(t *testing.T) {
 	}
 	outputExecCount := 0
 	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
-		log.Printf("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
+		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
 		outputExecCount++
 		return "", nil
 	}

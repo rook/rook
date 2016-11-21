@@ -18,8 +18,7 @@ source_repo=github.com/rook/rook
 
 container_version=$(cat ${scriptdir}/cross-image/version)
 container_image=quay.io/rook/cross-build:${container_version}
-container_name=cross-build
-container_volume=${container_name}-volume
+container_volume=cross-build-volume
 rsync_port=10873
 
 function ver() {
@@ -37,6 +36,19 @@ function check_git() {
     fi
 }
 
+function start_rsync_container() {
+    docker run \
+        -d \
+        -e OWNER=root \
+        -e GROUP=root \
+        -e MKDIRS="/volume/src/${source_repo}" \
+        -p ${rsync_port}:873 \
+        --entrypoint /bin/bash \
+        -v ${container_volume}:/volume \
+        ${container_image} \
+        /build/rsyncd.sh
+}
+
 function wait_for_rsync() {
     # wait for rsync to come up
     tries=100
@@ -49,4 +61,40 @@ function wait_for_rsync() {
     done
     echo ERROR: rsyncd did not come up >&2
     exit 1
+}
+
+function stop_rsync_container() {
+    id=$1
+
+    docker stop ${id} &> /dev/null || true
+    docker rm ${id} &> /dev/null || true
+}
+
+function run_rsync() {
+
+    # run the container as an rsyncd daemon so that we can copy the
+    # source tree to the container volume.
+    id=$(start_rsync_container)
+
+    # wait for rsync to come up
+    wait_for_rsync || stop_rsync_container ${id}
+
+    for pair in "$*" ; do
+        src="${pair%%-->*}"
+        dst="${pair##*-->}"
+
+        rsync \
+            --archive \
+            --delete \
+            --prune-empty-dirs \
+            --filter='- /.work/' \
+            --filter='- /.glide/' \
+            --filter='- /.vscode/' \
+            --filter='- /bin/' \
+            --filter='- /release/' \
+            $src $dst || { stop_rsync_container ${id}; return 1; }
+    done
+
+
+    stop_rsync_container ${id}
 }

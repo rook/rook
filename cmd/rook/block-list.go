@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/rook/rook/pkg/rook/client"
@@ -66,20 +67,22 @@ func listBlocks(rbdSysBusPath string, c client.RookRestClient, executor exec.Exe
 		return "", nil
 	}
 
-	// for each image returned from the client API call, look up local details
-	for i := range images {
-		image := &(images[i])
+	if runtime.GOOS == "linux" {
+		// for each image returned from the client API call, look up local details
+		for i := range images {
+			image := &(images[i])
 
-		// look up local device and mount point, ignoring errors
-		devPath, _ := findDevicePath(image.Name, image.PoolName, rbdSysBusPath)
-		dev := strings.TrimPrefix(devPath, devicePathPrefix)
-		var mountPoint string
-		if dev != "" {
-			mountPoint, _ = sys.GetDeviceMountPoint(dev, executor)
+			// look up local device and mount point, ignoring errors
+			devPath, _ := findDevicePath(image.Name, image.PoolName, rbdSysBusPath)
+			dev := strings.TrimPrefix(devPath, devicePathPrefix)
+			var mountPoint string
+			if dev != "" {
+				mountPoint, _ = sys.GetDeviceMountPoint(dev, executor)
+			}
+
+			image.Device = dev
+			image.MountPoint = mountPoint
 		}
-
-		image.Device = dev
-		image.MountPoint = mountPoint
 	}
 
 	var buffer bytes.Buffer

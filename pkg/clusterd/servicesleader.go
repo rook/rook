@@ -16,7 +16,6 @@ limitations under the License.
 package clusterd
 
 import (
-	"log"
 	"time"
 
 	etcd "github.com/coreos/etcd/client"
@@ -90,7 +89,7 @@ func (s *servicesLeader) startWatchingUnhealthyNodes() {
 
 			err := s.discoverUnhealthyNodes()
 			if err != nil {
-				log.Printf("error while discovering unhealthy nodes: %+v", err)
+				logger.Warningf("error while discovering unhealthy nodes: %+v", err)
 			}
 		}
 	}()
@@ -114,7 +113,7 @@ func (s *servicesLeader) discoverUnhealthyNodes() error {
 
 	// if we found unhealthy nodes, raise an event
 	if len(unhealthyNodes) > 0 {
-		log.Printf("Found %d unhealthy nodes", len(unhealthyNodes))
+		logger.Infof("Found %d unhealthy nodes", len(unhealthyNodes))
 		s.refresher.triggerNodeUnhealthy(unhealthyNodes)
 	}
 
@@ -124,7 +123,7 @@ func (s *servicesLeader) discoverUnhealthyNodes() error {
 func handleNodeAdded(response *etcd.Response, refresher *ClusterRefresher) {
 	if response.Action == store.Create {
 		newNodeID := util.GetLeafKeyPath(response.Node.Key)
-		log.Printf("new node discovered: %s", newNodeID)
+		logger.Noticef("new node discovered: %s", newNodeID)
 
 		// trigger an orchestration to configure services on the new machine
 		refresher.triggerNodeAdded(newNodeID)
@@ -151,14 +150,14 @@ func (s *servicesLeader) startWatchingClusterChanges() {
 func (s *servicesLeader) watchClusterChange(context ctx.Context, refreshKey *RefreshKey) {
 	watcher := s.context.EtcdClient.Watcher(refreshKey.Path, &etcd.WatcherOptions{Recursive: true})
 	for {
-		//log.Printf("watching cluster changes under %s", refreshKey.Path)
+		logger.Tracef("watching cluster changes under %s", refreshKey.Path)
 		resp, err := watcher.Next(context)
 		if err != nil {
 			if err == ctx.Canceled {
-				log.Printf("%s change watching cancelled, bailing out...", refreshKey.Path)
+				logger.Debugf("%s change watching cancelled, bailing out...", refreshKey.Path)
 				break
 			} else {
-				log.Printf(
+				logger.Warningf(
 					"%s change watcher Next returned error, sleeping %d sec before retry: %+v",
 					refreshKey.Path,
 					watchErrorRetrySeconds,
@@ -177,7 +176,7 @@ func (s *servicesLeader) watchClusterChange(context ctx.Context, refreshKey *Ref
 
 func (s *servicesLeader) stopWatchingClusterChanges() {
 	if s.watcherCancel != nil {
-		log.Print("calling cancel function for cluster change watcher...")
+		logger.Infof("calling cancel function for cluster change watcher...")
 		s.watcherCancel()
 	}
 

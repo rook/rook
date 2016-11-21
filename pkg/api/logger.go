@@ -16,10 +16,13 @@ limitations under the License.
 package api
 
 import (
-	"log"
 	"net/http"
 	"time"
+
+	"github.com/coreos/pkg/capnslog"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "api")
 
 func Logger(inner http.Handler, name string) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -27,7 +30,7 @@ func Logger(inner http.Handler, name string) http.Handler {
 
 		inner.ServeHTTP(w, r)
 
-		log.Printf(
+		logger.Infof(
 			"(%s)\t%s\t%s\t%s",
 			time.Since(start),
 			r.Method,
@@ -35,4 +38,24 @@ func Logger(inner http.Handler, name string) http.Handler {
 			name,
 		)
 	})
+}
+
+// Sets the log level for this node.
+// POST
+// /log
+func (h *Handler) SetLogLevel(w http.ResponseWriter, r *http.Request) {
+	l, ok := r.URL.Query()["level"]
+	if !ok || l[0] == "" {
+		http.Error(w, "log level not passed", http.StatusBadRequest)
+		return
+	}
+
+	logLevel, err := capnslog.ParseLevel(l[0])
+	if err != nil {
+		http.Error(w, "invalid log level", http.StatusBadRequest)
+		return
+	}
+
+	capnslog.SetGlobalLogLevel(logLevel)
+	w.WriteHeader(http.StatusOK)
 }

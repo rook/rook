@@ -15,38 +15,41 @@
 FROM ubuntu:xenial
 MAINTAINER Bassam Tabbara <bassam.tabbara@quantum.com>
 
+#
+# install build tools, compilers and cross compilers for all supported platforms
+#
+
 RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu xenial main universe restricted" > /etc/apt/sources.list &&\
     echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu xenial-updates main universe restricted" >> /etc/apt/sources.list &&\
     echo "deb [arch=arm64] http://ports.ubuntu.com/ xenial main universe restricted" >> /etc/apt/sources.list &&\
     echo "deb [arch=arm64] http://ports.ubuntu.com/ xenial-updates main universe restricted" >> /etc/apt/sources.list &&\
     dpkg --add-architecture arm64 && \
-    apt-get update
-
-#
-# install build tools, compilers and cross compilers for all supported platforms
-#
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
-    build-essential \
-    ca-certificates \
-    ccache \
-    clang \
-    cmake \
-    crossbuild-essential-arm64 \
-    curl \
-    docker.io \
-    git \
-    jq \
-    libxml2-dev \
-    llvm-dev \
-    mingw-w64 \
-    patch \
-    rsync \
-    runit \
-    sudo \
-    uuid-dev \
-    xz-utils \
-    yasm \
-    zip
+    apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
+        build-essential \
+        ca-certificates \
+        ccache \
+        clang \
+        cmake \
+        crossbuild-essential-arm64 \
+        curl \
+        cython \
+        docker.io \
+        git \
+        jq \
+        libxml2-dev \
+        llvm-dev \
+        mingw-w64 \
+        patch \
+        python \
+        python-dev \
+        rsync \
+        runit \
+        sudo \
+        uuid-dev \
+        xz-utils \
+        yasm \
+        zip
 
 # install the OSX cross compilers. see https://github.com/tpoechtrager/osxcross
 RUN OSXCROSS_COMMIT_HASH=86879571d33ff7252a55d777609742561dba9953 && \
@@ -91,7 +94,6 @@ RUN for a in amd64 arm64; do \
     libexpat1-dev:${a} \
     libkeyutils-dev:${a} \
     libldap2-dev:${a} \
-    libleveldb-dev:${a} \
     libsnappy-dev:${a} \
     libssl-dev:${a} \
     libudev-dev:${a} \
@@ -100,10 +102,10 @@ RUN for a in amd64 arm64; do \
 # Some of the packages we need for ceph are either not available in xenial or dont support multi-arch.
 # Hack'em to install in a multi-arch way. Hopefully these will get fixed upstream soon.
 # Bugs opened here https://bugs.launchpad.net/~bassamtabbara
-RUN curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++-dev_5.6.4-2_amd64.deb && \
-    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++-dev_5.6.4-2_arm64.deb && \
-    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++6_5.6.4-2_amd64.deb && \
-    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++6_5.6.4-2_arm64.deb && \
+RUN curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++-dev_5.6.4-3_amd64.deb && \
+    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++-dev_5.6.4-3_arm64.deb && \
+    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++6_5.6.4-3_amd64.deb && \
+    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++6_5.6.4-3_arm64.deb && \
     curl -fsSLO http://archive.ubuntu.com/ubuntu/pool/main/libf/libfcgi/libfcgi-dev_2.4.0-8.4_amd64.deb && \
     curl -fsSLO http://ports.ubuntu.com/pool/main/libf/libfcgi/libfcgi-dev_2.4.0-8.4_arm64.deb && \
     curl -fsSLO http://archive.ubuntu.com/ubuntu/pool/main/libf/libfcgi/libfcgi0ldbl_2.4.0-8.4_amd64.deb && \
@@ -120,6 +122,7 @@ RUN curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libc
         apt-get download libunwind8-dev:${a} 2> /dev/null && \
         apt-get download libunwind8:${a} 2> /dev/null && \
         apt-get download liblzma5:${a} 2> /dev/null; \
+        apt-get download liblzma-dev:${a} 2> /dev/null; \
     done
 
 RUN for d in *.deb; do \
@@ -148,8 +151,8 @@ RUN for d in *.deb; do \
 RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # install go-lang
-RUN GO_VERSION=1.7.1 && \
-    GO_HASH=43ad621c9b014cde8db17393dc108378d37bc853aa351a6c74bf6432c1bbd182 && \
+RUN GO_VERSION=1.7.3 && \
+    GO_HASH=508028aac0654e993564b6e2014bf2d4a9751e3b286661b0b0040046cf18028e && \
     curl -fsSL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
     echo "${GO_HASH}  golang.tar.gz" | sha256sum -c - && \
     tar -C /usr/local -xzf golang.tar.gz && \
@@ -157,15 +160,26 @@ RUN GO_VERSION=1.7.1 && \
 ENV PATH /usr/local/go/bin:$PATH
 
 # precompile the go standard library for all supported platforms and configurations
+# there are three configurations that we compile for:
+#    - default: CGO_ENABLED=1, defaults tags
+#    - netgo: CGO_ENABLED=1, enable pure go DNS resolver
+#    - nocgo: CGO_ENABLED=0, defaults tags, pure Go resolver is the default
 RUN \
     CGO_ENABLED=1 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -a std && \
-    CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -tags netgo -installsuffix static -a std && \
+    CGO_ENABLED=1 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -installsuffix nocgo -a std && \
     CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -a std && \
-    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -tags netgo -installsuffix static -a std &&\
+    CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -installsuffix nocgo -a std && \
     CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -a std && \
-    CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -tags netgo -installsuffix static -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -buildmode pie -installsuffix pie -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -installsuffix nocgo -a std && \
     CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -a std && \
-    CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -tags netgo -installsuffix static -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -buildmode pie -installsuffix pie -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix nocgo -a std && \
+    \
     CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix race -a std
 
 WORKDIR /build

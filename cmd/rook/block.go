@@ -15,7 +15,11 @@ limitations under the License.
 */
 package rook
 
-import "github.com/spf13/cobra"
+import (
+	"runtime"
+
+	"github.com/spf13/cobra"
+)
 
 var blockCmd = &cobra.Command{
 	Use:   "block",
@@ -25,6 +29,9 @@ var blockCmd = &cobra.Command{
 func init() {
 	blockCmd.AddCommand(blockListCmd)
 	blockCmd.AddCommand(blockCreateCmd)
-	blockCmd.AddCommand(blockMountCmd)
-	blockCmd.AddCommand(blockUnmountCmd)
+
+	if runtime.GOOS == "linux" {
+		blockCmd.AddCommand(blockMountCmd)
+		blockCmd.AddCommand(blockUnmountCmd)
+	}
 }

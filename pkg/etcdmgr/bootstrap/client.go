@@ -18,7 +18,6 @@ package bootstrap
 import (
 	"errors"
 	"fmt"
-	"log"
 )
 
 // GetEtcdClients bootstraps an embedded etcd instance and returns a list of
@@ -30,31 +29,31 @@ func GetEtcdClients(configDir, token, ipAddr, nodeID string) ([]string, error) {
 	if err != nil {
 		return []string{}, errors.New("error querying discovery service")
 	}
-	log.Println("current etcd cluster nodes: ", currentNodes)
+	logger.Infof("current etcd cluster nodes: %+v", currentNodes)
 
 	localURL := fmt.Sprintf("http://%s:%d", ipAddr, DefaultClientPort)
 
 	// Is it a restart scenario?
 	restart := false
-	log.Println("current localURL: ", localURL)
+	logger.Infof("current localURL: %s", localURL)
 	for _, node := range currentNodes {
 		if node == localURL {
-			log.Println("restart scenario detected.")
+			logger.Infof("restart scenario detected.")
 			restart = true
 		}
 	}
 
 	if full && !restart {
-		log.Println("quorum is already formed, returning current cluster members: ", currentNodes)
+		logger.Infof("quorum is already formed, returning current cluster members: %+v", currentNodes)
 		return currentNodes, nil
 	}
 
-	log.Println("quorum is not complete, creating a new embedded etcd member...")
+	logger.Infof("quorum is not complete, creating a new embedded etcd member...")
 	conf, err := generateConfig(configDir, ipAddr, nodeID)
 	if err != nil {
 		return []string{}, err
 	}
-	log.Println("conf:", conf)
+	logger.Infof("conf: %+v", conf)
 
 	factory := EmbeddedEtcdFactory{}
 	ee, err := factory.NewEmbeddedEtcd(token, conf, true)

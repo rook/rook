@@ -18,7 +18,6 @@ package client
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"strings"
 )
 
@@ -105,7 +104,7 @@ func CreatePool(conn Connection, newPool CephStoragePoolDetails) (string, error)
 		}
 	}
 
-	log.Printf("creating pool %s succeeded, info: %s, buf: %s", newPool.Name, info, string(buf))
+	logger.Infof("creating pool %s succeeded, info: %s, buf: %s", newPool.Name, info, string(buf))
 
 	return info, nil
 }
