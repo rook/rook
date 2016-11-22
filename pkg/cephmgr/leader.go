@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/mds"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/cephmgr/osd"
+	"github.com/rook/rook/pkg/cephmgr/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
 )
@@ -35,6 +36,7 @@ type cephLeader struct {
 	monLeader   *mon.Leader
 	osdLeader   *osd.Leader
 	mdsLeader   *mds.Leader
+	rgwLeader   *rgw.Leader
 	factory     client.ConnectionFactory
 	adminSecret string
 }
@@ -45,6 +47,7 @@ func newLeader(factory client.ConnectionFactory, adminSecret string) *cephLeader
 		monLeader:   mon.NewLeader(),
 		osdLeader:   osd.NewLeader(),
 		mdsLeader:   mds.NewLeader(),
+		rgwLeader:   rgw.NewLeader(),
 		adminSecret: adminSecret}
 }
 
