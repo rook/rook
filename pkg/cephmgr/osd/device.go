@@ -26,7 +26,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/google/uuid"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
@@ -42,7 +41,7 @@ const (
 	DevicesValue                = "devices"
 	ForceFormatValue            = "forceFormat"
 	sgdisk                      = "sgdisk"
-	cephOsdKey                  = "/rook/services/ceph/osd"
+	cephOsdKey                  = mon.CephKey + "/osd"
 	desiredOsdRootKey           = cephOsdKey + "/" + clusterd.DesiredKey + "/%s"
 	deviceDesiredKey            = desiredOsdRootKey + "/device"
 	dirDesiredKey               = desiredOsdRootKey + "/dir"
@@ -194,9 +193,9 @@ func getStoreSettings(context *clusterd.Context, config *osdConfig) (map[string]
 }
 
 func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context *clusterd.Context,
-	bootstrapConn client.Connection, cluster *mon.ClusterInfo, location string, logLevel capnslog.LogLevel, executor exec.Executor) error {
+	bootstrapConn client.Connection, cluster *mon.ClusterInfo, location string, executor exec.Executor) error {
 
-	cephConfig := mon.CreateDefaultCephConfig(cluster, config.rootPath, logLevel, config.bluestore)
+	cephConfig := mon.CreateDefaultCephConfig(cluster, config.rootPath, context.LogLevel, config.bluestore)
 
 	if !config.bluestore {
 		// using the local file system requires some config overrides
@@ -214,7 +213,7 @@ func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context 
 	// write the OSD config file to disk
 	keyringPath := getOSDKeyringPath(config.rootPath)
 	_, err = mon.GenerateConfigFile(context, cluster, config.rootPath, fmt.Sprintf("osd.%d", config.id),
-		keyringPath, logLevel, config.bluestore, cephConfig, settings)
+		keyringPath, config.bluestore, cephConfig, settings)
 	if err != nil {
 		return fmt.Errorf("failed to write OSD %d config file: %+v", config.id, err)
 	}
@@ -237,7 +236,7 @@ func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context 
 
 	// open a connection to the cluster using the OSDs creds
 	osdConn, err := mon.ConnectToCluster(context, factory, cluster, path.Join(config.rootPath, "tmp"),
-		fmt.Sprintf("osd.%d", config.id), keyringPath, logLevel)
+		fmt.Sprintf("osd.%d", config.id), keyringPath)
 	if err != nil {
 		return err
 	}

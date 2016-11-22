@@ -18,6 +18,7 @@ package mon
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -94,7 +95,7 @@ func ConnectToClusterAsAdmin(context *clusterd.Context, factory client.Connectio
 	}
 
 	return ConnectToCluster(context, factory, cluster, getMonRunDirPath(context.ConfigDir, monName),
-		"admin", getMonKeyringPath(context.ConfigDir, monName), context.LogLevel)
+		"admin", getMonKeyringPath(context.ConfigDir, monName))
 }
 
 // get the path of a given monitor's config file
@@ -103,24 +104,24 @@ func GetConfFilePath(root, clusterName string) string {
 }
 
 // generates and writes the monitor config file to disk
-func GenerateConnectionConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string, logLevel capnslog.LogLevel) (string, error) {
-	return GenerateConfigFile(context, cluster, pathRoot, user, keyringPath, logLevel, false, nil, nil)
+func GenerateConnectionConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string) (string, error) {
+	return GenerateConfigFile(context, cluster, pathRoot, user, keyringPath, false, nil, nil)
 }
 
 // generates and writes the monitor config file to disk
 func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string,
-	logLevel capnslog.LogLevel, bluestore bool, userConfig *cephConfig, clientSettings map[string]string) (string, error) {
+	bluestore bool, userConfig *cephConfig, clientSettings map[string]string) (string, error) {
 
 	if pathRoot == "" {
 		pathRoot = getMonRunDirPath(context.ConfigDir, getFirstMonitor(cluster))
 	}
 
 	// create the config directory
-	if err := os.MkdirAll(filepath.Dir(pathRoot), 0744); err != nil {
+	if err := os.MkdirAll(pathRoot, 0744); err != nil {
 		logger.Warningf("failed to create config directory at %s: %+v", pathRoot, err)
 	}
 
-	configFile, err := createGlobalConfigFileSection(cluster, pathRoot, logLevel, bluestore, userConfig)
+	configFile, err := createGlobalConfigFileSection(cluster, pathRoot, context.LogLevel, bluestore, userConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to create global config section, %+v", err)
 	}
@@ -135,11 +136,45 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 
 	// write the entire config to disk
 	filePath := GetConfFilePath(pathRoot, cluster.Name)
+	logger.Debugf("writing config file %s", filePath)
 	if err := configFile.SaveTo(filePath); err != nil {
-		return "", err
+		return "", fmt.Errorf("failed to save config file %s. %+v", filePath, err)
 	}
 
 	return filePath, nil
+}
+
+// create a keyring for access to the cluster, with the desired set of privileges
+func CreateKeyring(conn client.Connection, username, keyringPath string, access []string, generateKeyring func(string) string) error {
+	_, err := os.Stat(keyringPath)
+	if err == nil {
+		// no error, the file exists, bail out with no error
+		logger.Debugf("keyring already exists at %s", keyringPath)
+		return nil
+	} else if !os.IsNotExist(err) {
+		// some other error besides "does not exist", bail out with error
+		return fmt.Errorf("failed to stat %s: %+v", keyringPath, err)
+	}
+
+	// get-or-create-key for the user account
+	key, err := client.AuthGetOrCreateKey(conn, username, access)
+	if err != nil {
+		return fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
+	}
+
+	// write the keyring to disk
+	keyringDir := filepath.Dir(keyringPath)
+	if err := os.MkdirAll(keyringDir, 0744); err != nil {
+		return fmt.Errorf("failed to create keyring dir at %s: %+v", keyringDir, err)
+	}
+
+	keyring := generateKeyring(key)
+	logger.Debugf("Writing keyring to: %s", keyringPath)
+	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0644); err != nil {
+		return fmt.Errorf("failed to write keyring to %s: %+v", keyringPath, err)
+	}
+
+	return nil
 }
 
 // prepends "client." if a user namespace is not already specified
@@ -162,11 +197,11 @@ func getFirstMonitor(cluster *ClusterInfo) string {
 
 // opens a connection to the cluster that can be used for management operations
 func ConnectToCluster(context *clusterd.Context, factory client.ConnectionFactory, cluster *ClusterInfo,
-	basePath, user, keyringPath string, logLevel capnslog.LogLevel) (client.Connection, error) {
+	basePath, user, keyringPath string) (client.Connection, error) {
 
 	logger.Infof("connecting to ceph cluster %s with user %s", cluster.Name, user)
 
-	confFilePath, err := GenerateConnectionConfigFile(context, cluster, basePath, user, keyringPath, logLevel)
+	confFilePath, err := GenerateConnectionConfigFile(context, cluster, basePath, user, keyringPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate config file: %v", err)
 	}

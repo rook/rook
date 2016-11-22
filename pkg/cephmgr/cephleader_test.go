@@ -16,7 +16,6 @@ limitations under the License.
 package cephmgr
 
 import (
-	"path"
 	"testing"
 
 	etcd "github.com/coreos/etcd/client"
@@ -99,10 +98,9 @@ func TestRefreshKeys(t *testing.T) {
 	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "key"}
 	leader := newLeader(factory, "")
 	keys := leader.RefreshKeys()
-	assert.Equal(t, 1, len(keys))
-
-	expected := path.Join(mon.CephKey, "osd", clusterd.DesiredKey)
-	assert.Equal(t, expected, keys[0].Path)
+	assert.Equal(t, 2, len(keys))
+	assert.Equal(t, "/rook/services/ceph/osd/desired", keys[0].Path)
+	assert.Equal(t, "/rook/services/ceph/fs/desired", keys[1].Path)
 }
 
 func TestNewCephService(t *testing.T) {
@@ -111,9 +109,10 @@ func TestNewCephService(t *testing.T) {
 	service := NewCephService(factory, "a,b,c", true, "root=default", "")
 	assert.NotNil(t, service)
 	assert.Equal(t, "/rook/services/ceph/osd/desired", service.Leader.RefreshKeys()[0].Path)
-	assert.Equal(t, 2, len(service.Agents))
+	assert.Equal(t, 3, len(service.Agents))
 	assert.Equal(t, "monitor", service.Agents[0].Name())
 	assert.Equal(t, "osd", service.Agents[1].Name())
+	assert.Equal(t, "mds", service.Agents[2].Name())
 }
 
 func TestCreateClusterInfo(t *testing.T) {

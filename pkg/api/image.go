@@ -21,6 +21,7 @@ import (
 	"net/http"
 
 	ceph "github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/cephmgr/mds"
 	"github.com/rook/rook/pkg/model"
 )
 
@@ -84,6 +85,35 @@ func (h *Handler) GetImages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	FormatJsonResponse(w, result)
+}
+
+// Creates a new file system in this cluster.
+// POST
+// /file
+func (h *Handler) CreateFileSystem(w http.ResponseWriter, r *http.Request) {
+
+	if err := mds.EnableFileSystem(h.context); err != nil {
+		logger.Errorf("failed to create file system: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	logger.Debugf("started async creation of file system")
+	w.WriteHeader(http.StatusAccepted)
+}
+
+// Creates a new image in this cluster.
+// POST
+// /file/remove
+func (h *Handler) RemoveFileSystem(w http.ResponseWriter, r *http.Request) {
+	if err := mds.RemoveFileSystem(h.context); err != nil {
+		logger.Errorf("failed to remove file system: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	logger.Debugf("started async deletion of file system")
+	w.WriteHeader(http.StatusAccepted)
 }
 
 // Creates a new image in this cluster.

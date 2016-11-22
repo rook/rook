@@ -23,6 +23,7 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/store"
 	"github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/cephmgr/mds"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/cephmgr/osd"
 	"github.com/rook/rook/pkg/clusterd"
@@ -33,12 +34,18 @@ import (
 type cephLeader struct {
 	monLeader   *mon.Leader
 	osdLeader   *osd.Leader
+	mdsLeader   *mds.Leader
 	factory     client.ConnectionFactory
 	adminSecret string
 }
 
 func newLeader(factory client.ConnectionFactory, adminSecret string) *cephLeader {
-	return &cephLeader{factory: factory, monLeader: mon.NewLeader(), osdLeader: osd.NewLeader(), adminSecret: adminSecret}
+	return &cephLeader{
+		factory:     factory,
+		monLeader:   mon.NewLeader(),
+		osdLeader:   osd.NewLeader(),
+		mdsLeader:   mds.NewLeader(),
+		adminSecret: adminSecret}
 }
 
 func (c *cephLeader) RefreshKeys() []*clusterd.RefreshKey {
@@ -47,7 +54,11 @@ func (c *cephLeader) RefreshKeys() []*clusterd.RefreshKey {
 		Path:      path.Join(mon.CephKey, "osd", clusterd.DesiredKey),
 		Triggered: handleDeviceChanged,
 	}
-	return []*clusterd.RefreshKey{deviceChange}
+	fileChange := &clusterd.RefreshKey{
+		Path:      path.Join(mon.CephKey, mds.FileSystemKey, clusterd.DesiredKey),
+		Triggered: handleFileSystemChanged,
+	}
+	return []*clusterd.RefreshKey{deviceChange, fileChange}
 }
 
 func getOSDsToRefresh(e *clusterd.RefreshEvent) *util.Set {
@@ -70,18 +81,23 @@ func getRefreshMons(e *clusterd.RefreshEvent) bool {
 	return true
 }
 
+func getRefreshFile(e *clusterd.RefreshEvent) bool {
+	return true
+}
+
 func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 	// Listen for events from the orchestrator indicating that a refresh is needed or nodes have been added
 	logger.Infof("ceph leader received refresh event")
 
-	refreshMon := getRefreshMons(e)
+	refreshMons := getRefreshMons(e)
 	osdsToRefresh := getOSDsToRefresh(e)
+	refreshFile := getRefreshFile(e)
 
-	if refreshMon {
+	if refreshMons {
 		// Perform a full refresh of the cluster to ensure the monitors are running with quorum
 		err := c.monLeader.Configure(e.Context, c.factory, c.adminSecret)
 		if err != nil {
-			logger.Errorf("FAILED TO CONFIGURE CEPH MONS. %v", err)
+			logger.Errorf("Failed to configure ceph mons. %v", err)
 		}
 	}
 
@@ -89,7 +105,15 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 		// Configure the OSDs
 		err := c.osdLeader.Configure(e.Context, osdsToRefresh.ToSlice())
 		if err != nil {
-			logger.Errorf("FAILED TO CONFIGURE CEPH OSDs. %v", err)
+			logger.Errorf("Failed to configure ceph OSDs. %v", err)
+		}
+	}
+
+	if refreshFile {
+		// Configure the file system(s)
+		err := c.mdsLeader.Configure(e.Context, c.factory)
+		if err != nil {
+			logger.Errorf("Failed to configure file service. %+v", err)
 		}
 	}
 
@@ -121,4 +145,11 @@ func extractNodeIDFromDesiredDevice(path string) (string, error) {
 	}
 
 	return parts[nodeIDOffset], nil
+}
+
+func handleFileSystemChanged(response *etcd.Response, refresher *clusterd.ClusterRefresher) {
+	logger.Debugf("handling file system changed. %+v", response)
+
+	// trigger an orchestration to add or remove the file system
+	refresher.TriggerRefresh()
 }

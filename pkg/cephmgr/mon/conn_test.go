@@ -19,6 +19,7 @@ import (
 	"testing"
 
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
+	cephtest "github.com/rook/rook/pkg/cephmgr/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -26,7 +27,7 @@ import (
 
 func TestBasicConn(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	createTestClusterInfo(etcdClient, []string{"a"})
+	cephtest.CreateClusterInfo(etcdClient, []string{"a"})
 	factory := NewConnectionFactory()
 	fact := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
 	context := &clusterd.Context{EtcdClient: etcdClient, ConfigDir: "/tmp"}
