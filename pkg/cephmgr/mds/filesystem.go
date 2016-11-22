@@ -239,7 +239,7 @@ func (f *FileSystem) startMDSUnitInstances(count int) error {
 		nodeIDs = append(nodeIDs, mds.nodeID)
 	}
 
-	// trigger the monitors to start on each node
+	// trigger the mds to start on each node
 	logger.Infof("Triggering mds on nodes: %+v", nodeIDs)
 	err = clusterd.TriggerAgentsAndWaitForCompletion(f.context.EtcdClient, nodeIDs, mdsAgentName, len(desiredMDS))
 	if err != nil {

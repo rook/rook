@@ -72,6 +72,18 @@ func (h *Handler) GetRoutes() []Route {
 			h.GetCrushMap,
 		},
 		{
+			"CreateObjectStore",
+			"POST",
+			"/objectstore",
+			h.CreateObjectStore,
+		},
+		{
+			"RemoveObjectStore",
+			"POST",
+			"/objectstore/remove",
+			h.RemoveObjectStore,
+		},
+		{
 			"GetFileSystems",
 			"GET",
 			"/filesystem",

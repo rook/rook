@@ -61,7 +61,11 @@ func (c *cephLeader) RefreshKeys() []*clusterd.RefreshKey {
 		Path:      path.Join(mon.CephKey, mds.FileSystemKey, clusterd.DesiredKey),
 		Triggered: handleFileSystemChanged,
 	}
-	return []*clusterd.RefreshKey{deviceChange, fileChange}
+	objectChange := &clusterd.RefreshKey{
+		Path:      path.Join(mon.CephKey, rgw.ObjectStoreKey, clusterd.DesiredKey),
+		Triggered: handleObjectStoreChanged,
+	}
+	return []*clusterd.RefreshKey{deviceChange, fileChange, objectChange}
 }
 
 func getOSDsToRefresh(e *clusterd.RefreshEvent) *util.Set {
@@ -88,6 +92,10 @@ func getRefreshFile(e *clusterd.RefreshEvent) bool {
 	return true
 }
 
+func getRefreshObject(e *clusterd.RefreshEvent) bool {
+	return true
+}
+
 func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 	// Listen for events from the orchestrator indicating that a refresh is needed or nodes have been added
 	logger.Infof("ceph leader received refresh event")
@@ -95,6 +103,7 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 	refreshMons := getRefreshMons(e)
 	osdsToRefresh := getOSDsToRefresh(e)
 	refreshFile := getRefreshFile(e)
+	refreshObject := getRefreshObject(e)
 
 	if refreshMons {
 		// Perform a full refresh of the cluster to ensure the monitors are running with quorum
@@ -117,6 +126,13 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 		err := c.mdsLeader.Configure(e.Context, c.factory)
 		if err != nil {
 			logger.Errorf("Failed to configure file service. %+v", err)
+		}
+	}
+
+	if refreshObject {
+		err := c.rgwLeader.Configure(e.Context, c.factory)
+		if err != nil {
+			logger.Errorf("Failed to configure object service. %+v", err)
 		}
 	}
 
@@ -154,5 +170,12 @@ func handleFileSystemChanged(response *etcd.Response, refresher *clusterd.Cluste
 	logger.Debugf("handling file system changed. %+v", response)
 
 	// trigger an orchestration to add or remove the file system
+	refresher.TriggerRefresh()
+}
+
+func handleObjectStoreChanged(response *etcd.Response, refresher *clusterd.ClusterRefresher) {
+	logger.Debugf("handling object store changed. %+v", response)
+
+	// trigger an orchestration to add or remove the object store
 	refresher.TriggerRefresh()
 }
