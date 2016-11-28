@@ -135,6 +135,7 @@ Please use the following to reach members of the community:
 
 - Email: [rook-dev](https://groups.google.com/forum/#!forum/rook-dev)
 - Gitter: [rook/rook](https://gitter.im/rook/rook) for general project discussions or [rook-dev](https://gitter.im/rook/rook-dev) for development discussions.
+- Twitter: [@rook_io](https://twitter.com/rook_io)
 
 ## Licensing
 
