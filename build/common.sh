@@ -16,7 +16,7 @@
 
 source_repo=github.com/rook/rook
 
-container_version=$(cat ${scriptdir}/cross-image/version)
+container_version=$(cat ${scriptdir}/container/version)
 container_image=quay.io/rook/cross-build:${container_version}
 container_volume=cross-build-volume
 rsync_port=10873

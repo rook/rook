@@ -48,9 +48,7 @@ CEPHD_CMAKE += \
 	-DWITH_PROFILER=OFF \
 	-DWITH_LTTNG=OFF \
 	-DWITH_MGR=OFF \
-	-DWITH_PYTHON=OFF \
-	-DWITH_PYTHON3=OFF \
-	-DCMAKE_TARGET_MESSAGES=OFF \
+	-DWITH_PYTHON3=OFF
 
 ifeq ($(CEPHD_CCACHE),1)
 CEPHD_CMAKE += -DWITH_CCACHE=ON
@@ -64,7 +62,7 @@ cephd.config:
 	@mkdir -p $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)
 	@echo "$(CEPHD_CMAKE)" > $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake.new
 	@if test ! -f $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake || ! diff $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake.new $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake > /dev/null; then \
-		cd $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM) && cmake $(CEPHD_CMAKE) -DCMAKE_TOOLCHAIN_FILE=$(abspath build/makelib/toolchain.$(CEPHD_PLATFORM).cmake) $(abspath ceph); \
+		cd $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM) && cmake $(CEPHD_CMAKE) -DCMAKE_TOOLCHAIN_FILE=$(abspath build/container/external/toolchain/gcc.$(CEPHD_PLATFORM).cmake) $(abspath ceph); \
 		echo "$(CEPHD_CMAKE)" > cephd.cmake; \
 	fi
 	@rm $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake.new
