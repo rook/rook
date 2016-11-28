@@ -48,8 +48,8 @@ package cephd
 // #cgo tcmalloc,dynamic LDFLAGS: -Wl,-Bstatic -ltcmalloc_minimal -Wl,-Bdynamic
 // #cgo jemalloc tcmalloc CFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
 // #cgo jemalloc tcmalloc CXXFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
-// #cgo static LDFLAGS: -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcrypto++ -laio -luuid -lm -ldl -lresolv
-// #cgo dynamic LDFLAGS: -Wl,-Bstatic -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcrypto++ -laio -luuid -Wl,-Bdynamic -ldl -lm -lresolv
+// #cgo static LDFLAGS: -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcrypto++ -laio -luuid -lcurl -lfcgi -lexpat -lm -ldl -lresolv
+// #cgo dynamic LDFLAGS: -Wl,-Bstatic -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcrypto++ -laio -luuid -lcurl -lfcgi -lexpat -Wl,-Bdynamic -ldl -lm -lresolv
 // #include <errno.h>
 // #include <stdlib.h>
 // #include <string.h>
@@ -157,6 +157,8 @@ func (c *ceph) RunDaemon(daemon string, args ...string) error {
 		ret = C.cephd_run_osd(C.int(len(finalArgs)), (**C.char)(ptr))
 	} else if daemon == "mds" {
 		ret = C.cephd_run_mds(C.int(len(finalArgs)), (**C.char)(ptr))
+	} else if daemon == "rgw" {
+		ret = C.cephd_run_rgw(C.int(len(finalArgs)), (**C.char)(ptr))
 	}
 	if ret < 0 {
 		return GetCephdError(int(ret))
