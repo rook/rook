@@ -72,6 +72,7 @@ func addCommands() {
 	rootCmd.AddCommand(nodeCmd)
 	rootCmd.AddCommand(poolCmd)
 	rootCmd.AddCommand(blockCmd)
+	rootCmd.AddCommand(filesystemCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(versionCmd)
 }

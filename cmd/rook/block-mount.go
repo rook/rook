@@ -85,7 +85,7 @@ func mountBlockEntry(cmd *cobra.Command, args []string) error {
 }
 
 func mountBlock(name, poolName, mountPoint, rbdSysBusPath string, c client.RookRestClient, executor exec.Executor) (string, error) {
-	imageMapInfo, err := c.GetBlockImageMapInfo()
+	clientAccessInfo, err := c.GetClientAccessInfo()
 	if err != nil {
 		return "", err
 	}
@@ -112,7 +112,7 @@ func mountBlock(name, poolName, mountPoint, rbdSysBusPath string, c client.RookR
 	defer addFile.Close()
 
 	// generate the data string that will be written to the rbd add path
-	rbdAddData, err := getRBDAddData(name, poolName, imageMapInfo)
+	rbdAddData, err := getRBDAddData(name, poolName, clientAccessInfo)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate rbd add data: %+v", err)
 	}
@@ -144,30 +144,19 @@ func mountBlock(name, poolName, mountPoint, rbdSysBusPath string, c client.RookR
 	return fmt.Sprintf("succeeded mapping image %s on device %s at '%s'", name, devicePath, mountPoint), nil
 }
 
-func getRBDAddData(name, poolName string, imageMapInfo model.BlockImageMapInfo) (string, error) {
-	if imageMapInfo.MonAddresses == nil || len(imageMapInfo.MonAddresses) == 0 {
-		return "", fmt.Errorf("missing mon addresses: %+v", imageMapInfo)
+func getRBDAddData(name, poolName string, clientAccessInfo model.ClientAccessInfo) (string, error) {
+	if err := verifyClientAccessInfo(clientAccessInfo); err != nil {
+		return "", err
 	}
 
-	if imageMapInfo.UserName == "" || imageMapInfo.SecretKey == "" {
-		return "", fmt.Errorf("missing user/secret: %v", imageMapInfo)
-	}
-
-	monAddrs := make([]string, len(imageMapInfo.MonAddresses))
-	for i, addr := range imageMapInfo.MonAddresses {
-		lastIndex := strings.LastIndex(addr, "/")
-		if lastIndex == -1 {
-			lastIndex = len(addr)
-		}
-		monAddrs[i] = addr[0:lastIndex]
-	}
+	monAddrs := processMonAddresses(clientAccessInfo)
 
 	// mon address list (comma separated), user name, secret, pool name, image name
 	rbdAddData := fmt.Sprintf(
 		"%s name=%s,secret=%s %s %s",
 		strings.Join(monAddrs, ","),
-		imageMapInfo.UserName,
-		imageMapInfo.SecretKey,
+		clientAccessInfo.UserName,
+		clientAccessInfo.SecretKey,
 		poolName,
 		name)
 

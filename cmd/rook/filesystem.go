@@ -13,12 +13,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package model
+package rook
 
-type BlockImage struct {
-	Name       string `json:"imageName"`
-	PoolName   string `json:"poolName"`
-	Size       uint64 `json:"size"`
-	Device     string `json:"device"`
-	MountPoint string `json:"mountPoint"`
+import "github.com/spf13/cobra"
+
+var filesystemCmd = &cobra.Command{
+	Use:     "filesystem",
+	Aliases: []string{"fs"},
+	Short:   "Performs commands and operations on shared filesystems in the cluster",
+}
+
+func init() {
+	filesystemCmd.AddCommand(filesystemListCmd)
+	filesystemCmd.AddCommand(filesystemCreateCmd)
+	filesystemCmd.AddCommand(filesystemMountCmd)
+	filesystemCmd.AddCommand(filesystemUnmountCmd)
+	filesystemCmd.AddCommand(filesystemDeleteCmd)
 }

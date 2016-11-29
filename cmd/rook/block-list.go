@@ -53,7 +53,7 @@ func listBlocksEntry(cmd *cobra.Command, args []string) error {
 		os.Exit(1)
 	}
 
-	fmt.Println(out)
+	fmt.Print(out)
 	return nil
 }
 

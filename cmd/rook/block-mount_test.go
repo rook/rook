@@ -32,8 +32,8 @@ import (
 
 func TestMountBlock(t *testing.T) {
 	c := &test.MockRookRestClient{
-		MockGetBlockImageMapInfo: func() (model.BlockImageMapInfo, error) {
-			return model.BlockImageMapInfo{
+		MockGetClientAccessInfo: func() (model.ClientAccessInfo, error) {
+			return model.ClientAccessInfo{
 				MonAddresses: []string{"10.37.129.214:6790/0"},
 				UserName:     "admin",
 				SecretKey:    "AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg==",
@@ -73,8 +73,8 @@ func TestMountBlock(t *testing.T) {
 
 func TestMountBlockFailure(t *testing.T) {
 	c := &test.MockRookRestClient{
-		MockGetBlockImageMapInfo: func() (model.BlockImageMapInfo, error) {
-			return model.BlockImageMapInfo{}, fmt.Errorf("mock failure for GetBlockImageMapInfo")
+		MockGetClientAccessInfo: func() (model.ClientAccessInfo, error) {
+			return model.ClientAccessInfo{}, fmt.Errorf("mock failure for GetClientAccessInfo")
 		},
 	}
 	e := &exectest.MockExecutor{}

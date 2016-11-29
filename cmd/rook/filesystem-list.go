@@ -20,27 +20,29 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
-	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/rook/client"
-	"github.com/rook/rook/pkg/util/display"
+	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
-var nodeListCmd = &cobra.Command{
+var filesystemListCmd = &cobra.Command{
 	Use:   "ls",
-	Short: "Gets a listing with details of all nodes in the cluster",
+	Short: "Gets a listing with details of all shared file systems in the cluster",
 }
 
 func init() {
-	nodeListCmd.RunE = listNodesEntry
+	filesystemListCmd.RunE = listFilesystemEntry
 }
 
-func listNodesEntry(cmd *cobra.Command, args []string) error {
-	// verify required flags. currently there are none
+func listFilesystemEntry(cmd *cobra.Command, args []string) error {
+	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
+		return err
+	}
 
 	c := client.NewRookNetworkRestClient(client.GetRestURL(apiServerEndpoint), http.DefaultClient)
-	out, err := listNodes(c)
+	out, err := listFilesystems(c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -50,26 +52,23 @@ func listNodesEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func listNodes(c client.RookRestClient) (string, error) {
-	nodes, err := c.GetNodes()
+func listFilesystems(c client.RookRestClient) (string, error) {
+	filesystems, err := c.GetFilesystems()
 	if err != nil {
-		return "", fmt.Errorf("failed to get nodes: %+v", err)
+		return "", fmt.Errorf("failed to list file systems: %+v", err)
 	}
 
-	if len(nodes) == 0 {
+	if len(filesystems) == 0 {
 		return "", nil
 	}
 
 	var buffer bytes.Buffer
 	w := NewTableWriter(&buffer)
 
-	// write header columns
-	fmt.Fprintln(w, "PUBLIC\tPRIVATE\tSTATE\tCLUSTER\tSIZE\tLOCATION\tUPDATED\t")
+	fmt.Fprintln(w, "NAME\tMETADATA POOL\tDATA POOLS")
 
-	// print a row for each node
-	for _, n := range nodes {
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\t%s ago\t\n", n.PublicIP, n.PrivateIP, model.NodeStateToString(n.State), n.ClusterName,
-			display.BytesToString(n.Storage), n.Location, n.LastUpdated.String())
+	for _, fs := range filesystems {
+		fmt.Fprintf(w, "%s\t%s\t%s\n", fs.Name, fs.MetadataPool, strings.Join(fs.DataPools, ", "))
 	}
 
 	w.Flush()

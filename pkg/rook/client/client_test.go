@@ -27,12 +27,13 @@ import (
 )
 
 const (
-	SuccessGetNodesContent             = `[{"nodeID": "node1","publicIp": "1.2.3.100","privateIp": "10.0.0.100","storage": 100},{"nodeID": "node2","ipAddr": "10.0.0.101","storage": 200}]`
-	SuccessGetPoolsContent             = "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicationConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicationConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]"
-	SuccessCreatePoolContent           = `pool 'ecPool1' created`
-	SuccessGetBlockImagesContent       = `[{"imageName":"myimage1","poolName":"rbd","size":10485760,"device":"","mountPoint":""},{"imageName":"myimage2","poolName":"rbd2","size":10485761,"device":"","mountPoint":""}]`
-	SuccessCreateBlockImageContent     = `succeeded created image myimage3`
-	SuccessGetBlockImageMapInfoContent = `{"monAddresses":["10.37.129.214:6790/0"],"userName":"admin","secretKey":"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg=="}`
+	SuccessGetNodesContent            = `[{"nodeID": "node1","publicIp": "1.2.3.100","privateIp": "10.0.0.100","storage": 100},{"nodeID": "node2","ipAddr": "10.0.0.101","storage": 200}]`
+	SuccessGetPoolsContent            = "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicationConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicationConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]"
+	SuccessCreatePoolContent          = `pool 'ecPool1' created`
+	SuccessGetBlockImagesContent      = `[{"imageName":"myimage1","poolName":"rbd","size":10485760,"device":"","mountPoint":""},{"imageName":"myimage2","poolName":"rbd2","size":10485761,"device":"","mountPoint":""}]`
+	SuccessCreateBlockImageContent    = `succeeded created image myimage3`
+	SuccessGetClientAccessInfoContent = `{"monAddresses":["10.37.129.214:6790/0"],"userName":"admin","secretKey":"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg=="}`
+	SuccessGetFilesystemsContent      = `[{"name":"myfs1","metadataPool":"myfs1-metadata","dataPools":["myfs1-data"]}]`
 )
 
 func TestURL(t *testing.T) {
@@ -170,21 +171,62 @@ func TestCreateBlockImage(t *testing.T) {
 	assert.Equal(t, SuccessCreateBlockImageContent+"\n", response)
 }
 
-func TestGetBlockImageMapInfo(t *testing.T) {
-	mockServer := NewMockHttpServer(200, SuccessGetBlockImageMapInfoContent)
+func TestGetClientAccessInfo(t *testing.T) {
+	mockServer := NewMockHttpServer(200, SuccessGetClientAccessInfoContent)
 	defer mockServer.Close()
 	mockHttpClient := NewMockHttpClient(mockServer.URL)
 	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
 
-	expectedImageMapInfo := model.BlockImageMapInfo{
+	expectedClientAccessInfo := model.ClientAccessInfo{
 		MonAddresses: []string{"10.37.129.214:6790/0"},
 		UserName:     "admin",
 		SecretKey:    "AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg==",
 	}
 
-	actualImageMapInfo, err := client.GetBlockImageMapInfo()
+	actualClientAccessInfo, err := client.GetClientAccessInfo()
 	assert.Nil(t, err)
-	assert.Equal(t, expectedImageMapInfo, actualImageMapInfo)
+	assert.Equal(t, expectedClientAccessInfo, actualClientAccessInfo)
+}
+
+func TestGetFilesystems(t *testing.T) {
+	mockServer := NewMockHttpServer(200, SuccessGetFilesystemsContent)
+	defer mockServer.Close()
+	mockHttpClient := NewMockHttpClient(mockServer.URL)
+	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
+
+	expectedFilesystems := []model.Filesystem{
+		{Name: "myfs1", MetadataPool: "myfs1-metadata", DataPools: []string{"myfs1-data"}},
+	}
+
+	actualFilesystems, err := client.GetFilesystems()
+	assert.Nil(t, err)
+	assert.Equal(t, expectedFilesystems, actualFilesystems)
+}
+
+func TestCreateFilesystem(t *testing.T) {
+	mockServer := NewMockHttpServer(202, "")
+	defer mockServer.Close()
+	mockHttpClient := NewMockHttpClient(mockServer.URL)
+	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
+
+	fsr := model.FilesystemRequest{Name: "myfs1", PoolName: "myfs1-pool"}
+	resp, err := client.CreateFilesystem(fsr)
+	assert.NotNil(t, err)
+	assert.True(t, IsHttpAccepted(err))
+	assert.Equal(t, "", resp)
+}
+
+func TestDeleteFilesystem(t *testing.T) {
+	mockServer := NewMockHttpServer(202, "")
+	defer mockServer.Close()
+	mockHttpClient := NewMockHttpClient(mockServer.URL)
+	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
+
+	fsr := model.FilesystemRequest{Name: "myfs1", PoolName: "myfs1-pool"}
+	resp, err := client.DeleteFilesystem(fsr)
+	assert.NotNil(t, err)
+	assert.True(t, IsHttpAccepted(err))
+	assert.Equal(t, "", resp)
 }
 
 func TestGetNodesFailure(t *testing.T) {
@@ -215,14 +257,34 @@ func TestCreateBlockImageFailure(t *testing.T) {
 	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
 }
 
-func TestGetBlockImageMapInfoFailure(t *testing.T) {
+func TestGetClientAccessInfoFailure(t *testing.T) {
 	clientFunc := func(client RookRestClient) (interface{}, error) {
-		return client.GetBlockImageMapInfo()
+		return client.GetClientAccessInfo()
 	}
 	verifyFunc := func(resp interface{}, err error) {
 		assert.NotNil(t, err)
-		assert.Equal(t, model.BlockImageMapInfo{}, resp.(model.BlockImageMapInfo))
+		assert.Equal(t, model.ClientAccessInfo{}, resp.(model.ClientAccessInfo))
 	}
+	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
+}
+
+func TestGetFilesystemsFailure(t *testing.T) {
+	ClientFailureHelper(t, func(client RookRestClient) (interface{}, error) { return client.GetFilesystems() })
+}
+
+func TestCreateFilesystemFailure(t *testing.T) {
+	clientFunc := func(client RookRestClient) (interface{}, error) {
+		return client.CreateFilesystem(model.FilesystemRequest{Name: "myfs1"})
+	}
+	verifyFunc := getStringVerifyFunc(t)
+	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
+}
+
+func TestDeleteFilesystemFailure(t *testing.T) {
+	clientFunc := func(client RookRestClient) (interface{}, error) {
+		return client.DeleteFilesystem(model.FilesystemRequest{Name: "myfs1"})
+	}
+	verifyFunc := getStringVerifyFunc(t)
 	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
 }
 

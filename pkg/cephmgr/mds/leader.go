@@ -24,6 +24,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/util"
 )
 
@@ -88,19 +89,17 @@ func (r *Leader) Configure(context *clusterd.Context, factory client.ConnectionF
 	return nil
 }
 
-// Configure the single instance of file system in the cluster.
-// Under the covers multiple file systems are supported, but only a single fs is exposed for now.
-func EnableFileSystem(context *clusterd.Context) error {
-	logger.Infof("Enabling file system %s", defaultFileSystemName)
-	fs := &FileSystem{context: context, ID: defaultFileSystemName, Pool: defaultPoolName}
+// Configure the given file system instance in the cluster. Multiple file systems are supported.
+func EnableFileSystem(context *clusterd.Context, fsr model.FilesystemRequest) error {
+	logger.Infof("Enabling file system %s", fsr.Name)
+	fs := &FileSystem{context: context, ID: fsr.Name, Pool: fsr.PoolName}
 	return fs.AddToDesiredState()
 }
 
-// Remove the single instance of file system from the cluster.
-// Under the covers multiple file systems are supported, but only a single fs is exposed for now.
-func RemoveFileSystem(context *clusterd.Context) error {
-	logger.Infof("Removing file system %s", defaultFileSystemName)
-	fs := &FileSystem{context: context, ID: defaultFileSystemName, Pool: defaultPoolName}
+// Remove the given file system instance in the cluster. Multiple file systems are supported.
+func RemoveFileSystem(context *clusterd.Context, fsr model.FilesystemRequest) error {
+	logger.Infof("Removing file system %s", fsr.Name)
+	fs := &FileSystem{context: context, ID: fsr.Name}
 	return fs.DeleteFromDesiredState()
 }
 

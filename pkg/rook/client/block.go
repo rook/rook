@@ -18,14 +18,12 @@ package client
 import (
 	"bytes"
 	"encoding/json"
-	"path"
 
 	"github.com/rook/rook/pkg/model"
 )
 
 const (
-	imageQueryName        = "image"
-	imageMapInfoQueryName = "mapinfo"
+	imageQueryName = "image"
 )
 
 func (c *RookNetworkRestClient) GetBlockImages() ([]model.BlockImage, error) {
@@ -55,19 +53,4 @@ func (c *RookNetworkRestClient) CreateBlockImage(newImage model.BlockImage) (str
 	}
 
 	return string(resp), nil
-}
-
-func (c *RookNetworkRestClient) GetBlockImageMapInfo() (model.BlockImageMapInfo, error) {
-	body, err := c.DoGet(path.Join(imageQueryName, imageMapInfoQueryName))
-	if err != nil {
-		return model.BlockImageMapInfo{}, err
-	}
-
-	var imageMapInfo model.BlockImageMapInfo
-	err = json.Unmarshal(body, &imageMapInfo)
-	if err != nil {
-		return model.BlockImageMapInfo{}, err
-	}
-
-	return imageMapInfo, nil
 }

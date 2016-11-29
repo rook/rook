@@ -117,17 +117,23 @@ func GetDeviceFromMountPoint(mountPoint string, executor exec.Executor) (string,
 }
 
 func MountDevice(devicePath, mountPath string, executor exec.Executor) error {
-	return MountDeviceWithOptions(devicePath, mountPath, "", executor)
+	return MountDeviceWithOptions(devicePath, mountPath, "", "", executor)
 }
 
 // comma-separated list of mount options passed directly to mount command
-func MountDeviceWithOptions(devicePath, mountPath, options string, executor exec.Executor) error {
-	var args []string
-	if options != "" {
-		args = []string{"mount", "-o", options, devicePath, mountPath}
-	} else {
-		args = []string{"mount", devicePath, mountPath}
+func MountDeviceWithOptions(devicePath, mountPath, fstype, options string, executor exec.Executor) error {
+	args := []string{"mount"}
+
+	if fstype != "" {
+		args = append(args, "-t", fstype)
 	}
+
+	if options != "" {
+		args = append(args, "-o", options)
+	}
+
+	// device path and mount path are always the last 2 args
+	args = append(args, devicePath, mountPath)
 
 	os.MkdirAll(mountPath, 0755)
 	cmd := fmt.Sprintf("mount %s", devicePath)

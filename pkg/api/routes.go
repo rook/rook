@@ -54,10 +54,10 @@ func (h *Handler) GetRoutes() []Route {
 			h.CreateImage,
 		},
 		{
-			"GetImageMapInfo",
+			"GetClientAccessInfo",
 			"GET",
-			"/image/mapinfo",
-			h.GetImageMapInfo,
+			"/client",
+			h.GetClientAccessInfo,
 		},
 		{
 			"GetMonitors",
@@ -70,6 +70,12 @@ func (h *Handler) GetRoutes() []Route {
 			"GET",
 			"/crushmap",
 			h.GetCrushMap,
+		},
+		{
+			"GetFileSystems",
+			"GET",
+			"/filesystem",
+			h.GetFileSystems,
 		},
 		{
 			"CreateFileSystem",

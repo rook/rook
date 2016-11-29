@@ -87,3 +87,36 @@ func TestGetDeviceFromMountPoint(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, device, d)
 }
+
+func TestMountDeviceWithOptions(t *testing.T) {
+	testCount := 0
+	e := &exectest.MockExecutor{
+		MockExecuteCommand: func(actionName string, command string, arg ...string) error {
+			switch testCount {
+			case 0:
+				assert.Equal(t, []string{"mount", "/dev/abc1", "/tmp/mount1"}, arg)
+			case 1:
+				assert.Equal(t, []string{"mount", "-o", "foo=bar,baz=biz", "/dev/abc1", "/tmp/mount1"}, arg)
+			case 2:
+				assert.Equal(t, []string{"mount", "-t", "myfstype", "/dev/abc1", "/tmp/mount1"}, arg)
+			case 3:
+				assert.Equal(t, []string{"mount", "-t", "myfstype", "-o", "foo=bar,baz=biz", "/dev/abc1", "/tmp/mount1"}, arg)
+			}
+
+			testCount++
+			return nil
+		},
+	}
+
+	// no fstype or options
+	MountDeviceWithOptions("/dev/abc1", "/tmp/mount1", "", "", e)
+
+	// options specified
+	MountDeviceWithOptions("/dev/abc1", "/tmp/mount1", "", "foo=bar,baz=biz", e)
+
+	// fstype specified
+	MountDeviceWithOptions("/dev/abc1", "/tmp/mount1", "myfstype", "", e)
+
+	// both fstype and options specified
+	MountDeviceWithOptions("/dev/abc1", "/tmp/mount1", "myfstype", "foo=bar,baz=biz", e)
+}

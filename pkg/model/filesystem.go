@@ -15,10 +15,13 @@ limitations under the License.
 */
 package model
 
-type BlockImage struct {
-	Name       string `json:"imageName"`
-	PoolName   string `json:"poolName"`
-	Size       uint64 `json:"size"`
-	Device     string `json:"device"`
-	MountPoint string `json:"mountPoint"`
+type FilesystemRequest struct {
+	Name     string `json:"name"`
+	PoolName string `json:"poolName"`
+}
+
+type Filesystem struct {
+	Name         string   `json:"name"`
+	MetadataPool string   `json:"metadataPool"`
+	DataPools    []string `json:"dataPools"`
 }

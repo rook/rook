@@ -16,12 +16,17 @@ limitations under the License.
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
 
 	"github.com/rook/rook/pkg/model"
+)
+
+const (
+	clientQueryName = "client"
 )
 
 type RookRestClient interface {
@@ -31,7 +36,10 @@ type RookRestClient interface {
 	CreatePool(pool model.Pool) (string, error)
 	GetBlockImages() ([]model.BlockImage, error)
 	CreateBlockImage(image model.BlockImage) (string, error)
-	GetBlockImageMapInfo() (model.BlockImageMapInfo, error)
+	GetClientAccessInfo() (model.ClientAccessInfo, error)
+	GetFilesystems() ([]model.Filesystem, error)
+	CreateFilesystem(model.FilesystemRequest) (string, error)
+	DeleteFilesystem(model.FilesystemRequest) (string, error)
 	GetStatusDetails() (model.StatusDetails, error)
 }
 
@@ -59,6 +67,15 @@ type RookRestError struct {
 
 func (e RookRestError) Error() string {
 	return fmt.Sprintf("HTTP status code %d for query %s: '%s'", e.Status, e.Query, string(e.Body))
+}
+
+func IsHttpAccepted(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	rrErr, ok := err.(RookRestError)
+	return ok && rrErr.Status == http.StatusAccepted
 }
 
 func (a *RookNetworkRestClient) URL() string {
@@ -107,4 +124,19 @@ func (a *RookNetworkRestClient) Do(method, query string, body io.Reader) ([]byte
 	}
 
 	return respBody, nil
+}
+
+func (c *RookNetworkRestClient) GetClientAccessInfo() (model.ClientAccessInfo, error) {
+	body, err := c.DoGet(clientQueryName)
+	if err != nil {
+		return model.ClientAccessInfo{}, err
+	}
+
+	var clientAccessInfo model.ClientAccessInfo
+	err = json.Unmarshal(body, &clientAccessInfo)
+	if err != nil {
+		return model.ClientAccessInfo{}, err
+	}
+
+	return clientAccessInfo, nil
 }

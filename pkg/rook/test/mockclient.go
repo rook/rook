@@ -30,13 +30,16 @@ func (*RookMockRestClientFactory) CreateRookRestClient(url string, httpClient *h
 
 // Mock Rook REST Client implementation
 type MockRookRestClient struct {
-	MockGetNodes             func() ([]model.Node, error)
-	MockGetPools             func() ([]model.Pool, error)
-	MockCreatePool           func(pool model.Pool) (string, error)
-	MockGetBlockImages       func() ([]model.BlockImage, error)
-	MockCreateBlockImage     func(image model.BlockImage) (string, error)
-	MockGetBlockImageMapInfo func() (model.BlockImageMapInfo, error)
-	MockGetStatusDetails     func() (model.StatusDetails, error)
+	MockGetNodes            func() ([]model.Node, error)
+	MockGetPools            func() ([]model.Pool, error)
+	MockCreatePool          func(pool model.Pool) (string, error)
+	MockGetBlockImages      func() ([]model.BlockImage, error)
+	MockCreateBlockImage    func(image model.BlockImage) (string, error)
+	MockGetClientAccessInfo func() (model.ClientAccessInfo, error)
+	MockGetFilesystems      func() ([]model.Filesystem, error)
+	MockCreateFilesystem    func(model.FilesystemRequest) (string, error)
+	MockDeleteFilesystem    func(model.FilesystemRequest) (string, error)
+	MockGetStatusDetails    func() (model.StatusDetails, error)
 }
 
 func (m *MockRookRestClient) GetNodes() ([]model.Node, error) {
@@ -79,12 +82,36 @@ func (m *MockRookRestClient) CreateBlockImage(image model.BlockImage) (string, e
 	return "", nil
 }
 
-func (m *MockRookRestClient) GetBlockImageMapInfo() (model.BlockImageMapInfo, error) {
-	if m.MockGetBlockImageMapInfo != nil {
-		return m.MockGetBlockImageMapInfo()
+func (m *MockRookRestClient) GetClientAccessInfo() (model.ClientAccessInfo, error) {
+	if m.MockGetClientAccessInfo != nil {
+		return m.MockGetClientAccessInfo()
 	}
 
-	return model.BlockImageMapInfo{}, nil
+	return model.ClientAccessInfo{}, nil
+}
+
+func (m *MockRookRestClient) GetFilesystems() ([]model.Filesystem, error) {
+	if m.MockGetFilesystems != nil {
+		return m.MockGetFilesystems()
+	}
+
+	return []model.Filesystem{}, nil
+}
+
+func (m *MockRookRestClient) CreateFilesystem(fsr model.FilesystemRequest) (string, error) {
+	if m.MockCreateFilesystem != nil {
+		return m.MockCreateFilesystem(fsr)
+	}
+
+	return "", nil
+}
+
+func (m *MockRookRestClient) DeleteFilesystem(fsr model.FilesystemRequest) (string, error) {
+	if m.MockDeleteFilesystem != nil {
+		return m.MockDeleteFilesystem(fsr)
+	}
+
+	return "", nil
 }
 
 func (m *MockRookRestClient) GetStatusDetails() (model.StatusDetails, error) {
