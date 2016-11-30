@@ -46,10 +46,13 @@ package cephd
 // #cgo tcmalloc,static LDFLAGS: -ltcmalloc_minimal
 // #cgo jemalloc,dynamic LDFLAGS: -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic
 // #cgo tcmalloc,dynamic LDFLAGS: -Wl,-Bstatic -ltcmalloc_minimal -Wl,-Bdynamic
+// #cgo jemalloc,stdlib LDFLAGS: -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic
+// #cgo tcmalloc,stdlib LDFLAGS: -Wl,-Bstatic -ltcmalloc_minimal -Wl,-Bdynamic
 // #cgo jemalloc tcmalloc CFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
 // #cgo jemalloc tcmalloc CXXFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
-// #cgo static LDFLAGS: -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcrypto++ -laio -luuid -lcurl -lfcgi -lexpat -lm -ldl -lresolv
-// #cgo dynamic LDFLAGS: -Wl,-Bstatic -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcrypto++ -laio -luuid -lcurl -lfcgi -lexpat -Wl,-Bdynamic -ldl -lm -lresolv
+// #cgo static LDFLAGS: -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcryptopp -lrocksdb -laio -luuid -lcurl -lexpat -lm -ldl -lresolv
+// #cgo stdlib LDFLAGS: -Wl,-Bstatic -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcryptopp -lrocksdb -laio -luuid -lcurl -lexpat -Wl,-Bdynamic -ldl -lm -lresolv
+// #cgo dynamic LDFLAGS: -Wl,-Bstatic -lcephd -Wl,-Bdynamic -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcryptopp -lrocksdb -laio -luuid -lcurl -lexpat -ldl -lm -lresolv
 // #include <errno.h>
 // #include <stdlib.h>
 // #include <string.h>

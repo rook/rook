@@ -23,49 +23,24 @@ message(STATUS "External: Building Cryptopp ${Cryptopp_VERSION}")
 # Build
 #
 
-set(Curl_Config_Args
-  --disable-cookies
-  --disable-crypto-auth
-  --disable-dict
-  --disable-ftp
-  --disable-gopher
-  --disable-imap
-  --disable-ldap
-  --disable-manual
-  --disable-pop3
-  --disable-rtsp
-  --disable-shared
-  --disable-smb
-  --disable-smtp
-  --disable-telnet
-  --disable-tftp
-  --disable-unix-sockets
-  --with-ssl
-  --without-gssapi
-  --without-libssh2
-  --without-nss
-  --without-winidn
-  )
+set(Cryptopp_CXXFLAGS ${EXTERNAL_CXX_FLAGS})
+set(Cryptopp_TOOLCHAIN CXX=${CMAKE_CXX_COMPILER} AR=${CMAKE_AR} RANLIB=${CMAKE_RANLIB})
 
-set(Curl_MAKE_ARGS -j${EXTERNAL_PARALLEL_LEVEL})
+set(Cryptopp_MAKE_ARGS)
 
-if(EXTERNAL_VERBOSE)
-  list(APPEND Curl_MAKE_ARGS V=1)
-endif()
-
-ExternalProject_Add(curl
+ExternalProject_Add(cryptopp
   PREFIX ${EXTERNAL_ROOT}
 
-  URL ${Curl_URL}
-  URL_HASH SHA256=${Curl_URL_SHA256}
+  URL ${Cryptopp_URL}
+  URL_HASH SHA256=${Cryptopp_URL_SHA256}
 
   DOWNLOAD_DIR ${EXTERNAL_DOWNLOAD_DIR}
   BUILD_IN_SOURCE 1
 
   PATCH_COMMAND true
-  CONFIGURE_COMMAND ./configure --prefix=<INSTALL_DIR> ${Curl_Config_Args} --host=${EXTERNAL_CROSS_TRIPLE} --libdir=<INSTALL_DIR>/lib/${EXTERNAL_CROSS_TRIPLE}
-  BUILD_COMMAND make ${Curl_MAKE_ARGS}
-  INSTALL_COMMAND make ${Curl_MAKE_ARGS} install
+  CONFIGURE_COMMAND true
+  BUILD_COMMAND $(MAKE) CXXFLAGS=${Cryptopp_CXXFLAGS} ${Cryptopp_TOOLCHAIN} static
+  INSTALL_COMMAND $(MAKE) PREFIX=<INSTALL_DIR> install
 
   LOG_DOWNLOAD ${EXTERNAL_LOGGING}
   LOG_PATCH ${EXTERNAL_LOGGING}

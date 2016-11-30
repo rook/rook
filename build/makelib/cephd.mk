@@ -41,6 +41,7 @@ CEPHD_CMAKE += \
 	-DWITH_FUSE=OFF \
 	-DWITH_NSS=OFF \
 	-DWITH_SYSTEM_BOOST=ON \
+	-DWITH_SYSTEM_ROCKSDB=ON \
 	-DUSE_CRYPTOPP=ON \
 	-DWITH_LEVELDB=OFF \
 	-DWITH_XFS=OFF \
@@ -49,10 +50,16 @@ CEPHD_CMAKE += \
 	-DWITH_PROFILER=OFF \
 	-DWITH_LTTNG=OFF \
 	-DWITH_MGR=OFF \
+	-DWITH_RADOSGW_FCGI_FRONTEND=OFF \
+	-DWITH_RADOSGW_ASIO_FRONTEND=OFF \
 	-DWITH_PYTHON3=OFF
 
 ifeq ($(CEPHD_CCACHE),1)
 CEPHD_CMAKE += -DWITH_CCACHE=ON
+endif
+
+ifeq ($(CROSSBUILD),1)
+CEPHD_CMAKE += -DCMAKE_TOOLCHAIN_FILE=$(abspath build/container/external/toolchain/$(CROSS_TRIPLE).cmake)
 endif
 
 # ====================================================================================
@@ -63,7 +70,7 @@ cephd.config:
 	@mkdir -p $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)
 	@echo "$(CEPHD_CMAKE)" > $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake.new
 	@if test ! -f $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake || ! diff $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake.new $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake > /dev/null; then \
-		cd $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM) && cmake $(CEPHD_CMAKE) -DCMAKE_TOOLCHAIN_FILE=$(abspath build/container/external/toolchain/gcc.$(CEPHD_PLATFORM).cmake) $(abspath ceph); \
+		cd $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM) && cmake $(CEPHD_CMAKE) $(abspath ceph); \
 		echo "$(CEPHD_CMAKE)" > cephd.cmake; \
 	fi
 	@rm $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/cephd.cmake.new

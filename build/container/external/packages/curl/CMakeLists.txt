@@ -23,7 +23,7 @@ message(STATUS "External: Building Curl ${Curl_VERSION}")
 # Build
 #
 
-set(Curl_CFLAGS "-fPIC -O2")
+set(Curl_CFLAGS ${EXTERNAL_C_FLAGS})
 
 set(Curl_Config_Args
   --disable-cookies
@@ -59,7 +59,7 @@ ExternalProject_Add(curl
   BUILD_IN_SOURCE 1
 
   PATCH_COMMAND true
-  CONFIGURE_COMMAND ./configure CFLAGS=${Curl_CFLAGS} --prefix=<INSTALL_DIR> --host=${EXTERNAL_CROSS_TRIPLE} --libdir=<INSTALL_DIR>/lib/${EXTERNAL_CROSS_TRIPLE} ${Curl_Config_Args}
+  CONFIGURE_COMMAND ./configure CFLAGS=${Curl_CFLAGS} --prefix=<INSTALL_DIR> --host=${EXTERNAL_CROSS_TRIPLE} ${Curl_Config_Args}
   BUILD_COMMAND $(MAKE)
   INSTALL_COMMAND $(MAKE) install
 

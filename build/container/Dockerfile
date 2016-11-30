@@ -14,17 +14,14 @@
 
 FROM ubuntu:yakkety
 MAINTAINER Bassam Tabbara <bassam.tabbara@quantum.com>
-
 WORKDIR /build
+ENV PATH /usr/local/go/bin:/usr/local/osxcross/bin:$PATH
 
 #
 # install build tools, compilers and cross compilers for all supported platforms
 #
-
 RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu yakkety main universe restricted" > /etc/apt/sources.list &&\
     echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu yakkety-updates main universe restricted" >> /etc/apt/sources.list &&\
-    echo "deb [arch=arm64] http://ports.ubuntu.com/ yakkety main universe restricted" >> /etc/apt/sources.list &&\
-    echo "deb [arch=arm64] http://ports.ubuntu.com/ yakkety-updates main universe restricted" >> /etc/apt/sources.list &&\
     dpkg --add-architecture arm64 && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
@@ -35,7 +32,6 @@ RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu yakkety main univers
         cmake \
         crossbuild-essential-arm64 \
         curl \
-        cython \
         docker.io \
         git \
         jq \
@@ -43,30 +39,27 @@ RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu yakkety main univers
         llvm-dev \
         mingw-w64 \
         patch \
-        python \
-        libpython-dev:amd64 \
-        libpython-dev:arm64 \
         rsync \
         runit \
         sudo \
         uuid-dev \
         xz-utils \
         yasm \
-        zip
+        zip && \
+    apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # install the OSX cross compilers. see https://github.com/tpoechtrager/osxcross
 RUN OSXCROSS_COMMIT_HASH=86879571d33ff7252a55d777609742561dba9953 && \
-    OSXCROSS_SDK=MacOSX10.11.sdk.tar.xz && \
+    OSXCROSS_SDK=MacOSX10.11.sdk && \
     OSXCROSS_SDK_HASH=d75dddc8d820daf38e90a7c8e9771750a8a4371027a2d658a904cffacbf6b09b && \
     git clone https://github.com/quantum/osxcross && \
     git -C osxcross checkout -b castle-build ${OSXCROSS_COMMIT_HASH} && \
-    curl -fsSL https://castle-cross-build.s3.amazonaws.com/osxcross/${OSXCROSS_SDK} -o osxcross/tarballs/${OSXCROSS_SDK} && \
-    echo "${OSXCROSS_SDK_HASH}  osxcross/tarballs/${OSXCROSS_SDK}" | sha256sum -c - && \
+    curl -fsSL https://castle-cross-build.s3.amazonaws.com/osxcross/${OSXCROSS_SDK}.tar.xz -o osxcross/tarballs/${OSXCROSS_SDK}.tar.xz && \
+    echo "${OSXCROSS_SDK_HASH}  osxcross/tarballs/${OSXCROSS_SDK}.tar.xz" | sha256sum -c - && \
     UNATTENDED=yes OSX_VERSION_MIN=10.6 osxcross/build.sh && \
     mv osxcross/target /usr/local/osxcross && \
-    rm -rf osxcross
-
-ENV PATH /usr/local/osxcross/bin:$PATH
+    rm -rf osxcross && \
+    rm -rf /usr/local/osxcross/SDK/${OSXCROSS_SDK}/usr/share
 
 # install acbuild and docker2aci
 RUN ACBUILD_VERSION=0.4.0 && \
@@ -78,24 +71,19 @@ RUN ACBUILD_VERSION=0.4.0 && \
     tar -C /usr/local/bin --strip-components=1 -xzf docker2aci-v${DOCKER2ACI_VERSION}.tar.gz && \
     rm -f docker2aci-v${DOCKER2ACI_VERSION}.tar.gz
 
-# install go-lang
-RUN GO_VERSION=1.7.3 && \
-    GO_HASH=508028aac0654e993564b6e2014bf2d4a9751e3b286661b0b0040046cf18028e && \
-    curl -fsSL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
-    echo "${GO_HASH}  golang.tar.gz" | sha256sum -c - && \
-    tar -C /usr/local -xzf golang.tar.gz && \
-    rm golang.tar.gz
-
-ENV PATH /usr/local/go/bin:$PATH
-
-#
-# precompile the go standard library for all supported platforms and configurations
+# install go-lang and precompile the go standard library for all supported platforms and configurations
 # there are three configurations that we compile for:
 #    - default: CGO_ENABLED=1, defaults tags
 #    - netgo: CGO_ENABLED=1, enable pure go DNS resolver
 #    - nocgo: CGO_ENABLED=0, defaults tags, pure Go resolver is the default
 #
-RUN \
+RUN GO_VERSION=1.7.4 && \
+    GO_HASH=47fda42e46b4c3ec93fa5d4d4cc6a748aa3f9411a2a2b7e08e3a6d80d753ec8b && \
+    curl -fsSL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
+    echo "${GO_HASH}  golang.tar.gz" | sha256sum -c - && \
+    tar -C /usr/local -xzf golang.tar.gz && \
+    rm golang.tar.gz && \
+    \
     CGO_ENABLED=1 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -a std && \
     CGO_ENABLED=1 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -installsuffix netgo -tags netgo -a std && \
     CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -installsuffix nocgo -a std && \
@@ -114,82 +102,25 @@ RUN \
     CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix race -a std
 
 #
-# build packages we need for ceph from source on all supported platforms
+# build rookd dependencies that are compiled statically directly from source for all supported platforms.
 #
-
 COPY external /build/external/
 
 RUN set -e;\
-    for a in linux_amd64 linux_arm64; do \
-      cmake -Hexternal -Bexternal/build/${a} -DCMAKE_INSTALL_PREFIX=/usr/local -DCMAKE_TOOLCHAIN_FILE=`pwd`/external/toolchain/gcc.${a}.cmake ;\
-      cmake --build external/build/${a} --target install;\
+    for a in x86_64-linux-gnu aarch64-linux-gnu; do \
+      cmake \
+        -H/build/external \
+        -B/build/external/build/${a} \
+        -DEXTERNAL_DOWNLOAD_DIR=/build/external/download \
+        -DCMAKE_INSTALL_PREFIX=/usr/${a} \
+        -DCMAKE_TOOLCHAIN_FILE=/build/external/toolchain/${a}.cmake \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+        -DCMAKE_INSTALL_MESSAGE=never \
+        ;\
+      cmake --build /build/external/build/${a} --target install -- -j4 ;\
     done ;\
-    rm -fr external
-
-RUN set -e;\
-    for a in amd64 arm64; do \
-    DEBIAN_FRONTEND=noninteractive apt-get -o Dpkg::Options::="--force-overwrite" install -yq --no-install-recommends \
-    libatomic-ops-dev:${a} \
-    libexpat1-dev:${a} \
-    libkeyutils-dev:${a} \
-    libsnappy-dev:${a} \
-    libssl-dev:${a} \
-    libudev-dev:${a} \
-    ; done
-
-# Some of the packages we need for ceph are either not available in yakkety or dont support multi-arch.
-# Hack'em to install in a multi-arch way. Hopefully these will get fixed upstream soon.
-# Bugs opened here https://bugs.launchpad.net/~bassamtabbara
-RUN set -e;\
-    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++-dev_5.6.4-3_amd64.deb ;\
-    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++-dev_5.6.4-3_arm64.deb ;\
-    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++6_5.6.4-3_amd64.deb ;\
-    curl -fsSLO http://http.us.debian.org/debian/pool/main/libc/libcrypto++/libcrypto++6_5.6.4-3_arm64.deb ;\
-    curl -fsSLO http://archive.ubuntu.com/ubuntu/pool/main/libf/libfcgi/libfcgi-dev_2.4.0-8.4_amd64.deb ;\
-    curl -fsSLO http://ports.ubuntu.com/pool/main/libf/libfcgi/libfcgi-dev_2.4.0-8.4_arm64.deb ;\
-    curl -fsSLO http://archive.ubuntu.com/ubuntu/pool/main/libf/libfcgi/libfcgi0ldbl_2.4.0-8.4_amd64.deb ;\
-    curl -fsSLO http://ports.ubuntu.com/pool/main/libf/libfcgi/libfcgi0ldbl_2.4.0-8.4_arm64.deb ;\
-    for a in amd64 arm64; do \
-        apt-get download libaio-dev:${a} 2> /dev/null ;\
-        apt-get download libaio1:${a} 2> /dev/null ;\
-        apt-get download libjemalloc-dev:${a} 2> /dev/null ;\
-        apt-get download libjemalloc1:${a} 2> /dev/null ;\
-        apt-get download libgoogle-perftools4:${a} 2> /dev/null ;\
-        apt-get download libgoogle-perftools-dev:${a} 2> /dev/null ;\
-        apt-get download libtcmalloc-minimal4:${a} 2> /dev/null ;\
-        apt-get download libunwind-dev:${a} 2> /dev/null ;\
-        apt-get download libunwind8-dev:${a} 2> /dev/null ;\
-        apt-get download libunwind8:${a} 2> /dev/null ;\
-        apt-get download liblzma5:${a} 2> /dev/null; \
-        apt-get download liblzma-dev:${a} 2> /dev/null; \
-    done
-
-RUN set -e; \
-    for d in *.deb; do \
-        dpkg-deb -R ${d} root ;\
-        arch=$(cat root/DEBIAN/control | awk '/Architecture/ {printf "%s", $2}') ;\
-        case ${arch} in amd64) triple=x86_64-linux-gnu ;; arm64) triple=aarch64-linux-gnu ;; esac ;\
-        if test ! -d root/usr/lib/${triple} -a ! -d root/lib/${triple}; then \
-            if test -d root/usr/lib; then \
-                echo HACK: moving root/usr/lib for package ${d} ;\
-                mv root/usr/lib root/usr/lib.rename ;\
-                mkdir -p root/usr/lib ;\
-                mv root/usr/lib.rename root/usr/lib/${triple}; \
-            fi; \
-        fi ;\
-        if ! grep 'Multi-Arch' root/DEBIAN/control >/dev/null; then \
-            echo HACK: setting Multi-Arch: same for package ${d}; \
-            sed -i '/^Architecture:.*$/a Multi-Arch: same' root/DEBIAN/control; \
-        fi ;\
-        dpkg-deb -b root ${d} ;\
-        rm -fr root; \
-    done ;\
-    dpkg -i --force-overwrite *.deb ;\
-    rm -f *.deb
-
-# cleanup apt-get
-RUN apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -fr /build/external
 
 COPY entrypoint.sh rsyncd.sh /build/
-
 ENTRYPOINT [ "/build/entrypoint.sh" ]

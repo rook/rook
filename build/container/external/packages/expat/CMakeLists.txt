@@ -12,34 +12,34 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# See http://www.zlib.net
-set(Zlib_VERSION 1.2.8)
-set(Zlib_URL http://zlib.net/zlib-${Zlib_VERSION}.tar.gz)
-set(Zlib_URL_MD5 44d667c142d7cda120332623eab69f40)
+# See http://expat.sourceforge.net
+set(Expat_VERSION 2.2.0)
+set(Expat_URL https://sourceforge.net/projects/expat/files/expat/${Expat_VERSION}/expat-${Expat_VERSION}.tar.bz2)
+set(Expat_URL_SHA1 8453bc52324be4c796fd38742ec48470eef358b3)
 
-message(STATUS "External: Building Zlib ${Zlib_VERSION}")
+message(STATUS "External: Building util-linux ${Expat_VERSION}")
 
 #
 # Build
 #
 
-set(Zlib_CFLAGS "-fPIC -O2")
+set(Expat_CFLAGS ${EXTERNAL_C_FLAGS})
 
-set(Zlib_Config_Args
-  --static
+set(Expat_Config_Args
+  --disable-shared
   )
 
-ExternalProject_Add(zlib
+ExternalProject_Add(expat
   PREFIX ${EXTERNAL_ROOT}
 
-  URL ${Zlib_URL}
-  URL_HASH MD5=${Zlib_URL_MD5}
+  URL ${Expat_URL}
+  URL_HASH SHA1=${Expat_URL_SHA1}
 
   DOWNLOAD_DIR ${EXTERNAL_DOWNLOAD_DIR}
   BUILD_IN_SOURCE 1
 
   PATCH_COMMAND true
-  CONFIGURE_COMMAND bash -c "CHOST=${EXTERNAL_CROSS_TRIPLE} CFLAGS='${Zlib_CFLAGS}' ./configure --prefix=<INSTALL_DIR> --libdir=<INSTALL_DIR>/lib/${EXTERNAL_CROSS_TRIPLE} ${Zlib_Config_Args}"
+  CONFIGURE_COMMAND ./configure CFLAGS=${Expat_CFLAGS} --prefix=<INSTALL_DIR> --host=${EXTERNAL_CROSS_TRIPLE} ${Expat_Config_Args}
   BUILD_COMMAND $(MAKE)
   INSTALL_COMMAND $(MAKE) install
 

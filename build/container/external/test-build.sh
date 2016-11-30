@@ -14,10 +14,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-rm -fr test
+scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+workdir=${scriptdir}/../../../.external
+builddir=${workdir}/build
+installdir=${workdir}/install
+downloaddir=${workdir}/download
 
-for p in linux_amd64 linux_arm64; do
-    rm -fr build
-    cmake -H. -Bbuild -DCMAKE_INSTALL_PREFIX=`pwd`/test -DCMAKE_TOOLCHAIN_FILE=`pwd`/toolchain/gcc.${p}.cmake -DEXTERNAL_LOGGING=OFF
-    make -C build -j4 VERBOSE=1 V=1 install
+for p in x86_64-linux-gnu aarch64-linux-gnu; do
+    rm -fr ${builddir}/${p}
+    cmake \
+      -H${scriptdir} \
+      -B${builddir}/${p} \
+      -DEXTERNAL_DOWNLOAD_DIR=${downloaddir} \
+      -DCMAKE_INSTALL_PREFIX=${installdir}/${p} \
+      -DCMAKE_TOOLCHAIN_FILE=${scriptdir}/toolchain/${p}.cmake \
+      -DEXTERNAL_LOGGING=OFF \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+    cmake --build ${builddir}/${p} --target install -- V=1 VERBOSE=1 -j3 ;\
 done

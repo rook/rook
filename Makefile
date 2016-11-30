@@ -27,13 +27,19 @@ BUILDFLAGS ?=
 LDFLAGS ?=
 TAGS ?=
 
-# set to 1 for a completely static build. Otherwise if set to 0
-# a dynamic binary is produced that requires glibc to be installed
-STATIC ?= 1
-ifeq ($(STATIC),1)
-TAGS += static
-else
+# if set to 'dynamic' all dependencies are dynamically linked. if
+# set to 'static' all dependencies will be statically linked. If set
+# to 'stdlib' then the standard library will be dynamically
+# linked and everything else will be statically linked.
+LINKMODE ?= dynamic
+ifeq ($(LINKMODE),dynamic)
 TAGS += dynamic
+else
+ifeq ($(LINKMODE),stdlib)
+TAGS += stdlib
+else
+TAGS += static
+endif
 endif
 
 # build a position independent executable. This implies dynamic linking
@@ -41,8 +47,8 @@ endif
 # is only supported on Linux.
 PIE ?= 0
 ifeq ($(PIE),1)
-ifeq ($(STATIC),1)
-$(error PIE only supported with dynamic linking. Set STATIC=0.)
+ifeq ($(LINKMODE),static)
+$(error PIE only supported with dynamic linking. Set LINKMODE=dynamic or LINKMODE=stdlib.)
 endif
 endif
 
@@ -54,7 +60,20 @@ LDFLAGS += -w
 endif
 
 # the memory allocator to use for cephd
-ALLOCATOR ?= tcmalloc_minimal
+ALLOCATOR ?= tcmalloc
+ifeq ($(ALLOCATOR),jemalloc)
+CEPHD_ALLOCATOR = jemalloc
+TAGS += jemalloc
+else
+ifeq ($(ALLOCATOR),tcmalloc)
+CEPHD_ALLOCATOR = tcmalloc_minimal
+TAGS += tcmalloc
+else
+ifeq ($(ALLOCATOR),libc)
+CEPHD_ALLOCATOR = libc
+endif
+endif
+endif
 
 # whether to use ccache when building cephd
 CCACHE ?= 1
@@ -109,7 +128,6 @@ ifeq ($(ROOKD_SUPPORTED),1)
 
 CEPHD_DEBUG = $(DEBUG)
 CEPHD_CCACHE = $(CCACHE)
-CEPHD_ALLOCATOR = $(ALLOCATOR)
 CEPHD_BUILD_DIR = $(WORKDIR)/ceph
 CEPHD_PLATFORM = $(GOOS)_$(GOARCH)
 
@@ -132,7 +150,7 @@ endif
 GO_WORK_DIR = $(WORKDIR)
 GO_BIN_DIR = $(BIN_DIR)
 
-ifeq ($(STATIC),1)
+ifeq ($(LINKMODE),static)
 GO_STATIC_PACKAGES=$(GO_PROJECT)
 ifeq ($(ROOKD_SUPPORTED),1)
 GO_STATIC_CGO_PACKAGES=$(GO_PROJECT)/cmd/rookd
@@ -186,7 +204,7 @@ clean: go.clean
 distclean: go.distclean clean
 
 build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) build
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) CROSSBUILD=1 build
 
 build.cross: $(foreach p,$(ALL_PLATFORMS), build.platform.$(p))
 
@@ -233,11 +251,14 @@ help:
 	@echo '    DEBUG       Set to 1 to disable stripping the binaries of.'
 	@echo '                debug information. The default is 0.'
 	@echo '    PIE         Set to 1 to build build a position independent'
-	@echo '                executable. Can not be combined with static.'
-	@echo '                The default is 0.'
+	@echo '                executable. Can not be combined with LINKMODE'
+	@echo '                set to "static". The default is 0.'
 	@echo '    GOOS        The OS to build for.'
-	@echo '    STATIC      Set to 1 for static build, 0 for dynamic.'
-	@echo '                The default is 1.'
+	@echo '    LINKMODE    Set to "dynamic" to link all libraries dynamically.'
+	@echo '                Set to "stdlib" to link the standard library'
+	@echo '                dynamically and everything else statically. Set to'
+	@echo '                "static" to link everything statically. Default is'
+	@echo '                "dynamic".'
 	@echo '    VERSION     The version information compiled into binaries.'
 	@echo '                The default is obtained from git.'
 	@echo '    V           Set to 1 enable verbose build. Default is 0.'
