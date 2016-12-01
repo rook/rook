@@ -522,7 +522,7 @@ func TestCreateImageHandlerFailure(t *testing.T) {
 	assert.Equal(t, ``, w.Body.String())
 }
 
-func TestGetImageMapInfoHandler(t *testing.T) {
+func TestGetClientAccessInfo(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{EtcdClient: etcdClient}
 
@@ -551,16 +551,16 @@ func TestGetImageMapInfoHandler(t *testing.T) {
 
 	// get image map info and verify the response
 	h := NewHandler(context, connFactory, cephFactory)
-	h.GetImageMapInfo(w, req)
+	h.GetClientAccessInfo(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "{\"monAddresses\":[\"10.37.129.87:6790\"],\"userName\":\"admin\",\"secretKey\":\"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg==\"}", w.Body.String())
 }
 
-func TestGetImageMapInfoHandlerFailure(t *testing.T) {
+func TestGetClientAccessInfoHandlerFailure(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{EtcdClient: etcdClient}
 
-	req, err := http.NewRequest("POST", "http://10.0.0.100/image/mapinfo", nil)
+	req, err := http.NewRequest("POST", "http://10.0.0.100/client", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -575,7 +575,7 @@ func TestGetImageMapInfoHandlerFailure(t *testing.T) {
 
 	// get image map info should fail becuase there's no mock response set up for auth get-key
 	h := NewHandler(context, connFactory, cephFactory)
-	h.GetImageMapInfo(w, req)
+	h.GetClientAccessInfo(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Equal(t, "", w.Body.String())
 }

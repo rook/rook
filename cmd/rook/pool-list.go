@@ -59,6 +59,10 @@ func listPools(c client.RookRestClient) (string, error) {
 		return "", fmt.Errorf("failed to get pools: %+v", err)
 	}
 
+	if len(pools) == 0 {
+		return "", nil
+	}
+
 	var buffer bytes.Buffer
 	w := NewTableWriter(&buffer)
 

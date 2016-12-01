@@ -25,7 +25,6 @@ import (
 	ctx "golang.org/x/net/context"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
@@ -34,7 +33,6 @@ import (
 const (
 	defaultFileSystemName = "rookfs"
 	defaultPoolName       = "fspool"
-	defaultName           = "castlefs"
 	poolKeyName           = "pool"
 	idKeyName             = "id"
 	dataPoolSuffix        = "-data"
@@ -80,29 +78,25 @@ func (f *FileSystem) enable(cluster *mon.ClusterInfo) error {
 	}
 	defer conn.Shutdown()
 
-	pool := ceph.CephStoragePoolDetails{Name: dataPool}
-	_, err = ceph.CreatePool(conn, pool)
+	// Create the metadata and data pools
+	pool := client.CephStoragePoolDetails{Name: dataPool}
+	_, err = client.CreatePool(conn, pool)
 	if err != nil {
 		return fmt.Errorf("failed to create data pool '%s': %+v", dataPool, err)
 	}
 
-	pool = ceph.CephStoragePoolDetails{Name: metadataPool}
-	_, err = ceph.CreatePool(conn, pool)
+	pool = client.CephStoragePoolDetails{Name: metadataPool}
+	_, err = client.CreatePool(conn, pool)
 	if err != nil {
 		return fmt.Errorf("failed to create metadata pool '%s': %+v", metadataPool, err)
 	}
 
-	cmd := map[string]interface{}{
-		"prefix":   "fs new",
-		"fs_name":  f.ID,
-		"metadata": metadataPool,
-		"data":     dataPool,
-	}
-	_, err = client.ExecuteMonCommand(conn, cmd, fmt.Sprintf("enabling ceph fs %s", f.ID))
-	if err != nil {
-		return fmt.Errorf("failed enabling ceph fs %s: %+v", f.ID, err)
+	// create the file system
+	if err := client.CreateFilesystem(conn, f.ID, metadataPool, dataPool); err != nil {
+		return err
 	}
 
+	// start MDS instances in the cluster
 	mdsCount := 1
 	err = f.startMDSUnitInstances(mdsCount)
 	if err != nil {
@@ -122,25 +116,35 @@ func (f *FileSystem) enable(cluster *mon.ClusterInfo) error {
 func (f *FileSystem) disable(cluster *mon.ClusterInfo) error {
 	logger.Infof("Removing file system %s", f.ID)
 
-	// Stop MDS
-	if err := f.stopMDSUnitInstances(); err != nil {
-		return fmt.Errorf("failed to stop mds instances. %+v", err)
-	}
-
 	conn, err := mon.ConnectToClusterAsAdmin(f.context, f.factory, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to connect to cluster: %+v", err)
 	}
 
-	// Permanently remove the file system
-	cmd := map[string]interface{}{
-		"prefix":  "fs rm",
-		"fs_name": f.ID,
-		"sure":    "--yes-i-really-mean-it",
+	// mark the cephFS instance as cluster_down before removing
+	if err := client.MarkFilesystemAsDown(conn, f.ID); err != nil {
+		return err
 	}
-	_, err = client.ExecuteMonCommand(conn, cmd, fmt.Sprintf("deleting ceph fs %s", f.ID))
+
+	// mark each MDS associated with the file system to "failed"
+	fsDetails, err := client.GetFilesystem(conn, f.ID)
 	if err != nil {
-		return fmt.Errorf("Failed to disable ceph fs. err=%+v", err)
+		return err
+	}
+	for _, mdsInfo := range fsDetails.MDSMap.Info {
+		if err := client.FailMDS(conn, mdsInfo.GID); err != nil {
+			return err
+		}
+	}
+
+	// Stop MDS
+	if err := f.stopMDSUnitInstances(); err != nil {
+		return fmt.Errorf("failed to stop mds instances. %+v", err)
+	}
+
+	// Permanently remove the file system
+	if err := client.RemoveFilesystem(conn, f.ID); err != nil {
+		return err
 	}
 
 	err = f.markUnapplied()
@@ -161,7 +165,7 @@ func (f *FileSystem) AddToDesiredState() error {
 func (f *FileSystem) DeleteFromDesiredState() error {
 	// remove the file system from desired state
 	_, err := f.context.EtcdClient.Delete(ctx.Background(), getFileKey(f.ID, false), &etcd.DeleteOptions{Dir: true, Recursive: true})
-	if err != nil {
+	if err != nil && !util.IsEtcdKeyNotFound(err) {
 		return fmt.Errorf("failed to delete file system %s from desired state. %+v", f.ID, err)
 	}
 
