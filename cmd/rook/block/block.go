@@ -13,10 +13,25 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package main
+package block
 
-import "github.com/rook/rook/cmd/rook"
+import (
+	"runtime"
 
-func main() {
-	rookmain.Main()
+	"github.com/spf13/cobra"
+)
+
+var Cmd = &cobra.Command{
+	Use:   "block",
+	Short: "Performs commands and operations on block devices and images in the cluster",
+}
+
+func init() {
+	Cmd.AddCommand(listCmd)
+	Cmd.AddCommand(createCmd)
+
+	if runtime.GOOS == "linux" {
+		Cmd.AddCommand(mountCmd)
+		Cmd.AddCommand(unmountCmd)
+	}
 }

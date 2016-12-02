@@ -13,10 +13,20 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package main
+package filesystem
 
-import "github.com/rook/rook/cmd/rook"
+import "github.com/spf13/cobra"
 
-func main() {
-	rookmain.Main()
+var Cmd = &cobra.Command{
+	Use:     "filesystem",
+	Aliases: []string{"fs"},
+	Short:   "Performs commands and operations on shared filesystems in the cluster",
+}
+
+func init() {
+	Cmd.AddCommand(listCmd)
+	Cmd.AddCommand(createCmd)
+	Cmd.AddCommand(mountCmd)
+	Cmd.AddCommand(unmountCmd)
+	Cmd.AddCommand(deleteCmd)
 }

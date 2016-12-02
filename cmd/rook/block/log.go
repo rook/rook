@@ -13,10 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package main
+package block
 
-import "github.com/rook/rook/cmd/rook"
+import "github.com/coreos/pkg/capnslog"
 
-func main() {
-	rookmain.Main()
-}
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rookblock")
