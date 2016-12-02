@@ -159,6 +159,8 @@ func (c *ceph) RunDaemon(daemon string, args ...string) error {
 		ret = C.cephd_run_mds(C.int(len(finalArgs)), (**C.char)(ptr))
 	} else if daemon == "rgw" {
 		ret = C.cephd_run_rgw(C.int(len(finalArgs)), (**C.char)(ptr))
+	} else if daemon == "rgw-admin" {
+		ret = C.cephd_run_rgw_admin(C.int(len(finalArgs)), (**C.char)(ptr))
 	}
 	if ret < 0 {
 		return GetCephdError(int(ret))

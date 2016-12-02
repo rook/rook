@@ -122,7 +122,8 @@ func (a *agent) DestroyLocalService(context *clusterd.Context) error {
 // creates and initializes the given monitors file systems
 func (a *agent) makeMonitorFileSystem(context *clusterd.Context, cluster *ClusterInfo, monName string) error {
 	// write the keyring to disk
-	if err := writeMonitorKeyring(context.ConfigDir, monName, cluster); err != nil {
+	keyringPath := getMonKeyringPath(context.ConfigDir, monName)
+	if err := writeMonitorKeyring(monName, cluster, keyringPath); err != nil {
 		return err
 	}
 
@@ -194,9 +195,8 @@ func (a *agent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, moni
 }
 
 // writes the monitor keyring to disk
-func writeMonitorKeyring(configDir, monName string, c *ClusterInfo) error {
+func writeMonitorKeyring(monName string, c *ClusterInfo, keyringPath string) error {
 	keyring := fmt.Sprintf(monitorKeyringTemplate, c.MonitorSecret, c.AdminSecret)
-	keyringPath := getMonKeyringPath(configDir, monName)
 	if err := os.MkdirAll(filepath.Dir(keyringPath), 0744); err != nil {
 		return fmt.Errorf("failed to create keyring directory for %s: %+v", keyringPath, err)
 	}

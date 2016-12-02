@@ -90,7 +90,8 @@ func ConnectToClusterAsAdmin(context *clusterd.Context, factory client.Connectio
 	}
 	// write the monitor keyring to disk
 	monName := getFirstMonitor(cluster)
-	if err := writeMonitorKeyring(context.ConfigDir, monName, cluster); err != nil {
+	keyringPath := getMonKeyringPath(context.ConfigDir, monName)
+	if err := writeMonitorKeyring(monName, cluster, keyringPath); err != nil {
 		return nil, err
 	}
 
@@ -101,6 +102,19 @@ func ConnectToClusterAsAdmin(context *clusterd.Context, factory client.Connectio
 // get the path of a given monitor's config file
 func GetConfFilePath(root, clusterName string) string {
 	return fmt.Sprintf("%s/%s.config", root, clusterName)
+}
+
+func GenerateTempConfigFiles(context *clusterd.Context, cluster *ClusterInfo) (string, string, string, error) {
+	root := path.Join(context.ConfigDir, "tmp")
+	keyring := path.Join(root, "keyring")
+	user := getFirstMonitor(cluster)
+	err := writeMonitorKeyring(user, cluster, keyring)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to write keyring to %s", root)
+	}
+
+	configFile, err := GenerateConfigFile(context, cluster, root, user, keyring, false, nil, nil)
+	return configFile, keyring, user, err
 }
 
 // generates and writes the monitor config file to disk

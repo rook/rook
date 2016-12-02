@@ -47,6 +47,18 @@ func New(executor exec.Executor) *ProcManager {
 }
 
 // Start a child process and wait for its completion
+func (p *ProcManager) RunWithOutput(logName, daemon string, args ...string) (string, error) {
+
+	logger.Infof("Running process %s with args: %v", daemon, args)
+	output, err := p.executor.ExecuteCommandWithOutput(logName, os.Args[0], createDaemonArgs(daemon, args...)...)
+	if err != nil {
+		return "", fmt.Errorf("failed to run %s: %+v", daemon, err)
+	}
+
+	return output, nil
+}
+
+// Start a child process and wait for its completion
 func (p *ProcManager) Run(logName, daemon string, args ...string) error {
 
 	logger.Infof("Running process %s with args: %v", daemon, args)

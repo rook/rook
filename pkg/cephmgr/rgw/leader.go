@@ -89,6 +89,12 @@ func RemoveObjectStore(context *clusterd.Context) error {
 		return fmt.Errorf("failed to remove object store from desired state. %+v", err)
 	}
 
+	key = path.Join(mon.CephKey, ObjectStoreKey, clusterd.AppliedKey, builtinUserKey)
+	_, err = context.EtcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true, Recursive: true})
+	if err != nil {
+		return fmt.Errorf("failed to remove object store from desired state. %+v", err)
+	}
+
 	_, err = context.EtcdClient.Delete(ctx.Background(), getRGWNodesKey(false), &etcd.DeleteOptions{Dir: true, Recursive: true})
 	if err != nil {
 		return fmt.Errorf("failed to remove rgw nodes from desired state. %+v", err)
@@ -136,6 +142,7 @@ func markUnapplied(context *clusterd.Context) error {
 }
 
 func (r *Leader) enable(context *clusterd.Context, factory client.ConnectionFactory) error {
+
 	// start an instance of rgw on every node
 	count := len(context.Inventory.Nodes)
 	nodes, err := r.getDesiredRGWNodes(context, count)
@@ -155,6 +162,12 @@ func (r *Leader) enable(context *clusterd.Context, factory client.ConnectionFact
 		if err := setRGWState(context.EtcdClient, node, true); err != nil {
 			return fmt.Errorf("failed to set rgw agent as applied. %+v", err)
 		}
+	}
+
+	// create the built-in rgw user
+	err = createBuiltinUser(context)
+	if err != nil {
+		return fmt.Errorf("failed to get create first user. %+v", err)
 	}
 
 	return markApplied(context)

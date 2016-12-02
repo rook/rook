@@ -16,11 +16,15 @@ limitations under the License.
 package rgw
 
 import (
+	"os"
 	"path"
 	"testing"
 
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
+	cephtest "github.com/rook/rook/pkg/cephmgr/test"
 	"github.com/rook/rook/pkg/clusterd/inventory"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/util/proc"
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
@@ -34,9 +38,21 @@ func TestRGWConfig(t *testing.T) {
 		"a": &inventory.NodeConfig{PublicIP: "1.2.3.4"},
 		"b": &inventory.NodeConfig{PublicIP: "2.3.4.5"},
 	}
-	context := &clusterd.Context{EtcdClient: etcdClient, Inventory: &inventory.Config{Nodes: nodes}}
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{EtcdClient: etcdClient, Inventory: &inventory.Config{Nodes: nodes},
+		ProcMan: proc.New(executor), Executor: executor, ConfigDir: "/tmp/rgw"}
 	factory := &testceph.MockConnectionFactory{Fsid: "f", SecretKey: "k"}
 	leader := NewLeader()
+	executor.MockExecuteCommandWithOutput = func(actionName, command string, args ...string) (string, error) {
+		response := `{"keys": [
+				{"access_key": "myaccessid", "secret_key": "mybigsecretkey"}
+			]}`
+
+		return response, nil
+	}
+	defer os.RemoveAll("/tmp/rgw")
+	// mock a monitor
+	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
 
 	// Nothing happens when not in desired state
 	err := leader.Configure(context, factory)
@@ -61,10 +77,14 @@ func TestRGWConfig(t *testing.T) {
 	err = leader.Configure(context, factory)
 	assert.Nil(t, err)
 	verifyObjectConfigured(t, context, true)
+	assert.Equal(t, "myaccessid", etcdClient.GetValue("/rook/services/ceph/object/applied/admin/id"))
+	assert.Equal(t, "mybigsecretkey", etcdClient.GetValue("/rook/services/ceph/object/applied/admin/_secret"))
 
 	// Remove the object service
 	err = RemoveObjectStore(context)
 	assert.Nil(t, err)
+	assert.Equal(t, "", etcdClient.GetValue("/rook/services/ceph/object/applied/admin/id"))
+	assert.Equal(t, "", etcdClient.GetValue("/rook/services/ceph/object/applied/admin/_secret"))
 	err = leader.Configure(context, factory)
 	assert.Nil(t, err)
 	verifyObjectConfigured(t, context, false)
