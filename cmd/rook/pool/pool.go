@@ -13,10 +13,16 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package main
+package pool
 
-import "github.com/rook/rook/cmd/rook"
+import "github.com/spf13/cobra"
 
-func main() {
-	rookmain.Main()
+var Cmd = &cobra.Command{
+	Use:   "pool",
+	Short: "Performs commands and operations on storage pools in the cluster",
+}
+
+func init() {
+	Cmd.AddCommand(listCmd)
+	Cmd.AddCommand(createCmd)
 }

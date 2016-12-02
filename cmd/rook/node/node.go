@@ -13,10 +13,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package main
+package node
 
-import "github.com/rook/rook/cmd/rook"
+import "github.com/spf13/cobra"
 
-func main() {
-	rookmain.Main()
+var Cmd = &cobra.Command{
+	Use:   "node",
+	Short: "Performs commands and operations on nodes in the cluster",
+}
+
+func init() {
+	Cmd.AddCommand(listCmd)
 }
