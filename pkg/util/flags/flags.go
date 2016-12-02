@@ -17,9 +17,11 @@ package flags
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 )
 
 func VerifyRequiredFlags(cmd *cobra.Command, requiredFlags []string) error {
@@ -56,4 +58,17 @@ func createRequiredFlagError(name string, flags []string) error {
 	}
 
 	return fmt.Errorf("%s are required for %s", strings.Join(flags, ","), name)
+}
+
+func SetFlagsFromEnv(flags *pflag.FlagSet, prefix string) error {
+	flags.VisitAll(func(f *pflag.Flag) {
+		envVar := prefix + "_" + strings.Replace(strings.ToUpper(f.Name), "-", "_", -1)
+		value := os.Getenv(envVar)
+		if value != "" {
+			// Set the environment variable. Will override default values, but be overridden by command line parameters.
+			flags.Set(f.Name, value)
+		}
+	})
+
+	return nil
 }

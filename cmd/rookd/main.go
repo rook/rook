@@ -27,7 +27,6 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 
 	"github.com/rook/rook/pkg/api"
 	"github.com/rook/rook/pkg/cephmgr"
@@ -35,14 +34,15 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
-
 	"github.com/rook/rook/pkg/util/flags"
 )
 
 var rootCmd = &cobra.Command{
 	Use:   "rookd",
 	Short: "rookd tool for bootstrapping and running rook storage",
-	Long:  `https://github.com/rook/rook`,
+	Long: `
+Tool for bootstrapping and running the rook storage daemon.
+https://github.com/rook/rook`,
 }
 var cfg = newConfig()
 
@@ -77,7 +77,7 @@ func main() {
 
 // Initialize the configuration parameters. The precedence from lowest to highest is:
 //  1) default value (at compilation)
-//  2) environment variables (upper case, replace - with _, and rook prefix. For example, discovery-url is ROOK_DISCOVERY_URL)
+//  2) environment variables (upper case, replace - with _, and rook prefix. For example, discovery-url is ROOKD_DISCOVERY_URL)
 //  3) command line parameter
 func init() {
 	rootCmd.Flags().StringVar(&cfg.adminSecret, "admin-secret", "", "secret for the admin user (random if not specified)")
@@ -94,7 +94,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 
 	// load the environment variables
-	setFlagsFromEnv(rootCmd.Flags())
+	flags.SetFlagsFromEnv(rootCmd.Flags(), "ROOKD")
 
 	rootCmd.RunE = startJoinCluster
 }
@@ -179,19 +179,6 @@ func joinCluster() error {
 	signal.Notify(ch, os.Interrupt)
 	<-ch
 	fmt.Println("terminating due to ctrl-c interrupt...")
-
-	return nil
-}
-
-func setFlagsFromEnv(flags *pflag.FlagSet) error {
-	flags.VisitAll(func(f *pflag.Flag) {
-		envVar := "ROOKD_" + strings.Replace(strings.ToUpper(f.Name), "-", "_", -1)
-		value := os.Getenv(envVar)
-		if value != "" {
-			// Set the environment variable. Will override default values, but be overridden by command line parameters.
-			flags.Set(f.Name, value)
-		}
-	})
 
 	return nil
 }
