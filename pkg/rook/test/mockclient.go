@@ -30,16 +30,18 @@ func (*RookMockRestClientFactory) CreateRookRestClient(url string, httpClient *h
 
 // Mock Rook REST Client implementation
 type MockRookRestClient struct {
-	MockGetNodes            func() ([]model.Node, error)
-	MockGetPools            func() ([]model.Pool, error)
-	MockCreatePool          func(pool model.Pool) (string, error)
-	MockGetBlockImages      func() ([]model.BlockImage, error)
-	MockCreateBlockImage    func(image model.BlockImage) (string, error)
-	MockGetClientAccessInfo func() (model.ClientAccessInfo, error)
-	MockGetFilesystems      func() ([]model.Filesystem, error)
-	MockCreateFilesystem    func(model.FilesystemRequest) (string, error)
-	MockDeleteFilesystem    func(model.FilesystemRequest) (string, error)
-	MockGetStatusDetails    func() (model.StatusDetails, error)
+	MockGetNodes                     func() ([]model.Node, error)
+	MockGetPools                     func() ([]model.Pool, error)
+	MockCreatePool                   func(pool model.Pool) (string, error)
+	MockGetBlockImages               func() ([]model.BlockImage, error)
+	MockCreateBlockImage             func(image model.BlockImage) (string, error)
+	MockGetClientAccessInfo          func() (model.ClientAccessInfo, error)
+	MockGetFilesystems               func() ([]model.Filesystem, error)
+	MockCreateFilesystem             func(model.FilesystemRequest) (string, error)
+	MockDeleteFilesystem             func(model.FilesystemRequest) (string, error)
+	MockGetStatusDetails             func() (model.StatusDetails, error)
+	MockCreateObjectStore            func() (string, error)
+	MockGetObjectStoreConnectionInfo func() (model.ObjectStoreS3Info, error)
 }
 
 func (m *MockRookRestClient) GetNodes() ([]model.Node, error) {
@@ -120,6 +122,22 @@ func (m *MockRookRestClient) GetStatusDetails() (model.StatusDetails, error) {
 	}
 
 	return model.StatusDetails{}, nil
+}
+
+func (m *MockRookRestClient) CreateObjectStore() (string, error) {
+	if m.MockCreateObjectStore != nil {
+		return m.MockCreateObjectStore()
+	}
+
+	return "", nil
+}
+
+func (m *MockRookRestClient) GetObjectStoreConnectionInfo() (model.ObjectStoreS3Info, error) {
+	if m.MockGetObjectStoreConnectionInfo != nil {
+		return m.MockGetObjectStoreConnectionInfo()
+	}
+
+	return model.ObjectStoreS3Info{}, nil
 }
 
 func (m *MockRookRestClient) URL() string {

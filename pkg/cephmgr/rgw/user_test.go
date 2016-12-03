@@ -114,3 +114,15 @@ func TestBuiltinUser(t *testing.T) {
 	assert.Equal(t, "foo", etcdClient.GetValue("/rook/services/ceph/object/applied/admin/id"))
 	assert.Equal(t, "bar", etcdClient.GetValue("/rook/services/ceph/object/applied/admin/_secret"))
 }
+
+func TestGetBuiltinUserAccessInfo(t *testing.T) {
+	// simulate the built in user having been created
+	etcdClient := util.NewMockEtcdClient()
+	etcdClient.SetValue("/rook/services/ceph/object/applied/admin/id", "UST0JAP8CE61FDE0Q4BE")
+	etcdClient.SetValue("/rook/services/ceph/object/applied/admin/_secret", "tVCuH20xTokjEpVJc7mKjL8PLTfGh4NZ3le3zg9X")
+
+	id, secret, err := GetBuiltinUserAccessInfo(etcdClient)
+	assert.Nil(t, err)
+	assert.Equal(t, "UST0JAP8CE61FDE0Q4BE", id)
+	assert.Equal(t, "tVCuH20xTokjEpVJc7mKjL8PLTfGh4NZ3le3zg9X", secret)
+}

@@ -20,14 +20,18 @@ import (
 	"fmt"
 	"path"
 
+	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
 
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util"
 )
 
 const (
 	builtinUserKey = "admin"
+	idKey          = "id"
+	secretKey      = "_secret"
 )
 
 type user struct {
@@ -36,7 +40,7 @@ type user struct {
 
 type keyInfo struct {
 	User      string `json:"user"`
-	AccessID  string `json:"access_key"`
+	AccessKey string `json:"access_key"`
 	SecretKey string `json:"secret_key"`
 }
 
@@ -62,19 +66,38 @@ func createBuiltinUser(context *clusterd.Context) error {
 	}
 
 	userkey := u.Keys[0]
-	if userkey.AccessID == "" || userkey.SecretKey == "" {
+	if userkey.AccessKey == "" || userkey.SecretKey == "" {
 		return fmt.Errorf("missing user properties in %s", result)
 	}
 
 	// store the creds in etcd
 	key := path.Join(mon.CephKey, ObjectStoreKey, clusterd.AppliedKey, builtinUserKey)
-	if _, err := context.EtcdClient.Set(ctx.Background(), path.Join(key, "id"), userkey.AccessID, nil); err != nil {
+	if _, err := context.EtcdClient.Set(ctx.Background(), path.Join(key, idKey), userkey.AccessKey, nil); err != nil {
 		return fmt.Errorf("failed to store access id. %+v", err)
 	}
 
-	if _, err := context.EtcdClient.Set(ctx.Background(), path.Join(key, "_secret"), userkey.SecretKey, nil); err != nil {
+	if _, err := context.EtcdClient.Set(ctx.Background(), path.Join(key, secretKey), userkey.SecretKey, nil); err != nil {
 		return fmt.Errorf("failed to store access id. %+v", err)
 	}
 
 	return nil
+}
+
+func GetBuiltinUserAccessInfo(etcdClient etcd.KeysAPI) (string, string, error) {
+	return getUserAccessInfo(builtinUserKey, etcdClient)
+}
+
+func getUserAccessInfo(userName string, etcdClient etcd.KeysAPI) (string, string, error) {
+	userKey := path.Join(mon.CephKey, ObjectStoreKey, clusterd.AppliedKey, userName)
+	keys := map[string]string{
+		idKey:     path.Join(userKey, idKey),
+		secretKey: path.Join(userKey, secretKey),
+	}
+
+	vals, err := util.GetEtcdValues(etcdClient, keys)
+	if err != nil {
+		return "", "", err
+	}
+
+	return vals[idKey], vals[secretKey], nil
 }

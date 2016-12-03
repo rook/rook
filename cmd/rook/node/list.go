@@ -67,7 +67,7 @@ func listNodes(c client.RookRestClient) (string, error) {
 	w := rook.NewTableWriter(&buffer)
 
 	// write header columns
-	fmt.Fprintln(w, "PUBLIC\tPRIVATE\tSTATE\tCLUSTER\tSIZE\tLOCATION\tUPDATED\t")
+	fmt.Fprintln(w, "PUBLIC\tPRIVATE\tSTATE\tCLUSTER\tSIZE\tLOCATION\tUPDATED")
 
 	// print a row for each node
 	for _, n := range nodes {

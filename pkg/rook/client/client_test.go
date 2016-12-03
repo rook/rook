@@ -27,13 +27,14 @@ import (
 )
 
 const (
-	SuccessGetNodesContent            = `[{"nodeID": "node1","publicIp": "1.2.3.100","privateIp": "10.0.0.100","storage": 100},{"nodeID": "node2","ipAddr": "10.0.0.101","storage": 200}]`
-	SuccessGetPoolsContent            = "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicationConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicationConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]"
-	SuccessCreatePoolContent          = `pool 'ecPool1' created`
-	SuccessGetBlockImagesContent      = `[{"imageName":"myimage1","poolName":"rbd","size":10485760,"device":"","mountPoint":""},{"imageName":"myimage2","poolName":"rbd2","size":10485761,"device":"","mountPoint":""}]`
-	SuccessCreateBlockImageContent    = `succeeded created image myimage3`
-	SuccessGetClientAccessInfoContent = `{"monAddresses":["10.37.129.214:6790/0"],"userName":"admin","secretKey":"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg=="}`
-	SuccessGetFilesystemsContent      = `[{"name":"myfs1","metadataPool":"myfs1-metadata","dataPools":["myfs1-data"]}]`
+	SuccessGetNodesContent                     = `[{"nodeID": "node1","publicIp": "1.2.3.100","privateIp": "10.0.0.100","storage": 100},{"nodeID": "node2","ipAddr": "10.0.0.101","storage": 200}]`
+	SuccessGetPoolsContent                     = "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicationConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicationConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]"
+	SuccessCreatePoolContent                   = `pool 'ecPool1' created`
+	SuccessGetBlockImagesContent               = `[{"imageName":"myimage1","poolName":"rbd","size":10485760,"device":"","mountPoint":""},{"imageName":"myimage2","poolName":"rbd2","size":10485761,"device":"","mountPoint":""}]`
+	SuccessCreateBlockImageContent             = `succeeded created image myimage3`
+	SuccessGetClientAccessInfoContent          = `{"monAddresses":["10.37.129.214:6790/0"],"userName":"admin","secretKey":"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg=="}`
+	SuccessGetFilesystemsContent               = `[{"name":"myfs1","metadataPool":"myfs1-metadata","dataPools":["myfs1-data"]}]`
+	SuccessGetObjectStoreConnectionInfoContent = `{"host":"rook-rgw:12345", "accessKey":"UST0JAP8CE61FDE0Q4BE", "secretKey":"tVCuH20xTokjEpVJc7mKjL8PLTfGh4NZ3le3zg9X"}`
 )
 
 func TestURL(t *testing.T) {
@@ -229,6 +230,35 @@ func TestDeleteFilesystem(t *testing.T) {
 	assert.Equal(t, "", resp)
 }
 
+func TestCreateObjectStore(t *testing.T) {
+	mockServer := NewMockHttpServer(202, "")
+	defer mockServer.Close()
+	mockHttpClient := NewMockHttpClient(mockServer.URL)
+	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
+
+	resp, err := client.CreateObjectStore()
+	assert.NotNil(t, err)
+	assert.True(t, IsHttpAccepted(err))
+	assert.Equal(t, "", resp)
+}
+
+func TestGetObjectStoreConnectionInfo(t *testing.T) {
+	mockServer := NewMockHttpServer(200, SuccessGetObjectStoreConnectionInfoContent)
+	defer mockServer.Close()
+	mockHttpClient := NewMockHttpClient(mockServer.URL)
+	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
+
+	expectedResp := model.ObjectStoreS3Info{
+		Host:      "rook-rgw:12345",
+		AccessKey: "UST0JAP8CE61FDE0Q4BE",
+		SecretKey: "tVCuH20xTokjEpVJc7mKjL8PLTfGh4NZ3le3zg9X",
+	}
+
+	resp, err := client.GetObjectStoreConnectionInfo()
+	assert.Nil(t, err)
+	assert.Equal(t, expectedResp, resp)
+}
+
 func TestGetNodesFailure(t *testing.T) {
 	ClientFailureHelper(t, func(client RookRestClient) (interface{}, error) { return client.GetNodes() })
 }
@@ -285,6 +315,25 @@ func TestDeleteFilesystemFailure(t *testing.T) {
 		return client.DeleteFilesystem(model.FilesystemRequest{Name: "myfs1"})
 	}
 	verifyFunc := getStringVerifyFunc(t)
+	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
+}
+
+func TestCreateObjectStoreFailure(t *testing.T) {
+	clientFunc := func(client RookRestClient) (interface{}, error) {
+		return client.CreateObjectStore()
+	}
+	verifyFunc := getStringVerifyFunc(t)
+	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
+}
+
+func TestGetObjectStoreConnectionInfoFailure(t *testing.T) {
+	clientFunc := func(client RookRestClient) (interface{}, error) {
+		return client.GetObjectStoreConnectionInfo()
+	}
+	verifyFunc := func(resp interface{}, err error) {
+		assert.NotNil(t, err)
+		assert.Equal(t, model.ObjectStoreS3Info{}, resp.(model.ObjectStoreS3Info))
+	}
 	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
 }
 

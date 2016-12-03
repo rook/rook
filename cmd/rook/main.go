@@ -22,6 +22,7 @@ import (
 	"github.com/rook/rook/cmd/rook/block"
 	"github.com/rook/rook/cmd/rook/filesystem"
 	"github.com/rook/rook/cmd/rook/node"
+	"github.com/rook/rook/cmd/rook/object"
 	"github.com/rook/rook/cmd/rook/pool"
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/cmd/rook/status"
@@ -41,6 +42,7 @@ func addCommands() {
 	rook.RootCmd.AddCommand(pool.Cmd)
 	rook.RootCmd.AddCommand(block.Cmd)
 	rook.RootCmd.AddCommand(filesystem.Cmd)
+	rook.RootCmd.AddCommand(object.Cmd)
 	rook.RootCmd.AddCommand(status.Cmd)
 	rook.RootCmd.AddCommand(version.Cmd)
 }

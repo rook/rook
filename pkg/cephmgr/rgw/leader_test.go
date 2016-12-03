@@ -16,9 +16,13 @@ limitations under the License.
 package rgw
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"testing"
+
+	etcd "github.com/coreos/etcd/client"
+	ctx "golang.org/x/net/context"
 
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
 	cephtest "github.com/rook/rook/pkg/cephmgr/test"
@@ -79,6 +83,13 @@ func TestRGWConfig(t *testing.T) {
 	verifyObjectConfigured(t, context, true)
 	assert.Equal(t, "myaccessid", etcdClient.GetValue("/rook/services/ceph/object/applied/admin/id"))
 	assert.Equal(t, "mybigsecretkey", etcdClient.GetValue("/rook/services/ceph/object/applied/admin/_secret"))
+
+	// Get the RGW endpoints and verify
+	host, ipAddr, found, err := GetRGWEndpoints(etcdClient, context.Inventory)
+	assert.Nil(t, err)
+	assert.True(t, found)
+	assert.Equal(t, "rook-rgw:53390", host)
+	assert.True(t, ipAddr == "1.2.3.4:53390" || ipAddr == "2.3.4.5:53390", fmt.Sprintf("unexpected rgw IP endpoint: %s", ipAddr))
 
 	// Remove the object service
 	err = RemoveObjectStore(context)
@@ -174,4 +185,29 @@ func TestGetDesiredNodes(t *testing.T) {
 	// fail to select three nodes
 	desired, err = leader.getDesiredRGWNodes(context, 3)
 	assert.NotNil(t, err)
+}
+
+func TestGetRGWEndpointsFailure(t *testing.T) {
+	etcdClient := util.NewMockEtcdClient()
+	etcdClient.MockGet = func(context ctx.Context, key string, opts *etcd.GetOptions) (*etcd.Response, error) {
+		return nil, fmt.Errorf("mock etcd GET error")
+	}
+
+	host, ipAddr, found, err := GetRGWEndpoints(etcdClient, nil)
+	assert.Equal(t, "", host)
+	assert.Equal(t, "", ipAddr)
+	assert.False(t, found)
+	assert.NotNil(t, err)
+}
+
+func TestGetRGWEndpointsNotFound(t *testing.T) {
+	etcdClient := util.NewMockEtcdClient()
+	nodes := map[string]*inventory.NodeConfig{}
+	clusterInventory := &inventory.Config{Nodes: nodes}
+
+	host, ipAddr, found, err := GetRGWEndpoints(etcdClient, clusterInventory)
+	assert.Equal(t, "", host)
+	assert.Equal(t, "", ipAddr)
+	assert.False(t, found)
+	assert.Nil(t, err)
 }
