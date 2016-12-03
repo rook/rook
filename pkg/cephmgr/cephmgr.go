@@ -20,6 +20,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/mds"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/cephmgr/osd"
+	"github.com/rook/rook/pkg/cephmgr/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 )
 
@@ -36,6 +37,7 @@ func NewCephService(factory client.ConnectionFactory, devices string, forceForma
 			mon.NewAgent(factory),
 			osd.NewAgent(factory, devices, forceFormat, location),
 			mds.NewAgent(factory),
+			rgw.NewAgent(factory),
 		},
 	}
 }

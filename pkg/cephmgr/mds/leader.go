@@ -32,11 +32,6 @@ const (
 	MDSKey = "mds"
 )
 
-type FileSystemChange struct {
-	Added   bool `json:"added"`
-	Removed bool `json:"removed"`
-}
-
 type Leader struct {
 }
 

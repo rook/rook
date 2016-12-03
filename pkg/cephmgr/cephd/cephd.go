@@ -128,7 +128,7 @@ func (c *ceph) NewSecretKey() (string, error) {
 }
 
 // Mon runs embedded ceph-mon.
-func (c *ceph) RunDaemon(daemon string, args ...string) error {
+func (c *ceph) Run(id string, args ...string) error {
 
 	// BUGBUG: the first arg is really not needed but its an artifact
 	// of calling ceph-mon.main(). Should be removed on the C++ side.
@@ -151,14 +151,16 @@ func (c *ceph) RunDaemon(daemon string, args ...string) error {
 
 	var ret C.int
 
-	if daemon == "mon" {
+	if id == "mon" {
 		ret = C.cephd_run_mon(C.int(len(finalArgs)), (**C.char)(ptr))
-	} else if daemon == "osd" {
+	} else if id == "osd" {
 		ret = C.cephd_run_osd(C.int(len(finalArgs)), (**C.char)(ptr))
-	} else if daemon == "mds" {
+	} else if id == "mds" {
 		ret = C.cephd_run_mds(C.int(len(finalArgs)), (**C.char)(ptr))
-	} else if daemon == "rgw" {
+	} else if id == "rgw" {
 		ret = C.cephd_run_rgw(C.int(len(finalArgs)), (**C.char)(ptr))
+	} else if id == "rgw-admin" {
+		ret = C.cephd_run_rgw_admin(C.int(len(finalArgs)), (**C.char)(ptr))
 	}
 	if ret < 0 {
 		return GetCephdError(int(ret))

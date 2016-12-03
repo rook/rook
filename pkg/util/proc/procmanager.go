@@ -47,12 +47,24 @@ func New(executor exec.Executor) *ProcManager {
 }
 
 // Start a child process and wait for its completion
-func (p *ProcManager) Run(logName, daemon string, args ...string) error {
+func (p *ProcManager) RunWithOutput(logName, tool string, args ...string) (string, error) {
 
-	logger.Infof("Running process %s with args: %v", daemon, args)
-	err := p.executor.ExecuteCommand(logName, os.Args[0], createDaemonArgs(daemon, args...)...)
+	logger.Infof("Running process %s with args: %v", tool, args)
+	output, err := p.executor.ExecuteCommandWithOutput(logName, os.Args[0], createToolArgs(tool, args...)...)
 	if err != nil {
-		return fmt.Errorf("failed to run %s: %+v", daemon, err)
+		return "", fmt.Errorf("failed to run %s: %+v", tool, err)
+	}
+
+	return output, nil
+}
+
+// Start a child process and wait for its completion
+func (p *ProcManager) Run(logName, tool string, args ...string) error {
+
+	logger.Infof("Running process %s with args: %v", tool, args)
+	err := p.executor.ExecuteCommand(logName, os.Args[0], createToolArgs(tool, args...)...)
+	if err != nil {
+		return fmt.Errorf("failed to run %s: %+v", tool, err)
 	}
 
 	return nil
@@ -177,5 +189,11 @@ func (p *ProcManager) removeManagedProc(pid int) {
 func createDaemonArgs(daemon string, args ...string) []string {
 	return append(
 		[]string{"daemon", fmt.Sprintf("--type=%s", daemon), "--"},
+		args...)
+}
+
+func createToolArgs(tool string, args ...string) []string {
+	return append(
+		[]string{"tool", fmt.Sprintf("--type=%s", tool), "--"},
 		args...)
 }
