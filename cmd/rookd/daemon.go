@@ -37,7 +37,7 @@ var daemonCmd = &cobra.Command{
 }
 
 func init() {
-	daemonCmd.Flags().StringVar(&daemonType, "type", "", "type of daemon [mon|osd]")
+	daemonCmd.Flags().StringVar(&daemonType, "type", "", "type of daemon [mon|osd|mds|rgw]")
 	daemonCmd.MarkFlagRequired("type")
 
 	daemonCmd.RunE = runDaemon
@@ -51,7 +51,14 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unknown daemon type: %s", daemonType)
 	}
 
-	// daemon command passes through args to the child daemon process.  Look for the
+	runCephCommand(daemonType, args)
+	return nil
+}
+
+// run a command in libcephd
+func runCephCommand(command string, args []string) {
+
+	// The command passes through args to the child process.  Look for the
 	// terminator arg, and pass through all args after that (without a terminator arg,
 	// FlagSet.Parse prints errors for args it doesn't recognize)
 	passthruIndex := 3
@@ -62,11 +69,10 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// run the specified daemon
-	if err := cephd.New().RunDaemon(daemonType, os.Args[passthruIndex:]...); err != nil {
+	// run the specified command
+	if err := cephd.New().Run(command, os.Args[passthruIndex:]...); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
 
-	return nil
 }

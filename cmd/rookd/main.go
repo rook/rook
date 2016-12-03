@@ -102,6 +102,7 @@ func init() {
 func addCommands() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(daemonCmd)
+	rootCmd.AddCommand(toolCmd)
 }
 
 func startJoinCluster(cmd *cobra.Command, args []string) error {

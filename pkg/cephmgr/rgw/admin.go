@@ -43,7 +43,7 @@ func RunAdminCommand(context *clusterd.Context, command, subcommand string, args
 	}
 	options = append(options, args...)
 
-	// start the monitor daemon in the foreground with the given config
+	// start the rgw admin command
 	output, err := context.ProcMan.RunWithOutput("rgw-admin", "rgw-admin", options...)
 	if err != nil {
 		return "", fmt.Errorf("failed to run rgw-admin: %+v", err)
