@@ -31,6 +31,7 @@ import (
 const (
 	RGWKey         = "rgw"
 	ObjectStoreKey = "object"
+	stateKey       = "state"
 )
 
 type Leader struct {
@@ -75,7 +76,7 @@ func (r *Leader) Configure(context *clusterd.Context, factory client.ConnectionF
 // Configure the single instance of object storage in the cluster.
 func EnableObjectStore(context *clusterd.Context) error {
 	logger.Infof("Enabling object store")
-	key := path.Join(mon.CephKey, ObjectStoreKey, clusterd.DesiredKey)
+	key := path.Join(mon.CephKey, ObjectStoreKey, clusterd.DesiredKey, stateKey)
 	_, err := context.EtcdClient.Set(ctx.Background(), key, "1", nil)
 	return err
 }
@@ -84,7 +85,7 @@ func EnableObjectStore(context *clusterd.Context) error {
 func RemoveObjectStore(context *clusterd.Context) error {
 	logger.Infof("Removing object store")
 	key := path.Join(mon.CephKey, ObjectStoreKey, clusterd.DesiredKey)
-	_, err := context.EtcdClient.Delete(ctx.Background(), key, nil)
+	_, err := context.EtcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true, Recursive: true})
 	if err != nil {
 		return fmt.Errorf("failed to remove object store from desired state. %+v", err)
 	}
@@ -112,7 +113,7 @@ func getObjectStoreState(context *clusterd.Context, applied bool) (bool, error) 
 		state = clusterd.DesiredKey
 	}
 
-	key := path.Join(mon.CephKey, ObjectStoreKey, state)
+	key := path.Join(mon.CephKey, ObjectStoreKey, state, stateKey)
 	val, err := context.EtcdClient.Get(ctx.Background(), key, nil)
 	if err != nil {
 		if util.IsEtcdKeyNotFound(err) {
@@ -128,7 +129,7 @@ func getObjectStoreState(context *clusterd.Context, applied bool) (bool, error) 
 // Make the object store in the applied state
 func markApplied(context *clusterd.Context) error {
 	logger.Infof("object store applied")
-	key := path.Join(mon.CephKey, ObjectStoreKey, clusterd.AppliedKey)
+	key := path.Join(mon.CephKey, ObjectStoreKey, clusterd.AppliedKey, stateKey)
 	_, err := context.EtcdClient.Set(ctx.Background(), key, "1", nil)
 	return err
 }
@@ -137,7 +138,7 @@ func markApplied(context *clusterd.Context) error {
 func markUnapplied(context *clusterd.Context) error {
 	logger.Infof("object store removed")
 	key := path.Join(mon.CephKey, ObjectStoreKey, clusterd.AppliedKey)
-	_, err := context.EtcdClient.Delete(ctx.Background(), key, nil)
+	_, err := context.EtcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true, Recursive: true})
 	return err
 }
 

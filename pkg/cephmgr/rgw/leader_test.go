@@ -119,7 +119,7 @@ func TestDefaultDesiredState(t *testing.T) {
 
 	err := EnableObjectStore(context)
 	assert.Nil(t, err)
-	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/object/desired"))
+	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/object/desired/state"))
 
 	err = RemoveObjectStore(context)
 	assert.Nil(t, err)
@@ -133,7 +133,11 @@ func TestMarkApplied(t *testing.T) {
 	err := markApplied(context)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/object/applied"))
+	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/object/applied/state"))
+
+	err = markUnapplied(context)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, etcdClient.GetChildDirs("/rook/services/ceph/object").Count())
 }
 
 func TestGetDesiredNodes(t *testing.T) {
