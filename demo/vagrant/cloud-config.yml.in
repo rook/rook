@@ -23,7 +23,7 @@ coreos:
       [Service]
       Slice=machine.slice
       Restart=always
-      KillMode=process
+      KillMode=mixed
 
       Environment=ROOKD_ACI=quay.io/rook/rookd:latest
       Environment=ROOKD_PUBLIC_IPV4=$public_ipv4
