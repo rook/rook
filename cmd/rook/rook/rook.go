@@ -22,6 +22,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
@@ -40,7 +41,8 @@ const (
 var RootCmd = &cobra.Command{
 	Use:   "rook",
 	Short: "A command line client for working with a rook cluster",
-	Long:  `https://github.com/rook/rook`,
+	Long: `A command line client for working with a rook cluster.
+https://github.com/rook/rook`,
 }
 
 func init() {
@@ -48,6 +50,9 @@ func init() {
 	RootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "WARNING", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 
 	RootCmd.MarkFlagRequired("api-server-endpoint")
+
+	// load the environment variables
+	flags.SetFlagsFromEnv(RootCmd.PersistentFlags(), "ROOK")
 }
 
 func SetupLogging() {
