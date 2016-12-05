@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: mysql
+  labels:
+    name: mysql
+spec:
+  containers:
+    - name: mysql
+      image: mysql
+      args:
+        - "--ignore-db-dir"
+        - "lost+found"
+      env:
+        - name: MYSQL_ROOT_PASSWORD
+          # change this
+          value: yourpassword
+      ports:
+        - containerPort: 3306
+          name: mysql
+      volumeMounts:
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+  volumes:
+    - name: mysql-persistent-storage
+      rbd:
+        monitors: INSERT_HERE
+        image: demoblock
+        user: admin
+        secretRef:
+            name: rookd
+        fsType: ext4
+        readOnly: false

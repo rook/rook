@@ -1,0 +1,58 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rest
+  labels:
+    app: rook
+    role: rest
+spec:
+  type: NodePort
+  externalIPs: [ "172.17.4.101" ]
+  ports:
+  - port: 8124
+  selector:
+    app: rook
+    role: rookd
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: rookd
+spec:
+  template:
+    metadata:
+      labels:
+        app: rook
+        role: rookd
+    spec:
+      containers:
+      - name: rookd
+        image: quay.io/rook/rookd
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          privileged: true
+        env:
+        - name: ROOKD_DISCOVERY_URL
+          valueFrom:
+            configMapKeyRef:
+              name: rookd
+              key: discovery-token
+        - name: ROOKD_PRIVATE_IPV4
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: ROOKD_PUBLIC_IPV4
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        volumeMounts:
+        - mountPath: /var/lib/rook
+          name: rook-data-dir
+        - mountPath: /dev/disk
+          name: dev-disk
+      volumes:
+      - name: rook-data-dir
+        emptyDir: {}
+      - name: dev-disk
+        hostPath:
+          path: /dev/disk
