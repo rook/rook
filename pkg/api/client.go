@@ -27,6 +27,7 @@ import (
 // /client
 func (h *Handler) GetClientAccessInfo(w http.ResponseWriter, r *http.Request) {
 	// TODO: auth is extremely important here because we are returning cephx credentials
+	// https://github.com/rook/rook/issues/209
 
 	adminConn, ok := h.handleConnectToCeph(w)
 	if !ok {

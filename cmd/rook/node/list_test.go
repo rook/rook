@@ -48,7 +48,7 @@ func TestListNodes(t *testing.T) {
 	out, err := listNodes(c)
 	assert.Nil(t, err)
 
-	expectedOut := "PUBLIC      PRIVATE      STATE     CLUSTER    SIZE      LOCATION                      UPDATED   \n" +
+	expectedOut := "PUBLIC      PRIVATE      STATE     CLUSTER    SIZE      LOCATION                      UPDATED\n" +
 		"187.1.2.3   10.0.0.100   OK        cluster1   100 B     root=default,dc=datacenter5   1s ago    \n"
 	assert.Equal(t, expectedOut, out)
 }

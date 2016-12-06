@@ -35,8 +35,8 @@ import (
 )
 
 const (
-	dnsName         = "rook-rgw"
-	rgwPort         = 53390
+	DNSName         = "rook-rgw"
+	RGWPort         = 53390
 	rgwAgentName    = "rgw"
 	keyringTemplate = `[client.radosgw.gateway]
 	key = %s
@@ -118,10 +118,10 @@ func (a *rgwAgent) generateConfigFiles(context *clusterd.Context, cluster *mon.C
 	}
 
 	settings := map[string]string{
-		"host":                           dnsName,
-		"rgw port":                       strconv.Itoa(rgwPort),
+		"host":                           DNSName,
+		"rgw port":                       strconv.Itoa(RGWPort),
 		"rgw data":                       dataDir,
-		"rgw dns name":                   fmt.Sprintf("%s:%d", dnsName, rgwPort),
+		"rgw dns name":                   fmt.Sprintf("%s:%d", DNSName, RGWPort),
 		"rgw log nonexistent bucket":     "true",
 		"rgw intent log object name utc": "true",
 		"rgw enable usage log":           "true",
@@ -182,7 +182,7 @@ func (a *rgwAgent) startRGW(context *clusterd.Context, cluster *mon.ClusterInfo)
 		fmt.Sprintf("--cluster=%s", cluster.Name),
 		fmt.Sprintf("--conf=%s", getRGWConfFilePath(context.ConfigDir, cluster.Name)),
 		fmt.Sprintf("--keyring=%s", getRGWKeyringPath(context.ConfigDir)),
-		fmt.Sprintf("--rgw-frontends=civetweb port=%d", rgwPort),
+		fmt.Sprintf("--rgw-frontends=civetweb port=%d", RGWPort),
 		fmt.Sprintf("--rgw-mime-types-file=%s", getMimeTypesPath(context.ConfigDir)))
 	if err != nil {
 		return fmt.Errorf("failed to start rgw: %+v", err)

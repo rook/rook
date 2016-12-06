@@ -41,6 +41,8 @@ type RookRestClient interface {
 	CreateFilesystem(model.FilesystemRequest) (string, error)
 	DeleteFilesystem(model.FilesystemRequest) (string, error)
 	GetStatusDetails() (model.StatusDetails, error)
+	CreateObjectStore() (string, error)
+	GetObjectStoreConnectionInfo() (model.ObjectStoreS3Info, error)
 }
 
 type RookNetworkRestClient struct {
@@ -70,12 +72,20 @@ func (e RookRestError) Error() string {
 }
 
 func IsHttpAccepted(err error) bool {
+	return IsHttpStatusCode(err, http.StatusAccepted)
+}
+
+func IsHttpNotFound(err error) bool {
+	return IsHttpStatusCode(err, http.StatusNotFound)
+}
+
+func IsHttpStatusCode(err error, statusCode int) bool {
 	if err == nil {
 		return false
 	}
 
 	rrErr, ok := err.(RookRestError)
-	return ok && rrErr.Status == http.StatusAccepted
+	return ok && rrErr.Status == statusCode
 }
 
 func (a *RookNetworkRestClient) URL() string {

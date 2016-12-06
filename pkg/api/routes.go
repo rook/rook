@@ -84,6 +84,12 @@ func (h *Handler) GetRoutes() []Route {
 			h.RemoveObjectStore,
 		},
 		{
+			"GetObjectStoreConnectionInfo",
+			"GET",
+			"/objectstore/connectioninfo",
+			h.GetObjectStoreConnectionInfo,
+		},
+		{
 			"GetFileSystems",
 			"GET",
 			"/filesystem",
