@@ -20,7 +20,7 @@ exposes file, block, and object storage on top of shared resource pools. Rook ha
 dependencies and can be deployed in dedicated storage clusters or converged clusters. It's
 self-managing, self-protecting, self-healing, and is designed to just work without teams of
 engineers managing it. It scales from a single node, to multi-PB clusters spread geographically.
-It's based on the Ceph project with over 10 years of production deployments in some of the
+It's based on the [Ceph](http://ceph.com) project with over 10 years of production deployments in some of the
 largest storage clusters in the world.
 
 ## Status
