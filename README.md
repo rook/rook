@@ -51,31 +51,115 @@ On a modern Linux host run the following:
     $ ./rookd --data-dir /tmp/rook-test
     ```
 
-3. Now in a different shell (in the same path) create a new volume image (10MB)
+#### Block Storage
+1. In a different shell (in the same path) create a new volume image (10MB)
 
     ```bash
     $ ./rook block create --name test --size 10485760
     ```
 
-4. Mount the block volume and format it
+2. Mount the block volume and format it
 
     ```bash
     sudo ./rook block mount --name test --path /tmp/rook-volume
     sudo chown $USER:$USER /tmp/rook-volume
     ```
 
-5. Write and read a file
+3. Write and read a file
 
     ```bash
     echo "Hello Rook!" > /tmp/rook-volume/hello
     cat /tmp/rook-volume/hello
     ```
 
-6. Cleanup
+4. Cleanup
 
     ```bash
     sudo ./rook block unmount --path /tmp/rook-volume
     ```
+
+#### Shared File System
+1. Create a shared file system
+
+    ```bash
+    ./rook filesystem create --name testFS
+    ```
+
+2. Verify the shared file system was created
+
+   ```bash
+   ./rook filesystem ls
+   ```
+
+3. Mount the shared file system from the cluster to your local machine
+
+   ```bash
+   ./rook filesystem mount --name testFS --path /tmp/rookFS
+   sudo chown $USER:$USER /tmp/rookFS
+   ```
+
+4. Write and read a file to the shared file system
+
+   ```bash
+   echo "Hello Rook!" > /tmp/rookFS/hello
+   cat /tmp/rookFS/hello
+   ```
+
+5. Unmount the shared file system (this does **not** delete the data from the cluster)
+
+   ```bash
+   ./rook filesystem unmount --path /tmp/rookFS
+   ```
+
+6. Cleanup the shared file system from the cluster (this **does** delete the data from the cluster)
+
+   ```
+   ./rook filesystem delete --name testFS
+   ```
+
+#### Object Storage
+1. Create an object storage instance in the cluster
+
+   ```bash
+   ./rook object create
+   ```
+
+2. Get the connection information for accessing object storage
+
+   ```bash
+   ./rook object connection
+   NAME            VALUE
+   S3_HOST         rook-rgw:53390                             
+   S3_ENDPOINT     127.0.0.1:53390                            
+   S3_ACCESS_KEY   4W5GJBA9K4CL7OZU9FRZ                       
+   S3_SECRET_KEY   SRRRrYNxcoMtxuPcKzVlNciYscvB3YjpnIJMfO5q
+   ```
+
+3. Use an S3 compatible client to create a bucket in the object store
+
+   ```bash
+   s3cmd mb --access_key=4W5GJBA9K4CL7OZU9FRZ --secret_key=SRRRrYNxcoMtxuPcKzVlNciYscvB3YjpnIJMfO5q --no-ssl --host=127.0.0.1:53390 --host-bucket=  s3://rookbucket
+   ```
+
+4. List all buckets in the object store
+
+   ```bash
+   s3cmd ls --access_key=4W5GJBA9K4CL7OZU9FRZ --secret_key=SRRRrYNxcoMtxuPcKzVlNciYscvB3YjpnIJMfO5q --no-ssl --host=127.0.0.1:53390 --host-bucket=  s3://
+   ```
+
+5. Upload a file to the newly created bucket
+
+   ```bash
+   echo "Hello Rook!" > /tmp/rookObj
+   s3cmd put /tmp/rookObj --access_key=4W5GJBA9K4CL7OZU9FRZ --secret_key=SRRRrYNxcoMtxuPcKzVlNciYscvB3YjpnIJMfO5q --no-ssl --host=127.0.0.1:53390 --host-bucket=  s3://rookbucket
+   ```
+
+6. Download and verify the file from the bucket
+
+   ```bash
+   s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --access_key=4W5GJBA9K4CL7OZU9FRZ --secret_key=SRRRrYNxcoMtxuPcKzVlNciYscvB3YjpnIJMfO5q --no-ssl --host=127.0.0.1:53390 --host-bucket=
+   cat /tmp/rookObj-download
+   ```
 
 ### Kubernetes
 
