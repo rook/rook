@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: rookd
-        image: quay.io/rook/rookd
+        image: quay.io/rook/rookd:v0.1.1
         imagePullPolicy: IfNotPresent
         securityContext:
           privileged: true
@@ -45,14 +45,16 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: status.podIP
+        - name: ROOKD_DATA_DEVICES
+          value: sdb,sdc
         volumeMounts:
         - mountPath: /var/lib/rook
           name: rook-data-dir
-        - mountPath: /dev/disk
-          name: dev-disk
+        - mountPath: /dev
+          name: dev
       volumes:
       - name: rook-data-dir
         emptyDir: {}
-      - name: dev-disk
+      - name: dev
         hostPath:
-          path: /dev/disk
+          path: /dev
