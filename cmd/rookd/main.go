@@ -22,6 +22,7 @@ import (
 	"os"
 	"os/signal"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -128,6 +129,12 @@ func startJoinCluster(cmd *cobra.Command, args []string) error {
 }
 
 func joinCluster() error {
+	// get the absolute path for the data dir
+	var err error
+	if cfg.dataDir, err = filepath.Abs(cfg.dataDir); err != nil {
+		return fmt.Errorf("invalid data directory %s. %+v", cfg.dataDir, err)
+	}
+
 	// ensure the data root exists
 	if err := os.MkdirAll(cfg.dataDir, 0744); err != nil {
 		logger.Warningf("failed to create data directory at %s: %+v", cfg.dataDir, err)
@@ -148,7 +155,6 @@ func joinCluster() error {
 		cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.location, cfg.adminSecret),
 	}
 
-	var err error
 	cfg.nodeID, err = util.LoadPersistedNodeID(cfg.dataDir)
 	if err != nil {
 		return fmt.Errorf("failed to load the id. %v", err)
