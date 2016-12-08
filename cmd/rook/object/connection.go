@@ -27,6 +27,21 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	FormatPretty    = "pretty"
+	FormatEnvVar    = "env-var"
+	AWSHost         = "AWS_HOST"
+	AWSEndpoint     = "AWS_ENDPOINT"
+	AWSAccessKey    = "AWS_ACCESS_KEY_ID"
+	AWSSecretKey    = "AWS_SECRET_ACCESS_KEY"
+	PrettyOutputFmt = "%s\t%s\t\n"
+	ExportOutputFmt = "export %s=%s\n"
+)
+
+var (
+	connOutputFormat string
+)
+
 var connectionCmd = &cobra.Command{
 	Use:     "connection",
 	Short:   "Gets connection information that will allow a client to access object storage in the cluster",
@@ -34,6 +49,9 @@ var connectionCmd = &cobra.Command{
 }
 
 func init() {
+	connectionCmd.Flags().StringVar(&connOutputFormat, "format", FormatPretty,
+		fmt.Sprintf("Format of connection output, (valid values: %s,%s)", FormatPretty, FormatEnvVar))
+
 	connectionCmd.RunE = getConnectionInfoEntry
 }
 
@@ -45,7 +63,7 @@ func getConnectionInfoEntry(cmd *cobra.Command, args []string) error {
 	}
 
 	c := client.NewRookNetworkRestClient(client.GetRestURL(rook.APIServerEndpoint), http.DefaultClient)
-	out, err := getConnectionInfo(c)
+	out, err := getConnectionInfo(connOutputFormat, c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -55,7 +73,11 @@ func getConnectionInfoEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getConnectionInfo(c client.RookRestClient) (string, error) {
+func getConnectionInfo(format string, c client.RookRestClient) (string, error) {
+	if format != FormatPretty && format != FormatEnvVar {
+		return "", fmt.Errorf("invalid output format: %s", format)
+	}
+
 	connInfo, err := c.GetObjectStoreConnectionInfo()
 
 	if err != nil {
@@ -67,17 +89,26 @@ func getConnectionInfo(c client.RookRestClient) (string, error) {
 	}
 
 	var buffer bytes.Buffer
-	w := rook.NewTableWriter(&buffer)
 
-	// write header columns
-	fmt.Fprintln(w, "NAME\tVALUE")
+	if format == FormatPretty {
+		w := rook.NewTableWriter(&buffer)
 
-	// write object store connection info
-	fmt.Fprintf(w, "%s\t%s\t\n", "S3_HOST", connInfo.Host)
-	fmt.Fprintf(w, "%s\t%s\t\n", "S3_ENDPOINT", connInfo.IPEndpoint)
-	fmt.Fprintf(w, "%s\t%s\t\n", "S3_ACCESS_KEY", connInfo.AccessKey)
-	fmt.Fprintf(w, "%s\t%s\t\n", "S3_SECRET_KEY", connInfo.SecretKey)
+		// write header columns
+		fmt.Fprintln(w, "NAME\tVALUE")
 
-	w.Flush()
+		// write object store connection info
+		fmt.Fprintf(w, PrettyOutputFmt, AWSHost, connInfo.Host)
+		fmt.Fprintf(w, PrettyOutputFmt, AWSEndpoint, connInfo.IPEndpoint)
+		fmt.Fprintf(w, PrettyOutputFmt, AWSAccessKey, connInfo.AccessKey)
+		fmt.Fprintf(w, PrettyOutputFmt, AWSSecretKey, connInfo.SecretKey)
+
+		w.Flush()
+	} else if format == FormatEnvVar {
+		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSHost, connInfo.Host))
+		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSEndpoint, connInfo.IPEndpoint))
+		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSAccessKey, connInfo.AccessKey))
+		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSSecretKey, connInfo.SecretKey))
+	}
+
 	return buffer.String(), nil
 }

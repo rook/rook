@@ -127,37 +127,32 @@ On a modern Linux host run the following:
 2. Get the connection information for accessing object storage
 
    ```bash
-   ./rook object connection
-   NAME            VALUE
-   S3_HOST         rook-rgw:53390                             
-   S3_ENDPOINT     127.0.0.1:53390                            
-   S3_ACCESS_KEY   4W5GJBA9K4CL7OZU9FRZ                       
-   S3_SECRET_KEY   SRRRrYNxcoMtxuPcKzVlNciYscvB3YjpnIJMfO5q
+   eval $(./rook object connection --format env-var)
    ```
 
 3. Use an S3 compatible client to create a bucket in the object store
 
    ```bash
-   s3cmd mb --access_key=4W5GJBA9K4CL7OZU9FRZ --secret_key=SRRRrYNxcoMtxuPcKzVlNciYscvB3YjpnIJMfO5q --no-ssl --host=127.0.0.1:53390 --host-bucket=  s3://rookbucket
+   s3cmd mb --no-ssl --host=127.0.0.1:53390 --host-bucket=  s3://rookbucket
    ```
 
 4. List all buckets in the object store
 
    ```bash
-   s3cmd ls --access_key=4W5GJBA9K4CL7OZU9FRZ --secret_key=SRRRrYNxcoMtxuPcKzVlNciYscvB3YjpnIJMfO5q --no-ssl --host=127.0.0.1:53390 --host-bucket=  s3://
+   s3cmd ls --no-ssl --host=127.0.0.1:53390 --host-bucket=
    ```
 
 5. Upload a file to the newly created bucket
 
    ```bash
    echo "Hello Rook!" > /tmp/rookObj
-   s3cmd put /tmp/rookObj --access_key=4W5GJBA9K4CL7OZU9FRZ --secret_key=SRRRrYNxcoMtxuPcKzVlNciYscvB3YjpnIJMfO5q --no-ssl --host=127.0.0.1:53390 --host-bucket=  s3://rookbucket
+   s3cmd put /tmp/rookObj --no-ssl --host=127.0.0.1:53390 --host-bucket=  s3://rookbucket
    ```
 
 6. Download and verify the file from the bucket
 
    ```bash
-   s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --access_key=4W5GJBA9K4CL7OZU9FRZ --secret_key=SRRRrYNxcoMtxuPcKzVlNciYscvB3YjpnIJMfO5q --no-ssl --host=127.0.0.1:53390 --host-bucket=
+   s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=127.0.0.1:53390 --host-bucket=
    cat /tmp/rookObj-download
    ```
 
