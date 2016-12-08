@@ -121,6 +121,7 @@ if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
     -v /var/run/docker.sock:/var/run/docker.sock"
 fi
 
+DOCKER_SERVER_API=$(docker version | grep 'API version' | tail -1 | awk '{print $3}')
 docker run \
     --rm \
     -e GOPATH="${BUILDER_HOME}/go" \
@@ -128,6 +129,7 @@ docker run \
     -e GO_PKG_DIR="" \
     -e GITHUB_TOKEN \
     -e VERSION \
+    -e DOCKER_API_VERSION=${DOCKER_SERVER_API} \
     ${TTY_ARGS} \
     ${CCACHE_ARGS} \
     ${NETRC_ARGS} \
