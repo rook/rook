@@ -15,6 +15,7 @@
 # limitations under the License.
 
 sudo rm -fr /var/lib/rook
+sudo mkdir /var/lib/rook;sudo chown -R $USER:$USER /var/lib/rook
 sudo rm -fr /var/log/rook
 
 # clean the etcd config
@@ -30,6 +31,6 @@ ps aux | grep rookd | grep -E -v 'grep|clean-rookd' | awk '{print $2}' | xargs k
 
 # clear the data partitions
 for DEV in sdb sdc sdd; do
-    sudo sgdisk --zap-all /dev/$DEV
+    sudo sgdisk --zap-all /dev/$DEV >/dev/null 2>&1
 done
 

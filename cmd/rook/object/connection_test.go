@@ -39,13 +39,22 @@ func TestGetConnectionInfo(t *testing.T) {
 		},
 	}
 
-	expectedOut := "NAME            VALUE\n" +
-		"S3_HOST         rook-rgw:12345                             \n" +
-		"S3_ENDPOINT     1.2.3.4:12345                              \n" +
-		"S3_ACCESS_KEY   UST0JAP8CE61FDE0Q4BE                       \n" +
-		"S3_SECRET_KEY   tVCuH20xTokjEpVJc7mKjL8PLTfGh4NZ3le3zg9X   \n"
+	// verify pretty format output
+	expectedOut := "NAME                    VALUE\n" +
+		"AWS_HOST                rook-rgw:12345                             \n" +
+		"AWS_ENDPOINT            1.2.3.4:12345                              \n" +
+		"AWS_ACCESS_KEY_ID       UST0JAP8CE61FDE0Q4BE                       \n" +
+		"AWS_SECRET_ACCESS_KEY   tVCuH20xTokjEpVJc7mKjL8PLTfGh4NZ3le3zg9X   \n"
+	out, err := getConnectionInfo(FormatPretty, c)
+	assert.Nil(t, err)
+	assert.Equal(t, expectedOut, out)
 
-	out, err := getConnectionInfo(c)
+	// verify pretty format output
+	expectedOut = "export AWS_HOST=rook-rgw:12345\n" +
+		"export AWS_ENDPOINT=1.2.3.4:12345\n" +
+		"export AWS_ACCESS_KEY_ID=UST0JAP8CE61FDE0Q4BE\n" +
+		"export AWS_SECRET_ACCESS_KEY=tVCuH20xTokjEpVJc7mKjL8PLTfGh4NZ3le3zg9X\n"
+	out, err = getConnectionInfo(FormatEnvVar, c)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedOut, out)
 }
@@ -59,7 +68,7 @@ func TestGetConnectionInfoNotFound(t *testing.T) {
 		},
 	}
 
-	out, err := getConnectionInfo(c)
+	out, err := getConnectionInfo(FormatPretty, c)
 	assert.Nil(t, err)
 	assert.Equal(t, "object store connection info is not ready, if \"object create\" has already been run, please be patient\n", out)
 }
@@ -71,7 +80,7 @@ func TestGetConnectionInfoError(t *testing.T) {
 		},
 	}
 
-	out, err := getConnectionInfo(c)
+	out, err := getConnectionInfo(FormatPretty, c)
 	assert.NotNil(t, err)
 	assert.Equal(t, "", out)
 }
