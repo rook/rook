@@ -220,19 +220,3 @@ func verifyNetworkConfig(t *testing.T, nodeConfig *NodeConfig, expectedNetsConfi
 		assert.Equal(t, expectedNet, matchingActual)
 	}
 }
-
-func TestGetSimpleDiskPropertiesFromSerial(t *testing.T) {
-	nodeID := "df1c87e8266843f2ab822c0d72f584d3"
-	etcdClient := &util.MockEtcdClient{}
-	hardwareKey := path.Join(NodesConfigKey, nodeID)
-	etcdClient.Set(ctx.Background(), hardwareKey, "", &etcd.SetOptions{Dir: true})
-	TestSetDiskInfo(etcdClient, hardwareKey, "sda", "abcd4869-29ee-4bfd-bf21-dfd597bd222e",
-		10737418240, true, false, "btrfs", "/mnt/abc", Disk, "", true)
-
-	diskNode, _ := etcdClient.Get(ctx.Background(), path.Join(hardwareKey, "disks", "sda"), nil)
-	disk, err := getDiskInfo(diskNode.Node)
-	assert.Nil(t, err)
-
-	assert.Equal(t, "sda", disk.Name)
-	assert.Equal(t, "abcd4869-29ee-4bfd-bf21-dfd597bd222e", disk.UUID)
-}

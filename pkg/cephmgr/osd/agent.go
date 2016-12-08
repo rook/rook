@@ -36,6 +36,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/proc"
 )
@@ -44,6 +45,7 @@ const (
 	osdAgentName    = "osd"
 	deviceKey       = "device"
 	dirKey          = "dir"
+	allDevices      = "all"
 	unassignedOSDID = -1
 )
 
@@ -70,10 +72,22 @@ func (a *osdAgent) Name() string {
 // set the desired state in etcd
 func (a *osdAgent) Initialize(context *clusterd.Context) error {
 
+	deviceCount := 0
 	if len(a.devices) > 0 {
-		// add the devices to desired state
-		devices := strings.Split(a.devices, ",")
+		var devices []string
+		if strings.EqualFold(a.devices, allDevices) {
+			var err error
+			devices, err = inventory.GetAvailableDevices(context.NodeID, context.EtcdClient)
+			if err != nil {
+				logger.Warningf("failed to get available devices. %+v", err)
+			}
+		} else {
+			// add the devices to desired state
+			devices = strings.Split(a.devices, ",")
+		}
+
 		for _, device := range devices {
+			deviceCount++
 			logger.Infof("Adding device %s to desired state", device)
 			err := AddDesiredDevice(context.EtcdClient, device, context.NodeID)
 			if err != nil {
@@ -83,8 +97,8 @@ func (a *osdAgent) Initialize(context *clusterd.Context) error {
 	}
 
 	// if no devices or directories were specified, use the current directory for an osd
-	if len(a.devices) == 0 {
-		logger.Infof("Adding local path to local directory %s", context.ConfigDir)
+	if deviceCount == 0 {
+		logger.Infof("Adding local path %s to desired state", context.ConfigDir)
 		err := AddDesiredDir(context.EtcdClient, context.ConfigDir, context.NodeID)
 		if err != nil {
 			return fmt.Errorf("failed to add current dir %s. %v", context.ConfigDir, err)

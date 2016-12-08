@@ -46,7 +46,7 @@ spec:
             fieldRef:
               fieldPath: status.podIP
         - name: ROOKD_DATA_DEVICES
-          value: sdb,sdc
+          value: all
         volumeMounts:
         - mountPath: /var/lib/rook
           name: rook-data-dir
