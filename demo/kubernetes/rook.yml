@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: rookd
-        image: quay.io/rook/rookd:v0.1.1
+        image: quay.io/rook/rookd:v0.2.0
         imagePullPolicy: IfNotPresent
         securityContext:
           privileged: true
