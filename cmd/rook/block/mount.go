@@ -18,7 +18,6 @@ package block
 import (
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -76,7 +75,7 @@ func mountBlockEntry(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := client.NewRookNetworkRestClient(client.GetRestURL(rook.APIServerEndpoint), http.DefaultClient)
+	c := rook.NewRookNetworkRestClient()
 	e := &exec.CommandExecutor{}
 	out, err := mountBlock(mountImageName, mountImagePoolName, mountImagePath, rbdSysBusPathDefault, c, e)
 	if err != nil {

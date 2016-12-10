@@ -17,7 +17,6 @@ package filesystem
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 
@@ -56,7 +55,7 @@ func mountFilesystemEntry(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := client.NewRookNetworkRestClient(client.GetRestURL(rook.APIServerEndpoint), http.DefaultClient)
+	c := rook.NewRookNetworkRestClient()
 	e := &exec.CommandExecutor{}
 	out, err := mountFilesystem(mountFilesystemName, mountFilesystemPath, c, e)
 	if err != nil {

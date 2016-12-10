@@ -17,7 +17,6 @@ package object
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/rook/rook/cmd/rook/rook"
@@ -42,7 +41,7 @@ func createObjectStoreEntry(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := client.NewRookNetworkRestClient(client.GetRestURL(rook.APIServerEndpoint), http.DefaultClient)
+	c := rook.NewRookNetworkRestClient()
 	out, err := createObjectStore(c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

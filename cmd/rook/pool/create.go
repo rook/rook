@@ -17,7 +17,6 @@ package pool
 
 import (
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/rook/rook/cmd/rook/rook"
@@ -72,7 +71,7 @@ func createPoolsEntry(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := client.NewRookNetworkRestClient(client.GetRestURL(rook.APIServerEndpoint), http.DefaultClient)
+	c := rook.NewRookNetworkRestClient()
 	out, err := createPool(newPoolName, newPoolType, newPoolReplicaCount, newPoolDataChunks, newPoolCodingChunks, c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

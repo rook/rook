@@ -18,7 +18,6 @@ package node
 import (
 	"bytes"
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/rook/rook/cmd/rook/rook"
@@ -42,7 +41,7 @@ func listNodesEntry(cmd *cobra.Command, args []string) error {
 
 	// verify required flags. currently there are none
 
-	c := client.NewRookNetworkRestClient(client.GetRestURL(rook.APIServerEndpoint), http.DefaultClient)
+	c := rook.NewRookNetworkRestClient()
 	out, err := listNodes(c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
