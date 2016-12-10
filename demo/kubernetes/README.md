@@ -31,7 +31,7 @@ Replace `172.17.4.101` with `172.17.4.99` in these instructions and in `rook.yml
 ## Starting rook
 
     cd <rook>/demo/kubernetes
-    export TOKEN=$(curl -w "\n" 'https://discovery.etcd.io/new?size=1')
+    export TOKEN=$(curl -s -w "\n" 'https://discovery.etcd.io/new?size=1')
     kubectl create configmap rookd --from-literal=discovery-token=$TOKEN
     kubectl create -f rook.yml
 
@@ -43,12 +43,12 @@ This generates a discovery token so the nodes can find each other and then start
 
 First let's setup access to the rook cluster via the command line client.  You can download a pre-built from [github releases](https://github.com/rook/rook/releases) or [build from source](https://github.com/rook/rook/blob/master/build/README.md). (If you are not using coreos-kubernetes vagrant substitute the ip from above that you put in the `rook.yml` for `ROOK_API_SERVER_ENDPOINT`)
 
-    export ROOK_API_SERVER_ENDPOINT=172.17.4.101:8124
+    export ROOK_API_SERVER_ENDPOINT=172.17.4.201:8124
     rook status
     
 It may take a moment for the rook cluster to come up and `rook status` to complete successfully.  Once it is successful we will want to fetch the rook secret that is used to mount rook block devices and store it in a Kubernetes secret. This only needs to be done once for a given cluster.
 
-    SECRET=$(curl $ROOK_API_SERVER_ENDPOINT/client | jq -r '.secretKey')
+    SECRET=$(curl -s $ROOK_API_SERVER_ENDPOINT/client | jq -r '.secretKey')
     kubectl create secret generic rookd --from-literal=key=$SECRET --type kubernetes.io/rbd
 
 To use a block device in the kubernetes cluster you will first need to create a block image for that device.
@@ -57,7 +57,7 @@ To use a block device in the kubernetes cluster you will first need to create a 
 
 Then we must fetch the mon endpoints and substitute them in to the `mysql.yml` for the example mysql service and pipe it into `kubectl` to create the pod:
   
-    export MONS=$(curl $ROOK_API_SERVER_ENDPOINT/client | jq -c '.monAddresses')
+    export MONS=$(curl -s $ROOK_API_SERVER_ENDPOINT/client | jq -c '.monAddresses')
     sed 's#INSERT_HERE#'$MONS'#' mysql.yml | kubectl create -f -
 
 Verify that the mysql pod has the rbd volume mounted.
@@ -67,8 +67,8 @@ Verify that the mysql pod has the rbd volume mounted.
 ## Teardown demo
 
     kubectl delete pod mysql
-    kubectl delete configmap rookd
     kubectl delete secret rookd
+    kubectl delete configmap rookd
     kubectl delete -f rook.yml
 
 ## Todo
