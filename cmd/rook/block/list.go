@@ -18,7 +18,6 @@ package block
 import (
 	"bytes"
 	"fmt"
-	"net/http"
 	"os"
 	"runtime"
 	"strings"
@@ -48,7 +47,7 @@ func listBlocksEntry(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := client.NewRookNetworkRestClient(client.GetRestURL(rook.APIServerEndpoint), http.DefaultClient)
+	c := rook.NewRookNetworkRestClient()
 	e := &exec.CommandExecutor{}
 	out, err := listBlocks(rbdSysBusPathDefault, c, e)
 	if err != nil {

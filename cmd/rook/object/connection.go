@@ -18,7 +18,6 @@ package object
 import (
 	"bytes"
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/rook/rook/cmd/rook/rook"
@@ -62,7 +61,7 @@ func getConnectionInfoEntry(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := client.NewRookNetworkRestClient(client.GetRestURL(rook.APIServerEndpoint), http.DefaultClient)
+	c := rook.NewRookNetworkRestClient()
 	out, err := getConnectionInfo(connOutputFormat, c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

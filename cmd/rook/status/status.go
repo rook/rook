@@ -18,7 +18,6 @@ package status
 import (
 	"bytes"
 	"fmt"
-	"net/http"
 	"os"
 
 	"github.com/rook/rook/cmd/rook/rook"
@@ -40,7 +39,7 @@ func init() {
 func getStatusEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
-	c := client.NewRookNetworkRestClient(client.GetRestURL(rook.APIServerEndpoint), http.DefaultClient)
+	c := rook.NewRookNetworkRestClient()
 	out, err := getStatus(c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

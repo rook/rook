@@ -18,7 +18,6 @@ package filesystem
 import (
 	"bytes"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 
@@ -44,7 +43,7 @@ func listFilesystemEntry(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := client.NewRookNetworkRestClient(client.GetRestURL(rook.APIServerEndpoint), http.DefaultClient)
+	c := rook.NewRookNetworkRestClient()
 	out, err := listFilesystems(c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

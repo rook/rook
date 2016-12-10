@@ -18,10 +18,13 @@ package rook
 import (
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"text/tabwriter"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -36,6 +39,7 @@ const (
 	outputMinWidth = 10
 	outputTabWidth = 0
 	outputPadChar  = ' '
+	timeoutSecs    = 10
 )
 
 var RootCmd = &cobra.Command{
@@ -63,6 +67,16 @@ func SetupLogging() {
 		os.Exit(1)
 	}
 	capnslog.SetGlobalLogLevel(logLevel)
+}
+
+func NewRookNetworkRestClient() client.RookRestClient {
+	return NewRookNetworkRestClientWithTimeout(time.Duration(timeoutSecs * time.Second))
+}
+
+func NewRookNetworkRestClientWithTimeout(timeout time.Duration) client.RookRestClient {
+	httpClient := http.DefaultClient
+	httpClient.Timeout = timeout
+	return client.NewRookNetworkRestClient(client.GetRestURL(APIServerEndpoint), httpClient)
 }
 
 func NewTableWriter(buffer io.Writer) *tabwriter.Writer {
