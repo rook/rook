@@ -55,7 +55,7 @@ func (e *EmbeddedEtcdFactory) NewEmbeddedEtcd(token string, conf *Config, newClu
 
 	instance.Server, err = etcdserver.NewServer(serverConfig)
 	if err != nil {
-		return nil, fmt.Errorf("error in creating etcd server. %+v", err)
+		return nil, err
 	}
 
 	instance.Server.Start()

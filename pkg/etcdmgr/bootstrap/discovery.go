@@ -18,10 +18,10 @@ package bootstrap
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/store"
@@ -29,38 +29,68 @@ import (
 	"golang.org/x/net/context/ctxhttp"
 )
 
-func isQuorumFull(token string) (bool, error, []string) {
+const (
+	discoveryRetryAttempts = 10
+)
+
+func isQuorumFull(token string) (bool, []string, error) {
+	size, err := getClusterSize(token)
+	if err != nil {
+		return false, nil, err
+	}
+	logger.Infof("cluster size is: %d", size)
+
+	currentNodes, err := GetCurrentNodesFromDiscovery(token, size)
+	if err != nil {
+		return false, nil, fmt.Errorf("failed to get etcd members from discovery. %+v", err)
+	}
+	logger.Infof("currentNodes: %+v", currentNodes)
+	if len(currentNodes) < size {
+		return false, []string{}, nil
+	}
+	return true, currentNodes, nil
+
+}
+
+func getClusterSize(token string) (int, error) {
 	res, err := queryDiscoveryService(token + "/_config/size")
 	if err != nil {
-		return false, fmt.Errorf("cannot get discovery url cluster size: %v", err), []string{}
+		return -1, fmt.Errorf("cannot get discovery url cluster size: %v", err)
 	}
 
-	size, _ := strconv.ParseInt(*res.Node.Value, 10, 16)
-	clusterSize := int(size)
-	logger.Infof("cluster max size is: %d", clusterSize)
-
-	currentNodes, _ := GetCurrentNodesFromDiscovery(token)
-	logger.Infof("currentNodes: %+v", currentNodes)
-	if len(currentNodes) < clusterSize {
-		return false, nil, []string{}
+	size, err := strconv.ParseInt(*res.Node.Value, 10, 16)
+	if err != nil {
+		return -1, fmt.Errorf("failed to read cluster size. %+v", err)
 	}
-	return true, nil, currentNodes
-
+	return int(size), nil
 }
 
 // queryDiscoveryService reads a key from a discovery url.
 func queryDiscoveryService(token string) (*store.Event, error) {
-	ctx, _ := context.WithTimeout(context.Background(), DefaultClientTimeout)
-	resp, err := ctxhttp.Get(ctx, http.DefaultClient, token)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return nil, fmt.Errorf("status code %d from %q: %s", resp.StatusCode, token, body)
+	var resp *http.Response
+	var err error
+
+	// retry the http request in case of network errors
+	for i := 1; i <= discoveryRetryAttempts; i++ {
+		ctx, _ := context.WithTimeout(context.Background(), DefaultClientTimeout)
+		resp, err = ctxhttp.Get(ctx, http.DefaultClient, token)
+		if err == nil {
+			if resp.StatusCode == http.StatusOK {
+				break
+			}
+			resp.Body.Close()
+		}
+
+		logger.Warningf("failed to query discovery service on attempt %d/%d. code=%d, err=%+v", i, discoveryRetryAttempts, resp.StatusCode, err)
+
+		if i < discoveryRetryAttempts {
+			// delay an extra half second for each retry
+			delay := time.Duration(i) * 500 * time.Millisecond
+			<-time.After(delay)
+		}
 	}
 
+	defer resp.Body.Close()
 	var res store.Event
 	err = json.NewDecoder(resp.Body).Decode(&res)
 	if err != nil {
@@ -70,30 +100,77 @@ func queryDiscoveryService(token string) (*store.Event, error) {
 	return &res, nil
 }
 
-func GetCurrentNodesFromDiscovery(token string) ([]string, error) {
+// Get the nodes that have registered with the discovery service.
+// We only want to return the number of nodes that are expected for the etcd cluster size.
+// Etcd will not allow more etcd servers to start unless the AddMember api is called.
+// Here we will ignore any nodes that have registered beyond the expected size.
+// It is important to return the nodes with the lowest index for consistent behavior in the cluster.
+func GetCurrentNodesFromDiscovery(token string, size int) ([]string, error) {
 	res, err := queryDiscoveryService(token)
 	if err != nil {
 		return nil, err
 	}
 
-	nodes := make([]string, 0, len(res.Node.Nodes))
+	var upperIndex uint64
+	var ignored []string
+	nodeMap := map[uint64][]string{}
 	for _, nn := range res.Node.Nodes {
 		if nn.Value == nil {
 			logger.Debugf("Skipping %q because no value exists", nn.Key)
 		}
 
-		n, err := newDiscoveryNode(*nn.Value, DefaultClientPort)
+		endpoints, err := newDiscoveryNode(*nn.Value, DefaultClientPort)
 		if err != nil {
 			logger.Warningf("invalid peer url %q in discovery service: %v", *nn.Value, err)
 			continue
 		}
 
-		for _, node := range n {
+		upperIndex, ignored = addNodeToMap(nodeMap, endpoints, size, nn.CreatedIndex, upperIndex, ignored)
+	}
+
+	if len(ignored) > 0 {
+		logger.Infof("Ignored extra etcd members: %+v", ignored)
+	}
+
+	// create a flat slice from all the nodes' endpoints
+	var nodes []string
+	for _, endpoints := range nodeMap {
+		for _, node := range endpoints {
 			nodes = append(nodes, node)
 		}
 	}
 
 	return nodes, nil
+}
+
+func addNodeToMap(nodeMap map[uint64][]string, endpoints []string, size int, index, upperIndex uint64, ignored []string) (uint64, []string) {
+	if len(nodeMap) < size {
+		// add the node to the expected list since we haven't reached the expected size yet
+		nodeMap[index] = endpoints
+		if upperIndex < index {
+			upperIndex = index
+		}
+	} else {
+		// if the created index is lower than this index, replace the higher index with the lower
+		if upperIndex > index {
+			ignored = append(ignored, nodeMap[upperIndex]...)
+			delete(nodeMap, upperIndex)
+			nodeMap[index] = endpoints
+
+			// find the highest index
+			upperIndex = 0
+			for i := range nodeMap {
+				if upperIndex < i {
+					upperIndex = i
+				}
+			}
+		} else {
+			// ignore nodes that registered after the quorum was full and the index is over the max
+			ignored = append(ignored, endpoints...)
+		}
+	}
+
+	return upperIndex, ignored
 }
 
 type Machine struct {

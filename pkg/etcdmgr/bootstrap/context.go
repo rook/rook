@@ -74,7 +74,13 @@ func (e *Context) KeysAPI() (client.KeysAPI, error) {
 func (e *Context) Members() ([]string, types.URLsMap, error) {
 	urlsMap := types.URLsMap{}
 	var nodes []string
-	initialNodes, err := GetCurrentNodesFromDiscovery(e.ClusterToken)
+
+	size, err := getClusterSize(e.ClusterToken)
+	if err != nil {
+		return nodes, urlsMap, err
+	}
+
+	initialNodes, err := GetCurrentNodesFromDiscovery(e.ClusterToken, size)
 	if err != nil {
 		logger.Errorf("error in GetCurrentNodesFromDiscovery: %+v", err)
 		return nodes, urlsMap, err
