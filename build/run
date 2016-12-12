@@ -24,6 +24,16 @@ if [ ! -z $DOCKER_HOST ]; then
     return 1
 fi
 
+DOCKER_CLIENT_API=1.24   # keep in sync with container's version of docker
+set +e
+DOCKER_SERVER_API=$(docker version --format '{{.Client.APIVersion}}' 2>/dev/null)
+if [ $? -ne 0 ]; then
+    echo -e "\nFATAL: Failed to query the docker version running on the host - aborting.\n"
+    echo "Please make sure that docker is running and your user has permissions to run docker commands by issuing the command 'docker version' on the command line."
+    exit 1
+fi
+set -e
+
 # if the container does not exist the pull or build it
 if [[ ! $(docker images -q ${container_image}) ]]; then
     echo ==== Pulling ${container_image}
@@ -120,6 +130,11 @@ if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
     -v ${HOME}/.docker/config.json:${BUILDER_HOME}/.docker/config.json \
     -v /var/run/docker.sock:/var/run/docker.sock"
 fi
+DOCKER_API=''
+
+if (( $(bc <<< "$DOCKER_SERVER_API < $DOCKER_CLIENT_API") )); then
+    DOCKER_API="-e DOCKER_API_VERSION=${DOCKER_SERVER_API}"
+fi
 
 docker run \
     --rm \
@@ -127,7 +142,7 @@ docker run \
     -e WORKDIR="${BUILDER_HOME}/go/.work" \
     -e GO_PKG_DIR="" \
     -e GITHUB_TOKEN \
-    -e VERSION \
+    -e VERSION $DOCKER_API \
     ${TTY_ARGS} \
     ${CCACHE_ARGS} \
     ${NETRC_ARGS} \
