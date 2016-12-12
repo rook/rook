@@ -15,19 +15,15 @@ limitations under the License.
 */
 package bootstrap
 
-import (
-	"errors"
-	"fmt"
-)
+import "fmt"
 
 // GetEtcdClients bootstraps an embedded etcd instance and returns a list of
 // current etcd cluster's client URLs. (entrypoint, when it's used as a library)
 func GetEtcdClients(configDir, token, ipAddr, nodeID string) ([]string, error) {
 
-	full, err, currentNodes := isQuorumFull(token)
-	//currentNodes, err := GetCurrentNodesFromDiscovery(token)
+	full, currentNodes, err := isQuorumFull(token)
 	if err != nil {
-		return []string{}, errors.New("error querying discovery service")
+		return nil, fmt.Errorf("error querying discovery service. %+v", err)
 	}
 	logger.Infof("current etcd cluster nodes: %+v", currentNodes)
 
@@ -58,7 +54,7 @@ func GetEtcdClients(configDir, token, ipAddr, nodeID string) ([]string, error) {
 	factory := EmbeddedEtcdFactory{}
 	ee, err := factory.NewEmbeddedEtcd(token, conf, true)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to start embedded etcd. %+v", err)
 	}
 
 	return ee.Server.Cluster().ClientURLs(), nil
