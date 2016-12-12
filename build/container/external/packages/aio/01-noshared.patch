@@ -1,0 +1,21 @@
+--- src/Makefile	2016-11-30 10:44:03.932450351 -0800
++++ src/Makefile	2016-11-30 10:44:24.620310628 -0800
+@@ -13,7 +13,7 @@
+ minor=0
+ micro=1
+ libname=$(soname).$(minor).$(micro)
+-all_targets += libaio.a $(libname)
++all_targets += libaio.a
+
+ all: $(all_targets)
+
+@@ -55,9 +55,6 @@
+ install: $(all_targets)
+ 	install -D -m 644 libaio.h $(includedir)/libaio.h
+ 	install -D -m 644 libaio.a $(libdir)/libaio.a
+-	install -D -m 755 $(libname) $(libdir)/$(libname)
+-	ln -sf $(libname) $(libdir)/$(soname)
+-	ln -sf $(libname) $(libdir)/libaio.so
+
+ $(libaio_objs): libaio.h
+
