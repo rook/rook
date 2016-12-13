@@ -14,20 +14,91 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-commits=$(git log --pretty=oneline --raw --no-abbrev --submodule=log ceph | grep '^:' | cut -d' ' -f4)
+errors=0
+remote=
+
+# find the remote for upstream rook
+function get_remote() {
+    gitdir=$1
+    repo=$2
+    local remote
+
+    for r in $(cd ${gitdir} && git remote); do
+        url=$(cd ${gitdir} && git config --get remote.${r}.url)
+        if [[ "${url}" =~ .*github.com[/:]rook/${repo}.* ]]; then
+            remote=${r}
+            break
+        fi
+    done
+
+    echo $remote
+}
+
+rook_remote=$(get_remote . rook)
+if [[ ${rook_remote} == "" ]]; then
+    echo ERROR: could not find a git remote pointing to https://github.com/rook/rook
+    exit 2
+fi
+
+echo using remote ${rook_remote} branch master
+
+ceph_remote=$(get_remote `pwd`/ceph ceph)
+if [[ ${ceph_remote} == "" ]]; then
+    echo ERROR: could not find a git remote pointing to https://github.com/rook/ceph
+    exit 2
+fi
+
+echo using ceph remote ${ceph_remote} branch master
+
+# get all the commits in rook/rook that have modified the ceph submodule
+commits=$(git log --pretty=format:%H --no-abbrev ${rook_remote}/master --submodule=log -- ceph)
 for c in ${commits}; do
-    # ignore the first commit we used to branch the submodule
-    if [[ "$c" == "c4da56d0cbfcd75e37be29dd4853b23487a3526f" ]]; then
+
+    # find the branches this commit is in
+    branch=$(git branch --contains $c | tr -d "* ")
+
+    # now find the commit hash of the submodule
+    ceph_commit=$(git show --no-abbrev --oneline --raw ${c} --submodule -- ceph | grep '^:' | cut -d' ' -f4)
+
+    # ignore the some commits that were lost in the past when the project was first getting started.
+    if [[ "$ceph_commit" == "c4da56d0cbfcd75e37be29dd4853b23487a3526f" ]] ||
+       [[ "$ceph_commit" == "d43b87b16610f5278da38953f4bffa03fb788b17" ]] ||
+       [[ "$ceph_commit" == "d536828eaafa3866e0aaaee703ae0f54dc66ea91" ]] ||
+       [[ "$ceph_commit" == "b7ce5af680249349a76d79ccf54ff568a736757c" ]] ||
+       [[ "$ceph_commit" == "ccf17262cbaf4cb2795d4b6e72df6c175b504687" ]] ||
+       [[ "$ceph_commit" == "239cbebf96dba6c1532702b7a460937ed4ae6785" ]] ||
+       [[ "$ceph_commit" == "ad1f5e0c3d9679d1f46250497927112ccb72c9be" ]] ||
+       [[ "$ceph_commit" == "f1f1910c488036500abc19a36d22cfd7937741aa" ]] ||
+       [[ "$ceph_commit" == "56131a5545544369f2cfe5d3c43333082859d69b" ]] ||
+       [[ "$ceph_commit" == "0cbdba99b4ed85cfdf6d4eb8d6bd65013ed26c23" ]] ||
+       [[ "$ceph_commit" == "12209224c24f589fe0e4918052dbface874faff1" ]] ||
+       [[ "$ceph_commit" == "d2088b133b2a29a6c1efb22072016ee3268ca3df" ]] ||
+       [[ "$ceph_commit" == "47b199109bbff1db37ddff9461652e30d79df330" ]] ||
+       [[ "$ceph_commit" == "763750b0f06f6e27b976853bfe314aa555757e61" ]] ||
+       [[ "$ceph_commit" == "8953972151cae60be4999ba4896f78fc358b1150" ]] ||
+       [[ "$ceph_commit" == "dc578817ca6d169e2225f1ec9428942668f46a8c" ]] ||
+       [[ "$ceph_commit" == "137d2718d89128f23387ca15aefdb22bdc175a64" ]] ||
+       [[ "$ceph_commit" == "949e02e7af4ab140e207a25baabeb90e6c06553c" ]]; then
         continue
     fi
-    if $(cd ceph; git show $c > /dev/null 2>&1); then
-        b=$(cd ceph; git branch --contains $c | tr -d "* ")
-        if [[ $b != "" ]]; then
-            echo ceph submodule reference $c is in branches $b
-        else
-            echo ceph submodule reference $c exists but not part of a branch
+
+    # check if the commit hash is valid
+    if $(cd ceph; git show "$ceph_commit" > /dev/null 2>&1); then
+        ceph_branch=$(cd ceph; git branch -r --no-color --contains "$ceph_commit" "${ceph_remote}/rook*" | tr -d "* ")
+        if [[ "$ceph_branch" == "" ]]; then
+            echo submodule reference in rook/rook commmit $c \(appears in branches $branch\) has a reference to rook/ceph $ceph_commit but is not part of a branch
+            ((++errors))
         fi
     else
-        echo ceph submodule reference $c is MISSING
+        echo submodule reference in rook/rook commmit $c \(appears in branches $branch\) is missing from rook/ceph
+        ((++errors))
     fi
 done
+
+if [[ ${errors} != 0 ]]; then
+    echo FAILED
+    exit 1
+fi
+
+echo SUCCESS
+exit 0
