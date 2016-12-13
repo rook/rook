@@ -1,10 +1,10 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: rest
+  name: rookd-api
   labels:
     app: rook
-    role: rest
+    role: rookd-api
 spec:
   type: NodePort
   externalIPs: [ "172.17.4.201" ]
