@@ -63,6 +63,11 @@ func (p *MonitoredProc) Monitor(logName string) {
 		logger.Infof("starting process %v again after %.1f seconds", p.cmd.Args, delaySeconds)
 		<-time.After(time.Second * time.Duration(delaySeconds))
 
+		if !p.monitor {
+			logger.Infof("done monitoring process %v", p.cmd.Args)
+			break
+		}
+
 		// start the process
 		p.cmd, err = p.parent.executor.StartExecuteCommand(logName, p.cmd.Args[0], p.cmd.Args[1:]...)
 		if err != nil {
@@ -91,8 +96,8 @@ func (p *MonitoredProc) waitForProcessExit() {
 		return
 	}
 
-	logger.Infof("process %d completed.  Exited: %t, ExitStatus: %d, Signaled: %t, Signal: %d",
-		p.cmd.Process.Pid, waitStatus.Exited(), waitStatus.ExitStatus(), waitStatus.Signaled(), waitStatus.Signal())
+	logger.Infof("process %d completed.  Exited: %t, ExitStatus: %d, Signaled: %t, Signal: %d, %+v",
+		p.cmd.Process.Pid, waitStatus.Exited(), waitStatus.ExitStatus(), waitStatus.Signaled(), waitStatus.Signal(), p.cmd)
 }
 
 func (p *MonitoredProc) Stop() error {
