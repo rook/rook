@@ -45,7 +45,7 @@ const (
 	osdAgentName    = "osd"
 	deviceKey       = "device"
 	dirKey          = "dir"
-	allDevices      = "all"
+	AllDevices      = "all"
 	unassignedOSDID = -1
 )
 
@@ -75,7 +75,7 @@ func (a *osdAgent) Initialize(context *clusterd.Context) error {
 	deviceCount := 0
 	if len(a.devices) > 0 {
 		var devices []string
-		if strings.EqualFold(a.devices, allDevices) {
+		if strings.EqualFold(a.devices, AllDevices) {
 			var err error
 			devices, err = inventory.GetAvailableDevices(context.NodeID, context.EtcdClient)
 			if err != nil {

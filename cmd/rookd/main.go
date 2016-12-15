@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr"
 	"github.com/rook/rook/pkg/cephmgr/cephd"
 	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/cephmgr/osd"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/flags"
@@ -59,6 +60,7 @@ type config struct {
 	devices      string
 	dataDir      string
 	adminSecret  string
+	reallyFormat bool
 	forceFormat  bool
 	location     string
 	logLevel     capnslog.LogLevel
@@ -88,6 +90,7 @@ func init() {
 	rootCmd.Flags().StringVar(&cfg.privateIPv4, "private-ipv4", "127.0.0.1", "private IPv4 address for this machine")
 	rootCmd.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
 	rootCmd.Flags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
+	rootCmd.Flags().BoolVar(&cfg.reallyFormat, "really-format-all-devices", false, "required when data-devices=all")
 	rootCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 	rootCmd.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
@@ -129,6 +132,10 @@ func startJoinCluster(cmd *cobra.Command, args []string) error {
 }
 
 func joinCluster() error {
+	if strings.EqualFold(cfg.devices, osd.AllDevices) && !cfg.reallyFormat {
+		return fmt.Errorf("--really-format-all-devices is required when --data-devices=all")
+	}
+
 	// get the absolute path for the data dir
 	var err error
 	if cfg.dataDir, err = filepath.Abs(cfg.dataDir); err != nil {
