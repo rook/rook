@@ -20,6 +20,7 @@ try {
             checkout scm
             sh "git submodule sync --recursive"
             sh "git submodule update --init --recursive"
+            sh "build/ceph-submodule-check"
         }
 
         stage('Build') {
