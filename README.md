@@ -133,26 +133,26 @@ On a modern Linux host run the following:
 3. Use an S3 compatible client to create a bucket in the object store
 
    ```bash
-   s3cmd mb --no-ssl --host=127.0.0.1:53390 --host-bucket=  s3://rookbucket
+   s3cmd mb --no-ssl --host=${AWS_ENDPOINT} --host-bucket=  s3://rookbucket
    ```
 
 4. List all buckets in the object store
 
    ```bash
-   s3cmd ls --no-ssl --host=127.0.0.1:53390 --host-bucket=
+   s3cmd ls --no-ssl --host=${AWS_ENDPOINT} --host-bucket=
    ```
 
 5. Upload a file to the newly created bucket
 
    ```bash
    echo "Hello Rook!" > /tmp/rookObj
-   s3cmd put /tmp/rookObj --no-ssl --host=127.0.0.1:53390 --host-bucket=  s3://rookbucket
+   s3cmd put /tmp/rookObj --no-ssl --host=${AWS_ENDPOINT} --host-bucket=  s3://rookbucket
    ```
 
 6. Download and verify the file from the bucket
 
    ```bash
-   s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=127.0.0.1:53390 --host-bucket=
+   s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_ENDPOINT} --host-bucket=
    cat /tmp/rookObj-download
    ```
 

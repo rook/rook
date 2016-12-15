@@ -4,74 +4,117 @@ A demo of persistent block storage from rook within a [Kubernetes](http://kubern
 
 ## Prerequisites
 
-A running Kubernetes cluster is required. See the <https://github.com/rook/coreos-kubernetes/tree/rook-demo> (rook-demo branch) in the rook fork of the coreos-kubernetes repo.
-The changes to coreos-kubernetes necessary to support the scenario include:
-1. Devices created in the vagrant environment to provide storage in the cluster.
-2. Access to modprobe, necessary for using the rbd volume plugin (<https://github.com/kubernetes/kubernetes/issues/23924>).
+A running Kubernetes cluster is required. First clone <https://github.com/rook/coreos-kubernetes/tree/rook-demo> (rook-demo branch in the rook fork of the coreos-kubernetes repo):
+```
+git clone https://github.com/rook/coreos-kubernetes.git
+cd coreos-kubernetes
+git checkout rook-demo
+```
+
+The changes found in that branch that facilitate this demo scenario include:  
+1. Devices created in the vagrant environment to provide storage in the cluster.  
+2. Access to modprobe, necessary for using the rbd volume plugin (<https://github.com/kubernetes/kubernetes/issues/23924>).  
 
 ### Multi-node deployment
 
 If you are using the rook-demo branch you can get a vagrant kubernetes cluster running like this (from the root of the repo):
+```
+cd multi-node/vagrant
+vagrant up
+export KUBECONFIG="$(pwd)/kubeconfig"
+kubectl config use-context vagrant-multi
+```
 
-    cd multi-node/vagrant
-    vagrant up
-    export KUBECONFIG="$(pwd)/kubeconfig"
-    kubectl config use-context vagrant-multi
-
-Verify that kubernetes is done initializing.
-
-    kubectl get nodes
-
+Then wait for the cluster to come up and verify that kubernetes is done initializing (be patient, it takes a bit):
+```
+kubectl get nodes
+```
 
 ### Single-node deployment
 
-This walkthrough is using the multi-node deployment. To use the single-node deployment, the main change to the instructions is the ip address.
+This walkthrough is using the multi-node deployment. To instead use the single-node deployment, the main change to the instructions is the IP address.
 Replace `172.17.4.101` with `172.17.4.99` in these instructions and in `rook.yml`.
 
 ## Starting rook
-
-    cd <rook>/demo/kubernetes
-    export TOKEN=$(curl -s -w "\n" 'https://discovery.etcd.io/new?size=1')
-    kubectl create configmap rookd --from-literal=discovery-token=$TOKEN
-    kubectl create -f rook.yml
+```
+cd <rook>/demo/kubernetes
+export TOKEN=$(curl -s -w "\n" 'https://discovery.etcd.io/new?size=1')
+kubectl create configmap rookd --from-literal=discovery-token=$TOKEN
+kubectl create -f rook.yml
+```
 
 This generates a discovery token so the nodes can find each other and then starts rook. `rookd` will start up on each node and form a cluster.
 
 **Note**: In environments other than the coreos-kubernetes vagrant cluster, to have external access via the rook cli, the `rook.yml` will need to be edited and the `externalIPs` array will need to be changed to an appropriate externally routable ip to one of the cluster nodes.
 
-## Using the storage
+## Using the rook storage with a rook client pod
 
-First let's setup access to the rook cluster via the command line client.  You can download a pre-built from [github releases](https://github.com/rook/rook/releases) or [build from source](https://github.com/rook/rook/blob/master/build/README.md). (If you are not using coreos-kubernetes vagrant substitute the ip from above that you put in the `rook.yml` for `ROOK_API_SERVER_ENDPOINT`)
+First let's provision some useful storage in the rook cluster by using the `rook` command line client.  For convenience, there is a pod that contains the latest rook client.  It can be started in the cluster with:
+```
+kubectl create -f rook-client/rook-client.yml
+```  
 
-    export ROOK_API_SERVER_ENDPOINT=172.17.4.201:8124
-    rook status
-    
-It may take a moment for the rook cluster to come up and `rook status` to complete successfully.  Once it is successful we will want to fetch the rook secret that is used to mount rook block devices and store it in a Kubernetes secret. This only needs to be done once for a given cluster.
+Starting the rook-client pod will take a bit of time to download the container, so you can check to see when it's ready with (it should be in the Running state):
+```
+kubectl get pod rook-client
+```
 
-    SECRET=$(curl -s $ROOK_API_SERVER_ENDPOINT/client | jq -r '.secretKey')
-    kubectl create secret generic rookd --from-literal=key=$SECRET --type kubernetes.io/rbd
+Connect to the rook-client pod and verify the `rook` client can talk to the `rookd` cluster:
+```
+kubectl exec rook-client -it bash
+rook node ls
+```
 
-To use a block device in the kubernetes cluster you will first need to create a block image for that device.
+At this point, you can follow the steps in the rook [quickstart](/README.md#block-storage) to create and use block, file and object storage.
 
-    rook block create --name demoblock --size 1073741824
+## Running a pod with persistent rook storage
+To use a block device in the kubernetes cluster you will first need to create a block image for that device.  **In your rook-client pod** from above, run:
+```
+rook block create --name demoblock --size 1073741824
+```
 
-Then we must fetch the mon endpoints and substitute them in to the `mysql.yml` for the example mysql service and pipe it into `kubectl` to create the pod:
-  
-    export MONS=$(curl -s $ROOK_API_SERVER_ENDPOINT/client | jq -c '.monAddresses')
-    sed 's#INSERT_HERE#'$MONS'#' mysql.yml | kubectl create -f -
+Now, **back on your host machine**, set a variable so subsequent commands can find the rook API server:
+```
+export ROOK_API_SERVER_ENDPOINT=172.17.4.201:8124
+```
+**NOTE:** If you are not using coreos-kubernetes vagrant, you need to substitute the IP from above that you put in the `rook.yml` for `ROOK_API_SERVER_ENDPOINT`
 
-Verify that the mysql pod has the rbd volume mounted.
+Now, we will want to fetch the rook secret that is used to mount rook block devices and store it in a Kubernetes secret. This only needs to be done once for a given cluster:
+```
+SECRET=$(curl -s $ROOK_API_SERVER_ENDPOINT/client | jq -r '.secretKey')
+kubectl create secret generic rookd --from-literal=key=$SECRET --type kubernetes.io/rbd
+```   
 
-    kubectl describe pod mysql
+Then we must fetch the monitor endpoints and substitute them in to the `mysql.yml` file for the example mysql service and pipe it into `kubectl` to create the pod:
+```
+export MONS=$(curl -s $ROOK_API_SERVER_ENDPOINT/client | jq -c '.monAddresses')
+sed 's#INSERT_HERE#'$MONS'#' mysql.yml | kubectl create -f -
+```
+
+Verify that the mysql pod has the rbd volume mounted (it may take a bit to first pull the mysql image):
+```
+kubectl describe pod mysql
+```
+
+With mysql pod running, we now have a pod using persistent storage from the `rook` cluster in the form of a block device. 
 
 ## Teardown demo
+```
+kubectl delete pod rook-client
+kubectl delete pod mysql
+kubectl delete secret rookd
+kubectl delete configmap rookd
+kubectl delete -f rook.yml
+```
 
-    kubectl delete pod mysql
-    kubectl delete secret rookd
-    kubectl delete configmap rookd
-    kubectl delete -f rook.yml
+kubectl should show no pods running at all (be patient, they make take a bit to terminate completely).  You can walk through the demo again if you desire.
 
-## Todo
+To fully clean up the environment (and **destroy all data**), run the following from the same directory you initially ran `vagrant up` in:
+```
+vagrant destroy -f
+```
+
+## TODO
 
 * Kubernetes volume plugin for rook that avoids the need for the mon endpoints being hard-coded into the pod spec
 * a better solution for the modprobe issue (<https://github.com/kubernetes/kubernetes/issues/23924>)
