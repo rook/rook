@@ -18,6 +18,8 @@ package proc
 import (
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 	"sync"
 	"syscall"
 
@@ -114,7 +116,27 @@ func (p *ProcManager) Shutdown() {
 	p.RUnlock()
 }
 
-func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, policy ProcStartPolicy) (bool, error) {
+// Checks if a process exists. If the restart policy indicates the process should be restarted,
+// the process will be stopped here.
+func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, policy ProcStartPolicy) (shouldStart bool, err error) {
+	// check if this process is already being monitored
+	p.RLock()
+	defer p.RUnlock()
+	if index, proc := p.findMonitoredProc(binary, procSearchPattern); proc != nil {
+		if policy == ReuseExisting {
+			// no need to start the process since the process manager is already watching to ensure it is running
+			logger.Infof("Process is already being managed and will not be started again. %s", procSearchPattern)
+			return false, nil
+		} else if policy == RestartExisting {
+			// stop the process and the process manager so a new process manager can be started.
+			// the caller is responsible to start a new process
+			logger.Infof("Policy is 'restart' for %s. Stopping its monitor.", procSearchPattern)
+			p.purgeManagedProc(index, proc)
+			return true, nil
+		}
+	}
+
+	// check if this process is currently running even though not being managed
 	existingProc, err := findProcessSearch(binary, procSearchPattern)
 	if err != nil {
 		return false, fmt.Errorf("failed to search for process %s with pattern '%s': %+v", binary, procSearchPattern, err)
@@ -132,58 +154,72 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 	}
 
 	logger.Infof("Policy is 'restart', restarting existing process.")
-	// find our managed instance and try to stop the process through that
-	stopped := false
-	p.RLock()
-	for i := range p.procs {
-		proc := p.procs[i].cmd
-		if proc != nil && proc.Process != nil && proc.Process.Pid == existingProc.pid {
-			if err := p.procs[i].Stop(); err != nil {
-				logger.Warningf("failed to stop child process %d: %v", existingProc.pid, err)
-				break
-			}
 
-			stopped = true
-			break
-		}
-	}
-	p.RUnlock()
-
-	if !stopped {
-		// we could't stop the existing process through our own managed proces set, try to stop the process
-		// via a direct signal to its PID
-		if err := syscall.Kill(existingProc.pid, syscall.SIGKILL); err != nil {
-			return false, fmt.Errorf("failed to stop child process %d: %v", existingProc.pid, err)
-		}
-		stopped = true
+	// double check if the process is managed and stop it
+	index, proc := p.findMonitoredProcByPID(existingProc.pid)
+	if proc != nil {
+		p.purgeManagedProc(index, proc)
+		return true, nil
 	}
 
-	if stopped {
-		// the child process was stopped, remove it from our managed list (if it's in there)
-		p.removeManagedProc(existingProc.pid)
+	// we could't stop the existing process through our own managed proces set, try to stop the process
+	// via a direct signal to its PID
+	if err := syscall.Kill(existingProc.pid, syscall.SIGKILL); err != nil {
+		return false, fmt.Errorf("failed to stop child process %d: %v", existingProc.pid, err)
 	}
 
 	return true, nil
 }
 
-func (p *ProcManager) removeManagedProc(pid int) {
-	procNum := -1
-
-	p.Lock()
-	for i := range p.procs {
-		proc := p.procs[i].cmd
-		if proc != nil && proc.Process != nil && proc.Process.Pid == pid {
-			procNum = i
-			break
-		}
+// Stop and remove a process from the list of managed.
+// Assumes we are inside the process lock.
+func (p *ProcManager) purgeManagedProc(index int, proc *MonitoredProc) {
+	err := proc.Stop()
+	if err != nil {
+		logger.Warningf("did not stop process %+v. %+v", proc.cmd, err)
 	}
 
-	if procNum >= 0 {
-		p.procs[procNum] = p.procs[len(p.procs)-1]
+	// remove the process from our managed list (if it's in there)
+	// If the process failed to stop, it is still not being managed so we will go ahead and remove it
+	if index >= 0 {
+		p.procs[index] = p.procs[len(p.procs)-1]
 		p.procs[len(p.procs)-1] = nil
 		p.procs = p.procs[:len(p.procs)-1]
 	}
-	p.Unlock()
+}
+
+// Find a monitored process.
+// Assumes we are inside the process lock.
+func (p *ProcManager) findMonitoredProc(binary, searchPattern string) (int, *MonitoredProc) {
+	// find if the process is being monitored
+	for index, proc := range p.procs {
+		if os.Args[0] != binary {
+			// skip processes that are not owned by rook
+			continue
+		}
+
+		cmdline := strings.Join(proc.cmd.Args, " ")
+		if matched, _ := regexp.MatchString(searchPattern, cmdline); matched {
+			logger.Infof("found monitored process for %s", searchPattern)
+			return index, proc
+		}
+
+	}
+
+	return -1, nil
+}
+
+// Find a monitored process by its pid.
+// Assumes we are inside the process lock.
+func (p *ProcManager) findMonitoredProcByPID(pid int) (int, *MonitoredProc) {
+	// find if the process is being monitored
+	for index, proc := range p.procs {
+		if proc.cmd.Process != nil && proc.cmd.Process.Pid == pid {
+			return index, proc
+		}
+	}
+
+	return -1, nil
 }
 
 func createDaemonArgs(daemon string, args ...string) []string {

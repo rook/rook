@@ -38,7 +38,8 @@ func (e *MockExecutor) StartExecuteCommand(actionName string, command string, ar
 		return e.MockStartExecuteCommand(actionName, command, arg...)
 	}
 
-	return &exec.Cmd{}, nil
+	args := []string{command}
+	return &exec.Cmd{Args: append(args, arg...)}, nil
 }
 
 func (e *MockExecutor) ExecuteCommandPipeline(actionName string, command string) (string, error) {
