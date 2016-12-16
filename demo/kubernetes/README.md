@@ -65,14 +65,19 @@ kubectl exec rook-client -it bash
 rook node ls
 ```
 
-At this point, you can follow the steps in the rook [quickstart](/README.md#block-storage) to create and use block, file and object storage.
+At this point (optional), you can follow the steps in the rook [quickstart](/README.md#block-storage) to create and use block, file and object storage.
 
-## Running a pod with persistent rook storage
 To use a block device in the kubernetes cluster you will first need to create a block image for that device.  **In your rook-client pod** from above, run:
 ```
 rook block create --name demoblock --size 1073741824
 ```
 
+Now that the block image has been created in the cluster, we can exit the `rook` client pod:
+```
+exit
+```
+
+## Running a pod with persistent rook storage
 Now, **back on your host machine**, set a variable so subsequent commands can find the rook API server:
 ```
 export ROOK_API_SERVER_ENDPOINT=172.17.4.201:8124
@@ -113,6 +118,51 @@ To fully clean up the environment (and **destroy all data**), run the following 
 ```
 vagrant destroy -f
 ```
+
+## Troubleshooting
+Information about the host nodes that are running the kubernetes cluster (and pods deployed in it) can be found with:
+```
+kubectl get nodes
+```
+Before the kubernetes cluster is initialized, which does take some time, it is common to see an error message like:
+> The connection to the server 172.17.4.101:443 was refused - did you specify the right host or port?
+
+To get information about the pods that have been created/deployed to the kubernetes cluster, run:
+```
+kubectl get pods
+NAME          READY     STATUS             RESTARTS   AGE
+rookd-rglk7   1/1       Running            0          15m
+rookd-s238a   0/1       CrashLoopBackOff   7          15m
+```
+Of particular note is the STATUS column.  Ideally, the pods will be in the 'Running' status.  'ContainerCreating' is OK as well since it means the container is downloading or initializing.  'Error' and 'CrashLoopBackOff' are not good, so more investigation into any particular pods with those status values will be needed, using the commands below. 
+
+
+Details about the config, status and recent events for a pod can be found with the `describe pod` command, like so: 
+```
+kubectl describe pod <NAME>
+```
+
+Each pod generates log output that can be valuable for identifying issues.  To get logs scoped to a specific pod, the `logs` command can be used:
+```
+kubectl logs <NAME>
+```
+
+Combining some shell scripting, we can get the last 10 lines of the logs for *each* `rookd` pod with this command:
+```
+for p in `kubectl get pods | grep rookd | awk '{print $1}'`; do echo $p; kubectl logs $p | tail -10; done
+```
+
+Similarly, we can call `describe pod` on each `rookd` pod with this command:
+```
+for p in `kubectl get pods | grep rookd | awk '{print $1}'`; do echo $p; kubectl describe pod $p; done
+```
+
+If all else fails, in the vagrant kubernetes environment, we can `ssh` directly to a host in the cluster and use the host's tools to probe further.  For example, this can be run from the same directory where you ran `vagrant up`:
+```
+vagrant ssh w1
+journalctl
+```
+Hosts where `rookd` will be deployed are `w1` and `c1`.
 
 ## TODO
 
