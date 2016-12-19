@@ -41,8 +41,8 @@ On a modern Linux host run the following:
 1. Download the latest  binaries
 
     ```bash
-    $ wget https://github.com/rook/rook/releases/download/v0.2.1/rook-v0.2.1-linux-amd64.tar.gz
-    $ tar xvf rook-v0.2.1-linux-amd64.tar.gz
+    $ wget https://github.com/rook/rook/releases/download/v0.2.2/rook-v0.2.2-linux-amd64.tar.gz
+    $ tar xvf rook-v0.2.2-linux-amd64.tar.gz
     ```
 
 2. Start a one node Rook cluster
