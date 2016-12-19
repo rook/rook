@@ -20,18 +20,19 @@ import "time"
 type DiskType int
 
 const (
-	MemoryTotalSizeKey             = "total"
-	NetworkIPv4AddressKey          = "ipv4"
-	NetworkIPv6AddressKey          = "ipv6"
-	NetworkSpeedKey                = "speed"
-	ProcPhysicalIDKey              = "physical-id"
-	ProcSiblingsKey                = "siblings"
-	ProcCoreIDKey                  = "core-id"
-	ProcNumCoresKey                = "cores"
-	ProcSpeedKey                   = "speed"
-	ProcBitsKey                    = "arch"
-	Disk                  DiskType = iota
-	Part
+	MemoryTotalSizeKey    = "total"
+	NetworkIPv4AddressKey = "ipv4"
+	NetworkIPv6AddressKey = "ipv6"
+	NetworkSpeedKey       = "speed"
+	ProcPhysicalIDKey     = "physical-id"
+	ProcSiblingsKey       = "siblings"
+	ProcCoreIDKey         = "core-id"
+	ProcNumCoresKey       = "cores"
+	ProcSpeedKey          = "speed"
+	ProcBitsKey           = "arch"
+	Disk                  = "disk"
+	SSD                   = "ssd"
+	Part                  = "part"
 )
 
 type Config struct {
@@ -50,16 +51,16 @@ type NodeConfig struct {
 }
 
 type DiskConfig struct {
-	Name        string   `json:"name"`
-	UUID        string   `json:"uuid"`
-	Size        uint64   `json:"size"`
-	Rotational  bool     `json:"rotational"`
-	Readonly    bool     `json:"readonly"`
-	FileSystem  string   `json:"fileSystem"`
-	MountPoint  string   `json:"mountPoint"`
-	Type        DiskType `json:"type"`
-	Parent      string   `json:"parent"`
-	HasChildren bool     `json:"hasChildren"`
+	Name        string `json:"name"`
+	UUID        string `json:"uuid"`
+	Size        uint64 `json:"size"`
+	Rotational  bool   `json:"rotational"`
+	Readonly    bool   `json:"readonly"`
+	FileSystem  string `json:"fileSystem"`
+	MountPoint  string `json:"mountPoint"`
+	Type        string `json:"type"`
+	Parent      string `json:"parent"`
+	HasChildren bool   `json:"hasChildren"`
 }
 
 type MemoryConfig struct {
