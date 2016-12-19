@@ -1,7 +1,7 @@
 FROM ubuntu
 MAINTAINER Jared Watts <jared.watts@quantum.com>
 
-ENV ROOK_VERSION 0.2.1
+ENV ROOK_VERSION 0.2.2
 
 RUN apt-get update && \
     apt-get install -yq --no-install-recommends wget s3cmd kmod module-init-tools sudo
