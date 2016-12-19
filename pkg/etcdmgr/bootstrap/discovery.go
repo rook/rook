@@ -70,6 +70,8 @@ func queryDiscoveryService(token string) (*store.Event, error) {
 	var resp *http.Response
 	var err error
 
+	defer safeCloseHTTPResponse(resp)
+
 	// retry the http request in case of network errors
 	for i := 1; i <= discoveryRetryAttempts; i++ {
 		ctx, _ := context.WithTimeout(context.Background(), DefaultClientTimeout)
@@ -78,10 +80,10 @@ func queryDiscoveryService(token string) (*store.Event, error) {
 			if resp.StatusCode == http.StatusOK {
 				break
 			}
-			resp.Body.Close()
 		}
 
-		logger.Warningf("failed to query discovery service on attempt %d/%d. code=%d, err=%+v", i, discoveryRetryAttempts, resp.StatusCode, err)
+		logger.Warningf("failed to query discovery service on attempt %d/%d. resp=%+v, err=%+v", i, discoveryRetryAttempts, resp, err)
+		safeCloseHTTPResponse(resp)
 
 		if i < discoveryRetryAttempts {
 			// delay an extra half second for each retry
@@ -90,14 +92,17 @@ func queryDiscoveryService(token string) (*store.Event, error) {
 		}
 	}
 
-	defer resp.Body.Close()
-	var res store.Event
-	err = json.NewDecoder(resp.Body).Decode(&res)
-	if err != nil {
-		return nil, fmt.Errorf("invalid answer from %q: %v", token, err)
+	if resp != nil {
+		var res store.Event
+		err = json.NewDecoder(resp.Body).Decode(&res)
+		if err != nil {
+			return nil, fmt.Errorf("invalid answer from %q: %v", token, err)
+		}
+
+		return &res, nil
 	}
 
-	return &res, nil
+	return nil, fmt.Errorf("never received response from %q: %+v", token, err)
 }
 
 // Get the nodes that have registered with the discovery service.
@@ -197,4 +202,11 @@ func newDiscoveryNode(namedPeerURLs string, clientPort int) ([]string, error) {
 	}
 
 	return n.ClientURLs, nil
+}
+
+// closes the http response body safely, by checking for nil.  Can be called more than once.
+func safeCloseHTTPResponse(resp *http.Response) {
+	if resp != nil && resp.Body != nil {
+		resp.Body.Close()
+	}
 }
