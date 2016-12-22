@@ -19,13 +19,13 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"strconv"
 	"time"
 
 	ctx "golang.org/x/net/context"
 
 	"github.com/rook/rook/pkg/util"
-	"github.com/rook/rook/pkg/util/exec"
+
+	"encoding/json"
 
 	etcd "github.com/coreos/etcd/client"
 )
@@ -34,8 +34,8 @@ const (
 	HeartbeatKey        = "heartbeat"
 	disksKey            = "disks"
 	processorsKey       = "cpu"
-	networkKey          = "net"
-	memoryKey           = "mem"
+	networkKey          = "network"
+	memoryKey           = "memory"
 	locationKey         = "location"
 	heartbeatTtlSeconds = 60 * 60
 	publicIpAddressKey  = "publicIp"
@@ -45,17 +45,6 @@ const (
 var (
 	HeartbeatTtlDuration = time.Duration(heartbeatTtlSeconds) * time.Second
 )
-
-func DiscoverHardware(nodeID string, etcdClient etcd.KeysAPI, executor exec.Executor) error {
-	nodeConfigKey := GetNodeConfigKey(nodeID)
-	if err := discoverDisks(nodeConfigKey, etcdClient, executor); err != nil {
-		return err
-	}
-
-	// TODO: discover more hardware properties
-
-	return nil
-}
 
 // gets the key under which all node hardware/config will be stored
 func GetNodeConfigKey(nodeID string) string {
@@ -131,7 +120,6 @@ func loadNodeHealth(etcdClient etcd.KeysAPI, nodes map[string]*NodeConfig) error
 }
 
 func loadSingleNodeHealth(node *NodeConfig, health *etcd.Node) error {
-
 	for _, prop := range health.Nodes {
 		switch util.GetLeafKeyPath(prop.Key) {
 		case HeartbeatKey:
@@ -151,7 +139,6 @@ func SetIPAddress(etcdClient etcd.KeysAPI, nodeId, publicIP, privateIP string) e
 	if err != nil {
 		return err
 	}
-
 	return setConfigProperty(etcdClient, nodeId, privateIpAddressKey, privateIP)
 }
 
@@ -176,25 +163,25 @@ func loadHardwareConfig(nodeId string, nodeConfig *NodeConfig, nodeInfo *etcd.No
 		var err error
 		switch key {
 		case disksKey:
-			err = loadDisksConfig(nodeConfig, nodeConfigRoot)
+			err = loadDisksConfig(nodeConfig, nodeConfigRoot.Value)
 
 		case processorsKey:
-			err = loadProcessorsConfig(nodeConfig, nodeConfigRoot)
-
-		case memoryKey:
-			err = loadMemoryConfig(nodeConfig, nodeConfigRoot)
+			err = loadProcessorsConfig(nodeConfig, nodeConfigRoot.Value)
 
 		case networkKey:
-			err = loadNetworkConfig(nodeConfig, nodeConfigRoot)
+			err = loadNetworkConfig(nodeConfig, nodeConfigRoot.Value)
+
+		case memoryKey:
+			err = loadMemoryConfig(nodeConfig, nodeConfigRoot.Value)
 
 		case publicIpAddressKey:
-			err = loadSimpleConfigStringProperty(&(nodeConfig.PublicIP), nodeConfigRoot, "Public IP")
+			nodeConfig.PublicIP = nodeConfigRoot.Value
 
 		case privateIpAddressKey:
-			err = loadSimpleConfigStringProperty(&(nodeConfig.PrivateIP), nodeConfigRoot, "Private IP")
+			nodeConfig.PrivateIP = nodeConfigRoot.Value
 
 		case locationKey:
-			err = loadSimpleConfigStringProperty(&(nodeConfig.Location), nodeConfigRoot, "Location")
+			nodeConfig.Location = nodeConfigRoot.Value
 
 		default:
 			logger.Warningf("unexpected hardware component: %s, skipping...", nodeConfigRoot)
@@ -209,161 +196,50 @@ func loadHardwareConfig(nodeId string, nodeConfig *NodeConfig, nodeInfo *etcd.No
 	return nil
 }
 
-func loadDisksConfig(nodeConfig *NodeConfig, disksRootNode *etcd.Node) error {
-	numDisks := 0
-	if disksRootNode.Nodes != nil {
-		numDisks = len(disksRootNode.Nodes)
+func loadProcessorsConfig(nodeConfig *NodeConfig, rawProcs string) error {
+	var processors []ProcessorConfig
+	if err := json.Unmarshal([]byte(rawProcs), &processors); err != nil {
+		return fmt.Errorf("failed to deserialize processors. %+v", err)
+	}
+	nodeConfig.Processors = processors
+	return nil
+}
+
+func loadNetworkConfig(nodeConfig *NodeConfig, rawAdapters string) error {
+	var adapters []NetworkConfig
+	if err := json.Unmarshal([]byte(rawAdapters), &adapters); err != nil {
+		return fmt.Errorf("failed to deserialize network adapters. %+v", err)
+	}
+	nodeConfig.NetworkAdapters = adapters
+	return nil
+}
+
+func storeNetworkConfig(etcdClient etcd.KeysAPI, nodeID string, config []NetworkConfig) error {
+	output, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal network config. %+v", err)
 	}
 
-	nodeConfig.Disks = make([]DiskConfig, numDisks)
-
-	// iterate over all disks from etcd
-	for i, diskInfo := range disksRootNode.Nodes {
-		disk, err := getDiskInfo(diskInfo)
-		if err != nil {
-			logger.Errorf("Failed to get disk. err=%v", err)
-			return err
-		}
-
-		nodeConfig.Disks[i] = *disk
-
+	key := path.Join(NodesConfigKey, nodeID, networkKey)
+	_, err = etcdClient.Set(ctx.Background(), key, string(output), nil)
+	if err != nil {
+		return fmt.Errorf("failed to store network config in etcd. %+v", err)
 	}
 
 	return nil
 }
 
-func loadProcessorsConfig(nodeConfig *NodeConfig, procsRootNode *etcd.Node) error {
-	numProcs := 0
-	if procsRootNode.Nodes != nil {
-		numProcs = len(procsRootNode.Nodes)
+func storeProcessorConfig(etcdClient etcd.KeysAPI, nodeID string, config []ProcessorConfig) error {
+	output, err := json.Marshal(config)
+	if err != nil {
+		return fmt.Errorf("failed to marshal processor config. %+v", err)
 	}
 
-	nodeConfig.Processors = make([]ProcessorConfig, numProcs)
-
-	// iterate over all processors from etcd
-	for i, procInfo := range procsRootNode.Nodes {
-		proc := ProcessorConfig{}
-		if procID, err := strconv.ParseUint(util.GetLeafKeyPath(procInfo.Key), 10, 32); err != nil {
-			return err
-		} else {
-			proc.ID = uint(procID)
-		}
-
-		// iterate over all properties of the processor
-		for _, procProperty := range procInfo.Nodes {
-			procPropertyName := util.GetLeafKeyPath(procProperty.Key)
-			switch procPropertyName {
-			case ProcPhysicalIDKey:
-				if phsyicalId, err := strconv.ParseUint(procProperty.Value, 10, 32); err != nil {
-					return err
-				} else {
-					proc.PhysicalID = uint(phsyicalId)
-				}
-			case ProcSiblingsKey:
-				if siblings, err := strconv.ParseUint(procProperty.Value, 10, 32); err != nil {
-					return err
-				} else {
-					proc.Siblings = uint(siblings)
-				}
-			case ProcCoreIDKey:
-				if coreId, err := strconv.ParseUint(procProperty.Value, 10, 32); err != nil {
-					return err
-				} else {
-					proc.CoreID = uint(coreId)
-				}
-			case ProcNumCoresKey:
-				if numCores, err := strconv.ParseUint(procProperty.Value, 10, 32); err != nil {
-					return err
-				} else {
-					proc.NumCores = uint(numCores)
-				}
-			case ProcSpeedKey:
-				if speed, err := strconv.ParseFloat(procProperty.Value, 64); err != nil {
-					return err
-				} else {
-					proc.Speed = speed
-				}
-			case ProcBitsKey:
-				if numBits, err := strconv.ParseUint(procProperty.Value, 10, 32); err != nil {
-					return err
-				} else {
-					proc.Bits = uint(numBits)
-				}
-			default:
-				logger.Warningf("unknown processor property key %s, skipping", procPropertyName)
-			}
-		}
-
-		nodeConfig.Processors[i] = proc
+	key := path.Join(NodesConfigKey, nodeID, processorsKey)
+	_, err = etcdClient.Set(ctx.Background(), key, string(output), nil)
+	if err != nil {
+		return fmt.Errorf("failed to store processor config in etcd. %+v", err)
 	}
 
-	return nil
-}
-
-func loadMemoryConfig(nodeConfig *NodeConfig, memoryRootNode *etcd.Node) error {
-	mem := MemoryConfig{}
-	for _, memProperty := range memoryRootNode.Nodes {
-		memPropertyName := util.GetLeafKeyPath(memProperty.Key)
-		switch memPropertyName {
-		case MemoryTotalSizeKey:
-			if size, err := strconv.ParseUint(memProperty.Value, 10, 64); err != nil {
-				return err
-			} else {
-				mem.TotalSize = size
-			}
-		default:
-			logger.Warningf("unknown memory property key %s, skipping", memPropertyName)
-		}
-	}
-
-	nodeConfig.Memory = mem
-	return nil
-}
-
-func loadNetworkConfig(nodeConfig *NodeConfig, networkRootNode *etcd.Node) error {
-	numNics := 0
-	if networkRootNode.Nodes != nil {
-		numNics = len(networkRootNode.Nodes)
-	}
-
-	nodeConfig.NetworkAdapters = make([]NetworkConfig, numNics)
-
-	// iterate over all network adapters from etcd
-	for i, netInfo := range networkRootNode.Nodes {
-		net := NetworkConfig{}
-		net.Name = util.GetLeafKeyPath(netInfo.Key)
-
-		// iterate over all properties of the network adapter
-		for _, netProperty := range netInfo.Nodes {
-			netPropertyName := util.GetLeafKeyPath(netProperty.Key)
-			switch netPropertyName {
-			case NetworkIPv4AddressKey:
-				net.IPv4Address = netProperty.Value
-			case NetworkIPv6AddressKey:
-				net.IPv6Address = netProperty.Value
-			case NetworkSpeedKey:
-				if netProperty.Value == "" {
-					net.Speed = 0
-				} else if speed, err := strconv.ParseUint(netProperty.Value, 10, 64); err != nil {
-					return err
-				} else {
-					net.Speed = speed
-				}
-			default:
-				logger.Warningf("unknown network adapter property key %s, skipping", netPropertyName)
-			}
-		}
-
-		nodeConfig.NetworkAdapters[i] = net
-	}
-
-	return nil
-}
-
-func loadSimpleConfigStringProperty(cfgField *string, cfgNode *etcd.Node, propName string) error {
-	if cfgNode.Dir {
-		return fmt.Errorf("%s node '%s' is a directory, but it's expected to be a key", propName, cfgNode.Key)
-	}
-	*cfgField = cfgNode.Value
 	return nil
 }

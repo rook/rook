@@ -16,6 +16,7 @@ limitations under the License.
 package api
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -40,50 +41,8 @@ const (
 	SuccessGetPoolECPool1Response = `{"pool":"ecPool1","pool_id":1,"size":3}{"pool":"ecPool1","pool_id":1,"min_size":3}{"pool":"ecPool1","pool_id":1,"crash_replay_interval":0}{"pool":"ecPool1","pool_id":1,"pg_num":100}{"pool":"ecPool1","pool_id":1,"pgp_num":100}{"pool":"ecPool1","pool_id":1,"crush_ruleset":1}{"pool":"ecPool1","pool_id":1,"hashpspool":"true"}{"pool":"ecPool1","pool_id":1,"nodelete":"false"}{"pool":"ecPool1","pool_id":1,"nopgchange":"false"}{"pool":"ecPool1","pool_id":1,"nosizechange":"false"}{"pool":"ecPool1","pool_id":1,"write_fadvise_dontneed":"false"}{"pool":"ecPool1","pool_id":1,"noscrub":"false"}{"pool":"ecPool1","pool_id":1,"nodeep-scrub":"false"}{"pool":"ecPool1","pool_id":1,"use_gmt_hitset":true}{"pool":"ecPool1","pool_id":1,"auid":0}{"pool":"ecPool1","pool_id":1,"erasure_code_profile":"ecPool1_ecprofile"}{"pool":"ecPool1","pool_id":1,"min_write_recency_for_promote":0}{"pool":"ecPool1","pool_id":1,"fast_read":0}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}`
 )
 
-func TestAddRemoveDeviceHandler(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
-	etcdClient.SetValue("/rook/nodes/config/123/disks/foo/uuid", "12345")
-
-	req, err := http.NewRequest("POST", "http://10.0.0.100/device", strings.NewReader(`{"name":"foo"}`))
-	assert.Nil(t, err)
-
-	w := httptest.NewRecorder()
-	h := NewHandler(context, nil, nil)
-
-	// missing the node id
-	h.AddDevice(w, req)
-	assert.Equal(t, http.StatusBadRequest, w.Code)
-
-	// successful request
-	req, err = http.NewRequest("POST", "http://10.0.0.100/device", strings.NewReader(`{"name":"foo","nodeId":"123"}`))
-	assert.Nil(t, err)
-	h = NewHandler(context, nil, nil)
-	w = httptest.NewRecorder()
-	h.AddDevice(w, req)
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	devices := etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/123/device")
-	assert.Equal(t, 1, devices.Count())
-	assert.True(t, devices.Contains("foo"))
-
-	// remove the device
-	req, err = http.NewRequest("POST", "http://10.0.0.100/device/remove", strings.NewReader(`{"name":"foo","nodeId":"123"}`))
-	assert.Nil(t, err)
-	h = NewHandler(context, nil, nil)
-	w = httptest.NewRecorder()
-	h.RemoveDevice(w, req)
-	assert.Equal(t, http.StatusOK, w.Code)
-
-	// check the desired state
-	devices = etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/123/device")
-	assert.Equal(t, 0, devices.Count())
-}
-
-func TestRemoveDeviceHandler(t *testing.T) {
-}
-
 func TestGetNodesHandler(t *testing.T) {
+	nodeID := "node1"
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{EtcdClient: etcdClient}
 
@@ -102,16 +61,18 @@ func TestGetNodesHandler(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, `[]`, w.Body.String())
 
+	// add the disks to etcd
+	disks := []inventory.Disk{
+		inventory.Disk{Type: inventory.DiskType, Size: 50, Rotational: true, Available: true},
+		inventory.Disk{Type: inventory.DiskType, Size: 100, Rotational: false, Available: true},
+	}
+	output, _ := json.Marshal(disks)
+	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, nodeID, "disks"), string(output))
+
 	// set up a discovered node in etcd
-	inventory.SetIPAddress(etcdClient, "node1", "1.2.3.4", "10.0.0.11")
-	inventory.SetLocation(etcdClient, "node1", "root=default,dc=datacenter1")
-	nodeConfigKey := path.Join(inventory.NodesConfigKey, "node1")
-	etcdClient.CreateDir(nodeConfigKey)
-	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "sda", "123d4869-29ee-4bfd-bf21-dfd597bd222e",
-		100, true, false, "btrfs", "/mnt/abc", inventory.Disk, "", false)
-	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "sdb", "321d4869-29ee-4bfd-bf21-dfd597bdffff",
-		50, false, false, "ext4", "/mnt/def", inventory.Disk, "", false)
-	appliedOSDKey := "/rook/services/ceph/osd/applied/node1"
+	inventory.SetIPAddress(etcdClient, nodeID, "1.2.3.4", "10.0.0.11")
+	inventory.SetLocation(etcdClient, nodeID, "root=default,dc=datacenter1")
+	appliedOSDKey := path.Join("/rook/services/ceph/osd/applied", nodeID)
 	etcdClient.SetValue(path.Join(appliedOSDKey, "12", "disk-uuid"), "123d4869-29ee-4bfd-bf21-dfd597bd222e")
 	etcdClient.SetValue(path.Join(appliedOSDKey, "13", "disk-uuid"), "321d4869-29ee-4bfd-bf21-dfd597bdffff")
 

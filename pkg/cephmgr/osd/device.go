@@ -99,9 +99,9 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 // Partitions a device for use by a bluestore osd.
 // If there are any partitions or formatting already on the device, it will be wiped.
 func partitionBluestoreDevice(context *clusterd.Context, config *osdConfig) error {
-	size, err := inventory.GetDeviceSize(config.deviceName, context.NodeID, context.EtcdClient)
+	size, err := getDiskSize(context, config.deviceName)
 	if err != nil {
-		return fmt.Errorf("failed to get device %s size. %+v", config.deviceName, err)
+		return fmt.Errorf("failed to get device size for osd %d. %+v", config.id, err)
 	}
 
 	cmd := fmt.Sprintf("zap %s", config.deviceName)
@@ -110,7 +110,7 @@ func partitionBluestoreDevice(context *clusterd.Context, config *osdConfig) erro
 		return fmt.Errorf("failed to zap partitions on /dev/%s: %+v", config.deviceName, err)
 	}
 
-	scheme, err := partition.GetSimpleScheme(int(size / 1024 / 1024))
+	scheme, err := partition.GetSimpleScheme(config.id, int(size/1024/1024))
 	if err != nil {
 		return fmt.Errorf("failed to get simple scheme. %+v", err)
 	}
@@ -129,18 +129,29 @@ func partitionBluestoreDevice(context *clusterd.Context, config *osdConfig) erro
 		return fmt.Errorf("failed to partition /dev/%s. %+v", config.deviceName, err)
 	}
 
-	err = inventory.SetDeviceUUID(context.NodeID, config.deviceName, scheme.DiskUUID, context.EtcdClient)
-	if err != nil {
-		return fmt.Errorf("failed to set uuid %s. %+v", scheme.DiskUUID, err)
-	}
-
 	// save the scheme
 	err = scheme.Save(config.rootPath)
 	if err != nil {
 		return fmt.Errorf("failed to save partition scheme. %+v", err)
 	}
 
+	// save the desired state of the osd for this device
+	err = setOSDOnDevice(context.EtcdClient, context.NodeID, scheme.DiskUUID, config.id, false)
+	if err != nil {
+		return fmt.Errorf("failed to associate osd id %d with device %s (%s)", config.id, config.deviceName, scheme.DiskUUID)
+	}
+
 	return nil
+}
+
+func getDiskSize(context *clusterd.Context, name string) (uint64, error) {
+	for _, device := range context.Inventory.Local.Disks {
+		if device.Name == name {
+			return device.Size, nil
+		}
+	}
+
+	return 0, fmt.Errorf("device %s not found", name)
 }
 
 func registerOSD(bootstrapConn client.Connection, config *osdConfig) error {

@@ -24,11 +24,12 @@ import (
 )
 
 func TestSimpleScheme(t *testing.T) {
-	scheme, err := GetSimpleScheme(123)
+	scheme, err := GetSimpleScheme(1, 123)
 	assert.Nil(t, err)
 	assert.Equal(t, 123, scheme.SizeMB)
 	assert.Equal(t, 36, len(scheme.DiskUUID))
 	assert.Equal(t, 3, len(scheme.PartitionUUIDs))
+	assert.Equal(t, 1, scheme.ID)
 
 	args := scheme.GetArgs("foo")
 	assert.Equal(t, 11, len(args))

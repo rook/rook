@@ -93,18 +93,16 @@ func TestOSDAgentWithDevices(t *testing.T) {
 		NodeID:     nodeID,
 		ConfigDir:  "/tmp",
 		ProcMan:    proc.New(executor),
+		Inventory:  createInventory(),
 	}
-
-	// prep the etcd keys that would have been discovered by inventory
-	disksKey := path.Join(inventory.GetNodeConfigKey(context.NodeID), "disks")
-	etcdClient.SetValue(path.Join(disksKey, "sdx", "uuid"), "12345")
-	etcdClient.SetValue(path.Join(disksKey, "sdy", "uuid"), "54321")
-	etcdClient.SetValue(path.Join(disksKey, "sdx", "size"), "1234567890")
-	etcdClient.SetValue(path.Join(disksKey, "sdy", "size"), "2234567890")
+	context.Inventory.Local.Disks = []inventory.LocalDisk{
+		inventory.LocalDisk{Name: "sdx", Size: 1234567890, UUID: "12345"},
+		inventory.LocalDisk{Name: "sdy", Size: 2234567890, UUID: "54321"},
+	}
 
 	// Set one device as already having an assigned osd id. The other device will go through id selection,
 	// which is mocked in the createTestAgent method to return an id of 3.
-	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/%s/device/sdx/osd-id", nodeID), "23")
+	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/%s/device/12345/osd-id", nodeID), "23")
 
 	// prep the OSD agent and related orcehstration data
 	prepAgentOrchestrationData(t, agent, etcdClient, context, clusterName)
@@ -168,6 +166,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 		NodeID:     nodeID,
 		ProcMan:    proc.New(executor),
 		ConfigDir:  "/tmp",
+		Inventory:  createInventory(),
 	}
 
 	// prep the OSD agent and related orcehstration data
@@ -206,12 +205,6 @@ func TestAppliedDevices(t *testing.T) {
 	assert.Equal(t, 0, len(osds))
 
 	// two applied osds
-	nodeConfigKey := path.Join(inventory.NodesConfigKey, nodeID)
-	etcdClient.CreateDir(nodeConfigKey)
-	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "sda", "ff6d4869-29ee-4bfd-bf21-dfd597bd222e",
-		100, true, false, "btrfs", "/mnt/xyz", inventory.Disk, "", false)
-	inventory.TestSetDiskInfo(etcdClient, nodeConfigKey, "sdb", "ff6d4869-29ee-4bfd-bf21-dfd597bd222e",
-		50, false, false, "ext4", "/mnt/zyx", inventory.Disk, "", false)
 	appliedOSDKey := "/rook/services/ceph/osd/applied/abc"
 	etcdClient.SetValue(path.Join(appliedOSDKey, "1", "disk-uuid"), "1234")
 	etcdClient.SetValue(path.Join(appliedOSDKey, "2", "disk-uuid"), "2345")
@@ -228,8 +221,9 @@ func TestRemoveDevice(t *testing.T) {
 	etcdClient, agent, conn := createTestAgent(t, nodeID, "")
 	executor := &exectest.MockExecutor{}
 
-	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: nodeID, Executor: executor, ProcMan: proc.New(executor)}
-	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/sda/osd-id", "23")
+	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: nodeID, Executor: executor, ProcMan: proc.New(executor), Inventory: createInventory()}
+	context.Inventory.Local.Disks = []inventory.LocalDisk{inventory.LocalDisk{Name: "sda", Size: 1234567890, UUID: "5435435333"}}
+	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/5435435333/osd-id", "23")
 
 	// create two applied osds, one of which is desired
 	appliedRoot := "/rook/services/ceph/osd/applied/" + nodeID
@@ -298,25 +292,65 @@ func createTestKeyring(t *testing.T, args []string) {
 }
 
 func TestDesiredDeviceState(t *testing.T) {
+	nodeID := "a"
 	etcdClient := util.NewMockEtcdClient()
-	etcdClient.CreateDir("/rook/nodes/config/a/disks/foo")
 
 	// add a device
-	err := AddDesiredDevice(etcdClient, "foo", "a")
+	err := AddDesiredDevice(etcdClient, nodeID, "myuuid", 23)
 	assert.Nil(t, err)
 	devices := etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/a/device")
 	assert.Equal(t, 1, devices.Count())
-	assert.True(t, devices.Contains("foo"))
+	assert.True(t, devices.Contains("myuuid"))
 
 	// remove the device
-	err = RemoveDesiredDevice(etcdClient, "foo", "a")
+	err = RemoveDesiredDevice(etcdClient, nodeID, "myuuid")
 	assert.Nil(t, err)
 	devices = etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/a/device")
 	assert.Equal(t, 0, devices.Count())
 
 	// removing a non-existent device is a no-op
-	err = RemoveDesiredDevice(etcdClient, "foo", "a")
+	err = RemoveDesiredDevice(etcdClient, nodeID, "foo")
 	assert.Nil(t, err)
+}
+
+func TestLoadDesiredDevices(t *testing.T) {
+	etcdClient := util.NewMockEtcdClient()
+	a := &osdAgent{desiredDevices: []string{}}
+
+	// no devices are desired
+	context := &clusterd.Context{EtcdClient: etcdClient, Inventory: createInventory(), NodeID: "a"}
+	desired, err := a.loadDesiredDevices(context)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(desired))
+
+	// two devices are desired and it is a new config
+	context.Inventory.Local.Disks = []inventory.LocalDisk{
+		inventory.LocalDisk{Name: "sda", Size: 1234567890, UUID: "12345"},
+		inventory.LocalDisk{Name: "sdb", Size: 2234567890, UUID: "54321"},
+	}
+	a.desiredDevices = []string{"sda", "sdb"}
+	desired, err = a.loadDesiredDevices(context)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(desired))
+	assert.Equal(t, -1, desired["sda"])
+	assert.Equal(t, -1, desired["sdb"])
+
+	// two devices are desired and they have previously been configured
+	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/12345/osd-id", "23")
+	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/54321/osd-id", "24")
+	desired, err = a.loadDesiredDevices(context)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(desired))
+	assert.Equal(t, 23, desired["sda"])
+	assert.Equal(t, 24, desired["sdb"])
+
+	// no devices are desired and they have previously been configured
+	a.desiredDevices = []string{}
+	desired, err = a.loadDesiredDevices(context)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(desired))
+	assert.Equal(t, 23, desired["sda"])
+	assert.Equal(t, 24, desired["sdb"])
 }
 
 func TestDesiredDirsState(t *testing.T) {
@@ -335,4 +369,8 @@ func TestDesiredDirsState(t *testing.T) {
 
 	assert.Equal(t, 1, len(loadedDirs))
 	assert.Equal(t, unassignedOSDID, loadedDirs["/my/dir"])
+}
+
+func createInventory() *inventory.Config {
+	return &inventory.Config{Local: &inventory.Hardware{Disks: []inventory.LocalDisk{}}}
 }

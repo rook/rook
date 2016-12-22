@@ -589,7 +589,7 @@ func createDefaultDependencies() (*util.MockEtcdClient, *Context, *mockLeaseMana
 	mockLeaseManager := &mockLeaseManager{}
 	etcdClient := util.NewMockEtcdClient()
 	machineId := "8e8f532fe96dcae6b1ce335822e5b03c"
-	context := &Context{EtcdClient: etcdClient, NodeID: machineId, Executor: &exectest.MockExecutor{}}
+	context := &Context{EtcdClient: etcdClient, NodeID: machineId, Executor: &exectest.MockExecutor{}, Inventory: &inventory.Config{}}
 	return etcdClient, context, mockLeaseManager, &MockLeader{}
 }
 

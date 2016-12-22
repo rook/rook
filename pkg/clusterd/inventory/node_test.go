@@ -17,12 +17,8 @@ package inventory
 
 import (
 	"path"
-	"strconv"
 	"testing"
 	"time"
-
-	etcd "github.com/coreos/etcd/client"
-	ctx "golang.org/x/net/context"
 
 	"github.com/rook/rook/pkg/util"
 	"github.com/stretchr/testify/assert"
@@ -61,45 +57,35 @@ func TestLoadDiscoveredNodes(t *testing.T) {
 }
 
 func TestLoadHardwareConfig(t *testing.T) {
-	machineId := "df1c87e8266843f2ab822c0d72f584d3"
+	nodeID := "12345"
 	etcdClient := util.NewMockEtcdClient()
 
-	// set up the hardware date in etcd
-	hardwareKey := path.Join(NodesConfigKey, machineId)
-	etcdClient.CreateDir(hardwareKey)
-
 	// setup disk info in etcd
-	disksConfig := make([]DiskConfig, 2)
-	disksConfig[0] = TestSetDiskInfo(etcdClient, hardwareKey, "sda", "12344869-29ee-4bfd-bf21-dfd597bd222e",
-		10737418240, true, false, "btrfs", "/mnt/abc", Disk, "", true)
-	disksConfig[1] = TestSetDiskInfo(etcdClient, hardwareKey, "sda2", "23454869-29ee-4bfd-bf21-dfd597bd222e",
-		2097152, false, true, "", "", Part, "sda", false)
+	d1 := LocalDisk{Name: "sda", UUID: "uuid1", Size: 10737418240, Rotational: true, Readonly: false, Type: DiskType, HasChildren: true}
+	d2 := LocalDisk{Name: "sda2", UUID: "uuid2", Size: 2097152, Rotational: false, Readonly: true, Type: PartType, HasChildren: false}
+	err := storeDevices(etcdClient, nodeID, []LocalDisk{d1, d2})
+	assert.Nil(t, err)
 
 	// setup processor info in etcd
-	procsKey := path.Join(hardwareKey, processorsKey)
-	etcdClient.Set(ctx.Background(), procsKey, "", &etcd.SetOptions{Dir: true})
-	procsConfig := make([]ProcessorConfig, 3)
-	procsConfig[0] = setProcInfo(etcdClient, procsKey, 0, 0, 1, 0, 1, 1234.56, 64)
-	procsConfig[1] = setProcInfo(etcdClient, procsKey, 1, 1, 2, 0, 2, 8000.00, 32)
-	procsConfig[2] = setProcInfo(etcdClient, procsKey, 2, 1, 2, 1, 2, 4000.01, 32)
-
-	// setup memory info in etcd
-	memKey := path.Join(hardwareKey, memoryKey)
-	etcdClient.Set(ctx.Background(), memKey, "", &etcd.SetOptions{Dir: true})
-	memConfig := setMemoryInfo(etcdClient, memKey, 4149252096)
+	p1 := ProcessorConfig{ID: 0, PhysicalID: 3, Siblings: 1, CoreID: 6, NumCores: 1, Speed: 1234.56, Bits: 64}
+	p2 := ProcessorConfig{ID: 1, PhysicalID: 4, Siblings: 2, CoreID: 7, NumCores: 2, Speed: 8000.00, Bits: 32}
+	p3 := ProcessorConfig{ID: 2, PhysicalID: 5, Siblings: 0, CoreID: 8, NumCores: 4, Speed: 4000.01, Bits: 32}
+	err = storeProcessorConfig(etcdClient, nodeID, []ProcessorConfig{p1, p2, p3})
+	assert.Nil(t, err)
 
 	// set up network info in etcd
-	netKey := path.Join(hardwareKey, networkKey)
-	etcdClient.Set(ctx.Background(), netKey, "", &etcd.SetOptions{Dir: true})
-	netsConfig := make([]NetworkConfig, 2)
-	netsConfig[0] = setNetInfo(etcdClient, netKey, "eth0", "172.17.42.1/16", "fe80::42:4aff:fefe:13d7/64", 0)
-	netsConfig[1] = setNetInfo(etcdClient, netKey, "veth2b6453a", "", "fe80::7c0f:acff:feff:478d/64", 10000)
+	n1 := NetworkConfig{Name: "eth0", IPv4Address: "172.17.42.1/16", IPv6Address: "fe80::42:4aff:fefe:13d7/64", Speed: 0}
+	n2 := NetworkConfig{Name: "veth2b6453a", IPv6Address: "fe80::7c0f:acff:feff:478d/64", Speed: 10000}
+	err = storeNetworkConfig(etcdClient, nodeID, []NetworkConfig{n1, n2})
+	assert.Nil(t, err)
 
 	// set IP address in etcd
-	SetIPAddress(etcdClient, machineId, "10.0.0.43", "10.2.3.4")
+	publicIP := "10.0.0.43"
+	privateIP := "10.2.3.4"
+	SetIPAddress(etcdClient, nodeID, publicIP, privateIP)
 
 	// set location in etcd
-	SetLocation(etcdClient, machineId, "root=default,dc=datacenter1")
+	SetLocation(etcdClient, nodeID, "root=default,dc=datacenter1")
 
 	// load the discovered node config
 	nodeConfig, err := loadNodeConfig(etcdClient)
@@ -107,116 +93,28 @@ func TestLoadHardwareConfig(t *testing.T) {
 	assert.NotNil(t, nodeConfig, "loaded node config should not be nil")
 	assert.Equal(t, 1, len(nodeConfig))
 
-	// verify all the hardware configuration retrieved from etcd
-	verifyDiskConfig(t, nodeConfig[machineId], disksConfig)
-	verifyProcConfig(t, nodeConfig[machineId], procsConfig)
-	verifyMemoryConfig(t, nodeConfig[machineId], memConfig)
-	verifyNetworkConfig(t, nodeConfig[machineId], netsConfig)
-	assert.Equal(t, "10.0.0.43", nodeConfig[machineId].PublicIP)
-	assert.Equal(t, "root=default,dc=datacenter1", nodeConfig[machineId].Location)
-}
+	cfg := nodeConfig[nodeID]
 
-func setProcInfo(etcdClient *util.MockEtcdClient, procsKey string, procId uint, physicalId uint, siblings uint,
-	coreID uint, numCores uint, speed float64, bits uint) ProcessorConfig {
+	// verify the single disk (the partition is not saved)
+	assert.Equal(t, 1, len(cfg.Disks))
+	assert.True(t, cfg.Disks[0].Available)
+	assert.Equal(t, d1.Rotational, cfg.Disks[0].Rotational)
+	assert.Equal(t, d1.Size, cfg.Disks[0].Size)
+	assert.Equal(t, d1.Type, cfg.Disks[0].Type)
 
-	procKey := path.Join(procsKey, strconv.FormatUint(uint64(procId), 10))
-	etcdClient.Set(ctx.Background(), procKey, "", &etcd.SetOptions{Dir: true})
+	// verify the processors
+	assert.Equal(t, 3, len(cfg.Processors))
 
-	etcdClient.Set(ctx.Background(), path.Join(procKey, ProcPhysicalIDKey), strconv.FormatUint(uint64(physicalId), 10), nil)
-	etcdClient.Set(ctx.Background(), path.Join(procKey, ProcSiblingsKey), strconv.FormatUint(uint64(siblings), 10), nil)
-	etcdClient.Set(ctx.Background(), path.Join(procKey, ProcCoreIDKey), strconv.FormatUint(uint64(coreID), 10), nil)
-	etcdClient.Set(ctx.Background(), path.Join(procKey, ProcNumCoresKey), strconv.FormatUint(uint64(numCores), 10), nil)
-	etcdClient.Set(ctx.Background(), path.Join(procKey, ProcSpeedKey), strconv.FormatFloat(speed, 'f', 2, 64), nil)
-	etcdClient.Set(ctx.Background(), path.Join(procKey, ProcBitsKey), strconv.FormatUint(uint64(bits), 10), nil)
+	// verify the network adapters
+	assert.Equal(t, 2, len(cfg.NetworkAdapters))
 
-	return ProcessorConfig{
-		ID:         procId,
-		PhysicalID: physicalId,
-		Siblings:   siblings,
-		CoreID:     coreID,
-		NumCores:   numCores,
-		Speed:      speed,
-		Bits:       bits,
-	}
-}
+	// verify the simple values
+	assert.Equal(t, "10.0.0.43", cfg.PublicIP)
+	assert.Equal(t, "root=default,dc=datacenter1", cfg.Location)
 
-func setMemoryInfo(etcdClient *util.MockEtcdClient, memKey string, totalMem uint64) MemoryConfig {
-	etcdClient.Set(ctx.Background(), path.Join(memKey, MemoryTotalSizeKey), strconv.FormatUint(totalMem, 10), nil)
-	return MemoryConfig{TotalSize: totalMem}
-}
+	// verify that some values are in etcd
+	key := path.Join(NodesConfigKey, nodeID)
+	assert.Equal(t, publicIP, etcdClient.GetValue(path.Join(key, publicIpAddressKey)))
+	assert.Equal(t, privateIP, etcdClient.GetValue(path.Join(key, privateIpAddressKey)))
 
-func setNetInfo(etcdClient *util.MockEtcdClient, netsKey string, name string, ipv4Addr string, ipv6Addr string, speed uint64) NetworkConfig {
-	netKey := path.Join(netsKey, name)
-	etcdClient.Set(ctx.Background(), netKey, "", &etcd.SetOptions{Dir: true})
-
-	etcdClient.Set(ctx.Background(), path.Join(netKey, NetworkIPv4AddressKey), ipv4Addr, nil)
-	etcdClient.Set(ctx.Background(), path.Join(netKey, NetworkIPv6AddressKey), ipv6Addr, nil)
-	speedStr := ""
-	if speed > 0 {
-		speedStr = strconv.FormatUint(speed, 10)
-	}
-	etcdClient.Set(ctx.Background(), path.Join(netKey, NetworkSpeedKey), speedStr, nil)
-
-	return NetworkConfig{
-		Name:        name,
-		IPv4Address: ipv4Addr,
-		IPv6Address: ipv6Addr,
-		Speed:       speed,
-	}
-}
-
-func verifyDiskConfig(t *testing.T, nodeConfig *NodeConfig, expectedDisksConfig []DiskConfig) {
-	assert.Equal(t, len(expectedDisksConfig), len(nodeConfig.Disks))
-
-	for _, expectedDisk := range expectedDisksConfig {
-		var matchingActual DiskConfig
-		for _, actualDisk := range nodeConfig.Disks {
-			if actualDisk.UUID == expectedDisk.UUID {
-				matchingActual = actualDisk
-				break
-			}
-		}
-
-		assert.NotNil(t, matchingActual, "missing actual disk %s", expectedDisk.UUID)
-		assert.Equal(t, expectedDisk, matchingActual)
-	}
-}
-
-func verifyProcConfig(t *testing.T, nodeConfig *NodeConfig, expectedProcsConfig []ProcessorConfig) {
-	assert.Equal(t, len(expectedProcsConfig), len(nodeConfig.Processors))
-
-	for _, expectedProc := range expectedProcsConfig {
-		var matchingActual ProcessorConfig
-		for _, actualProc := range nodeConfig.Processors {
-			if actualProc.ID == expectedProc.ID {
-				matchingActual = actualProc
-				break
-			}
-		}
-
-		assert.NotNil(t, matchingActual, "missing actual proc %d", expectedProc.ID)
-		assert.Equal(t, expectedProc, matchingActual)
-	}
-}
-
-func verifyMemoryConfig(t *testing.T, nodeConfig *NodeConfig, expectedMemConfig MemoryConfig) {
-	assert.NotNil(t, nodeConfig.Memory)
-	assert.Equal(t, expectedMemConfig, nodeConfig.Memory)
-}
-
-func verifyNetworkConfig(t *testing.T, nodeConfig *NodeConfig, expectedNetsConfig []NetworkConfig) {
-	assert.Equal(t, len(expectedNetsConfig), len(nodeConfig.NetworkAdapters))
-
-	for _, expectedNet := range expectedNetsConfig {
-		var matchingActual NetworkConfig
-		for _, actualNet := range nodeConfig.NetworkAdapters {
-			if actualNet.Name == expectedNet.Name {
-				matchingActual = actualNet
-				break
-			}
-		}
-
-		assert.NotNil(t, matchingActual, "missing actual network adapter %s", expectedNet.Name)
-		assert.Equal(t, expectedNet, matchingActual)
-	}
 }

@@ -108,18 +108,6 @@ func (h *Handler) GetRoutes() []Route {
 			h.RemoveFileSystem,
 		},
 		{
-			"AddDevice",
-			"POST",
-			"/device",
-			h.AddDevice,
-		},
-		{
-			"RemoveDevice",
-			"POST",
-			"/device/remove",
-			h.RemoveDevice,
-		},
-		{
 			"SetLogLevel",
 			"POST",
 			"/log",

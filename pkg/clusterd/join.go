@@ -77,7 +77,15 @@ func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryUR
 		ProcMan:    proc.New(executor),
 		ConfigDir:  configDir,
 		LogLevel:   logLevel,
+		Inventory:  &inventory.Config{},
 	}
+
+	// initialize the device inventory
+	context.Inventory.Local, err = inventory.DiscoverHardware(context.EtcdClient, context.Executor, context.NodeID)
+	if err != nil {
+		return nil, fmt.Errorf("failed initial hardware discovery. %+v", err)
+	}
+
 	clusterLeader := newServicesLeader(context)
 	clusterMember := newClusterMember(context, leaseManager, clusterLeader)
 	clusterLeader.parent = clusterMember
