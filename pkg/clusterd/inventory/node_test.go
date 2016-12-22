@@ -73,6 +73,11 @@ func TestLoadHardwareConfig(t *testing.T) {
 	err = storeProcessorConfig(etcdClient, nodeID, []ProcessorConfig{p1, p2, p3})
 	assert.Nil(t, err)
 
+	// setup memory info in etcd
+	mem := getSystemMemory()
+	err = storeMemory(etcdClient, nodeID, mem)
+	assert.Nil(t, err)
+
 	// set up network info in etcd
 	n1 := NetworkConfig{Name: "eth0", IPv4Address: "172.17.42.1/16", IPv6Address: "fe80::42:4aff:fefe:13d7/64", Speed: 0}
 	n2 := NetworkConfig{Name: "veth2b6453a", IPv6Address: "fe80::7c0f:acff:feff:478d/64", Speed: 10000}
@@ -109,6 +114,7 @@ func TestLoadHardwareConfig(t *testing.T) {
 	assert.Equal(t, 2, len(cfg.NetworkAdapters))
 
 	// verify the simple values
+	assert.Equal(t, mem, cfg.Memory)
 	assert.Equal(t, "10.0.0.43", cfg.PublicIP)
 	assert.Equal(t, "root=default,dc=datacenter1", cfg.Location)
 
