@@ -16,11 +16,9 @@ limitations under the License.
 package inventory
 
 import (
-	"errors"
 	"fmt"
 	"path"
 	"strconv"
-	"strings"
 
 	etcd "github.com/coreos/etcd/client"
 	"github.com/rook/rook/pkg/util"
@@ -40,29 +38,6 @@ const (
 	diskHasChildrenKey = "children"
 	diskMountPointKey  = "mountpoint"
 )
-
-func DiskTypeToStr(diskType DiskType) string {
-	switch diskType {
-	case Disk:
-		return "disk"
-	case Part:
-		return "part"
-	default:
-		return "unknown"
-	}
-}
-
-func StrToDiskType(diskType string) (DiskType, error) {
-	diskType = strings.ToLower(diskType)
-	switch diskType {
-	case "disk":
-		return Disk, nil
-	case "part":
-		return Part, nil
-	default:
-		return -1, errors.New(fmt.Sprintf("unknown disk type: %s", diskType))
-	}
-}
 
 func GetDeviceSize(name, nodeID string, etcdClient etcd.KeysAPI) (uint64, error) {
 	key := path.Join(GetNodeConfigKey(nodeID), disksKey, name, diskSizeKey)
@@ -116,6 +91,30 @@ func GetDeviceUUID(device, nodeID string, etcdClient etcd.KeysAPI) (string, erro
 	return resp.Node.Value, nil
 }
 
+func GetAvailableDevices(nodeID string, etcdClient etcd.KeysAPI) ([]string, error) {
+	node := &NodeConfig{}
+	key := path.Join(NodesConfigKey, nodeID, disksKey)
+	disks, err := etcdClient.Get(ctx.Background(), key, &etcd.GetOptions{Recursive: true})
+	if err != nil {
+		return nil, fmt.Errorf("failed to load disks key. +%v", err)
+	}
+
+	if err = loadDisksConfig(node, disks.Node); err != nil {
+		return nil, fmt.Errorf("failed to load disks. %+v", err)
+	}
+
+	var available []string
+	for _, disk := range node.Disks {
+		logger.Debugf("Evaluating device %+v", disk)
+		if disk.Parent == "" && disk.Type == Disk && disk.FileSystem == "" {
+			logger.Debugf("Available device: %s", disk.Name)
+			available = append(available, disk.Name)
+		}
+	}
+
+	return available, nil
+}
+
 func getDiskInfo(diskInfo *etcd.Node) (*DiskConfig, error) {
 	disk := &DiskConfig{}
 	disk.Name = util.GetLeafKeyPath(diskInfo.Key)
@@ -152,12 +151,7 @@ func getDiskInfo(diskInfo *etcd.Node) (*DiskConfig, error) {
 		case diskMountPointKey:
 			disk.MountPoint = diskProperty.Value
 		case diskTypeKey:
-			diskType, err := StrToDiskType(diskProperty.Value)
-			if err != nil {
-				return nil, err
-			} else {
-				disk.Type = diskType
-			}
+			disk.Type = diskProperty.Value
 		case diskParentKey:
 			disk.Parent = diskProperty.Value
 		case diskHasChildrenKey:
@@ -207,7 +201,7 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.
 		}
 
 		diskType, ok := diskProps["TYPE"]
-		if !ok || (diskType != "ssd" && diskType != "disk" && diskType != "part") {
+		if !ok || (diskType != SSD && diskType != Disk && diskType != Part) {
 			// unsupported disk type, just continue
 			continue
 		}
@@ -230,6 +224,9 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.
 		dkey := path.Join(nodeConfigKey, disksKey, d)
 
 		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, diskUUIDKey), diskUUID, nil); err != nil {
+			return err
+		}
+		if err := setSimpleDiskProperty("TYPE", diskTypeKey, dkey, diskProps, etcdClient); err != nil {
 			return err
 		}
 		if err := setSimpleDiskProperty("SIZE", diskSizeKey, dkey, diskProps, etcdClient); err != nil {
@@ -266,7 +263,7 @@ func setSimpleDiskProperty(propName, keyName, diskKey string, diskPropMap map[st
 
 // test usage only
 func TestSetDiskInfo(etcdClient *util.MockEtcdClient, hardwareKey string, name string, uuid string, size uint64, rotational bool, readonly bool,
-	filesystem string, mountPoint string, diskType DiskType, parent string, hasChildren bool) DiskConfig {
+	filesystem string, mountPoint string, diskType string, parent string, hasChildren bool) DiskConfig {
 
 	diskKey := path.Join(hardwareKey, disksKey, name)
 	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskUUIDKey), uuid, nil)
@@ -275,7 +272,7 @@ func TestSetDiskInfo(etcdClient *util.MockEtcdClient, hardwareKey string, name s
 	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskReadonlyKey), strconv.Itoa(btoi(readonly)), nil)
 	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskFileSystemKey), filesystem, nil)
 	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskMountPointKey), mountPoint, nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskTypeKey), DiskTypeToStr(diskType), nil)
+	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskTypeKey), diskType, nil)
 	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskParentKey), parent, nil)
 	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskHasChildrenKey), strconv.Itoa(btoi(hasChildren)), nil)
 
