@@ -17,53 +17,56 @@ package inventory
 
 import "time"
 
-type DiskType int
-
 const (
-	MemoryTotalSizeKey             = "total"
-	NetworkIPv4AddressKey          = "ipv4"
-	NetworkIPv6AddressKey          = "ipv6"
-	NetworkSpeedKey                = "speed"
-	ProcPhysicalIDKey              = "physical-id"
-	ProcSiblingsKey                = "siblings"
-	ProcCoreIDKey                  = "core-id"
-	ProcNumCoresKey                = "cores"
-	ProcSpeedKey                   = "speed"
-	ProcBitsKey                    = "arch"
-	Disk                  DiskType = iota
-	Part
+	DiskType = "disk"
+	SSDType  = "ssd"
+	PartType = "part"
 )
 
 type Config struct {
 	Nodes map[string]*NodeConfig `json:"nodes"`
+	Local *Hardware              `json:"local"`
 }
 
+// Basic config info for a node in the cluster
 type NodeConfig struct {
-	Disks           []DiskConfig      `json:"disks"`
+	Disks           []Disk            `json:"disks"`
 	Processors      []ProcessorConfig `json:"processors"`
-	Memory          MemoryConfig      `json:"memory"`
 	NetworkAdapters []NetworkConfig   `json:"networkAdapters"`
+	Memory          uint64            `json:"memory"`
 	PublicIP        string            `json:"publicIp"`
 	PrivateIP       string            `json:"privateIp"`
 	HeartbeatAge    time.Duration     `json:"heartbeatAge"`
 	Location        string            `json:"location"`
 }
 
-type DiskConfig struct {
-	Name        string   `json:"name"`
-	UUID        string   `json:"uuid"`
-	Size        uint64   `json:"size"`
-	Rotational  bool     `json:"rotational"`
-	Readonly    bool     `json:"readonly"`
-	FileSystem  string   `json:"fileSystem"`
-	MountPoint  string   `json:"mountPoint"`
-	Type        DiskType `json:"type"`
-	Parent      string   `json:"parent"`
-	HasChildren bool     `json:"hasChildren"`
+type Disk struct {
+	Available  bool   `json:"available"`
+	Type       string `json:"type"`
+	Size       uint64 `json:"size"`
+	Rotational bool   `json:"rotational"`
 }
 
-type MemoryConfig struct {
-	TotalSize uint64 `json:"totalSize"`
+// Local hardware info
+type Hardware struct {
+	Disks           []LocalDisk       `json:"disks"`
+	Processors      []ProcessorConfig `json:"processors"`
+	NetworkAdapters []NetworkConfig   `json:"networkAdapters"`
+	Memory          uint64            `json:"memory"`
+}
+
+type LocalDisk struct {
+	Name        string `json:"name"`
+	ID          string `json:"id"`
+	UUID        string `json:"uuid"`
+	Size        uint64 `json:"size"`
+	Rotational  bool   `json:"rotational"`
+	Readonly    bool   `json:"readonly"`
+	FileSystem  string `json:"fileSystem"`
+	MountPoint  string `json:"mountPoint"`
+	Type        string `json:"type"`
+	Parent      string `json:"parent"`
+	HasChildren bool   `json:"hasChildren"`
 }
 
 type ProcessorConfig struct {

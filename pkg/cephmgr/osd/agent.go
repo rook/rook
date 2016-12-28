@@ -48,14 +48,15 @@ const (
 )
 
 type osdAgent struct {
-	cluster       *mon.ClusterInfo
-	forceFormat   bool
-	location      string
-	factory       client.ConnectionFactory
-	osdProc       map[int]*proc.MonitoredProc
-	devices       string
-	configCounter int32
-	osdsCompleted chan struct{}
+	cluster        *mon.ClusterInfo
+	forceFormat    bool
+	location       string
+	factory        client.ConnectionFactory
+	osdProc        map[int]*proc.MonitoredProc
+	desiredDevices []string
+	devices        string
+	configCounter  int32
+	osdsCompleted  chan struct{}
 }
 
 func NewAgent(factory client.ConnectionFactory, devices string, forceFormat bool, location string) *osdAgent {
@@ -72,19 +73,13 @@ func (a *osdAgent) Initialize(context *clusterd.Context) error {
 
 	if len(a.devices) > 0 {
 		// add the devices to desired state
-		devices := strings.Split(a.devices, ",")
-		for _, device := range devices {
-			logger.Infof("Adding device %s to desired state", device)
-			err := AddDesiredDevice(context.EtcdClient, device, context.NodeID)
-			if err != nil {
-				return fmt.Errorf("failed to add desired device %s. %v", device, err)
-			}
-		}
+		a.desiredDevices = strings.Split(a.devices, ",")
+		logger.Infof("desired devices for osds: %+v", a.desiredDevices)
 	}
 
 	// if no devices or directories were specified, use the current directory for an osd
-	if len(a.devices) == 0 {
-		logger.Infof("Adding local path to local directory %s", context.ConfigDir)
+	if len(a.desiredDevices) == 0 {
+		logger.Infof("Adding local path %s to desired state", context.ConfigDir)
 		err := AddDesiredDir(context.EtcdClient, context.ConfigDir, context.NodeID)
 		if err != nil {
 			return fmt.Errorf("failed to add current dir %s. %v", context.ConfigDir, err)
@@ -180,7 +175,7 @@ func (a *osdAgent) decrementConfigCounter() {
 }
 
 func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection client.Connection) error {
-	desiredDevices, err := loadDesiredDevices(context.EtcdClient, context.NodeID)
+	desiredDevices, err := a.loadDesiredDevices(context)
 	if err != nil {
 		return fmt.Errorf("failed to load desired devices. %v", err)
 	}
@@ -277,7 +272,7 @@ func getAppliedKey(nodeID string) string {
 
 // create and initalize OSDs for all the devices specified in the given config
 func (a *osdAgent) createDesiredOSDs(adminConn client.Connection, context *clusterd.Context) error {
-	devices, err := loadDesiredDevices(context.EtcdClient, context.NodeID)
+	devices, err := a.loadDesiredDevices(context)
 	if err != nil {
 		return fmt.Errorf("failed to load desired devices. %v", err)
 	}
@@ -355,6 +350,9 @@ func (a *osdAgent) configureDevices(context *clusterd.Context, devices map[strin
 	go func() {
 		defer connection.Shutdown()
 
+		// set the signal that the osd config is completed
+		defer close(a.osdsCompleted)
+
 		a.incrementConfigCounter()
 		defer a.decrementConfigCounter()
 
@@ -371,9 +369,6 @@ func (a *osdAgent) configureDevices(context *clusterd.Context, devices map[strin
 		}
 
 		logger.Infof("%d/%d bluestore osds succeeded on this node", succeeded, len(devices))
-
-		// set the signal that the osd config is completed
-		close(a.osdsCompleted)
 	}()
 
 	return nil
@@ -387,13 +382,12 @@ func (a *osdAgent) createOrStartOSD(context *clusterd.Context, connection client
 			return err
 		}
 
-		name := config.deviceName
+		// set the desired state of the dir with the osd id. If a device, we will delay setting this until we have the device uuid
 		if dir {
-			name = configRoot
-		}
-		err = setOSDOnDevice(context.EtcdClient, context.NodeID, name, config.id, dir)
-		if err != nil {
-			return err
+			err = setOSDOnDevice(context.EtcdClient, context.NodeID, configRoot, config.id, dir)
+			if err != nil {
+				return fmt.Errorf("failed to associate osd id %d with the data dir", config.id)
+			}
 		}
 	}
 
@@ -537,10 +531,29 @@ func getPseudoDir(path string) string {
 	return strings.Replace(path, "/", "_", -1)
 }
 
-func loadDesiredDevices(etcdClient etcd.KeysAPI, nodeID string) (map[string]int, error) {
+func (a *osdAgent) loadDesiredDevices(context *clusterd.Context) (map[string]int, error) {
+	// get the device UUID to device name mapping
+	uuidToName := map[string]string{}
+	for _, disk := range context.Inventory.Local.Disks {
+		if disk.UUID != "" {
+			uuidToName[disk.UUID] = disk.Name
+		}
+	}
+	logger.Debugf("uuid to name map: %+v", uuidToName)
+
+	// ensure all the desired devices are in the list
 	devices := map[string]int{}
-	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID))
-	devKeys, err := etcdClient.Get(ctx.Background(), key, &etcd.GetOptions{Recursive: true})
+	for _, name := range a.desiredDevices {
+		if _, ok := devices[name]; !ok {
+			// add the device to the desired list
+			devices[name] = unassignedOSDID
+		}
+	}
+	logger.Debugf("desired osd id mapping when new: %+v", devices)
+
+	// parse the desired devices from etcd, which are based on the disk uuid.
+	key := path.Join(fmt.Sprintf(deviceDesiredKey, context.NodeID))
+	devKeys, err := context.EtcdClient.Get(ctx.Background(), key, &etcd.GetOptions{Recursive: true})
 	if err != nil {
 		if util.IsEtcdKeyNotFound(err) {
 			return devices, nil
@@ -548,22 +561,29 @@ func loadDesiredDevices(etcdClient etcd.KeysAPI, nodeID string) (map[string]int,
 		return nil, err
 	}
 
-	// parse the dirs from etcd
 	for _, dev := range devKeys.Node.Nodes {
-		device := util.GetLeafKeyPath(dev.Key)
+		uuid := util.GetLeafKeyPath(dev.Key)
 		osdID := unassignedOSDID
 
 		for _, setting := range dev.Nodes {
 			if strings.HasSuffix(setting.Key, "/osd-id") {
 				id, err := strconv.Atoi(setting.Value)
 				if err == nil {
+					logger.Debugf("found osd id %d for disk uuid %s", osdID, uuid)
 					osdID = id
 				}
 			}
 		}
 
-		devices[device] = osdID
+		// translate the disk uuid to the device name
+		if name, ok := uuidToName[uuid]; ok {
+			devices[name] = osdID
+		} else {
+			logger.Warningf("did not find name for disk uuid %s", uuid)
+		}
 	}
+
+	logger.Debugf("final osd id mapping: %+v", devices)
 
 	return devices, nil
 }
@@ -585,11 +605,11 @@ func setOSDOnDevice(etcdClient etcd.KeysAPI, nodeID, name string, id int, dir bo
 }
 
 // add a device to the desired state
-func AddDesiredDevice(etcdClient etcd.KeysAPI, device, nodeID string) error {
-	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), device)
+func AddDesiredDevice(etcdClient etcd.KeysAPI, nodeID, uuid string, osdID int) error {
+	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), uuid)
 	err := util.CreateEtcdDir(etcdClient, key)
 	if err != nil {
-		return fmt.Errorf("failed to add device %s on node %s to desired. %v", device, nodeID, err)
+		return fmt.Errorf("failed to add device %s on node %s to desired. %v", uuid, nodeID, err)
 	}
 
 	return nil
@@ -641,12 +661,12 @@ func AddDesiredDir(etcdClient etcd.KeysAPI, dir, nodeID string) error {
 }
 
 // remove a device from the desired state
-func RemoveDesiredDevice(etcdClient etcd.KeysAPI, device, nodeID string) error {
+func RemoveDesiredDevice(etcdClient etcd.KeysAPI, nodeID, uuid string) error {
 
-	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), device)
+	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), uuid)
 	_, err := etcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true})
 	if err != nil {
-		return fmt.Errorf("failed to remove device %s on node %s from desired. %v", device, nodeID, err)
+		return fmt.Errorf("failed to remove device uuid %s on node %s from desired. %v", uuid, nodeID, err)
 	}
 
 	return nil

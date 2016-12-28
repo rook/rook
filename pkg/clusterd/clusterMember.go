@@ -90,12 +90,6 @@ func (r *ClusterMember) initialize() error {
 		return fmt.Errorf("failed to elect leader. %+v", err)
 	}
 
-	// initialize the hardware inventory
-	err = r.discoverHardware()
-	if err != nil {
-		return fmt.Errorf("failed to detect initial hardware. %+v", err)
-	}
-
 	// in a goroutine, begin the monitor cluster loop for changes in membership, leadership, etc.
 	go func() {
 		r.refreshLeader()
@@ -271,5 +265,11 @@ func (r *ClusterMember) discoverHardware() error {
 	}
 
 	// Discover current state of the disks and other node properties
-	return inventory.DiscoverHardware(r.context.NodeID, r.context.EtcdClient, r.context.Executor)
+	var err error
+	r.context.Inventory.Local, err = inventory.DiscoverHardware(r.context.EtcdClient, r.context.Executor, r.context.NodeID)
+	if err != nil {
+		return fmt.Errorf("failed to perform discovery. %+v", err)
+	}
+
+	return nil
 }

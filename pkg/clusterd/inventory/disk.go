@@ -16,186 +16,87 @@ limitations under the License.
 package inventory
 
 import (
-	"errors"
+	"encoding/json"
 	"fmt"
 	"path"
 	"strconv"
-	"strings"
 
 	etcd "github.com/coreos/etcd/client"
-	"github.com/rook/rook/pkg/util"
+	ctx "golang.org/x/net/context"
+
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
-	ctx "golang.org/x/net/context"
 )
 
-const (
-	diskUUIDKey        = "uuid"
-	diskSizeKey        = "size"
-	diskRotationalKey  = "rotational"
-	diskReadonlyKey    = "readonly"
-	diskFileSystemKey  = "filesystem"
-	diskTypeKey        = "type"
-	diskParentKey      = "parent"
-	diskHasChildrenKey = "children"
-	diskMountPointKey  = "mountpoint"
-)
+func GetAvailableDevices(devices []LocalDisk) []string {
 
-func DiskTypeToStr(diskType DiskType) string {
-	switch diskType {
-	case Disk:
-		return "disk"
-	case Part:
-		return "part"
-	default:
-		return "unknown"
-	}
-}
-
-func StrToDiskType(diskType string) (DiskType, error) {
-	diskType = strings.ToLower(diskType)
-	switch diskType {
-	case "disk":
-		return Disk, nil
-	case "part":
-		return Part, nil
-	default:
-		return -1, errors.New(fmt.Sprintf("unknown disk type: %s", diskType))
-	}
-}
-
-func GetDeviceSize(name, nodeID string, etcdClient etcd.KeysAPI) (uint64, error) {
-	key := path.Join(GetNodeConfigKey(nodeID), disksKey, name, diskSizeKey)
-	resp, err := etcdClient.Get(ctx.Background(), key, nil)
-	if err != nil {
-		return 0, err
-	}
-
-	size, err := strconv.ParseUint(resp.Node.Value, 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return size, nil
-}
-
-func GetDeviceFromUUID(uuid, nodeID string, etcdClient etcd.KeysAPI) (string, error) {
-	key := path.Join(GetNodeConfigKey(nodeID), disksKey)
-	devices, err := util.GetDirChildKeys(etcdClient, key)
-	if err != nil {
-		return "", err
-	}
-
-	for d := range devices.Iter() {
-		resp, err := etcdClient.Get(ctx.Background(), path.Join(key, d, diskUUIDKey), nil)
-		if err != nil || resp == nil || resp.Node == nil {
-			continue
-		}
-
-		if resp.Node.Value == uuid {
-			return d, nil
+	var available []string
+	for _, device := range devices {
+		logger.Debugf("Evaluating device %+v", device)
+		if getDeviceAvailable(device) {
+			logger.Debugf("Available device: %s", device.Name)
+			available = append(available, device.Name)
 		}
 	}
 
-	return "", fmt.Errorf("device for uuid %s not found", uuid)
+	return available
 }
 
-func SetDeviceUUID(nodeID, device, uuid string, etcdClient etcd.KeysAPI) error {
-	key := path.Join(GetNodeConfigKey(nodeID), disksKey, device, diskUUIDKey)
-	_, err := etcdClient.Set(ctx.Background(), key, uuid, nil)
-	return err
-}
-
-func GetDeviceUUID(device, nodeID string, etcdClient etcd.KeysAPI) (string, error) {
-	key := path.Join(GetNodeConfigKey(nodeID), disksKey, device, diskUUIDKey)
-	resp, err := etcdClient.Get(ctx.Background(), key, nil)
+func storeDevices(etcdClient etcd.KeysAPI, nodeID string, devices []LocalDisk) error {
+	// store the basic device info in etcd
+	disks := toClusterDisks(devices)
+	output, err := json.Marshal(disks)
 	if err != nil {
-		return "", err
+		return fmt.Errorf("failed to marshal disks. %+v", err)
 	}
 
-	return resp.Node.Value, nil
+	key := path.Join(NodesConfigKey, nodeID, disksKey)
+	_, err = etcdClient.Set(ctx.Background(), key, string(output), nil)
+	if err != nil {
+		return fmt.Errorf("failed to store disks in etcd. %+v", err)
+	}
+
+	return nil
 }
 
-func getDiskInfo(diskInfo *etcd.Node) (*DiskConfig, error) {
-	disk := &DiskConfig{}
-	disk.Name = util.GetLeafKeyPath(diskInfo.Key)
+func loadDisksConfig(nodeConfig *NodeConfig, rawDisks string) error {
+	var disks []Disk
+	if err := json.Unmarshal([]byte(rawDisks), &disks); err != nil {
+		return fmt.Errorf("failed to deserialize disks. %+v", err)
+	}
+	nodeConfig.Disks = disks
+	return nil
+}
 
-	// iterate over all properties of the disk
-	for _, diskProperty := range diskInfo.Nodes {
-		diskPropertyName := util.GetLeafKeyPath(diskProperty.Key)
-		switch diskPropertyName {
-		case diskUUIDKey:
-			disk.UUID = diskProperty.Value
-		case diskSizeKey:
-			size, err := strconv.ParseUint(diskProperty.Value, 10, 64)
-			if err != nil {
-				return nil, err
-			} else {
-				disk.Size = size
-			}
-		case diskRotationalKey:
-			rotational, err := strconv.ParseInt(diskProperty.Value, 10, 64)
-			if err != nil {
-				return nil, err
-			} else {
-				disk.Rotational = itob(rotational)
-			}
-		case diskReadonlyKey:
-			readonly, err := strconv.ParseInt(diskProperty.Value, 10, 64)
-			if err != nil {
-				return nil, err
-			} else {
-				disk.Readonly = itob(readonly)
-			}
-		case diskFileSystemKey:
-			disk.FileSystem = diskProperty.Value
-		case diskMountPointKey:
-			disk.MountPoint = diskProperty.Value
-		case diskTypeKey:
-			diskType, err := StrToDiskType(diskProperty.Value)
-			if err != nil {
-				return nil, err
-			} else {
-				disk.Type = diskType
-			}
-		case diskParentKey:
-			disk.Parent = diskProperty.Value
-		case diskHasChildrenKey:
-			hasChildren, err := strconv.ParseInt(diskProperty.Value, 10, 64)
-			if err != nil {
-				return nil, err
-			} else {
-				disk.HasChildren = itob(hasChildren)
-			}
-		default:
-			logger.Warningf("unknown disk property key %s, skipping...", diskPropertyName)
+// Extract the basic disk info that will be used in cluster-wide orchestration decisions.
+func toClusterDisks(devices []LocalDisk) []Disk {
+	var disks []Disk
+	for _, device := range devices {
+		if device.Type == DiskType || device.Type == SSDType {
+			disk := Disk{
+				Type:       device.Type,
+				Size:       device.Size,
+				Rotational: device.Rotational,
+				Available:  getDeviceAvailable(device)}
+			disks = append(disks, disk)
 		}
 	}
 
-	return disk, nil
+	return disks
 }
 
-func btoi(b bool) int {
-	if b {
-		return 1
-	} else {
-		return 0
-	}
+// check whether a device is available for use by bluestore
+func getDeviceAvailable(device LocalDisk) bool {
+	return device.Parent == "" && device.Type == DiskType && device.FileSystem == ""
 }
 
-func itob(i int64) bool {
-	if i == 0 {
-		return false
-	} else {
-		return true
-	}
-}
+// Discover all the details of devices available on the local node
+func discoverDevices(executor exec.Executor) ([]LocalDisk, error) {
 
-func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.Executor) error {
-
+	var disks []LocalDisk
 	devices, err := sys.ListDevices(executor)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	for _, d := range devices {
@@ -207,7 +108,7 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.
 		}
 
 		diskType, ok := diskProps["TYPE"]
-		if !ok || (diskType != "ssd" && diskType != "disk" && diskType != "part") {
+		if !ok || (diskType != SSDType && diskType != DiskType && diskType != PartType) {
 			// unsupported disk type, just continue
 			continue
 		}
@@ -224,71 +125,35 @@ func discoverDisks(nodeConfigKey string, etcdClient etcd.KeysAPI, executor exec.
 
 		fs, err := sys.GetDeviceFilesystems(d, executor)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
-		dkey := path.Join(nodeConfigKey, disksKey, d)
+		disk := LocalDisk{Name: d, UUID: diskUUID, FileSystem: fs}
 
-		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, diskUUIDKey), diskUUID, nil); err != nil {
-			return err
+		if val, ok := diskProps["TYPE"]; ok {
+			disk.Type = val
 		}
-		if err := setSimpleDiskProperty("SIZE", diskSizeKey, dkey, diskProps, etcdClient); err != nil {
-			return err
+		if val, ok := diskProps["SIZE"]; ok {
+			if size, err := strconv.ParseUint(val, 10, 64); err == nil {
+				disk.Size = size
+			}
 		}
-		if err := setSimpleDiskProperty("ROTA", diskRotationalKey, dkey, diskProps, etcdClient); err != nil {
-			return err
+		if val, ok := diskProps["ROTA"]; ok {
+			if rotates, err := strconv.ParseBool(val); err == nil {
+				disk.Rotational = rotates
+			}
 		}
-		if err := setSimpleDiskProperty("RO", diskReadonlyKey, dkey, diskProps, etcdClient); err != nil {
-			return err
+		if val, ok := diskProps["RO"]; ok {
+			if ro, err := strconv.ParseBool(val); err == nil {
+				disk.Readonly = ro
+			}
 		}
-		if err := setSimpleDiskProperty("PKNAME", diskParentKey, dkey, diskProps, etcdClient); err != nil {
-			return err
+		if val, ok := diskProps["PKNAME"]; ok {
+			disk.Parent = val
 		}
-		if _, err := etcdClient.Set(ctx.Background(), path.Join(dkey, diskFileSystemKey), fs, nil); err != nil {
-			return err
-		}
+
+		disks = append(disks, disk)
 	}
 
-	return nil
-}
-
-func setSimpleDiskProperty(propName, keyName, diskKey string, diskPropMap map[string]string, etcdClient etcd.KeysAPI) error {
-	val, ok := diskPropMap[propName]
-	if !ok {
-		return fmt.Errorf("disk property %s not found in map: %+v", propName, diskPropMap)
-	}
-	if _, err := etcdClient.Set(ctx.Background(), path.Join(diskKey, keyName), val, nil); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// test usage only
-func TestSetDiskInfo(etcdClient *util.MockEtcdClient, hardwareKey string, name string, uuid string, size uint64, rotational bool, readonly bool,
-	filesystem string, mountPoint string, diskType DiskType, parent string, hasChildren bool) DiskConfig {
-
-	diskKey := path.Join(hardwareKey, disksKey, name)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskUUIDKey), uuid, nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskSizeKey), strconv.FormatUint(size, 10), nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskRotationalKey), strconv.Itoa(btoi(rotational)), nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskReadonlyKey), strconv.Itoa(btoi(readonly)), nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskFileSystemKey), filesystem, nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskMountPointKey), mountPoint, nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskTypeKey), DiskTypeToStr(diskType), nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskParentKey), parent, nil)
-	etcdClient.Set(ctx.Background(), path.Join(diskKey, diskHasChildrenKey), strconv.Itoa(btoi(hasChildren)), nil)
-
-	return DiskConfig{
-		Name:        name,
-		UUID:        uuid,
-		Size:        size,
-		Rotational:  rotational,
-		Readonly:    readonly,
-		FileSystem:  filesystem,
-		MountPoint:  mountPoint,
-		Type:        diskType,
-		Parent:      parent,
-		HasChildren: hasChildren,
-	}
+	return disks, nil
 }

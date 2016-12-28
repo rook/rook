@@ -39,13 +39,14 @@ const (
 type Scheme struct {
 	Version        int               `json:"version"`
 	SizeMB         int               `json:"sizeMb"`
+	ID             int               `json:"id"`
 	DiskUUID       string            `json:"diskUuid"`
 	PartitionUUIDs map[string]string `json:"partitionUuids"`
 }
 
 // This is a simple scheme to create the wal and db each of size 10% of the disk,
 // with the remainder of the disk being allocated for the raw data.
-func GetSimpleScheme(sizeMB int) (*Scheme, error) {
+func GetSimpleScheme(id, sizeMB int) (*Scheme, error) {
 	diskUUID, err := uuid.NewRandom()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get disk uuid. %+v", err)
@@ -72,6 +73,7 @@ func GetSimpleScheme(sizeMB int) (*Scheme, error) {
 	return &Scheme{
 		Version:        SimpleVersion,
 		SizeMB:         sizeMB,
+		ID:             id,
 		DiskUUID:       diskUUID.String(),
 		PartitionUUIDs: uuids,
 	}, nil
@@ -87,11 +89,11 @@ func (s *Scheme) GetArgs(name string) []string {
 	tenPercent := s.SizeMB / 10
 
 	// append args for individual partitions
-	args := s.getPartitionArgs(WalPartitionName, walPartition, offset, tenPercent, fmt.Sprintf("osd-wal-%s", s.DiskUUID))
+	args := s.getPartitionArgs(WalPartitionName, walPartition, offset, tenPercent, fmt.Sprintf("ROOK-OSD%d-WAL", s.ID))
 	offset += tenPercent
-	args = append(args, s.getPartitionArgs(DatabasePartitionName, databasePartition, offset, tenPercent, fmt.Sprintf("osd-db-%s", s.DiskUUID))...)
+	args = append(args, s.getPartitionArgs(DatabasePartitionName, databasePartition, offset, tenPercent, fmt.Sprintf("ROOK-OSD%d-DB", s.ID))...)
 	offset += tenPercent
-	args = append(args, s.getPartitionArgs(BlockPartitionName, blockPartition, offset, UseRemainingSpace, fmt.Sprintf("osd-block-%s", s.DiskUUID))...)
+	args = append(args, s.getPartitionArgs(BlockPartitionName, blockPartition, offset, UseRemainingSpace, fmt.Sprintf("ROOK-OSD%d-BLOCK", s.ID))...)
 
 	// append args for the whole device
 	args = append(args, fmt.Sprintf("--disk-guid=%s", s.DiskUUID))

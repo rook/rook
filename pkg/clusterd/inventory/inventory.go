@@ -23,6 +23,7 @@ import (
 	ctx "golang.org/x/net/context"
 
 	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -30,6 +31,28 @@ const (
 	NodesConfigKey              = "/rook/nodes/config"
 	TriggerHardwareDetectionKey = "trigger-hardware-detection"
 )
+
+// Discover all the hardware properties for this node.
+// Store the important properties in etcd and more detailed info for the local node in the context.
+func DiscoverHardware(etcdClient etcd.KeysAPI, executor exec.Executor, nodeID string) (*Hardware, error) {
+	devices, err := discoverDevices(executor)
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover devices. %+v", err)
+	}
+
+	if err = storeDevices(etcdClient, nodeID, devices); err != nil {
+		return nil, fmt.Errorf("failed to store disks in etcd. %+v", err)
+	}
+
+	mem := getSystemMemory()
+	if err = storeMemory(etcdClient, nodeID, mem); err != nil {
+		return nil, fmt.Errorf("failed to store system memory in etcd. %+v", err)
+	}
+
+	// TODO: Discover network adapters, processors, ...
+
+	return &Hardware{Disks: devices, Memory: mem}, nil
+}
 
 func LoadDiscoveredNodes(etcdClient etcd.KeysAPI) (*Config, error) {
 

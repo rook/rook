@@ -19,7 +19,6 @@ import (
 	"net/http"
 
 	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/cephmgr/osd"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/model"
@@ -46,22 +45,11 @@ func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 	nodes := make([]model.Node, len(clusterInventory.Nodes))
 	i := 0
 	for nodeID, n := range clusterInventory.Nodes {
-		// look up all the disks that the current node has applied OSDs on
-		appliedIDs, err := osd.GetAppliedOSDs(nodeID, h.context.EtcdClient)
-		if err != nil {
-			logger.Errorf("failed to get applied OSDs for node %s: %+v", nodeID, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
 		storage := uint64(0)
 		for _, d := range n.Disks {
-			for _, uuid := range appliedIDs {
-				if d.UUID == uuid {
-					// current disk is in applied OSD set, add its storage to the running total
-					storage += d.Size
-				}
-			}
+			// Add up the space of all devices.
+			// We should have a separate metric for osd devices, but keep it simple for now.
+			storage += d.Size
 		}
 
 		// determine the node's state/health
