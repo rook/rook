@@ -7,13 +7,6 @@ coreos:
   - name: rookd.service
     enable: true
     command: start
-# enable if you want to run from locally built ACI files
-#    drop-ins:
-#      - name: 10-local-aci.conf
-#        content: |
-#          [Service]
-#          Environment=ROOKD_ACI=/release/quay.io-rook-rookd-dev.aci
-#          Environment=RKT_OPTIONS=--insecure-options=image
     content: |
       [Unit]
       Description=Rook Daemon - software defined storage
@@ -25,11 +18,12 @@ coreos:
       Restart=always
       KillMode=process
 
-      Environment=ROOKD_ACI=quay.io/rook/rookd:latest
+      Environment=RKT_OPTIONS=%%aci_options%%
+      Environment=ROOKD_ACI=%%aci_location%%
       Environment=ROOKD_PUBLIC_IPV4=$public_ipv4
       Environment=ROOKD_PRIVATE_IPV4=$private_ipv4
       Environment=ROOKD_DATA_DIR=/var/lib/rook
-      Environment=ROOKD_DISCOVERY_URL=%%token%%
+      Environment=ROOKD_DISCOVERY_URL=%%discovery_token%%
       Environment=ROOKD_DATA_DEVICES=sda,sdb,sdc,sdd
 
       ExecStartPre=/usr/bin/mkdir -p ${ROOKD_DATA_DIR}
