@@ -40,7 +40,6 @@ import (
 const (
 	DevicesValue                = "devices"
 	ForceFormatValue            = "forceFormat"
-	sgdisk                      = "sgdisk"
 	cephOsdKey                  = mon.CephKey + "/osd"
 	desiredOsdRootKey           = cephOsdKey + "/" + clusterd.DesiredKey + "/%s"
 	deviceDesiredKey            = desiredOsdRootKey + "/device"
@@ -69,31 +68,60 @@ type Device struct {
 
 // format the given device for usage by an OSD
 func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool) error {
-	// format the current volume
+	dangerousToFormat := false
+
+	// check if partitions belong to rook
+	partitions, _, err := sys.GetDevicePartitions(config.deviceName, context.Executor)
+	if err != nil {
+		return fmt.Errorf("failed to get %s partitions. %+v", config.deviceName, err)
+	}
+	if !rookOwnsPartitions(partitions) {
+		dangerousToFormat = true
+		if forceFormat {
+			logger.Warningf("device %s is being formatted!! partitions: %+v", config.deviceName, partitions)
+		} else {
+			logger.Warningf("device %s has partitions that will not be formatted. Skipping device.", config.deviceName)
+		}
+	}
+
+	// check if there is a file system on the device
 	devFS, err := sys.GetDeviceFilesystems(config.deviceName, context.Executor)
 	if err != nil {
 		return fmt.Errorf("failed to get device %s filesystem: %+v", config.deviceName, err)
 	}
-
-	if devFS != "" && forceFormat {
-		// there's a filesystem on the device, but the user has specified to force a format. give a warning about that.
-		logger.Warningf("device %s already formatted with %s, but forcing a format!!!", config.deviceName, devFS)
+	if devFS != "" {
+		dangerousToFormat = true
+		if forceFormat {
+			// there's a filesystem on the device, but the user has specified to force a format. give a warning about that.
+			logger.Warningf("device %s already formatted with %s, but forcing a format!!!", config.deviceName, devFS)
+		} else {
+			// disk is already formatted and the user doesn't want to force it, but we require partitioning
+			return fmt.Errorf("device %s already formatted with %s", config.deviceName, devFS)
+		}
 	}
 
-	if devFS == "" || forceFormat {
-		logger.Infof("Partitioning device %s for bluestore", config.deviceName)
-
+	// format the device
+	if !dangerousToFormat || forceFormat {
 		err := partitionBluestoreDevice(context, config)
 		if err != nil {
 			return fmt.Errorf("failed to partion device %s. %v", config.deviceName, err)
 		}
-
-	} else {
-		// disk is already formatted and the user doesn't want to force it, but we require partitioning
-		return fmt.Errorf("device %s already formatted with %s", config.deviceName, devFS)
 	}
 
 	return nil
+}
+
+func rookOwnsPartitions(partitions []*sys.Partition) bool {
+
+	// if there are partitions, they must all have the rook osd label
+	for _, p := range partitions {
+		if !strings.HasPrefix(p.Name, "ROOK-OSD") {
+			return false
+		}
+	}
+
+	// if there are no partitions, or the partitions are all from OSDs, then rook owns the device
+	return true
 }
 
 // Partitions a device for use by a bluestore osd.
@@ -104,14 +132,7 @@ func partitionBluestoreDevice(context *clusterd.Context, config *osdConfig) erro
 		return fmt.Errorf("failed to get device size for osd %d. %+v", config.id, err)
 	}
 
-	cmd := fmt.Sprintf("zap %s osd%d", config.deviceName, config.id)
-	err = context.Executor.ExecuteCommand(cmd, sgdisk, "--zap-all", "/dev/"+config.deviceName)
-	if err != nil {
-		return fmt.Errorf("failed to zap partitions on /dev/%s: %+v", config.deviceName, err)
-	}
-
-	cmd = fmt.Sprintf("clear %s osd%d", config.deviceName, config.id)
-	err = context.Executor.ExecuteCommand(cmd, sgdisk, "--clear", "--mbrtogpt", "/dev/"+config.deviceName)
+	err = sys.RemovePartitions(config.deviceName, context.Executor)
 	if err != nil {
 		return fmt.Errorf("failed to zap partitions on /dev/%s: %+v", config.deviceName, err)
 	}
@@ -122,15 +143,8 @@ func partitionBluestoreDevice(context *clusterd.Context, config *osdConfig) erro
 	}
 	config.diskUUID = scheme.DiskUUID
 
-	// get args for creating partitions
-	args := scheme.GetArgs(config.deviceName)
-	if err != nil {
-		return fmt.Errorf("failed to get partition args. %+v", err)
-	}
-
-	// execute the partition command
-	cmd = fmt.Sprintf("partition %s osd%d", config.deviceName, config.id)
-	err = context.Executor.ExecuteCommand(cmd, sgdisk, args...)
+	// create the partitions
+	err = sys.CreatePartitions(config.deviceName, scheme.GetArgs(config.deviceName), context.Executor)
 	if err != nil {
 		return fmt.Errorf("failed to partition /dev/%s. %+v", config.deviceName, err)
 	}

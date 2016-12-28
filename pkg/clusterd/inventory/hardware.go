@@ -17,12 +17,6 @@ package inventory
 
 import "time"
 
-const (
-	DiskType = "disk"
-	SSDType  = "ssd"
-	PartType = "part"
-)
-
 type Config struct {
 	Nodes map[string]*NodeConfig `json:"nodes"`
 	Local *Hardware              `json:"local"`

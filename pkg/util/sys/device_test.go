@@ -120,3 +120,56 @@ func TestMountDeviceWithOptions(t *testing.T) {
 	// both fstype and options specified
 	MountDeviceWithOptions("/dev/abc1", "/tmp/mount1", "myfstype", "foo=bar,baz=biz", e)
 }
+
+func TestGetPartitions(t *testing.T) {
+	run := 0
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, arg ...string) (string, error) {
+			run++
+			switch {
+			case run == 1:
+				return `NAME="sdc" SIZE="100000" TYPE="disk" PKNAME="" PARTLABEL=""`, nil
+			case run == 2:
+				return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME="" PARTLABEL=""
+NAME="sdb2" SIZE="10" TYPE="part" PKNAME="sdb" PARTLABEL="ROOK-OSD0-DB"
+NAME="sdb3" SIZE="20" TYPE="part" PKNAME="sdb" PARTLABEL="ROOK-OSD0-BLOCK"
+NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb" PARTLABEL="ROOK-OSD0-WAL"`, nil
+			case run == 3:
+				return `NAME="sda" SIZE="19818086400" TYPE="disk" PKNAME="" PARTLABEL=""
+NAME="sda4" SIZE="1073741824" TYPE="part" PKNAME="sda" PARTLABEL="USR-B"
+NAME="sda2" SIZE="2097152" TYPE="part" PKNAME="sda" PARTLABEL="BIOS-BOOT"
+NAME="sda9" SIZE="17328766976" TYPE="part" PKNAME="sda" PARTLABEL="ROOT"
+NAME="sda7" SIZE="67108864" TYPE="part" PKNAME="sda" PARTLABEL="OEM-CONFIG"
+NAME="sda3" SIZE="1073741824" TYPE="part" PKNAME="sda" PARTLABEL="USR-A"
+NAME="usr" SIZE="1065345024" TYPE="crypt" PKNAME="sda3" PARTLABEL=""
+NAME="sda1" SIZE="134217728" TYPE="part" PKNAME="sda" PARTLABEL="EFI-SYSTEM"
+NAME="sda6" SIZE="134217728" TYPE="part" PKNAME="sda" PARTLABEL="OEM"`, nil
+			case run == 4:
+				return "", nil
+			}
+			return "", nil
+		},
+	}
+
+	partitions, unused, err := GetDevicePartitions("sdc", executor)
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(100000), unused)
+	assert.Equal(t, 0, len(partitions))
+
+	partitions, unused, err = GetDevicePartitions("sdb", executor)
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(5), unused)
+	assert.Equal(t, 3, len(partitions))
+	assert.Equal(t, uint64(10), partitions[0].Size)
+	assert.Equal(t, "ROOK-OSD0-DB", partitions[0].Label)
+	assert.Equal(t, "sdb2", partitions[0].Name)
+
+	partitions, unused, err = GetDevicePartitions("sda", executor)
+	assert.Nil(t, err)
+	assert.Equal(t, uint64(0x400000), unused)
+	assert.Equal(t, 7, len(partitions))
+
+	partitions, unused, err = GetDevicePartitions("sdx", executor)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(partitions))
+}

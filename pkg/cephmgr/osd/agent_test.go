@@ -122,7 +122,7 @@ func TestOSDAgentWithDevices(t *testing.T) {
 
 	assert.Equal(t, 0, agent.configCounter)
 	assert.Equal(t, 8, execCount)
-	assert.Equal(t, 2, outputExecCount)
+	assert.Equal(t, 4, outputExecCount)
 	assert.Equal(t, 2, startCount)
 	assert.Equal(t, 2, len(agent.osdProc), fmt.Sprintf("procs=%+v", agent.osdProc))
 

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -61,8 +62,8 @@ func TestLoadHardwareConfig(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 
 	// setup disk info in etcd
-	d1 := &LocalDisk{Name: "sda", UUID: "uuid1", Size: 10737418240, Rotational: true, Readonly: false, Type: DiskType, HasChildren: true}
-	d2 := &LocalDisk{Name: "sda2", UUID: "uuid2", Size: 2097152, Rotational: false, Readonly: true, Type: PartType, HasChildren: false}
+	d1 := &LocalDisk{Name: "sda", UUID: "uuid1", Size: 10737418240, Rotational: true, Readonly: false, Type: sys.DiskType, HasChildren: true}
+	d2 := &LocalDisk{Name: "sda2", UUID: "uuid2", Size: 2097152, Rotational: false, Readonly: true, Type: sys.PartType, HasChildren: false}
 	err := storeDevices(etcdClient, nodeID, []*LocalDisk{d1, d2})
 	assert.Nil(t, err)
 
