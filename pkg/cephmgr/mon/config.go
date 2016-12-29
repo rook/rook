@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
@@ -39,34 +40,66 @@ type cephConfig struct {
 	*GlobalConfig `ini:"global,omitempty"`
 }
 
+// for ceph debug log settings see http://docs.ceph.com/docs/master/rados/troubleshooting/log-and-debug/#subsystem-log-and-debug-settings
 type GlobalConfig struct {
-	EnableExperimental       string `ini:"enable experimental unrecoverable data corrupting features"`
-	FSID                     string `ini:"fsid,omitempty"`
-	RunDir                   string `ini:"run dir,omitempty"`
-	MonMembers               string `ini:"mon initial members,omitempty"`
-	LogFile                  string `ini:"log file,omitempty"`
-	MonClusterLogFile        string `ini:"mon cluster log file,omitempty"`
-	MonKeyValueDb            string `ini:"mon keyvaluedb"`
-	DebugLogDefaultLevel     int    `ini:"debug default"`
-	DebugLogRadosLevel       int    `ini:"debug rados"`
-	DebugLogMonLevel         int    `ini:"debug mon"`
-	DebugLogOSDLevel         int    `ini:"debug osd"`
-	DebugLogBluestoreLevel   int    `ini:"debug bluestore"`
-	DebugLogFilestoreLevel   int    `ini:"debug filestore"`
-	DebugLogJournalLevel     int    `ini:"debug journal"`
-	DebugLogLevelDBLevel     int    `ini:"debug leveldb"`
-	FileStoreOmapBackend     string `ini:"filestore_omap_backend"`
-	OsdPgBits                int    `ini:"osd pg bits,omitempty"`
-	OsdPgpBits               int    `ini:"osd pgp bits,omitempty"`
-	OsdPoolDefaultSize       int    `ini:"osd pool default size,omitempty"`
-	OsdPoolDefaultMinSize    int    `ini:"osd pool default min size,omitempty"`
-	OsdPoolDefaultPgNum      int    `ini:"osd pool default pg num,omitempty"`
-	OsdPoolDefaultPgpNum     int    `ini:"osd pool default pgp num,omitempty"`
-	OsdMaxObjectNameLen      int    `ini:"osd max object name len,omitempty"`
-	OsdMaxObjectNamespaceLen int    `ini:"osd max object namespace len,omitempty"`
-	OsdObjectStore           string `ini:"osd objectstore"`
-	RbdDefaultFeatures       int    `ini:"rbd_default_features,omitempty"`
-	CrushtoolPath            string `ini:"crushtool"`
+	EnableExperimental        string `ini:"enable experimental unrecoverable data corrupting features"`
+	FSID                      string `ini:"fsid,omitempty"`
+	RunDir                    string `ini:"run dir,omitempty"`
+	MonMembers                string `ini:"mon initial members,omitempty"`
+	LogFile                   string `ini:"log file,omitempty"`
+	MonClusterLogFile         string `ini:"mon cluster log file,omitempty"`
+	MonKeyValueDb             string `ini:"mon keyvaluedb"`
+	DebugLogAsokLevel         int    `ini:"debug asok"`
+	DebugLogAuthLevel         int    `ini:"debug auth"`
+	DebugLogBlueFSLevel       int    `ini:"debug bluefs"`
+	DebugLogBluestoreLevel    int    `ini:"debug bluestore"`
+	DebugLogBufferLevel       int    `ini:"debug buffer"`
+	DebugLogClientLevel       int    `ini:"debug client"`
+	DebugLogContextLevel      int    `ini:"debug context"`
+	DebugLogCrushLevel        int    `ini:"debug crush"`
+	DebugLogDefaultLevel      int    `ini:"debug default"`
+	DebugLogFilerLevel        int    `ini:"debug filer"`
+	DebugLogFilestoreLevel    int    `ini:"debug filestore"`
+	DebugLogFinisherLevel     int    `ini:"debug finisher"`
+	DebugLogHeartbeatmapLevel int    `ini:"debug heartbeatmap"`
+	DebugLogJournalLevel      int    `ini:"debug journal"`
+	DebugLogJournalerLevel    int    `ini:"debug journaler"`
+	DebugLogLevelDBLevel      int    `ini:"debug leveldb"`
+	DebugLogLockdepLevel      int    `ini:"debug lockdep"`
+	DebugLogMDSLevel          int    `ini:"debug mds"`
+	DebugLogMDSBalancerLevel  int    `ini:"debug mds balancer"`
+	DebugLogMDSLockerLevel    int    `ini:"debug mds locker"`
+	DebugLogMDSLogLevel       int    `ini:"debug mds log"`
+	DebugLogMDSLogExpireLevel int    `ini:"debug mds log expire"`
+	DebugLogMDSMigratorLevel  int    `ini:"debug mds migrator"`
+	DebugLogMonLevel          int    `ini:"debug mon"`
+	DebugLogMoncLevel         int    `ini:"debug monc"`
+	DebugLogMSLevel           int    `ini:"debug ms"`
+	DebugLogObjClassLevel     int    `ini:"debug objclass"`
+	DebugLogObjectCacherLevel int    `ini:"debug objectcacher"`
+	DebugLogObjecterLevel     int    `ini:"debug objecter"`
+	DebugLogOptrackerLevel    int    `ini:"debug optracker"`
+	DebugLogOSDLevel          int    `ini:"debug osd"`
+	DebugLogPaxosLevel        int    `ini:"debug paxos"`
+	DebugLogPerfcounterLevel  int    `ini:"debug perfcounter"`
+	DebugLogRadosLevel        int    `ini:"debug rados"`
+	DebugLogRBDLevel          int    `ini:"debug rbd"`
+	DebugLogRGWLevel          int    `ini:"debug rgw"`
+	DebugLogThrottleLevel     int    `ini:"debug throttle"`
+	DebugLogTimerLevel        int    `ini:"debug timer"`
+	DebugLogTPLevel           int    `ini:"debug tp"`
+	FileStoreOmapBackend      string `ini:"filestore_omap_backend"`
+	OsdPgBits                 int    `ini:"osd pg bits,omitempty"`
+	OsdPgpBits                int    `ini:"osd pgp bits,omitempty"`
+	OsdPoolDefaultSize        int    `ini:"osd pool default size,omitempty"`
+	OsdPoolDefaultMinSize     int    `ini:"osd pool default min size,omitempty"`
+	OsdPoolDefaultPgNum       int    `ini:"osd pool default pg num,omitempty"`
+	OsdPoolDefaultPgpNum      int    `ini:"osd pool default pgp num,omitempty"`
+	OsdMaxObjectNameLen       int    `ini:"osd max object name len,omitempty"`
+	OsdMaxObjectNamespaceLen  int    `ini:"osd max object namespace len,omitempty"`
+	OsdObjectStore            string `ini:"osd objectstore"`
+	RbdDefaultFeatures        int    `ini:"rbd_default_features,omitempty"`
+	CrushtoolPath             string `ini:"crushtool"`
 }
 
 // get the path of a given monitor's run dir
@@ -253,35 +286,64 @@ func CreateDefaultCephConfig(cluster *ClusterInfo, runDir string, logLevel capns
 		store = "bluestore"
 	}
 
-	cephLogLevel := logLevelToCephLogLevel(logLevel)
-
 	return &cephConfig{
 		&GlobalConfig{
-			EnableExperimental:     experimental,
-			FSID:                   cluster.FSID,
-			RunDir:                 runDir,
-			MonMembers:             strings.Join(monMembers, " "),
-			LogFile:                "/dev/stdout",
-			MonClusterLogFile:      "/dev/stdout",
-			MonKeyValueDb:          "rocksdb",
-			DebugLogDefaultLevel:   cephLogLevel,
-			DebugLogRadosLevel:     cephLogLevel,
-			DebugLogMonLevel:       cephLogLevel,
-			DebugLogOSDLevel:       cephLogLevel,
-			DebugLogBluestoreLevel: cephLogLevel,
-			DebugLogFilestoreLevel: cephLogLevel,
-			DebugLogJournalLevel:   cephLogLevel,
-			DebugLogLevelDBLevel:   cephLogLevel,
-			FileStoreOmapBackend:   "rocksdb",
-			OsdPgBits:              11,
-			OsdPgpBits:             11,
-			OsdPoolDefaultSize:     1,
-			OsdPoolDefaultMinSize:  1,
-			OsdPoolDefaultPgNum:    100,
-			OsdPoolDefaultPgpNum:   100,
-			OsdObjectStore:         store,
-			RbdDefaultFeatures:     3,
-			CrushtoolPath:          "",
+			EnableExperimental:        experimental,
+			FSID:                      cluster.FSID,
+			RunDir:                    runDir,
+			MonMembers:                strings.Join(monMembers, " "),
+			LogFile:                   "/dev/stdout",
+			MonClusterLogFile:         "/dev/stdout",
+			MonKeyValueDb:             "rocksdb",
+			DebugLogDefaultLevel:      logLevelToCephLogLevel(logLevel),
+			DebugLogAsokLevel:         getEnvLogLevel("ASOK", 1),
+			DebugLogAuthLevel:         getEnvLogLevel("AUTH", 1),
+			DebugLogBlueFSLevel:       getEnvLogLevel("BLUEFS", 0),
+			DebugLogBluestoreLevel:    getEnvLogLevel("BLUESTORE", 0),
+			DebugLogBufferLevel:       getEnvLogLevel("BUFFER", 0),
+			DebugLogClientLevel:       getEnvLogLevel("CLIENT", 0),
+			DebugLogContextLevel:      getEnvLogLevel("CONTEXT", 0),
+			DebugLogCrushLevel:        getEnvLogLevel("CRUSH", 1),
+			DebugLogFilerLevel:        getEnvLogLevel("FILER", 0),
+			DebugLogFilestoreLevel:    getEnvLogLevel("FILESTORE", 1),
+			DebugLogFinisherLevel:     getEnvLogLevel("FINISHER", 1),
+			DebugLogHeartbeatmapLevel: getEnvLogLevel("HEARTBEAT_MAP", 1),
+			DebugLogJournalLevel:      getEnvLogLevel("JOURNAL", 1),
+			DebugLogJournalerLevel:    getEnvLogLevel("JOURNALER", 0),
+			DebugLogLevelDBLevel:      getEnvLogLevel("LEVELDB", 0),
+			DebugLogLockdepLevel:      getEnvLogLevel("LOCKDEP", 0),
+			DebugLogMDSLevel:          getEnvLogLevel("MDS", 1),
+			DebugLogMDSBalancerLevel:  getEnvLogLevel("MDS_BALANCER", 1),
+			DebugLogMDSLockerLevel:    getEnvLogLevel("MDS_LOCKER", 1),
+			DebugLogMDSLogLevel:       getEnvLogLevel("MDS_LOG", 1),
+			DebugLogMDSLogExpireLevel: getEnvLogLevel("MDS_LOG_EXPIRE", 1),
+			DebugLogMDSMigratorLevel:  getEnvLogLevel("MDS_MIGRATOR", 1),
+			DebugLogMonLevel:          getEnvLogLevel("MON", 1),
+			DebugLogMoncLevel:         getEnvLogLevel("MONC", 0),
+			DebugLogMSLevel:           getEnvLogLevel("MS", 0),
+			DebugLogObjClassLevel:     getEnvLogLevel("OBJ_CLASS", 0),
+			DebugLogObjectCacherLevel: getEnvLogLevel("OBJECT_CACHER", 0),
+			DebugLogObjecterLevel:     getEnvLogLevel("OBJECTER", 0),
+			DebugLogOptrackerLevel:    getEnvLogLevel("OPTRACKER", 0),
+			DebugLogOSDLevel:          getEnvLogLevel("OSD", 0),
+			DebugLogPaxosLevel:        getEnvLogLevel("PAXOS", 0),
+			DebugLogPerfcounterLevel:  getEnvLogLevel("PERF_COUNTER", 1),
+			DebugLogRadosLevel:        getEnvLogLevel("RADOS", 0),
+			DebugLogRBDLevel:          getEnvLogLevel("RBD", 0),
+			DebugLogRGWLevel:          getEnvLogLevel("RGW", 1),
+			DebugLogThrottleLevel:     getEnvLogLevel("THROTTLE", 1),
+			DebugLogTimerLevel:        getEnvLogLevel("TIMER", 0),
+			DebugLogTPLevel:           getEnvLogLevel("TP", 0),
+			FileStoreOmapBackend:      "rocksdb",
+			OsdPgBits:                 11,
+			OsdPgpBits:                11,
+			OsdPoolDefaultSize:        1,
+			OsdPoolDefaultMinSize:     1,
+			OsdPoolDefaultPgNum:       100,
+			OsdPoolDefaultPgpNum:      100,
+			OsdObjectStore:            store,
+			RbdDefaultFeatures:        3,
+			CrushtoolPath:             "",
 		},
 	}
 }
@@ -357,4 +419,16 @@ func logLevelToCephLogLevel(logLevel capnslog.LogLevel) int {
 	}
 
 	return 0
+}
+
+// translate an environment variable to a log level
+func getEnvLogLevel(variable string, defaultVal int) int {
+	level, err := strconv.Atoi(os.Getenv("ROOKD_LOG_" + variable))
+
+	// if the variable is not found, there is a parse error, or the value is out of bounds
+	// we will return the default level
+	if err != nil || level < -1 || level > 100 {
+		return defaultVal
+	}
+	return level
 }
