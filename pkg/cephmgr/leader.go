@@ -33,12 +33,13 @@ import (
 
 // Interface implemented by a service that has been elected leader
 type cephLeader struct {
-	monLeader   *mon.Leader
-	osdLeader   *osd.Leader
-	mdsLeader   *mds.Leader
-	rgwLeader   *rgw.Leader
-	factory     client.ConnectionFactory
-	adminSecret string
+	monLeader          *mon.Leader
+	osdLeader          *osd.Leader
+	mdsLeader          *mds.Leader
+	rgwLeader          *rgw.Leader
+	factory            client.ConnectionFactory
+	adminSecret        string
+	refreshInitialized bool
 }
 
 func newLeader(factory client.ConnectionFactory, adminSecret string) *cephLeader {
@@ -68,14 +69,14 @@ func (c *cephLeader) RefreshKeys() []*clusterd.RefreshKey {
 	return []*clusterd.RefreshKey{deviceChange, fileChange, objectChange}
 }
 
-func getOSDsToRefresh(e *clusterd.RefreshEvent) *util.Set {
+func getOSDsToRefresh(e *clusterd.RefreshEvent, refreshInitialized bool) *util.Set {
 	osds := util.NewSet()
 	osds.AddSet(e.NodesAdded)
 	osds.AddSet(e.NodesChanged)
 	osds.AddSet(e.NodesRemoved)
 
-	// Nothing changed in the event, so refresh osds on all nodes
-	if osds.Count() == 0 {
+	// Nothing changed in the event or this is the first refresh, so refresh osds on all nodes
+	if osds.Count() == 0 || !refreshInitialized {
 		for nodeID := range e.Context.Inventory.Nodes {
 			osds.Add(nodeID)
 		}
@@ -101,7 +102,7 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 	logger.Infof("ceph leader received refresh event")
 
 	refreshMons := getRefreshMons(e)
-	osdsToRefresh := getOSDsToRefresh(e)
+	osdsToRefresh := getOSDsToRefresh(e, c.refreshInitialized)
 	refreshFile := getRefreshFile(e)
 	refreshObject := getRefreshObject(e)
 
@@ -136,6 +137,7 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 		}
 	}
 
+	c.refreshInitialized = true
 	logger.Infof("ceph leader completed refresh")
 }
 
