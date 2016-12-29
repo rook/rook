@@ -15,6 +15,16 @@ A capable machine with Docker installed locally:
 
 We do not currently support building on a remote docker host.
 
+### Update the git submodules
+
+Rook has many git submodules, and before you can
+build Rook you need to initialize them:
+
+```
+git submodule sync --recursive
+git submodule update --recursive --init
+```
+
 ## Using the Build Container
 
 To run a command inside the container:
@@ -55,7 +65,7 @@ You shouldn't have to do this often unless something is broken or stale with you
 build container:
 
 ```
-build/clean
+build/reset
 ```
 
 ## Releasing
