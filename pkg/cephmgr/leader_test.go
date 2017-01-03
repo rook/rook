@@ -76,6 +76,36 @@ func TestCephLeaders(t *testing.T) {
 	assert.Equal(t, "mykey", etcdClient.GetValue("/rook/services/ceph/_secrets/admin"))
 }
 
+func TestOSDRefresh(t *testing.T) {
+	factory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
+	leader := newLeader(factory, "")
+
+	nodes := make(map[string]*inventory.NodeConfig)
+	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.4"}
+	nodes["b"] = &inventory.NodeConfig{PublicIP: "2.2.3.4"}
+
+	etcdClient := util.NewMockEtcdClient()
+	context := &clusterd.Context{EtcdClient: etcdClient, Inventory: &inventory.Config{Nodes: nodes}, ConfigDir: "/tmp"}
+
+	// mock the agent responses that the deployments were successful to start mons and osds
+	etcdClient.WatcherResponses["/rook/_notify/a/monitor/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/b/monitor/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/a/osd/status"] = "succeeded"
+	etcdClient.WatcherResponses["/rook/_notify/b/osd/status"] = "succeeded"
+
+	assert.Equal(t, "", etcdClient.GetValue("/rook/services/ceph/osd/desired/a/ready"))
+	assert.Equal(t, "", etcdClient.GetValue("/rook/services/ceph/osd/desired/b/ready"))
+
+	// on first refresh we should trigger osds on all nodes, not just the node newly added
+	refresh := clusterd.NewRefreshEvent()
+	refresh.NodesAdded.Add("b")
+	refresh.Context = context
+	leader.HandleRefresh(refresh)
+
+	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/osd/desired/a/ready"))
+	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/osd/desired/b/ready"))
+}
+
 func TestExtractDesiredDeviceNode(t *testing.T) {
 	// valid path with node id
 	node, err := extractNodeIDFromDesiredDevice("/rook/services/ceph/osd/desired/abc/device/sdb")
