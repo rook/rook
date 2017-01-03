@@ -26,8 +26,21 @@ require 'open-uri'
 if File.exists?('.discovery-token')
   token = IO.readlines(".discovery-token")[0..-1].join
 else
-  token = open($new_discovery_url).read
+  discovery_token = open($new_discovery_url).read
   File.open(".discovery-token", 'w') { |file| file.write("#{token}") }
+end
+
+private_build = false
+if ENV["START_LOCAL_ROOKD"] == "1"
+  private_build = true
+end
+
+if private_build
+  aci_location = "/release/quay.io-rook-rookd-dev.aci"
+  aci_options = "--insecure-options=image"
+else
+  aci_location = "quay.io/rook/rookd:latest"
+  aci_options = ""
 end
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
@@ -40,11 +53,17 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
       attach_volumes(node, $node_disks, $disk_size)
 
-      # enable if you want to run for locally build ACI files
-      #node.vm.synced_folder "../../release", "/release", id: "release", :nfs => true, :mount_options => ['nolock,vers=3,tcp']
+      if private_build
+        # run locally built ACI files
+        node.vm.synced_folder "../../release", "/release", id: "release", :nfs => true, :mount_options => ['nolock,vers=3,tcp']
+      end
 
       node.vm.provision :cloud_config, :template => "cloud-config.yml.in",
-        :subst => { "%%token%%" => "#{token}" }
+        :subst => { 
+            "%%discovery_token%%" => "#{discovery_token}", 
+            "%%aci_location%%" => "#{aci_location}",
+            "%%aci_options%%" => "#{aci_options}" 
+        }
     end
   end
 end
