@@ -63,15 +63,22 @@ func TestOSDAgentWithDevices(t *testing.T) {
 	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
 		logger.Infof("RUN %d for %s. %s %+v", execCount, name, command, args)
 		parts := strings.Split(name, " ")
-		nameSuffix := parts[len(parts)-1]
+		nameSuffix := parts[0]
+		if len(parts) > 1 {
+			nameSuffix = parts[1]
+		}
 		switch {
-		case execCount%3 == 0:
+		case execCount%4 == 0:
 			assert.Equal(t, "sgdisk", command)
 			assert.Equal(t, "--zap-all", args[0])
 			assert.Equal(t, "/dev/"+nameSuffix, args[1])
-		case execCount%3 == 1:
+		case execCount%4 == 1:
+			assert.Equal(t, "sgdisk", command)
+			assert.Equal(t, "--clear", args[0])
+			assert.Equal(t, "/dev/"+nameSuffix, args[2])
+		case execCount%4 == 2:
 			assert.Equal(t, "/dev/"+nameSuffix, args[10])
-		case execCount%3 == 2:
+		case execCount%4 == 3:
 			assert.Equal(t, "--mkfs", args[3])
 			createTestKeyring(t, args)
 		default:
@@ -114,7 +121,7 @@ func TestOSDAgentWithDevices(t *testing.T) {
 	<-agent.osdsCompleted
 
 	assert.Equal(t, 0, agent.configCounter)
-	assert.Equal(t, 6, execCount)
+	assert.Equal(t, 8, execCount)
 	assert.Equal(t, 2, outputExecCount)
 	assert.Equal(t, 2, startCount)
 	assert.Equal(t, 2, len(agent.osdProc), fmt.Sprintf("procs=%+v", agent.osdProc))

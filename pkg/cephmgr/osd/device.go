@@ -104,8 +104,14 @@ func partitionBluestoreDevice(context *clusterd.Context, config *osdConfig) erro
 		return fmt.Errorf("failed to get device size for osd %d. %+v", config.id, err)
 	}
 
-	cmd := fmt.Sprintf("zap %s", config.deviceName)
+	cmd := fmt.Sprintf("zap %s osd%d", config.deviceName, config.id)
 	err = context.Executor.ExecuteCommand(cmd, sgdisk, "--zap-all", "/dev/"+config.deviceName)
+	if err != nil {
+		return fmt.Errorf("failed to zap partitions on /dev/%s: %+v", config.deviceName, err)
+	}
+
+	cmd = fmt.Sprintf("clear %s osd%d", config.deviceName, config.id)
+	err = context.Executor.ExecuteCommand(cmd, sgdisk, "--clear", "--mbrtogpt", "/dev/"+config.deviceName)
 	if err != nil {
 		return fmt.Errorf("failed to zap partitions on /dev/%s: %+v", config.deviceName, err)
 	}
@@ -123,7 +129,7 @@ func partitionBluestoreDevice(context *clusterd.Context, config *osdConfig) erro
 	}
 
 	// execute the partition command
-	cmd = fmt.Sprintf("partition %s", config.deviceName)
+	cmd = fmt.Sprintf("partition %s osd%d", config.deviceName, config.id)
 	err = context.Executor.ExecuteCommand(cmd, sgdisk, args...)
 	if err != nil {
 		return fmt.Errorf("failed to partition /dev/%s. %+v", config.deviceName, err)
