@@ -454,13 +454,15 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, config 
 	// start the OSD daemon in the foreground with the given config
 	logger.Infof("starting osd %d at %s", config.id, config.rootPath)
 
-	osdUUIDArg := fmt.Sprintf("--osd-uuid=%s", config.uuid.String())
+	confFile := getOSDConfFilePath(config.rootPath, clusterName)
+	util.WriteFileToLog(logger, confFile)
 
+	osdUUIDArg := fmt.Sprintf("--osd-uuid=%s", config.uuid.String())
 	params := []string{"--foreground",
 		fmt.Sprintf("--id=%d", config.id),
 		fmt.Sprintf("--cluster=%s", clusterName),
 		fmt.Sprintf("--osd-data=%s", config.rootPath),
-		fmt.Sprintf("--conf=%s", getOSDConfFilePath(config.rootPath, clusterName)),
+		fmt.Sprintf("--conf=%s", confFile),
 		fmt.Sprintf("--keyring=%s", getOSDKeyringPath(config.rootPath)),
 		osdUUIDArg,
 	}

@@ -172,6 +172,10 @@ func (a *rgwAgent) startRGW(context *clusterd.Context, cluster *mon.ClusterInfo)
 	// start the monitor daemon in the foreground with the given config
 	logger.Infof("starting rgw")
 	rgwNameArg := "--name=client.radosgw.gateway"
+
+	confFile := getRGWConfFilePath(context.ConfigDir, cluster.Name)
+	util.WriteFileToLog(logger, confFile)
+
 	rgwProc, err := context.ProcMan.Start(
 		"rgw",
 		"rgw",
@@ -180,7 +184,7 @@ func (a *rgwAgent) startRGW(context *clusterd.Context, cluster *mon.ClusterInfo)
 		"--foreground",
 		rgwNameArg,
 		fmt.Sprintf("--cluster=%s", cluster.Name),
-		fmt.Sprintf("--conf=%s", getRGWConfFilePath(context.ConfigDir, cluster.Name)),
+		fmt.Sprintf("--conf=%s", confFile),
 		fmt.Sprintf("--keyring=%s", getRGWKeyringPath(context.ConfigDir)),
 		fmt.Sprintf("--rgw-frontends=civetweb port=%d", RGWPort),
 		fmt.Sprintf("--rgw-mime-types-file=%s", getMimeTypesPath(context.ConfigDir)))
