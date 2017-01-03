@@ -168,6 +168,9 @@ func (a *agent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, moni
 		return fmt.Errorf("missing endpoint for mon %s", monitor.Name)
 	}
 
+	confFile := GetConfFilePath(getMonRunDirPath(context.ConfigDir, monitor.Name), cluster.Name)
+	util.WriteFileToLog(logger, confFile)
+
 	// start the monitor daemon in the foreground with the given config
 	logger.Infof("starting monitor %s", monitor.Name)
 	monNameArg := fmt.Sprintf("--name=mon.%s", monitor.Name)
@@ -180,7 +183,7 @@ func (a *agent) runMonitor(context *clusterd.Context, cluster *ClusterInfo, moni
 		fmt.Sprintf("--cluster=%s", cluster.Name),
 		monNameArg,
 		fmt.Sprintf("--mon-data=%s", getMonDataDirPath(context.ConfigDir, monitor.Name)),
-		fmt.Sprintf("--conf=%s", GetConfFilePath(getMonRunDirPath(context.ConfigDir, monitor.Name), cluster.Name)),
+		fmt.Sprintf("--conf=%s", confFile),
 		fmt.Sprintf("--public-addr=%s", monitor.Endpoint))
 	if err != nil {
 		return fmt.Errorf("failed to start monitor %s: %v", monitor.Name, err)

@@ -135,6 +135,10 @@ func (a *mdsAgent) startMDS(context *clusterd.Context, cluster *mon.ClusterInfo,
 
 	// start the monitor daemon in the foreground with the given config
 	logger.Infof("starting mds %s", id)
+
+	confFile := getMDSConfFilePath(context.ConfigDir, id, cluster.Name)
+	util.WriteFileToLog(logger, confFile)
+
 	mdsNameArg := fmt.Sprintf("--name=mds.%s", id)
 	mdsProc, err := context.ProcMan.Start(
 		fmt.Sprintf("mds%s", id),
@@ -144,7 +148,7 @@ func (a *mdsAgent) startMDS(context *clusterd.Context, cluster *mon.ClusterInfo,
 		"--foreground",
 		mdsNameArg,
 		fmt.Sprintf("--cluster=%s", cluster.Name),
-		fmt.Sprintf("--conf=%s", getMDSConfFilePath(context.ConfigDir, id, cluster.Name)),
+		fmt.Sprintf("--conf=%s", confFile),
 		fmt.Sprintf("--keyring=%s", getMDSKeyringPath(context.ConfigDir, id)),
 		"-i", id)
 	if err != nil {

@@ -15,6 +15,20 @@ limitations under the License.
 */
 package util
 
-import "github.com/coreos/pkg/capnslog"
+import (
+	"io/ioutil"
+
+	"github.com/coreos/pkg/capnslog"
+)
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "util")
+
+func WriteFileToLog(logger *capnslog.PackageLogger, path string) {
+	contents, err := ioutil.ReadFile(path)
+	if err != nil {
+		logger.Warningf("failed to write file %s to log: %+v", path, err)
+		return
+	}
+
+	logger.Infof("Config file %s:\n%s", path, string(contents))
+}
