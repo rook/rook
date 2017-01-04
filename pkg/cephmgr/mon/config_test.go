@@ -16,10 +16,15 @@ limitations under the License.
 package mon
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/go-ini/ini"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,6 +55,53 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 	verifyConfig(t, cephConfig, monMembers, "bluestore rocksdb", "bluestore", 10)
 }
 
+func TestGenerateConfigFile(t *testing.T) {
+	// set up a temporary config directory that will be cleaned up after test
+	configDir, err := ioutil.TempDir("", "TestGenerateConfigFile")
+	if err != nil {
+		t.Fatalf("failed to create temp config dir: %+v", err)
+	}
+	defer os.RemoveAll(configDir)
+
+	// set up a config file override (in the config dir so it also gets cleaned up)
+	configFileOverride := filepath.Join(configDir, "override.conf")
+	overrideContents := `[global]
+debug bluestore = 1234`
+	err = ioutil.WriteFile(configFileOverride, []byte(overrideContents), 0644)
+	if err != nil {
+		t.Fatalf("failed to create config file override at '%s': %+v", configFileOverride, err)
+	}
+
+	// create mocked cluster context and info
+	context := &clusterd.Context{
+		ConfigDir:          configDir,
+		ConfigFileOverride: configFileOverride,
+	}
+	clusterInfo := &ClusterInfo{
+		FSID:          "myfsid",
+		MonitorSecret: "monsecret",
+		AdminSecret:   "adminsecret",
+		Name:          "foo-cluster",
+		Monitors: map[string]*CephMonitorConfig{
+			"node0": &CephMonitorConfig{Name: "mon0", Endpoint: "10.0.0.1:6790"},
+		},
+	}
+
+	// generate the config file to disk now
+	configFilePath, err := GenerateConfigFile(context, clusterInfo, configDir, "myuser", filepath.Join(configDir, "mykeyring"), false, nil, nil)
+	assert.Nil(t, err)
+	assert.Equal(t, filepath.Join(configDir, "foo-cluster.config"), configFilePath)
+
+	// verify some of the contents of written config file by loading it from disk
+	actualConf, err := ini.Load(configFilePath)
+	assert.Nil(t, err)
+	verifyConfigValue(t, actualConf, "global", "fsid", clusterInfo.FSID)
+	verifyConfigValue(t, actualConf, "mon.mon0", "mon addr", "10.0.0.1:6790")
+
+	// verify the content of the config file override successfully overwrote the default generated config
+	verifyConfigValue(t, actualConf, "global", "debug bluestore", "1234")
+}
+
 func verifyConfig(t *testing.T, cephConfig *cephConfig, expectedMonMembers, experimental, objectStore string, loggingLevel int) {
 
 	for _, expectedMon := range strings.Split(expectedMonMembers, " ") {
@@ -70,4 +122,19 @@ func verifyConfig(t *testing.T, cephConfig *cephConfig, expectedMonMembers, expe
 	assert.Equal(t, loggingLevel, cephConfig.DebugLogMonLevel)
 	assert.Equal(t, loggingLevel, cephConfig.DebugLogRadosLevel)
 	assert.Equal(t, loggingLevel, cephConfig.DebugLogBluestoreLevel)
+}
+
+func verifyConfigValue(t *testing.T, actualConf *ini.File, section, key, expectedVal string) {
+	s, err := actualConf.GetSection(section)
+	if !assert.Nil(t, err) {
+		return
+	}
+
+	k := s.Key(key)
+	if !assert.NotNil(t, k) {
+		return
+	}
+
+	actualVal := k.Value()
+	assert.Equal(t, expectedVal, actualVal)
 }

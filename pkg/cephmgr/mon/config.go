@@ -148,6 +148,15 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 		return "", fmt.Errorf("failed to add initial monitor config sections, %+v", err)
 	}
 
+	// if there's a config file override path given, process the given config file
+	if context.ConfigFileOverride != "" {
+		err := configFile.Append(context.ConfigFileOverride)
+		if err != nil {
+			// log the config file override failure as a warning, but proceed without it
+			logger.Warningf("failed to add config file override from '%s': %+v", context.ConfigFileOverride, err)
+		}
+	}
+
 	// write the entire config to disk
 	filePath := GetConfFilePath(pathRoot, cluster.Name)
 	logger.Debugf("writing config file %s", filePath)

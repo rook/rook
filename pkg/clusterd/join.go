@@ -29,10 +29,10 @@ import (
 
 // StartJoinCluster initializes the cluster services to enable joining the cluster and listening for orchestration.
 func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryURL,
-	etcdMembers, publicIPv4, privateIPv4 string, logLevel capnslog.LogLevel) (*Context, error) {
+	etcdMembers, publicIPv4, privateIPv4, configFileOverride string, logLevel capnslog.LogLevel) (*Context, error) {
 
-	logger.Infof("Starting cluster. configDir=%s, nodeID=%s, url=%s, members=%s, publicIPv4=%s, privateIPv4=%s, logLevel=%s",
-		configDir, nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4, logLevel)
+	logger.Infof("Starting cluster. configDir=%s, nodeID=%s, url=%s, members=%s, publicIPv4=%s, privateIPv4=%s, configFileOverride=%s, logLevel=%s",
+		configDir, nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4, configFileOverride, logLevel)
 
 	etcdClients := []string{}
 	if etcdMembers != "" {
@@ -70,14 +70,15 @@ func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryUR
 
 	executor := &exec.CommandExecutor{}
 	context := &Context{
-		EtcdClient: etcdClient,
-		Executor:   executor,
-		NodeID:     nodeID,
-		Services:   services,
-		ProcMan:    proc.New(executor),
-		ConfigDir:  configDir,
-		LogLevel:   logLevel,
-		Inventory:  &inventory.Config{},
+		EtcdClient:         etcdClient,
+		Executor:           executor,
+		NodeID:             nodeID,
+		Services:           services,
+		ProcMan:            proc.New(executor),
+		ConfigDir:          configDir,
+		LogLevel:           logLevel,
+		ConfigFileOverride: configFileOverride,
+		Inventory:          &inventory.Config{},
 	}
 
 	// initialize the device inventory
