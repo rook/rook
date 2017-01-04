@@ -82,18 +82,22 @@ type Context struct {
 
 	// A value indicating the desired logging/tracing level
 	LogLevel capnslog.LogLevel
+
+	// The full path to a config file that can be used to override generated settings
+	ConfigFileOverride string
 }
 
 func copyContext(c *Context) *Context {
 	return &Context{
-		Services:   c.Services,
-		NodeID:     c.NodeID,
-		EtcdClient: c.EtcdClient,
-		Executor:   c.Executor,
-		ProcMan:    c.ProcMan,
-		Inventory:  c.Inventory,
-		ConfigDir:  c.ConfigDir,
-		LogLevel:   c.LogLevel,
+		Services:           c.Services,
+		NodeID:             c.NodeID,
+		EtcdClient:         c.EtcdClient,
+		Executor:           c.Executor,
+		ProcMan:            c.ProcMan,
+		Inventory:          c.Inventory,
+		ConfigDir:          c.ConfigDir,
+		LogLevel:           c.LogLevel,
+		ConfigFileOverride: c.ConfigFileOverride,
 	}
 }
 

@@ -51,17 +51,18 @@ var logLevelRaw string
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rookd")
 
 type config struct {
-	nodeID       string
-	discoveryURL string
-	etcdMembers  string
-	publicIPv4   string
-	privateIPv4  string
-	devices      string
-	dataDir      string
-	adminSecret  string
-	forceFormat  bool
-	location     string
-	logLevel     capnslog.LogLevel
+	nodeID             string
+	discoveryURL       string
+	etcdMembers        string
+	publicIPv4         string
+	privateIPv4        string
+	devices            string
+	dataDir            string
+	adminSecret        string
+	forceFormat        bool
+	location           string
+	logLevel           capnslog.LogLevel
+	cephConfigOverride string
 }
 
 func newConfig() *config {
@@ -93,9 +94,11 @@ func init() {
 	rootCmd.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
 
 	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
+	rootCmd.PersistentFlags().StringVar(&cfg.cephConfigOverride, "ceph-config-override", "", "optional path to a ceph config file that will be appended to the config files that rook generates")
 
 	// load the environment variables
 	flags.SetFlagsFromEnv(rootCmd.Flags(), "ROOKD")
+	flags.SetFlagsFromEnv(rootCmd.PersistentFlags(), "ROOKD")
 
 	rootCmd.RunE = startJoinCluster
 }
@@ -162,7 +165,7 @@ func joinCluster() error {
 
 	// start the cluster orchestration services
 	context, err := clusterd.StartJoinCluster(services, cfg.dataDir, cfg.nodeID, cfg.discoveryURL,
-		cfg.etcdMembers, cfg.publicIPv4, cfg.privateIPv4, cfg.logLevel)
+		cfg.etcdMembers, cfg.publicIPv4, cfg.privateIPv4, cfg.cephConfigOverride, cfg.logLevel)
 	if err != nil {
 		return err
 	}
