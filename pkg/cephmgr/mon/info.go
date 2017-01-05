@@ -18,6 +18,7 @@ package mon
 import (
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/util"
@@ -37,6 +38,14 @@ type ClusterInfo struct {
 	AdminSecret   string
 	Name          string
 	Monitors      map[string]*CephMonitorConfig
+}
+
+func (c *ClusterInfo) MonEndpoints() string {
+	var endpoints []string
+	for _, mon := range c.Monitors {
+		endpoints = append(endpoints, fmt.Sprintf("%s-%s", mon.Name, mon.Endpoint))
+	}
+	return strings.Join(endpoints, ",")
 }
 
 func createOrGetClusterInfo(factory client.ConnectionFactory, etcdClient etcd.KeysAPI, adminSecret string) (*ClusterInfo, error) {

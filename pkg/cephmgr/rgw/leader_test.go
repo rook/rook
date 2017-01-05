@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"testing"
 
 	etcd "github.com/coreos/etcd/client"
@@ -46,6 +47,15 @@ func TestRGWConfig(t *testing.T) {
 	context := &clusterd.Context{EtcdClient: etcdClient, Inventory: &inventory.Config{Nodes: nodes},
 		ProcMan: proc.New(executor), Executor: executor, ConfigDir: "/tmp/rgw"}
 	factory := &testceph.MockConnectionFactory{Fsid: "f", SecretKey: "k"}
+	factory.Conn = &testceph.MockConnection{
+		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
+			switch {
+			case strings.Index(string(args), "auth get-or-create-key") != -1:
+				return []byte(`{"key":"mykey"}`), "info", nil
+			}
+			return nil, "", fmt.Errorf("unexpected mon_command '%s'", string(args))
+		},
+	}
 	leader := NewLeader()
 	executor.MockExecuteCommandWithOutput = func(actionName, command string, args ...string) (string, error) {
 		response := `{"keys": [

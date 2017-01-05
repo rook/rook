@@ -90,6 +90,21 @@ type Context struct {
 	NetworkInfo NetworkInfo
 }
 
+// The context for running a rook daemon.
+type DaemonContext struct {
+	// The implementation of executing a console command
+	Executor exec.Executor
+
+	// The root configuration directory used by services
+	ConfigDir string
+
+	// A value indicating the desired logging/tracing level
+	LogLevel capnslog.LogLevel
+
+	// The full path to a config file that can be used to override generated settings
+	ConfigFileOverride string
+}
+
 func copyContext(c *Context) *Context {
 	return &Context{
 		Services:           c.Services,

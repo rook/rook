@@ -17,15 +17,11 @@ package rgw
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path"
 	"regexp"
 
 	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
-
-	"strconv"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/cephmgr/mon"
@@ -80,11 +76,6 @@ func (a *rgwAgent) ConfigureLocalService(context *clusterd.Context) error {
 		return fmt.Errorf("failed to load cluster info. %+v", err)
 	}
 
-	err = a.generateConfigFiles(context, cluster)
-	if err != nil {
-		return fmt.Errorf("failed to generate config. %+v", err)
-	}
-
 	// start rgw
 	err = a.startRGW(context, cluster)
 	if err != nil {
@@ -110,86 +101,31 @@ func (a *rgwAgent) DestroyLocalService(context *clusterd.Context) error {
 	return nil
 }
 
-func (a *rgwAgent) generateConfigFiles(context *clusterd.Context, cluster *mon.ClusterInfo) error {
-	// create the rgw data directory
-	dataDir := path.Join(getRGWConfDir(context.ConfigDir), "data")
-	if err := os.MkdirAll(dataDir, 0744); err != nil {
-		logger.Warningf("failed to create rgw data directory %s: %+v", dataDir, err)
-	}
-
-	settings := map[string]string{
-		"host":                           DNSName,
-		"rgw port":                       strconv.Itoa(RGWPort),
-		"rgw data":                       dataDir,
-		"rgw dns name":                   fmt.Sprintf("%s:%d", DNSName, RGWPort),
-		"rgw log nonexistent bucket":     "true",
-		"rgw intent log object name utc": "true",
-		"rgw enable usage log":           "true",
-	}
-	_, err := mon.GenerateConfigFile(context, cluster, getRGWConfDir(context.ConfigDir),
-		"client.radosgw.gateway", getRGWKeyringPath(context.ConfigDir), false, nil, settings)
-	if err != nil {
-		return fmt.Errorf("failed to create mds config file. %+v", err)
-	}
-
-	// connect to the ceph cluster
-	conn, err := mon.ConnectToClusterAsAdmin(context, a.factory, cluster)
-	if err != nil {
-		return fmt.Errorf("failed to connect to cluster. %+v", err)
-	}
-	defer conn.Shutdown()
-
-	// create rgw config
-	err = createRGWKeyring(conn, context.ConfigDir)
-	if err != nil {
-		return fmt.Errorf("failed to create rgw keyring. %+v", err)
-	}
-
-	// write the mime types config
-	mimeTypesPath := getMimeTypesPath(context.ConfigDir)
-	logger.Debugf("Writing mime types to: %s", mimeTypesPath)
-	if err := ioutil.WriteFile(mimeTypesPath, []byte(mimeTypes), 0644); err != nil {
-		return fmt.Errorf("failed to write mime types to %s: %+v", mimeTypesPath, err)
-	}
-
-	return nil
-}
-
-// create a keyring for the rgw client with a limited set of privileges
-func createRGWKeyring(conn client.Connection, configDir string) error {
-	username := "client.radosgw.gateway"
-	keyringPath := getRGWKeyringPath(configDir)
-	access := []string{"osd", "allow rwx", "mon", "allow rw"}
-	keyringEval := func(key string) string {
-		return fmt.Sprintf(keyringTemplate, key)
-	}
-
-	return mon.CreateKeyring(conn, username, keyringPath, access, keyringEval)
-}
-
 func (a *rgwAgent) startRGW(context *clusterd.Context, cluster *mon.ClusterInfo) error {
+
+	// retrieve the keyring
+	val, err := context.EtcdClient.Get(ctx.Background(), getKeyringKey(), nil)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve the keyring")
+	}
+	keyring := val.Node.Value
 
 	// start the monitor daemon in the foreground with the given config
 	logger.Infof("starting rgw")
-	rgwNameArg := "--name=client.radosgw.gateway"
+	keyringArg := fmt.Sprintf("--keyring=%s", keyring)
 
-	confFile := getRGWConfFilePath(context.ConfigDir, cluster.Name)
-	util.WriteFileToLog(logger, confFile)
-
-	rgwProc, err := context.ProcMan.Start(
+	rgwProc, err := context.ProcMan.StartDirect(
 		"rgw",
-		"rgw",
-		regexp.QuoteMeta(rgwNameArg),
+		regexp.QuoteMeta(keyringArg),
 		proc.ReuseExisting,
-		"--foreground",
-		rgwNameArg,
-		fmt.Sprintf("--cluster=%s", cluster.Name),
-		fmt.Sprintf("--conf=%s", confFile),
-		fmt.Sprintf("--keyring=%s", getRGWKeyringPath(context.ConfigDir)),
-		fmt.Sprintf("--rgw-frontends=civetweb port=%d", RGWPort),
-		fmt.Sprintf("--rgw-mime-types-file=%s", getMimeTypesPath(context.ConfigDir)))
+		"rgw",
+		fmt.Sprintf("--cluster-name=%s", cluster.Name),
+		fmt.Sprintf("--mons=%s", cluster.MonEndpoints()),
+		fmt.Sprintf("--host=%s", DNSName),
+		fmt.Sprintf("--port=%d", RGWPort),
+		keyringArg)
 	if err != nil {
-		return fmt.Errorf("failed to start rgw: %+v", err)
+		return fmt.Errorf("failed to start rgw daemon: %+v", err)
 	}
 
 	if rgwProc != nil {
@@ -198,22 +134,6 @@ func (a *rgwAgent) startRGW(context *clusterd.Context, cluster *mon.ClusterInfo)
 	}
 
 	return nil
-}
-
-func getRGWConfFilePath(configDir, clusterName string) string {
-	return path.Join(getRGWConfDir(configDir), fmt.Sprintf("%s.config", clusterName))
-}
-
-func getRGWConfDir(configDir string) string {
-	return path.Join(configDir, "rgw")
-}
-
-func getRGWKeyringPath(configDir string) string {
-	return path.Join(getRGWConfDir(configDir), "keyring")
-}
-
-func getMimeTypesPath(configDir string) string {
-	return path.Join(getRGWConfDir(configDir), "mime.types")
 }
 
 func getRGWState(etcdClient etcd.KeysAPI, nodeID string, applied bool) (bool, error) {

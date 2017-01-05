@@ -93,7 +93,6 @@ func init() {
 	rootCmd.Flags().StringVar(&cfg.networkInfo.ClusterNetwork, "private-network", "", "private (back-side) network and subnet mask for the cluster, using CIDR notation (e.g., 10.0.0.0/24)")
 	rootCmd.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
 	rootCmd.Flags().StringVar(&cfg.metadataDevice, "metadata-device", "", "device to use for metadata (e.g. a high performance SSD/NVMe device)")
-	rootCmd.Flags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
 	rootCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 	rootCmd.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
@@ -102,6 +101,7 @@ func init() {
 	rootCmd.Flags().IntVar(&cfg.bluestoreConfig.WalSizeMB, "osd-wal-size", partition.WalDefaultSizeMB, "default size (MB) for OSD write ahead log (WAL)")
 	rootCmd.Flags().IntVar(&cfg.bluestoreConfig.DatabaseSizeMB, "osd-database-size", partition.DBDefaultSizeMB, "default size (MB) for OSD database")
 
+	rootCmd.PersistentFlags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
 	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 	rootCmd.PersistentFlags().StringVar(&cfg.cephConfigOverride, "ceph-config-override", "", "optional path to a ceph config file that will be appended to the config files that rook generates")
 
@@ -116,6 +116,10 @@ func addCommands() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(daemonCmd)
 	rootCmd.AddCommand(toolCmd)
+	rootCmd.AddCommand(monCmd)
+	rootCmd.AddCommand(osdCmd)
+	rootCmd.AddCommand(rgwCmd)
+	rootCmd.AddCommand(mdsCmd)
 }
 
 func startJoinCluster(cmd *cobra.Command, args []string) error {
