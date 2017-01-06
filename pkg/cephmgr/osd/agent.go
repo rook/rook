@@ -571,7 +571,7 @@ func (a *osdAgent) loadDesiredDevices(context *clusterd.Context) (map[string]int
 			if strings.HasSuffix(setting.Key, "/osd-id") {
 				id, err := strconv.Atoi(setting.Value)
 				if err == nil {
-					logger.Debugf("found osd id %d for disk uuid %s", osdID, uuid)
+					logger.Debugf("found osd id %d for disk uuid %s", id, uuid)
 					osdID = id
 				}
 			}

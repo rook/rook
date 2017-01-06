@@ -141,6 +141,15 @@ func partitionBluestoreDevice(context *clusterd.Context, config *osdConfig) erro
 		return fmt.Errorf("failed to save partition scheme. %+v", err)
 	}
 
+	// update the uuid of the disk in the inventory in memory
+	logger.Debugf("Updating disk uuid %s on device %s", scheme.DiskUUID, config.deviceName)
+	for _, disk := range context.Inventory.Local.Disks {
+		if disk.Name == config.deviceName {
+			logger.Debugf("Updated uuid on device %s", config.deviceName)
+			disk.UUID = scheme.DiskUUID
+		}
+	}
+
 	// save the desired state of the osd for this device
 	err = setOSDOnDevice(context.EtcdClient, context.NodeID, scheme.DiskUUID, config.id, false)
 	if err != nil {
