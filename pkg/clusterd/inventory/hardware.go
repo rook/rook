@@ -30,14 +30,14 @@ type Config struct {
 
 // Basic config info for a node in the cluster
 type NodeConfig struct {
-	Disks           []Disk            `json:"disks"`
-	Processors      []ProcessorConfig `json:"processors"`
-	NetworkAdapters []NetworkConfig   `json:"networkAdapters"`
-	Memory          uint64            `json:"memory"`
-	PublicIP        string            `json:"publicIp"`
-	PrivateIP       string            `json:"privateIp"`
-	HeartbeatAge    time.Duration     `json:"heartbeatAge"`
-	Location        string            `json:"location"`
+	Disks           []*Disk            `json:"disks"`
+	Processors      []*ProcessorConfig `json:"processors"`
+	NetworkAdapters []*NetworkConfig   `json:"networkAdapters"`
+	Memory          uint64             `json:"memory"`
+	PublicIP        string             `json:"publicIp"`
+	PrivateIP       string             `json:"privateIp"`
+	HeartbeatAge    time.Duration      `json:"heartbeatAge"`
+	Location        string             `json:"location"`
 }
 
 type Disk struct {
@@ -49,10 +49,10 @@ type Disk struct {
 
 // Local hardware info
 type Hardware struct {
-	Disks           []LocalDisk       `json:"disks"`
-	Processors      []ProcessorConfig `json:"processors"`
-	NetworkAdapters []NetworkConfig   `json:"networkAdapters"`
-	Memory          uint64            `json:"memory"`
+	Disks           []*LocalDisk       `json:"disks"`
+	Processors      []*ProcessorConfig `json:"processors"`
+	NetworkAdapters []*NetworkConfig   `json:"networkAdapters"`
+	Memory          uint64             `json:"memory"`
 }
 
 type LocalDisk struct {
