@@ -197,7 +197,7 @@ func loadHardwareConfig(nodeId string, nodeConfig *NodeConfig, nodeInfo *etcd.No
 }
 
 func loadProcessorsConfig(nodeConfig *NodeConfig, rawProcs string) error {
-	var processors []ProcessorConfig
+	var processors []*ProcessorConfig
 	if err := json.Unmarshal([]byte(rawProcs), &processors); err != nil {
 		return fmt.Errorf("failed to deserialize processors. %+v", err)
 	}
@@ -206,7 +206,7 @@ func loadProcessorsConfig(nodeConfig *NodeConfig, rawProcs string) error {
 }
 
 func loadNetworkConfig(nodeConfig *NodeConfig, rawAdapters string) error {
-	var adapters []NetworkConfig
+	var adapters []*NetworkConfig
 	if err := json.Unmarshal([]byte(rawAdapters), &adapters); err != nil {
 		return fmt.Errorf("failed to deserialize network adapters. %+v", err)
 	}
@@ -214,7 +214,7 @@ func loadNetworkConfig(nodeConfig *NodeConfig, rawAdapters string) error {
 	return nil
 }
 
-func storeNetworkConfig(etcdClient etcd.KeysAPI, nodeID string, config []NetworkConfig) error {
+func storeNetworkConfig(etcdClient etcd.KeysAPI, nodeID string, config []*NetworkConfig) error {
 	output, err := json.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal network config. %+v", err)
@@ -229,7 +229,7 @@ func storeNetworkConfig(etcdClient etcd.KeysAPI, nodeID string, config []Network
 	return nil
 }
 
-func storeProcessorConfig(etcdClient etcd.KeysAPI, nodeID string, config []ProcessorConfig) error {
+func storeProcessorConfig(etcdClient etcd.KeysAPI, nodeID string, config []*ProcessorConfig) error {
 	output, err := json.Marshal(config)
 	if err != nil {
 		return fmt.Errorf("failed to marshal processor config. %+v", err)

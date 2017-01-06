@@ -28,17 +28,17 @@ import (
 func TestSerializeClusterDisks(t *testing.T) {
 	nodeID := "df1c87e8266843f2ab822c0d72f584d3"
 	etcdClient := &util.MockEtcdClient{}
-	d1 := LocalDisk{Name: "sda", UUID: "u1", Size: 23, Rotational: true, Readonly: false,
+	d1 := &LocalDisk{Name: "sda", UUID: "u1", Size: 23, Rotational: true, Readonly: false,
 		FileSystem: "btrfs", MountPoint: "/mnt/abc", Type: DiskType, HasChildren: true}
-	d2 := LocalDisk{Name: "sdb", UUID: "u2", Size: 24, Rotational: true, Readonly: false,
+	d2 := &LocalDisk{Name: "sdb", UUID: "u2", Size: 24, Rotational: true, Readonly: false,
 		Type: DiskType, HasChildren: true}
 
-	err := storeDevices(etcdClient, nodeID, []LocalDisk{d1, d2})
+	err := storeDevices(etcdClient, nodeID, []*LocalDisk{d1, d2})
 	assert.Nil(t, err)
 
 	key := path.Join(NodesConfigKey, nodeID, disksKey)
 	rawDisk := etcdClient.GetValue(key)
-	var disks []Disk
+	var disks []*Disk
 	err = json.Unmarshal([]byte(rawDisk), &disks)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(disks))
@@ -56,26 +56,26 @@ func TestSerializeClusterDisks(t *testing.T) {
 func TestAvailableDisks(t *testing.T) {
 
 	// no disks discovered for a node is an error
-	disks := GetAvailableDevices([]LocalDisk{})
+	disks := GetAvailableDevices([]*LocalDisk{})
 	assert.Equal(t, 0, len(disks))
 
 	// no available disks because of the formatting
-	d1 := LocalDisk{Name: "sda", UUID: "myuuid1", Size: 123, Rotational: true, Readonly: false, FileSystem: "btrfs", MountPoint: "/mnt/abc", Type: DiskType, HasChildren: true}
-	disks = GetAvailableDevices([]LocalDisk{d1})
+	d1 := &LocalDisk{Name: "sda", UUID: "myuuid1", Size: 123, Rotational: true, Readonly: false, FileSystem: "btrfs", MountPoint: "/mnt/abc", Type: DiskType, HasChildren: true}
+	disks = GetAvailableDevices([]*LocalDisk{d1})
 	assert.Equal(t, 0, len(disks))
 
 	// multiple available disks
-	d2 := LocalDisk{Name: "sdb", UUID: "myuuid2", Size: 123, Rotational: true, Readonly: false, Type: DiskType, HasChildren: true}
-	d3 := LocalDisk{Name: "sdc", UUID: "myuuid3", Size: 123, Rotational: true, Readonly: false, Type: DiskType, HasChildren: true}
-	disks = GetAvailableDevices([]LocalDisk{d1, d2, d3})
+	d2 := &LocalDisk{Name: "sdb", UUID: "myuuid2", Size: 123, Rotational: true, Readonly: false, Type: DiskType, HasChildren: true}
+	d3 := &LocalDisk{Name: "sdc", UUID: "myuuid3", Size: 123, Rotational: true, Readonly: false, Type: DiskType, HasChildren: true}
+	disks = GetAvailableDevices([]*LocalDisk{d1, d2, d3})
 	assert.Equal(t, 2, len(disks))
 	assert.Equal(t, "sdb", disks[0])
 	assert.Equal(t, "sdc", disks[1])
 
 	// partitions don't result in more available devices
-	d4 := LocalDisk{Name: "sdb1", UUID: "myuuid4", Size: 123, Rotational: true, Readonly: false, Type: PartType, HasChildren: true}
-	d5 := LocalDisk{Name: "sdb2", UUID: "myuuid5", Size: 123, Rotational: true, Readonly: false, Type: PartType, HasChildren: true}
-	disks = GetAvailableDevices([]LocalDisk{d1, d2, d3, d4, d5})
+	d4 := &LocalDisk{Name: "sdb1", UUID: "myuuid4", Size: 123, Rotational: true, Readonly: false, Type: PartType, HasChildren: true}
+	d5 := &LocalDisk{Name: "sdb2", UUID: "myuuid5", Size: 123, Rotational: true, Readonly: false, Type: PartType, HasChildren: true}
+	disks = GetAvailableDevices([]*LocalDisk{d1, d2, d3, d4, d5})
 	assert.Equal(t, 2, len(disks))
 	assert.Equal(t, "sdb", disks[0])
 	assert.Equal(t, "sdc", disks[1])

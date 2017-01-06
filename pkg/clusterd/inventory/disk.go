@@ -28,7 +28,7 @@ import (
 	"github.com/rook/rook/pkg/util/sys"
 )
 
-func GetAvailableDevices(devices []LocalDisk) []string {
+func GetAvailableDevices(devices []*LocalDisk) []string {
 
 	var available []string
 	for _, device := range devices {
@@ -42,7 +42,7 @@ func GetAvailableDevices(devices []LocalDisk) []string {
 	return available
 }
 
-func storeDevices(etcdClient etcd.KeysAPI, nodeID string, devices []LocalDisk) error {
+func storeDevices(etcdClient etcd.KeysAPI, nodeID string, devices []*LocalDisk) error {
 	// store the basic device info in etcd
 	disks := toClusterDisks(devices)
 	output, err := json.Marshal(disks)
@@ -60,7 +60,7 @@ func storeDevices(etcdClient etcd.KeysAPI, nodeID string, devices []LocalDisk) e
 }
 
 func loadDisksConfig(nodeConfig *NodeConfig, rawDisks string) error {
-	var disks []Disk
+	var disks []*Disk
 	if err := json.Unmarshal([]byte(rawDisks), &disks); err != nil {
 		return fmt.Errorf("failed to deserialize disks. %+v", err)
 	}
@@ -69,11 +69,11 @@ func loadDisksConfig(nodeConfig *NodeConfig, rawDisks string) error {
 }
 
 // Extract the basic disk info that will be used in cluster-wide orchestration decisions.
-func toClusterDisks(devices []LocalDisk) []Disk {
-	var disks []Disk
+func toClusterDisks(devices []*LocalDisk) []*Disk {
+	var disks []*Disk
 	for _, device := range devices {
 		if device.Type == DiskType || device.Type == SSDType {
-			disk := Disk{
+			disk := &Disk{
 				Type:       device.Type,
 				Size:       device.Size,
 				Rotational: device.Rotational,
@@ -86,14 +86,14 @@ func toClusterDisks(devices []LocalDisk) []Disk {
 }
 
 // check whether a device is available for use by bluestore
-func getDeviceAvailable(device LocalDisk) bool {
+func getDeviceAvailable(device *LocalDisk) bool {
 	return device.Parent == "" && device.Type == DiskType && device.FileSystem == ""
 }
 
 // Discover all the details of devices available on the local node
-func discoverDevices(executor exec.Executor) ([]LocalDisk, error) {
+func discoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
 
-	var disks []LocalDisk
+	var disks []*LocalDisk
 	devices, err := sys.ListDevices(executor)
 	if err != nil {
 		return nil, err
@@ -128,7 +128,7 @@ func discoverDevices(executor exec.Executor) ([]LocalDisk, error) {
 			return nil, err
 		}
 
-		disk := LocalDisk{Name: d, UUID: diskUUID, FileSystem: fs}
+		disk := &LocalDisk{Name: d, UUID: diskUUID, FileSystem: fs}
 
 		if val, ok := diskProps["TYPE"]; ok {
 			disk.Type = val

@@ -61,16 +61,16 @@ func TestLoadHardwareConfig(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 
 	// setup disk info in etcd
-	d1 := LocalDisk{Name: "sda", UUID: "uuid1", Size: 10737418240, Rotational: true, Readonly: false, Type: DiskType, HasChildren: true}
-	d2 := LocalDisk{Name: "sda2", UUID: "uuid2", Size: 2097152, Rotational: false, Readonly: true, Type: PartType, HasChildren: false}
-	err := storeDevices(etcdClient, nodeID, []LocalDisk{d1, d2})
+	d1 := &LocalDisk{Name: "sda", UUID: "uuid1", Size: 10737418240, Rotational: true, Readonly: false, Type: DiskType, HasChildren: true}
+	d2 := &LocalDisk{Name: "sda2", UUID: "uuid2", Size: 2097152, Rotational: false, Readonly: true, Type: PartType, HasChildren: false}
+	err := storeDevices(etcdClient, nodeID, []*LocalDisk{d1, d2})
 	assert.Nil(t, err)
 
 	// setup processor info in etcd
-	p1 := ProcessorConfig{ID: 0, PhysicalID: 3, Siblings: 1, CoreID: 6, NumCores: 1, Speed: 1234.56, Bits: 64}
-	p2 := ProcessorConfig{ID: 1, PhysicalID: 4, Siblings: 2, CoreID: 7, NumCores: 2, Speed: 8000.00, Bits: 32}
-	p3 := ProcessorConfig{ID: 2, PhysicalID: 5, Siblings: 0, CoreID: 8, NumCores: 4, Speed: 4000.01, Bits: 32}
-	err = storeProcessorConfig(etcdClient, nodeID, []ProcessorConfig{p1, p2, p3})
+	p1 := &ProcessorConfig{ID: 0, PhysicalID: 3, Siblings: 1, CoreID: 6, NumCores: 1, Speed: 1234.56, Bits: 64}
+	p2 := &ProcessorConfig{ID: 1, PhysicalID: 4, Siblings: 2, CoreID: 7, NumCores: 2, Speed: 8000.00, Bits: 32}
+	p3 := &ProcessorConfig{ID: 2, PhysicalID: 5, Siblings: 0, CoreID: 8, NumCores: 4, Speed: 4000.01, Bits: 32}
+	err = storeProcessorConfig(etcdClient, nodeID, []*ProcessorConfig{p1, p2, p3})
 	assert.Nil(t, err)
 
 	// setup memory info in etcd
@@ -79,9 +79,9 @@ func TestLoadHardwareConfig(t *testing.T) {
 	assert.Nil(t, err)
 
 	// set up network info in etcd
-	n1 := NetworkConfig{Name: "eth0", IPv4Address: "172.17.42.1/16", IPv6Address: "fe80::42:4aff:fefe:13d7/64", Speed: 0}
-	n2 := NetworkConfig{Name: "veth2b6453a", IPv6Address: "fe80::7c0f:acff:feff:478d/64", Speed: 10000}
-	err = storeNetworkConfig(etcdClient, nodeID, []NetworkConfig{n1, n2})
+	n1 := &NetworkConfig{Name: "eth0", IPv4Address: "172.17.42.1/16", IPv6Address: "fe80::42:4aff:fefe:13d7/64", Speed: 0}
+	n2 := &NetworkConfig{Name: "veth2b6453a", IPv6Address: "fe80::7c0f:acff:feff:478d/64", Speed: 10000}
+	err = storeNetworkConfig(etcdClient, nodeID, []*NetworkConfig{n1, n2})
 	assert.Nil(t, err)
 
 	// set IP address in etcd

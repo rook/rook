@@ -102,9 +102,9 @@ func TestOSDAgentWithDevices(t *testing.T) {
 		ProcMan:    proc.New(executor),
 		Inventory:  createInventory(),
 	}
-	context.Inventory.Local.Disks = []inventory.LocalDisk{
-		inventory.LocalDisk{Name: "sdx", Size: 1234567890, UUID: "12345"},
-		inventory.LocalDisk{Name: "sdy", Size: 2234567890, UUID: "54321"},
+	context.Inventory.Local.Disks = []*inventory.LocalDisk{
+		&inventory.LocalDisk{Name: "sdx", Size: 1234567890, UUID: "12345"},
+		&inventory.LocalDisk{Name: "sdy", Size: 2234567890, UUID: "54321"},
 	}
 
 	// Set one device as already having an assigned osd id. The other device will go through id selection,
@@ -229,7 +229,7 @@ func TestRemoveDevice(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 
 	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: nodeID, Executor: executor, ProcMan: proc.New(executor), Inventory: createInventory()}
-	context.Inventory.Local.Disks = []inventory.LocalDisk{inventory.LocalDisk{Name: "sda", Size: 1234567890, UUID: "5435435333"}}
+	context.Inventory.Local.Disks = []*inventory.LocalDisk{&inventory.LocalDisk{Name: "sda", Size: 1234567890, UUID: "5435435333"}}
 	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/5435435333/osd-id", "23")
 
 	// create two applied osds, one of which is desired
@@ -331,9 +331,9 @@ func TestLoadDesiredDevices(t *testing.T) {
 	assert.Equal(t, 0, len(desired))
 
 	// two devices are desired and it is a new config
-	context.Inventory.Local.Disks = []inventory.LocalDisk{
-		inventory.LocalDisk{Name: "sda", Size: 1234567890, UUID: "12345"},
-		inventory.LocalDisk{Name: "sdb", Size: 2234567890, UUID: "54321"},
+	context.Inventory.Local.Disks = []*inventory.LocalDisk{
+		&inventory.LocalDisk{Name: "sda", Size: 1234567890, UUID: "12345"},
+		&inventory.LocalDisk{Name: "sdb", Size: 2234567890, UUID: "54321"},
 	}
 	a.desiredDevices = []string{"sda", "sdb"}
 	desired, err = a.loadDesiredDevices(context)
@@ -379,5 +379,5 @@ func TestDesiredDirsState(t *testing.T) {
 }
 
 func createInventory() *inventory.Config {
-	return &inventory.Config{Local: &inventory.Hardware{Disks: []inventory.LocalDisk{}}}
+	return &inventory.Config{Local: &inventory.Hardware{Disks: []*inventory.LocalDisk{}}}
 }
