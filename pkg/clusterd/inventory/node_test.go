@@ -63,6 +63,7 @@ func TestLoadHardwareConfig(t *testing.T) {
 
 	// setup disk info in etcd
 	d1 := &LocalDisk{Name: "sda", UUID: "uuid1", Size: 10737418240, Rotational: true, Readonly: false, Type: sys.DiskType, HasChildren: true}
+	d1.Empty = getDeviceEmpty(d1)
 	d2 := &LocalDisk{Name: "sda2", UUID: "uuid2", Size: 2097152, Rotational: false, Readonly: true, Type: sys.PartType, HasChildren: false}
 	err := storeDevices(etcdClient, nodeID, []*LocalDisk{d1, d2})
 	assert.Nil(t, err)
@@ -103,7 +104,7 @@ func TestLoadHardwareConfig(t *testing.T) {
 
 	// verify the single disk (the partition is not saved)
 	assert.Equal(t, 1, len(cfg.Disks))
-	assert.True(t, cfg.Disks[0].Available)
+	assert.True(t, cfg.Disks[0].Empty)
 	assert.Equal(t, d1.Rotational, cfg.Disks[0].Rotational)
 	assert.Equal(t, d1.Size, cfg.Disks[0].Size)
 	assert.Equal(t, d1.Type, cfg.Disks[0].Type)

@@ -35,33 +35,42 @@ import (
 
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/cephmgr/osd/partition"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/proc"
 )
 
 const (
-	osdAgentName    = "osd"
-	deviceKey       = "device"
-	dirKey          = "dir"
-	unassignedOSDID = -1
+	osdAgentName        = "osd"
+	deviceKey           = "device"
+	dirKey              = "dir"
+	osdIDDataKey        = "osd-id-data"
+	osdIDMetadataKey    = "osd-id-metadata"
+	dataDiskUUIDKey     = "data-disk-uuid"
+	metadataDiskUUIDKey = "metadata-disk-uuid"
+	unassignedOSDID     = -1
 )
 
 type osdAgent struct {
-	cluster        *mon.ClusterInfo
-	forceFormat    bool
-	location       string
-	factory        client.ConnectionFactory
-	osdProc        map[int]*proc.MonitoredProc
-	desiredDevices []string
-	devices        string
-	configCounter  int32
-	osdsCompleted  chan struct{}
+	cluster         *mon.ClusterInfo
+	forceFormat     bool
+	location        string
+	factory         client.ConnectionFactory
+	osdProc         map[int]*proc.MonitoredProc
+	desiredDevices  []string
+	devices         string
+	metadataDevice  string
+	bluestoreConfig partition.BluestoreConfig
+	configCounter   int32
+	osdsCompleted   chan struct{}
 }
 
-func NewAgent(factory client.ConnectionFactory, devices string, forceFormat bool, location string) *osdAgent {
-	a := &osdAgent{factory: factory, devices: devices, forceFormat: forceFormat, location: location}
-	return a
+func NewAgent(factory client.ConnectionFactory, devices, metadataDevice string, forceFormat bool,
+	location string, bluestoreConfig partition.BluestoreConfig) *osdAgent {
+
+	return &osdAgent{factory: factory, devices: devices, metadataDevice: metadataDevice, forceFormat: forceFormat,
+		location: location, bluestoreConfig: bluestoreConfig}
 }
 
 func (a *osdAgent) Name() string {
@@ -74,7 +83,7 @@ func (a *osdAgent) Initialize(context *clusterd.Context) error {
 	if len(a.devices) > 0 {
 		// add the devices to desired state
 		a.desiredDevices = strings.Split(a.devices, ",")
-		logger.Infof("desired devices for osds: %+v", a.desiredDevices)
+		logger.Infof("desired devices for osds: %+v.  desired metadata device: %s", a.desiredDevices, a.metadataDevice)
 	}
 
 	// if no devices or directories were specified, use the current directory for an osd
@@ -191,8 +200,8 @@ func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection cl
 	}
 
 	desiredOSDs := map[int]interface{}{}
-	for _, id := range desiredDevices {
-		desiredOSDs[id] = nil
+	for _, e := range desiredDevices.Entries {
+		desiredOSDs[e.Data] = nil
 	}
 	for _, id := range desiredDirs {
 		desiredOSDs[id] = nil
@@ -310,11 +319,29 @@ func (a *osdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 
 	succeeded := 0
 	var lastErr error
-	for dir, osdID := range dirs {
-		config := &osdConfig{id: osdID}
-		err := a.createOrStartOSD(context, connection, config, dir, true)
+	for dirPath, osdID := range dirs {
+		config := &osdConfig{id: osdID, configRoot: dirPath, dir: true}
+
+		if config.id == unassignedOSDID {
+			// the osd hasn't been registered with ceph yet, do so now to give it a cluster wide ID
+			osdID, osdUUID, err := registerOSD(connection)
+			if err != nil {
+				return err
+			}
+
+			config.id = *osdID
+			config.uuid = *osdUUID
+
+			// set the desired state of the dir with the osd id
+			err = associateOsdIDWithDevice(context.EtcdClient, context.NodeID, dirPath, config.id, config.dir)
+			if err != nil {
+				return fmt.Errorf("failed to associate osd id %d with the data dir", config.id)
+			}
+		}
+
+		err := a.startOSD(context, connection, config)
 		if err != nil {
-			logger.Errorf("failed to config osd in path %s. %+v", dir, err)
+			logger.Errorf("failed to config osd in path %s. %+v", dirPath, err)
 			lastErr = err
 		} else {
 			succeeded++
@@ -332,8 +359,8 @@ func (a *osdAgent) getBoostrapOSDConnection(context *clusterd.Context) (client.C
 		getBootstrapOSDKeyringPath(context.ConfigDir, a.cluster.Name))
 }
 
-func (a *osdAgent) configureDevices(context *clusterd.Context, devices map[string]int) error {
-	if len(devices) == 0 {
+func (a *osdAgent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) error {
+	if devices == nil || len(devices.Entries) == 0 {
 		return nil
 	}
 
@@ -356,43 +383,202 @@ func (a *osdAgent) configureDevices(context *clusterd.Context, devices map[strin
 		a.incrementConfigCounter()
 		defer a.decrementConfigCounter()
 
-		// initialize all the desired OSD volumes
+		// compute an OSD layout scheme that will optimize performance
+		scheme, err := getPartitionPerfScheme(context, connection, devices, a.bluestoreConfig)
+		logger.Debugf("partition scheme: %+v, err: %+v", scheme, err)
+		if err != nil {
+			logger.Errorf("failed to get OSD performance scheme: %+v", err)
+			return
+		}
+
+		if scheme.Metadata != nil {
+			// partition the dedicated metadata device
+			if err := partitionBluestoreMetadata(context, scheme.Metadata, context.ConfigDir); err != nil {
+				logger.Errorf("failed to partition bluestore metadata %+v: %+v", scheme.Metadata, err)
+				return
+			}
+		}
+
+		// initialize and start all the desired OSDs using the computed scheme
 		succeeded := 0
-		for device, osdID := range devices {
-			config := &osdConfig{id: osdID, deviceName: device, bluestore: true}
-			err := a.createOrStartOSD(context, connection, config, context.ConfigDir, false)
+		for _, entry := range scheme.Entries {
+			config := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configRoot: context.ConfigDir, partitionScheme: entry}
+			err := a.startOSD(context, connection, config)
 			if err != nil {
-				logger.Errorf("failed to config osd on device %s. %+v", device, err)
+				logger.Errorf("failed to config osd %d. %+v", entry.ID, err)
 			} else {
 				succeeded++
 			}
 		}
 
-		logger.Infof("%d/%d bluestore osds succeeded on this node", succeeded, len(devices))
+		logger.Infof("%d/%d bluestore osds succeeded on this node", succeeded, len(scheme.Entries))
 	}()
 
 	return nil
 }
 
-func (a *osdAgent) createOrStartOSD(context *clusterd.Context, connection client.Connection, config *osdConfig, configRoot string, dir bool) error {
-	// create a new OSD in ceph unless already done previously
-	if config.id == unassignedOSDID {
-		err := registerOSD(connection, config)
-		if err != nil {
-			return err
-		}
+// computes a partitioning scheme for all the given desired devices.  This could be devics already in use,
+// devices dedicated to metadata, and devices with all bluestore partitions collocated.
+func getPartitionPerfScheme(context *clusterd.Context, connection client.Connection, devices *DeviceOsdMapping,
+	bluestoreConfig partition.BluestoreConfig) (*partition.PerfScheme, error) {
 
-		// set the desired state of the dir with the osd id. If a device, we will delay setting this until we have the device uuid
-		if dir {
-			err = setOSDOnDevice(context.EtcdClient, context.NodeID, configRoot, config.id, dir)
+	// load the existing (committed) partition scheme from disk
+	perfScheme, err := partition.LoadScheme(context.ConfigDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load partition scheme from %s: %+v", context.ConfigDir, err)
+	}
+
+	nameToUUID := map[string]string{}
+	for _, disk := range context.Inventory.Local.Disks {
+		if disk.UUID != "" {
+			nameToUUID[disk.Name] = disk.UUID
+		}
+	}
+
+	numDataNeeded := 0
+	var metadataEntry *DeviceOsdIDEntry
+
+	// enumerate the device to OSD mapping to see if we have any new data devices to create and any
+	// metadata devices to store their metadata on
+	for name, mapping := range devices.Entries {
+		if isDeviceInUse(name, nameToUUID, perfScheme) {
+			// device is already in use for either data or metadata, update the details for each of its partitions
+			// (i.e. device name could have changed)
+			refreshDeviceInfo(name, nameToUUID, perfScheme)
+		} else if isDeviceDesiredForData(mapping) {
+			// device needs data partitioning
+			numDataNeeded++
+		} else if isDeviceDesiredForMetadata(mapping, perfScheme) {
+			// device is desired to store metadata for other OSDs
+			if perfScheme.Metadata != nil {
+				// TODO: this perf scheme creation algorithm assumes either zero or one metadata device, enhance to allow multiple
+				// https://github.com/rook/rook/issues/341
+				return nil, fmt.Errorf("%s is desired for metadata, but %s (%s) is already the metadata device",
+					name, perfScheme.Metadata.Device, perfScheme.Metadata.DiskUUID)
+			}
+
+			metadataEntry = mapping
+			perfScheme.Metadata = partition.NewMetadataDeviceInfo(name)
+		}
+	}
+
+	if numDataNeeded > 0 {
+		// register each data device and compute its desired partition scheme
+		for name, mapping := range devices.Entries {
+			if !isDeviceDesiredForData(mapping) || isDeviceInUse(name, nameToUUID, perfScheme) {
+				continue
+			}
+
+			// register/create the OSD with ceph, which will assign it a cluster wide ID
+			osdID, osdUUID, err := registerOSD(connection)
 			if err != nil {
-				return fmt.Errorf("failed to associate osd id %d with the data dir", config.id)
+				return nil, fmt.Errorf("failed to register OSD for device %s: %+v", name, err)
+			}
+
+			schemeEntry := partition.NewPerfSchemeEntry()
+			schemeEntry.ID = *osdID
+			schemeEntry.OsdUUID = *osdUUID
+
+			if metadataEntry != nil && perfScheme.Metadata != nil {
+				// we have a metadata device, so put the metadata partitions on it and the data partition on its own disk
+				metadataEntry.Metadata = append(metadataEntry.Metadata, *osdID)
+				mapping.Data = *osdID
+
+				// populate the perf partition scheme entry with distributed partition details
+				err := partition.PopulateDistributedPerfSchemeEntry(schemeEntry, name, perfScheme.Metadata, bluestoreConfig)
+				if err != nil {
+					return nil, fmt.Errorf("failed to create distributed perf scheme entry for %s: %+v", name, err)
+				}
+			} else {
+				// there is no metadata device to use, store everything on the data device
+
+				// update the device OSD mapping, saying this device will store the current OSDs data and metadata
+				mapping.Data = *osdID
+				mapping.Metadata = []int{*osdID}
+
+				// populate the perf partition scheme entry with collocated partition details
+				err := partition.PopulateCollocatedPerfSchemeEntry(schemeEntry, name, bluestoreConfig)
+				if err != nil {
+					return nil, fmt.Errorf("failed to create collocated perf scheme entry for %s: %+v", name, err)
+				}
+			}
+
+			perfScheme.Entries = append(perfScheme.Entries, schemeEntry)
+		}
+	}
+
+	return perfScheme, nil
+}
+
+// determines if the given device name is already in use with existing/committed partitions
+func isDeviceInUse(name string, nameToUUID map[string]string, scheme *partition.PerfScheme) bool {
+	parts := findPartitionsForDevice(name, nameToUUID, scheme)
+	return len(parts) > 0
+}
+
+// determines if the given device OSD mapping is in need of a data partition (and possibly collocated metadata partitions)
+func isDeviceDesiredForData(mapping *DeviceOsdIDEntry) bool {
+	if mapping == nil {
+		return false
+	}
+
+	return (mapping.Data == unassignedOSDID && mapping.Metadata == nil) ||
+		(mapping.Data > unassignedOSDID && len(mapping.Metadata) == 1)
+}
+
+func isDeviceDesiredForMetadata(mapping *DeviceOsdIDEntry, scheme *partition.PerfScheme) bool {
+	return mapping.Data == unassignedOSDID && mapping.Metadata != nil && len(mapping.Metadata) == 0
+}
+
+// finds all the partition details that are on the given device name
+func findPartitionsForDevice(name string, nameToUUID map[string]string, scheme *partition.PerfScheme) []*partition.PerfSchemePartitionDetails {
+	if scheme == nil {
+		return nil
+	}
+
+	diskUUID, ok := nameToUUID[name]
+	if !ok {
+		return nil
+	}
+
+	parts := []*partition.PerfSchemePartitionDetails{}
+	for _, e := range scheme.Entries {
+		for _, p := range e.Partitions {
+			if p.DiskUUID == diskUUID {
+				parts = append(parts, p)
 			}
 		}
 	}
 
+	return parts
+}
+
+// if a device name has changed, this function will find all partition entries with the device's static UUID and
+// then update the device name on them
+func refreshDeviceInfo(name string, nameToUUID map[string]string, scheme *partition.PerfScheme) {
+	parts := findPartitionsForDevice(name, nameToUUID, scheme)
+	if len(parts) == 0 {
+		return
+	}
+
+	// make sure each partition that is using the given device has its most up to date name
+	for _, p := range parts {
+		p.Device = name
+	}
+
+	// also update the device name if the given device is in use as the metadata device
+	if scheme.Metadata != nil {
+		if diskUUID, ok := nameToUUID[name]; ok {
+			if scheme.Metadata.DiskUUID == diskUUID {
+				scheme.Metadata.Device = name
+			}
+		}
+	}
+}
+
+func (a *osdAgent) startOSD(context *clusterd.Context, connection client.Connection, config *osdConfig) error {
 	newOSD := false
-	config.rootPath = path.Join(configRoot, fmt.Sprintf("osd%d", config.id))
+	config.rootPath = path.Join(config.configRoot, fmt.Sprintf("osd%d", config.id))
 	if isOSDDataNotExist(config.rootPath) {
 		// consider this a new osd if the "whoami" file is not found
 		newOSD = true
@@ -404,15 +590,31 @@ func (a *osdAgent) createOrStartOSD(context *clusterd.Context, connection client
 	}
 
 	if newOSD {
-		if config.bluestore {
-			// the device needs to be formatted
-			err := formatDevice(context, config, a.forceFormat)
+		if config.partitionScheme != nil {
+			// format and partition the device if needed
+			savedScheme, err := partition.LoadScheme(config.configRoot)
 			if err != nil {
-				return fmt.Errorf("failed device %s. %+v", config.deviceName, err)
+				return fmt.Errorf("failed to load the saved partition scheme from %s: %+v", config.configRoot, err)
 			}
 
-			logger.Notice("waiting after bluestore partition/format...")
-			<-time.After(2 * time.Second)
+			skipFormat := false
+			for _, savedEntry := range savedScheme.Entries {
+				if savedEntry.ID == config.id {
+					// this OSD has already had its partitions created, skip formatting
+					skipFormat = true
+					break
+				}
+			}
+
+			if !skipFormat {
+				err = formatDevice(context, config, a.forceFormat)
+				if err != nil {
+					return fmt.Errorf("failed format/partition of osd %d. %+v", config.id, err)
+				}
+
+				logger.Notice("waiting after bluestore partition/format...")
+				<-time.After(2 * time.Second)
+			}
 		}
 
 		// osd_data_dir/whoami does not exist yet, create/initialize the OSD
@@ -421,16 +623,21 @@ func (a *osdAgent) createOrStartOSD(context *clusterd.Context, connection client
 			return fmt.Errorf("failed to initialize OSD at %s: %+v", config.rootPath, err)
 		}
 
-		// save the osd to applied state
+		// save the osd information to applied state
+		dataDiskUUID, metadataDiskUUID := "", ""
+		if config.partitionScheme != nil {
+			dataDiskUUID = config.partitionScheme.Partitions[partition.BlockPartitionName].DiskUUID
+			metadataDiskUUID = config.partitionScheme.Partitions[partition.DatabasePartitionName].DiskUUID
+		}
 		settings := map[string]string{
-			"path":      configRoot,
-			"disk-uuid": config.diskUUID,
+			"path":              config.configRoot,
+			dataDiskUUIDKey:     dataDiskUUID,
+			metadataDiskUUIDKey: metadataDiskUUID,
 		}
 		key := path.Join(getAppliedKey(context.NodeID), fmt.Sprintf("%d", config.id))
 		if err := util.StoreEtcdProperties(context.EtcdClient, key, settings); err != nil {
 			return fmt.Errorf("failed to mark osd %d as applied: %+v", config.id, err)
 		}
-
 	} else {
 		// osd_data_dir/whoami already exists, meaning the OSD is already set up.
 		// look up some basic information about it so we can run it.
@@ -467,7 +674,7 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, config 
 		osdUUIDArg,
 	}
 
-	if !config.bluestore {
+	if config.dir {
 		params = append(params, fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(config.rootPath)))
 	}
 
@@ -493,7 +700,7 @@ func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, config 
 	return nil
 }
 
-// For all applied OSDs, gets a mapping of their osd IDs to their device uuid
+// For all applied OSDs, gets a mapping of their osd IDs to their data device uuid
 func GetAppliedOSDs(nodeID string, etcdClient etcd.KeysAPI) (map[int]string, error) {
 
 	osds := map[int]string{}
@@ -515,7 +722,7 @@ func GetAppliedOSDs(nodeID string, etcdClient etcd.KeysAPI) (map[int]string, err
 		}
 
 		for _, setting := range idKey.Nodes {
-			if strings.HasSuffix(setting.Key, "/disk-uuid") {
+			if strings.HasSuffix(setting.Key, "/"+dataDiskUUIDKey) {
 				osds[id] = setting.Value
 			}
 		}
@@ -533,7 +740,9 @@ func getPseudoDir(path string) string {
 	return strings.Replace(path, "/", "_", -1)
 }
 
-func (a *osdAgent) loadDesiredDevices(context *clusterd.Context) (map[string]int, error) {
+// loads information about all desired devices.  This includes devices that are already committed as well as
+// new devices that are desired but have not been set up yet.
+func (a *osdAgent) loadDesiredDevices(context *clusterd.Context) (*DeviceOsdMapping, error) {
 	// get the device UUID to device name mapping
 	uuidToName := map[string]string{}
 	for _, disk := range context.Inventory.Local.Disks {
@@ -543,54 +752,77 @@ func (a *osdAgent) loadDesiredDevices(context *clusterd.Context) (map[string]int
 	}
 	logger.Debugf("uuid to name map: %+v", uuidToName)
 
-	// ensure all the desired devices are in the list
-	devices := map[string]int{}
+	// ensure all the desired devices are in the result list
+	deviceOsdMapping := NewDeviceOsdMapping()
 	for _, name := range a.desiredDevices {
-		if _, ok := devices[name]; !ok {
-			// add the device to the desired list
-			devices[name] = unassignedOSDID
+		if _, ok := deviceOsdMapping.Entries[name]; !ok {
+			// add the device to the desired list in an unassigned state
+			deviceOsdMapping.Entries[name] = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: nil}
 		}
 	}
-	logger.Debugf("desired osd id mapping when new: %+v", devices)
+	if a.metadataDevice != "" {
+		if _, ok := deviceOsdMapping.Entries[a.metadataDevice]; !ok {
+			// add the metadata device to the desired list in an unassigned state
+			deviceOsdMapping.Entries[a.metadataDevice] = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}}
+		}
+	}
+	logger.Debugf("desired osd id mapping when new: %+v", deviceOsdMapping)
 
-	// parse the desired devices from etcd, which are based on the disk uuid.
+	// parse the desired devices from etcd, which are based on the disk uuid
 	key := path.Join(fmt.Sprintf(deviceDesiredKey, context.NodeID))
 	devKeys, err := context.EtcdClient.Get(ctx.Background(), key, &etcd.GetOptions{Recursive: true})
 	if err != nil {
 		if util.IsEtcdKeyNotFound(err) {
-			return devices, nil
+			return deviceOsdMapping, nil
 		}
 		return nil, err
 	}
 
 	for _, dev := range devKeys.Node.Nodes {
 		uuid := util.GetLeafKeyPath(dev.Key)
-		osdID := unassignedOSDID
+		osdDataID := unassignedOSDID
+		osdMetadataIDs := []int{}
 
+		// look for OSD data and metadata IDs that are stored on each device
 		for _, setting := range dev.Nodes {
-			if strings.HasSuffix(setting.Key, "/osd-id") {
+			if strings.HasSuffix(setting.Key, "/"+osdIDDataKey) {
+				// convert OSD data ID for the current disk from string to int
 				id, err := strconv.Atoi(setting.Value)
 				if err == nil {
-					logger.Debugf("found osd id %d for disk uuid %s", id, uuid)
-					osdID = id
+					logger.Debugf("found osd data id %d for disk uuid %s", id, uuid)
+					osdDataID = id
+				} else {
+					logger.Warningf("invalid osd data id %s for disk uuid %s: %+v", setting.Value, uuid, err)
+				}
+			} else if strings.HasSuffix(setting.Key, "/"+osdIDMetadataKey) {
+				// convert OSD metadata ID list for the current disk from strings to ints
+				metadataIDStrings := strings.Split(setting.Value, ",")
+				osdMetadataIDs = make([]int, len(metadataIDStrings))
+				for i, midStr := range metadataIDStrings {
+					if mid, err := strconv.Atoi(midStr); err == nil {
+						logger.Debugf("found osd metadata id %d for disk uuid %s", mid, uuid)
+						osdMetadataIDs[i] = mid
+					} else {
+						logger.Warningf("invalid osd metadata id %s for disk uuid %s: %+v", midStr, uuid, err)
+					}
 				}
 			}
 		}
 
-		// translate the disk uuid to the device name
+		// translate the disk uuid to the device name and store its desired OSD data/metadata ID's in the list
 		if name, ok := uuidToName[uuid]; ok {
-			devices[name] = osdID
+			deviceOsdMapping.Entries[name] = &DeviceOsdIDEntry{Data: osdDataID, Metadata: osdMetadataIDs}
 		} else {
 			logger.Warningf("did not find name for disk uuid %s", uuid)
 		}
 	}
 
-	logger.Debugf("final osd id mapping: %+v", devices)
+	logger.Debugf("final osd id mapping: %+v", deviceOsdMapping)
 
-	return devices, nil
+	return deviceOsdMapping, nil
 }
 
-func setOSDOnDevice(etcdClient etcd.KeysAPI, nodeID, name string, id int, dir bool) error {
+func associateOsdIDWithDevice(etcdClient etcd.KeysAPI, nodeID, name string, id int, dir bool) error {
 	var key string
 	if dir {
 		key = path.Join(fmt.Sprintf(dirDesiredKey, nodeID), getPseudoDir(name))
@@ -598,12 +830,18 @@ func setOSDOnDevice(etcdClient etcd.KeysAPI, nodeID, name string, id int, dir bo
 		key = path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), name)
 	}
 
-	_, err := etcdClient.Set(ctx.Background(), path.Join(key, "osd-id"), fmt.Sprintf("%d", id), nil)
+	_, err := etcdClient.Set(ctx.Background(), path.Join(key, osdIDDataKey), fmt.Sprintf("%d", id), nil)
 	if err != nil {
 		return fmt.Errorf("failed to associate osd %d with %s", id, name)
 	}
 
 	return nil
+}
+
+func associateOSDIDsWithMetadataDevice(etcdClient etcd.KeysAPI, nodeID, name, idList string) error {
+	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), name)
+	_, err := etcdClient.Set(ctx.Background(), path.Join(key, osdIDMetadataKey), idList, nil)
+	return err
 }
 
 // add a device to the desired state
@@ -635,7 +873,7 @@ func loadDesiredDirs(etcdClient etcd.KeysAPI, nodeID string) (map[string]int, er
 		for _, setting := range dev.Nodes {
 			if strings.HasSuffix(setting.Key, "/path") {
 				path = setting.Value
-			} else if strings.HasSuffix(setting.Key, "/osd-id") {
+			} else if strings.HasSuffix(setting.Key, "/"+osdIDDataKey) {
 				osdID, err := strconv.Atoi(setting.Value)
 				if err == nil {
 					id = osdID

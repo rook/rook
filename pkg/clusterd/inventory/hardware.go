@@ -35,7 +35,7 @@ type NodeConfig struct {
 }
 
 type Disk struct {
-	Available  bool   `json:"available"`
+	Empty      bool   `json:"empty"`
 	Type       string `json:"type"`
 	Size       uint64 `json:"size"`
 	Rotational bool   `json:"rotational"`
@@ -61,6 +61,7 @@ type LocalDisk struct {
 	Type        string `json:"type"`
 	Parent      string `json:"parent"`
 	HasChildren bool   `json:"hasChildren"`
+	Empty       bool   `json:"empty"`
 }
 
 type ProcessorConfig struct {

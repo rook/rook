@@ -33,7 +33,7 @@ func GetAvailableDevices(devices []*LocalDisk) []string {
 	var available []string
 	for _, device := range devices {
 		logger.Debugf("Evaluating device %+v", device)
-		if getDeviceAvailable(device) {
+		if getDeviceEmpty(device) {
 			logger.Debugf("Available device: %s", device.Name)
 			available = append(available, device.Name)
 		}
@@ -77,7 +77,8 @@ func toClusterDisks(devices []*LocalDisk) []*Disk {
 				Type:       device.Type,
 				Size:       device.Size,
 				Rotational: device.Rotational,
-				Available:  getDeviceAvailable(device)}
+				Empty:      device.Empty,
+			}
 			disks = append(disks, disk)
 		}
 	}
@@ -85,8 +86,8 @@ func toClusterDisks(devices []*LocalDisk) []*Disk {
 	return disks
 }
 
-// check whether a device is available for use by bluestore
-func getDeviceAvailable(device *LocalDisk) bool {
+// check whether a device is completely empty
+func getDeviceEmpty(device *LocalDisk) bool {
 	return device.Parent == "" && device.Type == sys.DiskType && device.FileSystem == ""
 }
 
@@ -151,6 +152,8 @@ func discoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
 		if val, ok := diskProps["PKNAME"]; ok {
 			disk.Parent = val
 		}
+
+		disk.Empty = getDeviceEmpty(disk)
 
 		disks = append(disks, disk)
 	}

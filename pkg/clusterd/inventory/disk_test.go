@@ -31,8 +31,10 @@ func TestSerializeClusterDisks(t *testing.T) {
 	etcdClient := &util.MockEtcdClient{}
 	d1 := &LocalDisk{Name: "sda", UUID: "u1", Size: 23, Rotational: true, Readonly: false,
 		FileSystem: "btrfs", MountPoint: "/mnt/abc", Type: sys.DiskType, HasChildren: true}
+	d1.Empty = getDeviceEmpty(d1)
 	d2 := &LocalDisk{Name: "sdb", UUID: "u2", Size: 24, Rotational: true, Readonly: false,
 		Type: sys.DiskType, HasChildren: true}
+	d2.Empty = getDeviceEmpty(d2)
 
 	err := storeDevices(etcdClient, nodeID, []*LocalDisk{d1, d2})
 	assert.Nil(t, err)
@@ -43,12 +45,12 @@ func TestSerializeClusterDisks(t *testing.T) {
 	err = json.Unmarshal([]byte(rawDisk), &disks)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(disks))
-	assert.False(t, disks[0].Available)
+	assert.False(t, disks[0].Empty)
 	assert.True(t, disks[0].Rotational)
 	assert.Equal(t, d1.Size, disks[0].Size)
 	assert.Equal(t, d1.Type, disks[0].Type)
 
-	assert.True(t, disks[1].Available)
+	assert.True(t, disks[1].Empty)
 	assert.True(t, disks[1].Rotational)
 	assert.Equal(t, d2.Size, disks[1].Size)
 	assert.Equal(t, d2.Type, disks[1].Type)
@@ -61,7 +63,7 @@ func TestAvailableDisks(t *testing.T) {
 	assert.Equal(t, 0, len(disks))
 
 	// no available disks because of the formatting
-	d1 := &LocalDisk{Name: "sda", UUID: "myuuid1", Size: 123, Rotational: true, Readonly: false, FileSystem: "btrfs", MountPoint: "/mnt/abc", Type: DiskType, HasChildren: true}
+	d1 := &LocalDisk{Name: "sda", UUID: "myuuid1", Size: 123, Rotational: true, Readonly: false, FileSystem: "btrfs", MountPoint: "/mnt/abc", Type: sys.DiskType, HasChildren: true}
 	disks = GetAvailableDevices([]*LocalDisk{d1})
 	assert.Equal(t, 0, len(disks))
 
