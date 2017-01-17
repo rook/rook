@@ -47,7 +47,7 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 	if err := flags.VerifyRequiredFlags(daemonCmd, []string{"type"}); err != nil {
 		return err
 	}
-	if daemonType != "mon" && daemonType != "osd" && daemonType != "mds" && daemonType != "rgw-admin" {
+	if daemonType != "mon" && daemonType != "mds" && daemonType != "rgw-admin" {
 		return fmt.Errorf("unknown daemon type: %s", daemonType)
 	}
 

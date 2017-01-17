@@ -29,14 +29,39 @@ var osdCmd = &cobra.Command{
 }
 
 func init() {
+	rgwCmd.Flags().StringVar(&clusterName, "cluster-name", "", "ceph cluster name")
+	rgwCmd.Flags().StringVar(&mons, "mons", "", "ceph mon endpoints")
+	rgwCmd.Flags().StringVar(&keyring, "keyring", "", "keyring for connecting the osds to the cluster")
+
 	osdCmd.RunE = startOSD
 }
 
 func startOSD(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(toolCmd, []string{""}); err != nil {
+	if err := flags.VerifyRequiredFlags(osdCmd, []string{"cluster-name", "mons", "keyring"}); err != nil {
 		return err
 	}
 
-	// osd.Start(config)
+	/*config := &osd.Config{
+		ClusterInfo:  &mon.ClusterInfo{Name: clusterName, Monitors: parseMonitors(mons)},
+		CephLauncher: cephd.New(),
+		Keyring:      keyring,
+	}
+	// parse given log level string then set up corresponding global logging level
+	ll, err := capnslog.ParseLevel(logLevelRaw)
+	if err != nil {
+		return err
+	}
+	cfg.logLevel = ll
+	capnslog.SetGlobalLogLevel(cfg.logLevel)
+
+	executor := &exec.CommandExecutor{}
+	context := &clusterd.DaemonContext{
+		Executor:           executor,
+		ConfigDir:          cfg.dataDir,
+		ConfigFileOverride: cfg.cephConfigOverride,
+		LogLevel:           cfg.logLevel,
+	}
+
+	return osd.Run(context, config)*/
 	return nil
 }

@@ -1,5 +1,3 @@
-// +build linux,amd64 linux,arm64
-
 /*
 Copyright 2016 The Rook Authors. All rights reserved.
 
@@ -15,28 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package main
+package mon
 
 import (
-	"github.com/rook/rook/pkg/util/flags"
-	"github.com/spf13/cobra"
+	"github.com/coreos/pkg/capnslog"
 )
 
-var mdsCmd = &cobra.Command{
-	Use:    "mds",
-	Short:  "Generates mds config and runs the mds daemon",
-	Hidden: true,
-}
-
-func init() {
-	mdsCmd.RunE = startMDS
-}
-
-func startMDS(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(mdsCmd, []string{""}); err != nil {
-		return err
-	}
-
-	// mds.Start(config)
-	return nil
-}
+var logger = capnslog.NewPackageLogger("github.com/rook/rook-operator", "mon")

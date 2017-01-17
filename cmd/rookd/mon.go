@@ -33,7 +33,7 @@ func init() {
 }
 
 func startMon(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(toolCmd, []string{""}); err != nil {
+	if err := flags.VerifyRequiredFlags(monCmd, []string{""}); err != nil {
 		return err
 	}
 
