@@ -266,7 +266,7 @@ func (r *ClusterMember) discoverHardware() error {
 
 	// Discover current state of the disks and other node properties
 	var err error
-	r.context.Inventory.Local, err = inventory.DiscoverHardware(r.context.EtcdClient, r.context.Executor, r.context.NodeID)
+	r.context.Inventory.Local, err = inventory.DiscoverHardwareAndStore(r.context.EtcdClient, r.context.Executor, r.context.NodeID)
 	if err != nil {
 		return fmt.Errorf("failed to perform discovery. %+v", err)
 	}

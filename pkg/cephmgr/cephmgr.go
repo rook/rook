@@ -38,7 +38,7 @@ func NewCephService(factory client.ConnectionFactory, devices, metadataDevice st
 		Leader: newLeader(factory, adminSecret),
 		Agents: []clusterd.ServiceAgent{
 			mon.NewAgent(factory),
-			osd.NewAgent(factory, devices, metadataDevice, forceFormat, location, bluestoreConfig),
+			osd.NewAgent(factory, devices, metadataDevice, forceFormat, location, bluestoreConfig, nil),
 			mds.NewAgent(factory),
 			rgw.NewAgent(factory),
 		},

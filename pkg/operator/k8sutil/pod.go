@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	RookContainerVersion = "private-dev-build"
+	RookContainerVersion = "dev-2017-01-06-e"
 	AppAttr              = "app"
 	ClusterAttr          = "rook_cluster"
 	VersionAttr          = "rook_version"

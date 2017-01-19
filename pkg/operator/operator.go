@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/mon"
+	"github.com/rook/rook/pkg/operator/osd"
 )
 
 type Operator struct {
@@ -59,12 +60,17 @@ func (o *Operator) Run() error {
 
 	// Start the mon pods
 	m := mon.New(o.Namespace, o.factory)
-	err = m.Start(o.clientset)
+	cluster, err := m.Start(o.clientset)
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
 
 	// Start the OSDs
+	oset := osd.New(o.Namespace, k8sutil.RookContainerVersion)
+	err = oset.Start(o.clientset, cluster)
+	if err != nil {
+		return fmt.Errorf("failed to start the osds. %+v", err)
+	}
 
 	return nil
 }

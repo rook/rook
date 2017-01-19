@@ -47,7 +47,6 @@ func init() {
 	monCmd.Flags().StringVar(&cluster.FSID, "fsid", "", "keyring for secure monitors")
 	monCmd.Flags().StringVar(&cluster.MonitorSecret, "mon-secret", "", "keyring for secure monitors")
 	monCmd.Flags().StringVar(&cluster.AdminSecret, "admin-secret", "", "keyring for secure monitors")
-	monCmd.Flags().StringVar(&cluster.Name, "cluster-name", "", "name of the cluster")
 	monCmd.Flags().IntVar(&monPort, "port", 0, "port of the monitor")
 
 	monCmd.RunE = startMon
@@ -69,6 +68,7 @@ func startMon(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("missing mon port")
 	}
 
+	cluster.Name = cfg.clusterName
 	cluster.Monitors = map[string]*mon.CephMonitorConfig{monName: &mon.CephMonitorConfig{Name: monName, Endpoint: fmt.Sprintf("%s:%d", ipaddress, monPort)}}
 	monCfg := &mon.Config{Name: monName, Cluster: &cluster, CephLauncher: cephd.New()}
 

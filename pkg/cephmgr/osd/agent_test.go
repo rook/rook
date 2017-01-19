@@ -272,12 +272,12 @@ func TestRemoveDevice(t *testing.T) {
 	assert.True(t, applied.Equals(util.CreateSet([]string{"23"})), fmt.Sprintf("applied=%+v", applied))
 }
 
-func createTestAgent(t *testing.T, nodeID, devices, configDir string) (*util.MockEtcdClient, *osdAgent, *testceph.MockConnection) {
+func createTestAgent(t *testing.T, nodeID, devices, configDir string) (*util.MockEtcdClient, *OsdAgent, *testceph.MockConnection) {
 	location := "root=here"
 	forceFormat := false
 	etcdClient := util.NewMockEtcdClient()
 	factory := &testceph.MockConnectionFactory{}
-	agent := NewAgent(factory, devices, "", forceFormat, location, partition.BluestoreConfig{})
+	agent := NewAgent(factory, devices, "", forceFormat, location, partition.BluestoreConfig{}, nil)
 	agent.cluster = &mon.ClusterInfo{Name: "myclust"}
 	agent.Initialize(&clusterd.Context{EtcdClient: etcdClient, NodeID: nodeID, ConfigDir: configDir})
 	if devices == "" {
@@ -295,7 +295,7 @@ func createTestAgent(t *testing.T, nodeID, devices, configDir string) (*util.Moc
 	return etcdClient, agent, mockConn
 }
 
-func prepAgentOrchestrationData(t *testing.T, agent *osdAgent, etcdClient *util.MockEtcdClient, context *clusterd.Context, clusterName string) {
+func prepAgentOrchestrationData(t *testing.T, agent *OsdAgent, etcdClient *util.MockEtcdClient, context *clusterd.Context, clusterName string) {
 	key := path.Join(mon.CephKey, osdAgentName, clusterd.DesiredKey, context.NodeID)
 	etcdClient.CreateDir(key)
 
@@ -350,7 +350,7 @@ func TestDesiredDeviceState(t *testing.T) {
 
 func TestLoadDesiredDevices(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	a := &osdAgent{desiredDevices: []string{}}
+	a := &OsdAgent{desiredDevices: []string{}}
 
 	// no devices are desired
 	context := &clusterd.Context{EtcdClient: etcdClient, Inventory: createInventory(), NodeID: "a"}
@@ -422,7 +422,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 		&inventory.LocalDisk{Name: "sdb", Size: 107374182400}, // 100 GB
 		&inventory.LocalDisk{Name: "sdc", Size: 44158681088},  // 1 MB (starting offset) + 2 * (576 MB + 20 GB) = 41.125 GB
 	}
-	a := &osdAgent{desiredDevices: []string{"sda", "sdb"}, metadataDevice: "sdc"}
+	a := &OsdAgent{desiredDevices: []string{"sda", "sdb"}, metadataDevice: "sdc"}
 
 	devices, err := a.loadDesiredDevices(context)
 	assert.Nil(t, err)
@@ -493,7 +493,7 @@ func TestGetPartitionPerfSchemeDiskInUse(t *testing.T) {
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
 		&inventory.LocalDisk{Name: "sda", Size: 107374182400, UUID: sdaUUID}, // 100 GB
 	}
-	a := &osdAgent{desiredDevices: []string{"sda"}}
+	a := &OsdAgent{desiredDevices: []string{"sda"}}
 
 	// mock device sda already being saved to desired state
 	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/a/device/%s/osd-id-data", sdaUUID), "1")
@@ -543,7 +543,7 @@ func TestGetPartitionPerfSchemeDiskNameChanged(t *testing.T) {
 		&inventory.LocalDisk{Name: "nvme01-changed", Size: 107374182400, UUID: metadataUUID},
 		&inventory.LocalDisk{Name: "sda-changed", Size: 107374182400, UUID: sdaUUID},
 	}
-	a := &osdAgent{desiredDevices: []string{"sda-changed"}}
+	a := &OsdAgent{desiredDevices: []string{"sda-changed"}}
 
 	// mock the 2 devices as being committed to desired state already then load desired devices
 	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/a/device/%s/osd-id-data", sdaUUID), "1")

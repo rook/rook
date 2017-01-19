@@ -18,6 +18,7 @@ package mon
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
@@ -33,6 +34,20 @@ type Config struct {
 	CephLauncher
 }
 
+func ParseMonEndpoints(input string) map[string]*CephMonitorConfig {
+	mons := map[string]*CephMonitorConfig{}
+	rawMons := strings.Split(input, ",")
+	for _, rawMon := range rawMons {
+		parts := strings.Split(rawMon, "=")
+		if len(parts) != 2 {
+			logger.Warningf("ignoring invalid monitor %s", rawMon)
+			continue
+		}
+		mons[parts[0]] = &CephMonitorConfig{Name: parts[0], Endpoint: parts[1]}
+	}
+	return mons
+}
+
 func Run(context *clusterd.DaemonContext, config *Config) error {
 
 	configFile, monDataDir, err := generateConfigFiles(context, config)
@@ -42,7 +57,7 @@ func Run(context *clusterd.DaemonContext, config *Config) error {
 
 	err = startMon(context, config, configFile, monDataDir)
 	if err != nil {
-		return fmt.Errorf("failed to run rgw. %+v", err)
+		return fmt.Errorf("failed to run mon. %+v", err)
 	}
 
 	return err
@@ -57,7 +72,7 @@ func generateConfigFiles(context *clusterd.DaemonContext, config *Config) (strin
 	}
 
 	// write the config file to disk
-	confFilePath, err := GenerateConnectionConfigFile(toContext(context), config.Cluster, getMonRunDirPath(context.ConfigDir, config.Name),
+	confFilePath, err := GenerateConnectionConfigFile(ToContext(context), config.Cluster, getMonRunDirPath(context.ConfigDir, config.Name),
 		"admin", getMonKeyringPath(context.ConfigDir, config.Name))
 	if err != nil {
 		return "", "", err
@@ -78,8 +93,8 @@ func generateConfigFiles(context *clusterd.DaemonContext, config *Config) (strin
 }
 
 // TEMP: Convert a context to a daemon context. This should go away after all daemons convert
-func toContext(context *clusterd.DaemonContext) *clusterd.Context {
-	return &clusterd.Context{Executor: context.Executor, ConfigDir: context.ConfigDir, LogLevel: context.LogLevel, ConfigFileOverride: context.ConfigFileOverride}
+func ToContext(context *clusterd.DaemonContext) *clusterd.Context {
+	return &clusterd.Context{Executor: context.Executor, ProcMan: context.ProcMan, ConfigDir: context.ConfigDir, LogLevel: context.LogLevel, ConfigFileOverride: context.ConfigFileOverride}
 }
 
 func startMon(context *clusterd.DaemonContext, config *Config, confFilePath, monDataDir string) error {

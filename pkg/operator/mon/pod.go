@@ -51,7 +51,7 @@ func (c *Cluster) makeMonPod(config *MonConfig) *v1.Pod {
 		},
 	}
 
-	k8sutil.SetPodVersion(pod, versionAttr, c.Version)
+	k8sutil.SetPodVersion(pod, k8sutil.VersionAttr, c.Version)
 
 	if c.AntiAffinity {
 		k8sutil.PodWithAntiAffinity(pod, monClusterAttr, config.Info.Name)
@@ -105,7 +105,7 @@ func (m *MonConfig) livenessProbe() *v1.Probe {
 	}
 }
 
-func flattenMonEndpoints(mons []*mon.CephMonitorConfig) string {
+func FlattenMonEndpoints(mons map[string]*mon.CephMonitorConfig) string {
 	endpoints := []string{}
 	for _, m := range mons {
 		endpoints = append(endpoints, fmt.Sprintf("%s=%s", m.Name, m.Endpoint))
@@ -113,8 +113,8 @@ func flattenMonEndpoints(mons []*mon.CephMonitorConfig) string {
 	return strings.Join(endpoints, ",")
 }
 
-func (c *Cluster) pollPods(clientset *kubernetes.Clientset, cluster *mon.ClusterInfo) ([]*v1.Pod, []*v1.Pod, error) {
-	podList, err := clientset.Core().Pods(c.Namespace).List(clusterListOpt(cluster.Name))
+func (c *Cluster) pollPods(clientset *kubernetes.Clientset, clusterName string) ([]*v1.Pod, []*v1.Pod, error) {
+	podList, err := clientset.Core().Pods(c.Namespace).List(clusterListOpt(clusterName))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to list running pods: %v", err)
 	}
@@ -151,11 +151,15 @@ func clusterListOpt(clusterName string) api.ListOptions {
 	}
 }
 
-func podsToMonEndpoints(pods []*v1.Pod) []*mon.CephMonitorConfig {
-	mons := []*mon.CephMonitorConfig{}
+func podsToMonEndpoints(pods []*v1.Pod) map[string]*mon.CephMonitorConfig {
+	mons := map[string]*mon.CephMonitorConfig{}
 	for _, pod := range pods {
 		mon := &mon.CephMonitorConfig{Name: pod.Name, Endpoint: fmt.Sprintf("%s:%d", pod.Status.PodIP, MonPort)}
-		mons = append(mons, mon)
+		if mon.Name == "mon0" {
+			mons[mon.Name] = mon
+		} else {
+			logger.Warningf("ignoring mon %s", mon.Name)
+		}
 	}
 	return mons
 }
