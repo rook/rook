@@ -58,7 +58,7 @@ func (o *Operator) Run() error {
 	}
 
 	// Start the mon pods
-	m := mon.New(o.Namespace)
+	m := mon.New(o.Namespace, o.factory)
 	err = m.Start(o.clientset)
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)

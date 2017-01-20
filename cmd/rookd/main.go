@@ -65,6 +65,8 @@ type config struct {
 	cephConfigOverride string
 	bluestoreConfig    partition.BluestoreConfig
 	networkInfo        clusterd.NetworkInfo
+	clusterName        string
+	monEndpoints       string
 }
 
 func newConfig() *config {
@@ -101,6 +103,8 @@ func init() {
 	rootCmd.Flags().IntVar(&cfg.bluestoreConfig.WalSizeMB, "osd-wal-size", partition.WalDefaultSizeMB, "default size (MB) for OSD write ahead log (WAL)")
 	rootCmd.Flags().IntVar(&cfg.bluestoreConfig.DatabaseSizeMB, "osd-database-size", partition.DBDefaultSizeMB, "default size (MB) for OSD database")
 
+	rootCmd.PersistentFlags().StringVar(&cfg.clusterName, "cluster-name", "rookcluster", "ceph cluster name")
+	rootCmd.PersistentFlags().StringVar(&cfg.monEndpoints, "mon-endpoints", "", "ceph mon endpoints")
 	rootCmd.PersistentFlags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
 	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 	rootCmd.PersistentFlags().StringVar(&cfg.cephConfigOverride, "ceph-config-override", "", "optional path to a ceph config file that will be appended to the config files that rook generates")
@@ -128,13 +132,7 @@ func startJoinCluster(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// parse given log level string then set up corresponding global logging level
-	ll, err := capnslog.ParseLevel(logLevelRaw)
-	if err != nil {
-		return err
-	}
-	cfg.logLevel = ll
-	capnslog.SetGlobalLogLevel(cfg.logLevel)
+	setLogLevel()
 
 	if err := joinCluster(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -234,4 +232,14 @@ func loadDefaultDiscoveryURL() (string, error) {
 	}
 
 	return discoveryURL, nil
+}
+
+func setLogLevel() {
+	// parse given log level string then set up corresponding global logging level
+	ll, err := capnslog.ParseLevel(logLevelRaw)
+	if err != nil {
+		logger.Warningf("failed to set log level %s. %+v", logLevelRaw, err)
+	}
+	cfg.logLevel = ll
+	capnslog.SetGlobalLogLevel(cfg.logLevel)
 }

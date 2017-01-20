@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/cephmgr/cephd"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/cephmgr/rgw"
@@ -38,16 +37,12 @@ var rgwCmd = &cobra.Command{
 }
 
 var (
-	clusterName string
-	mons        string
-	keyring     string
-	host        string
-	port        int
+	keyring string
+	host    string
+	port    int
 )
 
 func init() {
-	rgwCmd.Flags().StringVar(&clusterName, "cluster-name", "", "ceph cluster name")
-	rgwCmd.Flags().StringVar(&mons, "mons", "", "ceph mon endpoints")
 	rgwCmd.Flags().StringVar(&keyring, "keyring", "", "keyring for connecting rgw to the cluster")
 	rgwCmd.Flags().StringVar(&host, "host", "", "dns host name")
 	rgwCmd.Flags().IntVar(&port, "port", 0, "rgw port number")
@@ -56,7 +51,7 @@ func init() {
 }
 
 func startRGW(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(rgwCmd, []string{"cluster-name", "mons", "keyring", "host"}); err != nil {
+	if err := flags.VerifyRequiredFlags(rgwCmd, []string{"mons", "keyring", "host"}); err != nil {
 		return err
 	}
 
@@ -64,20 +59,15 @@ func startRGW(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("port is required")
 	}
 
+	setLogLevel()
+
 	config := &rgw.Config{
-		ClusterInfo:  &mon.ClusterInfo{Name: clusterName, Monitors: parseMonitors(mons)},
+		ClusterInfo:  &mon.ClusterInfo{Name: cfg.clusterName, Monitors: parseMonitors(cfg.monEndpoints)},
 		CephLauncher: cephd.New(),
 		Keyring:      keyring,
 		Host:         host,
 		Port:         port,
 	}
-	// parse given log level string then set up corresponding global logging level
-	ll, err := capnslog.ParseLevel(logLevelRaw)
-	if err != nil {
-		return err
-	}
-	cfg.logLevel = ll
-	capnslog.SetGlobalLogLevel(cfg.logLevel)
 
 	executor := &exec.CommandExecutor{}
 	context := &clusterd.DaemonContext{

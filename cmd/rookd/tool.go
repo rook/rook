@@ -46,6 +46,8 @@ func runTool(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	setLogLevel()
+
 	// allow rgw admin commands as well as mon and osd mkfs
 	if toolType != "rgw-admin" && toolType != "mon" && toolType != "osd" {
 		return fmt.Errorf("unknown tool type: %s", toolType)

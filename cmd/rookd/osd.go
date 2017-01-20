@@ -29,18 +29,17 @@ var osdCmd = &cobra.Command{
 }
 
 func init() {
-	rgwCmd.Flags().StringVar(&clusterName, "cluster-name", "", "ceph cluster name")
-	rgwCmd.Flags().StringVar(&mons, "mons", "", "ceph mon endpoints")
-	rgwCmd.Flags().StringVar(&keyring, "keyring", "", "keyring for connecting the osds to the cluster")
+	osdCmd.Flags().StringVar(&keyring, "keyring", "", "keyring for connecting the osds to the cluster")
 
 	osdCmd.RunE = startOSD
 }
 
 func startOSD(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(osdCmd, []string{"cluster-name", "mons", "keyring"}); err != nil {
+	if err := flags.VerifyRequiredFlags(osdCmd, []string{"cluster-name", "mon-endpoints", "keyring"}); err != nil {
 		return err
 	}
 
+	setLogLevel()
 	/*config := &osd.Config{
 		ClusterInfo:  &mon.ClusterInfo{Name: clusterName, Monitors: parseMonitors(mons)},
 		CephLauncher: cephd.New(),

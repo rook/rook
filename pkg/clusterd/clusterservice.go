@@ -95,6 +95,9 @@ type DaemonContext struct {
 	// The implementation of executing a console command
 	Executor exec.Executor
 
+	// The process manager for launching a process
+	ProcMan *proc.ProcManager
+
 	// The root configuration directory used by services
 	ConfigDir string
 

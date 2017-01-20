@@ -24,19 +24,26 @@ import (
 	"k8s.io/client-go/1.5/pkg/api/v1"
 )
 
-func MakeRookImage(version string) string {
-	return fmt.Sprintf("quay.io/rook/rookd:%v", version)
+const (
+	RookContainerVersion = "private-dev-build"
+	AppAttr              = "app"
+	ClusterAttr          = "rook_cluster"
+	VersionAttr          = "rook_version"
+)
+
+func MakeRookImage() string {
+	return fmt.Sprintf("quay.io/rook/rookd:%v", RookContainerVersion)
 }
 
-func PodWithAntiAffinity(pod *v1.Pod, clusterName string) *v1.Pod {
-	// set pod anti-affinity with the pods that belongs to the same etcd cluster
+func PodWithAntiAffinity(pod *v1.Pod, attribute, value string) {
+	// set pod anti-affinity with the pods that belongs to the same rook cluster
 	affinity := v1.Affinity{
 		PodAntiAffinity: &v1.PodAntiAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
 				{
 					LabelSelector: &unversionedAPI.LabelSelector{
 						MatchLabels: map[string]string{
-							"rook_cluster": clusterName,
+							attribute: value,
 						},
 					},
 					TopologyKey: "kubernetes.io/hostname",
@@ -51,7 +58,6 @@ func PodWithAntiAffinity(pod *v1.Pod, clusterName string) *v1.Pod {
 	}
 
 	pod.Annotations[api.AffinityAnnotationKey] = string(affinityb)
-	return pod
 }
 
 func SetPodVersion(pod *v1.Pod, key, version string) {

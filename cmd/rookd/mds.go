@@ -37,6 +37,8 @@ func startMDS(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	setLogLevel()
+
 	// mds.Start(config)
 	return nil
 }

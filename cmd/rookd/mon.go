@@ -18,7 +18,15 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
+	"os"
+
+	"github.com/rook/rook/pkg/cephmgr/cephd"
+	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
+	"github.com/rook/rook/pkg/util/proc"
 	"github.com/spf13/cobra"
 )
 
@@ -28,15 +36,50 @@ var monCmd = &cobra.Command{
 	Hidden: true,
 }
 
+var (
+	cluster mon.ClusterInfo
+	monName string
+	monPort int
+)
+
 func init() {
+	monCmd.Flags().StringVar(&monName, "name", "", "name of the monitor")
+	monCmd.Flags().StringVar(&cluster.FSID, "fsid", "", "keyring for secure monitors")
+	monCmd.Flags().StringVar(&cluster.MonitorSecret, "mon-secret", "", "keyring for secure monitors")
+	monCmd.Flags().StringVar(&cluster.AdminSecret, "admin-secret", "", "keyring for secure monitors")
+	monCmd.Flags().StringVar(&cluster.Name, "cluster-name", "", "name of the cluster")
+	monCmd.Flags().IntVar(&monPort, "port", 0, "port of the monitor")
+
 	monCmd.RunE = startMon
 }
 
 func startMon(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(monCmd, []string{""}); err != nil {
+	if err := flags.VerifyRequiredFlags(monCmd, []string{"name", "fsid", "mon-secret", "admin-secret", "data-dir", "cluster-name"}); err != nil {
 		return err
 	}
 
-	// mon.Start(config)
-	return nil
+	setLogLevel()
+
+	ipaddress := os.Getenv(mon.IPAddressEnvVar)
+	if ipaddress == "" {
+		return fmt.Errorf("missing pod ip address for the monitor")
+	}
+
+	if monPort == 0 {
+		return fmt.Errorf("missing mon port")
+	}
+
+	cluster.Monitors = map[string]*mon.CephMonitorConfig{monName: &mon.CephMonitorConfig{Name: monName, Endpoint: fmt.Sprintf("%s:%d", ipaddress, monPort)}}
+	monCfg := &mon.Config{Name: monName, Cluster: &cluster, CephLauncher: cephd.New()}
+
+	executor := &exec.CommandExecutor{}
+	context := &clusterd.DaemonContext{
+		ProcMan:            proc.New(executor),
+		Executor:           executor,
+		ConfigDir:          cfg.dataDir,
+		ConfigFileOverride: cfg.cephConfigOverride,
+		LogLevel:           cfg.logLevel,
+	}
+
+	return mon.Run(context, monCfg)
 }
