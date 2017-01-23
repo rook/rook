@@ -16,31 +16,168 @@ limitations under the License.
 package partition
 
 import (
+	"fmt"
+	"io/ioutil"
 	"os"
-	"path"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSimpleScheme(t *testing.T) {
-	scheme, err := GetSimpleScheme(1, 123)
+func TestSchemeSaveLoad(t *testing.T) {
+	// set up a temporary config directory that will be cleaned up after test
+	configDir, err := ioutil.TempDir("", "TestSchemeSaveLoad")
+	if err != nil {
+		t.Fatalf("failed to create temp config dir: %+v", err)
+	}
+	defer os.RemoveAll(configDir)
+
+	// loading the scheme when there is no scheme file should return an empty scheme with no error
+	scheme, err := LoadScheme(configDir)
 	assert.Nil(t, err)
-	assert.Equal(t, 123, scheme.SizeMB)
-	assert.Equal(t, 36, len(scheme.DiskUUID))
-	assert.Equal(t, 3, len(scheme.PartitionUUIDs))
-	assert.Equal(t, 1, scheme.ID)
+	assert.NotNil(t, scheme)
+	assert.Equal(t, 0, len(scheme.Entries))
+	assert.Nil(t, scheme.Metadata)
 
-	args := scheme.GetArgs("foo")
-	assert.Equal(t, 11, len(args))
+	// add some entries to the scheme
+	scheme.Metadata = NewMetadataDeviceInfo("sda")
+	scheme.Metadata.DiskUUID = uuid.Must(uuid.NewRandom()).String()
+	m1 := &MetadataDevicePartition{ID: 1, OsdUUID: uuid.Must(uuid.NewRandom()), Name: "wal",
+		PartitionUUID: uuid.Must(uuid.NewRandom()).String(), SizeMB: 100, OffsetMB: 1}
+	m2 := &MetadataDevicePartition{ID: 1, OsdUUID: m1.OsdUUID, Name: "db",
+		PartitionUUID: uuid.Must(uuid.NewRandom()).String(), SizeMB: 200, OffsetMB: 101}
+	scheme.Metadata.Partitions = append(scheme.Metadata.Partitions, []*MetadataDevicePartition{m1, m2}...)
 
-	err = scheme.Save("/tmp")
-	defer os.Remove(path.Join("/tmp", schemeFilename))
+	e1 := &PerfSchemeEntry{ID: 1, OsdUUID: m1.OsdUUID}
+	e1.Partitions = map[string]*PerfSchemePartitionDetails{
+		"block": &PerfSchemePartitionDetails{
+			Device:        "sdb",
+			DiskUUID:      uuid.Must(uuid.NewRandom()).String(),
+			PartitionUUID: uuid.Must(uuid.NewRandom()).String(),
+			SizeMB:        -1,
+			OffsetMB:      1,
+		},
+	}
+
+	// save the scheme to disk, should be no error
+	err = scheme.Save(configDir)
 	assert.Nil(t, err)
 
-	loaded, err := LoadScheme("/tmp")
+	// now load the saved scheme, it should load an equal object to what was saved
+	savedScheme, err := LoadScheme(configDir)
 	assert.Nil(t, err)
-	assert.Equal(t, 3, len(loaded.PartitionUUIDs))
+	assert.Equal(t, scheme, savedScheme)
+}
 
-	logger.Infof("scheme=%+v", scheme)
+func TestPopulateCollocatedPerfSchemeEntry(t *testing.T) {
+	entry := NewPerfSchemeEntry()
+	entry.ID = 10
+	entry.OsdUUID = uuid.Must(uuid.NewRandom())
+	err := PopulateCollocatedPerfSchemeEntry(entry, "sda", BluestoreConfig{WalSizeMB: 1, DatabaseSizeMB: 2})
+	assert.Nil(t, err)
+
+	// verify the populated collocated partition entries
+	assert.Equal(t, 3, len(entry.Partitions))
+	verifyPartitionDetails(t, entry, WalPartitionName, "sda", 1, 1)
+	verifyPartitionDetails(t, entry, DatabasePartitionName, "sda", 2, 2)
+	verifyPartitionDetails(t, entry, BlockPartitionName, "sda", 4, -1)
+
+}
+
+func TestPopulateDistributedPerfSchemeEntry(t *testing.T) {
+	metadata := NewMetadataDeviceInfo("sda")
+
+	entry := NewPerfSchemeEntry()
+	entry.ID = 20
+	entry.OsdUUID = uuid.Must(uuid.NewRandom())
+
+	err := PopulateDistributedPerfSchemeEntry(entry, "sdb", metadata, BluestoreConfig{WalSizeMB: 1, DatabaseSizeMB: 2})
+	assert.Nil(t, err)
+
+	// verify the populated distributed partition entries (metadata partitions should be on metadata device, block
+	// partition should be on its own device)
+	assert.Equal(t, 3, len(entry.Partitions))
+	verifyPartitionDetails(t, entry, WalPartitionName, "sda", 1, 1)
+	verifyPartitionDetails(t, entry, DatabasePartitionName, "sda", 2, 2)
+	verifyPartitionDetails(t, entry, BlockPartitionName, "sdb", 1, -1)
+
+	// verify that the metadata device info was populated as well
+	assert.Equal(t, 2, len(metadata.Partitions))
+	verifyMetadataDevicePartition(t, metadata, 0, entry.ID, entry.OsdUUID, WalPartitionName, 1, 1)
+	verifyMetadataDevicePartition(t, metadata, 1, entry.ID, entry.OsdUUID, DatabasePartitionName, 2, 2)
+}
+
+func verifyPartitionDetails(t *testing.T, entry *PerfSchemeEntry, partName, device string, offset, size int64) {
+	part, ok := entry.Partitions[partName]
+	assert.True(t, ok)
+	assert.NotNil(t, part)
+	assert.Equal(t, device, part.Device)
+	assert.Equal(t, offset, part.OffsetMB)
+	assert.Equal(t, size, part.SizeMB)
+}
+
+func verifyMetadataDevicePartition(t *testing.T, info *MetadataDeviceInfo, index int, osdID int, osdUUID uuid.UUID,
+	name string, offset, size int64) {
+
+	part := info.Partitions[index]
+	assert.NotNil(t, part)
+	assert.Equal(t, osdID, part.ID)
+	assert.Equal(t, osdUUID, part.OsdUUID)
+	assert.Equal(t, name, part.Name)
+	assert.Equal(t, offset, part.OffsetMB)
+	assert.Equal(t, size, part.SizeMB)
+}
+
+func TestMetadataGetPartitionArgs(t *testing.T) {
+	metadata := NewMetadataDeviceInfo("sda")
+
+	e1 := NewPerfSchemeEntry()
+	e1.ID = 1
+	e1.OsdUUID = uuid.Must(uuid.NewRandom())
+
+	e2 := NewPerfSchemeEntry()
+	e2.ID = 2
+	e2.OsdUUID = uuid.Must(uuid.NewRandom())
+
+	bluestoreConfig := BluestoreConfig{WalSizeMB: 1, DatabaseSizeMB: 2}
+	err := PopulateDistributedPerfSchemeEntry(e1, "sdb", metadata, bluestoreConfig)
+	assert.Nil(t, err)
+	err = PopulateDistributedPerfSchemeEntry(e2, "sdc", metadata, bluestoreConfig)
+	assert.Nil(t, err)
+
+	expectedArgs := []string{
+		"--new=1:2048:+2048", "--change-name=1:ROOK-OSD1-WAL", fmt.Sprintf("--partition-guid=1:%s", metadata.Partitions[0].PartitionUUID),
+		"--new=2:4096:+4096", "--change-name=2:ROOK-OSD1-DB", fmt.Sprintf("--partition-guid=2:%s", metadata.Partitions[1].PartitionUUID),
+		"--new=3:8192:+2048", "--change-name=3:ROOK-OSD2-WAL", fmt.Sprintf("--partition-guid=3:%s", metadata.Partitions[2].PartitionUUID),
+		"--new=4:10240:+4096", "--change-name=4:ROOK-OSD2-DB", fmt.Sprintf("--partition-guid=4:%s", metadata.Partitions[3].PartitionUUID),
+		fmt.Sprintf("--disk-guid=%s", metadata.DiskUUID), "/dev/sda",
+	}
+
+	// get the partition args and verify against expected
+	args := metadata.GetPartitionArgs()
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestSchemeEntryGetPartitionArgs(t *testing.T) {
+	e1 := NewPerfSchemeEntry()
+	e1.ID = 1
+	e1.OsdUUID = uuid.Must(uuid.NewRandom())
+
+	bluestoreConfig := BluestoreConfig{WalSizeMB: 1, DatabaseSizeMB: 2}
+	err := PopulateCollocatedPerfSchemeEntry(e1, "sdb", bluestoreConfig)
+	assert.Nil(t, err)
+
+	expectedArgs := []string{
+		"--new=1:2048:+2048", "--change-name=1:ROOK-OSD1-WAL", fmt.Sprintf("--partition-guid=1:%s", e1.Partitions[WalPartitionName].PartitionUUID),
+		"--new=2:4096:+4096", "--change-name=2:ROOK-OSD1-DB", fmt.Sprintf("--partition-guid=2:%s", e1.Partitions[DatabasePartitionName].PartitionUUID),
+		"--largest-new=3", "--change-name=3:ROOK-OSD1-BLOCK", fmt.Sprintf("--partition-guid=3:%s", e1.Partitions[BlockPartitionName].PartitionUUID),
+		fmt.Sprintf("--disk-guid=%s", e1.Partitions[BlockPartitionName].DiskUUID), "/dev/sdb",
+	}
+
+	// get the partition args and verify against expected
+	args := e1.GetPartitionArgs()
+	assert.Equal(t, expectedArgs, args)
+
+	logger.Noticef("%+v", args)
 }

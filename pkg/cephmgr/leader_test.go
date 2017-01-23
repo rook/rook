@@ -22,6 +22,7 @@ import (
 
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
 	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/cephmgr/osd/partition"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
@@ -137,7 +138,7 @@ func TestRefreshKeys(t *testing.T) {
 func TestNewCephService(t *testing.T) {
 	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "key"}
 
-	service := NewCephService(factory, "a,b,c", true, "root=default", "")
+	service := NewCephService(factory, "a,b,c", "", true, "root=default", "", partition.BluestoreConfig{})
 	assert.NotNil(t, service)
 	assert.Equal(t, "/rook/services/ceph/osd/desired", service.Leader.RefreshKeys()[0].Path)
 	assert.Equal(t, 4, len(service.Agents))

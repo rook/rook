@@ -22,16 +22,31 @@ import (
 	"path/filepath"
 	"strings"
 
+	"strconv"
+
 	"github.com/google/uuid"
 	"github.com/rook/rook/pkg/util/exec"
 )
+
+const (
+	DiskType = "disk"
+	SSDType  = "ssd"
+	PartType = "part"
+	sgdisk   = "sgdisk"
+)
+
+type Partition struct {
+	Name  string
+	Size  uint64
+	Label string
+}
 
 // request the current user once and stash it in this global variable
 var currentUser *user.User
 
 func ListDevices(executor exec.Executor) ([]string, error) {
 	cmd := "lsblk all"
-	devices, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", "--all", "-n", "-l", "--output", "KNAME")
+	devices, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", "--all", "--noheadings", "--list", "--output", "KNAME")
 	if err != nil {
 		return nil, fmt.Errorf("failed to list all devices: %+v", err)
 	}
@@ -39,10 +54,49 @@ func ListDevices(executor exec.Executor) ([]string, error) {
 	return strings.Split(devices, "\n"), nil
 }
 
+func GetDevicePartitions(device string, executor exec.Executor) (partitions []*Partition, unusedSpace uint64, err error) {
+	cmd := fmt.Sprintf("lsblk /dev/%s", device)
+	output, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", fmt.Sprintf("/dev/%s", device),
+		"--bytes", "--pairs", "--output", "NAME,SIZE,TYPE,PKNAME,PARTLABEL")
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to get device %s partitions. %+v", device, err)
+	}
+
+	partInfo := strings.Split(output, "\n")
+	var deviceSize uint64
+	var totalPartitionSize uint64
+	for _, info := range partInfo {
+		props := parseKeyValuePairString(info)
+		name := props["NAME"]
+		if name == device {
+			// found the main device
+			deviceSize, err = strconv.ParseUint(props["SIZE"], 10, 64)
+			if err != nil {
+				return nil, 0, fmt.Errorf("failed to get device %s size. %+v", device, err)
+			}
+		} else if props["PKNAME"] == device && props["TYPE"] == PartType {
+			// found a partition
+			p := &Partition{Name: name}
+			p.Label = props["PARTLABEL"]
+			p.Size, err = strconv.ParseUint(props["SIZE"], 10, 64)
+			if err != nil {
+				return nil, 0, fmt.Errorf("failed to get partition %s size. %+v", name, err)
+			}
+			totalPartitionSize += p.Size
+			partitions = append(partitions, p)
+		}
+	}
+
+	if deviceSize > 0 {
+		unusedSpace = deviceSize - totalPartitionSize
+	}
+	return partitions, unusedSpace, nil
+}
+
 func GetDeviceProperties(device string, executor exec.Executor) (map[string]string, error) {
 	cmd := fmt.Sprintf("lsblk /dev/%s", device)
 	output, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", fmt.Sprintf("/dev/%s", device),
-		"-b", "-d", "-P", "-o", "SIZE,ROTA,RO,TYPE,PKNAME")
+		"--bytes", "--nodeps", "--pairs", "--output", "SIZE,ROTA,RO,TYPE,PKNAME")
 	if err != nil {
 		// try to get more information about the command error
 		cmdErr, ok := err.(*exec.CommandError)
@@ -69,6 +123,27 @@ func GetDeviceFilesystems(device string, executor exec.Executor) (string, error)
 	return parseDFOutput(device, output), nil
 }
 
+func RemovePartitions(device string, executor exec.Executor) error {
+	cmd := fmt.Sprintf("zap %s", device)
+	err := executor.ExecuteCommand(cmd, sgdisk, "--zap-all", "/dev/"+device)
+	if err != nil {
+		return fmt.Errorf("failed to zap partitions on /dev/%s: %+v", device, err)
+	}
+
+	cmd = fmt.Sprintf("clear %s", device)
+	err = executor.ExecuteCommand(cmd, sgdisk, "--clear", "--mbrtogpt", "/dev/"+device)
+	if err != nil {
+		return fmt.Errorf("failed to clear partitions on /dev/%s: %+v", device, err)
+	}
+
+	return nil
+}
+
+func CreatePartitions(device string, args []string, executor exec.Executor) error {
+	cmd := fmt.Sprintf("partition %s", device)
+	return executor.ExecuteCommand(cmd, sgdisk, args...)
+}
+
 func FormatDevice(devicePath string, executor exec.Executor) error {
 	cmd := fmt.Sprintf("mkfs.ext4 %s", devicePath)
 	if err := executor.ExecuteCommand(cmd, "sudo", "mkfs.ext4", devicePath); err != nil {
@@ -82,7 +157,7 @@ func FormatDevice(devicePath string, executor exec.Executor) error {
 func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 	cmd := fmt.Sprintf("get disk %s uuid", device)
 	output, err := executor.ExecuteCommandWithOutput(cmd,
-		"sgdisk", "-p", fmt.Sprintf("/dev/%s", device))
+		sgdisk, "--print", fmt.Sprintf("/dev/%s", device))
 	if err != nil {
 		return "", err
 	}

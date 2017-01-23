@@ -107,7 +107,9 @@ def attach_volumes(node, num_volumes, volume_size)
         unless File.exist?(diskname)
           v.customize ['createhd', '--filename', diskname, '--size', volume_size * 1024]
         end
-        v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', disk, '--device', 0, '--type', 'hdd', '--medium', diskname]
+        # the first disk is SSD (non-rotational) and the rest are HDD (rotational)
+        nonrotational = disk == 1 ? 'on' : 'off'
+        v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', disk, '--device', 0, '--type', 'hdd', '--nonrotational', nonrotational, '--medium', diskname]
       end
     end
 

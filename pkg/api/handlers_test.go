@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -63,8 +64,8 @@ func TestGetNodesHandler(t *testing.T) {
 
 	// add the disks to etcd
 	disks := []inventory.Disk{
-		inventory.Disk{Type: inventory.DiskType, Size: 50, Rotational: true, Available: true},
-		inventory.Disk{Type: inventory.DiskType, Size: 100, Rotational: false, Available: true},
+		inventory.Disk{Type: sys.DiskType, Size: 50, Rotational: true, Empty: true},
+		inventory.Disk{Type: sys.DiskType, Size: 100, Rotational: false, Empty: true},
 	}
 	output, _ := json.Marshal(disks)
 	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, nodeID, "disks"), string(output))

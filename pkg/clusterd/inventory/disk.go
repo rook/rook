@@ -33,7 +33,7 @@ func GetAvailableDevices(devices []*LocalDisk) []string {
 	var available []string
 	for _, device := range devices {
 		logger.Debugf("Evaluating device %+v", device)
-		if getDeviceAvailable(device) {
+		if getDeviceEmpty(device) {
 			logger.Debugf("Available device: %s", device.Name)
 			available = append(available, device.Name)
 		}
@@ -72,12 +72,13 @@ func loadDisksConfig(nodeConfig *NodeConfig, rawDisks string) error {
 func toClusterDisks(devices []*LocalDisk) []*Disk {
 	var disks []*Disk
 	for _, device := range devices {
-		if device.Type == DiskType || device.Type == SSDType {
+		if device.Type == sys.DiskType || device.Type == sys.SSDType {
 			disk := &Disk{
 				Type:       device.Type,
 				Size:       device.Size,
 				Rotational: device.Rotational,
-				Available:  getDeviceAvailable(device)}
+				Empty:      device.Empty,
+			}
 			disks = append(disks, disk)
 		}
 	}
@@ -85,9 +86,9 @@ func toClusterDisks(devices []*LocalDisk) []*Disk {
 	return disks
 }
 
-// check whether a device is available for use by bluestore
-func getDeviceAvailable(device *LocalDisk) bool {
-	return device.Parent == "" && device.Type == DiskType && device.FileSystem == ""
+// check whether a device is completely empty
+func getDeviceEmpty(device *LocalDisk) bool {
+	return device.Parent == "" && device.Type == sys.DiskType && device.FileSystem == ""
 }
 
 // Discover all the details of devices available on the local node
@@ -108,14 +109,14 @@ func discoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
 		}
 
 		diskType, ok := diskProps["TYPE"]
-		if !ok || (diskType != SSDType && diskType != DiskType && diskType != PartType) {
+		if !ok || (diskType != sys.SSDType && diskType != sys.DiskType && diskType != sys.PartType) {
 			// unsupported disk type, just continue
 			continue
 		}
 
 		// get the UUID for disks
 		var diskUUID string
-		if diskType != "part" {
+		if diskType != sys.PartType {
 			diskUUID, err = sys.GetDiskUUID(d, executor)
 			if err != nil {
 				logger.Warningf("skipping device %s with an unknown uuid. %+v", d, err)
@@ -151,6 +152,8 @@ func discoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
 		if val, ok := diskProps["PKNAME"]; ok {
 			disk.Parent = val
 		}
+
+		disk.Empty = getDeviceEmpty(disk)
 
 		disks = append(disks, disk)
 	}

@@ -33,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr"
 	"github.com/rook/rook/pkg/cephmgr/cephd"
 	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/cephmgr/osd/partition"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/flags"
@@ -57,12 +58,14 @@ type config struct {
 	publicIPv4         string
 	privateIPv4        string
 	devices            string
+	metadataDevice     string
 	dataDir            string
 	adminSecret        string
 	forceFormat        bool
 	location           string
 	logLevel           capnslog.LogLevel
 	cephConfigOverride string
+	bluestoreConfig    partition.BluestoreConfig
 }
 
 func newConfig() *config {
@@ -88,10 +91,15 @@ func init() {
 	rootCmd.Flags().StringVar(&cfg.publicIPv4, "public-ipv4", "127.0.0.1", "public IPv4 address for this machine")
 	rootCmd.Flags().StringVar(&cfg.privateIPv4, "private-ipv4", "127.0.0.1", "private IPv4 address for this machine")
 	rootCmd.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
+	rootCmd.Flags().StringVar(&cfg.metadataDevice, "metadata-device", "", "device to use for metadata (e.g. a high performance SSD/NVMe device)")
 	rootCmd.Flags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
 	rootCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 	rootCmd.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
+
+	// bluestore config flags
+	rootCmd.Flags().IntVar(&cfg.bluestoreConfig.WalSizeMB, "osd-wal-size", partition.WalDefaultSizeMB, "default size (MB) for OSD write ahead log (WAL)")
+	rootCmd.Flags().IntVar(&cfg.bluestoreConfig.DatabaseSizeMB, "osd-database-size", partition.DBDefaultSizeMB, "default size (MB) for OSD database")
 
 	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 	rootCmd.PersistentFlags().StringVar(&cfg.cephConfigOverride, "ceph-config-override", "", "optional path to a ceph config file that will be appended to the config files that rook generates")
@@ -155,7 +163,7 @@ func joinCluster() error {
 	}
 
 	services := []*clusterd.ClusterService{
-		cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.forceFormat, cfg.location, cfg.adminSecret),
+		cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.metadataDevice, cfg.forceFormat, cfg.location, cfg.adminSecret, cfg.bluestoreConfig),
 	}
 
 	cfg.nodeID, err = util.LoadPersistedNodeID(cfg.dataDir)
