@@ -37,7 +37,7 @@ BUILDER_HOME=/home/rook
 
 # mount arguments
 MOUNT_OPTS="\
-    -v ${scriptdir}/../bin:${BUILDER_HOME}/go/src/${source_repo}/bin \
+    -v ${scriptdir}/../bin:${BUILDER_HOME}/go/bin \
     -v ${scriptdir}/../release:${BUILDER_HOME}/go/src/${source_repo}/release \
 "
 
@@ -92,10 +92,12 @@ else
     #       /.work  (bind mounted to host <source>/.work/cross)
     #       /.ccache (bind mounted to host CCACHE_DIR)
     #       /bin     (bind mounted to host <source>/bin)
+    #       /pkg     (bind mounted to host <source>/.work/cross/pkg)
     #       /src/github.com/rook/rook (bind mounted to <source>)
     #
     MOUNT_OPTS="${MOUNT_OPTS} \
         -v ${scriptdir}/../.work/cross:${BUILDER_HOME}/go/.work \
+        -v ${scriptdir}/../.work/cross/pkg:${BUILDER_HOME}/go/pkg \
         -v ${scriptdir}/..:${BUILDER_HOME}/go/src/${source_repo}"
 
     if [[ -d "${CCACHE_DIR}" ]]; then
