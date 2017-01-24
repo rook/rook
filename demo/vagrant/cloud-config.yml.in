@@ -7,6 +7,11 @@ coreos:
   - name: rookd.service
     enable: true
     command: start
+    drop-ins:
+      - name: 10-db-size.conf
+        content: |
+          [Service]
+          Environment=ROOKD_OSD_DATABASE_SIZE=1024
     content: |
       [Unit]
       Description=Rook Daemon - software defined storage
@@ -25,6 +30,7 @@ coreos:
       Environment=ROOKD_DATA_DIR=/var/lib/rook
       Environment=ROOKD_DISCOVERY_URL=%%discovery_token%%
       Environment=ROOKD_DATA_DEVICES=sda,sdb,sdc,sdd
+      Environment=ROOKD_CEPH_CONFIG_OVERRIDE=/var/lib/rook/ceph-override.conf
 
       ExecStartPre=/usr/bin/mkdir -p ${ROOKD_DATA_DIR}
 
@@ -41,3 +47,10 @@ coreos:
 
       [Install]
       WantedBy=multi-user.target
+write_files:
+  - path: "/var/lib/rook/ceph-override.conf"
+    permissions: "0644"
+    owner: "root"
+    content: |
+      [global]
+      # add ceph config overrides here
