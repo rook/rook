@@ -7,6 +7,11 @@ coreos:
   - name: rookd.service
     enable: true
     command: start
+    drop-ins:
+      - name: 10-db-size.conf
+        content: |
+          [Service]
+          Environment=ROOKD_OSD_DATABASE_SIZE=1024
     content: |
       [Unit]
       Description=Rook Daemon - software defined storage
