@@ -22,6 +22,8 @@ import (
 	"strings"
 	"testing"
 
+	"os"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/go-ini/ini"
 	"github.com/rook/rook/pkg/clusterd"
@@ -119,9 +121,36 @@ func verifyConfig(t *testing.T, cephConfig *cephConfig, expectedMonMembers, expe
 	assert.Equal(t, experimental, cephConfig.EnableExperimental)
 	assert.Equal(t, objectStore, cephConfig.OsdObjectStore)
 	assert.Equal(t, loggingLevel, cephConfig.DebugLogDefaultLevel)
-	assert.Equal(t, loggingLevel, cephConfig.DebugLogMonLevel)
-	assert.Equal(t, loggingLevel, cephConfig.DebugLogRadosLevel)
-	assert.Equal(t, loggingLevel, cephConfig.DebugLogBluestoreLevel)
+}
+
+func TestLogLevel(t *testing.T) {
+	defaultVal := 1
+	level := getEnvLogLevel("NON_EXISTENT_VAR", defaultVal)
+	assert.Equal(t, defaultVal, level)
+
+	os.Setenv("MY_LOG_LEVEL", "10")
+	level = getEnvLogLevel("MY_LOG_LEVEL", defaultVal)
+	assert.Equal(t, 10, level)
+
+	os.Setenv("MY_LOG_LEVEL", "abc")
+	level = getEnvLogLevel("MY_LOG_LEVEL", defaultVal)
+	assert.Equal(t, defaultVal, level)
+
+	os.Setenv("MY_LOG_LEVEL", "-2")
+	level = getEnvLogLevel("MY_LOG_LEVEL", defaultVal)
+	assert.Equal(t, defaultVal, level)
+
+	os.Setenv("MY_LOG_LEVEL", "-1")
+	level = getEnvLogLevel("MY_LOG_LEVEL", defaultVal)
+	assert.Equal(t, -1, level)
+
+	os.Setenv("MY_LOG_LEVEL", "100")
+	level = getEnvLogLevel("MY_LOG_LEVEL", defaultVal)
+	assert.Equal(t, 100, level)
+
+	os.Setenv("MY_LOG_LEVEL", "101")
+	level = getEnvLogLevel("MY_LOG_LEVEL", defaultVal)
+	assert.Equal(t, defaultVal, level)
 }
 
 func verifyConfigValue(t *testing.T, actualConf *ini.File, section, key, expectedVal string) {
