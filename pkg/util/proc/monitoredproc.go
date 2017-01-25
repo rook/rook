@@ -37,7 +37,11 @@ type MonitoredProc struct {
 }
 
 func newMonitoredProc(p *ProcManager, cmd *exec.Cmd) *MonitoredProc {
-	m := &MonitoredProc{parent: p, cmd: cmd, retrySecondsExponentBase: 2}
+	m := &MonitoredProc{
+		parent: p,
+		cmd:    cmd,
+		retrySecondsExponentBase: 2,
+	}
 	m.waitForExit = m.waitForProcessExit
 	return m
 }
@@ -45,6 +49,8 @@ func newMonitoredProc(p *ProcManager, cmd *exec.Cmd) *MonitoredProc {
 func (p *MonitoredProc) Monitor(logName string) {
 	p.monitor = true
 	var err error
+	var lastRetryCheck time.Time
+	var lastStartTime time.Time
 
 	for {
 		// wait for the given process to complete, unless the last retry had failed immediately
@@ -58,10 +64,11 @@ func (p *MonitoredProc) Monitor(logName string) {
 		}
 
 		// calculate the delay
-		delaySeconds := calcRetryDelay(p.retrySecondsExponentBase, p.retries)
+		delay := calcRetryDelay(p.retrySecondsExponentBase, p.retries, time.Now(), lastStartTime, lastRetryCheck)
+		lastRetryCheck = time.Now()
 
-		logger.Infof("starting process %v again after %.1f seconds", p.cmd.Args, delaySeconds)
-		<-time.After(time.Second * time.Duration(delaySeconds))
+		logger.Infof("starting process %v again after %.1f seconds", p.cmd.Args, delay)
+		<-time.After(time.Second * time.Duration(delay))
 
 		if !p.monitor {
 			logger.Infof("done monitoring process %v", p.cmd.Args)
@@ -75,6 +82,7 @@ func (p *MonitoredProc) Monitor(logName string) {
 			p.retries++
 		} else {
 			logger.Infof("retry (total %d). started process %v", p.totalRetries, p.cmd.Args)
+			lastStartTime = time.Now()
 			p.retries = 0
 		}
 
@@ -117,14 +125,27 @@ func (p *MonitoredProc) Stop() error {
 	return nil
 }
 
-func calcRetryDelay(base float64, power int) float64 {
+// determines the time to delay in seconds before retrying again
+func calcRetryDelay(base float64, retries int, now, lastStartTime, lastRetryCheck time.Time) float64 {
 	if base == 0 {
 		return 0
 	}
 
-	delay := math.Pow(base, float64(power))
-	if delay > maxDelaySeconds {
-		return maxDelaySeconds
+	power := 0.0
+	if retries > 0 {
+		power = float64(retries)
+	} else if !lastRetryCheck.IsZero() && !lastStartTime.IsZero() && now.Sub(lastStartTime).Seconds() < maxDelaySeconds {
+		// the process was running for shorter than the max retry delay, so it wasn't running for too long before
+		// it exited again. retry count is 0, so the process did start "successfully" last time, but in order to prevent
+		// rapid retry loops where the process starts successfully but crashes right after, let's use the number of
+		// seconds since the last retry check as a proxy for retry count.  this will give us exponential back off
+		// for a process that crashes immediately after starting.
+		power = now.Sub(lastRetryCheck).Seconds()
+	}
+
+	delay := math.Pow(base, power)
+	if delay > float64(maxDelaySeconds) {
+		return float64(maxDelaySeconds)
 	}
 
 	return delay
