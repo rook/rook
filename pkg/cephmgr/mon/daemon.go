@@ -25,6 +25,7 @@ import (
 )
 
 const (
+	Port            = 6790
 	IPAddressEnvVar = "MON_POD_IP"
 )
 
@@ -34,7 +35,16 @@ type Config struct {
 	CephLauncher
 }
 
+func FlattenMonEndpoints(mons map[string]*CephMonitorConfig) string {
+	endpoints := []string{}
+	for _, m := range mons {
+		endpoints = append(endpoints, fmt.Sprintf("%s=%s", m.Name, m.Endpoint))
+	}
+	return strings.Join(endpoints, ",")
+}
+
 func ParseMonEndpoints(input string) map[string]*CephMonitorConfig {
+	logger.Infof("parsing mon endpoints: %s", input)
 	mons := map[string]*CephMonitorConfig{}
 	rawMons := strings.Split(input, ",")
 	for _, rawMon := range rawMons {
@@ -46,6 +56,10 @@ func ParseMonEndpoints(input string) map[string]*CephMonitorConfig {
 		mons[parts[0]] = &CephMonitorConfig{Name: parts[0], Endpoint: parts[1]}
 	}
 	return mons
+}
+
+func ToCephMon(name, ip string) *CephMonitorConfig {
+	return &CephMonitorConfig{Name: name, Endpoint: fmt.Sprintf("%s:%d", ip, Port)}
 }
 
 func Run(context *clusterd.DaemonContext, config *Config) error {

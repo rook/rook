@@ -20,10 +20,8 @@ import (
 	"sync"
 
 	"k8s.io/client-go/1.5/kubernetes"
-	"k8s.io/client-go/1.5/pkg/api/v1"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
 )

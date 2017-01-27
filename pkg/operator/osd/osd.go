@@ -20,7 +20,6 @@ import (
 
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	opmon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/client-go/1.5/kubernetes"
 	api "k8s.io/client-go/1.5/pkg/api/v1"
 	extensions "k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
@@ -96,8 +95,8 @@ func (c *Cluster) makeDaemonSet(cluster *mon.ClusterInfo) (*extensions.DaemonSet
 
 func (c *Cluster) osdContainer(cluster *mon.ClusterInfo) api.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd osd --data-dir=%s --osd-mon-endpoints=%s --cluster-name=%s --osd-mon-secret=%s --osd-admin-secret=%s ",
-		k8sutil.DataDir, opmon.FlattenMonEndpoints(cluster.Monitors), cluster.Name, cluster.MonitorSecret, cluster.AdminSecret)
+	command := fmt.Sprintf("/usr/bin/rookd osd --data-dir=%s --mon-endpoints=%s --cluster-name=%s --osd-mon-secret=%s --osd-admin-secret=%s ",
+		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name, cluster.MonitorSecret, cluster.AdminSecret)
 	privileged := true
 	return api.Container{
 		// TODO: fix "sleep 5".

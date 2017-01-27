@@ -69,7 +69,11 @@ func startMon(cmd *cobra.Command, args []string) error {
 	}
 
 	cluster.Name = cfg.clusterName
-	cluster.Monitors = map[string]*mon.CephMonitorConfig{monName: &mon.CephMonitorConfig{Name: monName, Endpoint: fmt.Sprintf("%s:%d", ipaddress, monPort)}}
+
+	// at first start the local monitor needs to be added to the list of mons
+	cluster.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
+	cluster.Monitors[monName] = mon.ToCephMon(monName, ipaddress)
+
 	monCfg := &mon.Config{Name: monName, Cluster: &cluster, CephLauncher: cephd.New()}
 
 	executor := &exec.CommandExecutor{}

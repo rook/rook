@@ -24,13 +24,14 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/client-go/1.5/kubernetes"
 	"k8s.io/client-go/1.5/pkg/api"
+	"k8s.io/client-go/1.5/pkg/api/v1"
 )
 
 const (
-	MonPort     = 6790
-	monApp      = "cephmon"
-	monNodeAttr = "mon_node"
-	tprName     = "mon.rook.io"
+	monApp         = "cephmon"
+	monNodeAttr    = "mon_node"
+	monClusterAttr = "mon_cluster"
+	tprName        = "mon.rook.io"
 )
 
 type Cluster struct {
@@ -41,7 +42,6 @@ type Cluster struct {
 	MasterHost   string
 	Size         int
 	Paused       bool
-	NodeSelector map[string]string
 	AntiAffinity bool
 	Port         int32
 	factory      client.ConnectionFactory
@@ -70,66 +70,16 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset) (*mon.ClusterInfo, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
-
-	// schedule the mons on different nodes if we have enough nodes to be unique
-	err = c.setAntiAffinity(clientset)
-	if err != nil {
-		return nil, fmt.Errorf("failed to set antiaffinity. %+v", err)
-	}
-
-	running, pending, err := c.pollPods(clientset, clusterInfo.Name)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get mon pods. %+v", err)
-	}
-	logger.Infof("Running pods: %+v", FlattenMonEndpoints(podsToMonEndpoints(running)))
-	logger.Infof("%d pending pods", pending)
-
-	if len(running) > 0 {
-		logger.Infof("pods are already running")
-		// FIX: Need the existing cluster info
-		return nil, nil
-	}
-
-	started := 0
-	alreadyRunning := 0
+	mons := []*MonConfig{}
 	for i := 0; i < c.Size; i++ {
-		mon := &MonConfig{Name: fmt.Sprintf("mon%d", i), Info: clusterInfo, Port: int32(MonPort)}
-		monPod := c.makeMonPod(mon)
-		logger.Debugf("Starting pod: %+v", monPod)
-		_, err := clientset.Pods(c.Namespace).Create(monPod)
-		if err != nil {
-			if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
-				return nil, fmt.Errorf("failed to create mon pod %s. %+v", c.Namespace, err)
-			}
-			alreadyRunning++
-			logger.Infof("mon pod %s already exists", monPod.Name)
-		} else {
-			started++
-		}
+		mons = append(mons, &MonConfig{Name: fmt.Sprintf("mon%d", i), Info: clusterInfo, Port: int32(mon.Port)})
 	}
 
-	// Poll the status of the pods to see if they are ready
-	// FIX: Get status instead of just waiting
-	for i := 0; i < 15; i++ {
-		// wait and try again
-		logger.Infof("waiting 10s for the monitor to initialize")
-		<-time.After(10 * time.Second)
-
-		var podsPending bool
-		clusterInfo.Monitors, podsPending, err = c.GetMonitors(clientset, clusterInfo.Name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to update cluster info. %+v", err)
-		}
-
-		if len(clusterInfo.Monitors) > 0 {
-			break
-		}
-		if !podsPending {
-			return nil, fmt.Errorf("no monitors available and none pending")
-		}
+	err = c.startPods(clientset, clusterInfo, mons)
+	if err != nil {
+		return nil, fmt.Errorf("failed to start mon pods. %+v", err)
 	}
 
-	logger.Infof("started %d/%d mons (%d already running)", (started + alreadyRunning), c.Size, alreadyRunning)
 	return clusterInfo, nil
 }
 
@@ -139,23 +89,96 @@ func (c *Cluster) initClusterInfo() (*mon.ClusterInfo, error) {
 	return mon.CreateClusterInfo(c.factory, "")
 }
 
-func (c *Cluster) setAntiAffinity(clientset *kubernetes.Clientset) error {
+func (c *Cluster) startPods(clientset *kubernetes.Clientset, clusterInfo *mon.ClusterInfo, mons []*MonConfig) error {
+	// schedule the mons on different nodes if we have enough nodes to be unique
+	antiAffinity, err := c.getAntiAffinity(clientset)
+	if err != nil {
+		return fmt.Errorf("failed to get antiaffinity. %+v", err)
+	}
+
+	running, pending, err := c.pollPods(clientset, clusterInfo.Name)
+	if err != nil {
+		return fmt.Errorf("failed to get mon pods. %+v", err)
+	}
+	logger.Infof("%d running, %d pending pods", len(running), len(pending))
+
+	if len(running) == c.Size {
+		logger.Infof("pods are already running")
+		return nil
+	}
+
+	clusterInfo.Monitors = map[string]*mon.CephMonitorConfig{}
+	for _, m := range running {
+		clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.Status.PodIP)
+	}
+
+	started := 0
+	alreadyRunning := 0
+	for _, m := range mons {
+		monPod := c.makeMonPod(m, clusterInfo, antiAffinity)
+		logger.Debugf("Starting pod: %+v", monPod)
+		_, err := clientset.Pods(c.Namespace).Create(monPod)
+		if err != nil {
+			if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+				return fmt.Errorf("failed to create mon pod %s. %+v", c.Namespace, err)
+			}
+			alreadyRunning++
+			logger.Infof("mon pod %s already exists", monPod.Name)
+		} else {
+			started++
+		}
+
+		podIP, err := c.waitForPodToStart(clientset, monPod)
+		if err != nil {
+			return fmt.Errorf("failed to start pod %s. %+v", monPod.Name, err)
+		}
+		clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, podIP)
+	}
+
+	logger.Infof("started %d/%d mons (%d already running)", (started + alreadyRunning), c.Size, alreadyRunning)
+	return nil
+}
+
+func (c *Cluster) waitForPodToStart(clientset *kubernetes.Clientset, pod *v1.Pod) (string, error) {
+
+	// Poll the status of the pods to see if they are ready
+	// FIX: Get status instead of just waiting
+	for i := 0; i < 15; i++ {
+		// wait and try again
+		delay := 8
+		logger.Infof("waiting %ds for pod %s to start. status=%v", delay, pod.Name, pod.Status.Phase)
+		<-time.After(time.Duration(delay) * time.Second)
+
+		pod, err := clientset.Core().Pods(c.Namespace).Get(pod.Name)
+		if err != nil {
+			return "", fmt.Errorf("failed to get mon pod %s. %+v", pod.Name, err)
+		}
+
+		if pod.Status.Phase == v1.PodRunning {
+			logger.Infof("pod %s started", pod.Name)
+			return pod.Status.PodIP, nil
+		}
+	}
+
+	return "", fmt.Errorf("timed out waiting for pod %s to start", pod.Name)
+}
+
+func (c *Cluster) getAntiAffinity(clientset *kubernetes.Clientset) (bool, error) {
 	nodeOptions := api.ListOptions{}
 	nodeOptions.TypeMeta.Kind = "Node"
 	nodes, err := clientset.Nodes().List(nodeOptions)
 	if err != nil {
-		return fmt.Errorf("failed to get nodes in cluster. %+v", err)
+		return false, fmt.Errorf("failed to get nodes in cluster. %+v", err)
 	}
 
 	logger.Infof("there are %d nodes available for %d monitors", len(nodes.Items), c.Size)
-	c.AntiAffinity = len(nodes.Items) >= c.Size
-	return nil
+	return len(nodes.Items) >= c.Size, nil
 }
 
-func (c *Cluster) GetMonitors(clientset *kubernetes.Clientset, clusterName string) (map[string]*mon.CephMonitorConfig, bool, error) {
+func (c *Cluster) GetMonPodsRunning(clientset *kubernetes.Clientset, clusterName string) (int, int, error) {
 	running, pending, err := c.pollPods(clientset, clusterName)
 	if err != nil {
-		return nil, false, fmt.Errorf("failed to get mon pods. %+v", err)
+		return 0, 0, fmt.Errorf("failed to get mon pods. %+v", err)
 	}
-	return podsToMonEndpoints(running), len(pending) > 0, nil
+	return len(running), len(pending), nil
 }

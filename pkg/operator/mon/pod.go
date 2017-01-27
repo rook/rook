@@ -17,7 +17,6 @@ package mon
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -27,19 +26,22 @@ import (
 	"k8s.io/client-go/1.5/pkg/labels"
 )
 
-func (c *Cluster) makeMonPod(config *MonConfig) *v1.Pod {
+func getLabels(clusterName string) map[string]string {
+	return map[string]string{
+		k8sutil.AppAttr: monApp,
+		monClusterAttr:  clusterName,
+	}
+}
 
-	container := c.monContainer(config)
+func (c *Cluster) makeMonPod(config *MonConfig, clusterInfo *mon.ClusterInfo, antiAffinity bool) *v1.Pod {
+
+	container := c.monContainer(config, clusterInfo)
 	// TODO: container.LivenessProbe = config.livenessProbe()
 
 	pod := &v1.Pod{
 		ObjectMeta: v1.ObjectMeta{
-			Name: config.Name,
-			Labels: map[string]string{
-				k8sutil.AppAttr: monApp,
-				monNodeAttr:     config.Name,
-				monClusterAttr:  config.Info.Name,
-			},
+			Name:        config.Name,
+			Labels:      getLabels(clusterInfo.Name),
 			Annotations: map[string]string{},
 		},
 		Spec: v1.PodSpec{
@@ -53,20 +55,15 @@ func (c *Cluster) makeMonPod(config *MonConfig) *v1.Pod {
 
 	k8sutil.SetPodVersion(pod, k8sutil.VersionAttr, c.Version)
 
-	if c.AntiAffinity {
+	if antiAffinity {
 		k8sutil.PodWithAntiAffinity(pod, monClusterAttr, config.Info.Name)
 	}
-
-	if len(c.NodeSelector) != 0 {
-		pod.Spec.NodeSelector = c.NodeSelector
-	}
-
 	return pod
 }
 
-func (c *Cluster) monContainer(config *MonConfig) v1.Container {
-	command := fmt.Sprintf("/usr/bin/rookd mon --data-dir=%s --name=%s --port=%d --fsid=%s --mon-secret=%s --admin-secret=%s --cluster-name=%s",
-		k8sutil.DataDir, config.Name, config.Port, config.Info.FSID, config.Info.MonitorSecret, config.Info.AdminSecret, config.Info.Name)
+func (c *Cluster) monContainer(config *MonConfig, clusterInfo *mon.ClusterInfo) v1.Container {
+	command := fmt.Sprintf("/usr/bin/rookd mon --data-dir=%s --name=%s --mon-endpoints=%s --port=%d --fsid=%s --mon-secret=%s --admin-secret=%s --cluster-name=%s",
+		k8sutil.DataDir, config.Name, mon.FlattenMonEndpoints(clusterInfo.Monitors), config.Port, config.Info.FSID, config.Info.MonitorSecret, config.Info.AdminSecret, config.Info.Name)
 
 	return v1.Container{
 		// TODO: fix "sleep 5".
@@ -105,16 +102,8 @@ func (m *MonConfig) livenessProbe() *v1.Probe {
 	}
 }
 
-func FlattenMonEndpoints(mons map[string]*mon.CephMonitorConfig) string {
-	endpoints := []string{}
-	for _, m := range mons {
-		endpoints = append(endpoints, fmt.Sprintf("%s=%s", m.Name, m.Endpoint))
-	}
-	return strings.Join(endpoints, ",")
-}
-
 func (c *Cluster) pollPods(clientset *kubernetes.Clientset, clusterName string) ([]*v1.Pod, []*v1.Pod, error) {
-	podList, err := clientset.Core().Pods(c.Namespace).List(clusterListOpt(clusterName))
+	podList, err := clientset.Core().Pods(c.Namespace).List(listOptions(clusterName))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to list running pods: %v", err)
 	}
@@ -136,30 +125,19 @@ func (c *Cluster) pollPods(clientset *kubernetes.Clientset, clusterName string) 
 			running = append(running, pod)
 		case v1.PodPending:
 			pending = append(pending, pod)
+		default:
+			logger.Warningf("unknown pod %s status: %v", pod.Name, pod.Status.Phase)
 		}
 	}
 
 	return running, pending, nil
 }
 
-func clusterListOpt(clusterName string) api.ListOptions {
+func listOptions(clusterName string) api.ListOptions {
 	return api.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			monClusterAttr:  clusterName,
 			k8sutil.AppAttr: monApp,
 		}),
 	}
-}
-
-func podsToMonEndpoints(pods []*v1.Pod) map[string]*mon.CephMonitorConfig {
-	mons := map[string]*mon.CephMonitorConfig{}
-	for _, pod := range pods {
-		mon := &mon.CephMonitorConfig{Name: pod.Name, Endpoint: fmt.Sprintf("%s:%d", pod.Status.PodIP, MonPort)}
-		if mon.Name == "mon0" {
-			mons[mon.Name] = mon
-		} else {
-			logger.Warningf("ignoring mon %s", mon.Name)
-		}
-	}
-	return mons
 }

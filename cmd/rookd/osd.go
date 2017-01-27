@@ -35,12 +35,10 @@ var osdCmd = &cobra.Command{
 	Hidden: true,
 }
 var (
-	osdCluster   mon.ClusterInfo
-	monEndpoints string
+	osdCluster mon.ClusterInfo
 )
 
 func init() {
-	osdCmd.Flags().StringVar(&monEndpoints, "osd-mon-endpoints", "", "monitor endpoints for the osds to connect")
 	osdCmd.Flags().StringVar(&osdCluster.MonitorSecret, "osd-mon-secret", "", "keyring for secure monitors")
 	osdCmd.Flags().StringVar(&osdCluster.AdminSecret, "osd-admin-secret", "", "keyring for secure monitors")
 
@@ -48,7 +46,7 @@ func init() {
 }
 
 func startOSD(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(osdCmd, []string{"cluster-name", "osd-mon-endpoints", "osd-mon-secret", "osd-admin-secret"}); err != nil {
+	if err := flags.VerifyRequiredFlags(osdCmd, []string{"cluster-name", "mon-endpoints", "osd-mon-secret", "osd-admin-secret"}); err != nil {
 		return err
 	}
 
@@ -59,7 +57,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	forceFormat := false
 	location := ""
 	bluestoreConfig := partition.BluestoreConfig{DatabaseSizeMB: 512} //FIX
-	osdCluster.Monitors = mon.ParseMonEndpoints(monEndpoints)
+	osdCluster.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	osdCluster.Name = cfg.clusterName
 	agent := osd.NewAgent(cephd.New(), devices, metadataDevice, forceFormat, location, bluestoreConfig, &osdCluster)
 
