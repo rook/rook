@@ -1,0 +1,17 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: rook-operator
+  namespace: rook
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: rook-operator
+    spec:
+      containers:
+      - name: rook-operator
+        image: quay.io/rook/rook-operator:dev-2017-01-27-b
+        command: ["/opt/rook/bin/rook-operator"]
+        args: ["--container-version=dev-2017-01-27-k8s-a"]

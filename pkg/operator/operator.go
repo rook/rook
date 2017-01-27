@@ -18,6 +18,7 @@ package operator
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"k8s.io/client-go/1.5/kubernetes"
 
@@ -71,6 +72,9 @@ func (o *Operator) Run() error {
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
 	}
+
+	logger.Infof("DONE!")
+	<-time.After(9999 * time.Second)
 
 	return nil
 }
