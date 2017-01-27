@@ -27,18 +27,20 @@ import (
 )
 
 type Operator struct {
-	Namespace   string
-	MasterHost  string
-	clientset   *kubernetes.Clientset
-	waitCluster sync.WaitGroup
-	factory     client.ConnectionFactory
+	Namespace        string
+	MasterHost       string
+	containerVersion string
+	clientset        *kubernetes.Clientset
+	waitCluster      sync.WaitGroup
+	factory          client.ConnectionFactory
 }
 
-func New(namespace string, factory client.ConnectionFactory, clientset *kubernetes.Clientset) *Operator {
+func New(namespace string, factory client.ConnectionFactory, clientset *kubernetes.Clientset, containerVersion string) *Operator {
 	return &Operator{
-		Namespace: namespace,
-		factory:   factory,
-		clientset: clientset,
+		Namespace:        namespace,
+		factory:          factory,
+		clientset:        clientset,
+		containerVersion: containerVersion,
 	}
 }
 
@@ -57,14 +59,14 @@ func (o *Operator) Run() error {
 	}
 
 	// Start the mon pods
-	m := mon.New(o.Namespace, o.factory)
+	m := mon.New(o.Namespace, o.factory, o.containerVersion)
 	cluster, err := m.Start(o.clientset)
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
 
 	// Start the OSDs
-	oset := osd.New(o.Namespace, k8sutil.RookContainerVersion)
+	oset := osd.New(o.Namespace, o.containerVersion)
 	err = oset.Start(o.clientset, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)

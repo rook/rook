@@ -70,7 +70,7 @@ func (c *Cluster) monContainer(config *MonConfig, clusterInfo *mon.ClusterInfo) 
 		// Without waiting some time, there is highly probable flakes in network setup.
 		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
 		Name:    "cephmon",
-		Image:   k8sutil.MakeRookImage(),
+		Image:   k8sutil.MakeRookImage(c.Version),
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "client",

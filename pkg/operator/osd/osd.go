@@ -103,7 +103,7 @@ func (c *Cluster) osdContainer(cluster *mon.ClusterInfo) api.Container {
 		// Without waiting some time, there is highly probable flakes in network setup.
 		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
 		Name:    "cephosd",
-		Image:   k8sutil.MakeRookImage(),
+		Image:   k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []api.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			{Name: "devices", MountPath: "/dev"},

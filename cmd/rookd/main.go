@@ -46,7 +46,7 @@ var rootCmd = &cobra.Command{
 Tool for bootstrapping and running the rook storage daemon.
 https://github.com/rook/rook`,
 }
-var cfg = newConfig()
+var cfg = &config{}
 
 var logLevelRaw string
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rookd")
@@ -67,10 +67,6 @@ type config struct {
 	networkInfo        clusterd.NetworkInfo
 	clusterName        string
 	monEndpoints       string
-}
-
-func newConfig() *config {
-	return &config{}
 }
 
 func main() {

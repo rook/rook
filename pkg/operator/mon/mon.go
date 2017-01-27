@@ -53,13 +53,13 @@ type MonConfig struct {
 	Info *mon.ClusterInfo
 }
 
-func New(namespace string, factory client.ConnectionFactory) *Cluster {
+func New(namespace string, factory client.ConnectionFactory, version string) *Cluster {
 	return &Cluster{
-		Namespace:   namespace,
-		ClusterName: defaultClusterName,
-		Version:     k8sutil.RookContainerVersion,
-		Size:        3,
-		Port:        MonPort,
+		Namespace:    namespace,
+		Version:      version,
+		Size:         3,
+		factory:      factory,
+		AntiAffinity: true,
 	}
 }
 
