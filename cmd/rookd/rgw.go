@@ -19,7 +19,6 @@ package main
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/rook/rook/pkg/cephmgr/cephd"
 	"github.com/rook/rook/pkg/cephmgr/mon"
@@ -37,36 +36,42 @@ var rgwCmd = &cobra.Command{
 }
 
 var (
-	keyring string
-	host    string
-	port    int
+	rgwCluster mon.ClusterInfo
+	rgwKeyring string
+	rgwHost    string
+	rgwPort    int
 )
 
 func init() {
-	rgwCmd.Flags().StringVar(&keyring, "keyring", "", "keyring for connecting rgw to the cluster")
-	rgwCmd.Flags().StringVar(&host, "host", "", "dns host name")
-	rgwCmd.Flags().IntVar(&port, "port", 0, "rgw port number")
+	rgwCmd.Flags().StringVar(&rgwKeyring, "rgw-keyring", "", "the rgw keyring")
+	rgwCmd.Flags().StringVar(&osdCluster.MonitorSecret, "rgw-mon-secret", "", "the monitor secret")
+	rgwCmd.Flags().StringVar(&osdCluster.AdminSecret, "rgw-admin-secret", "", "the admin secret")
+	rgwCmd.Flags().StringVar(&rgwHost, "rgw-host", "", "dns host name")
+	rgwCmd.Flags().IntVar(&rgwPort, "rgw-port", 0, "rgw port number")
 
 	rgwCmd.RunE = startRGW
 }
 
 func startRGW(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(rgwCmd, []string{"mons", "keyring", "host"}); err != nil {
+	if err := flags.VerifyRequiredFlags(rgwCmd, []string{"mon-endpoints", "cluster-name", "rgw-host", "rgw-mon-secret", "rgw-admin-secret", "rgw-keyring"}); err != nil {
 		return err
 	}
 
-	if port == 0 {
+	if rgwPort == 0 {
 		return fmt.Errorf("port is required")
 	}
 
 	setLogLevel()
 
+	rgwCluster.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
+	rgwCluster.Name = cfg.clusterName
 	config := &rgw.Config{
-		ClusterInfo:  &mon.ClusterInfo{Name: cfg.clusterName, Monitors: parseMonitors(cfg.monEndpoints)},
+		ClusterInfo:  &rgwCluster,
 		CephLauncher: cephd.New(),
-		Keyring:      keyring,
-		Host:         host,
-		Port:         port,
+		Keyring:      rgwKeyring,
+		Host:         rgwHost,
+		Port:         rgwPort,
+		InProc:       true,
 	}
 
 	executor := &exec.CommandExecutor{}
@@ -78,21 +83,4 @@ func startRGW(cmd *cobra.Command, args []string) error {
 	}
 
 	return rgw.Run(context, config)
-}
-
-func parseMonitors(mons string) map[string]*mon.CephMonitorConfig {
-	result := map[string]*mon.CephMonitorConfig{}
-	endpoints := strings.Split(mons, ",")
-	for _, endpoint := range endpoints {
-		parts := strings.Split(endpoint, "-")
-		if len(parts) != 2 {
-			logger.Warningf("invalid monitor format: %s", endpoint)
-			continue
-		}
-
-		name := parts[0]
-		endpoint := parts[1]
-		result[name] = &mon.CephMonitorConfig{Name: name, Endpoint: endpoint}
-	}
-	return result
 }

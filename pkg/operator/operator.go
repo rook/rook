@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
+	"github.com/rook/rook/pkg/operator/rgw"
 )
 
 type Operator struct {
@@ -47,18 +48,6 @@ func New(namespace string, factory client.ConnectionFactory, clientset *kubernet
 
 func (o *Operator) Run() error {
 
-	// Create the namespace
-	logger.Infof("Creating namespace %s", o.Namespace)
-	ns := &v1.Namespace{}
-	ns.Name = o.Namespace
-	_, err := o.clientset.Namespaces().Create(ns)
-	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
-			return fmt.Errorf("failed to create namespace %s. %+v", o.Namespace, err)
-		}
-		logger.Infof("namespace %s already exists", o.Namespace)
-	}
-
 	// Start the mon pods
 	m := mon.New(o.Namespace, o.factory, o.containerVersion)
 	cluster, err := m.Start(o.clientset)
@@ -67,14 +56,21 @@ func (o *Operator) Run() error {
 	}
 
 	// Start the OSDs
-	oset := osd.New(o.Namespace, o.containerVersion)
-	err = oset.Start(o.clientset, cluster)
+	osds := osd.New(o.Namespace, o.containerVersion)
+	err = osds.Start(o.clientset, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
 	}
 
+	// Start the object store
+	r := rgw.New(o.Namespace, o.containerVersion, o.factory)
+	err = r.Start(o.clientset, cluster)
+	if err != nil {
+		return fmt.Errorf("failed to start rgw. %+v", err)
+	}
+
 	logger.Infof("DONE!")
-	<-time.After(9999 * time.Second)
+	<-time.After(1000000 * time.Second)
 
 	return nil
 }

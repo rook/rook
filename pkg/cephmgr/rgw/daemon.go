@@ -20,19 +20,21 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"regexp"
 
 	"strconv"
 
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/proc"
 )
 
 type Config struct {
-	DataDir     string
 	Host        string
 	Port        int
 	Keyring     string
+	InProc      bool
 	ClusterInfo *mon.ClusterInfo
 	mon.CephLauncher
 }
@@ -44,7 +46,7 @@ func Run(context *clusterd.DaemonContext, config *Config) error {
 		return fmt.Errorf("failed to generate rgw config files. %+v", err)
 	}
 
-	err = startRGW(context, config)
+	_, err = startRGW(context, config)
 	if err != nil {
 		return fmt.Errorf("failed to run rgw. %+v", err)
 	}
@@ -54,7 +56,7 @@ func Run(context *clusterd.DaemonContext, config *Config) error {
 
 func generateConfigFiles(context *clusterd.DaemonContext, config *Config) error {
 	// create the rgw data directory
-	dataDir := path.Join(getRGWConfDir(config.DataDir), "data")
+	dataDir := path.Join(getRGWConfDir(context.ConfigDir), "data")
 	if err := os.MkdirAll(dataDir, 0744); err != nil {
 		logger.Warningf("failed to create data directory %s: %+v", dataDir, err)
 	}
@@ -68,8 +70,8 @@ func generateConfigFiles(context *clusterd.DaemonContext, config *Config) error 
 		"rgw intent log object name utc": "true",
 		"rgw enable usage log":           "true",
 	}
-	_, err := mon.GenerateConfigFile(toContext(context), config.ClusterInfo, getRGWConfDir(config.DataDir),
-		"client.radosgw.gateway", getRGWKeyringPath(config.DataDir), false, nil, settings)
+	_, err := mon.GenerateConfigFile(mon.ToContext(context), config.ClusterInfo, getRGWConfDir(context.ConfigDir),
+		"client.radosgw.gateway", getRGWKeyringPath(context.ConfigDir), false, nil, settings)
 	if err != nil {
 		return fmt.Errorf("failed to create config file. %+v", err)
 	}
@@ -79,13 +81,13 @@ func generateConfigFiles(context *clusterd.DaemonContext, config *Config) error 
 	}
 
 	// create rgw config
-	err = mon.WriteKeyring(getRGWKeyringPath(config.DataDir), config.Keyring, keyringEval)
+	err = mon.WriteKeyring(getRGWKeyringPath(context.ConfigDir), config.Keyring, keyringEval)
 	if err != nil {
 		return fmt.Errorf("failed to save keyring. %+v", err)
 	}
 
 	// write the mime types config
-	mimeTypesPath := getMimeTypesPath(config.DataDir)
+	mimeTypesPath := getMimeTypesPath(context.ConfigDir)
 	logger.Debugf("Writing mime types to: %s", mimeTypesPath)
 	if err := ioutil.WriteFile(mimeTypesPath, []byte(mimeTypes), 0644); err != nil {
 		return fmt.Errorf("failed to write mime types to %s: %+v", mimeTypesPath, err)
@@ -94,33 +96,37 @@ func generateConfigFiles(context *clusterd.DaemonContext, config *Config) error 
 	return nil
 }
 
-// TEMP: Convert a context to a daemon context. This should go away after all daemons convert
-func toContext(context *clusterd.DaemonContext) *clusterd.Context {
-	return &clusterd.Context{Executor: context.Executor, ConfigDir: context.ConfigDir, LogLevel: context.LogLevel, ConfigFileOverride: context.ConfigFileOverride}
+func toDaemonContext(context *clusterd.Context) *clusterd.DaemonContext {
+	return &clusterd.DaemonContext{ProcMan: context.ProcMan, Executor: context.Executor, ConfigDir: context.ConfigDir, LogLevel: context.LogLevel, ConfigFileOverride: context.ConfigFileOverride}
 }
 
-func startRGW(context *clusterd.DaemonContext, config *Config) error {
+func startRGW(context *clusterd.DaemonContext, config *Config) (rgwProc *proc.MonitoredProc, err error) {
 
 	// start the monitor daemon in the foreground with the given config
 	logger.Infof("starting rgw")
 
-	confFile := getRGWConfFilePath(config.DataDir, config.ClusterInfo.Name)
+	confFile := getRGWConfFilePath(context.ConfigDir, config.ClusterInfo.Name)
 	util.WriteFileToLog(logger, confFile)
 
-	err := config.CephLauncher.Run(
-		"rgw",
+	rgwNameArg := "--name=client.radosgw.gateway"
+	args := []string{
 		"--foreground",
-		"--name=client.radosgw.gateway",
+		rgwNameArg,
 		fmt.Sprintf("--cluster=%s", config.ClusterInfo.Name),
 		fmt.Sprintf("--conf=%s", confFile),
-		fmt.Sprintf("--keyring=%s", getRGWKeyringPath(config.DataDir)),
+		fmt.Sprintf("--keyring=%s", getRGWKeyringPath(context.ConfigDir)),
 		fmt.Sprintf("--rgw-frontends=civetweb port=%d", config.Port),
-		fmt.Sprintf("--rgw-mime-types-file=%s", getMimeTypesPath(config.DataDir)))
-	if err != nil {
-		return fmt.Errorf("failed to start rgw: %+v", err)
+		fmt.Sprintf("--rgw-mime-types-file=%s", getMimeTypesPath(context.ConfigDir)),
 	}
-
-	return nil
+	if config.InProc {
+		err = config.CephLauncher.Run("rgw", args...)
+	} else {
+		rgwProc, err = context.ProcMan.Start("rgw", "rgw", regexp.QuoteMeta(rgwNameArg), proc.ReuseExisting, args...)
+	}
+	if err != nil {
+		err = fmt.Errorf("failed to start rgw: %+v", err)
+	}
+	return
 }
 
 func getRGWConfFilePath(configDir, clusterName string) string {

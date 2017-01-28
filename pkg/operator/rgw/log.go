@@ -13,10 +13,10 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package operator
+package rgw
 
-import "testing"
+import (
+	"github.com/coreos/pkg/capnslog"
+)
 
-func TestOperator(t *testing.T) {
-	New("foo", nil, nil, "version")
-}
+var logger = capnslog.NewPackageLogger("github.com/rook/rook-operator", "rgw")

@@ -251,7 +251,7 @@ func createKeyringOnInit(context *clusterd.Context, conn client.Connection) erro
 	}
 
 	// create the keyring
-	keyring, err := createKeyring(conn)
+	keyring, err := CreateKeyring(conn)
 	if err != nil {
 		return fmt.Errorf("failed to create keyring. %+v", err)
 	}

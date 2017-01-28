@@ -22,7 +22,7 @@ import (
 )
 
 // create a keyring for the rgw client with a limited set of privileges
-func createKeyring(conn client.Connection) (string, error) {
+func CreateKeyring(conn client.Connection) (string, error) {
 	username := "client.radosgw.gateway"
 	access := []string{"osd", "allow rwx", "mon", "allow rw"}
 

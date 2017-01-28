@@ -72,15 +72,11 @@ func (p *ProcManager) Run(logName, tool string, args ...string) error {
 	return nil
 }
 
-func (p *ProcManager) Start(logName, daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
-	return p.StartDirect(logName, procSearchPattern, policy, createDaemonArgs(daemon, args...)...)
-}
-
 // Start the given daemon and provided arguments.  Handling of any matching existing process will be in accordance
 // with the given ProcStartPolicy.  The search pattern will be used to search through the cmdline args of existing
 // processes to find any matching existing process.  Therefore, it should be a regex pattern that can uniquely
 // identify the process (e.g., --id=1)
-func (p *ProcManager) StartDirect(name, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
+func (p *ProcManager) Start(name, daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
 	// look for an existing process first
 	shouldStart, err := p.checkProcessExists(os.Args[0], procSearchPattern, policy)
 	if err != nil {
@@ -92,6 +88,7 @@ func (p *ProcManager) StartDirect(name, procSearchPattern string, policy ProcSta
 		return nil, nil
 	}
 
+	args = createDaemonArgs(daemon, args...)
 	logger.Infof("Starting process %s with args: %v", name, args)
 	cmd, err := p.executor.StartExecuteCommand(name, os.Args[0], args...)
 	if err != nil {

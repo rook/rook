@@ -18,7 +18,6 @@ package rgw
 import (
 	"fmt"
 	"path"
-	"regexp"
 
 	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
@@ -110,20 +109,14 @@ func (a *rgwAgent) startRGW(context *clusterd.Context, cluster *mon.ClusterInfo)
 	}
 	keyring := val.Node.Value
 
-	// start the monitor daemon in the foreground with the given config
-	logger.Infof("starting rgw")
-	keyringArg := fmt.Sprintf("--keyring=%s", keyring)
+	config := &Config{Keyring: keyring, ClusterInfo: cluster, Host: DNSName, Port: RGWPort}
+	dcontext := toDaemonContext(context)
+	err = generateConfigFiles(dcontext, config)
+	if err != nil {
+		return fmt.Errorf("failed to generate rgw config files. %+v", err)
+	}
 
-	rgwProc, err := context.ProcMan.StartDirect(
-		"rgw",
-		regexp.QuoteMeta(keyringArg),
-		proc.ReuseExisting,
-		"rgw",
-		fmt.Sprintf("--cluster-name=%s", cluster.Name),
-		fmt.Sprintf("--mons=%s", cluster.MonEndpoints()),
-		fmt.Sprintf("--host=%s", DNSName),
-		fmt.Sprintf("--port=%d", RGWPort),
-		keyringArg)
+	rgwProc, err := startRGW(dcontext, config)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw daemon: %+v", err)
 	}

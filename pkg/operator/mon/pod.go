@@ -36,7 +36,6 @@ func getLabels(clusterName string) map[string]string {
 func (c *Cluster) makeMonPod(config *MonConfig, clusterInfo *mon.ClusterInfo, antiAffinity bool) *v1.Pod {
 
 	container := c.monContainer(config, clusterInfo)
-	// TODO: container.LivenessProbe = config.livenessProbe()
 
 	pod := &v1.Pod{
 		ObjectMeta: v1.ObjectMeta{
@@ -87,21 +86,6 @@ func (c *Cluster) monContainer(config *MonConfig, clusterInfo *mon.ClusterInfo) 
 	}
 }
 
-func (m *MonConfig) livenessProbe() *v1.Probe {
-	// simple query of the REST api locally to see if the pod is alive
-	return &v1.Probe{
-		Handler: v1.Handler{
-			Exec: &v1.ExecAction{
-				Command: []string{"/bin/sh", "-c", "curl localhost:8124"},
-			},
-		},
-		InitialDelaySeconds: 10,
-		TimeoutSeconds:      10,
-		PeriodSeconds:       60,
-		FailureThreshold:    3,
-	}
-}
-
 func (c *Cluster) pollPods(clientset *kubernetes.Clientset, clusterName string) ([]*v1.Pod, []*v1.Pod, error) {
 	podList, err := clientset.Core().Pods(c.Namespace).List(listOptions(clusterName))
 	if err != nil {
@@ -112,14 +96,7 @@ func (c *Cluster) pollPods(clientset *kubernetes.Clientset, clusterName string) 
 	var pending []*v1.Pod
 	for i := range podList.Items {
 		pod := &podList.Items[i]
-		/*if len(pod.OwnerReferences) < 1 {
-			logger.Warningf("pollPods: ignore pod %v: no owner", pod.Name)
-			continue
-		}
-		if pod.OwnerReferences[0].UID != c.cluster.UID {
-			logger.Warningf("pollPods: ignore pod %v: owner (%v) is not %v", pod.Name, pod.OwnerReferences[0].UID, c.cluster.UID)
-			continue
-		}*/
+
 		switch pod.Status.Phase {
 		case v1.PodRunning:
 			running = append(running, pod)
