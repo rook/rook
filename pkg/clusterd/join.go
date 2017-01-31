@@ -29,10 +29,14 @@ import (
 
 // StartJoinCluster initializes the cluster services to enable joining the cluster and listening for orchestration.
 func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryURL,
-	etcdMembers, publicIPv4, privateIPv4, configFileOverride string, logLevel capnslog.LogLevel) (*Context, error) {
+	etcdMembers string, networkInfo NetworkInfo, configFileOverride string, logLevel capnslog.LogLevel) (*Context, error) {
 
-	logger.Infof("Starting cluster. configDir=%s, nodeID=%s, url=%s, members=%s, publicIPv4=%s, privateIPv4=%s, configFileOverride=%s, logLevel=%s",
-		configDir, nodeID, discoveryURL, etcdMembers, publicIPv4, privateIPv4, configFileOverride, logLevel)
+	logger.Infof("Starting cluster. configDir=%s, nodeID=%s, url=%s, members=%s, networkInfo=%+v, configFileOverride=%s, logLevel=%s",
+		configDir, nodeID, discoveryURL, etcdMembers, networkInfo, configFileOverride, logLevel)
+
+	if err := VerifyNetworkInfo(networkInfo); err != nil {
+		return nil, fmt.Errorf("invalid network info: %+v. %+v", networkInfo, err)
+	}
 
 	etcdClients := []string{}
 	if etcdMembers != "" {
@@ -42,7 +46,7 @@ func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryUR
 
 		// use the discovery URL to query the etcdmgr what the etcd client endpoints should be
 		var err error
-		etcdClients, err = bootstrap.GetEtcdClients(configDir, discoveryURL, privateIPv4, nodeID)
+		etcdClients, err = bootstrap.GetEtcdClients(configDir, discoveryURL, networkInfo.ClusterAddrIPv4, nodeID)
 		if err != nil {
 			return nil, err
 		}
@@ -58,7 +62,7 @@ func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryUR
 	if err := util.CreateEtcdDir(etcdClient, key); err != nil {
 		return nil, err
 	}
-	if err := inventory.SetIPAddress(etcdClient, nodeID, publicIPv4, privateIPv4); err != nil {
+	if err := inventory.SetIPAddress(etcdClient, nodeID, networkInfo.PublicAddrIPv4, networkInfo.ClusterAddrIPv4); err != nil {
 		return nil, err
 	}
 
@@ -79,6 +83,7 @@ func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryUR
 		LogLevel:           logLevel,
 		ConfigFileOverride: configFileOverride,
 		Inventory:          &inventory.Config{},
+		NetworkInfo:        networkInfo,
 	}
 
 	// initialize the device inventory

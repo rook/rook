@@ -85,6 +85,9 @@ type Context struct {
 
 	// The full path to a config file that can be used to override generated settings
 	ConfigFileOverride string
+
+	// Information about the network for this machine and its cluster
+	NetworkInfo NetworkInfo
 }
 
 func copyContext(c *Context) *Context {
