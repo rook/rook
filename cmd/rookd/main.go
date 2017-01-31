@@ -55,8 +55,6 @@ type config struct {
 	nodeID             string
 	discoveryURL       string
 	etcdMembers        string
-	publicIPv4         string
-	privateIPv4        string
 	devices            string
 	metadataDevice     string
 	dataDir            string
@@ -66,6 +64,7 @@ type config struct {
 	logLevel           capnslog.LogLevel
 	cephConfigOverride string
 	bluestoreConfig    partition.BluestoreConfig
+	networkInfo        clusterd.NetworkInfo
 }
 
 func newConfig() *config {
@@ -88,8 +87,10 @@ func init() {
 	rootCmd.Flags().StringVar(&cfg.adminSecret, "admin-secret", "", "secret for the admin user (random if not specified)")
 	rootCmd.Flags().StringVar(&cfg.discoveryURL, "discovery-url", "", "etcd discovery URL. Example: http://discovery.rook.com/26bd83c92e7145e6b103f623263f61df")
 	rootCmd.Flags().StringVar(&cfg.etcdMembers, "etcd-members", "", "etcd members to connect to. Overrides the discovery URL. Example: http://10.23.45.56:2379")
-	rootCmd.Flags().StringVar(&cfg.publicIPv4, "public-ipv4", "127.0.0.1", "public IPv4 address for this machine")
-	rootCmd.Flags().StringVar(&cfg.privateIPv4, "private-ipv4", "127.0.0.1", "private IPv4 address for this machine")
+	rootCmd.Flags().StringVar(&cfg.networkInfo.PublicAddrIPv4, "public-ipv4", "127.0.0.1", "public IPv4 address for this machine")
+	rootCmd.Flags().StringVar(&cfg.networkInfo.ClusterAddrIPv4, "private-ipv4", "127.0.0.1", "private IPv4 address for this machine")
+	rootCmd.Flags().StringVar(&cfg.networkInfo.PublicNetwork, "public-network", "", "public (front-side) network and subnet mask for the cluster, using CIDR notation (e.g., 192.168.0.0/24)")
+	rootCmd.Flags().StringVar(&cfg.networkInfo.ClusterNetwork, "private-network", "", "private (back-side) network and subnet mask for the cluster, using CIDR notation (e.g., 10.0.0.0/24)")
 	rootCmd.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
 	rootCmd.Flags().StringVar(&cfg.metadataDevice, "metadata-device", "", "device to use for metadata (e.g. a high performance SSD/NVMe device)")
 	rootCmd.Flags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
@@ -173,7 +174,7 @@ func joinCluster() error {
 
 	// start the cluster orchestration services
 	context, err := clusterd.StartJoinCluster(services, cfg.dataDir, cfg.nodeID, cfg.discoveryURL,
-		cfg.etcdMembers, cfg.publicIPv4, cfg.privateIPv4, cfg.cephConfigOverride, cfg.logLevel)
+		cfg.etcdMembers, cfg.networkInfo, cfg.cephConfigOverride, cfg.logLevel)
 	if err != nil {
 		return err
 	}

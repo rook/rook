@@ -330,7 +330,7 @@ func getStoreSettings(context *clusterd.Context, config *osdConfig) (map[string]
 func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context *clusterd.Context,
 	bootstrapConn client.Connection, cluster *mon.ClusterInfo, location string, executor exec.Executor) error {
 
-	cephConfig := mon.CreateDefaultCephConfig(cluster, config.rootPath, context.LogLevel, !config.dir)
+	cephConfig := mon.CreateDefaultCephConfig(context, cluster, config.rootPath, !config.dir)
 
 	if config.dir {
 		// using the local file system requires some config overrides

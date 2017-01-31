@@ -42,17 +42,37 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 
 	monMembers := "mon0 mon1"
 
-	cephConfig := CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", capnslog.INFO, false)
+	// start with INFO level logging
+	context := &clusterd.Context{
+		LogLevel: capnslog.INFO,
+		NetworkInfo: clusterd.NetworkInfo{
+			PublicAddrIPv4:  "10.1.1.1",
+			PublicNetwork:   "10.1.1.0/24",
+			ClusterAddrIPv4: "10.1.2.2",
+			ClusterNetwork:  "10.1.2.0/24",
+		},
+	}
+
+	cephConfig := CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1", false)
 	verifyConfig(t, cephConfig, monMembers, "", "filestore", 0)
 
-	cephConfig = CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", capnslog.INFO, true)
+	cephConfig = CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1", true)
 	verifyConfig(t, cephConfig, monMembers, "bluestore rocksdb", "bluestore", 0)
 
-	cephConfig = CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", capnslog.DEBUG, false)
+	// now use DEBUG level logging
+	context.LogLevel = capnslog.DEBUG
+
+	cephConfig = CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1", false)
 	verifyConfig(t, cephConfig, monMembers, "", "filestore", 10)
 
-	cephConfig = CreateDefaultCephConfig(clusterInfo, "/var/lib/rook1", capnslog.DEBUG, true)
+	cephConfig = CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1", true)
 	verifyConfig(t, cephConfig, monMembers, "bluestore rocksdb", "bluestore", 10)
+
+	// verify the network info config
+	assert.Equal(t, "10.1.1.1", cephConfig.PublicAddr)
+	assert.Equal(t, "10.1.1.0/24", cephConfig.PublicNetwork)
+	assert.Equal(t, "10.1.2.2", cephConfig.ClusterAddr)
+	assert.Equal(t, "10.1.2.0/24", cephConfig.ClusterNetwork)
 }
 
 func TestGenerateConfigFile(t *testing.T) {

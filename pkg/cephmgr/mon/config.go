@@ -46,6 +46,10 @@ type GlobalConfig struct {
 	MonMembers               string `ini:"mon initial members,omitempty"`
 	LogFile                  string `ini:"log file,omitempty"`
 	MonClusterLogFile        string `ini:"mon cluster log file,omitempty"`
+	PublicAddr               string `ini:"public addr,omitempty"`
+	PublicNetwork            string `ini:"public network,omitempty"`
+	ClusterAddr              string `ini:"cluster addr,omitempty"`
+	ClusterNetwork           string `ini:"cluster network,omitempty"`
 	MonKeyValueDb            string `ini:"mon keyvaluedb"`
 	DebugLogDefaultLevel     int    `ini:"debug default"`
 	DebugLogRadosLevel       int    `ini:"debug rados"`
@@ -135,7 +139,7 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 		logger.Warningf("failed to create config directory at %s: %+v", pathRoot, err)
 	}
 
-	configFile, err := createGlobalConfigFileSection(cluster, pathRoot, context.LogLevel, bluestore, userConfig)
+	configFile, err := createGlobalConfigFileSection(context, cluster, pathRoot, bluestore, userConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to create global config section, %+v", err)
 	}
@@ -245,7 +249,7 @@ func ConnectToCluster(context *clusterd.Context, factory client.ConnectionFactor
 	return conn, nil
 }
 
-func CreateDefaultCephConfig(cluster *ClusterInfo, runDir string, logLevel capnslog.LogLevel, bluestore bool) *cephConfig {
+func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, runDir string, bluestore bool) *cephConfig {
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	monMembers := make([]string, len(cluster.Monitors))
@@ -262,7 +266,7 @@ func CreateDefaultCephConfig(cluster *ClusterInfo, runDir string, logLevel capns
 		store = "bluestore"
 	}
 
-	cephLogLevel := logLevelToCephLogLevel(logLevel)
+	cephLogLevel := logLevelToCephLogLevel(context.LogLevel)
 
 	return &cephConfig{
 		&GlobalConfig{
@@ -272,6 +276,10 @@ func CreateDefaultCephConfig(cluster *ClusterInfo, runDir string, logLevel capns
 			MonMembers:             strings.Join(monMembers, " "),
 			LogFile:                "/dev/stdout",
 			MonClusterLogFile:      "/dev/stdout",
+			PublicAddr:             context.NetworkInfo.PublicAddrIPv4,
+			PublicNetwork:          context.NetworkInfo.PublicNetwork,
+			ClusterAddr:            context.NetworkInfo.ClusterAddrIPv4,
+			ClusterNetwork:         context.NetworkInfo.ClusterNetwork,
 			MonKeyValueDb:          "rocksdb",
 			DebugLogDefaultLevel:   cephLogLevel,
 			DebugLogRadosLevel:     cephLogLevel,
@@ -295,14 +303,16 @@ func CreateDefaultCephConfig(cluster *ClusterInfo, runDir string, logLevel capns
 	}
 }
 
-func createGlobalConfigFileSection(cluster *ClusterInfo, runDir string, logLevel capnslog.LogLevel, bluestore bool, userConfig *cephConfig) (*ini.File, error) {
+func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterInfo, runDir string,
+	bluestore bool, userConfig *cephConfig) (*ini.File, error) {
+
 	var ceph *cephConfig
 
 	if userConfig != nil {
 		// use the user config since it was provided
 		ceph = userConfig
 	} else {
-		ceph = CreateDefaultCephConfig(cluster, runDir, logLevel, bluestore)
+		ceph = CreateDefaultCephConfig(context, cluster, runDir, bluestore)
 	}
 
 	configFile := ini.Empty()
