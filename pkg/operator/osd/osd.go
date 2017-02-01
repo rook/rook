@@ -95,7 +95,7 @@ func (c *Cluster) makeDaemonSet(cluster *mon.ClusterInfo) (*extensions.DaemonSet
 
 func (c *Cluster) osdContainer(cluster *mon.ClusterInfo) api.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd osd --data-dir=%s --mon-endpoints=%s --cluster-name=%s --osd-mon-secret=%s --osd-admin-secret=%s ",
+	command := fmt.Sprintf("/usr/bin/rookd osd --data-dir=%s --mon-endpoints=%s --cluster-name=%s --mon-secret=%s --admin-secret=%s ",
 		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name, cluster.MonitorSecret, cluster.AdminSecret)
 	privileged := true
 	return api.Container{

@@ -1,4 +1,4 @@
-FROM alpine:3.4
+FROM scratch
 
 COPY rook-operator /opt/rook/bin/
 

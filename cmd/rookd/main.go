@@ -47,6 +47,7 @@ Tool for bootstrapping and running the rook storage daemon.
 https://github.com/rook/rook`,
 }
 var cfg = &config{}
+var clusterInfo mon.ClusterInfo
 
 var logLevelRaw string
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rookd")
@@ -65,7 +66,6 @@ type config struct {
 	cephConfigOverride string
 	bluestoreConfig    partition.BluestoreConfig
 	networkInfo        clusterd.NetworkInfo
-	clusterName        string
 	monEndpoints       string
 }
 
@@ -82,11 +82,8 @@ func main() {
 //  2) environment variables (upper case, replace - with _, and rook prefix. For example, discovery-url is ROOKD_DISCOVERY_URL)
 //  3) command line parameter
 func init() {
-	rootCmd.Flags().StringVar(&cfg.adminSecret, "admin-secret", "", "secret for the admin user (random if not specified)")
 	rootCmd.Flags().StringVar(&cfg.discoveryURL, "discovery-url", "", "etcd discovery URL. Example: http://discovery.rook.com/26bd83c92e7145e6b103f623263f61df")
 	rootCmd.Flags().StringVar(&cfg.etcdMembers, "etcd-members", "", "etcd members to connect to. Overrides the discovery URL. Example: http://10.23.45.56:2379")
-	rootCmd.Flags().StringVar(&cfg.networkInfo.PublicAddrIPv4, "public-ipv4", "127.0.0.1", "public IPv4 address for this machine")
-	rootCmd.Flags().StringVar(&cfg.networkInfo.ClusterAddrIPv4, "private-ipv4", "127.0.0.1", "private IPv4 address for this machine")
 	rootCmd.Flags().StringVar(&cfg.networkInfo.PublicNetwork, "public-network", "", "public (front-side) network and subnet mask for the cluster, using CIDR notation (e.g., 192.168.0.0/24)")
 	rootCmd.Flags().StringVar(&cfg.networkInfo.ClusterNetwork, "private-network", "", "private (back-side) network and subnet mask for the cluster, using CIDR notation (e.g., 10.0.0.0/24)")
 	rootCmd.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
@@ -99,8 +96,13 @@ func init() {
 	rootCmd.Flags().IntVar(&cfg.bluestoreConfig.WalSizeMB, "osd-wal-size", partition.WalDefaultSizeMB, "default size (MB) for OSD write ahead log (WAL)")
 	rootCmd.Flags().IntVar(&cfg.bluestoreConfig.DatabaseSizeMB, "osd-database-size", partition.DBDefaultSizeMB, "default size (MB) for OSD database")
 
-	rootCmd.PersistentFlags().StringVar(&cfg.clusterName, "cluster-name", "rookcluster", "ceph cluster name")
+	rootCmd.PersistentFlags().StringVar(&cfg.networkInfo.PublicAddrIPv4, "public-ipv4", "127.0.0.1", "public IPv4 address for this machine")
+	rootCmd.PersistentFlags().StringVar(&cfg.networkInfo.ClusterAddrIPv4, "private-ipv4", "127.0.0.1", "private IPv4 address for this machine")
+	rootCmd.PersistentFlags().StringVar(&clusterInfo.Name, "cluster-name", "rookcluster", "ceph cluster name")
 	rootCmd.PersistentFlags().StringVar(&cfg.monEndpoints, "mon-endpoints", "", "ceph mon endpoints")
+	rootCmd.PersistentFlags().StringVar(&clusterInfo.FSID, "fsid", "", "the cluster uuid")
+	rootCmd.PersistentFlags().StringVar(&clusterInfo.MonitorSecret, "mon-secret", "", "the cephx keyring for monitors")
+	rootCmd.PersistentFlags().StringVar(&clusterInfo.AdminSecret, "admin-secret", "", "secret for the admin user (random if not specified)")
 	rootCmd.PersistentFlags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
 	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 	rootCmd.PersistentFlags().StringVar(&cfg.cephConfigOverride, "ceph-config-override", "", "optional path to a ceph config file that will be appended to the config files that rook generates")

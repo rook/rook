@@ -81,7 +81,7 @@ func (c *Cluster) monContainer(config *MonConfig, clusterInfo *mon.ClusterInfo) 
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		},
 		Env: []v1.EnvVar{
-			{Name: mon.IPAddressEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}},
+			{Name: k8sutil.PodIPEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}},
 		},
 	}
 }

@@ -130,7 +130,7 @@ func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo, keyring string) (*ext
 
 func (c *Cluster) rgwContainer(cluster *mon.ClusterInfo, keyring string) api.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd rgw --data-dir=%s --mon-endpoints=%s --cluster-name=%s --rgw-mon-secret=%s --rgw-admin-secret=%s --rgw-port=%d --rgw-host=%s --rgw-keyring=%s",
+	command := fmt.Sprintf("/usr/bin/rookd rgw --data-dir=%s --mon-endpoints=%s --cluster-name=%s --mon-secret=%s --admin-secret=%s --rgw-port=%d --rgw-host=%s --rgw-keyring=%s",
 		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name, cluster.MonitorSecret, cluster.AdminSecret, cephrgw.RGWPort, cephrgw.DNSName, keyring)
 	return api.Container{
 		// TODO: fix "sleep 5".

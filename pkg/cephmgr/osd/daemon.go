@@ -29,7 +29,7 @@ import (
 func Run(dcontext *clusterd.DaemonContext, agent *OsdAgent) error {
 
 	logger.Infof("discovering hardware")
-	context := mon.ToContext(dcontext)
+	context := clusterd.ToContext(dcontext)
 	hardware, err := inventory.DiscoverHardware(context.Executor)
 	if err != nil {
 		return fmt.Errorf("failed initial hardware discovery. %+v", err)

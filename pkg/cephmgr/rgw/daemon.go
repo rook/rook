@@ -70,7 +70,7 @@ func generateConfigFiles(context *clusterd.DaemonContext, config *Config) error 
 		"rgw intent log object name utc": "true",
 		"rgw enable usage log":           "true",
 	}
-	_, err := mon.GenerateConfigFile(mon.ToContext(context), config.ClusterInfo, getRGWConfDir(context.ConfigDir),
+	_, err := mon.GenerateConfigFile(clusterd.ToContext(context), config.ClusterInfo, getRGWConfDir(context.ConfigDir),
 		"client.radosgw.gateway", getRGWKeyringPath(context.ConfigDir), false, nil, settings)
 	if err != nil {
 		return fmt.Errorf("failed to create config file. %+v", err)
@@ -94,10 +94,6 @@ func generateConfigFiles(context *clusterd.DaemonContext, config *Config) error 
 	}
 
 	return nil
-}
-
-func toDaemonContext(context *clusterd.Context) *clusterd.DaemonContext {
-	return &clusterd.DaemonContext{ProcMan: context.ProcMan, Executor: context.Executor, ConfigDir: context.ConfigDir, LogLevel: context.LogLevel, ConfigFileOverride: context.ConfigFileOverride}
 }
 
 func startRGW(context *clusterd.DaemonContext, config *Config) (rgwProc *proc.MonitoredProc, err error) {

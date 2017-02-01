@@ -52,7 +52,6 @@ func DiscoverHardwareAndStore(etcdClient etcd.KeysAPI, executor exec.Executor, n
 }
 
 // Discover all the hardware properties for this node.
-// Store the important properties in etcd and more detailed info for the local node in the context.
 func DiscoverHardware(executor exec.Executor) (*Hardware, error) {
 	devices, err := discoverDevices(executor)
 	if err != nil {
@@ -60,8 +59,6 @@ func DiscoverHardware(executor exec.Executor) (*Hardware, error) {
 	}
 
 	mem := getSystemMemory()
-
-	// TODO: Discover network adapters, processors, ...
 
 	return &Hardware{Disks: devices, Memory: mem}, nil
 }

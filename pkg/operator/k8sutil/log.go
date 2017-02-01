@@ -19,4 +19,4 @@ import (
 	"github.com/coreos/pkg/capnslog"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook-operator", "k8sutil")
+var logger = capnslog.NewPackageLogger("github.com/rook/rook-operator", "op-k8sutil")

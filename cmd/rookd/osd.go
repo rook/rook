@@ -23,9 +23,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/osd"
 	"github.com/rook/rook/pkg/cephmgr/osd/partition"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
-	"github.com/rook/rook/pkg/util/proc"
 	"github.com/spf13/cobra"
 )
 
@@ -39,14 +37,11 @@ var (
 )
 
 func init() {
-	osdCmd.Flags().StringVar(&osdCluster.MonitorSecret, "osd-mon-secret", "", "keyring for secure monitors")
-	osdCmd.Flags().StringVar(&osdCluster.AdminSecret, "osd-admin-secret", "", "keyring for secure monitors")
-
 	osdCmd.RunE = startOSD
 }
 
 func startOSD(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(osdCmd, []string{"cluster-name", "mon-endpoints", "osd-mon-secret", "osd-admin-secret"}); err != nil {
+	if err := flags.VerifyRequiredFlags(osdCmd, []string{"cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}); err != nil {
 		return err
 	}
 
@@ -56,19 +51,10 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	metadataDevice := ""
 	forceFormat := false
 	location := ""
-	bluestoreConfig := partition.BluestoreConfig{DatabaseSizeMB: 512} //FIX
-	osdCluster.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	osdCluster.Name = cfg.clusterName
-	agent := osd.NewAgent(cephd.New(), devices, metadataDevice, forceFormat, location, bluestoreConfig, &osdCluster)
-
-	executor := &exec.CommandExecutor{}
-	context := &clusterd.DaemonContext{
-		ProcMan:            proc.New(executor),
-		Executor:           executor,
-		ConfigDir:          cfg.dataDir,
-		ConfigFileOverride: cfg.cephConfigOverride,
-		LogLevel:           cfg.logLevel,
-	}
+	bluestoreConfig := partition.BluestoreConfig{DatabaseSizeMB: 512} // FIX
+	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
+	agent := osd.NewAgent(cephd.New(), devices, metadataDevice, forceFormat, location, bluestoreConfig, &clusterInfo)
+	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
 
 	return osd.Run(context, agent)
 }

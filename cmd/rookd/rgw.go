@@ -24,7 +24,6 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/cephmgr/rgw"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -36,7 +35,6 @@ var rgwCmd = &cobra.Command{
 }
 
 var (
-	rgwCluster mon.ClusterInfo
 	rgwKeyring string
 	rgwHost    string
 	rgwPort    int
@@ -44,16 +42,16 @@ var (
 
 func init() {
 	rgwCmd.Flags().StringVar(&rgwKeyring, "rgw-keyring", "", "the rgw keyring")
-	rgwCmd.Flags().StringVar(&osdCluster.MonitorSecret, "rgw-mon-secret", "", "the monitor secret")
-	rgwCmd.Flags().StringVar(&osdCluster.AdminSecret, "rgw-admin-secret", "", "the admin secret")
 	rgwCmd.Flags().StringVar(&rgwHost, "rgw-host", "", "dns host name")
 	rgwCmd.Flags().IntVar(&rgwPort, "rgw-port", 0, "rgw port number")
+
+	flags.SetFlagsFromEnv(rgwCmd.Flags(), "ROOKD")
 
 	rgwCmd.RunE = startRGW
 }
 
 func startRGW(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(rgwCmd, []string{"mon-endpoints", "cluster-name", "rgw-host", "rgw-mon-secret", "rgw-admin-secret", "rgw-keyring"}); err != nil {
+	if err := flags.VerifyRequiredFlags(rgwCmd, []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret", "rgw-host", "rgw-keyring"}); err != nil {
 		return err
 	}
 
@@ -63,10 +61,9 @@ func startRGW(cmd *cobra.Command, args []string) error {
 
 	setLogLevel()
 
-	rgwCluster.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	rgwCluster.Name = cfg.clusterName
+	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &rgw.Config{
-		ClusterInfo:  &rgwCluster,
+		ClusterInfo:  &clusterInfo,
 		CephLauncher: cephd.New(),
 		Keyring:      rgwKeyring,
 		Host:         rgwHost,
@@ -74,13 +71,7 @@ func startRGW(cmd *cobra.Command, args []string) error {
 		InProc:       true,
 	}
 
-	executor := &exec.CommandExecutor{}
-	context := &clusterd.DaemonContext{
-		Executor:           executor,
-		ConfigDir:          cfg.dataDir,
-		ConfigFileOverride: cfg.cephConfigOverride,
-		LogLevel:           cfg.logLevel,
-	}
+	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
 
 	return rgw.Run(context, config)
 }

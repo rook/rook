@@ -12,6 +12,6 @@ spec:
     spec:
       containers:
       - name: rook-operator
-        image: quay.io/rook/rook-operator:dev-2017-01-27-b
+        image: quay.io/rook/rook-operator:dev-2017-02-01-c
         command: ["/opt/rook/bin/rook-operator"]
-        args: ["--container-version=dev-2017-01-27-k8s-a"]
+        args: ["--container-version=dev-2017-02-01-k8s-b"]

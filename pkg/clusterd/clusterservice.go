@@ -122,6 +122,26 @@ func copyContext(c *Context) *Context {
 	}
 }
 
+func NewDaemonContext(dataDir, cephConfigOverride string, logLevel capnslog.LogLevel) *DaemonContext {
+	executor := &exec.CommandExecutor{}
+	return &DaemonContext{
+		ProcMan:            proc.New(executor),
+		Executor:           executor,
+		ConfigDir:          dataDir,
+		ConfigFileOverride: cephConfigOverride,
+		LogLevel:           logLevel,
+	}
+}
+
+// Convert a context to a daemon context
+func ToContext(context *DaemonContext) *Context {
+	return &Context{Executor: context.Executor, ProcMan: context.ProcMan, ConfigDir: context.ConfigDir, LogLevel: context.LogLevel, ConfigFileOverride: context.ConfigFileOverride}
+}
+
+func ToDaemonContext(context *Context) *DaemonContext {
+	return &DaemonContext{ProcMan: context.ProcMan, Executor: context.Executor, ConfigDir: context.ConfigDir, LogLevel: context.LogLevel, ConfigFileOverride: context.ConfigFileOverride}
+}
+
 func (c *Context) GetExecutor() exec.Executor {
 	if c.Executor == nil {
 		return &exec.CommandExecutor{}

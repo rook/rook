@@ -38,6 +38,8 @@ func init() {
 	toolCmd.Flags().StringVar(&toolType, "type", "", "type of tool [rgw-admin|mon --mkfs|osd --mkfs]")
 	toolCmd.MarkFlagRequired("type")
 
+	flags.SetFlagsFromEnv(toolCmd.Flags(), "ROOKD")
+
 	toolCmd.RunE = runTool
 }
 

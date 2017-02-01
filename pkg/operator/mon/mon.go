@@ -163,6 +163,8 @@ func (c *Cluster) waitForPodToStart(clientset *kubernetes.Clientset, pod *v1.Pod
 	return "", fmt.Errorf("timed out waiting for pod %s to start", pod.Name)
 }
 
+// detect whether we have a big enough cluster to run services on different nodes.
+// the anti-affinity will prevent pods of the same type of running on the same node.
 func (c *Cluster) getAntiAffinity(clientset *kubernetes.Clientset) (bool, error) {
 	nodeOptions := api.ListOptions{}
 	nodeOptions.TypeMeta.Kind = "Node"

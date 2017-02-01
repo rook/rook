@@ -25,8 +25,7 @@ import (
 )
 
 const (
-	Port            = 6790
-	IPAddressEnvVar = "MON_POD_IP"
+	Port = 6790
 )
 
 type Config struct {
@@ -86,7 +85,7 @@ func generateConfigFiles(context *clusterd.DaemonContext, config *Config) (strin
 	}
 
 	// write the config file to disk
-	confFilePath, err := GenerateConnectionConfigFile(ToContext(context), config.Cluster, getMonRunDirPath(context.ConfigDir, config.Name),
+	confFilePath, err := GenerateConnectionConfigFile(clusterd.ToContext(context), config.Cluster, getMonRunDirPath(context.ConfigDir, config.Name),
 		"admin", getMonKeyringPath(context.ConfigDir, config.Name))
 	if err != nil {
 		return "", "", err
@@ -104,11 +103,6 @@ func generateConfigFiles(context *clusterd.DaemonContext, config *Config) (strin
 	}
 
 	return confFilePath, monDataDir, nil
-}
-
-// TEMP: Convert a context to a daemon context. This should go away after all daemons convert
-func ToContext(context *clusterd.DaemonContext) *clusterd.Context {
-	return &clusterd.Context{Executor: context.Executor, ProcMan: context.ProcMan, ConfigDir: context.ConfigDir, LogLevel: context.LogLevel, ConfigFileOverride: context.ConfigFileOverride}
 }
 
 func startMon(context *clusterd.DaemonContext, config *Config, confFilePath, monDataDir string) error {
@@ -143,7 +137,7 @@ func startMon(context *clusterd.DaemonContext, config *Config, confFilePath, mon
 		fmt.Sprintf("--conf=%s", confFilePath),
 		fmt.Sprintf("--keyring=%s", keyringPath))
 	if err != nil {
-		return fmt.Errorf("failed to start rgw: %+v", err)
+		return fmt.Errorf("failed to start mon: %+v", err)
 	}
 
 	return nil

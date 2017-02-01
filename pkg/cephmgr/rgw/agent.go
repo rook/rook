@@ -110,7 +110,7 @@ func (a *rgwAgent) startRGW(context *clusterd.Context, cluster *mon.ClusterInfo)
 	keyring := val.Node.Value
 
 	config := &Config{Keyring: keyring, ClusterInfo: cluster, Host: DNSName, Port: RGWPort}
-	dcontext := toDaemonContext(context)
+	dcontext := clusterd.ToDaemonContext(context)
 	err = generateConfigFiles(dcontext, config)
 	if err != nil {
 		return fmt.Errorf("failed to generate rgw config files. %+v", err)
