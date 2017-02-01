@@ -84,34 +84,26 @@ type DeviceOsdIDEntry struct {
 
 // format the given device for usage by an OSD
 func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool) error {
-	dangerousToFormat := false
-
 	blockDetails, err := getBlockPartitionDetails(config)
 	if err != nil {
 		return err
 	}
 
 	// check if partitions belong to rook
-	partitions, _, err := sys.GetDevicePartitions(blockDetails.Device, context.Executor)
+	ownPartitions, devFS, err := checkIfDeviceAvailable(context.Executor, blockDetails.Device)
 	if err != nil {
-		return fmt.Errorf("failed to get %s partitions. %+v", blockDetails.Device, err)
+		return fmt.Errorf("failed to format device. %+v", err)
 	}
-	if !rookOwnsPartitions(partitions) {
-		dangerousToFormat = true
+
+	if !ownPartitions {
 		if forceFormat {
-			logger.Warningf("device %s is being formatted!! partitions: %+v", blockDetails.Device, partitions)
+			logger.Warningf("device %s is being formatted, but has partitions!!", blockDetails.Device)
 		} else {
 			logger.Warningf("device %s has partitions that will not be formatted. Skipping device.", blockDetails.Device)
 		}
 	}
 
-	// check if there is a file system on the device
-	devFS, err := sys.GetDeviceFilesystems(blockDetails.Device, context.Executor)
-	if err != nil {
-		return fmt.Errorf("failed to get device %s filesystem: %+v", blockDetails.Device, err)
-	}
 	if devFS != "" {
-		dangerousToFormat = true
 		if forceFormat {
 			// there's a filesystem on the device, but the user has specified to force a format. give a warning about that.
 			logger.Warningf("device %s already formatted with %s, but forcing a format!!!", blockDetails.Device, devFS)
@@ -122,6 +114,7 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 	}
 
 	// format the device
+	dangerousToFormat := !ownPartitions || devFS != ""
 	if !dangerousToFormat || forceFormat {
 		err := partitionBluestoreOSD(context, config)
 		if err != nil {
@@ -130,6 +123,25 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 	}
 
 	return nil
+}
+
+func checkIfDeviceAvailable(executor exec.Executor, name string) (bool, string, error) {
+	ownPartitions := true
+	partitions, _, err := sys.GetDevicePartitions(name, executor)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to get %s partitions. %+v", name, err)
+	}
+	if !rookOwnsPartitions(partitions) {
+		ownPartitions = false
+	}
+
+	// check if there is a file system on the device
+	devFS, err := sys.GetDeviceFilesystems(name, executor)
+	if err != nil {
+		return false, "", fmt.Errorf("failed to get device %s filesystem: %+v", name, err)
+	}
+
+	return ownPartitions, devFS, nil
 }
 
 func rookOwnsPartitions(partitions []*sys.Partition) bool {
@@ -187,12 +199,14 @@ func partitionBluestoreMetadata(context *clusterd.Context, info *partition.Metad
 	}
 
 	// associate the OSD IDs with the metadata device in etcd
-	idSet := util.NewSet()
-	for _, part := range info.Partitions {
-		idSet.Add(strconv.Itoa(part.ID))
-	}
-	if err := associateOSDIDsWithMetadataDevice(context.EtcdClient, context.NodeID, info.DiskUUID, strings.Join(idSet.ToSlice(), ",")); err != nil {
-		return fmt.Errorf("failed to associate osd ids '%+v' with metadata device %s (%s): %+v", idSet, info.Device, info.DiskUUID, err)
+	if context.EtcdClient != nil {
+		idSet := util.NewSet()
+		for _, part := range info.Partitions {
+			idSet.Add(strconv.Itoa(part.ID))
+		}
+		if err := associateOSDIDsWithMetadataDevice(context.EtcdClient, context.NodeID, info.DiskUUID, strings.Join(idSet.ToSlice(), ",")); err != nil {
+			return fmt.Errorf("failed to associate osd ids '%+v' with metadata device %s (%s): %+v", idSet, info.Device, info.DiskUUID, err)
+		}
 	}
 
 	return nil
@@ -238,17 +252,19 @@ func partitionBluestoreOSD(context *clusterd.Context, config *osdConfig) error {
 	}
 
 	// save the desired state of the osd for this device
-	err = associateOsdIDWithDevice(context.EtcdClient, context.NodeID, blockDetails.DiskUUID, config.id, false)
-	if err != nil {
-		return fmt.Errorf("failed to associate osd id %d with device %s (%s)", config.id, blockDetails.Device, blockDetails.DiskUUID)
-	}
-	if config.partitionScheme.IsCollocated() {
-		// the metadata is on the same disk as the data, associate the osd ID with the device for metadata too
-		err = associateOSDIDsWithMetadataDevice(
-			context.EtcdClient, context.NodeID, blockDetails.DiskUUID, fmt.Sprintf("%d", config.id))
+	if context.EtcdClient != nil {
+		err = associateOsdIDWithDevice(context.EtcdClient, context.NodeID, blockDetails.DiskUUID, config.id, false)
 		if err != nil {
-			return fmt.Errorf("failed to associate osd id %d with device %s (%s) for metadata",
-				config.id, blockDetails.Device, blockDetails.DiskUUID)
+			return fmt.Errorf("failed to associate osd id %d with device %s (%s)", config.id, blockDetails.Device, blockDetails.DiskUUID)
+		}
+		if config.partitionScheme.IsCollocated() {
+			// the metadata is on the same disk as the data, associate the osd ID with the device for metadata too
+			err = associateOSDIDsWithMetadataDevice(
+				context.EtcdClient, context.NodeID, blockDetails.DiskUUID, fmt.Sprintf("%d", config.id))
+			if err != nil {
+				return fmt.Errorf("failed to associate osd id %d with device %s (%s) for metadata",
+					config.id, blockDetails.Device, blockDetails.DiskUUID)
+			}
 		}
 	}
 
@@ -525,8 +541,10 @@ func addOSDToCrushMap(osdConn client.Connection, context *clusterd.Context, osdI
 		return fmt.Errorf("failed adding %s to crush map: %+v", osdEntity, err)
 	}
 
-	if err := inventory.SetLocation(context.EtcdClient, context.NodeID, strings.Join(locArgs, ",")); err != nil {
-		return fmt.Errorf("failed to save CRUSH location for OSD %s: %+v", osdEntity, err)
+	if context.EtcdClient != nil {
+		if err := inventory.SetLocation(context.EtcdClient, context.NodeID, strings.Join(locArgs, ",")); err != nil {
+			return fmt.Errorf("failed to save CRUSH location for OSD %s: %+v", osdEntity, err)
+		}
 	}
 
 	return nil

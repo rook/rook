@@ -38,6 +38,8 @@ func init() {
 	toolCmd.Flags().StringVar(&toolType, "type", "", "type of tool [rgw-admin|mon --mkfs|osd --mkfs]")
 	toolCmd.MarkFlagRequired("type")
 
+	flags.SetFlagsFromEnv(toolCmd.Flags(), "ROOKD")
+
 	toolCmd.RunE = runTool
 }
 
@@ -45,6 +47,8 @@ func runTool(cmd *cobra.Command, args []string) error {
 	if err := flags.VerifyRequiredFlags(toolCmd, []string{"type"}); err != nil {
 		return err
 	}
+
+	setLogLevel()
 
 	// allow rgw admin commands as well as mon and osd mkfs
 	if toolType != "rgw-admin" && toolType != "mon" && toolType != "osd" {

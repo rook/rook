@@ -162,6 +162,10 @@ imports:
   - naming
   - peer
   - transport
+- name: k8s.io/client-go
+  version: 843f7c4f28b1f647f664f883697107d5c02c5acc
+  subpackages:
+  - kubernetes/typed/core/v1
 testImports:
 - name: github.com/stretchr/testify
   version: 9cc77fa25329013ce07362c7742952ff887361f2

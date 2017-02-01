@@ -172,7 +172,7 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 }
 
 // create a keyring for access to the cluster, with the desired set of privileges
-func CreateKeyring(conn client.Connection, username, keyringPath string, access []string, generateKeyring func(string) string) error {
+func CreateKeyring(conn client.Connection, username, keyringPath string, access []string, generateContents func(string) string) error {
 	_, err := os.Stat(keyringPath)
 	if err == nil {
 		// no error, the file exists, bail out with no error
@@ -189,15 +189,19 @@ func CreateKeyring(conn client.Connection, username, keyringPath string, access 
 		return fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
 	}
 
+	return WriteKeyring(keyringPath, key, generateContents)
+}
+
+func WriteKeyring(keyringPath, keyring string, generateContents func(string) string) error {
 	// write the keyring to disk
 	keyringDir := filepath.Dir(keyringPath)
 	if err := os.MkdirAll(keyringDir, 0744); err != nil {
 		return fmt.Errorf("failed to create keyring dir at %s: %+v", keyringDir, err)
 	}
 
-	keyring := generateKeyring(key)
+	contents := generateContents(keyring)
 	logger.Debugf("Writing keyring to: %s", keyringPath)
-	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0644); err != nil {
+	if err := ioutil.WriteFile(keyringPath, []byte(contents), 0644); err != nil {
 		return fmt.Errorf("failed to write keyring to %s: %+v", keyringPath, err)
 	}
 

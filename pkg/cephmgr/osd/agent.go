@@ -52,7 +52,7 @@ const (
 	unassignedOSDID     = -1
 )
 
-type osdAgent struct {
+type OsdAgent struct {
 	cluster         *mon.ClusterInfo
 	forceFormat     bool
 	location        string
@@ -67,18 +67,18 @@ type osdAgent struct {
 }
 
 func NewAgent(factory client.ConnectionFactory, devices, metadataDevice string, forceFormat bool,
-	location string, bluestoreConfig partition.BluestoreConfig) *osdAgent {
+	location string, bluestoreConfig partition.BluestoreConfig, cluster *mon.ClusterInfo) *OsdAgent {
 
-	return &osdAgent{factory: factory, devices: devices, metadataDevice: metadataDevice, forceFormat: forceFormat,
-		location: location, bluestoreConfig: bluestoreConfig}
+	return &OsdAgent{factory: factory, devices: devices, metadataDevice: metadataDevice, forceFormat: forceFormat,
+		location: location, bluestoreConfig: bluestoreConfig, cluster: cluster}
 }
 
-func (a *osdAgent) Name() string {
+func (a *OsdAgent) Name() string {
 	return osdAgentName
 }
 
 // set the desired state in etcd
-func (a *osdAgent) Initialize(context *clusterd.Context) error {
+func (a *OsdAgent) Initialize(context *clusterd.Context) error {
 
 	if len(a.devices) > 0 {
 		// add the devices to desired state
@@ -98,7 +98,7 @@ func (a *osdAgent) Initialize(context *clusterd.Context) error {
 	return nil
 }
 
-func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
+func (a *OsdAgent) ConfigureLocalService(context *clusterd.Context) error {
 	required, err := a.osdConfigRequired(context)
 	if err != nil {
 		return err
@@ -140,7 +140,7 @@ func (a *osdAgent) ConfigureLocalService(context *clusterd.Context) error {
 // check if osd configured is required at this time
 // 1) the node should be marked in the desired state
 // 2) osd configuration must not already be in progress from a previous orchestration
-func (a *osdAgent) osdConfigRequired(context *clusterd.Context) (bool, error) {
+func (a *OsdAgent) osdConfigRequired(context *clusterd.Context) (bool, error) {
 	key := path.Join(mon.CephKey, osdAgentName, clusterd.DesiredKey, context.NodeID, "ready")
 	osdsDesired, err := context.EtcdClient.Get(ctx.Background(), key, nil)
 	if err != nil {
@@ -162,7 +162,7 @@ func (a *osdAgent) osdConfigRequired(context *clusterd.Context) (bool, error) {
 // If a configuration is already in progress, returns false.
 // If configuration can be started, returns true.
 // The caller of this method must call decrementConfigCounter() if true is returned.
-func (a *osdAgent) tryStartConfig() bool {
+func (a *OsdAgent) tryStartConfig() bool {
 	counter := atomic.AddInt32(&a.configCounter, 1)
 	if counter > 1 {
 		counter = atomic.AddInt32(&a.configCounter, -1)
@@ -174,16 +174,16 @@ func (a *osdAgent) tryStartConfig() bool {
 }
 
 // increment the config counter when a config step starts
-func (a *osdAgent) incrementConfigCounter() {
+func (a *OsdAgent) incrementConfigCounter() {
 	atomic.AddInt32(&a.configCounter, 1)
 }
 
 // decrement the config counter when a config step is completed.
-func (a *osdAgent) decrementConfigCounter() {
+func (a *OsdAgent) decrementConfigCounter() {
 	atomic.AddInt32(&a.configCounter, -1)
 }
 
-func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection client.Connection) error {
+func (a *OsdAgent) stopUndesiredDevices(context *clusterd.Context, connection client.Connection) error {
 	desiredDevices, err := a.loadDesiredDevices(context)
 	if err != nil {
 		return fmt.Errorf("failed to load desired devices. %v", err)
@@ -225,7 +225,7 @@ func (a *osdAgent) stopUndesiredDevices(context *clusterd.Context, connection cl
 	return lastErr
 }
 
-func (a *osdAgent) removeOSD(context *clusterd.Context, connection client.Connection, id int) error {
+func (a *OsdAgent) removeOSD(context *clusterd.Context, connection client.Connection, id int) error {
 
 	// mark the OSD as out of the cluster so its data starts to migrate
 	err := markOSDOut(connection, id)
@@ -263,7 +263,7 @@ func (a *osdAgent) removeOSD(context *clusterd.Context, connection client.Connec
 	return nil
 }
 
-func (a *osdAgent) DestroyLocalService(context *clusterd.Context) error {
+func (a *OsdAgent) DestroyLocalService(context *clusterd.Context) error {
 	// stop the OSD processes
 	for id, proc := range a.osdProc {
 		logger.Infof("stopping osd %d", id)
@@ -280,7 +280,7 @@ func getAppliedKey(nodeID string) string {
 }
 
 // create and initalize OSDs for all the devices specified in the given config
-func (a *osdAgent) createDesiredOSDs(adminConn client.Connection, context *clusterd.Context) error {
+func (a *OsdAgent) createDesiredOSDs(adminConn client.Connection, context *clusterd.Context) error {
 	devices, err := a.loadDesiredDevices(context)
 	if err != nil {
 		return fmt.Errorf("failed to load desired devices. %v", err)
@@ -305,7 +305,7 @@ func (a *osdAgent) createDesiredOSDs(adminConn client.Connection, context *clust
 	return a.configureDevices(context, devices)
 }
 
-func (a *osdAgent) configureDirs(context *clusterd.Context, dirs map[string]int) error {
+func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int) error {
 	if len(dirs) == 0 {
 		return nil
 	}
@@ -353,13 +353,13 @@ func (a *osdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 
 }
 
-func (a *osdAgent) getBoostrapOSDConnection(context *clusterd.Context) (client.Connection, error) {
+func (a *OsdAgent) getBoostrapOSDConnection(context *clusterd.Context) (client.Connection, error) {
 	return mon.ConnectToCluster(context, a.factory, a.cluster,
 		getBootstrapOSDDir(context.ConfigDir), "bootstrap-osd",
 		getBootstrapOSDKeyringPath(context.ConfigDir, a.cluster.Name))
 }
 
-func (a *osdAgent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) error {
+func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) error {
 	if devices == nil || len(devices.Entries) == 0 {
 		return nil
 	}
@@ -576,7 +576,7 @@ func refreshDeviceInfo(name string, nameToUUID map[string]string, scheme *partit
 	}
 }
 
-func (a *osdAgent) startOSD(context *clusterd.Context, connection client.Connection, config *osdConfig) error {
+func (a *OsdAgent) startOSD(context *clusterd.Context, connection client.Connection, config *osdConfig) error {
 	newOSD := false
 	config.rootPath = path.Join(config.configRoot, fmt.Sprintf("osd%d", config.id))
 	if isOSDDataNotExist(config.rootPath) {
@@ -629,14 +629,17 @@ func (a *osdAgent) startOSD(context *clusterd.Context, connection client.Connect
 			dataDiskUUID = config.partitionScheme.Partitions[partition.BlockPartitionName].DiskUUID
 			metadataDiskUUID = config.partitionScheme.Partitions[partition.DatabasePartitionName].DiskUUID
 		}
-		settings := map[string]string{
-			"path":              config.configRoot,
-			dataDiskUUIDKey:     dataDiskUUID,
-			metadataDiskUUIDKey: metadataDiskUUID,
-		}
-		key := path.Join(getAppliedKey(context.NodeID), fmt.Sprintf("%d", config.id))
-		if err := util.StoreEtcdProperties(context.EtcdClient, key, settings); err != nil {
-			return fmt.Errorf("failed to mark osd %d as applied: %+v", config.id, err)
+
+		if context.EtcdClient != nil {
+			settings := map[string]string{
+				"path":              config.configRoot,
+				dataDiskUUIDKey:     dataDiskUUID,
+				metadataDiskUUIDKey: metadataDiskUUID,
+			}
+			key := path.Join(getAppliedKey(context.NodeID), fmt.Sprintf("%d", config.id))
+			if err := util.StoreEtcdProperties(context.EtcdClient, key, settings); err != nil {
+				return fmt.Errorf("failed to mark osd %d as applied: %+v", config.id, err)
+			}
 		}
 	} else {
 		// osd_data_dir/whoami already exists, meaning the OSD is already set up.
@@ -657,7 +660,7 @@ func (a *osdAgent) startOSD(context *clusterd.Context, connection client.Connect
 }
 
 // runs an OSD with the given config in a child process
-func (a *osdAgent) runOSD(context *clusterd.Context, clusterName string, config *osdConfig) error {
+func (a *OsdAgent) runOSD(context *clusterd.Context, clusterName string, config *osdConfig) error {
 	// start the OSD daemon in the foreground with the given config
 	logger.Infof("starting osd %d at %s", config.id, config.rootPath)
 
@@ -742,7 +745,7 @@ func getPseudoDir(path string) string {
 
 // loads information about all desired devices.  This includes devices that are already committed as well as
 // new devices that are desired but have not been set up yet.
-func (a *osdAgent) loadDesiredDevices(context *clusterd.Context) (*DeviceOsdMapping, error) {
+func (a *OsdAgent) loadDesiredDevices(context *clusterd.Context) (*DeviceOsdMapping, error) {
 	// get the device UUID to device name mapping
 	uuidToName := map[string]string{}
 	for _, disk := range context.Inventory.Local.Disks {
@@ -767,6 +770,10 @@ func (a *osdAgent) loadDesiredDevices(context *clusterd.Context) (*DeviceOsdMapp
 		}
 	}
 	logger.Debugf("desired osd id mapping when new: %+v", deviceOsdMapping)
+
+	if context.EtcdClient == nil {
+		return deviceOsdMapping, nil
+	}
 
 	// parse the desired devices from etcd, which are based on the disk uuid
 	key := path.Join(fmt.Sprintf(deviceDesiredKey, context.NodeID))

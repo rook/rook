@@ -57,6 +57,7 @@ func TestStartRGW(t *testing.T) {
 
 	// add the rgw to desired state
 	err = setRGWState(context.EtcdClient, context.NodeID, false)
+	etcdClient.SetValue("/rook/services/ceph/object/desired/keyring", "1234")
 	assert.Nil(t, err)
 
 	// start the rgw

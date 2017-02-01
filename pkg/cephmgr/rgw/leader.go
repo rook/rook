@@ -163,6 +163,24 @@ func markUnapplied(context *clusterd.Context) error {
 }
 
 func (r *Leader) enable(context *clusterd.Context, factory client.ConnectionFactory) error {
+	// load cluster info
+	cluster, err := mon.LoadClusterInfo(context.EtcdClient)
+	if err != nil {
+		return fmt.Errorf("failed to load cluster info. %+v", err)
+	}
+
+	// connect to the ceph cluster
+	conn, err := mon.ConnectToClusterAsAdmin(context, factory, cluster)
+	if err != nil {
+		return fmt.Errorf("failed to connect to cluster. %+v", err)
+	}
+	defer conn.Shutdown()
+
+	// create the keyring if needed
+	err = createKeyringOnInit(context, conn)
+	if err != nil {
+		return fmt.Errorf("failed to init rgw keyring. %+v", err)
+	}
 
 	// start an instance of rgw on every node
 	count := len(context.Inventory.Nodes)
@@ -217,6 +235,37 @@ func (r *Leader) remove(context *clusterd.Context, factory client.ConnectionFact
 	}
 
 	return markUnapplied(context)
+}
+
+// create a keyring for the rgw client with a limited set of privileges
+func createKeyringOnInit(context *clusterd.Context, conn client.Connection) error {
+	key := getKeyringKey()
+	_, err := context.EtcdClient.Get(ctx.Background(), key, nil)
+	if err == nil {
+		// the keyring has already been created
+		return nil
+	}
+
+	if !util.IsEtcdKeyNotFound(err) {
+		return fmt.Errorf("rgw keyring could not be retrieved. %+v", err)
+	}
+
+	// create the keyring
+	keyring, err := CreateKeyring(conn)
+	if err != nil {
+		return fmt.Errorf("failed to create keyring. %+v", err)
+	}
+
+	// save the keyring to etcd
+	_, err = context.EtcdClient.Set(ctx.Background(), key, keyring, nil)
+	if err != nil {
+		return fmt.Errorf("failed to save rgw keyring. %+v", err)
+	}
+	return nil
+}
+
+func getKeyringKey() string {
+	return path.Join(mon.CephKey, ObjectStoreKey, clusterd.DesiredKey, "keyring")
 }
 
 func (r *Leader) getDesiredRGWNodes(context *clusterd.Context, count int) ([]string, error) {

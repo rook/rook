@@ -90,6 +90,24 @@ type Context struct {
 	NetworkInfo NetworkInfo
 }
 
+// The context for running a rook daemon.
+type DaemonContext struct {
+	// The implementation of executing a console command
+	Executor exec.Executor
+
+	// The process manager for launching a process
+	ProcMan *proc.ProcManager
+
+	// The root configuration directory used by services
+	ConfigDir string
+
+	// A value indicating the desired logging/tracing level
+	LogLevel capnslog.LogLevel
+
+	// The full path to a config file that can be used to override generated settings
+	ConfigFileOverride string
+}
+
 func copyContext(c *Context) *Context {
 	return &Context{
 		Services:           c.Services,
@@ -102,6 +120,26 @@ func copyContext(c *Context) *Context {
 		LogLevel:           c.LogLevel,
 		ConfigFileOverride: c.ConfigFileOverride,
 	}
+}
+
+func NewDaemonContext(dataDir, cephConfigOverride string, logLevel capnslog.LogLevel) *DaemonContext {
+	executor := &exec.CommandExecutor{}
+	return &DaemonContext{
+		ProcMan:            proc.New(executor),
+		Executor:           executor,
+		ConfigDir:          dataDir,
+		ConfigFileOverride: cephConfigOverride,
+		LogLevel:           logLevel,
+	}
+}
+
+// Convert a context to a daemon context
+func ToContext(context *DaemonContext) *Context {
+	return &Context{Executor: context.Executor, ProcMan: context.ProcMan, ConfigDir: context.ConfigDir, LogLevel: context.LogLevel, ConfigFileOverride: context.ConfigFileOverride}
+}
+
+func ToDaemonContext(context *Context) *DaemonContext {
+	return &DaemonContext{ProcMan: context.ProcMan, Executor: context.Executor, ConfigDir: context.ConfigDir, LogLevel: context.LogLevel, ConfigFileOverride: context.ConfigFileOverride}
 }
 
 func (c *Context) GetExecutor() exec.Executor {

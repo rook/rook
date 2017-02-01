@@ -44,6 +44,10 @@ const (
 `
 )
 
+type CephLauncher interface {
+	Run(id string, args ...string) error
+}
+
 type agent struct {
 	factory client.ConnectionFactory
 	monProc *proc.MonitoredProc

@@ -34,22 +34,31 @@ const (
 
 // Discover all the hardware properties for this node.
 // Store the important properties in etcd and more detailed info for the local node in the context.
-func DiscoverHardware(etcdClient etcd.KeysAPI, executor exec.Executor, nodeID string) (*Hardware, error) {
+func DiscoverHardwareAndStore(etcdClient etcd.KeysAPI, executor exec.Executor, nodeID string) (*Hardware, error) {
+	hardware, err := DiscoverHardware(executor)
+	if err != nil {
+		return nil, fmt.Errorf("failed to discover hw. %+v", err)
+	}
+
+	if err = storeDevices(etcdClient, nodeID, hardware.Disks); err != nil {
+		return nil, fmt.Errorf("failed to store disks in etcd. %+v", err)
+	}
+
+	if err = storeMemory(etcdClient, nodeID, hardware.Memory); err != nil {
+		return nil, fmt.Errorf("failed to store system memory in etcd. %+v", err)
+	}
+
+	return hardware, nil
+}
+
+// Discover all the hardware properties for this node.
+func DiscoverHardware(executor exec.Executor) (*Hardware, error) {
 	devices, err := discoverDevices(executor)
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover devices. %+v", err)
 	}
 
-	if err = storeDevices(etcdClient, nodeID, devices); err != nil {
-		return nil, fmt.Errorf("failed to store disks in etcd. %+v", err)
-	}
-
 	mem := getSystemMemory()
-	if err = storeMemory(etcdClient, nodeID, mem); err != nil {
-		return nil, fmt.Errorf("failed to store system memory in etcd. %+v", err)
-	}
-
-	// TODO: Discover network adapters, processors, ...
 
 	return &Hardware{Disks: devices, Memory: mem}, nil
 }

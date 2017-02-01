@@ -153,15 +153,15 @@ GO_BIN_DIR = $(BIN_DIR)
 ifeq ($(LINKMODE),static)
 GO_STATIC_PACKAGES=$(GO_PROJECT)
 ifeq ($(ROOKD_SUPPORTED),1)
-GO_STATIC_CGO_PACKAGES=$(GO_PROJECT)/cmd/rookd
+GO_STATIC_CGO_PACKAGES=$(GO_PROJECT)/cmd/rookd $(GO_PROJECT)/cmd/rook-operator
 endif
 else
 GO_NONSTATIC_PACKAGES=$(GO_PROJECT)
 ifeq ($(ROOKD_SUPPORTED),1)
 ifeq ($(PIE),1)
-GO_NONSTATIC_PIE_PACKAGES+=$(GO_PROJECT)/cmd/rookd
+GO_NONSTATIC_PIE_PACKAGES+= $(GO_PROJECT)/cmd/rookd $(GO_PROJECT)/cmd/rook-operator
 else
-GO_NONSTATIC_PACKAGES+= $(GO_PROJECT)/cmd/rookd
+GO_NONSTATIC_PACKAGES+= $(GO_PROJECT)/cmd/rookd $(GO_PROJECT)/cmd/rook-operator
 endif
 endif
 endif

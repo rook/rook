@@ -76,7 +76,7 @@ func (p *ProcManager) Run(logName, tool string, args ...string) error {
 // with the given ProcStartPolicy.  The search pattern will be used to search through the cmdline args of existing
 // processes to find any matching existing process.  Therefore, it should be a regex pattern that can uniquely
 // identify the process (e.g., --id=1)
-func (p *ProcManager) Start(logName, daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
+func (p *ProcManager) Start(name, daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
 	// look for an existing process first
 	shouldStart, err := p.checkProcessExists(os.Args[0], procSearchPattern, policy)
 	if err != nil {
@@ -88,17 +88,18 @@ func (p *ProcManager) Start(logName, daemon, procSearchPattern string, policy Pr
 		return nil, nil
 	}
 
-	logger.Infof("Starting process %s with args: %v", daemon, args)
-	cmd, err := p.executor.StartExecuteCommand(logName, os.Args[0], createDaemonArgs(daemon, args...)...)
+	args = createDaemonArgs(daemon, args...)
+	logger.Infof("Starting process %s with args: %v", name, args)
+	cmd, err := p.executor.StartExecuteCommand(name, os.Args[0], args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to start daemon %s: %+v", daemon, err)
+		return nil, fmt.Errorf("failed to start process %s: %+v", name, err)
 	}
 
 	proc := newMonitoredProc(p, cmd)
 
 	// monitor the process if it was not mocked
 	if cmd != nil && cmd.Process != nil {
-		go proc.Monitor(logName)
+		go proc.Monitor(name)
 	}
 
 	p.Lock()
