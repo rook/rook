@@ -50,7 +50,11 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
     config.vm.define name="rook%02d" % i, primary: (i == 0), autostart: (i == 0) do |node|
       node.vm.hostname = name
       node.vm.network "private_network", ip: "172.20.20.#{10+i}"
-      node.vm.network "forwarded_port", guest: 8124, host: 8124
+
+      if i == 0
+        # forward the API service port on only the first machine
+        node.vm.network "forwarded_port", guest: 8124, host: 8124
+      end
 
       attach_volumes(node, $node_disks, $disk_size)
 
