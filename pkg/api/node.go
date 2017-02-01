@@ -15,64 +15,16 @@ limitations under the License.
 */
 package api
 
-import (
-	"net/http"
-
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/clusterd/inventory"
-	"github.com/rook/rook/pkg/model"
-)
+import "net/http"
 
 // Gets the nodes that are part of this cluster.
 // GET
 // /node
 func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
-	clusterInventory, err := inventory.LoadDiscoveredNodes(h.context.EtcdClient)
+	nodes, err := h.config.StateHandler.GetNodes()
 	if err != nil {
-		logger.Errorf("failed to load discovered nodes: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-	}
-
-	clusterName, err := mon.GetClusterName(h.context.EtcdClient)
-	if err != nil {
-		logger.Errorf("failed to get cluster name: %+v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	nodes := make([]model.Node, len(clusterInventory.Nodes))
-	i := 0
-	for nodeID, n := range clusterInventory.Nodes {
-		storage := uint64(0)
-		for _, d := range n.Disks {
-			// Add up the space of all devices.
-			// We should have a separate metric for osd devices, but keep it simple for now.
-			storage += d.Size
-		}
-
-		// determine the node's state/health
-		_, isUnhealthy := clusterd.IsNodeUnhealthy(n)
-		var state model.NodeState
-		if isUnhealthy {
-			state = model.Unhealthy
-		} else {
-			state = model.Healthy
-		}
-
-		nodes[i] = model.Node{
-			NodeID:      nodeID,
-			ClusterName: clusterName,
-			PublicIP:    n.PublicIP,
-			PrivateIP:   n.PrivateIP,
-			Storage:     storage,
-			LastUpdated: n.HeartbeatAge,
-			State:       state,
-			Location:    n.Location,
-		}
-
-		i++
 	}
 
 	FormatJsonResponse(w, nodes)

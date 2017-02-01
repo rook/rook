@@ -22,7 +22,6 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/rook/rook/pkg/cephmgr/rgw"
-	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/util"
 )
@@ -32,7 +31,7 @@ import (
 // /objectstore
 func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 
-	if err := rgw.EnableObjectStore(h.context); err != nil {
+	if err := h.config.StateHandler.EnableObjectStore(); err != nil {
 		logger.Errorf("failed to create object store: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -46,7 +45,7 @@ func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 // POST
 // /objectstore/remove
 func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
-	if err := rgw.RemoveObjectStore(h.context); err != nil {
+	if err := h.config.StateHandler.RemoveObjectStore(); err != nil {
 		logger.Errorf("failed to remove object store: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -60,29 +59,16 @@ func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
 // GET
 // /objectstore/connectioninfo
 func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Request) {
-	// TODO: auth is extremely important here because we are returning RGW credentials
-	// https://github.com/rook/rook/issues/209
 
-	clusterInventory, err := inventory.LoadDiscoveredNodes(h.context.EtcdClient)
+	s3Info, found, err := h.config.StateHandler.GetObjectStoreConnectionInfo()
 	if err != nil {
-		logger.Errorf("failed to load discovered nodes: %+v", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		logger.Errorf("failed get object store info. %+v", err)
+		if found {
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.WriteHeader(http.StatusNotFound)
+		}
 		return
-	}
-
-	host, ipEndpoint, found, err := rgw.GetRGWEndpoints(h.context.EtcdClient, clusterInventory)
-	if err != nil {
-		handleConnectionLookupFailure(err, "rgw endpoints", w)
-		return
-	} else if !found {
-		logger.Errorf("failed to find rgw endpoints")
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	s3Info := model.ObjectStoreS3Info{
-		Host:       host,
-		IPEndpoint: ipEndpoint,
 	}
 
 	FormatJsonResponse(w, s3Info)

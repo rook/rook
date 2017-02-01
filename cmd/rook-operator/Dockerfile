@@ -1,5 +1,5 @@
-FROM scratch
+FROM alpine:3.4
 
-COPY rook-operator /opt/rook/bin/
+COPY rook-operator /usr/bin/
 
-ENTRYPOINT ["/opt/rook/bin/rook-operator"]
+ENTRYPOINT ["/usr/bin/rook-operator"]

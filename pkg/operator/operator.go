@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/1.5/kubernetes"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/mds"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
@@ -54,6 +55,12 @@ func (o *Operator) Run() error {
 	cluster, err := m.Start(o.clientset)
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
+	}
+
+	a := api.New(o.Namespace, o.containerVersion)
+	err = a.Start(o.clientset, cluster)
+	if err != nil {
+		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs

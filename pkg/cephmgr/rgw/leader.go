@@ -75,23 +75,23 @@ func (r *Leader) Configure(context *clusterd.Context, factory client.ConnectionF
 }
 
 // Configure the single instance of object storage in the cluster.
-func EnableObjectStore(context *clusterd.Context) error {
+func EnableObjectStore(etcdClient etcd.KeysAPI) error {
 	logger.Infof("Enabling object store")
 	key := path.Join(mon.CephKey, ObjectStoreKey, clusterd.DesiredKey, stateKey)
-	_, err := context.EtcdClient.Set(ctx.Background(), key, "1", nil)
+	_, err := etcdClient.Set(ctx.Background(), key, "1", nil)
 	return err
 }
 
 // Remove the single instance of the object store from the cluster. All buckets will be purged..
-func RemoveObjectStore(context *clusterd.Context) error {
+func RemoveObjectStore(etcdClient etcd.KeysAPI) error {
 	logger.Infof("Removing object store")
 	key := path.Join(mon.CephKey, ObjectStoreKey, clusterd.DesiredKey)
-	_, err := context.EtcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true, Recursive: true})
+	_, err := etcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true, Recursive: true})
 	if err != nil {
 		return fmt.Errorf("failed to remove object store from desired state. %+v", err)
 	}
 
-	_, err = context.EtcdClient.Delete(ctx.Background(), getRGWNodesKey(false), &etcd.DeleteOptions{Dir: true, Recursive: true})
+	_, err = etcdClient.Delete(ctx.Background(), getRGWNodesKey(false), &etcd.DeleteOptions{Dir: true, Recursive: true})
 	if err != nil {
 		return fmt.Errorf("failed to remove rgw nodes from desired state. %+v", err)
 	}

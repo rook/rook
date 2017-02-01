@@ -35,8 +35,11 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/cephmgr/osd/partition"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
+	"github.com/rook/rook/pkg/util/proc"
 )
 
 var rootCmd = &cobra.Command{
@@ -183,14 +186,13 @@ func joinCluster() error {
 		<-time.After(time.Duration(1) * time.Second)
 	}()
 
-	go func() {
-		// set up routes and start HTTP server for REST API
-		h := api.NewHandler(context, mon.NewConnectionFactory(), cephd.New())
-		r := api.NewRouter(h.GetRoutes())
-		if err := http.ListenAndServe(":8124", r); err != nil {
-			logger.Errorf("API server error: %+v", err)
-		}
-	}()
+	apiConfig := &api.Config{
+		Port:         model.Port,
+		ConnFactory:  mon.NewConnectionFactoryWithLookup(),
+		CephFactory:  cephd.New(),
+		StateHandler: api.NewEtcdHandler(context),
+	}
+	go api.ServeRoutes(context, apiConfig)
 
 	// wait for user to interrupt/terminate the process
 	ch := make(chan os.Signal, 1)
@@ -240,4 +242,15 @@ func setLogLevel() {
 	}
 	cfg.logLevel = ll
 	capnslog.SetGlobalLogLevel(cfg.logLevel)
+}
+
+func newDaemonContext() *clusterd.DaemonContext {
+	executor := &exec.CommandExecutor{}
+	return &clusterd.DaemonContext{
+		ProcMan:            proc.New(executor),
+		Executor:           executor,
+		ConfigDir:          cfg.dataDir,
+		ConfigFileOverride: cfg.cephConfigOverride,
+		LogLevel:           cfg.logLevel,
+	}
 }

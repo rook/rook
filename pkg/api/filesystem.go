@@ -20,7 +20,6 @@ import (
 	"net/http"
 
 	ceph "github.com/rook/rook/pkg/cephmgr/client"
-	"github.com/rook/rook/pkg/cephmgr/mds"
 	"github.com/rook/rook/pkg/model"
 )
 
@@ -62,7 +61,7 @@ func (h *Handler) CreateFileSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := mds.EnableFileSystem(h.context, *fs); err != nil {
+	if err := h.config.StateHandler.CreateFileSystem(fs); err != nil {
 		logger.Errorf("failed to create file system: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -81,7 +80,7 @@ func (h *Handler) RemoveFileSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := mds.RemoveFileSystem(h.context, *fs); err != nil {
+	if err := h.config.StateHandler.RemoveFileSystem(fs); err != nil {
 		logger.Errorf("failed to remove file system: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

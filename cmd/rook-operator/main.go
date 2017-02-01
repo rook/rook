@@ -21,6 +21,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/cephmgr/cephd"
+	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/operator"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
@@ -40,8 +41,12 @@ https://github.com/rook/rook`,
 var cfg = &config{}
 
 type config struct {
-	containerVersion string
-	logLevel         capnslog.LogLevel
+	containerVersion   string
+	logLevel           capnslog.LogLevel
+	dataDir            string
+	cephConfigOverride string
+	clusterInfo        mon.ClusterInfo
+	monEndpoints       string
 }
 
 var logLevelRaw string
@@ -56,11 +61,17 @@ func main() {
 }
 
 func addCommands() {
+	rootCmd.AddCommand(restapiCmd)
 }
 
 func init() {
 	rootCmd.Flags().StringVar(&cfg.containerVersion, "container-version", "private-dev-build", "version of the rook container to launch")
 
+	rootCmd.PersistentFlags().StringVar(&cfg.clusterInfo.Name, "cluster-name", "rookcluster", "ceph cluster name")
+	rootCmd.PersistentFlags().StringVar(&cfg.monEndpoints, "mon-endpoints", "", "ceph mon endpoints")
+	rootCmd.PersistentFlags().StringVar(&cfg.clusterInfo.MonitorSecret, "mon-secret", "", "the cephx keyring for monitors")
+	rootCmd.PersistentFlags().StringVar(&cfg.clusterInfo.AdminSecret, "admin-secret", "", "secret for the admin user (random if not specified)")
+	rootCmd.PersistentFlags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
 	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 
 	// load the environment variables
@@ -78,13 +89,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	setLogLevel()
 
-	// create the k8s client
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		fmt.Printf("failed to get k8s config. %+v", err)
-		os.Exit(1)
-	}
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := getClientset()
 	if err != nil {
 		fmt.Printf("failed to get k8s client. %+v", err)
 		os.Exit(1)
@@ -109,4 +114,14 @@ func setLogLevel() {
 	}
 	cfg.logLevel = ll
 	capnslog.SetGlobalLogLevel(cfg.logLevel)
+}
+
+func getClientset() (*kubernetes.Clientset, error) {
+	// create the k8s client
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get k8s config. %+v", err)
+	}
+
+	return kubernetes.NewForConfig(config)
 }

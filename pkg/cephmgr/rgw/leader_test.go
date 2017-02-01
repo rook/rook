@@ -79,7 +79,7 @@ func TestRGWConfig(t *testing.T) {
 	assert.False(t, applied)
 
 	// Add the object store to desired state
-	err = EnableObjectStore(context)
+	err = EnableObjectStore(etcdClient)
 	assert.Nil(t, err)
 	desired, _ = getObjectStoreState(context, false)
 	assert.True(t, desired)
@@ -136,7 +136,7 @@ func TestDefaultDesiredState(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{EtcdClient: etcdClient}
 
-	err := EnableObjectStore(context)
+	err := EnableObjectStore(etcdClient)
 	assert.Nil(t, err)
 	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/object/desired/state"))
 
