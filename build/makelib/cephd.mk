@@ -17,10 +17,6 @@
 
 # TODO: support for profiling in ceph
 # TODO: support for tracing in ceph
-# TODO: jemalloc and static linking are currently broken due to https://github.com/jemalloc/jemalloc/issues/442
-# TODO: remove leveldb from ceph
-# TODO: rocksdb build_version always building
-# TODO: rocksdb should not build from source tree
 
 # ====================================================================================
 # Configuration
