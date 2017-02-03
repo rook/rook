@@ -27,6 +27,7 @@ import (
 
 const (
 	clientQueryName = "client"
+	successStatuses
 )
 
 type RookRestClient interface {
@@ -43,6 +44,12 @@ type RookRestClient interface {
 	GetStatusDetails() (model.StatusDetails, error)
 	CreateObjectStore() (string, error)
 	GetObjectStoreConnectionInfo() (model.ObjectStoreS3Info, error)
+	ListBuckets() ([]model.ObjectBucket, error)
+	ListObjectUsers() ([]model.ObjectUser, error)
+	GetObjectUser(string) (model.ObjectUser, error)
+	CreateObjectUser(model.ObjectUser) (model.ObjectUser, error)
+	UpdateObjectUser(model.ObjectUser) (model.ObjectUser, error)
+	DeleteObjectUser(string) error
 }
 
 type RookNetworkRestClient struct {
@@ -96,8 +103,16 @@ func (a *RookNetworkRestClient) DoGet(query string) ([]byte, error) {
 	return a.Do("GET", query, nil)
 }
 
+func (a *RookNetworkRestClient) DoDelete(query string) ([]byte, error) {
+	return a.Do("DELETE", query, nil)
+}
+
 func (a *RookNetworkRestClient) DoPost(query string, body io.Reader) ([]byte, error) {
 	return a.Do("POST", query, body)
+}
+
+func (a *RookNetworkRestClient) DoPut(query string, body io.Reader) ([]byte, error) {
+	return a.Do("PUT", query, body)
 }
 
 func (a *RookNetworkRestClient) Do(method, query string, body io.Reader) ([]byte, error) {
@@ -123,11 +138,12 @@ func (a *RookNetworkRestClient) Do(method, query string, body io.Reader) ([]byte
 		return nil, err
 	}
 
-	if response.StatusCode != http.StatusOK {
+	code := response.StatusCode
+	if code != http.StatusOK {
 		// non 200 OK response, return an error with the details
 		RookRestError := RookRestError{
 			Query:  query,
-			Status: response.StatusCode,
+			Status: code,
 			Body:   respBody,
 		}
 		return nil, RookRestError

@@ -42,6 +42,12 @@ type MockRookRestClient struct {
 	MockGetStatusDetails             func() (model.StatusDetails, error)
 	MockCreateObjectStore            func() (string, error)
 	MockGetObjectStoreConnectionInfo func() (model.ObjectStoreS3Info, error)
+	MockCreateObjectUser             func(model.ObjectUser) (model.ObjectUser, error)
+	MockListBuckets                  func() ([]model.ObjectBucket, error)
+	MockListObjectUsers              func() ([]model.ObjectUser, error)
+	MockGetObjectUser                func(string) (model.ObjectUser, error)
+	MockUpdateObjectUser             func(model.ObjectUser) (model.ObjectUser, error)
+	MockDeleteObjectUser             func(string) error
 }
 
 func (m *MockRookRestClient) GetNodes() ([]model.Node, error) {
@@ -142,4 +148,52 @@ func (m *MockRookRestClient) GetObjectStoreConnectionInfo() (model.ObjectStoreS3
 
 func (m *MockRookRestClient) URL() string {
 	return ""
+}
+
+func (m *MockRookRestClient) ListBuckets() ([]model.ObjectBucket, error) {
+	if m.MockListBuckets != nil {
+		return m.MockListBuckets()
+	}
+
+	return []model.ObjectBucket{}, nil
+}
+
+func (m *MockRookRestClient) ListObjectUsers() ([]model.ObjectUser, error) {
+	if m.MockListObjectUsers != nil {
+		return m.MockListObjectUsers()
+	}
+
+	return []model.ObjectUser{}, nil
+}
+
+func (m *MockRookRestClient) GetObjectUser(s string) (model.ObjectUser, error) {
+	if m.MockGetObjectUser != nil {
+		return m.MockGetObjectUser(s)
+	}
+
+	return model.ObjectUser{}, nil
+}
+
+func (m *MockRookRestClient) CreateObjectUser(u model.ObjectUser) (model.ObjectUser, error) {
+	if m.MockCreateObjectUser != nil {
+		return m.MockCreateObjectUser(u)
+	}
+
+	return model.ObjectUser{}, nil
+}
+
+func (m *MockRookRestClient) UpdateObjectUser(u model.ObjectUser) (model.ObjectUser, error) {
+	if m.MockUpdateObjectUser != nil {
+		return m.MockUpdateObjectUser(u)
+	}
+
+	return model.ObjectUser{}, nil
+}
+
+func (m *MockRookRestClient) DeleteObjectUser(s string) error {
+	if m.MockDeleteObjectUser != nil {
+		return m.MockDeleteObjectUser(s)
+	}
+
+	return nil
 }

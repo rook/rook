@@ -249,9 +249,7 @@ func TestGetObjectStoreConnectionInfo(t *testing.T) {
 	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
 
 	expectedResp := model.ObjectStoreS3Info{
-		Host:      "rook-rgw:12345",
-		AccessKey: "UST0JAP8CE61FDE0Q4BE",
-		SecretKey: "tVCuH20xTokjEpVJc7mKjL8PLTfGh4NZ3le3zg9X",
+		Host: "rook-rgw:12345",
 	}
 
 	resp, err := client.GetObjectStoreConnectionInfo()

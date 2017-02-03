@@ -18,86 +18,145 @@ package rgw
 import (
 	"encoding/json"
 	"fmt"
-	"path"
 
-	etcd "github.com/coreos/etcd/client"
-	ctx "golang.org/x/net/context"
+	"strings"
 
-	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/model"
 )
 
 const (
-	builtinUserKey = "admin"
-	idKey          = "id"
-	secretKey      = "_secret"
+	RGWErrorNone     = iota
+	RGWErrorUnknown  = iota
+	RGWErrorNotFound = iota
+	RGWErrorBadData  = iota
+	RGWErrorParse    = iota
 )
 
-type user struct {
-	Keys []keyInfo `json:"keys"`
-}
-
-type keyInfo struct {
-	User      string `json:"user"`
-	AccessKey string `json:"access_key"`
-	SecretKey string `json:"secret_key"`
-}
-
-func createBuiltinUser(context *clusterd.Context) error {
-	logger.Infof("creating the built-in rgw user")
-	result, err := RunAdminCommand(context,
-		"user",
-		"create",
-		fmt.Sprintf("--uid=%s", "rookadmin"),
-		fmt.Sprintf("--display-name=%s", "rook rgw builtin user"))
+func ListUsers(context *clusterd.Context) ([]string, int, error) {
+	result, err := RunAdminCommand(context, "user", "list")
 	if err != nil {
-		return fmt.Errorf("failed to create user: %+v", err)
+		return nil, RGWErrorUnknown, fmt.Errorf("failed to list users: %+v", err)
 	}
 
-	// Parse the creds from the json response
-	var u user
-	if err := json.Unmarshal([]byte(result), &u); err != nil {
-		return fmt.Errorf("failed to read user info. %+v, result=%s", err, result)
+	var s []string
+	if err := json.Unmarshal([]byte(result), &s); err != nil {
+		return nil, RGWErrorParse, fmt.Errorf("failed to read users info. %+v, result=%s", err, result)
 	}
 
-	if len(u.Keys) == 0 {
-		return fmt.Errorf("missing keys in %s", result)
-	}
-
-	userkey := u.Keys[0]
-	if userkey.AccessKey == "" || userkey.SecretKey == "" {
-		return fmt.Errorf("missing user properties in %s", result)
-	}
-
-	// store the creds in etcd
-	key := path.Join(mon.CephKey, ObjectStoreKey, clusterd.AppliedKey, builtinUserKey)
-	if _, err := context.EtcdClient.Set(ctx.Background(), path.Join(key, idKey), userkey.AccessKey, nil); err != nil {
-		return fmt.Errorf("failed to store access id. %+v", err)
-	}
-
-	if _, err := context.EtcdClient.Set(ctx.Background(), path.Join(key, secretKey), userkey.SecretKey, nil); err != nil {
-		return fmt.Errorf("failed to store access id. %+v", err)
-	}
-
-	return nil
+	return s, RGWErrorNone, nil
 }
 
-func GetBuiltinUserAccessInfo(etcdClient etcd.KeysAPI) (string, string, error) {
-	return getUserAccessInfo(builtinUserKey, etcdClient)
+type rgwUserInfo struct {
+	UserID      string `json:"user_id"`
+	DisplayName string `json:"display_name"`
+	Email       string `json:"email"`
+	Keys        []struct {
+		AccessKey string `json:"access_key"`
+		SecretKey string `json:"secret_key"`
+	}
 }
 
-func getUserAccessInfo(userName string, etcdClient etcd.KeysAPI) (string, string, error) {
-	userKey := path.Join(mon.CephKey, ObjectStoreKey, clusterd.AppliedKey, userName)
-	keys := map[string]string{
-		idKey:     path.Join(userKey, idKey),
-		secretKey: path.Join(userKey, secretKey),
-	}
-
-	vals, err := util.GetEtcdValues(etcdClient, keys)
+func decodeUser(data string) (*model.ObjectUser, int, error) {
+	var user rgwUserInfo
+	err := json.Unmarshal([]byte(data), &user)
 	if err != nil {
-		return "", "", err
+		return nil, RGWErrorParse, fmt.Errorf("Failed to unmarshal json: %+v", err)
 	}
 
-	return vals[idKey], vals[secretKey], nil
+	rookUser := model.ObjectUser{UserID: user.UserID, DisplayName: &user.DisplayName, Email: &user.Email}
+
+	if len(user.Keys) > 0 {
+		rookUser.AccessKey = &user.Keys[0].AccessKey
+		rookUser.SecretKey = &user.Keys[0].SecretKey
+	}
+
+	return &rookUser, RGWErrorNone, nil
+}
+
+func GetUser(context *clusterd.Context, id string) (*model.ObjectUser, int, error) {
+	logger.Infof("Getting user: %s", id)
+
+	result, err := RunAdminCommand(context, "user", "info", "--uid", id)
+	if err != nil {
+		return nil, RGWErrorUnknown, fmt.Errorf("failed to get users: %+v", err)
+	}
+	if result == "could not fetch user info: no user info saved" {
+		return nil, RGWErrorNotFound, fmt.Errorf("user not found")
+	}
+	return decodeUser(result)
+}
+
+func CreateUser(context *clusterd.Context, user model.ObjectUser) (*model.ObjectUser, int, error) {
+	logger.Infof("Creating user: %s", user.UserID)
+
+	if strings.TrimSpace(user.UserID) == "" {
+		return nil, RGWErrorBadData, fmt.Errorf("userId cannot be empty")
+	}
+
+	if user.DisplayName == nil {
+		return nil, RGWErrorBadData, fmt.Errorf("displayName is required")
+	}
+
+	args := []string{
+		"--uid", user.UserID,
+		"--display-name", *user.DisplayName,
+	}
+
+	if user.Email != nil {
+		args = append(args, "--email", *user.Email)
+	}
+
+	result, err := RunAdminCommand(context, "user", "create", args...)
+	if err != nil {
+		return nil, RGWErrorUnknown, fmt.Errorf("failed to create user: %+v", err)
+	}
+
+	if strings.HasPrefix(result, "could not create user: unable to create user, user: ") && strings.HasSuffix(result, " exists") {
+		return nil, RGWErrorBadData, fmt.Errorf("user already exists")
+	}
+
+	if strings.HasPrefix(result, "could not create user: unable to create user, email: ") && strings.HasSuffix(result, " is the email address an existing user") {
+		return nil, RGWErrorBadData, fmt.Errorf("email already in use")
+	}
+
+	return decodeUser(result)
+}
+
+func UpdateUser(context *clusterd.Context, user model.ObjectUser) (*model.ObjectUser, int, error) {
+	logger.Infof("Updating user: %s", user.UserID)
+
+	args := []string{"--uid", user.UserID}
+
+	if user.DisplayName != nil {
+		args = append(args, "--display-name", *user.DisplayName)
+	}
+	if user.Email != nil {
+		args = append(args, "--email", *user.Email)
+	}
+
+	body, err := RunAdminCommand(context, "user", "modify", args...)
+	if err != nil {
+		return nil, RGWErrorUnknown, fmt.Errorf("failed to update user: %+v", err)
+	}
+
+	if body == "could not modify user: unable to modify user, user not found" {
+		return nil, RGWErrorNotFound, fmt.Errorf("user not found")
+	}
+
+	return decodeUser(body)
+}
+
+func DeleteUser(context *clusterd.Context, id string) (string, int, error) {
+	logger.Infof("Deleting user: %s", id)
+	result, err := RunAdminCommand(context, "user", "rm", "--uid", id)
+	if err != nil {
+		return "", RGWErrorUnknown, fmt.Errorf("failed to delete user: %+v", err)
+	}
+
+	if result == "unable to remove user, user does not exist" {
+		return "", RGWErrorNotFound, fmt.Errorf("failed to delete user: %+v", err)
+	}
+
+	return result, RGWErrorNone, nil
 }

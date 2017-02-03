@@ -55,6 +55,7 @@ package cephd
 // #cgo dynamic LDFLAGS: -Wl,-Bstatic -lcephd -Wl,-Bdynamic -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcryptopp -lrocksdb -laio -luuid -lcurl -lexpat -ldl -lm -lresolv
 // #include <errno.h>
 // #include <stdlib.h>
+// #include <stdio.h>
 // #include <string.h>
 // #include "cephd/libcephd.h"
 // #include "rados/librados.h"
@@ -164,6 +165,7 @@ func (c *ceph) Run(id string, args ...string) error {
 		ret = C.cephd_run_rgw(C.int(len(finalArgs)), (**C.char)(ptr))
 	} else if id == "rgw-admin" {
 		ret = C.cephd_run_rgw_admin(C.int(len(finalArgs)), (**C.char)(ptr))
+		C.fflush(C.stdout) // Without this long output might get cut off as the process exists before fulling flushing stdout
 	}
 	if ret < 0 {
 		return GetCephdError(int(ret))

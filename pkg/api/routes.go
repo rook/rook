@@ -90,6 +90,42 @@ func (h *Handler) GetRoutes() []Route {
 			h.GetObjectStoreConnectionInfo,
 		},
 		{
+			"ListUsers",
+			"GET",
+			"/objectstore/users",
+			h.ListUsers,
+		},
+		{
+			"GetUser",
+			"GET",
+			"/objectstore/users/{id}",
+			h.GetUser,
+		},
+		{
+			"CreateUser",
+			"POST",
+			"/objectstore/users",
+			h.CreateUser,
+		},
+		{
+			"UpdateUser",
+			"PUT",
+			"/objectstore/users/{id}",
+			h.UpdateUser,
+		},
+		{
+			"DeleteUser",
+			"DELETE",
+			"/objectstore/users/{id}",
+			h.DeleteUser,
+		},
+		{
+			"ListBuckets",
+			"GET",
+			"/objectstore/buckets",
+			h.Listbuckets,
+		},
+		{
 			"GetFileSystems",
 			"GET",
 			"/filesystem",

@@ -26,4 +26,6 @@ var Cmd = &cobra.Command{
 func init() {
 	Cmd.AddCommand(createCmd)
 	Cmd.AddCommand(connectionCmd)
+	Cmd.AddCommand(bucketCmd)
+	Cmd.AddCommand(userCmd)
 }

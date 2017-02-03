@@ -15,9 +15,29 @@ limitations under the License.
 */
 package model
 
+import "time"
+
 type ObjectStoreS3Info struct {
 	Host       string `json:"host"`
 	IPEndpoint string `json:"ipEndpoint"`
-	AccessKey  string `json:"accessKey"`
-	SecretKey  string `json:"secretKey"`
+}
+
+type ObjectUser struct {
+	UserID      string  `json:"userId"`
+	DisplayName *string `json:"displayName"`
+	Email       *string `json:"email"`
+	AccessKey   *string `json:"accessKey"`
+	SecretKey   *string `json:"secretKey"`
+}
+
+type ObjectBucketStats struct {
+	Size            uint64 `json:"size"`
+	NumberOfObjects uint64 `json:"numberOfObjects"`
+}
+
+type ObjectBucket struct {
+	Name      string    `json:"name"`
+	Owner     string    `json:"owner"`
+	CreatedAt time.Time `json:"createdAt"`
+	ObjectBucketStats
 }

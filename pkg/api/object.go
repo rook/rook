@@ -18,13 +18,16 @@ package api
 import (
 	"net/http"
 
+	"encoding/json"
+
+	"github.com/gorilla/mux"
 	"github.com/rook/rook/pkg/cephmgr/rgw"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/util"
 )
 
-// Creates a new object store in this cluster.
+// CreateObjectStore creates a new object store in this cluster.
 // POST
 // /objectstore
 func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +42,7 @@ func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// Removes the object store from this cluster.
+// RemoveObjectStore removes the object store from this cluster.
 // POST
 // /objectstore/remove
 func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
@@ -53,21 +56,12 @@ func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted)
 }
 
-// Gets connection information to the object store in this cluster.
+// GetObjectStoreConnectionInfo gets connection information to the object store in this cluster.
 // GET
 // /objectstore/connectioninfo
 func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Request) {
 	// TODO: auth is extremely important here because we are returning RGW credentials
 	// https://github.com/rook/rook/issues/209
-
-	// TODO: support other types of connection info to object store (such as swift)
-	// https://github.com/rook/rook/issues/255
-
-	accessKey, secretKey, err := rgw.GetBuiltinUserAccessInfo(h.context.EtcdClient)
-	if err != nil {
-		handleConnectionLookupFailure(err, "builtin user access info", w)
-		return
-	}
 
 	clusterInventory, err := inventory.LoadDiscoveredNodes(h.context.EtcdClient)
 	if err != nil {
@@ -89,11 +83,153 @@ func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Re
 	s3Info := model.ObjectStoreS3Info{
 		Host:       host,
 		IPEndpoint: ipEndpoint,
-		AccessKey:  accessKey,
-		SecretKey:  secretKey,
 	}
 
 	FormatJsonResponse(w, s3Info)
+}
+
+// ListUsers lists the users of the object store in this cluster.
+// GET
+// /objectstore/users
+func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
+	userNames, _, err := rgw.ListUsers(h.context)
+	if err != nil {
+		logger.Errorf("Error listing users: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	users := []model.ObjectUser{}
+	for _, userName := range userNames {
+		user, _, err := rgw.GetUser(h.context, userName)
+		if err != nil {
+			logger.Errorf("Error listing users: %+v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		users = append(users, *user)
+	}
+
+	FormatJsonResponse(w, users)
+}
+
+// GetUser gets the passed users info from the object store in this cluster.
+// GET
+// /objectstore/users/{USER_ID}
+func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	user, rgwError, err := rgw.GetUser(h.context, id)
+	if err != nil {
+		logger.Errorf("Error getting user (%s): %+v", id, err)
+
+		if rgwError == rgw.RGWErrorNotFound {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	FormatJsonResponse(w, user)
+}
+
+// CreateUser will create a new user from the passed info in the object store in this cluster.
+// POST
+// /objectstore/users
+func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	var user model.ObjectUser
+
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		logger.Errorf("Error parsing user: %+v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	createdUser, rgwError, err := rgw.CreateUser(h.context, user)
+	if err != nil {
+		logger.Errorf("Error creating user: %+v", err)
+
+		if rgwError == rgw.RGWErrorBadData {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			w.Write([]byte(err.Error()))
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+	w.WriteHeader(http.StatusCreated)
+	FormatJsonResponse(w, createdUser)
+}
+
+// UpdateUser updates the passed user with the passed info for the object store in this cluster.
+// PUT
+// /objectstore/users/{USER_ID}
+func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	var user model.ObjectUser
+	err := json.NewDecoder(r.Body).Decode(&user)
+	if err != nil {
+		logger.Errorf("Error parsing user: %+v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	user.UserID = id
+
+	updatedUser, rgwError, err := rgw.UpdateUser(h.context, user)
+	if err != nil {
+		logger.Errorf("Error updating user: %+v", err)
+
+		if rgwError == rgw.RGWErrorNotFound {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
+	}
+
+	FormatJsonResponse(w, updatedUser)
+}
+
+// DeleteUser deletes the passed user for the object store in this cluster.
+// DELETE
+// /objectstore/users/{USER_ID}
+func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	id := mux.Vars(r)["id"]
+
+	_, rgwError, err := rgw.DeleteUser(h.context, id)
+	if err != nil {
+		if rgwError == rgw.RGWErrorNotFound {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		logger.Errorf("Error deleting user (%s): %+v", id, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// Listbuckets lists the buckets in the object store in this cluster.
+// GET
+// /objectstore/buckets
+func (h *Handler) Listbuckets(w http.ResponseWriter, r *http.Request) {
+	buckets, err := rgw.ListBuckets(h.context)
+	if err != nil {
+		logger.Errorf("Error listing buckets: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	FormatJsonResponse(w, buckets)
 }
 
 func handleConnectionLookupFailure(err error, action string, w http.ResponseWriter) {

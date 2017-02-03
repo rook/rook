@@ -29,6 +29,7 @@ type Executor interface {
 	ExecuteCommand(actionName string, command string, arg ...string) error
 	ExecuteCommandPipeline(actionName string, command string) (string, error)
 	ExecuteCommandWithOutput(actionName string, command string, arg ...string) (string, error)
+	ExecuteCommandWithCombinedOutput(actionName string, command string, arg ...string) (string, error)
 }
 
 type CommandExecutor struct {
@@ -65,13 +66,19 @@ func (*CommandExecutor) ExecuteCommand(actionName string, command string, arg ..
 func (*CommandExecutor) ExecuteCommandWithOutput(actionName string, command string, arg ...string) (string, error) {
 	logCommand(command, arg...)
 	cmd := exec.Command(command, arg...)
-	return runCommandWithOutput(actionName, cmd)
+	return runCommandWithOutput(actionName, cmd, false)
+}
+
+func (*CommandExecutor) ExecuteCommandWithCombinedOutput(actionName string, command string, arg ...string) (string, error) {
+	logCommand(command, arg...)
+	cmd := exec.Command(command, arg...)
+	return runCommandWithOutput(actionName, cmd, true)
 }
 
 func (*CommandExecutor) ExecuteCommandPipeline(actionName string, command string) (string, error) {
 	logCommand(command)
 	cmd := exec.Command("bash", "-c", command)
-	return runCommandWithOutput(actionName, cmd)
+	return runCommandWithOutput(actionName, cmd, false)
 }
 
 func startCommand(command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {
@@ -112,8 +119,16 @@ func logOutput(name string, stdout, stderr io.ReadCloser) {
 	}
 }
 
-func runCommandWithOutput(actionName string, cmd *exec.Cmd) (string, error) {
-	output, err := cmd.Output()
+func runCommandWithOutput(actionName string, cmd *exec.Cmd, combinedOutput bool) (string, error) {
+	var output []byte
+	var err error
+
+	if combinedOutput {
+		output, err = cmd.CombinedOutput()
+	} else {
+		output, err = cmd.Output()
+	}
+
 	if err != nil {
 		return "", createCommandError(err, actionName)
 	}

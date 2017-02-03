@@ -61,6 +61,18 @@ func (p *ProcManager) RunWithOutput(logName, tool string, args ...string) (strin
 }
 
 // Start a child process and wait for its completion
+func (p *ProcManager) RunWithCombinedOutput(logName, tool string, args ...string) (string, error) {
+
+	logger.Infof("Running process %s with args: %v", tool, args)
+	output, err := p.executor.ExecuteCommandWithCombinedOutput(logName, os.Args[0], createToolArgs(tool, args...)...)
+	if err != nil {
+		return "", fmt.Errorf("failed to run %s: %+v", tool, err)
+	}
+
+	return output, nil
+}
+
+// Start a child process and wait for its completion
 func (p *ProcManager) Run(logName, tool string, args ...string) error {
 
 	logger.Infof("Running process %s with args: %v", tool, args)
