@@ -83,6 +83,7 @@ V ?= 0
 ifeq ($(V),1)
 LDFLAGS += -v
 BUILDFLAGS += -x
+MAKEFLAGS += VERBOSE=1
 else
 MAKEFLAGS += --no-print-directory
 endif
