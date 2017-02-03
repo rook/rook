@@ -20,6 +20,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"text/tabwriter"
 	"time"
 
@@ -51,7 +52,16 @@ https://github.com/rook/rook`,
 }
 
 func init() {
-	defaultEndpoint := fmt.Sprintf("127.0.0.1:%d", model.Port)
+	defaultHost := os.Getenv("ROOK_REST_API_SERVICE_HOST")
+	if defaultHost == "" {
+		defaultHost = "127.0.0.1"
+	}
+	defaultPort := os.Getenv("ROOK_REST_API_SERVICE_PORT")
+	if defaultPort == "" {
+		defaultPort = strconv.Itoa(model.Port)
+	}
+	defaultEndpoint := fmt.Sprintf("%s:%s", defaultHost, defaultPort)
+
 	RootCmd.PersistentFlags().StringVar(&APIServerEndpoint, "api-server-endpoint", defaultEndpoint, "IP endpoint of API server instance (required)")
 	RootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "WARNING", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 
