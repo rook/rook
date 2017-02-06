@@ -26,6 +26,14 @@ import (
 	"k8s.io/client-go/1.5/pkg/labels"
 )
 
+func MonSecretEnvVar() v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_MON_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: monSecretsName}, Key: monSecretName}}}
+}
+
+func AdminSecretEnvVar() v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_ADMIN_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: monSecretsName}, Key: adminSecretName}}}
+}
+
 func getLabels(clusterName string) map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr: monApp,
@@ -55,14 +63,14 @@ func (c *Cluster) makeMonPod(config *MonConfig, clusterInfo *mon.ClusterInfo, an
 	k8sutil.SetPodVersion(pod, k8sutil.VersionAttr, c.Version)
 
 	if antiAffinity {
-		k8sutil.PodWithAntiAffinity(pod, monClusterAttr, config.Info.Name)
+		k8sutil.PodWithAntiAffinity(pod, monClusterAttr, clusterInfo.Name)
 	}
 	return pod
 }
 
 func (c *Cluster) monContainer(config *MonConfig, clusterInfo *mon.ClusterInfo) v1.Container {
-	command := fmt.Sprintf("/usr/bin/rookd mon --data-dir=%s --name=%s --mon-endpoints=%s --port=%d --fsid=%s --mon-secret=%s --admin-secret=%s --cluster-name=%s",
-		k8sutil.DataDir, config.Name, mon.FlattenMonEndpoints(clusterInfo.Monitors), config.Port, config.Info.FSID, config.Info.MonitorSecret, config.Info.AdminSecret, config.Info.Name)
+	command := fmt.Sprintf("/usr/bin/rookd mon --data-dir=%s --name=%s --mon-endpoints=%s --port=%d --fsid=%s --cluster-name=%s",
+		k8sutil.DataDir, config.Name, mon.FlattenMonEndpoints(clusterInfo.Monitors), config.Port, clusterInfo.FSID, clusterInfo.Name)
 
 	return v1.Container{
 		// TODO: fix "sleep 5".
@@ -82,6 +90,8 @@ func (c *Cluster) monContainer(config *MonConfig, clusterInfo *mon.ClusterInfo) 
 		},
 		Env: []v1.EnvVar{
 			{Name: k8sutil.PodIPEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}},
+			MonSecretEnvVar(),
+			AdminSecretEnvVar(),
 		},
 	}
 }

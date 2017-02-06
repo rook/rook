@@ -28,10 +28,15 @@ import (
 )
 
 const (
-	monApp         = "cephmon"
-	monNodeAttr    = "mon_node"
-	monClusterAttr = "mon_cluster"
-	tprName        = "mon.rook.io"
+	monApp            = "cephmon"
+	monNodeAttr       = "mon_node"
+	monClusterAttr    = "mon_cluster"
+	tprName           = "mon.rook.io"
+	monSecretsName    = "mon-secrets"
+	fsidSecretName    = "fsid"
+	monSecretName     = "mon-secret"
+	adminSecretName   = "admin-secret"
+	clusterSecretName = "cluster-name"
 )
 
 type Cluster struct {
@@ -50,7 +55,6 @@ type Cluster struct {
 type MonConfig struct {
 	Name string
 	Port int32
-	Info *mon.ClusterInfo
 }
 
 func New(namespace string, factory client.ConnectionFactory, version string) *Cluster {
@@ -66,13 +70,13 @@ func New(namespace string, factory client.ConnectionFactory, version string) *Cl
 func (c *Cluster) Start(clientset *kubernetes.Clientset) (*mon.ClusterInfo, error) {
 	logger.Infof("start running mons")
 
-	clusterInfo, err := c.initClusterInfo()
+	clusterInfo, err := c.initClusterInfo(clientset)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
 	mons := []*MonConfig{}
 	for i := 0; i < c.Size; i++ {
-		mons = append(mons, &MonConfig{Name: fmt.Sprintf("mon%d", i), Info: clusterInfo, Port: int32(mon.Port)})
+		mons = append(mons, &MonConfig{Name: fmt.Sprintf("mon%d", i), Port: int32(mon.Port)})
 	}
 
 	err = c.startPods(clientset, clusterInfo, mons)
@@ -85,8 +89,47 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset) (*mon.ClusterInfo, erro
 
 // Retrieve the ceph cluster info if it already exists.
 // If a new cluster create new keys.
-func (c *Cluster) initClusterInfo() (*mon.ClusterInfo, error) {
-	return mon.CreateClusterInfo(c.factory, "")
+func (c *Cluster) initClusterInfo(clientset *kubernetes.Clientset) (*mon.ClusterInfo, error) {
+	secrets, err := clientset.Secrets(c.Namespace).Get(monSecretsName)
+	if err != nil {
+		if !k8sutil.IsKubernetesResourceNotFoundError(err) {
+			return nil, fmt.Errorf("failed to get mon secrets. %+v", err)
+		}
+
+		return c.createMonSecretsAndSave(clientset)
+	}
+
+	info := &mon.ClusterInfo{
+		Name:          string(secrets.Data[clusterSecretName]),
+		FSID:          string(secrets.Data[fsidSecretName]),
+		MonitorSecret: string(secrets.Data[monSecretName]),
+		AdminSecret:   string(secrets.Data[adminSecretName]),
+		Monitors:      map[string]*mon.CephMonitorConfig{},
+	}
+	logger.Infof("found existing monitor secrets for cluster %s with fsid %s", info.Name, info.FSID)
+	return info, nil
+}
+
+func (c *Cluster) createMonSecretsAndSave(clientset *kubernetes.Clientset) (*mon.ClusterInfo, error) {
+	logger.Infof("creating mon secrets for a new cluster")
+	info, err := mon.CreateClusterInfo(c.factory, "")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create mon secrets. %+v", err)
+	}
+
+	// store the secrets
+	secrets := map[string]string{
+		clusterSecretName: info.Name,
+		fsidSecretName:    info.FSID,
+		monSecretName:     info.MonitorSecret,
+		adminSecretName:   info.AdminSecret,
+	}
+	_, err = clientset.Secrets(c.Namespace).Create(&v1.Secret{ObjectMeta: v1.ObjectMeta{Name: monSecretsName}, StringData: secrets})
+	if err != nil {
+		return nil, fmt.Errorf("failed to save mon secrets. %+v", err)
+	}
+
+	return info, nil
 }
 
 func (c *Cluster) startPods(clientset *kubernetes.Clientset, clusterInfo *mon.ClusterInfo, mons []*MonConfig) error {
@@ -102,14 +145,14 @@ func (c *Cluster) startPods(clientset *kubernetes.Clientset, clusterInfo *mon.Cl
 	}
 	logger.Infof("%d running, %d pending pods", len(running), len(pending))
 
-	if len(running) == c.Size {
-		logger.Infof("pods are already running")
-		return nil
-	}
-
 	clusterInfo.Monitors = map[string]*mon.CephMonitorConfig{}
 	for _, m := range running {
 		clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.Status.PodIP)
+	}
+
+	if len(running) == c.Size {
+		logger.Infof("pods are already running")
+		return nil
 	}
 
 	started := 0
