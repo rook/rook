@@ -27,16 +27,16 @@ import (
 )
 
 func MonSecretEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_MON_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: monSecretsName}, Key: monSecretName}}}
+	return v1.EnvVar{Name: "ROOKD_MON_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: monSecretName}}}
 }
 
 func AdminSecretEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_ADMIN_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: monSecretsName}, Key: adminSecretName}}}
+	return v1.EnvVar{Name: "ROOKD_ADMIN_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: adminSecretName}}}
 }
 
 func getLabels(clusterName string) map[string]string {
 	return map[string]string{
-		k8sutil.AppAttr: monApp,
+		k8sutil.AppAttr: appName,
 		monClusterAttr:  clusterName,
 	}
 }
@@ -76,7 +76,7 @@ func (c *Cluster) monContainer(config *MonConfig, clusterInfo *mon.ClusterInfo) 
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.
 		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
-		Name:    "cephmon",
+		Name:    appName,
 		Image:   k8sutil.MakeRookImage(c.Version),
 		Ports: []v1.ContainerPort{
 			{
@@ -124,7 +124,7 @@ func listOptions(clusterName string) api.ListOptions {
 	return api.ListOptions{
 		LabelSelector: labels.SelectorFromSet(map[string]string{
 			monClusterAttr:  clusterName,
-			k8sutil.AppAttr: monApp,
+			k8sutil.AppAttr: appName,
 		}),
 	}
 }

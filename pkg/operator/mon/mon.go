@@ -28,11 +28,10 @@ import (
 )
 
 const (
-	monApp            = "cephmon"
+	appName           = "mon"
 	monNodeAttr       = "mon_node"
 	monClusterAttr    = "mon_cluster"
 	tprName           = "mon.rook.io"
-	monSecretsName    = "mon-secrets"
 	fsidSecretName    = "fsid"
 	monSecretName     = "mon-secret"
 	adminSecretName   = "admin-secret"
@@ -90,7 +89,7 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset) (*mon.ClusterInfo, erro
 // Retrieve the ceph cluster info if it already exists.
 // If a new cluster create new keys.
 func (c *Cluster) initClusterInfo(clientset *kubernetes.Clientset) (*mon.ClusterInfo, error) {
-	secrets, err := clientset.Secrets(c.Namespace).Get(monSecretsName)
+	secrets, err := clientset.Secrets(c.Namespace).Get(appName)
 	if err != nil {
 		if !k8sutil.IsKubernetesResourceNotFoundError(err) {
 			return nil, fmt.Errorf("failed to get mon secrets. %+v", err)
@@ -124,7 +123,7 @@ func (c *Cluster) createMonSecretsAndSave(clientset *kubernetes.Clientset) (*mon
 		monSecretName:     info.MonitorSecret,
 		adminSecretName:   info.AdminSecret,
 	}
-	_, err = clientset.Secrets(c.Namespace).Create(&v1.Secret{ObjectMeta: v1.ObjectMeta{Name: monSecretsName}, StringData: secrets})
+	_, err = clientset.Secrets(c.Namespace).Create(&v1.Secret{ObjectMeta: v1.ObjectMeta{Name: appName}, StringData: secrets})
 	if err != nil {
 		return nil, fmt.Errorf("failed to save mon secrets. %+v", err)
 	}
