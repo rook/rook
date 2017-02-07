@@ -18,7 +18,6 @@ package mds
 import (
 	"fmt"
 	"path"
-	"regexp"
 
 	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
@@ -89,7 +88,7 @@ func (a *mdsAgent) ConfigureLocalService(context *clusterd.Context) error {
 	}
 	defer conn.Shutdown()
 
-	err = createMDSKeyring(conn, mdsID, context.ConfigDir)
+	err = createKeyringAndSave(conn, mdsID, context.ConfigDir)
 	if err != nil {
 		return fmt.Errorf("failed to create mds keyring. %+v", err)
 	}
@@ -119,11 +118,16 @@ func (a *mdsAgent) DestroyLocalService(context *clusterd.Context) error {
 	return nil
 }
 
-// create a keyring for the mds client with a limited set of privileges
-func createMDSKeyring(conn client.Connection, id, configDir string) error {
+func getKeyringProperties(id string) (string, []string) {
 	username := fmt.Sprintf("mds.%s", id)
-	keyringPath := getMDSKeyringPath(configDir, id)
 	access := []string{"osd", "allow *", "mds", "allow", "mon", "allow profile mds"}
+	return username, access
+}
+
+// create a keyring for the mds client with a limited set of privileges
+func createKeyringAndSave(conn client.Connection, id, configDir string) error {
+	username, access := getKeyringProperties(id)
+	keyringPath := getMDSKeyringPath(configDir, id)
 	keyringEval := func(key string) string {
 		return fmt.Sprintf(keyringTemplate, id, key)
 	}
@@ -131,26 +135,22 @@ func createMDSKeyring(conn client.Connection, id, configDir string) error {
 	return mon.CreateKeyring(conn, username, keyringPath, access, keyringEval)
 }
 
+// create a keyring for the mds client with a limited set of privileges
+func CreateKeyring(conn client.Connection, id string) (string, error) {
+	// get-or-create-key for the user account
+	username, access := getKeyringProperties(id)
+	keyring, err := client.AuthGetOrCreateKey(conn, username, access)
+	if err != nil {
+		return "", fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
+	}
+
+	return keyring, nil
+}
+
 func (a *mdsAgent) startMDS(context *clusterd.Context, cluster *mon.ClusterInfo, id string) error {
 
-	// start the monitor daemon in the foreground with the given config
-	logger.Infof("starting mds %s", id)
-
-	confFile := getMDSConfFilePath(context.ConfigDir, id, cluster.Name)
-	util.WriteFileToLog(logger, confFile)
-
-	mdsNameArg := fmt.Sprintf("--name=mds.%s", id)
-	mdsProc, err := context.ProcMan.Start(
-		fmt.Sprintf("mds%s", id),
-		"mds",
-		regexp.QuoteMeta(mdsNameArg),
-		proc.ReuseExisting,
-		"--foreground",
-		mdsNameArg,
-		fmt.Sprintf("--cluster=%s", cluster.Name),
-		fmt.Sprintf("--conf=%s", confFile),
-		fmt.Sprintf("--keyring=%s", getMDSKeyringPath(context.ConfigDir, id)),
-		"-i", id)
+	config := &Config{ID: id, InProc: false, ClusterInfo: cluster}
+	mdsProc, err := startMDS(clusterd.ToDaemonContext(context), config)
 	if err != nil {
 		return fmt.Errorf("failed to start mds %s: %+v", id, err)
 	}
@@ -196,16 +196,4 @@ func getMDSIDKey(nodeID string, applied bool) string {
 
 func getMDSFileSystemKey(nodeID string, applied bool) string {
 	return path.Join(getMDSDesiredNodesKey(applied), nodeID, "filesystem")
-}
-
-func getMDSConfDir(dir, id string) string {
-	return path.Join(dir, fmt.Sprintf("mds%s", id))
-}
-
-func getMDSConfFilePath(dir, id, clusterName string) string {
-	return path.Join(getMDSConfDir(dir, id), fmt.Sprintf("%s.config", clusterName))
-}
-
-func getMDSKeyringPath(dir, id string) string {
-	return path.Join(getMDSConfDir(dir, id), "keyring")
 }

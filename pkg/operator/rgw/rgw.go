@@ -98,7 +98,7 @@ func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, cluster *mon.Cl
 
 	// connect to the ceph cluster
 	logger.Infof("generating rgw keyring")
-	context := &clusterd.Context{ConfigDir: "/var/lib/rook"}
+	context := &clusterd.Context{ConfigDir: k8sutil.DataDir}
 	conn, err := mon.ConnectToClusterAsAdmin(context, c.factory, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to connect to cluster. %+v", err)
