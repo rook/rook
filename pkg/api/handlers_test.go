@@ -29,6 +29,7 @@ import (
 
 	ceph "github.com/rook/rook/pkg/cephmgr/client"
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/cephmgr/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
@@ -41,6 +42,10 @@ const (
 	SuccessGetPoolRBDResponse     = `{"pool":"rbd","pool_id":0,"size":1}{"pool":"rbd","pool_id":0,"min_size":1}{"pool":"rbd","pool_id":0,"crash_replay_interval":0}{"pool":"rbd","pool_id":0,"pg_num":2048}{"pool":"rbd","pool_id":0,"pgp_num":2048}{"pool":"rbd","pool_id":0,"crush_ruleset":0}{"pool":"rbd","pool_id":0,"hashpspool":"true"}{"pool":"rbd","pool_id":0,"nodelete":"false"}{"pool":"rbd","pool_id":0,"nopgchange":"false"}{"pool":"rbd","pool_id":0,"nosizechange":"false"}{"pool":"rbd","pool_id":0,"write_fadvise_dontneed":"false"}{"pool":"rbd","pool_id":0,"noscrub":"false"}{"pool":"rbd","pool_id":0,"nodeep-scrub":"false"}{"pool":"rbd","pool_id":0,"use_gmt_hitset":true}{"pool":"rbd","pool_id":0,"auid":0}{"pool":"rbd","pool_id":0,"min_write_recency_for_promote":0}{"pool":"rbd","pool_id":0,"fast_read":0}{"pool":"rbd","pool_id":0}{"pool":"rbd","pool_id":0}{"pool":"rbd","pool_id":0}{"pool":"rbd","pool_id":0}{"pool":"rbd","pool_id":0}{"pool":"rbd","pool_id":0}`
 	SuccessGetPoolECPool1Response = `{"pool":"ecPool1","pool_id":1,"size":3}{"pool":"ecPool1","pool_id":1,"min_size":3}{"pool":"ecPool1","pool_id":1,"crash_replay_interval":0}{"pool":"ecPool1","pool_id":1,"pg_num":100}{"pool":"ecPool1","pool_id":1,"pgp_num":100}{"pool":"ecPool1","pool_id":1,"crush_ruleset":1}{"pool":"ecPool1","pool_id":1,"hashpspool":"true"}{"pool":"ecPool1","pool_id":1,"nodelete":"false"}{"pool":"ecPool1","pool_id":1,"nopgchange":"false"}{"pool":"ecPool1","pool_id":1,"nosizechange":"false"}{"pool":"ecPool1","pool_id":1,"write_fadvise_dontneed":"false"}{"pool":"ecPool1","pool_id":1,"noscrub":"false"}{"pool":"ecPool1","pool_id":1,"nodeep-scrub":"false"}{"pool":"ecPool1","pool_id":1,"use_gmt_hitset":true}{"pool":"ecPool1","pool_id":1,"auid":0}{"pool":"ecPool1","pool_id":1,"erasure_code_profile":"ecPool1_ecprofile"}{"pool":"ecPool1","pool_id":1,"min_write_recency_for_promote":0}{"pool":"ecPool1","pool_id":1,"fast_read":0}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}`
 )
+
+func newTestHandler(context *clusterd.Context, connFactory mon.ConnectionFactory, cephFactory ceph.ConnectionFactory) *Handler {
+	return newHandler(context, &Config{ConnFactory: connFactory, CephFactory: cephFactory, StateHandler: NewEtcdHandler(context)})
+}
 
 func TestGetNodesHandler(t *testing.T) {
 	nodeID := "node1"
@@ -55,7 +60,7 @@ func TestGetNodesHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 	etcdClient.SetValue("/rook/services/ceph/name", "cluster5")
 	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	h := NewHandler(context, &test.MockConnectionFactory{}, cephFactory)
+	h := newTestHandler(context, &test.MockConnectionFactory{}, cephFactory)
 
 	// no nodes discovered, should return empty set
 	h.GetNodes(w, req)
@@ -101,7 +106,7 @@ func TestGetNodesHandlerFailure(t *testing.T) {
 		return nil, fmt.Errorf("mock etcd GET error")
 	}
 	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	h := NewHandler(context, &test.MockConnectionFactory{}, cephFactory)
+	h := newTestHandler(context, &test.MockConnectionFactory{}, cephFactory)
 	h.GetNodes(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Equal(t, ``, w.Body.String())
@@ -119,7 +124,7 @@ func TestGetMonsHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// no mons will be returned, should be empty output
-	h := NewHandler(context, &test.MockConnectionFactory{}, cephFactory)
+	h := newTestHandler(context, &test.MockConnectionFactory{}, cephFactory)
 	h.GetMonitors(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, `[]`, w.Body.String())
@@ -132,7 +137,7 @@ func TestGetMonsHandler(t *testing.T) {
 
 	// monitors should be returned now, verify the output
 	w = httptest.NewRecorder()
-	h = NewHandler(context, &test.MockConnectionFactory{}, cephFactory)
+	h = newTestHandler(context, &test.MockConnectionFactory{}, cephFactory)
 	h.GetMonitors(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "{\"status\":{\"quorum\":[0],\"monmap\":{\"mons\":[{\"name\":\"mon0\",\"rank\":0,\"addr\":\"10.37.129.87:6790\"}]}},\"desired\":[{\"name\":\"mon0\",\"endpoint\":\"1.2.3.4:8765\"}]}", w.Body.String())
@@ -161,7 +166,7 @@ func TestGetPoolsHandler(t *testing.T) {
 	}
 
 	// no storage pools will be returned, should be empty output
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.GetPools(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, `[]`, w.Body.String())
@@ -193,7 +198,7 @@ func TestGetPoolsHandler(t *testing.T) {
 	}
 
 	// storage pools should be returned now, verify the output
-	h = NewHandler(context, connFactory, cephFactory)
+	h = newTestHandler(context, connFactory, cephFactory)
 	h.GetPools(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicationConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicationConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]", w.Body.String())
@@ -216,7 +221,7 @@ func TestGetPoolsHandlerFailure(t *testing.T) {
 		return nil, fmt.Errorf("mock error for connect as admin")
 	}
 
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.GetPools(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Equal(t, "", w.Body.String())
@@ -255,7 +260,7 @@ func TestCreatePoolHandler(t *testing.T) {
 		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
 	}
 
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 
 	h.CreatePool(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -284,7 +289,7 @@ func TestCreatePoolHandlerFailure(t *testing.T) {
 		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
 	}
 
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 
 	h.CreatePool(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -314,7 +319,7 @@ func TestGetImagesHandler(t *testing.T) {
 	}
 
 	// no images will be returned, should be empty output
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.GetImages(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, `[]`, w.Body.String())
@@ -349,7 +354,7 @@ func TestGetImagesHandler(t *testing.T) {
 	}
 
 	// verify that the expected images are returned
-	h = NewHandler(context, connFactory, cephFactory)
+	h = newTestHandler(context, connFactory, cephFactory)
 	h.GetImages(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "[{\"imageName\":\"image1 - pool0\",\"poolName\":\"pool0\",\"size\":100,\"device\":\"\",\"mountPoint\":\"\"},{\"imageName\":\"image1 - pool1\",\"poolName\":\"pool1\",\"size\":100,\"device\":\"\",\"mountPoint\":\"\"}]", w.Body.String())
@@ -380,7 +385,7 @@ func TestGetImagesHandlerFailure(t *testing.T) {
 
 	// GetImages should fail due to the mocked error for listing pools
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.GetImages(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Equal(t, ``, w.Body.String())
@@ -403,7 +408,7 @@ func TestCreateImageHandler(t *testing.T) {
 	}
 
 	// image is missing from request body, should be bad request
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.CreateImage(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Equal(t, ``, w.Body.String())
@@ -414,7 +419,7 @@ func TestCreateImageHandler(t *testing.T) {
 		logger.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	h = NewHandler(context, connFactory, cephFactory)
+	h = newTestHandler(context, connFactory, cephFactory)
 	h.CreateImage(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Equal(t, ``, w.Body.String())
@@ -425,7 +430,7 @@ func TestCreateImageHandler(t *testing.T) {
 		logger.Fatal(err)
 	}
 	w = httptest.NewRecorder()
-	h = NewHandler(context, connFactory, cephFactory)
+	h = newTestHandler(context, connFactory, cephFactory)
 	h.CreateImage(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Equal(t, ``, w.Body.String())
@@ -445,7 +450,7 @@ func TestCreateImageHandler(t *testing.T) {
 		},
 	}
 	w = httptest.NewRecorder()
-	h = NewHandler(context, connFactory, cephFactory)
+	h = newTestHandler(context, connFactory, cephFactory)
 	h.CreateImage(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, `succeeded created image myImage1`, w.Body.String())
@@ -478,7 +483,7 @@ func TestCreateImageHandlerFailure(t *testing.T) {
 	}
 
 	// create image request should fail while creating the image
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.CreateImage(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Equal(t, ``, w.Body.String())
@@ -512,7 +517,7 @@ func TestGetClientAccessInfo(t *testing.T) {
 	}
 
 	// get image map info and verify the response
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.GetClientAccessInfo(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "{\"monAddresses\":[\"10.37.129.87:6790\"],\"userName\":\"admin\",\"secretKey\":\"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg==\"}", w.Body.String())
@@ -536,7 +541,7 @@ func TestGetClientAccessInfoHandlerFailure(t *testing.T) {
 	cephFactory.Conn = &testceph.MockConnection{}
 
 	// get image map info should fail becuase there's no mock response set up for auth get-key
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.GetClientAccessInfo(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Equal(t, "", w.Body.String())

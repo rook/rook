@@ -64,7 +64,7 @@ func TestGetFileSystemsHandler(t *testing.T) {
 
 	// make a request to GetFileSystems and verify the results
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.GetFileSystems(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
@@ -94,7 +94,7 @@ func TestCreateFileSystemHandler(t *testing.T) {
 	// call the CreateFileSystem handler, which should return http 202 Accepted and record info
 	// about the file system request in etcd
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.CreateFileSystem(w, req)
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Equal(t, "myfs1-pool", etcdClient.GetValue("/rook/services/ceph/fs/desired/myfs1/pool"))
@@ -114,7 +114,7 @@ func TestCreateFileSystemMissingName(t *testing.T) {
 
 	// call the CreateFileSystem handler, which should fail due to the missing name
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.CreateFileSystem(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -136,7 +136,7 @@ func TestRemoveFileSystemHandler(t *testing.T) {
 	// call the RemoveFileSystem handler, which should return http 202 Accepted and remove the
 	// filesystem from desired state
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.RemoveFileSystem(w, req)
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Equal(t, "", etcdClient.GetValue("/rook/services/ceph/fs/desired/myfs1/pool"))

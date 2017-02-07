@@ -28,7 +28,7 @@ import (
 func TestBasicConn(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	cephtest.CreateClusterInfo(etcdClient, []string{"a"})
-	factory := NewConnectionFactory()
+	factory := NewConnectionFactoryWithLookup()
 	fact := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
 	context := &clusterd.Context{EtcdClient: etcdClient, ConfigDir: "/tmp"}
 

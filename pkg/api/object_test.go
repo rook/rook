@@ -52,7 +52,7 @@ func TestCreateObjectStoreHandler(t *testing.T) {
 	// call the CreateObjectStore handler, which should return http 202 Accepted and record info
 	// about the file system request in etcd
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.CreateObjectStore(w, req)
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/object/desired/state"))
@@ -76,7 +76,7 @@ func TestRemoveObjectStoreHandler(t *testing.T) {
 	// call RemoveObjectStore handler and verify the response is 202 Accepted and the desired
 	// key has been deleted from etcd
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.RemoveObjectStore(w, req)
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Equal(t, 0, etcdClient.GetChildDirs("/rook/services/ceph/object/desired").Count())
@@ -97,7 +97,7 @@ func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 
 	// before RGW has been installed or any user accounts have been created, the handler will return 404 not found
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.GetObjectStoreConnectionInfo(w, req)
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
@@ -105,7 +105,7 @@ func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 	etcdClient.SetValue("/rook/services/ceph/rgw/applied/node/123", "")
 
 	w = httptest.NewRecorder()
-	h = NewHandler(context, connFactory, cephFactory)
+	h = newTestHandler(context, connFactory, cephFactory)
 	h.GetObjectStoreConnectionInfo(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 

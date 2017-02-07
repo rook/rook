@@ -100,7 +100,7 @@ func TestRGWConfig(t *testing.T) {
 	assert.True(t, ipAddr == "1.2.3.4:53390" || ipAddr == "2.3.4.5:53390", fmt.Sprintf("unexpected rgw IP endpoint: %s", ipAddr))
 
 	// Remove the object service
-	err = RemoveObjectStore(context)
+	err = RemoveObjectStore(etcdClient)
 	assert.Nil(t, err)
 	assert.Equal(t, "", etcdClient.GetValue("/rook/services/ceph/object/applied/admin/id"))
 	assert.Equal(t, "", etcdClient.GetValue("/rook/services/ceph/object/applied/admin/_secret"))
@@ -134,13 +134,12 @@ func verifyObjectConfigured(t *testing.T, context *clusterd.Context, configured 
 
 func TestDefaultDesiredState(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
 
 	err := EnableObjectStore(etcdClient)
 	assert.Nil(t, err)
 	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/object/desired/state"))
 
-	err = RemoveObjectStore(context)
+	err = RemoveObjectStore(etcdClient)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, etcdClient.GetChildDirs("/rook/services/ceph/object/desired").Count())
 }

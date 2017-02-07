@@ -64,7 +64,7 @@ func TestGetStatusDetailsHandler(t *testing.T) {
 
 	// make a request to GetStatusDetails and verify the results
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.GetStatusDetails(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
@@ -120,7 +120,7 @@ func TestGetStatusDetailsEmptyResponseFromCeph(t *testing.T) {
 
 	// make a request to GetStatusDetails and verify the results
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.GetStatusDetails(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 

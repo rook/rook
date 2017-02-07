@@ -109,8 +109,8 @@ func GetRGWEndpoints(etcdClient etcd.KeysAPI, clusterInventory *inventory.Config
 		// just return the details of the first RGW node we can find
 		nodeDetails, ok := clusterInventory.Nodes[nodeID]
 		if ok {
-			host = getRGWEndpoint(DNSName)
-			ipEndpoint = getRGWEndpoint(nodeDetails.PublicIP)
+			host = GetRGWEndpoint(DNSName)
+			ipEndpoint = GetRGWEndpoint(nodeDetails.PublicIP)
 			return host, ipEndpoint, true, nil
 		}
 	}
@@ -288,6 +288,6 @@ func (r *Leader) getDesiredRGWNodes(context *clusterd.Context, count int) ([]str
 	return nodes.ToSlice(), nil
 }
 
-func getRGWEndpoint(addr string) string {
+func GetRGWEndpoint(addr string) string {
 	return fmt.Sprintf("%s:%d", addr, RGWPort)
 }

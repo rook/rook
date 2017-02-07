@@ -29,6 +29,10 @@ func RunAdminCommand(context *clusterd.Context, command, subcommand string, args
 		return "", fmt.Errorf("failed to get cluster name. %+v", err)
 	}
 
+	return RunAdminCommandWithClusterInfo(context, cluster, command, subcommand, args...)
+}
+
+func RunAdminCommandWithClusterInfo(context *clusterd.Context, cluster *mon.ClusterInfo, command, subcommand string, args ...string) (string, error) {
 	confFile, keyringFile, _, err := mon.GenerateTempConfigFiles(context, cluster)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate config file. %+v", err)

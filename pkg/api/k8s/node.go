@@ -15,6 +15,29 @@ limitations under the License.
 */
 package k8s
 
-import "github.com/coreos/pkg/capnslog"
+import (
+	"fmt"
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rookd", "api-k8s")
+	"github.com/rook/rook/pkg/model"
+	"k8s.io/client-go/1.5/kubernetes"
+	"k8s.io/client-go/1.5/pkg/api"
+)
+
+func getNodes(clientset *kubernetes.Clientset) ([]model.Node, error) {
+	nodes := []model.Node{}
+	options := api.ListOptions{}
+	nl, err := clientset.Nodes().List(options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get nodes. %+v", err)
+	}
+
+	for _, n := range nl.Items {
+		node := model.Node{
+			NodeID:      n.Status.NodeInfo.SystemUUID,
+			PublicIP:    n.Spec.ExternalID,
+			ClusterName: "rookcluster",
+		}
+		nodes = append(nodes, node)
+	}
+	return nodes, nil
+}
