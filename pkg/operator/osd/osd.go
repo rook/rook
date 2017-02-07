@@ -20,8 +20,9 @@ import (
 
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	k8smon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/client-go/1.5/kubernetes"
-	api "k8s.io/client-go/1.5/pkg/api/v1"
+	"k8s.io/client-go/1.5/pkg/api/v1"
 	extensions "k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
 )
 
@@ -69,8 +70,8 @@ func (c *Cluster) makeDaemonSet(cluster *mon.ClusterInfo) (*extensions.DaemonSet
 	ds.Name = daemonSetName
 	ds.Namespace = c.Namespace
 
-	podSpec := api.PodTemplateSpec{
-		ObjectMeta: api.ObjectMeta{
+	podSpec := v1.PodTemplateSpec{
+		ObjectMeta: v1.ObjectMeta{
 			Name: "rookosd",
 			Labels: map[string]string{
 				k8sutil.AppAttr:     osdApp,
@@ -78,12 +79,12 @@ func (c *Cluster) makeDaemonSet(cluster *mon.ClusterInfo) (*extensions.DaemonSet
 			},
 			Annotations: map[string]string{},
 		},
-		Spec: api.PodSpec{
-			Containers:    []api.Container{c.osdContainer(cluster)},
-			RestartPolicy: api.RestartPolicyAlways,
-			Volumes: []api.Volume{
-				{Name: k8sutil.DataDirVolume, VolumeSource: api.VolumeSource{EmptyDir: &api.EmptyDirVolumeSource{}}},
-				{Name: "devices", VolumeSource: api.VolumeSource{HostPath: &api.HostPathVolumeSource{Path: "/dev"}}},
+		Spec: v1.PodSpec{
+			Containers:    []v1.Container{c.osdContainer(cluster)},
+			RestartPolicy: v1.RestartPolicyAlways,
+			Volumes: []v1.Volume{
+				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
+				{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}},
 			},
 		},
 	}
@@ -93,21 +94,25 @@ func (c *Cluster) makeDaemonSet(cluster *mon.ClusterInfo) (*extensions.DaemonSet
 	return ds, nil
 }
 
-func (c *Cluster) osdContainer(cluster *mon.ClusterInfo) api.Container {
+func (c *Cluster) osdContainer(cluster *mon.ClusterInfo) v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd osd --data-dir=%s --mon-endpoints=%s --cluster-name=%s --mon-secret=%s --admin-secret=%s ",
-		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name, cluster.MonitorSecret, cluster.AdminSecret)
+	command := fmt.Sprintf("/usr/bin/rookd osd --data-dir=%s --mon-endpoints=%s --cluster-name=%s ",
+		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name)
 	privileged := true
-	return api.Container{
+	return v1.Container{
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.
 		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
 		Name:    "cephosd",
 		Image:   k8sutil.MakeRookImage(c.Version),
-		VolumeMounts: []api.VolumeMount{
+		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			{Name: "devices", MountPath: "/dev"},
 		},
-		SecurityContext: &api.SecurityContext{Privileged: &privileged},
+		Env: []v1.EnvVar{
+			k8smon.MonSecretEnvVar(),
+			k8smon.AdminSecretEnvVar(),
+		},
+		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
 	}
 }
