@@ -27,10 +27,11 @@ import (
 	"github.com/rook/rook/pkg/util"
 )
 
-type DesiredStateHandler interface {
+type ClusterHandler interface {
+	GetClusterInfo() (*mon.ClusterInfo, error)
 	EnableObjectStore() error
 	RemoveObjectStore() error
-	GetObjectStoreConnectionInfo() (s3info *model.ObjectStoreS3Info, found bool, err error)
+	GetObjectStoreConnectionInfo() (s3info *model.ObjectStoreConnectInfo, found bool, err error)
 	CreateFileSystem(fs *model.FilesystemRequest) error
 	RemoveFileSystem(fs *model.FilesystemRequest) error
 	GetMonitors() (map[string]*mon.CephMonitorConfig, error)
@@ -45,6 +46,10 @@ func NewEtcdHandler(context *clusterd.Context) *etcdHandler {
 	return &etcdHandler{context: context}
 }
 
+func (e *etcdHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
+	return mon.LoadClusterInfo(e.context.EtcdClient)
+}
+
 func (e *etcdHandler) EnableObjectStore() error {
 	return rgw.EnableObjectStore(e.context.EtcdClient)
 }
@@ -53,12 +58,7 @@ func (e *etcdHandler) RemoveObjectStore() error {
 	return rgw.RemoveObjectStore(e.context.EtcdClient)
 }
 
-func (e *etcdHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreS3Info, bool, error) {
-
-	accessKey, secretKey, err := rgw.GetBuiltinUserAccessInfo(e.context.EtcdClient)
-	if err != nil {
-		return nil, !util.IsEtcdKeyNotFound(err), err
-	}
+func (e *etcdHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, bool, error) {
 
 	clusterInventory, err := inventory.LoadDiscoveredNodes(e.context.EtcdClient)
 	if err != nil {
@@ -73,11 +73,9 @@ func (e *etcdHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreS3Info, 
 		return nil, false, fmt.Errorf("failed to find rgw endpoints")
 	}
 
-	s3Info := &model.ObjectStoreS3Info{
+	s3Info := &model.ObjectStoreConnectInfo{
 		Host:       host,
 		IPEndpoint: ipEndpoint,
-		AccessKey:  accessKey,
-		SecretKey:  secretKey,
 	}
 
 	return s3Info, true, nil

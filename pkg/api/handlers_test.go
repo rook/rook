@@ -44,7 +44,7 @@ const (
 )
 
 func newTestHandler(context *clusterd.Context, connFactory mon.ConnectionFactory, cephFactory ceph.ConnectionFactory) *Handler {
-	return newHandler(context, &Config{ConnFactory: connFactory, CephFactory: cephFactory, StateHandler: NewEtcdHandler(context)})
+	return newHandler(context, &Config{ConnFactory: connFactory, CephFactory: cephFactory, ClusterHandler: NewEtcdHandler(context)})
 }
 
 func TestGetNodesHandler(t *testing.T) {

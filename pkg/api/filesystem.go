@@ -61,7 +61,7 @@ func (h *Handler) CreateFileSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.config.StateHandler.CreateFileSystem(fs); err != nil {
+	if err := h.config.ClusterHandler.CreateFileSystem(fs); err != nil {
 		logger.Errorf("failed to create file system: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -80,7 +80,7 @@ func (h *Handler) RemoveFileSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.config.StateHandler.RemoveFileSystem(fs); err != nil {
+	if err := h.config.ClusterHandler.RemoveFileSystem(fs); err != nil {
 		logger.Errorf("failed to remove file system: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

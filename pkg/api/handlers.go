@@ -86,7 +86,7 @@ func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
 // /mon
 func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
 
-	desiredMons, err := h.config.StateHandler.GetMonitors()
+	desiredMons, err := h.config.ClusterHandler.GetMonitors()
 	if err != nil {
 		logger.Errorf("failed to load monitors: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)

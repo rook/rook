@@ -61,7 +61,8 @@ func main() {
 }
 
 func addCommands() {
-	rootCmd.AddCommand(restapiCmd)
+	rootCmd.AddCommand(apiCmd)
+	rootCmd.AddCommand(toolCmd)
 }
 
 func init() {

@@ -30,27 +30,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var restapiCmd = &cobra.Command{
-	Use:    "restapi",
+var apiCmd = &cobra.Command{
+	Use:    "api",
 	Short:  "Runs the Rook REST API service",
 	Hidden: true,
 }
-var restapiPort int
+var apiPort int
 
 func init() {
-	restapiCmd.Flags().IntVar(&restapiPort, "rest-api-port", 0, "rest api port number")
+	apiCmd.Flags().IntVar(&apiPort, "api-port", 0, "port on which the api is listening")
 
 	flags.SetFlagsFromEnv(rootCmd.Flags(), "ROOK_OPERATOR")
 
-	restapiCmd.RunE = startRest
+	apiCmd.RunE = startAPI
 }
 
-func startRest(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(restapiCmd, []string{"data-dir", "cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}); err != nil {
+func startAPI(cmd *cobra.Command, args []string) error {
+	if err := flags.VerifyRequiredFlags(apiCmd, []string{"data-dir", "cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}); err != nil {
 		return err
 	}
-	if restapiPort == 0 {
-		return fmt.Errorf("rest-port is required")
+	if apiPort == 0 {
+		return fmt.Errorf("api-port is required")
 	}
 
 	setLogLevel()
@@ -63,12 +63,12 @@ func startRest(cmd *cobra.Command, args []string) error {
 
 	cfg.clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
-	restCfg := &api.Config{
-		ConnFactory:  mon.NewConnectionFactoryWithClusterInfo(&cfg.clusterInfo),
-		CephFactory:  cephd.New(),
-		Port:         restapiPort,
-		StateHandler: apik8s.New(clientset),
+	apiCfg := &api.Config{
+		ConnFactory:    mon.NewConnectionFactoryWithClusterInfo(&cfg.clusterInfo),
+		CephFactory:    cephd.New(),
+		Port:           apiPort,
+		ClusterHandler: apik8s.New(clientset, context, &cfg.clusterInfo),
 	}
 
-	return api.Run(context, restCfg)
+	return api.Run(context, apiCfg)
 }

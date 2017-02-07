@@ -31,7 +31,7 @@ import (
 // /objectstore
 func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 
-	if err := h.config.StateHandler.EnableObjectStore(); err != nil {
+	if err := h.config.ClusterHandler.EnableObjectStore(); err != nil {
 		logger.Errorf("failed to create object store: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -45,7 +45,7 @@ func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 // POST
 // /objectstore/remove
 func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
-	if err := h.config.StateHandler.RemoveObjectStore(); err != nil {
+	if err := h.config.ClusterHandler.RemoveObjectStore(); err != nil {
 		logger.Errorf("failed to remove object store: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -60,7 +60,7 @@ func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
 // /objectstore/connectioninfo
 func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Request) {
 
-	s3Info, found, err := h.config.StateHandler.GetObjectStoreConnectionInfo()
+	s3Info, found, err := h.config.ClusterHandler.GetObjectStoreConnectionInfo()
 	if err != nil {
 		logger.Errorf("failed get object store info. %+v", err)
 		if found {
@@ -78,7 +78,7 @@ func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Re
 // GET
 // /objectstore/users
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	userNames, _, err := rgw.ListUsers(h.context)
+	userNames, _, err := rgw.ListUsers(h.context, h.config.ClusterHandler.GetClusterInfo)
 	if err != nil {
 		logger.Errorf("Error listing users: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -87,7 +87,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	users := []model.ObjectUser{}
 	for _, userName := range userNames {
-		user, _, err := rgw.GetUser(h.context, userName)
+		user, _, err := rgw.GetUser(h.context, userName, h.config.ClusterHandler.GetClusterInfo)
 		if err != nil {
 			logger.Errorf("Error listing users: %+v", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -106,7 +106,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	user, rgwError, err := rgw.GetUser(h.context, id)
+	user, rgwError, err := rgw.GetUser(h.context, id, h.config.ClusterHandler.GetClusterInfo)
 	if err != nil {
 		logger.Errorf("Error getting user (%s): %+v", id, err)
 
@@ -134,7 +134,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdUser, rgwError, err := rgw.CreateUser(h.context, user)
+	createdUser, rgwError, err := rgw.CreateUser(h.context, user, h.config.ClusterHandler.GetClusterInfo)
 	if err != nil {
 		logger.Errorf("Error creating user: %+v", err)
 
@@ -168,7 +168,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	user.UserID = id
 
-	updatedUser, rgwError, err := rgw.UpdateUser(h.context, user)
+	updatedUser, rgwError, err := rgw.UpdateUser(h.context, user, h.config.ClusterHandler.GetClusterInfo)
 	if err != nil {
 		logger.Errorf("Error updating user: %+v", err)
 
@@ -189,7 +189,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	_, rgwError, err := rgw.DeleteUser(h.context, id)
+	_, rgwError, err := rgw.DeleteUser(h.context, id, h.config.ClusterHandler.GetClusterInfo)
 	if err != nil {
 		if rgwError == rgw.RGWErrorNotFound {
 			w.WriteHeader(http.StatusNotFound)
@@ -208,7 +208,7 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 // GET
 // /objectstore/buckets
 func (h *Handler) Listbuckets(w http.ResponseWriter, r *http.Request) {
-	buckets, err := rgw.ListBuckets(h.context)
+	buckets, err := rgw.ListBuckets(h.context, h.config.ClusterHandler.GetClusterInfo)
 	if err != nil {
 		logger.Errorf("Error listing buckets: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)

@@ -52,11 +52,11 @@ https://github.com/rook/rook`,
 }
 
 func init() {
-	defaultHost := os.Getenv("ROOK_REST_API_SERVICE_HOST")
+	defaultHost := os.Getenv("ROOK_API_SERVICE_HOST")
 	if defaultHost == "" {
 		defaultHost = "127.0.0.1"
 	}
-	defaultPort := os.Getenv("ROOK_REST_API_SERVICE_PORT")
+	defaultPort := os.Getenv("ROOK_API_SERVICE_PORT")
 	if defaultPort == "" {
 		defaultPort = strconv.Itoa(model.Port)
 	}

@@ -12,5 +12,5 @@ spec:
     spec:
       containers:
       - name: rook-operator
-        image: quay.io/rook/rook-operator:dev-2017-02-02-k8s
-        args: ["--container-version=dev-2017-02-02-k8s"]
+        image: quay.io/rook/rook-operator:dev-2017-02-08-k8s
+        args: ["--container-version=dev-2017-02-08-k8s"]

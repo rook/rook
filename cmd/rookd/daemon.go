@@ -51,28 +51,9 @@ func runDaemon(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unknown daemon type: %s", daemonType)
 	}
 
-	runCephCommand(daemonType, args)
-	return nil
-}
-
-// run a command in libcephd
-func runCephCommand(command string, args []string) {
-
-	// The command passes through args to the child process.  Look for the
-	// terminator arg, and pass through all args after that (without a terminator arg,
-	// FlagSet.Parse prints errors for args it doesn't recognize)
-	passthruIndex := 3
-	for i := range os.Args {
-		if os.Args[i] == "--" {
-			passthruIndex = i + 1
-			break
-		}
-	}
-
-	// run the specified command
-	if err := cephd.New().Run(command, os.Args[passthruIndex:]...); err != nil {
+	if err := cephd.RunCommand(daemonType, args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-
+	return nil
 }

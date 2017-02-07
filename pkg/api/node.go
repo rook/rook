@@ -21,7 +21,7 @@ import "net/http"
 // GET
 // /node
 func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
-	nodes, err := h.config.StateHandler.GetNodes()
+	nodes, err := h.config.ClusterHandler.GetNodes()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		return

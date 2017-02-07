@@ -21,6 +21,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	k8smon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/client-go/1.5/kubernetes"
 	"k8s.io/client-go/1.5/pkg/api/v1"
 	extensions "k8s.io/client-go/1.5/pkg/apis/extensions/v1beta1"
@@ -28,8 +29,7 @@ import (
 )
 
 const (
-	restApp        = "rook-rest"
-	deploymentName = "rook-rest-api"
+	deploymentName = "rook-api"
 )
 
 type Cluster struct {
@@ -47,7 +47,7 @@ func New(namespace, version string) *Cluster {
 }
 
 func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInfo) error {
-	logger.Infof("starting the Rook rest api")
+	logger.Infof("starting the Rook api")
 
 	if cluster == nil || len(cluster.Monitors) == 0 {
 		return fmt.Errorf("missing mons to start")
@@ -56,7 +56,7 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	// start the service
 	err := c.startService(clientset, cluster)
 	if err != nil {
-		return fmt.Errorf("failed to start rest api service. %+v", err)
+		return fmt.Errorf("failed to start api service. %+v", err)
 	}
 
 	// start the deployment
@@ -64,11 +64,11 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	_, err = clientset.Deployments(c.Namespace).Create(deployment)
 	if err != nil {
 		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
-			return fmt.Errorf("failed to create rest api deployment. %+v", err)
+			return fmt.Errorf("failed to create api deployment. %+v", err)
 		}
-		logger.Infof("rest api deployment already exists")
+		logger.Infof("api deployment already exists")
 	} else {
-		logger.Infof("rest api deployment started")
+		logger.Infof("api deployment started")
 	}
 
 	return nil
@@ -86,7 +86,7 @@ func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo) (*extensions.Deployme
 			Annotations: map[string]string{},
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.restContainer(cluster)},
+			Containers:    []v1.Container{c.apiContainer(cluster)},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
 				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
@@ -99,18 +99,27 @@ func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo) (*extensions.Deployme
 	return deployment, nil
 }
 
-func (c *Cluster) restContainer(cluster *mon.ClusterInfo) v1.Container {
+func (c *Cluster) apiContainer(cluster *mon.ClusterInfo) v1.Container {
+	// need a different prefix on the env vars
+	monSecretVar := k8smon.MonSecretEnvVar()
+	adminSecretVar := k8smon.AdminSecretEnvVar()
+	monSecretVar.Name = "ROOK_OPERATOR_MON_SECRET"
+	adminSecretVar.Name = "ROOK_OPERATOR_ADMIN_SECRET"
 
-	command := fmt.Sprintf("/usr/bin/rook-operator restapi --data-dir=%s --mon-endpoints=%s --cluster-name=%s --mon-secret=%s --admin-secret=%s --rest-api-port=%d",
-		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name, cluster.MonitorSecret, cluster.AdminSecret, model.Port)
+	command := fmt.Sprintf("/usr/bin/rook-operator api --data-dir=%s --mon-endpoints=%s --cluster-name=%s --api-port=%d",
+		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name, model.Port)
 	return v1.Container{
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.
 		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
-		Name:    restApp,
+		Name:    deploymentName,
 		Image:   fmt.Sprintf("quay.io/rook/rook-operator:%v", c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
+		},
+		Env: []v1.EnvVar{
+			monSecretVar,
+			adminSecretVar,
 		},
 	}
 }
@@ -119,13 +128,13 @@ func (c *Cluster) startService(clientset *kubernetes.Clientset, clusterInfo *mon
 	labels := getLabels(clusterInfo.Name)
 	s := &v1.Service{
 		ObjectMeta: v1.ObjectMeta{
-			Name:   "rook-rest-api",
+			Name:   deploymentName,
 			Labels: labels,
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
 				{
-					Name:       "rook-rest-api",
+					Name:       deploymentName,
 					Port:       model.Port,
 					TargetPort: intstr.FromInt(int(model.Port)),
 					Protocol:   v1.ProtocolTCP,
@@ -138,17 +147,17 @@ func (c *Cluster) startService(clientset *kubernetes.Clientset, clusterInfo *mon
 	s, err := clientset.Services(k8sutil.Namespace).Create(s)
 	if err != nil {
 		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
-			return fmt.Errorf("failed to create rest api service. %+v", err)
+			return fmt.Errorf("failed to create api service. %+v", err)
 		}
 	}
 
-	logger.Infof("REST API service running at %s:%d", s.Spec.ClusterIP, model.Port)
+	logger.Infof("API service running at %s:%d", s.Spec.ClusterIP, model.Port)
 	return nil
 }
 
 func getLabels(clusterName string) map[string]string {
 	return map[string]string{
-		k8sutil.AppAttr:     restApp,
+		k8sutil.AppAttr:     deploymentName,
 		k8sutil.ClusterAttr: clusterName,
 	}
 }

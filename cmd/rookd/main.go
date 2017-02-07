@@ -187,10 +187,10 @@ func joinCluster() error {
 	}()
 
 	apiConfig := &api.Config{
-		Port:         model.Port,
-		ConnFactory:  mon.NewConnectionFactoryWithLookup(),
-		CephFactory:  cephd.New(),
-		StateHandler: api.NewEtcdHandler(context),
+		Port:           model.Port,
+		ConnFactory:    mon.NewConnectionFactoryWithLookup(),
+		CephFactory:    cephd.New(),
+		ClusterHandler: api.NewEtcdHandler(context),
 	}
 	go api.ServeRoutes(context, apiConfig)
 

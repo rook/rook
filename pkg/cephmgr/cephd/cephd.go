@@ -91,6 +91,24 @@ func GetCephdError(err int) error {
 	return cephdError(err)
 }
 
+// run a command in libcephd
+func RunCommand(command string, args []string) error {
+
+	// The command passes through args to the child process.  Look for the
+	// terminator arg, and pass through all args after that (without a terminator arg,
+	// FlagSet.Parse prints errors for args it doesn't recognize)
+	passthruIndex := 3
+	for i := range os.Args {
+		if os.Args[i] == "--" {
+			passthruIndex = i + 1
+			break
+		}
+	}
+
+	// run the specified command
+	return New().Run(command, os.Args[passthruIndex:]...)
+}
+
 // Error returns a formatted error string
 func (e cephdError) Error() string {
 	return fmt.Sprintf("cephd: %s", C.GoString(C.strerror(C.int(-e))))

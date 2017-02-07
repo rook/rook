@@ -26,72 +26,64 @@ import (
 	"k8s.io/client-go/1.5/kubernetes"
 )
 
-type stateHandler struct {
+type clusterHandler struct {
 	clientset   *kubernetes.Clientset
 	context     *clusterd.DaemonContext
 	clusterInfo *mon.ClusterInfo
 }
 
-func New(clientset *kubernetes.Clientset, context *clusterd.DaemonContext, clusterInfo *mon.ClusterInfo) *stateHandler {
-	return &stateHandler{clientset: clientset, context: context, clusterInfo: clusterInfo}
+func New(clientset *kubernetes.Clientset, context *clusterd.DaemonContext, clusterInfo *mon.ClusterInfo) *clusterHandler {
+	return &clusterHandler{clientset: clientset, context: context, clusterInfo: clusterInfo}
 }
 
-func (s *stateHandler) EnableObjectStore() error {
-	logger.Infof("Enabling the object store")
-	//resource := &v1beta1.ThirdPartyResource{}
-	//_, err := s.clientset.ThirdPartyResources().Create(resource)
-	if err := createObjectUser(s.clientset, s.context, s.clusterInfo); err != nil {
-		return fmt.Errorf("failed to create the object store. %+v", err)
-	}
+func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
+	return s.clusterInfo, nil
+}
+
+func (s *clusterHandler) EnableObjectStore() error {
+	logger.Infof("Object store already enabled")
 
 	return nil
 }
 
-func (s *stateHandler) RemoveObjectStore() error {
+func (s *clusterHandler) RemoveObjectStore() error {
 	logger.Infof("TODO: Remove the object store")
 	return nil
 }
 
-func (s *stateHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreS3Info, bool, error) {
+func (s *clusterHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, bool, error) {
 	logger.Infof("Getting the object store connection info")
-	service, err := s.clientset.Services(k8sutil.Namespace).Get("ceph-rgw")
+	service, err := s.clientset.Services(k8sutil.Namespace).Get("rgw")
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to get rgw service. %+v", err)
 	}
 
-	accessID, secret, err := getS3Creds(s.clientset)
-	if err != nil {
-		return nil, false, fmt.Errorf("failed to get s3 creds. %+v", err)
-	}
-
-	info := &model.ObjectStoreS3Info{
+	info := &model.ObjectStoreConnectInfo{
 		Host:       "rook-rgw",
 		IPEndpoint: rgw.GetRGWEndpoint(service.Spec.ClusterIP),
-		AccessKey:  accessID,
-		SecretKey:  secret,
 	}
 	logger.Infof("Object store connection: %+v", info)
 	return info, true, nil
 }
 
-func (s *stateHandler) CreateFileSystem(fs *model.FilesystemRequest) error {
+func (s *clusterHandler) CreateFileSystem(fs *model.FilesystemRequest) error {
 	logger.Infof("TODO: Create file system")
 	return nil
 }
 
-func (s *stateHandler) RemoveFileSystem(fs *model.FilesystemRequest) error {
+func (s *clusterHandler) RemoveFileSystem(fs *model.FilesystemRequest) error {
 	logger.Infof("TODO: Remove file system")
 	return nil
 }
 
-func (s *stateHandler) GetMonitors() (map[string]*mon.CephMonitorConfig, error) {
+func (s *clusterHandler) GetMonitors() (map[string]*mon.CephMonitorConfig, error) {
 	logger.Infof("TODO: Get monitors")
 	mons := map[string]*mon.CephMonitorConfig{}
 
 	return mons, nil
 }
 
-func (s *stateHandler) GetNodes() ([]model.Node, error) {
+func (s *clusterHandler) GetNodes() ([]model.Node, error) {
 	logger.Infof("Getting nodes")
 	return getNodes(s.clientset)
 }

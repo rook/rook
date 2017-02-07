@@ -109,13 +109,13 @@ func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 	h.GetObjectStoreConnectionInfo(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	expectedRespObj := model.ObjectStoreS3Info{
+	expectedRespObj := model.ObjectStoreConnectInfo{
 		Host:       "rook-rgw:53390",
 		IPEndpoint: "1.2.3.4:53390",
 	}
 
 	// unmarshal the http response to get the actual object and compare it to the expected object
-	var actualResultObj model.ObjectStoreS3Info
+	var actualResultObj model.ObjectStoreConnectInfo
 	bodyBytes, _ := ioutil.ReadAll(w.Body)
 	json.Unmarshal(bodyBytes, &actualResultObj)
 	assert.Equal(t, expectedRespObj, actualResultObj)
@@ -141,7 +141,7 @@ func TestListUsers(t *testing.T) {
 			ProcMan:    proc.New(executor),
 			ConfigDir:  "/tmp/rgw"}
 		w := httptest.NewRecorder()
-		h := NewHandler(context, connFactory, cephFactory)
+		h := newTestHandler(context, connFactory, cephFactory)
 		h.ListUsers(w, req)
 		return w
 	}
@@ -237,8 +237,8 @@ func TestGetUser(t *testing.T) {
 			ProcMan:    proc.New(executor),
 		}
 		w := httptest.NewRecorder()
-		h := NewHandler(context, connFactory, cephFactory)
-		r := NewRouter(h.GetRoutes())
+		h := newTestHandler(context, connFactory, cephFactory)
+		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
 
@@ -301,8 +301,8 @@ func TestCreateUser(t *testing.T) {
 		}
 		req.Body = ioutil.NopCloser(bytes.NewBufferString(body))
 		w := httptest.NewRecorder()
-		h := NewHandler(context, connFactory, cephFactory)
-		r := NewRouter(h.GetRoutes())
+		h := newTestHandler(context, connFactory, cephFactory)
+		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
 
@@ -375,8 +375,8 @@ func TestUpdateUser(t *testing.T) {
 		}
 		req.Body = ioutil.NopCloser(bytes.NewBufferString(body))
 		w := httptest.NewRecorder()
-		h := NewHandler(context, connFactory, cephFactory)
-		r := NewRouter(h.GetRoutes())
+		h := newTestHandler(context, connFactory, cephFactory)
+		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
 
@@ -438,8 +438,8 @@ func TestDeleteUser(t *testing.T) {
 			Executor:   executor,
 		}
 		w := httptest.NewRecorder()
-		h := NewHandler(context, connFactory, cephFactory)
-		r := NewRouter(h.GetRoutes())
+		h := newTestHandler(context, connFactory, cephFactory)
+		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
 
@@ -483,7 +483,7 @@ func TestListBuckets(t *testing.T) {
 			Executor:   executor,
 		}
 		w := httptest.NewRecorder()
-		h := NewHandler(context, connFactory, cephFactory)
+		h := newTestHandler(context, connFactory, cephFactory)
 		h.Listbuckets(w, req)
 		return w
 	}

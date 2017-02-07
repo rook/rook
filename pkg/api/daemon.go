@@ -25,10 +25,11 @@ import (
 )
 
 type Config struct {
-	Port         int
-	ConnFactory  mon.ConnectionFactory
-	CephFactory  ceph.ConnectionFactory
-	StateHandler DesiredStateHandler
+	Port        int
+	ConnFactory mon.ConnectionFactory
+	CephFactory ceph.ConnectionFactory
+	ClusterInfo *mon.ClusterInfo
+	ClusterHandler
 }
 
 func Run(dcontext *clusterd.DaemonContext, config *Config) error {

@@ -57,10 +57,10 @@ func runTool(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("unknown tool type: %s", toolType)
 	}
 
-	if err := cephd.RunCephCommand(toolType, args); err != nil {
+	if err := cephd.RunCommand(toolType, args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-	
+
 	return nil
 }
