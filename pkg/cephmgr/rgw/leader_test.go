@@ -91,8 +91,6 @@ func TestRGWConfig(t *testing.T) {
 	err = leader.Configure(context, factory)
 	assert.Nil(t, err)
 	verifyObjectConfigured(t, context, true)
-	assert.Equal(t, "myaccessid", etcdClient.GetValue("/rook/services/ceph/object/applied/admin/id"))
-	assert.Equal(t, "mybigsecretkey", etcdClient.GetValue("/rook/services/ceph/object/applied/admin/_secret"))
 
 	// Get the RGW endpoints and verify
 	host, ipAddr, found, err := GetRGWEndpoints(etcdClient, context.Inventory)

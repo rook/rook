@@ -124,32 +124,38 @@ On a modern Linux host run the following:
    ./rook object create
    ```
 
-2. Get the connection information for accessing object storage
+2. Create an object storage user
 
    ```bash
-   eval $(./rook object connection --format env-var)
+   ./rook object user create rook-user "A rook rgw User"
    ```
 
-3. Use an S3 compatible client to create a bucket in the object store
+3. Get the connection information for accessing object storage
+
+   ```bash
+   eval $(./rook object connection rook-user --format env-var)
+   ```
+
+4. Use an S3 compatible client to create a bucket in the object store
 
    ```bash
    s3cmd mb --no-ssl --host=${AWS_ENDPOINT} --host-bucket=  s3://rookbucket
    ```
 
-4. List all buckets in the object store
+5. List all buckets in the object store
 
    ```bash
    s3cmd ls --no-ssl --host=${AWS_ENDPOINT} --host-bucket=
    ```
 
-5. Upload a file to the newly created bucket
+6. Upload a file to the newly created bucket
 
    ```bash
    echo "Hello Rook!" > /tmp/rookObj
    s3cmd put /tmp/rookObj --no-ssl --host=${AWS_ENDPOINT} --host-bucket=  s3://rookbucket
    ```
 
-6. Download and verify the file from the bucket
+7. Download and verify the file from the bucket
 
    ```bash
    s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_ENDPOINT} --host-bucket=

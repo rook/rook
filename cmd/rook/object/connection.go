@@ -42,7 +42,7 @@ var (
 )
 
 var connectionCmd = &cobra.Command{
-	Use:     "connection",
+	Use:     "connection [User ID]",
 	Short:   "Gets connection information that will allow a client to access object storage in the cluster",
 	Aliases: []string{"conn"},
 }
@@ -57,12 +57,20 @@ func init() {
 func getConnectionInfoEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
+	if len(args) == 0 {
+		return fmt.Errorf("Missing required argument User ID")
+	}
+
+	if len(args) > 1 {
+		return fmt.Errorf("Too many arguments")
+	}
+
 	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
 		return err
 	}
 
 	c := rook.NewRookNetworkRestClient()
-	out, err := getConnectionInfo(connOutputFormat, c)
+	out, err := getConnectionInfo(c, args[0], connOutputFormat)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -72,19 +80,27 @@ func getConnectionInfoEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getConnectionInfo(format string, c client.RookRestClient) (string, error) {
+func getConnectionInfo(c client.RookRestClient, userID, format string) (string, error) {
 	if format != FormatPretty && format != FormatEnvVar {
 		return "", fmt.Errorf("invalid output format: %s", format)
 	}
 
 	connInfo, err := c.GetObjectStoreConnectionInfo()
-
 	if err != nil {
 		if client.IsHttpNotFound(err) {
 			return "object store connection info is not ready, if \"object create\" has already been run, please be patient\n", nil
 		}
 
 		return "", fmt.Errorf("failed to get object store connection info: %+v", err)
+	}
+
+	user, err := c.GetObjectUser(userID)
+	if err != nil {
+		if client.IsHttpNotFound(err) {
+			return fmt.Sprintf("Unable to find user %s\n", userID), nil
+		}
+
+		return "", fmt.Errorf("failed to get object store user info: %+v", err)
 	}
 
 	var buffer bytes.Buffer
@@ -98,15 +114,15 @@ func getConnectionInfo(format string, c client.RookRestClient) (string, error) {
 		// write object store connection info
 		fmt.Fprintf(w, PrettyOutputFmt, AWSHost, connInfo.Host)
 		fmt.Fprintf(w, PrettyOutputFmt, AWSEndpoint, connInfo.IPEndpoint)
-		fmt.Fprintf(w, PrettyOutputFmt, AWSAccessKey, connInfo.AccessKey)
-		fmt.Fprintf(w, PrettyOutputFmt, AWSSecretKey, connInfo.SecretKey)
+		fmt.Fprintf(w, PrettyOutputFmt, AWSAccessKey, *user.AccessKey)
+		fmt.Fprintf(w, PrettyOutputFmt, AWSSecretKey, *user.SecretKey)
 
 		w.Flush()
 	} else if format == FormatEnvVar {
 		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSHost, connInfo.Host))
 		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSEndpoint, connInfo.IPEndpoint))
-		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSAccessKey, connInfo.AccessKey))
-		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSSecretKey, connInfo.SecretKey))
+		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSAccessKey, *user.AccessKey))
+		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSSecretKey, *user.SecretKey))
 	}
 
 	return buffer.String(), nil
