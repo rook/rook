@@ -187,7 +187,7 @@ func (c *Cluster) waitForPodToStart(clientset *kubernetes.Clientset, pod *v1.Pod
 	// FIX: Get status instead of just waiting
 	for i := 0; i < 15; i++ {
 		// wait and try again
-		delay := 8
+		delay := 6
 		logger.Infof("waiting %ds for pod %s to start. status=%v", delay, pod.Name, pod.Status.Phase)
 		<-time.After(time.Duration(delay) * time.Second)
 

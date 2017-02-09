@@ -17,7 +17,7 @@ package model
 
 import "time"
 
-type ObjectStoreS3Info struct {
+type ObjectStoreConnectInfo struct {
 	Host       string `json:"host"`
 	IPEndpoint string `json:"ipEndpoint"`
 }

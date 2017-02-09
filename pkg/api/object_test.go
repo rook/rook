@@ -52,7 +52,7 @@ func TestCreateObjectStoreHandler(t *testing.T) {
 	// call the CreateObjectStore handler, which should return http 202 Accepted and record info
 	// about the file system request in etcd
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.CreateObjectStore(w, req)
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/object/desired/state"))
@@ -76,7 +76,7 @@ func TestRemoveObjectStoreHandler(t *testing.T) {
 	// call RemoveObjectStore handler and verify the response is 202 Accepted and the desired
 	// key has been deleted from etcd
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.RemoveObjectStore(w, req)
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Equal(t, 0, etcdClient.GetChildDirs("/rook/services/ceph/object/desired").Count())
@@ -97,7 +97,7 @@ func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 
 	// before RGW has been installed or any user accounts have been created, the handler will return 404 not found
 	w := httptest.NewRecorder()
-	h := NewHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context, connFactory, cephFactory)
 	h.GetObjectStoreConnectionInfo(w, req)
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
@@ -105,17 +105,17 @@ func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 	etcdClient.SetValue("/rook/services/ceph/rgw/applied/node/123", "")
 
 	w = httptest.NewRecorder()
-	h = NewHandler(context, connFactory, cephFactory)
+	h = newTestHandler(context, connFactory, cephFactory)
 	h.GetObjectStoreConnectionInfo(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
-	expectedRespObj := model.ObjectStoreS3Info{
+	expectedRespObj := model.ObjectStoreConnectInfo{
 		Host:       "rook-rgw:53390",
 		IPEndpoint: "1.2.3.4:53390",
 	}
 
 	// unmarshal the http response to get the actual object and compare it to the expected object
-	var actualResultObj model.ObjectStoreS3Info
+	var actualResultObj model.ObjectStoreConnectInfo
 	bodyBytes, _ := ioutil.ReadAll(w.Body)
 	json.Unmarshal(bodyBytes, &actualResultObj)
 	assert.Equal(t, expectedRespObj, actualResultObj)
@@ -141,7 +141,7 @@ func TestListUsers(t *testing.T) {
 			ProcMan:    proc.New(executor),
 			ConfigDir:  "/tmp/rgw"}
 		w := httptest.NewRecorder()
-		h := NewHandler(context, connFactory, cephFactory)
+		h := newTestHandler(context, connFactory, cephFactory)
 		h.ListUsers(w, req)
 		return w
 	}
@@ -237,8 +237,8 @@ func TestGetUser(t *testing.T) {
 			ProcMan:    proc.New(executor),
 		}
 		w := httptest.NewRecorder()
-		h := NewHandler(context, connFactory, cephFactory)
-		r := NewRouter(h.GetRoutes())
+		h := newTestHandler(context, connFactory, cephFactory)
+		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
 
@@ -301,8 +301,8 @@ func TestCreateUser(t *testing.T) {
 		}
 		req.Body = ioutil.NopCloser(bytes.NewBufferString(body))
 		w := httptest.NewRecorder()
-		h := NewHandler(context, connFactory, cephFactory)
-		r := NewRouter(h.GetRoutes())
+		h := newTestHandler(context, connFactory, cephFactory)
+		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
 
@@ -375,8 +375,8 @@ func TestUpdateUser(t *testing.T) {
 		}
 		req.Body = ioutil.NopCloser(bytes.NewBufferString(body))
 		w := httptest.NewRecorder()
-		h := NewHandler(context, connFactory, cephFactory)
-		r := NewRouter(h.GetRoutes())
+		h := newTestHandler(context, connFactory, cephFactory)
+		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
 
@@ -438,8 +438,8 @@ func TestDeleteUser(t *testing.T) {
 			Executor:   executor,
 		}
 		w := httptest.NewRecorder()
-		h := NewHandler(context, connFactory, cephFactory)
-		r := NewRouter(h.GetRoutes())
+		h := newTestHandler(context, connFactory, cephFactory)
+		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
 
@@ -483,7 +483,7 @@ func TestListBuckets(t *testing.T) {
 			Executor:   executor,
 		}
 		w := httptest.NewRecorder()
-		h := NewHandler(context, connFactory, cephFactory)
+		h := newTestHandler(context, connFactory, cephFactory)
 		h.Listbuckets(w, req)
 		return w
 	}

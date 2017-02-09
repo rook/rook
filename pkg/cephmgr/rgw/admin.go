@@ -22,11 +22,10 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 )
 
-// Runs the embedded radosgw-admin command and returns its output
-func RunAdminCommand(context *clusterd.Context, command, subcommand string, args ...string) (string, error) {
-	cluster, err := mon.LoadClusterInfo(context.EtcdClient)
+func RunAdminCommand(context *clusterd.Context, getClusterInfo func() (*mon.ClusterInfo, error), command, subcommand string, args ...string) (string, error) {
+	cluster, err := getClusterInfo()
 	if err != nil {
-		return "", fmt.Errorf("failed to get cluster name. %+v", err)
+		return "", fmt.Errorf("failed to get cluster info. %+v", err)
 	}
 
 	confFile, keyringFile, _, err := mon.GenerateTempConfigFiles(context, cluster)

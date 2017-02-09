@@ -27,33 +27,40 @@ import (
 )
 
 var (
-	daemonType string
+	toolType string
 )
 
-var daemonCmd = &cobra.Command{
-	Use:    "daemon",
-	Short:  "Runs a rookd daemon",
+var toolCmd = &cobra.Command{
+	Use:    "tool",
+	Short:  "Runs a rookd tool",
 	Hidden: true,
 }
 
 func init() {
-	daemonCmd.Flags().StringVar(&daemonType, "type", "", "type of daemon [mon|osd|mds|rgw]")
-	daemonCmd.MarkFlagRequired("type")
+	toolCmd.Flags().StringVar(&toolType, "type", "", "type of tool [rgw-admin]")
+	toolCmd.MarkFlagRequired("type")
 
-	daemonCmd.RunE = runDaemon
+	flags.SetFlagsFromEnv(toolCmd.Flags(), "ROOK-OPERATOR")
+
+	toolCmd.RunE = runTool
 }
 
-func runDaemon(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(daemonCmd, []string{"type"}); err != nil {
+func runTool(cmd *cobra.Command, args []string) error {
+	if err := flags.VerifyRequiredFlags(toolCmd, []string{"type"}); err != nil {
 		return err
 	}
-	if daemonType != "mon" && daemonType != "osd" && daemonType != "rgw" && daemonType != "mds" && daemonType != "rgw-admin" {
-		return fmt.Errorf("unknown daemon type: %s", daemonType)
+
+	setLogLevel()
+
+	// allow rgw admin commands as well as mon and osd mkfs
+	if toolType != "rgw-admin" {
+		return fmt.Errorf("unknown tool type: %s", toolType)
 	}
 
-	if err := cephd.RunCommand(daemonType, args); err != nil {
+	if err := cephd.RunCommand(toolType, args); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+
 	return nil
 }

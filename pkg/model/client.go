@@ -20,3 +20,7 @@ type ClientAccessInfo struct {
 	UserName     string   `json:"userName"`
 	SecretKey    string   `json:"secretKey"`
 }
+
+const (
+	Port = 8124
+)

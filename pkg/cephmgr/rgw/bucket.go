@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 )
@@ -32,8 +33,8 @@ type rgwBucketStats struct {
 	}
 }
 
-func GetBucketStats(context *clusterd.Context) (map[string]model.ObjectBucketStats, error) {
-	result, err := RunAdminCommand(context,
+func GetBucketStats(context *clusterd.Context, getClusterInfo func() (*mon.ClusterInfo, error)) (map[string]model.ObjectBucketStats, error) {
+	result, err := RunAdminCommand(context, getClusterInfo,
 		"bucket",
 		"stats")
 	if err != nil {
@@ -59,10 +60,10 @@ func GetBucketStats(context *clusterd.Context) (map[string]model.ObjectBucketSta
 	return stats, nil
 }
 
-func ListBuckets(context *clusterd.Context) ([]model.ObjectBucket, error) {
+func ListBuckets(context *clusterd.Context, getClusterInfo func() (*mon.ClusterInfo, error)) ([]model.ObjectBucket, error) {
 	logger.Infof("Listing buckets")
 
-	stats, err := GetBucketStats(context)
+	stats, err := GetBucketStats(context, getClusterInfo)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get bucket stats: %+v", err)
 	}
@@ -70,7 +71,7 @@ func ListBuckets(context *clusterd.Context) ([]model.ObjectBucket, error) {
 	buckets := []model.ObjectBucket{}
 
 	for bucket, stat := range stats {
-		result, err := RunAdminCommand(context,
+		result, err := RunAdminCommand(context, getClusterInfo,
 			"metadata",
 			"get",
 			"bucket:"+bucket)

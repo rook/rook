@@ -62,14 +62,27 @@ func (h *Handler) CreateFileSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := mds.EnableFileSystem(h.context, *fs); err != nil {
-		logger.Errorf("failed to create file system: %+v", err)
+	clusterInfo, err := h.config.GetClusterInfo()
+	if err != nil {
+		logger.Errorf("failed to get cluster info: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	logger.Debugf("started async creation of file system")
-	w.WriteHeader(http.StatusAccepted)
+	f := mds.NewFS(h.context, h.config.CephFactory, fs.Name, fs.PoolName)
+	if err := f.CreateFilesystem(clusterInfo); err != nil {
+		logger.Errorf("failed to create file system %s: %+v", fs.Name, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.config.ClusterHandler.StartFileSystem(fs); err != nil {
+		logger.Errorf("failed to start mds: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // Removes an existing filesystem from this cluster.
@@ -81,7 +94,7 @@ func (h *Handler) RemoveFileSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := mds.RemoveFileSystem(h.context, *fs); err != nil {
+	if err := h.config.ClusterHandler.RemoveFileSystem(fs); err != nil {
 		logger.Errorf("failed to remove file system: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

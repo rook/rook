@@ -13,35 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package api
+package k8s
 
-import (
-	"net/http"
+import "github.com/coreos/pkg/capnslog"
 
-	"github.com/gorilla/mux"
-)
-
-type Route struct {
-	Name        string
-	Method      string
-	Pattern     string
-	HandlerFunc http.HandlerFunc
-}
-
-func newRouter(routes []Route) *mux.Router {
-
-	router := mux.NewRouter().StrictSlash(true)
-	for _, route := range routes {
-		var handler http.Handler
-		handler = route.HandlerFunc
-		handler = Logger(handler, route.Name)
-
-		router.
-			Methods(route.Method).
-			Path(route.Pattern).
-			Name(route.Name).
-			Handler(handler)
-	}
-
-	return router
-}
+var logger = capnslog.NewPackageLogger("github.com/rook/rookd", "api-k8s")

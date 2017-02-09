@@ -32,8 +32,8 @@ func TestGetConnectionInfo(t *testing.T) {
 	secret := "tVCuH20xTokjEpVJc7mKjL8PLTfGh4NZ3le3zg9X"
 
 	c := &test.MockRookRestClient{
-		MockGetObjectStoreConnectionInfo: func() (*model.ObjectStoreS3Info, error) {
-			return &model.ObjectStoreS3Info{
+		MockGetObjectStoreConnectionInfo: func() (*model.ObjectStoreConnectInfo, error) {
+			return &model.ObjectStoreConnectInfo{
 				Host:       "rook-rgw:12345",
 				IPEndpoint: "1.2.3.4:12345",
 			}, nil
@@ -65,8 +65,8 @@ func TestGetConnectionInfo(t *testing.T) {
 
 func TestGetConnectionInfoNotFound(t *testing.T) {
 	c := &test.MockRookRestClient{
-		MockGetObjectStoreConnectionInfo: func() (*model.ObjectStoreS3Info, error) {
-			return &model.ObjectStoreS3Info{}, client.RookRestError{
+		MockGetObjectStoreConnectionInfo: func() (*model.ObjectStoreConnectInfo, error) {
+			return &model.ObjectStoreConnectInfo{}, client.RookRestError{
 				Status: http.StatusNotFound,
 			}
 		},
@@ -79,8 +79,8 @@ func TestGetConnectionInfoNotFound(t *testing.T) {
 
 func TestGetConnectionInfoError(t *testing.T) {
 	c := &test.MockRookRestClient{
-		MockGetObjectStoreConnectionInfo: func() (*model.ObjectStoreS3Info, error) {
-			return &model.ObjectStoreS3Info{}, fmt.Errorf("mock get connection info failed")
+		MockGetObjectStoreConnectionInfo: func() (*model.ObjectStoreConnectInfo, error) {
+			return &model.ObjectStoreConnectInfo{}, fmt.Errorf("mock get connection info failed")
 		},
 	}
 

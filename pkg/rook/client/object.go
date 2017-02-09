@@ -42,13 +42,13 @@ func (c *RookNetworkRestClient) CreateObjectStore() (string, error) {
 	return string(resp), nil
 }
 
-func (c *RookNetworkRestClient) GetObjectStoreConnectionInfo() (*model.ObjectStoreS3Info, error) {
+func (c *RookNetworkRestClient) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, error) {
 	body, err := c.DoGet(path.Join(objectStoreQueryName, connectionInfoQueryName))
 	if err != nil {
 		return nil, err
 	}
 
-	var connInfo model.ObjectStoreS3Info
+	var connInfo model.ObjectStoreConnectInfo
 	err = json.Unmarshal(body, &connInfo)
 	if err != nil {
 		return nil, err

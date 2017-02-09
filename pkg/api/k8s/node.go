@@ -13,35 +13,31 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package api
+package k8s
 
 import (
-	"net/http"
+	"fmt"
 
-	"github.com/gorilla/mux"
+	"github.com/rook/rook/pkg/model"
+	"k8s.io/client-go/1.5/kubernetes"
+	"k8s.io/client-go/1.5/pkg/api"
 )
 
-type Route struct {
-	Name        string
-	Method      string
-	Pattern     string
-	HandlerFunc http.HandlerFunc
-}
-
-func newRouter(routes []Route) *mux.Router {
-
-	router := mux.NewRouter().StrictSlash(true)
-	for _, route := range routes {
-		var handler http.Handler
-		handler = route.HandlerFunc
-		handler = Logger(handler, route.Name)
-
-		router.
-			Methods(route.Method).
-			Path(route.Pattern).
-			Name(route.Name).
-			Handler(handler)
+func getNodes(clientset *kubernetes.Clientset) ([]model.Node, error) {
+	nodes := []model.Node{}
+	options := api.ListOptions{}
+	nl, err := clientset.Nodes().List(options)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get nodes. %+v", err)
 	}
 
-	return router
+	for _, n := range nl.Items {
+		node := model.Node{
+			NodeID:      n.Status.NodeInfo.SystemUUID,
+			PublicIP:    n.Spec.ExternalID,
+			ClusterName: "rookcluster",
+		}
+		nodes = append(nodes, node)
+	}
+	return nodes, nil
 }

@@ -24,20 +24,35 @@ type ConnectionFactory interface {
 	ConnectAsAdmin(context *clusterd.Context, cephFactory client.ConnectionFactory) (client.Connection, error)
 }
 
-type rookConnFactory struct {
+type lookupConnFactory struct {
 }
 
-func NewConnectionFactory() ConnectionFactory { return &rookConnFactory{} }
+type useConnFactory struct {
+	clusterInfo *ClusterInfo
+}
 
-func (c *rookConnFactory) ConnectAsAdmin(
-	context *clusterd.Context, cephFactory client.ConnectionFactory) (client.Connection, error) {
+func NewConnectionFactoryWithLookup() *lookupConnFactory {
+	return &lookupConnFactory{}
+}
+
+func NewConnectionFactoryWithClusterInfo(clusterInfo *ClusterInfo) *useConnFactory {
+	return &useConnFactory{clusterInfo: clusterInfo}
+}
+
+func (c *lookupConnFactory) ConnectAsAdmin(context *clusterd.Context, cephFactory client.ConnectionFactory) (client.Connection, error) {
 
 	// load information about the cluster
-	cluster, err := LoadClusterInfo(context.EtcdClient)
+	clusterInfo, err := LoadClusterInfo(context.EtcdClient)
 	if err != nil {
 		return nil, err
 	}
 
 	// open an admin connection to the cluster
-	return ConnectToClusterAsAdmin(context, cephFactory, cluster)
+	return ConnectToClusterAsAdmin(context, cephFactory, clusterInfo)
+}
+
+func (c *useConnFactory) ConnectAsAdmin(context *clusterd.Context, cephFactory client.ConnectionFactory) (client.Connection, error) {
+
+	// open an admin connection to the cluster
+	return ConnectToClusterAsAdmin(context, cephFactory, c.clusterInfo)
 }

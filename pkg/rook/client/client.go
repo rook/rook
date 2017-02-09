@@ -43,7 +43,7 @@ type RookRestClient interface {
 	DeleteFilesystem(model.FilesystemRequest) (string, error)
 	GetStatusDetails() (model.StatusDetails, error)
 	CreateObjectStore() (string, error)
-	GetObjectStoreConnectionInfo() (*model.ObjectStoreS3Info, error)
+	GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, error)
 	ListBuckets() ([]model.ObjectBucket, error)
 	ListObjectUsers() ([]model.ObjectUser, error)
 	GetObjectUser(string) (*model.ObjectUser, error)

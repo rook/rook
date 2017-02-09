@@ -65,18 +65,22 @@ func NewFS(context *clusterd.Context, factory client.ConnectionFactory, id, pool
 	}
 }
 
-// Create the file system in ceph
-func (f *FileSystem) enable(cluster *mon.ClusterInfo) error {
+func (f *FileSystem) CreateFilesystem(cluster *mon.ClusterInfo) error {
 	logger.Infof("Creating file system %s", f.ID)
-
-	dataPool := f.Pool + dataPoolSuffix
-	metadataPool := f.Pool + metadataPoolSuffix
-
 	conn, err := mon.ConnectToClusterAsAdmin(f.context, f.factory, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to connect to cluster as admin: %+v", err)
 	}
 	defer conn.Shutdown()
+
+	_, err = client.GetFilesystem(conn, f.ID)
+	if err == nil {
+		logger.Infof("file system %s already exists", f.ID)
+		return nil
+	}
+
+	dataPool := f.Pool + dataPoolSuffix
+	metadataPool := f.Pool + metadataPoolSuffix
 
 	// Create the metadata and data pools
 	pool := client.CephStoragePoolDetails{Name: dataPool}
@@ -96,9 +100,16 @@ func (f *FileSystem) enable(cluster *mon.ClusterInfo) error {
 		return err
 	}
 
+	logger.Infof("created file system %s on data pool %s and metadata pool %s", f.ID, dataPool, metadataPool)
+	return nil
+}
+
+// Create the file system in ceph
+func (f *FileSystem) enable(cluster *mon.ClusterInfo) error {
+
 	// start MDS instances in the cluster
 	mdsCount := 1
-	err = f.startMDSUnitInstances(mdsCount)
+	err := f.startMDSUnitInstances(mdsCount)
 	if err != nil {
 		return fmt.Errorf("Failed to start MDS. err=%v", err)
 	}

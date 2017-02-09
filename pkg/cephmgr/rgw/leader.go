@@ -75,23 +75,23 @@ func (r *Leader) Configure(context *clusterd.Context, factory client.ConnectionF
 }
 
 // Configure the single instance of object storage in the cluster.
-func EnableObjectStore(context *clusterd.Context) error {
+func EnableObjectStore(etcdClient etcd.KeysAPI) error {
 	logger.Infof("Enabling object store")
 	key := path.Join(mon.CephKey, ObjectStoreKey, clusterd.DesiredKey, stateKey)
-	_, err := context.EtcdClient.Set(ctx.Background(), key, "1", nil)
+	_, err := etcdClient.Set(ctx.Background(), key, "1", nil)
 	return err
 }
 
 // Remove the single instance of the object store from the cluster. All buckets will be purged..
-func RemoveObjectStore(context *clusterd.Context) error {
+func RemoveObjectStore(etcdClient etcd.KeysAPI) error {
 	logger.Infof("Removing object store")
 	key := path.Join(mon.CephKey, ObjectStoreKey, clusterd.DesiredKey)
-	_, err := context.EtcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true, Recursive: true})
+	_, err := etcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true, Recursive: true})
 	if err != nil {
 		return fmt.Errorf("failed to remove object store from desired state. %+v", err)
 	}
 
-	_, err = context.EtcdClient.Delete(ctx.Background(), getRGWNodesKey(false), &etcd.DeleteOptions{Dir: true, Recursive: true})
+	_, err = etcdClient.Delete(ctx.Background(), getRGWNodesKey(false), &etcd.DeleteOptions{Dir: true, Recursive: true})
 	if err != nil {
 		return fmt.Errorf("failed to remove rgw nodes from desired state. %+v", err)
 	}
@@ -109,8 +109,8 @@ func GetRGWEndpoints(etcdClient etcd.KeysAPI, clusterInventory *inventory.Config
 		// just return the details of the first RGW node we can find
 		nodeDetails, ok := clusterInventory.Nodes[nodeID]
 		if ok {
-			host = getRGWEndpoint(DNSName)
-			ipEndpoint = getRGWEndpoint(nodeDetails.PublicIP)
+			host = GetRGWEndpoint(DNSName)
+			ipEndpoint = GetRGWEndpoint(nodeDetails.PublicIP)
 			return host, ipEndpoint, true, nil
 		}
 	}
@@ -288,6 +288,6 @@ func (r *Leader) getDesiredRGWNodes(context *clusterd.Context, count int) ([]str
 	return nodes.ToSlice(), nil
 }
 
-func getRGWEndpoint(addr string) string {
+func GetRGWEndpoint(addr string) string {
 	return fmt.Sprintf("%s:%d", addr, RGWPort)
 }

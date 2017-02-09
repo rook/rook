@@ -28,16 +28,14 @@ import (
 )
 
 type Handler struct {
-	context           *clusterd.Context
-	ConnectionFactory mon.ConnectionFactory
-	CephFactory       ceph.ConnectionFactory
+	context *clusterd.Context
+	config  *Config
 }
 
-func NewHandler(context *clusterd.Context, connFactory mon.ConnectionFactory, cephFactory ceph.ConnectionFactory) *Handler {
+func newHandler(context *clusterd.Context, config *Config) *Handler {
 	return &Handler{
-		context:           context,
-		ConnectionFactory: connFactory,
-		CephFactory:       cephFactory,
+		context: context,
+		config:  config,
 	}
 }
 
@@ -88,7 +86,7 @@ func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
 // /mon
 func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
 
-	desiredMons, err := mon.GetDesiredMonitors(h.context.EtcdClient)
+	desiredMons, err := h.config.ClusterHandler.GetMonitors()
 	if err != nil {
 		logger.Errorf("failed to load monitors: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -145,7 +143,7 @@ func handleReadBody(w http.ResponseWriter, r *http.Request, opName string) ([]by
 }
 
 func (h *Handler) handleConnectToCeph(w http.ResponseWriter) (ceph.Connection, bool) {
-	adminConn, err := h.ConnectionFactory.ConnectAsAdmin(h.context, h.CephFactory)
+	adminConn, err := h.config.ConnFactory.ConnectAsAdmin(h.context, h.config.CephFactory)
 	if err != nil {
 		logger.Errorf("failed to connect to cluster as admin: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)

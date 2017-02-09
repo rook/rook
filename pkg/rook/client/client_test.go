@@ -248,7 +248,7 @@ func TestGetObjectStoreConnectionInfo(t *testing.T) {
 	mockHttpClient := NewMockHttpClient(mockServer.URL)
 	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
 
-	expectedResp := model.ObjectStoreS3Info{
+	expectedResp := model.ObjectStoreConnectInfo{
 		Host: "rook-rgw:12345",
 	}
 
