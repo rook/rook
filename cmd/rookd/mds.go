@@ -18,8 +18,17 @@ limitations under the License.
 package main
 
 import (
+	"github.com/rook/rook/pkg/cephmgr/cephd"
+	"github.com/rook/rook/pkg/cephmgr/mds"
+	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
+)
+
+var (
+	mdsID      string
+	mdsKeyring string
 )
 
 var mdsCmd = &cobra.Command{
@@ -29,16 +38,32 @@ var mdsCmd = &cobra.Command{
 }
 
 func init() {
+	mdsCmd.Flags().StringVar(&mdsID, "mds-id", "", "the mds ID")
+	mdsCmd.Flags().StringVar(&mdsKeyring, "mds-keyring", "", "the mds keyring")
+
+	flags.SetFlagsFromEnv(mdsCmd.Flags(), "ROOKD")
+
 	mdsCmd.RunE = startMDS
 }
 
 func startMDS(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(mdsCmd, []string{""}); err != nil {
+	if err := flags.VerifyRequiredFlags(mdsCmd, []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret", "mds-id", "mds-keyring"}); err != nil {
 		return err
 	}
 
 	setLogLevel()
 
-	// mds.Start(config)
+	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
+	config := &mds.Config{
+		ID:           mdsID,
+		Keyring:      mdsKeyring,
+		ClusterInfo:  &clusterInfo,
+		CephLauncher: cephd.New(),
+		InProc:       true,
+	}
+
+	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
+	mds.Run(context, config)
+
 	return nil
 }

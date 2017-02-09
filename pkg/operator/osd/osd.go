@@ -27,8 +27,7 @@ import (
 )
 
 const (
-	osdApp        = "cephosd"
-	daemonSetName = "osd"
+	appName = "osd"
 )
 
 type Cluster struct {
@@ -67,14 +66,14 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 
 func (c *Cluster) makeDaemonSet(cluster *mon.ClusterInfo) (*extensions.DaemonSet, error) {
 	ds := &extensions.DaemonSet{}
-	ds.Name = daemonSetName
+	ds.Name = appName
 	ds.Namespace = c.Namespace
 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: v1.ObjectMeta{
-			Name: "rookosd",
+			Name: appName,
 			Labels: map[string]string{
-				k8sutil.AppAttr:     osdApp,
+				k8sutil.AppAttr:     appName,
 				k8sutil.ClusterAttr: cluster.Name,
 			},
 			Annotations: map[string]string{},
@@ -103,7 +102,7 @@ func (c *Cluster) osdContainer(cluster *mon.ClusterInfo) v1.Container {
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.
 		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
-		Name:    "cephosd",
+		Name:    appName,
 		Image:   k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},

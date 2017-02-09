@@ -31,10 +31,8 @@ import (
 )
 
 const (
-	rgwApp         = "cephrgw"
-	deploymentName = "rgw"
-	rgwSecretsName = "rgw-secrets"
-	rgwKeyringName = "keyring"
+	appName     = "rgw"
+	keyringName = "keyring"
 )
 
 type Cluster struct {
@@ -87,7 +85,7 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 }
 
 func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, cluster *mon.ClusterInfo) error {
-	_, err := clientset.Secrets(c.Namespace).Get(rgwSecretsName)
+	_, err := clientset.Secrets(c.Namespace).Get(appName)
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
 		return nil
@@ -98,7 +96,7 @@ func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, cluster *mon.Cl
 
 	// connect to the ceph cluster
 	logger.Infof("generating rgw keyring")
-	context := &clusterd.Context{ConfigDir: "/var/lib/rook"}
+	context := &clusterd.Context{ConfigDir: k8sutil.DataDir}
 	conn, err := mon.ConnectToClusterAsAdmin(context, c.factory, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to connect to cluster. %+v", err)
@@ -113,9 +111,9 @@ func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, cluster *mon.Cl
 
 	// store the secrets
 	secrets := map[string]string{
-		rgwKeyringName: keyring,
+		keyringName: keyring,
 	}
-	_, err = clientset.Secrets(c.Namespace).Create(&v1.Secret{ObjectMeta: v1.ObjectMeta{Name: rgwSecretsName}, StringData: secrets})
+	_, err = clientset.Secrets(c.Namespace).Create(&v1.Secret{ObjectMeta: v1.ObjectMeta{Name: appName}, StringData: secrets})
 	if err != nil {
 		return fmt.Errorf("failed to save rgw secrets. %+v", err)
 	}
@@ -125,7 +123,7 @@ func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, cluster *mon.Cl
 
 func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo) (*extensions.Deployment, error) {
 	deployment := &extensions.Deployment{}
-	deployment.Name = deploymentName
+	deployment.Name = appName
 	deployment.Namespace = c.Namespace
 
 	podSpec := v1.PodTemplateSpec{
@@ -156,13 +154,13 @@ func (c *Cluster) rgwContainer(cluster *mon.ClusterInfo) v1.Container {
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.
 		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
-		Name:    rgwApp,
+		Name:    appName,
 		Image:   k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		},
 		Env: []v1.EnvVar{
-			{Name: "ROOKD_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: rgwSecretsName}, Key: rgwKeyringName}}},
+			{Name: "ROOKD_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
 			k8smon.MonSecretEnvVar(),
 			k8smon.AdminSecretEnvVar(),
 		},
@@ -173,13 +171,13 @@ func (c *Cluster) startService(clientset *kubernetes.Clientset, clusterInfo *mon
 	labels := getLabels(clusterInfo.Name)
 	s := &v1.Service{
 		ObjectMeta: v1.ObjectMeta{
-			Name:   "ceph-rgw",
+			Name:   appName,
 			Labels: labels,
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
 				{
-					Name:       "ceph-rgw",
+					Name:       appName,
 					Port:       cephrgw.RGWPort,
 					TargetPort: intstr.FromInt(int(cephrgw.RGWPort)),
 					Protocol:   v1.ProtocolTCP,
@@ -202,7 +200,7 @@ func (c *Cluster) startService(clientset *kubernetes.Clientset, clusterInfo *mon
 
 func getLabels(clusterName string) map[string]string {
 	return map[string]string{
-		k8sutil.AppAttr:     rgwApp,
+		k8sutil.AppAttr:     appName,
 		k8sutil.ClusterAttr: clusterName,
 	}
 }

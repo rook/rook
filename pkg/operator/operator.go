@@ -23,6 +23,7 @@ import (
 	"k8s.io/client-go/1.5/kubernetes"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/operator/mds"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
 	"github.com/rook/rook/pkg/operator/rgw"
@@ -67,6 +68,13 @@ func (o *Operator) Run() error {
 	err = r.Start(o.clientset, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
+	}
+
+	// Start the file system
+	fs := mds.New(o.Namespace, o.containerVersion, o.factory)
+	err = fs.Start(o.clientset, cluster)
+	if err != nil {
+		return fmt.Errorf("failed to start mds. %+v", err)
 	}
 
 	logger.Infof("DONE!")
