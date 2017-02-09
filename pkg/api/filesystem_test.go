@@ -82,6 +82,7 @@ func TestGetFileSystemsHandler(t *testing.T) {
 func TestCreateFileSystemHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{EtcdClient: etcdClient}
+	test.CreateClusterInfo(etcdClient, []string{"a"})
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/filesystem", strings.NewReader(`{"name": "myfs1", "poolName": "myfs1-pool"}`))
 	if err != nil {
@@ -96,7 +97,7 @@ func TestCreateFileSystemHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 	h := newTestHandler(context, connFactory, cephFactory)
 	h.CreateFileSystem(w, req)
-	assert.Equal(t, http.StatusAccepted, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "myfs1-pool", etcdClient.GetValue("/rook/services/ceph/fs/desired/myfs1/pool"))
 }
 

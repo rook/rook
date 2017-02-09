@@ -84,13 +84,6 @@ func (r *Leader) Configure(context *clusterd.Context, factory client.ConnectionF
 	return nil
 }
 
-// Configure the given file system instance in the cluster. Multiple file systems are supported.
-func EnableFileSystem(context *clusterd.Context, fsr model.FilesystemRequest) error {
-	logger.Infof("Enabling file system %s", fsr.Name)
-	fs := &FileSystem{context: context, ID: fsr.Name, Pool: fsr.PoolName}
-	return fs.AddToDesiredState()
-}
-
 // Remove the given file system instance in the cluster. Multiple file systems are supported.
 func RemoveFileSystem(context *clusterd.Context, fsr model.FilesystemRequest) error {
 	logger.Infof("Removing file system %s", fsr.Name)

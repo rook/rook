@@ -20,6 +20,7 @@ import (
 	"net/http"
 
 	ceph "github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/cephmgr/mds"
 	"github.com/rook/rook/pkg/model"
 )
 
@@ -61,14 +62,27 @@ func (h *Handler) CreateFileSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.config.ClusterHandler.CreateFileSystem(fs); err != nil {
-		logger.Errorf("failed to create file system: %+v", err)
+	clusterInfo, err := h.config.GetClusterInfo()
+	if err != nil {
+		logger.Errorf("failed to get cluster info: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	logger.Debugf("started async creation of file system")
-	w.WriteHeader(http.StatusAccepted)
+	f := mds.NewFS(h.context, h.config.CephFactory, fs.Name, fs.PoolName)
+	if err := f.CreateFilesystem(clusterInfo); err != nil {
+		logger.Errorf("failed to create file system %s: %+v", fs.Name, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.config.ClusterHandler.StartFileSystem(fs); err != nil {
+		logger.Errorf("failed to start mds: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // Removes an existing filesystem from this cluster.

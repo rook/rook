@@ -63,11 +63,12 @@ func startAPI(cmd *cobra.Command, args []string) error {
 
 	cfg.clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
+	factory := cephd.New()
 	apiCfg := &api.Config{
 		ConnFactory:    mon.NewConnectionFactoryWithClusterInfo(&cfg.clusterInfo),
-		CephFactory:    cephd.New(),
+		CephFactory:    factory,
 		Port:           apiPort,
-		ClusterHandler: apik8s.New(clientset, context, &cfg.clusterInfo),
+		ClusterHandler: apik8s.New(clientset, context, &cfg.clusterInfo, factory, cfg.containerVersion),
 	}
 
 	return api.Run(context, apiCfg)

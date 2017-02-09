@@ -32,7 +32,7 @@ type ClusterHandler interface {
 	EnableObjectStore() error
 	RemoveObjectStore() error
 	GetObjectStoreConnectionInfo() (s3info *model.ObjectStoreConnectInfo, found bool, err error)
-	CreateFileSystem(fs *model.FilesystemRequest) error
+	StartFileSystem(fs *model.FilesystemRequest) error
 	RemoveFileSystem(fs *model.FilesystemRequest) error
 	GetMonitors() (map[string]*mon.CephMonitorConfig, error)
 	GetNodes() ([]model.Node, error)
@@ -81,12 +81,13 @@ func (e *etcdHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectI
 	return s3Info, true, nil
 }
 
-func (e *etcdHandler) CreateFileSystem(fs *model.FilesystemRequest) error {
-	return mds.EnableFileSystem(e.context, *fs)
+func (e *etcdHandler) StartFileSystem(fs *model.FilesystemRequest) error {
+	f := mds.NewFS(e.context, nil, fs.Name, fs.PoolName)
+	return f.AddToDesiredState()
 }
 
 func (e *etcdHandler) RemoveFileSystem(fs *model.FilesystemRequest) error {
-	return mds.EnableFileSystem(e.context, *fs)
+	return mds.RemoveFileSystem(e.context, *fs)
 }
 
 func (e *etcdHandler) GetMonitors() (map[string]*mon.CephMonitorConfig, error) {

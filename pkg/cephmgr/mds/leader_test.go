@@ -42,7 +42,8 @@ func TestDefaultDesiredState(t *testing.T) {
 	context := &clusterd.Context{EtcdClient: etcdClient}
 
 	fsr := model.FilesystemRequest{Name: "myfs1", PoolName: "myfs1-pool"}
-	err := EnableFileSystem(context, fsr)
+	fs := NewFS(context, nil, fsr.Name, fsr.PoolName)
+	err := fs.AddToDesiredState()
 	assert.Nil(t, err)
 	assert.Equal(t, fsr.PoolName, etcdClient.GetValue(fmt.Sprintf("/rook/services/ceph/fs/desired/%s/pool", fsr.Name)))
 

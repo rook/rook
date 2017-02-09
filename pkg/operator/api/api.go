@@ -106,8 +106,8 @@ func (c *Cluster) apiContainer(cluster *mon.ClusterInfo) v1.Container {
 	monSecretVar.Name = "ROOK_OPERATOR_MON_SECRET"
 	adminSecretVar.Name = "ROOK_OPERATOR_ADMIN_SECRET"
 
-	command := fmt.Sprintf("/usr/bin/rook-operator api --data-dir=%s --mon-endpoints=%s --cluster-name=%s --api-port=%d",
-		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name, model.Port)
+	command := fmt.Sprintf("/usr/bin/rook-operator api --data-dir=%s --mon-endpoints=%s --cluster-name=%s --api-port=%d --container-version=%s",
+		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name, model.Port, c.Version)
 	return v1.Container{
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.

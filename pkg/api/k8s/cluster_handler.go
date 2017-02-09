@@ -18,11 +18,13 @@ package k8s
 import (
 	"fmt"
 
+	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/cephmgr/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	k8smds "github.com/rook/rook/pkg/operator/mds"
 	"k8s.io/client-go/1.5/kubernetes"
 )
 
@@ -30,10 +32,12 @@ type clusterHandler struct {
 	clientset   *kubernetes.Clientset
 	context     *clusterd.DaemonContext
 	clusterInfo *mon.ClusterInfo
+	factory     client.ConnectionFactory
+	version     string
 }
 
-func New(clientset *kubernetes.Clientset, context *clusterd.DaemonContext, clusterInfo *mon.ClusterInfo) *clusterHandler {
-	return &clusterHandler{clientset: clientset, context: context, clusterInfo: clusterInfo}
+func New(clientset *kubernetes.Clientset, context *clusterd.DaemonContext, clusterInfo *mon.ClusterInfo, factory client.ConnectionFactory, containerVersion string) *clusterHandler {
+	return &clusterHandler{clientset: clientset, context: context, clusterInfo: clusterInfo, factory: factory, version: containerVersion}
 }
 
 func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
@@ -66,9 +70,10 @@ func (s *clusterHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConne
 	return info, true, nil
 }
 
-func (s *clusterHandler) CreateFileSystem(fs *model.FilesystemRequest) error {
-	logger.Infof("TODO: Create file system")
-	return nil
+func (s *clusterHandler) StartFileSystem(fs *model.FilesystemRequest) error {
+	logger.Infof("Starting the MDS")
+	c := k8smds.New(k8sutil.Namespace, s.version, s.factory)
+	return c.Start(s.clientset, s.clusterInfo)
 }
 
 func (s *clusterHandler) RemoveFileSystem(fs *model.FilesystemRequest) error {

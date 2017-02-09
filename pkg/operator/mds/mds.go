@@ -66,12 +66,6 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	}
 	defer conn.Shutdown()
 
-	// creating a named file system will be done with third party resources in the future
-	err = c.createFilesystem("myfs", "myfspool", cluster, conn)
-	if err != nil {
-		return fmt.Errorf("failed to create file system. %+v", err)
-	}
-
 	id := "mds1"
 	err = c.createKeyring(clientset, context, cluster, conn, id)
 	if err != nil {
@@ -90,38 +84,6 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 		logger.Infof("mds deployment started")
 	}
 
-	return nil
-}
-
-func (c *Cluster) createFilesystem(id, poolName string, cluster *mon.ClusterInfo, conn client.Connection) error {
-	_, err := client.GetFilesystem(conn, id)
-	if err == nil {
-		logger.Infof("file system %s already exists", id)
-		return nil
-	}
-
-	dataPool := poolName + dataPoolSuffix
-	metadataPool := poolName + metadataPoolSuffix
-
-	// Create the metadata and data pools
-	pool := client.CephStoragePoolDetails{Name: dataPool}
-	_, err = client.CreatePool(conn, pool)
-	if err != nil {
-		return fmt.Errorf("failed to create data pool '%s': %+v", dataPool, err)
-	}
-
-	pool = client.CephStoragePoolDetails{Name: metadataPool}
-	_, err = client.CreatePool(conn, pool)
-	if err != nil {
-		return fmt.Errorf("failed to create metadata pool '%s': %+v", metadataPool, err)
-	}
-
-	// create the file system
-	if err := client.CreateFilesystem(conn, id, metadataPool, dataPool); err != nil {
-		return err
-	}
-
-	logger.Infof("created file system %s on data pool %s and metadata pool %s", id, dataPool, metadataPool)
 	return nil
 }
 

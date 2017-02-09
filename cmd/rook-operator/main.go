@@ -66,8 +66,7 @@ func addCommands() {
 }
 
 func init() {
-	rootCmd.Flags().StringVar(&cfg.containerVersion, "container-version", "private-dev-build", "version of the rook container to launch")
-
+	rootCmd.PersistentFlags().StringVar(&cfg.containerVersion, "container-version", "latest", "version of the rook container to launch")
 	rootCmd.PersistentFlags().StringVar(&cfg.clusterInfo.Name, "cluster-name", "rookcluster", "ceph cluster name")
 	rootCmd.PersistentFlags().StringVar(&cfg.monEndpoints, "mon-endpoints", "", "ceph mon endpoints")
 	rootCmd.PersistentFlags().StringVar(&cfg.clusterInfo.MonitorSecret, "mon-secret", "", "the cephx keyring for monitors")
