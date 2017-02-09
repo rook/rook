@@ -163,7 +163,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.WriteHeader(http.StatusCreated)
-	FormatJsonResponse(w, createdUser)
+	FormatJsonResponse(w, *createdUser)
 }
 
 // UpdateUser updates the passed user with the passed info for the object store in this cluster.

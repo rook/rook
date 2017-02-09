@@ -41,12 +41,12 @@ type MockRookRestClient struct {
 	MockDeleteFilesystem             func(model.FilesystemRequest) (string, error)
 	MockGetStatusDetails             func() (model.StatusDetails, error)
 	MockCreateObjectStore            func() (string, error)
-	MockGetObjectStoreConnectionInfo func() (model.ObjectStoreS3Info, error)
-	MockCreateObjectUser             func(model.ObjectUser) (model.ObjectUser, error)
+	MockGetObjectStoreConnectionInfo func() (*model.ObjectStoreS3Info, error)
+	MockCreateObjectUser             func(model.ObjectUser) (*model.ObjectUser, error)
 	MockListBuckets                  func() ([]model.ObjectBucket, error)
 	MockListObjectUsers              func() ([]model.ObjectUser, error)
-	MockGetObjectUser                func(string) (model.ObjectUser, error)
-	MockUpdateObjectUser             func(model.ObjectUser) (model.ObjectUser, error)
+	MockGetObjectUser                func(string) (*model.ObjectUser, error)
+	MockUpdateObjectUser             func(model.ObjectUser) (*model.ObjectUser, error)
 	MockDeleteObjectUser             func(string) error
 }
 
@@ -138,12 +138,12 @@ func (m *MockRookRestClient) CreateObjectStore() (string, error) {
 	return "", nil
 }
 
-func (m *MockRookRestClient) GetObjectStoreConnectionInfo() (model.ObjectStoreS3Info, error) {
+func (m *MockRookRestClient) GetObjectStoreConnectionInfo() (*model.ObjectStoreS3Info, error) {
 	if m.MockGetObjectStoreConnectionInfo != nil {
 		return m.MockGetObjectStoreConnectionInfo()
 	}
 
-	return model.ObjectStoreS3Info{}, nil
+	return nil, nil
 }
 
 func (m *MockRookRestClient) URL() string {
@@ -155,7 +155,7 @@ func (m *MockRookRestClient) ListBuckets() ([]model.ObjectBucket, error) {
 		return m.MockListBuckets()
 	}
 
-	return []model.ObjectBucket{}, nil
+	return nil, nil
 }
 
 func (m *MockRookRestClient) ListObjectUsers() ([]model.ObjectUser, error) {
@@ -163,31 +163,31 @@ func (m *MockRookRestClient) ListObjectUsers() ([]model.ObjectUser, error) {
 		return m.MockListObjectUsers()
 	}
 
-	return []model.ObjectUser{}, nil
+	return nil, nil
 }
 
-func (m *MockRookRestClient) GetObjectUser(s string) (model.ObjectUser, error) {
+func (m *MockRookRestClient) GetObjectUser(s string) (*model.ObjectUser, error) {
 	if m.MockGetObjectUser != nil {
 		return m.MockGetObjectUser(s)
 	}
 
-	return model.ObjectUser{}, nil
+	return nil, nil
 }
 
-func (m *MockRookRestClient) CreateObjectUser(u model.ObjectUser) (model.ObjectUser, error) {
+func (m *MockRookRestClient) CreateObjectUser(u model.ObjectUser) (*model.ObjectUser, error) {
 	if m.MockCreateObjectUser != nil {
 		return m.MockCreateObjectUser(u)
 	}
 
-	return model.ObjectUser{}, nil
+	return nil, nil
 }
 
-func (m *MockRookRestClient) UpdateObjectUser(u model.ObjectUser) (model.ObjectUser, error) {
+func (m *MockRookRestClient) UpdateObjectUser(u model.ObjectUser) (*model.ObjectUser, error) {
 	if m.MockUpdateObjectUser != nil {
 		return m.MockUpdateObjectUser(u)
 	}
 
-	return model.ObjectUser{}, nil
+	return nil, nil
 }
 
 func (m *MockRookRestClient) DeleteObjectUser(s string) error {

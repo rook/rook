@@ -43,12 +43,12 @@ type RookRestClient interface {
 	DeleteFilesystem(model.FilesystemRequest) (string, error)
 	GetStatusDetails() (model.StatusDetails, error)
 	CreateObjectStore() (string, error)
-	GetObjectStoreConnectionInfo() (model.ObjectStoreS3Info, error)
+	GetObjectStoreConnectionInfo() (*model.ObjectStoreS3Info, error)
 	ListBuckets() ([]model.ObjectBucket, error)
 	ListObjectUsers() ([]model.ObjectUser, error)
-	GetObjectUser(string) (model.ObjectUser, error)
-	CreateObjectUser(model.ObjectUser) (model.ObjectUser, error)
-	UpdateObjectUser(model.ObjectUser) (model.ObjectUser, error)
+	GetObjectUser(string) (*model.ObjectUser, error)
+	CreateObjectUser(model.ObjectUser) (*model.ObjectUser, error)
+	UpdateObjectUser(model.ObjectUser) (*model.ObjectUser, error)
 	DeleteObjectUser(string) error
 }
 
@@ -146,7 +146,7 @@ func (a *RookNetworkRestClient) Do(method, query string, body io.Reader) ([]byte
 			Status: code,
 			Body:   respBody,
 		}
-		return nil, RookRestError
+		return respBody, RookRestError
 	}
 
 	return respBody, nil

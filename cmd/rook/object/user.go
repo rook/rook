@@ -195,7 +195,7 @@ func deleteUser(c client.RookRestClient, id string) (string, error) {
 		return "", fmt.Errorf("Unable to find user %s", id)
 	}
 
-	if err != nil {
+	if !client.IsHttpStatusCode(err, http.StatusNoContent) {
 		return "", fmt.Errorf("failed to delete user: %+v", err)
 	}
 	return "User deleted\n", nil
@@ -243,7 +243,7 @@ func createUserEntry(cmd *cobra.Command, args []string) error {
 }
 
 func createUser(c client.RookRestClient, user model.ObjectUser) (string, error) {
-	user, err := c.CreateObjectUser(user)
+	createdUser, err := c.CreateObjectUser(user)
 
 	if client.IsHttpStatusCode(err, http.StatusUnprocessableEntity) {
 		restErr := err.(client.RookRestError)
@@ -254,7 +254,7 @@ func createUser(c client.RookRestClient, user model.ObjectUser) (string, error) 
 		return "", fmt.Errorf("failed to create user: %+v", err)
 	}
 
-	return fmt.Sprintf("User Created\n\n%s", outputUser(user)), nil
+	return fmt.Sprintf("User Created\n\n%s", outputUser(*createdUser)), nil
 }
 
 var userUpdateCmd = &cobra.Command{
@@ -308,7 +308,7 @@ func updateUser(c client.RookRestClient, user model.ObjectUser) (string, error) 
 		return "", fmt.Errorf("failed to update user: %+v", err)
 	}
 
-	return fmt.Sprintf("User Created\n\n%s", outputUser(updatedUser)), nil
+	return fmt.Sprintf("User Created\n\n%s", outputUser(*updatedUser)), nil
 }
 
 func outputUser(user model.ObjectUser) string {
