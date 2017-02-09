@@ -254,7 +254,7 @@ func TestGetObjectStoreConnectionInfo(t *testing.T) {
 
 	resp, err := client.GetObjectStoreConnectionInfo()
 	assert.Nil(t, err)
-	assert.Equal(t, expectedResp, resp)
+	assert.Equal(t, expectedResp, *resp)
 }
 
 func TestGetNodesFailure(t *testing.T) {
@@ -330,7 +330,7 @@ func TestGetObjectStoreConnectionInfoFailure(t *testing.T) {
 	}
 	verifyFunc := func(resp interface{}, err error) {
 		assert.NotNil(t, err)
-		assert.Equal(t, model.ObjectStoreS3Info{}, resp.(model.ObjectStoreS3Info))
+		assert.Nil(t, resp)
 	}
 	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
 }

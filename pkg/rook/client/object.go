@@ -17,6 +17,7 @@ package client
 
 import (
 	"encoding/json"
+	"net/http"
 	"path"
 
 	"bytes"
@@ -41,19 +42,19 @@ func (c *RookNetworkRestClient) CreateObjectStore() (string, error) {
 	return string(resp), nil
 }
 
-func (c *RookNetworkRestClient) GetObjectStoreConnectionInfo() (model.ObjectStoreS3Info, error) {
+func (c *RookNetworkRestClient) GetObjectStoreConnectionInfo() (*model.ObjectStoreS3Info, error) {
 	body, err := c.DoGet(path.Join(objectStoreQueryName, connectionInfoQueryName))
 	if err != nil {
-		return model.ObjectStoreS3Info{}, err
+		return nil, err
 	}
 
 	var connInfo model.ObjectStoreS3Info
 	err = json.Unmarshal(body, &connInfo)
 	if err != nil {
-		return model.ObjectStoreS3Info{}, err
+		return nil, err
 	}
 
-	return connInfo, nil
+	return &connInfo, nil
 }
 
 func (c *RookNetworkRestClient) ListBuckets() ([]model.ObjectBucket, error) {
@@ -86,61 +87,62 @@ func (c *RookNetworkRestClient) ListObjectUsers() ([]model.ObjectUser, error) {
 	return users, nil
 }
 
-func (c *RookNetworkRestClient) GetObjectUser(id string) (model.ObjectUser, error) {
+func (c *RookNetworkRestClient) GetObjectUser(id string) (*model.ObjectUser, error) {
 	body, err := c.DoGet(path.Join(objectStoreQueryName, usersQueryName, id))
 	if err != nil {
-		return model.ObjectUser{}, err
+		return nil, err
 	}
 
 	var user model.ObjectUser
 	err = json.Unmarshal(body, &user)
 	if err != nil {
-		return model.ObjectUser{}, err
+		return nil, err
 	}
 
-	return user, nil
+	return &user, nil
 }
 
-func (c *RookNetworkRestClient) CreateObjectUser(user model.ObjectUser) (model.ObjectUser, error) {
+func (c *RookNetworkRestClient) CreateObjectUser(user model.ObjectUser) (*model.ObjectUser, error) {
 	if user.DisplayName == nil {
-		return model.ObjectUser{}, fmt.Errorf("Display name is required")
+		return nil, fmt.Errorf("Display name is required")
 	}
 
 	body, err := json.Marshal(user)
 	if err != nil {
-		return model.ObjectUser{}, err
+		return nil, err
 	}
 
 	respBody, err := c.DoPost(path.Join(objectStoreQueryName, usersQueryName), bytes.NewReader(body))
-	if err != nil {
-		return model.ObjectUser{}, err
+	if err != nil && !IsHttpStatusCode(err, http.StatusCreated) {
+		return nil, err
 	}
 
-	err = json.Unmarshal(respBody, &user)
+	var createdUser model.ObjectUser
+	err = json.Unmarshal(respBody, &createdUser)
 	if err != nil {
-		return model.ObjectUser{}, err
+		return nil, err
 	}
 
-	return user, nil
+	return &createdUser, nil
 }
 
-func (c *RookNetworkRestClient) UpdateObjectUser(user model.ObjectUser) (model.ObjectUser, error) {
+func (c *RookNetworkRestClient) UpdateObjectUser(user model.ObjectUser) (*model.ObjectUser, error) {
 	body, err := json.Marshal(user)
 	if err != nil {
-		return model.ObjectUser{}, fmt.Errorf("failed to marshal: %+v", err)
+		return nil, fmt.Errorf("failed to marshal: %+v", err)
 	}
 
 	respBody, err := c.DoPut(path.Join(objectStoreQueryName, usersQueryName, user.UserID), bytes.NewReader(body))
 	if err != nil {
-		return model.ObjectUser{}, err
+		return nil, err
 	}
 
 	err = json.Unmarshal(respBody, &user)
 	if err != nil {
-		return model.ObjectUser{}, fmt.Errorf("failed to unmarshal: %+v", err)
+		return nil, fmt.Errorf("failed to unmarshal: %+v", err)
 	}
 
-	return user, nil
+	return &user, nil
 }
 
 func (c *RookNetworkRestClient) DeleteObjectUser(id string) error {
