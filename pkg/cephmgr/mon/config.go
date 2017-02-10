@@ -71,6 +71,7 @@ type GlobalConfig struct {
 	OsdObjectStore           string `ini:"osd objectstore"`
 	RbdDefaultFeatures       int    `ini:"rbd_default_features,omitempty"`
 	CrushtoolPath            string `ini:"crushtool"`
+	FatalSignalHandlers      string `ini:"fatal signal handlers"`
 }
 
 // get the path of a given monitor's run dir
@@ -303,6 +304,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 			OsdObjectStore:         store,
 			RbdDefaultFeatures:     3,
 			CrushtoolPath:          "",
+			FatalSignalHandlers:    "false",
 		},
 	}
 }

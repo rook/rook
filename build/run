@@ -128,7 +128,6 @@ docker run \
     -e GO_PKG_DIR="" \
     -e GITHUB_TOKEN \
     -e VERSION \
-    -e CROSSBUILD=1 \
     -e LINKMODE=static \
     ${TTY_ARGS} \
     ${CCACHE_ARGS} \

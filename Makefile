@@ -52,12 +52,10 @@ $(error PIE only supported with dynamic linking. Set LINKMODE=dynamic or LINKMOD
 endif
 endif
 
-# if DEBUG is set to 1 debug information is perserved (i.e. not stripped).
-# the binary size is going to be much larger.
+# if DEBUG is set to 1 the binaries will not be optimized
+# enabling easier debugging with gdb. Note that debug symbols
+# are always generated wether DEBUG is 0 or 1.
 DEBUG ?= 0
-ifeq ($(DEBUG),0)
-LDFLAGS += -w
-endif
 
 # the memory allocator to use for cephd
 ALLOCATOR ?= tcmalloc
@@ -81,7 +79,7 @@ CCACHE ?= 1
 # turn on more verbose build
 V ?= 0
 ifeq ($(V),1)
-LDFLAGS += -v
+LDFLAGS += -v -n
 BUILDFLAGS += -x
 MAKEFLAGS += VERBOSE=1
 else
@@ -205,7 +203,7 @@ clean: go.clean
 distclean: go.distclean clean
 
 build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) CROSSBUILD=1 build
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) RELEASEBUILD=1 build
 
 build.cross: $(foreach p,$(ALL_PLATFORMS), build.platform.$(p))
 
@@ -249,8 +247,8 @@ help:
 	@echo '    GOARCH      The arch to build.'
 	@echo '    CCACHE      Set to 1 to enabled ccache, 0 to disable.'
 	@echo '                The default is 0.'
-	@echo '    DEBUG       Set to 1 to disable stripping the binaries of.'
-	@echo '                debug information. The default is 0.'
+	@echo '    DEBUG       Set to 1 to build without any optimizations.'
+	@echo '                The default is 0.'
 	@echo '    PIE         Set to 1 to build build a position independent'
 	@echo '                executable. Can not be combined with LINKMODE'
 	@echo '                set to "static". The default is 0.'

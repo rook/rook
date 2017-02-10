@@ -101,8 +101,11 @@ endif
 # these configurations are matched with the ones in build/cross-image/Dockerfile
 GO_NONSTATIC_FLAGS      = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
 GO_NONSTATIC_PIE_FLAGS  = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -installsuffix pie -buildmode pie -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
-GO_STATIC_FLAGS         = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -installsuffix nocgo -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
-GO_STATIC_CGO_FLAGS     = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -installsuffix netgo -tags '$(GO_TAGS) netgo' -ldflags '$(GO_LDFLAGS) -s -extldflags "-static"'
+# note the we remove the symbol table since its not needed for pure golang binaries. for backtraces go
+# uses its own ELF section and does not depend on the symbol tables.
+GO_STATIC_FLAGS         = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -installsuffix nocgo -tags '$(GO_TAGS)' -ldflags '-s $(GO_LDFLAGS)'
+# for cgo binaries we need the symbol table to support backtraces, so no -s here.
+GO_STATIC_CGO_FLAGS     = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -installsuffix netgo -tags '$(GO_TAGS) netgo' -ldflags '$(GO_LDFLAGS) -extldflags "-static"'
 
 # ====================================================================================
 # Targets
@@ -131,6 +134,14 @@ go.build: go.vet go.fmt $(CGO_PREREQS)
 	@$(foreach p,$(GO_NONSTATIC_PIE_PACKAGES),CGO_ENABLED=1 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_NONSTATIC_PIE_FLAGS) $(p);)
 	@$(foreach p,$(GO_STATIC_PACKAGES),CGO_ENABLED=0 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p);)
 	@$(foreach p,$(GO_STATIC_CGO_PACKAGES),CGO_ENABLED=1 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_CGO_FLAGS) $(p);)
+ifeq ($(RELEASEBUILD),1)
+ifeq ($(GOOS),linux)
+#	@$(foreach p,$(GO_STATIC_CGO_PACKAGES) $(GO_NONSTATIC_PACKAGES) $(GO_NONSTATIC_PIE_PACKAGES),dwz $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT);)
+	@$(foreach p,$(GO_STATIC_CGO_PACKAGES) $(GO_NONSTATIC_PACKAGES) $(GO_NONSTATIC_PIE_PACKAGES),$(OBJCOPY) --only-keep-debug $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))).debug;)
+	@$(foreach p,$(GO_STATIC_CGO_PACKAGES) $(GO_NONSTATIC_PACKAGES) $(GO_NONSTATIC_PIE_PACKAGES),$(OBJCOPY) --strip-debug $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT);)
+	@$(foreach p,$(GO_STATIC_CGO_PACKAGES) $(GO_NONSTATIC_PACKAGES) $(GO_NONSTATIC_PIE_PACKAGES),$(OBJCOPY) --add-gnu-debuglink=$(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))).debug $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT);)
+endif
+endif
 
 .PHONY: go.install
 go.install: go.vet go.fmt $(CGO_PREREQS)

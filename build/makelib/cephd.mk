@@ -31,7 +31,14 @@ CEPHD_PLATFORM ?= linux_amd64
 # ====================================================================================
 # Configuration
 
+ifneq ($(CEPHD_DEBUG),0)
+CEPHD_BUILD_TYPE=Debug
+else
+CEPHD_BUILD_TYPE=RelWithDebInfo
+endif
+
 CEPHD_CMAKE += \
+	-DCMAKE_BUILD_TYPE=$(CEPHD_BUILD_TYPE) \
 	-DWITH_EMBEDDED=ON \
 	-DALLOCATOR=$(CEPHD_ALLOCATOR) \
 	-DWITH_FUSE=OFF \
@@ -54,9 +61,7 @@ ifeq ($(CEPHD_CCACHE),1)
 CEPHD_CMAKE += -DWITH_CCACHE=ON
 endif
 
-ifeq ($(CROSSBUILD),1)
 CEPHD_CMAKE += -DCMAKE_TOOLCHAIN_FILE=$(abspath build/container/external/toolchain/$(CROSS_TRIPLE).cmake)
-endif
 
 # ====================================================================================
 # Targets
@@ -74,9 +79,6 @@ cephd.config:
 .PHONY: cephd.build
 cephd.build: cephd.config
 	@cd $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM) && $(MAKE) cephd
-ifeq ($(CEPHD_DEBUG),0)
-	@$(STRIP) -pd $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/lib/libcephd.a
-endif
 	@touch -c --reference=$(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/lib/libcephd.a $(CEPHD_TOUCH_ON_BUILD)
 
 .PHONY: cephd.clean
