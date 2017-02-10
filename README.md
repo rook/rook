@@ -164,7 +164,7 @@ On a modern Linux host run the following:
 
 ### Kubernetes
 
-Rook integrates with Kubernetes to create a persistent storage solution for your Kubernetes application. Go [here](https://github.com/rook/rook/demo/kubernetes) for steps on how to integrate rook on Kubernetes.
+Rook integrates with Kubernetes to create a persistent storage solution for your Kubernetes application. Go [here](https://github.com/rook/rook/blob/master/demo/kubernetes/README.md) for steps on how to integrate rook on Kubernetes.
 
 ### CoreOS
 
