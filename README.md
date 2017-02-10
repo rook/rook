@@ -164,7 +164,7 @@ On a modern Linux host run the following:
 
 ### Kubernetes
 
-To run a Kubernetes cluster with Rook for persistent storage go [here](https://github.com/rook/coreos-kubernetes)
+Rook integrates with Kubernetes to create a persistent storage solution for your Kubernetes application. Go [here](https://github.com/rook/rook/demo/kubernetes) for steps on how to integrate rook on Kubernetes.
 
 ### CoreOS
 
