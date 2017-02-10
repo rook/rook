@@ -4,7 +4,9 @@ This example shows how to build a simple, multi-tier web application on Kubernet
 
 ## Prerequisites
 
-This example requires a running Kubernetes cluster. You will also need to modify the kubelet service to bind mount `/sbin/modprobe` to allow access to `modprobe`. Access to modprobe is necessary for using the rbd volume plugin (<https://github.com/kubernetes/kubernetes/issues/23924>).
+This example requires a running Kubernetes cluster.
+
+You will also need to modify the kubelet service to bind mount `/sbin/modprobe` to allow access to `modprobe`. Access to modprobe is necessary for using the rbd volume plugin (<https://github.com/kubernetes/kubernetes/issues/23924>).
 If using RKT, you can allow modprobe by following this [doc](https://github.com/coreos/coreos-kubernetes/blob/master/Documentation/kubelet-wrapper.md#allow-pods-to-use-rbd-volumes).  
 
 For a quick start, use <https://github.com/rook/coreos-kubernetes/tree/rook-demo> (rook-demo branch in the rook fork of the coreos-kubernetes repo). This will bring up a multi-node Kubernetes cluster, configured for using the rbd volume plugin.
