@@ -32,6 +32,7 @@ RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu yakkety main univers
         cmake \
         crossbuild-essential-arm64 \
         curl \
+        dwz \
         docker.io \
         git \
         jq \
@@ -77,27 +78,27 @@ RUN ACBUILD_VERSION=0.4.0 && \
 #    - netgo: CGO_ENABLED=1, enable pure go DNS resolver
 #    - nocgo: CGO_ENABLED=0, defaults tags, pure Go resolver is the default
 #
-RUN GO_VERSION=1.7.4 && \
-    GO_HASH=47fda42e46b4c3ec93fa5d4d4cc6a748aa3f9411a2a2b7e08e3a6d80d753ec8b && \
+RUN GO_VERSION=1.7.5 && \
+    GO_HASH=2e4dd6c44f0693bef4e7b46cc701513d74c3cc44f2419bf519d7868b12931ac3 && \
     curl -fsSL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
     echo "${GO_HASH}  golang.tar.gz" | sha256sum -c - && \
     tar -C /usr/local -xzf golang.tar.gz && \
     rm golang.tar.gz && \
     \
-    CGO_ENABLED=1 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -a std && \
-    CGO_ENABLED=1 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -installsuffix netgo -tags netgo -a std && \
-    CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 CC=o64-clang              go install -installsuffix nocgo -a std && \
-    CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -a std && \
-    CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -installsuffix netgo -tags netgo -a std && \
-    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc go install -installsuffix nocgo -a std && \
-    CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -a std && \
-    CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -buildmode pie -installsuffix pie -a std && \
-    CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -installsuffix netgo -tags netgo -a std && \
-    CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc  go install -installsuffix nocgo -a std && \
-    CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -a std && \
-    CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -buildmode pie -installsuffix pie -a std && \
-    CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix netgo -tags netgo -a std && \
-    CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix nocgo -a std && \
+    CGO_ENABLED=1 GOOS=darwin  GOARCH=amd64 CC=x86_64-apple-darwin15-clang   go install -a std && \
+    CGO_ENABLED=1 GOOS=darwin  GOARCH=amd64 CC=x86_64-apple-darwin15-clang   go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=darwin  GOARCH=amd64 CC=x86_64-apple-darwin15-clang   go install -installsuffix nocgo -a std && \
+    CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc        go install -a std && \
+    CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc        go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc        go install -installsuffix nocgo -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc         go install -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc         go install -buildmode pie -installsuffix pie -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc         go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc         go install -installsuffix nocgo -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc          go install -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc          go install -buildmode pie -installsuffix pie -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc          go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc          go install -installsuffix nocgo -a std && \
     \
     CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix race -a std
 
@@ -114,7 +115,7 @@ RUN set -e;\
         -DEXTERNAL_DOWNLOAD_DIR=/build/external/download \
         -DCMAKE_INSTALL_PREFIX=/usr/${a} \
         -DCMAKE_TOOLCHAIN_FILE=/build/external/toolchain/${a}.cmake \
-        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DCMAKE_INSTALL_MESSAGE=never \
         ;\

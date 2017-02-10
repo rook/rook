@@ -19,3 +19,4 @@ import:
   version: 843f7c4f28b1f647f664f883697107d5c02c5acc
   subpackages:
   - kubernetes/typed/core/v1
+- package: github.com/bassam/cgosymbolizer

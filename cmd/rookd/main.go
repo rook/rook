@@ -40,6 +40,8 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/rook/rook/pkg/util/proc"
+
+	_ "github.com/bassam/cgosymbolizer"
 )
 
 var rootCmd = &cobra.Command{

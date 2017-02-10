@@ -13,9 +13,9 @@
 # limitations under the License.
 
 # See http://www.zlib.net
-set(Zlib_VERSION 1.2.8)
+set(Zlib_VERSION 1.2.11)
 set(Zlib_URL http://zlib.net/zlib-${Zlib_VERSION}.tar.gz)
-set(Zlib_URL_MD5 44d667c142d7cda120332623eab69f40)
+set(Zlib_URL_SHA256 c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1)
 
 message(STATUS "External: Building Zlib ${Zlib_VERSION}")
 
@@ -33,7 +33,7 @@ ExternalProject_Add(zlib
   PREFIX ${EXTERNAL_ROOT}
 
   URL ${Zlib_URL}
-  URL_HASH MD5=${Zlib_URL_MD5}
+  URL_HASH SHA256=${Zlib_URL_SHA256}
 
   DOWNLOAD_DIR ${EXTERNAL_DOWNLOAD_DIR}
   BUILD_IN_SOURCE 1

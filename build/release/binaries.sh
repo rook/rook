@@ -26,6 +26,14 @@ build() {
         local tarfile=${RELEASE_DIR}/rook-${version}-${os}-${arch}.tar.gz
         echo creating tar ${tarfile}
         tar czf "${tarfile}" -C "${bindir}" ${files[*]}
+
+        # create a package with debug symbols
+        if [[ ${type} == "both" ]]; then
+            files=( rookd${ext}.debug )
+            local tarfile=${RELEASE_DIR}/rook-${version}-${os}-${arch}-debug.tar.gz
+            echo creating debug tar ${tarfile}
+            tar czf "${tarfile}" -C "${bindir}" ${files[*]}
+        fi
     else
         local zipfile=$(realpath ${RELEASE_DIR}/rook-${version}-${os}-${arch}.zip)
         echo creating zip ${zipfile}
@@ -50,6 +58,11 @@ publish() {
 
     echo uploading $file.$ext to github
     github_upload $file.$ext $mediatype
+
+    if [[ ${os} == "linux" ]]; then
+        echo uploading $file-debug.$ext to github
+        github_upload $file-debug.$ext $mediatype
+    fi
 }
 
 action=$1
