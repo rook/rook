@@ -41,3 +41,17 @@ type ObjectBucket struct {
 	CreatedAt time.Time `json:"createdAt"`
 	ObjectBucketStats
 }
+
+type ObjectBuckets []ObjectBucket
+
+func (slice ObjectBuckets) Len() int {
+	return len(slice)
+}
+
+func (slice ObjectBuckets) Less(i, j int) bool {
+	return slice[i].Name < slice[j].Name
+}
+
+func (slice ObjectBuckets) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
