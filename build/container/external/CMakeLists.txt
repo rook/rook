@@ -70,6 +70,7 @@ add_subdirectory(packages/openssl)
 add_subdirectory(packages/snappy)
 add_subdirectory(packages/util-linux)
 add_subdirectory(packages/rocksdb)
+add_subdirectory(packages/zstd)
 
 #
 # Copy include files and libraries to the destination

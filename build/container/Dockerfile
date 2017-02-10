@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:yakkety
+FROM ubuntu:zesty
 MAINTAINER Bassam Tabbara <bassam.tabbara@quantum.com>
 WORKDIR /build
 ENV PATH /usr/local/go/bin:/usr/local/osxcross/bin:$PATH
@@ -20,8 +20,8 @@ ENV PATH /usr/local/go/bin:/usr/local/osxcross/bin:$PATH
 #
 # install build tools, compilers and cross compilers for all supported platforms
 #
-RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu yakkety main universe restricted" > /etc/apt/sources.list &&\
-    echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu yakkety-updates main universe restricted" >> /etc/apt/sources.list &&\
+RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu zesty main universe restricted" > /etc/apt/sources.list &&\
+    echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu zesty-updates main universe restricted" >> /etc/apt/sources.list &&\
     dpkg --add-architecture arm64 && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
@@ -107,19 +107,21 @@ RUN GO_VERSION=1.7.5 && \
 #
 COPY external /build/external/
 
+ARG VERBOSE
 RUN set -e;\
     for a in x86_64-linux-gnu aarch64-linux-gnu; do \
       cmake \
         -H/build/external \
         -B/build/external/build/${a} \
         -DEXTERNAL_DOWNLOAD_DIR=/build/external/download \
+        ${VERBOSE:+-DEXTERNAL_LOGGING=OFF} \
         -DCMAKE_INSTALL_PREFIX=/usr/${a} \
         -DCMAKE_TOOLCHAIN_FILE=/build/external/toolchain/${a}.cmake \
         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
         -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
         -DCMAKE_INSTALL_MESSAGE=never \
         ;\
-      cmake --build /build/external/build/${a} --target install -- -j4 ;\
+      cmake --build /build/external/build/${a} --target install -- ${VERBOSE:+VERBOSE=1 V=1} -j4 ;\
     done ;\
     rm -fr /build/external
 
