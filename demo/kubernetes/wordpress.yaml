@@ -1,21 +1,21 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: wordpress-mysql
+  name: wordpress
   labels:
     app: wordpress
 spec:
   ports:
-    - port: 3306
+    - port: 80
   selector:
     app: wordpress
-    tier: mysql
-  clusterIP: None
+    tier: frontend
+  type: LoadBalancer
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: mysql-pv-claim
+  name: wp-pv-claim
   annotations:
     volume.beta.kubernetes.io/storage-class: rook-block
   labels:
@@ -30,7 +30,7 @@ spec:
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
-  name: wordpress-mysql
+  name: wordpress
   labels:
     app: wordpress
 spec:
@@ -40,21 +40,23 @@ spec:
     metadata:
       labels:
         app: wordpress
-        tier: mysql
+        tier: frontend
     spec:
       containers:
-      - image: mysql:5.6
-        name: mysql
+      - image: wordpress:4.6.1-apache
+        name: wordpress
         env:
-        - name: MYSQL_ROOT_PASSWORD
+        - name: WORDPRESS_DB_HOST
+          value: wordpress-mysql
+        - name: WORDPRESS_DB_PASSWORD
           value: changeme
         ports:
-        - containerPort: 3306
-          name: mysql
+        - containerPort: 80
+          name: wordpress
         volumeMounts:
-        - name: mysql-persistent-storage
-          mountPath: /var/lib/mysql
+        - name: wordpress-persistent-storage
+          mountPath: /var/www/html
       volumes:
-      - name: mysql-persistent-storage
+      - name: wordpress-persistent-storage
         persistentVolumeClaim:
-          claimName: mysql-pv-claim
+          claimName: wp-pv-claim
