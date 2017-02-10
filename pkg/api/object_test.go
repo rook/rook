@@ -588,5 +588,5 @@ func TestListBuckets(t *testing.T) {
 		return "", fmt.Errorf("Shouldn't return more than 3 times")
 	})
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, `[{"name":"foo","owner":"bob","createdAt":"2016-08-05T16:23:34.343343Z","size":4,"numberOfObjects":2},{"name":"bar","owner":"bill","createdAt":"2016-08-05T18:31:22.445343Z","size":5,"numberOfObjects":4}]`, w.Body.String())
+	assert.Equal(t, `[{"name":"bar","owner":"bill","createdAt":"2016-08-05T18:31:22.445343Z","size":5,"numberOfObjects":4},{"name":"foo","owner":"bob","createdAt":"2016-08-05T16:23:34.343343Z","size":4,"numberOfObjects":2}]`, w.Body.String())
 }

@@ -16,9 +16,9 @@ limitations under the License.
 package api
 
 import (
-	"net/http"
-
 	"encoding/json"
+	"net/http"
+	"sort"
 
 	"github.com/gorilla/mux"
 	"github.com/rook/rook/pkg/cephmgr/rgw"
@@ -215,7 +215,10 @@ func (h *Handler) Listbuckets(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	FormatJsonResponse(w, buckets)
+	sortedBuckets := model.ObjectBuckets(buckets)
+	sort.Sort(sortedBuckets)
+
+	FormatJsonResponse(w, sortedBuckets)
 }
 
 func handleConnectionLookupFailure(err error, action string, w http.ResponseWriter) {
