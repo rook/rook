@@ -12,13 +12,18 @@ layout_root() {
     local os=$1
     local arch=$2
     local dir=$3
+
+    shift 3
+    local bins="$@"
+
     local bindir=$(get_bindir ${os} ${arch})
 
     mkdir -p $dir/root/usr/bin
     mkdir -p $dir/root/etc/ssl/certs
 
-    cp $bindir/rookd $dir/root/usr/bin
-    cp $bindir/rook $dir/root/usr/bin
+    for b in $bins; do
+        cp $bindir/$b $dir/root/usr/bin
+    done
 
     cp /etc/ssl/certs/ca-certificates.crt $dir/root/etc/ssl/certs
 }
