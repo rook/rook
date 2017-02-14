@@ -5,7 +5,7 @@ metadata:
    namespace: rook
 provisioner: kubernetes.io/rbd
 parameters:
-    monitors: 10.2.0.41:6790,10.2.1.68:6790,10.2.2.66:6790
+    monitors: INSERT_HERE
     adminId: admin
     adminSecretName: rook-admin
     adminSecretNamespace: rook
