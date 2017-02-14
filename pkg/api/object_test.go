@@ -571,18 +571,24 @@ func TestListBuckets(t *testing.T) {
 	assert.Equal(t, `[{"name":"foo","owner":"bob","createdAt":"2016-08-05T16:23:34.343343Z","size":9,"numberOfObjects":6}]`, w.Body.String())
 
 	// Two buckets
-	timeThrough := 0
+	first = true
 	w = runTest(func(args ...string) (string, error) {
-		timeThrough++
-		if timeThrough == 1 {
+		if first {
+			// Expect the stats call
+			first = false
 			assert.Equal(t, []string{"bucket", "stats", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring"}, args[3:])
 			return `[{"bucket":"foo","usage":{"pool1":{"size":4,"num_objects":2}}},{"bucket":"bar","usage":{"pool2":{"size":5,"num_objects":4}}}]`, nil
-		} else if timeThrough == 2 {
-			assert.Equal(t, []string{"metadata", "get", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "bucket:foo"}, args[3:])
-			return `{"data":{"owner":"bob","creation_time":"2016-08-05 16:23:34.343343Z"}}`, nil
-		} else if timeThrough == 3 {
-			assert.Equal(t, []string{"metadata", "get", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "bucket:bar"}, args[3:])
-			return `{"data":{"owner":"bill","creation_time":"2016-08-05 18:31:22.445343Z"}}`, nil
+		} else {
+			// Expect the bucket metadata calls
+			if args[len(args)-1] == "bucket:foo" {
+				assert.Equal(t, []string{"metadata", "get", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "bucket:foo"}, args[3:])
+				return `{"data":{"owner":"bob","creation_time":"2016-08-05 16:23:34.343343Z"}}`, nil
+			} else if args[len(args)-1] == "bucket:bar" {
+				assert.Equal(t, []string{"metadata", "get", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "bucket:bar"}, args[3:])
+				return `{"data":{"owner":"bill","creation_time":"2016-08-05 18:31:22.445343Z"}}`, nil
+			} else {
+				assert.Fail(t, "Wasn't foo or bar: %+v", args[3:])
+			}
 		}
 		assert.Fail(t, "Shouldn't return more than 3 times")
 		return "", fmt.Errorf("Shouldn't return more than 3 times")
