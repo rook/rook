@@ -67,8 +67,8 @@ If you see a url response, you are ready to go.
 
 #### Deploy Rook
 
-Rook can be setup and deployed in Kubernetes by simply deploying the [rook-operator](https://github.com/rook/rook/blob/master/demo/kubernetes/rook-operator.yaml) deployment manifest.
-You will this manifest and all our example manifests files in the [demo/kubernetes](https://github.com/rook/rook/blob/master/demo/kubernetes) folder.
+Rook can be setup and deployed in Kubernetes by simply deploying the [rook-operator](demo/kubernetes/rook-operator.yaml) deployment manifest.
+You will find this manifest and all our example manifest files in the [demo/kubernetes](demo/kubernetes) folder.
 
 ```
 $ cd demo/kubernetes
@@ -95,20 +95,14 @@ rook-operator-349747813-c3dmm   1/1       Running   0          1m
 
 #### Provision Storage
 Before Rook can start provisioning storage, a StorageClass needs to be created. This is used to specify the storage privisioner, parameters, admin secret and other information needed for Kubernetes to interoperate with Rook for provisioning persistent volumes.
-Rook already creates a default admin and demo user, whose secrets are already specified in the sample [rook-storageclass.yaml](https://github.com/rook/rook/blob/master/demo/kubernetes/rook-storageclass.yaml).
+Rook already creates a default admin and demo user, whose secrets are already specified in the sample [rook-storageclass.yaml](demo/kubernetes/rook-storageclass.yaml).
 
-However, before we proceed, we need to specify the Ceph monitor endpoints. You can find them by running this line (you will need `jq`). This will generated a comma-separated list of monitor IPs and ports `6790`. Add this list into the `monitors` param of the `rook-storageclass.yaml`
+However, before we proceed, we need to specify the Ceph monitor endpoints. You can find them by running this line (you will need `jq`). This will generated a comma-separated list of monitor IPs and ports `6790` and place it into the `monitors` param of the `rook-storageclass.yaml`
 
 ```
-$ kubectl -n rook get pod mon0 mon1 mon2 -o json|jq .items[].status.podIP|tr -d "\""|sed -e 's/$/:6790/'|paste -s -d, -
-10.2.2.80:6790,10.2.1.83:6790,10.2.0.47:6790
+$ export MONS=$(kubectl -n rook get pod mon0 mon1 mon2 -o json|jq ".items[].status.podIP"|tr -d "\""|sed -e 's/$/:6790/'|paste -s -d, -)
+$ sed 's#INSERT_HERE#'$MONS'#' rook-storageclass.yaml | kubectl create -f -
 ``` 
-
-Create Rook Storage class:
-
-```
-$ kubectl create -f rook-storageclass.yaml
-```
 
 #### Consume the storage
 
@@ -143,7 +137,7 @@ You should see the wordpress app running.
 
 ## Rook Standalone Service
 
-Rook can also be deployed as a standalone service on any modern Linux host. Refer [here](https://github.com/kokhang/rook/tree/update-readme/demo/README.md) for steps on how to run Rook on a Linux host.
+Rook can also be deployed as a standalone service on any modern Linux host. Refer [here](demo/README.md) for steps on how to run Rook on a Linux host.
 
 ## Building
 
