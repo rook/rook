@@ -31,15 +31,17 @@ const (
 )
 
 type Cluster struct {
-	Namespace string
-	Keyring   string
-	Version   string
+	Namespace     string
+	Keyring       string
+	Version       string
+	useAllDevices bool
 }
 
-func New(namespace, version string) *Cluster {
+func New(namespace, version string, useAllDevices bool) *Cluster {
 	return &Cluster{
-		Namespace: namespace,
-		Version:   version,
+		Namespace:     namespace,
+		Version:       version,
+		useAllDevices: useAllDevices,
 	}
 }
 
@@ -97,6 +99,10 @@ func (c *Cluster) osdContainer(cluster *mon.ClusterInfo) v1.Container {
 
 	command := fmt.Sprintf("/usr/bin/rookd osd --data-dir=%s --mon-endpoints=%s --cluster-name=%s ",
 		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name)
+	if c.useAllDevices {
+		command += fmt.Sprintf("--data-devices=all ")
+	}
+
 	privileged := true
 	return v1.Container{
 		// TODO: fix "sleep 5".

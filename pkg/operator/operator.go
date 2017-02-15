@@ -36,14 +36,16 @@ type Operator struct {
 	clientset        *kubernetes.Clientset
 	waitCluster      sync.WaitGroup
 	factory          client.ConnectionFactory
+	useAllDevices    bool
 }
 
-func New(namespace string, factory client.ConnectionFactory, clientset *kubernetes.Clientset, containerVersion string) *Operator {
+func New(namespace string, factory client.ConnectionFactory, clientset *kubernetes.Clientset, containerVersion string, useAllDevices bool) *Operator {
 	return &Operator{
 		Namespace:        namespace,
 		factory:          factory,
 		clientset:        clientset,
 		containerVersion: containerVersion,
+		useAllDevices:    useAllDevices,
 	}
 }
 
@@ -63,7 +65,7 @@ func (o *Operator) Run() error {
 	}
 
 	// Start the OSDs
-	osds := osd.New(o.Namespace, o.containerVersion)
+	osds := osd.New(o.Namespace, o.containerVersion, o.useAllDevices)
 	err = osds.Start(o.clientset, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)

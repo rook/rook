@@ -61,7 +61,7 @@ func Run(dcontext *clusterd.DaemonContext, agent *OsdAgent) error {
 	}
 
 	// initialize the desired osds
-	devices, err := getAvailableDevices(dcontext, hardware.Disks)
+	devices, err := getAvailableDevices(dcontext, hardware.Disks, agent.devices)
 	if err != nil {
 		return fmt.Errorf("failed to get available devices. %+v", err)
 	}
@@ -93,7 +93,7 @@ func Run(dcontext *clusterd.DaemonContext, agent *OsdAgent) error {
 	return nil
 }
 
-func getAvailableDevices(context *clusterd.DaemonContext, devices []*inventory.LocalDisk) (*DeviceOsdMapping, error) {
+func getAvailableDevices(context *clusterd.DaemonContext, devices []*inventory.LocalDisk, desiredDevices string) (*DeviceOsdMapping, error) {
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 	for _, device := range devices {
 		if device.Type == sys.PartType {
@@ -104,8 +104,11 @@ func getAvailableDevices(context *clusterd.DaemonContext, devices []*inventory.L
 			return nil, fmt.Errorf("failed to get device %s info. %+v", device.Name, err)
 		}
 		if fs == "" && ownPartitions {
-			logger.Infof("skipping device %s until the admin specifies it can be used by an osd", device.Name)
-			//available.Entries[device.Name] = &DeviceOsdIDEntry{Data: (for existing osds get their ids) unassignedOSDID}
+			if desiredDevices == "all" {
+				available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID}
+			} else {
+				logger.Infof("skipping device %s until the admin specifies it can be used by an osd", device.Name)
+			}
 		}
 	}
 
