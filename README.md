@@ -287,30 +287,51 @@ See [Building](https://github.com/rook/rook/wiki/Building) in the wiki for more 
 
 ## Design
 
-A rook cluster is made up of one or more nodes each running the Rook daemon `rookd`. Containers and Pods can
-mount block devices and filesystems exposed by the cluster, or can use S3/Swift API for object storage. There is
-also a REST API exposed by `rookd` as well as a command line tool called `rook`.
+With Rook running in the Kubernetes cluster, Kubernetes applications can
+mount block devices and filesystems managed by Rook, or can use the S3/Swift API for object storage. The Rook operator 
+automates configuration of the Ceph storage components and monitors the cluster to ensure the storage remains available
+and healthy. There is also a REST API service for configuring the Rook storage and a command line tool called `rook`.
 
-![Overview](Documentation/media/cluster.png)
+![Rook Architecture on Kubernetes](Documentation/media/kubernetes.png)
 
-The Rook daemon `rookd` is a single binary that is self-contained and has all that is needed to bootstrap, scale
+The Rook operator is a simple container containing the `rook-operator` binary that has all that is needed to bootstrap
+and monitor the storage cluster. The operator will start and monitor ceph monitor pods and a daemonset for the OSDs to
+which provides basic RADOS storage, as well as a deployment for a RESTful API service. When requested through the api service,
+object storage (S3/Swift) is enabled by starting a deployment for RGW, while a shared file system is enabled with a deployment for MDS.
+
+The operator will monitor the storage daemons to ensure the cluster is healthy, to start more ceph mons when necessary, to 
+failover mons, make adjustments as the cluster grows or shrinks, etc. The operator will also watch for desired state changes 
+requested by the api service and apply the changes.
+
+The Rook daemons (Mons, OSDs, RGW, and MDS) are compiled to a single binary `rookd`, and included in a minimal container.
+`rookd` uses an embedded version of Ceph for storing all data -- there are no changes to the data path. 
+Rook does not attempt to maintain full fidelity with Ceph. Many of the Ceph concepts like placement groups and crush maps 
+are hidden so you don't have to worry about them. Instead Rook creates a much simplified UX for admins that is in terms 
+of physical resources, pools, volumes, filesystems, and buckets.
+
+Rook is implemented in golang. Ceph is implemented in C++ where the data path is highly optimized. We believe
+this combination offers the best of both worlds.
+
+See [Design](https://github.com/rook/rook/wiki/Design) wiki for more details.
+
+### Standalone Rook
+
+Rook also supports an environment where there is no orchestration platform. Rook comes with its own basic orchestration 
+engine based on Etcd that is activated when not running in Kubernetes. 
+
+![Standalone Rook Architecture](Documentation/media/standalone.png)
+
+The Rook daemon, `rookd`, is a single binary that is self-contained and has all that is needed to bootstrap, scale
 and manage a storage cluster. `rookd` is typically compiled into a single static binary (just like most golang
 binaries) or a dynamic binary that takes a dependency on mostly libc. It can run in minimal containers, alongside a
-hypervisor, or directly on the host on most Linux distributions.
-
-`rookd` uses an embedded version of Ceph for storing all data -- there are no changes to the data path. An embedded version
-of Ceph was created specifically for Rook scenarios and has been pushed upstream. Rook does not attempt to maintain full fidelity
-with Ceph, for example, most of the Ceph concepts like OSDs, MONs, placement groups, etc. are hidden. Instead Rook creates
-a much simplified UX for admins that is in terms of physical resources, pools, volumes, filesystems, and buckets.
+hypervisor, or directly on the host on most Linux distributions. Each machine in the cluster must run the Rook daemon.
 
 `rookd` embeds Etcd to store configuration and coordinate cluster-wide management operations. `rookd` will automatically
 bootstrap Etcd, manage it, and scale it as the cluster grows. It's also possible to use an external Etcd instead of the embedded one
 if needed.
 
-Rook and etcd are implemented in golang. Ceph is implemented in C++ where the data path is highly optimized. We believe
-this combination offers the best of both worlds.
-
-See [Design](https://github.com/rook/rook/wiki/Design) wiki for more details.
+Standalone Rook still requires some key orchestration features such as resource management, health monitoring, failover, and upgrades. 
+If this scenario is interesting to you, contributions are welcome!
 
 ## Contributing
 
