@@ -15,21 +15,27 @@
 # limitations under the License.
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-workdir=${scriptdir}/../../../.external
-builddir=${workdir}/build
-installdir=${workdir}/install
-downloaddir=${workdir}/download
+
+# set the working directory
+if [[ -z ${WORKDIR} ]]; then
+  WORKDIR=${scriptdir}
+fi
+
+builddir=${WORKDIR}/build
+installdir=${WORKDIR}/install
+downloaddir=${WORKDIR}/download
 
 for p in x86_64-linux-gnu aarch64-linux-gnu; do
     rm -fr ${builddir}/${p}
+    rm -fr ${installdir}/${p}
     cmake \
       -H${scriptdir} \
       -B${builddir}/${p} \
       -DEXTERNAL_DOWNLOAD_DIR=${downloaddir} \
       -DCMAKE_INSTALL_PREFIX=${installdir}/${p} \
       -DCMAKE_TOOLCHAIN_FILE=${scriptdir}/toolchain/${p}.cmake \
-      -DEXTERNAL_LOGGING=OFF \
-      -DCMAKE_BUILD_TYPE=Release \
+      -DEXTERNAL_LOGGING=ON \
+      -DCMAKE_BUILD_TYPE=RelWithDebInfo \
       -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-    cmake --build ${builddir}/${p} --target install -- V=1 VERBOSE=1 -j3 ;\
+    make -C ${builddir}/${p} V=1 $@
 done

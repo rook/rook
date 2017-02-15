@@ -25,7 +25,6 @@ message(STATUS "External: Building snappy ${Snappy_VERSION}")
 set(Snappy_CXXFLAGS ${EXTERNAL_CXX_FLAGS})
 
 set(Snappy_Config_Args
-  --disable-shared
   )
 
 ExternalProject_Add(snappy

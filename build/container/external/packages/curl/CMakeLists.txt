@@ -23,7 +23,8 @@ message(STATUS "External: Building Curl ${Curl_VERSION}")
 # Build
 #
 
-set(Curl_CFLAGS ${EXTERNAL_C_FLAGS})
+set(Curl_CFLAGS "${EXTERNAL_C_FLAGS} -I<INSTALL_DIR>/include")
+set(Curl_LDFLAGS "${EXTERNAL_LD_FLAGS} -L<INSTALL_DIR>/lib")
 
 set(Curl_Config_Args
   --disable-cookies
@@ -36,13 +37,11 @@ set(Curl_Config_Args
   --disable-manual
   --disable-pop3
   --disable-rtsp
-  --disable-shared
   --disable-smb
   --disable-smtp
   --disable-telnet
   --disable-tftp
   --disable-unix-sockets
-  --with-ssl
   --without-gssapi
   --without-libssh2
   --without-nss
@@ -50,6 +49,7 @@ set(Curl_Config_Args
   )
 
 ExternalProject_Add(curl
+  DEPENDS zlib openssl
   PREFIX ${EXTERNAL_ROOT}
 
   URL ${Curl_URL}
@@ -59,7 +59,7 @@ ExternalProject_Add(curl
   BUILD_IN_SOURCE 1
 
   PATCH_COMMAND true
-  CONFIGURE_COMMAND ./configure CFLAGS=${Curl_CFLAGS} --prefix=<INSTALL_DIR> --host=${EXTERNAL_CROSS_TRIPLE} ${Curl_Config_Args}
+  CONFIGURE_COMMAND ./configure "CFLAGS=${Curl_CFLAGS}" "LDFLAGS=${Curl_LDFLAGS}" --prefix=<INSTALL_DIR> --with-ssl=<INSTALL_DIR>/lib --host=${EXTERNAL_CROSS_TRIPLE} ${Curl_Config_Args}
   BUILD_COMMAND $(MAKE)
   INSTALL_COMMAND $(MAKE) install
 

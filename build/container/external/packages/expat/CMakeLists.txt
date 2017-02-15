@@ -26,7 +26,6 @@ message(STATUS "External: Building util-linux ${Expat_VERSION}")
 set(Expat_CFLAGS ${EXTERNAL_C_FLAGS})
 
 set(Expat_Config_Args
-  --disable-shared
   )
 
 ExternalProject_Add(expat

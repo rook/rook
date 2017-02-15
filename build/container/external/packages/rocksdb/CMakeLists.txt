@@ -22,12 +22,12 @@ message(STATUS "External: Building rocksdb ${Rocksdb_VERSION}")
 # Build
 #
 
-set(Rocksdb_CXXFLAGS ${EXTERNAL_CXX_FLAGS})
-
-set(Rocksdb_Config_Args)
+set(Rocksdb_CFLAGS "${EXTERNAL_C_FLAGS} -I<INSTALL_DIR>/include -L<INSTALL_DIR>/lib")
+set(Rocksdb_CXXFLAGS "${EXTERNAL_CXX_FLAGS} -I<INSTALL_DIR>/include -L<INSTALL_DIR>/lib")
+set(Rocksdb_LDFLAGS "${EXTERNAL_LD_FLAGS} -L<INSTALL_DIR>/lib")
 
 ExternalProject_Add(rocksdb
-  DEPENDS zlib snappy
+  DEPENDS zlib snappy zstd
   PREFIX ${EXTERNAL_ROOT}
 
   GIT_REPOSITORY https://github.com/ceph/rocksdb.git
@@ -38,9 +38,10 @@ ExternalProject_Add(rocksdb
 
   PATCH_COMMAND
     patch -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/00-portable.patch
+    COMMAND patch -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/01-cxx-detect.patch
   CONFIGURE_COMMAND true
-  BUILD_COMMAND $(MAKE) PORTABLE=1 DISABLE_JEMALLOC=1 "CXX=${CMAKE_CXX_COMPILER}" "EXTRA_CXXFLAGS=${Rocksdb_CXXFLAGS} -I<INSTALL_DIR>/include" static_lib
-  INSTALL_COMMAND $(MAKE) INSTALL_PATH=<INSTALL_DIR> install-static
+  BUILD_COMMAND $(MAKE) DEBUG_LEVEL=1 PORTABLE=1 DISABLE_JEMALLOC=1 LIBNAME=librocksdb "CXX=${CMAKE_CXX_COMPILER}" "EXTRA_CFLAGS=${Rocksdb_CFLAGS}" "EXTRA_CXXFLAGS=${Rocksdb_CXXFLAGS}" "EXTRA_LDFLAGS=${Rocksdb_LDFLAGS}" static_lib
+  INSTALL_COMMAND $(MAKE) LIBNAME=librocksdb INSTALL_PATH=<INSTALL_DIR> install-static
 
   LOG_DOWNLOAD ${EXTERNAL_LOGGING}
   LOG_PATCH ${EXTERNAL_LOGGING}

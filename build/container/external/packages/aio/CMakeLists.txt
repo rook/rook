@@ -25,10 +25,6 @@ message(STATUS "External: Building libaio ${Aio_VERSION}")
 set(Aio_CFLAGS ${EXTERNAL_C_FLAGS})
 set(Aio_TOOLCHAIN CC=${CMAKE_C_COMPILER} AR=${CMAKE_AR} RANLIB=${CMAKE_RANLIB})
 
-set(Aio_Config_Args
-  --disable-shared
-  )
-
 ExternalProject_Add(aio
   PREFIX ${EXTERNAL_ROOT}
 
@@ -37,9 +33,7 @@ ExternalProject_Add(aio
   DOWNLOAD_DIR ${EXTERNAL_DOWNLOAD_DIR}
   BUILD_IN_SOURCE 1
 
-  PATCH_COMMAND
-    patch -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/00-makefile.patch
-    COMMAND patch -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/01-noshared.patch
+  PATCH_COMMAND patch -p0 < ${CMAKE_CURRENT_SOURCE_DIR}/00-makefile.patch
   CONFIGURE_COMMAND true
   BUILD_COMMAND $(MAKE) CFLAGS=${Aio_CFLAGS} ${Aio_TOOLCHAIN}
   INSTALL_COMMAND $(MAKE) prefix=<INSTALL_DIR> install

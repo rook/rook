@@ -38,8 +38,8 @@ ExternalProject_Add(jemalloc
 
   PATCH_COMMAND true
   CONFIGURE_COMMAND ./configure EXTRA_CFLAGS=${Jemalloc_CFLAGS} --prefix=<INSTALL_DIR> --host=${EXTERNAL_CROSS_TRIPLE} ${Jemalloc_Config_Args}
-  BUILD_COMMAND $(MAKE) build_lib_static
-  INSTALL_COMMAND $(MAKE) install_include install_lib_static
+  BUILD_COMMAND $(MAKE) build_lib_static build_lib_shared
+  INSTALL_COMMAND $(MAKE) install_include install_lib_static install_lib_shared
 
   LOG_DOWNLOAD ${EXTERNAL_LOGGING}
   LOG_PATCH ${EXTERNAL_LOGGING}

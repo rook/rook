@@ -39,7 +39,7 @@ ExternalProject_Add(cryptopp
 
   PATCH_COMMAND true
   CONFIGURE_COMMAND true
-  BUILD_COMMAND $(MAKE) CXXFLAGS=${Cryptopp_CXXFLAGS} ${Cryptopp_TOOLCHAIN} static
+  BUILD_COMMAND $(MAKE) CXXFLAGS=${Cryptopp_CXXFLAGS} ${Cryptopp_TOOLCHAIN} static dynamic
   INSTALL_COMMAND $(MAKE) PREFIX=<INSTALL_DIR> install
 
   LOG_DOWNLOAD ${EXTERNAL_LOGGING}

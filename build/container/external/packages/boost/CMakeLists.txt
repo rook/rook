@@ -58,7 +58,6 @@ ExternalProject_Add(boost
     -j ${EXTERNAL_PARALLEL_LEVEL}
     toolset=${toolset}
     variant=release
-    link=static
     threading=multi
     "include=<INSTALL_DIR>/include"
     "linkflags=-L<INSTALL_DIR>/lib"

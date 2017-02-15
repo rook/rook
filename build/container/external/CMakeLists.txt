@@ -47,6 +47,7 @@ endif()
 string(TOUPPER "${CMAKE_BUILD_TYPE}" build_type_upper)
 set(EXTERNAL_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_${build_type_upper}}")
 set(EXTERNAL_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${build_type_upper}}")
+set(EXTERNAL_LD_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${build_type_upper}}")
 
 message(STATUS "External: Building for ${CROSS_TRIPLE}")
 message(STATUS "External: Build Type: ${CMAKE_BUILD_TYPE}")
@@ -59,6 +60,9 @@ message(STATUS "External: Installing to ${EXTERNAL_INSTALL_DIR}")
 #
 
 add_subdirectory(packages/zlib)
+add_subdirectory(packages/zstd)
+add_subdirectory(packages/snappy)
+add_subdirectory(packages/openssl)
 add_subdirectory(packages/aio)
 add_subdirectory(packages/boost)
 add_subdirectory(packages/cryptopp)
@@ -66,11 +70,8 @@ add_subdirectory(packages/curl)
 add_subdirectory(packages/expat)
 add_subdirectory(packages/gperftools)
 add_subdirectory(packages/jemalloc)
-add_subdirectory(packages/openssl)
-add_subdirectory(packages/snappy)
 add_subdirectory(packages/util-linux)
 add_subdirectory(packages/rocksdb)
-add_subdirectory(packages/zstd)
 
 #
 # Copy include files and libraries to the destination
@@ -87,5 +88,3 @@ install(
   USE_SOURCE_PERMISSIONS
   PATTERN "pkgconfig" EXCLUDE
   PATTERN "*.la" EXCLUDE)
-
-# TODO: strip symbols into separate dbg

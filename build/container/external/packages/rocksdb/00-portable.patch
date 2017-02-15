@@ -1,5 +1,5 @@
---- Makefile	2016-12-09 17:53:47.231716988 -0800
-+++ Makefile	2016-12-09 17:54:20.954446804 -0800
+--- Makefile
++++ Makefile
 @@ -137,7 +137,7 @@
  
  AM_LINK = $(AM_V_CCLD)$(CXX) $^ $(EXEC_LDFLAGS) -o $@ $(LDFLAGS) $(COVERAGEFLAGS)

@@ -26,7 +26,6 @@ message(STATUS "External: Building Zlib ${Zlib_VERSION}")
 set(Zlib_CFLAGS ${EXTERNAL_C_FLAGS})
 
 set(Zlib_Config_Args
-  --static
   )
 
 ExternalProject_Add(zlib

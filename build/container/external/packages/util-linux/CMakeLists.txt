@@ -28,7 +28,6 @@ set(UtilLinux_Config_Args
   --disable-all-programs
   --disable-bash-completion
   --disable-colors-default
-  --disable-shared
   --enable-libblkid
   --enable-libuuid
   --without-cap-ng

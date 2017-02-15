@@ -25,7 +25,6 @@ message(STATUS "External: Building gperftools ${Gperftools_VERSION}")
 set(Gperftools_CXXFLAGS ${EXTERNAL_CXX_FLAGS})
 
 set(Gperftools_Config_Args
-  --disable-shared
   )
 
 ExternalProject_Add(gperftools

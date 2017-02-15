@@ -23,7 +23,7 @@ message(STATUS "External: Building Cryptopp ${Openssl_VERSION}")
 # Build
 #
 
-set(Openssl_CFLAGS ${EXTERNAL_CXX_FLAGS})
+string(REGEX REPLACE " " ";" Openssl_CFLAGS "${EXTERNAL_CXX_FLAGS}")
 
 if (${EXTERNAL_CROSS_TRIPLE} STREQUAL "x86_64-linux-gnu")
   set(Openssl_Target linux-x86_64)
@@ -43,7 +43,7 @@ ExternalProject_Add(openssl
   BUILD_IN_SOURCE 1
 
   PATCH_COMMAND true
-  CONFIGURE_COMMAND <SOURCE_DIR>/Configure --prefix=<INSTALL_DIR> --cross-compile-prefix=${EXTERNAL_CROSS_TRIPLE}- no-shared ${Openssl_Target}
+  CONFIGURE_COMMAND <SOURCE_DIR>/Configure --prefix=<INSTALL_DIR> --cross-compile-prefix=${EXTERNAL_CROSS_TRIPLE}- ${Openssl_CFLAGS} ${Openssl_Target}
   BUILD_COMMAND $(MAKE)
   INSTALL_COMMAND $(MAKE) install
 

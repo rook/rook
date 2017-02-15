@@ -15,7 +15,7 @@
 FROM ubuntu:zesty
 MAINTAINER Bassam Tabbara <bassam.tabbara@quantum.com>
 WORKDIR /build
-ENV PATH /usr/local/go/bin:/usr/local/osxcross/bin:$PATH
+ENV TERM=xterm PATH=/usr/local/go/bin:/usr/local/osxcross/bin:$PATH
 
 #
 # install build tools, compilers and cross compilers for all supported platforms
@@ -103,27 +103,10 @@ RUN GO_VERSION=1.7.5 && \
     CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix race -a std
 
 #
-# build rookd dependencies that are compiled statically directly from source for all supported platforms.
+# build rookd package dependencies directly from source for all supported platforms.
 #
 COPY external /build/external/
-
-ARG VERBOSE
-RUN set -e;\
-    for a in x86_64-linux-gnu aarch64-linux-gnu; do \
-      cmake \
-        -H/build/external \
-        -B/build/external/build/${a} \
-        -DEXTERNAL_DOWNLOAD_DIR=/build/external/download \
-        ${VERBOSE:+-DEXTERNAL_LOGGING=OFF} \
-        -DCMAKE_INSTALL_PREFIX=/usr/${a} \
-        -DCMAKE_TOOLCHAIN_FILE=/build/external/toolchain/${a}.cmake \
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-        -DCMAKE_INSTALL_MESSAGE=never \
-        ;\
-      cmake --build /build/external/build/${a} --target install -- ${VERBOSE:+VERBOSE=1 V=1} -j4 ;\
-    done ;\
-    rm -fr /build/external
+RUN CLICOLOR_FORCE=1 /build/external/build.sh -j$(nproc) install; rm -fr /build/external
 
 COPY entrypoint.sh rsyncd.sh /build/
 ENTRYPOINT [ "/build/entrypoint.sh" ]
