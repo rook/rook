@@ -329,13 +329,16 @@ func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 				return err
 			}
 
+			dirs[dirPath] = *osdID
 			config.id = *osdID
 			config.uuid = *osdUUID
 
 			// set the desired state of the dir with the osd id
-			err = associateOsdIDWithDevice(context.EtcdClient, context.NodeID, dirPath, config.id, config.dir)
-			if err != nil {
-				return fmt.Errorf("failed to associate osd id %d with the data dir", config.id)
+			if context.EtcdClient != nil {
+				err = associateOsdIDWithDevice(context.EtcdClient, context.NodeID, dirPath, config.id, config.dir)
+				if err != nil {
+					return fmt.Errorf("failed to associate osd id %d with the data dir", config.id)
+				}
 			}
 		}
 
