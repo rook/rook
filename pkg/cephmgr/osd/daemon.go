@@ -16,14 +16,22 @@ limitations under the License.
 package osd
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
+	"path"
 	"time"
 
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util/sys"
+)
+
+const (
+	dirOSDConfigFilename = "osd-dirs"
 )
 
 func Run(dcontext *clusterd.DaemonContext, agent *OsdAgent) error {
@@ -53,7 +61,7 @@ func Run(dcontext *clusterd.DaemonContext, agent *OsdAgent) error {
 	}
 
 	// initialize the desired osds
-	devices, err := getAvailableDevices(dcontext, hardware.Disks)
+	devices, err := getAvailableDevices(dcontext, hardware.Disks, agent.devices)
 	if err != nil {
 		return fmt.Errorf("failed to get available devices. %+v", err)
 	}
@@ -64,13 +72,19 @@ func Run(dcontext *clusterd.DaemonContext, agent *OsdAgent) error {
 		return fmt.Errorf("failed to configure devices. %+v", err)
 	}
 
-	if len(devices.Entries) == 0 {
-		dirs := map[string]int{context.ConfigDir: -1}
-		logger.Infof("configuring osd dir: %+v", dirs)
-		err = agent.configureDirs(context, dirs)
-		if err != nil {
-			return fmt.Errorf("failed to configure dir %s. %+v", context.ConfigDir, err)
-		}
+	// initialize the data directories
+	dirs, err := getDataDirs(dcontext, true)
+	if err != nil {
+		return fmt.Errorf("failed to get data dirs. %+v", err)
+	}
+	logger.Infof("configuring osd dirs: %+v", dirs)
+	err = agent.configureDirs(context, dirs)
+	if err != nil {
+		return fmt.Errorf("failed to configure dirs %v. %+v", dirs, err)
+	}
+	err = saveDirConfig(dcontext, dirs)
+	if err != nil {
+		return fmt.Errorf("failed to save osd dir config. %+v", err)
 	}
 
 	// FIX
@@ -79,7 +93,7 @@ func Run(dcontext *clusterd.DaemonContext, agent *OsdAgent) error {
 	return nil
 }
 
-func getAvailableDevices(context *clusterd.DaemonContext, devices []*inventory.LocalDisk) (*DeviceOsdMapping, error) {
+func getAvailableDevices(context *clusterd.DaemonContext, devices []*inventory.LocalDisk, desiredDevices string) (*DeviceOsdMapping, error) {
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 	for _, device := range devices {
 		if device.Type == sys.PartType {
@@ -90,9 +104,56 @@ func getAvailableDevices(context *clusterd.DaemonContext, devices []*inventory.L
 			return nil, fmt.Errorf("failed to get device %s info. %+v", device.Name, err)
 		}
 		if fs == "" && ownPartitions {
-			available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID}
+			if desiredDevices == "all" {
+				available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID}
+			} else {
+				logger.Infof("skipping device %s until the admin specifies it can be used by an osd", device.Name)
+			}
 		}
 	}
 
 	return available, nil
+}
+
+func getDataDirs(context *clusterd.DaemonContext, useDataDir bool) (map[string]int, error) {
+	filePath := path.Join(context.ConfigDir, dirOSDConfigFilename)
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		// the config file doesn't exist yet, just return the empty map unless the data dir is desired
+		if useDataDir {
+			return map[string]int{context.ConfigDir: unassignedOSDID}, nil
+		}
+
+		return map[string]int{}, nil
+	}
+
+	b, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, err
+	}
+
+	var dirs map[string]int
+	err = json.Unmarshal(b, &dirs)
+	if err != nil {
+		return nil, err
+	}
+	return dirs, nil
+}
+
+func saveDirConfig(context *clusterd.DaemonContext, config map[string]int) error {
+	if len(config) == 0 {
+		return nil
+	}
+
+	b, err := json.Marshal(config)
+	if err != nil {
+		return err
+	}
+	filePath := path.Join(context.ConfigDir, dirOSDConfigFilename)
+	err = ioutil.WriteFile(filePath, b, 0644)
+	if err != nil {
+		return err
+	}
+
+	logger.Debugf("saved osd dir config to %s", filePath)
+	return nil
 }

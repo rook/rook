@@ -47,6 +47,7 @@ type config struct {
 	cephConfigOverride string
 	clusterInfo        mon.ClusterInfo
 	monEndpoints       string
+	useAllDevices      bool
 }
 
 var logLevelRaw string
@@ -74,6 +75,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
 	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 
+	rootCmd.Flags().BoolVar(&cfg.useAllDevices, "use-all-devices", false, "true to use all storage devices, false to require local device selection")
+
 	// load the environment variables
 	flags.SetFlagsFromEnv(rootCmd.Flags(), "ROOK_OPERATOR")
 	flags.SetFlagsFromEnv(rootCmd.PersistentFlags(), "ROOK_OPERATOR")
@@ -96,7 +99,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	}
 
 	logger.Infof("starting operator. containerVersion=%s", cfg.containerVersion)
-	op := operator.New(k8sutil.Namespace, cephd.New(), clientset, cfg.containerVersion)
+	op := operator.New(k8sutil.Namespace, cephd.New(), clientset, cfg.containerVersion, cfg.useAllDevices)
 	err = op.Run()
 	if err != nil {
 		fmt.Printf("failed to run operator. %+v\n", err)

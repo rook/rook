@@ -33,10 +33,14 @@ var osdCmd = &cobra.Command{
 	Hidden: true,
 }
 var (
-	osdCluster mon.ClusterInfo
+	osdCluster     mon.ClusterInfo
+	osdDataDevices string
 )
 
 func init() {
+	osdCmd.Flags().StringVar(&osdDataDevices, "data-devices", "", "the device names to use, or \"all\"")
+	flags.SetFlagsFromEnv(monCmd.Flags(), "ROOKD")
+
 	osdCmd.RunE = startOSD
 }
 
@@ -47,13 +51,12 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	setLogLevel()
 
-	devices := ""
 	metadataDevice := ""
 	forceFormat := false
 	location := ""
 	bluestoreConfig := partition.BluestoreConfig{DatabaseSizeMB: 512} // FIX
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	agent := osd.NewAgent(cephd.New(), devices, metadataDevice, forceFormat, location, bluestoreConfig, &clusterInfo)
+	agent := osd.NewAgent(cephd.New(), osdDataDevices, metadataDevice, forceFormat, location, bluestoreConfig, &clusterInfo)
 	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
 
 	return osd.Run(context, agent)
