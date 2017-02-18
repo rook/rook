@@ -127,7 +127,7 @@ On a modern Linux host run the following:
 2. Create an object storage user
 
    ```bash
-   ./rook object user create rook-user "A rook rgw User"
+   ./rook object create user rook-user "A rook rgw User"
    ```
 
 3. Get the connection information for accessing object storage
