@@ -2,17 +2,15 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: rook-client
+  namespace: rook
 spec:
   containers:
   - name: rook-client
-    image: quay.io/rook/k8s-demo
+    image: quay.io/rook/rook-client:latest
     imagePullPolicy: IfNotPresent
     command: ["sleep", "36500d"]
     securityContext:
       privileged: true
-    env:
-      - name: ROOK_API_SERVER_ENDPOINT
-        value: rookd-api:8124
     volumeMounts:
         - mountPath: /dev
           name: dev
