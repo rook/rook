@@ -1,0 +1,14 @@
+apiVersion: storage.k8s.io/v1beta1
+kind: StorageClass
+metadata:
+   name: rook-block
+   namespace: rook
+provisioner: kubernetes.io/rbd
+parameters:
+    monitors: INSERT_HERE
+    adminId: admin
+    adminSecretName: rook-admin
+    adminSecretNamespace: rook
+    pool: rook
+    userId: rbd
+    userSecretName: rook-demo-user
