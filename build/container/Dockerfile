@@ -78,8 +78,8 @@ RUN ACBUILD_VERSION=0.4.0 && \
 #    - netgo: CGO_ENABLED=1, enable pure go DNS resolver
 #    - nocgo: CGO_ENABLED=0, defaults tags, pure Go resolver is the default
 #
-RUN GO_VERSION=1.7.5 && \
-    GO_HASH=2e4dd6c44f0693bef4e7b46cc701513d74c3cc44f2419bf519d7868b12931ac3 && \
+RUN GO_VERSION=1.8 && \
+    GO_HASH=53ab94104ee3923e228a2cb2116e5e462ad3ebaeea06ff04463479d7f12d27ca && \
     curl -fsSL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
     echo "${GO_HASH}  golang.tar.gz" | sha256sum -c - && \
     tar -C /usr/local -xzf golang.tar.gz && \
@@ -101,12 +101,6 @@ RUN GO_VERSION=1.7.5 && \
     CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc          go install -installsuffix nocgo -a std && \
     \
     CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix race -a std
-
-#
-# build rookd package dependencies directly from source for all supported platforms.
-#
-COPY external /build/external/
-RUN CLICOLOR_FORCE=1 /build/external/build.sh -j$(nproc) install; rm -fr /build/external
 
 COPY entrypoint.sh rsyncd.sh /build/
 ENTRYPOINT [ "/build/entrypoint.sh" ]

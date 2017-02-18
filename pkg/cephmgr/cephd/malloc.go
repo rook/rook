@@ -1,4 +1,4 @@
-// +build jemalloc tcmalloc
+// +build jemalloc tcmalloc tcmalloc_minimal
 
 /*
 Copyright 2016 The Rook Authors. All rights reserved.

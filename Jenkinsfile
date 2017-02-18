@@ -20,10 +20,11 @@ try {
             checkout scm
             sh "git submodule sync --recursive"
             sh "git submodule update --init --recursive"
-            sh "build/ceph-submodule-check"
+            sh "external/ceph-submodule-check"
         }
 
         stage('Build') {
+            sh "CCACHE_DIR=${CCACHE_DIR} VERSION=${VERSION} build/run make -C external -j${parallel} cross"
             sh "CCACHE_DIR=${CCACHE_DIR} VERSION=${VERSION} build/run make -j${parallel} release"
         }
 

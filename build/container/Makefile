@@ -18,12 +18,6 @@ all: build
 VERSION := $(shell cat version)
 CONTAINER := quay.io/rook/cross-build:$(VERSION)
 
-# turn on more verbose build
-V ?= 0
-ifeq ($(V),1)
-BUILD_ARGS=--build-arg VERBOSE=1
-endif
-
 build: Dockerfile entrypoint.sh
 	docker build -t $(CONTAINER) ${BUILD_ARGS} $(CURDIR)
 
