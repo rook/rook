@@ -8,6 +8,7 @@
 - [Status](#status)
 - [Kubernetes](#kubernetes)
 - [Rook Standalone Service](#rook-standalone-service)
+- [Block, File and Object Storage](#block-file-and-object-storage)
 - [Building](#building)
 - [Design](#design)
 - [Contributing](#contributing)
@@ -44,36 +45,19 @@ This example shows how to build a simple, multi-tier web application on Kubernet
 
 #### Prerequisites
 
-This example requires a running Kubernetes cluster. You will also need to modify the kubelet service to bind mount `/sbin/modprobe` to allow access to `modprobe`. Access to modprobe is necessary for using the rbd volume plugin (<https://github.com/kubernetes/kubernetes/issues/23924>).
-If using RKT, you can allow modprobe by following this [doc](https://github.com/coreos/coreos-kubernetes/blob/master/Documentation/kubelet-wrapper.md#allow-pods-to-use-rbd-volumes).  
+This example requires a running Kubernetes cluster. To make sure you have a Kubernetes cluster that is ready for `rook`, you can [follow these quick instructions](demo/kubernetes/README.md).
 
-For a quick start, use Rook fork for [coreos-kubernetes](https://github.com/rook/coreos-kubernetes). This will bring up a multi-node Kubernetes cluster, configured for using the rbd volume plugin.
-
-```
-$ git clone https://github.com/rook/coreos-kubernetes.git
-$ cd coreos-kubernetes/multi-node/vagrant
-$ vagrant up
-$ export KUBECONFIG="$(pwd)/kubeconfig"
-$ kubectl config use-context vagrant-multi
-```
-
-Then wait for the cluster to come up and verify that kubernetes is done initializing (be patient, it takes a bit):
-
-```
-$ kubectl cluster-info
-```
-
-If you see a url response, you are ready to go.
+Note that we are striving for even more smooth integration with Kubernetes in the future such that `rook` will work out of the box with any Kubernetes cluster.
 
 #### Deploy Rook
 
-Rook can be setup and deployed in Kubernetes by simply deploying the [rook-operator](demo/kubernetes/rook-operator.yaml) deployment manifest.
+With your Kubernetes cluster running, Rook can be setup and deployed by simply deploying the [rook-operator](demo/kubernetes/rook-operator.yaml) deployment manifest.
 You will find this manifest and all our example manifest files in the [demo/kubernetes](demo/kubernetes) folder.
 
 ```
-$ cd demo/kubernetes
-$ kubectl create namespace rook
-$ kubectl create -f rook-operator.yaml
+cd demo/kubernetes
+kubectl create namespace rook
+kubectl create -f rook-operator.yaml
 ```
 
 Use `kubectl` to list pods in the rook namespace. You should be able to see the following: 
@@ -92,28 +76,29 @@ rgw-1785797224-vbg8d            1/1       Running   0          1m
 rook-api-4184191414-l0wmw       1/1       Running   0          1m
 rook-operator-349747813-c3dmm   1/1       Running   0          1m
 ```
+**NOTE:** RGW (object storage gateway) is currently deployed by default but in the future will be done only when needed (see [#413](https://github.com/rook/rook/issues/413))
 
 #### Provision Storage
-Before Rook can start provisioning storage, a StorageClass needs to be created. This is used to specify the storage privisioner, parameters, admin secret and other information needed for Kubernetes to interoperate with Rook for provisioning persistent volumes.
-Rook already creates a default admin and demo user, whose secrets are already specified in the sample [rook-storageclass.yaml](demo/kubernetes/rook-storageclass.yaml).
+Before Rook can start provisioning storage, a StorageClass needs to be created. This is used to specify information needed for Kubernetes to interoperate with Rook for provisioning persistent volumes.  Rook already creates a default admin and demo user, whose secrets are already specified in the sample [rook-storageclass.yaml](demo/kubernetes/rook-storageclass.yaml).
 
-However, before we proceed, we need to specify the Ceph monitor endpoints. You can find them by running this line (you will need `jq`). This will generated a comma-separated list of monitor IPs and ports `6790` and place it into the `monitors` param of the `rook-storageclass.yaml`
+Now we just need to specify the Ceph monitor endpoints (requires `jq`):
 
 ```
-$ export MONS=$(kubectl -n rook get pod mon0 mon1 mon2 -o json|jq ".items[].status.podIP"|tr -d "\""|sed -e 's/$/:6790/'|paste -s -d, -)
-$ sed 's#INSERT_HERE#'$MONS'#' rook-storageclass.yaml | kubectl create -f -
+export MONS=$(kubectl -n rook get pod mon0 mon1 mon2 -o json|jq ".items[].status.podIP"|tr -d "\""|sed -e 's/$/:6790/'|paste -s -d, -)
+sed 's#INSERT_HERE#'$MONS'#' rook-storageclass.yaml | kubectl create -f -
 ``` 
+**NOTE:** In the v0.4 release we plan to expose monitors via DNS/service names instead of IP address (see [#355](https://github.com/rook/rook/issues/355)), which will streamline the experience and remove the need for this step.
 
 #### Consume the storage
 
-Now that rook is running and integrated with Kubernetes, we can create a sample app to consume the block storaged provisioned by rook. We will create the classic wordpress and mysql apps.
+Now that rook is running and integrated with Kubernetes, we can create a sample app to consume the block storage provisioned by rook. We will create the classic wordpress and mysql apps.
 Both these apps will make use of block volumes provisioned by rook.
 
 Start mysql and wordpress:
 
 ```
-$ kubectl create -f mysql.yaml
-$ kubectl create -f wordpress.yaml
+kubectl create -f mysql.yaml
+kubectl create -f wordpress.yaml
 ```
 
 Both of these apps create a block volume and mount it to their respective pod. You can see the Kubernetes volume claims by running the following:
@@ -125,7 +110,7 @@ mysql-pv-claim   Bound     pvc-95402dbc-efc0-11e6-bc9a-0cc47a3459ee   20Gi      
 wp-pv-claim      Bound     pvc-39e43169-efc1-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
 ```
 
-Get the cluster IP of the wordpress app and enter it in your brower:
+Once the wordpress and mysql pods are in the `Running` state, get the cluster IP of the wordpress app and enter it in your brower:
 
 ```
 $ kubectl get svc wordpress
@@ -133,11 +118,168 @@ NAME        CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
 wordpress   10.3.0.155   <pending>     80:30841/TCP   2m
 ```
 
-You should see the wordpress app running.
+You should see the wordpress app running.  
+
+**NOTE:** When running in a vagrant environment, there will be no external IP address to reach wordpress with.  You will only be able to reach wordpress via the `CLUSTER-IP` from inside the Kubernetes cluster.
+
+#### Rook Client
+You also have the option to use the `rook` client tool directly by running it in a pod that can be started in the cluster with:
+```
+kubectl create -f rook-client/rook-client.yml
+```  
+
+Starting the rook-client pod will take a bit of time to download the container, so you can check to see when it's ready with (it should be in the `Running` state):
+```
+kubectl -n rook get pod rook-client
+```
+
+Connect to the rook-client pod and verify the `rook` client can talk to the cluster:
+```
+kubectl -n rook exec rook-client -it bash
+rook node ls
+```
+
+At this point (optional), you can follow the steps in the [Block, File and Object Storage section](#block-file-and-object-storage) to create and use those types of storage.
 
 ## Rook Standalone Service
 
-Rook can also be deployed as a standalone service on any modern Linux host. Refer [here](demo/README.md) for steps on how to run Rook on a Linux host.
+Rook can also be deployed as a standalone service on any modern Linux host by running the following:
+
+### Linux
+1. Download the latest  binaries
+
+    ```bash
+    $ wget https://github.com/rook/rook/releases/download/v0.2.2/rook-v0.2.2-linux-amd64.tar.gz
+    $ tar xvf rook-v0.2.2-linux-amd64.tar.gz
+    ```
+
+2. Start a one node Rook cluster
+
+    ```bash
+    $ ./rookd --data-dir /tmp/rook-test
+    ```
+
+### Vagrant
+
+Rook is also easy to run with `vagrant` on CoreOS via `rkt`.
+
+```
+cd demo/vagrant
+vagrant up
+```
+
+## Block, File and Object Storage
+
+### Block Storage
+1. Create a new volume image (10MB)
+
+    ```bash
+    $ rook block create --name test --size 10485760
+    ```
+
+2. Mount the block volume and format it
+
+    ```bash
+    sudo rook block mount --name test --path /tmp/rook-volume
+    sudo chown $USER:$USER /tmp/rook-volume
+    ```
+
+3. Write and read a file
+
+    ```bash
+    echo "Hello Rook!" > /tmp/rook-volume/hello
+    cat /tmp/rook-volume/hello
+    ```
+
+4. Cleanup
+
+    ```bash
+    sudo rook block unmount --path /tmp/rook-volume
+    ```
+
+## Shared File System
+1. Create a shared file system
+
+    ```bash
+    rook filesystem create --name testFS
+    ```
+
+2. Verify the shared file system was created
+
+   ```bash
+   rook filesystem ls
+   ```
+
+3. Mount the shared file system from the cluster to your local machine
+
+   ```bash
+   rook filesystem mount --name testFS --path /tmp/rookFS
+   sudo chown $USER:$USER /tmp/rookFS
+   ```
+
+4. Write and read a file to the shared file system
+
+   ```bash
+   echo "Hello Rook!" > /tmp/rookFS/hello
+   cat /tmp/rookFS/hello
+   ```
+
+5. Unmount the shared file system (this does **not** delete the data from the cluster)
+
+   ```bash
+   rook filesystem unmount --path /tmp/rookFS
+   ```
+
+6. Cleanup the shared file system from the cluster (this **does** delete the data from the cluster)
+
+   ```
+   rook filesystem delete --name testFS
+   ```
+
+### Object Storage
+1. Create an object storage instance in the cluster
+
+   ```bash
+   rook object create
+   ```
+
+2. Create an object storage user
+
+   ```bash
+   rook object user create rook-user "A rook rgw User"
+   ```
+
+3. Get the connection information for accessing object storage
+
+   ```bash
+   eval $(rook object connection rook-user --format env-var)
+   ```
+
+4. Use an S3 compatible client to create a bucket in the object store
+
+   ```bash
+   s3cmd mb --no-ssl --host=${AWS_ENDPOINT} --host-bucket=  s3://rookbucket
+   ```
+
+5. List all buckets in the object store
+
+   ```bash
+   s3cmd ls --no-ssl --host=${AWS_ENDPOINT} --host-bucket=
+   ```
+
+6. Upload a file to the newly created bucket
+
+   ```bash
+   echo "Hello Rook!" > /tmp/rookObj
+   s3cmd put /tmp/rookObj --no-ssl --host=${AWS_ENDPOINT} --host-bucket=  s3://rookbucket
+   ```
+
+7. Download and verify the file from the bucket
+
+   ```bash
+   s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_ENDPOINT} --host-bucket=
+   cat /tmp/rookObj-download
+   ```
 
 ## Building
 
