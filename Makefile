@@ -167,7 +167,7 @@ clean: go.clean
 distclean: go.distclean clean
 
 build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) RELEASEBUILD=1 build
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) build
 
 build.cross: $(foreach p,$(ALL_PLATFORMS), build.platform.$(p))
 
@@ -207,7 +207,6 @@ help:
 	@echo '    publish     Builds and publishes all packages.'
 	@echo ''
 	@echo 'Options:'
-	@echo ''
 	@echo '    GOARCH      The arch to build.'
 	@echo '    PIE         Set to 1 to build build a position independent'
 	@echo '                executable. Can not be combined with LINKMODE'

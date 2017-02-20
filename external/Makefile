@@ -21,8 +21,8 @@ all: build
 # Set the memory allocator used for ceph
 ALLOCATOR ?= tcmalloc_minimal
 
-# Wether to build ceph everytime and ignore the timestamps
-ALWAYS_BUILD ?= OFF
+# Whether to build ceph everytime and ignore the timestamps
+ALWAYS_BUILD ?= ON
 
 # The platforms supported for cross building
 PLATFORMS ?= x86_64-linux-gnu aarch64-linux-gnu
@@ -63,7 +63,7 @@ define build-platform
 build.$(1):
 	@cmake \
 		-H$(CURDIR) \
-		-B${BUILDDIR}/$(1) \
+		-B$(BUILDDIR)/$(1) \
 		-DALLOCATOR=$(ALLOCATOR) \
 		-DEXTERNAL_ALWAYS_BUILD=$(ALWAYS_BUILD) \
 		-DEXTERNAL_DOWNLOAD_DIR=$(DOWNLOADDIR) \
@@ -73,7 +73,7 @@ build.$(1):
 		-DCMAKE_BUILD_TYPE=$(BUILD_TYPE) \
 		-DCMAKE_POSITION_INDEPENDENT_CODE=ON
 
-	@+$(MAKE) -C ${BUILDDIR}/$(1)
+	@+$(MAKE) -C $(BUILDDIR)/$(1)
 endef
 
 $(foreach p,$(PLATFORMS),$(eval $(call build-platform,$(p))))
@@ -99,7 +99,7 @@ help:
 	@echo ''
 	@echo 'Targets:'
 	@echo '    build         Build project for host platform.'
-	@echo '    cross         Build project for all platform.'
+	@echo '    cross         Build project for all platforms.'
 	@echo '    clean         Remove all files that are created '
 	@echo '                  by building.'
 	@echo '    distclean     Remove all files that are created '
@@ -107,15 +107,15 @@ help:
 	@echo '    help          Show this help info.'
 	@echo ''
 	@echo 'Options:'
+	@echo '    ALLOCATOR     The memory allocator to use.'
+	@echo '                  Options are libc, jemalloc, tcmalloc, and'
+	@echo '                  tcmalloc_minimal (default).'
 	@echo '    ALWAYS_BUILD  Set to 1 to always build ceph. The'
-	@echo '                  default is 0.'
+	@echo '                  default is 1.'
 	@echo '    BUILD_TYPE    The build type. Debug produces non-'
 	@echo '                  optimized builds. Release produces fully'
 	@echo '                  optimized builds. RelWithDebInfo produces'
 	@echo '                  optimized builds with debug information.'
 	@echo '                  The default is RelWithDebInfo.'
-	@echo '    ALLOCATOR     The memory allocator to use.'
-	@echo '                  Options are libc, jemalloc, tcmalloc, and'
-	@echo '                  tcmalloc_minimal (default).'
 	@echo '    CCACHE        Set to 1 to use ccache. The default is 1.'
 	@echo '    V             Set to 1 enable verbose build. Default is 0.'
