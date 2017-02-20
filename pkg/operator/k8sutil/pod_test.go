@@ -19,8 +19,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/bmizerany/assert"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMakeRookImage(t *testing.T) {
