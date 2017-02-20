@@ -21,6 +21,7 @@ package k8sutil
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"k8s.io/client-go/1.5/pkg/api"
 	unversionedAPI "k8s.io/client-go/1.5/pkg/api/unversioned"
@@ -28,14 +29,38 @@ import (
 )
 
 const (
-	AppAttr     = "app"
-	ClusterAttr = "rook_cluster"
-	VersionAttr = "rook_version"
-	PodIPEnvVar = "ROOKD_PRIVATE_IPV4"
+	AppAttr           = "app"
+	ClusterAttr       = "rook_cluster"
+	VersionAttr       = "rook_version"
+	PodIPEnvVar       = "ROOKD_PRIVATE_IPV4"
+	DefaultRepoPrefix = "quay.io/rook"
+	repoPrefixEnvVar  = "ROOK_OPERATOR_REPO_PREFIX"
+	defaultVersion    = "latest"
 )
 
+func RepoPrefix() string {
+	var repoPrefix string
+	if repoPrefix = os.Getenv(repoPrefixEnvVar); repoPrefix == "" {
+		repoPrefix = DefaultRepoPrefix
+	}
+
+	return repoPrefix
+}
+
+func getVersion(version string) string {
+	if version == "" {
+		version = defaultVersion
+	}
+
+	return version
+}
+
 func MakeRookImage(version string) string {
-	return fmt.Sprintf("quay.io/rook/rookd:%v", version)
+	return fmt.Sprintf("%s/rookd:%v", RepoPrefix(), getVersion(version))
+}
+
+func MakeRookOperatorImage(version string) string {
+	return fmt.Sprintf("%s/rook-operator:%v", RepoPrefix(), getVersion(version))
 }
 
 func PodWithAntiAffinity(pod *v1.Pod, attribute, value string) {

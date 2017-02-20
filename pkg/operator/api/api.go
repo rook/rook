@@ -113,7 +113,7 @@ func (c *Cluster) apiContainer(cluster *mon.ClusterInfo) v1.Container {
 		// Without waiting some time, there is highly probable flakes in network setup.
 		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
 		Name:    deploymentName,
-		Image:   fmt.Sprintf("quay.io/rook/rook-operator:%v", c.Version),
+		Image:   k8sutil.MakeRookOperatorImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		},
