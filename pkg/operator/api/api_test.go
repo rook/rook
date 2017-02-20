@@ -13,22 +13,22 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package k8sutil_test
+package api
 
 import (
 	"os"
 	"testing"
 
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/api"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestMakeRookImage(t *testing.T) {
-	assert.Equal(t, "quay.io/rook/rookd:v1", k8sutil.MakeRookImage("v1"))
+func TestMakeRookOperatorImage(t *testing.T) {
+	assert.Equal(t, "quay.io/rook/rook-operator:v1", api.MakeRookOperatorImage("v1"))
 }
 
-func TestMakeRookImageWithEnv(t *testing.T) {
+func TestMakeRookOperatorImageWithEnv(t *testing.T) {
 	os.Setenv("ROOK_OPERATOR_REPO_PREFIX", "myrepo.io/rook")
-	assert.Equal(t, "myrepo.io/rook/rookd:v1", k8sutil.MakeRookImage("v1"))
+	assert.Equal(t, "myrepo.io/rook/rook-operator:v1", api.MakeRookOperatorImage("v1"))
 	os.Setenv("ROOK_OPERATOR_REPO_PREFIX", "")
 }

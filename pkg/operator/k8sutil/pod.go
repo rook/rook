@@ -35,12 +35,19 @@ const (
 	PodIPEnvVar = "ROOKD_PRIVATE_IPV4"
 )
 
-func MakeRookImage(version string) string {
-	repoPrefix := os.Getenv("ROOK_OPERATOR_REPO_PREFIX")
-	if repoPrefix == "" {
-		repoPrefix = "quay.io/rook"
+func RepoPrefix() string {
+	defaultRepoPrefix := "quay.io/rook"
+
+	var repoPrefix string
+	if repoPrefix = os.Getenv("ROOK_OPERATOR_REPO_PREFIX"); repoPrefix == "" {
+		repoPrefix = defaultRepoPrefix
 	}
-	return fmt.Sprintf("%s/rookd:%v", repoPrefix, version)
+
+	return repoPrefix
+}
+
+func MakeRookImage(version string) string {
+	return fmt.Sprintf("%s/rookd:%v", RepoPrefix(), version)
 }
 
 func PodWithAntiAffinity(pod *v1.Pod, attribute, value string) {
