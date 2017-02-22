@@ -116,16 +116,40 @@ func (c *Cluster) createMonSecretsAndSave(clientset *kubernetes.Clientset) (*mon
 		return nil, fmt.Errorf("failed to create mon secrets. %+v", err)
 	}
 
-	// store the secrets
+	// store the secrets for internal usage of the rook pods
 	secrets := map[string]string{
 		clusterSecretName: info.Name,
 		fsidSecretName:    info.FSID,
 		monSecretName:     info.MonitorSecret,
 		adminSecretName:   info.AdminSecret,
 	}
-	_, err = clientset.Secrets(c.Namespace).Create(&v1.Secret{ObjectMeta: v1.ObjectMeta{Name: appName}, StringData: secrets})
+	secret := &v1.Secret{
+		ObjectMeta: v1.ObjectMeta{Name: appName},
+		StringData: secrets,
+		Type:       k8sutil.RookType,
+	}
+	_, err = clientset.Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save mon secrets. %+v", err)
+	}
+
+	// store the secret for usage by the storage class
+	storageClassSecret := map[string]string{
+		"key": info.AdminSecret,
+	}
+	secret = &v1.Secret{
+		ObjectMeta: v1.ObjectMeta{Name: "rook-admin"},
+		StringData: storageClassSecret,
+		Type:       k8sutil.RbdType,
+	}
+	_, err = clientset.Secrets(c.Namespace).Create(secret)
+	if err != nil {
+		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+			return nil, fmt.Errorf("failed to save rook-admin secret. %+v", err)
+		}
+		logger.Infof("rook-admin secret already exists")
+	} else {
+		logger.Infof("saved rook-admin secret")
 	}
 
 	return info, nil

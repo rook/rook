@@ -113,7 +113,12 @@ func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, cluster *mon.Cl
 	secrets := map[string]string{
 		keyringName: keyring,
 	}
-	_, err = clientset.Secrets(c.Namespace).Create(&v1.Secret{ObjectMeta: v1.ObjectMeta{Name: appName}, StringData: secrets})
+	secret := &v1.Secret{
+		ObjectMeta: v1.ObjectMeta{Name: appName},
+		StringData: secrets,
+		Type:       k8sutil.RookType,
+	}
+	_, err = clientset.Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		return fmt.Errorf("failed to save rgw secrets. %+v", err)
 	}

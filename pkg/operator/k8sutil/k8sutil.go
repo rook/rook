@@ -29,6 +29,8 @@ const (
 	Namespace     = "rook"
 	DataDirVolume = "rook-data"
 	DataDir       = "/var/lib/rook"
+	RookType      = "kubernetes.io/rook"
+	RbdType       = "kubernetes.io/rbd"
 )
 
 func IsKubernetesResourceAlreadyExistError(err error) bool {
