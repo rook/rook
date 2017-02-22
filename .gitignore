@@ -14,7 +14,7 @@ coverage.html
 debug.test
 
 .vagrant/
-demo/vagrant/cloud-config.yml
+demo/standalone/cloud-config.yml
 
 .virtualbox/
 
