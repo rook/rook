@@ -19,13 +19,13 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/model"
-	"k8s.io/client-go/1.5/kubernetes"
-	"k8s.io/client-go/1.5/pkg/api"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/v1"
 )
 
 func getNodes(clientset *kubernetes.Clientset) ([]model.Node, error) {
 	nodes := []model.Node{}
-	options := api.ListOptions{}
+	options := v1.ListOptions{}
 	nl, err := clientset.Nodes().List(options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get nodes. %+v", err)

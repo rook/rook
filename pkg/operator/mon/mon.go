@@ -22,9 +22,8 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/client-go/1.5/kubernetes"
-	"k8s.io/client-go/1.5/pkg/api"
-	"k8s.io/client-go/1.5/pkg/api/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/v1"
 )
 
 const (
@@ -232,7 +231,7 @@ func (c *Cluster) waitForPodToStart(clientset *kubernetes.Clientset, pod *v1.Pod
 // detect whether we have a big enough cluster to run services on different nodes.
 // the anti-affinity will prevent pods of the same type of running on the same node.
 func (c *Cluster) getAntiAffinity(clientset *kubernetes.Clientset) (bool, error) {
-	nodeOptions := api.ListOptions{}
+	nodeOptions := v1.ListOptions{}
 	nodeOptions.TypeMeta.Kind = "Node"
 	nodes, err := clientset.Nodes().List(nodeOptions)
 	if err != nil {

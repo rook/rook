@@ -25,7 +25,7 @@ import (
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	k8smds "github.com/rook/rook/pkg/operator/mds"
-	"k8s.io/client-go/1.5/kubernetes"
+	"k8s.io/client-go/kubernetes"
 )
 
 type clusterHandler struct {
