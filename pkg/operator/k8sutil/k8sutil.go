@@ -26,11 +26,12 @@ import (
 )
 
 const (
-	Namespace     = "rook"
-	DataDirVolume = "rook-data"
-	DataDir       = "/var/lib/rook"
-	RookType      = "kubernetes.io/rook"
-	RbdType       = "kubernetes.io/rbd"
+	Namespace        = "rook"
+	DefaultNamespace = "default"
+	DataDirVolume    = "rook-data"
+	DataDir          = "/var/lib/rook"
+	RookType         = "kubernetes.io/rook"
+	RbdType          = "kubernetes.io/rbd"
 )
 
 func IsKubernetesResourceAlreadyExistError(err error) bool {
