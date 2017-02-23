@@ -19,7 +19,9 @@ which also has the apache 2.0 license.
 package k8sutil
 
 import (
+	"fmt"
 	"net/http"
+	"time"
 
 	apierrors "k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/unversioned"
@@ -33,6 +35,8 @@ const (
 	RookType         = "kubernetes.io/rook"
 	RbdType          = "kubernetes.io/rbd"
 )
+
+type ConditionFunc func() (bool, error)
 
 func IsKubernetesResourceAlreadyExistError(err error) bool {
 	se, ok := err.(*apierrors.StatusError)
@@ -54,4 +58,27 @@ func IsKubernetesResourceNotFoundError(err error) bool {
 		return true
 	}
 	return false
+}
+
+// Retry retries f every interval until after maxRetries.
+// The interval won't be affected by how long f takes.
+// For example, if interval is 3s, f takes 1s, another f will be called 2s later.
+// However, if f takes longer than interval, it will be delayed.
+func Retry(interval time.Duration, maxRetries int, f ConditionFunc) error {
+	tick := time.NewTicker(interval)
+	defer tick.Stop()
+
+	for i := 0; i < maxRetries; i++ {
+		ok, err := f()
+		if err != nil {
+			return fmt.Errorf("failed on retry %d. %+v", i, err)
+		}
+		if ok {
+			return nil
+		}
+		if i < maxRetries-1 {
+			<-tick.C
+		}
+	}
+	return fmt.Errorf("failed after max retries %d.", maxRetries)
 }

@@ -2,7 +2,6 @@ apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: rook-operator
-  namespace: rook
 spec:
   replicas: 1
   template:
@@ -12,5 +11,9 @@ spec:
     spec:
       containers:
       - name: rook-operator
-        image: quay.io/rook/rook-operator:dev-2017-02-17-k8s
-        args: ["--container-version=dev-2017-02-17-k8s"]
+        image: quay.io/rook/rook-operator:dev-2017-02-24-k8s
+        env:
+        - name: ROOK_OPERATOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace

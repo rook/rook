@@ -18,5 +18,5 @@ package operator
 import "testing"
 
 func TestOperator(t *testing.T) {
-	New("foo", nil, nil, "version", true)
+	New("foo", "rook", nil, nil)
 }

@@ -23,7 +23,6 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/cephd"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/operator"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -46,8 +45,8 @@ type config struct {
 	dataDir            string
 	cephConfigOverride string
 	clusterInfo        mon.ClusterInfo
+	namespace          string
 	monEndpoints       string
-	useAllDevices      bool
 }
 
 var logLevelRaw string
@@ -75,7 +74,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
 	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 
-	rootCmd.Flags().BoolVar(&cfg.useAllDevices, "use-all-devices", false, "true to use all storage devices, false to require local device selection")
+	rootCmd.Flags().StringVar(&cfg.namespace, "namespace", "", "the namespace in which the operator is running (required)")
 
 	// load the environment variables
 	flags.SetFlagsFromEnv(rootCmd.Flags(), "ROOK_OPERATOR")
@@ -86,20 +85,20 @@ func init() {
 
 func startOperator(cmd *cobra.Command, args []string) error {
 	// verify required flags
-	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
+	if err := flags.VerifyRequiredFlags(cmd, []string{"namespace"}); err != nil {
 		return err
 	}
 
 	setLogLevel()
 
-	clientset, err := getClientset()
+	host, clientset, err := getClientset()
 	if err != nil {
 		fmt.Printf("failed to get k8s client. %+v", err)
 		os.Exit(1)
 	}
 
-	logger.Infof("starting operator. containerVersion=%s", cfg.containerVersion)
-	op := operator.New(k8sutil.Namespace, cephd.New(), clientset, cfg.containerVersion, cfg.useAllDevices)
+	logger.Infof("starting operator in namespace %s", cfg.namespace)
+	op := operator.New(host, cfg.namespace, cephd.New(), clientset)
 	err = op.Run()
 	if err != nil {
 		fmt.Printf("failed to run operator. %+v\n", err)
@@ -119,12 +118,13 @@ func setLogLevel() {
 	capnslog.SetGlobalLogLevel(cfg.logLevel)
 }
 
-func getClientset() (*kubernetes.Clientset, error) {
+func getClientset() (string, *kubernetes.Clientset, error) {
 	// create the k8s client
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get k8s config. %+v", err)
+		return "", nil, fmt.Errorf("failed to get k8s config. %+v", err)
 	}
 
-	return kubernetes.NewForConfig(config)
+	c, err := kubernetes.NewForConfig(config)
+	return config.Host, c, err
 }

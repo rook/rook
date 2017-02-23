@@ -1,0 +1,8 @@
+apiVersion: rook.io/v1beta1
+kind: Cluster
+metadata:
+  name: my-rook
+spec:
+  namespace: rook
+  version: dev-2017-02-24-k8s
+  useAllDevices: false
