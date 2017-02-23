@@ -21,12 +21,20 @@ import (
 	"time"
 
 	"k8s.io/client-go/1.5/kubernetes"
+	"k8s.io/client-go/1.5/pkg/api/v1"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
+	cephmon "github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/api"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
 	"github.com/rook/rook/pkg/operator/rgw"
+)
+
+const (
+	defaultPool = "rook"
 )
 
 type Operator struct {
@@ -78,8 +86,66 @@ func (o *Operator) Run() error {
 		return fmt.Errorf("failed to start rgw. %+v", err)
 	}
 
+	err = o.createClientAccess(cluster)
+	if err != nil {
+		return fmt.Errorf("failed to create client access. %+v", err)
+	}
+
 	logger.Infof("DONE!")
 	<-time.After(1000000 * time.Second)
+
+	return nil
+}
+
+func (o *Operator) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
+	context := &clusterd.Context{}
+	conn, err := cephmon.ConnectToClusterAsAdmin(context, o.factory, clusterInfo)
+	if err != nil {
+		return fmt.Errorf("failed to connect to cluster: %+v", err)
+	}
+	defer conn.Shutdown()
+
+	// create the default rook pool
+	pool := client.CephStoragePoolDetails{Name: defaultPool}
+	_, err = client.CreatePool(conn, pool)
+	if err != nil {
+		return fmt.Errorf("failed to create default rook pool: %+v", err)
+	}
+
+	// create a user for rbd clients
+	username := "client.rook-rbd-user"
+	access := []string{"osd", "allow rwx", "mon", "allow r"}
+
+	// get-or-create-key for the user account
+	rbdKey, err := client.AuthGetOrCreateKey(conn, username, access)
+	if err != nil {
+		return fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
+	}
+
+	// store the secret for the rbd user in the default namespace
+	secrets := map[string]string{
+		"key": rbdKey,
+	}
+	secret := &v1.Secret{
+		ObjectMeta: v1.ObjectMeta{Name: "rook-rbd-user"},
+		StringData: secrets,
+		Type:       k8sutil.RbdType,
+	}
+	_, err = o.clientset.Secrets(k8sutil.DefaultNamespace).Create(secret)
+	if err != nil {
+		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+			return fmt.Errorf("failed to save rook-rbd-user secret. %+v", err)
+		}
+
+		// update the secret in case we have a new cluster
+		_, err = o.clientset.Secrets(k8sutil.DefaultNamespace).Update(secret)
+		if err != nil {
+			return fmt.Errorf("failed to update rook-rbd-user secret. %+v", err)
+		}
+		logger.Infof("updated existing rook-rbd-user secret")
+	} else {
+		logger.Infof("saved rook-rbd-user secret")
+	}
 
 	return nil
 }

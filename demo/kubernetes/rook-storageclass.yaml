@@ -10,5 +10,5 @@ parameters:
     adminSecretName: rook-admin
     adminSecretNamespace: rook
     pool: rook
-    userId: demo-user
-    userSecretName: rook-demo-user
+    userId: rook-rbd-user
+    userSecretName: rook-rbd-user
