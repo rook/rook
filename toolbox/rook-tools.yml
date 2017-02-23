@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rook-tools
+  namespace: rook
+spec:
+  containers:
+  - name: rook-tools
+    image: quay.io/rook/toolbox:latest
+    imagePullPolicy: IfNotPresent
+    args: ["sleep", "36500d"]
+    env:
+      - name: ROOKD_ADMIN_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: mon
+            key: admin-secret

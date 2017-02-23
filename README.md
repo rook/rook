@@ -7,6 +7,7 @@
 - [What is Rook?](#what-is-rook)
 - [Status](#status)
 - [Quickstart Guides](#quickstart-guides)
+- [Troubleshooting Toolbox](#troubleshooting-toolbox)
 - [Building](#building)
 - [Contributing](#contributing)
 - [Contact](#contact)
@@ -41,6 +42,11 @@ There are a few different options for running a Rook cluster for your storage ne
 ### Using Rook
 Once you have a Rook cluster running, you can use the `rook` tool to create and manage storage as shown in the following guide:
 - [Using Rook Guide](/demo/client/README.md)
+
+
+## Troubleshooting Toolbox
+
+We have created a toolbox container that contains a full set of commonly used debugging and troubleshooting tools.  For instructions on how to run this toolbox, please see the [toolbox readme](toolbox/README.md).
 
 ## Building
 
