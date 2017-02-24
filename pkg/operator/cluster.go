@@ -28,7 +28,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
-	"github.com/rook/rook/pkg/operator/rgw"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 )
@@ -97,13 +96,6 @@ func (c *Cluster) CreateInstance() error {
 	err = osds.Start(c.clientset, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
-	}
-
-	// Start the object store
-	r := rgw.New(c.Namespace, c.Spec.Version, c.factory)
-	err = r.Start(c.clientset, cluster)
-	if err != nil {
-		return fmt.Errorf("failed to start rgw. %+v", err)
 	}
 
 	err = c.createClientAccess(cluster)
