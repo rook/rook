@@ -72,8 +72,9 @@ func Run(dcontext *clusterd.DaemonContext, agent *OsdAgent) error {
 		return fmt.Errorf("failed to configure devices. %+v", err)
 	}
 
-	// initialize the data directories
-	dirs, err := getDataDirs(dcontext, true)
+	// initialize the data directories, with the default dir if no devices were specified
+	useDataDir := len(devices.Entries) == 0
+	dirs, err := getDataDirs(dcontext, useDataDir)
 	if err != nil {
 		return fmt.Errorf("failed to get data dirs. %+v", err)
 	}
