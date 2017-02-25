@@ -16,7 +16,7 @@ import:
   repo: https://github.com/quantum/goautoneg.git
 - package: github.com/coreos/pkg/capnslog
 - package: k8s.io/client-go
-  version: 843f7c4f28b1f647f664f883697107d5c02c5acc
+  version: e121606b0d09b2e1c467183ee46217fa85a6b672
   subpackages:
   - kubernetes/typed/core/v1
 - package: github.com/bassam/cgosymbolizer

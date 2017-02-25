@@ -14,12 +14,12 @@ Note that we are striving for even more smooth integration with Kubernetes in th
 
 ### Deploy Rook
 
-With your Kubernetes cluster running, Rook can be setup and deployed by simply deploying the [rook-operator](rook-operator.yaml) deployment manifest.
+With your Kubernetes cluster running, Rook can be setup and deployed by simply creating the [rook-operator](rook-operator.yaml) deployment and creating a [rook cluster](rook-cluster.yaml).
 
 ```
 cd demo/kubernetes
-kubectl create namespace rook
 kubectl create -f rook-operator.yaml
+kubectl create -f rook-cluster.yaml
 ```
 
 Use `kubectl` to list pods in the rook namespace. You should be able to see the following: 

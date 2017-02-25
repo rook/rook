@@ -25,7 +25,8 @@ import (
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	k8smds "github.com/rook/rook/pkg/operator/mds"
-	"k8s.io/client-go/1.5/kubernetes"
+	k8srgw "github.com/rook/rook/pkg/operator/rgw"
+	"k8s.io/client-go/kubernetes"
 )
 
 type clusterHandler struct {
@@ -45,8 +46,12 @@ func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
 }
 
 func (s *clusterHandler) EnableObjectStore() error {
-	logger.Infof("Object store already enabled")
-
+	logger.Infof("Starting the Object store")
+	r := k8srgw.New(k8sutil.Namespace, s.version, s.factory)
+	err := r.Start(s.clientset, s.clusterInfo)
+	if err != nil {
+		return fmt.Errorf("failed to start rgw. %+v", err)
+	}
 	return nil
 }
 

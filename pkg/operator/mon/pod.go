@@ -20,10 +20,9 @@ import (
 
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/client-go/1.5/kubernetes"
-	"k8s.io/client-go/1.5/pkg/api"
-	"k8s.io/client-go/1.5/pkg/api/v1"
-	"k8s.io/client-go/1.5/pkg/labels"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/pkg/labels"
 )
 
 func MonSecretEnvVar() v1.EnvVar {
@@ -120,11 +119,11 @@ func (c *Cluster) pollPods(clientset *kubernetes.Clientset, clusterName string) 
 	return running, pending, nil
 }
 
-func listOptions(clusterName string) api.ListOptions {
-	return api.ListOptions{
-		LabelSelector: labels.SelectorFromSet(map[string]string{
+func listOptions(clusterName string) v1.ListOptions {
+	return v1.ListOptions{
+		LabelSelector: labels.SelectorFromSet(labels.Set{
 			monClusterAttr:  clusterName,
 			k8sutil.AppAttr: appName,
-		}),
+		}).String(),
 	}
 }
