@@ -46,7 +46,7 @@ func init() {
 }
 
 func startAPI(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(apiCmd, []string{"data-dir", "cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}); err != nil {
+	if err := flags.VerifyRequiredFlags(apiCmd, []string{"namespace", "data-dir", "cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}); err != nil {
 		return err
 	}
 	if apiPort == 0 {
@@ -68,7 +68,7 @@ func startAPI(cmd *cobra.Command, args []string) error {
 		ConnFactory:    mon.NewConnectionFactoryWithClusterInfo(&cfg.clusterInfo),
 		CephFactory:    factory,
 		Port:           apiPort,
-		ClusterHandler: apik8s.New(clientset, context, &cfg.clusterInfo, factory, cfg.containerVersion),
+		ClusterHandler: apik8s.New(clientset, context, &cfg.clusterInfo, factory, cfg.namespace, cfg.containerVersion),
 	}
 
 	return api.Run(context, apiCfg)

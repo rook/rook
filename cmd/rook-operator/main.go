@@ -73,8 +73,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfg.clusterInfo.AdminSecret, "admin-secret", "", "secret for the admin user (random if not specified)")
 	rootCmd.PersistentFlags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
 	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
-
-	rootCmd.Flags().StringVar(&cfg.namespace, "namespace", "", "the namespace in which the operator is running (required)")
+	rootCmd.PersistentFlags().StringVar(&cfg.namespace, "namespace", "", "the namespace in which the operator is running (required)")
 
 	// load the environment variables
 	flags.SetFlagsFromEnv(rootCmd.Flags(), "ROOK_OPERATOR")

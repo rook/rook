@@ -118,6 +118,7 @@ func (c *Cluster) apiContainer(cluster *mon.ClusterInfo) v1.Container {
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		},
 		Env: []v1.EnvVar{
+			k8sutil.NamespaceEnvVar(),
 			monSecretVar,
 			adminSecretVar,
 		},
@@ -144,7 +145,7 @@ func (c *Cluster) startService(clientset *kubernetes.Clientset, clusterInfo *mon
 		},
 	}
 
-	s, err := clientset.Services(k8sutil.Namespace).Create(s)
+	s, err := clientset.Services(c.Namespace).Create(s)
 	if err != nil {
 		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
 			return fmt.Errorf("failed to create api service. %+v", err)
