@@ -13,7 +13,7 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
 2. Mount the block volume and format it
 
     ```bash
-    sudo rook block mount --name test --path /tmp/rook-volume
+    sudo -E rook block mount --name test --path /tmp/rook-volume
     sudo chown $USER:$USER /tmp/rook-volume
     ```
 
