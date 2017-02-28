@@ -23,7 +23,6 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	k8smds "github.com/rook/rook/pkg/operator/mds"
 	k8srgw "github.com/rook/rook/pkg/operator/rgw"
 	"k8s.io/client-go/kubernetes"
@@ -34,11 +33,12 @@ type clusterHandler struct {
 	context     *clusterd.DaemonContext
 	clusterInfo *mon.ClusterInfo
 	factory     client.ConnectionFactory
+	namespace   string
 	version     string
 }
 
-func New(clientset *kubernetes.Clientset, context *clusterd.DaemonContext, clusterInfo *mon.ClusterInfo, factory client.ConnectionFactory, containerVersion string) *clusterHandler {
-	return &clusterHandler{clientset: clientset, context: context, clusterInfo: clusterInfo, factory: factory, version: containerVersion}
+func New(clientset *kubernetes.Clientset, context *clusterd.DaemonContext, clusterInfo *mon.ClusterInfo, factory client.ConnectionFactory, namespace, containerVersion string) *clusterHandler {
+	return &clusterHandler{clientset: clientset, context: context, clusterInfo: clusterInfo, factory: factory, namespace: namespace, version: containerVersion}
 }
 
 func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
@@ -47,7 +47,7 @@ func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
 
 func (s *clusterHandler) EnableObjectStore() error {
 	logger.Infof("Starting the Object store")
-	r := k8srgw.New(k8sutil.Namespace, s.version, s.factory)
+	r := k8srgw.New(s.namespace, s.version, s.factory)
 	err := r.Start(s.clientset, s.clusterInfo)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
@@ -62,7 +62,7 @@ func (s *clusterHandler) RemoveObjectStore() error {
 
 func (s *clusterHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, bool, error) {
 	logger.Infof("Getting the object store connection info")
-	service, err := s.clientset.Services(k8sutil.Namespace).Get("rgw")
+	service, err := s.clientset.Services(s.namespace).Get("rgw")
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to get rgw service. %+v", err)
 	}
@@ -77,7 +77,7 @@ func (s *clusterHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConne
 
 func (s *clusterHandler) StartFileSystem(fs *model.FilesystemRequest) error {
 	logger.Infof("Starting the MDS")
-	c := k8smds.New(k8sutil.Namespace, s.version, s.factory)
+	c := k8smds.New(s.namespace, s.version, s.factory)
 	return c.Start(s.clientset, s.clusterInfo)
 }
 

@@ -25,6 +25,7 @@ import (
 
 	apierrors "k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/unversioned"
+	"k8s.io/client-go/pkg/api/v1"
 )
 
 const (
@@ -37,6 +38,10 @@ const (
 )
 
 type ConditionFunc func() (bool, error)
+
+func NamespaceEnvVar() v1.EnvVar {
+	return v1.EnvVar{Name: "ROOK_OPERATOR_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}
+}
 
 func IsKubernetesResourceAlreadyExistError(err error) bool {
 	se, ok := err.(*apierrors.StatusError)

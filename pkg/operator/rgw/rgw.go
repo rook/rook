@@ -192,7 +192,7 @@ func (c *Cluster) startService(clientset *kubernetes.Clientset, clusterInfo *mon
 		},
 	}
 
-	s, err := clientset.Services(k8sutil.Namespace).Create(s)
+	s, err := clientset.Services(c.Namespace).Create(s)
 	if err != nil {
 		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
 			return fmt.Errorf("failed to create mon service. %+v", err)

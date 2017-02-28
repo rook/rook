@@ -57,7 +57,7 @@ func (o *Operator) createTPR() error {
 		return fmt.Errorf("failed to create rook third party resources. %+v", err)
 	}
 
-	return o.waitForTPRInit(o.clientset.CoreV1().RESTClient(), 3*time.Second, 90*time.Second, k8sutil.Namespace)
+	return o.waitForTPRInit(o.clientset.CoreV1().RESTClient(), 3*time.Second, 90*time.Second, o.Namespace)
 }
 
 func (o *Operator) waitForTPRInit(restcli rest.Interface, interval, timeout time.Duration, ns string) error {
