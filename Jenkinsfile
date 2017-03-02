@@ -31,6 +31,22 @@ try {
             sh "CCACHE_DIR=${CCACHE_DIR} VERSION=${VERSION} build/run make -j${parallel} check"
         }
 
+        stage('Upload Image') {
+                // build/run make -j4 GITHUB_TOKEN=${your_github_token} VERSION=${release_semantic_version} publish
+                //Once the containers are uploaded, you will need to manually move the "latest" tag in quay.io to the image you just uploaded. This can be done at: https://quay.io/repository/rook/rookd?tab=tags
+                //can the above be automated???
+            }
+
+        stage('Deploy Image') {
+            // use Kubectl create -f to create rook environment
+        }
+
+        stage('Execute E2E') {
+            // not yet handling artifacts
+            //junit '**/target/reports/TEST-*.xml'
+            //archive 'target/*.tgz'
+        }
+
         stage('Results') {
             // not yet handling artifacts
             //junit '**/target/reports/TEST-*.xml'
