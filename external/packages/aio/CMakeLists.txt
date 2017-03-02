@@ -13,8 +13,8 @@
 # limitations under the License.
 
 # See https://git.fedorahosted.org/cgit/libaio.git/
-set(Aio_VERSION 0.3.110-1)
-set(Aio_URL https://git.fedorahosted.org/cgit/libaio.git/snapshot/libaio-libaio-${Aio_VERSION}.tar.gz)
+set(Aio_VERSION 0.3.110)
+set(Aio_URL http://ftp.us.debian.org/debian/pool/main/liba/libaio/libaio_${Aio_VERSION}.orig.tar.gz)
 
 message(STATUS "External: Building libaio ${Aio_VERSION}")
 
