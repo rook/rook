@@ -73,9 +73,7 @@ WORKDIR ?= .work
 BIN_DIR=bin
 RELEASE_DIR=release
 
-CLIENT_SERVER_PLATFORMS ?= linux_amd64 linux_arm64
-CLIENT_ONLY_PLATFORMS ?= darwin_amd64 windows_amd64
-ALL_PLATFORMS ?= $(CLIENT_SERVER_PLATFORMS) $(CLIENT_ONLY_PLATFORMS)
+ALL_PLATFORMS ?= linux_amd64 linux_arm64 darwin_amd64 windows_amd64
 
 GO_PROJECT=github.com/rook/rook
 
@@ -142,18 +140,43 @@ include build/makelib/golang.mk
 
 RELEASE_VERSION=$(VERSION)
 RELEASE_BIN_DIR=$(BIN_DIR)
-RELEASE_CLIENT_SERVER_PLATFORMS=$(CLIENT_SERVER_PLATFORMS)
-RELEASE_CLIENT_ONLY_PLATFORMS=$(CLIENT_ONLY_PLATFORMS)
+RELEASE_PLATFORMS=$(ALL_PLATFORMS)
 include build/makelib/release.mk
+
+# ====================================================================================
+# External Targets
+
+external:
+ifeq ($(GOOS),linux)
+	@$(MAKE) -C external ALLOCATOR=$(ALLOCATOR) PLATFORMS=$(CROSS_TRIPLE) cross
+endif
+
+external/build/$(CROSS_TRIPLE)/lib/libcephd.a:
+	@$(MAKE) external
+
+external.clean:
+	@$(MAKE) -C external clean
+
+external.distclean:
+	@$(MAKE) -C external distclean
+
+.PHONY: external external.clean external.distclean
 
 # ====================================================================================
 # Targets
 
-build: go.build
+dev: external/build/$(CROSS_TRIPLE)/lib/libcephd.a
+	@$(MAKE) go.build
+	@$(MAKE) release.build.containers.$(GOOS)_$(GOARCH)
 
-install: go.install
+build: external
+	@$(MAKE) go.build
 
-check test: go.test
+install: external
+	@$(MAKE) go.install
+
+check test: external
+	@$(MAKE) go.test
 
 vet: go.vet
 
@@ -161,10 +184,13 @@ fmt: go.fmt
 
 vendor: go.vendor
 
-clean: go.clean
+clean: go.clean external.clean
 	@rm -fr $(WORKDIR) $(RELEASE_DIR)/* $(BIN_DIR)/*
 
-distclean: go.distclean clean
+container: build
+	@RELEASE_CLIENT_SERVER_PLATFORMS=$(GOOS)_$(GOARCH) build/release/release.sh build containers
+
+distclean: go.distclean clean external.distclean
 
 build.platform.%:
 	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) build
@@ -195,6 +221,8 @@ help:
 	@echo '    check       Runs unit tests.'
 	@echo '    clean       Remove all files that are created '
 	@echo '                by building.'
+	@echo '    dev         A quick build path for go projects'
+	@echo '                and containers. Skips building externals.'
 	@echo '    distclean   Remove all files that are created '
 	@echo '                by building or configuring.'
 	@echo '    fmt         Check formatting of go sources.'

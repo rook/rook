@@ -4,9 +4,8 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${scriptdir}/common.sh
 
 build() {
-    local type=$1
-    local os=$2
-    local arch=$3
+    local os=$1
+    local arch=$2
     local version=${RELEASE_VERSION}
     local bindir=$(get_bindir ${os} ${arch})
 
@@ -16,24 +15,18 @@ build() {
 
     local files=( rook${ext} )
 
-    if [[ ${type} == "both" ]]; then
-        files+=( rookd${ext} )
-    fi
-
-    mkdir -p ${RELEASE_DIR}
-
     if [[ ${os} == "linux" ]]; then
+        files+=( rookd${ext} )
+
         local tarfile=${RELEASE_DIR}/rook-${version}-${os}-${arch}.tar.gz
         echo creating tar ${tarfile}
         tar czf "${tarfile}" -C "${bindir}" ${files[*]}
 
         # create a package with debug symbols
-        if [[ ${type} == "both" ]]; then
-            files=( rookd${ext}.debug )
-            local tarfile=${RELEASE_DIR}/rook-${version}-${os}-${arch}-debug.tar.gz
-            echo creating debug tar ${tarfile}
-            tar czf "${tarfile}" -C "${bindir}" ${files[*]}
-        fi
+        files=( rookd${ext}.debug )
+        local tarfile=${RELEASE_DIR}/rook-${version}-${os}-${arch}-debug.tar.gz
+        echo creating debug tar ${tarfile}
+        tar czf "${tarfile}" -C "${bindir}" ${files[*]}
     else
         local zipfile=$(realpath ${RELEASE_DIR}/rook-${version}-${os}-${arch}.zip)
         echo creating zip ${zipfile}
@@ -42,9 +35,8 @@ build() {
 }
 
 publish() {
-    local type=$1
-    local os=$2
-    local arch=$3
+    local os=$1
+    local arch=$2
     local version=${RELEASE_VERSION}
 
     local file=${RELEASE_DIR}/rook-${version}-${os}-${arch}

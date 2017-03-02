@@ -32,14 +32,11 @@ ifndef RELEASE_DIR
 $(error RELEASE_DIR must be set before including release.mk)
 endif
 
-# Optional. the platforms we release server and client bits
-RELEASE_CLIENT_SERVER_PLATFORMS ?=
+# Optional. the platforms to release
+RELEASE_PLATFORMS ?=
 
 # Optional. the platforms we release only clients bits
 RELEASE_CLIENT_ONLY_PLATFORMS ?=
-
-# Optional. the host platform
-RELEASE_HOST_PLATFORM ?= $(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH)
 
 # Optional. the flavors to release
 RELEASE_FLAVORS := binaries containers
@@ -50,29 +47,27 @@ GITHUB_USER ?= rook
 GITHUB_REPO ?= rook
 
 export RELEASE_VERSION RELEASE_BIN_DIR RELEASE_DIR
-export RELEASE_HOST_PLATFORM RELEASE_CLIENT_SERVER_PLATFORMS RELEASE_CLIENT_ONLY_PLATFORMS
 export GITHUB_TOKEN GITHUB_USER GITHUB_REPO
 
 # ====================================================================================
 # Targets
 
-define release-flavor
-release.build.$(1):
-	@build/release/release.sh build $(1)
+define release-target
+release.build.$(1).$(2):
+	@build/release/release.sh build $(2) $(1)
 
-release.publish.$(1):
-	@build/release/release.sh publish $(1)
+release.build.all: release.build.$(1).$(2)
+
+release.publish.$(1).$(2):
+	@build/release/release.sh publish $(2).$(1)
+
+release.publish.all: release.publish.$(1).$(2)
 endef
 
-$(foreach f,$(RELEASE_FLAVORS),$(eval $(call release-flavor,$(f))))
+$(foreach f,$(RELEASE_FLAVORS),$(foreach p,$(RELEASE_PLATFORMS), $(eval $(call release-target,$(f),$(p)))))
 
-release.build.parallel: $(foreach f,$(RELEASE_FLAVORS), release.build.$(f))
+release.build: release.build.all
 
-release.publish.parallel: $(foreach f,$(RELEASE_FLAVORS), release.publish.$(f))
-
-release.build:
-	@$(MAKE) release.build.parallel
-
-release.publish: release.build
+release.publish:
 	@build/release/release.sh check
-	@$(MAKE) release.publish.parallel
+	@$(MAKE) release.publish.all
