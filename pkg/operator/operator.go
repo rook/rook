@@ -53,14 +53,15 @@ const (
 )
 
 type Operator struct {
-	Namespace   string
-	MasterHost  string
-	clientset   *kubernetes.Clientset
-	waitCluster sync.WaitGroup
-	factory     client.ConnectionFactory
-	stopChMap   map[string]chan struct{}
-	clusters    map[string]*Cluster
-	kubeHttpCli *http.Client
+	Namespace    string
+	MasterHost   string
+	devicesInUse bool
+	clientset    *kubernetes.Clientset
+	waitCluster  sync.WaitGroup
+	factory      client.ConnectionFactory
+	stopChMap    map[string]chan struct{}
+	clusters     map[string]*Cluster
+	kubeHttpCli  *http.Client
 	// Kubernetes resource version of the clusters
 	clusterRVs map[string]string
 }
@@ -140,18 +141,14 @@ func (o *Operator) watchTPR(watchVersion string) error {
 					continue
 				}
 
-				if len(o.stopChMap) > 0 {
-					logger.Warningf("only a single rook cluster is currently supported. Ignoring cluster for namespace %s", ns)
-				} else {
-					newCluster := newCluster(ns, c.Spec.Version, c.Spec.UseAllDevices, o.factory, o.clientset)
-					stopCh := make(chan struct{})
-					o.stopChMap[ns] = stopCh
-					o.clusters[ns] = newCluster
-					o.clusterRVs[ns] = c.Metadata.ResourceVersion
+				newCluster := newCluster(c.Spec, o.factory, o.clientset)
+				stopCh := make(chan struct{})
+				o.stopChMap[ns] = stopCh
+				o.clusters[ns] = newCluster
+				o.clusterRVs[ns] = c.Metadata.ResourceVersion
 
-					logger.Infof("starting new cluster %s in namespace %s", c.Metadata.Name, ns)
-					go startCluster(newCluster)
-				}
+				logger.Infof("starting new cluster %s in namespace %s", c.Metadata.Name, ns)
+				o.startCluster(newCluster)
 
 			case kwatch.Modified:
 				logger.Infof("modifying a cluster not implemented")
@@ -167,11 +164,22 @@ func (o *Operator) watchTPR(watchVersion string) error {
 
 }
 
-func startCluster(cluster *Cluster) {
-	err := cluster.CreateInstance()
-	if err != nil {
-		logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
+func (o *Operator) startCluster(cluster *Cluster) {
+	if o.devicesInUse && cluster.Spec.UseAllDevices {
+		logger.Warningf("devices in more than one namespace not supported. ignoring devices in namespace %s", cluster.Spec.Namespace)
+		cluster.Spec.UseAllDevices = false
 	}
+
+	if cluster.Spec.UseAllDevices {
+		o.devicesInUse = true
+	}
+
+	go func() {
+		err := cluster.CreateInstance()
+		if err != nil {
+			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Spec.Namespace, err)
+		}
+	}()
 }
 
 func (o *Operator) findAllClusters() (string, error) {
@@ -186,13 +194,13 @@ func (o *Operator) findAllClusters() (string, error) {
 
 		stopCh := make(chan struct{})
 		ns := c.Spec.Namespace
-		existingCluster := newCluster(ns, c.Spec.Version, c.Spec.UseAllDevices, o.factory, o.clientset)
+		existingCluster := newCluster(c.Spec, o.factory, o.clientset)
 		o.stopChMap[ns] = stopCh
 		o.clusters[ns] = existingCluster
 		o.clusterRVs[ns] = c.Metadata.ResourceVersion
 
 		logger.Infof("resuming cluster %s in namespace %s", c.Metadata.Name, ns)
-		go startCluster(existingCluster)
+		o.startCluster(existingCluster)
 	}
 
 	return clusterList.Metadata.ResourceVersion, nil

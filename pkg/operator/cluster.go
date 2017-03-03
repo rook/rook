@@ -33,7 +33,6 @@ import (
 )
 
 type Cluster struct {
-	Namespace string
 	factory   client.ConnectionFactory
 	clientset *kubernetes.Clientset
 	Metadata  v1.ObjectMeta `json:"metadata,omitempty"`
@@ -56,43 +55,40 @@ type ClusterSpec struct {
 	UseAllDevices bool `json:"useAllDevices"`
 }
 
-func newCluster(namespace, version string, useAllDevices bool, factory client.ConnectionFactory, clientset *kubernetes.Clientset) *Cluster {
-	c := &Cluster{
-		Namespace: namespace,
+func newCluster(spec ClusterSpec, factory client.ConnectionFactory, clientset *kubernetes.Clientset) *Cluster {
+	return &Cluster{
+		Spec:      spec,
 		factory:   factory,
 		clientset: clientset,
 	}
-	c.Spec.Version = version
-	c.Spec.UseAllDevices = useAllDevices
-	return c
 }
 
 func (c *Cluster) CreateInstance() error {
 
 	// Create the namespace if not already created
-	ns := &v1.Namespace{ObjectMeta: v1.ObjectMeta{Name: c.Namespace}}
+	ns := &v1.Namespace{ObjectMeta: v1.ObjectMeta{Name: c.Spec.Namespace}}
 	_, err := c.clientset.Namespaces().Create(ns)
 	if err != nil {
 		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
-			return fmt.Errorf("failed to create namespace %s. %+v", c.Namespace, err)
+			return fmt.Errorf("failed to create namespace %s. %+v", c.Spec.Namespace, err)
 		}
 	}
 
 	// Start the mon pods
-	m := mon.New(c.Namespace, c.factory, c.Spec.Version)
+	m := mon.New(c.Spec.Namespace, c.factory, c.Spec.Version)
 	cluster, err := m.Start(c.clientset)
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
 
-	a := api.New(c.Namespace, c.Spec.Version)
+	a := api.New(c.Spec.Namespace, c.Spec.Version)
 	err = a.Start(c.clientset, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs
-	osds := osd.New(c.Namespace, c.Spec.Version, c.Spec.UseAllDevices)
+	osds := osd.New(c.Spec.Namespace, c.Spec.Version, c.Spec.UseAllDevices)
 	err = osds.Start(c.clientset, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
@@ -103,7 +99,7 @@ func (c *Cluster) CreateInstance() error {
 		return fmt.Errorf("failed to create client access. %+v", err)
 	}
 
-	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
+	logger.Infof("Done creating rook instance in namespace %s", c.Spec.Namespace)
 	return nil
 }
 
@@ -133,28 +129,29 @@ func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 	}
 
 	// store the secret for the rbd user in the default namespace
+	name := fmt.Sprintf("%s-rbd-user", c.Spec.Namespace)
 	secrets := map[string]string{
 		"key": rbdKey,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: v1.ObjectMeta{Name: "rook-rbd-user"},
+		ObjectMeta: v1.ObjectMeta{Name: name},
 		StringData: secrets,
 		Type:       k8sutil.RbdType,
 	}
 	_, err = c.clientset.Secrets(k8sutil.DefaultNamespace).Create(secret)
 	if err != nil {
 		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
-			return fmt.Errorf("failed to save rook-rbd-user secret. %+v", err)
+			return fmt.Errorf("failed to save %s secret. %+v", name, err)
 		}
 
 		// update the secret in case we have a new cluster
 		_, err = c.clientset.Secrets(k8sutil.DefaultNamespace).Update(secret)
 		if err != nil {
-			return fmt.Errorf("failed to update rook-rbd-user secret. %+v", err)
+			return fmt.Errorf("failed to update %s secret. %+v", name, err)
 		}
-		logger.Infof("updated existing rook-rbd-user secret")
+		logger.Infof("updated existing %s secret", name)
 	} else {
-		logger.Infof("saved rook-rbd-user secret")
+		logger.Infof("saved %s secret", name)
 	}
 
 	return nil
