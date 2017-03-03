@@ -92,6 +92,9 @@ include build/makelib/cross.mk
 ifeq ($(GOOS),linux)
 
 # Set the memory allocator used for ceph
+CEPH_BRANCH ?= kraken
+
+# Set the memory allocator used for ceph
 ALLOCATOR ?= tcmalloc_minimal
 
 ifeq ($(ALLOCATOR),jemalloc)
@@ -148,7 +151,7 @@ include build/makelib/release.mk
 
 external:
 ifeq ($(GOOS),linux)
-	@$(MAKE) -C external ALLOCATOR=$(ALLOCATOR) PLATFORMS=$(CROSS_TRIPLE) cross
+	@$(MAKE) -C external CEPH_BRANCH=$(CEPH_BRANCH) ALLOCATOR=$(ALLOCATOR) PLATFORMS=$(CROSS_TRIPLE) cross
 endif
 
 external/build/$(CROSS_TRIPLE)/lib/libcephd.a:
@@ -195,10 +198,7 @@ distclean: go.distclean clean external.distclean
 build.platform.%:
 	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) build
 
-build.cross: $(foreach p,$(ALL_PLATFORMS), build.platform.$(p))
-
-cross:
-	@$(MAKE) build.cross
+cross: $(foreach p,$(ALL_PLATFORMS), build.platform.$(p))
 
 release: cross
 	@$(MAKE) release.build

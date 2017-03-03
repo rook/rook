@@ -1,3 +1,6 @@
-[submodule "external/src/ceph"]
-	path = external/src/ceph
+[submodule "external/src/ceph-kraken"]
+	path = external/src/ceph-kraken
+	url = https://github.com/rook/ceph
+[submodule "external/src/ceph-luminous"]
+	path = external/src/ceph-luminous
 	url = https://github.com/rook/ceph

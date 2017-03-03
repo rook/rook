@@ -21,6 +21,9 @@ all: build
 # Set the memory allocator used for ceph
 ALLOCATOR ?= tcmalloc_minimal
 
+# The release of ceph to build
+CEPH_BRANCH ?= kraken
+
 # Whether to build ceph everytime and ignore the timestamps
 ALWAYS_BUILD ?= ON
 
@@ -65,6 +68,7 @@ build.$(1):
 		-H$(CURDIR) \
 		-B$(BUILDDIR)/$(1) \
 		-DALLOCATOR=$(ALLOCATOR) \
+		-DCEPH_BRANCH=$(CEPH_BRANCH) \
 		-DEXTERNAL_ALWAYS_BUILD=$(ALWAYS_BUILD) \
 		-DEXTERNAL_DOWNLOAD_DIR=$(DOWNLOADDIR) \
 		-DCMAKE_TOOLCHAIN_FILE=$(CURDIR)/toolchain/$(1).cmake \
@@ -112,6 +116,8 @@ help:
 	@echo '                  tcmalloc_minimal (default).'
 	@echo '    ALWAYS_BUILD  Set to 1 to always build ceph. The'
 	@echo '                  default is 1.'
+	@echo '    CEPH_BRANCH   The ceph branch to build from. Can be set'
+	@echo '                  to kraken, or luminous.'
 	@echo '    BUILD_TYPE    The build type. Debug produces non-'
 	@echo '                  optimized builds. Release produces fully'
 	@echo '                  optimized builds. RelWithDebInfo produces'

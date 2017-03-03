@@ -34,6 +34,9 @@ option(EXTERNAL_ALWAYS_BUILD "whether to force build some packages like ceph" ON
 # or have them go to stdout.
 option(EXTERNAL_LOGGING "whether to log all external build output to files" ON)
 
+# the version of ceph to build
+set(CEPH_BRANCH "kraken" CACHE STRING "the branch of ceph to build")
+
 # set the processor count
 # FIX: this should really be done at runtime with make -j4. Boost requires this
 # now since it goes inside ExternalProject_Add
