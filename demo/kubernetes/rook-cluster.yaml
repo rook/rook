@@ -4,5 +4,5 @@ metadata:
   name: my-rook
 spec:
   namespace: rook
-  version: dev-2017-02-27-k8s
+  version: latest
   useAllDevices: false

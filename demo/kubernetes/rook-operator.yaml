@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
       - name: rook-operator
-        image: quay.io/rook/rook-operator:dev-2017-02-27-k8s
+        image: quay.io/rook/rook-operator
         env:
         - name: ROOK_OPERATOR_NAMESPACE
           valueFrom:
