@@ -54,7 +54,9 @@ func (o *Operator) createTPR() error {
 	}
 	_, err := o.clientset.ExtensionsV1beta1().ThirdPartyResources().Create(tpr)
 	if err != nil {
-		return fmt.Errorf("failed to create rook third party resources. %+v", err)
+		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+			return fmt.Errorf("failed to create rook third party resources. %+v", err)
+		}
 	}
 
 	return o.waitForTPRInit(o.clientset.CoreV1().RESTClient(), 3*time.Second, 90*time.Second, o.Namespace)

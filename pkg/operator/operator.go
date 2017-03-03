@@ -102,17 +102,15 @@ func (o *Operator) initResources() (string, error) {
 
 	err = o.createTPR()
 	if err != nil {
-		if k8sutil.IsKubernetesResourceAlreadyExistError(err) {
-			// TPR has been initialized before. We need to recover existing cluster.
-			watchVersion, err := o.findAllClusters()
-			if err != nil {
-				return "", fmt.Errorf("failed to find clusters. %+v", err)
-			}
-			return watchVersion, nil
-		}
+		return "", fmt.Errorf("failed to create TPR. %+v", err)
 	}
 
-	return "0", nil
+	// Check if there is an existing cluster to recover
+	watchVersion, err := o.findAllClusters()
+	if err != nil {
+		return "", fmt.Errorf("failed to find clusters. %+v", err)
+	}
+	return watchVersion, nil
 }
 
 func (o *Operator) watchTPR(watchVersion string) error {
@@ -147,15 +145,12 @@ func (o *Operator) watchTPR(watchVersion string) error {
 				} else {
 					newCluster := newCluster(ns, c.Spec.Version, c.Spec.UseAllDevices, o.factory, o.clientset)
 					stopCh := make(chan struct{})
-					logger.Infof("starting cluster. %+v", newCluster)
-
 					o.stopChMap[ns] = stopCh
 					o.clusters[ns] = newCluster
 					o.clusterRVs[ns] = c.Metadata.ResourceVersion
-					err := newCluster.CreateInstance()
-					if err != nil {
-						logger.Errorf("failed to create cluster %s. %+v", ns, err)
-					}
+
+					logger.Infof("starting new cluster %s in namespace %s", c.Metadata.Name, ns)
+					go startCluster(newCluster)
 				}
 
 			case kwatch.Modified:
@@ -172,22 +167,32 @@ func (o *Operator) watchTPR(watchVersion string) error {
 
 }
 
+func startCluster(cluster *Cluster) {
+	err := cluster.CreateInstance()
+	if err != nil {
+		logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
+	}
+}
+
 func (o *Operator) findAllClusters() (string, error) {
 	logger.Info("finding existing clusters...")
 	clusterList, err := getClusterList(o.clientset.CoreV1().RESTClient(), o.Namespace)
 	if err != nil {
 		return "", err
 	}
-
+	logger.Infof("found %d clusters", len(clusterList.Items))
 	for i := range clusterList.Items {
 		c := clusterList.Items[i]
 
 		stopCh := make(chan struct{})
 		ns := c.Spec.Namespace
-		newCluster := newCluster(ns, c.Spec.Version, c.Spec.UseAllDevices, o.factory, o.clientset)
+		existingCluster := newCluster(ns, c.Spec.Version, c.Spec.UseAllDevices, o.factory, o.clientset)
 		o.stopChMap[ns] = stopCh
-		o.clusters[ns] = newCluster
+		o.clusters[ns] = existingCluster
 		o.clusterRVs[ns] = c.Metadata.ResourceVersion
+
+		logger.Infof("resuming cluster %s in namespace %s", c.Metadata.Name, ns)
+		go startCluster(existingCluster)
 	}
 
 	return clusterList.Metadata.ResourceVersion, nil
@@ -216,8 +221,6 @@ func (o *Operator) watch(watchVersion string) (<-chan *Event, <-chan error) {
 				errCh <- errors.New("invalid status code: " + resp.Status)
 				return
 			}
-
-			logger.Infof("start watching at %v", watchVersion)
 
 			decoder := json.NewDecoder(resp.Body)
 			for {
