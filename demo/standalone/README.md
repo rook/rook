@@ -10,21 +10,20 @@
 Rook can be deployed as a standalone service directly on any modern Linux host by running the following:
 
 1. Download the latest client and server binaries
-
-```bash
-wget https://github.com/rook/rook/releases/download/v0.2.2/rook-v0.2.2-linux-amd64.tar.gz
-tar xvf rook-v0.2.2-linux-amd64.tar.gz
-```
+   ```bash
+   wget https://github.com/rook/rook/releases/download/v0.2.2/rook-v0.2.2-linux-amd64.tar.gz
+   tar xvf rook-v0.2.2-linux-amd64.tar.gz
+   ```
 
 2. Start a one node Rook cluster
-```bash
-./rookd --data-dir /tmp/rook-test
-```
+   ```bash
+   ./rookd --data-dir /tmp/rook-test
+   ```
 
 3. In another console (but in the same path), verify the Rook cluster is ready
-```bash
-./rook status
-```
+   ```bash
+   ./rook status
+   ```
 
 At this point, you can use the `rook` tool along with some [simple steps to create and manage block, file and object storage](../client/README.md).
 
