@@ -32,7 +32,7 @@ RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 08b
         vim \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-ENV ROOK_VERSION v0.2.2
+ENV ROOK_VERSION v0.3.0
 RUN cd /tmp && \
     curl -s -L https://github.com/rook/rook/releases/download/${ROOK_VERSION}/rook-${ROOK_VERSION}-linux-amd64.tar.gz > rook.tar.gz && \
     tar xvf rook.tar.gz && \
