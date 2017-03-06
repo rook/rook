@@ -52,30 +52,6 @@ $(error PIE only supported with dynamic linking. Set LINKMODE=dynamic or LINKMOD
 endif
 endif
 
-# if DEBUG is set to 1 the binaries will not be optimized
-# enabling easier debugging with gdb. Note that debug symbols
-# are always generated wether DEBUG is 0 or 1.
-DEBUG ?= 0
-
-# the memory allocator to use for cephd
-ALLOCATOR ?= tcmalloc
-ifeq ($(ALLOCATOR),jemalloc)
-CEPHD_ALLOCATOR = jemalloc
-TAGS += jemalloc
-else
-ifeq ($(ALLOCATOR),tcmalloc)
-CEPHD_ALLOCATOR = tcmalloc_minimal
-TAGS += tcmalloc
-else
-ifeq ($(ALLOCATOR),libc)
-CEPHD_ALLOCATOR = libc
-endif
-endif
-endif
-
-# whether to use ccache when building cephd
-CCACHE ?= 1
-
 # turn on more verbose build
 V ?= 0
 ifeq ($(V),1)
@@ -97,9 +73,7 @@ WORKDIR ?= .work
 BIN_DIR=bin
 RELEASE_DIR=release
 
-CLIENT_SERVER_PLATFORMS ?= linux_amd64 linux_arm64
-CLIENT_ONLY_PLATFORMS ?= darwin_amd64 windows_amd64
-ALL_PLATFORMS ?= $(CLIENT_SERVER_PLATFORMS) $(CLIENT_ONLY_PLATFORMS)
+ALL_PLATFORMS ?= linux_amd64 linux_arm64 darwin_amd64 windows_amd64
 
 GO_PROJECT=github.com/rook/rook
 
@@ -110,53 +84,44 @@ endif
 LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 
 # ====================================================================================
-# Setup rookd
+# Setup Go projects
 
 # support for cross compiling
 include build/makelib/cross.mk
 
-ifeq ($(GOOS)_$(GOARCH),linux_amd64)
-ROOKD_SUPPORTED := 1
+ifeq ($(GOOS),linux)
+
+# Set the memory allocator used for ceph
+CEPH_BRANCH ?= kraken
+
+# Set the memory allocator used for ceph
+ALLOCATOR ?= tcmalloc_minimal
+
+ifeq ($(ALLOCATOR),jemalloc)
+TAGS += jemalloc
+else
+ifeq ($(ALLOCATOR),tcmalloc_minimal)
+TAGS += tcmalloc_minimal
+else
+endif
 endif
 
-ifeq ($(GOOS)_$(GOARCH),linux_arm64)
-ROOKD_SUPPORTED := 1
-endif
-
-ifeq ($(ROOKD_SUPPORTED),1)
-
-CEPHD_DEBUG = $(DEBUG)
-CEPHD_CCACHE = $(CCACHE)
-CEPHD_BUILD_DIR = $(WORKDIR)/ceph
-CEPHD_PLATFORM = $(GOOS)_$(GOARCH)
-
-# go does not check dependencies listed in LDFLAGS. we touch the dummy source file
-# to force go to rebuild cephd
-CEPHD_TOUCH_ON_BUILD = pkg/cephmgr/cephd/dummy.cc
-
-CGO_LDFLAGS = -L$(abspath $(CEPHD_BUILD_DIR)/$(CEPHD_PLATFORM)/lib)
-CGO_PREREQS = cephd.build
-
-include build/makelib/cephd.mk
-
-clean: cephd.clean
+# Set the cgo flags to link externals
+CGO_CFLAGS = -I$(abspath external/build/$(CROSS_TRIPLE)/include)
+CGO_LDFLAGS = -L$(abspath external/build/$(CROSS_TRIPLE)/lib)
 
 endif
 
-# ====================================================================================
-# Setup Go projects
-
-GO_WORK_DIR = $(WORKDIR)
 GO_BIN_DIR = $(BIN_DIR)
 
 ifeq ($(LINKMODE),static)
 GO_STATIC_PACKAGES=$(GO_PROJECT)
-ifeq ($(ROOKD_SUPPORTED),1)
+ifeq ($(GOOS),linux)
 GO_STATIC_CGO_PACKAGES=$(GO_PROJECT)/cmd/rookd $(GO_PROJECT)/cmd/rook-operator
 endif
 else
 GO_NONSTATIC_PACKAGES=$(GO_PROJECT)
-ifeq ($(ROOKD_SUPPORTED),1)
+ifeq ($(GOOS),linux)
 ifeq ($(PIE),1)
 GO_NONSTATIC_PIE_PACKAGES+= $(GO_PROJECT)/cmd/rookd $(GO_PROJECT)/cmd/rook-operator
 else
@@ -178,18 +143,43 @@ include build/makelib/golang.mk
 
 RELEASE_VERSION=$(VERSION)
 RELEASE_BIN_DIR=$(BIN_DIR)
-RELEASE_CLIENT_SERVER_PLATFORMS=$(CLIENT_SERVER_PLATFORMS)
-RELEASE_CLIENT_ONLY_PLATFORMS=$(CLIENT_ONLY_PLATFORMS)
+RELEASE_PLATFORMS=$(ALL_PLATFORMS)
 include build/makelib/release.mk
+
+# ====================================================================================
+# External Targets
+
+external:
+ifeq ($(GOOS),linux)
+	@$(MAKE) -C external CEPH_BRANCH=$(CEPH_BRANCH) ALLOCATOR=$(ALLOCATOR) PLATFORMS=$(CROSS_TRIPLE) cross
+endif
+
+external/build/$(CROSS_TRIPLE)/lib/libcephd.a:
+	@$(MAKE) external
+
+external.clean:
+	@$(MAKE) -C external clean
+
+external.distclean:
+	@$(MAKE) -C external distclean
+
+.PHONY: external external.clean external.distclean
 
 # ====================================================================================
 # Targets
 
-build: go.build
+dev: external/build/$(CROSS_TRIPLE)/lib/libcephd.a
+	@$(MAKE) go.build
+	@$(MAKE) release.build.containers.$(GOOS)_$(GOARCH)
 
-install: go.install
+build: external
+	@$(MAKE) go.build
 
-check test: go.test
+install: external
+	@$(MAKE) go.install
+
+check test: external
+	@$(MAKE) go.test
 
 vet: go.vet
 
@@ -197,18 +187,18 @@ fmt: go.fmt
 
 vendor: go.vendor
 
-clean: go.clean
+clean: go.clean external.clean
 	@rm -fr $(WORKDIR) $(RELEASE_DIR)/* $(BIN_DIR)/*
 
-distclean: go.distclean clean
+container: build
+	@RELEASE_CLIENT_SERVER_PLATFORMS=$(GOOS)_$(GOARCH) build/release/release.sh build containers
+
+distclean: go.distclean clean external.distclean
 
 build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) RELEASEBUILD=1 build
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) build
 
-build.cross: $(foreach p,$(ALL_PLATFORMS), build.platform.$(p))
-
-cross:
-	@$(MAKE) build.cross
+cross: $(foreach p,$(ALL_PLATFORMS), build.platform.$(p))
 
 release: cross
 	@$(MAKE) release.build
@@ -231,6 +221,8 @@ help:
 	@echo '    check       Runs unit tests.'
 	@echo '    clean       Remove all files that are created '
 	@echo '                by building.'
+	@echo '    dev         A quick build path for go projects'
+	@echo '                and containers. Skips building externals.'
 	@echo '    distclean   Remove all files that are created '
 	@echo '                by building or configuring.'
 	@echo '    fmt         Check formatting of go sources.'
@@ -243,12 +235,7 @@ help:
 	@echo '    publish     Builds and publishes all packages.'
 	@echo ''
 	@echo 'Options:'
-	@echo ''
 	@echo '    GOARCH      The arch to build.'
-	@echo '    CCACHE      Set to 1 to enabled ccache, 0 to disable.'
-	@echo '                The default is 0.'
-	@echo '    DEBUG       Set to 1 to build without any optimizations.'
-	@echo '                The default is 0.'
 	@echo '    PIE         Set to 1 to build build a position independent'
 	@echo '                executable. Can not be combined with LINKMODE'
 	@echo '                set to "static". The default is 0.'

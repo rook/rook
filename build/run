@@ -35,12 +35,6 @@ fi
 USER_ARGS="-e BUILDER_UID=$( id -u ) -e BUILDER_GID=$( id -g )"
 BUILDER_HOME=/home/rook
 
-# mount arguments
-MOUNT_OPTS="\
-    -v ${scriptdir}/../bin:${BUILDER_HOME}/go/src/${source_repo}/bin \
-    -v ${scriptdir}/../release:${BUILDER_HOME}/go/src/${source_repo}/release \
-"
-
 if [ "`uname -s`" != "Linux" ]; then
 
     # On non-linux hosts, its is EXTREMELY slow to mount the source
@@ -48,18 +42,6 @@ if [ "`uname -s`" != "Linux" ]; then
     # tree to a new docker volumer on each run. The first rsync take a
     # little bit of time, but subsequent ones go by fast. This approach
     # is MUCH faster than using osxfs, NFS or other approaches.
-
-    # On non-linux the layout is as follows:
-    #
-    #  /var/run/docker.sock (bind mounted to host /var/run/docker.sock)
-    #  /${BUILDER_HOME}
-    #    /.netrc (bind mounted to host ${HOME}/.netrc)
-    #    /.docker/config.json (bind mounted to host ${HOME}/.docker/config.json)
-    #    /go (bind mounted to a docker volume)
-    #       /.work
-    #       /.ccache
-    #       /src/github.com/rook/rook (rsync'd from host <source>)
-    #
 
     # create a new volume to hold our go workspace. NOTE: while concurrent
     # runs of the build container are supported they will share the same volume
@@ -71,13 +53,22 @@ if [ "`uname -s`" != "Linux" ]; then
         docker volume create --name ${container_volume} &> /dev/null
     fi
 
-    # now copy the source tree to the container volume
-    run_rsync "${scriptdir}/..-->rsync://localhost:${rsync_port}/volume/src/${source_repo}"
+    # On non-linux the layout is as follows:
+    #
+    #  /var/run/docker.sock (bind mounted to host /var/run/docker.sock)
+    #  /${BUILDER_HOME} (bind mounted to an independent docker volume)
+    #    /.netrc (bind mounted to host ${HOME}/.netrc)
+    #    /.docker/config.json (bind mounted to host ${HOME}/.docker/config.json)
+    #    /.ccache
+    #    /go/src/github.com/rook/rook (rsync'd from host <source>)
 
-    MOUNT_OPTS="${MOUNT_OPTS} \
-        -v ${container_volume}:${BUILDER_HOME}/go"
+    # now copy the source tree to the container volume
+    run_rsync "${scriptdir}/..-->rsync://localhost:${rsync_port}/volume/go/src/${source_repo}"
+
+    MOUNT_OPTS="${MOUNT_OPTS} -v ${container_volume}:${BUILDER_HOME}"
 
     CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/go/.ccache -e CCACHE_LOG"
+
 else
 
     # On linux bind mounts are cheap so we dont need to rsync
@@ -87,20 +78,17 @@ else
     #  /${BUILDER_HOME}
     #    /.netrc (bind mounted to host ${HOME}/.netrc)
     #    /.docker/config.json (bind mounted to host ${HOME}/.docker/config.json)
-    #    /go
-    #       /.work  (bind mounted to host <source>/.work/cross)
-    #       /.ccache (bind mounted to host CCACHE_DIR)
-    #       /pkg     (bind mounted to host <source>/.work/cross/pkg)
-    #       /src/github.com/rook/rook (bind mounted to <source>)
-    #
+    #    /.ccache (bind mounted to host CCACHE_DIR)
+    #    /go (bind mounted to <source>/.work/cross )
+    #         /src/github.com/rook/rook (bind mounted to <source>)
+
     MOUNT_OPTS="${MOUNT_OPTS} \
-        -v ${scriptdir}/../.work/cross:${BUILDER_HOME}/go/.work \
-        -v ${scriptdir}/../.work/cross/pkg:${BUILDER_HOME}/go/pkg \
+        -v ${scriptdir}/../.work/cross:${BUILDER_HOME}/go \
         -v ${scriptdir}/..:${BUILDER_HOME}/go/src/${source_repo}"
 
     if [[ -d "${CCACHE_DIR}" ]]; then
-        CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/go/.ccache -e CCACHE_LOG \
-            -v ${CCACHE_DIR}:${BUILDER_HOME}/go/.ccache"
+        CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache -e CCACHE_LOG \
+            -v ${CCACHE_DIR}:${BUILDER_HOME}/.ccache"
     fi
 fi
 
@@ -124,7 +112,6 @@ fi
 docker run \
     --rm \
     -e GOPATH="${BUILDER_HOME}/go" \
-    -e WORKDIR="${BUILDER_HOME}/go/.work" \
     -e GO_PKG_DIR="" \
     -e GITHUB_TOKEN \
     -e VERSION \
@@ -141,12 +128,7 @@ docker run \
     "$@"
 
 
-# copy some folders back to the source. We avoid a bind mount here
-# due to https://github.com/rook/rook/issues/93
+# rsync the source tree back
 if [ "`uname -s`" != "Linux" ]; then
-
-    run_rsync \
-        "rsync://localhost:${rsync_port}/volume/src/${source_repo}/vendor-->${scriptdir}/.." \
-        "rsync://localhost:${rsync_port}/volume/src/${source_repo}/tools-->${scriptdir}/.."
-
+    run_rsync "rsync://localhost:${rsync_port}/volume/go/src/${source_repo}-->${scriptdir}/../.."
 fi

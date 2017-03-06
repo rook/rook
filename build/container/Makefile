@@ -19,10 +19,10 @@ VERSION := $(shell cat version)
 CONTAINER := quay.io/rook/cross-build:$(VERSION)
 
 build: Dockerfile entrypoint.sh
-	@docker build ${BUILD_ARGS} -t $(CONTAINER) $(CURDIR)
+	docker build -t $(CONTAINER) ${BUILD_ARGS} $(CURDIR)
 
 rebuild: Dockerfile entrypoint.sh
-	@docker build --no-cache --pull ${BUILD_ARGS} -t $(CONTAINER) $(CURDIR)
+	docker build --no-cache --pull -t $(CONTAINER) ${BUILD_ARGS} $(CURDIR)
 
 publish: build
 	docker push $(CONTAINER)

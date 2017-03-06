@@ -41,7 +41,7 @@ function start_rsync_container() {
         -d \
         -e OWNER=root \
         -e GROUP=root \
-        -e MKDIRS="/volume/src/${source_repo}" \
+        -e MKDIRS="/volume/go/src/${source_repo}" \
         -p ${rsync_port}:873 \
         --entrypoint /bin/bash \
         -v ${container_volume}:/volume \

@@ -41,25 +41,24 @@ SOFTWARE.
 
 package cephd
 
-// #cgo CFLAGS: -I${SRCDIR}/../../../ceph/src/include
 // #cgo jemalloc,static LDFLAGS: -ljemalloc
-// #cgo tcmalloc,static LDFLAGS: -ltcmalloc_minimal
+// #cgo tcmalloc_minimal,static LDFLAGS: -ltcmalloc_minimal
 // #cgo jemalloc,dynamic LDFLAGS: -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic
-// #cgo tcmalloc,dynamic LDFLAGS: -Wl,-Bstatic -ltcmalloc_minimal -Wl,-Bdynamic
+// #cgo tcmalloc_minimal,dynamic LDFLAGS: -Wl,-Bstatic -ltcmalloc_minimal -Wl,-Bdynamic
 // #cgo jemalloc,stdlib LDFLAGS: -Wl,-Bstatic -ljemalloc -Wl,-Bdynamic
-// #cgo tcmalloc,stdlib LDFLAGS: -Wl,-Bstatic -ltcmalloc_minimal -Wl,-Bdynamic
-// #cgo jemalloc tcmalloc CFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
-// #cgo jemalloc tcmalloc CXXFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
-// #cgo static LDFLAGS: -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcryptopp -lrocksdb -laio -luuid -lcurl -lexpat -lm -ldl -lresolv
-// #cgo stdlib LDFLAGS: -Wl,-Bstatic -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcryptopp -lrocksdb -laio -luuid -lcurl -lexpat -Wl,-Bdynamic -ldl -lm -lresolv
-// #cgo dynamic LDFLAGS: -Wl,-Bstatic -lcephd -Wl,-Bdynamic -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lz -lsnappy -lcryptopp -lrocksdb -laio -luuid -lcurl -lexpat -ldl -lm -lresolv
+// #cgo tcmalloc_minimal,stdlib LDFLAGS: -Wl,-Bstatic -ltcmalloc_minimal -Wl,-Bdynamic
+// #cgo jemalloc tcmalloc_minimal CFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
+// #cgo jemalloc tcmalloc_minimal CXXFLAGS: -fno-builtin-malloc -fno-builtin-calloc -fno-builtin-realloc -fno-builtin-free
+// #cgo static LDFLAGS: -Wl,--whole-archive -lpthread -Wl,--no-whole-archive -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lrocksdb -lcurl -lz -lsnappy -lzstd -lcryptopp -lssl -lcrypto -laio -luuid -lexpat -lm -ldl -lresolv
+// #cgo stdlib LDFLAGS: -Wl,-Bstatic -lcephd -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lrocksdb -lcurl -lz -lsnappy -lzstd -lcryptopp -lssl -lcrypto -laio -luuid -lexpat -Wl,-Bdynamic -ldl -lm -lresolv
+// #cgo dynamic LDFLAGS: -Wl,-Bstatic -lcephd -Wl,-Bdynamic -lboost_system -lboost_thread -lboost_iostreams -lboost_random -lblkid -lcurl -lrocksdb -lz -lsnappy -lzstd -lcryptopp -lssl -lcrypto -laio -luuid -lexpat -ldl -lm -lresolv
 // #include <errno.h>
 // #include <stdlib.h>
 // #include <stdio.h>
 // #include <string.h>
-// #include "cephd/libcephd.h"
-// #include "rados/librados.h"
-// #include "rbd/librbd.h"
+// #include <cephd/libcephd.h>
+// #include <rados/librados.h>
+// #include <rbd/librbd.h>
 import "C"
 
 import (

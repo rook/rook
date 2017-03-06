@@ -12,16 +12,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ubuntu:yakkety
+FROM ubuntu:zesty
 MAINTAINER Bassam Tabbara <bassam.tabbara@quantum.com>
 WORKDIR /build
-ENV PATH /usr/local/go/bin:/usr/local/osxcross/bin:$PATH
+ENV TERM=xterm PATH=/usr/local/go/bin:/usr/local/osxcross/bin:$PATH
 
 #
 # install build tools, compilers and cross compilers for all supported platforms
 #
-RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu yakkety main universe restricted" > /etc/apt/sources.list &&\
-    echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu yakkety-updates main universe restricted" >> /etc/apt/sources.list &&\
+RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu zesty main universe restricted" > /etc/apt/sources.list &&\
+    echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu zesty-updates main universe restricted" >> /etc/apt/sources.list &&\
     dpkg --add-architecture arm64 && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
@@ -78,8 +78,8 @@ RUN ACBUILD_VERSION=0.4.0 && \
 #    - netgo: CGO_ENABLED=1, enable pure go DNS resolver
 #    - nocgo: CGO_ENABLED=0, defaults tags, pure Go resolver is the default
 #
-RUN GO_VERSION=1.7.5 && \
-    GO_HASH=2e4dd6c44f0693bef4e7b46cc701513d74c3cc44f2419bf519d7868b12931ac3 && \
+RUN GO_VERSION=1.8 && \
+    GO_HASH=53ab94104ee3923e228a2cb2116e5e462ad3ebaeea06ff04463479d7f12d27ca && \
     curl -fsSL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
     echo "${GO_HASH}  golang.tar.gz" | sha256sum -c - && \
     tar -C /usr/local -xzf golang.tar.gz && \
@@ -101,27 +101,6 @@ RUN GO_VERSION=1.7.5 && \
     CGO_ENABLED=0 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc          go install -installsuffix nocgo -a std && \
     \
     CGO_ENABLED=1 GOOS=linux   GOARCH=amd64 CC=x86_64-linux-gnu-gcc   go install -installsuffix race -a std
-
-#
-# build rookd dependencies that are compiled statically directly from source for all supported platforms.
-#
-COPY external /build/external/
-
-RUN set -e;\
-    for a in x86_64-linux-gnu aarch64-linux-gnu; do \
-      cmake \
-        -H/build/external \
-        -B/build/external/build/${a} \
-        -DEXTERNAL_DOWNLOAD_DIR=/build/external/download \
-        -DCMAKE_INSTALL_PREFIX=/usr/${a} \
-        -DCMAKE_TOOLCHAIN_FILE=/build/external/toolchain/${a}.cmake \
-        -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-        -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
-        -DCMAKE_INSTALL_MESSAGE=never \
-        ;\
-      cmake --build /build/external/build/${a} --target install -- -j4 ;\
-    done ;\
-    rm -fr /build/external
 
 COPY entrypoint.sh rsyncd.sh /build/
 ENTRYPOINT [ "/build/entrypoint.sh" ]

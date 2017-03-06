@@ -69,7 +69,7 @@ GOARCH ?= $(shell go env GOARCH)
 # ====================================================================================
 # Setup go environment
 
-GO_SUPPORTED_VERSIONS ?= 1.6|1.7
+GO_SUPPORTED_VERSIONS ?= 1.6|1.7|1.8
 
 GOROOT = $(shell go env GOROOT)
 GOPATH = $(shell go env GOPATH)
@@ -128,30 +128,36 @@ go.init: $(GO_VENDOR_DIR)/vendor.stamp
 -include go.init
 endif
 
-.PHONY: go.build
-go.build: go.vet go.fmt $(CGO_PREREQS)
-	@$(foreach p,$(GO_NONSTATIC_PACKAGES),CGO_ENABLED=1 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_NONSTATIC_FLAGS) $(p);)
-	@$(foreach p,$(GO_NONSTATIC_PIE_PACKAGES),CGO_ENABLED=1 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_NONSTATIC_PIE_FLAGS) $(p);)
-	@$(foreach p,$(GO_STATIC_PACKAGES),CGO_ENABLED=0 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_FLAGS) $(p);)
-	@$(foreach p,$(GO_STATIC_CGO_PACKAGES),CGO_ENABLED=1 $(GO) build -v -i -o $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_STATIC_CGO_FLAGS) $(p);)
-ifeq ($(RELEASEBUILD),1)
+define go.project
+go.build.packages.$(1):
+	@CGO_ENABLED=$(3) $(GO) build -v -i -o $(GO_OUT_DIR)/$(1)$(GO_OUT_EXT) $(4) $(2)
 ifeq ($(GOOS),linux)
-#	@$(foreach p,$(GO_STATIC_CGO_PACKAGES) $(GO_NONSTATIC_PACKAGES) $(GO_NONSTATIC_PIE_PACKAGES),dwz $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT);)
-	@$(foreach p,$(GO_STATIC_CGO_PACKAGES) $(GO_NONSTATIC_PACKAGES) $(GO_NONSTATIC_PIE_PACKAGES),$(OBJCOPY) --only-keep-debug $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT) $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))).debug;)
-	@$(foreach p,$(GO_STATIC_CGO_PACKAGES) $(GO_NONSTATIC_PACKAGES) $(GO_NONSTATIC_PIE_PACKAGES),$(OBJCOPY) --strip-debug $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT);)
-	@$(foreach p,$(GO_STATIC_CGO_PACKAGES) $(GO_NONSTATIC_PACKAGES) $(GO_NONSTATIC_PIE_PACKAGES),$(OBJCOPY) --add-gnu-debuglink=$(GO_OUT_DIR)/$(lastword $(subst /, ,$(p))).debug $(GO_OUT_DIR)/$(lastword $(subst /, ,$(p)))$(GO_OUT_EXT);)
+	@$(OBJCOPY) --only-keep-debug $(GO_OUT_DIR)/$(1)$(GO_OUT_EXT) $(GO_OUT_DIR)/$(1).debug
+	@$(OBJCOPY) --strip-debug $(GO_OUT_DIR)/$(1)$(GO_OUT_EXT)
+	@$(OBJCOPY) --add-gnu-debuglink=$(GO_OUT_DIR)/$(1).debug $(GO_OUT_DIR)/$(1)$(GO_OUT_EXT)
 endif
-endif
+go.build.packages: go.build.packages.$(1)
+
+go.install.packages.$(1):
+	@CGO_ENABLED=$(3) $(GO) install -v $(4) $(2)
+go.install.packages: go.install.packages.$(1)
+endef
+
+$(foreach p,$(GO_NONSTATIC_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),1,$(GO_NONSTATIC_FLAGS))))
+$(foreach p,$(GO_NONSTATIC_PIE_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),1,$(GO_NONSTATIC_PIE_FLAGS))))
+$(foreach p,$(GO_STATIC_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),0,$(GO_STATIC_FLAGS))))
+$(foreach p,$(GO_STATIC_CGO_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),1,$(GO_STATIC_CGO_FLAGS))))
+
+.PHONY: go.build
+go.build: go.vet go.fmt
+	@$(MAKE) go.build.packages
 
 .PHONY: go.install
-go.install: go.vet go.fmt $(CGO_PREREQS)
-	@$(foreach p,$(GO_NONSTATIC_PACKAGES),CGO_ENABLED=1 $(GO) install -v $(GO_NONSTATIC_FLAGS) $(p);)
-	@$(foreach p,$(GO_NONSTATIC_PIE_PACKAGES),CGO_ENABLED=1 $(GO) install -v $(GO_NONSTATIC_PIE_FLAGS) $(p);)
-	@$(foreach p,$(GO_STATIC_PACKAGES),CGO_ENABLED=0 $(GO) install -v $(GO_STATIC_FLAGS) $(p);)
-	@$(foreach p,$(GO_STATIC_CGO_PACKAGES),CGO_ENABLED=1 $(GO) install -v $(GO_STATIC_CGO_FLAGS) $(p);)
+go.install: go.vet go.fmt
+	@$(MAKE) go.install.packages
 
 .PHONY: go.test
-go.test: go.vet go.fmt $(CGO_PREREQS)
+go.test: go.vet go.fmt
 #   this is disabled since it looks like there's a bug in go test where it attempts to install cmd/cgo
 #	@$(GOHOST) test -v -i $(GO_PKG_FLAGS) $(GO_NONSTATIC_FLAGS) $(GO_ALL_PACKAGES)
 	@$(GOHOST) test -cover $(GO_PKG_FLAGS) $(GO_NONSTATIC_FLAGS) $(GO_ALL_PACKAGES)

@@ -6,11 +6,10 @@ source ${scriptdir}/common.sh
 registry=quay.io/
 
 build() {
-    local type=$1
-    local os=$2
-    local arch=$3
+    local os=$1
+    local arch=$2
 
-    [[ ${type} == "both" ]] || return 0
+    [[ ${os} == "linux" ]] || return 0
 
     tmpdir=$(mktemp -d)
     trap "rm -fr $tmpdir" EXIT
@@ -67,11 +66,10 @@ build_artifact() {
 }
 
 publish() {
-    local type=$1
-    local os=$2
-    local arch=$3
+    local os=$1
+    local arch=$2
 
-    [[ ${type} == "both" ]] || return 0
+    [[ ${os} == "linux" ]] || return 0
 
     publish_artifact $os $arch rook/rookd
     publish_artifact $os $arch rook/rook-operator
