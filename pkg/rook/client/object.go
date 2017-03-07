@@ -30,6 +30,7 @@ const (
 	objectStoreQueryName    = "objectstore"
 	connectionInfoQueryName = "connectioninfo"
 	bucketsQueryName        = "buckets"
+	bucketACLQueryName      = "acl"
 	usersQueryName          = "users"
 )
 
@@ -70,6 +71,35 @@ func (c *RookNetworkRestClient) ListBuckets() ([]model.ObjectBucket, error) {
 	}
 
 	return buckets, nil
+}
+
+func (c *RookNetworkRestClient) GetBucket(bucketName string) (*model.ObjectBucket, error) {
+	body, err := c.DoGet(path.Join(objectStoreQueryName, bucketsQueryName, bucketName))
+	if err != nil {
+		return nil, err
+	}
+
+	var bucket model.ObjectBucket
+	err = json.Unmarshal(body, &bucket)
+	if err != nil {
+		return nil, err
+	}
+
+	return &bucket, nil
+}
+
+func (c *RookNetworkRestClient) DeleteBucket(bucketName string, purge bool) error {
+	query := path.Join(objectStoreQueryName, bucketsQueryName, bucketName)
+	if purge {
+		query += "?purge=true"
+	}
+
+	_, err := c.DoDelete(query)
+	if err != nil && !IsHttpStatusCode(err, http.StatusNoContent) {
+		return err
+	}
+
+	return nil
 }
 
 func (c *RookNetworkRestClient) ListObjectUsers() ([]model.ObjectUser, error) {
@@ -148,7 +178,7 @@ func (c *RookNetworkRestClient) UpdateObjectUser(user model.ObjectUser) (*model.
 func (c *RookNetworkRestClient) DeleteObjectUser(id string) error {
 	query := path.Join(objectStoreQueryName, usersQueryName, id)
 	_, err := c.DoDelete(query)
-	if err != nil {
+	if err != nil && !IsHttpStatusCode(err, http.StatusNoContent) {
 		return err
 	}
 

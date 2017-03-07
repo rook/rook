@@ -21,7 +21,6 @@ import (
 
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/rook/client"
-	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
@@ -36,10 +35,6 @@ func init() {
 
 func createObjectStoreEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
-
-	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
-		return err
-	}
 
 	c := rook.NewRookNetworkRestClient()
 	out, err := createObjectStore(c)

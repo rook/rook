@@ -45,6 +45,8 @@ type MockRookRestClient struct {
 	MockGetObjectStoreConnectionInfo func() (*model.ObjectStoreConnectInfo, error)
 	MockCreateObjectUser             func(model.ObjectUser) (*model.ObjectUser, error)
 	MockListBuckets                  func() ([]model.ObjectBucket, error)
+	MockGetBucket                    func(string) (*model.ObjectBucket, error)
+	MockDeleteBucket                 func(string, bool) error
 	MockListObjectUsers              func() ([]model.ObjectUser, error)
 	MockGetObjectUser                func(string) (*model.ObjectUser, error)
 	MockUpdateObjectUser             func(model.ObjectUser) (*model.ObjectUser, error)
@@ -165,6 +167,22 @@ func (m *MockRookRestClient) ListBuckets() ([]model.ObjectBucket, error) {
 	}
 
 	return nil, nil
+}
+
+func (m *MockRookRestClient) GetBucket(s string) (*model.ObjectBucket, error) {
+	if m.MockGetBucket != nil {
+		return m.MockGetBucket(s)
+	}
+
+	return nil, nil
+}
+
+func (m *MockRookRestClient) DeleteBucket(s string, b bool) error {
+	if m.MockDeleteBucket != nil {
+		return m.MockDeleteBucket(s, b)
+	}
+
+	return nil
 }
 
 func (m *MockRookRestClient) ListObjectUsers() ([]model.ObjectUser, error) {

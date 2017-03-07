@@ -135,7 +135,19 @@ func (h *Handler) GetRoutes() []Route {
 			"ListBuckets",
 			"GET",
 			"/objectstore/buckets",
-			h.Listbuckets,
+			h.ListBuckets,
+		},
+		{
+			"GetBucket",
+			"GET",
+			"/objectstore/buckets/{bucketName}",
+			h.GetBucket,
+		},
+		{
+			"DeleteBucket",
+			"DELETE",
+			"/objectstore/buckets/{bucketName}",
+			h.DeleteBucket,
 		},
 		{
 			"GetFileSystems",

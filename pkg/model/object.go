@@ -30,15 +30,19 @@ type ObjectUser struct {
 	SecretKey   *string `json:"secretKey"`
 }
 
+type ObjectBucketMetadata struct {
+	Owner     string    `json:"owner"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
 type ObjectBucketStats struct {
 	Size            uint64 `json:"size"`
 	NumberOfObjects uint64 `json:"numberOfObjects"`
 }
 
 type ObjectBucket struct {
-	Name      string    `json:"name"`
-	Owner     string    `json:"owner"`
-	CreatedAt time.Time `json:"createdAt"`
+	Name string `json:"name"`
+	ObjectBucketMetadata
 	ObjectBucketStats
 }
 

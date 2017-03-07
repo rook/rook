@@ -484,7 +484,7 @@ func TestListBuckets(t *testing.T) {
 		}
 		w := httptest.NewRecorder()
 		h := newTestHandler(context, connFactory, cephFactory)
-		h.Listbuckets(w, req)
+		h.ListBuckets(w, req)
 		return w
 	}
 
@@ -595,4 +595,183 @@ func TestListBuckets(t *testing.T) {
 	})
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, `[{"name":"bar","owner":"bill","createdAt":"2016-08-05T18:31:22.445343Z","size":5,"numberOfObjects":4},{"name":"foo","owner":"bob","createdAt":"2016-08-05T16:23:34.343343Z","size":4,"numberOfObjects":2}]`, w.Body.String())
+}
+
+func TestGetBucket(t *testing.T) {
+	etcdClient := util.NewMockEtcdClient()
+	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/buckets/test", nil)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
+	connFactory := &test.MockConnectionFactory{}
+	defer os.RemoveAll("/tmp/rgw")
+	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
+
+	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
+		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) { return runner(args...) }}
+		context := &clusterd.Context{
+			EtcdClient: etcdClient,
+			ConfigDir:  "/tmp/rgw",
+			ProcMan:    proc.New(executor),
+			Executor:   executor,
+		}
+		w := httptest.NewRecorder()
+		h := newTestHandler(context, connFactory, cephFactory)
+		r := newRouter(h.GetRoutes())
+
+		r.ServeHTTP(w, req)
+
+		return w
+	}
+
+	// Stats fails
+	w := runTest(func(args ...string) (string, error) {
+		assert.Equal(t, []string{"bucket", "stats", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test"}, args[3:])
+		return "", fmt.Errorf("some error")
+	})
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, "", w.Body.String())
+
+	// stats not found
+	w = runTest(func(args ...string) (string, error) {
+		assert.Equal(t, []string{"bucket", "stats", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test"}, args[3:])
+		return `2017-03-07 09:07:30.868797 c269240  0 could not get bucket info for bucket=tesdsft
+2017-03-07 09:07:30.868797 c269240  0 could not get bucket info for bucket=tesdsft`, nil
+	})
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Equal(t, "", w.Body.String())
+
+	// Error parsing stats
+	w = runTest(func(args ...string) (string, error) {
+		assert.Equal(t, []string{"bucket", "stats", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test"}, args[3:])
+		return "{", nil
+	})
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, "", w.Body.String())
+
+	// metadata fail
+	w = runTest(func(args ...string) (string, error) {
+		if args[4] == "stats" {
+			assert.Equal(t, []string{"bucket", "stats", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test"}, args[3:])
+			return "{}", nil
+		} else {
+			assert.Equal(t, []string{"metadata", "get", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "bucket:test"}, args[3:])
+			return "", fmt.Errorf("some error")
+		}
+	})
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, "", w.Body.String())
+
+	// metadata not found
+	w = runTest(func(args ...string) (string, error) {
+		if args[4] == "stats" {
+			assert.Equal(t, []string{"bucket", "stats", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test"}, args[3:])
+			return "{}", nil
+		} else {
+			assert.Equal(t, []string{"metadata", "get", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "bucket:test"}, args[3:])
+			return "ERROR: can't get key: (2) No such file or directory", nil
+		}
+	})
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Equal(t, "", w.Body.String())
+
+	// metadata parse fail
+	w = runTest(func(args ...string) (string, error) {
+		if args[4] == "stats" {
+			assert.Equal(t, []string{"bucket", "stats", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test"}, args[3:])
+			return "{}", nil
+		} else {
+			assert.Equal(t, []string{"metadata", "get", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "bucket:test"}, args[3:])
+			return "{", nil
+		}
+	})
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, "", w.Body.String())
+
+	// Success
+	w = runTest(func(args ...string) (string, error) {
+		if args[4] == "stats" {
+			assert.Equal(t, []string{"bucket", "stats", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test"}, args[3:])
+			return `{"bucket":"test","usage":{"pool2":{"size":5,"num_objects":4}}}`, nil
+		} else {
+			assert.Equal(t, []string{"metadata", "get", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "bucket:test"}, args[3:])
+			return `{"data":{"owner":"bill","creation_time":"2016-08-05 18:31:22.445343Z"}}`, nil
+		}
+	})
+	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, "{\"name\":\"test\",\"owner\":\"bill\",\"createdAt\":\"2016-08-05T18:31:22.445343Z\",\"size\":5,\"numberOfObjects\":4}", w.Body.String())
+}
+
+func TestBucketDelete(t *testing.T) {
+	etcdClient := util.NewMockEtcdClient()
+	req, err := http.NewRequest("DELETE", "http://10.0.0.100/objectstore/buckets/test", nil)
+	if err != nil {
+		logger.Fatal(err)
+	}
+
+	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
+	connFactory := &test.MockConnectionFactory{}
+	defer os.RemoveAll("/tmp/rgw")
+	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
+
+	runTest := func(s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
+		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) {
+			assert.Equal(t, args[3:], expectedArgs)
+			return s, e
+		}}
+		context := &clusterd.Context{
+			EtcdClient: etcdClient,
+			ConfigDir:  "/tmp/rgw",
+			Executor:   executor,
+			ProcMan:    proc.New(executor),
+		}
+		w := httptest.NewRecorder()
+		h := newTestHandler(context, connFactory, cephFactory)
+		r := newRouter(h.GetRoutes())
+
+		r.ServeHTTP(w, req)
+
+		return w
+	}
+
+	// errors
+	w := runTest("", fmt.Errorf("some error"), "bucket", "rm", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test")
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, "", w.Body.String())
+
+	// Not found
+	w = runTest(`2017-03-07 09:36:45.605774 c081240  0 could not get bucket info for bucket=tesdsft
+2017-03-07 09:36:45.605774 c081240  0 could not get bucket info for bucket=tesdsft`, nil, "bucket", "rm", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test")
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assert.Equal(t, "", w.Body.String())
+
+	// Not found
+	w = runTest("unexpected content", nil, "bucket", "rm", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test")
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+	assert.Equal(t, "", w.Body.String())
+
+	// Succeeds
+	w = runTest("", nil, "bucket", "rm", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test")
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Equal(t, "", w.Body.String())
+
+	// not Purge
+	req, err = http.NewRequest("DELETE", "http://10.0.0.100/objectstore/buckets/test?purge=false", nil)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	w = runTest("", nil, "bucket", "rm", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test")
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Equal(t, "", w.Body.String())
+
+	//  Purge
+	req, err = http.NewRequest("DELETE", "http://10.0.0.100/objectstore/buckets/test?purge=true", nil)
+	if err != nil {
+		logger.Fatal(err)
+	}
+	w = runTest("", nil, "bucket", "rm", "--cluster=default", "--conf=/tmp/rgw/tmp/default.config", "--keyring=/tmp/rgw/tmp/keyring", "--bucket", "test", "--purge-objects")
+	assert.Equal(t, http.StatusNoContent, w.Code)
+	assert.Equal(t, "", w.Body.String())
 }
