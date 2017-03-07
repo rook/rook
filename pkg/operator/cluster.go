@@ -21,6 +21,8 @@ package operator
 import (
 	"fmt"
 
+	"k8s.io/client-go/pkg/api/errors"
+
 	"github.com/rook/rook/pkg/cephmgr/client"
 	cephmon "github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
@@ -69,7 +71,7 @@ func (c *Cluster) CreateInstance() error {
 	ns := &v1.Namespace{ObjectMeta: v1.ObjectMeta{Name: c.Spec.Namespace}}
 	_, err := c.clientset.Namespaces().Create(ns)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create namespace %s. %+v", c.Spec.Namespace, err)
 		}
 	}
@@ -140,7 +142,7 @@ func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 	}
 	_, err = c.clientset.Secrets(k8sutil.DefaultNamespace).Create(secret)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to save %s secret. %+v", name, err)
 		}
 

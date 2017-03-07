@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	k8smon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/pkg/util/intstr"
@@ -73,7 +74,7 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	deployment, err := c.makeDeployment(cluster)
 	_, err = clientset.Deployments(c.Namespace).Create(deployment)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rgw deployment. %+v", err)
 		}
 		logger.Infof("rgw deployment already exists")
@@ -90,7 +91,7 @@ func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, cluster *mon.Cl
 		logger.Infof("the rgw keyring was already generated")
 		return nil
 	}
-	if !k8sutil.IsKubernetesResourceNotFoundError(err) {
+	if !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to get rgw secrets. %+v", err)
 	}
 
@@ -194,7 +195,7 @@ func (c *Cluster) startService(clientset *kubernetes.Clientset, clusterInfo *mon
 
 	s, err := clientset.Services(c.Namespace).Create(s)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mon service. %+v", err)
 		}
 	}

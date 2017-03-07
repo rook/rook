@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	k8smon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/pkg/util/intstr"
@@ -63,7 +64,7 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	deployment, err := c.makeDeployment(cluster)
 	_, err = clientset.Deployments(c.Namespace).Create(deployment)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create api deployment. %+v", err)
 		}
 		logger.Infof("api deployment already exists")
@@ -147,7 +148,7 @@ func (c *Cluster) startService(clientset *kubernetes.Clientset, clusterInfo *mon
 
 	s, err := clientset.Services(c.Namespace).Create(s)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create api service. %+v", err)
 		}
 	}

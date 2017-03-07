@@ -22,6 +22,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	k8smon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
@@ -55,7 +56,7 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	ds, err := c.makeDaemonSet(cluster)
 	_, err = clientset.DaemonSets(c.Namespace).Create(ds)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create osd daemon set. %+v", err)
 		}
 		logger.Infof("osd daemon set already exists")

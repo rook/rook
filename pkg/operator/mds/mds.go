@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	k8smon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
@@ -76,7 +77,7 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	deployment, err := c.makeDeployment(cluster, id)
 	_, err = clientset.Deployments(c.Namespace).Create(deployment)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mds deployment. %+v", err)
 		}
 		logger.Infof("mds deployment already exists")
@@ -93,7 +94,7 @@ func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, context *cluste
 		logger.Infof("the mds keyring was already generated")
 		return nil
 	}
-	if !k8sutil.IsKubernetesResourceNotFoundError(err) {
+	if !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to get mds secrets. %+v", err)
 	}
 

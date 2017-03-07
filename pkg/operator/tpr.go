@@ -54,7 +54,7 @@ func (o *Operator) createTPR() error {
 	}
 	_, err := o.clientset.ExtensionsV1beta1().ThirdPartyResources().Create(tpr)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook third party resources. %+v", err)
 		}
 	}

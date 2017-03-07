@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
@@ -90,7 +91,7 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset) (*mon.ClusterInfo, erro
 func (c *Cluster) initClusterInfo(clientset *kubernetes.Clientset) (*mon.ClusterInfo, error) {
 	secrets, err := clientset.Secrets(c.Namespace).Get(appName)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceNotFoundError(err) {
+		if !errors.IsNotFound(err) {
 			return nil, fmt.Errorf("failed to get mon secrets. %+v", err)
 		}
 
@@ -143,7 +144,7 @@ func (c *Cluster) createMonSecretsAndSave(clientset *kubernetes.Clientset) (*mon
 	}
 	_, err = clientset.Secrets(c.Namespace).Create(secret)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return nil, fmt.Errorf("failed to save rook-admin secret. %+v", err)
 		}
 		logger.Infof("rook-admin secret already exists")
@@ -184,7 +185,7 @@ func (c *Cluster) startPods(clientset *kubernetes.Clientset, clusterInfo *mon.Cl
 		logger.Debugf("Starting pod: %+v", monPod)
 		_, err := clientset.Pods(c.Namespace).Create(monPod)
 		if err != nil {
-			if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create mon pod %s. %+v", c.Namespace, err)
 			}
 			alreadyRunning++
