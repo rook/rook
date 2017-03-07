@@ -53,8 +53,8 @@ endif
 
 # The build and download directories
 ROOTDIR ?= $(CURDIR)
-BUILDDIR = $(ROOTDIR)/build
-DOWNLOADDIR = $(ROOTDIR)/download
+BUILDDIR ?= $(ROOTDIR)/build
+DOWNLOADDIR ?= $(ROOTDIR)/download
 
 # The host platform
 HOST = $(shell gcc -dumpmachine)
@@ -84,8 +84,8 @@ $(foreach p,$(PLATFORMS),$(eval $(call build-platform,$(p))))
 
 build: build.$(HOST)
 
-cross:
-	@$(foreach p,$(PLATFORMS), $(MAKE) build.$(p);)
+cross: $(foreach p,$(PLATFORMS), build.$(p) )
+
 clean:
 	@rm -fr $(BUILDDIR)
 
