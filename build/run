@@ -78,7 +78,8 @@ else
     #  /${BUILDER_HOME}
     #    /.netrc (bind mounted to host ${HOME}/.netrc)
     #    /.docker/config.json (bind mounted to host ${HOME}/.docker/config.json)
-    #    /.ccache (bind mounted to host CCACHE_DIR)
+    #    /.ccache (bind mounted to host ${CCACHE_DIR})
+    #    /.download (bind mounted to host ${DOWNLOADDIR} if set)
     #    /go (bind mounted to <source>/.work/cross )
     #         /src/github.com/rook/rook (bind mounted to <source>)
 
@@ -86,9 +87,20 @@ else
         -v ${scriptdir}/../.work/cross:${BUILDER_HOME}/go \
         -v ${scriptdir}/..:${BUILDER_HOME}/go/src/${source_repo}"
 
+    # if CCACHE_DIR is not set, set it to the default
+    if [[ -z "${CCACHE_DIR}" ]]; then
+        CCACHE_DIR="${HOME}/.ccache"
+    fi
+
     if [[ -d "${CCACHE_DIR}" ]]; then
         CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache -e CCACHE_LOG \
             -v ${CCACHE_DIR}:${BUILDER_HOME}/.ccache"
+    fi
+
+    # if DOWNLOADDIR is not set bind mount it
+    if [[ -d "${DOWNLOADDIR}" ]]; then
+        DOWNLOAD_ARGS="-e DOWNLOADDIR=${BUILDER_HOME}/.download \
+            -v ${DOWNLOADDIR}:${BUILDER_HOME}/.download"
     fi
 fi
 
@@ -118,6 +130,7 @@ docker run \
     -e LINKMODE=static \
     ${TTY_ARGS} \
     ${CCACHE_ARGS} \
+    ${DOWNLOAD_ARGS} \
     ${NETRC_ARGS} \
     ${USER_ARGS} \
     ${DOCKER_NESTED_ARGS} \

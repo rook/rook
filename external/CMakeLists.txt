@@ -22,7 +22,7 @@ include(ProcessorCount)
 set(EXTERNAL_ROOT ${CMAKE_BINARY_DIR})
 
 # set external download/cache dir
-option(EXTERNAL_DOWNLOAD_DIR "where to cache the download packages" ${EXTERNAL_ROOT}/download)
+set(EXTERNAL_DOWNLOAD_DIR ${EXTERNAL_ROOT}/download CACHE STRING "where to cache the download packages")
 
 # set the cross triple used
 set(EXTERNAL_CROSS_TRIPLE ${CROSS_TRIPLE})

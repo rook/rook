@@ -53,8 +53,8 @@ endif
 
 # The build and download directories
 ROOTDIR ?= $(CURDIR)
-BUILDDIR = $(ROOTDIR)/build
-DOWNLOADDIR = $(ROOTDIR)/download
+BUILDDIR ?= $(ROOTDIR)/build
+DOWNLOADDIR ?= $(ROOTDIR)/download
 
 # The host platform
 HOST = $(shell gcc -dumpmachine)
