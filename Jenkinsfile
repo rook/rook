@@ -24,7 +24,6 @@ try {
         }
 
         stage('Build') {
-            sh "CCACHE_DIR=${CCACHE_DIR} VERSION=${VERSION} build/run make -C external -j${parallel} cross"
             sh "CCACHE_DIR=${CCACHE_DIR} VERSION=${VERSION} build/run make -j${parallel} release"
         }
 

@@ -84,8 +84,8 @@ $(foreach p,$(PLATFORMS),$(eval $(call build-platform,$(p))))
 
 build: build.$(HOST)
 
-cross:
-	@$(foreach p,$(PLATFORMS), $(MAKE) build.$(p);)
+cross: $(foreach p,$(PLATFORMS), build.$(p) )
+
 clean:
 	@rm -fr $(BUILDDIR)
 
