@@ -117,7 +117,7 @@ fi
 # sometimes we run docker inside docker. bind the docker config and socket
 if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
     DOCKER_NESTED_ARGS="\
-    -v ${HOME}/.docker/config.json:${BUILDER_HOME}/.docker/config.json \
+    -v ${HOME}/.docker:${BUILDER_HOME}/.docker \
     -v /var/run/docker.sock:/var/run/docker.sock"
 fi
 
