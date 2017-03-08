@@ -149,8 +149,6 @@ include build/makelib/release.mk
 # ====================================================================================
 # External Targets
 
-export DOWNLOADDIR
-
 external:
 ifeq ($(GOOS),linux)
 	@$(MAKE) -C external CEPH_BRANCH=$(CEPH_BRANCH) ALLOCATOR=$(ALLOCATOR) PLATFORMS=$(CROSS_TRIPLE) cross
