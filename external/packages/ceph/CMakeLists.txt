@@ -66,9 +66,9 @@ ExternalProject_Add(ceph
   BUILD_COMMAND $(MAKE) cephd
   BUILD_ALWAYS ${EXTERNAL_ALWAYS_BUILD}
   INSTALL_COMMAND cp <BINARY_DIR>/lib/libcephd.a ${EXTERNAL_ROOT}/lib
-          COMMAND cp -a <SOURCE_DIR>/src/include/cephd ${EXTERNAL_ROOT}/include
-          COMMAND cp -a <SOURCE_DIR>/src/include/rados ${EXTERNAL_ROOT}/include
-          COMMAND cp -a <SOURCE_DIR>/src/include/rbd ${EXTERNAL_ROOT}/include
+          COMMAND cp -aL <SOURCE_DIR>/src/include/cephd ${EXTERNAL_ROOT}/include
+          COMMAND cp -aL <SOURCE_DIR>/src/include/rados ${EXTERNAL_ROOT}/include
+          COMMAND cp -aL <SOURCE_DIR>/src/include/rbd ${EXTERNAL_ROOT}/include
 
   LOG_DOWNLOAD ${EXTERNAL_LOGGING}
   LOG_PATCH ${EXTERNAL_LOGGING}

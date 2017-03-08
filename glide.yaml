@@ -1,4 +1,13 @@
 package: github.com/rook/rook
+excludeDirs:
+- bin
+- build
+- demo
+- Documentation
+- external
+- release
+- scripts
+- toolbox
 import:
 - package: github.com/spf13/cobra
   subpackages:
