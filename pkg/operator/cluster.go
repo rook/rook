@@ -21,6 +21,8 @@ package operator
 import (
 	"fmt"
 
+	"k8s.io/client-go/pkg/api/errors"
+
 	"github.com/rook/rook/pkg/cephmgr/client"
 	cephmon "github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
@@ -34,9 +36,10 @@ import (
 
 type Cluster struct {
 	factory   client.ConnectionFactory
-	clientset *kubernetes.Clientset
+	clientset kubernetes.Interface
 	Metadata  v1.ObjectMeta `json:"metadata,omitempty"`
 	Spec      ClusterSpec   `json:"spec"`
+	dataDir   string
 }
 
 type ClusterSpec struct {
@@ -55,11 +58,12 @@ type ClusterSpec struct {
 	UseAllDevices bool `json:"useAllDevices"`
 }
 
-func newCluster(spec ClusterSpec, factory client.ConnectionFactory, clientset *kubernetes.Clientset) *Cluster {
+func newCluster(spec ClusterSpec, factory client.ConnectionFactory, clientset kubernetes.Interface) *Cluster {
 	return &Cluster{
 		Spec:      spec,
 		factory:   factory,
 		clientset: clientset,
+		dataDir:   k8sutil.DataDir,
 	}
 }
 
@@ -67,9 +71,9 @@ func (c *Cluster) CreateInstance() error {
 
 	// Create the namespace if not already created
 	ns := &v1.Namespace{ObjectMeta: v1.ObjectMeta{Name: c.Spec.Namespace}}
-	_, err := c.clientset.Namespaces().Create(ns)
+	_, err := c.clientset.CoreV1().Namespaces().Create(ns)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create namespace %s. %+v", c.Spec.Namespace, err)
 		}
 	}
@@ -104,7 +108,7 @@ func (c *Cluster) CreateInstance() error {
 }
 
 func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
-	context := &clusterd.Context{}
+	context := &clusterd.Context{ConfigDir: c.dataDir}
 	conn, err := cephmon.ConnectToClusterAsAdmin(context, c.factory, clusterInfo)
 	if err != nil {
 		return fmt.Errorf("failed to connect to cluster: %+v", err)
@@ -134,18 +138,18 @@ func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 		"key": rbdKey,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: v1.ObjectMeta{Name: name},
+		ObjectMeta: v1.ObjectMeta{Name: name, Namespace: k8sutil.DefaultNamespace},
 		StringData: secrets,
 		Type:       k8sutil.RbdType,
 	}
-	_, err = c.clientset.Secrets(k8sutil.DefaultNamespace).Create(secret)
+	_, err = c.clientset.CoreV1().Secrets(k8sutil.DefaultNamespace).Create(secret)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to save %s secret. %+v", name, err)
 		}
 
 		// update the secret in case we have a new cluster
-		_, err = c.clientset.Secrets(k8sutil.DefaultNamespace).Update(secret)
+		_, err = c.clientset.CoreV1().Secrets(k8sutil.DefaultNamespace).Update(secret)
 		if err != nil {
 			return fmt.Errorf("failed to update %s secret. %+v", name, err)
 		}

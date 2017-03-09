@@ -54,17 +54,17 @@ func (o *Operator) createTPR() error {
 	}
 	_, err := o.clientset.ExtensionsV1beta1().ThirdPartyResources().Create(tpr)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook third party resources. %+v", err)
 		}
 	}
 
-	return o.waitForTPRInit(o.clientset.CoreV1().RESTClient(), 3*time.Second, 90*time.Second, o.Namespace)
+	return err
 }
 
-func (o *Operator) waitForTPRInit(restcli rest.Interface, interval, timeout time.Duration, ns string) error {
+func (o *Operator) waitForTPRInit(restcli rest.Interface, maxRetries int, ns string) error {
 	uri := fmt.Sprintf("/apis/%s/%s/namespaces/%s/clusters", tprGroup, tprVersion, ns)
-	return k8sutil.Retry(interval, int(timeout/interval), func() (bool, error) {
+	return k8sutil.Retry(time.Duration(o.retryDelay)*time.Second, maxRetries, func() (bool, error) {
 		_, err := restcli.Get().RequestURI(uri).DoRaw()
 		if err != nil {
 			if errors.IsNotFound(err) {

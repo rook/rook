@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	k8smon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/pkg/util/intstr"
@@ -40,6 +41,7 @@ type Cluster struct {
 	Version   string
 	Replicas  int32
 	factory   client.ConnectionFactory
+	dataDir   string
 }
 
 func New(namespace, version string, factory client.ConnectionFactory) *Cluster {
@@ -48,10 +50,11 @@ func New(namespace, version string, factory client.ConnectionFactory) *Cluster {
 		Version:   version,
 		Replicas:  2,
 		factory:   factory,
+		dataDir:   k8sutil.DataDir,
 	}
 }
 
-func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInfo) error {
+func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
 	logger.Infof("start running rgw")
 
 	if cluster == nil || len(cluster.Monitors) == 0 {
@@ -70,10 +73,10 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	}
 
 	// start the deployment
-	deployment, err := c.makeDeployment(cluster)
-	_, err = clientset.Deployments(c.Namespace).Create(deployment)
+	deployment := c.makeDeployment(cluster)
+	_, err = clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rgw deployment. %+v", err)
 		}
 		logger.Infof("rgw deployment already exists")
@@ -84,19 +87,19 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	return nil
 }
 
-func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, cluster *mon.ClusterInfo) error {
-	_, err := clientset.Secrets(c.Namespace).Get(appName)
+func (c *Cluster) createKeyring(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
+	_, err := clientset.CoreV1().Secrets(c.Namespace).Get(appName)
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
 		return nil
 	}
-	if !k8sutil.IsKubernetesResourceNotFoundError(err) {
+	if !errors.IsNotFound(err) {
 		return fmt.Errorf("failed to get rgw secrets. %+v", err)
 	}
 
 	// connect to the ceph cluster
 	logger.Infof("generating rgw keyring")
-	context := &clusterd.Context{ConfigDir: k8sutil.DataDir}
+	context := &clusterd.Context{ConfigDir: c.dataDir}
 	conn, err := mon.ConnectToClusterAsAdmin(context, c.factory, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to connect to cluster. %+v", err)
@@ -114,11 +117,11 @@ func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, cluster *mon.Cl
 		keyringName: keyring,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: v1.ObjectMeta{Name: appName},
+		ObjectMeta: v1.ObjectMeta{Name: appName, Namespace: c.Namespace},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	_, err = clientset.Secrets(c.Namespace).Create(secret)
+	_, err = clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		return fmt.Errorf("failed to save rgw secrets. %+v", err)
 	}
@@ -126,7 +129,7 @@ func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, cluster *mon.Cl
 	return nil
 }
 
-func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo) (*extensions.Deployment, error) {
+func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo) *extensions.Deployment {
 	deployment := &extensions.Deployment{}
 	deployment.Name = appName
 	deployment.Namespace = c.Namespace
@@ -148,7 +151,7 @@ func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo) (*extensions.Deployme
 
 	deployment.Spec = extensions.DeploymentSpec{Template: podSpec, Replicas: &c.Replicas}
 
-	return deployment, nil
+	return deployment
 }
 
 func (c *Cluster) rgwContainer(cluster *mon.ClusterInfo) v1.Container {
@@ -172,12 +175,13 @@ func (c *Cluster) rgwContainer(cluster *mon.ClusterInfo) v1.Container {
 	}
 }
 
-func (c *Cluster) startService(clientset *kubernetes.Clientset, clusterInfo *mon.ClusterInfo) error {
+func (c *Cluster) startService(clientset kubernetes.Interface, clusterInfo *mon.ClusterInfo) error {
 	labels := getLabels(clusterInfo.Name)
 	s := &v1.Service{
 		ObjectMeta: v1.ObjectMeta{
-			Name:   appName,
-			Labels: labels,
+			Name:      appName,
+			Namespace: c.Namespace,
+			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
@@ -192,11 +196,13 @@ func (c *Cluster) startService(clientset *kubernetes.Clientset, clusterInfo *mon
 		},
 	}
 
-	s, err := clientset.Services(c.Namespace).Create(s)
+	s, err := clientset.CoreV1().Services(c.Namespace).Create(s)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mon service. %+v", err)
 		}
+		logger.Infof("RGW service already running")
+		return nil
 	}
 
 	logger.Infof("RGW service running at %s:%d", s.Spec.ClusterIP, cephrgw.RGWPort)

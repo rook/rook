@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
@@ -48,6 +49,7 @@ type Cluster struct {
 	AntiAffinity bool
 	Port         int32
 	factory      client.ConnectionFactory
+	retryDelay   int
 }
 
 type MonConfig struct {
@@ -62,10 +64,11 @@ func New(namespace string, factory client.ConnectionFactory, version string) *Cl
 		Size:         3,
 		factory:      factory,
 		AntiAffinity: true,
+		retryDelay:   6,
 	}
 }
 
-func (c *Cluster) Start(clientset *kubernetes.Clientset) (*mon.ClusterInfo, error) {
+func (c *Cluster) Start(clientset kubernetes.Interface) (*mon.ClusterInfo, error) {
 	logger.Infof("start running mons")
 
 	clusterInfo, err := c.initClusterInfo(clientset)
@@ -87,10 +90,10 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset) (*mon.ClusterInfo, erro
 
 // Retrieve the ceph cluster info if it already exists.
 // If a new cluster create new keys.
-func (c *Cluster) initClusterInfo(clientset *kubernetes.Clientset) (*mon.ClusterInfo, error) {
-	secrets, err := clientset.Secrets(c.Namespace).Get(appName)
+func (c *Cluster) initClusterInfo(clientset kubernetes.Interface) (*mon.ClusterInfo, error) {
+	secrets, err := clientset.CoreV1().Secrets(c.Namespace).Get(appName)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceNotFoundError(err) {
+		if !errors.IsNotFound(err) {
 			return nil, fmt.Errorf("failed to get mon secrets. %+v", err)
 		}
 
@@ -108,7 +111,7 @@ func (c *Cluster) initClusterInfo(clientset *kubernetes.Clientset) (*mon.Cluster
 	return info, nil
 }
 
-func (c *Cluster) createMonSecretsAndSave(clientset *kubernetes.Clientset) (*mon.ClusterInfo, error) {
+func (c *Cluster) createMonSecretsAndSave(clientset kubernetes.Interface) (*mon.ClusterInfo, error) {
 	logger.Infof("creating mon secrets for a new cluster")
 	info, err := mon.CreateClusterInfo(c.factory, "")
 	if err != nil {
@@ -123,11 +126,11 @@ func (c *Cluster) createMonSecretsAndSave(clientset *kubernetes.Clientset) (*mon
 		adminSecretName:   info.AdminSecret,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: v1.ObjectMeta{Name: appName},
+		ObjectMeta: v1.ObjectMeta{Name: appName, Namespace: c.Namespace},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	_, err = clientset.Secrets(c.Namespace).Create(secret)
+	_, err = clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save mon secrets. %+v", err)
 	}
@@ -137,13 +140,13 @@ func (c *Cluster) createMonSecretsAndSave(clientset *kubernetes.Clientset) (*mon
 		"key": info.AdminSecret,
 	}
 	secret = &v1.Secret{
-		ObjectMeta: v1.ObjectMeta{Name: "rook-admin"},
+		ObjectMeta: v1.ObjectMeta{Name: "rook-admin", Namespace: c.Namespace},
 		StringData: storageClassSecret,
 		Type:       k8sutil.RbdType,
 	}
-	_, err = clientset.Secrets(c.Namespace).Create(secret)
+	_, err = clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
-		if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
+		if !errors.IsAlreadyExists(err) {
 			return nil, fmt.Errorf("failed to save rook-admin secret. %+v", err)
 		}
 		logger.Infof("rook-admin secret already exists")
@@ -154,7 +157,7 @@ func (c *Cluster) createMonSecretsAndSave(clientset *kubernetes.Clientset) (*mon
 	return info, nil
 }
 
-func (c *Cluster) startPods(clientset *kubernetes.Clientset, clusterInfo *mon.ClusterInfo, mons []*MonConfig) error {
+func (c *Cluster) startPods(clientset kubernetes.Interface, clusterInfo *mon.ClusterInfo, mons []*MonConfig) error {
 	// schedule the mons on different nodes if we have enough nodes to be unique
 	antiAffinity, err := c.getAntiAffinity(clientset)
 	if err != nil {
@@ -181,21 +184,21 @@ func (c *Cluster) startPods(clientset *kubernetes.Clientset, clusterInfo *mon.Cl
 	alreadyRunning := 0
 	for _, m := range mons {
 		monPod := c.makeMonPod(m, clusterInfo, antiAffinity)
+		name := monPod.Name
 		logger.Debugf("Starting pod: %+v", monPod)
-		_, err := clientset.Pods(c.Namespace).Create(monPod)
+		monPod, err = clientset.CoreV1().Pods(c.Namespace).Create(monPod)
 		if err != nil {
-			if !k8sutil.IsKubernetesResourceAlreadyExistError(err) {
-				return fmt.Errorf("failed to create mon pod %s. %+v", c.Namespace, err)
+			if !errors.IsAlreadyExists(err) {
+				return fmt.Errorf("failed to create mon pod %s. %+v", name, err)
 			}
 			alreadyRunning++
-			logger.Infof("mon pod %s already exists", monPod.Name)
 		} else {
 			started++
 		}
 
-		podIP, err := c.waitForPodToStart(clientset, monPod)
+		podIP, err := c.waitForPodToStart(clientset, name)
 		if err != nil {
-			return fmt.Errorf("failed to start pod %s. %+v", monPod.Name, err)
+			return fmt.Errorf("failed to start pod %s. %+v", name, err)
 		}
 		clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, podIP)
 	}
@@ -204,48 +207,40 @@ func (c *Cluster) startPods(clientset *kubernetes.Clientset, clusterInfo *mon.Cl
 	return nil
 }
 
-func (c *Cluster) waitForPodToStart(clientset *kubernetes.Clientset, pod *v1.Pod) (string, error) {
+func (c *Cluster) waitForPodToStart(clientset kubernetes.Interface, name string) (string, error) {
 
 	// Poll the status of the pods to see if they are ready
-	// FIX: Get status instead of just waiting
+	status := ""
 	for i := 0; i < 15; i++ {
 		// wait and try again
-		delay := 6
-		logger.Infof("waiting %ds for pod %s to start. status=%v", delay, pod.Name, pod.Status.Phase)
-		<-time.After(time.Duration(delay) * time.Second)
+		logger.Infof("waiting %ds for pod %s to start. status=%s", c.retryDelay, name, status)
+		<-time.After(time.Duration(c.retryDelay) * time.Second)
 
-		pod, err := clientset.Core().Pods(c.Namespace).Get(pod.Name)
+		pod, err := clientset.CoreV1().Pods(c.Namespace).Get(name)
 		if err != nil {
-			return "", fmt.Errorf("failed to get mon pod %s. %+v", pod.Name, err)
+			return "", fmt.Errorf("failed to get mon pod %s. %+v", name, err)
 		}
 
 		if pod.Status.Phase == v1.PodRunning {
-			logger.Infof("pod %s started", pod.Name)
+			logger.Infof("pod %s started", name)
 			return pod.Status.PodIP, nil
 		}
+		status = string(pod.Status.Phase)
 	}
 
-	return "", fmt.Errorf("timed out waiting for pod %s to start", pod.Name)
+	return "", fmt.Errorf("timed out waiting for pod %s to start", name)
 }
 
 // detect whether we have a big enough cluster to run services on different nodes.
 // the anti-affinity will prevent pods of the same type of running on the same node.
-func (c *Cluster) getAntiAffinity(clientset *kubernetes.Clientset) (bool, error) {
+func (c *Cluster) getAntiAffinity(clientset kubernetes.Interface) (bool, error) {
 	nodeOptions := v1.ListOptions{}
 	nodeOptions.TypeMeta.Kind = "Node"
-	nodes, err := clientset.Nodes().List(nodeOptions)
+	nodes, err := clientset.CoreV1().Nodes().List(nodeOptions)
 	if err != nil {
 		return false, fmt.Errorf("failed to get nodes in cluster. %+v", err)
 	}
 
 	logger.Infof("there are %d nodes available for %d monitors", len(nodes.Items), c.Size)
 	return len(nodes.Items) >= c.Size, nil
-}
-
-func (c *Cluster) GetMonPodsRunning(clientset *kubernetes.Clientset, clusterName string) (int, int, error) {
-	running, pending, err := c.pollPods(clientset, clusterName)
-	if err != nil {
-		return 0, 0, fmt.Errorf("failed to get mon pods. %+v", err)
-	}
-	return len(running), len(pending), nil
 }
