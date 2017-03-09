@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"regexp"
 	"time"
 
 	"github.com/rook/rook/pkg/cephmgr/mon"
@@ -107,6 +108,15 @@ func getAvailableDevices(context *clusterd.DaemonContext, devices []*inventory.L
 		if fs == "" && ownPartitions {
 			if desiredDevices == "all" {
 				available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID}
+			} else if desiredDevices != "" {
+				// the desired devices is a regular expression
+				matched, err := regexp.Match(desiredDevices, []byte(device.Name))
+				if err == nil && matched {
+					available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID}
+				} else {
+					logger.Infof("skipping device %s that does not match the regular expression %s. %+v", device.Name, desiredDevices, err)
+				}
+
 			} else {
 				logger.Infof("skipping device %s until the admin specifies it can be used by an osd", device.Name)
 			}

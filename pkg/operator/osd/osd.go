@@ -36,12 +36,14 @@ type Cluster struct {
 	Keyring       string
 	Version       string
 	useAllDevices bool
+	deviceFilter  string
 }
 
-func New(namespace, version string, useAllDevices bool) *Cluster {
+func New(namespace, version, deviceFilter string, useAllDevices bool) *Cluster {
 	return &Cluster{
 		Namespace:     namespace,
 		Version:       version,
+		deviceFilter:  deviceFilter,
 		useAllDevices: useAllDevices,
 	}
 }
@@ -100,7 +102,9 @@ func (c *Cluster) osdContainer(cluster *mon.ClusterInfo) v1.Container {
 
 	command := fmt.Sprintf("/usr/bin/rookd osd --data-dir=%s --mon-endpoints=%s --cluster-name=%s ",
 		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name)
-	if c.useAllDevices {
+	if c.deviceFilter != "" {
+		command += fmt.Sprintf("--data-devices=%s ", c.deviceFilter)
+	} else if c.useAllDevices {
 		command += fmt.Sprintf("--data-devices=all ")
 	}
 

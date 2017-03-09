@@ -27,7 +27,7 @@ import (
 )
 
 func TestStartDaemonset(t *testing.T) {
-	c := New("ns", "myversion", false)
+	c := New("ns", "myversion", "", false)
 
 	clientset := fake.NewSimpleClientset()
 
@@ -52,7 +52,7 @@ func TestDaemonset(t *testing.T) {
 }
 
 func testPodDevices(t *testing.T, useDevices bool) {
-	c := New("ns", "myversion", useDevices)
+	c := New("ns", "myversion", "", useDevices)
 	info := testop.CreateClusterInfo(1)
 	daemonSet, err := c.makeDaemonSet(info)
 	assert.Nil(t, err)
