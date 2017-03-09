@@ -47,7 +47,7 @@ func New(namespace, version string) *Cluster {
 	}
 }
 
-func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInfo) error {
+func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
 	logger.Infof("starting the Rook api")
 
 	if cluster == nil || len(cluster.Monitors) == 0 {
@@ -61,8 +61,8 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	}
 
 	// start the deployment
-	deployment, err := c.makeDeployment(cluster)
-	_, err = clientset.Deployments(c.Namespace).Create(deployment)
+	deployment := c.makeDeployment(cluster)
+	_, err = clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create api deployment. %+v", err)
@@ -75,7 +75,7 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	return nil
 }
 
-func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo) (*extensions.Deployment, error) {
+func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo) *extensions.Deployment {
 	deployment := &extensions.Deployment{}
 	deployment.Name = deploymentName
 	deployment.Namespace = c.Namespace
@@ -97,7 +97,7 @@ func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo) (*extensions.Deployme
 
 	deployment.Spec = extensions.DeploymentSpec{Template: podSpec, Replicas: &c.Replicas}
 
-	return deployment, nil
+	return deployment
 }
 
 func (c *Cluster) apiContainer(cluster *mon.ClusterInfo) v1.Container {
@@ -126,12 +126,13 @@ func (c *Cluster) apiContainer(cluster *mon.ClusterInfo) v1.Container {
 	}
 }
 
-func (c *Cluster) startService(clientset *kubernetes.Clientset, clusterInfo *mon.ClusterInfo) error {
+func (c *Cluster) startService(clientset kubernetes.Interface, clusterInfo *mon.ClusterInfo) error {
 	labels := getLabels(clusterInfo.Name)
 	s := &v1.Service{
 		ObjectMeta: v1.ObjectMeta{
-			Name:   deploymentName,
-			Labels: labels,
+			Name:      deploymentName,
+			Namespace: c.Namespace,
+			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
@@ -146,11 +147,13 @@ func (c *Cluster) startService(clientset *kubernetes.Clientset, clusterInfo *mon
 		},
 	}
 
-	s, err := clientset.Services(c.Namespace).Create(s)
+	s, err := clientset.CoreV1().Services(c.Namespace).Create(s)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create api service. %+v", err)
 		}
+		logger.Infof("api service already running")
+		return nil
 	}
 
 	logger.Infof("API service running at %s:%d", s.Spec.ClusterIP, model.Port)

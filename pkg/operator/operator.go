@@ -56,7 +56,8 @@ type Operator struct {
 	Namespace    string
 	MasterHost   string
 	devicesInUse bool
-	clientset    *kubernetes.Clientset
+	retryDelay   int
+	clientset    kubernetes.Interface
 	waitCluster  sync.WaitGroup
 	factory      client.ConnectionFactory
 	stopChMap    map[string]chan struct{}
@@ -66,7 +67,7 @@ type Operator struct {
 	clusterRVs map[string]string
 }
 
-func New(host, namespace string, factory client.ConnectionFactory, clientset *kubernetes.Clientset) *Operator {
+func New(host, namespace string, factory client.ConnectionFactory, clientset kubernetes.Interface) *Operator {
 	return &Operator{
 		Namespace:  namespace,
 		MasterHost: host,
@@ -75,6 +76,7 @@ func New(host, namespace string, factory client.ConnectionFactory, clientset *ku
 		clusters:   make(map[string]*Cluster),
 		clusterRVs: make(map[string]string),
 		stopChMap:  map[string]chan struct{}{},
+		retryDelay: 3,
 	}
 }
 
@@ -104,6 +106,10 @@ func (o *Operator) initResources() (string, error) {
 	err = o.createTPR()
 	if err != nil {
 		return "", fmt.Errorf("failed to create TPR. %+v", err)
+	}
+	err = o.waitForTPRInit(o.clientset.CoreV1().RESTClient(), 30, o.Namespace)
+	if err != nil {
+		return "", fmt.Errorf("failed to wait for TPR. %+v", err)
 	}
 
 	// Check if there is an existing cluster to recover

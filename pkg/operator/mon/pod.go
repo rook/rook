@@ -47,6 +47,7 @@ func (c *Cluster) makeMonPod(config *MonConfig, clusterInfo *mon.ClusterInfo, an
 	pod := &v1.Pod{
 		ObjectMeta: v1.ObjectMeta{
 			Name:        config.Name,
+			Namespace:   c.Namespace,
 			Labels:      getLabels(clusterInfo.Name),
 			Annotations: map[string]string{},
 		},
@@ -95,8 +96,8 @@ func (c *Cluster) monContainer(config *MonConfig, clusterInfo *mon.ClusterInfo) 
 	}
 }
 
-func (c *Cluster) pollPods(clientset *kubernetes.Clientset, clusterName string) ([]*v1.Pod, []*v1.Pod, error) {
-	podList, err := clientset.Core().Pods(c.Namespace).List(listOptions(clusterName))
+func (c *Cluster) pollPods(clientset kubernetes.Interface, clusterName string) ([]*v1.Pod, []*v1.Pod, error) {
+	podList, err := clientset.CoreV1().Pods(c.Namespace).List(listOptions(clusterName))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to list running pods: %v", err)
 	}

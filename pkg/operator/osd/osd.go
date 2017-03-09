@@ -46,7 +46,7 @@ func New(namespace, version string, useAllDevices bool) *Cluster {
 	}
 }
 
-func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInfo) error {
+func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
 	logger.Infof("start running osds")
 
 	if cluster == nil || len(cluster.Monitors) == 0 {
@@ -54,7 +54,7 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	}
 
 	ds, err := c.makeDaemonSet(cluster)
-	_, err = clientset.DaemonSets(c.Namespace).Create(ds)
+	_, err = clientset.Extensions().DaemonSets(c.Namespace).Create(ds)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create osd daemon set. %+v", err)

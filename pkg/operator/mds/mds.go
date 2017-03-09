@@ -42,6 +42,7 @@ type Cluster struct {
 	Version   string
 	Replicas  int32
 	factory   client.ConnectionFactory
+	dataDir   string
 }
 
 func New(namespace, version string, factory client.ConnectionFactory) *Cluster {
@@ -50,17 +51,18 @@ func New(namespace, version string, factory client.ConnectionFactory) *Cluster {
 		Version:   version,
 		Replicas:  1,
 		factory:   factory,
+		dataDir:   k8sutil.DataDir,
 	}
 }
 
-func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInfo) error {
+func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
 	logger.Infof("start running mds")
 
 	if cluster == nil || len(cluster.Monitors) == 0 {
 		return fmt.Errorf("missing mons to start mds")
 	}
 
-	context := &clusterd.DaemonContext{ConfigDir: k8sutil.DataDir}
+	context := &clusterd.DaemonContext{ConfigDir: c.dataDir}
 	conn, err := mon.ConnectToClusterAsAdmin(clusterd.ToContext(context), c.factory, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to connect to cluster as admin: %+v", err)
@@ -74,8 +76,8 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	}
 
 	// start the deployment
-	deployment, err := c.makeDeployment(cluster, id)
-	_, err = clientset.Deployments(c.Namespace).Create(deployment)
+	deployment := c.makeDeployment(cluster, id)
+	_, err = clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mds deployment. %+v", err)
@@ -88,8 +90,8 @@ func (c *Cluster) Start(clientset *kubernetes.Clientset, cluster *mon.ClusterInf
 	return nil
 }
 
-func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, context *clusterd.DaemonContext, cluster *mon.ClusterInfo, conn client.Connection, id string) error {
-	_, err := clientset.Secrets(c.Namespace).Get(appName)
+func (c *Cluster) createKeyring(clientset kubernetes.Interface, context *clusterd.DaemonContext, cluster *mon.ClusterInfo, conn client.Connection, id string) error {
+	_, err := clientset.CoreV1().Secrets(c.Namespace).Get(appName)
 	if err == nil {
 		logger.Infof("the mds keyring was already generated")
 		return nil
@@ -109,11 +111,11 @@ func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, context *cluste
 		keyringName: keyring,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: v1.ObjectMeta{Name: appName},
+		ObjectMeta: v1.ObjectMeta{Name: appName, Namespace: c.Namespace},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	_, err = clientset.Secrets(c.Namespace).Create(secret)
+	_, err = clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		return fmt.Errorf("failed to save mds secrets. %+v", err)
 	}
@@ -121,7 +123,7 @@ func (c *Cluster) createKeyring(clientset *kubernetes.Clientset, context *cluste
 	return nil
 }
 
-func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo, id string) (*extensions.Deployment, error) {
+func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo, id string) *extensions.Deployment {
 	deployment := &extensions.Deployment{}
 	deployment.Name = appName
 	deployment.Namespace = c.Namespace
@@ -143,7 +145,7 @@ func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo, id string) (*extensio
 
 	deployment.Spec = extensions.DeploymentSpec{Template: podSpec, Replicas: &c.Replicas}
 
-	return deployment, nil
+	return deployment
 }
 
 func (c *Cluster) mdsContainer(cluster *mon.ClusterInfo, id string) v1.Container {
