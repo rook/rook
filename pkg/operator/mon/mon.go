@@ -39,17 +39,18 @@ const (
 )
 
 type Cluster struct {
-	Namespace    string
-	Keyring      string
-	ClusterName  string
-	Version      string
-	MasterHost   string
-	Size         int
-	Paused       bool
-	AntiAffinity bool
-	Port         int32
-	factory      client.ConnectionFactory
-	retryDelay   int
+	Namespace       string
+	Keyring         string
+	ClusterName     string
+	Version         string
+	MasterHost      string
+	Size            int
+	Paused          bool
+	AntiAffinity    bool
+	Port            int32
+	factory         client.ConnectionFactory
+	retryDelay      int
+	dataDirHostPath string
 }
 
 type MonConfig struct {
@@ -57,14 +58,15 @@ type MonConfig struct {
 	Port int32
 }
 
-func New(namespace string, factory client.ConnectionFactory, version string) *Cluster {
+func New(namespace string, factory client.ConnectionFactory, dataDirHostPath, version string) *Cluster {
 	return &Cluster{
-		Namespace:    namespace,
-		Version:      version,
-		Size:         3,
-		factory:      factory,
-		AntiAffinity: true,
-		retryDelay:   6,
+		Namespace:       namespace,
+		Version:         version,
+		Size:            3,
+		factory:         factory,
+		dataDirHostPath: dataDirHostPath,
+		AntiAffinity:    true,
+		retryDelay:      6,
 	}
 }
 

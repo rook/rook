@@ -32,19 +32,21 @@ const (
 )
 
 type Cluster struct {
-	Namespace     string
-	Keyring       string
-	Version       string
-	useAllDevices bool
-	deviceFilter  string
+	Namespace       string
+	Keyring         string
+	Version         string
+	dataDirHostPath string
+	deviceFilter    string
+	useAllDevices   bool
 }
 
-func New(namespace, version, deviceFilter string, useAllDevices bool) *Cluster {
+func New(namespace, version, deviceFilter, dataDirHostPath string, useAllDevices bool) *Cluster {
 	return &Cluster{
-		Namespace:     namespace,
-		Version:       version,
-		deviceFilter:  deviceFilter,
-		useAllDevices: useAllDevices,
+		Namespace:       namespace,
+		Version:         version,
+		deviceFilter:    deviceFilter,
+		dataDirHostPath: dataDirHostPath,
+		useAllDevices:   useAllDevices,
 	}
 }
 
@@ -74,6 +76,11 @@ func (c *Cluster) makeDaemonSet(cluster *mon.ClusterInfo) (*extensions.DaemonSet
 	ds.Name = appName
 	ds.Namespace = c.Namespace
 
+	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
+	if c.dataDirHostPath != "" {
+		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
+	}
+
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: v1.ObjectMeta{
 			Name: appName,
@@ -87,7 +94,7 @@ func (c *Cluster) makeDaemonSet(cluster *mon.ClusterInfo) (*extensions.DaemonSet
 			Containers:    []v1.Container{c.osdContainer(cluster)},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
-				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
+				{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 				{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}},
 			},
 		},
