@@ -12,6 +12,9 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+Some of the code below came from https://github.com/digitalocean/ceph_exporter
+which has the same license.
 */
 package client
 
@@ -20,6 +23,18 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/model"
+)
+
+const (
+	// CephHealthOK denotes the status of ceph cluster when healthy.
+	CephHealthOK = "HEALTH_OK"
+
+	// CephHealthWarn denotes the status of ceph cluster when unhealthy but recovering.
+	CephHealthWarn = "HEALTH_WARN"
+
+	// CephHealthErr denotes the status of ceph cluster when unhealthy but usually needs
+	// manual intervention.
+	CephHealthErr = "HEALTH_ERR"
 )
 
 type CephStatus struct {
@@ -119,13 +134,23 @@ func Status(conn Connection) (CephStatus, error) {
 	return status, nil
 }
 
+func StatusPlain(conn Connection) ([]byte, error) {
+	cmd := map[string]interface{}{"prefix": "status", "format": "plain"}
+	buf, err := ExecuteMonCommand(conn, cmd, "status")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get status: %+v", err)
+	}
+
+	return buf, nil
+}
+
 func HealthToModelHealthStatus(cephHealth string) model.HealthStatus {
 	switch cephHealth {
-	case "HEALTH_OK":
+	case CephHealthOK:
 		return model.HealthOK
-	case "HEALTH_WARN":
+	case CephHealthWarn:
 		return model.HealthWarning
-	case "HEALTH_ERR":
+	case CephHealthErr:
 		return model.HealthError
 	default:
 		return model.HealthUnknown

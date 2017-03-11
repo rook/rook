@@ -29,3 +29,8 @@ import:
   subpackages:
   - kubernetes/typed/core/v1
 - package: github.com/bassam/cgosymbolizer
+- package: github.com/prometheus/client_golang
+  version: v0.8.0
+  subpackages:
+  - prometheus
+  - prometheus/promhttp

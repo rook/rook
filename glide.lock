@@ -1,5 +1,5 @@
-hash: 292ac02d911bbb2a5dc4885762c5984039de5144201f9c49907faf7b8c43f192
-updated: 2017-03-07T20:04:18.141713365-08:00
+hash: 81178d6bc6321564bed3985f0746ccd7357067d5c9eaecfdccdbd86cfd897387
+updated: 2017-03-08T10:56:46.619273095-08:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: a547fc61f48d567d5b4ec6f8aee5573d8efce11d
@@ -166,9 +166,10 @@ imports:
 - name: github.com/pborman/uuid
   version: ca53cad383cad2479bbba7f7a1a05797ec1386e4
 - name: github.com/prometheus/client_golang
-  version: e51041b3fa41cece0dca035740ba6411905be473
+  version: c5b7fccd204277076155f10851dad72b76a49317
   subpackages:
   - prometheus
+  - prometheus/promhttp
 - name: github.com/prometheus/client_model
   version: fa8ad6fec33561be4280a8f0514318c79d7f6cb6
   subpackages:

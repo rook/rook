@@ -12,6 +12,9 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+Some of the code below came from https://github.com/digitalocean/ceph_exporter
+which has the same license.
 */
 package client
 
@@ -31,6 +34,24 @@ type CephStoragePoolDetails struct {
 	Number             int    `json:"pool_id"`
 	Size               uint   `json:"size"`
 	ErasureCodeProfile string `json:"erasure_code_profile"`
+}
+
+type CephStoragePoolStats struct {
+	Pools []struct {
+		Name  string `json:"name"`
+		ID    int    `json:"id"`
+		Stats struct {
+			BytesUsed    float64 `json:"bytes_used"`
+			RawBytesUsed float64 `json:"raw_bytes_used"`
+			MaxAvail     float64 `json:"max_avail"`
+			Objects      float64 `json:"objects"`
+			DirtyObjects float64 `json:"dirty"`
+			ReadIO       float64 `json:"rd"`
+			ReadBytes    float64 `json:"rd_bytes"`
+			WriteIO      float64 `json:"wr"`
+			WriteBytes   float64 `json:"wr_bytes"`
+		} `json:"stats"`
+	} `json:"pools"`
 }
 
 func ListPoolSummaries(conn Connection) ([]CephStoragePoolSummary, error) {
@@ -117,4 +138,20 @@ func SetPoolProperty(conn Connection, name, propName string, propVal interface{}
 	}
 
 	return nil
+}
+
+func GetPoolStats(conn Connection) (*CephStoragePoolStats, error) {
+	cmd := map[string]interface{}{"prefix": "df", "detail": "detail"}
+
+	buf, err := ExecuteMonCommand(conn, cmd, "pool stats")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get pool stats: %+v", err)
+	}
+
+	var poolStats CephStoragePoolStats
+	if err := json.Unmarshal(buf, &poolStats); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal pool stats response: %+v", err)
+	}
+
+	return &poolStats, nil
 }

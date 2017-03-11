@@ -15,6 +15,12 @@ limitations under the License.
 */
 package api
 
+import (
+	"net/http"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+)
+
 func (h *Handler) GetRoutes() []Route {
 	return []Route{
 		{
@@ -148,6 +154,12 @@ func (h *Handler) GetRoutes() []Route {
 			"POST",
 			"/log",
 			h.SetLogLevel,
+		},
+		{
+			"GetMetrics",
+			"GET",
+			"/metrics",
+			promhttp.Handler().(http.HandlerFunc),
 		},
 	}
 }
