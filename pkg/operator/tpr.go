@@ -59,7 +59,7 @@ func (o *Operator) createTPR() error {
 		}
 	}
 
-	return err
+	return nil
 }
 
 func (o *Operator) waitForTPRInit(restcli rest.Interface, maxRetries int, ns string) error {
