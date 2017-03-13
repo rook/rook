@@ -56,6 +56,9 @@ type ClusterSpec struct {
 
 	// Whether to consume all the storage devices found on a machine
 	UseAllDevices bool `json:"useAllDevices"`
+
+	// A regular expression to allow more fine-grained selection of devices on nodes across the cluster
+	DeviceFilter string `json:"deviceFilter"`
 }
 
 func newCluster(spec ClusterSpec, factory client.ConnectionFactory, clientset kubernetes.Interface) *Cluster {
@@ -92,7 +95,7 @@ func (c *Cluster) CreateInstance() error {
 	}
 
 	// Start the OSDs
-	osds := osd.New(c.Spec.Namespace, c.Spec.Version, c.Spec.UseAllDevices)
+	osds := osd.New(c.Spec.Namespace, c.Spec.Version, c.Spec.DeviceFilter, c.Spec.UseAllDevices)
 	err = osds.Start(c.clientset, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
