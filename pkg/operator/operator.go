@@ -88,7 +88,7 @@ func (o *Operator) Run() error {
 		if err == nil {
 			break
 		}
-		logger.Errorf("failed to create tpr. %+v. retrying...", err)
+		logger.Errorf("failed to init resources. %+v. retrying...", err)
 		<-time.After(initRetryDelay)
 	}
 
