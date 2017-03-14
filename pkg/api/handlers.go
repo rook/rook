@@ -17,10 +17,13 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	ceph "github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/cephmgr/osd"
@@ -28,14 +31,46 @@ import (
 )
 
 type Handler struct {
-	context *clusterd.Context
-	config  *Config
+	context      *clusterd.Context
+	config       *Config
+	cephExporter *CephExporter
 }
 
 func newHandler(context *clusterd.Context, config *Config) *Handler {
 	return &Handler{
 		context: context,
 		config:  config,
+	}
+}
+
+// RegisterMetrics registers all collected metrics by this API server.  Note this should be called in a
+// goroutine because it will retry upon failure and block until successful.
+func (h *Handler) RegisterMetrics(retryMs int) error {
+	var metricsConn ceph.Connection
+	var err error
+
+	// establish a connection to the ceph cluster and register our metrics exporter with prometheus
+	for {
+		metricsConn, err = h.connectToCeph()
+		if err == nil {
+			break
+		}
+
+		logger.Noticef("failed to open metrics connection to ceph cluster (will retry): %+v", err)
+		<-time.After(time.Duration(retryMs) * time.Millisecond)
+	}
+
+	h.cephExporter = NewCephExporter(h, metricsConn)
+	if err := prometheus.Register(h.cephExporter); err != nil {
+		return fmt.Errorf("failed to register metrics: %+v", err)
+	}
+
+	return nil
+}
+
+func (h *Handler) Shutdown() {
+	if h.cephExporter != nil {
+		prometheus.Unregister(h.cephExporter)
 	}
 }
 
@@ -142,8 +177,12 @@ func handleReadBody(w http.ResponseWriter, r *http.Request, opName string) ([]by
 	return body, true
 }
 
+func (h *Handler) connectToCeph() (ceph.Connection, error) {
+	return h.config.ConnFactory.ConnectAsAdmin(h.context, h.config.CephFactory)
+}
+
 func (h *Handler) handleConnectToCeph(w http.ResponseWriter) (ceph.Connection, bool) {
-	adminConn, err := h.config.ConnFactory.ConnectAsAdmin(h.context, h.config.CephFactory)
+	adminConn, err := h.connectToCeph()
 	if err != nil {
 		logger.Errorf("failed to connect to cluster as admin: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)

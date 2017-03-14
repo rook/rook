@@ -16,6 +16,8 @@ limitations under the License.
 package mon
 
 import (
+	"fmt"
+
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/clusterd"
 )
@@ -45,6 +47,10 @@ func (c *lookupConnFactory) ConnectAsAdmin(context *clusterd.Context, cephFactor
 	clusterInfo, err := LoadClusterInfo(context.EtcdClient)
 	if err != nil {
 		return nil, err
+	}
+
+	if clusterInfo == nil {
+		return nil, fmt.Errorf("cluster info does not exist")
 	}
 
 	// open an admin connection to the cluster

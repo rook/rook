@@ -12,6 +12,9 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+Some of the code below came from https://github.com/digitalocean/ceph_exporter
+which has the same license.
 */
 package client
 
@@ -26,8 +29,10 @@ func ExecuteMonCommand(connection Connection, cmd map[string]interface{}, messag
 }
 
 func ExecuteMonCommandWithInfo(connection Connection, cmd map[string]interface{}, message string) ([]byte, string, error) {
-	// ensure the json attribute is included in the request
-	cmd["format"] = "json"
+	// ensure the json attribute is included in the request, unless already set
+	if _, ok := cmd["format"]; !ok {
+		cmd["format"] = "json"
+	}
 
 	prefix, ok := cmd["prefix"]
 	if !ok {
@@ -89,4 +94,53 @@ func GetMonStatus(adminConn Connection) (MonStatusResponse, error) {
 	}
 
 	return resp, nil
+}
+
+// MonStats is a subset of fields on the response from the mon command "status".  These fields
+// are focused on monitor stats.
+type MonStats struct {
+	Health struct {
+		Health struct {
+			HealthServices []struct {
+				Mons []struct {
+					Name         string      `json:"name"`
+					KBTotal      json.Number `json:"kb_total"`
+					KBUsed       json.Number `json:"kb_used"`
+					KBAvail      json.Number `json:"kb_avail"`
+					AvailPercent json.Number `json:"avail_percent"`
+					StoreStats   struct {
+						BytesTotal json.Number `json:"bytes_total"`
+						BytesSST   json.Number `json:"bytes_sst"`
+						BytesLog   json.Number `json:"bytes_log"`
+						BytesMisc  json.Number `json:"bytes_misc"`
+					} `json:"store_stats"`
+				} `json:"mons"`
+			} `json:"health_services"`
+		} `json:"health"`
+		TimeChecks struct {
+			Mons []struct {
+				Name    string      `json:"name"`
+				Skew    json.Number `json:"skew"`
+				Latency json.Number `json:"latency"`
+			} `json:"mons"`
+		} `json:"timechecks"`
+	} `json:"health"`
+	Quorum []int `json:"quorum"`
+}
+
+func GetMonStats(conn Connection) (*MonStats, error) {
+	// note this is another call to the mon command "status", but we'll be marshalling it into
+	// a type with a different subset of fields, scoped to monitor stats
+	cmd := map[string]interface{}{"prefix": "status"}
+	buf, err := ExecuteMonCommand(conn, cmd, "status")
+	if err != nil {
+		return nil, fmt.Errorf("failed to get status: %+v", err)
+	}
+
+	var monStats MonStats
+	if err := json.Unmarshal(buf, &monStats); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal status response: %+v", err)
+	}
+
+	return &monStats, nil
 }

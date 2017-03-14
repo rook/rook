@@ -24,6 +24,10 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 )
 
+const (
+	registerMetricsRetryMs = 5000
+)
+
 type Config struct {
 	Port        int
 	ConnFactory mon.ConnectionFactory
@@ -41,6 +45,15 @@ func Run(dcontext *clusterd.DaemonContext, config *Config) error {
 func ServeRoutes(context *clusterd.Context, config *Config) {
 	// set up routes and start HTTP server for REST API
 	h := newHandler(context, config)
+
+	// register metrics collection in a goroutine so it does not block the start up of the API server.
+	go func() {
+		if err := h.RegisterMetrics(registerMetricsRetryMs); err != nil {
+			logger.Errorf("API server init error: %+v", err)
+		}
+	}()
+	defer h.Shutdown()
+
 	r := newRouter(h.GetRoutes())
 	if err := http.ListenAndServe(fmt.Sprintf(":%d", config.Port), r); err != nil {
 		logger.Errorf("API server error: %+v", err)

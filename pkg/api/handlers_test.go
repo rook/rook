@@ -47,6 +47,29 @@ func newTestHandler(context *clusterd.Context, connFactory mon.ConnectionFactory
 	return newHandler(context, &Config{ConnFactory: connFactory, CephFactory: cephFactory, ClusterHandler: NewEtcdHandler(context)})
 }
 
+func TestRegisterMetrics(t *testing.T) {
+	context := &clusterd.Context{}
+	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
+	connFactory := &test.MockConnectionFactory{}
+	attempt := 0
+	connFactory.MockConnectAsAdmin = func(context *clusterd.Context, cephFactory ceph.ConnectionFactory) (ceph.Connection, error) {
+		attempt++
+
+		// fail the first attempt at connecting to the ceph cluster
+		if attempt <= 1 {
+			return nil, fmt.Errorf("mock connect error")
+		}
+
+		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
+	}
+
+	// create and init a new handler.  even though the first attempt fails, it should retry and return no error
+	h := newTestHandler(context, connFactory, cephFactory)
+	err := h.RegisterMetrics(0)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, attempt)
+}
+
 func TestGetNodesHandler(t *testing.T) {
 	nodeID := "node1"
 	etcdClient := util.NewMockEtcdClient()
