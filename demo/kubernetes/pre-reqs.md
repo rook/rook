@@ -37,5 +37,36 @@ Environment="RKT_OPTS=--volume modprobe,kind=host,source=/usr/sbin/modprobe \
 
 Note that the kubelet also requires access to the userspace `rbd` tool that is included only in hyperkube images tagged `v1.3.6_coreos.0` or later.
 
+## Kubernetes with RBAC
+RBAC restricts what operations can be performed in the cluster. In particular, the operator will be denied access to create third party resources (TPRs) if RBAC is enabled. These steps will give permissions to the `Rook` operator. 
+
+Find the name of the admin role for the cluster.
+```
+kubectl get clusterrolebinding
+```
+The role may be `cluster-admin`, or simply `admin` depending on your deployment of Kubernetes.
+
+Now replace the admin name in the `roleRef` section of `rook-rbac.yaml` if it is different this sample of `cluster-admin`.
+
+```
+apiVersion: rbac.authorization.k8s.io/v1alpha1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: default
+```
+
+Create the cluster role binding. The Rook operator should be good to go.
+```
+kubectl create -f rook-rbac.yaml
+```
+
 ## Using Rook in Kubernetes
 Now that you have a Kubernetes cluster running, you can start using `rook` with [these steps](README.md#deploy-rook).

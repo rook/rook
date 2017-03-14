@@ -8,9 +8,11 @@ This example shows how to build a simple, multi-tier web application on Kubernet
 
 ### Prerequisites
 
-This example requires a running Kubernetes cluster with access to `modprobe` by the kubelet. To make sure you have a Kubernetes cluster that is ready for `rook`, you can [follow these quick instructions](pre-reqs.md).
+To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these quick instructions](pre-reqs.md), including:
+- The `kubelet` requires access to `modprobe` 
+- If RBAC is enabled, the operator must be given privileges
 
-Note that we are striving for even more smooth integration with Kubernetes in the future such that `rook` will work out of the box with any Kubernetes cluster.
+Note that we are striving for even more smooth integration with Kubernetes in the future such that `Rook` will work out of the box with any Kubernetes cluster.
 
 ### Deploy Rook
 
