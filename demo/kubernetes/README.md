@@ -107,6 +107,17 @@ rook node ls
 
 At this point, you can use the `rook` tool along with some [simple steps to create and manage block, file and object storage](../client/README.md).
 
+### Teardown
+To clean up all the artifacts created by the demo, run the following:
+```
+kubectl delete deployment rook-operator wordpress wordpress-mysql
+kubectl delete thirdpartyresources cluster.rook.io
+kubectl delete namespace rook
+kubectl delete storageclass rook-block
+kubectl delete secret rook-rbd-user
+```
+If you modified the demo settings, additional cleanup is up to you for devices, host paths, etc.
+
 ## Design
 
 With Rook running in the Kubernetes cluster, Kubernetes applications can
