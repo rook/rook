@@ -54,13 +54,12 @@ build_artifact() {
 
     local file=${tag/\//-}
     local file=${file/:/-}
-    local dockerout=${RELEASE_DIR}/${file}.docker
+    local dockerout=${file}.docker
     echo ${file}
 
     echo generate ACIs from docker containers
-    docker save -o ${dockerout} ${registry}${tag}
-    docker2aci ${dockerout}
-    mv *.aci ${RELEASE_DIR}
+    (cd ${RELEASE_DIR} && docker save -o ${dockerout} ${registry}${tag})
+    (cd ${RELEASE_DIR} && docker2aci ${dockerout})
 
     rm -fr $tmpdir
 }
