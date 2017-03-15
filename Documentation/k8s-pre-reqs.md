@@ -15,7 +15,7 @@ Then wait for the cluster to come up and verify that kubernetes is done initiali
 kubectl cluster-info
 ```
 
-Once you see a url response, your cluster is [ready for use by Rook](README.md#deploy-rook).
+Once you see a url response, your cluster is [ready for use by Rook](kubernetes.md#deploy-rook).
 
 ## Existing Kubernetes Cluster
 Alternatively, if you already have a running Kubernetes cluster, you can deploy Rook to it with a small update to modify the kubelet service to bind mount `/sbin/modprobe`, which allows access to `modprobe`.
@@ -46,7 +46,7 @@ kubectl get clusterrolebinding
 ```
 The role may be `cluster-admin`, or simply `admin` depending on your deployment of Kubernetes.
 
-Now replace the admin name in the `roleRef` section of `rook-rbac.yaml` if it is different this sample of `cluster-admin`.
+Now replace the admin name in the `roleRef` section of [rook-rbac.yaml](/demo/kubernetes/rook-rbac.yaml) if it is different this sample of `cluster-admin`.
 
 ```
 apiVersion: rbac.authorization.k8s.io/v1alpha1
@@ -69,4 +69,4 @@ kubectl create -f rook-rbac.yaml
 ```
 
 ## Using Rook in Kubernetes
-Now that you have a Kubernetes cluster running, you can start using `rook` with [these steps](README.md#deploy-rook).
+Now that you have a Kubernetes cluster running, you can start using `rook` with [these steps](kubernetes.md#deploy-rook).
