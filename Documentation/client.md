@@ -1,7 +1,7 @@
 # Using Rook
 The `rook` client tool can be used to manage your Rook cluster once it is running as well as manage block, file and object storage.  See the sections below for details on how to configure each type of storage.  
 
-If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](../../README.md#quickstart-guides).
+If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](README.md).
 
 ## Block Storage
 1. Create a new volume image (10MB)
