@@ -15,3 +15,22 @@ spec:
           secretKeyRef:
             name: mon
             key: admin-secret
+    securityContext:
+      privileged: true
+    volumeMounts:
+      - mountPath: /dev
+        name: dev
+      - mountPath: /sys/bus
+        name: sysbus
+      - mountPath: /lib/modules
+        name: libmodules
+  volumes:
+    - name: dev
+      hostPath:
+        path: /dev
+    - name: sysbus
+      hostPath:
+        path: /sys/bus
+    - name: libmodules
+      hostPath:
+        path: /lib/modules
