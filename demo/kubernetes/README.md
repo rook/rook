@@ -28,7 +28,7 @@ This will start the rook-operator pod.  Verify that it is in the `Running` state
 kubectl get pod | grep rook-operator | awk '{print $3}'
 ```
 
-Now that the rook-operator pod is in the `Running` state, we can create the Rook cluster:
+Now that the rook-operator pod is in the `Running` state, we can create the Rook cluster. See the documentation on [configuring the cluster](tpr.md).
 ```
 kubectl create -f rook-cluster.yaml
 ```
