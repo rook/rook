@@ -27,8 +27,10 @@ RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 08b
         gdb \
         iperf3 \
         jq \
+        kmod \
         less \
         man-db \
+        sudo \
         vim \
     && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
