@@ -36,6 +36,8 @@ const (
 	monSecretName     = "mon-secret"
 	adminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
+	monConfigMapName  = "mon-config"
+	monEndpointKey    = "endpoints"
 )
 
 type Cluster struct {
@@ -179,6 +181,11 @@ func (c *Cluster) startPods(clusterInfo *mon.ClusterInfo, mons []*MonConfig) err
 		clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.Status.PodIP)
 	}
 
+	err = c.saveMonEndpoints(clusterInfo)
+	if err != nil {
+		return fmt.Errorf("failed to save endpoints for %d running mons. %+v", len(clusterInfo.Monitors), err)
+	}
+
 	if len(running) == c.Size {
 		logger.Infof("pods are already running")
 		return nil
@@ -205,6 +212,11 @@ func (c *Cluster) startPods(clusterInfo *mon.ClusterInfo, mons []*MonConfig) err
 			return fmt.Errorf("failed to start pod %s. %+v", name, err)
 		}
 		clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, podIP)
+
+		err = c.saveMonEndpoints(clusterInfo)
+		if err != nil {
+			return fmt.Errorf("failed to save endpoints after starting mon %s. %+v", m.Name, err)
+		}
 	}
 
 	logger.Infof("started %d/%d mons (%d already running)", (started + alreadyRunning), c.Size, alreadyRunning)
@@ -233,6 +245,34 @@ func (c *Cluster) waitForPodToStart(name string) (string, error) {
 	}
 
 	return "", fmt.Errorf("timed out waiting for pod %s to start", name)
+}
+
+func (c *Cluster) saveMonEndpoints(clusterInfo *mon.ClusterInfo) error {
+	configMap := &v1.ConfigMap{
+		ObjectMeta: v1.ObjectMeta{
+			Name:        monConfigMapName,
+			Namespace:   c.Namespace,
+			Annotations: map[string]string{},
+		},
+	}
+	configMap.Data = map[string]string{
+		monEndpointKey: mon.FlattenMonEndpoints(clusterInfo.Monitors),
+	}
+
+	_, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap)
+	if err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create mon endpoint config map. %+v", err)
+		}
+
+		logger.Debugf("updating config map %s that already exists", configMap.Name)
+		if _, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
+			return fmt.Errorf("failed to update mon endpoint config map. %+v", err)
+		}
+	}
+
+	logger.Infof("saved mon endpoints to config map %s", configMap.Name)
+	return nil
 }
 
 // detect whether we have a big enough cluster to run services on different nodes.

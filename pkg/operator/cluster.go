@@ -92,14 +92,14 @@ func (c *Cluster) CreateInstance() error {
 	}
 
 	a := api.New(c.clientset, c.Spec.Namespace, c.Spec.Version)
-	err = a.Start(cluster)
+	err = a.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs
 	osds := osd.New(c.clientset, c.Spec.Namespace, c.Spec.Version, c.Spec.DeviceFilter, c.Spec.DataDirHostPath, c.Spec.UseAllDevices)
-	err = osds.Start(cluster)
+	err = osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
 	}
