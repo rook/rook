@@ -181,6 +181,8 @@ install: external
 check test: external
 	@$(MAKE) go.test
 
+lint: go.lint
+
 vet: go.vet
 
 fmt: go.fmt
@@ -226,6 +228,7 @@ help:
 	@echo '    distclean   Remove all files that are created '
 	@echo '                by building or configuring.'
 	@echo '    fmt         Check formatting of go sources.'
+	@echo '    lint        Check syntax and styling of go sources.'
 	@echo '    help        Show this help info.'
 	@echo '    vendor      Installs vendor dependencies.'
 	@echo '    vet         Runs lint checks on go sources.'
