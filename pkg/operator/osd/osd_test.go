@@ -27,22 +27,21 @@ import (
 )
 
 func TestStartDaemonset(t *testing.T) {
-	c := New("ns", "myversion", "", "", false)
-
 	clientset := fake.NewSimpleClientset()
+	c := New(clientset, "ns", "myversion", "", "", false)
 
 	// Cannot start the cluster with zero mons
 	info := testop.CreateClusterInfo(0)
-	err := c.Start(clientset, info)
+	err := c.Start(info)
 	assert.NotNil(t, err)
 
 	// Can start with one mon
 	info = testop.CreateClusterInfo(1)
-	err = c.Start(clientset, info)
+	err = c.Start(info)
 	assert.Nil(t, err)
 
 	// Should not fail if it already exists
-	err = c.Start(clientset, info)
+	err = c.Start(info)
 	assert.Nil(t, err)
 }
 
@@ -52,7 +51,8 @@ func TestDaemonset(t *testing.T) {
 }
 
 func testPodDevices(t *testing.T, dataDir string, useDevices bool) {
-	c := New("ns", "myversion", "", dataDir, useDevices)
+	clientset := fake.NewSimpleClientset()
+	c := New(clientset, "ns", "myversion", "", dataDir, useDevices)
 	info := testop.CreateClusterInfo(1)
 	daemonSet, err := c.makeDaemonSet(info)
 	assert.Nil(t, err)

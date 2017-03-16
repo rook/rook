@@ -20,7 +20,6 @@ import (
 
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/labels"
 )
@@ -100,8 +99,8 @@ func (c *Cluster) monContainer(config *MonConfig, clusterInfo *mon.ClusterInfo) 
 	}
 }
 
-func (c *Cluster) pollPods(clientset kubernetes.Interface, clusterName string) ([]*v1.Pod, []*v1.Pod, error) {
-	podList, err := clientset.CoreV1().Pods(c.Namespace).List(listOptions(clusterName))
+func (c *Cluster) pollPods(clusterName string) ([]*v1.Pod, []*v1.Pod, error) {
+	podList, err := c.clientset.CoreV1().Pods(c.Namespace).List(listOptions(clusterName))
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to list running pods: %v", err)
 	}

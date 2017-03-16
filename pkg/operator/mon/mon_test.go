@@ -18,7 +18,6 @@ package mon
 import (
 	"testing"
 
-	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/pkg/api/v1"
 
 	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
@@ -28,48 +27,47 @@ import (
 )
 
 func TestStartMonPods(t *testing.T) {
-	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	c := New("ns", factory, "", "myversion")
-	c.retryDelay = 0
-
 	clientset := test.New(3)
+	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
+	c := New(clientset, factory, "ns", "", "myversion")
+	c.retryDelay = 0
 
 	// start a basic cluster
 	// an error is expected since mocking always creates pods that are not running
-	info, err := c.Start(clientset)
+	info, err := c.Start()
 	assert.NotNil(t, err)
 	assert.Nil(t, info)
 
-	validateStart(t, c, clientset)
+	validateStart(t, c)
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start(clientset)
+	info, err = c.Start()
 	assert.NotNil(t, err)
 	assert.Nil(t, info)
 
-	validateStart(t, c, clientset)
+	validateStart(t, c)
 }
 
-func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
-	s, err := clientset.CoreV1().Secrets(c.Namespace).Get("rook-admin")
+func validateStart(t *testing.T, c *Cluster) {
+	s, err := c.clientset.CoreV1().Secrets(c.Namespace).Get("rook-admin")
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(s.StringData))
 
-	s, err = clientset.CoreV1().Secrets(c.Namespace).Get("mon")
+	s, err = c.clientset.CoreV1().Secrets(c.Namespace).Get("mon")
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(s.StringData))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
-	p, err := clientset.CoreV1().Pods(c.Namespace).Get("mon0")
+	p, err := c.clientset.CoreV1().Pods(c.Namespace).Get("mon0")
 	assert.Nil(t, err)
 	assert.Equal(t, "mon0", p.Name)
 
-	pods, err := clientset.CoreV1().Pods(c.Namespace).List(v1.ListOptions{})
+	pods, err := c.clientset.CoreV1().Pods(c.Namespace).List(v1.ListOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(pods.Items))
 
 	// no pods are running or pending
-	running, pending, err := c.pollPods(clientset, c.ClusterName)
+	running, pending, err := c.pollPods(c.ClusterName)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(running))
 	assert.Equal(t, 0, len(pending))

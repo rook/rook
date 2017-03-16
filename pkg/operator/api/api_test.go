@@ -24,41 +24,41 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
 func TestStartAPI(t *testing.T) {
 	clientset := testop.New(3)
 	info := testop.CreateClusterInfo(1)
-	c := New("ns", "myversion")
+	c := New(clientset, "ns", "myversion")
 
 	// start a basic cluster
-	err := c.Start(clientset, info)
+	err := c.Start(info)
 	assert.Nil(t, err)
 
-	validateStart(t, c, clientset)
+	validateStart(t, c)
 
 	// starting again should be a no-op
-	err = c.Start(clientset, info)
+	err = c.Start(info)
 	assert.Nil(t, err)
 
-	validateStart(t, c, clientset)
+	validateStart(t, c)
 }
 
-func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
+func validateStart(t *testing.T, c *Cluster) {
 
-	r, err := clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(deploymentName)
+	r, err := c.clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(deploymentName)
 	assert.Nil(t, err)
 	assert.Equal(t, deploymentName, r.Name)
 
-	s, err := clientset.CoreV1().Services(c.Namespace).Get(deploymentName)
+	s, err := c.clientset.CoreV1().Services(c.Namespace).Get(deploymentName)
 	assert.Nil(t, err)
 	assert.Equal(t, deploymentName, s.Name)
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New("ns", "myversion")
+	clientset := testop.New(1)
+	c := New(clientset, "ns", "myversion")
 	info := testop.CreateClusterInfo(0)
 
 	d := c.makeDeployment(info)

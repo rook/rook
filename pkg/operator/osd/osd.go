@@ -32,16 +32,18 @@ const (
 )
 
 type Cluster struct {
+	clientset       kubernetes.Interface
 	Namespace       string
 	Keyring         string
 	Version         string
+	useAllDevices   bool
 	dataDirHostPath string
 	deviceFilter    string
-	useAllDevices   bool
 }
 
-func New(namespace, version, deviceFilter, dataDirHostPath string, useAllDevices bool) *Cluster {
+func New(clientset kubernetes.Interface, namespace, version, deviceFilter, dataDirHostPath string, useAllDevices bool) *Cluster {
 	return &Cluster{
+		clientset:       clientset,
 		Namespace:       namespace,
 		Version:         version,
 		deviceFilter:    deviceFilter,
@@ -50,7 +52,7 @@ func New(namespace, version, deviceFilter, dataDirHostPath string, useAllDevices
 	}
 }
 
-func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
+func (c *Cluster) Start(cluster *mon.ClusterInfo) error {
 	logger.Infof("start running osds")
 
 	if cluster == nil || len(cluster.Monitors) == 0 {
@@ -58,7 +60,7 @@ func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo
 	}
 
 	ds, err := c.makeDaemonSet(cluster)
-	_, err = clientset.Extensions().DaemonSets(c.Namespace).Create(ds)
+	_, err = c.clientset.Extensions().DaemonSets(c.Namespace).Create(ds)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create osd daemon set. %+v", err)

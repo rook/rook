@@ -34,20 +34,22 @@ const (
 )
 
 type Cluster struct {
+	clientset kubernetes.Interface
 	Namespace string
 	Version   string
 	Replicas  int32
 }
 
-func New(namespace, version string) *Cluster {
+func New(clientset kubernetes.Interface, namespace, version string) *Cluster {
 	return &Cluster{
+		clientset: clientset,
 		Namespace: namespace,
 		Version:   version,
 		Replicas:  1,
 	}
 }
 
-func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
+func (c *Cluster) Start(cluster *mon.ClusterInfo) error {
 	logger.Infof("starting the Rook api")
 
 	if cluster == nil || len(cluster.Monitors) == 0 {
@@ -55,14 +57,14 @@ func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo
 	}
 
 	// start the service
-	err := c.startService(clientset, cluster)
+	err := c.startService(cluster)
 	if err != nil {
 		return fmt.Errorf("failed to start api service. %+v", err)
 	}
 
 	// start the deployment
 	deployment := c.makeDeployment(cluster)
-	_, err = clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
+	_, err = c.clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create api deployment. %+v", err)
@@ -126,7 +128,7 @@ func (c *Cluster) apiContainer(cluster *mon.ClusterInfo) v1.Container {
 	}
 }
 
-func (c *Cluster) startService(clientset kubernetes.Interface, clusterInfo *mon.ClusterInfo) error {
+func (c *Cluster) startService(clusterInfo *mon.ClusterInfo) error {
 	labels := getLabels(clusterInfo.Name)
 	s := &v1.Service{
 		ObjectMeta: v1.ObjectMeta{
@@ -147,7 +149,7 @@ func (c *Cluster) startService(clientset kubernetes.Interface, clusterInfo *mon.
 		},
 	}
 
-	s, err := clientset.CoreV1().Services(c.Namespace).Create(s)
+	s, err := c.clientset.CoreV1().Services(c.Namespace).Create(s)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create api service. %+v", err)

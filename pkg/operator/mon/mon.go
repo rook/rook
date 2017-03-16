@@ -48,6 +48,7 @@ type Cluster struct {
 	Paused          bool
 	AntiAffinity    bool
 	Port            int32
+	clientset       kubernetes.Interface
 	factory         client.ConnectionFactory
 	retryDelay      int
 	dataDirHostPath string
@@ -58,22 +59,23 @@ type MonConfig struct {
 	Port int32
 }
 
-func New(namespace string, factory client.ConnectionFactory, dataDirHostPath, version string) *Cluster {
+func New(clientset kubernetes.Interface, factory client.ConnectionFactory, namespace, dataDirHostPath, version string) *Cluster {
 	return &Cluster{
+		clientset:       clientset,
+		factory:         factory,
+		dataDirHostPath: dataDirHostPath,
 		Namespace:       namespace,
 		Version:         version,
 		Size:            3,
-		factory:         factory,
-		dataDirHostPath: dataDirHostPath,
 		AntiAffinity:    true,
 		retryDelay:      6,
 	}
 }
 
-func (c *Cluster) Start(clientset kubernetes.Interface) (*mon.ClusterInfo, error) {
+func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 	logger.Infof("start running mons")
 
-	clusterInfo, err := c.initClusterInfo(clientset)
+	clusterInfo, err := c.initClusterInfo()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
@@ -82,7 +84,7 @@ func (c *Cluster) Start(clientset kubernetes.Interface) (*mon.ClusterInfo, error
 		mons = append(mons, &MonConfig{Name: fmt.Sprintf("mon%d", i), Port: int32(mon.Port)})
 	}
 
-	err = c.startPods(clientset, clusterInfo, mons)
+	err = c.startPods(clusterInfo, mons)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start mon pods. %+v", err)
 	}
@@ -92,14 +94,14 @@ func (c *Cluster) Start(clientset kubernetes.Interface) (*mon.ClusterInfo, error
 
 // Retrieve the ceph cluster info if it already exists.
 // If a new cluster create new keys.
-func (c *Cluster) initClusterInfo(clientset kubernetes.Interface) (*mon.ClusterInfo, error) {
-	secrets, err := clientset.CoreV1().Secrets(c.Namespace).Get(appName)
+func (c *Cluster) initClusterInfo() (*mon.ClusterInfo, error) {
+	secrets, err := c.clientset.CoreV1().Secrets(c.Namespace).Get(appName)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return nil, fmt.Errorf("failed to get mon secrets. %+v", err)
 		}
 
-		return c.createMonSecretsAndSave(clientset)
+		return c.createMonSecretsAndSave()
 	}
 
 	info := &mon.ClusterInfo{
@@ -113,7 +115,7 @@ func (c *Cluster) initClusterInfo(clientset kubernetes.Interface) (*mon.ClusterI
 	return info, nil
 }
 
-func (c *Cluster) createMonSecretsAndSave(clientset kubernetes.Interface) (*mon.ClusterInfo, error) {
+func (c *Cluster) createMonSecretsAndSave() (*mon.ClusterInfo, error) {
 	logger.Infof("creating mon secrets for a new cluster")
 	info, err := mon.CreateClusterInfo(c.factory, "")
 	if err != nil {
@@ -132,7 +134,7 @@ func (c *Cluster) createMonSecretsAndSave(clientset kubernetes.Interface) (*mon.
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	_, err = clientset.CoreV1().Secrets(c.Namespace).Create(secret)
+	_, err = c.clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		return nil, fmt.Errorf("failed to save mon secrets. %+v", err)
 	}
@@ -146,7 +148,7 @@ func (c *Cluster) createMonSecretsAndSave(clientset kubernetes.Interface) (*mon.
 		StringData: storageClassSecret,
 		Type:       k8sutil.RbdType,
 	}
-	_, err = clientset.CoreV1().Secrets(c.Namespace).Create(secret)
+	_, err = c.clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return nil, fmt.Errorf("failed to save rook-admin secret. %+v", err)
@@ -159,14 +161,14 @@ func (c *Cluster) createMonSecretsAndSave(clientset kubernetes.Interface) (*mon.
 	return info, nil
 }
 
-func (c *Cluster) startPods(clientset kubernetes.Interface, clusterInfo *mon.ClusterInfo, mons []*MonConfig) error {
+func (c *Cluster) startPods(clusterInfo *mon.ClusterInfo, mons []*MonConfig) error {
 	// schedule the mons on different nodes if we have enough nodes to be unique
-	antiAffinity, err := c.getAntiAffinity(clientset)
+	antiAffinity, err := c.getAntiAffinity()
 	if err != nil {
 		return fmt.Errorf("failed to get antiaffinity. %+v", err)
 	}
 
-	running, pending, err := c.pollPods(clientset, clusterInfo.Name)
+	running, pending, err := c.pollPods(clusterInfo.Name)
 	if err != nil {
 		return fmt.Errorf("failed to get mon pods. %+v", err)
 	}
@@ -188,7 +190,7 @@ func (c *Cluster) startPods(clientset kubernetes.Interface, clusterInfo *mon.Clu
 		monPod := c.makeMonPod(m, clusterInfo, antiAffinity)
 		name := monPod.Name
 		logger.Debugf("Starting pod: %+v", monPod)
-		monPod, err = clientset.CoreV1().Pods(c.Namespace).Create(monPod)
+		monPod, err = c.clientset.CoreV1().Pods(c.Namespace).Create(monPod)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create mon pod %s. %+v", name, err)
@@ -198,7 +200,7 @@ func (c *Cluster) startPods(clientset kubernetes.Interface, clusterInfo *mon.Clu
 			started++
 		}
 
-		podIP, err := c.waitForPodToStart(clientset, name)
+		podIP, err := c.waitForPodToStart(name)
 		if err != nil {
 			return fmt.Errorf("failed to start pod %s. %+v", name, err)
 		}
@@ -209,7 +211,7 @@ func (c *Cluster) startPods(clientset kubernetes.Interface, clusterInfo *mon.Clu
 	return nil
 }
 
-func (c *Cluster) waitForPodToStart(clientset kubernetes.Interface, name string) (string, error) {
+func (c *Cluster) waitForPodToStart(name string) (string, error) {
 
 	// Poll the status of the pods to see if they are ready
 	status := ""
@@ -218,7 +220,7 @@ func (c *Cluster) waitForPodToStart(clientset kubernetes.Interface, name string)
 		logger.Infof("waiting %ds for pod %s to start. status=%s", c.retryDelay, name, status)
 		<-time.After(time.Duration(c.retryDelay) * time.Second)
 
-		pod, err := clientset.CoreV1().Pods(c.Namespace).Get(name)
+		pod, err := c.clientset.CoreV1().Pods(c.Namespace).Get(name)
 		if err != nil {
 			return "", fmt.Errorf("failed to get mon pod %s. %+v", name, err)
 		}
@@ -235,10 +237,10 @@ func (c *Cluster) waitForPodToStart(clientset kubernetes.Interface, name string)
 
 // detect whether we have a big enough cluster to run services on different nodes.
 // the anti-affinity will prevent pods of the same type of running on the same node.
-func (c *Cluster) getAntiAffinity(clientset kubernetes.Interface) (bool, error) {
+func (c *Cluster) getAntiAffinity() (bool, error) {
 	nodeOptions := v1.ListOptions{}
 	nodeOptions.TypeMeta.Kind = "Node"
-	nodes, err := clientset.CoreV1().Nodes().List(nodeOptions)
+	nodes, err := c.clientset.CoreV1().Nodes().List(nodeOptions)
 	if err != nil {
 		return false, fmt.Errorf("failed to get nodes in cluster. %+v", err)
 	}

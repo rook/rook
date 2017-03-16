@@ -85,21 +85,21 @@ func (c *Cluster) CreateInstance() error {
 	}
 
 	// Start the mon pods
-	m := mon.New(c.Spec.Namespace, c.factory, c.Spec.DataDirHostPath, c.Spec.Version)
-	cluster, err := m.Start(c.clientset)
+	m := mon.New(c.clientset, c.factory, c.Spec.Namespace, c.Spec.DataDirHostPath, c.Spec.Version)
+	cluster, err := m.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
 
-	a := api.New(c.Spec.Namespace, c.Spec.Version)
-	err = a.Start(c.clientset, cluster)
+	a := api.New(c.clientset, c.Spec.Namespace, c.Spec.Version)
+	err = a.Start(cluster)
 	if err != nil {
 		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs
-	osds := osd.New(c.Spec.Namespace, c.Spec.Version, c.Spec.DeviceFilter, c.Spec.DataDirHostPath, c.Spec.UseAllDevices)
-	err = osds.Start(c.clientset, cluster)
+	osds := osd.New(c.clientset, c.Spec.Namespace, c.Spec.Version, c.Spec.DeviceFilter, c.Spec.DataDirHostPath, c.Spec.UseAllDevices)
+	err = osds.Start(cluster)
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
 	}
