@@ -47,8 +47,8 @@ func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
 
 func (s *clusterHandler) EnableObjectStore() error {
 	logger.Infof("Starting the Object store")
-	r := k8srgw.New(s.namespace, s.version, s.factory)
-	err := r.Start(s.clientset, s.clusterInfo)
+	r := k8srgw.New(s.clientset, s.factory, s.namespace, s.version)
+	err := r.Start(s.clusterInfo)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
 	}

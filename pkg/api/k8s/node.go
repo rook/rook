@@ -35,7 +35,7 @@ func getNodes(clientset *kubernetes.Clientset) ([]model.Node, error) {
 		node := model.Node{
 			NodeID:      n.Status.NodeInfo.SystemUUID,
 			PublicIP:    n.Spec.ExternalID,
-			ClusterName: "rookcluster",
+			ClusterName: n.Namespace,
 		}
 		nodes = append(nodes, node)
 	}

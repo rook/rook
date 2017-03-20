@@ -29,17 +29,16 @@ import (
 
 func TestStartAPI(t *testing.T) {
 	clientset := testop.New(3)
-	info := testop.CreateClusterInfo(1)
 	c := New(clientset, "ns", "myversion")
 
 	// start a basic cluster
-	err := c.Start(info)
+	err := c.Start()
 	assert.Nil(t, err)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op
-	err = c.Start(info)
+	err = c.Start()
 	assert.Nil(t, err)
 
 	validateStart(t, c)
@@ -59,9 +58,8 @@ func validateStart(t *testing.T, c *Cluster) {
 func TestPodSpecs(t *testing.T) {
 	clientset := testop.New(1)
 	c := New(clientset, "ns", "myversion")
-	info := testop.CreateClusterInfo(0)
 
-	d := c.makeDeployment(info)
+	d := c.makeDeployment()
 	assert.NotNil(t, d)
 	assert.Equal(t, deploymentName, d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
@@ -70,16 +68,16 @@ func TestPodSpecs(t *testing.T) {
 
 	assert.Equal(t, deploymentName, d.ObjectMeta.Name)
 	assert.Equal(t, deploymentName, d.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, info.Name, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	cont := d.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "quay.io/rook/rook-operator:myversion", cont.Image)
 	assert.Equal(t, 1, len(cont.VolumeMounts))
-	assert.Equal(t, 3, len(cont.Env))
+	assert.Equal(t, 5, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rook-operator api --data-dir=/var/lib/rook --mon-endpoints= --cluster-name=%s --api-port=%d --container-version=%s",
-		info.Name, model.Port, c.Version)
+	expectedCommand := fmt.Sprintf("/usr/bin/rook-operator api --data-dir=/var/lib/rook --api-port=%d --container-version=%s",
+		model.Port, c.Version)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
 }

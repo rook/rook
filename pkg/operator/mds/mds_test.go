@@ -67,10 +67,9 @@ func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
 
 func TestPodSpecs(t *testing.T) {
 	c := New("ns", "myversion", nil)
-	info := testop.CreateClusterInfo(0)
 	mdsID := "mds1"
 
-	d := c.makeDeployment(info, mdsID)
+	d := c.makeDeployment(mdsID)
 	assert.NotNil(t, d)
 	assert.Equal(t, "mds", d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
@@ -79,16 +78,16 @@ func TestPodSpecs(t *testing.T) {
 
 	assert.Equal(t, "mds", d.ObjectMeta.Name)
 	assert.Equal(t, "mds", d.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, info.Name, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	cont := d.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
 	assert.Equal(t, 1, len(cont.VolumeMounts))
-	assert.Equal(t, 3, len(cont.Env))
+	assert.Equal(t, 5, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd mds --data-dir=/var/lib/rook --mon-endpoints= --cluster-name=%s --mds-id=%s ",
-		info.Name, mdsID)
+	expectedCommand := fmt.Sprintf("/usr/bin/rookd mds --data-dir=/var/lib/rook --mds-id=%s ",
+		mdsID)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
 }

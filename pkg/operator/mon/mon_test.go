@@ -67,7 +67,7 @@ func validateStart(t *testing.T, c *Cluster) {
 	assert.Equal(t, 1, len(pods.Items))
 
 	// no pods are running or pending
-	running, pending, err := c.pollPods(c.ClusterName)
+	running, pending, err := c.pollPods()
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(running))
 	assert.Equal(t, 0, len(pending))
@@ -76,10 +76,10 @@ func validateStart(t *testing.T, c *Cluster) {
 func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
 	c := New(clientset, nil, "ns", "myversion")
-	info := test.CreateClusterInfo(1)
+	c.clusterInfo = test.CreateClusterInfo(1)
 
 	// create the initial config map
-	err := c.saveMonEndpoints(info)
+	err := c.saveMonConfig()
 	assert.Nil(t, err)
 
 	cm, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config")
@@ -87,8 +87,8 @@ func TestSaveMonEndpoints(t *testing.T) {
 	assert.Equal(t, "mon1=1.2.3.1:6790", cm.Data["endpoints"])
 
 	// update the config map
-	info.Monitors["mon1"].Endpoint = "2.3.4.5:6790"
-	err = c.saveMonEndpoints(info)
+	c.clusterInfo.Monitors["mon1"].Endpoint = "2.3.4.5:6790"
+	err = c.saveMonConfig()
 	assert.Nil(t, err)
 
 	cm, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config")

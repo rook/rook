@@ -119,7 +119,7 @@ func (c *Cluster) initClusterInfo() (*mon.ClusterInfo, error) {
 
 func (c *Cluster) createMonSecretsAndSave() (*mon.ClusterInfo, error) {
 	logger.Infof("creating mon secrets for a new cluster")
-	info, err := mon.CreateClusterInfo(c.factory, "")
+	info, err := mon.CreateNamedClusterInfo(c.factory, "", c.Namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create mon secrets. %+v", err)
 	}
@@ -170,7 +170,7 @@ func (c *Cluster) startPods(clusterInfo *mon.ClusterInfo, mons []*MonConfig) err
 		return fmt.Errorf("failed to get antiaffinity. %+v", err)
 	}
 
-	running, pending, err := c.pollPods(clusterInfo.Name)
+	running, pending, err := c.pollPods()
 	if err != nil {
 		return fmt.Errorf("failed to get mon pods. %+v", err)
 	}
@@ -197,11 +197,12 @@ func (c *Cluster) startPods(clusterInfo *mon.ClusterInfo, mons []*MonConfig) err
 		monPod := c.makeMonPod(m, clusterInfo, antiAffinity)
 		name := monPod.Name
 		logger.Debugf("Starting pod: %+v", monPod)
-		monPod, err = c.clientset.CoreV1().Pods(c.Namespace).Create(monPod)
+		_, err = c.clientset.CoreV1().Pods(c.Namespace).Create(monPod)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create mon pod %s. %+v", name, err)
 			}
+			logger.Infof("pod %s already exists", name)
 			alreadyRunning++
 		} else {
 			started++

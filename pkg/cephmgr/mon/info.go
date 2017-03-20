@@ -77,6 +77,11 @@ func createOrGetClusterInfo(factory client.ConnectionFactory, etcdClient etcd.Ke
 
 // create new cluster info (FSID, shared keys)
 func CreateClusterInfo(factory client.ConnectionFactory, adminSecret string) (*ClusterInfo, error) {
+	return CreateNamedClusterInfo(factory, adminSecret, "rookcluster")
+}
+
+// create new cluster info (FSID, shared keys)
+func CreateNamedClusterInfo(factory client.ConnectionFactory, adminSecret, clusterName string) (*ClusterInfo, error) {
 	fsid, err := factory.NewFsid()
 	if err != nil {
 		return nil, err
@@ -99,7 +104,7 @@ func CreateClusterInfo(factory client.ConnectionFactory, adminSecret string) (*C
 		FSID:          fsid,
 		MonitorSecret: monSecret,
 		AdminSecret:   adminSecret,
-		Name:          "rookcluster",
+		Name:          clusterName,
 	}, nil
 }
 

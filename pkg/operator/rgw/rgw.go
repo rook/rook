@@ -42,39 +42,41 @@ type Cluster struct {
 	Replicas  int32
 	factory   client.ConnectionFactory
 	dataDir   string
+	clientset kubernetes.Interface
 }
 
-func New(namespace, version string, factory client.ConnectionFactory) *Cluster {
+func New(clientset kubernetes.Interface, factory client.ConnectionFactory, namespace, version string) *Cluster {
 	return &Cluster{
+		clientset: clientset,
+		factory:   factory,
 		Namespace: namespace,
 		Version:   version,
 		Replicas:  2,
-		factory:   factory,
 		dataDir:   k8sutil.DataDir,
 	}
 }
 
-func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
+func (c *Cluster) Start(cluster *mon.ClusterInfo) error {
 	logger.Infof("start running rgw")
 
 	if cluster == nil || len(cluster.Monitors) == 0 {
 		return fmt.Errorf("missing mons to start rgw")
 	}
 
-	err := c.createKeyring(clientset, cluster)
+	err := c.createKeyring(cluster)
 	if err != nil {
 		return fmt.Errorf("failed to create rgw keyring. %+v", err)
 	}
 
 	// start the service
-	err = c.startService(clientset)
+	err = c.startService()
 	if err != nil {
 		return fmt.Errorf("failed to start rgw service. %+v", err)
 	}
 
 	// start the deployment
 	deployment := c.makeDeployment()
-	_, err = clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
+	_, err = c.clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rgw deployment. %+v", err)
@@ -87,8 +89,8 @@ func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo
 	return nil
 }
 
-func (c *Cluster) createKeyring(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
-	_, err := clientset.CoreV1().Secrets(c.Namespace).Get(appName)
+func (c *Cluster) createKeyring(cluster *mon.ClusterInfo) error {
+	_, err := c.clientset.CoreV1().Secrets(c.Namespace).Get(appName)
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
 		return nil
@@ -121,7 +123,7 @@ func (c *Cluster) createKeyring(clientset kubernetes.Interface, cluster *mon.Clu
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	_, err = clientset.CoreV1().Secrets(c.Namespace).Create(secret)
+	_, err = c.clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		return fmt.Errorf("failed to save rgw secrets. %+v", err)
 	}
@@ -177,7 +179,7 @@ func (c *Cluster) rgwContainer() v1.Container {
 	}
 }
 
-func (c *Cluster) startService(clientset kubernetes.Interface) error {
+func (c *Cluster) startService() error {
 	labels := c.getLabels()
 	s := &v1.Service{
 		ObjectMeta: v1.ObjectMeta{
@@ -198,7 +200,7 @@ func (c *Cluster) startService(clientset kubernetes.Interface) error {
 		},
 	}
 
-	s, err := clientset.CoreV1().Services(c.Namespace).Create(s)
+	s, err := c.clientset.CoreV1().Services(c.Namespace).Create(s)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mon service. %+v", err)

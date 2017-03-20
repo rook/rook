@@ -113,8 +113,8 @@ func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
 	}
 }
 
-func (c *Cluster) pollPods(clusterName string) ([]*v1.Pod, []*v1.Pod, error) {
-	podList, err := c.clientset.CoreV1().Pods(c.Namespace).List(listOptions(clusterName))
+func (c *Cluster) pollPods() ([]*v1.Pod, []*v1.Pod, error) {
+	podList, err := c.clientset.CoreV1().Pods(c.Namespace).List(c.listOptions())
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to list running pods: %v", err)
 	}
@@ -137,10 +137,10 @@ func (c *Cluster) pollPods(clusterName string) ([]*v1.Pod, []*v1.Pod, error) {
 	return running, pending, nil
 }
 
-func listOptions(clusterName string) v1.ListOptions {
+func (c *Cluster) listOptions() v1.ListOptions {
 	return v1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{
-			monClusterAttr:  clusterName,
+			monClusterAttr:  c.Namespace,
 			k8sutil.AppAttr: appName,
 		}).String(),
 	}

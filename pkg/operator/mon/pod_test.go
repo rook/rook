@@ -34,10 +34,10 @@ func TestPodSpecs(t *testing.T) {
 func testPodSpec(t *testing.T, dataDir string) {
 	clientset := testop.New(1)
 	c := New(clientset, nil, "ns", dataDir, "myversion")
+	c.clusterInfo = testop.CreateClusterInfo(0)
 	config := &MonConfig{Name: "mon0", Port: 6790}
-	info := testop.CreateClusterInfo(0)
 
-	pod := c.makeMonPod(config, info, false)
+	pod := c.makeMonPod(config, false)
 	assert.NotNil(t, pod)
 	assert.Equal(t, "mon0", pod.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, pod.Spec.RestartPolicy)
@@ -53,17 +53,17 @@ func testPodSpec(t *testing.T, dataDir string) {
 
 	assert.Equal(t, "mon0", pod.ObjectMeta.Name)
 	assert.Equal(t, "mon", pod.ObjectMeta.Labels["app"])
-	assert.Equal(t, "default", pod.ObjectMeta.Labels["mon_cluster"])
+	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
 	assert.Equal(t, 1, len(pod.ObjectMeta.Annotations))
 	assert.Equal(t, "myversion", pod.ObjectMeta.Annotations["rook_version"])
 
 	cont := pod.Spec.Containers[0]
 	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
 	assert.Equal(t, 1, len(cont.VolumeMounts))
-	assert.Equal(t, 3, len(cont.Env))
+	assert.Equal(t, 5, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd mon --data-dir=/var/lib/rook --name=%s --mon-endpoints= --port=%d --fsid=%s --cluster-name=%s",
-		config.Name, config.Port, info.FSID, info.Name)
+	expectedCommand := fmt.Sprintf("/usr/bin/rookd mon --data-dir=/var/lib/rook --name=%s --port=%d --fsid=%s",
+		config.Name, config.Port, c.clusterInfo.FSID)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
 }

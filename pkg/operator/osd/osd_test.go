@@ -22,7 +22,6 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/pkg/api/v1"
 
-	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,18 +29,12 @@ func TestStartDaemonset(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
 	c := New(clientset, "ns", "myversion", "", "", false)
 
-	// Cannot start the cluster with zero mons
-	info := testop.CreateClusterInfo(0)
-	err := c.Start(info)
-	assert.NotNil(t, err)
-
-	// Can start with one mon
-	info = testop.CreateClusterInfo(1)
-	err = c.Start(info)
+	// Start the first time
+	err := c.Start()
 	assert.Nil(t, err)
 
 	// Should not fail if it already exists
-	err = c.Start(info)
+	err = c.Start()
 	assert.Nil(t, err)
 }
 
@@ -53,8 +46,8 @@ func TestDaemonset(t *testing.T) {
 func testPodDevices(t *testing.T, dataDir string, useDevices bool) {
 	clientset := fake.NewSimpleClientset()
 	c := New(clientset, "ns", "myversion", "", dataDir, useDevices)
-	info := testop.CreateClusterInfo(1)
-	daemonSet, err := c.makeDaemonSet(info)
+
+	daemonSet, err := c.makeDaemonSet()
 	assert.Nil(t, err)
 	assert.NotNil(t, daemonSet)
 	assert.Equal(t, "osd", daemonSet.Name)
@@ -73,15 +66,15 @@ func testPodDevices(t *testing.T, dataDir string, useDevices bool) {
 
 	assert.Equal(t, "osd", daemonSet.Spec.Template.ObjectMeta.Name)
 	assert.Equal(t, "osd", daemonSet.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, "default", daemonSet.Spec.Template.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, c.Namespace, daemonSet.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(daemonSet.Spec.Template.ObjectMeta.Annotations))
 
 	cont := daemonSet.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
-	assert.Equal(t, 2, len(cont.Env))
+	assert.Equal(t, 4, len(cont.Env))
 
-	expectedCommand := "/usr/bin/rookd osd --data-dir=/var/lib/rook --mon-endpoints=mon1=1.2.3.1:6790 --cluster-name=default "
+	expectedCommand := "/usr/bin/rookd osd --data-dir=/var/lib/rook "
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
 	allDevicesIndex := strings.Index(cont.Command[2], "--data-devices=all")
 	if useDevices {

@@ -41,18 +41,18 @@ func TestStartRGW(t *testing.T) {
 		return []byte(response), "", nil
 	}
 
-	c := New("ns", "version", factory)
+	c := New(clientset, factory, "ns", "version")
 	c.dataDir = "/tmp/rgwtest"
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic cluster
-	err := c.Start(clientset, info)
+	err := c.Start(info)
 	assert.Nil(t, err)
 
 	validateStart(t, c, clientset)
 
 	// starting again should be a no-op
-	err = c.Start(clientset, info)
+	err = c.Start(info)
 	assert.Nil(t, err)
 
 	validateStart(t, c, clientset)
@@ -76,10 +76,9 @@ func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New("ns", "myversion", nil)
-	info := testop.CreateClusterInfo(0)
+	c := New(nil, nil, "ns", "myversion")
 
-	d := c.makeDeployment(info)
+	d := c.makeDeployment()
 	assert.NotNil(t, d)
 	assert.Equal(t, "rgw", d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
@@ -88,16 +87,16 @@ func TestPodSpecs(t *testing.T) {
 
 	assert.Equal(t, "rgw", d.ObjectMeta.Name)
 	assert.Equal(t, "rgw", d.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, info.Name, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	cont := d.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
 	assert.Equal(t, 1, len(cont.VolumeMounts))
-	assert.Equal(t, 3, len(cont.Env))
+	assert.Equal(t, 5, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd rgw --data-dir=/var/lib/rook --mon-endpoints= --cluster-name=%s --rgw-port=%d --rgw-host=%s",
-		info.Name, cephrgw.RGWPort, cephrgw.DNSName)
+	expectedCommand := fmt.Sprintf("/usr/bin/rookd rgw --data-dir=/var/lib/rook --rgw-port=%d --rgw-host=%s",
+		cephrgw.RGWPort, cephrgw.DNSName)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
 }
