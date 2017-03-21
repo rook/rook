@@ -17,6 +17,7 @@ package api
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -98,15 +99,17 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 }
 
 func (c *Cluster) apiContainer() v1.Container {
-	// need a different prefix on the env vars
-	monSecretVar := opmon.MonSecretEnvVar()
-	adminSecretVar := opmon.AdminSecretEnvVar()
-	endpointVar := opmon.MonEndpointEnvVar()
-	clusterNameVar := opmon.ClusterNameEnvVar()
-	monSecretVar.Name = "ROOK_OPERATOR_MON_SECRET"
-	adminSecretVar.Name = "ROOK_OPERATOR_ADMIN_SECRET"
-	endpointVar.Name = "ROOK_OPERATOR_MON_ENDPOINTS"
-	clusterNameVar.Name = "ROOK_OPERATOR_CLUSTER_NAME"
+	envVars := []v1.EnvVar{
+		k8sutil.NamespaceEnvVar(),
+		opmon.MonSecretEnvVar(),
+		opmon.AdminSecretEnvVar(),
+		opmon.MonEndpointEnvVar(),
+		opmon.ClusterNameEnvVar(),
+	}
+	// replace the ROOKD prefix with ROOK_OPERATOR
+	for i := range envVars {
+		envVars[i].Name = strings.Replace(envVars[i].Name, "ROOKD_", "ROOK_OPERATOR_", 1)
+	}
 
 	command := fmt.Sprintf("/usr/bin/rook-operator api --data-dir=%s --api-port=%d --container-version=%s",
 		k8sutil.DataDir, model.Port, c.Version)
@@ -119,13 +122,7 @@ func (c *Cluster) apiContainer() v1.Container {
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		},
-		Env: []v1.EnvVar{
-			k8sutil.NamespaceEnvVar(),
-			clusterNameVar,
-			endpointVar,
-			monSecretVar,
-			adminSecretVar,
-		},
+		Env: envVars,
 	}
 }
 

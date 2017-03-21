@@ -109,18 +109,25 @@ func removeMonitorsFromQuorum(factory client.ConnectionFactory, context *cluster
 	defer conn.Shutdown()
 
 	logger.Infof("removing %d monitors from quorum", len(monitors))
-	for monID, mon := range monitors {
-		logger.Debugf("removing monitor %s (%v)", monID, mon)
-
-		cmd := map[string]interface{}{"prefix": "mon remove", "name": mon.Name}
-		_, err = client.ExecuteMonCommand(conn, cmd, "mon remove")
-		if err != nil {
-			return fmt.Errorf("mon remove failed: %+v", err)
+	for _, mon := range monitors {
+		if err := RemoveMonitorFromQuorum(conn, mon.Name); err != nil {
+			return err
 		}
-
-		logger.Infof("removed monitor %s from node %s", mon.Name, monID)
 	}
 
+	return nil
+}
+
+func RemoveMonitorFromQuorum(conn client.Connection, name string) error {
+	logger.Debugf("removing monitor %s", name)
+
+	cmd := map[string]interface{}{"prefix": "mon remove", "name": name}
+	_, err := client.ExecuteMonCommand(conn, cmd, "mon remove")
+	if err != nil {
+		return fmt.Errorf("mon %s remove failed: %+v", name, err)
+	}
+
+	logger.Infof("removed monitor %s", name)
 	return nil
 }
 
@@ -357,14 +364,23 @@ func calculateMonitorCount(nodeCount int) int {
 }
 
 func WaitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
-	logger.Infof("waiting for mon quorum...")
-
 	// open an admin connection to the cluster
 	adminConn, err := ConnectToClusterAsAdmin(context, factory, cluster)
 	if err != nil {
 		return err
 	}
 	defer adminConn.Shutdown()
+
+	mons := []string{}
+	for _, m := range cluster.Monitors {
+		mons = append(mons, m.Name)
+	}
+	return WaitForQuorumWithConnection(adminConn, mons)
+}
+
+// Wait for all of the given monitors to form quorum
+func WaitForQuorumWithConnection(conn client.Connection, mons []string) error {
+	logger.Infof("waiting for mon quorum")
 
 	// wait for monitors to establish quorum
 	retryCount := 0
@@ -383,7 +399,7 @@ func WaitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, 
 
 		// get the mon_status response that contains info about all monitors in the mon map and
 		// their quorum status
-		monStatusResp, err := client.GetMonStatus(adminConn)
+		monStatusResp, err := client.GetMonStatus(conn)
 		if err != nil {
 			logger.Debugf("failed to get mon_status, err: %+v", err)
 			continue
@@ -391,11 +407,11 @@ func WaitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, 
 
 		// check if each of the initial monitors is in quorum
 		allInQuorum := true
-		for _, im := range cluster.Monitors {
+		for _, name := range mons {
 			// first get the initial monitors corresponding mon map entry
 			var monMapEntry *client.MonMapEntry
 			for i := range monStatusResp.MonMap.Mons {
-				if im.Name == monStatusResp.MonMap.Mons[i].Name {
+				if name == monStatusResp.MonMap.Mons[i].Name {
 					monMapEntry = &monStatusResp.MonMap.Mons[i]
 					break
 				}
@@ -403,7 +419,7 @@ func WaitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, 
 
 			if monMapEntry == nil {
 				// found an initial monitor that is not in the mon map, bail out of this retry
-				logger.Warningf("failed to find initial monitor %s in mon map", im.Name)
+				logger.Warningf("failed to find initial monitor %s in mon map", name)
 				allInQuorum = false
 				break
 			}
@@ -420,7 +436,7 @@ func WaitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, 
 
 			if !inQuorumList {
 				// found an initial monitor that is not in quorum, bail out of this retry
-				logger.Warningf("initial monitor %s is not in quorum list", im.Name)
+				logger.Warningf("initial monitor %s is not in quorum list", name)
 				allInQuorum = false
 				break
 			}

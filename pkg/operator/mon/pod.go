@@ -52,7 +52,7 @@ func (c *Cluster) getLabels() map[string]string {
 
 func (c *Cluster) makeMonPod(config *MonConfig, antiAffinity bool) *v1.Pod {
 
-	container := c.monContainer(config, clusterInfo.FSID)
+	container := c.monContainer(config, c.clusterInfo.FSID)
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if c.dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
@@ -112,8 +112,12 @@ func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
 	}
 }
 
+func (c *Cluster) getPods() (*v1.PodList, error) {
+	return c.clientset.CoreV1().Pods(c.Namespace).List(c.listOptions())
+}
+
 func (c *Cluster) pollPods() ([]*v1.Pod, []*v1.Pod, error) {
-	podList, err := c.clientset.CoreV1().Pods(c.Namespace).List(c.listOptions())
+	podList, err := c.getPods()
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to list running pods: %v", err)
 	}

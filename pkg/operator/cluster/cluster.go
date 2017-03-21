@@ -42,7 +42,7 @@ const (
 )
 
 var (
-	healthCheckInterval = 8 * time.Second
+	healthCheckInterval = 10 * time.Second
 	logger              = capnslog.NewPackageLogger("github.com/rook/rook-operator", "op-cluster")
 )
 
@@ -115,7 +115,7 @@ func (c *Cluster) Monitor(stopCh <-chan struct{}) {
 			return
 
 		case <-time.After(healthCheckInterval):
-			logger.Infof("checking health of mons")
+			logger.Debugf("checking health of mons")
 			err := c.mons.CheckHealth()
 			if err != nil {
 				logger.Infof("failed to check mon health. %+v", err)

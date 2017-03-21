@@ -20,8 +20,11 @@ import (
 
 	"k8s.io/client-go/pkg/api/v1"
 
+	"github.com/rook/rook/pkg/cephmgr/client"
 	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
 	"github.com/rook/rook/pkg/operator/test"
+
+	"os"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -30,6 +33,7 @@ func TestStartMonPods(t *testing.T) {
 	clientset := test.New(3)
 	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
 	c := New(clientset, factory, "ns", "", "myversion")
+	c.maxRetries = 1
 	c.retryDelay = 0
 
 	// start a basic cluster
@@ -75,7 +79,7 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
-	c := New(clientset, nil, "ns", "myversion")
+	c := New(clientset, nil, "ns", "", "myversion")
 	c.clusterInfo = test.CreateClusterInfo(1)
 
 	// create the initial config map
@@ -94,5 +98,67 @@ func TestSaveMonEndpoints(t *testing.T) {
 	cm, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config")
 	assert.Nil(t, err)
 	assert.Equal(t, "mon1=2.3.4.5:6790", cm.Data["endpoints"])
+}
 
+func TestCheckHealth(t *testing.T) {
+	clientset := test.New(1)
+	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
+	c := New(clientset, factory, "ns", "", "myversion")
+	c.retryDelay = 1
+	c.maxRetries = 1
+	c.clusterInfo = test.CreateClusterInfo(1)
+	c.configDir = "/tmp/healthtest"
+	c.waitForStart = false
+	defer os.RemoveAll(c.configDir)
+
+	err := c.CheckHealth()
+	assert.Nil(t, err)
+
+	c.maxMonID = 10
+	conn, err := factory.NewConnWithClusterAndUser(c.Namespace, "admin")
+	defer conn.Shutdown()
+	err = c.failoverMon(conn, "mon1")
+	assert.Nil(t, err)
+
+	cm, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config")
+	assert.Nil(t, err)
+	assert.Equal(t, "mon11=:6790", cm.Data["endpoints"])
+}
+
+func TestMonInQuourm(t *testing.T) {
+	entry := client.MonMapEntry{Name: "foo", Rank: 23}
+	quorum := []int{}
+	// Nothing in quorum
+	assert.False(t, monInQuorum(entry, quorum))
+
+	// One or more members in quorum
+	quorum = []int{23}
+	assert.True(t, monInQuorum(entry, quorum))
+	quorum = []int{5, 6, 7, 23, 8}
+	assert.True(t, monInQuorum(entry, quorum))
+
+	// Not in quorum
+	entry.Rank = 1
+	assert.False(t, monInQuorum(entry, quorum))
+}
+
+func TestMonID(t *testing.T) {
+	// invalid
+	id, err := getMonID("m")
+	assert.NotNil(t, err)
+	assert.Equal(t, -1, id)
+	id, err = getMonID("mon")
+	assert.NotNil(t, err)
+	assert.Equal(t, -1, id)
+	id, err = getMonID("monitor0")
+	assert.NotNil(t, err)
+	assert.Equal(t, -1, id)
+
+	// valid
+	id, err = getMonID("mon0")
+	assert.Nil(t, err)
+	assert.Equal(t, 0, id)
+	id, err = getMonID("mon123")
+	assert.Nil(t, err)
+	assert.Equal(t, 123, id)
 }

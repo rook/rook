@@ -75,7 +75,9 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "quay.io/rook/rook-operator:myversion", cont.Image)
 	assert.Equal(t, 1, len(cont.VolumeMounts))
 	assert.Equal(t, 5, len(cont.Env))
-
+	for _, v := range cont.Env {
+		assert.True(t, strings.HasPrefix(v.Name, "ROOK_OPERATOR_"))
+	}
 	expectedCommand := fmt.Sprintf("/usr/bin/rook-operator api --data-dir=/var/lib/rook --api-port=%d --container-version=%s",
 		model.Port, c.Version)
 
