@@ -23,13 +23,15 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/rook/rook/pkg/operator/cluster"
+
 	"k8s.io/client-go/pkg/api/unversioned"
 	kwatch "k8s.io/client-go/pkg/watch"
 )
 
 type Event struct {
 	Type   kwatch.EventType
-	Object *Cluster
+	Object *cluster.Cluster
 }
 
 type rawEvent struct {
@@ -58,7 +60,7 @@ func pollEvent(decoder *json.Decoder) (*Event, *unversioned.Status, error) {
 
 	ev := &Event{
 		Type:   re.Type,
-		Object: &Cluster{},
+		Object: &cluster.Cluster{},
 	}
 	err = json.Unmarshal(re.Object, ev.Object)
 	if err != nil {

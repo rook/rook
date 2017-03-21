@@ -21,6 +21,7 @@ import (
 
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/errors"
@@ -53,6 +54,7 @@ type Cluster struct {
 	clientset       kubernetes.Interface
 	factory         client.ConnectionFactory
 	retryDelay      int
+	clusterInfo     *mon.ClusterInfo
 	dataDirHostPath string
 }
 
@@ -77,7 +79,7 @@ func New(clientset kubernetes.Interface, factory client.ConnectionFactory, names
 func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 	logger.Infof("start running mons")
 
-	clusterInfo, err := c.initClusterInfo()
+	err := c.initClusterInfo()
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
@@ -86,50 +88,110 @@ func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 		mons = append(mons, &MonConfig{Name: fmt.Sprintf("mon%d", i), Port: int32(mon.Port)})
 	}
 
-	err = c.startPods(clusterInfo, mons)
+	err = c.startPods(mons)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start mon pods. %+v", err)
 	}
 
-	return clusterInfo, nil
+	context := &clusterd.Context{ConfigDir: k8sutil.DataDir}
+	err = mon.WaitForQuorum(c.factory, context, c.clusterInfo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to wait for mon quorum. %+v", err)
+	}
+
+	return c.clusterInfo, nil
+}
+
+func (c *Cluster) CheckHealth() error {
+	context := &clusterd.Context{ConfigDir: k8sutil.DataDir}
+	conn, err := mon.ConnectToClusterAsAdmin(context, c.factory, c.clusterInfo)
+	if err != nil {
+		return fmt.Errorf("cannot connect to cluster. %+v", err)
+	}
+	defer conn.Shutdown()
+
+	status, err := client.GetMonStatus(conn)
+	if err != nil {
+		return fmt.Errorf("failed to get mon status. %+v", err)
+	}
+
+	for _, monitor := range status.MonMap.Mons {
+		inQuorum := monInQuorum(monitor, status.Quorum)
+		if inQuorum {
+			logger.Infof("mon %s found in quorum", monitor.Name)
+		} else {
+			logger.Infof("mon %s NOT found in quroum. %+v", monitor.Name, status.Quorum)
+		}
+
+		pod, err := c.clientset.CoreV1().Pods(c.Namespace).Get(monitor.Name)
+		if err != nil {
+			logger.Infof("Get mon %s pod failed. %+v", monitor.Name, err)
+		} else {
+			logger.Infof("mon %s pod status: %+v", monitor.Name, pod.Status.Phase)
+		}
+
+		if !inQuorum {
+			err = c.failoverMon(monitor.Name)
+			if err != nil {
+				logger.Errorf("failed to failover mon %s. %+v", monitor.Name, err)
+			}
+		}
+	}
+
+	return nil
+}
+
+func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
+	for _, rank := range quorum {
+		if rank == monitor.Rank {
+			return true
+		}
+	}
+	return false
+}
+
+func (c *Cluster) failoverMon(name string) error {
+	//logger.Infof("Failing over monitor %s", name)
+	return nil
 }
 
 // Retrieve the ceph cluster info if it already exists.
 // If a new cluster create new keys.
-func (c *Cluster) initClusterInfo() (*mon.ClusterInfo, error) {
+func (c *Cluster) initClusterInfo() error {
 	secrets, err := c.clientset.CoreV1().Secrets(c.Namespace).Get(appName)
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			return nil, fmt.Errorf("failed to get mon secrets. %+v", err)
+			return fmt.Errorf("failed to get mon secrets. %+v", err)
 		}
 
 		return c.createMonSecretsAndSave()
 	}
 
-	info := &mon.ClusterInfo{
+	c.clusterInfo = &mon.ClusterInfo{
 		Name:          string(secrets.Data[clusterSecretName]),
 		FSID:          string(secrets.Data[fsidSecretName]),
 		MonitorSecret: string(secrets.Data[monSecretName]),
 		AdminSecret:   string(secrets.Data[adminSecretName]),
 		Monitors:      map[string]*mon.CephMonitorConfig{},
 	}
-	logger.Infof("found existing monitor secrets for cluster %s with fsid %s", info.Name, info.FSID)
-	return info, nil
+	logger.Infof("found existing monitor secrets for cluster %s", c.clusterInfo.Name)
+	return nil
 }
 
-func (c *Cluster) createMonSecretsAndSave() (*mon.ClusterInfo, error) {
+func (c *Cluster) createMonSecretsAndSave() error {
 	logger.Infof("creating mon secrets for a new cluster")
-	info, err := mon.CreateNamedClusterInfo(c.factory, "", c.Namespace)
+	var err error
+	c.clusterInfo, err = mon.CreateNamedClusterInfo(c.factory, "", c.Namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create mon secrets. %+v", err)
+		return fmt.Errorf("failed to create mon secrets. %+v", err)
 	}
 
 	// store the secrets for internal usage of the rook pods
 	secrets := map[string]string{
-		clusterSecretName: info.Name,
-		fsidSecretName:    info.FSID,
-		monSecretName:     info.MonitorSecret,
-		adminSecretName:   info.AdminSecret,
+		clusterSecretName: c.clusterInfo.Name,
+		fsidSecretName:    c.clusterInfo.FSID,
+		monSecretName:     c.clusterInfo.MonitorSecret,
+		adminSecretName:   c.clusterInfo.AdminSecret,
 	}
 	secret := &v1.Secret{
 		ObjectMeta: v1.ObjectMeta{Name: appName, Namespace: c.Namespace},
@@ -138,12 +200,12 @@ func (c *Cluster) createMonSecretsAndSave() (*mon.ClusterInfo, error) {
 	}
 	_, err = c.clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
-		return nil, fmt.Errorf("failed to save mon secrets. %+v", err)
+		return fmt.Errorf("failed to save mon secrets. %+v", err)
 	}
 
 	// store the secret for usage by the storage class
 	storageClassSecret := map[string]string{
-		"key": info.AdminSecret,
+		"key": c.clusterInfo.AdminSecret,
 	}
 	secret = &v1.Secret{
 		ObjectMeta: v1.ObjectMeta{Name: "rook-admin", Namespace: c.Namespace},
@@ -153,17 +215,17 @@ func (c *Cluster) createMonSecretsAndSave() (*mon.ClusterInfo, error) {
 	_, err = c.clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return nil, fmt.Errorf("failed to save rook-admin secret. %+v", err)
+			return fmt.Errorf("failed to save rook-admin secret. %+v", err)
 		}
 		logger.Infof("rook-admin secret already exists")
 	} else {
 		logger.Infof("saved rook-admin secret")
 	}
 
-	return info, nil
+	return nil
 }
 
-func (c *Cluster) startPods(clusterInfo *mon.ClusterInfo, mons []*MonConfig) error {
+func (c *Cluster) startPods(mons []*MonConfig) error {
 	// schedule the mons on different nodes if we have enough nodes to be unique
 	antiAffinity, err := c.getAntiAffinity()
 	if err != nil {
@@ -176,14 +238,14 @@ func (c *Cluster) startPods(clusterInfo *mon.ClusterInfo, mons []*MonConfig) err
 	}
 	logger.Infof("%d running, %d pending pods", len(running), len(pending))
 
-	clusterInfo.Monitors = map[string]*mon.CephMonitorConfig{}
+	c.clusterInfo.Monitors = map[string]*mon.CephMonitorConfig{}
 	for _, m := range running {
-		clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.Status.PodIP)
+		c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.Status.PodIP)
 	}
 
-	err = c.saveMonEndpoints(clusterInfo)
+	err = c.saveMonEndpoints()
 	if err != nil {
-		return fmt.Errorf("failed to save endpoints for %d running mons. %+v", len(clusterInfo.Monitors), err)
+		return fmt.Errorf("failed to save endpoints for %d running mons. %+v", len(c.clusterInfo.Monitors), err)
 	}
 
 	if len(running) == c.Size {
@@ -194,7 +256,7 @@ func (c *Cluster) startPods(clusterInfo *mon.ClusterInfo, mons []*MonConfig) err
 	started := 0
 	alreadyRunning := 0
 	for _, m := range mons {
-		monPod := c.makeMonPod(m, clusterInfo, antiAffinity)
+		monPod := c.makeMonPod(m, antiAffinity)
 		name := monPod.Name
 		logger.Debugf("Starting pod: %+v", monPod)
 		_, err = c.clientset.CoreV1().Pods(c.Namespace).Create(monPod)
@@ -212,9 +274,9 @@ func (c *Cluster) startPods(clusterInfo *mon.ClusterInfo, mons []*MonConfig) err
 		if err != nil {
 			return fmt.Errorf("failed to start pod %s. %+v", name, err)
 		}
-		clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, podIP)
+		c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, podIP)
 
-		err = c.saveMonEndpoints(clusterInfo)
+		err = c.saveMonEndpoints()
 		if err != nil {
 			return fmt.Errorf("failed to save endpoints after starting mon %s. %+v", m.Name, err)
 		}
@@ -248,7 +310,7 @@ func (c *Cluster) waitForPodToStart(name string) (string, error) {
 	return "", fmt.Errorf("timed out waiting for pod %s to start", name)
 }
 
-func (c *Cluster) saveMonEndpoints(clusterInfo *mon.ClusterInfo) error {
+func (c *Cluster) saveMonEndpoints() error {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: v1.ObjectMeta{
 			Name:        monConfigMapName,
@@ -257,7 +319,7 @@ func (c *Cluster) saveMonEndpoints(clusterInfo *mon.ClusterInfo) error {
 		},
 	}
 	configMap.Data = map[string]string{
-		monEndpointKey: mon.FlattenMonEndpoints(clusterInfo.Monitors),
+		monEndpointKey: mon.FlattenMonEndpoints(c.clusterInfo.Monitors),
 	}
 
 	_, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap)

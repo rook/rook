@@ -42,7 +42,7 @@ type Leader struct {
 }
 
 func NewLeader() *Leader {
-	return &Leader{waitForQuorum: waitForQuorum}
+	return &Leader{waitForQuorum: WaitForQuorum}
 }
 
 // Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
@@ -356,7 +356,8 @@ func calculateMonitorCount(nodeCount int) int {
 	}
 }
 
-func waitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
+func WaitForQuorum(factory client.ConnectionFactory, context *clusterd.Context, cluster *ClusterInfo) error {
+	logger.Infof("waiting for mon quorum...")
 
 	// open an admin connection to the cluster
 	adminConn, err := ConnectToClusterAsAdmin(context, factory, cluster)

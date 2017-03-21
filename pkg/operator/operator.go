@@ -32,6 +32,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/client-go/pkg/api"
 	"k8s.io/client-go/pkg/api/unversioned"
@@ -48,10 +49,6 @@ var (
 	ErrVersionOutdated = errors.New("requested version is outdated in apiserver")
 )
 
-const (
-	defaultPool = "rook"
-)
-
 type Operator struct {
 	Namespace    string
 	MasterHost   string
@@ -61,7 +58,7 @@ type Operator struct {
 	waitCluster  sync.WaitGroup
 	factory      client.ConnectionFactory
 	stopChMap    map[string]chan struct{}
-	clusters     map[string]*Cluster
+	clusters     map[string]*cluster.Cluster
 	kubeHttpCli  *http.Client
 	// Kubernetes resource version of the clusters
 	clusterRVs map[string]string
@@ -73,7 +70,7 @@ func New(host, namespace string, factory client.ConnectionFactory, clientset kub
 		MasterHost: host,
 		factory:    factory,
 		clientset:  clientset,
-		clusters:   make(map[string]*Cluster),
+		clusters:   make(map[string]*cluster.Cluster),
 		clusterRVs: make(map[string]string),
 		stopChMap:  map[string]chan struct{}{},
 		retryDelay: 3,
@@ -147,7 +144,7 @@ func (o *Operator) watchTPR(watchVersion string) error {
 					continue
 				}
 
-				newCluster := newCluster(c.Spec, o.factory, o.clientset)
+				newCluster := cluster.New(c.Spec, o.factory, o.clientset)
 				stopCh := make(chan struct{})
 				o.stopChMap[ns] = stopCh
 				o.clusters[ns] = newCluster
@@ -170,21 +167,23 @@ func (o *Operator) watchTPR(watchVersion string) error {
 
 }
 
-func (o *Operator) startCluster(cluster *Cluster) {
-	if o.devicesInUse && cluster.Spec.UseAllDevices {
-		logger.Warningf("devices in more than one namespace not supported. ignoring devices in namespace %s", cluster.Spec.Namespace)
-		cluster.Spec.UseAllDevices = false
+func (o *Operator) startCluster(c *cluster.Cluster) {
+	if o.devicesInUse && c.Spec.UseAllDevices {
+		logger.Warningf("devices in more than one namespace not supported. ignoring devices in namespace %s", c.Spec.Namespace)
+		c.Spec.UseAllDevices = false
 	}
 
-	if cluster.Spec.UseAllDevices {
+	if c.Spec.UseAllDevices {
 		o.devicesInUse = true
 	}
 
 	go func() {
-		err := cluster.CreateInstance()
+		err := c.CreateInstance()
 		if err != nil {
-			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Spec.Namespace, err)
+			logger.Errorf("failed to create cluster in namespace %s. %+v", c.Spec.Namespace, err)
+			return
 		}
+		c.Monitor(o.stopChMap[c.Spec.Namespace])
 	}()
 }
 
@@ -200,7 +199,7 @@ func (o *Operator) findAllClusters() (string, error) {
 
 		stopCh := make(chan struct{})
 		ns := c.Spec.Namespace
-		existingCluster := newCluster(c.Spec, o.factory, o.clientset)
+		existingCluster := cluster.New(c.Spec, o.factory, o.clientset)
 		o.stopChMap[ns] = stopCh
 		o.clusters[ns] = existingCluster
 		o.clusterRVs[ns] = c.Metadata.ResourceVersion
@@ -285,7 +284,7 @@ func (o *Operator) watch(watchVersion string) (<-chan *Event, <-chan error) {
 	return eventCh, errCh
 }
 
-func (o *Operator) isClustersCacheStale(currentClusters []Cluster) bool {
+func (o *Operator) isClustersCacheStale(currentClusters []cluster.Cluster) bool {
 	if len(o.clusterRVs) != len(currentClusters) {
 		return true
 	}
@@ -305,13 +304,13 @@ func watchClusters(host, ns string, httpClient *http.Client, resourceVersion str
 		host, tprGroup, tprVersion, ns, resourceVersion))
 }
 
-func getClusterList(restcli rest.Interface, ns string) (*ClusterList, error) {
+func getClusterList(restcli rest.Interface, ns string) (*cluster.ClusterList, error) {
 	b, err := restcli.Get().RequestURI(listClustersURI(ns)).DoRaw()
 	if err != nil {
 		return nil, err
 	}
 
-	clusters := &ClusterList{}
+	clusters := &cluster.ClusterList{}
 	if err := json.Unmarshal(b, clusters); err != nil {
 		return nil, err
 	}

@@ -16,13 +16,15 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
-package operator
+package cluster
 
 import (
 	"fmt"
+	"time"
 
 	"k8s.io/client-go/pkg/api/errors"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/cephmgr/client"
 	cephmon "github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
@@ -30,41 +32,33 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
+	"github.com/rook/rook/pkg/operator/rgw"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
+)
+
+const (
+	defaultPool = "rook"
+)
+
+var (
+	healthCheckInterval = 8 * time.Second
+	logger              = capnslog.NewPackageLogger("github.com/rook/rook-operator", "op-cluster")
 )
 
 type Cluster struct {
 	factory   client.ConnectionFactory
 	clientset kubernetes.Interface
 	Metadata  v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec      ClusterSpec   `json:"spec"`
+	Spec      `json:"spec"`
 	dataDir   string
+	mons      *mon.Cluster
+	osds      *osd.Cluster
+	apis      *api.Cluster
+	rgws      *rgw.Cluster
 }
 
-type ClusterSpec struct {
-	// The namespace where the the rook resources will all be created.
-	Namespace string `json:"namespace"`
-
-	// Version is the expected version of the rook container to run in the cluster.
-	// The rook-operator will eventually make the rook cluster version
-	// equal to the expected version.
-	Version string `json:"version"`
-
-	// Paused is to pause the control of the operator for the rook cluster.
-	Paused bool `json:"paused,omitempty"`
-
-	// Whether to consume all the storage devices found on a machine
-	UseAllDevices bool `json:"useAllDevices"`
-
-	// A regular expression to allow more fine-grained selection of devices on nodes across the cluster
-	DeviceFilter string `json:"deviceFilter"`
-
-	// The path on the host where config and data can be persisted.
-	DataDirHostPath string `json:"dataDirHostPath"`
-}
-
-func newCluster(spec ClusterSpec, factory client.ConnectionFactory, clientset kubernetes.Interface) *Cluster {
+func New(spec Spec, factory client.ConnectionFactory, clientset kubernetes.Interface) *Cluster {
 	return &Cluster{
 		Spec:      spec,
 		factory:   factory,
@@ -85,32 +79,49 @@ func (c *Cluster) CreateInstance() error {
 	}
 
 	// Start the mon pods
-	m := mon.New(c.clientset, c.factory, c.Spec.Namespace, c.Spec.DataDirHostPath, c.Spec.Version)
-	cluster, err := m.Start()
+	c.mons = mon.New(c.clientset, c.factory, c.Spec.Namespace, c.Spec.DataDirHostPath, c.Spec.Version)
+	clusterInfo, err := c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
 
-	a := api.New(c.clientset, c.Spec.Namespace, c.Spec.Version)
-	err = a.Start()
+	c.apis = api.New(c.clientset, c.Spec.Namespace, c.Spec.Version)
+	err = c.apis.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs
-	osds := osd.New(c.clientset, c.Spec.Namespace, c.Spec.Version, c.Spec.DeviceFilter, c.Spec.DataDirHostPath, c.Spec.UseAllDevices)
-	err = osds.Start()
+	c.osds = osd.New(c.clientset, c.Spec.Namespace, c.Spec.Version, c.Spec.DeviceFilter, c.Spec.DataDirHostPath, c.Spec.UseAllDevices)
+	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
 	}
 
-	err = c.createClientAccess(cluster)
+	err = c.createClientAccess(clusterInfo)
 	if err != nil {
 		return fmt.Errorf("failed to create client access. %+v", err)
 	}
 
 	logger.Infof("Done creating rook instance in namespace %s", c.Spec.Namespace)
 	return nil
+}
+
+func (c *Cluster) Monitor(stopCh <-chan struct{}) {
+	for {
+		select {
+		case <-stopCh:
+			logger.Infof("Stopping monitoring of cluster %s", c.Spec.Namespace)
+			return
+
+		case <-time.After(healthCheckInterval):
+			logger.Infof("checking health of mons")
+			err := c.mons.CheckHealth()
+			if err != nil {
+				logger.Infof("failed to check mon health. %+v", err)
+			}
+		}
+	}
 }
 
 func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {

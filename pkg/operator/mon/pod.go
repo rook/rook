@@ -18,7 +18,6 @@ package mon
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/labels"
@@ -51,7 +50,7 @@ func (c *Cluster) getLabels() map[string]string {
 	}
 }
 
-func (c *Cluster) makeMonPod(config *MonConfig, clusterInfo *mon.ClusterInfo, antiAffinity bool) *v1.Pod {
+func (c *Cluster) makeMonPod(config *MonConfig, antiAffinity bool) *v1.Pod {
 
 	container := c.monContainer(config, clusterInfo.FSID)
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
@@ -78,7 +77,7 @@ func (c *Cluster) makeMonPod(config *MonConfig, clusterInfo *mon.ClusterInfo, an
 	k8sutil.SetPodVersion(pod, k8sutil.VersionAttr, c.Version)
 
 	if antiAffinity {
-		k8sutil.PodWithAntiAffinity(pod, monClusterAttr, clusterInfo.Name)
+		k8sutil.PodWithAntiAffinity(pod, monClusterAttr, c.clusterInfo.Name)
 	}
 	return pod
 }
