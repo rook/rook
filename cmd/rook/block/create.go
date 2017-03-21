@@ -44,10 +44,10 @@ func init() {
 
 	createCmd.MarkFlagRequired("name")
 	createCmd.MarkFlagRequired("size")
-	createCmd.RunE = createBlockImagesEntry
+	createCmd.RunE = createBlockImageEntry
 }
 
-func createBlockImagesEntry(cmd *cobra.Command, args []string) error {
+func createBlockImageEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
 	if err := flags.VerifyRequiredFlags(cmd, []string{"name"}); err != nil {

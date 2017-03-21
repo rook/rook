@@ -35,6 +35,7 @@ type MockRookRestClient struct {
 	MockCreatePool                   func(pool model.Pool) (string, error)
 	MockGetBlockImages               func() ([]model.BlockImage, error)
 	MockCreateBlockImage             func(image model.BlockImage) (string, error)
+	MockDeleteBlockImage             func(image model.BlockImage) (string, error)
 	MockGetClientAccessInfo          func() (model.ClientAccessInfo, error)
 	MockGetFilesystems               func() ([]model.Filesystem, error)
 	MockCreateFilesystem             func(model.FilesystemRequest) (string, error)
@@ -85,6 +86,14 @@ func (m *MockRookRestClient) GetBlockImages() ([]model.BlockImage, error) {
 func (m *MockRookRestClient) CreateBlockImage(image model.BlockImage) (string, error) {
 	if m.MockCreateBlockImage != nil {
 		return m.MockCreateBlockImage(image)
+	}
+
+	return "", nil
+}
+
+func (m *MockRookRestClient) DeleteBlockImage(image model.BlockImage) (string, error) {
+	if m.MockDeleteBlockImage != nil {
+		return m.MockDeleteBlockImage(image)
 	}
 
 	return "", nil

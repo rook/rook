@@ -37,6 +37,7 @@ type RookRestClient interface {
 	CreatePool(pool model.Pool) (string, error)
 	GetBlockImages() ([]model.BlockImage, error)
 	CreateBlockImage(image model.BlockImage) (string, error)
+	DeleteBlockImage(image model.BlockImage) (string, error)
 	GetClientAccessInfo() (model.ClientAccessInfo, error)
 	GetFilesystems() ([]model.Filesystem, error)
 	CreateFilesystem(model.FilesystemRequest) (string, error)

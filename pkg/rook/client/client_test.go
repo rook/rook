@@ -32,6 +32,7 @@ const (
 	SuccessCreatePoolContent                   = `pool 'ecPool1' created`
 	SuccessGetBlockImagesContent               = `[{"imageName":"myimage1","poolName":"rbd","size":10485760,"device":"","mountPoint":""},{"imageName":"myimage2","poolName":"rbd2","size":10485761,"device":"","mountPoint":""}]`
 	SuccessCreateBlockImageContent             = `succeeded created image myimage3`
+	SuccessDeleteBlockImageContent             = `succeeded deleting image myimage3`
 	SuccessGetClientAccessInfoContent          = `{"monAddresses":["10.37.129.214:6790/0"],"userName":"admin","secretKey":"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg=="}`
 	SuccessGetFilesystemsContent               = `[{"name":"myfs1","metadataPool":"myfs1-metadata","dataPools":["myfs1-data"]}]`
 	SuccessGetObjectStoreConnectionInfoContent = `{"host":"rook-rgw:12345", "accessKey":"UST0JAP8CE61FDE0Q4BE", "secretKey":"tVCuH20xTokjEpVJc7mKjL8PLTfGh4NZ3le3zg9X"}`
@@ -172,6 +173,22 @@ func TestCreateBlockImage(t *testing.T) {
 	assert.Equal(t, SuccessCreateBlockImageContent+"\n", response)
 }
 
+func TestDeleteBlockImage(t *testing.T) {
+	mockServer := NewMockHttpServer(200, SuccessDeleteBlockImageContent)
+	defer mockServer.Close()
+	mockHttpClient := NewMockHttpClient(mockServer.URL)
+	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
+
+	deleteImage := model.BlockImage{
+		Name:     "myimage3",
+		PoolName: "rbd2",
+	}
+
+	response, err := client.DeleteBlockImage(deleteImage)
+	assert.Nil(t, err)
+	assert.Equal(t, SuccessDeleteBlockImageContent+"\n", response)
+}
+
 func TestGetClientAccessInfo(t *testing.T) {
 	mockServer := NewMockHttpServer(200, SuccessGetClientAccessInfoContent)
 	defer mockServer.Close()
@@ -280,6 +297,14 @@ func TestGetBlockImagesFailure(t *testing.T) {
 func TestCreateBlockImageFailure(t *testing.T) {
 	clientFunc := func(client RookRestClient) (interface{}, error) {
 		return client.CreateBlockImage(model.BlockImage{Name: "image1"})
+	}
+	verifyFunc := getStringVerifyFunc(t)
+	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
+}
+
+func TestDeleteBlockImageFailure(t *testing.T) {
+	clientFunc := func(client RookRestClient) (interface{}, error) {
+		return client.DeleteBlockImage(model.BlockImage{Name: "image1"})
 	}
 	verifyFunc := getStringVerifyFunc(t)
 	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)

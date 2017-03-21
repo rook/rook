@@ -17,6 +17,7 @@ package client
 
 // interface for the ceph io context
 type IOContext interface {
+	Destroy()
 	Read(oid string, data []byte, offset uint64) (int, error)
 	Write(oid string, data []byte, offset uint64) error
 	WriteFull(oid string, data []byte) error

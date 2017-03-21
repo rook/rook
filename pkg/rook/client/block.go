@@ -18,12 +18,14 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"path"
 
 	"github.com/rook/rook/pkg/model"
 )
 
 const (
-	imageQueryName = "image"
+	imageQueryName       = "image"
+	imageRemoveQueryName = "remove"
 )
 
 func (c *RookNetworkRestClient) GetBlockImages() ([]model.BlockImage, error) {
@@ -42,12 +44,20 @@ func (c *RookNetworkRestClient) GetBlockImages() ([]model.BlockImage, error) {
 }
 
 func (c *RookNetworkRestClient) CreateBlockImage(newImage model.BlockImage) (string, error) {
-	body, err := json.Marshal(newImage)
+	return c.handleBlockRequest(newImage, imageQueryName)
+}
+
+func (c *RookNetworkRestClient) DeleteBlockImage(image model.BlockImage) (string, error) {
+	return c.handleBlockRequest(image, path.Join(imageQueryName, imageRemoveQueryName))
+}
+
+func (c *RookNetworkRestClient) handleBlockRequest(i model.BlockImage, queryPath string) (string, error) {
+	body, err := json.Marshal(i)
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := c.DoPost(imageQueryName, bytes.NewReader(body))
+	resp, err := c.DoPost(queryPath, bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}

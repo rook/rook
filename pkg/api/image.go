@@ -51,39 +51,51 @@ func (h *Handler) GetImages(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// get all the image names for the current pool
-		imageNames, err := ioctx.GetImageNames()
-		if err != nil {
-			logger.Errorf("failed to get image names from pool %s: %+v", p.Name, err)
-			w.WriteHeader(http.StatusInternalServerError)
+		images, ok := getImagesForPool(w, p.Name, ioctx)
+		if !ok {
 			return
-		}
-
-		// for each image name, open the image and stat it for further details
-		images := make([]model.BlockImage, len(imageNames))
-		for i, name := range imageNames {
-			image := ioctx.GetImage(name)
-			image.Open(true)
-			defer image.Close()
-			imageStat, err := image.Stat()
-			if err != nil {
-				logger.Errorf("failed to stat image %s from pool %s: %+v", name, p.Name, err)
-				w.WriteHeader(http.StatusInternalServerError)
-				return
-			}
-
-			// add the current image's details to the result set
-			images[i] = model.BlockImage{
-				Name:     name,
-				PoolName: p.Name,
-				Size:     imageStat.Size,
-			}
 		}
 
 		result = append(result, images...)
 	}
 
 	FormatJsonResponse(w, result)
+}
+
+func getImagesForPool(w http.ResponseWriter, poolName string, ioctx ceph.IOContext) ([]model.BlockImage, bool) {
+	// ensure the IOContext is destroyed at the end of this function
+	defer ioctx.Destroy()
+
+	// get all the image names for the current pool
+	imageNames, err := ioctx.GetImageNames()
+	if err != nil {
+		logger.Errorf("failed to get image names from pool %s: %+v", poolName, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return nil, false
+	}
+
+	// for each image name, open the image and stat it for further details
+	images := make([]model.BlockImage, len(imageNames))
+	for i, name := range imageNames {
+		image := ioctx.GetImage(name)
+		image.Open(true)
+		defer image.Close()
+		imageStat, err := image.Stat()
+		if err != nil {
+			logger.Errorf("failed to stat image %s from pool %s: %+v", name, poolName, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return nil, false
+		}
+
+		// add the current image's details to the result set
+		images[i] = model.BlockImage{
+			Name:     name,
+			PoolName: poolName,
+			Size:     imageStat.Size,
+		}
+	}
+
+	return images, true
 }
 
 // Creates a new image in this cluster.
@@ -118,6 +130,7 @@ func (h *Handler) CreateImage(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	defer ioctx.Destroy()
 
 	createdImage, err := ioctx.CreateImage(newImage.Name, newImage.Size, 22)
 	if err != nil {
@@ -127,4 +140,49 @@ func (h *Handler) CreateImage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write([]byte(fmt.Sprintf("succeeded created image %s", createdImage.Name())))
+}
+
+// Deletes a block image from this cluster.
+// POST
+// /image/remove
+func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request) {
+	var deleteImageReq model.BlockImage
+	body, ok := handleReadBody(w, r, "delete image")
+	if !ok {
+		return
+	}
+
+	if err := json.Unmarshal(body, &deleteImageReq); err != nil {
+		logger.Errorf("failed to unmarshal delete image request body '%s': %+v", string(body), err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if deleteImageReq.Name == "" || deleteImageReq.PoolName == "" {
+		logger.Errorf("image missing required fields: %+v", deleteImageReq)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	adminConn, ok := h.handleConnectToCeph(w)
+	if !ok {
+		return
+	}
+	defer adminConn.Shutdown()
+
+	ioctx, ok := handleOpenIOContext(w, adminConn, deleteImageReq.PoolName)
+	if !ok {
+		return
+	}
+	defer ioctx.Destroy()
+
+	deleteImage := ioctx.GetImage(deleteImageReq.Name)
+	err := deleteImage.Remove()
+	if err != nil {
+		logger.Errorf("failed to delete image %+v: %+v", deleteImageReq, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte(fmt.Sprintf("succeeded deleting image %s", deleteImageReq.Name)))
 }

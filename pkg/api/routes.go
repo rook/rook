@@ -60,6 +60,12 @@ func (h *Handler) GetRoutes() []Route {
 			h.CreateImage,
 		},
 		{
+			"DeleteImage",
+			"POST",
+			"/image/remove",
+			h.DeleteImage,
+		},
+		{
 			"GetClientAccessInfo",
 			"GET",
 			"/client",

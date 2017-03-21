@@ -26,6 +26,9 @@ type MockIOContext struct {
 	MockCreateImage   func(name string, size uint64, order int, args ...uint64) (image client.Image, err error)
 }
 
+func (m *MockIOContext) Destroy() {
+}
+
 func (m *MockIOContext) Read(oid string, data []byte, offset uint64) (int, error) {
 	return 0, nil
 }

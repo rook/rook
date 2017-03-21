@@ -31,7 +31,7 @@ func TestBlockCommand(t *testing.T) {
 	}
 
 	if runtime.GOOS == "linux" {
-		assert.Equal(t, []string{"create", "ls", "mount", "unmount"}, commands)
+		assert.Equal(t, []string{"create", "delete", "ls", "mount", "unmount"}, commands)
 	} else {
 		assert.Equal(t, []string{"create", "ls"}, commands)
 	}
