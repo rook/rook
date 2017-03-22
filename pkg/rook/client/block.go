@@ -18,14 +18,13 @@ package client
 import (
 	"bytes"
 	"encoding/json"
-	"path"
+	"net/url"
 
 	"github.com/rook/rook/pkg/model"
 )
 
 const (
-	imageQueryName       = "image"
-	imageRemoveQueryName = "remove"
+	imageQueryName = "image"
 )
 
 func (c *RookNetworkRestClient) GetBlockImages() ([]model.BlockImage, error) {
@@ -44,20 +43,32 @@ func (c *RookNetworkRestClient) GetBlockImages() ([]model.BlockImage, error) {
 }
 
 func (c *RookNetworkRestClient) CreateBlockImage(newImage model.BlockImage) (string, error) {
-	return c.handleBlockRequest(newImage, imageQueryName)
-}
-
-func (c *RookNetworkRestClient) DeleteBlockImage(image model.BlockImage) (string, error) {
-	return c.handleBlockRequest(image, path.Join(imageQueryName, imageRemoveQueryName))
-}
-
-func (c *RookNetworkRestClient) handleBlockRequest(i model.BlockImage, queryPath string) (string, error) {
-	body, err := json.Marshal(i)
+	body, err := json.Marshal(newImage)
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := c.DoPost(queryPath, bytes.NewReader(body))
+	resp, err := c.DoPost(imageQueryName, bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+
+	return string(resp), nil
+}
+
+func (c *RookNetworkRestClient) DeleteBlockImage(image model.BlockImage) (string, error) {
+	baseURL, err := url.Parse(imageQueryName)
+	if err != nil {
+		return "", err
+	}
+
+	params := url.Values{}
+	params.Add("name", image.Name)
+	params.Add("pool", image.PoolName)
+
+	baseURL.RawQuery = params.Encode()
+
+	resp, err := c.DoDelete(baseURL.String())
 	if err != nil {
 		return "", err
 	}

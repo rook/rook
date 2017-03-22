@@ -143,19 +143,15 @@ func (h *Handler) CreateImage(w http.ResponseWriter, r *http.Request) {
 }
 
 // Deletes a block image from this cluster.
-// POST
-// /image/remove
+// DELETE
+// /image?name=<imageName>&pool=<imagePool>
 func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request) {
-	var deleteImageReq model.BlockImage
-	body, ok := handleReadBody(w, r, "delete image")
-	if !ok {
-		return
-	}
+	imageName := r.URL.Query().Get("name")
+	imagePool := r.URL.Query().Get("pool")
 
-	if err := json.Unmarshal(body, &deleteImageReq); err != nil {
-		logger.Errorf("failed to unmarshal delete image request body '%s': %+v", string(body), err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
+	deleteImageReq := model.BlockImage{
+		Name:     imageName,
+		PoolName: imagePool,
 	}
 
 	if deleteImageReq.Name == "" || deleteImageReq.PoolName == "" {

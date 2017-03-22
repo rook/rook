@@ -65,7 +65,7 @@ func TestRemoveObjectStoreHandler(t *testing.T) {
 
 	context := &clusterd.Context{EtcdClient: etcdClient}
 
-	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore/remove", nil)
+	req, err := http.NewRequest("DELETE", "http://10.0.0.100/objectstore", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}

@@ -61,8 +61,8 @@ func (h *Handler) GetRoutes() []Route {
 		},
 		{
 			"DeleteImage",
-			"POST",
-			"/image/remove",
+			"DELETE",
+			"/image",
 			h.DeleteImage,
 		},
 		{
@@ -91,8 +91,8 @@ func (h *Handler) GetRoutes() []Route {
 		},
 		{
 			"RemoveObjectStore",
-			"POST",
-			"/objectstore/remove",
+			"DELETE",
+			"/objectstore",
 			h.RemoveObjectStore,
 		},
 		{
@@ -151,8 +151,8 @@ func (h *Handler) GetRoutes() []Route {
 		},
 		{
 			"RemoveFileSystem",
-			"POST",
-			"/filesystem/remove",
+			"DELETE",
+			"/filesystem",
 			h.RemoveFileSystem,
 		},
 		{

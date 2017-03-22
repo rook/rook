@@ -226,7 +226,7 @@ func TestCreateImageHandlerFailure(t *testing.T) {
 func TestDeleteImageHandler(t *testing.T) {
 	context := &clusterd.Context{}
 
-	req, err := http.NewRequest("POST", "http://10.0.0.100/image/remove", nil)
+	req, err := http.NewRequest("DELETE", "http://10.0.0.100/image", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -238,14 +238,14 @@ func TestDeleteImageHandler(t *testing.T) {
 		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
 	}
 
-	// image is missing from request body, should be bad request
+	// no image params are passed via URL query string, bad request
 	h := newTestHandler(context, connFactory, cephFactory)
 	h.DeleteImage(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Equal(t, ``, w.Body.String())
 
-	// request body exists but it's bad json, should be bad request
-	req, err = http.NewRequest("POST", "http://10.0.0.100/image/remove", strings.NewReader(`bad json`))
+	// bad query param passed, should be bad request
+	req, err = http.NewRequest("DELETE", "http://10.0.0.100/image?badparam=foo", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -255,8 +255,8 @@ func TestDeleteImageHandler(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 	assert.Equal(t, ``, w.Body.String())
 
-	// missing fields for the image passed via request body, should be bad request
-	req, err = http.NewRequest("POST", "http://10.0.0.100/image/remove", strings.NewReader(`{"imageName":"myImage1"}`))
+	// missing fields for the image passed via query params, should be bad request
+	req, err = http.NewRequest("DELETE", "http://10.0.0.100/image?name=myImage1", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -267,7 +267,7 @@ func TestDeleteImageHandler(t *testing.T) {
 	assert.Equal(t, ``, w.Body.String())
 
 	// well formed successful request to delete an image
-	req, err = http.NewRequest("POST", "http://10.0.0.100/image/remove", strings.NewReader(`{"imageName":"myImage1","poolName":"myPool1"}`))
+	req, err = http.NewRequest("DELETE", "http://10.0.0.100/image?name=myImage1&pool=myPool1", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -292,7 +292,7 @@ func TestDeleteImageHandler(t *testing.T) {
 func TestDeleteImageHandlerFailure(t *testing.T) {
 	context := &clusterd.Context{}
 
-	req, err := http.NewRequest("POST", "http://10.0.0.100/image/remove", strings.NewReader(`{"imageName":"myImage1","poolName":"myPool1"}`))
+	req, err := http.NewRequest("DELETE", "http://10.0.0.100/image?name=myImage1&pool=myPool1", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
