@@ -101,12 +101,12 @@ https://quay.io/repository/rook/rookd?tab=tags
 ## Updating the Build container
 
 To modify the build container change the Dockerfile and/or associated scripts. Also bump
-the version in `build/cross-image/version`. We require a version bump for any change
+the version in `build/container/version`. We require a version bump for any change
 in order to use the correct version of the container across releases and branches.
 To create a new build of the container run:
 
 ```
-cd build/cross-image
+cd build/container
 make
 ```
 
