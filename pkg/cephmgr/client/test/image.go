@@ -18,8 +18,9 @@ package test
 import "github.com/rook/rook/pkg/cephmgr/client"
 
 type MockImage struct {
-	MockName string
-	MockStat func() (info *client.ImageInfo, err error)
+	MockName   string
+	MockStat   func() (info *client.ImageInfo, err error)
+	MockRemove func() error
 }
 
 func (i *MockImage) Open(args ...interface{}) error {
@@ -27,6 +28,13 @@ func (i *MockImage) Open(args ...interface{}) error {
 }
 
 func (i *MockImage) Close() error {
+	return nil
+}
+
+func (i *MockImage) Remove() error {
+	if i.MockRemove != nil {
+		return i.MockRemove()
+	}
 	return nil
 }
 

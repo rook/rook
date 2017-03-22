@@ -86,11 +86,17 @@ func (h *Handler) CreateFileSystem(w http.ResponseWriter, r *http.Request) {
 }
 
 // Removes an existing filesystem from this cluster.
-// POST
-// /filesystem/remove
+// DELETE
+// /filesystem?name=<fsName>
 func (h *Handler) RemoveFileSystem(w http.ResponseWriter, r *http.Request) {
-	fs, ok := handleReadFilesystemRequest(w, r, "remove filesystem")
-	if !ok {
+	fsName := r.URL.Query().Get("name")
+	fs := &model.FilesystemRequest{
+		Name: fsName,
+	}
+
+	if fs.Name == "" {
+		logger.Errorf("filesystem missing required fields: %+v", fs)
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 

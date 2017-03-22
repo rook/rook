@@ -42,8 +42,8 @@ func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 }
 
 // RemoveObjectStore removes the object store from this cluster.
-// POST
-// /objectstore/remove
+// DELETE
+// /objectstore
 func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
 	if err := h.config.ClusterHandler.RemoveObjectStore(); err != nil {
 		logger.Errorf("failed to remove object store: %+v", err)

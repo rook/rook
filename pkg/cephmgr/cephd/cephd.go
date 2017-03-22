@@ -330,6 +330,13 @@ func (c *conn) OpenIOContext(pool string) (client.IOContext, error) {
 	}
 }
 
+// Destroy informs librados that the I/O context is no longer in use.
+// Resources associated with the context may not be freed immediately, and the
+// context should not be used again after calling this method.
+func (ioctx *IOContext) Destroy() {
+	C.rados_ioctx_destroy(ioctx.ioctx)
+}
+
 // Read reads up to len(data) bytes from the object with key oid starting at byte
 // offset offset. It returns the number of bytes read and an error, if any.
 func (ioctx *IOContext) Read(oid string, data []byte, offset uint64) (int, error) {
@@ -470,6 +477,17 @@ func (ioctx *IOContext) CreateImage(name string, size uint64, order int,
 		ioctx: ioctx,
 		name:  name,
 	}, nil
+}
+
+// int rbd_remove(rados_ioctx_t io, const char *name);
+// int rbd_remove_with_progress(rados_ioctx_t io, const char *name,
+//                  librbd_progress_fn_t cb, void *cbdata);
+func (image *Image) Remove() error {
+	var ret C.int
+	var c_name *C.char = C.CString(image.name)
+	defer C.free(unsafe.Pointer(c_name))
+	ret = C.rbd_remove(C.rados_ioctx_t(image.ioctx.Pointer()), c_name)
+	return GetCephdError(int(ret))
 }
 
 // int rbd_open(rados_ioctx_t io, const char *name, rbd_image_t *image, const char *snap_name);

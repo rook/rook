@@ -18,6 +18,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"net/url"
 
 	"github.com/rook/rook/pkg/model"
 )
@@ -48,6 +49,26 @@ func (c *RookNetworkRestClient) CreateBlockImage(newImage model.BlockImage) (str
 	}
 
 	resp, err := c.DoPost(imageQueryName, bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+
+	return string(resp), nil
+}
+
+func (c *RookNetworkRestClient) DeleteBlockImage(image model.BlockImage) (string, error) {
+	baseURL, err := url.Parse(imageQueryName)
+	if err != nil {
+		return "", err
+	}
+
+	params := url.Values{}
+	params.Add("name", image.Name)
+	params.Add("pool", image.PoolName)
+
+	baseURL.RawQuery = params.Encode()
+
+	resp, err := c.DoDelete(baseURL.String())
 	if err != nil {
 		return "", err
 	}

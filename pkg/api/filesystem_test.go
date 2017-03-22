@@ -128,7 +128,7 @@ func TestRemoveFileSystemHandler(t *testing.T) {
 	etcdClient.SetValue("/rook/services/ceph/fs/desired/myfs1/pool", "myfs1-pool")
 
 	context := &clusterd.Context{EtcdClient: etcdClient}
-	req, err := http.NewRequest("POST", "http://10.0.0.100/filesystem/remove", strings.NewReader(`{"name": "myfs1"}`))
+	req, err := http.NewRequest("DELETE", "http://10.0.0.100/filesystem?name=myfs1", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}

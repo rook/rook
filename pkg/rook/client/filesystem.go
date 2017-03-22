@@ -18,14 +18,13 @@ package client
 import (
 	"bytes"
 	"encoding/json"
-	"path"
+	"net/url"
 
 	"github.com/rook/rook/pkg/model"
 )
 
 const (
-	filesystemQueryName       = "filesystem"
-	filesystemRemoveQueryName = "remove"
+	filesystemQueryName = "filesystem"
 )
 
 func (c *RookNetworkRestClient) GetFilesystems() ([]model.Filesystem, error) {
@@ -44,20 +43,30 @@ func (c *RookNetworkRestClient) GetFilesystems() ([]model.Filesystem, error) {
 }
 
 func (c *RookNetworkRestClient) CreateFilesystem(newFilesystem model.FilesystemRequest) (string, error) {
-	return c.handleFilesystemRequest(newFilesystem, filesystemQueryName)
-}
-
-func (c *RookNetworkRestClient) DeleteFilesystem(deleteFilesystem model.FilesystemRequest) (string, error) {
-	return c.handleFilesystemRequest(deleteFilesystem, path.Join(filesystemQueryName, filesystemRemoveQueryName))
-}
-
-func (c *RookNetworkRestClient) handleFilesystemRequest(fs model.FilesystemRequest, queryPath string) (string, error) {
-	body, err := json.Marshal(fs)
+	body, err := json.Marshal(newFilesystem)
 	if err != nil {
 		return "", err
 	}
 
-	resp, err := c.DoPost(queryPath, bytes.NewReader(body))
+	resp, err := c.DoPost(filesystemQueryName, bytes.NewReader(body))
+	if err != nil {
+		return "", err
+	}
+
+	return string(resp), nil
+}
+
+func (c *RookNetworkRestClient) DeleteFilesystem(deleteFilesystem model.FilesystemRequest) (string, error) {
+	baseURL, err := url.Parse(filesystemQueryName)
+	if err != nil {
+		return "", err
+	}
+
+	params := url.Values{}
+	params.Add("name", deleteFilesystem.Name)
+	baseURL.RawQuery = params.Encode()
+
+	resp, err := c.DoDelete(baseURL.String())
 	if err != nil {
 		return "", err
 	}

@@ -18,6 +18,7 @@ package client
 type Image interface {
 	Open(args ...interface{}) error
 	Close() error
+	Remove() error
 	Stat() (info *ImageInfo, err error)
 	Name() string
 }
