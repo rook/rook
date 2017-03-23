@@ -61,9 +61,9 @@ func TestMountBlock(t *testing.T) {
 	createMockRBD(mockRBDSysBusPath, "3", "myimage1", "mypool1")
 
 	// call mountBlock and verify success and output
-	out, err := mountBlock("myimage1", "mypool1", "/tmp/mymount1", mockRBDSysBusPath, c, e)
+	out, err := mapBlock("myimage1", "mypool1", "/tmp/mymount1", mockRBDSysBusPath, true, c, e)
 	assert.Nil(t, err)
-	assert.Equal(t, "succeeded mapping image myimage1 on device /dev/rbd3 at '/tmp/mymount1'", out)
+	assert.Equal(t, "succeeded mapping image myimage1 on device /dev/rbd3, formatted, and mounted at /tmp/mymount1", out)
 
 	// verify the correct rbd data was written to the add file
 	addFileData, err := ioutil.ReadFile(filepath.Join(mockRBDSysBusPath, rbdAddSingleMajorNode))
@@ -80,7 +80,7 @@ func TestMountBlockFailure(t *testing.T) {
 	e := &exectest.MockExecutor{}
 
 	// expect mountBlock to fail
-	out, err := mountBlock("myimage1", "mypool1", "/tmp/mymount1", "", c, e)
+	out, err := mapBlock("myimage1", "mypool1", "/tmp/mymount1", "", true, c, e)
 	assert.NotNil(t, err)
 	assert.Equal(t, "", out)
 }

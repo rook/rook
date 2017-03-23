@@ -47,37 +47,37 @@ const (
 )
 
 var (
-	mountImageName     string
-	mountImagePoolName string
-	mountImagePath     string
+	mapImageName       string
+	mapImagePoolName   string
+	mapImagePath       string
+	mapFormatRequested bool
 )
 
-var mountCmd = &cobra.Command{
-	Use:   "mount",
-	Short: "Mounts a block image from the cluster as a local block device with the given file system path",
+var mapCmd = &cobra.Command{
+	Use:   "map",
+	Short: "Maps a block image from the cluster as a local block device and optionally formats and mounts it with the given file system path",
 }
 
 func init() {
-	mountCmd.Flags().StringVar(&mountImageName, "name", "", "Name of block image to mount (required)")
-	mountCmd.Flags().StringVar(&mountImagePoolName, "pool-name", "rbd", "Name of storage pool that contains block image to mount")
-	mountCmd.Flags().StringVar(&mountImagePath, "path", "", "File system path to mount block device on (required)")
+	mapCmd.Flags().StringVar(&mapImageName, "name", "", "Name of block image to map (required)")
+	mapCmd.Flags().StringVar(&mapImagePoolName, "pool-name", "rbd", "Name of storage pool that contains block image to map")
+	mapCmd.Flags().BoolVar(&mapFormatRequested, "format", false, "Format a filesystem after mapping")
+	mapCmd.Flags().StringVar(&mapImagePath, "mount", "", "Mount a filesystem on the indicated path")
 
-	mountCmd.MarkFlagRequired("name")
-	mountCmd.MarkFlagRequired("path")
+	mapCmd.MarkFlagRequired("name")
 
-	mountCmd.RunE = mountBlockEntry
+	mapCmd.RunE = mapBlockEntry
 }
 
-func mountBlockEntry(cmd *cobra.Command, args []string) error {
+func mapBlockEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
-	if err := flags.VerifyRequiredFlags(cmd, []string{"name", "path"}); err != nil {
+	if err := flags.VerifyRequiredFlags(cmd, []string{"name"}); err != nil {
 		return err
 	}
-
 	c := rook.NewRookNetworkRestClient()
 	e := &exec.CommandExecutor{}
-	out, err := mountBlock(mountImageName, mountImagePoolName, mountImagePath, rbdSysBusPathDefault, c, e)
+	out, err := mapBlock(mapImageName, mapImagePoolName, mapImagePath, rbdSysBusPathDefault, mapFormatRequested, c, e)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -87,7 +87,7 @@ func mountBlockEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func mountBlock(name, poolName, mountPoint, rbdSysBusPath string, c client.RookRestClient, executor exec.Executor) (string, error) {
+func mapBlock(name, poolName, mountPoint, rbdSysBusPath string, formatRequested bool, c client.RookRestClient, executor exec.Executor) (string, error) {
 	clientAccessInfo, err := c.GetClientAccessInfo()
 	if err != nil {
 		return "", err
@@ -131,20 +131,28 @@ func mountBlock(name, poolName, mountPoint, rbdSysBusPath string, c client.RookR
 		return "", err
 	}
 
-	// format the device with a default file system
-	if err := sys.FormatDevice(devicePath, executor); err != nil {
-		return "", fmt.Errorf("failed to format device %s: %+v", devicePath, err)
+	successMessage := fmt.Sprintf("succeeded mapping image %s on device %s", name, devicePath)
+
+	if formatRequested {
+		// format the device with a default file system
+		if err := sys.FormatDevice(devicePath, executor); err != nil {
+			return "", fmt.Errorf("%s but failed to format device %s: %+v", successMessage, devicePath, err)
+		}
+		successMessage += ", formatted"
 	}
 
-	// mount the device at the given mount point
-	if err := sys.MountDevice(devicePath, mountPoint, executor); err != nil {
-		return "", fmt.Errorf("failed to mount device %s at '%s': %+v", devicePath, mountPoint, err)
+	if len(mountPoint) > 0 {
+		// mount the device at the given mount point
+		if err := sys.MountDevice(devicePath, mountPoint, executor); err != nil {
+			return "", fmt.Errorf("%s but failed to mount device %s at '%s': %+v", successMessage, devicePath, mountPoint, err)
+		}
+		successMessage += fmt.Sprintf(", and mounted at %s", mountPoint)
 	}
 
 	// chown for the current user since we had to format and mount with sudo
 	// sys.ChownForCurrentUser(mountPoint, executor)
 
-	return fmt.Sprintf("succeeded mapping image %s on device %s at '%s'", name, devicePath, mountPoint), nil
+	return successMessage, nil
 }
 
 func getRBDAddData(name, poolName string, clientAccessInfo model.ClientAccessInfo) (string, error) {

@@ -29,23 +29,23 @@ import (
 )
 
 var (
-	unmountDeviceName string
-	unmountPath       string
+	unmapDeviceName string
+	unmapPath       string
 )
 
-var unmountCmd = &cobra.Command{
-	Use:   "unmount",
-	Short: "Unmounts and destroys a block device from the local machine",
+var unmapCmd = &cobra.Command{
+	Use:   "unmap",
+	Short: "Unmap and destroys a block device from the local machine",
 }
 
 func init() {
-	unmountCmd.Flags().StringVar(&unmountDeviceName, "device", "", "Name of device to unmount (e.g., rbd0)")
-	unmountCmd.Flags().StringVar(&unmountPath, "path", "", "File system path to unmount")
+	unmapCmd.Flags().StringVar(&unmapDeviceName, "device", "", "Name of device to unmap (e.g., rbd0)")
+	unmapCmd.Flags().StringVar(&unmapPath, "mount", "", "File system mount point to unmount before unmapping")
 
-	unmountCmd.RunE = unmountBlockEntry
+	unmapCmd.RunE = unmapBlockEntry
 }
 
-func unmountBlockEntry(cmd *cobra.Command, args []string) error {
+func unmapBlockEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
 	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
@@ -53,7 +53,7 @@ func unmountBlockEntry(cmd *cobra.Command, args []string) error {
 	}
 
 	e := &exec.CommandExecutor{}
-	out, err := unmountBlock(unmountDeviceName, unmountPath, rbdSysBusPathDefault, e)
+	out, err := unmapBlock(unmapDeviceName, unmapPath, rbdSysBusPathDefault, e)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -63,7 +63,7 @@ func unmountBlockEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func unmountBlock(device, path, rbdSysBusPath string, executor exec.Executor) (string, error) {
+func unmapBlock(device, path, rbdSysBusPath string, executor exec.Executor) (string, error) {
 	if device == "" && path == "" {
 		return "", fmt.Errorf("device and path are not specified, one of them must be specified")
 	}

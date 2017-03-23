@@ -32,7 +32,7 @@ func init() {
 	Cmd.AddCommand(deleteCmd)
 
 	if runtime.GOOS == "linux" {
-		Cmd.AddCommand(mountCmd)
-		Cmd.AddCommand(unmountCmd)
+		Cmd.AddCommand(mapCmd)
+		Cmd.AddCommand(unmapCmd)
 	}
 }
