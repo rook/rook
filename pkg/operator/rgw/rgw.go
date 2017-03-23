@@ -23,7 +23,7 @@ import (
 	cephrgw "github.com/rook/rook/pkg/cephmgr/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	k8smon "github.com/rook/rook/pkg/operator/mon"
+	opmon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
@@ -42,39 +42,41 @@ type Cluster struct {
 	Replicas  int32
 	factory   client.ConnectionFactory
 	dataDir   string
+	clientset kubernetes.Interface
 }
 
-func New(namespace, version string, factory client.ConnectionFactory) *Cluster {
+func New(clientset kubernetes.Interface, factory client.ConnectionFactory, namespace, version string) *Cluster {
 	return &Cluster{
+		clientset: clientset,
+		factory:   factory,
 		Namespace: namespace,
 		Version:   version,
 		Replicas:  2,
-		factory:   factory,
 		dataDir:   k8sutil.DataDir,
 	}
 }
 
-func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
+func (c *Cluster) Start(cluster *mon.ClusterInfo) error {
 	logger.Infof("start running rgw")
 
 	if cluster == nil || len(cluster.Monitors) == 0 {
 		return fmt.Errorf("missing mons to start rgw")
 	}
 
-	err := c.createKeyring(clientset, cluster)
+	err := c.createKeyring(cluster)
 	if err != nil {
 		return fmt.Errorf("failed to create rgw keyring. %+v", err)
 	}
 
 	// start the service
-	err = c.startService(clientset, cluster)
+	err = c.startService()
 	if err != nil {
 		return fmt.Errorf("failed to start rgw service. %+v", err)
 	}
 
 	// start the deployment
-	deployment := c.makeDeployment(cluster)
-	_, err = clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
+	deployment := c.makeDeployment()
+	_, err = c.clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rgw deployment. %+v", err)
@@ -87,8 +89,8 @@ func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo
 	return nil
 }
 
-func (c *Cluster) createKeyring(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
-	_, err := clientset.CoreV1().Secrets(c.Namespace).Get(appName)
+func (c *Cluster) createKeyring(cluster *mon.ClusterInfo) error {
+	_, err := c.clientset.CoreV1().Secrets(c.Namespace).Get(appName)
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
 		return nil
@@ -121,7 +123,7 @@ func (c *Cluster) createKeyring(clientset kubernetes.Interface, cluster *mon.Clu
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	_, err = clientset.CoreV1().Secrets(c.Namespace).Create(secret)
+	_, err = c.clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		return fmt.Errorf("failed to save rgw secrets. %+v", err)
 	}
@@ -129,7 +131,7 @@ func (c *Cluster) createKeyring(clientset kubernetes.Interface, cluster *mon.Clu
 	return nil
 }
 
-func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo) *extensions.Deployment {
+func (c *Cluster) makeDeployment() *extensions.Deployment {
 	deployment := &extensions.Deployment{}
 	deployment.Name = appName
 	deployment.Namespace = c.Namespace
@@ -137,11 +139,11 @@ func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo) *extensions.Deploymen
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: v1.ObjectMeta{
 			Name:        "rook-rgw",
-			Labels:      getLabels(cluster.Name),
+			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.rgwContainer(cluster)},
+			Containers:    []v1.Container{c.rgwContainer()},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
 				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
@@ -154,10 +156,10 @@ func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo) *extensions.Deploymen
 	return deployment
 }
 
-func (c *Cluster) rgwContainer(cluster *mon.ClusterInfo) v1.Container {
+func (c *Cluster) rgwContainer() v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd rgw --data-dir=%s --mon-endpoints=%s --cluster-name=%s --rgw-port=%d --rgw-host=%s",
-		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name, cephrgw.RGWPort, cephrgw.DNSName)
+	command := fmt.Sprintf("/usr/bin/rookd rgw --data-dir=%s --rgw-port=%d --rgw-host=%s",
+		k8sutil.DataDir, cephrgw.RGWPort, cephrgw.DNSName)
 	return v1.Container{
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.
@@ -169,14 +171,16 @@ func (c *Cluster) rgwContainer(cluster *mon.ClusterInfo) v1.Container {
 		},
 		Env: []v1.EnvVar{
 			{Name: "ROOKD_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
-			k8smon.MonSecretEnvVar(),
-			k8smon.AdminSecretEnvVar(),
+			opmon.ClusterNameEnvVar(),
+			opmon.MonEndpointEnvVar(),
+			opmon.MonSecretEnvVar(),
+			opmon.AdminSecretEnvVar(),
 		},
 	}
 }
 
-func (c *Cluster) startService(clientset kubernetes.Interface, clusterInfo *mon.ClusterInfo) error {
-	labels := getLabels(clusterInfo.Name)
+func (c *Cluster) startService() error {
+	labels := c.getLabels()
 	s := &v1.Service{
 		ObjectMeta: v1.ObjectMeta{
 			Name:      appName,
@@ -196,7 +200,7 @@ func (c *Cluster) startService(clientset kubernetes.Interface, clusterInfo *mon.
 		},
 	}
 
-	s, err := clientset.CoreV1().Services(c.Namespace).Create(s)
+	s, err := c.clientset.CoreV1().Services(c.Namespace).Create(s)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mon service. %+v", err)
@@ -209,9 +213,9 @@ func (c *Cluster) startService(clientset kubernetes.Interface, clusterInfo *mon.
 	return nil
 }
 
-func getLabels(clusterName string) map[string]string {
+func (c *Cluster) getLabels() map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr:     appName,
-		k8sutil.ClusterAttr: clusterName,
+		k8sutil.ClusterAttr: c.Namespace,
 	}
 }

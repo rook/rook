@@ -23,7 +23,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	k8smon "github.com/rook/rook/pkg/operator/mon"
+	opmon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
@@ -76,7 +76,7 @@ func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo
 	}
 
 	// start the deployment
-	deployment := c.makeDeployment(cluster, id)
+	deployment := c.makeDeployment(id)
 	_, err = clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -123,7 +123,7 @@ func (c *Cluster) createKeyring(clientset kubernetes.Interface, context *cluster
 	return nil
 }
 
-func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo, id string) *extensions.Deployment {
+func (c *Cluster) makeDeployment(id string) *extensions.Deployment {
 	deployment := &extensions.Deployment{}
 	deployment.Name = appName
 	deployment.Namespace = c.Namespace
@@ -131,11 +131,11 @@ func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo, id string) *extension
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: v1.ObjectMeta{
 			Name:        appName,
-			Labels:      getLabels(cluster.Name),
+			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.mdsContainer(cluster, id)},
+			Containers:    []v1.Container{c.mdsContainer(id)},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
 				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
@@ -148,10 +148,10 @@ func (c *Cluster) makeDeployment(cluster *mon.ClusterInfo, id string) *extension
 	return deployment
 }
 
-func (c *Cluster) mdsContainer(cluster *mon.ClusterInfo, id string) v1.Container {
+func (c *Cluster) mdsContainer(id string) v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd mds --data-dir=%s --mon-endpoints=%s --cluster-name=%s --mds-id=%s ",
-		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name, id)
+	command := fmt.Sprintf("/usr/bin/rookd mds --data-dir=%s --mds-id=%s ",
+		k8sutil.DataDir, id)
 	return v1.Container{
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.
@@ -163,15 +163,17 @@ func (c *Cluster) mdsContainer(cluster *mon.ClusterInfo, id string) v1.Container
 		},
 		Env: []v1.EnvVar{
 			{Name: "ROOKD_MDS_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
-			k8smon.MonSecretEnvVar(),
-			k8smon.AdminSecretEnvVar(),
+			opmon.ClusterNameEnvVar(),
+			opmon.MonEndpointEnvVar(),
+			opmon.MonSecretEnvVar(),
+			opmon.AdminSecretEnvVar(),
 		},
 	}
 }
 
-func getLabels(clusterName string) map[string]string {
+func (c *Cluster) getLabels() map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr:     appName,
-		k8sutil.ClusterAttr: clusterName,
+		k8sutil.ClusterAttr: c.Namespace,
 	}
 }

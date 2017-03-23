@@ -16,7 +16,7 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
-package operator
+package cluster
 
 import (
 	"encoding/json"

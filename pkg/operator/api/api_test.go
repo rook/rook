@@ -24,44 +24,42 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
 func TestStartAPI(t *testing.T) {
 	clientset := testop.New(3)
-	info := testop.CreateClusterInfo(1)
-	c := New("ns", "myversion")
+	c := New(clientset, "ns", "myversion")
 
 	// start a basic cluster
-	err := c.Start(clientset, info)
+	err := c.Start()
 	assert.Nil(t, err)
 
-	validateStart(t, c, clientset)
+	validateStart(t, c)
 
 	// starting again should be a no-op
-	err = c.Start(clientset, info)
+	err = c.Start()
 	assert.Nil(t, err)
 
-	validateStart(t, c, clientset)
+	validateStart(t, c)
 }
 
-func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
+func validateStart(t *testing.T, c *Cluster) {
 
-	r, err := clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(deploymentName)
+	r, err := c.clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(deploymentName)
 	assert.Nil(t, err)
 	assert.Equal(t, deploymentName, r.Name)
 
-	s, err := clientset.CoreV1().Services(c.Namespace).Get(deploymentName)
+	s, err := c.clientset.CoreV1().Services(c.Namespace).Get(deploymentName)
 	assert.Nil(t, err)
 	assert.Equal(t, deploymentName, s.Name)
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New("ns", "myversion")
-	info := testop.CreateClusterInfo(0)
+	clientset := testop.New(1)
+	c := New(clientset, "ns", "myversion")
 
-	d := c.makeDeployment(info)
+	d := c.makeDeployment()
 	assert.NotNil(t, d)
 	assert.Equal(t, deploymentName, d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
@@ -70,16 +68,18 @@ func TestPodSpecs(t *testing.T) {
 
 	assert.Equal(t, deploymentName, d.ObjectMeta.Name)
 	assert.Equal(t, deploymentName, d.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, info.Name, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	cont := d.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "quay.io/rook/rook-operator:myversion", cont.Image)
 	assert.Equal(t, 1, len(cont.VolumeMounts))
-	assert.Equal(t, 3, len(cont.Env))
-
-	expectedCommand := fmt.Sprintf("/usr/bin/rook-operator api --data-dir=/var/lib/rook --mon-endpoints= --cluster-name=%s --api-port=%d --container-version=%s",
-		info.Name, model.Port, c.Version)
+	assert.Equal(t, 5, len(cont.Env))
+	for _, v := range cont.Env {
+		assert.True(t, strings.HasPrefix(v.Name, "ROOK_OPERATOR_"))
+	}
+	expectedCommand := fmt.Sprintf("/usr/bin/rook-operator api --data-dir=/var/lib/rook --api-port=%d --container-version=%s",
+		model.Port, c.Version)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
 }

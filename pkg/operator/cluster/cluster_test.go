@@ -16,7 +16,7 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
-package operator
+package cluster
 
 import (
 	"fmt"
@@ -39,8 +39,8 @@ func TestCreateSecrets(t *testing.T) {
 		response := "{\"key\":\"mysecurekey\"}"
 		return []byte(response), "", nil
 	}
-	spec := ClusterSpec{Namespace: "ns", Version: "myversion"}
-	c := newCluster(spec, factory, clientset)
+	spec := Spec{Namespace: "ns", Version: "myversion"}
+	c := New(spec, factory, clientset)
 	c.dataDir = "/tmp/testdir"
 	defer os.RemoveAll(c.dataDir)
 

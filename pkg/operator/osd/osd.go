@@ -18,9 +18,8 @@ package osd
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	k8smon "github.com/rook/rook/pkg/operator/mon"
+	opmon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
@@ -32,16 +31,18 @@ const (
 )
 
 type Cluster struct {
+	clientset       kubernetes.Interface
 	Namespace       string
 	Keyring         string
 	Version         string
+	useAllDevices   bool
 	dataDirHostPath string
 	deviceFilter    string
-	useAllDevices   bool
 }
 
-func New(namespace, version, deviceFilter, dataDirHostPath string, useAllDevices bool) *Cluster {
+func New(clientset kubernetes.Interface, namespace, version, deviceFilter, dataDirHostPath string, useAllDevices bool) *Cluster {
 	return &Cluster{
+		clientset:       clientset,
 		Namespace:       namespace,
 		Version:         version,
 		deviceFilter:    deviceFilter,
@@ -50,15 +51,11 @@ func New(namespace, version, deviceFilter, dataDirHostPath string, useAllDevices
 	}
 }
 
-func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
+func (c *Cluster) Start() error {
 	logger.Infof("start running osds")
 
-	if cluster == nil || len(cluster.Monitors) == 0 {
-		return fmt.Errorf("missing mons to start osds")
-	}
-
-	ds, err := c.makeDaemonSet(cluster)
-	_, err = clientset.Extensions().DaemonSets(c.Namespace).Create(ds)
+	ds, err := c.makeDaemonSet()
+	_, err = c.clientset.Extensions().DaemonSets(c.Namespace).Create(ds)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create osd daemon set. %+v", err)
@@ -71,7 +68,7 @@ func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo
 	return nil
 }
 
-func (c *Cluster) makeDaemonSet(cluster *mon.ClusterInfo) (*extensions.DaemonSet, error) {
+func (c *Cluster) makeDaemonSet() (*extensions.DaemonSet, error) {
 	ds := &extensions.DaemonSet{}
 	ds.Name = appName
 	ds.Namespace = c.Namespace
@@ -86,12 +83,12 @@ func (c *Cluster) makeDaemonSet(cluster *mon.ClusterInfo) (*extensions.DaemonSet
 			Name: appName,
 			Labels: map[string]string{
 				k8sutil.AppAttr:     appName,
-				k8sutil.ClusterAttr: cluster.Name,
+				k8sutil.ClusterAttr: c.Namespace,
 			},
 			Annotations: map[string]string{},
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.osdContainer(cluster)},
+			Containers:    []v1.Container{c.osdContainer()},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
 				{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
@@ -105,10 +102,9 @@ func (c *Cluster) makeDaemonSet(cluster *mon.ClusterInfo) (*extensions.DaemonSet
 	return ds, nil
 }
 
-func (c *Cluster) osdContainer(cluster *mon.ClusterInfo) v1.Container {
+func (c *Cluster) osdContainer() v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd osd --data-dir=%s --mon-endpoints=%s --cluster-name=%s ",
-		k8sutil.DataDir, mon.FlattenMonEndpoints(cluster.Monitors), cluster.Name)
+	command := fmt.Sprintf("/usr/bin/rookd osd --data-dir=%s ", k8sutil.DataDir)
 	if c.deviceFilter != "" {
 		command += fmt.Sprintf("--data-devices=%s ", c.deviceFilter)
 	} else if c.useAllDevices {
@@ -127,8 +123,10 @@ func (c *Cluster) osdContainer(cluster *mon.ClusterInfo) v1.Container {
 			{Name: "devices", MountPath: "/dev"},
 		},
 		Env: []v1.EnvVar{
-			k8smon.MonSecretEnvVar(),
-			k8smon.AdminSecretEnvVar(),
+			opmon.ClusterNameEnvVar(),
+			opmon.MonEndpointEnvVar(),
+			opmon.MonSecretEnvVar(),
+			opmon.AdminSecretEnvVar(),
 		},
 		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
 	}

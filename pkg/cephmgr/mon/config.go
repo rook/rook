@@ -251,6 +251,7 @@ func ConnectToCluster(context *clusterd.Context, factory client.ConnectionFactor
 		return nil, fmt.Errorf("failed to connect to cluster %s: %+v", cluster.Name, err)
 	}
 
+	logger.Infof("successfully connected to cluster %s with user %s", cluster.Name, user)
 	return conn, nil
 }
 
