@@ -43,6 +43,10 @@ func getLabels(clusterName string) map[string]string {
 func (c *Cluster) makeMonPod(config *MonConfig, clusterInfo *mon.ClusterInfo, antiAffinity bool) *v1.Pod {
 
 	container := c.monContainer(config, clusterInfo)
+	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
+	if c.dataDirHostPath != "" {
+		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
+	}
 
 	pod := &v1.Pod{
 		ObjectMeta: v1.ObjectMeta{
@@ -55,7 +59,7 @@ func (c *Cluster) makeMonPod(config *MonConfig, clusterInfo *mon.ClusterInfo, an
 			Containers:    []v1.Container{container},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
-				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
+				{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 			},
 		},
 	}

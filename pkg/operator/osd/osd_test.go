@@ -27,7 +27,7 @@ import (
 )
 
 func TestStartDaemonset(t *testing.T) {
-	c := New("ns", "myversion", "", false)
+	c := New("ns", "myversion", "", "", false)
 
 	clientset := fake.NewSimpleClientset()
 
@@ -47,12 +47,12 @@ func TestStartDaemonset(t *testing.T) {
 }
 
 func TestDaemonset(t *testing.T) {
-	testPodDevices(t, true)
-	testPodDevices(t, false)
+	testPodDevices(t, "", true)
+	testPodDevices(t, "/var/lib/mydatadir", false)
 }
 
-func testPodDevices(t *testing.T, useDevices bool) {
-	c := New("ns", "myversion", "", useDevices)
+func testPodDevices(t *testing.T, dataDir string, useDevices bool) {
+	c := New("ns", "myversion", "", dataDir, useDevices)
 	info := testop.CreateClusterInfo(1)
 	daemonSet, err := c.makeDaemonSet(info)
 	assert.Nil(t, err)
@@ -63,6 +63,13 @@ func testPodDevices(t *testing.T, useDevices bool) {
 	assert.Equal(t, 2, len(daemonSet.Spec.Template.Spec.Volumes))
 	assert.Equal(t, "rook-data", daemonSet.Spec.Template.Spec.Volumes[0].Name)
 	assert.Equal(t, "devices", daemonSet.Spec.Template.Spec.Volumes[1].Name)
+	if dataDir == "" {
+		assert.NotNil(t, daemonSet.Spec.Template.Spec.Volumes[0].EmptyDir)
+		assert.Nil(t, daemonSet.Spec.Template.Spec.Volumes[0].HostPath)
+	} else {
+		assert.Nil(t, daemonSet.Spec.Template.Spec.Volumes[0].EmptyDir)
+		assert.Equal(t, dataDir, daemonSet.Spec.Template.Spec.Volumes[0].HostPath.Path)
+	}
 
 	assert.Equal(t, "osd", daemonSet.Spec.Template.ObjectMeta.Name)
 	assert.Equal(t, "osd", daemonSet.Spec.Template.ObjectMeta.Labels["app"])

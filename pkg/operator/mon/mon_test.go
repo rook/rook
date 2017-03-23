@@ -29,7 +29,7 @@ import (
 
 func TestStartMonPods(t *testing.T) {
 	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	c := New("ns", factory, "myversion")
+	c := New("ns", factory, "", "myversion")
 	c.retryDelay = 0
 
 	clientset := test.New(3)

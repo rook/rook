@@ -59,6 +59,9 @@ type ClusterSpec struct {
 
 	// A regular expression to allow more fine-grained selection of devices on nodes across the cluster
 	DeviceFilter string `json:"deviceFilter"`
+
+	// The path on the host where config and data can be persisted.
+	DataDirHostPath string `json:"dataDirHostPath"`
 }
 
 func newCluster(spec ClusterSpec, factory client.ConnectionFactory, clientset kubernetes.Interface) *Cluster {
@@ -82,7 +85,7 @@ func (c *Cluster) CreateInstance() error {
 	}
 
 	// Start the mon pods
-	m := mon.New(c.Spec.Namespace, c.factory, c.Spec.Version)
+	m := mon.New(c.Spec.Namespace, c.factory, c.Spec.DataDirHostPath, c.Spec.Version)
 	cluster, err := m.Start(c.clientset)
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
@@ -95,7 +98,7 @@ func (c *Cluster) CreateInstance() error {
 	}
 
 	// Start the OSDs
-	osds := osd.New(c.Spec.Namespace, c.Spec.Version, c.Spec.DeviceFilter, c.Spec.UseAllDevices)
+	osds := osd.New(c.Spec.Namespace, c.Spec.Version, c.Spec.DeviceFilter, c.Spec.DataDirHostPath, c.Spec.UseAllDevices)
 	err = osds.Start(c.clientset, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)

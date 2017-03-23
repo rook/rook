@@ -27,7 +27,12 @@ import (
 )
 
 func TestPodSpecs(t *testing.T) {
-	c := New("ns", nil, "myversion")
+	testPodSpec(t, "")
+	testPodSpec(t, "/var/lib/mydatadir")
+}
+
+func testPodSpec(t *testing.T, dataDir string) {
+	c := New("ns", nil, dataDir, "myversion")
 	config := &MonConfig{Name: "mon0", Port: 6790}
 	info := testop.CreateClusterInfo(0)
 
@@ -37,6 +42,13 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, v1.RestartPolicyAlways, pod.Spec.RestartPolicy)
 	assert.Equal(t, 1, len(pod.Spec.Volumes))
 	assert.Equal(t, "rook-data", pod.Spec.Volumes[0].Name)
+	if dataDir == "" {
+		assert.NotNil(t, pod.Spec.Volumes[0].EmptyDir)
+		assert.Nil(t, pod.Spec.Volumes[0].HostPath)
+	} else {
+		assert.Nil(t, pod.Spec.Volumes[0].EmptyDir)
+		assert.Equal(t, dataDir, pod.Spec.Volumes[0].HostPath.Path)
+	}
 
 	assert.Equal(t, "mon0", pod.ObjectMeta.Name)
 	assert.Equal(t, "mon", pod.ObjectMeta.Labels["app"])
