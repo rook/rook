@@ -39,3 +39,20 @@ type Spec struct {
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath"`
 }
+
+type PoolSpec struct {
+	// The namespace where the pool will be created (required). A Rook cluster must be running in this namespace.
+	Namespace string `json:"namespace"`
+
+	// Type of storage pool, 'replicated' or 'erasure-coded' (required) (default "replicated")
+	Type string `json:"type"`
+
+	// Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
+	ReplicaCount int `json:"replicaCount"`
+
+	// Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
+	ECCodingChunks int `json:"ecCodingChunks"`
+
+	// Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
+	ECDataChunks int `json:"ecDataChunks"`
+}
