@@ -77,11 +77,15 @@ ALL_PLATFORMS ?= linux_amd64 linux_arm64 darwin_amd64 windows_amd64
 
 GO_PROJECT=github.com/rook/rook
 
-# set the version number.
+# set the version number. you should not need to do this
+# for the majority of scenarios.
 ifeq ($(origin VERSION), undefined)
-VERSION = $(shell git describe --dirty --always)
+VERSION = $(shell git describe --dirty --always --tags)
 endif
 LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
+
+# the release channel. Can be set to master, alpha, beta or stable
+CHANNEL ?=
 
 # ====================================================================================
 # Setup Go projects
@@ -142,6 +146,7 @@ include build/makelib/golang.mk
 # Setup Distribution
 
 RELEASE_VERSION=$(VERSION)
+RELEASE_CHANNEL=$(CHANNEL)
 RELEASE_BIN_DIR=$(BIN_DIR)
 RELEASE_PLATFORMS=$(ALL_PLATFORMS)
 include build/makelib/release.mk
@@ -151,7 +156,7 @@ include build/makelib/release.mk
 
 external:
 ifeq ($(GOOS),linux)
-	@$(MAKE) -C external CEPH_BRANCH=$(CEPH_BRANCH) ALLOCATOR=$(ALLOCATOR) PLATFORMS=$(CROSS_TRIPLE) cross
+	@$(MAKE) -C external CEPH_BRANCH=$(CEPH_BRANCH) ALLOCATOR=$(ALLOCATOR) PLATFORMS=$(CROSS_TRIPLE) DOWNLOADDIR=$(DOWNLOADDIR) cross
 endif
 
 external/build/$(CROSS_TRIPLE)/lib/libcephd.a:
@@ -205,8 +210,12 @@ cross: $(foreach p,$(ALL_PLATFORMS), build.platform.$(p))
 release: cross
 	@$(MAKE) release.build
 
-publish: release
+publish:
+ifneq ($(filter master alpha beta stable, $(CHANNEL)),)
 	@$(MAKE) release.publish
+else
+	@echo skipping publish. invalid channel "$(CHANNEL)"
+endif
 
 .PHONY: build install test check vet fmt vendor clean distclean cross release publish
 
@@ -235,9 +244,11 @@ help:
 	@echo ''
 	@echo 'Distribution:'
 	@echo '    release     Builds all packages.'
-	@echo '    publish     Builds and publishes all packages.'
+	@echo '    publish     Publishes all packages from a release.'
 	@echo ''
 	@echo 'Options:'
+	@echo '    CHANNEL     Sets the release channel. Can be set to master,'
+	@echo '                alpha, beta, or stable. Default is not set.'
 	@echo '    GOARCH      The arch to build.'
 	@echo '    PIE         Set to 1 to build build a position independent'
 	@echo '                executable. Can not be combined with LINKMODE'

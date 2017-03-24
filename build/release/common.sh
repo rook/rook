@@ -55,3 +55,12 @@ github_upload() {
          --data-binary @${filepath} \
          "https://uploads.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/releases/${id}/assets?name=${filename}"
 }
+
+s3_upload() {
+    local filepath=$1
+    local filename=$(basename $filepath)
+
+    # we assume that AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and possibly AWS_DEFAULT_REGION are already set
+    # or ~/.aws/credentials and ~/.aws/config are configured
+    aws s3 cp --only-show-errors ${filepath} s3://${RELEASE_S3_BUCKET}/${RELEASE_CHANNEL}/${RELEASE_VERSION}/${filename}
+}

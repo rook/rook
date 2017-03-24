@@ -59,6 +59,7 @@ if [ "`uname -s`" != "Linux" ]; then
     #  /${BUILDER_HOME} (bind mounted to an independent docker volume)
     #    /.netrc (bind mounted to host ${HOME}/.netrc)
     #    /.docker/config.json (bind mounted to host ${HOME}/.docker/config.json)
+    #    /.download
     #    /.ccache
     #    /go/src/github.com/rook/rook (rsync'd from host <source>)
 
@@ -67,7 +68,9 @@ if [ "`uname -s`" != "Linux" ]; then
 
     MOUNT_OPTS="${MOUNT_OPTS} -v ${container_volume}:${BUILDER_HOME}"
 
-    CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/go/.ccache -e CCACHE_LOG"
+    CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache -e CCACHE_LOG"
+
+    DOWNLOAD_ARGS="-e DOWNLOADDIR=${BUILDER_HOME}/.download"
 
 else
 
@@ -98,7 +101,8 @@ else
     fi
 
     # if DOWNLOADDIR is not set bind mount it
-    if [[ -d "${DOWNLOADDIR}" ]]; then
+    if [[ -n "${DOWNLOADDIR}" ]]; then
+        mkdir -p ${DOWNLOADDIR}
         DOWNLOAD_ARGS="-e DOWNLOADDIR=${BUILDER_HOME}/.download \
             -v ${DOWNLOADDIR}:${BUILDER_HOME}/.download"
     fi
@@ -121,6 +125,12 @@ if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
     -v /var/run/docker.sock:/var/run/docker.sock"
 fi
 
+AWS_ARGS="\
+    -e AWS_ACCESS_KEY_ID \
+    -e AWS_SECRET_ACCESS_KEY \
+    -e AWS_DEFAULT_REGION \
+    -v ${HOME}/.aws:${BUILDER_HOME}/.aws"
+
 docker run \
     --rm \
     -e GOPATH="${BUILDER_HOME}/go" \
@@ -128,10 +138,12 @@ docker run \
     -e GITHUB_TOKEN \
     -e VERSION \
     -e LINKMODE=static \
+    -e CHANNEL \
     ${TTY_ARGS} \
     ${CCACHE_ARGS} \
     ${DOWNLOAD_ARGS} \
     ${NETRC_ARGS} \
+    ${AWS_ARGS} \
     ${USER_ARGS} \
     ${DOCKER_NESTED_ARGS} \
     ${NET_ARGS} \

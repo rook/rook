@@ -41,20 +41,25 @@ publish() {
 
     local file=${RELEASE_DIR}/rook-${version}-${os}-${arch}
     local ext=tar.gz
-    local mediatype=gzip
 
     if [[ ${os} != "linux" ]]; then
         ext=zip
-        mediatype=gzip
     fi
 
-    echo uploading $file.$ext to github
-    github_upload $file.$ext $mediatype
+    echo uploading $file.$ext to S3
+    s3_upload $file.$ext
 
     if [[ ${os} == "linux" ]]; then
-        echo uploading $file-debug.$ext to github
-        github_upload $file-debug.$ext $mediatype
+        echo uploading $file-debug.$ext to S3
+        s3_upload $file-debug.$ext
     fi
+
+    # upload a file with the version number
+    tmpdir=$(mktemp -d)
+    cat <<EOF > $tmpdir/version
+${version}
+EOF
+    s3_upload $tmpdir/version
 }
 
 action=$1

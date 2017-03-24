@@ -3,7 +3,7 @@
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source ${scriptdir}/common.sh
 
-registry=quay.io/
+registry=${RELEASE_REGISTRY}/
 
 build() {
     local os=$1
@@ -20,6 +20,7 @@ COPY root /
 ENTRYPOINT ["/usr/bin/rookd"]
 EOF
     build_artifact $os $arch $tmpdir rook/rookd rookd rook
+    rm -fr $tmpdir
 }
 
 build_artifact() {

@@ -64,6 +64,7 @@ HOST = $(shell gcc -dumpmachine)
 
 define build-platform
 build.$(1):
+	@mkdir -p $(DOWNLOADDIR)
 	@cmake \
 		-H$(CURDIR) \
 		-B$(BUILDDIR)/$(1) \
