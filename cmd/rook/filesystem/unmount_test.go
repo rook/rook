@@ -27,7 +27,8 @@ import (
 func TestUnmountFilesystem(t *testing.T) {
 	e := &exectest.MockExecutor{
 		MockExecuteCommand: func(actionName string, command string, arg ...string) error {
-			expectedArgs := []string{"umount", "/tmp/myfs1mount"}
+			assert.Equal(t, "umount", command)
+			expectedArgs := []string{"/tmp/myfs1mount"}
 			assert.Equal(t, expectedArgs, arg)
 			return nil
 		},

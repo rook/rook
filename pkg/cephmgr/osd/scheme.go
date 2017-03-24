@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package partition
+package osd
 
 import (
 	"encoding/json"
@@ -26,21 +26,31 @@ import (
 )
 
 const (
-	WalPartitionName      = "wal"
-	DatabasePartitionName = "db"
-	BlockPartitionName    = "block"
-	walPartition          = 1
-	databasePartition     = 2
-	blockPartition        = 3
-	UseRemainingSpace     = -1
-	schemeFilename        = "partition-scheme"
-	WalDefaultSizeMB      = 576
-	DBDefaultSizeMB       = 20480
+	Filestore            = "filestore"
+	Bluestore            = "bluestore"
+	DefaultStore         = Filestore
+	UseRemainingSpace    = -1
+	schemeFilename       = "partition-scheme"
+	WalDefaultSizeMB     = 576
+	DBDefaultSizeMB      = 20480
+	JournalDefaultSizeMB = 5120
 )
 
-type BluestoreConfig struct {
-	WalSizeMB      int
-	DatabaseSizeMB int
+type PartitionType int
+
+const (
+	WalPartitionType PartitionType = iota
+	DatabasePartitionType
+	BlockPartitionType
+	FilestoreDataPartitionType
+	FilestoreJournalPartitionType
+)
+
+type StoreConfig struct {
+	StoreType      string `json:"storeType,omitempty"`
+	WalSizeMB      int    `json:"walSizeMB,omitempty"`
+	DatabaseSizeMB int    `json:"databaseSizeMB,omitempty"`
+	JournalSizeMB  int    `json:"journalSizeMB,omitempty"`
 }
 
 // top level representation of an overall performance oriented partition scheme, with a dedicated metadata device
@@ -52,9 +62,10 @@ type PerfScheme struct {
 
 // represents an OSD and details about all of its partitions
 type PerfSchemeEntry struct {
-	ID         int                                    `json:"id"`
-	OsdUUID    uuid.UUID                              `json:"osdUuid"`
-	Partitions map[string]*PerfSchemePartitionDetails `json:"partitions"` // mapping of partition name to its details
+	ID         int                                           `json:"id"`
+	OsdUUID    uuid.UUID                                     `json:"osdUuid"`
+	Partitions map[PartitionType]*PerfSchemePartitionDetails `json:"partitions"` // mapping of partition name to its details
+	StoreType  string                                        `json:"storeType,omitempty"`
 }
 
 // details for 1 OSD partition
@@ -75,12 +86,12 @@ type MetadataDeviceInfo struct {
 
 // representsa specific partition on a metadata device, including details about which OSD it belongs to
 type MetadataDevicePartition struct {
-	ID            int       `json:"id"`
-	OsdUUID       uuid.UUID `json:"osdUuid"`
-	Name          string    `json:"name"`
-	PartitionUUID string    `json:"partitionUuid"`
-	SizeMB        int       `json:"sizeMB"`
-	OffsetMB      int       `json:"offsetMB"`
+	ID            int           `json:"id"`
+	OsdUUID       uuid.UUID     `json:"osdUuid"`
+	Type          PartitionType `json:"type"`
+	PartitionUUID string        `json:"partitionUuid"`
+	SizeMB        int           `json:"sizeMB"`
+	OffsetMB      int           `json:"offsetMB"`
 }
 
 func NewPerfScheme() *PerfScheme {
@@ -89,9 +100,10 @@ func NewPerfScheme() *PerfScheme {
 	}
 }
 
-func NewPerfSchemeEntry() *PerfSchemeEntry {
+func NewPerfSchemeEntry(storeType string) *PerfSchemeEntry {
 	return &PerfSchemeEntry{
-		Partitions: map[string]*PerfSchemePartitionDetails{}, // mapping of partition name (e.g. WAL) to it's details
+		Partitions: map[PartitionType]*PerfSchemePartitionDetails{}, // mapping of partition name (e.g. WAL) to it's details
+		StoreType:  storeType,
 	}
 }
 
@@ -137,48 +149,66 @@ func (s *PerfScheme) Save(configDir string) error {
 }
 
 // populates a partition scheme entry for an OSD where all its partitions are collocated on a single device
-func PopulateCollocatedPerfSchemeEntry(entry *PerfSchemeEntry, device string, bluestoreConfig BluestoreConfig) error {
-	diskUUID, walUUID, dbUUID, blockUUID, err := createUUIDs()
-	if err != nil {
-		return err
-	}
+func PopulateCollocatedPerfSchemeEntry(entry *PerfSchemeEntry, device string, storeConfig StoreConfig) error {
 
-	walSize := WalDefaultSizeMB
-	if bluestoreConfig.WalSizeMB > 0 {
-		walSize = bluestoreConfig.WalSizeMB
-	}
-	dbSize := DBDefaultSizeMB
-	if bluestoreConfig.DatabaseSizeMB > 0 {
-		dbSize = bluestoreConfig.DatabaseSizeMB
-	}
+	if storeConfig.StoreType == Filestore {
+		diskUUID, dataUUID, _, err := createFilestoreUUIDs()
+		if err != nil {
+			return err
+		}
 
-	offset := 1
+		// the filestore data partition will take up the entire given device (and we do not create a separate partition/entry
+		// for the journal)
+		entry.Partitions[FilestoreDataPartitionType] = &PerfSchemePartitionDetails{
+			Device:        device,
+			DiskUUID:      diskUUID.String(),
+			PartitionUUID: dataUUID.String(),
+			SizeMB:        UseRemainingSpace,
+			OffsetMB:      1,
+		}
+	} else {
+		diskUUID, walUUID, dbUUID, blockUUID, err := createBluestoreUUIDs()
+		if err != nil {
+			return err
+		}
 
-	// layout the partitions for WAL, DB, and Block
-	entry.Partitions[WalPartitionName] = &PerfSchemePartitionDetails{
-		Device:        device,
-		DiskUUID:      diskUUID.String(),
-		PartitionUUID: walUUID.String(),
-		SizeMB:        walSize,
-		OffsetMB:      offset,
-	}
-	offset += entry.Partitions[WalPartitionName].SizeMB
+		walSize := WalDefaultSizeMB
+		if storeConfig.WalSizeMB > 0 {
+			walSize = storeConfig.WalSizeMB
+		}
+		dbSize := DBDefaultSizeMB
+		if storeConfig.DatabaseSizeMB > 0 {
+			dbSize = storeConfig.DatabaseSizeMB
+		}
 
-	entry.Partitions[DatabasePartitionName] = &PerfSchemePartitionDetails{
-		Device:        device,
-		DiskUUID:      diskUUID.String(),
-		PartitionUUID: dbUUID.String(),
-		SizeMB:        dbSize,
-		OffsetMB:      offset,
-	}
-	offset += entry.Partitions[DatabasePartitionName].SizeMB
+		offset := 1
 
-	entry.Partitions[BlockPartitionName] = &PerfSchemePartitionDetails{
-		Device:        device,
-		DiskUUID:      diskUUID.String(),
-		PartitionUUID: blockUUID.String(),
-		SizeMB:        UseRemainingSpace,
-		OffsetMB:      offset,
+		// layout the partitions for WAL, DB, and Block
+		entry.Partitions[WalPartitionType] = &PerfSchemePartitionDetails{
+			Device:        device,
+			DiskUUID:      diskUUID.String(),
+			PartitionUUID: walUUID.String(),
+			SizeMB:        walSize,
+			OffsetMB:      offset,
+		}
+		offset += entry.Partitions[WalPartitionType].SizeMB
+
+		entry.Partitions[DatabasePartitionType] = &PerfSchemePartitionDetails{
+			Device:        device,
+			DiskUUID:      diskUUID.String(),
+			PartitionUUID: dbUUID.String(),
+			SizeMB:        dbSize,
+			OffsetMB:      offset,
+		}
+		offset += entry.Partitions[DatabasePartitionType].SizeMB
+
+		entry.Partitions[BlockPartitionType] = &PerfSchemePartitionDetails{
+			Device:        device,
+			DiskUUID:      diskUUID.String(),
+			PartitionUUID: blockUUID.String(),
+			SizeMB:        UseRemainingSpace,
+			OffsetMB:      offset,
+		}
 	}
 
 	return nil
@@ -187,15 +217,20 @@ func PopulateCollocatedPerfSchemeEntry(entry *PerfSchemeEntry, device string, bl
 // populates a partition scheme entry for an OSD that will have distributed partitions: its metadata will live on a
 // dedicated metadata device and its block data will live on a dedicated device
 func PopulateDistributedPerfSchemeEntry(entry *PerfSchemeEntry, device string, metadataInfo *MetadataDeviceInfo,
-	bluestoreConfig BluestoreConfig) error {
+	storeConfig StoreConfig) error {
 
-	diskUUID, walUUID, dbUUID, blockUUID, err := createUUIDs()
+	if storeConfig.StoreType == Filestore {
+		// TODO: support separate metadata device for filestore
+		return fmt.Errorf("filestore not yet supported for distributed partition scheme")
+	}
+
+	diskUUID, walUUID, dbUUID, blockUUID, err := createBluestoreUUIDs()
 	if err != nil {
 		return err
 	}
 
 	// the block partition will take up the entire given device
-	entry.Partitions[BlockPartitionName] = &PerfSchemePartitionDetails{
+	entry.Partitions[BlockPartitionType] = &PerfSchemePartitionDetails{
 		Device:        device,
 		DiskUUID:      diskUUID.String(),
 		PartitionUUID: blockUUID.String(),
@@ -219,16 +254,16 @@ func PopulateDistributedPerfSchemeEntry(entry *PerfSchemeEntry, device string, m
 	}
 
 	walSize := WalDefaultSizeMB
-	if bluestoreConfig.WalSizeMB > 0 {
-		walSize = bluestoreConfig.WalSizeMB
+	if storeConfig.WalSizeMB > 0 {
+		walSize = storeConfig.WalSizeMB
 	}
 	dbSize := DBDefaultSizeMB
-	if bluestoreConfig.DatabaseSizeMB > 0 {
-		dbSize = bluestoreConfig.DatabaseSizeMB
+	if storeConfig.DatabaseSizeMB > 0 {
+		dbSize = storeConfig.DatabaseSizeMB
 	}
 
 	// record information about the WAL partition
-	entry.Partitions[WalPartitionName] = &PerfSchemePartitionDetails{
+	entry.Partitions[WalPartitionType] = &PerfSchemePartitionDetails{
 		Device:        metadataInfo.Device,
 		DiskUUID:      metadataInfo.DiskUUID,
 		PartitionUUID: walUUID.String(),
@@ -238,16 +273,16 @@ func PopulateDistributedPerfSchemeEntry(entry *PerfSchemeEntry, device string, m
 	walPartitionInfo := &MetadataDevicePartition{
 		ID:            entry.ID,
 		OsdUUID:       entry.OsdUUID,
-		Name:          WalPartitionName,
+		Type:          WalPartitionType,
 		PartitionUUID: walUUID.String(),
 		SizeMB:        walSize,
 		OffsetMB:      offset,
 	}
 	metadataInfo.Partitions = append(metadataInfo.Partitions, walPartitionInfo)
-	offset += entry.Partitions[WalPartitionName].SizeMB
+	offset += entry.Partitions[WalPartitionType].SizeMB
 
 	// record information about the DB partition
-	entry.Partitions[DatabasePartitionName] = &PerfSchemePartitionDetails{
+	entry.Partitions[DatabasePartitionType] = &PerfSchemePartitionDetails{
 		Device:        metadataInfo.Device,
 		DiskUUID:      metadataInfo.DiskUUID,
 		PartitionUUID: dbUUID.String(),
@@ -257,7 +292,7 @@ func PopulateDistributedPerfSchemeEntry(entry *PerfSchemeEntry, device string, m
 	dbPartitionInfo := &MetadataDevicePartition{
 		ID:            entry.ID,
 		OsdUUID:       entry.OsdUUID,
-		Name:          DatabasePartitionName,
+		Type:          DatabasePartitionType,
 		PartitionUUID: dbUUID.String(),
 		SizeMB:        dbSize,
 		OffsetMB:      offset,
@@ -271,7 +306,7 @@ func (m *MetadataDeviceInfo) GetPartitionArgs() []string {
 	args := []string{}
 
 	for partNum, part := range m.Partitions {
-		partArgs := getPartitionArgs(partNum+1, part.PartitionUUID, part.OffsetMB, part.SizeMB, getPartitionLabel(part.ID, part.Name))
+		partArgs := getPartitionArgs(partNum+1, part.PartitionUUID, part.OffsetMB, part.SizeMB, getPartitionLabel(part.ID, part.Type))
 		args = append(args, partArgs...)
 	}
 
@@ -288,26 +323,28 @@ func (e *PerfSchemeEntry) GetPartitionArgs() []string {
 	args := []string{}
 	partNum := 1
 
-	if collocated {
+	if collocated && e.StoreType == Bluestore {
 		// partitions are collocated, create the metadata partitions on the same device
-		walDetails := e.Partitions[WalPartitionName]
-		partArgs := getPartitionArgsFromDetails(partNum, WalPartitionName, e.ID, walDetails)
+		walDetails := e.Partitions[WalPartitionType]
+		partArgs := getPartitionArgsFromDetails(partNum, WalPartitionType, e.ID, walDetails)
 		args = append(args, partArgs...)
 		partNum++
 
-		dbDetails := e.Partitions[DatabasePartitionName]
-		partArgs = getPartitionArgsFromDetails(partNum, DatabasePartitionName, e.ID, dbDetails)
+		dbDetails := e.Partitions[DatabasePartitionType]
+		partArgs = getPartitionArgsFromDetails(partNum, DatabasePartitionType, e.ID, dbDetails)
 		args = append(args, partArgs...)
 		partNum++
 	}
 
+	dataPartitionType := e.getDataPartitionType()
+
 	// always create the data partition
-	blockDetails := e.Partitions[BlockPartitionName]
-	partArgs := getPartitionArgsFromDetails(partNum, BlockPartitionName, e.ID, blockDetails)
-	args = append(args, partArgs...)
+	dataDetails := e.Partitions[dataPartitionType]
+	dataPartArgs := getPartitionArgsFromDetails(partNum, dataPartitionType, e.ID, dataDetails)
+	args = append(args, dataPartArgs...)
 
 	// append args for the whole device
-	args = append(args, []string{fmt.Sprintf("--disk-guid=%s", blockDetails.DiskUUID), "/dev/" + blockDetails.Device}...)
+	args = append(args, []string{fmt.Sprintf("--disk-guid=%s", dataDetails.DiskUUID), "/dev/" + dataDetails.Device}...)
 
 	return args
 }
@@ -329,10 +366,26 @@ func (e *PerfSchemeEntry) IsCollocated() bool {
 	return collocated
 }
 
+func (e *PerfSchemeEntry) getDataPartitionType() PartitionType {
+	if e.StoreType == Filestore {
+		return FilestoreDataPartitionType
+	} else {
+		return BlockPartitionType
+	}
+}
+
+func (e *PerfSchemeEntry) getMetadataPartitionType() PartitionType {
+	if e.StoreType == Filestore {
+		return FilestoreJournalPartitionType
+	} else {
+		return DatabasePartitionType
+	}
+}
+
 // Get the arguments necessary to create an sgdisk partition with the given parameters.
 // number is the partition number.
 // The offset and length are in MB. Under the covers this is translated to sectors.
-// If the length is -1, all remaining space will be assigned to the partition.
+// If the length is -1, all remaining space will be assigned to the
 func getPartitionArgs(number int, guid string, offset, length int, label string) []string {
 	const sectorsPerMB = 2048
 	var newPart string
@@ -351,24 +404,28 @@ func getPartitionArgs(number int, guid string, offset, length int, label string)
 	}
 }
 
-func getPartitionArgsFromDetails(number int, name string, id int, details *PerfSchemePartitionDetails) []string {
-	return getPartitionArgs(number, details.PartitionUUID, details.OffsetMB, details.SizeMB, getPartitionLabel(id, name))
+func getPartitionArgsFromDetails(number int, partType PartitionType, id int, details *PerfSchemePartitionDetails) []string {
+	return getPartitionArgs(number, details.PartitionUUID, details.OffsetMB, details.SizeMB, getPartitionLabel(id, partType))
 }
 
-func getPartitionLabel(id int, partName string) string {
-	switch partName {
-	case WalPartitionName:
+func getPartitionLabel(id int, partType PartitionType) string {
+	switch partType {
+	case WalPartitionType:
 		return fmt.Sprintf("ROOK-OSD%d-WAL", id)
-	case DatabasePartitionName:
+	case DatabasePartitionType:
 		return fmt.Sprintf("ROOK-OSD%d-DB", id)
-	case BlockPartitionName:
+	case BlockPartitionType:
 		return fmt.Sprintf("ROOK-OSD%d-BLOCK", id)
+	case FilestoreDataPartitionType:
+		return fmt.Sprintf("ROOK-OSD%d-FS-DATA", id)
+	case FilestoreJournalPartitionType:
+		return fmt.Sprintf("ROOK-OSD%d-FS-JOURNAL", id)
 	}
 
 	return ""
 }
 
-func createUUIDs() (*uuid.UUID, *uuid.UUID, *uuid.UUID, *uuid.UUID, error) {
+func createBluestoreUUIDs() (*uuid.UUID, *uuid.UUID, *uuid.UUID, *uuid.UUID, error) {
 	diskUUID, err := uuid.NewRandom()
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to get disk uuid. %+v", err)
@@ -390,4 +447,23 @@ func createUUIDs() (*uuid.UUID, *uuid.UUID, *uuid.UUID, *uuid.UUID, error) {
 	}
 
 	return &diskUUID, &walUUID, &dbUUID, &blockUUID, nil
+}
+
+func createFilestoreUUIDs() (*uuid.UUID, *uuid.UUID, *uuid.UUID, error) {
+	diskUUID, err := uuid.NewRandom()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to get disk uuid. %+v", err)
+	}
+
+	dataUUID, err := uuid.NewRandom()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to get data uuid. %+v", err)
+	}
+
+	journalUUID, err := uuid.NewRandom()
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to get journal uuid. %+v", err)
+	}
+
+	return &diskUUID, &dataUUID, &journalUUID, nil
 }

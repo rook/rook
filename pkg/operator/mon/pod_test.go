@@ -62,7 +62,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, 1, len(cont.VolumeMounts))
 	assert.Equal(t, 5, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd mon --data-dir=/var/lib/rook --name=%s --port=%d --fsid=%s",
+	expectedCommand := fmt.Sprintf("/usr/bin/rookd mon --config-dir=/var/lib/rook --name=%s --port=%d --fsid=%s",
 		config.Name, config.Port, c.clusterInfo.FSID)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])

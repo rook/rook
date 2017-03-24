@@ -94,13 +94,13 @@ func TestMountDeviceWithOptions(t *testing.T) {
 		MockExecuteCommand: func(actionName string, command string, arg ...string) error {
 			switch testCount {
 			case 0:
-				assert.Equal(t, []string{"mount", "/dev/abc1", "/tmp/mount1"}, arg)
+				assert.Equal(t, []string{"/dev/abc1", "/tmp/mount1"}, arg)
 			case 1:
-				assert.Equal(t, []string{"mount", "-o", "foo=bar,baz=biz", "/dev/abc1", "/tmp/mount1"}, arg)
+				assert.Equal(t, []string{"-o", "foo=bar,baz=biz", "/dev/abc1", "/tmp/mount1"}, arg)
 			case 2:
-				assert.Equal(t, []string{"mount", "-t", "myfstype", "/dev/abc1", "/tmp/mount1"}, arg)
+				assert.Equal(t, []string{"-t", "myfstype", "/dev/abc1", "/tmp/mount1"}, arg)
 			case 3:
-				assert.Equal(t, []string{"mount", "-t", "myfstype", "-o", "foo=bar,baz=biz", "/dev/abc1", "/tmp/mount1"}, arg)
+				assert.Equal(t, []string{"-t", "myfstype", "-o", "foo=bar,baz=biz", "/dev/abc1", "/tmp/mount1"}, arg)
 			}
 
 			testCount++

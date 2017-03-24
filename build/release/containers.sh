@@ -15,7 +15,7 @@ build() {
     trap "rm -fr $tmpdir" EXIT
     cat <<EOF > $tmpdir/Dockerfile
 FROM alpine:3.5
-RUN apk add --no-cache gptfdisk util-linux coreutils
+RUN apk add --no-cache gptfdisk util-linux coreutils e2fsprogs
 COPY root /
 ENTRYPOINT ["/usr/bin/rookd"]
 EOF

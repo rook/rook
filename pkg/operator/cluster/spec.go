@@ -18,6 +18,8 @@ which also has the apache 2.0 license.
 */
 package cluster
 
+import "github.com/rook/rook/pkg/operator/osd"
+
 type Spec struct {
 	// The namespace where the the rook resources will all be created.
 	Namespace string `json:"namespace"`
@@ -30,14 +32,11 @@ type Spec struct {
 	// Paused is to pause the control of the operator for the rook cluster.
 	Paused bool `json:"paused,omitempty"`
 
-	// Whether to consume all the storage devices found on a machine
-	UseAllDevices bool `json:"useAllDevices"`
-
-	// A regular expression to allow more fine-grained selection of devices on nodes across the cluster
-	DeviceFilter string `json:"deviceFilter"`
-
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath"`
+
+	// A spec for available storage in the cluster and how it should be used
+	Storage osd.StorageSpec `json:"storage"`
 }
 
 type PoolSpec struct {

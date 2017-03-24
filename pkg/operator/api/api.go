@@ -99,8 +99,7 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 
 func (c *Cluster) apiContainer() v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd api --data-dir=%s --port=%d --container-version=%s",
-		k8sutil.DataDir, model.Port, c.Version)
+	command := fmt.Sprintf("/usr/bin/rookd api --config-dir=%s --port=%d --container-version=%s", k8sutil.DataDir, model.Port, c.Version)
 	return v1.Container{
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.

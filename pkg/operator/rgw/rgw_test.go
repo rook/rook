@@ -95,7 +95,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 1, len(cont.VolumeMounts))
 	assert.Equal(t, 5, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd rgw --data-dir=/var/lib/rook --rgw-port=%d --rgw-host=%s",
+	expectedCommand := fmt.Sprintf("/usr/bin/rookd rgw --config-dir=/var/lib/rook --rgw-port=%d --rgw-host=%s",
 		cephrgw.RGWPort, cephrgw.DNSName)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])

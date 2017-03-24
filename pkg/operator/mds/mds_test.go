@@ -86,7 +86,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 1, len(cont.VolumeMounts))
 	assert.Equal(t, 5, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd mds --data-dir=/var/lib/rook --mds-id=%s ",
+	expectedCommand := fmt.Sprintf("/usr/bin/rookd mds --config-dir=/var/lib/rook --mds-id=%s ",
 		mdsID)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])

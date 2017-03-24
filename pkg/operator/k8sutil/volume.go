@@ -13,8 +13,22 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package partition
+package k8sutil
 
-import "github.com/coreos/pkg/capnslog"
+import (
+	"path/filepath"
+	"strings"
+)
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephosdpart")
+func PathToVolumeName(path string) string {
+	// kubernetes volume names must match this regex: [a-z0-9]([-a-z0-9]*[a-z0-9])?
+
+	// first replace all filepath separators with hyphens
+	volumeName := strings.Replace(path, string(filepath.Separator), "-", -1)
+
+	// trim any leading/trailing hyphens
+	volumeName = strings.TrimPrefix(volumeName, "-")
+	volumeName = strings.TrimSuffix(volumeName, "-")
+
+	return volumeName
+}

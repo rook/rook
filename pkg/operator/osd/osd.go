@@ -18,16 +18,22 @@ package osd
 import (
 	"fmt"
 
+	"strings"
+
+	"strconv"
+
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/errors"
+	"k8s.io/client-go/pkg/api/unversioned"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 const (
-	appName = "osd"
+	appName    = "osd"
+	appNameFmt = "osd-%s"
 )
 
 type Cluster struct {
@@ -35,50 +41,112 @@ type Cluster struct {
 	Namespace       string
 	Keyring         string
 	Version         string
-	useAllDevices   bool
+	Storage         StorageSpec
 	dataDirHostPath string
-	deviceFilter    string
 }
 
-func New(clientset kubernetes.Interface, namespace, version, deviceFilter, dataDirHostPath string, useAllDevices bool) *Cluster {
+func New(clientset kubernetes.Interface, namespace, version string, storageSpec StorageSpec, dataDirHostPath string) *Cluster {
 	return &Cluster{
 		clientset:       clientset,
 		Namespace:       namespace,
 		Version:         version,
-		deviceFilter:    deviceFilter,
+		Storage:         storageSpec,
 		dataDirHostPath: dataDirHostPath,
-		useAllDevices:   useAllDevices,
 	}
 }
 
 func (c *Cluster) Start() error {
-	logger.Infof("start running osds")
+	logger.Infof("start running osds in namespace %s", c.Namespace)
 
-	ds, err := c.makeDaemonSet()
-	_, err = c.clientset.Extensions().DaemonSets(c.Namespace).Create(ds)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create osd daemon set. %+v", err)
+	if c.Storage.UseAllNodes {
+		// make a daemonset for all nodes in the cluster
+		ds := c.makeDaemonSet(c.Storage.Selection, c.Storage.Config)
+		_, err := c.clientset.Extensions().DaemonSets(c.Namespace).Create(ds)
+		if err != nil {
+			if !errors.IsAlreadyExists(err) {
+				return fmt.Errorf("failed to create osd daemon set. %+v", err)
+			}
+			logger.Infof("osd daemon set already exists")
+		} else {
+			logger.Infof("osd daemon set started")
 		}
-		logger.Infof("osd daemon set already exists")
 	} else {
-		logger.Infof("osd daemon set started")
+		for i := range c.Storage.Nodes {
+			// fully resolve the storage config for this node
+			n := c.Storage.resolveNode(c.Storage.Nodes[i].Name)
+
+			// create the replicaSet that will run the OSDs for this node
+			rs := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
+			_, err := c.clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
+			if err != nil {
+				if !errors.IsAlreadyExists(err) {
+					return fmt.Errorf("failed to create osd replica set for node %s. %+v", n.Name, err)
+				}
+				logger.Infof("osd replica set already exists for node %s", n.Name)
+			} else {
+				logger.Infof("osd replica set started for node %s", n.Name)
+			}
+		}
 	}
 
 	return nil
 }
 
-func (c *Cluster) makeDaemonSet() (*extensions.DaemonSet, error) {
+func (c *Cluster) makeDaemonSet(selection Selection, config Config) *extensions.DaemonSet {
 	ds := &extensions.DaemonSet{}
 	ds.Name = appName
 	ds.Namespace = c.Namespace
 
+	podSpec := c.podTemplateSpec(nil, nil, selection, config)
+
+	ds.Spec = extensions.DaemonSetSpec{Template: podSpec}
+	return ds
+}
+
+func (c *Cluster) makeReplicaSet(nodeName string, devices []Device, directories []Directory,
+	selection Selection, config Config) *extensions.ReplicaSet {
+
+	rs := &extensions.ReplicaSet{}
+	rs.Name = fmt.Sprintf(appNameFmt, nodeName)
+	rs.Namespace = c.Namespace
+
+	podSpec := c.podTemplateSpec(devices, directories, selection, config)
+	podSpec.Spec.NodeSelector = map[string]string{unversioned.LabelHostname: nodeName}
+
+	replicaCount := int32(1)
+
+	rs.Spec = extensions.ReplicaSetSpec{
+		Template: podSpec,
+		Replicas: &replicaCount,
+	}
+
+	return rs
+}
+
+func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, selection Selection, config Config) v1.PodTemplateSpec {
+	// by default, the data/config dir will be an empty volume
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if c.dataDirHostPath != "" {
+		// the user has specified a host path to use for the data dir, use that instead
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
 	}
 
-	podSpec := v1.PodTemplateSpec{
+	// create volume config for the data dir and /dev so the pod can access devices on the host
+	volumes := []v1.Volume{
+		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
+		{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}},
+	}
+
+	// add each OSD directory as another host path volume source
+	for _, d := range directories {
+		dirVolume := v1.Volume{
+			Name:         k8sutil.PathToVolumeName(d.Path),
+			VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: d.Path}},
+		}
+		volumes = append(volumes, dirVolume)
+	}
+
+	return v1.PodTemplateSpec{
 		ObjectMeta: v1.ObjectMeta{
 			Name: appName,
 			Labels: map[string]string{
@@ -88,48 +156,124 @@ func (c *Cluster) makeDaemonSet() (*extensions.DaemonSet, error) {
 			Annotations: map[string]string{},
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.osdContainer()},
+			Containers:    []v1.Container{c.osdContainer(devices, directories, selection, config)},
 			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes: []v1.Volume{
-				{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
-				{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}},
-			},
+			Volumes:       volumes,
 		},
 	}
-
-	ds.Spec = extensions.DaemonSetSpec{Template: podSpec}
-
-	return ds, nil
 }
 
-func (c *Cluster) osdContainer() v1.Container {
+func (c *Cluster) osdContainer(devices []Device, directories []Directory, selection Selection, config Config) v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd osd --data-dir=%s ", k8sutil.DataDir)
-	var devices string
-	if c.deviceFilter != "" {
-		devices = c.deviceFilter
-	} else if c.useAllDevices {
-		devices = "all"
+	command := "/usr/bin/rookd osd"
+
+	envVars := []v1.EnvVar{
+		opmon.ClusterNameEnvVar(),
+		opmon.MonEndpointEnvVar(),
+		opmon.MonSecretEnvVar(),
+		opmon.AdminSecretEnvVar(),
+		k8sutil.ConfigDirEnvVar(),
+	}
+
+	// only 1 of device list, device filter and use all devices can be specified.  We prioritize in that order.
+	if len(devices) > 0 {
+		deviceNames := make([]string, len(devices))
+		for i := range devices {
+			deviceNames[i] = devices[i].Name
+		}
+		envVars = append(envVars, dataDevicesEnvVar(strings.Join(deviceNames, ",")))
+	} else if selection.DeviceFilter != "" {
+		envVars = append(envVars, deviceFilterEnvVar(selection.DeviceFilter))
+	} else if selection.getUseAllDevices() {
+		envVars = append(envVars, deviceFilterEnvVar("all"))
+	}
+
+	if selection.MetadataDevice != "" {
+		envVars = append(envVars, metadataDeviceEnvVar(selection.MetadataDevice))
+	}
+
+	volumeMounts := []v1.VolumeMount{
+		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
+		{Name: "devices", MountPath: "/dev"},
+	}
+
+	if len(directories) > 0 {
+		// for each directory the user has specified, create a volume mount and pass it to the pod via cmd line arg
+		dirPaths := make([]string, len(directories))
+		for i := range directories {
+			dpath := directories[i].Path
+			dirPaths[i] = dpath
+			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: k8sutil.PathToVolumeName(dpath), MountPath: dpath})
+		}
+
+		envVars = append(envVars, dataDirectoriesEnvVar(strings.Join(dirPaths, ",")))
+	}
+
+	if config.StoreConfig.StoreType != "" {
+		envVars = append(envVars, osdStoreEnvVar(config.StoreConfig.StoreType))
+	}
+
+	if config.StoreConfig.DatabaseSizeMB != 0 {
+		envVars = append(envVars, osdDatabaseSizeEnvVar(config.StoreConfig.DatabaseSizeMB))
+	}
+
+	if config.StoreConfig.WalSizeMB != 0 {
+		envVars = append(envVars, osdWalSizeEnvVar(config.StoreConfig.WalSizeMB))
+	}
+
+	if config.StoreConfig.JournalSizeMB != 0 {
+		envVars = append(envVars, osdJournalSizeEnvVar(config.StoreConfig.JournalSizeMB))
+	}
+
+	if config.Location != "" {
+		envVars = append(envVars, locationEnvVar(config.Location))
 	}
 
 	privileged := true
 	return v1.Container{
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.
-		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
-		Name:    appName,
-		Image:   k8sutil.MakeRookImage(c.Version),
-		VolumeMounts: []v1.VolumeMount{
-			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
-			{Name: "devices", MountPath: "/dev"},
-		},
-		Env: []v1.EnvVar{
-			v1.EnvVar{Name: "ROOKD_DATA_DEVICES", Value: devices},
-			opmon.ClusterNameEnvVar(),
-			opmon.MonEndpointEnvVar(),
-			opmon.MonSecretEnvVar(),
-			opmon.AdminSecretEnvVar(),
-		},
+		Command:         []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
+		Name:            appName,
+		Image:           k8sutil.MakeRookImage(c.Version),
+		VolumeMounts:    volumeMounts,
+		Env:             envVars,
 		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
 	}
+}
+
+func dataDevicesEnvVar(dataDevices string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_DATA_DEVICES", Value: dataDevices}
+}
+
+func deviceFilterEnvVar(filter string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_DATA_DEVICE_FILTER", Value: filter}
+}
+
+func metadataDeviceEnvVar(metadataDevice string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_METADATA_DEVICE", Value: metadataDevice}
+}
+
+func dataDirectoriesEnvVar(dataDirectories string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_DATA_DIRECTORIES", Value: dataDirectories}
+}
+
+func osdStoreEnvVar(osdStore string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_OSD_STORE", Value: osdStore}
+}
+
+func osdDatabaseSizeEnvVar(databaseSize int) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_OSD_DATABASE_SIZE", Value: strconv.Itoa(databaseSize)}
+}
+
+func osdWalSizeEnvVar(walSize int) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_OSD_WAL_SIZE", Value: strconv.Itoa(walSize)}
+}
+
+func osdJournalSizeEnvVar(journalSize int) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_OSD_JOURNAL_SIZE", Value: strconv.Itoa(journalSize)}
+}
+
+func locationEnvVar(location string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_LOCATION", Value: location}
 }
