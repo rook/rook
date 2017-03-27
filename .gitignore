@@ -1,10 +1,9 @@
 .vscode/
 
-/.glide
 /.work
+/.tools
 
 /bin
-/tools
 /vendor
 /release
 

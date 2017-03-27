@@ -45,7 +45,7 @@ GO_SUBDIRS ?= cmd pkg
 
 # Optional directories (relative to CURDIR)
 GO_BIN_DIR ?= bin
-GO_TOOLS_DIR ?= tools
+GO_TOOLS_DIR ?= .tools
 GO_VENDOR_DIR ?= vendor
 GO_PKG_DIR ?=
 
@@ -79,11 +79,14 @@ GOHOSTARCH = $(shell go env GOHOSTARCH)
 GO_ALL_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
 
 unexport CGO_ENABLED
-export CGO_CFLAGS CGO_CPPFLAGS CGO_LDFLAGS GLIDE_HOME
+export CGO_CFLAGS CGO_CPPFLAGS CGO_LDFLAGS
 
-# setup glide
-GLIDE_HOME := $(abspath .glide)
-GLIDE := $(GO_TOOLS_DIR)/glide
+# setup tools used during the build
+GO_TOOLS_HOST_DIR ?= $(abspath $(GO_TOOLS_DIR)/$(GOHOSTOS)_$(GOHOSTARCH))
+GLIDE_HOME := $(abspath $(GO_TOOLS_DIR)/glide)
+GLIDE := $(GO_TOOLS_HOST_DIR)/glide
+GOLINT := $(GO_TOOLS_HOST_DIR)/golint
+export GLIDE_HOME
 
 GO := go
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
@@ -163,8 +166,8 @@ go.test: go.vet go.fmt
 	@$(GOHOST) test -cover $(GO_PKG_FLAGS) $(GO_NONSTATIC_FLAGS) $(GO_ALL_PACKAGES)
 
 .PHONY: go.lint
-go.lint: $(GO_TOOLS_DIR)/lint/$(GOHOSTOS)-$(GOHOSTARCH)/golint
-	@$(GO_TOOLS_DIR)/lint/$(GOHOSTOS)-$(GOHOSTARCH)/golint -set_exit_status=true $(GO_ALL_PACKAGES)
+go.lint: $(GOLINT)
+	@$(GOLINT) -set_exit_status=true $(GO_ALL_PACKAGES)
 
 .PHONY: go.vet
 go.vet:
@@ -175,25 +178,23 @@ go.fmt:
 	@$(GOHOST) fmt $(GO_ALL_PACKAGES)
 
 .PHONY: go.vendor
-go.vendor $(GO_VENDOR_DIR)/vendor.stamp: $(GO_TOOLS_DIR)/glide
+go.vendor $(GO_VENDOR_DIR)/vendor.stamp: $(GLIDE)
 	@mkdir -p $(GLIDE_HOME)
 	@$(GLIDE) install
 	@touch $(GO_VENDOR_DIR)/vendor.stamp
 
-$(GO_TOOLS_DIR)/glide:
+$(GLIDE):
 	@echo "installing glide"
-	@mkdir -p $(GO_TOOLS_DIR)
-	@curl -sL https://github.com/Masterminds/glide/releases/download/v0.12.3/glide-v0.12.3-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(GO_TOOLS_DIR)
-	@mv $(GO_TOOLS_DIR)/$(GOHOSTOS)-$(GOHOSTARCH)/glide $(GO_TOOLS_DIR)/glide
-	@rm -r $(GO_TOOLS_DIR)/$(GOHOSTOS)-$(GOHOSTARCH)
+	@mkdir -p $(GO_TOOLS_HOST_DIR)/tmp
+	@curl -sL https://github.com/Masterminds/glide/releases/download/v0.12.3/glide-v0.12.3-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(GO_TOOLS_HOST_DIR)/tmp
+	@mv $(GO_TOOLS_HOST_DIR)/tmp/$(GOHOSTOS)-$(GOHOSTARCH)/glide $(GO_TOOLS_HOST_DIR)/glide
+	@rm -fr $(GO_TOOLS_HOST_DIR)/tmp
 
-$(GO_TOOLS_DIR)/lint/$(GOHOSTOS)-$(GOHOSTARCH)/golint:
+$(GOLINT):
 	@echo "installing golint"
-	@mkdir -p $(GO_TOOLS_DIR)/tmp/lint/bin
-	@GOPATH=`pwd`/$(GO_TOOLS_DIR)/tmp/lint GOBIN=`pwd`/$(GO_TOOLS_DIR)/tmp/lint/bin $(GOHOST) get github.com/golang/lint/golint
-	@mkdir -p $(GO_TOOLS_DIR)/lint/$(GOHOSTOS)-$(GOHOSTARCH)
-	@mv $(GO_TOOLS_DIR)/tmp/lint/bin/golint $(GO_TOOLS_DIR)/lint/$(GOHOSTOS)-$(GOHOSTARCH)/golint
-	@rm -rf $(GO_TOOLS_DIR)/tmp
+	@mkdir -p $(GO_TOOLS_HOST_DIR)/tmp
+	@GOPATH=$(GO_TOOLS_HOST_DIR)/tmp GOBIN=$(GO_TOOLS_HOST_DIR) $(GOHOST) get github.com/golang/lint/golint
+	@rm -fr $(GO_TOOLS_HOST_DIR)/tmp
 
 .PHONY: go.clean
 go.clean: ;
