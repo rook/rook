@@ -52,7 +52,7 @@ func TestUnmountBlock(t *testing.T) {
 	createMockRBD(mockRBDSysBusPath, "4", "myimage1", "mypool1")
 
 	// call unmountBlock and verify success and output
-	out, err := unmountBlock("", "/tmp/mymount1", mockRBDSysBusPath, e)
+	out, err := unmapBlock("", "/tmp/mymount1", mockRBDSysBusPath, e)
 	assert.Nil(t, err)
 	assert.Equal(t, "succeeded removing rbd device /dev/rbd4 from '/tmp/mymount1'", out)
 
@@ -76,13 +76,13 @@ func TestUnmountBlockFailure(t *testing.T) {
 	}
 
 	// expect unmountBlock to fail
-	out, err := unmountBlock("", "/tmp/mymount1", "", e)
+	out, err := unmapBlock("", "/tmp/mymount1", "", e)
 	assert.NotNil(t, err)
 	assert.Equal(t, "", out)
 }
 
 func TestUnmountBlockRequiresDeviceOrPath(t *testing.T) {
-	out, err := unmountBlock("", "", "", nil)
+	out, err := unmapBlock("", "", "", nil)
 	assert.NotNil(t, err)
 	assert.Equal(t, "", out)
 }

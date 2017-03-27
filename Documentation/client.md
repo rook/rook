@@ -10,10 +10,10 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](R
     $ rook block create --name test --size 10485760
     ```
 
-2. Mount the block volume and format it
+2. Map the block volume and format it and mount it
 
     ```bash
-    sudo -E rook block mount --name test --path /tmp/rook-volume
+    sudo -E rook block map --name test --format --mount /tmp/rook-volume
     sudo chown $USER:$USER /tmp/rook-volume
     ```
 
@@ -27,7 +27,7 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](R
 4. Cleanup
 
     ```bash
-    sudo rook block unmount --path /tmp/rook-volume
+    sudo rook block unmap --mount /tmp/rook-volume
     ```
 
 ## Shared File System
