@@ -37,5 +37,5 @@ catch (Exception e) {
         deleteDir()
     }
 
-    error 1
+    exit 1
 }
