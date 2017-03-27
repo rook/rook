@@ -22,10 +22,10 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
-
 	"k8s.io/client-go/rest"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
@@ -67,9 +67,10 @@ func New(host, namespace string, factory client.ConnectionFactory, clientset kub
 		retryDelay: 3,
 		maxRetries: 30,
 	}
+	cluster := newClusterTPR(context)
 	return &Operator{
 		context: context,
-		tprs:    []TPR{newClusterTPR(context), newPoolTPR(context)},
+		tprs:    []TPR{cluster, newPoolTPR(context, cluster)},
 	}
 }
 
@@ -84,12 +85,19 @@ func (o *Operator) Run() error {
 	}
 
 	// watch for changes to the rook clusters
+	var wg sync.WaitGroup
+	wg.Add(len(o.tprs))
 	for _, tpr := range o.tprs {
-		if err := tpr.Watch(); err != nil {
-			return fmt.Errorf("failed to watch tpr %s. %+v", tpr.Name(), err)
-		}
+		go func(t TPR) {
+			defer wg.Done()
+			if err := t.Watch(); err != nil {
+				logger.Errorf("failed to watch tpr %s. %+v", t.Name(), err)
+			}
+		}(tpr)
 	}
 
+	// wait for all of the TPRs to complete before exiting. If they complete it means there was an error.
+	wg.Wait()
 	return nil
 }
 

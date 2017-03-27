@@ -25,10 +25,12 @@ import (
 	"net/http"
 	"time"
 
-	kwatch "k8s.io/client-go/pkg/watch"
+	"sync"
 
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	rookclient "github.com/rook/rook/pkg/rook/client"
+	kwatch "k8s.io/client-go/pkg/watch"
 )
 
 type clusterTPR struct {
@@ -37,6 +39,7 @@ type clusterTPR struct {
 	devicesInUse bool
 	clusters     map[string]*cluster.Cluster
 	tracker      *tprTracker
+	sync.RWMutex
 }
 
 func newClusterTPR(context *context) *clusterTPR {
@@ -48,7 +51,7 @@ func newClusterTPR(context *context) *clusterTPR {
 }
 
 func (t *clusterTPR) Name() string {
-	return "cluster"
+	return "rookcluster"
 }
 
 func (t *clusterTPR) Description() string {
@@ -178,7 +181,6 @@ func (t *clusterTPR) Watch() error {
 		}
 	}()
 	return <-errCh
-
 }
 
 // watch creates a go routine, and watches the cluster.rook kind resources from
@@ -194,12 +196,9 @@ func (t *clusterTPR) watch() (<-chan *clusterEvent, <-chan error) {
 		defer close(eventCh)
 
 		for {
-			cancel, err := t.watchOuterTPR(eventCh)
+			err := t.watchOuterTPR(eventCh, errCh)
 			if err != nil {
-				logger.Errorf("failed to watch cluster tpr. %+v", err)
-			}
-			if cancel {
-				logger.Warningf("cancelling cluster tpr watch")
+				logger.Warningf("cancelling cluster tpr watch. %+v", err)
 				return
 			}
 		}
@@ -208,29 +207,29 @@ func (t *clusterTPR) watch() (<-chan *clusterEvent, <-chan error) {
 	return eventCh, errCh
 }
 
-func (t *clusterTPR) watchOuterTPR(eventCh chan *clusterEvent) (bool, error) {
+func (t *clusterTPR) watchOuterTPR(eventCh chan *clusterEvent, errCh chan error) error {
 	resp, err := watchTPR(t.context, t.Name(), t.watchVersion)
 	if err != nil {
-		return false, err
+		errCh <- err
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return false, errors.New("invalid status code: " + resp.Status)
+		err := errors.New("invalid status code: " + resp.Status)
+		errCh <- err
+		return err
 	}
 
 	decoder := json.NewDecoder(resp.Body)
 	for {
 		ev, st, err := pollClusterEvent(decoder)
-		done, cancel, err := handlePollEventResult(st, err, t.checkStaleCache)
+		done, err := handlePollEventResult(st, err, t.checkStaleCache, errCh)
 		if err != nil {
-			return false, err
+			return err
 		}
 		if done {
-			return false, nil
-		}
-		if cancel {
-			return true, nil
+			return nil
 		}
 		logger.Debugf("rook cluster event: %+v", ev)
 
@@ -247,4 +246,14 @@ func (t *clusterTPR) checkStaleCache() (bool, error) {
 	}
 
 	return true, err
+}
+
+func (t *clusterTPR) getRookClient(namespace string) (rookclient.RookRestClient, error) {
+	t.Lock()
+	defer t.Unlock()
+	if c, ok := t.clusters[namespace]; ok {
+		return c.GetRookClient()
+	}
+
+	return nil, fmt.Errorf("namespace %s not found", namespace)
 }

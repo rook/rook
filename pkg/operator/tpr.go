@@ -115,7 +115,7 @@ func getRawList(context *context, tpr TPR) ([]byte, error) {
 	return restcli.Get().RequestURI(tprURI(context, tpr.Name())).DoRaw()
 }
 
-func handlePollEventResult(status *unversioned.Status, errIn error, checkStaleCache func() (bool, error)) (done, cancel bool, err error) {
+func handlePollEventResult(status *unversioned.Status, errIn error, checkStaleCache func() (bool, error), errCh chan error) (done bool, err error) {
 	if errIn != nil {
 		if errIn == io.EOF { // apiserver will close stream periodically
 			logger.Debug("apiserver closed stream")
@@ -123,9 +123,8 @@ func handlePollEventResult(status *unversioned.Status, errIn error, checkStaleCa
 			return
 		}
 
-		logger.Errorf("received invalid event from API server: %v", err)
 		err = errIn
-		cancel = true
+		errCh <- fmt.Errorf("received invalid event from API server: %v", err)
 		return
 	}
 
@@ -144,7 +143,7 @@ func handlePollEventResult(status *unversioned.Status, errIn error, checkStaleCa
 			// if anything has changed (or error on relist), we have to rebuild the state.
 			// go to recovery path
 			err = ErrVersionOutdated
-			cancel = true
+			errCh <- ErrVersionOutdated
 			return
 		}
 

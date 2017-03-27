@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: rook-operator
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: rook-operator
+    spec:
+      containers:
+      - name: rook-operator
+        image: quay.io/myrepo/rook-operator:mytag
+        env:
+        - name: ROOK_OPERATOR_REPO_PREFIX
+          value: quay.io/myrepo
+        - name: ROOK_OPERATOR_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace

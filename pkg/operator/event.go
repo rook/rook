@@ -36,7 +36,7 @@ type clusterEvent struct {
 
 type poolEvent struct {
 	Type   kwatch.EventType
-	Object *cluster.PoolSpec
+	Object *cluster.Pool
 }
 
 type rawEvent struct {
@@ -64,16 +64,16 @@ func pollClusterEvent(decoder *json.Decoder) (*clusterEvent, *unversioned.Status
 func pollPoolEvent(decoder *json.Decoder) (*poolEvent, *unversioned.Status, error) {
 	re, status, err := pollEvent(decoder)
 	if err != nil {
-		return nil, status, fmt.Errorf("failed to poll cluster event. %+v", err)
+		return nil, status, fmt.Errorf("failed to poll pool event. %+v", err)
 	}
 
 	ev := &poolEvent{
 		Type:   re.Type,
-		Object: &cluster.PoolSpec{},
+		Object: &cluster.Pool{},
 	}
 	err = json.Unmarshal(re.Object, ev.Object)
 	if err != nil {
-		return nil, nil, fmt.Errorf("fail to unmarshal Cluster object from data (%s): %v", re.Object, err)
+		return nil, nil, fmt.Errorf("fail to unmarshal Pool object from data (%s): %v", re.Object, err)
 	}
 	return ev, nil, nil
 }

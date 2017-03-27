@@ -28,7 +28,7 @@ This will start the rook-operator pod.  Verify that it is in the `Running` state
 kubectl get pod | grep rook-operator | awk '{print $3}'
 ```
 
-Now that the rook-operator pod is in the `Running` state, we can create the Rook cluster. See the documentation on [configuring the cluster](k8s-tpr.md).
+Now that the rook-operator pod is in the `Running` state, we can create the Rook cluster. See the documentation on [configuring the cluster](cluster-tpr.md).
 ```
 kubectl create -f rook-cluster.yaml
 ```
@@ -47,9 +47,14 @@ rook-api-1709486253-gvdnc   1/1       Running   0          1m
 ```
 
 ### Provision Storage
-Before Rook can start provisioning storage, a StorageClass needs to be created. This is used to specify information needed for Kubernetes to interoperate with Rook for provisioning persistent volumes.  Rook already creates a default admin and rbd user, whose secrets are already specified in the sample [rook-storageclass.yaml](/demo/kubernetes/rook-storageclass.yaml).
+Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes.  
 
-Now we just need to specify the Ceph monitor endpoints (requires `jq`):
+First create the storage pool. See the documentation on [creating storage pools](pool-tpr.md).
+```
+kubectl create -f rook-pool.yaml
+```
+
+Rook already creates a default admin and rbd user, whose secrets are already specified in the sample [rook-storageclass.yaml](/demo/kubernetes/rook-storageclass.yaml). Now we just need to specify the Ceph monitor endpoints (requires `jq`):
 
 ```
 export MONS=$(kubectl -n rook get pod mon0 mon1 mon2 -o json|jq ".items[].status.podIP"|tr -d "\""|sed -e 's/$/:6790/'|paste -s -d, -)
@@ -112,11 +117,13 @@ At this point, you can use the `rook` tool along with some [simple steps to crea
 ### Teardown
 To clean up all the artifacts created by the demo, run the following:
 ```
-kubectl delete deployment rook-operator wordpress wordpress-mysql
-kubectl delete thirdpartyresources cluster.rook.io
-kubectl delete namespace rook
+kubectl delete -f wordpress.yaml
+kubectl delete -f mysql.yaml
+kubectl delete deployment rook-operator
+kubectl delete thirdpartyresources rookcluster.rook.io rookpool.rook.io
 kubectl delete storageclass rook-block
 kubectl delete secret rook-rbd-user
+kubectl delete namespace rook
 ```
 If you modified the demo settings, additional cleanup is up to you for devices, host paths, etc.
 
