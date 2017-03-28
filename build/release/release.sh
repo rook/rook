@@ -6,13 +6,13 @@ source ${scriptdir}/common.sh
 action=$1
 shift
 
-platform=$1
-shift
-
 mkdir -p ${RELEASE_DIR}
 
 case ${action} in
     build|publish)
+        platform=$1
+        shift
+
         flavor=$1
         shift
 
