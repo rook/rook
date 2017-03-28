@@ -59,7 +59,7 @@ release.build.$(1).$(2):
 release.build.all: release.build.$(1).$(2)
 
 release.publish.$(1).$(2):
-	@build/release/release.sh publish $(2).$(1)
+	@build/release/release.sh publish $(2) $(1)
 
 release.publish.all: release.publish.$(1).$(2)
 endef
