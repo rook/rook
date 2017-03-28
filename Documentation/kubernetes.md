@@ -114,6 +114,10 @@ rook node ls
 
 At this point, you can use the `rook` tool along with some [simple steps to create and manage block, file and object storage](client.md).
 
+### Monitoring
+Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
+To learn how to set up monitoring for your Rook cluster, you can follow the steps in the [monitoring guide](./k8s-monitoring.md).
+
 ### Teardown
 To clean up all the artifacts created by the demo, run the following:
 ```
