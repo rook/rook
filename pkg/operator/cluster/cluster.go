@@ -20,6 +20,7 @@ package cluster
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 
 	"k8s.io/client-go/pkg/api/errors"
@@ -33,16 +34,14 @@ import (
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
 	"github.com/rook/rook/pkg/operator/rgw"
+	rookclient "github.com/rook/rook/pkg/rook/client"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
-const (
-	defaultPool = "rook"
-)
-
 var (
 	healthCheckInterval = 10 * time.Second
+	clientTimeout       = 15 * time.Second
 	logger              = capnslog.NewPackageLogger("github.com/rook/rook-operator", "op-cluster")
 )
 
@@ -56,6 +55,7 @@ type Cluster struct {
 	osds      *osd.Cluster
 	apis      *api.Cluster
 	rgws      *rgw.Cluster
+	rclient   rookclient.RookRestClient
 }
 
 func New(spec Spec, factory client.ConnectionFactory, clientset kubernetes.Interface) *Cluster {
@@ -132,13 +132,6 @@ func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 	}
 	defer conn.Shutdown()
 
-	// create the default rook pool
-	pool := client.CephStoragePoolDetails{Name: defaultPool}
-	_, err = client.CreatePool(conn, pool)
-	if err != nil {
-		return fmt.Errorf("failed to create default rook pool: %+v", err)
-	}
-
 	// create a user for rbd clients
 	username := "client.rook-rbd-user"
 	access := []string{"osd", "allow rwx", "mon", "allow r"}
@@ -176,4 +169,24 @@ func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 	}
 
 	return nil
+}
+
+func (c *Cluster) GetRookClient() (rookclient.RookRestClient, error) {
+	if c.rclient != nil {
+		return c.rclient, nil
+	}
+
+	// Look up the api service for the given namespace
+	logger.Infof("retrieving rook api endpoint for namespace %s", c.Namespace)
+	svc, err := c.clientset.CoreV1().Services(c.Namespace).Get("rook-api")
+	if err != nil {
+		return nil, fmt.Errorf("failed to find the api service. %+v", err)
+	}
+
+	httpClient := http.DefaultClient
+	httpClient.Timeout = clientTimeout
+	endpoint := fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, svc.Spec.Ports[0].Port)
+	c.rclient = rookclient.NewRookNetworkRestClient(rookclient.GetRestURL(endpoint), httpClient)
+	logger.Infof("rook api endpoint %s for namespace %s", endpoint, c.Namespace)
+	return c.rclient, nil
 }

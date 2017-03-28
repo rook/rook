@@ -29,9 +29,14 @@ import (
 	kwatch "k8s.io/client-go/pkg/watch"
 )
 
-type Event struct {
+type clusterEvent struct {
 	Type   kwatch.EventType
 	Object *cluster.Cluster
+}
+
+type poolEvent struct {
+	Type   kwatch.EventType
+	Object *cluster.Pool
 }
 
 type rawEvent struct {
@@ -39,7 +44,41 @@ type rawEvent struct {
 	Object json.RawMessage
 }
 
-func pollEvent(decoder *json.Decoder) (*Event, *unversioned.Status, error) {
+func pollClusterEvent(decoder *json.Decoder) (*clusterEvent, *unversioned.Status, error) {
+	re, status, err := pollEvent(decoder)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to poll cluster event. %+v", err)
+	}
+
+	ev := &clusterEvent{
+		Type:   re.Type,
+		Object: &cluster.Cluster{},
+	}
+	err = json.Unmarshal(re.Object, ev.Object)
+	if err != nil {
+		return nil, nil, fmt.Errorf("fail to unmarshal Cluster object from data (%s): %v", re.Object, err)
+	}
+	return ev, status, nil
+}
+
+func pollPoolEvent(decoder *json.Decoder) (*poolEvent, *unversioned.Status, error) {
+	re, status, err := pollEvent(decoder)
+	if err != nil {
+		return nil, status, fmt.Errorf("failed to poll pool event. %+v", err)
+	}
+
+	ev := &poolEvent{
+		Type:   re.Type,
+		Object: &cluster.Pool{},
+	}
+	err = json.Unmarshal(re.Object, ev.Object)
+	if err != nil {
+		return nil, nil, fmt.Errorf("fail to unmarshal Pool object from data (%s): %v", re.Object, err)
+	}
+	return ev, nil, nil
+}
+
+func pollEvent(decoder *json.Decoder) (*rawEvent, *unversioned.Status, error) {
 	re := &rawEvent{}
 	err := decoder.Decode(re)
 	if err != nil {
@@ -58,13 +97,5 @@ func pollEvent(decoder *json.Decoder) (*Event, *unversioned.Status, error) {
 		return nil, status, nil
 	}
 
-	ev := &Event{
-		Type:   re.Type,
-		Object: &cluster.Cluster{},
-	}
-	err = json.Unmarshal(re.Object, ev.Object)
-	if err != nil {
-		return nil, nil, fmt.Errorf("fail to unmarshal Cluster object from data (%s): %v", re.Object, err)
-	}
-	return ev, nil, nil
+	return re, nil, nil
 }

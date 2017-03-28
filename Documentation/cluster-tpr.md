@@ -1,16 +1,17 @@
-# Rook TPRs
+# Creating Rook Clusters
 Rook allows creation and customization of storage clusters through the third party resources (TPRs). The following settings are available
 for a cluster.
 
 ## Sample
 ```
 apiVersion: rook.io/v1beta1
-kind: Cluster
+kind: Rookcluster
 metadata:
-  name: my-rook
+  name: rook
 spec:
   namespace: rook
   version: latest
+  hostPath: /var/lib/rook
   useAllDevices: false
   deviceFilter: ^sd.
 ```
@@ -19,6 +20,7 @@ spec:
 Settings can be specified at the global level to apply to the cluster as a whole, while other settings can be specified at more fine-grained levels.
 
 ### Global settings
+- `hostPath`: The host path where config and data should be stored for each of the services. If the directory does not exist, it will be created. In test scenarios, the path must be deleted if you are going to delete a cluster and start a new cluster on the same hosts.
 - `namespace`: The Kubernetes namespace that will be created for the Rook cluster. The services, pods, and other resources created by the operator will be added to this namespace. Each cluster must have a unique namespace. The common scenario is to create a single Rook cluster. If multiple clusters are created, they must not have conflicting devices or host paths.
 - `version`: The version of the `quay.io/rook/rookd` and `quay.io/rook/rook-operator` containers that will be deployed. Upgrades are not yet supported if this setting is updated for an existing cluster, but upgrades will be coming.
 - `useAllDevices`: `true` or `false`, indicating whether all devices found on nodes in the cluster should be automatically consumed by OSDs. **Not recommended** unless you have a very controlled environment where you will not risk formatting of devices with existing data. When `true`, all devices will be used except those with partitions created or a local filesystem. Is overridden by `deviceFilter` if specified.

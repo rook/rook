@@ -1,8 +1,10 @@
 apiVersion: rook.io/v1beta1
-kind: Cluster
+kind: Rookcluster
 metadata:
-  name: my-rook
+  name: rook
 spec:
   namespace: rook
   version: latest
+  dataDirHostPath: 
   useAllDevices: false
+  deviceFilter:

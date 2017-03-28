@@ -9,6 +9,6 @@ parameters:
     adminId: admin
     adminSecretName: rook-admin
     adminSecretNamespace: rook
-    pool: rook
+    pool: replicapool
     userId: rook-rbd-user
     userSecretName: rook-rbd-user

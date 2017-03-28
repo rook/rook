@@ -20,53 +20,78 @@ package operator
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"time"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	"k8s.io/client-go/pkg/api/errors"
+	"k8s.io/client-go/pkg/api/unversioned"
 	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
-	"k8s.io/client-go/rest"
 )
 
 const (
-	tprKind        = "cluster"
-	tprGroup       = "rook.io"
-	tprVersion     = "v1beta1"
-	tprDescription = "Managed rook clusters"
+	tprGroup   = "rook.io"
+	tprVersion = "v1beta1"
 )
 
-func tprName() string {
-	return fmt.Sprintf("%s.%s", tprKind, tprGroup)
+type TPR interface {
+	Name() string
+	Description() string
+	Load() error
+	Watch() error
 }
 
-func (o *Operator) createTPR() error {
-	logger.Info("creating rook TPR")
-	tpr := &v1beta1.ThirdPartyResource{
-		ObjectMeta: v1.ObjectMeta{
-			Name: tprName(),
-		},
-		Versions: []v1beta1.APIVersion{
-			{Name: tprVersion},
-		},
-		Description: tprDescription,
+func qualifiedName(tpr TPR) string {
+	return fmt.Sprintf("%s.%s", tpr.Name(), tprGroup)
+}
+
+func createTPRs(context *context, tprs []TPR) error {
+	for _, tpr := range tprs {
+		if err := createTPR(context, tpr); err != nil {
+			return fmt.Errorf("failed to init tpr %s. %+v", tpr.Name(), err)
+		}
 	}
-	_, err := o.clientset.ExtensionsV1beta1().ThirdPartyResources().Create(tpr)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create rook third party resources. %+v", err)
+
+	for _, tpr := range tprs {
+		if err := waitForTPRInit(context, tpr); err != nil {
+			return fmt.Errorf("failed to complete init %s. %+v", tpr.Name(), err)
 		}
 	}
 
 	return nil
 }
 
-func (o *Operator) waitForTPRInit(restcli rest.Interface, maxRetries int, ns string) error {
-	uri := fmt.Sprintf("/apis/%s/%s/namespaces/%s/clusters", tprGroup, tprVersion, ns)
-	return k8sutil.Retry(time.Duration(o.retryDelay)*time.Second, maxRetries, func() (bool, error) {
+func createTPR(context *context, tpr TPR) error {
+	logger.Infof("creating %s TPR", tpr.Name())
+	r := &v1beta1.ThirdPartyResource{
+		ObjectMeta: v1.ObjectMeta{
+			Name: qualifiedName(tpr),
+		},
+		Versions: []v1beta1.APIVersion{
+			{Name: tprVersion},
+		},
+		Description: tpr.Description(),
+	}
+	_, err := context.clientset.ExtensionsV1beta1().ThirdPartyResources().Create(r)
+	if err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create %s TPR. %+v", tpr.Name(), err)
+		}
+	}
+
+	return nil
+}
+
+func waitForTPRInit(context *context, tpr TPR) error {
+	restcli := context.clientset.CoreV1().RESTClient()
+	uri := tprURI(context, tpr.Name())
+	return k8sutil.Retry(time.Duration(context.retryDelay)*time.Second, context.maxRetries, func() (bool, error) {
 		_, err := restcli.Get().RequestURI(uri).DoRaw()
 		if err != nil {
+			logger.Infof("failed to query for tpr %s. %+v", tpr.Name(), err)
 			if errors.IsNotFound(err) {
 				return false, nil
 			}
@@ -74,4 +99,57 @@ func (o *Operator) waitForTPRInit(restcli rest.Interface, maxRetries int, ns str
 		}
 		return true, nil
 	})
+}
+
+func watchTPR(context *context, name string, resourceVersion string) (*http.Response, error) {
+	return context.kubeHttpCli.Get(fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s",
+		context.masterHost, tprURI(context, name), resourceVersion))
+}
+
+func tprURI(context *context, name string) string {
+	return fmt.Sprintf("/apis/%s/%s/namespaces/%s/%ss", tprGroup, tprVersion, context.namespace, name)
+}
+
+func getRawList(context *context, tpr TPR) ([]byte, error) {
+	restcli := context.clientset.CoreV1().RESTClient()
+	return restcli.Get().RequestURI(tprURI(context, tpr.Name())).DoRaw()
+}
+
+func handlePollEventResult(status *unversioned.Status, errIn error, checkStaleCache func() (bool, error), errCh chan error) (done bool, err error) {
+	if errIn != nil {
+		if errIn == io.EOF { // apiserver will close stream periodically
+			logger.Debug("apiserver closed stream")
+			done = true
+			return
+		}
+
+		err = errIn
+		errCh <- fmt.Errorf("received invalid event from API server: %v", err)
+		return
+	}
+
+	if status != nil {
+
+		if status.Code == http.StatusGone {
+			// event history is outdated.
+			// if nothing has changed, we can go back to watch again.
+			var stale bool
+			stale, err = checkStaleCache()
+			if err == nil && !stale {
+				done = true
+				return
+			}
+
+			// if anything has changed (or error on relist), we have to rebuild the state.
+			// go to recovery path
+			err = ErrVersionOutdated
+			errCh <- ErrVersionOutdated
+			return
+		}
+
+		logger.Errorf("unexpected status response from API server: %v", status.Message)
+		done = true
+		return
+	}
+	return
 }

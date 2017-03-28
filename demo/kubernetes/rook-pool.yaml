@@ -1,0 +1,14 @@
+apiVersion: rook.io/v1beta1
+kind: Rookpool
+metadata:
+  name: rook-replicapool
+spec:
+  name: replicapool
+  namespace: rook
+  replication:
+    count: 1
+  # For an erasure-coded pool, comment out the replication count above and uncomment the following settings.
+  # Make sure you have enough OSDs to support the replica count or erasure code chunks.
+  #erasureCode:
+  #  codingChunks: 2
+  #  dataChunks: 2
