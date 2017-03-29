@@ -14,7 +14,7 @@ build() {
     tmpdir=$(mktemp -d)
     trap "rm -fr $tmpdir" EXIT
     cat <<EOF > $tmpdir/Dockerfile
-FROM alpine:3.4
+FROM alpine:3.5
 RUN apk add --no-cache gptfdisk util-linux coreutils
 COPY root /
 ENTRYPOINT ["/usr/bin/rookd"]
@@ -24,7 +24,7 @@ EOF
     tmpdir=$(mktemp -d)
     trap "rm -fr $tmpdir" EXIT
     cat <<EOF > $tmpdir/Dockerfile
-FROM alpine:3.4
+FROM alpine:3.5
 COPY root /
 ENTRYPOINT ["/usr/bin/rook-operator"]
 EOF
