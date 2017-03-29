@@ -17,6 +17,37 @@ kubectl cluster-info
 
 Once you see a url response, your cluster is [ready for use by Rook](kubernetes.md#deploy-rook).
 
+## Minikube
+If using `minikube`, you can deploy Rook to it with a small update, which modifies the minikube host to install the `rbd` command. This is needed by the Kubernetes `rbd` volume plugin. To install `minikube`, refer to this [page](https://github.com/kubernetes/minikube/releases).
+
+Once you have `minikube` installed, start a cluster by doing the following:
+```
+$ minikube start
+Starting local Kubernetes cluster...
+Starting VM...
+SSH-ing files into VM...
+Setting up certs...
+Starting cluster components...
+Connecting to cluster...
+Setting up kubeconfig...
+Kubectl is now configured to use the cluster.
+```
+
+SSH into the minikube host and install `rbd`:
+```
+$ minikube ssh
+$ cd /bin
+$ sudo curl -O https://raw.githubusercontent.com/ceph/ceph-docker/master/examples/kubernetes-coreos/rbd
+$ sudo chmod +x /bin/rbd
+$ rbd #run command to download ceph images.
+Unable to find image 'ceph/base:latest' locally
+latest: Pulling from ceph/base
+...
+$ exit
+```
+
+After these steps, your minikube cluster is ready to install rook on.
+
 ## Existing Kubernetes Cluster
 Alternatively, if you already have a running Kubernetes cluster, you can deploy Rook to it with a small update to modify the kubelet service to bind mount `/sbin/modprobe`, which allows access to `modprobe`.
 Access to modprobe is necessary for using the rbd volume plugin, which is being tracked in the Kubernetes code base with [#23924](https://github.com/kubernetes/kubernetes/issues/23924).  
