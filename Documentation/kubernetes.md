@@ -47,14 +47,9 @@ rook-api-1709486253-gvdnc   1/1       Running   0          1m
 ```
 
 ### Provision Storage
-Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes.  
+Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. The rook-storageclass.yaml sample will create the storage pool automatically. For more options on pools, see the documentation on [creating storage pools](pool-tpr.md).
 
-First create the storage pool. See the documentation on [creating storage pools](pool-tpr.md).
-```
-kubectl create -f rook-pool.yaml
-```
-
-Rook already creates a default admin and rbd user, whose secrets are already specified in the sample [rook-storageclass.yaml](/demo/kubernetes/rook-storageclass.yaml). Now we just need to specify the Ceph monitor endpoints (requires `jq`):
+Rook already creates a default admin and rbd user, whose secrets are specified in the sample [rook-storageclass.yaml](/demo/kubernetes/rook-storageclass.yaml). Now we just need to specify the Ceph monitor endpoints (requires `jq`):
 
 ```
 export MONS=$(kubectl -n rook get pod mon0 mon1 mon2 -o json|jq ".items[].status.podIP"|tr -d "\""|sed -e 's/$/:6790/'|paste -s -d, -)
