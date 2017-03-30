@@ -34,7 +34,7 @@ import (
 
 const (
 	tprGroup   = "rook.io"
-	tprVersion = "v1beta1"
+	tprVersion = "v1alpha1"
 )
 
 type TPR interface {
