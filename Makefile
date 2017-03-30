@@ -174,38 +174,57 @@ external.distclean:
 # Targets
 
 dev: external/build/$(CROSS_TRIPLE)/lib/libcephd.a
+	@$(MAKE) go.init
+	@$(MAKE) go.validate
 	@$(MAKE) go.build
 	@$(MAKE) release.build.containers.$(GOOS)_$(GOARCH)
 
-build: external
+build.common:
+	@$(MAKE) go.init
+	@$(MAKE) go.validate
+	@$(MAKE) external
+
+build: build.common
 	@$(MAKE) go.build
 
-install: external
+install: build.common
 	@$(MAKE) go.install
 
-check test: external
+check test: build.common
 	@$(MAKE) go.test
 
-lint: go.lint
+lint:
+	@$(MAKE) go.init
+	@$(MAKE) go.lint
 
-vet: go.vet
+vet:
+	@$(MAKE) go.init
+	@$(MAKE) go.vet
 
-fmt: go.fmt
+fmt:
+	@$(MAKE) go.init
+	@$(MAKE) go.fmt
 
 vendor: go.vendor
 
 clean: go.clean external.clean
 	@rm -fr $(WORKDIR) $(RELEASE_DIR)/* $(BIN_DIR)/*
 
-container: build
-	@RELEASE_CLIENT_SERVER_PLATFORMS=$(GOOS)_$(GOARCH) build/release/release.sh build containers
-
 distclean: go.distclean clean external.distclean
 
-build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) build
+cross.build:
+	@$(MAKE) external
+	@$(MAKE) go.build
 
-cross: $(foreach p,$(ALL_PLATFORMS), build.platform.$(p))
+cross.build.platform.%:
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) cross.build
+
+cross.parallel: $(foreach p,$(ALL_PLATFORMS), cross.build.platform.$(p))
+
+cross:
+	@$(MAKE) go.init
+	@$(MAKE) go.validate
+	@$(MAKE) cross.parallel
 
 release: cross
 	@$(MAKE) release.build
@@ -217,7 +236,8 @@ else
 	@echo skipping publish. invalid channel "$(CHANNEL)"
 endif
 
-.PHONY: build install test check vet fmt vendor clean distclean cross release publish
+.PHONY: build.common cross.build cross.parallel
+.PHONY: dev build install test check vet fmt vendor clean distclean cross release publish
 
 # ====================================================================================
 # Help

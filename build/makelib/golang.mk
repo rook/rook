@@ -124,12 +124,11 @@ ifneq ($(realpath ../../../..), $(realpath $(GOPATH)))
 endif
 
 -include go.check
+endif
 
 .PHONY: go.init
 go.init: $(GO_VENDOR_DIR)/vendor.stamp
-
--include go.init
-endif
+	@:
 
 define go.project
 go.build.packages.$(1):
@@ -152,15 +151,15 @@ $(foreach p,$(GO_STATIC_PACKAGES),$(eval $(call go.project,$(lastword $(subst /,
 $(foreach p,$(GO_STATIC_CGO_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),1,$(GO_STATIC_CGO_FLAGS))))
 
 .PHONY: go.build
-go.build: go.vet go.fmt
+go.build:
 	@$(MAKE) go.build.packages
 
 .PHONY: go.install
-go.install: go.vet go.fmt
+go.install:
 	@$(MAKE) go.install.packages
 
 .PHONY: go.test
-go.test: go.vet go.fmt
+go.test:
 #   this is disabled since it looks like there's a bug in go test where it attempts to install cmd/cgo
 #	@$(GOHOST) test -v -i $(GO_PKG_FLAGS) $(GO_NONSTATIC_FLAGS) $(GO_ALL_PACKAGES)
 	@$(GOHOST) test -cover $(GO_PKG_FLAGS) $(GO_NONSTATIC_FLAGS) $(GO_ALL_PACKAGES)
@@ -176,6 +175,8 @@ go.vet:
 .PHONY: go.fmt
 go.fmt:
 	@$(GOHOST) fmt $(GO_ALL_PACKAGES)
+
+go.validate: go.vet go.fmt
 
 .PHONY: go.vendor
 go.vendor $(GO_VENDOR_DIR)/vendor.stamp: $(GLIDE)
