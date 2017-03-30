@@ -33,16 +33,6 @@ func TestMakeRookImageWithEnv(t *testing.T) {
 	os.Setenv(repoPrefixEnvVar, "")
 }
 
-func TestMakeRookOperatorImage(t *testing.T) {
-	assert.Equal(t, "quay.io/rook/rook-operator:v1", MakeRookOperatorImage("v1"))
-}
-
-func TestMakeRookOperatorImageWithEnv(t *testing.T) {
-	os.Setenv(repoPrefixEnvVar, "myrepo.io/rook")
-	assert.Equal(t, "myrepo.io/rook/rook-operator:v1", MakeRookOperatorImage("v1"))
-	os.Setenv(repoPrefixEnvVar, "")
-}
-
 func TestDefaultVersion(t *testing.T) {
-	assert.Equal(t, fmt.Sprintf("quay.io/rook/rook-operator:%s", defaultVersion), MakeRookOperatorImage(""))
+	assert.Equal(t, fmt.Sprintf("quay.io/rook/rookd:%s", defaultVersion), MakeRookImage(""))
 }

@@ -34,17 +34,24 @@ const (
 	VersionAttr       = "rook_version"
 	PodIPEnvVar       = "ROOKD_PRIVATE_IPV4"
 	DefaultRepoPrefix = "quay.io/rook"
-	repoPrefixEnvVar  = "ROOK_OPERATOR_REPO_PREFIX"
+	repoPrefixEnvVar  = "ROOKD_REPO_PREFIX"
 	defaultVersion    = "latest"
 )
 
-func RepoPrefix() string {
-	var repoPrefix string
-	if repoPrefix = os.Getenv(repoPrefixEnvVar); repoPrefix == "" {
-		repoPrefix = DefaultRepoPrefix
-	}
+func NamespaceEnvVar() v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}
+}
 
-	return repoPrefix
+func RepoPrefixEnvVar() v1.EnvVar {
+	return v1.EnvVar{Name: repoPrefixEnvVar, Value: repoPrefix()}
+}
+
+func repoPrefix() string {
+	r := os.Getenv(repoPrefixEnvVar)
+	if r == "" {
+		r = DefaultRepoPrefix
+	}
+	return r
 }
 
 func getVersion(version string) string {
@@ -56,11 +63,7 @@ func getVersion(version string) string {
 }
 
 func MakeRookImage(version string) string {
-	return fmt.Sprintf("%s/rookd:%v", RepoPrefix(), getVersion(version))
-}
-
-func MakeRookOperatorImage(version string) string {
-	return fmt.Sprintf("%s/rook-operator:%v", RepoPrefix(), getVersion(version))
+	return fmt.Sprintf("%s/rookd:%v", repoPrefix(), getVersion(version))
 }
 
 func PodWithAntiAffinity(pod *v1.Pod, attribute, value string) {

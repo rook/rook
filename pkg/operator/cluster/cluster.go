@@ -42,7 +42,7 @@ import (
 var (
 	healthCheckInterval = 10 * time.Second
 	clientTimeout       = 15 * time.Second
-	logger              = capnslog.NewPackageLogger("github.com/rook/rook-operator", "op-cluster")
+	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
 )
 
 type Cluster struct {
@@ -178,7 +178,7 @@ func (c *Cluster) GetRookClient() (rookclient.RookRestClient, error) {
 
 	// Look up the api service for the given namespace
 	logger.Infof("retrieving rook api endpoint for namespace %s", c.Namespace)
-	svc, err := c.clientset.CoreV1().Services(c.Namespace).Get("rook-api")
+	svc, err := c.clientset.CoreV1().Services(c.Namespace).Get(api.DeploymentName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the api service. %+v", err)
 	}

@@ -25,7 +25,7 @@ kubectl create -f rook-operator.yaml
 
 This will start the rook-operator pod.  Verify that it is in the `Running` state before proceeding:
 ```
-kubectl get pod | grep rook-operator | awk '{print $3}'
+kubectl get pod | grep rook-operator
 ```
 
 Now that the rook-operator pod is in the `Running` state, we can create the Rook cluster. See the documentation on [configuring the cluster](cluster-tpr.md).
@@ -135,7 +135,7 @@ and healthy. There is also a REST API service for configuring the Rook storage a
 
 ![Rook Architecture on Kubernetes](media/kubernetes.png)
 
-The Rook operator is a simple container containing the `rook-operator` binary that has all that is needed to bootstrap
+The Rook operator is a simple container that has all that is needed to bootstrap
 and monitor the storage cluster. The operator will start and monitor ceph monitor pods and a daemonset for the OSDs, which provides basic
 RADOS storage as well as a deployment for a RESTful API service. When requested through the api service,
 object storage (S3/Swift) is enabled by starting a deployment for RGW, while a shared file system is enabled with a deployment for MDS.

@@ -21,8 +21,6 @@ package k8sutil
 import (
 	"fmt"
 	"time"
-
-	"k8s.io/client-go/pkg/api/v1"
 )
 
 const (
@@ -35,10 +33,6 @@ const (
 )
 
 type ConditionFunc func() (bool, error)
-
-func NamespaceEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_OPERATOR_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}
-}
 
 // Retry retries f every interval until after maxRetries.
 // The interval won't be affected by how long f takes.

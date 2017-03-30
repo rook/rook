@@ -7,7 +7,7 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](R
 1. Create a new volume image (10MB)
 
     ```bash
-    $ rook block create --name test --size 10485760
+    rook block create --name test --size 10485760
     ```
 
 2. Map the block volume and format it and mount it

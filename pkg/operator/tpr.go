@@ -91,7 +91,7 @@ func waitForTPRInit(context *context, tpr TPR) error {
 	return k8sutil.Retry(time.Duration(context.retryDelay)*time.Second, context.maxRetries, func() (bool, error) {
 		_, err := restcli.Get().RequestURI(uri).DoRaw()
 		if err != nil {
-			logger.Infof("failed to query for tpr %s. %+v", tpr.Name(), err)
+			logger.Infof("did not yet find tpr %s. %+v", tpr.Name(), err)
 			if errors.IsNotFound(err) {
 				return false, nil
 			}
