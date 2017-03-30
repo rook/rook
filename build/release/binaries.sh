@@ -62,6 +62,10 @@ EOF
     s3_upload $tmpdir/version
 }
 
+cleanup() {
+    :
+}
+
 action=$1
 shift
 

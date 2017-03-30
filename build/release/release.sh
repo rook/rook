@@ -9,7 +9,7 @@ shift
 mkdir -p ${RELEASE_DIR}
 
 case ${action} in
-    build|publish)
+    build|publish|cleanup)
         platform=$1
         shift
 

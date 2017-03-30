@@ -65,6 +65,15 @@ publish() {
     publish_artifact $os $arch rook/rookd
 }
 
+cleanup() {
+    local os=$1
+    local arch=$2
+
+    [[ ${os} == "linux" ]] || return 0
+
+    docker rmi ${registry}${tag} || true
+}
+
 publish_artifact() {
     local os=$1
     local arch=$2

@@ -236,6 +236,13 @@ else
 	@echo skipping publish. invalid channel "$(CHANNEL)"
 endif
 
+publish.cleanup:
+ifneq ($(filter master alpha beta stable, $(CHANNEL)),)
+	@$(MAKE) release.cleanup
+else
+	@echo skipping publish.cleanup. invalid channel "$(CHANNEL)"
+endif
+
 .PHONY: build.common cross.build cross.parallel
 .PHONY: dev build install test check vet fmt vendor clean distclean cross release publish
 

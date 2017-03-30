@@ -76,6 +76,11 @@ release.publish.$(1).$(2):
 	@build/release/release.sh publish $(2) $(1)
 
 release.publish.all: release.publish.$(1).$(2)
+
+release.cleanup.$(1).$(2):
+	@build/release/release.sh cleanup $(2) $(1)
+
+release.cleanup.all: release.cleanup.$(1).$(2)
 endef
 
 $(foreach f,$(RELEASE_FLAVORS),$(foreach p,$(RELEASE_PLATFORMS), $(eval $(call release-target,$(f),$(p)))))
@@ -83,3 +88,5 @@ $(foreach f,$(RELEASE_FLAVORS),$(foreach p,$(RELEASE_PLATFORMS), $(eval $(call r
 release.build: release.build.all
 
 release.publish: release.publish.all
+
+release.cleanup: release.cleanup.all
