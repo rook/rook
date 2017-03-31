@@ -26,6 +26,7 @@ import (
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/unversioned"
 	"k8s.io/client-go/pkg/api/v1"
@@ -37,18 +38,26 @@ const (
 	tprVersion = "v1alpha1"
 )
 
-type TPR interface {
+type tprScheme interface {
 	Name() string
 	Description() string
-	Load() error
-	Watch() error
 }
 
-func qualifiedName(tpr TPR) string {
+type inclusterInitiator interface {
+	Create(clusterMgr *clusterManager, namespace string) (tprManager, error)
+}
+
+type tprManager interface {
+	Load() error
+	BeginWatch() error
+	EndWatch() error
+}
+
+func qualifiedName(tpr tprScheme) string {
 	return fmt.Sprintf("%s.%s", tpr.Name(), tprGroup)
 }
 
-func createTPRs(context *context, tprs []TPR) error {
+func createTPRs(context *context, tprs []tprScheme) error {
 	for _, tpr := range tprs {
 		if err := createTPR(context, tpr); err != nil {
 			return fmt.Errorf("failed to init tpr %s. %+v", tpr.Name(), err)
@@ -64,7 +73,7 @@ func createTPRs(context *context, tprs []TPR) error {
 	return nil
 }
 
-func createTPR(context *context, tpr TPR) error {
+func createTPR(context *context, tpr tprScheme) error {
 	logger.Infof("creating %s TPR", tpr.Name())
 	r := &v1beta1.ThirdPartyResource{
 		ObjectMeta: v1.ObjectMeta{
@@ -85,9 +94,9 @@ func createTPR(context *context, tpr TPR) error {
 	return nil
 }
 
-func waitForTPRInit(context *context, tpr TPR) error {
+func waitForTPRInit(context *context, tpr tprScheme) error {
 	restcli := context.clientset.CoreV1().RESTClient()
-	uri := tprURI(context, tpr.Name())
+	uri := tprURI(tpr.Name(), context.namespace)
 	return k8sutil.Retry(time.Duration(context.retryDelay)*time.Second, context.maxRetries, func() (bool, error) {
 		_, err := restcli.Get().RequestURI(uri).DoRaw()
 		if err != nil {
@@ -101,18 +110,18 @@ func waitForTPRInit(context *context, tpr TPR) error {
 	})
 }
 
-func watchTPR(context *context, name string, resourceVersion string) (*http.Response, error) {
+func watchTPR(context *context, name, namespace, resourceVersion string) (*http.Response, error) {
 	return context.kubeHttpCli.Get(fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s",
-		context.masterHost, tprURI(context, name), resourceVersion))
+		context.masterHost, tprURI(name, namespace), resourceVersion))
 }
 
-func tprURI(context *context, name string) string {
-	return fmt.Sprintf("/apis/%s/%s/namespaces/%s/%ss", tprGroup, tprVersion, context.namespace, name)
+func tprURI(name, namespace string) string {
+	return fmt.Sprintf("/apis/%s/%s/namespaces/%s/%ss", tprGroup, tprVersion, namespace, name)
 }
 
-func getRawList(context *context, tpr TPR) ([]byte, error) {
-	restcli := context.clientset.CoreV1().RESTClient()
-	return restcli.Get().RequestURI(tprURI(context, tpr.Name())).DoRaw()
+func getRawList(clientset kubernetes.Interface, name, namespace string) ([]byte, error) {
+	restcli := clientset.CoreV1().RESTClient()
+	return restcli.Get().RequestURI(tprURI(name, namespace)).DoRaw()
 }
 
 func handlePollEventResult(status *unversioned.Status, errIn error, checkStaleCache func() (bool, error), errCh chan error) (done bool, err error) {

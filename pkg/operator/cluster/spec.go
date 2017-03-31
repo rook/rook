@@ -40,13 +40,6 @@ type Spec struct {
 }
 
 type PoolSpec struct {
-	// The name of the pool. Defined in the spec since the object metadata name must be unique across all namespaces,
-	// while you could have the same pool name created in multiple instances of rook.
-	Name string `json:"name"`
-
-	// The namespace where the pool will be created (required). A Rook cluster must be running in this namespace.
-	Namespace string `json:"namespace"`
-
 	// The replication settings
 	Replication ReplicationSpec `json:"replication"`
 

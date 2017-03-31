@@ -21,6 +21,8 @@ package cluster
 import (
 	"testing"
 
+	"k8s.io/client-go/pkg/api/v1"
+
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/rook/test"
 	"github.com/stretchr/testify/assert"
@@ -28,47 +30,46 @@ import (
 
 func TestValidatePool(t *testing.T) {
 	// must specify some replication or EC settings
-	spec := PoolSpec{Name: "mypool", Namespace: "myns"}
-	err := NewPool(spec).validate()
+	p := Pool{ObjectMeta: v1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	err := p.validate()
 	assert.NotNil(t, err)
 
 	// must specify name
-	spec = PoolSpec{Namespace: "myns"}
-	err = NewPool(spec).validate()
+	p = Pool{ObjectMeta: v1.ObjectMeta{Namespace: "myns"}}
+	err = p.validate()
 	assert.NotNil(t, err)
 
 	// must specify namespace
-	spec = PoolSpec{Name: "mypool"}
-	err = NewPool(spec).validate()
+	p = Pool{ObjectMeta: v1.ObjectMeta{Name: "mypool"}}
+	err = p.validate()
 	assert.NotNil(t, err)
 
 	// must not specify both replication and EC settings
-	spec = PoolSpec{Name: "mypool", Namespace: "myns"}
-	spec.Replication.Count = 1
-	spec.ErasureCoding.CodingChunks = 2
-	spec.ErasureCoding.DataChunks = 3
-	err = NewPool(spec).validate()
+	p = Pool{ObjectMeta: v1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p.Replication.Count = 1
+	p.ErasureCoding.CodingChunks = 2
+	p.ErasureCoding.DataChunks = 3
+	err = p.validate()
 	assert.NotNil(t, err)
 
 	// succeed with replication settings
-	spec = PoolSpec{Name: "mypool", Namespace: "myns"}
-	spec.Replication.Count = 1
-	err = NewPool(spec).validate()
+	p = Pool{ObjectMeta: v1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p.Replication.Count = 1
+	err = p.validate()
 	assert.Nil(t, err)
 
 	// succeed with ec settings
-	spec = PoolSpec{Name: "mypool", Namespace: "myns"}
-	spec.ErasureCoding.CodingChunks = 1
-	spec.ErasureCoding.DataChunks = 2
-	err = NewPool(spec).validate()
+	p = Pool{ObjectMeta: v1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p.ErasureCoding.CodingChunks = 1
+	p.ErasureCoding.DataChunks = 2
+	err = p.validate()
 	assert.Nil(t, err)
 }
 
 func TestCreatePool(t *testing.T) {
 	rclient := &test.MockRookRestClient{}
-	spec := PoolSpec{Name: "mypool", Namespace: "myns"}
-	spec.Replication.Count = 1
-	p := NewPool(spec)
+	p := Pool{ObjectMeta: v1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
+	p.Replication.Count = 1
 
 	exists, err := p.exists(rclient)
 	assert.False(t, exists)
@@ -76,15 +77,13 @@ func TestCreatePool(t *testing.T) {
 	assert.Nil(t, err)
 
 	// fail if both replication and EC are specified
-	spec.ErasureCoding.CodingChunks = 2
-	spec.ErasureCoding.DataChunks = 2
-	p.PoolSpec = spec
+	p.ErasureCoding.CodingChunks = 2
+	p.ErasureCoding.DataChunks = 2
 	err = p.Create(rclient)
 	assert.NotNil(t, err)
 
 	// succeed with EC
-	spec.Replication.Count = 0
-	p.PoolSpec = spec
+	p.Replication.Count = 0
 	err = p.Create(rclient)
 	assert.Nil(t, err)
 }
@@ -100,8 +99,7 @@ func TestDeletePool(t *testing.T) {
 	}
 
 	// delete a pool that exists
-	spec := PoolSpec{Name: "mypool", Namespace: "myns"}
-	p := NewPool(spec)
+	p := Pool{ObjectMeta: v1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
 	exists, err := p.exists(rclient)
 	assert.Nil(t, err)
 	assert.True(t, exists)
@@ -109,8 +107,7 @@ func TestDeletePool(t *testing.T) {
 	assert.Nil(t, err)
 
 	// succeed even if the pool doesn't exist
-	spec = PoolSpec{Name: "otherpool", Namespace: "myns"}
-	p = NewPool(spec)
+	p = Pool{ObjectMeta: v1.ObjectMeta{Name: "otherpool", Namespace: "myns"}}
 	exists, err = p.exists(rclient)
 	assert.Nil(t, err)
 	assert.False(t, exists)
