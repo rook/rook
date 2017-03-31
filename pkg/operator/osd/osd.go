@@ -105,10 +105,11 @@ func (c *Cluster) makeDaemonSet() (*extensions.DaemonSet, error) {
 func (c *Cluster) osdContainer() v1.Container {
 
 	command := fmt.Sprintf("/usr/bin/rookd osd --data-dir=%s ", k8sutil.DataDir)
+	var devices string
 	if c.deviceFilter != "" {
-		command += fmt.Sprintf("--data-devices=%s ", c.deviceFilter)
+		devices = c.deviceFilter
 	} else if c.useAllDevices {
-		command += fmt.Sprintf("--data-devices=all ")
+		devices = "all"
 	}
 
 	privileged := true
@@ -123,6 +124,7 @@ func (c *Cluster) osdContainer() v1.Container {
 			{Name: "devices", MountPath: "/dev"},
 		},
 		Env: []v1.EnvVar{
+			v1.EnvVar{Name: "ROOKD_DATA_DEVICES", Value: devices},
 			opmon.ClusterNameEnvVar(),
 			opmon.MonEndpointEnvVar(),
 			opmon.MonSecretEnvVar(),
