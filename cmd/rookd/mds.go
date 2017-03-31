@@ -40,6 +40,7 @@ var mdsCmd = &cobra.Command{
 func init() {
 	mdsCmd.Flags().StringVar(&mdsID, "mds-id", "", "the mds ID")
 	mdsCmd.Flags().StringVar(&mdsKeyring, "mds-keyring", "", "the mds keyring")
+	addCephFlags(mdsCmd)
 
 	flags.SetFlagsFromEnv(mdsCmd.Flags(), "ROOKD")
 

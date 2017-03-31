@@ -20,15 +20,6 @@ COPY root /
 ENTRYPOINT ["/usr/bin/rookd"]
 EOF
     build_artifact $os $arch $tmpdir rook/rookd rookd rook
-
-    tmpdir=$(mktemp -d)
-    trap "rm -fr $tmpdir" EXIT
-    cat <<EOF > $tmpdir/Dockerfile
-FROM alpine:3.5
-COPY root /
-ENTRYPOINT ["/usr/bin/rook-operator"]
-EOF
-    build_artifact $os $arch $tmpdir rook/rook-operator rook-operator
 }
 
 build_artifact() {
@@ -71,7 +62,6 @@ publish() {
     [[ ${os} == "linux" ]] || return 0
 
     publish_artifact $os $arch rook/rookd
-    publish_artifact $os $arch rook/rook-operator
 }
 
 publish_artifact() {

@@ -31,26 +31,30 @@ import (
 )
 
 var apiCmd = &cobra.Command{
-	Use:    "api",
-	Short:  "Runs the Rook REST API service",
-	Hidden: true,
+	Use:   "api",
+	Short: "Runs the Rook API service",
 }
 var apiPort int
+var repoPrefix string
 
 func init() {
-	apiCmd.Flags().IntVar(&apiPort, "api-port", 0, "port on which the api is listening")
+	apiCmd.Flags().IntVar(&apiPort, "port", 0, "port on which the api is listening")
+	apiCmd.Flags().StringVar(&repoPrefix, "repo-prefix", "quay.io/rook", "the repo from which to pull images")
+	apiCmd.Flags().StringVar(&cfg.containerVersion, "container-version", "latest", "version of the rook container to launch")
+	apiCmd.Flags().StringVar(&cfg.namespace, "namespace", "", "the namespace in which the api service is running")
+	addCephFlags(apiCmd)
 
-	flags.SetFlagsFromEnv(rootCmd.Flags(), "ROOK_OPERATOR")
+	flags.SetFlagsFromEnv(rootCmd.Flags(), "ROOKD")
 
 	apiCmd.RunE = startAPI
 }
 
 func startAPI(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(apiCmd, []string{"namespace", "data-dir", "cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}); err != nil {
+	if err := flags.VerifyRequiredFlags(apiCmd, []string{"repo-prefix", "namespace", "data-dir", "cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}); err != nil {
 		return err
 	}
 	if apiPort == 0 {
-		return fmt.Errorf("api-port is required")
+		return fmt.Errorf("port is required")
 	}
 
 	setLogLevel()
@@ -61,14 +65,14 @@ func startAPI(cmd *cobra.Command, args []string) error {
 		os.Exit(1)
 	}
 
-	cfg.clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
+	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
 	factory := cephd.New()
 	apiCfg := &api.Config{
-		ConnFactory:    mon.NewConnectionFactoryWithClusterInfo(&cfg.clusterInfo),
+		ConnFactory:    mon.NewConnectionFactoryWithClusterInfo(&clusterInfo),
 		CephFactory:    factory,
 		Port:           apiPort,
-		ClusterHandler: apik8s.New(clientset, context, &cfg.clusterInfo, factory, cfg.namespace, cfg.containerVersion),
+		ClusterHandler: apik8s.New(clientset, context, &clusterInfo, factory, cfg.namespace, cfg.containerVersion),
 	}
 
 	return api.Run(context, apiCfg)

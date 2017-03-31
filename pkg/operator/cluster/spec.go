@@ -23,7 +23,7 @@ type Spec struct {
 	Namespace string `json:"namespace"`
 
 	// Version is the expected version of the rook container to run in the cluster.
-	// The rook-operator will eventually make the rook cluster version
+	// The operator will eventually make the rook cluster version
 	// equal to the expected version.
 	Version string `json:"version"`
 

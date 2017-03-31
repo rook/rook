@@ -46,13 +46,13 @@ func TestStartAPI(t *testing.T) {
 
 func validateStart(t *testing.T, c *Cluster) {
 
-	r, err := c.clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(deploymentName)
+	r, err := c.clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(DeploymentName)
 	assert.Nil(t, err)
-	assert.Equal(t, deploymentName, r.Name)
+	assert.Equal(t, DeploymentName, r.Name)
 
-	s, err := c.clientset.CoreV1().Services(c.Namespace).Get(deploymentName)
+	s, err := c.clientset.CoreV1().Services(c.Namespace).Get(DeploymentName)
 	assert.Nil(t, err)
-	assert.Equal(t, deploymentName, s.Name)
+	assert.Equal(t, DeploymentName, s.Name)
 }
 
 func TestPodSpecs(t *testing.T) {
@@ -61,24 +61,24 @@ func TestPodSpecs(t *testing.T) {
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)
-	assert.Equal(t, deploymentName, d.Name)
+	assert.Equal(t, DeploymentName, d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, 1, len(d.Spec.Template.Spec.Volumes))
 	assert.Equal(t, "rook-data", d.Spec.Template.Spec.Volumes[0].Name)
 
-	assert.Equal(t, deploymentName, d.ObjectMeta.Name)
-	assert.Equal(t, deploymentName, d.Spec.Template.ObjectMeta.Labels["app"])
+	assert.Equal(t, DeploymentName, d.ObjectMeta.Name)
+	assert.Equal(t, DeploymentName, d.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	cont := d.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, "quay.io/rook/rook-operator:myversion", cont.Image)
+	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
 	assert.Equal(t, 1, len(cont.VolumeMounts))
-	assert.Equal(t, 5, len(cont.Env))
+	assert.Equal(t, 6, len(cont.Env))
 	for _, v := range cont.Env {
-		assert.True(t, strings.HasPrefix(v.Name, "ROOK_OPERATOR_"))
+		assert.True(t, strings.HasPrefix(v.Name, "ROOKD_"))
 	}
-	expectedCommand := fmt.Sprintf("/usr/bin/rook-operator api --data-dir=/var/lib/rook --api-port=%d --container-version=%s",
+	expectedCommand := fmt.Sprintf("/usr/bin/rookd api --data-dir=/var/lib/rook --port=%d --container-version=%s",
 		model.Port, c.Version)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])

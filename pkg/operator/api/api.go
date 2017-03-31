@@ -17,7 +17,6 @@ package api
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -30,7 +29,7 @@ import (
 )
 
 const (
-	deploymentName = "rook-api"
+	DeploymentName = "rook-api"
 )
 
 type Cluster struct {
@@ -75,12 +74,12 @@ func (c *Cluster) Start() error {
 
 func (c *Cluster) makeDeployment() *extensions.Deployment {
 	deployment := &extensions.Deployment{}
-	deployment.Name = deploymentName
+	deployment.Name = DeploymentName
 	deployment.Namespace = c.Namespace
 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: v1.ObjectMeta{
-			Name:        deploymentName,
+			Name:        DeploymentName,
 			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
 		},
@@ -99,30 +98,26 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 }
 
 func (c *Cluster) apiContainer() v1.Container {
-	envVars := []v1.EnvVar{
-		k8sutil.NamespaceEnvVar(),
-		opmon.MonSecretEnvVar(),
-		opmon.AdminSecretEnvVar(),
-		opmon.MonEndpointEnvVar(),
-		opmon.ClusterNameEnvVar(),
-	}
-	// replace the ROOKD prefix with ROOK_OPERATOR
-	for i := range envVars {
-		envVars[i].Name = strings.Replace(envVars[i].Name, "ROOKD_", "ROOK_OPERATOR_", 1)
-	}
 
-	command := fmt.Sprintf("/usr/bin/rook-operator api --data-dir=%s --api-port=%d --container-version=%s",
+	command := fmt.Sprintf("/usr/bin/rookd api --data-dir=%s --port=%d --container-version=%s",
 		k8sutil.DataDir, model.Port, c.Version)
 	return v1.Container{
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.
 		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
-		Name:    deploymentName,
-		Image:   k8sutil.MakeRookOperatorImage(c.Version),
+		Name:    DeploymentName,
+		Image:   k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		},
-		Env: envVars,
+		Env: []v1.EnvVar{
+			k8sutil.NamespaceEnvVar(),
+			k8sutil.RepoPrefixEnvVar(),
+			opmon.MonSecretEnvVar(),
+			opmon.AdminSecretEnvVar(),
+			opmon.MonEndpointEnvVar(),
+			opmon.ClusterNameEnvVar(),
+		},
 	}
 }
 
@@ -130,14 +125,14 @@ func (c *Cluster) startService() error {
 	labels := c.getLabels()
 	s := &v1.Service{
 		ObjectMeta: v1.ObjectMeta{
-			Name:      deploymentName,
+			Name:      DeploymentName,
 			Namespace: c.Namespace,
 			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
 				{
-					Name:       deploymentName,
+					Name:       DeploymentName,
 					Port:       model.Port,
 					TargetPort: intstr.FromInt(int(model.Port)),
 					Protocol:   v1.ProtocolTCP,
@@ -162,7 +157,7 @@ func (c *Cluster) startService() error {
 
 func (c *Cluster) getLabels() map[string]string {
 	return map[string]string{
-		k8sutil.AppAttr:     deploymentName,
+		k8sutil.AppAttr:     DeploymentName,
 		k8sutil.ClusterAttr: c.Namespace,
 	}
 }

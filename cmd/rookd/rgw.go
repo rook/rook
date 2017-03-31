@@ -44,6 +44,7 @@ func init() {
 	rgwCmd.Flags().StringVar(&rgwKeyring, "rgw-keyring", "", "the rgw keyring")
 	rgwCmd.Flags().StringVar(&rgwHost, "rgw-host", "", "dns host name")
 	rgwCmd.Flags().IntVar(&rgwPort, "rgw-port", 0, "rgw port number")
+	addCephFlags(rgwCmd)
 
 	flags.SetFlagsFromEnv(rgwCmd.Flags(), "ROOKD")
 

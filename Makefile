@@ -117,15 +117,15 @@ GO_BIN_DIR = $(BIN_DIR)
 ifeq ($(LINKMODE),static)
 GO_STATIC_PACKAGES=$(GO_PROJECT)
 ifeq ($(GOOS),linux)
-GO_STATIC_CGO_PACKAGES=$(GO_PROJECT)/cmd/rookd $(GO_PROJECT)/cmd/rook-operator
+GO_STATIC_CGO_PACKAGES=$(GO_PROJECT)/cmd/rookd
 endif
 else
 GO_NONSTATIC_PACKAGES=$(GO_PROJECT)
 ifeq ($(GOOS),linux)
 ifeq ($(PIE),1)
-GO_NONSTATIC_PIE_PACKAGES+= $(GO_PROJECT)/cmd/rookd $(GO_PROJECT)/cmd/rook-operator
+GO_NONSTATIC_PIE_PACKAGES+= $(GO_PROJECT)/cmd/rookd
 else
-GO_NONSTATIC_PACKAGES+= $(GO_PROJECT)/cmd/rookd $(GO_PROJECT)/cmd/rook-operator
+GO_NONSTATIC_PACKAGES+= $(GO_PROJECT)/cmd/rookd
 endif
 endif
 endif

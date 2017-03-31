@@ -17,4 +17,4 @@ package k8s
 
 import "github.com/coreos/pkg/capnslog"
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rookd", "api-k8s")
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "api-k8s")
