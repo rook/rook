@@ -39,13 +39,15 @@ func TestStartDaemonset(t *testing.T) {
 }
 
 func TestDaemonset(t *testing.T) {
-	testPodDevices(t, "", true)
-	testPodDevices(t, "/var/lib/mydatadir", false)
+	testPodDevices(t, "", "sda", true)
+	testPodDevices(t, "/var/lib/mydatadir", "sdb", false)
+	testPodDevices(t, "", "", true)
+	testPodDevices(t, "", "", false)
 }
 
-func testPodDevices(t *testing.T, dataDir string, useDevices bool) {
+func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool) {
 	clientset := fake.NewSimpleClientset()
-	c := New(clientset, "ns", "myversion", "", dataDir, useDevices)
+	c := New(clientset, "ns", "myversion", deviceFilter, dataDir, allDevices)
 
 	daemonSet, err := c.makeDaemonSet()
 	assert.Nil(t, err)
@@ -72,14 +74,16 @@ func testPodDevices(t *testing.T, dataDir string, useDevices bool) {
 	cont := daemonSet.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
-	assert.Equal(t, 4, len(cont.Env))
+	assert.Equal(t, 5, len(cont.Env))
 
 	expectedCommand := "/usr/bin/rookd osd --data-dir=/var/lib/rook "
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
-	allDevicesIndex := strings.Index(cont.Command[2], "--data-devices=all")
-	if useDevices {
-		assert.NotEqual(t, -1, allDevicesIndex)
+	devices := cont.Env[0].Value
+	if deviceFilter != "" {
+		assert.Equal(t, deviceFilter, devices)
+	} else if allDevices {
+		assert.Equal(t, "all", devices)
 	} else {
-		assert.Equal(t, -1, allDevicesIndex)
+		assert.Equal(t, "", devices)
 	}
 }
