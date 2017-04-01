@@ -13,7 +13,7 @@ try {
             sh 'external/ceph-submodule-check'
         }
 
-        withEnv(["DOWNLOADDIR=${env.HOME}/.download", "CHANNEL=${env.BRANCH_NAME}"]) {
+        withEnv(["DOWNLOADDIR=${env.HOME}/.download", "ALWAYS_BUILD=0", "CHANNEL=${env.BRANCH_NAME}"]) {
 
             stage('Build') {
                 sh 'build/run make -j\$(nproc) release'

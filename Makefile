@@ -154,9 +154,11 @@ include build/makelib/release.mk
 # ====================================================================================
 # External Targets
 
+export ALWAYS_BUILD DOWNLOADDIR
+
 external:
 ifeq ($(GOOS),linux)
-	@$(MAKE) -C external CEPH_BRANCH=$(CEPH_BRANCH) ALLOCATOR=$(ALLOCATOR) PLATFORMS=$(CROSS_TRIPLE) DOWNLOADDIR=$(DOWNLOADDIR) cross
+	@$(MAKE) -C external CEPH_BRANCH=$(CEPH_BRANCH) ALLOCATOR=$(ALLOCATOR) PLATFORMS=$(CROSS_TRIPLE) cross
 endif
 
 external/build/$(CROSS_TRIPLE)/lib/libcephd.a:
