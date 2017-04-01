@@ -1,0 +1,207 @@
+#!/bin/bash
+
+# Copyright 2017 The Rook Authors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#	http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+
+# Notes:
+#  - Please install "jq" package before using this driver.
+usage() {
+    err "Invalid usage. Usage: "
+    err "\t$0 init"
+    err "\t$0 mount <mount dir> <json params>"
+    err "\t$0 unmount <mount dir>"
+    err "\t$0 getvolumename <json params>"
+    exit 1
+}
+
+err() {
+    echo -ne $* 1>&2
+}
+
+log() {
+    echo -ne $* >&1
+}
+
+ismounted() {
+    MOUNT=`findmnt -n ${MNTPATH} 2>/dev/null | cut -d' ' -f1`
+    if [ "${MOUNT}" == "${MNTPATH}" ]; then
+        echo "1"
+    else
+        echo "0"
+    fi
+}
+
+domount() {
+    MNTPATH=$1
+
+    ROOK_API=$(echo $2 | jq -r '.api')
+    USER=$(echo $2 | jq -r '.user')
+    POOL=$(echo $2 | jq -r '.pool')
+    IMAGE=$(echo $2 | jq -r '.image')
+    FSTYPE=$(echo $2 | jq -r '.["kubernetes.io/fsType"]')
+    SECRET=$(echo $2 | jq -r '.["kubernetes.io/secret/key"]' | base64  --decode)
+
+    CLIENT_INFO=$(curl ${ROOK_API}/client --connect-timeout 5)
+    if [ $? -ne 0 ]; then
+        err "{ \"status\": \"Failed\", \"message\": \"Failed to contact Rook API ${ROOK_API}\"}"
+        exit 1
+    fi
+
+    MON_ADDRESSES=$(echo ${CLIENT_INFO} | jq -r '.monAddresses | .[] |  rtrimstr("/0")' | paste -sd "," -)
+    RBD_DATA="${MON_ADDRESSES} name=${USER},secret=${SECRET} ${POOL} ${IMAGE}"
+
+    # Check if single_major is supported.
+    HAS_SINGLE_MAJOR=`modinfo -F parm rbd|grep "^single_major"|awk '{print $0}'`
+    if [ -z "$HAS_SINGLE_MAJOR" ] ; then
+        modprobe rbd
+        ADD_PATH="/sys/bus/rbd/add"
+    else
+        modprobe rbd single_major=Y
+        ADD_PATH="/sys/bus/rbd/add_single_major"
+    fi
+
+    echo ${RBD_DATA} >> ${ADD_PATH}
+
+    if [ $(ismounted) -eq 1 ] ; then
+        log "{\"status\": \"Success\"}"
+        exit 0
+    fi
+
+    retry=0
+    until [ $retry -ge 10 ]
+    do
+        finddevicepath && break
+        ((RETRY++))
+        sleep 1
+    done
+
+    if [ -z "${DEVICEPATH}" ] ; then
+        err "{ \"status\": \"Failure\", \"message\": \"Failed to map image ${POOL}/${IMAGE}\"}"
+        exit 1
+    fi
+
+    mkdir -p ${MNTPATH} &> /dev/null
+
+    # Format device
+    if [ ! -z "${FSTYPE}" ]; then
+        mkfs -t ${FSTYPE} ${DEVICEPATH} >/dev/null 2>&1
+        if [ $? -ne 0 ]; then
+            err "{ \"status\": \"Failure\", \"message\": \"Failed to create fs ${FSTYPE} on device ${DMDEV}\"}"
+            exit 1
+        fi
+    fi
+
+    mount ${DEVICEPATH} ${MNTPATH} &> /dev/null
+    if [ $? -ne 0 ]; then
+        err "{ \"status\": \"Failure\", \"message\": \"Failed to mount ${DEVICEPATH} at ${MNTPATH}\"}"
+        exit 1
+    fi
+    log "{\"status\": \"Success\"}"
+    exit 0
+}
+
+unmount() {
+    MNTPATH=$1
+    if [ $(ismounted) -eq 0 ] ; then
+        log "{\"status\": \"Success\"}"
+        exit 0
+    fi
+
+    device_path=$(mount | grep "on ${MNTPATH} " | awk '{print $1}')
+
+    umount ${MNTPATH} &> /dev/null
+    if [ $? -ne 0 ]; then
+        err "{ \"status\": \"Failed\", \"message\": \"Failed to unmount volume at ${MNTPATH}\"}"
+        exit 1
+    fi
+
+    prefix=/dev/rbd
+    rbdnum=${device_path#$prefix}
+
+    # Check if single_major is supported.
+    HAS_SINGLE_MAJOR=`modinfo -F parm rbd|grep "^single_major"|awk '{print $0}'`
+    if [ -z "$HAS_SINGLE_MAJOR" ] ; then
+        REMOVE_PATH="/sys/bus/rbd/remove"
+    else
+        REMOVE_PATH="/sys/bus/rbd/remove_single_major"
+    fi
+
+    retry=0
+    until [ $retry -ge 10 ]
+    do
+        echo ${rbdnum} >> ${REMOVE_PATH} && break
+        ((RETRY++))
+        sleep 1
+    done
+    if [ $RETRY -ge 10 ] ; then
+        err "{ \"status\": \"Failure\", \"message\": \"Failed to unmap ${MNTPATH} from ${device_path}\"}"
+        exit 1
+    fi
+
+    log "{\"status\": \"Success\"}"
+    exit 0
+}
+
+getvolumename() {
+    POOL_NAME=$(echo $1 | jq -r '.pool')
+    IMAGE_NAME=$(echo $1 | jq -r '.image')
+
+    log "{\"status\": \"Success\", \"volumeName\": \"${POOL_NAME}/${IMAGE_NAME}\"}"
+    exit 0
+}
+
+finddevicepath() {
+    for file in "/sys/bus/rbd/devices"/*
+    do
+        i=`cat ${file}/name  | tr -d " \t\n\r" `
+        if [ ${i} = ${IMAGE} ]; then
+            p=`cat ${file}/pool  | tr -d " \t\n\r" `
+            if [ ${p} = ${POOL} ]; then
+                DEVICEPATH="/dev/rbd`basename ${file}`"
+                break
+            fi 
+        fi    
+    done
+}
+
+op=$1
+
+if [ "$op" = "init" ]; then
+    log "{\"status\": \"Success\"}"
+    exit 0
+fi
+
+if [ $# -lt 2 ]; then
+    usage
+fi
+
+shift
+
+case "$op" in
+    mount)
+        domount $*
+        ;;
+    unmount)
+        unmount $*
+        ;;
+    getvolumename)
+        getvolumename $*
+        ;;
+    *)
+        err "{ \"status\": \"Not supported\" }"
+        exit 1
+esac
+
+exit 1

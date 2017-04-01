@@ -90,6 +90,9 @@ You should see the wordpress app running.
 
 **NOTE:** When running in a vagrant environment, there will be no external IP address to reach wordpress with.  You will only be able to reach wordpress via the `CLUSTER-IP` from inside the Kubernetes cluster.
 
+### Flexvolume
+Another way to consume Rook volumes in Kubernetes is to use [Flexvolume](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md). Rook has a Flexvolume plugin that you can use to consume volumes in Kubernetes. Refer to this documentation to learn more about the Rook Flexvolume [plugin](flexvolume.md).
+
 ### Rook Client
 You also have the option to use the `rook` client tool directly by running it in a pod that can be started in the cluster with:
 ```
