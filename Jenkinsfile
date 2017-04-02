@@ -24,18 +24,19 @@ try {
             }
 
             stage('Publish') {
-                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'rook-quay-io',
-                            usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASSWORD']]) {
+                withCredentials([
+                    [$class: 'UsernamePasswordMultiBinding', credentialsId: 'rook-quay-io', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASSWORD'],
+                    [$class: 'UsernamePasswordMultiBinding', credentialsId: 'rook-jenkins-aws', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY'],
+                    [$class: 'StringBinding', credentialsId: 'quantumbuild-token', variable: 'GITHUB_TOKEN']
+                ]) {
                     sh 'docker login -u="${DOCKER_USER}" -p="${DOCKER_PASSWORD}" quay.io'
-                }
-
-                withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: 'rook-jenkins-aws',
-                            usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY']]) {
                     sh 'build/run make -j\$(nproc) publish'
                 }
             }
+
             stage('Cleanup') {
                 sh 'build/run make -j\$(nproc) publish.cleanup'
+                sh 'docker images'
                 deleteDir()
             }
         }
@@ -46,6 +47,8 @@ catch (Exception e) {
 
     node("ec2-stateful") {
         echo 'Cleaning up workspace'
+        sh 'build/run make -j\$(nproc) publish.cleanup'
+        sh 'docker images'
         deleteDir()
     }
 

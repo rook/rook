@@ -88,10 +88,8 @@ function run_rsync() {
             --delete \
             --prune-empty-dirs \
             --filter='- /.work/' \
-            --filter='- /.glide/' \
             --filter='- /.vscode/' \
-            --filter='- /bin/' \
-            --filter='- /release/' \
+            --filter='- index.lock' \
             $src $dst || { stop_rsync_container ${id}; return 1; }
     done
 

@@ -44,7 +44,7 @@ RELEASE_PLATFORMS ?=
 RELEASE_CLIENT_ONLY_PLATFORMS ?=
 
 # Optional. the flavors to release
-RELEASE_FLAVORS := binaries containers
+RELEASE_FLAVORS := metadata binaries containers
 
 # Optional. Github token repo and user
 GITHUB_TOKEN ?=
@@ -61,7 +61,16 @@ RELEASE_S3_BUCKET ?= rook-release
 export RELEASE_VERSION RELEASE_CHANNEL RELEASE_BIN_DIR RELEASE_DIR
 export GITHUB_TOKEN GITHUB_USER GITHUB_REPO
 export RELEASE_S3_BUCKET RELEASE_REGISTRY
-export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_DEFAULT_REGION
+
+ifneq ($(AWS_ACCESS_KEY_ID),)
+export AWS_ACCESS_KEY_ID
+endif
+
+ifneq ($(AWS_SECRET_ACCESS_KEY),)
+export AWS_SECRET_ACCESS_KEY
+endif
+
+export AWS_DEFAULT_REGION
 
 # ====================================================================================
 # Targets
@@ -77,6 +86,11 @@ release.publish.$(1).$(2):
 
 release.publish.all: release.publish.$(1).$(2)
 
+release.promote.$(1).$(2):
+	@build/release/release.sh promote $(2) $(1)
+
+release.promote.all: release.promote.$(1).$(2)
+
 release.cleanup.$(1).$(2):
 	@build/release/release.sh cleanup $(2) $(1)
 
@@ -88,5 +102,9 @@ $(foreach f,$(RELEASE_FLAVORS),$(foreach p,$(RELEASE_PLATFORMS), $(eval $(call r
 release.build: release.build.all
 
 release.publish: release.publish.all
+
+release.promote:
+	@build/release/release.sh init
+	@$(MAKE) release.promote.all
 
 release.cleanup: release.cleanup.all

@@ -58,7 +58,8 @@ if [ "`uname -s`" != "Linux" ]; then
     #  /var/run/docker.sock (bind mounted to host /var/run/docker.sock)
     #  /${BUILDER_HOME} (bind mounted to an independent docker volume)
     #    /.netrc (bind mounted to host ${HOME}/.netrc)
-    #    /.docker/config.json (bind mounted to host ${HOME}/.docker/config.json)
+    #    /.aws (bind mounted to host ${HOME}/.aws)
+    #    /.docker (bind mounted to host ${HOME}/.docker)
     #    /.download
     #    /.ccache
     #    /go/src/github.com/rook/rook (rsync'd from host <source>)
@@ -80,7 +81,8 @@ else
     #  /var/run/docker.sock (bind mounted to host /var/run/docker.sock)
     #  /${BUILDER_HOME}
     #    /.netrc (bind mounted to host ${HOME}/.netrc)
-    #    /.docker/config.json (bind mounted to host ${HOME}/.docker/config.json)
+    #    /.aws (bind mounted to host ${HOME}/.aws)
+    #    /.docker (bind mounted to host ${HOME}/.docker)
     #    /.ccache (bind mounted to host ${CCACHE_DIR})
     #    /.download (bind mounted to host ${DOWNLOADDIR} if set)
     #    /go (bind mounted to <source>/.work/cross )
@@ -151,7 +153,6 @@ docker run \
     -w ${BUILDER_HOME}/go/src/${source_repo} \
     ${container_image} \
     "$@"
-
 
 # rsync the source tree back
 if [ "`uname -s`" != "Linux" ]; then

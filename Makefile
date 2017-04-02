@@ -238,6 +238,13 @@ else
 	@echo skipping publish. invalid channel "$(CHANNEL)"
 endif
 
+promote:
+ifneq ($(filter master alpha beta stable, $(CHANNEL)),)
+	@$(MAKE) release.promote
+else
+	@echo skipping promote. invalid channel "$(CHANNEL)"
+endif
+
 publish.cleanup:
 ifneq ($(filter master alpha beta stable, $(CHANNEL)),)
 	@$(MAKE) release.cleanup

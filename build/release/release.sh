@@ -9,7 +9,7 @@ shift
 mkdir -p ${RELEASE_DIR}
 
 case ${action} in
-    build|publish|cleanup)
+    build|publish|promote|cleanup)
         platform=$1
         shift
 
@@ -19,8 +19,12 @@ case ${action} in
         ${scriptdir}/${flavor}.sh ${action} ${platform%_*} ${platform#*_}
         ;;
 
-    check)
-        github_check_release "$@"
+    init)
+        if check_release_version; then
+            echo ${RELEASE_VERSION} can not be promoted. Must build from a tag like v0.4.0.
+            exit 1
+        fi
+        github_create_release
         ;;
 
     *)
