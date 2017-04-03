@@ -66,7 +66,32 @@ Environment="RKT_OPTS=--volume modprobe,kind=host,source=/usr/sbin/modprobe \
 ...
 ```
 
-Note that the kubelet also requires access to the userspace `rbd` tool that is included only in hyperkube images tagged `v1.3.6_coreos.0` or later.
+Note that the kubelet also requires access to the userspace `rbd` tool that is included only in hyperkube images tagged `v1.3.6_coreos.0` or later. See next section on how to deploy `rbd`.
+
+### Ceph and RBD utilities installed on the nodes
+
+The Kubernetes kubelet shells out to system utilities to mount Rook volumes. This means that every Kubernetes host must have these utilities installed. This requirement extends to the control plane, since there may be interactions between kube-controller-manager and the Ceph cluster. Login to each Kubernetes host where Kubelet runs and execute the following:
+
+For Debian-based distros:
+
+```
+apt-get install ceph-fs-common ceph-common
+```
+
+For Redhat-based distros:
+
+```
+yum install ceph
+```
+
+For other Linux distros that don't have an explicit package manager, such as CoreOS, you can use a container with the ceph utilities. To deploy the containers on your hosts, do the following:
+
+```
+cd /bin
+sudo curl -O https://raw.githubusercontent.com/ceph/ceph-docker/master/examples/kubernetes-coreos/rbd
+sudo chmod +x /bin/rbd
+rbd #Command to download ceph images.
+```
 
 ## Kubernetes with RBAC
 RBAC restricts what operations can be performed in the cluster. In particular, the operator will be denied access to create third party resources (TPRs) if RBAC is enabled. These steps will give permissions to the `Rook` operator. 
