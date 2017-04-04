@@ -49,12 +49,12 @@ func TestCrushMap(t *testing.T) {
 		argsSet := util.CreateSet(request.Args)
 		assert.True(t, argsSet.Contains("root=default"))
 		assert.True(t, argsSet.Contains("dc=datacenter1"))
-		assert.True(t, argsSet.Contains("hostName=node1"))
+		assert.True(t, argsSet.Contains("host=node1"))
 
 		return []byte{}, "", nil
 	}
 
-	location := "root=default,dc=datacenter1,hostName=node1"
+	location := "root=default,dc=datacenter1,host=node1"
 
 	err := addOSDToCrushMap(conn, context, 23, "/", location)
 	assert.Nil(t, err)
@@ -84,17 +84,17 @@ func TestCrushLocation(t *testing.T) {
 	locSet := util.CreateSet(res)
 	assert.True(t, locSet.Contains("root=default"))
 	assert.True(t, locSet.Contains("dc=datacenter1"))
-	assert.True(t, locSet.Contains(fmt.Sprintf("hostName=%s", hostName)))
+	assert.True(t, locSet.Contains(fmt.Sprintf("host=%s", hostName)))
 
 	// test that if host name and root are already set they will be honored
-	loc = "root=otherRoot,dc=datacenter2,hostName=node123"
+	loc = "root=otherRoot,dc=datacenter2,host=node123"
 	res, err = formatLocation(loc)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(res))
 	locSet = util.CreateSet(res)
 	assert.True(t, locSet.Contains("root=otherRoot"))
 	assert.True(t, locSet.Contains("dc=datacenter2"))
-	assert.True(t, locSet.Contains("hostName=node123"))
+	assert.True(t, locSet.Contains("host=node123"))
 
 	// test an invalid CRUSH location format
 	loc = "root=default,prop:value"

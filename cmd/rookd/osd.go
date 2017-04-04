@@ -18,10 +18,11 @@ limitations under the License.
 package main
 
 import (
+	"fmt"
+
 	"github.com/rook/rook/pkg/cephmgr/cephd"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/cephmgr/osd"
-	"github.com/rook/rook/pkg/cephmgr/osd/partition"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -33,18 +34,24 @@ var osdCmd = &cobra.Command{
 	Hidden: true,
 }
 var (
-	osdCluster mon.ClusterInfo
+	osdCluster          mon.ClusterInfo
+	osdDataDeviceFilter string
 )
 
 func addOSDFlags(command *cobra.Command) {
-	command.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
-	command.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage, or \"all\"")
+	command.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
+	command.Flags().StringVar(&osdDataDeviceFilter, "data-device-filter", "", "a regex filter for the device names to use, or \"all\"")
+	command.Flags().StringVar(&cfg.directories, "data-directories", "", "comma separated list of directory paths to use for storage")
 	command.Flags().StringVar(&cfg.metadataDevice, "metadata-device", "", "device to use for metadata (e.g. a high performance SSD/NVMe device)")
+	command.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
 	command.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
-	// bluestore config flags
-	command.Flags().IntVar(&cfg.bluestoreConfig.WalSizeMB, "osd-wal-size", partition.WalDefaultSizeMB, "default size (MB) for OSD write ahead log (WAL)")
-	command.Flags().IntVar(&cfg.bluestoreConfig.DatabaseSizeMB, "osd-database-size", partition.DBDefaultSizeMB, "default size (MB) for OSD database")
+
+	// OSD store config flags
+	command.Flags().IntVar(&cfg.storeConfig.WalSizeMB, "osd-wal-size", osd.WalDefaultSizeMB, "default size (MB) for OSD write ahead log (WAL) (bluestore)")
+	command.Flags().IntVar(&cfg.storeConfig.DatabaseSizeMB, "osd-database-size", osd.DBDefaultSizeMB, "default size (MB) for OSD database (bluestore)")
+	command.Flags().IntVar(&cfg.storeConfig.JournalSizeMB, "osd-journal-size", osd.JournalDefaultSizeMB, "default size (MB) for OSD journal (filestore)")
+	command.Flags().StringVar(&cfg.storeConfig.StoreType, "osd-store", osd.Filestore, "type of backing OSD store to use (bluestore or filestore)")
 }
 
 func init() {
@@ -60,13 +67,25 @@ func startOSD(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	var dataDevices string
+	var usingDeviceFilter bool
+	if osdDataDeviceFilter != "" {
+		if cfg.devices != "" {
+			return fmt.Errorf("Only one of --data-devices and --data-device-filter can be specified.")
+		}
+
+		dataDevices = osdDataDeviceFilter
+		usingDeviceFilter = true
+	} else {
+		dataDevices = cfg.devices
+	}
+
 	setLogLevel()
 
-	metadataDevice := ""
 	forceFormat := false
-	location := ""
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	agent := osd.NewAgent(cephd.New(), cfg.devices, metadataDevice, forceFormat, location, cfg.bluestoreConfig, &clusterInfo)
+	agent := osd.NewAgent(cephd.New(), dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
+		cfg.location, cfg.storeConfig, &clusterInfo)
 	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
 
 	return osd.Run(context, agent)

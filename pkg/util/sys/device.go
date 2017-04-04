@@ -146,7 +146,7 @@ func CreatePartitions(device string, args []string, executor exec.Executor) erro
 
 func FormatDevice(devicePath string, executor exec.Executor) error {
 	cmd := fmt.Sprintf("mkfs.ext4 %s", devicePath)
-	if err := executor.ExecuteCommand(cmd, "sudo", "mkfs.ext4", devicePath); err != nil {
+	if err := executor.ExecuteCommand(cmd, "mkfs.ext4", devicePath); err != nil {
 		return fmt.Errorf("command %s failed: %+v", cmd, err)
 	}
 
@@ -197,7 +197,7 @@ func MountDevice(devicePath, mountPath string, executor exec.Executor) error {
 
 // comma-separated list of mount options passed directly to mount command
 func MountDeviceWithOptions(devicePath, mountPath, fstype, options string, executor exec.Executor) error {
-	args := []string{"mount"}
+	args := []string{}
 
 	if fstype != "" {
 		args = append(args, "-t", fstype)
@@ -212,7 +212,7 @@ func MountDeviceWithOptions(devicePath, mountPath, fstype, options string, execu
 
 	os.MkdirAll(mountPath, 0755)
 	cmd := fmt.Sprintf("mount %s", devicePath)
-	if err := executor.ExecuteCommand(cmd, "sudo", args...); err != nil {
+	if err := executor.ExecuteCommand(cmd, "mount", args...); err != nil {
 		return fmt.Errorf("command %s failed: %+v", cmd, err)
 	}
 
@@ -221,7 +221,7 @@ func MountDeviceWithOptions(devicePath, mountPath, fstype, options string, execu
 
 func UnmountDevice(devicePath string, executor exec.Executor) error {
 	cmd := fmt.Sprintf("umount %s", devicePath)
-	if err := executor.ExecuteCommand(cmd, "sudo", "umount", devicePath); err != nil {
+	if err := executor.ExecuteCommand(cmd, "umount", devicePath); err != nil {
 		cmdErr, ok := err.(*exec.CommandError)
 		if ok && cmdErr.ExitStatus() == 32 {
 			logger.Infof("ignoring exit status 32 from unmount of device %s, err:%+v", devicePath, cmdErr)

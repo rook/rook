@@ -46,7 +46,7 @@ func addCephFlags(command *cobra.Command) {
 	command.Flags().StringVar(&clusterInfo.MonitorSecret, "mon-secret", "", "the cephx keyring for monitors")
 	command.Flags().StringVar(&clusterInfo.AdminSecret, "admin-secret", "", "secret for the admin user (random if not specified)")
 	command.Flags().StringVar(&cfg.monEndpoints, "mon-endpoints", "", "ceph mon endpoints")
-	command.Flags().StringVar(&cfg.dataDir, "data-dir", "/var/lib/rook", "directory for storing configuration")
+	command.Flags().StringVar(&cfg.dataDir, "config-dir", "/var/lib/rook", "directory for storing configuration")
 	command.Flags().StringVar(&cfg.cephConfigOverride, "ceph-config-override", "", "optional path to a ceph config file that will be appended to the config files that rook generates")
 }
 
@@ -61,7 +61,7 @@ func init() {
 }
 
 func startMon(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(monCmd, []string{"name", "fsid", "mon-secret", "admin-secret", "data-dir", "cluster-name", "private-ipv4"}); err != nil {
+	if err := flags.VerifyRequiredFlags(monCmd, []string{"name", "fsid", "mon-secret", "admin-secret", "config-dir", "cluster-name", "private-ipv4"}); err != nil {
 		return err
 	}
 

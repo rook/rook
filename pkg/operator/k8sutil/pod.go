@@ -46,6 +46,10 @@ func RepoPrefixEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: repoPrefixEnvVar, Value: repoPrefix()}
 }
 
+func ConfigDirEnvVar() v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_CONFIG_DIR", Value: DataDir}
+}
+
 func repoPrefix() string {
 	r := os.Getenv(repoPrefixEnvVar)
 	if r == "" {

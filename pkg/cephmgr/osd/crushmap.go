@@ -49,14 +49,14 @@ func formatLocation(location string) ([]string, error) {
 		}
 	}
 
-	if !isCrushFieldSet("hostName", pairs) {
+	if !isCrushFieldSet("host", pairs) {
 		// host name isn't set yet, attempt to set a default
 		hostName, err := os.Hostname()
 		if err != nil {
 			return nil, fmt.Errorf("failed to get hostname, %+v", err)
 		}
 
-		pairs = append(pairs, formatProperty("hostName", hostName))
+		pairs = append(pairs, formatProperty("host", hostName))
 	}
 
 	// set a default root if it's not already set

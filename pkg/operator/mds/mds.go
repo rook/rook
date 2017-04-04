@@ -150,7 +150,7 @@ func (c *Cluster) makeDeployment(id string) *extensions.Deployment {
 
 func (c *Cluster) mdsContainer(id string) v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd mds --data-dir=%s --mds-id=%s ",
+	command := fmt.Sprintf("/usr/bin/rookd mds --config-dir=%s --mds-id=%s ",
 		k8sutil.DataDir, id)
 	return v1.Container{
 		// TODO: fix "sleep 5".

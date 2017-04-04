@@ -16,6 +16,7 @@ limitations under the License.
 package osd
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
@@ -23,11 +24,14 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/client-go/pkg/api/unversioned"
+
+	cephosd "github.com/rook/rook/pkg/cephmgr/osd"
 )
 
 func TestStartDaemonset(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := New(clientset, "ns", "myversion", "", "", false)
+	c := New(clientset, "ns", "myversion", StorageSpec{}, "")
 
 	// Start the first time
 	err := c.Start()
@@ -46,44 +50,140 @@ func TestDaemonset(t *testing.T) {
 }
 
 func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool) {
-	clientset := fake.NewSimpleClientset()
-	c := New(clientset, "ns", "myversion", deviceFilter, dataDir, allDevices)
-
-	daemonSet, err := c.makeDaemonSet()
-	assert.Nil(t, err)
-	assert.NotNil(t, daemonSet)
-	assert.Equal(t, "osd", daemonSet.Name)
-	assert.Equal(t, c.Namespace, daemonSet.Namespace)
-	assert.Equal(t, v1.RestartPolicyAlways, daemonSet.Spec.Template.Spec.RestartPolicy)
-	assert.Equal(t, 2, len(daemonSet.Spec.Template.Spec.Volumes))
-	assert.Equal(t, "rook-data", daemonSet.Spec.Template.Spec.Volumes[0].Name)
-	assert.Equal(t, "devices", daemonSet.Spec.Template.Spec.Volumes[1].Name)
-	if dataDir == "" {
-		assert.NotNil(t, daemonSet.Spec.Template.Spec.Volumes[0].EmptyDir)
-		assert.Nil(t, daemonSet.Spec.Template.Spec.Volumes[0].HostPath)
-	} else {
-		assert.Nil(t, daemonSet.Spec.Template.Spec.Volumes[0].EmptyDir)
-		assert.Equal(t, dataDir, daemonSet.Spec.Template.Spec.Volumes[0].HostPath.Path)
+	storageSpec := StorageSpec{
+		Selection: Selection{UseAllDevices: &allDevices, DeviceFilter: deviceFilter},
+		Nodes:     []Node{{Name: "node1"}},
 	}
 
-	assert.Equal(t, "osd", daemonSet.Spec.Template.ObjectMeta.Name)
-	assert.Equal(t, "osd", daemonSet.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, c.Namespace, daemonSet.Spec.Template.ObjectMeta.Labels["rook_cluster"])
-	assert.Equal(t, 0, len(daemonSet.Spec.Template.ObjectMeta.Annotations))
+	clientset := fake.NewSimpleClientset()
+	c := New(clientset, "ns", "myversion", storageSpec, dataDir)
 
-	cont := daemonSet.Spec.Template.Spec.Containers[0]
+	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
+	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
+	assert.NotNil(t, replicaSet)
+	assert.Equal(t, "osd-node1", replicaSet.Name)
+	assert.Equal(t, c.Namespace, replicaSet.Namespace)
+	assert.Equal(t, int32(1), *(replicaSet.Spec.Replicas))
+	assert.Equal(t, "node1", replicaSet.Spec.Template.Spec.NodeSelector[unversioned.LabelHostname])
+	assert.Equal(t, v1.RestartPolicyAlways, replicaSet.Spec.Template.Spec.RestartPolicy)
+	assert.Equal(t, 2, len(replicaSet.Spec.Template.Spec.Volumes))
+	assert.Equal(t, "rook-data", replicaSet.Spec.Template.Spec.Volumes[0].Name)
+	assert.Equal(t, "devices", replicaSet.Spec.Template.Spec.Volumes[1].Name)
+	if dataDir == "" {
+		assert.NotNil(t, replicaSet.Spec.Template.Spec.Volumes[0].EmptyDir)
+		assert.Nil(t, replicaSet.Spec.Template.Spec.Volumes[0].HostPath)
+	} else {
+		assert.Nil(t, replicaSet.Spec.Template.Spec.Volumes[0].EmptyDir)
+		assert.Equal(t, dataDir, replicaSet.Spec.Template.Spec.Volumes[0].HostPath.Path)
+	}
+
+	assert.Equal(t, "osd", replicaSet.Spec.Template.ObjectMeta.Name)
+	assert.Equal(t, "osd", replicaSet.Spec.Template.ObjectMeta.Labels["app"])
+	assert.Equal(t, c.Namespace, replicaSet.Spec.Template.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, 0, len(replicaSet.Spec.Template.ObjectMeta.Annotations))
+
+	cont := replicaSet.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
-	assert.Equal(t, 5, len(cont.Env))
 
-	expectedCommand := "/usr/bin/rookd osd --data-dir=/var/lib/rook "
+	expectedCommand := "/usr/bin/rookd osd"
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
-	devices := cont.Env[0].Value
+
+	// verify the config dir env var
+	verifyEnvVar(t, cont.Env, "ROOKD_CONFIG_DIR", "/var/lib/rook", true)
+
+	// verify the osd store type env var uses the default
+	verifyEnvVar(t, cont.Env, "ROOKD_OSD_STORE", cephosd.DefaultStore, true)
+
+	// verify the device filter env var
 	if deviceFilter != "" {
-		assert.Equal(t, deviceFilter, devices)
+		verifyEnvVar(t, cont.Env, "ROOKD_DATA_DEVICE_FILTER", deviceFilter, true)
 	} else if allDevices {
-		assert.Equal(t, "all", devices)
+		verifyEnvVar(t, cont.Env, "ROOKD_DATA_DEVICE_FILTER", "all", true)
 	} else {
-		assert.Equal(t, "", devices)
+		verifyEnvVar(t, cont.Env, "ROOKD_DATA_DEVICE_FILTER", "", false)
 	}
+}
+
+func verifyEnvVar(t *testing.T, envVars []v1.EnvVar, expectedName, expectedValue string, expectedFound bool) {
+	found := false
+	for _, envVar := range envVars {
+		if envVar.Name == expectedName {
+			assert.Equal(t, expectedValue, envVar.Value)
+			found = true
+			break
+		}
+	}
+
+	assert.Equal(t, expectedFound, found)
+}
+
+func TestStorageSpecDevicesAndDirectories(t *testing.T) {
+	storageSpec := StorageSpec{
+		Config: Config{},
+		Nodes: []Node{
+			{
+				Name:        "node1",
+				Devices:     []Device{{Name: "sda"}},
+				Directories: []Directory{{Path: "/rook/dir1"}},
+			},
+		},
+	}
+
+	clientset := fake.NewSimpleClientset()
+	c := New(clientset, "ns", "myversion", storageSpec, "")
+
+	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
+	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
+	assert.NotNil(t, replicaSet)
+
+	// pod spec should have a volume for the given dir
+	podSpec := replicaSet.Spec.Template.Spec
+	assert.Equal(t, 3, len(podSpec.Volumes))
+	assert.Equal(t, "rook-dir1", podSpec.Volumes[2].Name)
+	assert.Equal(t, "/rook/dir1", podSpec.Volumes[2].VolumeSource.HostPath.Path)
+
+	// container should have a volume mount for the given dir
+	container := podSpec.Containers[0]
+	assert.Equal(t, "rook-dir1", container.VolumeMounts[2].Name)
+	assert.Equal(t, "/rook/dir1", container.VolumeMounts[2].MountPath)
+
+	// container command should have the given dir and device
+	verifyEnvVar(t, container.Env, "ROOKD_DATA_DIRECTORIES", "/rook/dir1", true)
+	verifyEnvVar(t, container.Env, "ROOKD_DATA_DEVICES", "sda", true)
+}
+
+func TestStorageSpecConfig(t *testing.T) {
+	storageSpec := StorageSpec{
+		Config: Config{},
+		Nodes: []Node{
+			{
+				Name: "node1",
+				Config: Config{
+					Location: "rack=foo",
+					StoreConfig: cephosd.StoreConfig{
+						StoreType:      cephosd.Bluestore,
+						DatabaseSizeMB: 10,
+						WalSizeMB:      20,
+						JournalSizeMB:  30,
+					},
+				},
+			},
+		},
+	}
+
+	clientset := fake.NewSimpleClientset()
+	c := New(clientset, "ns", "myversion", storageSpec, "")
+
+	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
+	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
+	assert.NotNil(t, replicaSet)
+
+	container := replicaSet.Spec.Template.Spec.Containers[0]
+	assert.NotNil(t, container)
+	verifyEnvVar(t, container.Env, "ROOKD_OSD_STORE", cephosd.Bluestore, true)
+	verifyEnvVar(t, container.Env, "ROOKD_OSD_DATABASE_SIZE", strconv.Itoa(10), true)
+	verifyEnvVar(t, container.Env, "ROOKD_OSD_WAL_SIZE", strconv.Itoa(20), true)
+	verifyEnvVar(t, container.Env, "ROOKD_OSD_JOURNAL_SIZE", strconv.Itoa(30), true)
+	verifyEnvVar(t, container.Env, "ROOKD_LOCATION", "rack=foo", true)
 }

@@ -92,7 +92,7 @@ func (c *Cluster) CreateInstance() error {
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.clientset, c.Spec.Namespace, c.Spec.Version, c.Spec.DeviceFilter, c.Spec.DataDirHostPath, c.Spec.UseAllDevices)
+	c.osds = osd.New(c.clientset, c.Spec.Namespace, c.Spec.Version, c.Spec.Storage, c.Spec.DataDirHostPath)
 	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)

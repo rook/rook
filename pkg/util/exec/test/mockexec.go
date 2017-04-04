@@ -15,7 +15,10 @@ limitations under the License.
 */
 package test
 
-import "os/exec"
+import (
+	"os"
+	"os/exec"
+)
 
 // ******************** MockExecutor ********************
 type MockExecutor struct {
@@ -24,6 +27,7 @@ type MockExecutor struct {
 	MockExecuteCommandPipeline           func(actionName string, command string) (string, error)
 	MockExecuteCommandWithOutput         func(actionName string, command string, arg ...string) (string, error)
 	MockExecuteCommandWithCombinedOutput func(actionName string, command string, arg ...string) (string, error)
+	MockExecuteStat                      func(name string) (os.FileInfo, error)
 }
 
 func (e *MockExecutor) ExecuteCommand(actionName string, command string, arg ...string) error {
@@ -65,4 +69,12 @@ func (e *MockExecutor) ExecuteCommandWithCombinedOutput(actionName string, comma
 	}
 
 	return "", nil
+}
+
+func (e *MockExecutor) ExecuteStat(name string) (os.FileInfo, error) {
+	if e.MockExecuteStat != nil {
+		return e.MockExecuteStat(name)
+	}
+
+	return nil, nil
 }
