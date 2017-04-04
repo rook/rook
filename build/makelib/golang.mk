@@ -46,6 +46,7 @@ GO_SUBDIRS ?= cmd pkg
 # Optional directories (relative to CURDIR)
 GO_BIN_DIR ?= bin
 GO_TOOLS_DIR ?= .tools
+GO_WORK_DIR ?= .work
 GO_VENDOR_DIR ?= vendor
 GO_PKG_DIR ?=
 
@@ -83,7 +84,7 @@ export CGO_CFLAGS CGO_CPPFLAGS CGO_LDFLAGS
 
 # setup tools used during the build
 GO_TOOLS_HOST_DIR ?= $(abspath $(GO_TOOLS_DIR)/$(GOHOSTOS)_$(GOHOSTARCH))
-GLIDE_HOME := $(abspath $(GO_TOOLS_DIR)/glide)
+GLIDE_HOME := $(abspath $(GO_WORK_DIR)/glide)
 GLIDE := $(GO_TOOLS_HOST_DIR)/glide
 GOLINT := $(GO_TOOLS_HOST_DIR)/golint
 export GLIDE_HOME

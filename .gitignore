@@ -1,7 +1,6 @@
-.vscode/
-
+/.vscode/
 /.work
-/.tools
+/.download
 
 /bin
 /vendor

@@ -60,19 +60,22 @@ if [ "`uname -s`" != "Linux" ]; then
     #    /.netrc (bind mounted to host ${HOME}/.netrc)
     #    /.aws (bind mounted to host ${HOME}/.aws)
     #    /.docker (bind mounted to host ${HOME}/.docker)
-    #    /.download
+    #    /.download (bind mounted to host ${DOWNLOADDIR} if set)
     #    /.ccache
     #    /go/src/github.com/rook/rook (rsync'd from host <source>)
 
-    # now copy the source tree to the container volume
-    run_rsync "${scriptdir}/..-->rsync://localhost:${rsync_port}/volume/go/src/${source_repo}"
+    # now copy the source tree to the container volume. Note this also
+    # copies the .git directory but not the index.lock files which
+    # change frequently and sometimes cause rsync to fail.
+    rsync_host_to_container \
+        --filter="- /.work/" \
+        --filter="- /.download/" \
+        --filter="- /.vscode/" \
+        --filter="- index.lock"
 
     MOUNT_OPTS="${MOUNT_OPTS} -v ${container_volume}:${BUILDER_HOME}"
 
     CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache -e CCACHE_LOG"
-
-    DOWNLOAD_ARGS="-e DOWNLOADDIR=${BUILDER_HOME}/.download"
-
 else
 
     # On linux bind mounts are cheap so we dont need to rsync
@@ -101,13 +104,13 @@ else
         CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache -e CCACHE_LOG \
             -v ${CCACHE_DIR}:${BUILDER_HOME}/.ccache"
     fi
+fi
 
-    # if DOWNLOADDIR is not set bind mount it
-    if [[ -n "${DOWNLOADDIR}" ]]; then
-        mkdir -p ${DOWNLOADDIR}
-        DOWNLOAD_ARGS="-e DOWNLOADDIR=${BUILDER_HOME}/.download \
-            -v ${DOWNLOADDIR}:${BUILDER_HOME}/.download"
-    fi
+# if DOWNLOADDIR is not set bind mount it
+if [[ -n "${DOWNLOADDIR}" ]]; then
+    mkdir -p ${DOWNLOADDIR}
+    DOWNLOAD_ARGS="-e DOWNLOADDIR=${BUILDER_HOME}/go/src/${source_repo}/.download \
+        -v ${DOWNLOADDIR}:${BUILDER_HOME}/go/src/${source_repo}/.download"
 fi
 
 # we copy credential files for github access
@@ -133,6 +136,18 @@ AWS_ARGS="\
     -e AWS_DEFAULT_REGION \
     -v ${HOME}/.aws:${BUILDER_HOME}/.aws"
 
+rsync_back() {
+    if [ "`uname -s`" != "Linux" ]; then
+        # rsync generated files back to the host. IMPORTANT: we never rsync the .git directory back
+        # since the host's version might have changed.
+        rsync_container_to_host \
+            --filter="+ /bin/" \
+            --filter="+ /release/" \
+            --filter="+ /vendor/" \
+            --filter="- /*"
+    fi
+}
+
 docker run \
     --rm \
     -e GOPATH="${BUILDER_HOME}/go" \
@@ -141,6 +156,7 @@ docker run \
     -e VERSION \
     -e LINKMODE=static \
     -e CHANNEL \
+    -e ALWAYS_BUILD \
     ${TTY_ARGS} \
     ${CCACHE_ARGS} \
     ${DOWNLOAD_ARGS} \
@@ -152,9 +168,6 @@ docker run \
     ${MOUNT_OPTS} \
     -w ${BUILDER_HOME}/go/src/${source_repo} \
     ${container_image} \
-    "$@"
+    "$@" || { rsync_back; exit 1; }
 
-# rsync the source tree back
-if [ "`uname -s`" != "Linux" ]; then
-    run_rsync "rsync://localhost:${rsync_port}/volume/go/src/${source_repo}-->${scriptdir}/../.."
-fi
+rsync_back

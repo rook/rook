@@ -67,7 +67,8 @@ GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
 # the working directory to store packages and intermediate build files
-WORKDIR ?= .work
+WORKDIR ?= $(abspath .work)
+DOWNLOADDIR ?= $(abspath .download)
 
 # bin and relase dirs
 BIN_DIR=bin
@@ -111,8 +112,8 @@ endif
 endif
 
 # Set the cgo flags to link externals
-CGO_CFLAGS = -I$(abspath external/build/$(CROSS_TRIPLE)/include)
-CGO_LDFLAGS = -L$(abspath external/build/$(CROSS_TRIPLE)/lib)
+CGO_CFLAGS = -I$(abspath $(WORKDIR)/build/$(CROSS_TRIPLE)/include)
+CGO_LDFLAGS = -L$(abspath $(WORKDIR)/build/$(CROSS_TRIPLE)/lib)
 
 endif
 
@@ -138,6 +139,8 @@ GO_BUILDFLAGS=$(BUILDFLAGS)
 GO_LDFLAGS=$(LDFLAGS)
 GO_TAGS=$(TAGS)
 
+GO_WORK_DIR ?= $(WORKDIR)
+GO_TOOLS_DIR ?= $(DOWNLOADDIR)/tools
 GO_PKG_DIR ?= $(WORKDIR)/pkg
 
 include build/makelib/golang.mk
@@ -154,14 +157,18 @@ include build/makelib/release.mk
 # ====================================================================================
 # External Targets
 
-export ALWAYS_BUILD DOWNLOADDIR
+export WORKDIR DOWNLOADDIR CEPH_BRANCH ALLOCATOR
+
+ifneq ($(ALWAYS_BUILD),)
+export ALWAYS_BUILD
+endif
 
 external:
 ifeq ($(GOOS),linux)
-	@$(MAKE) -C external CEPH_BRANCH=$(CEPH_BRANCH) ALLOCATOR=$(ALLOCATOR) PLATFORMS=$(CROSS_TRIPLE) cross
+	@$(MAKE) -C external PLATFORMS=$(CROSS_TRIPLE) cross
 endif
 
-external/build/$(CROSS_TRIPLE)/lib/libcephd.a:
+$(WORKDIR)/build/$(CROSS_TRIPLE)/lib/libcephd.a:
 	@$(MAKE) external
 
 external.clean:
@@ -175,7 +182,7 @@ external.distclean:
 # ====================================================================================
 # Targets
 
-dev: external/build/$(CROSS_TRIPLE)/lib/libcephd.a
+dev: $(WORKDIR)/build/$(CROSS_TRIPLE)/lib/libcephd.a
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 	@$(MAKE) go.build
@@ -213,6 +220,7 @@ clean: go.clean external.clean
 	@rm -fr $(WORKDIR) $(RELEASE_DIR)/* $(BIN_DIR)/*
 
 distclean: go.distclean clean external.distclean
+	@rm -fr $(DOWNLOADDIR)
 
 cross.build:
 	@$(MAKE) external
@@ -283,20 +291,24 @@ help:
 	@echo '    publish     Publishes all packages from a release.'
 	@echo ''
 	@echo 'Options:'
-	@echo '    CHANNEL     Sets the release channel. Can be set to master,'
-	@echo '                alpha, beta, or stable. Default is not set.'
-	@echo '    GOARCH      The arch to build.'
-	@echo '    PIE         Set to 1 to build build a position independent'
-	@echo '                executable. Can not be combined with LINKMODE'
-	@echo '                set to "static". The default is 0.'
-	@echo '    GOOS        The OS to build for.'
-	@echo '    LINKMODE    Set to "dynamic" to link all libraries dynamically.'
-	@echo '                Set to "stdlib" to link the standard library'
-	@echo '                dynamically and everything else statically. Set to'
-	@echo '                "static" to link everything statically. Default is'
-	@echo '                "dynamic".'
-	@echo '    VERSION     The version information compiled into binaries.'
-	@echo '                The default is obtained from git.'
-	@echo '    V           Set to 1 enable verbose build. Default is 0.'
-	@echo '    WORKDIR     The working directory where most build files'
-	@echo '                are stored. The default is .work'
+	@echo '    CHANNEL      Sets the release channel. Can be set to master,'
+	@echo '                 alpha, beta, or stable. Default is not set.'
+	@echo '    DOWNLOADDIR  A directory where downloaded files and other'
+	@echo '                 files used during the build are cached. These'
+	@echo '                 files help speedup the build by avoding network'
+	@echo '                 transfers. Its safe to use these files across builds.'
+	@echo '    GOARCH       The arch to build.'
+	@echo '    GOOS         The OS to build for.'
+	@echo '    LINKMODE     Set to "dynamic" to link all libraries dynamically.'
+	@echo '                 Set to "stdlib" to link the standard library'
+	@echo '                 dynamically and everything else statically. Set to'
+	@echo '                 "static" to link everything statically. Default is'
+	@echo '                 "dynamic".'
+	@echo '    PIE          Set to 1 to build build a position independent'
+	@echo '                 executable. Can not be combined with LINKMODE'
+	@echo '                 set to "static". The default is 0.'
+	@echo '    VERSION      The version information compiled into binaries.'
+	@echo '                 The default is obtained from git.'
+	@echo '    V            Set to 1 enable verbose build. Default is 0.'
+	@echo '    WORKDIR      The working directory where most build files'
+	@echo '                 are stored. The default is .work'
