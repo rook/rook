@@ -78,6 +78,8 @@ s3_upload() {
 s3_promote_file() {
     local filename=$1
 
-    aws s3 cp --only-show-errors s3://${RELEASE_S3_BUCKET}/master/${RELEASE_VERSION}/${filename} s3://${RELEASE_S3_BUCKET}/${RELEASE_CHANNEL}/${RELEASE_VERSION}/${filename}
+    if [[ "${RELEASE_CHANNEL}" != "master" ]]; then
+        aws s3 cp --only-show-errors s3://${RELEASE_S3_BUCKET}/master/${RELEASE_VERSION}/${filename} s3://${RELEASE_S3_BUCKET}/${RELEASE_CHANNEL}/${RELEASE_VERSION}/${filename}
+    fi
     aws s3 cp --only-show-errors s3://${RELEASE_S3_BUCKET}/master/${RELEASE_VERSION}/${filename} s3://${RELEASE_S3_BUCKET}/${RELEASE_CHANNEL}/current/${filename}
 }

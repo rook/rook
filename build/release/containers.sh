@@ -73,6 +73,14 @@ publish_artifact() {
 
     echo pushing docker container ${name}
     docker push ${name}
+
+    # we will always tag master builds as latest. i.e. auto-promote master
+    if [[ "${RELEASE_CHANNEL}" == "master" ]]; then
+        local dst=${registry}$(get_image_name $os $arch $repo master-latest)
+        echo pushing docker container ${dst}
+        docker tag ${name} ${dst}
+        docker push ${dst}
+    fi
 }
 
 publish() {

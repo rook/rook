@@ -12,6 +12,10 @@ EOF
 
 publish() {
     s3_upload ${RELEASE_DIR}/version
+
+    if [[ "${RELEASE_CHANNEL}" == "master" ]]; then
+        s3_promote_file version
+    fi
 }
 
 promote() {

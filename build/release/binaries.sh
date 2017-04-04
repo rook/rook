@@ -71,10 +71,19 @@ publish() {
     echo uploading $file to S3
     s3_upload ${RELEASE_DIR}/$file
 
+    # we will always tag master builds as latest. i.e. auto-promote master
+    if [[ "${RELEASE_CHANNEL}" == "master" ]]; then
+        s3_promote_file $file
+    fi
+
     if [[ ${os} == "linux" ]]; then
         file=$(get_archive_name $os $arch "debug")
         echo uploading $file to S3
         s3_upload ${RELEASE_DIR}/$file
+
+        if [[ "${RELEASE_CHANNEL}" == "master" ]]; then
+            s3_promote_file $file
+        fi
     fi
 }
 
