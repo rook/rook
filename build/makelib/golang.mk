@@ -84,8 +84,9 @@ export CGO_CFLAGS CGO_CPPFLAGS CGO_LDFLAGS
 
 # setup tools used during the build
 GO_TOOLS_HOST_DIR ?= $(abspath $(GO_TOOLS_DIR)/$(GOHOSTOS)_$(GOHOSTARCH))
+GLIDE_VERSION=v0.12.3
 GLIDE_HOME := $(abspath $(GO_WORK_DIR)/glide)
-GLIDE := $(GO_TOOLS_HOST_DIR)/glide
+GLIDE := $(GO_TOOLS_HOST_DIR)/glide-$(GLIDE_VERSION)
 GOLINT := $(GO_TOOLS_HOST_DIR)/golint
 export GLIDE_HOME
 
@@ -188,8 +189,8 @@ go.vendor $(GO_VENDOR_DIR)/vendor.stamp: $(GLIDE)
 $(GLIDE):
 	@echo "installing glide"
 	@mkdir -p $(GO_TOOLS_HOST_DIR)/tmp
-	@curl -sL https://github.com/Masterminds/glide/releases/download/v0.12.3/glide-v0.12.3-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(GO_TOOLS_HOST_DIR)/tmp
-	@mv $(GO_TOOLS_HOST_DIR)/tmp/$(GOHOSTOS)-$(GOHOSTARCH)/glide $(GO_TOOLS_HOST_DIR)/glide
+	@curl -sL https://github.com/Masterminds/glide/releases/download/$(GLIDE_VERSION)/glide-$(GLIDE_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(GO_TOOLS_HOST_DIR)/tmp
+	@mv $(GO_TOOLS_HOST_DIR)/tmp/$(GOHOSTOS)-$(GOHOSTARCH)/glide $(GLIDE)
 	@rm -fr $(GO_TOOLS_HOST_DIR)/tmp
 
 $(GOLINT):
