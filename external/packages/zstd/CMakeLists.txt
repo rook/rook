@@ -15,6 +15,7 @@
 # See https://github.com/facebook/zstd
 set(Zstd_VERSION 1.1.3)
 set(Zstd_URL https://github.com/facebook/zstd/archive/v${Zstd_VERSION}.tar.gz)
+set(Zstd_SHA256 106c532ae840a6ee4aee5258f04f3acab7b3e09b9e9584ebe94e4fbfd899af0a)
 
 message(STATUS "External: Building zstd ${Zstd_VERSION}")
 
@@ -26,6 +27,7 @@ ExternalProject_Add(zstd
   PREFIX ${EXTERNAL_ROOT}
 
   URL ${Zstd_URL}
+  URL_HASH SHA256=${Zstd_SHA256}
 
   DOWNLOAD_DIR ${EXTERNAL_DOWNLOAD_DIR}
   BUILD_IN_SOURCE 1

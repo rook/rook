@@ -15,6 +15,7 @@
 # See https://github.com/google/snappy
 set(Jemalloc_VERSION 4.3.1)
 set(Jemalloc_URL https://github.com/jemalloc/jemalloc/releases/download/${Jemalloc_VERSION}/jemalloc-${Jemalloc_VERSION}.tar.bz2)
+set(Jemalloc_SHA256 f7bb183ad8056941791e0f075b802e8ff10bd6e2d904e682f87c8f6a510c278b)
 
 message(STATUS "External: Building jemalloc ${Jemalloc_VERSION}")
 
@@ -32,6 +33,7 @@ ExternalProject_Add(jemalloc
   PREFIX ${EXTERNAL_ROOT}
 
   URL ${Jemalloc_URL}
+  URL_HASH SHA256=${Jemalloc_SHA256}
 
   DOWNLOAD_DIR ${EXTERNAL_DOWNLOAD_DIR}
   BUILD_IN_SOURCE 1

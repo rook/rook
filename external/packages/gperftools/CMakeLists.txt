@@ -15,6 +15,7 @@
 # See https://github.com/gperftools/gperftools
 set(Gperftools_VERSION 2.5)
 set(Gperftools_URL https://github.com/gperftools/gperftools/releases/download/gperftools-${Gperftools_VERSION}/gperftools-${Gperftools_VERSION}.tar.gz)
+set(Gperftools_SHA256 6fa2748f1acdf44d750253e160cf6e2e72571329b42e563b455bde09e9e85173)
 
 message(STATUS "External: Building gperftools ${Gperftools_VERSION}")
 
@@ -31,6 +32,7 @@ ExternalProject_Add(gperftools
   PREFIX ${EXTERNAL_ROOT}
 
   URL ${Gperftools_URL}
+  URL_HASH SHA256=${Gperftools_SHA256}
 
   DOWNLOAD_DIR ${EXTERNAL_DOWNLOAD_DIR}
   BUILD_IN_SOURCE 1
