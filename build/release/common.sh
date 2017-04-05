@@ -54,8 +54,9 @@ github_get_release_id() {
 }
 
 github_get_upload_url() {
+    id=`cat ${RELEASE_DIR}/release_id`
     curl -4 -s -H "Authorization: token ${GITHUB_TOKEN}" \
-       "https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/releases/tags/${RELEASE_VERSION}" | jq -r '.upload_url'
+       "https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/releases/${id}" | jq -r '.upload_url'
 }
 
 github_create_release() {
@@ -65,13 +66,17 @@ github_create_release() {
         echo creating a new github release for ${RELEASE_VERSION}
         id=$(curl -4 -s -H "Authorization: token ${GITHUB_TOKEN}" \
             -H "Content-Type: application/json" \
-            -d "{\"tag_name\": \"${RELEASE_VERSION}\",\"target_commitish\": \"master\",\"name\": \"${RELEASE_VERSION}\",\"body\": \"TBD\",\"draft\": false,\"prerelease\": true}" \
+            -d "{\"tag_name\": \"${RELEASE_VERSION}\",\"target_commitish\": \"master\",\"name\": \"${RELEASE_VERSION}\",\"body\": \"TBD\",\"draft\": true,\"prerelease\": true}" \
             "https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/releases" | jq -r '.id')
 
         if [[ ${id} == "null" ]]; then
             echo error: failed to create github release
             return 1
         fi
+
+        cat <<EOF > ${RELEASE_DIR}/release_id
+${id}
+EOF
     fi
 }
 
@@ -119,6 +124,10 @@ github_upload() {
         echo error: failed to upload ${filename} to github
         return 1
     fi
+}
+
+github_release_complete() {
+    rm -fr ${RELEASE_DIR}/release_id
 }
 
 write_version_file() {

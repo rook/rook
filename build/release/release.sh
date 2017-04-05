@@ -33,6 +33,7 @@ case ${action} in
 
     promote.complete)
         s3_promote_release
+        github_release_complete
         ;;
 
     *)

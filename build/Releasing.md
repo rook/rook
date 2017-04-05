@@ -9,7 +9,7 @@ At a high level the release workflow is as follows:
 
 ## Building Release Builds
 
-Jenkins will build, test and publish every commit form master. We use semantic versions for every build. Version numbers will be generated using `git describe --always --tags --dirty`. When building from a tagged commit these builds will be like v.0.3.0. When building from a non-tagged commit they will be something like v0.3.0-2-g770ebbc.
+Jenkins will build, test and publish every commit from master. We use semantic versions for every build. Version numbers will be generated using `git describe --always --tags --dirty`. When building from a tagged commit these builds will be like v.0.3.0. When building from a non-tagged commit they will be something like v0.3.0-2-g770ebbc.
 
 To tag a commit from master that you want to release, do the following:
 
@@ -22,13 +22,13 @@ Note make sure you use the correct remote to push the tag upstream.
 
 Jenkins would build the tagged release and publish its artifacts like any other build from master.
 
-NOTE: Jenkins currently is broken and does not support building tags, this has to be done manually.
+**NOTE:** Jenkins currently is broken and does not support building tags, this has to be done manually.  After pushing the tag, go to Jenkins and simply rerun the build from master for the commit hash you tagged.
 
 ## Artifacts
 
 Each build from master has the following release artifacts:
-- binaries (rook, rookd, rook-operator) including debug symbols
-- containers (rookd, rookd-operator, toolbox)
+- binaries (rook, rookd) including debug symbols
+- containers (rookd, toolbox)
 
 binaries go to an S3 bucket `rook-release` and have the following layout:
 
@@ -46,7 +46,7 @@ binaries go to an S3 bucket `rook-release` and have the following layout:
              rook-v0.3.0-linux-arm64-debug.tar.gz
              rook-v0.3.0-linux-arm64.tar.gz
              rook-v0.3.0-windows-amd64.zip
-         /latest
+         /current
              (binaries)
 ```
 
@@ -72,8 +72,8 @@ To promote a release run the `promote` target as follows:
 make promote CHANNEL=alpha VERSION=v0.4.0
 ```
 
-NOTE: Promoting requires that you have AWS credentials (in ~/.aws or in environment), github token (export GITHUB_TOKEN), and
-quay.io write access (via ~/.docker/credentials).
+**NOTE:** Promoting requires that you have AWS credentials (in `~/.aws` or in environment), github token (`export GITHUB_TOKEN`), and
+quay.io write access (via `~/.docker/credentials` or `~/.docker/config.json`).  See the [AWS config docs](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-config-files) for help setting up AWS credentials.
 
 After promoting a release, on S3 there will be a path for each channel and release promoted as follows:
 
@@ -90,14 +90,14 @@ After promoting a release, on S3 there will be a path for each channel and relea
                rook-v0.3.0-linux-arm64.tar.gz
                rook-v0.3.0-windows-amd64.zip
           /v0.4.0
-          /latest
+          /current
     /beta
           /v0.3.0
           /v0.4.0
-          /latest
+          /current
     /stable
           /v0.3.0
-          /latest
+          /current
 ```
 
 Similarly in quay.io we will tag containers as follows:
@@ -111,7 +111,7 @@ beta-latest -- for the latest
 latest -- for the latest stable version
 ```
 
-Finally, the a github release will be created in the rook repo and binaries pushed to it. Next, edit the release and
-add the release notes and save it.
+Finally, the github release will be created in the rook repo as a draft and binaries pushed to it. Next, edit the release and
+add the release notes then publish it.
 
 You're done.
