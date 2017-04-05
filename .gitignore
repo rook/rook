@@ -5,6 +5,7 @@
 /bin
 /vendor
 /release
+.idea/
 
 coverage.out
 coverage.html
