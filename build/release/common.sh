@@ -75,6 +75,21 @@ github_create_release() {
     fi
 }
 
+github_delete_release() {
+    id=$(github_get_release_id)
+
+    if [[ ${id} != "null" ]]; then
+        echo deleting existing github release ${id} for ${RELEASE_VERSION}
+        curl -4 -s -X DELETE -H "Authorization: token ${GITHUB_TOKEN}" \
+                "https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/releases/${id}"
+    fi
+}
+
+github_create_or_replace_release() {
+    github_delete_release
+    github_create_release
+}
+
 github_upload() {
     local filepath=$1
     local mediatype=$(get_mediatype_from_extension $filepath)
@@ -106,6 +121,21 @@ github_upload() {
     fi
 }
 
+write_version_file() {
+    # upload a file with the version number
+    cat <<EOF > ${RELEASE_DIR}/version
+${version}
+EOF
+}
+
+publish_version_file() {
+    s3_upload ${RELEASE_DIR}/version
+
+    if [[ "${RELEASE_CHANNEL}" == "master" ]]; then
+        s3_promote_file version
+    fi
+}
+
 # we assume that AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and possibly AWS_DEFAULT_REGION are already set
 # or ~/.aws/credentials and ~/.aws/config are configured
 
@@ -132,5 +162,9 @@ s3_promote_file() {
     if [[ "${RELEASE_CHANNEL}" != "master" ]]; then
         aws s3 cp --only-show-errors s3://${RELEASE_S3_BUCKET}/master/${RELEASE_VERSION}/${filename} s3://${RELEASE_S3_BUCKET}/${RELEASE_CHANNEL}/${RELEASE_VERSION}/${filename}
     fi
-    aws s3 cp --only-show-errors s3://${RELEASE_S3_BUCKET}/master/${RELEASE_VERSION}/${filename} s3://${RELEASE_S3_BUCKET}/${RELEASE_CHANNEL}/current/${filename}
+}
+
+s3_promote_release() {
+    echo copying ${RELEASE_VERSION} to current for channel ${RELEASE_CHANNEL} in S3 bucket ${RELEASE_S3_BUCKET}
+    aws s3 sync --only-show-errors --delete s3://${RELEASE_S3_BUCKET}/master/${RELEASE_VERSION} s3://${RELEASE_S3_BUCKET}/${RELEASE_CHANNEL}/current
 }

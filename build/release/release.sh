@@ -19,12 +19,20 @@ case ${action} in
         ${scriptdir}/${flavor}.sh ${action} ${platform%_*} ${platform#*_}
         ;;
 
-    init)
+    promote.init)
         if check_release_version; then
             echo ${RELEASE_VERSION} can not be promoted. Must build from a tag like v0.4.0.
             exit 1
         fi
-        github_create_release
+
+        echo promoting release ${RELEASE_VERSION} to channel ${RELEASE_CHANNEL}
+        write_version_file
+        publish_version_file
+        github_create_or_replace_release
+        ;;
+
+    promote.complete)
+        s3_promote_release
         ;;
 
     *)
