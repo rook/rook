@@ -44,7 +44,7 @@ RELEASE_PLATFORMS ?=
 RELEASE_CLIENT_ONLY_PLATFORMS ?=
 
 # Optional. the flavors to release
-RELEASE_FLAVORS := metadata binaries containers
+RELEASE_FLAVORS := binaries containers
 
 # Optional. Github token repo and user
 GITHUB_TOKEN ?=
@@ -104,7 +104,8 @@ release.build: release.build.all
 release.publish: release.publish.all
 
 release.promote:
-	@build/release/release.sh init
+	@build/release/release.sh promote.init
 	@$(MAKE) release.promote.all
+	@build/release/release.sh promote.complete
 
 release.cleanup: release.cleanup.all

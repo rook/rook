@@ -72,6 +72,9 @@ To promote a release run the `promote` target as follows:
 make promote CHANNEL=alpha VERSION=v0.4.0
 ```
 
+NOTE: Promoting requires that you have AWS credentials (in ~/.aws or in environment), github token (export GITHUB_TOKEN), and
+quay.io write access (via ~/.docker/credentials).
+
 After promoting a release, on S3 there will be a path for each channel and release promoted as follows:
 
 ```
