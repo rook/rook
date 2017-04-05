@@ -68,7 +68,6 @@ publish() {
     local arch=$2
     local file=$(get_archive_name $os $arch)
 
-    echo uploading $file to S3
     s3_upload ${RELEASE_DIR}/$file
 
     # we will always tag master builds as latest. i.e. auto-promote master
@@ -78,7 +77,6 @@ publish() {
 
     if [[ ${os} == "linux" ]]; then
         file=$(get_archive_name $os $arch "debug")
-        echo uploading $file to S3
         s3_upload ${RELEASE_DIR}/$file
 
         if [[ "${RELEASE_CHANNEL}" == "master" ]]; then
@@ -91,16 +89,20 @@ promote() {
     local os=$1
     local arch=$2
     local file=$(get_archive_name $os $arch)
-    local ext=$(get_archive_ext $os)
 
-    echo promoting $file to channel ${RELEASE_CHANNEL}
     s3_promote_file $file
-    github_upload ${RELEASE_DIR}/$file $ext
+    if [[ ! -e ${RELEASE_DIR}/$file ]]; then
+        s3_download ${RELEASE_DIR}/$file
+    fi
+    github_upload ${RELEASE_DIR}/$file
 
     if [[ ${os} == "linux" ]]; then
         file=$(get_archive_name $os $arch "debug")
         s3_promote_file $file
-        github_upload ${RELEASE_DIR}/$file $ext
+        if [[ ! -e ${RELEASE_DIR}/$file ]]; then
+            s3_download ${RELEASE_DIR}/$file
+        fi
+        github_upload ${RELEASE_DIR}/$file
     fi
 }
 
