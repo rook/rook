@@ -52,14 +52,18 @@ ifeq ($(CCACHE),1)
 endif
 
 # The working directory where build generated files are stored
-WORKDIR ?= .work
+WORKDIR ?= $(abspath .work)
 BUILDDIR= $(WORKDIR)/build
 
 # A directory to hold files that are downloaded
 # as part of the build process but are immutable and do not
 # vary across build runs. These are can be cleaned with
 # "make distclean"
-DOWNLOADDIR ?= .download
+DOWNLOADDIR ?= $(abspath .download)
+
+# workaround races with cmake by copying the download dirs
+# to a private directory
+PRIVATE_DOWNLOADDIR = $(WORKDIR)/download
 
 # The host platform
 HOST = $(shell gcc -dumpmachine)
@@ -69,14 +73,16 @@ HOST = $(shell gcc -dumpmachine)
 
 define build-platform
 build.$(1):
+	@mkdir -p $(PRIVATE_DOWNLOADDIR)/$(1)
 	@mkdir -p $(DOWNLOADDIR)
+	@cp -a $(DOWNLOADDIR)/. $(PRIVATE_DOWNLOADDIR)/$(1)
 	@cmake \
 		-H$(CURDIR) \
 		-B$(BUILDDIR)/$(1) \
 		-DALLOCATOR=$(ALLOCATOR) \
 		-DCEPH_BRANCH=$(CEPH_BRANCH) \
 		-DEXTERNAL_ALWAYS_BUILD=$(ALWAYS_BUILD) \
-		-DEXTERNAL_DOWNLOAD_DIR=$(DOWNLOADDIR)/$(1) \
+		-DEXTERNAL_DOWNLOAD_DIR=$(PRIVATE_DOWNLOADDIR)/$(1) \
 		-DCMAKE_TOOLCHAIN_FILE=$(CURDIR)/toolchain/$(1).cmake \
 		-DEXTERNAL_LOGGING=$(EXTERNAL_LOGGING) \
 		-DEXTERNAL_CCACHE=$(EXTERNAL_CCACHE) \
@@ -84,6 +90,7 @@ build.$(1):
 		-DCMAKE_POSITION_INDEPENDENT_CODE=ON
 
 	@+$(MAKE) -C $(BUILDDIR)/$(1)
+	@cp -na $(PRIVATE_DOWNLOADDIR)/$(1)/. $(DOWNLOADDIR)
 endef
 
 $(foreach p,$(PLATFORMS),$(eval $(call build-platform,$(p))))

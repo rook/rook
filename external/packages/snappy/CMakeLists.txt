@@ -15,6 +15,7 @@
 # See https://github.com/google/snappy
 set(Snappy_VERSION 1.1.4)
 set(Snappy_URL https://github.com/google/snappy/releases/download/${Snappy_VERSION}/snappy-${Snappy_VERSION}.tar.gz)
+set(Snappy_SHA256 134bfe122fd25599bb807bb8130e7ba6d9bdb851e0b16efcb83ac4f5d0b70057)
 
 message(STATUS "External: Building snappy ${Snappy_VERSION}")
 
@@ -31,6 +32,7 @@ ExternalProject_Add(snappy
   PREFIX ${EXTERNAL_ROOT}
 
   URL ${Snappy_URL}
+  URL_HASH SHA256=${Snappy_SHA256}
 
   DOWNLOAD_DIR ${EXTERNAL_DOWNLOAD_DIR}
   BUILD_IN_SOURCE 1
