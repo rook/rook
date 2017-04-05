@@ -28,7 +28,7 @@ set(EXTERNAL_DOWNLOAD_DIR ${EXTERNAL_ROOT}/download CACHE STRING "where to cache
 set(EXTERNAL_CROSS_TRIPLE ${CROSS_TRIPLE})
 
 # set always build option
-option(EXTERNAL_ALWAYS_BUILD "whether to force build some packages like ceph" ON)
+set(EXTERNAL_ALWAYS_BUILD 1 CACHE STRING "whether to force build some packages like ceph")
 
 # whether to log the configure, and build commands
 # or have them go to stdout.

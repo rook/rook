@@ -28,17 +28,27 @@ layout_root() {
     cp /etc/ssl/certs/ca-certificates.crt $dir/root/etc/ssl/certs
 }
 
+check_release_version() {
+    if echo ${RELEASE_VERSION} | grep -q -E '^([[:digit:]]+)\.([[:digit:]]+)\.([[:digit:]]+)$'; then
+        return 0
+    else
+        return 1
+    fi
+}
+
 github_get_release_id() {
     curl -4 -s -H "Authorization: token ${GITHUB_TOKEN}" \
        "https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/releases/tags/${RELEASE_VERSION}" | jq -r '.id'
 }
 
-github_check_release() {
+github_create_release() {
     id=$(github_get_release_id)
 
     if [[ ${id} == "null" ]]; then
-        echo "ERROR: github release tag ${RELEASE_VERSION} was not found. Did you create the release?" 1>&2
-        return 1;
+        curl -4 -s -H "Authorization: token ${GITHUB_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -d "{\"tag_name\": \"${RELEASE_VERSION}\",\"target_commitish\": \"master\",\"name\": \"${RELEASE_VERSION}\",\"body\": \"TBD\",\"draft\": true,\"prerelease\": true}" \
+            "https://api.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/releases"
     fi
 }
 
@@ -54,4 +64,22 @@ github_upload() {
          -H "Content-Type: application/${mediatype}" \
          --data-binary @${filepath} \
          "https://uploads.github.com/repos/${GITHUB_USER}/${GITHUB_REPO}/releases/${id}/assets?name=${filename}"
+}
+
+s3_upload() {
+    local filepath=$1
+    local filename=$(basename $filepath)
+
+    # we assume that AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and possibly AWS_DEFAULT_REGION are already set
+    # or ~/.aws/credentials and ~/.aws/config are configured
+    aws s3 cp --only-show-errors ${filepath} s3://${RELEASE_S3_BUCKET}/${RELEASE_CHANNEL}/${RELEASE_VERSION}/${filename}
+}
+
+s3_promote_file() {
+    local filename=$1
+
+    if [[ "${RELEASE_CHANNEL}" != "master" ]]; then
+        aws s3 cp --only-show-errors s3://${RELEASE_S3_BUCKET}/master/${RELEASE_VERSION}/${filename} s3://${RELEASE_S3_BUCKET}/${RELEASE_CHANNEL}/${RELEASE_VERSION}/${filename}
+    fi
+    aws s3 cp --only-show-errors s3://${RELEASE_S3_BUCKET}/master/${RELEASE_VERSION}/${filename} s3://${RELEASE_S3_BUCKET}/${RELEASE_CHANNEL}/current/${filename}
 }
