@@ -25,6 +25,7 @@ RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu zesty main universe 
     dpkg --add-architecture arm64 && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
+        awscli \
         build-essential \
         ca-certificates \
         ccache \

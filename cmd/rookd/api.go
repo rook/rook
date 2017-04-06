@@ -50,7 +50,7 @@ func init() {
 }
 
 func startAPI(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(apiCmd, []string{"repo-prefix", "namespace", "data-dir", "cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}); err != nil {
+	if err := flags.VerifyRequiredFlags(apiCmd, []string{"repo-prefix", "namespace", "config-dir", "cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}); err != nil {
 		return err
 	}
 	if apiPort == 0 {

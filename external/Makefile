@@ -25,7 +25,7 @@ ALLOCATOR ?= tcmalloc_minimal
 CEPH_BRANCH ?= kraken
 
 # Whether to build ceph everytime and ignore the timestamps
-ALWAYS_BUILD ?= ON
+ALWAYS_BUILD ?= 1
 
 # The platforms supported for cross building
 PLATFORMS ?= x86_64-linux-gnu aarch64-linux-gnu
@@ -51,10 +51,19 @@ ifeq ($(CCACHE),1)
 	EXTERNAL_CCACHE=ON
 endif
 
-# The build and download directories
-ROOTDIR ?= $(CURDIR)
-BUILDDIR ?= $(ROOTDIR)/build
-DOWNLOADDIR ?= $(ROOTDIR)/download
+# The working directory where build generated files are stored
+WORKDIR ?= $(abspath .work)
+BUILDDIR= $(WORKDIR)/build
+
+# A directory to hold files that are downloaded
+# as part of the build process but are immutable and do not
+# vary across build runs. These are can be cleaned with
+# "make distclean"
+DOWNLOADDIR ?= $(abspath .download)
+
+# workaround races with cmake by copying the download dirs
+# to a private directory
+PRIVATE_DOWNLOADDIR = $(WORKDIR)/download
 
 # The host platform
 HOST = $(shell gcc -dumpmachine)
@@ -64,13 +73,16 @@ HOST = $(shell gcc -dumpmachine)
 
 define build-platform
 build.$(1):
+	@mkdir -p $(PRIVATE_DOWNLOADDIR)/$(1)
+	@mkdir -p $(DOWNLOADDIR)
+	@cp -a $(DOWNLOADDIR)/. $(PRIVATE_DOWNLOADDIR)/$(1)
 	@cmake \
 		-H$(CURDIR) \
 		-B$(BUILDDIR)/$(1) \
 		-DALLOCATOR=$(ALLOCATOR) \
 		-DCEPH_BRANCH=$(CEPH_BRANCH) \
 		-DEXTERNAL_ALWAYS_BUILD=$(ALWAYS_BUILD) \
-		-DEXTERNAL_DOWNLOAD_DIR=$(DOWNLOADDIR)/$(1) \
+		-DEXTERNAL_DOWNLOAD_DIR=$(PRIVATE_DOWNLOADDIR)/$(1) \
 		-DCMAKE_TOOLCHAIN_FILE=$(CURDIR)/toolchain/$(1).cmake \
 		-DEXTERNAL_LOGGING=$(EXTERNAL_LOGGING) \
 		-DEXTERNAL_CCACHE=$(EXTERNAL_CCACHE) \
@@ -78,6 +90,7 @@ build.$(1):
 		-DCMAKE_POSITION_INDEPENDENT_CODE=ON
 
 	@+$(MAKE) -C $(BUILDDIR)/$(1)
+	@cp -na $(PRIVATE_DOWNLOADDIR)/$(1)/. $(DOWNLOADDIR)
 endef
 
 $(foreach p,$(PLATFORMS),$(eval $(call build-platform,$(p))))
@@ -116,12 +129,18 @@ help:
 	@echo '                  tcmalloc_minimal (default).'
 	@echo '    ALWAYS_BUILD  Set to 1 to always build ceph. The'
 	@echo '                  default is 1.'
-	@echo '    CEPH_BRANCH   The ceph branch to build from. Can be set'
-	@echo '                  to kraken, or luminous.'
 	@echo '    BUILD_TYPE    The build type. Debug produces non-'
 	@echo '                  optimized builds. Release produces fully'
 	@echo '                  optimized builds. RelWithDebInfo produces'
 	@echo '                  optimized builds with debug information.'
 	@echo '                  The default is RelWithDebInfo.'
 	@echo '    CCACHE        Set to 1 to use ccache. The default is 1.'
+	@echo '    CEPH_BRANCH   The ceph branch to build from. Can be set'
+	@echo '                  to kraken, or luminous.'
+	@echo '    DOWNLOADDIR   A directory where downloaded files and other'
+	@echo '                  files used during the build are cached. These'
+	@echo '                  files help speedup the build by avoding network'
+	@echo '                  transfers. Its safe to use these files across builds.'
 	@echo '    V             Set to 1 enable verbose build. Default is 0.'
+	@echo '    WORKDIR       The working directory where most build files'
+	@echo '                  are stored. The default is .work'

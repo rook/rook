@@ -14,7 +14,7 @@
 
 set(Rocksdb_HASH a0deec960f3a8190831c673e5ba998fe6fb7ea90)
 set(Rocksdb_URL https://github.com/facebook/rocksdb/archive/${Rocksdb_HASH}.zip)
-
+set(Rocksdb_SHA256 c6c0226ef75fa73ead5b6bd259599cd4653fcb89e1d4aa6f22432beae9fb08b5)
 
 message(STATUS "External: Building rocksdb ${Rocksdb_HASH}")
 
@@ -31,6 +31,7 @@ ExternalProject_Add(rocksdb
   PREFIX ${EXTERNAL_ROOT}
 
   URL ${Rocksdb_URL}
+  URL_HASH SHA256=${Rocksdb_SHA256}
 
   DOWNLOAD_DIR ${EXTERNAL_DOWNLOAD_DIR}
   DOWNLOAD_NAME rocksdb-${Rocksdb_HASH}.zip

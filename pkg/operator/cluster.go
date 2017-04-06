@@ -92,12 +92,12 @@ func (t *clusterTPR) findAllClusters() error {
 }
 
 func (t *clusterTPR) startCluster(c *cluster.Cluster) {
-	if t.devicesInUse && c.Spec.UseAllDevices {
+	if t.devicesInUse && c.Spec.Storage.AnyUseAllDevices() {
 		logger.Warningf("devices in more than one namespace not supported. ignoring devices in namespace %s", c.Spec.Namespace)
-		c.Spec.UseAllDevices = false
+		c.Spec.Storage.ClearUseAllDevices()
 	}
 
-	if c.Spec.UseAllDevices {
+	if c.Spec.Storage.AnyUseAllDevices() {
 		t.devicesInUse = true
 	}
 

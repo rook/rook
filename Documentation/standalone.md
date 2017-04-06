@@ -17,7 +17,7 @@ Rook can be deployed as a standalone service directly on any modern Linux host b
 
 2. Start a one node Rook cluster
    ```bash
-   ./rookd --data-dir /tmp/rook-test
+   ./rookd --config-dir /tmp/rook-test
    ```
 
 3. In another console (but in the same path), verify the Rook cluster is ready

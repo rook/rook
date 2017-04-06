@@ -20,7 +20,6 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/mds"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/cephmgr/osd"
-	"github.com/rook/rook/pkg/cephmgr/osd/partition"
 	"github.com/rook/rook/pkg/cephmgr/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 )
@@ -30,15 +29,15 @@ const (
 )
 
 // create a new ceph service
-func NewCephService(factory client.ConnectionFactory, devices, metadataDevice string, forceFormat bool,
-	location, adminSecret string, bluestoreConfig partition.BluestoreConfig) *clusterd.ClusterService {
+func NewCephService(factory client.ConnectionFactory, devices, metadataDevice, directories string, forceFormat bool,
+	location, adminSecret string, storeConfig osd.StoreConfig) *clusterd.ClusterService {
 
 	return &clusterd.ClusterService{
 		Name:   cephName,
 		Leader: newLeader(factory, adminSecret),
 		Agents: []clusterd.ServiceAgent{
 			mon.NewAgent(factory),
-			osd.NewAgent(factory, devices, metadataDevice, forceFormat, location, bluestoreConfig, nil),
+			osd.NewAgent(factory, devices, false, metadataDevice, directories, forceFormat, location, storeConfig, nil),
 			mds.NewAgent(factory),
 			rgw.NewAgent(factory),
 		},

@@ -71,6 +71,11 @@ function stop_rsync_container() {
 }
 
 function run_rsync() {
+    src=$1
+    shift
+
+    dst=$1
+    shift
 
     # run the container as an rsyncd daemon so that we can copy the
     # source tree to the container volume.
@@ -79,22 +84,21 @@ function run_rsync() {
     # wait for rsync to come up
     wait_for_rsync || stop_rsync_container ${id}
 
-    for pair in "$*" ; do
-        src="${pair%%-->*}"
-        dst="${pair##*-->}"
-
-        rsync \
-            --archive \
-            --delete \
-            --prune-empty-dirs \
-            --filter='- /.work/' \
-            --filter='- /.glide/' \
-            --filter='- /.vscode/' \
-            --filter='- /bin/' \
-            --filter='- /release/' \
-            $src $dst || { stop_rsync_container ${id}; return 1; }
-    done
-
+    # NOTE: add --progress to show files being syncd
+    rsync \
+        --archive \
+        --delete \
+        --prune-empty-dirs \
+        "$@" \
+        $src $dst || { stop_rsync_container ${id}; return 1; }
 
     stop_rsync_container ${id}
+}
+
+function rsync_host_to_container() {
+    run_rsync ${scriptdir}/.. rsync://localhost:${rsync_port}/volume/go/src/${source_repo} "$@"
+}
+
+function rsync_container_to_host() {
+    run_rsync rsync://localhost:${rsync_port}/volume/go/src/${source_repo}/ ${scriptdir}/.. "$@"
 }

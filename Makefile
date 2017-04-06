@@ -67,7 +67,8 @@ GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 
 # the working directory to store packages and intermediate build files
-WORKDIR ?= .work
+WORKDIR ?= $(abspath .work)
+DOWNLOADDIR ?= $(abspath .download)
 
 # bin and relase dirs
 BIN_DIR=bin
@@ -77,11 +78,15 @@ ALL_PLATFORMS ?= linux_amd64 linux_arm64 darwin_amd64 windows_amd64
 
 GO_PROJECT=github.com/rook/rook
 
-# set the version number.
+# set the version number. you should not need to do this
+# for the majority of scenarios.
 ifeq ($(origin VERSION), undefined)
-VERSION = $(shell git describe --dirty --always)
+VERSION = $(shell git describe --dirty --always --tags)
 endif
 LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
+
+# the release channel. Can be set to master, alpha, beta or stable
+CHANNEL ?=
 
 # ====================================================================================
 # Setup Go projects
@@ -107,8 +112,8 @@ endif
 endif
 
 # Set the cgo flags to link externals
-CGO_CFLAGS = -I$(abspath external/build/$(CROSS_TRIPLE)/include)
-CGO_LDFLAGS = -L$(abspath external/build/$(CROSS_TRIPLE)/lib)
+CGO_CFLAGS = -I$(abspath $(WORKDIR)/build/$(CROSS_TRIPLE)/include)
+CGO_LDFLAGS = -L$(abspath $(WORKDIR)/build/$(CROSS_TRIPLE)/lib)
 
 endif
 
@@ -134,6 +139,8 @@ GO_BUILDFLAGS=$(BUILDFLAGS)
 GO_LDFLAGS=$(LDFLAGS)
 GO_TAGS=$(TAGS)
 
+GO_WORK_DIR ?= $(WORKDIR)
+GO_TOOLS_DIR ?= $(DOWNLOADDIR)/tools
 GO_PKG_DIR ?= $(WORKDIR)/pkg
 
 include build/makelib/golang.mk
@@ -142,6 +149,7 @@ include build/makelib/golang.mk
 # Setup Distribution
 
 RELEASE_VERSION=$(VERSION)
+RELEASE_CHANNEL=$(CHANNEL)
 RELEASE_BIN_DIR=$(BIN_DIR)
 RELEASE_PLATFORMS=$(ALL_PLATFORMS)
 include build/makelib/release.mk
@@ -149,12 +157,18 @@ include build/makelib/release.mk
 # ====================================================================================
 # External Targets
 
-external:
-ifeq ($(GOOS),linux)
-	@$(MAKE) -C external CEPH_BRANCH=$(CEPH_BRANCH) ALLOCATOR=$(ALLOCATOR) PLATFORMS=$(CROSS_TRIPLE) cross
+export WORKDIR DOWNLOADDIR CEPH_BRANCH ALLOCATOR
+
+ifneq ($(ALWAYS_BUILD),)
+export ALWAYS_BUILD
 endif
 
-external/build/$(CROSS_TRIPLE)/lib/libcephd.a:
+external:
+ifeq ($(GOOS),linux)
+	@$(MAKE) -C external PLATFORMS=$(CROSS_TRIPLE) cross
+endif
+
+$(WORKDIR)/build/$(CROSS_TRIPLE)/lib/libcephd.a:
 	@$(MAKE) external
 
 external.clean:
@@ -168,47 +182,82 @@ external.distclean:
 # ====================================================================================
 # Targets
 
-dev: external/build/$(CROSS_TRIPLE)/lib/libcephd.a
+dev: $(WORKDIR)/build/$(CROSS_TRIPLE)/lib/libcephd.a
+	@$(MAKE) go.init
+	@$(MAKE) go.validate
 	@$(MAKE) go.build
 	@$(MAKE) release.build.containers.$(GOOS)_$(GOARCH)
 
-build: external
+build.common:
+	@$(MAKE) go.init
+	@$(MAKE) go.validate
+	@$(MAKE) external
+
+build: build.common
 	@$(MAKE) go.build
 
-install: external
+install: build.common
 	@$(MAKE) go.install
 
-check test: external
+check test: build.common
 	@$(MAKE) go.test
 
-lint: go.lint
+lint:
+	@$(MAKE) go.init
+	@$(MAKE) go.lint
 
-vet: go.vet
+vet:
+	@$(MAKE) go.init
+	@$(MAKE) go.vet
 
-fmt: go.fmt
+fmt:
+	@$(MAKE) go.init
+	@$(MAKE) go.fmt
 
 vendor: go.vendor
 
 clean: go.clean external.clean
 	@rm -fr $(WORKDIR) $(RELEASE_DIR)/* $(BIN_DIR)/*
 
-container: build
-	@RELEASE_CLIENT_SERVER_PLATFORMS=$(GOOS)_$(GOARCH) build/release/release.sh build containers
-
 distclean: go.distclean clean external.distclean
+	@rm -fr $(DOWNLOADDIR)
 
-build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) build
+cross.build:
+	@$(MAKE) external
+	@$(MAKE) go.build
 
-cross: $(foreach p,$(ALL_PLATFORMS), build.platform.$(p))
+cross.build.platform.%:
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) cross.build
+
+cross.parallel: $(foreach p,$(ALL_PLATFORMS), cross.build.platform.$(p))
+
+cross:
+	@$(MAKE) go.init
+	@$(MAKE) go.validate
+	@$(MAKE) cross.parallel
 
 release: cross
 	@$(MAKE) release.build
 
-publish: release
+publish:
+ifneq ($(filter master alpha beta stable, $(CHANNEL)),)
 	@$(MAKE) release.publish
+else
+	@echo skipping publish. invalid channel "$(CHANNEL)"
+endif
 
-.PHONY: build install test check vet fmt vendor clean distclean cross release publish
+promote:
+ifneq ($(filter master alpha beta stable, $(CHANNEL)),)
+	@$(MAKE) release.promote
+else
+	@echo skipping promote. invalid channel "$(CHANNEL)"
+endif
+
+publish.cleanup:
+	@$(MAKE) release.cleanup
+
+.PHONY: build.common cross.build cross.parallel
+.PHONY: dev build install test check vet fmt vendor clean distclean cross release publish
 
 # ====================================================================================
 # Help
@@ -235,21 +284,27 @@ help:
 	@echo ''
 	@echo 'Distribution:'
 	@echo '    release     Builds all packages.'
-	@echo '    publish     Builds and publishes all packages.'
+	@echo '    publish     Publishes all packages from a release.'
 	@echo ''
 	@echo 'Options:'
-	@echo '    GOARCH      The arch to build.'
-	@echo '    PIE         Set to 1 to build build a position independent'
-	@echo '                executable. Can not be combined with LINKMODE'
-	@echo '                set to "static". The default is 0.'
-	@echo '    GOOS        The OS to build for.'
-	@echo '    LINKMODE    Set to "dynamic" to link all libraries dynamically.'
-	@echo '                Set to "stdlib" to link the standard library'
-	@echo '                dynamically and everything else statically. Set to'
-	@echo '                "static" to link everything statically. Default is'
-	@echo '                "dynamic".'
-	@echo '    VERSION     The version information compiled into binaries.'
-	@echo '                The default is obtained from git.'
-	@echo '    V           Set to 1 enable verbose build. Default is 0.'
-	@echo '    WORKDIR     The working directory where most build files'
-	@echo '                are stored. The default is .work'
+	@echo '    CHANNEL      Sets the release channel. Can be set to master,'
+	@echo '                 alpha, beta, or stable. Default is not set.'
+	@echo '    DOWNLOADDIR  A directory where downloaded files and other'
+	@echo '                 files used during the build are cached. These'
+	@echo '                 files help speedup the build by avoding network'
+	@echo '                 transfers. Its safe to use these files across builds.'
+	@echo '    GOARCH       The arch to build.'
+	@echo '    GOOS         The OS to build for.'
+	@echo '    LINKMODE     Set to "dynamic" to link all libraries dynamically.'
+	@echo '                 Set to "stdlib" to link the standard library'
+	@echo '                 dynamically and everything else statically. Set to'
+	@echo '                 "static" to link everything statically. Default is'
+	@echo '                 "dynamic".'
+	@echo '    PIE          Set to 1 to build build a position independent'
+	@echo '                 executable. Can not be combined with LINKMODE'
+	@echo '                 set to "static". The default is 0.'
+	@echo '    VERSION      The version information compiled into binaries.'
+	@echo '                 The default is obtained from git.'
+	@echo '    V            Set to 1 enable verbose build. Default is 0.'
+	@echo '    WORKDIR      The working directory where most build files'
+	@echo '                 are stored. The default is .work'

@@ -158,7 +158,7 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 
 func (c *Cluster) rgwContainer() v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd rgw --data-dir=%s --rgw-port=%d --rgw-host=%s",
+	command := fmt.Sprintf("/usr/bin/rookd rgw --config-dir=%s --rgw-port=%d --rgw-host=%s",
 		k8sutil.DataDir, cephrgw.RGWPort, cephrgw.DNSName)
 	return v1.Container{
 		// TODO: fix "sleep 5".

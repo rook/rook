@@ -18,6 +18,7 @@ package exec
 import (
 	"bufio"
 	"io"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -30,6 +31,7 @@ type Executor interface {
 	ExecuteCommandPipeline(actionName string, command string) (string, error)
 	ExecuteCommandWithOutput(actionName string, command string, arg ...string) (string, error)
 	ExecuteCommandWithCombinedOutput(actionName string, command string, arg ...string) (string, error)
+	ExecuteStat(name string) (os.FileInfo, error)
 }
 
 type CommandExecutor struct {
@@ -91,6 +93,10 @@ func startCommand(command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.R
 	err := cmd.Start()
 
 	return cmd, stdout, stderr, err
+}
+
+func (*CommandExecutor) ExecuteStat(name string) (os.FileInfo, error) {
+	return os.Stat(name)
 }
 
 func logOutput(name string, stdout, stderr io.ReadCloser) {

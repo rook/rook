@@ -35,33 +35,51 @@ func TestStoreOSDDirMap(t *testing.T) {
 	defer os.RemoveAll(context.ConfigDir)
 	os.MkdirAll(context.ConfigDir, 0755)
 
-	dirMap, err := getDataDirs(context, false)
+	// user has specified devices to use, no dirs should be returned
+	dirMap, err := getDataDirs(context, "", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(dirMap))
 
-	dirMap, err = getDataDirs(context, true)
+	// user has no devices specified, should return default dir
+	dirMap, err = getDataDirs(context, "", false)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(dirMap))
 	assert.Equal(t, unassignedOSDID, dirMap[context.ConfigDir])
-	dirMap[context.ConfigDir] = 0
 
+	// user has no devices specified but does specify dirs, those should be returned
+	dirMap, err = getDataDirs(context, "/rook/dir1", false)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(dirMap))
+	assert.Equal(t, unassignedOSDID, dirMap["/rook/dir1"])
+	dirMap["/rook/dir1"] = 0 // simulate an OSD ID being assigned to the dir
+
+	// save the directory config
 	err = saveDirConfig(context, dirMap)
 	assert.Nil(t, err)
 
-	dirMap, err = getDataDirs(context, false)
+	// user has specified devices to use, we should still return the saved dir
+	dirMap, err = getDataDirs(context, "", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(dirMap))
-	assert.Equal(t, 0, dirMap[context.ConfigDir])
+	assert.Equal(t, 0, dirMap["/rook/dir1"])
 
-	// add another directory to the map
+	// user has specified devices and also a directory to use.  it should be added to the dir map
+	dirMap, err = getDataDirs(context, "/tmp/mydir", true)
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(dirMap))
+	assert.Equal(t, 0, dirMap["/rook/dir1"])
+	assert.Equal(t, unassignedOSDID, dirMap["/tmp/mydir"])
+
+	// simulate that the user's dir got an OSD by assigning it an ID
 	dirMap["/tmp/mydir"] = 23
 	err = saveDirConfig(context, dirMap)
 	assert.Nil(t, err)
 
-	dirMap, err = getDataDirs(context, false)
+	// user is still specifying the directory, we should get back it's ID now
+	dirMap, err = getDataDirs(context, "/tmp/mydir", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(dirMap))
-	assert.Equal(t, 0, dirMap[context.ConfigDir])
+	assert.Equal(t, 0, dirMap["/rook/dir1"])
 	assert.Equal(t, 23, dirMap["/tmp/mydir"])
 }
 
@@ -99,7 +117,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb" PARTLABEL="MY-PART"`, nil
 		&inventory.LocalDisk{Name: "rdb"},
 	}
 	// select all devices
-	mapping, err := getAvailableDevices(context, devices, "all")
+	mapping, err := getAvailableDevices(context, devices, "all", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
@@ -107,26 +125,30 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb" PARTLABEL="MY-PART"`, nil
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)
 	assert.Equal(t, -1, mapping.Entries["rdb"].Data)
 
-	// select no devices
-	mapping, err = getAvailableDevices(context, devices, "")
+	// select no devices both using and not using a filter
+	mapping, err = getAvailableDevices(context, devices, "", false)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(mapping.Entries))
+
+	mapping, err = getAvailableDevices(context, devices, "", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
 
 	// select the sda devices
-	mapping, err = getAvailableDevices(context, devices, "^sd.$")
+	mapping, err = getAvailableDevices(context, devices, "^sd.$", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select an exact device
-	mapping, err = getAvailableDevices(context, devices, "sdd")
+	mapping, err = getAvailableDevices(context, devices, "sdd", false)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select all devices except those that have a prefix of "s"
-	mapping, err = getAvailableDevices(context, devices, "^[^s]")
+	mapping, err = getAvailableDevices(context, devices, "^[^s]", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)

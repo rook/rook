@@ -15,6 +15,7 @@
 # See https://git.fedorahosted.org/cgit/libaio.git/
 set(Aio_VERSION 0.3.110)
 set(Aio_URL http://ftp.us.debian.org/debian/pool/main/liba/libaio/libaio_${Aio_VERSION}.orig.tar.gz)
+set(Aio_SHA256 e019028e631725729376250e32b473012f7cb68e1f7275bfc1bbcdd0f8745f7e)
 
 message(STATUS "External: Building libaio ${Aio_VERSION}")
 
@@ -22,11 +23,11 @@ message(STATUS "External: Building libaio ${Aio_VERSION}")
 # Build
 #
 
-
 ExternalProject_Add(aio
   PREFIX ${EXTERNAL_ROOT}
 
   URL ${Aio_URL}
+  URL_HASH SHA256=${Aio_SHA256}
 
   DOWNLOAD_DIR ${EXTERNAL_DOWNLOAD_DIR}
   BUILD_IN_SOURCE 1

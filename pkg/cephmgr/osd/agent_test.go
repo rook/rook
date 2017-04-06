@@ -28,7 +28,6 @@ import (
 	"github.com/google/uuid"
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
 	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/cephmgr/osd/partition"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
@@ -38,6 +37,11 @@ import (
 )
 
 func TestOSDAgentWithDevices(t *testing.T) {
+	testOSDAgentWithDevicesHelper(t, StoreConfig{StoreType: Bluestore})
+	testOSDAgentWithDevicesHelper(t, StoreConfig{StoreType: Filestore})
+}
+
+func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	// set up a temporary config directory that will be cleaned up after test
 	configDir, err := ioutil.TempDir("", "TestOSDAgentWithDevices")
 	if err != nil {
@@ -47,7 +51,7 @@ func TestOSDAgentWithDevices(t *testing.T) {
 
 	clusterName := "mycluster"
 	nodeID := "abc"
-	etcdClient, agent, _ := createTestAgent(t, nodeID, "sdx,sdy", configDir)
+	etcdClient, agent, _ := createTestAgent(t, nodeID, "sdx,sdy", configDir, &storeConfig)
 
 	startCount := 0
 	executor := &exectest.MockExecutor{}
@@ -74,10 +78,10 @@ func TestOSDAgentWithDevices(t *testing.T) {
 			nameSuffix = parts[1]
 		}
 		switch {
-		case execCount == 0: // first exec is the mkfs for sdy
+		case execCount == 0: // first exec is the mkfs for sdx
 			assert.Equal(t, "--mkfs", args[3])
 			createTestKeyring(t, configDir, args)
-		case execCount == 1: // all remaining execs are for partitioning sdx then mkfs sdx
+		case execCount == 1: // all remaining execs are for partitioning sdy then mkfs sdy
 			assert.Equal(t, "sgdisk", command)
 			assert.Equal(t, "--zap-all", args[0])
 			assert.Equal(t, "/dev/"+nameSuffix, args[1])
@@ -86,10 +90,39 @@ func TestOSDAgentWithDevices(t *testing.T) {
 			assert.Equal(t, "--clear", args[0])
 			assert.Equal(t, "/dev/"+nameSuffix, args[2])
 		case execCount == 3:
-			assert.Equal(t, "/dev/"+nameSuffix, args[10])
+			// the partitioning for sdy.  depending on bluestore/filestore, the args will be different.
+			expectedDeviceArgNum := 0
+			if storeConfig.StoreType == Bluestore {
+				expectedDeviceArgNum = 10
+			} else {
+				expectedDeviceArgNum = 4
+			}
+			assert.Equal(t, "sgdisk", command)
+			assert.Equal(t, "/dev/"+nameSuffix, args[expectedDeviceArgNum])
 		case execCount == 4:
-			assert.Equal(t, "--mkfs", args[3])
-			createTestKeyring(t, configDir, args)
+			if storeConfig.StoreType == Bluestore {
+				// the osd mkfs for sdy bluestore
+				assert.Equal(t, "--mkfs", args[3])
+				createTestKeyring(t, configDir, args)
+			} else {
+				// mkfs.ext4 for sdy filestore
+				assert.Equal(t, "mkfs.ext4", command)
+			}
+		case execCount == 5:
+			if storeConfig.StoreType == Filestore {
+				// the mount for sdy filestore
+				assert.Equal(t, "mount", command)
+			} else {
+				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
+			}
+		case execCount == 6:
+			if storeConfig.StoreType == Filestore {
+				// the osd mkfs for sdy filestore
+				assert.Equal(t, "--mkfs", args[3])
+				createTestKeyring(t, configDir, args)
+			} else {
+				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
+			}
 		default:
 			assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
 		}
@@ -136,10 +169,15 @@ func TestOSDAgentWithDevices(t *testing.T) {
 	<-agent.osdsCompleted
 
 	assert.Equal(t, 0, agent.configCounter)
-	assert.Equal(t, 5, execCount) // 1 mkfs for sdy, 3 partition steps for sdx, 1 mkfs for sdx
 	assert.Equal(t, 2, outputExecCount)
 	assert.Equal(t, 2, startCount) // 2 OSD procs should be started
 	assert.Equal(t, 2, len(agent.osdProc), fmt.Sprintf("procs=%+v", agent.osdProc))
+
+	if storeConfig.StoreType == Bluestore {
+		assert.Equal(t, 5, execCount) // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
+	} else {
+		assert.Equal(t, 7, execCount) // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 mkfs for sdy, 1 mount for sdy, 1 osd mkfs for sdy
+	}
 
 	err = agent.DestroyLocalService(context)
 	assert.Nil(t, err)
@@ -159,7 +197,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	// create a test OSD agent with no devices specified
 	nodeID := "abc"
-	etcdClient, agent, _ := createTestAgent(t, nodeID, "", configDir)
+	etcdClient, agent, _ := createTestAgent(t, nodeID, "", configDir, nil)
 
 	startCount := 0
 	executor := &exectest.MockExecutor{}
@@ -251,7 +289,7 @@ func TestRemoveDevice(t *testing.T) {
 	defer os.RemoveAll(configDir)
 
 	nodeID := "a"
-	etcdClient, agent, conn := createTestAgent(t, nodeID, "", configDir)
+	etcdClient, agent, conn := createTestAgent(t, nodeID, "", configDir, nil)
 	executor := &exectest.MockExecutor{}
 
 	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: nodeID, Executor: executor, ProcMan: proc.New(executor), Inventory: createInventory()}
@@ -272,12 +310,15 @@ func TestRemoveDevice(t *testing.T) {
 	assert.True(t, applied.Equals(util.CreateSet([]string{"23"})), fmt.Sprintf("applied=%+v", applied))
 }
 
-func createTestAgent(t *testing.T, nodeID, devices, configDir string) (*util.MockEtcdClient, *OsdAgent, *testceph.MockConnection) {
+func createTestAgent(t *testing.T, nodeID, devices, configDir string, storeConfig *StoreConfig) (*util.MockEtcdClient, *OsdAgent, *testceph.MockConnection) {
 	location := "root=here"
 	forceFormat := false
+	if storeConfig == nil {
+		storeConfig = &StoreConfig{StoreType: Bluestore}
+	}
 	etcdClient := util.NewMockEtcdClient()
 	factory := &testceph.MockConnectionFactory{}
-	agent := NewAgent(factory, devices, "", forceFormat, location, partition.BluestoreConfig{}, nil)
+	agent := NewAgent(factory, devices, false, "", "", forceFormat, location, *storeConfig, nil)
 	agent.cluster = &mon.ClusterInfo{Name: "myclust"}
 	agent.Initialize(&clusterd.Context{EtcdClient: etcdClient, NodeID: nodeID, ConfigDir: configDir})
 	if devices == "" {
@@ -443,7 +484,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 		return nil, "", fmt.Errorf("unexpected mon_command '%s'", string(args))
 	}
 
-	scheme, err := getPartitionPerfScheme(context, conn, devices, partition.BluestoreConfig{})
+	scheme, err := getPartitionPerfScheme(context, conn, devices, StoreConfig{})
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(scheme.Entries))
 
@@ -457,11 +498,11 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 	// and that the second is the other one.
 	entry := scheme.Entries[0]
 	assert.Equal(t, 11, entry.ID)
-	firstBlockDevice := entry.Partitions[partition.BlockPartitionName].Device
+	firstBlockDevice := entry.Partitions[BlockPartitionType].Device
 	assert.True(t, firstBlockDevice == "sda" || firstBlockDevice == "sdb", firstBlockDevice)
-	verifyPartitionEntry(t, entry.Partitions[partition.BlockPartitionName], firstBlockDevice, -1, 1)
-	verifyPartitionEntry(t, entry.Partitions[partition.WalPartitionName], "sdc", partition.WalDefaultSizeMB, 1)
-	verifyPartitionEntry(t, entry.Partitions[partition.DatabasePartitionName], "sdc", partition.DBDefaultSizeMB, 577)
+	verifyPartitionEntry(t, entry.Partitions[BlockPartitionType], firstBlockDevice, -1, 1)
+	verifyPartitionEntry(t, entry.Partitions[WalPartitionType], "sdc", WalDefaultSizeMB, 1)
+	verifyPartitionEntry(t, entry.Partitions[DatabasePartitionType], "sdc", DBDefaultSizeMB, 577)
 
 	// verify the second entry in the scheme.  Note the comment above about sda vs. sdb ordering.
 	entry = scheme.Entries[1]
@@ -472,9 +513,9 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 	} else {
 		secondBlockDevice = "sda"
 	}
-	verifyPartitionEntry(t, entry.Partitions[partition.BlockPartitionName], secondBlockDevice, -1, 1)
-	verifyPartitionEntry(t, entry.Partitions[partition.WalPartitionName], "sdc", partition.WalDefaultSizeMB, 21057)
-	verifyPartitionEntry(t, entry.Partitions[partition.DatabasePartitionName], "sdc", partition.DBDefaultSizeMB, 21633)
+	verifyPartitionEntry(t, entry.Partitions[BlockPartitionType], secondBlockDevice, -1, 1)
+	verifyPartitionEntry(t, entry.Partitions[WalPartitionType], "sdc", WalDefaultSizeMB, 21057)
+	verifyPartitionEntry(t, entry.Partitions[DatabasePartitionType], "sdc", DBDefaultSizeMB, 21633)
 }
 
 func TestGetPartitionPerfSchemeDiskInUse(t *testing.T) {
@@ -508,7 +549,7 @@ func TestGetPartitionPerfSchemeDiskInUse(t *testing.T) {
 
 	// get the partition scheme based on the desired devices.  Since sda is already in use, the partition
 	// scheme returned should reflect that.
-	scheme, err := getPartitionPerfScheme(context, nil, devices, partition.BluestoreConfig{})
+	scheme, err := getPartitionPerfScheme(context, nil, devices, StoreConfig{})
 	assert.Nil(t, err)
 
 	// the partition scheme should have a single entry for osd 1 on sda and it should have collocated data and metadata
@@ -553,20 +594,20 @@ func TestGetPartitionPerfSchemeDiskNameChanged(t *testing.T) {
 
 	// get the current partition scheme.  This should notice that the device names changed and update the
 	// partition scheme to have the latest device names
-	scheme, err := getPartitionPerfScheme(context, nil, devices, partition.BluestoreConfig{})
+	scheme, err := getPartitionPerfScheme(context, nil, devices, StoreConfig{})
 	assert.Nil(t, err)
 	assert.NotNil(t, scheme)
 	assert.Equal(t, "nvme01-changed", scheme.Metadata.Device)
-	assert.Equal(t, "sda-changed", scheme.Entries[0].Partitions[partition.BlockPartitionName].Device)
-	assert.Equal(t, "nvme01-changed", scheme.Entries[0].Partitions[partition.WalPartitionName].Device)
-	assert.Equal(t, "nvme01-changed", scheme.Entries[0].Partitions[partition.DatabasePartitionName].Device)
+	assert.Equal(t, "sda-changed", scheme.Entries[0].Partitions[BlockPartitionType].Device)
+	assert.Equal(t, "nvme01-changed", scheme.Entries[0].Partitions[WalPartitionType].Device)
+	assert.Equal(t, "nvme01-changed", scheme.Entries[0].Partitions[DatabasePartitionType].Device)
 }
 
 func createInventory() *inventory.Config {
 	return &inventory.Config{Local: &inventory.Hardware{Disks: []*inventory.LocalDisk{}}}
 }
 
-func verifyPartitionEntry(t *testing.T, actual *partition.PerfSchemePartitionDetails, expectedDevice string,
+func verifyPartitionEntry(t *testing.T, actual *PerfSchemePartitionDetails, expectedDevice string,
 	expectedSize int64, expectedOffset int64) {
 
 	assert.Equal(t, expectedDevice, actual.Device)
@@ -574,12 +615,12 @@ func verifyPartitionEntry(t *testing.T, actual *partition.PerfSchemePartitionDet
 	assert.Equal(t, expectedOffset, actual.OffsetMB)
 }
 
-func mockPartitionSchemeEntry(t *testing.T, osdID int, device, configDir string) (entry *partition.PerfSchemeEntry, diskUUID string) {
-	entry = partition.NewPerfSchemeEntry()
+func mockPartitionSchemeEntry(t *testing.T, osdID int, device, configDir string) (entry *PerfSchemeEntry, diskUUID string) {
+	entry = NewPerfSchemeEntry(Bluestore)
 	entry.ID = osdID
 	entry.OsdUUID = uuid.Must(uuid.NewRandom())
-	partition.PopulateCollocatedPerfSchemeEntry(entry, device, partition.BluestoreConfig{})
-	scheme := partition.NewPerfScheme()
+	PopulateCollocatedPerfSchemeEntry(entry, device, StoreConfig{})
+	scheme := NewPerfScheme()
 	scheme.Entries = append(scheme.Entries, entry)
 	err := scheme.Save(configDir)
 	assert.Nil(t, err)
@@ -594,19 +635,19 @@ func mockPartitionSchemeEntry(t *testing.T, osdID int, device, configDir string)
 	return entry, diskUUID
 }
 
-func mockDistributedPartitionScheme(t *testing.T, osdID int, metadataDevice, device, configDir string) (*partition.PerfScheme, string, string) {
-	scheme := partition.NewPerfScheme()
-	scheme.Metadata = partition.NewMetadataDeviceInfo(metadataDevice)
+func mockDistributedPartitionScheme(t *testing.T, osdID int, metadataDevice, device, configDir string) (*PerfScheme, string, string) {
+	scheme := NewPerfScheme()
+	scheme.Metadata = NewMetadataDeviceInfo(metadataDevice)
 
-	entry := partition.NewPerfSchemeEntry()
+	entry := NewPerfSchemeEntry(Bluestore)
 	entry.ID = osdID
 	entry.OsdUUID = uuid.Must(uuid.NewRandom())
 
-	partition.PopulateDistributedPerfSchemeEntry(entry, device, scheme.Metadata, partition.BluestoreConfig{})
+	PopulateDistributedPerfSchemeEntry(entry, device, scheme.Metadata, StoreConfig{})
 	scheme.Entries = append(scheme.Entries, entry)
 	err := scheme.Save(configDir)
 	assert.Nil(t, err)
 
 	// return the full partition scheme, the metadata device UUID and the data device UUID
-	return scheme, scheme.Metadata.DiskUUID, entry.Partitions[partition.BlockPartitionName].DiskUUID
+	return scheme, scheme.Metadata.DiskUUID, entry.Partitions[BlockPartitionType].DiskUUID
 }

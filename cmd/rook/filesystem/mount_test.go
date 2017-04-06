@@ -38,7 +38,8 @@ func TestMountFilesystem(t *testing.T) {
 	}
 	e := &exectest.MockExecutor{
 		MockExecuteCommand: func(actionName string, command string, arg ...string) error {
-			expectedArgs := []string{"mount", "-t", "ceph", "-o", "name=admin,secret=AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg==",
+			assert.Equal(t, "mount", command)
+			expectedArgs := []string{"-t", "ceph", "-o", "name=admin,secret=AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg==",
 				"10.37.129.214:6790:/", "/tmp/myfs1mount"}
 			assert.Equal(t, expectedArgs, arg)
 			return nil

@@ -1,4 +1,2 @@
-install/
-build/
-download/
-
+.work/
+.download/

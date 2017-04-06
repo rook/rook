@@ -24,6 +24,11 @@ ifndef RELEASE_VERSION
 $(error RELEASE_VERSION must be set before including release.mk)
 endif
 
+RELEASE_CHANNEL ?=
+ifndef RELEASE_CHANNEL
+$(error RELEASE_CHANNEL must be set before including release.mk)
+endif
+
 ifndef BIN_DIR
 $(error BIN_DIR must be set before including release.mk)
 endif
@@ -46,8 +51,26 @@ GITHUB_TOKEN ?=
 GITHUB_USER ?= rook
 GITHUB_REPO ?= rook
 
-export RELEASE_VERSION RELEASE_BIN_DIR RELEASE_DIR
+# Optional. Docker registry to publish to
+RELEASE_REGISTRY ?= quay.io
+
+# Optional. S3 bucket to publish artifacts to
+AWS_DEFAULT_REGION ?= us-east-1
+RELEASE_S3_BUCKET ?= rook-release
+
+export RELEASE_VERSION RELEASE_CHANNEL RELEASE_BIN_DIR RELEASE_DIR
 export GITHUB_TOKEN GITHUB_USER GITHUB_REPO
+export RELEASE_S3_BUCKET RELEASE_REGISTRY
+
+ifneq ($(AWS_ACCESS_KEY_ID),)
+export AWS_ACCESS_KEY_ID
+endif
+
+ifneq ($(AWS_SECRET_ACCESS_KEY),)
+export AWS_SECRET_ACCESS_KEY
+endif
+
+export AWS_DEFAULT_REGION
 
 # ====================================================================================
 # Targets
@@ -62,12 +85,27 @@ release.publish.$(1).$(2):
 	@build/release/release.sh publish $(2) $(1)
 
 release.publish.all: release.publish.$(1).$(2)
+
+release.promote.$(1).$(2):
+	@build/release/release.sh promote $(2) $(1)
+
+release.promote.all: release.promote.$(1).$(2)
+
+release.cleanup.$(1).$(2):
+	@build/release/release.sh cleanup $(2) $(1)
+
+release.cleanup.all: release.cleanup.$(1).$(2)
 endef
 
 $(foreach f,$(RELEASE_FLAVORS),$(foreach p,$(RELEASE_PLATFORMS), $(eval $(call release-target,$(f),$(p)))))
 
 release.build: release.build.all
 
-release.publish:
-	@build/release/release.sh check
-	@$(MAKE) release.publish.all
+release.publish: release.publish.all
+
+release.promote:
+	@build/release/release.sh promote.init
+	@$(MAKE) release.promote.all
+	@build/release/release.sh promote.complete
+
+release.cleanup: release.cleanup.all

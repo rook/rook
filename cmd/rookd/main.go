@@ -33,7 +33,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr"
 	"github.com/rook/rook/pkg/cephmgr/cephd"
 	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/cephmgr/osd/partition"
+	"github.com/rook/rook/pkg/cephmgr/osd"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/util"
@@ -62,6 +62,7 @@ type config struct {
 	discoveryURL       string
 	etcdMembers        string
 	devices            string
+	directories        string
 	metadataDevice     string
 	dataDir            string
 	adminSecret        string
@@ -69,7 +70,7 @@ type config struct {
 	location           string
 	logLevel           capnslog.LogLevel
 	cephConfigOverride string
-	bluestoreConfig    partition.BluestoreConfig
+	storeConfig        osd.StoreConfig
 	networkInfo        clusterd.NetworkInfo
 	monEndpoints       string
 	namespace          string
@@ -160,7 +161,8 @@ func joinCluster() error {
 	}
 
 	services := []*clusterd.ClusterService{
-		cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.metadataDevice, cfg.forceFormat, cfg.location, cfg.adminSecret, cfg.bluestoreConfig),
+		cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.metadataDevice, cfg.directories,
+			cfg.forceFormat, cfg.location, cfg.adminSecret, cfg.storeConfig),
 	}
 
 	cfg.nodeID, err = util.LoadPersistedNodeID(cfg.dataDir)

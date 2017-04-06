@@ -35,7 +35,6 @@ import (
 
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/cephmgr/osd/partition"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/proc"
@@ -53,24 +52,27 @@ const (
 )
 
 type OsdAgent struct {
-	cluster         *mon.ClusterInfo
-	forceFormat     bool
-	location        string
-	factory         client.ConnectionFactory
-	osdProc         map[int]*proc.MonitoredProc
-	desiredDevices  []string
-	devices         string
-	metadataDevice  string
-	bluestoreConfig partition.BluestoreConfig
-	configCounter   int32
-	osdsCompleted   chan struct{}
+	cluster            *mon.ClusterInfo
+	forceFormat        bool
+	location           string
+	factory            client.ConnectionFactory
+	osdProc            map[int]*proc.MonitoredProc
+	desiredDevices     []string
+	desiredDirectories []string
+	devices            string
+	usingDeviceFilter  bool
+	metadataDevice     string
+	directories        string
+	storeConfig        StoreConfig
+	configCounter      int32
+	osdsCompleted      chan struct{}
 }
 
-func NewAgent(factory client.ConnectionFactory, devices, metadataDevice string, forceFormat bool,
-	location string, bluestoreConfig partition.BluestoreConfig, cluster *mon.ClusterInfo) *OsdAgent {
+func NewAgent(factory client.ConnectionFactory, devices string, usingDeviceFilter bool, metadataDevice, directories string, forceFormat bool,
+	location string, storeConfig StoreConfig, cluster *mon.ClusterInfo) *OsdAgent {
 
-	return &OsdAgent{factory: factory, devices: devices, metadataDevice: metadataDevice, forceFormat: forceFormat,
-		location: location, bluestoreConfig: bluestoreConfig, cluster: cluster}
+	return &OsdAgent{factory: factory, devices: devices, usingDeviceFilter: usingDeviceFilter, metadataDevice: metadataDevice,
+		directories: directories, forceFormat: forceFormat, location: location, storeConfig: storeConfig, cluster: cluster}
 }
 
 func (a *OsdAgent) Name() string {
@@ -86,13 +88,24 @@ func (a *OsdAgent) Initialize(context *clusterd.Context) error {
 		logger.Infof("desired devices for osds: %+v.  desired metadata device: %s", a.desiredDevices, a.metadataDevice)
 	}
 
+	if len(a.directories) > 0 {
+		a.desiredDirectories = strings.Split(a.directories, ",")
+	}
+
 	// if no devices or directories were specified, use the current directory for an osd
-	if len(a.desiredDevices) == 0 {
+	if len(a.desiredDevices) == 0 && len(a.desiredDirectories) == 0 {
 		logger.Infof("Adding local path %s to desired state", context.ConfigDir)
-		err := AddDesiredDir(context.EtcdClient, context.ConfigDir, context.NodeID)
-		if err != nil {
-			return fmt.Errorf("failed to add current dir %s. %v", context.ConfigDir, err)
+		a.desiredDirectories = []string{context.ConfigDir}
+	}
+
+	if len(a.desiredDirectories) > 0 {
+		for _, dir := range a.desiredDirectories {
+			err := AddDesiredDir(context.EtcdClient, dir, context.NodeID)
+			if err != nil {
+				return fmt.Errorf("failed to add desired dir %s. %v", dir, err)
+			}
 		}
+		logger.Infof("desired directories for osds: %+v.", a.desiredDirectories)
 	}
 
 	return nil
@@ -351,7 +364,7 @@ func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 		}
 	}
 
-	logger.Infof("%d/%d osds (filestore) succeeded on this node", succeeded, len(dirs))
+	logger.Infof("%d/%d osd dirs succeeded on this node", succeeded, len(dirs))
 	return lastErr
 
 }
@@ -387,7 +400,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 		defer a.decrementConfigCounter()
 
 		// compute an OSD layout scheme that will optimize performance
-		scheme, err := getPartitionPerfScheme(context, connection, devices, a.bluestoreConfig)
+		scheme, err := getPartitionPerfScheme(context, connection, devices, a.storeConfig)
 		logger.Debugf("partition scheme: %+v, err: %+v", scheme, err)
 		if err != nil {
 			logger.Errorf("failed to get OSD performance scheme: %+v", err)
@@ -396,8 +409,8 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 
 		if scheme.Metadata != nil {
 			// partition the dedicated metadata device
-			if err := partitionBluestoreMetadata(context, scheme.Metadata, context.ConfigDir); err != nil {
-				logger.Errorf("failed to partition bluestore metadata %+v: %+v", scheme.Metadata, err)
+			if err := partitionMetadata(context, scheme.Metadata, context.ConfigDir); err != nil {
+				logger.Errorf("failed to partition metadata %+v: %+v", scheme.Metadata, err)
 				return
 			}
 		}
@@ -414,7 +427,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 			}
 		}
 
-		logger.Infof("%d/%d bluestore osds succeeded on this node", succeeded, len(scheme.Entries))
+		logger.Infof("%d/%d osd devices succeeded on this node", succeeded, len(scheme.Entries))
 	}()
 
 	return nil
@@ -423,10 +436,10 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 // computes a partitioning scheme for all the given desired devices.  This could be devics already in use,
 // devices dedicated to metadata, and devices with all bluestore partitions collocated.
 func getPartitionPerfScheme(context *clusterd.Context, connection client.Connection, devices *DeviceOsdMapping,
-	bluestoreConfig partition.BluestoreConfig) (*partition.PerfScheme, error) {
+	storeConfig StoreConfig) (*PerfScheme, error) {
 
 	// load the existing (committed) partition scheme from disk
-	perfScheme, err := partition.LoadScheme(context.ConfigDir)
+	perfScheme, err := LoadScheme(context.ConfigDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load partition scheme from %s: %+v", context.ConfigDir, err)
 	}
@@ -461,7 +474,7 @@ func getPartitionPerfScheme(context *clusterd.Context, connection client.Connect
 			}
 
 			metadataEntry = mapping
-			perfScheme.Metadata = partition.NewMetadataDeviceInfo(name)
+			perfScheme.Metadata = NewMetadataDeviceInfo(name)
 		}
 	}
 
@@ -478,7 +491,7 @@ func getPartitionPerfScheme(context *clusterd.Context, connection client.Connect
 				return nil, fmt.Errorf("failed to register OSD for device %s: %+v", name, err)
 			}
 
-			schemeEntry := partition.NewPerfSchemeEntry()
+			schemeEntry := NewPerfSchemeEntry(storeConfig.StoreType)
 			schemeEntry.ID = *osdID
 			schemeEntry.OsdUUID = *osdUUID
 
@@ -488,7 +501,7 @@ func getPartitionPerfScheme(context *clusterd.Context, connection client.Connect
 				mapping.Data = *osdID
 
 				// populate the perf partition scheme entry with distributed partition details
-				err := partition.PopulateDistributedPerfSchemeEntry(schemeEntry, name, perfScheme.Metadata, bluestoreConfig)
+				err := PopulateDistributedPerfSchemeEntry(schemeEntry, name, perfScheme.Metadata, storeConfig)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create distributed perf scheme entry for %s: %+v", name, err)
 				}
@@ -500,7 +513,7 @@ func getPartitionPerfScheme(context *clusterd.Context, connection client.Connect
 				mapping.Metadata = []int{*osdID}
 
 				// populate the perf partition scheme entry with collocated partition details
-				err := partition.PopulateCollocatedPerfSchemeEntry(schemeEntry, name, bluestoreConfig)
+				err := PopulateCollocatedPerfSchemeEntry(schemeEntry, name, storeConfig)
 				if err != nil {
 					return nil, fmt.Errorf("failed to create collocated perf scheme entry for %s: %+v", name, err)
 				}
@@ -514,7 +527,7 @@ func getPartitionPerfScheme(context *clusterd.Context, connection client.Connect
 }
 
 // determines if the given device name is already in use with existing/committed partitions
-func isDeviceInUse(name string, nameToUUID map[string]string, scheme *partition.PerfScheme) bool {
+func isDeviceInUse(name string, nameToUUID map[string]string, scheme *PerfScheme) bool {
 	parts := findPartitionsForDevice(name, nameToUUID, scheme)
 	return len(parts) > 0
 }
@@ -529,12 +542,12 @@ func isDeviceDesiredForData(mapping *DeviceOsdIDEntry) bool {
 		(mapping.Data > unassignedOSDID && len(mapping.Metadata) == 1)
 }
 
-func isDeviceDesiredForMetadata(mapping *DeviceOsdIDEntry, scheme *partition.PerfScheme) bool {
+func isDeviceDesiredForMetadata(mapping *DeviceOsdIDEntry, scheme *PerfScheme) bool {
 	return mapping.Data == unassignedOSDID && mapping.Metadata != nil && len(mapping.Metadata) == 0
 }
 
 // finds all the partition details that are on the given device name
-func findPartitionsForDevice(name string, nameToUUID map[string]string, scheme *partition.PerfScheme) []*partition.PerfSchemePartitionDetails {
+func findPartitionsForDevice(name string, nameToUUID map[string]string, scheme *PerfScheme) []*PerfSchemePartitionDetails {
 	if scheme == nil {
 		return nil
 	}
@@ -544,7 +557,7 @@ func findPartitionsForDevice(name string, nameToUUID map[string]string, scheme *
 		return nil
 	}
 
-	parts := []*partition.PerfSchemePartitionDetails{}
+	parts := []*PerfSchemePartitionDetails{}
 	for _, e := range scheme.Entries {
 		for _, p := range e.Partitions {
 			if p.DiskUUID == diskUUID {
@@ -558,7 +571,7 @@ func findPartitionsForDevice(name string, nameToUUID map[string]string, scheme *
 
 // if a device name has changed, this function will find all partition entries with the device's static UUID and
 // then update the device name on them
-func refreshDeviceInfo(name string, nameToUUID map[string]string, scheme *partition.PerfScheme) {
+func refreshDeviceInfo(name string, nameToUUID map[string]string, scheme *PerfScheme) {
 	parts := findPartitionsForDevice(name, nameToUUID, scheme)
 	if len(parts) == 0 {
 		return
@@ -595,7 +608,7 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, connection client.Connect
 	if newOSD {
 		if config.partitionScheme != nil {
 			// format and partition the device if needed
-			savedScheme, err := partition.LoadScheme(config.configRoot)
+			savedScheme, err := LoadScheme(config.configRoot)
 			if err != nil {
 				return fmt.Errorf("failed to load the saved partition scheme from %s: %+v", config.configRoot, err)
 			}
@@ -610,39 +623,25 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, connection client.Connect
 			}
 
 			if !skipFormat {
-				err = formatDevice(context, config, a.forceFormat)
+				err = formatDevice(context, config, a.forceFormat, a.storeConfig)
 				if err != nil {
 					return fmt.Errorf("failed format/partition of osd %d. %+v", config.id, err)
 				}
 
-				logger.Notice("waiting after bluestore partition/format...")
+				logger.Notice("waiting after partition/format...")
 				<-time.After(2 * time.Second)
 			}
 		}
 
 		// osd_data_dir/whoami does not exist yet, create/initialize the OSD
-		err := initializeOSD(config, a.factory, context, connection, a.cluster, a.location, context.Executor)
+		err := initializeOSD(config, a.factory, context, connection, a.cluster, a.location, a.storeConfig, context.Executor)
 		if err != nil {
 			return fmt.Errorf("failed to initialize OSD at %s: %+v", config.rootPath, err)
 		}
 
 		// save the osd information to applied state
-		dataDiskUUID, metadataDiskUUID := "", ""
-		if config.partitionScheme != nil {
-			dataDiskUUID = config.partitionScheme.Partitions[partition.BlockPartitionName].DiskUUID
-			metadataDiskUUID = config.partitionScheme.Partitions[partition.DatabasePartitionName].DiskUUID
-		}
-
-		if context.EtcdClient != nil {
-			settings := map[string]string{
-				"path":              config.configRoot,
-				dataDiskUUIDKey:     dataDiskUUID,
-				metadataDiskUUIDKey: metadataDiskUUID,
-			}
-			key := path.Join(getAppliedKey(context.NodeID), fmt.Sprintf("%d", config.id))
-			if err := util.StoreEtcdProperties(context.EtcdClient, key, settings); err != nil {
-				return fmt.Errorf("failed to mark osd %d as applied: %+v", config.id, err)
-			}
+		if err := markOSDAsApplied(context, config); err != nil {
+			return fmt.Errorf("failed to mark osd %d as applied: %+v", config.id, err)
 		}
 	} else {
 		// osd_data_dir/whoami already exists, meaning the OSD is already set up.
@@ -680,7 +679,7 @@ func (a *OsdAgent) runOSD(context *clusterd.Context, clusterName string, config 
 		osdUUIDArg,
 	}
 
-	if config.dir {
+	if !isBluestore(config) {
 		params = append(params, fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(config.rootPath)))
 	}
 
@@ -854,6 +853,40 @@ func associateOSDIDsWithMetadataDevice(etcdClient etcd.KeysAPI, nodeID, name, id
 	return err
 }
 
+func markOSDAsApplied(context *clusterd.Context, config *osdConfig) error {
+	if context.EtcdClient == nil {
+		return nil
+	}
+
+	dataDiskUUID, metadataDiskUUID := "", ""
+	if config.partitionScheme != nil {
+		dataPartDetails, err := getDataPartitionDetails(config)
+		if err != nil {
+			return err
+		}
+
+		metadataPartDetails, err := getMetadataPartitionDetails(config)
+		if err != nil {
+			return err
+		}
+
+		dataDiskUUID = dataPartDetails.DiskUUID
+		metadataDiskUUID = metadataPartDetails.DiskUUID
+	}
+
+	settings := map[string]string{
+		"path":              config.configRoot,
+		dataDiskUUIDKey:     dataDiskUUID,
+		metadataDiskUUIDKey: metadataDiskUUID,
+	}
+	key := path.Join(getAppliedKey(context.NodeID), fmt.Sprintf("%d", config.id))
+	if err := util.StoreEtcdProperties(context.EtcdClient, key, settings); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // add a device to the desired state
 func AddDesiredDevice(etcdClient etcd.KeysAPI, nodeID, uuid string, osdID int) error {
 	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), uuid)
@@ -953,4 +986,8 @@ func loadOSDInfo(config *osdConfig) error {
 	config.id = osdID
 	config.uuid = osdUUID
 	return nil
+}
+
+func isBluestore(config *osdConfig) bool {
+	return !config.dir && config.partitionScheme != nil && config.partitionScheme.StoreType == Bluestore
 }
