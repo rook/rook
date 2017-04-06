@@ -12,25 +12,23 @@ var (
 )
 
 type RookClient struct {
-	platform string
-	transportClient  contracts.ITransportClient
-	block_client contracts.Irook_block
-	fs_client contracts.Irook_filesystem
-	object_client contracts.Irook_object
-	pool_client contracts.Irook_pool
+	platform        string
+	transportClient contracts.ITransportClient
+	block_client    contracts.Irook_block
+	fs_client       contracts.Irook_filesystem
+	object_client   contracts.Irook_object
+	pool_client     contracts.Irook_pool
 }
 
-func CreateRook_Client(platformval string,transport contracts.ITransportClient) (RookClient, error) {
+func CreateRook_Client(platformval string, transport contracts.ITransportClient) (RookClient, error) {
 
 	return RookClient{
-		 platformval,
-		 transport,
+		platformval,
+		transport,
 		CreateK8sRookBlock(transport),
 		CreateK8sRookFileSystem(transport),
-		nil,
-		nil,
-
-
+		CreateK8sRookObject(transport),
+		CreateK8sPool(transport),
 	}, nil
 }
 
@@ -65,15 +63,14 @@ func (Client RookClient) Get_Block_client() contracts.Irook_block {
 	return Client.block_client
 }
 
-func (Client RookClient) Get_FileSystem_client() contracts.Irook_filesystem{
+func (Client RookClient) Get_FileSystem_client() contracts.Irook_filesystem {
 	return Client.fs_client
 }
 
-func (Client RookClient) Get_Object_client() contracts.Irook_object{
+func (Client RookClient) Get_Object_client() contracts.Irook_object {
 	return Client.object_client
 }
 
-func (Client RookClient) Get_Pool_client() contracts.Irook_pool{
+func (Client RookClient) Get_Pool_client() contracts.Irook_pool {
 	return Client.pool_client
 }
-

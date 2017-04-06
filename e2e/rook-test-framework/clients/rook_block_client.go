@@ -2,9 +2,9 @@ package clients
 
 import (
 	"errors"
+	"fmt"
 	"github.com/quantum/rook-client-helpers/contracts"
 	"strconv"
-	"fmt"
 )
 
 type rookBlockClient struct {
@@ -64,9 +64,9 @@ func (r *rookBlockClient) Write(data string, path string, filename string) (stri
 	//cmd := "exec -n rook rook-client -- /bin/bash -c echo \"test\" > "+path+"/"+filename
 	//cmd := "exec -n rook rook-client -- echo \"test\" > "+path+"/"+filename
 	//cmd := []string{"exec", "-n", "rook", "rook-client", "--", "bash","-c", "\"echo test>" + path + "/" + filename + "\""}
-	wt := "echo \""+data+"\">"+path+"/"+filename
+	wt := "echo \"" + data + "\">" + path + "/" + filename
 	fmt.Println(wt)
-	cmd := []string{"exec","-it" ,"-n", "rook", "rook-client", "--", "bash" ,"-c",wt}
+	cmd := []string{"exec", "-it", "-n", "rook", "rook-client", "--", "bash", "-c", wt}
 	wr, err, status := r.transportClient.Execute(cmd)
 	if status == 0 {
 		return wr, nil
@@ -78,9 +78,9 @@ func (r *rookBlockClient) Write(data string, path string, filename string) (stri
 
 func (r *rookBlockClient) Read(path string, filename string) (string, error) {
 	//cmd := "exec -n rook rook-client -- cat "+path+"/"+filename
-	rd :=path+"/"+filename
+	rd := path + "/" + filename
 	fmt.Println(rd)
-	cmd := []string{"exec", "-n", "rook", "rook-client", "--", "cat",rd}
+	cmd := []string{"exec", "-n", "rook", "rook-client", "--", "cat", rd}
 
 	rd, err, status := r.transportClient.Execute(cmd)
 	if status == 0 {

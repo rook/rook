@@ -13,43 +13,43 @@ func CreateK8sRookObject(client contracts.ITransportClient) *k8sRookObject {
 	return &k8sRookObject{transportClient: client}
 }
 
-func (rp *k8sRookPool) Object_Create() (string, error){
+func (ro *k8sRookObject) Object_Create() (string, error) {
 	//TODO - implement
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
-func (rp *k8sRookPool) Object_Bucket_list() (string, error){
+func (ro *k8sRookObject) Object_Bucket_list() (string, error) {
 	//TODO - implement
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
-func (rp *k8sRookPool) Object_Connection() (string, error){
+func (ro *k8sRookObject) Object_Connection() (string, error) {
 	//TODO - implement
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
-func (rp *k8sRookPool) Object_Create_user() (string, error){
+func (ro *k8sRookObject) Object_Create_user() (string, error) {
 	//TODO - implement
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
-func (rp *k8sRookPool) Object_Delete_user() (string, error){
+func (ro *k8sRookObject) Object_Delete_user() (string, error) {
 	//TODO - implement
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
-func (rp *k8sRookPool) Object_Get_user() (string, error){
+func (ro *k8sRookObject) Object_Get_user() (string, error) {
 	//TODO - implement
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
-func (rp *k8sRookPool) Object_List_user() (string, error){
+func (ro *k8sRookObject) Object_List_user() (string, error) {
 	//TODO - implement
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
-func (rp *k8sRookPool) Object_Update_user() (string, error){
+func (ro *k8sRookObject) Object_Update_user() (string, error) {
 	//TODO - implement
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
-func (rp *k8sRookPool) Object_PutData() (string, error){
+func (ro *k8sRookObject) Object_PutData() (string, error) {
 	//TODO - implement
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
-func (rp *k8sRookPool) Object_GetData() (string, error){
+func (ro *k8sRookObject) Object_GetData() (string, error) {
 	//TODO - implement
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
