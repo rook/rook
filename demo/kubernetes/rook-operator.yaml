@@ -11,11 +11,12 @@ spec:
     spec:
       containers:
       - name: rook-operator
-        image: quay.io/rook/rook-operator
+        image: quay.io/rook/rookd
+        args: ["operator"]
         env:
-        - name: ROOK_OPERATOR_NAMESPACE
+        - name: ROOKD_NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: ROOK_OPERATOR_REPO_PREFIX
+        - name: ROOKD_REPO_PREFIX
           value: quay.io/rook
