@@ -1,6 +1,7 @@
 package clients
 
 import (
+	"errors"
 	"github.com/quantum/rook-client-helpers/contracts"
 )
 
@@ -8,8 +9,47 @@ type k8sRookObject struct {
 	transportClient contracts.ITransportClient
 }
 
-func CreateK8sRookObject(client contracts.ITransportClient) k8sRookObject {
-	return k8sRookObject{transportClient: client}
+func CreateK8sRookObject(client contracts.ITransportClient) *k8sRookObject {
+	return &k8sRookObject{transportClient: client}
 }
 
-//TODO - implement all Rook object interface methods
+func (rp *k8sRookPool) Object_Create() (string, error){
+	//TODO - implement
+	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
+}
+func (rp *k8sRookPool) Object_Bucket_list() (string, error){
+	//TODO - implement
+	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
+}
+func (rp *k8sRookPool) Object_Connection() (string, error){
+	//TODO - implement
+	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
+}
+func (rp *k8sRookPool) Object_Create_user() (string, error){
+	//TODO - implement
+	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
+}
+func (rp *k8sRookPool) Object_Delete_user() (string, error){
+	//TODO - implement
+	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
+}
+func (rp *k8sRookPool) Object_Get_user() (string, error){
+	//TODO - implement
+	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
+}
+func (rp *k8sRookPool) Object_List_user() (string, error){
+	//TODO - implement
+	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
+}
+func (rp *k8sRookPool) Object_Update_user() (string, error){
+	//TODO - implement
+	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
+}
+func (rp *k8sRookPool) Object_PutData() (string, error){
+	//TODO - implement
+	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
+}
+func (rp *k8sRookPool) Object_GetData() (string, error){
+	//TODO - implement
+	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
+}

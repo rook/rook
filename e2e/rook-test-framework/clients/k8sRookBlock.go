@@ -13,8 +13,8 @@ var (
 	listCmd = []string{"rook", "block", "list"}
 )
 
-func CreateK8sRookBlock(client contracts.ITransportClient) k8sRookBlock {
-	return k8sRookBlock{transportClient: client}
+func CreateK8sRookBlock(client contracts.ITransportClient) *k8sRookBlock {
+	return &k8sRookBlock{transportClient: client}
 }
 
 func (rb *k8sRookBlock) Block_Create(name string, size int) (string, error) {
@@ -47,7 +47,7 @@ func (rb *k8sRookBlock) Block_List() (string, error) {
 
 }
 
-func (rb *k8sRookBlock) Block_Map(name string, path string) (string, error) {
+func (rb *k8sRookBlock) Block_Map(name string, mountpath string) (string, error) {
 	cmdArgs := []string{name}
 	out, err, status := rb.transportClient.Create(cmdArgs)
 	if status == 0 {
@@ -68,7 +68,7 @@ func (rb *k8sRookBlock) Block_Read(name string, mountpath string, filename strin
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
 
-func (rb *k8sRookBlock) Block_Unmap(name string) (string, error) {
+func (rb *k8sRookBlock) Block_Unmap(name string,mountpath string) (string, error) {
 	cmdArgs := []string{name}
 	out, err, status := rb.transportClient.Delete(cmdArgs)
 	if status == 0 {

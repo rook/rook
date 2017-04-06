@@ -15,13 +15,13 @@ var (
 	fileSystemList   = []string{"rook", "filesystem", "ls"}
 )
 
-func CreateK8sRookFileSystem(client contracts.ITransportClient) k8sRookFileSystem {
-	return k8sRookFileSystem{transportClient: client}
+func CreateK8sRookFileSystem(client contracts.ITransportClient) *k8sRookFileSystem {
+	return &k8sRookFileSystem{transportClient: client}
 }
 
-func (rb *k8sRookFileSystem) FS_Create(name string) (string, error) {
+func (rfs *k8sRookFileSystem) FS_Create(name string) (string, error) {
 	fileSystemCreate[4] = name
-	out, err, status := rb.transportClient.Create(fileSystemCreate)
+	out, err, status := rfs.transportClient.Create(fileSystemCreate)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -29,9 +29,9 @@ func (rb *k8sRookFileSystem) FS_Create(name string) (string, error) {
 	}
 }
 
-func (rb *k8sRookFileSystem) FS_Delete(name string) (string, error) {
+func (rfs *k8sRookFileSystem) FS_Delete(name string) (string, error) {
 	fileSystemCreate[4] = name
-	out, err, status := rb.transportClient.Delete(fileSystemDelete)
+	out, err, status := rfs.transportClient.Delete(fileSystemDelete)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -39,8 +39,8 @@ func (rb *k8sRookFileSystem) FS_Delete(name string) (string, error) {
 	}
 }
 
-func (rb *k8sRookFileSystem) FS_List() (string, error) {
-	out, err, status := rb.transportClient.Execute(fileSystemList)
+func (rfs *k8sRookFileSystem) FS_List() (string, error) {
+	out, err, status := rfs.transportClient.Execute(fileSystemList)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -49,9 +49,9 @@ func (rb *k8sRookFileSystem) FS_List() (string, error) {
 
 }
 
-func (rb *k8sRookFileSystem) FS_Mount(name string, path string) (string, error) {
+func (rfs *k8sRookFileSystem) FS_Mount(name string, path string) (string, error) {
 	cmdArgs := []string{name}
-	out, err, status := rb.transportClient.Create(cmdArgs)
+	out, err, status := rfs.transportClient.Create(cmdArgs)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -60,19 +60,19 @@ func (rb *k8sRookFileSystem) FS_Mount(name string, path string) (string, error) 
 
 }
 
-func (rb *k8sRookFileSystem) FS_Write(name string, mountpath string, data string, filename string) (string, error) {
+func (rfs *k8sRookFileSystem) FS_Write(name string, mountpath string, data string, filename string) (string, error) {
 	//TODO - implement
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
 
-func (rb *k8sRookFileSystem) FS_Read(name string, mountpath string, filename string) (string, error) {
+func (rfs *k8sRookFileSystem) FS_Read(name string, mountpath string, filename string) (string, error) {
 	//TODO - implement
 	return "Not YET IMPLEMENTED", errors.New("NOT YET IMPLEMENTED")
 }
 
-func (rb *k8sRookFileSystem) FS_Unmount(name string) (string, error) {
+func (rfs *k8sRookFileSystem) FS_Unmount(name string) (string, error) {
 	cmdArgs := []string{name}
-	out, err, status := rb.transportClient.Delete(cmdArgs)
+	out, err, status := rfs.transportClient.Delete(cmdArgs)
 	if status == 0 {
 		return out, nil
 	} else {
