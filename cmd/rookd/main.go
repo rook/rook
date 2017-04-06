@@ -65,7 +65,6 @@ type config struct {
 	directories        string
 	metadataDevice     string
 	dataDir            string
-	adminSecret        string
 	forceFormat        bool
 	location           string
 	logLevel           capnslog.LogLevel
@@ -162,7 +161,7 @@ func joinCluster() error {
 
 	services := []*clusterd.ClusterService{
 		cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.metadataDevice, cfg.directories,
-			cfg.forceFormat, cfg.location, cfg.adminSecret, cfg.storeConfig),
+			cfg.forceFormat, cfg.location, clusterInfo.AdminSecret, cfg.storeConfig),
 	}
 
 	cfg.nodeID, err = util.LoadPersistedNodeID(cfg.dataDir)
