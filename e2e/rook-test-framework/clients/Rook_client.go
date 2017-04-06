@@ -21,15 +21,26 @@ type RookClient struct {
 }
 
 func CreateRook_Client(platformval string, transport contracts.ITransportClient) (RookClient, error) {
-
-	return RookClient{
-		platformval,
-		transport,
-		CreateK8sRookBlock(transport),
-		CreateK8sRookFileSystem(transport),
-		CreateK8sRookObject(transport),
-		CreateK8sPool(transport),
-	}, nil
+	if platformval == "k8s" {
+		return RookClient{
+			platformval,
+			transport,
+			CreateK8sRookBlock(transport),
+			CreateK8sRookFileSystem(transport),
+			CreateK8sRookObject(transport),
+			CreateK8sPool(transport),
+		}, nil
+	} else {
+		//Implementing only k8s platform for now
+		return RookClient{
+			platformval,
+			transport,
+			nil,
+			nil,
+			nil,
+			nil,
+		}, nil
+	}
 }
 
 func (Client RookClient) Status() (string, error) {
