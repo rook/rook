@@ -44,7 +44,7 @@ func CreateRook_Client(platformval string, transport contracts.ITransportClient)
 }
 
 func (Client RookClient) Status() (string, error) {
-	out, err, status := Client.transportClient.Execute(STATUS_CMD)
+	out, err, status := Client.transportClient.Execute(STATUS_CMD,nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -53,7 +53,7 @@ func (Client RookClient) Status() (string, error) {
 }
 
 func (Client RookClient) Version() (string, error) {
-	out, err, status := Client.transportClient.Execute(VERSION_CMD)
+	out, err, status := Client.transportClient.Execute(VERSION_CMD,nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -62,7 +62,7 @@ func (Client RookClient) Version() (string, error) {
 }
 
 func (Client RookClient) Node() (string, error) {
-	out, err, status := Client.transportClient.Execute(NODE_CMD)
+	out, err, status := Client.transportClient.Execute(NODE_CMD,nil)
 	if status == 0 {
 		return out, nil
 	} else {

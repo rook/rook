@@ -1,9 +1,7 @@
 package transport
 
 import (
-	"bytes"
-	"os/exec"
-	"syscall"
+	"github.com/dangula/rook/e2e/rook-test-framework/utils"
 )
 
 type k8sTransportClient struct {
@@ -15,92 +13,35 @@ func CreateNewk8sTransportClient() *k8sTransportClient {
 
 const defaultFailedCode = 1
 
-func (k *k8sTransportClient) Execute(cmdArgs []string) (stdout string, stderr string, exitCode int) {
+func (k *k8sTransportClient) Execute(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
-	var outbuf, errbuf bytes.Buffer
-	initialArgs := []string{"exec", "-n", "rook", "rook-client", "--"}
-	cmdArgs = append(initialArgs, cmdArgs...)
-	cmd := exec.Command("kubectl", cmdArgs...)
-	cmd.Stdout = &outbuf
-	cmd.Stderr = &errbuf
-
-	err := cmd.Run()
-	stdout = outbuf.String()
-	stderr = errbuf.String()
-
-	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			ws := exitError.Sys().(syscall.WaitStatus)
-			exitCode = ws.ExitStatus()
-		} else {
-			exitCode = defaultFailedCode
-			if stderr == "" {
-				stderr = err.Error() + stdout
-			}
+	if optional != nil {
+		if len(optional) == 1{
+			initialArgs := []string{"exec", optional[0], "--"}
+			cmdArgs = append(initialArgs, cmdArgs...)
+		}else if len(optional) == 2{
+			initialArgs := []string{"exec", "-n", optional[1],optional[0], "--"}
+			cmdArgs = append(initialArgs, cmdArgs...)
+		}else{
+			return nil,"invalid number of optional params used",1
 		}
-	} else {
-		ws := cmd.ProcessState.Sys().(syscall.WaitStatus)
-		exitCode = ws.ExitStatus()
+	}else {
+		initialArgs := []string{"exec", "-n", "rook", "rook-client", "--"}
+		cmdArgs = append(initialArgs, cmdArgs...)
 	}
-	return
+	return uitls.ExecuteCmd("kubectl", cmdArgs)
 }
 
-func (k *k8sTransportClient) Create(cmdArgs []string) (stdout string, stderr string, exitCode int) {
+func (k *k8sTransportClient) Create(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
-	var outbuf, errbuf bytes.Buffer
 	initialArgs := []string{"create", "-f"}
 	cmdArgs = append(initialArgs, cmdArgs...)
-	cmd := exec.Command("kubectl", cmdArgs...)
-	cmd.Stdout = &outbuf
-	cmd.Stderr = &errbuf
-
-	err := cmd.Run()
-	stdout = outbuf.String()
-	stderr = errbuf.String()
-
-	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			ws := exitError.Sys().(syscall.WaitStatus)
-			exitCode = ws.ExitStatus()
-		} else {
-			exitCode = defaultFailedCode
-			if stderr == "" {
-				stderr = err.Error() + stdout
-			}
-		}
-	} else {
-		ws := cmd.ProcessState.Sys().(syscall.WaitStatus)
-		exitCode = ws.ExitStatus()
-	}
-	return
+	return uitls.ExecuteCmd("kubectl", cmdArgs)
 }
 
-func (k *k8sTransportClient) Delete(cmdArgs []string) (stdout string, stderr string, exitCode int) {
+func (k *k8sTransportClient) Delete(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
-	var outbuf, errbuf bytes.Buffer
 	initialArgs := []string{"delete", "-f"}
 	cmdArgs = append(initialArgs, cmdArgs...)
-	cmd := exec.Command("kubectl", cmdArgs...)
-	cmd.Stdout = &outbuf
-	cmd.Stderr = &errbuf
-
-	err := cmd.Run()
-	stdout = outbuf.String()
-	stderr = errbuf.String()
-
-	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			ws := exitError.Sys().(syscall.WaitStatus)
-			exitCode = ws.ExitStatus()
-		} else {
-			exitCode = defaultFailedCode
-			if stderr == "" {
-				stderr = err.Error() + stdout
-			}
-		}
-	} else {
-		ws := cmd.ProcessState.Sys().(syscall.WaitStatus)
-		exitCode = ws.ExitStatus()
-	}
-	return
+	return uitls.ExecuteCmd("kubectl", cmdArgs)
 }

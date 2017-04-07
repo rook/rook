@@ -13,7 +13,7 @@ func CreateNewStandAloneTransportClient() *standAloneTransportClient {
 	return &standAloneTransportClient{}
 }
 
-func (k *standAloneTransportClient) Execute(cmdArgs []string) (stdout string, stderr string, exitCode int) {
+func (k *standAloneTransportClient) Execute(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
 	var outbuf, errbuf bytes.Buffer
 	cmd := exec.Command("rook", cmdArgs...)
@@ -41,7 +41,7 @@ func (k *standAloneTransportClient) Execute(cmdArgs []string) (stdout string, st
 	return
 }
 
-func (k *standAloneTransportClient) Create(cmdArgs []string) (stdout string, stderr string, exitCode int) {
+func (k *standAloneTransportClient) Create(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
 	var outbuf, errbuf bytes.Buffer
 	cmd := exec.Command("rook", cmdArgs...)
@@ -69,7 +69,7 @@ func (k *standAloneTransportClient) Create(cmdArgs []string) (stdout string, std
 	return
 }
 
-func (k *standAloneTransportClient) Delete(cmdArgs []string) (stdout string, stderr string, exitCode int) {
+func (k *standAloneTransportClient) Delete(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
 	var outbuf, errbuf bytes.Buffer
 	cmd := exec.Command("rook", cmdArgs...)
