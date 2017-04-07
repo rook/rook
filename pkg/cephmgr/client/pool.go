@@ -44,7 +44,7 @@ type CephStoragePoolStats struct {
 			BytesUsed    float64 `json:"bytes_used"`
 			RawBytesUsed float64 `json:"raw_bytes_used"`
 			MaxAvail     float64 `json:"max_avail"`
-			Objects      float64 `json:"objects"`
+			Objects      float64 `json:"services"`
 			DirtyObjects float64 `json:"dirty"`
 			ReadIO       float64 `json:"rd"`
 			ReadBytes    float64 `json:"rd_bytes"`

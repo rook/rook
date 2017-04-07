@@ -35,7 +35,7 @@ import (
 var (
 	recoveryIORateRegex    = regexp.MustCompile(`(\d+) (\w{2})/s`)
 	recoveryIOKeysRegex    = regexp.MustCompile(`(\d+) keys/s`)
-	recoveryIOObjectsRegex = regexp.MustCompile(`(\d+) objects/s`)
+	recoveryIOObjectsRegex = regexp.MustCompile(`(\d+) services/s`)
 	clientIOReadRegex      = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s rd`)
 	clientIOWriteRegex     = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s wr`)
 	clientIOReadOpsRegex   = regexp.MustCompile(`(\d+) op/s rd`)
@@ -69,11 +69,11 @@ type ClusterHealthCollector struct {
 	// missing, and are stuck in that state.
 	StuckDegradedPGs prometheus.Gauge
 
-	// UncleanPGs shows the no. of PGs that do not have all objects in the PG
+	// UncleanPGs shows the no. of PGs that do not have all services in the PG
 	// that are supposed to be in it.
 	UncleanPGs prometheus.Gauge
 
-	// StuckUncleanPGs shows the no. of PGs that do not have all objects in the PG
+	// StuckUncleanPGs shows the no. of PGs that do not have all services in the PG
 	// that are supposed to be in it, and are stuck in that state.
 	StuckUncleanPGs prometheus.Gauge
 
@@ -94,11 +94,11 @@ type ClusterHealthCollector struct {
 	// in that state.
 	StuckStalePGs prometheus.Gauge
 
-	// DegradedObjectsCount gives the no. of RADOS objects are constitute the degraded PGs.
+	// DegradedObjectsCount gives the no. of RADOS services are constitute the degraded PGs.
 	// This includes object replicas in its count.
 	DegradedObjectsCount prometheus.Gauge
 
-	// MisplacedObjectsCount gives the no. of RADOS objects that constitute the misplaced PGs.
+	// MisplacedObjectsCount gives the no. of RADOS services that constitute the misplaced PGs.
 	// Misplaced PGs usually represent the PGs that are not in the storage locations that
 	// they should be in. This is different than degraded PGs which means a PG has fewer copies
 	// that it should.
@@ -128,7 +128,7 @@ type ClusterHealthCollector struct {
 	// RecoveryIOKeys shows the rate of rados keys recovery.
 	RecoveryIOKeys prometheus.Gauge
 
-	// RecoveryIOObjects shows the rate of rados objects being recovered.
+	// RecoveryIOObjects shows the rate of rados services being recovered.
 	RecoveryIOObjects prometheus.Gauge
 
 	// ClientIORead shows the total client read i/o on the cluster.
@@ -152,7 +152,7 @@ type ClusterHealthCollector struct {
 	// CacheEvictIORate shows the i/o rate at which data is being flushed from the cache pool.
 	CacheEvictIORate prometheus.Gauge
 
-	// CachePromoteIOOps shows the rate of operations promoting objects to the cache pool.
+	// CachePromoteIOOps shows the rate of operations promoting services to the cache pool.
 	CachePromoteIOOps prometheus.Gauge
 }
 
@@ -236,14 +236,14 @@ func NewClusterHealthCollector(conn ceph.Connection) *ClusterHealthCollector {
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Name:      "degraded_objects",
-				Help:      "No. of degraded objects across all PGs, includes replicas",
+				Help:      "No. of degraded services across all PGs, includes replicas",
 			},
 		),
 		MisplacedObjectsCount: prometheus.NewGauge(
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Name:      "misplaced_objects",
-				Help:      "No. of misplaced objects across all PGs, includes replicas",
+				Help:      "No. of misplaced services across all PGs, includes replicas",
 			},
 		),
 		OSDsDown: prometheus.NewGauge(
@@ -299,7 +299,7 @@ func NewClusterHealthCollector(conn ceph.Connection) *ClusterHealthCollector {
 			prometheus.GaugeOpts{
 				Namespace: cephNamespace,
 				Name:      "recovery_io_objects",
-				Help:      "Rate of objects being recovered in cluster per second",
+				Help:      "Rate of services being recovered in cluster per second",
 			},
 		),
 		ClientIORead: prometheus.NewGauge(
@@ -426,8 +426,8 @@ func (c *ClusterHealthCollector) collect() error {
 		stuckUndersizedRegex  = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
 		staleRegex            = regexp.MustCompile(`([\d]+) pgs stale`)
 		stuckStaleRegex       = regexp.MustCompile(`([\d]+) pgs stuck stale`)
-		degradedObjectsRegex  = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
-		misplacedObjectsRegex = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects misplaced`)
+		degradedObjectsRegex  = regexp.MustCompile(`recovery ([\d]+)/([\d]+) services degraded`)
+		misplacedObjectsRegex = regexp.MustCompile(`recovery ([\d]+)/([\d]+) services misplaced`)
 	)
 
 	for _, s := range stats.Health.Summary {

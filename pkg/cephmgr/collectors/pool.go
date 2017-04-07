@@ -44,10 +44,10 @@ type PoolUsageCollector struct {
 	// which depends on the replication settings for the pool in question.
 	MaxAvail *prometheus.GaugeVec
 
-	// Objects shows the no. of RADOS objects created within the pool.
+	// Objects shows the no. of RADOS services created within the pool.
 	Objects *prometheus.GaugeVec
 
-	// DirtyObjects shows the no. of RADOS dirty objects in a cache-tier pool,
+	// DirtyObjects shows the no. of RADOS dirty services in a cache-tier pool,
 	// this doesn't make sense in a regular pool, see:
 	// http://lists.ceph.com/pipermail/ceph-users-ceph.com/2015-April/000557.html
 	DirtyObjects *prometheus.GaugeVec
@@ -107,7 +107,7 @@ func NewPoolUsageCollector(conn ceph.Connection) *PoolUsageCollector {
 				Namespace: cephNamespace,
 				Subsystem: subSystem,
 				Name:      "objects_total",
-				Help:      "Total no. of objects allocated within the pool",
+				Help:      "Total no. of services allocated within the pool",
 			},
 			poolLabel,
 		),
@@ -116,7 +116,7 @@ func NewPoolUsageCollector(conn ceph.Connection) *PoolUsageCollector {
 				Namespace: cephNamespace,
 				Subsystem: subSystem,
 				Name:      "dirty_objects_total",
-				Help:      "Total no. of dirty objects in a cache-tier pool",
+				Help:      "Total no. of dirty services in a cache-tier pool",
 			},
 			poolLabel,
 		),

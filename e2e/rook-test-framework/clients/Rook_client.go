@@ -3,6 +3,8 @@ package clients
 import (
 	"errors"
 	"github.com/dangula/rook/e2e/rook-test-framework/contracts"
+	"github.com/dangula/rook/e2e/rook-test-framework/enums"
+	"github.com/dangula/rook/e2e/rook-test-framework/transport"
 )
 
 var (
@@ -11,8 +13,8 @@ var (
 	NODE_CMD    = []string{"rook", "node"}
 )
 
-type RookClient struct {
-	platform        string
+type rookClient struct {
+	platform        enums.RookPlatformType
 	transportClient contracts.ITransportClient
 	block_client    contracts.Irook_block
 	fs_client       contracts.Irook_filesystem
@@ -20,30 +22,31 @@ type RookClient struct {
 	pool_client     contracts.Irook_pool
 }
 
-func CreateRook_Client(platformval string, transport contracts.ITransportClient) (RookClient, error) {
-	if platformval == "k8s" {
-		return RookClient{
-			platformval,
-			transport,
-			CreateK8sRookBlock(transport),
-			CreateK8sRookFileSystem(transport),
-			CreateK8sRookObject(transport),
-			CreateK8sPool(transport),
-		}, nil
-	} else {
-		//Implementing only k8s platform for now
-		return RookClient{
-			platformval,
-			transport,
-			nil,
-			nil,
-			nil,
-			nil,
-		}, nil
+func CreateRook_Client(platform enums.RookPlatformType) (rookClient, error) {
+	var transportClient contracts.ITransportClient
+
+	switch {
+	case platform == enums.Kubernetes:
+		transportClient = transport.CreateNewk8sTransportClient()
+	case platform == enums.StandAlone:
+		transportClient = transport.CreateNewStandAloneTransportClient()
+	default:
+		return nil, errors.New("Unsupported Rook Platform Type")
 	}
+
+	return rookClient{
+		platform,
+		transportClient,
+		CreateK8sRookBlock(transportClient),		//TODO the name of this says K8s, why then do we need to pass a transport, it should know it
+		CreateK8sRookFileSystem(transportClient),
+		CreateK8sRookObject(transportClient),
+		CreateK8sPool(transportClient),
+	}, nil
+
+
 }
 
-func (Client RookClient) Status() (string, error) {
+func (Client rookClient) Status() (string, error) {
 	out, err, status := Client.transportClient.Execute(STATUS_CMD)
 	if status == 0 {
 		return out, nil
@@ -52,7 +55,7 @@ func (Client RookClient) Status() (string, error) {
 	}
 }
 
-func (Client RookClient) Version() (string, error) {
+func (Client rookClient) Version() (string, error) {
 	out, err, status := Client.transportClient.Execute(VERSION_CMD)
 	if status == 0 {
 		return out, nil
@@ -61,7 +64,7 @@ func (Client RookClient) Version() (string, error) {
 	}
 }
 
-func (Client RookClient) Node() (string, error) {
+func (Client rookClient) Node() (string, error) {
 	out, err, status := Client.transportClient.Execute(NODE_CMD)
 	if status == 0 {
 		return out, nil
@@ -70,18 +73,18 @@ func (Client RookClient) Node() (string, error) {
 	}
 }
 
-func (Client RookClient) Get_Block_client() contracts.Irook_block {
+func (Client rookClient) Get_Block_client() contracts.Irook_block {
 	return Client.block_client
 }
 
-func (Client RookClient) Get_FileSystem_client() contracts.Irook_filesystem {
+func (Client rookClient) Get_FileSystem_client() contracts.Irook_filesystem {
 	return Client.fs_client
 }
 
-func (Client RookClient) Get_Object_client() contracts.Irook_object {
+func (Client rookClient) Get_Object_client() contracts.Irook_object {
 	return Client.object_client
 }
 
-func (Client RookClient) Get_Pool_client() contracts.Irook_pool {
+func (Client rookClient) Get_Pool_client() contracts.Irook_pool {
 	return Client.pool_client
 }

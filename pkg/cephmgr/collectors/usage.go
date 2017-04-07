@@ -37,7 +37,7 @@ type ClusterUsageCollector struct {
 	conn ceph.Connection
 
 	// GlobalCapacity displays the total storage capacity of the cluster. This
-	// information is based on the actual no. of objects that are allocated. It
+	// information is based on the actual no. of services that are allocated. It
 	// does not take overcommitment into consideration.
 	GlobalCapacity prometheus.Gauge
 
@@ -47,7 +47,7 @@ type ClusterUsageCollector struct {
 	// AvailableCapacity shows the remaining capacity of the cluster that is left unallocated.
 	AvailableCapacity prometheus.Gauge
 
-	// Objects show the total no. of RADOS objects that are currently allocated.
+	// Objects show the total no. of RADOS services that are currently allocated.
 	Objects prometheus.Gauge
 }
 
@@ -75,7 +75,7 @@ func NewClusterUsageCollector(conn ceph.Connection) *ClusterUsageCollector {
 		Objects: prometheus.NewGauge(prometheus.GaugeOpts{
 			Namespace: cephNamespace,
 			Name:      "cluster_objects",
-			Help:      "No. of rados objects within the cluster",
+			Help:      "No. of rados services within the cluster",
 		}),
 	}
 }
@@ -114,7 +114,7 @@ func (c *ClusterUsageCollector) collect() error {
 
 	totObjects, err = stats.Stats.TotalObjects.Float64()
 	if err != nil {
-		logger.Errorf("cannot extract total objects: %+v", err)
+		logger.Errorf("cannot extract total services: %+v", err)
 	}
 
 	c.GlobalCapacity.Set(totBytes)

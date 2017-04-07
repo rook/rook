@@ -183,7 +183,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 0
 		}
 	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 10/20 objects degraded"}]}
+	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 10/20 services degraded"}]}
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`degraded_objects 10`),
@@ -200,7 +200,7 @@ func TestClusterHealthCollector(t *testing.T) {
 			"num_remapped_pgs": 0
 		}
 	},
-	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 20/40 objects misplaced"}]}
+	"health": {"summary": [{"severity": "HEALTH_WARN", "summary": "recovery 20/40 services misplaced"}]}
 }`,
 			regexes: []*regexp.Regexp{
 				regexp.MustCompile(`misplaced_objects 20`),
@@ -296,7 +296,7 @@ $ sudo ceph -s
     cluster eff51be8-938a-4afa-b0d1-7a580b4ceb37
      health HEALTH_OK
      monmap e3: 3 mons at {mon01,mon02,mon03}
-  recovery io 5779 MB/s, 4 keys/s, 1522 objects/s
+  recovery io 5779 MB/s, 4 keys/s, 1522 services/s
   client io 4273 kB/s rd, 2740 MB/s wr, 2863 op/s
 `,
 			regexes: []*regexp.Regexp{
@@ -314,7 +314,7 @@ $ sudo ceph -s
     cluster eff51be8-938a-4afa-b0d1-7a580b4ceb37
      health HEALTH_OK
      monmap e3: 3 mons at {mon01,mon02,mon03}
-  recovery io 5779 MB/s, 4 keys/s, 1522 objects/s
+  recovery io 5779 MB/s, 4 keys/s, 1522 services/s
   client io 2863 op/s rd, 5847 op/s wr
   cache io 251 MB/s flush, 6646 kB/s evict, 55 op/s promote
 `,

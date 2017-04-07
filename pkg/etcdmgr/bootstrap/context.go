@@ -104,7 +104,7 @@ func (e *Context) Members() ([]string, types.URLsMap, error) {
 		}
 		urlsMap[member.ID] = urls
 		// ClientURLs of a member is a url which is used by this member to listen to the clients' requests. This url could be used
-		// to create etcd client objects. In some use cases, multiple urls might be used, but we don't use that pattern.
+		// to create etcd client services. In some use cases, multiple urls might be used, but we don't use that pattern.
 		nodes = append(nodes, member.ClientURLs...)
 	}
 	return nodes, urlsMap, nil

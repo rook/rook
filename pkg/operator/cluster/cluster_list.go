@@ -30,7 +30,7 @@ type ClusterList struct {
 	// Standard list metadata
 	// More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata
 	Metadata unversioned.ListMeta `json:"metadata,omitempty"`
-	// Items is a list of third party objects
+	// Items is a list of third party services
 	Items []Cluster `json:"items"`
 }
 
