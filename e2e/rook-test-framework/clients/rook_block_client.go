@@ -3,8 +3,8 @@ package clients
 import (
 	"errors"
 	"fmt"
-	"github.com/quantum/rook-client-helpers/contracts"
 	"strconv"
+	"github.com/dangula/rook/e2e/rook-test-framework/contracts"
 )
 
 type rookBlockClient struct {

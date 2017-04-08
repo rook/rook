@@ -2,7 +2,7 @@ package clients
 
 import (
 	"errors"
-	"github.com/quantum/rook-client-helpers/contracts"
+	"github.com/dangula/rook/e2e/rook-test-framework/contracts"
 )
 
 type rookObjectClient struct {
