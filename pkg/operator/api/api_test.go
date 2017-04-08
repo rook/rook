@@ -24,6 +24,7 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
@@ -46,11 +47,11 @@ func TestStartAPI(t *testing.T) {
 
 func validateStart(t *testing.T, c *Cluster) {
 
-	r, err := c.clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(DeploymentName)
+	r, err := c.clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(DeploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, DeploymentName, r.Name)
 
-	s, err := c.clientset.CoreV1().Services(c.Namespace).Get(DeploymentName)
+	s, err := c.clientset.CoreV1().Services(c.Namespace).Get(DeploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, DeploymentName, s.Name)
 }

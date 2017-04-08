@@ -25,8 +25,8 @@ import (
 
 	"github.com/rook/rook/pkg/operator/cluster"
 
-	"k8s.io/client-go/pkg/api/unversioned"
-	kwatch "k8s.io/client-go/pkg/watch"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	kwatch "k8s.io/apimachinery/pkg/watch"
 )
 
 type clusterEvent struct {
@@ -44,7 +44,7 @@ type rawEvent struct {
 	Object json.RawMessage
 }
 
-func pollClusterEvent(decoder *json.Decoder) (*clusterEvent, *unversioned.Status, error) {
+func pollClusterEvent(decoder *json.Decoder) (*clusterEvent, *metav1.Status, error) {
 	re, status, err := pollEvent(decoder)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to poll cluster event. %+v", err)
@@ -65,7 +65,7 @@ func pollClusterEvent(decoder *json.Decoder) (*clusterEvent, *unversioned.Status
 	return ev, status, nil
 }
 
-func pollPoolEvent(decoder *json.Decoder) (*poolEvent, *unversioned.Status, error) {
+func pollPoolEvent(decoder *json.Decoder) (*poolEvent, *metav1.Status, error) {
 	re, status, err := pollEvent(decoder)
 	if err != nil {
 		return nil, status, fmt.Errorf("failed to poll pool event. %+v", err)
@@ -86,7 +86,7 @@ func pollPoolEvent(decoder *json.Decoder) (*poolEvent, *unversioned.Status, erro
 	return ev, nil, nil
 }
 
-func pollEvent(decoder *json.Decoder) (*rawEvent, *unversioned.Status, error) {
+func pollEvent(decoder *json.Decoder) (*rawEvent, *metav1.Status, error) {
 	re := &rawEvent{}
 	err := decoder.Decode(re)
 	if err != nil {
@@ -97,10 +97,10 @@ func pollEvent(decoder *json.Decoder) (*rawEvent, *unversioned.Status, error) {
 	}
 
 	if re.Type == kwatch.Error {
-		status := &unversioned.Status{}
+		status := &metav1.Status{}
 		err = json.Unmarshal(re.Object, status)
 		if err != nil {
-			return nil, nil, fmt.Errorf("fail to decode (%s) into unversioned.Status (%v)", re.Object, err)
+			return nil, nil, fmt.Errorf("fail to decode (%s) into metav1.Status (%v)", re.Object, err)
 		}
 		logger.Infof("returning pollEvent status %+v", status)
 		return nil, status, nil

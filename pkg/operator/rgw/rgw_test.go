@@ -25,8 +25,8 @@ import (
 	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
 	cephrgw "github.com/rook/rook/pkg/cephmgr/rgw"
 	testop "github.com/rook/rook/pkg/operator/test"
-
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/pkg/api/v1"
 )
@@ -60,15 +60,15 @@ func TestStartRGW(t *testing.T) {
 
 func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
 
-	r, err := clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get("rgw")
+	r, err := clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get("rgw", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "rgw", r.Name)
 
-	s, err := clientset.CoreV1().Services(c.Namespace).Get("rgw")
+	s, err := clientset.CoreV1().Services(c.Namespace).Get("rgw", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "rgw", s.Name)
 
-	secret, err := clientset.CoreV1().Secrets(c.Namespace).Get("rgw")
+	secret, err := clientset.CoreV1().Secrets(c.Namespace).Get("rgw", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "rgw", secret.Name)
 	assert.Equal(t, 1, len(secret.StringData))

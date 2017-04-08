@@ -108,7 +108,7 @@ func TestPopulateDistributedPerfSchemeEntry(t *testing.T) {
 	verifyMetadataDevicePartition(t, metadata, 1, entry.ID, entry.OsdUUID, DatabasePartitionType, 2, 2)
 }
 
-func verifyPartitionDetails(t *testing.T, entry *PerfSchemeEntry, partType PartitionType, device string, offset, size int64) {
+func verifyPartitionDetails(t *testing.T, entry *PerfSchemeEntry, partType PartitionType, device string, offset, size int) {
 	part, ok := entry.Partitions[partType]
 	assert.True(t, ok)
 	assert.NotNil(t, part)
@@ -118,7 +118,7 @@ func verifyPartitionDetails(t *testing.T, entry *PerfSchemeEntry, partType Parti
 }
 
 func verifyMetadataDevicePartition(t *testing.T, info *MetadataDeviceInfo, index int, osdID int, osdUUID uuid.UUID,
-	partType PartitionType, offset, size int64) {
+	partType PartitionType, offset, size int) {
 
 	part := info.Partitions[index]
 	assert.NotNil(t, part)

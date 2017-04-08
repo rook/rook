@@ -29,44 +29,44 @@ func TestRestartDelay(t *testing.T) {
 	var zeroTime time.Time
 
 	// test cases for when last retry check time is not available
-	assert.Equal(t, 0, calcRetryDelay(0, 0, zeroTime, zeroTime, zeroTime))
-	assert.Equal(t, 0, calcRetryDelay(0, 2, zeroTime, zeroTime, zeroTime))
-	assert.Equal(t, 1, calcRetryDelay(2, 0, zeroTime, zeroTime, zeroTime))
-	assert.Equal(t, 2, calcRetryDelay(2, 1, zeroTime, zeroTime, zeroTime))
-	assert.Equal(t, 4, calcRetryDelay(2, 2, zeroTime, zeroTime, zeroTime))
-	assert.Equal(t, 30, calcRetryDelay(2, 5, zeroTime, zeroTime, zeroTime))
-	assert.Equal(t, 30, calcRetryDelay(2, 100, zeroTime, zeroTime, zeroTime))
+	assert.Equal(t, float64(0), calcRetryDelay(0, 0, zeroTime, zeroTime, zeroTime))
+	assert.Equal(t, float64(0), calcRetryDelay(0, 2, zeroTime, zeroTime, zeroTime))
+	assert.Equal(t, float64(1), calcRetryDelay(2, 0, zeroTime, zeroTime, zeroTime))
+	assert.Equal(t, float64(2), calcRetryDelay(2, 1, zeroTime, zeroTime, zeroTime))
+	assert.Equal(t, float64(4), calcRetryDelay(2, 2, zeroTime, zeroTime, zeroTime))
+	assert.Equal(t, float64(30), calcRetryDelay(2, 5, zeroTime, zeroTime, zeroTime))
+	assert.Equal(t, float64(30), calcRetryDelay(2, 100, zeroTime, zeroTime, zeroTime))
 
 	// test cases for when last retry check is available and retry count is 0 and the process hasn't been
 	// running long at all. the time delay should be 2^(number of secs since last retry), with a max limit of 30.
 	now := time.Now()
 	lastStartTime := now
 	lastRetryCheck := now
-	assert.Equal(t, 1, calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
+	assert.Equal(t, float64(1), calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
 
 	lastRetryCheck = now.Add(-1 * time.Second)
-	assert.Equal(t, 2, calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
+	assert.Equal(t, float64(2), calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
 
 	lastRetryCheck = now.Add(-2 * time.Second)
-	assert.Equal(t, 4, calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
+	assert.Equal(t, float64(4), calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
 
 	lastRetryCheck = now.Add(-4 * time.Second)
-	assert.Equal(t, 16, calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
+	assert.Equal(t, float64(16), calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
 
 	lastRetryCheck = now.Add(-5 * time.Second)
-	assert.Equal(t, 30, calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
+	assert.Equal(t, float64(30), calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
 
 	lastRetryCheck = now.Add(-999999999 * time.Second)
-	assert.Equal(t, 30, calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
+	assert.Equal(t, float64(30), calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
 
 	// test case for when the process has been running for quite awhile.  we should not delay for very long since we
 	// are clearly not in a rapid retry loop.
 	lastStartTime = now.Add(-100 * time.Second)
-	assert.Equal(t, 1, calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
+	assert.Equal(t, float64(1), calcRetryDelay(2, 0, now, lastStartTime, lastRetryCheck))
 
 	// test cases for when both retry count and last retry check are available, retry count should be favored
 	lastRetryCheck = now.Add(-4 * time.Second)
-	assert.Equal(t, 2, calcRetryDelay(2, 1, now, lastStartTime, lastRetryCheck))
+	assert.Equal(t, float64(2), calcRetryDelay(2, 1, now, lastStartTime, lastRetryCheck))
 }
 
 func TestMonitoredRestart(t *testing.T) {

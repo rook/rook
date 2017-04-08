@@ -23,7 +23,7 @@ import (
 	"net/http"
 	"time"
 
-	"k8s.io/client-go/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/cephmgr/client"
@@ -35,6 +35,7 @@ import (
 	"github.com/rook/rook/pkg/operator/osd"
 	"github.com/rook/rook/pkg/operator/rgw"
 	rookclient "github.com/rook/rook/pkg/rook/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 )
@@ -67,7 +68,8 @@ func (c *Cluster) Init(factory client.ConnectionFactory, clientset kubernetes.In
 func (c *Cluster) CreateInstance() error {
 
 	// Create the namespace if not already created
-	ns := &v1.Namespace{ObjectMeta: v1.ObjectMeta{Name: c.Namespace}}
+	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: c.Namespace}}
+
 	_, err := c.clientset.CoreV1().Namespaces().Create(ns)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -145,7 +147,7 @@ func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 		"key": rbdKey,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: v1.ObjectMeta{Name: name, Namespace: k8sutil.DefaultNamespace},
+		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: k8sutil.DefaultNamespace},
 		StringData: secrets,
 		Type:       k8sutil.RbdType,
 	}
@@ -175,7 +177,7 @@ func (c *Cluster) GetRookClient() (rookclient.RookRestClient, error) {
 
 	// Look up the api service for the given namespace
 	logger.Infof("retrieving rook api endpoint for namespace %s", c.Namespace)
-	svc, err := c.clientset.CoreV1().Services(c.Namespace).Get(api.DeploymentName)
+	svc, err := c.clientset.CoreV1().Services(c.Namespace).Get(api.DeploymentName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the api service. %+v", err)
 	}

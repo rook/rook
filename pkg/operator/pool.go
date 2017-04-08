@@ -28,7 +28,7 @@ import (
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	rookclient "github.com/rook/rook/pkg/rook/client"
-	kwatch "k8s.io/client-go/pkg/watch"
+	kwatch "k8s.io/apimachinery/pkg/watch"
 )
 
 const (

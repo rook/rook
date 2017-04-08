@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestCreateSecrets(t *testing.T) {
@@ -50,7 +51,7 @@ func TestCreateSecrets(t *testing.T) {
 	assert.Nil(t, err)
 
 	secretName := fmt.Sprintf("%s-rbd-user", c.Namespace)
-	secret, err := clientset.CoreV1().Secrets(k8sutil.DefaultNamespace).Get(secretName)
+	secret, err := clientset.CoreV1().Secrets(k8sutil.DefaultNamespace).Get(secretName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, secretName, secret.Name)
 	assert.Equal(t, 1, len(secret.StringData))

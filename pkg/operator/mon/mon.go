@@ -25,8 +25,9 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
@@ -221,7 +222,7 @@ func (c *Cluster) failoverMon(conn client.Connection, name string) error {
 
 	// Remove the mon pod if it is still there
 	var gracePeriod int64
-	options := &v1.DeleteOptions{GracePeriodSeconds: &gracePeriod}
+	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod}
 	err = c.clientset.CoreV1().Pods(c.Namespace).Delete(name, options)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -249,7 +250,7 @@ func (c *Cluster) failoverMon(conn client.Connection, name string) error {
 // If a new cluster create new keys.
 func (c *Cluster) initClusterInfo() error {
 	// get the cluster secrets
-	secrets, err := c.clientset.CoreV1().Secrets(c.Namespace).Get(appName)
+	secrets, err := c.clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return fmt.Errorf("failed to get mon secrets. %+v", err)
@@ -322,7 +323,7 @@ func (c *Cluster) createMonSecretsAndSave() error {
 		adminSecretName:   c.clusterInfo.AdminSecret,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: v1.ObjectMeta{Name: appName, Namespace: c.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: c.Namespace},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
@@ -336,7 +337,7 @@ func (c *Cluster) createMonSecretsAndSave() error {
 		"key": c.clusterInfo.AdminSecret,
 	}
 	secret = &v1.Secret{
-		ObjectMeta: v1.ObjectMeta{Name: "rook-admin", Namespace: c.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: "rook-admin", Namespace: c.Namespace},
 		StringData: storageClassSecret,
 		Type:       k8sutil.RbdType,
 	}
@@ -437,7 +438,7 @@ func (c *Cluster) waitForPodToStart(name string) (string, error) {
 		logger.Infof("waiting %ds for pod %s to start. status=%s", c.retryDelay, name, status)
 		<-time.After(time.Duration(c.retryDelay) * time.Second)
 
-		pod, err := c.clientset.CoreV1().Pods(c.Namespace).Get(name)
+		pod, err := c.clientset.CoreV1().Pods(c.Namespace).Get(name, metav1.GetOptions{})
 		if err != nil {
 			return "", fmt.Errorf("failed to get mon pod %s. %+v", name, err)
 		}
@@ -454,7 +455,7 @@ func (c *Cluster) waitForPodToStart(name string) (string, error) {
 
 func (c *Cluster) saveMonConfig() error {
 	configMap := &v1.ConfigMap{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:        monConfigMapName,
 			Namespace:   c.Namespace,
 			Annotations: map[string]string{},
@@ -482,7 +483,7 @@ func (c *Cluster) saveMonConfig() error {
 }
 
 func (c *Cluster) loadMonConfig() error {
-	cm, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get(monConfigMapName)
+	cm, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get(monConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
@@ -523,7 +524,7 @@ func (c *Cluster) loadMonConfig() error {
 // detect whether we have a big enough cluster to run services on different nodes.
 // the anti-affinity will prevent pods of the same type of running on the same node.
 func (c *Cluster) getAntiAffinity() (bool, error) {
-	nodeOptions := v1.ListOptions{}
+	nodeOptions := metav1.ListOptions{}
 	nodeOptions.TypeMeta.Kind = "Node"
 	nodes, err := c.clientset.CoreV1().Nodes().List(nodeOptions)
 	if err != nil {

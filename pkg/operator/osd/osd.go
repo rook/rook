@@ -24,9 +24,9 @@ import (
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/errors"
-	"k8s.io/client-go/pkg/api/unversioned"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
@@ -113,7 +113,7 @@ func (c *Cluster) makeReplicaSet(nodeName string, devices []Device, directories 
 	rs.Namespace = c.Namespace
 
 	podSpec := c.podTemplateSpec(devices, directories, selection, config)
-	podSpec.Spec.NodeSelector = map[string]string{unversioned.LabelHostname: nodeName}
+	podSpec.Spec.NodeSelector = map[string]string{metav1.LabelHostname: nodeName}
 
 	replicaCount := int32(1)
 
@@ -149,7 +149,7 @@ func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, sel
 	}
 
 	return v1.PodTemplateSpec{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: appName,
 			Labels: map[string]string{
 				k8sutil.AppAttr:     appName,

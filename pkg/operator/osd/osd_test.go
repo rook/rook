@@ -24,7 +24,7 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/pkg/api/unversioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	cephosd "github.com/rook/rook/pkg/cephmgr/osd"
 )
@@ -64,7 +64,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	assert.Equal(t, "osd-node1", replicaSet.Name)
 	assert.Equal(t, c.Namespace, replicaSet.Namespace)
 	assert.Equal(t, int32(1), *(replicaSet.Spec.Replicas))
-	assert.Equal(t, "node1", replicaSet.Spec.Template.Spec.NodeSelector[unversioned.LabelHostname])
+	assert.Equal(t, "node1", replicaSet.Spec.Template.Spec.NodeSelector[metav1.LabelHostname])
 	assert.Equal(t, v1.RestartPolicyAlways, replicaSet.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, 2, len(replicaSet.Spec.Template.Spec.Volumes))
 	assert.Equal(t, "rook-data", replicaSet.Spec.Template.Spec.Volumes[0].Name)
