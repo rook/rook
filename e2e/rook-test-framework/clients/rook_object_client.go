@@ -16,7 +16,7 @@ func CreateRookObjectClient(client contracts.ITransportClient) *rookObjectClient
 
 func (r *rookObjectClient) CreateObjectStorage() (string, error) {
 	cmd := []string{"exec -n rook rook-client rook object create"}
-	out, err, status := r.transportClient.Execute(cmd)
+	out, err, status := r.transportClient.Execute(cmd,nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -27,7 +27,7 @@ func (r *rookObjectClient) CreateObjectStorage() (string, error) {
 func (r *rookObjectClient) UserList() (string, error) {
 	cmd := []string{"exec -n rook rook-client rook object user list"}
 
-	out, err, status := r.transportClient.Execute(cmd)
+	out, err, status := r.transportClient.Execute(cmd,nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -38,7 +38,7 @@ func (r *rookObjectClient) UserList() (string, error) {
 func (r *rookObjectClient) UserCreate(userId string, displayName string) (string, error) {
 	cmd := []string{"exec -n rook rook-client -- rook object user create " + userId + " " + displayName}
 
-	out, err, status := r.transportClient.Execute(cmd)
+	out, err, status := r.transportClient.Execute(cmd,nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -48,7 +48,7 @@ func (r *rookObjectClient) UserCreate(userId string, displayName string) (string
 
 func (r *rookObjectClient) UserGet(userId string) (string, error) {
 	cmd := []string{"exec -n rook rook-client -- rook object user get " + userId}
-	out, err, status := r.transportClient.Execute(cmd)
+	out, err, status := r.transportClient.Execute(cmd,nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -59,7 +59,7 @@ func (r *rookObjectClient) UserGet(userId string) (string, error) {
 func (r *rookObjectClient) UserDelete(userId string) (string, error) {
 	cmd := []string{"exec -n rook rook-client -- rook object user delete " + userId}
 
-	out, err, status := r.transportClient.Execute(cmd)
+	out, err, status := r.transportClient.Execute(cmd,nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -70,7 +70,7 @@ func (r *rookObjectClient) UserDelete(userId string) (string, error) {
 func (r *rookObjectClient) BucketList() (string, error) {
 	cmd := []string{"exec -n rook rook-client -- rook object bucket list"}
 
-	out, err, status := r.transportClient.Execute(cmd)
+	out, err, status := r.transportClient.Execute(cmd,nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -80,7 +80,7 @@ func (r *rookObjectClient) BucketList() (string, error) {
 func (r *rookObjectClient) ConnectionInfo(userId string, formatFlag string) (string, error) {
 	cmd := []string{"exec -n rook rook-client -- rook object connection " + userId + " --format " + formatFlag}
 
-	out, err, status := r.transportClient.Execute(cmd)
+	out, err, status := r.transportClient.Execute(cmd,nil)
 	if status == 0 {
 		return out, nil
 	} else {

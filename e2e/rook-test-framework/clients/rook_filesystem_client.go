@@ -17,7 +17,7 @@ func CreateRookFileSystemClient(client contracts.ITransportClient) *rookFileSyst
 
 func (r *rookFileSystemClient) List() (string, error) {
 	cmd := []string{"exec", "-n", "rook", "rook-client", "rook", "filesystem", "ls"}
-	out, err, status := r.transportClient.Execute(cmd)
+	out, err, status := r.transportClient.Execute(cmd,nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -28,7 +28,7 @@ func (r *rookFileSystemClient) List() (string, error) {
 func (r *rookFileSystemClient) Create(name string) (string, error) {
 	cmd := []string{"exec -n rook rook-client -- rook filesystem create --name " + name}
 
-	out, err, status := r.transportClient.Execute(cmd)
+	out, err, status := r.transportClient.Execute(cmd,nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -39,7 +39,7 @@ func (r *rookFileSystemClient) Create(name string) (string, error) {
 func (r *rookFileSystemClient) Delete(name string) (string, error) {
 	cmd := []string{"exec -n rook rook-client -- rook filesystem delete --name " + name}
 
-	out, err, status := r.transportClient.Execute(cmd)
+	out, err, status := r.transportClient.Execute(cmd,nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -50,7 +50,7 @@ func (r *rookFileSystemClient) Delete(name string) (string, error) {
 func (r *rookFileSystemClient) Mount(name string, path string) (string, error) {
 	cmd := []string{"exec -n rook rook-client -- rook filesystem mount --name " + name + " --path " + path}
 
-	out, err, status := r.transportClient.Execute(cmd)
+	out, err, status := r.transportClient.Execute(cmd,nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -61,7 +61,7 @@ func (r *rookFileSystemClient) Mount(name string, path string) (string, error) {
 func (r *rookFileSystemClient) UnMount(path string) (string, error) {
 	cmd := []string{"exec -n rook rook-client -- rook filesystem unmount --path " + path}
 
-	out, err, status := r.transportClient.Execute(cmd)
+	out, err, status := r.transportClient.Execute(cmd,nil)
 	if status == 0 {
 		return out, nil
 	} else {

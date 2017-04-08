@@ -24,30 +24,41 @@ type rookClient struct {
 
 func CreateRook_Client(platform enums.RookPlatformType) (rookClient, error) {
 	var transportClient contracts.ITransportClient
+	var block_client contracts.Irook_block
+	var fs_client contracts.Irook_filesystem
+	var object_client contracts.Irook_object
+	var pool_client contracts.Irook_pool
 
 	switch {
 	case platform == enums.Kubernetes:
 		transportClient = transport.CreateNewk8sTransportClient()
+		block_client = CreateK8sRookBlock(transportClient)
+		fs_client = CreateK8sRookFileSystem(transportClient)
+		object_client = CreateK8sRookObject(transportClient)
+		pool_client = CreateK8sPool(transportClient)
 	case platform == enums.StandAlone:
 		transportClient = transport.CreateNewStandAloneTransportClient()
+		block_client = nil  //TODO- Not yet implemented
+		fs_client = nil     //TODO- Not yet implemented
+		object_client = nil //TODO- Not yet implemented
+		pool_client = nil   //TODO- Not yet implemented
 	default:
-		return nil, errors.New("Unsupported Rook Platform Type")
+		return rookClient{}, errors.New("Unsupported Rook Platform Type")
 	}
 
 	return rookClient{
 		platform,
 		transportClient,
-		CreateK8sRookBlock(transportClient),		//TODO the name of this says K8s, why then do we need to pass a transport, it should know it
-		CreateK8sRookFileSystem(transportClient),
-		CreateK8sRookObject(transportClient),
-		CreateK8sPool(transportClient),
+		block_client,
+		fs_client,
+		object_client,
+		pool_client,
 	}, nil
-
 
 }
 
 func (Client rookClient) Status() (string, error) {
-	out, err, status := Client.transportClient.Execute(STATUS_CMD)
+	out, err, status := Client.transportClient.Execute(STATUS_CMD, nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -56,7 +67,7 @@ func (Client rookClient) Status() (string, error) {
 }
 
 func (Client rookClient) Version() (string, error) {
-	out, err, status := Client.transportClient.Execute(VERSION_CMD)
+	out, err, status := Client.transportClient.Execute(VERSION_CMD, nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -65,7 +76,7 @@ func (Client rookClient) Version() (string, error) {
 }
 
 func (Client rookClient) Node() (string, error) {
-	out, err, status := Client.transportClient.Execute(NODE_CMD)
+	out, err, status := Client.transportClient.Execute(NODE_CMD, nil)
 	if status == 0 {
 		return out, nil
 	} else {

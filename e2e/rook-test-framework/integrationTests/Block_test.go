@@ -2,16 +2,19 @@ package integrationTests
 
 import (
 	"github.com/dangula/rook/e2e/rook-test-framework/transport"
-	"github.com/quantum/rook-client-helpers/clients"
+	"github.com/dangula/rook/e2e/rook-test-framework/clients"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
+var(
+ BLOCK_NAME = "test1"
+ VOLUME_PATH = "/tmp/rook-volume1"
+ FILENAME = "file1"
+ DATA = "Block test Smoke test"
 
-const BLOCK_NAME = "test4"
-const VOLUME_PATH = "/tmp/rook-volume4"
-const FILENAME = "file1"
-const DATA = "Block test Smoke test"
+)
 
+// - Test Rook block operations via rook cli
 func TestBlockClient(t *testing.T) {
 	t.Log("Test Create,Mount and Unmount Block")
 	rookBlockClient := clients.CreateRookBlockClient(transport.CreateNewk8sTransportClient())
@@ -60,6 +63,16 @@ func TestBlockClient(t *testing.T) {
 	if mount, error := rookBlockClient.UnMount(VOLUME_PATH); error != nil {
 		t.Log(mount)
 		t.Errorf("Expected Block to be UnMounted")
+		t.Fail()
+
+	} else {
+		t.Log(mount)
+	}
+
+	t.Log("Step 6: Delete Block")
+	if mount, error := rookBlockClient.Delete(BLOCK_NAME,"rbd"); error != nil {
+		t.Log(mount)
+		t.Errorf("Expected Block to be deleted")
 		t.Fail()
 
 	} else {

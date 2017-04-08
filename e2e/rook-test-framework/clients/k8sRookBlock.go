@@ -10,9 +10,9 @@ type k8sRookBlock struct {
 }
 
 var (
-	listCmd         = []string{"rook", "block", "list"}
-	wideDataToPod   = []string{"bash", "-c", "WRITE_DATA_CMD"}
-	readDataFromPod = []string{"cat", "READ_DATA_CMD"}
+	listCmd         = []string{"rook", "block", "ls"}
+	wideDataToBlockPod   = []string{"bash", "-c", "WRITE_DATA_CMD"}
+	readDataFromBlockPod = []string{"cat", "READ_DATA_CMD"}
 )
 
 // Constructor to create k8sRookBlock - client to perform rook Block operations on k8s
@@ -86,12 +86,12 @@ func (rb *k8sRookBlock) Block_Map(name string, mountpath string) (string, error)
 //Output  - k8s exec pod operation output and/or error
 func (rb *k8sRookBlock) Block_Write(name string, mountpath string, data string, filename string, namespace string) (string, error) {
 	wt := "echo \"" + data + "\">" + mountpath + "/" + filename
-	wideDataToPod[2] = wt
+	wideDataToBlockPod[2] = wt
 	option := []string{name}
 	if namespace != "" {
 		option = append(option, namespace)
 	}
-	out, err, status := rb.transportClient.Execute(wideDataToPod, option)
+	out, err, status := rb.transportClient.Execute(wideDataToBlockPod, option)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -108,12 +108,12 @@ func (rb *k8sRookBlock) Block_Write(name string, mountpath string, data string, 
 //Output  - k8s exec pod operation output and/or error
 func (rb *k8sRookBlock) Block_Read(name string, mountpath string, filename string, namespace string) (string, error) {
 	rd := mountpath + "/" + filename
-	readDataFromPod[1] = rd
+	readDataFromBlockPod[1] = rd
 	option := []string{name}
 	if namespace != "" {
 		option = append(option, namespace)
 	}
-	out, err, status := rb.transportClient.Execute(readDataFromPod, option)
+	out, err, status := rb.transportClient.Execute(readDataFromBlockPod, option)
 	if status == 0 {
 		return out, nil
 	} else {

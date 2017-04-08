@@ -23,7 +23,7 @@ func (k *k8sTransportClient) Execute(cmdArgs []string, optional []string) (stdou
 			initialArgs := []string{"exec", "-n", optional[1],optional[0], "--"}
 			cmdArgs = append(initialArgs, cmdArgs...)
 		}else{
-			return nil,"invalid number of optional params used",1
+			return "","invalid number of optional params used",1
 		}
 	}else {
 		initialArgs := []string{"exec", "-n", "rook", "rook-client", "--"}
