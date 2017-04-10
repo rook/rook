@@ -34,8 +34,19 @@ func newTPRTracker() *tprTracker {
 }
 
 func (t *tprTracker) add(name, version string) {
-	t.stopChMap[name] = make(chan struct{})
 	t.clusterRVs[name] = version
+	if _, ok := t.stopChMap[name]; !ok {
+		t.stopChMap[name] = make(chan struct{})
+	}
+}
+
+func (t *tprTracker) remove(name string) {
+	delete(t.clusterRVs, name)
+
+	if stopCh, ok := t.stopChMap[name]; ok {
+		close(stopCh)
+	}
+	delete(t.stopChMap, name)
 }
 
 func (t *tprTracker) stop() {

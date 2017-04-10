@@ -46,7 +46,7 @@ func TestValidatePool(t *testing.T) {
 
 	// must not specify both replication and EC settings
 	p = Pool{ObjectMeta: v1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
-	p.Replication.Count = 1
+	p.Replication.Size = 1
 	p.ErasureCoding.CodingChunks = 2
 	p.ErasureCoding.DataChunks = 3
 	err = p.validate()
@@ -54,7 +54,7 @@ func TestValidatePool(t *testing.T) {
 
 	// succeed with replication settings
 	p = Pool{ObjectMeta: v1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
-	p.Replication.Count = 1
+	p.Replication.Size = 1
 	err = p.validate()
 	assert.Nil(t, err)
 
@@ -69,7 +69,7 @@ func TestValidatePool(t *testing.T) {
 func TestCreatePool(t *testing.T) {
 	rclient := &test.MockRookRestClient{}
 	p := Pool{ObjectMeta: v1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
-	p.Replication.Count = 1
+	p.Replication.Size = 1
 
 	exists, err := p.exists(rclient)
 	assert.False(t, exists)
@@ -83,7 +83,7 @@ func TestCreatePool(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// succeed with EC
-	p.Replication.Count = 0
+	p.Replication.Size = 0
 	err = p.Create(rclient)
 	assert.Nil(t, err)
 }

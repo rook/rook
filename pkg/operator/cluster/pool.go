@@ -52,16 +52,17 @@ func (p *Pool) Create(rclient rookclient.RookRestClient) error {
 	// check if the pool already exists
 	exists, err := p.exists(rclient)
 	if err == nil && exists {
-		logger.Infof("pool %s already exists in namespace %s", p.Name, p.Namespace)
+		logger.Infof("pool %s already exists in namespace %s ", p.Name, p.Namespace)
 		return nil
 	}
 
 	// create the pool
 	pool := model.Pool{Name: p.Name}
+
 	r := p.replication()
 	if r != nil {
-		logger.Infof("creating pool %s in namespace %s with replicas %d", p.Name, p.Namespace, r.Count)
-		pool.ReplicationConfig.Size = r.Count
+		logger.Infof("creating pool %s in namespace %s with replicas %d", p.Name, p.Namespace, r.Size)
+		pool.ReplicationConfig.Size = r.Size
 		pool.Type = model.Replicated
 	} else {
 		ec := p.erasureCode()
@@ -125,7 +126,7 @@ func (p *Pool) validate() error {
 }
 
 func (p *Pool) replication() *ReplicationSpec {
-	if p.PoolSpec.Replication.Count > 0 {
+	if p.PoolSpec.Replication.Size > 0 {
 		return &p.PoolSpec.Replication
 	}
 	return nil

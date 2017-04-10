@@ -49,8 +49,8 @@ type inclusterInitiator interface {
 
 type tprManager interface {
 	Load() error
-	BeginWatch() error
-	EndWatch() error
+	Watch() error
+	Manage()
 }
 
 func qualifiedName(tpr tprScheme) string {

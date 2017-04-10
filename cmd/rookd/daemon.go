@@ -39,6 +39,7 @@ var daemonCmd = &cobra.Command{
 func init() {
 	daemonCmd.Flags().StringVar(&daemonType, "type", "", "type of daemon [mon|osd|mds|rgw]")
 	daemonCmd.MarkFlagRequired("type")
+	flags.SetFlagsFromEnv(daemonCmd.Flags(), "ROOKD")
 
 	daemonCmd.RunE = runDaemon
 }

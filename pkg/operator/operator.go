@@ -80,6 +80,7 @@ func New(host, namespace string, factory client.ConnectionFactory, clientset kub
 }
 
 func (o *Operator) Run() error {
+
 	for {
 		err := o.initResources()
 		if err == nil {
@@ -90,7 +91,8 @@ func (o *Operator) Run() error {
 	}
 
 	// watch for changes to the rook clusters
-	return o.clusterMgr.BeginWatch()
+	o.clusterMgr.Manage()
+	return nil
 }
 
 func (o *Operator) initResources() error {
@@ -103,10 +105,6 @@ func (o *Operator) initResources() error {
 	err = createTPRs(o.context, o.tprSchemes)
 	if err != nil {
 		return fmt.Errorf("failed to create TPR. %+v", err)
-	}
-
-	if err := o.clusterMgr.Load(); err != nil {
-		return fmt.Errorf("failed to load cluster. %+v", err)
 	}
 
 	return nil

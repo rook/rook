@@ -63,6 +63,24 @@ func (t *poolInitiator) Description() string {
 	return "Managed Rook pools"
 }
 
+// Run the tpr manager until the caller signals with an EndWatch()
+func (p *poolManager) Manage() {
+	for {
+
+		// load and initialize the pools
+		if err := p.Load(); err != nil {
+			logger.Errorf("cannot load %s pool tpr. %+v. retrying...", p.name, err)
+		} else {
+			// watch for added/updated/deleted pools
+			if err := p.Watch(); err != nil {
+				logger.Errorf("failed to watch %s pool tpr. %+v. retrying...", p.name, err)
+			}
+		}
+
+		<-time.After(time.Second * time.Duration(p.context.retryDelay))
+	}
+}
+
 func (t *poolManager) Load() error {
 	// Check if pools have all been created
 	logger.Info("finding existing pools...")
@@ -97,12 +115,7 @@ func (t *poolManager) getPoolList() (*cluster.PoolList, error) {
 	return pools, nil
 }
 
-func (t *poolManager) EndWatch() error {
-	logger.Infof("TODO: stop watching pool tpr")
-	return nil
-}
-
-func (t *poolManager) BeginWatch() error {
+func (t *poolManager) Watch() error {
 	logger.Infof("start watching pool tpr: %s", t.watchVersion)
 
 	eventCh, errCh := t.watch()

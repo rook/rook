@@ -46,53 +46,50 @@ var (
 )
 
 type Cluster struct {
-	factory   client.ConnectionFactory
-	clientset kubernetes.Interface
-	Metadata  v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec      `json:"spec"`
-	dataDir   string
-	mons      *mon.Cluster
-	osds      *osd.Cluster
-	apis      *api.Cluster
-	rgws      *rgw.Cluster
-	rclient   rookclient.RookRestClient
+	factory       client.ConnectionFactory
+	clientset     kubernetes.Interface
+	v1.ObjectMeta `json:"metadata,omitempty"`
+	Spec          `json:"spec"`
+	dataDir       string
+	mons          *mon.Cluster
+	osds          *osd.Cluster
+	apis          *api.Cluster
+	rgws          *rgw.Cluster
+	rclient       rookclient.RookRestClient
 }
 
-func New(spec Spec, factory client.ConnectionFactory, clientset kubernetes.Interface) *Cluster {
-	return &Cluster{
-		Spec:      spec,
-		factory:   factory,
-		clientset: clientset,
-		dataDir:   k8sutil.DataDir,
-	}
+func (c *Cluster) Init(factory client.ConnectionFactory, clientset kubernetes.Interface) {
+	c.factory = factory
+	c.clientset = clientset
+	c.dataDir = k8sutil.DataDir
 }
 
 func (c *Cluster) CreateInstance() error {
 
 	// Create the namespace if not already created
-	ns := &v1.Namespace{ObjectMeta: v1.ObjectMeta{Name: c.Spec.Namespace}}
+	ns := &v1.Namespace{ObjectMeta: v1.ObjectMeta{Name: c.Name}}
 	_, err := c.clientset.CoreV1().Namespaces().Create(ns)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create namespace %s. %+v", c.Spec.Namespace, err)
+			return fmt.Errorf("failed to create namespace %s. %+v", c.Name, err)
 		}
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.clientset, c.factory, c.Spec.Namespace, c.Spec.DataDirHostPath, c.Spec.Version)
+	c.mons = mon.New(c.clientset, c.factory, c.Name, c.Spec.DataDirHostPath, c.Spec.VersionTag)
 	clusterInfo, err := c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
 
-	c.apis = api.New(c.clientset, c.Spec.Namespace, c.Spec.Version)
+	c.apis = api.New(c.clientset, c.Name, c.Spec.VersionTag)
 	err = c.apis.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.clientset, c.Spec.Namespace, c.Spec.Version, c.Spec.Storage, c.Spec.DataDirHostPath)
+	c.osds = osd.New(c.clientset, c.Name, c.Spec.VersionTag, c.Spec.Storage, c.Spec.DataDirHostPath)
 	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
@@ -103,7 +100,7 @@ func (c *Cluster) CreateInstance() error {
 		return fmt.Errorf("failed to create client access. %+v", err)
 	}
 
-	logger.Infof("Done creating rook instance in namespace %s", c.Spec.Namespace)
+	logger.Infof("Done creating rook instance in namespace %s", c.Name)
 	return nil
 }
 
@@ -111,7 +108,7 @@ func (c *Cluster) Monitor(stopCh <-chan struct{}) {
 	for {
 		select {
 		case <-stopCh:
-			logger.Infof("Stopping monitoring of cluster %s", c.Spec.Namespace)
+			logger.Infof("Stopping monitoring of cluster %s", c.Name)
 			return
 
 		case <-time.After(healthCheckInterval):
@@ -133,7 +130,8 @@ func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 	defer conn.Shutdown()
 
 	// create a user for rbd clients
-	username := "client.rook-rbd-user"
+	name := fmt.Sprintf("%s-rbd-user", c.Name)
+	username := fmt.Sprintf("client.%s", name)
 	access := []string{"osd", "allow rwx", "mon", "allow r"}
 
 	// get-or-create-key for the user account
@@ -143,7 +141,6 @@ func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 	}
 
 	// store the secret for the rbd user in the default namespace
-	name := fmt.Sprintf("%s-rbd-user", c.Spec.Namespace)
 	secrets := map[string]string{
 		"key": rbdKey,
 	}
@@ -177,8 +174,8 @@ func (c *Cluster) GetRookClient() (rookclient.RookRestClient, error) {
 	}
 
 	// Look up the api service for the given namespace
-	logger.Infof("retrieving rook api endpoint for namespace %s", c.Namespace)
-	svc, err := c.clientset.CoreV1().Services(c.Namespace).Get(api.DeploymentName)
+	logger.Infof("retrieving rook api endpoint for namespace %s", c.Name)
+	svc, err := c.clientset.CoreV1().Services(c.Name).Get(api.DeploymentName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find the api service. %+v", err)
 	}
@@ -187,6 +184,6 @@ func (c *Cluster) GetRookClient() (rookclient.RookRestClient, error) {
 	httpClient.Timeout = clientTimeout
 	endpoint := fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, svc.Spec.Ports[0].Port)
 	c.rclient = rookclient.NewRookNetworkRestClient(rookclient.GetRestURL(endpoint), httpClient)
-	logger.Infof("rook api endpoint %s for namespace %s", endpoint, c.Namespace)
+	logger.Infof("rook api endpoint %s for namespace %s", endpoint, c.Name)
 	return c.rclient, nil
 }

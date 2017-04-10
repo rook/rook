@@ -34,11 +34,11 @@ type clusterHandler struct {
 	clusterInfo *mon.ClusterInfo
 	factory     client.ConnectionFactory
 	namespace   string
-	version     string
+	tag         string
 }
 
-func New(clientset *kubernetes.Clientset, context *clusterd.DaemonContext, clusterInfo *mon.ClusterInfo, factory client.ConnectionFactory, namespace, containerVersion string) *clusterHandler {
-	return &clusterHandler{clientset: clientset, context: context, clusterInfo: clusterInfo, factory: factory, namespace: namespace, version: containerVersion}
+func New(clientset *kubernetes.Clientset, context *clusterd.DaemonContext, clusterInfo *mon.ClusterInfo, factory client.ConnectionFactory, namespace, versionTag string) *clusterHandler {
+	return &clusterHandler{clientset: clientset, context: context, clusterInfo: clusterInfo, factory: factory, namespace: namespace, tag: versionTag}
 }
 
 func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
@@ -47,7 +47,7 @@ func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
 
 func (s *clusterHandler) EnableObjectStore() error {
 	logger.Infof("Starting the Object store")
-	r := k8srgw.New(s.clientset, s.factory, s.namespace, s.version)
+	r := k8srgw.New(s.clientset, s.factory, s.namespace, s.tag)
 	err := r.Start(s.clusterInfo)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
@@ -77,7 +77,7 @@ func (s *clusterHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConne
 
 func (s *clusterHandler) StartFileSystem(fs *model.FilesystemRequest) error {
 	logger.Infof("Starting the MDS")
-	c := k8smds.New(s.namespace, s.version, s.factory)
+	c := k8smds.New(s.namespace, s.tag, s.factory)
 	return c.Start(s.clientset, s.clusterInfo)
 }
 

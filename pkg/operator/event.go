@@ -50,6 +50,10 @@ func pollClusterEvent(decoder *json.Decoder) (*clusterEvent, *unversioned.Status
 		return nil, nil, fmt.Errorf("failed to poll cluster event. %+v", err)
 	}
 
+	if status != nil {
+		return nil, status, nil
+	}
+
 	ev := &clusterEvent{
 		Type:   re.Type,
 		Object: &cluster.Cluster{},
@@ -65,6 +69,10 @@ func pollPoolEvent(decoder *json.Decoder) (*poolEvent, *unversioned.Status, erro
 	re, status, err := pollEvent(decoder)
 	if err != nil {
 		return nil, status, fmt.Errorf("failed to poll pool event. %+v", err)
+	}
+
+	if status != nil {
+		return nil, status, nil
 	}
 
 	ev := &poolEvent{
@@ -94,6 +102,7 @@ func pollEvent(decoder *json.Decoder) (*rawEvent, *unversioned.Status, error) {
 		if err != nil {
 			return nil, nil, fmt.Errorf("fail to decode (%s) into unversioned.Status (%v)", re.Object, err)
 		}
+		logger.Infof("returning pollEvent status %+v", status)
 		return nil, status, nil
 	}
 

@@ -35,7 +35,6 @@ https://github.com/rook/rook`,
 }
 
 func init() {
-	operatorCmd.Flags().StringVar(&cfg.containerVersion, "container-version", "latest", "version of the rook container to launch")
 	operatorCmd.Flags().StringVar(&cfg.namespace, "namespace", "", "the namespace in which the operator is running")
 
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), "ROOKD")

@@ -73,7 +73,7 @@ type config struct {
 	networkInfo        clusterd.NetworkInfo
 	monEndpoints       string
 	namespace          string
-	containerVersion   string
+	versionTag         string
 }
 
 func main() {
