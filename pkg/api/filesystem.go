@@ -36,7 +36,7 @@ func (h *Handler) GetFileSystems(w http.ResponseWriter, r *http.Request) {
 
 	filesystems, err := ceph.ListFilesystems(adminConn)
 	if err != nil {
-		logger.Errorf("failed to list pools: %+v", err)
+		logger.Errorf("failed to list file systems: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

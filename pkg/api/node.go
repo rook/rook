@@ -23,6 +23,7 @@ import "net/http"
 func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
 	nodes, err := h.config.ClusterHandler.GetNodes()
 	if err != nil {
+		logger.Errorf("failed to list nodes: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
