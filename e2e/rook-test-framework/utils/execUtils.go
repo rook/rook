@@ -1,12 +1,12 @@
-package uitls
+package utils
 
 import (
-	"bytes"
-	"os/exec"
-	"syscall"
 	"bufio"
+	"bytes"
 	"fmt"
+	"os/exec"
 	"strings"
+	"syscall"
 )
 
 func ExecuteCmd(Cmd string, cmdArgs []string) (stdout string, stderr string, exitCode int) {
@@ -38,7 +38,7 @@ func ExecuteCmd(Cmd string, cmdArgs []string) (stdout string, stderr string, exi
 }
 
 //TODO add timeout parameter
-func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string) (stdout string, stderr string, err error)  {
+func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string) (stdout string, stderr string, err error) {
 	var outbuf, errbuf bytes.Buffer
 
 	cmd := exec.Command(command, cmdArgs...)
@@ -47,7 +47,7 @@ func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string
 
 	stdOut, err := cmd.StdoutPipe()
 	if err != nil {
-		return  "", "", err
+		return "", "", err
 	}
 
 	defer stdOut.Close()
@@ -60,16 +60,15 @@ func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string
 		}
 	}()
 
-
 	stdErr, err := cmd.StderrPipe()
 	if err != nil {
-		return  "", "", err
+		return "", "", err
 	}
 
 	defer stdErr.Close()
 
 	stdErrScanner := bufio.NewScanner(stdErr)
-	go func()  {
+	go func() {
 		for stdErrScanner.Scan() {
 
 			txt := stdErrScanner.Text()
@@ -83,17 +82,16 @@ func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string
 
 	err = cmd.Start()
 	if err != nil {
-		return  "", "", err
+		return "", "", err
 	}
 
 	err = cmd.Wait()
 	// go generate command will fail when no generate command find.
 	if err != nil {
 		if err.Error() != "exit status 1" {
-			return  "", "", err
+			return "", "", err
 		}
 	}
 
 	return errbuf.String(), outbuf.String(), nil
 }
-

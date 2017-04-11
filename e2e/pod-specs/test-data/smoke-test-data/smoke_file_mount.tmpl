@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: file-test
+  namespace: rook
+spec:
+  containers:
+  - name: file-test1
+    image: busybox
+    command:
+        - sleep
+        - "3600"
+    imagePullPolicy: IfNotPresent
+    env:
+    volumeMounts:
+    - mountPath: "/tmp/rookfs"
+      name: testfs
+  volumes:
+  - name: testfs
+    cephfs:
+      monitors:
+      - {{.mon0}}
+      - {{.mon1}}
+      - {{.mon2}}
+      user: admin
+      secretRef:
+        name: rook-admin
+      readOnly: false
+  restartPolicy: Never
+

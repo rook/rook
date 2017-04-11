@@ -1,4 +1,4 @@
-apiVersion: rook.io/v1beta1
+apiVersion: rook.io/v1alpha1
 kind: Rookpool
 metadata:
   name: rook-replicapool
@@ -20,7 +20,7 @@ metadata:
    namespace: rook
 provisioner: kubernetes.io/rbd
 parameters:
-    monitors: 10.2.6.7:6790,10.2.3.3:6790,10.2.6.8:6790
+    monitors: {{.mon0}},{{.mon1}},{{.mon2}}
     adminId: admin
     adminSecretName: rook-admin
     adminSecretNamespace: rook

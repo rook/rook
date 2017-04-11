@@ -13,7 +13,7 @@ var (
 	NODE_CMD    = []string{"rook", "node"}
 )
 
-type rookClient struct {
+type RookClient struct {
 	platform        enums.RookPlatformType
 	transportClient contracts.ITransportClient
 	block_client    contracts.Irook_block
@@ -22,7 +22,7 @@ type rookClient struct {
 	pool_client     contracts.Irook_pool
 }
 
-func CreateRook_Client(platform enums.RookPlatformType) (rookClient, error) {
+func CreateRook_Client(platform enums.RookPlatformType) (*RookClient, error) {
 	var transportClient contracts.ITransportClient
 	var block_client contracts.Irook_block
 	var fs_client contracts.Irook_filesystem
@@ -43,10 +43,10 @@ func CreateRook_Client(platform enums.RookPlatformType) (rookClient, error) {
 		object_client = nil //TODO- Not yet implemented
 		pool_client = nil   //TODO- Not yet implemented
 	default:
-		return rookClient{}, errors.New("Unsupported Rook Platform Type")
+		return &RookClient{}, errors.New("Unsupported Rook Platform Type")
 	}
 
-	return rookClient{
+	return &RookClient{
 		platform,
 		transportClient,
 		block_client,
@@ -57,7 +57,7 @@ func CreateRook_Client(platform enums.RookPlatformType) (rookClient, error) {
 
 }
 
-func (Client rookClient) Status() (string, error) {
+func (Client RookClient) Status() (string, error) {
 	out, err, status := Client.transportClient.Execute(STATUS_CMD, nil)
 	if status == 0 {
 		return out, nil
@@ -66,7 +66,7 @@ func (Client rookClient) Status() (string, error) {
 	}
 }
 
-func (Client rookClient) Version() (string, error) {
+func (Client RookClient) Version() (string, error) {
 	out, err, status := Client.transportClient.Execute(VERSION_CMD, nil)
 	if status == 0 {
 		return out, nil
@@ -75,7 +75,7 @@ func (Client rookClient) Version() (string, error) {
 	}
 }
 
-func (Client rookClient) Node() (string, error) {
+func (Client RookClient) Node() (string, error) {
 	out, err, status := Client.transportClient.Execute(NODE_CMD, nil)
 	if status == 0 {
 		return out, nil
@@ -84,18 +84,18 @@ func (Client rookClient) Node() (string, error) {
 	}
 }
 
-func (Client rookClient) Get_Block_client() contracts.Irook_block {
+func (Client RookClient) Get_Block_client() contracts.Irook_block {
 	return Client.block_client
 }
 
-func (Client rookClient) Get_FileSystem_client() contracts.Irook_filesystem {
+func (Client RookClient) Get_FileSystem_client() contracts.Irook_filesystem {
 	return Client.fs_client
 }
 
-func (Client rookClient) Get_Object_client() contracts.Irook_object {
+func (Client RookClient) Get_Object_client() contracts.Irook_object {
 	return Client.object_client
 }
 
-func (Client rookClient) Get_Pool_client() contracts.Irook_pool {
+func (Client RookClient) Get_Pool_client() contracts.Irook_pool {
 	return Client.pool_client
 }

@@ -10,8 +10,8 @@ type k8sRookBlock struct {
 }
 
 var (
-	listCmd         = []string{"rook", "block", "ls"}
-	wideDataToBlockPod   = []string{"bash", "-c", "WRITE_DATA_CMD"}
+	listCmd              = []string{"rook", "block", "ls"}
+	wideDataToBlockPod   = []string{"sh", "-c", "WRITE_DATA_CMD"}
 	readDataFromBlockPod = []string{"cat", "READ_DATA_CMD"}
 )
 

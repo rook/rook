@@ -16,32 +16,32 @@ const defaultFailedCode = 1
 func (k *k8sTransportClient) Execute(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
 	if optional != nil {
-		if len(optional) == 1{
+		if len(optional) == 1 {
 			initialArgs := []string{"exec", optional[0], "--"}
 			cmdArgs = append(initialArgs, cmdArgs...)
-		}else if len(optional) == 2{
-			initialArgs := []string{"exec", "-n", optional[1],optional[0], "--"}
+		} else if len(optional) == 2 {
+			initialArgs := []string{"exec", "-n", optional[1], optional[0], "--"}
 			cmdArgs = append(initialArgs, cmdArgs...)
-		}else{
-			return "","invalid number of optional params used",1
+		} else {
+			return "", "invalid number of optional params used", 1
 		}
-	}else {
+	} else {
 		initialArgs := []string{"exec", "-n", "rook", "rook-client", "--"}
 		cmdArgs = append(initialArgs, cmdArgs...)
 	}
-	return uitls.ExecuteCmd("kubectl", cmdArgs)
+	return utils.ExecuteCmd("kubectl", cmdArgs)
 }
 
 func (k *k8sTransportClient) Create(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
 	initialArgs := []string{"create", "-f"}
 	cmdArgs = append(initialArgs, cmdArgs...)
-	return uitls.ExecuteCmd("kubectl", cmdArgs)
+	return utils.ExecuteCmd("kubectl", cmdArgs)
 }
 
 func (k *k8sTransportClient) Delete(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
 	initialArgs := []string{"delete", "-f"}
 	cmdArgs = append(initialArgs, cmdArgs...)
-	return uitls.ExecuteCmd("kubectl", cmdArgs)
+	return utils.ExecuteCmd("kubectl", cmdArgs)
 }

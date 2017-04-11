@@ -10,10 +10,10 @@ type k8sRookFileSystem struct {
 }
 
 var (
-	fileSystemCreate = []string{"rook", "filesystem", "create", "--name", "NAME"}
-	fileSystemDelete = []string{"rook", "filesystem", "delete", "--name", "NAME"}
-	fileSystemList   = []string{"rook", "filesystem", "ls"}
-	wideDataToFilePod   = []string{"bash", "-c", "WRITE_DATA_CMD"}
+	fileSystemCreate    = []string{"rook", "filesystem", "create", "--name", "NAME"}
+	fileSystemDelete    = []string{"rook", "filesystem", "delete", "--name", "NAME"}
+	fileSystemList      = []string{"rook", "filesystem", "ls"}
+	wideDataToFilePod   = []string{"sh", "-c", "WRITE_DATA_CMD"}
 	readDataFromFilePod = []string{"cat", "READ_DATA_CMD"}
 )
 
@@ -28,7 +28,7 @@ func CreateK8sRookFileSystem(client contracts.ITransportClient) *k8sRookFileSyst
 //Output - output returned by rook cli and/or error
 func (rfs *k8sRookFileSystem) FS_Create(name string) (string, error) {
 	fileSystemCreate[4] = name
-	out, err, status := rfs.transportClient.Create(fileSystemCreate, nil)
+	out, err, status := rfs.transportClient.Execute(fileSystemCreate, nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -41,8 +41,8 @@ func (rfs *k8sRookFileSystem) FS_Create(name string) (string, error) {
 // name -  name of the shared file system to be deleted
 //Output - output returned by rook cli and/or error
 func (rfs *k8sRookFileSystem) FS_Delete(name string) (string, error) {
-	fileSystemCreate[4] = name
-	out, err, status := rfs.transportClient.Delete(fileSystemDelete, nil)
+	fileSystemDelete[4] = name
+	out, err, status := rfs.transportClient.Execute(fileSystemDelete, nil)
 	if status == 0 {
 		return out, nil
 	} else {
@@ -122,7 +122,6 @@ func (rfs *k8sRookFileSystem) FS_Read(name string, mountpath string, filename st
 		return err, errors.New("Unable to write data to pod")
 	}
 }
-
 
 //Function to UnMount a file system created by rook(delete pod)
 //Input paramaters -

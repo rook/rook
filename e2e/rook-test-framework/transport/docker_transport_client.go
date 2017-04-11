@@ -2,9 +2,9 @@ package transport
 
 import (
 	"bytes"
+	"github.com/dangula/rook/e2e/rook-test-framework/utils"
 	"os/exec"
 	"syscall"
-	"github.com/dangula/rook/e2e/rook-test-framework/utils"
 )
 
 type dockerClient struct {
@@ -19,14 +19,14 @@ func (k *dockerClient) Execute(cmdArgs []string) (stdout string, stderr string, 
 	initialArgs := []string{"exec"}
 	cmdArgs = append(initialArgs, cmdArgs...)
 
-	return uitls.ExecuteCmdAndLogToConsole("docker", cmdArgs, k.env)
+	return utils.ExecuteCmdAndLogToConsole("docker", cmdArgs, k.env)
 }
 
 func (k *dockerClient) Run(cmdArgs []string) (stdout string, stderr string, err error) {
 	initialArgs := []string{"run"}
 	cmdArgs = append(initialArgs, cmdArgs...)
 
-	return uitls.ExecuteCmdAndLogToConsole("docker", cmdArgs, k.env)
+	return utils.ExecuteCmdAndLogToConsole("docker", cmdArgs, k.env)
 }
 
 func (k *dockerClient) Stop(cmdArgs []string) (stdout string, stderr string, exitCode int) {
