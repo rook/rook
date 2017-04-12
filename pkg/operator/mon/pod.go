@@ -23,9 +23,8 @@ import (
 	"k8s.io/client-go/pkg/labels"
 )
 
-func ClusterNameEnvVar() v1.EnvVar {
-	ref := &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}
-	return v1.EnvVar{Name: "ROOKD_CLUSTER_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: ref}}
+func ClusterNameEnvVar(name string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_CLUSTER_NAME", Value: name}
 }
 
 func MonEndpointEnvVar() v1.EnvVar {
@@ -104,7 +103,7 @@ func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
 		},
 		Env: []v1.EnvVar{
 			{Name: k8sutil.PodIPEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}},
-			ClusterNameEnvVar(),
+			ClusterNameEnvVar(c.Name),
 			MonEndpointEnvVar(),
 			MonSecretEnvVar(),
 			AdminSecretEnvVar(),

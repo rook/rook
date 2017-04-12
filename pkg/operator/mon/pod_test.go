@@ -33,7 +33,7 @@ func TestPodSpecs(t *testing.T) {
 
 func testPodSpec(t *testing.T, dataDir string) {
 	clientset := testop.New(1)
-	c := New(clientset, nil, "ns", dataDir, "myversion")
+	c := New(clientset, nil, "myname", "ns", dataDir, "myversion")
 	c.clusterInfo = testop.CreateClusterInfo(0)
 	config := &MonConfig{Name: "mon0", Port: 6790}
 

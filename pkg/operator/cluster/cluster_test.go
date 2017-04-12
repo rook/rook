@@ -39,15 +39,17 @@ func TestCreateSecrets(t *testing.T) {
 		response := "{\"key\":\"mysecurekey\"}"
 		return []byte(response), "", nil
 	}
-	spec := Spec{Namespace: "ns", Version: "myversion"}
-	c := New(spec, factory, clientset)
+	c := &Cluster{Spec: Spec{VersionTag: "myversion"}}
+	c.Name = "myrook"
+	c.Namespace = "myns"
+	c.Init(factory, clientset)
 	c.dataDir = "/tmp/testdir"
 	defer os.RemoveAll(c.dataDir)
 
 	err := c.createClientAccess(info)
 	assert.Nil(t, err)
 
-	secretName := fmt.Sprintf("%s-rbd-user", spec.Namespace)
+	secretName := fmt.Sprintf("%s-rbd-user", c.Namespace)
 	secret, err := clientset.CoreV1().Secrets(k8sutil.DefaultNamespace).Get(secretName)
 	assert.Nil(t, err)
 	assert.Equal(t, secretName, secret.Name)

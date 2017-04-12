@@ -72,8 +72,6 @@ type config struct {
 	storeConfig        osd.StoreConfig
 	networkInfo        clusterd.NetworkInfo
 	monEndpoints       string
-	namespace          string
-	containerVersion   string
 }
 
 func main() {

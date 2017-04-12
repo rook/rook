@@ -33,8 +33,8 @@ const (
 )
 
 type Pool struct {
-	Metadata v1.ObjectMeta `json:"metadata,omitempty"`
-	PoolSpec `json:"spec"`
+	v1.ObjectMeta `json:"metadata,omitempty"`
+	PoolSpec      `json:"spec"`
 }
 
 // Instantiate a new pool
@@ -46,26 +46,27 @@ func NewPool(spec PoolSpec) *Pool {
 func (p *Pool) Create(rclient rookclient.RookRestClient) error {
 	// validate the pool settings
 	if err := p.validate(); err != nil {
-		return fmt.Errorf("invalid pool %s arguments. %+v", p.PoolSpec.Name, err)
+		return fmt.Errorf("invalid pool %s arguments. %+v", p.Name, err)
 	}
 
 	// check if the pool already exists
 	exists, err := p.exists(rclient)
 	if err == nil && exists {
-		logger.Infof("pool %s already exists in namespace %s", p.PoolSpec.Name, p.PoolSpec.Namespace)
+		logger.Infof("pool %s already exists in namespace %s ", p.Name, p.Namespace)
 		return nil
 	}
 
 	// create the pool
-	pool := model.Pool{Name: p.PoolSpec.Name}
+	pool := model.Pool{Name: p.Name}
+
 	r := p.replication()
 	if r != nil {
-		logger.Infof("creating pool %s in namespace %s with replicas %d", p.PoolSpec.Name, p.Namespace, r.Count)
-		pool.ReplicationConfig.Size = r.Count
+		logger.Infof("creating pool %s in namespace %s with replicas %d", p.Name, p.Namespace, r.Size)
+		pool.ReplicationConfig.Size = r.Size
 		pool.Type = model.Replicated
 	} else {
 		ec := p.erasureCode()
-		logger.Infof("creating pool %s in namespace %s. coding chunks = %d, data chunks = %d", p.PoolSpec.Name, p.Namespace, ec.CodingChunks, ec.DataChunks)
+		logger.Infof("creating pool %s in namespace %s. coding chunks = %d, data chunks = %d", p.Name, p.Namespace, ec.CodingChunks, ec.DataChunks)
 		pool.ErasureCodedConfig.CodingChunkCount = ec.CodingChunks
 		pool.ErasureCodedConfig.DataChunkCount = ec.DataChunks
 		pool.Type = model.ErasureCoded
@@ -73,10 +74,10 @@ func (p *Pool) Create(rclient rookclient.RookRestClient) error {
 
 	info, err := rclient.CreatePool(pool)
 	if err != nil {
-		return fmt.Errorf("failed to create pool %s. %+v", p.PoolSpec.Name, err)
+		return fmt.Errorf("failed to create pool %s. %+v", p.Name, err)
 	}
 
-	logger.Infof("created pool %s. %s", p.PoolSpec.Name, info)
+	logger.Infof("created pool %s. %s", p.Name, info)
 	return nil
 }
 
@@ -88,7 +89,7 @@ func (p *Pool) Delete(rclient rookclient.RookRestClient) error {
 		return nil
 	}
 
-	logger.Infof("TODO: delete pool %s from namespace %s", p.PoolSpec.Name, p.PoolSpec.Namespace)
+	logger.Infof("TODO: delete pool %s from namespace %s", p.Name, p.Namespace)
 	//return p.client.DeletePool(p.PoolSpec.Name)
 	return nil
 }
@@ -100,7 +101,7 @@ func (p *Pool) exists(rclient rookclient.RookRestClient) (bool, error) {
 		return false, err
 	}
 	for _, pool := range pools {
-		if pool.Name == p.PoolSpec.Name {
+		if pool.Name == p.Name {
 			return true, nil
 		}
 	}
@@ -109,10 +110,10 @@ func (p *Pool) exists(rclient rookclient.RookRestClient) (bool, error) {
 
 // Validate the pool arguments
 func (p *Pool) validate() error {
-	if p.PoolSpec.Name == "" {
+	if p.Name == "" {
 		return fmt.Errorf("missing name")
 	}
-	if p.PoolSpec.Namespace == "" {
+	if p.Namespace == "" {
 		return fmt.Errorf("missing namespace")
 	}
 	if p.replication() != nil && p.erasureCode() != nil {
@@ -125,7 +126,7 @@ func (p *Pool) validate() error {
 }
 
 func (p *Pool) replication() *ReplicationSpec {
-	if p.PoolSpec.Replication.Count > 0 {
+	if p.PoolSpec.Replication.Size > 0 {
 		return &p.PoolSpec.Replication
 	}
 	return nil

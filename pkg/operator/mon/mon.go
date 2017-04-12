@@ -45,9 +45,9 @@ const (
 )
 
 type Cluster struct {
+	Name            string
 	Namespace       string
 	Keyring         string
-	ClusterName     string
 	Version         string
 	MasterHost      string
 	Size            int
@@ -70,11 +70,12 @@ type MonConfig struct {
 	Port int32
 }
 
-func New(clientset kubernetes.Interface, factory client.ConnectionFactory, namespace, dataDirHostPath, version string) *Cluster {
+func New(clientset kubernetes.Interface, factory client.ConnectionFactory, name, namespace, dataDirHostPath, version string) *Cluster {
 	return &Cluster{
 		clientset:       clientset,
 		factory:         factory,
 		dataDirHostPath: dataDirHostPath,
+		Name:            name,
 		Namespace:       namespace,
 		Version:         version,
 		Size:            3,

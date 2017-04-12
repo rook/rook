@@ -37,6 +37,7 @@ const (
 )
 
 type Cluster struct {
+	Name      string
 	Namespace string
 	Version   string
 	Replicas  int32
@@ -45,10 +46,11 @@ type Cluster struct {
 	clientset kubernetes.Interface
 }
 
-func New(clientset kubernetes.Interface, factory client.ConnectionFactory, namespace, version string) *Cluster {
+func New(clientset kubernetes.Interface, factory client.ConnectionFactory, name, namespace, version string) *Cluster {
 	return &Cluster{
 		clientset: clientset,
 		factory:   factory,
+		Name:      name,
 		Namespace: namespace,
 		Version:   version,
 		Replicas:  2,
@@ -171,7 +173,7 @@ func (c *Cluster) rgwContainer() v1.Container {
 		},
 		Env: []v1.EnvVar{
 			{Name: "ROOKD_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
-			opmon.ClusterNameEnvVar(),
+			opmon.ClusterNameEnvVar(c.Name),
 			opmon.MonEndpointEnvVar(),
 			opmon.MonSecretEnvVar(),
 			opmon.AdminSecretEnvVar(),

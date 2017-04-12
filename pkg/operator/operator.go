@@ -22,7 +22,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"sync"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
@@ -45,7 +44,6 @@ var (
 
 type context struct {
 	clientset   kubernetes.Interface
-	namespace   string
 	retryDelay  int
 	maxRetries  int
 	masterHost  string
@@ -54,27 +52,33 @@ type context struct {
 }
 
 type Operator struct {
-	context *context
-	tprs    []TPR
+	context    *context
+	tprSchemes []tprScheme
+	// The TPR that is global to the kubernetes cluster.
+	// The cluster TPR is global because you create multiple clusers in k8s
+	clusterMgr *clusterManager
 }
 
-func New(host, namespace string, factory client.ConnectionFactory, clientset kubernetes.Interface) *Operator {
+func New(host string, factory client.ConnectionFactory, clientset kubernetes.Interface) *Operator {
 	context := &context{
-		namespace:  namespace,
 		masterHost: host,
 		factory:    factory,
 		clientset:  clientset,
 		retryDelay: 3,
 		maxRetries: 30,
 	}
-	cluster := newClusterTPR(context)
+	poolInitiator := newPoolInitiator(context)
+	clusterMgr := newClusterManager(context, []inclusterInitiator{poolInitiator})
+	schemes := []tprScheme{clusterMgr, poolInitiator}
 	return &Operator{
-		context: context,
-		tprs:    []TPR{cluster, newPoolTPR(context, cluster)},
+		context:    context,
+		clusterMgr: clusterMgr,
+		tprSchemes: schemes,
 	}
 }
 
 func (o *Operator) Run() error {
+
 	for {
 		err := o.initResources()
 		if err == nil {
@@ -85,19 +89,7 @@ func (o *Operator) Run() error {
 	}
 
 	// watch for changes to the rook clusters
-	var wg sync.WaitGroup
-	wg.Add(len(o.tprs))
-	for _, tpr := range o.tprs {
-		go func(t TPR) {
-			defer wg.Done()
-			if err := t.Watch(); err != nil {
-				logger.Errorf("failed to watch tpr %s. %+v", t.Name(), err)
-			}
-		}(tpr)
-	}
-
-	// wait for all of the TPRs to complete before exiting. If they complete it means there was an error.
-	wg.Wait()
+	o.clusterMgr.Manage()
 	return nil
 }
 
@@ -108,15 +100,9 @@ func (o *Operator) initResources() error {
 	}
 	o.context.kubeHttpCli = httpCli.Client
 
-	err = createTPRs(o.context, o.tprs)
+	err = createTPRs(o.context, o.tprSchemes)
 	if err != nil {
 		return fmt.Errorf("failed to create TPR. %+v", err)
-	}
-
-	for _, tpr := range o.tprs {
-		if err := tpr.Load(); err != nil {
-			return fmt.Errorf("failed to load tpr %s. %+v", tpr.Name(), err)
-		}
 	}
 
 	return nil

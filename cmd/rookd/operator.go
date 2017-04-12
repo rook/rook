@@ -35,19 +35,12 @@ https://github.com/rook/rook`,
 }
 
 func init() {
-	operatorCmd.Flags().StringVar(&cfg.containerVersion, "container-version", "latest", "version of the rook container to launch")
-	operatorCmd.Flags().StringVar(&cfg.namespace, "namespace", "", "the namespace in which the operator is running")
-
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), "ROOKD")
 
 	operatorCmd.RunE = startOperator
 }
 
 func startOperator(cmd *cobra.Command, args []string) error {
-	// verify required flags
-	if err := flags.VerifyRequiredFlags(cmd, []string{"namespace"}); err != nil {
-		return err
-	}
 
 	setLogLevel()
 
@@ -57,8 +50,8 @@ func startOperator(cmd *cobra.Command, args []string) error {
 		os.Exit(1)
 	}
 
-	logger.Infof("starting operator in namespace %s", cfg.namespace)
-	op := operator.New(host, cfg.namespace, cephd.New(), clientset)
+	logger.Infof("starting operator")
+	op := operator.New(host, cephd.New(), clientset)
 	err = op.Run()
 	if err != nil {
 		fmt.Printf("failed to run operator. %+v\n", err)

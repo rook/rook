@@ -2,9 +2,9 @@ apiVersion: rook.io/v1alpha1
 kind: Rookcluster
 metadata:
   name: rook
-spec:
   namespace: rook
-  version: master-latest
+spec:
+  versionTag: master-latest
   dataDirHostPath:
   storage:                # cluster level storage configuration and selection
     useAllNodes: true

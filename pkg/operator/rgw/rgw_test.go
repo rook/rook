@@ -41,7 +41,7 @@ func TestStartRGW(t *testing.T) {
 		return []byte(response), "", nil
 	}
 
-	c := New(clientset, factory, "ns", "version")
+	c := New(clientset, factory, "myname", "ns", "version")
 	c.dataDir = "/tmp/rgwtest"
 	defer os.RemoveAll(c.dataDir)
 
@@ -76,7 +76,7 @@ func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New(nil, nil, "ns", "myversion")
+	c := New(nil, nil, "myname", "ns", "myversion")
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)

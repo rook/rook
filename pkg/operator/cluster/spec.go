@@ -21,13 +21,10 @@ package cluster
 import "github.com/rook/rook/pkg/operator/osd"
 
 type Spec struct {
-	// The namespace where the the rook resources will all be created.
-	Namespace string `json:"namespace"`
-
-	// Version is the expected version of the rook container to run in the cluster.
+	// VersionTag is the expected version of the rook container to run in the cluster.
 	// The operator will eventually make the rook cluster version
 	// equal to the expected version.
-	Version string `json:"version"`
+	VersionTag string `json:"versionTag"`
 
 	// Paused is to pause the control of the operator for the rook cluster.
 	Paused bool `json:"paused,omitempty"`
@@ -40,13 +37,6 @@ type Spec struct {
 }
 
 type PoolSpec struct {
-	// The name of the pool. Defined in the spec since the object metadata name must be unique across all namespaces,
-	// while you could have the same pool name created in multiple instances of rook.
-	Name string `json:"name"`
-
-	// The namespace where the pool will be created (required). A Rook cluster must be running in this namespace.
-	Namespace string `json:"namespace"`
-
 	// The replication settings
 	Replication ReplicationSpec `json:"replication"`
 
@@ -56,7 +46,7 @@ type PoolSpec struct {
 
 type ReplicationSpec struct {
 	// Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
-	Count uint `json:"count"`
+	Size uint `json:"size"`
 }
 
 type ErasureCodeSpec struct {

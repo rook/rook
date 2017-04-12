@@ -38,6 +38,7 @@ const (
 )
 
 type Cluster struct {
+	Name      string
 	Namespace string
 	Version   string
 	Replicas  int32
@@ -45,8 +46,9 @@ type Cluster struct {
 	dataDir   string
 }
 
-func New(namespace, version string, factory client.ConnectionFactory) *Cluster {
+func New(name, namespace, version string, factory client.ConnectionFactory) *Cluster {
 	return &Cluster{
+		Name:      name,
 		Namespace: namespace,
 		Version:   version,
 		Replicas:  1,
@@ -163,7 +165,7 @@ func (c *Cluster) mdsContainer(id string) v1.Container {
 		},
 		Env: []v1.EnvVar{
 			{Name: "ROOKD_MDS_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
-			opmon.ClusterNameEnvVar(),
+			opmon.ClusterNameEnvVar(c.Name),
 			opmon.MonEndpointEnvVar(),
 			opmon.MonSecretEnvVar(),
 			opmon.AdminSecretEnvVar(),

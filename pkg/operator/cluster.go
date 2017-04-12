@@ -33,92 +33,160 @@ import (
 	kwatch "k8s.io/client-go/pkg/watch"
 )
 
-type clusterTPR struct {
+type clusterManager struct {
 	context      *context
+	name         string
 	watchVersion string
 	devicesInUse bool
 	clusters     map[string]*cluster.Cluster
 	tracker      *tprTracker
 	sync.RWMutex
+	// The initiators that create TPRs specific to specific Rook clusters.
+	// For example, pools, object services, and file services, only make sense in the context of a Rook cluster
+	inclusterInitiators []inclusterInitiator
+	inclusterMgrs       []tprManager
 }
 
-func newClusterTPR(context *context) *clusterTPR {
-	return &clusterTPR{
-		context:  context,
-		clusters: make(map[string]*cluster.Cluster),
-		tracker:  newTPRTracker(),
+func newClusterManager(context *context, inclusterInitiators []inclusterInitiator) *clusterManager {
+	return &clusterManager{
+		context:             context,
+		clusters:            make(map[string]*cluster.Cluster),
+		tracker:             newTPRTracker(),
+		inclusterInitiators: inclusterInitiators,
 	}
 }
 
-func (t *clusterTPR) Name() string {
+// Gets the name of the TPR
+func (m *clusterManager) Name() string {
 	return "rookcluster"
 }
 
-func (t *clusterTPR) Description() string {
+// Gets the description of the TPR
+func (m *clusterManager) Description() string {
 	return "Managed Rook clusters"
 }
 
-func (t *clusterTPR) Load() error {
+func (m *clusterManager) Manage() {
+	for {
+		logger.Infof("Managing clusters")
+		err := m.Load()
+		if err != nil {
+			logger.Errorf("failed to load cluster. %+v", err)
+		} else {
+			if err := m.Watch(); err != nil {
+				logger.Errorf("failed to watch clusters. %+v", err)
+			}
+		}
 
-	// Check if there is an existing cluster to recover
-	err := t.findAllClusters()
-	if err != nil {
-		return fmt.Errorf("failed to find clusters. %+v", err)
+		<-time.After(time.Second * time.Duration(m.context.retryDelay))
 	}
-	return nil
 }
 
-func (t *clusterTPR) findAllClusters() error {
+func (m *clusterManager) Load() error {
+
+	// Check if there is an existing cluster to recover
 	logger.Info("finding existing clusters...")
-	clusterList, err := t.getClusterList()
+	clusterList, err := m.getClusterList()
 	if err != nil {
 		return err
 	}
 	logger.Infof("found %d clusters", len(clusterList.Items))
 	for i := range clusterList.Items {
 		c := clusterList.Items[i]
-
-		ns := c.Spec.Namespace
-		existingCluster := cluster.New(c.Spec, t.context.factory, t.context.clientset)
-		t.tracker.add(ns, c.Metadata.ResourceVersion)
-		t.clusters[ns] = existingCluster
-
-		logger.Infof("resuming cluster %s in namespace %s", c.Metadata.Name, ns)
-		t.startCluster(existingCluster)
+		logger.Infof("checking if cluster %s is running in namespace %s", c.Name, c.Namespace)
+		m.startCluster(&c)
 	}
 
-	t.watchVersion = clusterList.Metadata.ResourceVersion
+	m.watchVersion = clusterList.Metadata.ResourceVersion
 	return nil
 }
 
-func (t *clusterTPR) startCluster(c *cluster.Cluster) {
-	if t.devicesInUse && c.Spec.Storage.AnyUseAllDevices() {
-		logger.Warningf("devices in more than one namespace not supported. ignoring devices in namespace %s", c.Spec.Namespace)
+func (m *clusterManager) startTrack(c *cluster.Cluster) error {
+	m.Lock()
+	defer m.Unlock()
+
+	existing, ok := m.clusters[c.Namespace]
+	if ok {
+		if c.Name != existing.Name {
+			return fmt.Errorf("cluster %s is already running in namespace %s. Multiple clusters per namespace not supported.", existing.Name, existing.Namespace)
+		}
+	} else {
+		// only start the cluster if we're not already tracking it from a previous iteration
+		m.clusters[c.Namespace] = c
+	}
+
+	// refresh the version of the cluster we're tracking
+	m.tracker.add(c.Namespace, c.ResourceVersion)
+
+	return nil
+}
+
+func (m *clusterManager) stopTrack(c *cluster.Cluster) {
+	m.Lock()
+	defer m.Unlock()
+
+	m.tracker.remove(c.Namespace)
+	delete(m.clusters, c.Namespace)
+}
+
+func (m *clusterManager) startCluster(c *cluster.Cluster) {
+	c.Init(m.context.factory, m.context.clientset)
+	if err := m.startTrack(c); err != nil {
+		logger.Errorf("failed to start cluster %s in namespace %s. %+v", c.Name, c.Namespace, err)
+		return
+	}
+
+	if m.devicesInUse && c.Spec.Storage.AnyUseAllDevices() {
+		logger.Warningf("using all devices in more than one namespace not supported. ignoring devices in namespace %s", c.Namespace)
 		c.Spec.Storage.ClearUseAllDevices()
 	}
 
 	if c.Spec.Storage.AnyUseAllDevices() {
-		t.devicesInUse = true
+		m.devicesInUse = true
 	}
 
 	go func() {
+		defer m.stopTrack(c)
+		logger.Infof("starting cluster %s in namespace %s", c.Name, c.Namespace)
+
+		// Start the Rook cluster components
 		err := c.CreateInstance()
 		if err != nil {
-			logger.Errorf("failed to create cluster in namespace %s. %+v", c.Spec.Namespace, err)
+			logger.Errorf("failed to create cluster %s in namespace %s. %+v", c.Name, c.Namespace, err)
 			return
 		}
-		c.Monitor(t.tracker.stopChMap[c.Spec.Namespace])
+
+		// Start all the TPRs for this cluster
+		for _, tpr := range m.inclusterInitiators {
+			k8sutil.Retry(time.Duration(m.context.retryDelay)*time.Second, m.context.maxRetries, func() (bool, error) {
+				tprMgr, err := tpr.Create(m, c.Name, c.Namespace)
+				if err != nil {
+					logger.Warningf("cannot create in-cluster tpr %s. %+v. retrying...", m.Name(), err)
+					return false, nil
+				}
+
+				// Start the tpr-manager asynchronously
+				go tprMgr.Manage()
+
+				m.Lock()
+				defer m.Unlock()
+				m.inclusterMgrs = append(m.inclusterMgrs, tprMgr)
+
+				return true, nil
+			})
+		}
+		c.Monitor(m.tracker.stopChMap[c.Namespace])
 	}()
 }
 
-func (t *clusterTPR) isClustersCacheStale(currentClusters []cluster.Cluster) bool {
-	if len(t.tracker.clusterRVs) != len(currentClusters) {
+func (m *clusterManager) isClustersCacheStale(currentClusters []cluster.Cluster) bool {
+	if len(m.tracker.clusterRVs) != len(currentClusters) {
 		return true
 	}
 
 	for _, cc := range currentClusters {
-		rv, ok := t.tracker.clusterRVs[cc.Metadata.Name]
-		if !ok || rv != cc.Metadata.ResourceVersion {
+		rv, ok := m.tracker.clusterRVs[cc.Name]
+		if !ok || rv != cc.ResourceVersion {
 			return true
 		}
 	}
@@ -126,8 +194,8 @@ func (t *clusterTPR) isClustersCacheStale(currentClusters []cluster.Cluster) boo
 	return false
 }
 
-func (t *clusterTPR) getClusterList() (*cluster.ClusterList, error) {
-	b, err := getRawList(t.context, t)
+func (m *clusterManager) getClusterList() (*cluster.ClusterList, error) {
+	b, err := getRawList(m.context.clientset, m.Name())
 	if err != nil {
 		return nil, err
 	}
@@ -139,16 +207,16 @@ func (t *clusterTPR) getClusterList() (*cluster.ClusterList, error) {
 	return clusters, nil
 }
 
-func (t *clusterTPR) Watch() error {
-	logger.Infof("start watching %s tpr: %s", t.Name(), t.watchVersion)
-	defer t.tracker.stop()
+func (m *clusterManager) Watch() error {
+	logger.Infof("start watching cluster tpr: %s", m.watchVersion)
+	defer m.tracker.stop()
 
-	eventCh, errCh := t.watch()
+	eventCh, errCh := m.watch()
 
 	go func() {
 		timer := k8sutil.NewPanicTimer(
 			time.Minute,
-			fmt.Sprintf("unexpected long blocking (> 1 Minute) when handling %s event", t.Name()))
+			"unexpected long blocking (> 1 Minute) when handling cluster event")
 
 		for event := range eventCh {
 			timer.Start()
@@ -157,18 +225,8 @@ func (t *clusterTPR) Watch() error {
 
 			switch event.Type {
 			case kwatch.Added:
-				ns := c.Spec.Namespace
-				if ns == "" {
-					logger.Errorf("missing namespace attribute in rook spec")
-					continue
-				}
-
-				newCluster := cluster.New(c.Spec, t.context.factory, t.context.clientset)
-				t.tracker.add(ns, c.Metadata.ResourceVersion)
-				t.clusters[ns] = newCluster
-
-				logger.Infof("starting new cluster %s in namespace %s", c.Metadata.Name, ns)
-				t.startCluster(newCluster)
+				logger.Infof("starting new cluster %s in namespace %s", c.Name, c.Namespace)
+				m.startCluster(c)
 
 			case kwatch.Modified:
 				logger.Infof("modifying a cluster not implemented")
@@ -187,7 +245,7 @@ func (t *clusterTPR) Watch() error {
 // the given watch version. It emits events on the resources through the returned
 // event chan. Errors will be reported through the returned error chan. The go routine
 // exits on any error.
-func (t *clusterTPR) watch() (<-chan *clusterEvent, <-chan error) {
+func (m *clusterManager) watch() (<-chan *clusterEvent, <-chan error) {
 	eventCh := make(chan *clusterEvent)
 	// On unexpected error case, the operator should exit
 	errCh := make(chan error, 1)
@@ -196,7 +254,7 @@ func (t *clusterTPR) watch() (<-chan *clusterEvent, <-chan error) {
 		defer close(eventCh)
 
 		for {
-			err := t.watchOuterTPR(eventCh, errCh)
+			err := m.watchOuterTPR(eventCh, errCh)
 			if err != nil {
 				logger.Warningf("cancelling cluster tpr watch. %+v", err)
 				return
@@ -207,8 +265,8 @@ func (t *clusterTPR) watch() (<-chan *clusterEvent, <-chan error) {
 	return eventCh, errCh
 }
 
-func (t *clusterTPR) watchOuterTPR(eventCh chan *clusterEvent, errCh chan error) error {
-	resp, err := watchTPR(t.context, t.Name(), t.watchVersion)
+func (m *clusterManager) watchOuterTPR(eventCh chan *clusterEvent, errCh chan error) error {
+	resp, err := watchTPR(m.context, m.Name(), m.watchVersion)
 	if err != nil {
 		errCh <- err
 		return err
@@ -224,7 +282,7 @@ func (t *clusterTPR) watchOuterTPR(eventCh chan *clusterEvent, errCh chan error)
 	decoder := json.NewDecoder(resp.Body)
 	for {
 		ev, st, err := pollClusterEvent(decoder)
-		done, err := handlePollEventResult(st, err, t.checkStaleCache, errCh)
+		done, err := handlePollEventResult(st, err, m.checkStaleCache, errCh)
 		if err != nil {
 			return err
 		}
@@ -233,25 +291,25 @@ func (t *clusterTPR) watchOuterTPR(eventCh chan *clusterEvent, errCh chan error)
 		}
 		logger.Debugf("rook cluster event: %+v", ev)
 
-		t.watchVersion = ev.Object.Metadata.ResourceVersion
+		m.watchVersion = ev.Object.ResourceVersion
 		eventCh <- ev
 	}
 }
 
-func (t *clusterTPR) checkStaleCache() (bool, error) {
-	clusterList, err := t.getClusterList()
-	if err == nil && !t.isClustersCacheStale(clusterList.Items) {
-		t.watchVersion = clusterList.Metadata.ResourceVersion
+func (m *clusterManager) checkStaleCache() (bool, error) {
+	clusterList, err := m.getClusterList()
+	if err == nil && !m.isClustersCacheStale(clusterList.Items) {
+		m.watchVersion = clusterList.Metadata.ResourceVersion
 		return false, nil
 	}
 
 	return true, err
 }
 
-func (t *clusterTPR) getRookClient(namespace string) (rookclient.RookRestClient, error) {
-	t.Lock()
-	defer t.Unlock()
-	if c, ok := t.clusters[namespace]; ok {
+func (m *clusterManager) getRookClient(namespace string) (rookclient.RookRestClient, error) {
+	m.Lock()
+	defer m.Unlock()
+	if c, ok := m.clusters[namespace]; ok {
 		return c.GetRookClient()
 	}
 

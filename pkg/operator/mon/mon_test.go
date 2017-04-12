@@ -32,7 +32,7 @@ import (
 func TestStartMonPods(t *testing.T) {
 	clientset := test.New(3)
 	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	c := New(clientset, factory, "ns", "", "myversion")
+	c := New(clientset, factory, "myname", "ns", "", "myversion")
 	c.maxRetries = 1
 	c.retryDelay = 0
 
@@ -79,7 +79,7 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
-	c := New(clientset, nil, "ns", "", "myversion")
+	c := New(clientset, nil, "myname", "ns", "", "myversion")
 	c.clusterInfo = test.CreateClusterInfo(1)
 
 	// create the initial config map
@@ -103,7 +103,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 func TestCheckHealth(t *testing.T) {
 	clientset := test.New(1)
 	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	c := New(clientset, factory, "ns", "", "myversion")
+	c := New(clientset, factory, "myname", "ns", "", "myversion")
 	c.retryDelay = 1
 	c.maxRetries = 1
 	c.clusterInfo = test.CreateClusterInfo(1)
