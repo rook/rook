@@ -120,12 +120,12 @@ func (k8sh *K8sHelper) getMonitorPods() []string {
 func (k8sh *K8sHelper) IsPodRunning(name string) bool {
 	cmdArgs := []string{"logs", name}
 	inc := 0
-	for inc < 10 {
+	for inc < 20 {
 		_, _, status := ExecuteCmd("kubectl", cmdArgs)
 		if status == 0 {
 			return true
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 		inc++
 
 	}
@@ -134,12 +134,12 @@ func (k8sh *K8sHelper) IsPodRunning(name string) bool {
 func (k8sh *K8sHelper) IsPodRunningInNamespace(name string) bool {
 	cmdArgs := []string{"logs", "-n", "rook", name}
 	inc := 0
-	for inc < 10 {
+	for inc < 20 {
 		_, _, status := ExecuteCmd("kubectl", cmdArgs)
 		if status == 0 {
 			return true
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 		inc++
 
 	}
@@ -149,12 +149,12 @@ func (k8sh *K8sHelper) IsPodRunningInNamespace(name string) bool {
 func (k8sh *K8sHelper) IsPodTerminated(name string) bool {
 	cmdArgs := []string{"get", "pods", name}
 	inc := 0
-	for inc < 10 {
+	for inc < 20 {
 		_, _, status := ExecuteCmd("kubectl", cmdArgs)
 		if status != 0 {
 			return true
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
 		inc++
 
 	}
@@ -163,12 +163,43 @@ func (k8sh *K8sHelper) IsPodTerminated(name string) bool {
 func (k8sh *K8sHelper) IsPodTerminatedInNamespace(name string) bool {
 	cmdArgs := []string{"get", "-n", "rook", "pods", name}
 	inc := 0
-	for inc < 10 {
+	for inc < 20 {
 		_, _, status := ExecuteCmd("kubectl", cmdArgs)
 		if status != 0 {
 			return true
 		}
-		time.Sleep(10 * time.Second)
+		time.Sleep(5 * time.Second)
+		inc++
+
+	}
+	return false
+}
+
+func (k8sh *K8sHelper) IsServiceUp(name string) bool {
+	cmdArgs := []string{"get", "svc", name}
+	inc := 0
+	for inc < 20 {
+		_, _, status := ExecuteCmd("kubectl", cmdArgs)
+		if status == 0 {
+			return true
+		}
+		time.Sleep(5 * time.Second)
+		inc++
+
+	}
+	return false
+}
+
+func (k8sh *K8sHelper) IsServiceUpInNameSpace(name string) bool {
+
+	cmdArgs := []string{"get", "svc","-n","rook", name}
+	inc := 0
+	for inc < 20 {
+		_, _, status := ExecuteCmd("kubectl", cmdArgs)
+		if status == 0 {
+			return true
+		}
+		time.Sleep(5 * time.Second)
 		inc++
 
 	}

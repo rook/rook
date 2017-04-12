@@ -1,4 +1,4 @@
-package integrationTest
+package smokeTest
 
 import (
 	"github.com/dangula/rook/e2e/rook-test-framework/enums"
