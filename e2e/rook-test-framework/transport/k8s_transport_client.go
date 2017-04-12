@@ -29,6 +29,7 @@ func (k *k8sTransportClient) Execute(cmdArgs []string, optional []string) (stdou
 		initialArgs := []string{"exec", "-n", "rook", "rook-client", "--"}
 		cmdArgs = append(initialArgs, cmdArgs...)
 	}
+
 	return utils.ExecuteCmd("kubectl", cmdArgs)
 }
 

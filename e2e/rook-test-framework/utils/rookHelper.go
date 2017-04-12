@@ -22,11 +22,32 @@ type fileSystemListData struct {
 }
 
 type objectUserListData struct {
-	//TODO FILL
+	UserId      string
+	DisplayName string
+	Email       string
 }
 
-type objectConnectionListData struct {
-	//TODO FILL
+type objectUserData struct {
+	UserId      string
+	DisplayName string
+	Email       string
+	AccessKey   string
+	SecretKey   string
+}
+
+type objectConnectionData struct {
+	AwsHost      string
+	AwsEndpoint  string
+	AwsAccessKey string
+	AwsSecretKey string
+}
+
+type objectBucketListData struct {
+	Name            string
+	Owner           string
+	Created         string
+	size            string
+	NumberOfObjects int
 }
 
 func CreateRookHelper() *RookHelper {
@@ -77,12 +98,26 @@ func (rookhelp *RookHelper) ParseFileSystemData(rawdata string) fileSystemListDa
 	return fileSystemListData{r[0], r[1], r[2]}
 }
 
-func (rookhelp *RookHelper) ParserObjectUserData(rawdata string) objectUserListData {
+func (rookhelp *RookHelper) ParserObjectUserListData(rawdata string) map[string]objectUserListData {
+	data := make(map[string]objectUserListData)
 	//TODO -
-	return objectUserListData{}
+	return data
 }
 
-func (rookhelp *RookHelper) ParserObjectConnectionData(rawdata string) objectConnectionListData {
+func (rookhelp *RookHelper) ParserObjectUserData(rawdata string) objectUserData {
+
 	//TODO -
-	return objectConnectionListData{}
+	return objectUserData{}
 }
+
+func (rookhelp *RookHelper) ParserObjectConnectionData(rawdata string) objectConnectionData {
+	//TODO -
+	return objectConnectionData{}
+}
+
+func (rookhelp *RookHelper) ParserObjectBucketListData(rawdata string) map[string]objectBucketListData {
+	data := make(map[string]objectBucketListData)
+	//TODO -
+	return data
+}
+
