@@ -44,7 +44,7 @@ type tprScheme interface {
 }
 
 type inclusterInitiator interface {
-	Create(clusterMgr *clusterManager, namespace string) (tprManager, error)
+	Create(clusterMgr *clusterManager, name, namespace string) (tprManager, error)
 }
 
 type tprManager interface {
@@ -96,7 +96,7 @@ func createTPR(context *context, tpr tprScheme) error {
 
 func waitForTPRInit(context *context, tpr tprScheme) error {
 	restcli := context.clientset.CoreV1().RESTClient()
-	uri := tprURI(tpr.Name(), context.namespace)
+	uri := tprURI(tpr.Name())
 	return k8sutil.Retry(time.Duration(context.retryDelay)*time.Second, context.maxRetries, func() (bool, error) {
 		_, err := restcli.Get().RequestURI(uri).DoRaw()
 		if err != nil {
@@ -110,18 +110,40 @@ func waitForTPRInit(context *context, tpr tprScheme) error {
 	})
 }
 
-func watchTPR(context *context, name, namespace, resourceVersion string) (*http.Response, error) {
-	return context.kubeHttpCli.Get(fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s",
-		context.masterHost, tprURI(name, namespace), resourceVersion))
+func watchTPRNamespaced(context *context, name, namespace, resourceVersion string) (*http.Response, error) {
+	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.masterHost, tprURINamespaced(name, namespace), resourceVersion)
+	logger.Debugf("watching tpr: %s", uri)
+	return context.kubeHttpCli.Get(uri)
 }
 
-func tprURI(name, namespace string) string {
+func watchTPR(context *context, name, resourceVersion string) (*http.Response, error) {
+	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.masterHost, tprURI(name), resourceVersion)
+	logger.Debugf("watching tpr: %s", uri)
+	return context.kubeHttpCli.Get(uri)
+}
+
+func tprURINamespaced(name, namespace string) string {
+	// creates a uri that is for retrieving or watching a tpr in a specific namespace. For example:
+	//   /apis/rook.io/v1alpha1/namespaces/rook/rookclusters
 	return fmt.Sprintf("/apis/%s/%s/namespaces/%s/%ss", tprGroup, tprVersion, namespace, name)
 }
 
-func getRawList(clientset kubernetes.Interface, name, namespace string) ([]byte, error) {
+func tprURI(name string) string {
+	// creates a uri that is for retrieving or watching a tpr in all namespaces. For example:
+	//   /apis/rook.io/v1alpha1/rookclusters
+	return fmt.Sprintf("/apis/%s/%s/%ss", tprGroup, tprVersion, name)
+}
+
+func getRawListNamespaced(clientset kubernetes.Interface, name, namespace string) ([]byte, error) {
 	restcli := clientset.CoreV1().RESTClient()
-	return restcli.Get().RequestURI(tprURI(name, namespace)).DoRaw()
+	uri := tprURINamespaced(name, namespace)
+	logger.Debugf("getting tpr: %s", uri)
+	return restcli.Get().RequestURI(uri).DoRaw()
+}
+
+func getRawList(clientset kubernetes.Interface, name string) ([]byte, error) {
+	restcli := clientset.CoreV1().RESTClient()
+	return restcli.Get().RequestURI(tprURI(name)).DoRaw()
 }
 
 func handlePollEventResult(status *unversioned.Status, errIn error, checkStaleCache func() (bool, error), errCh chan error) (done bool, err error) {

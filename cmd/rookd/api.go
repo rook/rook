@@ -30,18 +30,22 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var apiCmd = &cobra.Command{
-	Use:   "api",
-	Short: "Runs the Rook API service",
-}
-var apiPort int
-var repoPrefix string
+var (
+	apiCmd = &cobra.Command{
+		Use:   "api",
+		Short: "Runs the Rook API service",
+	}
+	apiPort    int
+	repoPrefix string
+	namespace  string
+	versionTag string
+)
 
 func init() {
 	apiCmd.Flags().IntVar(&apiPort, "port", 0, "port on which the api is listening")
 	apiCmd.Flags().StringVar(&repoPrefix, "repo-prefix", "quay.io/rook", "the repo from which to pull images")
-	apiCmd.Flags().StringVar(&cfg.versionTag, "version-tag", "latest", "version of the rook container to launch")
-	apiCmd.Flags().StringVar(&cfg.namespace, "namespace", "", "the namespace in which the api service is running")
+	apiCmd.Flags().StringVar(&versionTag, "version-tag", "latest", "version of the rook container to launch")
+	apiCmd.Flags().StringVar(&namespace, "namespace", "", "the namespace in which the api service is running")
 	addCephFlags(apiCmd)
 
 	flags.SetFlagsFromEnv(apiCmd.Flags(), "ROOKD")
@@ -72,7 +76,7 @@ func startAPI(cmd *cobra.Command, args []string) error {
 		ConnFactory:    mon.NewConnectionFactoryWithClusterInfo(&clusterInfo),
 		CephFactory:    factory,
 		Port:           apiPort,
-		ClusterHandler: apik8s.New(clientset, context, &clusterInfo, factory, cfg.namespace, cfg.versionTag),
+		ClusterHandler: apik8s.New(clientset, context, &clusterInfo, factory, namespace, versionTag),
 	}
 
 	return api.Run(context, apiCfg)

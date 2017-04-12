@@ -31,7 +31,7 @@ import (
 
 func TestStartDaemonset(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := New(clientset, "ns", "myversion", StorageSpec{}, "")
+	c := New(clientset, "myname", "ns", "myversion", StorageSpec{}, "")
 
 	// Start the first time
 	err := c.Start()
@@ -56,7 +56,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(clientset, "ns", "myversion", storageSpec, dataDir)
+	c := New(clientset, "myname", "ns", "myversion", storageSpec, dataDir)
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
@@ -131,7 +131,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(clientset, "ns", "myversion", storageSpec, "")
+	c := New(clientset, "myname", "ns", "myversion", storageSpec, "")
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
@@ -173,7 +173,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(clientset, "ns", "myversion", storageSpec, "")
+	c := New(clientset, "myname", "ns", "myversion", storageSpec, "")
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)

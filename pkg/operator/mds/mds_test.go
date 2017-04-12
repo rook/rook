@@ -39,7 +39,7 @@ func TestStartMDS(t *testing.T) {
 		return []byte(response), "", nil
 	}
 
-	c := New("ns", "myversion", factory)
+	c := New("myname", "ns", "myversion", factory)
 	c.dataDir = "/tmp/mdstest"
 	defer os.RemoveAll(c.dataDir)
 
@@ -66,7 +66,7 @@ func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New("ns", "myversion", nil)
+	c := New("myname", "ns", "myversion", nil)
 	mdsID := "mds1"
 
 	d := c.makeDeployment(mdsID)

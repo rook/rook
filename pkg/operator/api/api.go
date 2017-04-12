@@ -34,14 +34,16 @@ const (
 
 type Cluster struct {
 	clientset kubernetes.Interface
+	Name      string
 	Namespace string
 	Version   string
 	Replicas  int32
 }
 
-func New(clientset kubernetes.Interface, namespace, version string) *Cluster {
+func New(clientset kubernetes.Interface, name, namespace, version string) *Cluster {
 	return &Cluster{
 		clientset: clientset,
+		Name:      name,
 		Namespace: namespace,
 		Version:   version,
 		Replicas:  1,
@@ -99,7 +101,7 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 
 func (c *Cluster) apiContainer() v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd api --config-dir=%s --port=%d --version-tag=%s", k8sutil.DataDir, model.Port, c.Version)
+	command := fmt.Sprintf("/usr/bin/rookd api --config-dir=%s --port=%d ", k8sutil.DataDir, model.Port)
 	return v1.Container{
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.
@@ -110,12 +112,13 @@ func (c *Cluster) apiContainer() v1.Container {
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		},
 		Env: []v1.EnvVar{
+			v1.EnvVar{Name: "ROOKD_VERSION_TAG", Value: c.Version},
 			k8sutil.NamespaceEnvVar(),
 			k8sutil.RepoPrefixEnvVar(),
 			opmon.MonSecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
 			opmon.MonEndpointEnvVar(),
-			opmon.ClusterNameEnvVar(),
+			opmon.ClusterNameEnvVar(c.Name),
 		},
 	}
 }

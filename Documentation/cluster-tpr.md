@@ -5,9 +5,12 @@ available for a cluster.
 ## Settings
 Settings can be specified at the global level to apply to the cluster as a whole, while other settings can be specified at more fine-grained levels.  If any setting is unspecified, a suitable default will be used automatically.
 
+### Cluster metadata
+- `name`: The name that will be used internally for the Ceph cluster. Most commonly the name is the same as the namespace since multiple clusters are not supported in the same namespace.
+- `namespace`: The Kubernetes namespace that will be created for the Rook cluster. The services, pods, and other resources created by the operator will be added to this namespace. The common scenario is to create a single Rook cluster. If multiple clusters are created, they must not have conflicting devices or host paths.
+
 ### Cluster settings
-- `namespace`: The Kubernetes namespace that will be created for the Rook cluster. The services, pods, and other resources created by the operator will be added to this namespace. Each cluster must have a unique namespace. The common scenario is to create a single Rook cluster. If multiple clusters are created, they must not have conflicting devices or host paths.
-- `version`: The version (tag) of the `quay.io/rook/rookd` container that will be deployed. Upgrades are not yet supported if this setting is updated for an existing cluster, but upgrades will be coming.
+- `versionTag`: The version (tag) of the `quay.io/rook/rookd` container that will be deployed. Upgrades are not yet supported if this setting is updated for an existing cluster, but upgrades will be coming.
 - `dataDirHostPath`: The host path where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.  Therefore, for test scenarios, the path must be deleted if you are going to delete a cluster and start a new cluster on the same hosts.  More details can be found in the Kubernetes [host path docs](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath).  
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 - `storage`: Storage selection and configuration that will be used across the cluster.  Note that these settings can be overridden for specific nodes.

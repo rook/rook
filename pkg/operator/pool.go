@@ -31,12 +31,15 @@ import (
 	kwatch "k8s.io/client-go/pkg/watch"
 )
 
+const (
+	poolTprName = "rookpool"
+)
+
 type poolInitiator struct {
 	context *context
 }
 
 type poolManager struct {
-	name         string
 	namespace    string
 	watchVersion string
 	context      *context
@@ -47,19 +50,19 @@ func newPoolInitiator(context *context) *poolInitiator {
 	return &poolInitiator{context: context}
 }
 
-func (p *poolInitiator) Create(clusterMgr *clusterManager, namespace string) (tprManager, error) {
+func (p *poolInitiator) Create(clusterMgr *clusterManager, clusterName, namespace string) (tprManager, error) {
 	rclient, err := clusterMgr.getRookClient(namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get api client for pool tpr in namespace %s. %+v", namespace, err)
+		return nil, fmt.Errorf("failed to get api client for pool tpr for cluster %s in namespace %s. %+v", clusterName, namespace, err)
 	}
-	return &poolManager{context: p.context, name: p.Name(), namespace: namespace, rclient: rclient}, nil
+	return &poolManager{context: p.context, namespace: namespace, rclient: rclient}, nil
 }
 
-func (t *poolInitiator) Name() string {
-	return "rookpool"
+func (p *poolInitiator) Name() string {
+	return poolTprName
 }
 
-func (t *poolInitiator) Description() string {
+func (p *poolInitiator) Description() string {
 	return "Managed Rook pools"
 }
 
@@ -69,11 +72,11 @@ func (p *poolManager) Manage() {
 
 		// load and initialize the pools
 		if err := p.Load(); err != nil {
-			logger.Errorf("cannot load %s pool tpr. %+v. retrying...", p.name, err)
+			logger.Errorf("cannot load %s pool tpr. %+v. retrying...", p.namespace, err)
 		} else {
 			// watch for added/updated/deleted pools
 			if err := p.Watch(); err != nil {
-				logger.Errorf("failed to watch %s pool tpr. %+v. retrying...", p.name, err)
+				logger.Errorf("failed to watch %s pool tpr. %+v. retrying...", p.namespace, err)
 			}
 		}
 
@@ -81,10 +84,10 @@ func (p *poolManager) Manage() {
 	}
 }
 
-func (t *poolManager) Load() error {
+func (p *poolManager) Load() error {
 	// Check if pools have all been created
 	logger.Info("finding existing pools...")
-	poolList, err := t.getPoolList()
+	poolList, err := p.getPoolList()
 	if err != nil {
 		return err
 	}
@@ -92,18 +95,19 @@ func (t *poolManager) Load() error {
 	logger.Infof("found %d pools. ensuring they exist.", len(poolList.Items))
 	for i := range poolList.Items {
 		// ensure the pool exists
-		p := poolList.Items[i]
-		if err := p.Create(t.rclient); err != nil {
-			logger.Warningf("failed to check that pool %s exists in namespace %s. %+v", p.Name, p.Namespace, err)
+		item := poolList.Items[i]
+		logger.Infof("checking pool %s in namespace %s", item.Name, item.Namespace)
+		if err := item.Create(p.rclient); err != nil {
+			logger.Warningf("failed to check that pool %s exists in namespace %s. %+v", item.Name, item.Namespace, err)
 		}
 	}
 
-	t.watchVersion = poolList.Metadata.ResourceVersion
+	p.watchVersion = poolList.Metadata.ResourceVersion
 	return nil
 }
 
-func (t *poolManager) getPoolList() (*cluster.PoolList, error) {
-	b, err := getRawList(t.context.clientset, t.name, t.namespace)
+func (p *poolManager) getPoolList() (*cluster.PoolList, error) {
+	b, err := getRawListNamespaced(p.context.clientset, poolTprName, p.namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -115,10 +119,10 @@ func (t *poolManager) getPoolList() (*cluster.PoolList, error) {
 	return pools, nil
 }
 
-func (t *poolManager) Watch() error {
-	logger.Infof("start watching pool tpr: %s", t.watchVersion)
+func (p *poolManager) Watch() error {
+	logger.Infof("start watching pool tpr in namespace %s: %s", p.namespace, p.watchVersion)
 
-	eventCh, errCh := t.watch()
+	eventCh, errCh := p.watch()
 
 	go func() {
 		timer := k8sutil.NewPanicTimer(
@@ -132,20 +136,20 @@ func (t *poolManager) Watch() error {
 
 			switch event.Type {
 			case kwatch.Added:
-				if err := pool.Create(t.rclient); err != nil {
+				if err := pool.Create(p.rclient); err != nil {
 					logger.Errorf("failed to create pool %s. %+v", pool.Name, err)
 					break
 				}
 
 			case kwatch.Modified:
 				// if the pool is modified, allow the pool to be created if it wasn't already
-				if err := pool.Create(t.rclient); err != nil {
+				if err := pool.Create(p.rclient); err != nil {
 					logger.Errorf("failed to create (modify) pool %s. %+v", pool.Name, err)
 					break
 				}
 
 			case kwatch.Deleted:
-				err := pool.Delete(t.rclient)
+				err := pool.Delete(p.rclient)
 				if err != nil {
 					logger.Errorf("failed to delete pool %s. %+v", pool.Name, err)
 					break
@@ -163,7 +167,7 @@ func (t *poolManager) Watch() error {
 // the given watch version. It emits events on the resources through the returned
 // event chan. Errors will be reported through the returned error chan. The go routine
 // exits on any error.
-func (t *poolManager) watch() (<-chan *poolEvent, <-chan error) {
+func (p *poolManager) watch() (<-chan *poolEvent, <-chan error) {
 	eventCh := make(chan *poolEvent)
 	// On unexpected error case, the operator should exit
 	errCh := make(chan error, 1)
@@ -172,7 +176,7 @@ func (t *poolManager) watch() (<-chan *poolEvent, <-chan error) {
 		defer close(eventCh)
 
 		for {
-			err := t.watchOuterTPR(eventCh, errCh)
+			err := p.watchOuterTPR(eventCh, errCh)
 			if err != nil {
 				errCh <- fmt.Errorf("failed to watch pool tpr. %+v", err)
 				return
@@ -183,8 +187,8 @@ func (t *poolManager) watch() (<-chan *poolEvent, <-chan error) {
 	return eventCh, errCh
 }
 
-func (t *poolManager) watchOuterTPR(eventCh chan *poolEvent, errCh chan error) error {
-	resp, err := watchTPR(t.context, t.name, t.namespace, t.watchVersion)
+func (p *poolManager) watchOuterTPR(eventCh chan *poolEvent, errCh chan error) error {
+	resp, err := watchTPRNamespaced(p.context, poolTprName, p.namespace, p.watchVersion)
 	if err != nil {
 		errCh <- err
 		return err
@@ -207,7 +211,7 @@ func (t *poolManager) watchOuterTPR(eventCh chan *poolEvent, errCh chan error) e
 		}
 		logger.Debugf("rook pool event: %+v", ev)
 
-		t.watchVersion = ev.Object.ResourceVersion
+		p.watchVersion = ev.Object.ResourceVersion
 		eventCh <- ev
 	}
 }

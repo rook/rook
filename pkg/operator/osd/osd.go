@@ -38,6 +38,7 @@ const (
 
 type Cluster struct {
 	clientset       kubernetes.Interface
+	Name            string
 	Namespace       string
 	Keyring         string
 	Version         string
@@ -45,9 +46,10 @@ type Cluster struct {
 	dataDirHostPath string
 }
 
-func New(clientset kubernetes.Interface, namespace, version string, storageSpec StorageSpec, dataDirHostPath string) *Cluster {
+func New(clientset kubernetes.Interface, name, namespace, version string, storageSpec StorageSpec, dataDirHostPath string) *Cluster {
 	return &Cluster{
 		clientset:       clientset,
+		Name:            name,
 		Namespace:       namespace,
 		Version:         version,
 		Storage:         storageSpec,
@@ -168,7 +170,7 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 	command := "/usr/bin/rookd osd"
 
 	envVars := []v1.EnvVar{
-		opmon.ClusterNameEnvVar(),
+		opmon.ClusterNameEnvVar(c.Name),
 		opmon.MonEndpointEnvVar(),
 		opmon.MonSecretEnvVar(),
 		opmon.AdminSecretEnvVar(),

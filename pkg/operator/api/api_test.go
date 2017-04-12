@@ -29,7 +29,7 @@ import (
 
 func TestStartAPI(t *testing.T) {
 	clientset := testop.New(3)
-	c := New(clientset, "ns", "myversion")
+	c := New(clientset, "myname", "ns", "myversion")
 
 	// start a basic cluster
 	err := c.Start()
@@ -57,7 +57,7 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestPodSpecs(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(clientset, "ns", "myversion")
+	c := New(clientset, "myname", "ns", "myversion")
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)
@@ -74,12 +74,12 @@ func TestPodSpecs(t *testing.T) {
 	cont := d.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
 	assert.Equal(t, 1, len(cont.VolumeMounts))
-	assert.Equal(t, 6, len(cont.Env))
+	assert.Equal(t, 7, len(cont.Env))
 	for _, v := range cont.Env {
 		assert.True(t, strings.HasPrefix(v.Name, "ROOKD_"))
 	}
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd api --config-dir=/var/lib/rook --port=%d --version-tag=%s", model.Port, c.Version)
+	expectedCommand := fmt.Sprintf("/usr/bin/rookd api --config-dir=/var/lib/rook --port=%d", model.Port)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
 }

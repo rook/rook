@@ -119,6 +119,8 @@ To clean up all the artifacts created by the demo, run the following:
 kubectl delete -f wordpress.yaml
 kubectl delete -f mysql.yaml
 kubectl delete deployment rook-operator
+kubectl delete -n rook rookcluster rook
+kubectl delete -n rook rookpool replicapool
 kubectl delete thirdpartyresources rookcluster.rook.io rookpool.rook.io
 kubectl delete storageclass rook-block
 kubectl delete secret rook-rbd-user

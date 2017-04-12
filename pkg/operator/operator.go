@@ -44,7 +44,6 @@ var (
 
 type context struct {
 	clientset   kubernetes.Interface
-	namespace   string
 	retryDelay  int
 	maxRetries  int
 	masterHost  string
@@ -60,9 +59,8 @@ type Operator struct {
 	clusterMgr *clusterManager
 }
 
-func New(host, namespace string, factory client.ConnectionFactory, clientset kubernetes.Interface) *Operator {
+func New(host string, factory client.ConnectionFactory, clientset kubernetes.Interface) *Operator {
 	context := &context{
-		namespace:  namespace,
 		masterHost: host,
 		factory:    factory,
 		clientset:  clientset,
