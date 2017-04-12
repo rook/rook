@@ -1,14 +1,12 @@
-package uitls
+package utils
 
 import (
 	"bytes"
+	"fmt"
 	"os/exec"
+	"strings"
 	"syscall"
 	"bufio"
-	"fmt"
-	"strings"
-	//"github.com/spf13/cobra/cobra/cmd"
-	//"github.com/spf13/cobra/cobra/cmd"
 )
 
 func ExecuteCmdWithEnv(Cmd string, cmdArgs []string, env []string,) (stdout string, stderr string, exitCode int) {
@@ -71,7 +69,7 @@ func ExecuteCmd(Cmd string, cmdArgs []string) (stdout string, stderr string, exi
 }
 
 //TODO add timeout parameter
-func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string) (stdout string, stderr string, err error)  {
+func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string) (stdout string, stderr string, err error) {
 	var outbuf, errbuf bytes.Buffer
 
 	//dockerArgs := strings.Join(cmdArgs, " ")
@@ -83,6 +81,7 @@ func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string
 
 	stdOut, err := cmd.StdoutPipe()
 	if err != nil {
+
 		return  errbuf.String(), outbuf.String(), err
 	}
 
@@ -96,8 +95,8 @@ func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string
 		}
 	}()
 
-
 	stdErr, err := cmd.StderrPipe()
+
 	if err != nil {
 		return  errbuf.String(), outbuf.String(), err
 	}
@@ -105,7 +104,7 @@ func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string
 	defer stdErr.Close()
 
 	stdErrScanner := bufio.NewScanner(stdErr)
-	go func()  {
+	go func() {
 		for stdErrScanner.Scan() {
 
 			txt := stdErrScanner.Text()
@@ -119,17 +118,18 @@ func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string
 
 	err = cmd.Start()
 	if err != nil {
-			return  errbuf.String(), outbuf.String(), err
+
+		return  errbuf.String(), outbuf.String(), err
 	}
 
 	err = cmd.Wait()
 	// go generate command will fail when no generate command find.
 	if err != nil {
 		if err.Error() != "exit status 1" {
+
 			return  errbuf.String(), outbuf.String(), err
 		}
 	}
 
 	return errbuf.String(), outbuf.String(), nil
 }
-
