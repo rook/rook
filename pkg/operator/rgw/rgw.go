@@ -24,11 +24,12 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
-	"k8s.io/client-go/pkg/util/intstr"
 )
 
 const (
@@ -92,7 +93,7 @@ func (c *Cluster) Start(cluster *mon.ClusterInfo) error {
 }
 
 func (c *Cluster) createKeyring(cluster *mon.ClusterInfo) error {
-	_, err := c.clientset.CoreV1().Secrets(c.Namespace).Get(appName)
+	_, err := c.clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
 		return nil
@@ -121,7 +122,7 @@ func (c *Cluster) createKeyring(cluster *mon.ClusterInfo) error {
 		keyringName: keyring,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: v1.ObjectMeta{Name: appName, Namespace: c.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: c.Namespace},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
@@ -139,7 +140,7 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 	deployment.Namespace = c.Namespace
 
 	podSpec := v1.PodTemplateSpec{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:        "rook-rgw",
 			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
@@ -184,7 +185,7 @@ func (c *Cluster) rgwContainer() v1.Container {
 func (c *Cluster) startService() error {
 	labels := c.getLabels()
 	s := &v1.Service{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      appName,
 			Namespace: c.Namespace,
 			Labels:    labels,

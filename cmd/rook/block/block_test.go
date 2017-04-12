@@ -17,6 +17,7 @@ package block
 
 import (
 	"runtime"
+	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -29,6 +30,7 @@ func TestBlockCommand(t *testing.T) {
 	for _, command := range Cmd.Commands() {
 		commands = append(commands, command.Name())
 	}
+	sort.Strings(commands)
 
 	if runtime.GOOS == "linux" {
 		assert.Equal(t, []string{"create", "delete", "ls", "map", "unmap"}, commands)

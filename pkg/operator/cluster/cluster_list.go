@@ -21,15 +21,15 @@ package cluster
 import (
 	"encoding/json"
 
-	"k8s.io/client-go/pkg/api/unversioned"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ClusterList is a list of rook clusters.
 type ClusterList struct {
-	unversioned.TypeMeta `json:",inline"`
+	metav1.TypeMeta `json:",inline"`
 	// Standard list metadata
 	// More info: http://releases.k8s.io/HEAD/docs/devel/api-conventions.md#metadata
-	Metadata unversioned.ListMeta `json:"metadata,omitempty"`
+	Metadata metav1.ListMeta `json:"metadata,omitempty"`
 	// Items is a list of third party objects
 	Items []Cluster `json:"items"`
 }

@@ -168,7 +168,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	// wait for the async osds to complete
 	<-agent.osdsCompleted
 
-	assert.Equal(t, 0, agent.configCounter)
+	assert.Equal(t, int32(0), agent.configCounter)
 	assert.Equal(t, 2, outputExecCount)
 	assert.Equal(t, 2, startCount) // 2 OSD procs should be started
 	assert.Equal(t, 2, len(agent.osdProc), fmt.Sprintf("procs=%+v", agent.osdProc))
@@ -608,7 +608,7 @@ func createInventory() *inventory.Config {
 }
 
 func verifyPartitionEntry(t *testing.T, actual *PerfSchemePartitionDetails, expectedDevice string,
-	expectedSize int64, expectedOffset int64) {
+	expectedSize int, expectedOffset int) {
 
 	assert.Equal(t, expectedDevice, actual.Device)
 	assert.Equal(t, expectedSize, actual.SizeMB)

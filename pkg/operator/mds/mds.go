@@ -24,8 +24,9 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
@@ -93,7 +94,7 @@ func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo
 }
 
 func (c *Cluster) createKeyring(clientset kubernetes.Interface, context *clusterd.DaemonContext, cluster *mon.ClusterInfo, conn client.Connection, id string) error {
-	_, err := clientset.CoreV1().Secrets(c.Namespace).Get(appName)
+	_, err := clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the mds keyring was already generated")
 		return nil
@@ -113,7 +114,7 @@ func (c *Cluster) createKeyring(clientset kubernetes.Interface, context *cluster
 		keyringName: keyring,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: v1.ObjectMeta{Name: appName, Namespace: c.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: c.Namespace},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
@@ -131,7 +132,7 @@ func (c *Cluster) makeDeployment(id string) *extensions.Deployment {
 	deployment.Namespace = c.Namespace
 
 	podSpec := v1.PodTemplateSpec{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:        appName,
 			Labels:      c.getLabels(),
 			Annotations: map[string]string{},

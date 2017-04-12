@@ -18,13 +18,12 @@ package mon
 import (
 	"testing"
 
-	"k8s.io/client-go/pkg/api/v1"
+	"os"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
 	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
 	"github.com/rook/rook/pkg/operator/test"
-
-	"os"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -53,20 +52,20 @@ func TestStartMonPods(t *testing.T) {
 }
 
 func validateStart(t *testing.T, c *Cluster) {
-	s, err := c.clientset.CoreV1().Secrets(c.Namespace).Get("rook-admin")
+	s, err := c.clientset.CoreV1().Secrets(c.Namespace).Get("rook-admin", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(s.StringData))
 
-	s, err = c.clientset.CoreV1().Secrets(c.Namespace).Get("mon")
+	s, err = c.clientset.CoreV1().Secrets(c.Namespace).Get("mon", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(s.StringData))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
-	p, err := c.clientset.CoreV1().Pods(c.Namespace).Get("mon0")
+	p, err := c.clientset.CoreV1().Pods(c.Namespace).Get("mon0", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon0", p.Name)
 
-	pods, err := c.clientset.CoreV1().Pods(c.Namespace).List(v1.ListOptions{})
+	pods, err := c.clientset.CoreV1().Pods(c.Namespace).List(metav1.ListOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(pods.Items))
 
@@ -86,7 +85,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	err := c.saveMonConfig()
 	assert.Nil(t, err)
 
-	cm, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config")
+	cm, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon1=1.2.3.1:6790", cm.Data["endpoints"])
 
@@ -95,7 +94,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	err = c.saveMonConfig()
 	assert.Nil(t, err)
 
-	cm, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config")
+	cm, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon1=2.3.4.5:6790", cm.Data["endpoints"])
 }
@@ -120,7 +119,7 @@ func TestCheckHealth(t *testing.T) {
 	err = c.failoverMon(conn, "mon1")
 	assert.Nil(t, err)
 
-	cm, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config")
+	cm, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon11=:6790", cm.Data["endpoints"])
 }

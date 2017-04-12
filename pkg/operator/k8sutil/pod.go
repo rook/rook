@@ -23,8 +23,8 @@ import (
 	"fmt"
 	"os"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api"
-	unversionedAPI "k8s.io/client-go/pkg/api/unversioned"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
@@ -76,7 +76,7 @@ func PodWithAntiAffinity(pod *v1.Pod, attribute, value string) {
 		PodAntiAffinity: &v1.PodAntiAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
 				{
-					LabelSelector: &unversionedAPI.LabelSelector{
+					LabelSelector: &metav1.LabelSelector{
 						MatchLabels: map[string]string{
 							attribute: value,
 						},

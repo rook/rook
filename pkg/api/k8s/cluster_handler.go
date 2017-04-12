@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/model"
 	k8smds "github.com/rook/rook/pkg/operator/mds"
 	k8srgw "github.com/rook/rook/pkg/operator/rgw"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -62,7 +63,7 @@ func (s *clusterHandler) RemoveObjectStore() error {
 
 func (s *clusterHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, bool, error) {
 	logger.Infof("Getting the object store connection info")
-	service, err := s.clientset.Services(s.namespace).Get("rgw")
+	service, err := s.clientset.Services(s.namespace).Get("rgw", metav1.GetOptions{})
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to get rgw service. %+v", err)
 	}

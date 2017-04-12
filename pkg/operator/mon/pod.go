@@ -19,8 +19,9 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/labels"
 )
 
 func ClusterNameEnvVar(name string) v1.EnvVar {
@@ -58,7 +59,7 @@ func (c *Cluster) makeMonPod(config *MonConfig, antiAffinity bool) *v1.Pod {
 	}
 
 	pod := &v1.Pod{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:        config.Name,
 			Namespace:   c.Namespace,
 			Labels:      c.getLabels(),
@@ -139,8 +140,8 @@ func (c *Cluster) pollPods() ([]*v1.Pod, []*v1.Pod, error) {
 	return running, pending, nil
 }
 
-func (c *Cluster) listOptions() v1.ListOptions {
-	return v1.ListOptions{
+func (c *Cluster) listOptions() metav1.ListOptions {
+	return metav1.ListOptions{
 		LabelSelector: labels.SelectorFromSet(labels.Set{
 			monClusterAttr:  c.Namespace,
 			k8sutil.AppAttr: appName,

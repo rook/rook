@@ -28,10 +28,10 @@ import (
 	"k8s.io/client-go/rest"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/unversioned"
-	"k8s.io/client-go/pkg/runtime"
-	"k8s.io/client-go/pkg/runtime/serializer"
 )
 
 const (
@@ -114,7 +114,7 @@ func newHttpClient() (*rest.RESTClient, error) {
 		return nil, err
 	}
 
-	config.GroupVersion = &unversioned.GroupVersion{
+	config.GroupVersion = &schema.GroupVersion{
 		Group:   tprGroup,
 		Version: tprVersion,
 	}

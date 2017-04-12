@@ -9,14 +9,15 @@ excludeDirs:
 - scripts
 - toolbox
 import:
-- package: github.com/spf13/cobra
-  subpackages:
-  - cobra
 - package: github.com/coreos/etcd
+  version: release-3.1
   subpackages:
   - client
   - error
+- package: github.com/spf13/cobra
+  version: 1c44ec8d3f1552cac48999f9306da23c4d8a288b
 - package: github.com/spf13/pflag
+  version: 08b1a584251b5b62f458943640fc8ebd4d50aaa5
 - package: github.com/google/uuid
 - package: github.com/go-ini/ini
 - package: github.com/ghodss/yaml
@@ -26,9 +27,11 @@ import:
   repo: https://github.com/quantum/goautoneg.git
 - package: github.com/coreos/pkg/capnslog
 - package: k8s.io/client-go
-  version: e121606b0d09b2e1c467183ee46217fa85a6b672
+  version: release-3.0
   subpackages:
   - kubernetes/typed/core/v1
+- package: k8s.io/apimachinery
+  version: release-1.6
 - package: github.com/bassam/cgosymbolizer
 - package: github.com/prometheus/client_golang
   version: v0.8.0

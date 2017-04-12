@@ -26,10 +26,9 @@ import (
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/errors"
-	"k8s.io/client-go/pkg/api/unversioned"
-	"k8s.io/client-go/pkg/api/v1"
 	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
@@ -76,7 +75,7 @@ func createTPRs(context *context, tprs []tprScheme) error {
 func createTPR(context *context, tpr tprScheme) error {
 	logger.Infof("creating %s TPR", tpr.Name())
 	r := &v1beta1.ThirdPartyResource{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name: qualifiedName(tpr),
 		},
 		Versions: []v1beta1.APIVersion{
@@ -146,7 +145,7 @@ func getRawList(clientset kubernetes.Interface, name string) ([]byte, error) {
 	return restcli.Get().RequestURI(tprURI(name)).DoRaw()
 }
 
-func handlePollEventResult(status *unversioned.Status, errIn error, checkStaleCache func() (bool, error), errCh chan error) (done bool, err error) {
+func handlePollEventResult(status *metav1.Status, errIn error, checkStaleCache func() (bool, error), errCh chan error) (done bool, err error) {
 	if errIn != nil {
 		if errIn == io.EOF { // apiserver will close stream periodically
 			logger.Debug("apiserver closed stream")

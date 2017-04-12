@@ -24,8 +24,8 @@ import (
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
 	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
 	testop "github.com/rook/rook/pkg/operator/test"
-
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/pkg/api/v1"
 )
@@ -60,7 +60,7 @@ func TestStartMDS(t *testing.T) {
 
 func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
 
-	r, err := clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get("mds")
+	r, err := clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get("mds", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mds", r.Name)
 }

@@ -18,10 +18,9 @@ package operator
 import (
 	"testing"
 
-	"k8s.io/client-go/pkg/api/v1"
-
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestCreateCluster(t *testing.T) {

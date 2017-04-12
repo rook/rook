@@ -21,11 +21,12 @@ import (
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
+	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/errors"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
-	"k8s.io/client-go/pkg/util/intstr"
 )
 
 const (
@@ -80,7 +81,7 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 	deployment.Namespace = c.Namespace
 
 	podSpec := v1.PodTemplateSpec{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:        DeploymentName,
 			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
@@ -126,7 +127,7 @@ func (c *Cluster) apiContainer() v1.Container {
 func (c *Cluster) startService() error {
 	labels := c.getLabels()
 	s := &v1.Service{
-		ObjectMeta: v1.ObjectMeta{
+		ObjectMeta: metav1.ObjectMeta{
 			Name:      DeploymentName,
 			Namespace: c.Namespace,
 			Labels:    labels,
