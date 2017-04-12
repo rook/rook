@@ -7,7 +7,40 @@ import (
 	"bufio"
 	"fmt"
 	"strings"
+	//"github.com/spf13/cobra/cobra/cmd"
+	//"github.com/spf13/cobra/cobra/cmd"
 )
+
+func ExecuteCmdWithEnv(Cmd string, cmdArgs []string, env []string,) (stdout string, stderr string, exitCode int) {
+
+	var outbuf, errbuf bytes.Buffer
+	cmd := exec.Command(Cmd,   strings.Join(cmdArgs, " "))
+
+	cmd.Env = append(cmd.Env, env...)
+
+	cmd.Stdout = &outbuf
+	cmd.Stderr = &errbuf
+
+	err := cmd.Run()
+	stdout = outbuf.String()
+	stderr = errbuf.String()
+
+	if err != nil {
+		if exitError, ok := err.(*exec.ExitError); ok {
+			ws := exitError.Sys().(syscall.WaitStatus)
+			exitCode = ws.ExitStatus()
+		} else {
+			exitCode = 1
+			if stderr == "" {
+				stderr = err.Error() + stdout
+			}
+		}
+	} else {
+		ws := cmd.ProcessState.Sys().(syscall.WaitStatus)
+		exitCode = ws.ExitStatus()
+	}
+	return
+}
 
 func ExecuteCmd(Cmd string, cmdArgs []string) (stdout string, stderr string, exitCode int) {
 
@@ -41,13 +74,16 @@ func ExecuteCmd(Cmd string, cmdArgs []string) (stdout string, stderr string, exi
 func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string) (stdout string, stderr string, err error)  {
 	var outbuf, errbuf bytes.Buffer
 
+	//dockerArgs := strings.Join(cmdArgs, " ")
+
 	cmd := exec.Command(command, cmdArgs...)
+	//cmd := exec.Command(command, cmdArgs...)
 
 	cmd.Env = append(cmd.Env, cmdEnv...)
 
 	stdOut, err := cmd.StdoutPipe()
 	if err != nil {
-		return  "", "", err
+		return  errbuf.String(), outbuf.String(), err
 	}
 
 	defer stdOut.Close()
@@ -63,7 +99,7 @@ func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string
 
 	stdErr, err := cmd.StderrPipe()
 	if err != nil {
-		return  "", "", err
+		return  errbuf.String(), outbuf.String(), err
 	}
 
 	defer stdErr.Close()
@@ -83,14 +119,14 @@ func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string
 
 	err = cmd.Start()
 	if err != nil {
-		return  "", "", err
+			return  errbuf.String(), outbuf.String(), err
 	}
 
 	err = cmd.Wait()
 	// go generate command will fail when no generate command find.
 	if err != nil {
 		if err.Error() != "exit status 1" {
-			return  "", "", err
+			return  errbuf.String(), outbuf.String(), err
 		}
 	}
 

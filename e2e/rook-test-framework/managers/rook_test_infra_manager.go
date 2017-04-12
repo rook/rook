@@ -60,10 +60,12 @@ func (r rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 		_, dockerClient := r.dockerContext.Get_DockerClient()
 
 		cmd := []string {
-			"--rm", "-i", "--net=host", "-e \"container=docker\"", "--privileged", "-d", "--security-opt=seccomp:unconfined",
-			"--cap-add=SYS_ADMIN", "-v=/dev:/dev", "-v=/sys:/sys", "-v=/sys/fs/cgroup:/sys/fs/cgroup", "-v=/sbin/modprobe:/sbin/modprobe",
-			"-v=/lib/modules:/lib/modules:rw", "-v=/var/run/docker.sock:/test", "-P", "quay.io/quantum/rook-test", "/sbin/init",
+			"--rm", "-itd", "--net=host", "-e=\"container=docker\"", "--privileged", "--security-opt=seccomp:unconfined",
+			"--cap-add=SYS_ADMIN", "-v", "/dev:/dev", "-v","/sys:/sys", "-v", "/sys/fs/cgroup:/sys/fs/cgroup", "-v", "/sbin/modprobe:/sbin/modprobe",
+			"-v", "/lib/modules:/lib/modules:rw", "-v", "/var/run/docker.sock:/tmp/docker.sock", "quay.io/quantum/rook-test", "/sbin/init",
 		}
+
+
 
 		stdout, stderr, err := dockerClient.Run(cmd)
 
@@ -73,14 +75,37 @@ func (r rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 
 		//save containerId to struct --> TODO fix
 		r.dockerContext.Set_ContainerId(stderr)
+		containerId := stderr
 
+		stdout, stderr, exitCode := dockerClient.Execute([]string{containerId, "docker", "info"})
+
+		stdout, stderr, exitCode = dockerClient.Execute([]string{containerId, "rm", "-rfv", "/var/run/docker.sock"})
+
+		fmt.Print(exitCode)
 		//STEP 1 --> Create symlink from /docker.sock to /var/run/docker.sock
-		dockerClient.Execute([]string{"-it", stderr, "ln -s /test /var/run/docker.sock"})
+		stdout, stderr, err = dockerClient.Execute([]string{containerId, "ln", "-s", "/tmp/docker.sock", "/var/run/docker.sock"})
+
+
+
+		r.dockerContext.Set_ContainerId(stderr)
+
 
 		//STEP 2 --> Bring up k8s cluster
 		//download script to container
-		//run script
+		stdout, stderr, err = dockerClient.Execute([]string{containerId, "curl", "-o", "dind-cluster-v1.5.sh",
+			"https://raw.githubusercontent.com/Mirantis/kubeadm-dind-cluster/master/fixed/dind-cluster-v1.5.sh",
+			})
 
+
+		//chmod +x
+		stdout, stderr, err = dockerClient.Execute([]string{containerId, "chmod", "+x", "dind-cluster-v1.5.sh"})
+
+
+		//run script
+		stdout, stderr, err = dockerClient.Execute([]string{containerId, "./dind-cluster-v1.5.sh", "up"})
+
+
+		stdout, stderr, err = dockerClient.Stop([]string{containerId})
 		//STEP 3 --> Untaint master node
 		// kubectl taint nodes --all dedicated-
 
