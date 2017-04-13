@@ -55,12 +55,12 @@ func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized b
 
 	once.Do(func() {
 		//this is needed when test development vs boot2docker
-		dockerEnv := []string {
-			"DOCKER_TLS_VERIFY=1",
-			"DOCKER_HOST=tcp://192.168.99.100:2376",
-			//"DOCKER_CERT_PATH=/Users/tyjohnson/.docker/machine/machines/default",
-			"DOCKER_MACHINE_NAME=default"}
-		//dockerEnv := []string {}
+		//dockerEnv := []string {
+		//	"DOCKER_TLS_VERIFY=1",
+		//	"DOCKER_HOST=tcp://192.168.99.100:2376",
+		//	//"DOCKER_CERT_PATH=/Users/tyjohnson/.docker/machine/machines/default",
+		//	"DOCKER_MACHINE_NAME=default"}
+		dockerEnv := []string {}
 
 		if isDockerized {
 			dockerContext = objects.SetDockerContext(transport.CreateDockerClient(dockerEnv))
