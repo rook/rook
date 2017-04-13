@@ -22,6 +22,7 @@ import (
 
 	"github.com/rook/rook/pkg/cephmgr/client"
 	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -31,9 +32,7 @@ import (
 func TestStartMonPods(t *testing.T) {
 	clientset := test.New(3)
 	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	c := New(clientset, factory, "myname", "ns", "", "myversion")
-	c.maxRetries = 1
-	c.retryDelay = 0
+	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory, MaxRetries: 1}, "myname", "ns", "", "myversion")
 
 	// start a basic cluster
 	// an error is expected since mocking always creates pods that are not running
@@ -52,20 +51,20 @@ func TestStartMonPods(t *testing.T) {
 }
 
 func validateStart(t *testing.T, c *Cluster) {
-	s, err := c.clientset.CoreV1().Secrets(c.Namespace).Get("rook-admin", metav1.GetOptions{})
+	s, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get("rook-admin", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(s.StringData))
 
-	s, err = c.clientset.CoreV1().Secrets(c.Namespace).Get("mon", metav1.GetOptions{})
+	s, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Get("mon", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(s.StringData))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
-	p, err := c.clientset.CoreV1().Pods(c.Namespace).Get("mon0", metav1.GetOptions{})
+	p, err := c.context.Clientset.CoreV1().Pods(c.Namespace).Get("mon0", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon0", p.Name)
 
-	pods, err := c.clientset.CoreV1().Pods(c.Namespace).List(metav1.ListOptions{})
+	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(metav1.ListOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(pods.Items))
 
@@ -78,14 +77,14 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
-	c := New(clientset, nil, "myname", "ns", "", "myversion")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion")
 	c.clusterInfo = test.CreateClusterInfo(1)
 
 	// create the initial config map
 	err := c.saveMonConfig()
 	assert.Nil(t, err)
 
-	cm, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon1=1.2.3.1:6790", cm.Data["endpoints"])
 
@@ -94,7 +93,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	err = c.saveMonConfig()
 	assert.Nil(t, err)
 
-	cm, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon1=2.3.4.5:6790", cm.Data["endpoints"])
 }
@@ -102,9 +101,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 func TestCheckHealth(t *testing.T) {
 	clientset := test.New(1)
 	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	c := New(clientset, factory, "myname", "ns", "", "myversion")
-	c.retryDelay = 1
-	c.maxRetries = 1
+	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory, RetryDelay: 1, MaxRetries: 1}, "myname", "ns", "", "myversion")
 	c.clusterInfo = test.CreateClusterInfo(1)
 	c.configDir = "/tmp/healthtest"
 	c.waitForStart = false
@@ -119,7 +116,7 @@ func TestCheckHealth(t *testing.T) {
 	err = c.failoverMon(conn, "mon1")
 	assert.Nil(t, err)
 
-	cm, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon11=:6790", cm.Data["endpoints"])
 }

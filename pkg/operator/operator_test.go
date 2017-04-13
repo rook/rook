@@ -26,7 +26,7 @@ import (
 func TestCreateCluster(t *testing.T) {
 	clientset := test.New(3)
 	o := New("foo", nil, clientset)
-	o.context.retryDelay = 1
+	o.context.RetryDelay = 1
 
 	// fail to init k8s client since we're not actually inside k8s
 	err := o.initResources()

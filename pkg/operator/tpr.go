@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
@@ -56,7 +55,7 @@ func qualifiedName(tpr tprScheme) string {
 	return fmt.Sprintf("%s.%s", tpr.Name(), tprGroup)
 }
 
-func createTPRs(context *context, tprs []tprScheme) error {
+func createTPRs(context *k8sutil.Context, tprs []tprScheme) error {
 	for _, tpr := range tprs {
 		if err := createTPR(context, tpr); err != nil {
 			return fmt.Errorf("failed to init tpr %s. %+v", tpr.Name(), err)
@@ -72,7 +71,7 @@ func createTPRs(context *context, tprs []tprScheme) error {
 	return nil
 }
 
-func createTPR(context *context, tpr tprScheme) error {
+func createTPR(context *k8sutil.Context, tpr tprScheme) error {
 	logger.Infof("creating %s TPR", tpr.Name())
 	r := &v1beta1.ThirdPartyResource{
 		ObjectMeta: metav1.ObjectMeta{
@@ -83,7 +82,7 @@ func createTPR(context *context, tpr tprScheme) error {
 		},
 		Description: tpr.Description(),
 	}
-	_, err := context.clientset.ExtensionsV1beta1().ThirdPartyResources().Create(r)
+	_, err := context.Clientset.ExtensionsV1beta1().ThirdPartyResources().Create(r)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create %s TPR. %+v", tpr.Name(), err)
@@ -93,10 +92,10 @@ func createTPR(context *context, tpr tprScheme) error {
 	return nil
 }
 
-func waitForTPRInit(context *context, tpr tprScheme) error {
-	restcli := context.clientset.CoreV1().RESTClient()
+func waitForTPRInit(context *k8sutil.Context, tpr tprScheme) error {
+	restcli := context.Clientset.CoreV1().RESTClient()
 	uri := tprURI(tpr.Name())
-	return k8sutil.Retry(time.Duration(context.retryDelay)*time.Second, context.maxRetries, func() (bool, error) {
+	return k8sutil.Retry(context, func() (bool, error) {
 		_, err := restcli.Get().RequestURI(uri).DoRaw()
 		if err != nil {
 			logger.Infof("did not yet find tpr %s. %+v", tpr.Name(), err)
@@ -109,16 +108,16 @@ func waitForTPRInit(context *context, tpr tprScheme) error {
 	})
 }
 
-func watchTPRNamespaced(context *context, name, namespace, resourceVersion string) (*http.Response, error) {
-	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.masterHost, tprURINamespaced(name, namespace), resourceVersion)
+func watchTPRNamespaced(context *k8sutil.Context, name, namespace, resourceVersion string) (*http.Response, error) {
+	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.MasterHost, tprURINamespaced(name, namespace), resourceVersion)
 	logger.Debugf("watching tpr: %s", uri)
-	return context.kubeHttpCli.Get(uri)
+	return context.KubeHttpCli.Get(uri)
 }
 
-func watchTPR(context *context, name, resourceVersion string) (*http.Response, error) {
-	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.masterHost, tprURI(name), resourceVersion)
+func watchTPR(context *k8sutil.Context, name, resourceVersion string) (*http.Response, error) {
+	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.MasterHost, tprURI(name), resourceVersion)
 	logger.Debugf("watching tpr: %s", uri)
-	return context.kubeHttpCli.Get(uri)
+	return context.KubeHttpCli.Get(uri)
 }
 
 func tprURINamespaced(name, namespace string) string {

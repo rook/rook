@@ -20,7 +20,11 @@ package k8sutil
 
 import (
 	"fmt"
+	"net/http"
 	"time"
+
+	"github.com/rook/rook/pkg/cephmgr/client"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -34,15 +38,25 @@ const (
 
 type ConditionFunc func() (bool, error)
 
+type Context struct {
+	Clientset   kubernetes.Interface
+	RetryDelay  int
+	MaxRetries  int
+	MasterHost  string
+	KubeHttpCli *http.Client
+	Factory     client.ConnectionFactory
+}
+
 // Retry retries f every interval until after maxRetries.
 // The interval won't be affected by how long f takes.
 // For example, if interval is 3s, f takes 1s, another f will be called 2s later.
 // However, if f takes longer than interval, it will be delayed.
-func Retry(interval time.Duration, maxRetries int, f ConditionFunc) error {
+func Retry(context *Context, f ConditionFunc) error {
+	interval := time.Duration(context.RetryDelay) * time.Second
 	tick := time.NewTicker(interval)
 	defer tick.Stop()
 
-	for i := 0; i < maxRetries; i++ {
+	for i := 0; i < context.MaxRetries; i++ {
 		ok, err := f()
 		if err != nil {
 			return fmt.Errorf("failed on retry %d. %+v", i, err)
@@ -50,9 +64,9 @@ func Retry(interval time.Duration, maxRetries int, f ConditionFunc) error {
 		if ok {
 			return nil
 		}
-		if i < maxRetries-1 {
+		if i < context.MaxRetries-1 {
 			<-tick.C
 		}
 	}
-	return fmt.Errorf("failed after max retries %d.", maxRetries)
+	return fmt.Errorf("failed after max retries %d.", context.MaxRetries)
 }

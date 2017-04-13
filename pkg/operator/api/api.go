@@ -24,7 +24,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
@@ -34,16 +33,16 @@ const (
 )
 
 type Cluster struct {
-	clientset kubernetes.Interface
+	context   *k8sutil.Context
 	Name      string
 	Namespace string
 	Version   string
 	Replicas  int32
 }
 
-func New(clientset kubernetes.Interface, name, namespace, version string) *Cluster {
+func New(context *k8sutil.Context, name, namespace, version string) *Cluster {
 	return &Cluster{
-		clientset: clientset,
+		context:   context,
 		Name:      name,
 		Namespace: namespace,
 		Version:   version,
@@ -62,7 +61,7 @@ func (c *Cluster) Start() error {
 
 	// start the deployment
 	deployment := c.makeDeployment()
-	_, err = c.clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
+	_, err = c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create api deployment. %+v", err)
@@ -145,7 +144,7 @@ func (c *Cluster) startService() error {
 		},
 	}
 
-	s, err := c.clientset.CoreV1().Services(c.Namespace).Create(s)
+	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(s)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create api service. %+v", err)

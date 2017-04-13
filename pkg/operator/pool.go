@@ -36,17 +36,17 @@ const (
 )
 
 type poolInitiator struct {
-	context *context
+	context *k8sutil.Context
 }
 
 type poolManager struct {
 	namespace    string
 	watchVersion string
-	context      *context
+	context      *k8sutil.Context
 	rclient      rookclient.RookRestClient
 }
 
-func newPoolInitiator(context *context) *poolInitiator {
+func newPoolInitiator(context *k8sutil.Context) *poolInitiator {
 	return &poolInitiator{context: context}
 }
 
@@ -80,7 +80,7 @@ func (p *poolManager) Manage() {
 			}
 		}
 
-		<-time.After(time.Second * time.Duration(p.context.retryDelay))
+		<-time.After(time.Second * time.Duration(p.context.RetryDelay))
 	}
 }
 
@@ -107,7 +107,7 @@ func (p *poolManager) Load() error {
 }
 
 func (p *poolManager) getPoolList() (*cluster.PoolList, error) {
-	b, err := getRawListNamespaced(p.context.clientset, poolTprName, p.namespace)
+	b, err := getRawListNamespaced(p.context.Clientset, poolTprName, p.namespace)
 	if err != nil {
 		return nil, err
 	}

@@ -24,6 +24,7 @@ import (
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
 	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
 	cephrgw "github.com/rook/rook/pkg/cephmgr/rgw"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -41,7 +42,7 @@ func TestStartRGW(t *testing.T) {
 		return []byte(response), "", nil
 	}
 
-	c := New(clientset, factory, "myname", "ns", "version")
+	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory}, "myname", "ns", "version")
 	c.dataDir = "/tmp/rgwtest"
 	defer os.RemoveAll(c.dataDir)
 
@@ -76,7 +77,7 @@ func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New(nil, nil, "myname", "ns", "myversion")
+	c := New(nil, "myname", "ns", "myversion")
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)

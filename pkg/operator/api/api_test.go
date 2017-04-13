@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
@@ -30,7 +31,7 @@ import (
 
 func TestStartAPI(t *testing.T) {
 	clientset := testop.New(3)
-	c := New(clientset, "myname", "ns", "myversion")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion")
 
 	// start a basic cluster
 	err := c.Start()
@@ -47,18 +48,18 @@ func TestStartAPI(t *testing.T) {
 
 func validateStart(t *testing.T, c *Cluster) {
 
-	r, err := c.clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(DeploymentName, metav1.GetOptions{})
+	r, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(DeploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, DeploymentName, r.Name)
 
-	s, err := c.clientset.CoreV1().Services(c.Namespace).Get(DeploymentName, metav1.GetOptions{})
+	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get(DeploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, DeploymentName, s.Name)
 }
 
 func TestPodSpecs(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(clientset, "myname", "ns", "myversion")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion")
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)

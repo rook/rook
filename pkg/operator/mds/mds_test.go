@@ -23,6 +23,7 @@ import (
 
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
 	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -39,7 +40,7 @@ func TestStartMDS(t *testing.T) {
 		return []byte(response), "", nil
 	}
 
-	c := New("myname", "ns", "myversion", factory)
+	c := New(&k8sutil.Context{Factory: factory}, "myname", "ns", "myversion")
 	c.dataDir = "/tmp/mdstest"
 	defer os.RemoveAll(c.dataDir)
 
@@ -66,7 +67,7 @@ func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New("myname", "ns", "myversion", nil)
+	c := New(nil, "myname", "ns", "myversion")
 	mdsID := "mds1"
 
 	d := c.makeDeployment(mdsID)

@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
@@ -33,7 +34,7 @@ func TestPodSpecs(t *testing.T) {
 
 func testPodSpec(t *testing.T, dataDir string) {
 	clientset := testop.New(1)
-	c := New(clientset, nil, "myname", "ns", dataDir, "myversion")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", dataDir, "myversion")
 	c.clusterInfo = testop.CreateClusterInfo(0)
 	config := &MonConfig{Name: "mon0", Port: 6790}
 

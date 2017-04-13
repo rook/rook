@@ -113,7 +113,7 @@ func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
 }
 
 func (c *Cluster) getPods() (*v1.PodList, error) {
-	return c.clientset.CoreV1().Pods(c.Namespace).List(c.listOptions())
+	return c.context.Clientset.CoreV1().Pods(c.Namespace).List(c.listOptions())
 }
 
 func (c *Cluster) pollPods() ([]*v1.Pod, []*v1.Pod, error) {

@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/cephd"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -69,15 +70,16 @@ func startAPI(cmd *cobra.Command, args []string) error {
 		os.Exit(1)
 	}
 
-	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
 	factory := cephd.New()
+	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
+	dcontext := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
+	k8sContext := &k8sutil.Context{Factory: factory, Clientset: clientset}
 	apiCfg := &api.Config{
 		ConnFactory:    mon.NewConnectionFactoryWithClusterInfo(&clusterInfo),
 		CephFactory:    factory,
 		Port:           apiPort,
-		ClusterHandler: apik8s.New(clientset, context, &clusterInfo, factory, namespace, versionTag),
+		ClusterHandler: apik8s.New(k8sContext, dcontext, &clusterInfo, namespace, versionTag),
 	}
 
-	return api.Run(context, apiCfg)
+	return api.Run(dcontext, apiCfg)
 }
