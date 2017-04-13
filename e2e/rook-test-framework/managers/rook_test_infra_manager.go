@@ -159,10 +159,10 @@ func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 
 	//STEP 6 --> Patch controller --> TODO: pre-patch image
 	goPath := os.Getenv("GOPATH")
-	bytes, err := ioutil.ReadFile(goPath + "/src/github.com/dangula/rook/e2e/pod-specs/kube-controller-manager.json")
-	kubeController := string(bytes)
+	//bytes, err := ioutil.ReadFile(goPath + "/src/github.com/dangula/rook/e2e/pod-specs/kube-controller-manager.json")
+	//kubeController := string(bytes)
 
-	stdout, stderr, _ = r.transportClient.Apply([]string{kubeController})
+	stdout, stderr, _ = r.transportClient.Apply([]string{goPath + "/src/github.com/dangula/rook/e2e/pod-specs/kube-controller-manager.json"})
 
 	//STEP 7 --> Install Ceph --> TODO fix so images are already patched with ceph
 	//curl --unix-socket /var/run/docker.sock http:/containers/json | jq -r '.[].Id' | xargs -i docker exec -i {} bash -c 'apt-get -y update && apt-get install -qqy ceph-common'
