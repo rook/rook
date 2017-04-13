@@ -4,13 +4,20 @@ import (
 	"bytes"
 	"os/exec"
 	"syscall"
+	"errors"
 )
 
 type standAloneTransportClient struct {
 }
 
+
+
 func CreateNewStandAloneTransportClient() *standAloneTransportClient {
 	return &standAloneTransportClient{}
+}
+
+func (k *standAloneTransportClient) ExecuteCmd(cmd []string) (stdout string, stderr string, err error){
+	return "", "", errors.New("Not Implemented")
 }
 
 func (k *standAloneTransportClient) Execute(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {

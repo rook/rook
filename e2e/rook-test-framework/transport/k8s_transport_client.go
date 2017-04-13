@@ -13,6 +13,10 @@ func CreateNewk8sTransportClient() *k8sTransportClient {
 
 const defaultFailedCode = 1
 
+func (k *k8sTransportClient) ExecuteCmd(cmd []string) (stdout string, stderr string, err error) {
+	return utils.ExecuteCmdAndLogToConsole("kubectl", cmd, []string{})
+}
+
 func (k *k8sTransportClient) Execute(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
 	if optional != nil {

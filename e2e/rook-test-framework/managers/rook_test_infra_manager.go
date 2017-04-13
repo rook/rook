@@ -8,13 +8,18 @@ import (
 	"github.com/dangula/rook/e2e/rook-test-framework/transport"
 	"github.com/dangula/rook/e2e/rook-test-framework/objects"
 	"fmt"
+	"bytes"
+	"os/exec"
+
+	"io/ioutil"
+	"os"
 )
 
 type rookTestInfraManager struct {
 	transportClient contracts.ITransportClient
 	platformType enums.RookPlatformType
 	dockerized bool
-	dockerContext objects.DockerContext
+	dockerContext *objects.DockerContext
 }
 
 func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized bool) (error, rookTestInfraManager) {
@@ -24,11 +29,14 @@ func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized b
 
 
 	//TODO this needs to come from user IF remote or using docker-machine
-	dockerEnv := []string {
-		"DOCKER_TLS_VERIFY=1",
-		"DOCKER_HOST=tcp://192.168.99.100:2376",
-		"DOCKER_CERT_PATH=/Users/tyjohnson/.docker/machine/machines/default",
-		"DOCKER_MACHINE_NAME=default"}
+	//dockerEnv := []string {
+	//	"DOCKER_TLS_VERIFY=1",
+	//	"DOCKER_HOST=tcp://192.168.99.100:2376",
+	//	"DOCKER_CERT_PATH=/Users/tyjohnson/.docker/machine/machines/default",
+	//	"DOCKER_MACHINE_NAME=default"}
+
+
+	dockerEnv := []string {}
 
 	if isDockerized {
 		dockerContext = objects.SetDockerContext(transport.CreateDockerClient(dockerEnv))
@@ -47,11 +55,11 @@ func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized b
 		platformType: platformType,
 		transportClient: transportClient,
 		dockerized: dockerized,
-		dockerContext: dockerContext,
+		dockerContext: &dockerContext,
 	}
 }
 
-func (r rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
+func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 	if r.dockerized {
 		//validate docker is available
 
@@ -62,7 +70,7 @@ func (r rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 		cmd := []string {
 			"--rm", "-itd", "--net=host", "-e=\"container=docker\"", "--privileged", "--security-opt=seccomp:unconfined",
 			"--cap-add=SYS_ADMIN", "-v", "/dev:/dev", "-v","/sys:/sys", "-v", "/sys/fs/cgroup:/sys/fs/cgroup", "-v", "/sbin/modprobe:/sbin/modprobe",
-			"-v", "/lib/modules:/lib/modules:rw", "-v", "/var/run/docker.sock:/tmp/docker.sock", "quay.io/quantum/rook-test", "/sbin/init",
+			"-v", "/lib/modules:/lib/modules:rw", "-v", "/var/run/docker.sock:/tmp/docker.sock", "-p", "8080", "-P", "quay.io/quantum/rook-test", "/sbin/init",
 		}
 
 
@@ -75,9 +83,13 @@ func (r rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 
 		//save containerId to struct --> TODO fix
 		r.dockerContext.Set_ContainerId(stderr)
-		containerId := stderr
+		containerId := r.dockerContext.Get_ContainerId()
 
-		stdout, stderr, exitCode := dockerClient.Execute([]string{containerId, "docker", "info"})
+		stdout, stderr, exitCode := dockerClient.Execute([]string{containerId, "sleep", "10"})
+
+
+
+		stdout, stderr, exitCode = dockerClient.Execute([]string{containerId, "docker", "info"})
 
 		stdout, stderr, exitCode = dockerClient.Execute([]string{containerId, "rm", "-rfv", "/var/run/docker.sock"})
 
@@ -105,19 +117,31 @@ func (r rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 		stdout, stderr, err = dockerClient.Execute([]string{containerId, "./dind-cluster-v1.5.sh", "up"})
 
 
-		stdout, stderr, err = dockerClient.Stop([]string{containerId})
+		//stdout, stderr, err = dockerClient.Stop([]string{containerId})
 		//STEP 3 --> Untaint master node
-		// kubectl taint nodes --all dedicated-
+		k8sClient := transport.CreateNewk8sTransportClient()
+
+		stdout, stderr, err = k8sClient.ExecuteCmd([]string{"taint", "nodes", "--all", "dedicated-"})
 
 		//STEP 4 --> Drain node 2 --> TODO: fix script not to create 1st and 2nd node
+		stdout, stderr, err = k8sClient.ExecuteCmd([]string{"drain", "kube-node-2", "--force", "--ignore-daemonsets"})
 		// kubectl drain kube-node-2 --force --ignore-daemonsets
 
 		//STEP 5 --> Delete 2nd unneeded node --> TODO: fix script not to create 1st and 2nd node
+		stdout, stderr, err = k8sClient.ExecuteCmd([]string{"delete", "node", "kube-node-2", "--force"})
 		// kubectl delete node kube-node-2 --force
 
+
 		//STEP 6 --> Patch controller --> TODO: pre-patch image
-		//download controller.json
+		goPath := os.Getenv("GOPATH")
+		bytes, err := ioutil.ReadFile(goPath + "/src/github.com/dangula/rook/e2e/pod-specs/kube-controller-manager.json")
+		kubeController := string(bytes)
+
+		stdout, stderr, err = dockerClient.Execute([]string{containerId, "bash", "-c", "echo '" + kubeController + "' > kube-controller-manager.json"})
+
 		// yes | cp -rf kube-controller-manager.json $(find /var/lib/docker/aufs/mnt -type f -name kube-controller-manager.json)
+		//stdout, stderr, err = dockerClient.Execute([]string{containerId, "bash", "-c", "yes", "|", "cp", "-rf", "kube-controller-manager.json", "$(find /var/lib/docker/aufs/mnt -type f -name kube-controller-manager.json)"})
+
 
 		//STEP 7 --> Install Ceph --> TODO fix so images are already patched with ceph
 		//curl --unix-socket /var/run/docker.sock http:/containers/json | jq -r '.[].Id' | xargs -i docker exec -i {} bash -c 'apt-get -y update && apt-get install -qqy ceph-common'
@@ -131,17 +155,46 @@ func (r rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 	return nil
 }
 
-func (r rookTestInfraManager) InstallRook(tag string) (error, client contracts.Irook_client)	{
+func (r *rookTestInfraManager) InstallRook(tag string) (error, client contracts.Irook_client)	{
 	//if k8
 	//STEP 1 --> Create rook operator
+	goPath := os.Getenv("GOPATH")
+	rookOperatorPath := goPath + "/src/github.com/dangula/rook/e2e/pod-specs/rook-operator.yaml"
+
+	raw, _ := ioutil.ReadFile(rookOperatorPath)
+
+	rawUpdated := bytes.Replace(raw, []byte("#IMAGE_PATH#"), []byte(tag), 1)
+	//rookOperator := string(rawUpdated)
+
+	ioutil.WriteFile("temp_rook-operator.yaml", rawUpdated, 0644)
+
+	stdOut, stdErr, exit := r.transportClient.Create([]string{ "temp_rook-operator.yaml"}, []string{})
+
+	if exit != 0 {
+		fmt.Println(stdOut + stdErr)
+	}
 	// create pod spec
 	//wait for up
 
 	//STEP 2 --> Create rook cluster
+	rookCluster := goPath + "/src/github.com/dangula/rook/e2e/pod-specs/rook-cluster.yaml"
+
+	stdOut, stdErr, exit = r.transportClient.Create([]string{rookCluster}, []string{})
+
+	if exit != 0 {
+		fmt.Println(stdOut + stdErr)
+	}
 	//create pod spec
 	//wait for up
 
 	//STEP 3 --> Create rook client
+	rookClient := goPath + "/src/github.com/dangula/rook/e2e/pod-specs/rook-client.yaml"
+
+	stdOut, stdErr, exit = r.transportClient.Create([]string{rookClient}, []string{})
+
+	if exit != 0 {
+		fmt.Println(stdOut + stdErr)
+	}
 	//create pod spec
 	//wait for up
 
@@ -168,4 +221,47 @@ func (r rookTestInfraManager) CanConnectToDocker() bool {
 
 func (r rookTestInfraManager) CanConnectToK8s() bool {
 	return false
+}
+
+func (r rookTestInfraManager) pipeline(cmds ...*exec.Cmd) (pipeLineOutput, collectedStandardError []byte, pipeLineError error) {
+	// Require at least one command
+	if len(cmds) < 1 {
+		return nil, nil, nil
+	}
+
+	// Collect the output from the command(s)
+	var output bytes.Buffer
+	var stderr bytes.Buffer
+
+	last := len(cmds) - 1
+	for i, cmd := range cmds[:last] {
+		var err error
+
+		// Connect each command's stdin to the previous command's stdout
+		if cmds[i+1].Stdin, err = cmd.StdoutPipe(); err != nil {
+			return nil, nil, err
+		}
+		// Connect each command's stderr to a buffer
+		cmd.Stderr = &stderr
+	}
+
+	// Connect the output and error for the last command
+	cmds[last].Stdout, cmds[last].Stderr = &output, &stderr
+
+	// Start each command
+	for _, cmd := range cmds {
+		if err := cmd.Start(); err != nil {
+			return output.Bytes(), stderr.Bytes(), err
+		}
+	}
+
+	// Wait for each command to complete
+	for _, cmd := range cmds {
+		if err := cmd.Wait(); err != nil {
+			return output.Bytes(), stderr.Bytes(), err
+		}
+	}
+
+	// Return the pipeline output and the collected standard error
+	return output.Bytes(), stderr.Bytes(), nil
 }

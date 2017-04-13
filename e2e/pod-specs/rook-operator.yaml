@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
       - name: rook-operator
-        image: quay.io/rook/rookd:master-latest
+        image: #IMAGE_PATH#
         args: ["operator"]
         env:
         - name: ROOKD_NAMESPACE
