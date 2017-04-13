@@ -121,15 +121,15 @@ func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 
 	switch {
 	case strings.EqualFold(r.k8sVersion.String(), enums.V1dot5.String()):
-		dindScriptName = "dind-cluster-v1.5.sh"
+		dindScriptName = "rook-dind-cluster-v1.5.sh"
 	case strings.EqualFold(r.k8sVersion.String(), enums.V1dot6.String()):
-		dindScriptName = "dind-cluster-v1.6.sh"
+		dindScriptName = "rook-dind-cluster-v1.6.sh"
 	default:
 		return errors.New("Unsupported Kubernetes version")
 	}
 
 	stdout, stderr, err = dockerClient.Execute([]string{containerId, "curl", "-o", dindScriptName,
-		"https://raw.githubusercontent.com/Mirantis/kubeadm-dind-cluster/master/fixed/" + dindScriptName,
+		"https://raw.githubusercontent.com/dangula/rook/RookOpsFamework/e2e/scripts/" + dindScriptName,
 		})
 
 	//chmod +x
