@@ -199,6 +199,8 @@ func (r *rookTestInfraManager) InstallRook(tag string) (error, client contracts.
 		fmt.Println("Rook Operator started")
 	}
 
+	time.Sleep(10*time.Second)
+
 	// create pod spec
 	//wait for up
 
@@ -219,7 +221,6 @@ func (r *rookTestInfraManager) InstallRook(tag string) (error, client contracts.
 		fmt.Println("Rook Cluster started")
 	}
 
-	time.Sleep(10*time.Second)
 	//create pod spec
 	//wait for up
 
