@@ -195,6 +195,8 @@ func (r *rookTestInfraManager) InstallRook(tag string) (error, client contracts.
 
 	if !start_rook_operator{
 		fmt.Println("Rook Operator couldn't start")
+	}else{
+		fmt.Println("Rook Operator started")
 	}
 
 	// create pod spec
@@ -213,6 +215,8 @@ func (r *rookTestInfraManager) InstallRook(tag string) (error, client contracts.
 
 	if !start_rook_cluster{
 		fmt.Println("Rook Cluster couldn't start")
+	}else{
+		fmt.Println("Rook Cluster started")
 	}
 
 	time.Sleep(10*time.Second)
@@ -232,6 +236,8 @@ func (r *rookTestInfraManager) InstallRook(tag string) (error, client contracts.
 
 	if !start_rook_client {
 		fmt.Println("Rook Client couldn't start")
+	}else{
+		fmt.Println("Rook Client started")
 	}
 	//create pod spec
 	//wait for up
