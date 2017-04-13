@@ -18,7 +18,7 @@ func (k *k8sTransportClient) ExecuteCmd(cmd []string) (stdout string, stderr str
 }
 
 func (k *k8sTransportClient) Apply (cmdArgs []string) (stdout string, stderr string, err error) {
-	initialArgs := []string{"apply", "-f"}
+	initialArgs := []string{"replace", "--force",  "-f"}
 	cmdArgs = append(initialArgs, cmdArgs...)
 	return utils.ExecuteCmdAndLogToConsole("kubectl", cmdArgs, []string{})
 }
