@@ -14,6 +14,7 @@ import (
 	"io/ioutil"
 	"os"
 	"sync"
+	"strings"
 )
 
 type rookTestInfraManager struct {
@@ -21,6 +22,7 @@ type rookTestInfraManager struct {
 	platformType enums.RookPlatformType
 	dockerized bool
 	dockerContext *objects.DockerContext
+	k8sVersion enums.K8sVersion
 }
 
 
@@ -30,7 +32,7 @@ var (
 )
 
 
-func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized bool) (error, *rookTestInfraManager) {
+func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized bool, version enums.K8sVersion) (error, *rookTestInfraManager) {
 	var transportClient contracts.ITransportClient
 	var dockerContext objects.DockerContext
 	var dockerized bool = isDockerized
@@ -39,12 +41,7 @@ func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized b
 		return nil, r
 	}
 
-	//this is needed when test development vs boot2docker
-	//dockerEnv := []string {
-	//	"DOCKER_TLS_VERIFY=1",
-	//	"DOCKER_HOST=tcp://192.168.99.100:2376",
-	//	"DOCKER_CERT_PATH=/Users/tyjohnson/.docker/machine/machines/default",
-	//	"DOCKER_MACHINE_NAME=default"}
+
 
 	switch {
 	case platformType == enums.Kubernetes:
@@ -56,7 +53,13 @@ func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized b
 	}
 
 	once.Do(func() {
-		dockerEnv := []string {}
+		//this is needed when test development vs boot2docker
+		dockerEnv := []string {
+			"DOCKER_TLS_VERIFY=1",
+			"DOCKER_HOST=tcp://192.168.99.100:2376",
+			"DOCKER_CERT_PATH=/Users/tyjohnson/.docker/machine/machines/default",
+			"DOCKER_MACHINE_NAME=default"}
+		//dockerEnv := []string {}
 
 		if isDockerized {
 			dockerContext = objects.SetDockerContext(transport.CreateDockerClient(dockerEnv))
@@ -67,6 +70,7 @@ func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized b
 				transportClient: transportClient,
 				dockerized: dockerized,
 				dockerContext: &dockerContext,
+				k8sVersion: version,
 			}
 	})
 
@@ -80,9 +84,6 @@ func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 		return nil
 	}
 
-	//validate docker is available
-
-	//verify docker container is not already running
 	//execute command to init docker container
 	_, dockerClient := r.dockerContext.Get_DockerClient()
 
@@ -104,8 +105,6 @@ func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 
 	stdout, stderr, exitCode := dockerClient.Execute([]string{containerId, "sleep", "10"})
 
-
-
 	stdout, stderr, exitCode = dockerClient.Execute([]string{containerId, "docker", "info"})
 
 	stdout, stderr, exitCode = dockerClient.Execute([]string{containerId, "rm", "-rfv", "/var/run/docker.sock"})
@@ -114,24 +113,31 @@ func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 	//STEP 1 --> Create symlink from /docker.sock to /var/run/docker.sock
 	stdout, stderr, err = dockerClient.Execute([]string{containerId, "ln", "-s", "/tmp/docker.sock", "/var/run/docker.sock"})
 
-
-
 	r.dockerContext.Set_ContainerId(stderr)
-
 
 	//STEP 2 --> Bring up k8s cluster
 	//download script to container
-	stdout, stderr, err = dockerClient.Execute([]string{containerId, "curl", "-o", "dind-cluster-v1.5.sh",
-		"https://raw.githubusercontent.com/Mirantis/kubeadm-dind-cluster/master/fixed/dind-cluster-v1.5.sh",
+	var dindScriptName string
+
+	switch {
+	case strings.EqualFold(r.k8sVersion.String(), enums.V1dot5.String()):
+		dindScriptName = "dind-cluster-v1.5.sh"
+	case strings.EqualFold(r.k8sVersion.String(), enums.V1dot6.String()):
+		dindScriptName = "dind-cluster-v1.6.sh"
+	default:
+		return errors.New("Unsupported Kubernetes version")
+	}
+
+	stdout, stderr, err = dockerClient.Execute([]string{containerId, "curl", "-o", dindScriptName,
+		"https://raw.githubusercontent.com/Mirantis/kubeadm-dind-cluster/master/fixed/" + dindScriptName,
 		})
 
-
 	//chmod +x
-	stdout, stderr, err = dockerClient.Execute([]string{containerId, "chmod", "+x", "dind-cluster-v1.5.sh"})
+	stdout, stderr, err = dockerClient.Execute([]string{containerId, "chmod", "+x", dindScriptName})
 
 
 	//run script
-	stdout, stderr, err = dockerClient.Execute([]string{containerId, "./dind-cluster-v1.5.sh", "up"})
+	stdout, stderr, err = dockerClient.Execute([]string{containerId, "./" + dindScriptName, "up"})
 
 
 	//stdout, stderr, err = dockerClient.Stop([]string{containerId})
@@ -221,11 +227,9 @@ func (r *rookTestInfraManager) isContainerRunning(containerId string) bool {
 		return false
 	}
 
-	stdOut, stdErr, err := dockerClient.Execute([]string {"ps", "--filter", "\"status=running\"", "\"id=" + containerId +"\"", "--format \"{{.ID}}\""})
+	_, stdErr, _ := dockerClient.ExecuteCmd([]string {"ps", "--filter", "status=running", "--filter", "id=" + containerId, "--format",  "\"{{.ID}}\""})
 
-	fmt.Println(stdOut, stdErr)
-
-	return true
+	return strings.EqualFold(stdErr, containerId)
 }
 
 func (r rookTestInfraManager) TearDownRook(client contracts.Irook_client) error	{

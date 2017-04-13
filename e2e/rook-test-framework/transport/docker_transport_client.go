@@ -34,3 +34,7 @@ func (k *dockerClient) Stop(cmdArgs []string) (stdout string, stderr string, err
 
 	return utils.ExecuteCmdAndLogToConsole("docker",  cmdArgs, k.env)
 }
+
+func (k *dockerClient) ExecuteCmd(cmdArgs []string) (stdout string, stderr string, err error) {
+	return utils.ExecuteCmdAndLogToConsole("docker",  cmdArgs, k.env)
+}

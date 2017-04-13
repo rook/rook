@@ -7,7 +7,7 @@ import (
 )
 
 func TestDockerSetup_test(t *testing.T) {
-	_, rookInfraMgr := managers.GetRookTestInfraManager(enums.Kubernetes, true)
+	_, rookInfraMgr := managers.GetRookTestInfraManager(enums.Kubernetes, true, enums.V1dot5)
 
 	error := rookInfraMgr.ValidateAndPrepareEnvironment()
 
