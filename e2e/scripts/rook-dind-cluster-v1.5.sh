@@ -46,13 +46,14 @@ if [[ ! ${EMBEDDED_CONFIG:-} ]]; then
   source "${DIND_ROOT}/config.sh"
 fi
 
+CNI_PLUGIN="${CNI_PLUGIN:-bridge}"
 DIND_SUBNET="${DIND_SUBNET:-10.192.0.0}"
 dind_ip_base="$(echo "${DIND_SUBNET}" | sed 's/\.0$//')"
 DIND_IMAGE="${DIND_IMAGE:-}"
 BUILD_KUBEADM="${BUILD_KUBEADM:-}"
 BUILD_HYPERKUBE="${BUILD_HYPERKUBE:-}"
 APISERVER_PORT=${APISERVER_PORT:-8080}
-NUM_NODES=${NUM_NODES:-2}
+NUM_NODES=${NUM_NODES:-0}
 LOCAL_KUBECTL_VERSION=${LOCAL_KUBECTL_VERSION:-}
 KUBECTL_DIR="${KUBECTL_DIR:-${HOME}/.kubeadm-dind-cluster}"
 DASHBOARD_URL="${DASHBOARD_URL:-https://rawgit.com/kubernetes/dashboard/bfab10151f012d1acc5dfb1979f3172e2400aa3c/src/deploy/kubernetes-dashboard.yaml}"
@@ -143,7 +144,7 @@ function dind::prepare-sys-mounts {
       sys_volume_args+=(-v /dev:/dev)
     fi
     if [[ -d /sys/bus ]]; then
-      sys_volume_args+=(-v /sys/bus:/sys/bus)
+      sys_volume_args+=(-v /sys:/sys)
     fi
     return 0
   fi
@@ -246,9 +247,9 @@ function dind::ensure-downloaded-kubectl {
       kubectl_sha1_darwin=5e671ba792567574eea48be4eddd844ba2f07c27
       ;;
     v1.6)
-      full_kubectl_version=v1.6.0-rc.1
-      kubectl_sha1_linux=ecbcbb3e60df9b8b2a35cd84e92d0b720a9cc217
-      kubectl_sha1_darwin=052d571227587b5bcc5323aaa2f41d8c24d7b7b5
+      full_kubectl_version=v1.6.1
+      kubectl_sha1_linux=65d27d731fbd25aa6beb6049691d58c5f09848c0
+      kubectl_sha1_darwin=f12a74544a19d3480466cc6046e18cb7c04591e1
       ;;
     "")
       return 0
@@ -354,7 +355,7 @@ function dind::run {
     shift $#
   fi
   local -a opts=(--ip "${ip}" "$@")
-  local -a args
+  local -a args=("systemd.setenv=CNI_PLUGIN=${CNI_PLUGIN}")
 
   if [[ ! "${container_name}" ]]; then
     echo >&2 "Must specify container name"
@@ -368,8 +369,8 @@ function dind::run {
     opts+=(-p "$portforward")
   fi
 
-  if [[ "$netshift" ]]; then
-    args+=("systemd.setenv=DOCKER_NETWORK_OFFSET=0.0.${netshift}.0")
+  if [[ ${CNI_PLUGIN} = bridge && ${netshift} ]]; then
+    args+=("systemd.setenv=CNI_BRIDGE_NETWORK_OFFSET=0.0.${netshift}.0")
   fi
 
   opts+=(${sys_volume_args[@]+"${sys_volume_args[@]}"})
@@ -457,10 +458,24 @@ function dind::set-master-opts {
   fi
 }
 
+cached_use_rbac=
+function dind::use-rbac {
+  # we use rbac in case of k8s 1.6
+  if [[ ${cached_use_rbac} ]]; then
+    [[ ${cached_use_rbac} = 1 ]] && return 0 || return 1
+  fi
+  cached_use_rbac=0
+  if "${kubectl}" version --short >& /dev/null && ! "${kubectl}" version --short | grep -q 'Server Version: v1\.5\.'; then
+    cached_use_rbac=1
+    return 0
+  fi
+  return 1
+}
+
 function dind::deploy-dashboard {
   dind::step "Deploying k8s dashboard"
   "${kubectl}" create -f "${DASHBOARD_URL}"
-  if "${kubectl}" version --short >& /dev/null && ! "${kubectl}" version --short | grep -q 'Server Version: v1\.5\.'; then
+  if dind::use-rbac; then
     # https://kubernetes-io-vnext-staging.netlify.com/docs/admin/authorization/rbac/#service-account-permissions
     # Thanks @liggitt for the hint
     "${kubectl}" create clusterrolebinding add-on-cluster-admin --clusterrole=cluster-admin --serviceaccount=kube-system:default
@@ -475,9 +490,9 @@ function dind::init {
   # FIXME: I tried using custom tokens with 'kubeadm ex token create' but join failed with:
   # 'failed to parse response as JWS object [square/go-jose: compact JWS format must have three parts]'
   # So we just pick the line from 'kubeadm init' output
-  kubeadm_join_flags="$(dind::kubeadm "${container_id}" init --skip-preflight-checks "$@" | grep '^ *kubeadm join' | sed 's/^ *kubeadm join //')"
+  kubeadm_join_flags="$(dind::kubeadm "${container_id}" init --pod-network-cidr=10.244.0.0/16 --skip-preflight-checks "$@" | grep '^ *kubeadm join' | sed 's/^ *kubeadm join //')"
   dind::configure-kubectl
-  #dind::deploy-dashboard
+  dind::deploy-dashboard
 }
 
 function dind::create-node-container {
@@ -537,12 +552,24 @@ function dind::component-ready {
   return 0
 }
 
+function dind::kill-failed-pods {
+  local pods
+  # workaround for https://github.com/kubernetes/kubernetes/issues/36482
+  if ! pods="$(kubectl get pod -n kube-system -o jsonpath='{ .items[?(@.status.phase == "Failed")].metadata.name }' 2>/dev/null)"; then
+    return
+  fi
+  for name in ${pods}; do
+    kubectl delete pod --now -n kube-system "${name}" >&/dev/null || true
+  done
+}
+
 function dind::wait-for-ready {
   dind::step "Waiting for kube-proxy and the nodes"
   local proxy_ready
   local nodes_ready
   local n=3
   while true; do
+    dind::kill-failed-pods
     if "${kubectl}" get nodes 2>/dev/null| grep -q NotReady; then
       nodes_ready=
     else
@@ -571,14 +598,10 @@ function dind::wait-for-ready {
 
   while ! dind::component-ready k8s-app=kube-dns || ! dind::component-ready app=kubernetes-dashboard; do
     echo -n "." >&2
+    dind::kill-failed-pods
     sleep 1
   done
   echo "[done]" >&2
-
-  "${kubectl}" get pods -n kube-system -l k8s-app=kube-discovery | (grep MatchNodeSelector || true) | awk '{print $1}' | while read name; do
-    dind::step "Killing off stale kube-discovery pod" "${name}"
-    "${kubectl}" delete pod --now -n kube-system "${name}"
-  done
 
   "${kubectl}" get nodes >&2
   dind::step "Access dashboard at:" "http://localhost:${APISERVER_PORT}/ui"
@@ -618,7 +641,152 @@ function dind::up {
   for pid in ${pids[*]}; do
     wait ${pid}
   done
+  case "${CNI_PLUGIN}" in
+    bridge)
+      ;;
+    flannel)
+      if dind::use-rbac; then
+        curl -sSL "https://github.com/coreos/flannel/blob/master/Documentation/kube-flannel-rbac.yml?raw=true" | "${kubectl}" create -f -
+        # FIXME: current kube-flannel yaml causes problems after cluster restart
+        # kube-dns and kubernetes-dashboard stay in "ContainerCreating" state.
+        # Flannel pods become 'Running' for a brief amount of time and then
+        # die while trying to contact apiserver.
+        # Following the advice from https://github.com/kubernetes/kubernetes/issues/39701 (comments)
+        # we hardcode apiserver host into flannel pod definition
+        # (KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT)
+        # We could use 'kubectl convert' + 'jq' but we don't want
+        # to require jq on the host, and doing this via docker is cumbersome,
+        # so for now we're embedding patched flannel yaml here.
+        # For some reason the problem happens only on 1.6.
+        "${kubectl}" create -f - <<EOF
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: flannel
+  namespace: kube-system
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: kube-flannel-cfg
+  namespace: kube-system
+  labels:
+    tier: node
+    app: flannel
+data:
+  cni-conf.json: |
+    {
+      "name": "cbr0",
+      "type": "flannel",
+      "delegate": {
+        "isDefaultGateway": true
+      }
+    }
+  net-conf.json: |
+    {
+      "Network": "10.244.0.0/16",
+      "Backend": {
+        "Type": "vxlan"
+      }
+    }
+---
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: kube-flannel-ds
+  namespace: kube-system
+  labels:
+    tier: node
+    app: flannel
+spec:
+  template:
+    metadata:
+      labels:
+        tier: node
+        app: flannel
+    spec:
+      hostNetwork: true
+      nodeSelector:
+        beta.kubernetes.io/arch: amd64
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        effect: NoSchedule
+      serviceAccountName: flannel
+      containers:
+      - name: kube-flannel
+        image: quay.io/coreos/flannel:v0.7.0-amd64
+        command: [ "/opt/bin/flanneld", "--ip-masq", "--kube-subnet-mgr" ]
+        securityContext:
+          privileged: true
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: KUBERNETES_SERVICE_HOST
+          value: "kube-master"
+        - name: KUBERNETES_SERVICE_PORT
+          value: "6443"
+        volumeMounts:
+        - name: run
+          mountPath: /run
+        - name: flannel-cfg
+          mountPath: /etc/kube-flannel/
+      - name: install-cni
+        image: quay.io/coreos/flannel:v0.7.0-amd64
+        command: [ "/bin/sh", "-c", "set -e -x; cp -f /etc/kube-flannel/cni-conf.json /etc/cni/net.d/10-flannel.conf; while true; do sleep 3600; done" ]
+        volumeMounts:
+        - name: cni
+          mountPath: /etc/cni/net.d
+        - name: flannel-cfg
+          mountPath: /etc/kube-flannel/
+      volumes:
+        - name: run
+          hostPath:
+            path: /run
+        - name: cni
+          hostPath:
+            path: /etc/cni/net.d
+        - name: flannel-cfg
+          configMap:
+            name: kube-flannel-cfg
+EOF
+      else
+        # without --validate=false this will fail on older k8s versions
+        curl -sSL "https://github.com/coreos/flannel/blob/master/Documentation/kube-flannel.yml?raw=true" | "${kubectl}" create --validate=false -f -
+      fi
+      ;;
+    calico)
+      if dind::use-rbac; then
+        "${kubectl}" apply -f http://docs.projectcalico.org/v2.1/getting-started/kubernetes/installation/hosted/kubeadm/1.6/calico.yaml
+      else
+        "${kubectl}" apply -f http://docs.projectcalico.org/v2.0/getting-started/kubernetes/installation/hosted/kubeadm/calico.yaml
+      fi
+      ;;
+    weave)
+      if dind::use-rbac; then
+        "${kubectl}" apply -f "https://github.com/weaveworks/weave/blob/master/prog/weave-kube/weave-daemonset-k8s-1.6.yaml?raw=true"
+      else
+        "${kubectl}" apply -f https://git.io/weave-kube
+      fi
+      ;;
+    *)
+      echo "Unsupported CNI plugin '${CNI_PLUGIN}'" >&2
+      ;;
+  esac
   dind::accelerate-kube-dns
+  if [[ ${CNI_PLUGIN} != bridge ]]; then
+    # This is especially important in case of Calico -
+    # the cluster will not recover after snapshotting
+    # (at least not after restarting from the snapshot)
+    # if Calico installation is interrupted
+    dind::wait-for-ready
+  fi
 }
 
 function dind::snapshot_container {
@@ -803,7 +971,7 @@ case "${1:-}" in
     dind::ensure-kubectl
     if ! dind::check-for-snapshot; then
       force_make_binaries=y dind::up
-      #dind::snapshot
+      dind::snapshot
     else
       dind::restore
     fi
