@@ -86,24 +86,3 @@ func (s3Help *S3Helper) DeleteObjectInBucket(bucketname string, key string) (boo
 	}
 	return true, nil
 }
-
-/*func main() {
-	*//*	fmt.Println("Hello World")
-		os.Setenv("AWS_HOST","rook-rgw")
-		os.Setenv("AWS_ENDPOINT","http://172.17.4.201:30169")
-		os.Setenv("AWS_ACCESS_KEY_ID","WDHV55GA4VFELGPB2PVQ")
-		os.Setenv("AWS_SECRET_ACCESS_KEY","FEbHX2CEpvBMMXYUap0LVo8SheWGAJkRMjloAYOA")*//*
-	bucket := "testBkt"
-	key := "mykey1"
-	contentType := "text/plain"
-
-	s3Ops := CreateNewS3Helper("http://172.17.4.201:30169", "WDHV55GA4VFELGPB2PVQ",
-		"FEbHX2CEpvBMMXYUap0LVo8SheWGAJkRMjloAYOA")
-
-	fmt.Println(s3Ops.CreateBucket(bucket))
-	fmt.Println(s3Ops.PutObjectInBucket(bucket, "This is a a test", key, contentType))
-	fmt.Println(s3Ops.GetObjectInBucket(bucket, key))
-	//fmt.Println(s3Ops.DeleteObjectInBucket(bucket, key))
-	//fmt.Println(s3Ops.DeleteBucket(bucket))
-
-}*/

@@ -192,7 +192,7 @@ func (k8sh *K8sHelper) IsServiceUp(name string) bool {
 
 func (k8sh *K8sHelper) IsServiceUpInNameSpace(name string) bool {
 
-	cmdArgs := []string{"get", "svc","-n","rook", name}
+	cmdArgs := []string{"get", "svc", "-n", "rook", name}
 	inc := 0
 	for inc < 20 {
 		_, _, status := ExecuteCmd("kubectl", cmdArgs)
@@ -204,4 +204,13 @@ func (k8sh *K8sHelper) IsServiceUpInNameSpace(name string) bool {
 
 	}
 	return false
+}
+
+func (k8sh *K8sHelper) GetService(servicename string) (string, error) {
+	cmdArgs := []string{"get", "svc", "-n", "rook", servicename}
+	sout, serr, status := ExecuteCmd("kubectl", cmdArgs)
+	if status != 0 {
+		return serr, errors.New("Cannot find rgw service")
+	}
+	return sout, nil
 }

@@ -10,6 +10,7 @@ func TestBlockStorage_SmokeTest(t *testing.T) {
 
 	t.Log("Block Storage Smoke Test - Create,Mount,write to, read from  and Unmount Block")
 	sc, _ := CreateSmokeTestClient(enums.Kubernetes)
+	defer blockTestcleanup()
 	rh := sc.rookHelp
 	rbc := sc.GetBlockClient()
 	t.Log("Step 0 : Get Initial List Block")
@@ -55,4 +56,11 @@ func TestBlockStorage_SmokeTest(t *testing.T) {
 	assert.Empty(t, len(initblocklistMap), len(blocklistMapAfterBlockDelete), "Make sure a new block is created")
 	t.Log("Block Storage deleted successfully")
 
+}
+
+func blockTestcleanup() {
+	sc, _ := CreateSmokeTestClient(enums.Kubernetes)
+	sc.UnMountBlockStorage()
+	sc.DeleteBlockStorage()
+	sc.CleanUpDymanicBlockStorge()
 }
