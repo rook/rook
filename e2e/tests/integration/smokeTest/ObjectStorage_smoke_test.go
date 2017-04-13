@@ -18,8 +18,13 @@ var (
 	contentType     = "plain/text"
 )
 
-func TestObjectStorage_SmokeTest(t *testing.T) {
+func setUpBeforeTest(){
+	sc, _ := CreateSmokeTestClient(enums.Kubernetes)
+	sc.CreateObjectStore()
+}
 
+func TestObjectStorage_SmokeTest(t *testing.T) {
+	setUpBeforeTest()
 	t.Log("Object Storage Smoke Test")
 	sc, _ := CreateSmokeTestClient(enums.Kubernetes)
 	defer objetTestcleanup()
