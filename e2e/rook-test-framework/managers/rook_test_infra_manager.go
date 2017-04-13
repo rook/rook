@@ -15,6 +15,7 @@ import (
 	"os"
 	"sync"
 	"strings"
+	"github.com/dangula/rook/e2e/rook-test-framework/utils"
 )
 
 type rookTestInfraManager struct {
@@ -57,7 +58,7 @@ func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized b
 		dockerEnv := []string {
 			"DOCKER_TLS_VERIFY=1",
 			"DOCKER_HOST=tcp://192.168.99.100:2376",
-			"DOCKER_CERT_PATH=/Users/tyjohnson/.docker/machine/machines/default",
+			//"DOCKER_CERT_PATH=/Users/tyjohnson/.docker/machine/machines/default",
 			"DOCKER_MACHINE_NAME=default"}
 		//dockerEnv := []string {}
 
@@ -178,6 +179,7 @@ func (r *rookTestInfraManager) InstallRook(tag string) (error, client contracts.
 	//STEP 1 --> Create rook operator
 	goPath := os.Getenv("GOPATH")
 	rookOperatorPath := goPath + "/src/github.com/dangula/rook/e2e/pod-specs/rook-operator.yaml"
+	k8shelp := utils.CreatK8sHelper()
 
 	raw, _ := ioutil.ReadFile(rookOperatorPath)
 
@@ -191,6 +193,13 @@ func (r *rookTestInfraManager) InstallRook(tag string) (error, client contracts.
 	if exit != 0 {
 		fmt.Println(stdOut + stdErr)
 	}
+
+	start_rook_operator := k8shelp.IsThirdPartyResourcePresent("rookcluster.rook.io")
+
+	if !start_rook_operator{
+		fmt.Println("Rook Operator couldn't start")
+	}
+
 	// create pod spec
 	//wait for up
 
@@ -202,6 +211,13 @@ func (r *rookTestInfraManager) InstallRook(tag string) (error, client contracts.
 	if exit != 0 {
 		fmt.Println(stdOut + stdErr)
 	}
+
+	start_rook_cluster := k8shelp.IsServiceUpInNameSpace("rook-api")
+
+	if !start_rook_cluster{
+		fmt.Println("Rook Cluster couldn't start")
+	}
+
 	//create pod spec
 	//wait for up
 
@@ -212,6 +228,12 @@ func (r *rookTestInfraManager) InstallRook(tag string) (error, client contracts.
 
 	if exit != 0 {
 		fmt.Println(stdOut + stdErr)
+	}
+
+	start_rook_client := k8shelp.IsPodRunningInNamespace("rook-client")
+
+	if !start_rook_client {
+		fmt.Println("Rook Client couldn't start")
 	}
 	//create pod spec
 	//wait for up

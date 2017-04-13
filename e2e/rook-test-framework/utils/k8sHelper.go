@@ -210,7 +210,23 @@ func (k8sh *K8sHelper) GetService(servicename string) (string, error) {
 	cmdArgs := []string{"get", "svc", "-n", "rook", servicename}
 	sout, serr, status := ExecuteCmd("kubectl", cmdArgs)
 	if status != 0 {
-		return serr, errors.New("Cannot find rgw service")
+		return serr, errors.New("Cannot find service")
 	}
 	return sout, nil
 }
+
+func(k8sh *K8sHelper) IsThirdPartyResourcePresent(tprname string) bool {
+	cmdArgs := []string{"get", "thirdpartyresources", tprname}
+	inc := 0
+	for inc < 20 {
+		_, _, status := ExecuteCmd("kubectl", cmdArgs)
+		if status == 0 {
+			return true
+		}
+		time.Sleep(5 * time.Second)
+		inc++
+
+	}
+	return false
+}
+
