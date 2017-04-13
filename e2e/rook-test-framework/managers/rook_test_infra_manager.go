@@ -16,6 +16,7 @@ import (
 	"sync"
 	"strings"
 	"github.com/dangula/rook/e2e/rook-test-framework/utils"
+	"time"
 )
 
 type rookTestInfraManager struct {
@@ -214,6 +215,7 @@ func (r *rookTestInfraManager) InstallRook(tag string) (error, client contracts.
 		fmt.Println("Rook Cluster couldn't start")
 	}
 
+	time.Sleep(10*time.Second)
 	//create pod spec
 	//wait for up
 
