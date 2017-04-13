@@ -149,10 +149,17 @@ func (m *clusterManager) startCluster(c *cluster.Cluster) {
 		defer m.stopTrack(c)
 		logger.Infof("starting cluster %s in namespace %s", c.Name, c.Namespace)
 
-		// Start the Rook cluster components
-		err := c.CreateInstance()
+		// Start the Rook cluster components. Retry several times in case of failure.
+		err := k8sutil.Retry(time.Duration(m.context.retryDelay)*time.Second, m.context.maxRetries, func() (bool, error) {
+			err := c.CreateInstance()
+			if err != nil {
+				logger.Errorf("failed to create cluster %s in namespace %s. %+v", c.Name, c.Namespace, err)
+				return false, nil
+			}
+			return true, nil
+		})
 		if err != nil {
-			logger.Errorf("failed to create cluster %s in namespace %s. %+v", c.Name, c.Namespace, err)
+			logger.Errorf("giving up to create cluster %s in namespace %s", c.Name, c.Namespace)
 			return
 		}
 
