@@ -10,6 +10,7 @@ func TestFileStorage_SmokeTest(t *testing.T) {
 
 	t.Log("File Storage Smoke Test - Create,Mount,write to, read from  and Unmount Filesystem")
 	sc, _ := CreateSmokeTestClient(enums.Kubernetes)
+	defer fileSmokecleanUp()
 	rh := sc.rookHelp
 	rfc := sc.GetFileSystemClient()
 
@@ -48,4 +49,10 @@ func TestFileStorage_SmokeTest(t *testing.T) {
 	//Delete is not actually deleting filesystem
 	t.Log("File system deleted")
 
+}
+
+func fileSmokecleanUp() {
+	sc, _ := CreateSmokeTestClient(enums.Kubernetes)
+	sc.UnmountFileStorage()
+	sc.DeleteFileStorage()
 }

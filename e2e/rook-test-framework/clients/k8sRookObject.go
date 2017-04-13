@@ -17,8 +17,8 @@ var (
 	objectStoreDeleteUser    = []string{"rook", "object", "user", "delete", "USERID"}
 	objectStoreGetUser       = []string{"rook", "object", "user", "get", "USERID"}
 	objectStoreGetUsers      = []string{"rook", "object", "user", "list"}
-	objectStoreUpdateUser    = []string{"rook", "object", "user", "update","USERID","--display-name","DISPLAYNAME",
-				            "--email","EMAILID"}
+	objectStoreUpdateUser    = []string{"rook", "object", "user", "update", "USERID", "--display-name", "DISPLAYNAME",
+		"--email", "EMAILID"}
 )
 
 func CreateK8sRookObject(client contracts.ITransportClient) *k8sRookObject {

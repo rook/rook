@@ -114,6 +114,10 @@ func (integrationClient *SmokeTestHelper) getFileTestData() (fileTestData, error
 	}
 }
 
+func (integrationClient *SmokeTestHelper) getObjectStoreUserData() objetUserData {
+	return objetUserData{"rook-user", "A rook RGW user", ""}
+}
+
 func (integrationClient *SmokeTestHelper) CreateBlockStorage() (string, error) {
 	switch integrationClient.platform {
 	case enums.Kubernetes:
@@ -312,6 +316,97 @@ func (integrationClient *SmokeTestHelper) DeleteFileStorage() (string, error) {
 		fileTestData, _ := integrationClient.getFileTestData()
 		// Create storage pool, storage class and pvc
 		return integrationClient.GetFileSystemClient().FS_Delete(fileTestData.name)
+	case enums.StandAlone:
+		return "NEED TO IMPLEMENT", errors.New("NOT YET IMPLEMENTED")
+	default:
+		return "", errors.New("Unsupported Rook Platform Type")
+
+	}
+}
+
+func (integrationClient *SmokeTestHelper) CreateObjectStore() (string, error) {
+	switch integrationClient.platform {
+	case enums.Kubernetes:
+		_, err := integrationClient.GetObjectClient().Object_Create()
+		if err != nil {
+			return "Couldn't create object store ", err
+		}
+		if integrationClient.k8sHelp.IsServiceUpInNameSpace("rgw") {
+			return "OJECT STORE CREATED", nil
+		}
+		return "Couldn't create object store ", errors.New("Cannot create object store")
+	case enums.StandAlone:
+		return "NEED TO IMPLEMENT", errors.New("NOT YET IMPLEMENTED")
+	default:
+		return "", errors.New("Unsupported Rook Platform Type")
+	}
+}
+
+func (integrationClient *SmokeTestHelper) CreateObjectStoreUser() (string, error) {
+	objectuserdata := integrationClient.getObjectStoreUserData()
+	_, err := integrationClient.GetObjectClient().Object_Create_user(objectuserdata.userId, objectuserdata.displayname)
+	if err != nil {
+		return "USER NOT CREATED", errors.New("User not created for object store")
+	}
+	return "USER CREATED ", nil
+}
+
+func (integrationClient *SmokeTestHelper) GetObjectStoreUsers() (map[string]utils.ObjectUserListData, error) {
+	rawdata, err := integrationClient.GetObjectClient().Object_List_user()
+	if err != nil {
+		return nil, err
+	} else {
+		return integrationClient.rookHelp.ParserObjectUserListData(rawdata), nil
+	}
+
+}
+
+func (integrationClient *SmokeTestHelper) GetObjectStoreUser(userid string) (utils.ObjectUserData, error) {
+	rawdata, err := integrationClient.GetObjectClient().Object_Get_user(userid)
+	if err != nil {
+		return utils.ObjectUserData{}, err
+	} else {
+		return integrationClient.rookHelp.ParserObjectUserData(rawdata), nil
+	}
+
+}
+
+func (integrationClient *SmokeTestHelper) GetObjectStoreConnection(userid string) (utils.ObjectConnectionData, error) {
+	rawdata, err := integrationClient.GetObjectClient().Object_Connection(userid)
+	if err != nil {
+		return utils.ObjectConnectionData{}, err
+	} else {
+		return integrationClient.rookHelp.ParserObjectConnectionData(rawdata), nil
+	}
+
+}
+
+func (integrationClient *SmokeTestHelper) GetObjectStoreBucketList() (map[string]utils.ObjectBucketListData, error) {
+	rawdata, err := integrationClient.GetObjectClient().Object_Bucket_list()
+	if err != nil {
+		return nil, err
+	} else {
+		return integrationClient.rookHelp.ParserObjectBucketListData(rawdata), nil
+	}
+}
+
+func (integrationClient *SmokeTestHelper) DeleteObjectStoreUser() (string, error) {
+	objectuserdata := integrationClient.getObjectStoreUserData()
+	_, err := integrationClient.GetObjectClient().Object_Delete_user(objectuserdata.userId)
+	if err != nil {
+		return "USER NOT DELETED", errors.New("User not deleted for object store")
+	}
+	return "USER DELETED ", nil
+}
+
+func (integrationClient *SmokeTestHelper) GetRgwPort() (string, error) {
+	switch integrationClient.platform {
+	case enums.Kubernetes:
+		rawdata, err := integrationClient.k8sHelp.GetService("rgw")
+		if err != nil {
+			return "port not found", err
+		}
+		return integrationClient.rookHelp.GetRgwServiceNodePort(rawdata)
 	case enums.StandAlone:
 		return "NEED TO IMPLEMENT", errors.New("NOT YET IMPLEMENTED")
 	default:

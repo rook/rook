@@ -1,8 +1,9 @@
 package utils
 
 import (
-	"strings"
+	"errors"
 	"strconv"
+	"strings"
 )
 
 type RookHelper struct {
@@ -22,13 +23,13 @@ type fileSystemListData struct {
 	datapool     string
 }
 
-type objectUserListData struct {
+type ObjectUserListData struct {
 	UserId      string
 	DisplayName string
 	Email       string
 }
 
-type objectUserData struct {
+type ObjectUserData struct {
 	UserId      string
 	DisplayName string
 	Email       string
@@ -36,18 +37,18 @@ type objectUserData struct {
 	SecretKey   string
 }
 
-type objectConnectionData struct {
+type ObjectConnectionData struct {
 	AwsHost      string
 	AwsEndpoint  string
 	AwsAccessKey string
 	AwsSecretKey string
 }
 
-type objectBucketListData struct {
+type ObjectBucketListData struct {
 	Name            string
 	Owner           string
 	Created         string
-	size            int
+	Size            int
 	NumberOfObjects int
 }
 
@@ -99,8 +100,8 @@ func (rookhelp *RookHelper) ParseFileSystemData(rawdata string) fileSystemListDa
 	return fileSystemListData{r[0], r[1], r[2]}
 }
 
-func (rookhelp *RookHelper) ParserObjectUserListData(rawdata string) map[string]objectUserListData {
-	data := make(map[string]objectUserListData)
+func (rookhelp *RookHelper) ParserObjectUserListData(rawdata string) map[string]ObjectUserListData {
+	data := make(map[string]ObjectUserListData)
 	lines := strings.Split(rawdata, "\n")
 	if len(lines) <= 1 {
 		return data
@@ -119,7 +120,7 @@ func (rookhelp *RookHelper) ParserObjectUserListData(rawdata string) map[string]
 			for len(r) < 3 {
 				r = append(r, "")
 			}
-			data[r[0]] = objectUserListData{r[0], r[1], r[2]}
+			data[r[0]] = ObjectUserListData{r[0], r[1], r[2]}
 		}
 
 	}
@@ -127,7 +128,7 @@ func (rookhelp *RookHelper) ParserObjectUserListData(rawdata string) map[string]
 	return data
 }
 
-func (rookhelp *RookHelper) ParserObjectUserData(rawdata string) objectUserData {
+func (rookhelp *RookHelper) ParserObjectUserData(rawdata string) ObjectUserData {
 	lines := strings.Split(rawdata, "\n")
 	lines = lines[:len(lines)-1]
 	var (
@@ -138,7 +139,7 @@ func (rookhelp *RookHelper) ParserObjectUserData(rawdata string) objectUserData 
 		secretkey   string
 	)
 	if len(lines) != 5 {
-		return objectUserData{UserId: "USER NOT FOUND"}
+		return ObjectUserData{UserId: "USER NOT FOUND"}
 	} else {
 		for line := range lines {
 			userrawdata := strings.Split(lines[line], ":")
@@ -157,10 +158,10 @@ func (rookhelp *RookHelper) ParserObjectUserData(rawdata string) objectUserData 
 
 		}
 	}
-	return objectUserData{userId, displayName, email, accesskey, secretkey}
+	return ObjectUserData{userId, displayName, email, accesskey, secretkey}
 }
 
-func (rookhelp *RookHelper) ParserObjectConnectionData(rawdata string) objectConnectionData {
+func (rookhelp *RookHelper) ParserObjectConnectionData(rawdata string) ObjectConnectionData {
 	lines := strings.Split(rawdata, "\n")
 	lines = lines[1 : len(lines)-1]
 	var (
@@ -170,7 +171,7 @@ func (rookhelp *RookHelper) ParserObjectConnectionData(rawdata string) objectCon
 		secretkey string
 	)
 	if len(lines) != 4 {
-		return objectConnectionData{AwsHost: "CONNECTION INFO NOT FOUND FOR GIVEN USERID"}
+		return ObjectConnectionData{AwsHost: "CONNECTION INFO NOT FOUND FOR GIVEN USERID"}
 	} else {
 		for line := range lines {
 			connrawdata := strings.Split(lines[line], "  ")
@@ -193,11 +194,11 @@ func (rookhelp *RookHelper) ParserObjectConnectionData(rawdata string) objectCon
 			}
 		}
 	}
-	return objectConnectionData{awshost, endpoint, accesskey, secretkey}
+	return ObjectConnectionData{awshost, endpoint, accesskey, secretkey}
 }
 
-func (rookhelp *RookHelper) ParserObjectBucketListData(rawdata string) map[string]objectBucketListData {
-	data := make(map[string]objectBucketListData)
+func (rookhelp *RookHelper) ParserObjectBucketListData(rawdata string) map[string]ObjectBucketListData {
+	data := make(map[string]ObjectBucketListData)
 	lines := strings.Split(rawdata, "\n")
 	if len(lines) <= 1 {
 		return data
@@ -213,10 +214,33 @@ func (rookhelp *RookHelper) ParserObjectBucketListData(rawdata string) map[strin
 				}
 
 			}
-			size,_ :=strconv.Atoi(r[3])
-			objs,_ :=strconv.Atoi(r[4])
-			data[r[0]] = objectBucketListData{r[0], r[1], r[2],size,objs}
+			size, _ := strconv.Atoi(r[3])
+			objs, _ := strconv.Atoi(r[4])
+			data[r[0]] = ObjectBucketListData{r[0], r[1], r[2], size, objs}
 		}
 	}
 	return data
+}
+
+func (rookhelp *RookHelper) GetRgwServiceNodePort(rawdata string) (string, error) {
+	lines := strings.Split(rawdata, "\n")
+	if len(lines) <= 1 {
+		return "NOT FOUND", errors.New("Port not found")
+	}
+	lines = lines[1 : len(lines)-1]
+	if len(lines) == 1 {
+		bktsrawdata := strings.Split(lines[0], "  ")
+		var r []string
+		for _, str := range bktsrawdata {
+			if str != "" {
+				r = append(r, strings.TrimSpace(str))
+			}
+		}
+		ports := strings.Split(r[3], ":")
+		port := strings.Replace(ports[1], "/TCP", "", -1)
+		return port, nil
+
+	} else {
+		return "NOT FOUND", errors.New("Port not found")
+	}
 }
