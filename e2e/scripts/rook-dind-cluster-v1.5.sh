@@ -53,7 +53,7 @@ DIND_IMAGE="${DIND_IMAGE:-}"
 BUILD_KUBEADM="${BUILD_KUBEADM:-}"
 BUILD_HYPERKUBE="${BUILD_HYPERKUBE:-}"
 APISERVER_PORT=${APISERVER_PORT:-8080}
-NUM_NODES=${NUM_NODES:-1}
+NUM_NODES=${NUM_NODES:-2}
 LOCAL_KUBECTL_VERSION=${LOCAL_KUBECTL_VERSION:-}
 KUBECTL_DIR="${KUBECTL_DIR:-${HOME}/.kubeadm-dind-cluster}"
 DASHBOARD_URL="${DASHBOARD_URL:-https://rawgit.com/kubernetes/dashboard/bfab10151f012d1acc5dfb1979f3172e2400aa3c/src/deploy/kubernetes-dashboard.yaml}"
@@ -139,12 +139,6 @@ function dind::prepare-sys-mounts {
     fi
     if [[ -d /lib/modules ]]; then
       sys_volume_args+=(-v /lib/modules:/lib/modules)
-    fi
-    if [[ -d /dev ]]; then
-      sys_volume_args+=(-v /dev:/dev)
-    fi
-    if [[ -d /sys/bus ]]; then
-      sys_volume_args+=(-v /sys:/sys)
     fi
     return 0
   fi
