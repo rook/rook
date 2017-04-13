@@ -17,6 +17,12 @@ func (k *k8sTransportClient) ExecuteCmd(cmd []string) (stdout string, stderr str
 	return utils.ExecuteCmdAndLogToConsole("kubectl", cmd, []string{})
 }
 
+func (k *k8sTransportClient) Apply (cmdArgs []string) (stdout string, stderr string, err error) {
+	initialArgs := []string{"apply", "-f"}
+	cmdArgs = append(initialArgs, cmdArgs...)
+	return utils.ExecuteCmdAndLogToConsole("kubectl", cmdArgs, []string{})
+}
+
 func (k *k8sTransportClient) Execute(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
 	if optional != nil {
