@@ -14,9 +14,6 @@ spec:
         image: #IMAGE_PATH#
         args: ["operator"]
         env:
-        - name: ROOKD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
         - name: ROOKD_REPO_PREFIX
           value: quay.io/rook
+
