@@ -28,8 +28,8 @@ try {
             //sh "sudo mkdir -p ~/go/src"
             //sh "sudo mkdir -p ~/go/bin"
 
-//withEnv(["GOPATH=/go/"]) {
-   echo "$HOME"
+withEnv(["GOPATH=/home/ubuntu/go"]) {
+
      echo 'attempting pull of junit stuff'
                  sh "go get -u github.com/jstemmer/go-junit-report"
      echo 'attempting pull of rook stuff'
@@ -39,7 +39,7 @@ try {
 
                  //sh "go test -run TestFileStorage_SmokeTest -v | go-junit-report > file-test-report.xml"
 
- //   }
+    }
             //sh "export $GOPATH=~/go/"
             //sh "export GOROOT=/usr/local/go/"
             //sh "export PATH=$GOPATH/bin:$GOROOT/bin:$PATH"
