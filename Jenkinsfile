@@ -15,11 +15,12 @@ try {
         }
 
         stage('Build') {
-            echo 'Simulating a build by doing a pull'
+            //echo 'Simulating a build by doing a pull'
             //sh "sudo mkdir -p /to-host"
             //sh "sudo docker pull quay.io/rook/rook-client"
             //sh "sudo docker pull quay.io/rook/rook-operator"
             //sh "sudo docker pull quay.io/rook/rookd"
+            sh "echo"
         }
 
         stage('Tests') {
