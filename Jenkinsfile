@@ -20,7 +20,7 @@ try {
             //sh "sudo docker pull quay.io/rook/rook-client"
             //sh "sudo docker pull quay.io/rook/rook-operator"
             //sh "sudo docker pull quay.io/rook/rookd"
-            sh "echo"
+            sh 'echo'
         }
 
         stage('Tests') {
