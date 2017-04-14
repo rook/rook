@@ -45,7 +45,7 @@
     ],
     "containers": [
       {
-        "name": "kube-controller-manager",
+        "name": "kube-controller-manager-kube-master",
         "image": "luxas/storage-controller-manager-amd64:v1.6.0-beta.4",
         "command": [
           "kube-controller-manager",

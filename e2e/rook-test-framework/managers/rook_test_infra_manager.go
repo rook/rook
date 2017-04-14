@@ -169,10 +169,10 @@ func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 
 
 	km_dockId,_,_ := dockerClient.ExecuteCmd([]string {"ps", "--filter", "name=kube-master", "--format",  "\"{{.ID}}\""})
-	dockerClient.ExecuteCmd([]string{"exec","-i",km_dockId,"bash","-c","apt-get -y update && apt-get install -qqy ceph-common"})
+	dockerClient.ExecuteCmd([]string{km_dockId,"bash","-c","'apt-get -y update && apt-get install -qqy ceph-common'"})
 
 	kn1_dockId,_,_ := dockerClient.ExecuteCmd([]string {"ps", "--filter", "name=kube-node-1", "--format",  "\"{{.ID}}\""})
-	dockerClient.ExecuteCmd([]string{"exec","-i",kn1_dockId,"bash","-c","apt-get -y update && apt-get install -qqy ceph-common"})
+	dockerClient.ExecuteCmd([]string{kn1_dockId,"bash","-c","'apt-get -y update && apt-get install -qqy ceph-common'"})
 
 
 	return nil
