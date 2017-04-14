@@ -23,17 +23,14 @@ try {
         }
 
         stage('Tests') {
-            try {
-                go get -u github.com/jstemmer/go-junit-report
+            go get -u github.com/jstemmer/go-junit-report
 
-                cd e2e/tests/integration/smokeTest
+            cd e2e/tests/integration/smokeTest
 
-                go test -run TestFileStorage_SmokeTest -v | go-junit-report > file-test-report.xml
-             }
-             catch (err) {
-                step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/*.xml'])
-                throw err
-             }
+            go test -run TestFileStorage_SmokeTest -v | go-junit-report > file-test-report.xml
+
+            step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/*.xml'])
+
         }
 
         stage('Cleanup') {
