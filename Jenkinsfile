@@ -23,6 +23,7 @@ try {
         }
 
         stage('Tests') {
+            echo '$GOPATH'
             sh "go get -u github.com/jstemmer/go-junit-report"
 
             sh "cd e2e/tests/integration/smokeTest"
