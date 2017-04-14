@@ -31,13 +31,13 @@ try {
 withEnv(["GOPATH=/home/ubuntu/go"]) {
 
      echo 'attempting pull of junit stuff'
-                 sh "go get -u github.com/jstemmer/go-junit-report"
+                 sh "sudo go get -u github.com/jstemmer/go-junit-report"
      echo 'attempting pull of rook stuff'
-                 sh "go get -u github.com/dangula/rook"
+                 sh "sudo go get -u github.com/dangula/rook"
 
                  //sh "cd $GOPATH/src/github.com/rook/e2e/tests/integration/smokeTest"
 
-                 //sh "go test -run TestFileStorage_SmokeTest -v | go-junit-report > file-test-report.xml"
+                 //sh "sudo go test -run TestFileStorage_SmokeTest -v | go-junit-report > file-test-report.xml"
 
     }
             //sh "export $GOPATH=~/go/"
