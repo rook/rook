@@ -467,7 +467,7 @@ func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context 
 	defer osdConn.Shutdown()
 
 	// add the new OSD to the cluster crush map
-	if err := addOSDToCrushMap(osdConn, context, config.id, config.rootPath, location); err != nil {
+	if err := addOSDToCrushMap(osdConn, context, config, location); err != nil {
 		return err
 	}
 
@@ -583,16 +583,44 @@ func addOSDAuth(bootstrapConn client.Connection, osdID int, osdDataPath string) 
 }
 
 // adds the given OSD to the crush map
-func addOSDToCrushMap(osdConn client.Connection, context *clusterd.Context, osdID int, osdDataPath, location string) error {
-	// get the size of the volume containing the OSD data dir
-	s := syscall.Statfs_t{}
-	if err := syscall.Statfs(osdDataPath, &s); err != nil {
-		return fmt.Errorf("failed to statfs on %s, %+v", osdDataPath, err)
+func addOSDToCrushMap(osdConn client.Connection, context *clusterd.Context, config *osdConfig, location string) error {
+	osdID := config.id
+	osdDataPath := config.rootPath
+
+	var totalBytes uint64
+	if !isBluestore(config) {
+		// get the size of the volume containing the OSD data dir.  For filestore directory or device, this will be a
+		// mounted filesystem, so we can use Statfs
+		s := syscall.Statfs_t{}
+		if err := syscall.Statfs(osdDataPath, &s); err != nil {
+			return fmt.Errorf("failed to statfs on %s, %+v", osdDataPath, err)
+		}
+		totalBytes = s.Blocks * uint64(s.Bsize)
+	} else {
+		// for bluestore, the data partition will be raw, so we can't use Statfs.  Get the full device properties
+		// of the data partition and then get the size from that.
+		dataPartDetails, err := getDataPartitionDetails(config)
+		if err != nil {
+			return fmt.Errorf("failed to get data partition details for osd %d (%s): %+v", osdID, osdDataPath, err)
+		}
+		dataPartPath := filepath.Join(diskByPartUUID, dataPartDetails.PartitionUUID)
+		devProps, err := sys.GetDevicePropertiesFromPath(dataPartPath, context.Executor)
+		if err != nil {
+			return fmt.Errorf("failed to get device properties for %s: %+v", dataPartPath, err)
+		}
+		if val, ok := devProps["SIZE"]; ok {
+			if size, err := strconv.ParseUint(val, 10, 64); err == nil {
+				totalBytes = size
+			}
+		}
+
+		if totalBytes == 0 {
+			return fmt.Errorf("failed to get size of %s: %+v.  Full properties: %+v", dataPartPath, err, devProps)
+		}
 	}
-	all := s.Blocks * uint64(s.Bsize)
 
 	// weight is ratio of (size in KB) / (1 GB)
-	weight := float64(all/1024) / 1073741824.0
+	weight := float64(totalBytes/1024) / 1073741824.0
 	weight, _ = strconv.ParseFloat(fmt.Sprintf("%.4f", weight), 64)
 
 	osdEntity := fmt.Sprintf("osd.%d", osdID)
@@ -609,7 +637,7 @@ func addOSDToCrushMap(osdConn client.Connection, context *clusterd.Context, osdI
 	}
 
 	logger.Infof("adding %s (%s), bytes: %d, weight: %.4f, to crush map at '%s'",
-		osdEntity, osdDataPath, all, weight, strings.Join(locArgs, " "))
+		osdEntity, osdDataPath, totalBytes, weight, strings.Join(locArgs, " "))
 
 	_, err = client.ExecuteMonCommand(osdConn, cmd, fmt.Sprintf("adding %s to crush map", osdEntity))
 	if err != nil {

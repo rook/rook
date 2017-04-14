@@ -17,8 +17,7 @@ VAGRANTFILE_API_VERSION = "2"
 $channel = "alpha"
 $nodes = 3
 $new_discovery_url="https://discovery.etcd.io/new?size=1"
-$node_disks = 3
-$disk_size = 5
+$node_disk_sizes = [4, 5, 6] # size in GB of each disk
 
 require_relative 'util.rb'
 require 'open-uri'
@@ -56,7 +55,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
         node.vm.network "forwarded_port", guest: 8124, host: 8124
       end
 
-      attach_volumes(node, $node_disks, $disk_size)
+      attach_volumes(node, $node_disk_sizes)
 
       if private_build
         # run locally built ACI files
