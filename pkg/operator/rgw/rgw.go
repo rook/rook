@@ -18,7 +18,6 @@ package rgw
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	cephrgw "github.com/rook/rook/pkg/cephmgr/rgw"
 	"github.com/rook/rook/pkg/clusterd"
@@ -27,7 +26,6 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
@@ -38,19 +36,17 @@ const (
 )
 
 type Cluster struct {
+	context   *k8sutil.Context
 	Name      string
 	Namespace string
 	Version   string
 	Replicas  int32
-	factory   client.ConnectionFactory
 	dataDir   string
-	clientset kubernetes.Interface
 }
 
-func New(clientset kubernetes.Interface, factory client.ConnectionFactory, name, namespace, version string) *Cluster {
+func New(context *k8sutil.Context, name, namespace, version string) *Cluster {
 	return &Cluster{
-		clientset: clientset,
-		factory:   factory,
+		context:   context,
 		Name:      name,
 		Namespace: namespace,
 		Version:   version,
@@ -79,7 +75,7 @@ func (c *Cluster) Start(cluster *mon.ClusterInfo) error {
 
 	// start the deployment
 	deployment := c.makeDeployment()
-	_, err = c.clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
+	_, err = c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rgw deployment. %+v", err)
@@ -93,7 +89,7 @@ func (c *Cluster) Start(cluster *mon.ClusterInfo) error {
 }
 
 func (c *Cluster) createKeyring(cluster *mon.ClusterInfo) error {
-	_, err := c.clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
+	_, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
 		return nil
@@ -104,8 +100,8 @@ func (c *Cluster) createKeyring(cluster *mon.ClusterInfo) error {
 
 	// connect to the ceph cluster
 	logger.Infof("generating rgw keyring")
-	context := &clusterd.Context{ConfigDir: c.dataDir}
-	conn, err := mon.ConnectToClusterAsAdmin(context, c.factory, cluster)
+	ctx := &clusterd.Context{ConfigDir: c.dataDir}
+	conn, err := mon.ConnectToClusterAsAdmin(ctx, c.context.Factory, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to connect to cluster. %+v", err)
 	}
@@ -126,7 +122,7 @@ func (c *Cluster) createKeyring(cluster *mon.ClusterInfo) error {
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	_, err = c.clientset.CoreV1().Secrets(c.Namespace).Create(secret)
+	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		return fmt.Errorf("failed to save rgw secrets. %+v", err)
 	}
@@ -203,7 +199,7 @@ func (c *Cluster) startService() error {
 		},
 	}
 
-	s, err := c.clientset.CoreV1().Services(c.Namespace).Create(s)
+	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(s)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mon service. %+v", err)

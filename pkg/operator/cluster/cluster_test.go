@@ -43,7 +43,7 @@ func TestCreateSecrets(t *testing.T) {
 	c := &Cluster{Spec: Spec{VersionTag: "myversion"}}
 	c.Name = "myrook"
 	c.Namespace = "myns"
-	c.Init(factory, clientset)
+	c.Init(&k8sutil.Context{Clientset: clientset, Factory: factory})
 	c.dataDir = "/tmp/testdir"
 	defer os.RemoveAll(c.dataDir)
 

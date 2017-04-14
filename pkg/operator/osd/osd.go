@@ -26,7 +26,6 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
@@ -37,7 +36,7 @@ const (
 )
 
 type Cluster struct {
-	clientset       kubernetes.Interface
+	context         *k8sutil.Context
 	Name            string
 	Namespace       string
 	Keyring         string
@@ -46,9 +45,9 @@ type Cluster struct {
 	dataDirHostPath string
 }
 
-func New(clientset kubernetes.Interface, name, namespace, version string, storageSpec StorageSpec, dataDirHostPath string) *Cluster {
+func New(context *k8sutil.Context, name, namespace, version string, storageSpec StorageSpec, dataDirHostPath string) *Cluster {
 	return &Cluster{
-		clientset:       clientset,
+		context:         context,
 		Name:            name,
 		Namespace:       namespace,
 		Version:         version,
@@ -63,7 +62,7 @@ func (c *Cluster) Start() error {
 	if c.Storage.UseAllNodes {
 		// make a daemonset for all nodes in the cluster
 		ds := c.makeDaemonSet(c.Storage.Selection, c.Storage.Config)
-		_, err := c.clientset.Extensions().DaemonSets(c.Namespace).Create(ds)
+		_, err := c.context.Clientset.Extensions().DaemonSets(c.Namespace).Create(ds)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create osd daemon set. %+v", err)
@@ -79,7 +78,7 @@ func (c *Cluster) Start() error {
 
 			// create the replicaSet that will run the OSDs for this node
 			rs := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
-			_, err := c.clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
+			_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
 			if err != nil {
 				if !errors.IsAlreadyExists(err) {
 					return fmt.Errorf("failed to create osd replica set for node %s. %+v", n.Name, err)

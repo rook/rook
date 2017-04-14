@@ -23,10 +23,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
-func getNodes(clientset *kubernetes.Clientset) ([]model.Node, error) {
+func getNodes(clientset kubernetes.Interface) ([]model.Node, error) {
 	nodes := []model.Node{}
 	options := metav1.ListOptions{}
-	nl, err := clientset.Nodes().List(options)
+	nl, err := clientset.CoreV1().Nodes().List(options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get nodes. %+v", err)
 	}

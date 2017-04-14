@@ -27,7 +27,6 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
@@ -55,10 +54,7 @@ type Cluster struct {
 	Paused          bool
 	AntiAffinity    bool
 	Port            int32
-	clientset       kubernetes.Interface
-	factory         client.ConnectionFactory
-	retryDelay      int
-	maxRetries      int
+	context         *k8sutil.Context
 	clusterInfo     *mon.ClusterInfo
 	maxMonID        int
 	configDir       string
@@ -71,18 +67,15 @@ type MonConfig struct {
 	Port int32
 }
 
-func New(clientset kubernetes.Interface, factory client.ConnectionFactory, name, namespace, dataDirHostPath, version string) *Cluster {
+func New(context *k8sutil.Context, name, namespace, dataDirHostPath, version string) *Cluster {
 	return &Cluster{
-		clientset:       clientset,
-		factory:         factory,
+		context:         context,
 		dataDirHostPath: dataDirHostPath,
 		Name:            name,
 		Namespace:       namespace,
 		Version:         version,
 		Size:            3,
 		AntiAffinity:    true,
-		retryDelay:      6,
-		maxRetries:      15,
 		maxMonID:        -1,
 		configDir:       k8sutil.DataDir,
 		waitForStart:    true,
@@ -118,7 +111,7 @@ func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 func (c *Cluster) CheckHealth() error {
 	// update the config map if the pod ips changed
 	// must retry since during startup of pods they might take some time to initialize
-	k8sutil.Retry(time.Duration(c.retryDelay)*time.Second, c.maxRetries, func() (bool, error) {
+	k8sutil.Retry(c.context, func() (bool, error) {
 		// TODO: There is more work to get the reboot functional. The mons are not
 		// happy if their ip address changes. They expect a constant id.
 		err := c.updateConfigMapIfPodIPsChanged()
@@ -130,8 +123,8 @@ func (c *Cluster) CheckHealth() error {
 	})
 
 	// connect to the mons
-	context := &clusterd.Context{ConfigDir: c.configDir}
-	conn, err := mon.ConnectToClusterAsAdmin(context, c.factory, c.clusterInfo)
+	ctx := &clusterd.Context{ConfigDir: c.configDir}
+	conn, err := mon.ConnectToClusterAsAdmin(ctx, c.context.Factory, c.clusterInfo)
 	if err != nil {
 		return fmt.Errorf("cannot connect to cluster. %+v", err)
 	}
@@ -223,7 +216,7 @@ func (c *Cluster) failoverMon(conn client.Connection, name string) error {
 	// Remove the mon pod if it is still there
 	var gracePeriod int64
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod}
-	err = c.clientset.CoreV1().Pods(c.Namespace).Delete(name, options)
+	err = c.context.Clientset.CoreV1().Pods(c.Namespace).Delete(name, options)
 	if err != nil {
 		if errors.IsNotFound(err) {
 			logger.Infof("dead mon pod %s was already gone", name)
@@ -250,7 +243,7 @@ func (c *Cluster) failoverMon(conn client.Connection, name string) error {
 // If a new cluster create new keys.
 func (c *Cluster) initClusterInfo() error {
 	// get the cluster secrets
-	secrets, err := c.clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
+	secrets, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return fmt.Errorf("failed to get mon secrets. %+v", err)
@@ -310,7 +303,7 @@ func getMonID(name string) (int, error) {
 func (c *Cluster) createMonSecretsAndSave() error {
 	logger.Infof("creating mon secrets for a new cluster")
 	var err error
-	c.clusterInfo, err = mon.CreateNamedClusterInfo(c.factory, "", c.Namespace)
+	c.clusterInfo, err = mon.CreateNamedClusterInfo(c.context.Factory, "", c.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create mon secrets. %+v", err)
 	}
@@ -327,7 +320,7 @@ func (c *Cluster) createMonSecretsAndSave() error {
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	_, err = c.clientset.CoreV1().Secrets(c.Namespace).Create(secret)
+	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		return fmt.Errorf("failed to save mon secrets. %+v", err)
 	}
@@ -341,7 +334,7 @@ func (c *Cluster) createMonSecretsAndSave() error {
 		StringData: storageClassSecret,
 		Type:       k8sutil.RbdType,
 	}
-	_, err = c.clientset.CoreV1().Secrets(c.Namespace).Create(secret)
+	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to save rook-admin secret. %+v", err)
@@ -368,7 +361,7 @@ func (c *Cluster) startPods(conn client.Connection, mons []*MonConfig) error {
 		monPod := c.makeMonPod(m, antiAffinity)
 		logger.Debugf("Starting pod: %+v", monPod)
 		name := monPod.Name
-		_, err = c.clientset.CoreV1().Pods(c.Namespace).Create(monPod)
+		_, err = c.context.Clientset.CoreV1().Pods(c.Namespace).Create(monPod)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create mon pod %s. %+v", name, err)
@@ -403,9 +396,9 @@ func (c *Cluster) waitForMonsToJoin(conn client.Connection, mons []*MonConfig) e
 
 	// initialize a connection if it is not already connected
 	if conn == nil {
-		context := &clusterd.Context{ConfigDir: k8sutil.DataDir}
+		ctx := &clusterd.Context{ConfigDir: k8sutil.DataDir}
 		var err error
-		conn, err = mon.ConnectToClusterAsAdmin(context, c.factory, c.clusterInfo)
+		conn, err = mon.ConnectToClusterAsAdmin(ctx, c.context.Factory, c.clusterInfo)
 		if err != nil {
 			return fmt.Errorf("cannot connect to cluster. %+v", err)
 		}
@@ -433,12 +426,12 @@ func (c *Cluster) waitForPodToStart(name string) (string, error) {
 
 	// Poll the status of the pods to see if they are ready
 	status := ""
-	for i := 0; i < c.maxRetries; i++ {
+	for i := 0; i < c.context.MaxRetries; i++ {
 		// wait and try again
-		logger.Infof("waiting %ds for pod %s to start. status=%s", c.retryDelay, name, status)
-		<-time.After(time.Duration(c.retryDelay) * time.Second)
+		logger.Infof("waiting %ds for pod %s to start. status=%s", c.context.RetryDelay, name, status)
+		<-time.After(time.Duration(c.context.RetryDelay) * time.Second)
 
-		pod, err := c.clientset.CoreV1().Pods(c.Namespace).Get(name, metav1.GetOptions{})
+		pod, err := c.context.Clientset.CoreV1().Pods(c.Namespace).Get(name, metav1.GetOptions{})
 		if err != nil {
 			return "", fmt.Errorf("failed to get mon pod %s. %+v", name, err)
 		}
@@ -466,14 +459,14 @@ func (c *Cluster) saveMonConfig() error {
 		maxMonIDKey:    strconv.Itoa(c.maxMonID),
 	}
 
-	_, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap)
+	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mon endpoint config map. %+v", err)
 		}
 
 		logger.Debugf("updating config map %s that already exists", configMap.Name)
-		if _, err = c.clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
+		if _, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
 			return fmt.Errorf("failed to update mon endpoint config map. %+v", err)
 		}
 	}
@@ -483,7 +476,7 @@ func (c *Cluster) saveMonConfig() error {
 }
 
 func (c *Cluster) loadMonConfig() error {
-	cm, err := c.clientset.CoreV1().ConfigMaps(c.Namespace).Get(monConfigMapName, metav1.GetOptions{})
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(monConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
@@ -526,7 +519,7 @@ func (c *Cluster) loadMonConfig() error {
 func (c *Cluster) getAntiAffinity() (bool, error) {
 	nodeOptions := metav1.ListOptions{}
 	nodeOptions.TypeMeta.Kind = "Node"
-	nodes, err := c.clientset.CoreV1().Nodes().List(nodeOptions)
+	nodes, err := c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
 	if err != nil {
 		return false, fmt.Errorf("failed to get nodes in cluster. %+v", err)
 	}

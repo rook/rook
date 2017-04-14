@@ -34,7 +34,7 @@ import (
 )
 
 type clusterManager struct {
-	context      *context
+	context      *k8sutil.Context
 	name         string
 	watchVersion string
 	devicesInUse bool
@@ -47,7 +47,7 @@ type clusterManager struct {
 	inclusterMgrs       []tprManager
 }
 
-func newClusterManager(context *context, inclusterInitiators []inclusterInitiator) *clusterManager {
+func newClusterManager(context *k8sutil.Context, inclusterInitiators []inclusterInitiator) *clusterManager {
 	return &clusterManager{
 		context:             context,
 		clusters:            make(map[string]*cluster.Cluster),
@@ -78,7 +78,7 @@ func (m *clusterManager) Manage() {
 			}
 		}
 
-		<-time.After(time.Second * time.Duration(m.context.retryDelay))
+		<-time.After(time.Second * time.Duration(m.context.RetryDelay))
 	}
 }
 
@@ -130,7 +130,7 @@ func (m *clusterManager) stopTrack(c *cluster.Cluster) {
 }
 
 func (m *clusterManager) startCluster(c *cluster.Cluster) {
-	c.Init(m.context.factory, m.context.clientset)
+	c.Init(m.context)
 	if err := m.startTrack(c); err != nil {
 		logger.Errorf("failed to start cluster %s in namespace %s. %+v", c.Name, c.Namespace, err)
 		return
@@ -149,16 +149,23 @@ func (m *clusterManager) startCluster(c *cluster.Cluster) {
 		defer m.stopTrack(c)
 		logger.Infof("starting cluster %s in namespace %s", c.Name, c.Namespace)
 
-		// Start the Rook cluster components
-		err := c.CreateInstance()
+		// Start the Rook cluster components. Retry several times in case of failure.
+		err := k8sutil.Retry(m.context, func() (bool, error) {
+			err := c.CreateInstance()
+			if err != nil {
+				logger.Errorf("failed to create cluster %s in namespace %s. %+v", c.Name, c.Namespace, err)
+				return false, nil
+			}
+			return true, nil
+		})
 		if err != nil {
-			logger.Errorf("failed to create cluster %s in namespace %s. %+v", c.Name, c.Namespace, err)
+			logger.Errorf("giving up to create cluster %s in namespace %s", c.Name, c.Namespace)
 			return
 		}
 
 		// Start all the TPRs for this cluster
 		for _, tpr := range m.inclusterInitiators {
-			k8sutil.Retry(time.Duration(m.context.retryDelay)*time.Second, m.context.maxRetries, func() (bool, error) {
+			k8sutil.Retry(m.context, func() (bool, error) {
 				tprMgr, err := tpr.Create(m, c.Name, c.Namespace)
 				if err != nil {
 					logger.Warningf("cannot create in-cluster tpr %s. %+v. retrying...", m.Name(), err)
@@ -195,7 +202,7 @@ func (m *clusterManager) isClustersCacheStale(currentClusters []cluster.Cluster)
 }
 
 func (m *clusterManager) getClusterList() (*cluster.ClusterList, error) {
-	b, err := getRawList(m.context.clientset, m.Name())
+	b, err := getRawList(m.context.Clientset, m.Name())
 	if err != nil {
 		return nil, err
 	}

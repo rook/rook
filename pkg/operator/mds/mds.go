@@ -43,17 +43,17 @@ type Cluster struct {
 	Namespace string
 	Version   string
 	Replicas  int32
-	factory   client.ConnectionFactory
+	context   *k8sutil.Context
 	dataDir   string
 }
 
-func New(name, namespace, version string, factory client.ConnectionFactory) *Cluster {
+func New(context *k8sutil.Context, name, namespace, version string) *Cluster {
 	return &Cluster{
+		context:   context,
 		Name:      name,
 		Namespace: namespace,
 		Version:   version,
 		Replicas:  1,
-		factory:   factory,
 		dataDir:   k8sutil.DataDir,
 	}
 }
@@ -66,7 +66,7 @@ func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo
 	}
 
 	context := &clusterd.DaemonContext{ConfigDir: c.dataDir}
-	conn, err := mon.ConnectToClusterAsAdmin(clusterd.ToContext(context), c.factory, cluster)
+	conn, err := mon.ConnectToClusterAsAdmin(clusterd.ToContext(context), c.context.Factory, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to connect to cluster as admin: %+v", err)
 	}

@@ -21,13 +21,13 @@ package operator
 import (
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
@@ -42,17 +42,8 @@ var (
 	ErrVersionOutdated = errors.New("requested version is outdated in apiserver")
 )
 
-type context struct {
-	clientset   kubernetes.Interface
-	retryDelay  int
-	maxRetries  int
-	masterHost  string
-	kubeHttpCli *http.Client
-	factory     client.ConnectionFactory
-}
-
 type Operator struct {
-	context    *context
+	context    *k8sutil.Context
 	tprSchemes []tprScheme
 	// The TPR that is global to the kubernetes cluster.
 	// The cluster TPR is global because you create multiple clusers in k8s
@@ -60,12 +51,12 @@ type Operator struct {
 }
 
 func New(host string, factory client.ConnectionFactory, clientset kubernetes.Interface) *Operator {
-	context := &context{
-		masterHost: host,
-		factory:    factory,
-		clientset:  clientset,
-		retryDelay: 3,
-		maxRetries: 30,
+	context := &k8sutil.Context{
+		MasterHost: host,
+		Factory:    factory,
+		Clientset:  clientset,
+		RetryDelay: 6,
+		MaxRetries: 15,
 	}
 	poolInitiator := newPoolInitiator(context)
 	clusterMgr := newClusterManager(context, []inclusterInitiator{poolInitiator})
@@ -98,7 +89,7 @@ func (o *Operator) initResources() error {
 	if err != nil {
 		return fmt.Errorf("failed to get tpr client. %+v", err)
 	}
-	o.context.kubeHttpCli = httpCli.Client
+	o.context.KubeHttpCli = httpCli.Client
 
 	err = createTPRs(o.context, o.tprSchemes)
 	if err != nil {

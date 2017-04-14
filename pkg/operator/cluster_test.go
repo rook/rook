@@ -22,11 +22,12 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/operator/cluster"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTrackCluster(t *testing.T) {
-	context := &context{}
+	context := &k8sutil.Context{}
 	mgr := newClusterManager(context, []inclusterInitiator{})
 
 	c1 := &cluster.Cluster{}
