@@ -28,7 +28,8 @@ try {
             //sh "sudo mkdir -p ~/go/src"
             //sh "sudo mkdir -p ~/go/bin"
 
-withEnv(["GOPATH=~/go/"]) {
+withEnv(["GOPATH=/go/"]) {
+   echo "${env.HOME}"
      echo 'attempting pull of junit stuff'
                  sh "go get -u github.com/jstemmer/go-junit-report"
      echo 'attempting pull of rook stuff'
