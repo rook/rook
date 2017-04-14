@@ -31,7 +31,9 @@ try {
             sh "export GOROOT=/usr/local/go/"
             sh "export PATH=$GOPATH/bin:$GOROOT/bin:$PATH"
 
+echo 'attempting pull of junit stuff'
             sh "go get -u github.com/jstemmer/go-junit-report"
+echo 'attempting pull of rook stuff'
             sh "go get -u github.com/dangula/rook"
 
             //sh "cd $GOPATH/src/github.com/rook/e2e/tests/integration/smokeTest"
