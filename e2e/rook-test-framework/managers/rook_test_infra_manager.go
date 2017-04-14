@@ -34,6 +34,7 @@ var (
 )
 
 
+
 func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized bool, version enums.K8sVersion) (error, *rookTestInfraManager) {
 	var transportClient contracts.ITransportClient
 	var dockerContext objects.DockerContext
@@ -80,11 +81,17 @@ func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized b
 
 }
 
+func (r *rookTestInfraManager) GetRookPlatform() enums.RookPlatformType {
+	return r.platformType
+}
+
 func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 	containerId := r.dockerContext.Get_ContainerId()
 	if  containerId != "" && r.isContainerRunning(containerId) {
 		return nil
 	}
+
+	goPath := os.Getenv("GOPATH")
 
 	//execute command to init docker container
 	_, dockerClient := r.dockerContext.Get_DockerClient()
@@ -130,9 +137,7 @@ func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 		return errors.New("Unsupported Kubernetes version")
 	}
 
-	stdout, stderr, err = dockerClient.Execute([]string{containerId, "curl", "-o", dindScriptName,
-		"https://raw.githubusercontent.com/dangula/rook/RookOpsFamework/e2e/scripts/" + dindScriptName,
-		})
+	stdout, stderr, err = dockerClient.ExecuteCmd([]string{"cp", goPath + "/src/github.com/dangula/rook/e2e/scripts/" + dindScriptName, containerId + ":" + dindScriptName})
 
 	//chmod +x
 	stdout, stderr, err = dockerClient.Execute([]string{containerId, "chmod", "+x", dindScriptName})
@@ -140,7 +145,6 @@ func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 
 	//run script
 	stdout, stderr, err = dockerClient.Execute([]string{containerId, "./" + dindScriptName, "up"})
-
 
 	//stdout, stderr, err = dockerClient.Stop([]string{containerId})
 	//STEP 3 --> Untaint master node
@@ -156,20 +160,13 @@ func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 	stdout, stderr, err = k8sClient.ExecuteCmd([]string{"delete", "node", "kube-node-2", "--force"})
 	// kubectl delete node kube-node-2 --force
 
+	_, km_dockId, _ := dockerClient.ExecuteCmd([]string {"ps", "--filter", "name=kube-master", "--format",  "{{.ID}}"})
 
 	//STEP 6 --> Patch controller --> TODO: pre-patch image
-	goPath := os.Getenv("GOPATH")
-	//bytes, err := ioutil.ReadFile(goPath + "/src/github.com/dangula/rook/e2e/pod-specs/kube-controller-manager.json")
-	//kubeController := string(bytes)
-
-	stdout, stderr, _ = r.transportClient.Apply([]string{goPath + "/src/github.com/dangula/rook/e2e/pod-specs/kube-controller-manager.json"})
+	stdout, stderr, err = dockerClient.ExecuteCmd([]string{"cp", goPath + "/src/github.com/dangula/rook/e2e/pod-specs/kube-controller-manager.json", km_dockId + ":/etc/kubernetes/manifests/kube-controller-manager.json"})
 
 	//STEP 7 --> Install Ceph --> TODO fix so images are already patched with ceph
-	//curl --unix-socket /var/run/docker.sock http:/containers/json | jq -r '.[].Id' | xargs -i docker exec -i {} bash -c 'apt-get -y update && apt-get install -qqy ceph-common'
 
-	//curl --unix-socket /var/run/docker.sock http:/containers/json | jq -r '.[].Names' | xargs -i if grep -Ff kube {} docker exec -i {} bash -c 'apt-get -y update && apt-get install -qqy ceph-common'
-
-	_,km_dockId,_ := dockerClient.ExecuteCmd([]string {"ps", "--filter", "name=kube-master", "--format",  "{{.ID}}"})
 	dockerClient.ExecuteCmd([]string{"exec",km_dockId,"bin/bash","-c","apt-get -y update && apt-get install -qqy ceph-common"})
 
 	_,kn1_dockId,_ := dockerClient.ExecuteCmd([]string {"ps", "--filter", "name=kube-node-1", "--format",  "{{.ID}}"})

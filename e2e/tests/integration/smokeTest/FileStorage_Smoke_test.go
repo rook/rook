@@ -4,12 +4,51 @@ import (
 	"github.com/dangula/rook/e2e/rook-test-framework/enums"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"github.com/dangula/rook/e2e/objects"
+	"github.com/dangula/rook/e2e/rook-test-framework/managers"
+	"errors"
 )
 
 func TestFileStorage_SmokeTest(t *testing.T) {
 
+	env := objects.NewManifest()
+
+	rookPlatform, errPlatform := enums.GetRookPlatFormTypeFromString(env.Platform)
+
+	if errPlatform != nil {
+		assert.Nil(t, errPlatform)
+	}
+
+	k8sVersion, errVersion := enums.GetK8sVersionFromString(env.K8sVersion)
+
+	if errPlatform != nil {
+		assert.Nil(t, errVersion)
+	}
+
+	if env.RookTag == ""	{
+		assert.Nil(t, errors.New("RookTag parameter is required"))
+	}
+
+	errInfra, rookInfra := managers.GetRookTestInfraManager(rookPlatform, true, k8sVersion)
+
+	if errInfra != nil {
+		assert.Nil(t, errInfra)
+	}
+
+	errSetup := rookInfra.ValidateAndPrepareEnvironment()
+
+	if errSetup != nil {
+		assert.Nil(t, errSetup)
+	}
+
+	errInstall, _ := rookInfra.InstallRook(env.RookTag)
+
+	if errInstall != nil {
+		assert.Nil(t, errInstall)
+	}
+
 	t.Log("File Storage Smoke Test - Create,Mount,write to, read from  and Unmount Filesystem")
-	sc, _ := CreateSmokeTestClient(enums.Kubernetes)
+	sc, _ := CreateSmokeTestClient(rookInfra.GetRookPlatform())
 	defer fileSmokecleanUp()
 	rh := sc.rookHelp
 	rfc := sc.GetFileSystemClient()

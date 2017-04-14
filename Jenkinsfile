@@ -23,8 +23,13 @@ try {
         }
 
         stage('Tests') {
-
-x`
+            try {
+                go test -run e2e/tests/smokeTest/FileStorage_Smoke_test.go -v | go-junit-report block-test-report.xml
+             }
+             catch (err) {
+                step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/*.xml'])
+                throw err
+             }
         }
 
         stage('Cleanup') {
