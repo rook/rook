@@ -7,17 +7,11 @@ Block storage allows you to mount storage to a single pod.
 This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](kubernetes.md)
 
 ### Provision Storage
-Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. The rook-storageclass.yaml sample will create the storage pool automatically. For more options on pools, see the documentation on [creating storage pools](pool-tpr.md).
-
-Rook already creates a default admin and rbd user, whose secrets are specified in the sample [rook-storageclass.yaml](/demo/kubernetes/rook-storageclass.yaml). Now we just need to specify the Ceph monitor endpoints (requires `jq`):
+Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. The [rook-storageclass.yaml](/demo/kubernetes/rook-storageclass.yaml) sample will create the storage pool automatically. For more options on pools, see the documentation on [creating storage pools](pool-tpr.md).
 
 ```bash
-cd demo/kubernetes
-export MONS=$(kubectl -n rook get pod mon0 mon1 mon2 -o json|jq ".items[].status.podIP"|tr -d "\""|sed -e 's/$/:6790/'|paste -s -d, -)
-sed 's#INSERT_HERE#'$MONS'#' rook-storageclass.yaml | kubectl create -f -
-``` 
-
-**NOTE:** We are working on streamlining the experience and removing the need for this step. See [#355](https://github.com/rook/rook/issues/355).
+kubectl create -f rook-storageclass.yaml
+```
 
 ### Consume the storage
 

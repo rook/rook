@@ -17,12 +17,9 @@ kind: StorageClass
 metadata:
    name: rook-block
    namespace: rook
-provisioner: kubernetes.io/rbd
+provisioner: rook.io/block
 parameters:
-    monitors: INSERT_HERE
-    adminId: admin
-    adminSecretName: rook-admin
-    adminSecretNamespace: rook
     pool: replicapool
-    userId: rook-rbd-user
-    userSecretName: rook-rbd-user
+    # Specify the Rook cluster from which to create volumes. If not specified, it will use `rook` as the namespace and name of the cluster.
+    # clusterName: rook
+    # clusterNamespace: rook

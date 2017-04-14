@@ -23,19 +23,32 @@ import (
 	"fmt"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-
+	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api"
+	"k8s.io/client-go/rest"
 )
 
 const (
 	initRetryDelay = 10 * time.Second
+)
+
+// volume provisioner constant
+const (
+	resyncPeriod              = 15 * time.Second
+	provisionerName           = "rook.io/block"
+	exponentialBackOffOnError = false
+	failedRetryThreshold      = 5
+	leasePeriod               = controller.DefaultLeaseDuration
+	retryPeriod               = controller.DefaultRetryPeriod
+	renewDeadline             = controller.DefaultRenewDeadline
+	termLimit                 = controller.DefaultTermLimit
 )
 
 var (
@@ -47,7 +60,8 @@ type Operator struct {
 	tprSchemes []tprScheme
 	// The TPR that is global to the kubernetes cluster.
 	// The cluster TPR is global because you create multiple clusers in k8s
-	clusterMgr *clusterManager
+	clusterMgr        *clusterManager
+	volumeProvisioner controller.Provisioner
 }
 
 func New(host string, factory client.ConnectionFactory, clientset kubernetes.Interface) *Operator {
@@ -60,11 +74,14 @@ func New(host string, factory client.ConnectionFactory, clientset kubernetes.Int
 	}
 	poolInitiator := newPoolInitiator(context)
 	clusterMgr := newClusterManager(context, []inclusterInitiator{poolInitiator})
+	volumeProvisioner := newRookVolumeProvisioner(clusterMgr)
+
 	schemes := []tprScheme{clusterMgr, poolInitiator}
 	return &Operator{
-		context:    context,
-		clusterMgr: clusterMgr,
-		tprSchemes: schemes,
+		context:           context,
+		clusterMgr:        clusterMgr,
+		tprSchemes:        schemes,
+		volumeProvisioner: volumeProvisioner,
 	}
 }
 
@@ -78,6 +95,27 @@ func (o *Operator) Run() error {
 		logger.Errorf("failed to init resources. %+v. retrying...", err)
 		<-time.After(initRetryDelay)
 	}
+
+	// Run volume provisioner
+	// The controller needs to know what the server version is because out-of-tree
+	// provisioners aren't officially supported until 1.5
+	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
+	if err != nil {
+		return fmt.Errorf("Error getting server version: %v", err)
+	}
+	pc := controller.NewProvisionController(
+		o.context.Clientset,
+		resyncPeriod,
+		provisionerName,
+		o.volumeProvisioner,
+		serverVersion.GitVersion,
+		exponentialBackOffOnError,
+		failedRetryThreshold,
+		leasePeriod,
+		renewDeadline,
+		retryPeriod,
+		termLimit)
+	go pc.Run(wait.NeverStop)
 
 	// watch for changes to the rook clusters
 	o.clusterMgr.Manage()
