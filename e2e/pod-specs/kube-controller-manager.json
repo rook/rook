@@ -2,7 +2,7 @@
   "kind": "Pod",
   "apiVersion": "v1",
   "metadata": {
-    "name": "kube-controller-manager",
+    "name": "kube-controller-manager-kube-master",
     "namespace": "kube-system",
     "creationTimestamp": null,
     "labels": {
@@ -45,7 +45,7 @@
     ],
     "containers": [
       {
-        "name": "kube-controller-manager-kube-master",
+        "name": "kube-controller-manager",
         "image": "luxas/storage-controller-manager-amd64:v1.6.0-beta.4",
         "command": [
           "kube-controller-manager",
