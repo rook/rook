@@ -32,7 +32,7 @@ withEnv(["GOPATH=/home/ubuntu/go", "GOROOT=/usr/local/go"]) {
 
 sh "export GOPATH=/home/ubuntu/go"
 
-                 sh "export GOPATH=/home/ubuntu/go && go get -u github.com/jstemmer/go-junit-report"
+                 sh "export GOPATH=/home/ubuntu/go && export GOROOT=/usr/local/go && go get -u github.com/jstemmer/go-junit-report"
      echo 'attempting pull of rook stuff'
                  sh "sudo go get -u github.com/dangula/rook"
 
