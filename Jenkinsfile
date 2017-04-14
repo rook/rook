@@ -27,19 +27,23 @@ try {
             //sh "sudo apt-get install -qy golang-go"
             //sh "sudo mkdir -p ~/go/src"
             //sh "sudo mkdir -p ~/go/bin"
+
+withEnv(["GOPATH=~/go/"]) {
+     echo 'attempting pull of junit stuff'
+                 sh "go get -u github.com/jstemmer/go-junit-report"
+     echo 'attempting pull of rook stuff'
+                 sh "go get -u github.com/dangula/rook"
+
+                 //sh "cd $GOPATH/src/github.com/rook/e2e/tests/integration/smokeTest"
+
+                 //sh "go test -run TestFileStorage_SmokeTest -v | go-junit-report > file-test-report.xml"
+
+    }
             //sh "export $GOPATH=~/go/"
             //sh "export GOROOT=/usr/local/go/"
             //sh "export PATH=$GOPATH/bin:$GOROOT/bin:$PATH"
             //sh "echo $GOPATH"
 
-echo 'attempting pull of junit stuff'
-            sh "go get -u github.com/jstemmer/go-junit-report"
-echo 'attempting pull of rook stuff'
-            sh "go get -u github.com/dangula/rook"
-
-            //sh "cd $GOPATH/src/github.com/rook/e2e/tests/integration/smokeTest"
-
-            //sh "go test -run TestFileStorage_SmokeTest -v | go-junit-report > file-test-report.xml"
 
             step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/*.xml'])
 
