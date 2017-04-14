@@ -23,7 +23,7 @@ try {
         }
 
         stage('Tests') {
-            sh "sudo apt-get install -qy golang-go"
+            //sh "sudo apt-get install -qy golang-go"
             //sh "sudo mkdir -p ~/go/src"
             //sh "sudo mkdir -p ~/go/bin"
             sh "export $GOPATH=~/go/"
