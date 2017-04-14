@@ -7,7 +7,7 @@ try {
 
         stage('Checkout') {
             echo 'faking a check-out'
-            checkout scm
+            //checkout scm
         }
 
         stage('Validation') {
@@ -16,10 +16,10 @@ try {
 
         stage('Build') {
             echo 'Simulating a build by doing a pull'
-            sh "sudo mkdir -p /to-host"
-            sh "sudo docker pull quay.io/rook/rook-client"
-            sh "sudo docker pull quay.io/rook/rook-operator"
-            sh "sudo docker pull quay.io/rook/rookd"
+            //sh "sudo mkdir -p /to-host"
+            //sh "sudo docker pull quay.io/rook/rook-client"
+            //sh "sudo docker pull quay.io/rook/rook-operator"
+            //sh "sudo docker pull quay.io/rook/rookd"
         }
 
         stage('Tests') {
