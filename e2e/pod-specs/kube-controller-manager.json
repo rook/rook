@@ -2,7 +2,7 @@
   "kind": "Pod",
   "apiVersion": "v1",
   "metadata": {
-    "name": "kube-controller-manager",
+    "name": "kube-controller-manager-kube-master",
     "namespace": "kube-system",
     "creationTimestamp": null,
     "labels": {

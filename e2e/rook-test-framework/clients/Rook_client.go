@@ -37,7 +37,7 @@ func CreateRook_Client(platform enums.RookPlatformType) (*RookClient, error) {
 		object_client = CreateK8sRookObject(transportClient)
 		pool_client = CreateK8sPool(transportClient)
 	case platform == enums.StandAlone:
-		transportClient = transport.CreateNewStandAloneTransportClient()
+		transportClient = nil //TODO- Not yet implemented
 		block_client = nil  //TODO- Not yet implemented
 		fs_client = nil     //TODO- Not yet implemented
 		object_client = nil //TODO- Not yet implemented

@@ -169,6 +169,13 @@ func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 
 	//curl --unix-socket /var/run/docker.sock http:/containers/json | jq -r '.[].Names' | xargs -i if grep -Ff kube {} docker exec -i {} bash -c 'apt-get -y update && apt-get install -qqy ceph-common'
 
+	_,km_dockId,_ := dockerClient.ExecuteCmd([]string {"ps", "--filter", "name=kube-master", "--format",  "{{.ID}}"})
+	dockerClient.ExecuteCmd([]string{"exec",km_dockId,"bin/bash","-c","apt-get -y update && apt-get install -qqy ceph-common"})
+
+	_,kn1_dockId,_ := dockerClient.ExecuteCmd([]string {"ps", "--filter", "name=kube-node-1", "--format",  "{{.ID}}"})
+	dockerClient.ExecuteCmd([]string{"exec",kn1_dockId,"bin/bash","-c","apt-get -y update && apt-get install -qqy ceph-common"})
+
+
 	return nil
 }
 

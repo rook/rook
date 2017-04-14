@@ -1,12 +1,11 @@
 apiVersion: rook.io/v1alpha1
 kind: Rookpool
 metadata:
-  name: rook-replicapool
-spec:
   name: replicapool
   namespace: rook
+spec:
   replication:
-    count: 1
+    size: 1
   # For an erasure-coded pool, comment out the replication count above and uncomment the following settings.
   # Make sure you have enough OSDs to support the replica count or erasure code chunks.
   #erasureCode:
@@ -20,7 +19,7 @@ metadata:
    namespace: rook
 provisioner: kubernetes.io/rbd
 parameters:
-    monitors: {{.mon0}},{{.mon1}},{{.mon2}}
+    monitors:  {{.mon0}},{{.mon1}},{{.mon2}} 
     adminId: admin
     adminSecretName: rook-admin
     adminSecretNamespace: rook
@@ -40,3 +39,5 @@ spec:
   resources:
     requests:
       storage: 1M
+
+
