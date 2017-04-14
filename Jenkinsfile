@@ -24,7 +24,11 @@ try {
 
         stage('Tests') {
             try {
-                go test -run e2e/tests/smokeTest/FileStorage_Smoke_test.go -v | go-junit-report block-test-report.xml
+                go get -u github.com/jstemmer/go-junit-report
+
+                cd e2e/tests/integration/smokeTest
+
+                go test -run TestFileStorage_SmokeTest -v | go-junit-report > file-test-report.xml
              }
              catch (err) {
                 step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/*.xml'])
