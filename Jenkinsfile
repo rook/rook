@@ -33,9 +33,9 @@ try {
             sh "go get -u github.com/jstemmer/go-junit-report"
             sh "go get -u github.com/dangula/rook"
 
-            sh "cd $GOPATH/src/github.com/rook/e2e/tests/integration/smokeTest"
+            //sh "cd $GOPATH/src/github.com/rook/e2e/tests/integration/smokeTest"
 
-            sh "go test -run TestFileStorage_SmokeTest -v | go-junit-report > file-test-report.xml"
+            //sh "go test -run TestFileStorage_SmokeTest -v | go-junit-report > file-test-report.xml"
 
             step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/*.xml'])
 
