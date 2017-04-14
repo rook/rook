@@ -23,7 +23,8 @@ try {
         }
 
         stage('Tests') {
-            sh "sudo apt-get install -qy golang-go"
+            //sh "sudo apt-get install -qy golang-go"
+            sh "pwd"
             sh "go get -u github.com/jstemmer/go-junit-report"
 
             sh "cd e2e/tests/integration/smokeTest"
