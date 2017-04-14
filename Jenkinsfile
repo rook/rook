@@ -28,7 +28,7 @@ try {
             //sh "sudo mkdir -p ~/go/src"
             //sh "sudo mkdir -p ~/go/bin"
 
-withEnv(["GOPATH=/home/ubuntu/go"]) {
+withEnv(["GOPATH=/home/ubuntu/go", "GOROOT=/usr/local/go"]) {
 
      echo 'attempting pull of junit stuff'
                  sh "sudo go get -u github.com/jstemmer/go-junit-report"
@@ -37,7 +37,7 @@ withEnv(["GOPATH=/home/ubuntu/go"]) {
 
                  //sh "cd $GOPATH/src/github.com/rook/e2e/tests/integration/smokeTest"
 
-                 //sh "sudo go test -run TestFileStorage_SmokeTest -v | go-junit-report > file-test-report.xml"
+                 //sh "sudo go test -run TestFileStorage_SmokeTest -v | sudo go-junit-report > file-test-report.xml"
 
     }
             //sh "export $GOPATH=~/go/"
