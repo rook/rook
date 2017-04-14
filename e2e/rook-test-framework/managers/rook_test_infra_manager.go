@@ -167,6 +167,7 @@ func (r *rookTestInfraManager) ValidateAndPrepareEnvironment() error	{
 	//STEP 7 --> Install Ceph --> TODO fix so images are already patched with ceph
 	//curl --unix-socket /var/run/docker.sock http:/containers/json | jq -r '.[].Id' | xargs -i docker exec -i {} bash -c 'apt-get -y update && apt-get install -qqy ceph-common'
 
+	//curl --unix-socket /var/run/docker.sock http:/containers/json | jq -r '.[].Names' | xargs -i if grep -Ff kube {} docker exec -i {} bash -c 'apt-get -y update && apt-get install -qqy ceph-common'
 
 	return nil
 }
