@@ -29,7 +29,7 @@ try {
 
             sh "go test -run TestFileStorage_SmokeTest -v | go-junit-report > file-test-report.xml"
 
-            sh"step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/*.xml'])""
+            step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/*.xml'])
 
         }
 
