@@ -30,7 +30,7 @@ try {
             //sh "export $GOPATH=~/go/"
             //sh "export GOROOT=/usr/local/go/"
             //sh "export PATH=$GOPATH/bin:$GOROOT/bin:$PATH"
-            sh "echo $GOPATH"
+            //sh "echo $GOPATH"
 
 echo 'attempting pull of junit stuff'
             sh "go get -u github.com/jstemmer/go-junit-report"
