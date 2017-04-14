@@ -24,14 +24,14 @@ try {
 
         stage('Tests') {
             sh "sudo apt-get install -qy golang-go"
-            sh "mkdir -p $HOME/go/src"
-            sh "mkdir -p $HOME/go/bin"
+            sh "sudo mkdir -p $HOME/go/src"
+            sh "sudo mkdir -p $HOME/go/bin"
             sh "export $GOPATH=$HOME/go/"
             sh "export GOROOT=/usr/local/go/"
             sh "export PATH=$GOPATH/bin:$GOROOT/bin:$PATH"
 
             sh "go get -u github.com/jstemmer/go-junit-report"
-            sh "go get -u "github.com/dangula/rook"
+            sh "go get -u github.com/dangula/rook"
 
             sh "cd $GOPATH/src/github.com/rook/e2e/tests/integration/smokeTest"
 
