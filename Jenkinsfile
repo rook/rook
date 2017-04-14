@@ -24,9 +24,9 @@ try {
 
         stage('Tests') {
             sh "sudo apt-get install -qy golang-go"
-            sh "sudo mkdir -p $HOME/go/src"
-            sh "sudo mkdir -p $HOME/go/bin"
-            sh "export $GOPATH=$HOME/go/"
+            sh "sudo mkdir -p ~/go/src"
+            sh "sudo mkdir -p ~/go/bin"
+            sh "export $GOPATH=~/go/"
             sh "export GOROOT=/usr/local/go/"
             sh "export PATH=$GOPATH/bin:$GOROOT/bin:$PATH"
 
