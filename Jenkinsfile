@@ -30,7 +30,8 @@ try {
 
 withEnv(["GOPATH=/home/ubuntu/go", "GOROOT=/usr/local/go"]) {
 
-     echo 'attempting pull of junit stuff'
+sh "export GOPATH=/home/ubuntu/go"
+
                  sh "sudo go get -u github.com/jstemmer/go-junit-report"
      echo 'attempting pull of rook stuff'
                  sh "sudo go get -u github.com/dangula/rook"
