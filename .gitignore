@@ -17,3 +17,5 @@ demo/standalone/cloud-config.yml
 .virtualbox/
 
 .discovery-token
+tests/integration/temp_rook-operator.yaml
+vendor/

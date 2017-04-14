@@ -1,0 +1,31 @@
+apiVersion: rook.io/v1alpha1
+kind: Rookcluster
+metadata:
+  name: rook
+  namespace: rook
+spec:
+  versionTag: master-latest
+  dataDirHostPath:
+  storage:                # cluster level storage configuration and selection
+    useAllNodes: true
+    useAllDevices: false
+    deviceFilter:
+    metadataDevice:
+    location:
+    storeConfig:
+      storeType: filestore
+      databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
+      journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
+# individual nodes and their config can be specified as well, their "name" field should match their kubernetes.io/hostname label
+#    nodes:
+#    - name: "172.17.4.101"
+#     directories:         # specific directores to use for storage can be specified for each node
+#     - path: "/rook/storage-dir"
+#   - name: "172.17.4.201"
+#     devices:             # specific devices to use for storage can be specified for each node
+#     - name: "sdb"
+#     - name: "sdc"
+#     storeConfig:         # configuration can be specified at the node level which overrides the cluster level config
+#       storeType: bluestore
+#   - name: "172.17.4.301"
+#     deviceFilter: "^sd."
