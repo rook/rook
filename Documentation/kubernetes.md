@@ -18,24 +18,22 @@ Note that we are striving for even more smooth integration with Kubernetes in th
 
 With your Kubernetes cluster running, Rook can be setup and deployed by simply creating the [rook-operator](/demo/kubernetes/rook-operator.yaml) deployment and creating a [rook cluster](/demo/kubernetes/rook-cluster.yaml).
 
-```
+```bash
 cd demo/kubernetes
 kubectl create -f rook-operator.yaml
-```
 
-This will start the rook-operator pod.  Verify that it is in the `Running` state before proceeding:
-```
+# This will start the rook-operator pod.  Verify that it is in the `Running` state before proceeding:
 kubectl get pod | grep rook-operator
 ```
 
-Now that the rook-operator pod is in the `Running` state, we can create the Rook cluster. See the documentation on [configuring the cluster](cluster-tpr.md).
-```
+Now that the rook-operator pod is running, we can create the Rook cluster. See the documentation on [configuring the cluster](cluster-tpr.md).
+```bash
 kubectl create -f rook-cluster.yaml
 ```
 
-Use `kubectl` to list pods in the rook namespace. You should be able to see the following once they are all running: 
+Use `kubectl` to list pods in the rook namespace. You should be able to see the following pods once they are all running: 
 
-```
+```bash
 $ kubectl -n rook get pod
 NAME                        READY     STATUS    RESTARTS   AGE
 mon0                        1/1       Running   0          1m
@@ -46,83 +44,44 @@ osd-6jmph                   1/1       Running   0          1m
 rook-api-1709486253-gvdnc   1/1       Running   0          1m
 ```
 
-### Provision Storage
-Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. The rook-storageclass.yaml sample will create the storage pool automatically. For more options on pools, see the documentation on [creating storage pools](pool-tpr.md).
+## Storage
+For a walkthrough of the three types of storage exposed by Rook, see the guides for:
+- **[Block](k8s-block.md)**: Create block storage to be consumed by a pod
+- **[Shared File System](k8s-filesystem.md)**: Create a file system to be shared across multiple pods
+- **[Object](k8s-object.md)**: Create an object store that is accessible inside or outside the Kubernetes cluster
 
-Rook already creates a default admin and rbd user, whose secrets are specified in the sample [rook-storageclass.yaml](/demo/kubernetes/rook-storageclass.yaml). Now we just need to specify the Ceph monitor endpoints (requires `jq`):
-
-```
-export MONS=$(kubectl -n rook get pod mon0 mon1 mon2 -o json|jq ".items[].status.podIP"|tr -d "\""|sed -e 's/$/:6790/'|paste -s -d, -)
-sed 's#INSERT_HERE#'$MONS'#' rook-storageclass.yaml | kubectl create -f -
-``` 
-**NOTE:** In the v0.4 release we plan to expose monitors via DNS/service names instead of IP address (see [#355](https://github.com/rook/rook/issues/355)), which will streamline the experience and remove the need for this step.
-
-### Consume the storage
-
-Now that Rook is running and integrated with Kubernetes, we can create a sample app to consume the block storage provisioned by Rook. We will create the classic wordpress and mysql apps.
-Both these apps will make use of block volumes provisioned by Rook.
-
-Start mysql and wordpress from the `demo/kubernetes` folder:
-
-```
-kubectl create -f mysql.yaml
-kubectl create -f wordpress.yaml
-```
-
-Both of these apps create a block volume and mount it to their respective pod. You can see the Kubernetes volume claims by running the following:
-
-```
-$ kubectl get pvc
-NAME             STATUS    VOLUME                                     CAPACITY   ACCESSMODES   AGE
-mysql-pv-claim   Bound     pvc-95402dbc-efc0-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
-wp-pv-claim      Bound     pvc-39e43169-efc1-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
-```
-
-Once the wordpress and mysql pods are in the `Running` state, get the cluster IP of the wordpress app and enter it in your brower:
-
-```
-$ kubectl get svc wordpress
-NAME        CLUSTER-IP   EXTERNAL-IP   PORT(S)        AGE
-wordpress   10.3.0.155   <pending>     80:30841/TCP   2m
-```
-
-You should see the wordpress app running.  
-
-**NOTE:** When running in a vagrant environment, there will be no external IP address to reach wordpress with.  You will only be able to reach wordpress via the `CLUSTER-IP` from inside the Kubernetes cluster.
+## Tools
 
 ### Rook Client
 You also have the option to use the `rook` client tool directly by running it in a pod that can be started in the cluster with:
-```
+```bash
 kubectl create -f rook-client/rook-client.yml
-```  
 
-Starting the rook-client pod will take a bit of time to download the container, so you can check to see when it's ready with (it should be in the `Running` state):
-```
+# Starting the rook-client pod will take a bit of time to download the container, so check when it's in the Running state
 kubectl -n rook get pod rook-client
-```
 
-Connect to the rook-client pod and verify the `rook` client can talk to the cluster:
-```
+# Connect to the rook-client pod 
 kubectl -n rook exec rook-client -it bash
+
+# Verify the rook client can talk to the cluster:
 rook node ls
 ```
 
 At this point, you can use the `rook` tool along with some [simple steps to create and manage block, file and object storage](client.md).
 
+### Advanced Configuration and Troubleshooting
+We have created a toolbox container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](toolbox.md) for setup and usage information.
+
 ### Monitoring
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
 To learn how to set up monitoring for your Rook cluster, you can follow the steps in the [monitoring guide](./k8s-monitoring.md).
 
-### Teardown
-To clean up all the artifacts created by the demo, run the following:
-```
-kubectl delete -f wordpress.yaml
-kubectl delete -f mysql.yaml
+## Teardown
+To clean up all the artifacts created by the demo, *first cleanup the resources from the block, file, and object walkthroughs* (unmount volumes, delete volume claims, etc), then run the following:
+```bash
 kubectl delete deployment rook-operator
 kubectl delete -n rook rookcluster rook
-kubectl delete -n rook rookpool replicapool
 kubectl delete thirdpartyresources rookcluster.rook.io rookpool.rook.io
-kubectl delete storageclass rook-block
 kubectl delete secret rook-rbd-user
 kubectl delete namespace rook
 ```
