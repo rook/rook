@@ -99,17 +99,19 @@ class VagrantPlugins::ProviderVirtualBox::Action::SetName
 end
 
 # Add persistent storage volumes
-def attach_volumes(node, num_volumes, volume_size)
+def attach_volumes(node, disk_sizes)
 
     node.vm.provider :virtualbox do |v, override|
-      (1..num_volumes).each do |disk|
-        diskname = File.join(File.dirname(File.expand_path(__FILE__)), ".virtualbox", "#{node.vm.hostname}-#{disk}.vdi")
+      disk_num = 0
+      disk_sizes.each do |disk_size|
+        disk_num += 1
+        diskname = File.join(File.dirname(File.expand_path(__FILE__)), ".virtualbox", "#{node.vm.hostname}-#{disk_num}.vdi")
         unless File.exist?(diskname)
-          v.customize ['createhd', '--filename', diskname, '--size', volume_size * 1024]
+          v.customize ['createhd', '--filename', diskname, '--size', disk_size * 1024]
         end
         # the first disk is SSD (non-rotational) and the rest are HDD (rotational)
-        nonrotational = disk == 1 ? 'on' : 'off'
-        v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', disk, '--device', 0, '--type', 'hdd', '--nonrotational', nonrotational, '--medium', diskname]
+        nonrotational = disk_num == 1 ? 'on' : 'off'
+        v.customize ['storageattach', :id, '--storagectl', 'SATA Controller', '--port', disk_num, '--device', 0, '--type', 'hdd', '--nonrotational', nonrotational, '--medium', diskname]
       end
     end
 

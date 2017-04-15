@@ -94,8 +94,12 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []*P
 }
 
 func GetDeviceProperties(device string, executor exec.Executor) (map[string]string, error) {
-	cmd := fmt.Sprintf("lsblk /dev/%s", device)
-	output, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", fmt.Sprintf("/dev/%s", device),
+	return GetDevicePropertiesFromPath(fmt.Sprintf("/dev/%s", device), executor)
+}
+
+func GetDevicePropertiesFromPath(devicePath string, executor exec.Executor) (map[string]string, error) {
+	cmd := fmt.Sprintf("lsblk %s", devicePath)
+	output, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", devicePath,
 		"--bytes", "--nodeps", "--pairs", "--output", "SIZE,ROTA,RO,TYPE,PKNAME")
 	if err != nil {
 		// try to get more information about the command error

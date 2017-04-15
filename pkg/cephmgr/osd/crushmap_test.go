@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/rook/rook/pkg/cephmgr/client"
@@ -26,13 +27,28 @@ import (
 	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCrushMap(t *testing.T) {
+	testCrushMapHelper(t, &StoreConfig{StoreType: Filestore})
+	testCrushMapHelper(t, &StoreConfig{StoreType: Bluestore})
+}
 
+func testCrushMapHelper(t *testing.T, storeConfig *StoreConfig) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: "node1"}
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
+		if strings.HasPrefix(name, "lsblk /dev/disk/by-partuuid") {
+			// this is a call to get device properties so we figure out CRUSH weight, which should only be done for Bluestore
+			// (Filestore uses Statfs since it has a mounted filesystem)
+			assert.Equal(t, Bluestore, storeConfig.StoreType)
+			return `SIZE="1234567890" TYPE="part"`, nil
+		}
+		return "", nil
+	}
+	context := &clusterd.Context{EtcdClient: etcdClient, NodeID: "node1", Executor: executor}
 	factory := &testceph.MockConnectionFactory{Fsid: "fsid", SecretKey: "key"}
 	conn, _ := factory.NewConnWithClusterAndUser("cluster", "user")
 	conn.(*testceph.MockConnection).MockMonCommand = func(buf []byte) (buffer []byte, info string, err error) {
@@ -56,7 +72,14 @@ func TestCrushMap(t *testing.T) {
 
 	location := "root=default,dc=datacenter1,host=node1"
 
-	err := addOSDToCrushMap(conn, context, 23, "/", location)
+	config := &osdConfig{id: 23, rootPath: "/"}
+	if storeConfig.StoreType == Bluestore {
+		// if we're using bluestore, give some extra partition config info, the addOSDToCrushMap call will need it
+		config.partitionScheme = NewPerfSchemeEntry(storeConfig.StoreType)
+		PopulateCollocatedPerfSchemeEntry(config.partitionScheme, "sda", *storeConfig)
+	}
+
+	err := addOSDToCrushMap(conn, context, config, location)
 	assert.Nil(t, err)
 
 	// location should have been stored in etcd as well

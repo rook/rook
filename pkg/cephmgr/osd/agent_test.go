@@ -36,9 +36,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestOSDAgentWithDevices(t *testing.T) {
-	testOSDAgentWithDevicesHelper(t, StoreConfig{StoreType: Bluestore})
+func TestOSDAgentWithDevicesFilestore(t *testing.T) {
 	testOSDAgentWithDevicesHelper(t, StoreConfig{StoreType: Filestore})
+}
+
+func TestOSDAgentWithDevicesBluestore(t *testing.T) {
+	testOSDAgentWithDevicesHelper(t, StoreConfig{StoreType: Bluestore})
 }
 
 func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
@@ -129,10 +132,17 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 		execCount++
 		return nil
 	}
+
 	outputExecCount := 0
 	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
 		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
 		outputExecCount++
+		if strings.HasPrefix(name, "lsblk /dev/disk/by-partuuid") {
+			// this is a call to get device properties so we figure out CRUSH weight, which should only be done for Bluestore
+			// (Filestore uses Statfs since it has a mounted filesystem)
+			assert.Equal(t, Bluestore, storeConfig.StoreType)
+			return `SIZE="1234567890" TYPE="part"`, nil
+		}
 		return "", nil
 	}
 
@@ -147,7 +157,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 
 	// Set sdx as already having an assigned osd id, a UUID and saved to the partition scheme.
 	// The other device (sdy) will go through id selection, which is mocked in the createTestAgent method to return an id of 3.
-	_, sdxUUID := mockPartitionSchemeEntry(t, 23, "sdx", configDir)
+	_, sdxUUID := mockPartitionSchemeEntry(t, 23, "sdx", configDir, &storeConfig)
 
 	// sdx should already have desired state set to have its data and metadata collocated on the sdx device
 	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/%s/device/%s/osd-id-data", nodeID, sdxUUID), "23")
@@ -156,7 +166,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	// note only sdx already has a UUID (it's been through partitioning)
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
 		&inventory.LocalDisk{Name: "sdx", Size: 1234567890, UUID: sdxUUID},
-		&inventory.LocalDisk{Name: "sdy", Size: 2234567890},
+		&inventory.LocalDisk{Name: "sdy", Size: 1234567890},
 	}
 
 	// prep the OSD agent and related orcehstration data
@@ -169,13 +179,14 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	<-agent.osdsCompleted
 
 	assert.Equal(t, int32(0), agent.configCounter)
-	assert.Equal(t, 2, outputExecCount)
 	assert.Equal(t, 2, startCount) // 2 OSD procs should be started
 	assert.Equal(t, 2, len(agent.osdProc), fmt.Sprintf("procs=%+v", agent.osdProc))
 
 	if storeConfig.StoreType == Bluestore {
-		assert.Equal(t, 5, execCount) // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
+		assert.Equal(t, 4, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
+		assert.Equal(t, 5, execCount)       // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
 	} else {
+		assert.Equal(t, 2, outputExecCount)
 		assert.Equal(t, 7, execCount) // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 mkfs for sdy, 1 mount for sdy, 1 osd mkfs for sdy
 	}
 
@@ -529,7 +540,7 @@ func TestGetPartitionPerfSchemeDiskInUse(t *testing.T) {
 	context := &clusterd.Context{EtcdClient: etcdClient, Inventory: createInventory(), NodeID: "a", ConfigDir: configDir}
 
 	// mock device sda having been already partitioned
-	_, sdaUUID := mockPartitionSchemeEntry(t, 1, "sda", configDir)
+	_, sdaUUID := mockPartitionSchemeEntry(t, 1, "sda", configDir, nil)
 
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
 		&inventory.LocalDisk{Name: "sda", Size: 107374182400, UUID: sdaUUID}, // 100 GB
@@ -615,11 +626,15 @@ func verifyPartitionEntry(t *testing.T, actual *PerfSchemePartitionDetails, expe
 	assert.Equal(t, expectedOffset, actual.OffsetMB)
 }
 
-func mockPartitionSchemeEntry(t *testing.T, osdID int, device, configDir string) (entry *PerfSchemeEntry, diskUUID string) {
-	entry = NewPerfSchemeEntry(Bluestore)
+func mockPartitionSchemeEntry(t *testing.T, osdID int, device, configDir string, storeConfig *StoreConfig) (entry *PerfSchemeEntry, diskUUID string) {
+	if storeConfig == nil {
+		storeConfig = &StoreConfig{StoreType: Bluestore}
+	}
+
+	entry = NewPerfSchemeEntry(storeConfig.StoreType)
 	entry.ID = osdID
 	entry.OsdUUID = uuid.Must(uuid.NewRandom())
-	PopulateCollocatedPerfSchemeEntry(entry, device, StoreConfig{})
+	PopulateCollocatedPerfSchemeEntry(entry, device, *storeConfig)
 	scheme := NewPerfScheme()
 	scheme.Entries = append(scheme.Entries, entry)
 	err := scheme.Save(configDir)

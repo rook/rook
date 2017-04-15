@@ -12,6 +12,7 @@ coreos:
         content: |
           [Service]
           Environment=ROOKD_OSD_DATABASE_SIZE=1024
+          Environment=ROOKD_OSD_JOURNAL_SIZE=1024
     content: |
       [Unit]
       Description=Rook Daemon - software defined storage
