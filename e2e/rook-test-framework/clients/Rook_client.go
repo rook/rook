@@ -38,10 +38,10 @@ func CreateRook_Client(platform enums.RookPlatformType) (*RookClient, error) {
 		pool_client = CreateK8sPool(transportClient)
 	case platform == enums.StandAlone:
 		transportClient = nil //TODO- Not yet implemented
-		block_client = nil  //TODO- Not yet implemented
-		fs_client = nil     //TODO- Not yet implemented
-		object_client = nil //TODO- Not yet implemented
-		pool_client = nil   //TODO- Not yet implemented
+		block_client = nil    //TODO- Not yet implemented
+		fs_client = nil       //TODO- Not yet implemented
+		object_client = nil   //TODO- Not yet implemented
+		pool_client = nil     //TODO- Not yet implemented
 	default:
 		return &RookClient{}, errors.New("Unsupported Rook Platform Type")
 	}

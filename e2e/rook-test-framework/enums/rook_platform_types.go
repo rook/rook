@@ -1,8 +1,8 @@
 package enums
 
 import (
-	"strings"
 	"errors"
+	"strings"
 )
 
 type RookPlatformType int

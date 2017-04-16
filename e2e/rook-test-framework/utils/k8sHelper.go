@@ -215,7 +215,7 @@ func (k8sh *K8sHelper) GetService(servicename string) (string, error) {
 	return sout, nil
 }
 
-func(k8sh *K8sHelper) IsThirdPartyResourcePresent(tprname string) bool {
+func (k8sh *K8sHelper) IsThirdPartyResourcePresent(tprname string) bool {
 	cmdArgs := []string{"get", "thirdpartyresources", tprname}
 	inc := 0
 	for inc < 20 {
@@ -229,4 +229,3 @@ func(k8sh *K8sHelper) IsThirdPartyResourcePresent(tprname string) bool {
 	}
 	return false
 }
-

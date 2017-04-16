@@ -1,16 +1,50 @@
 package smokeTest
 
 import (
+	"errors"
+	"github.com/dangula/rook/e2e/objects"
 	"github.com/dangula/rook/e2e/rook-test-framework/enums"
+	"github.com/dangula/rook/e2e/rook-test-framework/managers"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestBlockStorage_SmokeTest(t *testing.T) {
+	env := objects.NewManifest()
+
+	rookPlatform, errPlatform := enums.GetRookPlatFormTypeFromString(env.Platform)
+
+	if errPlatform != nil {
+		assert.Nil(t, errPlatform)
+	}
+
+	k8sVersion, errVersion := enums.GetK8sVersionFromString(env.K8sVersion)
+
+	if errPlatform != nil {
+		assert.Nil(t, errVersion)
+	}
+
+	if env.RookTag == "" {
+		assert.Nil(t, errors.New("RookTag parameter is required"))
+	}
+
+	errInfra, rookInfra := managers.GetRookTestInfraManager(rookPlatform, true, k8sVersion)
+
+	if errInfra != nil {
+		assert.Nil(t, errInfra)
+	}
+
+	rookInfra.ValidateAndSetupTestPlatform()
+
+	errInstall, _ := rookInfra.InstallRook(env.RookTag)
+
+	if errInstall != nil {
+		assert.Nil(t, errInstall)
+	}
 
 	t.Log("Block Storage Smoke Test - Create,Mount,write to, read from  and Unmount Block")
 	sc, _ := CreateSmokeTestClient(enums.Kubernetes)
-	defer blockTestcleanup()
+	//defer blockTestcleanup()
 	rh := sc.rookHelp
 	rbc := sc.GetBlockClient()
 	t.Log("Step 0 : Get Initial List Block")

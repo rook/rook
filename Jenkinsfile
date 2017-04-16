@@ -35,8 +35,9 @@ withEnv(["GOPATH=/home/ubuntu/go", "GOROOT=/usr/bin/go"]) {
                  sh "export GOPATH=/usr/share/go/ && export GOROOT=/usr/lib/go-1.6 && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH && sudo -E go get -u github.com/jstemmer/go-junit-report"
 
                  //export GOPATH=/home/ubuntu/go && export GOROOT=/usr/lib/go-1.6 && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH &&
-                 sh "export GOPATH=/usr/share/go/ && export GOROOT=/usr/lib/go-1.6 && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH && sudo -E go get -u github.com/dangula/rook"
+                 //sh "export GOPATH=/usr/share/go/ && export GOROOT=/usr/lib/go-1.6 && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH && sudo -E go get -u github.com/dangula/rook"
 
+                 sh "git clone "
                  //sh "cd $GOPATH/src/github.com/rook/e2e/tests/integration/smokeTest"
 
                  //sh "sudo go test -run TestFileStorage_SmokeTest -v | sudo go-junit-report > file-test-report.xml"

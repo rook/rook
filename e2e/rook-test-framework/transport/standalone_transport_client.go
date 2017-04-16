@@ -2,21 +2,19 @@ package transport
 
 import (
 	"bytes"
+	"errors"
 	"os/exec"
 	"syscall"
-	"errors"
 )
 
 type standAloneTransportClient struct {
 }
 
-
-
 func CreateNewStandAloneTransportClient() *standAloneTransportClient {
 	return &standAloneTransportClient{}
 }
 
-func (k *standAloneTransportClient) ExecuteCmd(cmd []string) (stdout string, stderr string, err error){
+func (k *standAloneTransportClient) ExecuteCmd(cmd []string) (stdout string, stderr string, err error) {
 	return "", "", errors.New("Not Implemented")
 }
 

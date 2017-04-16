@@ -3,7 +3,7 @@ package objects
 import "github.com/dangula/rook/e2e/rook-test-framework/contracts"
 
 type DockerContext struct {
-	containerId string
+	containerId  string
 	dockerClient contracts.IDockerClient
 }
 
@@ -15,12 +15,12 @@ func (d *DockerContext) Get_ContainerId() string {
 	return d.containerId
 }
 
-func (d *DockerContext) Set_ContainerId(containerId string) {
+func (d *DockerContext) Set_ContainerId(containerId string) (outContainerId string) {
 	d.containerId = containerId
+
+	return containerId
 }
 
-func (d *DockerContext) Get_DockerClient() (error, contracts.IDockerClient) {
-	return nil, d.dockerClient
+func (d *DockerContext) Get_DockerClient() (contracts.IDockerClient) {
+	return d.dockerClient
 }
-
-

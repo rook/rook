@@ -4,7 +4,6 @@ import (
 	"github.com/dangula/rook/e2e/rook-test-framework/enums"
 	"github.com/stretchr/testify/assert"
 	"testing"
-	//"fmt"
 	"errors"
 	"github.com/dangula/rook/e2e/rook-test-framework/utils"
 )
@@ -18,7 +17,7 @@ var (
 	contentType     = "plain/text"
 )
 
-func setUpBeforeTest(){
+func setUpBeforeTest() {
 	sc, _ := CreateSmokeTestClient(enums.Kubernetes)
 	sc.CreateObjectStore()
 }
