@@ -18,12 +18,12 @@
 Rook is a distributed storage system designed for cloud native applications. It exposes file, block, and object storage on top of shared resource pools.
 Rook has minimal dependencies and can be deployed in dedicated storage clusters or converged clusters.
 It's self-managing, self-protecting, self-healing, and is designed to just work without teams of engineers managing it.
-It scales from a single node, to multi-PB clusters spread geographically.  
+It scales from a single node, to multi-PB clusters spread geographically.
 
-It is based on the [Ceph](http://ceph.com) project that has over 10 years of production deployments in some of the largest storage clusters in the world.  
+It is based on the [Ceph](http://ceph.com) project that has over 10 years of production deployments in some of the largest storage clusters in the world.
 
 Rook integrates deeply into popular container environments like Kubernetes and leverages facilities for lifecycle management, resource management, scale-out and upgrades.
-Rook also integrates into the Kubernetes API to expose a uniform surface area for management.  
+Rook also integrates into the Kubernetes API to expose a uniform surface area for management.
 
 ## Status
 
@@ -40,13 +40,16 @@ There are a few different options for running a Rook cluster for your storage ne
 2. [Standalone](Documentation/standalone.md)
 
 ### Using Rook
+
 Once you have a Rook cluster running, you can use the `rook` tool to create and manage storage as shown in the following guide:
 - [Using Rook Guide](Documentation/client.md)
 
+## Advanced Configuration and Troubleshooting
 
-## Troubleshooting Toolbox
+Our Rook toolbox container is available to aid with troubleshooting and advanced configuration of your Rook cluster.
+It automatically configures a Ceph client suite to work with your Rook deployment, and additional tools are just an `apt-get` away.
 
-We have created a toolbox container that contains a full set of commonly used debugging and troubleshooting tools.  For instructions on how to run this toolbox, please see the [toolbox readme](Documentation/toolbox.md).
+To get started please see the [toolbox readme](Documentation/toolbox.md).  Also see our [advanced configuration](Documentation/advanced-configuration.md) document for helpful maintenance and tuning examples.
 
 ## Building
 

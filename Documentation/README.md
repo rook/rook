@@ -1,17 +1,18 @@
-# Rook
+# Rook Documentation
 
-## Quickstart Guides
+## Getting Started
 
-There are a few different options for running a Rook cluster for your storage needs.  Kubernetes is the recommended way because of the rich orchestration and scheduling that Kubernetes provides via the Rook operator.
+- [Kubernetes](kubernetes.md) (recommended)
+  - [Cluster Configuration Details](cluster-tpr.md)
+  - [Pool Configuration Details](pool-tpr.md)
+- [Standalone](standalone.md)
 
-1. [Kubernetes](kubernetes.md) (recommended)
-2. [Standalone](standalone.md)
+## Tools and Basic Usage
 
-### Using Rook
-Once you have a Rook cluster running, you can use the `rook` tool to create and manage storage as shown in the following guide:
-- [Using Rook Guide](client.md)
+- [Rook Client](client.md)
+- [Rook Toolbox](toolbox.md)
 
+## Advanced Usage
 
-## Troubleshooting Toolbox
-
-We have created a toolbox container that contains a full set of commonly used debugging and troubleshooting tools.  For instructions on how to run this toolbox, please see the [toolbox readme](toolbox.md).
+- [Monitoring Rook on Kubernetes](k8s-monitoring.md)
+- [Advanced Configuration and Troubleshooting](advanced-configuration.md)
