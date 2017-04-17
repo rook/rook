@@ -183,7 +183,7 @@ go.validate: go.vet go.fmt
 .PHONY: go.vendor
 go.vendor $(GO_VENDOR_DIR)/vendor.stamp: $(GLIDE)
 	@mkdir -p $(GLIDE_HOME)
-	@$(GLIDE) install
+	@$(GLIDE) install --strip-vendor
 	@touch $(GO_VENDOR_DIR)/vendor.stamp
 
 $(GLIDE):

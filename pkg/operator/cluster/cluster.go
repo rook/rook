@@ -129,7 +129,7 @@ func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 	defer conn.Shutdown()
 
 	// create a user for rbd clients
-	name := fmt.Sprintf("%s-rbd-user", c.Name)
+	name := fmt.Sprintf("%s-rook-user", c.Name)
 	username := fmt.Sprintf("client.%s", name)
 	access := []string{"osd", "allow rwx", "mon", "allow r"}
 

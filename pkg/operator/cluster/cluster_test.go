@@ -50,7 +50,7 @@ func TestCreateSecrets(t *testing.T) {
 	err := c.createClientAccess(info)
 	assert.Nil(t, err)
 
-	secretName := fmt.Sprintf("%s-rbd-user", c.Name)
+	secretName := fmt.Sprintf("%s-rook-user", c.Name)
 	secret, err := clientset.CoreV1().Secrets(k8sutil.DefaultNamespace).Get(secretName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, secretName, secret.Name)

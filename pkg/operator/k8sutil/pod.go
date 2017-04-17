@@ -92,7 +92,7 @@ func PodWithAntiAffinity(pod *v1.Pod, attribute, value string) {
 		panic("failed to marshal affinty struct")
 	}
 
-	pod.Annotations[api.AffinityAnnotationKey] = string(affinityb)
+	pod.Annotations[v1.AffinityAnnotationKey] = string(affinityb)
 }
 
 func SetPodVersion(pod *v1.Pod, key, version string) {

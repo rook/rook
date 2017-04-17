@@ -82,7 +82,7 @@ To clean up all the artifacts created by the demo, **first cleanup the resources
 kubectl delete deployment rook-operator
 kubectl delete -n rook rookcluster rook
 kubectl delete thirdpartyresources rookcluster.rook.io rookpool.rook.io
-kubectl delete secret rook-rbd-user
+kubectl delete secret rook-rook-user
 kubectl delete namespace rook
 ```
 If you modified the demo settings, additional cleanup is up to you for devices, host paths, etc.
