@@ -9,20 +9,7 @@ This example runs a shared file system for the [kube-registry](https://github.co
 This guide assumes you have created a Rook cluster and pool as explained in the main [Kubernetes guide](kubernetes.md)
 
 ## Rook Client
-Setting up the Rook file system currently requires the Rook client. This will be simplified in the future with a TPR for the object stores.
-
-```bash
-kubectl create -f rook-client/rook-client.yml
-
-# Starting the pod may take a couple minutes, so check to see when it's ready:
-kubectl -n rook get pod rook-client
-
-# Connect to the rook-client pod 
-kubectl -n rook exec rook-client -it bash
-
-# Confirm the rook client can connect to the cluster
-rook status
-```
+Setting up the Rook file system requires running `rook` commands with the [Rook client](kubernetes.md#rook-client). This will be simplified in the future with a TPR for the file system.
 
 ## Create the File System
 Create the file system with the default pools.
@@ -30,36 +17,23 @@ Create the file system with the default pools.
 rook filesystem create --name registryFS
 ```
 
-### Optional: Adjust pool paramaters
-
-By default the pools do not have any redundancy. To create another copy of the data, let's set the replication to 2. 
-
-First we will launch the [Rook toolbox](toolbox.md#running-the-toolbox) in order to run `ceph` commands.
-```bash
-# Start the Rook toolbox in order to run Ceph commands (the yml is found in the toolbox folder)
-cd toolbox
-kubectl create -f rook-tools.yml
-
-# Verify the toolbox is running
-kubectl -n rook get pod rook-tools
-
-# Connect to the toolbox
-kubectl -n rook exec -it rook-tools bash
-```
-
-Now we can modify the pool size
-```bash
-ceph osd pool set registryFS-data size 2
-ceph osd pool set registryFS-metadata size 2
-```
-
-### Optional: Copy admin key to desired namespace
-
 If you are consuming the filesystem from a namespace other than `rook` you will need to copy the key to the desired namespace. 
 In this example we are copying to the `kube-system` namespace.
 
 ```bash
 kubectl get secret rook-admin -n rook -o json | jq '.metadata.namespace = "kube-system"' | kubectl apply -f -
+```
+
+### Optional: Adjust pool parameters
+
+By default the pools do not have any redundancy. To create another copy of the data, let's set the replication to 2. 
+
+First you will need to launch the [Rook toolbox](toolbox.md#running-the-toolbox-in-kubernetes) in order to run `ceph` commands.
+
+Now from the toolbox pod we can modify the pool size
+```bash
+ceph osd pool set registryFS-data size 2
+ceph osd pool set registryFS-metadata size 2
 ```
 
 ## Deploy the Application
@@ -76,7 +50,7 @@ You now have a docker registry which is HA with persistent storage.
 
 ### Test the storage
 
-Verify that kube-registry is using the filesystem that was configured above.
+Once you have pushed an image to the registry (see the [instructions](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry) to expose and use the kube-registry), verify that kube-registry is using the filesystem that was configured above. 
 
 ```bash
 # Start the rook toolbox
@@ -86,7 +60,7 @@ kubectl -n rook exec rook-tools -it bash
 mkdir /tmp/registry
 rook filesystem mount --name registryFS --path /tmp/registry
 
-# Here you should see a directory called docker created by the registry
+# IF you have pushed images to the registry you will see a directory called docker
 ls /tmp/registry 
 
 # Cleanup the filesystem mount

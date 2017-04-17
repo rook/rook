@@ -77,7 +77,7 @@ Each Rook cluster has some built in metrics collectors/exporters for monitoring 
 To learn how to set up monitoring for your Rook cluster, you can follow the steps in the [monitoring guide](./k8s-monitoring.md).
 
 ## Teardown
-To clean up all the artifacts created by the demo, *first cleanup the resources from the block, file, and object walkthroughs* (unmount volumes, delete volume claims, etc), then run the following:
+To clean up all the artifacts created by the demo, **first cleanup the resources from the block, file, and object walkthroughs** (unmount volumes, delete volume claims, etc), then run the following:
 ```bash
 kubectl delete deployment rook-operator
 kubectl delete -n rook rookcluster rook

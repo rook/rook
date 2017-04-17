@@ -7,20 +7,7 @@ Object storage exposes an S3 API to the storage cluster for applications to put 
 This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](kubernetes.md)
 
 ## Rook Client
-Setting up the object storage currently requires the Rook client. This will be simplified in the future with a TPR for the object stores.
-
-```bash
-kubectl create -f rook-client/rook-client.yml
-
-# Starting the pod may take a couple minutes, so check to see when it's ready:
-kubectl -n rook get pod rook-client
-
-# Connect to the rook-client pod 
-kubectl -n rook exec rook-client -it bash
-
-# Confirm the rook client can connect to the cluster
-rook status
-```
+Setting up the object storage requires running `rook` commands with the [Rook client](kubernetes.md#rook-client). This will be simplified in the future with a TPR for the object stores.
 
 ## Create the Object Store and User
 Now we will create the object store, which starts the RGW service in the cluster with the S3 API. 
