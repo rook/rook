@@ -16,7 +16,6 @@ apiVersion: storage.k8s.io/v1beta1
 kind: StorageClass
 metadata:
    name: rook-block
-   namespace: rook
 provisioner: rook.io/block
 parameters:
     pool: replicapool
