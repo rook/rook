@@ -32,7 +32,7 @@ import (
 )
 
 const (
-	poolTprName = "rookpool"
+	poolTprName = "pool"
 )
 
 type poolInitiator struct {

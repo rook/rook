@@ -121,14 +121,13 @@ func watchTPR(context *k8sutil.Context, name, resourceVersion string) (*http.Res
 }
 
 func tprURINamespaced(name, namespace string) string {
-	// creates a uri that is for retrieving or watching a tpr in a specific namespace. For example:
-	//   /apis/rook.io/v1alpha1/namespaces/rook/rookclusters
+	//   /apis/rook.io/v1alpha1/namespaces/rook/pools
 	return fmt.Sprintf("apis/%s/%s/namespaces/%s/%ss", tprGroup, tprVersion, namespace, name)
 }
 
 func tprURI(name string) string {
 	// creates a uri that is for retrieving or watching a tpr in all namespaces. For example:
-	//   /apis/rook.io/v1alpha1/rookclusters
+	//   /apis/rook.io/v1alpha1/clusters
 	return fmt.Sprintf("apis/%s/%s/%ss", tprGroup, tprVersion, name)
 }
 

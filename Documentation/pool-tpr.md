@@ -5,7 +5,7 @@ for pools.
 ## Sample
 ```
 apiVersion: rook.io/v1alpha1
-kind: Rookpool
+kind: Pool
 metadata:
   name: ecpool
   namespace: rook

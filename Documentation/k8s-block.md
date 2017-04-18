@@ -51,6 +51,6 @@ To clean up all the artifacts created by the block demo:
 ```
 kubectl delete -f wordpress.yaml
 kubectl delete -f mysql.yaml
-kubectl delete -n rook rookpool replicapool
+kubectl delete -n rook pool replicapool
 kubectl delete storageclass rook-block
 ```
