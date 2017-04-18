@@ -15,7 +15,9 @@ Settings can be specified at the global level to apply to the cluster as a whole
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 - `storage`: Storage selection and configuration that will be used across the cluster.  Note that these settings can be overridden for specific nodes.
   - `useAllNodes`: `true` or `false`, indicating if all nodes in the cluster should be used for storage according to the cluster level storage selection and configuration values.
+  If individual nodes are specified under the `nodes` field below, then `useAllNodes` must be set to `false`.
   - `nodes`: Names of individual nodes in the cluster that should have their storage included in accordance with either the cluster level configuration specified above or any node specific overrides described in the next section below.
+  `useAllNodes` must be set to `false` to use specific nodes and their config.
   - [storage selection settings](#storage-selection-settings)
   - [storage configuration settings](#storage-configuration-settings)
 
