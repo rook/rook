@@ -4,8 +4,8 @@ import (
 	"github.com/dangula/rook/e2e/rook-test-framework/enums"
 	"github.com/dangula/rook/e2e/rook-test-framework/rook-infra-manager"
 	"testing"
-	"github.com/dangula/rook/e2e/.glide/cache/src/https-github.com-dangula-rook/e2e/objects"
 	"strings"
+	"github.com/dangula/rook/e2e/rook-test-framework/objects"
 )
 
 
@@ -18,7 +18,7 @@ func TestSetupPlatform_test(t *testing.T) {
 		rookTag = envManifest.RookTag
 	}
 
-	_, rookInfraMgr := rook.GetRookTestInfraManager(enums.Kubernetes, true, enums.V1dot6)
+	_, rookInfraMgr := rook_infra_manager.GetRookTestInfraManager(enums.Kubernetes, true, enums.V1dot6)
 
 	rookInfraMgr.ValidateAndSetupTestPlatform()
 
