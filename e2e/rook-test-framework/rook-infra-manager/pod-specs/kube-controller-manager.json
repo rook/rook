@@ -1,0 +1,105 @@
+{
+  "kind": "Pod",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "kube-controller-manager-kube-master",
+    "namespace": "kube-system",
+    "creationTimestamp": null,
+    "labels": {
+      "component": "kube-controller-manager",
+      "tier": "control-plane"
+    }
+  },
+  "spec": {
+    "volumes": [
+      {
+        "name": "k8s",
+        "hostPath": {
+          "path": "/etc/kubernetes"
+        }
+      },
+      {
+        "name": "certs",
+        "hostPath": {
+          "path": "/etc/ssl/certs"
+        }
+      },
+      {
+        "name": "pki",
+        "hostPath": {
+          "path": "/etc/pki"
+        }
+      },
+      {
+        "name": "modprobe",
+        "hostPath": {
+          "path": "/sbin/modprobe"
+        }
+      },
+      {
+        "name" : "lib-modules",
+        "hostPath": {
+          "path":  "/lib/modules"
+        }
+      }
+    ],
+    "containers": [
+      {
+        "name": "kube-controller-manager",
+        "image": "luxas/storage-controller-manager-amd64:v1.6.0-beta.4",
+        "command": [
+          "kube-controller-manager",
+          "--address=127.0.0.1",
+          "--leader-elect",
+          "--master=127.0.0.1:8080",
+          "--cluster-name=kubernetes",
+          "--root-ca-file=/etc/kubernetes/pki/ca.pem",
+          "--service-account-private-key-file=/etc/kubernetes/pki/apiserver-key.pem",
+          "--cluster-signing-cert-file=/etc/kubernetes/pki/ca.pem",
+          "--cluster-signing-key-file=/etc/kubernetes/pki/ca-key.pem",
+          "--insecure-experimental-approve-all-kubelet-csrs-for-group=system:kubelet-bootstrap"
+        ],
+        "resources": {
+          "requests": {
+            "cpu": "200m"
+          }
+        },
+        "volumeMounts": [
+          {
+            "name": "k8s",
+            "readOnly": true,
+            "mountPath": "/etc/kubernetes/"
+          },
+          {
+            "name": "certs",
+            "mountPath": "/etc/ssl/certs"
+          },
+          {
+            "name": "pki",
+            "mountPath": "/etc/pki"
+          },
+          {
+            "name": "modprobe",
+            "mountPath": "/sbin/modprobe"
+          },
+          {
+            "name": "lib-modules",
+            "mountPath": "/lib/modules"
+          }
+        ],
+        "livenessProbe": {
+          "httpGet": {
+            "path": "/healthz",
+            "port": 10252,
+            "host": "127.0.0.1"
+          },
+          "initialDelaySeconds": 15,
+          "timeoutSeconds": 15,
+          "failureThreshold": 8
+        }
+      }
+    ],
+    "hostNetwork": true
+  },
+  "status": {}
+}

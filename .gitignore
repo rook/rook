@@ -19,3 +19,7 @@ demo/standalone/cloud-config.yml
 .discovery-token
 tests/integration/temp_rook-operator.yaml
 vendor/
+binaries/
+report.xml
+results/
+test_Results.xml

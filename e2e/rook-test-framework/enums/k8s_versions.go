@@ -29,6 +29,6 @@ func GetK8sVersionFromString(name string) (K8sVersion, error) {
 	case strings.EqualFold(name, V1dot6.String()):
 		return V1dot6, nil
 	default:
-		return V1dot5, errors.New("Unsupported Kubernetes version")
+		return V1dot5, errors.New("Unsupported Kubernetes version: " + name)
 	}
 }

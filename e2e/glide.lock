@@ -1,5 +1,5 @@
 hash: 1348e12be39472becf7e0802ae99e8a1076ee3b81305569112d30b6a8093cc89
-updated: 2017-04-12T10:10:08.804242271-07:00
+updated: 2017-04-17T01:45:47.806518039Z
 imports:
 - name: github.com/aws/aws-sdk-go
   version: 7be45195c3af1b54a609812f90c05a7e492e2491
@@ -28,6 +28,17 @@ imports:
   - private/protocol/xml/xmlutil
   - service/s3
   - service/sts
+- name: github.com/dangula/rook
+  version: 277933a8ef91415d48f16f2f5ee9c21e56a193ac
+  subpackages:
+  - e2e/objects
+  - e2e/rook-test-framework/clients
+  - e2e/rook-test-framework/contracts
+  - e2e/rook-test-framework/enums
+  - e2e/rook-test-framework/managers
+  - e2e/rook-test-framework/objects
+  - e2e/rook-test-framework/transport
+  - e2e/rook-test-framework/utils
 - name: github.com/go-ini/ini
   version: e7fea39b01aea8d5671f6858f0532f56e8bff3a5
 - name: github.com/jmespath/go-jmespath

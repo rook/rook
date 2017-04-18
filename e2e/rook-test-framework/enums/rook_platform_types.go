@@ -36,6 +36,6 @@ func GetRookPlatFormTypeFromString(name string) (RookPlatformType, error) {
 	case strings.EqualFold(name, None.String()):
 		return None, nil
 	default:
-		return None, errors.New("Unsupported Rook Platform Type")
+		return None, errors.New("Unsupported Rook Platform Type: " + name)
 	}
 }

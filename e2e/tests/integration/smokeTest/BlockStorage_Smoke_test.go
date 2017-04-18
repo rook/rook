@@ -2,11 +2,11 @@ package smokeTest
 
 import (
 	"errors"
-	"github.com/dangula/rook/e2e/objects"
 	"github.com/dangula/rook/e2e/rook-test-framework/enums"
-	"github.com/dangula/rook/e2e/rook-test-framework/managers"
+	"github.com/dangula/rook/e2e/rook-test-framework/rook-infra-manager"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"github.com/dangula/rook/e2e/rook-test-framework/objects"
 )
 
 func TestBlockStorage_SmokeTest(t *testing.T) {
@@ -28,7 +28,7 @@ func TestBlockStorage_SmokeTest(t *testing.T) {
 		assert.Nil(t, errors.New("RookTag parameter is required"))
 	}
 
-	errInfra, rookInfra := managers.GetRookTestInfraManager(rookPlatform, true, k8sVersion)
+	errInfra, rookInfra := rook_infra_manager.GetRookTestInfraManager(rookPlatform, true, k8sVersion)
 
 	if errInfra != nil {
 		assert.Nil(t, errInfra)

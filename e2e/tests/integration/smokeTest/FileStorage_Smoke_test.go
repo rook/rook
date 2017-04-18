@@ -2,38 +2,47 @@ package smokeTest
 
 import (
 	"errors"
-	"github.com/dangula/rook/e2e/objects"
 	"github.com/dangula/rook/e2e/rook-test-framework/enums"
-	"github.com/dangula/rook/e2e/rook-test-framework/managers"
+	"github.com/dangula/rook/e2e/rook-test-framework/rook-infra-manager"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"github.com/dangula/rook/e2e/rook-test-framework/objects"
 )
 
+var env objects.EnvironmentManifest
+
+func init() {
+	env = objects.NewManifest()
+}
+
 func TestFileStorage_SmokeTest(t *testing.T) {
-
-	env := objects.NewManifest()
-
 	rookPlatform, errPlatform := enums.GetRookPlatFormTypeFromString(env.Platform)
 
 	if errPlatform != nil {
 		assert.Nil(t, errPlatform)
+		panic(errPlatform)
 	}
 
 	k8sVersion, errVersion := enums.GetK8sVersionFromString(env.K8sVersion)
 
-	if errPlatform != nil {
+	if errVersion != nil {
 		assert.Nil(t, errVersion)
+		panic(errVersion)
 	}
 
 	if env.RookTag == "" {
-		assert.Nil(t, errors.New("RookTag parameter is required"))
+		err := errors.New("RookTag parameter is required")
+		assert.Nil(t, err)
+		panic(err)
 	}
 
-	errInfra, rookInfra := managers.GetRookTestInfraManager(rookPlatform, true, k8sVersion)
+	errInfra, rookInfra := rook_infra_manager.GetRookTestInfraManager(rookPlatform, true, k8sVersion)
 
 	if errInfra != nil {
 		assert.Nil(t, errInfra)
 	}
+
+	//defer rookInfra.TearDownInfrastructureCreatedEnvironment()
 
 	rookInfra.ValidateAndSetupTestPlatform()
 
@@ -83,7 +92,6 @@ func TestFileStorage_SmokeTest(t *testing.T) {
 	assert.Nil(t, fsd_err)
 	//Delete is not actually deleting filesystem
 	t.Log("File system deleted")
-
 }
 
 func fileSmokecleanUp() {

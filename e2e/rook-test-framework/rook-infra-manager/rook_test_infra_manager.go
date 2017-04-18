@@ -1,4 +1,4 @@
-package managers
+package rook_infra_manager
 
 import (
 	"bytes"
@@ -11,10 +11,11 @@ import (
 	"github.com/dangula/rook/e2e/rook-test-framework/utils"
 	"io/ioutil"
 	"os"
-	"os/exec"
 	"strings"
 	"sync"
 	"time"
+	"runtime"
+	"path"
 )
 
 type rookTestInfraManager struct {
@@ -29,18 +30,18 @@ type rookTestInfraManager struct {
 var (
 	r    *rookTestInfraManager
 	once sync.Once
+	curdir string
 )
 
 const (
-	dockerInfraTag string = "quay.io/quantum/rook-test"
 	kubeControllerManagerJsonFileName = "kube-controller-manager.json"
 	rookOperatorFileName = "rook-operator.yaml"
+	rookClusterFileName = "rook-cluster.yaml"
+	rookClientFileName = "rook-client.yaml"
 	manifestPath = "/etc/kubernetes/manifests"
-	podSpecPath = "src/github.com/dangula/rook/e2e/pod-specs"
-	scriptsPath = "src/github.com/dangula/rook/e2e/scripts"
+	podSpecPath = "pod-specs"
+	scriptsPath = "scripts"
 	k8sFalsePostiveSuccessErrorMsg = "exit status 1"
-	tempDockerSockMountPath = "/tmp/docker.sock"
-	dockerSockPath = "/var/run/docker.sock"
 )
 
 func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized bool, version enums.K8sVersion) (error, *rookTestInfraManager) {
@@ -52,22 +53,23 @@ func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized b
 		return nil, r
 	}
 
-	switch {
-	case platformType == enums.Kubernetes:
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		panic("No caller information")
+	}
+
+	curdir = path.Dir(filename)
+
+	switch platformType {
+	case enums.Kubernetes:
 		transportClient = transport.CreateNewk8sTransportClient()
-	case platformType == enums.StandAlone:
+	case enums.StandAlone:
 		return errors.New("Unsupported Rook Platform Type"), r
 	default:
 		return errors.New("Unsupported Rook Platform Type"), r
 	}
 
 	once.Do(func() {
-		//this is needed when test development vs boot2docker
-		//dockerEnv := []string {
-		//	"DOCKER_TLS_VERIFY=1",
-		//	"DOCKER_HOST=tcp://192.168.99.100:2376",
-		//	//"DOCKER_CERT_PATH=/Users/tyjohnson/.docker/machine/machines/default",
-		//	"DOCKER_MACHINE_NAME=default"}
 		dockerEnv := []string{}
 
 		if isDockerized {
@@ -97,30 +99,9 @@ func (r *rookTestInfraManager) GetRookPlatform() enums.RookPlatformType {
 	return r.platformType
 }
 
-func (r *rookTestInfraManager) createRookInfraContainer(dockerInfraTag string) string {
-	cmd := []string {
-		"--rm", "-itd", "--net=host", "-e=\"container=docker\"", "--privileged", "--security-opt=seccomp:unconfined",
-		"--cap-add=SYS_ADMIN", "-v", "/dev:/dev", "-v", "/sys:/sys", "-v", "/sys/fs/cgroup:/sys/fs/cgroup", "-v",
-		"/sbin/modprobe:/sbin/modprobe", "-v", "/lib/modules:/lib/modules:rw", "-v", dockerSockPath + ":" + tempDockerSockMountPath,
-		"-p", "8080", "-P", dockerInfraTag, "/sbin/init",
-	}
-
-	_, containerId, err := r.dockerContext.Get_DockerClient().Run(cmd)
-
-	if err != nil {
-		panic(err)
-	}
-
-	return containerId
-}
 
 func (r *rookTestInfraManager) verifyRookInfraContainerNotAlreadyRunning() (isRunning bool) {
-	containerId := r.dockerContext.Get_ContainerId()
-
-	if containerId != "" && r.isContainerRunning(containerId) {
-		return true
-	}
-
+	///TODO:: verif
 	return false
 }
 
@@ -130,7 +111,7 @@ func panicIfError(err error) {
 	}
 }
 
-func (r *rookTestInfraManager) executeDockerCommand(containerId string, subCommand enums.DockerSubCommand, args ...string) (stdOut, stdErr string) {
+func (r *rookTestInfraManager) executeDockerCommand(containerId string, subCommand enums.DockerSubCommand , args ...string) (stdOut, stdErr string) {
 	var cmdPrefix string = ""
  	var cmdArgs []string
 
@@ -177,24 +158,19 @@ func (r *rookTestInfraManager) ValidateAndSetupTestPlatform() {
 		return
 	}
 
-	containerId := r.dockerContext.Set_ContainerId(r.createRookInfraContainer(dockerInfraTag))
-
-	//give docker a chance to initialize in the container
-	r.executeDockerCommand("", enums.Exec, "sleep", "5")
-
-	r.executeDockerCommand("", enums.Exec,"docker", "info")
-
-	r.executeDockerCommand("", enums.Exec, "rm", "-rfv", dockerSockPath)
-
-	r.executeDockerCommand("", enums.Exec, "ln", "-s", tempDockerSockMountPath, dockerSockPath)
-
 	dindScriptName := getDindScriptName()
 
-	r.executeDockerCommand("", enums.Copy, r.goPath + "/" + scriptsPath + "/" + dindScriptName, containerId + ":" + dindScriptName)
+	cmdOut := utils.ExecuteCommand(objects.Command_Args{Command:"chmod", CmdArgs:[]string{"+x", curdir + "/" + scriptsPath + "/" + dindScriptName}})
 
-	r.executeDockerCommand("", enums.Exec, "chmod", "+x", dindScriptName)
+	if cmdOut.Err != nil || cmdOut.ExitCode != 0 {
+		panic(errors.New("Failed to chmod script"))
+	}
 
-	r.executeDockerCommand("", enums.Exec, "./" + dindScriptName, "up")
+	cmdOut = utils.ExecuteCommand(objects.Command_Args{Command:  curdir + "/" + scriptsPath + "/" + dindScriptName, CmdArgs:[]string{ "up"}})
+
+	if cmdOut.Err != nil || cmdOut.ExitCode != 0 {
+		panic(errors.New("Failed to execute script"))
+	}
 
 	//Untaint master node
 	k8sClient := transport.CreateNewk8sTransportClient()
@@ -222,7 +198,7 @@ func (r *rookTestInfraManager) ValidateAndSetupTestPlatform() {
 	_, k8sMasterContainerId := r.executeDockerCommand("", enums.Ps, "--filter", "name=kube-master", "--format", "{{.ID}}")
 
 	//Patch controller with ceph-common installed one
-	r.executeDockerCommand("",enums.Copy, r.goPath + "/" + podSpecPath + "/" + kubeControllerManagerJsonFileName, k8sMasterContainerId+ ":" + manifestPath + "/" + kubeControllerManagerJsonFileName)
+	r.executeDockerCommand("",enums.Copy, curdir + "/" + podSpecPath + "/" + kubeControllerManagerJsonFileName, k8sMasterContainerId + ":" + manifestPath + "/" + kubeControllerManagerJsonFileName)
 
 	//Install ceph-common on each k8s node
 	r.executeDockerCommand(k8sMasterContainerId, enums.Exec,"bin/bash", "-c", "apt-get -y update && apt-get install -qqy ceph-common")
@@ -237,18 +213,18 @@ func (r *rookTestInfraManager) InstallRook(tag string) (err error, client contra
 	//STEP 1 --> Create rook operator
 	k8sHelp := utils.CreatK8sHelper()
 
-	raw, _ := ioutil.ReadFile(r.goPath + "/" + podSpecPath + "/" + rookOperatorFileName)
+	raw, _ := ioutil.ReadFile(curdir + "/" + podSpecPath + "/" + rookOperatorFileName)
 
 	rawUpdated := bytes.Replace(raw, []byte("#IMAGE_PATH#"), []byte(tag), 1)
 	rookOperator := string(rawUpdated)
 
 	_, _, exitCode := r.transportClient.CreateWithStdin(rookOperator)
 
-	if exitCode != 0 {
-		return errors.New(string(exitCode)), nil
-	}
+	//if exitCode != 0 {
+	//	return errors.New(string(exitCode)), nil
+	//}
 
-	if !k8sHelp.IsThirdPartyResourcePresent("rookcluster.rook.io") {
+	if !k8sHelp.IsThirdPartyResourcePresent("cluster.rook.io") {
 		fmt.Println("Rook Operator couldn't start")
 	} else {
 		fmt.Println("Rook Operator started")
@@ -257,7 +233,7 @@ func (r *rookTestInfraManager) InstallRook(tag string) (err error, client contra
 	time.Sleep(10 * time.Second)	///TODO: add real check here
 
 	//STEP 2 --> Create rook cluster
-	raw, _ = ioutil.ReadFile(r.goPath + "/src/github.com/dangula/rook/e2e/pod-specs/rook-cluster.yaml")
+	raw, _ = ioutil.ReadFile(curdir + "/" + podSpecPath + "/" + rookClusterFileName)
 
 	rookCluster := string(raw)
 
@@ -276,7 +252,7 @@ func (r *rookTestInfraManager) InstallRook(tag string) (err error, client contra
 	time.Sleep(10 * time.Second)
 
 	//STEP 3 --> Create rook client
-	raw, _ = ioutil.ReadFile(r.goPath + "/src/github.com/dangula/rook/e2e/pod-specs/rook-client.yaml")
+	raw, _ = ioutil.ReadFile(curdir + "/" + podSpecPath + "/" + rookClientFileName)
 
 	rookClient := string(raw)
 
@@ -309,6 +285,20 @@ func (r rookTestInfraManager) TearDownRook(client contracts.Irook_client) error 
 }
 
 func (r rookTestInfraManager) TearDownInfrastructureCreatedEnvironment() error {
+	dindScriptName := getDindScriptName()
+
+	cmdOut := utils.ExecuteCommand(objects.Command_Args{Command:"chmod", CmdArgs:[]string{"+x",  curdir + "/" + scriptsPath + "/" + dindScriptName}})
+
+	if cmdOut.Err != nil || cmdOut.ExitCode != 0 {
+		panic(errors.New("Failed to chmod script"))
+	}
+
+	cmdOut = utils.ExecuteCommand(objects.Command_Args{Command:  curdir + "/" + scriptsPath + "/" + dindScriptName, CmdArgs:[]string{ "up"}})
+
+	if cmdOut.Err != nil || cmdOut.ExitCode != 0 {
+		panic(errors.New("Failed to execute script"))
+	}
+
 	return nil
 }
 

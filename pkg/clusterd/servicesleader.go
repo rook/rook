@@ -139,7 +139,7 @@ func (s *servicesLeader) startWatchingClusterChanges() {
 	nodeRefresh := &RefreshKey{Path: inventory.NodesConfigKey, Triggered: handleNodeAdded}
 	go s.watchClusterChange(context, nodeRefresh)
 
-	// watch for changes requested by the service managers
+	// watch for changes requested by the service rook-infra-manager
 	for _, mgr := range s.context.Services {
 		for _, refresh := range mgr.Leader.RefreshKeys() {
 			go s.watchClusterChange(context, refresh)
