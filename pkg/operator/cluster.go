@@ -58,7 +58,7 @@ func newClusterManager(context *k8sutil.Context, inclusterInitiators []incluster
 
 // Gets the name of the TPR
 func (m *clusterManager) Name() string {
-	return "rookcluster"
+	return "cluster"
 }
 
 // Gets the description of the TPR

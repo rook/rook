@@ -1,5 +1,5 @@
 apiVersion: rook.io/v1alpha1
-kind: Rookpool
+kind: Pool
 metadata:
   name: replicapool
   namespace: rook

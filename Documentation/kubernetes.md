@@ -80,8 +80,8 @@ To learn how to set up monitoring for your Rook cluster, you can follow the step
 To clean up all the artifacts created by the demo, **first cleanup the resources from the block, file, and object walkthroughs** (unmount volumes, delete volume claims, etc), then run the following:
 ```bash
 kubectl delete deployment rook-operator
-kubectl delete -n rook rookcluster rook
-kubectl delete thirdpartyresources rookcluster.rook.io rookpool.rook.io
+kubectl delete -n rook cluster rook
+kubectl delete thirdpartyresources cluster.rook.io pool.rook.io
 kubectl delete secret rook-rook-user
 kubectl delete namespace rook
 ```
