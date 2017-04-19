@@ -20,12 +20,17 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
+)
+
+const (
+	initObjectStoreTimeout = 60
 )
 
 var (
@@ -68,7 +73,7 @@ func listUsersEntry(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := rook.NewRookNetworkRestClient()
+	c := rook.NewRookNetworkRestClientWithTimeout(initObjectStoreTimeout * time.Second)
 	out, err := listUsers(c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -231,7 +236,7 @@ func createUserEntry(cmd *cobra.Command, args []string) error {
 		user.Email = &emailFlag
 	}
 
-	c := rook.NewRookNetworkRestClient()
+	c := rook.NewRookNetworkRestClientWithTimeout(initObjectStoreTimeout * time.Second)
 	out, err := createUser(c, user)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
