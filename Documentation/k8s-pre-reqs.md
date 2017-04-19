@@ -1,6 +1,19 @@
 
-## New Local Kubernetes Cluster
+**WARNING:** Only Kubernetes v1.6.0 or higher is supported by Rook at this time (while Rook is in alpha it will track the latest release to use the latest features)
+
+## Kubeadm
+
+You can easily spin up rook on top of a `kubeadm` cluster.
+You can find the instructions on how to install kubeadm in the [`kubeadm` installation page](https://kubernetes.io/docs/getting-started-guides/kubeadm/).
+
+By using `kubeadm`, you can use Rook in just a few minutes!
+
+The only thing you might have to do is to install the `ceph-common` package on all nodes that are going to consume Rook PVs.
+
+## New local Kubernetes cluster with Vagrant
+
 For a quick start with a new local cluster, use the Rook fork of [coreos-kubernetes](https://github.com/rook/coreos-kubernetes). This will bring up a multi-node Kubernetes cluster with `vagrant` and CoreOS virtual machines ready to use `rook` immediately.
+
 ```
 git clone https://github.com/rook/coreos-kubernetes.git
 cd coreos-kubernetes/multi-node/vagrant
@@ -18,10 +31,12 @@ kubectl cluster-info
 Once you see a url response, your cluster is [ready for use by Rook](kubernetes.md#deploy-rook).
 
 ## Minikube
+
 If using `minikube`, you can deploy Rook to it with a small update, which modifies the minikube host to install the `rbd` command. This is needed by the Kubernetes `rbd` volume plugin. To install `minikube`, refer to this [page](https://github.com/kubernetes/minikube/releases).
 
 Once you have `minikube` installed, start a cluster by doing the following:
-```
+
+```console
 $ minikube start
 Starting local Kubernetes cluster...
 Starting VM...
@@ -34,7 +49,8 @@ Kubectl is now configured to use the cluster.
 ```
 
 SSH into the minikube host and install `rbd`:
-```
+
+```console
 $ minikube ssh
 $ cd /bin
 $ sudo curl -O https://raw.githubusercontent.com/ceph/ceph-docker/master/examples/kubernetes-coreos/rbd
@@ -93,36 +109,6 @@ sudo chmod +x /bin/rbd
 rbd #Command to download ceph images.
 ```
 
-## Kubernetes with RBAC
-RBAC restricts what operations can be performed in the cluster. In particular, the operator will be denied access to create third party resources (TPRs) if RBAC is enabled. These steps will give permissions to the `Rook` operator. 
-
-Find the name of the admin role for the cluster.
-```
-kubectl get clusterrolebinding
-```
-The role may be `cluster-admin`, or simply `admin` depending on your deployment of Kubernetes.
-
-Now replace the admin name in the `roleRef` section of [rook-rbac.yaml](/demo/kubernetes/rook-rbac.yaml) if it is different this sample of `cluster-admin`.
-
-```
-apiVersion: rbac.authorization.k8s.io/v1alpha1
-kind: ClusterRoleBinding
-metadata:
-  name: rook-operator
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: cluster-admin
-subjects:
-- kind: ServiceAccount
-  name: default
-  namespace: default
-```
-
-Create the cluster role binding. The Rook operator should be good to go.
-```
-kubectl create -f rook-rbac.yaml
-```
-
 ## Using Rook in Kubernetes
+
 Now that you have a Kubernetes cluster running, you can start using `rook` with [these steps](kubernetes.md#deploy-rook).

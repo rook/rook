@@ -1,4 +1,72 @@
-apiVersion: extensions/v1beta1
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - secrets
+  - pods
+  - services
+  - nodes
+  - configmaps
+  - events
+  - persistentvolumes
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+- apiGroups:
+  - extensions
+  resources:
+  - thirdpartyresources
+  - deployments
+  - daemonsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-operator
+  namespace: default
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-operator
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-operator
+subjects:
+- kind: ServiceAccount
+  name: rook-operator
+  namespace: default
+---
+apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: rook-operator
@@ -9,6 +77,7 @@ spec:
       labels:
         name: rook-operator
     spec:
+      serviceAccountName: rook-operator
       containers:
       - name: rook-operator
         image: quay.io/rook/rookd:master-latest
@@ -16,4 +85,3 @@ spec:
         env:
         - name: ROOKD_REPO_PREFIX
           value: quay.io/rook
-

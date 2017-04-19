@@ -6,7 +6,7 @@ metadata:
     app: wordpress
 spec:
   ports:
-    - port: 80
+  - port: 80
   selector:
     app: wordpress
     tier: frontend
@@ -16,13 +16,12 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: wp-pv-claim
-  annotations:
-    volume.beta.kubernetes.io/storage-class: rook-block
   labels:
     app: wordpress
 spec:
+  storageClassName: rook-block
   accessModes:
-    - ReadWriteOnce
+  - ReadWriteOnce
   resources:
     requests:
       storage: 20Gi

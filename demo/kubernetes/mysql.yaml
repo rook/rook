@@ -16,18 +16,17 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: mysql-pv-claim
-  annotations:
-    volume.beta.kubernetes.io/storage-class: rook-block
   labels:
     app: wordpress
 spec:
+  storageClassName: rook-block
   accessModes:
-    - ReadWriteOnce
+  - ReadWriteOnce
   resources:
     requests:
       storage: 20Gi
 ---
-apiVersion: extensions/v1beta1
+apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: wordpress-mysql
