@@ -4,13 +4,15 @@
 - [Design](#design)
 
 ## Quickstart
+
+**WARNING:** Only Kubernetes v1.6.0 or higher is supported by Rook at this time (while Rook is in alpha it will track the latest release to use the latest features)
+
 This example shows how to build a simple, multi-tier web application on Kubernetes using persistent volumes enabled by Rook.
 
 ### Prerequisites
 
 To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these quick instructions](k8s-pre-reqs.md), including:
-- The `kubelet` requires access to `modprobe` 
-- If RBAC is enabled, the operator must be given privileges
+- The `kubelet` requires access to `modprobe` and `rbd` on host
 
 Note that we are striving for even more smooth integration with Kubernetes in the future such that `Rook` will work out of the box with any Kubernetes cluster.
 

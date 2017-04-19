@@ -12,14 +12,13 @@ spec:
   #  codingChunks: 2
   #  dataChunks: 2
 ---
-apiVersion: storage.k8s.io/v1beta1
+apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: rook-block
-   namespace: rook
 provisioner: rook.io/block
 parameters:
-    pool: replicapool
-    # Specify the Rook cluster from which to create volumes. If not specified, it will use `rook` as the namespace and name of the cluster.
-    # clusterName: rook
-    # clusterNamespace: rook
+  pool: replicapool
+  # Specify the Rook cluster from which to create volumes. If not specified, it will use `rook` as the namespace and name of the cluster.
+  # clusterName: rook
+  # clusterNamespace: rook
