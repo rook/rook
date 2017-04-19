@@ -188,6 +188,8 @@ func (r *rookTestInfraManager) ValidateAndSetupTestPlatform() {
 	//Patch k8s controller with ceph-common installed one
 	r.executeDockerCommand("",enums.Copy, curdir + "/" + podSpecPath + "/" + kubeControllerManagerJsonFileName, k8sMasterContainerId + ":" + manifestPath + "/" + kubeControllerManagerJsonFileName)
 
+	r.executeDockerCommand(k8sMasterContainerId, enums.Exec,"bin/bash", "-c", "rm -R " + manifestPath + "/kube-controller-manager.yaml")
+
 	//Install ceph-commons on each k8s node
 	r.executeDockerCommand(k8sMasterContainerId, enums.Exec,"bin/bash", "-c", "apt-get -y update && apt-get install -qqy ceph-common")
 

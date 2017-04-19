@@ -1,5 +1,5 @@
 apiVersion: rook.io/v1alpha1
-kind: Rookcluster
+kind: Cluster
 metadata:
   name: rook
   namespace: rook
