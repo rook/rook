@@ -12,7 +12,7 @@ set_go_env_var="export GOPATH=/workspace/go && export GOROOT=/usr/lib/go"
 #create the rook infrastructure container
 rook_infra::create() {
     export id=$(docker run \
-        -d \
+        -itd \
         --network=host \
         -e container=docker \
         --privileged \
@@ -25,6 +25,7 @@ rook_infra::create() {
         -v /lib/modules:/lib/modules:rw \
         -v /var/run/docker.sock:${tmp_docker_sock_path} \
         -v ${test_source_repo}:/${docker_test_repo} \
+        -p 8080 \
         -w ${docker_test_repo} \
         ${container_image} \
         /sbin/init)
@@ -56,7 +57,7 @@ rook_infra::run_test() {
     #TODO:: pipe it to junit parser
     #TODO:: get exit code and fail if not 0
     docker exec ${id} /bin/bash -c \
-    "${set_go_env_var} && go test -run ${test_name_regex} ${git_smoke_test_directory} -v --rook_platform=Kubernetes --k8s_version=v1.5"
+    "${set_go_env_var} && go test -run ${test_name_regex} ${git_smoke_test_directory} -v --rook_platform=Kubernetes --k8s_version=v1.6"
 }
 
 rook_infra::gather_results() {
