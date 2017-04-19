@@ -60,7 +60,7 @@ RUN apk add --no-cache gptfdisk util-linux coreutils e2fsprogs
 COPY root /
 ENTRYPOINT ["/usr/bin/rookd"]
 EOF
-    build_artifact $os $arch $tmpdir rook/rookd rookd rook
+    build_artifact $os $arch $tmpdir rook/rookd rookd
     rm -fr $tmpdir
 }
 
