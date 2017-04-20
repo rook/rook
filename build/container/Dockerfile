@@ -22,6 +22,7 @@ ENV TERM=xterm PATH=/usr/local/go/bin:/usr/local/osxcross/bin:$PATH
 #
 RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu zesty main universe restricted" > /etc/apt/sources.list &&\
     echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu zesty-updates main universe restricted" >> /etc/apt/sources.list &&\
+    dpkg --add-architecture armhf && \
     dpkg --add-architecture arm64 && \
     apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
@@ -31,6 +32,7 @@ RUN echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu zesty main universe 
         ccache \
         clang \
         cmake \
+        crossbuild-essential-armhf \
         crossbuild-essential-arm64 \
         curl \
         dwz \
@@ -92,6 +94,10 @@ RUN GO_VERSION=1.8 && \
     CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc        go install -a std && \
     CGO_ENABLED=1 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc        go install -installsuffix netgo -tags netgo -a std && \
     CGO_ENABLED=0 GOOS=windows GOARCH=amd64 CC=x86_64-w64-mingw32-gcc        go install -installsuffix nocgo -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=arm   CC=arm-linux-gnueabihf-gcc       go install -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=arm   CC=arm-linux-gnueabihf-gcc       go install -buildmode pie -installsuffix pie -a std && \
+    CGO_ENABLED=1 GOOS=linux   GOARCH=arm   CC=arm-linux-gnueabihf-gcc       go install -installsuffix netgo -tags netgo -a std && \
+    CGO_ENABLED=0 GOOS=linux   GOARCH=arm   CC=arm-linux-gnueabihf-gcc       go install -installsuffix nocgo -a std && \
     CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc         go install -a std && \
     CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc         go install -buildmode pie -installsuffix pie -a std && \
     CGO_ENABLED=1 GOOS=linux   GOARCH=arm64 CC=aarch64-linux-gnu-gcc         go install -installsuffix netgo -tags netgo -a std && \

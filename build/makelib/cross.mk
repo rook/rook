@@ -23,6 +23,13 @@ CXX=$(CROSS_TRIPLE)-g++
 OBJCOPY=$(CROSS_TRIPLE)-objcopy
 endif
 
+ifeq ($(GOOS)_$(GOARCH),linux_arm)
+CROSS_TRIPLE=arm-linux-gnueabihf
+CC=$(CROSS_TRIPLE)-gcc
+CXX=$(CROSS_TRIPLE)-g++
+OBJCOPY=$(CROSS_TRIPLE)-objcopy
+endif
+
 ifeq ($(GOOS)_$(GOARCH),linux_arm64)
 CROSS_TRIPLE=aarch64-linux-gnu
 CC=$(CROSS_TRIPLE)-gcc
