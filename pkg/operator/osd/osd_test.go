@@ -43,6 +43,18 @@ func TestStartDaemonset(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestPodContainer(t *testing.T) {
+	cluster := &Cluster{Name: "myosd", Version: "23"}
+	config := Config{}
+	c := cluster.podTemplateSpec([]Device{}, []Directory{}, Selection{}, config)
+	assert.NotNil(t, c)
+	assert.Equal(t, 1, len(c.Spec.Containers))
+	container := c.Spec.Containers[0]
+	assert.Equal(t, 6, len(container.Env))
+	assert.True(t, strings.Contains(container.Command[2], `echo $(HOSTNAME) | sed "s/\./_/g" > /etc/hostname; hostname -F /etc/hostname`))
+	assert.True(t, strings.Contains(container.Command[2], "/usr/bin/rookd osd"))
+}
+
 func TestDaemonset(t *testing.T) {
 	testPodDevices(t, "", "sda", true)
 	testPodDevices(t, "/var/lib/mydatadir", "sdb", false)

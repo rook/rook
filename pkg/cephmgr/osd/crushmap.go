@@ -17,7 +17,6 @@ package osd
 
 import (
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
@@ -47,16 +46,6 @@ func formatLocation(location string) ([]string, error) {
 		if !isValidCrushFieldFormat(p) {
 			return nil, fmt.Errorf("CRUSH location field '%s' is not in a valid format", p)
 		}
-	}
-
-	if !isCrushFieldSet("host", pairs) {
-		// host name isn't set yet, attempt to set a default
-		hostName, err := os.Hostname()
-		if err != nil {
-			return nil, fmt.Errorf("failed to get hostname, %+v", err)
-		}
-
-		pairs = append(pairs, formatProperty("host", hostName))
 	}
 
 	// set a default root if it's not already set

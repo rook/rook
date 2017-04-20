@@ -18,7 +18,6 @@ package osd
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"testing"
 
@@ -97,17 +96,14 @@ func TestGetCrushMap(t *testing.T) {
 
 func TestCrushLocation(t *testing.T) {
 	loc := "dc=datacenter1"
-	hostName, err := os.Hostname()
-	assert.Nil(t, err)
 
-	// test that host name and root will get filled in with default/runtime values
+	// test that root will get filled in with default/runtime values
 	res, err := formatLocation(loc)
 	assert.Nil(t, err)
-	assert.Equal(t, 3, len(res))
+	assert.Equal(t, 2, len(res))
 	locSet := util.CreateSet(res)
 	assert.True(t, locSet.Contains("root=default"))
 	assert.True(t, locSet.Contains("dc=datacenter1"))
-	assert.True(t, locSet.Contains(fmt.Sprintf("host=%s", hostName)))
 
 	// test that if host name and root are already set they will be honored
 	loc = "root=otherRoot,dc=datacenter2,host=node123"
