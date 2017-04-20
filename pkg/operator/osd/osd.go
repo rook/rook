@@ -166,9 +166,8 @@ func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, sel
 
 func (c *Cluster) osdContainer(devices []Device, directories []Directory, selection Selection, config Config) v1.Container {
 
-	command := "/usr/bin/rookd osd"
-
 	envVars := []v1.EnvVar{
+		hostnameEnvVar(),
 		opmon.ClusterNameEnvVar(c.Name),
 		opmon.MonEndpointEnvVar(),
 		opmon.MonSecretEnvVar(),
@@ -230,17 +229,27 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 		envVars = append(envVars, locationEnvVar(config.Location))
 	}
 
+	// set the hostname to the host's name from the downstream api.
+	// the crush map doesn't like hostnames with periods, so we replace them with underscores.
+	hostnameUpdate := `echo $(HOSTNAME) | sed "s/\./_/g" > /etc/hostname; hostname -F /etc/hostname`
+	command := "/usr/bin/rookd osd"
+
 	privileged := true
 	return v1.Container{
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.
-		Command:         []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
+		// Set the hostname so we have the pod's host in the crush map rather than the pod container name
+		Command:         []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s; %s", hostnameUpdate, command)},
 		Name:            appName,
 		Image:           k8sutil.MakeRookImage(c.Version),
 		VolumeMounts:    volumeMounts,
 		Env:             envVars,
 		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
 	}
+}
+
+func hostnameEnvVar() v1.EnvVar {
+	return v1.EnvVar{Name: "HOSTNAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}}
 }
 
 func dataDevicesEnvVar(dataDevices string) v1.EnvVar {
