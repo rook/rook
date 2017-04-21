@@ -28,7 +28,7 @@ CEPH_BRANCH ?= kraken
 ALWAYS_BUILD ?= 1
 
 # The platforms supported for cross building
-PLATFORMS ?= x86_64-linux-gnu aarch64-linux-gnu
+PLATFORMS ?= x86_64-linux-gnu arm-linux-gnueabihf aarch64-linux-gnu
 
 # The build type. Debug produces non-optimized builds. Release
 # produces fully optimized builds. RelWithDebInfo produces

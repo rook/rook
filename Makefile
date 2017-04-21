@@ -74,7 +74,7 @@ DOWNLOADDIR ?= $(abspath .download)
 BIN_DIR=bin
 RELEASE_DIR=release
 
-ALL_PLATFORMS ?= linux_amd64 linux_arm64 darwin_amd64 windows_amd64
+ALL_PLATFORMS ?= linux_amd64 linux_arm linux_arm64 darwin_amd64 windows_amd64
 
 GO_PROJECT=github.com/rook/rook
 

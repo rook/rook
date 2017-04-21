@@ -1,5 +1,3 @@
-// +build linux,amd64 linux,arm64
-
 /*
 Copyright 2016 The Rook Authors. All rights reserved.
 
