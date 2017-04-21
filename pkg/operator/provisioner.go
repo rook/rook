@@ -29,6 +29,12 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 )
 
+const (
+	imageNameMaxLen = 100 // image name should be under 100 chars to support kernels older than 4.7
+	imageNamePrefix = "k8s-dynamic"
+	rbdIDPrefix     = "rbd_id."
+)
+
 type rookVolumeProvisioner struct {
 	clusterManager *clusterManager
 
@@ -74,7 +80,7 @@ func (p *rookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 	capacity := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
 	requestBytes := capacity.Value()
 
-	imageName := fmt.Sprintf("kubernetes-dynamic-%s-%s", options.PVName, uuid.NewUUID())
+	imageName := createImageName(options.PVName)
 
 	rookClient, err := p.clusterManager.getRookClient(p.provConfig.clusterNamespace)
 	if err != nil {
@@ -200,4 +206,20 @@ func processMonAddresses(monAddresses []string) []string {
 		monAddrs[i] = mon[0]
 	}
 	return monAddrs
+}
+
+func createImageName(pvName string) string {
+	// generate a UUID for our image name
+	u := string(uuid.NewUUID())
+
+	// image name should be under 100 chars to support kernels older than 4.7
+	// when the RBD kernel module converts the image name to an OID, it will use "rbd_id.<imageName>",
+	// so we have to leave room for that "rbd_id." prefix too.
+	pvNameMaxLen := imageNameMaxLen - len(rbdIDPrefix) - len(imageNamePrefix) - len(u) - 2 // 2 hyphens
+	if len(pvName) > pvNameMaxLen {
+		// the PV name is too long, truncate it before including it in the final image name
+		pvName = pvName[:pvNameMaxLen]
+	}
+
+	return fmt.Sprintf("%s-%s-%s", imageNamePrefix, pvName, u)
 }
