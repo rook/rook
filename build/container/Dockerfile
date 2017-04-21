@@ -79,8 +79,8 @@ RUN ACBUILD_VERSION=0.4.0 && \
 #    - netgo: CGO_ENABLED=1, enable pure go DNS resolver
 #    - nocgo: CGO_ENABLED=0, defaults tags, pure Go resolver is the default
 #
-RUN GO_VERSION=1.8 && \
-    GO_HASH=53ab94104ee3923e228a2cb2116e5e462ad3ebaeea06ff04463479d7f12d27ca && \
+RUN GO_VERSION=1.8.1 && \
+    GO_HASH=a579ab19d5237e263254f1eac5352efcf1d70b9dacadb6d6bb12b0911ede8994 && \
     curl -fsSL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
     echo "${GO_HASH}  golang.tar.gz" | sha256sum -c - && \
     tar -C /usr/local -xzf golang.tar.gz && \
