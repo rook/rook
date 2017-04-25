@@ -21,7 +21,7 @@ check_git
 
 if [ ! -z $DOCKER_HOST ]; then
     echo ERROR: we only support the case where docker is running locally for now.
-    return 1
+    exit 1
 fi
 
 # if the container does not exist the pull or build it
