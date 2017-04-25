@@ -28,6 +28,7 @@ rules:
   - thirdpartyresources
   - deployments
   - daemonsets
+  - replicasets
   verbs:
   - get
   - list
