@@ -34,7 +34,7 @@ build_artifact() {
     local name=$(get_image_name $os $arch $repo ${RELEASE_VERSION})
 
     echo building docker container ${name}
-    docker build -t ${registry}${name} $tmpdir
+    docker build --pull --no-cache -t ${registry}${name} $tmpdir
 
     local file=${name/\//-}
     local file=${file/:/-}
@@ -52,10 +52,17 @@ build() {
 
     [[ ${os} == "linux" ]] || return 0
 
+    local baseimage=UNSUPPORTED
+    case ${arch} in
+        arm) baseimage=armhf/alpine ;;
+        amd64) baseimage=alpine ;;
+        arm64) baseimage=aarch64/alpine ;;
+    esac
+
     tmpdir=$(mktemp -d)
     trap "rm -fr $tmpdir" EXIT
     cat <<EOF > $tmpdir/Dockerfile
-FROM alpine:3.5
+FROM ${baseimage}:3.5
 RUN apk add --no-cache gptfdisk util-linux coreutils e2fsprogs
 COPY root /
 ENTRYPOINT ["/usr/bin/rookd"]
