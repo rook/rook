@@ -57,7 +57,7 @@ For a walkthrough of the three types of storage exposed by Rook, see the guides 
 ### Rook Client
 You also have the option to use the `rook` client tool directly by running it in a pod that can be started in the cluster with:
 ```bash
-kubectl create -f rook-client/rook-client.yml
+kubectl create -f rook-client.yml
 
 # Starting the rook-client pod will take a bit of time to download the container, so check when it's in the Running state
 kubectl -n rook get pod rook-client
