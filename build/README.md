@@ -15,6 +15,52 @@ A capable machine (2+ cores, 8+ GB of memory) with Docker installed locally:
 
 We do not currently support building on a remote docker host.
 
+### QEMU support on host
+
+If you use docker for Mac it already has support for this. Skip this.
+
+If you are planning on cross building the arm and aarch64 containers you must
+install QEMU and enable binfmt support. On an Ubuntu machine with a 4.8+ kernel
+you need to run install the following:
+
+```
+DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
+    binfmt-support
+    qemu-user-static
+```
+
+You also need to run the following on every boot:
+
+```
+docker run --rm --privileged hypriot/qemu-register
+```
+
+you can install a systemd unit to help with this if you'd like, for example:
+
+```
+cat <<EOF > /etc/systemd/system/update-binfmt.service
+[Unit]
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/docker run --rm --privileged hypriot/qemu-register
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+systemctl enable update-binfmt.service
+```
+
+To test run the following:
+
+```
+docker run --rm -ti armhf/alpine uname -a
+docker run --rm -ti aarch64/alpine uname -a
+```
+
 ## Update the git submodules
 
 Rook has many git submodules, and before you can
