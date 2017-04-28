@@ -21,9 +21,9 @@ package operator
 import "sync"
 
 type tprTracker struct {
-	stopChMap   map[string]chan struct{}
-	clusterRVs  map[string]string
-	waitCluster sync.WaitGroup
+	stopChMap  map[string]chan struct{}
+	clusterRVs map[string]string
+	sync.RWMutex
 }
 
 func newTPRTracker() *tprTracker {
@@ -43,6 +43,8 @@ func (t *tprTracker) add(name, version string) {
 func (t *tprTracker) remove(name string) {
 	delete(t.clusterRVs, name)
 
+	t.Lock()
+	defer t.Unlock()
 	if stopCh, ok := t.stopChMap[name]; ok {
 		close(stopCh)
 	}
@@ -50,8 +52,10 @@ func (t *tprTracker) remove(name string) {
 }
 
 func (t *tprTracker) stop() {
+	t.Lock()
+	defer t.Unlock()
 	for _, stop := range t.stopChMap {
 		close(stop)
 	}
-	t.waitCluster.Wait()
+	t.stopChMap = map[string]chan struct{}{}
 }
