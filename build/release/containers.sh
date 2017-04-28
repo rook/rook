@@ -147,6 +147,12 @@ publish() {
     [[ ${os} == "linux" ]] || return 0
 
     publish_artifact $os $arch rook/rookd
+
+    # TODO: publish the client and toolbox for arm
+    [[ ${arch} == "amd64" ]] || return 0
+ 
+    publish_artifact $os $arch rook/rook-client
+    publish_artifact $os $arch rook/toolbox
 }
 
 promote_artifact() {
