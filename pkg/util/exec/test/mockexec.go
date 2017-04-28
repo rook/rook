@@ -24,7 +24,6 @@ import (
 type MockExecutor struct {
 	MockExecuteCommand                   func(actionName string, command string, arg ...string) error
 	MockStartExecuteCommand              func(actionName string, command string, arg ...string) (*exec.Cmd, error)
-	MockExecuteCommandPipeline           func(actionName string, command string) (string, error)
 	MockExecuteCommandWithOutput         func(actionName string, command string, arg ...string) (string, error)
 	MockExecuteCommandWithCombinedOutput func(actionName string, command string, arg ...string) (string, error)
 	MockExecuteStat                      func(name string) (os.FileInfo, error)
@@ -45,14 +44,6 @@ func (e *MockExecutor) StartExecuteCommand(actionName string, command string, ar
 
 	args := []string{command}
 	return &exec.Cmd{Args: append(args, arg...)}, nil
-}
-
-func (e *MockExecutor) ExecuteCommandPipeline(actionName string, command string) (string, error) {
-	if e.MockExecuteCommandPipeline != nil {
-		return e.MockExecuteCommandPipeline(actionName, command)
-	}
-
-	return "", nil
 }
 
 func (e *MockExecutor) ExecuteCommandWithOutput(actionName string, command string, arg ...string) (string, error) {

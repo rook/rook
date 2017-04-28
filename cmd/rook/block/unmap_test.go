@@ -30,12 +30,12 @@ import (
 
 func TestUnmountBlock(t *testing.T) {
 	e := &exectest.MockExecutor{
-		MockExecuteCommandPipeline: func(actionName string, command string) (string, error) {
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
 			switch {
 			case strings.HasPrefix(command, "modinfo"):
 				return "single_major:Use a single major number for all rbd devices (default: false) (bool)", nil
 			case strings.HasPrefix(actionName, "get device from mount point"):
-				return "/dev/rbd4", nil
+				return "/dev/rbd4 on /tmp/mymount1 ", nil
 			}
 			return "", nil
 		},
@@ -64,7 +64,7 @@ func TestUnmountBlock(t *testing.T) {
 
 func TestUnmountBlockFailure(t *testing.T) {
 	e := &exectest.MockExecutor{
-		MockExecuteCommandPipeline: func(actionName string, command string) (string, error) {
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
 			switch {
 			case strings.HasPrefix(command, "modinfo"):
 				return "single_major:Use a single major number for all rbd devices (default: false) (bool)", nil

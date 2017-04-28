@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package kmod
+package sys
 
 import (
 	"fmt"
@@ -26,9 +26,9 @@ func LoadKernelModule(name string, options []string, executor exec.Executor) err
 		options = []string{}
 	}
 
-	args := append([]string{"modprobe", name}, options...)
+	args := append([]string{name}, options...)
 
-	if err := executor.ExecuteCommand(fmt.Sprintf("modprobe %s", name), "sudo", args[:]...); err != nil {
+	if err := executor.ExecuteCommand(fmt.Sprintf("modprobe %s", name), "modprobe", args[:]...); err != nil {
 		return fmt.Errorf("failed to load kernel module %s: %+v", name, err)
 	}
 
@@ -36,11 +36,11 @@ func LoadKernelModule(name string, options []string, executor exec.Executor) err
 }
 
 func CheckKernelModuleParam(name, param string, executor exec.Executor) (bool, error) {
-	cmd := fmt.Sprintf(`modinfo -F parm %s | grep "^%s" | awk '{print $0}'`, name, param)
-	out, err := executor.ExecuteCommandPipeline("check kmod param", cmd)
+	out, err := executor.ExecuteCommandWithOutput("check kmod param", "modinfo", "-F", "parm", name)
 	if err != nil {
 		return false, fmt.Errorf("failed to check for %s module %s param: %+v", name, param, err)
 	}
 
-	return out != "", nil
+	result := grep(out, fmt.Sprintf("^%s", param))
+	return result != "", nil
 }
