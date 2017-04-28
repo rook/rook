@@ -1,0 +1,34 @@
+apiVersion: rook.io/v1alpha1
+kind: Pool
+metadata:
+  name: replicapool
+  namespace: rook
+spec:
+  replication:
+    size: 1
+  # For an erasure-coded pool, comment out the replication count above and uncomment the following settings.
+  # Make sure you have enough OSDs to support the replica count or erasure code chunks.
+  #erasureCode:
+  #  codingChunks: 2
+  #  dataChunks: 2
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: rook-block
+provisioner: rook.io/block
+parameters:
+    pool: replicapool
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: block-pv-claim
+  annotations:
+    volume.beta.kubernetes.io/storage-class: rook-block
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1M

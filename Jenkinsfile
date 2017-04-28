@@ -23,6 +23,26 @@ try {
                 sh 'build/run make -j\$(nproc) check'
             }
 
+           stage('E2E') {
+                def exists = fileExists 'release/version'
+
+                if (!exists) {
+                    error('The file release/version does not exist')
+                }
+
+                def rook_tag = readFile (file: 'release/version', encoding : 'utf-8').trim()
+
+                if (rook_tag == '') {
+                    error('Failed to get rook_tag from version file')
+                }
+
+                echo 'Rook Tag is ' + rook_tag
+
+                sh "e2e/scripts/smoke_test.sh ${rook_tag} Kubernetes v1.6"
+
+                junit 'e2e/results/*.xml'
+            }
+
             stage('Publish') {
                 withCredentials([
                     [$class: 'UsernamePasswordMultiBinding', credentialsId: 'rook-quay-io', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASSWORD'],
