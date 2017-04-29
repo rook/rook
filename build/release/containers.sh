@@ -185,18 +185,19 @@ cleanup_artifact() {
     local os=$1
     local arch=$2
     local repo=$3
+    local img
 
-    local src=${registry}$(get_image_name $os $arch $repo ${RELEASE_VERSION})
-    echo removing docker image ${src}
-    docker rmi ${src} || true
-
-    local dst1=${registry}$(get_image_name $os $arch $repo ${RELEASE_CHANNEL}-latest)
-    echo removing docker image ${dst1}
-    docker rmi ${dst1} || true
-
-    local dst2=${registry}$(get_image_name $os $arch $repo ${RELEASE_CHANNEL}-${RELEASE_VERSION})
-    echo removing docker image ${dst2}
-    docker rmi ${dst2} || true
+    for t in \
+        ${RELEASE_VERSION} \
+        ${RELEASE_CHANNEL}-latest \
+        ${RELEASE_CHANNEL}-${RELEASE_VERSION} \
+        ; do
+        img=${registry}$(get_image_name $os $arch $repo ${t})
+        if [[ -n "$(docker images -q ${img} 2> /dev/null)" ]]; then
+            echo removing docker image ${img}
+            docker rmi ${img} || true
+        fi
+    done
 }
 
 cleanup() {
