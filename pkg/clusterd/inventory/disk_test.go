@@ -100,3 +100,19 @@ func TestDiscoverDevices(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(devices))
 }
+
+func TestIgnoreDevice(t *testing.T) {
+	cases := map[string]bool{
+		"rbd0":    true,
+		"rbd2":    true,
+		"rbd9913": true,
+		"rbd32p1": true,
+		"rbd0a2":  false,
+		"rbd":     false,
+		"arbd0":   false,
+		"rbd0x":   false,
+	}
+	for dev, expected := range cases {
+		assert.Equal(t, expected, ignoreDevice(dev), dev)
+	}
+}
