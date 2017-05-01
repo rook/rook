@@ -3,42 +3,60 @@
 try {
     node("ec2-stateful") {
 
+        def DOWNLOADDIR='~/.download'
+
         stage('Checkout') {
-            checkout scm
-            sh 'git submodule sync --recursive'
-            sh 'git submodule update --init --recursive'
+            echo 'faking a check-out'
+            //checkout scm
         }
 
         stage('Validation') {
-            sh 'external/ceph-submodule-check'
+            echo 'faking validation'
         }
 
-        withEnv(["DOWNLOADDIR=${env.HOME}/.download", "ALWAYS_BUILD=0", "CHANNEL=${env.BRANCH_NAME}"]) {
+        stage('Build') {
+            echo 'Simulating a build by doing a pull'
+            //sh "sudo mkdir -p /to-host"
+            //sh "sudo docker pull quay.io/rook/rook-client"
+            //sh "sudo docker pull quay.io/rook/rook-operator"
+            //sh "sudo docker pull quay.io/rook/rookd"
+            //sh 'echo'
+        }
 
-            stage('Build') {
-                sh 'build/run make -j\$(nproc) release'
-            }
+        stage('Tests') {
+            sh "sudo apt-get install -qy golang-go"
+            //sh "sudo mkdir -p ~/go/src"
+            //sh "sudo mkdir -p ~/go/bin"
 
-            stage('Tests') {
-                sh 'build/run make -j\$(nproc) check'
-            }
+withEnv(["GOPATH=/home/ubuntu/go", "GOROOT=/usr/bin/go"]) {
 
-            stage('Publish') {
-                withCredentials([
-                    [$class: 'UsernamePasswordMultiBinding', credentialsId: 'rook-quay-io', usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASSWORD'],
-                    [$class: 'UsernamePasswordMultiBinding', credentialsId: 'rook-jenkins-aws', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY'],
-                    [$class: 'StringBinding', credentialsId: 'quantumbuild-token', variable: 'GITHUB_TOKEN']
-                ]) {
-                    sh 'docker login -u="${DOCKER_USER}" -p="${DOCKER_PASSWORD}" quay.io'
-                    sh 'build/run make -j\$(nproc) publish'
-                }
-            }
 
-            stage('Cleanup') {
-                sh 'build/run make -j\$(nproc) publish.cleanup'
-                sh 'docker images'
-                deleteDir()
-            }
+
+                 sh "export GOPATH=/usr/share/go/ && export GOROOT=/usr/lib/go-1.6 && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH && sudo -E go get -u github.com/jstemmer/go-junit-report"
+
+                 //export GOPATH=/home/ubuntu/go && export GOROOT=/usr/lib/go-1.6 && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH &&
+                 //sh "export GOPATH=/usr/share/go/ && export GOROOT=/usr/lib/go-1.6 && export PATH=$GOPATH/bin:$GOROOT/bin:$PATH && sudo -E go get -u github.com/dangula/rook"
+
+                 sh "git clone "
+                 //sh "cd $GOPATH/src/github.com/rook/e2e/tests/integration/smokeTest"
+
+                 //sh "sudo go test -run TestFileStorage_SmokeTest -v | sudo go-junit-report > file-test-report.xml"
+
+    }
+            //sh "export $GOPATH=~/go/"
+            //sh "export GOROOT=/usr/local/go/"
+            //sh "export PATH=$GOPATH/bin:$GOROOT/bin:$PATH"
+            //sh "echo $GOPATH"
+
+
+            step([$class: 'JUnitResultArchiver', testResults: '**/target/surefire-reports/*.xml'])
+
+        }
+
+        stage('Cleanup') {
+
+
+            deleteDir()
         }
     }
 }
@@ -46,9 +64,9 @@ catch (Exception e) {
     echo 'Failure encountered'
 
     node("ec2-stateful") {
+        echo "Cleaning docker"
+
         echo 'Cleaning up workspace'
-        sh 'build/run make -j\$(nproc) publish.cleanup'
-        sh 'docker images'
         deleteDir()
     }
 
