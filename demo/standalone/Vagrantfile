@@ -38,7 +38,7 @@ if private_build
   aci_location = "/release/quay.io-rook-rookd-dev.aci"
   aci_options = "--insecure-options=image"
 else
-  aci_location = "quay.io/rook/rookd:latest"
+  aci_location = "quay.io/rook/rookd:master-latest"
   aci_options = ""
 end
 
