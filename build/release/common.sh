@@ -133,7 +133,7 @@ github_release_complete() {
 write_version_file() {
     # upload a file with the version number
     cat <<EOF > ${RELEASE_DIR}/version
-${version}
+${RELEASE_VERSION}
 EOF
 }
 

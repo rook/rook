@@ -9,6 +9,13 @@ shift
 mkdir -p ${RELEASE_DIR}
 
 case ${action} in
+    build.init)
+        write_version_file
+        ;;
+
+    publish.init)
+        ;;
+
     build|publish|promote|cleanup)
         platform=$1
         shift
@@ -26,7 +33,6 @@ case ${action} in
         fi
 
         echo promoting release ${RELEASE_VERSION} to channel ${RELEASE_CHANNEL}
-        write_version_file
         publish_version_file
         github_create_or_replace_release
         ;;

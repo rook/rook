@@ -99,9 +99,13 @@ endef
 
 $(foreach f,$(RELEASE_FLAVORS),$(foreach p,$(RELEASE_PLATFORMS), $(eval $(call release-target,$(f),$(p)))))
 
-release.build: release.build.all
+release.build:
+	@build/release/release.sh build.init
+	@$(MAKE) release.build.all
 
-release.publish: release.publish.all
+release.publish:
+	@build/release/release.sh publish.init
+	@$(MAKE) release.publish.all
 
 release.promote:
 	@build/release/release.sh promote.init
