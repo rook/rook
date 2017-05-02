@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"regexp"
 	"strconv"
 
 	etcd "github.com/coreos/etcd/client"
@@ -26,6 +27,10 @@ import (
 
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
+)
+
+var (
+	isRBD = regexp.MustCompile("^rbd[0-9]+p?[0-9]{0,}$")
 )
 
 func GetAvailableDevices(devices []*LocalDisk) []string {
@@ -91,6 +96,10 @@ func getDeviceEmpty(device *LocalDisk) bool {
 	return device.Parent == "" && device.Type == sys.DiskType && device.FileSystem == ""
 }
 
+func ignoreDevice(d string) bool {
+	return isRBD.MatchString(d)
+}
+
 // Discover all the details of devices available on the local node
 func discoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
 
@@ -101,6 +110,11 @@ func discoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
 	}
 
 	for _, d := range devices {
+
+		if ignoreDevice(d) {
+			// skip device
+			continue
+		}
 
 		diskProps, err := sys.GetDeviceProperties(d, executor)
 		if err != nil {
