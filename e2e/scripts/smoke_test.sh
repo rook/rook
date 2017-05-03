@@ -3,6 +3,7 @@
 test_source_repo=$(pwd)
 docker_test_repo=/workspace/go/src/github.com/rook/rook
 git_smoke_test_directory=github.com/rook/rook/e2e/tests/smoke
+git_test_directory=github.com/rook/rook/e2e/tests
 container_image=quay.io/quantum/rook-test
 tmp_docker_sock_path=/tmp/docker.sock
 results_dir=results
@@ -71,14 +72,22 @@ rook_infra::gather_results() {
 }
 
 rook_infra::cleanup() {
-    echo Removing rook-test-framework container...
-    docker kill ${id}
-    docker rm ${id}
+    local tag_name=$1
+    local rook_platform=$2
+    local k8s_version=$3
+
+    #Run clean up tests that runs down on dind script
+    docker exec -t ${id} /bin/bash -c \
+        "go test -timeout 1200s -run TestRookInfraCleanUp  ${git_test_directory} --rook_platform=${rook_platform} --k8s_version=${k8s_version} --rook_version=${tag_name} -v 2>&1"
+
+    echo Removing rook-test-framework container and images...
+    docker kill ${id} || true
+    docker rm ${id} || true
+    docker images|grep 'rook-test\|kubeadm-dind-cluster\|ceph/base'|xargs docker rmi > /dev/null 2>&1 || true
+
 }
 
-{ #try
-
-    if [ -z "$1" ]; then
+ if [ -z "$1" ]; then
         tag_name="master-latest"
     else
         tag_name=$1
@@ -96,6 +105,8 @@ rook_infra::cleanup() {
         k8s_version=$3
     fi
 
+{ #try
+
     rook_infra::create
     sleep 5
     rook_infra::init
@@ -104,9 +115,10 @@ rook_infra::cleanup() {
 
     rook_infra::gather_results
 
+  # Delete the rook infrastructure container
+
 } || { #catch
     rook_infra::gather_results
 }
 
-#Delete the rook infrastructure container
-rook_infra::cleanup
+rook_infra::cleanup ${tag_name} ${rook_platform} ${k8s_version}
