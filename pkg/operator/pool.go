@@ -202,7 +202,10 @@ func (p *poolManager) watchOuterTPR(eventCh chan *poolEvent, errCh chan error) e
 	decoder := json.NewDecoder(resp.Body)
 	for {
 		ev, st, err := pollPoolEvent(decoder)
-		done, err := handlePollEventResult(st, err, func() (bool, error) { return false, nil }, errCh)
+		done, err := handlePollEventResult(st, err, func() (bool, error) {
+			// there is no cache for the pool tpr, so we return true to indicate to always reset the watch on error
+			return true, nil
+		}, errCh)
 		if err != nil {
 			return err
 		}
