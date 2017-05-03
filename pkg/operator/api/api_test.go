@@ -27,6 +27,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/client-go/pkg/apis/rbac/v1beta1"
 )
 
 func TestStartAPI(t *testing.T) {
@@ -84,4 +85,44 @@ func TestPodSpecs(t *testing.T) {
 	expectedCommand := fmt.Sprintf("/usr/bin/rookd api --config-dir=/var/lib/rook --port=%d", model.Port)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
+}
+
+func TestClusterRole(t *testing.T) {
+	clientset := testop.New(1)
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion")
+
+	// the role is create
+	err := c.makeClusterRole()
+	assert.Nil(t, err)
+	role, err := c.context.Clientset.RbacV1beta1().ClusterRoles().Get(DeploymentName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, DeploymentName, role.Name)
+	assert.Equal(t, 3, len(role.Rules))
+	account, err := c.context.Clientset.CoreV1().ServiceAccounts(c.Namespace).Get(DeploymentName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, c.Namespace, account.Namespace)
+	binding, err := c.context.Clientset.RbacV1beta1().ClusterRoleBindings().Get(DeploymentName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, DeploymentName, binding.RoleRef.Name)
+	assert.Equal(t, "ClusterRole", binding.RoleRef.Kind)
+	assert.Equal(t, "rbac.authorization.k8s.io", binding.RoleRef.APIGroup)
+	assert.Equal(t, DeploymentName, binding.Subjects[0].Name)
+	assert.Equal(t, "ServiceAccount", binding.Subjects[0].Kind)
+
+	// update the rules
+	clusterAccessRules = []v1beta1.PolicyRule{
+		v1beta1.PolicyRule{
+			APIGroups: []string{""},
+			Resources: []string{"namespaces"},
+			Verbs:     []string{"get", "list"},
+		},
+	}
+	err = c.makeClusterRole()
+	assert.Nil(t, err)
+	role, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Get(DeploymentName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(role.Rules))
+	assert.Equal(t, "", role.Rules[0].APIGroups[0])
+	assert.Equal(t, 1, len(role.Rules[0].Resources))
+	assert.Equal(t, 2, len(role.Rules[0].Verbs))
 }

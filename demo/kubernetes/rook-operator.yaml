@@ -2,12 +2,12 @@ kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-operator
-  namespace: default
 rules:
 - apiGroups:
   - ""
   resources:
   - namespaces
+  - serviceaccounts
   - secrets
   - pods
   - services
@@ -34,6 +34,17 @@ rules:
   - list
   - watch
   - create
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  - clusterrolebindings
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
 - apiGroups:
   - storage.k8s.io
   resources:

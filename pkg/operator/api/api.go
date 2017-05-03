@@ -26,11 +26,30 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	"k8s.io/client-go/pkg/apis/rbac/v1beta1"
 )
 
 const (
 	DeploymentName = "rook-api"
 )
+
+var clusterAccessRules = []v1beta1.PolicyRule{
+	v1beta1.PolicyRule{
+		APIGroups: []string{""},
+		Resources: []string{"namespaces", "secrets", "pods", "services", "nodes", "configmaps", "events"},
+		Verbs:     []string{"get", "list", "watch", "create", "update"},
+	},
+	v1beta1.PolicyRule{
+		APIGroups: []string{"extensions"},
+		Resources: []string{"thirdpartyresources", "deployments", "daemonsets", "replicasets"},
+		Verbs:     []string{"get", "list", "create"},
+	},
+	v1beta1.PolicyRule{
+		APIGroups: []string{"storage.k8s.io"},
+		Resources: []string{"storageclasses"},
+		Verbs:     []string{"get", "list"},
+	},
+}
 
 type Cluster struct {
 	context   *k8sutil.Context
@@ -59,6 +78,12 @@ func (c *Cluster) Start() error {
 		return fmt.Errorf("failed to start api service. %+v", err)
 	}
 
+	// create the artifacts for the api service to work with RBAC enabled
+	err = c.makeClusterRole()
+	if err != nil {
+		return fmt.Errorf("failed to init RBAC for the api service. %+v", err)
+	}
+
 	// start the deployment
 	deployment := c.makeDeployment()
 	_, err = c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
@@ -74,6 +99,43 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
+func (c *Cluster) makeClusterRole() error {
+	account := &v1.ServiceAccount{}
+	account.Name = DeploymentName
+	account.Namespace = c.Namespace
+	_, err := c.context.Clientset.CoreV1().ServiceAccounts(c.Namespace).Create(account)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create api service account. %+v", err)
+	}
+
+	// Create the cluster role if it doesn't yet exist.
+	// If the role already exists we have to update it. Otherwise if the permissions change during an upgrade,
+	// the create will fail with an error that we're changing the permissions.
+	role := &v1beta1.ClusterRole{Rules: clusterAccessRules}
+	role.Name = DeploymentName
+	_, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Get(role.Name, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		logger.Infof("creating cluster role rook-api")
+		_, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Create(role)
+	} else if err == nil {
+		logger.Infof("cluster role rook-api already exists. updating if needed.")
+		_, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Update(role)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to create cluster roles. %+v", err)
+	}
+
+	binding := &v1beta1.ClusterRoleBinding{}
+	binding.Name = DeploymentName
+	binding.RoleRef = v1beta1.RoleRef{Name: DeploymentName, Kind: "ClusterRole", APIGroup: "rbac.authorization.k8s.io"}
+	binding.Subjects = []v1beta1.Subject{v1beta1.Subject{Kind: "ServiceAccount", Name: DeploymentName, Namespace: c.Namespace}}
+	_, err = c.context.Clientset.RbacV1beta1().ClusterRoleBindings().Create(binding)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create api cluster role binding. %+v", err)
+	}
+	return nil
+}
+
 func (c *Cluster) makeDeployment() *extensions.Deployment {
 	deployment := &extensions.Deployment{}
 	deployment.Name = DeploymentName
@@ -86,8 +148,9 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 			Annotations: map[string]string{},
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.apiContainer()},
-			RestartPolicy: v1.RestartPolicyAlways,
+			ServiceAccountName: DeploymentName,
+			Containers:         []v1.Container{c.apiContainer()},
+			RestartPolicy:      v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
 				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
 			},
