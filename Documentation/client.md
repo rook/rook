@@ -88,26 +88,81 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](R
    eval $(rook object connection rook-user --format env-var)
    ```
 
-4. Use an S3 compatible client to create a bucket in the object store
+4. Get rook object connection details
+
+   ```bash
+   rook object connection rook-user --format env-var
+   ```
+
+5. Install editor of your choice , here we are installing vim
+   ```bash
+   apt install vim
+   ```
+
+6. Configure s3cmd
+   ```bash
+   s3cmd --configure
+   ```
+   ```
+   Enter new values or accept defaults in brackets with Enter.
+   Refer to user manual for detailed description of all options.
+
+   Access key and Secret key are your identifiers for Amazon S3. Leave them empty for using the env variables.
+   Access Key: < Add your Access Key Here >
+   Secret Key: < Add your Secret Key Here >
+   Default Region [US]:
+
+   Encryption password is used to protect your files from reading
+   by unauthorized persons while in transfer to S3
+   Encryption password:
+   Path to GPG program [/usr/bin/gpg]:
+
+   When using secure HTTPS protocol all communication with Amazon S3
+   servers is protected from 3rd party eavesdropping. This method is
+   slower than plain HTTP, and can only be proxied with Python 2.7 or newer
+   Use HTTPS protocol [Yes]: no
+
+   On some networks all internet access must go through a HTTP proxy.
+   Try setting it here if you can't connect to S3 directly
+   HTTP Proxy server name:
+
+   New settings:
+     Access Key: W1AALV375BM0PE6BHLJQ
+     Secret Key: GTRaEqsjMeXLLbGaICMOk636G7E6YhIcb2OBB7el
+     Default Region: US
+     Encryption password:
+     Path to GPG program: /usr/bin/gpg
+     Use HTTPS protocol: False
+     HTTP Proxy server name:
+     HTTP Proxy server port: 0
+
+   Test access with supplied credentials? [Y/n] n
+
+   Save settings? [y/N] y
+   Configuration saved to '/root/.s3cfg'
+   ```
+7. Edit s3cmd configuration file and provide values for ```host``` and ```host-bucket```
+
+8. Use an S3 compatible client to create a bucket in the object store
 
    ```bash
    s3cmd mb --no-ssl --host=${AWS_ENDPOINT} --host-bucket=  s3://rookbucket
    ```
 
-5. List all buckets in the object store
+9. List all buckets in the object store
 
    ```bash
-   s3cmd ls --no-ssl --host=${AWS_ENDPOINT} --host-bucket=
+   s3cmd ls --no-ssl --host=${AWS_ENDPOINT}
    ```
 
-6. Upload a file to the newly created bucket
+10. Upload a file to the newly created bucket
 
    ```bash
    echo "Hello Rook!" > /tmp/rookObj
    s3cmd put /tmp/rookObj --no-ssl --host=${AWS_ENDPOINT} --host-bucket=  s3://rookbucket
    ```
 
-7. Download and verify the file from the bucket
+11. Download and verify the file from the bucket
 
    ```bash
    s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_ENDPOINT} --host-bucket=
