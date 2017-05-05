@@ -29,7 +29,6 @@ import (
 	"github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
-	"github.com/rook/rook/pkg/util/kmod"
 	"github.com/rook/rook/pkg/util/sys"
 	"github.com/spf13/cobra"
 )
@@ -101,7 +100,7 @@ func mapBlock(name, poolName, mountPoint, rbdSysBusPath string, formatRequested 
 	}
 
 	// load the rbd kernel module with options
-	if err := kmod.LoadKernelModule(rbdKernelModuleName, options, executor); err != nil {
+	if err := sys.LoadKernelModule(rbdKernelModuleName, options, executor); err != nil {
 		return "", err
 	}
 
@@ -149,9 +148,6 @@ func mapBlock(name, poolName, mountPoint, rbdSysBusPath string, formatRequested 
 		successMessage += fmt.Sprintf(", and mounted at %s", mountPoint)
 	}
 
-	// chown for the current user since we had to format and mount with sudo
-	// sys.ChownForCurrentUser(mountPoint, executor)
-
 	return successMessage, nil
 }
 
@@ -176,7 +172,7 @@ func getRBDAddData(name, poolName string, clientAccessInfo model.ClientAccessInf
 
 func checkRBDSingleMajor(executor exec.Executor) bool {
 	// check to see if the rbd kernel module has single_major support
-	hasSingleMajor, err := kmod.CheckKernelModuleParam(rbdKernelModuleName, "single_major", executor)
+	hasSingleMajor, err := sys.CheckKernelModuleParam(rbdKernelModuleName, "single_major", executor)
 	if err != nil {
 		logger.Noticef("failed %s single_major check, assuming it's unsupported: %+v", rbdKernelModuleName, err)
 		hasSingleMajor = false

@@ -50,17 +50,17 @@ You now have a docker registry which is HA with persistent storage.
 
 ### Test the storage
 
-Once you have pushed an image to the registry (see the [instructions](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry) to expose and use the kube-registry), verify that kube-registry is using the filesystem that was configured above. 
+Once you have pushed an image to the registry (see the [instructions](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry) to expose and use the kube-registry), verify that kube-registry is using the filesystem that was configured above by mounting the shared file system in the rook client pod. 
 
 ```bash
-# Start the rook toolbox
-kubectl -n rook exec rook-tools -it bash
+# Start the rook client
+kubectl -n rook exec rook-client -it sh
 
 # Mount the same filesystem that the kube-registry is using
 mkdir /tmp/registry
 rook filesystem mount --name registryFS --path /tmp/registry
 
-# IF you have pushed images to the registry you will see a directory called docker
+# If you have pushed images to the registry you will see a directory called docker
 ls /tmp/registry 
 
 # Cleanup the filesystem mount

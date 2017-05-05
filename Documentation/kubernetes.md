@@ -24,8 +24,8 @@ With your Kubernetes cluster running, Rook can be setup and deployed by simply c
 cd demo/kubernetes
 kubectl create -f rook-operator.yaml
 
-# This will start the rook-operator pod.  Verify that it is in the `Running` state before proceeding:
-kubectl get pod | grep rook-operator
+# verify the rook-operator pod is in the `Running` state before proceeding
+kubectl get pod
 ```
 
 Now that the rook-operator pod is running, we can create the Rook cluster. See the documentation on [configuring the cluster](cluster-tpr.md).
@@ -55,24 +55,25 @@ For a walkthrough of the three types of storage exposed by Rook, see the guides 
 ## Tools
 
 ### Rook Client
-You also have the option to use the `rook` client tool directly by running it in a pod that can be started in the cluster with:
+The `rook` client tool allows you to configure Block, File System, and Object storage.
+You can start a client pod that is automatically configured to connect to your storage cluster with the following:
 ```bash
 kubectl create -f rook-client.yml
 
-# Starting the rook-client pod will take a bit of time to download the container, so check when it's in the Running state
+# Check when the pod is in the Running state
 kubectl -n rook get pod rook-client
 
-# Connect to the rook-client pod 
-kubectl -n rook exec rook-client -it bash
+# Connect to the client pod 
+kubectl -n rook exec rook-client -it sh
 
-# Verify the rook client can talk to the cluster:
+# Verify the rook client can talk to the cluster
 rook node ls
 ```
 
-At this point, you can use the `rook` tool along with some [simple steps to create and manage block, file and object storage](client.md).
+Now you can use the `rook` tool as required in the [File System](k8s-filesystem.md) and [Object](k8s-object.md) walkthroughs, or a [simplified walkthrough of block, file and object storage](client.md).
 
 ### Advanced Configuration and Troubleshooting
-We have created a toolbox container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](toolbox.md) for setup and usage information.
+We have created a toolbox container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
 
 ### Monitoring
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).

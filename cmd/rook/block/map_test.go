@@ -41,7 +41,7 @@ func TestMountBlock(t *testing.T) {
 		},
 	}
 	e := &exectest.MockExecutor{
-		MockExecuteCommandPipeline: func(actionName string, command string) (string, error) {
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
 			switch {
 			case strings.HasPrefix(command, "modinfo"):
 				return "single_major:Use a single major number for all rbd devices (default: false) (bool)", nil

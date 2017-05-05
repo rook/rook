@@ -33,6 +33,7 @@ const (
 	SSDType  = "ssd"
 	PartType = "part"
 	sgdisk   = "sgdisk"
+	mountCmd = "mount"
 )
 
 type Partition struct {
@@ -172,26 +173,26 @@ func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 // look up the mount point of the given device.  empty string returned if device is not mounted.
 func GetDeviceMountPoint(deviceName string, executor exec.Executor) (string, error) {
 	cmd := fmt.Sprintf("get mount point for %s", deviceName)
-	mountPoint, err := executor.ExecuteCommandPipeline(
-		cmd,
-		fmt.Sprintf(`mount | grep '^/dev/%s on' | awk '{print $3}'`, deviceName))
+	output, err := executor.ExecuteCommandWithOutput(cmd, mountCmd)
 	if err != nil {
 		return "", fmt.Errorf("command %s failed: %+v", cmd, err)
 	}
 
+	searchFor := fmt.Sprintf("^/dev/%s on", deviceName)
+	mountPoint := awk(grep(output, searchFor), 3)
 	return mountPoint, nil
 }
 
 func GetDeviceFromMountPoint(mountPoint string, executor exec.Executor) (string, error) {
 	mountPoint = filepath.Clean(mountPoint)
 	cmd := fmt.Sprintf("get device from mount point %s", mountPoint)
-	device, err := executor.ExecuteCommandPipeline(
-		cmd,
-		fmt.Sprintf(`mount | grep 'on %s ' | awk '{print $1}'`, mountPoint))
+	output, err := executor.ExecuteCommandWithOutput(cmd, mountCmd)
 	if err != nil {
 		return "", fmt.Errorf("command %s failed: %+v", cmd, err)
 	}
 
+	searchFor := fmt.Sprintf("on %s ", mountPoint)
+	device := awk(grep(output, searchFor), 1)
 	return device, nil
 }
 
@@ -216,7 +217,7 @@ func MountDeviceWithOptions(devicePath, mountPath, fstype, options string, execu
 
 	os.MkdirAll(mountPath, 0755)
 	cmd := fmt.Sprintf("mount %s", devicePath)
-	if err := executor.ExecuteCommand(cmd, "mount", args...); err != nil {
+	if err := executor.ExecuteCommand(cmd, mountCmd, args...); err != nil {
 		return fmt.Errorf("command %s failed: %+v", cmd, err)
 	}
 
@@ -239,33 +240,15 @@ func UnmountDevice(devicePath string, executor exec.Executor) error {
 
 func DoesDeviceHaveChildren(device string, executor exec.Executor) (bool, error) {
 	cmd := fmt.Sprintf("check children for device %s", device)
-	children, err := executor.ExecuteCommandPipeline(
-		cmd,
-		fmt.Sprintf(`lsblk --all -n -l --output PKNAME | grep "^%s$" | awk '{print $0}'`, device))
+	output, err := executor.ExecuteCommandWithOutput(cmd, "lsblk --all -n -l --output PKNAME")
 	if err != nil {
 		return false, fmt.Errorf("command %s failed: %+v", cmd, err)
 	}
 
+	searchFor := fmt.Sprintf("^%s$", device)
+	children := grep(output, searchFor)
+
 	return children != "", nil
-}
-
-func ChownForCurrentUser(path string, executor exec.Executor) {
-	if currentUser == nil {
-		var err error
-		currentUser, err = user.Current()
-		if err != nil {
-			logger.Warningf("unable to find current user: %+v", err)
-			return
-		}
-	}
-
-	if currentUser != nil {
-		cmd := fmt.Sprintf("chown %s", path)
-		if err := executor.ExecuteCommand(cmd, "sudo", "chown", "-R",
-			fmt.Sprintf("%s:%s", currentUser.Username, currentUser.Username), path); err != nil {
-			logger.Warningf("command %s failed: %+v", cmd, err)
-		}
-	}
 }
 
 // finds the file system(s) for the device in the output of 'df'

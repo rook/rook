@@ -75,22 +75,21 @@ ENTRYPOINT ["/usr/bin/rookd"]
 EOF
     build_artifact $os $arch $tmpdir rook/rookd rookd
     rm -fr $tmpdir
-
-    # TODO: build the client and toolbox for arm
-    [[ ${arch} == "amd64" ]] || return 0
  
-    echo "Building the rook-client container"
+    echo "Building the rook client container"
     mkdir $tmpdir
     cat <<EOF > $tmpdir/Dockerfile
-FROM ubuntu
-RUN apt-get update && \
-    apt-get install -yq --no-install-recommends wget s3cmd kmod module-init-tools sudo
+FROM ${baseimage}:3.5
+RUN apk add --no-cache e2fsprogs
 COPY root /
 ENTRYPOINT ["/usr/bin/rook"]
 EOF
-    build_artifact $os $arch $tmpdir rook/rook-client rook
+    build_artifact $os $arch $tmpdir rook/rook rook
     rm -fr $tmpdir
 
+    # TODO: build the toolbox for arm
+    [[ ${os} != "amd64" ]] || return 0
+ 
     echo "Building the toolbox container"
     mkdir $tmpdir
     cp toolbox/entrypoint.sh $tmpdir
@@ -102,6 +101,7 @@ RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 08b
     && DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
         binutils \
         ceph-common \
+        s3cmd \
         curl \
         fio \
         gdb \
@@ -146,12 +146,11 @@ publish() {
 
     [[ ${os} == "linux" ]] || return 0
 
-    publish_artifact $os $arch rook/rookd
+    publish_artifact $os $arch rook/rookd 
+    publish_artifact $os $arch rook/rook
 
-    # TODO: publish the client and toolbox for arm
+    # TODO: publish the toolbox for arm
     [[ ${arch} == "amd64" ]] || return 0
- 
-    publish_artifact $os $arch rook/rook-client
     publish_artifact $os $arch rook/toolbox
 }
 
@@ -179,6 +178,8 @@ promote() {
     [[ ${os} == "linux" ]] || return 0
 
     promote_artifact $os $arch rook/rookd
+    promote_artifact $os $arch rook/rook
+    promote_artifact $os $arch rook/toolbox
 }
 
 cleanup_artifact() {
@@ -206,7 +207,7 @@ cleanup() {
 
     [[ ${os} == "linux" ]] || return 0
     cleanup_artifact $os $arch rook/rookd
-    cleanup_artifact $os $arch rook/rook-client
+    cleanup_artifact $os $arch rook/rook
     cleanup_artifact $os $arch rook/toolbox
 }
 

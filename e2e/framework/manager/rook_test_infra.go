@@ -3,17 +3,18 @@ package rook_test_infra
 import (
 	"bytes"
 	"fmt"
-	"github.com/rook/rook/e2e/framework/contracts"
-	"github.com/rook/rook/e2e/framework/enums"
-	"github.com/rook/rook/e2e/framework/objects"
-	"github.com/rook/rook/e2e/framework/transport"
-	"github.com/rook/rook/e2e/framework/utils"
 	"io/ioutil"
 	"path"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/rook/rook/e2e/framework/contracts"
+	"github.com/rook/rook/e2e/framework/enums"
+	"github.com/rook/rook/e2e/framework/objects"
+	"github.com/rook/rook/e2e/framework/transport"
+	"github.com/rook/rook/e2e/framework/utils"
 )
 
 type rookTestInfraManager struct {
@@ -43,9 +44,9 @@ const (
 	rookDindK8sClusterScriptv1_5   = "rook-dind-cluster-v1.5.sh"
 	rookDindK8sClusterScriptv1_6   = "rook-dind-cluster-v1.6.sh"
 	rookOperatorImagePodSpecTag    = "quay.io/rook/rookd:master-latest"
-	rookClientImagePodSpecTag      = "quay.io/rook/rook-client:latest"
+	rookClientImagePodSpecTag      = "quay.io/rook/rook:master-latest"
 	rookOperatorPrefix             = "quay.io/rook/rookd"
-	rookClientPrefix               = "quay.io/rook/rook-client"
+	rookClientPrefix               = "quay.io/rook/rook"
 	rookOperatorCreatedTpr         = "cluster.rook.io"
 	k8s_master_container_name      = "kube-master"
 	k8s_node1_container_name       = "kube-node-1"

@@ -40,9 +40,9 @@ func TestListBlockImages(t *testing.T) {
 		},
 	}
 	e := &exectest.MockExecutor{
-		MockExecuteCommandPipeline: func(actionName string, command string) (string, error) {
-			if strings.Contains(command, "rbd5") {
-				return "/tmp/mymount1", nil
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+			if strings.Contains(command, "mount") {
+				return "/dev/rbd5 on /tmp/mymount1", nil
 			}
 			return "", nil
 		},

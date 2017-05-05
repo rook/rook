@@ -16,6 +16,7 @@ limitations under the License.
 package sys
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -61,12 +62,12 @@ sdc            tmpfs`
 func TestGetDeviceFromMountPoint(t *testing.T) {
 	const device = "/dev/rbd3"
 	e := &exectest.MockExecutor{
-		MockExecuteCommandPipeline: func(actionName string, command string) (string, error) {
+		MockExecuteCommandWithOutput: func(actionName, command string, args ...string) (string, error) {
 			switch {
 			case strings.HasPrefix(actionName, "get device from mount point"):
 				// verify that the mount path being searched for has been cleaned
-				assert.Contains(t, command, " /tmp/mymountpath ")
-				return device, nil
+				assert.Equal(t, command, "mount")
+				return fmt.Sprintf("%s on /tmp/mymountpath blah", device), nil
 			}
 			return "", nil
 		},

@@ -28,7 +28,6 @@ import (
 type Executor interface {
 	StartExecuteCommand(actionName string, command string, arg ...string) (*exec.Cmd, error)
 	ExecuteCommand(actionName string, command string, arg ...string) error
-	ExecuteCommandPipeline(actionName string, command string) (string, error)
 	ExecuteCommandWithOutput(actionName string, command string, arg ...string) (string, error)
 	ExecuteCommandWithCombinedOutput(actionName string, command string, arg ...string) (string, error)
 	ExecuteStat(name string) (os.FileInfo, error)
@@ -75,12 +74,6 @@ func (*CommandExecutor) ExecuteCommandWithCombinedOutput(actionName string, comm
 	logCommand(command, arg...)
 	cmd := exec.Command(command, arg...)
 	return runCommandWithOutput(actionName, cmd, true)
-}
-
-func (*CommandExecutor) ExecuteCommandPipeline(actionName string, command string) (string, error) {
-	logCommand(command)
-	cmd := exec.Command("bash", "-c", command)
-	return runCommandWithOutput(actionName, cmd, false)
 }
 
 func startCommand(command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {
