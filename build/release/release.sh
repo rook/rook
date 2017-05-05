@@ -33,6 +33,7 @@ case ${action} in
         fi
 
         echo promoting release ${RELEASE_VERSION} to channel ${RELEASE_CHANNEL}
+        write_version_file
         publish_version_file
         github_create_or_replace_release
         ;;
