@@ -22,6 +22,8 @@ type rookTestInfraManager struct {
 	dockerized      bool
 	dockerContext   *objects.DockerContext
 	k8sVersion      enums.K8sVersion
+	isSetup         bool
+	isRookInstalled bool
 }
 
 var (
@@ -198,6 +200,12 @@ func (r *rookTestInfraManager) copyImageToNode(containerId string, imageName str
 
 //This method stands up a k8s cluster and pre-configures it for running tests
 func (r *rookTestInfraManager) ValidateAndSetupTestPlatform() {
+
+	if r.isSetup {
+		return
+	}
+	r.TearDownInfrastructureCreatedEnvironment()
+
 	fmt.Println("pulling the docker image: " + cephBaseImageName)
 	cmdOut := utils.ExecuteCommand(objects.CommandArgs{Command: "docker", CmdArgs: []string{"pull", cephBaseImageName}})
 
@@ -245,6 +253,8 @@ func (r *rookTestInfraManager) ValidateAndSetupTestPlatform() {
 
 	_, _ = r.executeDockerCommand("", enums.Copy, curdir+"/"+scriptsPath+"/rbd", k8sNode2ContainerId+":/bin/rbd")
 	_, _ = r.executeDockerCommand(k8sNode2ContainerId, enums.Exec, "chmod", "+x", "/bin/rbd")
+
+	r.isSetup = true
 }
 
 func (r *rookTestInfraManager) getContainerIdByName(containerName string) (containerId string) {
@@ -333,6 +343,10 @@ func createk8sRookCluster(k8sHelper *utils.K8sHelper) error {
 }
 
 func (r *rookTestInfraManager) InstallRook(tag string) (err error, client contracts.IRookClient) {
+	if r.isRookInstalled {
+		return
+	}
+
 	rookOperatorTag := rookOperatorPrefix + ":" + tag
 
 	err = r.copyImageToNode(r.getContainerIdByName(k8s_master_container_name), rookOperatorTag)
@@ -377,6 +391,8 @@ func (r *rookTestInfraManager) InstallRook(tag string) (err error, client contra
 		panic(err)
 	}
 
+	r.isRookInstalled = true
+
 	return nil, nil
 }
 
@@ -389,6 +405,7 @@ func (r *rookTestInfraManager) isContainerRunning(containerId string) bool {
 }
 
 func (r rookTestInfraManager) TearDownInfrastructureCreatedEnvironment() error {
+
 	dindScriptName := getDindScriptName(r.k8sVersion)
 
 	cmdOut := utils.ExecuteCommand(objects.CommandArgs{Command: "chmod", CmdArgs: []string{"+x", curdir + "/" + scriptsPath + "/" + dindScriptName}})
@@ -402,6 +419,9 @@ func (r rookTestInfraManager) TearDownInfrastructureCreatedEnvironment() error {
 	if cmdOut.Err != nil || cmdOut.ExitCode != 0 {
 		panic(fmt.Errorf("Failed to execute clean up script"))
 	}
+
+	r.isSetup = false
+	r.isRookInstalled = false
 
 	return nil
 }
