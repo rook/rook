@@ -12,9 +12,9 @@ apt-get install telnet
 
 The rook toolbox can run as a pod in a Kubernetes cluster.  First, ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](kubernetes.md) instructions).
 
-From this directory, launch the rook-tools pod:
+Launch the rook-tools pod:
 ```bash
-cd toolbox
+cd demo/kubernetes
 kubectl create -f rook-tools.yml
 ```
 
@@ -35,7 +35,7 @@ ceph df
 rados df
 ```
 
-When you are completely done with the toolbox, you can clean it up by running:
+When you are done with the toolbox, you can clean it up by running:
 ```bash
 kubectl delete -f rook-tools.yml
 ```
