@@ -76,7 +76,7 @@ EOF
     build_artifact $os $arch $tmpdir rook/rookd rookd
     rm -fr $tmpdir
  
-    echo "Building the rook-client container"
+    echo "Building the rook client container"
     mkdir $tmpdir
     cat <<EOF > $tmpdir/Dockerfile
 FROM ${baseimage}:3.5
@@ -84,7 +84,7 @@ RUN apk add --no-cache e2fsprogs
 COPY root /
 ENTRYPOINT ["/usr/bin/rook"]
 EOF
-    build_artifact $os $arch $tmpdir rook/rook-client rook
+    build_artifact $os $arch $tmpdir rook/rook rook
     rm -fr $tmpdir
 
     # TODO: build the toolbox for arm
@@ -147,7 +147,7 @@ publish() {
     [[ ${os} == "linux" ]] || return 0
 
     publish_artifact $os $arch rook/rookd 
-    publish_artifact $os $arch rook/rook-client
+    publish_artifact $os $arch rook/rook
 
     # TODO: publish the toolbox for arm
     [[ ${arch} == "amd64" ]] || return 0
@@ -178,6 +178,8 @@ promote() {
     [[ ${os} == "linux" ]] || return 0
 
     promote_artifact $os $arch rook/rookd
+    promote_artifact $os $arch rook/rook
+    promote_artifact $os $arch rook/toolbox
 }
 
 cleanup_artifact() {
@@ -205,7 +207,7 @@ cleanup() {
 
     [[ ${os} == "linux" ]] || return 0
     cleanup_artifact $os $arch rook/rookd
-    cleanup_artifact $os $arch rook/rook-client
+    cleanup_artifact $os $arch rook/rook
     cleanup_artifact $os $arch rook/toolbox
 }
 
