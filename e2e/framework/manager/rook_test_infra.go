@@ -52,6 +52,7 @@ const (
 	k8s_node1_container_name       = "kube-node-1"
 	k8s_node2_container_name       = "kube-node-2"
 	cephBaseImageName              = "ceph/base"
+	defaultTagName                 = "master-latest"
 )
 
 func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized bool, version enums.K8sVersion) (error, *rookTestInfraManager) {
@@ -271,7 +272,9 @@ func createK8sRookOperator(k8sHelper *utils.K8sHelper, tag string) error {
 	if err != nil {
 		return err
 	}
-
+	if !bytes.Contains(raw, []byte(rookOperatorImagePodSpecTag)) {
+		return fmt.Errorf(" %s tag to be replaced with %s couldn't be found in rook-operator.yaml", rookOperatorImagePodSpecTag, tag)
+	}
 	rawUpdated := bytes.Replace(raw, []byte(rookOperatorImagePodSpecTag), []byte(tag), 1)
 	rookOperator := string(rawUpdated)
 
@@ -302,7 +305,12 @@ func createK8sRookClient(k8sHelper *utils.K8sHelper, tag string) (err error) {
 		panic(err)
 	}
 
-	rookClient := string(raw)
+	if !bytes.Contains(raw, []byte(rookClientImagePodSpecTag)) {
+		return fmt.Errorf(" %s tag to be replaced with %s couldn't be found in rook-client.yaml", rookClientImagePodSpecTag, tag)
+	}
+
+	rawUpdated := bytes.Replace(raw, []byte(rookClientImagePodSpecTag), []byte(tag), 1)
+	rookClient := string(rawUpdated)
 
 	_, _, exitCode := r.transportClient.CreateWithStdin(rookClient)
 
@@ -319,14 +327,17 @@ func createK8sRookClient(k8sHelper *utils.K8sHelper, tag string) (err error) {
 	return nil
 }
 
-func createk8sRookCluster(k8sHelper *utils.K8sHelper) error {
+func createk8sRookCluster(k8sHelper *utils.K8sHelper, tag string) error {
 	raw, err := ioutil.ReadFile(podSpecPath + "/" + rookClusterFileName)
 
 	if err != nil {
 		return err
 	}
-
-	rookCluster := string(raw)
+	if !bytes.Contains(raw, []byte(defaultTagName)) {
+		return fmt.Errorf(" %s tag to be replaced with  %s couldn't be found in rook-cluster.yaml", defaultTagName, tag)
+	}
+	rawUpdated := bytes.Replace(raw, []byte(defaultTagName), []byte(tag), 1)
+	rookCluster := string(rawUpdated)
 
 	_, _, exitCode := r.transportClient.CreateWithStdin(rookCluster)
 
@@ -349,6 +360,7 @@ func (r *rookTestInfraManager) InstallRook(tag string) (err error, client contra
 	}
 
 	rookOperatorTag := rookOperatorPrefix + ":" + tag
+	rookClientTag := rookClientPrefix + ":" + tag
 
 	err = r.copyImageToNode(r.getContainerIdByName(k8s_master_container_name), rookOperatorTag)
 	if err != nil {
@@ -361,6 +373,20 @@ func (r *rookTestInfraManager) InstallRook(tag string) (err error, client contra
 	}
 
 	err = r.copyImageToNode(r.getContainerIdByName(k8s_node2_container_name), rookOperatorTag)
+	if err != nil {
+		panic(err)
+	}
+	err = r.copyImageToNode(r.getContainerIdByName(k8s_master_container_name), rookClientTag)
+	if err != nil {
+		panic(err)
+	}
+
+	err = r.copyImageToNode(r.getContainerIdByName(k8s_node1_container_name), rookClientTag)
+	if err != nil {
+		panic(err)
+	}
+
+	err = r.copyImageToNode(r.getContainerIdByName(k8s_node2_container_name), rookClientTag)
 	if err != nil {
 		panic(err)
 	}
@@ -377,7 +403,7 @@ func (r *rookTestInfraManager) InstallRook(tag string) (err error, client contra
 	time.Sleep(10 * time.Second) ///TODO: add real check here
 
 	//Create rook cluster
-	err = createk8sRookCluster(k8sHelp)
+	err = createk8sRookCluster(k8sHelp, tag)
 
 	if err != nil {
 		panic(err)
@@ -386,7 +412,7 @@ func (r *rookTestInfraManager) InstallRook(tag string) (err error, client contra
 	time.Sleep(5 * time.Second)
 
 	//Create rook client
-	err = createK8sRookClient(k8sHelp, rookClientImagePodSpecTag)
+	err = createK8sRookClient(k8sHelp, rookClientTag)
 
 	if err != nil {
 		panic(err)
