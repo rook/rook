@@ -72,5 +72,5 @@ catch (Exception e) {
         deleteDir()
     }
 
-    exit 1
+    error "Build failure"
 }
