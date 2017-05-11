@@ -60,7 +60,6 @@ func (suite *FileSystemTestSuite) SetupTest() {
 
 func (suite *FileSystemTestSuite) TestFileStorage_SmokeTest() {
 
-	suite.T().Skip("Skipping test : existing issue https://github.com/rook/rook/issues/612")
 	suite.T().Log("File Storage Smoke Test - Create,Mount,write to, read from  and Unmount Filesystem")
 
 	defer fileSmokecleanUp(suite.helper)

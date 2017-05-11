@@ -34,7 +34,7 @@ var (
 )
 
 const (
-	temp_image_file_name           = "temp_image.tar"
+	tempImageFileName              = "temp_image.tar"
 	rookOperatorFileName           = "rook-operator.yaml"
 	rookClusterFileName            = "rook-cluster.yaml"
 	rookClientFileName             = "rook-client.yml"
@@ -48,9 +48,9 @@ const (
 	rookOperatorPrefix             = "quay.io/rook/rookd"
 	rookClientPrefix               = "quay.io/rook/rook"
 	rookOperatorCreatedTpr         = "cluster.rook.io"
-	k8s_master_container_name      = "kube-master"
-	k8s_node1_container_name       = "kube-node-1"
-	k8s_node2_container_name       = "kube-node-2"
+	masterContinerName             = "kube-master"
+	node1ContinerName              = "kube-node-1"
+	node2ContinerName              = "kube-node-2"
 	cephBaseImageName              = "ceph/base"
 	defaultTagName                 = "master-latest"
 )
@@ -170,30 +170,30 @@ func (r *rookTestInfraManager) copyImageToNode(containerId string, imageName str
 		cmdOut := utils.ExecuteCommand(objects.CommandArgs{Command: "docker", CmdArgs: []string{"pull", imageName}})
 
 		if cmdOut.Err != nil || cmdOut.ExitCode != 0 {
-			return fmt.Errorf("Failed to pull image")
+			panic(fmt.Errorf("Failed to pull image : %s", imageName))
 		}
 		fmt.Println("success...")
 	}
 
-	fmt.Println("archiving the docker image: " + temp_image_file_name)
-	cmdOut = utils.ExecuteCommand(objects.CommandArgs{Command: "docker", CmdArgs: []string{"save", "-o", temp_image_file_name, imageName}})
+	fmt.Println("archiving the docker image: " + tempImageFileName)
+	cmdOut = utils.ExecuteCommand(objects.CommandArgs{Command: "docker", CmdArgs: []string{"save", "-o", tempImageFileName, imageName}})
 
 	if cmdOut.Err != nil || cmdOut.ExitCode != 0 {
-		return fmt.Errorf("Failed to archive image")
+		panic(fmt.Errorf("Failed to archive image : %s", imageName))
 	}
 	fmt.Println("success...")
 
 	fmt.Println("copying archived image to node container")
-	_, _ = r.executeDockerCommand("", enums.Copy, temp_image_file_name, containerId+":/"+temp_image_file_name)
+	_, _ = r.executeDockerCommand("", enums.Copy, tempImageFileName, containerId+":/"+tempImageFileName)
 	if cmdOut.Err != nil || cmdOut.ExitCode != 0 {
-		return fmt.Errorf("Failed to copy image to container")
+		panic(fmt.Errorf("Failed to copy image to container : %s", imageName))
 	}
 	fmt.Println("success...")
 
 	fmt.Println("importing archived image into container registry")
-	_, _ = r.executeDockerCommand(containerId, enums.Exec, "/bin/bash", "-c", "docker load -i /"+temp_image_file_name)
+	_, _ = r.executeDockerCommand(containerId, enums.Exec, "/bin/bash", "-c", "docker load -i /"+tempImageFileName)
 	if cmdOut.Err != nil || cmdOut.ExitCode != 0 {
-		return fmt.Errorf("Failed load image into containers repository")
+		panic(fmt.Errorf("Failed load image into containers repository : %s", imageName))
 	}
 	fmt.Println("success...")
 
@@ -242,9 +242,9 @@ func (r *rookTestInfraManager) ValidateAndSetupTestPlatform() {
 	}
 
 	//if any of these methods fail, the executeDockerCommand will panic
-	k8sMasterContainerId := r.getContainerIdByName(k8s_master_container_name)
-	k8sNode1ContainerId := r.getContainerIdByName(k8s_node1_container_name)
-	k8sNode2ContainerId := r.getContainerIdByName(k8s_node2_container_name)
+	k8sMasterContainerId := r.getContainerIdByName(masterContinerName)
+	k8sNode1ContainerId := r.getContainerIdByName(node1ContinerName)
+	k8sNode2ContainerId := r.getContainerIdByName(node2ContinerName)
 
 	//install rbd shim
 	_, _ = r.executeDockerCommand("", enums.Copy, curdir+"/"+scriptsPath+"/rbd", k8sMasterContainerId+":/bin/rbd")
@@ -362,31 +362,31 @@ func (r *rookTestInfraManager) InstallRook(tag string) (err error, client contra
 	rookOperatorTag := rookOperatorPrefix + ":" + tag
 	rookClientTag := rookClientPrefix + ":" + tag
 
-	err = r.copyImageToNode(r.getContainerIdByName(k8s_master_container_name), rookOperatorTag)
+	err = r.copyImageToNode(r.getContainerIdByName(masterContinerName), rookOperatorTag)
 	if err != nil {
 		panic(err)
 	}
 
-	err = r.copyImageToNode(r.getContainerIdByName(k8s_node1_container_name), rookOperatorTag)
+	err = r.copyImageToNode(r.getContainerIdByName(node1ContinerName), rookOperatorTag)
 	if err != nil {
 		panic(err)
 	}
 
-	err = r.copyImageToNode(r.getContainerIdByName(k8s_node2_container_name), rookOperatorTag)
+	err = r.copyImageToNode(r.getContainerIdByName(node2ContinerName), rookOperatorTag)
 	if err != nil {
 		panic(err)
 	}
-	err = r.copyImageToNode(r.getContainerIdByName(k8s_master_container_name), rookClientTag)
-	if err != nil {
-		panic(err)
-	}
-
-	err = r.copyImageToNode(r.getContainerIdByName(k8s_node1_container_name), rookClientTag)
+	err = r.copyImageToNode(r.getContainerIdByName(masterContinerName), rookClientTag)
 	if err != nil {
 		panic(err)
 	}
 
-	err = r.copyImageToNode(r.getContainerIdByName(k8s_node2_container_name), rookClientTag)
+	err = r.copyImageToNode(r.getContainerIdByName(node1ContinerName), rookClientTag)
+	if err != nil {
+		panic(err)
+	}
+
+	err = r.copyImageToNode(r.getContainerIdByName(node2ContinerName), rookClientTag)
 	if err != nil {
 		panic(err)
 	}

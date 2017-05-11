@@ -251,3 +251,47 @@ func (k8sh *K8sHelper) IsThirdPartyResourcePresent(tprname string) bool {
 
 	return false
 }
+
+func (k8sh *K8sHelper) GetPodDetails(podNamePattern string, namespace string) (string, error) {
+	cmdArgs := []string{"get", "pods", "-l", "app=" + podNamePattern, "-o", "wide", "--no-headers=true"}
+	if namespace != "" {
+		cmdArgs = append(cmdArgs, []string{"-n", namespace}...)
+	}
+	sout, serr, status := ExecuteCmd("kubectl", cmdArgs)
+	if status != 0 || strings.Contains(sout, "No resources found") {
+		return serr, fmt.Errorf("Cannot find pod in with name like %s in namespace : %s", podNamePattern, namespace)
+	}
+	return sout, nil
+}
+
+func (k8sh *K8sHelper) GetPodHostId(podNamePattern string, namespace string) (string, error) {
+	data, err := k8sh.GetPodDetails(podNamePattern, namespace)
+	if err != nil {
+		return data, err
+	}
+
+	// Handle case when no data is returned
+	lines := strings.Split(data, "\n")
+
+	//extract name of the pod
+	lineRawdata := strings.Split(lines[0], "  ")
+	var r []string
+	for _, str := range lineRawdata {
+		if str != "" {
+			r = append(r, strings.TrimSpace(str))
+		}
+	}
+
+	//get host Ip of the pod
+	cmdArgs := []string{"get", "pods", r[0], "-o", "jsonpath='{.status.hostIP}'"}
+	if namespace != "" {
+		cmdArgs = append(cmdArgs, []string{"-n", namespace}...)
+	}
+	sout, serr, status := ExecuteCmd("kubectl", cmdArgs)
+	if status == 0 {
+		hostIp := strings.Replace(sout, "'", "", -1)
+		return strings.TrimSpace(hostIp), nil
+	} else {
+		return serr, fmt.Errorf("Error Getting Monitor IP")
+	}
+}

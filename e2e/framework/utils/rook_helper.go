@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -220,27 +219,4 @@ func (rh *RookHelper) ParserObjectBucketListData(rawdata string) map[string]Obje
 		}
 	}
 	return data
-}
-
-func (rh *RookHelper) GetRgwServiceNodePort(rawdata string) (string, error) {
-	lines := strings.Split(rawdata, "\n")
-	if len(lines) <= 1 {
-		return "NOT FOUND", fmt.Errorf("Port not found")
-	}
-	lines = lines[1 : len(lines)-1]
-	if len(lines) == 1 {
-		bktsrawdata := strings.Split(lines[0], "  ")
-		var r []string
-		for _, str := range bktsrawdata {
-			if str != "" {
-				r = append(r, strings.TrimSpace(str))
-			}
-		}
-		ports := strings.Split(r[3], ":")
-		port := strings.Replace(ports[1], "/TCP", "", -1)
-		return port, nil
-
-	} else {
-		return "NOT FOUND", fmt.Errorf("Port not found")
-	}
 }

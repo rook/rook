@@ -12,6 +12,7 @@ spec:
     port: 53390
     protocol: TCP
     targetPort: 53390
+    nodePort: 30001
   selector:
     app: rgw
     rook_cluster: rook

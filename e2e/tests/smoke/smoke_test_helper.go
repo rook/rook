@@ -37,10 +37,10 @@ type objectUserData struct {
 }
 
 type objectConnectionData struct {
-	aws_endpoint          string
-	aws_host              string
-	aws_secret_key_id     string
-	aws_secret_access_key string
+	awsEndpoint       string
+	awsHost            string
+	awsSecretKeyId     string
+	awsSecretAccessKey string
 }
 
 func createObjectUserData(userid string, displayname string, emailid string) objectUserData {
@@ -408,14 +408,14 @@ func (h *SmokeTestHelper) DeleteObjectStoreUser() (string, error) {
 	return "USER DELETED ", nil
 }
 
-func (h *SmokeTestHelper) GetRGWPort() (string, error) {
+func (h *SmokeTestHelper) GetRGWServiceUrl() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
-		rawdata, err := h.k8sHelp.GetService("rgw-external")
+		hostip, err := h.k8sHelp.GetPodHostId("rgw", "rook")
 		if err != nil {
-			return "port not found", err
+			panic(fmt.Errorf("RGW pods not found/object store possibly not started"))
 		}
-		return h.rookHelp.GetRgwServiceNodePort(rawdata)
+		return hostip + ":30001", err
 	case enums.StandAlone:
 		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
 	default:

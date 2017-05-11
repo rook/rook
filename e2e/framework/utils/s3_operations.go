@@ -2,29 +2,38 @@ package utils
 
 import (
 	"bytes"
-	"fmt"
+	"strings"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"strings"
 )
 
 type S3Helper struct {
 	s3client *s3.S3
 }
 
+// create a s3 client for specfied endpoint and creds
 func CreateNewS3Helper(endpoint string, keyId string, keySecret string) *S3Helper {
+
 	creds := credentials.NewStaticCredentials(keyId, keySecret, "")
-	_, err := creds.Get()
-	if err != nil {
-		fmt.Printf("bad credentials: %s", err)
-	}
-	cfg := aws.NewConfig().WithEndpoint(endpoint).WithRegion("us-west-1").WithCredentials(creds).WithDisableSSL(true)
 
-	svc := s3.New(session.New(), cfg)
+	// create aws s3 config, must use 'other-v2-signature' region for ceph object store
+	awsConfig := aws.NewConfig().
+		WithRegion("other-v2-signature").
+		WithCredentials(creds).
+		WithEndpoint(endpoint).
+		WithS3ForcePathStyle(true).
+		WithDisableSSL(true)
 
-	return &S3Helper{svc}
+	//create new session
+	ses := session.New()
+
+	//create new s3 client connection
+	c := s3.New(ses, awsConfig)
+
+	return &S3Helper{c}
 }
 
 func (h *S3Helper) CreateBucket(name string) (bool, error) {
