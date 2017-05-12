@@ -7,7 +7,7 @@
 - [What is Rook?](#what-is-rook)
 - [Status](#status)
 - [Quickstart Guides](#quickstart-guides)
-- [Troubleshooting Toolbox](#troubleshooting-toolbox)
+- [Advanced Configuration and Troubleshooting](#advanced-configuration-and-troubleshooting)
 - [Building](#building)
 - [Contributing](#contributing)
 - [Contact](#contact)
