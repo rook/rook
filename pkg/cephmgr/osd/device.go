@@ -416,9 +416,7 @@ func getStoreSettings(context *clusterd.Context, config *osdConfig, storeConfig 
 	return settings, nil
 }
 
-func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context *clusterd.Context, bootstrapConn client.Connection,
-	cluster *mon.ClusterInfo, location string, storeConfig StoreConfig, executor exec.Executor) error {
-
+func writeConfigFile(config *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo, storeConfig StoreConfig) error {
 	cephConfig := mon.CreateDefaultCephConfig(context, cluster, config.rootPath, isBluestore(config))
 
 	if !isBluestore(config) {
@@ -435,11 +433,21 @@ func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context 
 	}
 
 	// write the OSD config file to disk
-	keyringPath := getOSDKeyringPath(config.rootPath)
 	_, err = mon.GenerateConfigFile(context, cluster, config.rootPath, fmt.Sprintf("osd.%d", config.id),
-		keyringPath, isBluestore(config), cephConfig, settings)
+		getOSDKeyringPath(config.rootPath), isBluestore(config), cephConfig, settings)
 	if err != nil {
 		return fmt.Errorf("failed to write OSD %d config file: %+v", config.id, err)
+	}
+
+	return nil
+}
+
+func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context *clusterd.Context, bootstrapConn client.Connection,
+	cluster *mon.ClusterInfo, location string, storeConfig StoreConfig, executor exec.Executor) error {
+
+	err := writeConfigFile(config, context, cluster, storeConfig)
+	if err != nil {
+		return fmt.Errorf("failed to write config file: %+v", err)
 	}
 
 	// get the current monmap, it will be needed for creating the OSD file system
@@ -460,7 +468,7 @@ func initializeOSD(config *osdConfig, factory client.ConnectionFactory, context 
 
 	// open a connection to the cluster using the OSDs creds
 	osdConn, err := mon.ConnectToCluster(context, factory, cluster, path.Join(config.rootPath, "tmp"),
-		fmt.Sprintf("osd.%d", config.id), keyringPath)
+		fmt.Sprintf("osd.%d", config.id), getOSDKeyringPath(config.rootPath))
 	if err != nil {
 		return err
 	}
