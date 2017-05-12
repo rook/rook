@@ -3,62 +3,46 @@ package clients
 import (
 	"fmt"
 	"github.com/rook/rook/e2e/framework/contracts"
+	"github.com/rook/rook/pkg/model"
 )
 
-type k8sRookFileSystem struct {
+type fileSystemOperation struct {
 	transportClient contracts.ITransportClient
+	restClient      contracts.RestAPIOperator
 }
 
 var (
-	fileSystemCreate    = []string{"rook", "filesystem", "create", "--name", "NAME"}
-	fileSystemDelete    = []string{"rook", "filesystem", "delete", "--name", "NAME"}
-	fileSystemList      = []string{"rook", "filesystem", "ls"}
 	writeDataToFilePod  = []string{"sh", "-c", "WRITE_DATA_CMD"}
 	readDataFromFilePod = []string{"cat", "READ_DATA_CMD"}
 )
 
-// Constructor to create k8sRookFileSystem - client to perform rook file system operations on k8s
-func CreateK8sRookFileSystem(client contracts.ITransportClient) *k8sRookFileSystem {
-	return &k8sRookFileSystem{transportClient: client}
+// Constructor to create fileSystemOperation - client to perform rook file system operations on k8s
+func CreateK8sFileSystemOperation(client contracts.ITransportClient, rookRestClient contracts.RestAPIOperator) *fileSystemOperation {
+	return &fileSystemOperation{transportClient: client, restClient: rookRestClient}
 }
 
 //Function to create a fileSystem in rook
 //Input paramatres -
 // name -  name of the shared file system to be created
-//Output - output returned by rook cli and/or error
-func (rfs *k8sRookFileSystem) FSCreate(name string) (string, error) {
-	fileSystemCreate[4] = name
-	out, err, status := rfs.transportClient.Execute(fileSystemCreate, nil)
-	if status == 0 {
-		return out, nil
-	} else {
-		return err, fmt.Errorf("Unable to create FileSystem -- : %s",err)
-	}
+//Output - output returned by rook rest API client
+func (rfs *fileSystemOperation) FSCreate(name string) (string, error) {
+	createFilesystem := model.FilesystemRequest{Name: name}
+	return rfs.restClient.CreateFilesystem(createFilesystem)
 }
 
 //Function to delete a fileSystem in rook
 //Input paramatres -
 // name -  name of the shared file system to be deleted
-//Output - output returned by rook cli and/or error
-func (rfs *k8sRookFileSystem) FSDelete(name string) (string, error) {
-	fileSystemDelete[4] = name
-	out, err, status := rfs.transportClient.Execute(fileSystemDelete, nil)
-	if status == 0 {
-		return out, nil
-	} else {
-		return err, fmt.Errorf("Unable to delete FileSystem -- : %s",err)
-	}
+//Output - output returned by rook rest API client
+func (rfs *fileSystemOperation) FSDelete(name string) (string, error) {
+	deleteFilesystem := model.FilesystemRequest{Name: name}
+	return rfs.restClient.DeleteFilesystem(deleteFilesystem)
 }
 
 //Function to list a fileSystem in rook
-//Output - output returned by rook cli and/or error
-func (rfs *k8sRookFileSystem) FSList() (string, error) {
-	out, err, status := rfs.transportClient.Execute(fileSystemList, nil)
-	if status == 0 {
-		return out, nil
-	} else {
-		return err, fmt.Errorf("Unable to list FileSystem -- : %s",err)
-	}
+//Output - output returned by rook rest API client
+func (rfs *fileSystemOperation) FSList() ([]model.Filesystem, error) {
+	return rfs.restClient.GetFilesystems()
 
 }
 
@@ -67,13 +51,13 @@ func (rfs *k8sRookFileSystem) FSList() (string, error) {
 //name - path to the yaml defintion file - definition of pod to be created that mounts existing file system
 //path - ignored in this case - moount path is defined in the path definition
 //output - output returned by k8s create pod operaton and/or error
-func (rfs *k8sRookFileSystem) FSMount(name string, path string) (string, error) {
+func (rfs *fileSystemOperation) FSMount(name string, path string) (string, error) {
 	cmdArgs := []string{name}
 	out, err, status := rfs.transportClient.Create(cmdArgs, nil)
 	if status == 0 {
 		return out, nil
 	} else {
-		return err, fmt.Errorf("Unable to mount FileSystem -- : %s",err)
+		return err, fmt.Errorf("Unable to mount FileSystem -- : %s", err)
 	}
 
 }
@@ -86,7 +70,7 @@ func (rfs *k8sRookFileSystem) FSMount(name string, path string) (string, error) 
 //filename - file where data is written to
 //namespace - optional param - namespace of the pod
 //Output  - k8s exec pod operation output and/or error
-func (rfs *k8sRookFileSystem) FSWrite(name string, mountpath string, data string, filename string, namespace string) (string, error) {
+func (rfs *fileSystemOperation) FSWrite(name string, mountpath string, data string, filename string, namespace string) (string, error) {
 	wt := "echo \"" + data + "\">" + mountpath + "/" + filename
 	writeDataToFilePod[2] = wt
 	option := []string{name}
@@ -97,7 +81,7 @@ func (rfs *k8sRookFileSystem) FSWrite(name string, mountpath string, data string
 	if status == 0 {
 		return out, nil
 	} else {
-		return err, fmt.Errorf("Unable to write data to pod -- : %s",err)
+		return err, fmt.Errorf("Unable to write data to pod -- : %s", err)
 	}
 }
 
@@ -108,7 +92,7 @@ func (rfs *k8sRookFileSystem) FSWrite(name string, mountpath string, data string
 //filename - file to be read
 //namespace - optional param - namespace of the pod
 //Output  - k8s exec pod operation output and/or error
-func (rfs *k8sRookFileSystem) FSRead(name string, mountpath string, filename string, namespace string) (string, error) {
+func (rfs *fileSystemOperation) FSRead(name string, mountpath string, filename string, namespace string) (string, error) {
 	rd := mountpath + "/" + filename
 	readDataFromFilePod[1] = rd
 	option := []string{name}
@@ -119,7 +103,7 @@ func (rfs *k8sRookFileSystem) FSRead(name string, mountpath string, filename str
 	if status == 0 {
 		return out, nil
 	} else {
-		return err, fmt.Errorf("Unable to write data to pod -- : %s",err)
+		return err, fmt.Errorf("Unable to write data to pod -- : %s", err)
 	}
 }
 
@@ -128,13 +112,13 @@ func (rfs *k8sRookFileSystem) FSRead(name string, mountpath string, filename str
 //name - path to the yaml defintion file - definition of pod to be deleted that has a file system mounted
 //path - ignored in this case - moount path is defined in the path definition
 //output - output returned by k8s delete pod operaton and/or error
-func (rfs *k8sRookFileSystem) FSUnmount(name string) (string, error) {
+func (rfs *fileSystemOperation) FSUnmount(name string) (string, error) {
 	cmdArgs := []string{name}
 	out, err, status := rfs.transportClient.Delete(cmdArgs, nil)
 	if status == 0 {
 		return out, nil
 	} else {
-		return err, fmt.Errorf("Unable to unmount FileSystem -- : %s",err)
+		return err, fmt.Errorf("Unable to unmount FileSystem -- : %s", err)
 	}
 
 }
