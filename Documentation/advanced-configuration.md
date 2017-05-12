@@ -3,6 +3,12 @@
 These examples show how to perform advanced configuration tasks on your Rook
 storage cluster.
 
+- [OSD Information](#osd-information)
+- [Separate Storage Groups](#separate-storage-groups)
+- [Configuring Pools](#configuring-pools)
+- [Custom ceph.conf Settings](#custom-cephconf-settings)
+- [OSD CRUSH Settings](#osd-crush-settings)
+
 ## Prerequisites
 
 Most of the examples make use of the `ceph` client command.  A quick way to use
