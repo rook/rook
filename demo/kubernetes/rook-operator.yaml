@@ -22,6 +22,7 @@ rules:
   - watch
   - create
   - update
+  - delete
 - apiGroups:
   - extensions
   resources:
@@ -34,6 +35,7 @@ rules:
   - list
   - watch
   - create
+  - delete
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
@@ -45,6 +47,7 @@ rules:
   - watch
   - create
   - update
+  - delete
 - apiGroups:
   - storage.k8s.io
   resources:
@@ -53,6 +56,7 @@ rules:
   - get
   - list
   - watch
+  - delete
 - apiGroups:
   - rook.io
   resources:
