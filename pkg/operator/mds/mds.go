@@ -142,6 +142,7 @@ func (c *Cluster) makeDeployment(id string) *extensions.Deployment {
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
 				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
+				k8sutil.ConfigOverrideVolume(),
 			},
 		},
 	}
@@ -163,6 +164,7 @@ func (c *Cluster) mdsContainer(id string) v1.Container {
 		Image:   k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
+			k8sutil.ConfigOverrideMount(),
 		},
 		Env: []v1.EnvVar{
 			{Name: "ROOKD_MDS_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
@@ -170,6 +172,7 @@ func (c *Cluster) mdsContainer(id string) v1.Container {
 			opmon.MonEndpointEnvVar(),
 			opmon.MonSecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
+			k8sutil.ConfigOverrideEnvVar(),
 		},
 	}
 }

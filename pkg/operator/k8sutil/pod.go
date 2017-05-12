@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api"
@@ -29,14 +30,32 @@ import (
 )
 
 const (
-	AppAttr           = "app"
-	ClusterAttr       = "rook_cluster"
-	VersionAttr       = "rook_version"
-	PodIPEnvVar       = "ROOKD_PRIVATE_IPV4"
-	DefaultRepoPrefix = "quay.io/rook"
-	repoPrefixEnvVar  = "ROOKD_REPO_PREFIX"
-	defaultVersion    = "latest"
+	AppAttr            = "app"
+	ClusterAttr        = "rook_cluster"
+	VersionAttr        = "rook_version"
+	PodIPEnvVar        = "ROOKD_PRIVATE_IPV4"
+	DefaultRepoPrefix  = "quay.io/rook"
+	repoPrefixEnvVar   = "ROOKD_REPO_PREFIX"
+	defaultVersion     = "latest"
+	ConfigOverrideName = "rook-config-override"
+	ConfigOverrideVal  = "config"
+	configMountDir     = "/etc/rook"
+	overrideFilename   = "override.conf"
 )
+
+func ConfigOverrideMount() v1.VolumeMount {
+	return v1.VolumeMount{Name: ConfigOverrideName, MountPath: configMountDir}
+}
+
+func ConfigOverrideVolume() v1.Volume {
+	cmSource := &v1.ConfigMapVolumeSource{Items: []v1.KeyToPath{{Key: ConfigOverrideVal, Path: overrideFilename}}}
+	cmSource.Name = ConfigOverrideName
+	return v1.Volume{Name: ConfigOverrideName, VolumeSource: v1.VolumeSource{ConfigMap: cmSource}}
+}
+
+func ConfigOverrideEnvVar() v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_CEPH_CONFIG_OVERRIDE", Value: path.Join(configMountDir, overrideFilename)}
+}
 
 func NamespaceEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOKD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}

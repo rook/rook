@@ -70,6 +70,7 @@ func (c *Cluster) makeMonPod(config *MonConfig, antiAffinity bool) *v1.Pod {
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
 				{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
+				k8sutil.ConfigOverrideVolume(),
 			},
 		},
 	}
@@ -101,6 +102,7 @@ func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
 		},
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
+			k8sutil.ConfigOverrideMount(),
 		},
 		Env: []v1.EnvVar{
 			{Name: k8sutil.PodIPEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}},
@@ -108,6 +110,7 @@ func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
 			MonEndpointEnvVar(),
 			MonSecretEnvVar(),
 			AdminSecretEnvVar(),
+			k8sutil.ConfigOverrideEnvVar(),
 		},
 	}
 }

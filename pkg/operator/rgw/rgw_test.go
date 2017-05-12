@@ -83,8 +83,9 @@ func TestPodSpecs(t *testing.T) {
 	assert.NotNil(t, d)
 	assert.Equal(t, "rgw", d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
-	assert.Equal(t, 1, len(d.Spec.Template.Spec.Volumes))
+	assert.Equal(t, 2, len(d.Spec.Template.Spec.Volumes))
 	assert.Equal(t, "rook-data", d.Spec.Template.Spec.Volumes[0].Name)
+	assert.Equal(t, k8sutil.ConfigOverrideName, d.Spec.Template.Spec.Volumes[1].Name)
 
 	assert.Equal(t, "rgw", d.ObjectMeta.Name)
 	assert.Equal(t, "rgw", d.Spec.Template.ObjectMeta.Labels["app"])
@@ -93,8 +94,8 @@ func TestPodSpecs(t *testing.T) {
 
 	cont := d.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
-	assert.Equal(t, 1, len(cont.VolumeMounts))
-	assert.Equal(t, 5, len(cont.Env))
+	assert.Equal(t, 2, len(cont.VolumeMounts))
+	assert.Equal(t, 6, len(cont.Env))
 
 	expectedCommand := fmt.Sprintf("/usr/bin/rookd rgw --config-dir=/var/lib/rook --rgw-port=%d --rgw-host=%s",
 		cephrgw.RGWPort, cephrgw.DNSName)

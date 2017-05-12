@@ -66,12 +66,23 @@ func (c *Cluster) CreateInstance() error {
 
 	// Create the namespace if not already created
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: c.Namespace}}
-
 	_, err := c.context.Clientset.CoreV1().Namespaces().Create(ns)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create namespace %s. %+v", c.Namespace, err)
 		}
+	}
+
+	// Create a configmap for overriding ceph config settings
+	// These settings should only be modified by a user after they are initialized
+	placeholderConfig := map[string]string{
+		k8sutil.ConfigOverrideVal: "",
+	}
+	cm := &v1.ConfigMap{Data: placeholderConfig}
+	cm.Name = k8sutil.ConfigOverrideName
+	_, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
 	}
 
 	// Start the mon pods

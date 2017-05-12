@@ -136,6 +136,7 @@ func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, sel
 	volumes := []v1.Volume{
 		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 		{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}},
+		k8sutil.ConfigOverrideVolume(),
 	}
 
 	// add each OSD directory as another host path volume source
@@ -173,6 +174,7 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 		opmon.MonSecretEnvVar(),
 		opmon.AdminSecretEnvVar(),
 		k8sutil.ConfigDirEnvVar(),
+		k8sutil.ConfigOverrideEnvVar(),
 	}
 
 	// only 1 of device list, device filter and use all devices can be specified.  We prioritize in that order.
@@ -195,6 +197,7 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 	volumeMounts := []v1.VolumeMount{
 		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		{Name: "devices", MountPath: "/dev"},
+		k8sutil.ConfigOverrideMount(),
 	}
 
 	if len(directories) > 0 {
