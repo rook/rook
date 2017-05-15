@@ -73,15 +73,6 @@ func (k8sh *K8sHelper) ResourceOperation(action string, poddefPath string) (stri
 	}
 }
 
-func (k8sh *K8sHelper) CleanUpDymaincCreatedPVC(blockList map[string]blockListData) {
-
-	for _, v := range blockList {
-		cmdArgs := []string{"exec", "-n", "rook", "rook-client", "--", "rook", "block", "delete",
-			"--name", v.name, "--pool-name", v.pool}
-		ExecuteCmd("kubectl", cmdArgs)
-	}
-}
-
 func (k8sh *K8sHelper) getMonitorPods() []string {
 	mons := []string{}
 	monIdx := 0

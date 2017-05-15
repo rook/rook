@@ -6,12 +6,13 @@ import (
 	"github.com/rook/rook/e2e/framework/contracts"
 	"github.com/rook/rook/e2e/framework/enums"
 	"github.com/rook/rook/e2e/framework/utils"
+	"github.com/rook/rook/pkg/model"
+	"time"
 )
 
 type SmokeTestHelper struct {
 	platform   enums.RookPlatformType
-	rookclient *clients.RookClient
-	rookHelp   *utils.RookHelper
+	rookclient *clients.TestClient
 	k8sHelp    *utils.K8sHelper
 }
 
@@ -37,7 +38,7 @@ type objectUserData struct {
 }
 
 type objectConnectionData struct {
-	awsEndpoint       string
+	awsEndpoint        string
 	awsHost            string
 	awsSecretKeyId     string
 	awsSecretAccessKey string
@@ -57,24 +58,23 @@ func CreateSmokeTestClient(platform enums.RookPlatformType) (*SmokeTestHelper, e
 
 	return &SmokeTestHelper{platform: platform,
 		rookclient: rc,
-		rookHelp:   utils.CreateRookHelper(),
 		k8sHelp:    utils.CreatK8sHelper()}, err
 
 }
 
-func getRookClient(platform enums.RookPlatformType) (*clients.RookClient, error) {
-	return clients.CreateRook_Client(platform)
+func getRookClient(platform enums.RookPlatformType) (*clients.TestClient, error) {
+	return clients.CreateTestClient(platform)
 
 }
-func (h *SmokeTestHelper) GetBlockClient() contracts.IRookBlock {
+func (h *SmokeTestHelper) GetBlockClient() contracts.BlockOperator {
 	return h.rookclient.GetBlockClient()
 }
 
-func (h *SmokeTestHelper) GetFileSystemClient() contracts.IRookFilesystem {
+func (h *SmokeTestHelper) GetFileSystemClient() contracts.FileSystemOperator {
 	return h.rookclient.GetFileSystemClient()
 }
 
-func (h *SmokeTestHelper) GetObjectClient() contracts.IRookObject {
+func (h *SmokeTestHelper) GetObjectClient() contracts.ObjectOperator {
 	return h.rookclient.GetObjectClient()
 }
 
@@ -224,9 +224,12 @@ func (h *SmokeTestHelper) CleanUpDymanicBlockStorge() {
 	switch h.platform {
 	case enums.Kubernetes:
 		// Delete storage pool, storage class and pvc
-		blocklistraw, _ := h.GetBlockClient().BlockList()
-		blocklistMap := h.rookHelp.ParseBlockListData(blocklistraw)
-		h.k8sHelp.CleanUpDymaincCreatedPVC(blocklistMap)
+		blockImagesList, _ := h.GetBlockClient().BlockList()
+		for _, blockImage := range blockImagesList {
+			h.rookclient.GetRestAPIClient().DeleteBlockImage(blockImage)
+
+		}
+
 	}
 }
 
@@ -331,10 +334,8 @@ func (h *SmokeTestHelper) DeleteFileStorage() (string, error) {
 func (h *SmokeTestHelper) CreateObjectStore() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
-		_, err := h.GetObjectClient().ObjectCreate()
-		if err != nil {
-			return "Couldn't create object store ", err
-		}
+		h.GetObjectClient().ObjectCreate()
+		time.Sleep(time.Second * 2) //wait for rgw service to to started
 		if h.k8sHelp.IsServiceUpInNameSpace("rgw") {
 			_, err := h.k8sHelp.GetService("rgw-external")
 			if err != nil {
@@ -360,52 +361,30 @@ func (h *SmokeTestHelper) CreateObjectStoreUser() (string, error) {
 	return "USER CREATED ", nil
 }
 
-func (h *SmokeTestHelper) GetObjectStoreUsers() (map[string]utils.ObjectUserListData, error) {
-	rawdata, err := h.GetObjectClient().ObjectListUser()
-	if err != nil {
-		return nil, err
-	} else {
-		return h.rookHelp.ParserObjectUserListData(rawdata), nil
-	}
+func (h *SmokeTestHelper) GetObjectStoreUsers() ([]model.ObjectUser, error) {
+	return h.GetObjectClient().ObjectListUser()
 
 }
 
-func (h *SmokeTestHelper) GetObjectStoreUser(userid string) (utils.ObjectUserData, error) {
-	rawdata, err := h.GetObjectClient().ObjectGetUser(userid)
-	if err != nil {
-		return utils.ObjectUserData{}, err
-	} else {
-		return h.rookHelp.ParserObjectUserData(rawdata), nil
-	}
+func (h *SmokeTestHelper) GetObjectStoreUser(userid string) (*model.ObjectUser, error) {
+	return h.GetObjectClient().ObjectGetUser(userid)
 
 }
 
-func (h *SmokeTestHelper) GetObjectStoreConnection(userid string) (utils.ObjectConnectionData, error) {
-	rawdata, err := h.GetObjectClient().ObjectConnection(userid)
-	if err != nil {
-		return utils.ObjectConnectionData{}, err
-	} else {
-		return h.rookHelp.ParserObjectConnectionData(rawdata), nil
-	}
+func (h *SmokeTestHelper) GetObjectStoreConnection() (*model.ObjectStoreConnectInfo, error) {
+	return h.GetObjectClient().ObjectConnection()
 
 }
 
-func (h *SmokeTestHelper) GetObjectStoreBucketList() (map[string]utils.ObjectBucketListData, error) {
-	rawdata, err := h.GetObjectClient().ObjectBucketList()
-	if err != nil {
-		return nil, err
-	} else {
-		return h.rookHelp.ParserObjectBucketListData(rawdata), nil
-	}
+func (h *SmokeTestHelper) GetObjectStoreBucketList() ([]model.ObjectBucket, error) {
+	return h.GetObjectClient().ObjectBucketList()
+
 }
 
-func (h *SmokeTestHelper) DeleteObjectStoreUser() (string, error) {
+func (h *SmokeTestHelper) DeleteObjectStoreUser() error {
 	objectUserdata := h.getObjectStoreUserData()
-	_, err := h.GetObjectClient().ObjectDeleteUser(objectUserdata.userId)
-	if err != nil {
-		return "USER NOT DELETED", fmt.Errorf("User not deleted for object store")
-	}
-	return "USER DELETED ", nil
+	return h.GetObjectClient().ObjectDeleteUser(objectUserdata.userId)
+
 }
 
 func (h *SmokeTestHelper) GetRGWServiceUrl() (string, error) {

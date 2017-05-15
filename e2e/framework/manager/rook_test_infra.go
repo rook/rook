@@ -354,7 +354,7 @@ func createk8sRookCluster(k8sHelper *utils.K8sHelper, tag string) error {
 	return nil
 }
 
-func (r *rookTestInfraManager) InstallRook(tag string) (err error, client contracts.IRookClient) {
+func (r *rookTestInfraManager) InstallRook(tag string) (err error) {
 	if r.isRookInstalled {
 		return
 	}
@@ -420,7 +420,7 @@ func (r *rookTestInfraManager) InstallRook(tag string) (err error, client contra
 
 	r.isRookInstalled = true
 
-	return nil, nil
+	return nil
 }
 
 func (r *rookTestInfraManager) isContainerRunning(containerId string) bool {

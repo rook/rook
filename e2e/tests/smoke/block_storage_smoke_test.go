@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"testing"
+	"time"
 )
 
 func TestBlockStorageSmokeSuite(t *testing.T) {
@@ -41,7 +42,7 @@ func (suite *BlockStorageTestSuite) SetupTest() {
 
 	rookInfra.ValidateAndSetupTestPlatform()
 
-	err, _ = rookInfra.InstallRook(suite.rookTag)
+	err = rookInfra.InstallRook(suite.rookTag)
 
 	require.Nil(suite.T(), err)
 
@@ -54,18 +55,14 @@ func (suite *BlockStorageTestSuite) TestBlockStorage_SmokeTest() {
 	suite.T().Log("Block Storage Smoke Test - Create,Mount,write to, read from  and Unmount Block")
 
 	defer blockTestcleanup(suite.helper)
-	rh := suite.helper.rookHelp
 	rbc := suite.helper.GetBlockClient()
 	suite.T().Log("Step 0 : Get Initial List Block")
-	rawlistInit, _ := rbc.BlockList()
-	initblocklistMap := rh.ParseBlockListData(rawlistInit)
+	initBlockImages, _ := rbc.BlockList()
 
 	suite.T().Log("step 1: Create block storage")
 	_, cb_err := suite.helper.CreateBlockStorage()
 	require.Nil(suite.T(), cb_err)
-	rawlistAfterCreate, _ := rbc.BlockList()
-	blocklistMapAfterBlockCreate := rh.ParseBlockListData(rawlistAfterCreate)
-	require.Empty(suite.T(), len(initblocklistMap), len(blocklistMapAfterBlockCreate)+1, "Make sure a new block is created")
+	require.True(suite.T(), retryBlockImageCountCheck(suite.helper, len(initBlockImages), 1), "Make sure a new block is created")
 	suite.T().Log("Block Storage created successfully")
 
 	suite.T().Log("step 2: Mount block storage")
@@ -92,11 +89,7 @@ func (suite *BlockStorageTestSuite) TestBlockStorage_SmokeTest() {
 	suite.T().Log("step 6: Deleting block storage")
 	_, db_err := suite.helper.DeleteBlockStorage()
 	require.Nil(suite.T(), db_err)
-	rawlistAfterDelete, _ := rbc.BlockList()
-	blocklistMapAfterBlockDelete := rh.ParseBlockListData(rawlistAfterDelete)
-	//This is a stop gap, block storage is not deleted when pods are deleted
-	suite.helper.CleanUpDymanicBlockStorge()
-	require.Empty(suite.T(), len(initblocklistMap), len(blocklistMapAfterBlockDelete), "Make sure a new block is created")
+	require.True(suite.T(), retryBlockImageCountCheck(suite.helper, len(initBlockImages), 0), "Make sure a new block is created")
 	suite.T().Log("Block Storage deleted successfully")
 
 }
@@ -105,4 +98,20 @@ func blockTestcleanup(h *SmokeTestHelper) {
 	h.UnMountBlockStorage()
 	h.DeleteBlockStorage()
 	h.CleanUpDymanicBlockStorge()
+}
+
+// periodically checking if block image count has changed to expected value
+// When creating pvc in k8s platform, it may take some time for the block Image to be bounded
+func retryBlockImageCountCheck(h *SmokeTestHelper, imageCount int, expectedChange int) bool {
+	inc := 0
+	for inc < 10 {
+		blockImages, _ := h.GetBlockClient().BlockList()
+		if imageCount+expectedChange == len(blockImages) {
+			return true
+		} else {
+			time.Sleep(time.Second * 2)
+			inc++
+		}
+	}
+	return false
 }
