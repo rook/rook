@@ -81,7 +81,7 @@ func (c *Cluster) Start() error {
 	// create the artifacts for the api service to work with RBAC enabled
 	err = c.makeClusterRole()
 	if err != nil {
-		return fmt.Errorf("failed to init RBAC for the api service. %+v", err)
+		logger.Warningf("failed to init RBAC for the api service. %+v", err)
 	}
 
 	// start the deployment
