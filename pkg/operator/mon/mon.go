@@ -109,18 +109,6 @@ func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 }
 
 func (c *Cluster) CheckHealth() error {
-	// update the config map if the pod ips changed
-	// must retry since during startup of pods they might take some time to initialize
-	k8sutil.Retry(c.context, func() (bool, error) {
-		// TODO: There is more work to get the reboot functional. The mons are not
-		// happy if their ip address changes. They expect a constant id.
-		err := c.updateConfigMapIfPodIPsChanged()
-		if err != nil {
-			logger.Infof("unable to check on mon pods. %+v", err)
-			return false, nil
-		}
-		return true, nil
-	})
 
 	// connect to the mons
 	ctx := &clusterd.Context{ConfigDir: c.configDir}
@@ -141,7 +129,7 @@ func (c *Cluster) CheckHealth() error {
 		if inQuorum {
 			logger.Debugf("mon %s found in quorum", monitor.Name)
 		} else {
-			logger.Warningf("mon %s NOT found in quroum. %+v", monitor.Name, status.Quorum)
+			logger.Warningf("mon %s NOT found in quorum. %+v", monitor.Name, status.Quorum)
 
 			err = c.failoverMon(conn, monitor.Name)
 			if err != nil {
@@ -150,45 +138,6 @@ func (c *Cluster) CheckHealth() error {
 		}
 	}
 
-	return nil
-}
-
-func (c *Cluster) updateConfigMapIfPodIPsChanged() error {
-	pods, err := c.getPods()
-	if err != nil {
-		return fmt.Errorf("failed to check if pod ips changed. %+v", err)
-	}
-	if len(pods.Items) == 0 {
-		return fmt.Errorf("where are the mon pods?")
-	}
-
-	logger.Debugf("there are %d mon pods. checking the podIPs.", len(pods.Items))
-	updated := false
-	for _, pod := range pods.Items {
-		if pod.Status.PodIP == "" {
-			return fmt.Errorf("no podIP for mon %s", pod.Name)
-		}
-		if pod.Status.Phase != v1.PodRunning {
-			return fmt.Errorf("pod %s is not running. phase=%v", pod.Name, pod.Status.Phase)
-		}
-		m := mon.ToCephMon(pod.Name, pod.Status.PodIP)
-		existing, ok := c.clusterInfo.Monitors[pod.Name]
-		if !ok || existing.Endpoint == m.Endpoint {
-			// the endpoint does not need to be updated
-			logger.Debugf("Did not need to update pod %s with endpoint %+v. ok=%t, m=%+v", pod.Name, pod.Status.PodIP, ok, m)
-			continue
-		}
-
-		logger.Infof("updating mon %s endpoint from %s to %s", pod.Name, existing.Endpoint, m.Endpoint)
-		c.clusterInfo.Monitors[pod.Name] = m
-		updated = true
-	}
-
-	if updated {
-		return c.saveMonConfig()
-	}
-
-	logger.Debugf("no update to mon pod ips")
 	return nil
 }
 
@@ -205,13 +154,14 @@ func (c *Cluster) failoverMon(conn client.Connection, name string) error {
 	logger.Infof("Failing over monitor %s", name)
 
 	// Start a new monitor
-	c.maxMonID++
-	mons := []*MonConfig{&MonConfig{Name: fmt.Sprintf("mon%d", c.maxMonID), Port: int32(mon.Port)}}
+	mons := []*MonConfig{&MonConfig{Name: fmt.Sprintf("mon%d", c.maxMonID+1), Port: int32(mon.Port)}}
 	logger.Infof("starting new mon %s", mons[0].Name)
 	err := c.startPods(conn, mons)
 	if err != nil {
 		return fmt.Errorf("failed to start new mon %s. %+v", mons[0].Name, err)
 	}
+	// Only increment the max mon id if the new pod started successfully
+	c.maxMonID++
 
 	// Remove the mon pod if it is still there
 	var gracePeriod int64
