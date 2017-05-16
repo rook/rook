@@ -42,8 +42,9 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.NotNil(t, pod)
 	assert.Equal(t, "mon0", pod.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, pod.Spec.RestartPolicy)
-	assert.Equal(t, 1, len(pod.Spec.Volumes))
+	assert.Equal(t, 2, len(pod.Spec.Volumes))
 	assert.Equal(t, "rook-data", pod.Spec.Volumes[0].Name)
+	assert.Equal(t, k8sutil.ConfigOverrideName, pod.Spec.Volumes[1].Name)
 	if dataDir == "" {
 		assert.NotNil(t, pod.Spec.Volumes[0].EmptyDir)
 		assert.Nil(t, pod.Spec.Volumes[0].HostPath)
@@ -60,8 +61,8 @@ func testPodSpec(t *testing.T, dataDir string) {
 
 	cont := pod.Spec.Containers[0]
 	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
-	assert.Equal(t, 1, len(cont.VolumeMounts))
-	assert.Equal(t, 5, len(cont.Env))
+	assert.Equal(t, 2, len(cont.VolumeMounts))
+	assert.Equal(t, 6, len(cont.Env))
 
 	expectedCommand := fmt.Sprintf("/usr/bin/rookd mon --config-dir=/var/lib/rook --name=%s --port=%d --fsid=%s",
 		config.Name, config.Port, c.clusterInfo.FSID)

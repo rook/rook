@@ -644,9 +644,15 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, connection client.Connect
 			return fmt.Errorf("failed to mark osd %d as applied: %+v", config.id, err)
 		}
 	} else {
+		// update the osd config file
+		err := writeConfigFile(config, context, a.cluster, a.storeConfig)
+		if err != nil {
+			logger.Warningf("failed to update config file. %+v", err)
+		}
+
 		// osd_data_dir/whoami already exists, meaning the OSD is already set up.
 		// look up some basic information about it so we can run it.
-		err := loadOSDInfo(config)
+		err = loadOSDInfo(config)
 		if err != nil {
 			return fmt.Errorf("failed to get OSD information from %s: %+v", config.rootPath, err)
 		}
