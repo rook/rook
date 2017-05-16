@@ -58,10 +58,10 @@ For a walkthrough of the three types of storage exposed by Rook, see the guides 
 ## Tools
 
 ### Rook Client
-The `rook` client tool allows you to configure Block, File System, and Object storage.
+The [rook-client](/demo/kubernetes/rook-client.yaml) tool allows you to configure Block, File System, and Object storage.
 You can start a client pod that is automatically configured to connect to your storage cluster with the following:
 ```bash
-kubectl create -f rook-client.yml
+kubectl create -f rook-client.yaml
 
 # Check when the pod is in the Running state
 kubectl -n rook get pod rook-client
@@ -76,7 +76,7 @@ rook node ls
 Now you can use the `rook` tool as required in the [File System](k8s-filesystem.md) and [Object](k8s-object.md) walkthroughs, or a [simplified walkthrough of block, file and object storage](client.md).
 
 ### Advanced Configuration and Troubleshooting
-We have created a toolbox container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
+We have created a [toolbox](/demo/kubernetes/rook-tools.yaml) container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
 
 ### Monitoring
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).

@@ -37,7 +37,7 @@ const (
 	tempImageFileName              = "temp_image.tar"
 	rookOperatorFileName           = "rook-operator.yaml"
 	rookClusterFileName            = "rook-cluster.yaml"
-	rookClientFileName             = "rook-client.yml"
+	rookClientFileName             = "rook-client.yaml"
 	podSpecPath                    = "../../../demo/kubernetes"
 	scriptsPath                    = "scripts"
 	k8sFalsePostiveSuccessErrorMsg = "exit status 1" //When kubectl drain is executed, exit status 1 is always returned in stdout

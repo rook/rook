@@ -15,7 +15,7 @@ The rook toolbox can run as a pod in a Kubernetes cluster.  First, ensure you ha
 Launch the rook-tools pod:
 ```bash
 cd demo/kubernetes
-kubectl create -f rook-tools.yml
+kubectl create -f rook-tools.yaml
 ```
 
 Wait for the toolbox pod to download its container and get to the `running` state:
@@ -37,7 +37,7 @@ rados df
 
 When you are done with the toolbox, you can clean it up by running:
 ```bash
-kubectl delete -f rook-tools.yml
+kubectl delete -f rook-tools.yaml
 ```
 
 ## Running the Toolbox for Standalone
