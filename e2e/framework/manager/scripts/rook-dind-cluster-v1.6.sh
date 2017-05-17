@@ -140,15 +140,6 @@ function dind::prepare-sys-mounts {
     if [[ -d /lib/modules ]]; then
       sys_volume_args+=(-v /lib/modules:/lib/modules)
     fi
-    if [[ -d /dev ]]; then
-      sys_volume_args+=(-v /dev:/dev)
-    fi
-    if [[ -d /sys ]]; then
-      sys_volume_args+=(-v /sys/bus:/sys/bus)
-    fi
-    if [[ -d /var/run/docker.sock ]]; then
-      sys_volume_args+=(-v /var/run/docker.sock:/var/run/docker.sock)
-    fi
     return 0
   fi
   if ! dind::volume-exists kubeadm-dind-sys; then
@@ -320,7 +311,7 @@ function dind::ensure-binaries {
 
 function dind::ensure-network {
   if ! docker network inspect kubeadm-dind-net >&/dev/null; then
-    docker network create --subnet=10.192.0.0/16 kubeadm-dind-net >/dev/null
+    docker network create --subnet="${DIND_SUBNET}/16" kubeadm-dind-net >/dev/null
   fi
 }
 
@@ -399,6 +390,9 @@ function dind::run {
          --hostname "${container_name}" \
          -l mirantis.kubeadm_dind_cluster \
          -v ${volume_name}:/dind \
+         -v /lib/modules:/lib/modules \
+         -v /sbin/modprobe:/sbin/modprobe \
+         -v /sys/bus:/sys/bus \
          -v /dev:/dev \
          -v /var/run/docker.sock:/opt/outer-docker.sock \
          ${opts[@]+"${opts[@]}"} \
@@ -652,119 +646,9 @@ function dind::up {
     flannel)
       if dind::use-rbac; then
         curl -sSL "https://github.com/coreos/flannel/blob/master/Documentation/kube-flannel-rbac.yml?raw=true" | "${kubectl}" create -f -
-        # FIXME: current kube-flannel yaml causes problems after cluster restart
-        # kube-dns and kubernetes-dashboard stay in "ContainerCreating" state.
-        # Flannel pods become 'Running' for a brief amount of time and then
-        # die while trying to contact apiserver.
-        # Following the advice from https://github.com/kubernetes/kubernetes/issues/39701 (comments)
-        # we hardcode apiserver host into flannel pod definition
-        # (KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT)
-        # We could use 'kubectl convert' + 'jq' but we don't want
-        # to require jq on the host, and doing this via docker is cumbersome,
-        # so for now we're embedding patched flannel yaml here.
-        # For some reason the problem happens only on 1.6.
-        "${kubectl}" create -f - <<EOF
----
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: flannel
-  namespace: kube-system
----
-kind: ConfigMap
-apiVersion: v1
-metadata:
-  name: kube-flannel-cfg
-  namespace: kube-system
-  labels:
-    tier: node
-    app: flannel
-data:
-  cni-conf.json: |
-    {
-      "name": "cbr0",
-      "type": "flannel",
-      "delegate": {
-        "isDefaultGateway": true
-      }
-    }
-  net-conf.json: |
-    {
-      "Network": "10.244.0.0/16",
-      "Backend": {
-        "Type": "vxlan"
-      }
-    }
----
-apiVersion: extensions/v1beta1
-kind: DaemonSet
-metadata:
-  name: kube-flannel-ds
-  namespace: kube-system
-  labels:
-    tier: node
-    app: flannel
-spec:
-  template:
-    metadata:
-      labels:
-        tier: node
-        app: flannel
-    spec:
-      hostNetwork: true
-      nodeSelector:
-        beta.kubernetes.io/arch: amd64
-      tolerations:
-      - key: node-role.kubernetes.io/master
-        effect: NoSchedule
-      serviceAccountName: flannel
-      containers:
-      - name: kube-flannel
-        image: quay.io/coreos/flannel:v0.7.0-amd64
-        command: [ "/opt/bin/flanneld", "--ip-masq", "--kube-subnet-mgr" ]
-        securityContext:
-          privileged: true
-        env:
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: KUBERNETES_SERVICE_HOST
-          value: "kube-master"
-        - name: KUBERNETES_SERVICE_PORT
-          value: "6443"
-        volumeMounts:
-        - name: run
-          mountPath: /run
-        - name: flannel-cfg
-          mountPath: /etc/kube-flannel/
-      - name: install-cni
-        image: quay.io/coreos/flannel:v0.7.0-amd64
-        command: [ "/bin/sh", "-c", "set -e -x; cp -f /etc/kube-flannel/cni-conf.json /etc/cni/net.d/10-flannel.conf; while true; do sleep 3600; done" ]
-        volumeMounts:
-        - name: cni
-          mountPath: /etc/cni/net.d
-        - name: flannel-cfg
-          mountPath: /etc/kube-flannel/
-      volumes:
-        - name: run
-          hostPath:
-            path: /run
-        - name: cni
-          hostPath:
-            path: /etc/cni/net.d
-        - name: flannel-cfg
-          configMap:
-            name: kube-flannel-cfg
-EOF
-      else
-        # without --validate=false this will fail on older k8s versions
-        curl -sSL "https://github.com/coreos/flannel/blob/master/Documentation/kube-flannel.yml?raw=true" | "${kubectl}" create --validate=false -f -
       fi
+      # without --validate=false this will fail on older k8s versions
+      curl -sSL "https://github.com/coreos/flannel/blob/master/Documentation/kube-flannel.yml?raw=true" | "${kubectl}" create --validate=false -f -
       ;;
     calico)
       if dind::use-rbac; then
