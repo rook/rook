@@ -413,3 +413,72 @@ other OSDs holding replica data are unavailable:
 ```bash
 ceph osd primary-affinity osd.0 0
 ```
+
+### OSDs not starting when the Ceph cluster is not healthy
+Rook and Ceph have a requirement that all block devices (including the ones created by Rook/Kubernetes) are available to start OSDs. If your cluster is in a state where that is no longer the case you can't get it working anymore.
+If you're hitting the Rook issue, you'll be getting something like
+```
+2017-04-26T21:42:20.1837851Z 2017-04-26 21:42:20.183613 I | exec: Running command: sgdisk --print /dev/rbd0
+```
+as your last log output and can be fixed by updating Rook to a version that includes PR #623.
+If your OSD logs something like
+```
+2017-05-18 14:01:42.822253 I | osd4: 2017-05-18 14:01:42.822217 e4f1240  0 osd.4 112 done with init, starting boot process
+2017-05-18 14:01:42.822420 I | osd4: 2017-05-18 14:01:42.822393 e4f1240  0 <cls> /home/rook/go/src/github.com/rook/rook/external/src/ceph-kraken/src/cls/cephfs/cls_cephfs.cc:198: loading cephfs
+2017-05-18 14:01:42.822429 I | osd4: 2017-05-18 14:01:42.822404 e4f1240  0 <cls> /home/rook/go/src/github.com/rook/rook/external/src/ceph-kraken/src/cls/hello/cls_hello.cc:296: loading cls_hello
+```
+you're hitting the Ceph issue, for which there is an experimental patch:
+```
+diff --git a/src/common/blkdev.cc b/src/common/blkdev.cc
+index f3262d53a8..d1c39ff6b9 100644
+--- a/src/common/blkdev.cc
++++ b/src/common/blkdev.cc
+@@ -187,40 +187,7 @@ bool block_device_is_rotational(const char *devname)
+ int get_device_by_uuid(uuid_d dev_uuid, const char* label, char* partition,
+        char* device)
+ {
+-  char uuid_str[UUID_LEN+1];
+-  char basename[PATH_MAX];
+-  const char* temp_partition_ptr = NULL;
+-  blkid_cache cache = NULL;
+-  blkid_dev dev = NULL;
+-  int rc = 0;
+-
+-  dev_uuid.print(uuid_str);
+-
+-  if (blkid_get_cache(&cache, NULL) >= 0)
+-    dev = blkid_find_dev_with_tag(cache, label, (const char*)uuid_str);
+-  else
+-    return -EINVAL;
+-
+-  if (dev) {
+-    temp_partition_ptr = blkid_dev_devname(dev);
+-    strncpy(partition, temp_partition_ptr, PATH_MAX);
+-    rc = get_block_device_base(partition, basename,
+-      sizeof(basename));
+-    if (rc >= 0) {
+-      strncpy(device, basename, sizeof(basename));
+-      rc = 0;
+-    } else {
+-      rc = -ENODEV;
+-    }
+-  } else {
+-    rc = -EINVAL;
+-  }
+-
+-  /* From what I can tell, blkid_put_cache cleans up dev, which
+-   * appears to be a pointer into cache, as well */
+-  if (cache)
+-    blkid_put_cache(cache);
+-  return rc;
++  return -EOPNOTSUPP;
+ }
+ #elif defined(__APPLE__)
+ #include <sys/disk.h>
+```
+Be aware that this is not tested and might not work when you are using full partitions instead of preprovisioned filesystems.
+If you don't want to build the patch yourself, you can import my image directly onto the host:
+```sh
+curl https://blob.dolansoft.org/public/rookd-recovery-master-latest.tar.gz | docker load
+```
+This image is provided as-is, you're advised to build it yourself if your system is security-sensitive. 
