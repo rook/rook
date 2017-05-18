@@ -129,23 +129,9 @@ rook_infra::cleanup() {
 
 }
 
- if [ -z "$1" ]; then
-        tag_name="master-latest"
-    else
-        tag_name=$1
-    fi
-
-    if [ -z "$2" ]; then
-        rook_platform="Kubernetes"
-    else
-        rook_platform=$2
-    fi
-
-    if [ -z "$3" ]; then
-        k8s_version="v1.6"
-    else
-        k8s_version=$3
-    fi
+ tag_name=${1:-"master-latest"}
+ rook_platform=${2:-"Kubernetes"}
+ k8s_version=${3:-"v1.6"}
 
 { #try
 

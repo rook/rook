@@ -47,9 +47,11 @@ func (suite *FileSystemTestSuite) SetupTest() {
 
 	require.Nil(suite.T(), err)
 
-	rookInfra.ValidateAndSetupTestPlatform()
+	skipRookInstall := env.SkipInstallRook == "true"
 
-	err = rookInfra.InstallRook(suite.rookTag)
+	rookInfra.ValidateAndSetupTestPlatform(skipRookInstall)
+
+	err = rookInfra.InstallRook(suite.rookTag, skipRookInstall)
 
 	require.Nil(suite.T(), err)
 
