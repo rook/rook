@@ -23,10 +23,10 @@ require_relative 'util.rb'
 require 'open-uri'
 
 if File.exists?('.discovery-token')
-  token = IO.readlines(".discovery-token")[0..-1].join
+  discovery_token = IO.readlines(".discovery-token")[0..-1].join
 else
   discovery_token = open($new_discovery_url).read
-  File.open(".discovery-token", 'w') { |file| file.write("#{token}") }
+  File.open(".discovery-token", 'w') { |file| file.write("#{discovery_token}") }
 end
 
 private_build = false
