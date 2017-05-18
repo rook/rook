@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/cephmgr/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
@@ -108,39 +109,6 @@ func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 	return c.clusterInfo, nil
 }
 
-func (c *Cluster) CheckHealth() error {
-
-	// connect to the mons
-	ctx := &clusterd.Context{ConfigDir: c.configDir}
-	conn, err := mon.ConnectToClusterAsAdmin(ctx, c.context.Factory, c.clusterInfo)
-	if err != nil {
-		return fmt.Errorf("cannot connect to cluster. %+v", err)
-	}
-	defer conn.Shutdown()
-
-	// get the status and check for quorum
-	status, err := client.GetMonStatus(conn)
-	if err != nil {
-		return fmt.Errorf("failed to get mon status. %+v", err)
-	}
-
-	for _, monitor := range status.MonMap.Mons {
-		inQuorum := monInQuorum(monitor, status.Quorum)
-		if inQuorum {
-			logger.Debugf("mon %s found in quorum", monitor.Name)
-		} else {
-			logger.Warningf("mon %s NOT found in quorum. %+v", monitor.Name, status.Quorum)
-
-			err = c.failoverMon(conn, monitor.Name)
-			if err != nil {
-				logger.Errorf("failed to failover mon %s. %+v", monitor.Name, err)
-			}
-		}
-	}
-
-	return nil
-}
-
 func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
 	for _, rank := range quorum {
 		if rank == monitor.Rank {
@@ -148,45 +116,6 @@ func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
 		}
 	}
 	return false
-}
-
-func (c *Cluster) failoverMon(conn client.Connection, name string) error {
-	logger.Infof("Failing over monitor %s", name)
-
-	// Start a new monitor
-	mons := []*MonConfig{&MonConfig{Name: fmt.Sprintf("mon%d", c.maxMonID+1), Port: int32(mon.Port)}}
-	logger.Infof("starting new mon %s", mons[0].Name)
-	err := c.startPods(conn, mons)
-	if err != nil {
-		return fmt.Errorf("failed to start new mon %s. %+v", mons[0].Name, err)
-	}
-	// Only increment the max mon id if the new pod started successfully
-	c.maxMonID++
-
-	// Remove the mon pod if it is still there
-	var gracePeriod int64
-	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod}
-	err = c.context.Clientset.CoreV1().Pods(c.Namespace).Delete(name, options)
-	if err != nil {
-		if errors.IsNotFound(err) {
-			logger.Infof("dead mon pod %s was already gone", name)
-		} else {
-			return fmt.Errorf("failed to remove dead mon pod %s. %+v", name, err)
-		}
-	}
-
-	// Remove the bad monitor from quorum
-	err = mon.RemoveMonitorFromQuorum(conn, name)
-	if err != nil {
-		return fmt.Errorf("failed to remove mon %s from quorum. %+v", name, err)
-	}
-	delete(c.clusterInfo.Monitors, name)
-	err = c.saveMonConfig()
-	if err != nil {
-		return fmt.Errorf("failed to save mon config after failing mon %s. %+v", name, err)
-	}
-
-	return nil
 }
 
 // Retrieve the ceph cluster info if it already exists.
@@ -299,42 +228,39 @@ func (c *Cluster) createMonSecretsAndSave() error {
 
 func (c *Cluster) startPods(conn client.Connection, mons []*MonConfig) error {
 	// schedule the mons on different nodes if we have enough nodes to be unique
-	antiAffinity, err := c.getAntiAffinity()
+	availableNodes, err := c.getAvailableMonNodes()
 	if err != nil {
-		return fmt.Errorf("failed to get antiaffinity. %+v", err)
+		return fmt.Errorf("failed to get available nodes for mons. %+v", err)
 	}
 
 	preexisted := len(c.clusterInfo.Monitors)
-	created := 0
-	alreadyRunning := 0
+	nodeIndex := 0
 	for _, m := range mons {
-		monPod := c.makeMonPod(m, antiAffinity)
-		logger.Debugf("Starting pod: %+v", monPod)
-		name := monPod.Name
-		_, err = c.context.Clientset.CoreV1().Pods(c.Namespace).Create(monPod)
+		// pick one of the available nodes where the mon will be assigned
+		node := availableNodes[nodeIndex%len(availableNodes)]
+		nodeIndex++
+
+		// start the mon
+		err := c.startMon(m, node.Name)
 		if err != nil {
-			if !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("failed to create mon pod %s. %+v", name, err)
-			}
-			logger.Infof("pod %s already exists", name)
-			alreadyRunning++
-		} else {
-			created++
+			return fmt.Errorf("failed to create pod %s. %+v", m.Name, err)
 		}
 
-		podIP, err := c.waitForPodToStart(name)
+		// wait for the mon to start
+		podIP, err := c.waitForPodToStart(m.Name)
 		if err != nil {
-			return fmt.Errorf("failed to start pod %s. %+v", name, err)
+			return fmt.Errorf("failed to start pod %s. %+v", m.Name, err)
 		}
 		c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, podIP)
 
+		// save the mon config
 		err = c.saveMonConfig()
 		if err != nil {
 			return fmt.Errorf("failed to save endpoints after starting mon %s. %+v", m.Name, err)
 		}
 	}
 
-	logger.Infof("mons created: %d, alreadyRunning: %d, preexisted: %d", created, alreadyRunning, preexisted)
+	logger.Infof("mons created: %d, preexisted: %d", len(mons), preexisted)
 
 	return c.waitForMonsToJoin(conn, mons)
 }
@@ -376,18 +302,30 @@ func (c *Cluster) waitForPodToStart(name string) (string, error) {
 
 	// Poll the status of the pods to see if they are ready
 	status := ""
-	for i := 0; i < c.context.MaxRetries; i++ {
+	retryFactor := 3
+	for i := 0; i < c.context.MaxRetries*retryFactor; i++ {
 		// wait and try again
-		logger.Infof("waiting %ds for pod %s to start. status=%s", c.context.RetryDelay, name, status)
-		<-time.After(time.Duration(c.context.RetryDelay) * time.Second)
+		if i%retryFactor == 0 {
+			logger.Infof("waiting for mon %s to start. status=%s", name, status)
+		}
+		<-time.After(time.Duration(c.context.RetryDelay/retryFactor) * time.Second)
 
-		pod, err := c.context.Clientset.CoreV1().Pods(c.Namespace).Get(name, metav1.GetOptions{})
+		options := metav1.ListOptions{LabelSelector: fmt.Sprintf("mon=%s", name)}
+		pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(options)
 		if err != nil {
-			return "", fmt.Errorf("failed to get mon pod %s. %+v", name, err)
+			return "", fmt.Errorf("failed to get mon %s pod. %+v", name, err)
+		}
+		if len(pods.Items) == 0 {
+			logger.Infof("%s pod not yet created", name)
+			continue
+		}
+		if len(pods.Items) > 1 {
+			logger.Warningf("more than one mon pod found for %s", name)
 		}
 
+		pod := pods.Items[0]
 		if pod.Status.Phase == v1.PodRunning {
-			logger.Infof("pod %s started", name)
+			logger.Infof("pod %s started", pod.Name)
 			return pod.Status.PodIP, nil
 		}
 		status = string(pod.Status.Phase)
@@ -421,7 +359,7 @@ func (c *Cluster) saveMonConfig() error {
 		}
 	}
 
-	logger.Infof("saved mon endpoints to config map %s", configMap.Name)
+	logger.Infof("saved mon endpoints to config map %+v", configMap.Data)
 	return nil
 }
 
@@ -464,16 +402,90 @@ func (c *Cluster) loadMonConfig() error {
 	return nil
 }
 
-// detect whether we have a big enough cluster to run services on different nodes.
-// the anti-affinity will prevent pods of the same type of running on the same node.
-func (c *Cluster) getAntiAffinity() (bool, error) {
+// detect the nodes that are available for new mons to start.
+func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 	nodeOptions := metav1.ListOptions{}
 	nodeOptions.TypeMeta.Kind = "Node"
 	nodes, err := c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
 	if err != nil {
-		return false, fmt.Errorf("failed to get nodes in cluster. %+v", err)
+		return nil, err
+	}
+	logger.Infof("there are %d nodes available for mons (existing mons=%d)", len(nodes.Items), len(c.clusterInfo.Monitors))
+
+	// get the nodes that have mons assigned
+	nodesInUse, err := c.getNodesWithMons()
+	if err != nil {
+		logger.Warningf("could not get nodes with mons. %+v", err)
+		nodesInUse = util.NewSet()
 	}
 
-	logger.Infof("there are %d nodes available for %d monitors", len(nodes.Items), c.Size)
-	return len(nodes.Items) >= c.Size, nil
+	// choose nodes for the new mons that don't have mons currently
+	availableNodes := []v1.Node{}
+	for _, node := range nodes.Items {
+		if !nodesInUse.Contains(node.Name) && validNode(node) {
+			availableNodes = append(availableNodes, node)
+		}
+	}
+	logger.Infof("Found %d running nodes without mons", len(availableNodes))
+
+	// if all nodes already have mons, just add all nodes to be available
+	if len(availableNodes) == 0 {
+		logger.Infof("All nodes are running mons. Adding all %d nodes to the availability.", len(nodes.Items))
+		for _, node := range nodes.Items {
+			if validNode(node) {
+				availableNodes = append(availableNodes, node)
+			}
+		}
+	}
+	if len(availableNodes) == 0 {
+		return nil, fmt.Errorf("no nodes are available for mons")
+	}
+
+	return availableNodes, nil
+}
+
+func validNode(node v1.Node) bool {
+	// a node cannot be tainted
+	for _, t := range node.Spec.Taints {
+		if t.Effect == v1.TaintEffectNoSchedule || t.Effect == v1.TaintEffectPreferNoSchedule {
+			return false
+		}
+	}
+
+	// a node must be Ready
+	for _, c := range node.Status.Conditions {
+		if c.Type == v1.NodeReady {
+			return true
+		}
+	}
+	logger.Infof("node %s is not ready. %+v", node.Name, node.Status.Conditions)
+	return false
+}
+
+func (c *Cluster) getNodesWithMons() (*util.Set, error) {
+	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=mon")}
+	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(options)
+	if err != nil {
+		return nil, err
+	}
+	nodes := util.NewSet()
+	for _, pod := range pods.Items {
+		hostname := pod.Spec.NodeSelector[metav1.LabelHostname]
+		logger.Debugf("mon pod on node %s", hostname)
+		nodes.Add(hostname)
+	}
+	return nodes, nil
+}
+
+func (c *Cluster) startMon(m *MonConfig, nodeName string) error {
+	rs := c.makeReplicaSet(m, nodeName)
+	logger.Debugf("Starting mon: %+v", rs.Name)
+	_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
+	if err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create mon %s. %+v", m.Name, err)
+		}
+		logger.Infof("replicaset %s already exists", m.Name)
+	}
+	return nil
 }

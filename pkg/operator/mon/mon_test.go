@@ -16,6 +16,7 @@ limitations under the License.
 package mon
 
 import (
+	"fmt"
 	"testing"
 
 	"os"
@@ -24,9 +25,9 @@ import (
 	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/pkg/api/v1"
 )
 
 func TestStartMonPods(t *testing.T) {
@@ -60,19 +61,9 @@ func validateStart(t *testing.T, c *Cluster) {
 	assert.Equal(t, 4, len(s.StringData))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
-	p, err := c.context.Clientset.CoreV1().Pods(c.Namespace).Get("mon0", metav1.GetOptions{})
+	p, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Get("mon0", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon0", p.Name)
-
-	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(metav1.ListOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(pods.Items))
-
-	// no pods are running or pending
-	running, pending, err := c.pollPods()
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(running))
-	assert.Equal(t, 0, len(pending))
 }
 
 func TestSaveMonEndpoints(t *testing.T) {
@@ -157,4 +148,81 @@ func TestMonID(t *testing.T) {
 	id, err = getMonID("mon123")
 	assert.Nil(t, err)
 	assert.Equal(t, 123, id)
+}
+
+func TestAvailableMonNodes(t *testing.T) {
+	clientset := test.New(1)
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion")
+	c.clusterInfo = test.CreateClusterInfo(0)
+	nodes, err := c.getAvailableMonNodes()
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(nodes))
+
+	conditions := v1.NodeCondition{Type: v1.NodeOutOfDisk}
+	nodes[0].Status = v1.NodeStatus{Conditions: []v1.NodeCondition{conditions}}
+	clientset.CoreV1().Nodes().Update(&nodes[0])
+
+	emptyNodes, err := c.getAvailableMonNodes()
+	assert.NotNil(t, err)
+	assert.Nil(t, emptyNodes)
+}
+
+func TestAvailableNodesInUse(t *testing.T) {
+	clientset := test.New(3)
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion")
+	c.clusterInfo = test.CreateClusterInfo(0)
+
+	// all three nodes are available by default
+	nodes, err := c.getAvailableMonNodes()
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(nodes))
+
+	// start pods on two of the nodes so that only one node will be available
+	for i := 0; i < 2; i++ {
+		pod := c.makeMonPod(&MonConfig{Name: fmt.Sprintf("mon%d", i)}, nodes[i].Name)
+		_, err := clientset.CoreV1().Pods(c.Namespace).Create(pod)
+		assert.Nil(t, err)
+	}
+	reducedNodes, err := c.getAvailableMonNodes()
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(reducedNodes))
+	assert.Equal(t, nodes[2].Name, reducedNodes[0].Name)
+
+	// start pods on the remaining node. We expect all nodes to be available for placement
+	// since there is no way to place a mon on an unused node.
+	pod := c.makeMonPod(&MonConfig{Name: "mon2"}, nodes[2].Name)
+	_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
+	assert.Nil(t, err)
+	nodes, err = c.getAvailableMonNodes()
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(nodes))
+}
+
+func TestTaintedNodes(t *testing.T) {
+	clientset := test.New(3)
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion")
+	c.clusterInfo = test.CreateClusterInfo(0)
+
+	nodes, err := c.getAvailableMonNodes()
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(nodes))
+
+	// taint nodes so they will not be schedulable for new pods
+	nodes[0].Spec.Taints = []v1.Taint{
+		v1.Taint{Effect: v1.TaintEffectNoSchedule},
+	}
+	nodes[1].Spec.Taints = []v1.Taint{
+		v1.Taint{Effect: v1.TaintEffectPreferNoSchedule},
+	}
+	nodes[2].Spec.Taints = []v1.Taint{
+		v1.Taint{Effect: v1.TaintEffectNoExecute},
+	}
+	clientset.CoreV1().Nodes().Update(&nodes[0])
+	clientset.CoreV1().Nodes().Update(&nodes[1])
+	clientset.CoreV1().Nodes().Update(&nodes[2])
+	assert.Nil(t, err)
+	cleanNodes, err := c.getAvailableMonNodes()
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(cleanNodes))
+	assert.Equal(t, nodes[2].Name, cleanNodes[0].Name)
 }
