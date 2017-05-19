@@ -3,7 +3,6 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/jmoiron/jsonq"
 	"html/template"
 	"io/ioutil"
 	"os"
@@ -11,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/jmoiron/jsonq"
 )
 
 type K8sHelper struct {
@@ -271,6 +272,10 @@ func (k8sh *K8sHelper) GetPodHostId(podNamePattern string, namespace string) (st
 		if str != "" {
 			r = append(r, strings.TrimSpace(str))
 		}
+	}
+
+	if len(r) == 0 {
+		return "", fmt.Errorf("pod not found for pattern %s", podNamePattern)
 	}
 
 	//get host Ip of the pod
