@@ -57,6 +57,9 @@ For a walkthrough of the three types of storage exposed by Rook, see the guides 
 
 ## Tools
 
+### Flexvolume
+Another way to consume Rook volumes in Kubernetes is to use [Flexvolume](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md). Rook has a Flexvolume plugin that you can use to consume volumes in Kubernetes. Refer to this documentation to learn more about the Rook Flexvolume [plugin](flexvolume.md).
+
 ### Rook Client
 The [rook-client](/demo/kubernetes/rook-client.yaml) tool allows you to configure Block, File System, and Object storage.
 You can start a client pod that is automatically configured to connect to your storage cluster with the following:
