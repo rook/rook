@@ -20,4 +20,5 @@ demo/standalone/cloud-config.yml
 e2e/results
 e2e/vendor
 e2e/.glide
-tests/smoke/temp_image.tar
+e2e/tests/smoke/temp_image.tar
+forRookImage.tar

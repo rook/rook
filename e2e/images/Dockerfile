@@ -56,10 +56,10 @@ ENV PATH $PATH:$GOBIN:$GOPATH:$GOROOT
 #Install glide
 RUN curl https://glide.sh/get | sh
 
-
-VOLUME /sys/fs/cgroup
-VOLUME /lib/modules
-VOLUME /sys
+VOLUME /var/lib/docker
+#VOLUME /sys/fs/cgroup
+#VOLUME /lib/modules
+#VOLUME /sys
 
 RUN apt-get clean -y
 
