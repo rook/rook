@@ -19,7 +19,7 @@ Execute the following command to start the environment.
         -d \
         --privileged \
         --security-opt=seccomp:unconfined \
-        quay.io/quantum/rook-test \
+        quay.io/rook/rook-test \
         /sbin/init
 
 ## Usage

@@ -201,8 +201,11 @@ func (r *rookTestInfraManager) copyImageToNode(containerId string, imageName str
 }
 
 //This method stands up a k8s cluster and pre-configures it for running tests
-func (r *rookTestInfraManager) ValidateAndSetupTestPlatform() {
+func (r *rookTestInfraManager) ValidateAndSetupTestPlatform(skipInstall bool) {
 
+	if skipInstall {
+		return
+	}
 	if r.isSetup {
 		return
 	}
@@ -354,7 +357,10 @@ func createk8sRookCluster(k8sHelper *utils.K8sHelper, tag string) error {
 	return nil
 }
 
-func (r *rookTestInfraManager) InstallRook(tag string) (err error) {
+func (r *rookTestInfraManager) InstallRook(tag string, skipInstall bool) (err error) {
+	if skipInstall {
+		return
+	}
 	if r.isRookInstalled {
 		return
 	}
