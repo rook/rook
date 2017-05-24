@@ -22,8 +22,11 @@ import (
 
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/rook/client"
-	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
+)
+
+var (
+	purge bool
 )
 
 var bucketCmd = &cobra.Command{
@@ -34,6 +37,12 @@ var bucketCmd = &cobra.Command{
 func init() {
 	bucketCmd.AddCommand(bucketListCmd)
 	bucketListCmd.RunE = listBucketsEntry
+	bucketCmd.AddCommand(bucketGetCmd)
+	bucketGetCmd.RunE = getBucketEntry
+	bucketCmd.AddCommand(bucketDeleteCmd)
+	bucketDeleteCmd.RunE = deleteBucketEntry
+
+	bucketDeleteCmd.Flags().BoolVarP(&purge, "purge", "p", false, "delete bucket contents")
 }
 
 var bucketListCmd = &cobra.Command{
@@ -43,10 +52,6 @@ var bucketListCmd = &cobra.Command{
 
 func listBucketsEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
-
-	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
-		return err
-	}
 
 	c := rook.NewRookNetworkRestClient()
 	out, err := listBuckets(c)
@@ -62,7 +67,7 @@ func listBucketsEntry(cmd *cobra.Command, args []string) error {
 func listBuckets(c client.RookRestClient) (string, error) {
 	buckets, err := c.ListBuckets()
 	if err != nil {
-		return "", fmt.Errorf("failed to get pools: %+v", err)
+		return "", fmt.Errorf("failed to list buckets: %+v", err)
 	}
 
 	if len(buckets) == 0 {
@@ -80,4 +85,89 @@ func listBuckets(c client.RookRestClient) (string, error) {
 
 	w.Flush()
 	return buffer.String(), nil
+}
+
+var bucketGetCmd = &cobra.Command{
+	Use:   "get [BucketName]",
+	Short: "Gets the details of a bucket in the cluster",
+}
+
+func getBucketEntry(cmd *cobra.Command, args []string) error {
+	rook.SetupLogging()
+
+	if len(args) == 0 {
+		return fmt.Errorf("Missing required argument BucketName")
+	}
+
+	if len(args) > 1 {
+		return fmt.Errorf("Too many arguments")
+	}
+
+	c := rook.NewRookNetworkRestClient()
+	out, err := getBucket(c, args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	fmt.Print(out)
+	return nil
+}
+
+func getBucket(c client.RookRestClient, bucketName string) (string, error) {
+	bucket, err := c.GetBucket(bucketName)
+	if err != nil {
+		return "", fmt.Errorf("failed to get bucket: %+v", err)
+	}
+
+	var buffer bytes.Buffer
+	w := rook.NewTableWriter(&buffer)
+
+	fmt.Fprintf(w, "Name:\t%s\n", bucket.Name)
+	fmt.Fprintf(w, "Owner:\t%s\n", bucket.Owner)
+	fmt.Fprintf(w, "Creation time:\t%s\n", bucket.CreatedAt)
+	fmt.Fprintf(w, "Size:\t%d\n", bucket.Size)
+	fmt.Fprintf(w, "Number of Objects:\t%d\n", bucket.NumberOfObjects)
+
+	w.Flush()
+	return buffer.String(), nil
+}
+
+var bucketDeleteCmd = &cobra.Command{
+	Use:   "delete [BucketName]",
+	Short: "Deletes the bucket",
+}
+
+func deleteBucketEntry(cmd *cobra.Command, args []string) error {
+	rook.SetupLogging()
+
+	if len(args) == 0 {
+		return fmt.Errorf("Missing required argument BucketName")
+	}
+
+	if len(args) > 1 {
+		return fmt.Errorf("Too many arguments")
+	}
+
+	c := rook.NewRookNetworkRestClient()
+	out, err := deleteBucket(c, args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	fmt.Print(out)
+	return nil
+}
+
+func deleteBucket(c client.RookRestClient, bucketName string) (string, error) {
+	err := c.DeleteBucket(bucketName, purge)
+
+	if err != nil {
+		if client.IsHttpNotFound(err) {
+			return "", fmt.Errorf("Unable to find bucket %s", bucketName)
+		}
+		return "", fmt.Errorf("failed to delete bucket: %+v", err)
+	}
+	return "Bucket deleted\n", nil
 }

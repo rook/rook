@@ -123,10 +123,6 @@ func getUserEntry(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Too many arguments")
 	}
 
-	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
-		return err
-	}
-
 	c := rook.NewRookNetworkRestClient()
 	out, err := getUser(c, args[0])
 	if err != nil {
@@ -178,10 +174,6 @@ func deleteUserEntry(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Too many arguments")
 	}
 
-	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
-		return err
-	}
-
 	c := rook.NewRookNetworkRestClient()
 	out, err := deleteUser(c, args[0])
 	if err != nil {
@@ -224,10 +216,6 @@ func createUserEntry(cmd *cobra.Command, args []string) error {
 
 	if len(args) > 2 {
 		return fmt.Errorf("Too many arguments")
-	}
-
-	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
-		return err
 	}
 
 	user := model.ObjectUser{UserID: args[0], DisplayName: &args[1]}
@@ -276,10 +264,6 @@ func updateUserEntry(cmd *cobra.Command, args []string) error {
 
 	if len(args) > 1 {
 		return fmt.Errorf("Too many arguments")
-	}
-
-	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
-		return err
 	}
 
 	user := model.ObjectUser{UserID: args[0]}

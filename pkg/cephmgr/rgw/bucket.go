@@ -18,6 +18,7 @@ package rgw
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rook/rook/pkg/cephmgr/mon"
@@ -33,7 +34,39 @@ type rgwBucketStats struct {
 	}
 }
 
-func GetBucketStats(context *clusterd.Context, getClusterInfo func() (*mon.ClusterInfo, error)) (map[string]model.ObjectBucketStats, error) {
+func bucketStatsFromRGW(stats rgwBucketStats) model.ObjectBucketStats {
+	s := model.ObjectBucketStats{Size: 0, NumberOfObjects: 0}
+	for _, usage := range stats.Usage {
+		s.Size = s.Size + usage.Size
+		s.NumberOfObjects = s.NumberOfObjects + usage.NumberOfObjects
+	}
+	return s
+}
+
+func GetBucketStats(context *clusterd.Context, bucketName string, getClusterInfo func() (*mon.ClusterInfo, error)) (*model.ObjectBucketStats, bool, error) {
+	result, err := RunAdminCommand(context, getClusterInfo,
+		"bucket",
+		"stats",
+		"--bucket", bucketName)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to get bucket stats: %+v", err)
+	}
+
+	if strings.Contains(result, "could not get bucket info") {
+		return nil, true, fmt.Errorf("not found")
+	}
+
+	var rgwStats rgwBucketStats
+	if err := json.Unmarshal([]byte(result), &rgwStats); err != nil {
+		return nil, false, fmt.Errorf("failed to read buckets stats. %+v, result=%s", err, result)
+	}
+
+	stat := bucketStatsFromRGW(rgwStats)
+
+	return &stat, false, nil
+}
+
+func GetBucketsStats(context *clusterd.Context, getClusterInfo func() (*mon.ClusterInfo, error)) (map[string]model.ObjectBucketStats, error) {
 	result, err := RunAdminCommand(context, getClusterInfo,
 		"bucket",
 		"stats")
@@ -49,21 +82,47 @@ func GetBucketStats(context *clusterd.Context, getClusterInfo func() (*mon.Clust
 	stats := map[string]model.ObjectBucketStats{}
 
 	for _, rgwStat := range rgwStats {
-		stat := model.ObjectBucketStats{Size: 0, NumberOfObjects: 0}
-		for _, usage := range rgwStat.Usage {
-			stat.Size = stat.Size + usage.Size
-			stat.NumberOfObjects = stat.NumberOfObjects + usage.NumberOfObjects
-		}
-		stats[rgwStat.Bucket] = stat
+		stats[rgwStat.Bucket] = bucketStatsFromRGW(rgwStat)
 	}
 
 	return stats, nil
 }
 
+func getBucketMetadata(context *clusterd.Context, bucket string, getClusterInfo func() (*mon.ClusterInfo, error)) (*model.ObjectBucketMetadata, bool, error) {
+	result, err := RunAdminCommand(context, getClusterInfo,
+		"metadata",
+		"get",
+		"bucket:"+bucket)
+	if err != nil {
+		return nil, false, fmt.Errorf("failed to list buckets: %+v", err)
+	}
+
+	if strings.Contains(result, "can't get key") {
+		return nil, true, fmt.Errorf("not found")
+	}
+
+	var s struct {
+		Data struct {
+			Owner        string `json:"owner"`
+			CreationTime string `json:"creation_time"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(result), &s); err != nil {
+		return nil, false, fmt.Errorf("failed to read buckets list. %+v, result=%s", err, result)
+	}
+
+	createdAt, err := time.Parse("2006-01-02 15:04:05.999999999Z", s.Data.CreationTime)
+	if err != nil {
+		return nil, false, fmt.Errorf("Error parsing date (%s): %+v", s.Data.CreationTime, err)
+	}
+
+	return &model.ObjectBucketMetadata{Owner: s.Data.Owner, CreatedAt: createdAt}, false, nil
+}
+
 func ListBuckets(context *clusterd.Context, getClusterInfo func() (*mon.ClusterInfo, error)) ([]model.ObjectBucket, error) {
 	logger.Infof("Listing buckets")
 
-	stats, err := GetBucketStats(context, getClusterInfo)
+	stats, err := GetBucketsStats(context, getClusterInfo)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get bucket stats: %+v", err)
 	}
@@ -71,31 +130,60 @@ func ListBuckets(context *clusterd.Context, getClusterInfo func() (*mon.ClusterI
 	buckets := []model.ObjectBucket{}
 
 	for bucket, stat := range stats {
-		result, err := RunAdminCommand(context, getClusterInfo,
-			"metadata",
-			"get",
-			"bucket:"+bucket)
+		metadata, _, err := getBucketMetadata(context, bucket, getClusterInfo)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list buckets: %+v", err)
+			return nil, err
 		}
 
-		var s struct {
-			Data struct {
-				Owner        string `json:"owner"`
-				CreationTime string `json:"creation_time"`
-			} `json:"data"`
-		}
-		if err := json.Unmarshal([]byte(result), &s); err != nil {
-			return nil, fmt.Errorf("failed to read buckets list. %+v, result=%s", err, result)
-		}
-
-		createdAt, err := time.Parse("2006-01-02 15:04:05.999999999Z", s.Data.CreationTime)
-		if err != nil {
-			return nil, fmt.Errorf("Error parsing date (%s): %+v", s.Data.CreationTime, err)
-		}
-
-		buckets = append(buckets, model.ObjectBucket{Name: bucket, Owner: s.Data.Owner, CreatedAt: createdAt, ObjectBucketStats: stat})
+		buckets = append(buckets, model.ObjectBucket{Name: bucket, ObjectBucketMetadata: model.ObjectBucketMetadata{Owner: metadata.Owner, CreatedAt: metadata.CreatedAt}, ObjectBucketStats: stat})
 	}
 
 	return buckets, nil
+}
+
+func GetBucket(context *clusterd.Context, bucket string, getClusterInfo func() (*mon.ClusterInfo, error)) (*model.ObjectBucket, int, error) {
+	stat, notFound, err := GetBucketStats(context, bucket, getClusterInfo)
+	if notFound {
+		return nil, RGWErrorNotFound, fmt.Errorf("Bucket not found")
+	}
+
+	if err != nil {
+		return nil, RGWErrorUnknown, fmt.Errorf("Failed to get bucket stats: %+v", err)
+	}
+
+	metadata, notFound, err := getBucketMetadata(context, bucket, getClusterInfo)
+	if notFound {
+		return nil, RGWErrorNotFound, fmt.Errorf("Bucket not found")
+	}
+
+	if err != nil {
+		return nil, RGWErrorUnknown, err
+	}
+
+	return &model.ObjectBucket{Name: bucket, ObjectBucketMetadata: model.ObjectBucketMetadata{Owner: metadata.Owner, CreatedAt: metadata.CreatedAt}, ObjectBucketStats: *stat}, RGWErrorNone, nil
+}
+
+func DeleteBucket(context *clusterd.Context, bucketName string, purge bool, getClusterInfo func() (*mon.ClusterInfo, error)) (int, error) {
+	options := []string{"--bucket", bucketName}
+	if purge {
+		options = append(options, "--purge-objects")
+	}
+
+	result, err := RunAdminCommand(context, getClusterInfo,
+		"bucket",
+		"rm",
+		options...)
+	if err != nil {
+		return RGWErrorUnknown, fmt.Errorf("failed to delete bucket: %+v", err)
+	}
+
+	if result == "" {
+		return RGWErrorNone, nil
+	}
+
+	if strings.Contains(result, "could not get bucket info for bucket=") {
+		return RGWErrorNotFound, fmt.Errorf("Bucket not found")
+	}
+
+	return RGWErrorUnknown, fmt.Errorf("failed to delete bucket: %+v", err)
 }

@@ -23,7 +23,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rook/rook/pkg/cephmgr/rgw"
 	"github.com/rook/rook/pkg/model"
-	"github.com/rook/rook/pkg/util"
 )
 
 // CreateObjectStore creates a new object store in this cluster.
@@ -207,7 +206,7 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 // Listbuckets lists the buckets in the object store in this cluster.
 // GET
 // /objectstore/buckets
-func (h *Handler) Listbuckets(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) ListBuckets(w http.ResponseWriter, r *http.Request) {
 	buckets, err := rgw.ListBuckets(h.context, h.config.ClusterHandler.GetClusterInfo)
 	if err != nil {
 		logger.Errorf("Error listing buckets: %+v", err)
@@ -221,11 +220,47 @@ func (h *Handler) Listbuckets(w http.ResponseWriter, r *http.Request) {
 	FormatJsonResponse(w, sortedBuckets)
 }
 
-func handleConnectionLookupFailure(err error, action string, w http.ResponseWriter) {
-	logger.Errorf("failed to get %s: %+v", action, err)
-	if util.IsEtcdKeyNotFound(err) {
-		w.WriteHeader(http.StatusNotFound)
-	} else {
-		w.WriteHeader(http.StatusInternalServerError)
+// GetBucket gets the bucket from the object store in this cluster.
+// GET
+// /objectstore/buckets/{BUCKET_NAME}
+func (h *Handler) GetBucket(w http.ResponseWriter, r *http.Request) {
+	bucketName := mux.Vars(r)["bucketName"]
+
+	user, rgwError, err := rgw.GetBucket(h.context, bucketName, h.config.ClusterHandler.GetClusterInfo)
+	if err != nil {
+		logger.Errorf("Error getting bucket (%s): %+v", bucketName, err)
+
+		if rgwError == rgw.RGWErrorNotFound {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+		}
+		return
 	}
+
+	FormatJsonResponse(w, user)
+}
+
+// DeleteBucket deletes the bucket in the object store in this cluster.
+// DELETE
+// /objectstore/buckets/{BUCKET_NAME}
+func (h *Handler) DeleteBucket(w http.ResponseWriter, r *http.Request) {
+	bucketName := mux.Vars(r)["bucketName"]
+
+	purgeParams, found := r.URL.Query()["purge"]
+	purge := found && len(purgeParams) == 1 && purgeParams[0] == "true"
+
+	rgwError, err := rgw.DeleteBucket(h.context, bucketName, purge, h.config.ClusterHandler.GetClusterInfo)
+	if err != nil {
+		if rgwError == rgw.RGWErrorNotFound {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+
+		logger.Errorf("Error deleting bucket: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
