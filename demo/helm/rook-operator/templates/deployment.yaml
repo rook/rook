@@ -1,0 +1,29 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: rook-operator
+  labels:
+    operator: rook
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: rook-operator
+        chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+    spec:
+      serviceAccountName: rook-operator
+      containers:
+      - name: rook-operator
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args: ["operator"]
+        env:
+        - name: ROOKD_REPO_PREFIX
+          value: {{ .Values.image.prefix }}
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+    {{- if .Values.rbacEnable }}
+      serviceAccountName: rook-operator
+    {{- end }}
