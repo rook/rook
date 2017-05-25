@@ -1,8 +1,8 @@
-hash: a292e770129d63132a567e4b88aa141d4c8803f8079f1cfcd4a8168e4153f67b
-updated: 2017-04-19T20:52:43.827227707-07:00
+hash: 029f3c66333cecbb7251bcc20c18b28737622bc123a844e78658c2e71a183b7f
+updated: 2017-05-31T23:28:56.659625348-07:00
 imports:
 - name: github.com/aws/aws-sdk-go
-  version: 3981b48d0eca40d1ce35f20c605b3a153e64b4ad
+  version: d43439f542aac478e400c879d32e567a406d172b
   subpackages:
   - aws
   - aws/awserr
@@ -28,8 +28,14 @@ imports:
   - private/protocol/xml/xmlutil
   - service/s3
   - service/sts
+- name: github.com/corpix/uarand
+  version: 1d58d0383c4d7a4697f63d1097d466864c9ab6d3
 - name: github.com/go-ini/ini
   version: e7fea39b01aea8d5671f6858f0532f56e8bff3a5
+- name: github.com/go-sql-driver/mysql
+  version: a0583e0143b1624142adab07e0e97fe106d99561
+- name: github.com/icrowley/fake
+  version: 9f67e8561905ff9c2b64fdd801ee70cf852b3b89
 - name: github.com/jmespath/go-jmespath
   version: bd40a432e4c76585ef6b72d3fd96fb9b6dc7b68d
 - name: github.com/jmoiron/jsonq
@@ -48,3 +54,4 @@ testImports:
   subpackages:
   - assert
   - require
+  - suite

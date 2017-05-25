@@ -4,17 +4,10 @@ import (
 	"fmt"
 	"github.com/rook/rook/e2e/framework/enums"
 	"github.com/rook/rook/e2e/framework/manager"
-	"github.com/rook/rook/e2e/framework/objects"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
-
-var env objects.EnvironmentManifest
-
-func init() {
-	env = objects.NewManifest()
-}
 
 func TestRookInfraCleanUp(t *testing.T) {
 	suite.Run(t, new(CleanUpTestSuite))

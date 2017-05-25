@@ -8,6 +8,8 @@ import (
 	"github.com/rook/rook/e2e/framework/utils"
 	"github.com/rook/rook/pkg/model"
 	rclient "github.com/rook/rook/pkg/rook/client"
+	"os"
+	"path/filepath"
 )
 
 type RestAPIClient struct {
@@ -23,7 +25,8 @@ func CreateRestAPIClient(platform enums.RookPlatformType) *RestAPIClient {
 		//Start rook_api_external server via nodePort if not it not already running.
 		_, err := rkh.GetService("rook-api-external")
 		if err != nil {
-			rkh.ResourceOperation("create", "../../data/smoke/rook_api_external.yaml")
+			path := filepath.Join(os.Getenv("GOPATH"), "src/github.com/rook/rook/e2e/data/smoke/rook_api_external.yaml")
+			rkh.ResourceOperation("create", path)
 		}
 		apiIp, err := rkh.GetPodHostId("rook-api", "rook")
 		if err != nil {
