@@ -8,6 +8,7 @@ storage cluster.
 - [Configuring Pools](#configuring-pools)
 - [Custom ceph.conf Settings](#custom-cephconf-settings)
 - [OSD CRUSH Settings](#osd-crush-settings)
+- [OSDs not starting when the Ceph cluster is not healthy](#osds-not-starting-when-the-ceph-cluster-is-not-healthy)
 
 ## Prerequisites
 
@@ -414,7 +415,7 @@ other OSDs holding replica data are unavailable:
 ceph osd primary-affinity osd.0 0
 ```
 
-### OSDs not starting when the Ceph cluster is not healthy
+## OSDs not starting when the Ceph cluster is not healthy
 Rook and Ceph have a requirement that all block devices (including the ones created by Rook/Kubernetes) are available to start OSDs. If your cluster is in a state where that is no longer the case you can't get it working anymore.
 If you're hitting the Rook issue, you'll be getting something like
 ```
