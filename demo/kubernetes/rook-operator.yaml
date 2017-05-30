@@ -95,7 +95,7 @@ spec:
       serviceAccountName: rook-operator
       containers:
       - name: rook-operator
-        image: quay.io/rook/rookd:master-latest
+        image: quay.io/rook/rookd:v0.4.0
         args: ["operator"]
         env:
         - name: ROOKD_REPO_PREFIX
