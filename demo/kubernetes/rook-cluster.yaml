@@ -4,7 +4,7 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: master-latest
+  versionTag: v0.4.0
   dataDirHostPath:
   storage:                # cluster level storage configuration and selection
     useAllNodes: true
