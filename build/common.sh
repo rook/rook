@@ -16,8 +16,10 @@
 
 source_repo=github.com/rook/rook
 
-container_version=$(cat ${scriptdir}/container/version)
-container_image=quay.io/rook/cross-build:${container_version}
+host=$(hostname)
+rootdir=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd -P)
+host_hash=`echo ${host}-${rootdir} | sha256sum | cut -c1-8`
+container_image=build-${host_hash}/cross-build
 container_volume=cross-build-volume
 rsync_port=10873
 

@@ -24,10 +24,17 @@ if [ ! -z $DOCKER_HOST ]; then
     exit 1
 fi
 
-# if the container does not exist the pull or build it
-if [[ ! $(docker images -q ${container_image}) ]]; then
-    echo ==== Pulling ${container_image}
-    docker pull ${container_image}
+# build the the container if we've not done so already
+if [[ -z "$(docker images -q ${container_image})" ]]; then
+    echo ==== building the cross-build container \(this could take minutes the first time\)
+    make_cmd="make --no-print-directory -C ${scriptdir}/../images cross-build-images PULL=0"
+    make_output=$($make_cmd 2>&1) || {
+        cat <<EOF >&2
+=== cross build image failed for ${container_image}
+${make_output}
+EOF
+        exit 1
+}
 fi
 
 # run the container with the same uid and gid of the user to avoid
@@ -88,11 +95,12 @@ else
     #    /.docker (bind mounted to host ${HOME}/.docker)
     #    /.ccache (bind mounted to host ${CCACHE_DIR})
     #    /.download (bind mounted to host ${DOWNLOADDIR} if set)
-    #    /go (bind mounted to <source>/.work/cross )
-    #         /src/github.com/rook/rook (bind mounted to <source>)
+    #    /go
+    #       /pkg (bind mounted to <source>/.work/cross_pkg)
+    #       /src/github.com/rook/rook (bind mounted to <source>)
 
     MOUNT_OPTS="${MOUNT_OPTS} \
-        -v ${scriptdir}/../.work/cross:${BUILDER_HOME}/go \
+        -v ${scriptdir}/../.work/cross_pkg:${BUILDER_HOME}/go/pkg
         -v ${scriptdir}/..:${BUILDER_HOME}/go/src/${source_repo}"
 
     # if CCACHE_DIR is not set, set it to the default
@@ -123,6 +131,7 @@ if [ -z "${DISABLE_HOST_NETWORK}" ]; then
     NET_ARGS="--net=host"
 fi
 
+# BUGBUG: new docker clients switch to using OSX keychain. how do we copy creds?
 # sometimes we run docker inside docker. bind the docker config and socket
 if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
     DOCKER_NESTED_ARGS="\
@@ -130,6 +139,7 @@ if [ -z "${DISABLE_NESTED_DOCKER}" ]; then
     -v /var/run/docker.sock:/var/run/docker.sock"
 fi
 
+# set AWS creds
 AWS_ARGS="\
     -e AWS_ACCESS_KEY_ID \
     -e AWS_SECRET_ACCESS_KEY \
@@ -154,9 +164,7 @@ docker run \
     -e GO_PKG_DIR="" \
     -e GITHUB_TOKEN \
     -e VERSION \
-    -e LINKMODE=static \
     -e CHANNEL \
-    -e ALWAYS_BUILD \
     ${TTY_ARGS} \
     ${CCACHE_ARGS} \
     ${DOWNLOAD_ARGS} \

@@ -48,12 +48,6 @@ build() {
         local tarfile=$(get_archive_name $os $arch)
         echo creating tar ${tarfile}
         tar czf "${RELEASE_DIR}/${tarfile}" -C "${bindir}" ${files[*]}
-
-        # create a package with debug symbols
-        files=( rookd${ext}.debug )
-        local tarfile=$(get_archive_name $os $arch "debug")
-        echo creating debug tar ${tarfile}
-        tar czf "${RELEASE_DIR}/${tarfile}" -C "${bindir}" ${files[*]}
     else
         local zipfile=$(get_archive_name $os $arch)
         local zippath=$(realpath ${RELEASE_DIR}/${zipfile})

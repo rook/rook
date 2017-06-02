@@ -27,30 +27,10 @@ BUILDFLAGS ?=
 LDFLAGS ?=
 TAGS ?=
 
-# if set to 'dynamic' all dependencies are dynamically linked. if
-# set to 'static' all dependencies will be statically linked. If set
-# to 'stdlib' then the standard library will be dynamically
-# linked and everything else will be statically linked.
-LINKMODE ?= dynamic
-ifeq ($(LINKMODE),dynamic)
-TAGS += dynamic
-else
-ifeq ($(LINKMODE),stdlib)
-TAGS += stdlib
-else
-TAGS += static
-endif
-endif
-
 # build a position independent executable. This implies dynamic linking
 # since statically-linked PIE is not supported by the linker/glibc. PIE
 # is only supported on Linux.
-PIE ?= 0
-ifeq ($(PIE),1)
-ifeq ($(LINKMODE),static)
-$(error PIE only supported with dynamic linking. Set LINKMODE=dynamic or LINKMODE=stdlib.)
-endif
-endif
+PIE ?= 1
 
 # turn on more verbose build
 V ?= 0
@@ -63,25 +43,39 @@ MAKEFLAGS += --no-print-directory
 endif
 
 # the operating system and arch to build
-GOOS ?= $(shell go env GOOS)
-GOARCH ?= $(shell go env GOARCH)
+ifeq ($(origin GOOS), undefined)
+GOOS := $(shell go env GOOS)
+endif
+
+ifeq ($(origin GOARCH), undefined)
+GOARCH := $(shell go env GOARCH)
+endif
 
 # the working directory to store packages and intermediate build files
-WORKDIR ?= $(abspath .work)
-DOWNLOADDIR ?= $(abspath .download)
+ifeq ($(origin WORKDIR), undefined)
+WORKDIR := $(abspath .work)
+endif
+ifeq ($(origin DOWNLOADDIR), undefined)
+DOWNLOADDIR := $(abspath .download)
+endif
 
 # bin and relase dirs
-BIN_DIR=bin
-RELEASE_DIR=release
+BIN_DIR ?= bin
+RELEASE_DIR ?= release
 
-ALL_PLATFORMS ?= linux_amd64 linux_arm64 darwin_amd64 windows_amd64
+# platforms where we only build client bits
+CLIENT_PLATFORMS ?= darwin_amd64 windows_amd64
 
+# platforms where we build client and server bits
+SERVER_PLATFORMS ?= linux_arm linux_amd64 linux_arm64
+
+# the root go project
 GO_PROJECT=github.com/rook/rook
 
 # set the version number. you should not need to do this
 # for the majority of scenarios.
 ifeq ($(origin VERSION), undefined)
-VERSION = $(shell git describe --dirty --always --tags)
+VERSION := $(shell git describe --dirty --always --tags)
 endif
 LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 
@@ -91,47 +85,18 @@ CHANNEL ?=
 # ====================================================================================
 # Setup Go projects
 
-# support for cross compiling
-include build/makelib/cross.mk
+CLIENT_PACKAGES = $(GO_PROJECT)
+SERVER_PACKAGES = $(GO_PROJECT)/cmd/rookd
 
-ifeq ($(GOOS),linux)
+ifneq ($(filter $(GOOS)_$(GOARCH),$(CLIENT_PLATFORMS) $(SERVER_PLATFORMS)),)
+GO_PACKAGES = $(CLIENT_PACKAGES)
+endif
 
-# Set the memory allocator used for ceph
-CEPH_BRANCH ?= kraken
-
-# Set the memory allocator used for ceph
-ALLOCATOR ?= tcmalloc_minimal
-
-ifeq ($(ALLOCATOR),jemalloc)
-TAGS += jemalloc
+ifneq ($(filter $(GOOS)_$(GOARCH),$(SERVER_PLATFORMS)),)
+ifeq ($(GOOS)_$(PIE),linux_1)
+GO_PIE_PACKAGES = $(SERVER_PACKAGES)
 else
-ifeq ($(ALLOCATOR),tcmalloc_minimal)
-TAGS += tcmalloc_minimal
-else
-endif
-endif
-
-# Set the cgo flags to link externals
-CGO_CFLAGS = -I$(abspath $(WORKDIR)/build/$(CROSS_TRIPLE)/include)
-CGO_LDFLAGS = -L$(abspath $(WORKDIR)/build/$(CROSS_TRIPLE)/lib)
-
-endif
-
-GO_BIN_DIR = $(BIN_DIR)
-
-ifeq ($(LINKMODE),static)
-GO_STATIC_PACKAGES=$(GO_PROJECT)
-ifeq ($(GOOS),linux)
-GO_STATIC_CGO_PACKAGES=$(GO_PROJECT)/cmd/rookd
-endif
-else
-GO_NONSTATIC_PACKAGES=$(GO_PROJECT)
-ifeq ($(GOOS),linux)
-ifeq ($(PIE),1)
-GO_NONSTATIC_PIE_PACKAGES+= $(GO_PROJECT)/cmd/rookd
-else
-GO_NONSTATIC_PACKAGES+= $(GO_PROJECT)/cmd/rookd
-endif
+GO_PACKAGES = $(SERVER_PACKAGES)
 endif
 endif
 
@@ -139,6 +104,7 @@ GO_BUILDFLAGS=$(BUILDFLAGS)
 GO_LDFLAGS=$(LDFLAGS)
 GO_TAGS=$(TAGS)
 
+GO_BIN_DIR = $(BIN_DIR)
 GO_WORK_DIR ?= $(WORKDIR)
 GO_TOOLS_DIR ?= $(DOWNLOADDIR)/tools
 GO_PKG_DIR ?= $(WORKDIR)/pkg
@@ -151,38 +117,13 @@ include build/makelib/golang.mk
 RELEASE_VERSION=$(VERSION)
 RELEASE_CHANNEL=$(CHANNEL)
 RELEASE_BIN_DIR=$(BIN_DIR)
-RELEASE_PLATFORMS=$(ALL_PLATFORMS)
+RELEASE_PLATFORMS=$(CLIENT_PLATFORMS) $(SERVER_PLATFORMS)
 include build/makelib/release.mk
-
-# ====================================================================================
-# External Targets
-
-export WORKDIR DOWNLOADDIR CEPH_BRANCH ALLOCATOR
-
-ifneq ($(ALWAYS_BUILD),)
-export ALWAYS_BUILD
-endif
-
-external:
-ifeq ($(GOOS),linux)
-	@$(MAKE) -C external PLATFORMS=$(CROSS_TRIPLE) cross
-endif
-
-$(WORKDIR)/build/$(CROSS_TRIPLE)/lib/libcephd.a:
-	@$(MAKE) external
-
-external.clean:
-	@$(MAKE) -C external clean
-
-external.distclean:
-	@$(MAKE) -C external distclean
-
-.PHONY: external external.clean external.distclean
 
 # ====================================================================================
 # Targets
 
-dev: $(WORKDIR)/build/$(CROSS_TRIPLE)/lib/libcephd.a
+dev:
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 	@$(MAKE) go.build
@@ -191,7 +132,6 @@ dev: $(WORKDIR)/build/$(CROSS_TRIPLE)/lib/libcephd.a
 build.common:
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
-	@$(MAKE) external
 
 build: build.common
 	@$(MAKE) go.build
@@ -216,20 +156,19 @@ fmt:
 
 vendor: go.vendor
 
-clean: go.clean external.clean
-	@rm -fr $(WORKDIR) $(RELEASE_DIR)/* $(BIN_DIR)/*
+clean: go.clean
+	@rm -fr $(WORKDIR) $(RELEASE_DIR) $(BIN_DIR)
 
-distclean: go.distclean clean external.distclean
+distclean: go.distclean clean
 	@rm -fr $(DOWNLOADDIR)
 
 cross.build:
-	@$(MAKE) external
 	@$(MAKE) go.build
 
 cross.build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) cross.build
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) PIE=$(PIE) cross.build
 
-cross.parallel: $(foreach p,$(ALL_PLATFORMS), cross.build.platform.$(p))
+cross.parallel: $(foreach p,$(CLIENT_PLATFORMS) $(SERVER_PLATFORMS), cross.build.platform.$(p))
 
 cross:
 	@$(MAKE) go.init
@@ -273,7 +212,7 @@ help:
 	@echo '    clean       Remove all files that are created '
 	@echo '                by building.'
 	@echo '    dev         A quick build path for go projects'
-	@echo '                and containers. Skips building externals.'
+	@echo '                and containers.'
 	@echo '    distclean   Remove all files that are created '
 	@echo '                by building or configuring.'
 	@echo '    fmt         Check formatting of go sources.'
@@ -291,18 +230,12 @@ help:
 	@echo '                 alpha, beta, or stable. Default is not set.'
 	@echo '    DOWNLOADDIR  A directory where downloaded files and other'
 	@echo '                 files used during the build are cached. These'
-	@echo '                 files help speedup the build by avoding network'
+	@echo '                 files help speedup the build by avoiding network'
 	@echo '                 transfers. Its safe to use these files across builds.'
 	@echo '    GOARCH       The arch to build.'
 	@echo '    GOOS         The OS to build for.'
-	@echo '    LINKMODE     Set to "dynamic" to link all libraries dynamically.'
-	@echo '                 Set to "stdlib" to link the standard library'
-	@echo '                 dynamically and everything else statically. Set to'
-	@echo '                 "static" to link everything statically. Default is'
-	@echo '                 "dynamic".'
-	@echo '    PIE          Set to 1 to build build a position independent'
-	@echo '                 executable. Can not be combined with LINKMODE'
-	@echo '                 set to "static". The default is 0.'
+	@echo '    PIE          Set to 1 to build a position independent'
+	@echo '                 executable. The default is 1.'
 	@echo '    VERSION      The version information compiled into binaries.'
 	@echo '                 The default is obtained from git.'
 	@echo '    V            Set to 1 enable verbose build. Default is 0.'

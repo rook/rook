@@ -12,36 +12,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# ====================================================================================
-# Makefile helper functions for cross compiling
-#
+# Optional OS and ARCH to build
+ifeq ($(origin GOOS), undefined)
+GOOS := $(shell go env GOOS)
+endif
 
+ifeq ($(origin GOARCH), undefined)
+GOARCH := $(shell go env GOARCH)
+endif
+
+GOHOSTOS := $(shell go env GOHOSTOS)
+GOHOSTARCH := $(shell go env GOHOSTARCH)
+
+# set cross compile options
 ifeq ($(GOOS)_$(GOARCH),linux_amd64)
-CROSS_TRIPLE=x86_64-linux-gnu
-CC=$(CROSS_TRIPLE)-gcc
-CXX=$(CROSS_TRIPLE)-g++
-OBJCOPY=$(CROSS_TRIPLE)-objcopy
+CROSS_TRIPLE = x86_64-linux-gnu
+DEBIAN_ARCH = amd64
 endif
-
+ifeq ($(GOOS)_$(GOARCH),linux_arm)
+GOARM=7
+DEBIAN_ARCH = armhf
+CROSS_TRIPLE = arm-linux-gnueabihf
+endif
 ifeq ($(GOOS)_$(GOARCH),linux_arm64)
-CROSS_TRIPLE=aarch64-linux-gnu
-CC=$(CROSS_TRIPLE)-gcc
-CXX=$(CROSS_TRIPLE)-g++
-OBJCOPY=$(CROSS_TRIPLE)-objcopy
+DEBIAN_ARCH = arm64
+CROSS_TRIPLE = aarch64-linux-gnu
 endif
-
 ifeq ($(GOOS)_$(GOARCH),darwin_amd64)
 CROSS_TRIPLE=x86_64-apple-darwin15
-CC=$(CROSS_TRIPLE)-clang
-CXX=$(CROSS_TRIPLE)-clang++
-OBJCOPY=$(CROSS_TRIPLE)-objcopy
 endif
-
-ifeq ($(CEPHD_PLATFORM),windows_amd64)
+ifeq ($(GOOS)_$(GOARCH),windows_amd64)
 CROSS_TRIPLE=x86_64-w64-mingw32
-CC=$(CROSS_TRIPLE)-gcc
-CXX=$(CROSS_TRIPLE)-g++
-OBJCOPY=$(CROSS_TRIPLE)-objcopy
 endif
 
-export CC CXX OBJCOPY
+ifneq ($(GOOS)_$(GOARCH),$(GOHOSTOS)_$(GOHOSTARCH))
+CC := $(CROSS_TRIPLE)-gcc
+CXX := $(CROSS_TRIPLE)-g++
+export CC CXX
+endif
