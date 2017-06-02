@@ -23,8 +23,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
-	"github.com/rook/rook/pkg/cephmgr/collectors"
+	"github.com/rook/rook/pkg/ceph/collectors"
+	"github.com/rook/rook/pkg/clusterd"
 )
 
 // CephExporter wraps all the ceph collectors and provides a single global
@@ -36,7 +36,6 @@ type CephExporter struct {
 	mu         sync.Mutex
 	collectors []prometheus.Collector
 	handler    *Handler
-	conn       ceph.Connection
 }
 
 // Verify that the exporter implements the interface correctly.
@@ -45,11 +44,10 @@ var _ prometheus.Collector = &CephExporter{}
 // NewCephExporter creates an instance to CephExporter and returns a reference
 // to it. We can choose to enable a collector to extract stats out of by adding
 // it to the list of collectors.
-func NewCephExporter(handler *Handler, conn ceph.Connection) *CephExporter {
+func NewCephExporter(handler *Handler) *CephExporter {
 	return &CephExporter{
-		handler:    handler,
-		conn:       conn,
-		collectors: createCollectors(conn),
+		handler:    handler, // not implemented
+		collectors: createCollectors(handler.context, "rookcluster"),
 	}
 }
 
@@ -68,36 +66,18 @@ func (c *CephExporter) Collect(ch chan<- prometheus.Metric) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// test the ceph connection to make sure it's still active/alive
-	_, err := ceph.Status(c.conn)
-	if err != nil {
-		// the ceph connection doesn't appear to be alive, close the old one and create a new one then recreate the collectors
-		logger.Noticef("metrics ceph connection appears down, will try to restart it: %+v", err)
-		c.conn.Shutdown()
-
-		newConn, err := c.handler.connectToCeph()
-		if err != nil {
-			logger.Errorf("metrics ceph connection cannot be restarted: %+v", err)
-			return
-		}
-
-		logger.Noticef("metrics ceph connection was reconnected")
-		c.conn = newConn
-		c.collectors = createCollectors(c.conn)
-	}
-
 	// collect metrics from all of our collectors
 	for _, cc := range c.collectors {
 		cc.Collect(ch)
 	}
 }
 
-func createCollectors(conn ceph.Connection) []prometheus.Collector {
+func createCollectors(context *clusterd.Context, clusterName string) []prometheus.Collector {
 	return []prometheus.Collector{
-		collectors.NewClusterUsageCollector(conn),
-		collectors.NewClusterHealthCollector(conn),
-		collectors.NewMonitorCollector(conn),
-		collectors.NewOSDCollector(conn),
-		collectors.NewPoolUsageCollector(conn),
+		collectors.NewClusterUsageCollector(context, clusterName),
+		collectors.NewClusterHealthCollector(context, clusterName),
+		collectors.NewMonitorCollector(context, clusterName),
+		collectors.NewOSDCollector(context, clusterName),
+		collectors.NewPoolUsageCollector(context, clusterName),
 	}
 }

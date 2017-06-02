@@ -26,13 +26,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	cephosd "github.com/rook/rook/pkg/cephmgr/osd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	cephosd "github.com/rook/rook/pkg/ceph/osd"
+	"github.com/rook/rook/pkg/clusterd"
 )
 
 func TestStartDaemonset(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
+<<<<<<< HEAD
 	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", StorageSpec{}, "", k8sutil.Placement{})
+=======
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "myname", "ns", "myversion", StorageSpec{}, "")
+>>>>>>> remove cgo calls to embedded ceph
 
 	// Start the first time
 	err := c.Start()
@@ -52,7 +56,7 @@ func TestPodContainer(t *testing.T) {
 	container := c.Spec.Containers[0]
 	assert.Equal(t, 7, len(container.Env))
 	assert.True(t, strings.Contains(container.Command[2], `echo $(HOSTNAME) | sed "s/\./_/g" > /etc/hostname; hostname -F /etc/hostname`))
-	assert.True(t, strings.Contains(container.Command[2], "/usr/bin/rookd osd"))
+	assert.True(t, strings.Contains(container.Command[2], "/usr/local/bin/rookd osd"))
 }
 
 func TestDaemonset(t *testing.T) {
@@ -69,7 +73,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", storageSpec, dataDir, k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "myname", "ns", "myversion", storageSpec, dataDir, k8sutil.Placement{})
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
@@ -99,7 +103,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
 	assert.Equal(t, 3, len(cont.VolumeMounts))
 
-	expectedCommand := "/usr/bin/rookd osd"
+	expectedCommand := "/usr/local/bin/rookd osd"
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
 
 	// verify the config dir env var
@@ -144,7 +148,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", storageSpec, "", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "myname", "ns", "myversion", storageSpec, "", k8sutil.Placement{})
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
@@ -186,7 +190,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", storageSpec, "", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "myname", "ns", "myversion", storageSpec, "", k8sutil.Placement{})
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)

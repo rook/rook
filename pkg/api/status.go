@@ -18,7 +18,7 @@ package api
 import (
 	"net/http"
 
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
+	ceph "github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/model"
 )
 
@@ -26,13 +26,7 @@ import (
 // GET
 // /status
 func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
-	adminConn, ok := h.handleConnectToCeph(w)
-	if !ok {
-		return
-	}
-	defer adminConn.Shutdown()
-
-	cephStatus, err := ceph.Status(adminConn)
+	cephStatus, err := ceph.Status(h.context, h.config.ClusterInfo.Name)
 	if err != nil {
 		logger.Errorf("failed to get status: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)

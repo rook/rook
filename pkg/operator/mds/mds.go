@@ -18,9 +18,8 @@ package mds
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/cephmgr/client"
-	cephmds "github.com/rook/rook/pkg/cephmgr/mds"
-	"github.com/rook/rook/pkg/cephmgr/mon"
+	cephmds "github.com/rook/rook/pkg/ceph/mds"
+	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
@@ -43,12 +42,12 @@ type Cluster struct {
 	Namespace string
 	Version   string
 	Replicas  int32
-	context   *k8sutil.Context
-	placement k8sutil.Placement
+	context   *clusterd.Context
 	dataDir   string
+	placement k8sutil.Placement
 }
 
-func New(context *k8sutil.Context, name, namespace, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, name, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
 		placement: placement,
@@ -67,15 +66,8 @@ func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo
 		return fmt.Errorf("missing mons to start mds")
 	}
 
-	context := &clusterd.DaemonContext{ConfigDir: c.dataDir}
-	conn, err := mon.ConnectToClusterAsAdmin(clusterd.ToContext(context), c.context.Factory, cluster)
-	if err != nil {
-		return fmt.Errorf("failed to connect to cluster as admin: %+v", err)
-	}
-	defer conn.Shutdown()
-
 	id := "mds1"
-	err = c.createKeyring(clientset, context, cluster, conn, id)
+	err := c.createKeyring(clientset, cluster, id)
 	if err != nil {
 		return fmt.Errorf("failed to create mds keyring. %+v", err)
 	}
@@ -95,7 +87,7 @@ func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo
 	return nil
 }
 
-func (c *Cluster) createKeyring(clientset kubernetes.Interface, context *clusterd.DaemonContext, cluster *mon.ClusterInfo, conn client.Connection, id string) error {
+func (c *Cluster) createKeyring(clientset kubernetes.Interface, cluster *mon.ClusterInfo, id string) error {
 	_, err := clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the mds keyring was already generated")
@@ -106,7 +98,7 @@ func (c *Cluster) createKeyring(clientset kubernetes.Interface, context *cluster
 	}
 
 	// get-or-create-key for the user account
-	keyring, err := cephmds.CreateKeyring(conn, id)
+	keyring, err := cephmds.CreateKeyring(c.context, c.Name, id)
 	if err != nil {
 		return fmt.Errorf("failed to create mds keyring. %+v", err)
 	}
@@ -159,7 +151,7 @@ func (c *Cluster) makeDeployment(id string) *extensions.Deployment {
 
 func (c *Cluster) mdsContainer(id string) v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd mds --config-dir=%s --mds-id=%s ",
+	command := fmt.Sprintf("/usr/local/bin/rookd mds --config-dir=%s --mds-id=%s ",
 		k8sutil.DataDir, id)
 	return v1.Container{
 		// TODO: fix "sleep 5".

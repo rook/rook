@@ -21,11 +21,11 @@ import (
 	"strings"
 	"testing"
 
-	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
-	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
-	cephrgw "github.com/rook/rook/pkg/cephmgr/rgw"
+	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -35,14 +35,13 @@ import (
 func TestStartRGW(t *testing.T) {
 	clientset := testop.New(3)
 	info := testop.CreateClusterInfo(1)
-	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	conn, _ := factory.NewConnWithClusterAndUser(info.Name, "user")
-	conn.(*testceph.MockConnection).MockMonCommand = func(buf []byte) (buffer []byte, info string, err error) {
-		response := "{\"key\":\"mysecurekey\"}"
-		return []byte(response), "", nil
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+			return "{\"key\":\"mysecurekey\"}", nil
+		},
 	}
 
-	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory}, "myname", "ns", "version", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}, Executor: executor}, "myname", "ns", "version", k8sutil.Placement{})
 	c.dataDir = "/tmp/rgwtest"
 	defer os.RemoveAll(c.dataDir)
 
@@ -97,7 +96,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 6, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd rgw --config-dir=/var/lib/rook --rgw-port=%d --rgw-host=%s",
+	expectedCommand := fmt.Sprintf("/usr/local/bin/rookd rgw --config-dir=/var/lib/rook --rgw-port=%d --rgw-host=%s",
 		cephrgw.RGWPort, cephrgw.DNSName)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])

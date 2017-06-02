@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net/http"
 
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
+	ceph "github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/model"
 )
 
@@ -28,14 +28,8 @@ import (
 // GET
 // /pool
 func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
-	adminConn, ok := h.handleConnectToCeph(w)
-	if !ok {
-		return
-	}
-	defer adminConn.Shutdown()
-
 	// list pool summaries using the ceph client
-	cephPoolSummaries, err := ceph.ListPoolSummaries(adminConn)
+	cephPoolSummaries, err := ceph.ListPoolSummaries(h.context, h.config.ClusterInfo.Name)
 	if err != nil {
 		logger.Errorf("failed to list pools: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -45,7 +39,7 @@ func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
 	// get the details for each pool from its summary information
 	cephPools := make([]ceph.CephStoragePoolDetails, len(cephPoolSummaries))
 	for i := range cephPoolSummaries {
-		poolDetails, err := ceph.GetPoolDetails(adminConn, cephPoolSummaries[i].Name)
+		poolDetails, err := ceph.GetPoolDetails(h.context, h.config.ClusterInfo.Name, cephPoolSummaries[i].Name)
 		if err != nil {
 			logger.Errorf("%+v", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -66,7 +60,7 @@ func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
 	}
 	if lookupECProfileDetails {
 		// list each erasure code profile
-		ecProfileNames, err := ceph.ListErasureCodeProfiles(adminConn)
+		ecProfileNames, err := ceph.ListErasureCodeProfiles(h.context, h.config.ClusterInfo.Name)
 		if err != nil {
 			logger.Errorf("failed to list erasure code profiles: %+v", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -76,7 +70,7 @@ func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
 		// get the details of each erasure code profile and store them in the map
 		ecProfileDetails = make(map[string]ceph.CephErasureCodeProfile, len(ecProfileNames))
 		for _, name := range ecProfileNames {
-			ecp, err := ceph.GetErasureCodeProfileDetails(adminConn, name)
+			ecp, err := ceph.GetErasureCodeProfileDetails(h.context, h.config.ClusterInfo.Name, name)
 			if err != nil {
 				logger.Errorf("failed to get erasure code profile details for '%s': %+v", name, err)
 				w.WriteHeader(http.StatusInternalServerError)
@@ -118,25 +112,18 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// connect to the ceph cluster and create the storage pool
-	adminConn, ok := h.handleConnectToCeph(w)
-	if !ok {
-		return
-	}
-	defer adminConn.Shutdown()
-
 	newPool := modelPoolToCephPool(newPoolReq)
 
 	if newPoolReq.Type == model.ErasureCoded {
 		// create a new erasure code profile for the new pool
-		if err := ceph.CreateErasureCodeProfile(adminConn, newPoolReq.ErasureCodedConfig, newPool.ErasureCodeProfile); err != nil {
+		if err := ceph.CreateErasureCodeProfile(h.context, h.config.ClusterInfo.Name, newPoolReq.ErasureCodedConfig, newPool.ErasureCodeProfile); err != nil {
 			logger.Errorf("failed to create erasure code profile for pool '%s': %+v", newPoolReq.Name, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	}
 
-	info, err := ceph.CreatePool(adminConn, newPool)
+	info, err := ceph.CreatePool(h.context, h.config.ClusterInfo.Name, newPool)
 	if err != nil {
 		logger.Errorf("failed to create new pool '%s': %+v", newPool.Name, err)
 		w.WriteHeader(http.StatusInternalServerError)

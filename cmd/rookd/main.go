@@ -30,18 +30,15 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/rook/rook/pkg/api"
-	"github.com/rook/rook/pkg/cephmgr"
-	"github.com/rook/rook/pkg/cephmgr/cephd"
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/cephmgr/osd"
+	"github.com/rook/rook/pkg/ceph"
+	"github.com/rook/rook/pkg/ceph/mon"
+	"github.com/rook/rook/pkg/ceph/osd"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/rook/rook/pkg/util/proc"
-
-	_ "github.com/bassam/cgosymbolizer"
 )
 
 var rootCmd = &cobra.Command{
@@ -99,8 +96,6 @@ func init() {
 
 func addCommands() {
 	rootCmd.AddCommand(versionCmd)
-	rootCmd.AddCommand(daemonCmd)
-	rootCmd.AddCommand(toolCmd)
 	rootCmd.AddCommand(monCmd)
 	rootCmd.AddCommand(osdCmd)
 	rootCmd.AddCommand(rgwCmd)
@@ -158,7 +153,7 @@ func joinCluster() error {
 	}
 
 	services := []*clusterd.ClusterService{
-		cephmgr.NewCephService(cephd.New(), cfg.devices, cfg.metadataDevice, cfg.directories,
+		ceph.NewCephService(cfg.devices, cfg.metadataDevice, cfg.directories,
 			cfg.forceFormat, cfg.location, clusterInfo.AdminSecret, cfg.storeConfig),
 	}
 
@@ -180,8 +175,7 @@ func joinCluster() error {
 
 	apiConfig := &api.Config{
 		Port:           model.Port,
-		ConnFactory:    mon.NewConnectionFactoryWithLookup(),
-		CephFactory:    cephd.New(),
+		ClusterInfo:    &clusterInfo,
 		ClusterHandler: api.NewEtcdHandler(context),
 	}
 	go api.ServeRoutes(context, apiConfig)
@@ -236,11 +230,11 @@ func setLogLevel() {
 	capnslog.SetGlobalLogLevel(cfg.logLevel)
 }
 
-func newDaemonContext() *clusterd.DaemonContext {
+func createDaemonContext() *clusterd.Context {
 	executor := &exec.CommandExecutor{}
-	return &clusterd.DaemonContext{
-		ProcMan:            proc.New(executor),
+	return &clusterd.Context{
 		Executor:           executor,
+		ProcMan:            proc.New(executor),
 		ConfigDir:          cfg.dataDir,
 		ConfigFileOverride: cfg.cephConfigOverride,
 		LogLevel:           cfg.logLevel,

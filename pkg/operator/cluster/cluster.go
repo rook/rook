@@ -26,8 +26,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/pkg/cephmgr/client"
-	cephmon "github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/ceph/client"
+	cephmon "github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -46,10 +46,9 @@ var (
 )
 
 type Cluster struct {
-	context       *k8sutil.Context
+	context       *clusterd.Context
 	v1.ObjectMeta `json:"metadata,omitempty"`
 	Spec          `json:"spec"`
-	dataDir       string
 	mons          *mon.Cluster
 	osds          *osd.Cluster
 	apis          *api.Cluster
@@ -57,9 +56,8 @@ type Cluster struct {
 	rclient       rookclient.RookRestClient
 }
 
-func (c *Cluster) Init(context *k8sutil.Context) {
+func (c *Cluster) Init(context *clusterd.Context) {
 	c.context = context
-	c.dataDir = k8sutil.DataDir
 }
 
 func (c *Cluster) CreateInstance() error {
@@ -132,20 +130,13 @@ func (c *Cluster) Monitor(stopCh <-chan struct{}) {
 }
 
 func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
-	ctx := &clusterd.Context{ConfigDir: c.dataDir}
-	conn, err := cephmon.ConnectToClusterAsAdmin(ctx, c.context.Factory, clusterInfo)
-	if err != nil {
-		return fmt.Errorf("failed to connect to cluster: %+v", err)
-	}
-	defer conn.Shutdown()
-
 	// create a user for rbd clients
 	name := fmt.Sprintf("%s-rook-user", c.Name)
 	username := fmt.Sprintf("client.%s", name)
 	access := []string{"osd", "allow rwx", "mon", "allow r"}
 
 	// get-or-create-key for the user account
-	rbdKey, err := client.AuthGetOrCreateKey(conn, username, access)
+	rbdKey, err := client.AuthGetOrCreateKey(c.context, clusterInfo.Name, username, access)
 	if err != nil {
 		return fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
 	}

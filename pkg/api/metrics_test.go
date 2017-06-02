@@ -17,56 +17,42 @@ package api
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
-	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
-	"github.com/rook/rook/pkg/cephmgr/test"
 	"github.com/rook/rook/pkg/clusterd"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMetricsCollectFailureRetry(t *testing.T) {
 	context := &clusterd.Context{}
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-
-	connectCount := 0
-	connFactory.MockConnectAsAdmin = func(context *clusterd.Context, cephFactory ceph.ConnectionFactory) (ceph.Connection, error) {
-		connectCount++
-		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
-	}
 
 	// mock it so the first status mon command attempt will fail (even though the initial connection was established OK)
 	attempt := 0
-	cephFactory.Conn = &testceph.MockConnection{
-		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
+	context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
 			attempt++
 			switch {
-			case strings.Index(string(args), "status") != -1:
+			case args[0] == "status":
 				if attempt <= 1 {
 					// first attempt for status mon command should fail
-					return nil, "", fmt.Errorf("mock mon command failure")
+					return "", fmt.Errorf("mock mon command failure")
 				}
 				// subsequent attempts return a good response
-				return []byte(CephStatusResponseRaw), "info", nil
+				return CephStatusResponseRaw, nil
 			}
 
 			// mock fail all other mon commands (each collector will make several, but we don't care about their results)
-			return nil, "", fmt.Errorf("mock mon command failure for '%s'", string(args))
+			return "", fmt.Errorf("mock mon command failure for '%v'", args)
 		},
 	}
 
-	// create the handler and connect to ceph
-	h := newTestHandler(context, connFactory, cephFactory)
-	conn, err := h.connectToCeph()
-	assert.Nil(t, err)
-	assert.NotNil(t, conn)
+	// create the handler
+	h := newTestHandler(context)
 
 	// create a ceph metrics exporter that will use the ceph connection
-	cephExporter := NewCephExporter(h, conn)
+	cephExporter := NewCephExporter(h)
 	assert.NotNil(t, cephExporter)
 
 	// try to collect ceph metrics, this will fail at first due to the mock failed mon command above, but
@@ -80,5 +66,5 @@ func TestMetricsCollectFailureRetry(t *testing.T) {
 	cephExporter.Collect(ch)
 
 	// there should have been 2 connection attempts: initial and the retry after the failed mon command
-	assert.Equal(t, 2, connectCount)
+	assert.Equal(t, 2, attempt)
 }

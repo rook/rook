@@ -1,5 +1,3 @@
-// +build linux,amd64 linux,arm64
-
 /*
 Copyright 2016 The Rook Authors. All rights reserved.
 
@@ -19,11 +17,10 @@ package main
 
 import (
 	"fmt"
+	"os"
 
-	"github.com/rook/rook/pkg/cephmgr/cephd"
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/cephmgr/rgw"
-	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/ceph/mon"
+	"github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -64,15 +61,18 @@ func startRGW(cmd *cobra.Command, args []string) error {
 
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &rgw.Config{
-		ClusterInfo:  &clusterInfo,
-		CephLauncher: cephd.New(),
-		Keyring:      rgwKeyring,
-		Host:         rgwHost,
-		Port:         rgwPort,
-		InProc:       true,
+		ClusterInfo: &clusterInfo,
+		Keyring:     rgwKeyring,
+		Host:        rgwHost,
+		Port:        rgwPort,
+		InProc:      true,
 	}
 
-	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
+	err := rgw.Run(createDaemonContext(), config)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
-	return rgw.Run(context, config)
+	return nil
 }

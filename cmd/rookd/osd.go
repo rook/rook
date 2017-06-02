@@ -1,5 +1,3 @@
-// +build linux,amd64 linux,arm64
-
 /*
 Copyright 2016 The Rook Authors. All rights reserved.
 
@@ -19,11 +17,10 @@ package main
 
 import (
 	"fmt"
+	"os"
 
-	"github.com/rook/rook/pkg/cephmgr/cephd"
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/cephmgr/osd"
-	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/ceph/mon"
+	"github.com/rook/rook/pkg/ceph/osd"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -84,9 +81,14 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	forceFormat := false
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	agent := osd.NewAgent(cephd.New(), dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
+	agent := osd.NewAgent(dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
 		cfg.location, cfg.storeConfig, &clusterInfo)
-	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
 
-	return osd.Run(context, agent)
+	err := osd.Run(createDaemonContext(), agent)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	return nil
 }

@@ -21,15 +21,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
-	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
-	"github.com/rook/rook/pkg/cephmgr/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/util"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -40,31 +37,26 @@ const (
 
 func TestGetStatusDetailsHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/status", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-	cephFactory.Conn = &testceph.MockConnection{
-		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
+	context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
 			switch {
-			case strings.Index(string(args), "status") != -1:
-				return []byte(CephStatusResponseRaw), "info", nil
+			case args[0] == "status":
+				return CephStatusResponseRaw, nil
 			}
-			return nil, "", fmt.Errorf("unexpected mon_command '%s'", string(args))
+			return "", fmt.Errorf("unexpected mon_command '%v'", args)
 		},
-	}
-	connFactory.MockConnectAsAdmin = func(context *clusterd.Context, cephFactory ceph.ConnectionFactory) (ceph.Connection, error) {
-		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
 	}
 
 	// make a request to GetStatusDetails and verify the results
 	w := httptest.NewRecorder()
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.GetStatusDetails(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
@@ -96,31 +88,26 @@ func TestGetStatusDetailsHandler(t *testing.T) {
 
 func TestGetStatusDetailsEmptyResponseFromCeph(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/status", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-	cephFactory.Conn = &testceph.MockConnection{
-		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
+	context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
 			switch {
-			case strings.Index(string(args), "status") != -1:
-				return []byte("{}"), "info", nil
+			case args[0] == "status":
+				return "{}", nil
 			}
-			return nil, "", fmt.Errorf("unexpected mon_command '%s'", string(args))
+			return "", fmt.Errorf("unexpected mon_command '%v'", args)
 		},
-	}
-	connFactory.MockConnectAsAdmin = func(context *clusterd.Context, cephFactory ceph.ConnectionFactory) (ceph.Connection, error) {
-		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
 	}
 
 	// make a request to GetStatusDetails and verify the results
 	w := httptest.NewRecorder()
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.GetStatusDetails(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 

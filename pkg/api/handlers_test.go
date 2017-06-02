@@ -25,17 +25,13 @@ import (
 	"testing"
 
 	etcd "github.com/coreos/etcd/client"
-	ctx "golang.org/x/net/context"
-
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
-	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/cephmgr/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
+	ctx "golang.org/x/net/context"
 )
 
 const (
@@ -43,28 +39,16 @@ const (
 	SuccessGetPoolECPool1Response = `{"pool":"ecPool1","pool_id":1,"size":3}{"pool":"ecPool1","pool_id":1,"min_size":3}{"pool":"ecPool1","pool_id":1,"crash_replay_interval":0}{"pool":"ecPool1","pool_id":1,"pg_num":100}{"pool":"ecPool1","pool_id":1,"pgp_num":100}{"pool":"ecPool1","pool_id":1,"crush_ruleset":1}{"pool":"ecPool1","pool_id":1,"hashpspool":"true"}{"pool":"ecPool1","pool_id":1,"nodelete":"false"}{"pool":"ecPool1","pool_id":1,"nopgchange":"false"}{"pool":"ecPool1","pool_id":1,"nosizechange":"false"}{"pool":"ecPool1","pool_id":1,"write_fadvise_dontneed":"false"}{"pool":"ecPool1","pool_id":1,"noscrub":"false"}{"pool":"ecPool1","pool_id":1,"nodeep-scrub":"false"}{"pool":"ecPool1","pool_id":1,"use_gmt_hitset":true}{"pool":"ecPool1","pool_id":1,"auid":0}{"pool":"ecPool1","pool_id":1,"erasure_code_profile":"ecPool1_ecprofile"}{"pool":"ecPool1","pool_id":1,"min_write_recency_for_promote":0}{"pool":"ecPool1","pool_id":1,"fast_read":0}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}{"pool":"ecPool1","pool_id":1}`
 )
 
-func newTestHandler(context *clusterd.Context, connFactory mon.ConnectionFactory, cephFactory ceph.ConnectionFactory) *Handler {
-	return newHandler(context, &Config{ConnFactory: connFactory, CephFactory: cephFactory, ClusterHandler: NewEtcdHandler(context)})
+func newTestHandler(context *clusterd.Context) *Handler {
+	return newHandler(context, &Config{ClusterHandler: NewEtcdHandler(context)})
 }
 
 func TestRegisterMetrics(t *testing.T) {
-	context := &clusterd.Context{}
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
+	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
 	attempt := 0
-	connFactory.MockConnectAsAdmin = func(context *clusterd.Context, cephFactory ceph.ConnectionFactory) (ceph.Connection, error) {
-		attempt++
-
-		// fail the first attempt at connecting to the ceph cluster
-		if attempt <= 1 {
-			return nil, fmt.Errorf("mock connect error")
-		}
-
-		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
-	}
 
 	// create and init a new handler.  even though the first attempt fails, it should retry and return no error
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	err := h.RegisterMetrics(0)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, attempt)
@@ -73,7 +57,10 @@ func TestRegisterMetrics(t *testing.T) {
 func TestGetNodesHandler(t *testing.T) {
 	nodeID := "node1"
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+		Executor:      &exectest.MockExecutor{},
+	}
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/node", nil)
 	if err != nil {
@@ -82,8 +69,7 @@ func TestGetNodesHandler(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	etcdClient.SetValue("/rook/services/ceph/name", "cluster5")
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	h := newTestHandler(context, &test.MockConnectionFactory{}, cephFactory)
+	h := newTestHandler(context)
 
 	// no nodes discovered, should return empty set
 	h.GetNodes(w, req)
@@ -116,7 +102,10 @@ func TestGetNodesHandler(t *testing.T) {
 
 func TestGetNodesHandlerFailure(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+		Executor:      &exectest.MockExecutor{},
+	}
 	req, err := http.NewRequest("GET", "http://10.0.0.100/node", nil)
 	if err != nil {
 		logger.Fatal(err)
@@ -128,8 +117,7 @@ func TestGetNodesHandlerFailure(t *testing.T) {
 	etcdClient.MockGet = func(context ctx.Context, key string, opts *etcd.GetOptions) (*etcd.Response, error) {
 		return nil, fmt.Errorf("mock etcd GET error")
 	}
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	h := newTestHandler(context, &test.MockConnectionFactory{}, cephFactory)
+	h := newTestHandler(context)
 	h.GetNodes(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Equal(t, ``, w.Body.String())
@@ -137,8 +125,10 @@ func TestGetNodesHandlerFailure(t *testing.T) {
 
 func TestGetMonsHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+		Executor:      &exectest.MockExecutor{},
+	}
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/mon", nil)
 	assert.Nil(t, err)
@@ -147,7 +137,7 @@ func TestGetMonsHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 
 	// no mons will be returned, should be empty output
-	h := newTestHandler(context, &test.MockConnectionFactory{}, cephFactory)
+	h := newTestHandler(context)
 	h.GetMonitors(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, `[]`, w.Body.String())
@@ -160,7 +150,7 @@ func TestGetMonsHandler(t *testing.T) {
 
 	// monitors should be returned now, verify the output
 	w = httptest.NewRecorder()
-	h = newTestHandler(context, &test.MockConnectionFactory{}, cephFactory)
+	h = newTestHandler(context)
 	h.GetMonitors(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "{\"status\":{\"quorum\":[0],\"monmap\":{\"mons\":[{\"name\":\"mon0\",\"rank\":0,\"addr\":\"10.37.129.87:6790\"}]}},\"desired\":[{\"name\":\"mon0\",\"endpoint\":\"1.2.3.4:8765\"}]}", w.Body.String())
@@ -168,7 +158,10 @@ func TestGetMonsHandler(t *testing.T) {
 
 func TestGetPoolsHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+		Executor:      &exectest.MockExecutor{},
+	}
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/pool", nil)
 	if err != nil {
@@ -177,51 +170,41 @@ func TestGetPoolsHandler(t *testing.T) {
 
 	// first return no storage pools
 	w := httptest.NewRecorder()
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-	cephFactory.Conn = &testceph.MockConnection{
-		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
-			return []byte(`[]`), "", nil
-		},
-	}
-	connFactory.MockConnectAsAdmin = func(context *clusterd.Context, cephFactory ceph.ConnectionFactory) (ceph.Connection, error) {
-		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
-	}
 
 	// no storage pools will be returned, should be empty output
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.GetPools(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, `[]`, w.Body.String())
 
 	// now return some storage pools from the ceph connection
 	w = httptest.NewRecorder()
-	cephFactory.Conn = &testceph.MockConnection{
-		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
+	context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
 			switch {
-			case strings.Index(string(args), "osd lspools") != -1:
-				return []byte(`[{"poolnum":0,"poolname":"rbd"},{"poolnum":1,"poolname":"ecPool1"}]`), "info", nil
-			case strings.Index(string(args), "osd pool get") != -1:
-				if strings.Index(string(args), "rbd") != -1 {
-					return []byte(SuccessGetPoolRBDResponse), "info", nil
-				} else if strings.Index(string(args), "ecPool1") != -1 {
-					return []byte(SuccessGetPoolECPool1Response), "info", nil
+			case args[0] == "osd" && args[1] == "lspools":
+				return `[{"poolnum":0,"poolname":"rbd"},{"poolnum":1,"poolname":"ecPool1"}]`, nil
+			case args[0] == "osd" && args[1] == "pool" && args[2] == "get":
+				if args[2] == "rbd" {
+					return SuccessGetPoolRBDResponse, nil
+				} else if args[2] == "ecPool1" {
+					return SuccessGetPoolECPool1Response, nil
 				}
-			case strings.Index(string(args), "osd erasure-code-profile ls") != -1:
-				return []byte(`["default","ecPool1_ecprofile"]`), "info", nil
-			case strings.Index(string(args), "osd erasure-code-profile get") != -1:
-				if strings.Index(string(args), "default") != -1 {
-					return []byte(`{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`), "info", nil
-				} else if strings.Index(string(args), "ecPool1") != -1 {
-					return []byte(`{"jerasure-per-chunk-alignment":"false","k":"2","m":"1","plugin":"jerasure","ruleset-failure-domain":"osd","ruleset-root":"default","technique":"reed_sol_van","w":"8"}`), "info", nil
+			case args[1] == "erasure-code-profile" && args[2] == "ls":
+				return `["default","ecPool1_ecprofile"]`, nil
+			case args[1] == "erasure-code-profile" && args[2] == "get":
+				if args[2] == "default" {
+					return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
+				} else if args[2] == "ecPool1" {
+					return `{"jerasure-per-chunk-alignment":"false","k":"2","m":"1","plugin":"jerasure","ruleset-failure-domain":"osd","ruleset-root":"default","technique":"reed_sol_van","w":"8"}`, nil
 				}
 			}
-			return nil, "", fmt.Errorf("unexpected mon_command '%s'", string(args))
+			return "", fmt.Errorf("unexpected mon_command '%v'", args)
 		},
 	}
 
 	// storage pools should be returned now, verify the output
-	h = newTestHandler(context, connFactory, cephFactory)
+	h = newTestHandler(context)
 	h.GetPools(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicationConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicationConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]", w.Body.String())
@@ -229,7 +212,10 @@ func TestGetPoolsHandler(t *testing.T) {
 
 func TestGetPoolsHandlerFailure(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+		Executor:      &exectest.MockExecutor{},
+	}
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/pool", nil)
 	if err != nil {
@@ -238,13 +224,9 @@ func TestGetPoolsHandlerFailure(t *testing.T) {
 
 	// encounter an error during GetPools
 	w := httptest.NewRecorder()
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-	connFactory.MockConnectAsAdmin = func(context *clusterd.Context, cephFactory ceph.ConnectionFactory) (ceph.Connection, error) {
-		return nil, fmt.Errorf("mock error for connect as admin")
-	}
+	// TODO: Simulate failure
 
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.GetPools(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Equal(t, "", w.Body.String())
@@ -252,7 +234,10 @@ func TestGetPoolsHandlerFailure(t *testing.T) {
 
 func TestCreatePoolHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+		Executor:      &exectest.MockExecutor{},
+	}
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/pool",
 		strings.NewReader(`{"poolName":"ecPool1","poolNum":0,"type":1,"replicationConfig":{"size":0},"erasureCodedConfig":{"dataChunkCount":2,"codingChunkCount":1,"algorithm":""}}`))
@@ -261,29 +246,24 @@ func TestCreatePoolHandler(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-	cephFactory.Conn = &testceph.MockConnection{
-		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
+	context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
 			switch {
-			case strings.Index(string(args), "osd erasure-code-profile get") != -1:
-				if strings.Index(string(args), "default") != -1 {
-					return []byte(`{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`), "info", nil
+			case args[1] == "erasure-code-profile" && args[2] == "get":
+				if args[3] == "default" {
+					return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
 				}
-			case strings.Index(string(args), "osd erasure-code-profile set") != -1:
-				return []byte(""), "", nil
-			case strings.Index(string(args), "osd pool create") != -1:
-				return []byte(""), "pool 'ecPool1' created", nil
+			case args[1] == "erasure-code-profile" && args[2] == "set":
+				return "", nil
+			case args[1] == "pool" && args[2] == "create":
+				return "pool 'ecPool1' created", nil
 
 			}
-			return nil, "", fmt.Errorf("unexpected mon_command '%s'", string(args))
+			return "", fmt.Errorf("unexpected mon_command '%v'", args)
 		},
 	}
-	connFactory.MockConnectAsAdmin = func(context *clusterd.Context, cephFactory ceph.ConnectionFactory) (ceph.Connection, error) {
-		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
-	}
 
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 
 	h.CreatePool(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -292,7 +272,9 @@ func TestCreatePoolHandler(t *testing.T) {
 
 func TestCreatePoolHandlerFailure(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+	}
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/pool", strings.NewReader(`{"poolname":"pool1"}`))
 	if err != nil {
@@ -300,19 +282,13 @@ func TestCreatePoolHandlerFailure(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-	cephFactory.Conn = &testceph.MockConnection{
-		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
-			errMsg := "mock failure to create pool1"
-			return []byte(""), errMsg, fmt.Errorf(errMsg)
+	context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+			return "", fmt.Errorf("mock failure to create pool1")
 		},
 	}
-	connFactory.MockConnectAsAdmin = func(context *clusterd.Context, cephFactory ceph.ConnectionFactory) (ceph.Connection, error) {
-		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
-	}
 
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 
 	h.CreatePool(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -321,7 +297,9 @@ func TestCreatePoolHandlerFailure(t *testing.T) {
 
 func TestGetClientAccessInfo(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+	}
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/image/mapinfo", nil)
 	if err != nil {
@@ -329,25 +307,23 @@ func TestGetClientAccessInfo(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-	connFactory.MockConnectAsAdmin = func(context *clusterd.Context, cephFactory ceph.ConnectionFactory) (ceph.Connection, error) {
-		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
-	}
-	cephFactory.Conn = &testceph.MockConnection{
-		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
+	context.Executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
 			switch {
-			case strings.Index(string(args), "mon_status") != -1:
-				return []byte(testceph.SuccessfulMonStatusResponse), "info", nil
-			case strings.Index(string(args), "auth get-key") != -1:
-				return []byte(`{"key":"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg=="}`), "info", nil
+			case args[0] == "mon_status":
+				response := "{\"name\":\"mon0\",\"rank\":0,\"state\":\"leader\",\"election_epoch\":3,\"quorum\":[0],\"monmap\":{\"epoch\":1," +
+					"\"fsid\":\"22ae0d50-c4bc-4cfb-9cf4-341acbe35302\",\"modified\":\"2016-09-16 04:21:51.635837\",\"created\":\"2016-09-16 04:21:51.635837\"," +
+					"\"mons\":[{\"rank\":0,\"name\":\"mon0\",\"addr\":\"10.37.129.87:6790\"}]}}"
+				return response, nil
+			case args[0] == "auth" && args[1] == "get-key":
+				return `{"key":"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg=="}`, nil
 			}
-			return nil, "", nil
+			return "", nil
 		},
 	}
 
 	// get image map info and verify the response
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.GetClientAccessInfo(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "{\"monAddresses\":[\"10.37.129.87:6790\"],\"userName\":\"admin\",\"secretKey\":\"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg==\"}", w.Body.String())
@@ -355,7 +331,10 @@ func TestGetClientAccessInfo(t *testing.T) {
 
 func TestGetClientAccessInfoHandlerFailure(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+		Executor:      &exectest.MockExecutor{},
+	}
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/client", nil)
 	if err != nil {
@@ -363,15 +342,9 @@ func TestGetClientAccessInfoHandlerFailure(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-	connFactory.MockConnectAsAdmin = func(context *clusterd.Context, cephFactory ceph.ConnectionFactory) (ceph.Connection, error) {
-		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
-	}
-	cephFactory.Conn = &testceph.MockConnection{}
 
 	// get image map info should fail becuase there's no mock response set up for auth get-key
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.GetClientAccessInfo(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	assert.Equal(t, "", w.Body.String())

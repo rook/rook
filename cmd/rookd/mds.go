@@ -1,5 +1,3 @@
-// +build linux,amd64 linux,arm64
-
 /*
 Copyright 2016 The Rook Authors. All rights reserved.
 
@@ -18,10 +16,11 @@ limitations under the License.
 package main
 
 import (
-	"github.com/rook/rook/pkg/cephmgr/cephd"
-	"github.com/rook/rook/pkg/cephmgr/mds"
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/clusterd"
+	"fmt"
+	"os"
+
+	"github.com/rook/rook/pkg/ceph/mds"
+	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -56,15 +55,17 @@ func startMDS(cmd *cobra.Command, args []string) error {
 
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &mds.Config{
-		ID:           mdsID,
-		Keyring:      mdsKeyring,
-		ClusterInfo:  &clusterInfo,
-		CephLauncher: cephd.New(),
-		InProc:       true,
+		ID:          mdsID,
+		Keyring:     mdsKeyring,
+		ClusterInfo: &clusterInfo,
+		InProc:      true,
 	}
 
-	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
-	mds.Run(context, config)
+	err := mds.Run(createDaemonContext(), config)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
 	return nil
 }

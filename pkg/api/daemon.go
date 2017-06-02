@@ -19,8 +19,7 @@ import (
 	"fmt"
 	"net/http"
 
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
-	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 )
 
@@ -30,15 +29,17 @@ const (
 
 type Config struct {
 	Port        int
-	ConnFactory mon.ConnectionFactory
-	CephFactory ceph.ConnectionFactory
 	ClusterInfo *mon.ClusterInfo
 	ClusterHandler
 }
 
-func Run(dcontext *clusterd.DaemonContext, config *Config) error {
+func Run(context *clusterd.Context, config *Config) error {
+	// write the latest config to the config dir
+	if err := mon.GenerateAdminConnectionConfig(context, config.ClusterInfo); err != nil {
+		return fmt.Errorf("failed to write connection config. %+v", err)
+	}
 
-	ServeRoutes(clusterd.ToContext(dcontext), config)
+	ServeRoutes(context, config)
 	return nil
 }
 

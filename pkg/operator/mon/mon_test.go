@@ -16,15 +16,20 @@ limitations under the License.
 package mon
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"path"
+	"strings"
 	"testing"
 
 	"os"
 
-	"github.com/rook/rook/pkg/cephmgr/client"
-	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/ceph/client"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/test"
+
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/pkg/api/v1"
@@ -32,8 +37,25 @@ import (
 
 func TestStartMonPods(t *testing.T) {
 	clientset := test.New(3)
-	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory, MaxRetries: 1}, "myname", "ns", "", "myversion", k8sutil.Placement{})
+	namespace := "ns"
+	configDir := "/tmp/mytest"
+	defer os.RemoveAll(configDir)
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+			if strings.Contains(command, "ceph-authtool") {
+				os.MkdirAll(configDir, 0744)
+				ioutil.WriteFile(path.Join(configDir, namespace, "client.admin.keyring"), []byte("key = adminsecret"), 0644)
+				ioutil.WriteFile(path.Join(configDir, namespace, "mon.keyring"), []byte("key = monsecret"), 0644)
+			}
+			return "", nil
+		},
+	}
+	context := &clusterd.Context{
+		KubeContext: clusterd.KubeContext{Clientset: clientset, MaxRetries: 1},
+		Executor:    executor,
+		ConfigDir:   configDir,
+	}
+	c := New(context, "myname", namespace, "", "myversion", k8sutil.Placement{})
 
 	// start a basic cluster
 	// an error is expected since mocking always creates pods that are not running
@@ -68,7 +90,7 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "myname", "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(1)
 
 	// create the initial config map
@@ -90,21 +112,30 @@ func TestSaveMonEndpoints(t *testing.T) {
 }
 
 func TestCheckHealth(t *testing.T) {
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+			resp := client.MonStatusResponse{Quorum: []int{0}}
+			resp.MonMap.Mons = []client.MonMapEntry{client.MonMapEntry{Name: "mon0", Rank: 0, Address: "1.2.3.4"}}
+			serialized, _ := json.Marshal(resp)
+			return string(serialized), nil
+		},
+	}
 	clientset := test.New(1)
-	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory, RetryDelay: 1, MaxRetries: 1}, "myname", "ns", "", "myversion", k8sutil.Placement{})
+	context := &clusterd.Context{
+		KubeContext: clusterd.KubeContext{Clientset: clientset, RetryDelay: 1, MaxRetries: 1},
+		ConfigDir:   "/tmp/healthtest",
+		Executor:    executor,
+	}
+	c := New(context, "myname", "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(1)
-	c.configDir = "/tmp/healthtest"
 	c.waitForStart = false
-	defer os.RemoveAll(c.configDir)
+	defer os.RemoveAll(c.context.ConfigDir)
 
 	err := c.CheckHealth()
 	assert.Nil(t, err)
 
 	c.maxMonID = 10
-	conn, err := factory.NewConnWithClusterAndUser(c.Namespace, "admin")
-	defer conn.Shutdown()
-	err = c.failoverMon(conn, "mon1")
+	err = c.failoverMon("mon1")
 	assert.Nil(t, err)
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})

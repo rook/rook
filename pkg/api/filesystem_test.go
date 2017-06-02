@@ -25,12 +25,11 @@ import (
 	"strings"
 	"testing"
 
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
-	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
-	"github.com/rook/rook/pkg/cephmgr/test"
+	"github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/util"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -41,31 +40,27 @@ const (
 
 func TestGetFileSystemsHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
-
 	req, err := http.NewRequest("GET", "http://10.0.0.100/filesystem", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-	cephFactory.Conn = &testceph.MockConnection{
-		MockMonCommand: func(args []byte) (buffer []byte, info string, err error) {
-			switch {
-			case strings.Index(string(args), "fs ls") != -1:
-				return []byte(cephFilesystemListResponseRaw), "info", nil
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+			if args[0] == "fs" && args[1] == "ls" {
+				return cephFilesystemListResponseRaw, nil
 			}
-			return nil, "", fmt.Errorf("unexpected mon_command '%s'", string(args))
+			return "", fmt.Errorf("unexpected mon_command '%s'", args[0])
 		},
 	}
-	connFactory.MockConnectAsAdmin = func(context *clusterd.Context, cephFactory ceph.ConnectionFactory) (ceph.Connection, error) {
-		return cephFactory.NewConnWithClusterAndUser("mycluster", "admin")
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+		Executor:      executor,
 	}
 
 	// make a request to GetFileSystems and verify the results
 	w := httptest.NewRecorder()
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.GetFileSystems(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
@@ -82,7 +77,10 @@ func TestGetFileSystemsHandler(t *testing.T) {
 
 func TestCreateFileSystemHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+		Executor:      &exectest.MockExecutor{},
+	}
 	test.CreateClusterInfo(etcdClient, []string{"a"})
 	defer os.RemoveAll("mon0")
 
@@ -91,13 +89,10 @@ func TestCreateFileSystemHandler(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-
 	// call the CreateFileSystem handler, which should return http 202 Accepted and record info
 	// about the file system request in etcd
 	w := httptest.NewRecorder()
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.CreateFileSystem(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "myfs1-pool", etcdClient.GetValue("/rook/services/ceph/fs/desired/myfs1/pool"))
@@ -105,19 +100,19 @@ func TestCreateFileSystemHandler(t *testing.T) {
 
 func TestCreateFileSystemMissingName(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+		Executor:      &exectest.MockExecutor{},
+	}
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/filesystem", strings.NewReader(`{"poolName": "myfs1-pool"}`))
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-
 	// call the CreateFileSystem handler, which should fail due to the missing name
 	w := httptest.NewRecorder()
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.CreateFileSystem(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
@@ -127,19 +122,19 @@ func TestRemoveFileSystemHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	etcdClient.SetValue("/rook/services/ceph/fs/desired/myfs1/pool", "myfs1-pool")
 
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+		Executor:      &exectest.MockExecutor{},
+	}
 	req, err := http.NewRequest("DELETE", "http://10.0.0.100/filesystem?name=myfs1", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-
 	// call the RemoveFileSystem handler, which should return http 202 Accepted and remove the
 	// filesystem from desired state
 	w := httptest.NewRecorder()
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.RemoveFileSystem(w, req)
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Equal(t, "", etcdClient.GetValue("/rook/services/ceph/fs/desired/myfs1/pool"))

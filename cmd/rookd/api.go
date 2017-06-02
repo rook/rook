@@ -1,5 +1,3 @@
-// +build linux,amd64 linux,arm64
-
 /*
 Copyright 2016 The Rook Authors. All rights reserved.
 
@@ -23,10 +21,7 @@ import (
 
 	"github.com/rook/rook/pkg/api"
 	apik8s "github.com/rook/rook/pkg/api/k8s"
-	"github.com/rook/rook/pkg/cephmgr/cephd"
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -70,16 +65,20 @@ func startAPI(cmd *cobra.Command, args []string) error {
 		os.Exit(1)
 	}
 
-	factory := cephd.New()
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	dcontext := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
-	k8sContext := &k8sutil.Context{Factory: factory, Clientset: clientset}
+	context := createDaemonContext()
+	context.Clientset = clientset
 	apiCfg := &api.Config{
-		ConnFactory:    mon.NewConnectionFactoryWithClusterInfo(&clusterInfo),
-		CephFactory:    factory,
 		Port:           apiPort,
-		ClusterHandler: apik8s.New(k8sContext, dcontext, &clusterInfo, namespace, versionTag),
+		ClusterInfo:    &clusterInfo,
+		ClusterHandler: apik8s.New(context, &clusterInfo, namespace, versionTag),
 	}
 
-	return api.Run(dcontext, apiCfg)
+	err = api.Run(context, apiCfg)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	return nil
 }

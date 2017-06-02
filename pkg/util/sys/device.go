@@ -179,7 +179,7 @@ func GetDeviceMountPoint(deviceName string, executor exec.Executor) (string, err
 	}
 
 	searchFor := fmt.Sprintf("^/dev/%s on", deviceName)
-	mountPoint := awk(grep(output, searchFor), 3)
+	mountPoint := Awk(Grep(output, searchFor), 3)
 	return mountPoint, nil
 }
 
@@ -192,7 +192,7 @@ func GetDeviceFromMountPoint(mountPoint string, executor exec.Executor) (string,
 	}
 
 	searchFor := fmt.Sprintf("on %s ", mountPoint)
-	device := awk(grep(output, searchFor), 1)
+	device := Awk(Grep(output, searchFor), 1)
 	return device, nil
 }
 
@@ -246,7 +246,7 @@ func DoesDeviceHaveChildren(device string, executor exec.Executor) (bool, error)
 	}
 
 	searchFor := fmt.Sprintf("^%s$", device)
-	children := grep(output, searchFor)
+	children := Grep(output, searchFor)
 
 	return children != "", nil
 }

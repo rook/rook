@@ -65,21 +65,14 @@ func TestRunProcesses(t *testing.T) {
 
 	proc, err := p.Start("mylog", "mydaemon", "mysearch", ReuseExisting, "arg1", "arg2")
 	assert.Nil(t, err)
-	assert.Equal(t, os.Args[0], proc.cmd.Args[0])
-	assert.Equal(t, "daemon", proc.cmd.Args[1])
-	assert.Equal(t, "--type=mydaemon", proc.cmd.Args[2])
-	assert.Equal(t, "--", proc.cmd.Args[3])
-	assert.Equal(t, "arg1", proc.cmd.Args[4])
-	assert.Equal(t, "arg2", proc.cmd.Args[5])
+	assert.Equal(t, "mydaemon", proc.cmd.Args[0])
+	assert.Equal(t, "arg1", proc.cmd.Args[1])
+	assert.Equal(t, "arg2", proc.cmd.Args[2])
 
 	run := false
 	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
-		assert.Equal(t, os.Args[0], command)
-		assert.Equal(t, "tool", args[0])
-		assert.Equal(t, "--type=mytool", args[1])
-		assert.Equal(t, "--", args[2])
-		assert.Equal(t, "arg1", args[3])
-		assert.Equal(t, "arg2", args[4])
+		assert.Equal(t, "arg1", args[0])
+		assert.Equal(t, "arg2", args[1])
 		run = true
 		return nil
 	}

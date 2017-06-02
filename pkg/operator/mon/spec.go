@@ -103,7 +103,7 @@ func (c *Cluster) makeMonPod(config *MonConfig, nodeName string) *v1.Pod {
 }
 
 func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
-	command := fmt.Sprintf("/usr/bin/rookd mon --config-dir=%s --name=%s --port=%d --fsid=%s",
+	command := fmt.Sprintf("/usr/local/bin/rookd mon --config-dir=%s --name=%s --port=%d --fsid=%s",
 		k8sutil.DataDir, config.Name, config.Port, fsid)
 
 	return v1.Container{

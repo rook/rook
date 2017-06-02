@@ -15,20 +15,23 @@ limitations under the License.
 */
 package inventory
 
-// #include <unistd.h>
-import "C"
-
 import (
 	"fmt"
 	"path"
 	"strconv"
+	"syscall"
 
 	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
 )
 
 func getSystemMemory() uint64 {
-	return uint64(C.sysconf(C._SC_PHYS_PAGES) * C.sysconf(C._SC_PAGE_SIZE))
+	sysInfo := new(syscall.Sysinfo_t)
+	err := syscall.Sysinfo(sysInfo)
+	if err == nil {
+		return uint64(sysInfo.Totalram)
+	}
+	return 0
 }
 
 func storeMemory(etcdClient etcd.KeysAPI, nodeID string, size uint64) error {

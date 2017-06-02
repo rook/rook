@@ -17,10 +17,8 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
 	"github.com/rook/rook/pkg/model"
 )
 
@@ -28,14 +26,8 @@ import (
 // GET
 // /image
 func (h *Handler) GetImages(w http.ResponseWriter, r *http.Request) {
-	adminConn, ok := h.handleConnectToCeph(w)
-	if !ok {
-		return
-	}
-	defer adminConn.Shutdown()
-
 	// first list all the pools so that we can retrieve images from all pools
-	pools, err := ceph.ListPoolSummaries(adminConn)
+	/*pools, err := ceph.ListPoolSummaries(h.context.Executor)
 	if err != nil {
 		logger.Errorf("failed to list pools: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -58,15 +50,13 @@ func (h *Handler) GetImages(w http.ResponseWriter, r *http.Request) {
 
 		result = append(result, images...)
 	}
-
-	FormatJsonResponse(w, result)
+	// not implemented
+	FormatJsonResponse(w, result)*/
 }
 
-func getImagesForPool(w http.ResponseWriter, poolName string, ioctx ceph.IOContext) ([]model.BlockImage, bool) {
-	// ensure the IOContext is destroyed at the end of this function
-	defer ioctx.Destroy()
+func getImagesForPool(w http.ResponseWriter, poolName string) ([]model.BlockImage, bool) {
 
-	// get all the image names for the current pool
+	/*// get all the image names for the current pool
 	imageNames, err := ioctx.GetImageNames()
 	if err != nil {
 		logger.Errorf("failed to get image names from pool %s: %+v", poolName, err)
@@ -94,8 +84,9 @@ func getImagesForPool(w http.ResponseWriter, poolName string, ioctx ceph.IOConte
 			Size:     imageStat.Size,
 		}
 	}
-
-	return images, true
+	// not implemented
+	return images, true*/
+	return nil, false
 }
 
 // Creates a new image in this cluster.
@@ -120,26 +111,15 @@ func (h *Handler) CreateImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	adminConn, ok := h.handleConnectToCeph(w)
-	if !ok {
-		return
-	}
-	defer adminConn.Shutdown()
-
-	ioctx, ok := handleOpenIOContext(w, adminConn, newImage.PoolName)
-	if !ok {
-		return
-	}
-	defer ioctx.Destroy()
-
-	createdImage, err := ioctx.CreateImage(newImage.Name, newImage.Size, 22)
+	/*createdImage, err := ioctx.CreateImage(newImage.Name, newImage.Size, 22)
 	if err != nil {
 		logger.Errorf("failed to create image %+v: %+v", newImage, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	w.Write([]byte(fmt.Sprintf("succeeded created image %s", createdImage.Name())))
+	// not implemented
+	w.Write([]byte(fmt.Sprintf("succeeded created image %s", createdImage.Name())))*/
 }
 
 // Deletes a block image from this cluster.
@@ -160,19 +140,7 @@ func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	adminConn, ok := h.handleConnectToCeph(w)
-	if !ok {
-		return
-	}
-	defer adminConn.Shutdown()
-
-	ioctx, ok := handleOpenIOContext(w, adminConn, deleteImageReq.PoolName)
-	if !ok {
-		return
-	}
-	defer ioctx.Destroy()
-
-	deleteImage := ioctx.GetImage(deleteImageReq.Name)
+	/*deleteImage := ioctx.GetImage(deleteImageReq.Name)
 	err := deleteImage.Remove()
 	if err != nil {
 		logger.Errorf("failed to delete image %+v: %+v", deleteImageReq, err)
@@ -180,5 +148,6 @@ func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Write([]byte(fmt.Sprintf("succeeded deleting image %s", deleteImageReq.Name)))
+	// not implemented
+	w.Write([]byte(fmt.Sprintf("succeeded deleting image %s", deleteImageReq.Name)))*/
 }

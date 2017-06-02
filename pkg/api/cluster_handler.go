@@ -18,9 +18,9 @@ package api
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/cephmgr/mds"
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/cephmgr/rgw"
+	"github.com/rook/rook/pkg/ceph/mds"
+	"github.com/rook/rook/pkg/ceph/mon"
+	"github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/model"
@@ -82,7 +82,7 @@ func (e *etcdHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectI
 }
 
 func (e *etcdHandler) StartFileSystem(fs *model.FilesystemRequest) error {
-	f := mds.NewFS(e.context, nil, fs.Name, fs.PoolName)
+	f := mds.NewFS(e.context, fs.Name, fs.PoolName)
 	return f.AddToDesiredState()
 }
 

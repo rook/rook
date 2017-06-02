@@ -21,10 +21,10 @@ import (
 	"strings"
 	"testing"
 
-	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
-	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
@@ -33,14 +33,13 @@ import (
 
 func TestStartMDS(t *testing.T) {
 	info := testop.CreateClusterInfo(1)
-	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	conn, _ := factory.NewConnWithClusterAndUser(info.Name, "user")
-	conn.(*testceph.MockConnection).MockMonCommand = func(buf []byte) (buffer []byte, info string, err error) {
-		response := "{\"key\":\"mysecurekey\"}"
-		return []byte(response), "", nil
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+			return "{\"key\":\"mysecurekey\"}", nil
+		},
 	}
 
-	c := New(&k8sutil.Context{Factory: factory}, "myname", "ns", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{Executor: executor}, "myname", "ns", "myversion", k8sutil.Placement{})
 	c.dataDir = "/tmp/mdstest"
 	defer os.RemoveAll(c.dataDir)
 
@@ -87,7 +86,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 6, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd mds --config-dir=/var/lib/rook --mds-id=%s ",
+	expectedCommand := fmt.Sprintf("/usr/local/bin/rookd mds --config-dir=/var/lib/rook --mds-id=%s ",
 		mdsID)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])

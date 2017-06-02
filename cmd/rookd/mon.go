@@ -1,5 +1,3 @@
-// +build linux,amd64 linux,arm64
-
 /*
 Copyright 2016 The Rook Authors. All rights reserved.
 
@@ -19,10 +17,9 @@ package main
 
 import (
 	"fmt"
+	"os"
 
-	"github.com/rook/rook/pkg/cephmgr/cephd"
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -75,7 +72,12 @@ func startMon(cmd *cobra.Command, args []string) error {
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	clusterInfo.Monitors[monName] = mon.ToCephMon(monName, cfg.networkInfo.ClusterAddrIPv4)
 
-	monCfg := &mon.Config{Name: monName, Cluster: &clusterInfo, CephLauncher: cephd.New()}
-	context := clusterd.NewDaemonContext(cfg.dataDir, cfg.cephConfigOverride, cfg.logLevel)
-	return mon.Run(context, monCfg)
+	monCfg := &mon.Config{Name: monName, Cluster: &clusterInfo}
+	err := mon.Run(createDaemonContext(), monCfg)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	return nil
 }

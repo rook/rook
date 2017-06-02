@@ -16,7 +16,7 @@ limitations under the License.
 package osd
 
 import (
-	cephosd "github.com/rook/rook/pkg/cephmgr/osd"
+	cephosd "github.com/rook/rook/pkg/ceph/osd"
 )
 
 type StorageSpec struct {

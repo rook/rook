@@ -24,13 +24,11 @@ import (
 	"time"
 
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
-	"github.com/rook/rook/pkg/cephmgr/client"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/clusterd"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/runtime/serializer"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/pkg/api"
 	"k8s.io/client-go/rest"
 )
@@ -56,7 +54,7 @@ var (
 )
 
 type Operator struct {
-	context    *k8sutil.Context
+	context    *clusterd.Context
 	tprSchemes []tprScheme
 	// The TPR that is global to the kubernetes cluster.
 	// The cluster TPR is global because you create multiple clusers in k8s
@@ -64,14 +62,8 @@ type Operator struct {
 	volumeProvisioner controller.Provisioner
 }
 
-func New(host string, factory client.ConnectionFactory, clientset kubernetes.Interface) *Operator {
-	context := &k8sutil.Context{
-		MasterHost: host,
-		Factory:    factory,
-		Clientset:  clientset,
-		RetryDelay: 6,
-		MaxRetries: 15,
-	}
+func New(context *clusterd.Context) *Operator {
+
 	poolInitiator := newPoolInitiator(context)
 	clusterMgr := newClusterManager(context, []inclusterInitiator{poolInitiator})
 	volumeProvisioner := newRookVolumeProvisioner(clusterMgr)

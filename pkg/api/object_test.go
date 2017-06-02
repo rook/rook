@@ -25,9 +25,7 @@ import (
 	"os"
 	"testing"
 
-	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
-	"github.com/rook/rook/pkg/cephmgr/test"
-	cephtest "github.com/rook/rook/pkg/cephmgr/test"
+	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/model"
@@ -39,20 +37,17 @@ import (
 
 func TestCreateObjectStoreHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-
 	// call the CreateObjectStore handler, which should return http 202 Accepted and record info
 	// about the file system request in etcd
 	w := httptest.NewRecorder()
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.CreateObjectStore(w, req)
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/object/desired/state"))
@@ -63,20 +58,17 @@ func TestRemoveObjectStoreHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	etcdClient.SetValue("/rook/services/ceph/object/desired/state", "1")
 
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
 
 	req, err := http.NewRequest("DELETE", "http://10.0.0.100/objectstore", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-
 	// call RemoveObjectStore handler and verify the response is 202 Accepted and the desired
 	// key has been deleted from etcd
 	w := httptest.NewRecorder()
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.RemoveObjectStore(w, req)
 	assert.Equal(t, http.StatusAccepted, w.Code)
 	assert.Equal(t, 0, etcdClient.GetChildDirs("/rook/services/ceph/object/desired").Count())
@@ -85,19 +77,16 @@ func TestRemoveObjectStoreHandler(t *testing.T) {
 func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	inventory.SetIPAddress(etcdClient, "123", "1.2.3.4", "2.3.4.5")
-	context := &clusterd.Context{EtcdClient: etcdClient}
+	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/connectioninfo", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
-
 	// before RGW has been installed or any user accounts have been created, the handler will return 404 not found
 	w := httptest.NewRecorder()
-	h := newTestHandler(context, connFactory, cephFactory)
+	h := newTestHandler(context)
 	h.GetObjectStoreConnectionInfo(w, req)
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
@@ -105,7 +94,7 @@ func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 	etcdClient.SetValue("/rook/services/ceph/rgw/applied/node/123", "")
 
 	w = httptest.NewRecorder()
-	h = newTestHandler(context, connFactory, cephFactory)
+	h = newTestHandler(context)
 	h.GetObjectStoreConnectionInfo(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
@@ -128,20 +117,18 @@ func TestListUsers(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
 	defer os.RemoveAll("/tmp/rgw")
 	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
 
 	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) { return runner(args...) }}
 		context := &clusterd.Context{
-			EtcdClient: etcdClient,
-			Executor:   executor,
-			ProcMan:    proc.New(executor),
-			ConfigDir:  "/tmp/rgw"}
+			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+			Executor:      executor,
+			ProcMan:       proc.New(executor),
+			ConfigDir:     "/tmp/rgw"}
 		w := httptest.NewRecorder()
-		h := newTestHandler(context, connFactory, cephFactory)
+		h := newTestHandler(context)
 		h.ListUsers(w, req)
 		return w
 	}
@@ -220,8 +207,6 @@ func TestGetUser(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
 	defer os.RemoveAll("/tmp/rgw")
 	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
 
@@ -231,13 +216,13 @@ func TestGetUser(t *testing.T) {
 			return s, e
 		}}
 		context := &clusterd.Context{
-			EtcdClient: etcdClient,
-			ConfigDir:  "/tmp/rgw",
-			Executor:   executor,
-			ProcMan:    proc.New(executor),
+			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+			ConfigDir:     "/tmp/rgw",
+			Executor:      executor,
+			ProcMan:       proc.New(executor),
 		}
 		w := httptest.NewRecorder()
-		h := newTestHandler(context, connFactory, cephFactory)
+		h := newTestHandler(context)
 		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
@@ -283,8 +268,6 @@ func TestCreateUser(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
 	defer os.RemoveAll("/tmp/rgw")
 	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
 
@@ -294,14 +277,14 @@ func TestCreateUser(t *testing.T) {
 			return s, e
 		}}
 		context := &clusterd.Context{
-			EtcdClient: etcdClient,
-			ConfigDir:  "/tmp/rgw",
-			ProcMan:    proc.New(executor),
-			Executor:   executor,
+			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+			ConfigDir:     "/tmp/rgw",
+			ProcMan:       proc.New(executor),
+			Executor:      executor,
 		}
 		req.Body = ioutil.NopCloser(bytes.NewBufferString(body))
 		w := httptest.NewRecorder()
-		h := newTestHandler(context, connFactory, cephFactory)
+		h := newTestHandler(context)
 		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
@@ -357,8 +340,6 @@ func TestUpdateUser(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
 	defer os.RemoveAll("/tmp/rgw")
 	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
 
@@ -368,14 +349,14 @@ func TestUpdateUser(t *testing.T) {
 			return s, e
 		}}
 		context := &clusterd.Context{
-			EtcdClient: etcdClient,
-			ConfigDir:  "/tmp/rgw",
-			ProcMan:    proc.New(executor),
-			Executor:   executor,
+			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+			ConfigDir:     "/tmp/rgw",
+			ProcMan:       proc.New(executor),
+			Executor:      executor,
 		}
 		req.Body = ioutil.NopCloser(bytes.NewBufferString(body))
 		w := httptest.NewRecorder()
-		h := newTestHandler(context, connFactory, cephFactory)
+		h := newTestHandler(context)
 		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
@@ -421,8 +402,6 @@ func TestDeleteUser(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
 	defer os.RemoveAll("/tmp/rgw")
 	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
 
@@ -432,13 +411,13 @@ func TestDeleteUser(t *testing.T) {
 			return s, e
 		}}
 		context := &clusterd.Context{
-			EtcdClient: etcdClient,
-			ConfigDir:  "/tmp/rgw",
-			ProcMan:    proc.New(executor),
-			Executor:   executor,
+			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+			ConfigDir:     "/tmp/rgw",
+			ProcMan:       proc.New(executor),
+			Executor:      executor,
 		}
 		w := httptest.NewRecorder()
-		h := newTestHandler(context, connFactory, cephFactory)
+		h := newTestHandler(context)
 		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
@@ -469,21 +448,19 @@ func TestListBuckets(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
 	defer os.RemoveAll("/tmp/rgw")
 	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
 
 	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) { return runner(args...) }}
 		context := &clusterd.Context{
-			EtcdClient: etcdClient,
-			ConfigDir:  "/tmp/rgw",
-			ProcMan:    proc.New(executor),
-			Executor:   executor,
+			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+			ConfigDir:     "/tmp/rgw",
+			ProcMan:       proc.New(executor),
+			Executor:      executor,
 		}
 		w := httptest.NewRecorder()
-		h := newTestHandler(context, connFactory, cephFactory)
+		h := newTestHandler(context)
 		h.ListBuckets(w, req)
 		return w
 	}
@@ -604,21 +581,19 @@ func TestGetBucket(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
 	defer os.RemoveAll("/tmp/rgw")
 	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
 
 	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) { return runner(args...) }}
 		context := &clusterd.Context{
-			EtcdClient: etcdClient,
-			ConfigDir:  "/tmp/rgw",
-			ProcMan:    proc.New(executor),
-			Executor:   executor,
+			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+			ConfigDir:     "/tmp/rgw",
+			ProcMan:       proc.New(executor),
+			Executor:      executor,
 		}
 		w := httptest.NewRecorder()
-		h := newTestHandler(context, connFactory, cephFactory)
+		h := newTestHandler(context)
 		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)
@@ -711,8 +686,6 @@ func TestBucketDelete(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	cephFactory := &testceph.MockConnectionFactory{Fsid: "myfsid", SecretKey: "mykey"}
-	connFactory := &test.MockConnectionFactory{}
 	defer os.RemoveAll("/tmp/rgw")
 	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
 
@@ -722,13 +695,13 @@ func TestBucketDelete(t *testing.T) {
 			return s, e
 		}}
 		context := &clusterd.Context{
-			EtcdClient: etcdClient,
-			ConfigDir:  "/tmp/rgw",
-			Executor:   executor,
-			ProcMan:    proc.New(executor),
+			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+			ConfigDir:     "/tmp/rgw",
+			Executor:      executor,
+			ProcMan:       proc.New(executor),
 		}
 		w := httptest.NewRecorder()
-		h := newTestHandler(context, connFactory, cephFactory)
+		h := newTestHandler(context)
 		r := newRouter(h.GetRoutes())
 
 		r.ServeHTTP(w, req)

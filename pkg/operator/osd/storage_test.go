@@ -20,7 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	cephosd "github.com/rook/rook/pkg/cephmgr/osd"
+	cephosd "github.com/rook/rook/pkg/ceph/osd"
 )
 
 func TestResolveNodeNotExist(t *testing.T) {

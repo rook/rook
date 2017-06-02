@@ -20,11 +20,9 @@ package k8sutil
 
 import (
 	"fmt"
-	"net/http"
 	"time"
 
-	"github.com/rook/rook/pkg/cephmgr/client"
-	"k8s.io/client-go/kubernetes"
+	"github.com/rook/rook/pkg/clusterd"
 )
 
 const (
@@ -38,20 +36,11 @@ const (
 
 type ConditionFunc func() (bool, error)
 
-type Context struct {
-	Clientset   kubernetes.Interface
-	RetryDelay  int
-	MaxRetries  int
-	MasterHost  string
-	KubeHttpCli *http.Client
-	Factory     client.ConnectionFactory
-}
-
 // Retry retries f every interval until after maxRetries.
 // The interval won't be affected by how long f takes.
 // For example, if interval is 3s, f takes 1s, another f will be called 2s later.
 // However, if f takes longer than interval, it will be delayed.
-func Retry(context *Context, f ConditionFunc) error {
+func Retry(context *clusterd.Context, f ConditionFunc) error {
 	interval := time.Duration(context.RetryDelay) * time.Second
 	tick := time.NewTicker(interval)
 	defer tick.Stop()

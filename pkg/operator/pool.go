@@ -25,6 +25,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	rookclient "github.com/rook/rook/pkg/rook/client"
@@ -36,17 +37,17 @@ const (
 )
 
 type poolInitiator struct {
-	context *k8sutil.Context
+	context *clusterd.Context
 }
 
 type poolManager struct {
 	namespace    string
 	watchVersion string
-	context      *k8sutil.Context
+	context      *clusterd.Context
 	rclient      rookclient.RookRestClient
 }
 
-func newPoolInitiator(context *k8sutil.Context) *poolInitiator {
+func newPoolInitiator(context *clusterd.Context) *poolInitiator {
 	return &poolInitiator{context: context}
 }
 

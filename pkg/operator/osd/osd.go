@@ -22,6 +22,7 @@ import (
 
 	"strconv"
 
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -36,7 +37,7 @@ const (
 )
 
 type Cluster struct {
-	context         *k8sutil.Context
+	context         *clusterd.Context
 	placement       k8sutil.Placement
 	Name            string
 	Namespace       string
@@ -46,7 +47,7 @@ type Cluster struct {
 	dataDirHostPath string
 }
 
-func New(context *k8sutil.Context, name, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, name, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:         context,
 		placement:       placement,
@@ -240,7 +241,7 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 	// set the hostname to the host's name from the downstream api.
 	// the crush map doesn't like hostnames with periods, so we replace them with underscores.
 	hostnameUpdate := `echo $(HOSTNAME) | sed "s/\./_/g" > /etc/hostname; hostname -F /etc/hostname`
-	command := "/usr/bin/rookd osd"
+	command := "/usr/local/bin/rookd osd"
 
 	privileged := true
 	return v1.Container{

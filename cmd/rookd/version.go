@@ -1,5 +1,3 @@
-// +build linux,amd64 linux,arm64
-
 /*
 Copyright 2016 The Rook Authors. All rights reserved.
 
@@ -22,7 +20,6 @@ import (
 	"fmt"
 
 	etcdversion "github.com/coreos/etcd/version"
-	"github.com/rook/rook/pkg/cephmgr/cephd"
 	"github.com/rook/rook/pkg/version"
 	"github.com/spf13/cobra"
 )
@@ -32,8 +29,13 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version number of rookd",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Printf("rookd: %s\n", version.Version)
-		fmt.Printf("cephd: %v\n", cephd.Version())
 		fmt.Printf(" etcd: %s\n", etcdversion.Version)
+		fmt.Printf("cephd: %v\n", cephVersion())
 		return nil
 	},
+}
+
+// get the version of the Ceph tools in the container
+func cephVersion() string {
+	return "notimplemented"
 }
