@@ -49,7 +49,7 @@ try {
             }
 
             stage('Cleanup') {
-                sh 'build/run make -j\$(nproc) prune'
+                sh 'make prune'
                 sh 'docker images'
                 deleteDir()
             }
@@ -61,7 +61,7 @@ catch (Exception e) {
 
     node("ec2-stateful") {
         echo 'Cleaning up workspace'
-        sh 'build/run make -j\$(nproc) prune'
+        sh 'make prune'
         sh 'docker images'
         deleteDir()
     }
