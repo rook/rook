@@ -127,7 +127,7 @@ clean.all: clean.init
 	@$(MAKE) do.orphan CLEAN_IMAGES="$(shell docker images | grep -E '^$(BUILD_REGISTRY)|$(HOST_REGISTRY)|$(REGISTRY)/' | awk '{print $$1":"$$2}')"
 
 # prune removes old orphaned images and old cached images
-prune:
+prune: clean.build
 	@echo === pruning images older than $(PRUNE_HOURS) hours
 	@echo === keeping a minimum of $(PRUNE_KEEP_ORPHANS) orphaned images and $(PRUNE_KEEP_CACHED) cached images
 	@CLEAN_IMAGES="$(shell docker images --format "{{.CreatedAt}}#{{.Repository}}:{{.Tag}}" \
