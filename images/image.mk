@@ -21,11 +21,16 @@ HOSTNAME := $(shell hostname)
 HOST_REGISTRY := host-$(shell echo $(HOSTNAME) | sha256sum | cut -c1-8)
 
 # a registry that is scoped to the current build tree on this host
-ROOTDIR=$(shell cd $(SELF_DIR)/.. && pwd -P)
+ifeq ($(origin BUILD_REGISTRY), undefined)
+ROOTDIR := $(shell cd $(SELF_DIR)/.. && pwd -P)
 BUILD_REGISTRY := build-$(shell echo $(HOSTNAME)-$(ROOTDIR) | sha256sum | cut -c1-8)
+endif
 
 # public registry used for images that are pushed
 REGISTRY ?= quay.io/rook
+
+# if we are running inside the container get our own cid
+SELF_CID := $(shell cat /proc/self/cgroup | grep docker | grep -o -E '[0-9a-f]{64}' | head -n 1)
 
 # version to use if not defined
 ifeq ($(origin VERSION), undefined)
@@ -105,10 +110,12 @@ clean.init:
 do.orphan: clean.init
 	@for i in $(CLEAN_IMAGES); do \
 		[ "$$i" != "$(DUMMY_IMAGE)" ] || continue; \
-		for c in $$(docker ps -a -q --filter=ancestor=$$i); do \
-			echo stopping and removing container $${c} referencing image $$i; \
-			docker stop $${c}; \
-			docker rm $${c}; \
+		for c in $$(docker ps -a -q --no-trunc --filter=ancestor=$$i); do \
+			if [ "$$c" != "$(SELF_CID)" ]; then \
+				echo stopping and removing container $${c} referencing image $$i; \
+				docker stop $${c}; \
+				docker rm $${c}; \
+			fi; \
 		done; \
 		echo orphaning image $$i; \
 		docker tag $(DUMMY_IMAGE) $$i > /dev/null 2>&1; \
@@ -152,10 +159,12 @@ prune.all:
 
 # nukes all images
 nuke:
-	@for c in $$(docker ps -a -q); do \
-		echo stopping and removing container $${c}; \
-		docker stop $${c}; \
-		docker rm $${c}; \
+	@for c in $$(docker ps -a -q --no-trunc); do \
+		if [ "$$c" != "$(SELF_CID)" ]; then \
+			echo stopping and removing container $${c}; \
+			docker stop $${c}; \
+			docker rm $${c}; \
+		fi; \
 	done
 	@for i in $$(docker images -q); do \
 		echo removing image $$i; \

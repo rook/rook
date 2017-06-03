@@ -164,6 +164,7 @@ rsync_back() {
 docker run \
     --rm \
     -h ${host} \
+    -e BUILD_REGISTRY=${build_registry} \
     -e GOPATH="${BUILDER_HOME}/go" \
     -e GO_PKG_DIR="" \
     -e GITHUB_TOKEN \
