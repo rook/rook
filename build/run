@@ -27,7 +27,7 @@ fi
 # build the the container if we've not done so already
 if [[ -z "$(docker images -q ${container_image})" ]]; then
     echo ==== building the cross-build container \(this could take minutes the first time\)
-    make_cmd="make --no-print-directory -C ${scriptdir}/../images cross-build-images PULL=0"
+    make_cmd="make --no-print-directory -C ${scriptdir}/../images cross-build PULL=0"
     make_output=$($make_cmd 2>&1) || {
         cat <<EOF >&2
 === cross build image failed for ${container_image}
@@ -82,7 +82,8 @@ if [ "`uname -s`" != "Linux" ]; then
 
     MOUNT_OPTS="${MOUNT_OPTS} -v ${container_volume}:${BUILDER_HOME}"
 
-    CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache -e CCACHE_LOG"
+    CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache \
+        -e CCACHE_DIR_HOST=${BUILDER_HOME}/.ccache -e CCACHE_LOG"
 else
 
     # On linux bind mounts are cheap so we dont need to rsync
@@ -109,7 +110,9 @@ else
     fi
 
     if [[ -d "${CCACHE_DIR}" ]]; then
-        CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache -e CCACHE_LOG \
+        CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache \
+            -e CCACHE_DIR_HOST=${CCACHE_DIR} \
+            -e CCACHE_LOG \
             -v ${CCACHE_DIR}:${BUILDER_HOME}/.ccache"
     fi
 fi
@@ -160,6 +163,7 @@ rsync_back() {
 
 docker run \
     --rm \
+    -h ${host} \
     -e GOPATH="${BUILDER_HOME}/go" \
     -e GO_PKG_DIR="" \
     -e GITHUB_TOKEN \

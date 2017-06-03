@@ -149,3 +149,15 @@ prune.all:
 		echo removing orphaned image $$i; \
 		docker rmi $$i > /dev/null 2>&1; \
 	done
+
+# nukes all images
+nuke:
+	@for c in $$(docker ps -a -q); do \
+		echo stopping and removing container $${c}; \
+		docker stop $${c}; \
+		docker rm $${c}; \
+	done
+	@for i in $$(docker images -q); do \
+		echo removing image $$i; \
+		docker rmi -f $$i > /dev/null 2>&1; \
+	done

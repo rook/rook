@@ -64,7 +64,6 @@ ROOKD = $(TEMP)/rookd
 
 $(ROOKD):
 	@echo === building rookd for $(IMAGE)
-	@../../build/run make WORKDIR=/build/.workdir GO_PKG_DIR= GOOS=linux GOARCH=$(GOARCH)
 	@cp ../../bin/linux_$(GOARCH)/rookd $@
 
 # ====================================================================================

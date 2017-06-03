@@ -19,8 +19,8 @@ include image.mk
 
 PLATFORMS ?= amd64 arm arm64
 
-.PHONY: cross-build-images
-cross-build-images:
+.PHONY: cross-build
+cross-build:
 	@$(MAKE) -C base GOARCH=amd64
 	@$(MAKE) -C cross-build-gnu
 	@$(MAKE) -C cross-build-go
@@ -30,7 +30,9 @@ build.%:
 	@$(MAKE) -C base build GOARCH=$*
 	@$(MAKE) -C rookd build GOARCH=$*
 
-build: cross-build-images
+build:
+	@$(MAKE) -C base GOARCH=amd64
+	@$(MAKE) -C cross-build-gnu
 	@$(MAKE) build.$(GOARCH)
 
 push.%:
@@ -40,7 +42,9 @@ push: $(foreach p,$(PLATFORMS), push.$(p))
 clean: clean.build
 
 cross.all: $(foreach p,$(PLATFORMS), build.$(p))
-cross: cross-build-images
+cross:
+	@$(MAKE) -C base GOARCH=amd64
+	@$(MAKE) -C cross-build-gnu
 	@$(MAKE) cross.all
 
 # ====================================================================================
@@ -51,19 +55,19 @@ help:
 	@echo 'Usage: make <OPTIONS> ... <TARGETS>'
 	@echo ''
 	@echo 'Targets:'
-	@echo '    build       Build images for the host platform.'
-	@echo '    clean       Remove all images created from the'
-	@echo '                current build.'
-	@echo '    cross       Build images for all platforms.'
-	@echo '    prune       Prunes orphaned and cached images at the.'
-	@echo '                host level.'
-	@echo '    push        Pushes public images to registry.'
+	@echo '    build        Build images for the host platform.'
+	@echo '    clean        Remove all images created from the'
+	@echo '                 current build.'
+	@echo '    cross        Build images for all platforms.'
+	@echo '    prune        Prunes orphaned and cached images at the.'
+	@echo '                 host level.'
+	@echo '    push         Pushes public images to registry.'
 	@echo ''
 	@echo 'Advanced Targets:'
-	@echo '    cross-build-images  Build images used for cross-builds.'
-	@echo '    clean.all           Remove all images including cached.'
-	@echo '                        images at the host level.'
-	@echo '    prune.all           Prune everything ignoring policy.'
+	@echo '    cross-build  Build images used for cross-builds.'
+	@echo '    clean.all    Remove all images including cached.'
+	@echo '                 images at the host level.'
+	@echo '    prune.all    Prune everything ignoring policy.'
 	@echo ''
 	@echo 'Options:'
 	@echo '    PLATFORMS    The platforms to build when running the.'

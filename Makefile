@@ -63,11 +63,14 @@ endif
 BIN_DIR ?= bin
 RELEASE_DIR ?= release
 
+# platforms for which we client and server bits
+SERVER_PLATFORMS ?= linux_arm linux_amd64 linux_arm64
+
 # platforms where we only build client bits
 CLIENT_PLATFORMS ?= darwin_amd64 windows_amd64
 
-# platforms where we build client and server bits
-SERVER_PLATFORMS ?= linux_arm linux_amd64 linux_arm64
+# the platforms to build
+PLATFORMS ?= $(SERVER_PLATFORMS) $(CLIENT_PLATFORMS)
 
 # the root go project
 GO_PROJECT=github.com/rook/rook
@@ -117,7 +120,7 @@ include build/makelib/golang.mk
 RELEASE_VERSION=$(VERSION)
 RELEASE_CHANNEL=$(CHANNEL)
 RELEASE_BIN_DIR=$(BIN_DIR)
-RELEASE_PLATFORMS=$(CLIENT_PLATFORMS) $(SERVER_PLATFORMS)
+RELEASE_PLATFORMS=$(PLATFORMS)
 include build/makelib/release.mk
 
 # ====================================================================================
@@ -127,7 +130,7 @@ dev:
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 	@$(MAKE) go.build
-	@$(MAKE) release.build.containers.$(GOOS)_$(GOARCH)
+	@$(MAKE) -C images
 
 build.common:
 	@$(MAKE) go.init
@@ -168,7 +171,7 @@ cross.build:
 cross.build.platform.%:
 	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) PIE=$(PIE) cross.build
 
-cross.parallel: $(foreach p,$(CLIENT_PLATFORMS) $(SERVER_PLATFORMS), cross.build.platform.$(p))
+cross.parallel: $(foreach p,$(PLATFORMS), cross.build.platform.$(p))
 
 cross:
 	@$(MAKE) go.init
@@ -176,11 +179,11 @@ cross:
 	@$(MAKE) cross.parallel
 
 release: cross
-	@$(MAKE) release.build
+	@$(MAKE) -C images cross
 
 publish:
 ifneq ($(filter master alpha beta stable, $(CHANNEL)),)
-	@$(MAKE) release.publish
+	@$(MAKE) -C images push
 else
 	@echo skipping publish. invalid channel "$(CHANNEL)"
 endif
@@ -192,11 +195,11 @@ else
 	@echo skipping promote. invalid channel "$(CHANNEL)"
 endif
 
-publish.cleanup:
-	@$(MAKE) release.cleanup
+prune:
+	@$(MAKE) -C images prune
 
 .PHONY: build.common cross.build cross.parallel
-.PHONY: dev build install test check vet fmt vendor clean distclean cross release publish
+.PHONY: dev build install test check vet fmt vendor clean distclean cross images release publish promote prune
 
 # ====================================================================================
 # Help
@@ -206,38 +209,46 @@ help:
 	@echo 'Usage: make <OPTIONS> ... <TARGETS>'
 	@echo ''
 	@echo 'Targets:'
-	@echo '    build       Build project for host platform.'
-	@echo '    cross       Build project for all platforms.'
+	@echo '    build       Build source code for host platform.'
+	@echo '    cross       Build source code for all platforms.'
+	@echo '                Best done in the cross-build container'
+	@echo '                due to cross compiler dependencies.'
 	@echo '    check       Runs unit tests.'
 	@echo '    clean       Remove all files that are created '
 	@echo '                by building.'
-	@echo '    dev         A quick build path for go projects'
-	@echo '                and containers.'
+	@echo '    images      Builds container images for host platform.'
 	@echo '    distclean   Remove all files that are created '
 	@echo '                by building or configuring.'
 	@echo '    fmt         Check formatting of go sources.'
 	@echo '    lint        Check syntax and styling of go sources.'
 	@echo '    help        Show this help info.'
+	@echo '    prune       Prune cached artifacts.'
 	@echo '    vendor      Installs vendor dependencies.'
 	@echo '    vet         Runs lint checks on go sources.'
 	@echo ''
-	@echo 'Distribution:'
-	@echo '    release     Builds all packages.'
-	@echo '    publish     Publishes all packages from a release.'
+	@echo 'Release Targets:'
+	@echo '    release     Builds all release artifacts including'
+	@echo '                container images for all platforms.'
+	@echo '    publish     Publishes all release artifacts to'
+	@echo '                appropriate public repositories.'
+	@echo '    promote     Promotes a published release to a'
+	@echo '                release channel.'
 	@echo ''
 	@echo 'Options:'
+	@echo '    GOARCH       The arch to build.'
+	@echo '    GOOS         The OS to build for.'
+	@echo '    VERSION      The version information compiled into binaries.'
+	@echo '                 The default is obtained from git.'
+	@echo '    V            Set to 1 enable verbose build. Default is 0.'
+	@echo ''
+	@echo 'Advanced Options:'
 	@echo '    CHANNEL      Sets the release channel. Can be set to master,'
 	@echo '                 alpha, beta, or stable. Default is not set.'
 	@echo '    DOWNLOADDIR  A directory where downloaded files and other'
 	@echo '                 files used during the build are cached. These'
 	@echo '                 files help speedup the build by avoiding network'
 	@echo '                 transfers. Its safe to use these files across builds.'
-	@echo '    GOARCH       The arch to build.'
-	@echo '    GOOS         The OS to build for.'
 	@echo '    PIE          Set to 1 to build a position independent'
 	@echo '                 executable. The default is 1.'
-	@echo '    VERSION      The version information compiled into binaries.'
-	@echo '                 The default is obtained from git.'
-	@echo '    V            Set to 1 enable verbose build. Default is 0.'
 	@echo '    WORKDIR      The working directory where most build files'
 	@echo '                 are stored. The default is .work'

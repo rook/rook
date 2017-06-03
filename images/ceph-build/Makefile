@@ -48,6 +48,7 @@ CLEAN_IMAGES = $(CEPH_BUILD_IMAGE)
 CEPH_TARBALL = ceph-install.tar
 
 TEMP := $(shell mktemp -d)
+CCACHE_DIR_HOST ?= $(HOME)/.ccache
 
 # ====================================================================================
 # Targets
@@ -73,8 +74,7 @@ ceph:
 	@docker run \
 		-i $(RUN_ARGS) \
 		--cidfile $(TEMP)/cid \
-		-e CCACHE_DIR=/home/build/.ccache \
-		-v $(HOME)/.ccache:/home/build/.ccache \
+		-v $(CCACHE_DIR_HOST):/root/.ccache \
 		$(CEPH_BUILD_IMAGE)
 	@docker cp `cat $(TEMP)/cid`:/build/$(CEPH_TARBALL) $(TEMP)/$(CEPH_TARBALL)
 	@docker rm -f `cat $(TEMP)/cid`
