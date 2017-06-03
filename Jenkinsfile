@@ -49,8 +49,7 @@ try {
             }
 
             stage('Cleanup') {
-                sh 'make prune'
-                sh 'docker images'
+                sh 'make prune PRUNE_KEEP_CACHED=48 PRUNE_KEEP_ORPHANS=48'
                 deleteDir()
             }
         }
@@ -61,8 +60,7 @@ catch (Exception e) {
 
     node("ec2-stateful") {
         echo 'Cleaning up workspace'
-        sh 'make prune'
-        sh 'docker images'
+        sh 'make prune PRUNE_KEEP_CACHED=48 PRUNE_KEEP_ORPHANS=48'
         deleteDir()
     }
 
