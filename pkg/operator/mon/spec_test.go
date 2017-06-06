@@ -38,7 +38,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	c.clusterInfo = testop.CreateClusterInfo(0)
 	config := &MonConfig{Name: "mon0", Port: 6790}
 
-	pod := c.makeMonPod(config, false)
+	pod := c.makeMonPod(config, "foo")
 	assert.NotNil(t, pod)
 	assert.Equal(t, "mon0", pod.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, pod.Spec.RestartPolicy)

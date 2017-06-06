@@ -25,7 +25,8 @@ import (
 func New(nodes int) *fake.Clientset {
 	clientset := fake.NewSimpleClientset()
 	for i := 0; i < nodes; i++ {
-		n := &v1.Node{}
+		ready := v1.NodeCondition{Type: v1.NodeReady}
+		n := &v1.Node{Status: v1.NodeStatus{Conditions: []v1.NodeCondition{ready}}}
 		n.Name = fmt.Sprintf("node%d", i)
 		clientset.CoreV1().Nodes().Create(n)
 	}

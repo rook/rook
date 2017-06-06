@@ -27,7 +27,7 @@ func CreateRestAPIClient(platform enums.RookPlatformType) *RestAPIClient {
 		}
 		apiIp, err := rkh.GetPodHostId("rook-api", "rook")
 		if err != nil {
-			panic(fmt.Errorf("Host Ip for Rook-api service not found"))
+			panic(fmt.Errorf("Host Ip for Rook-api service not found. %+v", err))
 		}
 		endpoint = "http://" + apiIp + ":30002"
 	case platform == enums.StandAlone:

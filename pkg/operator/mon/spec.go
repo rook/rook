@@ -20,8 +20,8 @@ import (
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/pkg/api/v1"
+	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
 func ClusterNameEnvVar(name string) v1.EnvVar {
@@ -43,31 +43,52 @@ func AdminSecretEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOKD_ADMIN_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
 }
 
-func (c *Cluster) getLabels() map[string]string {
+func (c *Cluster) getLabels(name string) map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr: appName,
+		"mon":           name,
 		monClusterAttr:  c.Namespace,
 	}
 }
 
-func (c *Cluster) makeMonPod(config *MonConfig, antiAffinity bool) *v1.Pod {
+func (c *Cluster) makeReplicaSet(config *MonConfig, nodeName string) *extensions.ReplicaSet {
 
-	container := c.monContainer(config, c.clusterInfo.FSID)
+	rs := &extensions.ReplicaSet{}
+	rs.Name = config.Name
+	rs.Namespace = c.Namespace
+
+	pod := c.makeMonPod(config, nodeName)
+	replicaCount := int32(1)
+	rs.Spec = extensions.ReplicaSetSpec{
+		Template: v1.PodTemplateSpec{
+			ObjectMeta: pod.ObjectMeta,
+			Spec:       pod.Spec,
+		},
+		Replicas: &replicaCount,
+	}
+
+	return rs
+}
+
+func (c *Cluster) makeMonPod(config *MonConfig, nodeName string) *v1.Pod {
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if c.dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
 	}
 
+	container := c.monContainer(config, c.clusterInfo.FSID)
+
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        config.Name,
 			Namespace:   c.Namespace,
-			Labels:      c.getLabels(),
+			Labels:      c.getLabels(config.Name),
 			Annotations: map[string]string{},
 		},
 		Spec: v1.PodSpec{
 			Containers:    []v1.Container{container},
 			RestartPolicy: v1.RestartPolicyAlways,
+			NodeSelector:  map[string]string{metav1.LabelHostname: nodeName},
 			Volumes: []v1.Volume{
 				{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 				k8sutil.ConfigOverrideVolume(),
@@ -76,10 +97,6 @@ func (c *Cluster) makeMonPod(config *MonConfig, antiAffinity bool) *v1.Pod {
 	}
 
 	k8sutil.SetPodVersion(pod, k8sutil.VersionAttr, c.Version)
-
-	if antiAffinity {
-		k8sutil.PodWithAntiAffinity(pod, monClusterAttr, c.clusterInfo.Name)
-	}
 	return pod
 }
 
@@ -112,42 +129,5 @@ func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
 			AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
-	}
-}
-
-func (c *Cluster) getPods() (*v1.PodList, error) {
-	return c.context.Clientset.CoreV1().Pods(c.Namespace).List(c.listOptions())
-}
-
-func (c *Cluster) pollPods() ([]*v1.Pod, []*v1.Pod, error) {
-	podList, err := c.getPods()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to list running pods: %v", err)
-	}
-
-	var running []*v1.Pod
-	var pending []*v1.Pod
-	for i := range podList.Items {
-		pod := &podList.Items[i]
-
-		switch pod.Status.Phase {
-		case v1.PodRunning:
-			running = append(running, pod)
-		case v1.PodPending:
-			pending = append(pending, pod)
-		default:
-			logger.Warningf("unknown pod %s status: %v", pod.Name, pod.Status.Phase)
-		}
-	}
-
-	return running, pending, nil
-}
-
-func (c *Cluster) listOptions() metav1.ListOptions {
-	return metav1.ListOptions{
-		LabelSelector: labels.SelectorFromSet(labels.Set{
-			monClusterAttr:  c.Namespace,
-			k8sutil.AppAttr: appName,
-		}).String(),
 	}
 }

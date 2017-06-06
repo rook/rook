@@ -401,7 +401,6 @@ func (r *rookTestInfraManager) InstallRook(tag string, skipInstall bool) (err er
 	k8sHelp := utils.CreatK8sHelper()
 
 	err = createK8sRookOperator(k8sHelp, rookOperatorTag)
-
 	if err != nil {
 		panic(err)
 	}
@@ -410,7 +409,6 @@ func (r *rookTestInfraManager) InstallRook(tag string, skipInstall bool) (err er
 
 	//Create rook cluster
 	err = createk8sRookCluster(k8sHelp, tag)
-
 	if err != nil {
 		panic(err)
 	}
