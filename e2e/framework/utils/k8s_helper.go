@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"time"
 
@@ -40,7 +39,10 @@ func (k8sh *K8sHelper) getMonIp(mon string) (string, error) {
 func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, poddefPath string) (string, error) {
 
 	t, _ := template.ParseFiles(poddefPath)
-	mons := k8sh.getMonitorPods()
+	mons, err := k8sh.getMonitorPods()
+	if err != nil {
+		return "failed mon pod", err
+	}
 	ip1, _ := k8sh.getMonIp(mons[0])
 	ip2, _ := k8sh.getMonIp(mons[1])
 	ip3, _ := k8sh.getMonIp(mons[2])
@@ -55,11 +57,11 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, poddefPath s
 	dir, _ := filepath.Abs(file.Name())
 
 	cmdArgs := []string{action, "-f", dir}
-	out, err, status := ExecuteCmd("kubectl", cmdArgs)
+	stdout, stderr, status := ExecuteCmd("kubectl", cmdArgs)
 	if status == 0 {
-		return out, nil
+		return stdout, nil
 	} else {
-		return out + " : " + err, fmt.Errorf("Could Not create resource in k8s")
+		return stdout + " : " + stderr, fmt.Errorf("Could Not create resource in k8s")
 	}
 }
 
@@ -74,23 +76,34 @@ func (k8sh *K8sHelper) ResourceOperation(action string, poddefPath string) (stri
 	}
 }
 
-func (k8sh *K8sHelper) getMonitorPods() []string {
+func (k8sh *K8sHelper) getMonitorPods() ([]string, error) {
 	mons := []string{}
 	monIdx := 0
 	moncount := 0
 
 	for moncount < 3 {
-		m := "mon" + strconv.Itoa(monIdx)
-		cmdArgs := []string{"-n", "rook", "get", "pods", m}
-		_, _, status := ExecuteCmd("kubectl", cmdArgs)
+		m := fmt.Sprintf("mon%d", monIdx)
+		selector := fmt.Sprintf("mon=%s", m)
+		cmdArgs := []string{"-n", "rook", "get", "pod", "-l", selector}
+		stdout, _, status := ExecuteCmd("kubectl", cmdArgs)
 		if status == 0 {
-			mons = append(mons, m)
-			moncount++
+			// Get the first word of the second line of the output for the mon pod
+			lines := strings.Split(stdout, "\n")
+			if len(lines) > 1 {
+				name := strings.Split(lines[1], " ")[0]
+				mons = append(mons, name)
+				moncount++
+			} else {
+				return mons, fmt.Errorf("did not recognize mon pod output %s", m)
+			}
 		}
 		monIdx++
+		if monIdx > 100 {
+			return mons, fmt.Errorf("failed to find monitors")
+		}
 	}
 
-	return mons
+	return mons, nil
 }
 
 func (k8sh *K8sHelper) IsPodRunning(name string) bool {
