@@ -17,6 +17,7 @@ package mds
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -39,8 +40,9 @@ func TestStartMDS(t *testing.T) {
 		},
 	}
 
-	c := New(&clusterd.Context{Executor: executor}, "myname", "ns", "myversion", k8sutil.Placement{})
-	c.dataDir = "/tmp/mdstest"
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	c := New(&clusterd.Context{Executor: executor, ConfigDir: configDir}, "myname", "ns", "myversion", k8sutil.Placement{})
 	defer os.RemoveAll(c.dataDir)
 
 	clientset := testop.New(3)

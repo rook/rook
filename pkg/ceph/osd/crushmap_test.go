@@ -16,7 +16,6 @@ limitations under the License.
 package osd
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -35,6 +34,7 @@ func testCrushMapHelper(t *testing.T, storeConfig *StoreConfig) {
 	etcdClient := util.NewMockEtcdClient()
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
+		logger.Infof("OUTPUT for %s. %s %+v", name, command, args)
 		if strings.HasPrefix(name, "lsblk /dev/disk/by-partuuid") {
 			// this is a call to get device properties so we figure out CRUSH weight, which should only be done for Bluestore
 			// (Filestore uses Statfs since it has a mounted filesystem)
@@ -46,15 +46,15 @@ func testCrushMapHelper(t *testing.T, storeConfig *StoreConfig) {
 		assert.Equal(t, "crush", args[1])
 		assert.Equal(t, "create-or-move", args[2])
 		assert.Equal(t, "23", args[3])
-		assert.Equal(t, "1.1", args[4]) // weight
-		assert.Equal(t, 7, len(args))
+		assert.NotEqual(t, "0", args[4])   // weight
+		assert.NotEqual(t, "0.0", args[4]) // weight
+		assert.Equal(t, 13, len(args))
 
 		// verify the contents of the CRUSH location args
-		/*argsSet := util.CreateSet(request.Args)
+		argsSet := util.CreateSet(args)
 		assert.True(t, argsSet.Contains("root=default"))
 		assert.True(t, argsSet.Contains("dc=datacenter1"))
-		assert.True(t, argsSet.Contains("host=node1"))*/
-		assert.Fail(t, fmt.Sprintf("Test crush args from: %+v", args))
+		assert.True(t, argsSet.Contains("host=node1"))
 		return "", nil
 	}
 	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: "node1"}, Executor: executor}

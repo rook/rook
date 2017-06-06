@@ -16,12 +16,18 @@ limitations under the License.
 package ceph
 
 import (
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
 	"testing"
 
 	etcd "github.com/coreos/etcd/client"
 
+	clienttest "github.com/rook/rook/pkg/ceph/client/test"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/ceph/osd"
+	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
@@ -44,11 +50,9 @@ func TestCephLeaders(t *testing.T) {
 	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.4"}
 
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, Inventory: inv},
-		ConfigDir:     "/tmp",
-		Executor:      testExecutor(),
-	}
+	context := testContext()
+	defer os.RemoveAll(context.ConfigDir)
+	context.DirectContext = clusterd.DirectContext{EtcdClient: etcdClient, Inventory: inv}
 
 	// mock the agent responses that the deployments were successful to start mons and osds
 	etcdClient.WatcherResponses["/rook/_notify/a/monitor/status"] = "succeeded"
@@ -72,8 +76,8 @@ func TestCephLeaders(t *testing.T) {
 	leader.HandleRefresh(refresh)
 
 	assert.True(t, etcdClient.GetChildDirs("/rook/services/ceph/osd/desired").Equals(util.CreateSet([]string{"a", "b"})))
-	assert.Equal(t, "myfsid", etcdClient.GetValue("/rook/services/ceph/fsid"))
-	assert.Equal(t, "mykey", etcdClient.GetValue("/rook/services/ceph/_secrets/admin"))
+	assert.NotEqual(t, "", etcdClient.GetValue("/rook/services/ceph/fsid"))
+	assert.Equal(t, "adminsecret", etcdClient.GetValue("/rook/services/ceph/_secrets/admin"))
 }
 
 func TestOSDRefresh(t *testing.T) {
@@ -84,11 +88,9 @@ func TestOSDRefresh(t *testing.T) {
 	nodes["b"] = &inventory.NodeConfig{PublicIP: "2.2.3.4"}
 
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, Inventory: &inventory.Config{Nodes: nodes}},
-		ConfigDir:     "/tmp",
-		Executor:      testExecutor(),
-	}
+	context := testContext()
+	defer os.RemoveAll(context.ConfigDir)
+	context.DirectContext = clusterd.DirectContext{EtcdClient: etcdClient, Inventory: &inventory.Config{Nodes: nodes}}
 
 	// mock the agent responses that the deployments were successful to start mons and osds
 	etcdClient.WatcherResponses["/rook/_notify/a/monitor/status"] = "succeeded"
@@ -150,27 +152,39 @@ func TestNewCephService(t *testing.T) {
 
 func TestCreateClusterInfo(t *testing.T) {
 	// generate the secret key from the factory
-	context := &clusterd.Context{Executor: testExecutor()}
+	context := testContext()
+	defer os.RemoveAll(context.ConfigDir)
 	info, err := mon.CreateClusterInfo(context, "")
 	assert.Nil(t, err)
 	if info == nil {
 		return
 	}
-	assert.Equal(t, "fsid", info.FSID)
-	assert.Equal(t, "admin1", info.AdminSecret)
+	assert.NotEqual(t, "", info.FSID)
+	assert.Equal(t, "adminsecret", info.AdminSecret)
 	assert.Equal(t, "rookcluster", info.Name)
 
 	// specify the desired secret key
 	info, err = mon.CreateClusterInfo(context, "mysupersecret")
-	assert.Equal(t, "fsid", info.FSID)
+	assert.NotEqual(t, "", info.FSID)
 	assert.Equal(t, "mysupersecret", info.AdminSecret)
 
 }
 
-func testExecutor() *exectest.MockExecutor {
-	return &exectest.MockExecutor{
+func testContext() *clusterd.Context {
+
+	configDir, _ := ioutil.TempDir("", "")
+	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
-			return "mysecret", nil
+			logger.Infof("OUTPUT: %s %v", command, args)
+			if command == "ceph-authtool" {
+				cephtest.CreateClusterInfo(nil, path.Join(configDir, "rookcluster"), []string{"a"})
+				return "mysecret", nil
+			}
+			if args[0] == "mon_status" {
+				return clienttest.MonInQuorumResponse(), nil
+			}
+			return "", fmt.Errorf("unrecognized command")
 		},
 	}
+	return &clusterd.Context{Executor: executor, ConfigDir: configDir}
 }

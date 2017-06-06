@@ -180,7 +180,8 @@ func TestPoolUsageCollector(t *testing.T) {
 					return tt.input, nil
 				},
 			}
-			context := &clusterd.Context{Executor: executor, ConfigDir: "/tmp/test"}
+			configDir, _ := ioutil.TempDir("", "")
+			context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
 			defer os.RemoveAll(context.ConfigDir)
 			collector := NewPoolUsageCollector(context, "mycluster")
 			if err := prometheus.Register(collector); err != nil {

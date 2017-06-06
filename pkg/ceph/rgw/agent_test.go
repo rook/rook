@@ -16,6 +16,7 @@ limitations under the License.
 package rgw
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -35,15 +36,16 @@ func TestStartRGW(t *testing.T) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
 		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: "123"},
 		Executor:      executor,
 		ProcMan:       proc.New(executor),
-		ConfigDir:     "/tmp/rgw",
+		ConfigDir:     configDir,
 	}
-	defer os.RemoveAll(context.ConfigDir)
 
-	cephtest.CreateClusterInfo(etcdClient, []string{context.NodeID})
+	cephtest.CreateClusterInfo(etcdClient, configDir, []string{context.NodeID})
 
 	// nothing to stop without rgw in desired state
 	agent := NewAgent()

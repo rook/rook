@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"testing"
 
 	cephtest "github.com/rook/rook/pkg/ceph/test"
@@ -117,8 +118,9 @@ func TestListUsers(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	defer os.RemoveAll("/tmp/rgw")
-	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	cephtest.CreateClusterInfo(etcdClient, path.Join(configDir, "rookcluster"), []string{"mymon"})
 
 	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) { return runner(args...) }}
@@ -126,7 +128,7 @@ func TestListUsers(t *testing.T) {
 			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
 			Executor:      executor,
 			ProcMan:       proc.New(executor),
-			ConfigDir:     "/tmp/rgw"}
+			ConfigDir:     configDir}
 		w := httptest.NewRecorder()
 		h := newTestHandler(context)
 		h.ListUsers(w, req)
@@ -207,8 +209,9 @@ func TestGetUser(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	defer os.RemoveAll("/tmp/rgw")
-	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) {
@@ -217,7 +220,7 @@ func TestGetUser(t *testing.T) {
 		}}
 		context := &clusterd.Context{
 			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     "/tmp/rgw",
+			ConfigDir:     configDir,
 			Executor:      executor,
 			ProcMan:       proc.New(executor),
 		}
@@ -268,8 +271,9 @@ func TestCreateUser(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	defer os.RemoveAll("/tmp/rgw")
-	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(body string, s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) {
@@ -278,7 +282,7 @@ func TestCreateUser(t *testing.T) {
 		}}
 		context := &clusterd.Context{
 			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     "/tmp/rgw",
+			ConfigDir:     configDir,
 			ProcMan:       proc.New(executor),
 			Executor:      executor,
 		}
@@ -340,8 +344,9 @@ func TestUpdateUser(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	defer os.RemoveAll("/tmp/rgw")
-	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(body string, s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) {
@@ -350,7 +355,7 @@ func TestUpdateUser(t *testing.T) {
 		}}
 		context := &clusterd.Context{
 			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     "/tmp/rgw",
+			ConfigDir:     configDir,
 			ProcMan:       proc.New(executor),
 			Executor:      executor,
 		}
@@ -402,8 +407,9 @@ func TestDeleteUser(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	defer os.RemoveAll("/tmp/rgw")
-	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) {
@@ -412,7 +418,7 @@ func TestDeleteUser(t *testing.T) {
 		}}
 		context := &clusterd.Context{
 			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     "/tmp/rgw",
+			ConfigDir:     configDir,
 			ProcMan:       proc.New(executor),
 			Executor:      executor,
 		}
@@ -448,14 +454,15 @@ func TestListBuckets(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	defer os.RemoveAll("/tmp/rgw")
-	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) { return runner(args...) }}
 		context := &clusterd.Context{
 			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     "/tmp/rgw",
+			ConfigDir:     configDir,
 			ProcMan:       proc.New(executor),
 			Executor:      executor,
 		}
@@ -581,14 +588,15 @@ func TestGetBucket(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	defer os.RemoveAll("/tmp/rgw")
-	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) { return runner(args...) }}
 		context := &clusterd.Context{
 			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     "/tmp/rgw",
+			ConfigDir:     configDir,
 			ProcMan:       proc.New(executor),
 			Executor:      executor,
 		}
@@ -686,8 +694,9 @@ func TestBucketDelete(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	defer os.RemoveAll("/tmp/rgw")
-	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) {
@@ -696,7 +705,7 @@ func TestBucketDelete(t *testing.T) {
 		}}
 		context := &clusterd.Context{
 			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     "/tmp/rgw",
+			ConfigDir:     configDir,
 			Executor:      executor,
 			ProcMan:       proc.New(executor),
 		}

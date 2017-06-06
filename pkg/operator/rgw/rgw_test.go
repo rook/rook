@@ -17,6 +17,7 @@ package rgw
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
@@ -41,9 +42,9 @@ func TestStartRGW(t *testing.T) {
 		},
 	}
 
-	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}, Executor: executor}, "myname", "ns", "version", k8sutil.Placement{})
-	c.dataDir = "/tmp/rgwtest"
-	defer os.RemoveAll(c.dataDir)
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}, Executor: executor, ConfigDir: configDir}, "myname", "ns", "version", k8sutil.Placement{})
 
 	// start a basic cluster
 	err := c.Start(info)

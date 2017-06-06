@@ -46,7 +46,7 @@ func TestOSDAgentWithDevicesBluestore(t *testing.T) {
 
 func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	// set up a temporary config directory that will be cleaned up after test
-	configDir, err := ioutil.TempDir("", "TestOSDAgentWithDevices")
+	configDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("failed to create temp config dir: %+v", err)
 	}
@@ -63,7 +63,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 
 		switch {
 		case startCount < 2:
-			assert.Equal(t, "--type=osd", args[1])
+			assert.Equal(t, "ceph-osd", command)
 		default:
 			assert.Fail(t, fmt.Sprintf("unexpected case %d", startCount))
 		}
@@ -81,7 +81,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 		}
 		switch {
 		case execCount == 0: // first exec is the mkfs for sdx
-			assert.Equal(t, "--mkfs", args[3])
+			assert.Equal(t, "--mkfs", args[0])
 			createTestKeyring(t, configDir, args)
 		case execCount == 1: // all remaining execs are for partitioning sdy then mkfs sdy
 			assert.Equal(t, "sgdisk", command)
@@ -104,7 +104,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 		case execCount == 4:
 			if storeConfig.StoreType == Bluestore {
 				// the osd mkfs for sdy bluestore
-				assert.Equal(t, "--mkfs", args[3])
+				assert.Equal(t, "--mkfs", args[0])
 				createTestKeyring(t, configDir, args)
 			} else {
 				// mkfs.ext4 for sdy filestore
@@ -120,7 +120,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 		case execCount == 6:
 			if storeConfig.StoreType == Filestore {
 				// the osd mkfs for sdy filestore
-				assert.Equal(t, "--mkfs", args[3])
+				assert.Equal(t, "--mkfs", args[0])
 				createTestKeyring(t, configDir, args)
 			} else {
 				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
@@ -136,8 +136,11 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
 		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
 		outputExecCount++
-		if outputExecCount == 1 {
-			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
+		if args[0] == "auth" && args[1] == "get-or-create-key" {
+			return "{\"key\":\"mysecurekey\"}", nil
+		}
+		if args[0] == "osd" && args[1] == "create" {
+			return "{\"osdid\":3.0}", nil
 		}
 		if strings.HasPrefix(name, "lsblk /dev/disk/by-partuuid") {
 			// this is a call to get device properties so we figure out CRUSH weight, which should only be done for Bluestore
@@ -183,10 +186,10 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	assert.Equal(t, 2, len(agent.osdProc), fmt.Sprintf("procs=%+v", agent.osdProc))
 
 	if storeConfig.StoreType == Bluestore {
-		assert.Equal(t, 4, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
-		assert.Equal(t, 5, execCount)       // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
+		assert.Equal(t, 12, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
+		assert.Equal(t, 5, execCount)        // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
 	} else {
-		assert.Equal(t, 2, outputExecCount)
+		assert.Equal(t, 10, outputExecCount)
 		assert.Equal(t, 7, execCount) // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 mkfs for sdy, 1 mount for sdy, 1 osd mkfs for sdy
 	}
 
@@ -229,9 +232,9 @@ func TestOSDAgentNoDevices(t *testing.T) {
 	// should be no executeCommandWithOutput calls
 	outputExecCount := 0
 	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
-		assert.Fail(t, "executeCommandWithOutput is not expected for OSD local device")
+		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
 		outputExecCount++
-		return "", nil
+		return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 	}
 
 	// set up expected ProcManager commands
@@ -254,7 +257,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, runCount)
 	assert.Equal(t, 1, startCount)
-	assert.Equal(t, 0, outputExecCount)
+	assert.Equal(t, 4, outputExecCount)
 	assert.Equal(t, 1, len(agent.osdProc))
 
 	// the local device should be marked as an applied OSD now
@@ -466,8 +469,10 @@ func TestDesiredDirsState(t *testing.T) {
 
 func TestGetPartitionPerfScheme(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: "a", Inventory: createInventory()}}
-	test.CreateClusterInfo(etcdClient, []string{"mon0"})
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: "a", Inventory: createInventory()}, ConfigDir: configDir}
+	test.CreateClusterInfo(etcdClient, configDir, []string{"mon0"})
 	// 3 disks: 2 for data and 1 for the metadata of both disks (2 WALs and 2 DBs)
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
 		&inventory.LocalDisk{Name: "sda", Size: 107374182400}, // 100 GB

@@ -297,6 +297,7 @@ func (a *OsdAgent) createDesiredOSDs(context *clusterd.Context) error {
 
 	// generate and write the OSD bootstrap keyring
 	if err := createOSDBootstrapKeyring(context, a.cluster.Name); err != nil {
+		logger.Errorf("Failed to create osd bootstrap keyring. %+v", err)
 		return err
 	}
 

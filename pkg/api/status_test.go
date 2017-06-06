@@ -21,12 +21,10 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
-	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
-	"github.com/rook/rook/pkg/util"
-	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,22 +34,20 @@ const (
 )
 
 func TestGetStatusDetailsHandler(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
+	context, _, executor := testContext()
+	defer os.RemoveAll(context.ConfigDir)
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/status", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	context.Executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
-			switch {
-			case args[0] == "status":
-				return CephStatusResponseRaw, nil
-			}
-			return "", fmt.Errorf("unexpected mon_command '%v'", args)
-		},
+	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+		switch {
+		case args[0] == "status":
+			return CephStatusResponseRaw, nil
+		}
+		return "", fmt.Errorf("unexpected mon_command '%v'", args)
 	}
 
 	// make a request to GetStatusDetails and verify the results
@@ -87,22 +83,20 @@ func TestGetStatusDetailsHandler(t *testing.T) {
 }
 
 func TestGetStatusDetailsEmptyResponseFromCeph(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
+	context, _, executor := testContext()
+	defer os.RemoveAll(context.ConfigDir)
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/status", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	context.Executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
-			switch {
-			case args[0] == "status":
-				return "{}", nil
-			}
-			return "", fmt.Errorf("unexpected mon_command '%v'", args)
-		},
+	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+		switch {
+		case args[0] == "status":
+			return "{}", nil
+		}
+		return "", fmt.Errorf("unexpected mon_command '%v'", args)
 	}
 
 	// make a request to GetStatusDetails and verify the results

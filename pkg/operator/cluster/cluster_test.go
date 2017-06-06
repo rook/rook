@@ -20,6 +20,7 @@ package cluster
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -42,7 +43,9 @@ func TestCreateSecrets(t *testing.T) {
 	c := &Cluster{Spec: Spec{VersionTag: "myversion"}}
 	c.Name = "myrook"
 	c.Namespace = "myns"
-	c.Init(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}, ConfigDir: "/tmp/testdir", Executor: executor})
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	c.Init(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}, ConfigDir: configDir, Executor: executor})
 	defer os.RemoveAll(c.context.ConfigDir)
 
 	err := c.createClientAccess(info)

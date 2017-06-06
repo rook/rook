@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/ceph/test"
+	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/util"
@@ -44,9 +45,13 @@ func TestGetFileSystemsHandler(t *testing.T) {
 	if err != nil {
 		logger.Fatal(err)
 	}
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mon0"})
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+			logger.Infof("OUTPUT: %s %v", command, args)
 			if args[0] == "fs" && args[1] == "ls" {
 				return cephFilesystemListResponseRaw, nil
 			}
@@ -77,11 +82,14 @@ func TestGetFileSystemsHandler(t *testing.T) {
 
 func TestCreateFileSystemHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
+	configDir, _ := ioutil.TempDir("", "")
 	context := &clusterd.Context{
 		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
 		Executor:      &exectest.MockExecutor{},
+		ConfigDir:     configDir,
 	}
-	test.CreateClusterInfo(etcdClient, []string{"a"})
+	defer os.RemoveAll(context.ConfigDir)
+	test.CreateClusterInfo(etcdClient, configDir, []string{"a"})
 	defer os.RemoveAll("mon0")
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/filesystem", strings.NewReader(`{"name": "myfs1", "poolName": "myfs1-pool"}`))

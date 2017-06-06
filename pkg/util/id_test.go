@@ -46,7 +46,8 @@ func TestRandomID(t *testing.T) {
 
 // Test loading the IDs in reverse priority order
 func TestLoadNodeID(t *testing.T) {
-	dataDir := "/tmp"
+	dataDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(dataDir)
 	cachedIDFile := path.Join(dataDir, idFilename)
 	defer os.Remove(cachedIDFile)
 
@@ -75,9 +76,9 @@ func TestLoadNodeID(t *testing.T) {
 }
 
 func TestSaveNodeID(t *testing.T) {
-	dataDir := "/tmp"
+	dataDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(dataDir)
 	cachedIDFile := path.Join(dataDir, idFilename)
-	defer os.Remove(cachedIDFile)
 
 	// confirm that the node id is persisted
 	id, err := LoadPersistedNodeID(dataDir)

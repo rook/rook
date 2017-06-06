@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -34,16 +35,18 @@ import (
 
 func TestGetOSDInfo(t *testing.T) {
 	// error when no info is found on disk
-	config := &osdConfig{rootPath: "/tmp"}
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	config := &osdConfig{rootPath: configDir}
 
 	err := loadOSDInfo(config)
 	assert.NotNil(t, err)
 
 	// write the info to disk
-	whoFile := "/tmp/whoami"
+	whoFile := path.Join(configDir, "whoami")
 	ioutil.WriteFile(whoFile, []byte("23"), 0644)
 	defer os.Remove(whoFile)
-	fsidFile := "/tmp/fsid"
+	fsidFile := path.Join(configDir, "fsid")
 	testUUID, _ := uuid.NewUUID()
 	ioutil.WriteFile(fsidFile, []byte(testUUID.String()), 0644)
 	defer os.Remove(fsidFile)
@@ -57,7 +60,10 @@ func TestGetOSDInfo(t *testing.T) {
 
 func TestOSDBootstrap(t *testing.T) {
 	clusterName := "mycluster"
-	targetPath := getBootstrapOSDKeyringPath("/tmp", clusterName)
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+
+	targetPath := getBootstrapOSDKeyringPath(configDir, clusterName)
 	defer os.Remove(targetPath)
 
 	executor := &exectest.MockExecutor{
@@ -66,7 +72,7 @@ func TestOSDBootstrap(t *testing.T) {
 		},
 	}
 
-	context := &clusterd.Context{Executor: executor, ConfigDir: "/tmp/testdir"}
+	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
 	defer os.RemoveAll(context.ConfigDir)
 	err := createOSDBootstrapKeyring(context, clusterName)
 	assert.Nil(t, err)

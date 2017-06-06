@@ -16,6 +16,7 @@ limitations under the License.
 package mds
 
 import (
+	"io/ioutil"
 	"os"
 	"testing"
 
@@ -49,14 +50,15 @@ func TestStartMDS(t *testing.T) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
+	configDir, _ := ioutil.TempDir("", "")
 	context := &clusterd.Context{
 		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: "123"},
 		Executor:      executor,
 		ProcMan:       proc.New(executor),
-		ConfigDir:     "/tmp/mds",
+		ConfigDir:     configDir,
 	}
 	defer os.RemoveAll(context.ConfigDir)
-	test.CreateClusterInfo(etcdClient, []string{"mon0"})
+	test.CreateClusterInfo(etcdClient, configDir, []string{"mon0"})
 
 	// nothing to stop without mds in desired state
 	agent := NewAgent()

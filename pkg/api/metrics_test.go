@@ -17,35 +17,33 @@ package api
 
 import (
 	"fmt"
+	"os"
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/rook/rook/pkg/clusterd"
-	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMetricsCollectFailureRetry(t *testing.T) {
-	context := &clusterd.Context{}
+	context, _, executor := testContext()
+	defer os.RemoveAll(context.ConfigDir)
 
 	// mock it so the first status mon command attempt will fail (even though the initial connection was established OK)
 	attempt := 0
-	context.Executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
-			attempt++
-			switch {
-			case args[0] == "status":
-				if attempt <= 1 {
-					// first attempt for status mon command should fail
-					return "", fmt.Errorf("mock mon command failure")
-				}
-				// subsequent attempts return a good response
-				return CephStatusResponseRaw, nil
+	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+		attempt++
+		switch {
+		case args[0] == "status":
+			if attempt <= 1 {
+				// first attempt for status mon command should fail
+				return "", fmt.Errorf("mock mon command failure")
 			}
+			// subsequent attempts return a good response
+			return CephStatusResponseRaw, nil
+		}
 
-			// mock fail all other mon commands (each collector will make several, but we don't care about their results)
-			return "", fmt.Errorf("mock mon command failure for '%v'", args)
-		},
+		// mock fail all other mon commands (each collector will make several, but we don't care about their results)
+		return "", fmt.Errorf("mock mon command failure for '%v'", args)
 	}
 
 	// create the handler

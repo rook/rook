@@ -17,6 +17,7 @@ package rgw
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path"
 	"testing"
@@ -53,12 +54,14 @@ func TestRGWConfig(t *testing.T) {
 			return response, nil
 		},
 	}
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, Inventory: &inventory.Config{Nodes: nodes}},
-		ProcMan: proc.New(executor), Executor: executor, ConfigDir: "/tmp/rgw"}
+		ProcMan: proc.New(executor), Executor: executor, ConfigDir: configDir}
 	leader := NewLeader()
-	defer os.RemoveAll("/tmp/rgw")
+
 	// mock a monitor
-	cephtest.CreateClusterInfo(etcdClient, []string{"mymon"})
+	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	// Nothing happens when not in desired state
 	err := leader.Configure(context)

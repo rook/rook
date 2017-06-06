@@ -17,6 +17,9 @@ package mon
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
 	"strings"
 	"testing"
 	"time"
@@ -34,9 +37,11 @@ func TestMonSelection(t *testing.T) {
 	nodes := make(map[string]*inventory.NodeConfig)
 	inv := &inventory.Config{Nodes: nodes}
 	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.4"}
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
 		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, Inventory: inv},
-		ConfigDir:     "/tmp",
+		ConfigDir:     configDir,
 	}
 
 	// choose 1 mon from the set of 1 nodes
@@ -92,11 +97,13 @@ func TestMonOnUnhealthyNode(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 
 	// mock a monitor
-	cephtest.CreateClusterInfo(etcdClient, []string{"a"})
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"a"})
 
 	// the monitor is on the bad node
 	badNode := &clusterd.UnhealthyNode{ID: "a"}
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}, ConfigDir: "/tmp"}
+	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}, ConfigDir: configDir}
 	response, err := monsOnUnhealthyNode(context, []*clusterd.UnhealthyNode{badNode})
 	assert.True(t, response)
 	assert.Nil(t, err)
@@ -114,22 +121,31 @@ func TestMoveUnhealthyMonitor(t *testing.T) {
 		return nil
 	}
 	leader := &Leader{waitForQuorum: waitForQuorum}
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
-			cephtest.CreateClusterInfo(etcdClient, []string{"a", "b", "c"})
-			return "mysecret", nil
+			logger.Infof("OUTPUT: %s %v", command, args)
+			if command == "ceph-authtool" {
+				cephtest.CreateClusterInfo(etcdClient, path.Join(configDir, "rookcluster"), []string{"a", "b", "c"})
+				return "mysecret", nil
+			}
+			if args[0] == "mon" && args[1] == "remove" {
+				return "", nil
+			}
+			return "", fmt.Errorf("unrecognized command: %s %v", command, args)
 		},
 	}
 
 	nodes := make(map[string]*inventory.NodeConfig)
 	inv := &inventory.Config{Nodes: nodes}
-	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.4"}
-	nodes["b"] = &inventory.NodeConfig{PublicIP: "2.3.4.5"}
-	nodes["c"] = &inventory.NodeConfig{PublicIP: "3.4.5.6"}
+	nodes["a"] = &inventory.NodeConfig{PublicIP: "1.2.3.0"}
+	nodes["b"] = &inventory.NodeConfig{PublicIP: "1.2.3.1"}
+	nodes["c"] = &inventory.NodeConfig{PublicIP: "1.2.3.2"}
 
 	context := &clusterd.Context{
 		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, Inventory: inv},
-		ConfigDir:     "/tmp",
+		ConfigDir:     configDir,
 		Executor:      executor,
 	}
 
@@ -150,7 +166,8 @@ func TestMoveUnhealthyMonitor(t *testing.T) {
 
 	err = leader.Configure(context, "mykey")
 	assert.Nil(t, err)
-	assert.True(t, etcdClient.GetChildDirs("/rook/services/ceph/monitor/desired").Equals(util.CreateSet([]string{"d", "b", "c"})))
+	desiredMons := etcdClient.GetChildDirs("/rook/services/ceph/monitor/desired")
+	assert.True(t, desiredMons.Equals(util.CreateSet([]string{"d", "b", "c"})), fmt.Sprintf("%v", desiredMons))
 
 	cluster, err := LoadClusterInfo(etcdClient)
 	assert.Nil(t, err)
@@ -158,18 +175,17 @@ func TestMoveUnhealthyMonitor(t *testing.T) {
 	mon1 := false
 	mon2 := false
 	mon3 := false
-	for _, mon := range cluster.Monitors {
+	for key, mon := range cluster.Monitors {
 		if strings.Contains(mon.Endpoint, nodes["a"].PublicIP) {
 			assert.Fail(t, "mon a was not removed")
-		}
-		if strings.Contains(mon.Endpoint, nodes["b"].PublicIP) {
+		} else if strings.Contains(mon.Endpoint, nodes["b"].PublicIP) {
 			mon1 = true
-		}
-		if strings.Contains(mon.Endpoint, nodes["c"].PublicIP) {
+		} else if strings.Contains(mon.Endpoint, nodes["c"].PublicIP) {
 			mon2 = true
-		}
-		if strings.Contains(mon.Endpoint, nodes["d"].PublicIP) {
+		} else if strings.Contains(mon.Endpoint, nodes["d"].PublicIP) {
 			mon3 = true
+		} else {
+			assert.Fail(t, "UNRECOGNIZED MON %s on node %s", mon.Name, key)
 		}
 	}
 
@@ -222,9 +238,11 @@ func TestUnhealthyMon(t *testing.T) {
 	nodes["b"] = &inventory.NodeConfig{PublicIP: "2.2.3.4"}
 	nodes["c"] = &inventory.NodeConfig{PublicIP: "3.2.3.4"}
 	nodes["d"] = &inventory.NodeConfig{PublicIP: "4.2.3.4"}
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
 		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, Inventory: inv},
-		ConfigDir:     "/tmp",
+		ConfigDir:     configDir,
 	}
 
 	// choose 3 mons from the set of 4 nodes, but don't choose the unhealthy node 'a'

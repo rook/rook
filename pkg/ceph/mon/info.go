@@ -34,8 +34,7 @@ import (
 )
 
 const (
-	CephKey          = "/rook/services/ceph"
-	cephInstanceName = "default"
+	CephKey = "/rook/services/ceph"
 )
 
 type ClusterInfo struct {

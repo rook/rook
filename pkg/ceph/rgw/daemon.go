@@ -119,9 +119,9 @@ func startRGW(context *clusterd.Context, config *Config) (rgwProc *proc.Monitore
 		fmt.Sprintf("--rgw-mime-types-file=%s", getMimeTypesPath(context.ConfigDir)),
 	}
 	if config.InProc {
-		err = context.ProcMan.Run("rgw", "ceph-rgw", args...)
+		err = context.ProcMan.Run("rgw", "radosgw", args...)
 	} else {
-		rgwProc, err = context.ProcMan.Start("rgw", "ceph-rgw", regexp.QuoteMeta(rgwNameArg), proc.ReuseExisting, args...)
+		rgwProc, err = context.ProcMan.Start("rgw", "radosgw", regexp.QuoteMeta(rgwNameArg), proc.ReuseExisting, args...)
 	}
 	if err != nil {
 		err = fmt.Errorf("failed to start rgw: %+v", err)

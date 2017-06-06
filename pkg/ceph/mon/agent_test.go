@@ -17,6 +17,8 @@ package mon
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
 	"path"
 	"testing"
@@ -24,20 +26,21 @@ import (
 	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
-	"github.com/rook/rook/pkg/util/exec/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/proc"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMonAgent(t *testing.T) {
-	executor := &test.MockExecutor{}
+	context, etcdClient, executor := testContext()
+	defer os.RemoveAll(context.ConfigDir)
 
 	runCommands := 0
 	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
 		logger.Infof("RUN %d. %s %+v", runCommands, command, args)
 		switch {
 		case runCommands == 0:
-			assert.Equal(t, "--mkfs", args[3])
+			assert.Equal(t, "--mkfs", args[0])
 		default:
 			assert.Fail(t, fmt.Sprintf("unexpected case %d", runCommands))
 		}
@@ -52,8 +55,8 @@ func TestMonAgent(t *testing.T) {
 		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 		assert.Equal(t, "--cluster=rookcluster", args[1])
 		assert.Equal(t, "--name=mon.mon0", args[2])
-		assert.Equal(t, "--mon-data=/tmp/mon0/mon.mon0", args[3])
-		assert.Equal(t, "--conf=/tmp/mon0/rookcluster.config", args[4])
+		assert.Equal(t, fmt.Sprintf("--mon-data=%s/mon0/mon.mon0", context.ConfigDir), args[3])
+		assert.Equal(t, fmt.Sprintf("--conf=%s/mon0/rookcluster.config", context.ConfigDir), args[4])
 		switch {
 		case startCommands == 0:
 			assert.Equal(t, "--foreground", args[0])
@@ -63,14 +66,6 @@ func TestMonAgent(t *testing.T) {
 		}
 		startCommands++
 		return cmd, nil
-	}
-
-	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: "a"},
-		Executor:      executor,
-		ProcMan:       proc.New(executor),
-		ConfigDir:     "/tmp",
 	}
 
 	cluster, err := createOrGetClusterInfo(context, "")
@@ -90,7 +85,7 @@ func TestMonAgent(t *testing.T) {
 	etcdClient.SetValue(path.Join(key, "id"), "mon0")
 	etcdClient.SetValue(path.Join(key, "ipaddress"), "1.2.3.4")
 	etcdClient.SetValue(path.Join(key, "port"), "2345")
-	cephtest.CreateClusterInfo(etcdClient, []string{"mon0"})
+	cephtest.CreateClusterInfo(etcdClient, context.ConfigDir, []string{"mon0"})
 
 	// now the monitor will be configured
 	err = agent.ConfigureLocalService(context)
@@ -106,4 +101,26 @@ func TestMonAgent(t *testing.T) {
 	assert.Equal(t, 1, runCommands)
 	assert.Equal(t, 1, startCommands)
 	assert.Nil(t, agent.monProc)
+}
+
+func testContext() (*clusterd.Context, *util.MockEtcdClient, *exectest.MockExecutor) {
+	etcdClient := util.NewMockEtcdClient()
+
+	configDir, _ := ioutil.TempDir("", "")
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+			logger.Infof("OUTPUT: %s %v", command, args)
+			if command == "ceph-authtool" {
+				cephtest.CreateClusterInfo(nil, path.Join(configDir, "rookcluster"), []string{"a"})
+				return "mysecret", nil
+			}
+			return "", fmt.Errorf("unrecognized command")
+		},
+	}
+	return &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: "a"},
+		ProcMan:       proc.New(executor),
+		Executor:      executor,
+		ConfigDir:     configDir,
+	}, etcdClient, executor
 }

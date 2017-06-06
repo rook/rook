@@ -42,7 +42,6 @@ type Cluster struct {
 	Namespace string
 	Version   string
 	Replicas  int32
-	dataDir   string
 }
 
 func New(context *clusterd.Context, name, namespace, version string, placement k8sutil.Placement) *Cluster {
@@ -53,7 +52,6 @@ func New(context *clusterd.Context, name, namespace, version string, placement k
 		Namespace: namespace,
 		Version:   version,
 		Replicas:  2,
-		dataDir:   k8sutil.DataDir,
 	}
 }
 

@@ -17,6 +17,7 @@ package osd
 
 import (
 	"fmt"
+	"io/ioutil"
 	"strings"
 	"testing"
 
@@ -30,7 +31,9 @@ import (
 )
 
 func TestStoreOSDDirMap(t *testing.T) {
-	context := &clusterd.Context{ConfigDir: "/tmp/testdir"}
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	context := &clusterd.Context{ConfigDir: configDir}
 	defer os.RemoveAll(context.ConfigDir)
 	os.MkdirAll(context.ConfigDir, 0755)
 

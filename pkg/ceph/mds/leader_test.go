@@ -17,6 +17,8 @@ package mds
 
 import (
 	"fmt"
+	"io/ioutil"
+	"path"
 	"testing"
 
 	"github.com/rook/rook/pkg/ceph/mon"
@@ -102,14 +104,15 @@ func TestAddRemoveFileSystem(t *testing.T) {
 	nodes := make(map[string]*inventory.NodeConfig)
 	inv := &inventory.Config{Nodes: nodes}
 	executor := &exectest.MockExecutor{}
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, Inventory: inv}, Executor: executor, ConfigDir: "/tmp/file"}
+	configDir, _ := ioutil.TempDir("", "")
+	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, Inventory: inv}, Executor: executor, ConfigDir: configDir}
 	defer os.RemoveAll(context.ConfigDir)
 
 	fs := NewFS(context, "myfs", "yourpool")
 	err := fs.AddToDesiredState()
 	assert.Nil(t, err)
 
-	cephtest.CreateClusterInfo(etcdClient, []string{"a"})
+	cephtest.CreateClusterInfo(etcdClient, path.Join(configDir, "rookcluster"), []string{"a"})
 
 	_, err = mon.CreateClusterInfo(context, "secret")
 	assert.Nil(t, err)
@@ -151,12 +154,14 @@ func TestAddRemoveFileSystem(t *testing.T) {
 	monCmdCount := 0
 	executor = &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+			logger.Infof("RUN %s %+v", command, args)
 			result := ""
 			switch monCmdCount {
 			case 0:
 				assert.Equal(t, args[0], "fs")
 				assert.Equal(t, args[1], "set")
-				assert.Equal(t, args[2], "cluster_down")
+				assert.Equal(t, args[2], "myfs")
+				assert.Equal(t, args[3], "cluster_down")
 			case 1:
 				assert.Equal(t, args[0], "fs")
 				assert.Equal(t, args[1], "get")
@@ -168,7 +173,7 @@ func TestAddRemoveFileSystem(t *testing.T) {
 			case 3:
 				assert.Equal(t, args[0], "fs")
 				assert.Equal(t, args[1], "rm")
-				assert.Equal(t, args[1], "myfs")
+				assert.Equal(t, args[2], "myfs")
 			}
 
 			monCmdCount++
