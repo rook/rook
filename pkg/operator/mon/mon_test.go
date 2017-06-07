@@ -207,6 +207,14 @@ func TestTaintedNodes(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(nodes))
 
+	// mark a node as unschedulable
+	nodes[0].Spec.Unschedulable = true
+	clientset.CoreV1().Nodes().Update(&nodes[0])
+	nodesSchedulable, err := c.getAvailableMonNodes()
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(nodesSchedulable))
+	nodes[0].Spec.Unschedulable = false
+
 	// taint nodes so they will not be schedulable for new pods
 	nodes[0].Spec.Taints = []v1.Taint{
 		v1.Taint{Effect: v1.TaintEffectNoSchedule},

@@ -445,6 +445,11 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 }
 
 func validNode(node v1.Node) bool {
+	// a node cannot be disabled
+	if node.Spec.Unschedulable {
+		return false
+	}
+	
 	// a node cannot be tainted
 	for _, t := range node.Spec.Taints {
 		if t.Effect == v1.TaintEffectNoSchedule || t.Effect == v1.TaintEffectPreferNoSchedule {
