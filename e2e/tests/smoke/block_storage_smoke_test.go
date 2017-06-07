@@ -1,8 +1,7 @@
 package smoke
 
 import (
-	"github.com/rook/rook/e2e/framework/enums"
-	"github.com/rook/rook/e2e/framework/manager"
+	"github.com/rook/rook/e2e/tests"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"testing"
@@ -15,49 +14,23 @@ func TestBlockStorageSmokeSuite(t *testing.T) {
 
 type BlockStorageTestSuite struct {
 	suite.Suite
-	rookPlatform enums.RookPlatformType
-	k8sVersion   enums.K8sVersion
-	rookTag      string
-	helper       *SmokeTestHelper
+	helper *SmokeTestHelper
 }
 
 func (suite *BlockStorageTestSuite) SetupTest() {
 	var err error
 
-	suite.rookPlatform, err = enums.GetRookPlatFormTypeFromString(env.Platform)
-
-	require.Nil(suite.T(), err)
-
-	suite.k8sVersion, err = enums.GetK8sVersionFromString(env.K8sVersion)
-
-	require.Nil(suite.T(), err)
-
-	suite.rookTag = env.RookTag
-
-	require.NotEmpty(suite.T(), suite.rookTag, "RookTag parameter is required")
-
-	err, rookInfra := rook_test_infra.GetRookTestInfraManager(suite.rookPlatform, true, suite.k8sVersion)
-
-	require.Nil(suite.T(), err)
-
-	skipRookInstall := env.SkipInstallRook == "true"
-
-	rookInfra.ValidateAndSetupTestPlatform(skipRookInstall)
-
-	err = rookInfra.InstallRook(suite.rookTag, skipRookInstall)
-
-	require.Nil(suite.T(), err)
-
-	suite.helper, err = CreateSmokeTestClient(rookInfra.GetRookPlatform())
+	suite.helper, err = CreateSmokeTestClient(tests.Platform)
 	require.Nil(suite.T(), err)
 }
 
+// Smoke Test for Block Storage - Test check the following operations on Block Storage in order
+//Create,Mount,Write,Read,Unmount and Delete.
 func (suite *BlockStorageTestSuite) TestBlockStorage_SmokeTest() {
 
 	suite.T().Log("Block Storage Smoke Test - Create,Mount,write to, read from  and Unmount Block")
-
-	defer blockTestcleanup(suite.helper)
 	rbc := suite.helper.GetBlockClient()
+
 	suite.T().Log("Step 0 : Get Initial List Block")
 	initBlockImages, _ := rbc.BlockList()
 
@@ -96,17 +69,18 @@ func (suite *BlockStorageTestSuite) TestBlockStorage_SmokeTest() {
 
 }
 
-func blockTestcleanup(h *SmokeTestHelper) {
-	h.UnMountBlockStorage()
-	h.DeleteBlockStorage()
-	h.CleanUpDymanicBlockStorge()
+func (s *BlockStorageTestSuite) TearDownTest() {
+	s.helper.UnMountBlockStorage()
+	s.helper.DeleteBlockStorage()
+	s.helper.CleanUpDymanicBlockStorge()
+
 }
 
 // periodically checking if block image count has changed to expected value
 // When creating pvc in k8s platform, it may take some time for the block Image to be bounded
 func retryBlockImageCountCheck(h *SmokeTestHelper, imageCount int, expectedChange int) bool {
 	inc := 0
-	for inc < 10 {
+	for inc < 30 {
 		blockImages, _ := h.GetBlockClient().BlockList()
 		if imageCount+expectedChange == len(blockImages) {
 			return true

@@ -15,6 +15,8 @@ import (
 	"github.com/rook/rook/e2e/framework/objects"
 	"github.com/rook/rook/e2e/framework/transport"
 	"github.com/rook/rook/e2e/framework/utils"
+	"os"
+	"path/filepath"
 )
 
 type rookTestInfraManager struct {
@@ -38,7 +40,7 @@ const (
 	rookOperatorFileName           = "rook-operator.yaml"
 	rookClusterFileName            = "rook-cluster.yaml"
 	rookClientFileName             = "rook-client.yaml"
-	podSpecPath                    = "../../../demo/kubernetes"
+	podSpecPath                    = "src/github.com/rook/rook/demo/kubernetes"
 	scriptsPath                    = "scripts"
 	k8sFalsePostiveSuccessErrorMsg = "exit status 1" //When kubectl drain is executed, exit status 1 is always returned in stdout
 	rookDindK8sClusterScriptv1_5   = "rook-dind-cluster-v1.5.sh"
@@ -54,6 +56,10 @@ const (
 	cephBaseImageName              = "ceph/base"
 	defaultTagName                 = "master-latest"
 )
+
+func getPodSpecPath() string {
+	return filepath.Join(os.Getenv("GOPATH"), podSpecPath)
+}
 
 func GetRookTestInfraManager(platformType enums.RookPlatformType, isDockerized bool, version enums.K8sVersion) (error, *rookTestInfraManager) {
 	var transportClient contracts.ITransportClient
@@ -238,7 +244,7 @@ func (r *rookTestInfraManager) ValidateAndSetupTestPlatform(skipInstall bool) {
 	//Untaint all nodes making them schedulable
 	k8sClient := transport.CreateNewk8sTransportClient()
 
-	_, _, err := k8sClient.ExecuteCmd([]string{"taint", "nodes", "--all", "node-role.kubernetes.io/master--"})
+	_, _, err := k8sClient.ExecuteCmd([]string{"taint", "nodes", "--all", "node-role.kubernetes.io/master-"})
 
 	if err != nil && !strings.EqualFold(err.Error(), k8sFalsePostiveSuccessErrorMsg) {
 		panic(err)
@@ -270,7 +276,8 @@ func (r *rookTestInfraManager) getContainerIdByName(containerName string) (conta
 
 //method for create rook-operator via kubectl
 func createK8sRookOperator(k8sHelper *utils.K8sHelper, tag string) error {
-	raw, err := ioutil.ReadFile(podSpecPath + "/" + rookOperatorFileName)
+
+	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(), rookOperatorFileName))
 
 	if err != nil {
 		return err
@@ -302,7 +309,7 @@ func createK8sRookOperator(k8sHelper *utils.K8sHelper, tag string) error {
 func createK8sRookClient(k8sHelper *utils.K8sHelper, tag string) (err error) {
 
 	//Create rook client
-	raw, err := ioutil.ReadFile(podSpecPath + "/" + rookClientFileName)
+	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(), rookClientFileName))
 
 	if err != nil {
 		panic(err)
@@ -331,7 +338,8 @@ func createK8sRookClient(k8sHelper *utils.K8sHelper, tag string) (err error) {
 }
 
 func createk8sRookCluster(k8sHelper *utils.K8sHelper, tag string) error {
-	raw, err := ioutil.ReadFile(podSpecPath + "/" + rookClusterFileName)
+
+	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(), rookClusterFileName))
 
 	if err != nil {
 		return err

@@ -4,9 +4,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/rook/rook/e2e/framework/enums"
-	"github.com/rook/rook/e2e/framework/manager"
 	"github.com/rook/rook/e2e/framework/utils"
+	"github.com/rook/rook/e2e/tests"
 	"github.com/rook/rook/pkg/model"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -27,49 +26,24 @@ func TestObjectStorageSmokeSuite(t *testing.T) {
 
 type ObjectStorageTestSuite struct {
 	suite.Suite
-	rookPlatform enums.RookPlatformType
-	k8sVersion   enums.K8sVersion
-	rookTag      string
-	helper       *SmokeTestHelper
+	helper *SmokeTestHelper
 }
 
 func (suite *ObjectStorageTestSuite) SetupTest() {
 
 	var err error
 
-	suite.rookPlatform, err = enums.GetRookPlatFormTypeFromString(env.Platform)
-
-	require.Nil(suite.T(), err)
-
-	suite.k8sVersion, err = enums.GetK8sVersionFromString(env.K8sVersion)
-
-	require.Nil(suite.T(), err)
-
-	suite.rookTag = env.RookTag
-
-	require.NotEmpty(suite.T(), suite.rookTag, "RookTag parameter is required")
-
-	err, rookInfra := rook_test_infra.GetRookTestInfraManager(suite.rookPlatform, true, suite.k8sVersion)
-
-	require.Nil(suite.T(), err)
-
-	skipRookInstall := env.SkipInstallRook == "true"
-
-	rookInfra.ValidateAndSetupTestPlatform(skipRookInstall)
-
-	err = rookInfra.InstallRook(suite.rookTag, skipRookInstall)
-
-	require.Nil(suite.T(), err)
-
-	suite.helper, err = CreateSmokeTestClient(rookInfra.GetRookPlatform())
+	suite.helper, err = CreateSmokeTestClient(tests.Platform)
 	require.Nil(suite.T(), err)
 
 }
+
+// Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
+//Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,Delete Bucket and
+//Delete user
 func (suite *ObjectStorageTestSuite) TestObjectStorage_SmokeTest() {
 
 	suite.T().Log("Object Storage Smoke Test - Create Object Store, User,Bucket and read/write to bucket")
-
-	defer objectTestcleanup(suite.helper)
 
 	suite.T().Log("Step 0 : Create Object Store")
 	_, cobs_err := suite.helper.CreateObjectStore()
@@ -148,16 +122,17 @@ func (suite *ObjectStorageTestSuite) TestObjectStorage_SmokeTest() {
 
 }
 
-func objectTestcleanup(h *SmokeTestHelper) {
-	userinfo, err := h.GetObjectStoreUser(userid)
+func (s *ObjectStorageTestSuite) TearDownTest() {
+	userinfo, err := s.helper.GetObjectStoreUser(userid)
 	if err != nil {
 		return //when user is not found
 	}
-	s3endpoint, _ := h.GetRGWServiceUrl()
+	s3endpoint, _ := s.helper.GetRGWServiceUrl()
 	s3client := utils.CreateNewS3Helper(s3endpoint, *userinfo.AccessKey, *userinfo.SecretKey)
 	s3client.DeleteObjectInBucket(bucketname, objectKey)
 	s3client.DeleteBucket(bucketname)
-	h.DeleteObjectStoreUser()
+	s.helper.DeleteObjectStoreUser()
+
 }
 
 func getBucket(bucketname string, bucketList []model.ObjectBucket) (model.ObjectBucket, error) {

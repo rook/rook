@@ -30,7 +30,7 @@ tests against rook that is already installed.
 The following parameters are available while running tests
 
  Parameter | Description | Possible values | Default
- --- |--- | --- 
+ --- |--- | --- | --- 
 rook_platform| platform rook needs to be installed on  | kubernetes | kubernetes
 k8s_version  | version of Kubernetes to be installed  | v1.6  | v1.6
 rook_version | rook version/tag to be installed | valid rook tag |master-latest 

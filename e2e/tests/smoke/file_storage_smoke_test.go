@@ -1,26 +1,15 @@
 package smoke
 
 import (
-	"github.com/rook/rook/e2e/framework/enums"
-	"github.com/rook/rook/e2e/framework/manager"
-	"github.com/rook/rook/e2e/framework/objects"
+	"github.com/rook/rook/e2e/tests"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )
 
-var env objects.EnvironmentManifest
-
-func init() {
-	env = objects.NewManifest()
-}
-
 type FileSystemTestSuite struct {
 	suite.Suite
-	rookPlatform enums.RookPlatformType
-	k8sVersion   enums.K8sVersion
-	rookTag      string
-	helper       *SmokeTestHelper
+	helper *SmokeTestHelper
 }
 
 func TestFileSystemSmokeSuite(t *testing.T) {
@@ -31,40 +20,16 @@ func TestFileSystemSmokeSuite(t *testing.T) {
 func (suite *FileSystemTestSuite) SetupTest() {
 	var err error
 
-	suite.rookPlatform, err = enums.GetRookPlatFormTypeFromString(env.Platform)
-
-	require.Nil(suite.T(), err)
-
-	suite.k8sVersion, err = enums.GetK8sVersionFromString(env.K8sVersion)
-
-	require.Nil(suite.T(), err)
-
-	suite.rookTag = env.RookTag
-
-	require.NotEmpty(suite.T(), suite.rookTag, "RookTag parameter is required")
-
-	err, rookInfra := rook_test_infra.GetRookTestInfraManager(suite.rookPlatform, true, suite.k8sVersion)
-
-	require.Nil(suite.T(), err)
-
-	skipRookInstall := env.SkipInstallRook == "true"
-
-	rookInfra.ValidateAndSetupTestPlatform(skipRookInstall)
-
-	err = rookInfra.InstallRook(suite.rookTag, skipRookInstall)
-
-	require.Nil(suite.T(), err)
-
-	suite.helper, err = CreateSmokeTestClient(rookInfra.GetRookPlatform())
+	suite.helper, err = CreateSmokeTestClient(tests.Platform)
 	require.Nil(suite.T(), err)
 
 }
 
+// Smoke Test for File System Storage - Test check the following operations on FileSystem Storage in order
+//Create,Mount,Write,Read,Unmount and Delete.
 func (suite *FileSystemTestSuite) TestFileStorage_SmokeTest() {
 
 	suite.T().Log("File Storage Smoke Test - Create,Mount,write to, read from  and Unmount Filesystem")
-
-	defer fileSmokecleanUp(suite.helper)
 	rfc := suite.helper.GetFileSystemClient()
 
 	suite.T().Log("Step 1: Create file System")
@@ -104,7 +69,8 @@ func (suite *FileSystemTestSuite) TestFileStorage_SmokeTest() {
 	suite.T().Log("File system deleted")
 }
 
-func fileSmokecleanUp(h *SmokeTestHelper) {
-	h.UnmountFileStorage()
-	h.DeleteFileStorage()
+func (s *FileSystemTestSuite) TearDownTest() {
+	s.helper.UnmountFileStorage()
+	s.helper.DeleteFileStorage()
+
 }

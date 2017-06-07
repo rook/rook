@@ -117,10 +117,6 @@ rook_infra::cleanup() {
     local rook_platform=$2
     local k8s_version=$3
 
-    #Run clean up tests that runs down on dind script
-    docker exec -t ${id} /bin/bash -c \
-        "go test -timeout 1200s -run TestRookInfraCleanUp  ${git_test_directory} --rook_platform=${rook_platform} --k8s_version=${k8s_version} --rook_version=${tag_name} -v 2>&1"
-
     echo Removing rook-test-framework container and images...
     docker kill ${id} || true
     docker rm ${id} || true
