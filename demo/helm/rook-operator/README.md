@@ -15,7 +15,7 @@ Alternatively, to deploy from a local checkout of the rook codebase (until the r
 
 ```console
 $ cd demo/helm/rook-operator
-$ helm install --name rook-operator --namespace rook-operator .
+$ helm install --name rook-operator --namespace rook .
 ```
 
 Introduction
@@ -66,7 +66,7 @@ Uninstalling the Chart
 To uninstall/delete the `rook-operator` deployment:
 
 ```console
-$ helm delete rook-operator
+$ helm delete --purge rook-operator
 ```
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
