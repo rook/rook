@@ -1,0 +1,4 @@
+apiVersion: v1
+description: A Helm chart for deploying a Rook Cluster
+name: rook-cluster
+version: 0.1.0
