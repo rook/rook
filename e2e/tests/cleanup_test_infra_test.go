@@ -6,6 +6,7 @@ import (
 	"github.com/rook/rook/e2e/framework/manager"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/kubernetes/pkg/util/env"
 	"testing"
 )
 
@@ -23,15 +24,15 @@ type CleanUpTestSuite struct {
 func (suite *CleanUpTestSuite) TestRookInfraCleanUpTest() {
 	var err error
 
-	suite.rookPlatform, err = enums.GetRookPlatFormTypeFromString(env.Platform)
+	suite.rookPlatform, err = enums.GetRookPlatFormTypeFromString(Env.Platform)
 
 	require.Nil(suite.T(), err)
 
-	suite.k8sVersion, err = enums.GetK8sVersionFromString(env.K8sVersion)
+	suite.k8sVersion, err = enums.GetK8sVersionFromString(Env.K8sVersion)
 
 	require.Nil(suite.T(), err)
 
-	suite.rookTag = env.RookTag
+	suite.rookTag = Env.RookTag
 
 	require.NotEmpty(suite.T(), suite.rookTag, "RookTag parameter is required")
 

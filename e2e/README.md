@@ -35,6 +35,8 @@ rook_platform| platform rook needs to be installed on  | kubernetes | kubernetes
 k8s_version  | version of Kubernetes to be installed  | v1.6  | v1.6
 rook_version | rook version/tag to be installed | valid rook tag |master-latest 
 skip_install_rook | skips installing rook (if already installed) | true or false  | false
+load_parallel_runs | performs concurrent operations (optional) | any number | 20
+count| go test paramater to repeat tests| any number | 1
 
 if install_rook flag is set to false, then all the other flags are ignored,
 and tests are run without rook being installed and set up. Use this flag to run tests against
@@ -54,15 +56,25 @@ are run. e.g.
 go test -run TestObjectStorageSmokeSuite github.com/rook/rook/e2e/tests/smoke --rook_version=v3.0.1
 ```
 
-#### Run Tests on pre-installed/exisitng Rook
+#### Run Tests on pre-installed/existing Rook
 To run tests against a pre-installed rook set  ```--skip_install_rook=true``` . 
 Setting skip_install_rook to true will ignore all other flags and run tests without installing rook first.
 
 e.g.
 ```
-go test -run TestFileStorageSmokeSuite github.com/rook/rook/e2e/tests/smoke --skip_install_rook=true
+go test -run TestFileSystemSmokeSuite github.com/rook/rook/e2e/tests/smoke --skip_install_rook=true
 ```
-
+#### Run Longhaul Tests
+Using go test `-count` option, any tests can be repeated n number of times to simulate load or longhaul test. Although 
+any test can be converted to a longhaul test, it's ideal to run integration tests under load for extended period to simulate 
+real world scenarios. Also a new custom test flag `load_parallel_runs` is added to control the number of concurrent operations being performed.
+For example look at the [block long haul test](/e2e/tests/block/k8s/longhaul/basicBlockonghaul_test.go)
+ 
+ To run a longhaul test you can run any integration test with `-count` and `--load_parallel_runs` options
+ e.g.
+ ```
+ go test -run TestK8sBlockLongHaul github.com/rook/rook/e2e/tests/block/k8s/longhaul --load_parallel_runs=20 -count=1000
+ ```
 
 Prerequisites :
 * Go installed and GO_PATH set up

@@ -51,7 +51,6 @@ func (s *BlockImageCreateSuite) TestCreatingNewBlockImageOnDefaultPool() {
 	require.Contains(s.T(), cbi, "succeeded created image")
 	b, _ := s.rc.GetBlockImages()
 	require.Equal(s.T(), s.init_blockCount+1, len(b), "Make sure new block image is created")
-	s.T().Log("Test Passed")
 
 }
 

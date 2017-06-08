@@ -9,23 +9,23 @@ import (
 )
 
 var (
-	env      objects.EnvironmentManifest
+	Env      objects.EnvironmentManifest
 	Platform enums.RookPlatformType
 )
 
 //One init function per package - initializes Rook infra and installs rook(if needed based on flags)
 func init() {
-	env = objects.NewManifest()
+	Env = objects.NewManifest()
 	var err error
 
-	rookPlatform, err := enums.GetRookPlatFormTypeFromString(env.Platform)
+	rookPlatform, err := enums.GetRookPlatFormTypeFromString(Env.Platform)
 	if err != nil {
 		panic(fmt.Errorf("Cannot get platform", err))
 	}
 
-	k8sVersion, _ := enums.GetK8sVersionFromString(env.K8sVersion)
+	k8sVersion, _ := enums.GetK8sVersionFromString(Env.K8sVersion)
 
-	rookTag := env.RookTag
+	rookTag := Env.RookTag
 	if err != nil {
 		panic(fmt.Errorf("Rook Tag is required", err))
 	}
@@ -34,7 +34,7 @@ func init() {
 	if err != nil {
 		panic(fmt.Errorf("Error during Rook Infra Setup", err))
 	}
-	skipRookInstall := strings.EqualFold(env.SkipInstallRook, "true")
+	skipRookInstall := strings.EqualFold(Env.SkipInstallRook, "true")
 	rookInfra.ValidateAndSetupTestPlatform(skipRookInstall)
 
 	err = rookInfra.InstallRook(rookTag, skipRookInstall)
