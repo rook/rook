@@ -33,7 +33,7 @@ import (
 func TestStartMonPods(t *testing.T) {
 	clientset := test.New(3)
 	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory, MaxRetries: 1}, "myname", "ns", "", "myversion")
+	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory, MaxRetries: 1}, "myname", "ns", "", "myversion", k8sutil.Placement{})
 
 	// start a basic cluster
 	// an error is expected since mocking always creates pods that are not running
@@ -68,7 +68,7 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(1)
 
 	// create the initial config map
@@ -92,7 +92,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 func TestCheckHealth(t *testing.T) {
 	clientset := test.New(1)
 	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory, RetryDelay: 1, MaxRetries: 1}, "myname", "ns", "", "myversion")
+	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory, RetryDelay: 1, MaxRetries: 1}, "myname", "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(1)
 	c.configDir = "/tmp/healthtest"
 	c.waitForStart = false
@@ -152,7 +152,7 @@ func TestMonID(t *testing.T) {
 
 func TestAvailableMonNodes(t *testing.T) {
 	clientset := test.New(1)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(0)
 	nodes, err := c.getAvailableMonNodes()
 	assert.Nil(t, err)
@@ -169,7 +169,7 @@ func TestAvailableMonNodes(t *testing.T) {
 
 func TestAvailableNodesInUse(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(0)
 
 	// all three nodes are available by default
@@ -200,7 +200,8 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 func TestTaintedNodes(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion")
+	placement := k8sutil.Placement{Tolerations: []v1.Toleration{{Effect: v1.TaintEffectNoExecute}}}
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion", placement)
 	c.clusterInfo = test.CreateClusterInfo(0)
 
 	nodes, err := c.getAvailableMonNodes()
@@ -228,9 +229,48 @@ func TestTaintedNodes(t *testing.T) {
 	clientset.CoreV1().Nodes().Update(&nodes[0])
 	clientset.CoreV1().Nodes().Update(&nodes[1])
 	clientset.CoreV1().Nodes().Update(&nodes[2])
-	assert.Nil(t, err)
 	cleanNodes, err := c.getAvailableMonNodes()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(cleanNodes))
 	assert.Equal(t, nodes[2].Name, cleanNodes[0].Name)
+}
+
+func TestNodeAffinity(t *testing.T) {
+	clientset := test.New(3)
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion", k8sutil.Placement{})
+	c.clusterInfo = test.CreateClusterInfo(0)
+
+	nodes, err := c.getAvailableMonNodes()
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(nodes))
+
+	c.placement.NodeAffinity = &v1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+			NodeSelectorTerms: []v1.NodeSelectorTerm{
+				v1.NodeSelectorTerm{
+					MatchExpressions: []v1.NodeSelectorRequirement{
+						v1.NodeSelectorRequirement{
+							Key:      "label",
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"bar", "baz"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// label nodes so node0 will not be schedulable for new pods
+	nodes[0].Labels = map[string]string{"label": "foo"}
+	nodes[1].Labels = map[string]string{"label": "bar"}
+	nodes[2].Labels = map[string]string{"label": "baz"}
+	clientset.CoreV1().Nodes().Update(&nodes[0])
+	clientset.CoreV1().Nodes().Update(&nodes[1])
+	clientset.CoreV1().Nodes().Update(&nodes[2])
+	cleanNodes, err := c.getAvailableMonNodes()
+
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(cleanNodes))
+	assert.Equal(t, nodes[1].Name, cleanNodes[0].Name)
+	assert.Equal(t, nodes[2].Name, cleanNodes[1].Name)
 }

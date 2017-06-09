@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/util"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
@@ -53,10 +54,10 @@ type Cluster struct {
 	MasterHost      string
 	Size            int
 	Paused          bool
-	AntiAffinity    bool
 	Port            int32
 	context         *k8sutil.Context
 	clusterInfo     *mon.ClusterInfo
+	placement       k8sutil.Placement
 	maxMonID        int
 	configDir       string
 	waitForStart    bool
@@ -68,15 +69,15 @@ type MonConfig struct {
 	Port int32
 }
 
-func New(context *k8sutil.Context, name, namespace, dataDirHostPath, version string) *Cluster {
+func New(context *k8sutil.Context, name, namespace, dataDirHostPath, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:         context,
+		placement:       placement,
 		dataDirHostPath: dataDirHostPath,
 		Name:            name,
 		Namespace:       namespace,
 		Version:         version,
 		Size:            3,
-		AntiAffinity:    true,
 		maxMonID:        -1,
 		configDir:       k8sutil.DataDir,
 		waitForStart:    true,
@@ -422,7 +423,7 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 	// choose nodes for the new mons that don't have mons currently
 	availableNodes := []v1.Node{}
 	for _, node := range nodes.Items {
-		if !nodesInUse.Contains(node.Name) && validNode(node) {
+		if !nodesInUse.Contains(node.Name) && validNode(node, c.placement) {
 			availableNodes = append(availableNodes, node)
 		}
 	}
@@ -432,7 +433,7 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 	if len(availableNodes) == 0 {
 		logger.Infof("All nodes are running mons. Adding all %d nodes to the availability.", len(nodes.Items))
 		for _, node := range nodes.Items {
-			if validNode(node) {
+			if validNode(node, c.placement) {
 				availableNodes = append(availableNodes, node)
 			}
 		}
@@ -444,15 +445,43 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 	return availableNodes, nil
 }
 
-func validNode(node v1.Node) bool {
+func validNode(node v1.Node, placement k8sutil.Placement) bool {
 	// a node cannot be disabled
 	if node.Spec.Unschedulable {
 		return false
 	}
 
-	// a node cannot be tainted
-	for _, t := range node.Spec.Taints {
-		if t.Effect == v1.TaintEffectNoSchedule || t.Effect == v1.TaintEffectPreferNoSchedule {
+	// a node matches the NodeAffinity configuration
+	// ignoring `PreferredDuringSchedulingIgnoredDuringExecution` terms: they
+	// should not be used to judge a node unusable
+	if placement.NodeAffinity != nil && placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		nodeMatches := false
+		for _, req := range placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+			nodeSelector, err := v1.NodeSelectorRequirementsAsSelector(req.MatchExpressions)
+			if err != nil {
+				logger.Infof("failed to parse MatchExpressions: %+v, regarding as not match.", req.MatchExpressions)
+				return false
+			}
+			if nodeSelector.Matches(labels.Set(node.Labels)) {
+				nodeMatches = true
+				break
+			}
+		}
+		if !nodeMatches {
+			return false
+		}
+	}
+
+	// a node is tainted and cannot be tolerated
+	for _, taint := range node.Spec.Taints {
+		isTolerated := false
+		for _, toleration := range placement.Tolerations {
+			if toleration.ToleratesTaint(&taint) {
+				isTolerated = true
+				break
+			}
+		}
+		if !isTolerated {
 			return false
 		}
 	}

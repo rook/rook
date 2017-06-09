@@ -40,7 +40,7 @@ func TestStartMDS(t *testing.T) {
 		return []byte(response), "", nil
 	}
 
-	c := New(&k8sutil.Context{Factory: factory}, "myname", "ns", "myversion")
+	c := New(&k8sutil.Context{Factory: factory}, "myname", "ns", "myversion", k8sutil.Placement{})
 	c.dataDir = "/tmp/mdstest"
 	defer os.RemoveAll(c.dataDir)
 
@@ -67,7 +67,7 @@ func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New(nil, "myname", "ns", "myversion")
+	c := New(nil, "myname", "ns", "myversion", k8sutil.Placement{})
 	mdsID := "mds1"
 
 	d := c.makeDeployment(mdsID)

@@ -6,6 +6,37 @@ metadata:
 spec:
   versionTag: master-latest
   dataDirHostPath:
+# To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
+# The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage' and
+# tolerate taints with a key of 'storage-node'.
+#  placement:
+#    all:
+#      nodeAffinity:
+#        requiredDuringSchedulingIgnoredDuringExecution:
+#          nodeSelectorTerms:
+#          - matchExpressions:
+#            - key: role
+#              operator: In
+#              values:
+#              - storage-node
+#      tolerations:
+#      - key: storage-node
+#        operator: Exists
+#    api:
+#      nodeAffinity:
+#      tolerations:
+#    mds:
+#      nodeAffinity:
+#      tolerations:
+#    mon:
+#      nodeAffinity:
+#      tolerations:
+#    osd:
+#      nodeAffinity:
+#      tolerations:
+#    rgw:
+#      nodeAffinity:
+#      tolerations:
   storage:                # cluster level storage configuration and selection
     useAllNodes: true
     useAllDevices: false
