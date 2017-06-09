@@ -12,40 +12,36 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: all build push clean
-all: build
-
 include image.mk
 
 PLATFORMS ?= amd64 arm arm64
+PLATFORM_IMAGES ?= rookd
+HOST_IMAGES ?= cross-build
 
-.PHONY: cross-build
-cross-build:
-	@$(MAKE) -C base GOARCH=amd64
-	@$(MAKE) -C cross-build-gnu
-	@$(MAKE) -C cross-build-go
-	@$(MAKE) -C cross-build
+# ====================================================================================
+# Image Builds
 
-build.%:
-	@$(MAKE) -C base build GOARCH=$*
-	@$(MAKE) -C rookd build GOARCH=$*
+base.%:
+	@$(MAKE) -C base GOARCH=$*
 
-build:
-	@$(MAKE) -C base GOARCH=amd64
-	@$(MAKE) -C cross-build-gnu
-	@$(MAKE) build.$(GOARCH)
+cross-build-gnu.%: base.%
+	@$(MAKE) -C cross-build-gnu GOARCH=$*
 
-push.%:
-	@$(MAKE) -C rookd push GOARCH=$*
-push: $(foreach p,$(PLATFORMS), push.$(p))
+cross-build-go.%: cross-build-gnu.%
+	@$(MAKE) -C cross-build-go GOARCH=$*
 
-clean: clean.build
+cross-build.%: cross-build-go.%
+	@$(MAKE) -C cross-build GOARCH=$*
 
-cross.all: $(foreach p,$(PLATFORMS), build.$(p))
-cross:
-	@$(MAKE) -C base GOARCH=amd64
-	@$(MAKE) -C cross-build-gnu
-	@$(MAKE) cross.all
+ceph-build.%: cross-build-gnu.$(GOHOSTARCH)
+	@$(MAKE) -C ceph-build GOARCH=$*
+
+rookd.%: ceph-build.% base.%
+	@$(MAKE) -C rookd GOARCH=$*
+
+build.all: $(foreach p,$(PLATFORMS), $(foreach i,$(PLATFORM_IMAGES), $(i).$(p))) $(foreach i,$(HOST_IMAGES), $(i).$(GOHOSTARCH))
+
+build.images: $(foreach i,$(PLATFORM_IMAGES) $(HOST_IMAGES), $(i).$(GOHOSTARCH))
 
 # ====================================================================================
 # Help
@@ -56,9 +52,9 @@ help:
 	@echo ''
 	@echo 'Targets:'
 	@echo '    build        Build images for the host platform.'
+	@echo '    build.all    Build images for all platforms.'
 	@echo '    clean        Remove all images created from the'
 	@echo '                 current build.'
-	@echo '    cross        Build images for all platforms.'
 	@echo '    prune        Prunes orphaned and cached images at the.'
 	@echo '                 host level.'
 	@echo '    push         Pushes public images to registry.'

@@ -12,17 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: all build push
-all: build
-
 include ../image.mk
 
-# ====================================================================================
-# Options
-
-# the git repo to build from
+# the git repo and branch to build from
 CEPH_GIT_REPO ?= https://github.com/rook/ceph
-
 CEPH_GIT_BRANCH ?= rook-luminous
 
 # the git commit hash to build
@@ -40,23 +33,29 @@ $(error unsupported memory allocator $(CEPH_ALLOCATOR))
 endif
 
 CEPH_CONFIG ?= $(GOARCH)-$(CEPH_ALLOCATOR)-$(CEPH_BUILD_TYPE)
-BASEIMAGE := $(BUILD_REGISTRY)/cross-build-gnu
-CEPH_BUILD_IMAGE := $(BUILD_REGISTRY)/ceph-build-$(CEPH_CONFIG)
-CEPH_IMAGE := $(HOST_REGISTRY)/ceph-$(CEPH_CONFIG):$$(docker images -q $(CEPH_BUILD_IMAGE))
-CLEAN_IMAGES = $(CEPH_BUILD_IMAGE)
 
 CEPH_TARBALL = ceph-install.tar
 
-TEMP := $(shell mktemp -d)
 CCACHE_DIR_HOST ?= $(HOME)/.ccache
+
+CEPH_BUILDER_IMAGE := $(BUILD_REGISTRY)/ceph-builder-$(CEPH_CONFIG)
+CEPH_BUILDER_BASEIMAGE := $(BUILD_REGISTRY)/cross-build-gnu-$(GOHOSTARCH)
+
+CEPH_IMAGE := $(BUILD_REGISTRY)/ceph-$(CEPH_CONFIG)-$$(docker images -q $(CEPH_BUILDER_IMAGE))
+
+IMAGES = $(CEPH_BUILDER_IMAGE) $(CEPH_IMAGE)
+CACHE_IMAGES = $(IMAGES)
+
+
+TEMP := $(shell mktemp -d)
 
 # ====================================================================================
 # Targets
 
-build:
-	@echo === docker build $(CEPH_BUILD_IMAGE)
+build.images:
+	@echo === docker build $(CEPH_BUILDER_IMAGE)
 	@cp -a . $(TEMP)
-	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
+	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(CEPH_BUILDER_BASEIMAGE)|g' Dockerfile
 	@docker build $(BUILD_ARGS) \
 		--build-arg ARCH=$(DEBIAN_ARCH) \
 		--build-arg CEPH_GIT_COMMIT=$(CEPH_GIT_COMMIT) \
@@ -65,17 +64,18 @@ build:
 		--build-arg CEPH_ALLOCATOR=$(CEPH_ALLOCATOR) \
 		--build-arg CEPH_BUILD_TYPE=$(CEPH_BUILD_TYPE) \
 		--build-arg CROSS_TRIPLE=$(CROSS_TRIPLE) \
-		-t $(CEPH_BUILD_IMAGE) \
+		-t $(CEPH_BUILDER_IMAGE) \
 		$(TEMP)
-	@[ -n "$$(docker images -q $(CEPH_IMAGE))" ] || $(MAKE) ceph
+#	lookup the rootfs image from the cache or make it if its not there
+	@$(MAKE) cache.lookup LOOKUP_IMAGE=$(CEPH_IMAGE) MISS_TARGET=ceph
 
 ceph:
-	@echo === building ceph from $(CEPH_BUILD_IMAGE)
+	@echo === building ceph from $(CEPH_BUILDER_IMAGE)
 	@docker run \
 		-i $(RUN_ARGS) \
 		--cidfile $(TEMP)/cid \
 		-v $(CCACHE_DIR_HOST):/root/.ccache \
-		$(CEPH_BUILD_IMAGE)
+		$(CEPH_BUILDER_IMAGE)
 	@docker cp `cat $(TEMP)/cid`:/build/$(CEPH_TARBALL) $(TEMP)/$(CEPH_TARBALL)
 	@docker rm -f `cat $(TEMP)/cid`
 	@docker import $(TEMP)/$(CEPH_TARBALL) $(CEPH_IMAGE)
@@ -85,5 +85,3 @@ ceph:
 	@CID=`docker create $(CEPH_IMAGE) /dev/null` &&\
 	  docker export $$CID > $@ &&\
 	  docker rm -f $$CID
-
-clean: clean.images

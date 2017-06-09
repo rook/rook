@@ -12,31 +12,19 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-.PHONY: all build clean
-all: build
-
-# cross-build only supported on amd64
-override GOARCH := amd64
 include ../image.mk
 
-# ====================================================================================
-# Build Options
+IMAGE = $(BUILD_REGISTRY)/cross-build-go-$(GOARCH)
+IMAGES := $(IMAGE)
+CACHE_IMAGES = $(IMAGES)
 
-REPO ?= cross-build-go
-IMAGE = $(BUILD_REGISTRY)/$(REPO)
-BASEIMAGE = $(BUILD_REGISTRY)/cross-build-gnu
-
-# ====================================================================================
-# Build image
+BASEIMAGE = $(BUILD_REGISTRY)/cross-build-gnu-$(GOARCH)
 
 TEMP := $(shell mktemp -d)
-CLEAN_IMAGES := $(IMAGE)
 
-build:
+build.images:
 	@echo === docker build $(IMAGE)
 	@cp -a . $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
 	@docker build $(BUILD_ARGS) -t $(IMAGE) $(TEMP)
 	@rm -fr $(TEMP)
-
-clean: clean.images

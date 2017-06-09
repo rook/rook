@@ -49,6 +49,7 @@ try {
             }
 
             stage('Cleanup') {
+                sh 'make clean'
                 sh 'make prune PRUNE_KEEP_CACHED=48 PRUNE_KEEP_ORPHANS=48'
                 deleteDir()
             }
@@ -59,7 +60,7 @@ catch (Exception e) {
     echo 'Failure encountered'
 
     node("ec2-stateful") {
-        echo 'Cleaning up workspace'
+        sh 'make clean'
         sh 'make prune PRUNE_KEEP_CACHED=48 PRUNE_KEEP_ORPHANS=48'
         deleteDir()
     }

@@ -52,7 +52,7 @@ GITHUB_USER ?= rook
 GITHUB_REPO ?= rook
 
 # Optional. Docker registry to publish to
-RELEASE_REGISTRY ?= quay.io
+RELEASE_REGISTRY ?= quay.io/rook
 
 # Optional. S3 bucket to publish artifacts to
 AWS_DEFAULT_REGION ?= us-east-1
