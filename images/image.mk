@@ -31,11 +31,6 @@ REGISTRY ?= quay.io/rook
 # if we are running inside the container get our own cid
 SELF_CID := $(shell cat /proc/self/cgroup | grep docker | grep -o -E '[0-9a-f]{64}' | head -n 1)
 
-# version to use if not defined
-ifeq ($(origin VERSION), undefined)
-VERSION := $(shell git describe --dirty --always --tags)
-endif
-
 # the base ubuntu image to use
 OSBASE ?= ubuntu:zesty
 
@@ -91,8 +86,6 @@ all: build
 
 build: build.images
 	@$(MAKE) cache.images
-
-push: push.images
 
 clean: clean.build
 
