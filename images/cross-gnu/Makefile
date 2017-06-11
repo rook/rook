@@ -14,11 +14,11 @@
 
 include ../image.mk
 
-IMAGE = $(BUILD_REGISTRY)/cross-build-$(GOARCH)
+IMAGE = $(BUILD_REGISTRY)/cross-gnu-$(GOARCH)
 IMAGES := $(IMAGE)
 CACHE_IMAGES = $(IMAGES)
 
-BASEIMAGE = $(BUILD_REGISTRY)/cross-build-go-$(GOARCH)
+BASEIMAGE = $(BUILD_REGISTRY)/base-$(GOARCH)
 
 TEMP := $(shell mktemp -d)
 

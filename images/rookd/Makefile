@@ -47,7 +47,7 @@ CEPH_TARBALL = $(TEMP)/$(CEPH_TARBALL_FILENAME)
 
 $(CEPH_TARBALL):
 	@echo === building ceph for $(ROOKD_IMAGE)
-	@$(MAKE) -C ../ceph-build GOARCH=$(GOARCH) CEPH_ALLOCATOR=$(CEPH_ALLOCATOR) CEPH_BUILD_TYPE=$(CEPH_BUILD_TYPE) $(CEPH_TARBALL)
+	@$(MAKE) -C ../ceph GOARCH=$(GOARCH) CEPH_ALLOCATOR=$(CEPH_ALLOCATOR) CEPH_BUILD_TYPE=$(CEPH_BUILD_TYPE) $(CEPH_TARBALL)
 
 # ====================================================================================
 # Build Rook

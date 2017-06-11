@@ -26,8 +26,8 @@ fi
 
 # build the the container if we've not done so already
 if [[ -z "$(docker images -q ${container_image})" ]]; then
-    echo ==== building the cross-build container \(this could take minutes the first time\)
-    make_cmd="make --no-print-directory -C ${scriptdir}/../images cross-build.amd64 PULL=0"
+    echo ==== building the cross container \(this could take minutes the first time\)
+    make_cmd="make --no-print-directory -C ${scriptdir}/../images cross.amd64 PULL=0"
     make_output=$($make_cmd 2>&1) || {
         cat <<EOF >&2
 === cross build image failed for ${container_image}

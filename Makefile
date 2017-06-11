@@ -214,7 +214,7 @@ help:
 	@echo 'Targets:'
 	@echo '    build       Build source code for host platform.'
 	@echo '    build.all   Build source code for all platforms.'
-	@echo '                Best done in the cross-build container'
+	@echo '                Best done in the cross build container'
 	@echo '                due to cross compiler dependencies.'
 	@echo '    check       Runs unit tests.'
 	@echo '    clean       Remove all files that are created '
