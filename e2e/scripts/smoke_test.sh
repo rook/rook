@@ -41,7 +41,7 @@ rook_infra::create() {
             return 1
         else
             sleep 1
-            attempt_num++
+            ((++attempt_num))
 
         fi
     done
