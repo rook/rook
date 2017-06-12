@@ -46,7 +46,6 @@ CEPH_IMAGE := $(BUILD_REGISTRY)/ceph-$(CEPH_CONFIG)-$$(docker images -q $(CEPH_B
 IMAGES = $(CEPH_BUILDER_IMAGE) $(CEPH_IMAGE)
 CACHE_IMAGES = $(IMAGES)
 
-
 TEMP := $(shell mktemp -d)
 
 # ====================================================================================
@@ -78,12 +77,13 @@ ceph:
 		$(CEPH_BUILDER_IMAGE)
 	@docker cp `cat $(TEMP)/cid`:/build/$(CEPH_TARBALL) $(TEMP)/$(CEPH_TARBALL)
 	@docker rm -f `cat $(TEMP)/cid`
-	@docker import $(TEMP)/$(CEPH_TARBALL) $(CEPH_IMAGE)
+	@rm -fr $(TEMP)/cid
+#	now cache the ceph tarball in a docker image
+	@cp Dockerfile.ceph $(TEMP)/Dockerfile
+	@docker build $(BUILD_ARGS) -t $(CEPH_IMAGE) $(TEMP)
 	@rm -fr $(TEMP)
 
-# export the ceph tarball removing any files added by ceph that could make it
-# different and result in dependent images being rebuilt
 %/$(CEPH_TARBALL): build
 	@CID=`docker create $(CEPH_IMAGE) /dev/null` &&\
-	  docker export $$CID | tar --delete -f - .dockerenv etc dev proc sys > $@ &&\
+	  docker cp $$CID:$(CEPH_TARBALL) $@ &&\
 	  docker rm -f $$CID
