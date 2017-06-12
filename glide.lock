@@ -1,9 +1,37 @@
-hash: 791fe92e4f8d196d1f28a3e4400108969dd94ddd2de0283916fa7c00646aa7a8
-updated: 2017-04-14T12:56:26.659073101-07:00
+hash: 87157469836148176d50b8368601122106cba44d7992b8fb6f2478da1a371ae3
+updated: 2017-06-11T21:49:37.68482446-07:00
 imports:
 - name: bitbucket.org/ww/goautoneg
   version: a547fc61f48d567d5b4ec6f8aee5573d8efce11d
   repo: https://github.com/quantum/goautoneg.git
+- name: github.com/aws/aws-sdk-go
+  version: 6669bce73b4e3bc922ff5ea3a3983ede26e02b39
+  subpackages:
+  - aws
+  - aws/awserr
+  - aws/awsutil
+  - aws/client
+  - aws/client/metadata
+  - aws/corehandlers
+  - aws/credentials
+  - aws/credentials/ec2rolecreds
+  - aws/credentials/endpointcreds
+  - aws/credentials/stscreds
+  - aws/defaults
+  - aws/ec2metadata
+  - aws/endpoints
+  - aws/request
+  - aws/session
+  - aws/signer/v4
+  - private/protocol
+  - private/protocol/query
+  - private/protocol/query/queryutil
+  - private/protocol/rest
+  - private/protocol/restxml
+  - private/protocol/xml/xmlutil
+  - private/waiter
+  - service/s3
+  - service/sts
 - name: github.com/bassam/cgosymbolizer
   version: a74b3c0ca249abdcb8b17014df253c0dcf3e4f7e
 - name: github.com/beorn7/perks
@@ -13,7 +41,7 @@ imports:
 - name: github.com/boltdb/bolt
   version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
 - name: github.com/coreos/etcd
-  version: 9f7bb0df3a038b20c5b2cd0ce3ed48da8b5e3503
+  version: 0f4a535c2fb7a2920e13e2e19b9eaf6b2e9285e5
   subpackages:
   - alarm
   - auth
@@ -77,6 +105,8 @@ imports:
   version: 3ac0863d7acf3bc44daf49afef8919af12f704ef
   subpackages:
   - capnslog
+- name: github.com/corpix/uarand
+  version: 1d58d0383c4d7a4697f63d1097d466864c9ab6d3
 - name: github.com/cpuguy83/go-md2man
   version: a65d4d2de4d5f7c74868dfa9b202a3c8be315aaa
   subpackages:
@@ -107,6 +137,8 @@ imports:
   version: 6aced65f8501fe1217321abf0749d354824ba2ff
 - name: github.com/go-openapi/swag
   version: 1d0bd113de87027671077d3c71eb3ac5d7dbba72
+- name: github.com/go-sql-driver/mysql
+  version: a825be04c652d01442384e9dcdf2cdc3f1eda67f
 - name: github.com/gogo/protobuf
   version: 909568be09de550ed094403c2bf8a261b5bb730a
   subpackages:
@@ -139,14 +171,20 @@ imports:
   - runtime
   - runtime/internal
   - utilities
+- name: github.com/icrowley/fake
+  version: 9f67e8561905ff9c2b64fdd801ee70cf852b3b89
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/jmespath/go-jmespath
+  version: bd40a432e4c76585ef6b72d3fd96fb9b6dc7b68d
+- name: github.com/jmoiron/jsonq
+  version: e874b168d07ecc7808bc950a17998a8aa3141d82
 - name: github.com/jonboulle/clockwork
   version: 2eee05ed794112d45db504eb05aa693efd2b8b09
 - name: github.com/juju/ratelimit
   version: 77ed1c8a01217656d2080ad51981f6e99adaa177
 - name: github.com/kubernetes-incubator/external-storage
-  version: df6c4aaa84a6b255479404353f8480978bc3caf4
+  version: 11dd9d7b2915b8c39147db492fe9d00562955318
   subpackages:
   - lib/controller
   - lib/leaderelection
@@ -249,7 +287,7 @@ imports:
 - name: gopkg.in/yaml.v2
   version: 53feefa2559fb8dfa8d81baad31be332c97d6c77
 - name: k8s.io/apimachinery
-  version: 72e51762028fdf72f1a20e59bedceece02a425c6
+  version: c1c4a7fe832857c75cc1d79c8e40d71d5da15fc6
   subpackages:
   - pkg/api/errors
   - pkg/api/meta
@@ -295,7 +333,7 @@ imports:
   - third_party/forked/golang/json
   - third_party/forked/golang/reflect
 - name: k8s.io/client-go
-  version: fab6dd31b869138a964fa24b7e1e2139bd2ba3a0
+  version: 76153773eaa3a268131d3d993290a194a1370585
   subpackages:
   - discovery
   - discovery/fake
@@ -410,3 +448,5 @@ testImports:
   version: 976c720a22c8eb4eb6a0b4348ad85ad12491a506
   subpackages:
   - assert
+  - require
+  - suite
