@@ -139,10 +139,6 @@ EOF
 
 publish_version_file() {
     s3_upload ${RELEASE_DIR}/version
-
-    if [[ "${RELEASE_CHANNEL}" == "master" ]]; then
-        s3_promote_file version
-    fi
 }
 
 # we assume that AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY and possibly AWS_DEFAULT_REGION are already set
@@ -162,15 +158,6 @@ s3_download() {
 
     echo downloading ${filename} from S3 bucket ${RELEASE_S3_BUCKET}
     aws s3 cp --only-show-errors s3://${RELEASE_S3_BUCKET}/${RELEASE_CHANNEL}/${RELEASE_VERSION}/${filename} ${filepath}
-}
-
-s3_promote_file() {
-    local filename=$1
-
-    echo copying ${filename} from master to ${RELEASE_CHANNEL} in S3 bucket ${RELEASE_S3_BUCKET}
-    if [[ "${RELEASE_CHANNEL}" != "master" ]]; then
-        aws s3 cp --only-show-errors s3://${RELEASE_S3_BUCKET}/master/${RELEASE_VERSION}/${filename} s3://${RELEASE_S3_BUCKET}/${RELEASE_CHANNEL}/${RELEASE_VERSION}/${filename}
-    fi
 }
 
 s3_promote_release() {
