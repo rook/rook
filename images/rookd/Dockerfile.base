@@ -44,3 +44,11 @@ RUN BOOST_VERSION=1.62.0 && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \
     DEBIAN_FRONTEND=noninteractive apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# add the ceph binaries
+ADD ceph-install.tar /
+
+# ensure dynamic libraries are updated
+RUN ldconfig
+
+ENV PYTHONPATH=$PYTHONPATH:/usr/local/lib/python2.7/site-packages

@@ -52,7 +52,7 @@ $(CEPH_TARBALL):
 # ====================================================================================
 # Build Rook
 
-rookd-base-image:
+rookd-base-image: $(CEPH_TARBALL)
 	@echo === docker build $(ROOKD_BASE_IMAGE)
 	@cp Dockerfile.base $(TEMP)/Dockerfile
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
@@ -62,7 +62,7 @@ rookd-base-image:
 # by removing the last build of the final rookd image
 OLD_IMAGE_ID := $(shell docker images -q $(ROOKD_IMAGE))
 
-build.images: rookd-base-image $(CEPH_TARBALL)
+build.images: rookd-base-image
 	@echo === docker build $(ROOKD_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp ../../bin/linux_$(GOARCH)/rookd $(TEMP)

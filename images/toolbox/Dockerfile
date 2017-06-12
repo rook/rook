@@ -1,10 +1,22 @@
-FROM ubuntu:xenial
-RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 08b73419ac32b4e966c1a330e84ac2c0460f3994 \
-    && echo "deb http://download.ceph.com/debian-${CEPH_BRANCH}/ xenial main" > /etc/apt/sources.list.d/ceph-${CEPH_BRANCH}.list \
-    && apt-get update \
-    && DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
+# Copyright 2016 The Rook Authors. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+FROM BASEIMAGE
+
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
         binutils \
-        ceph-common \
         s3cmd \
         curl \
         fio \
@@ -15,8 +27,12 @@ RUN apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 08b
         less \
         man-db \
         sudo \
-        vim \
-    && apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-COPY root /
+        vim && \
+    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+COPY rook /usr/local/bin
 COPY entrypoint.sh /toolbox/
 ENTRYPOINT [ "/toolbox/entrypoint.sh" ]

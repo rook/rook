@@ -81,7 +81,9 @@ ceph:
 	@docker import $(TEMP)/$(CEPH_TARBALL) $(CEPH_IMAGE)
 	@rm -fr $(TEMP)
 
+# export the ceph tarball removing any files added by ceph that could make it
+# different and result in dependent images being rebuilt
 %/$(CEPH_TARBALL): build
 	@CID=`docker create $(CEPH_IMAGE) /dev/null` &&\
-	  docker export $$CID > $@ &&\
+	  docker export $$CID | tar --delete -f - .dockerenv etc dev proc sys > $@ &&\
 	  docker rm -f $$CID

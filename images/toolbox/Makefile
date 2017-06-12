@@ -12,8 +12,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM BASEIMAGE
+include ../image.mk
 
-ADD rookd /usr/local/bin/
+IMAGE = $(BUILD_REGISTRY)/toolbox-$(GOARCH)
+IMAGES = $(IMAGE)
+CACHE_IMAGES = $(IMAGE)
 
-ENTRYPOINT ["/usr/local/bin/rookd"]
+BASEIMAGE = $(BUILD_REGISTRY)/rookd-base-$(GOARCH)
+
+TEMP := $(shell mktemp -d)
+
+build.images:
+	@echo === docker build $(IMAGE)
+	@cp -a . $(TEMP)
+	@cp ../../bin/linux_$(GOARCH)/rook $(TEMP)
+	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
+	@docker build $(BUILD_ARGS) -t $(IMAGE) $(TEMP)
+	@rm -fr $(TEMP)
