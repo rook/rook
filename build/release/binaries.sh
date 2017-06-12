@@ -18,9 +18,8 @@ get_archive_name() {
     local os=$1
     local arch=$2
     local suffix=$3
-    local version=${RELEASE_VERSION}
 
-    local file=rook-${version}-${os}-${arch}
+    local file=rook-${os}-${arch}
 
     if [[ -n ${suffix} ]]; then
         file=${file}-${suffix}
