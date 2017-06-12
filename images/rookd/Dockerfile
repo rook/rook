@@ -16,4 +16,4 @@ FROM BASEIMAGE
 
 ADD rookd /usr/local/bin/
 
-ENTRYPOINT ["/usr/local/bin/rookd"]
+CMD ["/usr/local/bin/rookd"]

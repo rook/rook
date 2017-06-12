@@ -51,5 +51,5 @@ build.images: rootfs-build
 	@echo === docker build $(IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) "s|BASEIMAGE|$(ROOTFS_IMAGE)|g" Dockerfile
-	@docker build $(BUILD_ARGS) -t $(IMAGE) $(TEMP)
+	@docker build $(BUILD_ARGS) --build-arg ARCH=$(DEBIAN_ARCH) -t $(IMAGE) $(TEMP)
 	@rm -fr $(TEMP)

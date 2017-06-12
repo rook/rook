@@ -34,5 +34,5 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 COPY rook /usr/local/bin
-COPY entrypoint.sh /toolbox/
-ENTRYPOINT [ "/toolbox/entrypoint.sh" ]
+COPY toolbox.sh /toolbox/
+CMD [ "/toolbox/toolbox.sh" ]

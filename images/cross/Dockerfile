@@ -39,5 +39,5 @@ RUN ACBUILD_VERSION=0.4.0 && \
     tar -C /usr/local/bin --strip-components=1 -xzf docker2aci-v${DOCKER2ACI_VERSION}.tar.gz && \
     rm -f docker2aci-v${DOCKER2ACI_VERSION}.tar.gz
 
-COPY entrypoint.sh rsyncd.sh /build/
-ENTRYPOINT [ "/build/entrypoint.sh" ]
+COPY run.sh rsyncd.sh /build/
+CMD [ "/build/run.sh" ]

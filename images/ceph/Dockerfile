@@ -103,4 +103,4 @@ WORKDIR /build/ceph/build
 # now do the actual building. Note we dont build inside the Dockerfile
 # since we are unable to bind a volume and use ccache
 ADD build-ceph.sh /build/
-ENTRYPOINT ["/build/build-ceph.sh"]
+CMD ["/build/build-ceph.sh"]
