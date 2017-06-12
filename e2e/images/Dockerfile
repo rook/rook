@@ -9,7 +9,9 @@ RUN apt-get -y update && apt-get install -qqyf \
     apt-transport-https \
     curl \
     wget \
-    git
+    git \
+    unzip \
+    jq
 
 # Don't start any optional services except for the few we need.
 RUN find /etc/systemd/system \
