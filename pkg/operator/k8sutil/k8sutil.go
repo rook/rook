@@ -22,8 +22,11 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
 
 const (
 	Namespace        = "rook"

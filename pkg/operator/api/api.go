@@ -18,6 +18,7 @@ package api
 import (
 	"fmt"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -29,6 +30,8 @@ import (
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/pkg/apis/rbac/v1beta1"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-api")
 
 const (
 	DeploymentName = "rook-api"

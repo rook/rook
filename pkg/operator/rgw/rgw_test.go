@@ -35,7 +35,6 @@ import (
 
 func TestStartRGW(t *testing.T) {
 	clientset := testop.New(3)
-	info := testop.CreateClusterInfo(1)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\"}", nil
@@ -47,13 +46,13 @@ func TestStartRGW(t *testing.T) {
 	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}, Executor: executor, ConfigDir: configDir}, "myname", "ns", "version", k8sutil.Placement{})
 
 	// start a basic cluster
-	err := c.Start(info)
+	err := c.Start()
 	assert.Nil(t, err)
 
 	validateStart(t, c, clientset)
 
 	// starting again should be a no-op
-	err = c.Start(info)
+	err = c.Start()
 	assert.Nil(t, err)
 
 	validateStart(t, c, clientset)

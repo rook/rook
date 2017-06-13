@@ -95,7 +95,7 @@ func GetConfFilePath(root, clusterName string) string {
 
 func GenerateAdminConnectionConfig(context *clusterd.Context, cluster *ClusterInfo) error {
 	root := path.Join(context.ConfigDir, cluster.Name)
-	keyring := fmt.Sprintf(adminKeyringTemplate, cluster.AdminSecret)
+	keyring := fmt.Sprintf(AdminKeyringTemplate, cluster.AdminSecret)
 	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", client.AdminUsername))
 	err := writeKeyring(cluster, keyring, keyringPath)
 	if err != nil {
@@ -170,7 +170,7 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 
 	// write the entire config to disk
 	filePath := GetConfFilePath(pathRoot, cluster.Name)
-	logger.Debugf("writing config file %s", filePath)
+	logger.Infof("writing config file %s", filePath)
 	if err := configFile.SaveTo(filePath); err != nil {
 		return "", fmt.Errorf("failed to save config file %s. %+v", filePath, err)
 	}

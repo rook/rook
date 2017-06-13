@@ -98,6 +98,7 @@ func addCommands() {
 	rootCmd.AddCommand(versionCmd)
 	rootCmd.AddCommand(monCmd)
 	rootCmd.AddCommand(osdCmd)
+	rootCmd.AddCommand(mgrCmd)
 	rootCmd.AddCommand(rgwCmd)
 	rootCmd.AddCommand(mdsCmd)
 	rootCmd.AddCommand(apiCmd)

@@ -80,6 +80,16 @@ func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
 		NearFull: osdMap.NearFull,
 	}
 
+	// generate the Mgr summarhy
+	mgrs := model.MgrSummary{
+		ActiveName: cephStatus.MgrMap.ActiveName,
+		ActiveAddr: cephStatus.MgrMap.ActiveAddr,
+		Available:  cephStatus.MgrMap.Available,
+	}
+	for _, standby := range cephStatus.MgrMap.Standbys {
+		mgrs.Standbys = append(mgrs.Standbys, standby.Name)
+	}
+
 	// generate the usage Summary
 	usageSummary := model.UsageSummary{
 		DataBytes:      cephStatus.PgMap.DataBytes,
@@ -99,6 +109,7 @@ func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
 		OverallStatus:   ceph.HealthToModelHealthStatus(cephStatus.Health.OverallStatus),
 		SummaryMessages: summaries,
 		Monitors:        monitors,
+		Mgrs:            mgrs,
 		OSDs:            osds,
 		PGs:             pgSummary,
 		Usage:           usageSummary,

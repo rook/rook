@@ -48,7 +48,8 @@ type CephStatus struct {
 	OsdMap        struct {
 		OsdMap OsdMap `json:"osdmap"`
 	} `json:"osdmap"`
-	PgMap PgMap `json:"pgmap"`
+	PgMap  PgMap  `json:"pgmap"`
+	MgrMap MgrMap `json:"mgrmap"`
 }
 
 type HealthStatus struct {
@@ -95,6 +96,20 @@ type MonMap struct {
 	Mons         []MonMapEntry `json:"mons"`
 }
 
+type MgrMap struct {
+	Epoch      int          `json:"epoch"`
+	ActiveGID  int          `json:"active_gid"`
+	ActiveName string       `json:"active_name"`
+	ActiveAddr string       `json:"active_addr"`
+	Available  bool         `json:"available"`
+	Standbys   []MgrStandby `json:"standbys"`
+}
+
+type MgrStandby struct {
+	GID  int    `json:"gid"`
+	Name string `json:"name"`
+}
+
 type OsdMap struct {
 	Epoch          int  `json:"epoch"`
 	NumOsd         int  `json:"num_osds"`
@@ -121,12 +136,13 @@ type PgStateEntry struct {
 }
 
 func Status(context *clusterd.Context, clusterName string) (CephStatus, error) {
-	args := []string{"status", "--format", "json"}
+	args := []string{"status"}
 	buf, err := ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
 		return CephStatus{}, fmt.Errorf("failed to get status: %+v", err)
 	}
 
+	logger.Infof("STATUS: %s", string(buf))
 	var status CephStatus
 	if err := json.Unmarshal(buf, &status); err != nil {
 		return CephStatus{}, fmt.Errorf("failed to unmarshal status response: %+v", err)

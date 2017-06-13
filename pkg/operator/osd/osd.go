@@ -22,6 +22,7 @@ import (
 
 	"strconv"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
@@ -30,6 +31,8 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
 
 const (
 	appName    = "osd"

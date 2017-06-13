@@ -40,7 +40,7 @@ func AuthGetOrCreateKey(context *clusterd.Context, clusterName, name string, cap
 		return "", fmt.Errorf("failed get-or-create-key %s: %+v", name, err)
 	}
 
-	logger.Infof("Parsing key: %v", buf)
+	logger.Infof("Parsing key: %v", string(buf))
 	return parseAuthKey(buf)
 }
 

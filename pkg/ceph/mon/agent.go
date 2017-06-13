@@ -33,9 +33,9 @@ const (
 	monitorKeyringTemplate = `
 [mon.]
 	key = %s
-	caps mon = "allow *"` + adminKeyringTemplate
+	caps mon = "allow *"` + AdminKeyringTemplate
 
-	adminKeyringTemplate = `
+	AdminKeyringTemplate = `
 [client.admin]
 	key = %s
 	auid = 0

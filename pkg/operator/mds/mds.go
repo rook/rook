@@ -18,8 +18,8 @@ package mds
 import (
 	"fmt"
 
+	"github.com/coreos/pkg/capnslog"
 	cephmds "github.com/rook/rook/pkg/ceph/mds"
-	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
@@ -29,6 +29,8 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mds")
 
 const (
 	appName            = "mds"
@@ -59,22 +61,18 @@ func New(context *clusterd.Context, name, namespace, version string, placement k
 	}
 }
 
-func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
+func (c *Cluster) Start() error {
 	logger.Infof("start running mds")
 
-	if cluster == nil || len(cluster.Monitors) == 0 {
-		return fmt.Errorf("missing mons to start mds")
-	}
-
 	id := "mds1"
-	err := c.createKeyring(clientset, cluster, id)
+	err := c.createKeyring(c.context.Clientset, id)
 	if err != nil {
 		return fmt.Errorf("failed to create mds keyring. %+v", err)
 	}
 
 	// start the deployment
 	deployment := c.makeDeployment(id)
-	_, err = clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
+	_, err = c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mds deployment. %+v", err)
@@ -87,7 +85,7 @@ func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo
 	return nil
 }
 
-func (c *Cluster) createKeyring(clientset kubernetes.Interface, cluster *mon.ClusterInfo, id string) error {
+func (c *Cluster) createKeyring(clientset kubernetes.Interface, id string) error {
 	_, err := clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the mds keyring was already generated")

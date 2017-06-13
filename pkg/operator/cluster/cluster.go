@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/mgr"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
 	"github.com/rook/rook/pkg/operator/rgw"
@@ -50,6 +51,7 @@ type Cluster struct {
 	v1.ObjectMeta `json:"metadata,omitempty"`
 	Spec          `json:"spec"`
 	mons          *mon.Cluster
+	mgrs          *mgr.Cluster
 	osds          *osd.Cluster
 	apis          *api.Cluster
 	rgws          *rgw.Cluster
@@ -88,6 +90,12 @@ func (c *Cluster) CreateInstance() error {
 	clusterInfo, err := c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
+	}
+
+	c.mgrs = mgr.New(c.context, c.Name, c.Namespace, c.Spec.VersionTag)
+	err = c.mgrs.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
 	}
 
 	c.apis = api.New(c.context, c.Name, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetAPI())

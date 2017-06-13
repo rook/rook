@@ -21,6 +21,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
@@ -31,6 +32,8 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/pkg/api/v1"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
 
 const (
 	appName           = "mon"
@@ -145,6 +148,12 @@ func (c *Cluster) initClusterInfo() error {
 	err = c.loadMonConfig()
 	if err != nil {
 		return fmt.Errorf("failed to get mon config. %+v", err)
+	}
+
+	// make sure we have the connection info generated so connections can happen
+	err = c.writeConnectionConfig()
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -350,8 +359,17 @@ func (c *Cluster) saveMonConfig() error {
 	logger.Infof("saved mon endpoints to config map %+v", configMap.Data)
 
 	// write the latest config to the config dir
-	if err := mon.GenerateAdminConnectionConfig(c.context, c.clusterInfo); err != nil {
+	if err := c.writeConnectionConfig(); err != nil {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
+	}
+
+	return nil
+}
+
+func (c *Cluster) writeConnectionConfig() error {
+	// write the latest config to the config dir
+	if err := mon.GenerateAdminConnectionConfig(c.context, c.clusterInfo); err != nil {
+		return fmt.Errorf("failed to write connection config. %+v", err)
 	}
 
 	return nil

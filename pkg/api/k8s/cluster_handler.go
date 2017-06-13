@@ -22,6 +22,7 @@ import (
 	"github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	k8smds "github.com/rook/rook/pkg/operator/mds"
 	k8srgw "github.com/rook/rook/pkg/operator/rgw"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,8 +47,8 @@ func (s *clusterHandler) EnableObjectStore() error {
 	logger.Infof("Starting the Object store")
 	// Passing an empty Placement{} as the api doesn't know about placement
 	// information. This should be resolved with the transition to CRD (TPR).
-	r := k8srgw.New(s.context, s.clusterInfo.Name, s.namespace, s.versionTag, , k8sutil.Placement{})
-	err := r.Start(s.clusterInfo)
+	r := k8srgw.New(s.context, s.clusterInfo.Name, s.namespace, s.versionTag, k8sutil.Placement{})
+	err := r.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
 	}
@@ -79,7 +80,7 @@ func (s *clusterHandler) StartFileSystem(fs *model.FilesystemRequest) error {
 	// Passing an empty Placement{} as the api doesn't know about placement
 	// information. This should be resolved with the transition to CRD (TPR).
 	c := k8smds.New(s.context, s.clusterInfo.Name, s.namespace, s.versionTag, k8sutil.Placement{})
-	return c.Start(s.context.Clientset, s.clusterInfo)
+	return c.Start()
 }
 
 func (s *clusterHandler) RemoveFileSystem(fs *model.FilesystemRequest) error {
