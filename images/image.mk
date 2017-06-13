@@ -14,6 +14,8 @@
 
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
+# container images are always on linux
+override GOOS := linux
 include $(SELF_DIR)/../build/makelib/cross.mk
 
 CACHE_REGISTRY := cache
@@ -22,14 +24,11 @@ CACHE_REGISTRY := cache
 ifeq ($(origin BUILD_REGISTRY), undefined)
 HOSTNAME := $(shell hostname)
 ROOTDIR := $(shell cd $(SELF_DIR)/.. && pwd -P)
-BUILD_REGISTRY := build-$(shell echo $(HOSTNAME)-$(ROOTDIR) | sha256sum | cut -c1-8)
+BUILD_REGISTRY := build-$(shell echo $(HOSTNAME)-$(ROOTDIR) | shasum -a 256 | cut -c1-8)
 endif
 
 # public registry used for images that are pushed
 REGISTRY ?= quay.io/rook
-
-# if we are running inside the container get our own cid
-SELF_CID := $(shell cat /proc/self/cgroup | grep docker | grep -o -E '[0-9a-f]{64}' | head -n 1)
 
 # the base ubuntu image to use
 OSBASE ?= ubuntu:zesty
@@ -50,6 +49,8 @@ SED_CMD?=sed -i ""
 endif
 ifeq ($(UNAME_S),Linux)
 SED_CMD?=sed -i
+# if we are running inside the container get our own cid
+SELF_CID := $(shell cat /proc/self/cgroup | grep docker | grep -o -E '[0-9a-f]{64}' | head -n 1)
 endif
 
 INTERACTIVE:=$(shell [ -t 0 ] && echo 1)
@@ -133,8 +134,13 @@ PRUNE_KEEP ?= 24
 
 PRUNE_DRYRUN ?= 0
 
-CACHE_DATE_FORMAT := "%Y-%m-%d.%H%M%S.%N"
+CACHE_DATE_FORMAT := "%Y-%m-%d.%H%M%S"
+ifeq ($(UNAME_S),Linux)
 CACHE_PRUNE_DATE := $(shell date -u --date="$(PRUNE_HOURS) hours ago" +"$(CACHE_DATE_FORMAT)")
+endif
+ifeq ($(UNAME_S),Darwin)
+CACHE_PRUNE_DATE := $(shell date -u -v -$(PRUNE_HOURS)H +"$(CACHE_DATE_FORMAT)")
+endif
 CACHE_TAG := $(shell date -u +"$(CACHE_DATE_FORMAT)")
 
 cache.lookup:

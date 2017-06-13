@@ -58,9 +58,10 @@ rookd-base-image: $(CEPH_TARBALL)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
 	@docker build $(BUILD_ARGS) --build-arg EXTRALIBS=$(EXTRA_LIBS) -t $(ROOKD_BASE_IMAGE) $(TEMP)
 
-# since this is a leaf image avoid leaving around a lot of dangling images
+# since this is a leaf image we avoid leaving around a lot of dangling images
 # by removing the last build of the final rookd image
 OLD_IMAGE_ID := $(shell docker images -q $(ROOKD_IMAGE))
+CURRENT_IMAGE_ID := $$(docker images -q $(ROOKD_IMAGE))
 
 build.images: rookd-base-image
 	@echo === docker build $(ROOKD_IMAGE)
@@ -68,5 +69,5 @@ build.images: rookd-base-image
 	@cp ../../bin/linux_$(GOARCH)/rookd $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(ROOKD_BASE_IMAGE)|g' Dockerfile
 	@docker build $(BUILD_ARGS) -t $(ROOKD_IMAGE) $(TEMP)
-	@[ -z "$(OLD_IMAGE_ID)" ] || docker rmi $(OLD_IMAGE_ID)
+	@[ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] && [ -n "$(OLD_IMAGE_ID)" ] && docker rmi $(OLD_IMAGE_ID) || true
 	@rm -fr $(TEMP)

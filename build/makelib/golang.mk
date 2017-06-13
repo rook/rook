@@ -21,18 +21,15 @@ $(error the variable $$GO_PROJECT must be set prior to including golang.mk)
 endif
 
 # These targets will statically or dynamically linked depending on whether they
-# import the standard net, os/user packages.
+# import the standard net, os/user packages. This will use the standard golang
+# settings.
 GO_PACKAGES ?=
-
-# These targets will statically or dynamically linked depending on whether they
-# import the standard net, os/user packages. Buildmode PIE will be enabled.
-GO_PIE_PACKAGES ?=
 
 # These targets will be statically linked.
 GO_STATIC_PACKAGES ?=
 
-ifeq ($(GO_PACKAGES)$(GO_PIE_PACKAGES)$(GO_STATIC_PACKAGES),)
-$(error please set GO_PACKAGES, GO_PIE_PACKAGES, and/or GO_STATIC_PACKAGES prior to including golang.mk)
+ifeq ($(GO_PACKAGES)$(GO_STATIC_PACKAGES),)
+$(error please set GO_PACKAGES, and/or GO_STATIC_PACKAGES prior to including golang.mk)
 endif
 
 # Optional. These are sudirs that we look for all go files to test, vet, and fmt
@@ -46,6 +43,7 @@ GO_VENDOR_DIR ?= vendor
 GO_PKG_DIR ?=
 
 # Optional build flags passed to go tools
+GO_PIE ?= 0
 GO_BUILDFLAGS ?=
 GO_LDFLAGS ?=
 GO_TAGS ?=
@@ -85,14 +83,20 @@ endif
 # into the system's root dir. using our own pkg dir avoid thats
 ifneq ($(GO_PKG_DIR),)
 GO_PKG_BASE_DIR := $(abspath $(GO_PKG_DIR)/$(GOOS)_$(GOARCH))
+ifeq ($(GOOS)_$(PIE),linux_1)
 GO_PKG_FLAGS := -pkgdir $(GO_PKG_BASE_DIR)
-GO_PKG_PIE_FLAGS := -pkgdir $(GO_PKG_BASE_DIR)_pie_shared
+else
+GO_PKG_FLAGS := -pkgdir $(GO_PKG_BASE_DIR)_pie_shared
+endif
 GO_PKG_STATIC_FLAGS := -pkgdir $(GO_PKG_BASE_DIR)_static
 endif
 
-GO_FLAGS         = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
-GO_PIE_FLAGS     = $(GO_BUILDFLAGS) $(GO_PKG_PIE_FLAGS) -installsuffix pie -buildmode pie -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
+GO_FLAGS = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
 GO_STATIC_FLAGS  = $(GO_BUILDFLAGS) $(GO_PKG_STATIC_FLAGS) -installsuffix static -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
+
+ifeq ($(GOOS)_$(PIE),linux_1)
+GO_FLAGS += -installsuffix pie -buildmode pie
+endif
 
 # ====================================================================================
 # Targets
@@ -117,7 +121,7 @@ go.init: $(GO_VENDOR_DIR)/vendor.stamp
 define go.project
 go.build.packages.$(1):
 	@echo === go build $(1) $(GOOS)_$(GOARCH)
-	@CGO_ENABLED=$(3) $(GO) build -v -i -o $(GO_OUT_DIR)/$(1)$(GO_OUT_EXT) $(4) $(2)
+	@$(3) $(GO) build -v -i -o $(GO_OUT_DIR)/$(1)$(GO_OUT_EXT) $(4) $(2)
 
 go.build.packages: go.build.packages.$(1)
 
@@ -127,9 +131,8 @@ go.install.packages.$(1):
 go.install.packages: go.install.packages.$(1)
 endef
 
-$(foreach p,$(GO_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),1,$(GO_FLAGS))))
-$(foreach p,$(GO_PIE_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),1,$(GO_PIE_FLAGS))))
-$(foreach p,$(GO_STATIC_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),0,$(GO_STATIC_FLAGS))))
+$(foreach p,$(GO_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),CGO_ENABLED=1,$(GO_FLAGS))))
+$(foreach p,$(GO_STATIC_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),CGO_ENABLED=0,$(GO_STATIC_FLAGS))))
 
 .PHONY: go.build
 go.build:

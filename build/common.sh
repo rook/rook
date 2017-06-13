@@ -18,7 +18,7 @@ source_repo=github.com/rook/rook
 
 host=$(hostname)
 rootdir=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd -P)
-host_hash=`echo ${host}-${rootdir} | sha256sum | cut -c1-8`
+host_hash=`echo ${host}-${rootdir} | shasum -a 256 | cut -c1-8`
 build_registry=build-${host_hash}
 container_image=${build_registry}/cross-amd64
 container_volume=cross-volume

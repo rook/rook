@@ -14,8 +14,21 @@
 
 FROM BASEIMAGE
 
-COPY rook /usr/local/bin
-
-COPY toolbox.sh /toolbox/
-
-CMD [ "/toolbox/toolbox.sh" ]
+RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
+        binutils \
+        s3cmd \
+        curl \
+        fio \
+        gdb \
+        iperf3 \
+        jq \
+        kmod \
+        less \
+        man-db \
+        sudo \
+        vim && \
+    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \
+    DEBIAN_FRONTEND=noninteractive apt-get clean && \
+    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*

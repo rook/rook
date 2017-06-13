@@ -91,16 +91,12 @@ CHANNEL ?=
 CLIENT_PACKAGES = $(GO_PROJECT)
 SERVER_PACKAGES = $(GO_PROJECT)/cmd/rookd
 
+GO_PACKAGES =
 ifneq ($(filter $(GOOS)_$(GOARCH),$(CLIENT_PLATFORMS) $(SERVER_PLATFORMS)),)
-GO_PACKAGES = $(CLIENT_PACKAGES)
+GO_PACKAGES += $(CLIENT_PACKAGES)
 endif
-
 ifneq ($(filter $(GOOS)_$(GOARCH),$(SERVER_PLATFORMS)),)
-ifeq ($(GOOS)_$(PIE),linux_1)
-GO_PIE_PACKAGES = $(SERVER_PACKAGES)
-else
-GO_PACKAGES = $(SERVER_PACKAGES)
-endif
+GO_PACKAGES += $(SERVER_PACKAGES)
 endif
 
 GO_BUILDFLAGS=$(BUILDFLAGS)
@@ -111,6 +107,7 @@ GO_BIN_DIR = $(BIN_DIR)
 GO_WORK_DIR ?= $(WORKDIR)
 GO_TOOLS_DIR ?= $(DOWNLOADDIR)/tools
 GO_PKG_DIR ?= $(WORKDIR)/pkg
+GO_PIE ?= $(PIE)
 
 include build/makelib/golang.mk
 
@@ -126,18 +123,24 @@ include build/makelib/release.mk
 # ====================================================================================
 # Targets
 
-dev:
-	@$(MAKE) go.init
-	@$(MAKE) go.validate
-	@$(MAKE) go.build
-	@$(MAKE) -C images
-
 build.common:
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 
 build: build.common
 	@$(MAKE) go.build
+ifneq ($(GOOS),linux)
+	@$(MAKE) go.build GOOS=linux PIE=0
+endif
+	@$(MAKE) -C images
+
+cross.build.platform.%:
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) PIE=$(PIE) go.build
+
+cross.build.parallel: $(foreach p,$(PLATFORMS), cross.build.platform.$(p))
+
+build.all: build.common
+	@$(MAKE) cross.build.parallel
 
 install: build.common
 	@$(MAKE) go.install
@@ -167,19 +170,6 @@ clean: go.clean
 distclean: go.distclean clean
 	@rm -fr $(DOWNLOADDIR)
 
-cross.build:
-	@$(MAKE) go.build
-
-cross.build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) PIE=$(PIE) cross.build
-
-cross.parallel: $(foreach p,$(PLATFORMS), cross.build.platform.$(p))
-
-build.all:
-	@$(MAKE) go.init
-	@$(MAKE) go.validate
-	@$(MAKE) cross.parallel
-
 release: build.all
 	@$(MAKE) -C images build.all
 	@$(MAKE) release.build
@@ -201,7 +191,7 @@ endif
 prune:
 	@$(MAKE) -C images prune
 
-.PHONY: build.common cross.build cross.parallel
+.PHONY: build.common cross.build.parallel
 .PHONY: dev build build.all install test check vet fmt vendor clean distclean release publish promote prune
 
 # ====================================================================================

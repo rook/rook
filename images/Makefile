@@ -16,7 +16,6 @@ include image.mk
 
 PLATFORMS ?= amd64 arm arm64
 PLATFORM_IMAGES ?= rookd toolbox
-HOST_IMAGES ?= cross
 
 # ====================================================================================
 # Image Builds
@@ -33,6 +32,8 @@ cross-go.%: cross-gnu.%
 cross.%: cross-go.%
 	@$(MAKE) -C cross GOARCH=$*
 
+cross: cross.amd64
+
 ceph.%: cross-gnu.$(GOHOSTARCH)
 	@$(MAKE) -C ceph GOARCH=$*
 
@@ -42,9 +43,9 @@ rookd.%: ceph.% base.%
 toolbox.%: rookd.%
 	@$(MAKE) -C toolbox GOARCH=$*
 
-build.all: $(foreach p,$(PLATFORMS), $(foreach i,$(PLATFORM_IMAGES), $(i).$(p))) $(foreach i,$(HOST_IMAGES), $(i).$(GOHOSTARCH))
+build.all: $(foreach p,$(PLATFORMS), $(foreach i,$(PLATFORM_IMAGES), $(i).$(p)))
 
-build.images: $(foreach i,$(PLATFORM_IMAGES) $(HOST_IMAGES), $(i).$(GOHOSTARCH))
+build.images: $(foreach i,$(PLATFORM_IMAGES), $(i).$(GOHOSTARCH))
 
 # ====================================================================================
 # Help
