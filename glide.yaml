@@ -21,18 +21,17 @@ import:
 - package: github.com/google/uuid
 - package: github.com/go-ini/ini
 - package: github.com/ghodss/yaml
-- package: github.com/kubernetes-incubator/external-storage
 - package: github.com/gorilla/mux
 - package: bitbucket.org/ww/goautoneg
   version: a547fc61f48d567d5b4ec6f8aee5573d8efce11d
   repo: https://github.com/quantum/goautoneg.git
 - package: github.com/coreos/pkg/capnslog
+- package: github.com/kubernetes-incubator/external-storage
+  version: v2.1.0
 - package: k8s.io/client-go
-  version: release-3.0
-  subpackages:
-  - kubernetes/typed/core/v1
+  version: 76153773eaa3a268131d3d993290a194a1370585
 - package: k8s.io/apimachinery
-  version: release-1.6
+  version: c1c4a7fe832857c75cc1d79c8e40d71d5da15fc6
 - package: github.com/bassam/cgosymbolizer
 - package: github.com/prometheus/client_golang
   version: v0.8.0
