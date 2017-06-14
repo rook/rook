@@ -77,6 +77,16 @@ func (c *Cluster) makeMonPod(config *MonConfig, nodeName string) *v1.Pod {
 	}
 
 	container := c.monContainer(config, c.clusterInfo.FSID)
+	podSpec := v1.PodSpec{
+		Containers:    []v1.Container{container},
+		RestartPolicy: v1.RestartPolicyAlways,
+		NodeSelector:  map[string]string{metav1.LabelHostname: nodeName},
+		Volumes: []v1.Volume{
+			{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
+			k8sutil.ConfigOverrideVolume(),
+		},
+	}
+	c.placement.ApplyToPodSpec(&podSpec)
 
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -85,15 +95,7 @@ func (c *Cluster) makeMonPod(config *MonConfig, nodeName string) *v1.Pod {
 			Labels:      c.getLabels(config.Name),
 			Annotations: map[string]string{},
 		},
-		Spec: v1.PodSpec{
-			Containers:    []v1.Container{container},
-			RestartPolicy: v1.RestartPolicyAlways,
-			NodeSelector:  map[string]string{metav1.LabelHostname: nodeName},
-			Volumes: []v1.Volume{
-				{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
-				k8sutil.ConfigOverrideVolume(),
-			},
-		},
+		Spec: podSpec,
 	}
 
 	k8sutil.SetPodVersion(pod, k8sutil.VersionAttr, c.Version)

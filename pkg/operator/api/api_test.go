@@ -32,7 +32,7 @@ import (
 
 func TestStartAPI(t *testing.T) {
 	clientset := testop.New(3)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", k8sutil.Placement{})
 
 	// start a basic cluster
 	err := c.Start()
@@ -60,7 +60,7 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestPodSpecs(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", k8sutil.Placement{})
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)
@@ -89,7 +89,7 @@ func TestPodSpecs(t *testing.T) {
 
 func TestClusterRole(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", k8sutil.Placement{})
 
 	// the role is create
 	err := c.makeClusterRole()

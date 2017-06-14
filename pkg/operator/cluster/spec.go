@@ -18,7 +18,10 @@ which also has the apache 2.0 license.
 */
 package cluster
 
-import "github.com/rook/rook/pkg/operator/osd"
+import (
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/osd"
+)
 
 type Spec struct {
 	// VersionTag is the expected version of the rook container to run in the cluster.
@@ -31,6 +34,9 @@ type Spec struct {
 
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath"`
+
+	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
+	Placement PlacementSpec `json:"placement,omitempty"`
 
 	// A spec for available storage in the cluster and how it should be used
 	Storage osd.StorageSpec `json:"storage"`
@@ -56,3 +62,19 @@ type ErasureCodeSpec struct {
 	// Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
 	DataChunks uint `json:"dataChunks"`
 }
+
+// PlacementSpec is a set of Placement configurations for the rook cluster.
+type PlacementSpec struct {
+	All k8sutil.Placement `json:"all,omitempty"`
+	API k8sutil.Placement `json:"api,omitempty"`
+	MDS k8sutil.Placement `json:"mds,omitempty"`
+	MON k8sutil.Placement `json:"mon,omitempty"`
+	OSD k8sutil.Placement `json:"osd,omitempty"`
+	RGW k8sutil.Placement `json:"rgw,omitempty"`
+}
+
+func (p PlacementSpec) GetAPI() k8sutil.Placement { return p.All.Merge(p.API) }
+func (p PlacementSpec) GetMDS() k8sutil.Placement { return p.All.Merge(p.MDS) }
+func (p PlacementSpec) GetMON() k8sutil.Placement { return p.All.Merge(p.MON) }
+func (p PlacementSpec) GetOSD() k8sutil.Placement { return p.All.Merge(p.OSD) }
+func (p PlacementSpec) GetRGW() k8sutil.Placement { return p.All.Merge(p.RGW) }

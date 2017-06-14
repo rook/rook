@@ -37,6 +37,7 @@ const (
 
 type Cluster struct {
 	context         *k8sutil.Context
+	placement       k8sutil.Placement
 	Name            string
 	Namespace       string
 	Keyring         string
@@ -45,9 +46,10 @@ type Cluster struct {
 	dataDirHostPath string
 }
 
-func New(context *k8sutil.Context, name, namespace, version string, storageSpec StorageSpec, dataDirHostPath string) *Cluster {
+func New(context *k8sutil.Context, name, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:         context,
+		placement:       placement,
 		Name:            name,
 		Namespace:       namespace,
 		Version:         version,
@@ -148,6 +150,13 @@ func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, sel
 		volumes = append(volumes, dirVolume)
 	}
 
+	podSpec := v1.PodSpec{
+		Containers:    []v1.Container{c.osdContainer(devices, directories, selection, config)},
+		RestartPolicy: v1.RestartPolicyAlways,
+		Volumes:       volumes,
+	}
+	c.placement.ApplyToPodSpec(&podSpec)
+
 	return v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: appName,
@@ -157,11 +166,7 @@ func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, sel
 			},
 			Annotations: map[string]string{},
 		},
-		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.osdContainer(devices, directories, selection, config)},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       volumes,
-		},
+		Spec: podSpec,
 	}
 }
 

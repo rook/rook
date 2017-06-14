@@ -37,6 +37,7 @@ const (
 
 type Cluster struct {
 	context   *k8sutil.Context
+	placement k8sutil.Placement
 	Name      string
 	Namespace string
 	Version   string
@@ -44,9 +45,10 @@ type Cluster struct {
 	dataDir   string
 }
 
-func New(context *k8sutil.Context, name, namespace, version string) *Cluster {
+func New(context *k8sutil.Context, name, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
+		placement: placement,
 		Name:      name,
 		Namespace: namespace,
 		Version:   version,
@@ -135,23 +137,26 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 	deployment.Name = appName
 	deployment.Namespace = c.Namespace
 
-	podSpec := v1.PodTemplateSpec{
+	podSpec := v1.PodSpec{
+		Containers:    []v1.Container{c.rgwContainer()},
+		RestartPolicy: v1.RestartPolicyAlways,
+		Volumes: []v1.Volume{
+			{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
+			k8sutil.ConfigOverrideVolume(),
+		},
+	}
+	c.placement.ApplyToPodSpec(&podSpec)
+
+	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        "rook-rgw",
 			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
 		},
-		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.rgwContainer()},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes: []v1.Volume{
-				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
-				k8sutil.ConfigOverrideVolume(),
-			},
-		},
+		Spec: podSpec,
 	}
 
-	deployment.Spec = extensions.DeploymentSpec{Template: podSpec, Replicas: &c.Replicas}
+	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &c.Replicas}
 
 	return deployment
 }

@@ -32,7 +32,7 @@ import (
 
 func TestStartDaemonset(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", StorageSpec{}, "")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", StorageSpec{}, "", k8sutil.Placement{})
 
 	// Start the first time
 	err := c.Start()
@@ -69,7 +69,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", storageSpec, dataDir)
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", storageSpec, dataDir, k8sutil.Placement{})
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
@@ -144,7 +144,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", storageSpec, "")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", storageSpec, "", k8sutil.Placement{})
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
@@ -186,7 +186,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", storageSpec, "")
+	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", storageSpec, "", k8sutil.Placement{})
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)

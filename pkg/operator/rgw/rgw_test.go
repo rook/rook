@@ -42,7 +42,7 @@ func TestStartRGW(t *testing.T) {
 		return []byte(response), "", nil
 	}
 
-	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory}, "myname", "ns", "version")
+	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory}, "myname", "ns", "version", k8sutil.Placement{})
 	c.dataDir = "/tmp/rgwtest"
 	defer os.RemoveAll(c.dataDir)
 
@@ -77,7 +77,7 @@ func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New(nil, "myname", "ns", "myversion")
+	c := New(nil, "myname", "ns", "myversion", k8sutil.Placement{})
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)
