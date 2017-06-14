@@ -485,7 +485,7 @@ func createOSD(context *clusterd.Context, clusterName string, osdUUID uuid.UUID)
 	var resp map[string]interface{}
 	err = json.Unmarshal(buf, &resp)
 	if err != nil {
-		return 0, fmt.Errorf("failed to unmarshall response: %+v.  raw response: '%s'", err, string(buf[:]))
+		return 0, fmt.Errorf("failed to unmarshal response: %+v.  raw response: '%s'", err, string(buf[:]))
 	}
 
 	return int(resp["osdid"].(float64)), nil

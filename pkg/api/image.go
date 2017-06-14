@@ -17,8 +17,10 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
+	ceph "github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/model"
 )
 
@@ -27,7 +29,7 @@ import (
 // /image
 func (h *Handler) GetImages(w http.ResponseWriter, r *http.Request) {
 	// first list all the pools so that we can retrieve images from all pools
-	/*pools, err := ceph.ListPoolSummaries(h.context.Executor)
+	pools, err := ceph.ListPoolSummaries(h.context, h.config.ClusterInfo.Name)
 	if err != nil {
 		logger.Errorf("failed to list pools: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -36,57 +38,38 @@ func (h *Handler) GetImages(w http.ResponseWriter, r *http.Request) {
 
 	result := []model.BlockImage{}
 
-	// for each pool, open an IO context to get further details about all the images in the pool
+	// for each pool, get further details about all the images in the pool
 	for _, p := range pools {
-		ioctx, ok := handleOpenIOContext(w, adminConn, p.Name)
-		if !ok {
-			return
-		}
-
-		images, ok := getImagesForPool(w, p.Name, ioctx)
+		images, ok := h.getImagesForPool(w, p.Name)
 		if !ok {
 			return
 		}
 
 		result = append(result, images...)
 	}
-	// not implemented
-	FormatJsonResponse(w, result)*/
+
+	FormatJsonResponse(w, result)
 }
 
-func getImagesForPool(w http.ResponseWriter, poolName string) ([]model.BlockImage, bool) {
-
-	/*// get all the image names for the current pool
-	imageNames, err := ioctx.GetImageNames()
+func (h *Handler) getImagesForPool(w http.ResponseWriter, poolName string) ([]model.BlockImage, bool) {
+	cephImages, err := ceph.ListImages(h.context, h.config.ClusterInfo.Name, poolName)
 	if err != nil {
-		logger.Errorf("failed to get image names from pool %s: %+v", poolName, err)
+		logger.Errorf("failed to get images from pool %s: %+v", poolName, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return nil, false
 	}
 
-	// for each image name, open the image and stat it for further details
-	images := make([]model.BlockImage, len(imageNames))
-	for i, name := range imageNames {
-		image := ioctx.GetImage(name)
-		image.Open(true)
-		defer image.Close()
-		imageStat, err := image.Stat()
-		if err != nil {
-			logger.Errorf("failed to stat image %s from pool %s: %+v", name, poolName, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return nil, false
-		}
-
+	images := make([]model.BlockImage, len(cephImages))
+	for i, image := range cephImages {
 		// add the current image's details to the result set
 		images[i] = model.BlockImage{
-			Name:     name,
+			Name:     image.Name,
 			PoolName: poolName,
-			Size:     imageStat.Size,
+			Size:     image.Size,
 		}
 	}
-	// not implemented
-	return images, true*/
-	return nil, false
+
+	return images, true
 }
 
 // Creates a new image in this cluster.
@@ -111,15 +94,15 @@ func (h *Handler) CreateImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/*createdImage, err := ioctx.CreateImage(newImage.Name, newImage.Size, 22)
+	createdImage, err := ceph.CreateImage(h.context, h.config.ClusterInfo.Name, newImage.Name,
+		newImage.PoolName, newImage.Size)
 	if err != nil {
 		logger.Errorf("failed to create image %+v: %+v", newImage, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	// not implemented
-	w.Write([]byte(fmt.Sprintf("succeeded created image %s", createdImage.Name())))*/
+	w.Write([]byte(fmt.Sprintf("succeeded created image %s", createdImage.Name)))
 }
 
 // Deletes a block image from this cluster.
@@ -140,14 +123,12 @@ func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/*deleteImage := ioctx.GetImage(deleteImageReq.Name)
-	err := deleteImage.Remove()
+	err := ceph.DeleteImage(h.context, h.config.ClusterInfo.Name, deleteImageReq.Name, deleteImageReq.PoolName)
 	if err != nil {
 		logger.Errorf("failed to delete image %+v: %+v", deleteImageReq, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	// not implemented
-	w.Write([]byte(fmt.Sprintf("succeeded deleting image %s", deleteImageReq.Name)))*/
+	w.Write([]byte(fmt.Sprintf("succeeded deleting image %s", deleteImageReq.Name)))
 }

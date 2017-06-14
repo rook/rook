@@ -34,9 +34,10 @@ func RunAdminCommand(context *clusterd.Context, getClusterInfo func() (*mon.Clus
 		subcommand,
 	}
 	options = client.AppendAdminConnectionArgs(options, context.ConfigDir, cluster.Name)
+	options = append(options, args...)
 
 	// start the rgw admin command
-	output, err := context.Executor.ExecuteCommandWithOutput("", "radosgw-admin", options...)
+	output, err := context.Executor.ExecuteCommandWithCombinedOutput("", "radosgw-admin", options...)
 	if err != nil {
 		return "", fmt.Errorf("failed to run radosgw-admin: %+v", err)
 	}

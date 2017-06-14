@@ -47,7 +47,7 @@ var _ prometheus.Collector = &CephExporter{}
 func NewCephExporter(handler *Handler) *CephExporter {
 	return &CephExporter{
 		handler:    handler, // not implemented
-		collectors: createCollectors(handler.context, "rookcluster"),
+		collectors: createCollectors(handler.context, handler.config.ClusterInfo.Name),
 	}
 }
 

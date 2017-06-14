@@ -51,25 +51,13 @@ func TestGetImagesHandler(t *testing.T) {
 	w = httptest.NewRecorder()
 	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
 		switch {
-		case args[0] == "osd" && args[1] == "lspools":
+		case command == "ceph" && args[0] == "osd" && args[1] == "lspools":
 			return `[{"poolnum":0,"poolname":"pool0"},{"poolnum":1,"poolname":"pool1"}]`, nil
+		case command == "rbd" && args[0] == "ls" && args[1] == "-l":
+			poolName := args[2]
+			return fmt.Sprintf(`[{"image":"image1 - %s","size":100,"format":2}]`, poolName), nil
 		}
-		return "", fmt.Errorf("unexpected mon_command '%v'", args)
-		/*	return &testceph.MockIOContext{
-			MockGetImageNames: func() (names []string, err error) {
-				return []string{fmt.Sprintf("image1 - %s", pool)}, nil
-			},
-			MockGetImage: func(name string) ceph.Image {
-				return &testceph.MockImage{
-					MockName: name,
-					MockStat: func() (info *ceph.ImageInfo, err error) {
-						return &ceph.ImageInfo{
-							Size: 100,
-						}, nil
-					},
-				}
-			},
-		},*/
+		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
 	// verify that the expected images are returned
@@ -140,17 +128,18 @@ func TestCreateImageHandler(t *testing.T) {
 	assert.Equal(t, ``, w.Body.String())
 
 	// well formed successful request to create an image
-	req, err = http.NewRequest("POST", "http://10.0.0.100/image", strings.NewReader(`{"imageName":"myImage1","poolName":"myPool1","size":1024}`))
+	req, err = http.NewRequest("POST", "http://10.0.0.100/image", strings.NewReader(`{"imageName":"myImage1","poolName":"myPool1","size":1048576}`))
 	if err != nil {
 		logger.Fatal(err)
 	}
 	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
-		/*return &testceph.MockIOContext{
-			MockCreateImage: func(name string, size uint64, order int, args ...uint64) (image ceph.Image, err error) {
-				return &testceph.MockImage{MockName: name}, nil
-			},
-		},*/
-		return "", fmt.Errorf("not implemented")
+		switch {
+		case command == "rbd" && args[0] == "create":
+			return "", nil
+		case command == "rbd" && args[0] == "ls" && args[1] == "-l":
+			return `[{"image":"myImage1","size":1048576,"format":2}]`, nil
+		}
+		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 	w = httptest.NewRecorder()
 	h = newTestHandler(context)
@@ -170,12 +159,7 @@ func TestCreateImageHandlerFailure(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
-		/*return &testceph.MockIOContext{
-			// mock a failure in the create image call
-			MockCreateImage: func(name string, size uint64, order int, args ...uint64) (image ceph.Image, err error) {
-				return &testceph.MockImage{}, fmt.Errorf("mock failure to create image")
-			},
-		}*/return "", fmt.Errorf("not implemented")
+		return "mock failure", fmt.Errorf("mock failure to create image")
 	}
 
 	// create image request should fail while creating the image
@@ -230,13 +214,11 @@ func TestDeleteImageHandler(t *testing.T) {
 		logger.Fatal(err)
 	}
 	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
-		/*return &testceph.MockIOContext{
-			MockGetImage: func(name string) ceph.Image {
-				return &testceph.MockImage{
-					MockName: name,
-				}
-			},
-		}*/return "", fmt.Errorf("not implemented")
+		switch {
+		case command == "rbd" && args[0] == "rm":
+			return "", nil
+		}
+		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 	w = httptest.NewRecorder()
 	h = newTestHandler(context)
@@ -256,17 +238,11 @@ func TestDeleteImageHandlerFailure(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
-		/*return &testceph.MockIOContext{
-			MockGetImage: func(name string) ceph.Image {
-				return &testceph.MockImage{
-					MockName: name,
-					// mock a failure in the Remove func
-					MockRemove: func() error {
-						return fmt.Errorf("mock failure to remove image")
-					},
-				}
-			},
-		}*/return "", fmt.Errorf("not implemented")
+		switch {
+		case command == "rbd" && args[0] == "rm":
+			return "mock failure", fmt.Errorf("mock failure to remove image")
+		}
+		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
 	// delete image request should fail while removing the image

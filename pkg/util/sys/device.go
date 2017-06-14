@@ -18,7 +18,6 @@ package sys
 import (
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -41,9 +40,6 @@ type Partition struct {
 	Size  uint64
 	Label string
 }
-
-// request the current user once and stash it in this global variable
-var currentUser *user.User
 
 func ListDevices(executor exec.Executor) ([]string, error) {
 	cmd := "lsblk all"

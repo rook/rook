@@ -128,11 +128,13 @@ func runCommandWithOutput(actionName string, cmd *exec.Cmd, combinedOutput bool)
 		output, err = cmd.Output()
 	}
 
+	out := strings.TrimSpace(string(output))
+
 	if err != nil {
-		return "", createCommandError(err, actionName)
+		return out, createCommandError(err, actionName)
 	}
 
-	return strings.TrimSpace(string(output)), nil
+	return out, nil
 }
 
 func logCommand(command string, arg ...string) {

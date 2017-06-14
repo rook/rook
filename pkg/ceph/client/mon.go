@@ -29,6 +29,7 @@ import (
 const (
 	AdminUsername = "client.admin"
 	CephTool      = "ceph"
+	RBDTool       = "rbd"
 )
 
 // represents the response from a mon_status mon_command (subset of all available fields, only
@@ -72,20 +73,28 @@ func AppendAdminConnectionArgs(args []string, configDir, clusterName string) []s
 func ExecuteCephCommandPlain(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
 	args = append(args, "--format", "plain")
-	return executeCephCommandImpl(context, args)
+	return executeCommandImpl(context, CephTool, args)
 }
 
 func ExecuteCephCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
 	args = append(args, "--format", "json")
-	return executeCephCommandImpl(context, args)
+	return executeCommandImpl(context, CephTool, args)
 }
 
-func executeCephCommandImpl(context *clusterd.Context, args []string) ([]byte, error) {
-	output, err := context.Executor.ExecuteCommandWithOutput("", CephTool, args...)
-	if err != nil {
-		return nil, err
-	}
+func ExecuteRBDCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
+	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
+	args = append(args, "--format", "json")
+	return executeCommandImpl(context, RBDTool, args)
+}
+
+func ExecuteRBDCommandNoFormat(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
+	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
+	return executeCommandImpl(context, RBDTool, args)
+}
+
+func executeCommandImpl(context *clusterd.Context, tool string, args []string) ([]byte, error) {
+	output, err := context.Executor.ExecuteCommandWithOutput("", tool, args...)
 	return []byte(output), err
 }
 
@@ -100,7 +109,7 @@ func GetMonStatus(context *clusterd.Context, clusterName string) (MonStatusRespo
 	var resp MonStatusResponse
 	err = json.Unmarshal(buf, &resp)
 	if err != nil {
-		return MonStatusResponse{}, fmt.Errorf("unmarshall failed: %+v.  raw buffer response: %s", err, buf)
+		return MonStatusResponse{}, fmt.Errorf("unmarshal failed: %+v.  raw buffer response: %s", err, buf)
 	}
 
 	logger.Debugf("MON STATUS: %+v", resp)

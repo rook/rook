@@ -28,7 +28,6 @@ if [[ -d ${ROOK_DIR} ]]; then
     # there is a rook directory, try to find one of rook's ceph config files and copy it
     ROOK_CONFIG=`find ${ROOK_DIR} -regex '.*mon[0-9]+/.*\.config' | head -1`
     if [[ ! -z ${ROOK_CONFIG} ]]; then
-        mkdir -p /etc/ceph
         cp ${ROOK_CONFIG} ${CEPH_CONFIG}
     fi
 elif [[ ! -z ${ROOK_API_SERVICE_HOST} ]] && [[ ! -z ${ROOK_API_SERVICE_PORT} ]]; then

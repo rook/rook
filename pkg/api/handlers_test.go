@@ -27,6 +27,7 @@ import (
 	"testing"
 
 	etcd "github.com/coreos/etcd/client"
+	cephclienttest "github.com/rook/rook/pkg/ceph/client/test"
 	"github.com/rook/rook/pkg/ceph/mon"
 	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
@@ -123,7 +124,7 @@ func TestGetNodesHandlerFailure(t *testing.T) {
 }
 
 func TestGetMonsHandler(t *testing.T) {
-	context, etcdClient, _ := testContext()
+	context, etcdClient, executor := testContextWithMons([]string{})
 	defer os.RemoveAll(context.ConfigDir)
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/mon", nil)
@@ -144,12 +145,19 @@ func TestGetMonsHandler(t *testing.T) {
 	etcdClient.SetValue(path.Join(key, "ipaddress"), "1.2.3.4")
 	etcdClient.SetValue(path.Join(key, "port"), "8765")
 
+	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+		if args[0] == "mon_status" {
+			return cephclienttest.MonInQuorumResponse(), nil
+		}
+		return "", fmt.Errorf("unrecognized command: %+v", args)
+	}
+
 	// monitors should be returned now, verify the output
 	w = httptest.NewRecorder()
 	h = newTestHandler(context)
 	h.GetMonitors(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	//assert.Equal(t, "{\"status\":{\"quorum\":[0],\"monmap\":{\"mons\":[{\"name\":\"mon0\",\"rank\":0,\"addr\":\"10.37.129.87:6790\"}]}},\"desired\":[{\"name\":\"mon0\",\"endpoint\":\"1.2.3.4:8765\"}]}", w.Body.String())
+	assert.Equal(t, "{\"status\":{\"quorum\":[0],\"monmap\":{\"mons\":[{\"name\":\"mon0\",\"rank\":0,\"addr\":\"1.2.3.4\"}]}},\"desired\":[{\"name\":\"mon0\",\"endpoint\":\"1.2.3.4:8765\"}]}", w.Body.String())
 }
 
 func TestGetPoolsHandler(t *testing.T) {
@@ -162,9 +170,16 @@ func TestGetPoolsHandler(t *testing.T) {
 	}
 
 	// first return no storage pools
-	w := httptest.NewRecorder()
+	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+		switch {
+		case args[0] == "osd" && args[1] == "lspools":
+			return `[]`, nil
+		}
+		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+	}
 
 	// no storage pools will be returned, should be empty output
+	w := httptest.NewRecorder()
 	h := newTestHandler(context)
 	h.GetPools(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
@@ -177,21 +192,21 @@ func TestGetPoolsHandler(t *testing.T) {
 		case args[0] == "osd" && args[1] == "lspools":
 			return `[{"poolnum":0,"poolname":"rbd"},{"poolnum":1,"poolname":"ecPool1"}]`, nil
 		case args[0] == "osd" && args[1] == "pool" && args[2] == "get":
-			if args[2] == "rbd" {
+			if args[3] == "rbd" {
 				return SuccessGetPoolRBDResponse, nil
-			} else if args[2] == "ecPool1" {
+			} else if args[3] == "ecPool1" {
 				return SuccessGetPoolECPool1Response, nil
 			}
 		case args[1] == "erasure-code-profile" && args[2] == "ls":
 			return `["default","ecPool1_ecprofile"]`, nil
 		case args[1] == "erasure-code-profile" && args[2] == "get":
-			if args[2] == "default" {
+			if args[3] == "default" {
 				return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
-			} else if args[2] == "ecPool1" {
+			} else if args[3] == "ecPool1_ecprofile" {
 				return `{"jerasure-per-chunk-alignment":"false","k":"2","m":"1","plugin":"jerasure","ruleset-failure-domain":"osd","ruleset-root":"default","technique":"reed_sol_van","w":"8"}`, nil
 			}
 		}
-		return "", fmt.Errorf("unexpected mon_command '%v'", args)
+		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
 	// storage pools should be returned now, verify the output
@@ -317,7 +332,7 @@ func TestGetClientAccessInfoHandlerFailure(t *testing.T) {
 
 	w := httptest.NewRecorder()
 
-	// get image map info should fail becuase there's no mock response set up for auth get-key
+	// get image map info should fail because there's no mock response set up for auth get-key
 	h := newTestHandler(context)
 	h.GetClientAccessInfo(w, req)
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
@@ -325,9 +340,13 @@ func TestGetClientAccessInfoHandlerFailure(t *testing.T) {
 }
 
 func testContext() (*clusterd.Context, *util.MockEtcdClient, *exectest.MockExecutor) {
+	return testContextWithMons([]string{"mon0"})
+}
+
+func testContextWithMons(mons []string) (*clusterd.Context, *util.MockEtcdClient, *exectest.MockExecutor) {
 	etcdClient := util.NewMockEtcdClient()
 	configDir, _ := ioutil.TempDir("", "")
-	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mon0"})
+	cephtest.CreateClusterInfo(etcdClient, configDir, mons)
 	executor := &exectest.MockExecutor{}
 	return &clusterd.Context{
 		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
