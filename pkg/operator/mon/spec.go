@@ -125,7 +125,7 @@ func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
 		},
 		Env: []v1.EnvVar{
 			{Name: k8sutil.PodIPEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}},
-			ClusterNameEnvVar(c.Name),
+			ClusterNameEnvVar(c.Namespace),
 			MonEndpointEnvVar(),
 			MonSecretEnvVar(),
 			AdminSecretEnvVar(),

@@ -32,24 +32,21 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 
 const (
-	appName     = "cephmgr"
+	appName     = "rook-ceph-mgr"
 	keyringName = "keyring"
-	mgrCount    = 2
 )
 
 type Cluster struct {
-	Name      string
 	Namespace string
 	Version   string
-	Replicas  int32
+	Replicas  int
 	context   *clusterd.Context
 	dataDir   string
 }
 
-func New(context *clusterd.Context, name, namespace, version string) *Cluster {
+func New(context *clusterd.Context, namespace, version string) *Cluster {
 	return &Cluster{
 		context:   context,
-		Name:      name,
 		Namespace: namespace,
 		Version:   version,
 		Replicas:  1,
@@ -60,9 +57,9 @@ func New(context *clusterd.Context, name, namespace, version string) *Cluster {
 func (c *Cluster) Start() error {
 	logger.Infof("start running mgr")
 
-	for i := 1; i <= mgrCount; i++ {
+	for i := 0; i < c.Replicas; i++ {
 		name := fmt.Sprintf("%s%d", appName, i)
-		err := c.createKeyring(c.Name, name)
+		err := c.createKeyring(c.Namespace, name)
 		if err != nil {
 			return fmt.Errorf("failed to create mgr keyring. %+v", err)
 		}
@@ -104,7 +101,8 @@ func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
 		},
 	}
 
-	deployment.Spec = extensions.DeploymentSpec{Template: podSpec, Replicas: &c.Replicas}
+	replicas := int32(1)
+	deployment.Spec = extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas}
 	return deployment
 }
 
@@ -123,7 +121,7 @@ func (c *Cluster) mgrContainer(name string) v1.Container {
 		Env: []v1.EnvVar{
 			{Name: "ROOKD_MGR_NAME", Value: name},
 			{Name: "ROOKD_MGR_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: name}, Key: keyringName}}},
-			opmon.ClusterNameEnvVar(c.Name),
+			opmon.ClusterNameEnvVar(c.Namespace),
 			opmon.MonEndpointEnvVar(),
 			opmon.MonSecretEnvVar(),
 			opmon.AdminSecretEnvVar(),

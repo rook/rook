@@ -13,7 +13,7 @@ spec:
       - name: ROOKD_ADMIN_SECRET
         valueFrom:
           secretKeyRef:
-            name: mon
+            name: rook-ceph-mon
             key: admin-secret
     securityContext:
       privileged: true

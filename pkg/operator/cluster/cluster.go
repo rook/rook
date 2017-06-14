@@ -86,26 +86,26 @@ func (c *Cluster) CreateInstance() error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Name, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.Placement.GetMON())
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.Placement.GetMON())
 	clusterInfo, err := c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
 
-	c.mgrs = mgr.New(c.context, c.Name, c.Namespace, c.Spec.VersionTag)
+	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag)
 	err = c.mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
 	}
 
-	c.apis = api.New(c.context, c.Name, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetAPI())
+	c.apis = api.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetAPI())
 	err = c.apis.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Name, c.Namespace, c.Spec.VersionTag, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD())
+	c.osds = osd.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD())
 	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
@@ -124,7 +124,7 @@ func (c *Cluster) Monitor(stopCh <-chan struct{}) {
 	for {
 		select {
 		case <-stopCh:
-			logger.Infof("Stopping monitoring of cluster %s in namespace %s", c.Name, c.Namespace)
+			logger.Infof("Stopping monitoring of cluster in namespace %s", c.Namespace)
 			return
 
 		case <-time.After(healthCheckInterval):
@@ -139,12 +139,12 @@ func (c *Cluster) Monitor(stopCh <-chan struct{}) {
 
 func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 	// create a user for rbd clients
-	name := fmt.Sprintf("%s-rook-user", c.Name)
+	name := fmt.Sprintf("%s-rook-user", c.Namespace)
 	username := fmt.Sprintf("client.%s", name)
 	access := []string{"osd", "allow rwx", "mon", "allow r"}
 
 	// get-or-create-key for the user account
-	rbdKey, err := client.AuthGetOrCreateKey(c.context, clusterInfo.Name, username, access)
+	rbdKey, err := client.AuthGetOrCreateKey(c.context, c.Namespace, username, access)
 	if err != nil {
 		return fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
 	}

@@ -68,7 +68,7 @@ func startRGW(cmd *cobra.Command, args []string) error {
 		InProc:      true,
 	}
 
-	err := rgw.Run(createDaemonContext(), config)
+	err := rgw.Run(createContext(), config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

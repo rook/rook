@@ -231,7 +231,7 @@ func setLogLevel() {
 	capnslog.SetGlobalLogLevel(cfg.logLevel)
 }
 
-func createDaemonContext() *clusterd.Context {
+func createContext() *clusterd.Context {
 	executor := &exec.CommandExecutor{}
 	return &clusterd.Context{
 		Executor:           executor,

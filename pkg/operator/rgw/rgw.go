@@ -33,25 +33,23 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-rgw")
 
 const (
-	appName     = "rgw"
+	appName     = "rook-ceph-rgw"
 	keyringName = "keyring"
 )
 
 type Cluster struct {
 	context   *clusterd.Context
-	placement k8sutil.Placement
-	Name      string
 	Namespace string
+	placement k8sutil.Placement
 	Version   string
 	Replicas  int32
 }
 
-func New(context *clusterd.Context, name, namespace, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
-		placement: placement,
-		Name:      name,
 		Namespace: namespace,
+		placement: placement,
 		Version:   version,
 		Replicas:  2,
 	}
@@ -98,7 +96,7 @@ func (c *Cluster) createKeyring() error {
 
 	// create the keyring
 	logger.Infof("generating rgw keyring")
-	keyring, err := cephrgw.CreateKeyring(c.context, c.Name)
+	keyring, err := cephrgw.CreateKeyring(c.context, c.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create keyring. %+v", err)
 	}
@@ -165,7 +163,7 @@ func (c *Cluster) rgwContainer() v1.Container {
 		},
 		Env: []v1.EnvVar{
 			{Name: "ROOKD_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
-			opmon.ClusterNameEnvVar(c.Name),
+			opmon.ClusterNameEnvVar(c.Namespace),
 			opmon.MonEndpointEnvVar(),
 			opmon.MonSecretEnvVar(),
 			opmon.AdminSecretEnvVar(),

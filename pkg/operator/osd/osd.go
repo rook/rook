@@ -35,27 +35,25 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
 
 const (
-	appName    = "osd"
-	appNameFmt = "osd-%s"
+	appName    = "rook-ceph-osd"
+	appNameFmt = "rook-ceph-osd-%s"
 )
 
 type Cluster struct {
 	context         *clusterd.Context
-	placement       k8sutil.Placement
-	Name            string
 	Namespace       string
+	placement       k8sutil.Placement
 	Keyring         string
 	Version         string
 	Storage         StorageSpec
 	dataDirHostPath string
 }
 
-func New(context *clusterd.Context, name, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:         context,
-		placement:       placement,
-		Name:            name,
 		Namespace:       namespace,
+		placement:       placement,
 		Version:         version,
 		Storage:         storageSpec,
 		dataDirHostPath: dataDirHostPath,
@@ -178,7 +176,7 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 
 	envVars := []v1.EnvVar{
 		hostnameEnvVar(),
-		opmon.ClusterNameEnvVar(c.Name),
+		opmon.ClusterNameEnvVar(c.Namespace),
 		opmon.MonEndpointEnvVar(),
 		opmon.MonSecretEnvVar(),
 		opmon.AdminSecretEnvVar(),

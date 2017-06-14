@@ -95,7 +95,9 @@ func getStatus(c client.RookRestClient) (string, error) {
 	buffer.WriteString("\n")
 	buffer.WriteString("MGRs:\n")
 	fmt.Fprintln(w, "NAME\tSTATUS")
-	fmt.Fprintf(w, "%s\t%s\n", statusDetails.Mgrs.ActiveName, "Active")
+	if statusDetails.Mgrs.ActiveName != "" {
+		fmt.Fprintf(w, "%s\t%s\n", statusDetails.Mgrs.ActiveName, "Active")
+	}
 	for _, name := range statusDetails.Mgrs.Standbys {
 		fmt.Fprintf(w, "%s\t%s\n", name, "Standby")
 	}

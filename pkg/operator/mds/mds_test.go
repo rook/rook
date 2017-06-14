@@ -44,7 +44,7 @@ func TestStartMDS(t *testing.T) {
 		Executor:    executor,
 		ConfigDir:   configDir,
 		KubeContext: clusterd.KubeContext{Clientset: testop.New(3)}}
-	c := New(context, "myname", "ns", "myversion", k8sutil.Placement{})
+	c := New(context, "ns", "myversion", k8sutil.Placement{})
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic cluster
@@ -68,7 +68,7 @@ func validateStart(t *testing.T, c *Cluster) {
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New(nil, "myname", "ns", "myversion", k8sutil.Placement{})
+	c := New(nil, "ns", "myversion", k8sutil.Placement{})
 	mdsID := "mds1"
 
 	d := c.makeDeployment(mdsID)

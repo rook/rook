@@ -84,7 +84,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	agent := osd.NewAgent(dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
 		cfg.location, cfg.storeConfig, &clusterInfo)
 
-	err := osd.Run(createDaemonContext(), agent)
+	err := osd.Run(createContext(), agent)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

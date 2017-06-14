@@ -52,7 +52,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	}
 
 	logger.Infof("starting operator")
-	context := createDaemonContext()
+	context := createContext()
 	context.ConfigDir = k8sutil.DataDir
 	context.KubeContext = clusterd.KubeContext{
 		MasterHost: host,

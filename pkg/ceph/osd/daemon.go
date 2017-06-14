@@ -52,11 +52,6 @@ func Run(context *clusterd.Context, agent *OsdAgent) error {
 
 	logger.Infof("creating and starting the osds")
 
-	// generate and write the OSD bootstrap keyring
-	if err := createOSDBootstrapKeyring(context, agent.cluster.Name); err != nil {
-		return fmt.Errorf("failed to create osd bootstrap keyring. %+v", err)
-	}
-
 	// initialize the desired osds
 	devices, err := getAvailableDevices(context, hardware.Disks, agent.devices, agent.usingDeviceFilter)
 	if err != nil {

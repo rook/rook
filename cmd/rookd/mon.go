@@ -73,7 +73,7 @@ func startMon(cmd *cobra.Command, args []string) error {
 	clusterInfo.Monitors[monName] = mon.ToCephMon(monName, cfg.networkInfo.ClusterAddrIPv4)
 
 	monCfg := &mon.Config{Name: monName, Cluster: &clusterInfo}
-	err := mon.Run(createDaemonContext(), monCfg)
+	err := mon.Run(createContext(), monCfg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

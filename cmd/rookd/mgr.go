@@ -61,7 +61,7 @@ func startMgr(cmd *cobra.Command, args []string) error {
 		InProc:      true,
 	}
 
-	err := mgr.Run(createDaemonContext(), config)
+	err := mgr.Run(createContext(), config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

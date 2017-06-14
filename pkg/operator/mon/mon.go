@@ -36,7 +36,7 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
 
 const (
-	appName           = "mon"
+	appName           = "rook-ceph-mon"
 	monNodeAttr       = "mon_node"
 	monClusterAttr    = "mon_cluster"
 	tprName           = "mon.rook.io"
@@ -51,7 +51,6 @@ const (
 
 type Cluster struct {
 	context         *clusterd.Context
-	Name            string
 	Namespace       string
 	Keyring         string
 	Version         string
@@ -71,12 +70,11 @@ type MonConfig struct {
 	Port int32
 }
 
-func New(context *clusterd.Context, name, namespace, dataDirHostPath, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:         context,
 		placement:       placement,
 		dataDirHostPath: dataDirHostPath,
-		Name:            name,
 		Namespace:       namespace,
 		Version:         version,
 		Size:            3,

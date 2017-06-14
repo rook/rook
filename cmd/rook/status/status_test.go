@@ -37,6 +37,10 @@ func TestGetStatus(t *testing.T) {
 					{Name: "mon00", Address: "192.155.0.0", InQuorum: true, Status: model.HealthOK},
 					{Name: "mon01", Address: "192.155.0.1", InQuorum: false, Status: model.HealthError},
 				},
+				Mgrs: model.MgrSummary{
+					ActiveName: "cephmgr1",
+					Standbys:   []string{"cephmgr23", "cephmgr46"},
+				},
 				OSDs: model.OSDSummary{
 					Total: 5, NumberIn: 4, NumberUp: 4, Full: false, NearFull: true,
 				},
@@ -69,6 +73,11 @@ func TestGetStatus(t *testing.T) {
 		"NAME      ADDRESS       IN QUORUM   STATUS\n" +
 		"mon00     192.155.0.0   true        OK\n" +
 		"mon01     192.155.0.1   false       ERROR\n\n" +
+		"MGRs:\n" +
+		"NAME        STATUS\n" +
+		"cephmgr1    Active\n" +
+		"cephmgr23   Standby\n" +
+		"cephmgr46   Standby\n\n" +
 		"OSDs:\n" +
 		"TOTAL     UP        IN        FULL      NEAR FULL\n" +
 		"5         4         4         false     true\n\n" +
@@ -101,6 +110,8 @@ func TestGetStatusEmptyResponse(t *testing.T) {
 		"0 B       0 B       0 B       0 B\n\n" +
 		"MONITORS:\n" +
 		"NAME      ADDRESS   IN QUORUM   STATUS\n\n" +
+		"MGRs:\n" +
+		"NAME      STATUS\n\n" +
 		"OSDs:\n" +
 		"TOTAL     UP        IN        FULL      NEAR FULL\n" +
 		"0         0         0         false     false\n\n" +

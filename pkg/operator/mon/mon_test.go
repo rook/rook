@@ -28,6 +28,7 @@ import (
 	clienttest "github.com/rook/rook/pkg/ceph/client/test"
 	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -53,7 +54,7 @@ func TestStartMonPods(t *testing.T) {
 		Executor:    executor,
 		ConfigDir:   configDir,
 	}
-	c := New(context, "myname", namespace, "", "myversion", k8sutil.Placement{})
+	c := New(context, namespace, "", "myversion", k8sutil.Placement{})
 
 	// start a basic cluster
 	// an error is expected since mocking always creates pods that are not running
@@ -81,7 +82,7 @@ func validateStart(t *testing.T, c *Cluster) {
 	assert.Equal(t, 4, len(s.StringData))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
-	p, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Get("mon0", metav1.GetOptions{})
+	_, err = c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Get("rook-ceph-mon0", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon0", p.Name)
 }
@@ -90,9 +91,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(
-		&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}, ConfigDir: configDir},
-		"myname", "ns", "", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}, ConfigDir: configDir}, "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(1)
 
 	// create the initial config map
@@ -127,7 +126,7 @@ func TestCheckHealth(t *testing.T) {
 		ConfigDir:   configDir,
 		Executor:    executor,
 	}
-	c := New(context, "myname", "ns", "", "myversion", k8sutil.Placement{})
+	c := New(context, "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(1)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -184,7 +183,7 @@ func TestMonID(t *testing.T) {
 
 func TestAvailableMonNodes(t *testing.T) {
 	clientset := test.New(1)
-	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "myname", "ns", "", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(0)
 	nodes, err := c.getAvailableMonNodes()
 	assert.Nil(t, err)
@@ -201,7 +200,7 @@ func TestAvailableMonNodes(t *testing.T) {
 
 func TestAvailableNodesInUse(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "myname", "ns", "", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(0)
 
 	// all three nodes are available by default
@@ -232,7 +231,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 func TestTaintedNodes(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "myname", "ns", "", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(0)
 
 	nodes, err := c.getAvailableMonNodes()

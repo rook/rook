@@ -548,23 +548,16 @@ func createOSDFileSystem(context *clusterd.Context, clusterName string, config *
 
 // add OSD auth privileges for the given OSD ID.  the bootstrap-osd privileges are limited and a real OSD needs more.
 func addOSDAuth(context *clusterd.Context, clusterName string, osdID int, osdDataPath string) error {
+
 	// create a new auth for this OSD
 	osdEntity := fmt.Sprintf("osd.%d", osdID)
-	args := []string{"auth", "add", osdEntity}
+	args := []string{"auth", "add", osdEntity, "-i", getOSDKeyringPath(osdDataPath)}
 	capabilities := []string{"osd", "allow *", "mon", "allow profile osd"}
 	args = append(args, capabilities...)
 	_, err := client.ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
 		return fmt.Errorf("command marshall failed: %+v", err)
 	}
-
-	/* not implemented
-	_, info, err := bootstrapConn.MonCommandWithInputBuffer(command, keyringBuffer)
-	if err != nil {
-		return fmt.Errorf("mon_command failed: %+v", err)
-	}
-	logger.Debugf("succeeded command for %s. info: %s", osdEntity, info)
-	*/
 
 	return nil
 }

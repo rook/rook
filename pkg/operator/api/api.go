@@ -57,19 +57,17 @@ var clusterAccessRules = []v1beta1.PolicyRule{
 
 type Cluster struct {
 	context   *clusterd.Context
-	placement k8sutil.Placement
-	Name      string
 	Namespace string
+	placement k8sutil.Placement
 	Version   string
 	Replicas  int32
 }
 
-func New(context *clusterd.Context, name, namespace, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
-		placement: placement,
-		Name:      name,
 		Namespace: namespace,
+		placement: placement,
 		Version:   version,
 		Replicas:  1,
 	}
@@ -190,7 +188,7 @@ func (c *Cluster) apiContainer() v1.Container {
 			opmon.MonSecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
 			opmon.MonEndpointEnvVar(),
-			opmon.ClusterNameEnvVar(c.Name),
+			opmon.ClusterNameEnvVar(c.Namespace),
 		},
 	}
 }

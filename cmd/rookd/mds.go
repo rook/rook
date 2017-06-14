@@ -61,7 +61,7 @@ func startMDS(cmd *cobra.Command, args []string) error {
 		InProc:      true,
 	}
 
-	err := mds.Run(createDaemonContext(), config)
+	err := mds.Run(createContext(), config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

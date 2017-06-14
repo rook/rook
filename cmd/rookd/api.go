@@ -66,7 +66,7 @@ func startAPI(cmd *cobra.Command, args []string) error {
 	}
 
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	context := createDaemonContext()
+	context := createContext()
 	context.Clientset = clientset
 	apiCfg := &api.Config{
 		Port:           apiPort,
