@@ -16,4 +16,5 @@ FROM BASEIMAGE
 
 ADD rookd /usr/local/bin/
 
-CMD ["/usr/local/bin/rookd"]
+ENTRYPOINT ["/tini", "--", "/usr/local/bin/rookd"]
+CMD [""]

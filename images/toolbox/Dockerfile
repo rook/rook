@@ -14,8 +14,7 @@
 
 FROM BASEIMAGE
 
-COPY rook /usr/local/bin
+COPY rook toolbox.sh /usr/local/bin/
 
-COPY toolbox.sh /toolbox/
-
-CMD [ "/toolbox/toolbox.sh" ]
+ENTRYPOINT ["/tini", "--", "/usr/local/bin/toolbox.sh"]
+CMD ["/bin/bash"]

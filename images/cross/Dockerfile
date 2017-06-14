@@ -40,4 +40,6 @@ RUN ACBUILD_VERSION=0.4.0 && \
     rm -f docker2aci-v${DOCKER2ACI_VERSION}.tar.gz
 
 COPY run.sh rsyncd.sh /build/
-CMD [ "/build/run.sh" ]
+
+ENTRYPOINT [ "/tini", "--", "/build/run.sh" ]
+CMD ["/bin/bash"]

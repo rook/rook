@@ -47,8 +47,9 @@ function start_rsync_container() {
         -e MKDIRS="/volume/go/src/${source_repo}" \
         -p ${rsync_port}:873 \
         -v ${container_volume}:/volume \
+        --entrypoint "/tini" \
         ${container_image} \
-        /build/rsyncd.sh
+        -- /build/rsyncd.sh
 }
 
 function wait_for_rsync() {

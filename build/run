@@ -25,17 +25,15 @@ if [ ! -z $DOCKER_HOST ]; then
 fi
 
 # build the the container if we've not done so already
-if [[ -z "$(docker images -q ${container_image})" ]]; then
-    echo ==== building the cross container \(this could take minutes the first time\)
-    make_cmd="make --no-print-directory -C ${scriptdir}/../images cross.amd64 PULL=0"
-    make_output=$($make_cmd 2>&1) || {
-        cat <<EOF >&2
+echo ==== building the cross container \(this could take minutes the first time\)
+make_cmd="make --no-print-directory -C ${scriptdir}/../images cross.amd64 PULL=0"
+make_output=$($make_cmd 2>&1) || {
+    cat <<EOF >&2
 === cross build image failed for ${container_image}
 ${make_output}
 EOF
-        exit 1
+    exit 1
 }
-fi
 
 # run the container with the same uid and gid of the user to avoid
 # permissions issues when sharing volumes with the host
