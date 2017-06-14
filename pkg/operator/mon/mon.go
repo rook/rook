@@ -449,7 +449,7 @@ func validNode(node v1.Node) bool {
 	if node.Spec.Unschedulable {
 		return false
 	}
-	
+
 	// a node cannot be tainted
 	for _, t := range node.Spec.Taints {
 		if t.Effect == v1.TaintEffectNoSchedule || t.Effect == v1.TaintEffectPreferNoSchedule {
