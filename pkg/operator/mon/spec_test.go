@@ -55,7 +55,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	}
 
 	assert.Equal(t, "mon0", pod.ObjectMeta.Name)
-	assert.Equal(t, "mon", pod.ObjectMeta.Labels["app"])
+	assert.Equal(t, appName, pod.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
 	assert.Equal(t, 1, len(pod.ObjectMeta.Annotations))
 	assert.Equal(t, "myversion", pod.ObjectMeta.Annotations["rook_version"])

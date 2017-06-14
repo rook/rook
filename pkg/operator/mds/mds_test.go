@@ -50,21 +50,19 @@ func TestStartMDS(t *testing.T) {
 	// start a basic cluster
 	err := c.Start()
 	assert.Nil(t, err)
-
 	validateStart(t, c)
 
 	// starting again should be a no-op
 	err = c.Start()
 	assert.Nil(t, err)
-
 	validateStart(t, c)
 }
 
 func validateStart(t *testing.T, c *Cluster) {
 
-	r, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get("mds", metav1.GetOptions{})
+	r, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(appName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mds", r.Name)
+	assert.Equal(t, appName, r.Name)
 }
 
 func TestPodSpecs(t *testing.T) {
@@ -73,13 +71,13 @@ func TestPodSpecs(t *testing.T) {
 
 	d := c.makeDeployment(mdsID)
 	assert.NotNil(t, d)
-	assert.Equal(t, "mds", d.Name)
+	assert.Equal(t, appName, d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, 2, len(d.Spec.Template.Spec.Volumes))
 	assert.Equal(t, "rook-data", d.Spec.Template.Spec.Volumes[0].Name)
 
-	assert.Equal(t, "mds", d.ObjectMeta.Name)
-	assert.Equal(t, "mds", d.Spec.Template.ObjectMeta.Labels["app"])
+	assert.Equal(t, appName, d.ObjectMeta.Name)
+	assert.Equal(t, appName, d.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 

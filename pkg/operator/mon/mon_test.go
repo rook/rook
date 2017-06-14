@@ -77,14 +77,13 @@ func validateStart(t *testing.T, c *Cluster) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(s.StringData))
 
-	s, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Get("mon", metav1.GetOptions{})
+	s, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(s.StringData))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
 	_, err = c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Get("rook-ceph-mon0", metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mon0", p.Name)
 }
 
 func TestSaveMonEndpoints(t *testing.T) {
@@ -210,7 +209,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 	// start pods on two of the nodes so that only one node will be available
 	for i := 0; i < 2; i++ {
-		pod := c.makeMonPod(&MonConfig{Name: fmt.Sprintf("mon%d", i)}, nodes[i].Name)
+		pod := c.makeMonPod(&MonConfig{Name: fmt.Sprintf("rook-mon%d", i)}, nodes[i].Name)
 		_, err := clientset.CoreV1().Pods(c.Namespace).Create(pod)
 		assert.Nil(t, err)
 	}

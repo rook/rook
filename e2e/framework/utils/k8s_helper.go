@@ -68,8 +68,8 @@ func (k8sh *K8sHelper) GetMonitorPods() ([]string, error) {
 	moncount := 0
 
 	for moncount < 3 {
-		m := fmt.Sprintf("mon%d", monIdx)
-		selector := fmt.Sprintf("mon=%s", m)
+		m := fmt.Sprintf("rook-mon%d", monIdx)
+		selector := fmt.Sprintf("rook-mon=%s", m)
 		cmdArgs := []string{"-n", "rook", "get", "pod", "-l", selector}
 		stdout, _, status := ExecuteCmd("kubectl", cmdArgs)
 		if status == 0 {

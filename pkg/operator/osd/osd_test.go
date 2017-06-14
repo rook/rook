@@ -89,8 +89,8 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 		assert.Equal(t, dataDir, replicaSet.Spec.Template.Spec.Volumes[0].HostPath.Path)
 	}
 
-	assert.Equal(t, "osd", replicaSet.Spec.Template.ObjectMeta.Name)
-	assert.Equal(t, "osd", replicaSet.Spec.Template.ObjectMeta.Labels["app"])
+	assert.Equal(t, appName, replicaSet.Spec.Template.ObjectMeta.Name)
+	assert.Equal(t, appName, replicaSet.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, replicaSet.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(replicaSet.Spec.Template.ObjectMeta.Annotations))
 
