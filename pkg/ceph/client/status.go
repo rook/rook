@@ -142,7 +142,6 @@ func Status(context *clusterd.Context, clusterName string) (CephStatus, error) {
 		return CephStatus{}, fmt.Errorf("failed to get status: %+v", err)
 	}
 
-	logger.Infof("STATUS: %s", string(buf))
 	var status CephStatus
 	if err := json.Unmarshal(buf, &status); err != nil {
 		return CephStatus{}, fmt.Errorf("failed to unmarshal status response: %+v", err)

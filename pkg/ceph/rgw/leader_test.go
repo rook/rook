@@ -91,7 +91,7 @@ func TestRGWConfig(t *testing.T) {
 	host, ipAddr, found, err := GetRGWEndpoints(etcdClient, context.Inventory)
 	assert.Nil(t, err)
 	assert.True(t, found)
-	assert.Equal(t, "rook-rgw:53390", host)
+	assert.Equal(t, "rook-ceph-rgw:53390", host)
 	assert.True(t, ipAddr == "1.2.3.4:53390" || ipAddr == "2.3.4.5:53390", fmt.Sprintf("unexpected rgw IP endpoint: %s", ipAddr))
 
 	// Remove the object service

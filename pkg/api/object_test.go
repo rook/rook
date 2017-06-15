@@ -101,7 +101,7 @@ func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	expectedRespObj := model.ObjectStoreConnectInfo{
-		Host:       "rook-rgw:53390",
+		Host:       "rook-ceph-rgw:53390",
 		IPEndpoint: "1.2.3.4:53390",
 	}
 

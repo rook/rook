@@ -135,7 +135,7 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "rook-rgw",
+			Name:        "rook-ceph-rgw",
 			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
 		},

@@ -4,7 +4,7 @@ metadata:
   name: rgw-external
   namespace: rook
   labels:
-    app: rgw
+    app: rook-ceph-rgw
     rook_cluster: rook
 spec:
   ports:
@@ -13,7 +13,7 @@ spec:
     protocol: TCP
     targetPort: 53390
   selector:
-    app: rgw
+    app: rook-ceph-rgw
     rook_cluster: rook
   sessionAffinity: None
   type: NodePort

@@ -29,7 +29,7 @@ import (
 )
 
 const (
-	DNSName         = "rook-rgw"
+	DNSName         = "rook-ceph-rgw"
 	RGWPort         = 53390
 	rgwAgentName    = "rgw"
 	keyringTemplate = `[client.radosgw.gateway]

@@ -56,6 +56,9 @@ type mdsInfo struct {
 
 // Create a new file service struct
 func NewFS(context *clusterd.Context, id, pool string) *FileSystem {
+	if pool == "" {
+		pool = id
+	}
 	return &FileSystem{
 		ID:      id,
 		Pool:    pool,

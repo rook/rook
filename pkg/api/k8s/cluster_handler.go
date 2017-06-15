@@ -45,13 +45,9 @@ func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
 
 func (s *clusterHandler) EnableObjectStore() error {
 	logger.Infof("Starting the Object store")
-<<<<<<< HEAD
 	// Passing an empty Placement{} as the api doesn't know about placement
 	// information. This should be resolved with the transition to CRD (TPR).
-	r := k8srgw.New(s.context, s.clusterInfo.Name, s.namespace, s.versionTag, k8sutil.Placement{})
-=======
-	r := k8srgw.New(s.context, s.namespace, s.versionTag)
->>>>>>> cluster name cleanup and mgr tests
+	r := k8srgw.New(s.context, s.namespace, s.versionTag, k8sutil.Placement{})
 	err := r.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
@@ -66,13 +62,13 @@ func (s *clusterHandler) RemoveObjectStore() error {
 
 func (s *clusterHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, bool, error) {
 	logger.Infof("Getting the object store connection info")
-	service, err := s.context.Clientset.CoreV1().Services(s.namespace).Get("rgw", metav1.GetOptions{})
+	service, err := s.context.Clientset.CoreV1().Services(s.namespace).Get("rook-ceph-rgw", metav1.GetOptions{})
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to get rgw service. %+v", err)
 	}
 
 	info := &model.ObjectStoreConnectInfo{
-		Host:       "rook-rgw",
+		Host:       "rook-ceph-rgw",
 		IPEndpoint: rgw.GetRGWEndpoint(service.Spec.ClusterIP),
 	}
 	logger.Infof("Object store connection: %+v", info)

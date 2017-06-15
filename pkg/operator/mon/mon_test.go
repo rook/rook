@@ -209,7 +209,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 	// start pods on two of the nodes so that only one node will be available
 	for i := 0; i < 2; i++ {
-		pod := c.makeMonPod(&MonConfig{Name: fmt.Sprintf("rook-mon%d", i)}, nodes[i].Name)
+		pod := c.makeMonPod(&MonConfig{Name: fmt.Sprintf("rook-ceph-mon%d", i)}, nodes[i].Name)
 		_, err := clientset.CoreV1().Pods(c.Namespace).Create(pod)
 		assert.Nil(t, err)
 	}
@@ -252,9 +252,6 @@ func TestTaintedNodes(t *testing.T) {
 	nodes[1].Spec.Taints = []v1.Taint{
 		v1.Taint{Effect: v1.TaintEffectPreferNoSchedule},
 	}
-	nodes[2].Spec.Taints = []v1.Taint{
-		v1.Taint{Effect: v1.TaintEffectNoExecute},
-	}
 	clientset.CoreV1().Nodes().Update(&nodes[0])
 	clientset.CoreV1().Nodes().Update(&nodes[1])
 	clientset.CoreV1().Nodes().Update(&nodes[2])
@@ -266,7 +263,7 @@ func TestTaintedNodes(t *testing.T) {
 
 func TestNodeAffinity(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(0)
 
 	nodes, err := c.getAvailableMonNodes()
