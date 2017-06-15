@@ -21,29 +21,29 @@ PLATFORM_IMAGES ?= rookd toolbox
 # ====================================================================================
 # Image Builds
 
-base.%:
-	@$(MAKE) -C base GOARCH=$*
+.PHONY: base ceph cross cross-gnu rookd toolbox
 
-cross-gnu.%: base.%
-	@$(MAKE) -C cross-gnu GOARCH=$*
+base:
+	@$(MAKE) -C base
 
-cross.%: base.%
-	@$(MAKE) -C cross GOARCH=$*
+ceph: cross-gnu
+	@$(MAKE) -C ceph
 
-cross: cross.amd64
+cross: base
+	@$(MAKE) -C cross
 
-ceph.%: cross-gnu.amd64
-	@$(MAKE) -C ceph GOARCH=$*
+cross-gnu: base
+	@$(MAKE) -C cross-gnu
 
-rookd.%: ceph.% base.%
-	@$(MAKE) -C rookd GOARCH=$*
+rookd: ceph base
+	@$(MAKE) -C rookd
 
-toolbox.%: rookd.%
-	@$(MAKE) -C toolbox GOARCH=$*
+toolbox: rookd
+	@$(MAKE) -C toolbox
 
 do.build.images:
 ifneq ($(filter $(SUPPORTED_PLATFORMS), $(GOOS)_$(GOARCH)),)
-	@$(MAKE) $(foreach i,$(PLATFORM_IMAGES), $(i).$(GOARCH))
+	@$(MAKE) $(foreach i,$(PLATFORM_IMAGES), $(i))
 else
 	@echo skipping container build for unspported platform $(GOOS)_$(GOARCH)
 endif
