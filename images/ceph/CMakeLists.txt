@@ -17,6 +17,7 @@ add_custom_target(rook DEPENDS
   ceph-mon
   ceph-osd
   cephfs
+  cls_rbd
   rados
   radosgw
   radosgw-admin
