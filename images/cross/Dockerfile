@@ -18,26 +18,33 @@ FROM BASEIMAGE
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yy -q --no-install-recommends \
         awscli \
+        ca-certificates \
         curl \
         docker.io \
+        git \
+        jq \
         lsb-release \
+        make \
         rsync \
         runit \
-        sudo \
-        xz-utils && \
+        sudo && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \
     DEBIAN_FRONTEND=noninteractive apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# install acbuild and docker2aci
-RUN ACBUILD_VERSION=0.4.0 && \
-    curl -fsSLO https://github.com/containers/build/releases/download/v${ACBUILD_VERSION}/acbuild-v${ACBUILD_VERSION}.tar.gz && \
-    tar -C /usr/local/bin --strip-components=1 -xzf acbuild-v${ACBUILD_VERSION}.tar.gz && \
-    rm -f acbuild-v${ACBUILD_VERSION}.tar.gz && \
-    DOCKER2ACI_VERSION=0.14.0 && \
-    curl -fsSLO https://github.com/appc/docker2aci/releases/download/v${DOCKER2ACI_VERSION}/docker2aci-v${DOCKER2ACI_VERSION}.tar.gz && \
-    tar -C /usr/local/bin --strip-components=1 -xzf docker2aci-v${DOCKER2ACI_VERSION}.tar.gz && \
-    rm -f docker2aci-v${DOCKER2ACI_VERSION}.tar.gz
+# install go-lang from the official repo
+RUN GO_VERSION=1.8.3 && \
+    GO_HASH=1862f4c3d3907e59b04a757cfda0ea7aa9ef39274af99a784f5be843c80c6772 && \
+    curl -fsSL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
+    echo "${GO_HASH}  golang.tar.gz" | sha256sum -c - && \
+    tar -C /usr/local -xzf golang.tar.gz && \
+    rm golang.tar.gz
+ENV PATH /usr/local/go/bin:$PATH
+
+# precompile the go standard library for all supported platforms and configurations
+# the install suffixes match those in golang.mk so please keep them in sync
+RUN platforms="darwin_amd64 windows_amd64 linux_arm linux_amd64 linux_arm64" && \
+    for p in $platforms; do CGO_ENABLED=0 GOOS=${p%_*} GOARCH=${p##*_} GOARM=7 go install -installsuffix static -a std; done
 
 COPY run.sh rsyncd.sh /build/
 

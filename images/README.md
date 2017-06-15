@@ -4,9 +4,8 @@ This folder contains all images used by the Rook project:
 
   - base - small base Ubuntu image used as the base for other images
   - ceph - images that build ceph
-  - cross - an image that contains tools for cross building
+  - cross - an image that contains tools for cross building go projects
   - cross-gnu - an image that contains gnu tools for cross compiling
-  - cross-go - an image that contains gnu tools and go tools for cross compiling
   - rookd - an image that contains rookd, ceph and other tools
 
 # Building Images

@@ -20,16 +20,11 @@ ifeq ($(GO_PROJECT),)
 $(error the variable $$GO_PROJECT must be set prior to including golang.mk)
 endif
 
-# These targets will statically or dynamically linked depending on whether they
-# import the standard net, os/user packages. This will use the standard golang
-# settings.
-GO_PACKAGES ?=
-
 # These targets will be statically linked.
 GO_STATIC_PACKAGES ?=
 
-ifeq ($(GO_PACKAGES)$(GO_STATIC_PACKAGES),)
-$(error please set GO_PACKAGES, and/or GO_STATIC_PACKAGES prior to including golang.mk)
+ifeq ($(GO_STATIC_PACKAGES),)
+$(error please set GO_STATIC_PACKAGES prior to including golang.mk)
 endif
 
 # Optional. These are sudirs that we look for all go files to test, vet, and fmt
@@ -50,8 +45,6 @@ GO_TAGS ?=
 
 # ====================================================================================
 # Setup go environment
-
-include $(dir $(lastword $(MAKEFILE_LIST)))/cross.mk
 
 GO_SUPPORTED_VERSIONS ?= 1.7|1.8
 
@@ -83,20 +76,10 @@ endif
 # into the system's root dir. using our own pkg dir avoid thats
 ifneq ($(GO_PKG_DIR),)
 GO_PKG_BASE_DIR := $(abspath $(GO_PKG_DIR)/$(GOOS)_$(GOARCH))
-ifeq ($(GOOS)_$(PIE),linux_1)
-GO_PKG_FLAGS := -pkgdir $(GO_PKG_BASE_DIR)
-else
-GO_PKG_FLAGS := -pkgdir $(GO_PKG_BASE_DIR)_pie_shared
-endif
 GO_PKG_STATIC_FLAGS := -pkgdir $(GO_PKG_BASE_DIR)_static
 endif
 
-GO_FLAGS = $(GO_BUILDFLAGS) $(GO_PKG_FLAGS) -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
 GO_STATIC_FLAGS  = $(GO_BUILDFLAGS) $(GO_PKG_STATIC_FLAGS) -installsuffix static -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
-
-ifeq ($(GOOS)_$(PIE),linux_1)
-GO_FLAGS += -installsuffix pie -buildmode pie
-endif
 
 # ====================================================================================
 # Targets
@@ -127,11 +110,10 @@ go.build.packages: go.build.packages.$(1)
 
 go.install.packages.$(1):
 	@echo === go install $(1) $(GOOS)_$(GOARCH)
-	@CGO_ENABLED=$(3) $(GO) install -v $(4) $(2)
+	@$(3) $(GO) install -v $(4) $(2)
 go.install.packages: go.install.packages.$(1)
 endef
 
-$(foreach p,$(GO_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),CGO_ENABLED=1,$(GO_FLAGS))))
 $(foreach p,$(GO_STATIC_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),CGO_ENABLED=0,$(GO_STATIC_FLAGS))))
 
 .PHONY: go.build
@@ -145,8 +127,8 @@ go.install:
 .PHONY:
 go.test:
 	@echo === go test
-	@$(GOHOST) test -v -i -cover $(GO_FLAGS) $(GO_ALL_PACKAGES)
-	@$(GOHOST) test -cover $(GO_FLAGS) $(GO_ALL_PACKAGES)
+	@CGO_ENABLED=0 $(GOHOST) test -v -i -cover $(GO_STATIC_FLAGS) $(GO_ALL_PACKAGES)
+	@CGO_ENABLED=0 $(GOHOST) test -cover $(GO_STATIC_FLAGS) $(GO_ALL_PACKAGES)
 
 .PHONY: go.lint
 go.lint: $(GOLINT)
@@ -156,7 +138,7 @@ go.lint: $(GOLINT)
 .PHONY: go.vet
 go.vet:
 	@echo === go vet
-	@$(GOHOST) vet $(GO_FLAGS) $(GO_ALL_PACKAGES)
+	@$(GOHOST) vet $(GO_STATIC_FLAGS) $(GO_ALL_PACKAGES)
 
 .PHONY: go.fmt
 go.fmt:

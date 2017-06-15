@@ -47,7 +47,7 @@ rootfs:
 	@docker build $(BUILD_ARGS) -t $(ROOTFS_IMAGE) $(TEMP)
 	@rm -fr $(TEMP)
 
-build.images: rootfs-build
+do.build: rootfs-build
 	@echo === docker build $(IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) "s|BASEIMAGE|$(ROOTFS_IMAGE)|g" Dockerfile

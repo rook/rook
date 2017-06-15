@@ -16,21 +16,18 @@
 .PHONY: all
 all: build
 
+include build/makelib/cross.mk
+
 # ====================================================================================
 # Build Options
 
 # set the shell to bash in case some environments use sh
 SHELL := /bin/bash
 
-# Can be used for additional go build flags
+# Can be used or additional go build flags
 BUILDFLAGS ?=
 LDFLAGS ?=
 TAGS ?=
-
-# build a position independent executable. This implies dynamic linking
-# since statically-linked PIE is not supported by the linker/glibc. PIE
-# is only supported on Linux.
-PIE ?= 1
 
 # turn on more verbose build
 V ?= 0
@@ -42,13 +39,11 @@ else
 MAKEFLAGS += --no-print-directory
 endif
 
-# the operating system and arch to build
-ifeq ($(origin GOOS), undefined)
-GOOS := $(shell go env GOOS)
-endif
-
-ifeq ($(origin GOARCH), undefined)
-GOARCH := $(shell go env GOARCH)
+# whether to generate debug information in binaries. this includes DWARF
+# and symbol tables.
+DEBUG ?= 0
+ifeq ($(DEBUG),0)
+LDFLAGS += -s -w
 endif
 
 # the working directory to store packages and intermediate build files
@@ -63,14 +58,20 @@ endif
 BIN_DIR ?= bin
 RELEASE_DIR ?= release
 
-# platforms for which we client and server bits
-SERVER_PLATFORMS ?= linux_arm linux_amd64 linux_arm64
-
 # platforms where we only build client bits
 CLIENT_PLATFORMS ?= darwin_amd64 windows_amd64
 
+# platforms for which we client and server bits.
+SERVER_PLATFORMS ?= linux_arm linux_amd64 linux_arm64
+
 # the platforms to build
 PLATFORMS ?= $(SERVER_PLATFORMS) $(CLIENT_PLATFORMS)
+
+# client projects that we build on all platforms
+CLIENT_PACKAGES = $(GO_PROJECT)
+
+# server projects that we build on server platforms
+SERVER_PACKAGES = $(GO_PROJECT)/cmd/rookd
 
 # the root go project
 GO_PROJECT=github.com/rook/rook
@@ -88,15 +89,12 @@ CHANNEL ?=
 # ====================================================================================
 # Setup Go projects
 
-CLIENT_PACKAGES = $(GO_PROJECT)
-SERVER_PACKAGES = $(GO_PROJECT)/cmd/rookd
-
-GO_PACKAGES =
+GO_STATIC_PACKAGES=
 ifneq ($(filter $(GOOS)_$(GOARCH),$(CLIENT_PLATFORMS) $(SERVER_PLATFORMS)),)
-GO_PACKAGES += $(CLIENT_PACKAGES)
+GO_STATIC_PACKAGES += $(CLIENT_PACKAGES)
 endif
 ifneq ($(filter $(GOOS)_$(GOARCH),$(SERVER_PLATFORMS)),)
-GO_PACKAGES += $(SERVER_PACKAGES)
+GO_STATIC_PACKAGES += $(SERVER_PACKAGES)
 endif
 
 GO_BUILDFLAGS=$(BUILDFLAGS)
@@ -107,7 +105,6 @@ GO_BIN_DIR = $(BIN_DIR)
 GO_WORK_DIR ?= $(WORKDIR)
 GO_TOOLS_DIR ?= $(DOWNLOADDIR)/tools
 GO_PKG_DIR ?= $(WORKDIR)/pkg
-GO_PIE ?= $(PIE)
 
 include build/makelib/golang.mk
 
@@ -127,20 +124,20 @@ build.common:
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 
-build: build.common
+do.build:
 	@$(MAKE) go.build
-ifneq ($(GOOS),linux)
-	@$(MAKE) go.build GOOS=linux PIE=0
-endif
 	@$(MAKE) -C images
 
-cross.build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) PIE=$(PIE) go.build
+do.build.platform.%:
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) do.build
 
-cross.build.parallel: $(foreach p,$(PLATFORMS), cross.build.platform.$(p))
+do.build.parallel: $(foreach p,$(PLATFORMS), do.build.platform.$(p))
+
+build: build.common
+	@$(MAKE) do.build
 
 build.all: build.common
-	@$(MAKE) cross.build.parallel
+	@$(MAKE) do.build.parallel
 
 install: build.common
 	@$(MAKE) go.install
@@ -192,7 +189,7 @@ prune:
 	@$(MAKE) -C images prune
 
 .PHONY: build.common cross.build.parallel
-.PHONY: dev build build.all install test check vet fmt vendor clean distclean release publish promote prune
+.PHONY: build build.all install test check vet fmt vendor clean distclean release publish promote prune
 
 # ====================================================================================
 # Help
@@ -227,6 +224,7 @@ help:
 	@echo '                release channel.'
 	@echo ''
 	@echo 'Options:'
+	@echo '    DEBUG        Whether to generate debug symbols. Default is 0.'
 	@echo '    GOARCH       The arch to build.'
 	@echo '    GOOS         The OS to build for.'
 	@echo '    VERSION      The version information compiled into binaries.'
@@ -240,7 +238,5 @@ help:
 	@echo '                 files used during the build are cached. These'
 	@echo '                 files help speedup the build by avoiding network'
 	@echo '                 transfers. Its safe to use these files across builds.'
-	@echo '    PIE          Set to 1 to build a position independent'
-	@echo '                 executable. The default is 1.'
 	@echo '    WORKDIR      The working directory where most build files'
 	@echo '                 are stored. The default is .work'

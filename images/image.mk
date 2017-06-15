@@ -14,8 +14,6 @@
 
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
-# container images are always on linux
-override GOOS := linux
 include $(SELF_DIR)/../build/makelib/cross.mk
 
 CACHE_REGISTRY := cache
@@ -85,7 +83,7 @@ BUILD_BASE_ARGS += $(BUILD_ARGS)
 .PHONY: all build publish clean
 all: build
 
-build: build.images
+build: do.build
 	@$(MAKE) cache.images
 
 clean: clean.build
@@ -160,7 +158,7 @@ cache.images:
 			CACHE_IMAGE=$(CACHE_REGISTRY)/$${i#*/}; \
 			docker tag $$i $${CACHE_IMAGE}:$(CACHE_TAG); \
 			for r in $$(docker images --format "{{.ID}}#{{.Repository}}:{{.Tag}}" | grep $$IMGID | grep $(CACHE_REGISTRY)/ | grep -v $${CACHE_IMAGE}:$(CACHE_TAG)); do \
-				docker rmi $${r#*#}; \
+				docker rmi $${r#*#} > /dev/null 2>&1 || true; \
 			done; \
 		fi; \
 	done
@@ -175,11 +173,11 @@ cache.prune:
 		| awk -v i=0 -v cd="$(CACHE_PRUNE_DATE)" -F  "#" '{if ($$1 <= cd && i >= $(PRUNE_KEEP)) print $$2; i++ }') &&\
 	for i in $$EXPIRED; do \
 		echo removing expired cache image $$i; \
-		[ $(PRUNE_DRYRUN) = 1 ] || docker rmi $$i; \
+		[ $(PRUNE_DRYRUN) = 1 ] || docker rmi $$i > /dev/null 2>&1 || true; \
 	done
 	@for i in $$(docker images -q -f dangling=true); do \
-		echo removing danlging image $$i; \
-		docker rmi $$i > /dev/null 2>&1; \
+		echo removing dangling image $$i; \
+		docker rmi $$i > /dev/null 2>&1 || true; \
 	done
 
 # =====================================================================================

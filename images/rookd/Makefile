@@ -63,7 +63,7 @@ rookd-base-image: $(CEPH_TARBALL)
 OLD_IMAGE_ID := $(shell docker images -q $(ROOKD_IMAGE))
 CURRENT_IMAGE_ID := $$(docker images -q $(ROOKD_IMAGE))
 
-build.images: rookd-base-image
+do.build: rookd-base-image
 	@echo === docker build $(ROOKD_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp ../../bin/linux_$(GOARCH)/rookd $(TEMP)

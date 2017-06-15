@@ -22,7 +22,7 @@ BASEIMAGE = $(BUILD_REGISTRY)/base-$(GOARCH)
 
 TEMP := $(shell mktemp -d)
 
-build.images:
+do.build:
 	@echo === docker build $(IMAGE)
 	@cp -a . $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile

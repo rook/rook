@@ -51,7 +51,7 @@ TEMP := $(shell mktemp -d)
 # ====================================================================================
 # Targets
 
-build.images:
+do.build:
 	@echo === docker build $(CEPH_BUILDER_IMAGE)
 	@cp -a . $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(CEPH_BUILDER_BASEIMAGE)|g' Dockerfile

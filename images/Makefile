@@ -14,7 +14,8 @@
 
 include image.mk
 
-PLATFORMS ?= amd64 arm arm64
+SUPPORTED_PLATFORMS = linux_amd64 linux_arm linux_arm64
+PLATFORMS ?= $(SUPPORTED_PLATFORMS)
 PLATFORM_IMAGES ?= rookd toolbox
 
 # ====================================================================================
@@ -26,15 +27,12 @@ base.%:
 cross-gnu.%: base.%
 	@$(MAKE) -C cross-gnu GOARCH=$*
 
-cross-go.%: cross-gnu.%
-	@$(MAKE) -C cross-go GOARCH=$*
-
-cross.%: cross-go.%
+cross.%: base.%
 	@$(MAKE) -C cross GOARCH=$*
 
 cross: cross.amd64
 
-ceph.%: cross-gnu.$(GOHOSTARCH)
+ceph.%: cross-gnu.amd64
 	@$(MAKE) -C ceph GOARCH=$*
 
 rookd.%: ceph.% base.%
@@ -43,9 +41,19 @@ rookd.%: ceph.% base.%
 toolbox.%: rookd.%
 	@$(MAKE) -C toolbox GOARCH=$*
 
-build.all: $(foreach p,$(PLATFORMS), $(foreach i,$(PLATFORM_IMAGES), $(i).$(p)))
+do.build.images:
+ifneq ($(filter $(SUPPORTED_PLATFORMS), $(GOOS)_$(GOARCH)),)
+	@$(MAKE) $(foreach i,$(PLATFORM_IMAGES), $(i).$(GOARCH))
+else
+	@echo skipping container build for unspported platform $(GOOS)_$(GOARCH)
+endif
 
-build.images: $(foreach i,$(PLATFORM_IMAGES), $(i).$(GOHOSTARCH))
+do.build.platform.%:
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) do.build.images
+
+do.build: do.build.platform.$(GOOS)_$(GOARCH)
+
+build.all: $(foreach p,$(PLATFORMS), do.build.platform.$(p))
 
 # ====================================================================================
 # Help
@@ -69,14 +77,17 @@ help:
 	@echo '    prune.all    Prune everything ignoring policy.'
 	@echo ''
 	@echo 'Options:'
-	@echo '    PLATFORMS    The platforms to build when running the.'
-	@echo '                 cross target. Default is "arm arm64 amd64"'
 	@echo '    PULL         Whether to pull base images. Default is 1.'
+	@echo '    GOARCH       The arch to build.'
+	@echo '    GOOS         The OS to build for.'
 	@echo '    REGISTRY     The docker registry to push to. Default is'
 	@echo '                 quay.io/rook.'
 	@echo '    V            Set to 1 enable verbose build. Default is 0.'
 	@echo ''
 	@echo 'Advanced Options:'
+	@echo '    PLATFORMS    The supported platforms to build when running.'
+	@echo '                 the build.all target. The default is'
+	@echo '                 "linux_arm linux_arm64 linux_amd64"'
 	@echo '    PRUNE_HOURS  The number of hours from when an image is'
 	@echo '                 last used for it to be considered a target for'
 	@echo '                 pruning. Default is 48 hrs.'

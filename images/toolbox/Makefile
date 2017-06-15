@@ -34,7 +34,7 @@ toolbox-base-image:
 OLD_IMAGE_ID := $(shell docker images -q $(TOOLBOX_IMAGE))
 CURRENT_IMAGE_ID := $$(docker images -q $(TOOLBOX_IMAGE))
 
-build.images: toolbox-base-image
+do.build: toolbox-base-image
 	@echo === docker build $(TOOLBOX_IMAGE)
 	@cp -a . $(TEMP)
 	@cp ../../bin/linux_$(GOARCH)/rook $(TEMP)
