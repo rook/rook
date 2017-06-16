@@ -180,10 +180,13 @@ func testContext() *clusterd.Context {
 				cephtest.CreateClusterInfo(nil, path.Join(configDir, "rookcluster"), []string{"a"})
 				return "mysecret", nil
 			}
-			if args[0] == "mon_status" {
+			return "", fmt.Errorf("unrecognized command: %s %+v", command, args)
+		},
+		MockExecuteCommandWithOutputFile: func(actionName, command, outfileArg string, args ...string) (string, error) {
+			if command == "ceph" && args[0] == "mon_status" {
 				return clienttest.MonInQuorumResponse(), nil
 			}
-			return "", fmt.Errorf("unrecognized command")
+			return "", fmt.Errorf("unrecognized command: %s %+v", command, args)
 		},
 	}
 	return &clusterd.Context{Executor: executor, ConfigDir: configDir}

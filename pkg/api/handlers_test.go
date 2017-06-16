@@ -145,7 +145,7 @@ func TestGetMonsHandler(t *testing.T) {
 	etcdClient.SetValue(path.Join(key, "ipaddress"), "1.2.3.4")
 	etcdClient.SetValue(path.Join(key, "port"), "8765")
 
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 		if args[0] == "mon_status" {
 			return cephclienttest.MonInQuorumResponse(), nil
 		}
@@ -170,7 +170,7 @@ func TestGetPoolsHandler(t *testing.T) {
 	}
 
 	// first return no storage pools
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 		switch {
 		case args[0] == "osd" && args[1] == "lspools":
 			return `[]`, nil
@@ -187,7 +187,7 @@ func TestGetPoolsHandler(t *testing.T) {
 
 	// now return some storage pools from the ceph connection
 	w = httptest.NewRecorder()
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 		switch {
 		case args[0] == "osd" && args[1] == "lspools":
 			return `[{"poolnum":0,"poolname":"rbd"},{"poolnum":1,"poolname":"ecPool1"}]`, nil
@@ -246,7 +246,7 @@ func TestCreatePoolHandler(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 		switch {
 		case args[1] == "erasure-code-profile" && args[2] == "get":
 			if args[3] == "default" {
@@ -279,7 +279,7 @@ func TestCreatePoolHandlerFailure(t *testing.T) {
 
 	w := httptest.NewRecorder()
 	context.Executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return "", fmt.Errorf("mock failure to create pool1")
 		},
 	}
@@ -301,7 +301,7 @@ func TestGetClientAccessInfo(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 		switch {
 		case args[0] == "mon_status":
 			response := "{\"name\":\"mon0\",\"rank\":0,\"state\":\"leader\",\"election_epoch\":3,\"quorum\":[0],\"monmap\":{\"epoch\":1," +

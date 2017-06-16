@@ -113,7 +113,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 
 func TestCheckHealth(t *testing.T) {
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return clienttest.MonInQuorumResponse(), nil
 		},
 	}

@@ -50,7 +50,7 @@ func TestGetFileSystemsHandler(t *testing.T) {
 	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mon0"})
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 			logger.Infof("OUTPUT: %s %v", command, args)
 			if args[0] == "fs" && args[1] == "ls" {
 				return cephFilesystemListResponseRaw, nil

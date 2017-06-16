@@ -43,7 +43,7 @@ func TestRGWConfig(t *testing.T) {
 		"b": &inventory.NodeConfig{PublicIP: "2.3.4.5"},
 	}
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 			if args[0] == "auth" && args[1] == "get-or-create-key" {
 				return `{"key":"mykey"}`, nil
 			}

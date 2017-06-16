@@ -73,28 +73,33 @@ func AppendAdminConnectionArgs(args []string, configDir, clusterName string) []s
 func ExecuteCephCommandPlain(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
 	args = append(args, "--format", "plain")
-	return executeCommandImpl(context, CephTool, args)
+	return executeCommandWithOutputFile(context, CephTool, args)
 }
 
 func ExecuteCephCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
 	args = append(args, "--format", "json")
-	return executeCommandImpl(context, CephTool, args)
+	return executeCommandWithOutputFile(context, CephTool, args)
 }
 
 func ExecuteRBDCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
 	args = append(args, "--format", "json")
-	return executeCommandImpl(context, RBDTool, args)
+	return executeCommand(context, RBDTool, args)
 }
 
 func ExecuteRBDCommandNoFormat(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
-	return executeCommandImpl(context, RBDTool, args)
+	return executeCommand(context, RBDTool, args)
 }
 
-func executeCommandImpl(context *clusterd.Context, tool string, args []string) ([]byte, error) {
+func executeCommand(context *clusterd.Context, tool string, args []string) ([]byte, error) {
 	output, err := context.Executor.ExecuteCommandWithOutput("", tool, args...)
+	return []byte(output), err
+}
+
+func executeCommandWithOutputFile(context *clusterd.Context, tool string, args []string) ([]byte, error) {
+	output, err := context.Executor.ExecuteCommandWithOutputFile("", tool, "--out-file", args...)
 	return []byte(output), err
 }
 

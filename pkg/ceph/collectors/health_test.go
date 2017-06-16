@@ -353,7 +353,7 @@ $ sudo ceph -s
 	} {
 		func() {
 			executor := &exectest.MockExecutor{
-				MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+				MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 					return tt.input, nil
 				},
 			}

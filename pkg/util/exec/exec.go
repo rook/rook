@@ -17,7 +17,9 @@ package exec
 
 import (
 	"bufio"
+	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -30,6 +32,7 @@ type Executor interface {
 	ExecuteCommand(actionName string, command string, arg ...string) error
 	ExecuteCommandWithOutput(actionName string, command string, arg ...string) (string, error)
 	ExecuteCommandWithCombinedOutput(actionName string, command string, arg ...string) (string, error)
+	ExecuteCommandWithOutputFile(actionName, command, outfileArg string, arg ...string) (string, error)
 	ExecuteStat(name string) (os.FileInfo, error)
 }
 
@@ -74,6 +77,37 @@ func (*CommandExecutor) ExecuteCommandWithCombinedOutput(actionName string, comm
 	logCommand(command, arg...)
 	cmd := exec.Command(command, arg...)
 	return runCommandWithOutput(actionName, cmd, true)
+}
+
+func (*CommandExecutor) ExecuteCommandWithOutputFile(actionName, command, outfileArg string, arg ...string) (string, error) {
+
+	// create a temporary file to serve as the output file for the command to be run and ensure
+	// it is cleaned up after this function is done
+	outFile, err := ioutil.TempFile("", "")
+	if err != nil {
+		return "", fmt.Errorf("failed to open output file: %+v", err)
+	}
+	defer outFile.Close()
+	defer os.Remove(outFile.Name())
+
+	// append the output file argument to the list or args
+	arg = append(arg, outfileArg, outFile.Name())
+
+	logCommand(command, arg...)
+	cmd := exec.Command(command, arg...)
+	cmdOut, err := runCommandWithOutput(actionName, cmd, false)
+	if err != nil {
+		return cmdOut, err
+	}
+
+	// if there was anything that went to stdout/stderr then log it
+	if cmdOut != "" {
+		logger.Info(cmdOut)
+	}
+
+	// read the entire output file and return that to the caller
+	fileOut, err := ioutil.ReadAll(outFile)
+	return string(fileOut), err
 }
 
 func startCommand(command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {

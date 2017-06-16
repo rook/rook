@@ -42,7 +42,7 @@ func TestGetStatusDetailsHandler(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 		switch {
 		case args[0] == "status":
 			return CephStatusResponseRaw, nil
@@ -91,7 +91,7 @@ func TestGetStatusDetailsEmptyResponseFromCeph(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 		switch {
 		case args[0] == "status":
 			return "{}", nil

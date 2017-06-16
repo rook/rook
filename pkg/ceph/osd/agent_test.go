@@ -133,8 +133,8 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	}
 
 	outputExecCount := 0
-	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
-		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
+	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, actionName, command, args)
 		outputExecCount++
 		if args[0] == "auth" && args[1] == "get-or-create-key" {
 			return "{\"key\":\"mysecurekey\"}", nil
@@ -142,7 +142,12 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 		if args[0] == "osd" && args[1] == "create" {
 			return "{\"osdid\":3.0}", nil
 		}
-		if strings.HasPrefix(name, "lsblk /dev/disk/by-partuuid") {
+		return "", nil
+	}
+	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, actionName, command, args)
+		outputExecCount++
+		if strings.HasPrefix(actionName, "lsblk /dev/disk/by-partuuid") {
 			// this is a call to get device properties so we figure out CRUSH weight, which should only be done for Bluestore
 			// (Filestore uses Statfs since it has a mounted filesystem)
 			assert.Equal(t, Bluestore, storeConfig.StoreType)
@@ -231,8 +236,8 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	// should be no executeCommandWithOutput calls
 	outputExecCount := 0
-	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
-		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
+	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, actionName, command, args)
 		outputExecCount++
 		return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 	}
@@ -342,7 +347,7 @@ func createTestAgent(t *testing.T, nodeID, devices, configDir string, storeConfi
 	}
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 		},
 	}
@@ -490,7 +495,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 	// mock monitor command to return an osd ID when the client registers/creates an osd
 	currOsdID := 10
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 			switch {
 			case args[0] == "osd" && args[1] == "create":
 				currOsdID++
