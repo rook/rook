@@ -14,16 +14,9 @@
 
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
-include $(SELF_DIR)/../build/makelib/cross.mk
+include $(SELF_DIR)/../build/makelib/common.mk
 
 CACHE_REGISTRY := cache
-
-# a registry that is scoped to the current build tree on this host
-ifeq ($(origin BUILD_REGISTRY), undefined)
-HOSTNAME := $(shell hostname)
-ROOTDIR := $(shell cd $(SELF_DIR)/.. && pwd -P)
-BUILD_REGISTRY := build-$(shell echo $(HOSTNAME)-$(ROOTDIR) | shasum -a 256 | cut -c1-8)
-endif
 
 # public registry used for images that are pushed
 REGISTRY ?= quay.io/rook
@@ -49,11 +42,6 @@ ifeq ($(UNAME_S),Linux)
 SED_CMD?=sed -i
 # if we are running inside the container get our own cid
 SELF_CID := $(shell cat /proc/self/cgroup | grep docker | grep -o -E '[0-9a-f]{64}' | head -n 1)
-endif
-
-INTERACTIVE:=$(shell [ -t 0 ] && echo 1)
-ifdef INTERACTIVE
-RUN_ARGS ?= -t
 endif
 
 CACHEBUST ?= 0

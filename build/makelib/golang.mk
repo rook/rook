@@ -84,7 +84,7 @@ GO_STATIC_FLAGS  = $(GO_BUILDFLAGS) $(GO_PKG_STATIC_FLAGS) -installsuffix static
 # ====================================================================================
 # Targets
 
-ifeq ($(filter help clean distclean, $(MAKECMDGOALS)),)
+ifeq ($(filter help clean distclean go.clean, $(MAKECMDGOALS)),)
 .PHONY: go.check
 go.check:
 ifneq ($(shell $(GO) version | grep -q -E '\bgo($(GO_SUPPORTED_VERSIONS))\b' && echo 0 || echo 1), 0)

@@ -50,3 +50,11 @@ CC := $(CROSS_TRIPLE)-gcc
 CXX := $(CROSS_TRIPLE)-g++
 export CC CXX
 endif
+
+# a registry that is scoped to the current build tree on this host
+ifeq ($(origin BUILD_REGISTRY), undefined)
+HOSTNAME := $(shell hostname)
+SELFDIR := $(dir $(lastword $(MAKEFILE_LIST)))
+ROOTDIR := $(shell cd $(SELFDIR)/../.. && pwd -P)
+BUILD_REGISTRY := build-$(shell echo $(HOSTNAME)-$(ROOTDIR) | shasum -a 256 | cut -c1-8)
+endif

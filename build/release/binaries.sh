@@ -50,7 +50,7 @@ build() {
         tar czf "${RELEASE_DIR}/${tarfile}" -C "${bindir}" ${files[*]}
     else
         local zipfile=$(get_archive_name $os $arch)
-        local zippath=$(realpath ${RELEASE_DIR}/${zipfile})
+        local zippath=${RELEASE_DIR}/${zipfile}
         echo creating zip ${zipfile}
         $(cd ${bindir} && zip -qr ${zippath} ${files[*]})
     fi

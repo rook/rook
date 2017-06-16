@@ -28,5 +28,4 @@ ARG ARCH
 ADD https://github.com/krallin/tini/releases/download/v0.14.0/tini-${ARCH} /tini
 RUN chmod +x /tini
 
-ENTRYPOINT ["/tini", "--"]
-CMD ["/bin/bash"]
+ENTRYPOINT ["/tini", "-g", "--", "/bin/bash"]

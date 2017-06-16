@@ -49,5 +49,4 @@ RUN platforms="darwin_amd64 windows_amd64 linux_arm linux_amd64 linux_arm64" && 
 
 COPY run.sh rsyncd.sh /build/
 
-ENTRYPOINT [ "/tini", "--", "/build/run.sh" ]
-CMD ["/bin/bash"]
+ENTRYPOINT [ "/tini", "-g", "--", "/build/run.sh" ]

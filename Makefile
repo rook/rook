@@ -16,7 +16,7 @@
 .PHONY: all
 all: build
 
-include build/makelib/cross.mk
+include build/makelib/common.mk
 
 # ====================================================================================
 # Build Options
@@ -55,8 +55,12 @@ DOWNLOADDIR := $(abspath .download)
 endif
 
 # bin and relase dirs
-BIN_DIR ?= bin
-RELEASE_DIR ?= release
+ifeq ($(origin BIN_DIR),undefined)
+BIN_DIR := $(abspath bin)
+endif
+ifeq ($(origin RELEASE_DIR), undefined)
+RELEASE_DIR := $(abspath release)
+endif
 
 # platforms where we only build client bits
 CLIENT_PLATFORMS ?= darwin_amd64 windows_amd64
@@ -134,7 +138,14 @@ do.build.platform.%:
 do.build.parallel: $(foreach p,$(PLATFORMS), do.build.platform.$(p))
 
 build: build.common
-	@$(MAKE) do.build
+	@$(MAKE) go.build
+# if building on the mac, also build the linux container
+ifneq ($(GOOS),linux)
+	@$(MAKE) go.build GOOS=linux GOARCH=amd64
+	@$(MAKE) -C images GOOS=linux GOARCH=amd64
+else
+	@$(MAKE) -C images
+endif
 
 build.all: build.common
 	@$(MAKE) do.build.parallel

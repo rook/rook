@@ -71,7 +71,7 @@ do.build:
 ceph:
 	@echo === building ceph from $(CEPH_BUILDER_IMAGE)
 	@docker run \
-		-i $(RUN_ARGS) \
+		-i \
 		--cidfile $(TEMP)/cid \
 		-v $(CCACHE_DIR_HOST):/root/.ccache \
 		$(CEPH_BUILDER_IMAGE)
