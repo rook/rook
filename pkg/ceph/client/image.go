@@ -67,8 +67,11 @@ func ListImages(context *clusterd.Context, clusterName, poolName string) ([]Ceph
 func CreateImage(context *clusterd.Context, clusterName, name, poolName string, size uint64) (*CephBlockImage, error) {
 	imageSpec := getImageSpec(name, poolName)
 	sizeMB := int(size / 1024 / 1024)
-	if sizeMB <= 0 {
+	if size <= 0 {
 		return nil, fmt.Errorf("invalid size: %d", size)
+	} else if sizeMB == 0 {
+		logger.Infof("setting min image size of 1MB")
+		sizeMB = 1
 	}
 
 	args := []string{"create", imageSpec, "--size", strconv.Itoa(sizeMB)}

@@ -32,8 +32,6 @@ func TestCreateImage(t *testing.T) {
 
 	// rbd tool interprets sizes as MB, so we should reject anything smaller than 1MB
 	assertInvalidSize(t, context, uint64(0))
-	assertInvalidSize(t, context, uint64(1))
-	assertInvalidSize(t, context, uint64(1048575)) // 1 MB - 1 byte
 
 	// call with a valid size, but some other error occurs.  rbd tool returns error information to the output stream,
 	// separate from the error object, so verify that information also makes it back to us (because it sure is useful).
@@ -63,7 +61,7 @@ func TestCreateImage(t *testing.T) {
 	}
 
 	// create a 1MB image and verify the result
-	image, err = CreateImage(context, "foocluster", "image1", "pool1", uint64(1048576)) // 1MB
+	image, err = CreateImage(context, "foocluster", "image1", "pool1", uint64(1000)) // anything less than 1MB will be rounded up to 1MB
 	assert.Nil(t, err)
 	assert.NotNil(t, image)
 	assert.Equal(t, "image1", image.Name)
