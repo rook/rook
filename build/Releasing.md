@@ -7,6 +7,13 @@ At a high level the release workflow is as follows:
 3. If all goes well we "promote" that build from master to the alpha release channel.
 4. Depending on the stability and feedback from the field, we might promote the build to beta and stable channels.
 
+## Release Requirements
+
+The following tools are needed when running releasing:
+  - jq
+  - awscli
+  - zip
+
 ## Building Release Builds
 
 Jenkins will build, test and publish every commit from master. We use semantic versions for every build. Version numbers will be generated using `git describe --always --tags --dirty`. When building from a tagged commit these builds will be like v.0.3.0. When building from a non-tagged commit they will be something like v0.3.0-2-g770ebbc.
