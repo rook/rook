@@ -17,6 +17,7 @@ package ceph
 
 import (
 	"github.com/rook/rook/pkg/ceph/mds"
+	"github.com/rook/rook/pkg/ceph/mgr"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/ceph/osd"
 	"github.com/rook/rook/pkg/ceph/rgw"
@@ -36,6 +37,7 @@ func NewCephService(devices, metadataDevice, directories string, forceFormat boo
 		Leader: newLeader(adminSecret),
 		Agents: []clusterd.ServiceAgent{
 			mon.NewAgent(),
+			mgr.NewAgent(),
 			osd.NewAgent(devices, false, metadataDevice, directories, forceFormat, location, storeConfig, nil),
 			mds.NewAgent(),
 			rgw.NewAgent(),

@@ -143,11 +143,12 @@ func TestNewCephService(t *testing.T) {
 	service := NewCephService("a,b,c", "", "", true, "root=default", "", osd.StoreConfig{})
 	assert.NotNil(t, service)
 	assert.Equal(t, "/rook/services/ceph/osd/desired", service.Leader.RefreshKeys()[0].Path)
-	assert.Equal(t, 4, len(service.Agents))
+	assert.Equal(t, 5, len(service.Agents))
 	assert.Equal(t, "monitor", service.Agents[0].Name())
-	assert.Equal(t, "osd", service.Agents[1].Name())
-	assert.Equal(t, "mds", service.Agents[2].Name())
-	assert.Equal(t, "rgw", service.Agents[3].Name())
+	assert.Equal(t, "cephmgr", service.Agents[1].Name())
+	assert.Equal(t, "osd", service.Agents[2].Name())
+	assert.Equal(t, "mds", service.Agents[3].Name())
+	assert.Equal(t, "rgw", service.Agents[4].Name())
 }
 
 func TestCreateClusterInfo(t *testing.T) {

@@ -42,7 +42,7 @@ func NewLeader() *Leader {
 }
 
 // Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
-// Initialize CephFS. Must be idempotent.
+// Initialize RGW. Must be idempotent.
 func (r *Leader) Configure(context *clusterd.Context) error {
 
 	// Check if object store is desired

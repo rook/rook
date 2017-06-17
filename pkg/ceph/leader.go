@@ -23,6 +23,7 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/etcd/store"
 	"github.com/rook/rook/pkg/ceph/mds"
+	"github.com/rook/rook/pkg/ceph/mgr"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/ceph/osd"
 	"github.com/rook/rook/pkg/ceph/rgw"
@@ -33,6 +34,7 @@ import (
 // Interface implemented by a service that has been elected leader
 type cephLeader struct {
 	monLeader          *mon.Leader
+	mgrLeader          *mgr.Leader
 	osdLeader          *osd.Leader
 	mdsLeader          *mds.Leader
 	rgwLeader          *rgw.Leader
@@ -43,6 +45,7 @@ type cephLeader struct {
 func newLeader(adminSecret string) *cephLeader {
 	return &cephLeader{
 		monLeader:   mon.NewLeader(),
+		mgrLeader:   mgr.NewLeader(),
 		osdLeader:   osd.NewLeader(),
 		mdsLeader:   mds.NewLeader(),
 		rgwLeader:   rgw.NewLeader(),
@@ -86,6 +89,10 @@ func getRefreshMons(e *clusterd.RefreshEvent) bool {
 	return true
 }
 
+func getRefreshMgrs(e *clusterd.RefreshEvent) bool {
+	return true
+}
+
 func getRefreshFile(e *clusterd.RefreshEvent) bool {
 	return true
 }
@@ -99,6 +106,7 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 	logger.Infof("ceph leader received refresh event")
 
 	refreshMons := getRefreshMons(e)
+	refreshMgrs := getRefreshMgrs(e)
 	osdsToRefresh := getOSDsToRefresh(e, c.refreshInitialized)
 	refreshFile := getRefreshFile(e)
 	refreshObject := getRefreshObject(e)
@@ -108,6 +116,14 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 		err := c.monLeader.Configure(e.Context, c.adminSecret)
 		if err != nil {
 			logger.Errorf("Failed to configure ceph mons. %v", err)
+		}
+	}
+
+	if refreshMgrs {
+		// Configure the cephmgr
+		err := c.mgrLeader.Configure(e.Context)
+		if err != nil {
+			logger.Errorf("Failed to configure ceph mgrs. %v", err)
 		}
 	}
 
