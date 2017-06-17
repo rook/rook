@@ -30,11 +30,8 @@ func TestCreateImage(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
 
-	// rbd tool interprets sizes as MB, so we should reject anything smaller than 1MB
-	assertInvalidSize(t, context, uint64(0))
-
-	// call with a valid size, but some other error occurs.  rbd tool returns error information to the output stream,
-	// separate from the error object, so verify that information also makes it back to us (because it sure is useful).
+	// mock an error during the create image call.  rbd tool returns error information to the output stream,
+	// separate from the error object, so verify that information also makes it back to us (because it is useful).
 	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
 		switch {
 		case command == "rbd" && args[0] == "create":
@@ -46,13 +43,15 @@ func TestCreateImage(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "mocked detailed ceph error output stream"))
 
-	// now we'll successfully call with a valid size (1 MB), so set up a mock handler
+	// rbd tool interprets sizes as MB, so anything smaller than that should get rounded up to the minimum
+	// (except for 0, that's OK)
 	createCalled := false
+	expectedSizeArg := ""
 	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
 		switch {
 		case command == "rbd" && args[0] == "create":
 			createCalled = true
-			assert.Equal(t, "1", args[3])
+			assert.Equal(t, expectedSizeArg, args[3])
 			return "", nil
 		case command == "rbd" && args[0] == "ls" && args[1] == "-l":
 			return `[{"image":"image1","size":1048576,"format":2}]`, nil
@@ -60,18 +59,35 @@ func TestCreateImage(t *testing.T) {
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
-	// create a 1MB image and verify the result
-	image, err = CreateImage(context, "foocluster", "image1", "pool1", uint64(1000)) // anything less than 1MB will be rounded up to 1MB
+	// 0 byte --> 0 MB
+	expectedSizeArg = "0"
+	image, err = CreateImage(context, "foocluster", "image1", "pool1", uint64(0))
 	assert.Nil(t, err)
 	assert.NotNil(t, image)
-	assert.Equal(t, "image1", image.Name)
-	assert.Equal(t, uint64(1048576), image.Size)
 	assert.True(t, createCalled)
-}
+	createCalled = false
 
-func assertInvalidSize(t *testing.T, context *clusterd.Context, size uint64) {
-	image, err := CreateImage(context, "foocluster", "image1", "pool1", size)
-	assert.Nil(t, image)
-	assert.NotNil(t, err)
-	assert.Equal(t, fmt.Sprintf("invalid size: %d", size), err.Error())
+	// 1 byte --> 1 MB
+	expectedSizeArg = "1"
+	image, err = CreateImage(context, "foocluster", "image1", "pool1", uint64(1))
+	assert.Nil(t, err)
+	assert.NotNil(t, image)
+	assert.True(t, createCalled)
+	createCalled = false
+
+	// (1 MB - 1 byte) --> 1 MB
+	expectedSizeArg = "1"
+	image, err = CreateImage(context, "foocluster", "image1", "pool1", uint64(1048575))
+	assert.Nil(t, err)
+	assert.NotNil(t, image)
+	assert.True(t, createCalled)
+	createCalled = false
+
+	// 1 MB
+	expectedSizeArg = "1"
+	image, err = CreateImage(context, "foocluster", "image1", "pool1", uint64(1048576))
+	assert.Nil(t, err)
+	assert.NotNil(t, image)
+	assert.True(t, createCalled)
+	createCalled = false
 }

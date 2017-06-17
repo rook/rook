@@ -18,6 +18,7 @@ add_custom_target(rook DEPENDS
   ceph-osd
   cephfs
   cls_rbd
+  crushtool
   rados
   radosgw
   radosgw-admin

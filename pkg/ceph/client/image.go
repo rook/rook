@@ -24,23 +24,9 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 )
 
-type Image interface {
-	Open(args ...interface{}) error
-	Close() error
-	Remove() error
-	Stat() (info *ImageInfo, err error)
-	Name() string
-}
-
-type ImageInfo struct {
-	Size              uint64
-	Obj_size          uint64
-	Num_objs          uint64
-	Order             int
-	Block_name_prefix string
-	Parent_pool       int64
-	Parent_name       string
-}
+const (
+	ImageMinSize = uint64(1048576) // 1 MB
+)
 
 type CephBlockImage struct {
 	Name   string `json:"image"`
@@ -65,14 +51,15 @@ func ListImages(context *clusterd.Context, clusterName, poolName string) ([]Ceph
 }
 
 func CreateImage(context *clusterd.Context, clusterName, name, poolName string, size uint64) (*CephBlockImage, error) {
-	imageSpec := getImageSpec(name, poolName)
-	sizeMB := int(size / 1024 / 1024)
-	if size <= 0 {
-		return nil, fmt.Errorf("invalid size: %d", size)
-	} else if sizeMB == 0 {
-		logger.Infof("setting min image size of 1MB")
-		sizeMB = 1
+	if size > 0 && size < ImageMinSize {
+		// rbd tool uses MB as the smallest unit for size input.  0 is OK but anything else smaller
+		// than 1 MB should just be rounded up to 1 MB.
+		logger.Warningf("requested image size %d is less than the minimum size of %d, using the minimum.", size, ImageMinSize)
+		size = ImageMinSize
 	}
+
+	sizeMB := int(size / 1024 / 1024)
+	imageSpec := getImageSpec(name, poolName)
 
 	args := []string{"create", imageSpec, "--size", strconv.Itoa(sizeMB)}
 	buf, err := ExecuteRBDCommandNoFormat(context, clusterName, args)
