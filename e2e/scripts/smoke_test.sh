@@ -133,7 +133,7 @@ rook_infra::cleanup() {
 
     rook_infra::create
     rook_infra::try_copy_docker_image_to_rook_infra quay.io/rook/rookd:${tag_name}
-    rook_infra::try_copy_docker_image_to_rook_infra quay.io/rook/rook:${tag_name}
+    rook_infra::try_copy_docker_image_to_rook_infra quay.io/rook/toolbox:${tag_name}
     rook_infra::init
 
     rook_infra::run_test SmokeSuite ${tag_name} ${rook_platform} ${k8s_version}
