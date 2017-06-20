@@ -604,7 +604,7 @@ func addOSDToCrushMap(context *clusterd.Context, config *osdConfig, clusterName,
 	weight, _ = strconv.ParseFloat(fmt.Sprintf("%.4f", weight), 64)
 
 	osdEntity := fmt.Sprintf("osd.%d", osdID)
-	locArgs, err := formatLocation(location)
+	locArgs, err := client.FormatLocation(location)
 	if err != nil {
 		return err
 	}

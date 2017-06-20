@@ -40,6 +40,11 @@ import (
 	"k8s.io/client-go/pkg/api/v1"
 )
 
+const (
+	crushConfigMapName = "crush-config"
+	crushmapCreatedKey = "initialCrushMapCreated"
+)
+
 var (
 	healthCheckInterval = 10 * time.Second
 	clientTimeout       = 15 * time.Second
@@ -92,6 +97,11 @@ func (c *Cluster) CreateInstance() error {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
 
+	err = c.createInitialCrushMap()
+	if err != nil {
+		return fmt.Errorf("failed to create initial crushmap: %+v", err)
+	}
+
 	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag)
 	err = c.mgrs.Start()
 	if err != nil {
@@ -135,6 +145,64 @@ func (c *Cluster) Monitor(stopCh <-chan struct{}) {
 			}
 		}
 	}
+}
+
+func (c *Cluster) createInitialCrushMap() error {
+	configMapExists := false
+	createCrushMap := false
+
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(crushConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+
+		// crush config map was not found, meaning we haven't created the initial crush map
+		createCrushMap = true
+	} else {
+		// crush config map was found, look in it to verify we've created the initial crush map
+		configMapExists = true
+		val, ok := cm.Data[crushmapCreatedKey]
+		if !ok {
+			createCrushMap = true
+		} else if val != "1" {
+			createCrushMap = true
+		}
+	}
+
+	if !createCrushMap {
+		// no need to create the crushmap, bail out
+		return nil
+	}
+
+	logger.Info("creating initial crushmap")
+	out, err := client.CreateDefaultCrushMap(c.context, c.Namespace)
+	if err != nil {
+		return fmt.Errorf("failed to create initial crushmap: %+v. output: %s", err, out)
+	}
+
+	logger.Info("created initial crushmap")
+
+	// save the fact that we've created the initial crushmap to a configmap
+	configMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      crushConfigMapName,
+			Namespace: c.Namespace,
+		},
+		Data: map[string]string{crushmapCreatedKey: "1"},
+	}
+
+	if !configMapExists {
+		if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {
+			return fmt.Errorf("failed to create configmap %s: %+v", crushConfigMapName, err)
+		}
+	} else {
+		if _, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
+			return fmt.Errorf("failed to update configmap %s: %+v", crushConfigMapName, err)
+		}
+	}
+
+	return nil
 }
 
 func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {

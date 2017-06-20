@@ -30,6 +30,7 @@ const (
 	AdminUsername = "client.admin"
 	CephTool      = "ceph"
 	RBDTool       = "rbd"
+	CrushTool     = "crushtool"
 )
 
 // represents the response from a mon_status mon_command (subset of all available fields, only

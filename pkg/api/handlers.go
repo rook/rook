@@ -25,7 +25,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	ceph "github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/ceph/mon"
-	"github.com/rook/rook/pkg/ceph/osd"
 	"github.com/rook/rook/pkg/clusterd"
 )
 
@@ -83,7 +82,7 @@ type overallMonStatus struct {
 // /crushmap
 func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
 	// get the crush map
-	crushmap, err := osd.GetCrushMap(h.context, h.config.ClusterInfo.Name)
+	crushmap, err := ceph.GetCrushMap(h.context, h.config.ClusterInfo.Name)
 	if err != nil {
 		logger.Errorf("failed to get crush map, err: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)

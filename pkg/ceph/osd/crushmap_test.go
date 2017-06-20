@@ -74,39 +74,3 @@ func testCrushMapHelper(t *testing.T, storeConfig *StoreConfig) {
 	// location should have been stored in etcd as well
 	assert.Equal(t, location, etcdClient.GetValue("/rook/nodes/config/node1/location"))
 }
-
-func TestGetCrushMap(t *testing.T) {
-	executor := &exectest.MockExecutor{}
-	response, err := GetCrushMap(&clusterd.Context{Executor: executor}, "rook")
-
-	assert.Nil(t, err)
-	assert.Equal(t, "", response)
-}
-
-func TestCrushLocation(t *testing.T) {
-	loc := "dc=datacenter1"
-
-	// test that root will get filled in with default/runtime values
-	res, err := formatLocation(loc)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res))
-	locSet := util.CreateSet(res)
-	assert.True(t, locSet.Contains("root=default"))
-	assert.True(t, locSet.Contains("dc=datacenter1"))
-
-	// test that if host name and root are already set they will be honored
-	loc = "root=otherRoot,dc=datacenter2,host=node123"
-	res, err = formatLocation(loc)
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(res))
-	locSet = util.CreateSet(res)
-	assert.True(t, locSet.Contains("root=otherRoot"))
-	assert.True(t, locSet.Contains("dc=datacenter2"))
-	assert.True(t, locSet.Contains("host=node123"))
-
-	// test an invalid CRUSH location format
-	loc = "root=default,prop:value"
-	_, err = formatLocation(loc)
-	assert.NotNil(t, err)
-	assert.Contains(t, err.Error(), "is not in a valid format")
-}

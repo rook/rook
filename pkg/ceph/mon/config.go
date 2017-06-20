@@ -69,7 +69,6 @@ type GlobalConfig struct {
 	OsdMaxObjectNamespaceLen int    `ini:"osd max object namespace len,omitempty"`
 	OsdObjectStore           string `ini:"osd objectstore"`
 	RbdDefaultFeatures       int    `ini:"rbd_default_features,omitempty"`
-	CrushtoolPath            string `ini:"crushtool"`
 	FatalSignalHandlers      string `ini:"fatal signal handlers"`
 }
 
@@ -282,7 +281,6 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 			OsdPoolDefaultPgpNum:   100,
 			OsdObjectStore:         store,
 			RbdDefaultFeatures:     3,
-			CrushtoolPath:          "",
 			FatalSignalHandlers:    "false",
 		},
 	}

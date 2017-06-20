@@ -57,3 +57,26 @@ func TestCreateSecrets(t *testing.T) {
 	assert.Equal(t, secretName, secret.Name)
 	assert.Equal(t, 1, len(secret.StringData))
 }
+
+func TestCreateInitialCrushMap(t *testing.T) {
+	clientset := testop.New(3)
+	executor := &exectest.MockExecutor{}
+	c := &Cluster{}
+	c.Namespace = "rook294"
+	c.Init(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}, Executor: executor})
+
+	// create the initial crush map and verify that a configmap value was created that says the crush map was created
+	err := c.createInitialCrushMap()
+	assert.Nil(t, err)
+	cm, err := clientset.CoreV1().ConfigMaps(c.Namespace).Get(crushConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, cm)
+	assert.Equal(t, "1", cm.Data[crushmapCreatedKey])
+
+	// the crushmap should NOT get created again
+	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		return "", fmt.Errorf("crushmap was already created, we shouldn't be calling this again")
+	}
+	err = c.createInitialCrushMap()
+	assert.Nil(t, err)
+}

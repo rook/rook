@@ -84,6 +84,11 @@ func (m *Leader) Configure(context *clusterd.Context, adminSecret string) error 
 		return err
 	}
 
+	err = createInitialCrushMap(context, cluster)
+	if err != nil {
+		return err
+	}
+
 	if len(monitorsToRemove) == 0 {
 		// no monitors to remove
 		return nil
@@ -438,5 +443,43 @@ func WaitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 	}
 
 	logger.Infof("Ceph monitors formed quorum")
+	return nil
+}
+
+func createInitialCrushMap(context *clusterd.Context, cluster *ClusterInfo) error {
+	createCrushMap := false
+
+	// check to see if the crush map has already been initialized
+	key := path.Join(CephKey, "crushMapInitialized")
+	resp, err := context.EtcdClient.Get(ctx.Background(), key, nil)
+	if err != nil {
+		if !util.IsEtcdKeyNotFound(err) {
+			return err
+		}
+		createCrushMap = true
+	} else {
+		if resp.Node.Value != "1" {
+			createCrushMap = true
+		}
+	}
+
+	if !createCrushMap {
+		// no need to create the crushmap, bail out
+		return nil
+	}
+
+	logger.Info("creating initial crushmap")
+	out, err := client.CreateDefaultCrushMap(context, cluster.Name)
+	if err != nil {
+		return fmt.Errorf("failed to create initial crushmap: %+v. output: %s", err, out)
+	}
+
+	logger.Info("created initial crushmap")
+
+	// save the fact that we've created the initial crush map so we don't do it again
+	if _, err := context.EtcdClient.Set(ctx.Background(), key, "1", nil); err != nil {
+		return err
+	}
+
 	return nil
 }

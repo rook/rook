@@ -149,6 +149,9 @@ func TestMoveUnhealthyMonitor(t *testing.T) {
 		Executor:      executor,
 	}
 
+	// mock the initial crush map being created
+	etcdClient.SetValue("/rook/services/ceph/crushMapInitialized", "1")
+
 	// mock the agent responses that the deployments were successful to start mons and osds
 	etcdClient.WatcherResponses["/rook/_notify/a/monitor/status"] = "succeeded"
 	etcdClient.WatcherResponses["/rook/_notify/b/monitor/status"] = "succeeded"
@@ -282,4 +285,26 @@ func TestUnhealthyMon(t *testing.T) {
 	assert.NotNil(t, err)
 	assert.Equal(t, 1, len(bad))
 	assert.Equal(t, cmonName, bad["c"].Name)
+}
+
+func TestCreateInitialCrushMap(t *testing.T) {
+	etcdClient := util.NewMockEtcdClient()
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{
+		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
+		Executor:      executor,
+	}
+	clusterInfo := &ClusterInfo{Name: "cluster30983"}
+
+	// calling the first time should result in a key being set that says we've initialized the crush map
+	err := createInitialCrushMap(context, clusterInfo)
+	assert.Nil(t, err)
+	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/crushMapInitialized"))
+
+	// now call again, since we've already done it once we should not try to create the crushmap again
+	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		return "", fmt.Errorf("crushmap was already created, we shouldn't be calling this again")
+	}
+	err = createInitialCrushMap(context, clusterInfo)
+	assert.Nil(t, err)
 }
