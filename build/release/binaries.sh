@@ -19,7 +19,7 @@ get_archive_name() {
     local arch=$2
     local suffix=$3
 
-    local file=rook-${os}-${arch}
+    local file=rookctl-${os}-${arch}
 
     if [[ -n ${suffix} ]]; then
         file=${file}-${suffix}
@@ -40,7 +40,7 @@ build() {
         local ext=".exe"
     fi
 
-    local files=( rook${ext} )
+    local files=( rookctl${ext} )
 
     if [[ ${os} == "linux" ]]; then
         files+=( rookd${ext} )

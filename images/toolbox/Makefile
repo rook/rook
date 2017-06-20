@@ -37,7 +37,7 @@ CURRENT_IMAGE_ID := $$(docker images -q $(TOOLBOX_IMAGE))
 do.build: toolbox-base-image
 	@echo === docker build $(TOOLBOX_IMAGE)
 	@cp -a . $(TEMP)
-	@cp ../../bin/linux_$(GOARCH)/rook $(TEMP)
+	@cp ../../bin/linux_$(GOARCH)/rookctl $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(TOOLBOX_BASE_IMAGE)|g' Dockerfile
 	@docker build $(BUILD_ARGS) -t $(TOOLBOX_IMAGE) $(TEMP)
 	@[ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] && [ -n "$(OLD_IMAGE_ID)" ] && docker rmi $(OLD_IMAGE_ID) || true

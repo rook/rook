@@ -12,8 +12,7 @@ storage cluster.
 ## Prerequisites
 
 Most of the examples make use of the `ceph` client command.  A quick way to use
-the Ceph client suite is from a
-[Rook Toolbox container](https://github.com/rook/rook/blob/master/Documentation/toolbox.md).
+the Ceph client suite is from a [Rook Toolbox container](toolbox.md).
 
 The Kubernetes based examples assume Rook OSD pods are in the `rook` namespace.
 If you run them in a different namespace, modify `kubectl -n rook [...]` to fit
@@ -258,15 +257,14 @@ and OSDs in the `default` root hierarchy.
 The `size` setting of a pool tells the cluster how many copies of the data
 should be kept for redundancy.  By default the cluster will distribute these
 copies between `host` buckets in the CRUSH Map This can be set when [creating a
-pool via ThirdPartyResource](https://github.com/rook/rook/blob/master/Documentation/pool-tpr.md)
-or after creation with `ceph`.
+pool via ThirdPartyResource](pool-tpr.md) or after creation with `ceph`.
 
 So for example let's change the `size` of the `rbd` pool to three
 ```
 ceph osd pool set rbd size 3
 ```
 
-Now if you run `ceph -s` or `rook status` you may see "recovery" operations and
+Now if you run `ceph -s` or `rookctl status` you may see "recovery" operations and
 PGs in "undersized" and other "unclean" states.  The cluster is essentially
 fixing itself since the number of replicas has been increased, and should go
 back to "active/clean" state shortly, after data has been replicated between

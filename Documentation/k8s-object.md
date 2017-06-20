@@ -7,19 +7,19 @@ Object storage exposes an S3 API to the storage cluster for applications to put 
 This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](kubernetes.md)
 
 ## Rook Client
-Setting up the object storage requires running `rook` commands with the [Rook client](kubernetes.md#rook-client). This will be simplified in the future with a TPR for the object stores.
+Setting up the object storage requires running `rookctl` commands with the [rook-client](kubernetes.md#rook-client) pod. This will be simplified in the future with a TPR for the object stores.
 
 ## Create the Object Store and User
 Now we will create the object store, which starts the RGW service in the cluster with the S3 API. 
-From within the rook client container, run the following:
+From within the rook-client container, run the following:
 
 ```bash
 # Create an object storage instance in the cluster
-rook object create
+rookctl object create
 
 # Create an object storage user. The first user may take a minute to create. 
 # If it times out, run the same command again to confirm that it finished.
-rook object user create rook-user "A rook rgw User"
+rookctl object user create rook-user "A rook rgw User"
 ```
 
 The object store is now available for pods to connect by using the creds of `rook-user`. 
@@ -27,7 +27,7 @@ The object store is now available for pods to connect by using the creds of `roo
 ### Environment Variables
 If your s3 client uses environment variables, the client can print them for you
 ```bash
-rook object connection rook-user --format env-var
+rookctl object connection rook-user --format env-var
 ```
 
 See the [Object Storage](client.md#object-storage) documentation for more steps on consuming the object storage.

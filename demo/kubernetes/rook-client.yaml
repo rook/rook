@@ -6,7 +6,7 @@ metadata:
 spec:
   containers:
   - name: rook-client
-    image: quay.io/rook/rook:master-latest
+    image: quay.io/rook/toolbox:master-latest
     imagePullPolicy: IfNotPresent
     command: ["sleep", "36500d"]
     securityContext:

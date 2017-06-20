@@ -13,13 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package filesystem
+package block
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/rook/rook/cmd/rook/rook"
+	"github.com/rook/rook/cmd/rookctl/rook"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/pkg/util/flags"
@@ -27,22 +27,24 @@ import (
 )
 
 var (
-	newFilesystemName string
+	deleteImageName     string
+	deleteImagePoolName string
 )
 
-var createCmd = &cobra.Command{
-	Use:   "create",
-	Short: "Creates a new shared filesystem in the cluster",
+var deleteCmd = &cobra.Command{
+	Use:   "delete",
+	Short: "Deletes a block image from the cluster",
 }
 
 func init() {
-	createCmd.Flags().StringVarP(&newFilesystemName, "name", "n", "", "Name of new filesystem to create (required)")
+	deleteCmd.Flags().StringVar(&deleteImageName, "name", "", "Name of block image to delete (required)")
+	deleteCmd.Flags().StringVar(&deleteImagePoolName, "pool-name", "rbd", "Name of storage pool to delete block image from")
 
-	createCmd.MarkFlagRequired("name")
-	createCmd.RunE = createFilesystemEntry
+	deleteCmd.MarkFlagRequired("name")
+	deleteCmd.RunE = deleteBlockImageEntry
 }
 
-func createFilesystemEntry(cmd *cobra.Command, args []string) error {
+func deleteBlockImageEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
 	if err := flags.VerifyRequiredFlags(cmd, []string{"name"}); err != nil {
@@ -50,7 +52,7 @@ func createFilesystemEntry(cmd *cobra.Command, args []string) error {
 	}
 
 	c := rook.NewRookNetworkRestClient()
-	out, err := createFilesystem(newFilesystemName, c)
+	out, err := deleteBlockImage(deleteImageName, deleteImagePoolName, c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -60,14 +62,12 @@ func createFilesystemEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func createFilesystem(filesystemName string, c client.RookRestClient) (string, error) {
-	newFilesystem := model.FilesystemRequest{Name: filesystemName, PoolName: filesystemName}
-	_, err := c.CreateFilesystem(newFilesystem)
-
-	// HTTP 202 Accepted is expected
-	if err != nil && !client.IsHttpAccepted(err) {
-		return "", fmt.Errorf("failed to create new file system '%+v': %+v", newFilesystem, err)
+func deleteBlockImage(imageName, poolName string, c client.RookRestClient) (string, error) {
+	i := model.BlockImage{Name: imageName, PoolName: poolName}
+	resp, err := c.DeleteBlockImage(i)
+	if err != nil {
+		return "", fmt.Errorf("failed to delete block image '%+v': %+v", i, err)
 	}
 
-	return fmt.Sprintf("succeeded starting creation of shared filesystem %s", filesystemName), nil
+	return resp, nil
 }

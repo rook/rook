@@ -23,8 +23,8 @@ import (
 	"strings"
 	"time"
 
-	rc "github.com/rook/rook/cmd/rook/client"
-	"github.com/rook/rook/cmd/rook/rook"
+	rc "github.com/rook/rook/cmd/rookctl/client"
+	"github.com/rook/rook/cmd/rookctl/rook"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/pkg/util/exec"

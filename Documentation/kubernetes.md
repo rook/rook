@@ -36,7 +36,7 @@ Now that the rook-operator pod is running, we can create the Rook cluster. See t
 kubectl create -f rook-cluster.yaml
 ```
 
-Use `kubectl` to list pods in the rook namespace. You should be able to see the following pods once they are all running: 
+Use `kubectl` to list pods in the `rook` namespace. You should be able to see the following pods once they are all running: 
 
 ```bash
 $ kubectl -n rook get pod
@@ -58,7 +58,8 @@ For a walkthrough of the three types of storage exposed by Rook, see the guides 
 ## Tools
 
 ### Rook Client
-The [rook-client](/demo/kubernetes/rook-client.yaml) tool allows you to configure Block, File System, and Object storage.
+The [rookctl](/demo/kubernetes/rook-client.yaml) tool allows you to configure Block, File System, and Object storage.
+
 You can start a client pod that is automatically configured to connect to your storage cluster with the following:
 ```bash
 kubectl create -f rook-client.yaml
@@ -69,11 +70,11 @@ kubectl -n rook get pod rook-client
 # Connect to the client pod 
 kubectl -n rook exec rook-client -it sh
 
-# Verify the rook client can talk to the cluster
-rook node ls
+# Verify the rookctl tool can talk to the cluster
+rookctl node ls
 ```
 
-Now you can use the `rook` tool as required in the [File System](k8s-filesystem.md) and [Object](k8s-object.md) walkthroughs, or a [simplified walkthrough of block, file and object storage](client.md).
+Now you can use the `rookctl` tool as required in the [File System](k8s-filesystem.md) and [Object](k8s-object.md) walkthroughs, or a [simplified walkthrough of block, file and object storage](client.md).
 
 ### Advanced Configuration and Troubleshooting
 We have created a [toolbox](/demo/kubernetes/rook-tools.yaml) container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
@@ -101,7 +102,7 @@ If you modified the demo settings, additional cleanup is up to you for devices, 
 With Rook running in the Kubernetes cluster, Kubernetes applications can
 mount block devices and filesystems managed by Rook, or can use the S3/Swift API for object storage. The Rook operator 
 automates configuration of the Ceph storage components and monitors the cluster to ensure the storage remains available
-and healthy. There is also a REST API service for configuring the Rook storage and a command line tool called `rook`.
+and healthy. There is also a REST API service for configuring the Rook storage and a command line tool called `rookctl`.
 
 ![Rook Architecture on Kubernetes](media/kubernetes.png)
 

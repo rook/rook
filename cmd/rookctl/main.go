@@ -13,23 +13,23 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package rookmain
+package main
 
 import (
 	"fmt"
 	"os"
 
-	"github.com/rook/rook/cmd/rook/block"
-	"github.com/rook/rook/cmd/rook/filesystem"
-	"github.com/rook/rook/cmd/rook/node"
-	"github.com/rook/rook/cmd/rook/object"
-	"github.com/rook/rook/cmd/rook/pool"
-	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/cmd/rook/status"
-	"github.com/rook/rook/cmd/rook/version"
+	"github.com/rook/rook/cmd/rookctl/block"
+	"github.com/rook/rook/cmd/rookctl/filesystem"
+	"github.com/rook/rook/cmd/rookctl/node"
+	"github.com/rook/rook/cmd/rookctl/object"
+	"github.com/rook/rook/cmd/rookctl/pool"
+	"github.com/rook/rook/cmd/rookctl/rook"
+	"github.com/rook/rook/cmd/rookctl/status"
+	"github.com/rook/rook/cmd/rookctl/version"
 )
 
-func Main() {
+func main() {
 	addCommands()
 	if err := rook.RootCmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, err)

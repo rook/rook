@@ -21,7 +21,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/rook/rook/cmd/rook/rook"
+	"github.com/rook/rook/cmd/rookctl/rook"
 	"github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"

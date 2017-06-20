@@ -72,7 +72,7 @@ SERVER_PLATFORMS ?= linux_arm linux_amd64 linux_arm64
 PLATFORMS ?= $(SERVER_PLATFORMS) $(CLIENT_PLATFORMS)
 
 # client projects that we build on all platforms
-CLIENT_PACKAGES = $(GO_PROJECT)
+CLIENT_PACKAGES = $(GO_PROJECT)/cmd/rookctl
 
 # server projects that we build on server platforms
 SERVER_PACKAGES = $(GO_PROJECT)/cmd/rookd

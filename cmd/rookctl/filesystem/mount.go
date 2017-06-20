@@ -20,8 +20,8 @@ import (
 	"os"
 	"strings"
 
-	rc "github.com/rook/rook/cmd/rook/client"
-	"github.com/rook/rook/cmd/rook/rook"
+	rc "github.com/rook/rook/cmd/rookctl/client"
+	"github.com/rook/rook/cmd/rookctl/rook"
 	"github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
