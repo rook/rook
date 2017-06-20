@@ -49,7 +49,7 @@ const (
 	rookOperatorImagePodSpecTag    = "quay.io/rook/rookd:master-latest"
 	rookToolsImagePodSpecTag       = "quay.io/rook/toolbox:master-latest"
 	rookOperatorPrefix             = "quay.io/rook/rookd"
-	rookToolboxPrefix              = "quay.io/rook/toolbox-amd64"
+	rookToolboxPrefix              = "quay.io/rook/toolbox"
 	rookOperatorCreatedTpr         = "cluster.rook.io"
 	masterContinerName             = "kube-master"
 	node1ContinerName              = "kube-node-1"
