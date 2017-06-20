@@ -1,7 +1,11 @@
 # Using Rook
 The `rookctl` client tool can be used to manage your Rook cluster once it is running as well as manage block, file and object storage.  See the sections below for details on how to configure each type of storage.  
 
-If you don't yet have a Rook cluster running or for instructions to launch the rook-client pod, refer to our [Quickstart Guides](README.md).
+If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](README.md). 
+
+`rookctl` can be accessed in the following ways:
+- Kubernetes: Start the [toolbox](toolbox.md) pod
+- Standalone: [Download the binary](standalone.md#rook-client-tool) to your client machine.
 
 ## Block Storage
 1. Create a new volume image (10MB)
@@ -13,7 +17,7 @@ If you don't yet have a Rook cluster running or for instructions to launch the r
 1. Map the block volume and format it and mount it
 
     ```bash
-    # If running in the rook-client container, no need to run privileged
+    # If running in the toolbox container, no need to run privileged
     rookctl block map --name test --format --mount /tmp/rook-volume
 
     # If running standalone, you may need to run privileged and take ownership of the folder
@@ -31,7 +35,7 @@ If you don't yet have a Rook cluster running or for instructions to launch the r
 1. Cleanup
 
     ```bash
-    # If running in the rook-client container, no need to run privileged
+    # If running in the toolbox container, no need to run privileged
     rookctl block unmap --mount /tmp/rook-volume
 
     # If running standalone, you may need to run privileged
@@ -54,7 +58,7 @@ If you don't yet have a Rook cluster running or for instructions to launch the r
 1. Mount the shared file system from the cluster to your local machine
 
    ```bash
-   # If running in the rook-client container, no need to run privileged
+   # If running in the toolbox container, no need to run privileged
    rookctl filesystem mount --name testFS --path /tmp/rookFS
    
    # If running standalone, you may need to run privileged and take ownership of the folder
@@ -72,7 +76,7 @@ If you don't yet have a Rook cluster running or for instructions to launch the r
 1. Unmount the shared file system (this does **not** delete the data from the cluster)
 
    ```bash
-   # If running in the rook-client container, no need to run privileged
+   # If running in the toolbox container, no need to run privileged
    rookctl filesystem unmount --path /tmp/rookFS
 
    # If running standalone, you may need to run privileged

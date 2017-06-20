@@ -9,18 +9,18 @@
 
 Rook can be deployed as a standalone service directly on any modern Linux host by running the following:
 
-1. Download the latest client and server binaries
+1. Start a one-node Rook cluster
+   ```bash
+   docker run -it quay.io/rook/rookd:latest
+   ```
+
+2. Download the latest `rookctl` binary
    ```bash
    wget https://github.com/rook/rook/releases/download/v0.4.0/rook-v0.4.0-linux-amd64.tar.gz
    tar xvf rook-v0.4.0-linux-amd64.tar.gz
    ```
 
-2. Start a one node Rook cluster
-   ```bash
-   ./rookd --config-dir /tmp/rook-test
-   ```
-
-3. In another console (but in the same path), verify the Rook cluster is ready
+3. Verify the Rook cluster is ready
    ```bash
    ./rookctl status
    ```

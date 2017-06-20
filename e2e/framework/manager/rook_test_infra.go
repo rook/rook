@@ -312,7 +312,7 @@ func createK8sRookOperator(k8sHelper *utils.K8sHelper, tag string) error {
 
 func createK8sRookToolbox(k8sHelper *utils.K8sHelper, tag string) (err error) {
 
-	//Create rook client
+	//Create rook toolbox
 	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(), rookToolsFileName))
 
 	if err != nil {
