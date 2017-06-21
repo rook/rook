@@ -95,14 +95,13 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(actionName, command, outfil
 
 	logCommand(command, arg...)
 	cmd := exec.Command(command, arg...)
-	cmdOut, err := runCommandWithOutput(actionName, cmd, false)
-	if err != nil {
-		return cmdOut, err
+	cmdOut, err := cmd.CombinedOutput()
+	// if there was anything that went to stdout/stderr then log it, even before we return an error
+	if string(cmdOut) != "" {
+		logger.Infof(string(cmdOut))
 	}
-
-	// if there was anything that went to stdout/stderr then log it
-	if cmdOut != "" {
-		logger.Info(cmdOut)
+	if err != nil {
+		return string(cmdOut), err
 	}
 
 	// read the entire output file and return that to the caller
