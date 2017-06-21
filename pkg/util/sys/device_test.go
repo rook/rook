@@ -129,23 +129,43 @@ func TestGetPartitions(t *testing.T) {
 			run++
 			switch {
 			case run == 1:
-				return `NAME="sdc" SIZE="100000" TYPE="disk" PKNAME="" PARTLABEL=""`, nil
+				return `NAME="sdc" SIZE="100000" TYPE="disk" PKNAME=""`, nil
 			case run == 2:
-				return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME="" PARTLABEL=""
-NAME="sdb2" SIZE="10" TYPE="part" PKNAME="sdb" PARTLABEL="ROOK-OSD0-DB"
-NAME="sdb3" SIZE="20" TYPE="part" PKNAME="sdb" PARTLABEL="ROOK-OSD0-BLOCK"
-NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb" PARTLABEL="ROOK-OSD0-WAL"`, nil
+				return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME=""
+NAME="sdb2" SIZE="10" TYPE="part" PKNAME="sdb"
+NAME="sdb3" SIZE="20" TYPE="part" PKNAME="sdb"
+NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 			case run == 3:
-				return `NAME="sda" SIZE="19818086400" TYPE="disk" PKNAME="" PARTLABEL=""
-NAME="sda4" SIZE="1073741824" TYPE="part" PKNAME="sda" PARTLABEL="USR-B"
-NAME="sda2" SIZE="2097152" TYPE="part" PKNAME="sda" PARTLABEL="BIOS-BOOT"
-NAME="sda9" SIZE="17328766976" TYPE="part" PKNAME="sda" PARTLABEL="ROOT"
-NAME="sda7" SIZE="67108864" TYPE="part" PKNAME="sda" PARTLABEL="OEM-CONFIG"
-NAME="sda3" SIZE="1073741824" TYPE="part" PKNAME="sda" PARTLABEL="USR-A"
-NAME="usr" SIZE="1065345024" TYPE="crypt" PKNAME="sda3" PARTLABEL=""
-NAME="sda1" SIZE="134217728" TYPE="part" PKNAME="sda" PARTLABEL="EFI-SYSTEM"
-NAME="sda6" SIZE="134217728" TYPE="part" PKNAME="sda" PARTLABEL="OEM"`, nil
+				return "ROOK-OSD0-DB", nil
 			case run == 4:
+				return "ROOK-OSD0-BLOCK", nil
+			case run == 5:
+				return "ROOK-OSD0-WAL", nil
+			case run == 6:
+				return `NAME="sda" SIZE="19818086400" TYPE="disk" PKNAME=""
+NAME="sda4" SIZE="1073741824" TYPE="part" PKNAME="sda"
+NAME="sda2" SIZE="2097152" TYPE="part" PKNAME="sda"
+NAME="sda9" SIZE="17328766976" TYPE="part" PKNAME="sda"
+NAME="sda7" SIZE="67108864" TYPE="part" PKNAME="sda"
+NAME="sda3" SIZE="1073741824" TYPE="part" PKNAME="sda"
+NAME="usr" SIZE="1065345024" TYPE="crypt" PKNAME="sda3"
+NAME="sda1" SIZE="134217728" TYPE="part" PKNAME="sda"
+NAME="sda6" SIZE="134217728" TYPE="part" PKNAME="sda"`, nil
+			case run == 7:
+				return "USR-B", nil
+			case run == 8:
+				return "BIOS-BOOT", nil
+			case run == 9:
+				return "ROOT", nil
+			case run == 10:
+				return "OEM-CONFIG", nil
+			case run == 11:
+				return "USR-A", nil
+			case run == 12:
+				return "EFI-SYSTEM", nil
+			case run == 13:
+				return "OEM", nil
+			case run == 14:
 				return "", nil
 			}
 			return "", nil

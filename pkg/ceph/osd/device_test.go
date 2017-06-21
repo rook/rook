@@ -123,13 +123,22 @@ func TestOverwriteRookOwnedPartitions(t *testing.T) {
 		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
 		var output string
 		switch outputExecCount {
-		case 0, 1: // we'll call this twice, once explicitly below to verify rook owns the partitions and a 2nd time within formatDevice
+		case 0, 4: // we'll call this twice, once explicitly below to verify rook owns the partitions and a 2nd time within formatDevice
 			assert.Equal(t, command, "lsblk")
 			output = `NAME="sda" SIZE="65" TYPE="disk" PKNAME="" PARTLABEL=""
-NAME="sda1" SIZE="30" TYPE="part" PKNAME="sda" PARTLABEL="ROOK-OSD0-WAL"
-NAME="sda2" SIZE="10" TYPE="part" PKNAME="sda" PARTLABEL="ROOK-OSD0-DB"
-NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda" PARTLABEL="ROOK-OSD0-BLOCK"`
-		case 2:
+NAME="sda1" SIZE="30" TYPE="part" PKNAME="sda"
+NAME="sda2" SIZE="10" TYPE="part" PKNAME="sda"
+NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
+		case 1, 5:
+			assert.Equal(t, "blkid /dev/sda1", name)
+			output = "ROOK-OSD0-WAL"
+		case 2, 6:
+			assert.Equal(t, "blkid /dev/sda2", name)
+			output = "ROOK-OSD0-DB"
+		case 3, 7:
+			assert.Equal(t, "blkid /dev/sda3", name)
+			output = "ROOK-OSD0-BLOCK"
+		case 8:
 			assert.Equal(t, command, "df")
 			output = ""
 		}
@@ -163,7 +172,7 @@ NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda" PARTLABEL="ROOK-OSD0-BLOCK"`
 	err = formatDevice(context, config, false, storeConfig)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, execCount)
-	assert.Equal(t, 3, outputExecCount)
+	assert.Equal(t, 9, outputExecCount)
 }
 
 func TestPartitionBluestoreMetadata(t *testing.T) {

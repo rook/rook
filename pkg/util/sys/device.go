@@ -54,7 +54,7 @@ func ListDevices(executor exec.Executor) ([]string, error) {
 func GetDevicePartitions(device string, executor exec.Executor) (partitions []*Partition, unusedSpace uint64, err error) {
 	cmd := fmt.Sprintf("lsblk /dev/%s", device)
 	output, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", fmt.Sprintf("/dev/%s", device),
-		"--bytes", "--pairs", "--output", "NAME,SIZE,TYPE,PKNAME,PARTLABEL")
+		"--bytes", "--pairs", "--output", "NAME,SIZE,TYPE,PKNAME")
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get device %s partitions. %+v", device, err)
 	}
@@ -74,12 +74,18 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []*P
 		} else if props["PKNAME"] == device && props["TYPE"] == PartType {
 			// found a partition
 			p := &Partition{Name: name}
-			p.Label = props["PARTLABEL"]
 			p.Size, err = strconv.ParseUint(props["SIZE"], 10, 64)
 			if err != nil {
 				return nil, 0, fmt.Errorf("failed to get partition %s size. %+v", name, err)
 			}
 			totalPartitionSize += p.Size
+
+			label, err := GetPartitionLabel(name, executor)
+			if err != nil {
+				return nil, 0, err
+			}
+			p.Label = label
+
 			partitions = append(partitions, p)
 		}
 	}
@@ -164,6 +170,19 @@ func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 	}
 
 	return parseUUID(device, output)
+}
+
+func GetPartitionLabel(deviceName string, executor exec.Executor) (string, error) {
+	// look up the partition's label with blkid because lsblk relies on udev which is
+	// not available in containers
+	devicePath := fmt.Sprintf("/dev/%s", deviceName)
+	cmd := fmt.Sprintf("blkid %s", devicePath)
+	output, err := executor.ExecuteCommandWithOutput(cmd, "blkid", devicePath, "-s", "PARTLABEL", "-o", "value")
+	if err != nil {
+		return "", fmt.Errorf("failed to get partition label for device %s: %+v", deviceName, err)
+	}
+
+	return output, nil
 }
 
 // look up the mount point of the given device.  empty string returned if device is not mounted.

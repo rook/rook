@@ -95,9 +95,14 @@ func TestAvailableDevices(t *testing.T) {
 			if strings.Index(name, "sdb") != -1 {
 				// /dev/sdb has a partition
 				return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME="" PARTLABEL=""
-NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb" PARTLABEL="MY-PART"`, nil
+NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 			}
 			return "", nil
+		} else if command == "blkid" {
+			if strings.Index(name, "sdb1") != -1 {
+				// partition sdb1 has a label MY-PART
+				return "MY-PART", nil
+			}
 		} else if command == "df" {
 			if strings.Index(name, "sdc") != -1 {
 				// /dev/sdc has a file system
@@ -106,7 +111,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb" PARTLABEL="MY-PART"`, nil
 			return "", nil
 		}
 
-		return "", fmt.Errorf("unknown command %s", command)
+		return "", fmt.Errorf("unknown command %s %+v", command, args)
 	}
 
 	context := &clusterd.Context{ProcMan: proc.New(executor), Executor: executor}
