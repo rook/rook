@@ -67,10 +67,8 @@ engine based on Etcd that is activated when not running in Kubernetes.
 
 ![Standalone Rook Architecture](media/standalone.png)
 
-The Rook daemon, `rookd`, is a single binary that is self-contained and has all that is needed to bootstrap, scale
-and manage a storage cluster. `rookd` is typically compiled into a single static binary (just like most golang
-binaries) or a dynamic binary that takes a dependency on mostly libc. It can run in minimal containers, alongside a
-hypervisor, or directly on the host on most Linux distributions. Each machine in the cluster must run the Rook daemon.
+The Rook daemon `rookd` is a Docker container that has all that is needed to bootstrap, scale
+and manage a storage cluster. Each machine in the cluster must run the Rook daemon.
 
 `rookd` embeds Etcd to store configuration and coordinate cluster-wide management operations. `rookd` will automatically
 bootstrap Etcd, manage it, and scale it as the cluster grows. It's also possible to use an external Etcd instead of the embedded one
