@@ -12,10 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+# remove default suffixes as we dont use them
+.SUFFIXES:
 
+# container images are only built for linux platforms
+override GOOS := linux
+
+# include the common make file
+SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(SELF_DIR)/../build/makelib/common.mk
 
+ifneq ($(GOHOSTARCH),amd64)
+$(error image build only supported on amd64 host currently)
+endif
+
+# the registry used for cached images
 CACHE_REGISTRY := cache
 
 # public registry used for images that are pushed

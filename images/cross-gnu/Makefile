@@ -14,10 +14,6 @@
 
 include ../image.mk
 
-# this container only supported on linux_amd64
-override GOARCH := amd64
-override GOOS := linux
-
 IMAGE = $(BUILD_REGISTRY)/cross-gnu-$(GOARCH)
 IMAGES := $(IMAGE)
 CACHE_IMAGES = $(IMAGES)

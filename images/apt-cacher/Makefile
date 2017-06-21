@@ -14,16 +14,15 @@
 
 include ../image.mk
 
-# this container only supported on linux_amd64
-override GOARCH := amd64
-override GOOS := linux
-
 IMAGE = apt-cacher-ng-$(GOARCH)
+
+BASEIMAGE = $(BUILD_REGISTRY)/base-$(GOARCH)
+
 TEMP := $(shell mktemp -d)
 
 do.build:
 	@echo === docker build $(IMAGE)
 	@cp -a . $(TEMP)
-	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(OSBASEIMAGE)|g' Dockerfile
-	@docker build $(BUILD_BASE_ARGS) -t $(IMAGE) $(TEMP)
+	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
+	@docker build $(BUILD_ARGS) -t $(IMAGE) $(TEMP)
 	@rm -fr $(TEMP)

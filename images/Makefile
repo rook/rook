@@ -14,46 +14,37 @@
 
 include image.mk
 
-SUPPORTED_PLATFORMS = linux_amd64 linux_arm linux_arm64
-PLATFORMS ?= $(SUPPORTED_PLATFORMS)
-PLATFORM_IMAGES ?= rookd toolbox
+PLATFORMS ?= amd64 arm arm64
 
 # ====================================================================================
-# Image Builds
+# Image Targets
 
-.PHONY: base ceph cross cross-gnu rookd toolbox
+apt-cacher: apt-cacher.$(GOHOSTARCH)
+apt-cacher.%: base.%
+	@$(MAKE) -C apt-cacher GOARCH=$*
 
-base:
-	@$(MAKE) -C base
+base.%:
+	@$(MAKE) -C base GOARCH=$*
 
-ceph: cross-gnu
-	@$(MAKE) -C ceph
+ceph.%: cross-gnu.$(GOHOSTARCH)
+	@$(MAKE) -C ceph GOARCH=$*
 
-cross: base
-	@$(MAKE) -C cross
+cross: cross.$(GOHOSTARCH)
+cross.%: base.$(GOHOSTARCH)
+	@$(MAKE) -C cross GOARCH=$*
 
-cross-gnu: base
-	@$(MAKE) -C cross-gnu
+cross-gnu.%: base.%
+	@$(MAKE) -C cross-gnu GOARCH=$*
 
-rookd: ceph base
-	@$(MAKE) -C rookd
+rookd.%: ceph.% base.%
+	@$(MAKE) -C rookd GOARCH=$*
 
-toolbox: rookd
-	@$(MAKE) -C toolbox
+toolbox.%: rookd.%
+	@$(MAKE) -C toolbox GOARCH=$*
 
-do.build.images:
-ifneq ($(filter $(SUPPORTED_PLATFORMS), $(GOOS)_$(GOARCH)),)
-	@$(MAKE) $(foreach i,$(PLATFORM_IMAGES), $(i))
-else
-	@echo skipping container build for unspported platform $(GOOS)_$(GOARCH)
-endif
-
-do.build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) do.build.images
-
-do.build: do.build.platform.$(GOOS)_$(GOARCH)
-
-build.all: $(foreach p,$(PLATFORMS), do.build.platform.$(p))
+do.build.images.%: rookd.% toolbox.% ;
+do.build: do.build.images.$(GOARCH) ;
+build.all: $(foreach p,$(PLATFORMS), do.build.images.$(p)) ;
 
 # ====================================================================================
 # Help
@@ -87,7 +78,7 @@ help:
 	@echo 'Advanced Options:'
 	@echo '    PLATFORMS    The supported platforms to build when running.'
 	@echo '                 the build.all target. The default is'
-	@echo '                 "linux_arm linux_arm64 linux_amd64"'
+	@echo '                 "arm arm64 amd64"'
 	@echo '    PRUNE_HOURS  The number of hours from when an image is'
 	@echo '                 last used for it to be considered a target for'
 	@echo '                 pruning. Default is 48 hrs.'

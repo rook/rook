@@ -142,7 +142,7 @@ DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends apt-c
 on other platforms you can run apt-cacher-ng in a container:
 
 ```
-cd images/apt-cacher && make
+make -C images apt-cacher
 docker run -d --restart always --name apt-cacher-ng -p 3142:3142 -v ${HOME}/.apt-cacher:/var/cache/apt-cacher-ng apt-cacher-ng-amd64
 ```
 

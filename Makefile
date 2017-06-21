@@ -12,6 +12,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# remove default suffixes as we dont use them
+.SUFFIXES:
+
 # set the shell to bash in case some environments use sh
 .PHONY: all
 all: build
@@ -128,27 +131,22 @@ build.common:
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 
-do.build:
-	@$(MAKE) go.build
-	@$(MAKE) -C images
-
 do.build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) do.build
+	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) go.build
 
 do.build.parallel: $(foreach p,$(PLATFORMS), do.build.platform.$(p))
 
 build: build.common
 	@$(MAKE) go.build
-# if building on the mac, also build the linux container
+# if building on non-linux platforms, also build the linux container
 ifneq ($(GOOS),linux)
 	@$(MAKE) go.build GOOS=linux GOARCH=amd64
-	@$(MAKE) -C images GOOS=linux GOARCH=amd64
-else
-	@$(MAKE) -C images
 endif
+	@$(MAKE) -C images
 
 build.all: build.common
 	@$(MAKE) do.build.parallel
+	@$(MAKE) -C images build.all
 
 install: build.common
 	@$(MAKE) go.install
