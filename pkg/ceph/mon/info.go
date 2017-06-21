@@ -105,7 +105,7 @@ func CreateNamedClusterInfo(context *clusterd.Context, adminSecret, clusterName 
 
 	// generate the admin secret if one was not provided at the command line
 	if adminSecret == "" {
-		args := []string{"--set-uid=0", "--cap", "mon", "'allow *'", "--cap", "osd", "'allow *'", "--cap", "mds", "'allow'"}
+		args := []string{"--set-uid=0", "--cap", "mon", "'allow *'", "--cap", "osd", "'allow *'", "--cap", "mgr", "'allow *'", "--cap", "mds", "'allow'"}
 		adminSecret, err = genSecret(context.Executor, dir, client.AdminUsername, args)
 		if err != nil {
 			return nil, err
