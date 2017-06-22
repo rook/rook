@@ -18,6 +18,8 @@ package api
 import (
 	"fmt"
 
+	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
@@ -28,6 +30,8 @@ import (
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 	"k8s.io/client-go/pkg/apis/rbac/v1beta1"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-api")
 
 const (
 	DeploymentName = "rook-api"
@@ -52,20 +56,18 @@ var clusterAccessRules = []v1beta1.PolicyRule{
 }
 
 type Cluster struct {
-	context   *k8sutil.Context
-	placement k8sutil.Placement
-	Name      string
+	context   *clusterd.Context
 	Namespace string
+	placement k8sutil.Placement
 	Version   string
 	Replicas  int32
 }
 
-func New(context *k8sutil.Context, name, namespace, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
-		placement: placement,
-		Name:      name,
 		Namespace: namespace,
+		placement: placement,
 		Version:   version,
 		Replicas:  1,
 	}
@@ -169,7 +171,7 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 
 func (c *Cluster) apiContainer() v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd api --config-dir=%s --port=%d ", k8sutil.DataDir, model.Port)
+	command := fmt.Sprintf("/usr/local/bin/rookd api --config-dir=%s --port=%d ", k8sutil.DataDir, model.Port)
 	return v1.Container{
 		// TODO: fix "sleep 5".
 		// Without waiting some time, there is highly probable flakes in network setup.
@@ -186,7 +188,7 @@ func (c *Cluster) apiContainer() v1.Container {
 			opmon.MonSecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
 			opmon.MonEndpointEnvVar(),
-			opmon.ClusterNameEnvVar(c.Name),
+			opmon.ClusterNameEnvVar(c.Namespace),
 		},
 	}
 }

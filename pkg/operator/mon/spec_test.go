@@ -20,6 +20,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 
@@ -34,7 +35,7 @@ func TestPodSpecs(t *testing.T) {
 
 func testPodSpec(t *testing.T, dataDir string) {
 	clientset := testop.New(1)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", dataDir, "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "ns", dataDir, "myversion", k8sutil.Placement{})
 	c.clusterInfo = testop.CreateClusterInfo(0)
 	config := &MonConfig{Name: "mon0", Port: 6790}
 
@@ -54,7 +55,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	}
 
 	assert.Equal(t, "mon0", pod.ObjectMeta.Name)
-	assert.Equal(t, "mon", pod.ObjectMeta.Labels["app"])
+	assert.Equal(t, appName, pod.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
 	assert.Equal(t, 1, len(pod.ObjectMeta.Annotations))
 	assert.Equal(t, "myversion", pod.ObjectMeta.Annotations["rook_version"])
@@ -64,7 +65,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 6, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd mon --config-dir=/var/lib/rook --name=%s --port=%d --fsid=%s",
+	expectedCommand := fmt.Sprintf("/usr/local/bin/rookd mon --config-dir=/var/lib/rook --name=%s --port=%d --fsid=%s",
 		config.Name, config.Port, c.clusterInfo.FSID)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])

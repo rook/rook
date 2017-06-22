@@ -1,1 +1,0 @@
-For documentation on using the toolbox in your Rook cluster see the [toolbox readme](/Documentation/toolbox.md)

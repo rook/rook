@@ -16,9 +16,12 @@
 
 source_repo=github.com/rook/rook
 
-container_version=$(cat ${scriptdir}/container/version)
-container_image=quay.io/rook/cross-build:${container_version}
-container_volume=cross-build-volume
+host=$(hostname)
+rootdir=$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd -P)
+host_hash=`echo ${host}-${rootdir} | shasum -a 256 | cut -c1-8`
+build_registry=build-${host_hash}
+container_image=${build_registry}/cross-amd64
+container_volume=cross-volume
 rsync_port=10873
 
 function ver() {
@@ -43,10 +46,10 @@ function start_rsync_container() {
         -e GROUP=root \
         -e MKDIRS="/volume/go/src/${source_repo}" \
         -p ${rsync_port}:873 \
-        --entrypoint /bin/bash \
         -v ${container_volume}:/volume \
+        --entrypoint "/tini" \
         ${container_image} \
-        /build/rsyncd.sh
+        -- /build/rsyncd.sh
 }
 
 function wait_for_rsync() {

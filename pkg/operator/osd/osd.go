@@ -22,6 +22,8 @@ import (
 
 	"strconv"
 
+	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -30,28 +32,28 @@ import (
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
+
 const (
-	appName    = "osd"
-	appNameFmt = "osd-%s"
+	appName    = "rook-ceph-osd"
+	appNameFmt = "rook-ceph-osd-%s"
 )
 
 type Cluster struct {
-	context         *k8sutil.Context
-	placement       k8sutil.Placement
-	Name            string
+	context         *clusterd.Context
 	Namespace       string
+	placement       k8sutil.Placement
 	Keyring         string
 	Version         string
 	Storage         StorageSpec
 	dataDirHostPath string
 }
 
-func New(context *k8sutil.Context, name, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:         context,
-		placement:       placement,
-		Name:            name,
 		Namespace:       namespace,
+		placement:       placement,
 		Version:         version,
 		Storage:         storageSpec,
 		dataDirHostPath: dataDirHostPath,
@@ -174,7 +176,7 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 
 	envVars := []v1.EnvVar{
 		hostnameEnvVar(),
-		opmon.ClusterNameEnvVar(c.Name),
+		opmon.ClusterNameEnvVar(c.Namespace),
 		opmon.MonEndpointEnvVar(),
 		opmon.MonSecretEnvVar(),
 		opmon.AdminSecretEnvVar(),
@@ -240,7 +242,7 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 	// set the hostname to the host's name from the downstream api.
 	// the crush map doesn't like hostnames with periods, so we replace them with underscores.
 	hostnameUpdate := `echo $(HOSTNAME) | sed "s/\./_/g" > /etc/hostname; hostname -F /etc/hostname`
-	command := "/usr/bin/rookd osd"
+	command := "/usr/local/bin/rookd osd"
 
 	privileged := true
 	return v1.Container{

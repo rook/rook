@@ -32,7 +32,6 @@ import:
   version: 76153773eaa3a268131d3d993290a194a1370585
 - package: k8s.io/apimachinery
   version: c1c4a7fe832857c75cc1d79c8e40d71d5da15fc6
-- package: github.com/bassam/cgosymbolizer
 - package: github.com/prometheus/client_golang
   version: v0.8.0
   subpackages:

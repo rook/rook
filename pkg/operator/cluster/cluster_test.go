@@ -20,13 +20,14 @@ package cluster
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 
-	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
-	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -34,25 +35,48 @@ import (
 func TestCreateSecrets(t *testing.T) {
 	clientset := testop.New(3)
 	info := testop.CreateClusterInfo(1)
-	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	conn, _ := factory.NewConnWithClusterAndUser(info.Name, "user")
-	conn.(*testceph.MockConnection).MockMonCommand = func(buf []byte) (buffer []byte, info string, err error) {
-		response := "{\"key\":\"mysecurekey\"}"
-		return []byte(response), "", nil
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+			return "{\"key\":\"mysecurekey\"}", nil
+		},
 	}
 	c := &Cluster{Spec: Spec{VersionTag: "myversion"}}
 	c.Name = "myrook"
 	c.Namespace = "myns"
-	c.Init(&k8sutil.Context{Clientset: clientset, Factory: factory})
-	c.dataDir = "/tmp/testdir"
-	defer os.RemoveAll(c.dataDir)
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	c.Init(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}, ConfigDir: configDir, Executor: executor})
+	defer os.RemoveAll(c.context.ConfigDir)
 
 	err := c.createClientAccess(info)
 	assert.Nil(t, err)
 
-	secretName := fmt.Sprintf("%s-rook-user", c.Name)
+	secretName := fmt.Sprintf("%s-rook-user", c.Namespace)
 	secret, err := clientset.CoreV1().Secrets(k8sutil.DefaultNamespace).Get(secretName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, secretName, secret.Name)
 	assert.Equal(t, 1, len(secret.StringData))
+}
+
+func TestCreateInitialCrushMap(t *testing.T) {
+	clientset := testop.New(3)
+	executor := &exectest.MockExecutor{}
+	c := &Cluster{}
+	c.Namespace = "rook294"
+	c.Init(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}, Executor: executor})
+
+	// create the initial crush map and verify that a configmap value was created that says the crush map was created
+	err := c.createInitialCrushMap()
+	assert.Nil(t, err)
+	cm, err := clientset.CoreV1().ConfigMaps(c.Namespace).Get(crushConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, cm)
+	assert.Equal(t, "1", cm.Data[crushmapCreatedKey])
+
+	// the crushmap should NOT get created again
+	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		return "", fmt.Errorf("crushmap was already created, we shouldn't be calling this again")
+	}
+	err = c.createInitialCrushMap()
+	assert.Nil(t, err)
 }

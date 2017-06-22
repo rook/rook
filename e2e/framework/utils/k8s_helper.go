@@ -48,7 +48,7 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, poddefPath s
 	if status == 0 {
 		return stdout, nil
 	} else {
-		return stdout + " : " + stderr, fmt.Errorf("Could Not create resource in k8s")
+		return stdout + " : " + stderr, fmt.Errorf("Could Not create resource in k8s. status=%d, stdout=%s, stderr=%s", status, stdout, stderr)
 	}
 }
 func (k8sh *K8sHelper) ResourceOperation(action string, poddefPath string) (string, error) {
@@ -68,7 +68,7 @@ func (k8sh *K8sHelper) GetMonitorPods() ([]string, error) {
 	moncount := 0
 
 	for moncount < 3 {
-		m := fmt.Sprintf("mon%d", monIdx)
+		m := fmt.Sprintf("rook-ceph-mon%d", monIdx)
 		selector := fmt.Sprintf("mon=%s", m)
 		cmdArgs := []string{"-n", "rook", "get", "pod", "-l", selector}
 		stdout, _, status := ExecuteCmd("kubectl", cmdArgs)
@@ -323,7 +323,6 @@ func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace str
 		}
 		inc++
 		time.Sleep(3 * time.Second)
-
 	}
 
 	return false

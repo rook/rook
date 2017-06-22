@@ -18,6 +18,7 @@ package operator
 import (
 	"testing"
 
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -25,7 +26,8 @@ import (
 
 func TestCreateCluster(t *testing.T) {
 	clientset := test.New(3)
-	o := New("foo", nil, clientset)
+	context := &clusterd.Context{KubeContext: clusterd.KubeContext{MasterHost: "foo", Clientset: clientset}}
+	o := New(context)
 	o.context.RetryDelay = 1
 
 	// fail to init k8s client since we're not actually inside k8s

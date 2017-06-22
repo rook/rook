@@ -51,13 +51,13 @@ spec:
 # nodes below will be used as storage resources.  Each node's 'name' field should match their 'kubernetes.io/hostname' label.
 #    nodes:
 #    - name: "172.17.4.101"
-#     directories:         # specific directores to use for storage can be specified for each node
-#     - path: "/rook/storage-dir"
-#   - name: "172.17.4.201"
-#     devices:             # specific devices to use for storage can be specified for each node
-#     - name: "sdb"
-#     - name: "sdc"
-#     storeConfig:         # configuration can be specified at the node level which overrides the cluster level config
-#       storeType: bluestore
-#   - name: "172.17.4.301"
-#     deviceFilter: "^sd."
+#      directories:         # specific directores to use for storage can be specified for each node
+#      - path: "/rook/storage-dir"
+#    - name: "172.17.4.201"
+#      devices:             # specific devices to use for storage can be specified for each node
+#      - name: "sdb"
+#      - name: "sdc"
+#      storeConfig:         # configuration can be specified at the node level which overrides the cluster level config
+#        storeType: bluestore
+#    - name: "172.17.4.301"
+#      deviceFilter: "^sd."

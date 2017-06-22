@@ -49,48 +49,48 @@ func New(executor exec.Executor) *ProcManager {
 }
 
 // Start a child process and wait for its completion
-func (p *ProcManager) RunWithOutput(logName, tool string, args ...string) (string, error) {
+func (p *ProcManager) RunWithOutput(logName, command string, args ...string) (string, error) {
 
-	logger.Infof("Running process %s with args: %v", tool, args)
-	output, err := p.executor.ExecuteCommandWithOutput(logName, os.Args[0], createToolArgs(tool, args...)...)
+	logger.Infof("Running process %s with args: %v", command, args)
+	output, err := p.executor.ExecuteCommandWithOutput(logName, command, args...)
 	if err != nil {
-		return "", fmt.Errorf("failed to run %s: %+v", tool, err)
+		return "", fmt.Errorf("failed to run %s: %+v", command, err)
 	}
 
 	return output, nil
 }
 
 // Start a child process and wait for its completion
-func (p *ProcManager) RunWithCombinedOutput(logName, tool string, args ...string) (string, error) {
+func (p *ProcManager) RunWithCombinedOutput(logName, command string, args ...string) (string, error) {
 
-	logger.Infof("Running process %s with args: %v", tool, args)
-	output, err := p.executor.ExecuteCommandWithCombinedOutput(logName, os.Args[0], createToolArgs(tool, args...)...)
+	logger.Infof("Running process %s with args: %v", command, args)
+	output, err := p.executor.ExecuteCommandWithCombinedOutput(logName, command, args...)
 	if err != nil {
-		return "", fmt.Errorf("failed to run %s: %+v", tool, err)
+		return "", fmt.Errorf("failed to run %s: %+v", command, err)
 	}
 
 	return output, nil
 }
 
 // Start a child process and wait for its completion
-func (p *ProcManager) Run(logName, tool string, args ...string) error {
+func (p *ProcManager) Run(logName, command string, args ...string) error {
 
-	logger.Infof("Running process %s with args: %v", tool, args)
-	err := p.executor.ExecuteCommand(logName, os.Args[0], createToolArgs(tool, args...)...)
+	logger.Infof("Running process %s with args: %v", command, args)
+	err := p.executor.ExecuteCommand(logName, command, args...)
 	if err != nil {
-		return fmt.Errorf("failed to run %s: %+v", tool, err)
+		return fmt.Errorf("failed to run %s: %+v", command, err)
 	}
 
 	return nil
 }
 
-// Start the given daemon and provided arguments.  Handling of any matching existing process will be in accordance
+// Start the given process with the provided arguments.  Handling of any matching existing process will be in accordance
 // with the given ProcStartPolicy.  The search pattern will be used to search through the cmdline args of existing
 // processes to find any matching existing process.  Therefore, it should be a regex pattern that can uniquely
 // identify the process (e.g., --id=1)
-func (p *ProcManager) Start(name, daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
+func (p *ProcManager) Start(name, command, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
 	// look for an existing process first
-	shouldStart, err := p.checkProcessExists(os.Args[0], procSearchPattern, policy)
+	shouldStart, err := p.checkProcessExists(command, procSearchPattern, policy)
 	if err != nil {
 		return nil, err
 	}
@@ -100,9 +100,8 @@ func (p *ProcManager) Start(name, daemon, procSearchPattern string, policy ProcS
 		return nil, nil
 	}
 
-	args = createDaemonArgs(daemon, args...)
 	logger.Infof("Starting process %s with args: %v", name, args)
-	cmd, err := p.executor.StartExecuteCommand(name, os.Args[0], args...)
+	cmd, err := p.executor.StartExecuteCommand(name, command, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start process %s: %+v", name, err)
 	}
@@ -233,16 +232,4 @@ func (p *ProcManager) findMonitoredProcByPID(pid int) (int, *MonitoredProc) {
 	}
 
 	return -1, nil
-}
-
-func createDaemonArgs(daemon string, args ...string) []string {
-	return append(
-		[]string{"daemon", fmt.Sprintf("--type=%s", daemon), "--"},
-		args...)
-}
-
-func createToolArgs(tool string, args ...string) []string {
-	return append(
-		[]string{"tool", fmt.Sprintf("--type=%s", tool), "--"},
-		args...)
 }

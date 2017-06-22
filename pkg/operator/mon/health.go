@@ -18,9 +18,8 @@ package mon
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/cephmgr/client"
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/ceph/client"
+	"github.com/rook/rook/pkg/ceph/mon"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -29,15 +28,8 @@ func (c *Cluster) CheckHealth() error {
 	logger.Debugf("Checking health for mons. %+v", c.clusterInfo)
 
 	// connect to the mons
-	ctx := &clusterd.Context{ConfigDir: c.configDir}
-	conn, err := mon.ConnectToClusterAsAdmin(ctx, c.context.Factory, c.clusterInfo)
-	if err != nil {
-		return fmt.Errorf("cannot connect to cluster. %+v", err)
-	}
-	defer conn.Shutdown()
-
 	// get the status and check for quorum
-	status, err := client.GetMonStatus(conn)
+	status, err := client.GetMonStatus(c.context, c.clusterInfo.Name)
 	if err != nil {
 		return fmt.Errorf("failed to get mon status. %+v", err)
 	}
@@ -53,13 +45,13 @@ func (c *Cluster) CheckHealth() error {
 
 			if len(status.MonMap.Mons) > c.Size {
 				// no need to create a new mon since we have an extra
-				err = c.removeMon(conn, mon.Name)
+				err = c.removeMon(mon.Name)
 				if err != nil {
 					logger.Errorf("failed to remove mon %s. %+v", mon.Name, err)
 				}
 			} else {
 				// bring up a new mon to replace the unhealthy mon
-				err = c.failoverMon(conn, mon.Name)
+				err = c.failoverMon(mon.Name)
 				if err != nil {
 					logger.Errorf("failed to failover mon %s. %+v", mon.Name, err)
 				}
@@ -72,23 +64,23 @@ func (c *Cluster) CheckHealth() error {
 	return nil
 }
 
-func (c *Cluster) failoverMon(conn client.Connection, name string) error {
+func (c *Cluster) failoverMon(name string) error {
 	logger.Infof("Failing over monitor %s", name)
 
 	// Start a new monitor
 	mons := []*MonConfig{&MonConfig{Name: fmt.Sprintf("mon%d", c.maxMonID+1), Port: int32(mon.Port)}}
 	logger.Infof("starting new mon %s", mons[0].Name)
-	err := c.startPods(conn, mons)
+	err := c.startPods(mons)
 	if err != nil {
 		return fmt.Errorf("failed to start new mon %s. %+v", mons[0].Name, err)
 	}
 	// Only increment the max mon id if the new pod started successfully
 	c.maxMonID++
 
-	return c.removeMon(conn, name)
+	return c.removeMon(name)
 }
 
-func (c *Cluster) removeMon(conn client.Connection, name string) error {
+func (c *Cluster) removeMon(name string) error {
 	logger.Infof("ensuring removal of unhealthy monitor %s", name)
 
 	// Remove the mon pod if it is still there
@@ -105,7 +97,7 @@ func (c *Cluster) removeMon(conn client.Connection, name string) error {
 	}
 
 	// Remove the bad monitor from quorum
-	err = mon.RemoveMonitorFromQuorum(conn, name)
+	err = mon.RemoveMonitorFromQuorum(c.context, c.clusterInfo.Name, name)
 	if err != nil {
 		return fmt.Errorf("failed to remove mon %s from quorum. %+v", name, err)
 	}

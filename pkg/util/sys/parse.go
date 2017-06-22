@@ -21,7 +21,7 @@ import (
 )
 
 // grep finds the *first* line that matches, rather than multiple lines
-func grep(input, searchFor string) string {
+func Grep(input, searchFor string) string {
 	logger.Debugf("grep. search=%s, input=%s", searchFor, input)
 	if input == "" || searchFor == "" {
 		return ""
@@ -37,7 +37,7 @@ func grep(input, searchFor string) string {
 
 // awk finds the space-delimited token at the given position.
 // 0 returns the whole line, while 1 is the first token.
-func awk(input string, position int) string {
+func Awk(input string, position int) string {
 	logger.Debugf("awk %d from %s", position, input)
 	if position == 0 {
 		return input

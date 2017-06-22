@@ -23,6 +23,7 @@ import (
 	"io"
 	"net/http"
 
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -55,7 +56,7 @@ func qualifiedName(tpr tprScheme) string {
 	return fmt.Sprintf("%s.%s", tpr.Name(), tprGroup)
 }
 
-func createTPRs(context *k8sutil.Context, tprs []tprScheme) error {
+func createTPRs(context *clusterd.Context, tprs []tprScheme) error {
 	for _, tpr := range tprs {
 		if err := createTPR(context, tpr); err != nil {
 			return fmt.Errorf("failed to init tpr %s. %+v", tpr.Name(), err)
@@ -71,7 +72,7 @@ func createTPRs(context *k8sutil.Context, tprs []tprScheme) error {
 	return nil
 }
 
-func createTPR(context *k8sutil.Context, tpr tprScheme) error {
+func createTPR(context *clusterd.Context, tpr tprScheme) error {
 	logger.Infof("creating %s TPR", tpr.Name())
 	r := &v1beta1.ThirdPartyResource{
 		ObjectMeta: metav1.ObjectMeta{
@@ -92,7 +93,7 @@ func createTPR(context *k8sutil.Context, tpr tprScheme) error {
 	return nil
 }
 
-func waitForTPRInit(context *k8sutil.Context, tpr tprScheme) error {
+func waitForTPRInit(context *clusterd.Context, tpr tprScheme) error {
 	restcli := context.Clientset.CoreV1().RESTClient()
 	uri := tprURI(tpr.Name())
 	return k8sutil.Retry(context, func() (bool, error) {
@@ -108,13 +109,13 @@ func waitForTPRInit(context *k8sutil.Context, tpr tprScheme) error {
 	})
 }
 
-func watchTPRNamespaced(context *k8sutil.Context, name, namespace, resourceVersion string) (*http.Response, error) {
+func watchTPRNamespaced(context *clusterd.Context, name, namespace, resourceVersion string) (*http.Response, error) {
 	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.MasterHost, tprURINamespaced(name, namespace), resourceVersion)
 	logger.Debugf("watching tpr: %s", uri)
 	return context.KubeHttpCli.Get(uri)
 }
 
-func watchTPR(context *k8sutil.Context, name, resourceVersion string) (*http.Response, error) {
+func watchTPR(context *clusterd.Context, name, resourceVersion string) (*http.Response, error) {
 	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.MasterHost, tprURI(name), resourceVersion)
 	logger.Debugf("watching tpr: %s", uri)
 	return context.KubeHttpCli.Get(uri)

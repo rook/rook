@@ -16,12 +16,15 @@ limitations under the License.
 package clusterd
 
 import (
+	"net/http"
+
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/proc"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -59,17 +62,11 @@ type ServiceAgent interface {
 
 // The context for loading or applying the configuration state of a service.
 type Context struct {
-	// The registered services for cluster configuration
-	Services []*ClusterService
+	// The context for the Standalone orchestrator
+	DirectContext
 
-	// The latest inventory information
-	Inventory *inventory.Config
-
-	// The local node ID
-	NodeID string
-
-	// The etcd client for get/set config values
-	EtcdClient etcd.KeysAPI
+	// The context for the Kubernetes orchestrator
+	KubeContext
 
 	// The implementation of executing a console command
 	Executor exec.Executor
@@ -90,56 +87,26 @@ type Context struct {
 	NetworkInfo NetworkInfo
 }
 
-// The context for running a rook daemon.
-type DaemonContext struct {
-	// The implementation of executing a console command
-	Executor exec.Executor
+type DirectContext struct {
+	// The registered services for cluster configuration
+	Services []*ClusterService
 
-	// The process manager for launching a process
-	ProcMan *proc.ProcManager
+	// The latest inventory information
+	Inventory *inventory.Config
 
-	// The root configuration directory used by services
-	ConfigDir string
+	// The local node ID
+	NodeID string
 
-	// A value indicating the desired logging/tracing level
-	LogLevel capnslog.LogLevel
-
-	// The full path to a config file that can be used to override generated settings
-	ConfigFileOverride string
+	// The etcd client for get/set config values
+	EtcdClient etcd.KeysAPI
 }
 
-func copyContext(c *Context) *Context {
-	return &Context{
-		Services:           c.Services,
-		NodeID:             c.NodeID,
-		EtcdClient:         c.EtcdClient,
-		Executor:           c.Executor,
-		ProcMan:            c.ProcMan,
-		Inventory:          c.Inventory,
-		ConfigDir:          c.ConfigDir,
-		LogLevel:           c.LogLevel,
-		ConfigFileOverride: c.ConfigFileOverride,
-	}
-}
-
-func NewDaemonContext(dataDir, cephConfigOverride string, logLevel capnslog.LogLevel) *DaemonContext {
-	executor := &exec.CommandExecutor{}
-	return &DaemonContext{
-		ProcMan:            proc.New(executor),
-		Executor:           executor,
-		ConfigDir:          dataDir,
-		ConfigFileOverride: cephConfigOverride,
-		LogLevel:           logLevel,
-	}
-}
-
-// Convert a context to a daemon context
-func ToContext(context *DaemonContext) *Context {
-	return &Context{Executor: context.Executor, ProcMan: context.ProcMan, ConfigDir: context.ConfigDir, LogLevel: context.LogLevel, ConfigFileOverride: context.ConfigFileOverride}
-}
-
-func ToDaemonContext(context *Context) *DaemonContext {
-	return &DaemonContext{ProcMan: context.ProcMan, Executor: context.Executor, ConfigDir: context.ConfigDir, LogLevel: context.LogLevel, ConfigFileOverride: context.ConfigFileOverride}
+type KubeContext struct {
+	Clientset   kubernetes.Interface
+	RetryDelay  int
+	MaxRetries  int
+	MasterHost  string
+	KubeHttpCli *http.Client
 }
 
 func (c *Context) GetExecutor() exec.Executor {

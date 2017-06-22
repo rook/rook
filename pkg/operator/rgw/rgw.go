@@ -18,8 +18,8 @@ package rgw
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	cephrgw "github.com/rook/rook/pkg/cephmgr/rgw"
+	"github.com/coreos/pkg/capnslog"
+	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
@@ -30,41 +30,35 @@ import (
 	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-rgw")
+
 const (
-	appName     = "rgw"
+	appName     = "rook-ceph-rgw"
 	keyringName = "keyring"
 )
 
 type Cluster struct {
-	context   *k8sutil.Context
-	placement k8sutil.Placement
-	Name      string
+	context   *clusterd.Context
 	Namespace string
+	placement k8sutil.Placement
 	Version   string
 	Replicas  int32
-	dataDir   string
 }
 
-func New(context *k8sutil.Context, name, namespace, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
-		placement: placement,
-		Name:      name,
 		Namespace: namespace,
+		placement: placement,
 		Version:   version,
 		Replicas:  2,
-		dataDir:   k8sutil.DataDir,
 	}
 }
 
-func (c *Cluster) Start(cluster *mon.ClusterInfo) error {
+func (c *Cluster) Start() error {
 	logger.Infof("start running rgw")
 
-	if cluster == nil || len(cluster.Monitors) == 0 {
-		return fmt.Errorf("missing mons to start rgw")
-	}
-
-	err := c.createKeyring(cluster)
+	err := c.createKeyring()
 	if err != nil {
 		return fmt.Errorf("failed to create rgw keyring. %+v", err)
 	}
@@ -90,7 +84,7 @@ func (c *Cluster) Start(cluster *mon.ClusterInfo) error {
 	return nil
 }
 
-func (c *Cluster) createKeyring(cluster *mon.ClusterInfo) error {
+func (c *Cluster) createKeyring() error {
 	_, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
@@ -100,17 +94,9 @@ func (c *Cluster) createKeyring(cluster *mon.ClusterInfo) error {
 		return fmt.Errorf("failed to get rgw secrets. %+v", err)
 	}
 
-	// connect to the ceph cluster
-	logger.Infof("generating rgw keyring")
-	ctx := &clusterd.Context{ConfigDir: c.dataDir}
-	conn, err := mon.ConnectToClusterAsAdmin(ctx, c.context.Factory, cluster)
-	if err != nil {
-		return fmt.Errorf("failed to connect to cluster. %+v", err)
-	}
-	defer conn.Shutdown()
-
 	// create the keyring
-	keyring, err := cephrgw.CreateKeyring(conn)
+	logger.Infof("generating rgw keyring")
+	keyring, err := cephrgw.CreateKeyring(c.context, c.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create keyring. %+v", err)
 	}
@@ -149,7 +135,7 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "rook-rgw",
+			Name:        "rook-ceph-rgw",
 			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
 		},
@@ -163,7 +149,7 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 
 func (c *Cluster) rgwContainer() v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd rgw --config-dir=%s --rgw-port=%d --rgw-host=%s",
+	command := fmt.Sprintf("/usr/local/bin/rookd rgw --config-dir=%s --rgw-port=%d --rgw-host=%s",
 		k8sutil.DataDir, cephrgw.RGWPort, cephrgw.DNSName)
 	return v1.Container{
 		// TODO: fix "sleep 5".
@@ -177,7 +163,7 @@ func (c *Cluster) rgwContainer() v1.Container {
 		},
 		Env: []v1.EnvVar{
 			{Name: "ROOKD_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
-			opmon.ClusterNameEnvVar(c.Name),
+			opmon.ClusterNameEnvVar(c.Namespace),
 			opmon.MonEndpointEnvVar(),
 			opmon.MonSecretEnvVar(),
 			opmon.AdminSecretEnvVar(),

@@ -20,19 +20,18 @@ import (
 	"strings"
 	"testing"
 
-	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/pkg/api/v1"
-
+	cephosd "github.com/rook/rook/pkg/ceph/osd"
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	cephosd "github.com/rook/rook/pkg/cephmgr/osd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/pkg/api/v1"
 )
 
 func TestStartDaemonset(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", StorageSpec{}, "", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "ns", "myversion", StorageSpec{}, "", k8sutil.Placement{})
 
 	// Start the first time
 	err := c.Start()
@@ -44,7 +43,7 @@ func TestStartDaemonset(t *testing.T) {
 }
 
 func TestPodContainer(t *testing.T) {
-	cluster := &Cluster{Name: "myosd", Version: "23"}
+	cluster := &Cluster{Namespace: "myosd", Version: "23"}
 	config := Config{}
 	c := cluster.podTemplateSpec([]Device{}, []Directory{}, Selection{}, config)
 	assert.NotNil(t, c)
@@ -52,7 +51,7 @@ func TestPodContainer(t *testing.T) {
 	container := c.Spec.Containers[0]
 	assert.Equal(t, 7, len(container.Env))
 	assert.True(t, strings.Contains(container.Command[2], `echo $(HOSTNAME) | sed "s/\./_/g" > /etc/hostname; hostname -F /etc/hostname`))
-	assert.True(t, strings.Contains(container.Command[2], "/usr/bin/rookd osd"))
+	assert.True(t, strings.Contains(container.Command[2], "/usr/local/bin/rookd osd"))
 }
 
 func TestDaemonset(t *testing.T) {
@@ -69,12 +68,12 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", storageSpec, dataDir, k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "ns", "myversion", storageSpec, dataDir, k8sutil.Placement{})
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
 	assert.NotNil(t, replicaSet)
-	assert.Equal(t, "osd-node1", replicaSet.Name)
+	assert.Equal(t, "rook-ceph-osd-node1", replicaSet.Name)
 	assert.Equal(t, c.Namespace, replicaSet.Namespace)
 	assert.Equal(t, int32(1), *(replicaSet.Spec.Replicas))
 	assert.Equal(t, "node1", replicaSet.Spec.Template.Spec.NodeSelector[metav1.LabelHostname])
@@ -90,8 +89,8 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 		assert.Equal(t, dataDir, replicaSet.Spec.Template.Spec.Volumes[0].HostPath.Path)
 	}
 
-	assert.Equal(t, "osd", replicaSet.Spec.Template.ObjectMeta.Name)
-	assert.Equal(t, "osd", replicaSet.Spec.Template.ObjectMeta.Labels["app"])
+	assert.Equal(t, appName, replicaSet.Spec.Template.ObjectMeta.Name)
+	assert.Equal(t, appName, replicaSet.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, replicaSet.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(replicaSet.Spec.Template.ObjectMeta.Annotations))
 
@@ -99,7 +98,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
 	assert.Equal(t, 3, len(cont.VolumeMounts))
 
-	expectedCommand := "/usr/bin/rookd osd"
+	expectedCommand := "/usr/local/bin/rookd osd"
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
 
 	// verify the config dir env var
@@ -144,7 +143,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", storageSpec, "", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "ns", "myversion", storageSpec, "", k8sutil.Placement{})
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
@@ -186,7 +185,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion", storageSpec, "", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "ns", "myversion", storageSpec, "", k8sutil.Placement{})
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)

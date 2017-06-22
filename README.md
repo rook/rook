@@ -41,7 +41,7 @@ There are a few different options for running a Rook cluster for your storage ne
 
 ### Using Rook
 
-Once you have a Rook cluster running, you can use the `rook` tool to create and manage storage as shown in the following guide:
+Once you have a Rook cluster running, you can use the `rookctl` tool to create and manage storage as shown in the following guide:
 - [Using Rook Guide](Documentation/client.md)
 
 ## Advanced Configuration and Troubleshooting

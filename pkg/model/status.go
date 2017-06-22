@@ -30,6 +30,7 @@ type StatusDetails struct {
 	Monitors        []MonitorSummary `json:"monitors"`
 	OSDs            OSDSummary       `json:"osd"`
 	PGs             PGSummary        `json:"pg"`
+	Mgrs            MgrSummary       `json:"mgr"`
 	Usage           UsageSummary     `json:"usage"`
 }
 
@@ -56,6 +57,13 @@ type OSDSummary struct {
 type PGSummary struct {
 	Total       int            `json:"total"`
 	StateCounts map[string]int `json:"stateCount"`
+}
+
+type MgrSummary struct {
+	ActiveName string   `json:"active_name"`
+	ActiveAddr string   `json:"active_addr"`
+	Available  bool     `json:"available"`
+	Standbys   []string `json:"standbys"`
 }
 
 type UsageSummary struct {

@@ -22,7 +22,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
 
-	cephosd "github.com/rook/rook/pkg/cephmgr/osd"
+	cephosd "github.com/rook/rook/pkg/ceph/osd"
 )
 
 func TestStorageSpecMarshal(t *testing.T) {

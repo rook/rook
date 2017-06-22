@@ -103,7 +103,7 @@ func (c *Cluster) makeMonPod(config *MonConfig, nodeName string) *v1.Pod {
 }
 
 func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
-	command := fmt.Sprintf("/usr/bin/rookd mon --config-dir=%s --name=%s --port=%d --fsid=%s",
+	command := fmt.Sprintf("/usr/local/bin/rookd mon --config-dir=%s --name=%s --port=%d --fsid=%s",
 		k8sutil.DataDir, config.Name, config.Port, fsid)
 
 	return v1.Container{
@@ -125,7 +125,7 @@ func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
 		},
 		Env: []v1.EnvVar{
 			{Name: k8sutil.PodIPEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}},
-			ClusterNameEnvVar(c.Name),
+			ClusterNameEnvVar(c.Namespace),
 			MonEndpointEnvVar(),
 			MonSecretEnvVar(),
 			AdminSecretEnvVar(),

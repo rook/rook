@@ -5,15 +5,9 @@ try {
 
         stage('Checkout') {
             checkout scm
-            sh 'git submodule sync --recursive'
-            sh 'git submodule update --init --recursive'
         }
 
-        stage('Validation') {
-            sh 'external/ceph-submodule-check'
-        }
-
-        withEnv(["DOWNLOADDIR=${env.HOME}/.download", "ALWAYS_BUILD=0", "CHANNEL=${env.BRANCH_NAME}"]) {
+        withEnv(["DOWNLOADDIR=${env.HOME}/.download", "CHANNEL=${env.BRANCH_NAME}"]) {
 
             stage('Build') {
                 sh 'build/run make -j\$(nproc) release'
@@ -55,8 +49,8 @@ try {
             }
 
             stage('Cleanup') {
-                sh 'build/run make -j\$(nproc) publish.cleanup'
-                sh 'docker images'
+                sh 'make clean'
+                sh 'make prune PRUNE_KEEP_CACHED=48 PRUNE_KEEP_ORPHANS=48'
                 deleteDir()
             }
         }
@@ -66,9 +60,8 @@ catch (Exception e) {
     echo 'Failure encountered'
 
     node("ec2-stateful") {
-        echo 'Cleaning up workspace'
-        sh 'build/run make -j\$(nproc) publish.cleanup'
-        sh 'docker images'
+        sh 'make clean'
+        sh 'make prune PRUNE_KEEP_CACHED=48 PRUNE_KEEP_ORPHANS=48'
         deleteDir()
     }
 

@@ -7,6 +7,13 @@ At a high level the release workflow is as follows:
 3. If all goes well we "promote" that build from master to the alpha release channel.
 4. Depending on the stability and feedback from the field, we might promote the build to beta and stable channels.
 
+## Release Requirements
+
+The following tools are needed when running releasing:
+  - jq
+  - awscli
+  - zip
+
 ## Building Release Builds
 
 Jenkins will build, test and publish every commit from master. We use semantic versions for every build. Version numbers will be generated using `git describe --always --tags --dirty`. When building from a tagged commit these builds will be like v.0.3.0. When building from a non-tagged commit they will be something like v0.3.0-2-g770ebbc.
@@ -27,10 +34,10 @@ Jenkins would build the tagged release and publish its artifacts like any other 
 ## Artifacts
 
 Each build from master has the following release artifacts:
-- binaries (rook, rookd) including debug symbols
+- binaries (rookctl) including debug symbols
 - containers (rookd, toolbox)
 
-binaries go to an S3 bucket `rook-release` and have the following layout:
+Binaries go to an S3 bucket `rook-release` and have the following layout:
 
 ```
 /releases
@@ -50,7 +57,7 @@ binaries go to an S3 bucket `rook-release` and have the following layout:
              (binaries)
 ```
 
-containers go to quay.io where we have the following repos:
+Containers go to quay.io where we have the following repos:
 
 ```
 rook/rookd

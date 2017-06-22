@@ -6,14 +6,14 @@ source ${scriptdir}/common.sh
 action=$1
 shift
 
-mkdir -p ${RELEASE_DIR}
-
 case ${action} in
     build.init)
+        mkdir -p ${RELEASE_DIR}
         write_version_file
         ;;
 
     publish.init)
+        mkdir -p ${RELEASE_DIR}
         publish_version_file
         ;;
 
@@ -28,6 +28,8 @@ case ${action} in
         ;;
 
     promote.init)
+        mkdir -p ${RELEASE_DIR}
+
         if check_release_version; then
             echo ${RELEASE_VERSION} can not be promoted. Must build from a tag like v0.4.0.
             exit 1

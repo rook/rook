@@ -30,7 +30,7 @@ kubectl -n rook exec -it rook-tools bash
 
 All available tools in the toolbox are ready for your troubleshooting needs.  Example:
 ```bash
-rook status
+rookctl status
 ceph df
 rados df
 ```

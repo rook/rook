@@ -19,7 +19,7 @@ get_archive_name() {
     local arch=$2
     local suffix=$3
 
-    local file=rook-${os}-${arch}
+    local file=rookctl-${os}-${arch}
 
     if [[ -n ${suffix} ]]; then
         file=${file}-${suffix}
@@ -40,7 +40,7 @@ build() {
         local ext=".exe"
     fi
 
-    local files=( rook${ext} )
+    local files=( rookctl${ext} )
 
     if [[ ${os} == "linux" ]]; then
         files+=( rookd${ext} )
@@ -48,15 +48,9 @@ build() {
         local tarfile=$(get_archive_name $os $arch)
         echo creating tar ${tarfile}
         tar czf "${RELEASE_DIR}/${tarfile}" -C "${bindir}" ${files[*]}
-
-        # create a package with debug symbols
-        files=( rookd${ext}.debug )
-        local tarfile=$(get_archive_name $os $arch "debug")
-        echo creating debug tar ${tarfile}
-        tar czf "${RELEASE_DIR}/${tarfile}" -C "${bindir}" ${files[*]}
     else
         local zipfile=$(get_archive_name $os $arch)
-        local zippath=$(realpath ${RELEASE_DIR}/${zipfile})
+        local zippath=${RELEASE_DIR}/${zipfile}
         echo creating zip ${zipfile}
         $(cd ${bindir} && zip -qr ${zippath} ${files[*]})
     fi

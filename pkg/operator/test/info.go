@@ -18,7 +18,7 @@ package test
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/ceph/mon"
 )
 
 func CreateClusterInfo(mons int) *mon.ClusterInfo {

@@ -36,17 +36,17 @@ Now that the rook-operator pod is running, we can create the Rook cluster. See t
 kubectl create -f rook-cluster.yaml
 ```
 
-Use `kubectl` to list pods in the rook namespace. You should be able to see the following pods once they are all running: 
+Use `kubectl` to list pods in the `rook` namespace. You should be able to see the following pods once they are all running: 
 
 ```bash
 $ kubectl -n rook get pod
-NAME                        READY     STATUS    RESTARTS   AGE
-mon0                        1/1       Running   0          1m
-mon1                        1/1       Running   0          1m
-mon2                        1/1       Running   0          1m
-osd-3n85p                   1/1       Running   0          1m
-osd-6jmph                   1/1       Running   0          1m
-rook-api-1709486253-gvdnc   1/1       Running   0          1m
+NAME                              READY     STATUS    RESTARTS   AGE
+rook-api-1511082791-7qs0m         1/1       Running   0          5m
+rook-ceph-mgr0-1279756402-wc4vt   1/1       Running   0          5m
+rook-ceph-mon0-jflt5              1/1       Running   0          6m
+rook-ceph-mon1-wkc8p              1/1       Running   0          6m
+rook-ceph-mon2-p31dj              1/1       Running   0          6m
+rook-ceph-osd-0h6nb               1/1       Running   0          5m
 ```
 
 ## Storage
@@ -57,26 +57,9 @@ For a walkthrough of the three types of storage exposed by Rook, see the guides 
 
 ## Tools
 
-### Rook Client
-The [rook-client](/demo/kubernetes/rook-client.yaml) tool allows you to configure Block, File System, and Object storage.
-You can start a client pod that is automatically configured to connect to your storage cluster with the following:
-```bash
-kubectl create -f rook-client.yaml
-
-# Check when the pod is in the Running state
-kubectl -n rook get pod rook-client
-
-# Connect to the client pod 
-kubectl -n rook exec rook-client -it sh
-
-# Verify the rook client can talk to the cluster
-rook node ls
-```
-
-Now you can use the `rook` tool as required in the [File System](k8s-filesystem.md) and [Object](k8s-object.md) walkthroughs, or a [simplified walkthrough of block, file and object storage](client.md).
-
-### Advanced Configuration and Troubleshooting
 We have created a [toolbox](/demo/kubernetes/rook-tools.yaml) container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
+
+The toolbox also contains the `rookctl` tool as required in the [File System](k8s-filesystem.md) and [Object](k8s-object.md) walkthroughs, or a [simplified walkthrough of block, file and object storage](client.md). In the near future, `rookctl` will not be required for kubernetes scenarios.
 
 ### Monitoring
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
@@ -101,7 +84,7 @@ If you modified the demo settings, additional cleanup is up to you for devices, 
 With Rook running in the Kubernetes cluster, Kubernetes applications can
 mount block devices and filesystems managed by Rook, or can use the S3/Swift API for object storage. The Rook operator 
 automates configuration of the Ceph storage components and monitors the cluster to ensure the storage remains available
-and healthy. There is also a REST API service for configuring the Rook storage and a command line tool called `rook`.
+and healthy. There is also a REST API service for configuring the Rook storage and a command line tool called `rookctl`.
 
 ![Rook Architecture on Kubernetes](media/kubernetes.png)
 
@@ -114,8 +97,8 @@ The operator will monitor the storage daemons to ensure the cluster is healthy. 
 other adjustments are made as the cluster grows or shrinks.  The operator will also watch for desired state changes
 requested by the api service and apply the changes.
 
-The Rook daemons (Mons, OSDs, RGW, and MDS) are compiled to a single binary `rookd`, and included in a minimal container.
-`rookd` uses an embedded version of Ceph for storing all data -- there are no changes to the data path. 
+The Rook daemons (Mons, OSDs, MGR, RGW, and MDS) are compiled to a single binary `rookd`, and included in a minimal container.
+The `rookd` container includes Ceph daemons and tools to manage and store all data -- there are no changes to the data path. 
 Rook does not attempt to maintain full fidelity with Ceph. Many of the Ceph concepts like placement groups and crush maps 
 are hidden so you don't have to worry about them. Instead Rook creates a much simplified UX for admins that is in terms 
 of physical resources, pools, volumes, filesystems, and buckets.

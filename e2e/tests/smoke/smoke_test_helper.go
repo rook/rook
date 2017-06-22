@@ -2,12 +2,13 @@ package smoke
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/rook/rook/e2e/framework/clients"
 	"github.com/rook/rook/e2e/framework/contracts"
 	"github.com/rook/rook/e2e/framework/enums"
 	"github.com/rook/rook/e2e/framework/utils"
 	"github.com/rook/rook/pkg/model"
-	"time"
 )
 
 type SmokeTestHelper struct {
@@ -363,7 +364,7 @@ func (h *SmokeTestHelper) CreateObjectStore() (string, error) {
 	case enums.Kubernetes:
 		h.GetObjectClient().ObjectCreate()
 		time.Sleep(time.Second * 2) //wait for rgw service to to started
-		if h.k8sHelp.IsServiceUpInNameSpace("rgw") {
+		if h.k8sHelp.IsServiceUpInNameSpace("rook-ceph-rgw") {
 			_, err := h.k8sHelp.GetService("rgw-external")
 			if err != nil {
 				h.k8sHelp.ResourceOperation("create", h.getRGWExtenalSevDef())
@@ -417,7 +418,7 @@ func (h *SmokeTestHelper) DeleteObjectStoreUser() error {
 func (h *SmokeTestHelper) GetRGWServiceUrl() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
-		hostip, err := h.k8sHelp.GetPodHostId("rgw", "rook")
+		hostip, err := h.k8sHelp.GetPodHostId("rook-ceph-rgw", "rook")
 		if err != nil {
 			panic(fmt.Errorf("RGW pods not found/object store possibly not started"))
 		}

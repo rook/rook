@@ -27,6 +27,7 @@ import (
 
 	"sync"
 
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	rookclient "github.com/rook/rook/pkg/rook/client"
@@ -34,7 +35,7 @@ import (
 )
 
 type clusterManager struct {
-	context      *k8sutil.Context
+	context      *clusterd.Context
 	name         string
 	watchVersion string
 	devicesInUse bool
@@ -47,7 +48,7 @@ type clusterManager struct {
 	inclusterMgrs       []tprManager
 }
 
-func newClusterManager(context *k8sutil.Context, inclusterInitiators []inclusterInitiator) *clusterManager {
+func newClusterManager(context *clusterd.Context, inclusterInitiators []inclusterInitiator) *clusterManager {
 	return &clusterManager{
 		context:             context,
 		clusters:            make(map[string]*cluster.Cluster),

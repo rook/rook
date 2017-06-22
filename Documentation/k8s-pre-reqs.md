@@ -2,7 +2,7 @@
 ## Minimum Version
 Kubernetes v1.6 or higher is targeted by Rook (while Rook is in alpha it will track the latest release to use the latest features). 
 
-Support is available for Kubernetes **v1.5.2**, although your mileage may vary. 
+Support is available for Kubernetes v1.5.2, although your mileage may vary. 
 You will need to use the yaml files from the [1.5 folder](/demo/kubernetes/1.5).
 
 ## Privileges
@@ -13,7 +13,7 @@ Creating the Rook operator requires privileges for setting up RBAC. To launch th
 
 ## Kubeadm
 
-You can easily spin up rook on top of a `kubeadm` cluster.
+You can easily spin up Rook on top of a `kubeadm` cluster.
 You can find the instructions on how to install kubeadm in the [`kubeadm` installation page](https://kubernetes.io/docs/getting-started-guides/kubeadm/).
 
 By using `kubeadm`, you can use Rook in just a few minutes!
@@ -22,7 +22,7 @@ The only thing you might have to do is to install the `ceph-common` package on a
 
 ## New local Kubernetes cluster with Vagrant
 
-For a quick start with a new local cluster, use the Rook fork of [coreos-kubernetes](https://github.com/rook/coreos-kubernetes). This will bring up a multi-node Kubernetes cluster with `vagrant` and CoreOS virtual machines ready to use `rook` immediately.
+For a quick start with a new local cluster, use the Rook fork of [coreos-kubernetes](https://github.com/rook/coreos-kubernetes). This will bring up a multi-node Kubernetes cluster with `vagrant` and CoreOS virtual machines ready to use Rook immediately.
 
 ```
 git clone https://github.com/rook/coreos-kubernetes.git
@@ -72,7 +72,7 @@ latest: Pulling from ceph/base
 $ exit
 ```
 
-After these steps, your minikube cluster is ready to install rook on.
+After these steps, your minikube cluster is ready to install Rook on.
 
 ## Existing Kubernetes Cluster
 Alternatively, if you already have a running Kubernetes cluster, you can deploy Rook to it with a small update to modify the kubelet service to bind mount `/sbin/modprobe`, which allows access to `modprobe`.
@@ -121,4 +121,4 @@ rbd #Command to download ceph images.
 
 ## Using Rook in Kubernetes
 
-Now that you have a Kubernetes cluster running, you can start using `rook` with [these steps](kubernetes.md#deploy-rook).
+Now that you have a Kubernetes cluster running, you can start using Rook with [these steps](kubernetes.md#deploy-rook).

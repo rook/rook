@@ -19,8 +19,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
-	"github.com/rook/rook/pkg/cephmgr/mds"
+	ceph "github.com/rook/rook/pkg/ceph/client"
+	"github.com/rook/rook/pkg/ceph/mds"
 	"github.com/rook/rook/pkg/model"
 )
 
@@ -28,13 +28,7 @@ import (
 // GET
 // /filesystem
 func (h *Handler) GetFileSystems(w http.ResponseWriter, r *http.Request) {
-	adminConn, ok := h.handleConnectToCeph(w)
-	if !ok {
-		return
-	}
-	defer adminConn.Shutdown()
-
-	filesystems, err := ceph.ListFilesystems(adminConn)
+	filesystems, err := ceph.ListFilesystems(h.context, h.config.ClusterInfo.Name)
 	if err != nil {
 		logger.Errorf("failed to list file systems: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -69,7 +63,7 @@ func (h *Handler) CreateFileSystem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	f := mds.NewFS(h.context, h.config.CephFactory, fs.Name, fs.PoolName)
+	f := mds.NewFS(h.context, fs.Name, fs.PoolName)
 	if err := f.CreateFilesystem(clusterInfo); err != nil {
 		logger.Errorf("failed to create file system %s: %+v", fs.Name, err)
 		w.WriteHeader(http.StatusInternalServerError)

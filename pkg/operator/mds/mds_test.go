@@ -17,68 +17,67 @@ package mds
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 
-	testceph "github.com/rook/rook/pkg/cephmgr/client/test"
-	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/pkg/api/v1"
 )
 
 func TestStartMDS(t *testing.T) {
-	info := testop.CreateClusterInfo(1)
-	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	conn, _ := factory.NewConnWithClusterAndUser(info.Name, "user")
-	conn.(*testceph.MockConnection).MockMonCommand = func(buf []byte) (buffer []byte, info string, err error) {
-		response := "{\"key\":\"mysecurekey\"}"
-		return []byte(response), "", nil
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+			return "{\"key\":\"mysecurekey\"}", nil
+		},
 	}
 
-	c := New(&k8sutil.Context{Factory: factory}, "myname", "ns", "myversion", k8sutil.Placement{})
-	c.dataDir = "/tmp/mdstest"
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	context := &clusterd.Context{
+		Executor:    executor,
+		ConfigDir:   configDir,
+		KubeContext: clusterd.KubeContext{Clientset: testop.New(3)}}
+	c := New(context, "ns", "myversion", k8sutil.Placement{})
 	defer os.RemoveAll(c.dataDir)
 
-	clientset := testop.New(3)
-
 	// start a basic cluster
-	err := c.Start(clientset, info)
+	err := c.Start()
 	assert.Nil(t, err)
-
-	validateStart(t, c, clientset)
+	validateStart(t, c)
 
 	// starting again should be a no-op
-	err = c.Start(clientset, info)
+	err = c.Start()
 	assert.Nil(t, err)
-
-	validateStart(t, c, clientset)
+	validateStart(t, c)
 }
 
-func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
+func validateStart(t *testing.T, c *Cluster) {
 
-	r, err := clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get("mds", metav1.GetOptions{})
+	r, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(appName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mds", r.Name)
+	assert.Equal(t, appName, r.Name)
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New(nil, "myname", "ns", "myversion", k8sutil.Placement{})
+	c := New(nil, "ns", "myversion", k8sutil.Placement{})
 	mdsID := "mds1"
 
 	d := c.makeDeployment(mdsID)
 	assert.NotNil(t, d)
-	assert.Equal(t, "mds", d.Name)
+	assert.Equal(t, appName, d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, 2, len(d.Spec.Template.Spec.Volumes))
 	assert.Equal(t, "rook-data", d.Spec.Template.Spec.Volumes[0].Name)
 
-	assert.Equal(t, "mds", d.ObjectMeta.Name)
-	assert.Equal(t, "mds", d.Spec.Template.ObjectMeta.Labels["app"])
+	assert.Equal(t, appName, d.ObjectMeta.Name)
+	assert.Equal(t, appName, d.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
@@ -87,7 +86,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 6, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd mds --config-dir=/var/lib/rook --mds-id=%s ",
+	expectedCommand := fmt.Sprintf("/usr/local/bin/rookd mds --config-dir=/var/lib/rook --mds-id=%s ",
 		mdsID)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])

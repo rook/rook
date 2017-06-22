@@ -18,7 +18,7 @@ package api
 import (
 	"net/http"
 
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
+	ceph "github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/model"
 )
 
@@ -29,13 +29,7 @@ func (h *Handler) GetClientAccessInfo(w http.ResponseWriter, r *http.Request) {
 	// TODO: auth is extremely important here because we are returning cephx credentials
 	// https://github.com/rook/rook/issues/209
 
-	adminConn, ok := h.handleConnectToCeph(w)
-	if !ok {
-		return
-	}
-	defer adminConn.Shutdown()
-
-	monStatus, err := ceph.GetMonStatus(adminConn)
+	monStatus, err := ceph.GetMonStatus(h.context, h.config.ClusterInfo.Name)
 	if err != nil {
 		logger.Errorf("failed to get monitor status, err: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -43,9 +37,8 @@ func (h *Handler) GetClientAccessInfo(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: don't always return admin creds
-	entity := "client.admin"
-	user := "admin"
-	secret, err := ceph.AuthGetKey(adminConn, entity)
+	entity := ceph.AdminUsername
+	secret, err := ceph.AuthGetKey(h.context, h.config.ClusterInfo.Name, entity)
 	if err != nil {
 		logger.Errorf("failed to get key for %s: %+v", entity, err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -59,7 +52,7 @@ func (h *Handler) GetClientAccessInfo(w http.ResponseWriter, r *http.Request) {
 
 	clientAccessInfo := model.ClientAccessInfo{
 		MonAddresses: monAddrs,
-		UserName:     user,
+		UserName:     "admin",
 		SecretKey:    secret,
 	}
 
