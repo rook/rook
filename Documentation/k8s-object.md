@@ -39,9 +39,9 @@ you will need to setup an external service through a `NodePort`.
 
 First, note the service that exposes RGW internal to the cluster. We will leave this service intact and create a new service for external access.
 ```bash
-$ kubectl -n rook get service rgw
-NAME      CLUSTER-IP   EXTERNAL-IP   PORT(S)     AGE
-rgw       10.3.0.248   <none>        53390/TCP   45s
+$ kubectl -n rook get service rook-ceph-rgw
+NAME            CLUSTER-IP   EXTERNAL-IP   PORT(S)     AGE
+rook-ceph-rgw   10.3.0.177   <none>        53390/TCP   2m
 ```
 
 Now create the external service:
@@ -52,16 +52,16 @@ kubectl create -f rgw-external.yaml
 
 See both rgw services running and notice what port the external service is running on:
 ```bash
-$ kubectl -n rook get service rgw rgw-external
-NAME           CLUSTER-IP   EXTERNAL-IP   PORT(S)           AGE
-rgw            10.3.0.248   <none>        53390/TCP         1m
-rgw-external   10.3.0.146   <nodes>       53390:30711/TCP   1m
+$ kubectl -n rook get service rook-ceph-rgw rook-ceph-rgw-external
+NAME                     CLUSTER-IP   EXTERNAL-IP   PORT(S)           AGE
+rook-ceph-rgw            10.3.0.177   <none>        53390/TCP         5m
+rook-ceph-rgw-external   10.3.0.148   <nodes>       53390:30041/TCP   1m
 ```
 
-Internally the rgw service is running on port `53390`. The external port in this case is `30711`. Now you can access the object store from anywhere! All you need is the hostname for any machine in the cluster, the external port, and the user credentials.
+Internally the rgw service is running on port `53390`. The external port in this case is `30041`. Now you can access the object store from anywhere! All you need is the hostname for any machine in the cluster, the external port, and the user credentials.
 
 If you're testing on the [coreos-kubernetes vagrant environment](k8s-pre-reqs.md#new-local-kubernetes-cluster), you can verify it is working from your host:
 - If running in the single-node cluster:
-  - `curl 172.17.4.99:30711`
+  - `curl 172.17.4.99:30041`
 - If running in the multi-node cluster:
-  - `curl 172.17.4.101:30711`
+  - `curl 172.17.4.101:30041`
