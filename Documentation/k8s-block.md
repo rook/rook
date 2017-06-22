@@ -1,3 +1,9 @@
+---
+title: Block Storage
+weight: 12
+indent: true
+---
+
 # Block Storage Quickstart
 
 Block storage allows you to mount storage to a single pod. 
@@ -7,7 +13,7 @@ Block storage allows you to mount storage to a single pod.
 This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](kubernetes.md)
 
 ### Provision Storage
-Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. The [rook-storageclass.yaml](/demo/kubernetes/rook-storageclass.yaml) sample will create the storage pool automatically. For more options on pools, see the documentation on [creating storage pools](pool-tpr.md).
+Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. The [rook-storageclass.yaml](https://github.com/rook/rook/blob/master/demo/kubernetes/rook-storageclass.yaml) sample will create the storage pool automatically. For more options on pools, see the documentation on [creating storage pools](pool-tpr.md).
 
 ```bash
 kubectl create -f rook-storageclass.yaml

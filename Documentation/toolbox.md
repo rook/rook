@@ -1,3 +1,8 @@
+---
+title: Toolbox
+weight: 40
+---
+
 #  Rook Toolbox
 The rook toolbox is a container with common tools used for rook debugging and testing.  All packages in the toolbox can be seen in the [Dockerfile](/toolbox/Dockerfile)
 

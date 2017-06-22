@@ -1,3 +1,9 @@
+---
+title: Object Storage
+weight: 13
+indent: true
+---
+
 # Object Storage Quickstart
 
 Object storage exposes an S3 API to the storage cluster for applications to put and get data.

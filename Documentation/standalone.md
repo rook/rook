@@ -1,3 +1,7 @@
+---
+title: Standalone
+weight: 19
+---
 
 # Rook Standalone
 

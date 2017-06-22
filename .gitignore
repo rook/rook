@@ -2,6 +2,7 @@
 /.work
 /.download
 /.idea
+/.tmp
 
 /bin
 /vendor
