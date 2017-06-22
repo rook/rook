@@ -177,7 +177,6 @@ distclean: go.distclean clean
 	@rm -fr $(DOWNLOADDIR)
 
 release: build.all
-	@$(MAKE) -C images build.all
 	@$(MAKE) release.build
 
 publish:
