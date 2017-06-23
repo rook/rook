@@ -32,10 +32,6 @@ import (
 	kwatch "k8s.io/apimachinery/pkg/watch"
 )
 
-const (
-	poolTprName = "pool"
-)
-
 type poolInitiator struct {
 	context *clusterd.Context
 }
@@ -51,20 +47,16 @@ func newPoolInitiator(context *clusterd.Context) *poolInitiator {
 	return &poolInitiator{context: context}
 }
 
-func (p *poolInitiator) Create(clusterMgr *clusterManager, clusterName, namespace string) (tprManager, error) {
+func (p *poolInitiator) Create(clusterMgr *clusterManager, namespace string) (k8sutil.TPRManager, error) {
 	rclient, err := clusterMgr.getRookClient(namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get api client for pool tpr for cluster %s in namespace %s. %+v", clusterName, namespace, err)
+		return nil, fmt.Errorf("failed to get api client for pool tpr for cluster in namespace %s. %+v", namespace, err)
 	}
 	return &poolManager{context: p.context, namespace: namespace, rclient: rclient}, nil
 }
 
-func (p *poolInitiator) Name() string {
-	return poolTprName
-}
-
-func (p *poolInitiator) Description() string {
-	return "Managed Rook pools"
+func (p *poolInitiator) Scheme() k8sutil.TPRScheme {
+	return cluster.PoolScheme
 }
 
 // Run the tpr manager until the caller signals with an EndWatch()
@@ -108,7 +100,7 @@ func (p *poolManager) Load() error {
 }
 
 func (p *poolManager) getPoolList() (*cluster.PoolList, error) {
-	b, err := getRawListNamespaced(p.context.Clientset, poolTprName, p.namespace)
+	b, err := k8sutil.GetRawListNamespaced(p.context.Clientset, cluster.PoolScheme, p.namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +181,7 @@ func (p *poolManager) watch() (<-chan *poolEvent, <-chan error) {
 }
 
 func (p *poolManager) watchOuterTPR(eventCh chan *poolEvent, errCh chan error) error {
-	resp, err := watchTPRNamespaced(p.context, poolTprName, p.namespace, p.watchVersion)
+	resp, err := k8sutil.WatchTPRNamespaced(p.context, cluster.PoolScheme, p.namespace, p.watchVersion)
 	if err != nil {
 		errCh <- err
 		return err

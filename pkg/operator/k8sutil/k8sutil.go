@@ -24,6 +24,11 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"k8s.io/client-go/pkg/api"
+	"k8s.io/client-go/rest"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
@@ -61,4 +66,24 @@ func Retry(context *clusterd.Context, f ConditionFunc) error {
 		}
 	}
 	return fmt.Errorf("failed after max retries %d.", context.MaxRetries)
+}
+
+func NewHttpClient() (*rest.RESTClient, error) {
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	config.GroupVersion = &schema.GroupVersion{
+		Group: tprGroup,
+	}
+	config.APIPath = "/apis"
+	config.ContentType = runtime.ContentTypeJSON
+	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: api.Codecs}
+
+	restcli, err := rest.RESTClientFor(config)
+	if err != nil {
+		return nil, err
+	}
+	return restcli, nil
 }

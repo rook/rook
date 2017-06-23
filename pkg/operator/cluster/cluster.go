@@ -49,6 +49,11 @@ var (
 	healthCheckInterval = 10 * time.Second
 	clientTimeout       = 15 * time.Second
 	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
+	ClusterScheme       = k8sutil.TPRScheme{
+		Name:        "cluster",
+		Version:     k8sutil.V1Alpha1,
+		Description: "Managed Rook clusters",
+	}
 )
 
 type Cluster struct {

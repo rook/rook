@@ -36,7 +36,6 @@ import (
 
 type clusterManager struct {
 	context      *clusterd.Context
-	name         string
 	watchVersion string
 	devicesInUse bool
 	clusters     map[string]*cluster.Cluster
@@ -45,7 +44,7 @@ type clusterManager struct {
 	// The initiators that create TPRs specific to specific Rook clusters.
 	// For example, pools, object services, and file services, only make sense in the context of a Rook cluster
 	inclusterInitiators []inclusterInitiator
-	inclusterMgrs       []tprManager
+	inclusterMgrs       []k8sutil.TPRManager
 }
 
 func newClusterManager(context *clusterd.Context, inclusterInitiators []inclusterInitiator) *clusterManager {
@@ -55,16 +54,6 @@ func newClusterManager(context *clusterd.Context, inclusterInitiators []incluste
 		tracker:             newTPRTracker(),
 		inclusterInitiators: inclusterInitiators,
 	}
-}
-
-// Gets the name of the TPR
-func (m *clusterManager) Name() string {
-	return "cluster"
-}
-
-// Gets the description of the TPR
-func (m *clusterManager) Description() string {
-	return "Managed Rook clusters"
 }
 
 func (m *clusterManager) Manage() {
@@ -165,11 +154,11 @@ func (m *clusterManager) startCluster(c *cluster.Cluster) {
 		}
 
 		// Start all the TPRs for this cluster
-		for _, tpr := range m.inclusterInitiators {
+		for _, initiator := range m.inclusterInitiators {
 			k8sutil.Retry(m.context, func() (bool, error) {
-				tprMgr, err := tpr.Create(m, c.Name, c.Namespace)
+				tprMgr, err := initiator.Create(m, c.Namespace)
 				if err != nil {
-					logger.Warningf("cannot create in-cluster tpr %s. %+v. retrying...", m.Name(), err)
+					logger.Warningf("cannot create in-cluster tpr %s. %+v. retrying...", initiator.Scheme().Name, err)
 					return false, nil
 				}
 
@@ -203,7 +192,7 @@ func (m *clusterManager) isClustersCacheStale(currentClusters []cluster.Cluster)
 }
 
 func (m *clusterManager) getClusterList() (*cluster.ClusterList, error) {
-	b, err := getRawList(m.context.Clientset, m.Name())
+	b, err := k8sutil.GetRawList(m.context.Clientset, cluster.ClusterScheme)
 	if err != nil {
 		return nil, err
 	}
@@ -274,7 +263,7 @@ func (m *clusterManager) watch() (<-chan *clusterEvent, <-chan error) {
 }
 
 func (m *clusterManager) watchOuterTPR(eventCh chan *clusterEvent, errCh chan error) error {
-	resp, err := watchTPR(m.context, m.Name(), m.watchVersion)
+	resp, err := k8sutil.WatchTPR(m.context, cluster.ClusterScheme, m.watchVersion)
 	if err != nil {
 		errCh <- err
 		return err
@@ -322,4 +311,14 @@ func (m *clusterManager) getRookClient(namespace string) (rookclient.RookRestCli
 	}
 
 	return nil, fmt.Errorf("namespace %s not found", namespace)
+}
+
+func (m *clusterManager) getCluster(namespace string) (*cluster.Cluster, error) {
+	m.Lock()
+	defer m.Unlock()
+	if c, ok := m.clusters[namespace]; ok {
+		return c, nil
+	}
+
+	return nil, fmt.Errorf("cluster namespace %s not found", namespace)
 }

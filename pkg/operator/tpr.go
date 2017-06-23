@@ -23,125 +23,14 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
-
-const (
-	tprGroup   = "rook.io"
-	tprVersion = "v1alpha1"
-)
-
-type tprScheme interface {
-	Name() string
-	Description() string
-}
 
 type inclusterInitiator interface {
-	Create(clusterMgr *clusterManager, name, namespace string) (tprManager, error)
-}
-
-type tprManager interface {
-	Load() error
-	Watch() error
-	Manage()
-}
-
-func qualifiedName(tpr tprScheme) string {
-	return fmt.Sprintf("%s.%s", tpr.Name(), tprGroup)
-}
-
-func createTPRs(context *clusterd.Context, tprs []tprScheme) error {
-	for _, tpr := range tprs {
-		if err := createTPR(context, tpr); err != nil {
-			return fmt.Errorf("failed to init tpr %s. %+v", tpr.Name(), err)
-		}
-	}
-
-	for _, tpr := range tprs {
-		if err := waitForTPRInit(context, tpr); err != nil {
-			return fmt.Errorf("failed to complete init %s. %+v", tpr.Name(), err)
-		}
-	}
-
-	return nil
-}
-
-func createTPR(context *clusterd.Context, tpr tprScheme) error {
-	logger.Infof("creating %s TPR", tpr.Name())
-	r := &v1beta1.ThirdPartyResource{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: qualifiedName(tpr),
-		},
-		Versions: []v1beta1.APIVersion{
-			{Name: tprVersion},
-		},
-		Description: tpr.Description(),
-	}
-	_, err := context.Clientset.ExtensionsV1beta1().ThirdPartyResources().Create(r)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create %s TPR. %+v", tpr.Name(), err)
-		}
-	}
-
-	return nil
-}
-
-func waitForTPRInit(context *clusterd.Context, tpr tprScheme) error {
-	restcli := context.Clientset.CoreV1().RESTClient()
-	uri := tprURI(tpr.Name())
-	return k8sutil.Retry(context, func() (bool, error) {
-		_, err := restcli.Get().RequestURI(uri).DoRaw()
-		if err != nil {
-			logger.Infof("did not yet find tpr %s. %+v", tpr.Name(), err)
-			if errors.IsNotFound(err) {
-				return false, nil
-			}
-			return false, err
-		}
-		return true, nil
-	})
-}
-
-func watchTPRNamespaced(context *clusterd.Context, name, namespace, resourceVersion string) (*http.Response, error) {
-	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.MasterHost, tprURINamespaced(name, namespace), resourceVersion)
-	logger.Debugf("watching tpr: %s", uri)
-	return context.KubeHttpCli.Get(uri)
-}
-
-func watchTPR(context *clusterd.Context, name, resourceVersion string) (*http.Response, error) {
-	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.MasterHost, tprURI(name), resourceVersion)
-	logger.Debugf("watching tpr: %s", uri)
-	return context.KubeHttpCli.Get(uri)
-}
-
-func tprURINamespaced(name, namespace string) string {
-	//   /apis/rook.io/v1alpha1/namespaces/rook/pools
-	return fmt.Sprintf("apis/%s/%s/namespaces/%s/%ss", tprGroup, tprVersion, namespace, name)
-}
-
-func tprURI(name string) string {
-	// creates a uri that is for retrieving or watching a tpr in all namespaces. For example:
-	//   /apis/rook.io/v1alpha1/clusters
-	return fmt.Sprintf("apis/%s/%s/%ss", tprGroup, tprVersion, name)
-}
-
-func getRawListNamespaced(clientset kubernetes.Interface, name, namespace string) ([]byte, error) {
-	restcli := clientset.CoreV1().RESTClient()
-	uri := tprURINamespaced(name, namespace)
-	logger.Debugf("getting tpr: %s", uri)
-	return restcli.Get().RequestURI(uri).DoRaw()
-}
-
-func getRawList(clientset kubernetes.Interface, name string) ([]byte, error) {
-	restcli := clientset.CoreV1().RESTClient()
-	return restcli.Get().RequestURI(tprURI(name)).DoRaw()
+	Create(clusterMgr *clusterManager, namespace string) (k8sutil.TPRManager, error)
+	Scheme() k8sutil.TPRScheme
 }
 
 func handlePollEventResult(status *metav1.Status, errIn error, checkStaleCache func() (bool, error), errCh chan error) (done bool, err error) {

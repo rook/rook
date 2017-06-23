@@ -25,12 +25,9 @@ import (
 
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/rook/rook/pkg/clusterd"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"github.com/rook/rook/pkg/operator/cluster"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/rest"
 )
 
 const (
@@ -55,7 +52,7 @@ var (
 
 type Operator struct {
 	context    *clusterd.Context
-	tprSchemes []tprScheme
+	tprSchemes []k8sutil.TPRScheme
 	// The TPR that is global to the kubernetes cluster.
 	// The cluster TPR is global because you create multiple clusers in k8s
 	clusterMgr        *clusterManager
@@ -68,7 +65,7 @@ func New(context *clusterd.Context) *Operator {
 	clusterMgr := newClusterManager(context, []inclusterInitiator{poolInitiator})
 	volumeProvisioner := newRookVolumeProvisioner(clusterMgr)
 
-	schemes := []tprScheme{clusterMgr, poolInitiator}
+	schemes := []k8sutil.TPRScheme{cluster.ClusterScheme, cluster.PoolScheme}
 	return &Operator{
 		context:           context,
 		clusterMgr:        clusterMgr,
@@ -115,37 +112,16 @@ func (o *Operator) Run() error {
 }
 
 func (o *Operator) initResources() error {
-	httpCli, err := newHttpClient()
+	httpCli, err := k8sutil.NewHttpClient()
 	if err != nil {
 		return fmt.Errorf("failed to get tpr client. %+v", err)
 	}
 	o.context.KubeHttpCli = httpCli.Client
 
-	err = createTPRs(o.context, o.tprSchemes)
+	err = k8sutil.CreateTPRs(o.context, o.tprSchemes)
 	if err != nil {
 		return fmt.Errorf("failed to create TPR. %+v", err)
 	}
 
 	return nil
-}
-
-func newHttpClient() (*rest.RESTClient, error) {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	config.GroupVersion = &schema.GroupVersion{
-		Group:   tprGroup,
-		Version: tprVersion,
-	}
-	config.APIPath = "/apis"
-	config.ContentType = runtime.ContentTypeJSON
-	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: api.Codecs}
-
-	restcli, err := rest.RESTClientFor(config)
-	if err != nil {
-		return nil, err
-	}
-	return restcli, nil
 }
