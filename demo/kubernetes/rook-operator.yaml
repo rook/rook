@@ -95,7 +95,7 @@ spec:
   template:
     metadata:
       labels:
-        name: rook-operator
+        app: rook-operator
     spec:
       serviceAccountName: rook-operator
       containers:
