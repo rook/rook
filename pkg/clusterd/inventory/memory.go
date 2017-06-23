@@ -19,18 +19,19 @@ import (
 	"fmt"
 	"path"
 	"strconv"
-	"syscall"
 
 	etcd "github.com/coreos/etcd/client"
 	ctx "golang.org/x/net/context"
 )
 
 func getSystemMemory() uint64 {
-	sysInfo := new(syscall.Sysinfo_t)
-	err := syscall.Sysinfo(sysInfo)
-	if err == nil {
-		return uint64(sysInfo.Totalram)
-	}
+	// TODO: Get memory if we need it for resource scheduling.
+	//  When added, ensure build tags are used so tests can run on other platforms
+	// sysInfo := new(syscall.Sysinfo_t)
+	// err := syscall.Sysinfo(sysInfo)
+	// if err == nil {
+	// 	return uint64(sysInfo.Totalram)
+	// }
 	return 0
 }
 

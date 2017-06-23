@@ -135,6 +135,10 @@ func findProcessSearch(binary, cmdlinePattern string) (*UnixProcess, error) {
 func processes() ([]*UnixProcess, error) {
 	d, err := os.Open("/proc")
 	if err != nil {
+		if os.IsNotExist(err) {
+			logger.Warningf("cannot get processes. /proc not found")
+			return nil, nil
+		}
 		return nil, err
 	}
 	defer d.Close()
