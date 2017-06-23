@@ -16,15 +16,15 @@ FROM BASEIMAGE
 
 # clone the repo. we do this first so that this layer can be reused across archs.
 ARG CEPH_GIT_REPO
-ARG CEPH_GIT_BRANCH
-RUN git clone -b ${CEPH_GIT_BRANCH} --recurse-submodules ${CEPH_GIT_REPO} ceph
+RUN git clone ${CEPH_GIT_REPO} ceph
 
-# install libraries ceph needs during build
+# install libraries and tools needed during build
 ARG ARCH
 ARG CROSS_TRIPLE
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yy -q --no-install-recommends \
         python-setuptools \
+        gperf \
         \
         cython:${ARCH} \
         python:${ARCH} \
@@ -35,6 +35,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
         libboost-context-dev:${ARCH} \
         libboost-coroutine-dev:${ARCH} \
         libboost-date-time-dev:${ARCH} \
+        libboost-filesystem-dev:${ARCH} \
         libboost-iostreams-dev:${ARCH} \
         libboost-program-options-dev:${ARCH} \
         libboost-python-dev:${ARCH} \

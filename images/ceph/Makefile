@@ -16,7 +16,6 @@ include ../image.mk
 
 # the git repo and branch to build from
 CEPH_GIT_REPO ?= https://github.com/rook/ceph
-CEPH_GIT_BRANCH ?= rook-luminous
 
 # the git commit hash to build
 ifeq ($(origin CEPH_GIT_COMMIT), undefined)
@@ -59,7 +58,6 @@ do.build:
 		--build-arg ARCH=$(DEBIAN_ARCH) \
 		--build-arg CEPH_GIT_COMMIT=$(CEPH_GIT_COMMIT) \
 		--build-arg CEPH_GIT_REPO=$(CEPH_GIT_REPO) \
-		--build-arg CEPH_GIT_BRANCH=$(CEPH_GIT_BRANCH) \
 		--build-arg CEPH_ALLOCATOR=$(CEPH_ALLOCATOR) \
 		--build-arg CEPH_BUILD_TYPE=$(CEPH_BUILD_TYPE) \
 		--build-arg CROSS_TRIPLE=$(CROSS_TRIPLE) \
