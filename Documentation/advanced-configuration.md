@@ -41,8 +41,9 @@ done|sort -V|column -t
 
 ```bash
 # Get OSD Pods
+# This uses the example/default cluster name "rook"
 OSD_PODS=$(kubectl get pods --all-namespaces -l \
-  app=osd,rook_cluster=cluster -o jsonpath='{.items[*].metadata.name}')
+  app=rook-ceph-osd,rook_cluster=rook -o jsonpath='{.items[*].metadata.name}')
 
 # Find node and drive associations from OSD pods
 for pod in $(echo ${OSD_PODS})
