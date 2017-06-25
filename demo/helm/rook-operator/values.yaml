@@ -3,8 +3,8 @@
 # Declare variables to be passed into your templates.
 
 image:
-  prefix: quay.io/rook
-  repository: quay.io/rook/rook
+  prefix: rook
+  repository: rook/rook
   tag: master-latest
   pullPolicy: IfNotPresent
 

@@ -29,18 +29,8 @@ else
   File.open(".discovery-token", 'w') { |file| file.write("#{discovery_token}") }
 end
 
-private_build = false
-if ENV["START_LOCAL_ROOKD"] == "1"
-  private_build = true
-end
-
-if private_build
-  aci_location = "/release/quay.io-rook-rook-dev.aci"
-  aci_options = "--insecure-options=image"
-else
-  aci_location = "quay.io/rook/rook:master-latest"
-  aci_options = ""
-end
+aci_location = "rook/rook:master-latest"
+aci_options = ""
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   set_coreos_box(config, $channel)

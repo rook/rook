@@ -71,8 +71,6 @@ help:
 	@echo '    PULL         Whether to pull base images. Default is 1.'
 	@echo '    GOARCH       The arch to build.'
 	@echo '    GOOS         The OS to build for.'
-	@echo '    REGISTRY     The docker registry to push to. Default is'
-	@echo '                 quay.io/rook.'
 	@echo '    V            Set to 1 enable verbose build. Default is 0.'
 	@echo ''
 	@echo 'Advanced Options:'

@@ -39,7 +39,7 @@ var (
 
 func init() {
 	apiCmd.Flags().IntVar(&apiPort, "port", 0, "port on which the api is listening")
-	apiCmd.Flags().StringVar(&repoPrefix, "repo-prefix", "quay.io/rook", "the repo from which to pull images")
+	apiCmd.Flags().StringVar(&repoPrefix, "repo-prefix", "rook", "the repo from which to pull images")
 	apiCmd.Flags().StringVar(&versionTag, "version-tag", "latest", "version of the rook container to launch")
 	apiCmd.Flags().StringVar(&namespace, "namespace", "", "the namespace in which the api service is running")
 	addCephFlags(apiCmd)

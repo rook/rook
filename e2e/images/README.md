@@ -2,9 +2,9 @@
 
 The Rook Test Infrastructure is a docker project,
 pre-configured with Kubernetes and Docker (DinD) software running
-as systemd services on an Ubuntu 16.04 image. The goal of this environment 
+as systemd services on an Ubuntu 16.04 image. The goal of this environment
 is to make the process of bringing up a k8s cluster, installing <a href="http://github.com/rook/rook">Rook</a>
-and running Rook related tests easier and isolated. 
+and running Rook related tests easier and isolated.
 
 ## Requirements
 
@@ -12,14 +12,14 @@ and running Rook related tests easier and isolated.
 
 ## Installation
 
-Execute the following command to start the environment.     
+Execute the following command to start the environment.
 
     docker run \
         --net=host \
         -d \
         --privileged \
         --security-opt=seccomp:unconfined \
-        quay.io/rook/rook-test \
+        rook/rook-test \
         /sbin/init
 
 ## Usage

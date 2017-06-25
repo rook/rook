@@ -78,7 +78,7 @@ The following tables lists the configurable parameters of the rook-operator char
 
 | Parameter          | Description                          | Default              |
 |--------------------|--------------------------------------|----------------------|
-| `image.repository` | Image                                | `quay.io/rook/rook`  |
+| `image.repository` | Image                                | `rook/rook`          |
 | `image.tag`        | Image tag                            | `master-latest`      |
 | `image.pullPolicy` | Image pull policy                    | `IfNotPresent`       |
 | `rbacEnable`       | If true, create & use RBAC resources | `true`               |

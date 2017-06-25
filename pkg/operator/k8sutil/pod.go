@@ -34,7 +34,7 @@ const (
 	ClusterAttr        = "rook_cluster"
 	VersionAttr        = "rook_version"
 	PodIPEnvVar        = "ROOKD_PRIVATE_IPV4"
-	DefaultRepoPrefix  = "quay.io/rook"
+	DefaultRepoPrefix  = "rook"
 	repoPrefixEnvVar   = "ROOKD_REPO_PREFIX"
 	defaultVersion     = "latest"
 	ConfigOverrideName = "rook-config-override"

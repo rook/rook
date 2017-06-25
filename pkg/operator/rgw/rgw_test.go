@@ -93,7 +93,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	cont := d.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, "quay.io/rook/rook:myversion", cont.Image)
+	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 6, len(cont.Env))
 

@@ -96,7 +96,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	assert.Equal(t, 0, len(replicaSet.Spec.Template.ObjectMeta.Annotations))
 
 	cont := replicaSet.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, "quay.io/rook/rook:myversion", cont.Image)
+	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 3, len(cont.VolumeMounts))
 
 	expectedCommand := "/usr/local/bin/rook osd"

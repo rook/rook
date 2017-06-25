@@ -24,7 +24,7 @@ import (
 )
 
 func TestMakeRookImage(t *testing.T) {
-	assert.Equal(t, "quay.io/rook/rook:v1", MakeRookImage("v1"))
+	assert.Equal(t, "rook/rook:v1", MakeRookImage("v1"))
 }
 
 func TestMakeRookImageWithEnv(t *testing.T) {
@@ -34,5 +34,5 @@ func TestMakeRookImageWithEnv(t *testing.T) {
 }
 
 func TestDefaultVersion(t *testing.T) {
-	assert.Equal(t, fmt.Sprintf("quay.io/rook/rook:%s", defaultVersion), MakeRookImage(""))
+	assert.Equal(t, fmt.Sprintf("rook/rook:%s", defaultVersion), MakeRookImage(""))
 }
