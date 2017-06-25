@@ -15,13 +15,14 @@ The latest upstream contains the following changes since v0.4:
 
 ### Tools
 - The client binary `rook` was renamed to `rookctl`
+- The damemon binary was renamed from `rookd` to `rook`
 - The `rook-client` container is no longer built. Run the [toolbox container](https://github.com/rook/rook/blob/master/Documentation/toolbox.md) for access to the `rookctl` tool.
 - `amd64`, `arm`, and `arm64` supported by the toolbox in addition to the daemons
 
-### rookd Container 
+### rook Container
 - Based on Ubuntu instead of Alpine Linux
 - Ceph tools are included
-- No more embedded ceph (or any cgo) in the `rookd` binary
+- No more embedded ceph (or any cgo) in the `rook` binary
 - Rook daemons shell out to the Ceph tools for all configuration
 
 ### Build

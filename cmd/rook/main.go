@@ -42,8 +42,8 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "rookd",
-	Short: "rookd tool for bootstrapping and running rook storage",
+	Use:   "rook",
+	Short: "rook tool for bootstrapping and running rook storage",
 	Long: `
 Tool for bootstrapping and running the rook storage daemon.
 https://github.com/rook/rook`,
@@ -52,7 +52,7 @@ var cfg = &config{}
 var clusterInfo mon.ClusterInfo
 
 var logLevelRaw string
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rookd")
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rook")
 
 type config struct {
 	nodeID             string
@@ -75,7 +75,7 @@ func main() {
 	addCommands()
 
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Printf("rookd error: %+v\n", err)
+		fmt.Printf("rook error: %+v\n", err)
 	}
 }
 

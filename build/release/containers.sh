@@ -46,7 +46,7 @@ build() {
 
     [[ ${os} == "linux" ]] || return 0
 
-    build_image $os $arch rookd
+    build_image $os $arch rook
     build_image $os $arch toolbox
 }
 
@@ -75,7 +75,7 @@ publish() {
 
     [[ ${os} == "linux" ]] || return 0
 
-    publish_image $os $arch rookd
+    publish_image $os $arch rook
     publish_image $os $arch toolbox
 }
 
@@ -102,7 +102,7 @@ promote() {
 
     [[ ${os} == "linux" ]] || return 0
 
-    promote_image $os $arch rookd
+    promote_image $os $arch rook
     promote_image $os $arch toolbox
 
 }
@@ -132,7 +132,7 @@ cleanup() {
 
     [[ ${os} == "linux" ]] || return 0
 
-    cleanup_image $os $arch rookd
+    cleanup_image $os $arch rook
     cleanup_image $os $arch toolbox
 }
 

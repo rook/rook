@@ -108,7 +108,7 @@ func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
 
 func (c *Cluster) mgrContainer(name string) v1.Container {
 
-	command := fmt.Sprintf("/usr/local/bin/rookd mgr --config-dir=%s", k8sutil.DataDir)
+	command := fmt.Sprintf("/usr/local/bin/rook mgr --config-dir=%s", k8sutil.DataDir)
 	return v1.Container{
 		// FIX: sleep 5 for a flaky network setup
 		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},

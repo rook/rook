@@ -35,7 +35,7 @@ Jenkins would build the tagged release and publish its artifacts like any other 
 
 Each build from master has the following release artifacts:
 - binaries (rookctl) including debug symbols
-- containers (rookd, toolbox)
+- containers (rook, toolbox)
 
 Binaries go to an S3 bucket `rook-release` and have the following layout:
 
@@ -60,7 +60,7 @@ Binaries go to an S3 bucket `rook-release` and have the following layout:
 Containers go to quay.io where we have the following repos:
 
 ```
-rook/rookd
+rook/rook
 rook/toolbox
 ```
 

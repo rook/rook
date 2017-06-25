@@ -78,7 +78,7 @@ PLATFORMS ?= $(SERVER_PLATFORMS) $(CLIENT_PLATFORMS)
 CLIENT_PACKAGES = $(GO_PROJECT)/cmd/rookctl
 
 # server projects that we build on server platforms
-SERVER_PACKAGES = $(GO_PROJECT)/cmd/rookd
+SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook
 
 # the root go project
 GO_PROJECT=github.com/rook/rook

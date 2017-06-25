@@ -9,7 +9,7 @@ import (
 
 var Cmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print the version number of rookd",
+	Short: "Print the version number of rook",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Printf("rook: %v\n", version.Version)
 		return nil

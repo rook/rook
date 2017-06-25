@@ -4,7 +4,7 @@ coreos:
   update:
     reboot-strategy: off
   units:
-  - name: rookd.service
+  - name: rook.service
     enable: true
     command: start
     drop-ins:

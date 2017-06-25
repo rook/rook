@@ -11,7 +11,7 @@ Rook can be deployed as a standalone service directly on any modern Linux host b
 
 1. Start a one-node Rook cluster
    ```bash
-   docker run -it --net=host quay.io/rook/rookd:master-latest
+   docker run -it --net=host quay.io/rook/rook:master-latest
    ```
 
 2. Download the latest `rookctl` binary
@@ -30,7 +30,7 @@ At this point, you can use the `rookctl` tool along with some [simple steps to c
 
 ## Vagrant
 
-Rook is also easy to run in virutal machines with `vagrant` using the standalone [Vagrantfile](/demo/standalone/Vagrantfile).  When instructed, `vagrant` will start up CoreOS virtual machines and launch `rookd` via `rkt`.  Note that you can make configuration changes as desired in the provided [cloud config file](/demo/standalone/cloud-config.yml.in).
+Rook is also easy to run in virutal machines with `vagrant` using the standalone [Vagrantfile](/demo/standalone/Vagrantfile).  When instructed, `vagrant` will start up CoreOS virtual machines and launch `rook` via `rkt`.  Note that you can make configuration changes as desired in the provided [cloud config file](/demo/standalone/cloud-config.yml.in).
 
 ```
 cd demo/standalone
@@ -67,10 +67,10 @@ engine based on Etcd that is activated when not running in Kubernetes.
 
 ![Standalone Rook Architecture](media/standalone.png)
 
-The Rook daemon `rookd` is a Docker container that has all that is needed to bootstrap, scale
+The Rook daemon `rook` is a Docker container that has all that is needed to bootstrap, scale
 and manage a storage cluster. Each machine in the cluster must run the Rook daemon.
 
-`rookd` embeds Etcd to store configuration and coordinate cluster-wide management operations. `rookd` will automatically
+`rook` embeds Etcd to store configuration and coordinate cluster-wide management operations. `rook` will automatically
 bootstrap Etcd, manage it, and scale it as the cluster grows. It's also possible to use an external Etcd instead of the embedded one
 if needed.
 

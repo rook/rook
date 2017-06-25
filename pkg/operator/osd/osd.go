@@ -242,7 +242,7 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 	// set the hostname to the host's name from the downstream api.
 	// the crush map doesn't like hostnames with periods, so we replace them with underscores.
 	hostnameUpdate := `echo $(HOSTNAME) | sed "s/\./_/g" > /etc/hostname; hostname -F /etc/hostname`
-	command := "/usr/local/bin/rookd osd"
+	command := "/usr/local/bin/rook osd"
 
 	privileged := true
 	return v1.Container{

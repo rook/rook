@@ -305,10 +305,10 @@ osd crush update on start = false
 osd pool default size     = 2
 ```
 
-With our ceph.conf file created we pass the settings to `rookd` with the
+With our ceph.conf file created we pass the settings to `rook` with the
 `--ceph-config-override` argument, for example:
 ```bash
-rookd --ceph-config-override=ceph.conf --data-devices=sdf
+rook --ceph-config-override=ceph.conf --data-devices=sdf
 ```
 
 ### Kubernetes

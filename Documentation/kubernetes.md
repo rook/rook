@@ -97,8 +97,8 @@ The operator will monitor the storage daemons to ensure the cluster is healthy. 
 other adjustments are made as the cluster grows or shrinks.  The operator will also watch for desired state changes
 requested by the api service and apply the changes.
 
-The Rook daemons (Mons, OSDs, MGR, RGW, and MDS) are compiled to a single binary `rookd`, and included in a minimal container.
-The `rookd` container includes Ceph daemons and tools to manage and store all data -- there are no changes to the data path. 
+The Rook daemons (Mons, OSDs, MGR, RGW, and MDS) are compiled to a single binary `rook`, and included in a minimal container.
+The `rook` container includes Ceph daemons and tools to manage and store all data -- there are no changes to the data path.
 Rook does not attempt to maintain full fidelity with Ceph. Many of the Ceph concepts like placement groups and crush maps 
 are hidden so you don't have to worry about them. Instead Rook creates a much simplified UX for admins that is in terms 
 of physical resources, pools, volumes, filesystems, and buckets.

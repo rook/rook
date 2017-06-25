@@ -4,7 +4,7 @@
 
 image:
   prefix: quay.io/rook
-  repository: quay.io/rook/rookd
+  repository: quay.io/rook/rook
   tag: master-latest
   pullPolicy: IfNotPresent
 

@@ -16,7 +16,7 @@ FROM BASEIMAGE
 
 ARG EXTRALIBS
 
-# install runtime dependencies for ceph and rookd
+# install runtime dependencies for ceph and rook
 RUN BOOST_VERSION=1.62.0 && \
     DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yy -q --no-install-recommends \

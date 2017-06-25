@@ -24,15 +24,15 @@ import (
 )
 
 func TestMakeRookImage(t *testing.T) {
-	assert.Equal(t, "quay.io/rook/rookd:v1", MakeRookImage("v1"))
+	assert.Equal(t, "quay.io/rook/rook:v1", MakeRookImage("v1"))
 }
 
 func TestMakeRookImageWithEnv(t *testing.T) {
 	os.Setenv(repoPrefixEnvVar, "myrepo.io/rook")
-	assert.Equal(t, "myrepo.io/rook/rookd:v1", MakeRookImage("v1"))
+	assert.Equal(t, "myrepo.io/rook/rook:v1", MakeRookImage("v1"))
 	os.Setenv(repoPrefixEnvVar, "")
 }
 
 func TestDefaultVersion(t *testing.T) {
-	assert.Equal(t, fmt.Sprintf("quay.io/rook/rookd:%s", defaultVersion), MakeRookImage(""))
+	assert.Equal(t, fmt.Sprintf("quay.io/rook/rook:%s", defaultVersion), MakeRookImage(""))
 }

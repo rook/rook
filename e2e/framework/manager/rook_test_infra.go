@@ -46,9 +46,9 @@ const (
 	k8sFalsePostiveSuccessErrorMsg = "exit status 1" //When kubectl drain is executed, exit status 1 is always returned in stdout
 	rookDindK8sClusterScriptv1_5   = "rook-dind-cluster-v1.5.sh"
 	rookDindK8sClusterScriptv1_6   = "rook-dind-cluster-v1.6.sh"
-	rookOperatorImagePodSpecTag    = "quay.io/rook/rookd:master-latest"
+	rookOperatorImagePodSpecTag    = "quay.io/rook/rook:master-latest"
 	rookToolsImagePodSpecTag       = "quay.io/rook/toolbox:master-latest"
-	rookOperatorPrefix             = "quay.io/rook/rookd"
+	rookOperatorPrefix             = "quay.io/rook/rook"
 	rookToolboxPrefix              = "quay.io/rook/toolbox"
 	rookOperatorCreatedTpr         = "cluster.rook.io"
 	masterContinerName             = "kube-master"

@@ -26,9 +26,9 @@ import (
 
 var versionCmd = &cobra.Command{
 	Use:   "version",
-	Short: "Print the version number of rookd",
+	Short: "Print the version number of rook",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		fmt.Printf("rookd: %s\n", version.Version)
+		fmt.Printf(" rook: %s\n", version.Version)
 		fmt.Printf(" etcd: %s\n", etcdversion.Version)
 		fmt.Printf("cephd: %v\n", cephVersion())
 		return nil

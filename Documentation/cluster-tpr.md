@@ -10,7 +10,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
 - `namespace`: The Kubernetes namespace that will be created for the Rook cluster. The services, pods, and other resources created by the operator will be added to this namespace. The common scenario is to create a single Rook cluster. If multiple clusters are created, they must not have conflicting devices or host paths.
 
 ### Cluster settings
-- `versionTag`: The version (tag) of the `quay.io/rook/rookd` container that will be deployed. Upgrades are not yet supported if this setting is updated for an existing cluster, but upgrades will be coming.
+- `versionTag`: The version (tag) of the `quay.io/rook/rook` container that will be deployed. Upgrades are not yet supported if this setting is updated for an existing cluster, but upgrades will be coming.
 - `dataDirHostPath`: The host path where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.  Therefore, for test scenarios, the path must be deleted if you are going to delete a cluster and start a new cluster on the same hosts.  More details can be found in the Kubernetes [host path docs](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath).  
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 - `placement`: [placement configuration settings](#placement-configuration-settings)

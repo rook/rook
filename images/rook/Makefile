@@ -17,8 +17,8 @@ include ../image.mk
 # ====================================================================================
 # Image Build Options
 
-ROOKD_IMAGE = $(BUILD_REGISTRY)/rookd-$(GOARCH)
-ROOKD_BASE_IMAGE = $(BUILD_REGISTRY)/rookd-base-$(GOARCH)
+ROOKD_IMAGE = $(BUILD_REGISTRY)/rook-$(GOARCH)
+ROOKD_BASE_IMAGE = $(BUILD_REGISTRY)/rook-base-$(GOARCH)
 IMAGES = $(ROOKD_IMAGE) $(ROOKD_BASE_IMAGE)
 CACHE_IMAGES = $(ROOKD_BASE_IMAGE)
 
@@ -52,21 +52,21 @@ $(CEPH_TARBALL):
 # ====================================================================================
 # Build Rook
 
-rookd-base-image: $(CEPH_TARBALL)
+rook-base-image: $(CEPH_TARBALL)
 	@echo === docker build $(ROOKD_BASE_IMAGE)
 	@cp Dockerfile.base $(TEMP)/Dockerfile
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
 	@docker build $(BUILD_ARGS) --build-arg EXTRALIBS=$(EXTRA_LIBS) -t $(ROOKD_BASE_IMAGE) $(TEMP)
 
 # since this is a leaf image we avoid leaving around a lot of dangling images
-# by removing the last build of the final rookd image
+# by removing the last build of the final rook image
 OLD_IMAGE_ID := $(shell docker images -q $(ROOKD_IMAGE))
 CURRENT_IMAGE_ID := $$(docker images -q $(ROOKD_IMAGE))
 
-do.build: rookd-base-image
+do.build: rook-base-image
 	@echo === docker build $(ROOKD_IMAGE)
 	@cp Dockerfile $(TEMP)
-	@cp ../../bin/linux_$(GOARCH)/rookd $(TEMP)
+	@cp ../../bin/linux_$(GOARCH)/rook $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(ROOKD_BASE_IMAGE)|g' Dockerfile
 	@docker build $(BUILD_ARGS) -t $(ROOKD_IMAGE) $(TEMP)
 	@[ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] && [ -n "$(OLD_IMAGE_ID)" ] && docker rmi $(OLD_IMAGE_ID) || true

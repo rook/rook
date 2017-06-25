@@ -86,7 +86,7 @@ func getVersion(version string) string {
 }
 
 func MakeRookImage(version string) string {
-	return fmt.Sprintf("%s/rookd:%v", repoPrefix(), getVersion(version))
+	return fmt.Sprintf("%s/rook:%v", repoPrefix(), getVersion(version))
 }
 
 func PodWithAntiAffinity(pod *v1.Pod, attribute, value string) {

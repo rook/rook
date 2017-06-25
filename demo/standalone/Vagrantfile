@@ -35,10 +35,10 @@ if ENV["START_LOCAL_ROOKD"] == "1"
 end
 
 if private_build
-  aci_location = "/release/quay.io-rook-rookd-dev.aci"
+  aci_location = "/release/quay.io-rook-rook-dev.aci"
   aci_options = "--insecure-options=image"
 else
-  aci_location = "quay.io/rook/rookd:master-latest"
+  aci_location = "quay.io/rook/rook:master-latest"
   aci_options = ""
 end
 

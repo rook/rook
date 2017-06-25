@@ -36,13 +36,13 @@ cross.%: base.$(GOHOSTARCH)
 cross-gnu.%: base.%
 	@$(MAKE) -C cross-gnu GOARCH=$*
 
-rookd.%: ceph.% base.%
-	@$(MAKE) -C rookd GOARCH=$*
+rook.%: ceph.% base.%
+	@$(MAKE) -C rook GOARCH=$*
 
-toolbox.%: rookd.%
+toolbox.%: rook.%
 	@$(MAKE) -C toolbox GOARCH=$*
 
-do.build.images.%: rookd.% toolbox.% ;
+do.build.images.%: rook.% toolbox.% ;
 do.build: do.build.images.$(GOARCH) ;
 build.all: $(foreach p,$(PLATFORMS), do.build.images.$(p)) ;
 
