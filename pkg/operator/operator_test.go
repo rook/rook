@@ -36,8 +36,8 @@ func TestCreateCluster(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// create the tpr
-	scheme := k8sutil.TPRScheme{Name: "test", Version: "alpha", Description: "test description"}
-	err = k8sutil.CreateTPR(o.context, scheme)
+	scheme := k8sutil.CustomResource{Name: "test", Version: "alpha", Description: "test description"}
+	err = k8sutil.CreateCustomResource(o.context, scheme)
 	assert.Nil(t, err)
 	tpr, err := clientset.ExtensionsV1beta1().ThirdPartyResources().List(v1.ListOptions{})
 	assert.Nil(t, err)

@@ -19,7 +19,6 @@ which also has the apache 2.0 license.
 package operator
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
@@ -27,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	"k8s.io/apimachinery/pkg/util/wait"
 )
 
@@ -46,17 +46,23 @@ const (
 	termLimit                 = controller.DefaultTermLimit
 )
 
-var (
-	ErrVersionOutdated = errors.New("requested version is outdated in apiserver")
-)
-
 type Operator struct {
-	context    *clusterd.Context
-	tprSchemes []k8sutil.TPRScheme
-	// The TPR that is global to the kubernetes cluster.
-	// The cluster TPR is global because you create multiple clusers in k8s
+	context   *clusterd.Context
+	resources []kit.CustomResource
+	// The custom resource that is global to the kubernetes cluster.
+	// The cluster is global because you create multiple clusers in k8s
 	clusterMgr        *clusterManager
 	volumeProvisioner controller.Provisioner
+}
+
+type inclusterInitiator interface {
+	Create(clusterMgr *clusterManager, namespace string) (resourceManager, error)
+	Resource() kit.CustomResource
+}
+
+type resourceManager interface {
+	Load() (string, error)
+	Manage()
 }
 
 func New(context *clusterd.Context) *Operator {
@@ -65,11 +71,11 @@ func New(context *clusterd.Context) *Operator {
 	clusterMgr := newClusterManager(context, []inclusterInitiator{poolInitiator})
 	volumeProvisioner := newRookVolumeProvisioner(clusterMgr)
 
-	schemes := []k8sutil.TPRScheme{cluster.ClusterScheme, cluster.PoolScheme}
+	schemes := []kit.CustomResource{cluster.ClusterResource, cluster.PoolResource}
 	return &Operator{
 		context:           context,
 		clusterMgr:        clusterMgr,
-		tprSchemes:        schemes,
+		resources:         schemes,
 		volumeProvisioner: volumeProvisioner,
 	}
 }
@@ -112,13 +118,13 @@ func (o *Operator) Run() error {
 }
 
 func (o *Operator) initResources() error {
-	httpCli, err := k8sutil.NewHttpClient()
+	httpCli, err := k8sutil.NewHTTPClient()
 	if err != nil {
 		return fmt.Errorf("failed to get tpr client. %+v", err)
 	}
 	o.context.KubeHttpCli = httpCli.Client
 
-	err = k8sutil.CreateTPRs(o.context, o.tprSchemes)
+	err = kit.CreateCustomResources(o.context.KubeContext, o.resources)
 	if err != nil {
 		return fmt.Errorf("failed to create TPR. %+v", err)
 	}

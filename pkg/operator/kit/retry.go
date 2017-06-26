@@ -1,4 +1,6 @@
 /*
+Package kit for Kubernetes operators
+
 Copyright 2016 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,33 +18,17 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
-package k8sutil
+package kit
 
 import (
 	"fmt"
 	"time"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/rest"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
-
-const (
-	Namespace           = "rook"
-	CustomResourceGroup = "rook.io"
-	DefaultNamespace    = "default"
-	DataDirVolume       = "rook-data"
-	DataDir             = "/var/lib/rook"
-	RookType            = "kubernetes.io/rook"
-	RbdType             = "kubernetes.io/rbd"
-)
-
+// ConditionFunc returns true if a retry condition has been satisfied.
+// If the condition returns false, the retry will try again.
 type ConditionFunc func() (bool, error)
 
 // Retry retries f every interval until after maxRetries.
@@ -66,25 +52,5 @@ func Retry(context clusterd.KubeContext, f ConditionFunc) error {
 			<-tick.C
 		}
 	}
-	return fmt.Errorf("failed after max retries %d.", context.MaxRetries)
-}
-
-func NewHTTPClient() (*rest.RESTClient, error) {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	config.GroupVersion = &schema.GroupVersion{
-		Group: CustomResourceGroup,
-	}
-	config.APIPath = "/apis"
-	config.ContentType = runtime.ContentTypeJSON
-	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: api.Codecs}
-
-	restcli, err := rest.RESTClientFor(config)
-	if err != nil {
-		return nil, err
-	}
-	return restcli, nil
+	return fmt.Errorf("failed after max retries %d", context.MaxRetries)
 }

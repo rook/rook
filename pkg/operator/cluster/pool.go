@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	rookclient "github.com/rook/rook/pkg/rook/client"
 	"k8s.io/client-go/pkg/api/v1"
 
@@ -33,9 +34,10 @@ const (
 	erasureCodeType = "erasure-coded"
 )
 
-var PoolScheme = k8sutil.TPRScheme{
+var PoolResource = kit.CustomResource{
 	Name:        "pool",
-	Version:     k8sutil.V1Alpha1,
+	Group:       k8sutil.CustomResourceGroup,
+	Version:     kit.V1Alpha1,
 	Description: "Managed Rook pools",
 }
 

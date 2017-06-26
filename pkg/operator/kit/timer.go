@@ -1,4 +1,6 @@
 /*
+Package kit for Kubernetes operators
+
 Copyright 2016 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,34 +18,27 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
-package k8sutil
+package kit
 
 import "time"
 
 // panicTimer panics when it reaches the given duration.
-type PanicTimer struct {
-	d   time.Duration
-	msg string
-	t   *time.Timer
+type panicTimer struct {
+	duration time.Duration
+	message  string
+	timer    *time.Timer
 }
 
-func NewPanicTimer(d time.Duration, msg string) *PanicTimer {
-	return &PanicTimer{
-		d:   d,
-		msg: msg,
-	}
-}
-
-func (pt *PanicTimer) Start() {
-	pt.t = time.AfterFunc(pt.d, func() {
-		panic(pt.msg)
+func (t *panicTimer) Start() {
+	t.timer = time.AfterFunc(t.duration, func() {
+		panic(t.message)
 	})
 }
 
 // stop stops the timer and resets the elapsed duration.
-func (pt *PanicTimer) Stop() {
-	if pt.t != nil {
-		pt.t.Stop()
-		pt.t = nil
+func (t *panicTimer) Stop() {
+	if t.timer != nil {
+		t.timer.Stop()
+		t.timer = nil
 	}
 }
