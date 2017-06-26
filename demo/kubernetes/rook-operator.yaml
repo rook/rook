@@ -23,6 +23,12 @@ rules:
   - create
   - update
 - apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - patch
+- apiGroups:
   - extensions
   resources:
   - thirdpartyresources
