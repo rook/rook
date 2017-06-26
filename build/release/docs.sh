@@ -10,7 +10,7 @@ RELEASE_VERSION=${RELEASE_VERSION}
 # TODO determine docs dir based on version/channel
 VERSION=${VERSION:-latest}
 
-DOCS_REPO_DIR="./.tmp/rook.github.io"
+DOCS_REPO_DIR="./.work/rook.github.io"
 
 rm -rf $DOCS_REPO_DIR
 mkdir -p $DOCS_REPO_DIR
