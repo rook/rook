@@ -34,6 +34,9 @@ echo $CMD
 eval $CMD
 
 pushd $DOCS_REPO_DIR >/dev/null
+  npm install
+  node ./prepare.js
+  echo "preparing version data for jekyll"
   git add .
   git commit -m "docs snapshot for channel $VERSION"
   git push -u origin master
