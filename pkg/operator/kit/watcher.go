@@ -28,8 +28,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/rook/rook/pkg/clusterd"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kwatch "k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/pkg/api/v1"
@@ -42,10 +40,9 @@ var (
 
 // ResourceWatcher watches a custom resource for desired state
 type ResourceWatcher struct {
-	context         clusterd.KubeContext
+	context         KubeContext
 	resource        CustomResource
 	namespace       string
-	group           string
 	watchVersion    string
 	callback        func(event *RawEvent) error
 	checkStaleCache func() (string, error)
@@ -58,7 +55,7 @@ type RawEvent struct {
 }
 
 // NewWatcher creates an instance of a custom resource watcher for the given resource
-func NewWatcher(context clusterd.KubeContext, resource CustomResource, namespace, watchVersion string,
+func NewWatcher(context KubeContext, resource CustomResource, namespace, watchVersion string,
 	callback func(event *RawEvent) error,
 	checkStaleCache func() (string, error)) *ResourceWatcher {
 
@@ -195,6 +192,7 @@ func (w *ResourceWatcher) handlePollEventResult(status *metav1.Status, errIn err
 			if err == nil && resourceVersion != "" {
 				// we were able to recover from the cache, so we update the watch version to the latest
 				// resource version from the cache
+				logger.Infof("continuing watch based on resource version %s", resourceVersion)
 				w.watchVersion = resourceVersion
 				done = true
 				return
@@ -202,6 +200,7 @@ func (w *ResourceWatcher) handlePollEventResult(status *metav1.Status, errIn err
 
 			// if anything has changed (or error on relist), we have to rebuild the state.
 			// go to recovery path
+			logger.Infof("watch is outdated, must start a watch based on a new resource version")
 			err = ErrVersionOutdated
 			errCh <- ErrVersionOutdated
 			return

@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/kit"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -42,7 +43,7 @@ func TestStartMGR(t *testing.T) {
 	context := &clusterd.Context{
 		Executor:    executor,
 		ConfigDir:   configDir,
-		KubeContext: clusterd.KubeContext{Clientset: testop.New(3)}}
+		KubeContext: kit.KubeContext{Clientset: testop.New(3)}}
 	c := New(context, "ns", "myversion")
 	defer os.RemoveAll(c.dataDir)
 

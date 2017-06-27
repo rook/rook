@@ -20,6 +20,7 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,7 +28,7 @@ import (
 
 func TestCreateCluster(t *testing.T) {
 	clientset := test.New(3)
-	context := &clusterd.Context{KubeContext: clusterd.KubeContext{MasterHost: "foo", Clientset: clientset}}
+	context := &clusterd.Context{KubeContext: kit.KubeContext{MasterHost: "foo", Clientset: clientset}}
 	o := New(context)
 	o.context.RetryDelay = 1
 
@@ -36,8 +37,8 @@ func TestCreateCluster(t *testing.T) {
 	assert.NotNil(t, err)
 
 	// create the tpr
-	scheme := k8sutil.CustomResource{Name: "test", Version: "alpha", Description: "test description"}
-	err = k8sutil.CreateCustomResource(o.context, scheme)
+	scheme := kit.CustomResource{Name: "test", Version: "alpha", Group: k8sutil.CustomResourceGroup, Description: "test description"}
+	err = kit.CreateCustomResource(o.context.KubeContext, scheme)
 	assert.Nil(t, err)
 	tpr, err := clientset.ExtensionsV1beta1().ThirdPartyResources().List(v1.ListOptions{})
 	assert.Nil(t, err)

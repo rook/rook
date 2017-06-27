@@ -141,7 +141,7 @@ func (m *clusterManager) startCluster(c *cluster.Cluster) {
 		logger.Infof("starting cluster %s in namespace %s", c.Name, c.Namespace)
 
 		// Start the Rook cluster components. Retry several times in case of failure.
-		err := k8sutil.Retry(m.context.KubeContext, func() (bool, error) {
+		err := kit.Retry(m.context.KubeContext, func() (bool, error) {
 			err := c.CreateInstance()
 			if err != nil {
 				logger.Errorf("failed to create cluster %s in namespace %s. %+v", c.Name, c.Namespace, err)
@@ -156,7 +156,7 @@ func (m *clusterManager) startCluster(c *cluster.Cluster) {
 
 		// Start all the TPRs for this cluster
 		for _, initiator := range m.inclusterInitiators {
-			k8sutil.Retry(m.context.KubeContext, func() (bool, error) {
+			kit.Retry(m.context.KubeContext, func() (bool, error) {
 				tprMgr, err := initiator.Create(m, c.Namespace)
 				if err != nil {
 					logger.Warningf("cannot create in-cluster tpr %s. %+v. retrying...", initiator.Resource().Name, err)

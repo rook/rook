@@ -118,11 +118,11 @@ func (o *Operator) Run() error {
 }
 
 func (o *Operator) initResources() error {
-	httpCli, err := k8sutil.NewHTTPClient()
+	httpCli, err := kit.NewHTTPClient(k8sutil.CustomResourceGroup)
 	if err != nil {
 		return fmt.Errorf("failed to get tpr client. %+v", err)
 	}
-	o.context.KubeHttpCli = httpCli.Client
+	o.context.KubeHTTPCli = httpCli.Client
 
 	err = kit.CreateCustomResources(o.context.KubeContext, o.resources)
 	if err != nil {

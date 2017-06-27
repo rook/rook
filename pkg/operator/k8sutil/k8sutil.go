@@ -18,18 +18,7 @@ which also has the apache 2.0 license.
 */
 package k8sutil
 
-import (
-	"fmt"
-	"time"
-
-	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/pkg/clusterd"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/rest"
-)
+import "github.com/coreos/pkg/capnslog"
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
 
@@ -42,49 +31,3 @@ const (
 	RookType            = "kubernetes.io/rook"
 	RbdType             = "kubernetes.io/rbd"
 )
-
-type ConditionFunc func() (bool, error)
-
-// Retry retries f every interval until after maxRetries.
-// The interval won't be affected by how long f takes.
-// For example, if interval is 3s, f takes 1s, another f will be called 2s later.
-// However, if f takes longer than interval, it will be delayed.
-func Retry(context clusterd.KubeContext, f ConditionFunc) error {
-	interval := time.Duration(context.RetryDelay) * time.Second
-	tick := time.NewTicker(interval)
-	defer tick.Stop()
-
-	for i := 0; i < context.MaxRetries; i++ {
-		ok, err := f()
-		if err != nil {
-			return fmt.Errorf("failed on retry %d. %+v", i, err)
-		}
-		if ok {
-			return nil
-		}
-		if i < context.MaxRetries-1 {
-			<-tick.C
-		}
-	}
-	return fmt.Errorf("failed after max retries %d.", context.MaxRetries)
-}
-
-func NewHTTPClient() (*rest.RESTClient, error) {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	config.GroupVersion = &schema.GroupVersion{
-		Group: CustomResourceGroup,
-	}
-	config.APIPath = "/apis"
-	config.ContentType = runtime.ContentTypeJSON
-	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: api.Codecs}
-
-	restcli, err := rest.RESTClientFor(config)
-	if err != nil {
-		return nil, err
-	}
-	return restcli, nil
-}

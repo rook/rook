@@ -24,8 +24,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/rook/rook/pkg/clusterd"
-
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -43,6 +41,25 @@ const (
 	V1 = "v1"
 )
 
+// KubeContext provides the context for connecting to Kubernetes APIs
+type KubeContext struct {
+	// Clientset is a connection to the core kubernetes API
+	Clientset kubernetes.Interface
+
+	// RetryDelay is the number of seconds to delay between retrying of kubernetes API calls.
+	// Only used by the Retry function.
+	RetryDelay int
+
+	// MaxRetries is the number of times that an operation will be attempted by the Retry function.
+	MaxRetries int
+
+	// The host where the Kubernetes master is found.
+	MasterHost string
+
+	// An http connection to the Kubernetes API
+	KubeHTTPCli *http.Client
+}
+
 // CustomResource is for creating a Kubernetes TPR/CRD
 type CustomResource struct {
 	// Name of the custom resource
@@ -59,7 +76,7 @@ type CustomResource struct {
 }
 
 // CreateCustomResources creates the given custom resources and waits for them to initialize
-func CreateCustomResources(context clusterd.KubeContext, resources []CustomResource) error {
+func CreateCustomResources(context KubeContext, resources []CustomResource) error {
 	for _, resource := range resources {
 		if err := CreateCustomResource(context, resource); err != nil {
 			return fmt.Errorf("failed to init resource %s. %+v", resource.Name, err)
@@ -76,7 +93,7 @@ func CreateCustomResources(context clusterd.KubeContext, resources []CustomResou
 }
 
 // CreateCustomResource creates a single custom resource, but does not wait for it to initialize
-func CreateCustomResource(context clusterd.KubeContext, resource CustomResource) error {
+func CreateCustomResource(context KubeContext, resource CustomResource) error {
 	logger.Infof("creating %s resource", resource.Name)
 	r := &v1beta1.ThirdPartyResource{
 		ObjectMeta: metav1.ObjectMeta{
@@ -97,7 +114,7 @@ func CreateCustomResource(context clusterd.KubeContext, resource CustomResource)
 	return nil
 }
 
-func waitForCustomResourceInit(context clusterd.KubeContext, scheme CustomResource) error {
+func waitForCustomResourceInit(context KubeContext, resource CustomResource) error {
 	restcli := context.Clientset.CoreV1().RESTClient()
 	uri := resourceURI(resource, "")
 	return Retry(context, func() (bool, error) {
@@ -113,10 +130,10 @@ func waitForCustomResourceInit(context clusterd.KubeContext, scheme CustomResour
 	})
 }
 
-func watchResource(context clusterd.KubeContext, scheme CustomResource, namespace, resourceVersion string) (*http.Response, error) {
-	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.MasterHost, resourceURI(scheme, namespace), resourceVersion)
+func watchResource(context KubeContext, resource CustomResource, namespace, resourceVersion string) (*http.Response, error) {
+	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.MasterHost, resourceURI(resource, namespace), resourceVersion)
 	logger.Debugf("watching resource: %s", uri)
-	return context.KubeHttpCli.Get(uri)
+	return context.KubeHTTPCli.Get(uri)
 }
 
 func resourceURI(resource CustomResource, namespace string) string {

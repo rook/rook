@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	testop "github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
@@ -33,7 +34,7 @@ import (
 
 func TestStartAPI(t *testing.T) {
 	clientset := testop.New(3)
-	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "ns", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "myversion", k8sutil.Placement{})
 
 	// start a basic cluster
 	err := c.Start()
@@ -61,7 +62,7 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestPodSpecs(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "ns", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "myversion", k8sutil.Placement{})
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)
@@ -90,7 +91,7 @@ func TestPodSpecs(t *testing.T) {
 
 func TestClusterRole(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(&clusterd.Context{KubeContext: clusterd.KubeContext{Clientset: clientset}}, "ns", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "myversion", k8sutil.Placement{})
 
 	// the role is create
 	err := c.makeClusterRole()

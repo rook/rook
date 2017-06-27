@@ -23,8 +23,6 @@ package kit
 import (
 	"fmt"
 	"time"
-
-	"github.com/rook/rook/pkg/clusterd"
 )
 
 // ConditionFunc returns true if a retry condition has been satisfied.
@@ -35,7 +33,7 @@ type ConditionFunc func() (bool, error)
 // The interval won't be affected by how long f takes.
 // For example, if interval is 3s, f takes 1s, another f will be called 2s later.
 // However, if f takes longer than interval, it will be delayed.
-func Retry(context clusterd.KubeContext, f ConditionFunc) error {
+func Retry(context KubeContext, f ConditionFunc) error {
 	interval := time.Duration(context.RetryDelay) * time.Second
 	tick := time.NewTicker(interval)
 	defer tick.Stop()

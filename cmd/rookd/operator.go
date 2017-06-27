@@ -19,9 +19,9 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/kubernetes"
@@ -54,7 +54,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	logger.Infof("starting operator")
 	context := createContext()
 	context.ConfigDir = k8sutil.DataDir
-	context.KubeContext = clusterd.KubeContext{
+	context.KubeContext = kit.KubeContext{
 		MasterHost: host,
 		Clientset:  clientset,
 		RetryDelay: 6,
