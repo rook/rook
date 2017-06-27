@@ -8,8 +8,10 @@ import (
 	"github.com/rook/rook/e2e/framework/utils"
 	"github.com/rook/rook/pkg/model"
 	rclient "github.com/rook/rook/pkg/rook/client"
+	"net"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 type RestAPIClient struct {
@@ -38,8 +40,19 @@ func CreateRestAPIClient(platform enums.RookPlatformType) *RestAPIClient {
 	default:
 		panic(fmt.Errorf("platfrom type %s not yet supported", platform))
 	}
-
-	client := rclient.NewRookNetworkRestClient(endpoint, http.DefaultClient)
+	httpclient := &http.Client{
+		Transport: &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 0,
+			}).Dial,
+			DisableKeepAlives:     true,
+			DisableCompression:    true,
+			MaxIdleConnsPerHost:   1,
+			ResponseHeaderTimeout: 30 * time.Second,
+		},
+	}
+	client := rclient.NewRookNetworkRestClient(endpoint, httpclient)
 
 	return &RestAPIClient{client}
 }

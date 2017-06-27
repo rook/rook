@@ -23,18 +23,20 @@ func CreateNewMySqlHelper(username string, password string, url string, dbname s
 
 	return &MySqlHelper{DB: db}
 }
-
+func (h *MySqlHelper) CloseConnection() {
+	h.DB.Close()
+}
 func (h *MySqlHelper) PingSuccess() bool {
 	inc := 0
 
-	for inc < 10 {
+	for inc < 30 {
 		err := h.DB.Ping()
 
 		if err == nil {
 			return true
 		}
 		inc++
-		time.Sleep(1 * time.Second)
+		time.Sleep(3 * time.Second)
 	}
 
 	return false
