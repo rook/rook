@@ -125,7 +125,7 @@ func TestOverwriteRookOwnedPartitions(t *testing.T) {
 		switch outputExecCount {
 		case 0, 4: // we'll call this twice, once explicitly below to verify rook owns the partitions and a 2nd time within formatDevice
 			assert.Equal(t, command, "lsblk")
-			output = `NAME="sda" SIZE="65" TYPE="disk" PKNAME="" PARTLABEL=""
+			output = `NAME="sda" SIZE="65" TYPE="disk" PKNAME=""
 NAME="sda1" SIZE="30" TYPE="part" PKNAME="sda"
 NAME="sda2" SIZE="10" TYPE="part" PKNAME="sda"
 NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
@@ -234,6 +234,45 @@ func TestPartitionBluestoreMetadata(t *testing.T) {
 		fmt.Sprintf("/rook/services/ceph/osd/desired/node123/device/%s/osd-id-metadata", metadata.DiskUUID))
 	desiredIds := strings.Split(desiredIDsRaw, ",")
 	assert.True(t, util.CreateSet(desiredIds).Equals(util.CreateSet([]string{"1", "2"})))
+}
+
+func TestPartitionBluestoreMetadataSafe(t *testing.T) {
+	// set up a temporary config directory that will be cleaned up after test
+	configDir, err := ioutil.TempDir("", "TestPartitionBluestoreMetadataSafe")
+	if err != nil {
+		t.Fatalf("failed to create temp config dir: %+v", err)
+	}
+	defer os.RemoveAll(configDir)
+
+	nodeID := "node123"
+	etcdClient := util.NewMockEtcdClient()
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
+		if command == "df" {
+			// mock that the metadata device already has a filesytem, this should abort the partition effort
+			if strings.Index(name, "nvme01") != -1 {
+				return "/dev/nvme01 ext4", nil
+			}
+		}
+
+		return "", nil
+	}
+
+	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID}, Executor: executor, ConfigDir: configDir}
+
+	// create metadata partition information for 1 OSD (sda) storing its metadata on device nvme01
+	storeConfig := StoreConfig{StoreType: Bluestore, WalSizeMB: 1, DatabaseSizeMB: 2}
+	metadata := NewMetadataDeviceInfo("nvme01")
+	e1 := NewPerfSchemeEntry(Bluestore)
+	e1.ID = 1
+	e1.OsdUUID = uuid.Must(uuid.NewRandom())
+	PopulateDistributedPerfSchemeEntry(e1, "sda", metadata, storeConfig)
+
+	// attempt to perform the metadata device partition.  this should fail because we should detect
+	// that the metadata device has a filesystem already (not safe to format)
+	err = partitionMetadata(context, metadata, configDir)
+	assert.NotNil(t, err)
+	assert.True(t, strings.Contains(err.Error(), "already in use (not by rook)"))
 }
 
 func TestPartitionOSD(t *testing.T) {

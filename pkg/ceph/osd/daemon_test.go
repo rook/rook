@@ -94,7 +94,7 @@ func TestAvailableDevices(t *testing.T) {
 		if command == "lsblk" {
 			if strings.Index(name, "sdb") != -1 {
 				// /dev/sdb has a partition
-				return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME="" PARTLABEL=""
+				return `NAME="sdb" SIZE="65" TYPE="disk" PKNAME=""
 NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 			}
 			return "", nil
@@ -120,44 +120,50 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		&inventory.LocalDisk{Name: "sdb"},
 		&inventory.LocalDisk{Name: "sdc"},
 		&inventory.LocalDisk{Name: "sdd"},
+		&inventory.LocalDisk{Name: "nvme01"},
 		&inventory.LocalDisk{Name: "rda"},
 		&inventory.LocalDisk{Name: "rdb"},
 	}
-	// select all devices
-	mapping, err := getAvailableDevices(context, devices, "all", true)
+
+	// select all devices, including nvme01 for metadata
+	mapping, err := getAvailableDevices(context, devices, "all", "nvme01", true)
 	assert.Nil(t, err)
-	assert.Equal(t, 4, len(mapping.Entries))
+	assert.Equal(t, 5, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)
 	assert.Equal(t, -1, mapping.Entries["rdb"].Data)
+	assert.Equal(t, -1, mapping.Entries["nvme01"].Data)
+	assert.NotNil(t, mapping.Entries["nvme01"].Metadata)
+	assert.Equal(t, 0, len(mapping.Entries["nvme01"].Metadata))
 
 	// select no devices both using and not using a filter
-	mapping, err = getAvailableDevices(context, devices, "", false)
+	mapping, err = getAvailableDevices(context, devices, "", "", false)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
 
-	mapping, err = getAvailableDevices(context, devices, "", true)
+	mapping, err = getAvailableDevices(context, devices, "", "", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
 
-	// select the sda devices
-	mapping, err = getAvailableDevices(context, devices, "^sd.$", true)
+	// select the sd* devices
+	mapping, err = getAvailableDevices(context, devices, "^sd.$", "", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select an exact device
-	mapping, err = getAvailableDevices(context, devices, "sdd", false)
+	mapping, err = getAvailableDevices(context, devices, "sdd", "", false)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select all devices except those that have a prefix of "s"
-	mapping, err = getAvailableDevices(context, devices, "^[^s]", true)
+	mapping, err = getAvailableDevices(context, devices, "^[^s]", "", true)
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(mapping.Entries))
+	assert.Equal(t, 3, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)
 	assert.Equal(t, -1, mapping.Entries["rdb"].Data)
+	assert.Equal(t, -1, mapping.Entries["nvme01"].Data)
 }

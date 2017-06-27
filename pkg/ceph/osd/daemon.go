@@ -53,7 +53,7 @@ func Run(context *clusterd.Context, agent *OsdAgent) error {
 	logger.Infof("creating and starting the osds")
 
 	// initialize the desired osds
-	devices, err := getAvailableDevices(context, hardware.Disks, agent.devices, agent.usingDeviceFilter)
+	devices, err := getAvailableDevices(context, hardware.Disks, agent.devices, agent.metadataDevice, agent.usingDeviceFilter)
 	if err != nil {
 		return fmt.Errorf("failed to get available devices. %+v", err)
 	}
@@ -87,7 +87,7 @@ func Run(context *clusterd.Context, agent *OsdAgent) error {
 }
 
 func getAvailableDevices(context *clusterd.Context, devices []*inventory.LocalDisk, desiredDevices string,
-	usingDeviceFilter bool) (*DeviceOsdMapping, error) {
+	metadataDevice string, usingDeviceFilter bool) (*DeviceOsdMapping, error) {
 
 	var deviceList []string
 	if !usingDeviceFilter {
@@ -103,33 +103,42 @@ func getAvailableDevices(context *clusterd.Context, devices []*inventory.LocalDi
 		if err != nil {
 			return nil, fmt.Errorf("failed to get device %s info. %+v", device.Name, err)
 		}
-		if fs == "" && ownPartitions {
-			if desiredDevices == "all" {
-				available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID}
-			} else if desiredDevices != "" {
-				var matched bool
-				var err error
-				if usingDeviceFilter {
-					// the desired devices is a regular expression
-					matched, err = regexp.Match(desiredDevices, []byte(device.Name))
-				} else {
-					for i := range deviceList {
-						if device.Name == deviceList[i] {
-							matched = true
-							break
-						}
+
+		if fs != "" || !ownPartitions {
+			// not OK to use the device because it has a filesystem or rook doesn't own all its partitions
+			logger.Infof("skipping device %s that is in use (not by rook). fs: %s, ownPartitions: %t", device.Name, fs, ownPartitions)
+			continue
+		}
+
+		if metadataDevice != "" && metadataDevice == device.Name {
+			// current device is desired as the metadata device
+			available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}}
+		} else if desiredDevices == "all" {
+			// user has specified all devices, use the current one for data
+			available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID}
+		} else if desiredDevices != "" {
+			var matched bool
+			var err error
+			if usingDeviceFilter {
+				// the desired devices is a regular expression
+				matched, err = regexp.Match(desiredDevices, []byte(device.Name))
+			} else {
+				for i := range deviceList {
+					if device.Name == deviceList[i] {
+						matched = true
+						break
 					}
 				}
-
-				if err == nil && matched {
-					available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID}
-				} else {
-					logger.Infof("skipping device %s that does not match the device filter/list `%s`. %+v", device.Name, desiredDevices, err)
-				}
-
-			} else {
-				logger.Infof("skipping device %s until the admin specifies it can be used by an osd", device.Name)
 			}
+
+			if err == nil && matched {
+				// the current device matches the user specifies filter/list, use it for data
+				available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID}
+			} else {
+				logger.Infof("skipping device %s that does not match the device filter/list `%s`. %+v", device.Name, desiredDevices, err)
+			}
+		} else {
+			logger.Infof("skipping device %s until the admin specifies it can be used by an osd", device.Name)
 		}
 	}
 
