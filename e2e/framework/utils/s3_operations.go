@@ -19,9 +19,9 @@ func CreateNewS3Helper(endpoint string, keyId string, keySecret string) *S3Helpe
 
 	creds := credentials.NewStaticCredentials(keyId, keySecret, "")
 
-	// create aws s3 config, must use 'other-v2-signature' region for ceph object store
+	// create aws s3 config, must use 'us-east-1' default aws region for ceph object store
 	awsConfig := aws.NewConfig().
-		WithRegion("other-v2-signature").
+		WithRegion("us-east-1").
 		WithCredentials(creds).
 		WithEndpoint(endpoint).
 		WithS3ForcePathStyle(true).
