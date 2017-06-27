@@ -36,7 +36,7 @@ make -j4 build.all
 
 See instructions below for setting up the build environment to support `arm` and `arm64` platforms.
 
-Or if you wanted to build all release artifats run:
+Or if you wanted to build all release artifacts run:
 
 ```
 make -j4 release
@@ -46,7 +46,7 @@ Run `make help` for more options.
 
 ## Building inside the cross container
 
-Offical Rook builds are done inside a build container. This ensures that we get a consistent build, test and release environment. To run the build inside the cross container run:
+Official Rook builds are done inside a build container. This ensures that we get a consistent build, test and release environment. To run the build inside the cross container run:
 
 ```
 > build/run make -j4
@@ -121,10 +121,15 @@ Linux 7ed5f0d0b618 4.10.0-21-generic #23-Ubuntu SMP Fri Apr 28 16:14:22 UTC 2017
 
 ## Using CCache
 
-C++ code can take time to compile. CCache can increase the speed of compilation. To enable make sure you have ccache installed:
+C++ code can take time to compile. CCache can increase the speed of compilation. To enable, make sure you have `ccache` installed:
 
 ```
 DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends ccache
+```
+
+On a Mac, `ccache` can be installed using brew:
+```
+brew install --HEAD ccache
 ```
 
 when building container images we will use `CCACHE_DIR` or `${HOME}/.ccache` by default.
