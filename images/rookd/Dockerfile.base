@@ -26,6 +26,7 @@ RUN BOOST_VERSION=1.62.0 && \
         libboost-context${BOOST_VERSION} \
         libboost-coroutine${BOOST_VERSION} \
         libboost-date-time${BOOST_VERSION} \
+        libboost-filesystem${BOOST_VERSION} \
         libboost-iostreams${BOOST_VERSION} \
         libboost-program-options${BOOST_VERSION} \
         libboost-python${BOOST_VERSION} \
@@ -39,6 +40,7 @@ RUN BOOST_VERSION=1.62.0 && \
         libldap-2.4-2 \
         libnss3 \
         libpython2.7 \
+        libsnappy1v5 \
         python-prettytable \
         python2.7-minimal \
         ${EXTRALIBS} && \
