@@ -29,7 +29,7 @@ echo ==== building the cross container \(this could take minutes the first time\
 make_cmd="make --no-print-directory -C ${scriptdir}/../images cross PULL=0"
 make_output=$($make_cmd 2>&1) || {
     cat <<EOF >&2
-=== cross build image failed for ${container_image}
+=== cross build image failed for ${CROSS_IMAGE}
 ${make_output}
 EOF
     exit 1
@@ -39,6 +39,15 @@ EOF
 # permissions issues when sharing volumes with the host
 USER_ARGS="-e BUILDER_UID=$( id -u ) -e BUILDER_GID=$( id -g )"
 BUILDER_HOME=/home/rook
+
+# setup kubectl from the host if available
+if [ -d ${HOME}/.kube ]; then
+KUBE_ARGS="-v ${HOME}/.kube:${BUILDER_HOME}/.kube"
+fi
+
+if [ -x ${KUBEADM_DIND_DIR}/kubectl ]; then
+KUBEADM_DIND_ARGS="-v ${KUBEADM_DIND_DIR}/kubectl:/usr/bin/kubectl"
+fi
 
 if [ "`uname -s`" != "Linux" ]; then
 
@@ -52,10 +61,10 @@ if [ "`uname -s`" != "Linux" ]; then
     # runs of the build container are supported they will share the same volume
     # and we will be rsyncing to it at different times. This could lead to
     # undefined behavior but this should be a rare case on non-linux envs.
-    if [[ ! $(docker volume ls | grep ${container_volume}) ]]; then
-        echo ==== Creating docker volume "${container_volume}" and syncing sources
+    if [[ ! $(docker volume ls | grep ${CROSS_IMAGE_VOLUME}) ]]; then
+        echo ==== Creating docker volume "${CROSS_IMAGE_VOLUME}" and syncing sources
         echo ==== for first time. This could take a few seconds.
-        docker volume create --name ${container_volume} &> /dev/null
+        docker volume create --name ${CROSS_IMAGE_VOLUME} &> /dev/null
     fi
 
     # On non-linux the layout is as follows:
@@ -65,7 +74,7 @@ if [ "`uname -s`" != "Linux" ]; then
     #    /.netrc (bind mounted to host ${HOME}/.netrc)
     #    /.aws (bind mounted to host ${HOME}/.aws)
     #    /.docker (bind mounted to host ${HOME}/.docker)
-    #    /.download (bind mounted to host ${CACHE_DIR} if set)
+    #    /.cache (bind mounted to host ${CACHE_DIR} if set)
     #    /.ccache
     #    /go/src/github.com/rook/rook (rsync'd from host <source>)
 
@@ -74,11 +83,11 @@ if [ "`uname -s`" != "Linux" ]; then
     # change frequently and sometimes cause rsync to fail.
     rsync_host_to_container \
         --filter="- /.work/" \
-        --filter="- /.download/" \
+        --filter="- /.cache/" \
         --filter="- /.vscode/" \
         --filter="- index.lock"
 
-    MOUNT_OPTS="${MOUNT_OPTS} -v ${container_volume}:${BUILDER_HOME}"
+    MOUNT_OPTS="${MOUNT_OPTS} -v ${CROSS_IMAGE_VOLUME}:${BUILDER_HOME}"
 
     CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache \
         -e CCACHE_DIR_HOST=${BUILDER_HOME}/.ccache -e CCACHE_LOG"
@@ -92,15 +101,14 @@ else
     #    /.netrc (bind mounted to host ${HOME}/.netrc)
     #    /.aws (bind mounted to host ${HOME}/.aws)
     #    /.docker (bind mounted to host ${HOME}/.docker)
-    #    /.ccache (bind mounted to host ${CCACHE_DIR})
-    #    /.download (bind mounted to host ${CACHE_DIR} if set)
+    #    /.cache (bind mounted to host ${CCACHE_DIR})
     #    /go
     #       /pkg (bind mounted to <source>/.work/cross_pkg)
     #       /src/github.com/rook/rook (bind mounted to <source>)
 
     MOUNT_OPTS="${MOUNT_OPTS} \
         -v ${scriptdir}/../.work/cross_pkg:${BUILDER_HOME}/go/pkg
-        -v ${scriptdir}/..:${BUILDER_HOME}/go/src/${source_repo}"
+        -v ${scriptdir}/..:${BUILDER_HOME}/go/src/${BUILD_REPO}"
 
     # if CCACHE_DIR is not set, set it to the default
     if [[ -z "${CCACHE_DIR}" ]]; then
@@ -118,8 +126,8 @@ fi
 # if CACHE_DIR is not set bind mount it
 if [[ -n "${CACHE_DIR}" ]]; then
     mkdir -p ${CACHE_DIR}
-    DOWNLOAD_ARGS="-e CACHE_DIR=${BUILDER_HOME}/go/src/${source_repo}/.download \
-        -v ${CACHE_DIR}:${BUILDER_HOME}/go/src/${source_repo}/.download"
+    DOWNLOAD_ARGS="-e CACHE_DIR=${BUILDER_HOME}/go/src/${BUILD_REPO}/.cache \
+        -v ${CACHE_DIR}:${BUILDER_HOME}/go/src/${BUILD_REPO}/.cache"
 fi
 
 # we copy credential files for github access
@@ -152,8 +160,7 @@ rsync_back() {
         # rsync generated files back to the host. IMPORTANT: we never rsync the .git directory back
         # since the host's version might have changed.
         rsync_container_to_host \
-            --filter="+ /bin/" \
-            --filter="+ /release/" \
+            --filter="+ /_output/" \
             --filter="+ /vendor/" \
             --filter="- /*"
     fi
@@ -161,14 +168,16 @@ rsync_back() {
 
 docker run \
     --rm \
-    -h ${host} \
-    -e BUILD_REGISTRY=${build_registry} \
+    -h ${BUILD_HOST} \
+    -e BUILD_REGISTRY=${BUILD_REGISTRY} \
     -e GOPATH="${BUILDER_HOME}/go" \
     -e GO_PKG_DIR="" \
     -e GITHUB_TOKEN \
     -e VERSION \
     -e CHANNEL \
     ${TTY_ARGS} \
+    ${KUBE_ARGS} \
+    ${KUBEADM_DIND_ARGS} \
     ${CCACHE_ARGS} \
     ${DOWNLOAD_ARGS} \
     ${NETRC_ARGS} \
@@ -177,8 +186,8 @@ docker run \
     ${DOCKER_NESTED_ARGS} \
     ${NET_ARGS} \
     ${MOUNT_OPTS} \
-    -w ${BUILDER_HOME}/go/src/${source_repo} \
-    ${container_image} \
+    -w ${BUILDER_HOME}/go/src/${BUILD_REPO} \
+    ${CROSS_IMAGE} \
     "$@" || { rsync_back; exit 1; }
 
 rsync_back

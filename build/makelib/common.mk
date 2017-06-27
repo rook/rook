@@ -73,8 +73,8 @@ endif
 # include the common make file
 COMMON_SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 
-ifeq ($(origin BIN_DIR),undefined)
-BIN_DIR := $(abspath $(COMMON_SELF_DIR)/../../bin)
+ifeq ($(origin OUTPUT_DIR),undefined)
+OUTPUT_DIR := $(abspath $(COMMON_SELF_DIR)/../../_output)
 endif
 ifeq ($(origin WORK_DIR), undefined)
 WORK_DIR := $(abspath $(COMMON_SELF_DIR)/../../.work)

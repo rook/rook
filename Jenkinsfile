@@ -4,13 +4,9 @@ pipeline {
     agent { label 'ec2-stateful' }
 
     options {
+        disableConcurrentBuilds()
         timeout(time: 1, unit: 'HOURS')
         timestamps()
-    }
-
-    environment {
-        PRUNE_HOURS = 48
-        PRUNE_KEEP = 48
     }
 
     stages {
@@ -21,7 +17,16 @@ pipeline {
         }
         stage('Unit Tests') {
             steps {
-                sh 'build/run make -j\$(nproc) check'
+                sh 'build/run make -j\$(nproc) test'
+            }
+        }
+        stage('Integration Tests') {
+            environment {
+                KUBE_VERSION = "v1.6"
+            }
+            steps {
+                sh 'tests/scripts/kubeadm-dind.sh up'
+                sh 'build/run make -j\$(nproc) test-integration'
             }
         }
         stage('Publish') {
@@ -39,17 +44,18 @@ pipeline {
             steps {
                 sh 'docker login -u="${DOCKER_USR}" -p="${DOCKER_PSW}"'
                 sh 'docker login -u="${QUAY_USR}" -p="${QUAY_PSW}" quay.io'
-                sh 'build/run make -C build/release -j\$(nproc)'
-                sh 'build/run make -C build/release -j\$(nproc) publish'
+                sh 'build/run make -j\$(nproc) -C build/release build'
+                sh 'build/run make -j\$(nproc) -C build/release publish'
             }
         }
-
     }
 
     post {
         always {
+            archive '_output/tests/*'
+            junit allowEmptyResults: true, keepLongStdio: true, testResults: '_output/tests/*.xml'
             sh 'make clean'
-            sh 'make prune'
+            sh 'make prune PRUNE_HOURS=48 PRUNE_KEEP=48'
             deleteDir()
         }
     }

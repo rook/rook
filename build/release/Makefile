@@ -24,7 +24,6 @@ ifeq ($(filter master alpha beta stable,$(CHANNEL)),)
 $(error invalid channel $(CHANNEL))
 endif
 
-BIN_DIR ?= $(abspath ../../bin)
 PLATFORMS ?= $(ALL_PLATFORMS)
 FLAVORS ?= binaries images
 TEMP_DIR := $(shell mktemp -d)
@@ -67,7 +66,7 @@ clean: $(addprefix clean.,$(FLAVORS)) ;
 # binary files
 
 publish.binaries.%:
-	@$(S3_CP) $(BIN_DIR)/$*/rookctl$(if $(filter windows_%,$*),.exe) $(S3_CURRENT_BUCKET)/$*/rookctl$(if $(filter windows_%,$*),.exe)
+	@$(S3_CP) $(OUTPUT_DIR)/$*/rookctl$(if $(filter windows_%,$*),.exe) $(S3_CURRENT_BUCKET)/$*/rookctl$(if $(filter windows_%,$*),.exe)
 publish.binaries: $(addprefix publish.binaries.,$(PLATFORMS))
 	@echo "$(VERSION)" > $(TEMP_DIR)/version;
 	@$(S3_CP) "$(TEMP_DIR)/version" $(S3_CURRENT_BUCKET)/version
@@ -77,6 +76,7 @@ promote.binaries:
 # ====================================================================================
 # images
 
+# 1: registry 2: image, 3: arch
 define repo.targets
 build.image.$(1).$(2).$(3): ; @docker tag $(BUILD_REGISTRY)/$(2)-$(3) $(1)/$(2)-$(3):$(VERSION)
 build.all.images: build.image.$(1).$(2).$(3)
@@ -95,7 +95,7 @@ clean.image.$(1).$(2).$(3):
 	@[ -z "$$$$(docker images -q $(1)/$(2)-$(3):$(CHANNEL))" ] || docker rmi $(1)/$(2)-$(3):$(CHANNEL)
 clean.all.images: clean.image.$(1).$(2).$(3)
 endef
-$(foreach r,$(REGISTRIES), $(foreach i,$(IMAGES), $(foreach p,$(IMAGE_ARCHS),$(eval $(call repo.targets,$(r),$(i),$(p))))))
+$(foreach r,$(REGISTRIES), $(foreach i,$(IMAGES), $(foreach a,$(IMAGE_ARCHS),$(eval $(call repo.targets,$(r),$(i),$(a))))))
 
 publish.manifest.image.%: publish.all.images
 	@$(MANIFEST_TOOL) push from-args --platforms $(IMAGE_PLATFORMS) --template $(DOCKER_REGISTRY)/$*-ARCH:$(VERSION) --target $(DOCKER_REGISTRY)/$*:$(VERSION)

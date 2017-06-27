@@ -72,9 +72,13 @@ ifneq ($(filter $(PLATFORM),$(SERVER_PLATFORMS)),)
 GO_STATIC_PACKAGES += $(SERVER_PACKAGES)
 endif
 
+GO_INTEGRATION_TESTS_SUBDIRS = tests/smoke
+
 GO_BUILDFLAGS=$(BUILDFLAGS)
 GO_LDFLAGS=$(LDFLAGS)
 GO_TAGS=$(TAGS)
+GO_TEST_FLAGS=$(TESTFLAGS)
+GO_TEST_SUITE=$(SUITE)
 
 include build/makelib/golang.mk
 
@@ -105,8 +109,11 @@ build.all: build.common
 install: build.common
 	@$(MAKE) go.install
 
-check test: build.common
-	@$(MAKE) go.test
+check test:
+	@$(MAKE) go.test.unit
+
+test-integration:
+	@$(MAKE) go.test.integration
 
 lint:
 	@$(MAKE) go.init
@@ -123,7 +130,7 @@ fmt:
 vendor: go.vendor
 
 clean:
-	@rm -fr $(BIN_DIR)
+	@rm -fr $(OUTPUT_DIR)
 	@$(MAKE) -C images clean
 
 distclean: go.distclean clean
@@ -143,25 +150,28 @@ help:
 	@echo 'Usage: make <OPTIONS> ... <TARGETS>'
 	@echo ''
 	@echo 'Targets:'
-	@echo '    build       Build source code for host platform.'
-	@echo '    build.all   Build source code for all platforms.'
-	@echo '                Best done in the cross build container'
-	@echo '                due to cross compiler dependencies.'
-	@echo '    check       Runs unit tests.'
-	@echo '    clean       Remove all files that are created '
-	@echo '                by building.'
-	@echo '    distclean   Remove all files that are created '
-	@echo '                by building or configuring.'
-	@echo '    fmt         Check formatting of go sources.'
-	@echo '    lint        Check syntax and styling of go sources.'
-	@echo '    help        Show this help info.'
-	@echo '    prune       Prune cached artifacts.'
-	@echo '    vendor      Installs vendor dependencies.'
-	@echo '    vet         Runs lint checks on go sources.'
+	@echo '    build              Build source code for host platform.'
+	@echo '    build.all          Build source code for all platforms.'
+	@echo '                       Best done in the cross build container'
+	@echo '                       due to cross compiler dependencies.'
+	@echo '    check              Runs unit tests.'
+	@echo '    clean              Remove all files that are created '
+	@echo '                       by building.'
+	@echo '    distclean          Remove all files that are created '
+	@echo '                       by building or configuring.'
+	@echo '    fmt                Check formatting of go sources.'
+	@echo '    lint               Check syntax and styling of go sources.'
+	@echo '    help               Show this help info.'
+	@echo '    prune              Prune cached artifacts.'
+	@echo '    test               Runs unit tests.'
+	@echo '    test-integration   Runs integration tests.'
+	@echo '    vendor             Installs vendor dependencies.'
+	@echo '    vet                Runs lint checks on go sources.'
 	@echo ''
 	@echo 'Options:'
 	@echo '    DEBUG        Whether to generate debug symbols. Default is 0.'
 	@echo '    PLATFORM     The platform to build.'
+	@echo '    SUITE        The test suite to run.'
 	@echo '    VERSION      The version information compiled into binaries.'
 	@echo '                 The default is obtained from git.'
 	@echo '    V            Set to 1 enable verbose build. Default is 0.'

@@ -3,22 +3,5 @@
 /.cache
 /.idea
 
-/bin
+/_output
 /vendor
-/release
-
-coverage.out
-coverage.html
-debug.test
-
-.vagrant/
-demo/standalone/cloud-config.yml
-
-.virtualbox/
-
-.discovery-token
-e2e/results
-e2e/vendor
-e2e/.glide
-e2e/tests/smoke/temp_image.tar
-forRookImage.tar

@@ -5,7 +5,7 @@
 image:
   prefix: rook
   repository: rook/rook
-  tag: master-latest
+  tag: master
   pullPolicy: IfNotPresent
 
 resources:

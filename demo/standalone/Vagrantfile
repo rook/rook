@@ -29,7 +29,7 @@ else
   File.open(".discovery-token", 'w') { |file| file.write("#{discovery_token}") }
 end
 
-aci_location = "rook/rook:master-latest"
+aci_location = "rook/rook:master"
 aci_options = ""
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|

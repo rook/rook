@@ -79,7 +79,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | Parameter          | Description                          | Default              |
 |--------------------|--------------------------------------|----------------------|
 | `image.repository` | Image                                | `rook/rook`          |
-| `image.tag`        | Image tag                            | `master-latest`      |
+| `image.tag`        | Image tag                            | `master`             |
 | `image.pullPolicy` | Image pull policy                    | `IfNotPresent`       |
 | `rbacEnable`       | If true, create & use RBAC resources | `true`               |
 | `resources`        | Pod resource requests & limits       | `{}`                 |
