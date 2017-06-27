@@ -65,7 +65,7 @@ if [ "`uname -s`" != "Linux" ]; then
     #    /.netrc (bind mounted to host ${HOME}/.netrc)
     #    /.aws (bind mounted to host ${HOME}/.aws)
     #    /.docker (bind mounted to host ${HOME}/.docker)
-    #    /.download (bind mounted to host ${DOWNLOADDIR} if set)
+    #    /.download (bind mounted to host ${CACHE_DIR} if set)
     #    /.ccache
     #    /go/src/github.com/rook/rook (rsync'd from host <source>)
 
@@ -93,7 +93,7 @@ else
     #    /.aws (bind mounted to host ${HOME}/.aws)
     #    /.docker (bind mounted to host ${HOME}/.docker)
     #    /.ccache (bind mounted to host ${CCACHE_DIR})
-    #    /.download (bind mounted to host ${DOWNLOADDIR} if set)
+    #    /.download (bind mounted to host ${CACHE_DIR} if set)
     #    /go
     #       /pkg (bind mounted to <source>/.work/cross_pkg)
     #       /src/github.com/rook/rook (bind mounted to <source>)
@@ -115,11 +115,11 @@ else
     fi
 fi
 
-# if DOWNLOADDIR is not set bind mount it
-if [[ -n "${DOWNLOADDIR}" ]]; then
-    mkdir -p ${DOWNLOADDIR}
-    DOWNLOAD_ARGS="-e DOWNLOADDIR=${BUILDER_HOME}/go/src/${source_repo}/.download \
-        -v ${DOWNLOADDIR}:${BUILDER_HOME}/go/src/${source_repo}/.download"
+# if CACHE_DIR is not set bind mount it
+if [[ -n "${CACHE_DIR}" ]]; then
+    mkdir -p ${CACHE_DIR}
+    DOWNLOAD_ARGS="-e CACHE_DIR=${BUILDER_HOME}/go/src/${source_repo}/.download \
+        -v ${CACHE_DIR}:${BUILDER_HOME}/go/src/${source_repo}/.download"
 fi
 
 # we copy credential files for github access

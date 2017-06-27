@@ -17,7 +17,7 @@
 #
 
 ifeq ($(GO_PROJECT),)
-$(error the variable $$GO_PROJECT must be set prior to including golang.mk)
+$(error the variable GO_PROJECT must be set prior to including golang.mk)
 endif
 
 # These targets will be statically linked.
@@ -31,14 +31,10 @@ endif
 GO_SUBDIRS ?= cmd pkg
 
 # Optional directories (relative to CURDIR)
-GO_BIN_DIR ?= bin
-GO_TOOLS_DIR ?= .tools
-GO_WORK_DIR ?= .work
 GO_VENDOR_DIR ?= vendor
-GO_PKG_DIR ?=
+GO_PKG_DIR ?= $(WORK_DIR)/pkg
 
 # Optional build flags passed to go tools
-GO_PIE ?= 0
 GO_BUILDFLAGS ?=
 GO_LDFLAGS ?=
 GO_TAGS ?=
@@ -53,17 +49,16 @@ GO_ALL_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
 GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
-GO_TOOLS_HOST_DIR := $(abspath $(GO_TOOLS_DIR)/$(GOHOSTOS)_$(GOHOSTARCH))
 GLIDE_VERSION=v0.12.3
-GLIDE_HOME := $(abspath $(GO_WORK_DIR)/glide)
-GLIDE := $(GO_TOOLS_HOST_DIR)/glide-$(GLIDE_VERSION)
-GOLINT := $(GO_TOOLS_HOST_DIR)/golint
+GLIDE_HOME := $(abspath $(CACHE_DIR)/glide)
+GLIDE := $(TOOLS_HOST_DIR)/glide-$(GLIDE_VERSION)
+GOLINT := $(TOOLS_HOST_DIR)/golint
 export GLIDE_HOME
 
 GO := go
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 
-GO_OUT_DIR := $(abspath $(GO_BIN_DIR)/$(GOOS)_$(GOARCH))
+GO_OUT_DIR := $(abspath $(BIN_DIR)/$(PLATFORM))
 
 ifeq ($(GOOS),windows)
 GO_OUT_EXT := .exe
@@ -75,7 +70,7 @@ endif
 # we run go build with -i which on most system's would want to install packages
 # into the system's root dir. using our own pkg dir avoid thats
 ifneq ($(GO_PKG_DIR),)
-GO_PKG_BASE_DIR := $(abspath $(GO_PKG_DIR)/$(GOOS)_$(GOARCH))
+GO_PKG_BASE_DIR := $(abspath $(GO_PKG_DIR)/$(PLATFORM))
 GO_PKG_STATIC_FLAGS := -pkgdir $(GO_PKG_BASE_DIR)_static
 endif
 
@@ -84,7 +79,7 @@ GO_STATIC_FLAGS  = $(GO_BUILDFLAGS) $(GO_PKG_STATIC_FLAGS) -installsuffix static
 # ====================================================================================
 # Targets
 
-ifeq ($(filter help clean distclean go.clean, $(MAKECMDGOALS)),)
+ifeq ($(filter help clean distclean prune go.clean, $(MAKECMDGOALS)),)
 .PHONY: go.check
 go.check:
 ifneq ($(shell $(GO) version | grep -q -E '\bgo($(GO_SUPPORTED_VERSIONS))\b' && echo 0 || echo 1), 0)
@@ -103,13 +98,13 @@ go.init: $(GO_VENDOR_DIR)/vendor.stamp
 
 define go.project
 go.build.packages.$(1):
-	@echo === go build $(1) $(GOOS)_$(GOARCH)
+	@echo === go build $(1) $(PLATFORM)
 	@$(3) $(GO) build -v -i -o $(GO_OUT_DIR)/$(1)$(GO_OUT_EXT) $(4) $(2)
 
 go.build.packages: go.build.packages.$(1)
 
 go.install.packages.$(1):
-	@echo === go install $(1) $(GOOS)_$(GOARCH)
+	@echo === go install $(1) $(PLATFORM)
 	@$(3) $(GO) install -v $(4) $(2)
 go.install.packages: go.install.packages.$(1)
 endef
@@ -155,24 +150,17 @@ go.vendor $(GO_VENDOR_DIR)/vendor.stamp: $(GLIDE)
 
 $(GLIDE):
 	@echo === installing glide
-	@mkdir -p $(GO_TOOLS_HOST_DIR)/tmp
-	@curl -sL https://github.com/Masterminds/glide/releases/download/$(GLIDE_VERSION)/glide-$(GLIDE_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(GO_TOOLS_HOST_DIR)/tmp
-	@mv $(GO_TOOLS_HOST_DIR)/tmp/$(GOHOSTOS)-$(GOHOSTARCH)/glide $(GLIDE)
-	@rm -fr $(GO_TOOLS_HOST_DIR)/tmp
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@curl -sL https://github.com/Masterminds/glide/releases/download/$(GLIDE_VERSION)/glide-$(GLIDE_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
+	@mv $(TOOLS_HOST_DIR)/tmp/$(GOHOSTOS)-$(GOHOSTARCH)/glide $(GLIDE)
+	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
 $(GOLINT):
 	@echo === installing golint
-	@mkdir -p $(GO_TOOLS_HOST_DIR)/tmp
-	@GOPATH=$(GO_TOOLS_HOST_DIR)/tmp GOBIN=$(GO_TOOLS_HOST_DIR) $(GOHOST) get github.com/golang/lint/golint
-	@rm -fr $(GO_TOOLS_HOST_DIR)/tmp
-
-.PHONY: go.clean
-go.clean: ;
-	@rm -rf $(GO_BIN_DIR)
-ifneq ($(GO_PKG_DIR),)
-	@rm -rf $(GO_PKG_DIR)
-endif
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get github.com/golang/lint/golint
+	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
 .PHONY: go.distclean
-go.distclean: go.clean
-	@rm -rf  $(GO_TOOLS_DIR) $(GO_VENDOR_DIR) $(GLIDE_HOME)
+go.distclean:
+	@rm -rf $(GO_VENDOR_DIR)

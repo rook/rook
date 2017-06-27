@@ -12,43 +12,54 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Optional OS and ARCH to build
-ifeq ($(origin GOOS), undefined)
-GOOS := $(shell go env GOOS)
-endif
+# remove default suffixes as we dont use them
+.SUFFIXES:
 
-ifeq ($(origin GOARCH), undefined)
+ifeq ($(origin PLATFORM), undefined)
+GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
+PLATFORM := $(GOOS)_$(GOARCH)
+else
+GOOS := $(word 1, $(subst _, ,$(PLATFORM)))
+GOARCH := $(word 2, $(subst _, ,$(PLATFORM)))
 endif
 
 GOHOSTOS := $(shell go env GOHOSTOS)
 GOHOSTARCH := $(shell go env GOHOSTARCH)
+HOST_PLATFORM := $(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH)
 
-# set cross compile options
-ifeq ($(GOOS)_$(GOARCH),linux_amd64)
+ALL_PLATFORMS ?= darwin_amd64 windows_amd64 linux_arm linux_amd64 linux_arm64
+
+ifeq ($(PLATFORM),linux_amd64)
 CROSS_TRIPLE = x86_64-linux-gnu
 DEBIAN_ARCH = amd64
 endif
-ifeq ($(GOOS)_$(GOARCH),linux_arm)
+ifeq ($(PLATFORM),linux_arm)
 GOARM=7
 DEBIAN_ARCH = armhf
 CROSS_TRIPLE = arm-linux-gnueabihf
 endif
-ifeq ($(GOOS)_$(GOARCH),linux_arm64)
+ifeq ($(PLATFORM),linux_arm64)
 DEBIAN_ARCH = arm64
 CROSS_TRIPLE = aarch64-linux-gnu
 endif
-ifeq ($(GOOS)_$(GOARCH),darwin_amd64)
+ifeq ($(PLATFORM),darwin_amd64)
 CROSS_TRIPLE=x86_64-apple-darwin15
 endif
-ifeq ($(GOOS)_$(GOARCH),windows_amd64)
+ifeq ($(PLATFORM),windows_amd64)
 CROSS_TRIPLE=x86_64-w64-mingw32
 endif
 
-ifneq ($(GOOS)_$(GOARCH),$(GOHOSTOS)_$(GOHOSTARCH))
+ifneq ($(PLATFORM),$(HOST_PLATFORM))
 CC := $(CROSS_TRIPLE)-gcc
 CXX := $(CROSS_TRIPLE)-g++
 export CC CXX
+endif
+
+# set the version number. you should not need to do this
+# for the majority of scenarios.
+ifeq ($(origin VERSION), undefined)
+VERSION := $(shell git describe --dirty --always --tags)
 endif
 
 # a registry that is scoped to the current build tree on this host
@@ -58,3 +69,22 @@ SELFDIR := $(dir $(lastword $(MAKEFILE_LIST)))
 ROOTDIR := $(shell cd $(SELFDIR)/../.. && pwd -P)
 BUILD_REGISTRY := build-$(shell echo $(HOSTNAME)-$(ROOTDIR) | shasum -a 256 | cut -c1-8)
 endif
+
+# include the common make file
+COMMON_SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
+
+ifeq ($(origin BIN_DIR),undefined)
+BIN_DIR := $(abspath $(COMMON_SELF_DIR)/../../bin)
+endif
+ifeq ($(origin WORK_DIR), undefined)
+WORK_DIR := $(abspath $(COMMON_SELF_DIR)/../../.work)
+endif
+ifeq ($(origin CACHE_DIR), undefined)
+CACHE_DIR := $(abspath $(COMMON_SELF_DIR)/../../.cache)
+endif
+TOOLS_DIR := $(CACHE_DIR)/tools
+TOOLS_HOST_DIR := $(TOOLS_DIR)/$(HOST_PLATFORM)
+
+COMMA := ,
+SPACE :=
+SPACE +=

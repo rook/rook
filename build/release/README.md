@@ -34,10 +34,10 @@ Jenkins would build the tagged release and publish its artifacts like any other 
 ## Artifacts
 
 Each build from master has the following release artifacts:
-- binaries (rookctl) including debug symbols
+- binaries (rookctl)
 - containers (rook, toolbox)
 
-Binaries go to an S3 bucket `rook-release` and have the following layout:
+Binaries go to an S3 bucket `rook-release` (and https://release.rook.io) and have the following layout:
 
 ```
 /releases
@@ -47,17 +47,17 @@ Binaries go to an S3 bucket `rook-release` and have the following layout:
          /v0.3.0-2-g787822d
              (binaries)
          /v0.3.0-2-g770ebbc
-             rook-v0.3.0-darwin-amd64.zip
-             rook-v0.3.0-linux-amd64-debug.tar.gz
-             rook-v0.3.0-linux-amd64.tar.gz
-             rook-v0.3.0-linux-arm64-debug.tar.gz
-             rook-v0.3.0-linux-arm64.tar.gz
-             rook-v0.3.0-windows-amd64.zip
+               darwin_amd64/rookctl
+               linux_amd64/rookctl
+               linux_arm/rookctl
+               linux_arm64/rookctl
+               windows_amd64/rookctl
+               version
          /current
              (binaries)
 ```
 
-Containers go to quay.io where we have the following repos:
+Containers go to docker hub and quay.io where we have the following repos:
 
 ```
 rook/rook
@@ -76,11 +76,11 @@ Once a tagged release from master passes integration test we can proceed with pr
 To promote a release run the `promote` target as follows:
 
 ```
-make promote CHANNEL=alpha VERSION=v0.4.0
+make -C build/release promote CHANNEL=alpha VERSION=v0.4.0
 ```
 
-**NOTE:** Promoting requires that you have AWS credentials (in `~/.aws` or in environment), github token (`export GITHUB_TOKEN`), and
-quay.io write access (via `~/.docker/credentials` or `~/.docker/config.json`).  See the [AWS config docs](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-config-files) for help setting up AWS credentials.
+**NOTE:** Promoting requires that you have AWS credentials (in `~/.aws` or in environment),
+docker hub, and quay.io write access (via `~/.docker/credentials` or `~/.docker/config.json`).  See the [AWS config docs](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-config-files) for help setting up AWS credentials.
 
 After promoting a release, on S3 there will be a path for each channel and release promoted as follows:
 
@@ -90,12 +90,12 @@ After promoting a release, on S3 there will be a path for each channel and relea
     /alpha
           /v0.2.2
           /v0.3.0
-               rook-v0.3.0-darwin-amd64.zip
-               rook-v0.3.0-linux-amd64-debug.tar.gz
-               rook-v0.3.0-linux-amd64.tar.gz
-               rook-v0.3.0-linux-arm64-debug.tar.gz
-               rook-v0.3.0-linux-arm64.tar.gz
-               rook-v0.3.0-windows-amd64.zip
+               darwin_amd64/rookctl
+               linux_amd64/rookctl
+               linux_arm/rookctl
+               linux_arm64/rookctl
+               windows_amd64/rookctl
+               version
           /v0.4.0
           /current
     /beta
@@ -107,18 +107,18 @@ After promoting a release, on S3 there will be a path for each channel and relea
           /current
 ```
 
-Similarly in quay.io we will tag containers as follows:
+Similarly in docker hub and quay.io we will tag containers as follows:
 
 ```
-alpha-<version> -- for each version in the alpha channel
-alpha-latest -- for the latest
-beta-<version> -- for each version in the beta channel
-beta-latest -- for the latest
+master -- for the latest from master
+<version>-alpha -- for each version in the alpha channel
+alpha -- for the latest alpha
+<version>-beta -- for each version in the beta channel
+beta -- for the latest beta
 <version> -- for each version that is in the stable channel
 latest -- for the latest stable version
 ```
 
-Finally, the github release will be created in the rook repo as a draft and binaries pushed to it. Next, edit the release and
-add the release notes then publish it.
+Finally, create a github release, fill in the relase notes, and publish it.
 
 You're done.
