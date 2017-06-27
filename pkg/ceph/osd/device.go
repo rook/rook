@@ -181,6 +181,14 @@ func partitionMetadata(context *clusterd.Context, info *MetadataDeviceInfo, conf
 			savedScheme.Metadata.Device, savedScheme.Metadata.DiskUUID, info.Device, info.DiskUUID)
 	}
 
+	// check one last time to make sure it's OK for us to format this metadata device
+	ownPartitions, fs, err := checkIfDeviceAvailable(context.Executor, info.Device)
+	if err != nil {
+		return fmt.Errorf("failed to get metadata device %s info: %+v", info.Device, err)
+	} else if fs != "" || !ownPartitions {
+		return fmt.Errorf("metadata device %s is already in use (not by rook). fs: %s, ownPartitions: %t", info.Device, fs, ownPartitions)
+	}
+
 	// zap/clear all existing partitions
 	err = sys.RemovePartitions(info.Device, context.Executor)
 	if err != nil {
