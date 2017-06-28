@@ -20,20 +20,14 @@ package operator
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/cluster"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	rookclient "github.com/rook/rook/pkg/rook/client"
 	kwatch "k8s.io/apimachinery/pkg/watch"
-)
-
-const (
-	poolTprName = "pool"
 )
 
 type poolInitiator struct {
@@ -47,24 +41,25 @@ type poolManager struct {
 	rclient      rookclient.RookRestClient
 }
 
+type poolEvent struct {
+	Type   kwatch.EventType
+	Object *cluster.Pool
+}
+
 func newPoolInitiator(context *clusterd.Context) *poolInitiator {
 	return &poolInitiator{context: context}
 }
 
-func (p *poolInitiator) Create(clusterMgr *clusterManager, clusterName, namespace string) (tprManager, error) {
+func (p *poolInitiator) Create(clusterMgr *clusterManager, namespace string) (resourceManager, error) {
 	rclient, err := clusterMgr.getRookClient(namespace)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get api client for pool tpr for cluster %s in namespace %s. %+v", clusterName, namespace, err)
+		return nil, fmt.Errorf("failed to get api client for pool tpr for cluster in namespace %s. %+v", namespace, err)
 	}
 	return &poolManager{context: p.context, namespace: namespace, rclient: rclient}, nil
 }
 
-func (p *poolInitiator) Name() string {
-	return poolTprName
-}
-
-func (p *poolInitiator) Description() string {
-	return "Managed Rook pools"
+func (p *poolInitiator) Resource() kit.CustomResource {
+	return cluster.PoolResource
 }
 
 // Run the tpr manager until the caller signals with an EndWatch()
@@ -72,11 +67,13 @@ func (p *poolManager) Manage() {
 	for {
 
 		// load and initialize the pools
-		if err := p.Load(); err != nil {
+		watchVersion, err := p.Load()
+		if err != nil {
 			logger.Errorf("cannot load %s pool tpr. %+v. retrying...", p.namespace, err)
 		} else {
 			// watch for added/updated/deleted pools
-			if err := p.Watch(); err != nil {
+			watcher := kit.NewWatcher(p.context.KubeContext, cluster.PoolResource, p.namespace, watchVersion, p.handlePoolEvent, nil)
+			if err := watcher.Watch(); err != nil {
 				logger.Errorf("failed to watch %s pool tpr. %+v. retrying...", p.namespace, err)
 			}
 		}
@@ -85,12 +82,46 @@ func (p *poolManager) Manage() {
 	}
 }
 
-func (p *poolManager) Load() error {
+func (p *poolManager) handlePoolEvent(event *kit.RawEvent) error {
+	pool := &poolEvent{
+		Type:   event.Type,
+		Object: &cluster.Pool{},
+	}
+	err := json.Unmarshal(event.Object, pool.Object)
+	if err != nil {
+		return fmt.Errorf("fail to unmarshal Pool from data (%s): %v", pool.Object, err)
+	}
+
+	switch event.Type {
+	case kwatch.Added:
+		if err := pool.Object.Create(p.rclient); err != nil {
+			logger.Errorf("failed to create pool %s. %+v", pool.Object.Name, err)
+			break
+		}
+
+	case kwatch.Modified:
+		// if the pool is modified, allow the pool to be created if it wasn't already
+		if err := pool.Object.Create(p.rclient); err != nil {
+			logger.Errorf("failed to create (modify) pool %s. %+v", pool.Object.Name, err)
+			break
+		}
+
+	case kwatch.Deleted:
+		err := pool.Object.Delete(p.rclient)
+		if err != nil {
+			logger.Errorf("failed to delete pool %s. %+v", pool.Object.Name, err)
+			break
+		}
+	}
+	return nil
+}
+
+func (p *poolManager) Load() (string, error) {
 	// Check if pools have all been created
 	logger.Info("finding existing pools...")
 	poolList, err := p.getPoolList()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	logger.Infof("found %d pools. ensuring they exist.", len(poolList.Items))
@@ -103,12 +134,11 @@ func (p *poolManager) Load() error {
 		}
 	}
 
-	p.watchVersion = poolList.Metadata.ResourceVersion
-	return nil
+	return poolList.Metadata.ResourceVersion, nil
 }
 
 func (p *poolManager) getPoolList() (*cluster.PoolList, error) {
-	b, err := getRawListNamespaced(p.context.Clientset, poolTprName, p.namespace)
+	b, err := kit.GetRawListNamespaced(p.context.Clientset, cluster.PoolResource, p.namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -118,104 +148,4 @@ func (p *poolManager) getPoolList() (*cluster.PoolList, error) {
 		return nil, err
 	}
 	return pools, nil
-}
-
-func (p *poolManager) Watch() error {
-	logger.Infof("start watching pool tpr in namespace %s: %s", p.namespace, p.watchVersion)
-
-	eventCh, errCh := p.watch()
-
-	go func() {
-		timer := k8sutil.NewPanicTimer(
-			time.Minute,
-			"unexpected long blocking (> 1 Minute) when handling pool event")
-
-		for event := range eventCh {
-			timer.Start()
-
-			pool := event.Object
-
-			switch event.Type {
-			case kwatch.Added:
-				if err := pool.Create(p.rclient); err != nil {
-					logger.Errorf("failed to create pool %s. %+v", pool.Name, err)
-					break
-				}
-
-			case kwatch.Modified:
-				// if the pool is modified, allow the pool to be created if it wasn't already
-				if err := pool.Create(p.rclient); err != nil {
-					logger.Errorf("failed to create (modify) pool %s. %+v", pool.Name, err)
-					break
-				}
-
-			case kwatch.Deleted:
-				err := pool.Delete(p.rclient)
-				if err != nil {
-					logger.Errorf("failed to delete pool %s. %+v", pool.Name, err)
-					break
-				}
-			}
-
-			timer.Stop()
-		}
-	}()
-	return <-errCh
-
-}
-
-// watch creates a go routine, and watches the pool.rook.io kind resources from
-// the given watch version. It emits events on the resources through the returned
-// event chan. Errors will be reported through the returned error chan. The go routine
-// exits on any error.
-func (p *poolManager) watch() (<-chan *poolEvent, <-chan error) {
-	eventCh := make(chan *poolEvent)
-	// On unexpected error case, the operator should exit
-	errCh := make(chan error, 1)
-
-	go func() {
-		defer close(eventCh)
-
-		for {
-			err := p.watchOuterTPR(eventCh, errCh)
-			if err != nil {
-				errCh <- fmt.Errorf("failed to watch pool tpr. %+v", err)
-				return
-			}
-		}
-	}()
-
-	return eventCh, errCh
-}
-
-func (p *poolManager) watchOuterTPR(eventCh chan *poolEvent, errCh chan error) error {
-	resp, err := watchTPRNamespaced(p.context, poolTprName, p.namespace, p.watchVersion)
-	if err != nil {
-		errCh <- err
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return errors.New("invalid status code: " + resp.Status)
-	}
-
-	decoder := json.NewDecoder(resp.Body)
-	for {
-		ev, st, err := pollPoolEvent(decoder)
-		done, err := handlePollEventResult(st, err, func() (bool, error) {
-			// there is no cache for the pool tpr, so we return true to indicate to always reset the watch on error
-			return true, nil
-		}, errCh)
-		if err != nil {
-			return err
-		}
-		if done {
-			return nil
-		}
-		logger.Debugf("rook pool event: %+v", ev)
-
-		p.watchVersion = ev.Object.ResourceVersion
-		eventCh <- ev
-	}
 }

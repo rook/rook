@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	"github.com/rook/rook/pkg/operator/mgr"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
@@ -49,6 +50,12 @@ var (
 	healthCheckInterval = 10 * time.Second
 	clientTimeout       = 15 * time.Second
 	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
+	ClusterResource     = kit.CustomResource{
+		Name:        "cluster",
+		Group:       k8sutil.CustomResourceGroup,
+		Version:     kit.V1Alpha1,
+		Description: "Managed Rook clusters",
+	}
 )
 
 type Cluster struct {

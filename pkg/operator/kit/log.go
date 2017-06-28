@@ -1,4 +1,6 @@
 /*
+Package kit for Kubernetes operators
+
 Copyright 2016 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -16,18 +18,8 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
-package k8sutil
+package kit
 
 import "github.com/coreos/pkg/capnslog"
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
-
-const (
-	Namespace           = "rook"
-	CustomResourceGroup = "rook.io"
-	DefaultNamespace    = "default"
-	DataDirVolume       = "rook-data"
-	DataDir             = "/var/lib/rook"
-	RookType            = "kubernetes.io/rook"
-	RbdType             = "kubernetes.io/rbd"
-)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-kit")

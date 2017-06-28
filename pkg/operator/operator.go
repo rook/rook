@@ -19,18 +19,15 @@ which also has the apache 2.0 license.
 package operator
 
 import (
-	"errors"
 	"fmt"
 	"time"
 
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/rook/rook/pkg/clusterd"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
+	"github.com/rook/rook/pkg/operator/cluster"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	"k8s.io/apimachinery/pkg/util/wait"
-	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/rest"
 )
 
 const (
@@ -49,17 +46,23 @@ const (
 	termLimit                 = controller.DefaultTermLimit
 )
 
-var (
-	ErrVersionOutdated = errors.New("requested version is outdated in apiserver")
-)
-
 type Operator struct {
-	context    *clusterd.Context
-	tprSchemes []tprScheme
-	// The TPR that is global to the kubernetes cluster.
-	// The cluster TPR is global because you create multiple clusers in k8s
+	context   *clusterd.Context
+	resources []kit.CustomResource
+	// The custom resource that is global to the kubernetes cluster.
+	// The cluster is global because you create multiple clusers in k8s
 	clusterMgr        *clusterManager
 	volumeProvisioner controller.Provisioner
+}
+
+type inclusterInitiator interface {
+	Create(clusterMgr *clusterManager, namespace string) (resourceManager, error)
+	Resource() kit.CustomResource
+}
+
+type resourceManager interface {
+	Load() (string, error)
+	Manage()
 }
 
 func New(context *clusterd.Context) *Operator {
@@ -68,11 +71,11 @@ func New(context *clusterd.Context) *Operator {
 	clusterMgr := newClusterManager(context, []inclusterInitiator{poolInitiator})
 	volumeProvisioner := newRookVolumeProvisioner(clusterMgr)
 
-	schemes := []tprScheme{clusterMgr, poolInitiator}
+	schemes := []kit.CustomResource{cluster.ClusterResource, cluster.PoolResource}
 	return &Operator{
 		context:           context,
 		clusterMgr:        clusterMgr,
-		tprSchemes:        schemes,
+		resources:         schemes,
 		volumeProvisioner: volumeProvisioner,
 	}
 }
@@ -115,37 +118,16 @@ func (o *Operator) Run() error {
 }
 
 func (o *Operator) initResources() error {
-	httpCli, err := newHttpClient()
+	httpCli, err := kit.NewHTTPClient(k8sutil.CustomResourceGroup)
 	if err != nil {
 		return fmt.Errorf("failed to get tpr client. %+v", err)
 	}
-	o.context.KubeHttpCli = httpCli.Client
+	o.context.KubeHTTPCli = httpCli.Client
 
-	err = createTPRs(o.context, o.tprSchemes)
+	err = kit.CreateCustomResources(o.context.KubeContext, o.resources)
 	if err != nil {
 		return fmt.Errorf("failed to create TPR. %+v", err)
 	}
 
 	return nil
-}
-
-func newHttpClient() (*rest.RESTClient, error) {
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	config.GroupVersion = &schema.GroupVersion{
-		Group:   tprGroup,
-		Version: tprVersion,
-	}
-	config.APIPath = "/apis"
-	config.ContentType = runtime.ContentTypeJSON
-	config.NegotiatedSerializer = serializer.DirectCodecFactory{CodecFactory: api.Codecs}
-
-	restcli, err := rest.RESTClientFor(config)
-	if err != nil {
-		return nil, err
-	}
-	return restcli, nil
 }

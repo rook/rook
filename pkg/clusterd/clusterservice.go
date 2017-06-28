@@ -16,15 +16,13 @@ limitations under the License.
 package clusterd
 
 import (
-	"net/http"
-
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/operator/kit"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/proc"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -66,7 +64,7 @@ type Context struct {
 	DirectContext
 
 	// The context for the Kubernetes orchestrator
-	KubeContext
+	kit.KubeContext
 
 	// The implementation of executing a console command
 	Executor exec.Executor
@@ -99,14 +97,6 @@ type DirectContext struct {
 
 	// The etcd client for get/set config values
 	EtcdClient etcd.KeysAPI
-}
-
-type KubeContext struct {
-	Clientset   kubernetes.Interface
-	RetryDelay  int
-	MaxRetries  int
-	MasterHost  string
-	KubeHttpCli *http.Client
 }
 
 func (c *Context) GetExecutor() exec.Executor {

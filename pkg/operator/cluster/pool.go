@@ -21,6 +21,8 @@ package cluster
 import (
 	"fmt"
 
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	rookclient "github.com/rook/rook/pkg/rook/client"
 	"k8s.io/client-go/pkg/api/v1"
 
@@ -31,6 +33,13 @@ const (
 	replicatedType  = "replicated"
 	erasureCodeType = "erasure-coded"
 )
+
+var PoolResource = kit.CustomResource{
+	Name:        "pool",
+	Group:       k8sutil.CustomResourceGroup,
+	Version:     kit.V1Alpha1,
+	Description: "Managed Rook pools",
+}
 
 type Pool struct {
 	v1.ObjectMeta `json:"metadata,omitempty"`
