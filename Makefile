@@ -12,14 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# remove default suffixes as we dont use them
-.SUFFIXES:
+include build/makelib/common.mk
 
-# set the shell to bash in case some environments use sh
 .PHONY: all
 all: build
-
-include build/makelib/common.mk
 
 # ====================================================================================
 # Build Options
@@ -49,80 +45,42 @@ ifeq ($(DEBUG),0)
 LDFLAGS += -s -w
 endif
 
-# the working directory to store packages and intermediate build files
-ifeq ($(origin WORKDIR), undefined)
-WORKDIR := $(abspath .work)
-endif
-ifeq ($(origin DOWNLOADDIR), undefined)
-DOWNLOADDIR := $(abspath .download)
-endif
-
-# bin and relase dirs
-ifeq ($(origin BIN_DIR),undefined)
-BIN_DIR := $(abspath bin)
-endif
-ifeq ($(origin RELEASE_DIR), undefined)
-RELEASE_DIR := $(abspath release)
-endif
-
-# platforms where we only build client bits
-CLIENT_PLATFORMS ?= darwin_amd64 windows_amd64
-
-# platforms for which we client and server bits.
-SERVER_PLATFORMS ?= linux_arm linux_amd64 linux_arm64
-
-# the platforms to build
-PLATFORMS ?= $(SERVER_PLATFORMS) $(CLIENT_PLATFORMS)
+# platforms
+PLATFORMS ?= $(ALL_PLATFORMS)
+SERVER_PLATFORMS := $(filter linux_%,$(PLATFORMS))
+CLIENT_PLATFORMS := $(filter-out linux_%,$(PLATFORMS))
 
 # client projects that we build on all platforms
 CLIENT_PACKAGES = $(GO_PROJECT)/cmd/rookctl
 
 # server projects that we build on server platforms
-SERVER_PACKAGES = $(GO_PROJECT)/cmd/rookd
+SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook
 
 # the root go project
 GO_PROJECT=github.com/rook/rook
 
-# set the version number. you should not need to do this
-# for the majority of scenarios.
-ifeq ($(origin VERSION), undefined)
-VERSION := $(shell git describe --dirty --always --tags)
-endif
 LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
-
-# the release channel. Can be set to master, alpha, beta or stable
-CHANNEL ?=
 
 # ====================================================================================
 # Setup Go projects
 
 GO_STATIC_PACKAGES=
-ifneq ($(filter $(GOOS)_$(GOARCH),$(CLIENT_PLATFORMS) $(SERVER_PLATFORMS)),)
+ifneq ($(filter $(PLATFORM),$(CLIENT_PLATFORMS) $(SERVER_PLATFORMS)),)
 GO_STATIC_PACKAGES += $(CLIENT_PACKAGES)
 endif
-ifneq ($(filter $(GOOS)_$(GOARCH),$(SERVER_PLATFORMS)),)
+ifneq ($(filter $(PLATFORM),$(SERVER_PLATFORMS)),)
 GO_STATIC_PACKAGES += $(SERVER_PACKAGES)
 endif
+
+GO_INTEGRATION_TESTS_SUBDIRS = tests/smoke
 
 GO_BUILDFLAGS=$(BUILDFLAGS)
 GO_LDFLAGS=$(LDFLAGS)
 GO_TAGS=$(TAGS)
-
-GO_BIN_DIR = $(BIN_DIR)
-GO_WORK_DIR ?= $(WORKDIR)
-GO_TOOLS_DIR ?= $(DOWNLOADDIR)/tools
-GO_PKG_DIR ?= $(WORKDIR)/pkg
+GO_TEST_FLAGS=$(TESTFLAGS)
+GO_TEST_SUITE=$(SUITE)
 
 include build/makelib/golang.mk
-
-# ====================================================================================
-# Setup Distribution
-
-RELEASE_VERSION=$(VERSION)
-RELEASE_CHANNEL=$(CHANNEL)
-RELEASE_BIN_DIR=$(BIN_DIR)
-RELEASE_PLATFORMS=$(PLATFORMS)
-include build/makelib/release.mk
 
 # ====================================================================================
 # Targets
@@ -151,8 +109,11 @@ build.all: build.common
 install: build.common
 	@$(MAKE) go.install
 
-check test: build.common
-	@$(MAKE) go.test
+check test:
+	@$(MAKE) go.test.unit
+
+test-integration:
+	@$(MAKE) go.test.integration
 
 lint:
 	@$(MAKE) go.init
@@ -168,36 +129,18 @@ fmt:
 
 vendor: go.vendor
 
-clean: go.clean
-	@rm -fr $(WORKDIR) $(RELEASE_DIR) $(BIN_DIR)
-	@$(MAKE) release.cleanup
+clean:
+	@rm -fr $(OUTPUT_DIR)
 	@$(MAKE) -C images clean
 
 distclean: go.distclean clean
-	@rm -fr $(DOWNLOADDIR)
-
-release: build.all
-	@$(MAKE) release.build
-
-publish:
-ifneq ($(filter master alpha beta stable, $(CHANNEL)),)
-	@$(MAKE) release.publish
-else
-	@echo skipping publish. invalid channel "$(CHANNEL)"
-endif
-
-promote:
-ifneq ($(filter master alpha beta stable, $(CHANNEL)),)
-	@$(MAKE) release.promote
-else
-	@echo skipping promote. invalid channel "$(CHANNEL)"
-endif
+	@rm -fr $(CACHE_DIR)
 
 prune:
 	@$(MAKE) -C images prune
 
-.PHONY: build.common cross.build.parallel
-.PHONY: build build.all install test check vet fmt vendor clean distclean release publish promote prune
+.PHONY: all build.common cross.build.parallel
+.PHONY: build build.all install test check vet fmt vendor clean distclean prune
 
 # ====================================================================================
 # Help
@@ -207,44 +150,36 @@ help:
 	@echo 'Usage: make <OPTIONS> ... <TARGETS>'
 	@echo ''
 	@echo 'Targets:'
-	@echo '    build       Build source code for host platform.'
-	@echo '    build.all   Build source code for all platforms.'
-	@echo '                Best done in the cross build container'
-	@echo '                due to cross compiler dependencies.'
-	@echo '    check       Runs unit tests.'
-	@echo '    clean       Remove all files that are created '
-	@echo '                by building.'
-	@echo '    distclean   Remove all files that are created '
-	@echo '                by building or configuring.'
-	@echo '    fmt         Check formatting of go sources.'
-	@echo '    lint        Check syntax and styling of go sources.'
-	@echo '    help        Show this help info.'
-	@echo '    prune       Prune cached artifacts.'
-	@echo '    vendor      Installs vendor dependencies.'
-	@echo '    vet         Runs lint checks on go sources.'
-	@echo ''
-	@echo 'Release Targets:'
-	@echo '    release     Builds all release artifacts including'
-	@echo '                container images for all platforms.'
-	@echo '    publish     Publishes all release artifacts to'
-	@echo '                appropriate public repositories.'
-	@echo '    promote     Promotes a published release to a'
-	@echo '                release channel.'
+	@echo '    build              Build source code for host platform.'
+	@echo '    build.all          Build source code for all platforms.'
+	@echo '                       Best done in the cross build container'
+	@echo '                       due to cross compiler dependencies.'
+	@echo '    check              Runs unit tests.'
+	@echo '    clean              Remove all files that are created '
+	@echo '                       by building.'
+	@echo '    distclean          Remove all files that are created '
+	@echo '                       by building or configuring.'
+	@echo '    fmt                Check formatting of go sources.'
+	@echo '    lint               Check syntax and styling of go sources.'
+	@echo '    help               Show this help info.'
+	@echo '    prune              Prune cached artifacts.'
+	@echo '    test               Runs unit tests.'
+	@echo '    test-integration   Runs integration tests.'
+	@echo '    vendor             Installs vendor dependencies.'
+	@echo '    vet                Runs lint checks on go sources.'
 	@echo ''
 	@echo 'Options:'
 	@echo '    DEBUG        Whether to generate debug symbols. Default is 0.'
-	@echo '    GOARCH       The arch to build.'
-	@echo '    GOOS         The OS to build for.'
+	@echo '    PLATFORM     The platform to build.'
+	@echo '    SUITE        The test suite to run.'
 	@echo '    VERSION      The version information compiled into binaries.'
 	@echo '                 The default is obtained from git.'
 	@echo '    V            Set to 1 enable verbose build. Default is 0.'
 	@echo ''
 	@echo 'Advanced Options:'
-	@echo '    CHANNEL      Sets the release channel. Can be set to master,'
-	@echo '                 alpha, beta, or stable. Default is not set.'
-	@echo '    DOWNLOADDIR  A directory where downloaded files and other'
+	@echo '    CACHE_DIR    A directory where downloaded files and other'
 	@echo '                 files used during the build are cached. These'
 	@echo '                 files help speedup the build by avoiding network'
 	@echo '                 transfers. Its safe to use these files across builds.'
-	@echo '    WORKDIR      The working directory where most build files'
+	@echo '    WORK_DIR     The working directory where most build files'
 	@echo '                 are stored. The default is .work'

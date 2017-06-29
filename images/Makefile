@@ -36,13 +36,13 @@ cross.%: base.$(GOHOSTARCH)
 cross-gnu.%: base.%
 	@$(MAKE) -C cross-gnu GOARCH=$*
 
-rookd.%: ceph.% base.%
-	@$(MAKE) -C rookd GOARCH=$*
+rook.%: ceph.% base.%
+	@$(MAKE) -C rook GOARCH=$*
 
-toolbox.%: rookd.%
+toolbox.%: rook.%
 	@$(MAKE) -C toolbox GOARCH=$*
 
-do.build.images.%: rookd.% toolbox.% ;
+do.build.images.%: rook.% toolbox.% ;
 do.build: do.build.images.$(GOARCH) ;
 build.all: $(foreach p,$(PLATFORMS), do.build.images.$(p)) ;
 
@@ -71,8 +71,6 @@ help:
 	@echo '    PULL         Whether to pull base images. Default is 1.'
 	@echo '    GOARCH       The arch to build.'
 	@echo '    GOOS         The OS to build for.'
-	@echo '    REGISTRY     The docker registry to push to. Default is'
-	@echo '                 quay.io/rook.'
 	@echo '    V            Set to 1 enable verbose build. Default is 0.'
 	@echo ''
 	@echo 'Advanced Options:'

@@ -62,11 +62,11 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "myversion", pod.ObjectMeta.Annotations["rook_version"])
 
 	cont := pod.Spec.Containers[0]
-	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
+	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 6, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/local/bin/rookd mon --config-dir=/var/lib/rook --name=%s --port=%d --fsid=%s",
+	expectedCommand := fmt.Sprintf("/usr/local/bin/rook mon --config-dir=/var/lib/rook --name=%s --port=%d --fsid=%s",
 		config.Name, config.Port, c.clusterInfo.FSID)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])

@@ -93,11 +93,11 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	cont := d.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
+	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 6, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/local/bin/rookd rgw --config-dir=/var/lib/rook --rgw-port=%d --rgw-host=%s",
+	expectedCommand := fmt.Sprintf("/usr/local/bin/rook rgw --config-dir=/var/lib/rook --rgw-port=%d --rgw-host=%s",
 		cephrgw.RGWPort, cephrgw.DNSName)
 
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])

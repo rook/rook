@@ -29,9 +29,6 @@ endif
 # the registry used for cached images
 CACHE_REGISTRY := cache
 
-# public registry used for images that are pushed
-REGISTRY ?= quay.io/rook
-
 # the base ubuntu image to use
 OSBASE ?= ubuntu:zesty
 

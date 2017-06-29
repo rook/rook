@@ -52,7 +52,7 @@ func TestPodContainer(t *testing.T) {
 	container := c.Spec.Containers[0]
 	assert.Equal(t, 7, len(container.Env))
 	assert.True(t, strings.Contains(container.Command[2], `echo $(HOSTNAME) | sed "s/\./_/g" > /etc/hostname; hostname -F /etc/hostname`))
-	assert.True(t, strings.Contains(container.Command[2], "/usr/local/bin/rookd osd"))
+	assert.True(t, strings.Contains(container.Command[2], "/usr/local/bin/rook osd"))
 }
 
 func TestDaemonset(t *testing.T) {
@@ -96,10 +96,10 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	assert.Equal(t, 0, len(replicaSet.Spec.Template.ObjectMeta.Annotations))
 
 	cont := replicaSet.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
+	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 3, len(cont.VolumeMounts))
 
-	expectedCommand := "/usr/local/bin/rookd osd"
+	expectedCommand := "/usr/local/bin/rook osd"
 	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
 
 	// verify the config dir env var
