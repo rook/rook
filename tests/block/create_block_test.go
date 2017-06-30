@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/tests"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
-	"github.com/rook/rook/tests"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -146,4 +146,9 @@ func (s *BlockImageCreateSuite) TearDownTest() {
 			s.rc.DeleteBlockImage(b)
 		}
 	}
+}
+func (s *BlockImageCreateSuite) TearDownSuite() {
+
+	tests.CleanUp()
+
 }

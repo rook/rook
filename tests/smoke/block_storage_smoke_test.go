@@ -20,40 +20,31 @@ import (
 	"testing"
 	"time"
 
-	"fmt"
-
+	"github.com/rook/rook/tests"
 	"github.com/rook/rook/tests/framework/enums"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
-func TestBlockStorageSmokeSuite(t *testing.T) {
-	suite.Run(t, new(BlockStorageTestSuite))
+func TestRookSmokeSuiteK8s(t *testing.T) {
+	suite.Run(t, new(SmokeSuite))
 }
 
-type BlockStorageTestSuite struct {
+type SmokeSuite struct {
 	suite.Suite
 	helper *SmokeTestHelper
-	rook   *RookHelper
 }
 
-func (suite *BlockStorageTestSuite) SetupTest() {
+func (suite *SmokeSuite) SetupSuite() {
 	var err error
-
-	suite.rook, err = NewRookHelper()
-	err = suite.rook.InstallRook()
-	if err != nil {
-		panic(fmt.Errorf("failed to install rook: %v", err))
-	}
-
 	suite.helper, err = CreateSmokeTestClient(enums.Kubernetes)
 	require.Nil(suite.T(), err)
 }
 
 // Smoke Test for Block Storage - Test check the following operations on Block Storage in order
 //Create,Mount,Write,Read,Unmount and Delete.
-func (suite *BlockStorageTestSuite) TestBlockStorage_SmokeTest() {
-
+func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
+	defer suite.blockTestDataCleanUp()
 	suite.T().Log("Block Storage Smoke Test - Create,Mount,write to, read from  and Unmount Block")
 	rbc := suite.helper.GetBlockClient()
 
@@ -95,10 +86,14 @@ func (suite *BlockStorageTestSuite) TestBlockStorage_SmokeTest() {
 
 }
 
-func (s *BlockStorageTestSuite) TearDownTest() {
+func (s *SmokeSuite) blockTestDataCleanUp() {
 	s.helper.UnMountBlockStorage()
 	s.helper.DeleteBlockStorage()
 	s.helper.CleanUpDymanicBlockStorage()
+}
+
+func (suite *SmokeSuite) TearDownSuite() {
+	tests.CleanUp()
 }
 
 // periodically checking if block image count has changed to expected value

@@ -18,14 +18,10 @@ package smoke
 
 import (
 	"errors"
-	"fmt"
-	"testing"
 
 	"github.com/rook/rook/pkg/model"
-	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
 
 var (
@@ -37,36 +33,11 @@ var (
 	contentType     = "plain/text"
 )
 
-func TestObjectStorageSmokeSuite(t *testing.T) {
-	suite.Run(t, new(ObjectStorageTestSuite))
-}
-
-type ObjectStorageTestSuite struct {
-	suite.Suite
-	helper *SmokeTestHelper
-	rook   *RookHelper
-}
-
-func (suite *ObjectStorageTestSuite) SetupTest() {
-
-	var err error
-
-	suite.rook, err = NewRookHelper()
-	err = suite.rook.InstallRook()
-	if err != nil {
-		panic(fmt.Errorf("failed to install rook: %v", err))
-	}
-
-	suite.helper, err = CreateSmokeTestClient(enums.Kubernetes)
-	require.Nil(suite.T(), err)
-
-}
-
 // Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
 //Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,Delete Bucket and
 //Delete user
-func (suite *ObjectStorageTestSuite) TestObjectStorage_SmokeTest() {
-
+func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
+	defer suite.blockTestDataCleanUp()
 	suite.T().Log("Object Storage Smoke Test - Create Object Store, User,Bucket and read/write to bucket")
 
 	suite.T().Log("Step 0 : Create Object Store")
@@ -146,7 +117,7 @@ func (suite *ObjectStorageTestSuite) TestObjectStorage_SmokeTest() {
 
 }
 
-func (s *ObjectStorageTestSuite) TearDownTest() {
+func (s *SmokeSuite) objectTestDataCleanUp() {
 	userinfo, err := s.helper.GetObjectStoreUser(userid)
 	if err != nil {
 		return //when user is not found

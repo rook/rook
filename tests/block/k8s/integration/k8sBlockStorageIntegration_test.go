@@ -23,11 +23,11 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/rook/rook/tests"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/objects"
 	"github.com/rook/rook/tests/framework/utils"
-	"github.com/rook/rook/tests"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -136,5 +136,12 @@ func (s *K8sBlockEnd2EndIntegrationSuite) TearDownTest() {
 
 	s.kh.ResourceOperation("delete", s.mysqlappPath)
 	s.storageClassOperation("mysql-pool", "delete")
+	tests.CleanUp()
+
+}
+
+func (s *K8sBlockEnd2EndIntegrationSuite) TearDownSuite() {
+
+	tests.CleanUp()
 
 }

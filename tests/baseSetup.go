@@ -20,13 +20,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/rook/rook/pkg/test/enums"
-	"github.com/rook/rook/pkg/test/manager"
-	"github.com/rook/rook/pkg/test/objects"
+	"github.com/rook/rook/tests/framework/enums"
+	"github.com/rook/rook/tests/framework/installer"
+	"github.com/rook/rook/tests/framework/objects"
 )
 
 var (
 	Env      objects.EnvironmentManifest
+	rook     *installer.InstallHelper
 	Platform enums.RookPlatformType
 )
 
@@ -34,26 +35,29 @@ var (
 func init() {
 	Env = objects.NewManifest()
 	var err error
-
-	rookPlatform, err := enums.GetRookPlatFormTypeFromString(Env.Platform)
+	platform, err := enums.GetRookPlatFormTypeFromString(Env.Platform)
 	if err != nil {
 		panic(fmt.Errorf("Cannot get platform %v", err))
 	}
+	Platform = platform
+	rook, err := installer.NewK8sRookhelper()
 
-	k8sVersion, _ := enums.GetK8sVersionFromString(Env.K8sVersion)
-
-	err, rookInfra := rook_test_infra.GetRookTestInfraManager(rookPlatform, true, k8sVersion)
-	if err != nil {
-		panic(fmt.Errorf("Error during Rook Infra Setup %v", err))
-	}
 	skipRookInstall := strings.EqualFold(Env.SkipInstallRook, "true")
-	rookInfra.ValidateAndSetupTestPlatform(skipRookInstall)
-
-	if !skipRookInstall {
-		err = rookInfra.InstallRook(env.RookImageName, env.ToolboxImageName)
-		if err != nil {
-			panic(fmt.Errorf("Error during Rook Infra Setup %v", err))
-		}
+	if skipRookInstall {
+		return
 	}
-	Platform = rookInfra.GetRookPlatform()
+	err = rook.InstallRookOnK8s()
+	if err != nil {
+		panic(fmt.Errorf("failed to install rook: %v", err))
+	}
+
+}
+
+func CleanUp() {
+	skipRookInstall := strings.EqualFold(Env.SkipInstallRook, "true")
+	if skipRookInstall {
+		return
+	}
+	rook.UninstallRookFromK8s()
+
 }

@@ -222,3 +222,8 @@ func (s *K8sBlockImageCreateSuite) isPVCBound(name string) bool {
 	}
 	return false
 }
+func (s *K8sBlockImageCreateSuite) TearDownSuite() {
+
+	tests.CleanUp()
+
+}
