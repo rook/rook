@@ -45,7 +45,7 @@ pipeline {
                 sh 'docker login -u="${QUAY_USR}" -p="${QUAY_PSW}" quay.io'
                 sh 'build/run make -j\$(nproc) -C build/release build'
                 sh 'build/run make -j\$(nproc) -C build/release publish AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}'
-                sh 'build/run make -j\$(nproc) -C build/release make promote CHANNEL=master'
+                sh 'build/run make -j\$(nproc) -C build/release promote CHANNEL=master AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}'
             }
         }
     }
