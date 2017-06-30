@@ -33,7 +33,6 @@ pipeline {
             when {
                 anyOf {
                     branch 'master'
-                    branch 'release-*'
                 }
             }
             environment {
@@ -46,6 +45,7 @@ pipeline {
                 sh 'docker login -u="${QUAY_USR}" -p="${QUAY_PSW}" quay.io'
                 sh 'build/run make -j\$(nproc) -C build/release build'
                 sh 'build/run make -j\$(nproc) -C build/release publish AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}'
+                sh 'build/run make -j\$(nproc) -C build/release make promote CHANNEL=master'
             }
         }
     }
@@ -54,8 +54,9 @@ pipeline {
         always {
             archive '_output/tests/*'
             junit allowEmptyResults: true, keepLongStdio: true, testResults: '_output/tests/*.xml'
-            sh 'make clean'
-            sh 'make prune PRUNE_HOURS=48 PRUNE_KEEP=48'
+            sh 'make -j\$(nproc) clean'
+            sh 'make -j\$(nproc) prune PRUNE_HOURS=48 PRUNE_KEEP=48'
+            sh 'make -j\$(nproc) -C build/release clean'
             deleteDir()
         }
     }
