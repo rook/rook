@@ -79,55 +79,68 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 		if len(parts) > 1 {
 			nameSuffix = parts[1]
 		}
-		switch {
-		case execCount == 0: // first exec is the mkfs for sdx
-			assert.Equal(t, "--mkfs", args[0])
-			createTestKeyring(t, configDir, args)
-		case execCount == 1: // all remaining execs are for partitioning sdy then mkfs sdy
-			assert.Equal(t, "sgdisk", command)
-			assert.Equal(t, "--zap-all", args[0])
-			assert.Equal(t, "/dev/"+nameSuffix, args[1])
-		case execCount == 2:
-			assert.Equal(t, "sgdisk", command)
-			assert.Equal(t, "--clear", args[0])
-			assert.Equal(t, "/dev/"+nameSuffix, args[2])
-		case execCount == 3:
-			// the partitioning for sdy.  depending on bluestore/filestore, the args will be different.
-			expectedDeviceArgNum := 0
-			if storeConfig.StoreType == Bluestore {
-				expectedDeviceArgNum = 10
-			} else {
-				expectedDeviceArgNum = 4
-			}
-			assert.Equal(t, "sgdisk", command)
-			assert.Equal(t, "/dev/"+nameSuffix, args[expectedDeviceArgNum])
-		case execCount == 4:
-			if storeConfig.StoreType == Bluestore {
+
+		if storeConfig.StoreType == Bluestore {
+			switch {
+			case execCount == 0: // first exec is the osd mkfs for sdx
+				assert.Equal(t, "--mkfs", args[0])
+				createTestKeyring(t, configDir, args)
+			case execCount == 1: // all remaining execs are for partitioning sdy then mkfs sdy
+				assert.Equal(t, "sgdisk", command)
+				assert.Equal(t, "--zap-all", args[0])
+				assert.Equal(t, "/dev/"+nameSuffix, args[1])
+			case execCount == 2:
+				assert.Equal(t, "sgdisk", command)
+				assert.Equal(t, "--clear", args[0])
+				assert.Equal(t, "/dev/"+nameSuffix, args[2])
+			case execCount == 3:
+				// the partitioning for sdy.
+				assert.Equal(t, "sgdisk", command)
+				assert.Equal(t, "/dev/"+nameSuffix, args[10])
+			case execCount == 4:
 				// the osd mkfs for sdy bluestore
 				assert.Equal(t, "--mkfs", args[0])
 				createTestKeyring(t, configDir, args)
-			} else {
-				// mkfs.ext4 for sdy filestore
-				assert.Equal(t, "mkfs.ext4", command)
-			}
-		case execCount == 5:
-			if storeConfig.StoreType == Filestore {
-				// the mount for sdy filestore
-				assert.Equal(t, "mount", command)
-			} else {
+			default:
 				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
 			}
-		case execCount == 6:
-			if storeConfig.StoreType == Filestore {
+		} else if storeConfig.StoreType == Filestore {
+			switch {
+			case execCount == 0:
+				// first exec is the remounting of sdx because its partitions were created previously, we just need to remount it
+				// note this only happens for filestore (not bluestore)
+				assert.Equal(t, "mount", command)
+			case execCount == 1:
+				// the osd mkfs for sdx
+				assert.Equal(t, "--mkfs", args[0])
+				createTestKeyring(t, configDir, args)
+			case execCount == 2: // all remaining execs are for partitioning sdy then mkfs sdy
+				assert.Equal(t, "sgdisk", command)
+				assert.Equal(t, "--zap-all", args[0])
+				assert.Equal(t, "/dev/"+nameSuffix, args[1])
+			case execCount == 3:
+				assert.Equal(t, "sgdisk", command)
+				assert.Equal(t, "--clear", args[0])
+				assert.Equal(t, "/dev/"+nameSuffix, args[2])
+			case execCount == 4:
+				// the partitioning for sdy.
+				assert.Equal(t, "sgdisk", command)
+				assert.Equal(t, "/dev/"+nameSuffix, args[4])
+			case execCount == 5:
+				// mkfs.ext4 for sdy filestore
+				assert.Equal(t, "mkfs.ext4", command)
+			case execCount == 6:
+				// the mount for sdy filestore
+				assert.Equal(t, "mount", command)
+			case execCount == 7:
 				// the osd mkfs for sdy filestore
 				assert.Equal(t, "--mkfs", args[0])
 				createTestKeyring(t, configDir, args)
-			} else {
+			default:
 				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
 			}
-		default:
-			assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
 		}
+
 		execCount++
 		return nil
 	}
@@ -177,7 +190,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 		&inventory.LocalDisk{Name: "sdy", Size: 1234567890},
 	}
 
-	// prep the OSD agent and related orcehstration data
+	// prep the OSD agent and related orchestration data
 	prepAgentOrchestrationData(t, agent, etcdClient, context, clusterName)
 
 	err = agent.ConfigureLocalService(context)
@@ -195,7 +208,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 		assert.Equal(t, 5, execCount)        // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
 	} else {
 		assert.Equal(t, 10, outputExecCount)
-		assert.Equal(t, 7, execCount) // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 mkfs for sdy, 1 mount for sdy, 1 osd mkfs for sdy
+		assert.Equal(t, 8, execCount) // 1 for remount sdx, 1 osd mkfs for sdx, 3 partition steps for sdy, 1 mkfs for sdy, 1 mount for sdy, 1 osd mkfs for sdy
 	}
 
 	err = agent.DestroyLocalService(context)

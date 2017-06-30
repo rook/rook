@@ -563,8 +563,16 @@ func refreshDeviceInfo(name string, nameToUUID map[string]string, scheme *PerfSc
 }
 
 func (a *OsdAgent) startOSD(context *clusterd.Context, config *osdConfig) error {
-	newOSD := false
+
 	config.rootPath = path.Join(config.configRoot, fmt.Sprintf("osd%d", config.id))
+
+	// if the osd is using filestore on a device and it's previously been formatted/partitioned,
+	// go ahead and remount the device now.
+	if err := remountFilestoreDeviceIfNeeded(context, config); err != nil {
+		return err
+	}
+
+	newOSD := false
 	if isOSDDataNotExist(config.rootPath) {
 		// consider this a new osd if the "whoami" file is not found
 		newOSD = true
@@ -966,4 +974,8 @@ func loadOSDInfo(config *osdConfig) error {
 
 func isBluestore(config *osdConfig) bool {
 	return !config.dir && config.partitionScheme != nil && config.partitionScheme.StoreType == Bluestore
+}
+
+func isFilestoreDevice(config *osdConfig) bool {
+	return !config.dir && config.partitionScheme != nil && config.partitionScheme.StoreType == Filestore
 }
