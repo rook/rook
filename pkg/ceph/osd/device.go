@@ -242,27 +242,10 @@ func partitionOSD(context *clusterd.Context, config *osdConfig) error {
 	}
 
 	if config.partitionScheme.StoreType == Filestore {
-		// the OSD is using filestore, create a filesystem for the device and mount it under config root
-		dataPartDetails := config.partitionScheme.Partitions[FilestoreDataPartitionType]
-		dataPartPath := filepath.Join(diskByPartUUID, dataPartDetails.PartitionUUID)
-		logger.Infof("waiting for partition path %s", dataPartPath)
-		err = waitForPath(dataPartPath, context.Executor)
-		if err != nil {
-			return fmt.Errorf("failed waiting for %s: %+v", dataPartPath, err)
-		}
-		err = sys.FormatDevice(dataPartPath, context.Executor)
-		if err != nil {
-			logger.Warningf("first attempt to format partition %s on device %s failed.  Waiting 2 seconds then retrying: %+v",
-				dataPartDetails.PartitionUUID, dataPartDetails.Device, err)
-			<-time.After(2 * time.Second)
-			err = sys.FormatDevice(dataPartPath, context.Executor)
-			if err != nil {
-				return fmt.Errorf("failed to format partition %s on device %s. %+v", dataPartDetails.PartitionUUID, dataPartDetails.Device, err)
-			}
-		}
-		err = sys.MountDevice(dataPartPath, config.rootPath, context.Executor)
-		if err != nil {
-			return fmt.Errorf("failed to mount %s at %s: %+v", dataPartPath, config.configRoot, context.Executor)
+		// the OSD is using filestore, create a filesystem for the device (format it) and mount it under config root
+		doFormat := true
+		if err = prepareFilestoreDevice(context, config, doFormat); err != nil {
+			return err
 		}
 	}
 
@@ -299,6 +282,70 @@ func partitionOSD(context *clusterd.Context, config *osdConfig) error {
 				return fmt.Errorf("failed to associate osd id %d with device %s (%s) for metadata",
 					config.id, dataDetails.Device, dataDetails.DiskUUID)
 			}
+		}
+	}
+
+	return nil
+}
+
+func prepareFilestoreDevice(context *clusterd.Context, config *osdConfig, doFormat bool) error {
+	if !isFilestoreDevice(config) {
+		return fmt.Errorf("osd is not a filestore device: %+v", config)
+	}
+
+	// wait for the special /dev/disk/by-partuuid path to show up
+	dataPartDetails := config.partitionScheme.Partitions[FilestoreDataPartitionType]
+	dataPartPath := filepath.Join(diskByPartUUID, dataPartDetails.PartitionUUID)
+	logger.Infof("waiting for partition path %s", dataPartPath)
+	err := waitForPath(dataPartPath, context.Executor)
+	if err != nil {
+		return fmt.Errorf("failed waiting for %s: %+v", dataPartPath, err)
+	}
+
+	if doFormat {
+		// perform the format and retry if needed
+		if err = sys.FormatDevice(dataPartPath, context.Executor); err != nil {
+			logger.Warningf("first attempt to format partition %s on device %s failed.  Waiting 2 seconds then retrying: %+v",
+				dataPartDetails.PartitionUUID, dataPartDetails.Device, err)
+			<-time.After(2 * time.Second)
+			if err = sys.FormatDevice(dataPartPath, context.Executor); err != nil {
+				return fmt.Errorf("failed to format partition %s on device %s. %+v", dataPartDetails.PartitionUUID, dataPartDetails.Device, err)
+			}
+		}
+	}
+
+	// mount the device
+	if err = sys.MountDevice(dataPartPath, config.rootPath, context.Executor); err != nil {
+		return fmt.Errorf("failed to mount %s at %s: %+v", dataPartPath, config.rootPath, context.Executor)
+	}
+
+	return nil
+}
+
+// checks the given OSD config to determine if it is for filestore on a device.  If the device has already
+// been partitioned then we need to remount the device to the OSD root path so that all the OSD config/data
+// shows up under the config root once again.
+func remountFilestoreDeviceIfNeeded(context *clusterd.Context, config *osdConfig) error {
+	if !isFilestoreDevice(config) {
+		// nothing to do
+		return nil
+	}
+
+	savedScheme, err := LoadScheme(config.configRoot)
+	if err != nil {
+		return fmt.Errorf("failed to load the saved partition scheme from %s: %+v", config.configRoot, err)
+	}
+
+	for _, savedEntry := range savedScheme.Entries {
+		if savedEntry.ID == config.id {
+			// the current saved partition scheme entry exists, meaning the partitions have already been created.
+			// we need to remount the device/partitions now so that the OSD's config will show up under the config
+			// root again.
+			doFormat := false
+			if err = prepareFilestoreDevice(context, config, doFormat); err != nil {
+				return err
+			}
+			break
 		}
 	}
 
