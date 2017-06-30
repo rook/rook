@@ -1,3 +1,9 @@
+---
+title: Advanced Configuration
+weight: 41
+indent: true
+---
+
 # Advanced Cluster Configuration
 
 These examples show how to perform advanced configuration tasks on your Rook
