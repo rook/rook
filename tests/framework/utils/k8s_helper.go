@@ -78,6 +78,28 @@ func (k8sh *K8sHelper) ResourceOperation(action string, poddefPath string) (stri
 	}
 }
 
+func (K8sh *K8sHelper) DeleteResource(args []string) (string, error) {
+	cmdArgs := append([]string{"delete"}, args...)
+	out, err, status := ExecuteCmd("kubectl", cmdArgs)
+	if status == 0 {
+		return out, nil
+	} else {
+		return out + " : " + err, fmt.Errorf("Could Not delete resource in k8s")
+	}
+
+}
+
+func (K8sh *K8sHelper) GetResource(args []string) (string, error) {
+	cmdArgs := append([]string{"get"}, args...)
+	out, err, status := ExecuteCmd("kubectl", cmdArgs)
+	if status == 0 {
+		return out, nil
+	} else {
+		return out + " : " + err, fmt.Errorf("Could Not Get resource in k8s")
+	}
+
+}
+
 func (k8sh *K8sHelper) GetMonitorPods() ([]string, error) {
 	mons := []string{}
 	monIdx := 0
@@ -341,5 +363,36 @@ func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace str
 		time.Sleep(3 * time.Second)
 	}
 
+	return false
+}
+
+func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, namespace string) bool{
+	args := []string{"-n", namespace, "pods", "-l", "app="+podNamePattern}
+	inc := 0
+	for inc < 30 {
+		out, _ := k8sh.GetResource(args)
+		if !strings.Contains(out, podNamePattern) {
+			return true
+		}
+
+		inc++
+		time.Sleep(3 * time.Second)
+	}
+	panic(fmt.Errorf("Rook not uninstalled"))
+	return false
+
+}
+func (k8sh *K8sHelper) WaitUntilPodIsDeleted(podNamePattern string) bool{
+	args := []string{ "pods", "-l", "app="+podNamePattern}
+	inc := 0
+	for inc < 30 {
+		out, _ := k8sh.GetResource(args)
+		if !strings.Contains(out, podNamePattern) {
+			return true
+		}
+
+		inc++
+		time.Sleep(3 * time.Second)
+	}
 	return false
 }

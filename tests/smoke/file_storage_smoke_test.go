@@ -17,42 +17,13 @@ limitations under the License.
 package smoke
 
 import (
-	"fmt"
-	"testing"
-
-	"github.com/rook/rook/tests/framework/enums"
 	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 )
-
-type FileSystemTestSuite struct {
-	suite.Suite
-	helper *SmokeTestHelper
-	rook   *RookHelper
-}
-
-func TestFileSystemSmokeSuite(t *testing.T) {
-
-	suite.Run(t, new(FileSystemTestSuite))
-}
-
-func (suite *FileSystemTestSuite) SetupTest() {
-	var err error
-
-	suite.rook, err = NewRookHelper()
-	err = suite.rook.InstallRook()
-	if err != nil {
-		panic(fmt.Errorf("failed to install rook: %v", err))
-	}
-
-	suite.helper, err = CreateSmokeTestClient(enums.Kubernetes)
-	require.Nil(suite.T(), err)
-}
 
 // Smoke Test for File System Storage - Test check the following operations on FileSystem Storage in order
 //Create,Mount,Write,Read,Unmount and Delete.
-func (suite *FileSystemTestSuite) TestFileStorage_SmokeTest() {
-
+func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
+	defer suite.fileTestDataCleanUp()
 	suite.T().Log("File Storage Smoke Test - Create,Mount,write to, read from  and Unmount Filesystem")
 	rfc := suite.helper.GetFileSystemClient()
 
@@ -93,7 +64,7 @@ func (suite *FileSystemTestSuite) TestFileStorage_SmokeTest() {
 	suite.T().Log("File system deleted")
 }
 
-func (s *FileSystemTestSuite) TearDownTest() {
+func (s *SmokeSuite) fileTestDataCleanUp() {
 	s.helper.UnmountFileStorage()
 	s.helper.DeleteFileStorage()
 

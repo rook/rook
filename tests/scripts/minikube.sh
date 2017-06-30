@@ -54,7 +54,7 @@ KUBE_VERSION=${KUBE_VERSION:-"v1.6.0"}
 
 case "${1:-}" in
   up)
-    minikube start --kubernetes-version ${KUBE_VERSION}
+    minikube start --iso-url=https://s3-us-west-2.amazonaws.com/minikube-cephfs/minikube.iso --kubernetes-version ${KUBE_VERSION}
     wait_for_ssh
     copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
     copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master

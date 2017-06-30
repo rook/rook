@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package smoke
+package installer
 
 import (
 	"fmt"
@@ -37,7 +37,12 @@ const (
 	rookOperatorCreatedTpr = "cluster.rook.io"
 )
 
-type RookHelper struct {
+var (
+	r    *InstallHelper
+	once Once
+)
+
+type InstallHelper struct {
 	transportClient contracts.ITransportClient
 	isRookInstalled bool
 }
@@ -47,7 +52,7 @@ func getPodSpecPath() string {
 }
 
 //method for create rook-operator via kubectl
-func (h *RookHelper) createK8sRookOperator(k8sHelper *utils.K8sHelper) error {
+func (h *InstallHelper) createK8sRookOperator(k8sHelper *utils.K8sHelper) error {
 
 	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(), rookOperatorFileName))
 
@@ -72,7 +77,7 @@ func (h *RookHelper) createK8sRookOperator(k8sHelper *utils.K8sHelper) error {
 	return nil
 }
 
-func (h *RookHelper) createK8sRookToolbox(k8sHelper *utils.K8sHelper) (err error) {
+func (h *InstallHelper) createK8sRookToolbox(k8sHelper *utils.K8sHelper) (err error) {
 
 	//Create rook toolbox
 	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(), rookToolsFileName))
@@ -98,7 +103,7 @@ func (h *RookHelper) createK8sRookToolbox(k8sHelper *utils.K8sHelper) (err error
 	return nil
 }
 
-func (h *RookHelper) createk8sRookCluster(k8sHelper *utils.K8sHelper) error {
+func (h *InstallHelper) createk8sRookCluster(k8sHelper *utils.K8sHelper) error {
 
 	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(), rookClusterFileName))
 
@@ -122,7 +127,7 @@ func (h *RookHelper) createk8sRookCluster(k8sHelper *utils.K8sHelper) error {
 	return nil
 }
 
-func (h *RookHelper) InstallRook() (err error) {
+func (h *InstallHelper) InstallRookOnK8s() (err error) {
 	if h.isRookInstalled {
 		return
 	}
@@ -156,12 +161,61 @@ func (h *RookHelper) InstallRook() (err error) {
 	return nil
 }
 
-func NewRookHelper() (*RookHelper, error) {
+func (h *InstallHelper) UninstallRookFromK8s() {
+
+	k8sHelp := utils.CreatK8sHelper()
+	var err error
+	_, err = k8sHelp.ResourceOperation("delete", path.Join(getPodSpecPath(), rookOperatorFileName))
+	if err != nil {
+		panic(err)
+	}
+	_, err = k8sHelp.DeleteResource([]string{"-n", "rook", "cluster", "rook"})
+	if err != nil {
+		panic(err)
+	}
+	_, err = k8sHelp.DeleteResource([]string{"-n", "rook", "serviceaccount", "rook-api"})
+	if err != nil {
+		panic(err)
+	}
+	_, err = k8sHelp.DeleteResource([]string{"clusterrole", "rook-api"})
+	if err != nil {
+		panic(err)
+	}
+	_, err = k8sHelp.DeleteResource([]string{"clusterrolebinding", "rook-api"})
+	if err != nil {
+		panic(err)
+	}
+	_, err = k8sHelp.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io"})
+	if err != nil {
+		panic(err)
+	}
+	_, err = k8sHelp.DeleteResource([]string{"secret", "rook-rook-user"})
+	if err != nil {
+		panic(err)
+	}
+	_, err = k8sHelp.DeleteResource([]string{"namespace", "rook"})
+	if err != nil {
+		panic(err)
+	}
+
+	isRookUninstalled := k8sHelp.WaitUntilPodInNamespaceIsDeleted("rook-ceph-mon", "rook")
+
+	if isRookUninstalled {
+		fmt.Println("Rook uninstalled successfully")
+		once.Reset()
+		return
+	}
+	panic(fmt.Errorf("Rook not uninstalled"))
+}
+
+func NewK8sRookhelper() (*InstallHelper, error) {
 
 	transportClient := transport.CreateNewk8sTransportClient()
-
-	return &RookHelper{
-		transportClient: transportClient,
-		isRookInstalled: false,
-	}, nil
+	once.Do(func() {
+		r = &InstallHelper{
+			transportClient: transportClient,
+			isRookInstalled: false,
+		}
+	})
+	return r, nil
 }

@@ -1,32 +1,40 @@
 # Rook Test Framework
 
-The Rook Test Framework is a Go project that that uses a Docker container with Kubernetes
-tools and Docker pre-installed to quickly create a three node Kubernetes cluster using Docker in
-Docker (DinD) techniques, installs Rook and then runs automation tests to verify its functionality.
+The Rook Test Framework is used to run end to end and integration tests on rook. The framework depends on kubernetes
+that is running. The framework also provides scripts for starting kubernetes using kubeadm or minikube, so users can 
+quickly spin a kubernetes platform. The Kubeadm-dind.sh script starts a 3 node kubernetes(using docker in docker technique) 
+and the minikube.sh starts a single node kubernetes. The Test framework is designed to install rook, run tests and uninstall rook
 
 ## Requirements
 
 1. Docker version => 1.2 && < 17.0
 2. Ubuntu Host 16 (currently the framework has only been tested on this version)
+3. Kubernetes with kubectl configured
+4. Rook
 
 ## Instructions
 
-On your Ubuntu box do the following;
-1.   Be sure to allocate a minimum of 4 processors to your vm
-2.   Navigate to the root directory of the repo and run the following:
-         ```e2e/scripts/smoke_test.sh```
+###Set up
+#### Install Kubernetes
+Users can choose any kubernetes flavor of their choice.  The Test framework only depends on kubectl being configured. 
+The framework also provides scripts to install Kubernetes. Run [kubeadm-dind.sh](/tests/scripts/kubeadm-dind.sh) to setup
+a three node kubernetes cluster using kubeadm(using docker in docker. each node is a docker container running kubernetes) 
+or run [minikube.sh](/tests/scripts/minikube.sh)to set up a single node kubernetes using kubeadm. 
+  
+  Both the start up scrits are designed to start kubrnetes, make sure rbd is working and copy latest rook and toolbox images
+  to the kubernetes containers.
 
-At this point a Docker container with the base image of ```quay.io/quantum/rook-test``` is created, a
-Kubernetes three node cluster is created using Kubeadm, that is visible from the Docker host. The
-nodes can be identified by the following container names (kube-master, kube-node1 and kube-node2).
-All tests with the name `SmokeSuite` in the method will execute and the results will be of a junit
-type output to the `e2e/results` directory.
 
-## Run Tests
-Rook Framework as several configuration options, that can be used to run install rook and run tests, or just run
-tests against rook that is already installed.
+### Run Tests
+From the root do the following
+1. Build rook : make build
+2. Start kubernetes : using [kubeadm-dind.sh](/tests/scripts/kubeadm-dind.sh) or [minikube.sh](/tests/scripts/minikube.sh)
+    run ```kube-didn.sh up``` or ```minikube.sh up```
+    
+3. Run integration tests : ```make test-integration``` 
 
-#### Test parameters
+
+### Test parameters
 The following parameters are available while running tests
 
  Parameter | Description | Possible values | Default
@@ -35,42 +43,55 @@ rook_platform| platform rook needs to be installed on  | kubernetes | kubernetes
 k8s_version  | version of Kubernetes to be installed  | v1.6  | v1.6
 rook_image | rook image name to be installed | valid image name | rook/rook
 toolbox_image | toolbox image name to be installed | valid image name | rook/toolbox
-tag | rook version/tag to be installed | valid rook tag |master
 skip_install_rook | skips installing rook (if already installed) | true or false  | false
-load_parallel_runs | performs concurrent operations (optional) | any number | 20
-count| go test paramater to repeat tests| any number | 1
+load_parallel_runs | performs concurrent operations (optional used for load test) | any number | 20
 
 if install_rook flag is set to false, then all the other flags are ignored,
 and tests are run without rook being installed and set up. Use this flag to run tests against
 a pre-installed/configured rook.
 
-#### Test set up
-  Run ```glide install ``` on dir ```~e2e/```
+### Running Tests with paramaters.
 
-#### Install Rook and run Test
-To install rook and run tests use the command
+#### using make 
+##### To run all integration Tests run 
 ```
-go test -run TestObjectStorageSmokeSuite github.com/rook/rook/e2e/tests/smoke
-```
-This uses the default  ```--skip_install_rook=false``` flag.  Then Based on other flags, rook is installed and tests
-are run. e.g.
-```
-go test -run TestObjectStorageSmokeSuite github.com/rook/rook/e2e/tests/smoke --rook_version=v3.0.1
+make test-integration
+
 ```
 
-#### Run Tests on pre-installed/exisitng Rook
-To run tests against a pre-installed rook set  ```--skip_install_rook=true``` .
-Setting skip_install_rook to true will ignore all other flags and run tests without installing rook first.
+##### To run all integration Tests on a specific suite. 
+```
+make test-integration SUITE=SmokeSuite
 
-e.g.
 ```
-go test -run TestFileSystemSmokeSuite github.com/rook/rook/e2e/tests/smoke --skip_install_rook=true
+runs all tests that match regex
+
+
+#### using go Test
+##### To run all tests in a package :
 ```
+go test  github.com/rook/rook/e2e/tests/smoke
+```
+runs all tests under /tests/smoke folder. 
+
+##### To run specific tests : 
+```
+go test -run SmokeSuite github.com/rook/rook/tests/smoke
+```
+which runs all tests that match regex SmokeSuite in /tests/smoke folder 
+
+
+##### To run specific without installing rook : 
+```
+go test -run SmokeSuite github.com/rook/rook/tests/smoke --skip_install_rook=true
+```
+if skip_install_rook flag is set to true, then rook is not uninstalled either. 
+
 #### Run Longhaul Tests
 Using go test `-count` option, any tests can be repeated n number of times to simulate load or longhaul test. Although 
 any test can be converted to a longhaul test, it's ideal to run integration tests under load for extended period to simulate 
 real world scenarios. Also a new custom test flag `load_parallel_runs` is added to control the number of concurrent operations being performed.
-For example look at the [block long haul test](/e2e/tests/block/k8s/longhaul/basicBlockonghaul_test.go)
+For example look at the [block long haul test](/tests/block/k8s/longhaul/basicBlockonghaul_test.go)
  
  To run a longhaul test you can run any integration test with `-count` and `--load_parallel_runs` options
  e.g.
@@ -86,11 +107,8 @@ Prerequisites :
 file. Update the file to set default values as you see fit and then run tests from IDE directly. 
 
 
-## Cleanup
+### Cleanup
+Test test framework is designed to uninstall rook after every test. If you using the --skip_install_rook flag to you might want to 
+clean up rook manually.
 
-The Rook Test Framework normally cleans up all the containers it creates to setup the environment
-and to run the tests. If for some reason the cleanup of the Rook Test framework should fail, the easiest way to manually
-cleanup the environment is by doing the following
-
-1. Delete the docker container that uses an image named `quay.io/rook/rook-test`
-2. Run the script ```rook/e2e/framework/manager/scripts/rook-dind-cluster-v1.6.sh clean```
+To stop kubernetes  run ```kubeadm-dind.sh clean``` or ```minikube.sh clean```

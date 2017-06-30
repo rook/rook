@@ -2,11 +2,11 @@ package longhaul
 
 import (
 	"bytes"
-	"github.com/rook/rook/e2e/framework/clients"
-	"github.com/rook/rook/e2e/framework/contracts"
-	"github.com/rook/rook/e2e/framework/objects"
-	"github.com/rook/rook/e2e/framework/utils"
-	"github.com/rook/rook/e2e/tests"
+	"github.com/rook/rook/tests"
+	"github.com/rook/rook/tests/framework/clients"
+	"github.com/rook/rook/tests/framework/contracts"
+	"github.com/rook/rook/tests/framework/objects"
+	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"html/template"
