@@ -25,7 +25,7 @@ $(error invalid channel $(CHANNEL))
 endif
 
 PLATFORMS ?= $(ALL_PLATFORMS)
-FLAVORS ?= binaries images
+FLAVORS ?= binaries images docs
 TEMP_DIR := $(shell mktemp -d)
 
 DOCKER_REGISTRY ?= rook
@@ -39,6 +39,12 @@ S3_BUCKET ?= rook-release
 S3_CP := aws s3 cp --only-show-errors
 S3_SYNC := aws s3 sync --only-show-errors --delete
 S3_CURRENT_BUCKET := s3://$(S3_BUCKET)/$(CHANNEL)/$(VERSION)
+
+# TODO: change from ilovett to rook
+DOCS_REPO ?= https://github.com/ilovett/rook.github.io.git
+DOCS_BRANCH ?= master
+DOCS_WORK_DIR := $(WORK_DIR)/rook.github.io
+DOCS_VERSION_DIR= $(DOCS_WORK_DIR)/docs/rook/$(VERSION)
 
 # ====================================================================================
 # tools
@@ -72,6 +78,22 @@ publish.binaries: $(addprefix publish.binaries.,$(PLATFORMS))
 	@$(S3_CP) "$(TEMP_DIR)/version" $(S3_CURRENT_BUCKET)/version
 promote.binaries:
 	@$(S3_SYNC) s3://$(S3_BUCKET)/master/$(VERSION) s3://$(S3_BUCKET)/$(CHANNEL)/current
+
+# ====================================================================================
+# docs
+
+publish.docs:
+	@rm -rf $(DOCS_WORK_DIR) && mkdir -p $(DOCS_WORK_DIR)
+	@git clone --depth=1 -b $(DOCS_BRANCH) $(DOCS_REPO) $(DOCS_WORK_DIR)
+	@rm -rf $(DOCS_VERSION_DIR) && mkdir -p $(DOCS_VERSION_DIR)
+	@cp -r ../../Documentation/ $(DOCS_VERSION_DIR)/
+	@pushd $(DOCS_WORK_DIR) >/dev/null && \
+		npm install && \
+		node ./prepare.js && \
+		git add . && \
+		git commit -m "docs snapshot for channel $(VERSION)" && \
+		git push -u origin $(DOCS_BRANCH) && \
+		popd >/dev/null
 
 # ====================================================================================
 # images
