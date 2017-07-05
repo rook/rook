@@ -20,6 +20,7 @@ import (
 	"flag"
 )
 
+//EnvironmentManifest contains informaton about system under test
 type EnvironmentManifest struct {
 	K8sVersion         string
 	Platform           string
@@ -29,6 +30,7 @@ type EnvironmentManifest struct {
 	LoadConcurrentRuns int
 }
 
+//NewManifest creates a new instance of EnvironmentManifest
 func NewManifest() EnvironmentManifest {
 	e := EnvironmentManifest{}
 

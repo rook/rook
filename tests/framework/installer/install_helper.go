@@ -24,9 +24,11 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/transport"
 	"github.com/rook/rook/tests/framework/utils"
+	"strings"
 )
 
 const (
@@ -34,27 +36,36 @@ const (
 	rookClusterFileName    = "rook-cluster.yaml"
 	rookToolsFileName      = "rook-tools.yaml"
 	podSpecPath            = "src/github.com/rook/rook/demo/kubernetes"
+	podSpecPath1_5         = "src/github.com/rook/rook/demo/kubernetes/1.5"
 	rookOperatorCreatedTpr = "cluster.rook.io"
 )
 
 var (
-	r    *InstallHelper
-	once Once
+	r      *InstallHelper
+	once   Once
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "installer")
 )
 
+//InstallHelper wraps installation and uninstallaion of rook on a platfom
 type InstallHelper struct {
 	transportClient contracts.ITransportClient
 	isRookInstalled bool
 }
 
-func getPodSpecPath() string {
-	return filepath.Join(os.Getenv("GOPATH"), podSpecPath)
+func getPodSpecPath(k8sverion string) string {
+	switch k8sverion {
+	case "v1.5":
+		return filepath.Join(os.Getenv("GOPATH"), podSpecPath1_5)
+	default:
+		return filepath.Join(os.Getenv("GOPATH"), podSpecPath)
+	}
 }
 
 //method for create rook-operator via kubectl
-func (h *InstallHelper) createK8sRookOperator(k8sHelper *utils.K8sHelper) error {
+func (h *InstallHelper) createK8sRookOperator(k8sHelper *utils.K8sHelper, k8sversion string) error {
+	logger.Infof("Starting Rook Operator")
 
-	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(), rookOperatorFileName))
+	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(k8sversion), rookOperatorFileName))
 
 	if err != nil {
 		return err
@@ -67,20 +78,19 @@ func (h *InstallHelper) createK8sRookOperator(k8sHelper *utils.K8sHelper) error 
 		return fmt.Errorf(string("Failed to create rook-operator pod; kubectl exit code = " + string(exitCode)))
 	}
 
-	fmt.Println()
 	if !k8sHelper.IsThirdPartyResourcePresent(rookOperatorCreatedTpr) {
 		return fmt.Errorf("Failed to start Rook Operator; k8s thirdpartyresource did not appear")
-	} else {
-		fmt.Println("Rook Operator started")
 	}
+	logger.Infof("Rook Operator started")
 
 	return nil
 }
 
-func (h *InstallHelper) createK8sRookToolbox(k8sHelper *utils.K8sHelper) (err error) {
+func (h *InstallHelper) createK8sRookToolbox(k8sHelper *utils.K8sHelper, k8sversion string) (err error) {
+	logger.Infof("Starting Rook toolbox")
 
 	//Create rook toolbox
-	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(), rookToolsFileName))
+	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(k8sversion), rookToolsFileName))
 
 	if err != nil {
 		panic(err)
@@ -96,16 +106,16 @@ func (h *InstallHelper) createK8sRookToolbox(k8sHelper *utils.K8sHelper) (err er
 
 	if !k8sHelper.IsPodRunningInNamespace("rook-tools") {
 		return fmt.Errorf("Rook Toolbox couldn't start")
-	} else {
-		fmt.Println("Rook Toolbox started")
 	}
+	logger.Infof("Rook Toolbox started")
 
 	return nil
 }
 
-func (h *InstallHelper) createk8sRookCluster(k8sHelper *utils.K8sHelper) error {
+func (h *InstallHelper) createk8sRookCluster(k8sHelper *utils.K8sHelper, k8sversion string) error {
+	logger.Infof("Starting Rook Cluster")
 
-	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(), rookClusterFileName))
+	raw, err := ioutil.ReadFile(path.Join(getPodSpecPath(k8sversion), rookClusterFileName))
 
 	if err != nil {
 		return err
@@ -119,15 +129,16 @@ func (h *InstallHelper) createk8sRookCluster(k8sHelper *utils.K8sHelper) error {
 	}
 
 	if !k8sHelper.IsServiceUpInNameSpace("rook-api") {
-		fmt.Println("Rook Cluster couldn't start")
+		logger.Infof("Rook Cluster couldn't start")
 	} else {
-		fmt.Println("Rook Cluster started")
+		logger.Infof("Rook Cluster started")
 	}
 
 	return nil
 }
 
-func (h *InstallHelper) InstallRookOnK8s() (err error) {
+//InstallRookOnK8s installs rook on k8s
+func (h *InstallHelper) InstallRookOnK8s(k8sversion string) (err error) {
 	if h.isRookInstalled {
 		return
 	}
@@ -135,7 +146,7 @@ func (h *InstallHelper) InstallRookOnK8s() (err error) {
 	//Create rook operator
 	k8sHelp := utils.CreatK8sHelper()
 
-	err = h.createK8sRookOperator(k8sHelp)
+	err = h.createK8sRookOperator(k8sHelp, k8sversion)
 	if err != nil {
 		panic(err)
 	}
@@ -143,7 +154,7 @@ func (h *InstallHelper) InstallRookOnK8s() (err error) {
 	time.Sleep(10 * time.Second) ///TODO: add real check here
 
 	//Create rook cluster
-	err = h.createk8sRookCluster(k8sHelp)
+	err = h.createk8sRookCluster(k8sHelp, k8sversion)
 	if err != nil {
 		panic(err)
 	}
@@ -151,7 +162,7 @@ func (h *InstallHelper) InstallRookOnK8s() (err error) {
 	time.Sleep(5 * time.Second)
 
 	//Create rook client
-	err = h.createK8sRookToolbox(k8sHelp)
+	err = h.createK8sRookToolbox(k8sHelp, k8sversion)
 	if err != nil {
 		panic(err)
 	}
@@ -161,11 +172,12 @@ func (h *InstallHelper) InstallRookOnK8s() (err error) {
 	return nil
 }
 
-func (h *InstallHelper) UninstallRookFromK8s() {
-
+//UninstallRookFromK8s uninstalls rook from k8s
+func (h *InstallHelper) UninstallRookFromK8s(k8sversion string) {
+	logger.Infof("Uninstalling Rook")
 	k8sHelp := utils.CreatK8sHelper()
 	var err error
-	_, err = k8sHelp.ResourceOperation("delete", path.Join(getPodSpecPath(), rookOperatorFileName))
+	_, err = k8sHelp.ResourceOperation("delete", path.Join(getPodSpecPath(k8sversion), rookOperatorFileName))
 	if err != nil {
 		panic(err)
 	}
@@ -177,13 +189,15 @@ func (h *InstallHelper) UninstallRookFromK8s() {
 	if err != nil {
 		panic(err)
 	}
-	_, err = k8sHelp.DeleteResource([]string{"clusterrole", "rook-api"})
-	if err != nil {
-		panic(err)
-	}
-	_, err = k8sHelp.DeleteResource([]string{"clusterrolebinding", "rook-api"})
-	if err != nil {
-		panic(err)
+	if !strings.EqualFold(k8sversion, "v1.5") {
+		_, err = k8sHelp.DeleteResource([]string{"clusterrole", "rook-api"})
+		if err != nil {
+			panic(err)
+		}
+		_, err = k8sHelp.DeleteResource([]string{"clusterrolebinding", "rook-api"})
+		if err != nil {
+			panic(err)
+		}
 	}
 	_, err = k8sHelp.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io"})
 	if err != nil {
@@ -201,13 +215,14 @@ func (h *InstallHelper) UninstallRookFromK8s() {
 	isRookUninstalled := k8sHelp.WaitUntilPodInNamespaceIsDeleted("rook-ceph-mon", "rook")
 
 	if isRookUninstalled {
-		fmt.Println("Rook uninstalled successfully")
+		logger.Infof("Rook uninstalled successfully")
 		once.Reset()
 		return
 	}
 	panic(fmt.Errorf("Rook not uninstalled"))
 }
 
+//NewK8sRookhelper creates new instance of InstallHelper
 func NewK8sRookhelper() (*InstallHelper, error) {
 
 	transportClient := transport.CreateNewk8sTransportClient()

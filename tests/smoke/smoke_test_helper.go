@@ -27,16 +27,19 @@ import (
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/utils"
+	"strings"
 )
 
 const (
 	dataPath = "src/github.com/rook/rook/tests/data"
 )
 
-type SmokeTestHelper struct {
+//TestHelper struct for smoke test
+type TestHelper struct {
 	platform   enums.RookPlatformType
 	rookclient *clients.TestClient
 	k8sHelp    *utils.K8sHelper
+	k8sVersion string
 }
 
 type blockTestData struct {
@@ -55,15 +58,15 @@ type fileTestData struct {
 }
 
 type objectUserData struct {
-	userId      string
+	userID      string
 	displayname string
-	emailId     string
+	emailID     string
 }
 
 type objectConnectionData struct {
 	awsEndpoint        string
 	awsHost            string
-	awsSecretKeyId     string
+	awsSecretKeyID     string
 	awsSecretAccessKey string
 }
 
@@ -75,13 +78,15 @@ func createObjectConnectionData(endpoint string, host string, secretid string, s
 	return objectConnectionData{endpoint, host, secretid, secretkey}
 }
 
-func CreateSmokeTestClient(platform enums.RookPlatformType) (*SmokeTestHelper, error) {
+//CreateSmokeTestClient constructor for creating instance of smoke test client
+func CreateSmokeTestClient(platform enums.RookPlatformType, k8sversion string) (*TestHelper, error) {
 
 	rc, err := getRookClient(platform)
 
-	return &SmokeTestHelper{platform: platform,
+	return &TestHelper{platform: platform,
 		rookclient: rc,
-		k8sHelp:    utils.CreatK8sHelper()}, err
+		k8sHelp:    utils.CreatK8sHelper(),
+		k8sVersion: k8sversion}, err
 
 }
 
@@ -89,15 +94,19 @@ func getRookClient(platform enums.RookPlatformType) (*clients.TestClient, error)
 	return clients.CreateTestClient(platform)
 
 }
-func (h *SmokeTestHelper) GetBlockClient() contracts.BlockOperator {
+
+//GetBlockClient returns a pointer to block client to perform block operations
+func (h *TestHelper) GetBlockClient() contracts.BlockOperator {
 	return h.rookclient.GetBlockClient()
 }
 
-func (h *SmokeTestHelper) GetFileSystemClient() contracts.FileSystemOperator {
+//GetFileSystemClient returns a pointer to fileSystem client to perform filesSystem operations
+func (h *TestHelper) GetFileSystemClient() contracts.FileSystemOperator {
 	return h.rookclient.GetFileSystemClient()
 }
 
-func (h *SmokeTestHelper) GetObjectClient() contracts.ObjectOperator {
+//GetObjectClient returns a pointer to object store client to perform object store operations
+func (h *TestHelper) GetObjectClient() contracts.ObjectOperator {
 	return h.rookclient.GetObjectClient()
 }
 
@@ -105,7 +114,7 @@ func getDataPath(file string) string {
 	return filepath.Join(os.Getenv("GOPATH"), dataPath, file)
 }
 
-func (h *SmokeTestHelper) getBlockTestData() (blockTestData, error) {
+func (h *TestHelper) getBlockTestData() (blockTestData, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		return blockTestData{"block-test",
@@ -125,7 +134,7 @@ func (h *SmokeTestHelper) getBlockTestData() (blockTestData, error) {
 	}
 }
 
-func (h *SmokeTestHelper) getFileTestData() (fileTestData, error) {
+func (h *TestHelper) getFileTestData() (fileTestData, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		return fileTestData{"testfs",
@@ -141,21 +150,28 @@ func (h *SmokeTestHelper) getFileTestData() (fileTestData, error) {
 	}
 }
 
-func (h *SmokeTestHelper) getObjectStoreUserData() objectUserData {
+func (h *TestHelper) getObjectStoreUserData() objectUserData {
 	return objectUserData{"rook-user", "A rook RGW user", ""}
 }
-func (h *SmokeTestHelper) getRGWExtenalSevDef() string {
+func (h *TestHelper) getRGWExtenalSevDef() string {
 	return getDataPath("smoke/rgw_external.yaml")
 }
 
-func (h *SmokeTestHelper) CreateBlockStorage() (string, error) {
+//CreateBlockStorage function creates a block store
+func (h *TestHelper) CreateBlockStorage() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		blockData, _ := h.getBlockTestData()
-		h.k8sHelp.ResourceOperation("create", getDataPath("smoke/pool_sc.yaml"))
+		if strings.EqualFold(h.k8sVersion, "v1.5") {
+			h.k8sHelp.ResourceOperation("create", getDataPath("smoke/pool_sc_1_5.yaml"))
+
+		} else {
+			h.k8sHelp.ResourceOperation("create", getDataPath("smoke/pool_sc.yaml"))
+		}
 		// see https://github.com/rook/rook/issues/767
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 		return h.k8sHelp.ResourceOperation("create", blockData.pvcDefPath)
+
 	case enums.StandAlone:
 		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
 	default:
@@ -164,7 +180,15 @@ func (h *SmokeTestHelper) CreateBlockStorage() (string, error) {
 	}
 }
 
-func (h *SmokeTestHelper) MountBlockStorage() (string, error) {
+//WaitUntilPVCIsBound waits untill PVC is in bound state and returs true if the state is transitisioned to
+//Bound state, or returns false
+func (h *TestHelper) WaitUntilPVCIsBound() bool {
+
+	return h.k8sHelp.WaitUntilPVCIsBound("block-pv-claim")
+}
+
+//MountBlockStorage function mounts a rook created block storage
+func (h *TestHelper) MountBlockStorage() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		blockData, _ := h.getBlockTestData()
@@ -186,7 +210,8 @@ func (h *SmokeTestHelper) MountBlockStorage() (string, error) {
 	}
 }
 
-func (h *SmokeTestHelper) WriteToBlockStorage(data string, filename string) (string, error) {
+//WriteToBlockStorage function writes a block to rook provisioned block store
+func (h *TestHelper) WriteToBlockStorage(data string, filename string) (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		blockData, _ := h.getBlockTestData()
@@ -200,7 +225,8 @@ func (h *SmokeTestHelper) WriteToBlockStorage(data string, filename string) (str
 	}
 }
 
-func (h *SmokeTestHelper) ReadFromBlockStorage(filename string) (string, error) {
+//ReadFromBlockStorage function Reads a block from rook provisioned block store
+func (h *TestHelper) ReadFromBlockStorage(filename string) (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		blockData, _ := h.getBlockTestData()
@@ -214,7 +240,8 @@ func (h *SmokeTestHelper) ReadFromBlockStorage(filename string) (string, error) 
 	}
 }
 
-func (h *SmokeTestHelper) UnMountBlockStorage() (string, error) {
+//UnMountBlockStorage function unmounts Block storage
+func (h *TestHelper) UnMountBlockStorage() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		blockData, _ := h.getBlockTestData()
@@ -235,11 +262,18 @@ func (h *SmokeTestHelper) UnMountBlockStorage() (string, error) {
 	}
 }
 
-func (h *SmokeTestHelper) DeleteBlockStorage() (string, error) {
+//DeleteBlockStorage function deletes block storage
+func (h *TestHelper) DeleteBlockStorage() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		blockData, _ := h.getBlockTestData()
 		// Delete storage pool, storage class and pvc
+		if strings.EqualFold(h.k8sVersion, "v1.5") {
+			h.k8sHelp.ResourceOperation("delete", getDataPath("smoke/pool_sc_1_5.yaml"))
+
+		} else {
+			h.k8sHelp.ResourceOperation("delete", getDataPath("smoke/pool_sc.yaml"))
+		}
 		return h.k8sHelp.ResourceOperation("delete", blockData.pvcDefPath)
 	case enums.StandAlone:
 		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
@@ -249,7 +283,8 @@ func (h *SmokeTestHelper) DeleteBlockStorage() (string, error) {
 	}
 }
 
-func (h *SmokeTestHelper) CleanUpDymanicBlockStorage() {
+//CleanUpDymanicBlockStorage is helper method to clean up bock storage created by tests
+func (h *TestHelper) CleanUpDymanicBlockStorage() {
 	switch h.platform {
 	case enums.Kubernetes:
 		// Delete storage pool, storage class and pvc
@@ -262,7 +297,8 @@ func (h *SmokeTestHelper) CleanUpDymanicBlockStorage() {
 	}
 }
 
-func (h *SmokeTestHelper) CreateFileStorage() (string, error) {
+//CreateFileStorage function creates a file system
+func (h *TestHelper) CreateFileStorage() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		fileTestData, _ := h.getFileTestData()
@@ -276,7 +312,8 @@ func (h *SmokeTestHelper) CreateFileStorage() (string, error) {
 	}
 }
 
-func (h *SmokeTestHelper) MountFileStorage() (string, error) {
+//MountFileStorage function mounts a file system
+func (h *TestHelper) MountFileStorage() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		fileTestData, _ := h.getFileTestData()
@@ -311,7 +348,8 @@ func (h *SmokeTestHelper) MountFileStorage() (string, error) {
 	}
 }
 
-func (h *SmokeTestHelper) WriteToFileStorage(data string, filename string) (string, error) {
+//WriteToFileStorage functions creates a new file on rook file system
+func (h *TestHelper) WriteToFileStorage(data string, filename string) (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		fileTestData, _ := h.getFileTestData()
@@ -325,7 +363,8 @@ func (h *SmokeTestHelper) WriteToFileStorage(data string, filename string) (stri
 	}
 }
 
-func (h *SmokeTestHelper) ReadFromFileStorage(filename string) (string, error) {
+//ReadFromFileStorage function get file content from a rook file storage
+func (h *TestHelper) ReadFromFileStorage(filename string) (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		fileTestData, _ := h.getFileTestData()
@@ -339,7 +378,8 @@ func (h *SmokeTestHelper) ReadFromFileStorage(filename string) (string, error) {
 	}
 }
 
-func (h *SmokeTestHelper) UnmountFileStorage() (string, error) {
+//UnmountFileStorage funxtion unmounts a file system
+func (h *TestHelper) UnmountFileStorage() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		fileTestData, _ := h.getFileTestData()
@@ -373,7 +413,8 @@ func (h *SmokeTestHelper) UnmountFileStorage() (string, error) {
 	}
 }
 
-func (h *SmokeTestHelper) DeleteFileStorage() (string, error) {
+//DeleteFileStorage deletes File system
+func (h *TestHelper) DeleteFileStorage() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		fileTestData, _ := h.getFileTestData()
@@ -387,7 +428,8 @@ func (h *SmokeTestHelper) DeleteFileStorage() (string, error) {
 	}
 }
 
-func (h *SmokeTestHelper) CreateObjectStore() (string, error) {
+//CreateObjectStore function creates a object store
+func (h *TestHelper) CreateObjectStore() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		h.GetObjectClient().ObjectCreate()
@@ -396,6 +438,10 @@ func (h *SmokeTestHelper) CreateObjectStore() (string, error) {
 			_, err := h.k8sHelp.GetService("rgw-external")
 			if err != nil {
 				h.k8sHelp.ResourceOperation("create", h.getRGWExtenalSevDef())
+				if !h.k8sHelp.IsServiceUpInNameSpace("rgw-external") {
+					return "Couldn't create object store ", fmt.Errorf("Cannot expose rgw servie for external user")
+				}
+
 			}
 
 			return "OJECT STORE CREATED", nil
@@ -408,49 +454,57 @@ func (h *SmokeTestHelper) CreateObjectStore() (string, error) {
 	}
 }
 
-func (h *SmokeTestHelper) CreateObjectStoreUser() (string, error) {
+//CreateObjectStoreUser function creates a new object store user
+func (h *TestHelper) CreateObjectStoreUser() (string, error) {
 	objectUserdata := h.getObjectStoreUserData()
-	_, err := h.GetObjectClient().ObjectCreateUser(objectUserdata.userId, objectUserdata.displayname)
+	_, err := h.GetObjectClient().ObjectCreateUser(objectUserdata.userID, objectUserdata.displayname)
 	if err != nil {
-		return "USER NOT CREATED", fmt.Errorf("User not created for object store")
+		return "USER NOT CREATED", fmt.Errorf("User not created for object store  %+v", err)
 	}
 	return "USER CREATED ", nil
 }
 
-func (h *SmokeTestHelper) GetObjectStoreUsers() ([]model.ObjectUser, error) {
+//GetObjectStoreUsers returns all useres
+func (h *TestHelper) GetObjectStoreUsers() ([]model.ObjectUser, error) {
 	return h.GetObjectClient().ObjectListUser()
 
 }
 
-func (h *SmokeTestHelper) GetObjectStoreUser(userid string) (*model.ObjectUser, error) {
+//GetObjectStoreUser function returns a user object with matching userId
+func (h *TestHelper) GetObjectStoreUser(userid string) (*model.ObjectUser, error) {
 	return h.GetObjectClient().ObjectGetUser(userid)
 
 }
 
-func (h *SmokeTestHelper) GetObjectStoreConnection() (*model.ObjectStoreConnectInfo, error) {
+//GetObjectStoreConnection function returns connection information about object store
+func (h *TestHelper) GetObjectStoreConnection() (*model.ObjectStoreConnectInfo, error) {
 	return h.GetObjectClient().ObjectConnection()
 
 }
 
-func (h *SmokeTestHelper) GetObjectStoreBucketList() ([]model.ObjectBucket, error) {
+//GetObjectStoreBucketList function returns list of buckets for a user
+func (h *TestHelper) GetObjectStoreBucketList() ([]model.ObjectBucket, error) {
 	return h.GetObjectClient().ObjectBucketList()
 
 }
 
-func (h *SmokeTestHelper) DeleteObjectStoreUser() error {
+//DeleteObjectStoreUser function deletes rgw object store user
+func (h *TestHelper) DeleteObjectStoreUser() error {
 	objectUserdata := h.getObjectStoreUserData()
-	return h.GetObjectClient().ObjectDeleteUser(objectUserdata.userId)
+	return h.GetObjectClient().ObjectDeleteUser(objectUserdata.userID)
 
 }
 
-func (h *SmokeTestHelper) GetRGWServiceUrl() (string, error) {
+//GetRGWServiceURL returns URL of ceph RGW service in the cluster
+func (h *TestHelper) GetRGWServiceURL() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
-		hostip, err := h.k8sHelp.GetPodHostId("rook-ceph-rgw", "rook")
+		hostip, err := h.k8sHelp.GetPodHostID("rook-ceph-rgw", "rook")
 		if err != nil {
 			panic(fmt.Errorf("RGW pods not found/object store possibly not started"))
 		}
-		return hostip + ":30001", err
+		endpoint := hostip + ":30001"
+		return endpoint, err
 	case enums.StandAlone:
 		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
 	default:

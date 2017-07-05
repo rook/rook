@@ -21,19 +21,23 @@ import (
 	"github.com/rook/rook/tests/framework/contracts"
 )
 
+//PoolClient is a wrapper for rook pool operations
 type PoolClient struct {
 	transportClient contracts.ITransportClient
 	restClient      contracts.RestAPIOperator
 }
 
+//CreatePoolClient creates a new pool client
 func CreatePoolClient(rookRestClient contracts.RestAPIOperator) *PoolClient {
 	return &PoolClient{restClient: rookRestClient}
 }
 
+//PoolList returns all pools in rook
 func (rp *PoolClient) PoolList() ([]model.Pool, error) {
 	return rp.restClient.GetPools()
 }
 
+//PoolCreate creates new pool
 func (rp *PoolClient) PoolCreate(pool model.Pool) (string, error) {
 	return rp.restClient.CreatePool(pool)
 }

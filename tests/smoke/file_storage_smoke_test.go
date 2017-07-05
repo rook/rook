@@ -24,48 +24,48 @@ import (
 //Create,Mount,Write,Read,Unmount and Delete.
 func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
 	defer suite.fileTestDataCleanUp()
-	suite.T().Log("File Storage Smoke Test - Create,Mount,write to, read from  and Unmount Filesystem")
+	logger.Infof("File Storage Smoke Test - Create,Mount,write to, read from  and Unmount Filesystem")
 	rfc := suite.helper.GetFileSystemClient()
 
-	suite.T().Log("Step 1: Create file System")
-	_, fsc_err := suite.helper.CreateFileStorage()
-	require.Nil(suite.T(), fsc_err)
+	logger.Infof("Step 1: Create file System")
+	_, fscErr := suite.helper.CreateFileStorage()
+	require.Nil(suite.T(), fscErr)
 	fileSystemList, _ := rfc.FSList()
 	require.Equal(suite.T(), 1, len(fileSystemList), "There should one shared file system present")
 	filesystemData := fileSystemList[0]
 	require.Equal(suite.T(), "testfs", filesystemData.Name, "make sure filesystem name matches")
-	suite.T().Log("File system created")
+	logger.Infof("File system created")
 
-	suite.T().Log("Step 2: Mount file System")
-	_, mtfs_err := suite.helper.MountFileStorage()
-	require.Nil(suite.T(), mtfs_err)
-	suite.T().Log("File system mounted successfully")
+	logger.Infof("Step 2: Mount file System")
+	_, mtfsErr := suite.helper.MountFileStorage()
+	require.Nil(suite.T(), mtfsErr)
+	logger.Infof("File system mounted successfully")
 
-	suite.T().Log("Step 3: Write to file system")
-	_, wfs_err := suite.helper.WriteToFileStorage("Test data for file", "fsFile1")
-	require.Nil(suite.T(), wfs_err)
-	suite.T().Log("Write to file system successful")
+	logger.Infof("Step 3: Write to file system")
+	_, wfsErr := suite.helper.WriteToFileStorage("Test data for file", "fsFile1")
+	require.Nil(suite.T(), wfsErr)
+	logger.Infof("Write to file system successful")
 
-	suite.T().Log("Step 4: Read from file system")
-	read, rd_err := suite.helper.ReadFromFileStorage("fsFile1")
-	require.Nil(suite.T(), rd_err)
+	logger.Infof("Step 4: Read from file system")
+	read, rdErr := suite.helper.ReadFromFileStorage("fsFile1")
+	require.Nil(suite.T(), rdErr)
 	require.Contains(suite.T(), read, "Test data for file", "make sure content of the files is unchanged")
-	suite.T().Log("Read from file system successful")
+	logger.Infof("Read from file system successful")
 
-	suite.T().Log("Step 5: Mount file System")
-	_, umtfs_err := suite.helper.UnmountFileStorage()
-	require.Nil(suite.T(), umtfs_err)
-	suite.T().Log("File system mounted successfully")
+	logger.Infof("Step 5: UnMount file System")
+	_, umtfsErr := suite.helper.UnmountFileStorage()
+	require.Nil(suite.T(), umtfsErr)
+	logger.Infof("File system mounted successfully")
 
-	suite.T().Log("Step 6: Deleting file storage")
+	logger.Infof("Step 6: Deleting file storage")
 	suite.helper.DeleteFileStorage()
 	//Delete is not deleting filesystem - known issue
 	//require.Nil(suite.T(), fsd_err)
-	suite.T().Log("File system deleted")
+	logger.Infof("File system deleted")
 }
 
-func (s *SmokeSuite) fileTestDataCleanUp() {
-	s.helper.UnmountFileStorage()
-	s.helper.DeleteFileStorage()
+func (suite *SmokeSuite) fileTestDataCleanUp() {
+	suite.helper.UnmountFileStorage()
+	suite.helper.DeleteFileStorage()
 
 }

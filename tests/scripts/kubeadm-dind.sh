@@ -23,6 +23,7 @@ copy_rbd() {
     for c in kube-master kube-node-1 kube-node-2; do
         docker cp ${scriptdir}/dind-cluster-rbd ${c}:/bin/rbd
         docker exec ${c} /bin/bash -c "chmod +x /bin/rbd"
+        docker exec ${c} /bin/bash -c "docker pull ceph/base"
     done
 }
 

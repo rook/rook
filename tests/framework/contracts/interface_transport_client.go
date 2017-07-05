@@ -16,6 +16,7 @@ limitations under the License.
 
 package contracts
 
+//ITransportClient is interface for rook commands on different platforms
 type ITransportClient interface {
 	Execute(cmd []string, optional []string) (stdout string, stderr string, exitCode int)
 	Create(cmd []string, optional []string) (stdout string, stderr string, exitCode int)

@@ -24,16 +24,20 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
+	"github.com/coreos/pkg/capnslog"
 )
 
+//S3Helper contains pointer to s3 client and wrappers for basic object store operations
 type S3Helper struct {
 	s3client *s3.S3
 }
 
-// create a s3 client for specfied endpoint and creds
-func CreateNewS3Helper(endpoint string, keyId string, keySecret string) *S3Helper {
+var s3logger = capnslog.NewPackageLogger("github.com/rook/rook", "s3utils")
 
-	creds := credentials.NewStaticCredentials(keyId, keySecret, "")
+// CreateNewS3Helper creates a s3 client for specfied endpoint and creds
+func CreateNewS3Helper(endpoint string, keyID string, keySecret string) *S3Helper {
+
+	creds := credentials.NewStaticCredentials(keyID, keySecret, "")
 
 	// create aws s3 config, must use 'us-east-1' default aws region for ceph object store
 	awsConfig := aws.NewConfig().
@@ -41,7 +45,8 @@ func CreateNewS3Helper(endpoint string, keyId string, keySecret string) *S3Helpe
 		WithCredentials(creds).
 		WithEndpoint(endpoint).
 		WithS3ForcePathStyle(true).
-		WithDisableSSL(true)
+		WithDisableSSL(true).
+		WithMaxRetries(20)
 
 	//create new session
 	ses := session.New()
@@ -52,28 +57,33 @@ func CreateNewS3Helper(endpoint string, keyId string, keySecret string) *S3Helpe
 	return &S3Helper{c}
 }
 
+//CreateBucket function creates  bucket using s3 client
 func (h *S3Helper) CreateBucket(name string) (bool, error) {
 	_, err := h.s3client.CreateBucket(&s3.CreateBucketInput{
 		Bucket: aws.String(name),
 	})
 	if err != nil {
+		s3logger.Errorf("error encountered while creating bucket : %v", err)
 		return false, err
 
 	}
 	return true, nil
 }
 
+//DeleteBucket function deletes given bucket using s3 client
 func (h *S3Helper) DeleteBucket(name string) (bool, error) {
 	_, err := h.s3client.DeleteBucket(&s3.DeleteBucketInput{
 		Bucket: aws.String(name),
 	})
 	if err != nil {
+		s3logger.Errorf("error encountered while deleting bucket : %v", err)
 		return false, err
 
 	}
 	return true, nil
 }
 
+//PutObjectInBucket function puts an object in a bucket using s3 client
 func (h *S3Helper) PutObjectInBucket(bucketname string, body string, key string,
 	contentType string) (bool, error) {
 	_, err := h.s3client.PutObject(&s3.PutObjectInput{
@@ -83,12 +93,14 @@ func (h *S3Helper) PutObjectInBucket(bucketname string, body string, key string,
 		ContentType: &contentType,
 	})
 	if err != nil {
+		s3logger.Errorf("error encountered while putting object in bucket : %v", err)
 		return false, err
 
 	}
 	return true, nil
 }
 
+//GetObjectInBucket function retrieves an object from a bucket using s3 client
 func (h *S3Helper) GetObjectInBucket(bucketname string, key string) (string, error) {
 	result, err := h.s3client.GetObject(&s3.GetObjectInput{
 		Bucket: aws.String(bucketname),
@@ -96,6 +108,7 @@ func (h *S3Helper) GetObjectInBucket(bucketname string, key string) (string, err
 	})
 
 	if err != nil {
+		s3logger.Errorf("error encountered while retrieving object from bucket : %v", err)
 		return "ERROR_ OBJCET NOT FOUND", err
 
 	}
@@ -104,12 +117,15 @@ func (h *S3Helper) GetObjectInBucket(bucketname string, key string) (string, err
 
 	return buf.String(), nil
 }
+
+//DeleteObjectInBucket function deletes given bucket using s3 client
 func (h *S3Helper) DeleteObjectInBucket(bucketname string, key string) (bool, error) {
 	_, err := h.s3client.DeleteObject(&s3.DeleteObjectInput{
 		Bucket: aws.String(bucketname),
 		Key:    aws.String(key),
 	})
 	if err != nil {
+		s3logger.Errorf("error encountered while deleting object from bucket : %v", err)
 		return false, err
 
 	}

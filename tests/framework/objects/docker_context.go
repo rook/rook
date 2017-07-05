@@ -18,25 +18,30 @@ package objects
 
 import "github.com/rook/rook/tests/framework/contracts"
 
+//DockerContext is wrapperr for docker client
 type DockerContext struct {
-	containerId  string
+	containerID  string
 	dockerClient contracts.IDockerClient
 }
 
+//SetDockerContext function sets docker context instance
 func SetDockerContext(dockerClient contracts.IDockerClient) DockerContext {
 	return DockerContext{dockerClient: dockerClient}
 }
 
-func (d *DockerContext) Get_ContainerId() string {
-	return d.containerId
+//GetContainerID gets container Id from dockerContext instance
+func (d *DockerContext) GetContainerID() string {
+	return d.containerID
 }
 
-func (d *DockerContext) Set_ContainerId(containerId string) string {
-	d.containerId = containerId
+//SetContainerID sets container Id on dockerContext instance
+func (d *DockerContext) SetContainerID(containerID string) string {
+	d.containerID = containerID
 
-	return containerId
+	return containerID
 }
 
-func (d *DockerContext) Get_DockerClient() contracts.IDockerClient {
+//GetDockerClient returns docker client instance
+func (d *DockerContext) GetDockerClient() contracts.IDockerClient {
 	return d.dockerClient
 }

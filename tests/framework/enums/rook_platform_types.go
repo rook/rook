@@ -21,12 +21,17 @@ import (
 	"strings"
 )
 
+//RookPlatformType is enum if rook platforms
 type RookPlatformType int
 
 const (
+	//Kubernetes plafrom is default
 	Kubernetes RookPlatformType = iota + 1
+	//BareMetal plafrom
 	BareMetal
+	//StandAlone plafrom is default
 	StandAlone
+	//None platform
 	None
 )
 
@@ -41,6 +46,7 @@ func (platform RookPlatformType) String() string {
 	return platforms[platform-1]
 }
 
+//GetRookPlatFormTypeFromString returns rook platform type
 func GetRookPlatFormTypeFromString(name string) (RookPlatformType, error) {
 	switch {
 	case strings.EqualFold(name, Kubernetes.String()):

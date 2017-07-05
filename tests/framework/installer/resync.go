@@ -27,7 +27,7 @@ type Once struct {
 	done uint32
 }
 
-//simulate sync.Once.Do by executing function only once
+//Do simulate sync.Once.Do by executing function only once
 //until rest is called.
 //See http://golang.org/pkg/sync/#Once
 func (o *Once) Do(f func()) {

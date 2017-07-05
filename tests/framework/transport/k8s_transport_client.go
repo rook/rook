@@ -21,29 +21,34 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 )
 
-type k8sTransportClient struct {
+//K8sTransportClient is struct for perform kubectl operations on args
+type K8sTransportClient struct {
 }
 
-func CreateNewk8sTransportClient() *k8sTransportClient {
-	return &k8sTransportClient{}
+//CreateNewk8sTransportClient creates new instance of transport interface for k8s
+func CreateNewk8sTransportClient() *K8sTransportClient {
+	return &K8sTransportClient{}
 }
 
 const (
-	kubectl_executable = "kubectl"
+	kubectlExecutable = "kubectl"
 )
 
-func (k *k8sTransportClient) ExecuteCmd(cmd []string) (stdout string, stderr string, err error) {
-	return utils.ExecuteCmdAndLogToConsole(kubectl_executable, cmd, []string{})
+//ExecuteCmd executes kubectl commands
+func (k *K8sTransportClient) ExecuteCmd(cmd []string) (stdout string, stderr string, err error) {
+	return utils.ExecuteCmdAndLogToConsole(kubectlExecutable, cmd, []string{})
 
 }
 
-func (k *k8sTransportClient) Apply(cmdArgs []string) (stdout string, stderr string, err error) {
+//Apply executes kubectl apply commands
+func (k *K8sTransportClient) Apply(cmdArgs []string) (stdout string, stderr string, err error) {
 	initialArgs := []string{"replace", "--force", "-f"}
 	cmdArgs = append(initialArgs, cmdArgs...)
 	return utils.ExecuteCmdAndLogToConsole("kubectl", cmdArgs, []string{})
 }
 
-func (k *k8sTransportClient) Execute(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
+//Execute executes kubectl commands
+func (k *K8sTransportClient) Execute(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
 	if optional != nil {
 		if len(optional) == 1 {
@@ -60,26 +65,29 @@ func (k *k8sTransportClient) Execute(cmdArgs []string, optional []string) (stdou
 		cmdArgs = append(initialArgs, cmdArgs...)
 	}
 
-	return utils.ExecuteCmd(kubectl_executable, cmdArgs)
+	return utils.ExecuteCmd(kubectlExecutable, cmdArgs)
 }
 
-func (k *k8sTransportClient) CreateWithStdin(stdinText string) (stdout string, stderr string, exitCode int) {
-	cmdStruct := objects.CommandArgs{Command: kubectl_executable, PipeToStdIn: stdinText, CmdArgs: []string{"create", "-f", "-"}}
+//CreateWithStdin executes kubectl create commands and logs output
+func (k *K8sTransportClient) CreateWithStdin(stdinText string) (stdout string, stderr string, exitCode int) {
+	cmdStruct := objects.CommandArgs{Command: kubectlExecutable, PipeToStdIn: stdinText, CmdArgs: []string{"create", "-f", "-"}}
 
 	cmdOut := utils.ExecuteCommand(cmdStruct)
 
 	return cmdOut.StdOut, cmdOut.StdErr, cmdOut.ExitCode
 }
 
-func (k *k8sTransportClient) Create(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
+//Create executes kubectl create commands
+func (k *K8sTransportClient) Create(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 	initialArgs := []string{"create", "-f"}
 	cmdArgs = append(initialArgs, cmdArgs...)
-	return utils.ExecuteCmd(kubectl_executable, cmdArgs)
+	return utils.ExecuteCmd(kubectlExecutable, cmdArgs)
 }
 
-func (k *k8sTransportClient) Delete(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
+//Delete executes kubectl delete commands
+func (k *K8sTransportClient) Delete(cmdArgs []string, optional []string) (stdout string, stderr string, exitCode int) {
 
 	initialArgs := []string{"delete", "-f"}
 	cmdArgs = append(initialArgs, cmdArgs...)
-	return utils.ExecuteCmd(kubectl_executable, cmdArgs)
+	return utils.ExecuteCmd(kubectlExecutable, cmdArgs)
 }

@@ -16,6 +16,7 @@ limitations under the License.
 
 package objects
 
+// CommandArgs is a warpper for cmd args
 type CommandArgs struct {
 	Command             string
 	SubCommand          string
@@ -25,6 +26,7 @@ type CommandArgs struct {
 	EnvironmentVariable []string
 }
 
+//CommandOut is a wrapper for cmd out returned after executing command args
 type CommandOut struct {
 	StdOut   string
 	StdErr   string

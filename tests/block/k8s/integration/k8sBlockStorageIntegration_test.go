@@ -45,10 +45,10 @@ type K8sBlockEnd2EndIntegrationSuite struct {
 	testClient       *clients.TestClient
 	bc               contracts.BlockOperator
 	kh               *utils.K8sHelper
-	init_blockCount  int
+	initBlockCount   int
 	storageclassPath string
 	mysqlappPath     string
-	db               *utils.MySqlHelper
+	db               *utils.MySQLHelper
 }
 
 //Test set up - does the following in order
@@ -64,7 +64,7 @@ func (s *K8sBlockEnd2EndIntegrationSuite) SetupSuite() {
 	s.kh = utils.CreatK8sHelper()
 	initialBlocks, err := s.bc.BlockList()
 	require.Nil(s.T(), err)
-	s.init_blockCount = len(initialBlocks)
+	s.initBlockCount = len(initialBlocks)
 	s.storageclassPath = filepath.Join(os.Getenv("GOPATH"), "src/github.com/rook/rook/tests/data/block/storageclass_pool.tmpl")
 	s.mysqlappPath = filepath.Join(os.Getenv("GOPATH"), "src/github.com/rook/rook/tests/data/integration/mysqlapp.yaml")
 
@@ -87,10 +87,10 @@ func (s *K8sBlockEnd2EndIntegrationSuite) SetupSuite() {
 	require.Nil(s.T(), err)
 	require.Contains(s.T(), pvcStatus, "Bound")
 
-	dbIp, err := s.kh.GetPodHostId("mysqldb", "")
+	dbIP, err := s.kh.GetPodHostID("mysqldb", "")
 	require.Nil(s.T(), err)
 	//create database connection
-	s.db = utils.CreateNewMySqlHelper("mysql", "mysql", dbIp+":30003", "sample")
+	s.db = utils.CreateNewMySQLHelper("mysql", "mysql", dbIP+":30003", "sample")
 
 }
 

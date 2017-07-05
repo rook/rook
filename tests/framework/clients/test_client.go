@@ -26,9 +26,10 @@ import (
 )
 
 var (
-	VERSION_CMD = []string{"rook", "version"}
+	versionCmd = []string{"rook", "version"}
 )
 
+//TestClient is a wrapper for test client, containing interfaces for all rook operations
 type TestClient struct {
 	platform        enums.RookPlatformType
 	transportClient contracts.ITransportClient
@@ -40,30 +41,31 @@ type TestClient struct {
 }
 
 const (
-	unable_to_check_rook_status_msg = "Unable to check rook status - please check of rook is up and running"
+	unableToCheckRookStatusMsg = "Unable to check rook status - please check of rook is up and running"
 )
 
+//CreateTestClient creates new instance of test client for a platform
 func CreateTestClient(platform enums.RookPlatformType) (*TestClient, error) {
 	var transportClient contracts.ITransportClient
-	var block_client contracts.BlockOperator
-	var fs_client contracts.FileSystemOperator
-	var object_client contracts.ObjectOperator
-	var pool_client contracts.PoolOperator
+	var blockClient contracts.BlockOperator
+	var fsClient contracts.FileSystemOperator
+	var objectClient contracts.ObjectOperator
+	var poolClient contracts.PoolOperator
 	rookRestClient := CreateRestAPIClient(platform)
 
 	switch {
 	case platform == enums.Kubernetes:
 		transportClient = transport.CreateNewk8sTransportClient()
-		block_client = CreateK8BlockOperation(transportClient, rookRestClient)
-		fs_client = CreateK8sFileSystemOperation(transportClient, rookRestClient)
-		object_client = CreateObjectOperation(rookRestClient)
-		pool_client = CreatePoolClient(rookRestClient)
+		blockClient = CreateK8BlockOperation(transportClient, rookRestClient)
+		fsClient = CreateK8sFileSystemOperation(transportClient, rookRestClient)
+		objectClient = CreateObjectOperation(rookRestClient)
+		poolClient = CreatePoolClient(rookRestClient)
 	case platform == enums.StandAlone:
 		transportClient = nil //TODO- Not yet implemented
-		block_client = nil    //TODO- Not yet implemented
-		fs_client = nil       //TODO- Not yet implemented
-		object_client = nil   //TODO- Not yet implemented
-		pool_client = nil     //TODO- Not yet implemented
+		blockClient = nil     //TODO- Not yet implemented
+		fsClient = nil        //TODO- Not yet implemented
+		objectClient = nil    //TODO- Not yet implemented
+		poolClient = nil      //TODO- Not yet implemented
 	default:
 		return &TestClient{}, fmt.Errorf("Unsupported Rook Platform Type")
 	}
@@ -71,52 +73,61 @@ func CreateTestClient(platform enums.RookPlatformType) (*TestClient, error) {
 	return &TestClient{
 		platform,
 		transportClient,
-		block_client,
-		fs_client,
-		object_client,
-		pool_client,
+		blockClient,
+		fsClient,
+		objectClient,
+		poolClient,
 		rookRestClient,
 	}, nil
 
 }
 
+//Status returns rook status details
 func (c TestClient) Status() (model.StatusDetails, error) {
 	return c.restClient.GetStatusDetails()
 }
 
+//Version returns rook version installed
 func (c TestClient) Version() (string, error) {
-	out, err, status := c.transportClient.Execute(VERSION_CMD, nil)
+	out, err, status := c.transportClient.Execute(versionCmd, nil)
 	if status == 0 {
 		return out, nil
-	} else {
-		return err, fmt.Errorf(unable_to_check_rook_status_msg)
 	}
+	return err, fmt.Errorf(unableToCheckRookStatusMsg)
+
 }
 
+//Node returns list of rook nodes
 func (c TestClient) Node() ([]model.Node, error) {
 	return c.restClient.GetNodes()
 }
 
+//GetTransportClient returns transport client for platform in context
 func (c TestClient) GetTransportClient() contracts.ITransportClient {
 	return c.transportClient
 }
 
+//GetBlockClient returns Block client for platform in context
 func (c TestClient) GetBlockClient() contracts.BlockOperator {
 	return c.blockClient
 }
 
+//GetFileSystemClient returns fileSystem client for platform in context
 func (c TestClient) GetFileSystemClient() contracts.FileSystemOperator {
 	return c.fsClient
 }
 
+//GetObjectClient returns Object client for platform in context
 func (c TestClient) GetObjectClient() contracts.ObjectOperator {
 	return c.objectClient
 }
 
+//GetPoolClient returns pool client for platform in context
 func (c TestClient) GetPoolClient() contracts.PoolOperator {
 	return c.poolClient
 }
 
+//GetRestAPIClient returns RestAPI client for platform in context
 func (c TestClient) GetRestAPIClient() contracts.RestAPIOperator {
 	return c.restClient
 }

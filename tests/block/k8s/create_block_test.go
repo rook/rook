@@ -48,7 +48,7 @@ type K8sBlockImageCreateSuite struct {
 	testClient       *clients.TestClient
 	bc               contracts.BlockOperator
 	kh               *utils.K8sHelper
-	init_blockCount  int
+	initBlockCount   int
 	pvPath           string
 	storageclassPath string
 }
@@ -64,7 +64,7 @@ func (s *K8sBlockImageCreateSuite) SetupSuite() {
 	s.kh = utils.CreatK8sHelper()
 	initialBlocks, err := s.bc.BlockList()
 	require.Nil(s.T(), err)
-	s.init_blockCount = len(initialBlocks)
+	s.initBlockCount = len(initialBlocks)
 	s.pvPath = filepath.Join(os.Getenv("GOPATH"), "src/github.com/rook/rook/tests/data/block/pvc.tmpl")
 	s.storageclassPath = filepath.Join(os.Getenv("GOPATH"), "src/github.com/rook/rook/tests/data/block/storageclass_pool.tmpl")
 }
@@ -86,7 +86,7 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 
 	//check block image count
 	b, _ := s.bc.BlockList()
-	require.Equal(s.T(), s.init_blockCount, len(b), "Make sure new block image is not created")
+	require.Equal(s.T(), s.initBlockCount, len(b), "Make sure new block image is not created")
 
 }
 
@@ -117,7 +117,7 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenStorageClassExists() {
 
 	//check block image count
 	b, _ := s.bc.BlockList()
-	require.Equal(s.T(), s.init_blockCount+1, len(b), "Make sure new block image is created")
+	require.Equal(s.T(), s.initBlockCount+1, len(b), "Make sure new block image is created")
 
 }
 
@@ -148,7 +148,7 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 	require.True(s.T(), s.isPVCBound(claimName))
 
 	b1, _ := s.bc.BlockList()
-	require.Equal(s.T(), s.init_blockCount+1, len(b1), "Make sure new block image is created")
+	require.Equal(s.T(), s.initBlockCount+1, len(b1), "Make sure new block image is created")
 
 	//Create same pvc again
 	sout2, serr2, status2 := s.pvcOperation(claimName, "create")

@@ -21,15 +21,17 @@ import (
 	"github.com/rook/rook/tests/framework/contracts"
 )
 
+//ObjectOperation is wrapper for k8s rook object operations
 type ObjectOperation struct {
 	restClient contracts.RestAPIOperator
 }
 
+//CreateObjectOperation creates new rook object client
 func CreateObjectOperation(rookRestClient contracts.RestAPIOperator) *ObjectOperation {
 	return &ObjectOperation{restClient: rookRestClient}
 }
 
-//Function to create a object store in rook
+//ObjectCreate Function to create a object store in rook
 //Input paramatres -None
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectCreate() (string, error) {
@@ -37,7 +39,7 @@ func (ro *ObjectOperation) ObjectCreate() (string, error) {
 
 }
 
-//Function to get Buckets present in rook object store
+//ObjectBucketList Function to get Buckets present in rook object store
 //Input paramatres - None
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectBucketList() ([]model.ObjectBucket, error) {
@@ -45,7 +47,7 @@ func (ro *ObjectOperation) ObjectBucketList() ([]model.ObjectBucket, error) {
 
 }
 
-//Function to get connection information for a user
+//ObjectConnection Function to get connection information for a user
 //Input paramatres - None
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectConnection() (*model.ObjectStoreConnectInfo, error) {
@@ -53,7 +55,7 @@ func (ro *ObjectOperation) ObjectConnection() (*model.ObjectStoreConnectInfo, er
 
 }
 
-//Function to create user on rook object store
+//ObjectCreateUser Function to create user on rook object store
 //Input paramatres - userId and display Name
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectCreateUser(userid string, displayname string) (*model.ObjectUser, error) {
@@ -62,7 +64,7 @@ func (ro *ObjectOperation) ObjectCreateUser(userid string, displayname string) (
 
 }
 
-//Function to update a user on rook object store
+//ObjectUpdateUser Function to update a user on rook object store
 //Input paramatres - userId,display Name and email address
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectUpdateUser(userid string, displayname string, emailid string) (*model.ObjectUser, error) {
@@ -70,21 +72,21 @@ func (ro *ObjectOperation) ObjectUpdateUser(userid string, displayname string, e
 	return ro.restClient.UpdateObjectUser(objectUser)
 }
 
-//Function to delete user on rook object store
+//ObjectDeleteUser Function to delete user on rook object store
 //Input paramatres - userId
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectDeleteUser(userid string) error {
 	return ro.restClient.DeleteObjectUser(userid)
 }
 
-//Function to get a user on rook object store
+//ObjectGetUser Function to get a user on rook object store
 //Input paramatres - userId
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectGetUser(userid string) (*model.ObjectUser, error) {
 	return ro.restClient.GetObjectUser(userid)
 }
 
-//Function to get all users on rook object store
+//ObjectListUser Function to get all users on rook object store
 //Input paramatres - none
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectListUser() ([]model.ObjectUser, error) {

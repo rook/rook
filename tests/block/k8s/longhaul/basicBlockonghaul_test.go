@@ -24,14 +24,14 @@ func TestK8sBlockLongHaul(t *testing.T) {
 
 type K8sBlockLongHaulSuite struct {
 	suite.Suite
-	testClient        *clients.TestClient
-	bc                contracts.BlockOperator
-	kh                *utils.K8sHelper
-	init_blockCount   int
-	storageClass_Path string
-	mysqlApp_Path     string
-	db                *utils.MySqlHelper
-	wg                sync.WaitGroup
+	testClient       *clients.TestClient
+	bc               contracts.BlockOperator
+	kh               *utils.K8sHelper
+	initBlockCount   int
+	storageClassPath string
+	mysqlAppPath     string
+	db               *utils.MySQLHelper
+	wg               sync.WaitGroup
 }
 
 //Test set up - does the following in order
@@ -46,9 +46,9 @@ func (s *K8sBlockLongHaulSuite) SetupSuite() {
 	s.kh = utils.CreatK8sHelper()
 	initialBlocks, err := s.bc.BlockList()
 	require.Nil(s.T(), err)
-	s.init_blockCount = len(initialBlocks)
-	s.storageClass_Path = "../../../../data/block/storageclass_pool.tmpl"
-	s.mysqlApp_Path = "../../../../data/integration/mysqlapp.yaml"
+	s.initBlockCount = len(initialBlocks)
+	s.storageClassPath = "../../../../data/block/storageclass_pool.tmpl"
+	s.mysqlAppPath = "../../../../data/integration/mysqlapp.yaml"
 
 	//create storage class
 	if scp, _ := s.kh.IsStorageClassPresent("rook-block"); !scp {
@@ -63,7 +63,7 @@ func (s *K8sBlockLongHaulSuite) SetupSuite() {
 	//create mysql pod
 	if _, err := s.kh.GetPVCStatus("mysql-pv-claim"); err != nil {
 
-		s.kh.ResourceOperation("create", s.mysqlApp_Path)
+		s.kh.ResourceOperation("create", s.mysqlAppPath)
 
 		//wait till mysql pod is up
 		require.True(s.T(), s.kh.IsPodInExpectedState("mysqldb", "", "Running"))
@@ -71,10 +71,10 @@ func (s *K8sBlockLongHaulSuite) SetupSuite() {
 		require.Nil(s.T(), err)
 		require.Contains(s.T(), pvcStatus, "Bound")
 	}
-	dbIp, err := s.kh.GetPodHostId("mysqldb", "")
+	dbIP, err := s.kh.GetPodHostID("mysqldb", "")
 	require.Nil(s.T(), err)
 	//create database connection
-	s.db = utils.CreateNewMySqlHelper("mysql", "mysql", dbIp+":30003", "sample")
+	s.db = utils.CreateNewMySQLHelper("mysql", "mysql", dbIP+":30003", "sample")
 
 	require.True(s.T(), s.db.PingSuccess())
 
@@ -117,7 +117,7 @@ func (s *K8sBlockLongHaulSuite) TearDownSuite() {
 }
 func (s *K8sBlockLongHaulSuite) storageClassOperation(poolName string, action string) (string, string, int) {
 
-	t, _ := template.ParseFiles(s.storageClass_Path)
+	t, _ := template.ParseFiles(s.storageClassPath)
 
 	var tpl bytes.Buffer
 	config := map[string]string{
