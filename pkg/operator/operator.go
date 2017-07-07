@@ -36,14 +36,7 @@ const (
 
 // volume provisioner constant
 const (
-	resyncPeriod              = 15 * time.Second
-	provisionerName           = "rook.io/block"
-	exponentialBackOffOnError = false
-	failedRetryThreshold      = 5
-	leasePeriod               = controller.DefaultLeaseDuration
-	retryPeriod               = controller.DefaultRetryPeriod
-	renewDeadline             = controller.DefaultRenewDeadline
-	termLimit                 = controller.DefaultTermLimit
+	provisionerName = "rook.io/block"
 )
 
 type Operator struct {
@@ -100,16 +93,10 @@ func (o *Operator) Run() error {
 	}
 	pc := controller.NewProvisionController(
 		o.context.Clientset,
-		resyncPeriod,
 		provisionerName,
 		o.volumeProvisioner,
 		serverVersion.GitVersion,
-		exponentialBackOffOnError,
-		failedRetryThreshold,
-		leasePeriod,
-		renewDeadline,
-		retryPeriod,
-		termLimit)
+	)
 	go pc.Run(wait.NeverStop)
 
 	// watch for changes to the rook clusters

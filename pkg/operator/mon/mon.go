@@ -27,10 +27,12 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/client-go/pkg/api/v1"
+	helper "k8s.io/kubernetes/pkg/api/v1/helper"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
@@ -466,7 +468,7 @@ func validNode(node v1.Node, placement k8sutil.Placement) bool {
 	if placement.NodeAffinity != nil && placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
 		nodeMatches := false
 		for _, req := range placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-			nodeSelector, err := v1.NodeSelectorRequirementsAsSelector(req.MatchExpressions)
+			nodeSelector, err := helper.NodeSelectorRequirementsAsSelector(req.MatchExpressions)
 			if err != nil {
 				logger.Infof("failed to parse MatchExpressions: %+v, regarding as not match.", req.MatchExpressions)
 				return false
@@ -513,7 +515,7 @@ func (c *Cluster) getNodesWithMons() (*util.Set, error) {
 	}
 	nodes := util.NewSet()
 	for _, pod := range pods.Items {
-		hostname := pod.Spec.NodeSelector[metav1.LabelHostname]
+		hostname := pod.Spec.NodeSelector[apis.LabelHostname]
 		logger.Debugf("mon pod on node %s", hostname)
 		nodes.Add(hostname)
 	}

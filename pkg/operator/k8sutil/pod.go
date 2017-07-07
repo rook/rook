@@ -19,14 +19,11 @@ which also has the apache 2.0 license.
 package k8sutil
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
 )
 
 const (
@@ -89,36 +86,11 @@ func MakeRookImage(version string) string {
 	return fmt.Sprintf("%s/rook:%v", repoPrefix(), getVersion(version))
 }
 
-func PodWithAntiAffinity(pod *v1.Pod, attribute, value string) {
-	// set pod anti-affinity with the pods that belongs to the same rook cluster
-	affinity := v1.Affinity{
-		PodAntiAffinity: &v1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
-				{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							attribute: value,
-						},
-					},
-					TopologyKey: "kubernetes.io/hostname",
-				},
-			},
-		},
-	}
-
-	affinityb, err := json.Marshal(affinity)
-	if err != nil {
-		panic("failed to marshal affinty struct")
-	}
-
-	pod.Annotations[v1.AffinityAnnotationKey] = string(affinityb)
-}
-
 func SetPodVersion(pod *v1.Pod, key, version string) {
 	pod.Annotations[key] = version
 }
 
-func GetPodNames(pods []*api.Pod) []string {
+func GetPodNames(pods []*v1.Pod) []string {
 	res := []string{}
 	for _, p := range pods {
 		res = append(res, p.Name)

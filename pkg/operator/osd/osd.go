@@ -26,10 +26,11 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
+	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
@@ -116,7 +117,7 @@ func (c *Cluster) makeReplicaSet(nodeName string, devices []Device, directories 
 	rs.Namespace = c.Namespace
 
 	podSpec := c.podTemplateSpec(devices, directories, selection, config)
-	podSpec.Spec.NodeSelector = map[string]string{metav1.LabelHostname: nodeName}
+	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
 
 	replicaCount := int32(1)
 

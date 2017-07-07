@@ -21,7 +21,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
 )
 
 func TestPlacement_spec(t *testing.T) {

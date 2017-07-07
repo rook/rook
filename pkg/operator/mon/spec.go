@@ -19,9 +19,10 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 func ClusterNameEnvVar(name string) v1.EnvVar {
@@ -80,7 +81,7 @@ func (c *Cluster) makeMonPod(config *MonConfig, nodeName string) *v1.Pod {
 	podSpec := v1.PodSpec{
 		Containers:    []v1.Container{container},
 		RestartPolicy: v1.RestartPolicyAlways,
-		NodeSelector:  map[string]string{metav1.LabelHostname: nodeName},
+		NodeSelector:  map[string]string{apis.LabelHostname: nodeName},
 		Volumes: []v1.Volume{
 			{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 			k8sutil.ConfigOverrideVolume(),
