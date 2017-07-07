@@ -130,8 +130,8 @@ fmt:
 vendor: go.vendor
 
 clean:
-	@rm -fr $(OUTPUT_DIR)
 	@$(MAKE) -C images clean
+	@rm -fr $(OUTPUT_DIR) $(WORK_DIR)
 
 distclean: go.distclean clean
 	@rm -fr $(CACHE_DIR)
@@ -175,11 +175,3 @@ help:
 	@echo '    VERSION      The version information compiled into binaries.'
 	@echo '                 The default is obtained from git.'
 	@echo '    V            Set to 1 enable verbose build. Default is 0.'
-	@echo ''
-	@echo 'Advanced Options:'
-	@echo '    CACHE_DIR    A directory where downloaded files and other'
-	@echo '                 files used during the build are cached. These'
-	@echo '                 files help speedup the build by avoiding network'
-	@echo '                 transfers. Its safe to use these files across builds.'
-	@echo '    WORK_DIR     The working directory where most build files'
-	@echo '                 are stored. The default is .work'
