@@ -61,6 +61,9 @@ GOPATH := $(shell go env GOPATH)
 GLIDE_VERSION=v0.12.3
 GLIDE_HOME := $(abspath $(CACHE_DIR)/glide)
 GLIDE := $(TOOLS_HOST_DIR)/glide-$(GLIDE_VERSION)
+GLIDE_YAML := $(ROOT_DIR)/glide.yaml
+GLIDE_LOCK := $(ROOT_DIR)/glide.lock
+GLIDE_INSTALL_STAMP := $(GO_VENDOR_DIR)/vendor.stamp
 GOLINT := $(TOOLS_HOST_DIR)/golint
 GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
 export GLIDE_HOME
@@ -104,7 +107,7 @@ endif
 endif
 
 .PHONY: go.init
-go.init: $(GO_VENDOR_DIR)/vendor.stamp
+go.init: $(GLIDE_INSTALL_STAMP)
 	@:
 
 define go.project
@@ -162,12 +165,17 @@ go.fmt:
 
 go.validate: go.vet go.fmt
 
-.PHONY: go.vendor
-go.vendor $(GO_VENDOR_DIR)/vendor.stamp: $(GLIDE)
+$(GLIDE_LOCK): $(GLIDE) $(GLIDE_YAML)
 	@echo === updating vendor dependencies
 	@mkdir -p $(GLIDE_HOME)
+	@$(GLIDE) update --strip-vendor
+	@touch $@
+
+$(GLIDE_INSTALL_STAMP): $(GLIDE) $(GLIDE_LOCK)
+	@echo === installing vendor dependencies
+	@mkdir -p $(GLIDE_HOME)
 	@$(GLIDE) install --strip-vendor
-	@touch $(GO_VENDOR_DIR)/vendor.stamp
+	@touch $@
 
 $(GLIDE):
 	@echo === installing glide
@@ -190,4 +198,4 @@ $(GOJUNIT):
 
 .PHONY: go.distclean
 go.distclean:
-	@rm -rf $(GO_VENDOR_DIR)
+	@rm -rf $(GLIDE_INSTALL_STAMP)
