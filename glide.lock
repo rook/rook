@@ -1,9 +1,6 @@
-hash: 3c45cd12cedd08e1708ea0a32038900a785d28d62830a027283b9e20c9be3745
-updated: 2017-07-07T12:34:32.725119263-07:00
+hash: 7529d5cfa7fede68e1db19ac5d3eba0adc53103816440e5ccabe9b1fe355ce5e
+updated: 2017-07-12T17:12:29.755268946-07:00
 imports:
-- name: bitbucket.org/ww/goautoneg
-  version: a547fc61f48d567d5b4ec6f8aee5573d8efce11d
-  repo: https://github.com/quantum/goautoneg.git
 - name: github.com/aws/aws-sdk-go
   version: 6669bce73b4e3bc922ff5ea3a3983ede26e02b39
   subpackages:
