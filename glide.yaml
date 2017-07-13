@@ -2,14 +2,13 @@ package: github.com/rook/rook
 homepage: https://rook.io
 license: Apache-2.0
 excludeDirs:
-- bin
+- _output
+- .cache
+- .work
 - build
 - demo
 - Documentation
-- external
-- release
-- scripts
-- toolbox
+- images
 import:
 - package: github.com/coreos/etcd
   version: 20490caaf0dcd96bb4a95e40625559def8ef5b04
