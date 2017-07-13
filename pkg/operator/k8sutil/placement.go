@@ -16,7 +16,7 @@ limitations under the License.
 package k8sutil
 
 import (
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
 )
 
 // Placement encapsulates the various kubernetes options that control where

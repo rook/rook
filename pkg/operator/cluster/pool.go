@@ -24,7 +24,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/kit"
 	rookclient "github.com/rook/rook/pkg/rook/client"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
 
 	"github.com/rook/rook/pkg/model"
 )

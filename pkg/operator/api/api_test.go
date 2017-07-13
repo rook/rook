@@ -27,9 +27,9 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
+	"k8s.io/api/rbac/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/rbac/v1beta1"
 )
 
 func TestStartAPI(t *testing.T) {

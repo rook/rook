@@ -25,9 +25,9 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/kit"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 func TestStartDaemonset(t *testing.T) {
@@ -77,7 +77,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	assert.Equal(t, "rook-ceph-osd-node1", replicaSet.Name)
 	assert.Equal(t, c.Namespace, replicaSet.Namespace)
 	assert.Equal(t, int32(1), *(replicaSet.Spec.Replicas))
-	assert.Equal(t, "node1", replicaSet.Spec.Template.Spec.NodeSelector[metav1.LabelHostname])
+	assert.Equal(t, "node1", replicaSet.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
 	assert.Equal(t, v1.RestartPolicyAlways, replicaSet.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, 3, len(replicaSet.Spec.Template.Spec.Volumes))
 	assert.Equal(t, "rook-data", replicaSet.Spec.Template.Spec.Volumes[0].Name)
