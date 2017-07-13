@@ -171,11 +171,11 @@ $(GLIDE_LOCK): $(GLIDE) $(GLIDE_YAML)
 	@$(GLIDE) update --strip-vendor
 	@touch $@
 
-$(GLIDE_INSTALL_STAMP): $(GLIDE) $(GLIDE_LOCK)
+$(GLIDE_INSTALL_STAMP) go.vendor: $(GLIDE) $(GLIDE_LOCK)
 	@echo === installing vendor dependencies
 	@mkdir -p $(GLIDE_HOME)
 	@$(GLIDE) install --strip-vendor
-	@touch $@
+	@touch $(GLIDE_INSTALL_STAMP)
 
 $(GLIDE):
 	@echo === installing glide
