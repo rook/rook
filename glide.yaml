@@ -1,4 +1,6 @@
 package: github.com/rook/rook
+homepage: https://rook.io
+license: Apache-2.0
 excludeDirs:
 - bin
 - build
@@ -20,11 +22,7 @@ import:
   version: 08b1a584251b5b62f458943640fc8ebd4d50aaa5
 - package: github.com/google/uuid
 - package: github.com/go-ini/ini
-- package: github.com/ghodss/yaml
 - package: github.com/gorilla/mux
-- package: bitbucket.org/ww/goautoneg
-  version: a547fc61f48d567d5b4ec6f8aee5573d8efce11d
-  repo: https://github.com/quantum/goautoneg.git
 - package: github.com/coreos/pkg/capnslog
 - package: github.com/kubernetes-incubator/external-storage
   version: v2.1.0
@@ -38,6 +36,8 @@ import:
   - prometheus
   - prometheus/promhttp
 testImport:
+- package: github.com/ghodss/yaml
+  version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - package: github.com/aws/aws-sdk-go
   version: v1.7.3
   subpackages:
