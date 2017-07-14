@@ -36,6 +36,8 @@ import:
   subpackages:
   - prometheus
   - prometheus/promhttp
+- package: github.com/jbw976/go-ps
+  version: 82859aed1b5dafbbe6ad4f3dac5404d2a742cf18
 testImport:
 - package: github.com/ghodss/yaml
   version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee

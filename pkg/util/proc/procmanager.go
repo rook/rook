@@ -23,6 +23,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/jbw976/go-ps"
 	"github.com/rook/rook/pkg/util/exec"
 )
 
@@ -149,7 +150,7 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 	}
 
 	// check if this process is currently running even though not being managed
-	existingProc, err := findProcessSearch(binary, procSearchPattern)
+	existingProc, err := ps.FindProcessByCmdline(binary, procSearchPattern)
 	if err != nil {
 		return false, fmt.Errorf("failed to search for process %s with pattern '%s': %+v", binary, procSearchPattern, err)
 	}
@@ -159,7 +160,7 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 		return true, nil
 	}
 
-	logger.Infof("existing process found for binary %s with pid %d, cmdline '%s'.", binary, existingProc.pid, existingProc.cmdline)
+	logger.Infof("existing process found for binary %s with pid %d, cmdline '%s'.", binary, existingProc.Pid(), existingProc.Cmdline())
 	if policy == ReuseExisting {
 		logger.Infof("Policy is 'reuse', reusing existing process.")
 		return false, nil
@@ -168,7 +169,7 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 	logger.Infof("Policy is 'restart', restarting existing process.")
 
 	// double check if the process is managed and stop it
-	index, proc := p.findMonitoredProcByPID(existingProc.pid)
+	index, proc := p.findMonitoredProcByPID(existingProc.Pid())
 	if proc != nil {
 		p.purgeManagedProc(index, proc)
 		return true, nil
@@ -176,8 +177,8 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 
 	// we could't stop the existing process through our own managed proces set, try to stop the process
 	// via a direct signal to its PID
-	if err := syscall.Kill(existingProc.pid, syscall.SIGKILL); err != nil {
-		return false, fmt.Errorf("failed to stop child process %d: %v", existingProc.pid, err)
+	if err := syscall.Kill(existingProc.Pid(), syscall.SIGKILL); err != nil {
+		return false, fmt.Errorf("failed to stop child process %d: %v", existingProc.Pid(), err)
 	}
 
 	return true, nil
