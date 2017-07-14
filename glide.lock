@@ -1,5 +1,5 @@
-hash: eb93da0e16c0bbaba8400e87ec9f164db2da6762533a492dd74ba7acc4f85f10
-updated: 2017-07-13T12:28:26.349758067-07:00
+hash: fe1ad353107dd7cafbb209b1a47dbc8f133c33e903c624dbb0ca6b8e5dd96b90
+updated: 2017-07-13T16:41:53.64302729-07:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: 1fd5dd46e2bf3e0be156701a559098dc823053d5
@@ -177,6 +177,8 @@ imports:
   version: 54f5c7e1dea7e1c582ff563308228c592252fff9
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
+- name: github.com/jbw976/go-ps
+  version: 82859aed1b5dafbbe6ad4f3dac5404d2a742cf18
 - name: github.com/jmespath/go-jmespath
   version: 3433f3ea46d9f8019119e7dd41274e112a2359a9
 - name: github.com/jmoiron/jsonq
