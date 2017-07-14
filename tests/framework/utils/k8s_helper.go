@@ -26,16 +26,35 @@ import (
 	"strings"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/jmoiron/jsonq"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
+//K8sHelper is a helper for common kubectl commads
 type K8sHelper struct {
+	executor *exec.CommandExecutor
 }
 
+//CreatK8sHelper creates a instance of k8sHelper
 func CreatK8sHelper() *K8sHelper {
-	return &K8sHelper{}
+	return &K8sHelper{&exec.CommandExecutor{}}
 }
 
+var k8slogger = capnslog.NewPackageLogger("github.com/rook/rook", "k8sutil")
+
+//Kubectl is wrapper for executing kubectl commands
+func (k8sh *K8sHelper) Kubectl(args ...string) string {
+	result, error := k8sh.executor.ExecuteCommandWithOutput("", "kubectl", args...)
+	if error != nil {
+		k8slogger.Errorf("Errors Encounterd while executing kubectl command : %v", error)
+		panic(error)
+
+	}
+	return result
+}
+
+//GetMonIP returns IP address for a ceph mon pod
 func (k8sh *K8sHelper) GetMonIP(mon string) (string, error) {
 	//kubectl -n rook get pod mon0 -o json|jq ".status.podIP"|
 	cmdArgs := []string{"-n", "rook", "get", "pod", mon, "-o", "json"}
@@ -47,11 +66,11 @@ func (k8sh *K8sHelper) GetMonIP(mon string) (string, error) {
 		jq := jsonq.NewQuery(data)
 		ip, _ := jq.String("status", "podIP")
 		return ip + ":6790", nil
-	} else {
-		return err, fmt.Errorf("Error Getting Monitor IP")
 	}
+	return err, fmt.Errorf("Error Getting Monitor IP")
 }
 
+//ResourceOperationFromTemplate performs a kubectl action from a template file after replacing its context
 func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, poddefPath string, config map[string]string) (string, error) {
 
 	t, _ := template.ParseFiles(poddefPath)
@@ -63,43 +82,46 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, poddefPath s
 	stdout, stderr, status := ExecuteCmd("kubectl", cmdArgs)
 	if status == 0 {
 		return stdout, nil
-	} else {
-		return stdout + " : " + stderr, fmt.Errorf("Could Not create resource in k8s. status=%d, stdout=%s, stderr=%s", status, stdout, stderr)
 	}
+	return stdout + " : " + stderr, fmt.Errorf("Could Not create resource in k8s. status=%d, stdout=%s, stderr=%s", status, stdout, stderr)
+
 }
+
+//ResourceOperation performs a kubectl action on a yaml file
 func (k8sh *K8sHelper) ResourceOperation(action string, poddefPath string) (string, error) {
 
 	cmdArgs := []string{action, "-f", poddefPath}
 	out, err, status := ExecuteCmd("kubectl", cmdArgs)
 	if status == 0 {
 		return out, nil
-	} else {
-		return out + " : " + err, fmt.Errorf("Could Not create resource in k8s")
 	}
+	return out + " : " + err, fmt.Errorf("Could Not create resource in k8s")
+
 }
 
-func (K8sh *K8sHelper) DeleteResource(args []string) (string, error) {
+//DeleteResource performs a kubectl delete on give args
+func (k8sh *K8sHelper) DeleteResource(args []string) (string, error) {
 	cmdArgs := append([]string{"delete"}, args...)
 	out, err, status := ExecuteCmd("kubectl", cmdArgs)
 	if status == 0 {
 		return out, nil
-	} else {
-		return out + " : " + err, fmt.Errorf("Could Not delete resource in k8s")
 	}
+	return out + " : " + err, fmt.Errorf("Could Not delete resource in k8s")
 
 }
 
-func (K8sh *K8sHelper) GetResource(args []string) (string, error) {
+//GetResource performs a kubectl get on give args
+func (k8sh *K8sHelper) GetResource(args []string) (string, error) {
 	cmdArgs := append([]string{"get"}, args...)
 	out, err, status := ExecuteCmd("kubectl", cmdArgs)
 	if status == 0 {
 		return out, nil
-	} else {
-		return out + " : " + err, fmt.Errorf("Could Not Get resource in k8s")
 	}
+	return out + " : " + err, fmt.Errorf("Could Not Get resource in k8s")
 
 }
 
+//GetMonitorPods returns all ceph mon pod names
 func (k8sh *K8sHelper) GetMonitorPods() ([]string, error) {
 	mons := []string{}
 	monIdx := 0
@@ -130,6 +152,7 @@ func (k8sh *K8sHelper) GetMonitorPods() ([]string, error) {
 	return mons, nil
 }
 
+//IsPodRunning retuns true if a Pod is running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) IsPodRunning(name string) bool {
 	cmdArgs := []string{"get", "pod", name}
 	inc := 0
@@ -157,6 +180,9 @@ func (k8sh *K8sHelper) IsPodRunning(name string) bool {
 	}
 	return false
 }
+
+//IsPodRunningInNamespace retuns true if a Pod in a namespace is running status or goes to Running
+// status within 90s else returns false
 func (k8sh *K8sHelper) IsPodRunningInNamespace(name string) bool {
 	cmdArgs := []string{"get", "pods", "-n", "rook", name}
 	inc := 0
@@ -185,59 +211,63 @@ func (k8sh *K8sHelper) IsPodRunningInNamespace(name string) bool {
 	return false
 }
 
-//TODO: Combine these like functions
+//IsPodTerminated retuns true if a Pod is terminated status or goes to Terminated  status
+// within 90s else returns false\
 func (k8sh *K8sHelper) IsPodTerminated(name string) bool {
 	cmdArgs := []string{"get", "pods", name}
 	inc := 0
 	for inc < 20 {
 		_, _, status := ExecuteCmd("kubectl", cmdArgs)
 		if status != 0 {
-			fmt.Println("Pod in default namespace terminated: " + name)
+			k8slogger.Infof("Pod in default namespace terminated: " + name)
 			return true
 		}
 		time.Sleep(5 * time.Second)
 		inc++
 
 	}
-	fmt.Println("Pod in default namespace did not terminated: " + name)
+	k8slogger.Infof("Pod in default namespace did not terminated: " + name)
 	return false
 }
 
-//TODO: Combine these like functions
+//IsPodTerminatedInNamespace retuns true if a Pod  in a namespace is terminated status
+// or goes to Terminated  status within 90s else returns false\
 func (k8sh *K8sHelper) IsPodTerminatedInNamespace(name string) bool {
 	cmdArgs := []string{"get", "-n", "rook", "pods", name}
 	inc := 0
 	for inc < 20 {
 		_, _, status := ExecuteCmd("kubectl", cmdArgs)
 		if status != 0 {
-			fmt.Println("Pod in rook namespace terminated: " + name)
+			k8slogger.Infof("Pod in rook namespace terminated: " + name)
 			return true
 		}
 		time.Sleep(5 * time.Second)
 		inc++
 
 	}
-	fmt.Println("Pod in rook namespace did not terminated: " + name)
+	k8slogger.Infof("Pod in rook namespace did not terminated: " + name)
 	return false
 }
 
+//IsServiceUp returns true if a service is up or comes up within 40s, else returns false
 func (k8sh *K8sHelper) IsServiceUp(name string) bool {
 	cmdArgs := []string{"get", "svc", name}
 	inc := 0
 	for inc < 20 {
 		_, _, status := ExecuteCmd("kubectl", cmdArgs)
 		if status == 0 {
-			fmt.Println("Service in default namespace is up: " + name)
+			k8slogger.Infof("Service in default namespace is up: " + name)
 			return true
 		}
 		time.Sleep(2 * time.Second)
 		inc++
 
 	}
-	fmt.Println("Service in default namespace is not up: " + name)
+	k8slogger.Infof("Service in default namespace is not up: " + name)
 	return false
 }
 
+//IsServiceUpInNameSpace returns true if a service  in a namespace is up or comes up within 40s, else returns false
 func (k8sh *K8sHelper) IsServiceUpInNameSpace(name string) bool {
 
 	cmdArgs := []string{"get", "svc", "-n", "rook", name}
@@ -251,10 +281,11 @@ func (k8sh *K8sHelper) IsServiceUpInNameSpace(name string) bool {
 		inc++
 
 	}
-	fmt.Println("Service in rook namespace is not up: " + name)
+	k8slogger.Infof("Service in rook namespace is not up: " + name)
 	return false
 }
 
+//GetService returns output from "kubectl get svc $NAME" command
 func (k8sh *K8sHelper) GetService(servicename string) (string, error) {
 	cmdArgs := []string{"get", "svc", "-n", "rook", servicename}
 	sout, serr, status := ExecuteCmd("kubectl", cmdArgs)
@@ -264,6 +295,7 @@ func (k8sh *K8sHelper) GetService(servicename string) (string, error) {
 	return sout, nil
 }
 
+//IsThirdPartyResourcePresent returns true if Third party resource is present
 func (k8sh *K8sHelper) IsThirdPartyResourcePresent(tprname string) bool {
 
 	cmdArgs := []string{"get", "thirdpartyresources", tprname}
@@ -271,7 +303,7 @@ func (k8sh *K8sHelper) IsThirdPartyResourcePresent(tprname string) bool {
 	for inc < 20 {
 		_, _, exitCode := ExecuteCmd("kubectl", cmdArgs)
 		if exitCode == 0 {
-			fmt.Println("Found the thirdparty resource: " + tprname)
+			k8slogger.Infof("Found the thirdparty resource: " + tprname)
 			return true
 		}
 		time.Sleep(5 * time.Second)
@@ -281,6 +313,7 @@ func (k8sh *K8sHelper) IsThirdPartyResourcePresent(tprname string) bool {
 	return false
 }
 
+//GetPodDetails returns details about a  pod
 func (k8sh *K8sHelper) GetPodDetails(podNamePattern string, namespace string) (string, error) {
 	cmdArgs := []string{"get", "pods", "-l", "app=" + podNamePattern, "-o", "wide", "--no-headers=true"}
 	if namespace != "" {
@@ -293,7 +326,8 @@ func (k8sh *K8sHelper) GetPodDetails(podNamePattern string, namespace string) (s
 	return sout, nil
 }
 
-func (k8sh *K8sHelper) GetPodHostId(podNamePattern string, namespace string) (string, error) {
+//GetPodHostID returns HostIP address of a pod
+func (k8sh *K8sHelper) GetPodHostID(podNamePattern string, namespace string) (string, error) {
 	data, err := k8sh.GetPodDetails(podNamePattern, namespace)
 	if err != nil {
 		return data, err
@@ -318,13 +352,14 @@ func (k8sh *K8sHelper) GetPodHostId(podNamePattern string, namespace string) (st
 	}
 	sout, serr, status := ExecuteCmd("kubectl", cmdArgs)
 	if status == 0 {
-		hostIp := strings.Replace(sout, "'", "", -1)
-		return strings.TrimSpace(hostIp), nil
-	} else {
-		return serr, fmt.Errorf("Error Getting Monitor IP")
+		hostIP := strings.Replace(sout, "'", "", -1)
+		return strings.TrimSpace(hostIP), nil
 	}
+	return serr, fmt.Errorf("Error Getting Monitor IP")
+
 }
 
+//IsStorageClassPresent returns true if storageClass is present, if not false
 func (k8sh *K8sHelper) IsStorageClassPresent(name string) (bool, error) {
 	cmdArgs := []string{"get", "storageclass", "-o", "jsonpath='{.items[*].metadata.name}'"}
 	sout, serr, _ := ExecuteCmd("kubectl", cmdArgs)
@@ -335,6 +370,7 @@ func (k8sh *K8sHelper) IsStorageClassPresent(name string) (bool, error) {
 
 }
 
+//GetPVCStatus returns status of PVC
 func (k8sh *K8sHelper) GetPVCStatus(name string) (string, error) {
 	cmdArgs := []string{"get", "pvc", "-o", "jsonpath='{.items[*].metadata.name}'"}
 	sout, serr, _ := ExecuteCmd("kubectl", cmdArgs)
@@ -346,6 +382,8 @@ func (k8sh *K8sHelper) GetPVCStatus(name string) (string, error) {
 	return "PVC NOT FOUND", fmt.Errorf("PVC %s not found,err->%s", name, serr)
 }
 
+//IsPodInExpectedState waits for 90s for a pod to be an expected state
+//If the pod is in expected state within 90s true is returned,  if not false
 func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace string, state string) bool {
 	cmdArgs := []string{"get", "pods", "-l", "app=" + podNamePattern, "-o", "jsonpath={.items[0].status.phase}", "--no-headers=true"}
 	if namespace != "" {
@@ -366,8 +404,10 @@ func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace str
 	return false
 }
 
-func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, namespace string) bool{
-	args := []string{"-n", namespace, "pods", "-l", "app="+podNamePattern}
+//WaitUntilPodInNamespaceIsDeleted waits for 90s for a pod  in a namespace to be terminated
+//If the pod disappears within 90s true is returned,  if not false
+func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, namespace string) bool {
+	args := []string{"-n", namespace, "pods", "-l", "app=" + podNamePattern}
 	inc := 0
 	for inc < 30 {
 		out, _ := k8sh.GetResource(args)
@@ -382,12 +422,32 @@ func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, n
 	return false
 
 }
-func (k8sh *K8sHelper) WaitUntilPodIsDeleted(podNamePattern string) bool{
-	args := []string{ "pods", "-l", "app="+podNamePattern}
+
+//WaitUntilPodIsDeleted waits for 90s for a pod to be terminated
+//If the pod disappears within 90s true is returned,  if not false
+func (k8sh *K8sHelper) WaitUntilPodIsDeleted(podNamePattern string) bool {
+	args := []string{"pods", "-l", "app=" + podNamePattern}
 	inc := 0
 	for inc < 30 {
 		out, _ := k8sh.GetResource(args)
 		if !strings.Contains(out, podNamePattern) {
+			return true
+		}
+
+		inc++
+		time.Sleep(3 * time.Second)
+	}
+	return false
+}
+
+//WaitUntilPVCIsBound waits for a PVC to be in bound state for 90 seconds
+//if PVC goes to Bound state within 90s True is returned, if not false
+func (k8sh *K8sHelper) WaitUntilPVCIsBound(pvcname string) bool {
+
+	inc := 0
+	for inc < 30 {
+		out, _ := k8sh.GetPVCStatus(pvcname)
+		if strings.Contains(out, "Bound") {
 			return true
 		}
 

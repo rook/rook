@@ -18,6 +18,7 @@ package contracts
 
 import "github.com/rook/rook/pkg/model"
 
+//BlockOperator - interface for rook block operations
 type BlockOperator interface {
 	BlockCreate(name string, size int) (string, error)
 	BlockDelete(name string) (string, error)
@@ -28,6 +29,7 @@ type BlockOperator interface {
 	BlockUnmap(name string, mountpath string) (string, error)
 }
 
+//FileSystemOperator - interface for rook fileSystem operations
 type FileSystemOperator interface {
 	FSCreate(name string) (string, error)
 	FSDelete(name string) (string, error)
@@ -38,6 +40,7 @@ type FileSystemOperator interface {
 	FSUnmount(mountpath string) (string, error)
 }
 
+//ObjectOperator - interface for rook object operations
 type ObjectOperator interface {
 	ObjectCreate() (string, error)
 	ObjectBucketList() ([]model.ObjectBucket, error)
@@ -49,11 +52,13 @@ type ObjectOperator interface {
 	ObjectListUser() ([]model.ObjectUser, error)
 }
 
+//PoolOperator - interface for rook pool operations
 type PoolOperator interface {
 	PoolList() ([]model.Pool, error)
 	PoolCreate(pool model.Pool) (string, error)
 }
 
+//RestAPIOperator - interface for rook rest API operations
 type RestAPIOperator interface {
 	URL() string
 	GetNodes() ([]model.Node, error)

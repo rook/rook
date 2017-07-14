@@ -21,17 +21,27 @@ import (
 	"strings"
 )
 
+//DockerSubCommand is enum of docker commands
 type DockerSubCommand int
 
 const (
+	//Exec docker command
 	Exec DockerSubCommand = iota + 1
+	//Run docker command
 	Run
+	//Copy docker command
 	Copy
+	//Ps docker command
 	Ps
+	//Pull docker command
 	Pull
+	//Save docker command
 	Save
+	//Kill docker command
 	Kill
+	//Rm docker command
 	Rm
+	//Empty docker command
 	Empty
 )
 
@@ -51,6 +61,7 @@ func (subCommand DockerSubCommand) String() string {
 	return dockerSubCommands[subCommand-1]
 }
 
+//GetDockerSubCommandFromString returns docker sub command
 func GetDockerSubCommandFromString(name string) (DockerSubCommand, error) {
 	switch {
 	case strings.EqualFold(name, Exec.String()):

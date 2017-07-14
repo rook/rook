@@ -21,10 +21,13 @@ import (
 	"strings"
 )
 
+//K8sVersion is a enum of k8s versions
 type K8sVersion int
 
 const (
+	//V1dot5 k8s version 1.5
 	V1dot5 K8sVersion = iota + 1
+	// V1dot6 k8s version 1.6
 	V1dot6
 )
 
@@ -38,6 +41,7 @@ func (version K8sVersion) String() string {
 	return versions[version-1]
 }
 
+//GetK8sVersionFromString returns k8s version
 func GetK8sVersionFromString(name string) (K8sVersion, error) {
 	switch {
 	case strings.EqualFold(name, V1dot6.String()):

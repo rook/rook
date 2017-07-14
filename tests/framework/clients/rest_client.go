@@ -31,11 +31,12 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 )
 
+//RestAPIClient is wrapper for rook rest api client
 type RestAPIClient struct {
 	rrc *rclient.RookNetworkRestClient
 }
 
-//Create Rook REST API client
+//CreateRestAPIClient Create Rook REST API client
 func CreateRestAPIClient(platform enums.RookPlatformType) *RestAPIClient {
 	var endpoint string
 	switch {
@@ -50,11 +51,11 @@ func CreateRestAPIClient(platform enums.RookPlatformType) *RestAPIClient {
 				panic(fmt.Errorf("failed to kubectl create %v: %+v", path, err))
 			}
 		}
-		apiIp, err := rkh.GetPodHostId("rook-api", "rook")
+		apiIP, err := rkh.GetPodHostID("rook-api", "rook")
 		if err != nil {
 			panic(fmt.Errorf("Host Ip for Rook-api service not found. %+v", err))
 		}
-		endpoint = "http://" + apiIp + ":30002"
+		endpoint = "http://" + apiIP + ":30002"
 	case platform == enums.StandAlone:
 		endpoint = "http://localhost:8124"
 	default:
@@ -78,69 +79,103 @@ func CreateRestAPIClient(platform enums.RookPlatformType) *RestAPIClient {
 	return &RestAPIClient{client}
 }
 
+//URL returns URL for rookAPI
 func (a *RestAPIClient) URL() string {
 	return a.rrc.RestURL
 }
 
+//GetNodes returns all rook nodes
 func (a *RestAPIClient) GetNodes() ([]model.Node, error) {
 	return a.rrc.GetNodes()
 }
 
+//GetPools returns all pools in rook
 func (a *RestAPIClient) GetPools() ([]model.Pool, error) {
 	return a.rrc.GetPools()
 }
 
+//CreatePool creates a new pool
 func (a *RestAPIClient) CreatePool(pool model.Pool) (string, error) {
 	return a.rrc.CreatePool(pool)
 }
 
+//GetBlockImages returns list of a block images
 func (a *RestAPIClient) GetBlockImages() ([]model.BlockImage, error) {
 	return a.rrc.GetBlockImages()
 }
+
+//CreateBlockImage creates a new block image in rook
 func (a *RestAPIClient) CreateBlockImage(image model.BlockImage) (string, error) {
 	return a.rrc.CreateBlockImage(image)
-
 }
+
+//DeleteBlockImage deletes a block image from rook
 func (a *RestAPIClient) DeleteBlockImage(image model.BlockImage) (string, error) {
 	return a.rrc.DeleteBlockImage(image)
 }
+
+//GetClientAccessInfo returns rook REST API client info
 func (a *RestAPIClient) GetClientAccessInfo() (model.ClientAccessInfo, error) {
 	return a.rrc.GetClientAccessInfo()
 }
+
+//GetFilesystems returns rook filesystem
 func (a *RestAPIClient) GetFilesystems() ([]model.Filesystem, error) {
 	return a.rrc.GetFilesystems()
 }
+
+//CreateFilesystem creates file system on rook
 func (a *RestAPIClient) CreateFilesystem(fsmodel model.FilesystemRequest) (string, error) {
 	return a.rrc.CreateFilesystem(fsmodel)
 }
+
+//DeleteFilesystem deletes file system from rook
 func (a *RestAPIClient) DeleteFilesystem(fsmodel model.FilesystemRequest) (string, error) {
 	return a.rrc.DeleteFilesystem(fsmodel)
 }
+
+//GetStatusDetails retuns rook status details
 func (a *RestAPIClient) GetStatusDetails() (model.StatusDetails, error) {
 	return a.rrc.GetStatusDetails()
 }
+
+//CreateObjectStore creates object store
 func (a *RestAPIClient) CreateObjectStore() (string, error) {
 	return a.rrc.CreateObjectStore()
 }
+
+//GetObjectStoreConnectionInfo returns object store connection info
 func (a *RestAPIClient) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, error) {
 	return a.rrc.GetObjectStoreConnectionInfo()
 }
+
+//ListBuckets lists all buckets in object store
 func (a *RestAPIClient) ListBuckets() ([]model.ObjectBucket, error) {
 	return a.rrc.ListBuckets()
 }
+
+//ListObjectUsers returns all object store users
 func (a *RestAPIClient) ListObjectUsers() ([]model.ObjectUser, error) {
 	return a.rrc.ListObjectUsers()
 }
+
+//GetObjectUser returns a object user from object store
 func (a *RestAPIClient) GetObjectUser(id string) (*model.ObjectUser, error) {
 	return a.rrc.GetObjectUser(id)
 }
+
+//CreateObjectUser creates new  user in object store
 func (a *RestAPIClient) CreateObjectUser(user model.ObjectUser) (*model.ObjectUser, error) {
 	return a.rrc.CreateObjectUser(user)
 }
+
+//UpdateObjectUser updates user in object store
 func (a *RestAPIClient) UpdateObjectUser(user model.ObjectUser) (*model.ObjectUser, error) {
 	return a.rrc.UpdateObjectUser(user)
 
 }
+
+//DeleteObjectUser deletes user from object store
 func (a *RestAPIClient) DeleteObjectUser(id string) error {
 	return a.rrc.DeleteObjectUser(id)
 

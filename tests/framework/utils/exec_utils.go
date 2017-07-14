@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/tests/framework/objects"
 )
 
+//ExecuteCommand executes a os command and returs output
 func ExecuteCommand(cmdStruct objects.CommandArgs) objects.CommandOut {
 	var outBuffer, errBuffer bytes.Buffer
 
@@ -103,37 +104,7 @@ func ExecuteCommand(cmdStruct objects.CommandArgs) objects.CommandOut {
 	return objects.CommandOut{StdErr: errBuffer.String(), StdOut: outBuffer.String(), Err: err}
 }
 
-func ExecuteCmdWithEnv(Cmd string, cmdArgs []string, env []string) (stdout string, stderr string, exitCode int) {
-
-	var outbuf, errbuf bytes.Buffer
-	cmd := exec.Command(Cmd, strings.Join(cmdArgs, " "))
-
-	cmd.Env = append(cmd.Env, env...)
-
-	cmd.Stdout = &outbuf
-	cmd.Stderr = &errbuf
-
-	err := cmd.Run()
-	stdout = outbuf.String()
-	stderr = errbuf.String()
-
-	if err != nil {
-		if exitError, ok := err.(*exec.ExitError); ok {
-			ws := exitError.Sys().(syscall.WaitStatus)
-			exitCode = ws.ExitStatus()
-		} else {
-			exitCode = 1
-			if stderr == "" {
-				stderr = err.Error() + stdout
-			}
-		}
-	} else {
-		ws := cmd.ProcessState.Sys().(syscall.WaitStatus)
-		exitCode = ws.ExitStatus()
-	}
-	return
-}
-
+//ExecuteCmd functions executes a command returs status,stdout and stderror
 func ExecuteCmd(Cmd string, cmdArgs []string) (stdout string, stderr string, exitCode int) {
 
 	var outbuf, errbuf bytes.Buffer
@@ -162,7 +133,7 @@ func ExecuteCmd(Cmd string, cmdArgs []string) (stdout string, stderr string, exi
 	return
 }
 
-//TODO add timeout parameter
+//ExecuteCmdAndLogToConsole functions executes a command returs status,stdout and stderror and logs output to console
 func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string) (stdout string, stderr string, err error) {
 	var outbuf, errbuf bytes.Buffer
 

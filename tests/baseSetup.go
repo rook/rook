@@ -26,14 +26,17 @@ import (
 )
 
 var (
-	Env      objects.EnvironmentManifest
-	rook     *installer.InstallHelper
+	// Env var containing environment manifest
+	Env  objects.EnvironmentManifest
+	rook *installer.InstallHelper
+	//Platform where rook needs to installed eg:k8s or standalone
 	Platform enums.RookPlatformType
 )
 
 //One init function per package - initializes Rook infra and installs rook(if needed based on flags)
 func init() {
 	Env = objects.NewManifest()
+	fmt.Println(Env)
 	var err error
 	platform, err := enums.GetRookPlatFormTypeFromString(Env.Platform)
 	if err != nil {
@@ -46,18 +49,19 @@ func init() {
 	if skipRookInstall {
 		return
 	}
-	err = rook.InstallRookOnK8s()
+	err = rook.InstallRookOnK8s(Env.K8sVersion)
 	if err != nil {
 		panic(fmt.Errorf("failed to install rook: %v", err))
 	}
 
 }
 
+// CleanUp function to install Rook
 func CleanUp() {
 	skipRookInstall := strings.EqualFold(Env.SkipInstallRook, "true")
 	if skipRookInstall {
 		return
 	}
-	rook.UninstallRookFromK8s()
+	rook.UninstallRookFromK8s(Env.K8sVersion)
 
 }

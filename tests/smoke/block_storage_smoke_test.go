@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests"
 	"github.com/rook/rook/tests/framework/enums"
 	"github.com/stretchr/testify/require"
@@ -32,64 +33,67 @@ func TestRookSmokeSuiteK8s(t *testing.T) {
 
 type SmokeSuite struct {
 	suite.Suite
-	helper *SmokeTestHelper
+	helper *TestHelper
 }
 
 func (suite *SmokeSuite) SetupSuite() {
 	var err error
-	suite.helper, err = CreateSmokeTestClient(enums.Kubernetes)
+	suite.helper, err = CreateSmokeTestClient(enums.Kubernetes, tests.Env.K8sVersion)
 	require.Nil(suite.T(), err)
 }
 
 // Smoke Test for Block Storage - Test check the following operations on Block Storage in order
 //Create,Mount,Write,Read,Unmount and Delete.
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "smoketest")
+
 func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
 	defer suite.blockTestDataCleanUp()
-	suite.T().Log("Block Storage Smoke Test - Create,Mount,write to, read from  and Unmount Block")
+	logger.Infof("Block Storage Smoke Test - Create,Mount,write to, read from  and Unmount Block")
 	rbc := suite.helper.GetBlockClient()
 
-	suite.T().Log("Step 0 : Get Initial List Block")
+	logger.Infof("Step 0 : Get Initial List Block")
 	initBlockImages, _ := rbc.BlockList()
 
-	suite.T().Log("step 1: Create block storage")
-	_, cb_err := suite.helper.CreateBlockStorage()
-	require.Nil(suite.T(), cb_err)
+	logger.Infof("step 1: Create block storage")
+	_, cbErr := suite.helper.CreateBlockStorage()
+	require.Nil(suite.T(), cbErr)
 	require.True(suite.T(), retryBlockImageCountCheck(suite.helper, len(initBlockImages), 1), "Make sure a new block is created")
-	suite.T().Log("Block Storage created successfully")
+	logger.Infof("Block Storage created successfully")
+	require.True(suite.T(), suite.helper.WaitUntilPVCIsBound(), "Make sure PVC is Bound")
 
-	suite.T().Log("step 2: Mount block storage")
-	_, mt_err := suite.helper.MountBlockStorage()
-	require.Nil(suite.T(), mt_err)
-	suite.T().Log("Block Storage Mounted successfully")
+	logger.Infof("step 2: Mount block storage")
+	_, mtErr := suite.helper.MountBlockStorage()
+	require.Nil(suite.T(), mtErr)
+	logger.Infof("Block Storage Mounted successfully")
 
-	suite.T().Log("step 3: Write to block storage")
-	_, wt_err := suite.helper.WriteToBlockStorage("Test Data", "testFile1")
-	require.Nil(suite.T(), wt_err)
-	suite.T().Log("Write to Block storage successfully")
+	logger.Infof("step 3: Write to block storage")
+	_, wtErr := suite.helper.WriteToBlockStorage("Test Data", "testFile1")
+	require.Nil(suite.T(), wtErr)
+	logger.Infof("Write to Block storage successfully")
 
-	suite.T().Log("step 4: Read from  block storage")
-	read, r_err := suite.helper.ReadFromBlockStorage("testFile1")
-	require.Nil(suite.T(), r_err)
+	logger.Infof("step 4: Read from  block storage")
+	read, rErr := suite.helper.ReadFromBlockStorage("testFile1")
+	require.Nil(suite.T(), rErr)
 	require.Contains(suite.T(), read, "Test Data", "make sure content of the files is unchanged")
-	suite.T().Log("Read from  Block storage successfully")
+	logger.Infof("Read from  Block storage successfully")
 
-	suite.T().Log("step 5: Unmount block storage")
-	_, unmt_err := suite.helper.UnMountBlockStorage()
-	require.Nil(suite.T(), unmt_err)
-	suite.T().Log("Block Storage unmounted successfully")
+	logger.Infof("step 5: Unmount block storage")
+	_, unmtErr := suite.helper.UnMountBlockStorage()
+	require.Nil(suite.T(), unmtErr)
+	logger.Infof("Block Storage unmounted successfully")
 
-	suite.T().Log("step 6: Deleting block storage")
-	_, db_err := suite.helper.DeleteBlockStorage()
-	require.Nil(suite.T(), db_err)
+	logger.Infof("step 6: Deleting block storage")
+	_, dbErr := suite.helper.DeleteBlockStorage()
+	require.Nil(suite.T(), dbErr)
 	require.True(suite.T(), retryBlockImageCountCheck(suite.helper, len(initBlockImages), 0), "Make sure a new block is created")
-	suite.T().Log("Block Storage deleted successfully")
+	logger.Infof("Block Storage deleted successfully")
 
 }
 
-func (s *SmokeSuite) blockTestDataCleanUp() {
-	s.helper.UnMountBlockStorage()
-	s.helper.DeleteBlockStorage()
-	s.helper.CleanUpDymanicBlockStorage()
+func (suite *SmokeSuite) blockTestDataCleanUp() {
+	suite.helper.UnMountBlockStorage()
+	suite.helper.DeleteBlockStorage()
+	suite.helper.CleanUpDymanicBlockStorage()
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
@@ -98,16 +102,15 @@ func (suite *SmokeSuite) TearDownSuite() {
 
 // periodically checking if block image count has changed to expected value
 // When creating pvc in k8s platform, it may take some time for the block Image to be bounded
-func retryBlockImageCountCheck(h *SmokeTestHelper, imageCount int, expectedChange int) bool {
+func retryBlockImageCountCheck(h *TestHelper, imageCount int, expectedChange int) bool {
 	inc := 0
-	for inc < 30 {
+	for inc < 60 {
 		blockImages, _ := h.GetBlockClient().BlockList()
 		if imageCount+expectedChange == len(blockImages) {
 			return true
-		} else {
-			time.Sleep(time.Second * 2)
-			inc++
 		}
+		time.Sleep(time.Second * 3)
+		inc++
 	}
 	return false
 }

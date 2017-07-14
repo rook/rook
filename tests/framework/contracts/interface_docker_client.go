@@ -16,6 +16,7 @@ limitations under the License.
 
 package contracts
 
+//IDockerClient is a interface for docker commands
 type IDockerClient interface {
 	Execute(cmd []string) (stdout string, stderr string, err error)
 	Stop(cmd []string) (stdout string, stderr string, err error)
