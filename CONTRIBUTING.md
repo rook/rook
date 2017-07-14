@@ -15,7 +15,7 @@ contribution. See the [DCO](DCO) file for details.
 ## Getting Started
 
 - Fork the repository on GitHub
-- Read the [README](README.md) for build and test instructions
+- Read the [install](INSTALL.md) for build and test instructions
 - Play with the project, submit bugs, submit patches!
 
 ## Contribution Flow
@@ -43,7 +43,7 @@ questions: what changed and why. The subject line should feature the what and
 the body of the commit should describe the why.
 
 ```
-cephmgr: update MON to use rocksdb
+ceph: update MON to use rocksdb
 
 this enables us to remove leveldb from the codebase.
 ```
