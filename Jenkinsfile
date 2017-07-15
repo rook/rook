@@ -51,6 +51,7 @@ pipeline {
                                     withEnv(["KUBE_VERSION=v1.7"]){
                                         deleteDir()
                                         unstash 'repo'
+                                        sh "sleep 120"
                                         sh "whoami"
                                         sh "docker load -i rookamd64.tar"
                                         sh "docker load -i toolboxamd64.tar"
