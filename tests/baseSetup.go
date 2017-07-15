@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/objects"
+	"os"
 )
 
 var (
@@ -36,6 +37,9 @@ var (
 //One init function per package - initializes Rook infra and installs rook(if needed based on flags)
 func init() {
 	Env = objects.NewManifest()
+	if kv := os.Getenv("KUBE_VERSION"); kv != "" {
+		Env.K8sVersion = kv
+	}
 	fmt.Println(Env)
 	var err error
 	platform, err := enums.GetRookPlatFormTypeFromString(Env.Platform)
