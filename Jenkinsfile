@@ -34,7 +34,7 @@ pipeline {
         stage('Integration Tests SetUp') {
             steps {
                 sh 'tests/scripts/saveImages.sh'
-                stash name: 'repo', useDefaultExcludes: false
+                stash name: 'repo',excludes: '.cache/*,.work/*,_output/*,vendor/*' ,useDefaultExcludes: true
             }
         }
 
