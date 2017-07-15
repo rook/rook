@@ -30,7 +30,12 @@ TEMP := $(shell mktemp -d)
 # Build Ceph
 
 CEPH_BUILD_TYPE ?= release
+
+ifeq ($(GOARCH),amd64)
 CEPH_ALLOCATOR ?= tcmalloc
+else
+CEPH_ALLOCATOR ?= libc
+endif
 
 ifeq ($(CEPH_ALLOCATOR),tcmalloc)
 EXTRA_LIBS += libgoogle-perftools4
