@@ -20,13 +20,24 @@ pipeline {
                 sh 'build/run make -j\$(nproc) test'
             }
         }
-        stage('Integration Tests') {
-            environment {
-                KUBE_VERSION = "v1.6"
-            }
-            steps {
-                sh 'tests/scripts/kubeadm-dind.sh up'
-                sh 'build/run make -j\$(nproc) test-integration'
+
+       stage('Integration Tests') {
+            steps{
+                sh 'tests/scripts/makeTestImages.sh  save amd64'
+                stash name: 'repo',excludes: '_output/,vendor/,.cache/,.work/'
+                script{
+
+                    def data = [
+                        "aws_ci": "v1.6",
+                        "gce_ci": "v1.7"
+                    ]
+                    testruns = [:]
+                    for (kv in mapToList(data)) {
+                        testruns[kv[0]] = RunIntegrationTest(kv[0], kv[1])
+                    }
+                    parallel testruns
+
+                }
             }
         }
         stage('Publish') {
@@ -60,4 +71,35 @@ pipeline {
             deleteDir()
         }
     }
+}
+def RunIntegrationTest(k, v) {
+  return {
+      node("${k}") {
+        script{
+            try{
+                withEnv(["KUBE_VERSION=${v}"]){
+                    unstash 'repo'
+                    echo "running tests on k8s version ${v}"
+                    sh 'tests/scripts/makeTestImages.sh load amd64'
+                    sh 'build/run make -j\$(nproc) build.common'
+                    sh "tests/scripts/kubeadm-dind.sh up"
+                    sh 'build/run make -j\$(nproc) test-integration'
+                }
+            }
+            finally{
+                archive '_output/tests/*'
+                junit allowEmptyResults: true, keepLongStdio: true, testResults: '_output/tests/*.xml'
+                sh 'make -j\$(nproc) clean'
+                sh 'make -j\$(nproc) prune PRUNE_HOURS=48 PRUNE_KEEP=48'
+                deleteDir()
+            }
+        }
+      }
+  }
+}
+
+// Required due to JENKINS-27421
+@NonCPS
+List<List<?>> mapToList(Map map) {
+  return map.collect { it ->[it.key, it.value]}
 }

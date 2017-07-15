@@ -96,7 +96,7 @@ func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
 	logger.Infof("step 6: Deleting block storage")
 	_, dbErr := suite.helper.DeleteBlockStorage()
 	require.Nil(suite.T(), dbErr)
-	require.True(suite.T(), retryBlockImageCountCheck(suite.helper, len(initBlockImages), 0), "Make sure a new block is created")
+	require.True(suite.T(), retryBlockImageCountCheck(suite.helper, len(initBlockImages), 0), "Make sure a block is deleted")
 	logger.Infof("Block Storage deleted successfully")
 
 }
