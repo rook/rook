@@ -35,7 +35,7 @@ pipeline {
             steps {
                 sh 'tests/scripts/saveImages.sh > BUILD_NUMBER'
                 script{
-                    BUILD_NUM = readfile('BUILD_NUMBER')
+                    BUILD_NUM = readFile('BUILD_NUMBER')
                 }
                 echo "Saved images from build ${BUILD_NUM}"
                 stash name: 'repo',excludes: '_output/,vendor/,.cache/,.work/'
