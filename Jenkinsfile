@@ -53,7 +53,6 @@ pipeline {
                                         unstash 'repo'
                                         sh "docker load -i rookamd64.tar"
                                         sh "docker load -i toolboxamd64.tar"
-                                        sh "sleep 60"
                                         sh 'build/run make -j\$(nproc) build.common'
                                         sh 'tests/scripts/kubeadm-dind.sh up'
                                         sh 'build/run make -j\$(nproc) test-integration'
@@ -79,7 +78,6 @@ pipeline {
                                        unstash 'repo'
                                        sh "docker load -i rookamd64.tar"
                                        sh "docker load -i toolboxamd64.tar"
-                                       sh "sleep 60"
                                        sh 'build/run make -j\$(nproc) build.common'
                                        sh 'tests/scripts/kubeadm-dind.sh up'
                                        sh 'build/run make -j\$(nproc) test-integration'
