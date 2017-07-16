@@ -40,8 +40,9 @@ export CNI_PLUGIN="${CNI_PLUGIN:-bridge}"
 case "${1:-}" in
   up)
     ${scriptdir}/dind-cluster.sh reup
-    copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
-    copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
+    BUILD_NUM=${2:-${BUILD_REGISTRY}}
+    copy_image_to_cluster ${BUILD_NUM}/rook-amd64:latest rook/rook:master
+    copy_image_to_cluster ${BUILD_NUM}/toolbox-amd64:latest rook/toolbox:master
     copy_rbd
     ;;
   down)

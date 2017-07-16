@@ -277,20 +277,20 @@ function dind::ensure-downloaded-kubectl {
   local full_kubectl_version
 
   case "${LOCAL_KUBECTL_VERSION}" in
-    v1.4)
-      full_kubectl_version=v1.4.9
-      kubectl_sha1_linux=5726e8f17d56a5efeb2a644d8e7e2fdd8da8b8fd
-      kubectl_sha1_darwin=630fb3e0f4f442178cde0264d4b399291226eb2b
-      ;;
-    v1.5)
+     v1.5)
       full_kubectl_version=v1.5.4
       kubectl_sha1_linux=15d8430dc52b1f3772b88bc6a236c8fa58e07c0d
       kubectl_sha1_darwin=5e671ba792567574eea48be4eddd844ba2f07c27
       ;;
     v1.6)
-      full_kubectl_version=v1.6.1
-      kubectl_sha1_linux=65d27d731fbd25aa6beb6049691d58c5f09848c0
-      kubectl_sha1_darwin=f12a74544a19d3480466cc6046e18cb7c04591e1
+      full_kubectl_version=v1.6.6
+      kubectl_sha1_linux=41153558717f3206d37f5bf34232a303ae4dade1
+      kubectl_sha1_darwin=9795098e7340764b96a83e50676886d29e792033
+      ;;
+    v1.7)
+      full_kubectl_version=v1.7.0
+      kubectl_sha1_linux=c92ec52c02ec10a1ab54132d3cc99ad6f68c530e
+      kubectl_sha1_darwin=2e2708b873accafb1be8f328008e3d41a6a32c08
       ;;
     "")
       return 0
