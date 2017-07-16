@@ -33,7 +33,11 @@ pipeline {
 
         stage('Integration Tests SetUp') {
             steps {
-                sh 'tests/scripts/saveImages.sh'
+                sh 'tests/scripts/saveImages.sh > BUILD_NUMBER'
+                script{
+                    BUILD_NUM = readfile('BUILD_NUMBER')
+                }
+                echo "Saved images from build ${BUILD_NUM}"
                 stash name: 'repo',excludes: '_output/,vendor/,.cache/,.work/'
             }
         }
@@ -54,7 +58,7 @@ pipeline {
                                         sh "docker load -i rookamd64.tar"
                                         sh "docker load -i toolboxamd64.tar"
                                         sh 'build/run make -j\$(nproc) build.common'
-                                        sh 'tests/scripts/kubeadm-dind.sh up'
+                                        sh 'tests/scripts/kubeadm-dind.sh up ${BUILD_NUM}'
                                         sh 'build/run make -j\$(nproc) test-integration'
                                     }
                                 }
@@ -79,7 +83,7 @@ pipeline {
                                        sh "docker load -i rookamd64.tar"
                                        sh "docker load -i toolboxamd64.tar"
                                        sh 'build/run make -j\$(nproc) build.common'
-                                       sh 'tests/scripts/kubeadm-dind.sh up'
+                                       sh 'tests/scripts/kubeadm-dind.sh up ${BUILD_NUM}'
                                        sh 'build/run make -j\$(nproc) test-integration'
                                     }
                                 }

@@ -39,19 +39,10 @@ export CNI_PLUGIN="${CNI_PLUGIN:-bridge}"
 
 case "${1:-}" in
   up)
-    echo "start dind"
     ${scriptdir}/dind-cluster.sh reup
-    echo "i am here - dind end"
-
-    echo "+++++++++++++++++++"
-    echo ${BUILD_REGISTRY}
-    echo "+++++++++++++++++++"
-    docker images |grep ${BUILD_REGISTRY}
-    echo "+++++++++++++++++++"
-    docker images
-    echo "+++++++++++++++++++"
-    copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64:latest rook/rook:master
-    copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64:latest rook/toolbox:master
+    BUILD_NUM=${2:-${BUILD_REGISTRY}}
+    copy_image_to_cluster ${BUILD_NUM}/rook-amd64:latest rook/rook:master
+    copy_image_to_cluster ${BUILD_NUM}/toolbox-amd64:latest rook/toolbox:master
     copy_rbd
     ;;
   down)
