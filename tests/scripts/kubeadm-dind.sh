@@ -42,6 +42,14 @@ case "${1:-}" in
     echo "start dind"
     ${scriptdir}/dind-cluster.sh reup
     echo "i am here - dind end"
+
+    echo "+++++++++++++++++++"
+    echo ${BUILD_REGISTRY}
+    echo "+++++++++++++++++++"
+    docker images |grep ${BUILD_REGISTRY}
+    echo "+++++++++++++++++++"
+    docker images
+    echo "+++++++++++++++++++"
     copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64:latest rook/rook:master
     copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64:latest rook/toolbox:master
     copy_rbd
