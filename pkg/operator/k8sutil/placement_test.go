@@ -52,9 +52,9 @@ tolerations:
 		NodeAffinity: &v1.NodeAffinity{
 			RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 				NodeSelectorTerms: []v1.NodeSelectorTerm{
-					v1.NodeSelectorTerm{
+					{
 						MatchExpressions: []v1.NodeSelectorRequirement{
-							v1.NodeSelectorRequirement{
+							{
 								Key:      "foo",
 								Operator: v1.NodeSelectorOpIn,
 								Values:   []string{"bar"},
@@ -65,7 +65,7 @@ tolerations:
 			},
 		},
 		Tolerations: []v1.Toleration{
-			v1.Toleration{
+			{
 				Key:      "foo",
 				Operator: v1.TolerationOpExists,
 			},
@@ -135,7 +135,7 @@ func TestPlacement_Merge(t *testing.T) {
 func placementTestGetTolerations(key, value string) []v1.Toleration {
 	var ts int64 = 10
 	return []v1.Toleration{
-		v1.Toleration{
+		{
 			Key:               key,
 			Operator:          v1.TolerationOpExists,
 			Value:             value,
@@ -149,9 +149,9 @@ func placementTestGetNodeAffinity() *v1.NodeAffinity {
 	return &v1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{
-				v1.NodeSelectorTerm{
+				{
 					MatchExpressions: []v1.NodeSelectorRequirement{
-						v1.NodeSelectorRequirement{
+						{
 							Key:      "foo",
 							Operator: v1.NodeSelectorOpExists,
 							Values:   []string{"bar"},
@@ -161,11 +161,11 @@ func placementTestGetNodeAffinity() *v1.NodeAffinity {
 			},
 		},
 		PreferredDuringSchedulingIgnoredDuringExecution: []v1.PreferredSchedulingTerm{
-			v1.PreferredSchedulingTerm{
+			{
 				Weight: 10,
 				Preference: v1.NodeSelectorTerm{
 					MatchExpressions: []v1.NodeSelectorRequirement{
-						v1.NodeSelectorRequirement{
+						{
 							Key:      "foo",
 							Operator: v1.NodeSelectorOpExists,
 							Values:   []string{"bar"},

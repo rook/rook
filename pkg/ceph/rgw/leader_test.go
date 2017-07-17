@@ -39,8 +39,8 @@ import (
 func TestRGWConfig(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	nodes := map[string]*inventory.NodeConfig{
-		"a": &inventory.NodeConfig{PublicIP: "1.2.3.4"},
-		"b": &inventory.NodeConfig{PublicIP: "2.3.4.5"},
+		"a": {PublicIP: "1.2.3.4"},
+		"b": {PublicIP: "2.3.4.5"},
 	}
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {

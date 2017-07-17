@@ -186,8 +186,8 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 
 	// note only sdx already has a UUID (it's been through partitioning)
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
-		&inventory.LocalDisk{Name: "sdx", Size: 1234567890, UUID: sdxUUID},
-		&inventory.LocalDisk{Name: "sdy", Size: 1234567890},
+		{Name: "sdx", Size: 1234567890, UUID: sdxUUID},
+		{Name: "sdy", Size: 1234567890},
 	}
 
 	// prep the OSD agent and related orchestration data
@@ -325,7 +325,7 @@ func TestRemoveDevice(t *testing.T) {
 		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID, Inventory: createInventory()},
 		Executor:      executor, ProcMan: proc.New(executor),
 	}
-	context.Inventory.Local.Disks = []*inventory.LocalDisk{&inventory.LocalDisk{Name: "sda", Size: 1234567890, UUID: "5435435333"}}
+	context.Inventory.Local.Disks = []*inventory.LocalDisk{{Name: "sda", Size: 1234567890, UUID: "5435435333"}}
 	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/5435435333/osd-id-data", "23")
 	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/5435435333/osd-id-metadata", "23")
 
@@ -433,9 +433,9 @@ func TestLoadDesiredDevices(t *testing.T) {
 
 	// two devices and one metadata device are desired and it is a new config
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
-		&inventory.LocalDisk{Name: "sda", Size: 1234567890, UUID: "12345"},
-		&inventory.LocalDisk{Name: "sdb", Size: 2234567890, UUID: "54321"},
-		&inventory.LocalDisk{Name: "sdc", Size: 3234567890, UUID: "99999"},
+		{Name: "sda", Size: 1234567890, UUID: "12345"},
+		{Name: "sdb", Size: 2234567890, UUID: "54321"},
+		{Name: "sdc", Size: 3234567890, UUID: "99999"},
 	}
 	a.desiredDevices = []string{"sda", "sdb"}
 	a.metadataDevice = "sdc"
@@ -493,9 +493,9 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 	test.CreateClusterInfo(etcdClient, configDir, []string{"mon0"})
 	// 3 disks: 2 for data and 1 for the metadata of both disks (2 WALs and 2 DBs)
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
-		&inventory.LocalDisk{Name: "sda", Size: 107374182400}, // 100 GB
-		&inventory.LocalDisk{Name: "sdb", Size: 107374182400}, // 100 GB
-		&inventory.LocalDisk{Name: "sdc", Size: 44158681088},  // 1 MB (starting offset) + 2 * (576 MB + 20 GB) = 41.125 GB
+		{Name: "sda", Size: 107374182400}, // 100 GB
+		{Name: "sdb", Size: 107374182400}, // 100 GB
+		{Name: "sdc", Size: 44158681088},  // 1 MB (starting offset) + 2 * (576 MB + 20 GB) = 41.125 GB
 	}
 	a := &OsdAgent{desiredDevices: []string{"sda", "sdb"}, metadataDevice: "sdc"}
 	clusterInfo, _ := mon.LoadClusterInfo(context.EtcdClient)
@@ -570,7 +570,7 @@ func TestGetPartitionPerfSchemeDiskInUse(t *testing.T) {
 	_, sdaUUID := mockPartitionSchemeEntry(t, 1, "sda", configDir, nil)
 
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
-		&inventory.LocalDisk{Name: "sda", Size: 107374182400, UUID: sdaUUID}, // 100 GB
+		{Name: "sda", Size: 107374182400, UUID: sdaUUID}, // 100 GB
 	}
 	a := &OsdAgent{desiredDevices: []string{"sda"}}
 
@@ -622,8 +622,8 @@ func TestGetPartitionPerfSchemeDiskNameChanged(t *testing.T) {
 
 	// mock the currently discovered hardware, note the device names have changed (e.g., across reboots) but their UUIDs are always static
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
-		&inventory.LocalDisk{Name: "nvme01-changed", Size: 107374182400, UUID: metadataUUID},
-		&inventory.LocalDisk{Name: "sda-changed", Size: 107374182400, UUID: sdaUUID},
+		{Name: "nvme01-changed", Size: 107374182400, UUID: metadataUUID},
+		{Name: "sda-changed", Size: 107374182400, UUID: sdaUUID},
 	}
 	a := &OsdAgent{desiredDevices: []string{"sda-changed"}}
 

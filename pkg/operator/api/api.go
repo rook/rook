@@ -38,17 +38,17 @@ const (
 )
 
 var clusterAccessRules = []v1beta1.PolicyRule{
-	v1beta1.PolicyRule{
+	{
 		APIGroups: []string{""},
 		Resources: []string{"namespaces", "secrets", "pods", "services", "nodes", "configmaps", "events"},
 		Verbs:     []string{"get", "list", "watch", "create", "update"},
 	},
-	v1beta1.PolicyRule{
+	{
 		APIGroups: []string{"extensions"},
 		Resources: []string{"thirdpartyresources", "deployments", "daemonsets", "replicasets"},
 		Verbs:     []string{"get", "list", "create"},
 	},
-	v1beta1.PolicyRule{
+	{
 		APIGroups: []string{"storage.k8s.io"},
 		Resources: []string{"storageclasses"},
 		Verbs:     []string{"get", "list"},
@@ -132,7 +132,7 @@ func (c *Cluster) makeClusterRole() error {
 	binding := &v1beta1.ClusterRoleBinding{}
 	binding.Name = DeploymentName
 	binding.RoleRef = v1beta1.RoleRef{Name: DeploymentName, Kind: "ClusterRole", APIGroup: "rbac.authorization.k8s.io"}
-	binding.Subjects = []v1beta1.Subject{v1beta1.Subject{Kind: "ServiceAccount", Name: DeploymentName, Namespace: c.Namespace}}
+	binding.Subjects = []v1beta1.Subject{{Kind: "ServiceAccount", Name: DeploymentName, Namespace: c.Namespace}}
 	_, err = c.context.Clientset.RbacV1beta1().ClusterRoleBindings().Create(binding)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create api cluster role binding. %+v", err)
@@ -182,7 +182,7 @@ func (c *Cluster) apiContainer() v1.Container {
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		},
 		Env: []v1.EnvVar{
-			v1.EnvVar{Name: "ROOKD_VERSION_TAG", Value: c.Version},
+			{Name: "ROOKD_VERSION_TAG", Value: c.Version},
 			k8sutil.NamespaceEnvVar(),
 			k8sutil.RepoPrefixEnvVar(),
 			opmon.MonSecretEnvVar(),

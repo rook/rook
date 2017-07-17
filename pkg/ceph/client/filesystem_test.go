@@ -37,7 +37,7 @@ func TestFilesystemListMarshal(t *testing.T) {
 
 	// create the expected file systems listing object
 	expectedFilesystems := []CephFilesystem{
-		CephFilesystem{
+		{
 			Name:           "myfs1",
 			MetadataPool:   "myfs1-metadata",
 			MetadataPoolID: 2,
@@ -68,7 +68,7 @@ func TestFilesystemGetMarshal(t *testing.T) {
 			Damaged:        []int{},
 			Stopped:        []int{},
 			Info: map[string]MDSInfo{
-				"gid_4107": MDSInfo{
+				"gid_4107": {
 					GID:     4107,
 					Name:    "1",
 					Rank:    0,

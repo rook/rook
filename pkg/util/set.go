@@ -39,7 +39,7 @@ func CreateSet(values []string) *Set {
 // Create a copy of the set
 func (s *Set) Copy() *Set {
 	set := NewSet()
-	for value, _ := range s.values {
+	for value := range s.values {
 		set.values[value] = struct{}{}
 	}
 

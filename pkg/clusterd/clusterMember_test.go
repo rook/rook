@@ -393,7 +393,7 @@ func TestSimpleMembershipChangeWatching(t *testing.T) {
 	mockLeaseManager.mockAcquireLease = acquireLeaseSuccessfully
 
 	testService := newTestServiceLeader()
-	context.Services = []*ClusterService{&ClusterService{Name: "test", Leader: testService}}
+	context.Services = []*ClusterService{{Name: "test", Leader: testService}}
 	nodesAdded := 0
 	nodeAddedChannel := make(chan bool)
 	testService.nodeAdded = func(nodeID string) {

@@ -113,7 +113,7 @@ func TestClusterRole(t *testing.T) {
 
 	// update the rules
 	clusterAccessRules = []v1beta1.PolicyRule{
-		v1beta1.PolicyRule{
+		{
 			APIGroups: []string{""},
 			Resources: []string{"namespaces"},
 			Verbs:     []string{"get", "list"},

@@ -165,7 +165,7 @@ func (d *MockEtcdDir) dumpSortedSubdirs() {
 	// first make a copy of the keys from the dir store so we can sort it and not affect the original
 	dirs := make([]string, len(d.Dirs))
 	i := 0
-	for dir, _ := range d.Dirs {
+	for dir := range d.Dirs {
 		dirs[i] = dir
 		i++
 	}
@@ -184,7 +184,7 @@ func (d *MockEtcdDir) dumpSortedValues() {
 	// first make a copy of the keys to not affect the original
 	keys := make([]string, len(d.Values))
 	i := 0
-	for k, _ := range d.Values {
+	for k := range d.Values {
 		keys[i] = k
 		i++
 	}
@@ -354,7 +354,7 @@ func splitParentKey(key string) (parent, child string) {
 
 	childIndex := strings.LastIndex(key, "/")
 	parent = key[0:childIndex]
-	child = key[childIndex+1 : len(key)]
+	child = key[childIndex+1:]
 	return
 }
 
@@ -368,7 +368,7 @@ func splitFirstParentKey(key string) (parent, child string) {
 	}
 
 	parent = key[0:childIndex]
-	child = key[childIndex+1 : len(key)]
+	child = key[childIndex+1:]
 	return
 }
 

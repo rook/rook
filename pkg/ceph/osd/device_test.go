@@ -157,7 +157,7 @@ NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
 	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID, Inventory: createInventory()},
 		Executor: executor, ConfigDir: configDir}
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
-		&inventory.LocalDisk{Name: "sda", Size: 65},
+		{Name: "sda", Size: 65},
 	}
 	config := &osdConfig{configRoot: configDir, rootPath: filepath.Join(configDir, "osd1"), id: entry.ID,
 		uuid: entry.OsdUUID, dir: false, partitionScheme: entry}
@@ -335,7 +335,7 @@ func testPartitionOSDHelper(t *testing.T, storeConfig StoreConfig) {
 	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID, Inventory: createInventory()},
 		Executor: executor, ConfigDir: configDir}
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
-		&inventory.LocalDisk{Name: "sda", Size: 100},
+		{Name: "sda", Size: 100},
 	}
 
 	// setup a partition scheme for data and metadata to be collocated on sda

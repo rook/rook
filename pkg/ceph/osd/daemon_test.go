@@ -116,13 +116,13 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 
 	context := &clusterd.Context{ProcMan: proc.New(executor), Executor: executor}
 	devices := []*inventory.LocalDisk{
-		&inventory.LocalDisk{Name: "sda"},
-		&inventory.LocalDisk{Name: "sdb"},
-		&inventory.LocalDisk{Name: "sdc"},
-		&inventory.LocalDisk{Name: "sdd"},
-		&inventory.LocalDisk{Name: "nvme01"},
-		&inventory.LocalDisk{Name: "rda"},
-		&inventory.LocalDisk{Name: "rdb"},
+		{Name: "sda"},
+		{Name: "sdb"},
+		{Name: "sdc"},
+		{Name: "sdd"},
+		{Name: "nvme01"},
+		{Name: "rda"},
+		{Name: "rdb"},
 	}
 
 	// select all devices, including nvme01 for metadata

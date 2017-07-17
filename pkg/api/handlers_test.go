@@ -80,8 +80,8 @@ func TestGetNodesHandler(t *testing.T) {
 
 	// add the disks to etcd
 	disks := []inventory.Disk{
-		inventory.Disk{Type: sys.DiskType, Size: 50, Rotational: true, Empty: true},
-		inventory.Disk{Type: sys.DiskType, Size: 100, Rotational: false, Empty: true},
+		{Type: sys.DiskType, Size: 50, Rotational: true, Empty: true},
+		{Type: sys.DiskType, Size: 100, Rotational: false, Empty: true},
 	}
 	output, _ := json.Marshal(disks)
 	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, nodeID, "disks"), string(output))
