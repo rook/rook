@@ -25,7 +25,7 @@ func TestMonFlattening(t *testing.T) {
 
 	// single endpoint
 	mons := map[string]*CephMonitorConfig{
-		"foo": &CephMonitorConfig{Name: "foo", Endpoint: "1.2.3.4:5000"},
+		"foo": {Name: "foo", Endpoint: "1.2.3.4:5000"},
 	}
 	flattened := FlattenMonEndpoints(mons)
 	assert.Equal(t, "foo=1.2.3.4:5000", flattened)

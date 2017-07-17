@@ -92,7 +92,7 @@ func TestDeletePool(t *testing.T) {
 	rclient := &test.MockRookRestClient{
 		MockGetPools: func() ([]model.Pool, error) {
 			pools := []model.Pool{
-				model.Pool{Name: "mypool"},
+				{Name: "mypool"},
 			}
 			return pools, nil
 		},

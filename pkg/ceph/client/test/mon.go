@@ -23,7 +23,7 @@ import (
 
 func MonInQuorumResponse() string {
 	resp := client.MonStatusResponse{Quorum: []int{0}}
-	resp.MonMap.Mons = []client.MonMapEntry{client.MonMapEntry{Name: "mon0", Rank: 0, Address: "1.2.3.4"}}
+	resp.MonMap.Mons = []client.MonMapEntry{{Name: "mon0", Rank: 0, Address: "1.2.3.4"}}
 	serialized, _ := json.Marshal(resp)
 	return string(serialized)
 }

@@ -161,7 +161,7 @@ go.vet:
 
 .PHONY: go.fmt
 go.fmt:
-	@gofmt_out=$$(gofmt -d -e $(GO_SUBDIRS) $(GO_INTEGRATION_TESTS_SUBDIRS) 2>&1) && [ -z "$${gofmt_out}" ] || (echo "$${gofmt_out}" 1>&2; exit 1)
+	@gofmt_out=$$(gofmt -s -d -e $(GO_SUBDIRS) $(GO_INTEGRATION_TESTS_SUBDIRS) 2>&1) && [ -z "$${gofmt_out}" ] || (echo "$${gofmt_out}" 1>&2; exit 1)
 
 go.validate: go.vet go.fmt
 

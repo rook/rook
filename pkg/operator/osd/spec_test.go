@@ -69,7 +69,7 @@ nodes:
 			},
 		},
 		Nodes: []Node{
-			Node{
+			{
 				Name:        "node1",
 				Directories: []Directory{{Path: "/rook/dir1"}},
 				Config: Config{
@@ -78,7 +78,7 @@ nodes:
 					},
 				},
 			},
-			Node{
+			{
 				Name: "node2",
 				Selection: Selection{
 					DeviceFilter: "^sd.",

@@ -209,7 +209,7 @@ func GetLeafKeyPath(key string) string {
 
 	// return the leaf key, which is everything from right after the last path separator to the
 	// end of the key
-	return key[lastIndex+1 : len(key)]
+	return key[lastIndex+1:]
 }
 
 func GetParentKeyPath(key string) string {

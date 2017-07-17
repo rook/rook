@@ -248,10 +248,10 @@ func TestTaintedNodes(t *testing.T) {
 
 	// taint nodes so they will not be schedulable for new pods
 	nodes[0].Spec.Taints = []v1.Taint{
-		v1.Taint{Effect: v1.TaintEffectNoSchedule},
+		{Effect: v1.TaintEffectNoSchedule},
 	}
 	nodes[1].Spec.Taints = []v1.Taint{
-		v1.Taint{Effect: v1.TaintEffectPreferNoSchedule},
+		{Effect: v1.TaintEffectPreferNoSchedule},
 	}
 	clientset.CoreV1().Nodes().Update(&nodes[0])
 	clientset.CoreV1().Nodes().Update(&nodes[1])
@@ -274,9 +274,9 @@ func TestNodeAffinity(t *testing.T) {
 	c.placement.NodeAffinity = &v1.NodeAffinity{
 		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
 			NodeSelectorTerms: []v1.NodeSelectorTerm{
-				v1.NodeSelectorTerm{
+				{
 					MatchExpressions: []v1.NodeSelectorRequirement{
-						v1.NodeSelectorRequirement{
+						{
 							Key:      "label",
 							Operator: v1.NodeSelectorOpIn,
 							Values:   []string{"bar", "baz"},

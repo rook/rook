@@ -51,7 +51,7 @@ func TestSchemeSaveLoad(t *testing.T) {
 
 	e1 := &PerfSchemeEntry{ID: 1, OsdUUID: m1.OsdUUID}
 	e1.Partitions = map[PartitionType]*PerfSchemePartitionDetails{
-		BlockPartitionType: &PerfSchemePartitionDetails{
+		BlockPartitionType: {
 			Device:        "sdb",
 			DiskUUID:      uuid.Must(uuid.NewRandom()).String(),
 			PartitionUUID: uuid.Must(uuid.NewRandom()).String(),
