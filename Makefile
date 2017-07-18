@@ -90,7 +90,10 @@ build.common:
 	@$(MAKE) go.validate
 
 do.build.platform.%:
-	@$(MAKE) GOOS=$(word 1, $(subst _, ,$*)) GOARCH=$(word 2, $(subst _, ,$*)) go.build
+	@$(MAKE) PLATFORM=$* go.build
+ifeq ($(BUILD_INTEGRATION_TESTS),1)
+	@$(MAKE) PLATFORM=$* go.build.integration.test
+endif
 
 do.build.parallel: $(foreach p,$(PLATFORMS), do.build.platform.$(p))
 
