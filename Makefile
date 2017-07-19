@@ -89,9 +89,6 @@ build.common:
 
 do.build.platform.%:
 	@$(MAKE) PLATFORM=$* go.build
-ifeq ($(BUILD_INTEGRATION_TESTS),1)
-	@$(MAKE) PLATFORM=$* go.build.integration.test
-endif
 
 do.build.parallel: $(foreach p,$(PLATFORMS), do.build.platform.$(p))
 
@@ -99,7 +96,7 @@ build: build.common
 	@$(MAKE) go.build
 # if building on non-linux platforms, also build the linux container
 ifneq ($(GOOS),linux)
-	@$(MAKE) go.build GOOS=linux GOARCH=amd64
+	@$(MAKE) go.build PLATFORM=linux_amd64
 endif
 	@$(MAKE) -C images
 

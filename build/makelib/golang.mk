@@ -127,6 +127,7 @@ $(foreach p,$(GO_STATIC_PACKAGES),$(eval $(call go.project,$(lastword $(subst /,
 .PHONY: go.build
 go.build:
 	@$(MAKE) go.build.packages
+	@$(MAKE) go.build.integration.test
 
 .PHONY: go.install
 go.install:
@@ -143,7 +144,7 @@ go.test.unit: $(GOJUNIT)
 .PHONY: go.build.integration.test
 go.build.integration.test:
 	@echo === go build integration test packages $(PLATFORM)
-	@CGO_ENABLED=0 $(GOHOST) test -v -i $(GO_STATIC_FLAGS) -c -o $(GO_OUT_DIR)/test.integration $(GO_INTEGRATION_TEST_PACKAGES)
+	@CGO_ENABLED=0 $(GOHOST) test -v -i $(GO_STATIC_FLAGS) -c -o $(GO_TEST_OUTPUT)/test.integration $(GO_INTEGRATION_TEST_PACKAGES)
 
 .PHONY:
 go.test.integration: $(GOJUNIT)
