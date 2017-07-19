@@ -25,7 +25,7 @@ $(error invalid channel $(CHANNEL))
 endif
 
 PLATFORMS ?= $(ALL_PLATFORMS)
-FLAVORS ?= binaries images
+FLAVORS ?= output images
 TEMP_DIR := $(shell mktemp -d)
 
 DOCKER_REGISTRY ?= rook
@@ -63,14 +63,12 @@ clean: $(addprefix clean.,$(FLAVORS)) ;
 %: ; @:
 
 # ====================================================================================
-# binary files
+# output
 
-publish.binaries.%:
-	@$(S3_CP) $(OUTPUT_DIR)/$*/rookctl$(if $(filter windows_%,$*),.exe) $(S3_CURRENT_BUCKET)/$*/rookctl$(if $(filter windows_%,$*),.exe)
-publish.binaries: $(addprefix publish.binaries.,$(PLATFORMS))
-	@echo "$(VERSION)" > $(TEMP_DIR)/version;
-	@$(S3_CP) "$(TEMP_DIR)/version" $(S3_CURRENT_BUCKET)/version
-promote.binaries:
+publish.output:
+	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
+	@$(S3_SYNC) $(OUTPUT_DIR) $(S3_CURRENT_BUCKET)
+promote.output:
 	@$(S3_SYNC) s3://$(S3_BUCKET)/master/$(VERSION) s3://$(S3_BUCKET)/$(CHANNEL)/current
 
 # ====================================================================================
