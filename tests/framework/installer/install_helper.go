@@ -26,6 +26,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/contracts"
+	"github.com/rook/rook/tests/framework/objects"
 	"github.com/rook/rook/tests/framework/transport"
 	"github.com/rook/rook/tests/framework/utils"
 	"strings"
@@ -42,14 +43,13 @@ const (
 
 var (
 	r      *InstallHelper
-	once   Once
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "installer")
 )
 
 //InstallHelper wraps installation and uninstallaion of rook on a platfom
 type InstallHelper struct {
 	transportClient contracts.ITransportClient
-	isRookInstalled bool
+	Env             objects.EnvironmentManifest
 }
 
 func getPodSpecPath(k8sverion string) string {
@@ -138,15 +138,19 @@ func (h *InstallHelper) createk8sRookCluster(k8sHelper *utils.K8sHelper, k8svers
 }
 
 //InstallRookOnK8s installs rook on k8s
-func (h *InstallHelper) InstallRookOnK8s(k8sversion string) (err error) {
-	if h.isRookInstalled {
+func (h *InstallHelper) InstallRookOnK8s() (err error) {
+
+	//flag used for local debuggin purpose, when rook is pre-installed
+	skipRookInstall := strings.EqualFold(h.Env.SkipInstallRook, "true")
+	if skipRookInstall {
 		return
 	}
 
+	logger.Infof("Installing rook on k8s %s", h.Env.K8sVersion)
 	//Create rook operator
 	k8sHelp := utils.CreatK8sHelper()
 
-	err = h.createK8sRookOperator(k8sHelp, k8sversion)
+	err = h.createK8sRookOperator(k8sHelp, h.Env.K8sVersion)
 	if err != nil {
 		panic(err)
 	}
@@ -154,7 +158,7 @@ func (h *InstallHelper) InstallRookOnK8s(k8sversion string) (err error) {
 	time.Sleep(10 * time.Second) ///TODO: add real check here
 
 	//Create rook cluster
-	err = h.createk8sRookCluster(k8sHelp, k8sversion)
+	err = h.createk8sRookCluster(k8sHelp, h.Env.K8sVersion)
 	if err != nil {
 		panic(err)
 	}
@@ -162,22 +166,26 @@ func (h *InstallHelper) InstallRookOnK8s(k8sversion string) (err error) {
 	time.Sleep(5 * time.Second)
 
 	//Create rook client
-	err = h.createK8sRookToolbox(k8sHelp, k8sversion)
+	err = h.createK8sRookToolbox(k8sHelp, h.Env.K8sVersion)
 	if err != nil {
 		panic(err)
 	}
-
-	h.isRookInstalled = true
-
+	logger.Infof("installed rook on k8s %s", h.Env.K8sVersion)
 	return nil
 }
 
 //UninstallRookFromK8s uninstalls rook from k8s
-func (h *InstallHelper) UninstallRookFromK8s(k8sversion string) {
+func (h *InstallHelper) UninstallRookFromK8s() {
+	//flag used for local debugging purpose, when rook is pre-installed
+	skipRookInstall := strings.EqualFold(h.Env.SkipInstallRook, "true")
+	if skipRookInstall {
+		return
+	}
+
 	logger.Infof("Uninstalling Rook")
 	k8sHelp := utils.CreatK8sHelper()
 	var err error
-	_, err = k8sHelp.ResourceOperation("delete", path.Join(getPodSpecPath(k8sversion), rookOperatorFileName))
+	_, err = k8sHelp.ResourceOperation("delete", path.Join(getPodSpecPath(h.Env.K8sVersion), rookOperatorFileName))
 	if err != nil {
 		panic(err)
 	}
@@ -189,7 +197,7 @@ func (h *InstallHelper) UninstallRookFromK8s(k8sversion string) {
 	if err != nil {
 		panic(err)
 	}
-	if !strings.EqualFold(k8sversion, "v1.5") {
+	if !strings.EqualFold(h.Env.K8sVersion, "v1.5") {
 		_, err = k8sHelp.DeleteResource([]string{"clusterrole", "rook-api"})
 		if err != nil {
 			panic(err)
@@ -216,7 +224,6 @@ func (h *InstallHelper) UninstallRookFromK8s(k8sversion string) {
 
 	if isRookUninstalled {
 		logger.Infof("Rook uninstalled successfully")
-		once.Reset()
 		return
 	}
 	panic(fmt.Errorf("Rook not uninstalled"))
@@ -224,13 +231,16 @@ func (h *InstallHelper) UninstallRookFromK8s(k8sversion string) {
 
 //NewK8sRookhelper creates new instance of InstallHelper
 func NewK8sRookhelper() (*InstallHelper, error) {
+	env := objects.NewManifest()
+	if kv := os.Getenv("KUBE_VERSION"); kv != "" {
+		env.K8sVersion = kv
+	}
 
 	transportClient := transport.CreateNewk8sTransportClient()
-	once.Do(func() {
-		r = &InstallHelper{
-			transportClient: transportClient,
-			isRookInstalled: false,
-		}
-	})
+	r = &InstallHelper{
+		transportClient: transportClient,
+		Env:             env,
+	}
+
 	return r, nil
 }

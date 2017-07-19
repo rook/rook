@@ -2,21 +2,27 @@ package longhaul
 
 import (
 	"bytes"
-	"github.com/rook/rook/tests"
+	"html/template"
+	"sync"
+	"testing"
+
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
+	"github.com/rook/rook/tests/framework/enums"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/objects"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"html/template"
-	"sync"
-	"testing"
 )
 
 // Rook Block Storage integration test
 // Start MySql database that is using rook provisoned block storage.
 // Make sure database is functional
+
+var (
+	kubeContext *installer.InstallHelper
+)
 
 func TestK8sBlockLongHaul(t *testing.T) {
 	suite.Run(t, new(K8sBlockLongHaulSuite))
@@ -39,7 +45,13 @@ type K8sBlockLongHaulSuite struct {
 func (s *K8sBlockLongHaulSuite) SetupSuite() {
 	var err error
 
-	s.testClient, err = clients.CreateTestClient(tests.Platform)
+	kubeContext, err = installer.NewK8sRookhelper()
+	require.NoError(s.T(), err)
+
+	err = kubeContext.InstallRookOnK8s()
+	require.NoError(s.T(), err)
+
+	s.testClient, err = clients.CreateTestClient(enums.Kubernetes)
 	require.Nil(s.T(), err)
 
 	s.bc = s.testClient.GetBlockClient()
@@ -86,8 +98,8 @@ func (s *K8sBlockLongHaulSuite) SetupSuite() {
 
 func (s *K8sBlockLongHaulSuite) TestBlockLonghaulRun() {
 
-	s.wg.Add(tests.Env.LoadConcurrentRuns)
-	for i := 1; i <= tests.Env.LoadConcurrentRuns; i++ {
+	s.wg.Add(kubeContext.Env.LoadConcurrentRuns)
+	for i := 1; i <= kubeContext.Env.LoadConcurrentRuns; i++ {
 		go s.dbOperation(i)
 	}
 	s.wg.Wait()
@@ -114,6 +126,9 @@ func (s *K8sBlockLongHaulSuite) TearDownSuite() {
 	s.kh = nil
 	s.db = nil
 	s = nil
+
+	kubeContext.UninstallRookFromK8s()
+
 }
 func (s *K8sBlockLongHaulSuite) storageClassOperation(poolName string, action string) (string, string, int) {
 

@@ -23,9 +23,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/rook/rook/tests"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
+	"github.com/rook/rook/tests/framework/enums"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/objects"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
@@ -35,6 +36,9 @@ import (
 // Rook Block Storage integration test
 // Start MySql database that is using rook provisoned block storage.
 // Make sure database is functional
+var (
+	kubeContext *installer.InstallHelper
+)
 
 func TestK8sBlockIntegration(t *testing.T) {
 	suite.Run(t, new(K8sBlockEnd2EndIntegrationSuite))
@@ -57,7 +61,13 @@ func (s *K8sBlockEnd2EndIntegrationSuite) SetupSuite() {
 
 	var err error
 
-	s.testClient, err = clients.CreateTestClient(tests.Platform)
+	kubeContext, err = installer.NewK8sRookhelper()
+	require.NoError(s.T(), err)
+
+	err = kubeContext.InstallRookOnK8s()
+	require.NoError(s.T(), err)
+
+	s.testClient, err = clients.CreateTestClient(enums.Kubernetes)
 	require.Nil(s.T(), err)
 
 	s.bc = s.testClient.GetBlockClient()
@@ -136,12 +146,11 @@ func (s *K8sBlockEnd2EndIntegrationSuite) TearDownTest() {
 
 	s.kh.ResourceOperation("delete", s.mysqlappPath)
 	s.storageClassOperation("mysql-pool", "delete")
-	tests.CleanUp()
 
 }
 
 func (s *K8sBlockEnd2EndIntegrationSuite) TearDownSuite() {
 
-	tests.CleanUp()
+	kubeContext.UninstallRookFromK8s()
 
 }

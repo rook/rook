@@ -25,9 +25,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rook/rook/tests"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
+	"github.com/rook/rook/tests/framework/enums"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/objects"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
@@ -36,7 +37,8 @@ import (
 
 // Test K8s Block Image Creation Scenarios. These tests work when platform is set to Kubernetes
 var (
-	claimName = "test-claim1"
+	claimName   = "test-claim1"
+	kubeContext *installer.InstallHelper
 )
 
 func TestK8sBlockCreate(t *testing.T) {
@@ -57,7 +59,13 @@ func (s *K8sBlockImageCreateSuite) SetupSuite() {
 
 	var err error
 
-	s.testClient, err = clients.CreateTestClient(tests.Platform)
+	kubeContext, err = installer.NewK8sRookhelper()
+	require.NoError(s.T(), err)
+
+	err = kubeContext.InstallRookOnK8s()
+	require.NoError(s.T(), err)
+
+	s.testClient, err = clients.CreateTestClient(enums.Kubernetes)
 	require.Nil(s.T(), err)
 
 	s.bc = s.testClient.GetBlockClient()
@@ -224,6 +232,6 @@ func (s *K8sBlockImageCreateSuite) isPVCBound(name string) bool {
 }
 func (s *K8sBlockImageCreateSuite) TearDownSuite() {
 
-	tests.CleanUp()
+	kubeContext.UninstallRookFromK8s()
 
 }

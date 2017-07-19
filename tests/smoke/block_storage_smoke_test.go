@@ -21,10 +21,14 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/tests"
 	"github.com/rook/rook/tests/framework/enums"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+)
+
+var (
+	kubeContext *installer.InstallHelper
 )
 
 func TestRookSmokeSuiteK8s(t *testing.T) {
@@ -38,7 +42,14 @@ type SmokeSuite struct {
 
 func (suite *SmokeSuite) SetupSuite() {
 	var err error
-	suite.helper, err = CreateSmokeTestClient(enums.Kubernetes, tests.Env.K8sVersion)
+
+	kubeContext, err = installer.NewK8sRookhelper()
+	require.NoError(suite.T(), err)
+
+	err = kubeContext.InstallRookOnK8s()
+	require.NoError(suite.T(), err)
+
+	suite.helper, err = CreateSmokeTestClient(enums.Kubernetes, kubeContext.Env.K8sVersion)
 	require.Nil(suite.T(), err)
 }
 
@@ -97,7 +108,9 @@ func (suite *SmokeSuite) blockTestDataCleanUp() {
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
-	tests.CleanUp()
+
+	kubeContext.UninstallRookFromK8s()
+
 }
 
 // periodically checking if block image count has changed to expected value
