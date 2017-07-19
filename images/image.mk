@@ -71,6 +71,10 @@ BUILD_BASE_ARGS += --pull
 endif
 export PULL
 
+ifeq ($(origin IMAGE_OUTPUT_DIR),undefined)
+IMAGE_OUTPUT_DIR := $(OUTPUT_DIR)/images/$(PLATFORM)
+endif
+
 BUILD_BASE_ARGS += $(BUILD_ARGS)
 
 # =====================================================================================

@@ -33,6 +33,7 @@ toolbox-base-image:
 # by removing the last build of the final rook image
 OLD_IMAGE_ID := $(shell docker images -q $(TOOLBOX_IMAGE))
 CURRENT_IMAGE_ID := $$(docker images -q $(TOOLBOX_IMAGE))
+IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/toolbox.tar.gz
 
 do.build: toolbox-base-image
 	@echo === docker build $(TOOLBOX_IMAGE)
@@ -41,4 +42,8 @@ do.build: toolbox-base-image
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(TOOLBOX_BASE_IMAGE)|g' Dockerfile
 	@docker build $(BUILD_ARGS) -t $(TOOLBOX_IMAGE) $(TEMP)
 	@[ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] && [ -n "$(OLD_IMAGE_ID)" ] && docker rmi $(OLD_IMAGE_ID) || true
+	@if [ ! -e "$(IMAGE_FILENAME)" ] || [ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] && [ -n "$(OLD_IMAGE_ID)" ]; then \
+		mkdir -p $(IMAGE_OUTPUT_DIR); \
+		docker save $(TOOLBOX_IMAGE) | gzip -c > $(IMAGE_FILENAME); \
+	fi
 	@rm -fr $(TEMP)
