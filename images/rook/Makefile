@@ -71,7 +71,7 @@ CURRENT_IMAGE_ID := $$(docker images -q $(ROOKD_IMAGE))
 do.build: rook-base-image
 	@echo === docker build $(ROOKD_IMAGE)
 	@cp Dockerfile $(TEMP)
-	@cp $(OUTPUT_DIR)/linux_$(GOARCH)/rook $(TEMP)
+	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(ROOKD_BASE_IMAGE)|g' Dockerfile
 	@docker build $(BUILD_ARGS) -t $(ROOKD_IMAGE) $(TEMP)
 	@[ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] && [ -n "$(OLD_IMAGE_ID)" ] && docker rmi $(OLD_IMAGE_ID) || true

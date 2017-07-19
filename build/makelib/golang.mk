@@ -71,8 +71,8 @@ export GLIDE_HOME
 GO := go
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
 
-GO_OUT_DIR := $(abspath $(OUTPUT_DIR)/$(PLATFORM))
-GO_TEST_OUTPUT := $(OUTPUT_DIR)/tests
+GO_OUT_DIR := $(abspath $(OUTPUT_DIR)/bin/$(PLATFORM))
+GO_TEST_OUTPUT := $(abspath $(OUTPUT_DIR)/tests/$(PLATFORM))
 
 ifeq ($(GOOS),windows)
 GO_OUT_EXT := .exe
