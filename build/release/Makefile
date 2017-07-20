@@ -24,9 +24,18 @@ ifeq ($(filter master alpha beta stable,$(CHANNEL)),)
 $(error invalid channel $(CHANNEL))
 endif
 
+ifeq ($(origin BRANCH_NAME), undefined)
+BRANCH_NAME := $(shell git branch | grep \* | cut -d ' ' -f2)
+endif
+
 PLATFORMS ?= $(ALL_PLATFORMS)
+
+ifneq ($(filter master release-%,$(BRANCH_NAME)),)
 FLAVORS ?= output images
-TEMP_DIR := $(shell mktemp -d)
+else
+FLAVORS ?= output
+override BRANCH_NAME := pr/$(BRANCH_NAME)
+endif
 
 DOCKER_REGISTRY ?= rook
 QUAY_REGISTRY ?= quay.io/rook
@@ -38,7 +47,6 @@ IMAGE_PLATFORMS := $(subst _,/,$(subst $(SPACE),$(COMMA),$(filter linux_%,$(PLAT
 S3_BUCKET ?= rook-release
 S3_CP := aws s3 cp --only-show-errors
 S3_SYNC := aws s3 sync --only-show-errors --delete
-S3_CURRENT_BUCKET := s3://$(S3_BUCKET)/$(CHANNEL)/$(VERSION)
 
 # ====================================================================================
 # tools
@@ -65,11 +73,13 @@ clean: $(addprefix clean.,$(FLAVORS)) ;
 # ====================================================================================
 # output
 
-publish.output:
+build.output:
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
-	@$(S3_SYNC) $(OUTPUT_DIR) $(S3_CURRENT_BUCKET)
+publish.output:
+	@$(S3_SYNC) $(OUTPUT_DIR) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION)
 promote.output:
-	@$(S3_SYNC) s3://$(S3_BUCKET)/master/$(VERSION) s3://$(S3_BUCKET)/$(CHANNEL)/current
+	@$(S3_SYNC) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION) s3://$(S3_BUCKET)/$(CHANNEL)/$(VERSION)
+	@$(S3_SYNC) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION) s3://$(S3_BUCKET)/$(CHANNEL)/current
 
 # ====================================================================================
 # images
@@ -123,6 +133,7 @@ help:
 	@echo ''
 	@echo 'Options:'
 	@echo '    VERSION      Sets the release version.'
+	@echo '    BRANCH_NAME  Name of the branch we're releasing from.'
 	@echo '    CHANNEL      Sets the release channel. Can be set to master,'
 	@echo '                 alpha, beta, or stable. Default is not set.'
 	@echo '    PLATFORMS    The supported platforms to build when running.'
