@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash +e
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${scriptdir}/../../build/common.sh"
@@ -7,15 +7,13 @@ tarname=image.tar
 tarfile=${WORK_DIR}/tests/${tarname}
 
 copy_image_to_cluster() {
-    local build_image=$1
-    local final_image=$2
+    local final_image=$1
 
     mkdir -p ${WORK_DIR}/tests
-    docker save -o ${tarfile} ${build_image}
+    docker save -o ${tarfile} ${final_image}
     for c in kube-master kube-node-1 kube-node-2; do
         docker cp ${tarfile} ${c}:/
         docker exec ${c} /bin/bash -c "docker load -i /${tarname}"
-        docker exec ${c} /bin/bash -c "docker tag ${build_image} ${final_image}"
     done
 }
 
@@ -23,7 +21,17 @@ copy_rbd() {
     for c in kube-master kube-node-1 kube-node-2; do
         docker cp ${scriptdir}/dind-cluster-rbd ${c}:/bin/rbd
         docker exec ${c} /bin/bash -c "chmod +x /bin/rbd"
-        docker exec ${c} /bin/bash -c "docker pull ceph/base"
+        # hack for Azure, after vm is started first docker pull command fails intermittently
+        local maxRetry=3
+        local cur=1
+        while [ $cur -le $maxRetry ]; do
+            docker exec ${c} /bin/bash -c "docker pull ceph/base"
+            if [ $? -eq 0 ]; then
+                break
+            fi
+            sleep 1
+            ((++cur))
+        done
     done
 }
 
@@ -40,8 +48,9 @@ export CNI_PLUGIN="${CNI_PLUGIN:-bridge}"
 case "${1:-}" in
   up)
     ${scriptdir}/dind-cluster.sh reup
-    copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
-    copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
+    ${scriptdir}/makeTestImages.sh save amd64 || true
+    copy_image_to_cluster rook/rook:master
+    copy_image_to_cluster rook/toolbox:master
     copy_rbd
     ;;
   down)
