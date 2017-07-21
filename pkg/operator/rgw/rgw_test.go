@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 
 	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
@@ -97,8 +96,8 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 6, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/local/bin/rook rgw --config-dir=/var/lib/rook --rgw-port=%d --rgw-host=%s",
-		cephrgw.RGWPort, cephrgw.DNSName)
-
-	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
+	assert.Equal(t, "rgw", cont.Args[0])
+	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
+	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", cephrgw.RGWPort), cont.Args[2])
+	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", cephrgw.DNSName), cont.Args[3])
 }

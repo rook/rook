@@ -104,15 +104,17 @@ func (c *Cluster) makeMonPod(config *MonConfig, nodeName string) *v1.Pod {
 }
 
 func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
-	command := fmt.Sprintf("/usr/local/bin/rook mon --config-dir=%s --name=%s --port=%d --fsid=%s",
-		k8sutil.DataDir, config.Name, config.Port, fsid)
 
 	return v1.Container{
-		// TODO: fix "sleep 5".
-		// Without waiting some time, there is highly probable flakes in network setup.
-		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
-		Name:    appName,
-		Image:   k8sutil.MakeRookImage(c.Version),
+		Args: []string{
+			"mon",
+			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
+			fmt.Sprintf("--name=%s", config.Name),
+			fmt.Sprintf("--port=%d", config.Port),
+			fmt.Sprintf("--fsid=%s", fsid),
+		},
+		Name:  appName,
+		Image: k8sutil.MakeRookImage(c.Version),
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "client",

@@ -16,10 +16,8 @@ limitations under the License.
 package mds
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -87,8 +85,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 6, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/local/bin/rook mds --config-dir=/var/lib/rook --mds-id=%s ",
-		mdsID)
-
-	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
+	assert.Equal(t, "mds", cont.Args[0])
+	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
+	assert.Equal(t, "--mds-id=mds1", cont.Args[2])
 }

@@ -43,6 +43,7 @@ func addOSDFlags(command *cobra.Command) {
 	command.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
 	command.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
+	command.Flags().StringVar(&cfg.nodeName, "node-name", os.Getenv("HOSTNAME"), "the host name of the node")
 
 	// OSD store config flags
 	command.Flags().IntVar(&cfg.storeConfig.WalSizeMB, "osd-wal-size", osd.WalDefaultSizeMB, "default size (MB) for OSD write ahead log (WAL) (bluestore)")
@@ -60,7 +61,7 @@ func init() {
 }
 
 func startOSD(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(osdCmd, []string{"cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}); err != nil {
+	if err := flags.VerifyRequiredFlags(osdCmd, []string{"cluster-name", "mon-endpoints", "mon-secret", "admin-secret", "node-name"}); err != nil {
 		return err
 	}
 
@@ -82,7 +83,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	forceFormat := false
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	agent := osd.NewAgent(dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
-		cfg.location, cfg.storeConfig, &clusterInfo)
+		cfg.location, cfg.storeConfig, &clusterInfo, cfg.nodeName)
 
 	err := osd.Run(createContext(), agent)
 	if err != nil {

@@ -349,7 +349,7 @@ func createTestAgent(t *testing.T, nodeID, devices, configDir string, storeConfi
 		storeConfig = &StoreConfig{StoreType: Bluestore}
 	}
 	etcdClient := util.NewMockEtcdClient()
-	agent := NewAgent(devices, false, "", "", forceFormat, location, *storeConfig, nil)
+	agent := NewAgent(devices, false, "", "", forceFormat, location, *storeConfig, nil, "myhost")
 	agent.cluster = &mon.ClusterInfo{Name: "myclust"}
 	agent.Initialize(&clusterd.Context{
 		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID},

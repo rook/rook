@@ -147,14 +147,14 @@ func (c *Cluster) makeDeployment(id string) *extensions.Deployment {
 
 func (c *Cluster) mdsContainer(id string) v1.Container {
 
-	command := fmt.Sprintf("/usr/local/bin/rook mds --config-dir=%s --mds-id=%s ",
-		k8sutil.DataDir, id)
 	return v1.Container{
-		// TODO: fix "sleep 5".
-		// Without waiting some time, there is highly probable flakes in network setup.
-		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
-		Name:    appName,
-		Image:   k8sutil.MakeRookImage(c.Version),
+		Args: []string{
+			"mds",
+			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
+			fmt.Sprintf("--mds-id=%s", id),
+		},
+		Name:  appName,
+		Image: k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),
