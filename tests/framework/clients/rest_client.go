@@ -22,9 +22,6 @@ import (
 	"net/http"
 	"time"
 
-	"os"
-	"path/filepath"
-
 	"github.com/rook/rook/pkg/model"
 	rclient "github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/tests/framework/enums"
@@ -44,10 +41,9 @@ func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHe
 		//Start rook_api_external server via nodePort if not it not already running.
 		_, err := k8sHelper.GetService("rook-api-external")
 		if err != nil {
-			path := filepath.Join(os.Getenv("GOPATH"), "src/github.com/rook/rook/tests/data/smoke/rook_api_external.yaml")
-			_, err = k8sHelper.ResourceOperation("create", path)
+			_, err = k8sHelper.ResourceOperation("create", getExternalAPIServiceDefinition())
 			if err != nil {
-				panic(fmt.Errorf("failed to kubectl create %v: %+v", path, err))
+				panic(fmt.Errorf("failed to kubectl create -f -  %v: %+v", getExternalAPIServiceDefinition(), err))
 			}
 		}
 		apiIP, err := k8sHelper.GetPodHostID("rook-api", "rook")
@@ -58,7 +54,7 @@ func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHe
 	case platform == enums.StandAlone:
 		endpoint = "http://localhost:8124"
 	default:
-		panic(fmt.Errorf("platfrom type %s not yet supported", platform))
+		panic(fmt.Errorf("platform type %s not yet supported", platform))
 	}
 
 	httpclient := &http.Client{
@@ -75,7 +71,21 @@ func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHe
 	}
 	client := rclient.NewRookNetworkRestClient(endpoint, httpclient)
 
-	return &RestAPIClient{client}
+	//make sure rest client is up and available
+	inc := 0
+	for inc < utils.RetryLoop {
+		_, err := client.GetStatusDetails()
+		if err == nil {
+			//hack first get block image calls is intermittently failing in test env
+			client.GetBlockImages()
+			return &RestAPIClient{client}
+
+		}
+		inc++
+		time.Sleep(time.Second * utils.RetryInterval)
+	}
+
+	panic("Cannot access rook API - Abandoning run")
 }
 
 //URL returns URL for rookAPI
@@ -133,7 +143,7 @@ func (a *RestAPIClient) DeleteFilesystem(fsmodel model.FilesystemRequest) (strin
 	return a.rrc.DeleteFilesystem(fsmodel)
 }
 
-//GetStatusDetails retuns rook status details
+//GetStatusDetails reruns rook status details
 func (a *RestAPIClient) GetStatusDetails() (model.StatusDetails, error) {
 	return a.rrc.GetStatusDetails()
 }
@@ -178,4 +188,27 @@ func (a *RestAPIClient) UpdateObjectUser(user model.ObjectUser) (*model.ObjectUs
 func (a *RestAPIClient) DeleteObjectUser(id string) error {
 	return a.rrc.DeleteObjectUser(id)
 
+}
+
+func getExternalAPIServiceDefinition() string {
+	return `apiVersion: v1
+kind: Service
+metadata:
+  name: rook-api-external
+  namespace: rook
+  labels:
+    app: rook-api
+    rook_cluster: rook
+spec:
+  ports:
+  - name: rook-api
+    port: 8124
+    protocol: TCP
+    nodePort: 30002
+  selector:
+    app: rook-api
+    rook_cluster: rook
+  sessionAffinity: None
+  type: NodePort
+`
 }

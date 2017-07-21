@@ -19,6 +19,9 @@ package smoke
 import (
 	"testing"
 
+	"github.com/coreos/pkg/capnslog"
+
+	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -26,13 +29,16 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "smoketest")
+
 func TestSmokeSuiteK8s(t *testing.T) {
 	suite.Run(t, new(SmokeSuite))
 }
 
 type SmokeSuite struct {
 	suite.Suite
-	helper    *TestHelper
+	helper    *clients.TestClient
+	k8sh      *utils.K8sHelper
 	installer *installer.InstallHelper
 }
 
@@ -40,12 +46,14 @@ func (suite *SmokeSuite) SetupSuite() {
 	kh, err := utils.CreatK8sHelper()
 	require.NoError(suite.T(), err)
 
+	suite.k8sh = kh
+
 	suite.installer = installer.NewK8sRookhelper(kh.Clientset)
 
 	err = suite.installer.InstallRookOnK8s()
 	require.NoError(suite.T(), err)
 
-	suite.helper, err = CreateSmokeTestClient(enums.Kubernetes, suite.installer.Env.K8sVersion, kh)
+	suite.helper, err = clients.CreateTestClient(enums.Kubernetes, kh)
 	require.Nil(suite.T(), err)
 }
 

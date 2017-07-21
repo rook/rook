@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package block
+package integration
 
 import (
 	"strings"
@@ -36,7 +36,7 @@ var (
 	blockImageName = "testImage"
 )
 
-func TestBlockCreate(t *testing.T) {
+func TestBlockCreateAPI(t *testing.T) {
 	suite.Run(t, new(BlockImageCreateSuite))
 }
 

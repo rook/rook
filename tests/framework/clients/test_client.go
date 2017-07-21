@@ -22,7 +22,6 @@ import (
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/enums"
-	"github.com/rook/rook/tests/framework/transport"
 	"github.com/rook/rook/tests/framework/utils"
 )
 
@@ -32,13 +31,12 @@ var (
 
 //TestClient is a wrapper for test client, containing interfaces for all rook operations
 type TestClient struct {
-	platform        enums.RookPlatformType
-	transportClient contracts.ITransportClient
-	blockClient     contracts.BlockOperator
-	fsClient        contracts.FileSystemOperator
-	objectClient    contracts.ObjectOperator
-	poolClient      contracts.PoolOperator
-	restClient      contracts.RestAPIOperator
+	platform     enums.RookPlatformType
+	blockClient  contracts.BlockOperator
+	fsClient     contracts.FileSystemOperator
+	objectClient contracts.ObjectOperator
+	poolClient   contracts.PoolOperator
+	restClient   contracts.RestAPIOperator
 }
 
 const (
@@ -47,7 +45,6 @@ const (
 
 //CreateTestClient creates new instance of test client for a platform
 func CreateTestClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHelper) (*TestClient, error) {
-	var transportClient contracts.ITransportClient
 	var blockClient contracts.BlockOperator
 	var fsClient contracts.FileSystemOperator
 	var objectClient contracts.ObjectOperator
@@ -56,24 +53,21 @@ func CreateTestClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHelpe
 
 	switch {
 	case platform == enums.Kubernetes:
-		transportClient = transport.CreateNewk8sTransportClient()
-		blockClient = CreateK8BlockOperation(transportClient, rookRestClient)
-		fsClient = CreateK8sFileSystemOperation(transportClient, rookRestClient)
+		blockClient = CreateK8BlockOperation(k8sHelper, rookRestClient)
+		fsClient = CreateK8sFileSystemOperation(k8sHelper, rookRestClient)
 		objectClient = CreateObjectOperation(rookRestClient)
 		poolClient = CreatePoolClient(rookRestClient)
 	case platform == enums.StandAlone:
-		transportClient = nil //TODO- Not yet implemented
-		blockClient = nil     //TODO- Not yet implemented
-		fsClient = nil        //TODO- Not yet implemented
-		objectClient = nil    //TODO- Not yet implemented
-		poolClient = nil      //TODO- Not yet implemented
+		blockClient = nil  //TODO- Not yet implemented
+		fsClient = nil     //TODO- Not yet implemented
+		objectClient = nil //TODO- Not yet implemented
+		poolClient = nil   //TODO- Not yet implemented
 	default:
 		return &TestClient{}, fmt.Errorf("Unsupported Rook Platform Type")
 	}
 
 	return &TestClient{
 		platform,
-		transportClient,
 		blockClient,
 		fsClient,
 		objectClient,
@@ -88,24 +82,9 @@ func (c TestClient) Status() (model.StatusDetails, error) {
 	return c.restClient.GetStatusDetails()
 }
 
-//Version returns rook version installed
-func (c TestClient) Version() (string, error) {
-	out, err, status := c.transportClient.Execute(versionCmd, nil)
-	if status == 0 {
-		return out, nil
-	}
-	return err, fmt.Errorf(unableToCheckRookStatusMsg)
-
-}
-
 //Node returns list of rook nodes
 func (c TestClient) Node() ([]model.Node, error) {
 	return c.restClient.GetNodes()
-}
-
-//GetTransportClient returns transport client for platform in context
-func (c TestClient) GetTransportClient() contracts.ITransportClient {
-	return c.transportClient
 }
 
 //GetBlockClient returns Block client for platform in context
