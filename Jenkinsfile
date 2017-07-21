@@ -83,7 +83,7 @@ def RunIntegrationTest(k, v) {
                     sh 'tests/scripts/makeTestImages.sh load amd64'
                     sh 'build/run make -j\$(nproc) build.common'
                     sh "tests/scripts/kubeadm-dind.sh up"
-                    sh 'build/run make -j\$(nproc) test-integration'
+                    sh 'build/run make -j\$(nproc) test-integration SUITE=Smoke'
                 }
             }
             finally{

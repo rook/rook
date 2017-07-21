@@ -419,8 +419,6 @@ func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, n
 		time.Sleep(3 * time.Second)
 	}
 	panic(fmt.Errorf("Rook not uninstalled"))
-	return false
-
 }
 
 //WaitUntilPodIsDeleted waits for 90s for a pod to be terminated
