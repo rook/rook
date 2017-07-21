@@ -31,7 +31,7 @@ var (
 	kubeContext *installer.InstallHelper
 )
 
-func TestRookSmokeSuiteK8s(t *testing.T) {
+func TestSmokeSuiteK8s(t *testing.T) {
 	suite.Run(t, new(SmokeSuite))
 }
 
