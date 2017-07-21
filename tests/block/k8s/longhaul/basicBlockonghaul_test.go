@@ -12,6 +12,7 @@ import (
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/objects"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -19,10 +20,6 @@ import (
 // Rook Block Storage integration test
 // Start MySql database that is using rook provisoned block storage.
 // Make sure database is functional
-
-var (
-	kubeContext *installer.InstallHelper
-)
 
 func TestK8sBlockLongHaul(t *testing.T) {
 	suite.Run(t, new(K8sBlockLongHaulSuite))
@@ -38,24 +35,26 @@ type K8sBlockLongHaulSuite struct {
 	mysqlAppPath     string
 	db               *utils.MySQLHelper
 	wg               sync.WaitGroup
+	installer        *installer.InstallHelper
 }
 
 //Test set up - does the following in order
 //create pool and storage class, create a PVC, Create a MySQL app/service that uses pvc
 func (s *K8sBlockLongHaulSuite) SetupSuite() {
+
 	var err error
+	s.kh, err = utils.CreatK8sHelper()
+	assert.Nil(s.T(), err)
 
-	kubeContext, err = installer.NewK8sRookhelper()
+	s.installer = installer.NewK8sRookhelper(s.kh.Clientset)
+
+	err = s.installer.InstallRookOnK8s()
 	require.NoError(s.T(), err)
 
-	err = kubeContext.InstallRookOnK8s()
-	require.NoError(s.T(), err)
-
-	s.testClient, err = clients.CreateTestClient(enums.Kubernetes)
+	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh)
 	require.Nil(s.T(), err)
 
 	s.bc = s.testClient.GetBlockClient()
-	s.kh = utils.CreatK8sHelper()
 	initialBlocks, err := s.bc.BlockList()
 	require.Nil(s.T(), err)
 	s.initBlockCount = len(initialBlocks)
@@ -98,8 +97,8 @@ func (s *K8sBlockLongHaulSuite) SetupSuite() {
 
 func (s *K8sBlockLongHaulSuite) TestBlockLonghaulRun() {
 
-	s.wg.Add(kubeContext.Env.LoadConcurrentRuns)
-	for i := 1; i <= kubeContext.Env.LoadConcurrentRuns; i++ {
+	s.wg.Add(s.installer.Env.LoadConcurrentRuns)
+	for i := 1; i <= s.installer.Env.LoadConcurrentRuns; i++ {
 		go s.dbOperation(i)
 	}
 	s.wg.Wait()
@@ -127,7 +126,7 @@ func (s *K8sBlockLongHaulSuite) TearDownSuite() {
 	s.db = nil
 	s = nil
 
-	kubeContext.UninstallRookFromK8s()
+	s.installer.UninstallRookFromK8s()
 
 }
 func (s *K8sBlockLongHaulSuite) storageClassOperation(poolName string, action string) (string, string, int) {

@@ -37,8 +37,7 @@ import (
 
 // Test K8s Block Image Creation Scenarios. These tests work when platform is set to Kubernetes
 var (
-	claimName   = "test-claim1"
-	kubeContext *installer.InstallHelper
+	claimName = "test-claim1"
 )
 
 func TestK8sBlockCreate(t *testing.T) {
@@ -53,23 +52,24 @@ type K8sBlockImageCreateSuite struct {
 	initBlockCount   int
 	pvPath           string
 	storageclassPath string
+	installer        *installer.InstallHelper
 }
 
 func (s *K8sBlockImageCreateSuite) SetupSuite() {
 
 	var err error
-
-	kubeContext, err = installer.NewK8sRookhelper()
+	s.kh, err = utils.CreatK8sHelper()
 	require.NoError(s.T(), err)
 
-	err = kubeContext.InstallRookOnK8s()
+	s.installer = installer.NewK8sRookhelper(s.kh.Clientset)
+
+	err = s.installer.InstallRookOnK8s()
 	require.NoError(s.T(), err)
 
-	s.testClient, err = clients.CreateTestClient(enums.Kubernetes)
+	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh)
 	require.Nil(s.T(), err)
 
 	s.bc = s.testClient.GetBlockClient()
-	s.kh = utils.CreatK8sHelper()
 	initialBlocks, err := s.bc.BlockList()
 	require.Nil(s.T(), err)
 	s.initBlockCount = len(initialBlocks)
@@ -232,6 +232,5 @@ func (s *K8sBlockImageCreateSuite) isPVCBound(name string) bool {
 }
 func (s *K8sBlockImageCreateSuite) TearDownSuite() {
 
-	kubeContext.UninstallRookFromK8s()
-
+	s.installer.UninstallRookFromK8s()
 }

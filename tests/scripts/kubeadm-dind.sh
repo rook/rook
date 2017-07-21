@@ -51,6 +51,9 @@ case "${1:-}" in
     ${scriptdir}/makeTestImages.sh save amd64 || true
     copy_image_to_cluster rook/rook:master
     copy_image_to_cluster rook/toolbox:master
+    set +e
+    copy_image_to_cluster ceph/base ceph/base:latest
+    set -e
     copy_rbd
     ;;
   down)

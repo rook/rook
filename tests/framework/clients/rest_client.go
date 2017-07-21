@@ -37,21 +37,20 @@ type RestAPIClient struct {
 }
 
 //CreateRestAPIClient Create Rook REST API client
-func CreateRestAPIClient(platform enums.RookPlatformType) *RestAPIClient {
+func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHelper) *RestAPIClient {
 	var endpoint string
 	switch {
 	case platform == enums.Kubernetes:
-		rkh := utils.CreatK8sHelper()
 		//Start rook_api_external server via nodePort if not it not already running.
-		_, err := rkh.GetService("rook-api-external")
+		_, err := k8sHelper.GetService("rook-api-external")
 		if err != nil {
 			path := filepath.Join(os.Getenv("GOPATH"), "src/github.com/rook/rook/tests/data/smoke/rook_api_external.yaml")
-			_, err = rkh.ResourceOperation("create", path)
+			_, err = k8sHelper.ResourceOperation("create", path)
 			if err != nil {
 				panic(fmt.Errorf("failed to kubectl create %v: %+v", path, err))
 			}
 		}
-		apiIP, err := rkh.GetPodHostID("rook-api", "rook")
+		apiIP, err := k8sHelper.GetPodHostID("rook-api", "rook")
 		if err != nil {
 			panic(fmt.Errorf("Host Ip for Rook-api service not found. %+v", err))
 		}

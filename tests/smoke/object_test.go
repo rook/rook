@@ -118,6 +118,7 @@ func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 }
 
 func (suite *SmokeSuite) objectTestDataCleanUp() {
+	logger.Infof("Cleaning up object store")
 	userinfo, err := suite.helper.GetObjectStoreUser(userid)
 	if err != nil {
 		return //when user is not found

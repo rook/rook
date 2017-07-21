@@ -22,24 +22,29 @@ import (
 	"path/filepath"
 	"time"
 
+	"strings"
+
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/utils"
-	"strings"
 )
 
 const (
 	dataPath = "src/github.com/rook/rook/tests/data"
 )
 
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "smoketest")
+
 //TestHelper struct for smoke test
 type TestHelper struct {
 	platform   enums.RookPlatformType
 	rookclient *clients.TestClient
-	k8sHelp    *utils.K8sHelper
+	utils.K8sHelper
 	k8sVersion string
+	namespace  string
 }
 
 type blockTestData struct {
@@ -79,20 +84,22 @@ func createObjectConnectionData(endpoint string, host string, secretid string, s
 }
 
 //CreateSmokeTestClient constructor for creating instance of smoke test client
-func CreateSmokeTestClient(platform enums.RookPlatformType, k8sversion string) (*TestHelper, error) {
+func CreateSmokeTestClient(platform enums.RookPlatformType, k8sversion string, kh *utils.K8sHelper) (*TestHelper, error) {
 
-	rc, err := getRookClient(platform)
+	rc, err := getRookClient(platform, kh)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rook client. %+v", err)
+	}
 
 	return &TestHelper{platform: platform,
 		rookclient: rc,
-		k8sHelp:    utils.CreatK8sHelper(),
+		K8sHelper:  *kh,
+		namespace:  "rook",
 		k8sVersion: k8sversion}, err
-
 }
 
-func getRookClient(platform enums.RookPlatformType) (*clients.TestClient, error) {
-	return clients.CreateTestClient(platform)
-
+func getRookClient(platform enums.RookPlatformType, kh *utils.K8sHelper) (*clients.TestClient, error) {
+	return clients.CreateTestClient(platform, kh)
 }
 
 //GetBlockClient returns a pointer to block client to perform block operations
@@ -158,24 +165,34 @@ func (h *TestHelper) getRGWExtenalSevDef() string {
 }
 
 //CreateBlockStorage function creates a block store
-func (h *TestHelper) CreateBlockStorage() (string, error) {
+func (h *TestHelper) CreateBlockStorage() error {
 	switch h.platform {
 	case enums.Kubernetes:
-		blockData, _ := h.getBlockTestData()
-		if strings.EqualFold(h.k8sVersion, "v1.5") {
-			h.k8sHelp.ResourceOperation("create", getDataPath("smoke/pool_sc_1_5.yaml"))
+		blockData, err := h.getBlockTestData()
+		if err != nil {
+			return fmt.Errorf("Failed to get block test data. %+v", err)
+		}
 
+		if strings.EqualFold(h.k8sVersion, "v1.5") {
+			_, err := h.ResourceOperation("create", getDataPath("smoke/pool_sc_1_5.yaml"))
+			if err != nil {
+				return fmt.Errorf("failed to create 1.5 pool. %+v", err)
+			}
 		} else {
-			h.k8sHelp.ResourceOperation("create", getDataPath("smoke/pool_sc.yaml"))
+			_, err := h.ResourceOperation("create", getDataPath("smoke/pool_sc.yaml"))
+			if err != nil {
+				return fmt.Errorf("failed to create 1.5 pool. %+v", err)
+			}
 		}
 		// see https://github.com/rook/rook/issues/767
 		time.Sleep(10 * time.Second)
-		return h.k8sHelp.ResourceOperation("create", blockData.pvcDefPath)
+		_, err = h.ResourceOperation("create", blockData.pvcDefPath)
+		return err
 
 	case enums.StandAlone:
-		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
+		return fmt.Errorf("NOT YET IMPLEMENTED")
 	default:
-		return "", fmt.Errorf("Unsupported Rook Platform Type")
+		return fmt.Errorf("Unsupported Rook Platform Type")
 
 	}
 }
@@ -184,43 +201,43 @@ func (h *TestHelper) CreateBlockStorage() (string, error) {
 //Bound state, or returns false
 func (h *TestHelper) WaitUntilPVCIsBound() bool {
 
-	return h.k8sHelp.WaitUntilPVCIsBound("block-pv-claim")
+	return h.K8sHelper.WaitUntilPVCIsBound("block-pv-claim")
 }
 
 //MountBlockStorage function mounts a rook created block storage
-func (h *TestHelper) MountBlockStorage() (string, error) {
+func (h *TestHelper) MountBlockStorage() error {
 	switch h.platform {
 	case enums.Kubernetes:
 		blockData, _ := h.getBlockTestData()
 		_, err := h.GetBlockClient().BlockMap(blockData.podDefPath, blockData.mountpath)
 		if err != nil {
-			return "MOUNT UNSUCCESSFUL", err
+			return err
 		}
-		if h.k8sHelp.IsPodRunning(blockData.name) {
+		if h.IsPodRunning(blockData.name) {
 
-			return "MOUNT SUCCESSFUL", nil
+			return nil
 		}
-		return "MOUNT UNSUCCESSFUL", fmt.Errorf("Cannot mount block storage")
+		return fmt.Errorf("Cannot mount block storage")
 
 	case enums.StandAlone:
-		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
+		return fmt.Errorf("NOT YET IMPLEMENTED")
 	default:
-		return "", fmt.Errorf("Unsupported Rook Platform Type")
+		return fmt.Errorf("Unsupported Rook Platform Type")
 
 	}
 }
 
 //WriteToBlockStorage function writes a block to rook provisioned block store
-func (h *TestHelper) WriteToBlockStorage(data string, filename string) (string, error) {
+func (h *TestHelper) WriteToBlockStorage(data string, filename string) error {
 	switch h.platform {
 	case enums.Kubernetes:
 		blockData, _ := h.getBlockTestData()
-		return h.GetBlockClient().BlockWrite(blockData.name,
-			blockData.mountpath, data, filename, "")
+		_, err := h.GetBlockClient().BlockWrite(blockData.name, blockData.mountpath, data, filename, "")
+		return err
 	case enums.StandAlone:
-		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
+		return fmt.Errorf("NOT YET IMPLEMENTED")
 	default:
-		return "", fmt.Errorf("Unsupported Rook Platform Type")
+		return fmt.Errorf("Unsupported Rook Platform Type")
 
 	}
 }
@@ -230,10 +247,9 @@ func (h *TestHelper) ReadFromBlockStorage(filename string) (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
 		blockData, _ := h.getBlockTestData()
-		return h.GetBlockClient().BlockRead(blockData.name,
-			blockData.mountpath, filename, "")
+		return h.GetBlockClient().BlockRead(blockData.name, blockData.mountpath, filename, "")
 	case enums.StandAlone:
-		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
+		return "", fmt.Errorf("NOT YET IMPLEMENTED")
 	default:
 		return "", fmt.Errorf("Unsupported Rook Platform Type")
 
@@ -241,44 +257,44 @@ func (h *TestHelper) ReadFromBlockStorage(filename string) (string, error) {
 }
 
 //UnMountBlockStorage function unmounts Block storage
-func (h *TestHelper) UnMountBlockStorage() (string, error) {
+func (h *TestHelper) UnMountBlockStorage() error {
 	switch h.platform {
 	case enums.Kubernetes:
 		blockData, _ := h.getBlockTestData()
 		_, err := h.GetBlockClient().BlockUnmap(blockData.podDefPath, blockData.mountpath)
 		if err != nil {
-			return "UNMOUNT UNSUCCESSFUL", err
+			return err
 		}
-		if h.k8sHelp.IsPodTerminated(blockData.name) {
-			return "UNMOUNT SUCCESSFUL", nil
+		if h.IsPodTerminated(blockData.name) {
+			return nil
 		}
-		return "UNMOUNT UNSUCCESSFUL", fmt.Errorf("Cannot unmount block storage")
+		return fmt.Errorf("Cannot unmount block storage")
 
 	case enums.StandAlone:
-		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
+		return fmt.Errorf("NOT YET IMPLEMENTED")
 	default:
-		return "", fmt.Errorf("Unsupported Rook Platform Type")
+		return fmt.Errorf("Unsupported Rook Platform Type")
 
 	}
 }
 
 //DeleteBlockStorage function deletes block storage
-func (h *TestHelper) DeleteBlockStorage() (string, error) {
+func (h *TestHelper) DeleteBlockStorage() error {
 	switch h.platform {
 	case enums.Kubernetes:
 		blockData, _ := h.getBlockTestData()
 		// Delete storage pool, storage class and pvc
 		if strings.EqualFold(h.k8sVersion, "v1.5") {
-			h.k8sHelp.ResourceOperation("delete", getDataPath("smoke/pool_sc_1_5.yaml"))
-
+			h.ResourceOperation("delete", getDataPath("smoke/pool_sc_1_5.yaml"))
 		} else {
-			h.k8sHelp.ResourceOperation("delete", getDataPath("smoke/pool_sc.yaml"))
+			h.ResourceOperation("delete", getDataPath("smoke/pool_sc.yaml"))
 		}
-		return h.k8sHelp.ResourceOperation("delete", blockData.pvcDefPath)
+		_, err := h.ResourceOperation("delete", blockData.pvcDefPath)
+		return err
 	case enums.StandAlone:
-		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
+		return fmt.Errorf("NOT YET IMPLEMENTED")
 	default:
-		return "", fmt.Errorf("Unsupported Rook Platform Type")
+		return fmt.Errorf("Unsupported Rook Platform Type")
 
 	}
 }
@@ -291,39 +307,38 @@ func (h *TestHelper) CleanUpDymanicBlockStorage() {
 		blockImagesList, _ := h.GetBlockClient().BlockList()
 		for _, blockImage := range blockImagesList {
 			h.rookclient.GetRestAPIClient().DeleteBlockImage(blockImage)
-
 		}
-
 	}
 }
 
 //CreateFileStorage function creates a file system
-func (h *TestHelper) CreateFileStorage() (string, error) {
+func (h *TestHelper) CreateFileStorage() error {
 	switch h.platform {
 	case enums.Kubernetes:
 		fileTestData, _ := h.getFileTestData()
 		// Create storage pool, storage class and pvc
-		return h.GetFileSystemClient().FSCreate(fileTestData.name)
+		_, err := h.GetFileSystemClient().FSCreate(fileTestData.name)
+		return err
 	case enums.StandAlone:
-		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
+		return fmt.Errorf("NOT YET IMPLEMENTED")
 	default:
-		return "", fmt.Errorf("Unsupported Rook Platform Type")
+		return fmt.Errorf("Unsupported Rook Platform Type")
 
 	}
 }
 
 //MountFileStorage function mounts a file system
-func (h *TestHelper) MountFileStorage() (string, error) {
+func (h *TestHelper) MountFileStorage() error {
 	switch h.platform {
 	case enums.Kubernetes:
 		fileTestData, _ := h.getFileTestData()
-		mons, err := h.k8sHelp.GetMonitorPods()
+		mons, err := h.GetMonitorPods()
 		if err != nil {
-			return "MOUNT UNSUCCESSFUL", err
+			return err
 		}
-		ip1, _ := h.k8sHelp.GetMonIP(mons[0])
-		ip2, _ := h.k8sHelp.GetMonIP(mons[1])
-		ip3, _ := h.k8sHelp.GetMonIP(mons[2])
+		ip1, _ := h.GetMonIP(mons[0])
+		ip2, _ := h.GetMonIP(mons[1])
+		ip3, _ := h.GetMonIP(mons[2])
 
 		config := map[string]string{
 			"mon0": ip1,
@@ -332,34 +347,36 @@ func (h *TestHelper) MountFileStorage() (string, error) {
 		}
 
 		// Create pod that has has file sytem mounted
-		_, err = h.k8sHelp.ResourceOperationFromTemplate("create", fileTestData.podDefPath, config)
+		logger.Infof("mountFileStorage: Mons: %+v", mons)
+		_, err = h.ResourceOperationFromTemplate("create", fileTestData.podDefPath, config)
 		if err != nil {
-			return "MOUNT UNSUCCESSFUL", err
+			return fmt.Errorf("failed to create podDefPath %s. %+v", fileTestData.podDefPath, err)
 		}
-		if h.k8sHelp.IsPodRunningInNamespace(fileTestData.podname) {
-			return "MOUNT SUCCESSFUL", nil
-		}
-		return "MOUNT UNSUCCESSFUL", fmt.Errorf("Cannot mount File storage")
-	case enums.StandAlone:
-		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
-	default:
-		return "", fmt.Errorf("Unsupported Rook Platform Type")
 
+		logger.Infof("mountFileStorage: checking for running pod")
+		if h.IsPodRunningInNamespace(fileTestData.podname) {
+			return nil
+		}
+		return fmt.Errorf("File test pod did not start")
+	case enums.StandAlone:
+		return fmt.Errorf("NOT YET IMPLEMENTED")
+	default:
+		return fmt.Errorf("Unsupported Rook Platform Type")
 	}
 }
 
 //WriteToFileStorage functions creates a new file on rook file system
-func (h *TestHelper) WriteToFileStorage(data string, filename string) (string, error) {
+func (h *TestHelper) WriteToFileStorage(data string, filename string) error {
 	switch h.platform {
 	case enums.Kubernetes:
 		fileTestData, _ := h.getFileTestData()
-		return h.GetFileSystemClient().FSWrite(fileTestData.podname,
-			fileTestData.mountpath, data, filename, "rook")
+		_, err := h.GetFileSystemClient().FSWrite(fileTestData.podname,
+			fileTestData.mountpath, data, filename, h.namespace)
+		return err
 	case enums.StandAlone:
-		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
+		return fmt.Errorf("NOT YET IMPLEMENTED")
 	default:
-		return "", fmt.Errorf("Unsupported Rook Platform Type")
-
+		return fmt.Errorf("Unsupported Rook Platform Type")
 	}
 }
 
@@ -369,46 +386,46 @@ func (h *TestHelper) ReadFromFileStorage(filename string) (string, error) {
 	case enums.Kubernetes:
 		fileTestData, _ := h.getFileTestData()
 		return h.GetFileSystemClient().FSRead(fileTestData.podname,
-			fileTestData.mountpath, filename, "rook")
+			fileTestData.mountpath, filename, h.namespace)
 	case enums.StandAlone:
 		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
 	default:
 		return "", fmt.Errorf("Unsupported Rook Platform Type")
-
 	}
 }
 
 //UnmountFileStorage funxtion unmounts a file system
-func (h *TestHelper) UnmountFileStorage() (string, error) {
+func (h *TestHelper) UnmountFileStorage() error {
 	switch h.platform {
 	case enums.Kubernetes:
 		fileTestData, _ := h.getFileTestData()
-		mons, err := h.k8sHelp.GetMonitorPods()
+		mons, err := h.GetMonitorPods()
 		if err != nil {
-			return "UNMOUNT UNSUCCESSFUL", err
+			return err
 		}
-		ip1, _ := h.k8sHelp.GetMonIP(mons[0])
-		ip2, _ := h.k8sHelp.GetMonIP(mons[1])
-		ip3, _ := h.k8sHelp.GetMonIP(mons[2])
+		ip1, _ := h.GetMonIP(mons[0])
+		ip2, _ := h.GetMonIP(mons[1])
+		ip3, _ := h.GetMonIP(mons[2])
 
 		config := map[string]string{
 			"mon0": ip1,
 			"mon1": ip2,
 			"mon2": ip3,
 		}
+
 		// Create pod that has has file sytem mounted
-		_, err = h.k8sHelp.ResourceOperationFromTemplate("delete", fileTestData.podDefPath, config)
+		_, err = h.ResourceOperationFromTemplate("delete", fileTestData.podDefPath, config)
 		if err != nil {
-			return "UNMOUNT UNSUCCESSFUL", err
+			return err
 		}
-		if h.k8sHelp.IsPodTerminatedInNamespace(fileTestData.podname) {
-			return "UNMOUNT SUCCESSFUL", nil
+		if h.IsPodTerminatedInNamespace(fileTestData.podname) {
+			return nil
 		}
-		return "UNMOUNT UNSUCCESSFUL", fmt.Errorf("Cannot unmount File storage")
+		return fmt.Errorf("Cannot unmount File storage")
 	case enums.StandAlone:
-		return "NEED TO IMPLEMENT", fmt.Errorf("NOT YET IMPLEMENTED")
+		return fmt.Errorf("NOT YET IMPLEMENTED")
 	default:
-		return "", fmt.Errorf("Unsupported Rook Platform Type")
+		return fmt.Errorf("Unsupported Rook Platform Type")
 
 	}
 }
@@ -434,11 +451,11 @@ func (h *TestHelper) CreateObjectStore() (string, error) {
 	case enums.Kubernetes:
 		h.GetObjectClient().ObjectCreate()
 		time.Sleep(time.Second * 2) //wait for rgw service to to started
-		if h.k8sHelp.IsServiceUpInNameSpace("rook-ceph-rgw") {
-			_, err := h.k8sHelp.GetService("rgw-external")
+		if h.IsServiceUpInNameSpace("rook-ceph-rgw") {
+			_, err := h.GetService("rgw-external")
 			if err != nil {
-				h.k8sHelp.ResourceOperation("create", h.getRGWExtenalSevDef())
-				if !h.k8sHelp.IsServiceUpInNameSpace("rgw-external") {
+				h.ResourceOperation("create", h.getRGWExtenalSevDef())
+				if !h.IsServiceUpInNameSpace("rgw-external") {
 					return "Couldn't create object store ", fmt.Errorf("Cannot expose rgw servie for external user")
 				}
 
@@ -499,7 +516,7 @@ func (h *TestHelper) DeleteObjectStoreUser() error {
 func (h *TestHelper) GetRGWServiceURL() (string, error) {
 	switch h.platform {
 	case enums.Kubernetes:
-		hostip, err := h.k8sHelp.GetPodHostID("rook-ceph-rgw", "rook")
+		hostip, err := h.GetPodHostID("rook-ceph-rgw", h.namespace)
 		if err != nil {
 			panic(fmt.Errorf("RGW pods not found/object store possibly not started"))
 		}

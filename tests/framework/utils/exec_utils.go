@@ -25,11 +25,16 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/objects"
 )
 
-//ExecuteCommand executes a os command and returs output
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "testutil")
+
+//ExecuteCommand executes a os command and returns output
 func ExecuteCommand(cmdStruct objects.CommandArgs) objects.CommandOut {
+	logger.Infof("Running %s %v", cmdStruct.Command, cmdStruct.CmdArgs)
+
 	var outBuffer, errBuffer bytes.Buffer
 
 	cmd := exec.Command(cmdStruct.Command, cmdStruct.CmdArgs...)
@@ -105,10 +110,10 @@ func ExecuteCommand(cmdStruct objects.CommandArgs) objects.CommandOut {
 }
 
 //ExecuteCmd functions executes a command returs status,stdout and stderror
-func ExecuteCmd(Cmd string, cmdArgs []string) (stdout string, stderr string, exitCode int) {
-
+func ExecuteCmd(command string, args []string) (stdout string, stderr string, exitCode int) {
+	logger.Infof("Running %s %s", command, args)
 	var outbuf, errbuf bytes.Buffer
-	cmd := exec.Command(Cmd, cmdArgs...)
+	cmd := exec.Command(command, args...)
 	cmd.Stdout = &outbuf
 	cmd.Stderr = &errbuf
 
@@ -135,6 +140,7 @@ func ExecuteCmd(Cmd string, cmdArgs []string) (stdout string, stderr string, exi
 
 //ExecuteCmdAndLogToConsole functions executes a command returs status,stdout and stderror and logs output to console
 func ExecuteCmdAndLogToConsole(command string, cmdArgs []string, cmdEnv []string) (stdout string, stderr string, err error) {
+	logger.Infof("Running %s %v with environment %v", command, cmdArgs, cmdEnv)
 	var outbuf, errbuf bytes.Buffer
 
 	cmd := exec.Command(command, cmdArgs...)

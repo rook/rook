@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/installer"
+	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -33,7 +34,6 @@ var (
 	defaultPool    = "rbd"
 	pool1          = "rook_test_pool"
 	blockImageName = "testImage"
-	kubeContext    *installer.InstallHelper
 )
 
 func TestBlockCreate(t *testing.T) {
@@ -45,19 +45,20 @@ type BlockImageCreateSuite struct {
 	testClient     *clients.TestClient
 	rc             contracts.RestAPIOperator
 	initBlockCount int
+	installer      *installer.InstallHelper
 }
 
 func (s *BlockImageCreateSuite) SetupSuite() {
 
-	var err error
-
-	kubeContext, err = installer.NewK8sRookhelper()
+	kh, err := utils.CreatK8sHelper()
 	require.NoError(s.T(), err)
 
-	err = kubeContext.InstallRookOnK8s()
+	s.installer = installer.NewK8sRookhelper(kh.Clientset)
+
+	err = s.installer.InstallRookOnK8s()
 	require.NoError(s.T(), err)
 
-	s.testClient, err = clients.CreateTestClient(enums.Kubernetes)
+	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, kh)
 	require.Nil(s.T(), err)
 
 	s.rc = s.testClient.GetRestAPIClient()
@@ -157,6 +158,6 @@ func (s *BlockImageCreateSuite) TearDownTest() {
 }
 func (s *BlockImageCreateSuite) TearDownSuite() {
 
-	kubeContext.UninstallRookFromK8s()
+	s.installer.UninstallRookFromK8s()
 
 }
