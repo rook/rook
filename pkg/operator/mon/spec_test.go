@@ -17,7 +17,6 @@ package mon
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -66,8 +65,10 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 6, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/local/bin/rook mon --config-dir=/var/lib/rook --name=%s --port=%d --fsid=%s",
-		config.Name, config.Port, c.clusterInfo.FSID)
-
-	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
+	logger.Infof("Command : %+v", cont.Command)
+	assert.Equal(t, "mon", cont.Args[0])
+	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
+	assert.Equal(t, "--name=mon0", cont.Args[2])
+	assert.Equal(t, "--port=6790", cont.Args[3])
+	assert.Equal(t, fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID), cont.Args[4])
 }

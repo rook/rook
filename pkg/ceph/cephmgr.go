@@ -30,7 +30,7 @@ const (
 
 // create a new ceph service
 func NewCephService(devices, metadataDevice, directories string, forceFormat bool,
-	location, adminSecret string, storeConfig osd.StoreConfig) *clusterd.ClusterService {
+	location, adminSecret string, storeConfig osd.StoreConfig, nodeName string) *clusterd.ClusterService {
 
 	return &clusterd.ClusterService{
 		Name:   cephName,
@@ -38,7 +38,7 @@ func NewCephService(devices, metadataDevice, directories string, forceFormat boo
 		Agents: []clusterd.ServiceAgent{
 			mon.NewAgent(),
 			mgr.NewAgent(),
-			osd.NewAgent(devices, false, metadataDevice, directories, forceFormat, location, storeConfig, nil),
+			osd.NewAgent(devices, false, metadataDevice, directories, forceFormat, location, storeConfig, nil, nodeName),
 			mds.NewAgent(),
 			rgw.NewAgent(),
 		},

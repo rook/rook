@@ -52,6 +52,7 @@ const (
 
 type OsdAgent struct {
 	cluster            *mon.ClusterInfo
+	nodeName           string
 	forceFormat        bool
 	location           string
 	osdProc            map[int]*proc.MonitoredProc
@@ -67,10 +68,12 @@ type OsdAgent struct {
 }
 
 func NewAgent(devices string, usingDeviceFilter bool, metadataDevice, directories string, forceFormat bool,
-	location string, storeConfig StoreConfig, cluster *mon.ClusterInfo) *OsdAgent {
+	location string, storeConfig StoreConfig, cluster *mon.ClusterInfo, nodeName string) *OsdAgent {
 
 	return &OsdAgent{devices: devices, usingDeviceFilter: usingDeviceFilter, metadataDevice: metadataDevice,
-		directories: directories, forceFormat: forceFormat, location: location, storeConfig: storeConfig, cluster: cluster}
+		directories: directories, forceFormat: forceFormat, location: location, storeConfig: storeConfig, cluster: cluster,
+		nodeName: nodeName,
+	}
 }
 
 func (a *OsdAgent) Name() string {

@@ -149,14 +149,15 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 
 func (c *Cluster) rgwContainer() v1.Container {
 
-	command := fmt.Sprintf("/usr/local/bin/rook rgw --config-dir=%s --rgw-port=%d --rgw-host=%s",
-		k8sutil.DataDir, cephrgw.RGWPort, cephrgw.DNSName)
 	return v1.Container{
-		// TODO: fix "sleep 5".
-		// Without waiting some time, there is highly probable flakes in network setup.
-		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
-		Name:    appName,
-		Image:   k8sutil.MakeRookImage(c.Version),
+		Args: []string{
+			"rgw",
+			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
+			fmt.Sprintf("--rgw-port=%d", cephrgw.RGWPort),
+			fmt.Sprintf("--rgw-host=%s", cephrgw.DNSName),
+		},
+		Name:  appName,
+		Image: k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),

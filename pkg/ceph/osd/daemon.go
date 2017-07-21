@@ -38,6 +38,11 @@ const (
 )
 
 func Run(context *clusterd.Context, agent *OsdAgent) error {
+	if err := setNodeName(context, agent.nodeName); err != nil {
+		// It's best effort so will not block creation of osd if there is a failure.
+		logger.Warningf("failed to set hostname: %+v", err)
+	}
+
 	// write the latest config to the config dir
 	if err := mon.GenerateAdminConnectionConfig(context, agent.cluster); err != nil {
 		return fmt.Errorf("failed to write connection config. %+v", err)
@@ -83,6 +88,21 @@ func Run(context *clusterd.Context, agent *OsdAgent) error {
 	// FIX
 	log.Printf("sleeping a while to let the osds run...")
 	<-time.After(1000000 * time.Second)
+	return nil
+}
+
+// Set the name of the node. We don't want the name of the pod,
+// which would change if the pod is re-created.
+func setNodeName(context *clusterd.Context, nodeName string) error {
+	nodeName = strings.Replace(nodeName, ".", "-", -1)
+	if nodeName == "" {
+		return fmt.Errorf("node name is not set")
+	}
+
+	err := context.ProcMan.Run("", "hostname", nodeName)
+	if err != nil {
+		return fmt.Errorf("hostname failed to set: %+v", err)
+	}
 	return nil
 }
 

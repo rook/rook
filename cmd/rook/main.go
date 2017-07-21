@@ -69,6 +69,7 @@ type config struct {
 	storeConfig        osd.StoreConfig
 	networkInfo        clusterd.NetworkInfo
 	monEndpoints       string
+	nodeName           string
 }
 
 func main() {
@@ -155,7 +156,7 @@ func joinCluster() error {
 
 	services := []*clusterd.ClusterService{
 		ceph.NewCephService(cfg.devices, cfg.metadataDevice, cfg.directories,
-			cfg.forceFormat, cfg.location, clusterInfo.AdminSecret, cfg.storeConfig),
+			cfg.forceFormat, cfg.location, clusterInfo.AdminSecret, cfg.storeConfig, cfg.nodeName),
 	}
 
 	cfg.nodeID, err = util.LoadPersistedNodeID(cfg.dataDir)

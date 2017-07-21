@@ -17,7 +17,6 @@ package osd
 
 import (
 	"strconv"
-	"strings"
 	"testing"
 
 	cephosd "github.com/rook/rook/pkg/ceph/osd"
@@ -51,8 +50,7 @@ func TestPodContainer(t *testing.T) {
 	assert.Equal(t, 1, len(c.Spec.Containers))
 	container := c.Spec.Containers[0]
 	assert.Equal(t, 7, len(container.Env))
-	assert.True(t, strings.Contains(container.Command[2], `echo $(HOSTNAME) | sed "s/\./_/g" > /etc/hostname; hostname -F /etc/hostname`))
-	assert.True(t, strings.Contains(container.Command[2], "/usr/local/bin/rook osd"))
+	assert.Equal(t, "osd", container.Args[0])
 }
 
 func TestDaemonset(t *testing.T) {
@@ -98,9 +96,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	cont := replicaSet.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 3, len(cont.VolumeMounts))
-
-	expectedCommand := "/usr/local/bin/rook osd"
-	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
+	assert.Equal(t, "osd", cont.Args[0])
 
 	// verify the config dir env var
 	verifyEnvVar(t, cont.Env, "ROOKD_CONFIG_DIR", "/var/lib/rook", true)

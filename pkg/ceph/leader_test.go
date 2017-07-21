@@ -140,7 +140,7 @@ func TestRefreshKeys(t *testing.T) {
 
 func TestNewCephService(t *testing.T) {
 
-	service := NewCephService("a,b,c", "", "", true, "root=default", "", osd.StoreConfig{})
+	service := NewCephService("a,b,c", "", "", true, "root=default", "", osd.StoreConfig{}, "mynode")
 	assert.NotNil(t, service)
 	assert.Equal(t, "/rook/services/ceph/osd/desired", service.Leader.RefreshKeys()[0].Path)
 	assert.Equal(t, 5, len(service.Agents))

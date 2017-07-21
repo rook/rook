@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strings"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -88,7 +87,6 @@ func TestPodSpec(t *testing.T) {
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 7, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/local/bin/rook mgr --config-dir=/var/lib/rook")
-
-	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
+	assert.Equal(t, "mgr", cont.Args[0])
+	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
 }

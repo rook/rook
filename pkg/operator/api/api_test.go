@@ -16,12 +16,10 @@ limitations under the License.
 package api
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/kit"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -84,9 +82,9 @@ func TestPodSpecs(t *testing.T) {
 		assert.True(t, strings.HasPrefix(v.Name, "ROOKD_"))
 	}
 
-	expectedCommand := fmt.Sprintf("/usr/local/bin/rook api --config-dir=/var/lib/rook --port=%d", model.Port)
-
-	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
+	assert.Equal(t, "api", cont.Args[0])
+	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
+	assert.Equal(t, "--port=8124", cont.Args[2])
 }
 
 func TestClusterRole(t *testing.T) {
