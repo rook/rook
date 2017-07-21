@@ -27,6 +27,9 @@ ifeq ($(GO_STATIC_PACKAGES),)
 $(error please set GO_STATIC_PACKAGES prior to including golang.mk)
 endif
 
+# These are the static test packages
+GO_STATIC_PACKAGES ?=
+
 # Optional. These are subdirs that we look for all go files to test, vet, and fmt
 GO_SUBDIRS ?= cmd pkg
 
@@ -124,14 +127,20 @@ go.install.packages: go.install.packages.$(1)
 endef
 $(foreach p,$(GO_STATIC_PACKAGES),$(eval $(call go.project,$(lastword $(subst /, ,$(p))),$(p),CGO_ENABLED=0,$(GO_STATIC_FLAGS))))
 
+define go.test.project
+go.build.test.packages.$(1):
+	@echo === go build test $(1) $(PLATFORM)
+	@$(3) $(GO) test -v -i -c -o $(GO_TEST_OUTPUT)/$(1)$(GO_OUT_EXT) $(4) $(2)
+
+go.build.test.packages: go.build.test.packages.$(1)
+endef
+$(foreach p,$(GO_TEST_PACKAGES),$(eval $(call go.test.project,$(lastword $(subst /, ,$(p))),$(p),CGO_ENABLED=0,$(GO_STATIC_FLAGS))))
+
 .PHONY: go.build
-go.build:
-	@$(MAKE) go.build.packages
-	@$(MAKE) go.build.integration.test
+go.build: go.build.packages go.build.test.packages
 
 .PHONY: go.install
-go.install:
-	@$(MAKE) go.install.packages
+go.install: go.install.packages
 
 .PHONY: go.test.unit
 go.test.unit: $(GOJUNIT)
@@ -140,11 +149,6 @@ go.test.unit: $(GOJUNIT)
 	@CGO_ENABLED=0 $(GOHOST) test -v -i -cover $(GO_STATIC_FLAGS) $(GO_PACKAGES)
 	@CGO_ENABLED=0 $(GOHOST) test -v -cover $(GO_TEST_FLAGS) $(GO_STATIC_FLAGS) $(GO_PACKAGES) 2>&1 | tee $(GO_TEST_OUTPUT)/unit-tests.log
 	@cat $(GO_TEST_OUTPUT)/unit-tests.log | $(GOJUNIT) -set-exit-code > $(GO_TEST_OUTPUT)/unit-tests.xml
-
-.PHONY: go.build.integration.test
-go.build.integration.test:
-	@echo === go build integration test packages $(PLATFORM)
-	@CGO_ENABLED=0 $(GOHOST) test -v -i $(GO_STATIC_FLAGS) -c -o $(GO_TEST_OUTPUT)/test.integration $(GO_INTEGRATION_TEST_PACKAGES)
 
 .PHONY:
 go.test.integration: $(GOJUNIT)
