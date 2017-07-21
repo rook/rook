@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/transport"
+	"github.com/rook/rook/tests/framework/utils"
 )
 
 var (
@@ -45,13 +46,13 @@ const (
 )
 
 //CreateTestClient creates new instance of test client for a platform
-func CreateTestClient(platform enums.RookPlatformType) (*TestClient, error) {
+func CreateTestClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHelper) (*TestClient, error) {
 	var transportClient contracts.ITransportClient
 	var blockClient contracts.BlockOperator
 	var fsClient contracts.FileSystemOperator
 	var objectClient contracts.ObjectOperator
 	var poolClient contracts.PoolOperator
-	rookRestClient := CreateRestAPIClient(platform)
+	rookRestClient := CreateRestAPIClient(platform, k8sHelper)
 
 	switch {
 	case platform == enums.Kubernetes:

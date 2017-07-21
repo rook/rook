@@ -52,7 +52,7 @@ KUBE_VERSION=${KUBE_VERSION:-"v1.6.0"}
 
 case "${1:-}" in
   up)
-    minikube start --iso-url=https://s3-us-west-2.amazonaws.com/minikube-cephfs/minikube.iso --kubernetes-version ${KUBE_VERSION}
+    minikube start --memory=2600 --iso-url=https://s3-us-west-2.amazonaws.com/minikube-cephfs/minikube.iso --kubernetes-version ${KUBE_VERSION}
     wait_for_ssh
     copy_image_to_cluster rook/rook:master
     copy_image_to_cluster rook/toolbox:master
@@ -63,6 +63,15 @@ case "${1:-}" in
     ;;
   down)
     minikube stop
+    ;;
+  ssh)
+    echo "connecting to minikube"
+    minikube_ssh
+    ;;
+  update)
+    echo "updating the rook images"
+    copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
+    copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
     ;;
   clean)
     minikube delete

@@ -26,6 +26,9 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/jmoiron/jsonq"
 	"github.com/rook/rook/pkg/util/exec"
@@ -33,25 +36,109 @@ import (
 
 //K8sHelper is a helper for common kubectl commads
 type K8sHelper struct {
-	executor *exec.CommandExecutor
+	executor  *exec.CommandExecutor
+	Clientset *kubernetes.Clientset
 }
 
 //CreatK8sHelper creates a instance of k8sHelper
-func CreatK8sHelper() *K8sHelper {
-	return &K8sHelper{&exec.CommandExecutor{}}
+func CreatK8sHelper() (*K8sHelper, error) {
+	executor := &exec.CommandExecutor{}
+	config, err := getKubeConfig(executor)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get kube client. %+v", err)
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get clientset. %+v", err)
+	}
+
+	return &K8sHelper{executor: executor, Clientset: clientset}, err
+
 }
 
 var k8slogger = capnslog.NewPackageLogger("github.com/rook/rook", "k8sutil")
 
 //Kubectl is wrapper for executing kubectl commands
 func (k8sh *K8sHelper) Kubectl(args ...string) string {
-	result, error := k8sh.executor.ExecuteCommandWithOutput("", "kubectl", args...)
-	if error != nil {
-		k8slogger.Errorf("Errors Encounterd while executing kubectl command : %v", error)
-		panic(error)
+	result, err := k8sh.executor.ExecuteCommandWithOutput("", "kubectl", args...)
+	if err != nil {
+		k8slogger.Errorf("Errors Encounterd while executing kubectl command : %v", err)
+		panic(err)
 
 	}
 	return result
+}
+
+func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
+	context, err := executor.ExecuteCommandWithOutput("", "kubectl", "config", "view", "-o", "json")
+	if err != nil {
+		k8slogger.Errorf("Errors Encounterd while executing kubectl command : %v", err)
+	}
+
+	// Parse the kubectl context to get the settings for client connections
+	var kc kubectlContext
+	if err := json.Unmarshal([]byte(context), &kc); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal kubectl config: %+v", err)
+	}
+	var currentCluster kclusterContext
+	found := false
+	for _, c := range kc.Clusters {
+		if kc.Current == c.Name {
+			currentCluster = c
+			found = true
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("failed to find kube context %s in %+v.", kc.Current, kc.Clusters)
+	}
+	config := &rest.Config{Host: currentCluster.Cluster.Server}
+	config.Insecure = true
+
+	var currentUser kuserContext
+	userFound := false
+	for _, u := range kc.Users {
+		if kc.Current == u.Name {
+			currentUser = u
+			userFound = true
+		}
+	}
+
+	if !currentCluster.Cluster.Insecure {
+		if !userFound {
+			return nil, fmt.Errorf("failed to find kube user %s in %+v.", kc.Current, kc.Users)
+		}
+		config.Insecure = false
+		config.TLSClientConfig = rest.TLSClientConfig{
+			CAFile:   currentCluster.Cluster.CertAuthority,
+			KeyFile:  currentUser.Cluster.ClientKey,
+			CertFile: currentUser.Cluster.ClientCert,
+		}
+	}
+
+	logger.Infof("Loaded kubectl context %s at %s. secure=%t",
+		currentCluster.Name, config.Host, !config.Insecure)
+	return config, nil
+}
+
+type kubectlContext struct {
+	Users    []kuserContext    `json:"users"`
+	Clusters []kclusterContext `json:"clusters"`
+	Current  string            `json:"current-context"`
+}
+type kclusterContext struct {
+	Name    string `json:"name"`
+	Cluster struct {
+		Server        string `json:"server"`
+		Insecure      bool   `json:"insecure-skip-tls-verify"`
+		CertAuthority string `json:"certificate-authority"`
+	} `json:"cluster"`
+}
+type kuserContext struct {
+	Name    string `json:"name"`
+	Cluster struct {
+		ClientCert string `json:"client-certificate"`
+		ClientKey  string `json:"client-key"`
+	} `json:"user"`
 }
 
 //GetMonIP returns IP address for a ceph mon pod
@@ -90,13 +177,14 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, poddefPath s
 //ResourceOperation performs a kubectl action on a yaml file
 func (k8sh *K8sHelper) ResourceOperation(action string, poddefPath string) (string, error) {
 
-	cmdArgs := []string{action, "-f", poddefPath}
-	out, err, status := ExecuteCmd("kubectl", cmdArgs)
+	args := []string{action, "-f", poddefPath}
+	stdout, stderr, status := ExecuteCmd("kubectl", args)
 	if status == 0 {
-		return out, nil
+		return stdout, nil
 	}
-	return out + " : " + err, fmt.Errorf("Could Not create resource in k8s")
 
+	logger.Errorf("Failed to execute kubectl %v (%d). stdout=%s. stderr=%s", args, status, stdout, stderr)
+	return "FAILURE", fmt.Errorf("Failed to execute kubectl %v (%d). stdout=%s. stderr=%s", args, status, stdout, stderr)
 }
 
 //DeleteResource performs a kubectl delete on give args
@@ -202,12 +290,14 @@ func (k8sh *K8sHelper) IsPodRunningInNamespace(name string) bool {
 				if r[2] == "Running" {
 					return true
 				}
+				logger.Infof("Pod %s status: %s", name, r[2])
 			}
 		}
 		time.Sleep(5 * time.Second)
 		inc++
 
 	}
+	logger.Infof("Giving up waiting for pod %s to be running", name)
 	return false
 }
 
@@ -315,7 +405,7 @@ func (k8sh *K8sHelper) IsThirdPartyResourcePresent(tprname string) bool {
 
 //GetPodDetails returns details about a  pod
 func (k8sh *K8sHelper) GetPodDetails(podNamePattern string, namespace string) (string, error) {
-	cmdArgs := []string{"get", "pods", "-l", "app=" + podNamePattern, "-o", "wide", "--no-headers=true"}
+	cmdArgs := []string{"get", "pods", "-l", "app=" + podNamePattern, "-o", "wide", "--no-headers=true", "-o", "name"}
 	if namespace != "" {
 		cmdArgs = append(cmdArgs, []string{"-n", namespace}...)
 	}
@@ -323,30 +413,23 @@ func (k8sh *K8sHelper) GetPodDetails(podNamePattern string, namespace string) (s
 	if status != 0 || strings.Contains(sout, "No resources found") {
 		return serr, fmt.Errorf("Cannot find pod in with name like %s in namespace : %s", podNamePattern, namespace)
 	}
-	return sout, nil
+	return strings.TrimSpace(sout), nil
 }
 
 //GetPodHostID returns HostIP address of a pod
 func (k8sh *K8sHelper) GetPodHostID(podNamePattern string, namespace string) (string, error) {
-	data, err := k8sh.GetPodDetails(podNamePattern, namespace)
+	output, err := k8sh.GetPodDetails(podNamePattern, namespace)
 	if err != nil {
-		return data, err
+		return "", err
 	}
 
-	// Handle case when no data is returned
-	lines := strings.Split(data, "\n")
-
-	//extract name of the pod
-	lineRawdata := strings.Split(lines[0], "  ")
-	var r []string
-	for _, str := range lineRawdata {
-		if str != "" {
-			r = append(r, strings.TrimSpace(str))
-		}
+	podNames := strings.Split(output, "\n")
+	if len(podNames) == 0 {
+		return "", fmt.Errorf("pod %s not found", podNamePattern)
 	}
 
 	//get host Ip of the pod
-	cmdArgs := []string{"get", "pods", r[0], "-o", "jsonpath='{.status.hostIP}'"}
+	cmdArgs := []string{"get", podNames[0], "-o", "jsonpath='{.status.hostIP}'"}
 	if namespace != "" {
 		cmdArgs = append(cmdArgs, []string{"-n", namespace}...)
 	}
@@ -444,11 +527,12 @@ func (k8sh *K8sHelper) WaitUntilPVCIsBound(pvcname string) bool {
 
 	inc := 0
 	for inc < 30 {
-		out, _ := k8sh.GetPVCStatus(pvcname)
+		out, err := k8sh.GetPVCStatus(pvcname)
 		if strings.Contains(out, "Bound") {
 			return true
 		}
 
+		logger.Infof("waiting for PVC to be bound. current=%s. err=%+v", out, err)
 		inc++
 		time.Sleep(3 * time.Second)
 	}

@@ -102,7 +102,7 @@ func (rfs *FileSystemOperation) FSWrite(name string, mountpath string, data stri
 
 }
 
-//FSRead Function to write  read from file system  created by rook ,i.e. Read data from a pod that filesystem mounted
+//FSRead Function to write read from file system  created by rook ,i.e. Read data from a pod that filesystem mounted
 // Input paramaters -
 //name - path to a yaml file that creates a pod  - pod should be defined to use a pvc that was created earlier
 //mountpath - folder on the pod were data is supposed to be written(should match the mountpath described in the pod definition)

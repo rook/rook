@@ -24,11 +24,11 @@ import (
 //Create,Mount,Write,Read,Unmount and Delete.
 func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
 	defer suite.fileTestDataCleanUp()
-	logger.Infof("File Storage Smoke Test - Create,Mount,write to, read from  and Unmount Filesystem")
+	logger.Infof("File Storage Smoke Test - create, mount, write to, read from, and unmount")
 	rfc := suite.helper.GetFileSystemClient()
 
 	logger.Infof("Step 1: Create file System")
-	_, fscErr := suite.helper.CreateFileStorage()
+	fscErr := suite.helper.CreateFileStorage()
 	require.Nil(suite.T(), fscErr)
 	fileSystemList, _ := rfc.FSList()
 	require.Equal(suite.T(), 1, len(fileSystemList), "There should one shared file system present")
@@ -37,12 +37,12 @@ func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
 	logger.Infof("File system created")
 
 	logger.Infof("Step 2: Mount file System")
-	_, mtfsErr := suite.helper.MountFileStorage()
+	mtfsErr := suite.helper.MountFileStorage()
 	require.Nil(suite.T(), mtfsErr)
 	logger.Infof("File system mounted successfully")
 
 	logger.Infof("Step 3: Write to file system")
-	_, wfsErr := suite.helper.WriteToFileStorage("Test data for file", "fsFile1")
+	wfsErr := suite.helper.WriteToFileStorage("Test data for file", "fsFile1")
 	require.Nil(suite.T(), wfsErr)
 	logger.Infof("Write to file system successful")
 
@@ -53,7 +53,7 @@ func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
 	logger.Infof("Read from file system successful")
 
 	logger.Infof("Step 5: UnMount file System")
-	_, umtfsErr := suite.helper.UnmountFileStorage()
+	umtfsErr := suite.helper.UnmountFileStorage()
 	require.Nil(suite.T(), umtfsErr)
 	logger.Infof("File system mounted successfully")
 
@@ -65,6 +65,7 @@ func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
 }
 
 func (suite *SmokeSuite) fileTestDataCleanUp() {
+	logger.Infof("Cleaning up file system")
 	suite.helper.UnmountFileStorage()
 	suite.helper.DeleteFileStorage()
 

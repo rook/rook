@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/objects"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -36,9 +37,6 @@ import (
 // Rook Block Storage integration test
 // Start MySql database that is using rook provisoned block storage.
 // Make sure database is functional
-var (
-	kubeContext *installer.InstallHelper
-)
 
 func TestK8sBlockIntegration(t *testing.T) {
 	suite.Run(t, new(K8sBlockEnd2EndIntegrationSuite))
@@ -53,6 +51,7 @@ type K8sBlockEnd2EndIntegrationSuite struct {
 	storageclassPath string
 	mysqlappPath     string
 	db               *utils.MySQLHelper
+	installer        *installer.InstallHelper
 }
 
 //Test set up - does the following in order
@@ -60,18 +59,18 @@ type K8sBlockEnd2EndIntegrationSuite struct {
 func (s *K8sBlockEnd2EndIntegrationSuite) SetupSuite() {
 
 	var err error
+	s.kh, err = utils.CreatK8sHelper()
+	assert.Nil(s.T(), err)
 
-	kubeContext, err = installer.NewK8sRookhelper()
+	s.installer = installer.NewK8sRookhelper(s.kh.Clientset)
+
+	err = s.installer.InstallRookOnK8s()
 	require.NoError(s.T(), err)
 
-	err = kubeContext.InstallRookOnK8s()
-	require.NoError(s.T(), err)
-
-	s.testClient, err = clients.CreateTestClient(enums.Kubernetes)
+	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh)
 	require.Nil(s.T(), err)
 
 	s.bc = s.testClient.GetBlockClient()
-	s.kh = utils.CreatK8sHelper()
 	initialBlocks, err := s.bc.BlockList()
 	require.Nil(s.T(), err)
 	s.initBlockCount = len(initialBlocks)
@@ -151,6 +150,5 @@ func (s *K8sBlockEnd2EndIntegrationSuite) TearDownTest() {
 
 func (s *K8sBlockEnd2EndIntegrationSuite) TearDownSuite() {
 
-	kubeContext.UninstallRookFromK8s()
-
+	s.installer.UninstallRookFromK8s()
 }
