@@ -169,17 +169,16 @@ go.fmt:
 
 go.validate: go.vet go.fmt
 
-$(GLIDE_LOCK): $(GLIDE) $(GLIDE_YAML)
+go.vendor: $(GLIDE) $(GLIDE_YAML)
 	@echo === updating vendor dependencies
 	@mkdir -p $(GLIDE_HOME)
 	@$(GLIDE) update --strip-vendor
-	@touch $@
 
-$(GLIDE_INSTALL_STAMP) go.vendor: $(GLIDE) $(GLIDE_LOCK)
+$(GLIDE_INSTALL_STAMP): $(GLIDE) $(GLIDE_LOCK)
 	@echo === installing vendor dependencies
 	@mkdir -p $(GLIDE_HOME)
 	@$(GLIDE) install --strip-vendor
-	@touch $(GLIDE_INSTALL_STAMP)
+	@touch $@
 
 $(GLIDE):
 	@echo === installing glide
@@ -202,4 +201,5 @@ $(GOJUNIT):
 
 .PHONY: go.distclean
 go.distclean:
-	@rm -rf $(GLIDE_INSTALL_STAMP)
+	@rm -rf $(GLIDE_INSTALL_STAMP) $(GO_VENDOR_DIR)
+

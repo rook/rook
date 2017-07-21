@@ -1,8 +1,8 @@
 hash: fe1ad353107dd7cafbb209b1a47dbc8f133c33e903c624dbb0ca6b8e5dd96b90
-updated: 2017-07-13T16:41:53.64302729-07:00
+updated: 2017-07-21T14:07:40.218420356-07:00
 imports:
 - name: github.com/aws/aws-sdk-go
-  version: 1fd5dd46e2bf3e0be156701a559098dc823053d5
+  version: afd601335e2a72d43caa3af6bd2abe512fcc3bfd
   subpackages:
   - aws
   - aws/awserr
@@ -104,7 +104,7 @@ imports:
   subpackages:
   - capnslog
 - name: github.com/corpix/uarand
-  version: 99aa07233de7570f28543082875c6c05a7c6818b
+  version: bec9f4e76616d890ce207e1898e5998764435494
 - name: github.com/cpuguy83/go-md2man
   version: 23709d0847197db6021a51fdb193e66e9222d4e7
   subpackages:
@@ -136,7 +136,7 @@ imports:
 - name: github.com/go-openapi/swag
   version: 1d0bd113de87027671077d3c71eb3ac5d7dbba72
 - name: github.com/go-sql-driver/mysql
-  version: bf7f34fef176d890dfcc6e94319ac747291bc09a
+  version: 3955978caca48c1658a4bb7a9c6a0f084e326af3
 - name: github.com/gogo/protobuf
   version: 909568be09de550ed094403c2bf8a261b5bb730a
   subpackages:
@@ -174,7 +174,7 @@ imports:
   subpackages:
   - simplelru
 - name: github.com/icrowley/fake
-  version: 54f5c7e1dea7e1c582ff563308228c592252fff9
+  version: 9ebaa17f46192cb20228d501435ff944717ef907
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/jbw976/go-ps

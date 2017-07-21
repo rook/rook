@@ -166,7 +166,7 @@ help:
 	@echo '    prune              Prune cached artifacts.'
 	@echo '    test               Runs unit tests.'
 	@echo '    test-integration   Runs integration tests.'
-	@echo '    vendor             Installs vendor dependencies.'
+	@echo '    vendor             Update vendor dependencies.'
 	@echo '    vet                Runs lint checks on go sources.'
 	@echo ''
 	@echo 'Options:'
