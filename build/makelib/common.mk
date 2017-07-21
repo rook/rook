@@ -15,6 +15,8 @@
 # remove default suffixes as we dont use them
 .SUFFIXES:
 
+SHELL := /bin/bash
+
 ifeq ($(origin PLATFORM), undefined)
 GOOS := $(shell go env GOOS)
 GOARCH := $(shell go env GOARCH)
