@@ -33,7 +33,7 @@ endif
 
 GOHOSTOS := $(shell go env GOHOSTOS)
 GOHOSTARCH := $(shell go env GOHOSTARCH)
-HOST_PLATFORM := $(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH)
+HOST_PLATFORM := $(GOHOSTOS)_$(GOHOSTARCH)
 
 ALL_PLATFORMS ?= darwin_amd64 windows_amd64 linux_arm linux_amd64 linux_arm64
 

@@ -26,7 +26,12 @@ endif
 CEPH_BUILD_TYPE ?= release
 
 # set to tcmalloc, tcmalloc_minimal, jemalloc or libc
+ifeq ($(GOARCH),amd64)
 CEPH_ALLOCATOR ?= tcmalloc
+else
+CEPH_ALLOCATOR ?= libc
+endif
+
 ifeq ($(filter libc tcmalloc tcmalloc_minimal jemalloc, $(CEPH_ALLOCATOR)),)
 $(error unsupported memory allocator $(CEPH_ALLOCATOR))
 endif
