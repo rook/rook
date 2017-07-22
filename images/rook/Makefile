@@ -67,12 +67,18 @@ rook-base-image: $(CEPH_TARBALL)
 # by removing the last build of the final rook image
 OLD_IMAGE_ID := $(shell docker images -q $(ROOKD_IMAGE))
 CURRENT_IMAGE_ID := $$(docker images -q $(ROOKD_IMAGE))
+IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/rook.tar.gz
 
 do.build: rook-base-image
 	@echo === docker build $(ROOKD_IMAGE)
 	@cp Dockerfile $(TEMP)
-	@cp $(OUTPUT_DIR)/linux_$(GOARCH)/rook $(TEMP)
+	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(ROOKD_BASE_IMAGE)|g' Dockerfile
 	@docker build $(BUILD_ARGS) -t $(ROOKD_IMAGE) $(TEMP)
 	@[ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] && [ -n "$(OLD_IMAGE_ID)" ] && docker rmi $(OLD_IMAGE_ID) || true
+	@if [ ! -e "$(IMAGE_FILENAME)" ] || [ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] || [ -n "$(OLD_IMAGE_ID)" ]; then \
+		echo === saving image $(ROOKD_IMAGE); \
+		mkdir -p $(IMAGE_OUTPUT_DIR); \
+		docker save $(ROOKD_IMAGE) | gzip -c > $(IMAGE_FILENAME); \
+	fi
 	@rm -fr $(TEMP)

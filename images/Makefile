@@ -14,36 +14,36 @@
 
 include image.mk
 
-PLATFORMS ?= amd64 arm arm64
+PLATFORMS ?= linux_amd64 linux_arm linux_arm64
 
 # ====================================================================================
 # Image Targets
 
-apt-cacher: apt-cacher.$(GOHOSTARCH)
+apt-cacher: apt-cacher.linux_amd64
 apt-cacher.%: base.%
-	@$(MAKE) -C apt-cacher GOARCH=$*
+	@$(MAKE) -C apt-cacher PLATFORM=$*
 
 base.%:
-	@$(MAKE) -C base GOARCH=$*
+	@$(MAKE) -C base PLATFORM=$*
 
-ceph.%: cross-gnu.$(GOHOSTARCH)
-	@$(MAKE) -C ceph GOARCH=$*
+ceph.%: cross-gnu.linux_amd64
+	@$(MAKE) -C ceph PLATFORM=$*
 
-cross: cross.$(GOHOSTARCH)
-cross.%: base.$(GOHOSTARCH)
-	@$(MAKE) -C cross GOARCH=$*
+cross: cross.linux_amd64
+cross.%: base.linux_amd64
+	@$(MAKE) -C cross PLATFORM=$*
 
 cross-gnu.%: base.%
-	@$(MAKE) -C cross-gnu GOARCH=$*
+	@$(MAKE) -C cross-gnu PLATFORM=$*
 
 rook.%: ceph.% base.%
-	@$(MAKE) -C rook GOARCH=$*
+	@$(MAKE) -C rook PLATFORM=$*
 
 toolbox.%: rook.%
-	@$(MAKE) -C toolbox GOARCH=$*
+	@$(MAKE) -C toolbox PLATFORM=$*
 
 do.build.images.%: rook.% toolbox.% ;
-do.build: do.build.images.$(GOARCH) ;
+do.build: do.build.images.$(PLATFORM) ;
 build.all: $(foreach p,$(PLATFORMS), do.build.images.$(p)) ;
 
 # ====================================================================================
@@ -68,15 +68,11 @@ help:
 	@echo '    prune.all    Prune everything ignoring policy.'
 	@echo ''
 	@echo 'Options:'
+	@echo '    PLATFORM     The platform to build.'
 	@echo '    PULL         Whether to pull base images. Default is 1.'
-	@echo '    GOARCH       The arch to build.'
-	@echo '    GOOS         The OS to build for.'
 	@echo '    V            Set to 1 enable verbose build. Default is 0.'
 	@echo ''
 	@echo 'Advanced Options:'
-	@echo '    PLATFORMS    The supported platforms to build when running.'
-	@echo '                 the build.all target. The default is'
-	@echo '                 "arm arm64 amd64"'
 	@echo '    PRUNE_HOURS  The number of hours from when an image is'
 	@echo '                 last used for it to be considered a target for'
 	@echo '                 pruning. Default is 48 hrs.'

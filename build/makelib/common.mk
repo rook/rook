@@ -15,9 +15,15 @@
 # remove default suffixes as we dont use them
 .SUFFIXES:
 
+SHELL := /bin/bash
+
 ifeq ($(origin PLATFORM), undefined)
+ifeq ($(origin GOOS), undefined)
 GOOS := $(shell go env GOOS)
+endif
+ifeq ($(origin GOARCH), undefined)
 GOARCH := $(shell go env GOARCH)
+endif
 PLATFORM := $(GOOS)_$(GOARCH)
 else
 GOOS := $(word 1, $(subst _, ,$(PLATFORM)))
@@ -27,7 +33,7 @@ endif
 
 GOHOSTOS := $(shell go env GOHOSTOS)
 GOHOSTARCH := $(shell go env GOHOSTARCH)
-HOST_PLATFORM := $(shell go env GOHOSTOS)_$(shell go env GOHOSTARCH)
+HOST_PLATFORM := $(GOHOSTOS)_$(GOHOSTARCH)
 
 ALL_PLATFORMS ?= darwin_amd64 windows_amd64 linux_arm linux_amd64 linux_arm64
 

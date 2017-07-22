@@ -15,9 +15,6 @@
 # remove default suffixes as we dont use them
 .SUFFIXES:
 
-# container images are only built for linux platforms
-override GOOS := linux
-
 # include the common make file
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(SELF_DIR)/../build/makelib/common.mk
@@ -70,6 +67,10 @@ ifeq ($(PULL),1)
 BUILD_BASE_ARGS += --pull
 endif
 export PULL
+
+ifeq ($(origin IMAGE_OUTPUT_DIR),undefined)
+IMAGE_OUTPUT_DIR := $(OUTPUT_DIR)/images/$(PLATFORM)
+endif
 
 BUILD_BASE_ARGS += $(BUILD_ARGS)
 

@@ -56,6 +56,9 @@ CLIENT_PACKAGES = $(GO_PROJECT)/cmd/rookctl
 # server projects that we build on server platforms
 SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook
 
+# tests packages that will be compiled into binaries
+TEST_PACKAGES = $(GO_PROJECT)/tests/smoke
+
 # the root go project
 GO_PROJECT=github.com/rook/rook
 
@@ -75,6 +78,8 @@ endif
 GO_BUILDFLAGS=$(BUILDFLAGS)
 GO_LDFLAGS=$(LDFLAGS)
 GO_TAGS=$(TAGS)
+
+GO_TEST_PACKAGES=$(TEST_PACKAGES)
 GO_TEST_FLAGS=$(TESTFLAGS)
 GO_TEST_SUITE=$(SUITE)
 
@@ -89,9 +94,6 @@ build.common:
 
 do.build.platform.%:
 	@$(MAKE) PLATFORM=$* go.build
-ifeq ($(BUILD_INTEGRATION_TESTS),1)
-	@$(MAKE) PLATFORM=$* go.build.integration.test
-endif
 
 do.build.parallel: $(foreach p,$(PLATFORMS), do.build.platform.$(p))
 
@@ -99,7 +101,7 @@ build: build.common
 	@$(MAKE) go.build
 # if building on non-linux platforms, also build the linux container
 ifneq ($(GOOS),linux)
-	@$(MAKE) go.build GOOS=linux GOARCH=amd64
+	@$(MAKE) go.build PLATFORM=linux_amd64
 endif
 	@$(MAKE) -C images
 
