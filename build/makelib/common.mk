@@ -18,8 +18,12 @@
 SHELL := /bin/bash
 
 ifeq ($(origin PLATFORM), undefined)
+ifeq ($(origin GOOS), undefined)
 GOOS := $(shell go env GOOS)
+endif
+ifeq ($(origin GOARCH), undefined)
 GOARCH := $(shell go env GOARCH)
+endif
 PLATFORM := $(GOOS)_$(GOARCH)
 else
 GOOS := $(word 1, $(subst _, ,$(PLATFORM)))
