@@ -22,15 +22,19 @@ package operator
 
 import (
 	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/cluster"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/kit"
-	"k8s.io/apimachinery/pkg/util/wait"
+	"github.com/rook/rook/pkg/operator/pool"
+	"github.com/rook/rook/pkg/operator/provisioner"
+	"k8s.io/api/core/v1"
 )
 
 const (
@@ -50,31 +54,23 @@ type Operator struct {
 	resources []kit.CustomResource
 	// The custom resource that is global to the kubernetes cluster.
 	// The cluster is global because you create multiple clusers in k8s
-	clusterMgr        *clusterManager
+	clusterController *cluster.ClusterController
 	volumeProvisioner controller.Provisioner
-}
-
-type inclusterInitiator interface {
-	Create(clusterMgr *clusterManager, namespace string) (resourceManager, error)
-	Resource() kit.CustomResource
-}
-
-type resourceManager interface {
-	Load() (string, error)
-	Manage()
 }
 
 // New creates an operator instance
 func New(context *clusterd.Context) *Operator {
+	clusterController, err := cluster.NewClusterController(context)
+	if err != nil {
+		logger.Errorf("failed to create Operator. %+v.", err)
+		return nil
+	}
+	volumeProvisioner := provisioner.New(context.Clientset)
 
-	poolInitiator := newPoolInitiator(context)
-	clusterMgr := newClusterManager(context, []inclusterInitiator{poolInitiator})
-	volumeProvisioner := newRookVolumeProvisioner(clusterMgr)
-
-	schemes := []kit.CustomResource{cluster.ClusterResource, cluster.PoolResource}
+	schemes := []kit.CustomResource{cluster.ClusterResource, pool.PoolResource}
 	return &Operator{
 		context:           context,
-		clusterMgr:        clusterMgr,
+		clusterController: clusterController,
 		resources:         schemes,
 		volumeProvisioner: volumeProvisioner,
 	}
@@ -92,6 +88,10 @@ func (o *Operator) Run() error {
 		<-time.After(initRetryDelay)
 	}
 
+	signalChan := make(chan os.Signal, 1)
+	stopChan := make(chan struct{})
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+
 	// Run volume provisioner
 	// The controller needs to know what the server version is because out-of-tree
 	// provisioners aren't officially supported until 1.5
@@ -105,24 +105,33 @@ func (o *Operator) Run() error {
 		o.volumeProvisioner,
 		serverVersion.GitVersion,
 	)
-	go pc.Run(wait.NeverStop)
+	go pc.Run(stopChan)
 
 	// watch for changes to the rook clusters
-	o.clusterMgr.Manage()
-	return nil
+	o.clusterController.StartWatch(v1.NamespaceAll, stopChan)
+
+	for {
+		select {
+		case <-signalChan:
+			logger.Infof("shutdown signal received, exiting...")
+			close(stopChan)
+			return nil
+		}
+	}
 }
 
 func (o *Operator) initResources() error {
-	httpCli, err := kit.NewHTTPClient(k8sutil.CustomResourceGroup)
-	if err != nil {
-		return fmt.Errorf("failed to get tpr client. %+v", err)
-	}
-	o.context.KubeHTTPCli = httpCli.Client
-
-	err = kit.CreateCustomResources(o.context.KubeContext, o.resources)
-	if err != nil {
-		return fmt.Errorf("failed to create TPR. %+v", err)
+	kitCtx := kit.Context{
+		Clientset:             o.context.Clientset,
+		APIExtensionClientset: o.context.APIExtensionClientset,
+		Interval:              500 * time.Millisecond,
+		Timeout:               60 * time.Second,
 	}
 
+	// Create and wait for CRD resources
+	err := kit.CreateCustomResources(kitCtx, o.resources)
+	if err != nil {
+		return fmt.Errorf("failed to create custom resource. %+v", err)
+	}
 	return nil
 }

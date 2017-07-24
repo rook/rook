@@ -22,7 +22,6 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -40,9 +39,9 @@ func TestStartMDS(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
-		Executor:    executor,
-		ConfigDir:   configDir,
-		KubeContext: kit.KubeContext{Clientset: testop.New(3)}}
+		Executor:  executor,
+		ConfigDir: configDir,
+		Clientset: testop.New(3)}
 	c := New(context, "ns", "myversion", k8sutil.Placement{})
 	defer os.RemoveAll(c.dataDir)
 

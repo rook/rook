@@ -19,25 +19,29 @@ package api
 
 import (
 	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
+	rookclient "github.com/rook/rook/pkg/rook/client"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/api/rbac/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/client-go/kubernetes"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-api")
 
 const (
-	// DeploymentName is the service name
-	DeploymentName = "rook-api"
+	deploymentName = "rook-api"
+	clientTimeout  = 15 * time.Second
 )
 
 var clusterAccessRules = []v1beta1.PolicyRule{
@@ -49,6 +53,11 @@ var clusterAccessRules = []v1beta1.PolicyRule{
 	{
 		APIGroups: []string{"extensions"},
 		Resources: []string{"thirdpartyresources", "deployments", "daemonsets", "replicasets"},
+		Verbs:     []string{"get", "list", "create"},
+	},
+	{
+		APIGroups: []string{"apiextensions.k8s.io"},
+		Resources: []string{"customresourcedefinitions"},
 		Verbs:     []string{"get", "list", "create"},
 	},
 	{
@@ -112,7 +121,7 @@ func (c *Cluster) Start() error {
 // make a cluster role
 func (c *Cluster) makeClusterRole() error {
 	account := &v1.ServiceAccount{}
-	account.Name = DeploymentName
+	account.Name = deploymentName
 	account.Namespace = c.Namespace
 	_, err := c.context.Clientset.CoreV1().ServiceAccounts(c.Namespace).Create(account)
 	if err != nil && !errors.IsAlreadyExists(err) {
@@ -123,7 +132,7 @@ func (c *Cluster) makeClusterRole() error {
 	// If the role already exists we have to update it. Otherwise if the permissions change during an upgrade,
 	// the create will fail with an error that we're changing the permissions.
 	role := &v1beta1.ClusterRole{Rules: clusterAccessRules}
-	role.Name = DeploymentName
+	role.Name = deploymentName
 	_, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Get(role.Name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
 		logger.Infof("creating cluster role rook-api")
@@ -137,9 +146,9 @@ func (c *Cluster) makeClusterRole() error {
 	}
 
 	binding := &v1beta1.ClusterRoleBinding{}
-	binding.Name = DeploymentName
-	binding.RoleRef = v1beta1.RoleRef{Name: DeploymentName, Kind: "ClusterRole", APIGroup: "rbac.authorization.k8s.io"}
-	binding.Subjects = []v1beta1.Subject{{Kind: "ServiceAccount", Name: DeploymentName, Namespace: c.Namespace}}
+	binding.Name = deploymentName
+	binding.RoleRef = v1beta1.RoleRef{Name: deploymentName, Kind: "ClusterRole", APIGroup: "rbac.authorization.k8s.io"}
+	binding.Subjects = []v1beta1.Subject{{Kind: "ServiceAccount", Name: deploymentName, Namespace: c.Namespace}}
 	_, err = c.context.Clientset.RbacV1beta1().ClusterRoleBindings().Create(binding)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create api cluster role binding. %+v", err)
@@ -149,11 +158,11 @@ func (c *Cluster) makeClusterRole() error {
 
 func (c *Cluster) makeDeployment() *extensions.Deployment {
 	deployment := &extensions.Deployment{}
-	deployment.Name = DeploymentName
+	deployment.Name = deploymentName
 	deployment.Namespace = c.Namespace
 
 	podSpec := v1.PodSpec{
-		ServiceAccountName: DeploymentName,
+		ServiceAccountName: deploymentName,
 		Containers:         []v1.Container{c.apiContainer()},
 		RestartPolicy:      v1.RestartPolicyAlways,
 		Volumes: []v1.Volume{
@@ -164,7 +173,7 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        DeploymentName,
+			Name:        deploymentName,
 			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
 		},
@@ -184,7 +193,7 @@ func (c *Cluster) apiContainer() v1.Container {
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--port=%d", model.Port),
 		},
-		Name:  DeploymentName,
+		Name:  deploymentName,
 		Image: k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
@@ -205,14 +214,14 @@ func (c *Cluster) startService() error {
 	labels := c.getLabels()
 	s := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      DeploymentName,
+			Name:      deploymentName,
 			Namespace: c.Namespace,
 			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
 				{
-					Name:       DeploymentName,
+					Name:       deploymentName,
 					Port:       model.Port,
 					TargetPort: intstr.FromInt(int(model.Port)),
 					Protocol:   v1.ProtocolTCP,
@@ -237,7 +246,25 @@ func (c *Cluster) startService() error {
 
 func (c *Cluster) getLabels() map[string]string {
 	return map[string]string{
-		k8sutil.AppAttr:     DeploymentName,
+		k8sutil.AppAttr:     deploymentName,
 		k8sutil.ClusterAttr: c.Namespace,
 	}
+}
+
+// GetRookClient gets a reference of the rook client connected to the Rook-API on the given namespace
+func GetRookClient(namespace string, client kubernetes.Interface) (rookclient.RookRestClient, error) {
+
+	// Look up the api service for the given namespace
+	logger.Infof("retrieving rook api endpoint for namespace %s", namespace)
+	svc, err := client.CoreV1().Services(namespace).Get(deploymentName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to find the api service. %+v", err)
+	}
+
+	httpClient := http.DefaultClient
+	httpClient.Timeout = clientTimeout
+	endpoint := fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, svc.Spec.Ports[0].Port)
+	rclient := rookclient.NewRookNetworkRestClient(rookclient.GetRestURL(endpoint), httpClient)
+	logger.Infof("rook api endpoint %s for namespace %s", endpoint, namespace)
+	return rclient, nil
 }

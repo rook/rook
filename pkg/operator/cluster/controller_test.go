@@ -26,7 +26,6 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -41,14 +40,13 @@ func TestCreateSecrets(t *testing.T) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
-	c := &Cluster{Spec: Spec{VersionTag: "myversion"}}
+	c := &Cluster{Spec: ClusterSpec{VersionTag: "myversion"}}
 	c.Name = "myrook"
 	c.Namespace = "myns"
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c.Init(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}, ConfigDir: configDir, Executor: executor})
+	c.init(&clusterd.Context{Clientset: clientset, ConfigDir: configDir, Executor: executor})
 	defer os.RemoveAll(c.context.ConfigDir)
-
 	err := c.createClientAccess(info)
 	assert.Nil(t, err)
 
@@ -64,7 +62,7 @@ func TestCreateInitialCrushMap(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	c := &Cluster{}
 	c.Namespace = "rook294"
-	c.Init(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}, Executor: executor})
+	c.init(&clusterd.Context{Clientset: clientset, Executor: executor})
 
 	// create the initial crush map and verify that a configmap value was created that says the crush map was created
 	err := c.createInitialCrushMap()

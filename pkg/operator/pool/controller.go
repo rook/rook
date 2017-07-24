@@ -17,46 +17,110 @@ Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
 
-// Package cluster to manage a rook cluster.
-package cluster
+// Package pool to manage a rook pool.
+package pool
 
 import (
 	"fmt"
 
+	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/kit"
 	rookclient "github.com/rook/rook/pkg/rook/client"
-	"k8s.io/api/core/v1"
-
-	"github.com/rook/rook/pkg/model"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 )
 
 const (
-	replicatedType  = "replicated"
-	erasureCodeType = "erasure-coded"
+	customResourceName       = "pool"
+	customResourceNamePlural = "pools"
+	replicatedType           = "replicated"
+	erasureCodeType          = "erasure-coded"
 )
 
-// PoolResource is the definition of the pool CRD
-var PoolResource = kit.CustomResource{
-	Name:        "pool",
-	Group:       k8sutil.CustomResourceGroup,
-	Version:     kit.V1Alpha1,
-	Description: "Managed Rook pools",
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-pool")
+
+// PoolController represents a controller object for pool custom resources
+type PoolController struct {
+	clientset  kubernetes.Interface
+	rookClient rookclient.RookRestClient
+	scheme     *runtime.Scheme
 }
 
-// Pool is the spec for the CRD
-type Pool struct {
-	v1.ObjectMeta `json:"metadata,omitempty"`
-	PoolSpec      `json:"spec"`
+// NewPoolController create controller for watching pool custom resources created
+func NewPoolController(clientset kubernetes.Interface) (*PoolController, error) {
+	return &PoolController{
+		clientset: clientset,
+	}, nil
+
 }
 
-// NewPool creates a new pool
-func NewPool(spec PoolSpec) *Pool {
-	return &Pool{PoolSpec: spec}
+// Watch watches for instances of Pool custom resources and acts on them
+func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) error {
+	client, scheme, err := kit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
+	if err != nil {
+		return fmt.Errorf("failed to get a k8s client for watching pool resources: %v", err)
+	}
+	c.scheme = scheme
+
+	rclient, err := api.GetRookClient(namespace, c.clientset)
+	if err != nil {
+		return fmt.Errorf("Failed to get rook client: %v", err)
+	}
+	c.rookClient = rclient
+
+	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
+		AddFunc:    c.onAdd,
+		UpdateFunc: c.onUpdate,
+		DeleteFunc: c.onDelete,
+	}
+	watcher := kit.NewWatcher(PoolResource, namespace, resourceHandlerFuncs, client)
+	go watcher.Watch(&Pool{}, stopCh)
+	return nil
 }
 
-// Create a pool
-func (p *Pool) Create(rclient rookclient.RookRestClient) error {
+func (c *PoolController) onAdd(obj interface{}) {
+	pool := obj.(*Pool)
+
+	// NEVER modify objects from the store. It's a read-only, local cache.
+	// Use scheme.Copy() to make a deep copy of original object.
+	copyObj, err := c.scheme.Copy(pool)
+	if err != nil {
+		fmt.Printf("ERROR creating a deep copy of pool object: %v\n", err)
+		return
+	}
+	poolCopy := copyObj.(*Pool)
+
+	err = poolCopy.create(c.rookClient)
+	if err != nil {
+		logger.Errorf("failed to create pool %s. %+v", pool.ObjectMeta.Name, err)
+	}
+}
+
+func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
+	//oldPool := oldObj.(*Pool)
+	newPool := newObj.(*Pool)
+
+	// if the pool is modified, allow the pool to be created if it wasn't already
+	err := newPool.create(c.rookClient)
+	if err != nil {
+		logger.Errorf("failed to create (modify) pool %s. %+v", newPool.ObjectMeta.Name, err)
+	}
+}
+
+func (c *PoolController) onDelete(obj interface{}) {
+	pool := obj.(*Pool)
+	err := pool.delete(c.rookClient)
+	if err != nil {
+		logger.Errorf("failed to delete pool %s. %+v", pool.ObjectMeta.Name, err)
+	}
+}
+
+// Create the pool
+func (p *Pool) create(rclient rookclient.RookRestClient) error {
 	// validate the pool settings
 	if err := p.validate(); err != nil {
 		return fmt.Errorf("invalid pool %s arguments. %+v", p.Name, err)
@@ -95,7 +159,7 @@ func (p *Pool) Create(rclient rookclient.RookRestClient) error {
 }
 
 // Delete the pool
-func (p *Pool) Delete(rclient rookclient.RookRestClient) error {
+func (p *Pool) delete(rclient rookclient.RookRestClient) error {
 	// check if the pool  exists
 	exists, err := p.exists(rclient)
 	if err == nil && !exists {
@@ -139,14 +203,14 @@ func (p *Pool) validate() error {
 }
 
 func (p *Pool) replication() *ReplicationSpec {
-	if p.PoolSpec.Replication.Size > 0 {
-		return &p.PoolSpec.Replication
+	if p.Spec.Replication.Size > 0 {
+		return &p.Spec.Replication
 	}
 	return nil
 }
 
 func (p *Pool) erasureCode() *ErasureCodeSpec {
-	ec := &p.PoolSpec.ErasureCoding
+	ec := &p.Spec.ErasureCoding
 	if ec.CodingChunks > 0 || ec.DataChunks > 0 {
 		return ec
 	}

@@ -19,6 +19,7 @@ package mon
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/ceph/mon"
@@ -26,8 +27,41 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// CheckHealth for the monitors
-func (c *Cluster) CheckHealth() error {
+var (
+	healthCheckInterval = 10 * time.Second
+)
+
+// HealthChecker check health for the monitors
+type HealthChecker struct {
+	monCluster *Cluster
+}
+
+// NewHealthChecker creates a new HealthChecker object
+func NewHealthChecker(monCluster *Cluster) *HealthChecker {
+	return &HealthChecker{
+		monCluster: monCluster,
+	}
+}
+
+// Check periodically the health of the monitors
+func (hc *HealthChecker) Check(stopCh chan struct{}) {
+	for {
+		select {
+		case <-stopCh:
+			logger.Infof("Stopping monitoring of cluster in namespace %s", hc.monCluster.Namespace)
+			return
+
+		case <-time.After(healthCheckInterval):
+			logger.Debugf("checking health of mons")
+			err := hc.monCluster.checkHealth()
+			if err != nil {
+				logger.Infof("failed to check mon health. %+v", err)
+			}
+		}
+	}
+}
+
+func (c *Cluster) checkHealth() error {
 	logger.Debugf("Checking health for mons. %+v", c.clusterInfo)
 
 	// connect to the mons

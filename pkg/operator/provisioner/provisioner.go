@@ -14,20 +14,23 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package operator to manage Kubernetes storage.
-package operator
+// Package provisioner to provision Rook volumes on Kubernetes.
+package provisioner
 
 import (
 	"fmt"
 	"strings"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	rookclient "github.com/rook/rook/pkg/rook/client"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -36,8 +39,11 @@ const (
 	rbdIDPrefix     = "rbd_id."
 )
 
-type rookVolumeProvisioner struct {
-	clusterManager *clusterManager
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-provisioner")
+
+// RookVolumeProvisioner is used to provision Rook volumes on Kubernetes
+type RookVolumeProvisioner struct {
+	client kubernetes.Interface
 
 	// Configuration of rook volume provisioner
 	provConfig provisionerConfig
@@ -54,14 +60,15 @@ type provisionerConfig struct {
 	clusterName string
 }
 
-func newRookVolumeProvisioner(clusterManager *clusterManager) controller.Provisioner {
-	return &rookVolumeProvisioner{
-		clusterManager: clusterManager,
+// New creates RookVolumeProvisioner
+func New(client kubernetes.Interface) controller.Provisioner {
+	return &RookVolumeProvisioner{
+		client: client,
 	}
 }
 
 // Provision creates a storage asset and returns a PV object representing it.
-func (p *rookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
+func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1.PersistentVolume, error) {
 
 	var err error
 	if options.PVC.Spec.Selector != nil {
@@ -83,7 +90,7 @@ func (p *rookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 
 	imageName := createImageName(options.PVName)
 
-	rookClient, err := p.clusterManager.getRookClient(p.provConfig.clusterNamespace)
+	rookClient, err := api.GetRookClient(p.provConfig.clusterNamespace, p.client)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get rook client: %v", err)
 	}
@@ -148,8 +155,8 @@ func createVolume(image, pool string, size int64, client rookclient.RookRestClie
 
 // Delete removes the storage asset that was created by Provision represented
 // by the given PV.
-func (p *rookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
-	rookClient, err := p.clusterManager.getRookClient(p.provConfig.clusterNamespace)
+func (p *RookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
+	rookClient, err := api.GetRookClient(p.provConfig.clusterNamespace, p.client)
 	if err != nil {
 		return fmt.Errorf("Failed to get rook client: %v", err)
 	}

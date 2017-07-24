@@ -409,10 +409,28 @@ func (k8sh *K8sHelper) GetService(servicename string) (string, error) {
 func (k8sh *K8sHelper) IsThirdPartyResourcePresent(tprname string) bool {
 	args := []string{"get", "thirdpartyresources", tprname}
 	inc := 0
-	for inc < 20 {
+	for inc < RetryLoop {
 		_, err := k8sh.Kubectl(args...)
 		if err == nil {
 			k8slogger.Infof("Found the thirdparty resource: " + tprname)
+			return true
+		}
+		time.Sleep(RetryInterval * time.Second)
+		inc++
+	}
+
+	return false
+}
+
+//IsCRDPresent returns true if custom resource definition is present
+func (k8sh *K8sHelper) IsCRDPresent(crdName string) bool {
+
+	cmdArgs := []string{"get", "crd", crdName}
+	inc := 0
+	for inc < RetryLoop {
+		_, err := k8sh.Kubectl(cmdArgs...)
+		if err == nil {
+			k8slogger.Infof("Found the CRD resource: " + crdName)
 			return true
 		}
 		time.Sleep(RetryInterval * time.Second)

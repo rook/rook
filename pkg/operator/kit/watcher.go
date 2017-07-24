@@ -21,16 +21,13 @@ which also has the apache 2.0 license.
 package kit
 
 import (
-	"encoding/json"
 	"errors"
-	"fmt"
-	"io"
-	"net/http"
-	"time"
 
 	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	kwatch "k8s.io/apimachinery/pkg/watch"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/cache"
 )
 
 var (
@@ -40,198 +37,54 @@ var (
 
 // ResourceWatcher watches a custom resource for desired state
 type ResourceWatcher struct {
-	context         KubeContext
-	resource        CustomResource
-	namespace       string
-	watchVersion    string
-	callback        func(event *RawEvent) error
-	checkStaleCache func() (string, error)
-}
-
-// RawEvent is the raw json message retrieved from the TPR/CRD update
-type RawEvent struct {
-	Type   kwatch.EventType
-	Object json.RawMessage
+	resource              CustomResource
+	namespace             string
+	resourceEventHandlers cache.ResourceEventHandlerFuncs
+	client                *rest.RESTClient
+	scheme                *runtime.Scheme
 }
 
 // NewWatcher creates an instance of a custom resource watcher for the given resource
-func NewWatcher(context KubeContext, resource CustomResource, namespace, watchVersion string,
-	callback func(event *RawEvent) error,
-	checkStaleCache func() (string, error)) *ResourceWatcher {
-
-	// Assign a default func for resources that don't have a cache
-	if checkStaleCache == nil {
-		checkStaleCache = func() (string, error) {
-			// there is no cache for the resource so we indicate to always reset the watch on error
-			return "", nil
-		}
-	}
+func NewWatcher(resource CustomResource, namespace string, handlers cache.ResourceEventHandlerFuncs, client *rest.RESTClient) *ResourceWatcher {
 	return &ResourceWatcher{
-		context:         context,
-		resource:        resource,
-		namespace:       namespace,
-		watchVersion:    watchVersion,
-		callback:        callback,
-		checkStaleCache: checkStaleCache,
+		resource:              resource,
+		namespace:             namespace,
+		resourceEventHandlers: handlers,
+		client:                client,
 	}
 }
 
-// Watch begins watching the custom resource (TPR/CRD). The call will block until an error is raised during the watch.
-// When the watch has detected a create, update, or delete event, the raw event will be passed to the caller
-// in the callback. After the callback returns, the watch loop will continue for the next event.
-// If the callback returns an error, the error will be logged but will not abort the event loop.
-func (w *ResourceWatcher) Watch() error {
-	if w.namespace == "" {
-		logger.Infof("start watching %s resource in all namespaces at %s", w.resource.Name, w.watchVersion)
+// Watch begins watching the custom resource (TPR/CRD). The call will block until a Done signal is raised during in the context.
+// When the watch has detected a create, update, or delete event, it will handled by the functions in the resourceEventHandlers. After the callback returns, the watch loop will continue for the next event.
+// If the callback returns an error, the error will be logged.
+func (w *ResourceWatcher) Watch(objType runtime.Object, done chan struct{}) error {
+	if w.namespace == v1.NamespaceAll {
+		logger.Infof("start watching %s resource in all namespaces at %s", w.resource.Name, w.resource.Version)
 	} else {
-		logger.Infof("start watching %s resource in namespace %s at %s", w.resource.Name, w.namespace, w.watchVersion)
+		logger.Infof("start watching %s resource in namespace %s at %s", w.resource.Name, w.namespace, w.resource.Version)
 	}
 
-	eventCh, errCh := w.watch()
+	source := cache.NewListWatchFromClient(
+		w.client,
+		w.resource.Plural,
+		w.namespace,
+		fields.Everything())
 
-	go func() {
+	_, controller := cache.NewInformer(
+		source,
 
-		timer := &panicTimer{
-			duration: time.Minute,
-			message:  fmt.Sprintf("unexpected long blocking (> 1 Minute) when handling %s event", w.resource.Name),
-		}
+		// The object type.
+		objType,
 
-		for event := range eventCh {
-			timer.Start()
+		// resyncPeriod
+		// Every resyncPeriod, all resources in the cache will retrigger events.
+		// Set to 0 to disable the resync.
+		0,
 
-			err := w.callback(event)
-			if err != nil {
-				logger.Errorf("failed to handle event %s on %s. %+v", event.Type, w.resource.Name, err)
-			}
+		// Your custom resource event handlers.
+		w.resourceEventHandlers)
 
-			timer.Stop()
-		}
-	}()
-	return <-errCh
-}
-
-// watch creates a go routine, and watches the custom resource at <name>.<group> starting at
-// the given watch version. It emits events on the resources through the returned
-// event chan. Errors will be reported through the returned error chan. The go routine
-// exits on any error.
-func (w *ResourceWatcher) watch() (<-chan *RawEvent, <-chan error) {
-	eventCh := make(chan *RawEvent)
-	// On unexpected error case, the operator should exit
-	errCh := make(chan error, 1)
-
-	go func() {
-		defer close(eventCh)
-
-		for {
-			err := w.watchOuterResource(eventCh, errCh)
-			if err != nil {
-				errCh <- fmt.Errorf("failed to watch %s resource. %+v", w.resource.Name, err)
-				return
-			}
-		}
-	}()
-
-	return eventCh, errCh
-}
-
-func (w *ResourceWatcher) watchOuterResource(eventCh chan *RawEvent, errCh chan error) error {
-	resp, err := watchResource(w.context, w.resource, w.namespace, w.watchVersion)
-	if err != nil {
-		errCh <- err
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("invalid status code: %s", resp.Status)
-	}
-
-	decoder := json.NewDecoder(resp.Body)
-	for {
-		ev, st, err := pollEvent(decoder)
-		done, err := w.handlePollEventResult(st, err, errCh)
-		if err != nil {
-			return err
-		}
-		if done {
-			return nil
-		}
-		logger.Debugf("rook pool event: %+v", ev)
-
-		// Extract the resource version from the raw json
-		meta := &v1.ObjectMeta{}
-		err = json.Unmarshal(ev.Object, meta)
-		if err != nil {
-			return fmt.Errorf("fail to unmarshal metadata from body %s: %v", resp.Body, err)
-		}
-		w.watchVersion = meta.ResourceVersion
-		eventCh <- ev
-	}
-}
-
-func (w *ResourceWatcher) handlePollEventResult(status *metav1.Status, errIn error, errCh chan error) (done bool, err error) {
-	if errIn != nil {
-		if errIn == io.EOF { // apiserver will close stream periodically
-			logger.Debug("apiserver closed stream")
-			done = true
-			return
-		}
-
-		err = errIn
-		errCh <- fmt.Errorf("received invalid event from API server: %v", err)
-		return
-	}
-
-	if status != nil {
-
-		if status.Code == http.StatusGone {
-			// event history is outdated.
-			// if nothing has changed, we can go back to watch again.
-			var resourceVersion string
-			resourceVersion, err = w.checkStaleCache()
-			if err == nil && resourceVersion != "" {
-				// we were able to recover from the cache, so we update the watch version to the latest
-				// resource version from the cache
-				logger.Infof("continuing watch based on resource version %s", resourceVersion)
-				w.watchVersion = resourceVersion
-				done = true
-				return
-			}
-
-			// if anything has changed (or error on relist), we have to rebuild the state.
-			// go to recovery path
-			logger.Infof("watch is outdated, must start a watch based on a new resource version")
-			err = ErrVersionOutdated
-			errCh <- ErrVersionOutdated
-			return
-		}
-
-		logger.Errorf("unexpected status response from API server: %v", status.Message)
-		done = true
-		return
-	}
-	return
-}
-
-func pollEvent(decoder *json.Decoder) (*RawEvent, *metav1.Status, error) {
-	re := &RawEvent{}
-	err := decoder.Decode(re)
-	if err != nil {
-		if err == io.EOF {
-			return nil, nil, err
-		}
-		return nil, nil, fmt.Errorf("fail to decode raw event from apiserver (%v)", err)
-	}
-
-	if re.Type == kwatch.Error {
-		status := &metav1.Status{}
-		err = json.Unmarshal(re.Object, status)
-		if err != nil {
-			return nil, nil, fmt.Errorf("fail to decode (%s) into metav1.Status (%v)", re.Object, err)
-		}
-		logger.Infof("returning pollEvent status %+v", status)
-		return nil, status, nil
-	}
-
-	return re, nil, nil
+	go controller.Run(done)
+	<-done
+	return nil
 }

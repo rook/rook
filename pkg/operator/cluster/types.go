@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2017 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -21,12 +21,45 @@ which also has the apache 2.0 license.
 package cluster
 
 import (
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/mgr"
+	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
+	"github.com/rook/rook/pkg/operator/rgw"
+	rookclient "github.com/rook/rook/pkg/rook/client"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-// Spec for the cluster
-type Spec struct {
+// schemeGroupVersion is group version used to register these objects
+var schemeGroupVersion = schema.GroupVersion{Group: k8sutil.CustomResourceGroup, Version: k8sutil.V1Alpha1}
+
+// Cluster represents an object of a Rook cluster
+type Cluster struct {
+	context           *clusterd.Context
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ClusterSpec `json:"spec"`
+	mons              *mon.Cluster
+	mgrs              *mgr.Cluster
+	osds              *osd.Cluster
+	apis              *api.Cluster
+	rgws              *rgw.Cluster
+	rookClient        rookclient.RookRestClient
+	stopCh            chan struct{}
+}
+
+// ClusterList represents an object of a Rook cluster list
+type ClusterList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []Cluster `json:"items"`
+}
+
+// ClusterSpec represents an object of a Rook cluster spec
+type ClusterSpec struct {
 	// VersionTag is the expected version of the rook container to run in the cluster.
 	// The operator will eventually make the rook cluster version
 	// equal to the expected version.
@@ -43,30 +76,6 @@ type Spec struct {
 
 	// A spec for available storage in the cluster and how it should be used
 	Storage osd.StorageSpec `json:"storage"`
-}
-
-// PoolSpec is the specific spec for the redundancy
-type PoolSpec struct {
-	// The replication settings
-	Replication ReplicationSpec `json:"replication"`
-
-	// The erasure code setteings
-	ErasureCoding ErasureCodeSpec `json:"erasureCode"`
-}
-
-// ReplicationSpec specifies the number of replicas
-type ReplicationSpec struct {
-	// Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
-	Size uint `json:"size"`
-}
-
-// ErasureCodeSpec specifies the erasure coding params
-type ErasureCodeSpec struct {
-	// Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-	CodingChunks uint `json:"codingChunks"`
-
-	// Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
-	DataChunks uint `json:"dataChunks"`
 }
 
 // PlacementSpec is a set of Placement configurations for the rook cluster.

@@ -24,7 +24,6 @@ import (
 	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -43,7 +42,7 @@ func TestStartRGW(t *testing.T) {
 
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}, Executor: executor, ConfigDir: configDir}, "ns", "version", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}, "ns", "version", k8sutil.Placement{})
 
 	// start a basic cluster
 	err := c.Start()

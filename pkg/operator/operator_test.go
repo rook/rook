@@ -16,35 +16,30 @@ limitations under the License.
 package operator
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
+	"github.com/rook/rook/pkg/operator/cluster"
+	"github.com/rook/rook/pkg/operator/pool"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestCreateCluster(t *testing.T) {
+func TestOperator(t *testing.T) {
 	clientset := test.New(3)
-	context := &clusterd.Context{KubeContext: kit.KubeContext{MasterHost: "foo", Clientset: clientset}}
+	context := &clusterd.Context{Clientset: clientset}
 	o := New(context)
-	o.context.RetryDelay = 1
 
-	// fail to init k8s client since we're not actually inside k8s
-	err := o.initResources()
-	assert.NotNil(t, err)
-
-	// create the tpr
-	scheme := kit.CustomResource{Name: "test", Version: "alpha", Group: k8sutil.CustomResourceGroup, Description: "test description"}
-	err = kit.CreateCustomResource(o.context.KubeContext, scheme)
-	assert.Nil(t, err)
-	tpr, err := clientset.ExtensionsV1beta1().ThirdPartyResources().List(v1.ListOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(tpr.Items))
-	assert.Equal(t, "test.rook.io", tpr.Items[0].Name)
-	assert.Equal(t, scheme.Description, tpr.Items[0].Description)
-
-	// TODO: Watch for a new Rook cluster and create it. Need a mocked http client to be working
+	assert.NotNil(t, o)
+	assert.NotNil(t, o.clusterController)
+	assert.NotNil(t, o.resources)
+	assert.NotNil(t, o.volumeProvisioner)
+	assert.Equal(t, context, o.context)
+	assert.Equal(t, len(o.resources), 2)
+	for _, r := range o.resources {
+		if r.Name != cluster.ClusterResource.Name && r.Name != pool.PoolResource.Name {
+			assert.Fail(t, fmt.Sprintf("Resource is %s not valid", r.Name))
+		}
+	}
 }

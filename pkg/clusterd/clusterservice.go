@@ -19,10 +19,11 @@ import (
 	etcd "github.com/coreos/etcd/client"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd/inventory"
-	"github.com/rook/rook/pkg/operator/kit"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/proc"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -63,8 +64,11 @@ type Context struct {
 	// The context for the Standalone orchestrator
 	DirectContext
 
-	// The context for the Kubernetes orchestrator
-	kit.KubeContext
+	// Clientset is a connection to the core kubernetes API
+	Clientset kubernetes.Interface
+
+	// APIExtensionClientset is a connection to the API Extension kubernetes API
+	APIExtensionClientset apiextensionsclient.Interface
 
 	// The implementation of executing a console command
 	Executor exec.Executor

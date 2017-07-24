@@ -90,6 +90,16 @@ rules:
   - create
   - delete
 - apiGroups:
+  - apiextensions.k8s.io
+  resources:
+  - customresourcedefinitions
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - delete
+- apiGroups:
   - rbac.authorization.k8s.io
   resources:
   - clusterroles
@@ -161,7 +171,12 @@ spec:
 }
 
 func (i *InstallData) getRookCluster() string {
-	return `apiVersion: rook.io/v1alpha1
+	return `apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook
+---
+apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
   name: rook
