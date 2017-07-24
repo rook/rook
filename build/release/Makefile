@@ -73,8 +73,6 @@ clean: $(addprefix clean.,$(FLAVORS)) ;
 # ====================================================================================
 # output
 
-build.output:
-	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 publish.output:
 	@$(S3_SYNC) $(OUTPUT_DIR) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION)
 promote.output:

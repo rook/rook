@@ -89,6 +89,8 @@ include build/makelib/golang.mk
 # Targets
 
 build.common:
+	@mkdir -p $(OUTPUT_DIR)
+	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 
