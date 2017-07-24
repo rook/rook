@@ -98,6 +98,9 @@ build.docs:
 	mkdir -p $(DOCS_VERSION_DIR)
 	cp -r $(DOCS_DIR)/ $(DOCS_VERSION_DIR)
 
+	# build the docs
+	$(DOCS_WORK_DIR)/build/build.sh
+
 publish.docs:
 
 	$(DOCS_WORK_DIR)/build/publish.sh
