@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package k8sutil for Kubernetes helpers.
 package k8sutil
 
 import (
@@ -26,6 +28,7 @@ type Placement struct {
 	Tolerations  []v1.Toleration  `json:"tolerations,omitemtpy"`
 }
 
+// ApplyToPodSpec adds placement to a pod spec
 func (p Placement) ApplyToPodSpec(t *v1.PodSpec) {
 	if p.NodeAffinity != nil {
 		if t.Affinity == nil {

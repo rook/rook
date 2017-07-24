@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package mon for the Ceph monitors.
 package mon
 
 import (
@@ -51,6 +53,7 @@ const (
 	maxMonIDKey       = "maxMonId"
 )
 
+// Cluster is for the cluster of monitors
 type Cluster struct {
 	context         *clusterd.Context
 	Namespace       string
@@ -67,11 +70,13 @@ type Cluster struct {
 	dataDirHostPath string
 }
 
-type MonConfig struct {
+// monConfig for a single monitor
+type monConfig struct {
 	Name string
 	Port int32
 }
 
+// New creates an instance of a mon cluster
 func New(context *clusterd.Context, namespace, dataDirHostPath, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:         context,
@@ -85,6 +90,7 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, version string, 
 	}
 }
 
+// Start the mon cluster
 func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 	logger.Infof("start running mons")
 
@@ -158,18 +164,18 @@ func (c *Cluster) initClusterInfo() error {
 	return nil
 }
 
-func (c *Cluster) getExpectedMonConfig() []*MonConfig {
-	mons := []*MonConfig{}
+func (c *Cluster) getExpectedMonConfig() []*monConfig {
+	mons := []*monConfig{}
 
 	// initialize the mon pod info for mons that have been previously created
 	for _, monitor := range c.clusterInfo.Monitors {
-		mons = append(mons, &MonConfig{Name: monitor.Name, Port: int32(mon.Port)})
+		mons = append(mons, &monConfig{Name: monitor.Name, Port: int32(mon.Port)})
 	}
 
 	// initialize mon info if we don't have enough mons (at first startup)
 	for i := len(c.clusterInfo.Monitors); i < c.Size; i++ {
 		c.maxMonID++
-		mons = append(mons, &MonConfig{Name: fmt.Sprintf("%s%d", appName, c.maxMonID), Port: int32(mon.Port)})
+		mons = append(mons, &monConfig{Name: fmt.Sprintf("%s%d", appName, c.maxMonID), Port: int32(mon.Port)})
 	}
 
 	return mons
@@ -234,7 +240,7 @@ func (c *Cluster) createMonSecretsAndSave() error {
 	return nil
 }
 
-func (c *Cluster) startPods(mons []*MonConfig) error {
+func (c *Cluster) startPods(mons []*monConfig) error {
 	// schedule the mons on different nodes if we have enough nodes to be unique
 	availableNodes, err := c.getAvailableMonNodes()
 	if err != nil {
@@ -273,7 +279,7 @@ func (c *Cluster) startPods(mons []*MonConfig) error {
 	return c.waitForMonsToJoin(mons)
 }
 
-func (c *Cluster) waitForMonsToJoin(mons []*MonConfig) error {
+func (c *Cluster) waitForMonsToJoin(mons []*monConfig) error {
 	if !c.waitForStart {
 		return nil
 	}
@@ -522,7 +528,7 @@ func (c *Cluster) getNodesWithMons() (*util.Set, error) {
 	return nodes, nil
 }
 
-func (c *Cluster) startMon(m *MonConfig, nodeName string) error {
+func (c *Cluster) startMon(m *monConfig, nodeName string) error {
 	rs := c.makeReplicaSet(m, nodeName)
 	logger.Debugf("Starting mon: %+v", rs.Name)
 	_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)

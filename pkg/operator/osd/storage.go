@@ -13,12 +13,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package osd for the Ceph OSDs.
 package osd
 
 import (
 	cephosd "github.com/rook/rook/pkg/ceph/osd"
 )
 
+// AnyUseAllDevices gets whether to use all devices
 func (s *StorageSpec) AnyUseAllDevices() bool {
 	if s.Selection.getUseAllDevices() {
 		return true
@@ -33,6 +36,7 @@ func (s *StorageSpec) AnyUseAllDevices() bool {
 	return false
 }
 
+// ClearUseAllDevices clears all devices
 func (s *StorageSpec) ClearUseAllDevices() {
 	clear := false
 	s.Selection.UseAllDevices = &clear

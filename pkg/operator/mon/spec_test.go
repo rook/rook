@@ -37,7 +37,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	clientset := testop.New(1)
 	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", dataDir, "myversion", k8sutil.Placement{})
 	c.clusterInfo = testop.CreateClusterInfo(0)
-	config := &MonConfig{Name: "mon0", Port: 6790}
+	config := &monConfig{Name: "mon0", Port: 6790}
 
 	pod := c.makeMonPod(config, "foo")
 	assert.NotNil(t, pod)

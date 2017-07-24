@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package api for the operator api manager.
 package api
 
 import (
@@ -34,6 +36,7 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-api")
 
 const (
+	// DeploymentName is the service name
 	DeploymentName = "rook-api"
 )
 
@@ -55,6 +58,7 @@ var clusterAccessRules = []v1beta1.PolicyRule{
 	},
 }
 
+// Cluster has the api service properties
 type Cluster struct {
 	context   *clusterd.Context
 	Namespace string
@@ -63,6 +67,7 @@ type Cluster struct {
 	Replicas  int32
 }
 
+// New creates an instance
 func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
@@ -73,6 +78,7 @@ func New(context *clusterd.Context, namespace, version string, placement k8sutil
 	}
 }
 
+// Start the api service
 func (c *Cluster) Start() error {
 	logger.Infof("starting the Rook api")
 
@@ -103,6 +109,7 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
+// make a cluster role
 func (c *Cluster) makeClusterRole() error {
 	account := &v1.ServiceAccount{}
 	account.Name = DeploymentName
@@ -186,9 +193,9 @@ func (c *Cluster) apiContainer() v1.Container {
 			{Name: "ROOKD_VERSION_TAG", Value: c.Version},
 			k8sutil.NamespaceEnvVar(),
 			k8sutil.RepoPrefixEnvVar(),
-			opmon.MonSecretEnvVar(),
+			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
-			opmon.MonEndpointEnvVar(),
+			opmon.EndpointEnvVar(),
 			opmon.ClusterNameEnvVar(c.Namespace),
 		},
 	}

@@ -16,6 +16,8 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
+
+// Package k8sutil for Kubernetes helpers.
 package k8sutil
 
 import "github.com/coreos/pkg/capnslog"
@@ -23,11 +25,18 @@ import "github.com/coreos/pkg/capnslog"
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
 
 const (
-	Namespace           = "rook"
+	// Namespace for rook
+	Namespace = "rook"
+	// CustomResourceGroup for rook CRD
 	CustomResourceGroup = "rook.io"
-	DefaultNamespace    = "default"
-	DataDirVolume       = "rook-data"
-	DataDir             = "/var/lib/rook"
-	RookType            = "kubernetes.io/rook"
-	RbdType             = "kubernetes.io/rbd"
+	// DefaultNamespace for the cluster
+	DefaultNamespace = "default"
+	// DataDirVolume data dir volume
+	DataDirVolume = "rook-data"
+	// DataDir folder
+	DataDir = "/var/lib/rook"
+	// RookType for the CRD
+	RookType = "kubernetes.io/rook"
+	// RbdType for the RBD mounts
+	RbdType = "kubernetes.io/rbd"
 )

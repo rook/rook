@@ -210,7 +210,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 	// start pods on two of the nodes so that only one node will be available
 	for i := 0; i < 2; i++ {
-		pod := c.makeMonPod(&MonConfig{Name: fmt.Sprintf("rook-ceph-mon%d", i)}, nodes[i].Name)
+		pod := c.makeMonPod(&monConfig{Name: fmt.Sprintf("rook-ceph-mon%d", i)}, nodes[i].Name)
 		_, err := clientset.CoreV1().Pods(c.Namespace).Create(pod)
 		assert.Nil(t, err)
 	}
@@ -221,7 +221,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 	// start pods on the remaining node. We expect all nodes to be available for placement
 	// since there is no way to place a mon on an unused node.
-	pod := c.makeMonPod(&MonConfig{Name: "mon2"}, nodes[2].Name)
+	pod := c.makeMonPod(&monConfig{Name: "mon2"}, nodes[2].Name)
 	_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
 	assert.Nil(t, err)
 	nodes, err = c.getAvailableMonNodes()

@@ -16,6 +16,8 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
+
+// Package operator to manage Kubernetes storage.
 package operator
 
 import (
@@ -99,7 +101,7 @@ func (m *clusterManager) startTrack(c *cluster.Cluster) error {
 	existing, ok := m.clusters[c.Namespace]
 	if ok {
 		if c.Name != existing.Name {
-			return fmt.Errorf("cluster %s is already running in namespace %s. Multiple clusters per namespace not supported.", existing.Name, existing.Namespace)
+			return fmt.Errorf("cluster %s is already running in namespace %s. Multiple clusters per namespace not supported", existing.Name, existing.Namespace)
 		}
 	} else {
 		// only start the cluster if we're not already tracking it from a previous iteration

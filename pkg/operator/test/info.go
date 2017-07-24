@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package test for the operator tests
 package test
 
 import (
@@ -21,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/ceph/mon"
 )
 
+// CreateClusterInfo creates a test cluster
 func CreateClusterInfo(mons int) *mon.ClusterInfo {
 	c := &mon.ClusterInfo{
 		FSID:          "12345",

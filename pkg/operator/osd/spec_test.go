@@ -45,12 +45,12 @@ nodes:
   deviceFilter: "^sd."`)
 
 	// convert the raw spec yaml into JSON
-	rawJson, err := yaml.YAMLToJSON(specYaml)
+	rawJSON, err := yaml.YAMLToJSON(specYaml)
 	assert.Nil(t, err)
 
 	// unmarshal the JSON into a strongly typed storage spec object
 	var storageSpec StorageSpec
-	err = json.Unmarshal(rawJson, &storageSpec)
+	err = json.Unmarshal(rawJSON, &storageSpec)
 	assert.Nil(t, err)
 
 	// the unmarshalled storage spec should equal the expected spec below

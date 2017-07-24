@@ -16,6 +16,8 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
+
+// Package cluster to manage a rook cluster.
 package cluster
 
 import (
@@ -50,7 +52,8 @@ var (
 	healthCheckInterval = 10 * time.Second
 	clientTimeout       = 15 * time.Second
 	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
-	ClusterResource     = kit.CustomResource{
+	// ClusterResource is the definition of the cluster CRD
+	ClusterResource = kit.CustomResource{
 		Name:        "cluster",
 		Group:       k8sutil.CustomResourceGroup,
 		Version:     kit.V1Alpha1,
@@ -58,6 +61,7 @@ var (
 	}
 )
 
+// Cluster controls an instance of a Rook cluster
 type Cluster struct {
 	context       *clusterd.Context
 	v1.ObjectMeta `json:"metadata,omitempty"`
@@ -70,10 +74,12 @@ type Cluster struct {
 	rclient       rookclient.RookRestClient
 }
 
+// Init assigns the cluster context
 func (c *Cluster) Init(context *clusterd.Context) {
 	c.context = context
 }
 
+// CreateInstance creates a new Rook cluster instance
 func (c *Cluster) CreateInstance() error {
 
 	// Create the namespace if not already created
@@ -137,6 +143,7 @@ func (c *Cluster) CreateInstance() error {
 	return nil
 }
 
+// Monitor watches a cluster for failures and restarts failed components
 func (c *Cluster) Monitor(stopCh <-chan struct{}) {
 	for {
 		select {
@@ -252,6 +259,7 @@ func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 	return nil
 }
 
+// GetRookClient gets the REST api client
 func (c *Cluster) GetRookClient() (rookclient.RookRestClient, error) {
 	if c.rclient != nil {
 		return c.rclient, nil
