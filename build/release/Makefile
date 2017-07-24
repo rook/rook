@@ -96,7 +96,7 @@ build.docs:
 	# replace the version snapshot with the current docs dir
 	rm -rf $(DOCS_VERSION_DIR)
 	mkdir -p $(DOCS_VERSION_DIR)
-	cp -r $(DOCS_DIR) $(DOCS_VERSION_DIR)
+	cp -r $(DOCS_DIR)/ $(DOCS_VERSION_DIR)
 
 publish.docs:
 
