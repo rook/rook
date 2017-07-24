@@ -1,3 +1,11 @@
+---
+title: Monitoring
+weight: 15
+indent: true
+---
+
+just a test
+
 # Monitoring
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).  To enable monitoring of Rook in your Kubernetes cluster, you can follow the steps below.
 Note that these steps work best with a local Kubernetes cluster running in `Vagrant`.
@@ -39,7 +47,7 @@ Once the Prometheus server is running, you can open a web browser and go to the 
 echo "http://$(kubectl -n rook -o jsonpath={.status.hostIP} get pod prometheus-rook-prometheus-0):30900"
 ```
 
-You should now see the Prometheus monitoring website.  Click on `Graph` in the top navigation bar.  In the dropdown that says ` - insert metric at cursor - `,
+You should now see the Prometheus monitoring website.  Click on `Graph` in the top navigation bar.  In the dropdown that says `insert metric at cursor`,
 select any metric you would like to see, for example `ceph_cluster_used_bytes`, followed by clicking on the `Execute` button.  Below the `Execute` button, ensure
 the `Graph` tab is selected and you should now see a graph of your chosen metric over time.
 
