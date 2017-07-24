@@ -58,7 +58,7 @@ DOCS_GIT_USER_EMAIL ?= "info@rook.io"
 # TODO dynamic https+token vs. use local ssh git@github.com if running on local machine
 DOCS_GIT_REPO ?= https://$(GIT_API_TOKEN)@github.com/ilovett/ilovett.github.io.git
 DOCS_GIT_BRANCH ?= master
-DOCS_DIR ?= $(ROOT_DIR)/Documentation/
+DOCS_DIR ?= $(ROOT_DIR)/Documentation
 DOCS_WORK_DIR := $(WORK_DIR)/rook.github.io
 DOCS_VERSION_DIR= $(DOCS_WORK_DIR)/docs/rook/$(DOCS_VERSION)
 
@@ -96,7 +96,7 @@ build.docs:
 	# replace the version snapshot with the current docs dir
 	rm -rf $(DOCS_VERSION_DIR)
 	mkdir -p $(DOCS_VERSION_DIR)
-	cp -r $(DOCS_DIR) $(DOCS_VERSION_DIR)/
+	cp -r $(DOCS_DIR) $(DOCS_VERSION_DIR)
 
 publish.docs:
 
