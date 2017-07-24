@@ -105,7 +105,7 @@ build: build.common
 ifneq ($(GOOS),linux)
 	@$(MAKE) go.build PLATFORM=linux_amd64
 endif
-	@$(MAKE) -C images
+	@$(MAKE) -C images PLATFORM=linux_amd64
 
 build.all: build.common
 	@$(MAKE) do.build.parallel
