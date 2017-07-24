@@ -51,12 +51,12 @@ S3_SYNC := aws s3 sync --only-show-errors --delete
 # ====================================================================================
 # tools
 
-MANIFEST_TOOL_VERSION=v0.5.0
+MANIFEST_TOOL_VERSION=v0.6.0
 MANIFEST_TOOL := $(TOOLS_HOST_DIR)/manifest-tool-$(MANIFEST_TOOL_VERSION)
 
 $(MANIFEST_TOOL):
 	@echo === installing manifest-tool
-	@curl -sL https://github.com/estesp/manifest-tool/releases/download/v0.5.0/manifest-tool-$(GOHOSTOS)-$(GOHOSTARCH) > $@
+	@curl -sL https://github.com/estesp/manifest-tool/releases/download/$(MANIFEST_TOOL_VERSION)/manifest-tool-$(GOHOSTOS)-$(GOHOSTARCH) > $@
 	@chmod +x $@
 
 # ====================================================================================
@@ -73,8 +73,6 @@ clean: $(addprefix clean.,$(FLAVORS)) ;
 # ====================================================================================
 # output
 
-build.output:
-	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 publish.output:
 	@$(S3_SYNC) $(OUTPUT_DIR) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION)
 promote.output:

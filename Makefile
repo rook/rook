@@ -89,6 +89,8 @@ include build/makelib/golang.mk
 # Targets
 
 build.common:
+	@mkdir -p $(OUTPUT_DIR)
+	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 
@@ -103,7 +105,7 @@ build: build.common
 ifneq ($(GOOS),linux)
 	@$(MAKE) go.build PLATFORM=linux_amd64
 endif
-	@$(MAKE) -C images
+	@$(MAKE) -C images PLATFORM=linux_amd64
 
 build.all: build.common
 	@$(MAKE) do.build.parallel
