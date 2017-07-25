@@ -1,6 +1,4 @@
 /*
-Package kit for Kubernetes operators
-
 Copyright 2016 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -18,6 +16,8 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
+
+// Package kit for Kubernetes operators
 package kit
 
 import "github.com/coreos/pkg/capnslog"

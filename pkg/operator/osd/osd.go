@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package osd for the Ceph OSDs.
 package osd
 
 import (
@@ -40,6 +42,7 @@ const (
 	appNameFmt = "rook-ceph-osd-%s"
 )
 
+// Cluster keeps track of the OSDs
 type Cluster struct {
 	context         *clusterd.Context
 	Namespace       string
@@ -50,6 +53,7 @@ type Cluster struct {
 	dataDirHostPath string
 }
 
+// New creates an instance of the OSD manager
 func New(context *clusterd.Context, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:         context,
@@ -61,6 +65,7 @@ func New(context *clusterd.Context, namespace, version string, storageSpec Stora
 	}
 }
 
+// Start the osd management
 func (c *Cluster) Start() error {
 	logger.Infof("start running osds in namespace %s", c.Namespace)
 
@@ -178,8 +183,8 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 	envVars := []v1.EnvVar{
 		nodeNameEnvVar(),
 		opmon.ClusterNameEnvVar(c.Namespace),
-		opmon.MonEndpointEnvVar(),
-		opmon.MonSecretEnvVar(),
+		opmon.EndpointEnvVar(),
+		opmon.SecretEnvVar(),
 		opmon.AdminSecretEnvVar(),
 		k8sutil.ConfigDirEnvVar(),
 		k8sutil.ConfigOverrideEnvVar(),

@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package k8sutil for Kubernetes helpers.
 package k8sutil
 
 import (
@@ -20,6 +22,7 @@ import (
 	"strings"
 )
 
+// PathToVolumeName converts a path to a valid volume name
 func PathToVolumeName(path string) string {
 	// kubernetes volume names must match this regex: [a-z0-9]([-a-z0-9]*[a-z0-9])?
 

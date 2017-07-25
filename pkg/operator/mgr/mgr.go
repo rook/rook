@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package mgr for the Ceph manager.
 package mgr
 
 import (
@@ -36,6 +38,7 @@ const (
 	keyringName = "keyring"
 )
 
+// Cluster is the ceph mgr manager
 type Cluster struct {
 	Namespace string
 	Version   string
@@ -44,6 +47,7 @@ type Cluster struct {
 	dataDir   string
 }
 
+// New creates an instance of the mgr
 func New(context *clusterd.Context, namespace, version string) *Cluster {
 	return &Cluster{
 		context:   context,
@@ -54,6 +58,7 @@ func New(context *clusterd.Context, namespace, version string) *Cluster {
 	}
 }
 
+// Start the mgr instance
 func (c *Cluster) Start() error {
 	logger.Infof("start running mgr")
 
@@ -123,8 +128,8 @@ func (c *Cluster) mgrContainer(name string) v1.Container {
 			{Name: "ROOKD_MGR_NAME", Value: name},
 			{Name: "ROOKD_MGR_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: name}, Key: keyringName}}},
 			opmon.ClusterNameEnvVar(c.Namespace),
-			opmon.MonEndpointEnvVar(),
-			opmon.MonSecretEnvVar(),
+			opmon.EndpointEnvVar(),
+			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},

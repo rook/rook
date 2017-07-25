@@ -16,12 +16,15 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
+
+// Package operator to manage Kubernetes storage.
 package operator
 
 import (
 	"fmt"
 	"time"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/cluster"
@@ -39,6 +42,9 @@ const (
 	provisionerName = "rook.io/block"
 )
 
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "operator")
+
+// Operator type for managing storage
 type Operator struct {
 	context   *clusterd.Context
 	resources []kit.CustomResource
@@ -58,6 +64,7 @@ type resourceManager interface {
 	Manage()
 }
 
+// New creates an operator instance
 func New(context *clusterd.Context) *Operator {
 
 	poolInitiator := newPoolInitiator(context)
@@ -73,6 +80,7 @@ func New(context *clusterd.Context) *Operator {
 	}
 }
 
+// Run the operator instance
 func (o *Operator) Run() error {
 
 	for {

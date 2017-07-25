@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package rgw for the Ceph object store.
 package rgw
 
 import (
@@ -37,6 +39,7 @@ const (
 	keyringName = "keyring"
 )
 
+// Cluster for rgw management
 type Cluster struct {
 	context   *clusterd.Context
 	Namespace string
@@ -45,6 +48,7 @@ type Cluster struct {
 	Replicas  int32
 }
 
+// New creates an instance of an rgw manager
 func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
@@ -55,6 +59,7 @@ func New(context *clusterd.Context, namespace, version string, placement k8sutil
 	}
 }
 
+// Start the rgw manager
 func (c *Cluster) Start() error {
 	logger.Infof("start running rgw")
 
@@ -165,8 +170,8 @@ func (c *Cluster) rgwContainer() v1.Container {
 		Env: []v1.EnvVar{
 			{Name: "ROOKD_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
 			opmon.ClusterNameEnvVar(c.Namespace),
-			opmon.MonEndpointEnvVar(),
-			opmon.MonSecretEnvVar(),
+			opmon.EndpointEnvVar(),
+			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},

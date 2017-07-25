@@ -39,12 +39,12 @@ tolerations:
     operator: Exists`)
 
 	// convert the raw spec yaml into JSON
-	rawJson, err := yaml.YAMLToJSON(specYaml)
+	rawJSON, err := yaml.YAMLToJSON(specYaml)
 	assert.Nil(t, err)
 
 	// unmarshal the JSON into a strongly typed placement spec object
 	var placement Placement
-	err = json.Unmarshal(rawJson, &placement)
+	err = json.Unmarshal(rawJSON, &placement)
 	assert.Nil(t, err)
 
 	// the unmarshalled placement spec should equal the expected spec below

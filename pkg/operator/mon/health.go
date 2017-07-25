@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package mon for the Ceph monitors.
 package mon
 
 import (
@@ -24,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// CheckHealth for the monitors
 func (c *Cluster) CheckHealth() error {
 	logger.Debugf("Checking health for mons. %+v", c.clusterInfo)
 
@@ -68,7 +71,7 @@ func (c *Cluster) failoverMon(name string) error {
 	logger.Infof("Failing over monitor %s", name)
 
 	// Start a new monitor
-	mons := []*MonConfig{{Name: fmt.Sprintf("mon%d", c.maxMonID+1), Port: int32(mon.Port)}}
+	mons := []*monConfig{{Name: fmt.Sprintf("mon%d", c.maxMonID+1), Port: int32(mon.Port)}}
 	logger.Infof("starting new mon %s", mons[0].Name)
 	err := c.startPods(mons)
 	if err != nil {

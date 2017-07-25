@@ -13,12 +13,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package osd for the Ceph OSDs.
 package osd
 
 import (
 	cephosd "github.com/rook/rook/pkg/ceph/osd"
 )
 
+// StorageSpec CRD settings
 type StorageSpec struct {
 	Nodes       []Node `json:"nodes,omitempty"`
 	UseAllNodes bool   `json:"useAllNodes,omitempty"`
@@ -26,6 +29,7 @@ type StorageSpec struct {
 	Config
 }
 
+// Node specific CRD settings
 type Node struct {
 	Name        string      `json:"name,omitempty"`
 	Devices     []Device    `json:"devices,omitempty"`
@@ -34,14 +38,17 @@ type Node struct {
 	Config
 }
 
+// Device CRD settings
 type Device struct {
 	Name string `json:"name,omitempty"`
 }
 
+// Directory CRD settings
 type Directory struct {
 	Path string `json:"path,omitempty"`
 }
 
+// Selection CRD settings
 type Selection struct {
 	// Whether to consume all the storage devices found on a machine
 	UseAllDevices *bool `json:"useAllDevices,omitempty"`
@@ -52,6 +59,7 @@ type Selection struct {
 	MetadataDevice string `json:"metadataDevice,omitempty"`
 }
 
+// Config CRD settings
 type Config struct {
 	StoreConfig cephosd.StoreConfig `json:"storeConfig,omitempty"`
 	Location    string              `json:"location,omitempty"`

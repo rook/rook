@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package mon for the Ceph monitors.
 package mon
 
 import (
@@ -25,20 +27,24 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
+// ClusterNameEnvVar is the cluster name environment var
 func ClusterNameEnvVar(name string) v1.EnvVar {
 	return v1.EnvVar{Name: "ROOKD_CLUSTER_NAME", Value: name}
 }
 
-func MonEndpointEnvVar() v1.EnvVar {
+// EndpointEnvVar is the mon endpoint environment var
+func EndpointEnvVar() v1.EnvVar {
 	ref := &v1.ConfigMapKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: monConfigMapName}, Key: monEndpointKey}
 	return v1.EnvVar{Name: "ROOKD_MON_ENDPOINTS", ValueFrom: &v1.EnvVarSource{ConfigMapKeyRef: ref}}
 }
 
-func MonSecretEnvVar() v1.EnvVar {
+// SecretEnvVar is the mon secret environment var
+func SecretEnvVar() v1.EnvVar {
 	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: monSecretName}
 	return v1.EnvVar{Name: "ROOKD_MON_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
 }
 
+// AdminSecretEnvVar is the admin secret environment var
 func AdminSecretEnvVar() v1.EnvVar {
 	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: adminSecretName}
 	return v1.EnvVar{Name: "ROOKD_ADMIN_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
@@ -52,7 +58,7 @@ func (c *Cluster) getLabels(name string) map[string]string {
 	}
 }
 
-func (c *Cluster) makeReplicaSet(config *MonConfig, nodeName string) *extensions.ReplicaSet {
+func (c *Cluster) makeReplicaSet(config *monConfig, nodeName string) *extensions.ReplicaSet {
 
 	rs := &extensions.ReplicaSet{}
 	rs.Name = config.Name
@@ -71,7 +77,7 @@ func (c *Cluster) makeReplicaSet(config *MonConfig, nodeName string) *extensions
 	return rs
 }
 
-func (c *Cluster) makeMonPod(config *MonConfig, nodeName string) *v1.Pod {
+func (c *Cluster) makeMonPod(config *monConfig, nodeName string) *v1.Pod {
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if c.dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
@@ -103,7 +109,7 @@ func (c *Cluster) makeMonPod(config *MonConfig, nodeName string) *v1.Pod {
 	return pod
 }
 
-func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
+func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
 
 	return v1.Container{
 		Args: []string{
@@ -129,8 +135,8 @@ func (c *Cluster) monContainer(config *MonConfig, fsid string) v1.Container {
 		Env: []v1.EnvVar{
 			{Name: k8sutil.PodIPEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}},
 			ClusterNameEnvVar(c.Namespace),
-			MonEndpointEnvVar(),
-			MonSecretEnvVar(),
+			EndpointEnvVar(),
+			SecretEnvVar(),
 			AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
