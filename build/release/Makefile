@@ -27,7 +27,7 @@ ifeq ($(filter master alpha beta stable,$(CHANNEL)),)
 $(error invalid channel $(CHANNEL))
 endif
 
-DOCS_VERSION := $(shell echo $(BRANCH_NAME) | sed -E "s/^release\-([0-9]+)\.([0-9]+).*$$/v\1.\2/g")
+DOCS_VERSION := $(shell echo $(BRANCH_NAME) | sed -E "s/^release\-([0-9]+)\.([0-9]+)$$/v\1.\2/g")
 DOCS_DIR ?= $(ROOT_DIR)/Documentation
 DOCS_WORK_DIR := $(WORK_DIR)/rook.github.io
 DOCS_VERSION_DIR= $(DOCS_WORK_DIR)/docs/rook/$(DOCS_VERSION)
