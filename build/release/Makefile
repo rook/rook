@@ -27,6 +27,17 @@ ifeq ($(filter master alpha beta stable,$(CHANNEL)),)
 $(error invalid channel $(CHANNEL))
 endif
 
+DOCS_VERSION := $(shell echo $(BRANCH_NAME) | sed -E "s/^release\-([0-9]+)\.([0-9]+).*$$/v\1.\2/g")
+DOCS_DIR ?= $(ROOT_DIR)/Documentation
+DOCS_WORK_DIR := $(WORK_DIR)/rook.github.io
+DOCS_VERSION_DIR= $(DOCS_WORK_DIR)/docs/rook/$(DOCS_VERSION)
+
+ifdef GIT_API_TOKEN
+DOCS_GIT_REPO := https://$(GIT_API_TOKEN)@github.com/ilovett/ilovett.github.io.git
+else
+DOCS_GIT_REPO := git@github.com:ilovett/ilovett.github.io.git
+endif
+
 ifeq ($(origin BRANCH_NAME), undefined)
 BRANCH_NAME := $(shell git branch | grep \* | cut -d ' ' -f2)
 endif
@@ -34,7 +45,7 @@ endif
 PLATFORMS ?= $(ALL_PLATFORMS)
 
 ifneq ($(filter master release-%,$(BRANCH_NAME)),)
-FLAVORS ?= output images
+FLAVORS ?= output images docs
 else
 FLAVORS ?= output
 override BRANCH_NAME := pr/$(BRANCH_NAME)
@@ -51,16 +62,6 @@ S3_BUCKET ?= rook-release
 S3_CP := aws s3 cp --only-show-errors
 S3_SYNC := aws s3 sync --only-show-errors --delete
 
-# TODO build DOCS_VERSION from BRANCH_NAME (master -> master, release-0.5 -> 0.5, etc.)
-DOCS_VERSION=$(BRANCH_NAME)
-DOCS_GIT_USER_NAME ?= "Rook"
-DOCS_GIT_USER_EMAIL ?= "info@rook.io"
-# TODO dynamic https+token vs. use local ssh git@github.com if running on local machine
-DOCS_GIT_REPO ?= https://$(GIT_API_TOKEN)@github.com/ilovett/ilovett.github.io.git
-DOCS_GIT_BRANCH ?= master
-DOCS_DIR ?= $(ROOT_DIR)/Documentation
-DOCS_WORK_DIR := $(WORK_DIR)/rook.github.io
-DOCS_VERSION_DIR= $(DOCS_WORK_DIR)/docs/rook/$(DOCS_VERSION)
 
 # ====================================================================================
 # tools
@@ -90,14 +91,14 @@ clean: $(addprefix clean.,$(FLAVORS)) ;
 build.docs:
 
 	# checkout a fresh copy of the rook.github.io directory
-	rm -rf $(DOCS_WORK_DIR) && mkdir -p $(DOCS_WORK_DIR)
-	git clone --depth=1 -b $(DOCS_GIT_BRANCH) $(DOCS_GIT_REPO) $(DOCS_WORK_DIR)
+	@ rm -rf $(DOCS_WORK_DIR)
+	@ mkdir -p $(DOCS_WORK_DIR)
+	@ git clone --depth=1 -b master $(DOCS_GIT_REPO) $(DOCS_WORK_DIR)
 
 	# replace the version snapshot with the current docs dir
-	rm -rf $(DOCS_VERSION_DIR)
-	cp -r $(DOCS_DIR)/ $(DOCS_VERSION_DIR)
+	@ rm -rf $(DOCS_VERSION_DIR)
+	@ cp -r $(DOCS_DIR)/ $(DOCS_VERSION_DIR)
 
-	# build the docs
 	$(DOCS_WORK_DIR)/build/build.sh
 
 publish.docs:
