@@ -4,8 +4,6 @@ weight: 15
 indent: true
 ---
 
-just a test
-
 # Monitoring
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).  To enable monitoring of Rook in your Kubernetes cluster, you can follow the steps below.
 Note that these steps work best with a local Kubernetes cluster running in `Vagrant`.
