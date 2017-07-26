@@ -30,7 +30,7 @@ endif
 DOCS_VERSION := $(shell echo $(BRANCH_NAME) | sed -E "s/^release\-([0-9]+)\.([0-9]+)$$/v\1.\2/g")
 DOCS_DIR ?= $(ROOT_DIR)/Documentation
 DOCS_WORK_DIR := $(WORK_DIR)/rook.github.io
-DOCS_VERSION_DIR= $(DOCS_WORK_DIR)/docs/rook/$(DOCS_VERSION)
+DOCS_VERSION_DIR := $(DOCS_WORK_DIR)/docs/rook/$(DOCS_VERSION)
 
 ifdef GIT_API_TOKEN
 DOCS_GIT_REPO := https://$(GIT_API_TOKEN)@github.com/ilovett/ilovett.github.io.git
