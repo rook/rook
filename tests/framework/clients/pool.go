@@ -23,8 +23,7 @@ import (
 
 //PoolClient is a wrapper for rook pool operations
 type PoolClient struct {
-	transportClient contracts.ITransportClient
-	restClient      contracts.RestAPIOperator
+	restClient contracts.RestAPIOperator
 }
 
 //CreatePoolClient creates a new pool client

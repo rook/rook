@@ -38,13 +38,16 @@ wait_for_ssh() {
 }
 
 copy_image_to_cluster() {
-    local final_image=$1
+    local build_image=$1
+    local final_image=$2
 
-    echo copying ${final_image} to minikube
+    echo copying ${build_image} to minikube
     mkdir -p ${WORK_DIR}/tests
     docker save -o ${tarfile} ${build_image}
     minikube_scp ${tarfile} /home/docker
     minikube_ssh "docker load -i /home/docker/${tarname}"
+    minikube_ssh "docker tag ${build_image} ${final_image}"
+
 }
 
 # configure dind-cluster
@@ -54,8 +57,8 @@ case "${1:-}" in
   up)
     minikube start --memory=2600 --iso-url=https://s3-us-west-2.amazonaws.com/minikube-cephfs/minikube.iso --kubernetes-version ${KUBE_VERSION}
     wait_for_ssh
-    copy_image_to_cluster rook/rook:master
-    copy_image_to_cluster rook/toolbox:master
+    copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
+    copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
 
     echo setting up rbd
     minikube_scp ${scriptdir}/minikube-rbd /home/docker/minikube-rbd

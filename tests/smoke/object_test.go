@@ -19,9 +19,11 @@ package smoke
 import (
 	"errors"
 
+	"fmt"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
+	"time"
 )
 
 var (
@@ -37,37 +39,39 @@ var (
 //Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,Delete Bucket and
 //Delete user
 func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
-	defer suite.blockTestDataCleanUp()
+	defer suite.objectTestDataCleanUp()
+	oc := suite.helper.GetObjectClient()
+
 	logger.Infof("Object Storage Smoke Test - Create Object Store, User,Bucket and read/write to bucket")
 
 	logger.Infof("Step 0 : Create Object Store")
-	_, cobsErr := suite.helper.CreateObjectStore()
+	cobsErr := suite.createObjectStore()
 	require.Nil(suite.T(), cobsErr)
 	logger.Infof("Object store created successfully")
 
 	logger.Infof("Step 1 : Create Object Store User")
-	initialUsers, _ := suite.helper.GetObjectStoreUsers()
-	_, cosuErr := suite.helper.CreateObjectStoreUser()
+	initialUsers, _ := oc.ObjectListUser()
+	_, cosuErr := oc.ObjectCreateUser(userid, userdisplayname)
 	require.Nil(suite.T(), cosuErr)
-	usersAfterCrate, _ := suite.helper.GetObjectStoreUsers()
+	usersAfterCrate, _ := oc.ObjectListUser()
 	require.Equal(suite.T(), len(initialUsers)+1, len(usersAfterCrate), "Make sure user list count is increaded by 1")
-	getuserData, guErr := suite.helper.GetObjectStoreUser(userid)
+	getuserData, guErr := oc.ObjectGetUser(userid)
 	require.Nil(suite.T(), guErr)
 	require.Equal(suite.T(), userid, getuserData.UserID, "Check user id returned")
 	require.Equal(suite.T(), userdisplayname, *getuserData.DisplayName, "Check user name returned")
 	logger.Infof("Object store user created successfully")
 
 	logger.Infof("Step 2 : Get connection information")
-	conninfo, conninfoError := suite.helper.GetObjectStoreUser(userid)
+	conninfo, conninfoError := oc.ObjectGetUser(userid)
 	require.Nil(suite.T(), conninfoError)
 
-	s3endpoint, _ := suite.helper.GetRGWServiceURL()
+	s3endpoint, _ := suite.k8sh.GetRGWServiceURL()
 	s3client := utils.CreateNewS3Helper(s3endpoint, *conninfo.AccessKey, *conninfo.SecretKey)
 
 	logger.Infof("Step 3 : Create bucket")
-	initialBuckets, _ := suite.helper.GetObjectStoreBucketList()
+	initialBuckets, _ := oc.ObjectBucketList()
 	s3client.CreateBucket(bucketname)
-	BucketsAfterCreate, _ := suite.helper.GetObjectStoreBucketList()
+	BucketsAfterCreate, _ := oc.ObjectBucketList()
 	require.Equal(suite.T(), len(initialBuckets)+1, len(BucketsAfterCreate), "Make sure new bucket is created")
 	bkt, _ := getBucket(bucketname, BucketsAfterCreate)
 	require.Equal(suite.T(), bucketname, bkt.Name)
@@ -80,7 +84,7 @@ func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 	require.Equal(suite.T(), uint64(0), initObjNum)
 	_, poErr := s3client.PutObjectInBucket(bucketname, objBody, objectKey, contentType)
 	require.Nil(suite.T(), poErr)
-	BucketsAfterPut, _ := suite.helper.GetObjectStoreBucketList()
+	BucketsAfterPut, _ := oc.ObjectBucketList()
 	ObjSize, ObjNum, _ := getBucketSizeAndObjectes(bucketname, BucketsAfterPut)
 	require.NotEmpty(suite.T(), ObjSize)
 	require.Equal(suite.T(), uint64(1), ObjNum)
@@ -90,12 +94,12 @@ func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 	read, err := s3client.GetObjectInBucket(bucketname, objectKey)
 	require.Nil(suite.T(), err)
 	require.Equal(suite.T(), objBody, read)
-	logger.Infof("Object retrived from bucket successfully")
+	logger.Infof("Object retrieved from bucket successfully")
 
 	logger.Infof("Step 6 : Delete Object on bucket")
 	_, delobjErr := s3client.DeleteObjectInBucket(bucketname, objectKey)
 	require.Nil(suite.T(), delobjErr)
-	BucketsAfterOjbDelete, _ := suite.helper.GetObjectStoreBucketList()
+	BucketsAfterOjbDelete, _ := oc.ObjectBucketList()
 	ObjSize1, ObjNum1, _ := getBucketSizeAndObjectes(bucketname, BucketsAfterOjbDelete)
 	require.Equal(suite.T(), uint64(0), ObjSize1)
 	require.Equal(suite.T(), uint64(0), ObjNum1)
@@ -104,14 +108,14 @@ func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 	logger.Infof("Step 6 : Delete  bucket")
 	_, bkdelErr := s3client.DeleteBucket(bucketname)
 	require.Nil(suite.T(), bkdelErr)
-	BucketsAfterDelete, _ := suite.helper.GetObjectStoreBucketList()
+	BucketsAfterDelete, _ := oc.ObjectBucketList()
 	require.Equal(suite.T(), len(initialBuckets), len(BucketsAfterDelete), "Make sure new bucket is deleted")
 	logger.Infof("Bucket  deleted successfully")
 
 	logger.Infof("Step 7 : Delete  User")
-	usersBeforeDelete, _ := suite.helper.GetObjectStoreUsers()
-	suite.helper.DeleteObjectStoreUser()
-	usersAfterDelete, _ := suite.helper.GetObjectStoreUsers()
+	usersBeforeDelete, _ := oc.ObjectListUser()
+	oc.ObjectDeleteUser(userid)
+	usersAfterDelete, _ := oc.ObjectListUser()
 	require.Equal(suite.T(), len(usersBeforeDelete)-1, len(usersAfterDelete), "Make sure user list count is reducd by 1")
 	logger.Infof("Object store user deleted successfully")
 
@@ -119,15 +123,16 @@ func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 
 func (suite *SmokeSuite) objectTestDataCleanUp() {
 	logger.Infof("Cleaning up object store")
-	userinfo, err := suite.helper.GetObjectStoreUser(userid)
+	oc := suite.helper.GetObjectClient()
+	userinfo, err := oc.ObjectGetUser(userid)
 	if err != nil {
 		return //when user is not found
 	}
-	s3endpoint, _ := suite.helper.GetRGWServiceURL()
+	s3endpoint, _ := suite.k8sh.GetRGWServiceURL()
 	s3client := utils.CreateNewS3Helper(s3endpoint, *userinfo.AccessKey, *userinfo.SecretKey)
 	s3client.DeleteObjectInBucket(bucketname, objectKey)
 	s3client.DeleteBucket(bucketname)
-	suite.helper.DeleteObjectStoreUser()
+	oc.ObjectDeleteUser(userid)
 
 }
 
@@ -142,10 +147,55 @@ func getBucket(bucketname string, bucketList []model.ObjectBucket) (model.Object
 	return model.ObjectBucket{}, errors.New("Bucket not found")
 }
 
+func (suite *SmokeSuite) createObjectStore() error {
+	suite.helper.GetObjectClient().ObjectCreate()
+	time.Sleep(time.Second * 2) //wait for rgw service to to started
+	if suite.k8sh.IsServiceUpInNameSpace("rook-ceph-rgw") {
+		_, err := suite.k8sh.GetService("rgw-external")
+		if err != nil {
+			suite.k8sh.KubectlWithStdin(getRGWExternalServiceDef(), []string{"create", "-f", "-"}...)
+			if !suite.k8sh.IsServiceUpInNameSpace("rgw-external") {
+				logger.Infof("Couldn't start RGW external serivce")
+				return fmt.Errorf("Cannot expose rgw servie for external user")
+			}
+
+		}
+
+		return nil
+	}
+	return fmt.Errorf("RGW service not started")
+
+}
+
 func getBucketSizeAndObjectes(bucketname string, bucketList []model.ObjectBucket) (uint64, uint64, error) {
 	bkt, err := getBucket(bucketname, bucketList)
 	if err != nil {
 		return 0, 0, errors.New("Bucket not found")
 	}
 	return bkt.Size, bkt.NumberOfObjects, nil
+}
+
+//Expose RGW service
+func getRGWExternalServiceDef() string {
+	return `apiVersion: v1
+kind: Service
+metadata:
+  name: rgw-external
+  namespace: rook
+  labels:
+    app: rook-ceph-rgw
+    rook_cluster: rook
+spec:
+  ports:
+  - name: rook-ceph-rgw
+    port: 53390
+    protocol: TCP
+    nodePort: 30001
+  selector:
+    app: rook-ceph-rgw
+    rook_cluster: rook
+  sessionAffinity: None
+  type: NodePort
+`
+
 }

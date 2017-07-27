@@ -20,15 +20,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 
+	"bytes"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/jmoiron/jsonq"
 	"github.com/rook/rook/pkg/util/exec"
@@ -39,6 +37,13 @@ type K8sHelper struct {
 	executor  *exec.CommandExecutor
 	Clientset *kubernetes.Clientset
 }
+
+const (
+	//RetryLoop params for tests.
+	RetryLoop = 30
+	//RetryInterval param for test - wait time while in RetryLoop
+	RetryInterval = 5
+)
 
 //CreatK8sHelper creates a instance of k8sHelper
 func CreatK8sHelper() (*K8sHelper, error) {
@@ -58,21 +63,47 @@ func CreatK8sHelper() (*K8sHelper, error) {
 
 var k8slogger = capnslog.NewPackageLogger("github.com/rook/rook", "k8sutil")
 
+//GetK8sServerVersion returns k8s server version under test
+func (k8sh *K8sHelper) GetK8sServerVersion() string {
+	versionInfo, _ := k8sh.Clientset.ServerVersion()
+	return versionInfo.GitVersion
+}
+
 //Kubectl is wrapper for executing kubectl commands
-func (k8sh *K8sHelper) Kubectl(args ...string) string {
+func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
 	result, err := k8sh.executor.ExecuteCommandWithOutput("", "kubectl", args...)
 	if err != nil {
-		k8slogger.Errorf("Errors Encounterd while executing kubectl command : %v", err)
-		panic(err)
+		k8slogger.Errorf("Errors Encountered while executing kubectl command : %v", err)
+		return "", fmt.Errorf("Failed to run kubectl commands on args %v : %v", args, err)
 
 	}
-	return result
+	return result, nil
+
+}
+
+//KubectlWithStdin is wrapper for executing kubectl commands in stdin
+func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, error) {
+
+	cmdStruct := CommandArgs{Command: "kubectl", PipeToStdIn: stdin, CmdArgs: args}
+
+	cmdOut := ExecuteCommand(cmdStruct)
+
+	if cmdOut.ExitCode != 0 {
+		k8slogger.Errorf("Errors Encountered while executing kubectl command : %v", cmdOut.Err.Error())
+		return cmdOut.StdErr, fmt.Errorf("Failed to run kubectl commands on args %v : %v", args, cmdOut.StdErr)
+	}
+	if cmdOut.StdOut == "" {
+		return cmdOut.StdErr, nil
+	}
+
+	return cmdOut.StdOut, nil
+
 }
 
 func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 	context, err := executor.ExecuteCommandWithOutput("", "kubectl", "config", "view", "-o", "json")
 	if err != nil {
-		k8slogger.Errorf("Errors Encounterd while executing kubectl command : %v", err)
+		k8slogger.Errorf("Errors Encountered while executing kubectl command : %v", err)
 	}
 
 	// Parse the kubectl context to get the settings for client connections
@@ -89,7 +120,7 @@ func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("failed to find kube context %s in %+v.", kc.Current, kc.Clusters)
+		return nil, fmt.Errorf("failed to find kube context %s in %+v", kc.Current, kc.Clusters)
 	}
 	config := &rest.Config{Host: currentCluster.Cluster.Server}
 	config.Insecure = true
@@ -105,7 +136,7 @@ func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 
 	if !currentCluster.Cluster.Insecure {
 		if !userFound {
-			return nil, fmt.Errorf("failed to find kube user %s in %+v.", kc.Current, kc.Users)
+			return nil, fmt.Errorf("failed to find kube user %s in %+v", kc.Current, kc.Users)
 		}
 		config.Insecure = false
 		config.TLSClientConfig = rest.TLSClientConfig{
@@ -145,67 +176,76 @@ type kuserContext struct {
 func (k8sh *K8sHelper) GetMonIP(mon string) (string, error) {
 	//kubectl -n rook get pod mon0 -o json|jq ".status.podIP"|
 	cmdArgs := []string{"-n", "rook", "get", "pod", mon, "-o", "json"}
-	out, err, status := ExecuteCmd("kubectl", cmdArgs)
-	if status == 0 {
+	result, err := k8sh.Kubectl(cmdArgs...)
+	if err == nil {
 		data := map[string]interface{}{}
-		dec := json.NewDecoder(strings.NewReader(out))
+		dec := json.NewDecoder(strings.NewReader(result))
 		dec.Decode(&data)
 		jq := jsonq.NewQuery(data)
 		ip, _ := jq.String("status", "podIP")
 		return ip + ":6790", nil
 	}
-	return err, fmt.Errorf("Error Getting Monitor IP")
+	return "", fmt.Errorf("Error Getting Monitor IP : %v", err)
 }
 
 //ResourceOperationFromTemplate performs a kubectl action from a template file after replacing its context
-func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, poddefPath string, config map[string]string) (string, error) {
+func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinition string, config map[string]string) (string, error) {
 
-	t, _ := template.ParseFiles(poddefPath)
-	file, _ := ioutil.TempFile(os.TempDir(), "prefix")
-	t.Execute(file, config)
-	dir, _ := filepath.Abs(file.Name())
-
-	cmdArgs := []string{action, "-f", dir}
-	stdout, stderr, status := ExecuteCmd("kubectl", cmdArgs)
-	if status == 0 {
-		return stdout, nil
+	t := template.New("testTemplate")
+	t, err := t.Parse(podDefinition)
+	if err != nil {
+		return err.Error(), err
 	}
-	return stdout + " : " + stderr, fmt.Errorf("Could Not create resource in k8s. status=%d, stdout=%s, stderr=%s", status, stdout, stderr)
+	var tpl bytes.Buffer
+
+	if err := t.Execute(&tpl, config); err != nil {
+		return err.Error(), err
+	}
+
+	podDef := tpl.String()
+
+	args := []string{action, "-f", "-"}
+	result, err := k8sh.KubectlWithStdin(podDef, args...)
+	if err == nil {
+		return result, nil
+	}
+	logger.Errorf("Failed to execute kubectl %v %v -- %v", args, podDef, err)
+	return "", fmt.Errorf("Could Not create resource in args : %v  %v-- %v", args, podDef, err)
 
 }
 
-//ResourceOperation performs a kubectl action on a yaml file
-func (k8sh *K8sHelper) ResourceOperation(action string, poddefPath string) (string, error) {
+//ResourceOperation performs a kubectl action on a pod definition
+func (k8sh *K8sHelper) ResourceOperation(action string, podDefiniton string) (string, error) {
 
-	args := []string{action, "-f", poddefPath}
-	stdout, stderr, status := ExecuteCmd("kubectl", args)
-	if status == 0 {
-		return stdout, nil
+	args := []string{action, "-f", "-"}
+	result, err := k8sh.KubectlWithStdin(podDefiniton, args...)
+	if err == nil {
+		return result, nil
 	}
+	logger.Errorf("Failed to execute kubectl %v -- %v", args, err)
+	return "", fmt.Errorf("Could Not create resource in args : %v -- %v", args, err)
 
-	logger.Errorf("Failed to execute kubectl %v (%d). stdout=%s. stderr=%s", args, status, stdout, stderr)
-	return "FAILURE", fmt.Errorf("Failed to execute kubectl %v (%d). stdout=%s. stderr=%s", args, status, stdout, stderr)
 }
 
 //DeleteResource performs a kubectl delete on give args
 func (k8sh *K8sHelper) DeleteResource(args []string) (string, error) {
-	cmdArgs := append([]string{"delete"}, args...)
-	out, err, status := ExecuteCmd("kubectl", cmdArgs)
-	if status == 0 {
-		return out, nil
+	args = append([]string{"delete"}, args...)
+	result, err := k8sh.Kubectl(args...)
+	if err == nil {
+		return result, nil
 	}
-	return out + " : " + err, fmt.Errorf("Could Not delete resource in k8s")
+	return "", fmt.Errorf("Could Not delete resource in k8s -- %v", err)
 
 }
 
 //GetResource performs a kubectl get on give args
 func (k8sh *K8sHelper) GetResource(args []string) (string, error) {
-	cmdArgs := append([]string{"get"}, args...)
-	out, err, status := ExecuteCmd("kubectl", cmdArgs)
-	if status == 0 {
-		return out, nil
+	args = append([]string{"get"}, args...)
+	result, err := k8sh.Kubectl(args...)
+	if err == nil {
+		return result, nil
 	}
-	return out + " : " + err, fmt.Errorf("Could Not Get resource in k8s")
+	return "", fmt.Errorf("Could Not get resource in k8s -- %v", err)
 
 }
 
@@ -218,11 +258,11 @@ func (k8sh *K8sHelper) GetMonitorPods() ([]string, error) {
 	for moncount < 3 {
 		m := fmt.Sprintf("rook-ceph-mon%d", monIdx)
 		selector := fmt.Sprintf("mon=%s", m)
-		cmdArgs := []string{"-n", "rook", "get", "pod", "-l", selector}
-		stdout, _, status := ExecuteCmd("kubectl", cmdArgs)
-		if status == 0 {
+		args := []string{"-n", "rook", "get", "pod", "-l", selector}
+		result, err := k8sh.Kubectl(args...)
+		if err == nil {
 			// Get the first word of the second line of the output for the mon pod
-			lines := strings.Split(stdout, "\n")
+			lines := strings.Split(result, "\n")
 			if len(lines) > 1 {
 				name := strings.Split(lines[1], " ")[0]
 				mons = append(mons, name)
@@ -240,60 +280,20 @@ func (k8sh *K8sHelper) GetMonitorPods() ([]string, error) {
 	return mons, nil
 }
 
-//IsPodRunning retuns true if a Pod is running status or goes to Running status within 90s else returns false
+//IsPodRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) IsPodRunning(name string) bool {
-	cmdArgs := []string{"get", "pod", name}
+	args := []string{"get", "pod", name, "-o", "jsonpath='{.status.phase}'"}
 	inc := 0
-	for inc < 20 {
-		out, _, status := ExecuteCmd("kubectl", cmdArgs)
-		if status == 0 {
-			lines := strings.Split(out, "\n")
-			if len(lines) == 3 {
-				lines = lines[1 : len(lines)-1]
-				bktsrawdata := strings.Split(lines[0], "  ")
-				var r []string
-				for _, str := range bktsrawdata {
-					if str != "" {
-						r = append(r, strings.TrimSpace(str))
-					}
-				}
-				if r[2] == "Running" {
-					return true
-				}
+	for inc < RetryLoop {
+		result, err := k8sh.Kubectl(args...)
+		if err == nil {
+			if strings.Contains(result, "Running") {
+				return true
 			}
+			logger.Infof("Pod %s status: %s", name, result)
 		}
-		time.Sleep(5 * time.Second)
-		inc++
 
-	}
-	return false
-}
-
-//IsPodRunningInNamespace retuns true if a Pod in a namespace is running status or goes to Running
-// status within 90s else returns false
-func (k8sh *K8sHelper) IsPodRunningInNamespace(name string) bool {
-	cmdArgs := []string{"get", "pods", "-n", "rook", name}
-	inc := 0
-	for inc < 20 {
-		out, _, status := ExecuteCmd("kubectl", cmdArgs)
-		if status == 0 {
-			lines := strings.Split(out, "\n")
-			if len(lines) == 3 {
-				lines = lines[1 : len(lines)-1]
-				bktsrawdata := strings.Split(lines[0], "  ")
-				var r []string
-				for _, str := range bktsrawdata {
-					if str != "" {
-						r = append(r, strings.TrimSpace(str))
-					}
-				}
-				if r[2] == "Running" {
-					return true
-				}
-				logger.Infof("Pod %s status: %s", name, r[2])
-			}
-		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(RetryInterval * time.Second)
 		inc++
 
 	}
@@ -301,18 +301,39 @@ func (k8sh *K8sHelper) IsPodRunningInNamespace(name string) bool {
 	return false
 }
 
-//IsPodTerminated retuns true if a Pod is terminated status or goes to Terminated  status
+//IsPodRunningInNamespace returns true if a Pod in a namespace is running status or goes to Running
+// status within 90s else returns false
+func (k8sh *K8sHelper) IsPodRunningInNamespace(name string) bool {
+	args := []string{"get", "pods", "-n", "rook", name, "-o", "jsonpath='{.status.phase}'"}
+	inc := 0
+	for inc < RetryLoop {
+		result, err := k8sh.Kubectl(args...)
+		if err == nil {
+			if strings.Contains(result, "Running") {
+				return true
+			}
+			logger.Infof("Pod %s status: %s", name, result)
+		}
+		time.Sleep(RetryInterval * time.Second)
+		inc++
+
+	}
+	logger.Infof("Giving up waiting for pod %s to be running", name)
+	return false
+}
+
+//IsPodTerminated returns true if a Pod is terminated status or goes to Terminated  status
 // within 90s else returns false\
 func (k8sh *K8sHelper) IsPodTerminated(name string) bool {
-	cmdArgs := []string{"get", "pods", name}
+	args := []string{"get", "pods", name}
 	inc := 0
 	for inc < 20 {
-		_, _, status := ExecuteCmd("kubectl", cmdArgs)
-		if status != 0 {
+		_, err := k8sh.Kubectl(args...)
+		if err != nil {
 			k8slogger.Infof("Pod in default namespace terminated: " + name)
 			return true
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(RetryInterval * time.Second)
 		inc++
 
 	}
@@ -320,18 +341,18 @@ func (k8sh *K8sHelper) IsPodTerminated(name string) bool {
 	return false
 }
 
-//IsPodTerminatedInNamespace retuns true if a Pod  in a namespace is terminated status
+//IsPodTerminatedInNamespace returns true if a Pod  in a namespace is terminated status
 // or goes to Terminated  status within 90s else returns false\
 func (k8sh *K8sHelper) IsPodTerminatedInNamespace(name string) bool {
-	cmdArgs := []string{"get", "-n", "rook", "pods", name}
+	args := []string{"get", "-n", "rook", "pods", name}
 	inc := 0
 	for inc < 20 {
-		_, _, status := ExecuteCmd("kubectl", cmdArgs)
-		if status != 0 {
+		_, err := k8sh.Kubectl(args...)
+		if err != nil {
 			k8slogger.Infof("Pod in rook namespace terminated: " + name)
 			return true
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(RetryInterval * time.Second)
 		inc++
 
 	}
@@ -341,15 +362,15 @@ func (k8sh *K8sHelper) IsPodTerminatedInNamespace(name string) bool {
 
 //IsServiceUp returns true if a service is up or comes up within 40s, else returns false
 func (k8sh *K8sHelper) IsServiceUp(name string) bool {
-	cmdArgs := []string{"get", "svc", name}
+	args := []string{"get", "svc", name}
 	inc := 0
 	for inc < 20 {
-		_, _, status := ExecuteCmd("kubectl", cmdArgs)
-		if status == 0 {
+		_, err := k8sh.Kubectl(args...)
+		if err == nil {
 			k8slogger.Infof("Service in default namespace is up: " + name)
 			return true
 		}
-		time.Sleep(2 * time.Second)
+		time.Sleep(RetryInterval * time.Second)
 		inc++
 
 	}
@@ -359,15 +380,14 @@ func (k8sh *K8sHelper) IsServiceUp(name string) bool {
 
 //IsServiceUpInNameSpace returns true if a service  in a namespace is up or comes up within 40s, else returns false
 func (k8sh *K8sHelper) IsServiceUpInNameSpace(name string) bool {
-
-	cmdArgs := []string{"get", "svc", "-n", "rook", name}
+	args := []string{"get", "svc", "-n", "rook", name}
 	inc := 0
 	for inc < 20 {
-		_, _, status := ExecuteCmd("kubectl", cmdArgs)
-		if status == 0 {
+		_, err := k8sh.Kubectl(args...)
+		if err == nil {
 			return true
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(RetryInterval * time.Second)
 		inc++
 
 	}
@@ -377,26 +397,25 @@ func (k8sh *K8sHelper) IsServiceUpInNameSpace(name string) bool {
 
 //GetService returns output from "kubectl get svc $NAME" command
 func (k8sh *K8sHelper) GetService(servicename string) (string, error) {
-	cmdArgs := []string{"get", "svc", "-n", "rook", servicename}
-	sout, serr, status := ExecuteCmd("kubectl", cmdArgs)
-	if status != 0 {
-		return serr, fmt.Errorf("Cannot find service")
+	args := []string{"get", "svc", "-n", "rook", servicename}
+	result, err := k8sh.Kubectl(args...)
+	if err != nil {
+		return "", fmt.Errorf("Cannot find service %v -- %v", servicename, err)
 	}
-	return sout, nil
+	return result, nil
 }
 
 //IsThirdPartyResourcePresent returns true if Third party resource is present
 func (k8sh *K8sHelper) IsThirdPartyResourcePresent(tprname string) bool {
-
-	cmdArgs := []string{"get", "thirdpartyresources", tprname}
+	args := []string{"get", "thirdpartyresources", tprname}
 	inc := 0
 	for inc < 20 {
-		_, _, exitCode := ExecuteCmd("kubectl", cmdArgs)
-		if exitCode == 0 {
+		_, err := k8sh.Kubectl(args...)
+		if err == nil {
 			k8slogger.Infof("Found the thirdparty resource: " + tprname)
 			return true
 		}
-		time.Sleep(5 * time.Second)
+		time.Sleep(RetryInterval * time.Second)
 		inc++
 	}
 
@@ -405,15 +424,15 @@ func (k8sh *K8sHelper) IsThirdPartyResourcePresent(tprname string) bool {
 
 //GetPodDetails returns details about a  pod
 func (k8sh *K8sHelper) GetPodDetails(podNamePattern string, namespace string) (string, error) {
-	cmdArgs := []string{"get", "pods", "-l", "app=" + podNamePattern, "-o", "wide", "--no-headers=true", "-o", "name"}
+	args := []string{"get", "pods", "-l", "app=" + podNamePattern, "-o", "wide", "--no-headers=true", "-o", "name"}
 	if namespace != "" {
-		cmdArgs = append(cmdArgs, []string{"-n", namespace}...)
+		args = append(args, []string{"-n", namespace}...)
 	}
-	sout, serr, status := ExecuteCmd("kubectl", cmdArgs)
-	if status != 0 || strings.Contains(sout, "No resources found") {
-		return serr, fmt.Errorf("Cannot find pod in with name like %s in namespace : %s", podNamePattern, namespace)
+	result, err := k8sh.Kubectl(args...)
+	if err != nil || strings.Contains(result, "No resources found") {
+		return "", fmt.Errorf("Cannot find pod in with name like %s in namespace : %s -- %v", podNamePattern, namespace, err)
 	}
-	return strings.TrimSpace(sout), nil
+	return strings.TrimSpace(result), nil
 }
 
 //GetPodHostID returns HostIP address of a pod
@@ -429,59 +448,59 @@ func (k8sh *K8sHelper) GetPodHostID(podNamePattern string, namespace string) (st
 	}
 
 	//get host Ip of the pod
-	cmdArgs := []string{"get", podNames[0], "-o", "jsonpath='{.status.hostIP}'"}
+	args := []string{"get", podNames[0], "-o", "jsonpath='{.status.hostIP}'"}
 	if namespace != "" {
-		cmdArgs = append(cmdArgs, []string{"-n", namespace}...)
+		args = append(args, []string{"-n", namespace}...)
 	}
-	sout, serr, status := ExecuteCmd("kubectl", cmdArgs)
-	if status == 0 {
-		hostIP := strings.Replace(sout, "'", "", -1)
+	result, err := k8sh.Kubectl(args...)
+	if err == nil {
+		hostIP := strings.Replace(result, "'", "", -1)
 		return strings.TrimSpace(hostIP), nil
 	}
-	return serr, fmt.Errorf("Error Getting Monitor IP")
+	return "", fmt.Errorf("Error Getting Monitor IP -- %v", err)
 
 }
 
 //IsStorageClassPresent returns true if storageClass is present, if not false
 func (k8sh *K8sHelper) IsStorageClassPresent(name string) (bool, error) {
-	cmdArgs := []string{"get", "storageclass", "-o", "jsonpath='{.items[*].metadata.name}'"}
-	sout, serr, _ := ExecuteCmd("kubectl", cmdArgs)
-	if strings.Contains(sout, name) {
+	args := []string{"get", "storageclass", "-o", "jsonpath='{.items[*].metadata.name}'"}
+	result, err := k8sh.Kubectl(args...)
+	if strings.Contains(result, name) {
 		return true, nil
 	}
-	return false, fmt.Errorf("Storageclass %s not found, err ->%s", name, serr)
+	return false, fmt.Errorf("Storageclass %s not found, err ->%v", name, err)
 
 }
 
 //GetPVCStatus returns status of PVC
 func (k8sh *K8sHelper) GetPVCStatus(name string) (string, error) {
-	cmdArgs := []string{"get", "pvc", "-o", "jsonpath='{.items[*].metadata.name}'"}
-	sout, serr, _ := ExecuteCmd("kubectl", cmdArgs)
-	if strings.Contains(sout, name) {
-		cmdArgs := []string{"get", "pvc", name, "-o", "jsonpath='{.status.phase}'"}
-		res, _, _ := ExecuteCmd("kubectl", cmdArgs)
+	args := []string{"get", "pvc", "-o", "jsonpath='{.items[*].metadata.name}'"}
+	result, err := k8sh.Kubectl(args...)
+	if strings.Contains(result, name) {
+		args := []string{"get", "pvc", name, "-o", "jsonpath='{.status.phase}'"}
+		res, _ := k8sh.Kubectl(args...)
 		return res, nil
 	}
-	return "PVC NOT FOUND", fmt.Errorf("PVC %s not found,err->%s", name, serr)
+	return "PVC NOT FOUND", fmt.Errorf("PVC %s not found,err->%v", name, err)
 }
 
 //IsPodInExpectedState waits for 90s for a pod to be an expected state
 //If the pod is in expected state within 90s true is returned,  if not false
 func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace string, state string) bool {
-	cmdArgs := []string{"get", "pods", "-l", "app=" + podNamePattern, "-o", "jsonpath={.items[0].status.phase}", "--no-headers=true"}
+	args := []string{"get", "pods", "-l", "app=" + podNamePattern, "-o", "jsonpath={.items[0].status.phase}", "--no-headers=true"}
 	if namespace != "" {
-		cmdArgs = append(cmdArgs, []string{"-n", namespace}...)
+		args = append(args, []string{"-n", namespace}...)
 	}
 	inc := 0
-	for inc < 30 {
-		res, _, status := ExecuteCmd("kubectl", cmdArgs)
-		if status == 0 {
-			if res == state {
+	for inc < RetryLoop {
+		result, err := k8sh.Kubectl(args...)
+		if err == nil {
+			if result == state {
 				return true
 			}
 		}
 		inc++
-		time.Sleep(3 * time.Second)
+		time.Sleep(RetryInterval * time.Second)
 	}
 
 	return false
@@ -492,14 +511,14 @@ func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace str
 func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, namespace string) bool {
 	args := []string{"-n", namespace, "pods", "-l", "app=" + podNamePattern}
 	inc := 0
-	for inc < 30 {
+	for inc < RetryLoop {
 		out, _ := k8sh.GetResource(args)
 		if !strings.Contains(out, podNamePattern) {
 			return true
 		}
 
 		inc++
-		time.Sleep(3 * time.Second)
+		time.Sleep(RetryInterval * time.Second)
 	}
 	panic(fmt.Errorf("Rook not uninstalled"))
 }
@@ -509,14 +528,14 @@ func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, n
 func (k8sh *K8sHelper) WaitUntilPodIsDeleted(podNamePattern string) bool {
 	args := []string{"pods", "-l", "app=" + podNamePattern}
 	inc := 0
-	for inc < 30 {
+	for inc < RetryLoop {
 		out, _ := k8sh.GetResource(args)
 		if !strings.Contains(out, podNamePattern) {
 			return true
 		}
 
 		inc++
-		time.Sleep(3 * time.Second)
+		time.Sleep(RetryInterval * time.Second)
 	}
 	return false
 }
@@ -526,7 +545,7 @@ func (k8sh *K8sHelper) WaitUntilPodIsDeleted(podNamePattern string) bool {
 func (k8sh *K8sHelper) WaitUntilPVCIsBound(pvcname string) bool {
 
 	inc := 0
-	for inc < 30 {
+	for inc < RetryLoop {
 		out, err := k8sh.GetPVCStatus(pvcname)
 		if strings.Contains(out, "Bound") {
 			return true
@@ -534,7 +553,19 @@ func (k8sh *K8sHelper) WaitUntilPVCIsBound(pvcname string) bool {
 
 		logger.Infof("waiting for PVC to be bound. current=%s. err=%+v", out, err)
 		inc++
-		time.Sleep(3 * time.Second)
+		time.Sleep(RetryInterval * time.Second)
 	}
 	return false
+}
+
+//GetRGWServiceURL returns URL of ceph RGW service in the cluster
+func (k8sh *K8sHelper) GetRGWServiceURL() (string, error) {
+	hostip, err := k8sh.GetPodHostID("rook-ceph-rgw", "rook")
+	if err != nil {
+		panic(fmt.Errorf("RGW pods not found/object store possibly not started"))
+	}
+
+	//TODO - Get nodePort stop hardcoding
+	endpoint := hostip + ":30001"
+	return endpoint, err
 }

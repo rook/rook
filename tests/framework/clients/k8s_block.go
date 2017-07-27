@@ -21,12 +21,13 @@ import (
 
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/contracts"
+	"github.com/rook/rook/tests/framework/utils"
 )
 
 //BlockOperation is wrapper for k8s rook block operations
 type BlockOperation struct {
-	transportClient contracts.ITransportClient
-	restClient      contracts.RestAPIOperator
+	k8sClient  *utils.K8sHelper
+	restClient contracts.RestAPIOperator
 }
 
 var (
@@ -35,36 +36,38 @@ var (
 )
 
 // CreateK8BlockOperation - Constructor to create BlockOperation - client to perform rook Block operations on k8s
-func CreateK8BlockOperation(client contracts.ITransportClient, rookRestClient contracts.RestAPIOperator) *BlockOperation {
-	return &BlockOperation{transportClient: client, restClient: rookRestClient}
+func CreateK8BlockOperation(k8shelp *utils.K8sHelper, rookRestClient contracts.RestAPIOperator) *BlockOperation {
+	return &BlockOperation{k8sClient: k8shelp, restClient: rookRestClient}
 }
 
 // BlockCreate Function to create a Block using Rook
-// Input paramaters -
-//name - path to a yaml file that creates a pvc in k8s - yaml should describe name and size of pvc being created
+// Input parameters -
+//name - pod definition that creates a pvc in k8s - yaml should describe name and size of pvc being created
 //size - not user for k8s implementation since its descried on the pvc yaml definition
 //Output - k8s create pvc operation output and/or error
 func (rb *BlockOperation) BlockCreate(name string, size int) (string, error) {
-	cmdArgs := []string{name}
-	out, err, status := rb.transportClient.Create(cmdArgs, nil)
-	if status == 0 {
-		return out, nil
+	args := []string{"create", "-f", "-"}
+	result, err := rb.k8sClient.KubectlWithStdin(name, args...)
+	if err != nil {
+		return "", fmt.Errorf("Unable to create block -- : %s", err)
+
 	}
-	return err, fmt.Errorf("Unable to create block -- : %s", err)
+	return result, nil
 
 }
 
 // BlockDelete Function to delete a Block using Rook
-// Input paramaters -
-//name - path to a yaml file that where pvc is described - delete is run on the the yaml definition
+// Input parameters -
+//name - pod definition  where pvc is described - delete is run on the the yaml definition
 //Output  - k8s delete pvc operation output and/or error
 func (rb *BlockOperation) BlockDelete(name string) (string, error) {
-	cmdArgs := []string{name}
-	out, err, status := rb.transportClient.Delete(cmdArgs, nil)
-	if status == 0 {
-		return out, nil
+	args := []string{"delete", "-f", "-"}
+	result, err := rb.k8sClient.KubectlWithStdin(name, args...)
+	if err != nil {
+		return "", fmt.Errorf("Unable to delete block -- : %s", err)
+
 	}
-	return err, fmt.Errorf("Unable to delete block -- : %s", err)
+	return result, nil
 
 }
 
@@ -75,22 +78,23 @@ func (rb *BlockOperation) BlockList() ([]model.BlockImage, error) {
 }
 
 // BlockMap Function to map a Block using Rook
-// Input paramaters -
-//name - path to a yaml file that creates a pod  - pod should be defined to use a pvc that was created earlier
+// Input parameters -
+//name - Pod definition  - pod should be defined to use a pvc that was created earlier
 //mountpath - not used in this impl since mountpath is defined in the pod definition
 //Output  - k8s create pod operation output and/or error
 func (rb *BlockOperation) BlockMap(name string, mountpath string) (string, error) {
-	cmdArgs := []string{name}
-	out, err, status := rb.transportClient.Create(cmdArgs, nil)
-	if status == 0 {
-		return out, nil
+	args := []string{"create", "-f", "-"}
+	result, err := rb.k8sClient.KubectlWithStdin(name, args...)
+	if err != nil {
+		return "", fmt.Errorf("Unable to map block -- : %s", err)
+
 	}
-	return err, fmt.Errorf("Unable to Map block -- : %s", err)
+	return result, nil
 
 }
 
 //BlockWrite Function to write  data to block created by rook ,i.e. write data to a pod that is using a pvc
-// Input paramaters -
+// Input parameters -
 //name - path to a yaml file that creates a pod  - pod should be defined to use a pvc that was created earlier
 //mountpath - folder on the pod were data is supposed to be written(should match the mountpath described in the pod definition)
 //data - data to be written
@@ -99,21 +103,24 @@ func (rb *BlockOperation) BlockMap(name string, mountpath string) (string, error
 //Output  - k8s exec pod operation output and/or error
 func (rb *BlockOperation) BlockWrite(name string, mountpath string, data string, filename string, namespace string) (string, error) {
 	wt := "echo \"" + data + "\">" + mountpath + "/" + filename
-	writeDataToBlockPod[2] = wt
-	option := []string{name}
+	args := []string{"exec", name}
+
 	if namespace != "" {
-		option = append(option, namespace)
+		args = append(args, "-n", namespace)
 	}
-	out, err, status := rb.transportClient.Execute(writeDataToBlockPod, option)
-	if status == 0 {
-		return out, nil
+	args = append(args, "--", "sh", "-c", wt)
+
+	result, err := rb.k8sClient.Kubectl(args...)
+	if err != nil {
+		return "", fmt.Errorf("Unable to write data to pod --: %s", err)
+
 	}
-	return err, fmt.Errorf("Unable to write data to pod: %s --> %s", err, out)
+	return result, nil
 
 }
 
 // BlockRead Function to read from block created by rook ,i.e. Read data from a pod that is using a pvc
-// Input paramaters -
+// Input parameters -
 //name - path to a yaml file that creates a pod  - pod should be defined to use a pvc that was created earlier
 //mountpath - folder on the pod were data is supposed to be written(should match the mountpath described in the pod definition)
 //filename - file to be read
@@ -121,30 +128,34 @@ func (rb *BlockOperation) BlockWrite(name string, mountpath string, data string,
 //Output  - k8s exec pod operation output and/or error
 func (rb *BlockOperation) BlockRead(name string, mountpath string, filename string, namespace string) (string, error) {
 	rd := mountpath + "/" + filename
-	readDataFromBlockPod[1] = rd
-	option := []string{name}
+	args := []string{"exec", name}
+
 	if namespace != "" {
-		option = append(option, namespace)
+		args = append(args, "-n", namespace)
 	}
-	out, err, status := rb.transportClient.Execute(readDataFromBlockPod, option)
-	if status == 0 {
-		return out, nil
+	args = append(args, "--", "cat", rd)
+
+	result, err := rb.k8sClient.Kubectl(args...)
+	if err != nil {
+		return "", fmt.Errorf("Unable to read data to pod -- : %s", err)
+
 	}
-	return err, fmt.Errorf("Unable to read data to pod -- : %s", err)
+	return result, nil
 
 }
 
 // BlockUnmap Function to map a Block using Rook
-// Input paramaters -
-//name - path to a yaml file - the pod described in yam file is deleted
+// Input parameters -
+//name - ppod definition - the pod described in yam file is deleted
 //mountpath - not used in this impl since mountpath is defined in the pod definition
 //Output  - k8s delete pod operation output and/or error
 func (rb *BlockOperation) BlockUnmap(name string, mountpath string) (string, error) {
-	cmdArgs := []string{name}
-	out, err, status := rb.transportClient.Delete(cmdArgs, nil)
-	if status == 0 {
-		return out, nil
+	args := []string{"delete", "-f", "-"}
+	result, err := rb.k8sClient.KubectlWithStdin(name, args...)
+	if err != nil {
+		return "", fmt.Errorf("Unable to unmap block -- : %s", err)
+
 	}
-	return err, fmt.Errorf("Unable to unmap block -- : %s", err)
+	return result, nil
 
 }

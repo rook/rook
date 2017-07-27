@@ -14,13 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package k8s
+package integration
 
 import (
-	"bytes"
-	"html/template"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -29,7 +25,6 @@ import (
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/installer"
-	"github.com/rook/rook/tests/framework/objects"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -46,13 +41,13 @@ func TestK8sBlockCreate(t *testing.T) {
 
 type K8sBlockImageCreateSuite struct {
 	suite.Suite
-	testClient       *clients.TestClient
-	bc               contracts.BlockOperator
-	kh               *utils.K8sHelper
-	initBlockCount   int
-	pvPath           string
-	storageclassPath string
-	installer        *installer.InstallHelper
+	testClient      *clients.TestClient
+	bc              contracts.BlockOperator
+	kh              *utils.K8sHelper
+	initBlockCount  int
+	pvcDef          string
+	storageclassDef string
+	installer       *installer.InstallHelper
 }
 
 func (s *K8sBlockImageCreateSuite) SetupSuite() {
@@ -73,8 +68,41 @@ func (s *K8sBlockImageCreateSuite) SetupSuite() {
 	initialBlocks, err := s.bc.BlockList()
 	require.Nil(s.T(), err)
 	s.initBlockCount = len(initialBlocks)
-	s.pvPath = filepath.Join(os.Getenv("GOPATH"), "src/github.com/rook/rook/tests/data/block/pvc.tmpl")
-	s.storageclassPath = filepath.Join(os.Getenv("GOPATH"), "src/github.com/rook/rook/tests/data/block/storageclass_pool.tmpl")
+
+	s.pvcDef = `apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{.claimName}}
+  annotations:
+    volume.beta.kubernetes.io/storage-class: rook-block
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1M`
+
+	s.storageclassDef = `apiVersion: rook.io/v1alpha1
+kind: Pool
+metadata:
+  name: {{.poolName}}
+  namespace: rook
+spec:
+  replication:
+    size: 1
+  # For an erasure-coded pool, comment out the replication count above and uncomment the following settings.
+  # Make sure you have enough OSDs to support the replica count or erasure code chunks.
+  #erasureCode:
+  #  codingChunks: 2
+  #  dataChunks: 2
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: rook-block
+provisioner: rook.io/block
+parameters:
+    pool: {{.poolName}}`
 }
 
 // Test case when persistentvolumeclaim is created for a storage class that doesn't exist
@@ -82,10 +110,9 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 
 	s.T().Log("Test creating PVC(block images) when storage class is not created")
 	//Create PVC
-	sout1, serr1, status1 := s.pvcOperation(claimName, "create")
-	require.Contains(s.T(), sout1, "persistentvolumeclaim \"test-claim1\" created", "Make sure pvc is created")
-	require.Empty(s.T(), serr1, "Make sure there are no errors")
-	require.Equal(s.T(), 0, status1)
+	result, err := s.pvcOperation(claimName, "create")
+	require.Contains(s.T(), result, "persistentvolumeclaim \"test-claim1\" created", "Make sure pvc is created")
+	require.NoError(s.T(), err)
 
 	//check status of PVC
 	pvcStatus, err := s.kh.GetPVCStatus(claimName)
@@ -103,11 +130,10 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenStorageClassExists() {
 
 	s.T().Log("Test creating PVC(block images) when storage class is created")
 	//create pool and storageclass
-	sout, serr, status := s.storageClassOperation("test-pool-1", "create")
-	require.Contains(s.T(), sout, "pool \"test-pool-1\" created", "Make sure test pool is created")
-	require.Contains(s.T(), sout, "storageclass \"rook-block\" created", "Make sure storageclass is created")
-	require.Empty(s.T(), serr, "Make sure there are no errors")
-	require.Equal(s.T(), 0, status)
+	result1, err1 := s.storageClassOperation("test-pool-1", "create")
+	require.Contains(s.T(), result1, "pool \"test-pool-1\" created", "Make sure test pool is created")
+	require.Contains(s.T(), result1, "storageclass \"rook-block\" created", "Make sure storageclass is created")
+	require.NoError(s.T(), err1)
 
 	//make sure storageclass is created
 	present, err := s.kh.IsStorageClassPresent("rook-block")
@@ -115,10 +141,9 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenStorageClassExists() {
 	require.True(s.T(), present, "Make sure storageclass is present")
 
 	//create pvc
-	sout1, serr1, status1 := s.pvcOperation(claimName, "create")
-	require.Contains(s.T(), sout1, "persistentvolumeclaim \"test-claim1\" created", "Make sure pvc is created")
-	require.Empty(s.T(), serr1, "Make sure there are no errors")
-	require.Equal(s.T(), 0, status1)
+	result2, err2 := s.pvcOperation(claimName, "create")
+	require.Contains(s.T(), result2, "persistentvolumeclaim \"test-claim1\" created", "Make sure pvc is created")
+	require.NoError(s.T(), err2)
 
 	//check status of PVC
 	require.True(s.T(), s.isPVCBound(claimName))
@@ -132,14 +157,12 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenStorageClassExists() {
 // Test case when persistentvolumeclaim is created for a valid storage class twice
 func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 
-	s.T().Log("Test PVC(create block images) when storage class is not created")
-	s.T().Log("Test creating PVC(block images) when storage class is created")
+	s.T().Log("Test creating PVC(create block images) twice")
 	//create pool and storageclass
-	sout, serr, status := s.storageClassOperation("test-pool-1", "create")
-	require.Contains(s.T(), sout, "pool \"test-pool-1\" created", "Make sure test pool is created")
-	require.Contains(s.T(), sout, "storageclass \"rook-block\" created", "Make sure storageclass is created")
-	require.Empty(s.T(), serr, "Make sure there are no errors")
-	require.Equal(s.T(), 0, status)
+	result1, err1 := s.storageClassOperation("test-pool-1", "create")
+	require.Contains(s.T(), result1, "pool \"test-pool-1\" created", "Make sure test pool is created")
+	require.Contains(s.T(), result1, "storageclass \"rook-block\" created", "Make sure storageclass is created")
+	require.NoError(s.T(), err1)
 
 	//make sure storageclass is created
 	present, err := s.kh.IsStorageClassPresent("rook-block")
@@ -147,10 +170,9 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 	require.True(s.T(), present, "Make sure storageclass is present")
 
 	//create pvc
-	sout1, serr1, status1 := s.pvcOperation(claimName, "create")
-	require.Contains(s.T(), sout1, "persistentvolumeclaim \"test-claim1\" created", "Make sure pvc is created")
-	require.Empty(s.T(), serr1, "Make sure there are no errors")
-	require.Equal(s.T(), 0, status1)
+	result2, err2 := s.pvcOperation(claimName, "create")
+	require.Contains(s.T(), result2, "persistentvolumeclaim \"test-claim1\" created", "Make sure pvc is created")
+	require.NoError(s.T(), err2)
 
 	//check status of PVC
 	require.True(s.T(), s.isPVCBound(claimName))
@@ -159,10 +181,9 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 	require.Equal(s.T(), s.initBlockCount+1, len(b1), "Make sure new block image is created")
 
 	//Create same pvc again
-	sout2, serr2, status2 := s.pvcOperation(claimName, "create")
-	require.Empty(s.T(), sout2, "Make sure there are no output")
-	require.Contains(s.T(), serr2, "persistentvolumeclaims \"test-claim1\" already exists", "Check Error")
-	require.Equal(s.T(), 0, status2)
+	result3, err3 := s.pvcOperation(claimName, "create")
+	require.Contains(s.T(), result3, "persistentvolumeclaims \"test-claim1\" already exists", "make sure PVC is not created again")
+	require.NoError(s.T(), err3)
 
 	//check status of PVC
 	require.True(s.T(), s.isPVCBound(claimName))
@@ -180,51 +201,36 @@ func (s *K8sBlockImageCreateSuite) TearDownTest() {
 
 }
 
-func (s *K8sBlockImageCreateSuite) storageClassOperation(poolName string, action string) (string, string, int) {
-
-	t, _ := template.ParseFiles(s.storageclassPath)
-
-	var tpl bytes.Buffer
+func (s *K8sBlockImageCreateSuite) storageClassOperation(poolName string, action string) (string, error) {
 	config := map[string]string{
 		"poolName": poolName,
 	}
 
-	t.Execute(&tpl, config)
+	result, err := s.kh.ResourceOperationFromTemplate(action, s.storageclassDef, config)
 
-	cmdStruct := objects.CommandArgs{Command: "kubectl", PipeToStdIn: tpl.String(), CmdArgs: []string{action, "-f", "-"}}
-
-	cmdOut := utils.ExecuteCommand(cmdStruct)
-
-	return cmdOut.StdOut, cmdOut.StdErr, cmdOut.ExitCode
+	return result, err
 
 }
 
-func (s *K8sBlockImageCreateSuite) pvcOperation(claimName string, action string) (string, string, int) {
-	t, _ := template.ParseFiles(s.pvPath)
-
-	var tpl bytes.Buffer
+func (s *K8sBlockImageCreateSuite) pvcOperation(claimName string, action string) (string, error) {
 	config := map[string]string{
 		"claimName": claimName,
 	}
 
-	t.Execute(&tpl, config)
+	result, err := s.kh.ResourceOperationFromTemplate(action, s.pvcDef, config)
 
-	cmdStruct := objects.CommandArgs{Command: "kubectl", PipeToStdIn: tpl.String(), CmdArgs: []string{action, "-f", "-"}}
-
-	cmdOut := utils.ExecuteCommand(cmdStruct)
-
-	return cmdOut.StdOut, cmdOut.StdErr, cmdOut.ExitCode
+	return result, err
 
 }
 
 func (s *K8sBlockImageCreateSuite) isPVCBound(name string) bool {
 	inc := 0
-	for inc < 10 {
+	for inc < utils.RetryLoop {
 		status, _ := s.kh.GetPVCStatus(claimName)
 		if strings.TrimRight(status, "\n") == "'Bound'" {
 			return true
 		}
-		time.Sleep(time.Second * 1)
+		time.Sleep(time.Second * utils.RetryInterval)
 		inc++
 
 	}
