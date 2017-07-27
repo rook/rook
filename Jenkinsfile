@@ -23,8 +23,8 @@ pipeline {
 
        stage('Integration Tests') {
             steps{
-                sh 'tests/scripts/makeTestImages.sh  save amd64'
-                stash name: 'repo',excludes: '_output/,vendor/,.cache/,.work/'
+                sh 'tests/scripts/makeTestImages.sh save amd64'
+                stash name: 'repo-amd64',includes: 'rook-amd64.tar,build/common.sh,_output/tests/linux_amd64/,tests/scripts/'
                 script{
 
                     def data = [
@@ -36,6 +36,11 @@ pipeline {
                         testruns[kv[0]] = RunIntegrationTest(kv[0], kv[1])
                     }
                     parallel testruns
+
+                    for (kv in mapToList(data)) {
+                        unstash 'kv[0]_kv[1]_result'
+                    }
+                    sleep 180
                 }
             }
         }
@@ -72,12 +77,15 @@ def RunIntegrationTest(k, v) {
         script{
             try{
                 withEnv(["KUBE_VERSION=${v}"]){
-                    unstash 'repo'
+                    unstash 'repo-amd64'
                     echo "running tests on k8s version ${v}"
+                    sh "sleep 120"
                     sh 'tests/scripts/makeTestImages.sh load amd64'
-                    sh 'build/run make -j\$(nproc) build.common'
+                    sh "sleep 30"
                     sh "tests/scripts/kubeadm-dind.sh up"
-                    sh 'build/run make -j\$(nproc) test-integration SUITE=Smoke'
+                    sh "_output/tests/linux_amd64/smoke 2>&1 | tee _output/tests/${k}_${v}_integrationTests.log"
+                    sh "sleep 30"
+                    stash name: "${k}_${v}_result",includes : "_output/tests/${k}_${v}_integrationTests.log"
                 }
             }
             finally{
