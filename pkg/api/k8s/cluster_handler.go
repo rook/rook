@@ -18,8 +18,8 @@ package k8s
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	"github.com/rook/rook/pkg/cephmgr/rgw"
+	"github.com/rook/rook/pkg/ceph/mon"
+	"github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -29,15 +29,14 @@ import (
 )
 
 type clusterHandler struct {
-	k8sContext  *k8sutil.Context
-	dcontext    *clusterd.DaemonContext
+	context     *clusterd.Context
 	clusterInfo *mon.ClusterInfo
 	namespace   string
 	versionTag  string
 }
 
-func New(k8sContext *k8sutil.Context, dcontext *clusterd.DaemonContext, clusterInfo *mon.ClusterInfo, namespace, versionTag string) *clusterHandler {
-	return &clusterHandler{k8sContext: k8sContext, dcontext: dcontext, clusterInfo: clusterInfo, namespace: namespace, versionTag: versionTag}
+func New(context *clusterd.Context, clusterInfo *mon.ClusterInfo, namespace, versionTag string) *clusterHandler {
+	return &clusterHandler{context: context, clusterInfo: clusterInfo, namespace: namespace, versionTag: versionTag}
 }
 
 func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
@@ -46,8 +45,10 @@ func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
 
 func (s *clusterHandler) EnableObjectStore() error {
 	logger.Infof("Starting the Object store")
-	r := k8srgw.New(s.k8sContext, s.clusterInfo.Name, s.namespace, s.versionTag)
-	err := r.Start(s.clusterInfo)
+	// Passing an empty Placement{} as the api doesn't know about placement
+	// information. This should be resolved with the transition to CRD (TPR).
+	r := k8srgw.New(s.context, s.namespace, s.versionTag, k8sutil.Placement{})
+	err := r.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
 	}
@@ -61,13 +62,13 @@ func (s *clusterHandler) RemoveObjectStore() error {
 
 func (s *clusterHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, bool, error) {
 	logger.Infof("Getting the object store connection info")
-	service, err := s.k8sContext.Clientset.CoreV1().Services(s.namespace).Get("rgw", metav1.GetOptions{})
+	service, err := s.context.Clientset.CoreV1().Services(s.namespace).Get("rook-ceph-rgw", metav1.GetOptions{})
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to get rgw service. %+v", err)
 	}
 
 	info := &model.ObjectStoreConnectInfo{
-		Host:       "rook-rgw",
+		Host:       "rook-ceph-rgw",
 		IPEndpoint: rgw.GetRGWEndpoint(service.Spec.ClusterIP),
 	}
 	logger.Infof("Object store connection: %+v", info)
@@ -76,8 +77,10 @@ func (s *clusterHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConne
 
 func (s *clusterHandler) StartFileSystem(fs *model.FilesystemRequest) error {
 	logger.Infof("Starting the MDS")
-	c := k8smds.New(s.k8sContext, s.clusterInfo.Name, s.namespace, s.versionTag)
-	return c.Start(s.k8sContext.Clientset, s.clusterInfo)
+	// Passing an empty Placement{} as the api doesn't know about placement
+	// information. This should be resolved with the transition to CRD (TPR).
+	c := k8smds.New(s.context, s.namespace, s.versionTag, k8sutil.Placement{})
+	return c.Start()
 }
 
 func (s *clusterHandler) RemoveFileSystem(fs *model.FilesystemRequest) error {
@@ -94,5 +97,5 @@ func (s *clusterHandler) GetMonitors() (map[string]*mon.CephMonitorConfig, error
 
 func (s *clusterHandler) GetNodes() ([]model.Node, error) {
 	logger.Infof("Getting nodes")
-	return getNodes(s.k8sContext.Clientset)
+	return getNodes(s.context.Clientset)
 }

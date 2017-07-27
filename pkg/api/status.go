@@ -18,7 +18,7 @@ package api
 import (
 	"net/http"
 
-	ceph "github.com/rook/rook/pkg/cephmgr/client"
+	ceph "github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/model"
 )
 
@@ -26,13 +26,7 @@ import (
 // GET
 // /status
 func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
-	adminConn, ok := h.handleConnectToCeph(w)
-	if !ok {
-		return
-	}
-	defer adminConn.Shutdown()
-
-	cephStatus, err := ceph.Status(adminConn)
+	cephStatus, err := ceph.Status(h.context, h.config.ClusterInfo.Name)
 	if err != nil {
 		logger.Errorf("failed to get status: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -86,6 +80,16 @@ func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
 		NearFull: osdMap.NearFull,
 	}
 
+	// generate the Mgr summarhy
+	mgrs := model.MgrSummary{
+		ActiveName: cephStatus.MgrMap.ActiveName,
+		ActiveAddr: cephStatus.MgrMap.ActiveAddr,
+		Available:  cephStatus.MgrMap.Available,
+	}
+	for _, standby := range cephStatus.MgrMap.Standbys {
+		mgrs.Standbys = append(mgrs.Standbys, standby.Name)
+	}
+
 	// generate the usage Summary
 	usageSummary := model.UsageSummary{
 		DataBytes:      cephStatus.PgMap.DataBytes,
@@ -105,6 +109,7 @@ func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
 		OverallStatus:   ceph.HealthToModelHealthStatus(cephStatus.Health.OverallStatus),
 		SummaryMessages: summaries,
 		Monitors:        monitors,
+		Mgrs:            mgrs,
 		OSDs:            osds,
 		PGs:             pgSummary,
 		Usage:           usageSummary,

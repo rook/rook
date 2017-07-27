@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package mon for the Ceph monitors.
 package mon
 
 import (
@@ -21,18 +23,24 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rook/rook/pkg/cephmgr/client"
-	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/ceph/client"
+	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/apimachinery/pkg/labels"
+	helper "k8s.io/kubernetes/pkg/api/v1/helper"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
+
 const (
-	appName           = "mon"
+	appName           = "rook-ceph-mon"
 	monNodeAttr       = "mon_node"
 	monClusterAttr    = "mon_cluster"
 	tprName           = "mon.rook.io"
@@ -45,44 +53,44 @@ const (
 	maxMonIDKey       = "maxMonId"
 )
 
+// Cluster is for the cluster of monitors
 type Cluster struct {
-	Name            string
+	context         *clusterd.Context
 	Namespace       string
 	Keyring         string
 	Version         string
 	MasterHost      string
 	Size            int
 	Paused          bool
-	AntiAffinity    bool
 	Port            int32
-	context         *k8sutil.Context
 	clusterInfo     *mon.ClusterInfo
+	placement       k8sutil.Placement
 	maxMonID        int
-	configDir       string
 	waitForStart    bool
 	dataDirHostPath string
 }
 
-type MonConfig struct {
+// monConfig for a single monitor
+type monConfig struct {
 	Name string
 	Port int32
 }
 
-func New(context *k8sutil.Context, name, namespace, dataDirHostPath, version string) *Cluster {
+// New creates an instance of a mon cluster
+func New(context *clusterd.Context, namespace, dataDirHostPath, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:         context,
+		placement:       placement,
 		dataDirHostPath: dataDirHostPath,
-		Name:            name,
 		Namespace:       namespace,
 		Version:         version,
 		Size:            3,
-		AntiAffinity:    true,
 		maxMonID:        -1,
-		configDir:       k8sutil.DataDir,
 		waitForStart:    true,
 	}
 }
 
+// Start the mon cluster
 func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 	logger.Infof("start running mons")
 
@@ -94,7 +102,7 @@ func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 	if len(c.clusterInfo.Monitors) == 0 {
 		// Start the initial monitors at startup
 		mons := c.getExpectedMonConfig()
-		err = c.startPods(nil, mons)
+		err = c.startPods(mons)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start mon pods. %+v", err)
 		}
@@ -147,21 +155,27 @@ func (c *Cluster) initClusterInfo() error {
 	if err != nil {
 		return fmt.Errorf("failed to get mon config. %+v", err)
 	}
+
+	// make sure we have the connection info generated so connections can happen
+	err = c.writeConnectionConfig()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (c *Cluster) getExpectedMonConfig() []*MonConfig {
-	mons := []*MonConfig{}
+func (c *Cluster) getExpectedMonConfig() []*monConfig {
+	mons := []*monConfig{}
 
 	// initialize the mon pod info for mons that have been previously created
 	for _, monitor := range c.clusterInfo.Monitors {
-		mons = append(mons, &MonConfig{Name: monitor.Name, Port: int32(mon.Port)})
+		mons = append(mons, &monConfig{Name: monitor.Name, Port: int32(mon.Port)})
 	}
 
 	// initialize mon info if we don't have enough mons (at first startup)
 	for i := len(c.clusterInfo.Monitors); i < c.Size; i++ {
 		c.maxMonID++
-		mons = append(mons, &MonConfig{Name: fmt.Sprintf("mon%d", c.maxMonID), Port: int32(mon.Port)})
+		mons = append(mons, &monConfig{Name: fmt.Sprintf("%s%d", appName, c.maxMonID), Port: int32(mon.Port)})
 	}
 
 	return mons
@@ -182,7 +196,7 @@ func getMonID(name string) (int, error) {
 func (c *Cluster) createMonSecretsAndSave() error {
 	logger.Infof("creating mon secrets for a new cluster")
 	var err error
-	c.clusterInfo, err = mon.CreateNamedClusterInfo(c.context.Factory, "", c.Namespace)
+	c.clusterInfo, err = mon.CreateNamedClusterInfo(c.context, "", c.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create mon secrets. %+v", err)
 	}
@@ -226,7 +240,7 @@ func (c *Cluster) createMonSecretsAndSave() error {
 	return nil
 }
 
-func (c *Cluster) startPods(conn client.Connection, mons []*MonConfig) error {
+func (c *Cluster) startPods(mons []*monConfig) error {
 	// schedule the mons on different nodes if we have enough nodes to be unique
 	availableNodes, err := c.getAvailableMonNodes()
 	if err != nil {
@@ -262,23 +276,12 @@ func (c *Cluster) startPods(conn client.Connection, mons []*MonConfig) error {
 
 	logger.Infof("mons created: %d, preexisted: %d", len(mons), preexisted)
 
-	return c.waitForMonsToJoin(conn, mons)
+	return c.waitForMonsToJoin(mons)
 }
 
-func (c *Cluster) waitForMonsToJoin(conn client.Connection, mons []*MonConfig) error {
+func (c *Cluster) waitForMonsToJoin(mons []*monConfig) error {
 	if !c.waitForStart {
 		return nil
-	}
-
-	// initialize a connection if it is not already connected
-	if conn == nil {
-		ctx := &clusterd.Context{ConfigDir: k8sutil.DataDir}
-		var err error
-		conn, err = mon.ConnectToClusterAsAdmin(ctx, c.context.Factory, c.clusterInfo)
-		if err != nil {
-			return fmt.Errorf("cannot connect to cluster. %+v", err)
-		}
-		defer conn.Shutdown()
 	}
 
 	starting := []string{}
@@ -287,7 +290,7 @@ func (c *Cluster) waitForMonsToJoin(conn client.Connection, mons []*MonConfig) e
 	}
 
 	// wait for the monitors to join quorum
-	err := mon.WaitForQuorumWithConnection(conn, starting)
+	err := mon.WaitForQuorumWithMons(c.context, c.clusterInfo.Name, starting)
 	if err != nil {
 		return fmt.Errorf("failed to wait for mon quorum. %+v", err)
 	}
@@ -360,6 +363,21 @@ func (c *Cluster) saveMonConfig() error {
 	}
 
 	logger.Infof("saved mon endpoints to config map %+v", configMap.Data)
+
+	// write the latest config to the config dir
+	if err := c.writeConnectionConfig(); err != nil {
+		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
+	}
+
+	return nil
+}
+
+func (c *Cluster) writeConnectionConfig() error {
+	// write the latest config to the config dir
+	if err := mon.GenerateAdminConnectionConfig(c.context, c.clusterInfo); err != nil {
+		return fmt.Errorf("failed to write connection config. %+v", err)
+	}
+
 	return nil
 }
 
@@ -422,7 +440,7 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 	// choose nodes for the new mons that don't have mons currently
 	availableNodes := []v1.Node{}
 	for _, node := range nodes.Items {
-		if !nodesInUse.Contains(node.Name) && validNode(node) {
+		if !nodesInUse.Contains(node.Name) && validNode(node, c.placement) {
 			availableNodes = append(availableNodes, node)
 		}
 	}
@@ -432,7 +450,7 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 	if len(availableNodes) == 0 {
 		logger.Infof("All nodes are running mons. Adding all %d nodes to the availability.", len(nodes.Items))
 		for _, node := range nodes.Items {
-			if validNode(node) {
+			if validNode(node, c.placement) {
 				availableNodes = append(availableNodes, node)
 			}
 		}
@@ -444,15 +462,43 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 	return availableNodes, nil
 }
 
-func validNode(node v1.Node) bool {
+func validNode(node v1.Node, placement k8sutil.Placement) bool {
 	// a node cannot be disabled
 	if node.Spec.Unschedulable {
 		return false
 	}
-	
-	// a node cannot be tainted
-	for _, t := range node.Spec.Taints {
-		if t.Effect == v1.TaintEffectNoSchedule || t.Effect == v1.TaintEffectPreferNoSchedule {
+
+	// a node matches the NodeAffinity configuration
+	// ignoring `PreferredDuringSchedulingIgnoredDuringExecution` terms: they
+	// should not be used to judge a node unusable
+	if placement.NodeAffinity != nil && placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
+		nodeMatches := false
+		for _, req := range placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
+			nodeSelector, err := helper.NodeSelectorRequirementsAsSelector(req.MatchExpressions)
+			if err != nil {
+				logger.Infof("failed to parse MatchExpressions: %+v, regarding as not match.", req.MatchExpressions)
+				return false
+			}
+			if nodeSelector.Matches(labels.Set(node.Labels)) {
+				nodeMatches = true
+				break
+			}
+		}
+		if !nodeMatches {
+			return false
+		}
+	}
+
+	// a node is tainted and cannot be tolerated
+	for _, taint := range node.Spec.Taints {
+		isTolerated := false
+		for _, toleration := range placement.Tolerations {
+			if toleration.ToleratesTaint(&taint) {
+				isTolerated = true
+				break
+			}
+		}
+		if !isTolerated {
 			return false
 		}
 	}
@@ -468,21 +514,21 @@ func validNode(node v1.Node) bool {
 }
 
 func (c *Cluster) getNodesWithMons() (*util.Set, error) {
-	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=mon")}
+	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
 	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(options)
 	if err != nil {
 		return nil, err
 	}
 	nodes := util.NewSet()
 	for _, pod := range pods.Items {
-		hostname := pod.Spec.NodeSelector[metav1.LabelHostname]
+		hostname := pod.Spec.NodeSelector[apis.LabelHostname]
 		logger.Debugf("mon pod on node %s", hostname)
 		nodes.Add(hostname)
 	}
 	return nodes, nil
 }
 
-func (c *Cluster) startMon(m *MonConfig, nodeName string) error {
+func (c *Cluster) startMon(m *monConfig, nodeName string) error {
 	rs := c.makeReplicaSet(m, nodeName)
 	logger.Debugf("Starting mon: %+v", rs.Name)
 	_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)

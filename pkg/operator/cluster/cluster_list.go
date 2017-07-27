@@ -16,6 +16,8 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
+
+// Package cluster to manage a rook cluster.
 package cluster
 
 import (
@@ -40,9 +42,13 @@ type ClusterList struct {
 // - We include `Metadata` field in object explicitly.
 // - we have the code below to work around a known problem with third-party resources and ugorji.
 
+// ClusterListCopy is for deserialization
 type ClusterListCopy ClusterList
+
+// ClusterCopy is for deserializaion
 type ClusterCopy Cluster
 
+// UnmarshalJSON unmarshals the raw cluster
 func (c *Cluster) UnmarshalJSON(data []byte) error {
 	tmp := ClusterCopy{}
 	err := json.Unmarshal(data, &tmp)
@@ -54,6 +60,7 @@ func (c *Cluster) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+// UnmarshalJSON unmarshals the raw cluster list
 func (cl *ClusterList) UnmarshalJSON(data []byte) error {
 	tmp := ClusterListCopy{}
 	err := json.Unmarshal(data, &tmp)

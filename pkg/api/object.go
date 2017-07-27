@@ -21,7 +21,7 @@ import (
 	"sort"
 
 	"github.com/gorilla/mux"
-	"github.com/rook/rook/pkg/cephmgr/rgw"
+	"github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/model"
 )
 

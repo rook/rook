@@ -34,9 +34,9 @@ func TestLoadDiscoveredNodes(t *testing.T) {
 		raised <- true
 	}
 
-	context := &Context{EtcdClient: etcdClient}
+	context := &Context{DirectContext: DirectContext{EtcdClient: etcdClient}}
 	context.Services = []*ClusterService{
-		&ClusterService{Name: "test", Leader: mockHandler},
+		{Name: "test", Leader: mockHandler},
 	}
 	leader := newServicesLeader(context)
 	leader.refresher.Start()

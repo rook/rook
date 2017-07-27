@@ -41,6 +41,6 @@ func CheckKernelModuleParam(name, param string, executor exec.Executor) (bool, e
 		return false, fmt.Errorf("failed to check for %s module %s param: %+v", name, param, err)
 	}
 
-	result := grep(out, fmt.Sprintf("^%s", param))
+	result := Grep(out, fmt.Sprintf("^%s", param))
 	return result != "", nil
 }

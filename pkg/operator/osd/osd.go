@@ -13,6 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package osd for the Ceph OSDs.
 package osd
 
 import (
@@ -22,40 +24,48 @@ import (
 
 	"strconv"
 
+	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
+	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-osd")
 
 const (
-	appName    = "osd"
-	appNameFmt = "osd-%s"
+	appName    = "rook-ceph-osd"
+	appNameFmt = "rook-ceph-osd-%s"
 )
 
+// Cluster keeps track of the OSDs
 type Cluster struct {
-	context         *k8sutil.Context
-	Name            string
+	context         *clusterd.Context
 	Namespace       string
+	placement       k8sutil.Placement
 	Keyring         string
 	Version         string
 	Storage         StorageSpec
 	dataDirHostPath string
 }
 
-func New(context *k8sutil.Context, name, namespace, version string, storageSpec StorageSpec, dataDirHostPath string) *Cluster {
+// New creates an instance of the OSD manager
+func New(context *clusterd.Context, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:         context,
-		Name:            name,
 		Namespace:       namespace,
+		placement:       placement,
 		Version:         version,
 		Storage:         storageSpec,
 		dataDirHostPath: dataDirHostPath,
 	}
 }
 
+// Start the osd management
 func (c *Cluster) Start() error {
 	logger.Infof("start running osds in namespace %s", c.Namespace)
 
@@ -112,7 +122,7 @@ func (c *Cluster) makeReplicaSet(nodeName string, devices []Device, directories 
 	rs.Namespace = c.Namespace
 
 	podSpec := c.podTemplateSpec(devices, directories, selection, config)
-	podSpec.Spec.NodeSelector = map[string]string{metav1.LabelHostname: nodeName}
+	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
 
 	replicaCount := int32(1)
 
@@ -148,6 +158,13 @@ func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, sel
 		volumes = append(volumes, dirVolume)
 	}
 
+	podSpec := v1.PodSpec{
+		Containers:    []v1.Container{c.osdContainer(devices, directories, selection, config)},
+		RestartPolicy: v1.RestartPolicyAlways,
+		Volumes:       volumes,
+	}
+	c.placement.ApplyToPodSpec(&podSpec)
+
 	return v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: appName,
@@ -157,21 +174,17 @@ func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, sel
 			},
 			Annotations: map[string]string{},
 		},
-		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.osdContainer(devices, directories, selection, config)},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       volumes,
-		},
+		Spec: podSpec,
 	}
 }
 
 func (c *Cluster) osdContainer(devices []Device, directories []Directory, selection Selection, config Config) v1.Container {
 
 	envVars := []v1.EnvVar{
-		hostnameEnvVar(),
-		opmon.ClusterNameEnvVar(c.Name),
-		opmon.MonEndpointEnvVar(),
-		opmon.MonSecretEnvVar(),
+		nodeNameEnvVar(),
+		opmon.ClusterNameEnvVar(c.Namespace),
+		opmon.EndpointEnvVar(),
+		opmon.SecretEnvVar(),
 		opmon.AdminSecretEnvVar(),
 		k8sutil.ConfigDirEnvVar(),
 		k8sutil.ConfigOverrideEnvVar(),
@@ -232,17 +245,10 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 		envVars = append(envVars, locationEnvVar(config.Location))
 	}
 
-	// set the hostname to the host's name from the downstream api.
-	// the crush map doesn't like hostnames with periods, so we replace them with underscores.
-	hostnameUpdate := `echo $(HOSTNAME) | sed "s/\./_/g" > /etc/hostname; hostname -F /etc/hostname`
-	command := "/usr/bin/rookd osd"
-
 	privileged := true
 	return v1.Container{
-		// TODO: fix "sleep 5".
-		// Without waiting some time, there is highly probable flakes in network setup.
 		// Set the hostname so we have the pod's host in the crush map rather than the pod container name
-		Command:         []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s; %s", hostnameUpdate, command)},
+		Args:            []string{"osd"},
 		Name:            appName,
 		Image:           k8sutil.MakeRookImage(c.Version),
 		VolumeMounts:    volumeMounts,
@@ -251,8 +257,8 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 	}
 }
 
-func hostnameEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: "HOSTNAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}}
+func nodeNameEnvVar() v1.EnvVar {
+	return v1.EnvVar{Name: "ROOKD_NODE_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}}
 }
 
 func dataDevicesEnvVar(dataDevices string) v1.EnvVar {

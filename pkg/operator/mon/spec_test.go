@@ -17,14 +17,15 @@ package mon
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	testop "github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
 )
 
 func TestPodSpecs(t *testing.T) {
@@ -34,9 +35,9 @@ func TestPodSpecs(t *testing.T) {
 
 func testPodSpec(t *testing.T, dataDir string) {
 	clientset := testop.New(1)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", dataDir, "myversion")
+	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", dataDir, "myversion", k8sutil.Placement{})
 	c.clusterInfo = testop.CreateClusterInfo(0)
-	config := &MonConfig{Name: "mon0", Port: 6790}
+	config := &monConfig{Name: "mon0", Port: 6790}
 
 	pod := c.makeMonPod(config, "foo")
 	assert.NotNil(t, pod)
@@ -54,18 +55,20 @@ func testPodSpec(t *testing.T, dataDir string) {
 	}
 
 	assert.Equal(t, "mon0", pod.ObjectMeta.Name)
-	assert.Equal(t, "mon", pod.ObjectMeta.Labels["app"])
+	assert.Equal(t, appName, pod.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
 	assert.Equal(t, 1, len(pod.ObjectMeta.Annotations))
 	assert.Equal(t, "myversion", pod.ObjectMeta.Annotations["rook_version"])
 
 	cont := pod.Spec.Containers[0]
-	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
+	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 6, len(cont.Env))
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd mon --config-dir=/var/lib/rook --name=%s --port=%d --fsid=%s",
-		config.Name, config.Port, c.clusterInfo.FSID)
-
-	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
+	logger.Infof("Command : %+v", cont.Command)
+	assert.Equal(t, "mon", cont.Args[0])
+	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
+	assert.Equal(t, "--name=mon0", cont.Args[2])
+	assert.Equal(t, "--port=6790", cont.Args[3])
+	assert.Equal(t, fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID), cont.Args[4])
 }

@@ -26,6 +26,7 @@ type MockExecutor struct {
 	MockStartExecuteCommand              func(actionName string, command string, arg ...string) (*exec.Cmd, error)
 	MockExecuteCommandWithOutput         func(actionName string, command string, arg ...string) (string, error)
 	MockExecuteCommandWithCombinedOutput func(actionName string, command string, arg ...string) (string, error)
+	MockExecuteCommandWithOutputFile     func(actionName, command, outfileArg string, arg ...string) (string, error)
 	MockExecuteStat                      func(name string) (os.FileInfo, error)
 }
 
@@ -57,6 +58,14 @@ func (e *MockExecutor) ExecuteCommandWithOutput(actionName string, command strin
 func (e *MockExecutor) ExecuteCommandWithCombinedOutput(actionName string, command string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithCombinedOutput != nil {
 		return e.MockExecuteCommandWithCombinedOutput(actionName, command, arg...)
+	}
+
+	return "", nil
+}
+
+func (e *MockExecutor) ExecuteCommandWithOutputFile(actionName, command, outfileArg string, arg ...string) (string, error) {
+	if e.MockExecuteCommandWithOutputFile != nil {
+		return e.MockExecuteCommandWithOutputFile(actionName, command, outfileArg, arg...)
 	}
 
 	return "", nil

@@ -16,55 +16,67 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
+
+// Package k8sutil for Kubernetes helpers.
 package k8sutil
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
 )
 
 const (
-	AppAttr            = "app"
-	ClusterAttr        = "rook_cluster"
-	VersionAttr        = "rook_version"
-	PodIPEnvVar        = "ROOKD_PRIVATE_IPV4"
-	DefaultRepoPrefix  = "quay.io/rook"
-	repoPrefixEnvVar   = "ROOKD_REPO_PREFIX"
-	defaultVersion     = "latest"
+	// AppAttr app label
+	AppAttr = "app"
+	// ClusterAttr cluster label
+	ClusterAttr = "rook_cluster"
+	// VersionAttr version label
+	VersionAttr = "rook_version"
+	// PodIPEnvVar pod IP env var
+	PodIPEnvVar = "ROOKD_PRIVATE_IPV4"
+	// DefaultRepoPrefix repo prefix
+	DefaultRepoPrefix = "rook"
+	// ConfigOverrideName config override name
 	ConfigOverrideName = "rook-config-override"
-	ConfigOverrideVal  = "config"
-	configMountDir     = "/etc/rook"
-	overrideFilename   = "override.conf"
+	// ConfigOverrideVal config override value
+	ConfigOverrideVal = "config"
+	repoPrefixEnvVar  = "ROOKD_REPO_PREFIX"
+	defaultVersion    = "latest"
+	configMountDir    = "/etc/rook"
+	overrideFilename  = "override.conf"
 )
 
+// ConfigOverrideMount is an override mount
 func ConfigOverrideMount() v1.VolumeMount {
 	return v1.VolumeMount{Name: ConfigOverrideName, MountPath: configMountDir}
 }
 
+// ConfigOverrideVolume is an override volume
 func ConfigOverrideVolume() v1.Volume {
 	cmSource := &v1.ConfigMapVolumeSource{Items: []v1.KeyToPath{{Key: ConfigOverrideVal, Path: overrideFilename}}}
 	cmSource.Name = ConfigOverrideName
 	return v1.Volume{Name: ConfigOverrideName, VolumeSource: v1.VolumeSource{ConfigMap: cmSource}}
 }
 
+// ConfigOverrideEnvVar config override env var
 func ConfigOverrideEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOKD_CEPH_CONFIG_OVERRIDE", Value: path.Join(configMountDir, overrideFilename)}
 }
 
+// NamespaceEnvVar namespace env var
 func NamespaceEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOKD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}
 }
 
+// RepoPrefixEnvVar repo prefix env var
 func RepoPrefixEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: repoPrefixEnvVar, Value: repoPrefix()}
 }
 
+// ConfigDirEnvVar config dir env var
 func ConfigDirEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOKD_CONFIG_DIR", Value: DataDir}
 }
@@ -85,43 +97,12 @@ func getVersion(version string) string {
 	return version
 }
 
+// MakeRookImage formats the container name
 func MakeRookImage(version string) string {
-	return fmt.Sprintf("%s/rookd:%v", repoPrefix(), getVersion(version))
+	return fmt.Sprintf("%s/rook:%v", repoPrefix(), getVersion(version))
 }
 
-func PodWithAntiAffinity(pod *v1.Pod, attribute, value string) {
-	// set pod anti-affinity with the pods that belongs to the same rook cluster
-	affinity := v1.Affinity{
-		PodAntiAffinity: &v1.PodAntiAffinity{
-			RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
-				{
-					LabelSelector: &metav1.LabelSelector{
-						MatchLabels: map[string]string{
-							attribute: value,
-						},
-					},
-					TopologyKey: "kubernetes.io/hostname",
-				},
-			},
-		},
-	}
-
-	affinityb, err := json.Marshal(affinity)
-	if err != nil {
-		panic("failed to marshal affinty struct")
-	}
-
-	pod.Annotations[v1.AffinityAnnotationKey] = string(affinityb)
-}
-
+// SetPodVersion sets the pod annotation
 func SetPodVersion(pod *v1.Pod, key, version string) {
 	pod.Annotations[key] = version
-}
-
-func GetPodNames(pods []*api.Pod) []string {
-	res := []string{}
-	for _, p := range pods {
-		res = append(res, p.Name)
-	}
-	return res
 }

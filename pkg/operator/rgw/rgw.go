@@ -13,56 +13,57 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package rgw for the Ceph object store.
 package rgw
 
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/cephmgr/mon"
-	cephrgw "github.com/rook/rook/pkg/cephmgr/rgw"
+	"github.com/coreos/pkg/capnslog"
+	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
+	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-rgw")
+
 const (
-	appName     = "rgw"
+	appName     = "rook-ceph-rgw"
 	keyringName = "keyring"
 )
 
+// Cluster for rgw management
 type Cluster struct {
-	context   *k8sutil.Context
-	Name      string
+	context   *clusterd.Context
 	Namespace string
+	placement k8sutil.Placement
 	Version   string
 	Replicas  int32
-	dataDir   string
 }
 
-func New(context *k8sutil.Context, name, namespace, version string) *Cluster {
+// New creates an instance of an rgw manager
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
-		Name:      name,
 		Namespace: namespace,
+		placement: placement,
 		Version:   version,
 		Replicas:  2,
-		dataDir:   k8sutil.DataDir,
 	}
 }
 
-func (c *Cluster) Start(cluster *mon.ClusterInfo) error {
+// Start the rgw manager
+func (c *Cluster) Start() error {
 	logger.Infof("start running rgw")
 
-	if cluster == nil || len(cluster.Monitors) == 0 {
-		return fmt.Errorf("missing mons to start rgw")
-	}
-
-	err := c.createKeyring(cluster)
+	err := c.createKeyring()
 	if err != nil {
 		return fmt.Errorf("failed to create rgw keyring. %+v", err)
 	}
@@ -88,7 +89,7 @@ func (c *Cluster) Start(cluster *mon.ClusterInfo) error {
 	return nil
 }
 
-func (c *Cluster) createKeyring(cluster *mon.ClusterInfo) error {
+func (c *Cluster) createKeyring() error {
 	_, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
@@ -98,17 +99,9 @@ func (c *Cluster) createKeyring(cluster *mon.ClusterInfo) error {
 		return fmt.Errorf("failed to get rgw secrets. %+v", err)
 	}
 
-	// connect to the ceph cluster
-	logger.Infof("generating rgw keyring")
-	ctx := &clusterd.Context{ConfigDir: c.dataDir}
-	conn, err := mon.ConnectToClusterAsAdmin(ctx, c.context.Factory, cluster)
-	if err != nil {
-		return fmt.Errorf("failed to connect to cluster. %+v", err)
-	}
-	defer conn.Shutdown()
-
 	// create the keyring
-	keyring, err := cephrgw.CreateKeyring(conn)
+	logger.Infof("generating rgw keyring")
+	keyring, err := cephrgw.CreateKeyring(c.context, c.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create keyring. %+v", err)
 	}
@@ -135,46 +128,50 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 	deployment.Name = appName
 	deployment.Namespace = c.Namespace
 
-	podSpec := v1.PodTemplateSpec{
+	podSpec := v1.PodSpec{
+		Containers:    []v1.Container{c.rgwContainer()},
+		RestartPolicy: v1.RestartPolicyAlways,
+		Volumes: []v1.Volume{
+			{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
+			k8sutil.ConfigOverrideVolume(),
+		},
+	}
+	c.placement.ApplyToPodSpec(&podSpec)
+
+	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "rook-rgw",
+			Name:        "rook-ceph-rgw",
 			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
 		},
-		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.rgwContainer()},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes: []v1.Volume{
-				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
-				k8sutil.ConfigOverrideVolume(),
-			},
-		},
+		Spec: podSpec,
 	}
 
-	deployment.Spec = extensions.DeploymentSpec{Template: podSpec, Replicas: &c.Replicas}
+	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &c.Replicas}
 
 	return deployment
 }
 
 func (c *Cluster) rgwContainer() v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd rgw --config-dir=%s --rgw-port=%d --rgw-host=%s",
-		k8sutil.DataDir, cephrgw.RGWPort, cephrgw.DNSName)
 	return v1.Container{
-		// TODO: fix "sleep 5".
-		// Without waiting some time, there is highly probable flakes in network setup.
-		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
-		Name:    appName,
-		Image:   k8sutil.MakeRookImage(c.Version),
+		Args: []string{
+			"rgw",
+			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
+			fmt.Sprintf("--rgw-port=%d", cephrgw.RGWPort),
+			fmt.Sprintf("--rgw-host=%s", cephrgw.DNSName),
+		},
+		Name:  appName,
+		Image: k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),
 		},
 		Env: []v1.EnvVar{
 			{Name: "ROOKD_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
-			opmon.ClusterNameEnvVar(c.Name),
-			opmon.MonEndpointEnvVar(),
-			opmon.MonSecretEnvVar(),
+			opmon.ClusterNameEnvVar(c.Namespace),
+			opmon.EndpointEnvVar(),
+			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},

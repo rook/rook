@@ -9,12 +9,12 @@ This example runs a shared file system for the [kube-registry](https://github.co
 This guide assumes you have created a Rook cluster and pool as explained in the main [Kubernetes guide](kubernetes.md)
 
 ## Rook Client
-Setting up the Rook file system requires running `rook` commands with the [Rook client](kubernetes.md#rook-client). This will be simplified in the future with a TPR for the file system.
+Setting up the Rook file system requires running `rookctl` commands with the [Rook toolbox](kubernetes.md#tools). This will be simplified in the future with a TPR for the file system.
 
 ## Create the File System
 Create the file system with the default pools.
 ```bash
-rook filesystem create --name registryFS
+rookctl filesystem create --name registryFS
 ```
 
 If you are consuming the filesystem from a namespace other than `rook` you will need to copy the key to the desired namespace. 
@@ -42,7 +42,7 @@ The kube-registry yaml is defined [here](/demo/kubernetes/kube-registry.yaml). W
 In the future this step will be improved with a Rook volume plugin.
 ```bash
 cd demo/kubernetes
-export MONS=$(kubectl -n rook get pod mon0 mon1 mon2 -o json|jq ".items[].status.podIP"|tr -d "\""|sed -e 's/$/:6790/'|paste -s -d, -)
+export MONS=$(kubectl -n rook get pod -l app=rook-ceph-mon -o json|jq ".items[].status.podIP"|tr -d "\""|sed -e 's/$/:6790/'|paste -s -d, -)
 sed "s/INSERT_MONS_HERE/$MONS/g" kube-registry.yaml | kubectl create -f -
 ```
 
@@ -50,21 +50,22 @@ You now have a docker registry which is HA with persistent storage.
 
 ### Test the storage
 
-Once you have pushed an image to the registry (see the [instructions](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry) to expose and use the kube-registry), verify that kube-registry is using the filesystem that was configured above by mounting the shared file system in the rook client pod. 
+Once you have pushed an image to the registry (see the [instructions](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry) to expose and use the kube-registry), verify that kube-registry is using the filesystem that was configured above by mounting the shared file system in the toolbox pod. 
 
 ```bash
-# Start the rook client
-kubectl -n rook exec rook-client -it sh
+# Start and connect to the toolbox pod
+kubectl create -f rook-tools.yaml
+kubectl -n rook exec rook-tools -it sh
 
 # Mount the same filesystem that the kube-registry is using
 mkdir /tmp/registry
-rook filesystem mount --name registryFS --path /tmp/registry
+rookctl filesystem mount --name registryFS --path /tmp/registry
 
 # If you have pushed images to the registry you will see a directory called docker
 ls /tmp/registry 
 
 # Cleanup the filesystem mount
-rook filesystem unmount --path /tmp/registry
+rookctl filesystem unmount --path /tmp/registry
 rmdir /tmp/registry
 ```
 

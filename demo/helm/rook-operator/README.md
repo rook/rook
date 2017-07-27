@@ -15,7 +15,7 @@ Alternatively, to deploy from a local checkout of the rook codebase (until the r
 
 ```console
 $ cd demo/helm/rook-operator
-$ helm install --name rook-operator --namespace rook-operator .
+$ helm install --name rook-operator --namespace rook .
 ```
 
 Introduction
@@ -66,7 +66,7 @@ Uninstalling the Chart
 To uninstall/delete the `rook-operator` deployment:
 
 ```console
-$ helm delete rook-operator
+$ helm delete --purge rook-operator
 ```
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
@@ -78,8 +78,8 @@ The following tables lists the configurable parameters of the rook-operator char
 
 | Parameter          | Description                          | Default              |
 |--------------------|--------------------------------------|----------------------|
-| `image.repository` | Image                                | `quay.io/rook/rookd` |
-| `image.tag`        | Image tag                            | `master-latest`      |
+| `image.repository` | Image                                | `rook/rook`          |
+| `image.tag`        | Image tag                            | `master`             |
 | `image.pullPolicy` | Image pull policy                    | `IfNotPresent`       |
 | `rbacEnable`       | If true, create & use RBAC resources | `true`               |
 | `resources`        | Pod resource requests & limits       | `{}`                 |

@@ -23,6 +23,7 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/jbw976/go-ps"
 	"github.com/rook/rook/pkg/util/exec"
 )
 
@@ -49,48 +50,48 @@ func New(executor exec.Executor) *ProcManager {
 }
 
 // Start a child process and wait for its completion
-func (p *ProcManager) RunWithOutput(logName, tool string, args ...string) (string, error) {
+func (p *ProcManager) RunWithOutput(logName, command string, args ...string) (string, error) {
 
-	logger.Infof("Running process %s with args: %v", tool, args)
-	output, err := p.executor.ExecuteCommandWithOutput(logName, os.Args[0], createToolArgs(tool, args...)...)
+	logger.Infof("Running process %s with args: %v", command, args)
+	output, err := p.executor.ExecuteCommandWithOutput(logName, command, args...)
 	if err != nil {
-		return "", fmt.Errorf("failed to run %s: %+v", tool, err)
+		return "", fmt.Errorf("failed to run %s: %+v", command, err)
 	}
 
 	return output, nil
 }
 
 // Start a child process and wait for its completion
-func (p *ProcManager) RunWithCombinedOutput(logName, tool string, args ...string) (string, error) {
+func (p *ProcManager) RunWithCombinedOutput(logName, command string, args ...string) (string, error) {
 
-	logger.Infof("Running process %s with args: %v", tool, args)
-	output, err := p.executor.ExecuteCommandWithCombinedOutput(logName, os.Args[0], createToolArgs(tool, args...)...)
+	logger.Infof("Running process %s with args: %v", command, args)
+	output, err := p.executor.ExecuteCommandWithCombinedOutput(logName, command, args...)
 	if err != nil {
-		return "", fmt.Errorf("failed to run %s: %+v", tool, err)
+		return "", fmt.Errorf("failed to run %s: %+v", command, err)
 	}
 
 	return output, nil
 }
 
 // Start a child process and wait for its completion
-func (p *ProcManager) Run(logName, tool string, args ...string) error {
+func (p *ProcManager) Run(logName, command string, args ...string) error {
 
-	logger.Infof("Running process %s with args: %v", tool, args)
-	err := p.executor.ExecuteCommand(logName, os.Args[0], createToolArgs(tool, args...)...)
+	logger.Infof("Running process %s with args: %v", command, args)
+	err := p.executor.ExecuteCommand(logName, command, args...)
 	if err != nil {
-		return fmt.Errorf("failed to run %s: %+v", tool, err)
+		return fmt.Errorf("failed to run %s: %+v", command, err)
 	}
 
 	return nil
 }
 
-// Start the given daemon and provided arguments.  Handling of any matching existing process will be in accordance
+// Start the given process with the provided arguments.  Handling of any matching existing process will be in accordance
 // with the given ProcStartPolicy.  The search pattern will be used to search through the cmdline args of existing
 // processes to find any matching existing process.  Therefore, it should be a regex pattern that can uniquely
 // identify the process (e.g., --id=1)
-func (p *ProcManager) Start(name, daemon, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
+func (p *ProcManager) Start(name, command, procSearchPattern string, policy ProcStartPolicy, args ...string) (*MonitoredProc, error) {
 	// look for an existing process first
-	shouldStart, err := p.checkProcessExists(os.Args[0], procSearchPattern, policy)
+	shouldStart, err := p.checkProcessExists(command, procSearchPattern, policy)
 	if err != nil {
 		return nil, err
 	}
@@ -100,9 +101,8 @@ func (p *ProcManager) Start(name, daemon, procSearchPattern string, policy ProcS
 		return nil, nil
 	}
 
-	args = createDaemonArgs(daemon, args...)
 	logger.Infof("Starting process %s with args: %v", name, args)
-	cmd, err := p.executor.StartExecuteCommand(name, os.Args[0], args...)
+	cmd, err := p.executor.StartExecuteCommand(name, command, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start process %s: %+v", name, err)
 	}
@@ -150,7 +150,7 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 	}
 
 	// check if this process is currently running even though not being managed
-	existingProc, err := findProcessSearch(binary, procSearchPattern)
+	existingProc, err := ps.FindProcessByCmdline(binary, procSearchPattern)
 	if err != nil {
 		return false, fmt.Errorf("failed to search for process %s with pattern '%s': %+v", binary, procSearchPattern, err)
 	}
@@ -160,7 +160,7 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 		return true, nil
 	}
 
-	logger.Infof("existing process found for binary %s with pid %d, cmdline '%s'.", binary, existingProc.pid, existingProc.cmdline)
+	logger.Infof("existing process found for binary %s with pid %d, cmdline '%s'.", binary, existingProc.Pid(), existingProc.Cmdline())
 	if policy == ReuseExisting {
 		logger.Infof("Policy is 'reuse', reusing existing process.")
 		return false, nil
@@ -169,7 +169,7 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 	logger.Infof("Policy is 'restart', restarting existing process.")
 
 	// double check if the process is managed and stop it
-	index, proc := p.findMonitoredProcByPID(existingProc.pid)
+	index, proc := p.findMonitoredProcByPID(existingProc.Pid())
 	if proc != nil {
 		p.purgeManagedProc(index, proc)
 		return true, nil
@@ -177,8 +177,8 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 
 	// we could't stop the existing process through our own managed proces set, try to stop the process
 	// via a direct signal to its PID
-	if err := syscall.Kill(existingProc.pid, syscall.SIGKILL); err != nil {
-		return false, fmt.Errorf("failed to stop child process %d: %v", existingProc.pid, err)
+	if err := syscall.Kill(existingProc.Pid(), syscall.SIGKILL); err != nil {
+		return false, fmt.Errorf("failed to stop child process %d: %v", existingProc.Pid(), err)
 	}
 
 	return true, nil
@@ -233,16 +233,4 @@ func (p *ProcManager) findMonitoredProcByPID(pid int) (int, *MonitoredProc) {
 	}
 
 	return -1, nil
-}
-
-func createDaemonArgs(daemon string, args ...string) []string {
-	return append(
-		[]string{"daemon", fmt.Sprintf("--type=%s", daemon), "--"},
-		args...)
-}
-
-func createToolArgs(tool string, args ...string) []string {
-	return append(
-		[]string{"tool", fmt.Sprintf("--type=%s", tool), "--"},
-		args...)
 }

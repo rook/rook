@@ -21,7 +21,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd/inventory"
-	"github.com/rook/rook/pkg/etcdmgr/bootstrap"
+	"github.com/rook/rook/pkg/etcd/bootstrap"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/proc"
@@ -44,7 +44,7 @@ func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryUR
 		etcdClients = strings.Split(etcdMembers, ",")
 	} else {
 
-		// use the discovery URL to query the etcdmgr what the etcd client endpoints should be
+		// use the discovery URL to query the etcd mgr what the etcd client endpoints should be
 		var err error
 		etcdClients, err = bootstrap.GetEtcdClients(configDir, discoveryURL, networkInfo.ClusterAddrIPv4, nodeID)
 		if err != nil {
@@ -74,15 +74,17 @@ func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryUR
 
 	executor := &exec.CommandExecutor{}
 	context := &Context{
-		EtcdClient:         etcdClient,
+		DirectContext: DirectContext{
+			EtcdClient: etcdClient,
+			NodeID:     nodeID,
+			Inventory:  &inventory.Config{},
+			Services:   services,
+		},
 		Executor:           executor,
-		NodeID:             nodeID,
-		Services:           services,
 		ProcMan:            proc.New(executor),
 		ConfigDir:          configDir,
 		LogLevel:           logLevel,
 		ConfigFileOverride: configFileOverride,
-		Inventory:          &inventory.Config{},
 		NetworkInfo:        networkInfo,
 	}
 

@@ -1,16 +1,17 @@
 package: github.com/rook/rook
+homepage: https://rook.io
+license: Apache-2.0
 excludeDirs:
-- bin
+- _output
+- .cache
+- .work
 - build
 - demo
 - Documentation
-- external
-- release
-- scripts
-- toolbox
+- images
 import:
 - package: github.com/coreos/etcd
-  version: release-3.1
+  version: 20490caaf0dcd96bb4a95e40625559def8ef5b04
   subpackages:
   - client
   - error
@@ -20,22 +21,38 @@ import:
   version: 08b1a584251b5b62f458943640fc8ebd4d50aaa5
 - package: github.com/google/uuid
 - package: github.com/go-ini/ini
-- package: github.com/ghodss/yaml
-- package: github.com/kubernetes-incubator/external-storage
 - package: github.com/gorilla/mux
-- package: bitbucket.org/ww/goautoneg
-  version: a547fc61f48d567d5b4ec6f8aee5573d8efce11d
-  repo: https://github.com/quantum/goautoneg.git
 - package: github.com/coreos/pkg/capnslog
+- package: github.com/kubernetes-incubator/external-storage
+  version: 999a5f33de0f6c51f7325f696ac738d8fc73ec65
 - package: k8s.io/client-go
-  version: release-3.0
-  subpackages:
-  - kubernetes/typed/core/v1
+  version: 42a124578af9e61f5c6902fa7b6b2cb6538f17d2
 - package: k8s.io/apimachinery
-  version: release-1.6
-- package: github.com/bassam/cgosymbolizer
+  version: 728b986edb9bd4bb8a022a8cc13573a97ecc2239
+- package: k8s.io/api
+  version: e24ed681f56165befbea50a24f7e9f1c079ac366
 - package: github.com/prometheus/client_golang
   version: v0.8.0
   subpackages:
   - prometheus
   - prometheus/promhttp
+- package: github.com/jbw976/go-ps
+  version: 82859aed1b5dafbbe6ad4f3dac5404d2a742cf18
+testImport:
+- package: github.com/ghodss/yaml
+  version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
+- package: github.com/aws/aws-sdk-go
+  version: ^1.7.3
+  subpackages:
+  - aws
+  - aws/credentials
+  - aws/session
+  - service/s3
+- package: github.com/jmoiron/jsonq
+- package: github.com/go-sql-driver/mysql
+- package: github.com/icrowley/fake
+- package: github.com/stretchr/testify
+  version: 976c720a22c8eb4eb6a0b4348ad85ad12491a506
+  subpackages:
+  - assert
+  - require

@@ -17,23 +17,45 @@ package mon
 
 import (
 	"fmt"
+	"io/ioutil"
+	"path"
+	"strings"
 	"testing"
 
 	"os"
 
-	"github.com/rook/rook/pkg/cephmgr/client"
-	testclient "github.com/rook/rook/pkg/cephmgr/client/test"
+	"github.com/rook/rook/pkg/ceph/client"
+	clienttest "github.com/rook/rook/pkg/ceph/client/test"
+	cephtest "github.com/rook/rook/pkg/ceph/test"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	"github.com/rook/rook/pkg/operator/test"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
 )
 
 func TestStartMonPods(t *testing.T) {
 	clientset := test.New(3)
-	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory, MaxRetries: 1}, "myname", "ns", "", "myversion")
+	namespace := "ns"
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+			if strings.Contains(command, "ceph-authtool") {
+				cephtest.CreateClusterInfo(nil, path.Join(configDir, namespace), nil)
+			}
+			return "", nil
+		},
+	}
+	context := &clusterd.Context{
+		KubeContext: kit.KubeContext{Clientset: clientset, MaxRetries: 1},
+		Executor:    executor,
+		ConfigDir:   configDir,
+	}
+	c := New(context, namespace, "", "myversion", k8sutil.Placement{})
 
 	// start a basic cluster
 	// an error is expected since mocking always creates pods that are not running
@@ -56,19 +78,20 @@ func validateStart(t *testing.T, c *Cluster) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(s.StringData))
 
-	s, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Get("mon", metav1.GetOptions{})
+	s, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(s.StringData))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
-	p, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Get("mon0", metav1.GetOptions{})
+	_, err = c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Get("rook-ceph-mon0", metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mon0", p.Name)
 }
 
 func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion")
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}, ConfigDir: configDir}, "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(1)
 
 	// create the initial config map
@@ -90,21 +113,29 @@ func TestSaveMonEndpoints(t *testing.T) {
 }
 
 func TestCheckHealth(t *testing.T) {
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+			return clienttest.MonInQuorumResponse(), nil
+		},
+	}
 	clientset := test.New(1)
-	factory := &testclient.MockConnectionFactory{Fsid: "fsid", SecretKey: "mysecret"}
-	c := New(&k8sutil.Context{Clientset: clientset, Factory: factory, RetryDelay: 1, MaxRetries: 1}, "myname", "ns", "", "myversion")
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	context := &clusterd.Context{
+		KubeContext: kit.KubeContext{Clientset: clientset, RetryDelay: 1, MaxRetries: 1},
+		ConfigDir:   configDir,
+		Executor:    executor,
+	}
+	c := New(context, "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(1)
-	c.configDir = "/tmp/healthtest"
 	c.waitForStart = false
-	defer os.RemoveAll(c.configDir)
+	defer os.RemoveAll(c.context.ConfigDir)
 
 	err := c.CheckHealth()
 	assert.Nil(t, err)
 
 	c.maxMonID = 10
-	conn, err := factory.NewConnWithClusterAndUser(c.Namespace, "admin")
-	defer conn.Shutdown()
-	err = c.failoverMon(conn, "mon1")
+	err = c.failoverMon("mon1")
 	assert.Nil(t, err)
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
@@ -152,7 +183,7 @@ func TestMonID(t *testing.T) {
 
 func TestAvailableMonNodes(t *testing.T) {
 	clientset := test.New(1)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion")
+	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(0)
 	nodes, err := c.getAvailableMonNodes()
 	assert.Nil(t, err)
@@ -169,7 +200,7 @@ func TestAvailableMonNodes(t *testing.T) {
 
 func TestAvailableNodesInUse(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion")
+	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(0)
 
 	// all three nodes are available by default
@@ -179,7 +210,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 	// start pods on two of the nodes so that only one node will be available
 	for i := 0; i < 2; i++ {
-		pod := c.makeMonPod(&MonConfig{Name: fmt.Sprintf("mon%d", i)}, nodes[i].Name)
+		pod := c.makeMonPod(&monConfig{Name: fmt.Sprintf("rook-ceph-mon%d", i)}, nodes[i].Name)
 		_, err := clientset.CoreV1().Pods(c.Namespace).Create(pod)
 		assert.Nil(t, err)
 	}
@@ -190,7 +221,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 	// start pods on the remaining node. We expect all nodes to be available for placement
 	// since there is no way to place a mon on an unused node.
-	pod := c.makeMonPod(&MonConfig{Name: "mon2"}, nodes[2].Name)
+	pod := c.makeMonPod(&monConfig{Name: "mon2"}, nodes[2].Name)
 	_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
 	assert.Nil(t, err)
 	nodes, err = c.getAvailableMonNodes()
@@ -200,7 +231,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 func TestTaintedNodes(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "", "myversion")
+	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "", "myversion", k8sutil.Placement{})
 	c.clusterInfo = test.CreateClusterInfo(0)
 
 	nodes, err := c.getAvailableMonNodes()
@@ -217,20 +248,56 @@ func TestTaintedNodes(t *testing.T) {
 
 	// taint nodes so they will not be schedulable for new pods
 	nodes[0].Spec.Taints = []v1.Taint{
-		v1.Taint{Effect: v1.TaintEffectNoSchedule},
+		{Effect: v1.TaintEffectNoSchedule},
 	}
 	nodes[1].Spec.Taints = []v1.Taint{
-		v1.Taint{Effect: v1.TaintEffectPreferNoSchedule},
-	}
-	nodes[2].Spec.Taints = []v1.Taint{
-		v1.Taint{Effect: v1.TaintEffectNoExecute},
+		{Effect: v1.TaintEffectPreferNoSchedule},
 	}
 	clientset.CoreV1().Nodes().Update(&nodes[0])
 	clientset.CoreV1().Nodes().Update(&nodes[1])
 	clientset.CoreV1().Nodes().Update(&nodes[2])
-	assert.Nil(t, err)
 	cleanNodes, err := c.getAvailableMonNodes()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(cleanNodes))
 	assert.Equal(t, nodes[2].Name, cleanNodes[0].Name)
+}
+
+func TestNodeAffinity(t *testing.T) {
+	clientset := test.New(3)
+	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "", "myversion", k8sutil.Placement{})
+	c.clusterInfo = test.CreateClusterInfo(0)
+
+	nodes, err := c.getAvailableMonNodes()
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(nodes))
+
+	c.placement.NodeAffinity = &v1.NodeAffinity{
+		RequiredDuringSchedulingIgnoredDuringExecution: &v1.NodeSelector{
+			NodeSelectorTerms: []v1.NodeSelectorTerm{
+				{
+					MatchExpressions: []v1.NodeSelectorRequirement{
+						{
+							Key:      "label",
+							Operator: v1.NodeSelectorOpIn,
+							Values:   []string{"bar", "baz"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// label nodes so node0 will not be schedulable for new pods
+	nodes[0].Labels = map[string]string{"label": "foo"}
+	nodes[1].Labels = map[string]string{"label": "bar"}
+	nodes[2].Labels = map[string]string{"label": "baz"}
+	clientset.CoreV1().Nodes().Update(&nodes[0])
+	clientset.CoreV1().Nodes().Update(&nodes[1])
+	clientset.CoreV1().Nodes().Update(&nodes[2])
+	cleanNodes, err := c.getAvailableMonNodes()
+
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(cleanNodes))
+	assert.Equal(t, nodes[1].Name, cleanNodes[0].Name)
+	assert.Equal(t, nodes[2].Name, cleanNodes[1].Name)
 }

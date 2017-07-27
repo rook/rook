@@ -16,6 +16,8 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
+
+// Package cluster to manage a rook cluster.
 package cluster
 
 import (
@@ -26,42 +28,58 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/pkg/cephmgr/client"
-	cephmon "github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/rook/rook/pkg/ceph/client"
+	cephmon "github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
+	"github.com/rook/rook/pkg/operator/mgr"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
 	"github.com/rook/rook/pkg/operator/rgw"
 	rookclient "github.com/rook/rook/pkg/rook/client"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
+)
+
+const (
+	crushConfigMapName = "crush-config"
+	crushmapCreatedKey = "initialCrushMapCreated"
 )
 
 var (
 	healthCheckInterval = 10 * time.Second
 	clientTimeout       = 15 * time.Second
 	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
+	// ClusterResource is the definition of the cluster CRD
+	ClusterResource = kit.CustomResource{
+		Name:        "cluster",
+		Group:       k8sutil.CustomResourceGroup,
+		Version:     kit.V1Alpha1,
+		Description: "Managed Rook clusters",
+	}
 )
 
+// Cluster controls an instance of a Rook cluster
 type Cluster struct {
-	context       *k8sutil.Context
+	context       *clusterd.Context
 	v1.ObjectMeta `json:"metadata,omitempty"`
 	Spec          `json:"spec"`
-	dataDir       string
 	mons          *mon.Cluster
+	mgrs          *mgr.Cluster
 	osds          *osd.Cluster
 	apis          *api.Cluster
 	rgws          *rgw.Cluster
 	rclient       rookclient.RookRestClient
 }
 
-func (c *Cluster) Init(context *k8sutil.Context) {
+// Init assigns the cluster context
+func (c *Cluster) Init(context *clusterd.Context) {
 	c.context = context
-	c.dataDir = k8sutil.DataDir
 }
 
+// CreateInstance creates a new Rook cluster instance
 func (c *Cluster) CreateInstance() error {
 
 	// Create the namespace if not already created
@@ -86,20 +104,31 @@ func (c *Cluster) CreateInstance() error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Name, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag)
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.Placement.GetMON())
 	clusterInfo, err := c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
 
-	c.apis = api.New(c.context, c.Name, c.Namespace, c.Spec.VersionTag)
+	err = c.createInitialCrushMap()
+	if err != nil {
+		return fmt.Errorf("failed to create initial crushmap: %+v", err)
+	}
+
+	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag)
+	err = c.mgrs.Start()
+	if err != nil {
+		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
+	}
+
+	c.apis = api.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetAPI())
 	err = c.apis.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Name, c.Namespace, c.Spec.VersionTag, c.Spec.Storage, c.Spec.DataDirHostPath)
+	c.osds = osd.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD())
 	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
@@ -114,11 +143,12 @@ func (c *Cluster) CreateInstance() error {
 	return nil
 }
 
+// Monitor watches a cluster for failures and restarts failed components
 func (c *Cluster) Monitor(stopCh <-chan struct{}) {
 	for {
 		select {
 		case <-stopCh:
-			logger.Infof("Stopping monitoring of cluster %s in namespace %s", c.Name, c.Namespace)
+			logger.Infof("Stopping monitoring of cluster in namespace %s", c.Namespace)
 			return
 
 		case <-time.After(healthCheckInterval):
@@ -131,21 +161,72 @@ func (c *Cluster) Monitor(stopCh <-chan struct{}) {
 	}
 }
 
-func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
-	ctx := &clusterd.Context{ConfigDir: c.dataDir}
-	conn, err := cephmon.ConnectToClusterAsAdmin(ctx, c.context.Factory, clusterInfo)
-	if err != nil {
-		return fmt.Errorf("failed to connect to cluster: %+v", err)
-	}
-	defer conn.Shutdown()
+func (c *Cluster) createInitialCrushMap() error {
+	configMapExists := false
+	createCrushMap := false
 
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(crushConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return err
+		}
+
+		// crush config map was not found, meaning we haven't created the initial crush map
+		createCrushMap = true
+	} else {
+		// crush config map was found, look in it to verify we've created the initial crush map
+		configMapExists = true
+		val, ok := cm.Data[crushmapCreatedKey]
+		if !ok {
+			createCrushMap = true
+		} else if val != "1" {
+			createCrushMap = true
+		}
+	}
+
+	if !createCrushMap {
+		// no need to create the crushmap, bail out
+		return nil
+	}
+
+	logger.Info("creating initial crushmap")
+	out, err := client.CreateDefaultCrushMap(c.context, c.Namespace)
+	if err != nil {
+		return fmt.Errorf("failed to create initial crushmap: %+v. output: %s", err, out)
+	}
+
+	logger.Info("created initial crushmap")
+
+	// save the fact that we've created the initial crushmap to a configmap
+	configMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      crushConfigMapName,
+			Namespace: c.Namespace,
+		},
+		Data: map[string]string{crushmapCreatedKey: "1"},
+	}
+
+	if !configMapExists {
+		if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {
+			return fmt.Errorf("failed to create configmap %s: %+v", crushConfigMapName, err)
+		}
+	} else {
+		if _, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
+			return fmt.Errorf("failed to update configmap %s: %+v", crushConfigMapName, err)
+		}
+	}
+
+	return nil
+}
+
+func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 	// create a user for rbd clients
-	name := fmt.Sprintf("%s-rook-user", c.Name)
+	name := fmt.Sprintf("%s-rook-user", c.Namespace)
 	username := fmt.Sprintf("client.%s", name)
 	access := []string{"osd", "allow rwx", "mon", "allow r"}
 
 	// get-or-create-key for the user account
-	rbdKey, err := client.AuthGetOrCreateKey(conn, username, access)
+	rbdKey, err := client.AuthGetOrCreateKey(c.context, c.Namespace, username, access)
 	if err != nil {
 		return fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
 	}
@@ -178,6 +259,7 @@ func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 	return nil
 }
 
+// GetRookClient gets the REST api client
 func (c *Cluster) GetRookClient() (rookclient.RookRestClient, error) {
 	if c.rclient != nil {
 		return c.rclient, nil

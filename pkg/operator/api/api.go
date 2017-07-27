@@ -13,62 +13,72 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package api for the operator api manager.
 package api
 
 import (
 	"fmt"
 
+	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
+	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
+	"k8s.io/api/rbac/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
-	"k8s.io/client-go/pkg/apis/rbac/v1beta1"
 )
 
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-api")
+
 const (
+	// DeploymentName is the service name
 	DeploymentName = "rook-api"
 )
 
 var clusterAccessRules = []v1beta1.PolicyRule{
-	v1beta1.PolicyRule{
+	{
 		APIGroups: []string{""},
 		Resources: []string{"namespaces", "secrets", "pods", "services", "nodes", "configmaps", "events"},
 		Verbs:     []string{"get", "list", "watch", "create", "update"},
 	},
-	v1beta1.PolicyRule{
+	{
 		APIGroups: []string{"extensions"},
 		Resources: []string{"thirdpartyresources", "deployments", "daemonsets", "replicasets"},
 		Verbs:     []string{"get", "list", "create"},
 	},
-	v1beta1.PolicyRule{
+	{
 		APIGroups: []string{"storage.k8s.io"},
 		Resources: []string{"storageclasses"},
 		Verbs:     []string{"get", "list"},
 	},
 }
 
+// Cluster has the api service properties
 type Cluster struct {
-	context   *k8sutil.Context
-	Name      string
+	context   *clusterd.Context
 	Namespace string
+	placement k8sutil.Placement
 	Version   string
 	Replicas  int32
 }
 
-func New(context *k8sutil.Context, name, namespace, version string) *Cluster {
+// New creates an instance
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
-		Name:      name,
 		Namespace: namespace,
+		placement: placement,
 		Version:   version,
 		Replicas:  1,
 	}
 }
 
+// Start the api service
 func (c *Cluster) Start() error {
 	logger.Infof("starting the Rook api")
 
@@ -99,6 +109,7 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
+// make a cluster role
 func (c *Cluster) makeClusterRole() error {
 	account := &v1.ServiceAccount{}
 	account.Name = DeploymentName
@@ -128,7 +139,7 @@ func (c *Cluster) makeClusterRole() error {
 	binding := &v1beta1.ClusterRoleBinding{}
 	binding.Name = DeploymentName
 	binding.RoleRef = v1beta1.RoleRef{Name: DeploymentName, Kind: "ClusterRole", APIGroup: "rbac.authorization.k8s.io"}
-	binding.Subjects = []v1beta1.Subject{v1beta1.Subject{Kind: "ServiceAccount", Name: DeploymentName, Namespace: c.Namespace}}
+	binding.Subjects = []v1beta1.Subject{{Kind: "ServiceAccount", Name: DeploymentName, Namespace: c.Namespace}}
 	_, err = c.context.Clientset.RbacV1beta1().ClusterRoleBindings().Create(binding)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create api cluster role binding. %+v", err)
@@ -141,47 +152,51 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 	deployment.Name = DeploymentName
 	deployment.Namespace = c.Namespace
 
-	podSpec := v1.PodTemplateSpec{
+	podSpec := v1.PodSpec{
+		ServiceAccountName: DeploymentName,
+		Containers:         []v1.Container{c.apiContainer()},
+		RestartPolicy:      v1.RestartPolicyAlways,
+		Volumes: []v1.Volume{
+			{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
+		},
+	}
+	c.placement.ApplyToPodSpec(&podSpec)
+
+	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        DeploymentName,
 			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
 		},
-		Spec: v1.PodSpec{
-			ServiceAccountName: DeploymentName,
-			Containers:         []v1.Container{c.apiContainer()},
-			RestartPolicy:      v1.RestartPolicyAlways,
-			Volumes: []v1.Volume{
-				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
-			},
-		},
+		Spec: podSpec,
 	}
 
-	deployment.Spec = extensions.DeploymentSpec{Template: podSpec, Replicas: &c.Replicas}
+	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &c.Replicas}
 
 	return deployment
 }
 
 func (c *Cluster) apiContainer() v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd api --config-dir=%s --port=%d ", k8sutil.DataDir, model.Port)
 	return v1.Container{
-		// TODO: fix "sleep 5".
-		// Without waiting some time, there is highly probable flakes in network setup.
-		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
-		Name:    DeploymentName,
-		Image:   k8sutil.MakeRookImage(c.Version),
+		Args: []string{
+			"api",
+			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
+			fmt.Sprintf("--port=%d", model.Port),
+		},
+		Name:  DeploymentName,
+		Image: k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		},
 		Env: []v1.EnvVar{
-			v1.EnvVar{Name: "ROOKD_VERSION_TAG", Value: c.Version},
+			{Name: "ROOKD_VERSION_TAG", Value: c.Version},
 			k8sutil.NamespaceEnvVar(),
 			k8sutil.RepoPrefixEnvVar(),
-			opmon.MonSecretEnvVar(),
+			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
-			opmon.MonEndpointEnvVar(),
-			opmon.ClusterNameEnvVar(c.Name),
+			opmon.EndpointEnvVar(),
+			opmon.ClusterNameEnvVar(c.Namespace),
 		},
 	}
 }

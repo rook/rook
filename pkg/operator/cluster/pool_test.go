@@ -21,7 +21,7 @@ package cluster
 import (
 	"testing"
 
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
 
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/rook/test"
@@ -92,7 +92,7 @@ func TestDeletePool(t *testing.T) {
 	rclient := &test.MockRookRestClient{
 		MockGetPools: func() ([]model.Pool, error) {
 			pools := []model.Pool{
-				model.Pool{Name: "mypool"},
+				{Name: "mypool"},
 			}
 			return pools, nil
 		},

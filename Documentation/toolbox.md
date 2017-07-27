@@ -30,7 +30,7 @@ kubectl -n rook exec -it rook-tools bash
 
 All available tools in the toolbox are ready for your troubleshooting needs.  Example:
 ```bash
-rook status
+rookctl status
 ceph df
 rados df
 ```
@@ -46,7 +46,7 @@ kubectl delete -f rook-tools.yaml
 To use the rook toolbox on CoreOS, first add the following values to the toolbox config file:
 ```bash
 cat >~/.toolboxrc <<EOL
-TOOLBOX_DOCKER_IMAGE=quay.io/rook/toolbox
+TOOLBOX_DOCKER_IMAGE=rook/toolbox
 TOOLBOX_DOCKER_TAG=latest
 EOL
 ```
@@ -70,11 +70,11 @@ rados df
 ### Other Linux Distros
 The rook toolbox container can simply be run directly with `docker` on other Linux distros:
 ```bash
-docker run -it quay.io/rook/toolbox
+docker run -it rook/toolbox
 ```
 
 #### Ceph Tools
 To run ceph tools such as `ceph` and `rados`, run the container with the following options:
 ```bash
-docker run -it --network=host -v /var/lib/rook:/var/lib/rook quay.io/rook/toolbox
+docker run -it --network=host -v /var/lib/rook:/var/lib/rook rook/toolbox
 ```

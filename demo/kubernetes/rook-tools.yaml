@@ -6,14 +6,14 @@ metadata:
 spec:
   containers:
   - name: rook-tools
-    image: quay.io/rook/toolbox:master-latest
+    image: rook/toolbox:master
     imagePullPolicy: IfNotPresent
     args: ["sleep", "36500d"]
     env:
       - name: ROOKD_ADMIN_SECRET
         valueFrom:
           secretKeyRef:
-            name: mon
+            name: rook-ceph-mon
             key: admin-secret
     securityContext:
       privileged: true

@@ -35,7 +35,7 @@ const (
 	SuccessDeleteBlockImageContent             = `succeeded deleting image myimage3`
 	SuccessGetClientAccessInfoContent          = `{"monAddresses":["10.37.129.214:6790/0"],"userName":"admin","secretKey":"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg=="}`
 	SuccessGetFilesystemsContent               = `[{"name":"myfs1","metadataPool":"myfs1-metadata","dataPools":["myfs1-data"]}]`
-	SuccessGetObjectStoreConnectionInfoContent = `{"host":"rook-rgw:12345", "accessKey":"UST0JAP8CE61FDE0Q4BE", "secretKey":"tVCuH20xTokjEpVJc7mKjL8PLTfGh4NZ3le3zg9X"}`
+	SuccessGetObjectStoreConnectionInfoContent = `{"host":"rook-ceph-rgw:12345", "accessKey":"UST0JAP8CE61FDE0Q4BE", "secretKey":"tVCuH20xTokjEpVJc7mKjL8PLTfGh4NZ3le3zg9X"}`
 )
 
 func TestURL(t *testing.T) {
@@ -266,7 +266,7 @@ func TestGetObjectStoreConnectionInfo(t *testing.T) {
 	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
 
 	expectedResp := model.ObjectStoreConnectInfo{
-		Host: "rook-rgw:12345",
+		Host: "rook-ceph-rgw:12345",
 	}
 
 	resp, err := client.GetObjectStoreConnectionInfo()

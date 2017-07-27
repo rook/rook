@@ -16,13 +16,17 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
+
+// Package cluster to manage a rook cluster.
 package cluster
 
 import (
 	"fmt"
 
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	rookclient "github.com/rook/rook/pkg/rook/client"
-	"k8s.io/client-go/pkg/api/v1"
+	"k8s.io/api/core/v1"
 
 	"github.com/rook/rook/pkg/model"
 )
@@ -32,17 +36,26 @@ const (
 	erasureCodeType = "erasure-coded"
 )
 
+// PoolResource is the definition of the pool CRD
+var PoolResource = kit.CustomResource{
+	Name:        "pool",
+	Group:       k8sutil.CustomResourceGroup,
+	Version:     kit.V1Alpha1,
+	Description: "Managed Rook pools",
+}
+
+// Pool is the spec for the CRD
 type Pool struct {
 	v1.ObjectMeta `json:"metadata,omitempty"`
 	PoolSpec      `json:"spec"`
 }
 
-// Instantiate a new pool
+// NewPool creates a new pool
 func NewPool(spec PoolSpec) *Pool {
 	return &Pool{PoolSpec: spec}
 }
 
-// Create the pool
+// Create a pool
 func (p *Pool) Create(rclient rookclient.RookRestClient) error {
 	// validate the pool settings
 	if err := p.validate(); err != nil {

@@ -18,7 +18,6 @@ package sys
 import (
 	"fmt"
 	"os"
-	"os/user"
 	"path/filepath"
 	"strings"
 
@@ -42,9 +41,6 @@ type Partition struct {
 	Label string
 }
 
-// request the current user once and stash it in this global variable
-var currentUser *user.User
-
 func ListDevices(executor exec.Executor) ([]string, error) {
 	cmd := "lsblk all"
 	devices, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", "--all", "--noheadings", "--list", "--output", "KNAME")
@@ -58,7 +54,7 @@ func ListDevices(executor exec.Executor) ([]string, error) {
 func GetDevicePartitions(device string, executor exec.Executor) (partitions []*Partition, unusedSpace uint64, err error) {
 	cmd := fmt.Sprintf("lsblk /dev/%s", device)
 	output, err := executor.ExecuteCommandWithOutput(cmd, "lsblk", fmt.Sprintf("/dev/%s", device),
-		"--bytes", "--pairs", "--output", "NAME,SIZE,TYPE,PKNAME,PARTLABEL")
+		"--bytes", "--pairs", "--output", "NAME,SIZE,TYPE,PKNAME")
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get device %s partitions. %+v", device, err)
 	}
@@ -78,12 +74,18 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []*P
 		} else if props["PKNAME"] == device && props["TYPE"] == PartType {
 			// found a partition
 			p := &Partition{Name: name}
-			p.Label = props["PARTLABEL"]
 			p.Size, err = strconv.ParseUint(props["SIZE"], 10, 64)
 			if err != nil {
 				return nil, 0, fmt.Errorf("failed to get partition %s size. %+v", name, err)
 			}
 			totalPartitionSize += p.Size
+
+			label, err := GetPartitionLabel(name, executor)
+			if err != nil {
+				return nil, 0, err
+			}
+			p.Label = label
+
 			partitions = append(partitions, p)
 		}
 	}
@@ -170,6 +172,19 @@ func GetDiskUUID(device string, executor exec.Executor) (string, error) {
 	return parseUUID(device, output)
 }
 
+func GetPartitionLabel(deviceName string, executor exec.Executor) (string, error) {
+	// look up the partition's label with blkid because lsblk relies on udev which is
+	// not available in containers
+	devicePath := fmt.Sprintf("/dev/%s", deviceName)
+	cmd := fmt.Sprintf("blkid %s", devicePath)
+	output, err := executor.ExecuteCommandWithOutput(cmd, "blkid", devicePath, "-s", "PARTLABEL", "-o", "value")
+	if err != nil {
+		return "", fmt.Errorf("failed to get partition label for device %s: %+v", deviceName, err)
+	}
+
+	return output, nil
+}
+
 // look up the mount point of the given device.  empty string returned if device is not mounted.
 func GetDeviceMountPoint(deviceName string, executor exec.Executor) (string, error) {
 	cmd := fmt.Sprintf("get mount point for %s", deviceName)
@@ -179,7 +194,7 @@ func GetDeviceMountPoint(deviceName string, executor exec.Executor) (string, err
 	}
 
 	searchFor := fmt.Sprintf("^/dev/%s on", deviceName)
-	mountPoint := awk(grep(output, searchFor), 3)
+	mountPoint := Awk(Grep(output, searchFor), 3)
 	return mountPoint, nil
 }
 
@@ -192,7 +207,7 @@ func GetDeviceFromMountPoint(mountPoint string, executor exec.Executor) (string,
 	}
 
 	searchFor := fmt.Sprintf("on %s ", mountPoint)
-	device := awk(grep(output, searchFor), 1)
+	device := Awk(Grep(output, searchFor), 1)
 	return device, nil
 }
 
@@ -246,7 +261,7 @@ func DoesDeviceHaveChildren(device string, executor exec.Executor) (bool, error)
 	}
 
 	searchFor := fmt.Sprintf("^%s$", device)
-	children := grep(output, searchFor)
+	children := Grep(output, searchFor)
 
 	return children != "", nil
 }

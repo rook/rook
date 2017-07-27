@@ -393,7 +393,7 @@ func TestSimpleMembershipChangeWatching(t *testing.T) {
 	mockLeaseManager.mockAcquireLease = acquireLeaseSuccessfully
 
 	testService := newTestServiceLeader()
-	context.Services = []*ClusterService{&ClusterService{Name: "test", Leader: testService}}
+	context.Services = []*ClusterService{{Name: "test", Leader: testService}}
 	nodesAdded := 0
 	nodeAddedChannel := make(chan bool)
 	testService.nodeAdded = func(nodeID string) {
@@ -589,7 +589,10 @@ func createDefaultDependencies() (*util.MockEtcdClient, *Context, *mockLeaseMana
 	mockLeaseManager := &mockLeaseManager{}
 	etcdClient := util.NewMockEtcdClient()
 	machineId := "8e8f532fe96dcae6b1ce335822e5b03c"
-	context := &Context{EtcdClient: etcdClient, NodeID: machineId, Executor: &exectest.MockExecutor{}, Inventory: &inventory.Config{}}
+	context := &Context{
+		DirectContext: DirectContext{EtcdClient: etcdClient, NodeID: machineId, Inventory: &inventory.Config{}},
+		Executor:      &exectest.MockExecutor{},
+	}
 	return etcdClient, context, mockLeaseManager, &MockLeader{}
 }
 

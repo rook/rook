@@ -1,0 +1,83 @@
+/*
+Copyright 2016 The Rook Authors. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+package client
+
+import (
+	"encoding/json"
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+)
+
+const (
+	// this JSON was generated from the mon_command "fs ls",  ExecuteMonCommand(conn, map[string]interface{}{"prefix": "fs ls"})
+	cephFilesystemListResponseRaw = `[{"name":"myfs1","metadata_pool":"myfs1-metadata","metadata_pool_id":2,"data_pool_ids":[1],"data_pools":["myfs1-data"]}]`
+
+	// this JSON was generated from the mon_command "fs get",  ExecuteMonCommand(conn, map[string]interface{}{"prefix": "fs get","fs_name": fsName,})
+	cephFilesystemGetResponseRaw = `{"mdsmap":{"epoch":6,"flags":1,"ever_allowed_features":0,"explicitly_allowed_features":0,"created":"2016-11-30 08:35:06.416438","modified":"2016-11-30 08:35:06.416438","tableserver":0,"root":0,"session_timeout":60,"session_autoclose":300,"max_file_size":1099511627776,"last_failure":0,"last_failure_osd_epoch":0,"compat":{"compat":{},"ro_compat":{},"incompat":{"feature_1":"base v0.20","feature_2":"client writeable ranges","feature_3":"default file layouts on dirs","feature_4":"dir inode in separate object","feature_5":"mds uses versioned encoding","feature_6":"dirfrag is stored in omap","feature_8":"file layout v2"}},"max_mds":1,"in":[0],"up":{"mds_0":4107},"failed":[],"damaged":[],"stopped":[],"info":{"gid_4107":{"gid":4107,"name":"1","rank":0,"incarnation":4,"state":"up:active","state_seq":3,"addr":"127.0.0.1:6804\/2981621686","standby_for_rank":-1,"standby_for_fscid":-1,"standby_for_name":"","standby_replay":false,"export_targets":[],"features":1152921504336314367}},"data_pools":[1],"metadata_pool":2,"enabled":true,"fs_name":"myfs1","balancer":""},"id":1}`
+)
+
+func TestFilesystemListMarshal(t *testing.T) {
+	var filesystems []CephFilesystem
+	err := json.Unmarshal([]byte(cephFilesystemListResponseRaw), &filesystems)
+	assert.Nil(t, err)
+
+	// create the expected file systems listing object
+	expectedFilesystems := []CephFilesystem{
+		{
+			Name:           "myfs1",
+			MetadataPool:   "myfs1-metadata",
+			MetadataPoolID: 2,
+			DataPools:      []string{"myfs1-data"},
+			DataPoolIDs:    []int{1}},
+	}
+
+	assert.Equal(t, expectedFilesystems, filesystems)
+}
+
+func TestFilesystemGetMarshal(t *testing.T) {
+	var fs CephFilesystemDetails
+	err := json.Unmarshal([]byte(cephFilesystemGetResponseRaw), &fs)
+	assert.Nil(t, err)
+
+	// create the expected file system details object
+	expectedFS := CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			Enabled:        true,
+			Root:           0,
+			TableServer:    0,
+			MaxMDS:         1,
+			In:             []int{0},
+			Up:             map[string]int{"mds_0": 4107},
+			Failed:         []int{},
+			Damaged:        []int{},
+			Stopped:        []int{},
+			Info: map[string]MDSInfo{
+				"gid_4107": {
+					GID:     4107,
+					Name:    "1",
+					Rank:    0,
+					State:   "up:active",
+					Address: "127.0.0.1:6804/2981621686",
+				},
+			},
+		},
+	}
+
+	assert.Equal(t, expectedFS, fs)
+}

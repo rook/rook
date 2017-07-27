@@ -16,23 +16,23 @@ limitations under the License.
 package api
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
-	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/kit"
 	testop "github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
+	"k8s.io/api/rbac/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/pkg/api/v1"
-	"k8s.io/client-go/pkg/apis/rbac/v1beta1"
 )
 
 func TestStartAPI(t *testing.T) {
 	clientset := testop.New(3)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion")
+	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "myversion", k8sutil.Placement{})
 
 	// start a basic cluster
 	err := c.Start()
@@ -60,7 +60,7 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestPodSpecs(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion")
+	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "myversion", k8sutil.Placement{})
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)
@@ -75,21 +75,21 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	cont := d.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, "quay.io/rook/rookd:myversion", cont.Image)
+	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 1, len(cont.VolumeMounts))
 	assert.Equal(t, 7, len(cont.Env))
 	for _, v := range cont.Env {
 		assert.True(t, strings.HasPrefix(v.Name, "ROOKD_"))
 	}
 
-	expectedCommand := fmt.Sprintf("/usr/bin/rookd api --config-dir=/var/lib/rook --port=%d", model.Port)
-
-	assert.NotEqual(t, -1, strings.Index(cont.Command[2], expectedCommand), cont.Command[2])
+	assert.Equal(t, "api", cont.Args[0])
+	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
+	assert.Equal(t, "--port=8124", cont.Args[2])
 }
 
 func TestClusterRole(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(&k8sutil.Context{Clientset: clientset}, "myname", "ns", "myversion")
+	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "myversion", k8sutil.Placement{})
 
 	// the role is create
 	err := c.makeClusterRole()
@@ -111,7 +111,7 @@ func TestClusterRole(t *testing.T) {
 
 	// update the rules
 	clusterAccessRules = []v1beta1.PolicyRule{
-		v1beta1.PolicyRule{
+		{
 			APIGroups: []string{""},
 			Resources: []string{"namespaces"},
 			Verbs:     []string{"get", "list"},

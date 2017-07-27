@@ -16,57 +16,27 @@ limitations under the License.
 Some of the code below came from https://github.com/coreos/etcd-operator
 which also has the apache 2.0 license.
 */
+
+// Package k8sutil for Kubernetes helpers.
 package k8sutil
 
-import (
-	"fmt"
-	"net/http"
-	"time"
+import "github.com/coreos/pkg/capnslog"
 
-	"github.com/rook/rook/pkg/cephmgr/client"
-	"k8s.io/client-go/kubernetes"
-)
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
 
 const (
-	Namespace        = "rook"
+	// Namespace for rook
+	Namespace = "rook"
+	// CustomResourceGroup for rook CRD
+	CustomResourceGroup = "rook.io"
+	// DefaultNamespace for the cluster
 	DefaultNamespace = "default"
-	DataDirVolume    = "rook-data"
-	DataDir          = "/var/lib/rook"
-	RookType         = "kubernetes.io/rook"
-	RbdType          = "kubernetes.io/rbd"
+	// DataDirVolume data dir volume
+	DataDirVolume = "rook-data"
+	// DataDir folder
+	DataDir = "/var/lib/rook"
+	// RookType for the CRD
+	RookType = "kubernetes.io/rook"
+	// RbdType for the RBD mounts
+	RbdType = "kubernetes.io/rbd"
 )
-
-type ConditionFunc func() (bool, error)
-
-type Context struct {
-	Clientset   kubernetes.Interface
-	RetryDelay  int
-	MaxRetries  int
-	MasterHost  string
-	KubeHttpCli *http.Client
-	Factory     client.ConnectionFactory
-}
-
-// Retry retries f every interval until after maxRetries.
-// The interval won't be affected by how long f takes.
-// For example, if interval is 3s, f takes 1s, another f will be called 2s later.
-// However, if f takes longer than interval, it will be delayed.
-func Retry(context *Context, f ConditionFunc) error {
-	interval := time.Duration(context.RetryDelay) * time.Second
-	tick := time.NewTicker(interval)
-	defer tick.Stop()
-
-	for i := 0; i < context.MaxRetries; i++ {
-		ok, err := f()
-		if err != nil {
-			return fmt.Errorf("failed on retry %d. %+v", i, err)
-		}
-		if ok {
-			return nil
-		}
-		if i < context.MaxRetries-1 {
-			<-tick.C
-		}
-	}
-	return fmt.Errorf("failed after max retries %d.", context.MaxRetries)
-}

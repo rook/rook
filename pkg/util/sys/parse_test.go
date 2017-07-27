@@ -41,7 +41,7 @@ func TestGrep(t *testing.T) {
 }
 
 func testGrep(t *testing.T, input, searchFor, expected string) {
-	output := grep(input, searchFor)
+	output := Grep(input, searchFor)
 	assert.Equal(t, expected, output)
 }
 
@@ -56,6 +56,6 @@ func TestAwk(t *testing.T) {
 }
 
 func testAwk(t *testing.T, index int, input, expected string) {
-	out := awk(input, index)
+	out := Awk(input, index)
 	assert.Equal(t, expected, out)
 }

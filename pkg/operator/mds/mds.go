@@ -13,74 +13,69 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package mds for file systems.
 package mds
 
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/cephmgr/client"
-	cephmds "github.com/rook/rook/pkg/cephmgr/mds"
-	"github.com/rook/rook/pkg/cephmgr/mon"
+	"github.com/coreos/pkg/capnslog"
+	cephmds "github.com/rook/rook/pkg/ceph/mds"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
+	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/pkg/api/v1"
-	extensions "k8s.io/client-go/pkg/apis/extensions/v1beta1"
 )
 
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mds")
+
 const (
-	appName            = "mds"
+	appName            = "rook-ceph-mds"
 	dataPoolSuffix     = "-data"
 	metadataPoolSuffix = "-metadata"
 	keyringName        = "keyring"
 )
 
+// Cluster for mds management
 type Cluster struct {
-	Name      string
 	Namespace string
 	Version   string
 	Replicas  int32
-	context   *k8sutil.Context
+	context   *clusterd.Context
 	dataDir   string
+	placement k8sutil.Placement
 }
 
-func New(context *k8sutil.Context, name, namespace, version string) *Cluster {
+// New creates an instance of the mds manager
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
-		Name:      name,
 		Namespace: namespace,
+		placement: placement,
 		Version:   version,
 		Replicas:  1,
 		dataDir:   k8sutil.DataDir,
 	}
 }
 
-func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo) error {
+// Start the mds manager
+func (c *Cluster) Start() error {
 	logger.Infof("start running mds")
 
-	if cluster == nil || len(cluster.Monitors) == 0 {
-		return fmt.Errorf("missing mons to start mds")
-	}
-
-	context := &clusterd.DaemonContext{ConfigDir: c.dataDir}
-	conn, err := mon.ConnectToClusterAsAdmin(clusterd.ToContext(context), c.context.Factory, cluster)
-	if err != nil {
-		return fmt.Errorf("failed to connect to cluster as admin: %+v", err)
-	}
-	defer conn.Shutdown()
-
 	id := "mds1"
-	err = c.createKeyring(clientset, context, cluster, conn, id)
+	err := c.createKeyring(c.context.Clientset, id)
 	if err != nil {
 		return fmt.Errorf("failed to create mds keyring. %+v", err)
 	}
 
 	// start the deployment
 	deployment := c.makeDeployment(id)
-	_, err = clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
+	_, err = c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mds deployment. %+v", err)
@@ -93,7 +88,7 @@ func (c *Cluster) Start(clientset kubernetes.Interface, cluster *mon.ClusterInfo
 	return nil
 }
 
-func (c *Cluster) createKeyring(clientset kubernetes.Interface, context *clusterd.DaemonContext, cluster *mon.ClusterInfo, conn client.Connection, id string) error {
+func (c *Cluster) createKeyring(clientset kubernetes.Interface, id string) error {
 	_, err := clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the mds keyring was already generated")
@@ -104,7 +99,7 @@ func (c *Cluster) createKeyring(clientset kubernetes.Interface, context *cluster
 	}
 
 	// get-or-create-key for the user account
-	keyring, err := cephmds.CreateKeyring(conn, id)
+	keyring, err := cephmds.CreateKeyring(c.context, c.Namespace, id)
 	if err != nil {
 		return fmt.Errorf("failed to create mds keyring. %+v", err)
 	}
@@ -131,46 +126,49 @@ func (c *Cluster) makeDeployment(id string) *extensions.Deployment {
 	deployment.Name = appName
 	deployment.Namespace = c.Namespace
 
-	podSpec := v1.PodTemplateSpec{
+	podSpec := v1.PodSpec{
+		Containers:    []v1.Container{c.mdsContainer(id)},
+		RestartPolicy: v1.RestartPolicyAlways,
+		Volumes: []v1.Volume{
+			{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
+			k8sutil.ConfigOverrideVolume(),
+		},
+	}
+	c.placement.ApplyToPodSpec(&podSpec)
+
+	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        appName,
 			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
 		},
-		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.mdsContainer(id)},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes: []v1.Volume{
-				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
-				k8sutil.ConfigOverrideVolume(),
-			},
-		},
+		Spec: podSpec,
 	}
 
-	deployment.Spec = extensions.DeploymentSpec{Template: podSpec, Replicas: &c.Replicas}
+	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &c.Replicas}
 
 	return deployment
 }
 
 func (c *Cluster) mdsContainer(id string) v1.Container {
 
-	command := fmt.Sprintf("/usr/bin/rookd mds --config-dir=%s --mds-id=%s ",
-		k8sutil.DataDir, id)
 	return v1.Container{
-		// TODO: fix "sleep 5".
-		// Without waiting some time, there is highly probable flakes in network setup.
-		Command: []string{"/bin/sh", "-c", fmt.Sprintf("sleep 5; %s", command)},
-		Name:    appName,
-		Image:   k8sutil.MakeRookImage(c.Version),
+		Args: []string{
+			"mds",
+			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
+			fmt.Sprintf("--mds-id=%s", id),
+		},
+		Name:  appName,
+		Image: k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),
 		},
 		Env: []v1.EnvVar{
 			{Name: "ROOKD_MDS_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
-			opmon.ClusterNameEnvVar(c.Name),
-			opmon.MonEndpointEnvVar(),
-			opmon.MonSecretEnvVar(),
+			opmon.ClusterNameEnvVar(c.Namespace),
+			opmon.EndpointEnvVar(),
+			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},

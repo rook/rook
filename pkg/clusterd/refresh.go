@@ -233,3 +233,19 @@ func (c *ClusterRefresher) refreshNeeded() bool {
 	defer c.refreshMutex.Unlock()
 	return c.changes
 }
+
+func copyContext(c *Context) *Context {
+	return &Context{
+		DirectContext: DirectContext{
+			Services:   c.Services,
+			NodeID:     c.NodeID,
+			EtcdClient: c.EtcdClient,
+			Inventory:  c.Inventory,
+		},
+		Executor:           c.Executor,
+		ProcMan:            c.ProcMan,
+		ConfigDir:          c.ConfigDir,
+		LogLevel:           c.LogLevel,
+		ConfigFileOverride: c.ConfigFileOverride,
+	}
+}

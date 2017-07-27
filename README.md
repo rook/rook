@@ -1,59 +1,24 @@
 ![logo](Documentation/media/logo.png?raw=true "Rook")
 
 [![Build Status](https://jenkins.rook.io/buildStatus/icon?job=rook/rook/master)](https://jenkins.rook.io/blue/organizations/jenkins/rook%2Frook/activity)
-
-## Open, Cloud Native, and Universal Distributed Storage
-
-- [What is Rook?](#what-is-rook)
-- [Status](#status)
-- [Quickstart Guides](#quickstart-guides)
-- [Advanced Configuration and Troubleshooting](#advanced-configuration-and-troubleshooting)
-- [Building](#building)
-- [Contributing](#contributing)
-- [Contact](#contact)
-- [Licensing](#licensing)
+[![GitHub release](https://img.shields.io/github/release/rook/rook/all.svg?style=flat-square)](https://github.com/rook/rook/releases)
+[![Go Report Card](https://goreportcard.com/badge/github.com/rook/rook)](https://goreportcard.com/report/github.com/rook/rook)
+[![Gitter](https://img.shields.io/gitter/room/rook/rook.js.svg)](https://gitter.im/rook/rook)
+[![Twitter Follow](https://img.shields.io/twitter/follow/rook_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=rook_io&user_id=788180534543339520)
 
 ## What is Rook?
 
-Rook is a distributed storage system designed for cloud native applications. It exposes file, block, and object storage on top of shared resource pools.
-Rook has minimal dependencies and can be deployed in dedicated storage clusters or converged clusters.
-It's self-managing, self-protecting, self-healing, and is designed to just work without teams of engineers managing it.
-It scales from a single node, to multi-PB clusters spread geographically.
+Rook is an open source orchestrator for distributed storage systems running in cloud native environments.
 
-It is based on the [Ceph](http://ceph.com) project that has over 10 years of production deployments in some of the largest storage clusters in the world.
+Rook turns distributed storage software into a self-managing, self-scaling, and self-healing storage services. It does this by automating deployment, bootstrapping, configuration, provisioning, scaling, upgrading, migration, disaster recovery, monitoring, and resource management. Rook uses the facilities provided by the underlying cloud-native container management, scheduling and orchestration platform to perform its duties.
 
-Rook integrates deeply into popular container environments like Kubernetes and leverages facilities for lifecycle management, resource management, scale-out and upgrades.
-Rook also integrates into the Kubernetes API to expose a uniform surface area for management.
+Rook integrates deeply into cloud native environments leveraging extension points and providing a seamless experience for scheduling, lifecycle management, resource management, security, monitoring, and user experience.
 
-## Status
+Rook is currently in alpha state and has focused initially on orchestrating Ceph on-top of Kubernetes. Ceph is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters. Rook plans to add support for other storage systems beyond Ceph and other cloud native environments beyond Kubernetes in future releases. See our [roadmap](ROADMAP.md) for more details.
 
-Rook is in **alpha** state. We're just getting started. Not all planned features are complete. The API
-and other user-facing objects are subject to change. Backward-compability is not supported for this
-release. See our [Roadmap](https://github.com/rook/rook/wiki/Roadmap) and [Issues](https://github.com/rook/rook/issues).
-Please help us by [Contributing](CONTRIBUTING.md) to the project.
+## Getting Started and Documentation
 
-## Quickstart Guides
-
-There are a few different options for running a Rook cluster for your storage needs.  Kubernetes is the recommended way because of the rich orchestration and scheduling that Kubernetes provides via the Rook operator.
-
-1. [Kubernetes](Documentation/kubernetes.md) (recommended)
-2. [Standalone](Documentation/standalone.md)
-
-### Using Rook
-
-Once you have a Rook cluster running, you can use the `rook` tool to create and manage storage as shown in the following guide:
-- [Using Rook Guide](Documentation/client.md)
-
-## Advanced Configuration and Troubleshooting
-
-Our Rook toolbox container is available to aid with troubleshooting and advanced configuration of your Rook cluster.
-It automatically configures a Ceph client suite to work with your Rook deployment, and additional tools are just an `apt-get` away.
-
-To get started please see the [toolbox readme](Documentation/toolbox.md).  Also see our [advanced configuration](Documentation/advanced-configuration.md) document for helpful maintenance and tuning examples.
-
-## Building
-
-See [Building](https://github.com/rook/rook/wiki/Building) in the wiki for more details.
+For installation, deployment, and administration, see our [Documentation](https://rook.github.io/docs/rook/latest/kubernetes.html).
 
 ## Contributing
 
@@ -61,18 +26,17 @@ We welcome contributions. See [Contributing](CONTRIBUTING.md) to get started.
 
 ## Report a Bug
 
-For filing bugs, suggesting improvements, or requesting new features, help us out by opening an [issue](https://github.com/rook/rook/issues).
+For filing bugs, suggesting improvements, or requesting new features, please open an [issue](https://github.com/rook/rook/issues).
 
 ## Contact
 
 Please use the following to reach members of the community:
 
-- Email: [rook-dev](https://groups.google.com/forum/#!forum/rook-dev)
 - Gitter: [rook/rook](https://gitter.im/rook/rook) for general project discussions or [rook-dev](https://gitter.im/rook/rook-dev) for development discussions.
+- Forums: [rook-dev](https://groups.google.com/forum/#!forum/rook-dev)
 - Twitter: [@rook_io](https://twitter.com/rook_io)
+- Email: [info@rook.io](mailto:info@rook.io)
 
 ## Licensing
 
-Rook and Etcd are under the Apache 2.0 license. [Ceph](https://github.com/rook/ceph/blob/master/COPYING) is mostly under the LGPL 2.0 license. Some portions
-of the code are under different licenses. The appropriate license information can be found in the headers
-of the source files.
+Rook is under the Apache 2.0 license.

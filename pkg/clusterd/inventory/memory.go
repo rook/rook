@@ -15,9 +15,6 @@ limitations under the License.
 */
 package inventory
 
-// #include <unistd.h>
-import "C"
-
 import (
 	"fmt"
 	"path"
@@ -28,7 +25,14 @@ import (
 )
 
 func getSystemMemory() uint64 {
-	return uint64(C.sysconf(C._SC_PHYS_PAGES) * C.sysconf(C._SC_PAGE_SIZE))
+	// TODO: Get memory if we need it for resource scheduling.
+	//  When added, ensure build tags are used so tests can run on other platforms
+	// sysInfo := new(syscall.Sysinfo_t)
+	// err := syscall.Sysinfo(sysInfo)
+	// if err == nil {
+	// 	return uint64(sysInfo.Totalram)
+	// }
+	return 0
 }
 
 func storeMemory(etcdClient etcd.KeysAPI, nodeID string, size uint64) error {
