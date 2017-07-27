@@ -27,10 +27,12 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/objects"
 	"github.com/rook/rook/tests/framework/utils"
+	utilversion "k8s.io/kubernetes/pkg/util/version"
 )
 
 const (
 	rookOperatorCreatedTpr = "cluster.rook.io"
+	rookOperatorCreatedCrd = "clusters.rook.io"
 )
 
 var (
@@ -57,10 +59,18 @@ func (h *InstallHelper) createK8sRookOperator(k8sHelper *utils.K8sHelper, k8sver
 	if err != nil {
 		return fmt.Errorf("Failed to create rook-operator pod : %v ", err)
 	}
+	kubeVersion := utilversion.MustParseSemantic(k8sversion)
 
-	if !k8sHelper.IsThirdPartyResourcePresent(rookOperatorCreatedTpr) {
-		return fmt.Errorf("Failed to start Rook Operator; k8s thirdpartyresource did not appear")
+	if kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.7.0")) {
+		if !k8sHelper.IsCRDPresent(rookOperatorCreatedCrd) {
+			return fmt.Errorf("Failed to start Rook Operator; k8s CustomResourceDefinition did not appear")
+		}
+	} else {
+		if !k8sHelper.IsThirdPartyResourcePresent(rookOperatorCreatedTpr) {
+			return fmt.Errorf("Failed to start Rook Operator; k8s thirdpartyresource did not appear")
+		}
 	}
+
 	logger.Infof("Rook Operator started")
 
 	return nil
@@ -155,14 +165,19 @@ func (h *InstallHelper) UninstallRookFromK8s() {
 	if skipRookInstall {
 		return
 	}
-	k8sversion := h.k8shelper.GetK8sServerVersion()
+	k8sVersion := h.k8shelper.GetK8sServerVersion()
+	serverVersion, err := h.k8shelper.Clientset.Discovery().ServerVersion()
+	if err != nil {
+		panic(err)
+	}
+	kubeVersion := utilversion.MustParseSemantic(serverVersion.GitVersion)
 
 	logger.Infof("Uninstalling Rook")
 	k8sHelp, err := utils.CreatK8sHelper()
 	if err != nil {
 		panic(err)
 	}
-	rookOperator := h.installData.getRookOperator(k8sversion)
+	rookOperator := h.installData.getRookOperator(k8sVersion)
 
 	_, err = h.k8shelper.KubectlWithStdin(rookOperator, deleteArgs...)
 	if err != nil {
@@ -176,7 +191,7 @@ func (h *InstallHelper) UninstallRookFromK8s() {
 	if err != nil {
 		panic(err)
 	}
-	if !strings.EqualFold(h.Env.K8sVersion, "v1.5") {
+	if kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.6.0")) {
 		_, err = k8sHelp.DeleteResource([]string{"clusterrole", "rook-api"})
 		if err != nil {
 			panic(err)
@@ -186,9 +201,17 @@ func (h *InstallHelper) UninstallRookFromK8s() {
 			panic(err)
 		}
 	}
-	_, err = k8sHelp.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io"})
-	if err != nil {
-		panic(err)
+
+	if kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.7.0")) {
+		_, err = k8sHelp.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io"})
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		_, err = k8sHelp.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io"})
+		if err != nil {
+			panic(err)
+		}
 	}
 	_, err = k8sHelp.DeleteResource([]string{"secret", "rook-rook-user"})
 	if err != nil {

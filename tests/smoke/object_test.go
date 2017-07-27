@@ -20,10 +20,11 @@ import (
 	"errors"
 
 	"fmt"
+	"time"
+
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
-	"time"
 )
 
 var (

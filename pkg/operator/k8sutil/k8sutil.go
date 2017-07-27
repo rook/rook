@@ -25,6 +25,17 @@ import "github.com/coreos/pkg/capnslog"
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
 
 const (
+	// V1Alpha1 version for kubernetes resources
+	V1Alpha1 = "v1alpha1"
+
+	// V1Beta1 version for kubernetes resources
+	V1Beta1 = "v1beta1"
+
+	// V1 version for kubernetes resources
+	V1 = "v1"
+)
+
+const (
 	// Namespace for rook
 	Namespace = "rook"
 	// CustomResourceGroup for rook CRD

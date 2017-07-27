@@ -33,6 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/wait"
 	helper "k8s.io/kubernetes/pkg/api/v1/helper"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
@@ -55,19 +56,21 @@ const (
 
 // Cluster is for the cluster of monitors
 type Cluster struct {
-	context         *clusterd.Context
-	Namespace       string
-	Keyring         string
-	Version         string
-	MasterHost      string
-	Size            int
-	Paused          bool
-	Port            int32
-	clusterInfo     *mon.ClusterInfo
-	placement       k8sutil.Placement
-	maxMonID        int
-	waitForStart    bool
-	dataDirHostPath string
+	context             *clusterd.Context
+	Namespace           string
+	Keyring             string
+	Version             string
+	MasterHost          string
+	Size                int
+	Paused              bool
+	Port                int32
+	clusterInfo         *mon.ClusterInfo
+	placement           k8sutil.Placement
+	maxMonID            int
+	waitForStart        bool
+	dataDirHostPath     string
+	monPodRetryInterval time.Duration
+	monPodTimeout       time.Duration
 }
 
 // monConfig for a single monitor
@@ -79,14 +82,16 @@ type monConfig struct {
 // New creates an instance of a mon cluster
 func New(context *clusterd.Context, namespace, dataDirHostPath, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
-		context:         context,
-		placement:       placement,
-		dataDirHostPath: dataDirHostPath,
-		Namespace:       namespace,
-		Version:         version,
-		Size:            3,
-		maxMonID:        -1,
-		waitForStart:    true,
+		context:             context,
+		placement:           placement,
+		dataDirHostPath:     dataDirHostPath,
+		Namespace:           namespace,
+		Version:             version,
+		Size:                3,
+		maxMonID:            -1,
+		waitForStart:        true,
+		monPodRetryInterval: 6 * time.Second,
+		monPodTimeout:       5 * time.Minute,
 	}
 }
 
@@ -108,7 +113,7 @@ func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 		}
 	} else {
 		// Check the health of a previously started cluster
-		err = c.CheckHealth()
+		err = c.checkHealth()
 		if err != nil {
 			logger.Warningf("failed to check mon health %+v. %+v", c.clusterInfo.Monitors, err)
 		}
@@ -304,37 +309,34 @@ func (c *Cluster) waitForPodToStart(name string) (string, error) {
 	}
 
 	// Poll the status of the pods to see if they are ready
-	status := ""
-	retryFactor := 3
-	for i := 0; i < c.context.MaxRetries*retryFactor; i++ {
-		// wait and try again
-		if i%retryFactor == 0 {
-			logger.Infof("waiting for mon %s to start. status=%s", name, status)
-		}
-		<-time.After(time.Duration(c.context.RetryDelay/retryFactor) * time.Second)
-
-		options := metav1.ListOptions{LabelSelector: fmt.Sprintf("mon=%s", name)}
+	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("mon=%s", name)}
+	status := string(v1.PodUnknown)
+	var pod v1.Pod
+	err := wait.Poll(c.monPodRetryInterval, c.monPodTimeout, func() (bool, error) {
+		logger.Infof("waiting for mon %s to start. status=%s", name, status)
 		pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(options)
 		if err != nil {
-			return "", fmt.Errorf("failed to get mon %s pod. %+v", name, err)
+			return false, fmt.Errorf("failed to get mon %s pod. %+v", name, err)
 		}
 		if len(pods.Items) == 0 {
 			logger.Infof("%s pod not yet created", name)
-			continue
+			return false, nil
 		}
 		if len(pods.Items) > 1 {
 			logger.Warningf("more than one mon pod found for %s", name)
 		}
-
-		pod := pods.Items[0]
+		pod = pods.Items[0]
 		if pod.Status.Phase == v1.PodRunning {
 			logger.Infof("pod %s started", pod.Name)
-			return pod.Status.PodIP, nil
+			return true, nil
 		}
 		status = string(pod.Status.Phase)
+		return false, nil
+	})
+	if err != nil {
+		return "", fmt.Errorf("timed out waiting for pod %s to start", name)
 	}
-
-	return "", fmt.Errorf("timed out waiting for pod %s to start", name)
+	return pod.Status.PodIP, nil
 }
 
 func (c *Cluster) saveMonConfig() error {

@@ -31,6 +31,8 @@ import:
   version: 728b986edb9bd4bb8a022a8cc13573a97ecc2239
 - package: k8s.io/api
   version: e24ed681f56165befbea50a24f7e9f1c079ac366
+- package: k8s.io/apiextensions-apiserver
+  version: 3eb4c5fefbe7ad866747f78c7e4994cb555170c6
 - package: github.com/prometheus/client_golang
   version: v0.8.0
   subpackages:

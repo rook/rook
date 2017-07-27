@@ -59,7 +59,7 @@ func startAPI(cmd *cobra.Command, args []string) error {
 
 	setLogLevel()
 
-	_, clientset, err := getClientset()
+	clientset, _, err := getClientset()
 	if err != nil {
 		fmt.Printf("failed to init k8s client. %+v\n", err)
 		os.Exit(1)

@@ -22,48 +22,26 @@ package kit
 
 import (
 	"fmt"
-	"net/http"
+	"time"
 
 	"k8s.io/api/extensions/v1beta1"
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	errorsUtil "k8s.io/apimachinery/pkg/util/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/kubernetes/pkg/util/version"
 )
-
-const (
-	// V1Alpha1 version for kubernetes resources
-	V1Alpha1 = "v1alpha1"
-
-	// V1Beta1 version for kubernetes resources
-	V1Beta1 = "v1beta1"
-
-	// V1 version for kubernetes resources
-	V1 = "v1"
-)
-
-// KubeContext provides the context for connecting to Kubernetes APIs
-type KubeContext struct {
-	// Clientset is a connection to the core kubernetes API
-	Clientset kubernetes.Interface
-
-	// RetryDelay is the number of seconds to delay between retrying of kubernetes API calls.
-	// Only used by the Retry function.
-	RetryDelay int
-
-	// MaxRetries is the number of times that an operation will be attempted by the Retry function.
-	MaxRetries int
-
-	// The host where the Kubernetes master is found.
-	MasterHost string
-
-	// An http connection to the Kubernetes API
-	KubeHTTPCli *http.Client
-}
 
 // CustomResource is for creating a Kubernetes TPR/CRD
 type CustomResource struct {
 	// Name of the custom resource
 	Name string
+
+	// Plural of the custom resource in plural
+	Plural string
 
 	// Group the custom resource belongs to
 	Group string
@@ -71,91 +49,166 @@ type CustomResource struct {
 	// Version which should be defined in a const above
 	Version string
 
-	// Description that is human readable
-	Description string
+	// Scope of the CRD. Namespaced or cluster
+	Scope apiextensionsv1beta1.ResourceScope
+
+	// Kind is the serialized interface of the resource.
+	Kind string
+}
+
+// Context hold the clientsets used for creating and watching custom resources
+type Context struct {
+	Clientset             kubernetes.Interface
+	APIExtensionClientset apiextensionsclient.Interface
+	Interval              time.Duration
+	Timeout               time.Duration
 }
 
 // CreateCustomResources creates the given custom resources and waits for them to initialize
-func CreateCustomResources(context KubeContext, resources []CustomResource) error {
-	for _, resource := range resources {
-		if err := CreateCustomResource(context, resource); err != nil {
-			return fmt.Errorf("failed to init resource %s. %+v", resource.Name, err)
+// The resource is of kind CRD if the Kubernetes server is 1.7.0.
+// The resource is of kind TPR if the Kubernetes server is before 1.7.0.
+func CreateCustomResources(context Context, resources []CustomResource) error {
+
+	// CRD is available on v1.7.0. TPR became deprecated on v1.7.0
+	serverVersion, err := context.Clientset.Discovery().ServerVersion()
+	if err != nil {
+		return fmt.Errorf("Error getting server version: %v", err)
+	}
+	kubeVersion := version.MustParseSemantic(serverVersion.GitVersion)
+
+	if kubeVersion.AtLeast(version.MustParseSemantic(serverVersionV170)) {
+		for _, resource := range resources {
+			err = createCRD(context, resource)
+			if err != nil {
+				return fmt.Errorf("failed to create resource %s. %+v", resource.Name, err)
+			}
+		}
+
+		for _, resource := range resources {
+			if err := waitForCRDInit(context, resource); err != nil {
+				return fmt.Errorf("failed to complete init %s. %+v", resource.Name, err)
+			}
+		}
+	} else {
+		// Create and wait for TPR resources
+		for _, resource := range resources {
+			err = createTPR(context, resource)
+			if err != nil {
+				return fmt.Errorf("failed to create resource %s. %+v", resource.Name, err)
+			}
+		}
+
+		for _, resource := range resources {
+			if err := waitForTPRInit(context, resource); err != nil {
+				return fmt.Errorf("failed to complete init %s. %+v", resource.Name, err)
+			}
 		}
 	}
-
-	for _, resource := range resources {
-		if err := waitForCustomResourceInit(context, resource); err != nil {
-			return fmt.Errorf("failed to complete init %s. %+v", resource.Name, err)
-		}
-	}
-
 	return nil
 }
 
-// CreateCustomResource creates a single custom resource, but does not wait for it to initialize
-func CreateCustomResource(context KubeContext, resource CustomResource) error {
-	logger.Infof("creating %s resource", resource.Name)
-	r := &v1beta1.ThirdPartyResource{
+func createCRD(context Context, resource CustomResource) error {
+	logger.Infof("creating %s CRD", resource.Name)
+	crdName := fmt.Sprintf("%s.%s", resource.Plural, resource.Group)
+	crd := &apiextensionsv1beta1.CustomResourceDefinition{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s.%s", resource.Name, resource.Group),
+			Name: crdName,
+		},
+		Spec: apiextensionsv1beta1.CustomResourceDefinitionSpec{
+			Group:   resource.Group,
+			Version: resource.Version,
+			Scope:   resource.Scope,
+			Names: apiextensionsv1beta1.CustomResourceDefinitionNames{
+				Singular: resource.Name,
+				Plural:   resource.Plural,
+				Kind:     resource.Kind,
+			},
+		},
+	}
+
+	_, err := context.APIExtensionClientset.ApiextensionsV1beta1().CustomResourceDefinitions().Create(crd)
+	if err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return fmt.Errorf("failed to create %s CRD. %+v", resource.Name, err)
+		}
+	}
+	return nil
+}
+
+func waitForCRDInit(context Context, resource CustomResource) error {
+	crdName := fmt.Sprintf("%s.%s", resource.Plural, resource.Group)
+	err := wait.Poll(context.Interval, context.Timeout, func() (bool, error) {
+		crd, err := context.APIExtensionClientset.ApiextensionsV1beta1().CustomResourceDefinitions().Get(crdName, metav1.GetOptions{})
+		if err != nil {
+			return false, err
+		}
+		for _, cond := range crd.Status.Conditions {
+			switch cond.Type {
+			case apiextensionsv1beta1.Established:
+				if cond.Status == apiextensionsv1beta1.ConditionTrue {
+					return true, err
+				}
+			case apiextensionsv1beta1.NamesAccepted:
+				if cond.Status == apiextensionsv1beta1.ConditionFalse {
+					fmt.Printf("Name conflict: %v\n", cond.Reason)
+				}
+			}
+		}
+		return false, err
+	})
+	if err != nil {
+		deleteErr := context.APIExtensionClientset.ApiextensionsV1beta1().CustomResourceDefinitions().Delete(crdName, nil)
+		if deleteErr != nil {
+			return errorsUtil.NewAggregate([]error{err, deleteErr})
+		}
+	}
+	return nil
+}
+
+func createTPR(context Context, resource CustomResource) error {
+	logger.Infof("creating %s TPR", resource.Name)
+	tprName := fmt.Sprintf("%s.%s", resource.Name, resource.Group)
+	tpr := &v1beta1.ThirdPartyResource{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: tprName,
 		},
 		Versions: []v1beta1.APIVersion{
 			{Name: resource.Version},
 		},
-		Description: resource.Description,
+		Description: fmt.Sprintf("ThirdPartyResource for Rook %s", resource.Name),
 	}
-	_, err := context.Clientset.ExtensionsV1beta1().ThirdPartyResources().Create(r)
+	_, err := context.Clientset.ExtensionsV1beta1().ThirdPartyResources().Create(tpr)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create %s resource. %+v", resource.Name, err)
+			return fmt.Errorf("failed to create %s TPR. %+v", resource.Name, err)
 		}
 	}
-
 	return nil
 }
 
-func waitForCustomResourceInit(context KubeContext, resource CustomResource) error {
+func waitForTPRInit(context Context, resource CustomResource) error {
+	// wait for TPR being established
 	restcli := context.Clientset.CoreV1().RESTClient()
-	uri := resourceURI(resource, "")
-	return Retry(context, func() (bool, error) {
+	uri := fmt.Sprintf("apis/%s/%s/%s", resource.Group, resource.Version, resource.Plural)
+	tprName := fmt.Sprintf("%s.%s", resource.Name, resource.Group)
+
+	err := wait.Poll(context.Interval, context.Timeout, func() (bool, error) {
 		_, err := restcli.Get().RequestURI(uri).DoRaw()
 		if err != nil {
-			logger.Infof("did not yet find resource %s at %s. %+v", resource.Name, uri, err)
 			if errors.IsNotFound(err) {
 				return false, nil
 			}
 			return false, err
 		}
 		return true, nil
+
 	})
-}
-
-func watchResource(context KubeContext, resource CustomResource, namespace, resourceVersion string) (*http.Response, error) {
-	uri := fmt.Sprintf("%s/%s?watch=true&resourceVersion=%s", context.MasterHost, resourceURI(resource, namespace), resourceVersion)
-	logger.Debugf("watching resource: %s", uri)
-	return context.KubeHTTPCli.Get(uri)
-}
-
-func resourceURI(resource CustomResource, namespace string) string {
-	if namespace == "" {
-		// creates a uri that is for retrieving or watching a resource in all namespaces. For example:
-		//   /apis/rook.io/v1alpha1/clusters
-		return fmt.Sprintf("apis/%s/%s/%ss", resource.Group, resource.Version, resource.Name)
+	if err != nil {
+		deleteErr := context.Clientset.ExtensionsV1beta1().ThirdPartyResources().Delete(tprName, nil)
+		if deleteErr != nil {
+			return errorsUtil.NewAggregate([]error{err, deleteErr})
+		}
+		return err
 	}
-
-	// create a uri that is for a specific namespace
-	//   /apis/rook.io/v1alpha1/namespaces/rook/pools
-	return fmt.Sprintf("apis/%s/%s/namespaces/%s/%ss", resource.Group, resource.Version, namespace, resource.Name)
-}
-
-// GetRawListNamespaced retrieves a list custom resources of the given type in a specific namespace
-func GetRawListNamespaced(clientset kubernetes.Interface, resource CustomResource, namespace string) ([]byte, error) {
-	restcli := clientset.CoreV1().RESTClient()
-	uri := resourceURI(resource, namespace)
-	return restcli.Get().RequestURI(uri).DoRaw()
-}
-
-// GetRawList retrieves a list of custom resources of the given type across all namespaces
-func GetRawList(clientset kubernetes.Interface, resource CustomResource) ([]byte, error) {
-	return GetRawListNamespaced(clientset, resource, "")
+	return nil
 }

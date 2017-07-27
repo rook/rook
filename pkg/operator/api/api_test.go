@@ -21,7 +21,6 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	testop "github.com/rook/rook/pkg/operator/test"
 
 	"github.com/stretchr/testify/assert"
@@ -32,7 +31,7 @@ import (
 
 func TestStartAPI(t *testing.T) {
 	clientset := testop.New(3)
-	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", k8sutil.Placement{})
 
 	// start a basic cluster
 	err := c.Start()
@@ -49,28 +48,28 @@ func TestStartAPI(t *testing.T) {
 
 func validateStart(t *testing.T, c *Cluster) {
 
-	r, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(DeploymentName, metav1.GetOptions{})
+	r, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(deploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, DeploymentName, r.Name)
+	assert.Equal(t, deploymentName, r.Name)
 
-	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get(DeploymentName, metav1.GetOptions{})
+	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get(deploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, DeploymentName, s.Name)
+	assert.Equal(t, deploymentName, s.Name)
 }
 
 func TestPodSpecs(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", k8sutil.Placement{})
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)
-	assert.Equal(t, DeploymentName, d.Name)
+	assert.Equal(t, deploymentName, d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, 1, len(d.Spec.Template.Spec.Volumes))
 	assert.Equal(t, "rook-data", d.Spec.Template.Spec.Volumes[0].Name)
 
-	assert.Equal(t, DeploymentName, d.ObjectMeta.Name)
-	assert.Equal(t, DeploymentName, d.Spec.Template.ObjectMeta.Labels["app"])
+	assert.Equal(t, deploymentName, d.ObjectMeta.Name)
+	assert.Equal(t, deploymentName, d.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
@@ -89,24 +88,24 @@ func TestPodSpecs(t *testing.T) {
 
 func TestClusterRole(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(&clusterd.Context{KubeContext: kit.KubeContext{Clientset: clientset}}, "ns", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", k8sutil.Placement{})
 
 	// the role is create
 	err := c.makeClusterRole()
 	assert.Nil(t, err)
-	role, err := c.context.Clientset.RbacV1beta1().ClusterRoles().Get(DeploymentName, metav1.GetOptions{})
+	role, err := c.context.Clientset.RbacV1beta1().ClusterRoles().Get(deploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, DeploymentName, role.Name)
-	assert.Equal(t, 3, len(role.Rules))
-	account, err := c.context.Clientset.CoreV1().ServiceAccounts(c.Namespace).Get(DeploymentName, metav1.GetOptions{})
+	assert.Equal(t, deploymentName, role.Name)
+	assert.Equal(t, 4, len(role.Rules))
+	account, err := c.context.Clientset.CoreV1().ServiceAccounts(c.Namespace).Get(deploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, c.Namespace, account.Namespace)
-	binding, err := c.context.Clientset.RbacV1beta1().ClusterRoleBindings().Get(DeploymentName, metav1.GetOptions{})
+	binding, err := c.context.Clientset.RbacV1beta1().ClusterRoleBindings().Get(deploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, DeploymentName, binding.RoleRef.Name)
+	assert.Equal(t, deploymentName, binding.RoleRef.Name)
 	assert.Equal(t, "ClusterRole", binding.RoleRef.Kind)
 	assert.Equal(t, "rbac.authorization.k8s.io", binding.RoleRef.APIGroup)
-	assert.Equal(t, DeploymentName, binding.Subjects[0].Name)
+	assert.Equal(t, deploymentName, binding.Subjects[0].Name)
 	assert.Equal(t, "ServiceAccount", binding.Subjects[0].Kind)
 
 	// update the rules
@@ -119,7 +118,7 @@ func TestClusterRole(t *testing.T) {
 	}
 	err = c.makeClusterRole()
 	assert.Nil(t, err)
-	role, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Get(DeploymentName, metav1.GetOptions{})
+	role, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Get(deploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(role.Rules))
 	assert.Equal(t, "", role.Rules[0].APIGroups[0])

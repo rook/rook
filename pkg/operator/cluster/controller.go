@@ -22,10 +22,7 @@ package cluster
 
 import (
 	"fmt"
-	"net/http"
 	"time"
-
-	"k8s.io/apimachinery/pkg/api/errors"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/client"
@@ -37,59 +34,124 @@ import (
 	"github.com/rook/rook/pkg/operator/mgr"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
-	"github.com/rook/rook/pkg/operator/rgw"
-	rookclient "github.com/rook/rook/pkg/rook/client"
+	"github.com/rook/rook/pkg/operator/pool"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/tools/cache"
 )
 
 const (
-	crushConfigMapName = "crush-config"
-	crushmapCreatedKey = "initialCrushMapCreated"
+	customResourceName       = "cluster"
+	customResourceNamePlural = "clusters"
+	crushConfigMapName       = "crush-config"
+	crushmapCreatedKey       = "initialCrushMapCreated"
+	clusterCreateInterval    = 6 * time.Second
+	clusterCreateTimeout     = 5 * time.Minute
 )
 
 var (
 	healthCheckInterval = 10 * time.Second
 	clientTimeout       = 15 * time.Second
 	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
-	// ClusterResource is the definition of the cluster CRD
-	ClusterResource = kit.CustomResource{
-		Name:        "cluster",
-		Group:       k8sutil.CustomResourceGroup,
-		Version:     kit.V1Alpha1,
-		Description: "Managed Rook clusters",
-	}
 )
 
-// Cluster controls an instance of a Rook cluster
-type Cluster struct {
-	context       *clusterd.Context
-	v1.ObjectMeta `json:"metadata,omitempty"`
-	Spec          `json:"spec"`
-	mons          *mon.Cluster
-	mgrs          *mgr.Cluster
-	osds          *osd.Cluster
-	apis          *api.Cluster
-	rgws          *rgw.Cluster
-	rclient       rookclient.RookRestClient
+// ClusterController controls an instance of a Rook cluster
+type ClusterController struct {
+	context      *clusterd.Context
+	scheme       *runtime.Scheme
+	devicesInUse bool
 }
 
-// Init assigns the cluster context
-func (c *Cluster) Init(context *clusterd.Context) {
+// NewClusterController create controller for watching cluster custom resources created
+func NewClusterController(context *clusterd.Context) (*ClusterController, error) {
+	return &ClusterController{
+		context: context,
+	}, nil
+
+}
+
+// Watch watches instances of cluster resources
+func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
+
+	customResourceClient, scheme, err := kit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
+	if err != nil {
+		return fmt.Errorf("failed to get a k8s client for watching cluster resources: %v", err)
+	}
+	c.scheme = scheme
+
+	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
+		AddFunc:    c.onAdd,
+		UpdateFunc: c.onUpdate,
+		DeleteFunc: c.onDelete,
+	}
+
+	watcher := kit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, customResourceClient)
+	go watcher.Watch(&Cluster{}, stopCh)
+	return nil
+}
+
+func (c *ClusterController) onAdd(obj interface{}) {
+	clusterOrig := obj.(*Cluster)
+
+	// NEVER modify objects from the store. It's a read-only, local cache.
+	// Use scheme.Copy() to make a deep copy of original object.
+	copyObj, err := c.scheme.Copy(clusterOrig)
+	if err != nil {
+		logger.Errorf("creating a deep copy of cluster object: %v\n", err)
+		return
+	}
+	cluster := copyObj.(*Cluster)
+
+	cluster.init(c.context)
+	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
+		logger.Warningf("using all devices in more than one namespace not supported. ignoring devices in namespace %s", cluster.Namespace)
+		cluster.Spec.Storage.ClearUseAllDevices()
+	}
+
+	if cluster.Spec.Storage.AnyUseAllDevices() {
+		c.devicesInUse = true
+	}
+
+	logger.Infof("starting cluster %s in namespace %s", cluster.Name, cluster.Namespace)
+	// Start the Rook cluster components. Retry several times in case of failure.
+	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
+		err = cluster.createInstance()
+		if err != nil {
+			logger.Errorf("failed to create cluster %s in namespace %s. %+v", cluster.Name, cluster.Namespace, err)
+			return false, nil
+		}
+		return true, nil
+	})
+	if err != nil {
+		logger.Errorf("giving up to create cluster %s in namespace %s after %s", cluster.Name, cluster.Namespace, clusterCreateTimeout)
+		return
+	}
+
+	// Start pool CRD watcher
+	poolController, err := pool.NewPoolController(c.context.Clientset)
+	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
+
+	// Start mon health checker
+	healthChecker := mon.NewHealthChecker(cluster.mons)
+	go healthChecker.Check(cluster.stopCh)
+}
+
+func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
+	logger.Infof("modifying a cluster not implemented")
+}
+
+func (c *ClusterController) onDelete(obj interface{}) {
+	logger.Infof("deleting a cluster not implemented")
+}
+
+func (c *Cluster) init(context *clusterd.Context) {
 	c.context = context
 }
 
-// CreateInstance creates a new Rook cluster instance
-func (c *Cluster) CreateInstance() error {
-
-	// Create the namespace if not already created
-	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: c.Namespace}}
-	_, err := c.context.Clientset.CoreV1().Namespaces().Create(ns)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create namespace %s. %+v", c.Namespace, err)
-		}
-	}
+func (c *Cluster) createInstance() error {
 
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
@@ -98,7 +160,7 @@ func (c *Cluster) CreateInstance() error {
 	}
 	cm := &v1.ConfigMap{Data: placeholderConfig}
 	cm.Name = k8sutil.ConfigOverrideName
-	_, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
+	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
 	}
@@ -139,26 +201,13 @@ func (c *Cluster) CreateInstance() error {
 		return fmt.Errorf("failed to create client access. %+v", err)
 	}
 
+	c.rookClient, err = api.GetRookClient(c.Namespace, c.context.Clientset)
+	if err != nil {
+		return fmt.Errorf("Failed to get rook client: %v", err)
+	}
+
 	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
 	return nil
-}
-
-// Monitor watches a cluster for failures and restarts failed components
-func (c *Cluster) Monitor(stopCh <-chan struct{}) {
-	for {
-		select {
-		case <-stopCh:
-			logger.Infof("Stopping monitoring of cluster in namespace %s", c.Namespace)
-			return
-
-		case <-time.After(healthCheckInterval):
-			logger.Debugf("checking health of mons")
-			err := c.mons.CheckHealth()
-			if err != nil {
-				logger.Infof("failed to check mon health. %+v", err)
-			}
-		}
-	}
 }
 
 func (c *Cluster) createInitialCrushMap() error {
@@ -257,25 +306,4 @@ func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
 	}
 
 	return nil
-}
-
-// GetRookClient gets the REST api client
-func (c *Cluster) GetRookClient() (rookclient.RookRestClient, error) {
-	if c.rclient != nil {
-		return c.rclient, nil
-	}
-
-	// Look up the api service for the given namespace
-	logger.Infof("retrieving rook api endpoint for namespace %s", c.Namespace)
-	svc, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get(api.DeploymentName, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to find the api service. %+v", err)
-	}
-
-	httpClient := http.DefaultClient
-	httpClient.Timeout = clientTimeout
-	endpoint := fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, svc.Spec.Ports[0].Port)
-	c.rclient = rookclient.NewRookNetworkRestClient(rookclient.GetRestURL(endpoint), httpClient)
-	logger.Infof("rook api endpoint %s for namespace %s", endpoint, c.Namespace)
-	return c.rclient, nil
 }
