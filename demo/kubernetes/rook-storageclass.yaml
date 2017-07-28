@@ -22,3 +22,5 @@ parameters:
   # Specify the Rook cluster from which to create volumes. If not specified, it will use `rook` as the namespace and name of the cluster.
   # clusterName: rook
   # clusterNamespace: rook
+  # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
+  # fstype: ext4
