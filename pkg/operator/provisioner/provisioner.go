@@ -50,7 +50,7 @@ type RookVolumeProvisioner struct {
 }
 
 type provisionerConfig struct {
-	// Required:  the pool name to provision volumes from.
+	// Required: The pool name to provision volumes from.
 	pool string
 
 	// Optional: Namespace of the cluster. Default is `rook`
@@ -58,6 +58,9 @@ type provisionerConfig struct {
 
 	// Optional: Name of the cluster. Default is `rook`
 	clusterName string
+
+	// Optional: File system type used for mounting the image. Default is `ext4`
+	fstype string
 }
 
 // New creates RookVolumeProvisioner
@@ -127,7 +130,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 					CephMonitors: monitors,
 					RadosUser:    radosUser,
 					SecretRef:    secretRef,
-					FSType:       "ext4",
+					FSType:       p.provConfig.fstype,
 					ReadOnly:     false,
 				},
 			},
@@ -187,6 +190,8 @@ func parseClassParameters(params map[string]string) (*provisionerConfig, error) 
 			cfg.clusterNamespace = v
 		case "clustername":
 			cfg.clusterName = v
+		case "fstype":
+			cfg.fstype = v
 		default:
 			return nil, fmt.Errorf("invalid option %q for volume plugin %s", k, "rookVolumeProvisioner")
 		}
