@@ -23,14 +23,14 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
-	"github.com/rook/rook/pkg/model"
-	"github.com/rook/rook/pkg/operator/api"
+	ceph "github.com/rook/rook/pkg/ceph/client"
+	cephmon "github.com/rook/rook/pkg/ceph/mon"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	rookclient "github.com/rook/rook/pkg/rook/client"
+	"github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/uuid"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -43,7 +43,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-provisioner")
 
 // RookVolumeProvisioner is used to provision Rook volumes on Kubernetes
 type RookVolumeProvisioner struct {
-	client kubernetes.Interface
+	context *clusterd.Context
 
 	// Configuration of rook volume provisioner
 	provConfig provisionerConfig
@@ -64,9 +64,9 @@ type provisionerConfig struct {
 }
 
 // New creates RookVolumeProvisioner
-func New(client kubernetes.Interface) controller.Provisioner {
+func New(context *clusterd.Context) controller.Provisioner {
 	return &RookVolumeProvisioner{
-		client: client,
+		context: context,
 	}
 }
 
@@ -93,22 +93,16 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 
 	imageName := createImageName(options.PVName)
 
-	rookClient, err := api.GetRookClient(p.provConfig.clusterNamespace, p.client)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to get rook client: %v", err)
-	}
-
-	res, err := createVolume(imageName, p.provConfig.pool, requestBytes, rookClient)
+	err = p.createVolume(imageName, p.provConfig.pool, requestBytes)
 	if err != nil {
 		return nil, err
 	}
-	logger.Infof("Rook block image created: %s", res)
 
-	rookClientInfo, err := rookClient.GetClientAccessInfo()
+	monitors, err := p.getMonitorEndpoints()
 	if err != nil {
-		return nil, fmt.Errorf("Failed to get rook client information: %v", err)
+		return nil, err
 	}
-	monitors := processMonAddresses(rookClientInfo.MonAddresses)
+
 	radosUser := fmt.Sprintf("%s-rook-user", p.provConfig.clusterName)
 	secretRef := new(v1.LocalObjectReference)
 	secretRef.Name = fmt.Sprintf("%s-rook-user", p.provConfig.clusterName)
@@ -141,38 +135,31 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 }
 
 // createVolume creates a rook block volume.
-func createVolume(image, pool string, size int64, client rookclient.RookRestClient) (string, error) {
-	newImage := model.BlockImage{
-		Name:     image,
-		PoolName: pool,
-		Size:     uint64(size),
+func (p *RookVolumeProvisioner) createVolume(image, pool string, size int64) error {
+	if image == "" || pool == "" || size == 0 {
+		return fmt.Errorf("image missing required fields (image=%s, pool=%s, size=%d)", image, pool, size)
 	}
 
-	res, err := client.CreateBlockImage(newImage)
+	createdImage, err := ceph.CreateImage(p.context, p.provConfig.clusterName, image, pool, uint64(size))
 	if err != nil {
-		return "", fmt.Errorf("Failed to create rook block image %s/%s: %v", pool, image, err)
+		return fmt.Errorf("Failed to create rook block image %s/%s: %v", pool, image, err)
 	}
+	logger.Infof("Rook block image created: %s", createdImage.Name)
 
-	return res, nil
+	return nil
 }
 
 // Delete removes the storage asset that was created by Provision represented
 // by the given PV.
 func (p *RookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
-	rookClient, err := api.GetRookClient(p.provConfig.clusterNamespace, p.client)
-	if err != nil {
-		return fmt.Errorf("Failed to get rook client: %v", err)
-	}
+	logger.Infof("Deleting volume %s", volume.Name)
 
-	image := model.BlockImage{
-		Name:     volume.Spec.PersistentVolumeSource.RBD.RBDImage,
-		PoolName: p.provConfig.pool,
-	}
-
-	_, err = rookClient.DeleteBlockImage(image)
+	name := volume.Spec.PersistentVolumeSource.RBD.RBDImage
+	err := ceph.DeleteImage(p.context, p.provConfig.clusterName, name, p.provConfig.pool)
 	if err != nil {
 		return fmt.Errorf("Failed to delete rook block image %s/%s: %v", p.provConfig.pool, volume.Name, err)
 	}
+	logger.Infof("succeeded deleting volume %+v", volume)
 	return nil
 }
 
@@ -212,13 +199,24 @@ func parseClassParameters(params map[string]string) (*provisionerConfig, error) 
 	return &cfg, nil
 }
 
-func processMonAddresses(monAddresses []string) []string {
-	monAddrs := make([]string, len(monAddresses))
-	for i, addr := range monAddresses {
-		mon := strings.Split(addr, "/")
-		monAddrs[i] = mon[0]
+func (p *RookVolumeProvisioner) getMonitorEndpoints() ([]string, error) {
+	cm, err := p.context.Clientset.CoreV1().ConfigMaps(p.provConfig.clusterName).Get(mon.EndpointConfigMapName, metav1.GetOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get mon endpoints. %+v", err)
 	}
-	return monAddrs
+
+	// Parse the monitor List
+	info, ok := cm.Data[mon.EndpointDataKey]
+	if !ok {
+		return nil, fmt.Errorf("failed to find mon endpoints in config map: %+v", cm.Data)
+	}
+
+	mons := cephmon.ParseMonEndpoints(info)
+	var endpoints []string
+	for _, mon := range mons {
+		endpoints = append(endpoints, mon.Endpoint)
+	}
+	return endpoints, nil
 }
 
 func createImageName(pvName string) string {
