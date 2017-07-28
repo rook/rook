@@ -38,9 +38,8 @@ pipeline {
                     parallel testruns
 
                     for (kv in mapToList(data)) {
-                        unstash 'kv[0]_kv[1]_result'
+                        unstash "${kv[0]}_${kv[1]}_result"
                     }
-                    sleep 180
                 }
             }
         }
@@ -81,8 +80,17 @@ def RunIntegrationTest(k, v) {
                     echo "running tests on k8s version ${v}"
                     sh 'tests/scripts/makeTestImages.sh load amd64'
                     sh "tests/scripts/kubeadm-dind.sh up"
-                    sh "_output/tests/linux_amd64/smoke 2>&1 | tee _output/tests/${k}_${v}_integrationTests.log"
-                    sh "sleep 30"
+                    sh "chmod +x .cache/kubeadm-dind/kubectl"
+                    sh "sudo cp .cache/kubeadm-dind/kubectl /usr/local/bin/"
+                    try{
+                        sh '''#!/bin/bash
+                        set -o pipefail
+                        _output/tests/linux_amd64/smoke -tests.v -tests.timeout 1200s 2>&1 | tee _output/tests/integrationTests.log'''
+                    }
+                    finally{
+                        sh "mv _output/tests/integrationTests.log _output/tests/${k}_${v}_integrationTests.log"
+                        // TODO - Add step to create junit results
+                    }
                     stash name: "${k}_${v}_result",includes : "_output/tests/${k}_${v}_integrationTests.log"
                 }
             }
