@@ -79,9 +79,7 @@ def RunIntegrationTest(k, v) {
                 withEnv(["KUBE_VERSION=${v}"]){
                     unstash 'repo-amd64'
                     echo "running tests on k8s version ${v}"
-                    sh "sleep 120"
                     sh 'tests/scripts/makeTestImages.sh load amd64'
-                    sh "sleep 30"
                     sh "tests/scripts/kubeadm-dind.sh up"
                     sh "_output/tests/linux_amd64/smoke 2>&1 | tee _output/tests/${k}_${v}_integrationTests.log"
                     sh "sleep 30"
@@ -89,10 +87,8 @@ def RunIntegrationTest(k, v) {
                 }
             }
             finally{
-                archive '_output/tests/*'
+                archive '_output/tests/*.log,_output/tests/*.xml'
                 junit allowEmptyResults: true, keepLongStdio: true, testResults: '_output/tests/*.xml'
-                sh 'make -j\$(nproc) clean'
-                sh 'make -j\$(nproc) prune PRUNE_HOURS=48 PRUNE_KEEP=48'
                 deleteDir()
             }
         }
