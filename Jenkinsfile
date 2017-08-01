@@ -86,18 +86,17 @@ def RunIntegrationTest(k, v) {
                     try{
                         sh '''#!/bin/bash
                         set -o pipefail
-                        _output/tests/linux_amd64/smoke -tests.v -tests.timeout 1200s 2>&1 | tee _output/tests/integrationTests.log'''
+                        _output/tests/linux_amd64/smoke -test.v -test.timeout 1200s 2>&1 | tee _output/tests/integrationTests.log'''
                     }
                     finally{
                         sh "mv _output/tests/integrationTests.log _output/tests/${k}_${v}_integrationTests.log"
-                        // TODO - Add step to create junit results
                     }
                     stash name: "${k}_${v}_result",includes : "_output/tests/${k}_${v}_integrationTests.log"
                 }
             }
             finally{
-                archive '_output/tests/*.log,_output/tests/*.xml'
-                junit allowEmptyResults: true, keepLongStdio: true, testResults: '_output/tests/*.xml'
+                //archive '_output/tests/*.log,_output/tests/*.xml'
+                //junit allowEmptyResults: true, keepLongStdio: true, testResults: '_output/tests/*.xml'
                 deleteDir()
             }
         }
