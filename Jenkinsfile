@@ -24,18 +24,20 @@ pipeline {
        stage('Integration Tests') {
             steps{
                 sh 'tests/scripts/makeTestImages.sh  save amd64'
-                stash name: 'repo',excludes: '_output/,vendor/,.cache/,.work/'
+                stash name: 'repo-amd64',includes: 'rook-amd64.tar,build/common.sh,_output/tests/linux_amd64/,tests/scripts/'
                 script{
 
                     def data = [
-                        "aws_ci": "v1.6",
-                        "gce_ci": "v1.7"
+                        "aws_ci": "v1.6.7",
+                        "gce_ci": "v1.7.2"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
                         testruns[kv[0]] = RunIntegrationTest(kv[0], kv[1])
                     }
+
                     parallel testruns
+
                 }
             }
         }
@@ -72,19 +74,24 @@ def RunIntegrationTest(k, v) {
         script{
             try{
                 withEnv(["KUBE_VERSION=${v}"]){
-                    unstash 'repo'
+                    unstash 'repo-amd64'
                     echo "running tests on k8s version ${v}"
+                    sh 'sleep 60' //intermittent issue when running apt-get right after vm is up
                     sh 'tests/scripts/makeTestImages.sh load amd64'
-                    sh 'build/run make -j\$(nproc) build.common'
-                    sh "tests/scripts/kubeadm-dind.sh up"
-                    sh 'build/run make -j\$(nproc) test-integration SUITE=Smoke'
+                    sh "tests/scripts/kubeadm.sh up"
+                    try{
+                        sh '''#!/bin/bash
+                        set -o pipefail
+                        export KUBECONFIG=$HOME/admin.conf
+                        _output/tests/linux_amd64/smoke -test.v -test.timeout 1200s 2>&1 | tee _output/tests/integrationTests.log'''
+                    }
+                    finally{
+                        sh "mv _output/tests/integrationTests.log _output/tests/${k}_${v}_integrationTests.log"
+                    }
                 }
             }
             finally{
-                archive '_output/tests/*'
-                junit allowEmptyResults: true, keepLongStdio: true, testResults: '_output/tests/*.xml'
-                sh 'make -j\$(nproc) clean'
-                sh 'make -j\$(nproc) prune PRUNE_HOURS=48 PRUNE_KEEP=48'
+                archive '_output/tests/*.log'
                 deleteDir()
             }
         }

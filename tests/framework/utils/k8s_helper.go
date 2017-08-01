@@ -122,7 +122,7 @@ func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("failed to find current context %s in %+v.", kc.Current, kc.Contexts)
+		return nil, fmt.Errorf("failed to find current context %s in %+v", kc.Current, kc.Contexts)
 	}
 
 	// find the current cluster
@@ -135,7 +135,7 @@ func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("failed to find cluster %s in %+v.", kc.Current, kc.Clusters)
+		return nil, fmt.Errorf("failed to find cluster %s in %+v", kc.Current, kc.Clusters)
 	}
 	config := &rest.Config{Host: currentCluster.Cluster.Server}
 
@@ -154,7 +154,7 @@ func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 			}
 		}
 		if !found {
-			return nil, fmt.Errorf("failed to find kube user %s in %+v.", kc.Current, kc.Users)
+			return nil, fmt.Errorf("failed to find kube user %s in %+v", kc.Current, kc.Users)
 		}
 
 		config.TLSClientConfig = rest.TLSClientConfig{
@@ -163,6 +163,8 @@ func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 			CertFile: currentUser.Cluster.ClientCert,
 		}
 	}
+	//work around for kubeadm - api service is https but context has no cert
+	config.Insecure = true
 
 	logger.Infof("Loaded kubectl context %s at %s. secure=%t",
 		currentCluster.Name, config.Host, !config.Insecure)
