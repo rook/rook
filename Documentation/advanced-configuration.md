@@ -3,6 +3,7 @@
 These examples show how to perform advanced configuration tasks on your Rook
 storage cluster.
 
+- [Log Collection](#log-collection)
 - [OSD Information](#osd-information)
 - [Separate Storage Groups](#separate-storage-groups)
 - [Configuring Pools](#configuring-pools)
@@ -17,6 +18,29 @@ the Ceph client suite is from a [Rook Toolbox container](toolbox.md).
 The Kubernetes based examples assume Rook OSD pods are in the `rook` namespace.
 If you run them in a different namespace, modify `kubectl -n rook [...]` to fit
 your situation.
+
+## Log Collection
+
+All Rook logs can be collected in a Kubernetes environment with the following command:
+```bash
+(for p in $(kubectl -n rook get pods -o jsonpath='{.items[*].metadata.name}')
+do
+  for c in $(kubectl -n rook get pod ${p} -o jsonpath='{.spec.containers[*].name}')
+  do
+    echo "BEGIN logs from pod: ${p} ${c}"
+    kubectl -n rook logs -c ${c} ${p}
+    echo "END logs from pod: ${p} ${c}"
+  done
+done
+for i in $(kubectl -n default get pods -l app=rook-operator -o jsonpath='{.items[*].metadata.name}')
+do
+  echo "BEGIN logs from pod: ${i}"
+  kubectl -n default logs ${i}
+  echo "END logs from pod: ${i}"
+done) | gzip > /tmp/rook-logs.gz
+```
+This gets the logs for every container in every Rook pod and then compresses them into a `.gz` archive
+for easy sharing.  Note that instead of `gzip`, you could instead pipe to `less` or to a single text file.
 
 ## OSD Information
 
