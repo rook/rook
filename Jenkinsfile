@@ -37,8 +37,10 @@ pipeline {
                     }
                     parallel testruns
 
+                    sh 'echo "Debub : done with parallen runs collecting results. "'
                     for (kv in mapToList(data)) {
                         unstash "${kv[0]}_${kv[1]}_result"
+                        sh "sleep 60"
                         sh "build/run go get get github.com/jstemmer/go-junit-report && cat _output/tests/${kv[0]}_${kv[1]}_integrationTests.log | go-junit-report > ${kv[0]}_${kv[1]}_integrationTests.xml"
                     }
                 }
