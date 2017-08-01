@@ -28,6 +28,8 @@ ifeq ($(origin BRANCH_NAME), undefined)
 BRANCH_NAME := $(shell git branch | grep \* | cut -d ' ' -f2)
 endif
 
+REMOTE_NAME ?= origin
+
 PLATFORMS ?= $(ALL_PLATFORMS)
 
 ifneq ($(filter master release-%,$(BRANCH_NAME)),)
@@ -69,6 +71,33 @@ clean: $(addprefix clean.,$(FLAVORS)) ;
 
 # catch all for unimplemented targets / flavors
 %: ; @:
+
+# ====================================================================================
+# tagging a release
+
+VERSION_REGEX := ^v\([0-9]*\)[.]\([0-9]*\)[.]\([0-9]*\)$$
+VERSION_VALID := $(shell echo "$(VERSION)" | grep -q '$(VERSION_REGEX)' && echo 1 || echo 0)
+VERSION_MAJOR := $(shell echo "$(VERSION)" | sed -e 's/$(VERSION_REGEX)/\1/')
+VERSION_MINOR := $(shell echo "$(VERSION)" | sed -e 's/$(VERSION_REGEX)/\2/')
+VERSION_PATCH := $(shell echo "$(VERSION)" | sed -e 's/$(VERSION_REGEX)/\3/')
+
+tag:
+ifneq ($(VERSION_VALID),1)
+	$(error invalid version $(VERSION). must be a semantic version with v[Major].[Minor].[Patch] only)
+endif
+ifeq ($(COMMIT_HASH),)
+	$(error must set a commit hash "make tag VERSION=v4.0.0 COMMIT_HASH=56b65dba917e50132b0a540ae6ff4c5bbfda2db6")
+endif
+	@echo === tagging commit hash $(COMMIT_HASH) with v$(VERSION_MAJOR).$(VERSION_MINOR).$(VERSION_PATCH)
+	@git tag -m "release $(VERSION)" $(VERSION) $(COMMIT_HASH)
+	@echo === pushing new tag to remote $$(git config --get remote.$(REMOTE_NAME).url)
+	@git push $(REMOTE_NAME) refs/tags/$(VERSION)
+	@if ! git ls-remote --heads $(REMOTE_NAME) | grep -q refs/heads/release-$(VERSION_MAJOR).$(VERSION_MINOR); then \
+		echo === creating new release branch release-$(VERSION_MAJOR).$(VERSION_MINOR) ;\
+		git branch -f release-$(VERSION_MAJOR).$(VERSION_MINOR) $(COMMIT_HASH) ;\
+		@echo === pushing new branch to remote $$(git config --get remote.$(REMOTE_NAME).url) ;\
+		git push $(REMOTE_NAME) refs/heads/release-$(VERSION_MAJOR).$(VERSION_MINOR) ;\
+	fi
 
 # ====================================================================================
 # output

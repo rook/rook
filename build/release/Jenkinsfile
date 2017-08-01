@@ -1,0 +1,19 @@
+// Rook build for Jenkins Pipelines
+
+pipeline {
+    agent any
+
+    parameters {
+        string(name: 'VERSION', defaultValue: '', description: 'Version to tag and release')
+        string(name: 'COMMIT_HASH', defaultValue: '', description: 'The commit hash to tag')
+        string(name: 'BRANCH', defaultValue: '', description: 'Branch to release from')
+    }
+
+    stages {
+        stage('Release') {
+            steps {
+                sh 'env | sort'
+            }
+        }
+    }
+}
