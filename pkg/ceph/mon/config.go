@@ -84,7 +84,7 @@ func getMonKeyringPath(configDir, monName string) string {
 
 // get the path of a given monitor's data dir
 func getMonDataDirPath(configDir, monName string) string {
-	return filepath.Join(getMonRunDirPath(configDir, monName), fmt.Sprintf("mon.%s", monName))
+	return filepath.Join(getMonRunDirPath(configDir, monName), "data")
 }
 
 // get the path of a given monitor's config file

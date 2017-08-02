@@ -143,6 +143,8 @@ func startMon(context *clusterd.Context, config *Config, confFilePath, monDataDi
 		fmt.Sprintf("--mon-data=%s", monDataDir),
 		fmt.Sprintf("--conf=%s", confFilePath),
 		fmt.Sprintf("--keyring=%s", keyringPath),
+		fmt.Sprintf("--public-addr=%s:%d", context.NetworkInfo.PublicAddrIPv4, Port),
+		fmt.Sprintf("--public-bind-addr=%s:%d", context.NetworkInfo.ClusterAddrIPv4, Port),
 	}
 	err = context.ProcMan.Run(config.Name, "ceph-mon", args...)
 	if err != nil {

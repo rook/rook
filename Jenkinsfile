@@ -82,6 +82,8 @@ def RunIntegrationTest(k, v) {
                         sh '''#!/bin/bash
                         set -o pipefail
                         export KUBECONFIG=$HOME/admin.conf
+                        kubectl config view
+                        kubectl create clusterrolebinding anon-user-access --clusterrole cluster-admin --user system:anonymous
                         _output/tests/linux_amd64/smoke -test.v -test.timeout 1200s 2>&1 | tee _output/tests/integrationTests.log'''
                     }
                     finally{

@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"bytes"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/jmoiron/jsonq"
 	"github.com/rook/rook/pkg/util/exec"
@@ -211,7 +212,7 @@ func (k8sh *K8sHelper) GetMonIP(mon string) (string, error) {
 		dec.Decode(&data)
 		jq := jsonq.NewQuery(data)
 		ip, _ := jq.String("status", "podIP")
-		return ip + ":6790", nil
+		return fmt.Sprintf("%s:6790", ip), nil
 	}
 	return "", fmt.Errorf("Error Getting Monitor IP : %v", err)
 }
@@ -277,34 +278,44 @@ func (k8sh *K8sHelper) GetResource(args []string) (string, error) {
 
 }
 
-//GetMonitorPods returns all ceph mon pod names
-func (k8sh *K8sHelper) GetMonitorPods() ([]string, error) {
-	mons := []string{}
-	monIdx := 0
-	moncount := 0
+//GetMonitorServices returns all ceph mon pod names
+func (k8sh *K8sHelper) GetMonitorServices() (map[string]string, error) {
 
-	for moncount < 3 {
-		m := fmt.Sprintf("rook-ceph-mon%d", monIdx)
-		selector := fmt.Sprintf("mon=%s", m)
-		args := []string{"-n", "rook", "get", "pod", "-l", selector}
-		result, err := k8sh.Kubectl(args...)
-		if err == nil {
-			// Get the first word of the second line of the output for the mon pod
-			lines := strings.Split(result, "\n")
-			if len(lines) > 1 {
-				name := strings.Split(lines[1], " ")[0]
-				mons = append(mons, name)
-				moncount++
-			} else {
-				return mons, fmt.Errorf("did not recognize mon pod output %s", m)
-			}
-		}
-		monIdx++
-		if monIdx > 100 {
-			return mons, fmt.Errorf("failed to find monitors")
-		}
+	cmdArgs := []string{"-n", "rook", "get", "svc", "-l", "app=rook-ceph-mon", "--no-headers=true"}
+	stdout, _, status := ExecuteCmd("kubectl", cmdArgs)
+	if status != 0 {
+		return nil, fmt.Errorf("Failed to find mon services. %d", status)
 	}
 
+	// Get the IP address from the 2nd position in the line
+	mons, err := parseMonEndpoints(stdout)
+	if err != nil {
+		return nil, err
+	}
+	if len(mons) != 3 {
+		return nil, fmt.Errorf("Unexpected monitors: %+v", mons)
+	}
+
+	return map[string]string{
+		"mon0": fmt.Sprintf("%s:6790", mons[0]),
+		"mon1": fmt.Sprintf("%s:6790", mons[1]),
+		"mon2": fmt.Sprintf("%s:6790", mons[2]),
+	}, nil
+}
+
+func parseMonEndpoints(input string) ([]string, error) {
+	lines := strings.Split(input, "\n")
+	mons := []string{}
+	for _, line := range lines {
+		if len(line) == 0 {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			return nil, fmt.Errorf("Missing ip for mon service. %s", line)
+		}
+		mons = append(mons, strings.TrimSpace(fields[1]))
+	}
 	return mons, nil
 }
 

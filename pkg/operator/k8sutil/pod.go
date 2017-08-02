@@ -35,8 +35,11 @@ const (
 	ClusterAttr = "rook_cluster"
 	// VersionAttr version label
 	VersionAttr = "rook_version"
-	// PodIPEnvVar pod IP env var
-	PodIPEnvVar = "ROOKD_PRIVATE_IPV4"
+	// PublicIPEnvVar public IP env var
+	PublicIPEnvVar = "ROOKD_PUBLIC_IPV4"
+	// PrivateIPEnvVar pod IP env var
+	PrivateIPEnvVar = "ROOKD_PRIVATE_IPV4"
+
 	// DefaultRepoPrefix repo prefix
 	DefaultRepoPrefix = "rook"
 	// ConfigOverrideName config override name

@@ -120,6 +120,9 @@ func getStatus(c client.RookRestClient) (string, error) {
 	for state, count := range statusDetails.PGs.StateCounts {
 		fmt.Fprintf(w, "%s\t%d\n", state, count)
 	}
+	if statusDetails.PGs.Total == 0 {
+		fmt.Fprintf(w, "none\n")
+	}
 	w.Flush()
 
 	w.Flush()
