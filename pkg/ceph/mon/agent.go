@@ -147,6 +147,12 @@ func (a *agent) makeMonitorFileSystem(context *clusterd.Context, cluster *Cluste
 		return err
 	}
 
+	// generate the monmap
+	monmapPath, err := generateMonMap(context, cluster, getMonRunDirPath(context.ConfigDir, monName))
+	if err != nil {
+		return err
+	}
+
 	// call mon --mkfs in a child process
 	err = context.ProcMan.Run(
 		fmt.Sprintf("mkfs-%s", monName),
@@ -156,7 +162,8 @@ func (a *agent) makeMonitorFileSystem(context *clusterd.Context, cluster *Cluste
 		fmt.Sprintf("--name=mon.%s", monName),
 		fmt.Sprintf("--mon-data=%s", monDataDir),
 		fmt.Sprintf("--conf=%s", confFilePath),
-		fmt.Sprintf("--keyring=%s", getMonKeyringPath(context.ConfigDir, monName)))
+		fmt.Sprintf("--keyring=%s", getMonKeyringPath(context.ConfigDir, monName)),
+		fmt.Sprintf("--monmap=%s", monmapPath))
 	if err != nil {
 		return fmt.Errorf("failed mon %s --mkfs: %+v", monName, err)
 	}
@@ -206,4 +213,19 @@ func writeBackendFile(monDataDir, backend string) error {
 		return fmt.Errorf("failed to write kv_backend to %s: %+v", backendPath, err)
 	}
 	return nil
+}
+
+func generateMonMap(context *clusterd.Context, cluster *ClusterInfo, folder string) (string, error) {
+	path := path.Join(folder, "monmap")
+	args := []string{path, "--create", "--clobber", "--fsid", cluster.FSID}
+	for _, mon := range cluster.Monitors {
+		args = append(args, "--add", mon.Name, mon.Endpoint)
+	}
+
+	err := context.Executor.ExecuteCommand("", "monmaptool", args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate monmap. %+v", err)
+	}
+
+	return path, nil
 }

@@ -116,9 +116,15 @@ func startMon(context *clusterd.Context, config *Config, confFilePath, monDataDi
 	// call mon --mkfs in a child process
 	logger.Infof("initializing mon")
 
+	// generate the monmap
+	monmapPath, err := generateMonMap(context, config.Cluster, getMonRunDirPath(context.ConfigDir, config.Name))
+	if err != nil {
+		return err
+	}
+
 	monNameArg := fmt.Sprintf("--name=mon.%s", config.Name)
 	keyringPath := getMonKeyringPath(context.ConfigDir, config.Name)
-	err := context.ProcMan.Run(
+	err = context.ProcMan.Run(
 		fmt.Sprintf("mkfs-%s", config.Name),
 		"ceph-mon",
 		"--mkfs",
@@ -126,7 +132,8 @@ func startMon(context *clusterd.Context, config *Config, confFilePath, monDataDi
 		fmt.Sprintf("--cluster=%s", config.Cluster.Name),
 		fmt.Sprintf("--mon-data=%s", monDataDir),
 		fmt.Sprintf("--conf=%s", confFilePath),
-		fmt.Sprintf("--keyring=%s", keyringPath))
+		fmt.Sprintf("--keyring=%s", keyringPath),
+		fmt.Sprintf("--monmap=%s", monmapPath))
 	if err != nil {
 		return fmt.Errorf("failed mon %s --mkfs: %+v", config.Name, err)
 	}
