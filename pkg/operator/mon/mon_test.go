@@ -149,7 +149,7 @@ func TestCheckHealth(t *testing.T) {
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mon11=:6790", cm.Data["endpoints"])
+	assert.Equal(t, "rook-ceph-mon11=:6790", cm.Data["endpoints"])
 }
 
 func TestMonInQuourm(t *testing.T) {

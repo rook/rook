@@ -105,7 +105,7 @@ func (c *Cluster) failoverMon(name string) error {
 	logger.Infof("Failing over monitor %s", name)
 
 	// Start a new monitor
-	mons := []*monConfig{{Name: fmt.Sprintf("mon%d", c.maxMonID+1), Port: int32(mon.Port)}}
+	mons := []*monConfig{{Name: fmt.Sprintf("%s%d", appName, c.maxMonID+1), Port: int32(mon.Port)}}
 	logger.Infof("starting new mon %s", mons[0].Name)
 	err := c.startPods(mons)
 	if err != nil {
