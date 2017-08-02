@@ -29,8 +29,10 @@ import (
 )
 
 const (
-	// this JSON was generated from the mon_command "status",  ExecuteMonCommand(conn, map[string]interface{}{"prefix": "status"})
-	CephStatusResponseRaw = `{"health":{"health":{"health_services":[{"mons":[{"name":"mon0","kb_total":64891708,"kb_used":34813204,"kb_avail":26759160,"avail_percent":41,"last_updated":"2016-10-26 17:03:36.573444","store_stats":{"bytes_total":14871920,"bytes_sst":0,"bytes_log":2833842,"bytes_misc":12038078,"last_updated":"0.000000"},"health":"HEALTH_OK"}]}]},"timechecks":{"epoch":3,"round":0,"round_status":"finished"},"summary":[{"severity":"HEALTH_WARN","summary":"too many PGs per OSD (2048 > max 300)"}],"overall_status":"HEALTH_WARN","detail":[]},"fsid":"515d542a-fa63-496c-991d-cc8c1e156a3a","election_epoch":3,"quorum":[0],"quorum_names":["mon0"],"monmap":{"epoch":1,"fsid":"515d542a-fa63-496c-991d-cc8c1e156a3a","modified":"2016-10-26 16:10:36.449756","created":"2016-10-26 16:10:36.449756","mons":[{"rank":0,"name":"mon0","addr":"127.0.0.1:6790\/0"}]},"osdmap":{"osdmap":{"epoch":6,"num_osds":10,"num_up_osds":9,"num_in_osds":9,"full":false,"nearfull":true,"num_remapped_pgs":0}},"pgmap":{"pgs_by_state":[{"state_name":"active+clean","count":2048},{"state_name":"created+peering","count":100}],"version":600,"num_pgs":2148,"data_bytes":0,"bytes_used":39048007680,"bytes_avail":27401101312,"bytes_total":66449108992},"fsmap":{"epoch":1,"by_rank":[]},"mgrmap":{"active_gid":0,"active_name":"","standbys":[]}}`
+	// this JSON was generated from the command: ceph status
+	cephStatusResponseRaw = `{"fsid":"d64ecb40-3e93-44e8-9957-2faba55c56de","health":{"checks":{"TEST_MSG":{"severity":"HEALTH_WARN","message":"too many PGs per OSD (2048 > max 300)"}},"status":"HEALTH_WARN"},"election_epoch":6,"quorum":[0],"quorum_names":["rook-ceph-mon0"],"monmap":{"epoch":3,"fsid":"d64ecb40-3e93-44e8-9957-2faba55c56de","modified":"2017-08-01 16:50:42.901253","created":"2017-08-01 16:50:30.751733","features":{"persistent":["kraken","luminous"],"optional":[]},"mons":[{"rank":0,"name":"rook-ceph-mon0","addr":"127.0.0.1:6790/0","public_addr":"127.0.0.1:6790/0"}]},"osdmap":{"osdmap":{"epoch":8,"num_osds":10,"num_up_osds":9,"num_in_osds":9,"full":false,"nearfull":true,"num_remapped_pgs":0}},"pgmap":{"pgs_by_state":[{"state_name":"created+peering","count": 100},{"state_name": "active+clean","count": 2048}],"num_pgs":2148,"num_pools":0,"num_objects":0,"data_bytes":0,"bytes_used":123,"bytes_avail":234,"bytes_total":345},"fsmap":{"epoch":1,"by_rank":[]},"mgrmap":{"epoch":3,"active_gid":4109,"active_name":"rook-ceph-mgr0","active_addr":"172.17.0.8:6800/13","available":true,"standbys":[],"modules":["restful","status"],"available_modules":["dashboard","restful","status","zabbix"]},"servicemap":{"epoch":1,"modified":"0.000000","services":{}}}`
+	// this JSON was generated from the command: ceph time-sync-status
+	cephTimeStatusReponseRaw = `{"time_skew_status":{"rook-ceph-mon0":{"skew":0.000000,"latency":0.000000,"health":"HEALTH_OK"}},"timechecks":{"epoch":6,"round":6,"round_status":"finished"}}`
 )
 
 func TestGetStatusDetailsHandler(t *testing.T) {
@@ -45,7 +47,9 @@ func TestGetStatusDetailsHandler(t *testing.T) {
 	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 		switch {
 		case args[0] == "status":
-			return CephStatusResponseRaw, nil
+			return cephStatusResponseRaw, nil
+		case args[0] == "time-sync-status":
+			return cephTimeStatusReponseRaw, nil
 		}
 		return "", fmt.Errorf("unexpected mon_command '%v'", args)
 	}
@@ -59,23 +63,28 @@ func TestGetStatusDetailsHandler(t *testing.T) {
 	expectedRespObj := model.StatusDetails{
 		OverallStatus: model.HealthWarning,
 		SummaryMessages: []model.StatusSummary{
-			{Status: model.HealthWarning, Message: "too many PGs per OSD (2048 > max 300)"},
+			{Status: model.HealthWarning, Name: "TEST_MSG", Message: "too many PGs per OSD (2048 > max 300)"},
 		},
 		Monitors: []model.MonitorSummary{
-			{Name: "mon0", Address: "127.0.0.1:6790/0", InQuorum: true, Status: model.HealthOK},
+			{Name: "rook-ceph-mon0", Address: "127.0.0.1:6790/0", InQuorum: true, Status: model.HealthOK},
 		},
 		OSDs: model.OSDSummary{
 			Total: 10, NumberIn: 9, NumberUp: 9, Full: false, NearFull: true,
+		},
+		Mgrs: model.MgrSummary{
+			ActiveName: "rook-ceph-mgr0",
+			ActiveAddr: "172.17.0.8:6800/13",
+			Available:  true,
 		},
 		PGs: model.PGSummary{
 			Total:       2148,
 			StateCounts: map[string]int{"active+clean": 2048, "created+peering": 100},
 		},
 		Usage: model.UsageSummary{
-			TotalBytes:     66449108992,
+			TotalBytes:     345,
 			DataBytes:      0,
-			UsedBytes:      39048007680,
-			AvailableBytes: 27401101312,
+			UsedBytes:      123,
+			AvailableBytes: 234,
 		},
 	}
 
@@ -94,6 +103,9 @@ func TestGetStatusDetailsEmptyResponseFromCeph(t *testing.T) {
 	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
 		switch {
 		case args[0] == "status":
+			return "{}", nil
+
+		case args[0] == "time-sync-status":
 			return "{}", nil
 		}
 		return "", fmt.Errorf("unexpected mon_command '%v'", args)

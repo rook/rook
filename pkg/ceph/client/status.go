@@ -53,39 +53,13 @@ type CephStatus struct {
 }
 
 type HealthStatus struct {
-	Details struct {
-		Services []map[string][]HealthService `json:"health_services"`
-	} `json:"health"`
-	Timechecks struct {
-		Epoch       int    `json:"epoch"`
-		Round       int    `json:"round"`
-		RoundStatus string `json:"round_status"`
-	} `json:"timechecks"`
-	Summary       []HealthSummary `json:"summary"`
-	OverallStatus string          `json:"overall_status"`
-	Detail        []interface{}   `json:"detail"`
+	Status string                  `json:"status"`
+	Checks map[string]CheckMessage `json:"checks"`
 }
 
-type HealthService struct {
-	Name             string `json:"name"`
-	Health           string `json:"health"`
-	KbTotal          uint64 `json:"kb_total"`
-	KbUsed           uint64 `json:"kb_used"`
-	KbAvailable      uint64 `json:"kb_avail"`
-	AvailablePercent int    `json:"avail_percent"`
-	LastUpdated      string `json:"last_updated"`
-	StoreStats       struct {
-		BytesTotal  uint64 `json:"bytes_total"`
-		BytesSst    uint64 `json:"bytes_sst"`
-		BytesLog    uint64 `json:"bytes_log"`
-		BytesMisc   uint64 `json:"bytes_misc"`
-		LastUpdated string `json:"last_updated"`
-	} `json:"store_stats"`
-}
-
-type HealthSummary struct {
+type CheckMessage struct {
 	Severity string `json:"severity"`
-	Summary  string `json:"summary"`
+	Message  string `json:"message"`
 }
 
 type MonMap struct {
@@ -171,17 +145,4 @@ func HealthToModelHealthStatus(cephHealth string) model.HealthStatus {
 	default:
 		return model.HealthUnknown
 	}
-}
-
-func GetMonitorHealthSummaries(cephStatus CephStatus) []HealthService {
-	// of all the available health services, we are looking for the one called "mons",
-	// which will then be a collection of monitor healths
-	for _, hs := range cephStatus.Health.Details.Services {
-		monsHealth, ok := hs["mons"]
-		if ok {
-			return monsHealth
-		}
-	}
-
-	return nil
 }
