@@ -182,6 +182,8 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 
 	envVars := []v1.EnvVar{
 		nodeNameEnvVar(),
+		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 		opmon.ClusterNameEnvVar(c.Namespace),
 		opmon.EndpointEnvVar(),
 		opmon.SecretEnvVar(),

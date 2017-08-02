@@ -58,7 +58,8 @@ func init() {
 }
 
 func startMon(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(monCmd, []string{"name", "fsid", "mon-secret", "admin-secret", "config-dir", "cluster-name", "public-ipv4", "private-ipv4"}); err != nil {
+	required := []string{"name", "fsid", "mon-secret", "admin-secret", "config-dir", "cluster-name", "public-ipv4", "private-ipv4"}
+	if err := flags.VerifyRequiredFlags(monCmd, required); err != nil {
 		return err
 	}
 
@@ -73,9 +74,7 @@ func startMon(cmd *cobra.Command, args []string) error {
 	clusterInfo.Monitors[monName] = mon.ToCephMon(monName, cfg.networkInfo.PublicAddrIPv4)
 
 	monCfg := &mon.Config{Name: monName, Cluster: &clusterInfo}
-	context := createContext()
-	context.NetworkInfo = cfg.networkInfo
-	err := mon.Run(context, monCfg)
+	err := mon.Run(createContext(), monCfg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

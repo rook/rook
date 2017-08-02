@@ -27,11 +27,6 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
-// PrivateIPEnvVar is the private cluster ip env var for monitors
-func PrivateIPEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: k8sutil.PrivateIPEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}}
-}
-
 // PublicIPEnvVar is the public ip env var for monitors
 func PublicIPEnvVar(publicIP string) v1.EnvVar {
 	return v1.EnvVar{Name: k8sutil.PublicIPEnvVar, Value: publicIP}
@@ -141,7 +136,7 @@ func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
 			k8sutil.ConfigOverrideMount(),
 		},
 		Env: []v1.EnvVar{
-			PrivateIPEnvVar(),
+			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			PublicIPEnvVar(config.PublicIP),
 			ClusterNameEnvVar(c.Namespace),
 			EndpointEnvVar(),

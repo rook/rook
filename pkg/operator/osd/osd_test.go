@@ -48,7 +48,6 @@ func TestPodContainer(t *testing.T) {
 	assert.NotNil(t, c)
 	assert.Equal(t, 1, len(c.Spec.Containers))
 	container := c.Spec.Containers[0]
-	assert.Equal(t, 7, len(container.Env))
 	assert.Equal(t, "osd", container.Args[0])
 }
 

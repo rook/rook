@@ -281,14 +281,14 @@ func (k8sh *K8sHelper) GetResource(args []string) (string, error) {
 //GetMonitorServices returns all ceph mon pod names
 func (k8sh *K8sHelper) GetMonitorServices() (map[string]string, error) {
 
-	cmdArgs := []string{"-n", "rook", "get", "svc", "-l", "app=rook-ceph-mon", "--no-headers=true"}
-	stdout, _, status := ExecuteCmd("kubectl", cmdArgs)
-	if status != 0 {
-		return nil, fmt.Errorf("Failed to find mon services. %d", status)
+	args := []string{"-n", "rook", "get", "svc", "-l", "app=rook-ceph-mon", "--no-headers=true"}
+	result, err := k8sh.Kubectl(args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to find mon services. %v", err)
 	}
 
 	// Get the IP address from the 2nd position in the line
-	mons, err := parseMonEndpoints(stdout)
+	mons, err := parseMonEndpoints(result)
 	if err != nil {
 		return nil, err
 	}

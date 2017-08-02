@@ -61,7 +61,8 @@ func init() {
 }
 
 func startOSD(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(osdCmd, []string{"cluster-name", "mon-endpoints", "mon-secret", "admin-secret", "node-name"}); err != nil {
+	required := []string{"cluster-name", "mon-endpoints", "mon-secret", "admin-secret", "node-name", "public-ipv4", "private-ipv4"}
+	if err := flags.VerifyRequiredFlags(osdCmd, required); err != nil {
 		return err
 	}
 

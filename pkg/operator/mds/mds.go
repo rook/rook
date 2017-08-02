@@ -169,6 +169,8 @@ func (c *Cluster) mdsContainer(id string) v1.Container {
 			opmon.ClusterNameEnvVar(c.Namespace),
 			opmon.EndpointEnvVar(),
 			opmon.SecretEnvVar(),
+			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 			opmon.AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},

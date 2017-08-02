@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/client"
@@ -32,11 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-<<<<<<< HEAD
-	"k8s.io/apimachinery/pkg/util/wait"
-=======
 	"k8s.io/apimachinery/pkg/util/intstr"
->>>>>>> operator: mons based on service ip instead of pod ip
 	helper "k8s.io/kubernetes/pkg/api/v1/helper"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )

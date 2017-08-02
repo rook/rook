@@ -69,6 +69,11 @@ func ConfigOverrideEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOKD_CEPH_CONFIG_OVERRIDE", Value: path.Join(configMountDir, overrideFilename)}
 }
 
+// PodIPEnvVar private ip env var
+func PodIPEnvVar(property string) v1.EnvVar {
+	return v1.EnvVar{Name: property, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}}
+}
+
 // NamespaceEnvVar namespace env var
 func NamespaceEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOKD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}

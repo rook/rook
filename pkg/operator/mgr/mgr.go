@@ -127,6 +127,8 @@ func (c *Cluster) mgrContainer(name string) v1.Container {
 		Env: []v1.EnvVar{
 			{Name: "ROOKD_MGR_NAME", Value: name},
 			{Name: "ROOKD_MGR_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: name}, Key: keyringName}}},
+			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 			opmon.ClusterNameEnvVar(c.Namespace),
 			opmon.EndpointEnvVar(),
 			opmon.SecretEnvVar(),
