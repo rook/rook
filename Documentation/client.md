@@ -8,9 +8,10 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
 - Standalone: [Download the binary](standalone.md#rook-client-tool) to your client machine.
 
 ## Block Storage
-1. Create a new volume image (10MB)
+1. Create a new pool and volume image (10MB)
 
     ```bash
+    rookctl pool create --name rbd
     rookctl block create --name test --size 10485760
     ```
 

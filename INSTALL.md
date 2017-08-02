@@ -9,7 +9,7 @@ three different platforms for building:
 
 ## Build Requirements
 
-An Intel-based machine (recommend 2+ cores, 8+ GB of memory and 128GB of SSD).
+An Intel-based machine (recommend 2+ cores, 8+ GB of memory and 128GB of SSD). Inside your build environment (Docker for Mac or a VM), 6+ GB memory is also recommended.
 
 The following tools are need on the host:
   - curl
