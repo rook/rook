@@ -35,6 +35,7 @@ type StatusDetails struct {
 }
 
 type StatusSummary struct {
+	Name    string       `json:"name"`
 	Status  HealthStatus `json:"status"`
 	Message string       `json:"message"`
 }

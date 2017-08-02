@@ -33,20 +33,37 @@ func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	summaries := make([]model.StatusSummary, len(cephStatus.Health.Summary))
-	for i, s := range cephStatus.Health.Summary {
-		summaries[i] = model.StatusSummary{
-			Status:  ceph.HealthToModelHealthStatus(s.Severity),
-			Message: s.Summary,
+	checks := make([]model.StatusSummary, len(cephStatus.Health.Checks))
+	i := 0
+	for name, check := range cephStatus.Health.Checks {
+		checks[i] = model.StatusSummary{
+			Name:    name,
+			Status:  ceph.HealthToModelHealthStatus(check.Severity),
+			Message: check.Message,
 		}
+		i++
+	}
+
+	// get the monitor time sync status
+	timeStatus, err := ceph.GetMonTimeStatus(h.context, h.config.ClusterInfo.Name)
+	if err != nil {
+		logger.Errorf("failed to get mon time sync status: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
 	}
 
 	// generate the monitor health summaries
 	monitors := make([]model.MonitorSummary, len(cephStatus.MonMap.Mons))
 	for i, m := range cephStatus.MonMap.Mons {
+		status := ""
+		if t, ok := timeStatus.Skew[m.Name]; ok {
+			status = t.Health
+		}
+
 		monitors[i] = model.MonitorSummary{
 			Name:    m.Name,
 			Address: m.Address,
+			Status:  ceph.HealthToModelHealthStatus(status),
 		}
 
 		// determine if the mon is in quorum
@@ -58,16 +75,6 @@ func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		monitors[i].InQuorum = inQuorum
-
-		// determine the mon's health status
-		monHealth := model.HealthUnknown
-		for _, mh := range ceph.GetMonitorHealthSummaries(cephStatus) {
-			if m.Name == mh.Name {
-				monHealth = ceph.HealthToModelHealthStatus(mh.Health)
-				break
-			}
-		}
-		monitors[i].Status = monHealth
 	}
 
 	// generate the OSD health Summary
@@ -106,8 +113,8 @@ func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
 	pgSummary := model.PGSummary{Total: cephStatus.PgMap.NumPgs, StateCounts: pgStates}
 
 	statusDetails := model.StatusDetails{
-		OverallStatus:   ceph.HealthToModelHealthStatus(cephStatus.Health.OverallStatus),
-		SummaryMessages: summaries,
+		OverallStatus:   ceph.HealthToModelHealthStatus(cephStatus.Health.Status),
+		SummaryMessages: checks,
 		Monitors:        monitors,
 		Mgrs:            mgrs,
 		OSDs:            osds,
