@@ -21,62 +21,77 @@ import (
 
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var rawContext = `{
-  "kind": "Config",
-  "apiVersion": "v1",
-  "preferences": {},
-  "clusters": [
-    {
-      "name": "dind",
-      "cluster": {
-        "server": "http://localhost:8080",
-        "insecure-skip-tls-verify": true
-      }
-    },
-    {
-      "name": "minikube",
-      "cluster": {
-        "server": "https://192.168.99.100:8443",
-        "certificate-authority": "/home/myuser/.minikube/ca.crt"
-      }
-    }
-  ],
-  "users": [
-    {
-      "name": "minikube",
-      "user": {
-        "client-certificate": "/home/myuser/.minikube/apiserver.crt",
-        "client-key": "/home/myuser/.minikube/apiserver.key"
-      }
-    }
-  ],
-  "contexts": [
-    {
-      "name": "dind",
-      "context": {
-        "cluster": "dind",
-        "user": ""
-      }
-    },
-    {
-      "name": "minikube",
-      "context": {
-        "cluster": "minikube",
-        "user": "minikube"
-      }
-    },
-    {
-      "name": "rook",
-      "context": {
-        "cluster": "vagrant-single-cluster",
-        "user": "vagrant-single-admin",
-        "namespace": "rook"
-      }
-    }
-  ],
-  "current-context": "%s"
+    "kind": "Config",
+    "apiVersion": "v1",
+    "preferences": {},
+    "clusters": [
+        {
+            "name": "dind",
+            "cluster": {
+                "server": "http://localhost:8080",
+                "insecure-skip-tls-verify": true
+            }
+        },
+        {
+            "name": "minikube",
+            "cluster": {
+                "server": "https://192.168.99.100:8443",
+                "certificate-authority": "/home/myuser/.minikube/ca.crt"
+            }
+        },
+        {
+            "name": "vagrant-single-cluster",
+            "cluster": {
+                "server": "https://172.17.4.99:443",
+                "certificate-authority": "ssl/ca.pem"
+            }
+        }
+    ],
+    "users": [
+        {
+            "name": "minikube",
+            "user": {
+                "client-certificate": "/home/myuser/.minikube/apiserver.crt",
+                "client-key": "/home/myuser/.minikube/apiserver.key"
+            }
+        },
+        {
+            "name": "vagrant-single-admin",
+            "user": {
+                "client-certificate": "ssl/admin.pem",
+                "client-key": "ssl/admin-key.pem"
+            }
+        }
+    ],
+    "contexts": [
+        {
+            "name": "dind",
+            "context": {
+                "cluster": "dind",
+                "user": ""
+            }
+        },
+        {
+            "name": "minikube",
+            "context": {
+                "cluster": "minikube",
+                "user": "minikube"
+            }
+        },
+        {
+            "name": "vagrant-single",
+            "context": {
+                "cluster": "vagrant-single-cluster",
+                "user": "vagrant-single-admin",
+                "namespace": "default"
+            }
+        }
+    ],
+    "current-context": "%s"
 }`
 
 func TestLoadMinikubeContext(t *testing.T) {
@@ -93,6 +108,7 @@ func TestLoadMinikubeContext(t *testing.T) {
 	assert.Equal(t, "/home/myuser/.minikube/apiserver.crt", config.CertFile)
 	assert.Equal(t, "/home/myuser/.minikube/apiserver.key", config.KeyFile)
 }
+
 func TestLoadDindContext(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(command string, subcommand string, args ...string) (string, error) {
@@ -106,4 +122,19 @@ func TestLoadDindContext(t *testing.T) {
 	assert.Equal(t, "", config.CAFile)
 	assert.Equal(t, "", config.CertFile)
 	assert.Equal(t, "", config.KeyFile)
+}
+
+func TestLoadVagrantContext(t *testing.T) {
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(command string, subcommand string, args ...string) (string, error) {
+			return fmt.Sprintf(rawContext, "vagrant-single"), nil
+		}}
+	config, err := getKubeConfig(executor)
+	require.Nil(t, err)
+	assert.NotNil(t, config)
+	assert.False(t, config.Insecure)
+	assert.Equal(t, "https://172.17.4.99:443", config.Host)
+	assert.Equal(t, "ssl/ca.pem", config.CAFile)
+	assert.Equal(t, "ssl/admin.pem", config.CertFile)
+	assert.Equal(t, "ssl/admin-key.pem", config.KeyFile)
 }

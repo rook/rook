@@ -111,34 +111,52 @@ func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 	if err := json.Unmarshal([]byte(context), &kc); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal kubectl config: %+v", err)
 	}
-	var currentCluster kclusterContext
+
+	// find the current context
+	var currentContext kContext
 	found := false
-	for _, c := range kc.Clusters {
+	for _, c := range kc.Contexts {
 		if kc.Current == c.Name {
+			currentContext = c
+			found = true
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("failed to find current context %s in %+v.", kc.Current, kc.Contexts)
+	}
+
+	// find the current cluster
+	var currentCluster kclusterContext
+	found = false
+	for _, c := range kc.Clusters {
+		if currentContext.Cluster.Cluster == c.Name {
 			currentCluster = c
 			found = true
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("failed to find kube context %s in %+v", kc.Current, kc.Clusters)
+		return nil, fmt.Errorf("failed to find cluster %s in %+v.", kc.Current, kc.Clusters)
 	}
 	config := &rest.Config{Host: currentCluster.Cluster.Server}
-	config.Insecure = true
 
-	var currentUser kuserContext
-	userFound := false
-	for _, u := range kc.Users {
-		if kc.Current == u.Name {
-			currentUser = u
-			userFound = true
-		}
-	}
-
-	if !currentCluster.Cluster.Insecure {
-		if !userFound {
-			return nil, fmt.Errorf("failed to find kube user %s in %+v", kc.Current, kc.Users)
-		}
+	if currentContext.Cluster.User == "" {
+		config.Insecure = true
+	} else {
 		config.Insecure = false
+
+		// find the current user
+		var currentUser kuserContext
+		found = false
+		for _, u := range kc.Users {
+			if currentContext.Cluster.User == u.Name {
+				currentUser = u
+				found = true
+			}
+		}
+		if !found {
+			return nil, fmt.Errorf("failed to find kube user %s in %+v.", kc.Current, kc.Users)
+		}
+
 		config.TLSClientConfig = rest.TLSClientConfig{
 			CAFile:   currentCluster.Cluster.CertAuthority,
 			KeyFile:  currentUser.Cluster.ClientKey,
@@ -152,9 +170,17 @@ func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 }
 
 type kubectlContext struct {
+	Contexts []kContext        `json:"contexts"`
 	Users    []kuserContext    `json:"users"`
 	Clusters []kclusterContext `json:"clusters"`
 	Current  string            `json:"current-context"`
+}
+type kContext struct {
+	Name    string `json:"name"`
+	Cluster struct {
+		Cluster string `json:"cluster"`
+		User    string `json:"user"`
+	} `json:"context"`
 }
 type kclusterContext struct {
 	Name    string `json:"name"`
@@ -327,7 +353,7 @@ func (k8sh *K8sHelper) IsPodRunningInNamespace(name string) bool {
 func (k8sh *K8sHelper) IsPodTerminated(name string) bool {
 	args := []string{"get", "pods", name}
 	inc := 0
-	for inc < 20 {
+	for inc < RetryLoop {
 		_, err := k8sh.Kubectl(args...)
 		if err != nil {
 			k8slogger.Infof("Pod in default namespace terminated: " + name)
@@ -346,7 +372,7 @@ func (k8sh *K8sHelper) IsPodTerminated(name string) bool {
 func (k8sh *K8sHelper) IsPodTerminatedInNamespace(name string) bool {
 	args := []string{"get", "-n", "rook", "pods", name}
 	inc := 0
-	for inc < 20 {
+	for inc < RetryLoop {
 		_, err := k8sh.Kubectl(args...)
 		if err != nil {
 			k8slogger.Infof("Pod in rook namespace terminated: " + name)
@@ -364,7 +390,7 @@ func (k8sh *K8sHelper) IsPodTerminatedInNamespace(name string) bool {
 func (k8sh *K8sHelper) IsServiceUp(name string) bool {
 	args := []string{"get", "svc", name}
 	inc := 0
-	for inc < 20 {
+	for inc < RetryLoop {
 		_, err := k8sh.Kubectl(args...)
 		if err == nil {
 			k8slogger.Infof("Service in default namespace is up: " + name)
@@ -382,7 +408,7 @@ func (k8sh *K8sHelper) IsServiceUp(name string) bool {
 func (k8sh *K8sHelper) IsServiceUpInNameSpace(name string) bool {
 	args := []string{"get", "svc", "-n", "rook", name}
 	inc := 0
-	for inc < 20 {
+	for inc < RetryLoop {
 		_, err := k8sh.Kubectl(args...)
 		if err == nil {
 			return true
