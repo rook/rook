@@ -62,9 +62,19 @@ case "${1:-}" in
   clean)
     ${scriptdir}/dind-cluster.sh clean
     ;;
+  update)
+    copy_image_to_cluster rook/rook:master
+    copy_image_to_cluster rook/toolbox:master
+    ;;
+  wordpress)
+    copy_image_to_cluster mysql:5.6
+    copy_image_to_cluster wordpress:4.6.1-apache
+    ;;
   *)
     echo "usage:" >&2
     echo "  $0 up" >&2
     echo "  $0 down" >&2
     echo "  $0 clean" >&2
+    echo "  $0 update" >&2
+    echo "  $0 wordpress" >&2
 esac

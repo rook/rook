@@ -55,14 +55,15 @@ KUBE_VERSION=${KUBE_VERSION:-"v1.6.0"}
 
 case "${1:-}" in
   up)
-    minikube start --memory=2600 --iso-url=https://s3-us-west-2.amazonaws.com/minikube-cephfs/minikube.iso --kubernetes-version ${KUBE_VERSION}
+    minikube start --memory=3000 --iso-url=https://s3-us-west-2.amazonaws.com/minikube-cephfs/minikube.iso --kubernetes-version ${KUBE_VERSION}
     wait_for_ssh
-    copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
-    copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
-
+ 
     echo setting up rbd
     minikube_scp ${scriptdir}/minikube-rbd /home/docker/minikube-rbd
     minikube_ssh "sudo cp /home/docker/minikube-rbd /bin/rbd && sudo chmod +x /bin/rbd"
+
+    copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
+    copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
     ;;
   down)
     minikube stop
@@ -76,6 +77,11 @@ case "${1:-}" in
     copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
     copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
     ;;
+  wordpress)
+    echo "copying the wordpress images"
+    copy_image_to_cluster mysql:5.6 mysql:5.6
+    copy_image_to_cluster wordpress:4.6.1-apache wordpress:4.6.1-apache
+    ;;
   clean)
     minikube delete
     ;;
@@ -84,4 +90,7 @@ case "${1:-}" in
     echo "  $0 up" >&2
     echo "  $0 down" >&2
     echo "  $0 clean" >&2
+    echo "  $0 ssh" >&2
+    echo "  $0 update" >&2
+    echo "  $0 wordpress" >&2
 esac
