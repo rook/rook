@@ -22,9 +22,9 @@ install() {
     echo "wait for K8s node to be Ready"
     kube_ready=$(kubectl get node -o jsonpath='{.items[0].status.conditions[3].status}')
     INC=0
-    until [[ "${kube_ready}" == "True" || $INC -gt 10 ]]; do
+    until [[ "${kube_ready}" == "True" || $INC -gt 20 ]]; do
         echo "."
-        sleep 5
+        sleep 10
         ((++INC))
         kube_ready=$(kubectl get node -o jsonpath='{.items[0].status.conditions[3].status}')
     done
