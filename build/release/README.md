@@ -4,38 +4,29 @@ At a high level the release workflow is as follows:
 
 1. Jenkins CI will build, publish and test every commit from master
 2. Integration testing happens on a build that is a candidate for release.
-3. If all goes well we "promote" that build from master to the alpha release channel.
+3. If all goes well we tag the release and create a new release branch if needed.
 4. Depending on the stability and feedback from the field, we might promote the build to beta and stable channels.
 
-## Release Requirements
+Jenkins has all the jobs to do the release -- there is no need to perform any of the release tasks on a build/dev machine.
 
-The following tools are needed when running releasing:
-  - jq
-  - awscli
-  - zip
+## Tagging a new release
 
-## Building Release Builds
+To create a new release build, run a new build from `release/tag` pipeline in Jenkins. Be sure to use the correct branch for the
+release. New major/minor release will always be run from master, and patch releases will come from a previous release branch.
 
-Jenkins will build, test and publish every commit from master. We use semantic versions for every build. Version numbers will be generated using `git describe --always --tags --dirty`. When building from a tagged commit these builds will be like v.0.3.0. When building from a non-tagged commit they will be something like v0.3.0-2-g770ebbc.
+The Jenkins `release/tag` takes as input the version number to be released and the commit hash to tag. The job will will automatically tag the release and create the a release branch. Once a new release branch is created or update, jenkins should perform the final release build as part of the `rook/rook` pipeline as usual.
 
-To tag a commit from master that you want to release, do the following:
+## Promoting a release
 
-```
-git tag v0.4.0 <commit_hash_from_master>
-git push upstream refs/tags/v0.4.0
-```
+To promote a release run the `release/promote` pipeline in Jenkins. As input it will take the version number to promote and the the release channel.
 
-Note make sure you use the correct remote to push the tag upstream.
-
-Jenkins would build the tagged release and publish its artifacts like any other build from master.
-
-**NOTE:** Jenkins currently is broken and does not support building tags, this has to be done manually.  After pushing the tag, go to Jenkins and simply rerun the build from master for the commit hash you tagged.
-
-## Artifacts
+# Release Artifacts
 
 Each build from master has the following release artifacts:
-- binaries (rookctl)
-- containers (rook, toolbox)
+- binaries and yaml
+- containers
+
+## Binaries
 
 Binaries go to an S3 bucket `rook-release` (and https://release.rook.io) and have the following layout:
 
@@ -57,68 +48,11 @@ Binaries go to an S3 bucket `rook-release` (and https://release.rook.io) and hav
              (binaries)
 ```
 
+## Containers
+
 Containers go to docker hub and quay.io where we have the following repos:
 
 ```
 rook/rook
 rook/toolbox
 ```
-
-## Promoting from master
-
-Once a tagged release from master passes integration test we can proceed with promoting it to a release channel. We will have 4 release channels:
-
-- master - this channel is built from rook master and will have a release for each commit in master. Not all versions in this channel have passed integration testing. They would have passed basic unit testing and simple validation that is done during the PR process.
-- alpha - this is an experimental channel that contains builds that we "promoted" to alpha quality. All builds here have passed integration testing but are not deemed production quality.
-- beta - this channel is more stable than alpha but is still not considered production quality.
-- stable - this channel is production ready
-
-To promote a release run the `promote` target as follows:
-
-```
-make -C build/release promote CHANNEL=alpha VERSION=v0.4.0
-```
-
-**NOTE:** Promoting requires that you have AWS credentials (in `~/.aws` or in environment),
-docker hub, and quay.io write access (via `~/.docker/credentials` or `~/.docker/config.json`).  See the [AWS config docs](http://docs.aws.amazon.com/cli/latest/userguide/cli-chap-getting-started.html#cli-config-files) for help setting up AWS credentials.
-
-After promoting a release, on S3 there will be a path for each channel and release promoted as follows:
-
-```
-/releases
-    /master
-    /alpha
-          /v0.2.2
-          /v0.3.0
-               darwin_amd64/rookctl
-               linux_amd64/rookctl
-               linux_arm/rookctl
-               linux_arm64/rookctl
-               windows_amd64/rookctl
-               version
-          /v0.4.0
-          /current
-    /beta
-          /v0.3.0
-          /v0.4.0
-          /current
-    /stable
-          /v0.3.0
-          /current
-```
-
-Similarly in docker hub and quay.io we will tag containers as follows:
-
-```
-master -- for the latest from master
-<version>-alpha -- for each version in the alpha channel
-alpha -- for the latest alpha
-<version>-beta -- for each version in the beta channel
-beta -- for the latest beta
-<version> -- for each version that is in the stable channel
-latest -- for the latest stable version
-```
-
-Finally, create a github release, fill in the relase notes, and publish it.
-
-You're done.
