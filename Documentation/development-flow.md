@@ -1,3 +1,8 @@
+---
+title: Contributing
+weight: 30
+---
+
 # Prerequisites
 1. [GO 1.8](https://golang.org/dl/) or greater installed
 2. Git client installed

@@ -19,9 +19,23 @@ include ../makelib/common.mk
 # ====================================================================================
 # Options
 
+# set the shell to bash in case some environments use sh
+SHELL := /bin/bash
+
 CHANNEL ?= master
 ifeq ($(filter master alpha beta stable,$(CHANNEL)),)
 $(error invalid channel $(CHANNEL))
+endif
+
+DOCS_VERSION := $(shell echo $(BRANCH_NAME) | sed -E "s/^release\-([0-9]+)\.([0-9]+)$$/v\1.\2/g")
+DOCS_DIR ?= $(ROOT_DIR)/Documentation
+DOCS_WORK_DIR := $(WORK_DIR)/rook.github.io
+DOCS_VERSION_DIR := $(DOCS_WORK_DIR)/docs/rook/$(DOCS_VERSION)
+
+ifdef GIT_API_TOKEN
+DOCS_GIT_REPO := https://$(GIT_API_TOKEN)@github.com/rook/rook.github.io.git
+else
+DOCS_GIT_REPO := git@github.com:rook/rook.github.io.git
 endif
 
 ifeq ($(origin BRANCH_NAME), undefined)
@@ -31,7 +45,7 @@ endif
 PLATFORMS ?= $(ALL_PLATFORMS)
 
 ifneq ($(filter master release-%,$(BRANCH_NAME)),)
-FLAVORS ?= output images
+FLAVORS ?= output images docs
 else
 FLAVORS ?= output
 override BRANCH_NAME := pr/$(BRANCH_NAME)
@@ -47,6 +61,7 @@ IMAGE_PLATFORMS := $(subst _,/,$(subst $(SPACE),$(COMMA),$(filter linux_%,$(PLAT
 S3_BUCKET ?= rook-release
 S3_CP := aws s3 cp --only-show-errors
 S3_SYNC := aws s3 sync --only-show-errors --delete
+
 
 # ====================================================================================
 # tools
@@ -69,6 +84,26 @@ clean: $(addprefix clean.,$(FLAVORS)) ;
 
 # catch all for unimplemented targets / flavors
 %: ; @:
+
+# ====================================================================================
+# docs
+
+build.docs:
+
+	# checkout a fresh copy of the rook.github.io directory
+	@ rm -rf $(DOCS_WORK_DIR)
+	@ mkdir -p $(DOCS_WORK_DIR)
+	@ git clone --depth=1 -b master $(DOCS_GIT_REPO) $(DOCS_WORK_DIR)
+
+	# replace the version snapshot with the current docs dir
+	@ rm -rf $(DOCS_VERSION_DIR)
+	@ cp -r $(DOCS_DIR)/ $(DOCS_VERSION_DIR)
+
+	$(DOCS_WORK_DIR)/build/build.sh
+
+publish.docs:
+
+	$(DOCS_WORK_DIR)/build/publish.sh
 
 # ====================================================================================
 # output
