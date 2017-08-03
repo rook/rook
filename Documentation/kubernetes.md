@@ -19,6 +19,8 @@ To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [fo
 
 Note that we are striving for even more smooth integration with Kubernetes in the future such that `Rook` will work out of the box with any Kubernetes cluster.
 
+If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, make sure your host has at least 5GB of space available on the specified path.
+
 ### Deploy Rook
 
 With your Kubernetes cluster running, Rook can be setup and deployed by simply creating the [rook-operator](/demo/kubernetes/rook-operator.yaml) deployment and creating a [rook cluster](/demo/kubernetes/rook-cluster.yaml).
