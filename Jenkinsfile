@@ -76,7 +76,6 @@ def RunIntegrationTest(k, v) {
                 withEnv(["KUBE_VERSION=${v}"]){
                     unstash 'repo-amd64'
                     echo "running tests on k8s version ${v}"
-                    sh 'sleep 60' //intermittent issue when running apt-get right after vm is up
                     sh 'tests/scripts/makeTestImages.sh load amd64'
                     sh "tests/scripts/kubeadm.sh up"
                     try{
