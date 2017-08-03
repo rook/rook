@@ -1,7 +1,12 @@
 // Rook build for Jenkins Pipelines
 
 pipeline {
-    agent any
+    agent { label 'ec2-stateful' }
+
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+    }
 
     parameters {
         string(name: 'version', defaultValue: '', description: 'The version you are releasing, for example, v0.5.0')
