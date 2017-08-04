@@ -20,6 +20,8 @@ The Jenkins `release/tag` takes as input the version number to be released and t
 
 To promote a release run the `release/promote` pipeline in Jenkins. As input it will take the version number to promote and the the release channel.
 
+NOTE: Until https://issues.jenkins-ci.org/browse/JENKINS-41929 is fixed, pipeline builds for a new branch will run with no params. The workaround now is to run promote the second time and it should prompt for version number and channel correctly.
+
 # Release Artifacts
 
 Each build from master has the following release artifacts:
