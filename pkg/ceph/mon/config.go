@@ -43,6 +43,7 @@ type GlobalConfig struct {
 	FSID                     string `ini:"fsid,omitempty"`
 	RunDir                   string `ini:"run dir,omitempty"`
 	MonMembers               string `ini:"mon initial members,omitempty"`
+	MonHost                  string `ini:"mon host"`
 	LogFile                  string `ini:"log file,omitempty"`
 	MonClusterLogFile        string `ini:"mon cluster log file,omitempty"`
 	PublicAddr               string `ini:"public addr,omitempty"`
@@ -84,7 +85,7 @@ func getMonKeyringPath(configDir, monName string) string {
 
 // get the path of a given monitor's data dir
 func getMonDataDirPath(configDir, monName string) string {
-	return filepath.Join(getMonRunDirPath(configDir, monName), fmt.Sprintf("mon.%s", monName))
+	return filepath.Join(getMonRunDirPath(configDir, monName), "data")
 }
 
 // get the path of a given monitor's config file
@@ -152,10 +153,6 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 
 	if err := addClientConfigFileSection(configFile, getQualifiedUser(user), keyringPath, clientSettings); err != nil {
 		return "", fmt.Errorf("failed to add admin client config section, %+v", err)
-	}
-
-	if err := addInitialMonitorsConfigFileSections(configFile, cluster); err != nil {
-		return "", fmt.Errorf("failed to add initial monitor config sections, %+v", err)
 	}
 
 	// if there's a config file override path given, process the given config file
@@ -236,9 +233,11 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 	// extract a list of just the monitor names, which will populate the "mon initial members"
 	// global config field
 	monMembers := make([]string, len(cluster.Monitors))
+	monHosts := make([]string, len(cluster.Monitors))
 	i := 0
 	for _, monitor := range cluster.Monitors {
 		monMembers[i] = monitor.Name
+		monHosts[i] = monitor.Endpoint
 		i++
 	}
 
@@ -257,6 +256,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 			FSID:                   cluster.FSID,
 			RunDir:                 runDir,
 			MonMembers:             strings.Join(monMembers, " "),
+			MonHost:                strings.Join(monHosts, ","),
 			LogFile:                "/dev/stdout",
 			MonClusterLogFile:      "/dev/stdout",
 			PublicAddr:             context.NetworkInfo.PublicAddrIPv4,
@@ -316,27 +316,6 @@ func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath st
 	for key, val := range settings {
 		if _, err := s.NewKey(key, val); err != nil {
 			return fmt.Errorf("failed to add key %s. %v", key, err)
-		}
-	}
-
-	return nil
-}
-
-func addInitialMonitorsConfigFileSections(configFile *ini.File, cluster *ClusterInfo) error {
-	// write the config for each individual monitor member of the cluster to the content buffer
-	for _, mon := range cluster.Monitors {
-
-		s, err := configFile.NewSection(fmt.Sprintf("mon.%s", mon.Name))
-		if err != nil {
-			return err
-		}
-
-		if _, err := s.NewKey("name", mon.Name); err != nil {
-			return err
-		}
-
-		if _, err := s.NewKey("mon addr", mon.Endpoint); err != nil {
-			return err
 		}
 	}
 

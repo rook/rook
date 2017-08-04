@@ -49,7 +49,8 @@ func init() {
 }
 
 func startRGW(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(rgwCmd, []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret", "rgw-host", "rgw-keyring"}); err != nil {
+	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret", "rgw-host", "rgw-keyring", "public-ipv4", "private-ipv4"}
+	if err := flags.VerifyRequiredFlags(rgwCmd, required); err != nil {
 		return err
 	}
 

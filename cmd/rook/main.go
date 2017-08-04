@@ -240,5 +240,6 @@ func createContext() *clusterd.Context {
 		ConfigDir:          cfg.dataDir,
 		ConfigFileOverride: cfg.cephConfigOverride,
 		LogLevel:           cfg.logLevel,
+		NetworkInfo:        cfg.networkInfo,
 	}
 }

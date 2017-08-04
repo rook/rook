@@ -27,6 +27,11 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
+// PublicIPEnvVar is the public ip env var for monitors
+func PublicIPEnvVar(publicIP string) v1.EnvVar {
+	return v1.EnvVar{Name: k8sutil.PublicIPEnvVar, Value: publicIP}
+}
+
 // ClusterNameEnvVar is the cluster name environment var
 func ClusterNameEnvVar(name string) v1.EnvVar {
 	return v1.EnvVar{Name: "ROOKD_CLUSTER_NAME", Value: name}
@@ -59,7 +64,6 @@ func (c *Cluster) getLabels(name string) map[string]string {
 }
 
 func (c *Cluster) makeReplicaSet(config *monConfig, nodeName string) *extensions.ReplicaSet {
-
 	rs := &extensions.ReplicaSet{}
 	rs.Name = config.Name
 	rs.Namespace = c.Namespace
@@ -110,7 +114,6 @@ func (c *Cluster) makeMonPod(config *monConfig, nodeName string) *v1.Pod {
 }
 
 func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
-
 	return v1.Container{
 		Args: []string{
 			"mon",
@@ -133,7 +136,8 @@ func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
 			k8sutil.ConfigOverrideMount(),
 		},
 		Env: []v1.EnvVar{
-			{Name: k8sutil.PodIPEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}},
+			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+			PublicIPEnvVar(config.PublicIP),
 			ClusterNameEnvVar(c.Namespace),
 			EndpointEnvVar(),
 			SecretEnvVar(),

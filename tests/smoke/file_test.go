@@ -18,6 +18,7 @@ package smoke
 
 import (
 	"fmt"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -82,21 +83,11 @@ func (suite *SmokeSuite) fileTestDataCleanUp() {
 }
 
 func (suite *SmokeSuite) podWithFileSystem(action string) error {
-	mons, err := suite.k8sh.GetMonitorPods()
-	if err != nil {
-		return err
-	}
-	ip1, _ := suite.k8sh.GetMonIP(mons[0])
-	ip2, _ := suite.k8sh.GetMonIP(mons[1])
-	ip3, _ := suite.k8sh.GetMonIP(mons[2])
+	mons, err := suite.k8sh.GetMonitorServices()
+	require.Nil(suite.T(), err)
 
-	config := map[string]string{
-		"mon0": ip1,
-		"mon1": ip2,
-		"mon2": ip3,
-	}
 	logger.Infof("mountFileStorage: Mons: %+v", mons)
-	_, err = suite.k8sh.ResourceOperationFromTemplate(action, getFileSystemTestPod(), config)
+	_, err = suite.k8sh.ResourceOperationFromTemplate(action, getFileSystemTestPod(), mons)
 	if err != nil {
 		return fmt.Errorf("failed to %s pod -- %s. %+v", action, getFileSystemTestPod(), err)
 	}

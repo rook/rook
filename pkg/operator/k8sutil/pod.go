@@ -35,8 +35,11 @@ const (
 	ClusterAttr = "rook_cluster"
 	// VersionAttr version label
 	VersionAttr = "rook_version"
-	// PodIPEnvVar pod IP env var
-	PodIPEnvVar = "ROOKD_PRIVATE_IPV4"
+	// PublicIPEnvVar public IP env var
+	PublicIPEnvVar = "ROOKD_PUBLIC_IPV4"
+	// PrivateIPEnvVar pod IP env var
+	PrivateIPEnvVar = "ROOKD_PRIVATE_IPV4"
+
 	// DefaultRepoPrefix repo prefix
 	DefaultRepoPrefix = "rook"
 	// ConfigOverrideName config override name
@@ -64,6 +67,11 @@ func ConfigOverrideVolume() v1.Volume {
 // ConfigOverrideEnvVar config override env var
 func ConfigOverrideEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOKD_CEPH_CONFIG_OVERRIDE", Value: path.Join(configMountDir, overrideFilename)}
+}
+
+// PodIPEnvVar private ip env var
+func PodIPEnvVar(property string) v1.EnvVar {
+	return v1.EnvVar{Name: property, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "status.podIP"}}}
 }
 
 // NamespaceEnvVar namespace env var

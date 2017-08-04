@@ -114,6 +114,7 @@ func TestGetStatusEmptyResponse(t *testing.T) {
 		"TOTAL     UP        IN        FULL      NEAR FULL\n" +
 		"0         0         0         false     false\n\n" +
 		"PLACEMENT GROUPS (0 total):\n" +
-		"STATE     COUNT\n"
+		"STATE     COUNT\n" +
+		"none\n"
 	assert.Equal(t, expectedOut, out)
 }

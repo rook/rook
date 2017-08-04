@@ -262,13 +262,12 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 		}
 
 		// Store the monitor id and connection info
-		port := "6790"
 		monitorID := fmt.Sprintf("mon%d", nextMonID)
 		settings[path.Join(nodeID, "id")] = monitorID
 		settings[path.Join(nodeID, "ipaddress")] = node.PublicIP
-		settings[path.Join(nodeID, "port")] = port
+		settings[path.Join(nodeID, "port")] = strconv.Itoa(Port)
 
-		monitor := &CephMonitorConfig{Name: monitorID, Endpoint: fmt.Sprintf("%s:%s", node.PublicIP, port)}
+		monitor := &CephMonitorConfig{Name: monitorID, Endpoint: fmt.Sprintf("%s:%d", node.PublicIP, Port)}
 		monitors[nodeID] = monitor
 
 		nextMonID++
