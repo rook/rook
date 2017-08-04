@@ -38,19 +38,10 @@ import (
 
 var (
 	// controllerResyncPeriod potentially can be part of rook Operator configuration.
-	// in seconds
-	controllerResyncPeriod time.Duration = 120
+	controllerResyncPeriod = 120 * time.Second
 	// controllerRetry is number of retries to process an event
-	controllerRetry int = 5
+	controllerRetry = 5
 )
-
-func NewCredsController(ns string, context *clusterd.Context) *PVCController {
-	return &PVCController{
-		clusterNamespace: ns,
-		clusterContext:   context,
-		queue:            workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
-	}
-}
 
 // PVCController implements Kube controller that monitors rook PVC events.
 // The controller ensures all kube namespaces have a set of credentials
@@ -63,6 +54,14 @@ type PVCController struct {
 	clusterNamespace string
 }
 
+func NewCredsController(ns string, context *clusterd.Context) *PVCController {
+	return &PVCController{
+		clusterNamespace: ns,
+		clusterContext:   context,
+		queue:            workqueue.NewRateLimitingQueue(workqueue.DefaultControllerRateLimiter()),
+	}
+}
+
 func (c *PVCController) pvcHandler(key interface{}) error {
 	obj, _, err := c.indexer.GetByKey(key.(string))
 	if err != nil {
@@ -71,16 +70,20 @@ func (c *PVCController) pvcHandler(key interface{}) error {
 
 	pvc := obj.(*v1.PersistentVolumeClaim)
 
+	// Validating pvc class, only acting on rook primitives
 	if !strings.Contains(*pvc.Spec.StorageClassName, "rook") {
 		return nil
 	}
 
-	cephUser := &cephUser{c.clusterContext, c.clusterNamespace}
-	if err := cephUser.create(); err != nil {
+	cephUser := newCephUser(
+		c.clusterContext,
+		c.clusterNamespace,
+		pvc.ObjectMeta.Namespace)
+	if _, err := cephUser.create(); err != nil {
 		return err
 	}
 
-	if err = cephUser.setKubeSecret(pvc.ObjectMeta.Namespace); err != nil {
+	if err = cephUser.setKubeSecret(); err != nil {
 		return err
 	}
 
@@ -98,7 +101,7 @@ func (c *PVCController) run(stopCh chan struct{}) {
 	c.indexer, c.informer = cache.NewIndexerInformer(
 		eventList,
 		&v1.PersistentVolumeClaim{},
-		controllerResyncPeriod*time.Second,
+		controllerResyncPeriod,
 		cache.ResourceEventHandlerFuncs{
 			AddFunc:    c.onAdd,
 			UpdateFunc: c.onUpdate,

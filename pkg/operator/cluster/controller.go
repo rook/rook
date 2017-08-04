@@ -137,7 +137,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	healthChecker := mon.NewHealthChecker(cluster.mons)
 	go healthChecker.Check(cluster.stopCh)
 
-	// Staring ceph auth controller
+	// Starting ceph auth controller
 	credsController := NewCredsController(c.context, cluster.Namespace)
 	go credsController.run(cluster.stopCh)
 }
