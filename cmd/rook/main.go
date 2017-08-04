@@ -82,15 +82,15 @@ func main() {
 
 // Initialize the configuration parameters. The precedence from lowest to highest is:
 //  1) default value (at compilation)
-//  2) environment variables (upper case, replace - with _, and rook prefix. For example, discovery-url is ROOKD_DISCOVERY_URL)
+//  2) environment variables (upper case, replace - with _, and rook prefix. For example, discovery-url is ROOK_DISCOVERY_URL)
 //  3) command line parameter
 func init() {
 	addStandaloneRookFlags(rootCmd)
 	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 
 	// load the environment variables
-	flags.SetFlagsFromEnv(rootCmd.Flags(), "ROOKD")
-	flags.SetFlagsFromEnv(rootCmd.PersistentFlags(), "ROOKD")
+	flags.SetFlagsFromEnv(rootCmd.Flags(), "ROOK")
+	flags.SetFlagsFromEnv(rootCmd.PersistentFlags(), "ROOK")
 
 	rootCmd.RunE = startJoinCluster
 }

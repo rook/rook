@@ -41,7 +41,7 @@ func init() {
 	mgrCmd.Flags().StringVar(&mgrKeyring, "mgr-keyring", "", "the mgr keyring")
 	addCephFlags(mgrCmd)
 
-	flags.SetFlagsFromEnv(mgrCmd.Flags(), "ROOKD")
+	flags.SetFlagsFromEnv(mgrCmd.Flags(), "ROOK")
 
 	mgrCmd.RunE = startMgr
 }

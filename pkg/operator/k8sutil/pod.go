@@ -36,9 +36,9 @@ const (
 	// VersionAttr version label
 	VersionAttr = "rook_version"
 	// PublicIPEnvVar public IP env var
-	PublicIPEnvVar = "ROOKD_PUBLIC_IPV4"
+	PublicIPEnvVar = "ROOK_PUBLIC_IPV4"
 	// PrivateIPEnvVar pod IP env var
-	PrivateIPEnvVar = "ROOKD_PRIVATE_IPV4"
+	PrivateIPEnvVar = "ROOK_PRIVATE_IPV4"
 
 	// DefaultRepoPrefix repo prefix
 	DefaultRepoPrefix = "rook"
@@ -46,7 +46,7 @@ const (
 	ConfigOverrideName = "rook-config-override"
 	// ConfigOverrideVal config override value
 	ConfigOverrideVal = "config"
-	repoPrefixEnvVar  = "ROOKD_REPO_PREFIX"
+	repoPrefixEnvVar  = "ROOK_REPO_PREFIX"
 	defaultVersion    = "latest"
 	configMountDir    = "/etc/rook"
 	overrideFilename  = "override.conf"
@@ -66,7 +66,7 @@ func ConfigOverrideVolume() v1.Volume {
 
 // ConfigOverrideEnvVar config override env var
 func ConfigOverrideEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_CEPH_CONFIG_OVERRIDE", Value: path.Join(configMountDir, overrideFilename)}
+	return v1.EnvVar{Name: "ROOK_CEPH_CONFIG_OVERRIDE", Value: path.Join(configMountDir, overrideFilename)}
 }
 
 // PodIPEnvVar private ip env var
@@ -76,7 +76,7 @@ func PodIPEnvVar(property string) v1.EnvVar {
 
 // NamespaceEnvVar namespace env var
 func NamespaceEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}
+	return v1.EnvVar{Name: "ROOK_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}
 }
 
 // RepoPrefixEnvVar repo prefix env var
@@ -86,7 +86,7 @@ func RepoPrefixEnvVar() v1.EnvVar {
 
 // ConfigDirEnvVar config dir env var
 func ConfigDirEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_CONFIG_DIR", Value: DataDir}
+	return v1.EnvVar{Name: "ROOK_CONFIG_DIR", Value: DataDir}
 }
 
 func repoPrefix() string {

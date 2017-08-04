@@ -113,5 +113,5 @@ spec:
         image: rook/rook:master
         args: ["operator"]
         env:
-        - name: ROOKD_REPO_PREFIX
+        - name: ROOK_REPO_PREFIX
           value: rook

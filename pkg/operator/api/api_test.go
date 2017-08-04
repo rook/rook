@@ -78,7 +78,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 1, len(cont.VolumeMounts))
 	assert.Equal(t, 7, len(cont.Env))
 	for _, v := range cont.Env {
-		assert.True(t, strings.HasPrefix(v.Name, "ROOKD_"))
+		assert.True(t, strings.HasPrefix(v.Name, "ROOK_"))
 	}
 
 	assert.Equal(t, "api", cont.Args[0])

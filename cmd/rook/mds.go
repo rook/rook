@@ -41,7 +41,7 @@ func init() {
 	mdsCmd.Flags().StringVar(&mdsKeyring, "mds-keyring", "", "the mds keyring")
 	addCephFlags(mdsCmd)
 
-	flags.SetFlagsFromEnv(mdsCmd.Flags(), "ROOKD")
+	flags.SetFlagsFromEnv(mdsCmd.Flags(), "ROOK")
 
 	mdsCmd.RunE = startMDS
 }

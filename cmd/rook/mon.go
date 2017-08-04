@@ -52,7 +52,7 @@ func init() {
 	monCmd.Flags().IntVar(&monPort, "port", 0, "port of the monitor")
 	addCephFlags(monCmd)
 
-	flags.SetFlagsFromEnv(monCmd.Flags(), "ROOKD")
+	flags.SetFlagsFromEnv(monCmd.Flags(), "ROOK")
 
 	monCmd.RunE = startMon
 }
