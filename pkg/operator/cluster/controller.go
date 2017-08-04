@@ -1,5 +1,5 @@
 /*
-Copyright 2016-2017 The Rook Authors. All rights reserved.
+Copyright 2016 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -171,7 +171,7 @@ func (c *Cluster) createInstance() error {
 
 	// Start the mon pods
 	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.Placement.GetMON())
-	clusterInfo, err := c.mons.Start()
+	_, err = c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
@@ -198,11 +198,6 @@ func (c *Cluster) createInstance() error {
 	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
-	}
-
-	err = c.createClientAccess(clusterInfo)
-	if err != nil {
-		return fmt.Errorf("failed to create client access. %+v", err)
 	}
 
 	c.rookClient, err = api.GetRookClient(c.Namespace, c.context.Clientset)

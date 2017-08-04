@@ -1,5 +1,5 @@
 /*
-Copyright 2016-2017 The Rook Authors. All rights reserved.
+Copyright 2016 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -54,7 +54,7 @@ type PVCController struct {
 	clusterNamespace string
 }
 
-func newCredsController(ns string, context *clusterd.Context) *PVCController {
+func newCredsController(context *clusterd.Context, ns string) *PVCController {
 	return &PVCController{
 		clusterNamespace: ns,
 		clusterContext:   context,
