@@ -82,7 +82,6 @@ func TestPodSpecs(t *testing.T) {
 	cont := d.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
-	assert.Equal(t, 6, len(cont.Env))
 
 	assert.Equal(t, "mds", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])

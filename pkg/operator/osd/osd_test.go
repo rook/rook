@@ -48,7 +48,6 @@ func TestPodContainer(t *testing.T) {
 	assert.NotNil(t, c)
 	assert.Equal(t, 1, len(c.Spec.Containers))
 	container := c.Spec.Containers[0]
-	assert.Equal(t, 7, len(container.Env))
 	assert.Equal(t, "osd", container.Args[0])
 }
 
@@ -98,18 +97,18 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	assert.Equal(t, "osd", cont.Args[0])
 
 	// verify the config dir env var
-	verifyEnvVar(t, cont.Env, "ROOKD_CONFIG_DIR", "/var/lib/rook", true)
+	verifyEnvVar(t, cont.Env, "ROOK_CONFIG_DIR", "/var/lib/rook", true)
 
 	// verify the osd store type env var uses the default
-	verifyEnvVar(t, cont.Env, "ROOKD_OSD_STORE", cephosd.DefaultStore, true)
+	verifyEnvVar(t, cont.Env, "ROOK_OSD_STORE", cephosd.DefaultStore, true)
 
 	// verify the device filter env var
 	if deviceFilter != "" {
-		verifyEnvVar(t, cont.Env, "ROOKD_DATA_DEVICE_FILTER", deviceFilter, true)
+		verifyEnvVar(t, cont.Env, "ROOK_DATA_DEVICE_FILTER", deviceFilter, true)
 	} else if allDevices {
-		verifyEnvVar(t, cont.Env, "ROOKD_DATA_DEVICE_FILTER", "all", true)
+		verifyEnvVar(t, cont.Env, "ROOK_DATA_DEVICE_FILTER", "all", true)
 	} else {
-		verifyEnvVar(t, cont.Env, "ROOKD_DATA_DEVICE_FILTER", "", false)
+		verifyEnvVar(t, cont.Env, "ROOK_DATA_DEVICE_FILTER", "", false)
 	}
 }
 
@@ -157,8 +156,8 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	assert.Equal(t, "/rook/dir1", container.VolumeMounts[3].MountPath)
 
 	// container command should have the given dir and device
-	verifyEnvVar(t, container.Env, "ROOKD_DATA_DIRECTORIES", "/rook/dir1", true)
-	verifyEnvVar(t, container.Env, "ROOKD_DATA_DEVICES", "sda", true)
+	verifyEnvVar(t, container.Env, "ROOK_DATA_DIRECTORIES", "/rook/dir1", true)
+	verifyEnvVar(t, container.Env, "ROOK_DATA_DEVICES", "sda", true)
 }
 
 func TestStorageSpecConfig(t *testing.T) {
@@ -189,9 +188,9 @@ func TestStorageSpecConfig(t *testing.T) {
 
 	container := replicaSet.Spec.Template.Spec.Containers[0]
 	assert.NotNil(t, container)
-	verifyEnvVar(t, container.Env, "ROOKD_OSD_STORE", cephosd.Bluestore, true)
-	verifyEnvVar(t, container.Env, "ROOKD_OSD_DATABASE_SIZE", strconv.Itoa(10), true)
-	verifyEnvVar(t, container.Env, "ROOKD_OSD_WAL_SIZE", strconv.Itoa(20), true)
-	verifyEnvVar(t, container.Env, "ROOKD_OSD_JOURNAL_SIZE", strconv.Itoa(30), true)
-	verifyEnvVar(t, container.Env, "ROOKD_LOCATION", "rack=foo", true)
+	verifyEnvVar(t, container.Env, "ROOK_OSD_STORE", cephosd.Bluestore, true)
+	verifyEnvVar(t, container.Env, "ROOK_OSD_DATABASE_SIZE", strconv.Itoa(10), true)
+	verifyEnvVar(t, container.Env, "ROOK_OSD_WAL_SIZE", strconv.Itoa(20), true)
+	verifyEnvVar(t, container.Env, "ROOK_OSD_JOURNAL_SIZE", strconv.Itoa(30), true)
+	verifyEnvVar(t, container.Env, "ROOK_LOCATION", "rack=foo", true)
 }

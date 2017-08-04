@@ -41,13 +41,14 @@ func init() {
 	mgrCmd.Flags().StringVar(&mgrKeyring, "mgr-keyring", "", "the mgr keyring")
 	addCephFlags(mgrCmd)
 
-	flags.SetFlagsFromEnv(mgrCmd.Flags(), "ROOKD")
+	flags.SetFlagsFromEnv(mgrCmd.Flags(), "ROOK")
 
 	mgrCmd.RunE = startMgr
 }
 
 func startMgr(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(mgrCmd, []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret"}); err != nil {
+	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret", "public-ipv4", "private-ipv4"}
+	if err := flags.VerifyRequiredFlags(mgrCmd, required); err != nil {
 		return err
 	}
 

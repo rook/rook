@@ -44,13 +44,14 @@ func init() {
 	apiCmd.Flags().StringVar(&namespace, "namespace", "", "the namespace in which the api service is running")
 	addCephFlags(apiCmd)
 
-	flags.SetFlagsFromEnv(apiCmd.Flags(), "ROOKD")
+	flags.SetFlagsFromEnv(apiCmd.Flags(), "ROOK")
 
 	apiCmd.RunE = startAPI
 }
 
 func startAPI(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(apiCmd, []string{"repo-prefix", "namespace", "config-dir", "cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}); err != nil {
+	required := []string{"repo-prefix", "namespace", "config-dir", "cluster-name", "mon-endpoints", "mon-secret", "admin-secret", "public-ipv4", "private-ipv4"}
+	if err := flags.VerifyRequiredFlags(apiCmd, required); err != nil {
 		return err
 	}
 	if apiPort == 0 {

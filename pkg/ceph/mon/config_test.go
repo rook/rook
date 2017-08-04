@@ -116,7 +116,6 @@ debug bluestore = 1234`
 	actualConf, err := ini.Load(configFilePath)
 	assert.Nil(t, err)
 	verifyConfigValue(t, actualConf, "global", "fsid", clusterInfo.FSID)
-	verifyConfigValue(t, actualConf, "mon.mon0", "mon addr", "10.0.0.1:6790")
 
 	// verify the content of the config file override successfully overwrote the default generated config
 	verifyConfigValue(t, actualConf, "global", "debug bluestore", "1234")

@@ -43,13 +43,14 @@ func init() {
 	rgwCmd.Flags().IntVar(&rgwPort, "rgw-port", 0, "rgw port number")
 	addCephFlags(rgwCmd)
 
-	flags.SetFlagsFromEnv(rgwCmd.Flags(), "ROOKD")
+	flags.SetFlagsFromEnv(rgwCmd.Flags(), "ROOK")
 
 	rgwCmd.RunE = startRGW
 }
 
 func startRGW(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(rgwCmd, []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret", "rgw-host", "rgw-keyring"}); err != nil {
+	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret", "rgw-host", "rgw-keyring", "public-ipv4", "private-ipv4"}
+	if err := flags.VerifyRequiredFlags(rgwCmd, required); err != nil {
 		return err
 	}
 

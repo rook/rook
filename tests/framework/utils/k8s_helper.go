@@ -27,6 +27,7 @@ import (
 	"k8s.io/client-go/rest"
 
 	"bytes"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/jmoiron/jsonq"
 	"github.com/rook/rook/pkg/util/exec"
@@ -111,40 +112,60 @@ func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 	if err := json.Unmarshal([]byte(context), &kc); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal kubectl config: %+v", err)
 	}
-	var currentCluster kclusterContext
+
+	// find the current context
+	var currentContext kContext
 	found := false
-	for _, c := range kc.Clusters {
+	for _, c := range kc.Contexts {
 		if kc.Current == c.Name {
+			currentContext = c
+			found = true
+		}
+	}
+	if !found {
+		return nil, fmt.Errorf("failed to find current context %s in %+v", kc.Current, kc.Contexts)
+	}
+
+	// find the current cluster
+	var currentCluster kclusterContext
+	found = false
+	for _, c := range kc.Clusters {
+		if currentContext.Cluster.Cluster == c.Name {
 			currentCluster = c
 			found = true
 		}
 	}
 	if !found {
-		return nil, fmt.Errorf("failed to find kube context %s in %+v", kc.Current, kc.Clusters)
+		return nil, fmt.Errorf("failed to find cluster %s in %+v", kc.Current, kc.Clusters)
 	}
 	config := &rest.Config{Host: currentCluster.Cluster.Server}
-	config.Insecure = true
 
-	var currentUser kuserContext
-	userFound := false
-	for _, u := range kc.Users {
-		if kc.Current == u.Name {
-			currentUser = u
-			userFound = true
+	if currentContext.Cluster.User == "" {
+		config.Insecure = true
+	} else {
+		config.Insecure = false
+
+		// find the current user
+		var currentUser kuserContext
+		found = false
+		for _, u := range kc.Users {
+			if currentContext.Cluster.User == u.Name {
+				currentUser = u
+				found = true
+			}
 		}
-	}
-
-	if !currentCluster.Cluster.Insecure {
-		if !userFound {
+		if !found {
 			return nil, fmt.Errorf("failed to find kube user %s in %+v", kc.Current, kc.Users)
 		}
-		config.Insecure = false
+
 		config.TLSClientConfig = rest.TLSClientConfig{
 			CAFile:   currentCluster.Cluster.CertAuthority,
 			KeyFile:  currentUser.Cluster.ClientKey,
 			CertFile: currentUser.Cluster.ClientCert,
 		}
 	}
+	//work around for kubeadm - api service is https but context has no cert
+	config.Insecure = true
 
 	logger.Infof("Loaded kubectl context %s at %s. secure=%t",
 		currentCluster.Name, config.Host, !config.Insecure)
@@ -152,9 +173,17 @@ func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 }
 
 type kubectlContext struct {
+	Contexts []kContext        `json:"contexts"`
 	Users    []kuserContext    `json:"users"`
 	Clusters []kclusterContext `json:"clusters"`
 	Current  string            `json:"current-context"`
+}
+type kContext struct {
+	Name    string `json:"name"`
+	Cluster struct {
+		Cluster string `json:"cluster"`
+		User    string `json:"user"`
+	} `json:"context"`
 }
 type kclusterContext struct {
 	Name    string `json:"name"`
@@ -183,7 +212,7 @@ func (k8sh *K8sHelper) GetMonIP(mon string) (string, error) {
 		dec.Decode(&data)
 		jq := jsonq.NewQuery(data)
 		ip, _ := jq.String("status", "podIP")
-		return ip + ":6790", nil
+		return fmt.Sprintf("%s:6790", ip), nil
 	}
 	return "", fmt.Errorf("Error Getting Monitor IP : %v", err)
 }
@@ -249,34 +278,44 @@ func (k8sh *K8sHelper) GetResource(args []string) (string, error) {
 
 }
 
-//GetMonitorPods returns all ceph mon pod names
-func (k8sh *K8sHelper) GetMonitorPods() ([]string, error) {
-	mons := []string{}
-	monIdx := 0
-	moncount := 0
+//GetMonitorServices returns all ceph mon pod names
+func (k8sh *K8sHelper) GetMonitorServices() (map[string]string, error) {
 
-	for moncount < 3 {
-		m := fmt.Sprintf("rook-ceph-mon%d", monIdx)
-		selector := fmt.Sprintf("mon=%s", m)
-		args := []string{"-n", "rook", "get", "pod", "-l", selector}
-		result, err := k8sh.Kubectl(args...)
-		if err == nil {
-			// Get the first word of the second line of the output for the mon pod
-			lines := strings.Split(result, "\n")
-			if len(lines) > 1 {
-				name := strings.Split(lines[1], " ")[0]
-				mons = append(mons, name)
-				moncount++
-			} else {
-				return mons, fmt.Errorf("did not recognize mon pod output %s", m)
-			}
-		}
-		monIdx++
-		if monIdx > 100 {
-			return mons, fmt.Errorf("failed to find monitors")
-		}
+	args := []string{"-n", "rook", "get", "svc", "-l", "app=rook-ceph-mon", "--no-headers=true"}
+	result, err := k8sh.Kubectl(args...)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to find mon services. %v", err)
 	}
 
+	// Get the IP address from the 2nd position in the line
+	mons, err := parseMonEndpoints(result)
+	if err != nil {
+		return nil, err
+	}
+	if len(mons) != 3 {
+		return nil, fmt.Errorf("Unexpected monitors: %+v", mons)
+	}
+
+	return map[string]string{
+		"mon0": fmt.Sprintf("%s:6790", mons[0]),
+		"mon1": fmt.Sprintf("%s:6790", mons[1]),
+		"mon2": fmt.Sprintf("%s:6790", mons[2]),
+	}, nil
+}
+
+func parseMonEndpoints(input string) ([]string, error) {
+	lines := strings.Split(input, "\n")
+	mons := []string{}
+	for _, line := range lines {
+		if len(line) == 0 {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			return nil, fmt.Errorf("Missing ip for mon service. %s", line)
+		}
+		mons = append(mons, strings.TrimSpace(fields[1]))
+	}
 	return mons, nil
 }
 
@@ -327,7 +366,7 @@ func (k8sh *K8sHelper) IsPodRunningInNamespace(name string) bool {
 func (k8sh *K8sHelper) IsPodTerminated(name string) bool {
 	args := []string{"get", "pods", name}
 	inc := 0
-	for inc < 20 {
+	for inc < RetryLoop {
 		_, err := k8sh.Kubectl(args...)
 		if err != nil {
 			k8slogger.Infof("Pod in default namespace terminated: " + name)
@@ -346,7 +385,7 @@ func (k8sh *K8sHelper) IsPodTerminated(name string) bool {
 func (k8sh *K8sHelper) IsPodTerminatedInNamespace(name string) bool {
 	args := []string{"get", "-n", "rook", "pods", name}
 	inc := 0
-	for inc < 20 {
+	for inc < RetryLoop {
 		_, err := k8sh.Kubectl(args...)
 		if err != nil {
 			k8slogger.Infof("Pod in rook namespace terminated: " + name)
@@ -364,7 +403,7 @@ func (k8sh *K8sHelper) IsPodTerminatedInNamespace(name string) bool {
 func (k8sh *K8sHelper) IsServiceUp(name string) bool {
 	args := []string{"get", "svc", name}
 	inc := 0
-	for inc < 20 {
+	for inc < RetryLoop {
 		_, err := k8sh.Kubectl(args...)
 		if err == nil {
 			k8slogger.Infof("Service in default namespace is up: " + name)
@@ -382,7 +421,7 @@ func (k8sh *K8sHelper) IsServiceUp(name string) bool {
 func (k8sh *K8sHelper) IsServiceUpInNameSpace(name string) bool {
 	args := []string{"get", "svc", "-n", "rook", name}
 	inc := 0
-	for inc < 20 {
+	for inc < RetryLoop {
 		_, err := k8sh.Kubectl(args...)
 		if err == nil {
 			return true

@@ -55,13 +55,14 @@ func addOSDFlags(command *cobra.Command) {
 func init() {
 	addOSDFlags(osdCmd)
 	addCephFlags(osdCmd)
-	flags.SetFlagsFromEnv(osdCmd.Flags(), "ROOKD")
+	flags.SetFlagsFromEnv(osdCmd.Flags(), "ROOK")
 
 	osdCmd.RunE = startOSD
 }
 
 func startOSD(cmd *cobra.Command, args []string) error {
-	if err := flags.VerifyRequiredFlags(osdCmd, []string{"cluster-name", "mon-endpoints", "mon-secret", "admin-secret", "node-name"}); err != nil {
+	required := []string{"cluster-name", "mon-endpoints", "mon-secret", "admin-secret", "node-name", "public-ipv4", "private-ipv4"}
+	if err := flags.VerifyRequiredFlags(osdCmd, required); err != nil {
 		return err
 	}
 

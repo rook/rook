@@ -1,3 +1,7 @@
+---
+title: Kubernetes
+weight: 10
+---
 
 # Rook on Kubernetes
 - [Quickstart](#quickstart)
@@ -18,6 +22,8 @@ To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [fo
 - The `kubelet` requires access to `modprobe` and `rbd` on host
 
 Note that we are striving for even more smooth integration with Kubernetes in the future such that `Rook` will work out of the box with any Kubernetes cluster.
+
+If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, make sure your host has at least 5GB of space available on the specified path.
 
 ### Deploy Rook
 

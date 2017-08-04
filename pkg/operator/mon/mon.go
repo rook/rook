@@ -33,7 +33,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
-	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	helper "k8s.io/kubernetes/pkg/api/v1/helper"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
@@ -41,6 +41,12 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
 
 const (
+	// EndpointConfigMapName is the name of the configmap with mon endpoints
+	EndpointConfigMapName = "rook-ceph-mon-endpoints"
+
+	// EndpointDataKey is the name of the key inside the mon configmap to get the endpoints
+	EndpointDataKey = "data"
+
 	appName           = "rook-ceph-mon"
 	monNodeAttr       = "mon_node"
 	monClusterAttr    = "mon_cluster"
@@ -49,8 +55,6 @@ const (
 	monSecretName     = "mon-secret"
 	adminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
-	monConfigMapName  = "mon-config"
-	monEndpointKey    = "endpoints"
 	maxMonIDKey       = "maxMonId"
 )
 
@@ -75,8 +79,9 @@ type Cluster struct {
 
 // monConfig for a single monitor
 type monConfig struct {
-	Name string
-	Port int32
+	Name     string
+	PublicIP string
+	Port     int32
 }
 
 // New creates an instance of a mon cluster
@@ -106,7 +111,11 @@ func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 
 	if len(c.clusterInfo.Monitors) == 0 {
 		// Start the initial monitors at startup
-		mons := c.getExpectedMonConfig()
+		mons, err := c.initMonServices()
+		if err != nil {
+			return nil, fmt.Errorf("failed to init mons. %+v", err)
+		}
+
 		err = c.startPods(mons)
 		if err != nil {
 			return nil, fmt.Errorf("failed to start mon pods. %+v", err)
@@ -169,7 +178,7 @@ func (c *Cluster) initClusterInfo() error {
 	return nil
 }
 
-func (c *Cluster) getExpectedMonConfig() []*monConfig {
+func (c *Cluster) initMonServices() ([]*monConfig, error) {
 	mons := []*monConfig{}
 
 	// initialize the mon pod info for mons that have been previously created
@@ -183,15 +192,30 @@ func (c *Cluster) getExpectedMonConfig() []*monConfig {
 		mons = append(mons, &monConfig{Name: fmt.Sprintf("%s%d", appName, c.maxMonID), Port: int32(mon.Port)})
 	}
 
-	return mons
+	for _, m := range mons {
+		serviceIP, err := c.createService(m)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create mon service. %+v", err)
+		}
+		m.PublicIP = serviceIP
+		c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.PublicIP)
+	}
+
+	// save the mon config
+	err := c.saveMonConfig()
+	if err != nil {
+		return nil, fmt.Errorf("failed to save mons. %+v", err)
+	}
+
+	return mons, nil
 }
 
 // get the ID of a monitor from its name
 func getMonID(name string) (int, error) {
-	if strings.Index(name, "mon") != 0 || len(name) < 4 {
+	if strings.Index(name, appName) != 0 || len(name) < len(appName) {
 		return -1, fmt.Errorf("unexpected mon name")
 	}
-	id, err := strconv.Atoi(name[3:])
+	id, err := strconv.Atoi(name[len(appName):])
 	if err != nil {
 		return -1, err
 	}
@@ -245,6 +269,41 @@ func (c *Cluster) createMonSecretsAndSave() error {
 	return nil
 }
 
+func (c *Cluster) createService(mon *monConfig) (string, error) {
+	labels := c.getLabels(mon.Name)
+	s := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:   mon.Name,
+			Labels: labels,
+		},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{
+				{
+					Name:       mon.Name,
+					Port:       mon.Port,
+					TargetPort: intstr.FromInt(int(mon.Port)),
+					Protocol:   v1.ProtocolTCP,
+				},
+			},
+			Selector: labels,
+		},
+	}
+
+	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(s)
+	if err != nil {
+		if !errors.IsAlreadyExists(err) {
+			return "", fmt.Errorf("failed to create mon service. %+v", err)
+		}
+	}
+
+	if s == nil {
+		logger.Warningf("service ip not found for mon %s. this better be a test", mon.Name)
+		return "", nil
+	}
+	logger.Infof("mon %s running at %s:%d", mon.Name, s.Spec.ClusterIP, mon.Port)
+	return s.Spec.ClusterIP, nil
+}
+
 func (c *Cluster) startPods(mons []*monConfig) error {
 	// schedule the mons on different nodes if we have enough nodes to be unique
 	availableNodes, err := c.getAvailableMonNodes()
@@ -252,35 +311,20 @@ func (c *Cluster) startPods(mons []*monConfig) error {
 		return fmt.Errorf("failed to get available nodes for mons. %+v", err)
 	}
 
-	preexisted := len(c.clusterInfo.Monitors)
 	nodeIndex := 0
 	for _, m := range mons {
 		// pick one of the available nodes where the mon will be assigned
 		node := availableNodes[nodeIndex%len(availableNodes)]
 		nodeIndex++
 
-		// start the mon
-		err := c.startMon(m, node.Name)
+		// start the mon replicaset/pod
+		err = c.startMon(m, node.Name)
 		if err != nil {
 			return fmt.Errorf("failed to create pod %s. %+v", m.Name, err)
 		}
-
-		// wait for the mon to start
-		podIP, err := c.waitForPodToStart(m.Name)
-		if err != nil {
-			return fmt.Errorf("failed to start pod %s. %+v", m.Name, err)
-		}
-		c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, podIP)
-
-		// save the mon config
-		err = c.saveMonConfig()
-		if err != nil {
-			return fmt.Errorf("failed to save endpoints after starting mon %s. %+v", m.Name, err)
-		}
 	}
 
-	logger.Infof("mons created: %d, preexisted: %d", len(mons), preexisted)
-
+	logger.Infof("mons created: %d", len(mons))
 	return c.waitForMonsToJoin(mons)
 }
 
@@ -303,53 +347,17 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig) error {
 	return nil
 }
 
-func (c *Cluster) waitForPodToStart(name string) (string, error) {
-	if !c.waitForStart {
-		return "", nil
-	}
-
-	// Poll the status of the pods to see if they are ready
-	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("mon=%s", name)}
-	status := string(v1.PodUnknown)
-	var pod v1.Pod
-	err := wait.Poll(c.monPodRetryInterval, c.monPodTimeout, func() (bool, error) {
-		logger.Infof("waiting for mon %s to start. status=%s", name, status)
-		pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(options)
-		if err != nil {
-			return false, fmt.Errorf("failed to get mon %s pod. %+v", name, err)
-		}
-		if len(pods.Items) == 0 {
-			logger.Infof("%s pod not yet created", name)
-			return false, nil
-		}
-		if len(pods.Items) > 1 {
-			logger.Warningf("more than one mon pod found for %s", name)
-		}
-		pod = pods.Items[0]
-		if pod.Status.Phase == v1.PodRunning {
-			logger.Infof("pod %s started", pod.Name)
-			return true, nil
-		}
-		status = string(pod.Status.Phase)
-		return false, nil
-	})
-	if err != nil {
-		return "", fmt.Errorf("timed out waiting for pod %s to start", name)
-	}
-	return pod.Status.PodIP, nil
-}
-
 func (c *Cluster) saveMonConfig() error {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        monConfigMapName,
+			Name:        EndpointConfigMapName,
 			Namespace:   c.Namespace,
 			Annotations: map[string]string{},
 		},
 	}
 	configMap.Data = map[string]string{
-		monEndpointKey: mon.FlattenMonEndpoints(c.clusterInfo.Monitors),
-		maxMonIDKey:    strconv.Itoa(c.maxMonID),
+		EndpointDataKey: mon.FlattenMonEndpoints(c.clusterInfo.Monitors),
+		maxMonIDKey:     strconv.Itoa(c.maxMonID),
 	}
 
 	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap)
@@ -384,7 +392,7 @@ func (c *Cluster) writeConnectionConfig() error {
 }
 
 func (c *Cluster) loadMonConfig() error {
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(monConfigMapName, metav1.GetOptions{})
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
@@ -396,7 +404,7 @@ func (c *Cluster) loadMonConfig() error {
 	}
 
 	// Parse the monitor List
-	if info, ok := cm.Data[monEndpointKey]; ok {
+	if info, ok := cm.Data[EndpointDataKey]; ok {
 		c.clusterInfo.Monitors = mon.ParseMonEndpoints(info)
 	} else {
 		c.clusterInfo.Monitors = map[string]*mon.CephMonitorConfig{}
@@ -430,7 +438,7 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger.Infof("there are %d nodes available for mons (existing mons=%d)", len(nodes.Items), len(c.clusterInfo.Monitors))
+	logger.Infof("there are %d nodes available for %d mons", len(nodes.Items), len(c.clusterInfo.Monitors))
 
 	// get the nodes that have mons assigned
 	nodesInUse, err := c.getNodesWithMons()

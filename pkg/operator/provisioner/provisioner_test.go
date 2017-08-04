@@ -20,18 +20,45 @@ import (
 	"fmt"
 	"testing"
 
+	"k8s.io/api/core/v1"
+
 	"strings"
 
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/mon"
+	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestProcessMonAddresses(t *testing.T) {
-	unformattedMons := []string{"10.0.0.1:8124/0", "10.0.0.2:8125", "10.0.0.3/24"}
-	formattedMons := processMonAddresses(unformattedMons)
+	clientset := test.New(3)
+	context := &clusterd.Context{Clientset: clientset}
+	ns := "myns"
+	config := provisionerConfig{clusterName: ns}
+	p := &RookVolumeProvisioner{context: context, provConfig: config}
 
-	assert.Equal(t, "10.0.0.1:8124", formattedMons[0])
-	assert.Equal(t, "10.0.0.2:8125", formattedMons[1])
-	assert.Equal(t, "10.0.0.3", formattedMons[2])
+	// create the test set of mons
+	testConfigMap := &v1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: mon.EndpointConfigMapName},
+		Data: map[string]string{mon.EndpointDataKey: "mon1=10.0.0.1:6790,mon2=10.0.0.2:8125,mon3=10.0.0.3:6790"}}
+	_, err := clientset.CoreV1().ConfigMaps(ns).Create(testConfigMap)
+	require.Nil(t, err)
+
+	formattedMons, err := p.getMonitorEndpoints()
+	require.Nil(t, err)
+	findMon(t, "10.0.0.1:6790", formattedMons)
+	findMon(t, "10.0.0.2:8125", formattedMons)
+	findMon(t, "10.0.0.3:6790", formattedMons)
+}
+
+func findMon(t *testing.T, expected string, mons []string) {
+	for _, mon := range mons {
+		if expected == mon {
+			return
+		}
+	}
+	assert.Fail(t, fmt.Sprintf("expected: %s in %v", expected, mons))
 }
 
 func TestParseClassParameters(t *testing.T) {

@@ -126,32 +126,25 @@ func GetMonStatus(context *clusterd.Context, clusterName string) (MonStatusRespo
 // are focused on monitor stats.
 type MonStats struct {
 	Health struct {
-		Health struct {
-			HealthServices []struct {
-				Mons []struct {
-					Name         string      `json:"name"`
-					KBTotal      json.Number `json:"kb_total"`
-					KBUsed       json.Number `json:"kb_used"`
-					KBAvail      json.Number `json:"kb_avail"`
-					AvailPercent json.Number `json:"avail_percent"`
-					StoreStats   struct {
-						BytesTotal json.Number `json:"bytes_total"`
-						BytesSST   json.Number `json:"bytes_sst"`
-						BytesLog   json.Number `json:"bytes_log"`
-						BytesMisc  json.Number `json:"bytes_misc"`
-					} `json:"store_stats"`
-				} `json:"mons"`
-			} `json:"health_services"`
-		} `json:"health"`
-		TimeChecks struct {
-			Mons []struct {
-				Name    string      `json:"name"`
-				Skew    json.Number `json:"skew"`
-				Latency json.Number `json:"latency"`
-			} `json:"mons"`
-		} `json:"timechecks"`
+		Status string                  `json:"status"`
+		Checks map[string]CheckMessage `json:"checks"`
 	} `json:"health"`
 	Quorum []int `json:"quorum"`
+}
+
+type MonTimeStatus struct {
+	Skew   map[string]MonTimeSkewStatus `json:"time_skew_status"`
+	Checks struct {
+		Epoch       int    `json:"epoch"`
+		Round       int    `json:"round"`
+		RoundStatus string `json:"round_status"`
+	} `json:"timechecks"`
+}
+
+type MonTimeSkewStatus struct {
+	Skew    json.Number `json:"skew"`
+	Latency json.Number `json:"latency"`
+	Health  string      `json:"health"`
 }
 
 func GetMonStats(context *clusterd.Context, clusterName string) (*MonStats, error) {
@@ -169,4 +162,19 @@ func GetMonStats(context *clusterd.Context, clusterName string) (*MonStats, erro
 	}
 
 	return &monStats, nil
+}
+
+func GetMonTimeStatus(context *clusterd.Context, clusterName string) (*MonTimeStatus, error) {
+	args := []string{"time-sync-status"}
+	buf, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get time sync status: %+v", err)
+	}
+
+	var timeStatus MonTimeStatus
+	if err := json.Unmarshal(buf, &timeStatus); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal time sync status response: %+v", err)
+	}
+
+	return &timeStatus, nil
 }

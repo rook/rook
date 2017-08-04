@@ -105,12 +105,29 @@ func (c *Cluster) failoverMon(name string) error {
 	logger.Infof("Failing over monitor %s", name)
 
 	// Start a new monitor
-	mons := []*monConfig{{Name: fmt.Sprintf("mon%d", c.maxMonID+1), Port: int32(mon.Port)}}
-	logger.Infof("starting new mon %s", mons[0].Name)
-	err := c.startPods(mons)
+	m := &monConfig{Name: fmt.Sprintf("%s%d", appName, c.maxMonID+1), Port: int32(mon.Port)}
+	logger.Infof("starting new mon %s", m.Name)
+
+	// Create the service endpoint
+	serviceIP, err := c.createService(m)
 	if err != nil {
-		return fmt.Errorf("failed to start new mon %s. %+v", mons[0].Name, err)
+		return fmt.Errorf("failed to create mon service. %+v", err)
 	}
+	m.PublicIP = serviceIP
+	c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.PublicIP)
+
+	// Save the mon config
+	err = c.saveMonConfig()
+	if err != nil {
+		return fmt.Errorf("failed to save mons. %+v", err)
+	}
+
+	// Start the pod
+	err = c.startPods([]*monConfig{m})
+	if err != nil {
+		return fmt.Errorf("failed to start new mon %s. %+v", m.Name, err)
+	}
+
 	// Only increment the max mon id if the new pod started successfully
 	c.maxMonID++
 
@@ -139,9 +156,20 @@ func (c *Cluster) removeMon(name string) error {
 		return fmt.Errorf("failed to remove mon %s from quorum. %+v", name, err)
 	}
 	delete(c.clusterInfo.Monitors, name)
+
+	// Remove the service endpoint
+	err = c.context.Clientset.CoreV1().Services(c.Namespace).Delete(name, options)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			logger.Infof("dead mon service %s was already gone", name)
+		} else {
+			return fmt.Errorf("failed to remove dead mon pod %s. %+v", name, err)
+		}
+	}
+
 	err = c.saveMonConfig()
 	if err != nil {
-		return fmt.Errorf("failed to save mon config after failing mon %s. %+v", name, err)
+		return fmt.Errorf("failed to save mon config after failing over mon %s. %+v", name, err)
 	}
 
 	return nil

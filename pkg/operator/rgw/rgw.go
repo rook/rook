@@ -168,7 +168,9 @@ func (c *Cluster) rgwContainer() v1.Container {
 			k8sutil.ConfigOverrideMount(),
 		},
 		Env: []v1.EnvVar{
-			{Name: "ROOKD_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
+			{Name: "ROOK_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
+			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 			opmon.ClusterNameEnvVar(c.Namespace),
 			opmon.EndpointEnvVar(),
 			opmon.SecretEnvVar(),

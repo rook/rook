@@ -18,7 +18,7 @@ Rook is currently in alpha state and has focused initially on orchestrating Ceph
 
 ## Getting Started and Documentation
 
-For installation, deployment, and administration, see our [Documentation](https://rook.github.io/docs/rook/latest/kubernetes.html).
+For installation, deployment, and administration, see our [Documentation](https://rook.github.io/docs/rook/master).
 
 ## Contributing
 

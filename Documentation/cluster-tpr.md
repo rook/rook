@@ -1,3 +1,9 @@
+---
+title: Cluster TPR
+weight: 17
+indent: true
+---
+
 # Creating Rook Clusters
 Rook allows creation and customization of storage clusters through the third party resources (TPRs). The following settings are
 available for a cluster.
@@ -60,4 +66,4 @@ A Placement configuration is specified (according to the kubernetes [PodSpec](ht
 - `tolerations`: list of kubernetes [Toleration](https://kubernetes.io/docs/api-reference/v1.6/#toleration-v1-core)
 
 ## Sample
-A sample cluster TPR can be found and used in the [rook-cluster.yaml](../demo/kubernetes/rook-cluster.yaml) file in the Kubernetes demo directory.
+A sample cluster TPR can be found and used in the [rook-cluster.yaml](https://github.com/rook/rook/blob/master/demo/kubernetes/rook-cluster.yaml) file in the Kubernetes demo directory.

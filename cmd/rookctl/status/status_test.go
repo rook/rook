@@ -30,8 +30,8 @@ func TestGetStatus(t *testing.T) {
 			return model.StatusDetails{
 				OverallStatus: model.HealthWarning,
 				SummaryMessages: []model.StatusSummary{
-					{Status: model.HealthWarning, Message: "a cluster warning"},
-					{Status: model.HealthOK, Message: "a cluster OK message"},
+					{Status: model.HealthWarning, Name: "foo", Message: "a cluster warning"},
+					{Status: model.HealthOK, Name: "bar", Message: "a cluster OK message"},
 				},
 				Monitors: []model.MonitorSummary{
 					{Name: "mon00", Address: "192.155.0.0", InQuorum: true, Status: model.HealthOK},
@@ -63,9 +63,9 @@ func TestGetStatus(t *testing.T) {
 
 	expectedOut := "OVERALL STATUS: WARNING\n\n" +
 		"SUMMARY:\n" +
-		"SEVERITY   MESSAGE\n" +
-		"WARNING    a cluster warning\n" +
-		"OK         a cluster OK message\n\n" +
+		"SEVERITY   NAME      MESSAGE\n" +
+		"WARNING    foo       a cluster warning\n" +
+		"OK         bar       a cluster OK message\n\n" +
 		"USAGE:\n" +
 		"TOTAL     USED      DATA      AVAILABLE\n" +
 		"1000 B    200 B     100 B     700 B\n\n" +
@@ -102,9 +102,7 @@ func TestGetStatusEmptyResponse(t *testing.T) {
 	out, err := getStatus(c)
 	assert.Nil(t, err)
 
-	expectedOut := "OVERALL STATUS: UNKNOWN\n" +
-		"\nSUMMARY:\n" +
-		"SEVERITY   MESSAGE\n\n" +
+	expectedOut := "OVERALL STATUS: UNKNOWN\n\n" +
 		"USAGE:\n" +
 		"TOTAL     USED      DATA      AVAILABLE\n" +
 		"0 B       0 B       0 B       0 B\n\n" +
@@ -116,6 +114,7 @@ func TestGetStatusEmptyResponse(t *testing.T) {
 		"TOTAL     UP        IN        FULL      NEAR FULL\n" +
 		"0         0         0         false     false\n\n" +
 		"PLACEMENT GROUPS (0 total):\n" +
-		"STATE     COUNT\n"
+		"STATE     COUNT\n" +
+		"none\n"
 	assert.Equal(t, expectedOut, out)
 }

@@ -40,6 +40,9 @@ func TestMonAgent(t *testing.T) {
 		logger.Infof("RUN %d. %s %+v", runCommands, command, args)
 		switch {
 		case runCommands == 0:
+			assert.Equal(t, "monmaptool", command)
+		case runCommands == 1:
+			assert.Equal(t, "ceph-mon", command)
 			assert.Equal(t, "--mkfs", args[0])
 		default:
 			assert.Fail(t, fmt.Sprintf("unexpected case %d", runCommands))
@@ -55,7 +58,7 @@ func TestMonAgent(t *testing.T) {
 		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 		assert.Equal(t, "--cluster=rookcluster", args[1])
 		assert.Equal(t, "--name=mon.mon0", args[2])
-		assert.Equal(t, fmt.Sprintf("--mon-data=%s/mon0/mon.mon0", context.ConfigDir), args[3])
+		assert.Equal(t, fmt.Sprintf("--mon-data=%s/mon0/data", context.ConfigDir), args[3])
 		assert.Equal(t, fmt.Sprintf("--conf=%s/mon0/rookcluster.config", context.ConfigDir), args[4])
 		switch {
 		case startCommands == 0:
@@ -90,7 +93,7 @@ func TestMonAgent(t *testing.T) {
 	// now the monitor will be configured
 	err = agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
-	assert.Equal(t, 1, runCommands)
+	assert.Equal(t, 2, runCommands)
 	assert.Equal(t, 1, startCommands)
 	assert.NotNil(t, agent.monProc)
 
@@ -98,7 +101,7 @@ func TestMonAgent(t *testing.T) {
 	etcdClient.DeleteDir(key)
 	err = agent.ConfigureLocalService(context)
 	assert.Nil(t, err)
-	assert.Equal(t, 1, runCommands)
+	assert.Equal(t, 2, runCommands)
 	assert.Equal(t, 1, startCommands)
 	assert.Nil(t, agent.monProc)
 }

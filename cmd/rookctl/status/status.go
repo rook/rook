@@ -63,13 +63,15 @@ func getStatus(c client.RookRestClient) (string, error) {
 	buffer.WriteString(fmt.Sprintf("OVERALL STATUS: %s\n", model.HealthStatusToString(statusDetails.OverallStatus)))
 
 	// summary messages
-	buffer.WriteString("\n")
-	buffer.WriteString("SUMMARY:\n")
-	fmt.Fprintln(w, "SEVERITY\tMESSAGE")
-	for _, sm := range statusDetails.SummaryMessages {
-		fmt.Fprintf(w, "%s\t%s\n", model.HealthStatusToString(sm.Status), sm.Message)
+	if len(statusDetails.SummaryMessages) > 0 {
+		buffer.WriteString("\n")
+		buffer.WriteString("SUMMARY:\n")
+		fmt.Fprintln(w, "SEVERITY\tNAME\tMESSAGE")
+		for _, sm := range statusDetails.SummaryMessages {
+			fmt.Fprintf(w, "%s\t%s\t%s\n", model.HealthStatusToString(sm.Status), sm.Name, sm.Message)
+		}
+		w.Flush()
 	}
-	w.Flush()
 
 	// usage stats
 	buffer.WriteString("\n")
@@ -117,6 +119,9 @@ func getStatus(c client.RookRestClient) (string, error) {
 	fmt.Fprintln(w, "STATE\tCOUNT")
 	for state, count := range statusDetails.PGs.StateCounts {
 		fmt.Fprintf(w, "%s\t%d\n", state, count)
+	}
+	if statusDetails.PGs.Total == 0 {
+		fmt.Fprintf(w, "none\n")
 	}
 	w.Flush()
 

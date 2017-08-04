@@ -61,23 +61,22 @@ func TestStartMonPods(t *testing.T) {
 		Version:             "myversion",
 		Size:                3,
 		maxMonID:            -1,
-		waitForStart:        true,
+		waitForStart:        false,
 		monPodRetryInterval: 10 * time.Millisecond,
 		monPodTimeout:       1 * time.Second,
 	}
 
 	// start a basic cluster
-	// an error is expected since mocking always creates pods that are not running
 	info, err := c.Start()
-	assert.NotNil(t, err)
-	assert.Nil(t, info)
+	assert.Nil(t, err)
+	assert.NotNil(t, info)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op, but still results in an error
 	info, err = c.Start()
-	assert.NotNil(t, err)
-	assert.Nil(t, info)
+	assert.Nil(t, err)
+	assert.NotNil(t, info)
 
 	validateStart(t, c)
 }
@@ -107,18 +106,18 @@ func TestSaveMonEndpoints(t *testing.T) {
 	err := c.saveMonConfig()
 	assert.Nil(t, err)
 
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mon1=1.2.3.1:6790", cm.Data["endpoints"])
+	assert.Equal(t, "mon1=1.2.3.1:6790", cm.Data[EndpointDataKey])
 
 	// update the config map
 	c.clusterInfo.Monitors["mon1"].Endpoint = "2.3.4.5:6790"
 	err = c.saveMonConfig()
 	assert.Nil(t, err)
 
-	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mon1=2.3.4.5:6790", cm.Data["endpoints"])
+	assert.Equal(t, "mon1=2.3.4.5:6790", cm.Data[EndpointDataKey])
 }
 
 func TestCheckHealth(t *testing.T) {
@@ -147,9 +146,9 @@ func TestCheckHealth(t *testing.T) {
 	err = c.failoverMon("mon1")
 	assert.Nil(t, err)
 
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mon11=:6790", cm.Data["endpoints"])
+	assert.Equal(t, "rook-ceph-mon11=:6790", cm.Data[EndpointDataKey])
 }
 
 func TestMonInQuourm(t *testing.T) {
@@ -177,15 +176,15 @@ func TestMonID(t *testing.T) {
 	id, err = getMonID("mon")
 	assert.NotNil(t, err)
 	assert.Equal(t, -1, id)
-	id, err = getMonID("monitor0")
+	id, err = getMonID("rook-ceph-monitor0")
 	assert.NotNil(t, err)
 	assert.Equal(t, -1, id)
 
 	// valid
-	id, err = getMonID("mon0")
+	id, err = getMonID("rook-ceph-mon0")
 	assert.Nil(t, err)
 	assert.Equal(t, 0, id)
-	id, err = getMonID("mon123")
+	id, err = getMonID("rook-ceph-mon123")
 	assert.Nil(t, err)
 	assert.Equal(t, 123, id)
 }

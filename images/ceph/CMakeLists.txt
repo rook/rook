@@ -19,6 +19,7 @@ add_custom_target(rook DEPENDS
   cephfs
   cls_rbd
   crushtool
+  monmaptool
   rados
   radosgw
   radosgw-admin
