@@ -11,8 +11,8 @@ coreos:
       - name: 10-db-size.conf
         content: |
           [Service]
-          Environment=ROOKD_OSD_DATABASE_SIZE=1024
-          Environment=ROOKD_OSD_JOURNAL_SIZE=1024
+          Environment=ROOK_OSD_DATABASE_SIZE=1024
+          Environment=ROOK_OSD_JOURNAL_SIZE=1024
     content: |
       [Unit]
       Description=Rook Daemon - software defined storage
@@ -25,15 +25,15 @@ coreos:
       KillMode=process
 
       Environment=RKT_OPTIONS=%%aci_options%%
-      Environment=ROOKD_ACI=%%aci_location%%
-      Environment=ROOKD_PUBLIC_IPV4=$public_ipv4
-      Environment=ROOKD_PRIVATE_IPV4=$private_ipv4
-      Environment=ROOKD_DATA_DIR=/var/lib/rook
-      Environment=ROOKD_DISCOVERY_URL=%%discovery_token%%
-      Environment=ROOKD_DATA_DEVICES=sda,sdb,sdc,sdd
-      Environment=ROOKD_CEPH_CONFIG_OVERRIDE=/var/lib/rook/ceph-override.conf
+      Environment=ROOK_ACI=%%aci_location%%
+      Environment=ROOK_PUBLIC_IPV4=$public_ipv4
+      Environment=ROOK_PRIVATE_IPV4=$private_ipv4
+      Environment=ROOK_DATA_DIR=/var/lib/rook
+      Environment=ROOK_DISCOVERY_URL=%%discovery_token%%
+      Environment=ROOK_DATA_DEVICES=sda,sdb,sdc,sdd
+      Environment=ROOK_CEPH_CONFIG_OVERRIDE=/var/lib/rook/ceph-override.conf
 
-      ExecStartPre=/usr/bin/mkdir -p ${ROOKD_DATA_DIR}
+      ExecStartPre=/usr/bin/mkdir -p ${ROOK_DATA_DIR}
 
       ExecStart=/usr/bin/rkt run \
         --trust-keys-from-https \
@@ -44,7 +44,7 @@ coreos:
         --volume var-lib-rook,kind=host,source=/var/lib/rook \
         --mount volume=var-lib-rook,target=/var/lib/rook \
         $RKT_OPTIONS \
-        $ROOKD_ACI
+        $ROOK_ACI
 
       [Install]
       WantedBy=multi-user.target

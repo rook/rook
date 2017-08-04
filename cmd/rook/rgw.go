@@ -43,7 +43,7 @@ func init() {
 	rgwCmd.Flags().IntVar(&rgwPort, "rgw-port", 0, "rgw port number")
 	addCephFlags(rgwCmd)
 
-	flags.SetFlagsFromEnv(rgwCmd.Flags(), "ROOKD")
+	flags.SetFlagsFromEnv(rgwCmd.Flags(), "ROOK")
 
 	rgwCmd.RunE = startRGW
 }

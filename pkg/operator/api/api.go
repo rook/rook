@@ -199,7 +199,7 @@ func (c *Cluster) apiContainer() v1.Container {
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		},
 		Env: []v1.EnvVar{
-			{Name: "ROOKD_VERSION_TAG", Value: c.Version},
+			{Name: "ROOK_VERSION_TAG", Value: c.Version},
 			k8sutil.NamespaceEnvVar(),
 			k8sutil.RepoPrefixEnvVar(),
 			opmon.SecretEnvVar(),

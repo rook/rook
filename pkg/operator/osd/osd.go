@@ -260,41 +260,41 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 }
 
 func nodeNameEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_NODE_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}}
+	return v1.EnvVar{Name: "ROOK_NODE_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}}
 }
 
 func dataDevicesEnvVar(dataDevices string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_DATA_DEVICES", Value: dataDevices}
+	return v1.EnvVar{Name: "ROOK_DATA_DEVICES", Value: dataDevices}
 }
 
 func deviceFilterEnvVar(filter string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_DATA_DEVICE_FILTER", Value: filter}
+	return v1.EnvVar{Name: "ROOK_DATA_DEVICE_FILTER", Value: filter}
 }
 
 func metadataDeviceEnvVar(metadataDevice string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_METADATA_DEVICE", Value: metadataDevice}
+	return v1.EnvVar{Name: "ROOK_METADATA_DEVICE", Value: metadataDevice}
 }
 
 func dataDirectoriesEnvVar(dataDirectories string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_DATA_DIRECTORIES", Value: dataDirectories}
+	return v1.EnvVar{Name: "ROOK_DATA_DIRECTORIES", Value: dataDirectories}
 }
 
 func osdStoreEnvVar(osdStore string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_OSD_STORE", Value: osdStore}
+	return v1.EnvVar{Name: "ROOK_OSD_STORE", Value: osdStore}
 }
 
 func osdDatabaseSizeEnvVar(databaseSize int) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_OSD_DATABASE_SIZE", Value: strconv.Itoa(databaseSize)}
+	return v1.EnvVar{Name: "ROOK_OSD_DATABASE_SIZE", Value: strconv.Itoa(databaseSize)}
 }
 
 func osdWalSizeEnvVar(walSize int) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_OSD_WAL_SIZE", Value: strconv.Itoa(walSize)}
+	return v1.EnvVar{Name: "ROOK_OSD_WAL_SIZE", Value: strconv.Itoa(walSize)}
 }
 
 func osdJournalSizeEnvVar(journalSize int) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_OSD_JOURNAL_SIZE", Value: strconv.Itoa(journalSize)}
+	return v1.EnvVar{Name: "ROOK_OSD_JOURNAL_SIZE", Value: strconv.Itoa(journalSize)}
 }
 
 func locationEnvVar(location string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOKD_LOCATION", Value: location}
+	return v1.EnvVar{Name: "ROOK_LOCATION", Value: location}
 }

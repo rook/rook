@@ -37,7 +37,7 @@ https://github.com/rook/rook`,
 }
 
 func init() {
-	flags.SetFlagsFromEnv(operatorCmd.Flags(), "ROOKD")
+	flags.SetFlagsFromEnv(operatorCmd.Flags(), "ROOK")
 
 	operatorCmd.RunE = startOperator
 }

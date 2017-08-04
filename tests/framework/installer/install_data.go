@@ -46,7 +46,7 @@ spec:
         image: rook/rook:master
         args: ["operator"]
         env:
-        - name: ROOKD_REPO_PREFIX
+        - name: ROOK_REPO_PREFIX
           value: roo`
 	}
 
@@ -165,7 +165,7 @@ spec:
         image: rook/rook:master
         args: ["operator"]
         env:
-        - name: ROOKD_REPO_PREFIX
+        - name: ROOK_REPO_PREFIX
           value: rook`
 
 }
@@ -254,7 +254,7 @@ spec:
     imagePullPolicy: IfNotPresent
     args: ["sleep", "36500d"]
     env:
-      - name: ROOKD_ADMIN_SECRET
+      - name: ROOK_ADMIN_SECRET
         valueFrom:
           secretKeyRef:
             name: rook-ceph-mon

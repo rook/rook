@@ -20,7 +20,7 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args: ["operator"]
         env:
-        - name: ROOKD_REPO_PREFIX
+        - name: ROOK_REPO_PREFIX
           value: {{ .Values.image.prefix }}
         resources:
 {{ toYaml .Values.resources | indent 10 }}

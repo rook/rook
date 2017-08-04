@@ -55,7 +55,7 @@ func addOSDFlags(command *cobra.Command) {
 func init() {
 	addOSDFlags(osdCmd)
 	addCephFlags(osdCmd)
-	flags.SetFlagsFromEnv(osdCmd.Flags(), "ROOKD")
+	flags.SetFlagsFromEnv(osdCmd.Flags(), "ROOK")
 
 	osdCmd.RunE = startOSD
 }

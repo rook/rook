@@ -10,7 +10,7 @@ spec:
     imagePullPolicy: IfNotPresent
     args: ["sleep", "36500d"]
     env:
-      - name: ROOKD_ADMIN_SECRET
+      - name: ROOK_ADMIN_SECRET
         valueFrom:
           secretKeyRef:
             name: rook-ceph-mon

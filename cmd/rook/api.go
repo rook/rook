@@ -44,7 +44,7 @@ func init() {
 	apiCmd.Flags().StringVar(&namespace, "namespace", "", "the namespace in which the api service is running")
 	addCephFlags(apiCmd)
 
-	flags.SetFlagsFromEnv(apiCmd.Flags(), "ROOKD")
+	flags.SetFlagsFromEnv(apiCmd.Flags(), "ROOK")
 
 	apiCmd.RunE = startAPI
 }

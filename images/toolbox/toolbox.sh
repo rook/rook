@@ -56,7 +56,7 @@ EOF
 
     cat <<EOF > ${KEYRING_FILE}
 [client.admin]
-key = ${ROOKD_ADMIN_SECRET}
+key = ${ROOK_ADMIN_SECRET}
 EOF
 fi
 
