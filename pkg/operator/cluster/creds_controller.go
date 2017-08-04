@@ -71,7 +71,7 @@ func (c *PVCController) pvcHandler(key interface{}) error {
 	pvc := obj.(*v1.PersistentVolumeClaim)
 
 	// Validating pvc class, only acting on rook primitives
-	if !strings.Contains(*pvc.Spec.StorageClassName, "rook") {
+	if !strings.Contains(pvc.Annotations["volume.beta.kubernetes.io/storage-provisioner"], "rook") {
 		return nil
 	}
 
