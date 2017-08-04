@@ -26,7 +26,6 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/client"
-	cephmon "github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -137,6 +136,10 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons)
 	go healthChecker.Check(cluster.stopCh)
+
+	// Staring ceph auth controller
+	credsController := NewCredsController(c.context, cluster.Namespace)
+	go credsController.run(cluster.stopCh)
 }
 
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
@@ -158,6 +161,7 @@ func (c *Cluster) createInstance() error {
 	placeholderConfig := map[string]string{
 		k8sutil.ConfigOverrideVal: "",
 	}
+
 	cm := &v1.ConfigMap{Data: placeholderConfig}
 	cm.Name = k8sutil.ConfigOverrideName
 	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
@@ -263,46 +267,6 @@ func (c *Cluster) createInitialCrushMap() error {
 		if _, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
 			return fmt.Errorf("failed to update configmap %s: %+v", crushConfigMapName, err)
 		}
-	}
-
-	return nil
-}
-
-func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
-	// create a user for rbd clients
-	name := fmt.Sprintf("%s-rook-user", c.Namespace)
-	username := fmt.Sprintf("client.%s", name)
-	access := []string{"osd", "allow rwx", "mon", "allow r"}
-
-	// get-or-create-key for the user account
-	rbdKey, err := client.AuthGetOrCreateKey(c.context, c.Namespace, username, access)
-	if err != nil {
-		return fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
-	}
-
-	// store the secret for the rbd user in the default namespace
-	secrets := map[string]string{
-		"key": rbdKey,
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: k8sutil.DefaultNamespace},
-		StringData: secrets,
-		Type:       k8sutil.RbdType,
-	}
-	_, err = c.context.Clientset.CoreV1().Secrets(k8sutil.DefaultNamespace).Create(secret)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to save %s secret. %+v", name, err)
-		}
-
-		// update the secret in case we have a new cluster
-		_, err = c.context.Clientset.CoreV1().Secrets(k8sutil.DefaultNamespace).Update(secret)
-		if err != nil {
-			return fmt.Errorf("failed to update %s secret. %+v", name, err)
-		}
-		logger.Infof("updated existing %s secret", name)
-	} else {
-		logger.Infof("saved %s secret", name)
 	}
 
 	return nil
