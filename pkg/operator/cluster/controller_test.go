@@ -20,42 +20,14 @@ package cluster
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-func TestCreateSecrets(t *testing.T) {
-	clientset := testop.New(3)
-	info := testop.CreateClusterInfo(1)
-	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
-			return "{\"key\":\"mysecurekey\"}", nil
-		},
-	}
-	c := &Cluster{Spec: ClusterSpec{VersionTag: "myversion"}}
-	c.Name = "myrook"
-	c.Namespace = "myns"
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-	c.init(&clusterd.Context{Clientset: clientset, ConfigDir: configDir, Executor: executor})
-	defer os.RemoveAll(c.context.ConfigDir)
-	err := c.createClientAccess(info)
-	assert.Nil(t, err)
-
-	secretName := fmt.Sprintf("%s-rook-user", c.Namespace)
-	secret, err := clientset.CoreV1().Secrets(k8sutil.DefaultNamespace).Get(secretName, metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, secretName, secret.Name)
-	assert.Equal(t, 1, len(secret.StringData))
-}
 
 func TestCreateInitialCrushMap(t *testing.T) {
 	clientset := testop.New(3)
