@@ -1,3 +1,9 @@
+---
+title: Pool TPR
+weight: 16
+indent: true
+---
+
 # Creating Rook Storage Pools
 Rook allows creation and customization of storage pools through the third party resources (TPRs). The following settings are available
 for pools.

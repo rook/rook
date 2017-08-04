@@ -1,3 +1,7 @@
+---
+title: Kubernetes
+weight: 10
+---
 
 # Rook on Kubernetes
 - [Quickstart](#quickstart)

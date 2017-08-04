@@ -1,3 +1,8 @@
+---
+title: Prerequisites
+weight: 11
+indent: true
+---
 
 ## Minimum Version
 Kubernetes v1.6 or higher is targeted by Rook (while Rook is in alpha it will track the latest release to use the latest features). 
