@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2016-2017 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -72,7 +72,7 @@ func NewClusterController(context *clusterd.Context) (*ClusterController, error)
 
 }
 
-// Watch watches instances of cluster resources
+// StartWatch watches instances of cluster resources
 func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
 
 	customResourceClient, scheme, err := kit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
@@ -138,7 +138,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	go healthChecker.Check(cluster.stopCh)
 
 	// Starting ceph auth controller
-	credsController := NewCredsController(c.context, cluster.Namespace)
+	credsController := newCredsController(c.context, cluster.Namespace)
 	go credsController.run(cluster.stopCh)
 }
 
