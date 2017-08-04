@@ -29,6 +29,9 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
         runit \
         sudo \
         zip && \
+    curl -sL https://deb.nodesource.com/setup_8.x | bash - && \
+    DEBIAN_FRONTEND=noninteractive apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -yy -q --no-install-recommends nodejs && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \
     DEBIAN_FRONTEND=noninteractive apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
