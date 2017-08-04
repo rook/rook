@@ -1,3 +1,8 @@
+---
+title: Rook Client
+weight: 20
+---
+
 # Using Rook
 The `rookctl` client tool can be used to manage your Rook cluster once it is running as well as manage block, file and object storage.  See the sections below for details on how to configure each type of storage.  
 
