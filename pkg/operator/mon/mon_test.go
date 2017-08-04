@@ -107,18 +107,18 @@ func TestSaveMonEndpoints(t *testing.T) {
 	err := c.saveMonConfig()
 	assert.Nil(t, err)
 
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mon1=1.2.3.1:6790", cm.Data["endpoints"])
+	assert.Equal(t, "mon1=1.2.3.1:6790", cm.Data[EndpointDataKey])
 
 	// update the config map
 	c.clusterInfo.Monitors["mon1"].Endpoint = "2.3.4.5:6790"
 	err = c.saveMonConfig()
 	assert.Nil(t, err)
 
-	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mon1=2.3.4.5:6790", cm.Data["endpoints"])
+	assert.Equal(t, "mon1=2.3.4.5:6790", cm.Data[EndpointDataKey])
 }
 
 func TestCheckHealth(t *testing.T) {
@@ -147,9 +147,9 @@ func TestCheckHealth(t *testing.T) {
 	err = c.failoverMon("mon1")
 	assert.Nil(t, err)
 
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get("mon-config", metav1.GetOptions{})
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "rook-ceph-mon11=:6790", cm.Data["endpoints"])
+	assert.Equal(t, "rook-ceph-mon11=:6790", cm.Data[EndpointDataKey])
 }
 
 func TestMonInQuourm(t *testing.T) {

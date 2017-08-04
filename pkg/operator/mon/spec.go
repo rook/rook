@@ -34,7 +34,7 @@ func ClusterNameEnvVar(name string) v1.EnvVar {
 
 // EndpointEnvVar is the mon endpoint environment var
 func EndpointEnvVar() v1.EnvVar {
-	ref := &v1.ConfigMapKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: monConfigMapName}, Key: monEndpointKey}
+	ref := &v1.ConfigMapKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: EndpointConfigMapName}, Key: EndpointDataKey}
 	return v1.EnvVar{Name: "ROOKD_MON_ENDPOINTS", ValueFrom: &v1.EnvVarSource{ConfigMapKeyRef: ref}}
 }
 

@@ -41,6 +41,12 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
 
 const (
+	// EndpointConfigMapName is the name of the configmap with mon endpoints
+	EndpointConfigMapName = "rook-ceph-mon-endpoints"
+
+	// EndpointDataKey is the name of the key inside the mon configmap to get the endpoints
+	EndpointDataKey = "data"
+
 	appName           = "rook-ceph-mon"
 	monNodeAttr       = "mon_node"
 	monClusterAttr    = "mon_cluster"
@@ -49,8 +55,6 @@ const (
 	monSecretName     = "mon-secret"
 	adminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
-	monConfigMapName  = "mon-config"
-	monEndpointKey    = "endpoints"
 	maxMonIDKey       = "maxMonId"
 )
 
@@ -342,14 +346,14 @@ func (c *Cluster) waitForPodToStart(name string) (string, error) {
 func (c *Cluster) saveMonConfig() error {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        monConfigMapName,
+			Name:        EndpointConfigMapName,
 			Namespace:   c.Namespace,
 			Annotations: map[string]string{},
 		},
 	}
 	configMap.Data = map[string]string{
-		monEndpointKey: mon.FlattenMonEndpoints(c.clusterInfo.Monitors),
-		maxMonIDKey:    strconv.Itoa(c.maxMonID),
+		EndpointDataKey: mon.FlattenMonEndpoints(c.clusterInfo.Monitors),
+		maxMonIDKey:     strconv.Itoa(c.maxMonID),
 	}
 
 	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap)
@@ -384,7 +388,7 @@ func (c *Cluster) writeConnectionConfig() error {
 }
 
 func (c *Cluster) loadMonConfig() error {
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(monConfigMapName, metav1.GetOptions{})
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return err
@@ -396,7 +400,7 @@ func (c *Cluster) loadMonConfig() error {
 	}
 
 	// Parse the monitor List
-	if info, ok := cm.Data[monEndpointKey]; ok {
+	if info, ok := cm.Data[EndpointDataKey]; ok {
 		c.clusterInfo.Monitors = mon.ParseMonEndpoints(info)
 	} else {
 		c.clusterInfo.Monitors = map[string]*mon.CephMonitorConfig{}

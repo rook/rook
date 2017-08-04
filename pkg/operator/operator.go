@@ -65,7 +65,7 @@ func New(context *clusterd.Context) *Operator {
 		logger.Errorf("failed to create Operator. %+v.", err)
 		return nil
 	}
-	volumeProvisioner := provisioner.New(context.Clientset)
+	volumeProvisioner := provisioner.New(context)
 
 	schemes := []kit.CustomResource{cluster.ClusterResource, pool.PoolResource}
 	return &Operator{
