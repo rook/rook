@@ -28,11 +28,11 @@ import (
 )
 
 type Executor interface {
-	StartExecuteCommand(actionName string, command string, arg ...string) (*exec.Cmd, error)
-	ExecuteCommand(actionName string, command string, arg ...string) error
-	ExecuteCommandWithOutput(actionName string, command string, arg ...string) (string, error)
-	ExecuteCommandWithCombinedOutput(actionName string, command string, arg ...string) (string, error)
-	ExecuteCommandWithOutputFile(actionName, command, outfileArg string, arg ...string) (string, error)
+	StartExecuteCommand(debug bool, actionName string, command string, arg ...string) (*exec.Cmd, error)
+	ExecuteCommand(debug bool, actionName string, command string, arg ...string) error
+	ExecuteCommandWithOutput(debug bool, actionName string, command string, arg ...string) (string, error)
+	ExecuteCommandWithCombinedOutput(debug bool, actionName string, command string, arg ...string) (string, error)
+	ExecuteCommandWithOutputFile(debug bool, actionName, command, outfileArg string, arg ...string) (string, error)
 	ExecuteStat(name string) (os.FileInfo, error)
 }
 
@@ -40,8 +40,8 @@ type CommandExecutor struct {
 }
 
 // Start a process and return immediately
-func (*CommandExecutor) StartExecuteCommand(actionName string, command string, arg ...string) (*exec.Cmd, error) {
-	cmd, stdout, stderr, err := startCommand(command, arg...)
+func (*CommandExecutor) StartExecuteCommand(debug bool, actionName string, command string, arg ...string) (*exec.Cmd, error) {
+	cmd, stdout, stderr, err := startCommand(debug, command, arg...)
 	if err != nil {
 		return cmd, createCommandError(err, actionName)
 	}
@@ -52,8 +52,8 @@ func (*CommandExecutor) StartExecuteCommand(actionName string, command string, a
 }
 
 // Start a process and wait for its completion
-func (*CommandExecutor) ExecuteCommand(actionName string, command string, arg ...string) error {
-	cmd, stdout, stderr, err := startCommand(command, arg...)
+func (*CommandExecutor) ExecuteCommand(debug bool, actionName string, command string, arg ...string) error {
+	cmd, stdout, stderr, err := startCommand(debug, command, arg...)
 	if err != nil {
 		return createCommandError(err, actionName)
 	}
@@ -67,19 +67,19 @@ func (*CommandExecutor) ExecuteCommand(actionName string, command string, arg ..
 	return nil
 }
 
-func (*CommandExecutor) ExecuteCommandWithOutput(actionName string, command string, arg ...string) (string, error) {
-	logCommand(command, arg...)
+func (*CommandExecutor) ExecuteCommandWithOutput(debug bool, actionName string, command string, arg ...string) (string, error) {
+	logCommand(debug, command, arg...)
 	cmd := exec.Command(command, arg...)
 	return runCommandWithOutput(actionName, cmd, false)
 }
 
-func (*CommandExecutor) ExecuteCommandWithCombinedOutput(actionName string, command string, arg ...string) (string, error) {
-	logCommand(command, arg...)
+func (*CommandExecutor) ExecuteCommandWithCombinedOutput(debug bool, actionName string, command string, arg ...string) (string, error) {
+	logCommand(debug, command, arg...)
 	cmd := exec.Command(command, arg...)
 	return runCommandWithOutput(actionName, cmd, true)
 }
 
-func (*CommandExecutor) ExecuteCommandWithOutputFile(actionName, command, outfileArg string, arg ...string) (string, error) {
+func (*CommandExecutor) ExecuteCommandWithOutputFile(debug bool, actionName string, command, outfileArg string, arg ...string) (string, error) {
 
 	// create a temporary file to serve as the output file for the command to be run and ensure
 	// it is cleaned up after this function is done
@@ -93,7 +93,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(actionName, command, outfil
 	// append the output file argument to the list or args
 	arg = append(arg, outfileArg, outFile.Name())
 
-	logCommand(command, arg...)
+	logCommand(debug, command, arg...)
 	cmd := exec.Command(command, arg...)
 	cmdOut, err := cmd.CombinedOutput()
 	// if there was anything that went to stdout/stderr then log it, even before we return an error
@@ -109,8 +109,8 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(actionName, command, outfil
 	return string(fileOut), err
 }
 
-func startCommand(command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {
-	logCommand(command, arg...)
+func startCommand(debug bool, command string, arg ...string) (*exec.Cmd, io.ReadCloser, io.ReadCloser, error) {
+	logCommand(debug, command, arg...)
 
 	cmd := exec.Command(command, arg...)
 	stdout, _ := cmd.StdoutPipe()
@@ -170,6 +170,11 @@ func runCommandWithOutput(actionName string, cmd *exec.Cmd, combinedOutput bool)
 	return out, nil
 }
 
-func logCommand(command string, arg ...string) {
-	logger.Infof("Running command: %s %s", command, strings.Join(arg, " "))
+func logCommand(debug bool, command string, arg ...string) {
+	msg := fmt.Sprintf("Running command: %s %s", command, strings.Join(arg, " "))
+	if debug {
+		logger.Debug(msg)
+	} else {
+		logger.Info(msg)
+	}
 }

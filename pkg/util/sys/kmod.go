@@ -28,7 +28,7 @@ func LoadKernelModule(name string, options []string, executor exec.Executor) err
 
 	args := append([]string{name}, options...)
 
-	if err := executor.ExecuteCommand(fmt.Sprintf("modprobe %s", name), "modprobe", args[:]...); err != nil {
+	if err := executor.ExecuteCommand(false, fmt.Sprintf("modprobe %s", name), "modprobe", args[:]...); err != nil {
 		return fmt.Errorf("failed to load kernel module %s: %+v", name, err)
 	}
 
@@ -36,7 +36,7 @@ func LoadKernelModule(name string, options []string, executor exec.Executor) err
 }
 
 func CheckKernelModuleParam(name, param string, executor exec.Executor) (bool, error) {
-	out, err := executor.ExecuteCommandWithOutput("check kmod param", "modinfo", "-F", "parm", name)
+	out, err := executor.ExecuteCommandWithOutput(false, "check kmod param", "modinfo", "-F", "parm", name)
 	if err != nil {
 		return false, fmt.Errorf("failed to check for %s module %s param: %+v", name, param, err)
 	}

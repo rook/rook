@@ -222,7 +222,7 @@ func generateMonMap(context *clusterd.Context, cluster *ClusterInfo, folder stri
 		args = append(args, "--add", mon.Name, mon.Endpoint)
 	}
 
-	err := context.Executor.ExecuteCommand("", "monmaptool", args...)
+	err := context.Executor.ExecuteCommand(false, "", "monmaptool", args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to generate monmap. %+v", err)
 	}

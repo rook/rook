@@ -66,7 +66,7 @@ func (c *Cluster) checkHealth() error {
 
 	// connect to the mons
 	// get the status and check for quorum
-	status, err := client.GetMonStatus(c.context, c.clusterInfo.Name)
+	status, err := client.GetMonStatus(c.context, c.clusterInfo.Name, true)
 	if err != nil {
 		return fmt.Errorf("failed to get mon status. %+v", err)
 	}

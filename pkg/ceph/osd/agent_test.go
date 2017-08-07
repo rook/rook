@@ -57,7 +57,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	etcdClient, agent, executor := createTestAgent(t, nodeID, "sdx,sdy", configDir, &storeConfig)
 
 	startCount := 0
-	executor.MockStartExecuteCommand = func(name string, command string, args ...string) (*exec.Cmd, error) {
+	executor.MockStartExecuteCommand = func(debug bool, name string, command string, args ...string) (*exec.Cmd, error) {
 		logger.Infof("START %d for %s. %s %+v", startCount, name, command, args)
 		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 
@@ -72,7 +72,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	}
 
 	execCount := 0
-	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
+	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
 		logger.Infof("RUN %d for %s. %s %+v", execCount, name, command, args)
 		parts := strings.Split(name, " ")
 		nameSuffix := parts[0]
@@ -146,7 +146,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	}
 
 	outputExecCount := 0
-	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, actionName, command, args)
 		outputExecCount++
 		if args[0] == "auth" && args[1] == "get-or-create-key" {
@@ -157,7 +157,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 		}
 		return "", nil
 	}
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
 		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, actionName, command, args)
 		outputExecCount++
 		if strings.HasPrefix(actionName, "lsblk /dev/disk/by-partuuid") {
@@ -233,7 +233,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	startCount := 0
 	executor := &exectest.MockExecutor{}
-	executor.MockStartExecuteCommand = func(name string, command string, args ...string) (*exec.Cmd, error) {
+	executor.MockStartExecuteCommand = func(debug bool, name string, command string, args ...string) (*exec.Cmd, error) {
 		startCount++
 		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 		return cmd, nil
@@ -241,7 +241,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	// should be no executeCommand calls
 	runCount := 0
-	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
+	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
 		runCount++
 		createTestKeyring(t, configDir, args)
 		return nil
@@ -249,7 +249,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	// should be no executeCommandWithOutput calls
 	outputExecCount := 0
-	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, actionName, command, args)
 		outputExecCount++
 		return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
@@ -360,7 +360,7 @@ func createTestAgent(t *testing.T, nodeID, devices, configDir string, storeConfi
 	}
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 		},
 	}
@@ -508,7 +508,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 	// mock monitor command to return an osd ID when the client registers/creates an osd
 	currOsdID := 10
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			switch {
 			case args[0] == "osd" && args[1] == "create":
 				currOsdID++

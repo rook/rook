@@ -62,7 +62,7 @@ sdc            tmpfs`
 func TestGetDeviceFromMountPoint(t *testing.T) {
 	const device = "/dev/rbd3"
 	e := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 			switch {
 			case strings.HasPrefix(actionName, "get device from mount point"):
 				// verify that the mount path being searched for has been cleaned
@@ -92,7 +92,7 @@ func TestGetDeviceFromMountPoint(t *testing.T) {
 func TestMountDeviceWithOptions(t *testing.T) {
 	testCount := 0
 	e := &exectest.MockExecutor{
-		MockExecuteCommand: func(actionName string, command string, arg ...string) error {
+		MockExecuteCommand: func(debug bool, actionName string, command string, arg ...string) error {
 			switch testCount {
 			case 0:
 				assert.Equal(t, []string{"/dev/abc1", "/tmp/mount1"}, arg)
@@ -125,7 +125,7 @@ func TestMountDeviceWithOptions(t *testing.T) {
 func TestGetPartitions(t *testing.T) {
 	run := 0
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, arg ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, arg ...string) (string, error) {
 			run++
 			switch {
 			case run == 1:

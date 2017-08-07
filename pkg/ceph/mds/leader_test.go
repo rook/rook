@@ -153,7 +153,7 @@ func TestAddRemoveFileSystem(t *testing.T) {
 	// MockMonCommand to pass back mocked ceph data and verify the calls we are making.
 	monCmdCount := 0
 	executor = &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			logger.Infof("RUN %s %+v", command, args)
 			result := ""
 			switch monCmdCount {

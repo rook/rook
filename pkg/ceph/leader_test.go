@@ -175,7 +175,7 @@ func testContext() *clusterd.Context {
 
 	configDir, _ := ioutil.TempDir("", "")
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			logger.Infof("OUTPUT: %s %v", command, args)
 			if command == "ceph-authtool" {
 				cephtest.CreateClusterInfo(nil, path.Join(configDir, "rookcluster"), []string{"a"})
@@ -183,7 +183,7 @@ func testContext() *clusterd.Context {
 			}
 			return "", fmt.Errorf("unrecognized command: %s %+v", command, args)
 		},
-		MockExecuteCommandWithOutputFile: func(actionName, command, outfileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName, command, outfileArg string, args ...string) (string, error) {
 			if command == "ceph" && args[0] == "mon_status" {
 				return clienttest.MonInQuorumResponse(), nil
 			}

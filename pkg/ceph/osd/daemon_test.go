@@ -32,7 +32,7 @@ import (
 
 func TestSetNodeName(t *testing.T) {
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
+	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
 		assert.Equal(t, "hostname", command)
 		assert.Equal(t, args[0], "myhost")
 		return nil
@@ -100,7 +100,7 @@ func TestStoreOSDDirMap(t *testing.T) {
 func TestAvailableDevices(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
-	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		logger.Infof("OUTPUT for %s. %s %+v", name, command, args)
 
 		if command == "lsblk" {

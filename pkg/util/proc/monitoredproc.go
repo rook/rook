@@ -76,7 +76,7 @@ func (p *MonitoredProc) Monitor(logName string) {
 		}
 
 		// start the process
-		p.cmd, err = p.parent.executor.StartExecuteCommand(logName, p.cmd.Args[0], p.cmd.Args[1:]...)
+		p.cmd, err = p.parent.executor.StartExecuteCommand(false, logName, p.cmd.Args[0], p.cmd.Args[1:]...)
 		if err != nil {
 			logger.Warningf("retry %d (total %d): process %v failed to restart. %v", p.retries, p.totalRetries, p.cmd.Args, err)
 			p.retries++

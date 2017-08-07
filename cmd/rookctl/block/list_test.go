@@ -40,7 +40,7 @@ func TestListBlockImages(t *testing.T) {
 		},
 	}
 	e := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "mount") {
 				return "/dev/rbd5 on /tmp/mymount1", nil
 			}

@@ -547,7 +547,7 @@ func TestHardwareDiscoveryLocking(t *testing.T) {
 	execCount := 0
 	executor := &util.MockExecutor{}
 	context.Executor = executor
-	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
+	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
 		// block until the loser discovery bails out
 		<-discoveryComplete
 		execCount++

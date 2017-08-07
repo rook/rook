@@ -77,7 +77,7 @@ func TestMonitoredRestart(t *testing.T) {
 	proc.retrySecondsExponentBase = 0.0
 
 	commands := 0
-	executor.MockStartExecuteCommand = func(name string, command string, args ...string) (*exec.Cmd, error) {
+	executor.MockStartExecuteCommand = func(debug bool, name string, command string, args ...string) (*exec.Cmd, error) {
 		commands++
 		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 		switch {

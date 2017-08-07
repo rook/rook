@@ -70,7 +70,7 @@ func TestRunProcesses(t *testing.T) {
 	assert.Equal(t, "arg2", proc.cmd.Args[2])
 
 	run := false
-	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
+	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
 		assert.Equal(t, "arg1", args[0])
 		assert.Equal(t, "arg2", args[1])
 		run = true

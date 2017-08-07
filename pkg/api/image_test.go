@@ -37,10 +37,10 @@ func TestGetImagesHandler(t *testing.T) {
 
 	// first return no storage pools, which means no images will be returned either
 	w := httptest.NewRecorder()
-	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 		return `[]`, nil
 	}
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
 		return `[]`, nil
 	}
 
@@ -52,7 +52,7 @@ func TestGetImagesHandler(t *testing.T) {
 
 	// now return some storage pools and images from the ceph connection
 	w = httptest.NewRecorder()
-	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 		switch {
 		case command == "ceph" && args[0] == "osd" && args[1] == "lspools":
 			return `[{"poolnum":0,"poolname":"pool0"},{"poolnum":1,"poolname":"pool1"}]`, nil
@@ -60,7 +60,7 @@ func TestGetImagesHandler(t *testing.T) {
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
 		switch {
 		case command == "rbd" && args[0] == "ls" && args[1] == "-l":
 			poolName := args[2]
@@ -85,7 +85,7 @@ func TestGetImagesHandlerFailure(t *testing.T) {
 		logger.Fatal(err)
 	}
 
-	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 		return "mock error", fmt.Errorf("mock error for list pools")
 	}
 
@@ -141,7 +141,7 @@ func TestCreateImageHandler(t *testing.T) {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
 		switch {
 		case command == "rbd" && args[0] == "create":
 			return "", nil
@@ -167,7 +167,7 @@ func TestCreateImageHandlerFailure(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
 		return "mock failure", fmt.Errorf("mock failure to create image")
 	}
 
@@ -222,7 +222,7 @@ func TestDeleteImageHandler(t *testing.T) {
 	if err != nil {
 		logger.Fatal(err)
 	}
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
 		switch {
 		case command == "rbd" && args[0] == "rm":
 			return "", nil
@@ -246,7 +246,7 @@ func TestDeleteImageHandlerFailure(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
 		switch {
 		case command == "rbd" && args[0] == "rm":
 			return "mock failure", fmt.Errorf("mock failure to remove image")

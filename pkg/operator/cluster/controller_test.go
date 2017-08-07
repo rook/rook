@@ -36,7 +36,7 @@ func TestCreateSecrets(t *testing.T) {
 	clientset := testop.New(3)
 	info := testop.CreateClusterInfo(1)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
@@ -73,7 +73,7 @@ func TestCreateInitialCrushMap(t *testing.T) {
 	assert.Equal(t, "1", cm.Data[crushmapCreatedKey])
 
 	// the crushmap should NOT get created again
-	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 		return "", fmt.Errorf("crushmap was already created, we shouldn't be calling this again")
 	}
 	err = c.createInitialCrushMap()

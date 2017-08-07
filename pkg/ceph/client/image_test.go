@@ -32,7 +32,7 @@ func TestCreateImage(t *testing.T) {
 
 	// mock an error during the create image call.  rbd tool returns error information to the output stream,
 	// separate from the error object, so verify that information also makes it back to us (because it is useful).
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
 		switch {
 		case command == "rbd" && args[0] == "create":
 			return "mocked detailed ceph error output stream", fmt.Errorf("some mocked error")
@@ -47,7 +47,7 @@ func TestCreateImage(t *testing.T) {
 	// (except for 0, that's OK)
 	createCalled := false
 	expectedSizeArg := ""
-	executor.MockExecuteCommandWithOutput = func(actionName string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
 		switch {
 		case command == "rbd" && args[0] == "create":
 			createCalled = true
