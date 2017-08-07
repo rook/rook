@@ -36,7 +36,7 @@ func TestMonAgent(t *testing.T) {
 	defer os.RemoveAll(context.ConfigDir)
 
 	runCommands := 0
-	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
+	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
 		logger.Infof("RUN %d. %s %+v", runCommands, command, args)
 		switch {
 		case runCommands == 0:
@@ -53,7 +53,7 @@ func TestMonAgent(t *testing.T) {
 	}
 
 	startCommands := 0
-	executor.MockStartExecuteCommand = func(name string, command string, args ...string) (*exec.Cmd, error) {
+	executor.MockStartExecuteCommand = func(debug bool, name string, command string, args ...string) (*exec.Cmd, error) {
 		logger.Infof("START %d. %s %+v", startCommands, command, args)
 		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 		assert.Equal(t, "--cluster=rookcluster", args[1])
@@ -111,7 +111,7 @@ func testContext() (*clusterd.Context, *util.MockEtcdClient, *exectest.MockExecu
 
 	configDir, _ := ioutil.TempDir("", "")
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			logger.Infof("OUTPUT: %s %v", command, args)
 			if command == "ceph-authtool" {
 				cephtest.CreateClusterInfo(nil, path.Join(configDir, "rookcluster"), []string{"a"})

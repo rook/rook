@@ -113,7 +113,7 @@ func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get the monitor status
-	monStatusResp, err := ceph.GetMonStatus(h.context, h.config.ClusterInfo.Name)
+	monStatusResp, err := ceph.GetMonStatus(h.context, h.config.ClusterInfo.Name, false)
 	if err != nil {
 		logger.Errorf("failed to get mon_status, err: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)

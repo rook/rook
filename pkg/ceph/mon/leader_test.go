@@ -124,7 +124,7 @@ func TestMoveUnhealthyMonitor(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			logger.Infof("OUTPUT: %s %v", command, args)
 			if command == "ceph-authtool" {
 				cephtest.CreateClusterInfo(etcdClient, path.Join(configDir, "rookcluster"), []string{"a", "b", "c"})
@@ -302,7 +302,7 @@ func TestCreateInitialCrushMap(t *testing.T) {
 	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/crushMapInitialized"))
 
 	// now call again, since we've already done it once we should not try to create the crushmap again
-	executor.MockExecuteCommandWithOutputFile = func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 		return "", fmt.Errorf("crushmap was already created, we shouldn't be calling this again")
 	}
 	err = createInitialCrushMap(context, clusterInfo)

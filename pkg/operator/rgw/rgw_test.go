@@ -35,7 +35,7 @@ import (
 func TestStartRGW(t *testing.T) {
 	clientset := testop.New(3)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}

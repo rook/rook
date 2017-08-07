@@ -74,13 +74,17 @@ func AppendAdminConnectionArgs(args []string, configDir, clusterName string) []s
 func ExecuteCephCommandPlain(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
 	args = append(args, "--format", "plain")
-	return executeCommandWithOutputFile(context, CephTool, args)
+	return executeCommandWithOutputFile(context, false, CephTool, args)
 }
 
 func ExecuteCephCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
+	return executeCephCommandWithOutputFile(context, clusterName, false, args)
+}
+
+func executeCephCommandWithOutputFile(context *clusterd.Context, clusterName string, debug bool, args []string) ([]byte, error) {
 	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
 	args = append(args, "--format", "json")
-	return executeCommandWithOutputFile(context, CephTool, args)
+	return executeCommandWithOutputFile(context, debug, CephTool, args)
 }
 
 func ExecuteRBDCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
@@ -95,19 +99,19 @@ func ExecuteRBDCommandNoFormat(context *clusterd.Context, clusterName string, ar
 }
 
 func executeCommand(context *clusterd.Context, tool string, args []string) ([]byte, error) {
-	output, err := context.Executor.ExecuteCommandWithOutput("", tool, args...)
+	output, err := context.Executor.ExecuteCommandWithOutput(false, "", tool, args...)
 	return []byte(output), err
 }
 
-func executeCommandWithOutputFile(context *clusterd.Context, tool string, args []string) ([]byte, error) {
-	output, err := context.Executor.ExecuteCommandWithOutputFile("", tool, "--out-file", args...)
+func executeCommandWithOutputFile(context *clusterd.Context, debug bool, tool string, args []string) ([]byte, error) {
+	output, err := context.Executor.ExecuteCommandWithOutputFile(debug, "", tool, "--out-file", args...)
 	return []byte(output), err
 }
 
 // calls mon_status mon_command
-func GetMonStatus(context *clusterd.Context, clusterName string) (MonStatusResponse, error) {
+func GetMonStatus(context *clusterd.Context, clusterName string, debug bool) (MonStatusResponse, error) {
 	args := []string{"mon_status"}
-	buf, err := ExecuteCephCommand(context, clusterName, args)
+	buf, err := executeCephCommandWithOutputFile(context, clusterName, debug, args)
 	if err != nil {
 		return MonStatusResponse{}, fmt.Errorf("mon status failed. %+v", err)
 	}

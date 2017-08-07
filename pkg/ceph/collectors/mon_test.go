@@ -187,7 +187,7 @@ func TestMonitorCollector(t *testing.T) {
 	}
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			if args[0] == "time-sync-status" {
 				return timeStatusInput, nil
 			} else {

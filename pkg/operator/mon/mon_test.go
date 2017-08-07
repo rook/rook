@@ -43,7 +43,7 @@ func TestStartMonPods(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
 				cephtest.CreateClusterInfo(nil, path.Join(configDir, namespace), nil)
 			}
@@ -122,7 +122,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 
 func TestCheckHealth(t *testing.T) {
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return clienttest.MonInQuorumResponse(), nil
 		},
 	}

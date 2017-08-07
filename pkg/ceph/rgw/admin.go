@@ -37,7 +37,7 @@ func RunAdminCommand(context *clusterd.Context, getClusterInfo func() (*mon.Clus
 	options = append(options, args...)
 
 	// start the rgw admin command
-	output, err := context.Executor.ExecuteCommandWithCombinedOutput("", "radosgw-admin", options...)
+	output, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", "radosgw-admin", options...)
 	if err != nil {
 		return "", fmt.Errorf("failed to run radosgw-admin: %+v", err)
 	}

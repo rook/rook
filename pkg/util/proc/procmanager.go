@@ -53,7 +53,7 @@ func New(executor exec.Executor) *ProcManager {
 func (p *ProcManager) RunWithOutput(logName, command string, args ...string) (string, error) {
 
 	logger.Infof("Running process %s with args: %v", command, args)
-	output, err := p.executor.ExecuteCommandWithOutput(logName, command, args...)
+	output, err := p.executor.ExecuteCommandWithOutput(false, logName, command, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to run %s: %+v", command, err)
 	}
@@ -65,7 +65,7 @@ func (p *ProcManager) RunWithOutput(logName, command string, args ...string) (st
 func (p *ProcManager) RunWithCombinedOutput(logName, command string, args ...string) (string, error) {
 
 	logger.Infof("Running process %s with args: %v", command, args)
-	output, err := p.executor.ExecuteCommandWithCombinedOutput(logName, command, args...)
+	output, err := p.executor.ExecuteCommandWithCombinedOutput(false, logName, command, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to run %s: %+v", command, err)
 	}
@@ -77,7 +77,7 @@ func (p *ProcManager) RunWithCombinedOutput(logName, command string, args ...str
 func (p *ProcManager) Run(logName, command string, args ...string) error {
 
 	logger.Infof("Running process %s with args: %v", command, args)
-	err := p.executor.ExecuteCommand(logName, command, args...)
+	err := p.executor.ExecuteCommand(false, logName, command, args...)
 	if err != nil {
 		return fmt.Errorf("failed to run %s: %+v", command, err)
 	}
@@ -102,7 +102,7 @@ func (p *ProcManager) Start(name, command, procSearchPattern string, policy Proc
 	}
 
 	logger.Infof("Starting process %s with args: %v", name, args)
-	cmd, err := p.executor.StartExecuteCommand(name, command, args...)
+	cmd, err := p.executor.StartExecuteCommand(false, name, command, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to start process %s: %+v", name, err)
 	}

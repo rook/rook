@@ -87,11 +87,11 @@ func TestAvailableDisks(t *testing.T) {
 
 func TestDiscoverDevices(t *testing.T) {
 	executor := &exectest.MockExecutor{
-		MockExecuteCommand: func(actionName string, command string, arg ...string) error {
+		MockExecuteCommand: func(debug bool, actionName string, command string, arg ...string) error {
 			logger.Infof("mock execute. %s. %s", actionName, command)
 			return nil
 		},
-		MockExecuteCommandWithOutput: func(actionName string, command string, arg ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, arg ...string) (string, error) {
 			logger.Infof("mock execute with output. %s. %s", actionName, command)
 			return "", nil
 		},

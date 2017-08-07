@@ -126,7 +126,9 @@ func TestListUsers(t *testing.T) {
 	cephtest.CreateClusterInfo(etcdClient, path.Join(configDir, "rookcluster"), []string{"mymon"})
 
 	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
-		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) { return runner(args...) }}
+		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
+			return runner(args...)
+		}}
 		context := &clusterd.Context{
 			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
 			Executor:      executor,
@@ -224,7 +226,7 @@ func TestGetUser(t *testing.T) {
 	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
-		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) {
+		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 			assert.Equal(t, expectedArgs, args)
 			return s, e
 		}}
@@ -292,7 +294,7 @@ func TestCreateUser(t *testing.T) {
 	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(body string, s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
-		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) {
+		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 			assert.Equal(t, expectedArgs, args)
 			return s, e
 		}}
@@ -372,7 +374,7 @@ func TestUpdateUser(t *testing.T) {
 	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(body string, s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
-		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) {
+		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 			assert.Equal(t, expectedArgs, args)
 			return s, e
 		}}
@@ -456,7 +458,7 @@ func TestDeleteUser(t *testing.T) {
 	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
-		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) {
+		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 			assert.Equal(t, expectedArgs, args)
 			return s, e
 		}}
@@ -509,7 +511,9 @@ func TestListBuckets(t *testing.T) {
 	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
-		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) { return runner(args...) }}
+		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
+			return runner(args...)
+		}}
 		context := &clusterd.Context{
 			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
 			ConfigDir:     configDir,
@@ -652,7 +656,9 @@ func TestGetBucket(t *testing.T) {
 	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
-		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) { return runner(args...) }}
+		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
+			return runner(args...)
+		}}
 		context := &clusterd.Context{
 			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
 			ConfigDir:     configDir,
@@ -766,7 +772,7 @@ func TestBucketDelete(t *testing.T) {
 
 	runTest := func(s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{
-			MockExecuteCommandWithCombinedOutput: func(command string, subcommand string, args ...string) (string, error) {
+			MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 				assert.Equal(t, expectedArgs, args)
 				return s, e
 			},

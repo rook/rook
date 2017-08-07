@@ -72,7 +72,7 @@ func (k8sh *K8sHelper) GetK8sServerVersion() string {
 
 //Kubectl is wrapper for executing kubectl commands
 func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
-	result, err := k8sh.executor.ExecuteCommandWithOutput("", "kubectl", args...)
+	result, err := k8sh.executor.ExecuteCommandWithOutput(false, "", "kubectl", args...)
 	if err != nil {
 		k8slogger.Errorf("Errors Encountered while executing kubectl command : %v", err)
 		return "", fmt.Errorf("Failed to run kubectl commands on args %v : %v", args, err)
@@ -102,7 +102,7 @@ func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, e
 }
 
 func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
-	context, err := executor.ExecuteCommandWithOutput("", "kubectl", "config", "view", "-o", "json")
+	context, err := executor.ExecuteCommandWithOutput(false, "", "kubectl", "config", "view", "-o", "json")
 	if err != nil {
 		k8slogger.Errorf("Errors Encountered while executing kubectl command : %v", err)
 	}

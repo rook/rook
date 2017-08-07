@@ -33,7 +33,7 @@ func TestCrushMap(t *testing.T) {
 func testCrushMapHelper(t *testing.T, storeConfig *StoreConfig) {
 	etcdClient := util.NewMockEtcdClient()
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		logger.Infof("OUTPUT for %s. %s %+v", name, command, args)
 		if strings.HasPrefix(name, "lsblk /dev/disk/by-partuuid") {
 			// this is a call to get device properties so we figure out CRUSH weight, which should only be done for Bluestore

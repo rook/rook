@@ -22,50 +22,50 @@ import (
 
 // ******************** MockExecutor ********************
 type MockExecutor struct {
-	MockExecuteCommand                   func(actionName string, command string, arg ...string) error
-	MockStartExecuteCommand              func(actionName string, command string, arg ...string) (*exec.Cmd, error)
-	MockExecuteCommandWithOutput         func(actionName string, command string, arg ...string) (string, error)
-	MockExecuteCommandWithCombinedOutput func(actionName string, command string, arg ...string) (string, error)
-	MockExecuteCommandWithOutputFile     func(actionName, command, outfileArg string, arg ...string) (string, error)
+	MockExecuteCommand                   func(debug bool, actionName string, command string, arg ...string) error
+	MockStartExecuteCommand              func(debug bool, actionName string, command string, arg ...string) (*exec.Cmd, error)
+	MockExecuteCommandWithOutput         func(debug bool, actionName string, command string, arg ...string) (string, error)
+	MockExecuteCommandWithCombinedOutput func(debug bool, actionName string, command string, arg ...string) (string, error)
+	MockExecuteCommandWithOutputFile     func(debug bool, actionName string, command, outfileArg string, arg ...string) (string, error)
 	MockExecuteStat                      func(name string) (os.FileInfo, error)
 }
 
-func (e *MockExecutor) ExecuteCommand(actionName string, command string, arg ...string) error {
+func (e *MockExecutor) ExecuteCommand(debug bool, actionName string, command string, arg ...string) error {
 	if e.MockExecuteCommand != nil {
-		return e.MockExecuteCommand(actionName, command, arg...)
+		return e.MockExecuteCommand(debug, actionName, command, arg...)
 	}
 
 	return nil
 }
 
-func (e *MockExecutor) StartExecuteCommand(actionName string, command string, arg ...string) (*exec.Cmd, error) {
+func (e *MockExecutor) StartExecuteCommand(debug bool, actionName string, command string, arg ...string) (*exec.Cmd, error) {
 	if e.MockStartExecuteCommand != nil {
-		return e.MockStartExecuteCommand(actionName, command, arg...)
+		return e.MockStartExecuteCommand(debug, actionName, command, arg...)
 	}
 
 	args := []string{command}
 	return &exec.Cmd{Args: append(args, arg...)}, nil
 }
 
-func (e *MockExecutor) ExecuteCommandWithOutput(actionName string, command string, arg ...string) (string, error) {
+func (e *MockExecutor) ExecuteCommandWithOutput(debug bool, actionName string, command string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithOutput != nil {
-		return e.MockExecuteCommandWithOutput(actionName, command, arg...)
+		return e.MockExecuteCommandWithOutput(debug, actionName, command, arg...)
 	}
 
 	return "", nil
 }
 
-func (e *MockExecutor) ExecuteCommandWithCombinedOutput(actionName string, command string, arg ...string) (string, error) {
+func (e *MockExecutor) ExecuteCommandWithCombinedOutput(debug bool, actionName string, command string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithCombinedOutput != nil {
-		return e.MockExecuteCommandWithCombinedOutput(actionName, command, arg...)
+		return e.MockExecuteCommandWithCombinedOutput(debug, actionName, command, arg...)
 	}
 
 	return "", nil
 }
 
-func (e *MockExecutor) ExecuteCommandWithOutputFile(actionName, command, outfileArg string, arg ...string) (string, error) {
+func (e *MockExecutor) ExecuteCommandWithOutputFile(debug bool, actionName string, command, outfileArg string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithOutputFile != nil {
-		return e.MockExecuteCommandWithOutputFile(actionName, command, outfileArg, arg...)
+		return e.MockExecuteCommandWithOutputFile(debug, actionName, command, outfileArg, arg...)
 	}
 
 	return "", nil

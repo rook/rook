@@ -67,7 +67,7 @@ func TestOSDBootstrap(t *testing.T) {
 	defer os.Remove(targetPath)
 
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutputFile: func(actionName string, command string, outFileArg string, args ...string) (string, error) {
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
 	}
@@ -98,7 +98,7 @@ func TestOverwriteRookOwnedPartitions(t *testing.T) {
 	// set up mock execute so we can verify the partitioning happens on sda
 	execCount := 0
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
+	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
 		logger.Infof("RUN %d for '%s'. %s %+v", execCount, name, command, args)
 		assert.Equal(t, "sgdisk", command)
 		switch execCount {
@@ -119,7 +119,7 @@ func TestOverwriteRookOwnedPartitions(t *testing.T) {
 
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
 	outputExecCount := 0
-	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
 		var output string
 		switch outputExecCount {
@@ -188,7 +188,7 @@ func TestPartitionBluestoreMetadata(t *testing.T) {
 
 	execCount := 0
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
+	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
 		logger.Infof("RUN %d for '%s'. %s %+v", execCount, name, command, args)
 		assert.Equal(t, "sgdisk", command)
 		switch execCount {
@@ -247,7 +247,7 @@ func TestPartitionBluestoreMetadataSafe(t *testing.T) {
 	nodeID := "node123"
 	etcdClient := util.NewMockEtcdClient()
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommandWithOutput = func(name string, command string, args ...string) (string, error) {
+	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		if command == "df" {
 			// mock that the metadata device already has a filesytem, this should abort the partition effort
 			if strings.Index(name, "nvme01") != -1 {
@@ -294,7 +294,7 @@ func testPartitionOSDHelper(t *testing.T, storeConfig StoreConfig) {
 	// setup the mock executor to validate the calls to partition the device
 	execCount := 0
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommand = func(name string, command string, args ...string) error {
+	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
 		logger.Infof("RUN %d for '%s'. %s %+v", execCount, name, command, args)
 		if execCount <= 2 {
 			assert.Equal(t, "sgdisk", command)

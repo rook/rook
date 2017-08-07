@@ -130,7 +130,7 @@ func genSecret(executor exec.Executor, configDir, name string, args []string) (s
 		"-n", name,
 	}
 	args = append(base, args...)
-	_, err := executor.ExecuteCommandWithOutput("gen secret", "ceph-authtool", args...)
+	_, err := executor.ExecuteCommandWithOutput(false, "gen secret", "ceph-authtool", args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to gen secret. %+v", err)
 	}
