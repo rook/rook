@@ -51,7 +51,7 @@ copy_image_to_cluster() {
 }
 
 # configure dind-cluster
-KUBE_VERSION=${KUBE_VERSION:-"v1.6.0"}
+KUBE_VERSION=${KUBE_VERSION:-"v1.7.2"}
 
 case "${1:-}" in
   up)
