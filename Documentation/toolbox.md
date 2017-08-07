@@ -7,6 +7,7 @@ weight: 40
 The rook toolbox is a container with common tools used for rook debugging and testing.  All packages in the toolbox can be seen in the [Dockerfile](/toolbox/Dockerfile)
 
 ## Installing more tools
+
 The rook toolbox is based on Ubuntu, so more tools of your choosing can be easily installed with `apt-get`.  For example, to install `telnet`:
 ```bash
 apt-get update
@@ -48,6 +49,7 @@ kubectl delete -f rook-tools.yaml
 ## Running the Toolbox for Standalone
 
 ### Container Linux by CoreOS
+
 To use the rook toolbox on CoreOS, first add the following values to the toolbox config file:
 ```bash
 cat >~/.toolboxrc <<EOL
@@ -62,6 +64,7 @@ toolbox
 ```
 
 #### Ceph Tools
+
 To use the ceph tools from a rook host, launch the toolbox with the following options:
 ```bash
 toolbox --bind=/var/lib/rook:/var/lib/rook /toolbox/entrypoint.sh
@@ -73,12 +76,14 @@ rados df
 ```
 
 ### Other Linux Distros
+
 The rook toolbox container can simply be run directly with `docker` on other Linux distros:
 ```bash
 docker run -it rook/toolbox
 ```
 
 #### Ceph Tools
+
 To run ceph tools such as `ceph` and `rados`, run the container with the following options:
 ```bash
 docker run -it --network=host -v /var/lib/rook:/var/lib/rook rook/toolbox

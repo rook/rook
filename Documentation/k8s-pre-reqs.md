@@ -4,13 +4,17 @@ weight: 11
 indent: true
 ---
 
-## Minimum Version
-Kubernetes v1.6 or higher is targeted by Rook (while Rook is in alpha it will track the latest release to use the latest features). 
+# Prerequisites
 
-Support is available for Kubernetes v1.5.2, although your mileage may vary. 
+## Minimum Version
+
+Kubernetes v1.6 or higher is targeted by Rook (while Rook is in alpha it will track the latest release to use the latest features).
+
+Support is available for Kubernetes v1.5.2, although your mileage may vary.
 You will need to use the yaml files from the [1.5 folder](/demo/kubernetes/1.5).
 
 ## Privileges
+
 Creating the Rook operator requires privileges for setting up RBAC. To launch the operator you need to have created your user certificate with the `system:masters` privilege:
 ```
 -subj "/CN=admin/O=system:masters"
@@ -80,12 +84,14 @@ $ exit
 After these steps, your minikube cluster is ready to install Rook on.
 
 ## Existing Kubernetes Cluster
-Alternatively, if you already have a running Kubernetes cluster, you can deploy Rook to it with a small update to modify the kubelet service to bind mount `/sbin/modprobe`, which allows access to `modprobe`.
-Access to modprobe is necessary for using the rbd volume plugin, which is being tracked in the Kubernetes code base with [#23924](https://github.com/kubernetes/kubernetes/issues/23924).  
 
-If using RKT, you can enable `modprobe` by following this [guide](https://github.com/coreos/coreos-kubernetes/blob/master/Documentation/kubelet-wrapper.md#allow-pods-to-use-rbd-volumes). Instructions have been directly copied below for your convenience:  
+Alternatively, if you already have a running Kubernetes cluster, you can deploy Rook to it with a small update to modify the kubelet service to bind mount `/sbin/modprobe`, which allows access to `modprobe`.
+Access to modprobe is necessary for using the rbd volume plugin, which is being tracked in the Kubernetes code base with [#23924](https://github.com/kubernetes/kubernetes/issues/23924).
+
+If using RKT, you can enable `modprobe` by following this [guide](https://github.com/coreos/coreos-kubernetes/blob/master/Documentation/kubelet-wrapper.md#allow-pods-to-use-rbd-volumes). Instructions have been directly copied below for your convenience:
 
 Add the following options to the `RKT_OPTS` env before launching the kubelet via kubelet-wrapper:
+
 ```ini
 [Service]
 Environment=KUBELET_VERSION=v1.5.3_coreos.0
@@ -99,7 +105,7 @@ Environment="RKT_OPTS=--volume modprobe,kind=host,source=/usr/sbin/modprobe \
 
 Note that the kubelet also requires access to the userspace `rbd` tool that is included only in hyperkube images tagged `v1.3.6_coreos.0` or later. See next section on how to deploy `rbd`.
 
-### Ceph and RBD utilities installed on the nodes
+## Ceph and RBD utilities installed on the nodes
 
 The Kubernetes kubelet shells out to system utilities to mount Rook volumes. This means that every Kubernetes host must have these utilities installed. This requirement extends to the control plane, since there may be interactions between kube-controller-manager and the Ceph cluster. Login to each Kubernetes host where Kubelet runs and execute the following:
 
