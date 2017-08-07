@@ -20,6 +20,14 @@ Before Rook can start provisioning storage, a StorageClass and its storage pool 
 kubectl create -f rook-storageclass.yaml
 ```
 
+### Secrets
+The pod consuming storage will need access to a secret for the rbd plugin. The secret is automatically generated in the `default`
+namespace, but would need to be copied to other namespaces. In this example we are copying to the `kube-system` namespace.
+
+```bash
+kubectl get secret rook-rook-user -o json | jq '.metadata.namespace = "kube-system"' | kubectl apply -f -
+```
+
 ## Consume the storage
 
 We create a sample app to consume the block storage provisioned by Rook with the classic wordpress and mysql apps.

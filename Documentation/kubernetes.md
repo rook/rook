@@ -40,7 +40,8 @@ kubectl create -f rook-operator.yaml
 kubectl get pod
 ```
 
-Now that the rook-operator pod is running, we can create the Rook cluster. See the documentation on [configuring the cluster](cluster-tpr.md).
+Now that the rook-operator pod is running, we can create the Rook cluster. For the cluster to survive reboots, 
+make sure you set the `dataDirHostPath` property. See the documentation on [configuring the cluster](cluster-tpr.md). 
 ```bash
 kubectl create -f rook-cluster.yaml
 ```
@@ -79,13 +80,15 @@ To learn how to set up monitoring for your Rook cluster, you can follow the step
 ## Teardown
 
 To clean up all the artifacts created by the demo, **first cleanup the resources from the block, file, and object walkthroughs** (unmount volumes, delete volume claims, etc), then run the following:
+
 ```bash
 kubectl delete -f rook-operator.yaml
 kubectl delete -n rook cluster rook
 kubectl delete -n rook serviceaccount rook-api
 kubectl delete clusterrole rook-api
 kubectl delete clusterrolebinding rook-api
-kubectl delete thirdpartyresources cluster.rook.io pool.rook.io
+kubectl delete thirdpartyresources cluster.rook.io pool.rook.io  # ignore errors if on K8s 1.7+
+kubectl delete crd clusters.rook.io pools.rook.io  # ignore errors if on K8s 1.5 and 1.6
 kubectl delete secret rook-rook-user
 kubectl delete namespace rook
 ```
