@@ -4,15 +4,18 @@ weight: 20
 ---
 
 # Using Rook
-The `rookctl` client tool can be used to manage your Rook cluster once it is running as well as manage block, file and object storage.  See the sections below for details on how to configure each type of storage.  
 
-If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](../README.md#quickstart-guides). 
+The `rookctl` client tool can be used to manage your Rook cluster once it is running as well as manage block, file and object storage.  See the sections below for details on how to configure each type of storage.
+
+If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](../README.md#quickstart-guides).
 
 `rookctl` can be accessed in the following ways:
+
 - Kubernetes: Start the [toolbox](toolbox.md) pod
 - Standalone: [Download the binary](standalone.md#rook-client-tool) to your client machine.
 
 ## Block Storage
+
 1. Create a new pool and volume image (10MB)
 
     ```bash
@@ -49,6 +52,7 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
     ```
 
 ## Shared File System
+
 1. Create a shared file system
 
     ```bash
@@ -66,7 +70,7 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
    ```bash
    # If running in the toolbox container, no need to run privileged
    rookctl filesystem mount --name testFS --path /tmp/rookFS
-   
+
    # If running standalone, you may need to run privileged and take ownership of the folder
    sudo -E ./rookctl filesystem mount --name testFS --path /tmp/rookFS
    sudo chown $USER:$USER /tmp/rookFS
@@ -96,6 +100,7 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
    ```
 
 ## Object Storage
+
 1. Create an object storage instance in the cluster
 
    ```bash
@@ -109,6 +114,7 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
    ```
 
 ### Consume the Object Storage
+
 Use an S3 compatible client to create a bucket in the object store. If you are running in Kubernetes,
 the s3cmd tool is included in the [Rook toolbox](toolbox.md) pod.
 

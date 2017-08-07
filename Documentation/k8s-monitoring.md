@@ -5,10 +5,12 @@ indent: true
 ---
 
 # Monitoring
+
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).  To enable monitoring of Rook in your Kubernetes cluster, you can follow the steps below.
 Note that these steps work best with a local Kubernetes cluster running in `Vagrant`.
 
 ## Prometheus Operator
+
 First the Prometheus operator needs to be started in the cluster so it can watch for our requests to start monitoring Rook and respond by deploying the correct Prometheus pods and configuration.
 A full explanation can be found in the [Prometheus operator repository on github](https://github.com/coreos/prometheus-operator), but the quick instructions can be found here:
 ```bash
@@ -21,6 +23,7 @@ kubectl get pod
 Once the Prometheus operator is in the `Running` state, proceed to the next section.
 
 ## Prometheus Instances
+
 With the Prometheus operator running, we can create a service monitor that will watch the Rook cluster and collect metrics regularly.
 From the root of your locally cloned Rook repo, go the monitoring directory:
 ```bash
@@ -40,6 +43,7 @@ kubectl -n rook get pod prometheus-rook-prometheus-0
 ```
 
 ## Prometheus Web Console
+
 Once the Prometheus server is running, you can open a web browser and go to the URL that is output from this command:
 ```bash
 echo "http://$(kubectl -n rook -o jsonpath={.status.hostIP} get pod prometheus-rook-prometheus-0):30900"
@@ -50,6 +54,7 @@ select any metric you would like to see, for example `ceph_cluster_used_bytes`, 
 the `Graph` tab is selected and you should now see a graph of your chosen metric over time.
 
 ## Teardown
+
 To clean up all the artifacts created by the monitoring walkthrough, copy/paste the entire block below (note that errors about resources "not found" can be ignored):
 ```bash
 kubectl delete -f service-monitor.yaml

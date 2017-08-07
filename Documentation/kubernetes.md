@@ -4,16 +4,19 @@ weight: 10
 ---
 
 # Rook on Kubernetes
+
 - [Quickstart](#quickstart)
 - [Design](#design)
 
 ## Quickstart
+
 This example shows how to build a simple, multi-tier web application on Kubernetes using persistent volumes enabled by Rook.
 
 ### Minimum Version
-Kubernetes **v1.6** or higher is targeted by Rook (while Rook is in alpha it will track the latest release to use the latest features). 
 
-Support is available for Kubernetes **v1.5.2**, although your mileage may vary. 
+Kubernetes **v1.6** or higher is targeted by Rook (while Rook is in alpha it will track the latest release to use the latest features).
+
+Support is available for Kubernetes **v1.5.2**, although your mileage may vary.
 You will need to use the yaml files from the [1.5 folder](/demo/kubernetes/1.5).
 
 ### Prerequisites
@@ -42,7 +45,7 @@ Now that the rook-operator pod is running, we can create the Rook cluster. See t
 kubectl create -f rook-cluster.yaml
 ```
 
-Use `kubectl` to list pods in the `rook` namespace. You should be able to see the following pods once they are all running: 
+Use `kubectl` to list pods in the `rook` namespace. You should be able to see the following pods once they are all running:
 
 ```bash
 $ kubectl -n rook get pod
@@ -56,6 +59,7 @@ rook-ceph-osd-0h6nb               1/1       Running   0          5m
 ```
 
 ## Storage
+
 For a walkthrough of the three types of storage exposed by Rook, see the guides for:
 - **[Block](k8s-block.md)**: Create block storage to be consumed by a pod
 - **[Shared File System](k8s-filesystem.md)**: Create a file system to be shared across multiple pods
@@ -68,10 +72,12 @@ We have created a [toolbox](/demo/kubernetes/rook-tools.yaml) container that con
 The toolbox also contains the `rookctl` tool as required in the [File System](k8s-filesystem.md) and [Object](k8s-object.md) walkthroughs, or a [simplified walkthrough of block, file and object storage](client.md). In the near future, `rookctl` will not be required for kubernetes scenarios.
 
 ### Monitoring
+
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
 To learn how to set up monitoring for your Rook cluster, you can follow the steps in the [monitoring guide](./k8s-monitoring.md).
 
 ## Teardown
+
 To clean up all the artifacts created by the demo, **first cleanup the resources from the block, file, and object walkthroughs** (unmount volumes, delete volume claims, etc), then run the following:
 ```bash
 kubectl delete -f rook-operator.yaml
@@ -88,7 +94,7 @@ If you modified the demo settings, additional cleanup is up to you for devices, 
 ## Design
 
 With Rook running in the Kubernetes cluster, Kubernetes applications can
-mount block devices and filesystems managed by Rook, or can use the S3/Swift API for object storage. The Rook operator 
+mount block devices and filesystems managed by Rook, or can use the S3/Swift API for object storage. The Rook operator
 automates configuration of the Ceph storage components and monitors the cluster to ensure the storage remains available
 and healthy. There is also a REST API service for configuring the Rook storage and a command line tool called `rookctl`.
 
@@ -105,8 +111,8 @@ requested by the api service and apply the changes.
 
 The Rook daemons (Mons, OSDs, MGR, RGW, and MDS) are compiled to a single binary `rook`, and included in a minimal container.
 The `rook` container includes Ceph daemons and tools to manage and store all data -- there are no changes to the data path.
-Rook does not attempt to maintain full fidelity with Ceph. Many of the Ceph concepts like placement groups and crush maps 
-are hidden so you don't have to worry about them. Instead Rook creates a much simplified UX for admins that is in terms 
+Rook does not attempt to maintain full fidelity with Ceph. Many of the Ceph concepts like placement groups and crush maps
+are hidden so you don't have to worry about them. Instead Rook creates a much simplified UX for admins that is in terms
 of physical resources, pools, volumes, filesystems, and buckets.
 
 Rook is implemented in golang. Ceph is implemented in C++ where the data path is highly optimized. We believe

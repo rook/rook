@@ -41,7 +41,8 @@ cd demo/standalone
 vagrant up
 ```
 
-### Rook Client Tool
+## Rook Client Tool
+
 Once the Rook cluster in Vagrant is running and initialized, you can use the `rookctl` client tool to manage the cluster and consume the storage.  First, either use a locally built `rookctl` tool or download the latest release from github:
 ```
 wget https://github.com/rook/rook/releases/download/v0.4.0/rook-v0.4.0-linux-amd64.tar.gz
@@ -56,7 +57,7 @@ export ROOK_API_SERVER_ENDPOINT="172.20.20.10:8124"
 
 At this point, you can use the `rookctl` tool along with some [simple steps to create and manage block, file and object storage](client.md).
 
-### Clean up
+## Clean up
 
 When you are all done with your Rook cluster in Vagrant, you can clean everything up by destroying the VMs with:
 ```
@@ -66,8 +67,8 @@ rm -f .discovery-token
 
 ## Design
 
-Rook supports an environment where there is no orchestration platform. Rook comes with its own basic orchestration 
-engine based on Etcd that is activated when not running in Kubernetes. 
+Rook supports an environment where there is no orchestration platform. Rook comes with its own basic orchestration
+engine based on Etcd that is activated when not running in Kubernetes.
 
 ![Standalone Rook Architecture](media/standalone.png)
 
@@ -78,5 +79,5 @@ and manage a storage cluster. Each machine in the cluster must run the Rook daem
 bootstrap Etcd, manage it, and scale it as the cluster grows. It's also possible to use an external Etcd instead of the embedded one
 if needed.
 
-Standalone Rook still requires some key orchestration features such as resource management, health monitoring, failover, and upgrades. 
+Standalone Rook still requires some key orchestration features such as resource management, health monitoring, failover, and upgrades.
 If this scenario is interesting to you, contributions are welcome!
