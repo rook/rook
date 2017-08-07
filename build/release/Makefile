@@ -114,7 +114,6 @@ endif
 # docs
 
 build.docs:
-
 	rm -rf $(DOCS_WORK_DIR)
 	mkdir -p $(DOCS_WORK_DIR)
 	git clone --depth=1 -b master $(DOCS_GIT_REPO) $(DOCS_WORK_DIR)
@@ -123,7 +122,6 @@ build.docs:
 	cd $(DOCS_WORK_DIR) && npm install && node build/scripts/preprocess.js
 
 publish.docs:
-
 	$(DOCS_WORK_DIR)/build/publish.sh
 
 # ====================================================================================
