@@ -20,8 +20,8 @@ Rook can be deployed as a standalone service directly on any modern Linux host b
 
 2. Download the latest `rookctl` binary
    ```bash
-   wget https://github.com/rook/rook/releases/download/v0.4.0/rook-v0.4.0-linux-amd64.tar.gz
-   tar xvf rook-v0.4.0-linux-amd64.tar.gz
+   wget https://release.rook.io/alpha/v0.5.0/bin/linux_amd64/rookctl
+   chmod 755 rookctl
    ```
 
 3. Verify the Rook cluster is ready
@@ -45,8 +45,8 @@ vagrant up
 
 Once the Rook cluster in Vagrant is running and initialized, you can use the `rookctl` client tool to manage the cluster and consume the storage.  First, either use a locally built `rookctl` tool or download the latest release from github:
 ```
-wget https://github.com/rook/rook/releases/download/v0.4.0/rook-v0.4.0-linux-amd64.tar.gz
-tar xvf rook-v0.4.0-linux-amd64.tar.gz
+wget https://release.rook.io/alpha/v0.5.0/bin/linux_amd64/rookctl
+chmod 755 rookctl
 ```
 
 Verify the cluster is up and running:
