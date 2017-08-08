@@ -30,7 +30,7 @@ If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, mak
 
 ### Deploy Rook
 
-With your Kubernetes cluster running, Rook can be setup and deployed by simply creating the rook-operator deployment and creating a rook cluster.
+With your Kubernetes cluster running, Rook can be setup and deployed by simply creating the rook-operator deployment and creating a rook cluster. To customize the operator settings, see the [Operator Helm Chart](helm-operator.md).
 
 ```bash
 cd demo/kubernetes
