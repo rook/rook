@@ -1,12 +1,12 @@
 ---
-title: Cluster TPR
+title: Cluster CRD
 weight: 17
 indent: true
 ---
 
 # Creating Rook Clusters
 
-Rook allows creation and customization of storage clusters through the third party resources (TPRs). The following settings are
+Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs). The following settings are
 available for a cluster.
 
 ## Settings
@@ -73,6 +73,127 @@ A Placement configuration is specified (according to the kubernetes [PodSpec](ht
 - `nodeAffinity`: kubernetes [NodeAffinity](https://kubernetes.io/docs/api-reference/v1.6/#nodeaffinity-v1-core)
 - `tolerations`: list of kubernetes [Toleration](https://kubernetes.io/docs/api-reference/v1.6/#toleration-v1-core)
 
-## Sample
+## Samples
 
-A sample cluster TPR can be found and used in the [rook-cluster.yaml](https://github.com/rook/rook/blob/master/demo/kubernetes/rook-cluster.yaml) file in the Kubernetes demo directory.
+### Storage configuration: All devices
+
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook
+---
+apiVersion: rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: rook
+  namespace: rook
+spec:
+  versionTag: master
+  dataDirHostPath:
+  # cluster level storage configuration and selection
+  storage:                
+    useAllNodes: true
+    useAllDevices: true
+    deviceFilter:
+    metadataDevice:
+    location:
+    storeConfig:
+      storeType: bluestore
+      databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
+      journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
+```
+
+### Storage Configuration: Specific devices
+
+Individual nodes and their config can be specified so that only the named nodes below will be used as storage resources. 
+Each node's 'name' field should match their 'kubernetes.io/hostname' label.
+
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook
+---
+apiVersion: rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: rook
+  namespace: rook
+spec:
+  versionTag: master
+  dataDirHostPath:
+  # cluster level storage configuration and selection
+  storage:                
+    useAllNodes: false
+    useAllDevices: false
+    deviceFilter:
+    metadataDevice:
+    location:
+    storeConfig:
+      storeType: filestore
+      databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
+      journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
+    nodes:
+    - name: "172.17.4.101"
+      directories:         # specific directores to use for storage can be specified for each node
+      - path: "/rook/storage-dir"
+    - name: "172.17.4.201"
+      devices:             # specific devices to use for storage can be specified for each node
+      - name: "sdb"
+      - name: "sdc"
+      storeConfig:         # configuration can be specified at the node level which overrides the cluster level config
+        storeType: bluestore
+    - name: "172.17.4.301"
+      deviceFilter: "^sd."
+```
+
+### Node Affinity
+
+To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
+The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage' and
+tolerate taints with a key of 'storage-node'.
+
+```
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook
+---
+apiVersion: rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: rook
+  namespace: rook
+spec:
+  versionTag: master
+  dataDirHostPath:
+  placement:
+    all:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: role
+              operator: In
+              values:
+              - storage-node
+      tolerations:
+      - key: storage-node
+        operator: Exists
+    api:
+      nodeAffinity:
+      tolerations:
+    mds:
+      nodeAffinity:
+      tolerations:
+    mon:
+      nodeAffinity:
+      tolerations:
+    osd:
+      nodeAffinity:
+      tolerations:
+    rgw:
+      nodeAffinity:
+      tolerations:
+```

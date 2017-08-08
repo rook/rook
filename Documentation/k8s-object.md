@@ -14,7 +14,7 @@ This guide assumes you have created a Rook cluster as explained in the main [Kub
 
 ## Rook Client
 
-Setting up the object storage requires running `rookctl` commands with the [Rook toolbox](kubernetes.md#tools) pod. This will be simplified in the future with a TPR for the object stores.
+Setting up the object storage requires running `rookctl` commands with the [Rook toolbox](kubernetes.md#tools) pod. This will be simplified in the future with a CRD for the object stores.
 
 ## Create the Object Store and User
 
@@ -53,9 +53,33 @@ NAME            CLUSTER-IP   EXTERNAL-IP   PORT(S)     AGE
 rook-ceph-rgw   10.3.0.177   <none>        53390/TCP   2m
 ```
 
-Now create the external service:
+Save the external service as `rgw-external.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: rook-ceph-rgw-external
+  namespace: rook
+  labels:
+    app: rook-ceph-rgw
+    rook_cluster: rook
+spec:
+  ports:
+  - name: rgw
+    port: 53390
+    protocol: TCP
+    targetPort: 53390
+  selector:
+    app: rook-ceph-rgw
+    rook_cluster: rook
+  sessionAffinity: None
+  type: NodePort
+```
+
+Now create the external service.
+
 ```bash
-cd demo/kubernetes
 kubectl create -f rgw-external.yaml
 ```
 

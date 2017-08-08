@@ -14,10 +14,40 @@ This guide assumes you have created a Rook cluster as explained in the main [Kub
 
 ## Provision Storage
 
-Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. The [rook-storageclass.yaml](https://github.com/rook/rook/blob/master/demo/kubernetes/rook-storageclass.yaml) sample will create the storage pool automatically. For more options on pools, see the documentation on [creating storage pools](pool-tpr.md).
+Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. For more options on pools, see the documentation on [creating storage pools](pool-crd.md).
 
+Save this storage class definition as `rook-storageclass.yaml`:
+
+```yaml
+apiVersion: rook.io/v1alpha1
+kind: Pool
+metadata:
+  name: replicapool
+  namespace: rook
+spec:
+  replication:
+    size: 1
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: rook-block
+provisioner: rook.io/block
+parameters:
+  pool: replicapool
+```
+
+Create the storage class.
 ```bash
 kubectl create -f rook-storageclass.yaml
+```
+
+### Secrets
+The pod consuming storage will need access to a secret for the rbd plugin. The secret is automatically generated in the `default`
+namespace, but would need to be copied to other namespaces. In this example we are copying to the `kube-system` namespace.
+
+```bash
+kubectl get secret rook-rook-user -o json | jq '.metadata.namespace = "kube-system"' | kubectl apply -f -
 ```
 
 ## Consume the storage
