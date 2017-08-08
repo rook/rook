@@ -16,7 +16,7 @@ This guide assumes you have created a Rook cluster and pool as explained in the 
 
 ## Rook Client
 
-Setting up the Rook file system requires running `rookctl` commands with the [Rook toolbox](kubernetes.md#tools). This will be simplified in the future with a TPR for the file system.
+Setting up the Rook file system requires running `rookctl` commands with the [Rook toolbox](kubernetes.md#tools). This will be simplified in the future with a CRD for the file system.
 
 ## Create the File System
 
@@ -48,9 +48,61 @@ ceph osd pool set registryFS-metadata size 2
 
 ## Deploy the Application
 
-The kube-registry yaml is defined [here](/demo/kubernetes/kube-registry.yaml). We will need to update the yaml with the monitor IP addresses with the following commands.
-In the future this step will be improved with a Rook volume plugin.
+Save the following spec as `kube-registry.yaml`:
 
+```yaml
+apiVersion: v1
+kind: ReplicationController
+metadata:
+  name: kube-registry-v0
+  namespace: kube-system
+  labels:
+    k8s-app: kube-registry
+    version: v0
+    kubernetes.io/cluster-service: "true"
+spec:
+  replicas: 3
+  selector:
+    k8s-app: kube-registry
+    version: v0
+  template:
+    metadata:
+      labels:
+        k8s-app: kube-registry
+        version: v0
+        kubernetes.io/cluster-service: "true"
+    spec:
+      containers:
+      - name: registry
+        image: registry:2
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+        env:
+        - name: REGISTRY_HTTP_ADDR
+          value: :5000
+        - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
+          value: /var/lib/registry
+        volumeMounts:
+        - name: image-store
+          mountPath: /var/lib/registry
+        ports:
+        - containerPort: 5000
+          name: registry
+          protocol: TCP
+      volumes:
+      - name: image-store
+        cephfs:
+          monitors:
+          - INSERT_MONS_HERE
+          user: admin
+          secretRef:
+            name: rook-admin
+```
+
+We will need to update the yaml with the monitor IP addresses with the following commands.
+In the future this step will be improved with a Rook volume plugin.
 ```bash
 cd demo/kubernetes
 export MONS=$(kubectl -n rook get pod -l app=rook-ceph-mon -o json|jq ".items[].status.podIP"|tr -d "\""|sed -e 's/$/:6790/'|paste -s -d, -)
@@ -63,11 +115,9 @@ You now have a docker registry which is HA with persistent storage.
 
 Once you have pushed an image to the registry (see the [instructions](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry) to expose and use the kube-registry), verify that kube-registry is using the filesystem that was configured above by mounting the shared file system in the toolbox pod.
 
-```bash
-# Start and connect to the toolbox pod
-kubectl create -f rook-tools.yaml
-kubectl -n rook exec rook-tools -it sh
+Start and connect to the [Rook toolbox](toolbox.md).
 
+```bash
 # Mount the same filesystem that the kube-registry is using
 mkdir /tmp/registry
 rookctl filesystem mount --name registryFS --path /tmp/registry

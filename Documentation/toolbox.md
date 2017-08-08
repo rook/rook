@@ -4,23 +4,57 @@ weight: 40
 ---
 
 #  Rook Toolbox
-The rook toolbox is a container with common tools used for rook debugging and testing.  All packages in the toolbox can be seen in the [Dockerfile](/toolbox/Dockerfile)
-
-## Installing more tools
-
-The rook toolbox is based on Ubuntu, so more tools of your choosing can be easily installed with `apt-get`.  For example, to install `telnet`:
-```bash
-apt-get update
-apt-get install telnet
-```
+The Rook toolbox is a container with common tools used for rook debugging and testing.
+The toolbox is based on Ubuntu, so more tools of your choosing can be easily installed with `apt-get`. 
 
 ## Running the Toolbox in Kubernetes
 
-The rook toolbox can run as a pod in a Kubernetes cluster.  First, ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](kubernetes.md) instructions).
+The rook toolbox can run as a pod in a Kubernetes cluster.  After you ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](kubernetes.md) instructions),
+launch the rook-tools pod.
+
+Save the tools spec as `rook-tools.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Pod
+metadata:
+  name: rook-tools
+  namespace: rook
+spec:
+  containers:
+  - name: rook-tools
+    image: rook/toolbox:master
+    imagePullPolicy: IfNotPresent
+    args: ["sleep", "36500d"]
+    env:
+      - name: ROOK_ADMIN_SECRET
+        valueFrom:
+          secretKeyRef:
+            name: rook-ceph-mon
+            key: admin-secret
+    securityContext:
+      privileged: true
+    volumeMounts:
+      - mountPath: /dev
+        name: dev
+      - mountPath: /sys/bus
+        name: sysbus
+      - mountPath: /lib/modules
+        name: libmodules
+  volumes:
+    - name: dev
+      hostPath:
+        path: /dev
+    - name: sysbus
+      hostPath:
+        path: /sys/bus
+    - name: libmodules
+      hostPath:
+        path: /lib/modules
+```
 
 Launch the rook-tools pod:
 ```bash
-cd demo/kubernetes
 kubectl create -f rook-tools.yaml
 ```
 
@@ -41,9 +75,9 @@ ceph df
 rados df
 ```
 
-When you are done with the toolbox, you can clean it up by running:
+When you are done with the toolbox, remove the pod:
 ```bash
-kubectl delete -f rook-tools.yaml
+kubectl -n rook delete pod rook-tools
 ```
 
 ## Running the Toolbox for Standalone

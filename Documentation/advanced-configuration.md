@@ -226,7 +226,7 @@ ID WEIGHT  TYPE NAME          UP/DOWN REWEIGHT PRIMARY-AFFINITY
 
 Now we have a separate storage group for our SSDs, but we can't use that storage
 until we associate a pool with it.  The default group already has a pool called
-`rbd` in many cases.  If you [created a pool via ThirdPartyResource](pool-tpr.md),
+`rbd` in many cases.  If you [created a pool via ThirdPartyResource](pool-crd.md),
 it will use the default storage group as well.
 
 Here's how to create new pools:
@@ -293,7 +293,7 @@ and OSDs in the `default` root hierarchy.
 The `size` setting of a pool tells the cluster how many copies of the data
 should be kept for redundancy.  By default the cluster will distribute these
 copies between `host` buckets in the CRUSH Map This can be set when [creating a
-pool via ThirdPartyResource](pool-tpr.md) or after creation with `ceph`.
+pool via ThirdPartyResource](pool-crd.md) or after creation with `ceph`.
 
 So for example let's change the `size` of the `rbd` pool to three:
 

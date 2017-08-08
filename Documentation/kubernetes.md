@@ -30,7 +30,7 @@ If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, mak
 
 ### Deploy Rook
 
-With your Kubernetes cluster running, Rook can be setup and deployed by simply creating the [rook-operator](/demo/kubernetes/rook-operator.yaml) deployment and creating a [rook cluster](/demo/kubernetes/rook-cluster.yaml).
+With your Kubernetes cluster running, Rook can be setup and deployed by simply creating the rook-operator deployment and creating a rook cluster.
 
 ```bash
 cd demo/kubernetes
@@ -41,7 +41,35 @@ kubectl get pod
 ```
 
 Now that the rook-operator pod is running, we can create the Rook cluster. For the cluster to survive reboots, 
-make sure you set the `dataDirHostPath` property. See the documentation on [configuring the cluster](cluster-tpr.md). 
+make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](cluster-crd.md). 
+
+Save the cluster spec as `rook-cluster.yaml`:
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook
+---
+apiVersion: rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: rook
+  namespace: rook
+spec:
+  versionTag: master
+  dataDirHostPath:
+  storage:
+    useAllNodes: true
+    useAllDevices: false
+    storeConfig:
+      storeType: filestore
+      databaseSizeMB: 1024
+      journalSizeMB: 1024
+```
+
+Create the cluster:
+
 ```bash
 kubectl create -f rook-cluster.yaml
 ```
@@ -68,7 +96,7 @@ For a walkthrough of the three types of storage exposed by Rook, see the guides 
 
 ## Tools
 
-We have created a [toolbox](/demo/kubernetes/rook-tools.yaml) container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
+We have created a toolbox container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
 
 The toolbox also contains the `rookctl` tool as required in the [File System](k8s-filesystem.md) and [Object](k8s-object.md) walkthroughs, or a [simplified walkthrough of block, file and object storage](client.md). In the near future, `rookctl` will not be required for kubernetes scenarios.
 

@@ -1,12 +1,12 @@
 ---
-title: Pool TPR
+title: Pool CRD
 weight: 16
 indent: true
 ---
 
 # Creating Rook Storage Pools
 
-Rook allows creation and customization of storage pools through the third party resources (TPRs). The following settings are available
+Rook allows creation and customization of storage pools through the custom resource definitions (CRDs). The following settings are available
 for pools.
 
 ## Sample
