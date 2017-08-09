@@ -6,7 +6,7 @@ metadata:
 spec:
   containers:
   - name: rook-tools
-    image: rook/toolbox:master
+    image: rook/toolbox:v0.5.0
     imagePullPolicy: IfNotPresent
     args: ["sleep", "36500d"]
     env:

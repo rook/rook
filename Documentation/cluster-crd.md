@@ -89,10 +89,10 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: master
+  versionTag: v0.5.0
   dataDirHostPath:
   # cluster level storage configuration and selection
-  storage:                
+  storage:
     useAllNodes: true
     useAllDevices: true
     deviceFilter:
@@ -121,7 +121,7 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: master
+  versionTag: v0.5.0
   dataDirHostPath:
   # cluster level storage configuration and selection
   storage:                
@@ -166,7 +166,7 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: master
+  versionTag: v0.5.0
   dataDirHostPath:
   placement:
     all:
