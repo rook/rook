@@ -18,8 +18,8 @@ $ helm install rook/rook-operator
 Alternatively, to deploy from a local checkout of the rook codebase (until the rook chart repo is deployed):
 
 ```console
-$ cd demo/helm/rook-operator
-$ helm install --name rook-operator --namespace rook .
+$ cd cluster/charts/rook
+$ helm install --name rook --namespace rook .
 ```
 
 ## Introduction

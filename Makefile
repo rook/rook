@@ -65,8 +65,9 @@ GO_PROJECT=github.com/rook/rook
 LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 
 # ====================================================================================
-# Setup Go projects
+# Setup projects
 
+# setup go projects
 GO_STATIC_PACKAGES=
 ifneq ($(filter $(PLATFORM),$(CLIENT_PLATFORMS) $(SERVER_PLATFORMS)),)
 GO_STATIC_PACKAGES += $(CLIENT_PACKAGES)
@@ -88,11 +89,14 @@ include build/makelib/golang.mk
 # ====================================================================================
 # Targets
 
-build.common:
+build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
+
+build.common: build.version
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
+	@$(MAKE) -C cluster/charts
 
 do.build.platform.%:
 	@$(MAKE) PLATFORM=$* go.build

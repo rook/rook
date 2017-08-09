@@ -6,7 +6,7 @@ excludeDirs:
 - .cache
 - .work
 - build
-- demo
+- cluster
 - Documentation
 - images
 import:

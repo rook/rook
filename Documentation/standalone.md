@@ -34,10 +34,10 @@ At this point, you can use the `rookctl` tool along with some [simple steps to c
 
 ## Vagrant
 
-Rook is also easy to run in virutal machines with `vagrant` using the standalone [Vagrantfile](/demo/standalone/Vagrantfile).  When instructed, `vagrant` will start up CoreOS virtual machines and launch `rook` via `rkt`.  Note that you can make configuration changes as desired in the provided [cloud config file](/demo/standalone/cloud-config.yml.in).
+Rook is also easy to run in virutal machines with `vagrant` using the standalone [Vagrantfile](/cluster/examples/standalone/Vagrantfile).  When instructed, `vagrant` will start up CoreOS virtual machines and launch `rook` via `rkt`.  Note that you can make configuration changes as desired in the provided [cloud config file](/cluster/examples/standalone/cloud-config.yml.in).
 
 ```
-cd demo/standalone
+cd cluster/examples/standalone
 vagrant up
 ```
 
