@@ -27,7 +27,7 @@ Once the Prometheus operator is in the `Running` state, proceed to the next sect
 With the Prometheus operator running, we can create a service monitor that will watch the Rook cluster and collect metrics regularly.
 From the root of your locally cloned Rook repo, go the monitoring directory:
 ```bash
-cd demo/kubernetes/monitoring
+cd cluster/examples/kubernetes/monitoring
 ```
 
 Create the service monitor as well as the Prometheus server pod and service:

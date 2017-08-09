@@ -55,7 +55,7 @@ kubectl get secret rook-rook-user -o json | jq '.metadata.namespace = "kube-syst
 We create a sample app to consume the block storage provisioned by Rook with the classic wordpress and mysql apps.
 Both of these apps will make use of block volumes provisioned by Rook.
 
-Start mysql and wordpress from the `demo/kubernetes` folder:
+Start mysql and wordpress from the `cluster/examples/kubernetes` folder:
 
 ```bash
 kubectl create -f mysql.yaml
