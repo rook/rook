@@ -15,7 +15,7 @@ Rook can be deployed as a standalone service directly on any modern Linux host b
 
 1. Start a one-node Rook cluster
    ```bash
-   docker run -it --net=host rook/rook:master
+   docker run -it --net=host rook/rook:v0.5.0
    ```
 
 2. Download the latest `rookctl` binary

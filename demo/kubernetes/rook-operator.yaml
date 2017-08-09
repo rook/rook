@@ -110,7 +110,7 @@ spec:
       serviceAccountName: rook-operator
       containers:
       - name: rook-operator
-        image: rook/rook:master
+        image: rook/rook:v0.5.0
         args: ["operator"]
         env:
         - name: ROOK_REPO_PREFIX

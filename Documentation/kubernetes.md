@@ -57,7 +57,7 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: master
+  versionTag: v0.5.0
   dataDirHostPath:
   storage:
     useAllNodes: true
