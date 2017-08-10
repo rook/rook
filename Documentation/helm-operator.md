@@ -1,26 +1,12 @@
 ---
-title: Operator Helm Chart
+title: Helm Chart
 weight: 18
 indent: true
 ---
 
-# Operator Helm Chart
+# Helm Chart
 
-Installs [rook-operator](https://github.com/rook/rook) to create/configure/manage Rook clusters atop Kubernetes.
-
-## TL;DR
-
-```console
-$ helm repo add rook http://charts.rook.io
-$ helm install rook/rook-operator
-```
-
-Alternatively, to deploy from a local checkout of the rook codebase (until the rook chart repo is deployed):
-
-```console
-$ cd cluster/charts/rook
-$ helm install --name rook --namespace rook .
-```
+Installs [rook](https://github.com/rook/rook) to create,configure and manage Rook clusters atop Kubernetes.
 
 ## Introduction
 
@@ -29,6 +15,33 @@ This chart bootstraps a [rook-operator](https://github.com/rook/rook) deployment
 ## Prerequisites
 
 - Kubernetes 1.6+ with Beta APIs & ThirdPartyResources enabled
+
+## Installing
+
+To install the chart from out published registry, run the following:
+
+```console
+$ helm repo add rook-<channel> http://charts.rook.io/<channel>
+$ helm install rook-<channel>/rook
+```
+
+Be sure to replace `<channel>` with `alpha`, `beta`, `stable` or `master`, for example:
+
+```console
+$ helm repo add rook-alpha http://charts.rook.io/alpha
+$ helm install rook-alpha/rook
+```
+
+The command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
+
+## Installing from source
+
+Alternatively, to deploy from a local checkout of the rook codebase:
+
+```console
+$ cd cluster/charts/rook
+$ helm install --name rook --namespace rook .
+```
 
 ### RBAC
 
@@ -51,28 +64,15 @@ If role-based access control (RBAC) is enabled in your cluster, you may need to 
   $ kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
   ```
 
-
-## Installing the Chart
-
-To install the chart with the release name `rook-operator`:
-
-```console
-$ helm install --name rook-operator --namespace rook-operator rook/rook-operator
-```
-
-The command deploys the rook-operator on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
-
-
 ## Uninstalling the Chart
 
-To uninstall/delete the `rook-operator` deployment:
+To uninstall/delete the `rook` deployment:
 
 ```console
-$ helm delete --purge rook-operator
+$ helm delete --purge rook
 ```
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
-
 
 ## Configuration
 
@@ -89,13 +89,13 @@ The following tables lists the configurable parameters of the rook-operator char
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example to disable RBAC,
 
 ```console
-$ helm install --name rook-operator rook/rook-operator --set rbacEnable=false
+$ helm install --name rook rook-alpha/rook --set rbacEnable=false
 ```
 
 Alternatively, a yaml file that specifies the values for the above parameters can be provided while installing the chart. For example,
 
 ```console
-$ helm install --name rook-operator rook/rook-operator -f values.yaml
+$ helm install --name rook rook-alpha/rook -f values.yaml
 ```
 
 ### Defaults
