@@ -12,18 +12,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# remove default suffixes as we dont use them
-.SUFFIXES:
-
-# include the common make file
-include ../../build/makelib/common.mk
-
-.PHONY: all
-all: build
-
 # the helm charts to build
 HELM_CHARTS ?= rook
-HELM_URL ?= https://release.rook.io/charts
+HELM_BASE_URL ?= https://charts.rook.io
+HELM_S3_BUCKET ?= rook-charts
 HELM_CHARTS_DIR ?= $(ROOT_DIR)/cluster/charts
 HELM_OUTPUT_DIR ?= $(OUTPUT_DIR)/charts
 
@@ -59,4 +51,4 @@ $(HELM_INDEX): $(HELM) $(HELM_OUTPUT_DIR)
 	@echo === helm index
 	@$(HELM) repo index $(HELM_OUTPUT_DIR)
 
-build: $(HELM_INDEX)
+helm.build: $(HELM_INDEX)

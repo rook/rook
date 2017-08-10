@@ -86,6 +86,9 @@ GO_TEST_SUITE=$(SUITE)
 
 include build/makelib/golang.mk
 
+# setup helm charts
+include build/makelib/helm.mk
+
 # ====================================================================================
 # Targets
 
@@ -93,10 +96,9 @@ build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
 
-build.common: build.version
+build.common: build.version helm.build
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
-	@$(MAKE) -C cluster/charts
 
 do.build.platform.%:
 	@$(MAKE) PLATFORM=$* go.build
