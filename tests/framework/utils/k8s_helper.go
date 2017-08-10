@@ -31,6 +31,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/jmoiron/jsonq"
 	"github.com/rook/rook/pkg/util/exec"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 //K8sHelper is a helper for common kubectl commads
@@ -163,9 +164,11 @@ func getKubeConfig(executor exec.Executor) (*rest.Config, error) {
 			KeyFile:  currentUser.Cluster.ClientKey,
 			CertFile: currentUser.Cluster.ClientCert,
 		}
+		//set Insecure to true if cert information is missing
+		if currentUser.Cluster.ClientCert == "" {
+			config.Insecure = true
+		}
 	}
-	//work around for kubeadm - api service is https but context has no cert
-	config.Insecure = true
 
 	logger.Infof("Loaded kubectl context %s at %s. secure=%t",
 		currentCluster.Name, config.Host, !config.Insecure)
@@ -625,4 +628,19 @@ func (k8sh *K8sHelper) GetRGWServiceURL() (string, error) {
 	//TODO - Get nodePort stop hardcoding
 	endpoint := hostip + ":30001"
 	return endpoint, err
+}
+
+//IsRookInstalled returns true is rook-api service is running(indicating rook is installed)
+func (k8sh *K8sHelper) IsRookInstalled() bool {
+	opts := metav1.GetOptions{}
+	svc, err := k8sh.Clientset.Services("rook").Get("rook-api", opts)
+	logger.Debugf("svc : %v", svc)
+	logger.Debugf("err : %v", err)
+	if err != nil {
+		if svc.Size() == 1 {
+			return true
+		}
+	}
+
+	return false
 }

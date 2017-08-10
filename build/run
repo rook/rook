@@ -175,6 +175,7 @@ docker run \
     -e GITHUB_TOKEN \
     -e VERSION \
     -e CHANNEL \
+    -v ${PWD}/_output:${BUILDER_HOME}/go/bin \
     ${TTY_ARGS} \
     ${KUBE_ARGS} \
     ${KUBEADM_DIND_ARGS} \
