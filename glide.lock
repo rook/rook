@@ -1,8 +1,8 @@
-hash: 217958937f963168826d53f68b03fd51d9c88167624b8cf97c15f0455f46e2b7
-updated: 2017-07-17T16:52:36.136812758-07:00
+hash: b1ae2ccb7faf8210c44626b044e695dd929e9ad04262670c2148304ce9f6cce5
+updated: 2017-08-10T14:00:48.392169515-07:00
 imports:
 - name: github.com/aws/aws-sdk-go
-  version: 6d7fc1a00fcae6bbb53550f4a0b98324fd7aa250
+  version: d05c000e0b41647375a4093373eb1301e02c8a4e
   subpackages:
   - aws
   - aws/awserr
@@ -31,7 +31,7 @@ imports:
   - service/s3
   - service/sts
 - name: github.com/beorn7/perks
-  version: 4c0e84591b9aa9e6dcfdf3e020114cd81f89d5f9
+  version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
   subpackages:
   - quantile
 - name: github.com/boltdb/bolt
@@ -211,7 +211,7 @@ imports:
   - prometheus
   - prometheus/promhttp
 - name: github.com/prometheus/client_model
-  version: 6f3806018612930941127f2a7c6c453ba2c527d2
+  version: fa8ad6fec33561be4280a8f0514318c79d7f6cb6
   subpackages:
   - go
 - name: github.com/prometheus/common
@@ -318,6 +318,11 @@ imports:
   subpackages:
   - pkg/apis/apiextensions
   - pkg/apis/apiextensions/v1beta1
+  - pkg/client/clientset/clientset
+  - pkg/client/clientset/clientset/fake
+  - pkg/client/clientset/clientset/scheme
+  - pkg/client/clientset/clientset/typed/apiextensions/v1beta1
+  - pkg/client/clientset/clientset/typed/apiextensions/v1beta1/fake
 - name: k8s.io/apimachinery
   version: 728b986edb9bd4bb8a022a8cc13573a97ecc2239
   subpackages:
