@@ -123,14 +123,14 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	info, err := ceph.CreatePool(h.context, h.config.ClusterInfo.Name, newPool)
+	err := ceph.CreatePool(h.context, h.config.ClusterInfo.Name, newPool)
 	if err != nil {
 		logger.Errorf("failed to create new pool '%s': %+v", newPool.Name, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	w.Write([]byte(info))
+	w.Write([]byte(fmt.Sprintf("pool '%s' created", newPool.Name)))
 }
 
 func modelPoolToCephPool(modelPool model.Pool) ceph.CephStoragePoolDetails {
