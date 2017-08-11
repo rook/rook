@@ -43,15 +43,17 @@ type Cluster struct {
 	Namespace string
 	Version   string
 	Replicas  int
+	placement k8sutil.Placement
 	context   *clusterd.Context
 	dataDir   string
 }
 
 // New creates an instance of the mgr
-func New(context *clusterd.Context, namespace, version string) *Cluster {
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
 		Namespace: namespace,
+		placement: placement,
 		Version:   version,
 		Replicas:  1,
 		dataDir:   k8sutil.DataDir,
@@ -105,6 +107,7 @@ func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
 			},
 		},
 	}
+	c.placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
 	deployment.Spec = extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas}
