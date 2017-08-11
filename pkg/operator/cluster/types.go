@@ -83,6 +83,7 @@ type PlacementSpec struct {
 	All k8sutil.Placement `json:"all,omitempty"`
 	API k8sutil.Placement `json:"api,omitempty"`
 	MDS k8sutil.Placement `json:"mds,omitempty"`
+	MGR k8sutil.Placement `json:"mgr,omitempty"`
 	MON k8sutil.Placement `json:"mon,omitempty"`
 	OSD k8sutil.Placement `json:"osd,omitempty"`
 	RGW k8sutil.Placement `json:"rgw,omitempty"`
@@ -93,6 +94,9 @@ func (p PlacementSpec) GetAPI() k8sutil.Placement { return p.All.Merge(p.API) }
 
 // GetMDS returns the placement for the MDS service
 func (p PlacementSpec) GetMDS() k8sutil.Placement { return p.All.Merge(p.MDS) }
+
+// GetMGR returns the placement for the MGR service
+func (p PlacementSpec) GetMGR() k8sutil.Placement { return p.All.Merge(p.MGR) }
 
 // GetMON returns the placement for the MON service
 func (p PlacementSpec) GetMON() k8sutil.Placement { return p.All.Merge(p.MON) }

@@ -184,16 +184,13 @@ spec:
     api:
       nodeAffinity:
       tolerations:
-    mds:
+    mgr:
       nodeAffinity:
       tolerations:
     mon:
       nodeAffinity:
       tolerations:
     osd:
-      nodeAffinity:
-      tolerations:
-    rgw:
       nodeAffinity:
       tolerations:
 ```
