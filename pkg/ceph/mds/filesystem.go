@@ -39,6 +39,7 @@ const (
 	metadataPoolSuffix    = "-metadata"
 	mdsKeyName            = "mds"
 	FileSystemKey         = "fs"
+	appName               = "cephfs"
 )
 
 // A castle file system (an instance of CephFS)
@@ -79,13 +80,13 @@ func (f *FileSystem) CreateFilesystem(cluster *mon.ClusterInfo) error {
 
 	// Create the metadata and data pools
 	pool := client.CephStoragePoolDetails{Name: dataPool}
-	_, err = client.CreatePool(f.context, cluster.Name, pool)
+	err = client.CreatePoolForApp(f.context, cluster.Name, pool, appName)
 	if err != nil {
 		return fmt.Errorf("failed to create data pool '%s': %+v", dataPool, err)
 	}
 
 	pool = client.CephStoragePoolDetails{Name: metadataPool}
-	_, err = client.CreatePool(f.context, cluster.Name, pool)
+	err = client.CreatePoolForApp(f.context, cluster.Name, pool, appName)
 	if err != nil {
 		return fmt.Errorf("failed to create metadata pool '%s': %+v", metadataPool, err)
 	}

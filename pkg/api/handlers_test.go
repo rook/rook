@@ -246,6 +246,7 @@ func TestCreatePoolHandler(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
+	appEnabled := false
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 		switch {
 		case args[1] == "erasure-code-profile" && args[2] == "get":
@@ -255,10 +256,14 @@ func TestCreatePoolHandler(t *testing.T) {
 		case args[1] == "erasure-code-profile" && args[2] == "set":
 			return "", nil
 		case args[1] == "pool" && args[2] == "create":
-			return "pool 'ecPool1' created", nil
-
+			return "", nil
+		case args[1] == "pool" && args[2] == "application" && args[3] == "enable":
+			assert.Equal(t, "ecPool1", args[4])
+			assert.Equal(t, "ecPool1", args[5])
+			appEnabled = true
+			return "", nil
 		}
-		return "", fmt.Errorf("unexpected mon_command '%v'", args)
+		return "", fmt.Errorf("unexpected command '%v'", args)
 	}
 
 	h := newTestHandler(context)
@@ -266,6 +271,7 @@ func TestCreatePoolHandler(t *testing.T) {
 	h.CreatePool(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, "pool 'ecPool1' created", w.Body.String())
+	assert.True(t, appEnabled)
 }
 
 func TestCreatePoolHandlerFailure(t *testing.T) {
