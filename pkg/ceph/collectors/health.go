@@ -20,33 +20,13 @@ which has the same license.
 package collectors
 
 import (
-	"bufio"
-	"bytes"
-	"fmt"
 	"regexp"
 	"strconv"
-	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
 
 	cephclient "github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/clusterd"
-)
-
-var (
-	recoveryIORateRegex    = regexp.MustCompile(`(\d+) (\w{2})/s`)
-	recoveryIOKeysRegex    = regexp.MustCompile(`(\d+) keys/s`)
-	recoveryIOObjectsRegex = regexp.MustCompile(`(\d+) objects/s`)
-	clientIOReadRegex      = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s rd`)
-	clientIOWriteRegex     = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s wr`)
-	clientIOReadOpsRegex   = regexp.MustCompile(`(\d+) op/s rd`)
-	clientIOWriteOpsRegex  = regexp.MustCompile(`(\d+) op/s wr`)
-	cacheFlushRateRegex    = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s flush`)
-	cacheEvictRateRegex    = regexp.MustCompile(`(\d+) ([kKmMgG][bB])/s evict`)
-	cachePromoteOpsRegex   = regexp.MustCompile(`(\d+) op/s promote`)
-
-	// Older versions of Ceph, hammer (v0.94) and below, support this format.
-	clientIOOpsRegex = regexp.MustCompile(`(\d+) op/s[^ \w]*$`)
 )
 
 // ClusterHealthCollector collects information about the health of an overall cluster.
@@ -399,11 +379,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 	}
 }
 
-func (c *ClusterHealthCollector) collect() error {
-	stats, err := cephclient.Status(c.context, c.clusterName)
-	if err != nil {
-		return err
-	}
+func (c *ClusterHealthCollector) collect(stats cephclient.CephStatus) error {
 
 	for _, metric := range c.metricsList() {
 		if gauge, ok := metric.(prometheus.Gauge); ok {
@@ -436,7 +412,7 @@ func (c *ClusterHealthCollector) collect() error {
 	)
 
 	for _, m := range stats.Health.Checks {
-		matched := degradedRegex.FindStringSubmatch(m.Message)
+		matched := degradedRegex.FindStringSubmatch(m.Summary.Message)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
@@ -445,7 +421,7 @@ func (c *ClusterHealthCollector) collect() error {
 			c.DegradedPGs.Set(float64(v))
 		}
 
-		matched = stuckDegradedRegex.FindStringSubmatch(m.Message)
+		matched = stuckDegradedRegex.FindStringSubmatch(m.Summary.Message)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
@@ -454,7 +430,7 @@ func (c *ClusterHealthCollector) collect() error {
 			c.StuckDegradedPGs.Set(float64(v))
 		}
 
-		matched = uncleanRegex.FindStringSubmatch(m.Message)
+		matched = uncleanRegex.FindStringSubmatch(m.Summary.Message)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
@@ -463,7 +439,7 @@ func (c *ClusterHealthCollector) collect() error {
 			c.UncleanPGs.Set(float64(v))
 		}
 
-		matched = stuckUncleanRegex.FindStringSubmatch(m.Message)
+		matched = stuckUncleanRegex.FindStringSubmatch(m.Summary.Message)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
@@ -472,7 +448,7 @@ func (c *ClusterHealthCollector) collect() error {
 			c.StuckUncleanPGs.Set(float64(v))
 		}
 
-		matched = undersizedRegex.FindStringSubmatch(m.Message)
+		matched = undersizedRegex.FindStringSubmatch(m.Summary.Message)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
@@ -481,7 +457,7 @@ func (c *ClusterHealthCollector) collect() error {
 			c.UndersizedPGs.Set(float64(v))
 		}
 
-		matched = stuckUndersizedRegex.FindStringSubmatch(m.Message)
+		matched = stuckUndersizedRegex.FindStringSubmatch(m.Summary.Message)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
@@ -490,7 +466,7 @@ func (c *ClusterHealthCollector) collect() error {
 			c.StuckUndersizedPGs.Set(float64(v))
 		}
 
-		matched = staleRegex.FindStringSubmatch(m.Message)
+		matched = staleRegex.FindStringSubmatch(m.Summary.Message)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
@@ -499,7 +475,7 @@ func (c *ClusterHealthCollector) collect() error {
 			c.StalePGs.Set(float64(v))
 		}
 
-		matched = stuckStaleRegex.FindStringSubmatch(m.Message)
+		matched = stuckStaleRegex.FindStringSubmatch(m.Summary.Message)
 		if len(matched) == 2 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
@@ -508,7 +484,7 @@ func (c *ClusterHealthCollector) collect() error {
 			c.StuckStalePGs.Set(float64(v))
 		}
 
-		matched = degradedObjectsRegex.FindStringSubmatch(m.Message)
+		matched = degradedObjectsRegex.FindStringSubmatch(m.Summary.Message)
 		if len(matched) == 3 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
@@ -517,7 +493,7 @@ func (c *ClusterHealthCollector) collect() error {
 			c.DegradedObjectsCount.Set(float64(v))
 		}
 
-		matched = misplacedObjectsRegex.FindStringSubmatch(m.Message)
+		matched = misplacedObjectsRegex.FindStringSubmatch(m.Summary.Message)
 		if len(matched) == 3 {
 			v, err := strconv.Atoi(matched[1])
 			if err != nil {
@@ -549,220 +525,51 @@ func (c *ClusterHealthCollector) collect() error {
 	return nil
 }
 
-func (c *ClusterHealthCollector) collectRecoveryClientIO() error {
-	buf, err := cephclient.StatusPlain(c.context, c.clusterName)
-	if err != nil {
+func (c *ClusterHealthCollector) collectRecoveryClientIO(stats cephclient.CephStatus) error {
+	if err := c.collectRecoveryIO(stats); err != nil {
 		return err
 	}
 
-	sc := bufio.NewScanner(bytes.NewReader(buf))
-	for sc.Scan() {
-		line := strings.TrimSpace(sc.Text())
-
-		switch {
-		case strings.HasPrefix(line, "recovery io"):
-			if err := c.collectRecoveryIO(line); err != nil {
-				return err
-			}
-		case strings.HasPrefix(line, "client io"):
-			if err := c.collectClientIO(line); err != nil {
-				return err
-			}
-		case strings.HasPrefix(line, "cache io"):
-			if err := c.collectCacheIO(line); err != nil {
-				return err
-			}
-		}
+	if err := c.collectClientIO(stats); err != nil {
+		return err
 	}
+
+	if err := c.collectCacheIO(stats); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (c *ClusterHealthCollector) collectClientIO(clientStr string) error {
-	matched := clientIOReadRegex.FindStringSubmatch(clientStr)
-	if len(matched) == 3 {
-		v, err := strconv.Atoi(matched[1])
-		if err != nil {
-			return err
-		}
+func (c *ClusterHealthCollector) collectClientIO(stats cephclient.CephStatus) error {
+	c.ClientIORead.Set(float64(stats.PgMap.ReadBps))
+	c.ClientIOWrite.Set(float64(stats.PgMap.WriteBps))
 
-		switch strings.ToLower(matched[2]) {
-		case "gb":
-			v = v * 1e9
-		case "mb":
-			v = v * 1e6
-		case "kb":
-			v = v * 1e3
-		default:
-			return fmt.Errorf("can't parse units %q", matched[2])
-		}
+	clientIOReadOps := float64(stats.PgMap.ReadOps)
+	c.ClientIOReadOps.Set(clientIOReadOps)
 
-		c.ClientIORead.Set(float64(v))
-	}
+	clientIOWriteOps := float64(stats.PgMap.WriteOps)
+	c.ClientIOWriteOps.Set(clientIOWriteOps)
 
-	matched = clientIOWriteRegex.FindStringSubmatch(clientStr)
-	if len(matched) == 3 {
-		v, err := strconv.Atoi(matched[1])
-		if err != nil {
-			return err
-		}
-
-		switch strings.ToLower(matched[2]) {
-		case "gb":
-			v = v * 1e9
-		case "mb":
-			v = v * 1e6
-		case "kb":
-			v = v * 1e3
-		default:
-			return fmt.Errorf("can't parse units %q", matched[2])
-		}
-
-		c.ClientIOWrite.Set(float64(v))
-	}
-
-	var clientIOOps float64
-	matched = clientIOOpsRegex.FindStringSubmatch(clientStr)
-	if len(matched) == 2 {
-		v, err := strconv.Atoi(matched[1])
-		if err != nil {
-			return err
-		}
-
-		clientIOOps = float64(v)
-	}
-
-	var clientIOReadOps, clientIOWriteOps float64
-	matched = clientIOReadOpsRegex.FindStringSubmatch(clientStr)
-	if len(matched) == 2 {
-		v, err := strconv.Atoi(matched[1])
-		if err != nil {
-			return err
-		}
-
-		clientIOReadOps = float64(v)
-		c.ClientIOReadOps.Set(clientIOReadOps)
-	}
-
-	matched = clientIOWriteOpsRegex.FindStringSubmatch(clientStr)
-	if len(matched) == 2 {
-		v, err := strconv.Atoi(matched[1])
-		if err != nil {
-			return err
-		}
-
-		clientIOWriteOps = float64(v)
-		c.ClientIOWriteOps.Set(clientIOWriteOps)
-	}
-
-	// In versions older than Jewel, we directly get access to total
-	// client I/O. But in Jewel and newer the format is changed to
-	// separately display read and write IOPs. In such a case, we
-	// compute and set the total IOPs ourselves.
-	if clientIOOps == 0 {
-		clientIOOps = clientIOReadOps + clientIOWriteOps
-	}
-
+	clientIOOps := clientIOReadOps + clientIOWriteOps
 	c.ClientIOOps.Set(clientIOOps)
 
 	return nil
 }
 
-func (c *ClusterHealthCollector) collectRecoveryIO(recoveryStr string) error {
-	matched := recoveryIORateRegex.FindStringSubmatch(recoveryStr)
-	if len(matched) == 3 {
-		v, err := strconv.Atoi(matched[1])
-		if err != nil {
-			return err
-		}
+func (c *ClusterHealthCollector) collectRecoveryIO(stats cephclient.CephStatus) error {
+	c.RecoveryIORate.Set(float64(stats.PgMap.RecoveryBps))
+	c.RecoveryIOKeys.Set(float64(stats.PgMap.RecoveryKeysPerSec))
+	c.RecoveryIOObjects.Set(float64(stats.PgMap.RecoveryObjectsPerSec))
 
-		switch strings.ToLower(matched[2]) {
-		case "gb":
-			v = v * 1e9
-		case "mb":
-			v = v * 1e6
-		case "kb":
-			v = v * 1e3
-		default:
-			return fmt.Errorf("can't parse units %q", matched[2])
-		}
-
-		c.RecoveryIORate.Set(float64(v))
-	}
-
-	matched = recoveryIOKeysRegex.FindStringSubmatch(recoveryStr)
-	if len(matched) == 2 {
-		v, err := strconv.Atoi(matched[1])
-		if err != nil {
-			return err
-		}
-
-		c.RecoveryIOKeys.Set(float64(v))
-	}
-
-	matched = recoveryIOObjectsRegex.FindStringSubmatch(recoveryStr)
-	if len(matched) == 2 {
-		v, err := strconv.Atoi(matched[1])
-		if err != nil {
-			return err
-		}
-
-		c.RecoveryIOObjects.Set(float64(v))
-	}
 	return nil
 }
 
-func (c *ClusterHealthCollector) collectCacheIO(clientStr string) error {
-	matched := cacheFlushRateRegex.FindStringSubmatch(clientStr)
-	if len(matched) == 3 {
-		v, err := strconv.Atoi(matched[1])
-		if err != nil {
-			return err
-		}
+func (c *ClusterHealthCollector) collectCacheIO(stats cephclient.CephStatus) error {
+	c.CacheFlushIORate.Set(float64(stats.PgMap.CacheFlushBps))
+	c.CacheEvictIORate.Set(float64(stats.PgMap.CacheEvictBps))
+	c.CachePromoteIOOps.Set(float64(stats.PgMap.CachePromoteBps))
 
-		switch strings.ToLower(matched[2]) {
-		case "gb":
-			v = v * 1e9
-		case "mb":
-			v = v * 1e6
-		case "kb":
-			v = v * 1e3
-		default:
-			return fmt.Errorf("can't parse units %q", matched[2])
-		}
-
-		c.CacheFlushIORate.Set(float64(v))
-	}
-
-	matched = cacheEvictRateRegex.FindStringSubmatch(clientStr)
-	if len(matched) == 3 {
-		v, err := strconv.Atoi(matched[1])
-		if err != nil {
-			return err
-		}
-
-		switch strings.ToLower(matched[2]) {
-		case "gb":
-			v = v * 1e9
-		case "mb":
-			v = v * 1e6
-		case "kb":
-			v = v * 1e3
-		default:
-			return fmt.Errorf("can't parse units %q", matched[2])
-		}
-
-		c.CacheEvictIORate.Set(float64(v))
-	}
-
-	matched = cachePromoteOpsRegex.FindStringSubmatch(clientStr)
-	if len(matched) == 2 {
-		v, err := strconv.Atoi(matched[1])
-		if err != nil {
-			return err
-		}
-
-		c.CachePromoteIOOps.Set(float64(v))
-	}
 	return nil
 }
 
@@ -777,11 +584,17 @@ func (c *ClusterHealthCollector) Describe(ch chan<- *prometheus.Desc) {
 // Collect sends all the collected metrics to the provided prometheus channel.
 // It requires the caller to handle synchronization.
 func (c *ClusterHealthCollector) Collect(ch chan<- prometheus.Metric) {
-	if err := c.collect(); err != nil {
+	stats, err := cephclient.Status(c.context, c.clusterName)
+	if err != nil {
+		logger.Errorf("failed to get status: %+v", err)
+		return
+	}
+
+	if err := c.collect(stats); err != nil {
 		logger.Errorf("failed collecting cluster health metrics: %+v", err)
 	}
 
-	if err := c.collectRecoveryClientIO(); err != nil {
+	if err := c.collectRecoveryClientIO(stats); err != nil {
 		logger.Errorf("failed collecting cluster recovery/client io: %+v", err)
 	}
 
