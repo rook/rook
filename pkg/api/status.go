@@ -39,7 +39,7 @@ func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
 		checks[i] = model.StatusSummary{
 			Name:    name,
 			Status:  ceph.HealthToModelHealthStatus(check.Severity),
-			Message: check.Message,
+			Message: check.Summary.Message,
 		}
 		i++
 	}
