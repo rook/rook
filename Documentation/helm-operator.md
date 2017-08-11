@@ -34,8 +34,6 @@ $ helm install rook-alpha/rook
 
 The command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
 
-## Installing from source
-
 Alternatively, to deploy from a local checkout of the rook codebase:
 
 ```console
