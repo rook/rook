@@ -109,16 +109,18 @@ func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
 
-	if len(c.clusterInfo.Monitors) == 0 {
-		// Start the initial monitors at startup
-		mons, err := c.initMonServices()
-		if err != nil {
-			return nil, fmt.Errorf("failed to init mons. %+v", err)
-		}
+	if len(c.clusterInfo.Monitors) < c.Size {
+		// Start one monitor at a time
+		for i := len(c.clusterInfo.Monitors); i < c.Size; i++ {
+			mons, err := c.initMonServices(i + 1)
+			if err != nil {
+				return nil, fmt.Errorf("failed to init mons. %+v", err)
+			}
 
-		err = c.startPods(mons)
-		if err != nil {
-			return nil, fmt.Errorf("failed to start mon pods. %+v", err)
+			err = c.startPods(mons)
+			if err != nil {
+				return nil, fmt.Errorf("failed to start mon pods. %+v", err)
+			}
 		}
 	} else {
 		// Check the health of a previously started cluster
@@ -178,7 +180,7 @@ func (c *Cluster) initClusterInfo() error {
 	return nil
 }
 
-func (c *Cluster) initMonServices() ([]*monConfig, error) {
+func (c *Cluster) initMonServices(size int) ([]*monConfig, error) {
 	mons := []*monConfig{}
 
 	// initialize the mon pod info for mons that have been previously created
@@ -187,7 +189,7 @@ func (c *Cluster) initMonServices() ([]*monConfig, error) {
 	}
 
 	// initialize mon info if we don't have enough mons (at first startup)
-	for i := len(c.clusterInfo.Monitors); i < c.Size; i++ {
+	for i := len(c.clusterInfo.Monitors); i < size; i++ {
 		c.maxMonID++
 		mons = append(mons, &monConfig{Name: fmt.Sprintf("%s%d", appName, c.maxMonID), Port: int32(mon.Port)})
 	}
@@ -293,6 +295,10 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return "", fmt.Errorf("failed to create mon service. %+v", err)
+		}
+		s, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get(mon.Name, metav1.GetOptions{})
+		if err != nil {
+			return "", fmt.Errorf("failed to get mon %s service ip. %+v", mon.Name, err)
 		}
 	}
 
