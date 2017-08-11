@@ -74,7 +74,7 @@ endif
 # set the version number. you should not need to do this
 # for the majority of scenarios.
 ifeq ($(origin VERSION), undefined)
-VERSION := $(shell git describe --dirty --always --tags)
+VERSION := $(shell git describe --dirty --always --tags | sed 's/-g/./g')
 endif
 export VERSION
 
