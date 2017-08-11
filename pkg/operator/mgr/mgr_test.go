@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -42,7 +43,7 @@ func TestStartMGR(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	c := New(context, "ns", "myversion")
+	c := New(context, "ns", "myversion", k8sutil.Placement{})
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic service
@@ -67,7 +68,7 @@ func validateStart(t *testing.T, c *Cluster) {
 }
 
 func TestPodSpec(t *testing.T) {
-	c := New(nil, "ns", "myversion")
+	c := New(nil, "ns", "myversion", k8sutil.Placement{})
 
 	d := c.makeDeployment("mgr1")
 	assert.NotNil(t, d)
