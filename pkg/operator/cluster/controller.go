@@ -177,7 +177,7 @@ func (c *Cluster) createInstance() error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag)
+	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetMGR())
 	err = c.mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
