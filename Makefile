@@ -65,8 +65,9 @@ GO_PROJECT=github.com/rook/rook
 LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 
 # ====================================================================================
-# Setup Go projects
+# Setup projects
 
+# setup go projects
 GO_STATIC_PACKAGES=
 ifneq ($(filter $(PLATFORM),$(CLIENT_PLATFORMS) $(SERVER_PLATFORMS)),)
 GO_STATIC_PACKAGES += $(CLIENT_PACKAGES)
@@ -85,12 +86,17 @@ GO_TEST_SUITE=$(SUITE)
 
 include build/makelib/golang.mk
 
+# setup helm charts
+include build/makelib/helm.mk
+
 # ====================================================================================
 # Targets
 
-build.common:
+build.version:
 	@mkdir -p $(OUTPUT_DIR)
 	@echo "$(VERSION)" > $(OUTPUT_DIR)/version
+
+build.common: build.version helm.build
 	@$(MAKE) go.init
 	@$(MAKE) go.validate
 

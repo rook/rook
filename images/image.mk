@@ -39,13 +39,8 @@ ifeq ($(GOARCH),arm64)
 OSBASEIMAGE=aarch64/$(OSBASE)
 endif
 
-UNAME_S:=$(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-SED_CMD?=sed -i ""
-endif
-ifeq ($(UNAME_S),Linux)
-SED_CMD?=sed -i
 # if we are running inside the container get our own cid
+ifeq ($(UNAME_S),Linux)
 SELF_CID := $(shell cat /proc/self/cgroup | grep docker | grep -o -E '[0-9a-f]{64}' | head -n 1)
 endif
 

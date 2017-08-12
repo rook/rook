@@ -11,7 +11,7 @@ indent: true
 Kubernetes v1.6 or higher is targeted by Rook (while Rook is in alpha it will track the latest release to use the latest features).
 
 Support is available for Kubernetes v1.5.2, although your mileage may vary.
-You will need to use the yaml files from the [1.5 folder](/demo/kubernetes/1.5).
+You will need to use the yaml files from the [1.5 folder](/cluster/examples/kubernetes/1.5).
 
 ## Privileges
 

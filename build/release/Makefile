@@ -15,6 +15,7 @@
 all: build
 
 include ../makelib/common.mk
+include ../makelib/helm.mk
 
 # ====================================================================================
 # Options
@@ -48,7 +49,7 @@ REMOTE_NAME ?= origin
 PLATFORMS ?= $(ALL_PLATFORMS)
 
 ifneq ($(filter master release-%,$(BRANCH_NAME)),)
-FLAVORS ?= output images docs
+FLAVORS ?= output images docs helm
 else
 FLAVORS ?= output
 override BRANCH_NAME := pr/$(BRANCH_NAME)
@@ -114,7 +115,6 @@ endif
 # docs
 
 build.docs:
-
 	rm -rf $(DOCS_WORK_DIR)
 	mkdir -p $(DOCS_WORK_DIR)
 	git clone --depth=1 -b master $(DOCS_GIT_REPO) $(DOCS_WORK_DIR)
@@ -123,8 +123,21 @@ build.docs:
 	cd $(DOCS_WORK_DIR) && npm install && node build/scripts/preprocess.js
 
 publish.docs:
-
 	$(DOCS_WORK_DIR)/build/publish.sh
+
+# ====================================================================================
+# helm
+
+HELM_TEMP := $(shell mktemp -d)
+HELM_URL := $(HELM_BASE_URL)/$(CHANNEL)
+
+promote.helm:
+#	copy existing charts to a temp dir, the combine with new charts, reindex, and upload
+	@$(S3_SYNC) s3://$(HELM_S3_BUCKET)/$(CHANNEL) $(HELM_TEMP)
+	@$(S3_SYNC) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION)/charts $(HELM_TEMP)
+	@$(HELM) repo index --url $(HELM_URL) $(HELM_TEMP)
+	@$(S3_SYNC) $(HELM_TEMP) s3://$(HELM_S3_BUCKET)/$(CHANNEL)
+	@rm -fr $(HELM_TEMP)
 
 # ====================================================================================
 # output

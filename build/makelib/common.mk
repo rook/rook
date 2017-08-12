@@ -63,11 +63,20 @@ CXX := $(CROSS_TRIPLE)-g++
 export CC CXX
 endif
 
+UNAME_S:=$(shell uname -s)
+ifeq ($(UNAME_S),Darwin)
+SED_CMD?=sed -i ""
+endif
+ifeq ($(UNAME_S),Linux)
+SED_CMD?=sed -i
+endif
+
 # set the version number. you should not need to do this
 # for the majority of scenarios.
 ifeq ($(origin VERSION), undefined)
-VERSION := $(shell git describe --dirty --always --tags)
+VERSION := $(shell git describe --dirty --always --tags | sed 's/-g/.g/g;s/-dirty/.dirty/g')
 endif
+export VERSION
 
 # include the common make file
 COMMON_SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
