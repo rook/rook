@@ -64,7 +64,8 @@ IMAGE_PLATFORMS := $(subst _,/,$(subst $(SPACE),$(COMMA),$(filter linux_%,$(PLAT
 
 S3_BUCKET ?= rook-release
 S3_CP := aws s3 cp --only-show-errors
-S3_SYNC := aws s3 sync --only-show-errors --delete
+S3_SYNC := aws s3 sync --only-show-errors
+S3_SYNC_DEL := aws s3 sync --only-show-errors --delete
 
 # ====================================================================================
 # tools
@@ -136,17 +137,17 @@ promote.helm:
 	@$(S3_SYNC) s3://$(HELM_S3_BUCKET)/$(CHANNEL) $(HELM_TEMP)
 	@$(S3_SYNC) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION)/charts $(HELM_TEMP)
 	@$(HELM) repo index --url $(HELM_URL) $(HELM_TEMP)
-	@$(S3_SYNC) $(HELM_TEMP) s3://$(HELM_S3_BUCKET)/$(CHANNEL)
+	@$(S3_SYNC_DEL) $(HELM_TEMP) s3://$(HELM_S3_BUCKET)/$(CHANNEL)
 	@rm -fr $(HELM_TEMP)
 
 # ====================================================================================
 # output
 
 publish.output:
-	@$(S3_SYNC) $(OUTPUT_DIR) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION)
+	@$(S3_SYNC_DEL) $(OUTPUT_DIR) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION)
 promote.output:
-	@$(S3_SYNC) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION) s3://$(S3_BUCKET)/$(CHANNEL)/$(VERSION)
-	@$(S3_SYNC) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION) s3://$(S3_BUCKET)/$(CHANNEL)/current
+	@$(S3_SYNC_DEL) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION) s3://$(S3_BUCKET)/$(CHANNEL)/$(VERSION)
+	@$(S3_SYNC_DEL) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION) s3://$(S3_BUCKET)/$(CHANNEL)/current
 
 # ====================================================================================
 # images
