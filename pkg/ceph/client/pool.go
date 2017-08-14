@@ -106,7 +106,12 @@ func GetPoolDetails(context *clusterd.Context, clusterName, name string) (CephSt
 	return poolDetails, nil
 }
 
-func CreatePool(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails) (string, error) {
+func CreatePool(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails) error {
+	// for a generic/custom pool, just reuse the pool name for its app name
+	return CreatePoolForApp(context, clusterName, newPool, newPool.Name)
+}
+
+func CreatePoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string) error {
 	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number)}
 	// not implemented: fix the pool create for the different profiles
 	if newPool.ErasureCodeProfile != "" {
@@ -117,25 +122,32 @@ func CreatePool(context *clusterd.Context, clusterName string, newPool CephStora
 
 	buf, err := ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
-		return "", fmt.Errorf("mon_command failed. %+v", err)
+		return fmt.Errorf("failed to create pool %s. %+v", newPool.Name, err)
 	}
 
 	if newPool.ErasureCodeProfile == "" && newPool.Size > 0 {
 		// the pool is type replicated, set the size for the pool now that it's been created
 		if err = SetPoolProperty(context, clusterName, newPool.Name, "size", strconv.FormatUint(uint64(newPool.Size), 10)); err != nil {
-			return "", err
+			return err
 		}
 	}
 
+	// ensure that the newly created pool gets an application tag
+	args = []string{"osd", "pool", "application", "enable", newPool.Name, appName}
+	_, err = ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to enable application %s on pool %s. %+v", appName, newPool.Name, err)
+	}
+
 	logger.Infof("creating pool %s succeeded, buf: %s", newPool.Name, string(buf))
-	return string(buf), nil
+	return nil
 }
 
 func SetPoolProperty(context *clusterd.Context, clusterName, name, propName string, propVal string) error {
 	args := []string{"osd", "pool", "set", name, propName, propVal}
 	_, err := ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
-		return fmt.Errorf("mon_command failed, %+v", err)
+		return fmt.Errorf("failed to set pool property %s on pool %s, %+v", propName, name, err)
 	}
 	return nil
 }
