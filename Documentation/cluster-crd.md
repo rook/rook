@@ -89,7 +89,7 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: v0.5.0
+  versionTag: v0.5.1
   dataDirHostPath:
   # cluster level storage configuration and selection
   storage:
@@ -121,7 +121,7 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: v0.5.0
+  versionTag: v0.5.1
   dataDirHostPath:
   # cluster level storage configuration and selection
   storage:                
@@ -166,7 +166,7 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: v0.5.0
+  versionTag: v0.5.1
   dataDirHostPath:
   placement:
     all:

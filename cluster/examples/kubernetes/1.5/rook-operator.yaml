@@ -11,7 +11,7 @@ spec:
     spec:
       containers:
       - name: rook-operator
-        image: rook/rook:v0.5.0
+        image: rook/rook:v0.5.1
         args: ["operator"]
         env:
         - name: ROOK_REPO_PREFIX
