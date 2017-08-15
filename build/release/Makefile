@@ -132,7 +132,7 @@ publish.docs:
 HELM_TEMP := $(shell mktemp -d)
 HELM_URL := $(HELM_BASE_URL)/$(CHANNEL)
 
-promote.helm:
+promote.helm: $(HELM)
 #	copy existing charts to a temp dir, the combine with new charts, reindex, and upload
 	@$(S3_SYNC) s3://$(HELM_S3_BUCKET)/$(CHANNEL) $(HELM_TEMP)
 	@$(S3_SYNC) s3://$(S3_BUCKET)/build/$(BRANCH_NAME)/$(VERSION)/charts $(HELM_TEMP)
