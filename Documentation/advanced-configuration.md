@@ -9,6 +9,7 @@ indent: true
 These examples show how to perform advanced configuration tasks on your Rook
 storage cluster.
 
+- [Change Rook Docker Image Prefix](#change-rook-docker-image-prefix)
 - [Log Collection](#log-collection)
 - [OSD Information](#osd-information)
 - [Separate Storage Groups](#separate-storage-groups)
@@ -24,6 +25,11 @@ the Ceph client suite is from a [Rook Toolbox container](toolbox.md).
 The Kubernetes based examples assume Rook OSD pods are in the `rook` namespace.
 If you run them in a different namespace, modify `kubectl -n rook [...]` to fit
 your situation.
+
+## Change Rook Docker Image Prefix
+To change the prefix of rook Docker images used, the environment variable `ROOK_REPO_PREFIX` can be changed.
+The variable needs to be, depending on the deployment of the rook-operator, added/changed in the rook-operator deployment.
+The default is `rook` which will pull from [Docker Hub](https://hub.docker.com/r/rook/rook/). For example to use your own built images: `your-registry.example.com/your-name/rook`.
 
 ## Log Collection
 
