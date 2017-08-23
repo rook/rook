@@ -360,6 +360,24 @@ func TestClusterHealthCollector(t *testing.T) {
 				regexp.MustCompile(`total_pgs 52000`),
 			},
 		},
+		{
+			input: `
+{
+  "health": {
+    "checks": {
+      "REQUEST_SLOW": {
+        "severity": "HEALTH_WARN",
+        "summary": {
+          "message": "6 slow requests are blocked > 32 sec"
+        }
+      }
+    }
+  }
+}`,
+			regexes: []*regexp.Regexp{
+				regexp.MustCompile(`slow_requests 6`),
+			},
+		},
 	} {
 		func() {
 			executor := &exectest.MockExecutor{

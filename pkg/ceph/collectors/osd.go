@@ -289,7 +289,6 @@ func (o *OSDCollector) collect() error {
 
 		depth, err := node.Depth.Float64()
 		if err != nil {
-
 			return err
 		}
 
