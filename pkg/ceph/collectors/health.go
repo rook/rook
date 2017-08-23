@@ -78,6 +78,9 @@ type ClusterHealthCollector struct {
 	// in that state.
 	StuckStalePGs prometheus.Gauge
 
+	// SlowRequests depicts no. of total slow requests in the cluster
+	SlowRequests prometheus.Gauge
+
 	// DegradedObjectsCount gives the no. of RADOS objects are constitute the degraded PGs.
 	// This includes object replicas in its count.
 	DegradedObjectsCount prometheus.Gauge
@@ -215,6 +218,13 @@ func NewClusterHealthCollector(context *clusterd.Context, clusterName string) *C
 				Namespace: cephNamespace,
 				Name:      "stuck_stale_pgs",
 				Help:      "No. of stuck stale PGs in the cluster",
+			},
+		),
+		SlowRequests: prometheus.NewGauge(
+			prometheus.GaugeOpts{
+				Namespace: cephNamespace,
+				Name:      "slow_requests",
+				Help:      "No. of slow requests",
 			},
 		),
 		DegradedObjectsCount: prometheus.NewGauge(
@@ -358,6 +368,7 @@ func (c *ClusterHealthCollector) metricsList() []prometheus.Metric {
 		c.StuckUndersizedPGs,
 		c.StalePGs,
 		c.StuckStalePGs,
+		c.SlowRequests,
 		c.DegradedObjectsCount,
 		c.MisplacedObjectsCount,
 		c.OSDsDown,
@@ -407,6 +418,7 @@ func (c *ClusterHealthCollector) collect(stats cephclient.CephStatus) error {
 		stuckUndersizedRegex  = regexp.MustCompile(`([\d]+) pgs stuck undersized`)
 		staleRegex            = regexp.MustCompile(`([\d]+) pgs stale`)
 		stuckStaleRegex       = regexp.MustCompile(`([\d]+) pgs stuck stale`)
+		slowRequestRegex      = regexp.MustCompile(`([\d]+) slow requests are blocked`)
 		degradedObjectsRegex  = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects degraded`)
 		misplacedObjectsRegex = regexp.MustCompile(`recovery ([\d]+)/([\d]+) objects misplaced`)
 	)
@@ -482,6 +494,15 @@ func (c *ClusterHealthCollector) collect(stats cephclient.CephStatus) error {
 				return err
 			}
 			c.StuckStalePGs.Set(float64(v))
+		}
+
+		matched = slowRequestRegex.FindStringSubmatch(m.Summary.Message)
+		if len(matched) == 2 {
+			v, err := strconv.Atoi(matched[1])
+			if err != nil {
+				return err
+			}
+			c.SlowRequests.Set(float64(v))
 		}
 
 		matched = degradedObjectsRegex.FindStringSubmatch(m.Summary.Message)
