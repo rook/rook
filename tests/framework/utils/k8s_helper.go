@@ -17,21 +17,23 @@ limitations under the License.
 package utils
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"os"
+	"path"
 	"strings"
 	"time"
-
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-
-	"bytes"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/jmoiron/jsonq"
 	"github.com/rook/rook/pkg/util/exec"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"strconv"
 )
 
 //K8sHelper is a helper for common kubectl commads
@@ -643,4 +645,50 @@ func (k8sh *K8sHelper) IsRookInstalled() bool {
 	}
 
 	return false
+}
+
+//GetRookLogs captures logs from specified rook pod and writes it to specified file
+func (k8sh *K8sHelper) GetRookLogs(podAppName string, namespace string, testName string) {
+	logOpts := &v1.PodLogOptions{}
+	listOpts := metav1.ListOptions{LabelSelector: "app=" + podAppName}
+
+	podList, err := k8sh.Clientset.Pods(namespace).List(listOpts)
+	if err != nil {
+		logger.Errorf("Cannot get logs for app : %v in namespace %v, err: %v", podAppName, namespace, err)
+		return
+	}
+
+	for _, pod := range podList.Items {
+		podName := pod.Name
+		logger.Infof("getting logs for pod : %v", podName)
+		res := k8sh.Clientset.Pods(namespace).GetLogs(podName, logOpts).Do()
+		rawData, err := res.Raw()
+		if err != nil {
+			logger.Errorf("Cannot get logs for app : %v in namespace %v, err: %v", podName, namespace, err)
+			continue
+		}
+		dir, _ := os.Getwd()
+		fpath := path.Join(dir, "_output/tests/")
+		if _, err := os.Stat(fpath); os.IsNotExist(err) {
+			err := os.MkdirAll(fpath, 0777)
+			if err != nil {
+				logger.Errorf("Cannot get logs files dir for app : %v in namespace %v, err: %v", podName, namespace, err)
+				continue
+			}
+		}
+		fileName := testName + "_" + podName + "_" + strconv.FormatInt(time.Now().Unix(), 10) + ".log"
+		fpath = path.Join(fpath, fileName)
+		file, err := os.Create(fpath)
+		if err != nil {
+			logger.Errorf("Cannot get logs files for app : %v in namespace %v, err: %v", podName, namespace, err)
+			continue
+		}
+
+		defer file.Close()
+		_, err = file.Write(rawData)
+		if err != nil {
+			logger.Errorf("Errors while writing logs for : %v to file, err : %v", podName, err)
+			continue
+		}
+	}
 }
