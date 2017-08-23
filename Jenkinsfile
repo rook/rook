@@ -29,15 +29,23 @@ pipeline {
 
                     def data = [
                         "aws_ci": "v1.6.7",
-                        "gce_ci": "v1.7.2"
+                        "gce_ci": "v1.7.4"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
                         testruns[kv[0]] = RunIntegrationTest(kv[0], kv[1])
                     }
+                    try{
+                        parallel testruns
+                    }
 
-                    parallel testruns
-
+                    finally{
+                        sh "build/run go get -u -f  github.com/jstemmer/go-junit-report"
+                        for (kv in mapToList(data)) {
+                            unstash "${kv[0]}_${kv[1]}_result"
+                            sh "cat _output/tests/${kv[0]}_${kv[1]}_integrationTests.log | _output/go-junit-report > _output/tests/${kv[0]}_${kv[1]}_integrationTests.xml"
+                        }
+                    }
                 }
             }
         }
@@ -84,11 +92,11 @@ def RunIntegrationTest(k, v) {
                         set -o pipefail
                         export KUBECONFIG=$HOME/admin.conf
                         kubectl config view
-                        kubectl create clusterrolebinding anon-user-access --clusterrole cluster-admin --user system:anonymous
                         _output/tests/linux_amd64/smoke -test.v -test.timeout 1200s 2>&1 | tee _output/tests/integrationTests.log'''
                     }
                     finally{
                         sh "mv _output/tests/integrationTests.log _output/tests/${k}_${v}_integrationTests.log"
+                        stash name: "${k}_${v}_result",includes : "_output/tests/${k}_${v}_integrationTests.log"
                     }
                 }
             }

@@ -117,6 +117,8 @@ func (h *InstallHelper) createk8sRookCluster(k8sHelper *utils.K8sHelper, k8svers
 
 //InstallRookOnK8s installs rook on k8s
 func (h *InstallHelper) InstallRookOnK8s() (err error) {
+	//creating clusterrolebinding for kubeadm env.
+	h.k8shelper.Kubectl([]string{"create", "clusterrolebinding", "anon-user-access", "--clusterrole", "cluster-admin", "--user", "system:anonymous"}...)
 
 	//flag used for local debuggin purpose, when rook is pre-installed
 	skipRookInstall := strings.EqualFold(h.Env.SkipInstallRook, "true")
@@ -223,6 +225,7 @@ func (h *InstallHelper) UninstallRookFromK8s() {
 	}
 
 	isRookUninstalled := k8sHelp.WaitUntilPodInNamespaceIsDeleted("rook-ceph-mon", "rook")
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("anon-user-access", nil)
 
 	if isRookUninstalled {
 		logger.Infof("Rook uninstalled successfully")

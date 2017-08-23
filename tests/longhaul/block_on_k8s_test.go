@@ -44,9 +44,10 @@ func (s *K8sBlockLongHaulSuite) SetupSuite() {
 	assert.Nil(s.T(), err)
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset)
-
-	err = s.installer.InstallRookOnK8s()
-	require.NoError(s.T(), err)
+	if !s.kh.IsRookInstalled() {
+		err = s.installer.InstallRookOnK8s()
+		require.NoError(s.T(), err)
+	}
 
 	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh)
 	require.Nil(s.T(), err)
@@ -207,7 +208,6 @@ func (s *K8sBlockLongHaulSuite) TearDownSuite() {
 	s.db.CloseConnection()
 	s.kh.ResourceOperation("delete", s.mysqlAppPath)
 	s.storageClassOperation("mysql-pool", "delete")
-	s.installer.UninstallRookFromK8s()
 	s.testClient = nil
 	s.bc = nil
 	s.kh = nil

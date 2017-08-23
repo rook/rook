@@ -2,8 +2,7 @@
 
 The Rook Test Framework is used to run end to end and integration tests on Rook. The framework depends on a running instance of kubernetes. 
 The framework also provides scripts for starting kubernetes using kubeadm or minikube so users can 
-quickly spin up a kubernetes platform. The Kubeadm-dind.sh script starts a three-node kubernetes cluster (using docker-in-docker) 
-and the minikube.sh starts a single-node kubernetes. The Test framework is designed to install Rook, run tests and uninstall Rook.
+quickly spin up a kubernetes cluster.The Test framework is designed to install Rook, run tests, and uninstall Rook.
 
 ## Requirements
 
@@ -19,11 +18,20 @@ and the minikube.sh starts a single-node kubernetes. The Test framework is desig
 #### Install Kubernetes
 You can choose any kubernetes flavor of your choice.  The test framework only depends on kubectl being configured. 
 The framework also provides scripts to install Kubernetes. There are two scripts to start the cluster:
-1. Kubeadm: Run [kubeadm-dind.sh](/tests/scripts/kubeadm-dind.sh) to setup
-a three node kubernetes cluster (using docker-in-docker where each node is a docker container running kubernetes) 
-2. Minikube: Run [minikube.sh](/tests/scripts/minikube.sh) to setup a single-node kubernetes using kubeadm. 
+1. Minikube: Run [minikube.sh](/tests/scripts/minikube.sh) to setup a single-node Minikube kubernetes. Minikube 0.21.0 and higher is supported. Older minikube versions do not have cephfs or rbd tools installed.(recommended for MacOS)
+2. Kubeadm : run [kubeadm.sh](/tests/scripts/kubeadm.sh) to setup a single-node K8s cluster using kubeadm (recommended for ubuntu)
+
+These start-up scripts are designed to start any version of kubernetes, Based on `KUBE_VERSION` environment variable
+By default they start kubernetes version v1.7.4.(except minikube which starts kubernetes v1.7.2) 
+e.g. To kubernetes version v1.6.7
+```
+export KUBE_VERSION=v1.6.7
+tests/scripts/kubeadm.sh up
+```
+
+To stop the cluster : `./kubeadm.sh clean` or `./miniube.sh clean`
   
-Both of the start-up scripts are designed to start kubernetes, make sure rbd is working, and copy the latest rook and toolbox images
+All of the above scripts are designed to start kubernetes, make sure rbd is working, and copy the latest rook and toolbox images
 to the kubernetes containers.
 
 
@@ -33,6 +41,7 @@ From the root do the following:
 2. Start kubernetes using one of the following:
    - `kubeadm-dind.sh up`
    - `minikube.sh up`
+   - `kubeadm.sh up`
 3. Run integration tests: `make test-integration`
 
 
@@ -42,7 +51,7 @@ The following parameters are available while running tests
  Parameter | Description | Possible values | Default
  --- |--- | --- | ---
 rook_platform| platform rook needs to be installed on  | kubernetes | kubernetes
-k8s_version  | version of Kubernetes to be installed  | v1.5,v1.6,v1.7  | v1.6
+k8s_version  | version of Kubernetes to be installed  | v1.5,v1.6,v1.7  | v1.7
 rook_image | rook image name to be installed | valid image name | rook/rook
 toolbox_image | toolbox image name to be installed | valid image name | rook/toolbox
 skip_install_rook | skips installing rook (if already installed) | true or false  | false
@@ -52,7 +61,7 @@ If the `install_rook` flag is set to false, then all the other flags are ignored
 and tests are run without rook being installed and setup. Use this flag to run tests against
 a pre-installed/configured rook.
 
-### Running Tests with paramaters.
+### Running Tests with parameters.
 
 #### To run all integration tests run 
 ```
@@ -91,18 +100,21 @@ For example look at the [block long haul test](/tests/block/k8s/longhaul/basicBl
  To run a longhaul test you can run any integration test with `-count` and `--load_parallel_runs` options
  e.g.
  ```
- go test -run TestK8sBlockLongHaul github.com/rook/rook/e2e/tests/block/k8s/longhaul --load_parallel_runs=20 -count=1000
+ go test -run TestK8sBlockLongHaul github.com/rook/rook/tests/longhaul --load_parallel_runs=20 -count=1000
  ```
+ The Longhaul test just like other test is going to install rook if it's not already installed, but it is not going to clean up test data or uninstall rook after the run. 
+ Longhaul test is designed to run multiple times on the same setup and installation of rook to tests its stability. Test Data and rook should be cleaned up manually after the test.
+ 
+ 
 
 Prerequisites :
 * Go installed and GO_PATH set
 * Glide installed 
 * when running tests locally, make sure `kubectl` is accessible globally as the test framework uses kubectl 
-* You can run tests using the IDE of your choice. The flags are configured in the file `e2e/framework/objects/environment_manifest.go`. Update the file to set default values as you see fit and then run tests from IDE directly. 
 
 
 ### Cleanup
 The test framework is designed to uninstall rook after every test. If you using the --skip_install_rook flag you will need to 
 clean up rook manually.
 
-To stop kubernetes run `kubeadm-dind.sh clean` or `minikube.sh clean`.
+To stop kubernetes run `kubeadm.sh clean` or `minikube.sh clean`.

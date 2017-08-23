@@ -55,7 +55,7 @@ KUBE_VERSION=${KUBE_VERSION:-"v1.7.2"}
 
 case "${1:-}" in
   up)
-    minikube start --memory=3000 --iso-url=https://s3-us-west-2.amazonaws.com/minikube-cephfs/minikube.iso --kubernetes-version ${KUBE_VERSION}
+    minikube start --memory=3000 --kubernetes-version ${KUBE_VERSION}
     wait_for_ssh
  
     echo setting up rbd
