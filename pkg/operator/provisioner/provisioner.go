@@ -47,6 +47,8 @@ type RookVolumeProvisioner struct {
 
 	// Configuration of rook volume provisioner
 	provConfig provisionerConfig
+
+	Namespace           string
 }
 
 type provisionerConfig struct {
@@ -64,9 +66,10 @@ type provisionerConfig struct {
 }
 
 // New creates RookVolumeProvisioner
-func New(context *clusterd.Context) controller.Provisioner {
+func New(context *clusterd.Context, namespace string) controller.Provisioner {
 	return &RookVolumeProvisioner{
 		context: context,
+		Namespace: namespace,
 	}
 }
 
@@ -200,7 +203,7 @@ func parseClassParameters(params map[string]string) (*provisionerConfig, error) 
 }
 
 func (p *RookVolumeProvisioner) getMonitorEndpoints() ([]string, error) {
-	cm, err := p.context.Clientset.CoreV1().ConfigMaps(p.provConfig.clusterName).Get(mon.EndpointConfigMapName, metav1.GetOptions{})
+	cm, err := p.context.Clientset.CoreV1().ConfigMaps(p.Namespace).Get(mon.EndpointConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get mon endpoints. %+v", err)
 	}
