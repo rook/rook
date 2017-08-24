@@ -62,6 +62,7 @@ TEST_PACKAGES = $(GO_PROJECT)/tests/smoke
 # the root go project
 GO_PROJECT=github.com/rook/rook
 
+# inject the version number into the golang version package using the -X linker flag
 LDFLAGS += -X $(GO_PROJECT)/pkg/version.Version=$(VERSION)
 
 # ====================================================================================

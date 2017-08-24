@@ -37,7 +37,7 @@ https://github.com/rook/rook`,
 }
 
 func init() {
-	flags.SetFlagsFromEnv(operatorCmd.Flags(), "ROOK")
+	flags.SetFlagsFromEnv(operatorCmd.Flags(), RookEnvVarPrefix)
 
 	operatorCmd.RunE = startOperator
 }
@@ -45,6 +45,8 @@ func init() {
 func startOperator(cmd *cobra.Command, args []string) error {
 
 	setLogLevel()
+
+	logStartupInfo(operatorCmd.Flags())
 
 	clientset, apiExtClientset, err := getClientset()
 	if err != nil {

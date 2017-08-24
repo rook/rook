@@ -43,7 +43,7 @@ func init() {
 	rgwCmd.Flags().IntVar(&rgwPort, "rgw-port", 0, "rgw port number")
 	addCephFlags(rgwCmd)
 
-	flags.SetFlagsFromEnv(rgwCmd.Flags(), "ROOK")
+	flags.SetFlagsFromEnv(rgwCmd.Flags(), RookEnvVarPrefix)
 
 	rgwCmd.RunE = startRGW
 }
@@ -59,6 +59,8 @@ func startRGW(cmd *cobra.Command, args []string) error {
 	}
 
 	setLogLevel()
+
+	logStartupInfo(rgwCmd.Flags())
 
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &rgw.Config{

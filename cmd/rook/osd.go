@@ -55,7 +55,7 @@ func addOSDFlags(command *cobra.Command) {
 func init() {
 	addOSDFlags(osdCmd)
 	addCephFlags(osdCmd)
-	flags.SetFlagsFromEnv(osdCmd.Flags(), "ROOK")
+	flags.SetFlagsFromEnv(osdCmd.Flags(), RookEnvVarPrefix)
 
 	osdCmd.RunE = startOSD
 }
@@ -80,6 +80,8 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	}
 
 	setLogLevel()
+
+	logStartupInfo(osdCmd.Flags())
 
 	forceFormat := false
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)

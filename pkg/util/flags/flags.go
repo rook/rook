@@ -18,6 +18,7 @@ package flags
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -71,4 +72,23 @@ func SetFlagsFromEnv(flags *pflag.FlagSet, prefix string) error {
 	})
 
 	return nil
+}
+
+// GetFlagsAndValues returns all flags and their values as a slice with elements in the format of
+// "--<flag>=<value>"
+func GetFlagsAndValues(flags *pflag.FlagSet, excludeFilter string) []string {
+	var flagValues []string
+
+	flags.VisitAll(func(f *pflag.Flag) {
+		val := f.Value.String()
+		if excludeFilter != "" {
+			if matched, _ := regexp.Match(excludeFilter, []byte(f.Name)); matched {
+				val = "*****"
+			}
+		}
+
+		flagValues = append(flagValues, fmt.Sprintf("--%s=%s", f.Name, val))
+	})
+
+	return flagValues
 }

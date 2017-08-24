@@ -31,9 +31,6 @@ import (
 func StartJoinCluster(services []*ClusterService, configDir, nodeID, discoveryURL,
 	etcdMembers string, networkInfo NetworkInfo, configFileOverride string, logLevel capnslog.LogLevel) (*Context, error) {
 
-	logger.Infof("Starting cluster. configDir=%s, nodeID=%s, url=%s, members=%s, networkInfo=%+v, configFileOverride=%s, logLevel=%s",
-		configDir, nodeID, discoveryURL, etcdMembers, networkInfo, configFileOverride, logLevel)
-
 	if err := VerifyNetworkInfo(networkInfo); err != nil {
 		return nil, fmt.Errorf("invalid network info: %+v. %+v", networkInfo, err)
 	}
