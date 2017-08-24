@@ -58,5 +58,14 @@ func (suite *SmokeSuite) SetupSuite() {
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
+	if suite.T().Failed() {
+		suite.k8sh.GetRookLogs("rook-operator", "default", suite.T().Name())
+		suite.k8sh.GetRookLogs("rook-api", "rook", suite.T().Name())
+		suite.k8sh.GetRookLogs("rook-ceph-mgr", "rook", suite.T().Name())
+		suite.k8sh.GetRookLogs("rook-ceph-mon", "rook", suite.T().Name())
+		suite.k8sh.GetRookLogs("rook-ceph-osd", "rook", suite.T().Name())
+		suite.k8sh.GetRookLogs("rook-ceph-rgw", "rook", suite.T().Name())
+		suite.k8sh.GetRookLogs("rook-ceph-mds", "rook", suite.T().Name())
+	}
 	suite.installer.UninstallRookFromK8s()
 }
