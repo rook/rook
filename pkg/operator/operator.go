@@ -28,22 +28,15 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/kit"
 	"github.com/rook/rook/pkg/operator/pool"
-	"github.com/rook/rook/pkg/operator/provisioner"
 	"k8s.io/api/core/v1"
 )
 
 const (
 	initRetryDelay = 10 * time.Second
-)
-
-// volume provisioner constant
-const (
-	provisionerName = "rook.io/block"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "operator")
@@ -55,7 +48,6 @@ type Operator struct {
 	// The custom resource that is global to the kubernetes cluster.
 	// The cluster is global because you create multiple clusers in k8s
 	clusterController *cluster.ClusterController
-	volumeProvisioner controller.Provisioner
 }
 
 // New creates an operator instance
@@ -65,14 +57,12 @@ func New(context *clusterd.Context) *Operator {
 		logger.Errorf("failed to create Operator. %+v.", err)
 		return nil
 	}
-	volumeProvisioner := provisioner.New(context)
 
 	schemes := []kit.CustomResource{cluster.ClusterResource, pool.PoolResource}
 	return &Operator{
 		context:           context,
 		clusterController: clusterController,
 		resources:         schemes,
-		volumeProvisioner: volumeProvisioner,
 	}
 }
 
@@ -91,21 +81,6 @@ func (o *Operator) Run() error {
 	signalChan := make(chan os.Signal, 1)
 	stopChan := make(chan struct{})
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-
-	// Run volume provisioner
-	// The controller needs to know what the server version is because out-of-tree
-	// provisioners aren't officially supported until 1.5
-	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
-	if err != nil {
-		return fmt.Errorf("Error getting server version: %v", err)
-	}
-	pc := controller.NewProvisionController(
-		o.context.Clientset,
-		provisionerName,
-		o.volumeProvisioner,
-		serverVersion.GitVersion,
-	)
-	go pc.Run(stopChan)
 
 	// watch for changes to the rook clusters
 	o.clusterController.StartWatch(v1.NamespaceAll, stopChan)

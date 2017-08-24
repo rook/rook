@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/rook/rook/pkg/ceph/client"
 	cephmon "github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
@@ -35,6 +36,7 @@ import (
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
 	"github.com/rook/rook/pkg/operator/pool"
+	"github.com/rook/rook/pkg/operator/provisioner"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,6 +52,7 @@ const (
 	crushmapCreatedKey       = "initialCrushMapCreated"
 	clusterCreateInterval    = 6 * time.Second
 	clusterCreateTimeout     = 5 * time.Minute
+	provisionerName          = "rook.io/block"
 )
 
 var (
@@ -137,6 +140,24 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons)
 	go healthChecker.Check(cluster.stopCh)
+
+	// Run volume provisioner
+	// The controller needs to know what the server version is because out-of-tree
+	// provisioners aren't officially supported until 1.5
+	serverVersion, err := c.context.Clientset.Discovery().ServerVersion()
+	if err != nil {
+		logger.Errorf("Error getting server version: %v", err)
+		return
+	}
+
+	volumeProvisioner := provisioner.New(c.context, cluster.Namespace)
+	pc := controller.NewProvisionController(
+		c.context.Clientset,
+		provisionerName,
+		volumeProvisioner,
+		serverVersion.GitVersion,
+	)
+	go pc.Run(cluster.stopCh)
 }
 
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
