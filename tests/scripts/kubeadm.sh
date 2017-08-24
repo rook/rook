@@ -17,7 +17,7 @@ install() {
     export KUBECONFIG=$HOME/admin.conf
 
     kubectl taint nodes --all node-role.kubernetes.io/master-
-    kubectl apply -f https://git.io/weave-kube-1.6
+    kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
 
     echo "wait for K8s node to be Ready"
     kube_ready=$(kubectl get node -o jsonpath='{.items[0].status.conditions[3].status}')
@@ -36,16 +36,19 @@ install() {
 
     echo "k8s node in Ready status"
 
+
 }
 
 kubeadm_reset() {
-    kubeadm reset
+    kubectl delete -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
+    sudo kubeadm reset --skip-preflight-checks
     sudo rm /usr/local/bin/kube*
     sudo rm kubectl
     rm $HOME/admin.conf
     rm -rf $HOME/.kube
     sudo apt-get -y remove kubelet
     sudo apt-get -y remove kubeadm
+
 }
 
 
@@ -53,7 +56,7 @@ case "${1:-}" in
   up)
     sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}" root
     install
-    ${scriptdir}/makeTestImages.sh save amd64 || true
+    ${scriptdir}/makeTestImages.sh tag amd64 || true
     sudo cp ${scriptdir}/kubeadm-rbd /bin/rbd
     sudo chmod +x /bin/rbd
     docker pull ceph/base

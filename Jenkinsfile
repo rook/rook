@@ -23,8 +23,8 @@ pipeline {
 
        stage('Integration Tests') {
             steps{
-                sh 'tests/scripts/makeTestImages.sh  save amd64'
-                stash name: 'repo-amd64',includes: 'rook-amd64.tar,build/common.sh,_output/tests/linux_amd64/,tests/scripts/'
+                sh 'cat _output/version | xargs tests/scripts/makeTestImages.sh  save amd64'
+                stash name: 'repo-amd64',includes: 'rook-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script{
 
                     def data = [
@@ -87,6 +87,9 @@ def RunIntegrationTest(k, v) {
                     echo "running tests on k8s version ${v}"
                     sh 'tests/scripts/makeTestImages.sh load amd64'
                     sh "tests/scripts/kubeadm.sh up"
+                    sh '''#!/bin/bash
+                          export KUBECONFIG=$HOME/admin.conf
+                          tests/scripts/helm.sh up'''
                     try{
                         sh '''#!/bin/bash
                         set -o pipefail

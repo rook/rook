@@ -24,15 +24,12 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/coreos/pkg/capnslog"
 )
 
 //S3Helper contains pointer to s3 client and wrappers for basic object store operations
 type S3Helper struct {
 	s3client *s3.S3
 }
-
-var s3logger = capnslog.NewPackageLogger("github.com/rook/rook", "s3utils")
 
 // CreateNewS3Helper creates a s3 client for specfied endpoint and creds
 func CreateNewS3Helper(endpoint string, keyID string, keySecret string) *S3Helper {
@@ -63,7 +60,7 @@ func (h *S3Helper) CreateBucket(name string) (bool, error) {
 		Bucket: aws.String(name),
 	})
 	if err != nil {
-		s3logger.Errorf("error encountered while creating bucket : %v", err)
+		logger.Errorf("error encountered while creating bucket : %v", err)
 		return false, err
 
 	}
@@ -76,7 +73,7 @@ func (h *S3Helper) DeleteBucket(name string) (bool, error) {
 		Bucket: aws.String(name),
 	})
 	if err != nil {
-		s3logger.Errorf("error encountered while deleting bucket : %v", err)
+		logger.Errorf("error encountered while deleting bucket : %v", err)
 		return false, err
 
 	}
@@ -93,7 +90,7 @@ func (h *S3Helper) PutObjectInBucket(bucketname string, body string, key string,
 		ContentType: &contentType,
 	})
 	if err != nil {
-		s3logger.Errorf("error encountered while putting object in bucket : %v", err)
+		logger.Errorf("error encountered while putting object in bucket : %v", err)
 		return false, err
 
 	}
@@ -108,7 +105,7 @@ func (h *S3Helper) GetObjectInBucket(bucketname string, key string) (string, err
 	})
 
 	if err != nil {
-		s3logger.Errorf("error encountered while retrieving object from bucket : %v", err)
+		logger.Errorf("error encountered while retrieving object from bucket : %v", err)
 		return "ERROR_ OBJCET NOT FOUND", err
 
 	}
@@ -125,7 +122,7 @@ func (h *S3Helper) DeleteObjectInBucket(bucketname string, key string) (bool, er
 		Key:    aws.String(key),
 	})
 	if err != nil {
-		s3logger.Errorf("error encountered while deleting object from bucket : %v", err)
+		logger.Errorf("error encountered while deleting object from bucket : %v", err)
 		return false, err
 
 	}

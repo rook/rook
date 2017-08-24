@@ -49,8 +49,8 @@ const (
 	RetryInterval = 5
 )
 
-//CreatK8sHelper creates a instance of k8sHelper
-func CreatK8sHelper() (*K8sHelper, error) {
+//CreateK8sHelper creates a instance of k8sHelper
+func CreateK8sHelper() (*K8sHelper, error) {
 	executor := &exec.CommandExecutor{}
 	config, err := getKubeConfig(executor)
 	if err != nil {
@@ -65,7 +65,7 @@ func CreatK8sHelper() (*K8sHelper, error) {
 
 }
 
-var k8slogger = capnslog.NewPackageLogger("github.com/rook/rook", "k8sutil")
+var k8slogger = capnslog.NewPackageLogger("github.com/rook/rook", "utils")
 
 //GetK8sServerVersion returns k8s server version under test
 func (k8sh *K8sHelper) GetK8sServerVersion() string {
@@ -549,16 +549,15 @@ func (k8sh *K8sHelper) GetPVCStatus(name string) (string, error) {
 //IsPodInExpectedState waits for 90s for a pod to be an expected state
 //If the pod is in expected state within 90s true is returned,  if not false
 func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace string, state string) bool {
-	args := []string{"get", "pods", "-l", "app=" + podNamePattern, "-o", "jsonpath={.items[0].status.phase}", "--no-headers=true"}
-	if namespace != "" {
-		args = append(args, []string{"-n", namespace}...)
-	}
+	listOpts := metav1.ListOptions{LabelSelector: "app=" + podNamePattern}
 	inc := 0
 	for inc < RetryLoop {
-		result, err := k8sh.Kubectl(args...)
+		podList, err := k8sh.Clientset.Pods(namespace).List(listOpts)
 		if err == nil {
-			if result == state {
-				return true
+			if len(podList.Items) >= 1 {
+				if podList.Items[0].Status.Phase == v1.PodPhase(state) {
+					return true
+				}
 			}
 		}
 		inc++
@@ -566,6 +565,32 @@ func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace str
 	}
 
 	return false
+}
+
+//CheckPodCountAndState returns true if expected number of pods with matching name are found and are in expected state
+func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, minExpected int, expectedPhase string) bool {
+	listOpts := metav1.ListOptions{LabelSelector: "app=" + podName}
+
+	podList, err := k8sh.Clientset.Pods(namespace).List(listOpts)
+	if err != nil {
+		logger.Errorf("Cannot get logs for app : %v in namespace %v, err: %v", podName, namespace, err)
+		return false
+	}
+
+	if podList.Size() < minExpected {
+		logger.Errorf("Expected at least %d pods with name %v, actual count  %d", minExpected, podName, podList.Size())
+		return false
+	}
+
+	for _, pod := range podList.Items {
+		if !(pod.Status.Phase == v1.PodPhase(expectedPhase)) {
+			logger.Errorf("Expected pod %v to be in %v phase, actual phase %v ", pod.Name, expectedPhase, pod.Status.Phase)
+			return false
+		}
+	}
+
+	return true
+
 }
 
 //WaitUntilPodInNamespaceIsDeleted waits for 90s for a pod  in a namespace to be terminated
@@ -617,6 +642,24 @@ func (k8sh *K8sHelper) WaitUntilPVCIsBound(pvcname string) bool {
 		inc++
 		time.Sleep(RetryInterval * time.Second)
 	}
+	return false
+}
+
+//WaitUntilNameSpaceIsDeleted waits for namespace to be deleted for 180s.
+//If namespace is deleted True is returned, if not false.
+func (k8sh *K8sHelper) WaitUntilNameSpaceIsDeleted(namespace string) bool {
+	getOpts := metav1.GetOptions{}
+	inc := 0
+	for inc < RetryLoop {
+		ns, err := k8sh.Clientset.Namespaces().Get(namespace, getOpts)
+		if err != nil {
+			return true
+		}
+		logger.Infof("Namespace %s %v", namespace, ns.Status.Phase)
+		inc++
+		time.Sleep(RetryInterval * time.Second)
+	}
+
 	return false
 }
 
