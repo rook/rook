@@ -48,7 +48,7 @@ type RookVolumeProvisioner struct {
 	// Configuration of rook volume provisioner
 	provConfig provisionerConfig
 
-	Namespace           string
+	Namespace string
 }
 
 type provisionerConfig struct {
@@ -68,7 +68,7 @@ type provisionerConfig struct {
 // New creates RookVolumeProvisioner
 func New(context *clusterd.Context, namespace string) controller.Provisioner {
 	return &RookVolumeProvisioner{
-		context: context,
+		context:   context,
 		Namespace: namespace,
 	}
 }

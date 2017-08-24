@@ -24,8 +24,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/coreos/pkg/capnslog"
+	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	"github.com/rook/rook/pkg/ceph/client"
 	cephmon "github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
@@ -36,13 +36,13 @@ import (
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
 	"github.com/rook/rook/pkg/operator/pool"
+	"github.com/rook/rook/pkg/operator/provisioner"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
-	"github.com/rook/rook/pkg/operator/provisioner"
 )
 
 const (
