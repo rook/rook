@@ -32,7 +32,6 @@ import (
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/kit"
 	"github.com/rook/rook/pkg/operator/pool"
-	"github.com/rook/rook/pkg/operator/provisioner"
 	"k8s.io/api/core/v1"
 )
 
