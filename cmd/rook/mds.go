@@ -41,7 +41,7 @@ func init() {
 	mdsCmd.Flags().StringVar(&mdsKeyring, "mds-keyring", "", "the mds keyring")
 	addCephFlags(mdsCmd)
 
-	flags.SetFlagsFromEnv(mdsCmd.Flags(), "ROOK")
+	flags.SetFlagsFromEnv(mdsCmd.Flags(), RookEnvVarPrefix)
 
 	mdsCmd.RunE = startMDS
 }
@@ -53,6 +53,8 @@ func startMDS(cmd *cobra.Command, args []string) error {
 	}
 
 	setLogLevel()
+
+	logStartupInfo(mdsCmd.Flags())
 
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &mds.Config{

@@ -28,6 +28,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/rook/rook/pkg/api"
 	"github.com/rook/rook/pkg/ceph"
@@ -39,6 +40,11 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/rook/rook/pkg/util/proc"
+	"github.com/rook/rook/pkg/version"
+)
+
+const (
+	RookEnvVarPrefix = "ROOK"
 )
 
 var rootCmd = &cobra.Command{
@@ -89,8 +95,8 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "INFO", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
 
 	// load the environment variables
-	flags.SetFlagsFromEnv(rootCmd.Flags(), "ROOK")
-	flags.SetFlagsFromEnv(rootCmd.PersistentFlags(), "ROOK")
+	flags.SetFlagsFromEnv(rootCmd.Flags(), RookEnvVarPrefix)
+	flags.SetFlagsFromEnv(rootCmd.PersistentFlags(), RookEnvVarPrefix)
 
 	rootCmd.RunE = startJoinCluster
 }
@@ -122,6 +128,8 @@ func startJoinCluster(cmd *cobra.Command, args []string) error {
 	}
 
 	setLogLevel()
+
+	logStartupInfo(rootCmd.Flags())
 
 	if err := joinCluster(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -230,6 +238,14 @@ func setLogLevel() {
 	}
 	cfg.logLevel = ll
 	capnslog.SetGlobalLogLevel(cfg.logLevel)
+}
+
+func logStartupInfo(cmdFlags *pflag.FlagSet) {
+	// log the version number, arguments, and all final flag values (environment variable overrides
+	// have already been taken into account)
+	flagValues := flags.GetFlagsAndValues(cmdFlags, "secret")
+	logger.Infof("starting Rook %s with arguments '%s'", version.Version, strings.Join(os.Args, " "))
+	logger.Infof("flag values: %s", strings.Join(flagValues, ", "))
 }
 
 func createContext() *clusterd.Context {

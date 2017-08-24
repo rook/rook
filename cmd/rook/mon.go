@@ -52,7 +52,7 @@ func init() {
 	monCmd.Flags().IntVar(&monPort, "port", 0, "port of the monitor")
 	addCephFlags(monCmd)
 
-	flags.SetFlagsFromEnv(monCmd.Flags(), "ROOK")
+	flags.SetFlagsFromEnv(monCmd.Flags(), RookEnvVarPrefix)
 
 	monCmd.RunE = startMon
 }
@@ -64,6 +64,8 @@ func startMon(cmd *cobra.Command, args []string) error {
 	}
 
 	setLogLevel()
+
+	logStartupInfo(monCmd.Flags())
 
 	if monPort == 0 {
 		return fmt.Errorf("missing mon port")

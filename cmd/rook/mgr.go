@@ -41,7 +41,7 @@ func init() {
 	mgrCmd.Flags().StringVar(&mgrKeyring, "mgr-keyring", "", "the mgr keyring")
 	addCephFlags(mgrCmd)
 
-	flags.SetFlagsFromEnv(mgrCmd.Flags(), "ROOK")
+	flags.SetFlagsFromEnv(mgrCmd.Flags(), RookEnvVarPrefix)
 
 	mgrCmd.RunE = startMgr
 }
@@ -53,6 +53,8 @@ func startMgr(cmd *cobra.Command, args []string) error {
 	}
 
 	setLogLevel()
+
+	logStartupInfo(mgrCmd.Flags())
 
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &mgr.Config{

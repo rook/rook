@@ -44,7 +44,7 @@ func init() {
 	apiCmd.Flags().StringVar(&namespace, "namespace", "", "the namespace in which the api service is running")
 	addCephFlags(apiCmd)
 
-	flags.SetFlagsFromEnv(apiCmd.Flags(), "ROOK")
+	flags.SetFlagsFromEnv(apiCmd.Flags(), RookEnvVarPrefix)
 
 	apiCmd.RunE = startAPI
 }
@@ -59,6 +59,8 @@ func startAPI(cmd *cobra.Command, args []string) error {
 	}
 
 	setLogLevel()
+
+	logStartupInfo(apiCmd.Flags())
 
 	clientset, _, err := getClientset()
 	if err != nil {

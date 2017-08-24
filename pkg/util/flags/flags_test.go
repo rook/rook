@@ -73,3 +73,31 @@ func TestUintFlags(t *testing.T) {
 	err = VerifyRequiredUint64Flags(cmd, []string{"foo", "bar"})
 	assert.Nil(t, err)
 }
+
+func TestGetFlagsAndValues(t *testing.T) {
+	cmd := &cobra.Command{
+		Use:   "test",
+		Short: "Creates a test arg",
+	}
+
+	var arg1 string
+	var arg2 string
+	cmd.Flags().StringVar(&arg1, "foo-data", "", "test 1")
+	cmd.Flags().StringVar(&arg2, "bar-secret", "", "test 2")
+
+	cmd.Flags().Set("foo-data", "1234")
+	cmd.Flags().Set("bar-secret", "mypassword")
+
+	// get all flags and their values, providing no filter.  all of them should be returned.
+	flagValues := GetFlagsAndValues(cmd.Flags(), "")
+	assert.Equal(t, 2, len(flagValues))
+	assert.Contains(t, flagValues, "--foo-data=1234")
+	assert.Contains(t, flagValues, "--bar-secret=mypassword")
+
+	// get all flags and their values, filtering any flags with "secret" in their name.
+	// the --bar-secret flag should be redacted.
+	flagValues = GetFlagsAndValues(cmd.Flags(), "secret")
+	assert.Equal(t, 2, len(flagValues))
+	assert.Contains(t, flagValues, "--foo-data=1234")
+	assert.Contains(t, flagValues, "--bar-secret=*****")
+}
