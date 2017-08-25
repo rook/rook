@@ -22,6 +22,7 @@ import (
 	"strconv"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"regexp"
 )
 
 const (
@@ -39,6 +40,15 @@ func ListImages(context *clusterd.Context, clusterName, poolName string) ([]Ceph
 	buf, err := ExecuteRBDCommand(context, clusterName, args)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list images for pool %s: %+v", poolName, err)
+	}
+
+	//The regex expression captures the json result at the end buf
+	//When logLevel is DEBUG buf contains log statements of librados (see tests for examples)
+	res := regexp.MustCompile(`\[(.*)\]$`).FindStringSubmatch(string(buf))
+	if len(res) == 0 {
+		return []CephBlockImage{}, nil
+	} else {
+		buf = []byte(res[0])
 	}
 
 	var images []CephBlockImage
