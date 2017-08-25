@@ -56,6 +56,7 @@ endif
 ifeq ($(PLATFORM),windows_amd64)
 CROSS_TRIPLE=x86_64-w64-mingw32
 endif
+export GOARM
 
 ifneq ($(PLATFORM),$(HOST_PLATFORM))
 CC := $(CROSS_TRIPLE)-gcc

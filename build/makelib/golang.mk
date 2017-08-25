@@ -49,7 +49,7 @@ GO_TEST_FLAGS ?=
 # ====================================================================================
 # Setup go environment
 
-GO_SUPPORTED_VERSIONS ?= 1.7|1.8
+GO_SUPPORTED_VERSIONS ?= 1.7|1.8|1.9
 
 GO_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
 GO_INTEGRATION_TEST_PACKAGES := $(foreach t,$(GO_INTEGRATION_TESTS_SUBDIRS),$(GO_PROJECT)/$(t)/...)
@@ -91,7 +91,8 @@ GO_PKG_BASE_DIR := $(abspath $(GO_PKG_DIR)/$(PLATFORM))
 GO_PKG_STATIC_FLAGS := -pkgdir $(GO_PKG_BASE_DIR)_static
 endif
 
-GO_STATIC_FLAGS = $(GO_BUILDFLAGS) $(GO_PKG_STATIC_FLAGS) -installsuffix static -tags '$(GO_TAGS)' -ldflags '$(GO_LDFLAGS)'
+GO_COMMON_FLAGS = $(GO_BUILDFLAGS) -tags '$(GO_TAGS)'
+GO_STATIC_FLAGS = $(GO_COMMON_FLAGS) $(GO_PKG_STATIC_FLAGS) -installsuffix static  -ldflags '$(GO_LDFLAGS)'
 
 # ====================================================================================
 # Targets
@@ -166,7 +167,7 @@ go.lint: $(GOLINT)
 .PHONY: go.vet
 go.vet:
 	@echo === go vet
-	@$(GOHOST) vet $(GO_STATIC_FLAGS) $(GO_PACKAGES) $(GO_INTEGRATION_TEST_PACKAGES)
+	@$(GOHOST) vet $(GO_COMMON_FLAGS) $(GO_PACKAGES) $(GO_INTEGRATION_TEST_PACKAGES)
 
 .PHONY: go.fmt
 go.fmt:
