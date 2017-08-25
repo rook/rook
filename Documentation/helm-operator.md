@@ -83,6 +83,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `image.pullPolicy` | Image pull policy                    | `IfNotPresent`       |
 | `rbacEnable`       | If true, create & use RBAC resources | `true`               |
 | `resources`        | Pod resource requests & limits       | `{}`                 |
+| `logLevel`        | Global log level        | `INFO`                 |
 
 Specify each parameter using the `--set key=value[,key=value]` argument to `helm install`. For example to disable RBAC,
 
