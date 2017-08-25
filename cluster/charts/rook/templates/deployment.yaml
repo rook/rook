@@ -22,6 +22,8 @@ spec:
         env:
         - name: ROOK_REPO_PREFIX
           value: {{ .Values.image.prefix }}
+        - name: ROOK_LOG_LEVEL
+          value: {{ .Values.logLevel }}
         resources:
 {{ toYaml .Values.resources | indent 10 }}
     {{- if .Values.rbacEnable }}
