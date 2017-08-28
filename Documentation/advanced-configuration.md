@@ -311,9 +311,10 @@ Now if you run `ceph -s` or `rookctl status` you may see "recovery" operations a
 PGs in "undersized" and other "unclean" states.  The cluster is essentially
 fixing itself since the number of replicas has been increased, and should go
 back to "active/clean" state shortly, after data has been replicated between
-hosts.  When that's done you will be able to lose 2/3 of your storage nodes and
-still have access to all your data in that pool.  Of course you will only have
-1/3 the capacity as a tradeoff.
+hosts.  When that's done you will be able to lose two of your storage nodes and
+still have access to all your data in that pool, since the CRUSH algorithm will 
+guarantee that at least one replica will still be available on another storage node. 
+Of course you will only have 1/3 the capacity as a tradeoff.
 
 ### Setting PG Count
 
