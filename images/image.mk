@@ -15,6 +15,8 @@
 # remove default suffixes as we dont use them
 .SUFFIXES:
 
+override GOOS=linux
+
 # include the common make file
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(SELF_DIR)/../build/makelib/common.mk
