@@ -16,6 +16,25 @@ This chart bootstraps a [rook-operator](https://github.com/rook/rook) deployment
 
 - Kubernetes 1.6+ with Beta APIs & ThirdPartyResources enabled
 
+### RBAC
+
+If role-based access control (RBAC) is enabled in your cluster, you may need to give Tiller (the server-side component of Helm) additional permissions. **If RBAC is not enabled, be sure to set `rbacEnable` to `false` when installing the chart.**
+
+1. Create a ServiceAccount for Tiller in the `kube-system` namespace
+  ```console
+  $ kubectl -n kube-system create sa tiller
+  ```
+
+2. Create a ClusterRoleBinding for Tiller
+  ```console
+  $ kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
+  ```
+
+3. Patch Tiller's Deployment to use the new ServiceAccount
+  ```console
+  $ kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
+  ```
+
 ## Installing
 
 To install the chart from out published registry, run the following:
@@ -25,7 +44,7 @@ $ helm repo add rook-<channel> http://charts.rook.io/<channel>
 $ helm install rook-<channel>/rook
 ```
 
-Be sure to replace `<channel>` with `alpha`, `beta`, `stable` or `master`, for example:
+Be sure to replace `<channel>` with `alpha` or `master` (in the future `beta` and `stable` when available), for example:
 
 ```console
 $ helm repo add rook-alpha http://charts.rook.io/alpha
@@ -40,27 +59,6 @@ Alternatively, to deploy from a local checkout of the rook codebase:
 $ cd cluster/charts/rook
 $ helm install --name rook --namespace rook .
 ```
-
-### RBAC
-
-If role-based access control (RBAC) is enabled in your cluster, you may need to give Tiller (the server-side component of Helm) additional permissions. **If RBAC is not enabled, be sure to set `rbacEnable` to `false` when installing the chart.**
-
-1. Create a ServiceAccount for Tiller in the `kube-system` namespace
-  ```console
-  $ kubectl -n kube-system create sa tiller
-  ```
-
-2. Create a ClusterRoleBinding for Tiller
-
-  ```console
-  $ kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
-  ```
-
-3. Patch Tiller's Deployment to use the new ServiceAccount
-
-  ```console
-  $ kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
-  ```
 
 ## Uninstalling the Chart
 
