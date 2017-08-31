@@ -25,12 +25,18 @@ import (
 	"github.com/rook/rook/pkg/model"
 )
 
+const objectStoreName = "default"
+
+func (h *Handler) objectContext() *rgw.Context {
+	return rgw.NewContext(h.context, objectStoreName, h.config.ClusterHandler.GetClusterInfo)
+}
+
 // CreateObjectStore creates a new object store in this cluster.
 // POST
 // /objectstore
 func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 
-	if err := h.config.ClusterHandler.EnableObjectStore(); err != nil {
+	if err := h.config.ClusterHandler.EnableObjectStore(objectStoreName); err != nil {
 		logger.Errorf("failed to create object store: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -44,7 +50,7 @@ func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 // DELETE
 // /objectstore
 func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
-	if err := h.config.ClusterHandler.RemoveObjectStore(); err != nil {
+	if err := h.config.ClusterHandler.RemoveObjectStore(objectStoreName); err != nil {
 		logger.Errorf("failed to remove object store: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -59,7 +65,7 @@ func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
 // /objectstore/connectioninfo
 func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Request) {
 
-	s3Info, found, err := h.config.ClusterHandler.GetObjectStoreConnectionInfo()
+	s3Info, found, err := h.config.ClusterHandler.GetObjectStoreConnectionInfo(objectStoreName)
 	if err != nil {
 		logger.Errorf("failed get object store info. %+v", err)
 		if found {
@@ -77,7 +83,7 @@ func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Re
 // GET
 // /objectstore/users
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	userNames, _, err := rgw.ListUsers(h.context, h.config.ClusterHandler.GetClusterInfo)
+	userNames, _, err := rgw.ListUsers(h.objectContext())
 	if err != nil {
 		logger.Errorf("Error listing users: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -86,7 +92,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	users := []model.ObjectUser{}
 	for _, userName := range userNames {
-		user, _, err := rgw.GetUser(h.context, userName, h.config.ClusterHandler.GetClusterInfo)
+		user, _, err := rgw.GetUser(h.objectContext(), userName)
 		if err != nil {
 			logger.Errorf("Error listing users: %+v", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -105,7 +111,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	user, rgwError, err := rgw.GetUser(h.context, id, h.config.ClusterHandler.GetClusterInfo)
+	user, rgwError, err := rgw.GetUser(h.objectContext(), id)
 	if err != nil {
 		logger.Errorf("Error getting user (%s): %+v", id, err)
 
@@ -133,7 +139,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdUser, rgwError, err := rgw.CreateUser(h.context, user, h.config.ClusterHandler.GetClusterInfo)
+	createdUser, rgwError, err := rgw.CreateUser(h.objectContext(), user)
 	if err != nil {
 		logger.Errorf("Error creating user: %+v", err)
 
@@ -167,7 +173,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	user.UserID = id
 
-	updatedUser, rgwError, err := rgw.UpdateUser(h.context, user, h.config.ClusterHandler.GetClusterInfo)
+	updatedUser, rgwError, err := rgw.UpdateUser(h.objectContext(), user)
 	if err != nil {
 		logger.Errorf("Error updating user: %+v", err)
 
@@ -188,7 +194,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	_, rgwError, err := rgw.DeleteUser(h.context, id, h.config.ClusterHandler.GetClusterInfo)
+	_, rgwError, err := rgw.DeleteUser(h.objectContext(), id)
 	if err != nil {
 		if rgwError == rgw.RGWErrorNotFound {
 			w.WriteHeader(http.StatusNotFound)
@@ -207,7 +213,7 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 // GET
 // /objectstore/buckets
 func (h *Handler) ListBuckets(w http.ResponseWriter, r *http.Request) {
-	buckets, err := rgw.ListBuckets(h.context, h.config.ClusterHandler.GetClusterInfo)
+	buckets, err := rgw.ListBuckets(h.objectContext())
 	if err != nil {
 		logger.Errorf("Error listing buckets: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -226,7 +232,7 @@ func (h *Handler) ListBuckets(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetBucket(w http.ResponseWriter, r *http.Request) {
 	bucketName := mux.Vars(r)["bucketName"]
 
-	user, rgwError, err := rgw.GetBucket(h.context, bucketName, h.config.ClusterHandler.GetClusterInfo)
+	user, rgwError, err := rgw.GetBucket(h.objectContext(), bucketName)
 	if err != nil {
 		logger.Errorf("Error getting bucket (%s): %+v", bucketName, err)
 
@@ -250,7 +256,7 @@ func (h *Handler) DeleteBucket(w http.ResponseWriter, r *http.Request) {
 	purgeParams, found := r.URL.Query()["purge"]
 	purge := found && len(purgeParams) == 1 && purgeParams[0] == "true"
 
-	rgwError, err := rgw.DeleteBucket(h.context, bucketName, purge, h.config.ClusterHandler.GetClusterInfo)
+	rgwError, err := rgw.DeleteBucket(h.objectContext(), bucketName, purge)
 	if err != nil {
 		if rgwError == rgw.RGWErrorNotFound {
 			w.WriteHeader(http.StatusNotFound)

@@ -31,6 +31,7 @@ import (
 )
 
 type Config struct {
+	Name        string
 	Host        string
 	Port        int
 	Keyring     string
@@ -73,6 +74,8 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		"rgw log nonexistent bucket":     "true",
 		"rgw intent log object name utc": "true",
 		"rgw enable usage log":           "true",
+		"rgw_zone":                       config.Name,
+		"rgw_zonegroup":                  config.Name,
 	}
 	_, err := mon.GenerateConfigFile(context, config.ClusterInfo, getRGWConfDir(context.ConfigDir),
 		"client.radosgw.gateway", getRGWKeyringPath(context.ConfigDir), false, nil, settings)

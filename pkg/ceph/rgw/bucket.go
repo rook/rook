@@ -21,8 +21,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rook/rook/pkg/ceph/mon"
-	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 )
 
@@ -43,8 +41,8 @@ func bucketStatsFromRGW(stats rgwBucketStats) model.ObjectBucketStats {
 	return s
 }
 
-func GetBucketStats(context *clusterd.Context, bucketName string, getClusterInfo func() (*mon.ClusterInfo, error)) (*model.ObjectBucketStats, bool, error) {
-	result, err := RunAdminCommand(context, getClusterInfo,
+func GetBucketStats(c *Context, bucketName string) (*model.ObjectBucketStats, bool, error) {
+	result, err := RunAdminCommand(c,
 		"bucket",
 		"stats",
 		"--bucket", bucketName)
@@ -66,8 +64,8 @@ func GetBucketStats(context *clusterd.Context, bucketName string, getClusterInfo
 	return &stat, false, nil
 }
 
-func GetBucketsStats(context *clusterd.Context, getClusterInfo func() (*mon.ClusterInfo, error)) (map[string]model.ObjectBucketStats, error) {
-	result, err := RunAdminCommand(context, getClusterInfo,
+func GetBucketsStats(c *Context) (map[string]model.ObjectBucketStats, error) {
+	result, err := RunAdminCommand(c,
 		"bucket",
 		"stats")
 	if err != nil {
@@ -88,8 +86,8 @@ func GetBucketsStats(context *clusterd.Context, getClusterInfo func() (*mon.Clus
 	return stats, nil
 }
 
-func getBucketMetadata(context *clusterd.Context, bucket string, getClusterInfo func() (*mon.ClusterInfo, error)) (*model.ObjectBucketMetadata, bool, error) {
-	result, err := RunAdminCommand(context, getClusterInfo,
+func getBucketMetadata(c *Context, bucket string) (*model.ObjectBucketMetadata, bool, error) {
+	result, err := RunAdminCommand(c,
 		"metadata",
 		"get",
 		"bucket:"+bucket)
@@ -119,10 +117,10 @@ func getBucketMetadata(context *clusterd.Context, bucket string, getClusterInfo 
 	return &model.ObjectBucketMetadata{Owner: s.Data.Owner, CreatedAt: createdAt}, false, nil
 }
 
-func ListBuckets(context *clusterd.Context, getClusterInfo func() (*mon.ClusterInfo, error)) ([]model.ObjectBucket, error) {
+func ListBuckets(c *Context) ([]model.ObjectBucket, error) {
 	logger.Infof("Listing buckets")
 
-	stats, err := GetBucketsStats(context, getClusterInfo)
+	stats, err := GetBucketsStats(c)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get bucket stats: %+v", err)
 	}
@@ -130,7 +128,7 @@ func ListBuckets(context *clusterd.Context, getClusterInfo func() (*mon.ClusterI
 	buckets := []model.ObjectBucket{}
 
 	for bucket, stat := range stats {
-		metadata, _, err := getBucketMetadata(context, bucket, getClusterInfo)
+		metadata, _, err := getBucketMetadata(c, bucket)
 		if err != nil {
 			return nil, err
 		}
@@ -141,8 +139,8 @@ func ListBuckets(context *clusterd.Context, getClusterInfo func() (*mon.ClusterI
 	return buckets, nil
 }
 
-func GetBucket(context *clusterd.Context, bucket string, getClusterInfo func() (*mon.ClusterInfo, error)) (*model.ObjectBucket, int, error) {
-	stat, notFound, err := GetBucketStats(context, bucket, getClusterInfo)
+func GetBucket(c *Context, bucket string) (*model.ObjectBucket, int, error) {
+	stat, notFound, err := GetBucketStats(c, bucket)
 	if notFound {
 		return nil, RGWErrorNotFound, fmt.Errorf("Bucket not found")
 	}
@@ -151,7 +149,7 @@ func GetBucket(context *clusterd.Context, bucket string, getClusterInfo func() (
 		return nil, RGWErrorUnknown, fmt.Errorf("Failed to get bucket stats: %+v", err)
 	}
 
-	metadata, notFound, err := getBucketMetadata(context, bucket, getClusterInfo)
+	metadata, notFound, err := getBucketMetadata(c, bucket)
 	if notFound {
 		return nil, RGWErrorNotFound, fmt.Errorf("Bucket not found")
 	}
@@ -163,16 +161,13 @@ func GetBucket(context *clusterd.Context, bucket string, getClusterInfo func() (
 	return &model.ObjectBucket{Name: bucket, ObjectBucketMetadata: model.ObjectBucketMetadata{Owner: metadata.Owner, CreatedAt: metadata.CreatedAt}, ObjectBucketStats: *stat}, RGWErrorNone, nil
 }
 
-func DeleteBucket(context *clusterd.Context, bucketName string, purge bool, getClusterInfo func() (*mon.ClusterInfo, error)) (int, error) {
+func DeleteBucket(c *Context, bucketName string, purge bool) (int, error) {
 	options := []string{"--bucket", bucketName}
 	if purge {
 		options = append(options, "--purge-objects")
 	}
 
-	result, err := RunAdminCommand(context, getClusterInfo,
-		"bucket",
-		"rm",
-		options...)
+	result, err := RunAdminCommand(c, "bucket", "rm", options...)
 	if err != nil {
 		return RGWErrorUnknown, fmt.Errorf("failed to delete bucket: %+v", err)
 	}

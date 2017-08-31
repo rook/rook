@@ -18,9 +18,11 @@ limitations under the License.
 package rgw
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/ceph/client"
 	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -42,6 +44,7 @@ const (
 // Cluster for rgw management
 type Cluster struct {
 	context   *clusterd.Context
+	Name      string
 	Namespace string
 	placement k8sutil.Placement
 	Version   string
@@ -49,9 +52,10 @@ type Cluster struct {
 }
 
 // New creates an instance of an rgw manager
-func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, name, namespace, version string, placement k8sutil.Placement) *Cluster {
 	return &Cluster{
 		context:   context,
+		Name:      name,
 		Namespace: namespace,
 		placement: placement,
 		Version:   version,
@@ -69,10 +73,12 @@ func (c *Cluster) Start() error {
 	}
 
 	// start the service
-	err = c.startService()
+	serviceIP, err := c.startService()
 	if err != nil {
 		return fmt.Errorf("failed to start rgw service. %+v", err)
 	}
+
+	err = c.createRealm(serviceIP)
 
 	// start the deployment
 	deployment := c.makeDeployment()
@@ -89,8 +95,75 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
+type idType struct {
+	ID string `json:"id"`
+}
+
+func (c *Cluster) createRealm(serviceIP string) error {
+	output, err := c.runRGWCommand("realm", "create", fmt.Sprintf("--rgw-realm=%s", c.Name))
+	if err != nil {
+		return fmt.Errorf("failed to create rgw realm %s. %+v", c.Name, err)
+	}
+
+	realmID, err := decodeID(output)
+	if err != nil {
+		return fmt.Errorf("failed to parse realm id. %+v", err)
+	}
+
+	output, err = c.runRGWCommand("zonegroup", "create", "--master",
+		fmt.Sprintf("--endpoints=%s:%d", serviceIP, cephrgw.RGWPort),
+		fmt.Sprintf("--rgw-zonegroup=%s", c.Name),
+		fmt.Sprintf("--rgw-realm=%s", c.Name))
+	if err != nil {
+		return fmt.Errorf("failed to create rgw zonegroup for %s. %+v", c.Name, err)
+	}
+
+	zoneGroupID, err := decodeID(output)
+	if err != nil {
+		return fmt.Errorf("failed to parse realm id. %+v", err)
+	}
+
+	output, err = c.runRGWCommand("zone", "create", "--master",
+		fmt.Sprintf("--endpoints=%s:%d", serviceIP, cephrgw.RGWPort),
+		fmt.Sprintf("--rgw-zone=%s", c.Name),
+		fmt.Sprintf("--rgw-zonegroup=%s", c.Name),
+		fmt.Sprintf("--rgw-realm=%s", c.Name))
+	if err != nil {
+		return fmt.Errorf("failed to create rgw zonegroup for %s. %+v", c.Name, err)
+	}
+
+	zoneID, err := decodeID(output)
+	if err != nil {
+		return fmt.Errorf("failed to parse zone id. %+v", err)
+	}
+
+	logger.Infof("RGW: realm=%s, zonegroup=%s, zone=%s", realmID, zoneGroupID, zoneID)
+	return nil
+}
+
+func decodeID(data string) (string, error) {
+	var id idType
+	err := json.Unmarshal([]byte(data), &id)
+	if err != nil {
+		return "", fmt.Errorf("Failed to unmarshal json: %+v", err)
+	}
+
+	return id.ID, err
+}
+
+func (c *Cluster) runRGWCommand(args ...string) (string, error) {
+	options := client.AppendAdminConnectionArgs(args, c.context.ConfigDir, c.Namespace)
+
+	// start the rgw admin command
+	output, err := c.context.Executor.ExecuteCommandWithCombinedOutput(false, "", "radosgw-admin", options...)
+	if err != nil {
+		return "", fmt.Errorf("failed to run radosgw-admin: %+v", err)
+	}
+	return output, nil
+}
+
 func (c *Cluster) createKeyring() error {
-	_, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
+	_, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
 		return nil
@@ -111,7 +184,7 @@ func (c *Cluster) createKeyring() error {
 		keyringName: keyring,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: c.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: c.instanceName(), Namespace: c.Namespace},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
@@ -123,9 +196,17 @@ func (c *Cluster) createKeyring() error {
 	return nil
 }
 
+func (c *Cluster) instanceName() string {
+	return InstanceName(c.Name)
+}
+
+func InstanceName(name string) string {
+	return fmt.Sprintf("%s-%s", appName, name)
+}
+
 func (c *Cluster) makeDeployment() *extensions.Deployment {
 	deployment := &extensions.Deployment{}
-	deployment.Name = appName
+	deployment.Name = c.instanceName()
 	deployment.Namespace = c.Namespace
 
 	podSpec := v1.PodSpec{
@@ -158,17 +239,18 @@ func (c *Cluster) rgwContainer() v1.Container {
 		Args: []string{
 			"rgw",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
+			fmt.Sprintf("--rgw-name=%s", c.Name),
 			fmt.Sprintf("--rgw-port=%d", cephrgw.RGWPort),
 			fmt.Sprintf("--rgw-host=%s", cephrgw.DNSName),
 		},
-		Name:  appName,
+		Name:  c.instanceName(),
 		Image: k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),
 		},
 		Env: []v1.EnvVar{
-			{Name: "ROOK_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
+			{Name: "ROOK_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: c.instanceName()}, Key: keyringName}}},
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 			opmon.ClusterNameEnvVar(c.Namespace),
@@ -180,18 +262,18 @@ func (c *Cluster) rgwContainer() v1.Container {
 	}
 }
 
-func (c *Cluster) startService() error {
+func (c *Cluster) startService() (string, error) {
 	labels := c.getLabels()
 	s := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      appName,
+			Name:      c.instanceName(),
 			Namespace: c.Namespace,
 			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
 				{
-					Name:       appName,
+					Name:       c.instanceName(),
 					Port:       cephrgw.RGWPort,
 					TargetPort: intstr.FromInt(int(cephrgw.RGWPort)),
 					Protocol:   v1.ProtocolTCP,
@@ -204,19 +286,20 @@ func (c *Cluster) startService() error {
 	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(s)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create mon service. %+v", err)
+			return "", fmt.Errorf("failed to create mon service. %+v", err)
 		}
 		logger.Infof("RGW service already running")
-		return nil
+		return "", nil
 	}
 
 	logger.Infof("RGW service running at %s:%d", s.Spec.ClusterIP, cephrgw.RGWPort)
-	return nil
+	return s.Spec.ClusterIP, nil
 }
 
 func (c *Cluster) getLabels() map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr:     appName,
 		k8sutil.ClusterAttr: c.Namespace,
+		"rook_object_store": c.Name,
 	}
 }

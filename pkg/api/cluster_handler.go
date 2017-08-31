@@ -29,9 +29,9 @@ import (
 
 type ClusterHandler interface {
 	GetClusterInfo() (*mon.ClusterInfo, error)
-	EnableObjectStore() error
-	RemoveObjectStore() error
-	GetObjectStoreConnectionInfo() (s3info *model.ObjectStoreConnectInfo, found bool, err error)
+	EnableObjectStore(name string) error
+	RemoveObjectStore(name string) error
+	GetObjectStoreConnectionInfo(name string) (s3info *model.ObjectStoreConnectInfo, found bool, err error)
 	StartFileSystem(fs *model.FilesystemRequest) error
 	RemoveFileSystem(fs *model.FilesystemRequest) error
 	GetMonitors() (map[string]*mon.CephMonitorConfig, error)
@@ -50,15 +50,15 @@ func (e *etcdHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
 	return mon.LoadClusterInfo(e.context.EtcdClient)
 }
 
-func (e *etcdHandler) EnableObjectStore() error {
+func (e *etcdHandler) EnableObjectStore(name string) error {
 	return rgw.EnableObjectStore(e.context.EtcdClient)
 }
 
-func (e *etcdHandler) RemoveObjectStore() error {
+func (e *etcdHandler) RemoveObjectStore(name string) error {
 	return rgw.RemoveObjectStore(e.context.EtcdClient)
 }
 
-func (e *etcdHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, bool, error) {
+func (e *etcdHandler) GetObjectStoreConnectionInfo(name string) (*model.ObjectStoreConnectInfo, bool, error) {
 
 	clusterInventory, err := inventory.LoadDiscoveredNodes(e.context.EtcdClient)
 	if err != nil {
