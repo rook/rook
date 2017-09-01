@@ -19,9 +19,10 @@ package smoke
 import (
 	"time"
 
+	"strings"
+
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
-	"strings"
 )
 
 var (

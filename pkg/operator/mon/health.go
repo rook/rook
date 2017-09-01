@@ -28,7 +28,10 @@ import (
 )
 
 var (
-	healthCheckInterval = 10 * time.Second
+	// HealthCheckInterval interval to check the mons to be in quorum
+	HealthCheckInterval = 20 * time.Second
+	// MonOutTimeout the duration to wait before removing/failover to a new mon pod
+	MonOutTimeout = 300 * time.Second
 )
 
 // HealthChecker check health for the monitors
@@ -51,7 +54,7 @@ func (hc *HealthChecker) Check(stopCh chan struct{}) {
 			logger.Infof("Stopping monitoring of cluster in namespace %s", hc.monCluster.Namespace)
 			return
 
-		case <-time.After(healthCheckInterval):
+		case <-time.After(HealthCheckInterval):
 			logger.Debugf("checking health of mons")
 			err := hc.monCluster.checkHealth()
 			if err != nil {
@@ -77,8 +80,25 @@ func (c *Cluster) checkHealth() error {
 		inQuorum := monInQuorum(mon, status.Quorum)
 		if inQuorum {
 			logger.Debugf("mon %s found in quorum", mon.Name)
+			// delete the "timeout" for a mon if the pod is in quorum again
+			if _, ok := c.monTimeoutList[mon.Name]; ok {
+				delete(c.monTimeoutList, mon.Name)
+			}
 		} else {
 			logger.Warningf("mon %s NOT found in quorum. %+v", mon.Name, status)
+
+			// If not yet set, add the current time, for the timeout
+			// calculation, to the list
+			if _, ok := c.monTimeoutList[mon.Name]; !ok {
+				c.monTimeoutList[mon.Name] = time.Now()
+			}
+
+			// when the timeout for the mon has been reached, continue to the
+			// normal failover/delete mon pod part of the code
+			if time.Since(c.monTimeoutList[mon.Name]) > MonOutTimeout {
+				logger.Warningf("mon %s NOT found in quorum, STILL in mon out timeout", mon.Name)
+				continue
+			}
 
 			if len(status.MonMap.Mons) > c.Size {
 				// no need to create a new mon since we have an extra

@@ -53,9 +53,7 @@ const (
 )
 
 var (
-	healthCheckInterval = 10 * time.Second
-	clientTimeout       = 15 * time.Second
-	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
 )
 
 // ClusterController controls an instance of a Rook cluster

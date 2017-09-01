@@ -24,9 +24,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
-//Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,Delete Bucket and
-//Delete user
+// Smoke Test for Mon failover - Test check the following operations for the Mon failover in order
+//Delete mon pod, Wait for new mon pod
 func (suite *SmokeSuite) TestMonFailover() {
 	logger.Infof("Mon Failover Smoke Test")
 
