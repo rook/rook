@@ -20,6 +20,8 @@ package rgw
 import (
 	"encoding/json"
 	"fmt"
+	"path"
+	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/client"
@@ -39,8 +41,12 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-rgw")
 
 const (
-	appName     = "rook-ceph-rgw"
-	keyringName = "keyring"
+	appName        = "rook-ceph-rgw"
+	keyringName    = "keyring"
+	certVolumeName = "rook-rgw-cert"
+	certMountPath  = "/etc/rook/private"
+	certKeyName    = "cert"
+	certFilename   = "rgw-cert.pem"
 )
 
 // Cluster for rgw management
@@ -142,7 +148,7 @@ func (c *Cluster) createRealm(serviceIP string) error {
 
 	zoneGroupID, err := decodeID(output)
 	if err != nil {
-		return fmt.Errorf("failed to parse realm id. %+v", err)
+		return fmt.Errorf("failed to parse zone group id. %+v", err)
 	}
 
 	// create the zone if it doesn't exist yet
@@ -160,6 +166,7 @@ func (c *Cluster) createRealm(serviceIP string) error {
 	}
 
 	if updatePeriod {
+		// the period will help notify other zones of changes if there are multi-zones
 		_, err = c.runRGWCommand("period", "update", "--commit")
 		if err != nil {
 			return fmt.Errorf("failed to update period. %+v", err)
@@ -201,7 +208,11 @@ func (c *Cluster) createSimilarPools(pools []string, poolConfig model.Pool) erro
 
 	for _, pool := range pools {
 		// create the pool if it doesn't exist yet
-		name := fmt.Sprintf("%s.%s", c.Config.Name, pool)
+		name := pool
+		if !strings.HasPrefix(pool, ".") {
+			// the name of the pool is <instance>.<name>, except for the pool ".rgw.root" that spans object stores
+			name = fmt.Sprintf("%s.%s", c.Config.Name, pool)
+		}
 		if _, err := ceph.GetPoolDetails(c.context, c.Namespace, name); err != nil {
 			cephConfig.Name = name
 			err := ceph.CreatePool(c.context, c.Namespace, cephConfig)
@@ -289,11 +300,21 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 			k8sutil.ConfigOverrideVolume(),
 		},
 	}
+
+	// Set the ssl cert if specified
+	if c.Config.CertificateRef != "" {
+		certVol := v1.Volume{Name: certVolumeName, VolumeSource: v1.VolumeSource{Secret: &v1.SecretVolumeSource{
+			SecretName: c.Config.CertificateRef,
+			Items:      []v1.KeyToPath{{Key: certKeyName, Path: certFilename}},
+		}}}
+		podSpec.Volumes = append(podSpec.Volumes, certVol)
+	}
+
 	c.placement.ApplyToPodSpec(&podSpec)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        "rook-ceph-rgw",
+			Name:        c.instanceName(),
 			Labels:      c.getLabels(),
 			Annotations: map[string]string{},
 		},
@@ -307,7 +328,7 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 
 func (c *Cluster) rgwContainer() v1.Container {
 
-	return v1.Container{
+	container := v1.Container{
 		Args: []string{
 			"rgw",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
@@ -332,6 +353,18 @@ func (c *Cluster) rgwContainer() v1.Container {
 			k8sutil.ConfigOverrideEnvVar(),
 		},
 	}
+
+	if c.Config.CertificateRef != "" {
+		// Add a volume mount for the ssl certificate
+		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certMountPath, ReadOnly: true}
+		container.VolumeMounts = append(container.VolumeMounts, mount)
+
+		// Pass the flag for using the ssl cert
+		path := path.Join(certMountPath, certFilename)
+		container.Args = append(container.Args, fmt.Sprintf("--rgw-cert=%s", path))
+	}
+
+	return container
 }
 
 func (c *Cluster) startService() (string, error) {

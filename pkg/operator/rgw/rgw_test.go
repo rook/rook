@@ -101,9 +101,29 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 
+	assert.Equal(t, 5, len(cont.Args))
 	assert.Equal(t, "rgw", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
 	assert.Equal(t, fmt.Sprintf("--rgw-name=%s", "default"), cont.Args[2])
 	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[3])
 	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", c.instanceName()), cont.Args[4])
+}
+
+func TestSSLPodSpec(t *testing.T) {
+	config := model.ObjectStore{Name: "default", Port: 123, CertificateRef: "mycert"}
+	c := New(nil, config, "ns", "myversion", k8sutil.Placement{})
+
+	d := c.makeDeployment()
+	assert.NotNil(t, d)
+	assert.Equal(t, c.instanceName(), d.Name)
+	assert.Equal(t, 3, len(d.Spec.Template.Spec.Volumes))
+	assert.Equal(t, certVolumeName, d.Spec.Template.Spec.Volumes[2].Name)
+
+	cont := d.Spec.Template.Spec.Containers[0]
+	assert.Equal(t, 3, len(cont.VolumeMounts))
+	assert.Equal(t, certVolumeName, cont.VolumeMounts[2].Name)
+	assert.Equal(t, certMountPath, cont.VolumeMounts[2].MountPath)
+
+	assert.Equal(t, 6, len(cont.Args))
+	assert.Equal(t, fmt.Sprintf("--rgw-cert=%s/%s", certMountPath, certFilename), cont.Args[5])
 }

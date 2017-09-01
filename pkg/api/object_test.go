@@ -25,6 +25,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	cephtest "github.com/rook/rook/pkg/ceph/test"
@@ -41,7 +42,7 @@ func TestCreateObjectStoreHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
 
-	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore", nil)
+	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore", strings.NewReader(`{"name": "default"}`))
 	if err != nil {
 		logger.Fatal(err)
 	}

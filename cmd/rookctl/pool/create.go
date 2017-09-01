@@ -61,7 +61,7 @@ func AddPoolFlags(cmd *cobra.Command, prefix string, config *Config) {
 		shorthand = "t"
 	}
 	cmd.Flags().StringVarP(&config.PoolType, prefix+"type", shorthand, PoolTypeReplicated,
-		fmt.Sprintf("Type of storage pool, '%s' or '%s' (required)", PoolTypeReplicated, PoolTypeErasureCoded))
+		fmt.Sprintf("Type of storage pool, '%s' or '%s'", PoolTypeReplicated, PoolTypeErasureCoded))
 
 	shorthand = ""
 	if prefix == "" {

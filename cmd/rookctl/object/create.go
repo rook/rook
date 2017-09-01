@@ -17,6 +17,7 @@ package object
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"time"
 
@@ -33,10 +34,11 @@ const (
 )
 
 var (
-	store          model.ObjectStore
-	dataConfig     pool.Config
-	metadataConfig pool.Config
-	createCmd      = &cobra.Command{
+	store           model.ObjectStore
+	dataConfig      pool.Config
+	metadataConfig  pool.Config
+	certificateFile string
+	createCmd       = &cobra.Command{
 		Use:   "create",
 		Short: "Creates a new object storage instance in the cluster",
 	}
@@ -46,7 +48,7 @@ func init() {
 	createCmd.Flags().StringVarP(&store.Name, "name", "n", "default", "The name of the object store instance")
 	createCmd.Flags().Int32VarP(&store.Port, "port", "p", model.RGWPort, "The port on which to expose the object store")
 	createCmd.Flags().Int32Var(&store.RGWReplicas, "rgw-replicas", 1, "The number of RGW services for load balancing")
-	createCmd.Flags().StringVar(&store.CertificateRef, "certificate-ref", "", "The name of the secret containing the cert")
+	createCmd.Flags().StringVar(&certificateFile, "certificate", "", "Path to the ssl cert file (pem format)")
 	pool.AddPoolFlags(createCmd, "data-", &dataConfig)
 	pool.AddPoolFlags(createCmd, "metadata-", &metadataConfig)
 
@@ -55,19 +57,28 @@ func init() {
 
 func createObjectStoreEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
-	if err := flags.VerifyRequiredFlags(cmd, []string{"name", "type"}); err != nil {
+	if err := flags.VerifyRequiredFlags(cmd, []string{"name", "data-type", "metadata-type"}); err != nil {
 		return err
+	}
+
+	if certificateFile != "" {
+		cert, err := ioutil.ReadFile(certificateFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "failed to read certificate", err)
+			os.Exit(1)
+		}
+		store.Certificate = string(cert)
 	}
 
 	dataPool, err := pool.ConfigToModel(dataConfig)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, "failed to read data settings", err)
 		os.Exit(1)
 	}
 	store.DataConfig = *dataPool
 	metadataPool, err := pool.ConfigToModel(metadataConfig)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, "failed to read metadata settings", err)
 		os.Exit(1)
 	}
 	store.MetadataConfig = *metadataPool

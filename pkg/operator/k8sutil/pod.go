@@ -48,7 +48,7 @@ const (
 	ConfigOverrideVal = "config"
 	repoPrefixEnvVar  = "ROOK_REPO_PREFIX"
 	defaultVersion    = "latest"
-	configMountDir    = "/etc/rook"
+	configMountDir    = "/etc/rook/config"
 	overrideFilename  = "override.conf"
 )
 

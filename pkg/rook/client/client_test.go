@@ -253,7 +253,8 @@ func TestCreateObjectStore(t *testing.T) {
 	mockHttpClient := NewMockHttpClient(mockServer.URL)
 	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
 
-	resp, err := client.CreateObjectStore()
+	store := model.ObjectStore{Name: "default", Port: 123}
+	resp, err := client.CreateObjectStore(store)
 	assert.NotNil(t, err)
 	assert.True(t, IsHttpAccepted(err))
 	assert.Equal(t, "", resp)
@@ -343,7 +344,7 @@ func TestDeleteFilesystemFailure(t *testing.T) {
 
 func TestCreateObjectStoreFailure(t *testing.T) {
 	clientFunc := func(client RookRestClient) (interface{}, error) {
-		return client.CreateObjectStore()
+		return client.CreateObjectStore(model.ObjectStore{Name: "name"})
 	}
 	verifyFunc := getStringVerifyFunc(t)
 	ClientFailureHelperWithVerification(t, clientFunc, verifyFunc)
