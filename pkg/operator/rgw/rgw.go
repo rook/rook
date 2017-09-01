@@ -23,8 +23,10 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/client"
+	ceph "github.com/rook/rook/pkg/ceph/client"
 	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/api/core/v1"
@@ -44,22 +46,21 @@ const (
 // Cluster for rgw management
 type Cluster struct {
 	context   *clusterd.Context
-	Name      string
 	Namespace string
 	placement k8sutil.Placement
 	Version   string
-	Replicas  int32
+	Config    model.ObjectStore
 }
 
 // New creates an instance of an rgw manager
-func New(context *clusterd.Context, name, namespace, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, config model.ObjectStore, namespace, version string, placement k8sutil.Placement) *Cluster {
+
 	return &Cluster{
 		context:   context,
-		Name:      name,
 		Namespace: namespace,
 		placement: placement,
 		Version:   version,
-		Replicas:  2,
+		Config:    config,
 	}
 }
 
@@ -67,7 +68,12 @@ func New(context *clusterd.Context, name, namespace, version string, placement k
 func (c *Cluster) Start() error {
 	logger.Infof("start running rgw")
 
-	err := c.createKeyring()
+	err := c.createPools()
+	if err != nil {
+		return fmt.Errorf("failed to create pools. %+v", err)
+	}
+
+	err = c.createKeyring()
 	if err != nil {
 		return fmt.Errorf("failed to create rgw keyring. %+v", err)
 	}
@@ -79,6 +85,9 @@ func (c *Cluster) Start() error {
 	}
 
 	err = c.createRealm(serviceIP)
+	if err != nil {
+		return fmt.Errorf("failed to create realm. %+v", err)
+	}
 
 	// start the deployment
 	deployment := c.makeDeployment()
@@ -100,9 +109,20 @@ type idType struct {
 }
 
 func (c *Cluster) createRealm(serviceIP string) error {
-	output, err := c.runRGWCommand("realm", "create", fmt.Sprintf("--rgw-realm=%s", c.Name))
+	realmArg := fmt.Sprintf("--rgw-realm=%s", c.Config.Name)
+	zonegroupArg := fmt.Sprintf("--rgw-zonegroup=%s", c.Config.Name)
+	zoneArg := fmt.Sprintf("--rgw-zone=%s", c.Config.Name)
+	endpointArg := fmt.Sprintf("--endpoints=%s:%d", serviceIP, c.Config.Port)
+	updatePeriod := false
+
+	// create the realm if it doesn't exist yet
+	output, err := c.runRGWCommand("realm", "get", realmArg)
 	if err != nil {
-		return fmt.Errorf("failed to create rgw realm %s. %+v", c.Name, err)
+		updatePeriod = true
+		output, err = c.runRGWCommand("realm", "create", realmArg)
+		if err != nil {
+			return fmt.Errorf("failed to create rgw realm %s. %+v", c.Config.Name, err)
+		}
 	}
 
 	realmID, err := decodeID(output)
@@ -110,12 +130,14 @@ func (c *Cluster) createRealm(serviceIP string) error {
 		return fmt.Errorf("failed to parse realm id. %+v", err)
 	}
 
-	output, err = c.runRGWCommand("zonegroup", "create", "--master",
-		fmt.Sprintf("--endpoints=%s:%d", serviceIP, cephrgw.RGWPort),
-		fmt.Sprintf("--rgw-zonegroup=%s", c.Name),
-		fmt.Sprintf("--rgw-realm=%s", c.Name))
+	// create the zonegroup if it doesn't exist yet
+	output, err = c.runRGWCommand("zonegroup", "get", zonegroupArg, realmArg)
 	if err != nil {
-		return fmt.Errorf("failed to create rgw zonegroup for %s. %+v", c.Name, err)
+		updatePeriod = true
+		output, err = c.runRGWCommand("zonegroup", "create", "--master", zonegroupArg, realmArg, endpointArg)
+		if err != nil {
+			return fmt.Errorf("failed to create rgw zonegroup for %s. %+v", c.Config.Name, err)
+		}
 	}
 
 	zoneGroupID, err := decodeID(output)
@@ -123,21 +145,71 @@ func (c *Cluster) createRealm(serviceIP string) error {
 		return fmt.Errorf("failed to parse realm id. %+v", err)
 	}
 
-	output, err = c.runRGWCommand("zone", "create", "--master",
-		fmt.Sprintf("--endpoints=%s:%d", serviceIP, cephrgw.RGWPort),
-		fmt.Sprintf("--rgw-zone=%s", c.Name),
-		fmt.Sprintf("--rgw-zonegroup=%s", c.Name),
-		fmt.Sprintf("--rgw-realm=%s", c.Name))
+	// create the zone if it doesn't exist yet
+	output, err = c.runRGWCommand("zone", "get", zoneArg, zonegroupArg, realmArg)
 	if err != nil {
-		return fmt.Errorf("failed to create rgw zonegroup for %s. %+v", c.Name, err)
+		updatePeriod = true
+		output, err = c.runRGWCommand("zone", "create", "--master", endpointArg, zoneArg, zonegroupArg, realmArg)
+		if err != nil {
+			return fmt.Errorf("failed to create rgw zonegroup for %s. %+v", c.Config.Name, err)
+		}
 	}
-
 	zoneID, err := decodeID(output)
 	if err != nil {
 		return fmt.Errorf("failed to parse zone id. %+v", err)
 	}
 
+	if updatePeriod {
+		_, err = c.runRGWCommand("period", "update", "--commit")
+		if err != nil {
+			return fmt.Errorf("failed to update period. %+v", err)
+		}
+	}
+
 	logger.Infof("RGW: realm=%s, zonegroup=%s, zone=%s", realmID, zoneGroupID, zoneID)
+	return nil
+}
+
+func (c *Cluster) createPools() error {
+	metadataPools := []string{
+		".rgw.root",
+		"rgw.control",
+		"rgw.meta",
+		"rgw.log",
+		"rgw.buckets.index",
+	}
+	if err := c.createSimilarPools(metadataPools, c.Config.MetadataConfig); err != nil {
+		return fmt.Errorf("failed to create metadata pools. %+v", err)
+	}
+
+	dataPools := []string{"rgw.buckets.data"}
+	if err := c.createSimilarPools(dataPools, c.Config.DataConfig); err != nil {
+		return fmt.Errorf("failed to create data pool. %+v", err)
+	}
+
+	return nil
+}
+
+func (c *Cluster) createSimilarPools(pools []string, poolConfig model.Pool) error {
+	cephConfig := ceph.ModelPoolToCephPool(poolConfig)
+	if cephConfig.ErasureCodeProfile != "" {
+		// create a new erasure code profile for the new pool
+		if err := ceph.CreateErasureCodeProfile(c.context, c.Namespace, poolConfig.ErasureCodedConfig, cephConfig.ErasureCodeProfile); err != nil {
+			return fmt.Errorf("failed to create erasure code profile for object store %s: %+v", c.Config.Name, err)
+		}
+	}
+
+	for _, pool := range pools {
+		// create the pool if it doesn't exist yet
+		name := fmt.Sprintf("%s.%s", c.Config.Name, pool)
+		if _, err := ceph.GetPoolDetails(c.context, c.Namespace, name); err != nil {
+			cephConfig.Name = name
+			err := ceph.CreatePool(c.context, c.Namespace, cephConfig)
+			if err != nil {
+				return fmt.Errorf("failed to create pool %s for object store %s", name, c.Config.Name)
+			}
+		}
+	}
 	return nil
 }
 
@@ -197,7 +269,7 @@ func (c *Cluster) createKeyring() error {
 }
 
 func (c *Cluster) instanceName() string {
-	return InstanceName(c.Name)
+	return InstanceName(c.Config.Name)
 }
 
 func InstanceName(name string) string {
@@ -228,7 +300,7 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 		Spec: podSpec,
 	}
 
-	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &c.Replicas}
+	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &c.Config.RGWReplicas}
 
 	return deployment
 }
@@ -239,9 +311,9 @@ func (c *Cluster) rgwContainer() v1.Container {
 		Args: []string{
 			"rgw",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--rgw-name=%s", c.Name),
-			fmt.Sprintf("--rgw-port=%d", cephrgw.RGWPort),
-			fmt.Sprintf("--rgw-host=%s", cephrgw.DNSName),
+			fmt.Sprintf("--rgw-name=%s", c.Config.Name),
+			fmt.Sprintf("--rgw-port=%d", c.Config.Port),
+			fmt.Sprintf("--rgw-host=%s", c.instanceName()),
 		},
 		Name:  c.instanceName(),
 		Image: k8sutil.MakeRookImage(c.Version),
@@ -274,8 +346,8 @@ func (c *Cluster) startService() (string, error) {
 			Ports: []v1.ServicePort{
 				{
 					Name:       c.instanceName(),
-					Port:       cephrgw.RGWPort,
-					TargetPort: intstr.FromInt(int(cephrgw.RGWPort)),
+					Port:       c.Config.Port,
+					TargetPort: intstr.FromInt(int(c.Config.Port)),
 					Protocol:   v1.ProtocolTCP,
 				},
 			},
@@ -292,7 +364,7 @@ func (c *Cluster) startService() (string, error) {
 		return "", nil
 	}
 
-	logger.Infof("RGW service running at %s:%d", s.Spec.ClusterIP, cephrgw.RGWPort)
+	logger.Infof("RGW service running at %s:%d", s.Spec.ClusterIP, c.Config.Port)
 	return s.Spec.ClusterIP, nil
 }
 
@@ -300,6 +372,6 @@ func (c *Cluster) getLabels() map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr:     appName,
 		k8sutil.ClusterAttr: c.Namespace,
-		"rook_object_store": c.Name,
+		"rook_object_store": c.Config.Name,
 	}
 }

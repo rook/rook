@@ -21,8 +21,8 @@ import (
 	"os"
 	"testing"
 
-	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -36,13 +36,18 @@ func TestStartRGW(t *testing.T) {
 	clientset := testop.New(3)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-			return "{\"key\":\"mysecurekey\"}", nil
+			return `{"key":"mysecurekey"}`, nil
+		},
+		MockExecuteCommandWithCombinedOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			return `{"id":"test-id"}`, nil
 		},
 	}
 
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}, "default", "ns", "version", k8sutil.Placement{})
+	config := model.ObjectStore{Name: "default", Port: 123}
+	context := &clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}
+	c := New(context, config, "ns", "version", k8sutil.Placement{})
 
 	// start a basic cluster
 	err := c.Start()
@@ -75,7 +80,8 @@ func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New(nil, "default", "ns", "myversion", k8sutil.Placement{})
+	config := model.ObjectStore{Name: "default", Port: 123}
+	c := New(nil, config, "ns", "myversion", k8sutil.Placement{})
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)
@@ -88,7 +94,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, c.instanceName(), d.ObjectMeta.Name)
 	assert.Equal(t, appName, d.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
-	assert.Equal(t, c.Name, d.Spec.Template.ObjectMeta.Labels["rook_object_store"])
+	assert.Equal(t, c.Config.Name, d.Spec.Template.ObjectMeta.Labels["rook_object_store"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	cont := d.Spec.Template.Spec.Containers[0]
@@ -98,6 +104,6 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "rgw", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
 	assert.Equal(t, fmt.Sprintf("--rgw-name=%s", "default"), cont.Args[2])
-	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", cephrgw.RGWPort), cont.Args[3])
-	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", cephrgw.DNSName), cont.Args[4])
+	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[3])
+	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", c.instanceName()), cont.Args[4])
 }

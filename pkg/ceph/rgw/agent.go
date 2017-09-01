@@ -24,13 +24,13 @@ import (
 
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/proc"
 )
 
 const (
 	DNSName         = "rook-ceph-rgw"
-	RGWPort         = 53390
 	rgwAgentName    = "rgw"
 	keyringTemplate = `[client.radosgw.gateway]
 	key = %s
@@ -109,7 +109,7 @@ func (a *rgwAgent) startRGW(context *clusterd.Context, cluster *mon.ClusterInfo)
 	}
 	keyring := val.Node.Value
 
-	config := &Config{Keyring: keyring, ClusterInfo: cluster, Host: DNSName, Port: RGWPort}
+	config := &Config{Keyring: keyring, ClusterInfo: cluster, Host: DNSName, Port: model.RGWPort}
 	err = generateConfigFiles(context, config)
 	if err != nil {
 		return fmt.Errorf("failed to generate rgw config files. %+v", err)

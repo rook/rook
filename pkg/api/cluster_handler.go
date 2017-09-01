@@ -29,7 +29,7 @@ import (
 
 type ClusterHandler interface {
 	GetClusterInfo() (*mon.ClusterInfo, error)
-	EnableObjectStore(name string) error
+	EnableObjectStore(config model.ObjectStore) error
 	RemoveObjectStore(name string) error
 	GetObjectStoreConnectionInfo(name string) (s3info *model.ObjectStoreConnectInfo, found bool, err error)
 	StartFileSystem(fs *model.FilesystemRequest) error
@@ -50,7 +50,7 @@ func (e *etcdHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
 	return mon.LoadClusterInfo(e.context.EtcdClient)
 }
 
-func (e *etcdHandler) EnableObjectStore(name string) error {
+func (e *etcdHandler) EnableObjectStore(config model.ObjectStore) error {
 	return rgw.EnableObjectStore(e.context.EtcdClient)
 }
 

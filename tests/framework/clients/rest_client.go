@@ -149,8 +149,8 @@ func (a *RestAPIClient) GetStatusDetails() (model.StatusDetails, error) {
 }
 
 //CreateObjectStore creates object store
-func (a *RestAPIClient) CreateObjectStore() (string, error) {
-	return a.rrc.CreateObjectStore()
+func (a *RestAPIClient) CreateObjectStore(store model.ObjectStore) (string, error) {
+	return a.rrc.CreateObjectStore(store)
 }
 
 //GetObjectStoreConnectionInfo returns object store connection info

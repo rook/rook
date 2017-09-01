@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/rook/rook/cmd/rookctl/rook"
 	"github.com/rook/rook/pkg/rook/client"
@@ -70,7 +69,7 @@ func getConnectionInfoEntry(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	c := rook.NewRookNetworkRestClientWithTimeout(initObjectStoreTimeout * time.Second)
+	c := rook.NewRookNetworkRestClient()
 	out, err := getConnectionInfo(c, args[0], connOutputFormat)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

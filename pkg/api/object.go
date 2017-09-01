@@ -25,18 +25,44 @@ import (
 	"github.com/rook/rook/pkg/model"
 )
 
-const objectStoreName = "default"
+const (
+	defaultObjectStoreName = "default"
+	defaultRGWReplicas     = 1
+)
 
-func (h *Handler) objectContext() *rgw.Context {
-	return rgw.NewContext(h.context, objectStoreName, h.config.ClusterHandler.GetClusterInfo)
+func (h *Handler) objectContext(r *http.Request) *rgw.Context {
+	storeName := defaultObjectStoreName
+	if name, ok := mux.Vars(r)["store"]; ok {
+		storeName = name
+	}
+
+	return rgw.NewContext(h.context, storeName, h.config.ClusterHandler.GetClusterInfo)
 }
 
 // CreateObjectStore creates a new object store in this cluster.
 // POST
 // /objectstore
 func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
+	var objectStore model.ObjectStore
+	err := json.NewDecoder(r.Body).Decode(&objectStore)
+	if err != nil {
+		logger.Errorf("Error parsing object store settings: %+v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 
-	if err := h.config.ClusterHandler.EnableObjectStore(objectStoreName); err != nil {
+	// only the default store is supported through the rest api
+	if objectStore.Name == "" {
+		objectStore.Name = defaultObjectStoreName
+	}
+	if objectStore.Port == 0 {
+		objectStore.Port = model.RGWPort
+	}
+	if objectStore.RGWReplicas == 0 {
+		objectStore.RGWReplicas = defaultRGWReplicas
+	}
+
+	if err := h.config.ClusterHandler.EnableObjectStore(objectStore); err != nil {
 		logger.Errorf("failed to create object store: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -50,7 +76,7 @@ func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 // DELETE
 // /objectstore
 func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
-	if err := h.config.ClusterHandler.RemoveObjectStore(objectStoreName); err != nil {
+	if err := h.config.ClusterHandler.RemoveObjectStore(defaultObjectStoreName); err != nil {
 		logger.Errorf("failed to remove object store: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -65,7 +91,7 @@ func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
 // /objectstore/connectioninfo
 func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Request) {
 
-	s3Info, found, err := h.config.ClusterHandler.GetObjectStoreConnectionInfo(objectStoreName)
+	s3Info, found, err := h.config.ClusterHandler.GetObjectStoreConnectionInfo(defaultObjectStoreName)
 	if err != nil {
 		logger.Errorf("failed get object store info. %+v", err)
 		if found {
@@ -83,7 +109,7 @@ func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Re
 // GET
 // /objectstore/users
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
-	userNames, _, err := rgw.ListUsers(h.objectContext())
+	userNames, _, err := rgw.ListUsers(h.objectContext(r))
 	if err != nil {
 		logger.Errorf("Error listing users: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -92,7 +118,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 	users := []model.ObjectUser{}
 	for _, userName := range userNames {
-		user, _, err := rgw.GetUser(h.objectContext(), userName)
+		user, _, err := rgw.GetUser(h.objectContext(r), userName)
 		if err != nil {
 			logger.Errorf("Error listing users: %+v", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -111,7 +137,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	user, rgwError, err := rgw.GetUser(h.objectContext(), id)
+	user, rgwError, err := rgw.GetUser(h.objectContext(r), id)
 	if err != nil {
 		logger.Errorf("Error getting user (%s): %+v", id, err)
 
@@ -139,7 +165,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdUser, rgwError, err := rgw.CreateUser(h.objectContext(), user)
+	createdUser, rgwError, err := rgw.CreateUser(h.objectContext(r), user)
 	if err != nil {
 		logger.Errorf("Error creating user: %+v", err)
 
@@ -173,7 +199,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	user.UserID = id
 
-	updatedUser, rgwError, err := rgw.UpdateUser(h.objectContext(), user)
+	updatedUser, rgwError, err := rgw.UpdateUser(h.objectContext(r), user)
 	if err != nil {
 		logger.Errorf("Error updating user: %+v", err)
 
@@ -194,7 +220,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
-	_, rgwError, err := rgw.DeleteUser(h.objectContext(), id)
+	_, rgwError, err := rgw.DeleteUser(h.objectContext(r), id)
 	if err != nil {
 		if rgwError == rgw.RGWErrorNotFound {
 			w.WriteHeader(http.StatusNotFound)
@@ -213,7 +239,7 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 // GET
 // /objectstore/buckets
 func (h *Handler) ListBuckets(w http.ResponseWriter, r *http.Request) {
-	buckets, err := rgw.ListBuckets(h.objectContext())
+	buckets, err := rgw.ListBuckets(h.objectContext(r))
 	if err != nil {
 		logger.Errorf("Error listing buckets: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -232,7 +258,7 @@ func (h *Handler) ListBuckets(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetBucket(w http.ResponseWriter, r *http.Request) {
 	bucketName := mux.Vars(r)["bucketName"]
 
-	user, rgwError, err := rgw.GetBucket(h.objectContext(), bucketName)
+	user, rgwError, err := rgw.GetBucket(h.objectContext(r), bucketName)
 	if err != nil {
 		logger.Errorf("Error getting bucket (%s): %+v", bucketName, err)
 
@@ -256,7 +282,7 @@ func (h *Handler) DeleteBucket(w http.ResponseWriter, r *http.Request) {
 	purgeParams, found := r.URL.Query()["purge"]
 	purge := found && len(purgeParams) == 1 && purgeParams[0] == "true"
 
-	rgwError, err := rgw.DeleteBucket(h.objectContext(), bucketName, purge)
+	rgwError, err := rgw.DeleteBucket(h.objectContext(r), bucketName, purge)
 	if err != nil {
 		if rgwError == rgw.RGWErrorNotFound {
 			w.WriteHeader(http.StatusNotFound)

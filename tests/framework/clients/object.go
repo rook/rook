@@ -35,8 +35,10 @@ func CreateObjectOperation(rookRestClient contracts.RestAPIOperator) *ObjectOper
 //Input paramatres -None
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectCreate() (string, error) {
-	return ro.restClient.CreateObjectStore()
-
+	store := model.ObjectStore{Name: "default", RGWReplicas: 1}
+	store.DataConfig.ReplicationConfig.Size = 1
+	store.MetadataConfig.ReplicationConfig.Size = 1
+	return ro.restClient.CreateObjectStore(store)
 }
 
 //ObjectBucketList Function to get Buckets present in rook object store

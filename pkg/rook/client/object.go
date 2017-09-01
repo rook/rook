@@ -34,8 +34,17 @@ const (
 	usersQueryName          = "users"
 )
 
-func (c *RookNetworkRestClient) CreateObjectStore() (string, error) {
-	resp, err := c.DoPost(objectStoreQueryName, nil)
+func (c *RookNetworkRestClient) CreateObjectStore(store model.ObjectStore) (string, error) {
+	if store.Name == "" {
+		return "", fmt.Errorf("Name is required")
+	}
+
+	body, err := json.Marshal(store)
+	if err != nil {
+		return "", err
+	}
+
+	resp, err := c.DoPost(objectStoreQueryName, bytes.NewReader(body))
 	if err != nil {
 		return "", err
 	}

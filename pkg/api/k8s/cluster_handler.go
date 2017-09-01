@@ -43,11 +43,11 @@ func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
 	return s.clusterInfo, nil
 }
 
-func (s *clusterHandler) EnableObjectStore(name string) error {
+func (s *clusterHandler) EnableObjectStore(config model.ObjectStore) error {
 	logger.Infof("Starting the Object store")
 	// Passing an empty Placement{} as the api doesn't know about placement
 	// information. This should be resolved with the transition to CRD (TPR).
-	r := k8srgw.New(s.context, name, s.namespace, s.versionTag, k8sutil.Placement{})
+	r := k8srgw.New(s.context, config, s.namespace, s.versionTag, k8sutil.Placement{})
 	err := r.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
