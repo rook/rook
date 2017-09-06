@@ -6,6 +6,7 @@ import (
 
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
+	"time"
 )
 
 //HelmHelper is wrapper for running helm commands
@@ -24,8 +25,8 @@ func NewHelmHelper() *HelmHelper {
 func (h *HelmHelper) Execute(args ...string) (string, error) {
 	result, err := h.executor.ExecuteCommandWithOutput(false, "", "helm", args...)
 	if err != nil {
-		logger.Errorf("Errors Encountered while executing helm command : %v", err)
-		return "", fmt.Errorf("Failed to run helm commands on args %v : %v", args, err)
+		logger.Errorf("Errors Encountered while executing helm command %v: %v", result, err)
+		return result, fmt.Errorf("Failed to run helm commands on args %v : %v , err -> %v", args, result, err)
 
 	}
 	return result, nil
@@ -55,13 +56,28 @@ func (h *HelmHelper) InstallLocalRookHelmChart(chartName string, deployName stri
 	if namespace != "" {
 		cmdArgs = append(cmdArgs, "--namespace", namespace)
 	}
-	_, err := h.Execute(cmdArgs...)
-	if err != nil {
-		logger.Errorf("cannot install helm chart with name : %v, version: %v, namespace: %v , err: %v", chartName, chartVersion, namespace, err)
-		return fmt.Errorf("cannot install helm chart with name : %v, version: %v, namespace: %v , err: %v", chartName, chartVersion, namespace, err)
+	var result string
+	var err error
+	inc := 0
+	for inc < RetryLoop {
+		result, err = h.Execute(cmdArgs...)
+		if err == nil {
+			return nil
+		}
+		logger.Infof("helm install for %s failed %v, err ->%v", chartName, result, err)
+		ls, _ := h.Execute([]string{"ls"}...)
+		logger.Infof("Helm ls result : %v", ls)
+		ss, _ := h.Execute([]string{"search"}...)
+		logger.Infof("Helm search result : %v", ss)
+		rl, _ := h.Execute([]string{"repo", "list"}...)
+		logger.Infof("Helm repo list result : %v", rl)
+
+		inc++
+		time.Sleep(RetryInterval * time.Second)
 	}
 
-	return nil
+	logger.Errorf("cannot install helm chart with name : %v, version: %v, namespace: %v  - %v , err: %v", chartName, chartVersion, namespace, result, err)
+	return fmt.Errorf("cannot install helm chart with name : %v, version: %v, namespace: %v - %v, err: %v", chartName, chartVersion, namespace, result, err)
 }
 
 //DeleteLocalRookHelmChart uninstalls a give helm deploy
