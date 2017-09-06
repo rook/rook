@@ -1,3 +1,5 @@
+// +build linux
+
 /*
 Copyright 2016 The Rook Authors. All rights reserved.
 
@@ -19,6 +21,7 @@ package smoke
 import (
 	"time"
 
+	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -29,6 +32,7 @@ import (
 //Delete user
 func (suite *SmokeSuite) TestMonFailover() {
 	logger.Infof("Mon Failover Smoke Test")
+	logger.Infof("Test mon import %d", mon.EndpointConfigMapName)
 
 	namespace := "rook"
 	opts := metav1.ListOptions{LabelSelector: "app=rook-ceph-mon"}
