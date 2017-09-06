@@ -58,6 +58,14 @@ type Cluster struct {
 	Config    model.ObjectStore
 }
 
+type idType struct {
+	ID string `json:"id"`
+}
+
+type realmType struct {
+	Realms []string `json:"realms"`
+}
+
 // New creates an instance of an rgw manager
 func New(context *clusterd.Context, config model.ObjectStore, namespace, version string, placement k8sutil.Placement) *Cluster {
 
@@ -110,10 +118,6 @@ func (c *Cluster) Start() error {
 	return nil
 }
 
-type idType struct {
-	ID string `json:"id"`
-}
-
 func (c *Cluster) createRealm(serviceIP string) error {
 	realmArg := fmt.Sprintf("--rgw-realm=%s", c.Config.Name)
 	zonegroupArg := fmt.Sprintf("--rgw-zonegroup=%s", c.Config.Name)
@@ -121,11 +125,21 @@ func (c *Cluster) createRealm(serviceIP string) error {
 	endpointArg := fmt.Sprintf("--endpoints=%s:%d", serviceIP, c.Config.Port)
 	updatePeriod := false
 
+	// The first realm must be marked as the default
+	defaultArg := ""
+	stores, err := c.getObjectStores()
+	if err != nil {
+		return fmt.Errorf("failed to get object stores. %+v", err)
+	}
+	if len(stores) == 0 {
+		defaultArg = "--default"
+	}
+
 	// create the realm if it doesn't exist yet
 	output, err := c.runRGWCommand("realm", "get", realmArg)
 	if err != nil {
 		updatePeriod = true
-		output, err = c.runRGWCommand("realm", "create", realmArg)
+		output, err = c.runRGWCommand("realm", "create", realmArg, defaultArg)
 		if err != nil {
 			return fmt.Errorf("failed to create rgw realm %s. %+v", c.Config.Name, err)
 		}
@@ -140,7 +154,7 @@ func (c *Cluster) createRealm(serviceIP string) error {
 	output, err = c.runRGWCommand("zonegroup", "get", zonegroupArg, realmArg)
 	if err != nil {
 		updatePeriod = true
-		output, err = c.runRGWCommand("zonegroup", "create", "--master", zonegroupArg, realmArg, endpointArg)
+		output, err = c.runRGWCommand("zonegroup", "create", "--master", zonegroupArg, realmArg, endpointArg, defaultArg)
 		if err != nil {
 			return fmt.Errorf("failed to create rgw zonegroup for %s. %+v", c.Config.Name, err)
 		}
@@ -155,7 +169,7 @@ func (c *Cluster) createRealm(serviceIP string) error {
 	output, err = c.runRGWCommand("zone", "get", zoneArg, zonegroupArg, realmArg)
 	if err != nil {
 		updatePeriod = true
-		output, err = c.runRGWCommand("zone", "create", "--master", endpointArg, zoneArg, zonegroupArg, realmArg)
+		output, err = c.runRGWCommand("zone", "create", "--master", endpointArg, zoneArg, zonegroupArg, realmArg, defaultArg)
 		if err != nil {
 			return fmt.Errorf("failed to create rgw zonegroup for %s. %+v", c.Config.Name, err)
 		}
@@ -175,6 +189,24 @@ func (c *Cluster) createRealm(serviceIP string) error {
 
 	logger.Infof("RGW: realm=%s, zonegroup=%s, zone=%s", realmID, zoneGroupID, zoneID)
 	return nil
+}
+
+func (c *Cluster) getObjectStores() ([]string, error) {
+	output, err := c.runRGWCommand("realm", "list")
+	if err != nil {
+		if strings.Index(err.Error(), "exit status 2") != 0 {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+
+	var r realmType
+	err = json.Unmarshal([]byte(output), &r)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to unmarshal realms: %+v", err)
+	}
+
+	return r.Realms, nil
 }
 
 func (c *Cluster) createPools() error {

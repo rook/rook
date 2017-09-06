@@ -127,3 +127,44 @@ func TestSSLPodSpec(t *testing.T) {
 	assert.Equal(t, 6, len(cont.Args))
 	assert.Equal(t, fmt.Sprintf("--rgw-cert=%s/%s", certMountPath, certFilename), cont.Args[5])
 }
+
+func TestCreateRealm(t *testing.T) {
+	defaultStore := true
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithCombinedOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			idResponse := `{"id":"test-id"}`
+			logger.Infof("Execute: %s %v", command, args)
+			if args[1] == "get" {
+				return "", fmt.Errorf("induce a create")
+			} else if args[1] == "create" {
+				for _, arg := range args {
+					if arg == "--default" {
+						assert.True(t, defaultStore, "did not expect to find --default in %v", args)
+						return idResponse, nil
+					}
+				}
+				assert.False(t, defaultStore, "did not find --default flag in %v", args)
+			} else if args[0] == "realm" && args[1] == "list" {
+				if defaultStore {
+					return "", fmt.Errorf("failed to run radosgw-admin: Failed to complete : exit status 2")
+				} else {
+					return `{"realms": ["myobj"]}`, nil
+				}
+			}
+			return idResponse, nil
+		},
+	}
+
+	config := model.ObjectStore{Name: "myobject", Port: 123}
+	context := &clusterd.Context{Executor: executor}
+	c := New(context, config, "ns", "version", k8sutil.Placement{})
+
+	// create the first realm, marked as default
+	err := c.createRealm("1.2.3.4")
+	assert.Nil(t, err)
+
+	// create the second realm, not marked as default
+	defaultStore = false
+	err = c.createRealm("2.3.4.5")
+	assert.Nil(t, err)
+}
