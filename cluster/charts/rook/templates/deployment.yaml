@@ -10,7 +10,7 @@ spec:
   template:
     metadata:
       labels:
-        name: rook-operator
+        app: rook-operator
         chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
     spec:
       serviceAccountName: rook-operator

@@ -40,7 +40,7 @@ type K8sBlockLongHaulSuite struct {
 func (s *K8sBlockLongHaulSuite) SetupSuite() {
 
 	var err error
-	s.kh, err = utils.CreatK8sHelper()
+	s.kh, err = utils.CreateK8sHelper()
 	assert.Nil(s.T(), err)
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset)

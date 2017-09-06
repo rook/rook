@@ -40,6 +40,7 @@ wait_for_ssh() {
 copy_image_to_cluster() {
     local build_image=$1
     local final_image=$2
+    local helm_image_tag=
 
     echo copying ${build_image} to minikube
     mkdir -p ${WORK_DIR}/tests
@@ -55,7 +56,7 @@ KUBE_VERSION=${KUBE_VERSION:-"v1.7.2"}
 
 case "${1:-}" in
   up)
-    minikube start --memory=3000 --kubernetes-version ${KUBE_VERSION}
+    minikube start --memory=3000 --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
     wait_for_ssh
  
     echo setting up rbd
@@ -82,6 +83,11 @@ case "${1:-}" in
     copy_image_to_cluster mysql:5.6 mysql:5.6
     copy_image_to_cluster wordpress:4.6.1-apache wordpress:4.6.1-apache
     ;;
+  helm)
+    echo " copying rook image for helm"
+    helm_tag="`cat _output/version`"
+    copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:${helm_tag}
+    ;;
   clean)
     minikube delete
     ;;
@@ -93,4 +99,5 @@ case "${1:-}" in
     echo "  $0 ssh" >&2
     echo "  $0 update" >&2
     echo "  $0 wordpress" >&2
+    echo "  $0 helm" >&2=
 esac

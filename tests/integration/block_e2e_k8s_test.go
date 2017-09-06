@@ -54,7 +54,7 @@ type K8sBlockEnd2EndIntegrationSuite struct {
 func (s *K8sBlockEnd2EndIntegrationSuite) SetupSuite() {
 
 	var err error
-	s.kh, err = utils.CreatK8sHelper()
+	s.kh, err = utils.CreateK8sHelper()
 	assert.Nil(s.T(), err)
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset)

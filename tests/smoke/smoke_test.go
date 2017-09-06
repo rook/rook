@@ -43,7 +43,7 @@ type SmokeSuite struct {
 }
 
 func (suite *SmokeSuite) SetupSuite() {
-	kh, err := utils.CreatK8sHelper()
+	kh, err := utils.CreateK8sHelper()
 	require.NoError(suite.T(), err)
 
 	suite.k8sh = kh

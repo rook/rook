@@ -50,7 +50,7 @@ type BlockImageCreateSuite struct {
 
 func (s *BlockImageCreateSuite) SetupSuite() {
 
-	kh, err := utils.CreatK8sHelper()
+	kh, err := utils.CreateK8sHelper()
 	require.NoError(s.T(), err)
 
 	s.installer = installer.NewK8sRookhelper(kh.Clientset)
