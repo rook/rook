@@ -16,7 +16,6 @@ limitations under the License.
 package k8s
 
 import (
-	"encoding/base64"
 	"fmt"
 
 	"github.com/rook/rook/pkg/ceph/mon"
@@ -54,8 +53,7 @@ func (s *clusterHandler) EnableObjectStore(config model.ObjectStore) error {
 		certName := fmt.Sprintf("rook-rgw-%s-cert", config.Name)
 		config.CertificateRef = certName
 
-		encodedCert := base64.StdEncoding.EncodeToString([]byte(config.Certificate))
-		data := map[string][]byte{"cert": []byte(encodedCert)}
+		data := map[string][]byte{"cert": []byte(config.Certificate)}
 		certSecret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: certName, Namespace: s.namespace}, Data: data}
 
 		_, err := s.context.Clientset.Core().Secrets(s.namespace).Create(certSecret)
