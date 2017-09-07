@@ -44,7 +44,7 @@ spec:
       containers:
       - name: rook-operator
         image: rook/rook:master
-        args: ["operator"]
+        args: ["operator", "--mon-healthcheck-interval=5s", "--mon-out-timeout=1s"]
         env:
         - name: ROOK_REPO_PREFIX
           value: roo`
@@ -163,7 +163,7 @@ spec:
       containers:
       - name: rook-operator
         image: rook/rook:master
-        args: ["operator"]
+        args: ["operator", "--mon-healthcheck-interval=5s", "--mon-out-timeout=1s"]
         env:
         - name: ROOK_REPO_PREFIX
           value: rook`

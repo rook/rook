@@ -9,8 +9,8 @@ indent: true
 These examples show how to perform advanced configuration tasks on your Rook
 storage cluster.
 
-- [Change Rook Docker Image Prefix](#change-rook-docker-image-prefix)
 - [Log Collection](#log-collection)
+- [Change Rook Docker Image Prefix](#change-rook-docker-image-prefix)
 - [OSD Information](#osd-information)
 - [Separate Storage Groups](#separate-storage-groups)
 - [Configuring Pools](#configuring-pools)
@@ -26,33 +26,33 @@ The Kubernetes based examples assume Rook OSD pods are in the `rook` namespace.
 If you run them in a different namespace, modify `kubectl -n rook [...]` to fit
 your situation.
 
-## Change Rook Docker Image Prefix
-To change the prefix of rook Docker images used, the environment variable `ROOK_REPO_PREFIX` can be changed.
-The variable needs to be, depending on the deployment of the rook-operator, added/changed in the rook-operator deployment.
-The default is `rook` which will pull from [Docker Hub](https://hub.docker.com/r/rook/rook/). For example to use your own built images: `your-registry.example.com/your-name/rook`.
-
 ## Log Collection
 
 All Rook logs can be collected in a Kubernetes environment with the following command:
 ```bash
 (for p in $(kubectl -n rook get pods -o jsonpath='{.items[*].metadata.name}')
 do
-  for c in $(kubectl -n rook get pod ${p} -o jsonpath='{.spec.containers[*].name}')
-  do
-    echo "BEGIN logs from pod: ${p} ${c}"
-    kubectl -n rook logs -c ${c} ${p}
-    echo "END logs from pod: ${p} ${c}"
-  done
+    for c in $(kubectl -n rook get pod ${p} -o jsonpath='{.spec.containers[*].name}')
+    do
+        echo "BEGIN logs from pod: ${p} ${c}"
+        kubectl -n rook logs -c ${c} ${p}
+        echo "END logs from pod: ${p} ${c}"
+    done
 done
 for i in $(kubectl -n default get pods -l app=rook-operator -o jsonpath='{.items[*].metadata.name}')
 do
-  echo "BEGIN logs from pod: ${i}"
-  kubectl -n default logs ${i}
-  echo "END logs from pod: ${i}"
+    echo "BEGIN logs from pod: ${i}"
+    kubectl -n default logs ${i}
+    echo "END logs from pod: ${i}"
 done) | gzip > /tmp/rook-logs.gz
 ```
 This gets the logs for every container in every Rook pod and then compresses them into a `.gz` archive
 for easy sharing.  Note that instead of `gzip`, you could instead pipe to `less` or to a single text file.
+
+## Change Rook Docker Image Prefix
+To change the prefix of rook Docker images used, the environment variable `ROOK_REPO_PREFIX` can be changed.
+The variable needs to be, depending on the deployment of the rook-operator, added/changed in the rook-operator deployment.
+The default is `rook` which will pull from [Docker Hub](https://hub.docker.com/r/rook/rook/). For example to use your own built images: `your-registry.example.com/your-name/rook`.
 
 ## OSD Information
 
@@ -312,8 +312,8 @@ PGs in "undersized" and other "unclean" states.  The cluster is essentially
 fixing itself since the number of replicas has been increased, and should go
 back to "active/clean" state shortly, after data has been replicated between
 hosts.  When that's done you will be able to lose two of your storage nodes and
-still have access to all your data in that pool, since the CRUSH algorithm will 
-guarantee that at least one replica will still be available on another storage node. 
+still have access to all your data in that pool, since the CRUSH algorithm will
+guarantee that at least one replica will still be available on another storage node.
 Of course you will only have 1/3 the capacity as a tradeoff.
 
 ### Setting PG Count

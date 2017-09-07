@@ -75,6 +75,7 @@ type Cluster struct {
 	dataDirHostPath     string
 	monPodRetryInterval time.Duration
 	monPodTimeout       time.Duration
+	monTimeoutList      map[string]time.Time
 }
 
 // monConfig for a single monitor
@@ -97,6 +98,7 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, version string, 
 		waitForStart:        true,
 		monPodRetryInterval: 6 * time.Second,
 		monPodTimeout:       5 * time.Minute,
+		monTimeoutList:      map[string]time.Time{},
 	}
 }
 
@@ -104,8 +106,7 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, version string, 
 func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 	logger.Infof("start running mons")
 
-	err := c.initClusterInfo()
-	if err != nil {
+	if err := c.initClusterInfo(); err != nil {
 		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
 
@@ -124,8 +125,7 @@ func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 		}
 	} else {
 		// Check the health of a previously started cluster
-		err = c.checkHealth()
-		if err != nil {
+		if err := c.checkHealth(); err != nil {
 			logger.Warningf("failed to check mon health %+v. %+v", c.clusterInfo.Monitors, err)
 		}
 	}

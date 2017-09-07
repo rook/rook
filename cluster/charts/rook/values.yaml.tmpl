@@ -16,6 +16,10 @@ resources:
     cpu: 100m
     memory: 128Mi
 
+mon:
+  healthCheckInterval: "20s"
+  monOutTimeout: "300s"
+
 ## LogLevel can be set to: TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR or CRITICAL
 logLevel: INFO
 

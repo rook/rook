@@ -58,7 +58,7 @@ case "${1:-}" in
   up)
     minikube start --memory=3000 --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
     wait_for_ssh
- 
+
     echo setting up rbd
     minikube_scp ${scriptdir}/minikube-rbd /home/docker/minikube-rbd
     minikube_ssh "sudo cp /home/docker/minikube-rbd /bin/rbd && sudo chmod +x /bin/rbd"
@@ -99,5 +99,5 @@ case "${1:-}" in
     echo "  $0 ssh" >&2
     echo "  $0 update" >&2
     echo "  $0 wordpress" >&2
-    echo "  $0 helm" >&2=
+    echo "  $0 helm" >&2
 esac
