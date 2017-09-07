@@ -98,6 +98,9 @@ def RunIntegrationTest(k, v) {
                         _output/tests/linux_amd64/smoke -test.v -test.timeout 1200s 2>&1 | tee _output/tests/integrationTests.log'''
                     }
                     finally{
+                        sh '''#!/bin/bash
+                              export KUBECONFIG=$HOME/admin.conf
+                              tests/scripts/helm.sh clean || true'''
                         sh "mv _output/tests/integrationTests.log _output/tests/${k}_${v}_integrationTests.log"
                         stash name: "${k}_${v}_result",includes : "_output/tests/${k}_${v}_integrationTests.log"
                     }
