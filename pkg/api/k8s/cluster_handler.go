@@ -16,6 +16,7 @@ limitations under the License.
 package k8s
 
 import (
+	"encoding/base64"
 	"fmt"
 
 	"github.com/rook/rook/pkg/ceph/mon"
@@ -25,6 +26,8 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	k8smds "github.com/rook/rook/pkg/operator/mds"
 	k8srgw "github.com/rook/rook/pkg/operator/rgw"
+	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -43,11 +46,29 @@ func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
 	return s.clusterInfo, nil
 }
 
-func (s *clusterHandler) EnableObjectStore() error {
+func (s *clusterHandler) EnableObjectStore(config model.ObjectStore) error {
 	logger.Infof("Starting the Object store")
+
+	// save the certificate in a secret if we weren't given a reference to a secret
+	if config.Certificate != "" && config.CertificateRef == "" {
+		certName := fmt.Sprintf("rook-rgw-%s-cert", config.Name)
+		config.CertificateRef = certName
+
+		encodedCert := base64.StdEncoding.EncodeToString([]byte(config.Certificate))
+		data := map[string][]byte{"cert": []byte(encodedCert)}
+		certSecret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: certName, Namespace: s.namespace}, Data: data}
+
+		_, err := s.context.Clientset.Core().Secrets(s.namespace).Create(certSecret)
+		if err != nil {
+			if !errors.IsAlreadyExists(err) {
+				return fmt.Errorf("failed to create cert secret. %+v", err)
+			}
+		}
+	}
+
 	// Passing an empty Placement{} as the api doesn't know about placement
 	// information. This should be resolved with the transition to CRD (TPR).
-	r := k8srgw.New(s.context, s.namespace, s.versionTag, k8sutil.Placement{})
+	r := k8srgw.New(s.context, config, s.namespace, s.versionTag, k8sutil.Placement{})
 	err := r.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
@@ -55,20 +76,20 @@ func (s *clusterHandler) EnableObjectStore() error {
 	return nil
 }
 
-func (s *clusterHandler) RemoveObjectStore() error {
+func (s *clusterHandler) RemoveObjectStore(name string) error {
 	logger.Infof("TODO: Remove the object store")
 	return nil
 }
 
-func (s *clusterHandler) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, bool, error) {
+func (s *clusterHandler) GetObjectStoreConnectionInfo(name string) (*model.ObjectStoreConnectInfo, bool, error) {
 	logger.Infof("Getting the object store connection info")
-	service, err := s.context.Clientset.CoreV1().Services(s.namespace).Get("rook-ceph-rgw", metav1.GetOptions{})
+	service, err := s.context.Clientset.CoreV1().Services(s.namespace).Get(k8srgw.InstanceName(name), metav1.GetOptions{})
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to get rgw service. %+v", err)
 	}
 
 	info := &model.ObjectStoreConnectInfo{
-		Host:       "rook-ceph-rgw",
+		Host:       k8srgw.InstanceName(name),
 		IPEndpoint: rgw.GetRGWEndpoint(service.Spec.ClusterIP),
 	}
 	logger.Infof("Object store connection: %+v", info)

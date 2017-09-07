@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 
+	"time"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/enums"
@@ -12,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"time"
 )
 
 var (
@@ -203,7 +204,7 @@ func (hs *HelmSmokeSuite) TestObjectStoreOnRookInstalledViaHelm() {
 	assert.True(hs.T(), hs.k8sh.CheckPodCountAndState("rook-ceph-rgw", "rook", 2, "Running"),
 		"Make sure there is 1 rook-operator present in Running state")
 
-	require.True(hs.T(), hs.k8sh.IsServiceUpInNameSpace("rook-ceph-rgw"))
+	require.True(hs.T(), hs.k8sh.IsServiceUpInNameSpace("rook-ceph-rgw-default"))
 
 }
 

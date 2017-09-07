@@ -32,14 +32,18 @@ var rgwCmd = &cobra.Command{
 }
 
 var (
+	rgwName    string
 	rgwKeyring string
 	rgwHost    string
+	rgwCert    string
 	rgwPort    int
 )
 
 func init() {
+	rgwCmd.Flags().StringVar(&rgwName, "rgw-name", "", "name of the object store")
 	rgwCmd.Flags().StringVar(&rgwKeyring, "rgw-keyring", "", "the rgw keyring")
 	rgwCmd.Flags().StringVar(&rgwHost, "rgw-host", "", "dns host name")
+	rgwCmd.Flags().StringVar(&rgwCert, "rgw-cert", "", "path to the ssl certificate in pem format")
 	rgwCmd.Flags().IntVar(&rgwPort, "rgw-port", 0, "rgw port number")
 	addCephFlags(rgwCmd)
 
@@ -49,7 +53,7 @@ func init() {
 }
 
 func startRGW(cmd *cobra.Command, args []string) error {
-	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret", "rgw-host", "rgw-keyring", "public-ipv4", "private-ipv4"}
+	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret", "rgw-name", "rgw-host", "rgw-keyring", "public-ipv4", "private-ipv4"}
 	if err := flags.VerifyRequiredFlags(rgwCmd, required); err != nil {
 		return err
 	}
@@ -64,11 +68,13 @@ func startRGW(cmd *cobra.Command, args []string) error {
 
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &rgw.Config{
-		ClusterInfo: &clusterInfo,
-		Keyring:     rgwKeyring,
-		Host:        rgwHost,
-		Port:        rgwPort,
-		InProc:      true,
+		ClusterInfo:     &clusterInfo,
+		Name:            rgwName,
+		Keyring:         rgwKeyring,
+		Host:            rgwHost,
+		Port:            rgwPort,
+		CertificatePath: rgwCert,
+		InProc:          true,
 	}
 
 	err := rgw.Run(createContext(), config)

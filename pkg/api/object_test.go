@@ -25,6 +25,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	cephtest "github.com/rook/rook/pkg/ceph/test"
@@ -41,7 +42,7 @@ func TestCreateObjectStoreHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
 
-	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore", nil)
+	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore", strings.NewReader(`{"name": "default"}`))
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -142,8 +143,8 @@ func TestListUsers(t *testing.T) {
 
 	expectedConfigArg := getExectedConfigArg(configSubDir)
 	expectedKeyringArg := getExpectedKeyringArg(configSubDir)
-	expectedListArgs := []string{"user", "list", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg}
-	expectedInfoArgs := []string{"user", "info", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--uid"}
+	expectedListArgs := []string{"user", "list", "--rgw-realm=default", "--rgw-zonegroup=default", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg}
+	expectedInfoArgs := []string{"user", "info", "--rgw-realm=default", "--rgw-zonegroup=default", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--uid"}
 
 	// Empty list
 	w := runTest(func(args ...string) (string, error) {
@@ -247,7 +248,7 @@ func TestGetUser(t *testing.T) {
 
 	expectedConfigArg := getExectedConfigArg(configSubDir)
 	expectedKeyringArg := getExpectedKeyringArg(configSubDir)
-	expectedArgs := []string{"user", "info", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--uid", "someuser"}
+	expectedArgs := []string{"user", "info", "--rgw-realm=default", "--rgw-zonegroup=default", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--uid", "someuser"}
 
 	// Error getting user
 	w := runTest("", fmt.Errorf("some error"), expectedArgs...)
@@ -316,7 +317,7 @@ func TestCreateUser(t *testing.T) {
 
 	expectedConfigArg := getExectedConfigArg(configSubDir)
 	expectedKeyringArg := getExpectedKeyringArg(configSubDir)
-	expectedDisplayNameArgs := []string{"user", "create", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--uid", "foo", "--display-name", "the foo"}
+	expectedDisplayNameArgs := []string{"user", "create", "--rgw-realm=default", "--rgw-zonegroup=default", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--uid", "foo", "--display-name", "the foo"}
 	expectedDisplayNameAndEmailArgs := append(expectedDisplayNameArgs, "--email", "test@example.com")
 
 	// Empty body
@@ -396,7 +397,7 @@ func TestUpdateUser(t *testing.T) {
 
 	expectedConfigArg := getExectedConfigArg(configSubDir)
 	expectedKeyringArg := getExpectedKeyringArg(configSubDir)
-	expectedArgs := []string{"user", "modify", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--uid", "foo"}
+	expectedArgs := []string{"user", "modify", "--rgw-realm=default", "--rgw-zonegroup=default", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--uid", "foo"}
 
 	// Empty body
 	w := runTest("", "", nil, "", "")
@@ -479,7 +480,7 @@ func TestDeleteUser(t *testing.T) {
 
 	expectedConfigArg := getExectedConfigArg(configSubDir)
 	expectedKeyringArg := getExpectedKeyringArg(configSubDir)
-	expectedArgs := []string{"user", "rm", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--uid", "foo"}
+	expectedArgs := []string{"user", "rm", "--rgw-realm=default", "--rgw-zonegroup=default", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--uid", "foo"}
 
 	// Some error
 	w := runTest("", fmt.Errorf("some error"), expectedArgs...)
@@ -528,8 +529,8 @@ func TestListBuckets(t *testing.T) {
 
 	expectedConfigArg := getExectedConfigArg(configSubDir)
 	expectedKeyringArg := getExpectedKeyringArg(configSubDir)
-	expectedStatsArgs := []string{"bucket", "stats", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg}
-	expectedMetadataArgs := []string{"metadata", "get", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "bucket:foo"}
+	expectedStatsArgs := []string{"bucket", "stats", "--rgw-realm=default", "--rgw-zonegroup=default", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg}
+	expectedMetadataArgs := []string{"metadata", "get", "--rgw-realm=default", "--rgw-zonegroup=default", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "bucket:foo"}
 
 	// List error
 	w := runTest(func(args ...string) (string, error) {
@@ -676,8 +677,8 @@ func TestGetBucket(t *testing.T) {
 
 	expectedConfigArg := getExectedConfigArg(configSubDir)
 	expectedKeyringArg := getExpectedKeyringArg(configSubDir)
-	expectedStatsArgs := []string{"bucket", "stats", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--bucket", "test"}
-	expectedMetadataArgs := []string{"metadata", "get", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "bucket:test"}
+	expectedStatsArgs := []string{"bucket", "stats", "--rgw-realm=default", "--rgw-zonegroup=default", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--bucket", "test"}
+	expectedMetadataArgs := []string{"metadata", "get", "--rgw-realm=default", "--rgw-zonegroup=default", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "bucket:test"}
 
 	// Stats fails
 	w := runTest(func(args ...string) (string, error) {
@@ -795,7 +796,7 @@ func TestBucketDelete(t *testing.T) {
 
 	expectedConfigArg := getExectedConfigArg(configSubDir)
 	expectedKeyringArg := getExpectedKeyringArg(configSubDir)
-	expectedArgs := []string{"bucket", "rm", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--bucket", "test"}
+	expectedArgs := []string{"bucket", "rm", "--rgw-realm=default", "--rgw-zonegroup=default", "--cluster=rookcluster", expectedConfigArg, expectedKeyringArg, "--bucket", "test"}
 
 	// errors
 	w := runTest("", fmt.Errorf("some error"), expectedArgs...)

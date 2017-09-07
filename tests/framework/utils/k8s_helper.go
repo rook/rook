@@ -26,6 +26,8 @@ import (
 	"strings"
 	"time"
 
+	"strconv"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/jmoiron/jsonq"
 	"github.com/rook/rook/pkg/util/exec"
@@ -33,7 +35,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"strconv"
 )
 
 //K8sHelper is a helper for common kubectl commads

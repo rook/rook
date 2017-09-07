@@ -21,25 +21,24 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/rook/test"
 )
 
 func TestCreateObjectStore(t *testing.T) {
 	c := &test.MockRookRestClient{}
 
-	out, err := createObjectStore(c)
+	err := createObjectStore(c)
 	assert.Nil(t, err)
-	assert.Equal(t, "succeeded starting creation of object store", out)
 }
 
 func TestCreateObjectStoreError(t *testing.T) {
 	c := &test.MockRookRestClient{
-		MockCreateObjectStore: func() (string, error) {
+		MockCreateObjectStore: func(store model.ObjectStore) (string, error) {
 			return "", fmt.Errorf("mock create object store failed")
 		},
 	}
 
-	out, err := createObjectStore(c)
+	err := createObjectStore(c)
 	assert.NotNil(t, err)
-	assert.Equal(t, "", out)
 }

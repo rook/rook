@@ -31,11 +31,13 @@ import (
 )
 
 type Config struct {
-	Host        string
-	Port        int
-	Keyring     string
-	InProc      bool
-	ClusterInfo *mon.ClusterInfo
+	Name            string
+	Host            string
+	Port            int
+	Keyring         string
+	CertificatePath string
+	InProc          bool
+	ClusterInfo     *mon.ClusterInfo
 }
 
 func Run(context *clusterd.Context, config *Config) error {
@@ -65,6 +67,13 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		logger.Warningf("failed to create data directory %s: %+v", dataDir, err)
 	}
 
+	sslSuffix := ""
+	if config.CertificatePath != "" {
+		// the suffix is intended to be appended to the end of the rgw_frontends arg, immediately after the port.
+		// with ssl enabled, the port number must end with the letter s.
+		sslSuffix = fmt.Sprintf("s ssl_certificate=%s", config.CertificatePath)
+	}
+
 	settings := map[string]string{
 		"host":                           config.Host,
 		"rgw port":                       strconv.Itoa(config.Port),
@@ -73,6 +82,9 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		"rgw log nonexistent bucket":     "true",
 		"rgw intent log object name utc": "true",
 		"rgw enable usage log":           "true",
+		"rgw_frontends":                  fmt.Sprintf("civetweb port=%d%s", config.Port, sslSuffix),
+		"rgw_zone":                       config.Name,
+		"rgw_zonegroup":                  config.Name,
 	}
 	_, err := mon.GenerateConfigFile(context, config.ClusterInfo, getRGWConfDir(context.ConfigDir),
 		"client.radosgw.gateway", getRGWKeyringPath(context.ConfigDir), false, nil, settings)
@@ -101,7 +113,6 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 }
 
 func startRGW(context *clusterd.Context, config *Config) (rgwProc *proc.MonitoredProc, err error) {
-
 	// start the monitor daemon in the foreground with the given config
 	logger.Infof("starting rgw")
 
@@ -115,7 +126,6 @@ func startRGW(context *clusterd.Context, config *Config) (rgwProc *proc.Monitore
 		fmt.Sprintf("--cluster=%s", config.ClusterInfo.Name),
 		fmt.Sprintf("--conf=%s", confFile),
 		fmt.Sprintf("--keyring=%s", getRGWKeyringPath(context.ConfigDir)),
-		fmt.Sprintf("--rgw-frontends=civetweb port=%d", config.Port),
 		fmt.Sprintf("--rgw-mime-types-file=%s", getMimeTypesPath(context.ConfigDir)),
 	}
 	if config.InProc {

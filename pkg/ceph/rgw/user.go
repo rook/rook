@@ -21,8 +21,6 @@ import (
 
 	"strings"
 
-	"github.com/rook/rook/pkg/ceph/mon"
-	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 )
 
@@ -34,8 +32,8 @@ const (
 	RGWErrorParse    = iota
 )
 
-func ListUsers(context *clusterd.Context, getClusterInfo func() (*mon.ClusterInfo, error)) ([]string, int, error) {
-	result, err := RunAdminCommand(context, getClusterInfo, "user", "list")
+func ListUsers(c *Context) ([]string, int, error) {
+	result, err := RunAdminCommand(c, "user", "list")
 	if err != nil {
 		return nil, RGWErrorUnknown, fmt.Errorf("failed to list users: %+v", err)
 	}
@@ -75,10 +73,10 @@ func decodeUser(data string) (*model.ObjectUser, int, error) {
 	return &rookUser, RGWErrorNone, nil
 }
 
-func GetUser(context *clusterd.Context, id string, getClusterInfo func() (*mon.ClusterInfo, error)) (*model.ObjectUser, int, error) {
+func GetUser(c *Context, id string) (*model.ObjectUser, int, error) {
 	logger.Infof("Getting user: %s", id)
 
-	result, err := RunAdminCommand(context, getClusterInfo, "user", "info", "--uid", id)
+	result, err := RunAdminCommand(c, "user", "info", "--uid", id)
 	if err != nil {
 		return nil, RGWErrorUnknown, fmt.Errorf("failed to get users: %+v", err)
 	}
@@ -88,7 +86,7 @@ func GetUser(context *clusterd.Context, id string, getClusterInfo func() (*mon.C
 	return decodeUser(result)
 }
 
-func CreateUser(context *clusterd.Context, user model.ObjectUser, getClusterInfo func() (*mon.ClusterInfo, error)) (*model.ObjectUser, int, error) {
+func CreateUser(c *Context, user model.ObjectUser) (*model.ObjectUser, int, error) {
 	logger.Infof("Creating user: %s", user.UserID)
 
 	if strings.TrimSpace(user.UserID) == "" {
@@ -108,7 +106,7 @@ func CreateUser(context *clusterd.Context, user model.ObjectUser, getClusterInfo
 		args = append(args, "--email", *user.Email)
 	}
 
-	result, err := RunAdminCommand(context, getClusterInfo, "user", "create", args...)
+	result, err := RunAdminCommand(c, "user", "create", args...)
 	if err != nil {
 		return nil, RGWErrorUnknown, fmt.Errorf("failed to create user: %+v", err)
 	}
@@ -124,7 +122,7 @@ func CreateUser(context *clusterd.Context, user model.ObjectUser, getClusterInfo
 	return decodeUser(result)
 }
 
-func UpdateUser(context *clusterd.Context, user model.ObjectUser, getClusterInfo func() (*mon.ClusterInfo, error)) (*model.ObjectUser, int, error) {
+func UpdateUser(c *Context, user model.ObjectUser) (*model.ObjectUser, int, error) {
 	logger.Infof("Updating user: %s", user.UserID)
 
 	args := []string{"--uid", user.UserID}
@@ -136,7 +134,7 @@ func UpdateUser(context *clusterd.Context, user model.ObjectUser, getClusterInfo
 		args = append(args, "--email", *user.Email)
 	}
 
-	body, err := RunAdminCommand(context, getClusterInfo, "user", "modify", args...)
+	body, err := RunAdminCommand(c, "user", "modify", args...)
 	if err != nil {
 		return nil, RGWErrorUnknown, fmt.Errorf("failed to update user: %+v", err)
 	}
@@ -148,9 +146,9 @@ func UpdateUser(context *clusterd.Context, user model.ObjectUser, getClusterInfo
 	return decodeUser(body)
 }
 
-func DeleteUser(context *clusterd.Context, id string, getClusterInfo func() (*mon.ClusterInfo, error)) (string, int, error) {
+func DeleteUser(c *Context, id string) (string, int, error) {
 	logger.Infof("Deleting user: %s", id)
-	result, err := RunAdminCommand(context, getClusterInfo, "user", "rm", "--uid", id)
+	result, err := RunAdminCommand(c, "user", "rm", "--uid", id)
 	if err != nil {
 		return "", RGWErrorUnknown, fmt.Errorf("failed to delete user: %+v", err)
 	}

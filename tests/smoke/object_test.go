@@ -151,7 +151,7 @@ func getBucket(bucketname string, bucketList []model.ObjectBucket) (model.Object
 func (suite *SmokeSuite) createObjectStore() error {
 	suite.helper.GetObjectClient().ObjectCreate()
 	time.Sleep(time.Second * 2) //wait for rgw service to to started
-	if suite.k8sh.IsServiceUpInNameSpace("rook-ceph-rgw") {
+	if suite.k8sh.IsServiceUpInNameSpace("rook-ceph-rgw-default") {
 		_, err := suite.k8sh.GetService("rgw-external")
 		if err != nil {
 			suite.k8sh.KubectlWithStdin(getRGWExternalServiceDef(), []string{"create", "-f", "-"}...)

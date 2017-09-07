@@ -17,6 +17,8 @@ package model
 
 import "time"
 
+const RGWPort = 53390
+
 type ObjectStoreConnectInfo struct {
 	Host       string `json:"host"`
 	IPEndpoint string `json:"ipEndpoint"`

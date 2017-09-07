@@ -29,27 +29,24 @@ const (
 )
 
 func TestCreatePoolValidTypeRequired(t *testing.T) {
-	c := &test.MockRookRestClient{}
-	out, err := createPool("pool1", "foo", 1, 0, 0, c)
+	config := Config{PoolType: "foo"}
+	_, err := ConfigToModel(config)
 	assert.NotNil(t, err)
 	assert.Equal(t, "invalid pool type 'foo', allowed pool types are 'replicated' and 'erasure-coded'", err.Error())
-	assert.Equal(t, "", out)
 }
 
 func TestCreatePoolErasureCodedParamsRequired(t *testing.T) {
-	c := &test.MockRookRestClient{}
-	out, err := createPool("pool1", PoolTypeErasureCoded, 0, 0, 0, c)
+	config := Config{PoolType: PoolTypeErasureCoded}
+	_, err := ConfigToModel(config)
 	assert.NotNil(t, err)
 	assert.Equal(t, "both data chunks and coding chunks must be greater than zero for pool type 'erasure-coded'", err.Error())
-	assert.Equal(t, "", out)
 }
 
 func TestCreatePoolReplicatedErasureCodedParamsNotAllowed(t *testing.T) {
-	c := &test.MockRookRestClient{}
-	out, err := createPool("pool1", PoolTypeReplicated, 0, 2, 1, c)
+	config := Config{PoolType: PoolTypeReplicated, DataChunks: 2, CodingChunks: 1}
+	_, err := ConfigToModel(config)
 	assert.NotNil(t, err)
 	assert.Equal(t, "both data chunks and coding chunks must be zero for pool type 'replicated'", err.Error())
-	assert.Equal(t, "", out)
 }
 
 func TestCreatePoolReplicatedNoParams(t *testing.T) {
@@ -66,7 +63,8 @@ func TestCreatePoolReplicatedNoParams(t *testing.T) {
 	}
 
 	// replicated pool replica count of 0 is OK, it will get the ceph default
-	out, err := createPool("pool1", PoolTypeReplicated, 0, 0, 0, c)
+	pool := model.Pool{Name: "pool1", Type: model.Replicated}
+	out, err := createPool(pool, c)
 	assert.Nil(t, err)
 	assert.Equal(t, SuccessPoolCreatedMessage, out)
 }
@@ -87,7 +85,9 @@ func TestCreatePoolReplicated(t *testing.T) {
 		},
 	}
 
-	out, err := createPool("pool1", PoolTypeReplicated, 3, 0, 0, c)
+	pool := model.Pool{Name: "pool1", Type: model.Replicated}
+	pool.ReplicationConfig.Size = 3
+	out, err := createPool(pool, c)
 	assert.Nil(t, err)
 	assert.Equal(t, SuccessPoolCreatedMessage, out)
 }
@@ -109,7 +109,11 @@ func TestCreatePoolErasureCoded(t *testing.T) {
 		},
 	}
 
-	out, err := createPool("pool1", PoolTypeErasureCoded, 0, 2, 1, c)
+	pool := model.Pool{Name: "pool1", Type: model.ErasureCoded}
+	pool.ErasureCodedConfig.DataChunkCount = 2
+	pool.ErasureCodedConfig.CodingChunkCount = 1
+
+	out, err := createPool(pool, c)
 	assert.Nil(t, err)
 	assert.Equal(t, SuccessPoolCreatedMessage, out)
 }
@@ -121,7 +125,8 @@ func TestCreatePoolFailure(t *testing.T) {
 		},
 	}
 
-	out, err := createPool("pool1", PoolTypeReplicated, 0, 0, 0, c)
+	pool := model.Pool{Name: "pool1", Type: model.Replicated}
+	out, err := createPool(pool, c)
 	assert.NotNil(t, err)
 	assert.Equal(t, "failed to create new pool 'pool1': mock error", err.Error())
 	assert.Equal(t, "", out)

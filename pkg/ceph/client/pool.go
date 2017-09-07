@@ -113,7 +113,7 @@ func CreatePool(context *clusterd.Context, clusterName string, newPool CephStora
 
 func CreatePoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string) error {
 	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number)}
-	// not implemented: fix the pool create for the different profiles
+
 	if newPool.ErasureCodeProfile != "" {
 		args = append(args, "erasure", newPool.ErasureCodeProfile)
 	} else {

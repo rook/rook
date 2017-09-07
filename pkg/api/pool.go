@@ -112,7 +112,7 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newPool := modelPoolToCephPool(newPoolReq)
+	newPool := ceph.ModelPoolToCephPool(newPoolReq)
 
 	if newPoolReq.Type == model.ErasureCoded {
 		// create a new erasure code profile for the new pool
@@ -131,21 +131,6 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Write([]byte(fmt.Sprintf("pool '%s' created", newPool.Name)))
-}
-
-func modelPoolToCephPool(modelPool model.Pool) ceph.CephStoragePoolDetails {
-	pool := ceph.CephStoragePoolDetails{
-		Name:   modelPool.Name,
-		Number: modelPool.Number,
-	}
-
-	if modelPool.Type == model.Replicated {
-		pool.Size = modelPool.ReplicationConfig.Size
-	} else if modelPool.Type == model.ErasureCoded {
-		pool.ErasureCodeProfile = fmt.Sprintf("%s_ecprofile", pool.Name)
-	}
-
-	return pool
 }
 
 func cephPoolToModelPool(cephPool ceph.CephStoragePoolDetails, ecpDetails map[string]ceph.CephErasureCodeProfile) (model.Pool, error) {

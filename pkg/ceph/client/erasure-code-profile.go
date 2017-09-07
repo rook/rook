@@ -87,3 +87,18 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, con
 
 	return nil
 }
+
+func ModelPoolToCephPool(modelPool model.Pool) CephStoragePoolDetails {
+	pool := CephStoragePoolDetails{
+		Name:   modelPool.Name,
+		Number: modelPool.Number,
+	}
+
+	if modelPool.Type == model.Replicated {
+		pool.Size = modelPool.ReplicationConfig.Size
+	} else if modelPool.Type == model.ErasureCoded {
+		pool.ErasureCodeProfile = fmt.Sprintf("%s_ecprofile", pool.Name)
+	}
+
+	return pool
+}

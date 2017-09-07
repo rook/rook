@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/util"
 )
 
@@ -281,5 +282,5 @@ func (r *Leader) getDesiredRGWNodes(context *clusterd.Context, count int) ([]str
 }
 
 func GetRGWEndpoint(addr string) string {
-	return fmt.Sprintf("%s:%d", addr, RGWPort)
+	return fmt.Sprintf("%s:%d", addr, model.RGWPort)
 }
