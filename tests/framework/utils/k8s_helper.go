@@ -29,7 +29,6 @@ import (
 	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/jmoiron/jsonq"
 	"github.com/rook/rook/pkg/util/exec"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -207,22 +206,6 @@ type kuserContext struct {
 	} `json:"user"`
 }
 
-//GetMonIP returns IP address for a ceph mon pod
-func (k8sh *K8sHelper) GetMonIP(mon string) (string, error) {
-	//kubectl -n rook get pod mon0 -o json|jq ".status.podIP"|
-	cmdArgs := []string{"-n", "rook", "get", "pod", mon, "-o", "json"}
-	result, err := k8sh.Kubectl(cmdArgs...)
-	if err == nil {
-		data := map[string]interface{}{}
-		dec := json.NewDecoder(strings.NewReader(result))
-		dec.Decode(&data)
-		jq := jsonq.NewQuery(data)
-		ip, _ := jq.String("status", "podIP")
-		return fmt.Sprintf("%s:6790", ip), nil
-	}
-	return "", fmt.Errorf("Error Getting Monitor IP : %v", err)
-}
-
 //ResourceOperationFromTemplate performs a kubectl action from a template file after replacing its context
 func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinition string, config map[string]string) (string, error) {
 
@@ -285,18 +268,18 @@ func (k8sh *K8sHelper) GetResource(args []string) (string, error) {
 }
 
 //GetMonitorServices returns all ceph mon pod names
-func (k8sh *K8sHelper) GetMonitorServices() (map[string]string, error) {
+func (k8sh *K8sHelper) GetMonitorServices(namespace string) (map[string]string, error) {
+	listOpts := metav1.ListOptions{LabelSelector: "app=rook-ceph-mon"}
 
-	args := []string{"-n", "rook", "get", "svc", "-l", "app=rook-ceph-mon", "--no-headers=true"}
-	result, err := k8sh.Kubectl(args...)
+	podList, err := k8sh.Clientset.Services(namespace).List(listOpts)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to find mon services. %v", err)
+		logger.Errorf("Cannot get rook monitor pods in namespace %s, err: %v", namespace, err)
+		return nil, fmt.Errorf("Cannot get rook monitor pods in namespace %s, err: %v", namespace, err)
 	}
+	mons := []string{}
+	for _, svc := range podList.Items {
+		mons = append(mons, svc.Spec.ClusterIP)
 
-	// Get the IP address from the 2nd position in the line
-	mons, err := parseMonEndpoints(result)
-	if err != nil {
-		return nil, err
 	}
 	if len(mons) != 3 {
 		return nil, fmt.Errorf("Unexpected monitors: %+v", mons)
@@ -309,143 +292,71 @@ func (k8sh *K8sHelper) GetMonitorServices() (map[string]string, error) {
 	}, nil
 }
 
-func parseMonEndpoints(input string) ([]string, error) {
-	lines := strings.Split(input, "\n")
-	mons := []string{}
-	for _, line := range lines {
-		if len(line) == 0 {
-			continue
-		}
-		fields := strings.Fields(line)
-		if len(fields) < 2 {
-			return nil, fmt.Errorf("Missing ip for mon service. %s", line)
-		}
-		mons = append(mons, strings.TrimSpace(fields[1]))
-	}
-	return mons, nil
-}
-
 //IsPodRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
-func (k8sh *K8sHelper) IsPodRunning(name string) bool {
-	args := []string{"get", "pod", name, "-o", "jsonpath='{.status.phase}'"}
+func (k8sh *K8sHelper) IsPodRunning(name string, namespace string) bool {
+	getOpts := metav1.GetOptions{}
 	inc := 0
 	for inc < RetryLoop {
-		result, err := k8sh.Kubectl(args...)
+		pod, err := k8sh.Clientset.Pods(namespace).Get(name, getOpts)
 		if err == nil {
-			if strings.Contains(result, "Running") {
+			if pod.Status.Phase == "Running" {
 				return true
 			}
-			logger.Infof("Pod %s status: %s", name, result)
 		}
-
-		time.Sleep(RetryInterval * time.Second)
 		inc++
+		time.Sleep(RetryInterval * time.Second)
+		logger.Infof("waiting for pod %s in namespace %s to be running", name, namespace)
 
 	}
-	logger.Infof("Giving up waiting for pod %s to be running", name)
-	return false
-}
-
-//IsPodRunningInNamespace returns true if a Pod in a namespace is running status or goes to Running
-// status within 90s else returns false
-func (k8sh *K8sHelper) IsPodRunningInNamespace(name string) bool {
-	args := []string{"get", "pods", "-n", "rook", name, "-o", "jsonpath='{.status.phase}'"}
-	inc := 0
-	for inc < RetryLoop {
-		result, err := k8sh.Kubectl(args...)
-		if err == nil {
-			if strings.Contains(result, "Running") {
-				return true
-			}
-			logger.Infof("Pod %s status: %s", name, result)
-		}
-		time.Sleep(RetryInterval * time.Second)
-		inc++
-
-	}
-	logger.Infof("Giving up waiting for pod %s to be running", name)
+	logger.Infof("Giving up waiting for pod %s in namespace %s to be running", name, namespace)
 	return false
 }
 
 //IsPodTerminated returns true if a Pod is terminated status or goes to Terminated  status
 // within 90s else returns false\
-func (k8sh *K8sHelper) IsPodTerminated(name string) bool {
-	args := []string{"get", "pods", name}
+func (k8sh *K8sHelper) IsPodTerminated(name string, namespace string) bool {
+	getOpts := metav1.GetOptions{}
 	inc := 0
 	for inc < RetryLoop {
-		_, err := k8sh.Kubectl(args...)
+		pod, err := k8sh.Clientset.Pods(namespace).Get(name, getOpts)
 		if err != nil {
-			k8slogger.Infof("Pod in default namespace terminated: " + name)
+			k8slogger.Infof("Pod  %s in namespace %s terminated ", name, namespace)
 			return true
 		}
+		k8slogger.Infof("waiting for Pod %s in namespace %s to terminated, status : %v", name, namespace, pod.Status.Phase)
 		time.Sleep(RetryInterval * time.Second)
 		inc++
 
 	}
-	k8slogger.Infof("Pod in default namespace did not terminated: " + name)
-	return false
-}
-
-//IsPodTerminatedInNamespace returns true if a Pod  in a namespace is terminated status
-// or goes to Terminated  status within 90s else returns false\
-func (k8sh *K8sHelper) IsPodTerminatedInNamespace(name string) bool {
-	args := []string{"get", "-n", "rook", "pods", name}
-	inc := 0
-	for inc < RetryLoop {
-		_, err := k8sh.Kubectl(args...)
-		if err != nil {
-			k8slogger.Infof("Pod in rook namespace terminated: " + name)
-			return true
-		}
-		time.Sleep(RetryInterval * time.Second)
-		inc++
-
-	}
-	k8slogger.Infof("Pod in rook namespace did not terminated: " + name)
+	k8slogger.Infof("Pod %s in namespace %s did not terminated", name, namespace)
 	return false
 }
 
 //IsServiceUp returns true if a service is up or comes up within 40s, else returns false
-func (k8sh *K8sHelper) IsServiceUp(name string) bool {
-	args := []string{"get", "svc", name}
+func (k8sh *K8sHelper) IsServiceUp(name string, namespace string) bool {
+	getOpts := metav1.GetOptions{}
 	inc := 0
 	for inc < RetryLoop {
-		_, err := k8sh.Kubectl(args...)
+		_, err := k8sh.Clientset.Services(namespace).Get(name, getOpts)
 		if err == nil {
-			k8slogger.Infof("Service in default namespace is up: " + name)
+			k8slogger.Infof("Service: %s in namespace: %s is up", name, namespace)
 			return true
 		}
+		k8slogger.Infof("waiting for Service %s in namespace %s ", name, namespace)
 		time.Sleep(RetryInterval * time.Second)
 		inc++
 
 	}
-	k8slogger.Infof("Service in default namespace is not up: " + name)
-	return false
-}
-
-//IsServiceUpInNameSpace returns true if a service  in a namespace is up or comes up within 40s, else returns false
-func (k8sh *K8sHelper) IsServiceUpInNameSpace(name string) bool {
-	args := []string{"get", "svc", "-n", "rook", name}
-	inc := 0
-	for inc < RetryLoop {
-		_, err := k8sh.Kubectl(args...)
-		if err == nil {
-			return true
-		}
-		time.Sleep(RetryInterval * time.Second)
-		inc++
-
-	}
-	k8slogger.Infof("Service in rook namespace is not up: " + name)
+	k8slogger.Infof("Giving up waiting for service: %s in namespace %s ", name, namespace)
 	return false
 }
 
 //GetService returns output from "kubectl get svc $NAME" command
-func (k8sh *K8sHelper) GetService(servicename string) (string, error) {
-	args := []string{"get", "svc", "-n", "rook", servicename}
-	result, err := k8sh.Kubectl(args...)
+func (k8sh *K8sHelper) GetService(servicename string, namespace string) (*v1.Service, error) {
+	getOpts := metav1.GetOptions{}
+	result, err := k8sh.Clientset.Services(namespace).Get(servicename, getOpts)
 	if err != nil {
-		return "", fmt.Errorf("Cannot find service %v -- %v", servicename, err)
+		return nil, fmt.Errorf("Cannot find service %s in namespace %s, err-- %v", servicename, namespace, err)
 	}
 	return result, nil
 }
@@ -500,28 +411,30 @@ func (k8sh *K8sHelper) GetPodDetails(podNamePattern string, namespace string) (s
 
 //GetPodHostID returns HostIP address of a pod
 func (k8sh *K8sHelper) GetPodHostID(podNamePattern string, namespace string) (string, error) {
-	output, err := k8sh.GetPodDetails(podNamePattern, namespace)
+	listOpts := metav1.ListOptions{LabelSelector: "app=" + podNamePattern}
+	podList, err := k8sh.Clientset.Pods(namespace).List(listOpts)
 	if err != nil {
-		return "", err
+		logger.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
+		return "", fmt.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
 	}
 
-	podNames := strings.Split(output, "\n")
-	if len(podNames) == 0 {
-		return "", fmt.Errorf("pod %s not found", podNamePattern)
+	if podList.Size() < 1 {
+		logger.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
+		return "", fmt.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
 	}
+	return podList.Items[0].Status.HostIP, nil
+}
 
-	//get host Ip of the pod
-	args := []string{"get", podNames[0], "-o", "jsonpath='{.status.hostIP}'"}
-	if namespace != "" {
-		args = append(args, []string{"-n", namespace}...)
+//GetServiceNodePort returns nodeProt of service
+func (k8sh *K8sHelper) GetServiceNodePort(serviceName string, namespace string) (string, error) {
+	getOpts := metav1.GetOptions{}
+	svc, err := k8sh.Clientset.Services(namespace).Get(serviceName, getOpts)
+	if err != nil {
+		logger.Errorf("Cannot get service : %v in namespace %v, err: %v", serviceName, namespace, err)
+		return "", fmt.Errorf("Cannot get serice : %v in namespace %v, err: %v", serviceName, namespace, err)
 	}
-	result, err := k8sh.Kubectl(args...)
-	if err == nil {
-		hostIP := strings.Replace(result, "'", "", -1)
-		return strings.TrimSpace(hostIP), nil
-	}
-	return "", fmt.Errorf("Error Getting Monitor IP -- %v", err)
-
+	np := svc.Spec.Ports[0].NodePort
+	return strconv.FormatInt(int64(np), 10), nil
 }
 
 //IsStorageClassPresent returns true if storageClass is present, if not false
@@ -578,19 +491,30 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 		return false
 	}
 
-	if podList.Size() < minExpected {
+	if len(podList.Items) < minExpected {
 		logger.Errorf("Expected at least %d pods with name %v, actual count  %d", minExpected, podName, podList.Size())
 		return false
 	}
 
-	for _, pod := range podList.Items {
-		if !(pod.Status.Phase == v1.PodPhase(expectedPhase)) {
-			logger.Errorf("Expected pod %v to be in %v phase, actual phase %v ", pod.Name, expectedPhase, pod.Status.Phase)
-			return false
+	inc := 0
+	for inc < RetryLoop {
+		r := true
+		pl, _ := k8sh.Clientset.Pods(namespace).List(listOpts)
+		for _, pod := range pl.Items {
+			if !(pod.Status.Phase == v1.PodPhase(expectedPhase)) {
+				r = false
+				logger.Infof("waiting for pod %v to be in %s Phase, currently in %v Phase", pod.Name, expectedPhase, pod.Status.Phase)
+			}
 		}
-	}
+		if r {
+			return true
+		}
+		inc++
+		time.Sleep(RetryInterval * time.Second)
 
-	return true
+	}
+	logger.Errorf("All pods with app Name %v not in %v phase ", podName, expectedPhase)
+	return false
 
 }
 
@@ -665,14 +589,18 @@ func (k8sh *K8sHelper) WaitUntilNameSpaceIsDeleted(namespace string) bool {
 }
 
 //GetRGWServiceURL returns URL of ceph RGW service in the cluster
-func (k8sh *K8sHelper) GetRGWServiceURL() (string, error) {
-	hostip, err := k8sh.GetPodHostID("rook-ceph-rgw", "rook")
+func (k8sh *K8sHelper) GetRGWServiceURL(servicename string, namespace string) (string, error) {
+	hostip, err := k8sh.GetPodHostID("rook-ceph-rgw", namespace)
 	if err != nil {
 		panic(fmt.Errorf("RGW pods not found/object store possibly not started"))
 	}
 
 	//TODO - Get nodePort stop hardcoding
-	endpoint := hostip + ":30001"
+	nodePort, err := k8sh.GetServiceNodePort(servicename, namespace)
+	if err != nil {
+		panic(fmt.Errorf("RGW pods not found/object store possibly not started"))
+	}
+	endpoint := hostip + ":" + nodePort
 	return endpoint, err
 }
 
@@ -720,7 +648,7 @@ func (k8sh *K8sHelper) GetRookLogs(podAppName string, namespace string, testName
 				continue
 			}
 		}
-		fileName := testName + "_" + podName + "_" + strconv.FormatInt(time.Now().Unix(), 10) + ".log"
+		fileName := fmt.Sprintf("%s_%s_%s_%d.log", testName, podName, namespace, time.Now().Unix())
 		fpath = path.Join(fpath, fileName)
 		file, err := os.Create(fpath)
 		if err != nil {
@@ -735,4 +663,15 @@ func (k8sh *K8sHelper) GetRookLogs(podAppName string, namespace string, testName
 			continue
 		}
 	}
+}
+
+//CreateAnonSystemClusterBinding Creates anon-user-access clusterrolebinding for cluster-admin role - used by kubeadm env.
+func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
+	args := []string{"create", "clusterrolebinding", "anon-user-access", "--clusterrole", "cluster-admin", "--user", "system:anonymous"}
+	_, err := k8sh.Kubectl(args...)
+	if err != nil {
+		logger.Warningf("anon-user-access not created")
+		return
+	}
+	logger.Warningf("anon-user-access created")
 }

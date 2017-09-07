@@ -42,7 +42,7 @@ type FileSystemOperator interface {
 
 //ObjectOperator - interface for rook object operations
 type ObjectOperator interface {
-	ObjectCreate() (string, error)
+	ObjectCreate(name string, replicaCount int32) (string, error)
 	ObjectBucketList() ([]model.ObjectBucket, error)
 	ObjectConnection() (*model.ObjectStoreConnectInfo, error)
 	ObjectCreateUser(userid string, displayname string) (*model.ObjectUser, error)

@@ -44,12 +44,12 @@ const (
 )
 
 //CreateTestClient creates new instance of test client for a platform
-func CreateTestClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHelper) (*TestClient, error) {
+func CreateTestClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHelper, namespace string) (*TestClient, error) {
 	var blockClient contracts.BlockOperator
 	var fsClient contracts.FileSystemOperator
 	var objectClient contracts.ObjectOperator
 	var poolClient contracts.PoolOperator
-	rookRestClient := CreateRestAPIClient(platform, k8sHelper)
+	rookRestClient := CreateRestAPIClient(platform, k8sHelper, namespace)
 
 	switch {
 	case platform == enums.Kubernetes:

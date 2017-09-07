@@ -45,11 +45,11 @@ func (s *K8sBlockLongHaulSuite) SetupSuite() {
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset)
 	if !s.kh.IsRookInstalled() {
-		err = s.installer.InstallRookOnK8s()
+		err = s.installer.InstallRookOnK8s("rook")
 		require.NoError(s.T(), err)
 	}
 
-	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh)
+	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh, "rook")
 	require.Nil(s.T(), err)
 
 	s.bc = s.testClient.GetBlockClient()

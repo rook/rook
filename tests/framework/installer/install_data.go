@@ -27,7 +27,8 @@ func NewK8sInstallData() *InstallData {
 	return &InstallData{}
 }
 
-func (i *InstallData) getRookOperator(k8sVersion string) string {
+//GetRookOperator returns rook Operator  manifest
+func (i *InstallData) GetRookOperator(k8sVersion string) string {
 
 	if strings.Contains(k8sVersion, "v1.5") {
 		return `apiVersion: extensions/v1beta1
@@ -170,17 +171,18 @@ spec:
 
 }
 
-func (i *InstallData) getRookCluster() string {
+//GetRookCluster returns rook-cluster manifest
+func (i *InstallData) GetRookCluster(namespace string) string {
 	return `apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: ` + namespace + `
 ---
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: ` + namespace + `
+  namespace: ` + namespace + `
 spec:
   versionTag: master
   dataDirHostPath:
@@ -241,12 +243,13 @@ spec:
 #      deviceFilter: "^sd."`
 }
 
-func (i *InstallData) getRookToolBox() string {
+//GetRookToolBox returns rook-toolbox manifest
+func (i *InstallData) GetRookToolBox(namespace string) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:
   name: rook-tools
-  namespace: rook
+  namespace: ` + namespace + `
 spec:
   containers:
   - name: rook-tools

@@ -55,10 +55,10 @@ func (s *BlockImageCreateSuite) SetupSuite() {
 
 	s.installer = installer.NewK8sRookhelper(kh.Clientset)
 
-	err = s.installer.InstallRookOnK8s()
+	err = s.installer.InstallRookOnK8s("rook")
 	require.NoError(s.T(), err)
 
-	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, kh)
+	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, kh, "rook")
 	require.Nil(s.T(), err)
 
 	s.rc = s.testClient.GetRestAPIClient()
@@ -158,6 +158,6 @@ func (s *BlockImageCreateSuite) TearDownTest() {
 }
 func (s *BlockImageCreateSuite) TearDownSuite() {
 
-	s.installer.UninstallRookFromK8s()
+	s.installer.UninstallRookFromK8s("rook", false)
 
 }
