@@ -71,6 +71,8 @@ Placement configuration for the cluster services. It includes the following keys
 
 A Placement configuration is specified (according to the kubernetes [PodSpec](https://kubernetes.io/docs/api-reference/v1.6/#podspec-v1-core)) as:
 - `nodeAffinity`: kubernetes [NodeAffinity](https://kubernetes.io/docs/api-reference/v1.6/#nodeaffinity-v1-core)
+- `podAffinity`: kubernetes [PodAffinity](https://kubernetes.io/docs/api-reference/v1.6/#podaffinity-v1-core)
+- `podAntiAffinity`: kubernetes [PodAntiAffinity](https://kubernetes.io/docs/api-reference/v1.6/#podantiaffinity-v1-core)
 - `tolerations`: list of kubernetes [Toleration](https://kubernetes.io/docs/api-reference/v1.6/#toleration-v1-core)
 
 ## Samples
@@ -106,7 +108,7 @@ spec:
 
 ### Storage Configuration: Specific devices
 
-Individual nodes and their config can be specified so that only the named nodes below will be used as storage resources. 
+Individual nodes and their config can be specified so that only the named nodes below will be used as storage resources.
 Each node's 'name' field should match their 'kubernetes.io/hostname' label.
 
 ```
