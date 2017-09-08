@@ -95,7 +95,7 @@ func (c *Cluster) checkHealth() error {
 
 			// when the timeout for the mon has been reached, continue to the
 			// normal failover/delete mon pod part of the code
-			if time.Since(c.monTimeoutList[mon.Name]) > MonOutTimeout {
+			if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
 				logger.Warningf("mon %s NOT found in quorum, STILL in mon out timeout", mon.Name)
 				continue
 			}
