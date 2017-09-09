@@ -40,23 +40,25 @@ const (
 
 // Cluster is the ceph mgr manager
 type Cluster struct {
-	Namespace string
-	Version   string
-	Replicas  int
-	placement k8sutil.Placement
-	context   *clusterd.Context
-	dataDir   string
+	Namespace   string
+	Version     string
+	Replicas    int
+	placement   k8sutil.Placement
+	context     *clusterd.Context
+	dataDir     string
+	HostNetwork bool
 }
 
 // New creates an instance of the mgr
-func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
 	return &Cluster{
-		context:   context,
-		Namespace: namespace,
-		placement: placement,
-		Version:   version,
-		Replicas:  1,
-		dataDir:   k8sutil.DataDir,
+		context:     context,
+		Namespace:   namespace,
+		placement:   placement,
+		Version:     version,
+		Replicas:    1,
+		dataDir:     k8sutil.DataDir,
+		HostNetwork: hostNetwork,
 	}
 }
 
@@ -105,7 +107,11 @@ func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
 				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
 				k8sutil.ConfigOverrideVolume(),
 			},
+			HostNetwork: c.HostNetwork,
 		},
+	}
+	if c.HostNetwork {
+		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 

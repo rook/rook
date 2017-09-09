@@ -51,11 +51,12 @@ const (
 
 // Cluster for rgw management
 type Cluster struct {
-	context   *clusterd.Context
-	Namespace string
-	placement k8sutil.Placement
-	Version   string
-	Config    model.ObjectStore
+	context     *clusterd.Context
+	Namespace   string
+	placement   k8sutil.Placement
+	Version     string
+	Config      model.ObjectStore
+	HostNetwork bool
 }
 
 type idType struct {
@@ -67,14 +68,15 @@ type realmType struct {
 }
 
 // New creates an instance of an rgw manager
-func New(context *clusterd.Context, config model.ObjectStore, namespace, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, config model.ObjectStore, namespace, version string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
 
 	return &Cluster{
-		context:   context,
-		Namespace: namespace,
-		placement: placement,
-		Version:   version,
-		Config:    config,
+		context:     context,
+		Namespace:   namespace,
+		placement:   placement,
+		Version:     version,
+		Config:      config,
+		HostNetwork: hostNetwork,
 	}
 }
 
@@ -331,7 +333,12 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 			{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
 			k8sutil.ConfigOverrideVolume(),
 		},
+		HostNetwork: c.HostNetwork,
 	}
+	if c.HostNetwork {
+		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	}
+	c.placement.ApplyToPodSpec(&podSpec)
 
 	// Set the ssl cert if specified
 	if c.Config.CertificateRef != "" {
@@ -418,6 +425,9 @@ func (c *Cluster) startService() (string, error) {
 			},
 			Selector: labels,
 		},
+	}
+	if c.HostNetwork {
+		s.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
 	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(s)

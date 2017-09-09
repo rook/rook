@@ -32,7 +32,7 @@ var monCmd = &cobra.Command{
 
 var (
 	monName string
-	monPort int
+	monPort int32
 )
 
 func addCephFlags(command *cobra.Command) {
@@ -49,7 +49,7 @@ func addCephFlags(command *cobra.Command) {
 
 func init() {
 	monCmd.Flags().StringVar(&monName, "name", "", "name of the monitor")
-	monCmd.Flags().IntVar(&monPort, "port", 0, "port of the monitor")
+	monCmd.Flags().Int32Var(&monPort, "port", 0, "port of the monitor")
 	addCephFlags(monCmd)
 
 	flags.SetFlagsFromEnv(monCmd.Flags(), RookEnvVarPrefix)
@@ -73,9 +73,13 @@ func startMon(cmd *cobra.Command, args []string) error {
 
 	// at first start the local monitor needs to be added to the list of mons
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	clusterInfo.Monitors[monName] = mon.ToCephMon(monName, cfg.networkInfo.PublicAddrIPv4)
+	clusterInfo.Monitors[monName] = mon.ToCephMon(monName, cfg.networkInfo.PublicAddrIPv4, monPort)
 
-	monCfg := &mon.Config{Name: monName, Cluster: &clusterInfo}
+	monCfg := &mon.Config{
+		Name:    monName,
+		Cluster: &clusterInfo,
+		Port:    monPort,
+	}
 	err := mon.Run(createContext(), monCfg)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)

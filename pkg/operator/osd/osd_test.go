@@ -30,7 +30,7 @@ import (
 
 func TestStartDaemonset(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", StorageSpec{}, "", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", StorageSpec{}, "", k8sutil.Placement{}, false)
 
 	// Start the first time
 	err := c.Start()
@@ -65,7 +65,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, dataDir, k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, dataDir, k8sutil.Placement{}, false)
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
@@ -138,7 +138,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", k8sutil.Placement{}, false)
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
@@ -180,7 +180,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", k8sutil.Placement{}, false)
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
@@ -193,4 +193,34 @@ func TestStorageSpecConfig(t *testing.T) {
 	verifyEnvVar(t, container.Env, "ROOK_OSD_WAL_SIZE", strconv.Itoa(20), true)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_JOURNAL_SIZE", strconv.Itoa(30), true)
 	verifyEnvVar(t, container.Env, "ROOK_LOCATION", "rack=foo", true)
+}
+
+func TestHostNetwork(t *testing.T) {
+	storageSpec := StorageSpec{
+		Config: Config{},
+		Nodes: []Node{
+			{
+				Name: "node1",
+				Config: Config{
+					Location: "rack=foo",
+					StoreConfig: cephosd.StoreConfig{
+						StoreType:      cephosd.Bluestore,
+						DatabaseSizeMB: 10,
+						WalSizeMB:      20,
+						JournalSizeMB:  30,
+					},
+				},
+			},
+		},
+	}
+
+	clientset := fake.NewSimpleClientset()
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", k8sutil.Placement{}, true)
+
+	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
+	r := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
+	assert.NotNil(t, r)
+
+	assert.Equal(t, true, r.Spec.Template.Spec.HostNetwork)
+	assert.Equal(t, v1.DNSClusterFirstWithHostNet, r.Spec.Template.Spec.DNSPolicy)
 }

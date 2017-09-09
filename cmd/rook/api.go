@@ -31,10 +31,11 @@ var (
 		Use:   "api",
 		Short: "Runs the Rook API service",
 	}
-	apiPort    int
-	repoPrefix string
-	namespace  string
-	versionTag string
+	apiPort     int
+	repoPrefix  string
+	namespace   string
+	versionTag  string
+	hostNetwork bool
 )
 
 func init() {
@@ -42,6 +43,7 @@ func init() {
 	apiCmd.Flags().StringVar(&repoPrefix, "repo-prefix", "rook", "the repo from which to pull images")
 	apiCmd.Flags().StringVar(&versionTag, "version-tag", "latest", "version of the rook container to launch")
 	apiCmd.Flags().StringVar(&namespace, "namespace", "", "the namespace in which the api service is running")
+	apiCmd.Flags().BoolVar(&hostNetwork, "hostnetwork", false, "if the hostnetwork should be used")
 	addCephFlags(apiCmd)
 
 	flags.SetFlagsFromEnv(apiCmd.Flags(), RookEnvVarPrefix)
@@ -74,7 +76,7 @@ func startAPI(cmd *cobra.Command, args []string) error {
 	apiCfg := &api.Config{
 		Port:           apiPort,
 		ClusterInfo:    &clusterInfo,
-		ClusterHandler: apik8s.New(context, &clusterInfo, namespace, versionTag),
+		ClusterHandler: apik8s.New(context, &clusterInfo, namespace, versionTag, hostNetwork),
 	}
 
 	err = api.Run(context, apiCfg)

@@ -4,6 +4,7 @@ metadata:
   name: rook-tools
   namespace: rook
 spec:
+  hostNetwork: false
   containers:
   - name: rook-tools
     image: rook/toolbox:master

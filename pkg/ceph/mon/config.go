@@ -102,8 +102,7 @@ func GenerateAdminConnectionConfig(context *clusterd.Context, cluster *ClusterIn
 		return fmt.Errorf("failed to write keyring to %s. %+v", root, err)
 	}
 
-	_, err = GenerateConfigFile(context, cluster, root, client.AdminUsername, keyringPath, false, nil, nil)
-	if err != nil {
+	if _, err = GenerateConfigFile(context, cluster, root, client.AdminUsername, keyringPath, false, nil, nil); err != nil {
 		return fmt.Errorf("failed to write config to %s. %+v", root, err)
 	}
 	logger.Infof("generated admin config in %s", root)
@@ -251,7 +250,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 	cephLogLevel := logLevelToCephLogLevel(context.LogLevel)
 
 	return &cephConfig{
-		&GlobalConfig{
+		GlobalConfig: &GlobalConfig{
 			EnableExperimental:     experimental,
 			FSID:                   cluster.FSID,
 			RunDir:                 runDir,

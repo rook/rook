@@ -42,7 +42,7 @@ func TestStartMDS(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	c := New(context, "ns", "myversion", k8sutil.Placement{})
+	c := New(context, "ns", "myversion", k8sutil.Placement{}, false)
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic cluster
@@ -64,7 +64,7 @@ func validateStart(t *testing.T, c *Cluster) {
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New(nil, "ns", "myversion", k8sutil.Placement{})
+	c := New(nil, "ns", "myversion", k8sutil.Placement{}, false)
 	mdsID := "mds1"
 
 	d := c.makeDeployment(mdsID)
@@ -86,4 +86,14 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "mds", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
 	assert.Equal(t, "--mds-id=mds1", cont.Args[2])
+}
+
+func TestHostNetwork(t *testing.T) {
+	c := New(nil, "ns", "myversion", k8sutil.Placement{}, true)
+	mdsID := "mds1"
+
+	d := c.makeDeployment(mdsID)
+
+	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
+	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
 }
