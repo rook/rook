@@ -33,7 +33,7 @@ const (
 )
 
 func ListUsers(c *Context) ([]string, int, error) {
-	result, err := RunAdminCommand(c, "user", "list")
+	result, err := runAdminCommand(c, "user", "list")
 	if err != nil {
 		return nil, RGWErrorUnknown, fmt.Errorf("failed to list users: %+v", err)
 	}
@@ -76,7 +76,7 @@ func decodeUser(data string) (*model.ObjectUser, int, error) {
 func GetUser(c *Context, id string) (*model.ObjectUser, int, error) {
 	logger.Infof("Getting user: %s", id)
 
-	result, err := RunAdminCommand(c, "user", "info", "--uid", id)
+	result, err := runAdminCommand(c, "user", "info", "--uid", id)
 	if err != nil {
 		return nil, RGWErrorUnknown, fmt.Errorf("failed to get users: %+v", err)
 	}
@@ -98,6 +98,8 @@ func CreateUser(c *Context, user model.ObjectUser) (*model.ObjectUser, int, erro
 	}
 
 	args := []string{
+		"user",
+		"create",
 		"--uid", user.UserID,
 		"--display-name", *user.DisplayName,
 	}
@@ -106,7 +108,7 @@ func CreateUser(c *Context, user model.ObjectUser) (*model.ObjectUser, int, erro
 		args = append(args, "--email", *user.Email)
 	}
 
-	result, err := RunAdminCommand(c, "user", "create", args...)
+	result, err := runAdminCommand(c, args...)
 	if err != nil {
 		return nil, RGWErrorUnknown, fmt.Errorf("failed to create user: %+v", err)
 	}
@@ -125,7 +127,7 @@ func CreateUser(c *Context, user model.ObjectUser) (*model.ObjectUser, int, erro
 func UpdateUser(c *Context, user model.ObjectUser) (*model.ObjectUser, int, error) {
 	logger.Infof("Updating user: %s", user.UserID)
 
-	args := []string{"--uid", user.UserID}
+	args := []string{"user", "modify", "--uid", user.UserID}
 
 	if user.DisplayName != nil {
 		args = append(args, "--display-name", *user.DisplayName)
@@ -134,7 +136,7 @@ func UpdateUser(c *Context, user model.ObjectUser) (*model.ObjectUser, int, erro
 		args = append(args, "--email", *user.Email)
 	}
 
-	body, err := RunAdminCommand(c, "user", "modify", args...)
+	body, err := runAdminCommand(c, args...)
 	if err != nil {
 		return nil, RGWErrorUnknown, fmt.Errorf("failed to update user: %+v", err)
 	}
@@ -148,7 +150,7 @@ func UpdateUser(c *Context, user model.ObjectUser) (*model.ObjectUser, int, erro
 
 func DeleteUser(c *Context, id string) (string, int, error) {
 	logger.Infof("Deleting user: %s", id)
-	result, err := RunAdminCommand(c, "user", "rm", "--uid", id)
+	result, err := runAdminCommand(c, "user", "rm", "--uid", id)
 	if err != nil {
 		return "", RGWErrorUnknown, fmt.Errorf("failed to delete user: %+v", err)
 	}

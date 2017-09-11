@@ -4,7 +4,7 @@ metadata:
   name: replicapool
   namespace: rook
 spec:
-  replication:
+  replicated:
     size: 1
   # For an erasure-coded pool, comment out the replication size above and uncomment the following settings.
   # Make sure you have enough OSDs to support the replica size or erasure code chunks.

@@ -50,11 +50,11 @@ func (s *clusterHandler) EnableObjectStore(config model.ObjectStore) error {
 	logger.Infof("Starting the Object store")
 
 	// save the certificate in a secret if we weren't given a reference to a secret
-	if config.Certificate != "" && config.CertificateRef == "" {
+	if config.RGW.Certificate != "" && config.RGW.CertificateRef == "" {
 		certName := fmt.Sprintf("rook-rgw-%s-cert", config.Name)
-		config.CertificateRef = certName
+		config.RGW.CertificateRef = certName
 
-		data := map[string][]byte{"cert": []byte(config.Certificate)}
+		data := map[string][]byte{"cert": []byte(config.RGW.Certificate)}
 		certSecret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: certName, Namespace: s.namespace}, Data: data}
 
 		_, err := s.context.Clientset.Core().Secrets(s.namespace).Create(certSecret)
@@ -62,13 +62,15 @@ func (s *clusterHandler) EnableObjectStore(config model.ObjectStore) error {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create cert secret. %+v", err)
 			}
+			if _, err := s.context.Clientset.Core().Secrets(s.namespace).Update(certSecret); err != nil {
+				return fmt.Errorf("failed to update secret. %+v", err)
+			}
+			logger.Infof("updated the certificate secret %s", certName)
 		}
 	}
 
-	// Passing an empty Placement{} as the api doesn't know about placement
-	// information. This should be resolved with the transition to CRD (TPR).
-	r := k8srgw.New(s.context, config, s.namespace, s.versionTag, k8sutil.Placement{}, s.hostNetwork)
-	err := r.Start()
+	objectStore := k8srgw.ModelToSpec(config, s.namespace)
+	err := objectStore.Create(s.context, s.versionTag, s.hostNetwork)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
 	}

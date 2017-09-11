@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/kit"
 	"github.com/rook/rook/pkg/operator/pool"
 	"github.com/rook/rook/pkg/operator/provisioner"
+	"github.com/rook/rook/pkg/operator/rgw"
 	"k8s.io/api/core/v1"
 )
 
@@ -67,7 +68,7 @@ func New(context *clusterd.Context) *Operator {
 	}
 	volumeProvisioner := provisioner.New(context)
 
-	schemes := []kit.CustomResource{cluster.ClusterResource, pool.PoolResource}
+	schemes := []kit.CustomResource{cluster.ClusterResource, pool.PoolResource, rgw.ObjectStoreResource}
 	return &Operator{
 		context:           context,
 		clusterController: clusterController,

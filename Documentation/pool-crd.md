@@ -18,9 +18,9 @@ metadata:
   name: ecpool
   namespace: rook
 spec:
-  replication:
+  replicated:
   #  size: 3
-  erasureCode:
+  erasureCoded:
     codingChunks: 2
     dataChunks: 2
 ```
@@ -34,8 +34,8 @@ spec:
 
 ### Spec
 
-- `replication`: Settings for a replicated pool. If specified, `erasureCode` settings must not be specified.
+- `replicated`: Settings for a replicated pool. If specified, `erasureCoded` settings must not be specified.
   - `size`: The number of copies of the data in the pool.
-- `erasureCode`: Settings for an erasure-coded pool. If specified, `replication` settings must not be specified.
+- `erasureCoded`: Settings for an erasure-coded pool. If specified, `replicated` settings must not be specified.
   - `codingChunks`: Number of coding chunks per object in an erasure coded storage pool
   - `dataChunks`: Number of data chunks per object in an erasure coded storage pool

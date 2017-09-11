@@ -21,9 +21,11 @@ import (
 	"os"
 	"testing"
 
+	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/pool"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -45,56 +47,54 @@ func TestStartRGW(t *testing.T) {
 
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	config := model.ObjectStore{Name: "default", Port: 123}
 	context := &clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}
-	c := New(context, config, "ns", "version", k8sutil.Placement{}, false)
+	store := simpleStore()
+	version := "v1.1.0"
 
 	// start a basic cluster
-	err := c.Start()
+	err := store.Create(context, version)
 	assert.Nil(t, err)
 
-	validateStart(t, c, clientset)
+	validateStart(t, store, clientset)
 
 	// starting again should be a no-op
-	err = c.Start()
+	err = store.Create(context, version)
 	assert.Nil(t, err)
 
-	validateStart(t, c, clientset)
+	validateStart(t, store, clientset)
 }
 
-func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
+func validateStart(t *testing.T, store *ObjectStore, clientset *fake.Clientset) {
 
-	r, err := clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+	r, err := clientset.ExtensionsV1beta1().Deployments(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, c.instanceName(), r.Name)
+	assert.Equal(t, store.instanceName(), r.Name)
 
-	s, err := clientset.CoreV1().Services(c.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+	s, err := clientset.CoreV1().Services(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, c.instanceName(), s.Name)
+	assert.Equal(t, store.instanceName(), s.Name)
 
-	secret, err := clientset.CoreV1().Secrets(c.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, c.instanceName(), secret.Name)
+	assert.Equal(t, store.instanceName(), secret.Name)
 	assert.Equal(t, 1, len(secret.StringData))
-
 }
 
 func TestPodSpecs(t *testing.T) {
-	config := model.ObjectStore{Name: "default", Port: 123}
-	c := New(nil, config, "ns", "myversion", k8sutil.Placement{}, false)
+	store := simpleStore()
 
-	d := c.makeDeployment()
+	d := store.makeDeployment("myversion")
 	assert.NotNil(t, d)
-	assert.Equal(t, c.instanceName(), d.Name)
+	assert.Equal(t, store.instanceName(), d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, 2, len(d.Spec.Template.Spec.Volumes))
 	assert.Equal(t, "rook-data", d.Spec.Template.Spec.Volumes[0].Name)
 	assert.Equal(t, k8sutil.ConfigOverrideName, d.Spec.Template.Spec.Volumes[1].Name)
 
-	assert.Equal(t, c.instanceName(), d.ObjectMeta.Name)
+	assert.Equal(t, store.instanceName(), d.ObjectMeta.Name)
 	assert.Equal(t, appName, d.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
-	assert.Equal(t, c.Config.Name, d.Spec.Template.ObjectMeta.Labels["rook_object_store"])
+	assert.Equal(t, store.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, store.Name, d.Spec.Template.ObjectMeta.Labels["rook_object_store"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	cont := d.Spec.Template.Spec.Containers[0]
@@ -106,16 +106,16 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
 	assert.Equal(t, fmt.Sprintf("--rgw-name=%s", "default"), cont.Args[2])
 	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[3])
-	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", c.instanceName()), cont.Args[4])
+	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", store.instanceName()), cont.Args[4])
 }
 
 func TestSSLPodSpec(t *testing.T) {
-	config := model.ObjectStore{Name: "default", Port: 123, CertificateRef: "mycert"}
-	c := New(nil, config, "ns", "myversion", k8sutil.Placement{}, false)
+	store := simpleStore()
+	store.Spec.RGW.SSLCertificateRef = "mycert"
 
-	d := c.makeDeployment()
+	d := store.makeDeployment("v1.0")
 	assert.NotNil(t, d)
-	assert.Equal(t, c.instanceName(), d.Name)
+	assert.Equal(t, store.instanceName(), d.Name)
 	assert.Equal(t, 3, len(d.Spec.Template.Spec.Volumes))
 	assert.Equal(t, certVolumeName, d.Spec.Template.Spec.Volumes[2].Name)
 
@@ -128,43 +128,71 @@ func TestSSLPodSpec(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("--rgw-cert=%s/%s", certMountPath, certFilename), cont.Args[5])
 }
 
-func TestCreateRealm(t *testing.T) {
-	defaultStore := true
+func TestCreateObjectStore(t *testing.T) {
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithCombinedOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
-			idResponse := `{"id":"test-id"}`
-			logger.Infof("Execute: %s %v", command, args)
-			if args[1] == "get" {
-				return "", fmt.Errorf("induce a create")
-			} else if args[1] == "create" {
-				for _, arg := range args {
-					if arg == "--default" {
-						assert.True(t, defaultStore, "did not expect to find --default in %v", args)
-						return idResponse, nil
-					}
-				}
-				assert.False(t, defaultStore, "did not find --default flag in %v", args)
-			} else if args[0] == "realm" && args[1] == "list" {
-				if defaultStore {
-					return "", fmt.Errorf("failed to run radosgw-admin: Failed to complete : exit status 2")
-				}
-				return `{"realms": ["myobj"]}`, nil
+		MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
+			return `{"realms": []}`, nil
+		},
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName, command, outfile string, args ...string) (string, error) {
+			if command == "ceph" && args[1] == "erasure-code-profile" {
+				return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
 			}
-			return idResponse, nil
+			return "", nil
 		},
 	}
 
-	config := model.ObjectStore{Name: "myobject", Port: 123}
-	context := &clusterd.Context{Executor: executor}
-	c := New(context, config, "ns", "version", k8sutil.Placement{}, false)
+	store := simpleStore()
+	context := cephrgw.NewContext(&clusterd.Context{Executor: executor}, store.Name, store.Namespace)
 
-	// create the first realm, marked as default
-	err := c.createRealm("1.2.3.4")
+	// create the pools
+	err := store.createObjectStore(context, "1.2.3.4")
+	assert.Nil(t, err)
+}
+
+func TestValidateSpec(t *testing.T) {
+	// valid store
+	s := simpleStore()
+	err := s.validate()
 	assert.Nil(t, err)
 
-	// create the second realm, not marked as default
-	defaultStore = false
-	err = c.createRealm("2.3.4.5")
+	// no name
+	s.Name = ""
+	err = s.validate()
+	assert.NotNil(t, err)
+	s.Name = "default"
+	err = s.validate()
+	assert.Nil(t, err)
+
+	// no namespace
+	s.Namespace = ""
+	err = s.validate()
+	assert.NotNil(t, err)
+	s.Namespace = "mycluster"
+	err = s.validate()
+	assert.Nil(t, err)
+
+	// missing metadata
+	s.Spec.MetadataPoolSpec = "bad"
+	err = s.validate()
+	assert.NotNil(t, err)
+	s.Spec.MetadataPoolSpec = "meta"
+	err = s.validate()
+	assert.Nil(t, err)
+
+	// missing data
+	s.Spec.DataPoolSpec = "bad"
+	err = s.validate()
+	assert.NotNil(t, err)
+	s.Spec.DataPoolSpec = "data"
+	err = s.validate()
+	assert.Nil(t, err)
+
+	// no replication or EC
+	s.Spec.PoolSpecs[0].Replicated.Size = 0
+	err = s.validate()
+	assert.NotNil(t, err)
+	s.Spec.PoolSpecs[0].Replicated.Size = 1
+	err = s.validate()
 	assert.Nil(t, err)
 }
 
@@ -177,4 +205,21 @@ func TestHostNetwork(t *testing.T) {
 
 	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
+}
+
+func simpleStore() *ObjectStore {
+	return &ObjectStore{
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"},
+		Spec: ObjectStoreSpec{
+			MetadataPoolSpec: "meta",
+			DataPoolSpec:     "data",
+			PoolSpecs: []PoolSpec{
+				{Name: "meta", PoolSpec: pool.PoolSpec{Replicated: pool.ReplicatedSpec{Size: 1}}},
+				{Name: "data", PoolSpec: pool.PoolSpec{ErasureCoded: pool.ErasureCodedSpec{CodingChunks: 1, DataChunks: 2}}},
+			},
+			RGW: RGWSpec{
+				Port: 123,
+			},
+		},
+	}
 }

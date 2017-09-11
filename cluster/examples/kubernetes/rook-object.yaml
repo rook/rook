@@ -1,0 +1,41 @@
+apiVersion: rook.io/v1alpha1
+kind: ObjectStore
+metadata:
+  name: object-store
+  namespace: rook
+spec:
+  # Reference to the pool spec for the metadata pools
+  metadataPoolSpec: replicated-spec
+  # Reference to the pool spec for the data pool
+  dataPoolSpec: erasurecoded-spec
+  # The pool specs used to create the metadata and data pools
+  poolSpecs:
+    - name: replicated-spec
+      failureDomain: host
+      replicated:
+        size: 3
+    - name: erasurecoded-spec
+      failureDomain: osd
+      erasureCoded:
+        dataChunks: 4
+        codingChunks: 2
+  rgw:
+    # A reference to the secret in the rook namespace where the ssl certificate is stored
+    sslCertificateRef: 
+    # The port that RGW pods will listen on
+    port: 443
+    # The number of pods in the replicaset
+    replicas: 1
+    # The affinity rules for the rgw pods
+    placement:
+    #  nodeAffinity:
+    #    requiredDuringSchedulingIgnoredDuringExecution:
+    #      nodeSelectorTerms:
+    #      - matchExpressions:
+    #        - key: role
+    #          operator: In
+    #          values:
+    #          - rgw-node
+    #  tolerations:
+    #  - key: rgw-node
+    #    operator: Exists

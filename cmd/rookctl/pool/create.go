@@ -126,7 +126,7 @@ func ConfigToModel(config Config) (*model.Pool, error) {
 
 		// note that a replica count of 0 is okay, the pool will get the ceph default when it's created
 		newPool.Type = model.Replicated
-		newPool.ReplicationConfig.Size = config.ReplicaCount
+		newPool.ReplicatedConfig.Size = config.ReplicaCount
 	} else {
 		if config.DataChunks == 0 || config.CodingChunks == 0 {
 			return nil, fmt.Errorf("both data chunks and coding chunks must be greater than zero for pool type '%s'", PoolTypeErasureCoded)

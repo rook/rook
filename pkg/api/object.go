@@ -36,7 +36,16 @@ func (h *Handler) objectContext(r *http.Request) *rgw.Context {
 		storeName = name
 	}
 
-	return rgw.NewContext(h.context, storeName, h.config.ClusterHandler.GetClusterInfo)
+	var clusterName string
+	info, err := h.config.ClusterHandler.GetClusterInfo()
+	if err != nil {
+		logger.Infof("defaulting the object context to the rook namespace")
+		clusterName = "rook"
+	} else {
+		clusterName = info.Name
+	}
+
+	return rgw.NewContext(h.context, storeName, clusterName)
 }
 
 // CreateObjectStore creates a new object store in this cluster.
@@ -55,11 +64,11 @@ func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 	if objectStore.Name == "" {
 		objectStore.Name = defaultObjectStoreName
 	}
-	if objectStore.Port == 0 {
-		objectStore.Port = model.RGWPort
+	if objectStore.RGW.Port == 0 {
+		objectStore.RGW.Port = model.RGWPort
 	}
-	if objectStore.RGWReplicas == 0 {
-		objectStore.RGWReplicas = defaultRGWReplicas
+	if objectStore.RGW.Replicas == 0 {
+		objectStore.RGW.Replicas = defaultRGWReplicas
 	}
 
 	if err := h.config.ClusterHandler.EnableObjectStore(objectStore); err != nil {
@@ -68,22 +77,20 @@ func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Debugf("started async creation of the object store")
-	w.WriteHeader(http.StatusAccepted)
+	logger.Debugf("created object store")
 }
 
 // RemoveObjectStore removes the object store from this cluster.
 // DELETE
 // /objectstore
 func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
-	if err := h.config.ClusterHandler.RemoveObjectStore(defaultObjectStoreName); err != nil {
+	if err := h.config.ClusterHandler.RemoveObjectStore(h.objectContext(r).Name); err != nil {
 		logger.Errorf("failed to remove object store: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	logger.Debugf("started async deletion of the object store")
-	w.WriteHeader(http.StatusAccepted)
 }
 
 // GetObjectStoreConnectionInfo gets connection information to the object store in this cluster.

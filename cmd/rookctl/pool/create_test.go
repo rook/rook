@@ -76,7 +76,7 @@ func TestCreatePoolReplicated(t *testing.T) {
 				Name:   "pool1",
 				Number: 0,
 				Type:   model.Replicated,
-				ReplicationConfig: model.ReplicatedPoolConfig{
+				ReplicatedConfig: model.ReplicatedPoolConfig{
 					Size: 3,
 				},
 			}
@@ -86,7 +86,7 @@ func TestCreatePoolReplicated(t *testing.T) {
 	}
 
 	pool := model.Pool{Name: "pool1", Type: model.Replicated}
-	pool.ReplicationConfig.Size = 3
+	pool.ReplicatedConfig.Size = 3
 	out, err := createPool(pool, c)
 	assert.Nil(t, err)
 	assert.Equal(t, SuccessPoolCreatedMessage, out)

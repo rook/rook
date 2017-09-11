@@ -25,12 +25,16 @@ const (
 
 type ObjectStore struct {
 	Name           string `json:"name"`
-	Port           int32  `json:"port"`
-	RGWReplicas    int32  `json:"rgwReplicas"`
-	Certificate    string `json:"certificate"`
-	CertificateRef string `json:"certificateRef"`
 	DataConfig     Pool   `json:"dataConfig"`
 	MetadataConfig Pool   `json:"metadataConfig"`
+	RGW            RGW    `json:"rgw"`
+}
+
+type RGW struct {
+	Port           int32  `json:"port"`
+	Replicas       int32  `json:"rgwReplicas"`
+	Certificate    string `json:"certificate"`
+	CertificateRef string `json:"certificateRef"`
 }
 
 type ReplicatedPoolConfig struct {
@@ -47,7 +51,8 @@ type Pool struct {
 	Name               string                 `json:"poolName"`
 	Number             int                    `json:"poolNum"`
 	Type               PoolType               `json:"type"`
-	ReplicationConfig  ReplicatedPoolConfig   `json:"replicationConfig"`
+	FailureDomain      string                 `json:"failureDomain"`
+	ReplicatedConfig   ReplicatedPoolConfig   `json:"replicatedConfig"`
 	ErasureCodedConfig ErasureCodedPoolConfig `json:"erasureCodedConfig"`
 }
 

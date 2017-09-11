@@ -42,7 +42,7 @@ func bucketStatsFromRGW(stats rgwBucketStats) model.ObjectBucketStats {
 }
 
 func GetBucketStats(c *Context, bucketName string) (*model.ObjectBucketStats, bool, error) {
-	result, err := RunAdminCommand(c,
+	result, err := runAdminCommand(c,
 		"bucket",
 		"stats",
 		"--bucket", bucketName)
@@ -65,7 +65,7 @@ func GetBucketStats(c *Context, bucketName string) (*model.ObjectBucketStats, bo
 }
 
 func GetBucketsStats(c *Context) (map[string]model.ObjectBucketStats, error) {
-	result, err := RunAdminCommand(c,
+	result, err := runAdminCommand(c,
 		"bucket",
 		"stats")
 	if err != nil {
@@ -87,7 +87,7 @@ func GetBucketsStats(c *Context) (map[string]model.ObjectBucketStats, error) {
 }
 
 func getBucketMetadata(c *Context, bucket string) (*model.ObjectBucketMetadata, bool, error) {
-	result, err := RunAdminCommand(c,
+	result, err := runAdminCommand(c,
 		"metadata",
 		"get",
 		"bucket:"+bucket)
@@ -162,12 +162,12 @@ func GetBucket(c *Context, bucket string) (*model.ObjectBucket, int, error) {
 }
 
 func DeleteBucket(c *Context, bucketName string, purge bool) (int, error) {
-	options := []string{"--bucket", bucketName}
+	options := []string{"bucket", "rm", "--bucket", bucketName}
 	if purge {
 		options = append(options, "--purge-objects")
 	}
 
-	result, err := RunAdminCommand(c, "bucket", "rm", options...)
+	result, err := runAdminCommand(c, options...)
 	if err != nil {
 		return RGWErrorUnknown, fmt.Errorf("failed to delete bucket: %+v", err)
 	}

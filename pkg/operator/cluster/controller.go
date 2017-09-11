@@ -35,6 +35,7 @@ import (
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
 	"github.com/rook/rook/pkg/operator/pool"
+	"github.com/rook/rook/pkg/operator/rgw"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -129,8 +130,12 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	// Start pool CRD watcher
-	poolController, err := pool.NewPoolController(c.context.Clientset)
+	poolController, err := pool.NewPoolController(c.context)
 	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
+
+	// Start object store CRD watcher
+	objectStoreController, err := rgw.NewObjectStoreController(c.context, cluster.Spec.VersionTag)
+	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons)
@@ -197,11 +202,6 @@ func (c *Cluster) createInstance() error {
 	err = c.createClientAccess(clusterInfo)
 	if err != nil {
 		return fmt.Errorf("failed to create client access. %+v", err)
-	}
-
-	c.rookClient, err = api.GetRookClient(c.Namespace, c.context.Clientset)
-	if err != nil {
-		return fmt.Errorf("Failed to get rook client: %v", err)
 	}
 
 	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)

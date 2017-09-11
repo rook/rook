@@ -46,9 +46,9 @@ var (
 
 func init() {
 	createCmd.Flags().StringVarP(&store.Name, "name", "n", "default", "The name of the object store instance")
-	createCmd.Flags().Int32VarP(&store.Port, "port", "p", model.RGWPort, "The port on which to expose the object store")
-	createCmd.Flags().Int32Var(&store.RGWReplicas, "rgw-replicas", 1, "The number of RGW services for load balancing")
-	createCmd.Flags().StringVar(&certificateFile, "certificate", "", "Path to the ssl cert file (pem format)")
+	createCmd.Flags().Int32VarP(&store.RGW.Port, "port", "p", model.RGWPort, "The port on which to expose the object store")
+	createCmd.Flags().Int32VarP(&store.RGW.Replicas, "rgw-replicas", "r", 1, "The number of RGW services for load balancing")
+	createCmd.Flags().StringVarP(&certificateFile, "certificate", "c", "", "Path to the ssl cert file (pem format)")
 	pool.AddPoolFlags(createCmd, "data-", &dataConfig)
 	pool.AddPoolFlags(createCmd, "metadata-", &metadataConfig)
 
@@ -67,7 +67,7 @@ func createObjectStoreEntry(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(os.Stderr, "failed to read certificate", err)
 			os.Exit(1)
 		}
-		store.Certificate = string(cert)
+		store.RGW.Certificate = string(cert)
 	}
 
 	dataPool, err := pool.ConfigToModel(dataConfig)
@@ -96,12 +96,10 @@ func createObjectStoreEntry(cmd *cobra.Command, args []string) error {
 func createObjectStore(c client.RookRestClient) error {
 
 	_, err := c.CreateObjectStore(store)
-
-	// HTTP 202 Accepted is expected
-	if err != nil && !client.IsHttpAccepted(err) {
+	if err != nil {
 		return fmt.Errorf("failed to create new object store: %+v", err)
 	}
 
-	fmt.Println("succeeded starting creation of object store")
+	fmt.Println("succeeded creation of object store")
 	return nil
 }

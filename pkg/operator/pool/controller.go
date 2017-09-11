@@ -24,13 +24,12 @@ import (
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
+	ceph "github.com/rook/rook/pkg/ceph/client"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
-	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/kit"
-	rookclient "github.com/rook/rook/pkg/rook/client"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -45,15 +44,14 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-pool")
 
 // PoolController represents a controller object for pool custom resources
 type PoolController struct {
-	clientset  kubernetes.Interface
-	rookClient rookclient.RookRestClient
-	scheme     *runtime.Scheme
+	context *clusterd.Context
+	scheme  *runtime.Scheme
 }
 
 // NewPoolController create controller for watching pool custom resources created
-func NewPoolController(clientset kubernetes.Interface) (*PoolController, error) {
+func NewPoolController(context *clusterd.Context) (*PoolController, error) {
 	return &PoolController{
-		clientset: clientset,
+		context: context,
 	}, nil
 
 }
@@ -65,12 +63,6 @@ func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) erro
 		return fmt.Errorf("failed to get a k8s client for watching pool resources: %v", err)
 	}
 	c.scheme = scheme
-
-	rclient, err := api.GetRookClient(namespace, c.clientset)
-	if err != nil {
-		return fmt.Errorf("Failed to get rook client: %v", err)
-	}
-	c.rookClient = rclient
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -94,7 +86,7 @@ func (c *PoolController) onAdd(obj interface{}) {
 	}
 	poolCopy := copyObj.(*Pool)
 
-	err = poolCopy.create(c.rookClient)
+	err = poolCopy.create(c.context)
 	if err != nil {
 		logger.Errorf("failed to create pool %s. %+v", pool.ObjectMeta.Name, err)
 	}
@@ -105,7 +97,7 @@ func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
 	newPool := newObj.(*Pool)
 
 	// if the pool is modified, allow the pool to be created if it wasn't already
-	err := newPool.create(c.rookClient)
+	err := newPool.create(c.context)
 	if err != nil {
 		logger.Errorf("failed to create (modify) pool %s. %+v", newPool.ObjectMeta.Name, err)
 	}
@@ -113,55 +105,48 @@ func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
 
 func (c *PoolController) onDelete(obj interface{}) {
 	pool := obj.(*Pool)
-	err := pool.delete(c.rookClient)
+	err := pool.delete(c.context)
 	if err != nil {
 		logger.Errorf("failed to delete pool %s. %+v", pool.ObjectMeta.Name, err)
 	}
 }
 
 // Create the pool
-func (p *Pool) create(rclient rookclient.RookRestClient) error {
+func (p *Pool) create(context *clusterd.Context) error {
 	// validate the pool settings
 	if err := p.validate(); err != nil {
 		return fmt.Errorf("invalid pool %s arguments. %+v", p.Name, err)
 	}
 
 	// check if the pool already exists
-	exists, err := p.exists(rclient)
+	exists, err := p.exists(context)
 	if err == nil && exists {
 		logger.Infof("pool %s already exists in namespace %s ", p.Name, p.Namespace)
 		return nil
 	}
 
 	// create the pool
-	pool := model.Pool{Name: p.Name}
-
-	r := p.replication()
-	if r != nil {
-		logger.Infof("creating pool %s in namespace %s with replicas %d", p.Name, p.Namespace, r.Size)
-		pool.ReplicationConfig.Size = r.Size
-		pool.Type = model.Replicated
-	} else {
-		ec := p.erasureCode()
-		logger.Infof("creating pool %s in namespace %s. coding chunks = %d, data chunks = %d", p.Name, p.Namespace, ec.CodingChunks, ec.DataChunks)
-		pool.ErasureCodedConfig.CodingChunkCount = ec.CodingChunks
-		pool.ErasureCodedConfig.DataChunkCount = ec.DataChunks
-		pool.Type = model.ErasureCoded
-	}
-
-	info, err := rclient.CreatePool(pool)
+	pool := p.ToModel()
+	logger.Infof("creating pool in namespace %s. %+v", p.Namespace, pool)
+	err = ceph.CreatePoolWithProfile(context, p.Namespace, pool)
 	if err != nil {
 		return fmt.Errorf("failed to create pool %s. %+v", p.Name, err)
 	}
 
-	logger.Infof("created pool %s. %s", p.Name, info)
+	logger.Infof("created pool %s", p.Name)
 	return nil
 }
 
+func (p *Pool) ToModel() model.Pool {
+	pool := model.Pool{Name: p.Name}
+	p.Spec.ToModel(&pool)
+	return pool
+}
+
 // Delete the pool
-func (p *Pool) delete(rclient rookclient.RookRestClient) error {
+func (p *Pool) delete(context *clusterd.Context) error {
 	// check if the pool  exists
-	exists, err := p.exists(rclient)
+	exists, err := p.exists(context)
 	if err == nil && !exists {
 		return nil
 	}
@@ -172,8 +157,8 @@ func (p *Pool) delete(rclient rookclient.RookRestClient) error {
 }
 
 // Check if the pool exists
-func (p *Pool) exists(rclient rookclient.RookRestClient) (bool, error) {
-	pools, err := rclient.GetPools()
+func (p *Pool) exists(context *clusterd.Context) (bool, error) {
+	pools, err := ceph.GetPools(context, p.Namespace)
 	if err != nil {
 		return false, err
 	}
@@ -193,6 +178,43 @@ func (p *Pool) validate() error {
 	if p.Namespace == "" {
 		return fmt.Errorf("missing namespace")
 	}
+	if err := p.Spec.Validate(); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *PoolSpec) ToModel(pool *model.Pool) {
+	r := p.replication()
+	if r != nil {
+		pool.ReplicatedConfig.Size = r.Size
+		pool.Type = model.Replicated
+	} else {
+		ec := p.erasureCode()
+		if ec != nil {
+			pool.ErasureCodedConfig.CodingChunkCount = ec.CodingChunks
+			pool.ErasureCodedConfig.DataChunkCount = ec.DataChunks
+			pool.Type = model.ErasureCoded
+		}
+	}
+}
+
+func (p *PoolSpec) replication() *ReplicatedSpec {
+	if p.Replicated.Size > 0 {
+		return &p.Replicated
+	}
+	return nil
+}
+
+func (p *PoolSpec) erasureCode() *ErasureCodedSpec {
+	ec := &p.ErasureCoded
+	if ec.CodingChunks > 0 || ec.DataChunks > 0 {
+		return ec
+	}
+	return nil
+}
+
+func (p *PoolSpec) Validate() error {
 	if p.replication() != nil && p.erasureCode() != nil {
 		return fmt.Errorf("both replication and erasure code settings cannot be specified")
 	}
@@ -202,17 +224,11 @@ func (p *Pool) validate() error {
 	return nil
 }
 
-func (p *Pool) replication() *ReplicationSpec {
-	if p.Spec.Replication.Size > 0 {
-		return &p.Spec.Replication
+func ModelToSpec(pool model.Pool) PoolSpec {
+	ec := pool.ErasureCodedConfig
+	return PoolSpec{
+		FailureDomain: pool.FailureDomain,
+		Replicated:    ReplicatedSpec{Size: pool.ReplicatedConfig.Size},
+		ErasureCoded:  ErasureCodedSpec{CodingChunks: ec.CodingChunkCount, DataChunks: ec.DataChunkCount, Algorithm: ec.Algorithm},
 	}
-	return nil
-}
-
-func (p *Pool) erasureCode() *ErasureCodeSpec {
-	ec := &p.Spec.ErasureCoding
-	if ec.CodingChunks > 0 || ec.DataChunks > 0 {
-		return ec
-	}
-	return nil
 }

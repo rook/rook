@@ -28,7 +28,7 @@ import (
 
 const (
 	SuccessGetNodesContent                     = `[{"nodeID": "node1","publicIp": "1.2.3.100","privateIp": "10.0.0.100","storage": 100},{"nodeID": "node2","ipAddr": "10.0.0.101","storage": 200}]`
-	SuccessGetPoolsContent                     = "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicationConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicationConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]"
+	SuccessGetPoolsContent                     = "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicatedConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicatedConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]"
 	SuccessCreatePoolContent                   = `pool 'ecPool1' created`
 	SuccessGetBlockImagesContent               = `[{"imageName":"myimage1","poolName":"rbd","size":10485760,"device":"","mountPoint":""},{"imageName":"myimage2","poolName":"rbd2","size":10485761,"device":"","mountPoint":""}]`
 	SuccessCreateBlockImageContent             = `succeeded created image myimage3`
@@ -253,7 +253,7 @@ func TestCreateObjectStore(t *testing.T) {
 	mockHttpClient := NewMockHttpClient(mockServer.URL)
 	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
 
-	store := model.ObjectStore{Name: "default", Port: 123}
+	store := model.ObjectStore{Name: "default", RGW: model.RGW{Port: 123}}
 	resp, err := client.CreateObjectStore(store)
 	assert.NotNil(t, err)
 	assert.True(t, IsHttpAccepted(err))
