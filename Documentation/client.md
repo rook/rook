@@ -1,6 +1,6 @@
 ---
 title: Rook Client
-weight: 20
+weight: 40
 ---
 
 # Using Rook
