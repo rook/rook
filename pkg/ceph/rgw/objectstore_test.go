@@ -52,7 +52,7 @@ func TestCreateRealm(t *testing.T) {
 		},
 	}
 
-	store := model.ObjectStore{Name: "myobject", RGW: model.RGW{Port: 123}}
+	store := model.ObjectStore{Name: "myobject", Gateway: model.Gateway{Port: 123}}
 	context := &clusterd.Context{Executor: executor}
 	objContext := NewContext(context, store.Name, "mycluster")
 	// create the first realm, marked as default

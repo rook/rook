@@ -253,7 +253,7 @@ func TestCreateObjectStore(t *testing.T) {
 	mockHttpClient := NewMockHttpClient(mockServer.URL)
 	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
 
-	store := model.ObjectStore{Name: "default", RGW: model.RGW{Port: 123}}
+	store := model.ObjectStore{Name: "default", Gateway: model.Gateway{Port: 123}}
 	resp, err := client.CreateObjectStore(store)
 	assert.NotNil(t, err)
 	assert.True(t, IsHttpAccepted(err))

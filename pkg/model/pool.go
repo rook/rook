@@ -23,20 +23,6 @@ const (
 	PoolTypeUnknown
 )
 
-type ObjectStore struct {
-	Name           string `json:"name"`
-	DataConfig     Pool   `json:"dataConfig"`
-	MetadataConfig Pool   `json:"metadataConfig"`
-	RGW            RGW    `json:"rgw"`
-}
-
-type RGW struct {
-	Port           int32  `json:"port"`
-	Replicas       int32  `json:"rgwReplicas"`
-	Certificate    string `json:"certificate"`
-	CertificateRef string `json:"certificateRef"`
-}
-
 type ReplicatedPoolConfig struct {
 	Size uint `json:"size"`
 }

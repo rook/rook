@@ -31,6 +31,7 @@ type ClusterHandler interface {
 	GetClusterInfo() (*mon.ClusterInfo, error)
 	EnableObjectStore(config model.ObjectStore) error
 	RemoveObjectStore(name string) error
+	GetObjectStores() ([]model.ObjectStoreResponse, error)
 	GetObjectStoreConnectionInfo(name string) (s3info *model.ObjectStoreConnectInfo, found bool, err error)
 	StartFileSystem(fs *model.FilesystemRequest) error
 	RemoveFileSystem(fs *model.FilesystemRequest) error
@@ -56,6 +57,10 @@ func (e *etcdHandler) EnableObjectStore(config model.ObjectStore) error {
 
 func (e *etcdHandler) RemoveObjectStore(name string) error {
 	return rgw.RemoveObjectStore(e.context.EtcdClient)
+}
+
+func (e *etcdHandler) GetObjectStores() ([]model.ObjectStoreResponse, error) {
+	return nil, nil
 }
 
 func (e *etcdHandler) GetObjectStoreConnectionInfo(name string) (*model.ObjectStoreConnectInfo, bool, error) {

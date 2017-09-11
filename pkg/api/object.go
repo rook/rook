@@ -48,6 +48,20 @@ func (h *Handler) objectContext(r *http.Request) *rgw.Context {
 	return rgw.NewContext(h.context, storeName, clusterName)
 }
 
+// GetObjectStores gets the object stores in this cluster.
+// GET
+// /objectstore
+func (h *Handler) GetObjectStores(w http.ResponseWriter, r *http.Request) {
+	stores, err := h.config.ClusterHandler.GetObjectStores()
+	if err != nil {
+		logger.Errorf("failed to get object stores: %+v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	FormatJsonResponse(w, stores)
+}
+
 // CreateObjectStore creates a new object store in this cluster.
 // POST
 // /objectstore
@@ -64,11 +78,11 @@ func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 	if objectStore.Name == "" {
 		objectStore.Name = defaultObjectStoreName
 	}
-	if objectStore.RGW.Port == 0 {
-		objectStore.RGW.Port = model.RGWPort
+	if objectStore.Gateway.Port == 0 {
+		objectStore.Gateway.Port = model.RGWPort
 	}
-	if objectStore.RGW.Replicas == 0 {
-		objectStore.RGW.Replicas = defaultRGWReplicas
+	if objectStore.Gateway.Replicas == 0 {
+		objectStore.Gateway.Replicas = defaultRGWReplicas
 	}
 
 	if err := h.config.ClusterHandler.EnableObjectStore(objectStore); err != nil {

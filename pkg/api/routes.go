@@ -84,6 +84,12 @@ func (h *Handler) GetRoutes() []Route {
 			h.GetCrushMap,
 		},
 		{
+			"GetObjectStores",
+			"GET",
+			"/objectstore",
+			h.GetObjectStores,
+		},
+		{
 			"CreateObjectStore",
 			"POST",
 			"/objectstore",

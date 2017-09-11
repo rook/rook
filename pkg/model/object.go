@@ -15,9 +15,34 @@ limitations under the License.
 */
 package model
 
-import "time"
+import (
+	"time"
+
+	"k8s.io/api/core/v1"
+)
 
 const RGWPort = 53390
+
+type ObjectStoreResponse struct {
+	Name        string           `json:"name"`
+	ClusterIP   string           `json:"clusterIP"`
+	ExternalIPs []string         `json:"externalIPs"`
+	Ports       []v1.ServicePort `json:"ports"`
+}
+
+type ObjectStore struct {
+	Name           string  `json:"name"`
+	DataConfig     Pool    `json:"dataConfig"`
+	MetadataConfig Pool    `json:"metadataConfig"`
+	Gateway        Gateway `json:"gateway"`
+}
+
+type Gateway struct {
+	Port           int32  `json:"port"`
+	Replicas       int32  `json:"replicas"`
+	Certificate    string `json:"certificate"`
+	CertificateRef string `json:"certificateRef"`
+}
 
 type ObjectStoreConnectInfo struct {
 	Host       string `json:"host"`

@@ -47,19 +47,16 @@ type ObjectStoreList struct {
 // ObjectStoreSpec represent the spec of a pool
 type ObjectStoreSpec struct {
 	// The metadata pool settings
-	MetadataPoolSpec string `json:"metadataPoolSpec"`
+	MetadataPool pool.PoolSpec `json:"metadataPool"`
 
 	// The data pool settings
-	DataPoolSpec string `json:"dataPoolSpec"`
-
-	// The pool specs referred to by the metadata and data pools
-	PoolSpecs []PoolSpec `json:"poolSpecs"`
+	DataPool pool.PoolSpec `json:"dataPool"`
 
 	// The rgw pod info
-	RGW RGWSpec `json:"rgw"`
+	Gateway GatewaySpec `json:"gateway"`
 }
 
-type RGWSpec struct {
+type GatewaySpec struct {
 	// The port the rgw service will be listening on
 	Port int32 `json:"port"`
 
@@ -71,12 +68,4 @@ type RGWSpec struct {
 
 	// The affinity to place the rgw pods (default is to place on any available node)
 	Placement k8sutil.Placement `json:"placement"`
-}
-
-type PoolSpec struct {
-	// The name of the pool spec
-	Name string `json:"name"`
-
-	// The pool details
-	pool.PoolSpec
 }

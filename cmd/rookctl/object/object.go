@@ -28,4 +28,5 @@ func init() {
 	Cmd.AddCommand(connectionCmd)
 	Cmd.AddCommand(bucketCmd)
 	Cmd.AddCommand(userCmd)
+	Cmd.AddCommand(listCmd)
 }

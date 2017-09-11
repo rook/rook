@@ -1,29 +1,28 @@
 apiVersion: rook.io/v1alpha1
 kind: ObjectStore
 metadata:
-  name: object-store
+  name: my-store
   namespace: rook
 spec:
-  # Reference to the pool spec for the metadata pools
-  metadataPoolSpec: replicated-spec
-  # Reference to the pool spec for the data pool
-  dataPoolSpec: erasurecoded-spec
-  # The pool specs used to create the metadata and data pools
-  poolSpecs:
-    - name: replicated-spec
-      failureDomain: host
-      replicated:
-        size: 3
-    - name: erasurecoded-spec
-      failureDomain: osd
-      erasureCoded:
-        dataChunks: 4
-        codingChunks: 2
-  rgw:
+  # The pool spec used to create the metadata pools
+  metadataPool:
+    failureDomain: host
+    replicated:
+      size: 2
+  # The pool spec used to create the data pool
+  dataPool:
+    failureDomain: osd
+    erasureCoded:
+      dataChunks: 2
+      codingChunks: 1
+  # The gaeteway service configuration
+  gateway:
+    # type of the gateway (s3)
+    type: s3
     # A reference to the secret in the rook namespace where the ssl certificate is stored
     sslCertificateRef: 
     # The port that RGW pods will listen on
-    port: 443
+    port: 53390
     # The number of pods in the replicaset
     replicas: 1
     # The affinity rules for the rgw pods
@@ -39,3 +38,11 @@ spec:
     #  tolerations:
     #  - key: rgw-node
     #    operator: Exists
+  # The zone information for replication across clusters (not implemented)
+  #zone:
+  #  realm: myrealm
+  #  group: mygroup
+  #  master:
+  #    url: https://my-master-zone-gateway/
+  #    accessKey: my-master-zone-access-key
+  #    secret: my-master-zone-secret

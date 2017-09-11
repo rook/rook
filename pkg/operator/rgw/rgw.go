@@ -97,22 +97,13 @@ func (s *ObjectStore) Create(context *clusterd.Context, version string) error {
 }
 
 func (s *ObjectStore) createObjectStore(context *cephrgw.Context, serviceIP string) error {
-	metadataSpec := s.findPoolConfig(s.Spec.MetadataPoolSpec)
-	if metadataSpec == nil {
-		return fmt.Errorf("failed to find metadata pool %s config", s.Spec.MetadataPoolSpec)
-	}
-
-	dataSpec := s.findPoolConfig(s.Spec.DataPoolSpec)
-	if dataSpec == nil {
-		return fmt.Errorf("failed to find data pool %s config", s.Spec.DataPoolSpec)
-	}
 
 	mModel := model.Pool{}
 	dModel := model.Pool{}
-	metadataSpec.ToModel(&mModel)
-	dataSpec.ToModel(&dModel)
+	s.Spec.MetadataPool.ToModel(&mModel)
+	s.Spec.DataPool.ToModel(&dModel)
 
-	err := cephrgw.CreateObjectStore(context, mModel, dModel, serviceIP, s.Spec.RGW.Port)
+	err := cephrgw.CreateObjectStore(context, mModel, dModel, serviceIP, s.Spec.Gateway.Port)
 	if err != nil {
 		return fmt.Errorf("failed to create pools. %+v", err)
 	}
@@ -189,27 +180,13 @@ func (s *ObjectStore) validate() error {
 	if s.Namespace == "" {
 		return fmt.Errorf("missing namespace")
 	}
-	for _, pool := range s.Spec.PoolSpecs {
-		if err := pool.PoolSpec.Validate(); err != nil {
-			return fmt.Errorf("invalid pool spec %s. %+v", pool.Name, err)
-		}
+	if err := s.Spec.MetadataPool.Validate(); err != nil {
+		return fmt.Errorf("invalid metadata pool spec. %+v", err)
 	}
-	if s.findPoolConfig(s.Spec.MetadataPoolSpec) == nil {
-		return fmt.Errorf("metadata pool %s not found", s.Spec.MetadataPoolSpec)
-	}
-	if s.findPoolConfig(s.Spec.DataPoolSpec) == nil {
-		return fmt.Errorf("data pool %s not found", s.Spec.DataPoolSpec)
+	if err := s.Spec.DataPool.Validate(); err != nil {
+		return fmt.Errorf("invalid data pool spec. %+v", err)
 	}
 
-	return nil
-}
-
-func (s *ObjectStore) findPoolConfig(name string) *pool.PoolSpec {
-	for _, p := range s.Spec.PoolSpecs {
-		if p.Name == name {
-			return &p.PoolSpec
-		}
-	}
 	return nil
 }
 
@@ -256,21 +233,15 @@ func InstanceName(name string) string {
 }
 
 func ModelToSpec(store model.ObjectStore, namespace string) *ObjectStore {
-	metaName := "meta"
-	dataName := "data"
 	return &ObjectStore{
 		ObjectMeta: metav1.ObjectMeta{Name: store.Name, Namespace: namespace},
 		Spec: ObjectStoreSpec{
-			MetadataPoolSpec: metaName,
-			DataPoolSpec:     dataName,
-			PoolSpecs: []PoolSpec{
-				{Name: metaName, PoolSpec: pool.ModelToSpec(store.MetadataConfig)},
-				{Name: dataName, PoolSpec: pool.ModelToSpec(store.DataConfig)},
-			},
-			RGW: RGWSpec{
-				Port:              store.RGW.Port,
-				Replicas:          store.RGW.Replicas,
-				SSLCertificateRef: store.RGW.CertificateRef,
+			MetadataPool: pool.ModelToSpec(store.MetadataConfig),
+			DataPool:     pool.ModelToSpec(store.DataConfig),
+			Gateway: GatewaySpec{
+				Port:              store.Gateway.Port,
+				Replicas:          store.Gateway.Replicas,
+				SSLCertificateRef: store.Gateway.CertificateRef,
 			},
 		},
 	}
@@ -296,15 +267,15 @@ func (s *ObjectStore) makeDeployment(version string) *extensions.Deployment {
 	c.placement.ApplyToPodSpec(&podSpec)
 
 	// Set the ssl cert if specified
-	if s.Spec.RGW.SSLCertificateRef != "" {
+	if s.Spec.Gateway.SSLCertificateRef != "" {
 		certVol := v1.Volume{Name: certVolumeName, VolumeSource: v1.VolumeSource{Secret: &v1.SecretVolumeSource{
-			SecretName: s.Spec.RGW.SSLCertificateRef,
+			SecretName: s.Spec.Gateway.SSLCertificateRef,
 			Items:      []v1.KeyToPath{{Key: certKeyName, Path: certFilename}},
 		}}}
 		podSpec.Volumes = append(podSpec.Volumes, certVol)
 	}
 
-	s.Spec.RGW.Placement.ApplyToPodSpec(&podSpec)
+	s.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -315,7 +286,7 @@ func (s *ObjectStore) makeDeployment(version string) *extensions.Deployment {
 		Spec: podSpec,
 	}
 
-	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &s.Spec.RGW.Replicas}
+	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &s.Spec.Gateway.Replicas}
 
 	return deployment
 }
@@ -327,7 +298,7 @@ func (s *ObjectStore) rgwContainer(version string) v1.Container {
 			"rgw",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--rgw-name=%s", s.Name),
-			fmt.Sprintf("--rgw-port=%d", s.Spec.RGW.Port),
+			fmt.Sprintf("--rgw-port=%d", s.Spec.Gateway.Port),
 			fmt.Sprintf("--rgw-host=%s", s.instanceName()),
 		},
 		Name:  s.instanceName(),
@@ -348,7 +319,7 @@ func (s *ObjectStore) rgwContainer(version string) v1.Container {
 		},
 	}
 
-	if s.Spec.RGW.SSLCertificateRef != "" {
+	if s.Spec.Gateway.SSLCertificateRef != "" {
 		// Add a volume mount for the ssl certificate
 		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certMountPath, ReadOnly: true}
 		container.VolumeMounts = append(container.VolumeMounts, mount)
@@ -373,8 +344,8 @@ func (s *ObjectStore) startService(context *clusterd.Context) (string, error) {
 			Ports: []v1.ServicePort{
 				{
 					Name:       s.instanceName(),
-					Port:       s.Spec.RGW.Port,
-					TargetPort: intstr.FromInt(int(s.Spec.RGW.Port)),
+					Port:       s.Spec.Gateway.Port,
+					TargetPort: intstr.FromInt(int(s.Spec.Gateway.Port)),
 					Protocol:   v1.ProtocolTCP,
 				},
 			},
@@ -388,13 +359,13 @@ func (s *ObjectStore) startService(context *clusterd.Context) (string, error) {
 	svc, err := context.Clientset.CoreV1().Services(s.Namespace).Create(svc)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return "", fmt.Errorf("failed to create mon service. %+v", err)
+			return "", fmt.Errorf("failed to create rgw service. %+v", err)
 		}
-		logger.Infof("RGW service already running")
+		logger.Infof("Gateway service already running")
 		return "", nil
 	}
 
-	logger.Infof("RGW service running at %s:%d", svc.Spec.ClusterIP, s.Spec.RGW.Port)
+	logger.Infof("Gateway service running at %s:%d", svc.Spec.ClusterIP, s.Spec.Gateway.Port)
 	return svc.Spec.ClusterIP, nil
 }
 

@@ -46,8 +46,8 @@ var (
 
 func init() {
 	createCmd.Flags().StringVarP(&store.Name, "name", "n", "default", "The name of the object store instance")
-	createCmd.Flags().Int32VarP(&store.RGW.Port, "port", "p", model.RGWPort, "The port on which to expose the object store")
-	createCmd.Flags().Int32VarP(&store.RGW.Replicas, "rgw-replicas", "r", 1, "The number of RGW services for load balancing")
+	createCmd.Flags().Int32VarP(&store.Gateway.Port, "port", "p", model.RGWPort, "The port on which to expose the object store")
+	createCmd.Flags().Int32VarP(&store.Gateway.Replicas, "rgw-replicas", "r", 1, "The number of RGW services for load balancing")
 	createCmd.Flags().StringVarP(&certificateFile, "certificate", "c", "", "Path to the ssl cert file (pem format)")
 	pool.AddPoolFlags(createCmd, "data-", &dataConfig)
 	pool.AddPoolFlags(createCmd, "metadata-", &metadataConfig)
@@ -67,7 +67,7 @@ func createObjectStoreEntry(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(os.Stderr, "failed to read certificate", err)
 			os.Exit(1)
 		}
-		store.RGW.Certificate = string(cert)
+		store.Gateway.Certificate = string(cert)
 	}
 
 	dataPool, err := pool.ConfigToModel(dataConfig)

@@ -111,7 +111,7 @@ func TestPodSpecs(t *testing.T) {
 
 func TestSSLPodSpec(t *testing.T) {
 	store := simpleStore()
-	store.Spec.RGW.SSLCertificateRef = "mycert"
+	store.Spec.Gateway.SSLCertificateRef = "mycert"
 
 	d := store.makeDeployment("v1.0")
 	assert.NotNil(t, d)
@@ -171,27 +171,11 @@ func TestValidateSpec(t *testing.T) {
 	err = s.validate()
 	assert.Nil(t, err)
 
-	// missing metadata
-	s.Spec.MetadataPoolSpec = "bad"
-	err = s.validate()
-	assert.NotNil(t, err)
-	s.Spec.MetadataPoolSpec = "meta"
-	err = s.validate()
-	assert.Nil(t, err)
-
-	// missing data
-	s.Spec.DataPoolSpec = "bad"
-	err = s.validate()
-	assert.NotNil(t, err)
-	s.Spec.DataPoolSpec = "data"
-	err = s.validate()
-	assert.Nil(t, err)
-
 	// no replication or EC
-	s.Spec.PoolSpecs[0].Replicated.Size = 0
+	s.Spec.MetadataPool.Replicated.Size = 0
 	err = s.validate()
 	assert.NotNil(t, err)
-	s.Spec.PoolSpecs[0].Replicated.Size = 1
+	s.Spec.MetadataPool.Replicated.Size = 1
 	err = s.validate()
 	assert.Nil(t, err)
 }
@@ -211,13 +195,9 @@ func simpleStore() *ObjectStore {
 	return &ObjectStore{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"},
 		Spec: ObjectStoreSpec{
-			MetadataPoolSpec: "meta",
-			DataPoolSpec:     "data",
-			PoolSpecs: []PoolSpec{
-				{Name: "meta", PoolSpec: pool.PoolSpec{Replicated: pool.ReplicatedSpec{Size: 1}}},
-				{Name: "data", PoolSpec: pool.PoolSpec{ErasureCoded: pool.ErasureCodedSpec{CodingChunks: 1, DataChunks: 2}}},
-			},
-			RGW: RGWSpec{
+			MetadataPool: pool.PoolSpec{Replicated: pool.ReplicatedSpec{Size: 1}},
+			DataPool:     pool.PoolSpec{ErasureCoded: pool.ErasureCodedSpec{CodingChunks: 1, DataChunks: 2}},
+			Gateway: GatewaySpec{
 				Port: 123,
 			},
 		},

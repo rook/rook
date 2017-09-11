@@ -34,6 +34,21 @@ const (
 	usersQueryName          = "users"
 )
 
+func (c *RookNetworkRestClient) GetObjectStores() ([]model.ObjectStoreResponse, error) {
+	body, err := c.DoGet(path.Join(objectStoreQueryName))
+	if err != nil {
+		return nil, err
+	}
+
+	var stores []model.ObjectStoreResponse
+	err = json.Unmarshal(body, &stores)
+	if err != nil {
+		return nil, err
+	}
+
+	return stores, nil
+}
+
 func (c *RookNetworkRestClient) CreateObjectStore(store model.ObjectStore) (string, error) {
 	if store.Name == "" {
 		return "", fmt.Errorf("Name is required")

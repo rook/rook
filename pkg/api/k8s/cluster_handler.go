@@ -20,6 +20,7 @@ import (
 
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/ceph/rgw"
+	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -46,15 +47,46 @@ func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
 	return s.clusterInfo, nil
 }
 
+func (s *clusterHandler) GetObjectStores() ([]model.ObjectStoreResponse, error) {
+	response := []model.ObjectStoreResponse{}
+
+	// require both the realm and k8s service to exist to consider an object store available
+	realms, err := cephrgw.GetObjectStores(cephrgw.NewContext(s.context, "", s.clusterInfo.Name))
+	if err != nil {
+		return response, fmt.Errorf("failed to get rgw realms. %+v", err)
+	}
+
+	// get the rgw service for each realm
+	for _, realm := range realms {
+		service, err := s.context.Clientset.CoreV1().Services(s.clusterInfo.Name).Get(k8srgw.InstanceName(realm), metav1.GetOptions{})
+		if err != nil {
+			if !errors.IsNotFound(err) {
+				return response, fmt.Errorf("failed to get rgw service %s. %+v", realm, err)
+			}
+			logger.Warningf("RGW realm found, but no k8s service found for %s", realm)
+			continue
+		}
+		response = append(response, model.ObjectStoreResponse{
+			Name:        realm,
+			Ports:       service.Spec.Ports,
+			ClusterIP:   service.Spec.ClusterIP,
+			ExternalIPs: service.Spec.ExternalIPs,
+		})
+	}
+
+	logger.Infof("Object stores: %+v", response)
+	return response, nil
+}
+
 func (s *clusterHandler) EnableObjectStore(config model.ObjectStore) error {
 	logger.Infof("Starting the Object store")
 
 	// save the certificate in a secret if we weren't given a reference to a secret
-	if config.RGW.Certificate != "" && config.RGW.CertificateRef == "" {
+	if config.Gateway.Certificate != "" && config.Gateway.CertificateRef == "" {
 		certName := fmt.Sprintf("rook-rgw-%s-cert", config.Name)
-		config.RGW.CertificateRef = certName
+		config.Gateway.CertificateRef = certName
 
-		data := map[string][]byte{"cert": []byte(config.RGW.Certificate)}
+		data := map[string][]byte{"cert": []byte(config.Gateway.Certificate)}
 		certSecret := &v1.Secret{ObjectMeta: metav1.ObjectMeta{Name: certName, Namespace: s.namespace}, Data: data}
 
 		_, err := s.context.Clientset.Core().Secrets(s.namespace).Create(certSecret)
@@ -69,8 +101,8 @@ func (s *clusterHandler) EnableObjectStore(config model.ObjectStore) error {
 		}
 	}
 
-	objectStore := k8srgw.ModelToSpec(config, s.namespace)
-	err := objectStore.Create(s.context, s.versionTag, s.hostNetwork)
+	store := k8srgw.ModelToSpec(config, s.namespace)
+	err := store.Create(s.context, s.versionTag, s.hostNetwork)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
 	}
@@ -78,8 +110,8 @@ func (s *clusterHandler) EnableObjectStore(config model.ObjectStore) error {
 }
 
 func (s *clusterHandler) RemoveObjectStore(name string) error {
-	logger.Infof("TODO: Remove the object store")
-	return nil
+	store := &k8srgw.ObjectStore{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: s.clusterInfo.Name}}
+	return store.Delete(s.context)
 }
 
 func (s *clusterHandler) GetObjectStoreConnectionInfo(name string) (*model.ObjectStoreConnectInfo, bool, error) {
