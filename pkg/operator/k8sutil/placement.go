@@ -24,18 +24,27 @@ import (
 // Placement encapsulates the various kubernetes options that control where
 // pods are scheduled and executed.
 type Placement struct {
-	NodeAffinity *v1.NodeAffinity `json:"nodeAffinity,omitempty"`
-	Tolerations  []v1.Toleration  `json:"tolerations,omitemtpy"`
+	NodeAffinity    *v1.NodeAffinity    `json:"nodeAffinity,omitempty"`
+	PodAffinity     *v1.PodAffinity     `json:"podAffinity,omitempty"`
+	PodAntiAffinity *v1.PodAntiAffinity `json:"podAntiAffinity,omitempty"`
+	Tolerations     []v1.Toleration     `json:"tolerations,omitemtpy"`
 }
 
 // ApplyToPodSpec adds placement to a pod spec
 func (p Placement) ApplyToPodSpec(t *v1.PodSpec) {
+	if t.Affinity == nil {
+		t.Affinity = &v1.Affinity{}
+	}
 	if p.NodeAffinity != nil {
-		if t.Affinity == nil {
-			t.Affinity = &v1.Affinity{}
-		}
 		t.Affinity.NodeAffinity = p.NodeAffinity
 	}
+	if p.PodAffinity != nil {
+		t.Affinity.PodAffinity = p.PodAffinity
+	}
+	if p.PodAntiAffinity != nil {
+		t.Affinity.PodAntiAffinity = p.PodAntiAffinity
+	}
+
 	if p.Tolerations != nil {
 		t.Tolerations = p.Tolerations
 	}
@@ -48,6 +57,12 @@ func (p Placement) Merge(with Placement) Placement {
 	ret := p
 	if with.NodeAffinity != nil {
 		ret.NodeAffinity = with.NodeAffinity
+	}
+	if with.PodAffinity != nil {
+		ret.PodAffinity = with.PodAffinity
+	}
+	if with.PodAntiAffinity != nil {
+		ret.PodAntiAffinity = with.PodAntiAffinity
 	}
 	if with.Tolerations != nil {
 		ret.Tolerations = with.Tolerations

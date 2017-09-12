@@ -24,20 +24,30 @@ spec:
 #              operator: In
 #              values:
 #              - storage-node
+#      podAffinity:
+#      podAntiAffinity:
 #      tolerations:
 #      - key: storage-node
 #        operator: Exists
 #    api:
 #      nodeAffinity:
+#      podAffinity:
+#      podAntiAffinity:
 #      tolerations:
 #    mgr:
 #      nodeAffinity:
+#      podAffinity:
+#      podAntiAffinity:
 #      tolerations:
 #    mon:
 #      nodeAffinity:
+#      podAffinity:
+#      podAntiAffinity:
 #      tolerations:
 #    osd:
 #      nodeAffinity:
+#      podAffinity:
+#      podAntiAffinity:
 #      tolerations:
   storage:                # cluster level storage configuration and selection
     useAllNodes: true
