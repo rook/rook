@@ -73,6 +73,7 @@ type RestAPIOperator interface {
 	DeleteFilesystem(fsmodel model.FilesystemRequest) (string, error)
 	GetStatusDetails() (model.StatusDetails, error)
 	CreateObjectStore(store model.ObjectStore) (string, error)
+	DeleteObjectStore(name string) error
 	GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, error)
 	ListBuckets() ([]model.ObjectBucket, error)
 	ListObjectUsers() ([]model.ObjectUser, error)

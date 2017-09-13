@@ -133,19 +133,19 @@ func (s *ObjectStore) Delete(context *clusterd.Context) error {
 	// Delete the rgw service
 	err = context.Clientset.CoreV1().Services(s.Namespace).Delete(s.instanceName(), options)
 	if err != nil && !errors.IsNotFound(err) {
-		logger.Warning("failed to delete rgw service. %+v", err)
+		logger.Warningf("failed to delete rgw service. %+v", err)
 	}
 
 	// Delete the rgw deployment
 	err = context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Delete(s.instanceName(), options)
 	if err != nil && !errors.IsNotFound(err) {
-		logger.Warning("failed to delete rgw deployment. %+v", err)
+		logger.Warningf("failed to delete rgw deployment. %+v", err)
 	}
 
 	// Delete the rgw keyring
 	err = context.Clientset.CoreV1().Secrets(s.Namespace).Delete(s.instanceName(), options)
 	if err != nil && !errors.IsNotFound(err) {
-		logger.Warning("failed to delete rgw secret. %+v", err)
+		logger.Warningf("failed to delete rgw secret. %+v", err)
 	}
 
 	// Delete the realm and pools

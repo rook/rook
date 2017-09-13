@@ -98,7 +98,14 @@ func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 // DELETE
 // /objectstore
 func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
-	if err := h.config.ClusterHandler.RemoveObjectStore(h.objectContext(r).Name); err != nil {
+	storeName := r.URL.Query().Get("store")
+	if storeName == "" {
+		logger.Errorf("missing store name")
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := h.config.ClusterHandler.RemoveObjectStore(storeName); err != nil {
 		logger.Errorf("failed to remove object store: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

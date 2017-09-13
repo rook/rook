@@ -45,6 +45,7 @@ type RookRestClient interface {
 	GetStatusDetails() (model.StatusDetails, error)
 	GetObjectStores() ([]model.ObjectStoreResponse, error)
 	CreateObjectStore(store model.ObjectStore) (string, error)
+	DeleteObjectStore(name string) error
 	GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, error)
 	ListBuckets() ([]model.ObjectBucket, error)
 	GetBucket(string) (*model.ObjectBucket, error)

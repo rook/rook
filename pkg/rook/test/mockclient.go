@@ -43,6 +43,7 @@ type MockRookRestClient struct {
 	MockGetStatusDetails             func() (model.StatusDetails, error)
 	MockGetObjectStores              func() ([]model.ObjectStoreResponse, error)
 	MockCreateObjectStore            func(store model.ObjectStore) (string, error)
+	MockDeleteObjectStore            func(string) error
 	MockGetObjectStoreConnectionInfo func() (*model.ObjectStoreConnectInfo, error)
 	MockCreateObjectUser             func(model.ObjectUser) (*model.ObjectUser, error)
 	MockListBuckets                  func() ([]model.ObjectBucket, error)
@@ -148,6 +149,14 @@ func (m *MockRookRestClient) CreateObjectStore(store model.ObjectStore) (string,
 	}
 
 	return "", nil
+}
+
+func (m *MockRookRestClient) DeleteObjectStore(name string) error {
+	if m.MockDeleteObjectStore != nil {
+		return m.MockDeleteObjectStore(name)
+	}
+
+	return nil
 }
 
 func (m *MockRookRestClient) GetObjectStores() ([]model.ObjectStoreResponse, error) {

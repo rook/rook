@@ -18,6 +18,7 @@ package client
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"path"
 
 	"bytes"
@@ -65,6 +66,21 @@ func (c *RookNetworkRestClient) CreateObjectStore(store model.ObjectStore) (stri
 	}
 
 	return string(resp), nil
+}
+
+func (c *RookNetworkRestClient) DeleteObjectStore(name string) error {
+	baseURL, err := url.Parse(objectStoreQueryName)
+	if err != nil {
+		return err
+	}
+
+	params := url.Values{}
+	params.Add("store", name)
+
+	baseURL.RawQuery = params.Encode()
+
+	_, err = c.DoDelete(baseURL.String())
+	return err
 }
 
 func (c *RookNetworkRestClient) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, error) {

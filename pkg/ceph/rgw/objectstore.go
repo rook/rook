@@ -150,17 +150,17 @@ func deleteRealm(context *Context) error {
 	//  <name>
 	_, err := runAdminCommand(context, "realm", "delete", "--rgw-realm", context.Name)
 	if err != nil {
-		logger.Warning("failed to delete rgw realm %s. %+v", context.Name, err)
+		logger.Warningf("failed to delete rgw realm %s. %+v", context.Name, err)
 	}
 
 	_, err = runAdminCommand(context, "zonegroup", "delete", "--rgw-zonegroup", context.Name)
 	if err != nil {
-		logger.Warning("failed to delete rgw zonegroup %s. %+v", context.Name, err)
+		logger.Warningf("failed to delete rgw zonegroup %s. %+v", context.Name, err)
 	}
 
 	_, err = runAdminCommand(context, "zone", "delete", "--rgw-zone", context.Name)
 	if err != nil {
-		logger.Warning("failed to delete rgw zone %s. %+v", context.Name, err)
+		logger.Warningf("failed to delete rgw zone %s. %+v", context.Name, err)
 	}
 
 	return nil

@@ -158,6 +158,11 @@ func (a *RestAPIClient) CreateObjectStore(store model.ObjectStore) (string, erro
 	return a.rrc.CreateObjectStore(store)
 }
 
+//DeleteObjectStore creates object store
+func (a *RestAPIClient) DeleteObjectStore(name string) error {
+	return a.rrc.DeleteObjectStore(name)
+}
+
 //GetObjectStoreConnectionInfo returns object store connection info
 func (a *RestAPIClient) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, error) {
 	return a.rrc.GetObjectStoreConnectionInfo()
