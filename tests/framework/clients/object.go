@@ -34,8 +34,8 @@ func CreateObjectOperation(rookRestClient contracts.RestAPIOperator) *ObjectOper
 //ObjectCreate Function to create a object store in rook
 //Input paramatres -None
 //Output - output returned by rook Rest API client
-func (ro *ObjectOperation) ObjectCreate() (string, error) {
-	store := model.ObjectStore{Name: "default", RGWReplicas: 1}
+func (ro *ObjectOperation) ObjectCreate(name string, replicaCount int32) (string, error) {
+	store := model.ObjectStore{Name: name, RGWReplicas: replicaCount}
 	store.DataConfig.ReplicationConfig.Size = 1
 	store.MetadataConfig.ReplicationConfig.Size = 1
 	return ro.restClient.CreateObjectStore(store)

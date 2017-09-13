@@ -4,7 +4,7 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${scriptdir}/../../build/common.sh"
 
 tarname=image.tar
-tarfile=${WORK_DIR}/tests/${tarname}
+tarfile=$(pwd)/_output/tests/${tarname}
 
 ssh_opts=(
   -o StrictHostKeyChecking=no
@@ -52,7 +52,7 @@ copy_image_to_cluster() {
 }
 
 # configure dind-cluster
-KUBE_VERSION=${KUBE_VERSION:-"v1.7.2"}
+KUBE_VERSION=${KUBE_VERSION:-"v1.7.5"}
 
 case "${1:-}" in
   up)
@@ -65,6 +65,8 @@ case "${1:-}" in
 
     copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
     copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
+    copy_image_to_cluster ceph/base ceph/base
+
     ;;
   down)
     minikube stop

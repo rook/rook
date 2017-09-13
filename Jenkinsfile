@@ -29,7 +29,7 @@ pipeline {
 
                     def data = [
                         "aws_ci": "v1.6.7",
-                        "gce_ci": "v1.7.4"
+                        "gce_ci": "v1.7.5"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {

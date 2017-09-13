@@ -58,10 +58,10 @@ func (s *K8sBlockImageCreateSuite) SetupSuite() {
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset)
 
-	err = s.installer.InstallRookOnK8s()
+	err = s.installer.InstallRookOnK8s("rook")
 	require.NoError(s.T(), err)
 
-	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh)
+	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh, "rook")
 	require.Nil(s.T(), err)
 
 	s.bc = s.testClient.GetBlockClient()
@@ -238,5 +238,5 @@ func (s *K8sBlockImageCreateSuite) isPVCBound(name string) bool {
 }
 func (s *K8sBlockImageCreateSuite) TearDownSuite() {
 
-	s.installer.UninstallRookFromK8s()
+	s.installer.UninstallRookFromK8s("rook", false)
 }

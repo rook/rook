@@ -19,8 +19,6 @@ package smoke
 import (
 	"testing"
 
-	"github.com/coreos/pkg/capnslog"
-
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/installer"
@@ -28,8 +26,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
-
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "smoketest")
 
 func TestSmokeSuiteK8s(t *testing.T) {
 	suite.Run(t, new(SmokeSuite))
@@ -50,22 +46,32 @@ func (suite *SmokeSuite) SetupSuite() {
 
 	suite.installer = installer.NewK8sRookhelper(kh.Clientset)
 
-	err = suite.installer.InstallRookOnK8s()
+	err = suite.installer.InstallRookOnK8s(defaultRookNamespace)
 	require.NoError(suite.T(), err)
 
-	suite.helper, err = clients.CreateTestClient(enums.Kubernetes, kh)
+	suite.helper, err = clients.CreateTestClient(enums.Kubernetes, kh, defaultRookNamespace)
 	require.Nil(suite.T(), err)
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
 	if suite.T().Failed() {
-		suite.k8sh.GetRookLogs("rook-operator", "default", suite.T().Name())
-		suite.k8sh.GetRookLogs("rook-api", "rook", suite.T().Name())
-		suite.k8sh.GetRookLogs("rook-ceph-mgr", "rook", suite.T().Name())
-		suite.k8sh.GetRookLogs("rook-ceph-mon", "rook", suite.T().Name())
-		suite.k8sh.GetRookLogs("rook-ceph-osd", "rook", suite.T().Name())
-		suite.k8sh.GetRookLogs("rook-ceph-rgw", "rook", suite.T().Name())
-		suite.k8sh.GetRookLogs("rook-ceph-mds", "rook", suite.T().Name())
+		gatherAllRookLogs(suite.k8sh, suite.Suite, defaultNamespace, defaultRookNamespace)
+
 	}
-	suite.installer.UninstallRookFromK8s()
+	suite.installer.UninstallRookFromK8s(defaultRookNamespace, false)
+}
+
+func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
+	runBlockE2ETest(suite.helper, suite.k8sh, suite.Suite, defaultRookNamespace)
+}
+func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
+	runFileE2ETest(suite.helper, suite.k8sh, suite.Suite, defaultRookNamespace, "smoke-test-fs")
+}
+func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
+	runObjectE2ETest(suite.helper, suite.k8sh, suite.Suite, defaultRookNamespace)
+}
+
+//Test to make sure all rook components are installed and Running
+func (suite *SmokeSuite) TestRookClusterInstallation_smokeTest() {
+	checkIfRookClusterIsInstalled(suite.k8sh, suite.Suite, defaultNamespace, defaultRookNamespace)
 }

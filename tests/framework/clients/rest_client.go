@@ -34,23 +34,28 @@ type RestAPIClient struct {
 }
 
 //CreateRestAPIClient Create Rook REST API client
-func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHelper) *RestAPIClient {
+func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHelper, namespace string) *RestAPIClient {
 	var endpoint string
 	switch {
 	case platform == enums.Kubernetes:
 		//Start rook_api_external server via nodePort if not it not already running.
-		_, err := k8sHelper.GetService("rook-api-external")
+		externalAPIservice := "rook-api-external-" + namespace
+		_, err := k8sHelper.GetService(externalAPIservice, namespace)
 		if err != nil {
-			_, err = k8sHelper.ResourceOperation("create", getExternalAPIServiceDefinition())
+			_, err = k8sHelper.ResourceOperation("create", getExternalAPIServiceDefinition(namespace))
 			if err != nil {
-				panic(fmt.Errorf("failed to kubectl create -f -  %v: %+v", getExternalAPIServiceDefinition(), err))
+				panic(fmt.Errorf("failed to kubectl create -f -  %v: %+v", getExternalAPIServiceDefinition(namespace), err))
 			}
 		}
-		apiIP, err := k8sHelper.GetPodHostID("rook-api", "rook")
+		apiIP, err := k8sHelper.GetPodHostID("rook-api", namespace)
 		if err != nil {
 			panic(fmt.Errorf("Host Ip for Rook-api service not found. %+v", err))
 		}
-		endpoint = "http://" + apiIP + ":30002"
+		nodePort, err := k8sHelper.GetServiceNodePort(externalAPIservice, namespace)
+		if err != nil {
+			panic(fmt.Errorf("port for external Rook-api service not found. %+v", err))
+		}
+		endpoint = fmt.Sprintf("http://%s:%s", apiIP, nodePort)
 	case platform == enums.StandAlone:
 		endpoint = "http://localhost:8124"
 	default:
@@ -190,24 +195,23 @@ func (a *RestAPIClient) DeleteObjectUser(id string) error {
 
 }
 
-func getExternalAPIServiceDefinition() string {
+func getExternalAPIServiceDefinition(namespace string) string {
 	return `apiVersion: v1
 kind: Service
 metadata:
-  name: rook-api-external
-  namespace: rook
+  name: rook-api-external-` + namespace + `
+  namespace: ` + namespace + `
   labels:
     app: rook-api
-    rook_cluster: rook
+    rook_cluster: ` + namespace + `
 spec:
   ports:
   - name: rook-api
     port: 8124
     protocol: TCP
-    nodePort: 30002
   selector:
     app: rook-api
-    rook_cluster: rook
+    rook_cluster: ` + namespace + `
   sessionAffinity: None
   type: NodePort
 `
