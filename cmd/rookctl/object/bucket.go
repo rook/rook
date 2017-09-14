@@ -68,8 +68,8 @@ func listBucketsEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func listBuckets(name string, c client.RookRestClient) (string, error) {
-	buckets, err := c.ListBuckets(name)
+func listBuckets(storeName string, c client.RookRestClient) (string, error) {
+	buckets, err := c.ListBuckets(storeName)
 	if err != nil {
 		return "", fmt.Errorf("failed to list buckets: %+v", err)
 	}
@@ -114,8 +114,8 @@ func getBucketEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getBucket(c client.RookRestClient, name, bucketName string) (string, error) {
-	bucket, err := c.GetBucket(name, bucketName)
+func getBucket(c client.RookRestClient, storeName, bucketName string) (string, error) {
+	bucket, err := c.GetBucket(storeName, bucketName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get bucket: %+v", err)
 	}
@@ -156,8 +156,8 @@ func deleteBucketEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func deleteBucket(c client.RookRestClient, name, bucketName string) (string, error) {
-	err := c.DeleteBucket(name, bucketName, purge)
+func deleteBucket(c client.RookRestClient, storeName, bucketName string) (string, error) {
+	err := c.DeleteBucket(storeName, bucketName, purge)
 
 	if err != nil {
 		if client.IsHttpNotFound(err) {

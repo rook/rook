@@ -19,7 +19,6 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/ceph/mon"
-	"github.com/rook/rook/pkg/ceph/rgw"
 	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
@@ -122,11 +121,19 @@ func (s *clusterHandler) GetObjectStoreConnectionInfo(name string) (*model.Objec
 	}
 
 	info := &model.ObjectStoreConnectInfo{
-		Host:       k8srgw.InstanceName(name),
-		IPEndpoint: rgw.GetRGWEndpoint(service.Spec.ClusterIP),
+		Host:      k8srgw.InstanceName(name),
+		IPAddress: service.Spec.ClusterIP,
+		Ports:     []int32{},
 	}
-	logger.Infof("Object store connection: %+v", info)
-	return info, true, nil
+
+	// append all of the ports
+	for _, port := range service.Spec.Ports {
+		info.Ports = append(info.Ports, port.Port)
+		return info, true, nil
+	}
+
+	logger.Debugf("Object store connection: %+v", info)
+	return info, false, fmt.Errorf("no ports available for rgw")
 }
 
 func (s *clusterHandler) StartFileSystem(fs *model.FilesystemRequest) error {

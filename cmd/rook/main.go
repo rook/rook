@@ -48,7 +48,7 @@ const (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "rookctl",
+	Use:   "rook",
 	Short: "rook tool for bootstrapping and running rook storage",
 	Long: `
 Tool for bootstrapping and running the rook storage daemon.

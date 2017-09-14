@@ -134,7 +134,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store CRD watcher
-	objectStoreController, err := rgw.NewObjectStoreController(c.context, cluster.Spec.VersionTag)
+	objectStoreController, err := rgw.NewObjectStoreController(c.context, cluster.Spec.VersionTag, cluster.Spec.HostNetwork)
 	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker

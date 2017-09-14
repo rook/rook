@@ -41,18 +41,21 @@ import (
 func TestCreateObjectStoreHandler(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
-
-	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore", strings.NewReader(`{"name": "default"}`))
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	// call the CreateObjectStore handler, which should return http 202 Accepted and record info
-	// about the file system request in etcd
 	w := httptest.NewRecorder()
 	h := newTestHandler(context)
+
+	// Valid parameters return a 200
+	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore", strings.NewReader(`{"name": "default","gateway": {"port":1234}}`))
+	assert.Nil(t, err)
 	h.CreateObjectStore(w, req)
-	assert.Equal(t, http.StatusAccepted, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	// Invalid parameters return a 400
+	req, err = http.NewRequest("POST", "http://10.0.0.100/objectstore", strings.NewReader(`{"name": "default"}`))
+	assert.Nil(t, err)
+	h.CreateObjectStore(w, req)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
 	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/object/desired/state"))
 }
 
@@ -76,7 +79,7 @@ func TestRemoveObjectStoreHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 	h := newTestHandler(context)
 	h.RemoveObjectStore(w, req)
-	assert.Equal(t, http.StatusAccepted, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Equal(t, 0, etcdClient.GetChildDirs("/rook/services/ceph/object/desired").Count())
 }
 
@@ -105,8 +108,9 @@ func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	expectedRespObj := model.ObjectStoreConnectInfo{
-		Host:       "rook-ceph-rgw:53390",
-		IPEndpoint: "1.2.3.4:53390",
+		Host:      "rook-ceph-rgw:53390",
+		IPAddress: "1.2.3.4",
+		Ports:     []int32{53390},
 	}
 
 	// unmarshal the http response to get the actual object and compare it to the expected object

@@ -47,7 +47,7 @@ const (
 )
 
 // Start the rgw manager
-func (s *ObjectStore) Create(context *clusterd.Context, version string) error {
+func (s *ObjectStore) Create(context *clusterd.Context, version string, hostNetwork bool) error {
 
 	// validate the object store settings
 	if err := s.validate(); err != nil {
@@ -68,7 +68,7 @@ func (s *ObjectStore) Create(context *clusterd.Context, version string) error {
 	}
 
 	// start the service
-	serviceIP, err := s.startService(context)
+	serviceIP, err := s.startService(context, hostNetwork)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw service. %+v", err)
 	}
@@ -80,16 +80,23 @@ func (s *ObjectStore) Create(context *clusterd.Context, version string) error {
 		return fmt.Errorf("failed to create ceph object store. %+v", err)
 	}
 
-	// start the deployment
-	deployment := s.makeDeployment(version)
-	_, err = context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Create(deployment)
+	// start the deployment or daemonset
+	var rgwType string
+	if s.Spec.Gateway.AllNodes {
+		rgwType = "daemonset"
+		err = s.startDaemonset(context, version, hostNetwork)
+	} else {
+		rgwType = "deployment"
+		err = s.startDeployment(context, version, s.Spec.Gateway.Instances, hostNetwork)
+	}
+
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create rgw deployment. %+v", err)
+			return fmt.Errorf("failed to create rgw %s. %+v", rgwType, err)
 		}
-		logger.Infof("rgw deployment already exists")
+		logger.Infof("rgw %s already exists", rgwType)
 	} else {
-		logger.Infof("rgw deployment started")
+		logger.Infof("rgw %s started", rgwType)
 	}
 
 	logger.Infof("created object store %s", s.Name)
@@ -142,6 +149,12 @@ func (s *ObjectStore) Delete(context *clusterd.Context) error {
 		logger.Warningf("failed to delete rgw deployment. %+v", err)
 	}
 
+	// Delete the rgw daemonset
+	err = context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Delete(s.instanceName(), options)
+	if err != nil && !errors.IsNotFound(err) {
+		logger.Warningf("failed to delete rgw deployment. %+v", err)
+	}
+
 	// Delete the rgw keyring
 	err = context.Clientset.CoreV1().Secrets(s.Namespace).Delete(s.instanceName(), options)
 	if err != nil && !errors.IsNotFound(err) {
@@ -159,16 +172,28 @@ func (s *ObjectStore) Delete(context *clusterd.Context) error {
 	return nil
 }
 
-// Check if the object store exists
+// Check if the object store exists depending on either the deployment or the daemonset
 func (s *ObjectStore) exists(context *clusterd.Context) (bool, error) {
 	_, err := context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			return false, err
-		}
-		return false, nil
+	if err == nil {
+		// the deployment was found
+		return true, nil
 	}
-	return true, nil
+	if err != nil && !errors.IsNotFound(err) {
+		return false, err
+	}
+
+	_, err = context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
+	if err == nil {
+		//  the daemonset was found
+		return true, nil
+	}
+	if err != nil && !errors.IsNotFound(err) {
+		return false, err
+	}
+
+	// neither one was found
+	return false, nil
 }
 
 // Validate the object store arguments
@@ -240,18 +265,15 @@ func ModelToSpec(store model.ObjectStore, namespace string) *ObjectStore {
 			DataPool:     pool.ModelToSpec(store.DataConfig),
 			Gateway: GatewaySpec{
 				Port:              store.Gateway.Port,
-				Replicas:          store.Gateway.Replicas,
+				SecurePort:        store.Gateway.SecurePort,
+				Instances:         store.Gateway.Instances,
 				SSLCertificateRef: store.Gateway.CertificateRef,
 			},
 		},
 	}
 }
 
-func (s *ObjectStore) makeDeployment(version string) *extensions.Deployment {
-	deployment := &extensions.Deployment{}
-	deployment.Name = s.instanceName()
-	deployment.Namespace = s.Namespace
-
+func (s *ObjectStore) makeRGWPodSpec(version string, hostNetwork bool) v1.PodTemplateSpec {
 	podSpec := v1.PodSpec{
 		Containers:    []v1.Container{s.rgwContainer(version)},
 		RestartPolicy: v1.RestartPolicyAlways,
@@ -259,12 +281,12 @@ func (s *ObjectStore) makeDeployment(version string) *extensions.Deployment {
 			{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
 			k8sutil.ConfigOverrideVolume(),
 		},
-		HostNetwork: c.HostNetwork,
+		HostNetwork: hostNetwork,
 	}
-	if c.HostNetwork {
+	if hostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
-	c.placement.ApplyToPodSpec(&podSpec)
+	s.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
 
 	// Set the ssl cert if specified
 	if s.Spec.Gateway.SSLCertificateRef != "" {
@@ -277,7 +299,7 @@ func (s *ObjectStore) makeDeployment(version string) *extensions.Deployment {
 
 	s.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
 
-	podTemplateSpec := v1.PodTemplateSpec{
+	return v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        s.instanceName(),
 			Labels:      s.getLabels(),
@@ -285,10 +307,33 @@ func (s *ObjectStore) makeDeployment(version string) *extensions.Deployment {
 		},
 		Spec: podSpec,
 	}
+}
 
-	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &s.Spec.Gateway.Replicas}
+func (s *ObjectStore) startDeployment(context *clusterd.Context, version string, replicas int32, hostNetwork bool) error {
 
-	return deployment
+	deployment := &extensions.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      s.instanceName(),
+			Namespace: s.Namespace,
+		},
+		Spec: extensions.DeploymentSpec{Template: s.makeRGWPodSpec(version, hostNetwork), Replicas: &replicas},
+	}
+	_, err := context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Create(deployment)
+	return err
+}
+
+func (s *ObjectStore) startDaemonset(context *clusterd.Context, version string, hostNetwork bool) error {
+
+	daemonset := &extensions.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      s.instanceName(),
+			Namespace: s.Namespace,
+		},
+		Spec: extensions.DaemonSetSpec{Template: s.makeRGWPodSpec(version, hostNetwork)},
+	}
+
+	_, err := context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Create(daemonset)
+	return err
 }
 
 func (s *ObjectStore) rgwContainer(version string) v1.Container {
@@ -298,8 +343,9 @@ func (s *ObjectStore) rgwContainer(version string) v1.Container {
 			"rgw",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--rgw-name=%s", s.Name),
-			fmt.Sprintf("--rgw-port=%d", s.Spec.Gateway.Port),
 			fmt.Sprintf("--rgw-host=%s", s.instanceName()),
+			fmt.Sprintf("--rgw-port=%d", s.Spec.Gateway.Port),
+			fmt.Sprintf("--rgw-secure-port=%d", s.Spec.Gateway.SecurePort),
 		},
 		Name:  s.instanceName(),
 		Image: k8sutil.MakeRookImage(version),
@@ -332,7 +378,7 @@ func (s *ObjectStore) rgwContainer(version string) v1.Container {
 	return container
 }
 
-func (s *ObjectStore) startService(context *clusterd.Context) (string, error) {
+func (s *ObjectStore) startService(context *clusterd.Context, hostNetwork bool) (string, error) {
 	labels := s.getLabels()
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -341,20 +387,15 @@ func (s *ObjectStore) startService(context *clusterd.Context) (string, error) {
 			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{
-				{
-					Name:       s.instanceName(),
-					Port:       s.Spec.Gateway.Port,
-					TargetPort: intstr.FromInt(int(s.Spec.Gateway.Port)),
-					Protocol:   v1.ProtocolTCP,
-				},
-			},
 			Selector: labels,
 		},
 	}
-	if c.HostNetwork {
-		s.Spec.ClusterIP = v1.ClusterIPNone
+	if hostNetwork {
+		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
+
+	addPort(svc, "http", s.Spec.Gateway.Port)
+	addPort(svc, "https", s.Spec.Gateway.SecurePort)
 
 	svc, err := context.Clientset.CoreV1().Services(s.Namespace).Create(svc)
 	if err != nil {
@@ -367,6 +408,18 @@ func (s *ObjectStore) startService(context *clusterd.Context) (string, error) {
 
 	logger.Infof("Gateway service running at %s:%d", svc.Spec.ClusterIP, s.Spec.Gateway.Port)
 	return svc.Spec.ClusterIP, nil
+}
+
+func addPort(service *v1.Service, name string, port int32) {
+	if port == 0 {
+		return
+	}
+	service.Spec.Ports = append(service.Spec.Ports, v1.ServicePort{
+		Name:       name,
+		Port:       port,
+		TargetPort: intstr.FromInt(int(port)),
+		Protocol:   v1.ProtocolTCP,
+	})
 }
 
 func (s *ObjectStore) getLabels() map[string]string {

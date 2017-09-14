@@ -57,11 +57,17 @@ type ObjectStoreSpec struct {
 }
 
 type GatewaySpec struct {
-	// The port the rgw service will be listening on
+	// The port the rgw service will be listening on (http)
 	Port int32 `json:"port"`
 
-	// The number of pods in the rgw replicaset
-	Replicas int32 `json:"replicas"`
+	// The port the rgw service will be listening on (https)
+	SecurePort int32 `json:"securePort"`
+
+	// The number of pods in the rgw replicaset. If "allNodes" is specified, a daemonset is created.
+	Instances int32 `json:"instances"`
+
+	// Whether the rgw pods should be started as a daemonset on all nodes
+	AllNodes bool `json:"allNodes"`
 
 	// The name of the secret that stores the ssl certificate for secure rgw connections
 	SSLCertificateRef string `json:"sslCertificateRef"`

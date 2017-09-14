@@ -223,7 +223,7 @@ func createPools(context *Context, metadataSpec, dataSpec model.Pool) error {
 }
 
 func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) error {
-
+	poolSpec.Name = context.Name
 	cephConfig := ceph.ModelPoolToCephPool(poolSpec)
 	if cephConfig.ErasureCodeProfile != "" {
 		// create a new erasure code profile for the new pool

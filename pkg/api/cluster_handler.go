@@ -71,7 +71,7 @@ func (e *etcdHandler) GetObjectStoreConnectionInfo(name string) (*model.ObjectSt
 		return nil, true, err
 	}
 
-	host, ipEndpoint, found, err := rgw.GetRGWEndpoints(e.context.EtcdClient, clusterInventory)
+	host, ipaddress, found, err := rgw.GetRGWEndpoints(e.context.EtcdClient, clusterInventory)
 	if err != nil {
 		return nil, !util.IsEtcdKeyNotFound(err), err
 	} else if !found {
@@ -79,8 +79,9 @@ func (e *etcdHandler) GetObjectStoreConnectionInfo(name string) (*model.ObjectSt
 	}
 
 	s3Info := &model.ObjectStoreConnectInfo{
-		Host:       host,
-		IPEndpoint: ipEndpoint,
+		Host:      host,
+		IPAddress: ipaddress,
+		Ports:     []int32{53390},
 	}
 
 	return s3Info, true, nil

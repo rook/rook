@@ -34,8 +34,9 @@ func TestGetConnectionInfo(t *testing.T) {
 	c := &test.MockRookRestClient{
 		MockGetObjectStoreConnectionInfo: func(name string) (*model.ObjectStoreConnectInfo, error) {
 			return &model.ObjectStoreConnectInfo{
-				Host:       "rook-ceph-rgw:12345",
-				IPEndpoint: "1.2.3.4:12345",
+				Host:      "rook-ceph-rgw:12345",
+				IPAddress: "1.2.3.4",
+				Ports:     []int32{12345},
 			}, nil
 		},
 		MockGetObjectUser: func(name, s string) (*model.ObjectUser, error) {

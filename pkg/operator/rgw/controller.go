@@ -32,16 +32,18 @@ import (
 
 // ObjectStoreController represents a controller object for object store custom resources
 type ObjectStoreController struct {
-	context    *clusterd.Context
-	scheme     *runtime.Scheme
-	versionTag string
+	context     *clusterd.Context
+	scheme      *runtime.Scheme
+	versionTag  string
+	hostNetwork bool
 }
 
 // NewObjectStoreController create controller for watching object store custom resources created
-func NewObjectStoreController(context *clusterd.Context, versionTag string) (*ObjectStoreController, error) {
+func NewObjectStoreController(context *clusterd.Context, versionTag string, hostNetwork bool) (*ObjectStoreController, error) {
 	return &ObjectStoreController{
-		context:    context,
-		versionTag: versionTag,
+		context:     context,
+		versionTag:  versionTag,
+		hostNetwork: hostNetwork,
 	}, nil
 
 }
@@ -76,7 +78,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 	}
 	objectStoreCopy := copyObj.(*ObjectStore)
 
-	err = objectStoreCopy.Create(c.context, c.versionTag)
+	err = objectStoreCopy.Create(c.context, c.versionTag, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create object store %s. %+v", objectStore.Name, err)
 	}
@@ -87,7 +89,7 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	newObjectStore := newObj.(*ObjectStore)
 
 	// if the object store is modified, allow the object store to be created if it wasn't already
-	err := newObjectStore.Create(c.context, c.versionTag)
+	err := newObjectStore.Create(c.context, c.versionTag, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create (modify) object store %s. %+v", newObjectStore.Name, err)
 	}

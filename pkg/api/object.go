@@ -27,7 +27,7 @@ import (
 
 const (
 	defaultObjectStoreName = "default"
-	defaultRGWReplicas     = 1
+	defaultRGWInstances    = 1
 )
 
 func (h *Handler) objectContext(r *http.Request) *rgw.Context {
@@ -74,15 +74,17 @@ func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if objectStore.Gateway.Port == 0 && objectStore.Gateway.SecurePort == 0 {
+		logger.Errorf("Must specify port or securePort")
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
 	// only the default store is supported through the rest api
 	if objectStore.Name == "" {
 		objectStore.Name = defaultObjectStoreName
 	}
-	if objectStore.Gateway.Port == 0 {
-		objectStore.Gateway.Port = model.RGWPort
-	}
-	if objectStore.Gateway.Replicas == 0 {
-		objectStore.Gateway.Replicas = defaultRGWReplicas
+	if objectStore.Gateway.Instances == 0 {
+		objectStore.Gateway.Instances = defaultRGWInstances
 	}
 
 	if err := h.config.ClusterHandler.EnableObjectStore(objectStore); err != nil {

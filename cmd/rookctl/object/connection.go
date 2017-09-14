@@ -71,12 +71,12 @@ func getConnectionInfoEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getConnectionInfo(c client.RookRestClient, name, userID, format string) (string, error) {
+func getConnectionInfo(c client.RookRestClient, storeName, userID, format string) (string, error) {
 	if format != FormatPretty && format != FormatEnvVar {
 		return "", fmt.Errorf("invalid output format: %s", format)
 	}
 
-	connInfo, err := c.GetObjectStoreConnectionInfo(name)
+	connInfo, err := c.GetObjectStoreConnectionInfo(storeName)
 	if err != nil {
 		if client.IsHttpNotFound(err) {
 			return "object store connection info is not ready, if \"object create\" has already been run, please be patient\n", nil
@@ -85,7 +85,7 @@ func getConnectionInfo(c client.RookRestClient, name, userID, format string) (st
 		return "", fmt.Errorf("failed to get object store connection info: %+v", err)
 	}
 
-	user, err := c.GetObjectUser(name, userID)
+	user, err := c.GetObjectUser(storeName, userID)
 	if err != nil {
 		if client.IsHttpNotFound(err) {
 			return fmt.Sprintf("Unable to find user %s\n", userID), nil
@@ -104,14 +104,18 @@ func getConnectionInfo(c client.RookRestClient, name, userID, format string) (st
 
 		// write object store connection info
 		fmt.Fprintf(w, PrettyOutputFmt, AWSHost, connInfo.Host)
-		fmt.Fprintf(w, PrettyOutputFmt, AWSEndpoint, connInfo.IPEndpoint)
+		for _, port := range connInfo.Ports {
+			fmt.Fprintf(w, PrettyOutputFmt, AWSEndpoint, fmt.Sprintf("%s:%d", connInfo.IPAddress, port))
+		}
 		fmt.Fprintf(w, PrettyOutputFmt, AWSAccessKey, *user.AccessKey)
 		fmt.Fprintf(w, PrettyOutputFmt, AWSSecretKey, *user.SecretKey)
 
 		w.Flush()
 	} else if format == FormatEnvVar {
 		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSHost, connInfo.Host))
-		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSEndpoint, connInfo.IPEndpoint))
+		for _, port := range connInfo.Ports {
+			buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSEndpoint, fmt.Sprintf("%s:%d", connInfo.IPAddress, port)))
+		}
 		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSAccessKey, *user.AccessKey))
 		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSSecretKey, *user.SecretKey))
 	}

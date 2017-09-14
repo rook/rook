@@ -42,14 +42,14 @@ type FileSystemOperator interface {
 
 //ObjectOperator - interface for rook object operations
 type ObjectOperator interface {
-	ObjectCreate(name string, replicaCount int32) (string, error)
-	ObjectBucketList() ([]model.ObjectBucket, error)
-	ObjectConnection() (*model.ObjectStoreConnectInfo, error)
-	ObjectCreateUser(userid string, displayname string) (*model.ObjectUser, error)
-	ObjectUpdateUser(userid string, displayname string, emailid string) (*model.ObjectUser, error)
-	ObjectDeleteUser(userid string) error
-	ObjectGetUser(userid string) (*model.ObjectUser, error)
-	ObjectListUser() ([]model.ObjectUser, error)
+	ObjectCreate(storeName string, replicaCount int32) (string, error)
+	ObjectBucketList(storeName string) ([]model.ObjectBucket, error)
+	ObjectConnection(storeName string) (*model.ObjectStoreConnectInfo, error)
+	ObjectCreateUser(storeName, userid string, displayname string) (*model.ObjectUser, error)
+	ObjectUpdateUser(storeName, userid string, displayname string, emailid string) (*model.ObjectUser, error)
+	ObjectDeleteUser(storeName, userid string) error
+	ObjectGetUser(storeName, userid string) (*model.ObjectUser, error)
+	ObjectListUser(storeName string) ([]model.ObjectUser, error)
 }
 
 //PoolOperator - interface for rook pool operations
@@ -73,12 +73,12 @@ type RestAPIOperator interface {
 	DeleteFilesystem(fsmodel model.FilesystemRequest) (string, error)
 	GetStatusDetails() (model.StatusDetails, error)
 	CreateObjectStore(store model.ObjectStore) (string, error)
-	DeleteObjectStore(name string) error
-	GetObjectStoreConnectionInfo(name string) (*model.ObjectStoreConnectInfo, error)
-	ListBuckets(name string) ([]model.ObjectBucket, error)
-	ListObjectUsers(name string) ([]model.ObjectUser, error)
-	GetObjectUser(name, id string) (*model.ObjectUser, error)
-	CreateObjectUser(name string, user model.ObjectUser) (*model.ObjectUser, error)
-	UpdateObjectUser(name string, user model.ObjectUser) (*model.ObjectUser, error)
-	DeleteObjectUser(name, id string) error
+	DeleteObjectStore(storeName string) error
+	GetObjectStoreConnectionInfo(storeName string) (*model.ObjectStoreConnectInfo, error)
+	ListBuckets(storeName string) ([]model.ObjectBucket, error)
+	ListObjectUsers(storeName string) ([]model.ObjectUser, error)
+	GetObjectUser(storeName, id string) (*model.ObjectUser, error)
+	CreateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error)
+	UpdateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error)
+	DeleteObjectUser(storeName, id string) error
 }

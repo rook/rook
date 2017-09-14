@@ -97,12 +97,8 @@ func ModelPoolToCephPool(modelPool model.Pool) CephStoragePoolDetails {
 	if modelPool.Type == model.Replicated {
 		pool.Size = modelPool.ReplicatedConfig.Size
 	} else if modelPool.Type == model.ErasureCoded {
-		pool.ErasureCodeProfile = ECProfileName(pool.Name)
+		pool.ErasureCodeProfile = fmt.Sprintf("%s_ecprofile", modelPool.Name)
 	}
 
 	return pool
-}
-
-func ECProfileName(pool string) string {
-	return fmt.Sprintf("%s_ecprofile", pool)
 }

@@ -39,14 +39,17 @@ type ObjectStore struct {
 
 type Gateway struct {
 	Port           int32  `json:"port"`
-	Replicas       int32  `json:"replicas"`
+	SecurePort     int32  `json:"securePort"`
+	Instances      int32  `json:"instances"`
+	AllNodes       bool   `json:"allNodes"`
 	Certificate    string `json:"certificate"`
 	CertificateRef string `json:"certificateRef"`
 }
 
 type ObjectStoreConnectInfo struct {
-	Host       string `json:"host"`
-	IPEndpoint string `json:"ipEndpoint"`
+	Host      string  `json:"host"`
+	IPAddress string  `json:"ipAddress"`
+	Ports     []int32 `json:"ports"`
 }
 
 type ObjectUser struct {

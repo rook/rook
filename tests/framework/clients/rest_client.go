@@ -159,44 +159,44 @@ func (a *RestAPIClient) CreateObjectStore(store model.ObjectStore) (string, erro
 }
 
 //DeleteObjectStore creates object store
-func (a *RestAPIClient) DeleteObjectStore(name string) error {
-	return a.rrc.DeleteObjectStore(name)
+func (a *RestAPIClient) DeleteObjectStore(storeName string) error {
+	return a.rrc.DeleteObjectStore(storeName)
 }
 
 //GetObjectStoreConnectionInfo returns object store connection info
-func (a *RestAPIClient) GetObjectStoreConnectionInfo(name string) (*model.ObjectStoreConnectInfo, error) {
-	return a.rrc.GetObjectStoreConnectionInfo(name)
+func (a *RestAPIClient) GetObjectStoreConnectionInfo(storeName string) (*model.ObjectStoreConnectInfo, error) {
+	return a.rrc.GetObjectStoreConnectionInfo(storeName)
 }
 
 //ListBuckets lists all buckets in object store
-func (a *RestAPIClient) ListBuckets(name string) ([]model.ObjectBucket, error) {
-	return a.rrc.ListBuckets(name)
+func (a *RestAPIClient) ListBuckets(storeName string) ([]model.ObjectBucket, error) {
+	return a.rrc.ListBuckets(storeName)
 }
 
 //ListObjectUsers returns all object store users
-func (a *RestAPIClient) ListObjectUsers(name string) ([]model.ObjectUser, error) {
-	return a.rrc.ListObjectUsers(name)
+func (a *RestAPIClient) ListObjectUsers(storeName string) ([]model.ObjectUser, error) {
+	return a.rrc.ListObjectUsers(storeName)
 }
 
 //GetObjectUser returns a object user from object store
-func (a *RestAPIClient) GetObjectUser(name, id string) (*model.ObjectUser, error) {
-	return a.rrc.GetObjectUser(name, id)
+func (a *RestAPIClient) GetObjectUser(storeName, id string) (*model.ObjectUser, error) {
+	return a.rrc.GetObjectUser(storeName, id)
 }
 
 //CreateObjectUser creates new  user in object store
-func (a *RestAPIClient) CreateObjectUser(name string, user model.ObjectUser) (*model.ObjectUser, error) {
-	return a.rrc.CreateObjectUser(name, user)
+func (a *RestAPIClient) CreateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error) {
+	return a.rrc.CreateObjectUser(storeName, user)
 }
 
 //UpdateObjectUser updates user in object store
-func (a *RestAPIClient) UpdateObjectUser(name string, user model.ObjectUser) (*model.ObjectUser, error) {
-	return a.rrc.UpdateObjectUser(name, user)
+func (a *RestAPIClient) UpdateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error) {
+	return a.rrc.UpdateObjectUser(storeName, user)
 
 }
 
 //DeleteObjectUser deletes user from object store
-func (a *RestAPIClient) DeleteObjectUser(name, id string) error {
-	return a.rrc.DeleteObjectUser(name, id)
+func (a *RestAPIClient) DeleteObjectUser(storeName, id string) error {
+	return a.rrc.DeleteObjectUser(storeName, id)
 
 }
 

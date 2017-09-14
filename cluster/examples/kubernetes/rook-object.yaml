@@ -21,11 +21,15 @@ spec:
     type: s3
     # A reference to the secret in the rook namespace where the ssl certificate is stored
     sslCertificateRef: 
-    # The port that RGW pods will listen on
-    port: 53390
-    # The number of pods in the replicaset
-    replicas: 1
-    # The affinity rules for the rgw pods
+    # The port that RGW pods will listen on (http)
+    port: 80
+    # The port that RGW pods will listen on (https). An ssl certificate is required.
+    securePort: 443
+    # The number of pods in the rgw deployment (ignored if allNodes=true)
+    instances: 1
+    # Whether the rgw pods should be deployed on all nodes as a daemonset
+    allNodes: false
+    # The affinity rules to apply to the rgw deployment or daemonset.
     placement:
     #  nodeAffinity:
     #    requiredDuringSchedulingIgnoredDuringExecution:
@@ -38,11 +42,5 @@ spec:
     #  tolerations:
     #  - key: rgw-node
     #    operator: Exists
-  # The zone information for replication across clusters (not implemented)
-  #zone:
-  #  realm: myrealm
-  #  group: mygroup
-  #  master:
-  #    url: https://my-master-zone-gateway/
-  #    accessKey: my-master-zone-access-key
-  #    secret: my-master-zone-secret
+    #  podAffinity:
+    #  podAntiAffinity:

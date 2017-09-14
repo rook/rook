@@ -79,8 +79,8 @@ func listUsersEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func listUsers(c client.RookRestClient, name string) (string, error) {
-	users, err := c.ListObjectUsers(name)
+func listUsers(c client.RookRestClient, storeName string) (string, error) {
+	users, err := c.ListObjectUsers(storeName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get users: %+v", err)
 	}
@@ -125,8 +125,8 @@ func getUserEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getUser(c client.RookRestClient, name, id string) (string, error) {
-	user, err := c.GetObjectUser(name, id)
+func getUser(c client.RookRestClient, storeName, id string) (string, error) {
+	user, err := c.GetObjectUser(storeName, id)
 
 	if client.IsHttpNotFound(err) {
 		return "", fmt.Errorf("Unable to find user %s", id)
@@ -172,8 +172,8 @@ func deleteUserEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func deleteUser(c client.RookRestClient, name, id string) (string, error) {
-	err := c.DeleteObjectUser(name, id)
+func deleteUser(c client.RookRestClient, storeName, id string) (string, error) {
+	err := c.DeleteObjectUser(storeName, id)
 
 	if client.IsHttpNotFound(err) {
 		return "", fmt.Errorf("Unable to find user %s", id)
@@ -225,8 +225,8 @@ func checkObjectArgs(args, expectedArgs []string) error {
 	return fmt.Errorf("Missing at least one argument in: [ObjectStore] %s", strings.Join(expectedArgs, " "))
 }
 
-func createUser(c client.RookRestClient, name string, user model.ObjectUser) (string, error) {
-	createdUser, err := c.CreateObjectUser(name, user)
+func createUser(c client.RookRestClient, storeName string, user model.ObjectUser) (string, error) {
+	createdUser, err := c.CreateObjectUser(storeName, user)
 
 	if client.IsHttpStatusCode(err, http.StatusUnprocessableEntity) {
 		restErr := err.(client.RookRestError)
@@ -271,8 +271,8 @@ func updateUserEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func updateUser(c client.RookRestClient, name string, user model.ObjectUser) (string, error) {
-	updatedUser, err := c.UpdateObjectUser(name, user)
+func updateUser(c client.RookRestClient, storeName string, user model.ObjectUser) (string, error) {
+	updatedUser, err := c.UpdateObjectUser(storeName, user)
 
 	if client.IsHttpNotFound(err) {
 		return "", fmt.Errorf("Unable to find user %s", user.UserID)

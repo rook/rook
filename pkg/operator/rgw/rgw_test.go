@@ -23,7 +23,6 @@ import (
 
 	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/pool"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -52,13 +51,13 @@ func TestStartRGW(t *testing.T) {
 	version := "v1.1.0"
 
 	// start a basic cluster
-	err := store.Create(context, version)
+	err := store.Create(context, version, false)
 	assert.Nil(t, err)
 
 	validateStart(t, store, clientset)
 
 	// starting again should be a no-op
-	err = store.Create(context, version)
+	err = store.Create(context, version, false)
 	assert.Nil(t, err)
 
 	validateStart(t, store, clientset)
@@ -83,49 +82,54 @@ func validateStart(t *testing.T, store *ObjectStore, clientset *fake.Clientset) 
 func TestPodSpecs(t *testing.T) {
 	store := simpleStore()
 
-	d := store.makeDeployment("myversion")
-	assert.NotNil(t, d)
-	assert.Equal(t, store.instanceName(), d.Name)
-	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
-	assert.Equal(t, 2, len(d.Spec.Template.Spec.Volumes))
-	assert.Equal(t, "rook-data", d.Spec.Template.Spec.Volumes[0].Name)
-	assert.Equal(t, k8sutil.ConfigOverrideName, d.Spec.Template.Spec.Volumes[1].Name)
+	s := store.makeRGWPodSpec("myversion", true)
+	assert.NotNil(t, s)
+	//assert.Equal(t, store.instanceName(), s.Name)
+	assert.Equal(t, v1.RestartPolicyAlways, s.Spec.RestartPolicy)
+	assert.Equal(t, 2, len(s.Spec.Volumes))
+	assert.Equal(t, "rook-data", s.Spec.Volumes[0].Name)
+	assert.Equal(t, k8sutil.ConfigOverrideName, s.Spec.Volumes[1].Name)
 
-	assert.Equal(t, store.instanceName(), d.ObjectMeta.Name)
-	assert.Equal(t, appName, d.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, store.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
-	assert.Equal(t, store.Name, d.Spec.Template.ObjectMeta.Labels["rook_object_store"])
-	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
+	assert.Equal(t, store.instanceName(), s.ObjectMeta.Name)
+	assert.Equal(t, appName, s.ObjectMeta.Labels["app"])
+	assert.Equal(t, store.Namespace, s.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, store.Name, s.ObjectMeta.Labels["rook_object_store"])
+	assert.Equal(t, 0, len(s.ObjectMeta.Annotations))
 
-	cont := d.Spec.Template.Spec.Containers[0]
+	cont := s.Spec.Containers[0]
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 
-	assert.Equal(t, 5, len(cont.Args))
+	assert.Equal(t, 6, len(cont.Args))
 	assert.Equal(t, "rgw", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
 	assert.Equal(t, fmt.Sprintf("--rgw-name=%s", "default"), cont.Args[2])
-	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[3])
-	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", store.instanceName()), cont.Args[4])
+	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", store.instanceName()), cont.Args[3])
+	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[4])
+	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 0), cont.Args[5])
 }
 
 func TestSSLPodSpec(t *testing.T) {
 	store := simpleStore()
 	store.Spec.Gateway.SSLCertificateRef = "mycert"
+	store.Spec.Gateway.SecurePort = 443
 
-	d := store.makeDeployment("v1.0")
-	assert.NotNil(t, d)
-	assert.Equal(t, store.instanceName(), d.Name)
-	assert.Equal(t, 3, len(d.Spec.Template.Spec.Volumes))
-	assert.Equal(t, certVolumeName, d.Spec.Template.Spec.Volumes[2].Name)
+	s := store.makeRGWPodSpec("v1.0", true)
+	assert.NotNil(t, s)
+	assert.Equal(t, store.instanceName(), s.Name)
+	assert.Equal(t, 3, len(s.Spec.Volumes))
+	assert.Equal(t, certVolumeName, s.Spec.Volumes[2].Name)
+	assert.True(t, s.Spec.HostNetwork)
+	assert.Equal(t, v1.DNSClusterFirstWithHostNet, s.Spec.DNSPolicy)
 
-	cont := d.Spec.Template.Spec.Containers[0]
+	cont := s.Spec.Containers[0]
 	assert.Equal(t, 3, len(cont.VolumeMounts))
 	assert.Equal(t, certVolumeName, cont.VolumeMounts[2].Name)
 	assert.Equal(t, certMountPath, cont.VolumeMounts[2].MountPath)
 
-	assert.Equal(t, 6, len(cont.Args))
-	assert.Equal(t, fmt.Sprintf("--rgw-cert=%s/%s", certMountPath, certFilename), cont.Args[5])
+	assert.Equal(t, 7, len(cont.Args))
+	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 443), cont.Args[5])
+	assert.Equal(t, fmt.Sprintf("--rgw-cert=%s/%s", certMountPath, certFilename), cont.Args[6])
 }
 
 func TestCreateObjectStore(t *testing.T) {
@@ -178,17 +182,6 @@ func TestValidateSpec(t *testing.T) {
 	s.Spec.MetadataPool.Replicated.Size = 1
 	err = s.validate()
 	assert.Nil(t, err)
-}
-
-func TestHostNetwork(t *testing.T) {
-	config := model.ObjectStore{Name: "default", Port: 123, CertificateRef: "mycert"}
-	c := New(nil, config, "ns", "myversion", k8sutil.Placement{}, true)
-
-	d := c.makeDeployment()
-	assert.NotNil(t, d)
-
-	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
-	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
 }
 
 func simpleStore() *ObjectStore {
