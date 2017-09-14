@@ -1,6 +1,6 @@
 ---
 title: Upgrading Rook
-weight: 19
+weight: 25
 indent: true
 ---
 

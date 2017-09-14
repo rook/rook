@@ -11,7 +11,7 @@ for pools.
 
 ## Sample
 
-```
+```yaml
 apiVersion: rook.io/v1alpha1
 kind: Pool
 metadata:

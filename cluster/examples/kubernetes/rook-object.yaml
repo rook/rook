@@ -1,17 +1,15 @@
 apiVersion: rook.io/v1alpha1
-kind: ObjectStore
+kind: Objectstore
 metadata:
   name: my-store
   namespace: rook
 spec:
   # The pool spec used to create the metadata pools
   metadataPool:
-    failureDomain: host
     replicated:
       size: 2
   # The pool spec used to create the data pool
   dataPool:
-    failureDomain: osd
     erasureCoded:
       dataChunks: 2
       codingChunks: 1
