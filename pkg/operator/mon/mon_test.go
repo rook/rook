@@ -83,16 +83,14 @@ func TestStartMonPods(t *testing.T) {
 	c := newCluster(context, namespace, false)
 
 	// start a basic cluster
-	info, err := c.Start()
+	err := c.Start()
 	assert.Nil(t, err)
-	assert.NotNil(t, info)
 
 	validateStart(t, c)
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start()
+	err = c.Start()
 	assert.Nil(t, err)
-	assert.NotNil(t, info)
 
 	validateStart(t, c)
 }
@@ -103,18 +101,16 @@ func TestOperatorRestart(t *testing.T) {
 	c := newCluster(context, namespace, false)
 
 	// start a basic cluster
-	info, err := c.Start()
+	err := c.Start()
 	assert.Nil(t, err)
-	assert.NotNil(t, info)
 
 	validateStart(t, c)
 
 	c = newCluster(context, namespace, false)
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start()
+	err = c.Start()
 	assert.Nil(t, err)
-	assert.NotNil(t, info)
 
 	validateStart(t, c)
 }
@@ -126,29 +122,22 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 	c := newCluster(context, namespace, true)
 
 	// start a basic cluster
-	info, err := c.Start()
+	err := c.Start()
 	assert.Nil(t, err)
-	assert.NotNil(t, info)
 
 	validateStart(t, c)
 
 	c = newCluster(context, namespace, true)
 
 	// starting again should be a no-op, but still results in an error
-	info, err = c.Start()
+	err = c.Start()
 	assert.Nil(t, err)
-	assert.NotNil(t, info)
 
 	validateStart(t, c)
 }
 
 func validateStart(t *testing.T, c *Cluster) {
-	s, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get("rook-admin", metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(s.StringData))
-
-	s, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
-	assert.Nil(t, err)
+	s, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
 	assert.Equal(t, 4, len(s.StringData))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start

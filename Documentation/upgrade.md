@@ -19,7 +19,7 @@ We welcome feedback and opening issues!
 With this manual upgrade guide, there are a few notes to consider:
 * **WARNING:** Upgrading a Rook cluster is a manual process in its very early stages.  There may be unexpected issues or obstacles that damage the integrity and health of your storage cluster, including data loss.  Only proceed with this guide if you are comfortable with that.
 * Rook is still in an alpha state.  Migrations and general support for breaking changes across versions are not supported or covered in this guide.
-* This guide assumes that your Rook cluster is in the `rook` namespace.  If you cluster is in a different namespace, search/replace all instances of `-n rook` in this guide with `-n <your namespace>`.
+* This guide assumes that your Rook operator and its agents are running in the `rook-system` namespace. It also assumes that your Rook cluster is in the `rook` namespace.  If any of these components is in a different namespace, search/replace all instances of `-n rook-system` and `-n rook` in this guide with `-n <your namespace>`.
 
 ## Prerequisites
 In order to successfully upgrade a Rook cluster, the following prerequisites must be met:
@@ -60,10 +60,10 @@ Most of the health verification checks for your cluster during the upgrade proce
 For more information about how to run the toolbox, please visit the [Rook toolbox readme](./toolbox.md#running-the-toolbox-in-kubernetes).
 
 ### Pods all Running
-In a healthy Rook cluster, the operator and all Rook namespace pods should be in the `Running` state and have few, if any, pod restarts.
+In a healthy Rook cluster, the operator, the agents and all Rook namespace pods should be in the `Running` state and have few, if any, pod restarts.
 To verify this, run the following commands:
 ```bash
-kubectl get pods -l app=rook-operator
+kubectl -n rook-system get pods
 kubectl -n rook get pod
 ```
 If pods aren't running or are restarting due to crashes, you can get more information with `kubectl describe pod` and `kubectl logs` for the affected pods.
@@ -116,7 +116,7 @@ kubectl -n rook get pod ${MON0_POD_NAME} -o jsonpath='{.spec.containers[0].image
 ### All Pods Status and Version
 The status and version of all Rook pods can be collected all at once with the following commands:
 ```bash
-kubectl get pod -l app=rook-operator -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t"}{.spec.containers[0].image}{"\n"}{end}'
+kubectl -n rook-system get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t"}{.spec.containers[0].image}{"\n"}{end}'
 kubectl -n rook get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t"}{.spec.containers[0].image}{"\n"}{end}'
 ```
 
@@ -148,19 +148,41 @@ In the event that the new version requires a migration of metadata or config, th
 
 The operator is managed by a Kubernetes deployment, so in order to upgrade the version of the operator pod, we will need to edit the image version of the pod template in the deployment spec.  This can be done with the following command:
 ```bash
-kubectl set image deployment/rook-operator rook-operator=rook/rook:v0.5.1
+kubectl -n rook-system set image deployment/rook-operator rook-operator=rook/rook:v0.5.1
 ```
 Once the command is executed, Kubernetes will begin the flow of the deployment updating the operator pod.
 
 #### Operator Health Verification
 To verify the operator pod is `Running` and using the new version of `rook/rook:v0.5.1`, use the following commands:
 ```bash
-OPERATOR_POD_NAME=$(kubectl get pods -l app=rook-operator -o jsonpath='{.items[0].metadata.name}')
-kubectl get pod ${OPERATOR_POD_NAME} -o jsonpath='{.status.phase}{"\n"}{.spec.containers[0].image}{"\n"}'
+OPERATOR_POD_NAME=$(kubectl -n rook-system get pods -l app=rook-operator -o jsonpath='{.items[0].metadata.name}')
+kubectl -n rook-system get pod ${OPERATOR_POD_NAME} -o jsonpath='{.status.phase}{"\n"}{.spec.containers[0].image}{"\n"}'
 ```
 
 Once you've verified the operator is `Running` and on the new version, verify the health of the cluster is still OK.
 Instructions for verifying cluster health can be found in the [health verification section](#health-verification).
+
+### Agents
+The Rook agents are deployed by the operator to run on every node. They are in charged of handling all operations related to the consumption of storage from the cluster.
+
+The agents are deployed and managed by a Kubernetes daemonset. So in order to upgrade the version of the agent pods, we will need to edit the image version of the pod template in the daemonset spec and then delete each agent pod so that a new pod is created by the daemonset.
+
+The following command updates the image of the agent daemonset:
+```bash
+kubectl -n rook-system set image daemonset/rook-agent rook-agent=rook/rook:v0.5.1
+```
+
+Once the daemonset is updated, we can begin deleting each agent pod **one at a time** and verifying a new one comes up to replace it that is running the new version.
+
+The following is an example of deleting just one of the agent pods (note that the names of your agent pods will be different):
+```bash
+kubectl -n rook-system delete pod rook-agent-56m61
+```
+
+After all the agent pods have been updated, verify that they are `Running`.
+```bash
+kubectl -n rook-system get pod -l app=rook-agent
+```
 
 ### API
 Similar to the operator, the Rook API pod is managed by a Kubernetes deployment.

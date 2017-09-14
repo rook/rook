@@ -16,6 +16,7 @@ rules:
   - pods
   - services
   - nodes
+  - nodes/proxy
   - configmaps
   - events
   - persistentvolumes

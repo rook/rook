@@ -21,11 +21,17 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path"
 	"strings"
 	"testing"
 
+	"k8s.io/api/core/v1"
+
+	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -75,8 +81,26 @@ func TestGetFileSystemsHandler(t *testing.T) {
 func TestCreateFileSystemHandler(t *testing.T) {
 	created := false
 	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
 	requestedFS := false
+	clientset := test.New(3)
+	clusterName := "default"
+	cm := &v1.ConfigMap{
+		Data: map[string]string{
+			"data": "rook-ceph-mon0=10.0.0.1:6790,rook-ceph-mon1=10.0.0.2:6790,rook-ceph-mon2=10.0.0.3:6790",
+		},
+	}
+	cm.Name = "rook-ceph-mon-endpoints"
+	clientset.CoreV1().ConfigMaps(clusterName).Create(cm)
+
 	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			if strings.Contains(command, "ceph-authtool") {
+				cephtest.CreateClusterInfo(nil, path.Join(configDir, clusterName), nil)
+			}
+
+			return "", nil
+		},
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if args[1] == "pool" {
@@ -104,6 +128,7 @@ func TestCreateFileSystemHandler(t *testing.T) {
 	context := &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
+		Clientset: clientset,
 	}
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/filesystem", strings.NewReader(basicFS))

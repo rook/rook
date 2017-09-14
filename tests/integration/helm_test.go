@@ -45,6 +45,9 @@ func (hs *HelmSuite) SetupSuite() {
 	require.True(hs.T(), kh.IsPodInExpectedState("rook-operator", defaultRookNamespace, "Running"),
 		"Make sure rook-operator is in running state")
 
+	require.True(hs.T(), kh.IsPodInExpectedState("rook-agent", defaultRookNamespace, "Running"),
+		"Make sure rook-agent is in running state")
+
 	time.Sleep(10 * time.Second)
 
 	err = hs.installer.CreateK8sRookCluster(defaultRookNamespace)

@@ -18,8 +18,11 @@ package mds
 import (
 	"io/ioutil"
 	"os"
+	"path"
+	"strings"
 	"testing"
 
+	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/pool"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -30,13 +33,20 @@ import (
 )
 
 func TestStartMDS(t *testing.T) {
+	configDir, _ := ioutil.TempDir("", "")
+
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\"}", nil
 		},
-	}
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			if strings.Contains(command, "ceph-authtool") {
+				cephtest.CreateClusterInfo(nil, path.Join(configDir, "ns"), nil)
+			}
 
-	configDir, _ := ioutil.TempDir("", "")
+			return "", nil
+		},
+	}
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{
 		Executor:  executor,

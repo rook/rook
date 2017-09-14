@@ -23,23 +23,21 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
+	"github.com/rook/rook/pkg/agent/flexvolume"
 	ceph "github.com/rook/rook/pkg/ceph/client"
-	cephmon "github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/mon"
+	"github.com/rook/rook/pkg/operator/cluster"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/uuid"
 )
 
 const (
-	imageNameMaxLen = 100 // image name should be under 100 chars to support kernels older than 4.7
-	imageNamePrefix = "k8s-dynamic"
-	rbdIDPrefix     = "rbd_id."
+	attacherImageKey              = "attacherImage"
+	storageClassBetaAnnotationKey = "volume.beta.kubernetes.io/storage-class"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-provisioner")
+var flexdriver = fmt.Sprintf("%s/%s", flexvolume.FlexvolumeVendor, flexvolume.FlexvolumeDriver)
 
 // RookVolumeProvisioner is used to provision Rook volumes on Kubernetes
 type RookVolumeProvisioner struct {
@@ -52,9 +50,6 @@ type RookVolumeProvisioner struct {
 type provisionerConfig struct {
 	// Required: The pool name to provision volumes from.
 	pool string
-
-	// Optional: Namespace of the cluster. Default is `rook`
-	clusterNamespace string
 
 	// Optional: Name of the cluster. Default is `rook`
 	clusterName string
@@ -78,8 +73,6 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 		return nil, fmt.Errorf("claim Selector is not supported")
 	}
 
-	logger.Infof("VolumeOptions %v", options)
-
 	cfg, err := parseClassParameters(options.Parameters)
 	if err != nil {
 		return nil, err
@@ -91,25 +84,20 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 	capacity := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
 	requestBytes := capacity.Value()
 
-	imageName := createImageName(options.PVName)
+	imageName := options.PVName
 
-	err = p.createVolume(imageName, p.provConfig.pool, requestBytes)
+	storageClass, err := parseStorageClass(options)
 	if err != nil {
 		return nil, err
 	}
 
-	monitors, err := p.getMonitorEndpoints()
-	if err != nil {
+	if err := p.createVolume(imageName, p.provConfig.pool, requestBytes); err != nil {
 		return nil, err
 	}
-
-	radosUser := fmt.Sprintf("%s-rook-user", p.provConfig.clusterName)
-	secretRef := new(v1.LocalObjectReference)
-	secretRef.Name = fmt.Sprintf("%s-rook-user", p.provConfig.clusterName)
 
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: options.PVName,
+			Name: imageName,
 		},
 		Spec: v1.PersistentVolumeSpec{
 			PersistentVolumeReclaimPolicy: options.PersistentVolumeReclaimPolicy,
@@ -118,19 +106,19 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 				v1.ResourceName(v1.ResourceStorage): capacity,
 			},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
-				RBD: &v1.RBDVolumeSource{
-					RBDImage:     imageName,
-					RBDPool:      p.provConfig.pool,
-					CephMonitors: monitors,
-					RadosUser:    radosUser,
-					SecretRef:    secretRef,
-					FSType:       p.provConfig.fstype,
-					ReadOnly:     false,
+				FlexVolume: &v1.FlexVolumeSource{
+					Driver: flexdriver,
+					FSType: p.provConfig.fstype,
+					Options: map[string]string{
+						flexvolume.StorageClassKey: storageClass,
+						flexvolume.PoolKey:         p.provConfig.pool,
+						flexvolume.ImageKey:        imageName,
+					},
 				},
 			},
 		},
 	}
-	logger.Infof("successfully created Rook Block volume %+v", pv.Spec.PersistentVolumeSource.RBD)
+	logger.Infof("successfully created Rook Block volume %+v", pv.Spec.PersistentVolumeSource.FlexVolume)
 	return pv, nil
 }
 
@@ -153,8 +141,7 @@ func (p *RookVolumeProvisioner) createVolume(image, pool string, size int64) err
 // by the given PV.
 func (p *RookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
 	logger.Infof("Deleting volume %s", volume.Name)
-
-	name := volume.Spec.PersistentVolumeSource.RBD.RBDImage
+	name := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ImageKey]
 	err := ceph.DeleteImage(p.context, p.provConfig.clusterName, name, p.provConfig.pool)
 	if err != nil {
 		return fmt.Errorf("Failed to delete rook block image %s/%s: %v", p.provConfig.pool, volume.Name, err)
@@ -163,18 +150,26 @@ func (p *RookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
 	return nil
 }
 
+func parseStorageClass(options controller.VolumeOptions) (string, error) {
+	if options.PVC.Spec.StorageClassName != nil {
+		return *options.PVC.Spec.StorageClassName, nil
+	}
+
+	// PVC manifest is from 1.5. Check annotation.
+	if val, ok := options.PVC.Annotations[storageClassBetaAnnotationKey]; ok {
+		return val, nil
+	}
+
+	return "", fmt.Errorf("failed to get storageclass from PVC %s/%s", options.PVC.Namespace, options.PVC.Name)
+}
+
 func parseClassParameters(params map[string]string) (*provisionerConfig, error) {
 	var cfg provisionerConfig
-
-	// Namespace and cluster name have the same default name
-	defaultCluster := k8sutil.Namespace
 
 	for k, v := range params {
 		switch strings.ToLower(k) {
 		case "pool":
 			cfg.pool = v
-		case "clusternamespace":
-			cfg.clusterNamespace = v
 		case "clustername":
 			cfg.clusterName = v
 		case "fstype":
@@ -188,49 +183,9 @@ func parseClassParameters(params map[string]string) (*provisionerConfig, error) 
 		return nil, fmt.Errorf("StorageClass for provisioner %s must contain 'pool' parameter", "rookVolumeProvisioner")
 	}
 
-	if len(cfg.clusterNamespace) == 0 {
-		cfg.clusterNamespace = defaultCluster
-	}
-
 	if len(cfg.clusterName) == 0 {
-		cfg.clusterName = defaultCluster
+		cfg.clusterName = cluster.DefaultClusterName
 	}
 
 	return &cfg, nil
-}
-
-func (p *RookVolumeProvisioner) getMonitorEndpoints() ([]string, error) {
-	cm, err := p.context.Clientset.CoreV1().ConfigMaps(p.provConfig.clusterName).Get(mon.EndpointConfigMapName, metav1.GetOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get mon endpoints. %+v", err)
-	}
-
-	// Parse the monitor List
-	info, ok := cm.Data[mon.EndpointDataKey]
-	if !ok {
-		return nil, fmt.Errorf("failed to find mon endpoints in config map: %+v", cm.Data)
-	}
-
-	mons := cephmon.ParseMonEndpoints(info)
-	var endpoints []string
-	for _, mon := range mons {
-		endpoints = append(endpoints, mon.Endpoint)
-	}
-	return endpoints, nil
-}
-
-func createImageName(pvName string) string {
-	// generate a UUID for our image name
-	u := string(uuid.NewUUID())
-
-	// image name should be under 100 chars to support kernels older than 4.7
-	// when the RBD kernel module converts the image name to an OID, it will use "rbd_id.<imageName>",
-	// so we have to leave room for that "rbd_id." prefix too.
-	pvNameMaxLen := imageNameMaxLen - len(rbdIDPrefix) - len(imageNamePrefix) - len(u) - 2 // 2 hyphens
-	if len(pvName) > pvNameMaxLen {
-		// the PV name is too long, truncate it before including it in the final image name
-		pvName = pvName[:pvNameMaxLen]
-	}
-
-	return fmt.Sprintf("%s-%s-%s", imageNamePrefix, pvName, u)
 }

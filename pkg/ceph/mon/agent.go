@@ -30,7 +30,7 @@ import (
 
 const (
 	monitorAgentName       = "monitor"
-	monitorKeyringTemplate = `
+	MonitorKeyringTemplate = `
 [mon.]
 	key = %s
 	caps mon = "allow *"` + AdminKeyringTemplate

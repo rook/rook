@@ -27,6 +27,10 @@
 
 - Rook Standalone
   - Standalone mode has been disabled and is no longer supported. A Kubernetes environment is required to run Rook.
+- Rook-operator now deploys in `rook-system` namespace
+  - If using the example manifest of [rook-operator.yaml](/cluster/examples/kubernetes/rook-operator.yaml), the rook-operator deployment is now changed to deploy in the `rook-system` namespace.
+- Introduces a new flexvolume plugin that will handle all volume attachment requests. This will simplify the deployment by not requiring to have ceph-tools package installed.
+- For Kubernetes cluster 1.7.x and older, Kubelet will need to be restarted in order to load the new flexvolume. This has been resolve in K8S 1.8. For more information about the requirements, refer to this [doc](/Documentation/k8s-pre-reqs.md)
 - Pool CRD
   - `replication` renamed to `replicated`
   - `erasureCode` renamed to `erasureCoded`

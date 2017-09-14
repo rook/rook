@@ -53,7 +53,7 @@ func unmapBlockEntry(cmd *cobra.Command, args []string) error {
 	}
 
 	e := &exec.CommandExecutor{}
-	out, err := unmapBlock(unmapDeviceName, unmapPath, rbdSysBusPathDefault, e)
+	out, err := unmapBlock(unmapDeviceName, unmapPath, sys.RBDSysBusPathDefault, e)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -93,7 +93,7 @@ func unmapBlock(device, path, rbdSysBusPath string, executor exec.Executor) (str
 		return "", fmt.Errorf("failed to unmount rbd device %s: %+v", device, err)
 	}
 
-	rbdNum := strings.TrimPrefix(device, rbdDevicePathPrefix)
+	rbdNum := strings.TrimPrefix(device, sys.RBDDevicePathPrefix)
 	logger.Infof("removing rbd device %s (%s)", rbdNum, device)
 
 	// determine if the rbd kernel module supports single_major and open the

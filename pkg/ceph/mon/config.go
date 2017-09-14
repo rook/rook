@@ -111,7 +111,7 @@ func GenerateAdminConnectionConfig(context *clusterd.Context, cluster *ClusterIn
 
 func writeMonKeyring(context *clusterd.Context, c *ClusterInfo, name string) error {
 	keyringPath := getMonKeyringPath(context.ConfigDir, name)
-	keyring := fmt.Sprintf(monitorKeyringTemplate, c.MonitorSecret, c.AdminSecret)
+	keyring := fmt.Sprintf(MonitorKeyringTemplate, c.MonitorSecret, c.AdminSecret)
 	return writeKeyring(keyring, keyringPath)
 }
 

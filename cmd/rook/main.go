@@ -20,6 +20,9 @@ import (
 	"os"
 	"strings"
 
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
@@ -31,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/rook/rook/pkg/util/proc"
 	"github.com/rook/rook/pkg/version"
+	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 )
 
 const (
@@ -98,6 +102,7 @@ func addCommands() {
 	rootCmd.AddCommand(rgwCmd)
 	rootCmd.AddCommand(mdsCmd)
 	rootCmd.AddCommand(apiCmd)
+	rootCmd.AddCommand(agentCmd)
 	rootCmd.AddCommand(operatorCmd)
 }
 
@@ -129,4 +134,22 @@ func createContext() *clusterd.Context {
 		LogLevel:           cfg.logLevel,
 		NetworkInfo:        cfg.networkInfo,
 	}
+}
+
+func getClientset() (kubernetes.Interface, apiextensionsclient.Interface, error) {
+	// create the k8s client
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to get k8s config. %+v", err)
+	}
+
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create k8s clientset. %+v", err)
+	}
+	apiExtClientset, err := apiextensionsclient.NewForConfig(config)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to create k8s API extension clientset. %+v", err)
+	}
+	return clientset, apiExtClientset, nil
 }

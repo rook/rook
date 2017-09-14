@@ -50,7 +50,7 @@ func listBlocksEntry(cmd *cobra.Command, args []string) error {
 
 	c := rook.NewRookNetworkRestClient()
 	e := &exec.CommandExecutor{}
-	out, err := listBlocks(rbdSysBusPathDefault, c, e)
+	out, err := listBlocks(sys.RBDSysBusPathDefault, c, e)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -69,14 +69,14 @@ func listBlocks(rbdSysBusPath string, c client.RookRestClient, executor exec.Exe
 	if len(images) == 0 {
 		return "", nil
 	}
-
 	if runtime.GOOS == "linux" {
 		// for each image returned from the client API call, look up local details
 		for i := range images {
 			image := &(images[i])
 
 			// look up local device and mount point, ignoring errors
-			devPath, _ := findDevicePath(image.Name, image.PoolName, rbdSysBusPath)
+			imageFile, _ := sys.FindRBDMappedFile(image.Name, image.PoolName, rbdSysBusPath)
+			devPath := sys.RBDDevicePathPrefix + imageFile
 			dev := strings.TrimPrefix(devPath, devicePathPrefix)
 			var mountPoint string
 			if dev != "" {

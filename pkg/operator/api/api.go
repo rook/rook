@@ -174,7 +174,7 @@ func (c *Cluster) apiContainer() v1.Container {
 		},
 		Env: []v1.EnvVar{
 			{Name: "ROOK_VERSION_TAG", Value: c.Version},
-			k8sutil.NamespaceEnvVar(),
+			{Name: "ROOK_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}},
 			k8sutil.RepoPrefixEnvVar(),
 			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),

@@ -99,10 +99,10 @@ spec:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: rook-block
+  name: rook-block
 provisioner: rook.io/block
 parameters:
-    pool: {{.poolName}}`
+  pool: {{.poolName}}`
 }
 
 // Test case when persistentvolumeclaim is created for a storage class that doesn't exist

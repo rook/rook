@@ -21,11 +21,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -33,9 +31,7 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	helper "k8s.io/kubernetes/pkg/api/v1/helper"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
@@ -124,11 +120,11 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, version string, 
 }
 
 // Start the mon cluster
-func (c *Cluster) Start() (*mon.ClusterInfo, error) {
+func (c *Cluster) Start() error {
 	logger.Infof("start running mons")
 
 	if err := c.initClusterInfo(); err != nil {
-		return nil, fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
+		return fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
 
 	if len(c.clusterInfo.Monitors) < c.Size {
@@ -137,29 +133,29 @@ func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 
 		// Assign the pods to nodes
 		if err := c.assignMons(mons); err != nil {
-			return nil, fmt.Errorf("failed to assign pods to mons. %+v", err)
+			return fmt.Errorf("failed to assign pods to mons. %+v", err)
 		}
 
 		// Start one monitor at a time
 		for i := len(c.clusterInfo.Monitors); i < c.Size; i++ {
 			// Init the mon IPs
 			if err := c.initMonIPs(mons[0 : i+1]); err != nil {
-				return nil, fmt.Errorf("failed to init mon services. %+v", err)
+				return fmt.Errorf("failed to init mon services. %+v", err)
 			}
 
 			// save the mon config after we have "initiated the IPs"
 			if err := c.saveMonConfig(); err != nil {
-				return nil, fmt.Errorf("failed to save mons. %+v", err)
+				return fmt.Errorf("failed to save mons. %+v", err)
 			}
 
 			// make sure we have the connection info generated so connections can happen
-			if err := c.writeConnectionConfig(); err != nil {
-				return nil, err
+			if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
+				return err
 			}
 
 			// Start pods
 			if err := c.startPods(mons[0 : i+1]); err != nil {
-				return nil, fmt.Errorf("failed to start mon pods. %+v", err)
+				return fmt.Errorf("failed to start mon pods. %+v", err)
 			}
 		}
 		logger.Debugf("mon endpoints used are: %s", c.clusterInfo.MonEndpoints())
@@ -170,49 +166,23 @@ func (c *Cluster) Start() (*mon.ClusterInfo, error) {
 		}
 	}
 
-	return c.clusterInfo, nil
-}
-
-func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
-	for _, rank := range quorum {
-		if rank == monitor.Rank {
-			return true
-		}
-	}
-	return false
+	return nil
 }
 
 // Retrieve the ceph cluster info if it already exists.
 // If a new cluster create new keys.
 func (c *Cluster) initClusterInfo() error {
-	// get the cluster secrets
-	secrets, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
+
+	var err error
+	// get the cluster info from secret
+	c.clusterInfo, c.maxMonID, err = LoadClusterInfo(c.context, c.Namespace)
 	if err != nil {
-		if !errors.IsNotFound(err) {
-			return fmt.Errorf("failed to get mon secrets. %+v", err)
-		}
-
-		if err = c.createMonSecretsAndSave(); err != nil {
-			return err
-		}
-	} else {
-		c.clusterInfo = &mon.ClusterInfo{
-			Name:          string(secrets.Data[clusterSecretName]),
-			FSID:          string(secrets.Data[fsidSecretName]),
-			MonitorSecret: string(secrets.Data[monSecretName]),
-			AdminSecret:   string(secrets.Data[adminSecretName]),
-		}
-		logger.Debugf("found existing monitor secrets for cluster %s", c.clusterInfo.Name)
+		return fmt.Errorf("failed to get cluster info. %+v", err)
 	}
 
-	// get the existing monitor config
-	if err = c.loadMonConfig(); err != nil {
-		return fmt.Errorf("failed to get mon config. %+v", err)
-	}
-
-	// make sure we have the connection info generated after loading it in the first mon init step
-	if err = c.writeConnectionConfig(); err != nil {
-		return err
+	// save cluster monitor config
+	if err = c.saveMonConfig(); err != nil {
+		return fmt.Errorf("failed to save mons. %+v", err)
 	}
 
 	return nil
@@ -252,65 +222,6 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 			m.PublicIP = serviceIP
 		}
 		c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.PublicIP, m.Port)
-	}
-
-	return nil
-}
-
-// get the ID of a monitor from its name
-func getMonID(name string) (int, error) {
-	if strings.Index(name, appName) != 0 || len(name) < len(appName) {
-		return -1, fmt.Errorf("unexpected mon name")
-	}
-	id, err := strconv.Atoi(name[len(appName):])
-	if err != nil {
-		return -1, err
-	}
-	return id, nil
-}
-
-func (c *Cluster) createMonSecretsAndSave() error {
-	logger.Infof("creating mon secrets for a new cluster")
-	var err error
-	c.clusterInfo, err = mon.CreateNamedClusterInfo(c.context, "", c.Namespace)
-	if err != nil {
-		return fmt.Errorf("failed to create mon secrets. %+v", err)
-	}
-
-	// store the secrets for internal usage of the rook pods
-	secrets := map[string]string{
-		clusterSecretName: c.clusterInfo.Name,
-		fsidSecretName:    c.clusterInfo.FSID,
-		monSecretName:     c.clusterInfo.MonitorSecret,
-		adminSecretName:   c.clusterInfo.AdminSecret,
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: c.Namespace},
-		StringData: secrets,
-		Type:       k8sutil.RookType,
-	}
-	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Create(secret)
-	if err != nil {
-		return fmt.Errorf("failed to save mon secrets. %+v", err)
-	}
-
-	// store the secret for usage by the storage class
-	storageClassSecret := map[string]string{
-		"key": c.clusterInfo.AdminSecret,
-	}
-	secret = &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "rook-admin", Namespace: c.Namespace},
-		StringData: storageClassSecret,
-		Type:       k8sutil.RbdType,
-	}
-	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Create(secret)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to save rook-admin secret. %+v", err)
-		}
-		logger.Infof("rook-admin secret already exists")
-	} else {
-		logger.Infof("saved rook-admin secret")
 	}
 
 	return nil
@@ -484,78 +395,10 @@ func (c *Cluster) saveMonConfig() error {
 	logger.Infof("saved mon endpoints to config map %+v", configMap.Data)
 
 	// write the latest config to the config dir
-	if err := c.writeConnectionConfig(); err != nil {
+	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
 	}
 
-	return nil
-}
-
-func (c *Cluster) writeConnectionConfig() error {
-	// write the latest config to the config dir
-	if err := mon.GenerateAdminConnectionConfig(c.context, c.clusterInfo); err != nil {
-		return fmt.Errorf("failed to write connection config. %+v", err)
-	}
-
-	return nil
-}
-
-func (c *Cluster) loadMonConfig() error {
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
-		// If the config map was not found, initialize the empty set of monitors
-		c.mapping = &mapping{
-			Node: map[string]*nodeInfo{},
-			Port: map[string]int32{},
-		}
-		c.clusterInfo.Monitors = map[string]*mon.CephMonitorConfig{}
-		c.maxMonID = -1
-		return c.saveMonConfig()
-	}
-
-	// Parse the monitor List
-	if info, ok := cm.Data[EndpointDataKey]; ok {
-		c.clusterInfo.Monitors = mon.ParseMonEndpoints(info)
-	} else {
-		c.clusterInfo.Monitors = map[string]*mon.CephMonitorConfig{}
-	}
-
-	// Parse the max monitor id
-	if id, ok := cm.Data[MaxMonIDKey]; ok {
-		c.maxMonID, err = strconv.Atoi(id)
-		if err != nil {
-			logger.Errorf("invalid max mon id %s. %+v", id, err)
-		}
-	}
-
-	// Unmarshal mon mapping (node, port)
-	if mappingStr, ok := cm.Data[MappingKey]; ok && mappingStr != "" {
-		if err := json.Unmarshal([]byte(mappingStr), &c.mapping); err != nil {
-			logger.Errorf("invalid mapping json. json=%s; %+v", mappingStr, err)
-			c.mapping = &mapping{
-				Node: map[string]*nodeInfo{},
-				Port: map[string]int32{},
-			}
-		}
-	} else {
-		c.mapping = &mapping{
-			Node: map[string]*nodeInfo{},
-			Port: map[string]int32{},
-		}
-	}
-
-	// Make sure the max id is consistent with the current monitors
-	for _, m := range c.clusterInfo.Monitors {
-		id, _ := getMonID(m.Name)
-		if c.maxMonID < id {
-			c.maxMonID = id
-		}
-	}
-
-	logger.Infof("loaded: maxMonID=%d, mons=%+v mapping=%+v", c.maxMonID, c.clusterInfo.Monitors, c.mapping)
 	return nil
 }
 
@@ -599,57 +442,6 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 	}
 
 	return availableNodes, nil
-}
-
-func validNode(node v1.Node, placement k8sutil.Placement) bool {
-	// a node cannot be disabled
-	if node.Spec.Unschedulable {
-		return false
-	}
-
-	// a node matches the NodeAffinity configuration
-	// ignoring `PreferredDuringSchedulingIgnoredDuringExecution` terms: they
-	// should not be used to judge a node unusable
-	if placement.NodeAffinity != nil && placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-		nodeMatches := false
-		for _, req := range placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-			nodeSelector, err := helper.NodeSelectorRequirementsAsSelector(req.MatchExpressions)
-			if err != nil {
-				logger.Infof("failed to parse MatchExpressions: %+v, regarding as not match.", req.MatchExpressions)
-				return false
-			}
-			if nodeSelector.Matches(labels.Set(node.Labels)) {
-				nodeMatches = true
-				break
-			}
-		}
-		if !nodeMatches {
-			return false
-		}
-	}
-
-	// a node is tainted and cannot be tolerated
-	for _, taint := range node.Spec.Taints {
-		isTolerated := false
-		for _, toleration := range placement.Tolerations {
-			if toleration.ToleratesTaint(&taint) {
-				isTolerated = true
-				break
-			}
-		}
-		if !isTolerated {
-			return false
-		}
-	}
-
-	// a node must be Ready
-	for _, c := range node.Status.Conditions {
-		if c.Type == v1.NodeReady {
-			return true
-		}
-	}
-	logger.Infof("node %s is not ready. %+v", node.Name, node.Status.Conditions)
-	return false
 }
 
 func (c *Cluster) getNodesWithMons() (*util.Set, error) {

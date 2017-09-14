@@ -3,31 +3,24 @@
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${scriptdir}/../../build/common.sh"
 
-tarname=image.tar
-tarfile=$(pwd)/_output/tests/${tarname}
-
-ssh_opts=(
-  -o StrictHostKeyChecking=no
-  -o "UserKnownHostsFile /dev/null"
-  -o LogLevel=quiet
-)
-
-minikube_scp() {
-    local ip=$(minikube ip)
-    local ssh_key=$(minikube ssh-key)
-    scp "${ssh_opts[@]}" -i ${ssh_key} $1 docker@${ip}:$2
-}
-
-minikube_ssh() {
-    local ip=$(minikube ip)
-    local ssh_key=$(minikube ssh-key)
-    ssh "${ssh_opts[@]}" -i ${ssh_key} docker@${ip} $1
+init_flexvolume() {
+    cat <<EOF | ssh -i `minikube ssh-key` docker@`minikube ip` -o IdentitiesOnly=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=quiet 'cat - > ~/rook'
+#!/bin/bash
+modprobe rbd single_major=Y > /dev/null
+echo -ne '{"status": "Success", "capabilities": {"attach": false}}' >&1
+exit 0
+EOF
+    minikube ssh "chmod +x ~/rook"
+    minikube ssh "sudo chown root:root ~/rook"
+    minikube ssh "sudo mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook"
+    minikube ssh "sudo mv ~/rook /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook"
+    minikube start --memory=3000 --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
 }
 
 wait_for_ssh() {
     local tries=100
     while (( ${tries} > 0 )) ; do
-        if minikube_ssh "echo connected" &> /dev/null ; then
+        if `minikube ssh echo connected &> /dev/null` ; then
             return 0
         fi
         tries=$(( ${tries} - 1 ))
@@ -40,15 +33,7 @@ wait_for_ssh() {
 copy_image_to_cluster() {
     local build_image=$1
     local final_image=$2
-    local helm_image_tag=
-
-    echo copying ${build_image} to minikube
-    mkdir -p ${WORK_DIR}/tests
-    docker save -o ${tarfile} ${build_image}
-    minikube_scp ${tarfile} /home/docker
-    minikube_ssh "docker load -i /home/docker/${tarname}"
-    minikube_ssh "docker tag ${build_image} ${final_image}"
-
+    docker save ${build_image} | (eval $(minikube docker-env) && docker load && docker tag ${build_image} ${final_image})
 }
 
 # configure dind-cluster
@@ -59,23 +44,21 @@ case "${1:-}" in
     minikube start --memory=3000 --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
     wait_for_ssh
 
-    echo setting up rbd
-    minikube_scp ${scriptdir}/minikube-rbd /home/docker/minikube-rbd
-    minikube_ssh "sudo cp /home/docker/minikube-rbd /bin/rbd && sudo chmod +x /bin/rbd"
-
     copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
     copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
 
-    docker pull ceph/base
-    copy_image_to_cluster ceph/base ceph/base
-
+    if [[ $KUBE_VERSION == v1.5* ]] || [[ $KUBE_VERSION == v1.6* ]] || [[ $KUBE_VERSION == v1.7* ]] ;
+    then
+        echo "initializing flexvolume for rook"
+        init_flexvolume
+    fi
     ;;
   down)
     minikube stop
     ;;
   ssh)
     echo "connecting to minikube"
-    minikube_ssh
+    minikube ssh
     ;;
   update)
     echo "updating the rook images"

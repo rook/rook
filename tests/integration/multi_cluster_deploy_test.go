@@ -40,8 +40,11 @@ func (mrc *MultiRookClusterDeploySuite) SetupSuite() {
 	err = mrc.installer.CreateK8sRookOperator()
 	require.NoError(mrc.T(), err)
 
-	require.True(mrc.T(), kh.IsPodInExpectedState("rook-operator", "default", "Running"),
+	require.True(mrc.T(), kh.IsPodInExpectedState("rook-operator", defaultRookSystemNamespace, "Running"),
 		"Make sure rook-operator is in running state")
+
+	require.True(mrc.T(), kh.IsPodInExpectedState("rook-agent", defaultRookSystemNamespace, "Running"),
+		"Make sure rook-agent is in running state")
 
 	time.Sleep(10 * time.Second)
 
@@ -67,8 +70,8 @@ func (mrc *MultiRookClusterDeploySuite) SetupSuite() {
 
 func (mrc *MultiRookClusterDeploySuite) TearDownSuite() {
 	if mrc.T().Failed() {
-		gatherAllRookLogs(mrc.k8sh, mrc.Suite, defaultNamespace, clusterNamespace1)
-		gatherAllRookLogs(mrc.k8sh, mrc.Suite, defaultNamespace, clusterNamespace2)
+		gatherAllRookLogs(mrc.k8sh, mrc.Suite, defaultRookSystemNamespace, clusterNamespace1)
+		gatherAllRookLogs(mrc.k8sh, mrc.Suite, defaultRookSystemNamespace, clusterNamespace2)
 	}
 	deleteArgs := []string{"delete", "-f", "-"}
 
@@ -142,10 +145,10 @@ func (mrc *MultiRookClusterDeploySuite) TearDownSuite() {
 func (mrc *MultiRookClusterDeploySuite) TestInstallingMultipleRookClusters() {
 
 	//Check if Rook cluster 1 is deployed successfully
-	checkIfRookClusterIsInstalled(mrc.k8sh, mrc.Suite, defaultNamespace, clusterNamespace1)
+	checkIfRookClusterIsInstalled(mrc.k8sh, mrc.Suite, defaultRookSystemNamespace, clusterNamespace1)
 
 	//Check if Rook cluster 1 is deployed successfully
-	checkIfRookClusterIsInstalled(mrc.k8sh, mrc.Suite, defaultNamespace, clusterNamespace2)
+	checkIfRookClusterIsInstalled(mrc.k8sh, mrc.Suite, defaultRookSystemNamespace, clusterNamespace2)
 
 }
 

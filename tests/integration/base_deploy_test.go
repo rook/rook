@@ -26,10 +26,11 @@ import (
 var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "integrationTest")
 
-	defaultNamespace     = "default"
-	defaultRookNamespace = "test-rook"
-	clusterNamespace1    = "test-cluster-1"
-	clusterNamespace2    = "test-cluster-2"
+	defaultNamespace           = "default"
+	defaultRookSystemNamespace = "rook-system"
+	defaultRookNamespace       = "rook"
+	clusterNamespace1          = "test-cluster-1"
+	clusterNamespace2          = "test-cluster-2"
 )
 
 //Test to make sure all rook components are installed and Running
@@ -37,6 +38,8 @@ func checkIfRookClusterIsInstalled(k8sh *utils.K8sHelper, s suite.Suite, oNamesp
 	logger.Infof("Make sure all Pods in Rook Cluster %s are running", cNamespace)
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-operator", oNamespace, 1, "Running"),
 		"Make sure there is 1 rook-operator present in Running state")
+	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-agent", oNamespace, 1, "Running"),
+		"Make sure there is 1 rook-agent present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-api", cNamespace, 1, "Running"),
 		"Make sure there is 1 rook-api present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mgr", cNamespace, 1, "Running"),
@@ -50,6 +53,7 @@ func checkIfRookClusterIsInstalled(k8sh *utils.K8sHelper, s suite.Suite, oNamesp
 func gatherAllRookLogs(k8sh *utils.K8sHelper, s suite.Suite, oNamespace string, cNamespace string) {
 	logger.Infof("Gathering all logs from Rook Cluster %s", cNamespace)
 	k8sh.GetRookLogs("rook-operator", oNamespace, s.T().Name())
+	k8sh.GetRookLogs("rook-agent", oNamespace, s.T().Name())
 	k8sh.GetRookLogs("rook-api", cNamespace, s.T().Name())
 	k8sh.GetRookLogs("rook-ceph-mgr", cNamespace, s.T().Name())
 	k8sh.GetRookLogs("rook-ceph-mon", cNamespace, s.T().Name())
