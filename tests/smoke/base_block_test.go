@@ -19,11 +19,12 @@ package smoke
 import (
 	"time"
 
+	"strings"
+
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"strings"
 )
 
 var (
@@ -181,11 +182,11 @@ metadata:
   name: ` + poolName + `
   namespace: ` + namespace + `
 spec:
-  replication:
+  replicated:
     size: 1
   # For an erasure-coded pool, comment out the replication size above and uncomment the following settings.
   # Make sure you have enough OSDs to support the replica size or erasure code chunks.
-  #erasureCode:
+  #erasureCoded:
   #  codingChunks: 2
   #  dataChunks: 2
 ---
@@ -206,11 +207,11 @@ metadata:
   name: ` + poolName + `
   namespace: ` + namespace + `
 spec:
-  replication:
+  replicated:
     size: 1
   # For an erasure-coded pool, comment out the replication count above and uncomment the following settings.
   # Make sure you have enough OSDs to support the replica count or erasure code chunks.
-  #erasureCode:
+  #erasureCoded:
   #  codingChunks: 2
   #  dataChunks: 2
 ---

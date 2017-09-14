@@ -20,11 +20,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/rook/rook/cmd/rookctl/rook"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/rook/client"
-	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
@@ -35,7 +35,7 @@ var (
 
 var userCmd = &cobra.Command{
 	Use:   "user",
-	Short: "Performs commands and operations on object store users in the cluster",
+	Short: "Performs commands and operations on object store users",
 }
 
 func init() {
@@ -57,19 +57,19 @@ func init() {
 }
 
 var userListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Gets a listing with details of all object users in the cluster",
+	Use:   "list [ObjectStore]",
+	Short: "Gets a listing of all users in the object store",
 }
 
 func listUsersEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
-	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
+	if err := checkObjectArgs(args, []string{}); err != nil {
 		return err
 	}
 
 	c := rook.NewRookNetworkRestClient()
-	out, err := listUsers(c)
+	out, err := listUsers(c, args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -79,8 +79,8 @@ func listUsersEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func listUsers(c client.RookRestClient) (string, error) {
-	users, err := c.ListObjectUsers()
+func listUsers(c client.RookRestClient, name string) (string, error) {
+	users, err := c.ListObjectUsers(name)
 	if err != nil {
 		return "", fmt.Errorf("failed to get users: %+v", err)
 	}
@@ -103,23 +103,19 @@ func listUsers(c client.RookRestClient) (string, error) {
 }
 
 var userGetCmd = &cobra.Command{
-	Use:   "get [User ID]",
-	Short: "Gets object user info",
+	Use:   "get [ObjectStore] [UserID]",
+	Short: "Gets a user from the object store",
 }
 
 func getUserEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
-	if len(args) == 0 {
-		return fmt.Errorf("Missing required argument User ID")
-	}
-
-	if len(args) > 1 {
-		return fmt.Errorf("Too many arguments")
+	if err := checkObjectArgs(args, []string{"[UserID]"}); err != nil {
+		return err
 	}
 
 	c := rook.NewRookNetworkRestClient()
-	out, err := getUser(c, args[0])
+	out, err := getUser(c, args[0], args[1])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -129,8 +125,8 @@ func getUserEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getUser(c client.RookRestClient, id string) (string, error) {
-	user, err := c.GetObjectUser(id)
+func getUser(c client.RookRestClient, name, id string) (string, error) {
+	user, err := c.GetObjectUser(name, id)
 
 	if client.IsHttpNotFound(err) {
 		return "", fmt.Errorf("Unable to find user %s", id)
@@ -154,23 +150,19 @@ func getUser(c client.RookRestClient, id string) (string, error) {
 }
 
 var userDeleteCmd = &cobra.Command{
-	Use:   "delete [User ID]",
-	Short: "Deletes the object user",
+	Use:   "delete [ObjectStore] [UserID]",
+	Short: "Deletes the user from the object store",
 }
 
 func deleteUserEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
-	if len(args) == 0 {
-		return fmt.Errorf("Missing required argument User ID")
-	}
-
-	if len(args) > 1 {
-		return fmt.Errorf("Too many arguments")
+	if err := checkObjectArgs(args, []string{"[UserID]"}); err != nil {
+		return err
 	}
 
 	c := rook.NewRookNetworkRestClient()
-	out, err := deleteUser(c, args[0])
+	out, err := deleteUser(c, args[0], args[1])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -180,8 +172,8 @@ func deleteUserEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func deleteUser(c client.RookRestClient, id string) (string, error) {
-	err := c.DeleteObjectUser(id)
+func deleteUser(c client.RookRestClient, name, id string) (string, error) {
+	err := c.DeleteObjectUser(name, id)
 
 	if client.IsHttpNotFound(err) {
 		return "", fmt.Errorf("Unable to find user %s", id)
@@ -194,33 +186,24 @@ func deleteUser(c client.RookRestClient, id string) (string, error) {
 }
 
 var userCreateCmd = &cobra.Command{
-	Use:   "create [User ID] [Display Name]",
-	Short: "Creates an object store user",
+	Use:   "create [ObjectStore] [UserID] [Display Name]",
+	Short: "Creates a user in the object store",
 }
 
 func createUserEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
-
-	if len(args) == 0 {
-		return fmt.Errorf("Missing required arguments User ID and Display Name")
+	if err := checkObjectArgs(args, []string{"[UserID]", "[Display Name]"}); err != nil {
+		return err
 	}
 
-	if len(args) == 1 {
-		return fmt.Errorf("Missing required argument Display Name")
-	}
-
-	if len(args) > 2 {
-		return fmt.Errorf("Too many arguments")
-	}
-
-	user := model.ObjectUser{UserID: args[0], DisplayName: &args[1]}
+	user := model.ObjectUser{UserID: args[1], DisplayName: &args[2]}
 
 	if cmd.Flags().Lookup("email").Changed {
 		user.Email = &emailFlag
 	}
 
 	c := rook.NewRookNetworkRestClient()
-	out, err := createUser(c, user)
+	out, err := createUser(c, args[0], user)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -230,8 +213,20 @@ func createUserEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func createUser(c client.RookRestClient, user model.ObjectUser) (string, error) {
-	createdUser, err := c.CreateObjectUser(user)
+func checkObjectArgs(args, expectedArgs []string) error {
+	// expect to have the object store name followed by the expectedArgs
+	if len(args) == 1+len(expectedArgs) {
+		return nil
+	}
+	if len(args) > 1+len(expectedArgs) {
+		return fmt.Errorf("Too many arguments")
+	}
+
+	return fmt.Errorf("Missing at least one argument in: [ObjectStore] %s", strings.Join(expectedArgs, " "))
+}
+
+func createUser(c client.RookRestClient, name string, user model.ObjectUser) (string, error) {
+	createdUser, err := c.CreateObjectUser(name, user)
 
 	if client.IsHttpStatusCode(err, http.StatusUnprocessableEntity) {
 		restErr := err.(client.RookRestError)
@@ -246,22 +241,17 @@ func createUser(c client.RookRestClient, user model.ObjectUser) (string, error) 
 }
 
 var userUpdateCmd = &cobra.Command{
-	Use:   "update [User ID]",
-	Short: "Updates an object store user",
+	Use:   "update [ObjectStore] [UserID]",
+	Short: "Updates a user in the object store",
 }
 
 func updateUserEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
-
-	if len(args) == 0 {
-		return fmt.Errorf("Missing required argument User ID")
+	if err := checkObjectArgs(args, []string{"[UserID]"}); err != nil {
+		return err
 	}
 
-	if len(args) > 1 {
-		return fmt.Errorf("Too many arguments")
-	}
-
-	user := model.ObjectUser{UserID: args[0]}
+	user := model.ObjectUser{UserID: args[1]}
 
 	if cmd.Flags().Lookup("display-name").Changed {
 		user.DisplayName = &displayNameFlag
@@ -271,7 +261,7 @@ func updateUserEntry(cmd *cobra.Command, args []string) error {
 	}
 
 	c := rook.NewRookNetworkRestClient()
-	out, err := updateUser(c, user)
+	out, err := updateUser(c, args[0], user)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -281,8 +271,8 @@ func updateUserEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func updateUser(c client.RookRestClient, user model.ObjectUser) (string, error) {
-	updatedUser, err := c.UpdateObjectUser(user)
+func updateUser(c client.RookRestClient, name string, user model.ObjectUser) (string, error) {
+	updatedUser, err := c.UpdateObjectUser(name, user)
 
 	if client.IsHttpNotFound(err) {
 		return "", fmt.Errorf("Unable to find user %s", user.UserID)

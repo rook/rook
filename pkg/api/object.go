@@ -32,7 +32,7 @@ const (
 
 func (h *Handler) objectContext(r *http.Request) *rgw.Context {
 	storeName := defaultObjectStoreName
-	if name, ok := mux.Vars(r)["store"]; ok {
+	if name, ok := mux.Vars(r)["name"]; ok {
 		storeName = name
 	}
 
@@ -96,14 +96,9 @@ func (h *Handler) CreateObjectStore(w http.ResponseWriter, r *http.Request) {
 
 // RemoveObjectStore removes the object store from this cluster.
 // DELETE
-// /objectstore
+// /objectstore/{name}
 func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
-	storeName := r.URL.Query().Get("store")
-	if storeName == "" {
-		logger.Errorf("missing store name")
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	storeName := mux.Vars(r)["name"]
 
 	if err := h.config.ClusterHandler.RemoveObjectStore(storeName); err != nil {
 		logger.Errorf("failed to remove object store: %+v", err)
@@ -116,10 +111,10 @@ func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
 
 // GetObjectStoreConnectionInfo gets connection information to the object store in this cluster.
 // GET
-// /objectstore/connectioninfo
+// /objectstore/{name}/connectioninfo
 func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Request) {
-
-	s3Info, found, err := h.config.ClusterHandler.GetObjectStoreConnectionInfo(defaultObjectStoreName)
+	storeName := mux.Vars(r)["name"]
+	s3Info, found, err := h.config.ClusterHandler.GetObjectStoreConnectionInfo(storeName)
 	if err != nil {
 		logger.Errorf("failed get object store info. %+v", err)
 		if found {
@@ -135,7 +130,7 @@ func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Re
 
 // ListUsers lists the users of the object store in this cluster.
 // GET
-// /objectstore/users
+// /objectstore/{name}/users
 func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	userNames, _, err := rgw.ListUsers(h.objectContext(r))
 	if err != nil {
@@ -161,7 +156,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 // GetUser gets the passed users info from the object store in this cluster.
 // GET
-// /objectstore/users/{USER_ID}
+// /objectstore/{name}/users/{USER_ID}
 func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -182,7 +177,7 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 
 // CreateUser will create a new user from the passed info in the object store in this cluster.
 // POST
-// /objectstore/users
+// /objectstore/{name}/users
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var user model.ObjectUser
 
@@ -213,7 +208,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 
 // UpdateUser updates the passed user with the passed info for the object store in this cluster.
 // PUT
-// /objectstore/users/{USER_ID}
+// /objectstore/{name}/users/{USER_ID}
 func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -244,7 +239,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 // DeleteUser deletes the passed user for the object store in this cluster.
 // DELETE
-// /objectstore/users/{USER_ID}
+// /objectstore/{name}/users/{USER_ID}
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 
@@ -265,7 +260,7 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 
 // Listbuckets lists the buckets in the object store in this cluster.
 // GET
-// /objectstore/buckets
+// /objectstore/{name}/buckets
 func (h *Handler) ListBuckets(w http.ResponseWriter, r *http.Request) {
 	buckets, err := rgw.ListBuckets(h.objectContext(r))
 	if err != nil {
@@ -282,7 +277,7 @@ func (h *Handler) ListBuckets(w http.ResponseWriter, r *http.Request) {
 
 // GetBucket gets the bucket from the object store in this cluster.
 // GET
-// /objectstore/buckets/{BUCKET_NAME}
+// /objectstore/{name}/buckets/{BUCKET_NAME}
 func (h *Handler) GetBucket(w http.ResponseWriter, r *http.Request) {
 	bucketName := mux.Vars(r)["bucketName"]
 
@@ -303,7 +298,7 @@ func (h *Handler) GetBucket(w http.ResponseWriter, r *http.Request) {
 
 // DeleteBucket deletes the bucket in the object store in this cluster.
 // DELETE
-// /objectstore/buckets/{BUCKET_NAME}
+// /objectstore/{name}/buckets/{BUCKET_NAME}
 func (h *Handler) DeleteBucket(w http.ResponseWriter, r *http.Request) {
 	bucketName := mux.Vars(r)["bucketName"]
 

@@ -21,6 +21,8 @@ import (
 	"github.com/rook/rook/tests/framework/contracts"
 )
 
+const defaultObjectStore = "default"
+
 //ObjectOperation is wrapper for k8s rook object operations
 type ObjectOperation struct {
 	restClient contracts.RestAPIOperator
@@ -35,7 +37,7 @@ func CreateObjectOperation(rookRestClient contracts.RestAPIOperator) *ObjectOper
 //Input paramatres -None
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectCreate(name string, replicaCount int32) (string, error) {
-	store := model.ObjectStore{Name: name, Gateway: model.Gateway{Replicas: replicaCount}}
+	store := model.ObjectStore{Name: defaultObjectStore, Gateway: model.Gateway{Replicas: replicaCount}}
 	store.DataConfig.ReplicatedConfig.Size = 1
 	store.MetadataConfig.ReplicatedConfig.Size = 1
 	return ro.restClient.CreateObjectStore(store)
@@ -45,7 +47,7 @@ func (ro *ObjectOperation) ObjectCreate(name string, replicaCount int32) (string
 //Input paramatres - None
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectBucketList() ([]model.ObjectBucket, error) {
-	return ro.restClient.ListBuckets()
+	return ro.restClient.ListBuckets(defaultObjectStore)
 
 }
 
@@ -53,7 +55,7 @@ func (ro *ObjectOperation) ObjectBucketList() ([]model.ObjectBucket, error) {
 //Input paramatres - None
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectConnection() (*model.ObjectStoreConnectInfo, error) {
-	return ro.restClient.GetObjectStoreConnectionInfo()
+	return ro.restClient.GetObjectStoreConnectionInfo(defaultObjectStore)
 
 }
 
@@ -62,7 +64,7 @@ func (ro *ObjectOperation) ObjectConnection() (*model.ObjectStoreConnectInfo, er
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectCreateUser(userid string, displayname string) (*model.ObjectUser, error) {
 	objectUser := model.ObjectUser{UserID: userid, DisplayName: &displayname}
-	return ro.restClient.CreateObjectUser(objectUser)
+	return ro.restClient.CreateObjectUser(defaultObjectStore, objectUser)
 
 }
 
@@ -71,26 +73,26 @@ func (ro *ObjectOperation) ObjectCreateUser(userid string, displayname string) (
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectUpdateUser(userid string, displayname string, emailid string) (*model.ObjectUser, error) {
 	objectUser := model.ObjectUser{UserID: userid, DisplayName: &displayname, Email: &emailid}
-	return ro.restClient.UpdateObjectUser(objectUser)
+	return ro.restClient.UpdateObjectUser(defaultObjectStore, objectUser)
 }
 
 //ObjectDeleteUser Function to delete user on rook object store
 //Input paramatres - userId
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectDeleteUser(userid string) error {
-	return ro.restClient.DeleteObjectUser(userid)
+	return ro.restClient.DeleteObjectUser(defaultObjectStore, userid)
 }
 
 //ObjectGetUser Function to get a user on rook object store
 //Input paramatres - userId
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectGetUser(userid string) (*model.ObjectUser, error) {
-	return ro.restClient.GetObjectUser(userid)
+	return ro.restClient.GetObjectUser(defaultObjectStore, userid)
 }
 
 //ObjectListUser Function to get all users on rook object store
 //Input paramatres - none
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectListUser() ([]model.ObjectUser, error) {
-	return ro.restClient.ListObjectUsers()
+	return ro.restClient.ListObjectUsers(defaultObjectStore)
 }

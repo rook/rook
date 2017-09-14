@@ -63,7 +63,7 @@ func TestRemoveObjectStoreHandler(t *testing.T) {
 
 	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
 
-	req, err := http.NewRequest("DELETE", "http://10.0.0.100/objectstore?store=mystore", nil)
+	req, err := http.NewRequest("DELETE", "http://10.0.0.100/objectstore/mystore", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -85,7 +85,7 @@ func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 	inventory.SetIPAddress(etcdClient, "123", "1.2.3.4", "2.3.4.5")
 	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
 
-	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/connectioninfo", nil)
+	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/default/connectioninfo", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -118,7 +118,7 @@ func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 
 func TestListUsers(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/users", nil)
+	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/default/users", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func TestListUsers(t *testing.T) {
 
 func TestGetUser(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/users/someuser", nil)
+	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/default/users/someuser", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -280,7 +280,7 @@ func TestGetUser(t *testing.T) {
 
 func TestCreateUser(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore/users", nil)
+	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore/default/users", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -357,7 +357,7 @@ func TestCreateUser(t *testing.T) {
 
 func TestUpdateUser(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	req, err := http.NewRequest("PUT", "http://10.0.0.100/objectstore/users/foo", nil)
+	req, err := http.NewRequest("PUT", "http://10.0.0.100/objectstore/default/users/foo", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -438,7 +438,7 @@ func TestUpdateUser(t *testing.T) {
 
 func TestDeleteUser(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	req, err := http.NewRequest("DELETE", "http://10.0.0.100/objectstore/users/foo", nil)
+	req, err := http.NewRequest("DELETE", "http://10.0.0.100/objectstore/default/users/foo", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -488,7 +488,7 @@ func TestDeleteUser(t *testing.T) {
 
 func TestListBuckets(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/buckets", nil)
+	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/default/buckets", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -652,7 +652,7 @@ func containsArg(values []string, desired string) bool {
 
 func TestGetBucket(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/buckets/test", nil)
+	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/default/buckets/test", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -764,7 +764,7 @@ func TestGetBucket(t *testing.T) {
 
 func TestBucketDelete(t *testing.T) {
 	etcdClient := util.NewMockEtcdClient()
-	req, err := http.NewRequest("DELETE", "http://10.0.0.100/objectstore/buckets/test", nil)
+	req, err := http.NewRequest("DELETE", "http://10.0.0.100/objectstore/default/buckets/test", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -821,7 +821,7 @@ func TestBucketDelete(t *testing.T) {
 	assert.Equal(t, "", w.Body.String())
 
 	// not Purge
-	req, err = http.NewRequest("DELETE", "http://10.0.0.100/objectstore/buckets/test?purge=false", nil)
+	req, err = http.NewRequest("DELETE", "http://10.0.0.100/objectstore/default/buckets/test?purge=false", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -831,7 +831,7 @@ func TestBucketDelete(t *testing.T) {
 
 	//  Purge
 	expectedArgs = []string{"bucket", "rm", "--bucket", "test", "--purge-objects"}
-	req, err = http.NewRequest("DELETE", "http://10.0.0.100/objectstore/buckets/test?purge=true", nil)
+	req, err = http.NewRequest("DELETE", "http://10.0.0.100/objectstore/default/buckets/test?purge=true", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}

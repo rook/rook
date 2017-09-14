@@ -270,7 +270,7 @@ func TestGetObjectStoreConnectionInfo(t *testing.T) {
 		Host: "rook-ceph-rgw-default:12345",
 	}
 
-	resp, err := client.GetObjectStoreConnectionInfo()
+	resp, err := client.GetObjectStoreConnectionInfo("default")
 	assert.Nil(t, err)
 	assert.Equal(t, expectedResp, *resp)
 }
@@ -352,7 +352,7 @@ func TestCreateObjectStoreFailure(t *testing.T) {
 
 func TestGetObjectStoreConnectionInfoFailure(t *testing.T) {
 	clientFunc := func(client RookRestClient) (interface{}, error) {
-		return client.GetObjectStoreConnectionInfo()
+		return client.GetObjectStoreConnectionInfo("default")
 	}
 	verifyFunc := func(resp interface{}, err error) {
 		assert.NotNil(t, err)

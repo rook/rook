@@ -31,7 +31,7 @@ var (
 
 var bucketCmd = &cobra.Command{
 	Use:   "bucket",
-	Short: "Performs commands and operations on object store buckets in the cluster",
+	Short: "Performs commands and operations on object store buckets",
 }
 
 func init() {
@@ -46,15 +46,19 @@ func init() {
 }
 
 var bucketListCmd = &cobra.Command{
-	Use:   "list",
-	Short: "Gets a listing with details of all buckets in the cluster",
+	Use:   "list [ObjectStore]",
+	Short: "Gets a listing with details of all buckets in the object store",
 }
 
 func listBucketsEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
+	if err := checkObjectArgs(args, []string{}); err != nil {
+		return err
+	}
+
 	c := rook.NewRookNetworkRestClient()
-	out, err := listBuckets(c)
+	out, err := listBuckets(args[0], c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -64,8 +68,8 @@ func listBucketsEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func listBuckets(c client.RookRestClient) (string, error) {
-	buckets, err := c.ListBuckets()
+func listBuckets(name string, c client.RookRestClient) (string, error) {
+	buckets, err := c.ListBuckets(name)
 	if err != nil {
 		return "", fmt.Errorf("failed to list buckets: %+v", err)
 	}
@@ -88,23 +92,19 @@ func listBuckets(c client.RookRestClient) (string, error) {
 }
 
 var bucketGetCmd = &cobra.Command{
-	Use:   "get [BucketName]",
-	Short: "Gets the details of a bucket in the cluster",
+	Use:   "get [ObjectStore] [BucketName]",
+	Short: "Gets the details of a bucket in the object store",
 }
 
 func getBucketEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
-	if len(args) == 0 {
-		return fmt.Errorf("Missing required argument BucketName")
-	}
-
-	if len(args) > 1 {
-		return fmt.Errorf("Too many arguments")
+	if err := checkObjectArgs(args, []string{"[BucketName]"}); err != nil {
+		return err
 	}
 
 	c := rook.NewRookNetworkRestClient()
-	out, err := getBucket(c, args[0])
+	out, err := getBucket(c, args[0], args[1])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -114,8 +114,8 @@ func getBucketEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getBucket(c client.RookRestClient, bucketName string) (string, error) {
-	bucket, err := c.GetBucket(bucketName)
+func getBucket(c client.RookRestClient, name, bucketName string) (string, error) {
+	bucket, err := c.GetBucket(name, bucketName)
 	if err != nil {
 		return "", fmt.Errorf("failed to get bucket: %+v", err)
 	}
@@ -134,23 +134,19 @@ func getBucket(c client.RookRestClient, bucketName string) (string, error) {
 }
 
 var bucketDeleteCmd = &cobra.Command{
-	Use:   "delete [BucketName]",
-	Short: "Deletes the bucket",
+	Use:   "delete [ObjectStore] [BucketName]",
+	Short: "Deletes the bucket from the object store",
 }
 
 func deleteBucketEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
-	if len(args) == 0 {
-		return fmt.Errorf("Missing required argument BucketName")
-	}
-
-	if len(args) > 1 {
-		return fmt.Errorf("Too many arguments")
+	if err := checkObjectArgs(args, []string{"[BucketName]"}); err != nil {
+		return err
 	}
 
 	c := rook.NewRookNetworkRestClient()
-	out, err := deleteBucket(c, args[0])
+	out, err := deleteBucket(c, args[0], args[1])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -160,8 +156,8 @@ func deleteBucketEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func deleteBucket(c client.RookRestClient, bucketName string) (string, error) {
-	err := c.DeleteBucket(bucketName, purge)
+func deleteBucket(c client.RookRestClient, name, bucketName string) (string, error) {
+	err := c.DeleteBucket(name, bucketName, purge)
 
 	if err != nil {
 		if client.IsHttpNotFound(err) {

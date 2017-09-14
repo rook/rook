@@ -74,11 +74,11 @@ type RestAPIOperator interface {
 	GetStatusDetails() (model.StatusDetails, error)
 	CreateObjectStore(store model.ObjectStore) (string, error)
 	DeleteObjectStore(name string) error
-	GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, error)
-	ListBuckets() ([]model.ObjectBucket, error)
-	ListObjectUsers() ([]model.ObjectUser, error)
-	GetObjectUser(id string) (*model.ObjectUser, error)
-	CreateObjectUser(user model.ObjectUser) (*model.ObjectUser, error)
-	UpdateObjectUser(user model.ObjectUser) (*model.ObjectUser, error)
-	DeleteObjectUser(id string) error
+	GetObjectStoreConnectionInfo(name string) (*model.ObjectStoreConnectInfo, error)
+	ListBuckets(name string) ([]model.ObjectBucket, error)
+	ListObjectUsers(name string) ([]model.ObjectUser, error)
+	GetObjectUser(name, id string) (*model.ObjectUser, error)
+	CreateObjectUser(name string, user model.ObjectUser) (*model.ObjectUser, error)
+	UpdateObjectUser(name string, user model.ObjectUser) (*model.ObjectUser, error)
+	DeleteObjectUser(name, id string) error
 }
