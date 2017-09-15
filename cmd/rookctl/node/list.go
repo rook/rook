@@ -28,8 +28,9 @@ import (
 )
 
 var listCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "Gets a listing with details of all nodes in the cluster",
+	Use:     "list",
+	Short:   "Gets a listing with details of all nodes in the cluster",
+	Aliases: []string{"ls"},
 }
 
 func init() {

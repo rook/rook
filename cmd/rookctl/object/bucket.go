@@ -46,8 +46,9 @@ func init() {
 }
 
 var bucketListCmd = &cobra.Command{
-	Use:   "list [ObjectStore]",
-	Short: "Gets a listing with details of all buckets in the object store",
+	Use:     "list [ObjectStore]",
+	Short:   "Gets a listing with details of all buckets in the object store",
+	Aliases: []string{"ls"},
 }
 
 func listBucketsEntry(cmd *cobra.Command, args []string) error {

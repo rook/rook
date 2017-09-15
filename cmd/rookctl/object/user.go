@@ -57,8 +57,9 @@ func init() {
 }
 
 var userListCmd = &cobra.Command{
-	Use:   "list [ObjectStore]",
-	Short: "Gets a listing of all users in the object store",
+	Use:     "list [ObjectStore]",
+	Short:   "Gets a listing of all users in the object store",
+	Aliases: []string{"ls"},
 }
 
 func listUsersEntry(cmd *cobra.Command, args []string) error {

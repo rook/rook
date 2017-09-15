@@ -33,8 +33,9 @@ import (
 const noneEntry = "<none>"
 
 var listCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "Gets a listing of object stores in the cluster",
+	Use:     "list",
+	Short:   "Gets a listing of object stores in the cluster",
+	Aliases: []string{"ls"},
 }
 
 func init() {

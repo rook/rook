@@ -32,8 +32,9 @@ import (
 )
 
 var listCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "Gets a listing with details of all block images in the cluster and their locally mapped devices",
+	Use:     "list",
+	Short:   "Gets a listing with details of all block images in the cluster and their locally mapped devices",
+	Aliases: []string{"ls"},
 }
 
 func init() {

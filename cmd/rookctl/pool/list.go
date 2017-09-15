@@ -29,8 +29,9 @@ import (
 )
 
 var listCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "Gets a listing with details of all storage pools in the cluster",
+	Use:     "list",
+	Short:   "Gets a listing with details of all storage pools in the cluster",
+	Aliases: []string{"ls"},
 }
 
 func init() {
