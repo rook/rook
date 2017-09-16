@@ -66,6 +66,22 @@ Below is a simplified description of the control flow for providing block storag
 If necessary, the driver will also format the volume according to the filesystem type expressed on the storageclass for the volume.
 1. The driver then returns from `Mount()` with a successful result to the Kubelet.
 
+##### Unmount
+During an unmount operation, the [`Unmount()`](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md#unmount) call is only given the mount dir to unmount from.
+With this limited information, it is difficult to ascertain more information about the specific volume attachment that is intended.
+Currently, the mount dir has some of this information encoded in the full path.
+Take for example the following mount dir:
+```
+/var/lib/kubelet/pods/4b859788-9290-11e7-a54f-001c42fe7d2c/volumes/kubernetes.io~rbd/pvc-4b7eab9a-9290-11e7-a54f-001c42fe7d2c
+```
+
+Given the mount dir above, one can infer that it is for pod `4b859788-9290-11e7-a54f-001c42fe7d2c` and PV `pvc-4b7eab9a-9290-11e7-a54f-001c42fe7d2c`.
+The agent will use this information to look up the correct CRD instance, granting itself full context for how to perform the detach and unmount.
+
+Parsing this particular mount dir format doesn't have any guarantee of stability in future Kubernetes releases, so we cannot rely on this long term.
+The ideal solution would be for the Kubelet to pass along full context information to the `Unmount()` call.
+This improvement is being tracked in https://github.com/kubernetes/kubernetes/issues/52590.
+
 #### Usage of CRDs
 The control flow described above explained how the agent uses the Kubernetes API to create a volume attach CRD that represents the attachment of a cluster volume to a specific cluster node.
 This usage of the Kubernetes API is a reason why the Flexvolume driver, which does not run in a context that has any cluster credentials, is insufficient for this design, and thus why a Rook agent pod is desirable.
@@ -91,17 +107,73 @@ The experience is also normalized across other distributed storage platforms tha
 Instead of the user having to create a storageclass specific for the underlying distributed storage (e.g., RBD if Rook is using Ceph), this will abstract that decision away, allowing the user to simply request storage.
 This was already true of the hybrid approach in Rook v0.5, but it's worth noting here still.
 
-#### Fencing
-Ensuring exclusive single client access (`ReadWriteOnce`) to the persistent volume can be achieved by the Rook agent, independently from the underlying storage protocol that is being used (RBD, NBD, iSCSI, etc.).
-Remember that during the attach operation, the Rook agent will create a volume attach CRD.
-When the agent performs the attach on its local node, it can update the CRD with information stating that the volume is now locked.
-Thus, the CRD itself is providing the accounting for the volume's lock in a generalized way, independent of the of the underlying storage protocol the agent chose to use for the volume.
-Of course, this lock can be augmented at the lower layer of the specific storage protocol, e.g., `rbd lock add` for RBD.
+#### Volume Attach CRD Details
+This section will discuss the volume attach CRD in more detail.
+The name (primary identity) of each CRD instance will be the Persistent Volume (PV) name that it is for.
+This will enable very efficient look ups of volume attach instances for a particular PV, thereby making fencing checks very efficient.
 
-Similarly, during the detach operation, the CRD will be deleted to signify that the volume has been unlocked.
-If the node where the volume has attached has died, then we need a centralized way to perform the unlocking of the volume.
-Therefore, the Rook operator will be watching for Kubernetes Node events that will signal when a node has died and been removed from the cluster.
-The operator will act on this node deletion event by executing the storage protocol specific command (e.g., `rbd lock remove`) and the deleting the volume attach CRD, signaling that the volume is now unlocked.
+Each CRD instance will track all consumers of the volume.
+In the case of `ReadWriteOnce` there will only be a single consumer, but for `ReadWriteMany` there can be multiple simultaneous consumers.
+There will be an `Attachments` list that captures each instance of pod, node, and mount dir, which can all be used for the fencing checks described in the next section.
+
+The full schema of the volume attachment CRD is shown below:
+```go
+type Volumeattachment struct {
+    metav1.TypeMeta   `json:",inline"`
+    metav1.ObjectMeta `json:"metadata"`
+    Attachments       []Attachment `json:"attachments"`
+}
+
+type Attachment struct {
+    Node         string `json:"node"`
+    PodNamespace string `json:"podNamespace"`
+    Pod          string `json:"pod"`
+    MountDir     string `json:"mountDir,omitempty"`
+}
+```
+
+#### Fencing
+Ensuring either exclusive single client access (`ReadWriteOnce`) or shared multi-pod access (`ReadWriteMany`) to the persistent volume can be achieved by the Rook agent,
+independently from the underlying storage protocol that is being used (RBD, NBD, iSCSI, etc.).
+Remember that during the attach operation, the Rook agent will create a volume attach CRD.
+When the agent performs the attach on its local node, it can create the CRD with information stating that the volume is now locked and who it is locked by.
+Thus, the CRD itself is providing the accounting for the volume's lock in a generalized way, independent of the of the underlying storage protocol the agent chose to use for the volume.
+Of course, this lock can also be augmented at the lower layer of the specific storage protocol that's being used.
+
+##### **Race conditions**
+While using the volume attach CRD for fencing, it is important to avoid race conditions.
+For example, if two pods are attempting to use the same volume at the same time, we must still ensure that only one of them is granted access while the other ones fails.
+This can be accomplished due to consistency guarantees that Kubernetes grants for all its objects, including CRDs, because they are stored in etcd.
+For CRD create operations, an error will be returned if a CRD with that name already exists, and a duplicate CRD will not be created.
+Furthermore, for update operations, an error will be returned if an attempt to update an existing CRD occurs that specifies an out of date version of the object.
+
+##### **ReadWriteOnce**
+For `ReadWriteOnce`, the agent needs to ensure that only one client is accessing the volume at any time.
+During the `Mount()` operation, the agent will look for an existing CRD by its primary key, the PV ID.
+If no CRD currently exists, then the agent will create one, signifying that it has won exclusive access on the volume, then proceed with the attach and mount.
+The CRD that the agent creates will contain the pod, node and mount dir of the current attachment.
+
+If a CRD does already exist, the agent will check its existing attachments list.
+If the list specifies that the volume is attached to a different pod than the one we are currently mounting for, then another consumer already has exclusive access of the volume and the agent must honor `ReadWriteOnce` and fail the operation.
+However, if the previous attachment is for the **same** pod and namespace that we are currently mounting for, this means that the volume is being failed over to a new node and was not properly cleaned up on its previous node.
+Therefore, the agent will "break" the old lock by removing the old attachment entry from the list and adding itself, then continuing with attaching and mounting as usual.
+
+##### **ReadWriteMany**
+For `ReadWriteMany`, the agent will allow multiple entries in the attachments list of the CRD.  When `Mount()` is called, the agent will either create a new CRD instance if it does not already exist, or simply add a new attachment entry for itself to the existing CRD.
+
+##### **Detach**
+During the detach operation, the CRD will be deleted to signify that the volume has been unlocked (or updated to remove the entry from the attachment list of the CRD for the case of `ReadWriteMany`).
+
+However, if the node where the volume was attached dies, the agent on that node may not get a chance to perform the detach and update the CRD instance.
+In this case, we will need to clean up the stale record and potentially perform the detach later on if the node returns.
+This will be performed in two separate ways:
+1. As previously mentioned, the agent will check for existing attachments when it is requested to `Attach()`.  If it finds that the attachment belongs to a node that no longer exists, it will "break" the lock as described above.
+1. Periodically (once per day), the operator will scan all volume attachment CRD instances, looking for any that belong to a node that no longer exists.
+
+In both cases, when a "stale" attachment record is found, its details will be added to a volume attachment garbage collection list, indexed by node name.
+Upon start up of a Rook agent on a node, as well as periodically, the agent can look at this GC list to see if any are for the node its running on.
+If so, the agent will attempt to detach (if the device still exists) and then remove the entry from the GC list.
+Additionally, if there are "stale" records that are no longer applicable for a given node (e.g., a node went down but then came back up), the agent should clean up those invalid records as well.
 
 #### Security
 The only interface for communicating with and invoking operations on the Rook agent is the Unix domain socket.
@@ -119,7 +191,7 @@ When a Rook cluster is being deleted, there may still be consumers of the storag
 When a Rook agent receives a cluster CRD delete event, they will respond by checking for any Rook storage on the local node they are running on and then forcefully remove them.
 
 To forcefully remove the storage from local pods, the agent will perform the following sequence of steps for each Rook PVC:
-```
+```bash
 $ kubectl delete pvc <pvc name>
 $ sudo rbd unmap -o force /dev/rbdX
 # wait for it to time out or send SIGINT
