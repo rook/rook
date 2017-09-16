@@ -3,7 +3,7 @@
 [![Build Status](https://jenkins.rook.io/buildStatus/icon?job=rook/rook/master)](https://jenkins.rook.io/blue/organizations/jenkins/rook%2Frook/activity)
 [![GitHub release](https://img.shields.io/github/release/rook/rook/all.svg?style=flat-square)](https://github.com/rook/rook/releases)
 [![Go Report Card](https://goreportcard.com/badge/github.com/rook/rook)](https://goreportcard.com/report/github.com/rook/rook)
-[![Gitter](https://img.shields.io/gitter/room/rook/rook.js.svg)](https://gitter.im/rook/rook)
+[![Slack](https://rook-slackin.herokuapp.com/badge.svg)](https://rook-slackin.herokuapp.com/badge.svg)
 [![Twitter Follow](https://img.shields.io/twitter/follow/rook_io.svg?style=social&label=Follow)](https://twitter.com/intent/follow?screen_name=rook_io&user_id=788180534543339520)
 
 ## What is Rook?
@@ -32,7 +32,7 @@ For filing bugs, suggesting improvements, or requesting new features, please ope
 
 Please use the following to reach members of the community:
 
-- Gitter: [rook/rook](https://gitter.im/rook/rook) for general project discussions or [rook-dev](https://gitter.im/rook/rook-dev) for development discussions.
+- Slack: Join our [slack channel](https://rook-slackin.herokuapp.com)
 - Forums: [rook-dev](https://groups.google.com/forum/#!forum/rook-dev)
 - Twitter: [@rook_io](https://twitter.com/rook_io)
 - Email: [info@rook.io](mailto:info@rook.io)
