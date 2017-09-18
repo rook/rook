@@ -164,7 +164,7 @@ func (c *Cluster) createInstance() error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.Placement.GetMON())
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.Placement.GetMON(), c.Spec.HostNetwork)
 	clusterInfo, err := c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
@@ -175,20 +175,20 @@ func (c *Cluster) createInstance() error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetMGR())
+	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetMGR(), c.Spec.HostNetwork)
 	err = c.mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
 	}
 
-	c.apis = api.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetAPI())
+	c.apis = api.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetAPI(), c.Spec.HostNetwork)
 	err = c.apis.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD())
+	c.osds = osd.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD(), c.Spec.HostNetwork)
 	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)

@@ -96,6 +96,10 @@ func (c *Cluster) makeMonPod(config *monConfig, nodeName string) *v1.Pod {
 			{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 			k8sutil.ConfigOverrideVolume(),
 		},
+		HostNetwork: c.HostNetwork,
+	}
+	if c.HostNetwork {
+		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.placement.ApplyToPodSpec(&podSpec)
 

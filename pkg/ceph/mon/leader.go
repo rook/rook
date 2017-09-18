@@ -33,7 +33,8 @@ import (
 )
 
 const (
-	monitorKey                   = "monitor"
+	monitorKey = "monitor"
+
 	UnhealthyHeartbeatAgeSeconds = 10
 )
 
@@ -45,7 +46,7 @@ func NewLeader() *Leader {
 	return &Leader{waitForQuorum: WaitForQuorum}
 }
 
-// Apply the desired state to the cluster. The context provides all the information needed to make changes to the service.
+// Configure the desired state to the cluster. The context provides all the information needed to make changes to the service.
 // Create the ceph monitors
 // Must be idempotent
 func (m *Leader) Configure(context *clusterd.Context, adminSecret string) error {
@@ -68,13 +69,12 @@ func (m *Leader) Configure(context *clusterd.Context, adminSecret string) error 
 	}
 
 	// trigger the monitors to start on each node
-	err = clusterd.TriggerAgentsAndWaitForCompletion(context.EtcdClient, monIDs(cluster.Monitors), monitorAgentName, len(cluster.Monitors))
-	if err != nil {
+	if err = clusterd.TriggerAgentsAndWaitForCompletion(context.EtcdClient, monIDs(cluster.Monitors), monitorAgentName, len(cluster.Monitors)); err != nil {
 		return err
 	}
 
 	// write the latest config to the config dir
-	if err := GenerateAdminConnectionConfig(context, cluster); err != nil {
+	if err = GenerateAdminConnectionConfig(context, cluster); err != nil {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
 	}
 
@@ -95,8 +95,7 @@ func (m *Leader) Configure(context *clusterd.Context, adminSecret string) error 
 	}
 
 	// notify the quorum to remove the bad members
-	err = removeMonitorsFromQuorum(context, cluster, monitorsToRemove)
-	if err != nil {
+	if err = removeMonitorsFromQuorum(context, cluster, monitorsToRemove); err != nil {
 		logger.Warningf("failed to remove monitors from quorum. %v", err)
 	}
 
@@ -124,8 +123,7 @@ func removeMonitorsFromQuorum(context *clusterd.Context, cluster *ClusterInfo, m
 func RemoveMonitorFromQuorum(context *clusterd.Context, clusterName, name string) error {
 	logger.Debugf("removing monitor %s", name)
 	args := []string{"mon", "remove", name}
-	_, err := client.ExecuteCephCommand(context, clusterName, args)
-	if err != nil {
+	if _, err := client.ExecuteCephCommand(context, clusterName, args); err != nil {
 		return fmt.Errorf("mon %s remove failed: %+v", name, err)
 	}
 
@@ -265,9 +263,9 @@ func chooseMonitorNodes(context *clusterd.Context) (map[string]*CephMonitorConfi
 		monitorID := fmt.Sprintf("mon%d", nextMonID)
 		settings[path.Join(nodeID, "id")] = monitorID
 		settings[path.Join(nodeID, "ipaddress")] = node.PublicIP
-		settings[path.Join(nodeID, "port")] = strconv.Itoa(Port)
+		settings[path.Join(nodeID, "port")] = strconv.Itoa(int(DefaultPort))
 
-		monitor := &CephMonitorConfig{Name: monitorID, Endpoint: fmt.Sprintf("%s:%d", node.PublicIP, Port)}
+		monitor := &CephMonitorConfig{Name: monitorID, Endpoint: fmt.Sprintf("%s:%d", node.PublicIP, DefaultPort)}
 		monitors[nodeID] = monitor
 
 		nextMonID++

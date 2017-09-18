@@ -125,7 +125,7 @@ func (c *Cluster) failoverMon(name string) error {
 	logger.Infof("Failing over monitor %s", name)
 
 	// Start a new monitor
-	m := &monConfig{Name: fmt.Sprintf("%s%d", appName, c.maxMonID+1), Port: int32(mon.Port)}
+	m := &monConfig{Name: fmt.Sprintf("%s%d", appName, c.maxMonID+1), Port: int32(mon.DefaultPort)}
 	logger.Infof("starting new mon %s", m.Name)
 
 	// Create the service endpoint
@@ -133,18 +133,21 @@ func (c *Cluster) failoverMon(name string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create mon service. %+v", err)
 	}
-	m.PublicIP = serviceIP
-	c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.PublicIP)
 
-	// Save the mon config
-	err = c.saveMonConfig()
-	if err != nil {
-		return fmt.Errorf("failed to save mons. %+v", err)
+	if !c.HostNetwork {
+		m.PublicIP = serviceIP
+		c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.PublicIP, m.Port)
+	}
+
+	mConf := []*monConfig{m}
+
+	// Assign the pod to a node
+	if err = c.assignMons(mConf); err != nil {
+		return fmt.Errorf("failed to assign pods to mons. %+v", err)
 	}
 
 	// Start the pod
-	err = c.startPods([]*monConfig{m})
-	if err != nil {
+	if err = c.startPods(mConf); err != nil {
 		return fmt.Errorf("failed to start new mon %s. %+v", m.Name, err)
 	}
 
@@ -161,8 +164,7 @@ func (c *Cluster) removeMon(name string) error {
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Delete(name, options)
-	if err != nil {
+	if err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Delete(name, options); err != nil {
 		if errors.IsNotFound(err) {
 			logger.Infof("dead mon %s was already gone", name)
 		} else {
@@ -171,15 +173,26 @@ func (c *Cluster) removeMon(name string) error {
 	}
 
 	// Remove the bad monitor from quorum
-	err = mon.RemoveMonitorFromQuorum(c.context, c.clusterInfo.Name, name)
-	if err != nil {
+	if err := mon.RemoveMonitorFromQuorum(c.context, c.clusterInfo.Name, name); err != nil {
 		return fmt.Errorf("failed to remove mon %s from quorum. %+v", name, err)
 	}
 	delete(c.clusterInfo.Monitors, name)
+	nodeName := c.mapping.Node[name].Name
+	// if node->port "mapping" has been created, decrease or delete it
+	if port, ok := c.mapping.Port[nodeName]; ok {
+		if port == mon.DefaultPort {
+			delete(c.mapping.Port, nodeName)
+		}
+		// don't clean up if a node port is higher than the default port, other
+		//mons could be on the same node with > DefaultPort ports, decreasing could
+		//cause port collsions
+		// This can be solved by using a map[nodeName][]int32 for the ports to
+		//even better check which ports are open for the HostNetwork mode
+	}
+	delete(c.mapping.Node, name)
 
 	// Remove the service endpoint
-	err = c.context.Clientset.CoreV1().Services(c.Namespace).Delete(name, options)
-	if err != nil {
+	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(name, options); err != nil {
 		if errors.IsNotFound(err) {
 			logger.Infof("dead mon service %s was already gone", name)
 		} else {
@@ -187,9 +200,13 @@ func (c *Cluster) removeMon(name string) error {
 		}
 	}
 
-	err = c.saveMonConfig()
-	if err != nil {
+	if err := c.saveMonConfig(); err != nil {
 		return fmt.Errorf("failed to save mon config after failing over mon %s. %+v", name, err)
+	}
+
+	// make sure to rewrite the config so NO new connections are made to the removed mon
+	if err := c.writeConnectionConfig(); err != nil {
+		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", name, err)
 	}
 
 	return nil

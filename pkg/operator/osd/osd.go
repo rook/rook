@@ -51,10 +51,11 @@ type Cluster struct {
 	Version         string
 	Storage         StorageSpec
 	dataDirHostPath string
+	HostNetwork     bool
 }
 
 // New creates an instance of the OSD manager
-func New(context *clusterd.Context, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
 	return &Cluster{
 		context:         context,
 		Namespace:       namespace,
@@ -62,6 +63,7 @@ func New(context *clusterd.Context, namespace, version string, storageSpec Stora
 		Version:         version,
 		Storage:         storageSpec,
 		dataDirHostPath: dataDirHostPath,
+		HostNetwork:     hostNetwork,
 	}
 }
 
@@ -162,6 +164,10 @@ func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, sel
 		Containers:    []v1.Container{c.osdContainer(devices, directories, selection, config)},
 		RestartPolicy: v1.RestartPolicyAlways,
 		Volumes:       volumes,
+		HostNetwork:   c.HostNetwork,
+	}
+	if c.HostNetwork {
+		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.placement.ApplyToPodSpec(&podSpec)
 

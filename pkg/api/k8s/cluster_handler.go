@@ -35,10 +35,11 @@ type clusterHandler struct {
 	clusterInfo *mon.ClusterInfo
 	namespace   string
 	versionTag  string
+	hostNetwork bool
 }
 
-func New(context *clusterd.Context, clusterInfo *mon.ClusterInfo, namespace, versionTag string) *clusterHandler {
-	return &clusterHandler{context: context, clusterInfo: clusterInfo, namespace: namespace, versionTag: versionTag}
+func New(context *clusterd.Context, clusterInfo *mon.ClusterInfo, namespace, versionTag string, hostNetwork bool) *clusterHandler {
+	return &clusterHandler{context: context, clusterInfo: clusterInfo, namespace: namespace, versionTag: versionTag, hostNetwork: hostNetwork}
 }
 
 func (s *clusterHandler) GetClusterInfo() (*mon.ClusterInfo, error) {
@@ -66,7 +67,7 @@ func (s *clusterHandler) EnableObjectStore(config model.ObjectStore) error {
 
 	// Passing an empty Placement{} as the api doesn't know about placement
 	// information. This should be resolved with the transition to CRD (TPR).
-	r := k8srgw.New(s.context, config, s.namespace, s.versionTag, k8sutil.Placement{})
+	r := k8srgw.New(s.context, config, s.namespace, s.versionTag, k8sutil.Placement{}, s.hostNetwork)
 	err := r.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
@@ -98,7 +99,7 @@ func (s *clusterHandler) StartFileSystem(fs *model.FilesystemRequest) error {
 	logger.Infof("Starting the MDS")
 	// Passing an empty Placement{} as the api doesn't know about placement
 	// information. This should be resolved with the transition to CRD (TPR).
-	c := k8smds.New(s.context, s.namespace, s.versionTag, k8sutil.Placement{})
+	c := k8smds.New(s.context, s.namespace, s.versionTag, k8sutil.Placement{}, s.hostNetwork)
 	return c.Start()
 }
 

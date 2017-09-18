@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -27,6 +28,7 @@ import (
 
 	"github.com/rook/rook/pkg/ceph/client"
 	clienttest "github.com/rook/rook/pkg/ceph/client/test"
+	cephmon "github.com/rook/rook/pkg/ceph/mon"
 	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -37,9 +39,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-func TestStartMonPods(t *testing.T) {
+func newTestStartCluster(namespace string) *clusterd.Context {
 	clientset := test.New(3)
-	namespace := "ns"
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	executor := &exectest.MockExecutor{
@@ -50,12 +51,16 @@ func TestStartMonPods(t *testing.T) {
 			return "", nil
 		},
 	}
-	context := &clusterd.Context{
+	return &clusterd.Context{
 		Clientset: clientset,
 		Executor:  executor,
 		ConfigDir: configDir,
 	}
-	c := &Cluster{
+}
+
+func newCluster(context *clusterd.Context, namespace string, hostNetwork bool) *Cluster {
+	return &Cluster{
+		HostNetwork:         true,
 		context:             context,
 		Namespace:           namespace,
 		Version:             "myversion",
@@ -64,7 +69,18 @@ func TestStartMonPods(t *testing.T) {
 		waitForStart:        false,
 		monPodRetryInterval: 10 * time.Millisecond,
 		monPodTimeout:       1 * time.Second,
+		monTimeoutList:      map[string]time.Time{},
+		mapping: &mapping{
+			Node: map[string]*nodeInfo{},
+			Port: map[string]int32{},
+		},
 	}
+}
+
+func TestStartMonPods(t *testing.T) {
+	namespace := "ns"
+	context := newTestStartCluster(namespace)
+	c := newCluster(context, namespace, false)
 
 	// start a basic cluster
 	info, err := c.Start()
@@ -72,6 +88,51 @@ func TestStartMonPods(t *testing.T) {
 	assert.NotNil(t, info)
 
 	validateStart(t, c)
+
+	// starting again should be a no-op, but still results in an error
+	info, err = c.Start()
+	assert.Nil(t, err)
+	assert.NotNil(t, info)
+
+	validateStart(t, c)
+}
+
+func TestOperatorRestart(t *testing.T) {
+	namespace := "ns"
+	context := newTestStartCluster(namespace)
+	c := newCluster(context, namespace, false)
+
+	// start a basic cluster
+	info, err := c.Start()
+	assert.Nil(t, err)
+	assert.NotNil(t, info)
+
+	validateStart(t, c)
+
+	c = newCluster(context, namespace, false)
+
+	// starting again should be a no-op, but still results in an error
+	info, err = c.Start()
+	assert.Nil(t, err)
+	assert.NotNil(t, info)
+
+	validateStart(t, c)
+}
+
+// safety check that if hostNetwork is used no changes occur on an operator restart
+func TestOperatorRestartHostNetwork(t *testing.T) {
+	namespace := "ns"
+	context := newTestStartCluster(namespace)
+	c := newCluster(context, namespace, true)
+
+	// start a basic cluster
+	info, err := c.Start()
+	assert.Nil(t, err)
+	assert.NotNil(t, info)
+
+	validateStart(t, c)
+
+	c = newCluster(context, namespace, true)
 
 	// starting again should be a no-op, but still results in an error
 	info, err = c.Start()
@@ -99,7 +160,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", "myversion", k8sutil.Placement{}, false)
 	c.clusterInfo = test.CreateClusterInfo(1)
 
 	// create the initial config map
@@ -109,15 +170,25 @@ func TestSaveMonEndpoints(t *testing.T) {
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon1=1.2.3.1:6790", cm.Data[EndpointDataKey])
+	assert.Equal(t, `{"node":{},"port":{}}`, cm.Data[MappingKey])
+	assert.Equal(t, "-1", cm.Data[MaxMonIDKey])
 
 	// update the config map
 	c.clusterInfo.Monitors["mon1"].Endpoint = "2.3.4.5:6790"
+	c.maxMonID = 2
+	c.mapping.Node["mon1"] = &nodeInfo{
+		Name:    "node0",
+		Address: "1.1.1.1",
+	}
+	c.mapping.Port["node0"] = int32(12345)
 	err = c.saveMonConfig()
 	assert.Nil(t, err)
 
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon1=2.3.4.5:6790", cm.Data[EndpointDataKey])
+	assert.Equal(t, `{"node":{"mon1":{"Name":"node0","Address":"1.1.1.1"}},"port":{"node0":12345}}`, cm.Data[MappingKey])
+	assert.Equal(t, "2", cm.Data[MaxMonIDKey])
 }
 
 func TestCheckHealth(t *testing.T) {
@@ -134,13 +205,19 @@ func TestCheckHealth(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", k8sutil.Placement{})
+	c := New(context, "ns", "", "myversion", k8sutil.Placement{}, false)
 	c.clusterInfo = test.CreateClusterInfo(1)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
 	err := c.checkHealth()
 	assert.Nil(t, err)
+
+	c.mapping.Node["mon1"] = &nodeInfo{
+		Name:    "node0",
+		Address: "",
+	}
+	c.mapping.Port["node0"] = cephmon.DefaultPort
 
 	c.maxMonID = 10
 	err = c.failoverMon("mon1")
@@ -191,7 +268,7 @@ func TestMonID(t *testing.T) {
 
 func TestAvailableMonNodes(t *testing.T) {
 	clientset := test.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{}, false)
 	c.clusterInfo = test.CreateClusterInfo(0)
 	nodes, err := c.getAvailableMonNodes()
 	assert.Nil(t, err)
@@ -208,7 +285,7 @@ func TestAvailableMonNodes(t *testing.T) {
 
 func TestAvailableNodesInUse(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{}, false)
 	c.clusterInfo = test.CreateClusterInfo(0)
 
 	// all three nodes are available by default
@@ -219,7 +296,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 	// start pods on two of the nodes so that only one node will be available
 	for i := 0; i < 2; i++ {
 		pod := c.makeMonPod(&monConfig{Name: fmt.Sprintf("rook-ceph-mon%d", i)}, nodes[i].Name)
-		_, err := clientset.CoreV1().Pods(c.Namespace).Create(pod)
+		_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
 		assert.Nil(t, err)
 	}
 	reducedNodes, err := c.getAvailableMonNodes()
@@ -239,7 +316,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 func TestTaintedNodes(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{}, false)
 	c.clusterInfo = test.CreateClusterInfo(0)
 
 	nodes, err := c.getAvailableMonNodes()
@@ -272,7 +349,7 @@ func TestTaintedNodes(t *testing.T) {
 
 func TestNodeAffinity(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{}, false)
 	c.clusterInfo = test.CreateClusterInfo(0)
 
 	nodes, err := c.getAvailableMonNodes()
@@ -308,4 +385,94 @@ func TestNodeAffinity(t *testing.T) {
 	assert.Equal(t, 2, len(cleanNodes))
 	assert.Equal(t, nodes[1].Name, cleanNodes[0].Name)
 	assert.Equal(t, nodes[2].Name, cleanNodes[1].Name)
+}
+
+func TestHostNetwork(t *testing.T) {
+	clientset := test.New(3)
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{}, false)
+	c.clusterInfo = test.CreateClusterInfo(0)
+
+	c.HostNetwork = true
+
+	nodes, err := c.getAvailableMonNodes()
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(nodes))
+
+	pod := c.makeMonPod(&monConfig{Name: "mon2"}, nodes[2].Name)
+	assert.NotNil(t, pod)
+
+	assert.Equal(t, true, pod.Spec.HostNetwork)
+	assert.Equal(t, v1.DNSClusterFirstWithHostNet, pod.Spec.DNSPolicy)
+}
+
+func TestGetNodeInfoFromNode(t *testing.T) {
+	clientset := test.New(1)
+	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, node)
+
+	node.Status = v1.NodeStatus{}
+	node.Status.Addresses = []v1.NodeAddress{
+		{
+			Type:    v1.NodeExternalIP,
+			Address: "1.1.1.1",
+		},
+	}
+
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{}, true)
+	c.clusterInfo = test.CreateClusterInfo(0)
+
+	var info *nodeInfo
+	info, err = getNodeInfoFromNode(*node)
+	assert.Nil(t, err)
+
+	assert.Equal(t, "1.1.1.1", info.Address)
+}
+
+func TestHostNetworkPortIncrease(t *testing.T) {
+	clientset := test.New(1)
+	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, node)
+
+	node.Status = v1.NodeStatus{}
+	node.Status.Addresses = []v1.NodeAddress{
+		{
+			Type:    v1.NodeExternalIP,
+			Address: "1.1.1.1",
+		},
+	}
+
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	c := New(&clusterd.Context{
+		Clientset: clientset,
+		ConfigDir: configDir,
+	}, "ns", "", "myversion", k8sutil.Placement{}, true)
+	c.clusterInfo = test.CreateClusterInfo(0)
+
+	mons := []*monConfig{
+		{
+			Name: "mon1",
+			Port: cephmon.DefaultPort,
+		},
+		{
+			Name: "mon2",
+			Port: cephmon.DefaultPort,
+		},
+	}
+
+	err = c.assignMons(mons)
+	assert.Nil(t, err)
+
+	err = c.initMonIPs(mons)
+	assert.Nil(t, err)
+
+	assert.Equal(t, node.Name, c.mapping.Node["mon1"].Name)
+	assert.Equal(t, node.Name, c.mapping.Node["mon2"].Name)
+
+	sEndpoint := strings.Split(c.clusterInfo.Monitors["mon1"].Endpoint, ":")
+	assert.Equal(t, strconv.Itoa(cephmon.DefaultPort), sEndpoint[1])
+	sEndpoint = strings.Split(c.clusterInfo.Monitors["mon2"].Endpoint, ":")
+	assert.Equal(t, strconv.Itoa(cephmon.DefaultPort+1), sEndpoint[1])
 }

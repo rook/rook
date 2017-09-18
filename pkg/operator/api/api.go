@@ -69,21 +69,23 @@ var clusterAccessRules = []v1beta1.PolicyRule{
 
 // Cluster has the api service properties
 type Cluster struct {
-	context   *clusterd.Context
-	Namespace string
-	placement k8sutil.Placement
-	Version   string
-	Replicas  int32
+	context     *clusterd.Context
+	Namespace   string
+	placement   k8sutil.Placement
+	Version     string
+	Replicas    int32
+	HostNetwork bool
 }
 
 // New creates an instance
-func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
 	return &Cluster{
-		context:   context,
-		Namespace: namespace,
-		placement: placement,
-		Version:   version,
-		Replicas:  1,
+		context:     context,
+		Namespace:   namespace,
+		placement:   placement,
+		Version:     version,
+		Replicas:    1,
+		HostNetwork: hostNetwork,
 	}
 }
 
@@ -168,6 +170,10 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 		Volumes: []v1.Volume{
 			{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
 		},
+		HostNetwork: c.HostNetwork,
+	}
+	if c.HostNetwork {
+		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.placement.ApplyToPodSpec(&podSpec)
 
@@ -192,6 +198,7 @@ func (c *Cluster) apiContainer() v1.Container {
 			"api",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--port=%d", model.Port),
+			fmt.Sprintf("--hostnetwork=%t", c.HostNetwork),
 		},
 		Name:  deploymentName,
 		Image: k8sutil.MakeRookImage(c.Version),

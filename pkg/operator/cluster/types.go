@@ -76,6 +76,9 @@ type ClusterSpec struct {
 
 	// A spec for available storage in the cluster and how it should be used
 	Storage osd.StorageSpec `json:"storage"`
+
+	// HostNetwork to enable host network
+	HostNetwork bool `json:"hostNetwork"`
 }
 
 // PlacementSpec is a set of Placement configurations for the rook cluster.

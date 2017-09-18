@@ -34,7 +34,7 @@ func TestPodSpecs(t *testing.T) {
 
 func testPodSpec(t *testing.T, dataDir string) {
 	clientset := testop.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", dataDir, "myversion", k8sutil.Placement{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", dataDir, "myversion", k8sutil.Placement{}, false)
 	c.clusterInfo = testop.CreateClusterInfo(0)
 	config := &monConfig{Name: "mon0", Port: 6790}
 

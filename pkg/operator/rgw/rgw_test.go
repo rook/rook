@@ -47,7 +47,7 @@ func TestStartRGW(t *testing.T) {
 	defer os.RemoveAll(configDir)
 	config := model.ObjectStore{Name: "default", Port: 123}
 	context := &clusterd.Context{Clientset: clientset, Executor: executor, ConfigDir: configDir}
-	c := New(context, config, "ns", "version", k8sutil.Placement{})
+	c := New(context, config, "ns", "version", k8sutil.Placement{}, false)
 
 	// start a basic cluster
 	err := c.Start()
@@ -81,7 +81,7 @@ func validateStart(t *testing.T, c *Cluster, clientset *fake.Clientset) {
 
 func TestPodSpecs(t *testing.T) {
 	config := model.ObjectStore{Name: "default", Port: 123}
-	c := New(nil, config, "ns", "myversion", k8sutil.Placement{})
+	c := New(nil, config, "ns", "myversion", k8sutil.Placement{}, false)
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)
@@ -111,7 +111,7 @@ func TestPodSpecs(t *testing.T) {
 
 func TestSSLPodSpec(t *testing.T) {
 	config := model.ObjectStore{Name: "default", Port: 123, CertificateRef: "mycert"}
-	c := New(nil, config, "ns", "myversion", k8sutil.Placement{})
+	c := New(nil, config, "ns", "myversion", k8sutil.Placement{}, false)
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)
@@ -147,9 +147,8 @@ func TestCreateRealm(t *testing.T) {
 			} else if args[0] == "realm" && args[1] == "list" {
 				if defaultStore {
 					return "", fmt.Errorf("failed to run radosgw-admin: Failed to complete : exit status 2")
-				} else {
-					return `{"realms": ["myobj"]}`, nil
 				}
+				return `{"realms": ["myobj"]}`, nil
 			}
 			return idResponse, nil
 		},
@@ -157,7 +156,7 @@ func TestCreateRealm(t *testing.T) {
 
 	config := model.ObjectStore{Name: "myobject", Port: 123}
 	context := &clusterd.Context{Executor: executor}
-	c := New(context, config, "ns", "version", k8sutil.Placement{})
+	c := New(context, config, "ns", "version", k8sutil.Placement{}, false)
 
 	// create the first realm, marked as default
 	err := c.createRealm("1.2.3.4")
@@ -167,4 +166,15 @@ func TestCreateRealm(t *testing.T) {
 	defaultStore = false
 	err = c.createRealm("2.3.4.5")
 	assert.Nil(t, err)
+}
+
+func TestHostNetwork(t *testing.T) {
+	config := model.ObjectStore{Name: "default", Port: 123, CertificateRef: "mycert"}
+	c := New(nil, config, "ns", "myversion", k8sutil.Placement{}, true)
+
+	d := c.makeDeployment()
+	assert.NotNil(t, d)
+
+	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
+	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
 }

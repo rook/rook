@@ -23,6 +23,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
 - `versionTag`: The version (tag) of the `rook/rook` container that will be deployed. Upgrades are not yet supported if this setting is updated for an existing cluster, but upgrades will be coming.
 - `dataDirHostPath`: The host path where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.  Therefore, for test scenarios, the path must be deleted if you are going to delete a cluster and start a new cluster on the same hosts.  More details can be found in the Kubernetes [host path docs](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath).
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
+- `hostNetwork`: uses host network instead of using the SDN below the containers
 - `placement`: [placement configuration settings](#placement-configuration-settings)
 - `storage`: Storage selection and configuration that will be used across the cluster.  Note that these settings can be overridden for specific nodes.
   - `useAllNodes`: `true` or `false`, indicating if all nodes in the cluster should be used for storage according to the cluster level storage selection and configuration values.

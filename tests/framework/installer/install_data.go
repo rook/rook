@@ -48,7 +48,7 @@ spec:
         args: ["operator", "--mon-healthcheck-interval=5s", "--mon-out-timeout=1s"]
         env:
         - name: ROOK_REPO_PREFIX
-          value: roo`
+          value: rook`
 	}
 
 	return `kind: ClusterRole
@@ -167,7 +167,9 @@ spec:
         args: ["operator", "--mon-healthcheck-interval=5s", "--mon-out-timeout=1s"]
         env:
         - name: ROOK_REPO_PREFIX
-          value: rook`
+          value: rook
+        - name: ROOK_LOG_LEVEL
+          value: DEBUG`
 
 }
 
@@ -186,6 +188,7 @@ metadata:
 spec:
   versionTag: master
   dataDirHostPath:
+  hostNetwork: false
 # To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
 # The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage' and
 # tolerate taints with a key of 'storage-node'.
