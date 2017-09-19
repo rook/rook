@@ -52,10 +52,14 @@ GO_TEST_FLAGS ?=
 GO_SUPPORTED_VERSIONS ?= 1.7|1.8|1.9
 
 GO_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
-GO_INTEGRATION_TEST_PACKAGES := $(foreach t,$(GO_INTEGRATION_TESTS_SUBDIRS),$(GO_PROJECT)/$(t)/...)
+GO_INTEGRATION_TEST_PACKAGES := $(foreach t,$(GO_INTEGRATION_TESTS_SUBDIRS),$(GO_PROJECT)/$(t)/integration)
 
 ifneq ($(GO_TEST_SUITE),)
 GO_TEST_FLAGS += -run '$(GO_TEST_SUITE)'
+endif
+
+ifneq ($(GO_TEST_FILTER),)
+TEST_FILTER_PARAM := -testify.m '$(GO_TEST_FILTER)'
 endif
 
 GOPATH := $(shell go env GOPATH)
@@ -136,6 +140,8 @@ go.build.test.packages.$(1):
 go.build.test.packages: go.build.test.packages.$(1)
 endef
 $(foreach p,$(GO_TEST_PACKAGES),$(eval $(call go.test.project,$(lastword $(subst /, ,$(p))),$(p),CGO_ENABLED=0,$(GO_STATIC_FLAGS))))
+$(foreach p,$(GO_LONGHAUL_TEST_PACKAGES),$(eval $(call go.test.project,$(lastword $(subst /, ,$(p))),$(p),CGO_ENABLED=0,$(GO_STATIC_FLAGS))))
+
 
 .PHONY: go.build
 go.build: go.build.packages go.build.test.packages
@@ -156,7 +162,7 @@ go.test.integration: $(GOJUNIT)
 	@echo === go test integration-tests
 	@mkdir -p $(GO_TEST_OUTPUT)
 	@CGO_ENABLED=0 $(GOHOST) test -v -i $(GO_STATIC_FLAGS) $(GO_INTEGRATION_TEST_PACKAGES)
-	@CGO_ENABLED=0 $(GOHOST) test -v $(GO_TEST_FLAGS) $(GO_STATIC_FLAGS) $(GO_INTEGRATION_TEST_PACKAGES) 2>&1 | tee $(GO_TEST_OUTPUT)/integration-tests.log
+	@CGO_ENABLED=0 $(GOHOST) test -v $(GO_TEST_FLAGS) $(GO_STATIC_FLAGS) $(GO_INTEGRATION_TEST_PACKAGES) $(TEST_FILTER_PARAM) 2>&1 | tee $(GO_TEST_OUTPUT)/integration-tests.log
 	@cat $(GO_TEST_OUTPUT)/integration-tests.log | $(GOJUNIT) -set-exit-code > $(GO_TEST_OUTPUT)/integration-tests.xml
 
 .PHONY: go.lint

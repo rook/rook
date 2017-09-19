@@ -47,28 +47,33 @@ Use [helm.sh](/tests/scripts/helm.sh) to install helm and set up rook charts def
 **Note:**  *kubeadm.sh, minikube.sh and helm.sh scripts depend on some artifacts under _output dir generated during build time, these scripts 
 should be run from project root. eg* `tests/script/kubeadm.sh up`
 
-### Run Tests
-From the root do the following:
-1. Build rook: `make build`
-2. Start kubernetes using one of the following:
+## Run Tests
+From the project root do the following:
+#### 1. Build rook: 
+ run `make build`
+
+#### 2. Start kubernetes 
+using one of the following:
    
    -  using Kubeadm  
    ```
     tests/scripts/kubeadm.sh up
-    tests/scripts/helm.sh up
-    ```
+    tests/scripts/helm.sh up  
+  ```   
    - using minikube
    ```
    tests/scripts/minikube.sh up
-   tests/scripts/minikube.sh update
    tests/scripts/minikube.sh helm
    tests/scripts/helm.sh up
    ```
-3. Run integration tests: `make test-integration`
 
+#### 3. Run integration tests: 
+Integration tests can be run using tests binary `_output/tests/${platform}/integration` that is generated during build time
+eg ` ~/integration -test.v `
+       
 
 ### Test parameters
-The following parameters are available while running tests
+In addition to standard go tests parameters, the following custom parameters are available while running tests
 
  Parameter | Description | Possible values | Default
  --- |--- | --- | ---
@@ -83,34 +88,28 @@ If the `install_rook` flag is set to false, then all the other flags are ignored
 and tests are run without rook being installed and setup. Use this flag to run tests against
 a pre-installed/configured rook.
 
+
 ### Running Tests with parameters.
 
 #### To run all integration tests run 
 ```
-make test-integration
+go test -v -timeout 1800s github.com/rook/rook/tests/integration
 ```
 
-#### To run all integration Tests on a specific suite (uses regex)
+#### To run a specific suite (uses regex)
 ```
-make test-integration SUITE=SmokeSuite
+go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration
 ```
 
-#### To run all tests in a package:
+#### To run specific tests inside a suite:
 ```
-go test github.com/rook/rook/e2e/tests/smoke
-```
-runs all tests under /tests/smoke folder. 
+go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration -testify.m TestRookClusterInstallation_smokeTest
 
-#### To run specific tests: 
 ```
-go test -run SmokeSuite github.com/rook/rook/tests/smoke
-```
-which runs all tests that match regex SmokeSuite in /tests/smoke folder 
 
-
-##### To run specific without installing rook: 
+##### To run specific without installing rook
 ```
-go test -run SmokeSuite github.com/rook/rook/tests/smoke --skip_install_rook=true
+go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration --skip_install_rook=true
 ```
 If the `skip_install_rook` flag is set to true, then rook is not uninstalled either. 
 

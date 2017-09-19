@@ -1,4 +1,4 @@
-package smoke
+package integration
 
 import (
 	"strings"
@@ -29,6 +29,8 @@ type MultiRookClusterDeploySuite struct {
 
 //Deploy Multiple Rook clusters
 func (mrc *MultiRookClusterDeploySuite) SetupSuite() {
+	//Skipping test until https://github.com/rook/rook/issues/970 is fixed.
+	mrc.Suite.T().SkipNow()
 	kh, err := utils.CreateK8sHelper()
 	require.NoError(mrc.T(), err)
 
