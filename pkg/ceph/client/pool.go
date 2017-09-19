@@ -140,7 +140,7 @@ func CreatePoolForApp(context *clusterd.Context, clusterName string, newPool Cep
 
 	if newPool.ErasureCodeProfile == "" && newPool.Size > 0 {
 		// the pool is type replicated, set the size for the pool now that it's been created
-		if err = SetPoolProperty(context, clusterName, newPool.Name, "size", strconv.FormatUint(uint64(newPool.Size), 10)); err != nil {
+		if _, err = SetPoolProperty(context, clusterName, newPool.Name, "size", strconv.FormatUint(uint64(newPool.Size), 10)); err != nil {
 			return err
 		}
 	}
@@ -156,13 +156,13 @@ func CreatePoolForApp(context *clusterd.Context, clusterName string, newPool Cep
 	return nil
 }
 
-func SetPoolProperty(context *clusterd.Context, clusterName, name, propName string, propVal string) error {
+func SetPoolProperty(context *clusterd.Context, clusterName, name, propName string, propVal string) ([]byte, error) {
 	args := []string{"osd", "pool", "set", name, propName, propVal}
-	_, err := ExecuteCephCommand(context, clusterName, args)
+	buf, err := ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
-		return fmt.Errorf("failed to set pool property %s on pool %s, %+v", propName, name, err)
+		return nil, fmt.Errorf("failed to set pool property %s on pool %s, %+v", propName, name, err)
 	}
-	return nil
+	return buf, nil
 }
 
 func GetPoolStats(context *clusterd.Context, clusterName string) (*CephStoragePoolStats, error) {

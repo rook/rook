@@ -93,20 +93,27 @@ func (c *PoolController) onAdd(obj interface{}) {
 }
 
 func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
-	//oldPool := oldObj.(*Pool)
-	newPool := newObj.(*Pool)
+	oldPool := oldObj.(*Pool)
+	pool := newObj.(*Pool)
+
+	if oldPool.Name != pool.Name {
+		logger.Errorf("failed to update pool %s. name update not allowed", pool.Name)
+		return
+	}
+	if pool.Spec.ErasureCoded.CodingChunks != 0 && pool.Spec.ErasureCoded.DataChunks != 0 {
+		logger.Errorf("failed to update pool %s. erasurecoded update not allowed", pool.Name)
+		return
+	}
 
 	// if the pool is modified, allow the pool to be created if it wasn't already
-	err := newPool.create(c.context)
-	if err != nil {
-		logger.Errorf("failed to create (modify) pool %s. %+v", newPool.ObjectMeta.Name, err)
+	if err := pool.create(c.context); err != nil {
+		logger.Errorf("failed to create (modify) pool %s. %+v", pool.ObjectMeta.Name, err)
 	}
 }
 
 func (c *PoolController) onDelete(obj interface{}) {
 	pool := obj.(*Pool)
-	err := pool.delete(c.context)
-	if err != nil {
+	if err := pool.delete(c.context); err != nil {
 		logger.Errorf("failed to delete pool %s. %+v", pool.ObjectMeta.Name, err)
 	}
 }
@@ -118,18 +125,10 @@ func (p *Pool) create(context *clusterd.Context) error {
 		return fmt.Errorf("invalid pool %s arguments. %+v", p.Name, err)
 	}
 
-	// check if the pool already exists
-	exists, err := p.exists(context)
-	if err == nil && exists {
-		logger.Infof("pool %s already exists in namespace %s ", p.Name, p.Namespace)
-		return nil
-	}
-
 	// create the pool
 	pool := p.ToModel()
 	logger.Infof("creating pool in namespace %s. %+v", p.Namespace, pool)
-	err = ceph.CreatePoolWithProfile(context, p.Namespace, pool)
-	if err != nil {
+	if err := ceph.CreatePoolWithProfile(context, p.Namespace, pool); err != nil {
 		return fmt.Errorf("failed to create pool %s. %+v", p.Name, err)
 	}
 
