@@ -55,13 +55,14 @@ func TestStartRGW(t *testing.T) {
 	err := store.Create(context, version, false)
 	assert.Nil(t, err)
 
-	validateStart(t, store, clientset)
+	validateStart(t, store, clientset, false)
 
-	// starting again should be a no-op
-	err = store.Create(context, version, false)
+	// starting again should update the pods with the new settings
+	store.Spec.Gateway.AllNodes = true
+	err = store.Update(context, version, false)
 	assert.Nil(t, err)
 
-	validateStart(t, store, clientset)
+	validateStart(t, store, clientset, true)
 }
 
 func validateStart(t *testing.T, store *Objectstore, clientset *fake.Clientset, allNodes bool) {

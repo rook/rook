@@ -101,7 +101,7 @@ func (s *clusterHandler) EnableObjectStore(config model.ObjectStore) error {
 	}
 
 	store := k8srgw.ModelToSpec(config, s.namespace)
-	err := store.Create(s.context, s.versionTag, s.hostNetwork)
+	err := store.Update(s.context, s.versionTag, s.hostNetwork)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
 	}

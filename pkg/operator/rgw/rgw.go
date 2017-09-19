@@ -20,6 +20,7 @@ package rgw
 import (
 	"fmt"
 	"path"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
@@ -48,7 +49,14 @@ const (
 
 // Start the rgw manager
 func (s *Objectstore) Create(context *clusterd.Context, version string, hostNetwork bool) error {
+	return s.createOrUpdate(context, version, hostNetwork, false)
+}
 
+func (s *Objectstore) Update(context *clusterd.Context, version string, hostNetwork bool) error {
+	return s.createOrUpdate(context, version, hostNetwork, true)
+}
+
+func (s *Objectstore) createOrUpdate(context *clusterd.Context, version string, hostNetwork, update bool) error {
 	// validate the object store settings
 	if err := s.validate(); err != nil {
 		return fmt.Errorf("invalid object store %s arguments. %+v", s.Name, err)
@@ -57,8 +65,11 @@ func (s *Objectstore) Create(context *clusterd.Context, version string, hostNetw
 	// check if the object store already exists
 	exists, err := s.exists(context)
 	if err == nil && exists {
-		logger.Infof("object store %s already exists in namespace %s ", s.Name, s.Namespace)
-		return nil
+		if !update {
+			logger.Infof("object store %s exists in namespace %s", s.Name, s.Namespace)
+			return nil
+		}
+		logger.Infof("object store %s exists in namespace %s. checking for updates", s.Name, s.Namespace)
 	}
 
 	logger.Infof("creating object store %s in namespace %s", s.Name, s.Namespace)
@@ -80,8 +91,24 @@ func (s *Objectstore) Create(context *clusterd.Context, version string, hostNetw
 		return fmt.Errorf("failed to create ceph object store. %+v", err)
 	}
 
+	if err := s.startRGWPods(context, version, hostNetwork, update); err != nil {
+		return fmt.Errorf("failed to start pods. %+v", err)
+	}
+
+	logger.Infof("created object store %s", s.Name)
+	return nil
+}
+
+func (s *Objectstore) startRGWPods(context *clusterd.Context, version string, hostNetwork, update bool) error {
+
+	// if intended to update, remove the old pods so they can be created with the new spec settings
+	if update {
+		s.deleteRGWPods(context)
+	}
+
 	// start the deployment or daemonset
 	var rgwType string
+	var err error
 	if s.Spec.Gateway.AllNodes {
 		rgwType = "daemonset"
 		err = s.startDaemonset(context, version, hostNetwork)
@@ -99,7 +126,6 @@ func (s *Objectstore) Create(context *clusterd.Context, version string, hostNetw
 		logger.Infof("rgw %s started", rgwType)
 	}
 
-	logger.Infof("created object store %s", s.Name)
 	return nil
 }
 
@@ -143,17 +169,7 @@ func (s *Objectstore) Delete(context *clusterd.Context) error {
 		logger.Warningf("failed to delete rgw service. %+v", err)
 	}
 
-	// Delete the rgw deployment
-	err = context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Delete(s.instanceName(), options)
-	if err != nil && !errors.IsNotFound(err) {
-		logger.Warningf("failed to delete rgw deployment. %+v", err)
-	}
-
-	// Delete the rgw daemonset
-	err = context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Delete(s.instanceName(), options)
-	if err != nil && !errors.IsNotFound(err) {
-		logger.Warningf("failed to delete rgw deployment. %+v", err)
-	}
+	s.deleteRGWPods(context)
 
 	// Delete the rgw keyring
 	err = context.Clientset.CoreV1().Secrets(s.Namespace).Delete(s.instanceName(), options)
@@ -170,6 +186,52 @@ func (s *Objectstore) Delete(context *clusterd.Context) error {
 
 	logger.Infof("Completed deleting object store %s", s.Name)
 	return nil
+}
+
+// deleteRGWPods makes a best effort at deleting the RGW pods, including the deployment and daemonset
+func (s *Objectstore) deleteRGWPods(context *clusterd.Context) {
+	logger.Infof("removing rgw pods if they exist")
+
+	var gracePeriod int64
+	propagation := metav1.DeletePropagationForeground
+	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
+
+	// Delete the rgw deployment
+	err := context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Delete(s.instanceName(), options)
+	if err != nil && !errors.IsNotFound(err) {
+		logger.Warningf("failed to delete rgw deployment. %+v", err)
+	}
+
+	// Delete the rgw daemonset
+	err = context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Delete(s.instanceName(), options)
+	if err != nil && !errors.IsNotFound(err) {
+		logger.Warningf("failed to delete rgw deployment. %+v", err)
+	}
+
+	// wait for the daemonset and deployments to be deleted
+	sleepTime := 2 * time.Second
+	for i := 0; i < 20; i++ {
+		// check for the existence of the deployment
+		_, err = context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
+		if err == nil {
+			logger.Infof("rgw deployment %s still found. waiting...", s.instanceName())
+			time.Sleep(sleepTime)
+			continue
+		}
+
+		// check for the existence of the daemonset
+		_, err = context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
+		if err == nil {
+			logger.Infof("rgw daemonset %s still found. waiting...", s.instanceName())
+			time.Sleep(sleepTime)
+			continue
+		}
+
+		logger.Infof("confirmed rgw daemonset and deployment %s do not exist", s.instanceName())
+		return
+	}
+
+	logger.Warningf("gave up waiting for rgw pods to be terminated")
 }
 
 // Check if the object store exists depending on either the deployment or the daemonset
@@ -267,6 +329,7 @@ func ModelToSpec(store model.ObjectStore, namespace string) *Objectstore {
 				Port:              store.Gateway.Port,
 				SecurePort:        store.Gateway.SecurePort,
 				Instances:         store.Gateway.Instances,
+				AllNodes:          store.Gateway.AllNodes,
 				SSLCertificateRef: store.Gateway.CertificateRef,
 			},
 		},

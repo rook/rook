@@ -89,7 +89,7 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	newObjectStore := newObj.(*Objectstore)
 
 	// if the object store is modified, allow the object store to be created if it wasn't already
-	err := newObjectStore.Create(c.context, c.versionTag, c.hostNetwork)
+	err := newObjectStore.Update(c.context, c.versionTag, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create (modify) object store %s. %+v", newObjectStore.Name, err)
 	}
