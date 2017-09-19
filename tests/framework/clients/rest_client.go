@@ -65,13 +65,13 @@ func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHe
 	httpclient := &http.Client{
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
+				Timeout:   60 * time.Second,
 				KeepAlive: 0,
 			}).Dial,
 			DisableKeepAlives:     true,
 			DisableCompression:    true,
 			MaxIdleConnsPerHost:   1,
-			ResponseHeaderTimeout: 30 * time.Second,
+			ResponseHeaderTimeout: 60 * time.Second,
 		},
 	}
 	client := rclient.NewRookNetworkRestClient(endpoint, httpclient)

@@ -62,12 +62,12 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 		DeleteFunc: c.onDelete,
 	}
 	watcher := kit.NewWatcher(ObjectStoreResource, namespace, resourceHandlerFuncs, client)
-	go watcher.Watch(&ObjectStore{}, stopCh)
+	go watcher.Watch(&Objectstore{}, stopCh)
 	return nil
 }
 
 func (c *ObjectStoreController) onAdd(obj interface{}) {
-	objectStore := obj.(*ObjectStore)
+	objectStore := obj.(*Objectstore)
 
 	// NEVER modify objects from the store. It's a read-only, local cache.
 	// Use scheme.Copy() to make a deep copy of original object.
@@ -76,7 +76,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 		fmt.Printf("ERROR creating a deep copy of object store: %v\n", err)
 		return
 	}
-	objectStoreCopy := copyObj.(*ObjectStore)
+	objectStoreCopy := copyObj.(*Objectstore)
 
 	err = objectStoreCopy.Create(c.context, c.versionTag, c.hostNetwork)
 	if err != nil {
@@ -86,7 +86,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 
 func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	//oldObjectStore := oldObj.(*ObjectStore)
-	newObjectStore := newObj.(*ObjectStore)
+	newObjectStore := newObj.(*Objectstore)
 
 	// if the object store is modified, allow the object store to be created if it wasn't already
 	err := newObjectStore.Create(c.context, c.versionTag, c.hostNetwork)
@@ -96,7 +96,7 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *ObjectStoreController) onDelete(obj interface{}) {
-	objectStore := obj.(*ObjectStore)
+	objectStore := obj.(*Objectstore)
 	err := objectStore.Delete(c.context)
 	if err != nil {
 		logger.Errorf("failed to delete object store %s. %+v", objectStore.Name, err)

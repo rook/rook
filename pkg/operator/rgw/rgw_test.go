@@ -29,6 +29,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -63,11 +64,22 @@ func TestStartRGW(t *testing.T) {
 	validateStart(t, store, clientset)
 }
 
-func validateStart(t *testing.T, store *ObjectStore, clientset *fake.Clientset) {
+func validateStart(t *testing.T, store *Objectstore, clientset *fake.Clientset, allNodes bool) {
+	if !allNodes {
+		r, err := clientset.ExtensionsV1beta1().Deployments(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
+		assert.Nil(t, err)
+		assert.Equal(t, store.instanceName(), r.Name)
 
-	r, err := clientset.ExtensionsV1beta1().Deployments(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, store.instanceName(), r.Name)
+		_, err = clientset.ExtensionsV1beta1().DaemonSets(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
+		assert.True(t, errors.IsNotFound(err))
+	} else {
+		r, err := clientset.ExtensionsV1beta1().DaemonSets(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
+		assert.Nil(t, err)
+		assert.Equal(t, store.instanceName(), r.Name)
+
+		_, err = clientset.ExtensionsV1beta1().Deployments(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
+		assert.True(t, errors.IsNotFound(err))
+	}
 
 	s, err := clientset.CoreV1().Services(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
 	assert.Nil(t, err)
@@ -184,8 +196,8 @@ func TestValidateSpec(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func simpleStore() *ObjectStore {
-	return &ObjectStore{
+func simpleStore() *Objectstore {
+	return &Objectstore{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"},
 		Spec: ObjectStoreSpec{
 			MetadataPool: pool.PoolSpec{Replicated: pool.ReplicatedSpec{Size: 1}},

@@ -169,7 +169,7 @@ spec:
         - name: ROOK_REPO_PREFIX
           value: rook
         - name: ROOK_LOG_LEVEL
-          value: DEBUG`
+          value: INFO`
 
 }
 

@@ -116,13 +116,13 @@ func (mrc *MultiRookClusterDeploySuite) TearDownSuite() {
 
 	// Delete crd/tpr
 	if kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.7.0")) {
-		_, err = k8sHelp.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io"})
+		_, err = k8sHelp.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io", "objectstores.rook.io"})
 		if err != nil {
 			logger.Errorf("crd cannot be deleted")
 			panic(err)
 		}
 	} else {
-		_, err = k8sHelp.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io"})
+		_, err = k8sHelp.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io", "objectstore.rook.io"})
 		if err != nil {
 			logger.Errorf("tpr cannot be deleted")
 			panic(err)

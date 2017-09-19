@@ -47,7 +47,7 @@ const (
 )
 
 // Start the rgw manager
-func (s *ObjectStore) Create(context *clusterd.Context, version string, hostNetwork bool) error {
+func (s *Objectstore) Create(context *clusterd.Context, version string, hostNetwork bool) error {
 
 	// validate the object store settings
 	if err := s.validate(); err != nil {
@@ -103,7 +103,7 @@ func (s *ObjectStore) Create(context *clusterd.Context, version string, hostNetw
 	return nil
 }
 
-func (s *ObjectStore) createObjectStore(context *cephrgw.Context, serviceIP string) error {
+func (s *Objectstore) createObjectStore(context *cephrgw.Context, serviceIP string) error {
 
 	mModel := model.Pool{}
 	dModel := model.Pool{}
@@ -120,7 +120,7 @@ func (s *ObjectStore) createObjectStore(context *cephrgw.Context, serviceIP stri
 
 // Delete the object store.
 // WARNING: This is a very destructive action that deletes all metadata and data pools.
-func (s *ObjectStore) Delete(context *clusterd.Context) error {
+func (s *Objectstore) Delete(context *clusterd.Context) error {
 	// check if the object store  exists
 	exists, err := s.exists(context)
 	if err != nil {
@@ -173,7 +173,7 @@ func (s *ObjectStore) Delete(context *clusterd.Context) error {
 }
 
 // Check if the object store exists depending on either the deployment or the daemonset
-func (s *ObjectStore) exists(context *clusterd.Context) (bool, error) {
+func (s *Objectstore) exists(context *clusterd.Context) (bool, error) {
 	_, err := context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
@@ -197,7 +197,7 @@ func (s *ObjectStore) exists(context *clusterd.Context) (bool, error) {
 }
 
 // Validate the object store arguments
-func (s *ObjectStore) validate() error {
+func (s *Objectstore) validate() error {
 	logger.Debugf("validating object store: %+v", s)
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
@@ -215,7 +215,7 @@ func (s *ObjectStore) validate() error {
 	return nil
 }
 
-func (s *ObjectStore) createKeyring(context *clusterd.Context) error {
+func (s *Objectstore) createKeyring(context *clusterd.Context) error {
 	_, err := context.Clientset.CoreV1().Secrets(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
@@ -249,7 +249,7 @@ func (s *ObjectStore) createKeyring(context *clusterd.Context) error {
 	return nil
 }
 
-func (s *ObjectStore) instanceName() string {
+func (s *Objectstore) instanceName() string {
 	return InstanceName(s.Name)
 }
 
@@ -257,8 +257,8 @@ func InstanceName(name string) string {
 	return fmt.Sprintf("%s-%s", appName, name)
 }
 
-func ModelToSpec(store model.ObjectStore, namespace string) *ObjectStore {
-	return &ObjectStore{
+func ModelToSpec(store model.ObjectStore, namespace string) *Objectstore {
+	return &Objectstore{
 		ObjectMeta: metav1.ObjectMeta{Name: store.Name, Namespace: namespace},
 		Spec: ObjectStoreSpec{
 			MetadataPool: pool.ModelToSpec(store.MetadataConfig),
@@ -273,7 +273,7 @@ func ModelToSpec(store model.ObjectStore, namespace string) *ObjectStore {
 	}
 }
 
-func (s *ObjectStore) makeRGWPodSpec(version string, hostNetwork bool) v1.PodTemplateSpec {
+func (s *Objectstore) makeRGWPodSpec(version string, hostNetwork bool) v1.PodTemplateSpec {
 	podSpec := v1.PodSpec{
 		Containers:    []v1.Container{s.rgwContainer(version)},
 		RestartPolicy: v1.RestartPolicyAlways,
@@ -309,7 +309,7 @@ func (s *ObjectStore) makeRGWPodSpec(version string, hostNetwork bool) v1.PodTem
 	}
 }
 
-func (s *ObjectStore) startDeployment(context *clusterd.Context, version string, replicas int32, hostNetwork bool) error {
+func (s *Objectstore) startDeployment(context *clusterd.Context, version string, replicas int32, hostNetwork bool) error {
 
 	deployment := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -322,7 +322,7 @@ func (s *ObjectStore) startDeployment(context *clusterd.Context, version string,
 	return err
 }
 
-func (s *ObjectStore) startDaemonset(context *clusterd.Context, version string, hostNetwork bool) error {
+func (s *Objectstore) startDaemonset(context *clusterd.Context, version string, hostNetwork bool) error {
 
 	daemonset := &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -336,7 +336,7 @@ func (s *ObjectStore) startDaemonset(context *clusterd.Context, version string, 
 	return err
 }
 
-func (s *ObjectStore) rgwContainer(version string) v1.Container {
+func (s *Objectstore) rgwContainer(version string) v1.Container {
 
 	container := v1.Container{
 		Args: []string{
@@ -378,7 +378,7 @@ func (s *ObjectStore) rgwContainer(version string) v1.Container {
 	return container
 }
 
-func (s *ObjectStore) startService(context *clusterd.Context, hostNetwork bool) (string, error) {
+func (s *Objectstore) startService(context *clusterd.Context, hostNetwork bool) (string, error) {
 	labels := s.getLabels()
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -422,7 +422,7 @@ func addPort(service *v1.Service, name string, port int32) {
 	})
 }
 
-func (s *ObjectStore) getLabels() map[string]string {
+func (s *Objectstore) getLabels() map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr:     appName,
 		k8sutil.ClusterAttr: s.Namespace,

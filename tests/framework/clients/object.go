@@ -17,9 +17,15 @@ limitations under the License.
 package clients
 
 import (
+	"fmt"
+
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/contracts"
+	"github.com/rook/rook/tests/framework/utils"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook/tests", "clients")
 
 //ObjectOperation is wrapper for k8s rook object operations
 type ObjectOperation struct {
@@ -34,11 +40,46 @@ func CreateObjectOperation(rookRestClient contracts.RestAPIOperator) *ObjectOper
 //ObjectCreate Function to create a object store in rook
 //Input paramatres -None
 //Output - output returned by rook Rest API client
-func (ro *ObjectOperation) ObjectCreate(storeName string, replicaCount int32) (string, error) {
+func (ro *ObjectOperation) ObjectCreate(namespace, storeName string, replicaCount int32, callAPI bool, k8sh *utils.K8sHelper) error {
 	store := model.ObjectStore{Name: storeName, Gateway: model.Gateway{Instances: replicaCount, Port: model.RGWPort}}
 	store.DataConfig.ReplicatedConfig.Size = 1
 	store.MetadataConfig.ReplicatedConfig.Size = 1
-	return ro.restClient.CreateObjectStore(store)
+	if callAPI {
+		logger.Infof("creating the object store via the rest API")
+		_, err := ro.restClient.CreateObjectStore(store)
+		return err
+	}
+
+	logger.Infof("creating the object store via CRD")
+	storeSpec := fmt.Sprintf(`apiVersion: rook.io/v1alpha1
+kind: Objectstore
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  metadataPool:
+    replicated:
+      size: 1
+  dataPool:
+    replicated:
+      size: 1
+  gateway:
+    type: s3
+    sslCertificateRef: 
+    port: %d
+    securePort:
+    instances: %d
+    allNodes: false
+`, store.Name, namespace, store.Gateway.Port, store.Gateway.Instances)
+
+	if _, err := k8sh.ResourceOperation("create", storeSpec); err != nil {
+		return err
+	}
+
+	if !k8sh.IsPodWithLabelRunning(fmt.Sprintf("rook_object_store=%s", storeName), namespace) {
+		return fmt.Errorf("rgw did not start via crd")
+	}
+	return nil
 }
 
 //ObjectBucketList Function to get Buckets present in rook object store

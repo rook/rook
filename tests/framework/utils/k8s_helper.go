@@ -292,6 +292,33 @@ func (k8sh *K8sHelper) GetMonitorServices(namespace string) (map[string]string, 
 	}, nil
 }
 
+//IsPodWithLabelRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
+func (k8sh *K8sHelper) IsPodWithLabelRunning(label string, namespace string) bool {
+	options := metav1.ListOptions{LabelSelector: label}
+	inc := 0
+	for inc < RetryLoop {
+		pods, err := k8sh.Clientset.Pods(namespace).List(options)
+		if err != nil {
+			logger.Errorf("failed to find pod with label %s. %+v", label, err)
+			return false
+		}
+
+		if len(pods.Items) > 0 {
+			for _, pod := range pods.Items {
+				if pod.Status.Phase == "Running" {
+					return true
+				}
+			}
+		}
+		inc++
+		time.Sleep(RetryInterval * time.Second)
+		logger.Infof("waiting for pod with label %s in namespace %s to be running", label, namespace)
+
+	}
+	logger.Infof("Giving up waiting for pod with label %s in namespace %s to be running", label, namespace)
+	return false
+}
+
 //IsPodRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) IsPodRunning(name string, namespace string) bool {
 	getOpts := metav1.GetOptions{}
@@ -332,7 +359,7 @@ func (k8sh *K8sHelper) IsPodTerminated(name string, namespace string) bool {
 	return false
 }
 
-//IsServiceUp returns true if a service is up or comes up within 40s, else returns false
+//IsServiceUp returns true if a service is up or comes up within 150s, else returns false
 func (k8sh *K8sHelper) IsServiceUp(name string, namespace string) bool {
 	getOpts := metav1.GetOptions{}
 	inc := 0

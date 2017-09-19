@@ -40,7 +40,7 @@ var ObjectStoreResource = kit.CustomResource{
 	Group:   k8sutil.CustomResourceGroup,
 	Version: k8sutil.V1Alpha1,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(ObjectStore{}).Name(),
+	Kind:    reflect.TypeOf(Objectstore{}).Name(),
 }
 
 // Kind takes an unqualified kind and returns back a Group qualified GroupKind
@@ -56,8 +56,8 @@ func Resource(resource string) schema.GroupResource {
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(schemeGroupVersion,
-		&ObjectStore{},
-		&ObjectStoreList{},
+		&Objectstore{},
+		&ObjectstoreList{},
 	)
 	metav1.AddToGroupVersion(scheme, schemeGroupVersion)
 	return nil

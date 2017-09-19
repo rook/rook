@@ -51,7 +51,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Running on Rook Cluster %s", namespace)
 
 	logger.Infof("Step 0 : Create Object Store")
-	cobsErr := createObjectStore(helper, k8sh, namespace, storeName, 1)
+	cobsErr := createObjectStore(helper, k8sh, s, namespace, storeName, 1)
 	require.Nil(s.T(), cobsErr)
 	logger.Infof("Object store created successfully")
 
@@ -134,7 +134,8 @@ func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s s
 
 	logger.Infof("Step 1 : Create Object Store")
 	oc := helper.GetObjectClient()
-	oc.ObjectCreate(name, int32(replicaSize))
+	err := oc.ObjectCreate(namespace, name, int32(replicaSize), false, k8sh)
+	require.Nil(s.T(), err)
 
 	logger.Infof("Step 2 : check rook-ceph-rgw service status and count")
 	require.True(s.T(), k8sh.IsPodInExpectedState("rook-ceph-rgw", namespace, "Running"),
@@ -174,12 +175,13 @@ func getBucket(bucketname string, bucketList []model.ObjectBucket) (model.Object
 	return model.ObjectBucket{}, errors.New("Bucket not found")
 }
 
-func createObjectStore(helper *clients.TestClient, k8sh *utils.K8sHelper, namespace string, storeName string, replicaSize int32) error {
+func createObjectStore(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, storeName string, replicaSize int32) error {
 	rgwExternalServiceName := "rgw-external-" + namespace
-	helper.GetObjectClient().ObjectCreate(storeName, replicaSize)
+	err := helper.GetObjectClient().ObjectCreate(namespace, storeName, replicaSize, true, k8sh)
+	require.Nil(s.T(), err)
 	time.Sleep(time.Second * 2) //wait for rgw service to to started
 	if k8sh.IsServiceUp("rook-ceph-rgw-"+storeName, namespace) {
-		_, err := k8sh.GetService(rgwExternalServiceName, namespace)
+		_, err = k8sh.GetService(rgwExternalServiceName, namespace)
 		if err != nil {
 			k8sh.KubectlWithStdin(getRGWExternalServiceDef(namespace), []string{"create", "-f", "-"}...)
 			if !k8sh.IsServiceUp(rgwExternalServiceName, namespace) {
