@@ -213,12 +213,15 @@ func TestGetPoolsHandler(t *testing.T) {
 	h = newTestHandler(context)
 	h.GetPools(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicationConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicationConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]", w.Body.String())
+	assert.Equal(t, "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"failureDomain\":\"\",\"replicatedConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"failureDomain\":\"\",\"replicatedConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]", w.Body.String())
 }
 
 func TestGetPoolsHandlerFailure(t *testing.T) {
-	context, _, _ := testContext()
+	context, _, executor := testContext()
 	defer os.RemoveAll(context.ConfigDir)
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+		return "", fmt.Errorf("test failure")
+	}
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/pool", nil)
 	if err != nil {
@@ -240,7 +243,7 @@ func TestCreatePoolHandler(t *testing.T) {
 	defer os.RemoveAll(context.ConfigDir)
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/pool",
-		strings.NewReader(`{"poolName":"ecPool1","poolNum":0,"type":1,"replicationConfig":{"size":0},"erasureCodedConfig":{"dataChunkCount":2,"codingChunkCount":1,"algorithm":""}}`))
+		strings.NewReader(`{"poolName":"ecPool1","poolNum":0,"type":1,"replicatedConfig":{"size":0},"erasureCodedConfig":{"dataChunkCount":2,"codingChunkCount":1,"algorithm":""}}`))
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -248,6 +251,7 @@ func TestCreatePoolHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 	appEnabled := false
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+		logger.Infof("EXECUTE: %s %v", command, args)
 		switch {
 		case args[1] == "erasure-code-profile" && args[2] == "get":
 			if args[3] == "default" {

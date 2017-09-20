@@ -34,6 +34,7 @@ type Config struct {
 	Name            string
 	Host            string
 	Port            int
+	SecurePort      int
 	Keyring         string
 	CertificatePath string
 	InProc          bool
@@ -55,6 +56,25 @@ func Run(context *clusterd.Context, config *Config) error {
 	return err
 }
 
+func portString(config *Config) string {
+
+	var portString string
+	if config.Port != 0 {
+		portString = strconv.Itoa(config.Port)
+	}
+	if config.SecurePort != 0 && config.CertificatePath != "" {
+		var separator string
+		if config.Port != 0 {
+			separator = "+"
+		}
+		// the suffix is intended to be appended to the end of the rgw_frontends arg, immediately after the port.
+		// with ssl enabled, the port number must end with the letter s.
+		portString = fmt.Sprintf("%s%s%ds ssl_certificate=%s", portString, separator, config.SecurePort, config.CertificatePath)
+	}
+
+	return portString
+}
+
 func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	// write the latest config to the config dir
 	if err := mon.GenerateAdminConnectionConfig(context, config.ClusterInfo); err != nil {
@@ -67,22 +87,14 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		logger.Warningf("failed to create data directory %s: %+v", dataDir, err)
 	}
 
-	sslSuffix := ""
-	if config.CertificatePath != "" {
-		// the suffix is intended to be appended to the end of the rgw_frontends arg, immediately after the port.
-		// with ssl enabled, the port number must end with the letter s.
-		sslSuffix = fmt.Sprintf("s ssl_certificate=%s", config.CertificatePath)
-	}
-
 	settings := map[string]string{
 		"host":                           config.Host,
-		"rgw port":                       strconv.Itoa(config.Port),
 		"rgw data":                       dataDir,
-		"rgw dns name":                   fmt.Sprintf("%s:%d", config.Host, config.Port),
+		"rgw dns name":                   config.Host,
 		"rgw log nonexistent bucket":     "true",
 		"rgw intent log object name utc": "true",
 		"rgw enable usage log":           "true",
-		"rgw_frontends":                  fmt.Sprintf("civetweb port=%d%s", config.Port, sslSuffix),
+		"rgw_frontends":                  fmt.Sprintf("civetweb port=%s", portString(config)),
 		"rgw_zone":                       config.Name,
 		"rgw_zonegroup":                  config.Name,
 	}

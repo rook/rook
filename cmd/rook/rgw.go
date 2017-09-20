@@ -32,11 +32,12 @@ var rgwCmd = &cobra.Command{
 }
 
 var (
-	rgwName    string
-	rgwKeyring string
-	rgwHost    string
-	rgwCert    string
-	rgwPort    int
+	rgwName       string
+	rgwKeyring    string
+	rgwHost       string
+	rgwCert       string
+	rgwPort       int
+	rgwSecurePort int
 )
 
 func init() {
@@ -44,7 +45,8 @@ func init() {
 	rgwCmd.Flags().StringVar(&rgwKeyring, "rgw-keyring", "", "the rgw keyring")
 	rgwCmd.Flags().StringVar(&rgwHost, "rgw-host", "", "dns host name")
 	rgwCmd.Flags().StringVar(&rgwCert, "rgw-cert", "", "path to the ssl certificate in pem format")
-	rgwCmd.Flags().IntVar(&rgwPort, "rgw-port", 0, "rgw port number")
+	rgwCmd.Flags().IntVar(&rgwPort, "rgw-port", 0, "rgw port (http)")
+	rgwCmd.Flags().IntVar(&rgwSecurePort, "rgw-secure-port", 0, "rgw secure port number (https)")
 	addCephFlags(rgwCmd)
 
 	flags.SetFlagsFromEnv(rgwCmd.Flags(), RookEnvVarPrefix)
@@ -58,8 +60,8 @@ func startRGW(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if rgwPort == 0 {
-		return fmt.Errorf("port is required")
+	if rgwPort == 0 && rgwSecurePort == 0 {
+		return fmt.Errorf("port or secure port are required")
 	}
 
 	setLogLevel()
@@ -73,6 +75,7 @@ func startRGW(cmd *cobra.Command, args []string) error {
 		Keyring:         rgwKeyring,
 		Host:            rgwHost,
 		Port:            rgwPort,
+		SecurePort:      rgwSecurePort,
 		CertificatePath: rgwCert,
 		InProc:          true,
 	}

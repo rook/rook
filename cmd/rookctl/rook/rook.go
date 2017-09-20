@@ -45,7 +45,7 @@ const (
 )
 
 var RootCmd = &cobra.Command{
-	Use:   "rook",
+	Use:   "rookctl",
 	Short: "A command line client for working with a rook cluster",
 	Long: `A command line client for working with a rook cluster.
 https://github.com/rook/rook`,

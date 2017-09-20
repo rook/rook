@@ -259,12 +259,12 @@ func (h *InstallHelper) UninstallRookFromK8s(clusterNamespace string, helmInstal
 	}
 
 	if kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.7.0")) {
-		_, err = k8sHelp.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io"})
+		_, err = k8sHelp.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io", "objectstores.rook.io"})
 		if err != nil {
 			panic(err)
 		}
 	} else {
-		_, err = k8sHelp.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io"})
+		_, err = k8sHelp.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io", "objectstore.rook.io"})
 		if err != nil {
 			panic(err)
 		}

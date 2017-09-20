@@ -22,6 +22,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/pool"
+	"github.com/rook/rook/pkg/operator/rgw"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -36,10 +37,10 @@ func TestOperator(t *testing.T) {
 	assert.NotNil(t, o.resources)
 	assert.NotNil(t, o.volumeProvisioner)
 	assert.Equal(t, context, o.context)
-	assert.Equal(t, len(o.resources), 2)
+	assert.Equal(t, len(o.resources), 3)
 	for _, r := range o.resources {
-		if r.Name != cluster.ClusterResource.Name && r.Name != pool.PoolResource.Name {
-			assert.Fail(t, fmt.Sprintf("Resource is %s not valid", r.Name))
+		if r.Name != cluster.ClusterResource.Name && r.Name != pool.PoolResource.Name && r.Name != rgw.ObjectStoreResource.Name {
+			assert.Fail(t, fmt.Sprintf("Resource %s is not valid", r.Name))
 		}
 	}
 }

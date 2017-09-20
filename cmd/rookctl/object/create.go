@@ -46,9 +46,11 @@ var (
 
 func init() {
 	createCmd.Flags().StringVarP(&store.Name, "name", "n", "default", "The name of the object store instance")
-	createCmd.Flags().Int32VarP(&store.Port, "port", "p", model.RGWPort, "The port on which to expose the object store")
-	createCmd.Flags().Int32Var(&store.RGWReplicas, "rgw-replicas", 1, "The number of RGW services for load balancing")
-	createCmd.Flags().StringVar(&certificateFile, "certificate", "", "Path to the ssl cert file (pem format)")
+	createCmd.Flags().Int32VarP(&store.Gateway.Port, "port", "p", model.RGWPort, "The port on which to expose the object store (http)")
+	createCmd.Flags().Int32VarP(&store.Gateway.SecurePort, "secure-port", "s", 0, "The port on which to expose the object store (https)")
+	createCmd.Flags().Int32VarP(&store.Gateway.Instances, "rgw-instances", "i", 1, "The number of RGW pods for load balancing (ignored if all nodes is set)")
+	createCmd.Flags().BoolVarP(&store.Gateway.AllNodes, "rgw-all-nodes", "a", false, "Whether RGW pods should be started on all nodes")
+	createCmd.Flags().StringVarP(&certificateFile, "certificate", "c", "", "Path to the ssl cert file (pem format)")
 	pool.AddPoolFlags(createCmd, "data-", &dataConfig)
 	pool.AddPoolFlags(createCmd, "metadata-", &metadataConfig)
 
@@ -67,7 +69,11 @@ func createObjectStoreEntry(cmd *cobra.Command, args []string) error {
 			fmt.Fprintln(os.Stderr, "failed to read certificate", err)
 			os.Exit(1)
 		}
-		store.Certificate = string(cert)
+		store.Gateway.Certificate = string(cert)
+	}
+	if store.Gateway.Certificate == "" && store.Gateway.SecurePort != 0 {
+		fmt.Fprintln(os.Stderr, "must specify a certificate to set the secure port")
+		os.Exit(1)
 	}
 
 	dataPool, err := pool.ConfigToModel(dataConfig)
@@ -96,12 +102,10 @@ func createObjectStoreEntry(cmd *cobra.Command, args []string) error {
 func createObjectStore(c client.RookRestClient) error {
 
 	_, err := c.CreateObjectStore(store)
-
-	// HTTP 202 Accepted is expected
-	if err != nil && !client.IsHttpAccepted(err) {
+	if err != nil {
 		return fmt.Errorf("failed to create new object store: %+v", err)
 	}
 
-	fmt.Println("succeeded starting creation of object store")
+	fmt.Println("succeeded creation of object store")
 	return nil
 }

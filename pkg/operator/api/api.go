@@ -53,7 +53,7 @@ var clusterAccessRules = []v1beta1.PolicyRule{
 	{
 		APIGroups: []string{"extensions"},
 		Resources: []string{"thirdpartyresources", "deployments", "daemonsets", "replicasets"},
-		Verbs:     []string{"get", "list", "create"},
+		Verbs:     []string{"get", "list", "create", "delete"},
 	},
 	{
 		APIGroups: []string{"apiextensions.k8s.io"},

@@ -62,11 +62,11 @@ metadata:
   name: {{.poolName}}
   namespace: rook
 spec:
-  replication:
+  replicated:
     size: 1
   # For an erasure-coded pool, comment out the replication count above and uncomment the following settings.
   # Make sure you have enough OSDs to support the replica count or erasure code chunks.
-  #erasureCode:
+  #erasureCoded:
   #  codingChunks: 2
   #  dataChunks: 2
 ---

@@ -43,16 +43,18 @@ type RookRestClient interface {
 	CreateFilesystem(model.FilesystemRequest) (string, error)
 	DeleteFilesystem(model.FilesystemRequest) (string, error)
 	GetStatusDetails() (model.StatusDetails, error)
+	GetObjectStores() ([]model.ObjectStoreResponse, error)
 	CreateObjectStore(store model.ObjectStore) (string, error)
-	GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, error)
-	ListBuckets() ([]model.ObjectBucket, error)
-	GetBucket(string) (*model.ObjectBucket, error)
-	DeleteBucket(string, bool) error
-	ListObjectUsers() ([]model.ObjectUser, error)
-	GetObjectUser(string) (*model.ObjectUser, error)
-	CreateObjectUser(model.ObjectUser) (*model.ObjectUser, error)
-	UpdateObjectUser(model.ObjectUser) (*model.ObjectUser, error)
-	DeleteObjectUser(string) error
+	DeleteObjectStore(storeName string) error
+	GetObjectStoreConnectionInfo(storeName string) (*model.ObjectStoreConnectInfo, error)
+	ListBuckets(storeName string) ([]model.ObjectBucket, error)
+	GetBucket(storeName, bucketName string) (*model.ObjectBucket, error)
+	DeleteBucket(storeName, bucketName string, purge bool) error
+	ListObjectUsers(storeName string) ([]model.ObjectUser, error)
+	GetObjectUser(storeName, id string) (*model.ObjectUser, error)
+	CreateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error)
+	UpdateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error)
+	DeleteObjectUser(storeName, id string) error
 }
 
 type RookNetworkRestClient struct {

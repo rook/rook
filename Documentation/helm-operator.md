@@ -1,6 +1,6 @@
 ---
 title: Helm Chart
-weight: 18
+weight: 23
 indent: true
 ---
 

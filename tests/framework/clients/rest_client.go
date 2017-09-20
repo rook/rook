@@ -65,13 +65,13 @@ func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHe
 	httpclient := &http.Client{
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
+				Timeout:   60 * time.Second,
 				KeepAlive: 0,
 			}).Dial,
 			DisableKeepAlives:     true,
 			DisableCompression:    true,
 			MaxIdleConnsPerHost:   1,
-			ResponseHeaderTimeout: 30 * time.Second,
+			ResponseHeaderTimeout: 60 * time.Second,
 		},
 	}
 	client := rclient.NewRookNetworkRestClient(endpoint, httpclient)
@@ -158,40 +158,45 @@ func (a *RestAPIClient) CreateObjectStore(store model.ObjectStore) (string, erro
 	return a.rrc.CreateObjectStore(store)
 }
 
+//DeleteObjectStore creates object store
+func (a *RestAPIClient) DeleteObjectStore(storeName string) error {
+	return a.rrc.DeleteObjectStore(storeName)
+}
+
 //GetObjectStoreConnectionInfo returns object store connection info
-func (a *RestAPIClient) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, error) {
-	return a.rrc.GetObjectStoreConnectionInfo()
+func (a *RestAPIClient) GetObjectStoreConnectionInfo(storeName string) (*model.ObjectStoreConnectInfo, error) {
+	return a.rrc.GetObjectStoreConnectionInfo(storeName)
 }
 
 //ListBuckets lists all buckets in object store
-func (a *RestAPIClient) ListBuckets() ([]model.ObjectBucket, error) {
-	return a.rrc.ListBuckets()
+func (a *RestAPIClient) ListBuckets(storeName string) ([]model.ObjectBucket, error) {
+	return a.rrc.ListBuckets(storeName)
 }
 
 //ListObjectUsers returns all object store users
-func (a *RestAPIClient) ListObjectUsers() ([]model.ObjectUser, error) {
-	return a.rrc.ListObjectUsers()
+func (a *RestAPIClient) ListObjectUsers(storeName string) ([]model.ObjectUser, error) {
+	return a.rrc.ListObjectUsers(storeName)
 }
 
 //GetObjectUser returns a object user from object store
-func (a *RestAPIClient) GetObjectUser(id string) (*model.ObjectUser, error) {
-	return a.rrc.GetObjectUser(id)
+func (a *RestAPIClient) GetObjectUser(storeName, id string) (*model.ObjectUser, error) {
+	return a.rrc.GetObjectUser(storeName, id)
 }
 
 //CreateObjectUser creates new  user in object store
-func (a *RestAPIClient) CreateObjectUser(user model.ObjectUser) (*model.ObjectUser, error) {
-	return a.rrc.CreateObjectUser(user)
+func (a *RestAPIClient) CreateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error) {
+	return a.rrc.CreateObjectUser(storeName, user)
 }
 
 //UpdateObjectUser updates user in object store
-func (a *RestAPIClient) UpdateObjectUser(user model.ObjectUser) (*model.ObjectUser, error) {
-	return a.rrc.UpdateObjectUser(user)
+func (a *RestAPIClient) UpdateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error) {
+	return a.rrc.UpdateObjectUser(storeName, user)
 
 }
 
 //DeleteObjectUser deletes user from object store
-func (a *RestAPIClient) DeleteObjectUser(id string) error {
-	return a.rrc.DeleteObjectUser(id)
+func (a *RestAPIClient) DeleteObjectUser(storeName, id string) error {
+	return a.rrc.DeleteObjectUser(storeName, id)
 
 }
 

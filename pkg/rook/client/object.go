@@ -34,6 +34,21 @@ const (
 	usersQueryName          = "users"
 )
 
+func (c *RookNetworkRestClient) GetObjectStores() ([]model.ObjectStoreResponse, error) {
+	body, err := c.DoGet(path.Join(objectStoreQueryName))
+	if err != nil {
+		return nil, err
+	}
+
+	var stores []model.ObjectStoreResponse
+	err = json.Unmarshal(body, &stores)
+	if err != nil {
+		return nil, err
+	}
+
+	return stores, nil
+}
+
 func (c *RookNetworkRestClient) CreateObjectStore(store model.ObjectStore) (string, error) {
 	if store.Name == "" {
 		return "", fmt.Errorf("Name is required")
@@ -52,8 +67,14 @@ func (c *RookNetworkRestClient) CreateObjectStore(store model.ObjectStore) (stri
 	return string(resp), nil
 }
 
-func (c *RookNetworkRestClient) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, error) {
-	body, err := c.DoGet(path.Join(objectStoreQueryName, connectionInfoQueryName))
+func (c *RookNetworkRestClient) DeleteObjectStore(storeName string) error {
+	query := path.Join(objectStoreQueryName, storeName)
+	_, err := c.DoDelete(query)
+	return err
+}
+
+func (c *RookNetworkRestClient) GetObjectStoreConnectionInfo(storeName string) (*model.ObjectStoreConnectInfo, error) {
+	body, err := c.DoGet(path.Join(objectStoreQueryName, storeName, connectionInfoQueryName))
 	if err != nil {
 		return nil, err
 	}
@@ -67,8 +88,8 @@ func (c *RookNetworkRestClient) GetObjectStoreConnectionInfo() (*model.ObjectSto
 	return &connInfo, nil
 }
 
-func (c *RookNetworkRestClient) ListBuckets() ([]model.ObjectBucket, error) {
-	body, err := c.DoGet(path.Join(objectStoreQueryName, bucketsQueryName))
+func (c *RookNetworkRestClient) ListBuckets(storeName string) ([]model.ObjectBucket, error) {
+	body, err := c.DoGet(path.Join(objectStoreQueryName, storeName, bucketsQueryName))
 	if err != nil {
 		return nil, err
 	}
@@ -82,8 +103,8 @@ func (c *RookNetworkRestClient) ListBuckets() ([]model.ObjectBucket, error) {
 	return buckets, nil
 }
 
-func (c *RookNetworkRestClient) GetBucket(bucketName string) (*model.ObjectBucket, error) {
-	body, err := c.DoGet(path.Join(objectStoreQueryName, bucketsQueryName, bucketName))
+func (c *RookNetworkRestClient) GetBucket(storeName, bucketName string) (*model.ObjectBucket, error) {
+	body, err := c.DoGet(path.Join(objectStoreQueryName, storeName, bucketsQueryName, bucketName))
 	if err != nil {
 		return nil, err
 	}
@@ -97,8 +118,8 @@ func (c *RookNetworkRestClient) GetBucket(bucketName string) (*model.ObjectBucke
 	return &bucket, nil
 }
 
-func (c *RookNetworkRestClient) DeleteBucket(bucketName string, purge bool) error {
-	query := path.Join(objectStoreQueryName, bucketsQueryName, bucketName)
+func (c *RookNetworkRestClient) DeleteBucket(storeName, bucketName string, purge bool) error {
+	query := path.Join(objectStoreQueryName, storeName, bucketsQueryName, bucketName)
 	if purge {
 		query += "?purge=true"
 	}
@@ -111,8 +132,8 @@ func (c *RookNetworkRestClient) DeleteBucket(bucketName string, purge bool) erro
 	return nil
 }
 
-func (c *RookNetworkRestClient) ListObjectUsers() ([]model.ObjectUser, error) {
-	body, err := c.DoGet(path.Join(objectStoreQueryName, usersQueryName))
+func (c *RookNetworkRestClient) ListObjectUsers(storeName string) ([]model.ObjectUser, error) {
+	body, err := c.DoGet(path.Join(objectStoreQueryName, storeName, usersQueryName))
 	if err != nil {
 		return nil, err
 	}
@@ -126,8 +147,8 @@ func (c *RookNetworkRestClient) ListObjectUsers() ([]model.ObjectUser, error) {
 	return users, nil
 }
 
-func (c *RookNetworkRestClient) GetObjectUser(id string) (*model.ObjectUser, error) {
-	body, err := c.DoGet(path.Join(objectStoreQueryName, usersQueryName, id))
+func (c *RookNetworkRestClient) GetObjectUser(storeName, id string) (*model.ObjectUser, error) {
+	body, err := c.DoGet(path.Join(objectStoreQueryName, storeName, usersQueryName, id))
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +162,7 @@ func (c *RookNetworkRestClient) GetObjectUser(id string) (*model.ObjectUser, err
 	return &user, nil
 }
 
-func (c *RookNetworkRestClient) CreateObjectUser(user model.ObjectUser) (*model.ObjectUser, error) {
+func (c *RookNetworkRestClient) CreateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error) {
 	if user.DisplayName == nil {
 		return nil, fmt.Errorf("Display name is required")
 	}
@@ -151,7 +172,7 @@ func (c *RookNetworkRestClient) CreateObjectUser(user model.ObjectUser) (*model.
 		return nil, err
 	}
 
-	respBody, err := c.DoPost(path.Join(objectStoreQueryName, usersQueryName), bytes.NewReader(body))
+	respBody, err := c.DoPost(path.Join(objectStoreQueryName, storeName, usersQueryName), bytes.NewReader(body))
 	if err != nil && !IsHttpStatusCode(err, http.StatusCreated) {
 		return nil, err
 	}
@@ -165,13 +186,13 @@ func (c *RookNetworkRestClient) CreateObjectUser(user model.ObjectUser) (*model.
 	return &createdUser, nil
 }
 
-func (c *RookNetworkRestClient) UpdateObjectUser(user model.ObjectUser) (*model.ObjectUser, error) {
+func (c *RookNetworkRestClient) UpdateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error) {
 	body, err := json.Marshal(user)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal: %+v", err)
 	}
 
-	respBody, err := c.DoPut(path.Join(objectStoreQueryName, usersQueryName, user.UserID), bytes.NewReader(body))
+	respBody, err := c.DoPut(path.Join(objectStoreQueryName, storeName, usersQueryName, user.UserID), bytes.NewReader(body))
 	if err != nil {
 		return nil, err
 	}
@@ -184,8 +205,8 @@ func (c *RookNetworkRestClient) UpdateObjectUser(user model.ObjectUser) (*model.
 	return &user, nil
 }
 
-func (c *RookNetworkRestClient) DeleteObjectUser(id string) error {
-	query := path.Join(objectStoreQueryName, usersQueryName, id)
+func (c *RookNetworkRestClient) DeleteObjectUser(storeName, id string) error {
+	query := path.Join(objectStoreQueryName, storeName, usersQueryName, id)
 	_, err := c.DoDelete(query)
 	if err != nil && !IsHttpStatusCode(err, http.StatusNoContent) {
 		return err

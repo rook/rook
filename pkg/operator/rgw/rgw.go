@@ -18,19 +18,17 @@ limitations under the License.
 package rgw
 
 import (
-	"encoding/json"
 	"fmt"
 	"path"
-	"strings"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/pkg/ceph/client"
-	ceph "github.com/rook/rook/pkg/ceph/client"
 	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
+	"github.com/rook/rook/pkg/operator/pool"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -49,238 +47,238 @@ const (
 	certFilename   = "rgw-cert.pem"
 )
 
-// Cluster for rgw management
-type Cluster struct {
-	context     *clusterd.Context
-	Namespace   string
-	placement   k8sutil.Placement
-	Version     string
-	Config      model.ObjectStore
-	HostNetwork bool
-}
-
-type idType struct {
-	ID string `json:"id"`
-}
-
-type realmType struct {
-	Realms []string `json:"realms"`
-}
-
-// New creates an instance of an rgw manager
-func New(context *clusterd.Context, config model.ObjectStore, namespace, version string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
-
-	return &Cluster{
-		context:     context,
-		Namespace:   namespace,
-		placement:   placement,
-		Version:     version,
-		Config:      config,
-		HostNetwork: hostNetwork,
-	}
-}
-
 // Start the rgw manager
-func (c *Cluster) Start() error {
-	logger.Infof("start running rgw")
+func (s *Objectstore) Create(context *clusterd.Context, version string, hostNetwork bool) error {
+	return s.createOrUpdate(context, version, hostNetwork, false)
+}
 
-	err := c.createPools()
-	if err != nil {
-		return fmt.Errorf("failed to create pools. %+v", err)
+func (s *Objectstore) Update(context *clusterd.Context, version string, hostNetwork bool) error {
+	return s.createOrUpdate(context, version, hostNetwork, true)
+}
+
+func (s *Objectstore) createOrUpdate(context *clusterd.Context, version string, hostNetwork, update bool) error {
+	// validate the object store settings
+	if err := s.validate(); err != nil {
+		return fmt.Errorf("invalid object store %s arguments. %+v", s.Name, err)
 	}
 
-	err = c.createKeyring()
+	// check if the object store already exists
+	exists, err := s.exists(context)
+	if err == nil && exists {
+		if !update {
+			logger.Infof("object store %s exists in namespace %s", s.Name, s.Namespace)
+			return nil
+		}
+		logger.Infof("object store %s exists in namespace %s. checking for updates", s.Name, s.Namespace)
+	}
+
+	logger.Infof("creating object store %s in namespace %s", s.Name, s.Namespace)
+	err = s.createKeyring(context)
 	if err != nil {
 		return fmt.Errorf("failed to create rgw keyring. %+v", err)
 	}
 
 	// start the service
-	serviceIP, err := c.startService()
+	serviceIP, err := s.startService(context, hostNetwork)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw service. %+v", err)
 	}
 
-	err = c.createRealm(serviceIP)
+	// create the ceph artifacts for the object store
+	objContext := cephrgw.NewContext(context, s.Name, s.Namespace)
+	err = s.createObjectStore(objContext, serviceIP)
 	if err != nil {
-		return fmt.Errorf("failed to create realm. %+v", err)
+		return fmt.Errorf("failed to create ceph object store. %+v", err)
 	}
 
-	// start the deployment
-	deployment := c.makeDeployment()
-	_, err = c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
+	if err := s.startRGWPods(context, version, hostNetwork, update); err != nil {
+		return fmt.Errorf("failed to start pods. %+v", err)
+	}
+
+	logger.Infof("created object store %s", s.Name)
+	return nil
+}
+
+func (s *Objectstore) startRGWPods(context *clusterd.Context, version string, hostNetwork, update bool) error {
+
+	// if intended to update, remove the old pods so they can be created with the new spec settings
+	if update {
+		s.deleteRGWPods(context)
+	}
+
+	// start the deployment or daemonset
+	var rgwType string
+	var err error
+	if s.Spec.Gateway.AllNodes {
+		rgwType = "daemonset"
+		err = s.startDaemonset(context, version, hostNetwork)
+	} else {
+		rgwType = "deployment"
+		err = s.startDeployment(context, version, s.Spec.Gateway.Instances, hostNetwork)
+	}
+
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create rgw deployment. %+v", err)
+			return fmt.Errorf("failed to create rgw %s. %+v", rgwType, err)
 		}
-		logger.Infof("rgw deployment already exists")
+		logger.Infof("rgw %s already exists", rgwType)
 	} else {
-		logger.Infof("rgw deployment started")
+		logger.Infof("rgw %s started", rgwType)
 	}
 
 	return nil
 }
 
-func (c *Cluster) createRealm(serviceIP string) error {
-	realmArg := fmt.Sprintf("--rgw-realm=%s", c.Config.Name)
-	zonegroupArg := fmt.Sprintf("--rgw-zonegroup=%s", c.Config.Name)
-	zoneArg := fmt.Sprintf("--rgw-zone=%s", c.Config.Name)
-	endpointArg := fmt.Sprintf("--endpoints=%s:%d", serviceIP, c.Config.Port)
-	updatePeriod := false
+func (s *Objectstore) createObjectStore(context *cephrgw.Context, serviceIP string) error {
 
-	// The first realm must be marked as the default
-	defaultArg := ""
-	stores, err := c.getObjectStores()
+	mModel := model.Pool{}
+	dModel := model.Pool{}
+	s.Spec.MetadataPool.ToModel(&mModel)
+	s.Spec.DataPool.ToModel(&dModel)
+
+	err := cephrgw.CreateObjectStore(context, mModel, dModel, serviceIP, s.Spec.Gateway.Port)
 	if err != nil {
-		return fmt.Errorf("failed to get object stores. %+v", err)
-	}
-	if len(stores) == 0 {
-		defaultArg = "--default"
-	}
-
-	// create the realm if it doesn't exist yet
-	output, err := c.runRGWCommand("realm", "get", realmArg)
-	if err != nil {
-		updatePeriod = true
-		output, err = c.runRGWCommand("realm", "create", realmArg, defaultArg)
-		if err != nil {
-			return fmt.Errorf("failed to create rgw realm %s. %+v", c.Config.Name, err)
-		}
-	}
-
-	realmID, err := decodeID(output)
-	if err != nil {
-		return fmt.Errorf("failed to parse realm id. %+v", err)
-	}
-
-	// create the zonegroup if it doesn't exist yet
-	output, err = c.runRGWCommand("zonegroup", "get", zonegroupArg, realmArg)
-	if err != nil {
-		updatePeriod = true
-		output, err = c.runRGWCommand("zonegroup", "create", "--master", zonegroupArg, realmArg, endpointArg, defaultArg)
-		if err != nil {
-			return fmt.Errorf("failed to create rgw zonegroup for %s. %+v", c.Config.Name, err)
-		}
-	}
-
-	zoneGroupID, err := decodeID(output)
-	if err != nil {
-		return fmt.Errorf("failed to parse zone group id. %+v", err)
-	}
-
-	// create the zone if it doesn't exist yet
-	output, err = c.runRGWCommand("zone", "get", zoneArg, zonegroupArg, realmArg)
-	if err != nil {
-		updatePeriod = true
-		output, err = c.runRGWCommand("zone", "create", "--master", endpointArg, zoneArg, zonegroupArg, realmArg, defaultArg)
-		if err != nil {
-			return fmt.Errorf("failed to create rgw zonegroup for %s. %+v", c.Config.Name, err)
-		}
-	}
-	zoneID, err := decodeID(output)
-	if err != nil {
-		return fmt.Errorf("failed to parse zone id. %+v", err)
-	}
-
-	if updatePeriod {
-		// the period will help notify other zones of changes if there are multi-zones
-		_, err = c.runRGWCommand("period", "update", "--commit")
-		if err != nil {
-			return fmt.Errorf("failed to update period. %+v", err)
-		}
-	}
-
-	logger.Infof("RGW: realm=%s, zonegroup=%s, zone=%s", realmID, zoneGroupID, zoneID)
-	return nil
-}
-
-func (c *Cluster) getObjectStores() ([]string, error) {
-	output, err := c.runRGWCommand("realm", "list")
-	if err != nil {
-		if strings.Index(err.Error(), "exit status 2") != 0 {
-			return []string{}, nil
-		}
-		return nil, err
-	}
-
-	var r realmType
-	err = json.Unmarshal([]byte(output), &r)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to unmarshal realms: %+v", err)
-	}
-
-	return r.Realms, nil
-}
-
-func (c *Cluster) createPools() error {
-	metadataPools := []string{
-		".rgw.root",
-		"rgw.control",
-		"rgw.meta",
-		"rgw.log",
-		"rgw.buckets.index",
-	}
-	if err := c.createSimilarPools(metadataPools, c.Config.MetadataConfig); err != nil {
-		return fmt.Errorf("failed to create metadata pools. %+v", err)
-	}
-
-	dataPools := []string{"rgw.buckets.data"}
-	if err := c.createSimilarPools(dataPools, c.Config.DataConfig); err != nil {
-		return fmt.Errorf("failed to create data pool. %+v", err)
+		return fmt.Errorf("failed to create pools. %+v", err)
 	}
 
 	return nil
 }
 
-func (c *Cluster) createSimilarPools(pools []string, poolConfig model.Pool) error {
-	cephConfig := ceph.ModelPoolToCephPool(poolConfig)
-	if cephConfig.ErasureCodeProfile != "" {
-		// create a new erasure code profile for the new pool
-		if err := ceph.CreateErasureCodeProfile(c.context, c.Namespace, poolConfig.ErasureCodedConfig, cephConfig.ErasureCodeProfile); err != nil {
-			return fmt.Errorf("failed to create erasure code profile for object store %s: %+v", c.Config.Name, err)
-		}
+// Delete the object store.
+// WARNING: This is a very destructive action that deletes all metadata and data pools.
+func (s *Objectstore) Delete(context *clusterd.Context) error {
+	// check if the object store  exists
+	exists, err := s.exists(context)
+	if err != nil {
+		return fmt.Errorf("failed to detect if there is an object store to delete. %+v", err)
+	}
+	if !exists {
+		logger.Infof("Object store %s does not exist in namespace %s", s.Name, s.Namespace)
+		return nil
 	}
 
-	for _, pool := range pools {
-		// create the pool if it doesn't exist yet
-		name := pool
-		if !strings.HasPrefix(pool, ".") {
-			// the name of the pool is <instance>.<name>, except for the pool ".rgw.root" that spans object stores
-			name = fmt.Sprintf("%s.%s", c.Config.Name, pool)
-		}
-		if _, err := ceph.GetPoolDetails(c.context, c.Namespace, name); err != nil {
-			cephConfig.Name = name
-			err := ceph.CreatePool(c.context, c.Namespace, cephConfig)
-			if err != nil {
-				return fmt.Errorf("failed to create pool %s for object store %s", name, c.Config.Name)
-			}
-		}
+	logger.Infof("Deleting object store %s from namespace %s", s.Name, s.Namespace)
+
+	var gracePeriod int64
+	propagation := metav1.DeletePropagationForeground
+	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
+
+	// Delete the rgw service
+	err = context.Clientset.CoreV1().Services(s.Namespace).Delete(s.instanceName(), options)
+	if err != nil && !errors.IsNotFound(err) {
+		logger.Warningf("failed to delete rgw service. %+v", err)
 	}
+
+	s.deleteRGWPods(context)
+
+	// Delete the rgw keyring
+	err = context.Clientset.CoreV1().Secrets(s.Namespace).Delete(s.instanceName(), options)
+	if err != nil && !errors.IsNotFound(err) {
+		logger.Warningf("failed to delete rgw secret. %+v", err)
+	}
+
+	// Delete the realm and pools
+	objContext := cephrgw.NewContext(context, s.Name, s.Namespace)
+	err = cephrgw.DeleteObjectStore(objContext)
+	if err != nil {
+		return fmt.Errorf("failed to delete the realm and pools. %+v", err)
+	}
+
+	logger.Infof("Completed deleting object store %s", s.Name)
 	return nil
 }
 
-func decodeID(data string) (string, error) {
-	var id idType
-	err := json.Unmarshal([]byte(data), &id)
-	if err != nil {
-		return "", fmt.Errorf("Failed to unmarshal json: %+v", err)
+// deleteRGWPods makes a best effort at deleting the RGW pods, including the deployment and daemonset
+func (s *Objectstore) deleteRGWPods(context *clusterd.Context) {
+	logger.Infof("removing rgw pods if they exist")
+
+	var gracePeriod int64
+	propagation := metav1.DeletePropagationForeground
+	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
+
+	// Delete the rgw deployment
+	err := context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Delete(s.instanceName(), options)
+	if err != nil && !errors.IsNotFound(err) {
+		logger.Warningf("failed to delete rgw deployment. %+v", err)
 	}
 
-	return id.ID, err
-}
-
-func (c *Cluster) runRGWCommand(args ...string) (string, error) {
-	options := client.AppendAdminConnectionArgs(args, c.context.ConfigDir, c.Namespace)
-
-	// start the rgw admin command
-	output, err := c.context.Executor.ExecuteCommandWithCombinedOutput(false, "", "radosgw-admin", options...)
-	if err != nil {
-		return "", fmt.Errorf("failed to run radosgw-admin: %+v", err)
+	// Delete the rgw daemonset
+	err = context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Delete(s.instanceName(), options)
+	if err != nil && !errors.IsNotFound(err) {
+		logger.Warningf("failed to delete rgw deployment. %+v", err)
 	}
-	return output, nil
+
+	// wait for the daemonset and deployments to be deleted
+	sleepTime := 2 * time.Second
+	for i := 0; i < 20; i++ {
+		// check for the existence of the deployment
+		_, err = context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
+		if err == nil {
+			logger.Infof("rgw deployment %s still found. waiting...", s.instanceName())
+			time.Sleep(sleepTime)
+			continue
+		}
+
+		// check for the existence of the daemonset
+		_, err = context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
+		if err == nil {
+			logger.Infof("rgw daemonset %s still found. waiting...", s.instanceName())
+			time.Sleep(sleepTime)
+			continue
+		}
+
+		logger.Infof("confirmed rgw daemonset and deployment %s do not exist", s.instanceName())
+		return
+	}
+
+	logger.Warningf("gave up waiting for rgw pods to be terminated")
 }
 
-func (c *Cluster) createKeyring() error {
-	_, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(c.instanceName(), metav1.GetOptions{})
+// Check if the object store exists depending on either the deployment or the daemonset
+func (s *Objectstore) exists(context *clusterd.Context) (bool, error) {
+	_, err := context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
+	if err == nil {
+		// the deployment was found
+		return true, nil
+	}
+	if err != nil && !errors.IsNotFound(err) {
+		return false, err
+	}
+
+	_, err = context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
+	if err == nil {
+		//  the daemonset was found
+		return true, nil
+	}
+	if err != nil && !errors.IsNotFound(err) {
+		return false, err
+	}
+
+	// neither one was found
+	return false, nil
+}
+
+// Validate the object store arguments
+func (s *Objectstore) validate() error {
+	logger.Debugf("validating object store: %+v", s)
+	if s.Name == "" {
+		return fmt.Errorf("missing name")
+	}
+	if s.Namespace == "" {
+		return fmt.Errorf("missing namespace")
+	}
+	if err := s.Spec.MetadataPool.Validate(); err != nil {
+		return fmt.Errorf("invalid metadata pool spec. %+v", err)
+	}
+	if err := s.Spec.DataPool.Validate(); err != nil {
+		return fmt.Errorf("invalid data pool spec. %+v", err)
+	}
+
+	return nil
+}
+
+func (s *Objectstore) createKeyring(context *clusterd.Context) error {
+	_, err := context.Clientset.CoreV1().Secrets(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
 		return nil
@@ -291,7 +289,7 @@ func (c *Cluster) createKeyring() error {
 
 	// create the keyring
 	logger.Infof("generating rgw keyring")
-	keyring, err := cephrgw.CreateKeyring(c.context, c.Namespace)
+	keyring, err := cephrgw.CreateKeyring(context, s.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create keyring. %+v", err)
 	}
@@ -301,11 +299,11 @@ func (c *Cluster) createKeyring() error {
 		keyringName: keyring,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: c.instanceName(), Namespace: c.Namespace},
+		ObjectMeta: metav1.ObjectMeta{Name: s.instanceName(), Namespace: s.Namespace},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Create(secret)
+	_, err = context.Clientset.CoreV1().Secrets(s.Namespace).Create(secret)
 	if err != nil {
 		return fmt.Errorf("failed to save rgw secrets. %+v", err)
 	}
@@ -313,79 +311,116 @@ func (c *Cluster) createKeyring() error {
 	return nil
 }
 
-func (c *Cluster) instanceName() string {
-	return InstanceName(c.Config.Name)
+func (s *Objectstore) instanceName() string {
+	return InstanceName(s.Name)
 }
 
 func InstanceName(name string) string {
 	return fmt.Sprintf("%s-%s", appName, name)
 }
 
-func (c *Cluster) makeDeployment() *extensions.Deployment {
-	deployment := &extensions.Deployment{}
-	deployment.Name = c.instanceName()
-	deployment.Namespace = c.Namespace
+func ModelToSpec(store model.ObjectStore, namespace string) *Objectstore {
+	return &Objectstore{
+		ObjectMeta: metav1.ObjectMeta{Name: store.Name, Namespace: namespace},
+		Spec: ObjectStoreSpec{
+			MetadataPool: pool.ModelToSpec(store.MetadataConfig),
+			DataPool:     pool.ModelToSpec(store.DataConfig),
+			Gateway: GatewaySpec{
+				Port:              store.Gateway.Port,
+				SecurePort:        store.Gateway.SecurePort,
+				Instances:         store.Gateway.Instances,
+				AllNodes:          store.Gateway.AllNodes,
+				SSLCertificateRef: store.Gateway.CertificateRef,
+			},
+		},
+	}
+}
 
+func (s *Objectstore) makeRGWPodSpec(version string, hostNetwork bool) v1.PodTemplateSpec {
 	podSpec := v1.PodSpec{
-		Containers:    []v1.Container{c.rgwContainer()},
+		Containers:    []v1.Container{s.rgwContainer(version)},
 		RestartPolicy: v1.RestartPolicyAlways,
 		Volumes: []v1.Volume{
 			{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
 			k8sutil.ConfigOverrideVolume(),
 		},
-		HostNetwork: c.HostNetwork,
+		HostNetwork: hostNetwork,
 	}
-	if c.HostNetwork {
+	if hostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
-	c.placement.ApplyToPodSpec(&podSpec)
+	s.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
 
 	// Set the ssl cert if specified
-	if c.Config.CertificateRef != "" {
+	if s.Spec.Gateway.SSLCertificateRef != "" {
 		certVol := v1.Volume{Name: certVolumeName, VolumeSource: v1.VolumeSource{Secret: &v1.SecretVolumeSource{
-			SecretName: c.Config.CertificateRef,
+			SecretName: s.Spec.Gateway.SSLCertificateRef,
 			Items:      []v1.KeyToPath{{Key: certKeyName, Path: certFilename}},
 		}}}
 		podSpec.Volumes = append(podSpec.Volumes, certVol)
 	}
 
-	c.placement.ApplyToPodSpec(&podSpec)
+	s.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
 
-	podTemplateSpec := v1.PodTemplateSpec{
+	return v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        c.instanceName(),
-			Labels:      c.getLabels(),
+			Name:        s.instanceName(),
+			Labels:      s.getLabels(),
 			Annotations: map[string]string{},
 		},
 		Spec: podSpec,
 	}
-
-	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &c.Config.RGWReplicas}
-
-	return deployment
 }
 
-func (c *Cluster) rgwContainer() v1.Container {
+func (s *Objectstore) startDeployment(context *clusterd.Context, version string, replicas int32, hostNetwork bool) error {
+
+	deployment := &extensions.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      s.instanceName(),
+			Namespace: s.Namespace,
+		},
+		Spec: extensions.DeploymentSpec{Template: s.makeRGWPodSpec(version, hostNetwork), Replicas: &replicas},
+	}
+	_, err := context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Create(deployment)
+	return err
+}
+
+func (s *Objectstore) startDaemonset(context *clusterd.Context, version string, hostNetwork bool) error {
+
+	daemonset := &extensions.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      s.instanceName(),
+			Namespace: s.Namespace,
+		},
+		Spec: extensions.DaemonSetSpec{Template: s.makeRGWPodSpec(version, hostNetwork)},
+	}
+
+	_, err := context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Create(daemonset)
+	return err
+}
+
+func (s *Objectstore) rgwContainer(version string) v1.Container {
 
 	container := v1.Container{
 		Args: []string{
 			"rgw",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--rgw-name=%s", c.Config.Name),
-			fmt.Sprintf("--rgw-port=%d", c.Config.Port),
-			fmt.Sprintf("--rgw-host=%s", c.instanceName()),
+			fmt.Sprintf("--rgw-name=%s", s.Name),
+			fmt.Sprintf("--rgw-host=%s", s.instanceName()),
+			fmt.Sprintf("--rgw-port=%d", s.Spec.Gateway.Port),
+			fmt.Sprintf("--rgw-secure-port=%d", s.Spec.Gateway.SecurePort),
 		},
-		Name:  c.instanceName(),
-		Image: k8sutil.MakeRookImage(c.Version),
+		Name:  s.instanceName(),
+		Image: k8sutil.MakeRookImage(version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),
 		},
 		Env: []v1.EnvVar{
-			{Name: "ROOK_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: c.instanceName()}, Key: keyringName}}},
+			{Name: "ROOK_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: s.instanceName()}, Key: keyringName}}},
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-			opmon.ClusterNameEnvVar(c.Namespace),
+			opmon.ClusterNameEnvVar(s.Namespace),
 			opmon.EndpointEnvVar(),
 			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
@@ -393,7 +428,7 @@ func (c *Cluster) rgwContainer() v1.Container {
 		},
 	}
 
-	if c.Config.CertificateRef != "" {
+	if s.Spec.Gateway.SSLCertificateRef != "" {
 		// Add a volume mount for the ssl certificate
 		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certMountPath, ReadOnly: true}
 		container.VolumeMounts = append(container.VolumeMounts, mount)
@@ -406,47 +441,54 @@ func (c *Cluster) rgwContainer() v1.Container {
 	return container
 }
 
-func (c *Cluster) startService() (string, error) {
-	labels := c.getLabels()
-	s := &v1.Service{
+func (s *Objectstore) startService(context *clusterd.Context, hostNetwork bool) (string, error) {
+	labels := s.getLabels()
+	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      c.instanceName(),
-			Namespace: c.Namespace,
+			Name:      s.instanceName(),
+			Namespace: s.Namespace,
 			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{
-				{
-					Name:       c.instanceName(),
-					Port:       c.Config.Port,
-					TargetPort: intstr.FromInt(int(c.Config.Port)),
-					Protocol:   v1.ProtocolTCP,
-				},
-			},
 			Selector: labels,
 		},
 	}
-	if c.HostNetwork {
-		s.Spec.ClusterIP = v1.ClusterIPNone
+	if hostNetwork {
+		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
-	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(s)
+	addPort(svc, "http", s.Spec.Gateway.Port)
+	addPort(svc, "https", s.Spec.Gateway.SecurePort)
+
+	svc, err := context.Clientset.CoreV1().Services(s.Namespace).Create(svc)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return "", fmt.Errorf("failed to create mon service. %+v", err)
+			return "", fmt.Errorf("failed to create rgw service. %+v", err)
 		}
-		logger.Infof("RGW service already running")
+		logger.Infof("Gateway service already running")
 		return "", nil
 	}
 
-	logger.Infof("RGW service running at %s:%d", s.Spec.ClusterIP, c.Config.Port)
-	return s.Spec.ClusterIP, nil
+	logger.Infof("Gateway service running at %s:%d", svc.Spec.ClusterIP, s.Spec.Gateway.Port)
+	return svc.Spec.ClusterIP, nil
 }
 
-func (c *Cluster) getLabels() map[string]string {
+func addPort(service *v1.Service, name string, port int32) {
+	if port == 0 {
+		return
+	}
+	service.Spec.Ports = append(service.Spec.Ports, v1.ServicePort{
+		Name:       name,
+		Port:       port,
+		TargetPort: intstr.FromInt(int(port)),
+		Protocol:   v1.ProtocolTCP,
+	})
+}
+
+func (s *Objectstore) getLabels() map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr:     appName,
-		k8sutil.ClusterAttr: c.Namespace,
-		"rook_object_store": c.Config.Name,
+		k8sutil.ClusterAttr: s.Namespace,
+		"rook_object_store": s.Name,
 	}
 }

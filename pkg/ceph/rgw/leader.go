@@ -110,7 +110,7 @@ func GetRGWEndpoints(etcdClient etcd.KeysAPI, clusterInventory *inventory.Config
 		nodeDetails, ok := clusterInventory.Nodes[nodeID]
 		if ok {
 			host = GetRGWEndpoint(DNSName)
-			ipEndpoint = GetRGWEndpoint(nodeDetails.PublicIP)
+			ipEndpoint = nodeDetails.PublicIP
 			return host, ipEndpoint, true, nil
 		}
 	}

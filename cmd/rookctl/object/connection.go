@@ -22,7 +22,6 @@ import (
 
 	"github.com/rook/rook/cmd/rookctl/rook"
 	"github.com/rook/rook/pkg/rook/client"
-	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
@@ -42,8 +41,8 @@ var (
 )
 
 var connectionCmd = &cobra.Command{
-	Use:     "connection [User ID]",
-	Short:   "Gets connection information that will allow a client to access object storage in the cluster",
+	Use:     "connection [ObjectStore] [UserID]",
+	Short:   "Gets connection information that will allow a client to access object storage",
 	Aliases: []string{"conn"},
 }
 
@@ -57,20 +56,12 @@ func init() {
 func getConnectionInfoEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
-	if len(args) == 0 {
-		return fmt.Errorf("Missing required argument User ID")
-	}
-
-	if len(args) > 1 {
-		return fmt.Errorf("Too many arguments")
-	}
-
-	if err := flags.VerifyRequiredFlags(cmd, []string{}); err != nil {
+	if err := checkObjectArgs(args, []string{"[UserID]"}); err != nil {
 		return err
 	}
 
 	c := rook.NewRookNetworkRestClient()
-	out, err := getConnectionInfo(c, args[0], connOutputFormat)
+	out, err := getConnectionInfo(c, args[0], args[1], connOutputFormat)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -80,12 +71,12 @@ func getConnectionInfoEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func getConnectionInfo(c client.RookRestClient, userID, format string) (string, error) {
+func getConnectionInfo(c client.RookRestClient, storeName, userID, format string) (string, error) {
 	if format != FormatPretty && format != FormatEnvVar {
 		return "", fmt.Errorf("invalid output format: %s", format)
 	}
 
-	connInfo, err := c.GetObjectStoreConnectionInfo()
+	connInfo, err := c.GetObjectStoreConnectionInfo(storeName)
 	if err != nil {
 		if client.IsHttpNotFound(err) {
 			return "object store connection info is not ready, if \"object create\" has already been run, please be patient\n", nil
@@ -94,7 +85,7 @@ func getConnectionInfo(c client.RookRestClient, userID, format string) (string, 
 		return "", fmt.Errorf("failed to get object store connection info: %+v", err)
 	}
 
-	user, err := c.GetObjectUser(userID)
+	user, err := c.GetObjectUser(storeName, userID)
 	if err != nil {
 		if client.IsHttpNotFound(err) {
 			return fmt.Sprintf("Unable to find user %s\n", userID), nil
@@ -113,14 +104,18 @@ func getConnectionInfo(c client.RookRestClient, userID, format string) (string, 
 
 		// write object store connection info
 		fmt.Fprintf(w, PrettyOutputFmt, AWSHost, connInfo.Host)
-		fmt.Fprintf(w, PrettyOutputFmt, AWSEndpoint, connInfo.IPEndpoint)
+		for _, port := range connInfo.Ports {
+			fmt.Fprintf(w, PrettyOutputFmt, AWSEndpoint, fmt.Sprintf("%s:%d", connInfo.IPAddress, port))
+		}
 		fmt.Fprintf(w, PrettyOutputFmt, AWSAccessKey, *user.AccessKey)
 		fmt.Fprintf(w, PrettyOutputFmt, AWSSecretKey, *user.SecretKey)
 
 		w.Flush()
 	} else if format == FormatEnvVar {
 		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSHost, connInfo.Host))
-		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSEndpoint, connInfo.IPEndpoint))
+		for _, port := range connInfo.Ports {
+			buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSEndpoint, fmt.Sprintf("%s:%d", connInfo.IPAddress, port)))
+		}
 		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSAccessKey, *user.AccessKey))
 		buffer.WriteString(fmt.Sprintf(ExportOutputFmt, AWSSecretKey, *user.SecretKey))
 	}

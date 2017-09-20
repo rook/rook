@@ -31,6 +31,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/util/exec"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -38,8 +39,9 @@ import (
 
 //K8sHelper is a helper for common kubectl commads
 type K8sHelper struct {
-	executor  *exec.CommandExecutor
-	Clientset *kubernetes.Clientset
+	executor         *exec.CommandExecutor
+	Clientset        *kubernetes.Clientset
+	RunningInCluster bool
 }
 
 const (
@@ -61,8 +63,11 @@ func CreateK8sHelper() (*K8sHelper, error) {
 		return nil, fmt.Errorf("failed to get clientset. %+v", err)
 	}
 
-	return &K8sHelper{executor: executor, Clientset: clientset}, err
-
+	h := &K8sHelper{executor: executor, Clientset: clientset}
+	if strings.Index(config.Host, "//10.") != -1 {
+		h.RunningInCluster = true
+	}
+	return h, err
 }
 
 var k8slogger = capnslog.NewPackageLogger("github.com/rook/rook", "utils")
@@ -292,6 +297,33 @@ func (k8sh *K8sHelper) GetMonitorServices(namespace string) (map[string]string, 
 	}, nil
 }
 
+//IsPodWithLabelRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
+func (k8sh *K8sHelper) IsPodWithLabelRunning(label string, namespace string) bool {
+	options := metav1.ListOptions{LabelSelector: label}
+	inc := 0
+	for inc < RetryLoop {
+		pods, err := k8sh.Clientset.Pods(namespace).List(options)
+		if err != nil {
+			logger.Errorf("failed to find pod with label %s. %+v", label, err)
+			return false
+		}
+
+		if len(pods.Items) > 0 {
+			for _, pod := range pods.Items {
+				if pod.Status.Phase == "Running" {
+					return true
+				}
+			}
+		}
+		inc++
+		time.Sleep(RetryInterval * time.Second)
+		logger.Infof("waiting for pod with label %s in namespace %s to be running", label, namespace)
+
+	}
+	logger.Infof("Giving up waiting for pod with label %s in namespace %s to be running", label, namespace)
+	return false
+}
+
 //IsPodRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) IsPodRunning(name string, namespace string) bool {
 	getOpts := metav1.GetOptions{}
@@ -332,7 +364,7 @@ func (k8sh *K8sHelper) IsPodTerminated(name string, namespace string) bool {
 	return false
 }
 
-//IsServiceUp returns true if a service is up or comes up within 40s, else returns false
+//IsServiceUp returns true if a service is up or comes up within 150s, else returns false
 func (k8sh *K8sHelper) IsServiceUp(name string, namespace string) bool {
 	getOpts := metav1.GetOptions{}
 	inc := 0
@@ -431,7 +463,7 @@ func (k8sh *K8sHelper) GetServiceNodePort(serviceName string, namespace string) 
 	svc, err := k8sh.Clientset.Services(namespace).Get(serviceName, getOpts)
 	if err != nil {
 		logger.Errorf("Cannot get service : %v in namespace %v, err: %v", serviceName, namespace, err)
-		return "", fmt.Errorf("Cannot get serice : %v in namespace %v, err: %v", serviceName, namespace, err)
+		return "", fmt.Errorf("Cannot get service : %v in namespace %v, err: %v", serviceName, namespace, err)
 	}
 	np := svc.Spec.Ports[0].NodePort
 	return strconv.FormatInt(int64(np), 10), nil
@@ -588,19 +620,70 @@ func (k8sh *K8sHelper) WaitUntilNameSpaceIsDeleted(namespace string) bool {
 	return false
 }
 
-//GetRGWServiceURL returns URL of ceph RGW service in the cluster
-func (k8sh *K8sHelper) GetRGWServiceURL(servicename string, namespace string) (string, error) {
-	hostip, err := k8sh.GetPodHostID("rook-ceph-rgw", namespace)
-	if err != nil {
-		panic(fmt.Errorf("RGW pods not found/object store possibly not started"))
+//CreateExternalRGWService creates a service for rgw access external to the cluster on a node port
+func (k8sh *K8sHelper) CreateExternalRGWService(namespace, storeName string) error {
+	svcName := "rgw-external-" + storeName
+	externalSvc := `apiVersion: v1
+kind: Service
+metadata:
+  name: ` + svcName + `
+  namespace: ` + namespace + `
+  labels:
+    app: rook-ceph-rgw
+    rook_cluster: ` + namespace + `
+spec:
+  ports:
+  - name: rook-ceph-rgw
+    port: 53390
+    protocol: TCP
+  selector:
+    app: rook-ceph-rgw
+    rook_cluster: ` + namespace + `
+  sessionAffinity: None
+  type: NodePort
+`
+	_, err := k8sh.KubectlWithStdin(externalSvc, []string{"create", "-f", "-"}...)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create external service. %+v", err)
 	}
 
-	//TODO - Get nodePort stop hardcoding
-	nodePort, err := k8sh.GetServiceNodePort(servicename, namespace)
+	return nil
+}
+
+func (k8sh *K8sHelper) GetRGWServiceURL(storeName string, namespace string) (string, error) {
+	if k8sh.RunningInCluster {
+		return k8sh.GetInternalRGWServiceURL(storeName, namespace)
+	}
+	return k8sh.GetExternalRGWServiceURL(storeName, namespace)
+}
+
+//GetRGWServiceURL returns URL of ceph RGW service in the cluster
+func (k8sh *K8sHelper) GetInternalRGWServiceURL(storeName string, namespace string) (string, error) {
+	name := "rook-ceph-rgw-" + storeName
+	svc, err := k8sh.GetService(name, namespace)
 	if err != nil {
-		panic(fmt.Errorf("RGW pods not found/object store possibly not started"))
+		return "", fmt.Errorf("RGW service not found/object. %+v", err)
+	}
+
+	endpoint := fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, svc.Spec.Ports[0].Port)
+	logger.Infof("internal rgw endpoint: %s", endpoint)
+	return endpoint, nil
+}
+
+//GetRGWServiceURL returns URL of ceph RGW service in the cluster
+func (k8sh *K8sHelper) GetExternalRGWServiceURL(storeName string, namespace string) (string, error) {
+	hostip, err := k8sh.GetPodHostID("rook-ceph-rgw", namespace)
+	if err != nil {
+		return "", fmt.Errorf("RGW pods not found. %+v", err)
+	}
+
+	serviceName := "rgw-external-" + storeName
+	nodePort, err := k8sh.GetServiceNodePort(serviceName, namespace)
+	if err != nil {
+		return "", fmt.Errorf("RGW service not found. %+v", err)
 	}
 	endpoint := hostip + ":" + nodePort
+	logger.Infof("external rgw endpoint: %s", endpoint)
 	return endpoint, err
 }
 

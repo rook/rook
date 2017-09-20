@@ -15,19 +15,36 @@ limitations under the License.
 */
 package object
 
-import "github.com/spf13/cobra"
+import (
+	"fmt"
+	"os"
 
-var Cmd = &cobra.Command{
-	Use:     "object",
-	Aliases: []string{"obj"},
-	Short:   "Performs commands and operations on object stores in the cluster",
+	"github.com/rook/rook/cmd/rookctl/rook"
+	"github.com/spf13/cobra"
+)
+
+var deleteCmd = &cobra.Command{
+	Use:   "delete [ObjectStore]",
+	Short: "Deletes an object store from the cluster",
 }
 
 func init() {
-	Cmd.AddCommand(createCmd)
-	Cmd.AddCommand(connectionCmd)
-	Cmd.AddCommand(bucketCmd)
-	Cmd.AddCommand(userCmd)
-	Cmd.AddCommand(listCmd)
-	Cmd.AddCommand(deleteCmd)
+	deleteCmd.RunE = deleteBlockImageEntry
+}
+
+func deleteBlockImageEntry(cmd *cobra.Command, args []string) error {
+	rook.SetupLogging()
+
+	if err := checkObjectArgs(args, []string{}); err != nil {
+		return err
+	}
+
+	c := rook.NewRookNetworkRestClient()
+	err := c.DeleteObjectStore(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	return nil
 }
