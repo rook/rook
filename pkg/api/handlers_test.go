@@ -32,6 +32,7 @@ import (
 	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/operator/test"
 	"github.com/rook/rook/pkg/util"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/sys"
@@ -46,7 +47,7 @@ const (
 
 func newTestHandler(context *clusterd.Context) *Handler {
 	clusterInfo, _ := mon.LoadClusterInfo(context.EtcdClient)
-	return newHandler(context, &Config{ClusterHandler: NewEtcdHandler(context), ClusterInfo: clusterInfo})
+	return newHandler(context, &Config{ClusterHandler: NewClusterHandler(context, clusterInfo, "default", "myversion", false), ClusterInfo: clusterInfo})
 }
 
 func TestRegisterMetrics(t *testing.T) {
@@ -362,5 +363,6 @@ func testContextWithMons(mons []string) (*clusterd.Context, *util.MockEtcdClient
 		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
 		Executor:      executor,
 		ConfigDir:     configDir,
+		Clientset:     test.New(1),
 	}, etcdClient, executor
 }
