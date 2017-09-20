@@ -51,7 +51,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	logger.Infof("Step 2: Mount file System")
 	mtfsErr := podWithFileSystem(k8sh, s, filePodName, namespace, fileSystemName, fileMountPath, "create")
 	require.Nil(s.T(), mtfsErr)
-	require.True(s.T(), k8sh.IsPodRunning(filePodName, defaultRookNamespace), "make sure file-test pod is in running state")
+	require.True(s.T(), k8sh.IsPodRunning(filePodName, namespace), "make sure file-test pod is in running state")
 	logger.Infof("File system mounted successfully")
 
 	logger.Infof("Step 3: Write to file system")
@@ -68,7 +68,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	logger.Infof("Step 5: UnMount file System")
 	umtfsErr := podWithFileSystem(k8sh, s, filePodName, namespace, fileSystemName, fileMountPath, "delete")
 	require.Nil(s.T(), umtfsErr)
-	require.True(s.T(), k8sh.IsPodTerminated(filePodName, defaultRookNamespace), "make sure file-test pod is terminated")
+	require.True(s.T(), k8sh.IsPodTerminated(filePodName, namespace), "make sure file-test pod is terminated")
 	logger.Infof("File system mounted successfully")
 
 	logger.Infof("Step 6: Deleting file storage")

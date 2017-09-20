@@ -38,7 +38,7 @@ func CreateObjectOperation(rookRestClient contracts.RestAPIOperator) *ObjectOper
 }
 
 //ObjectCreate Function to create a object store in rook
-//Input paramatres -None
+//Input parameters -None
 //Output - output returned by rook Rest API client
 func (ro *ObjectOperation) ObjectCreate(namespace, storeName string, replicaCount int32, callAPI bool, k8sh *utils.K8sHelper) error {
 	store := model.ObjectStore{Name: storeName, Gateway: model.Gateway{Instances: replicaCount, Port: model.RGWPort}}
@@ -47,11 +47,13 @@ func (ro *ObjectOperation) ObjectCreate(namespace, storeName string, replicaCoun
 	if callAPI {
 		logger.Infof("creating the object store via the rest API")
 		_, err := ro.restClient.CreateObjectStore(store)
-		return err
-	}
+		if err != nil {
+			return fmt.Errorf("failed to create rest api object store. %+v", err)
+		}
+	} else {
 
-	logger.Infof("creating the object store via CRD")
-	storeSpec := fmt.Sprintf(`apiVersion: rook.io/v1alpha1
+		logger.Infof("creating the object store via CRD")
+		storeSpec := fmt.Sprintf(`apiVersion: rook.io/v1alpha1
 kind: Objectstore
 metadata:
   name: %s
@@ -72,14 +74,17 @@ spec:
     allNodes: false
 `, store.Name, namespace, store.Gateway.Port, store.Gateway.Instances)
 
-	if _, err := k8sh.ResourceOperation("create", storeSpec); err != nil {
-		return err
+		if _, err := k8sh.ResourceOperation("create", storeSpec); err != nil {
+			return err
+		}
+
+		if !k8sh.IsPodWithLabelRunning(fmt.Sprintf("rook_object_store=%s", storeName), namespace) {
+			return fmt.Errorf("rgw did not start via crd")
+		}
 	}
 
-	if !k8sh.IsPodWithLabelRunning(fmt.Sprintf("rook_object_store=%s", storeName), namespace) {
-		return fmt.Errorf("rgw did not start via crd")
-	}
-	return nil
+	// create the external service
+	return k8sh.CreateExternalRGWService(namespace, storeName)
 }
 
 //ObjectBucketList Function to get Buckets present in rook object store

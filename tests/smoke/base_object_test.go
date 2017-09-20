@@ -19,9 +19,6 @@ package smoke
 import (
 	"errors"
 
-	"fmt"
-	"time"
-
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/utils"
@@ -51,7 +48,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Running on Rook Cluster %s", namespace)
 
 	logger.Infof("Step 0 : Create Object Store")
-	cobsErr := createObjectStore(helper, k8sh, s, namespace, storeName, 1)
+	cobsErr := helper.GetObjectClient().ObjectCreate(namespace, storeName, 1, true, k8sh)
 	require.Nil(s.T(), cobsErr)
 	logger.Infof("Object store created successfully")
 
@@ -59,8 +56,8 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	initialUsers, _ := oc.ObjectListUser(storeName)
 	_, cosuErr := oc.ObjectCreateUser(storeName, userid, userdisplayname)
 	require.Nil(s.T(), cosuErr)
-	usersAfterCrate, _ := oc.ObjectListUser(storeName)
-	require.Equal(s.T(), len(initialUsers)+1, len(usersAfterCrate), "Make sure user list count is increaded by 1")
+	usersAfterCreate, _ := oc.ObjectListUser(storeName)
+	require.Equal(s.T(), len(initialUsers)+1, len(usersAfterCreate), "Make sure user list count is increased by 1")
 	getuserData, guErr := oc.ObjectGetUser(storeName, userid)
 	require.Nil(s.T(), guErr)
 	require.Equal(s.T(), userid, getuserData.UserID, "Check user id returned")
@@ -70,8 +67,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Step 2 : Get connection information")
 	conninfo, conninfoError := oc.ObjectGetUser(storeName, userid)
 	require.Nil(s.T(), conninfoError)
-	rgwExternalServiceName := "rgw-external-" + namespace
-	s3endpoint, _ := k8sh.GetRGWServiceURL(rgwExternalServiceName, defaultRookNamespace)
+	s3endpoint, _ := k8sh.GetRGWServiceURL(storeName, namespace)
 	s3client := utils.CreateNewS3Helper(s3endpoint, *conninfo.AccessKey, *conninfo.SecretKey)
 
 	logger.Infof("Step 3 : Create bucket")
@@ -149,19 +145,17 @@ func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s s
 }
 
 func objectTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, storeName string) {
-	rgwExternalServiceName := "rgw-external-" + namespace
 	logger.Infof("Cleaning up object store")
 	oc := helper.GetObjectClient()
 	userinfo, err := oc.ObjectGetUser(storeName, userid)
 	if err != nil {
 		return //when user is not found
 	}
-	s3endpoint, _ := k8sh.GetRGWServiceURL(rgwExternalServiceName, namespace)
+	s3endpoint, _ := k8sh.GetRGWServiceURL(storeName, namespace)
 	s3client := utils.CreateNewS3Helper(s3endpoint, *userinfo.AccessKey, *userinfo.SecretKey)
 	s3client.DeleteObjectInBucket(bucketname, objectKey)
 	s3client.DeleteBucket(bucketname)
 	oc.ObjectDeleteUser(storeName, userid)
-
 }
 
 func getBucket(bucketname string, bucketList []model.ObjectBucket) (model.ObjectBucket, error) {
@@ -175,56 +169,10 @@ func getBucket(bucketname string, bucketList []model.ObjectBucket) (model.Object
 	return model.ObjectBucket{}, errors.New("Bucket not found")
 }
 
-func createObjectStore(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, storeName string, replicaSize int32) error {
-	rgwExternalServiceName := "rgw-external-" + namespace
-	err := helper.GetObjectClient().ObjectCreate(namespace, storeName, replicaSize, true, k8sh)
-	require.Nil(s.T(), err)
-	time.Sleep(time.Second * 2) //wait for rgw service to to started
-	if k8sh.IsServiceUp("rook-ceph-rgw-"+storeName, namespace) {
-		_, err = k8sh.GetService(rgwExternalServiceName, namespace)
-		if err != nil {
-			k8sh.KubectlWithStdin(getRGWExternalServiceDef(namespace), []string{"create", "-f", "-"}...)
-			if !k8sh.IsServiceUp(rgwExternalServiceName, namespace) {
-				logger.Infof("Couldn't start RGW external serivce")
-				return fmt.Errorf("Cannot expose rgw servie for external user")
-			}
-
-		}
-
-		return nil
-	}
-	return fmt.Errorf("RGW service not started")
-
-}
-
 func getBucketSizeAndObjectes(bucketname string, bucketList []model.ObjectBucket) (uint64, uint64, error) {
 	bkt, err := getBucket(bucketname, bucketList)
 	if err != nil {
 		return 0, 0, errors.New("Bucket not found")
 	}
 	return bkt.Size, bkt.NumberOfObjects, nil
-}
-
-//Expose RGW service
-func getRGWExternalServiceDef(namespace string) string {
-	return `apiVersion: v1
-kind: Service
-metadata:
-  name: rgw-external-` + namespace + `
-  namespace: ` + namespace + `
-  labels:
-    app: rook-ceph-rgw
-    rook_cluster: ` + namespace + `
-spec:
-  ports:
-  - name: rook-ceph-rgw
-    port: 53390
-    protocol: TCP
-  selector:
-    app: rook-ceph-rgw
-    rook_cluster: ` + namespace + `
-  sessionAffinity: None
-  type: NodePort
-`
-
 }
