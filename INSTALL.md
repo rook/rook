@@ -165,3 +165,20 @@ To prune the number of cached images run `make prune`. There are two options tha
 
 - `PRUNE_HOURS` - the number of hours from when an image was last used (a cache hit) for it to be considered for pruning. The default is 48 hrs.
 - `PRUNE_KEEP` - the minimum number of cached images to keep in the cache. Default is 24 images.
+
+## CI workflow and options
+Every PR and every merge to master triggers the CI process in [Jenkins](http://jenkins.rook.io).
+The Jenkins CI will build, run unit tests, run integration tests and Publish artifacts- On every commit to PR and master.
+If any of the CI stages fail, then the process is aborted and no artifacts are published. 
+On every successful build Artifacts are pushed to a [s3 bucket](https://release.rook.io/). On every successful master build, 
+images are uploaded to quay and docker hub in addition.  
+
+During Integration tests phase, all End to End Integration tests under [/tests/integration](/tests/integration) are run.
+It may take a while to run all Integration tests. Based on nature of the PR, it may not be required to run full regression 
+Or users may want to skip build all together for trivial changes like documentation changes. Based on the PR body text,Jenkins will skip the build or skip some tests
+
+1. [skip ci] - if this text is found in the body of PR, then Jenkins will skip the build process and accept the commit
+2. [smoke only] - if this text is found in the body of PR, then Jenkins will only run Smoke Test during integration test phase
+
+The above flags work only on PRs,The full regression is run on every merge to master.
+ 

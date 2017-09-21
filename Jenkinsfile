@@ -1,6 +1,11 @@
 // Rook build for Jenkins Pipelines
 
 pipeline {
+   parameters {
+         booleanParam(defaultValue: true, description: 'Execute pipeline?', name: 'shouldBuild')
+         booleanParam(defaultValue: false, description: 'Run Only Smoke Test', name: 'smokeOnly')
+
+      }
     agent { label 'ec2-stateful' }
 
     options {
@@ -10,23 +15,56 @@ pipeline {
     }
 
     stages {
+        stage('Pre Build check'){
+            when { branch "PR-*" }
+            steps {
+                script {
+                    pr_number = sh (script: "echo ${env.BRANCH_NAME} | grep -o -E '[0-9]+' ",returnStdout: true)
+                    def json = sh (script: "curl -s https://api.github.com/repos/rook/rook/pulls/${pr_number}", returnStdout: true).trim()
+                    def body = evaluateJson(json,'${json.body}')
+                    if (body.contains("[skip ci]")) {
+                         echo ("'[skip ci]' spotted in PR body text. Aborting.")
+                         env.shouldBuild = "false"
+
+                    }
+                    if (body.contains("[smoke only]")) {
+                          env.smokeOnly = "true"
+
+                    }
+                }
+            }
+        }
         stage('Build') {
+            when {
+                expression {
+                    return env.shouldBuild == "true"
+                }
+            }
             steps {
                 sh 'build/run make -j\$(nproc) build.all'
             }
         }
         stage('Unit Tests') {
+            when {
+                expression {
+                    return env.shouldBuild == "true"
+                }
+            }
             steps {
                 sh 'build/run make -j\$(nproc) test'
             }
         }
 
        stage('Integration Tests') {
+            when {
+                expression {
+                    return env.shouldBuild == "true"
+                }
+            }
             steps{
                 sh 'cat _output/version | xargs tests/scripts/makeTestImages.sh  save amd64'
                 stash name: 'repo-amd64',includes: 'rook-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script{
-
                     def data = [
                         "aws_ci": "v1.6.7",
                         "gce_ci": "v1.7.5"
@@ -50,6 +88,11 @@ pipeline {
             }
         }
         stage('Publish') {
+            when {
+                expression {
+                    return env.shouldBuild == "true"
+                }
+            }
             environment {
                 DOCKER = credentials('rook-docker-hub')
                 QUAY = credentials('rook-quay-io')
@@ -91,11 +134,22 @@ def RunIntegrationTest(k, v) {
                           export KUBECONFIG=$HOME/admin.conf
                           tests/scripts/helm.sh up'''
                     try{
+                        if ("${env.smokeOnly}" == "true") {
+                            echo "Running Smoke Tests"
+                            sh '''#!/bin/bash
+                                  set -o pipefail
+                                  export KUBECONFIG=$HOME/admin.conf
+                                  kubectl config view
+                                  _output/tests/linux_amd64/integration -test.v -test.timeout 600s -test.run SmokeSuite 2>&1 | tee _output/tests/integrationTests.log'''
+                        }
+                        else {
+                        echo "Running full regression"
                         sh '''#!/bin/bash
-                        set -o pipefail
-                        export KUBECONFIG=$HOME/admin.conf
-                        kubectl config view
-                        _output/tests/linux_amd64/smoke -test.v -test.timeout 1200s 2>&1 | tee _output/tests/integrationTests.log'''
+                              set -o pipefail
+                              export KUBECONFIG=$HOME/admin.conf
+                              kubectl config view
+                              _output/tests/linux_amd64/integration -test.v -test.timeout 1800s 2>&1 | tee _output/tests/integrationTests.log'''
+                         }
                     }
                     finally{
                         sh '''#!/bin/bash
@@ -119,4 +173,12 @@ def RunIntegrationTest(k, v) {
 @NonCPS
 List<List<?>> mapToList(Map map) {
   return map.collect { it ->[it.key, it.value]}
+}
+
+@NonCPS
+def evaluateJson(String json, String gpath){
+    //parse json
+    def ojson = new groovy.json.JsonSlurper().parseText(json)
+    //evaluate gpath as a gstring template where $json is a parsed json parameter
+    return new groovy.text.GStringTemplateEngine().createTemplate(gpath).make(json:ojson).toString()
 }

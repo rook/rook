@@ -1,4 +1,4 @@
-package smoke
+package integration
 
 import (
 	"testing"
@@ -17,11 +17,11 @@ var (
 	hslogger = capnslog.NewPackageLogger("github.com/rook/rook", "helmSmokeTest")
 )
 
-func TestHelmSmokeSuite(t *testing.T) {
-	suite.Run(t, new(HelmSmokeSuite))
+func TestHelmIntegrationSuite(t *testing.T) {
+	suite.Run(t, new(HelmSuite))
 }
 
-type HelmSmokeSuite struct {
+type HelmSuite struct {
 	suite.Suite
 	helper    *clients.TestClient
 	k8sh      *utils.K8sHelper
@@ -29,7 +29,7 @@ type HelmSmokeSuite struct {
 	hh        *utils.HelmHelper
 }
 
-func (hs *HelmSmokeSuite) SetupSuite() {
+func (hs *HelmSuite) SetupSuite() {
 	kh, err := utils.CreateK8sHelper()
 	require.NoError(hs.T(), err)
 
@@ -56,7 +56,7 @@ func (hs *HelmSmokeSuite) SetupSuite() {
 	require.Nil(hs.T(), err)
 }
 
-func (hs *HelmSmokeSuite) TearDownSuite() {
+func (hs *HelmSuite) TearDownSuite() {
 	if hs.T().Failed() {
 		gatherAllRookLogs(hs.k8sh, hs.Suite, defaultRookNamespace, defaultRookNamespace)
 
@@ -66,25 +66,25 @@ func (hs *HelmSmokeSuite) TearDownSuite() {
 }
 
 //Test to make sure all rook components are installed and Running
-func (hs *HelmSmokeSuite) TestRookInstallViaHelm() {
+func (hs *HelmSuite) TestRookInstallViaHelm() {
 	checkIfRookClusterIsInstalled(hs.k8sh, hs.Suite, defaultRookNamespace, defaultRookNamespace)
 
 }
 
 //Test BlockCreation on Rook that was installed via Helm
-func (hs *HelmSmokeSuite) TestBlockStoreOnRookInstalledViaHelm() {
+func (hs *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
 	runBlockE2ETestLite(hs.helper, hs.k8sh, hs.Suite, defaultRookNamespace)
 
 }
 
 //Test File System Creation on Rook that was installed via helm
-func (hs *HelmSmokeSuite) TestFileStoreOnRookInstalledViaHelm() {
+func (hs *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
 	runFileE2ETestLite(hs.helper, hs.k8sh, hs.Suite, defaultRookNamespace, "testFs")
 
 }
 
 //Test Object StoreCreation on Rook that was installed via helm
-func (hs *HelmSmokeSuite) TestObjectStoreOnRookInstalledViaHelm() {
+func (hs *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
 	runObjectE2ETestLite(hs.helper, hs.k8sh, hs.Suite, defaultRookNamespace, "default", 3)
 
 }
