@@ -37,7 +37,7 @@ pipeline {
         stage('Build') {
             when {
                 expression {
-                    return env.shouldBuild == "true"
+                    return env.shouldBuild != "false"
                 }
             }
             steps {
@@ -47,7 +47,7 @@ pipeline {
         stage('Unit Tests') {
             when {
                 expression {
-                    return env.shouldBuild == "true"
+                    return env.shouldBuild != "false"
                 }
             }
             steps {
@@ -58,7 +58,7 @@ pipeline {
        stage('Integration Tests') {
             when {
                 expression {
-                    return env.shouldBuild == "true"
+                    return env.shouldBuild != "false"
                 }
             }
             steps{
@@ -90,7 +90,7 @@ pipeline {
         stage('Publish') {
             when {
                 expression {
-                    return env.shouldBuild == "true"
+                    return env.shouldBuild != "false"
                 }
             }
             environment {
