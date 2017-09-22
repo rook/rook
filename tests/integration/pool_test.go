@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package smoke
+package integration
 
 import (
 	"fmt"
@@ -24,8 +24,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Smoke Test for Mon failover - Test check the following operations for the Mon failover in order
-//Delete mon pod, Wait for new mon pod
+// Smoke Test for pool Resizing
 func (suite *SmokeSuite) TestPoolResize() {
 	logger.Infof("Pool Resize Smoke Test")
 
