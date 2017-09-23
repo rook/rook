@@ -115,6 +115,9 @@ kubectl delete -n rook cluster rook
 kubectl delete -n rook serviceaccount rook-api
 kubectl delete clusterrole rook-api
 kubectl delete clusterrolebinding rook-api
+kubectl delete -n rook serviceaccount rook-ceph-osd
+kubectl delete clusterrole rook-ceph-osd
+kubectl delete clusterrolebinding rook-ceph-osd
 kubectl delete thirdpartyresources cluster.rook.io pool.rook.io  # ignore errors if on K8s 1.7+
 kubectl delete crd clusters.rook.io pools.rook.io  # ignore errors if on K8s 1.5 and 1.6
 kubectl delete secret rook-rook-user

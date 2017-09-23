@@ -122,40 +122,7 @@ func (c *Cluster) Start() error {
 
 // make a cluster role
 func (c *Cluster) makeClusterRole() error {
-	account := &v1.ServiceAccount{}
-	account.Name = deploymentName
-	account.Namespace = c.Namespace
-	_, err := c.context.Clientset.CoreV1().ServiceAccounts(c.Namespace).Create(account)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create api service account. %+v", err)
-	}
-
-	// Create the cluster role if it doesn't yet exist.
-	// If the role already exists we have to update it. Otherwise if the permissions change during an upgrade,
-	// the create will fail with an error that we're changing the permissions.
-	role := &v1beta1.ClusterRole{Rules: clusterAccessRules}
-	role.Name = deploymentName
-	_, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Get(role.Name, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		logger.Infof("creating cluster role rook-api")
-		_, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Create(role)
-	} else if err == nil {
-		logger.Infof("cluster role rook-api already exists. updating if needed.")
-		_, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Update(role)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to create cluster roles. %+v", err)
-	}
-
-	binding := &v1beta1.ClusterRoleBinding{}
-	binding.Name = deploymentName
-	binding.RoleRef = v1beta1.RoleRef{Name: deploymentName, Kind: "ClusterRole", APIGroup: "rbac.authorization.k8s.io"}
-	binding.Subjects = []v1beta1.Subject{{Kind: "ServiceAccount", Name: deploymentName, Namespace: c.Namespace}}
-	_, err = c.context.Clientset.RbacV1beta1().ClusterRoleBindings().Create(binding)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create api cluster role binding. %+v", err)
-	}
-	return nil
+	return k8sutil.MakeClusterRole(c.context.Clientset, c.Namespace, deploymentName, clusterAccessRules)
 }
 
 func (c *Cluster) makeDeployment() *extensions.Deployment {

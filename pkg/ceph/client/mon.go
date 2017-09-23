@@ -71,14 +71,20 @@ func AppendAdminConnectionArgs(args []string, configDir, clusterName string) []s
 	return append(args, configArgs...)
 }
 
+func ExecuteCephCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
+	return executeCephCommandWithOutputFile(context, clusterName, false, args)
+}
+
 func ExecuteCephCommandPlain(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
 	args = append(args, "--format", "plain")
 	return executeCommandWithOutputFile(context, false, CephTool, args)
 }
 
-func ExecuteCephCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
-	return executeCephCommandWithOutputFile(context, clusterName, false, args)
+func ExecuteCephCommandPlainNoOutputFile(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
+	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
+	args = append(args, "--format", "plain")
+	return executeCommand(context, CephTool, args)
 }
 
 func executeCephCommandWithOutputFile(context *clusterd.Context, clusterName string, debug bool, args []string) ([]byte, error) {

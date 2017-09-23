@@ -21,6 +21,7 @@ import (
 
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/ceph/osd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -83,12 +84,23 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	logStartupInfo(osdCmd.Flags())
 
+	clientset, _, err := getClientset()
+	if err != nil {
+		fmt.Printf("failed to init k8s client. %+v\n", err)
+		os.Exit(1)
+	}
+
+	context := createContext()
+	context.Clientset = clientset
+
+	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset)
+
 	forceFormat := false
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	agent := osd.NewAgent(dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
-		cfg.location, cfg.storeConfig, &clusterInfo, cfg.nodeName)
+		cfg.location, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
 
-	err := osd.Run(createContext(), agent)
+	err = osd.Run(context, agent)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

@@ -17,24 +17,20 @@ package osd
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"testing"
+
+	"github.com/rook/rook/pkg/util/kvstore"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSchemeSaveLoad(t *testing.T) {
-	// set up a temporary config directory that will be cleaned up after test
-	configDir, err := ioutil.TempDir("", "TestSchemeSaveLoad")
-	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
-	}
-	defer os.RemoveAll(configDir)
+	kv := kvstore.NewMockKeyValueStore()
+	storeName := getConfigStoreName("node123")
 
 	// loading the scheme when there is no scheme file should return an empty scheme with no error
-	scheme, err := LoadScheme(configDir)
+	scheme, err := LoadScheme(kv, storeName)
 	assert.Nil(t, err)
 	assert.NotNil(t, scheme)
 	assert.Equal(t, 0, len(scheme.Entries))
@@ -61,11 +57,11 @@ func TestSchemeSaveLoad(t *testing.T) {
 	}
 
 	// save the scheme to disk, should be no error
-	err = scheme.Save(configDir)
+	err = scheme.SaveScheme(kv, storeName)
 	assert.Nil(t, err)
 
 	// now load the saved scheme, it should load an equal object to what was saved
-	savedScheme, err := LoadScheme(configDir)
+	savedScheme, err := LoadScheme(kv, storeName)
 	assert.Nil(t, err)
 	assert.Equal(t, scheme, savedScheme)
 }

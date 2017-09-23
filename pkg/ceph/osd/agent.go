@@ -36,6 +36,7 @@ import (
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/rook/rook/pkg/util/proc"
 )
 
@@ -47,6 +48,7 @@ const (
 	osdIDMetadataKey    = "osd-id-metadata"
 	dataDiskUUIDKey     = "data-disk-uuid"
 	metadataDiskUUIDKey = "metadata-disk-uuid"
+	configStoreNameFmt  = "rook-ceph-osd-%s-config"
 	unassignedOSDID     = -1
 )
 
@@ -63,16 +65,17 @@ type OsdAgent struct {
 	metadataDevice     string
 	directories        string
 	storeConfig        StoreConfig
+	kv                 kvstore.KeyValueStore
 	configCounter      int32
 	osdsCompleted      chan struct{}
 }
 
 func NewAgent(devices string, usingDeviceFilter bool, metadataDevice, directories string, forceFormat bool,
-	location string, storeConfig StoreConfig, cluster *mon.ClusterInfo, nodeName string) *OsdAgent {
+	location string, storeConfig StoreConfig, cluster *mon.ClusterInfo, nodeName string, kv kvstore.KeyValueStore) *OsdAgent {
 
 	return &OsdAgent{devices: devices, usingDeviceFilter: usingDeviceFilter, metadataDevice: metadataDevice,
-		directories: directories, forceFormat: forceFormat, location: location, storeConfig: storeConfig, cluster: cluster,
-		nodeName: nodeName,
+		directories: directories, forceFormat: forceFormat, location: location, storeConfig: storeConfig,
+		cluster: cluster, nodeName: nodeName, kv: kv,
 	}
 }
 
@@ -321,7 +324,7 @@ func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 	succeeded := 0
 	var lastErr error
 	for dirPath, osdID := range dirs {
-		config := &osdConfig{id: osdID, configRoot: dirPath, dir: true}
+		config := &osdConfig{id: osdID, configRoot: dirPath, dir: true, kv: a.kv, storeName: getConfigStoreName(a.nodeName)}
 
 		if config.id == unassignedOSDID {
 			// the osd hasn't been registered with ceph yet, do so now to give it a cluster wide ID
@@ -377,13 +380,13 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 		scheme, err := a.getPartitionPerfScheme(context, devices)
 		logger.Debugf("partition scheme: %+v, err: %+v", scheme, err)
 		if err != nil {
-			logger.Errorf("failed to get OSD performance scheme: %+v", err)
+			logger.Errorf("failed to get OSD partition scheme: %+v", err)
 			return
 		}
 
 		if scheme.Metadata != nil {
 			// partition the dedicated metadata device
-			if err := partitionMetadata(context, scheme.Metadata, context.ConfigDir); err != nil {
+			if err := partitionMetadata(context, scheme.Metadata, a.kv, getConfigStoreName(a.nodeName)); err != nil {
 				logger.Errorf("failed to partition metadata %+v: %+v", scheme.Metadata, err)
 				return
 			}
@@ -392,7 +395,8 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 		// initialize and start all the desired OSDs using the computed scheme
 		succeeded := 0
 		for _, entry := range scheme.Entries {
-			config := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configRoot: context.ConfigDir, partitionScheme: entry}
+			config := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configRoot: context.ConfigDir,
+				partitionScheme: entry, kv: a.kv, storeName: getConfigStoreName(a.nodeName)}
 			err := a.startOSD(context, config)
 			if err != nil {
 				logger.Errorf("failed to config osd %d. %+v", entry.ID, err)
@@ -412,9 +416,9 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *DeviceOsdMapping) (*PerfScheme, error) {
 
 	// load the existing (committed) partition scheme from disk
-	perfScheme, err := LoadScheme(context.ConfigDir)
+	perfScheme, err := LoadScheme(a.kv, getConfigStoreName(a.nodeName))
 	if err != nil {
-		return nil, fmt.Errorf("failed to load partition scheme from %s: %+v", context.ConfigDir, err)
+		return nil, fmt.Errorf("failed to load partition scheme: %+v", err)
 	}
 
 	nameToUUID := map[string]string{}
@@ -589,7 +593,7 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, config *osdConfig) error 
 	if newOSD {
 		if config.partitionScheme != nil {
 			// format and partition the device if needed
-			savedScheme, err := LoadScheme(config.configRoot)
+			savedScheme, err := LoadScheme(a.kv, getConfigStoreName(a.nodeName))
 			if err != nil {
 				return fmt.Errorf("failed to load the saved partition scheme from %s: %+v", config.configRoot, err)
 			}
@@ -981,4 +985,8 @@ func isBluestore(config *osdConfig) bool {
 
 func isFilestoreDevice(config *osdConfig) bool {
 	return !config.dir && config.partitionScheme != nil && config.partitionScheme.StoreType == Filestore
+}
+
+func getConfigStoreName(nodeName string) string {
+	return fmt.Sprintf(configStoreNameFmt, nodeName)
 }

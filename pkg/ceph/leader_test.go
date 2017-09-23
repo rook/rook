@@ -32,6 +32,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -140,7 +141,7 @@ func TestRefreshKeys(t *testing.T) {
 
 func TestNewCephService(t *testing.T) {
 
-	service := NewCephService("a,b,c", "", "", true, "root=default", "", osd.StoreConfig{}, "mynode")
+	service := NewCephService("a,b,c", "", "", true, "root=default", "", osd.StoreConfig{}, "mynode", kvstore.NewMockKeyValueStore())
 	assert.NotNil(t, service)
 	assert.Equal(t, "/rook/services/ceph/osd/desired", service.Leader.RefreshKeys()[0].Path)
 	assert.Equal(t, 5, len(service.Agents))

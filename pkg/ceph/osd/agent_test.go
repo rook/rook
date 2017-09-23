@@ -32,6 +32,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/rook/rook/pkg/util/proc"
 	"github.com/stretchr/testify/assert"
 )
@@ -178,7 +179,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 
 	// Set sdx as already having an assigned osd id, a UUID and saved to the partition scheme.
 	// The other device (sdy) will go through id selection, which is mocked in the createTestAgent method to return an id of 3.
-	_, sdxUUID := mockPartitionSchemeEntry(t, 23, "sdx", configDir, &storeConfig)
+	_, sdxUUID := mockPartitionSchemeEntry(t, 23, "sdx", &storeConfig, agent.kv, agent.nodeName)
 
 	// sdx should already have desired state set to have its data and metadata collocated on the sdx device
 	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/%s/device/%s/osd-id-data", nodeID, sdxUUID), "23")
@@ -239,7 +240,6 @@ func TestOSDAgentNoDevices(t *testing.T) {
 		return cmd, nil
 	}
 
-	// should be no executeCommand calls
 	runCount := 0
 	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
 		runCount++
@@ -247,12 +247,18 @@ func TestOSDAgentNoDevices(t *testing.T) {
 		return nil
 	}
 
-	// should be no executeCommandWithOutput calls
-	outputExecCount := 0
+	execWithOutputFileCount := 0
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, actionName, command, args)
-		outputExecCount++
+		logger.Infof("ExecuteCommandWithOutputFile %d for %s. %s %+v", execWithOutputFileCount, actionName, command, args)
+		execWithOutputFileCount++
 		return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
+	}
+
+	execWithOutputCount := 0
+	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, arg ...string) (string, error) {
+		logger.Infof("ExecuteCommandWithOutput %d for %s. %s %+v", execWithOutputCount, actionName, command, arg)
+		execWithOutputCount++
+		return "", nil
 	}
 
 	// set up expected ProcManager commands
@@ -263,7 +269,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 		ConfigDir:     configDir,
 	}
 
-	// prep the OSD agent and related orcehstration data
+	// prep the OSD agent and related orchestration data
 	prepAgentOrchestrationData(t, agent, etcdClient, context, clusterName)
 
 	// configure the OSD and verify the results
@@ -275,7 +281,8 @@ func TestOSDAgentNoDevices(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, runCount)
 	assert.Equal(t, 1, startCount)
-	assert.Equal(t, 4, outputExecCount)
+	assert.Equal(t, 3, execWithOutputFileCount)
+	assert.Equal(t, 1, execWithOutputCount)
 	assert.Equal(t, 1, len(agent.osdProc))
 
 	// the local device should be marked as an applied OSD now
@@ -349,7 +356,7 @@ func createTestAgent(t *testing.T, nodeID, devices, configDir string, storeConfi
 		storeConfig = &StoreConfig{StoreType: Bluestore}
 	}
 	etcdClient := util.NewMockEtcdClient()
-	agent := NewAgent(devices, false, "", "", forceFormat, location, *storeConfig, nil, "myhost")
+	agent := NewAgent(devices, false, "", "", forceFormat, location, *storeConfig, nil, "myhost", kvstore.NewMockKeyValueStore())
 	agent.cluster = &mon.ClusterInfo{Name: "myclust"}
 	agent.Initialize(&clusterd.Context{
 		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID},
@@ -497,7 +504,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 		{Name: "sdb", Size: 107374182400}, // 100 GB
 		{Name: "sdc", Size: 44158681088},  // 1 MB (starting offset) + 2 * (576 MB + 20 GB) = 41.125 GB
 	}
-	a := &OsdAgent{desiredDevices: []string{"sda", "sdb"}, metadataDevice: "sdc"}
+	a := &OsdAgent{desiredDevices: []string{"sda", "sdb"}, metadataDevice: "sdc", kv: kvstore.NewMockKeyValueStore(), nodeName: "a"}
 	clusterInfo, _ := mon.LoadClusterInfo(context.EtcdClient)
 	a.cluster = clusterInfo
 
@@ -566,13 +573,14 @@ func TestGetPartitionPerfSchemeDiskInUse(t *testing.T) {
 		ConfigDir:     configDir,
 	}
 
+	a := &OsdAgent{desiredDevices: []string{"sda"}, kv: kvstore.NewMockKeyValueStore()}
+
 	// mock device sda having been already partitioned
-	_, sdaUUID := mockPartitionSchemeEntry(t, 1, "sda", configDir, nil)
+	_, sdaUUID := mockPartitionSchemeEntry(t, 1, "sda", nil, a.kv, a.nodeName)
 
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
 		{Name: "sda", Size: 107374182400, UUID: sdaUUID}, // 100 GB
 	}
-	a := &OsdAgent{desiredDevices: []string{"sda"}}
 
 	// mock device sda already being saved to desired state
 	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/a/device/%s/osd-id-data", sdaUUID), "1")
@@ -617,15 +625,16 @@ func TestGetPartitionPerfSchemeDiskNameChanged(t *testing.T) {
 		ConfigDir:     configDir,
 	}
 
-	// setup an existing partition schme with metadata on nvme01 and data on sda
-	_, metadataUUID, sdaUUID := mockDistributedPartitionScheme(t, 1, "nvme01", "sda", configDir)
-
 	// mock the currently discovered hardware, note the device names have changed (e.g., across reboots) but their UUIDs are always static
+	a := &OsdAgent{desiredDevices: []string{"sda-changed"}, kv: kvstore.NewMockKeyValueStore()}
+
+	// setup an existing partition schme with metadata on nvme01 and data on sda
+	_, metadataUUID, sdaUUID := mockDistributedPartitionScheme(t, 1, "nvme01", "sda", a.kv, a.nodeName)
+
 	context.Inventory.Local.Disks = []*inventory.LocalDisk{
 		{Name: "nvme01-changed", Size: 107374182400, UUID: metadataUUID},
 		{Name: "sda-changed", Size: 107374182400, UUID: sdaUUID},
 	}
-	a := &OsdAgent{desiredDevices: []string{"sda-changed"}}
 
 	// mock the 2 devices as being committed to desired state already then load desired devices
 	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/a/device/%s/osd-id-data", sdaUUID), "1")
@@ -656,7 +665,9 @@ func verifyPartitionEntry(t *testing.T, actual *PerfSchemePartitionDetails, expe
 	assert.Equal(t, expectedOffset, actual.OffsetMB)
 }
 
-func mockPartitionSchemeEntry(t *testing.T, osdID int, device, configDir string, storeConfig *StoreConfig) (entry *PerfSchemeEntry, diskUUID string) {
+func mockPartitionSchemeEntry(t *testing.T, osdID int, device string, storeConfig *StoreConfig,
+	kv kvstore.KeyValueStore, nodeName string) (entry *PerfSchemeEntry, diskUUID string) {
+
 	if storeConfig == nil {
 		storeConfig = &StoreConfig{StoreType: Bluestore}
 	}
@@ -667,7 +678,7 @@ func mockPartitionSchemeEntry(t *testing.T, osdID int, device, configDir string,
 	PopulateCollocatedPerfSchemeEntry(entry, device, *storeConfig)
 	scheme := NewPerfScheme()
 	scheme.Entries = append(scheme.Entries, entry)
-	err := scheme.Save(configDir)
+	err := scheme.SaveScheme(kv, getConfigStoreName(nodeName))
 	assert.Nil(t, err)
 
 	// figure out what random UUID got assigned to the device
@@ -680,7 +691,9 @@ func mockPartitionSchemeEntry(t *testing.T, osdID int, device, configDir string,
 	return entry, diskUUID
 }
 
-func mockDistributedPartitionScheme(t *testing.T, osdID int, metadataDevice, device, configDir string) (*PerfScheme, string, string) {
+func mockDistributedPartitionScheme(t *testing.T, osdID int, metadataDevice, device string,
+	kv kvstore.KeyValueStore, nodeName string) (*PerfScheme, string, string) {
+
 	scheme := NewPerfScheme()
 	scheme.Metadata = NewMetadataDeviceInfo(metadataDevice)
 
@@ -690,7 +703,7 @@ func mockDistributedPartitionScheme(t *testing.T, osdID int, metadataDevice, dev
 
 	PopulateDistributedPerfSchemeEntry(entry, device, scheme.Metadata, StoreConfig{})
 	scheme.Entries = append(scheme.Entries, entry)
-	err := scheme.Save(configDir)
+	err := scheme.SaveScheme(kv, getConfigStoreName(nodeName))
 	assert.Nil(t, err)
 
 	// return the full partition scheme, the metadata device UUID and the data device UUID
