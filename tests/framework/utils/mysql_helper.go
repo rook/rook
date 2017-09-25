@@ -18,6 +18,7 @@ package utils
 
 import (
 	"database/sql"
+	"fmt"
 	"math/rand"
 	"strconv"
 	"time"
@@ -91,11 +92,24 @@ func (h *MySQLHelper) InsertRandomData() sql.Result {
 }
 
 //TableRowCount gets row count of table
+func (h *MySQLHelper) SelectRandomData(limit int) *sql.Rows {
+	query := fmt.Sprintf("SELECT * FROM  LONGHAUL ORDER BY RAND() LIMIT %d", limit)
+	rows, err := h.DB.Query(query)
+	if err != nil {
+		panic(err)
+	}
+	defer rows.Close()
+
+	return rows
+}
+
+//TableRowCount gets row count of table
 func (h *MySQLHelper) TableRowCount() (count int) {
 	rows, err := h.DB.Query("SELECT COUNT(*) as count FROM LONGHAUL")
 	if err != nil {
 		panic(err)
 	}
+	defer rows.Close()
 	for rows.Next() {
 		err := rows.Scan(&count)
 		if err != nil {
@@ -103,7 +117,6 @@ func (h *MySQLHelper) TableRowCount() (count int) {
 		}
 	}
 	return count
-
 }
 
 //TableExists checks if a table exists
@@ -122,6 +135,8 @@ func (h *MySQLHelper) DeleteRandomRow() sql.Result {
 	if err != nil {
 		panic(err)
 	}
+	defer rows.Close()
+
 	for rows.Next() {
 		err := rows.Scan(&id)
 		if err != nil {
