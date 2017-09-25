@@ -7,9 +7,17 @@ tarfile=${WORK_DIR}/tests/${tarname}
 
 export KUBE_VERSION=${KUBE_VERSION:-"v1.7.5"}
 
+usage(){
+    echo "usage:" >&2
+    echo "  $0 up " >&2
+    echo "  $0 install master" >&2
+    echo "  $0 install node --token <token> <master-ip>:<master-port>" >&2
+    echo "  $0 wait <number of nodes>" >&2
+    echo "  $0 clean" >&2
+}
 
-install() {
-
+#install k8s master node
+install_master(){
     sudo kubeadm init --skip-preflight-checks
 
     sudo cp /etc/kubernetes/admin.conf $HOME/
@@ -19,7 +27,7 @@ install() {
     kubectl taint nodes --all node-role.kubernetes.io/master-
     kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
 
-    echo "wait for K8s node to be Ready"
+     echo "wait for K8s master node to be Ready"
     kube_ready=$(kubectl get node -o jsonpath='{.items[0].status.conditions[3].status}')
     INC=0
     until [[ "${kube_ready}" == "True" || $INC -gt 20 ]]; do
@@ -30,12 +38,51 @@ install() {
     done
 
     if [ "${kube_ready}" == "False" ]; then
-        echo "k8s node never went to Ready status"
+        echo "k8s master node never went to Ready status"
         exit 1
     fi
 
-    echo "k8s node in Ready status"
+    echo "k8s master node in Ready status"
+}
 
+#install k8s node
+install_node(){
+    echo "inside install node function"
+    echo "kubeadm join ${1} ${2} ${3} --skip-preflight-checks"
+    sudo kubeadm join ${1} ${2} ${3} --skip-preflight-checks || true
+}
+
+#wait for all nodes in the cluster to be ready status
+wait_for_ready(){
+    #expect 3 node cluster by default
+    local numberOfNode=${1:-3}
+    local count=0
+    sudo cp /etc/kubernetes/admin.conf $HOME/
+    sudo chown $(id -u):$(id -g) $HOME/admin.conf
+    export KUBECONFIG=$HOME/admin.conf
+
+    until [[ $count -eq $numberOfNode ]]; do
+        echo "wait for K8s node $count to be Ready"
+        kube_ready=$(kubectl get node -o jsonpath='{.items['$count'].status.conditions[3].status}')
+        INC=0
+        until [[ "${kube_ready}" == "True" || $INC -gt 90 ]]; do
+            echo  -n "."
+            sleep 10
+            ((++INC))
+            kube_ready=$(kubectl get node -o jsonpath='{.items['$count'].status.conditions[3].status}')
+        done
+        echo
+        if [ "${kube_ready}" == "False" ]; then
+            echo "k8s node ${count} never went to Ready status"
+            exit 1
+        fi
+
+        echo "k8s node ${count} in Ready status"
+        ((++count))
+
+    done
+
+    echo "All k8s node in Ready status"
 
 }
 
@@ -55,7 +102,7 @@ kubeadm_reset() {
 case "${1:-}" in
   up)
     sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}" root
-    install
+    install_master
     ${scriptdir}/makeTestImages.sh tag amd64 || true
     sudo cp ${scriptdir}/kubeadm-rbd /bin/rbd
     sudo chmod +x /bin/rbd
@@ -64,8 +111,46 @@ case "${1:-}" in
   clean)
     kubeadm_reset
     ;;
+  install)
+    if [ "$#" -lt 2 ]; then
+        echo "invalid arguments for install"
+        usage
+        exit 1
+    fi
+    sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}" root
+    case "${2:-}" in
+        master)
+            install_master
+        ;;
+        node)
+            if [ "$#" -eq 5 ]; then
+                install_node $3 $4 $5
+            else
+                echo "invalid arguments for install node"
+                usage
+                exit 1
+            fi
+        ;;
+        *)
+            echo "invalid arguments for install" >&2
+            usage
+            exit 1
+        ;;
+    esac
+    sudo cp ${scriptdir}/kubeadm-rbd /bin/rbd
+    sudo chmod +x /bin/rbd
+    docker pull ceph/base || true
+    ;;
+  wait)
+    if [ "$#" -eq 2 ]; then
+        wait_for_ready $2
+    else
+        echo "invalid number of arguments for wait"
+        usage
+        exit 1
+    fi
+    ;;
   *)
-    echo "usage:" >&2
-    echo "  $0 up" >&2
-    echo "  $0 clean" >&2
+    usage
+    exit 1
 esac
