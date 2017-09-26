@@ -4,7 +4,7 @@ metadata:
   name: rook-tools
   namespace: rook
 spec:
-  hostNetwork: false
+  dnsPolicy: ClusterFirstWithHostNet
   containers:
   - name: rook-tools
     image: rook/toolbox:master
@@ -25,6 +25,7 @@ spec:
         name: sysbus
       - mountPath: /lib/modules
         name: libmodules
+  hostNetwork: false
   volumes:
     - name: dev
       hostPath:

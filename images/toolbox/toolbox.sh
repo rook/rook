@@ -26,14 +26,21 @@ CEPH_CONFIG="/etc/ceph/ceph.conf"
 # without specifying any arguments
 if [[ -d ${ROOK_DIR} ]]; then
     # there is a rook directory, try to find one of rook's ceph config files and copy it
-    ROOK_CONFIG=`find ${ROOK_DIR} -regex '.*mon[0-9]+/.*\.config' | head -1`
+    ROOK_CONFIG=$(find ${ROOK_DIR} -regex '.*mon[0-9]+/.*\.config' | head -1)
     if [[ ! -z ${ROOK_CONFIG} ]]; then
         cp ${ROOK_CONFIG} ${CEPH_CONFIG}
     fi
-elif [[ ! -z ${ROOK_API_SERVICE_HOST} ]] && [[ ! -z ${ROOK_API_SERVICE_PORT} ]]; then
-    # we have some rook env vars set, get client info from the rook API server and construct
-    # a ceph config file from that
-    ROOK_API_SERVER_ENDPOINT=${ROOK_API_SERVICE_HOST}:${ROOK_API_SERVICE_PORT}
+else
+    if [[ -z ${ROOK_API_SERVER_ENDPOINT} ]]; then
+        if [[ ! -z ${ROOK_API_SERVICE_HOST} ]] && [[ ! -z ${ROOK_API_SERVICE_PORT} ]]; then
+            # we have some rook env vars set, get client info from the rook API server and construct
+            # a ceph config file from that
+            ROOK_API_SERVER_ENDPOINT=${ROOK_API_SERVICE_HOST}:${ROOK_API_SERVICE_PORT}
+        else
+            # default to the dns name of the rook-api svc
+            ROOK_API_SERVER_ENDPOINT="rook-api:8124"
+        fi
+    fi
 
     # append to the bashrc file so that the rook tool can find the API server easily
     cat <<EOF >> ~/.bashrc

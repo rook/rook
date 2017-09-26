@@ -238,6 +238,10 @@ func (c *Cluster) startService() error {
 		},
 	}
 
+	if c.HostNetwork {
+		s.Spec.ClusterIP = v1.ClusterIPNone
+	}
+
 	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(s)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
