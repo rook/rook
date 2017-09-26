@@ -4,6 +4,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/enums"
@@ -14,13 +15,22 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// Rook Block Storage integration test
-// Start MySql database that is using rook provisoned block storage.
-// Make sure database is functional
-
+// Rook Block Storage longhaul test
+// Start MySql database that is using rook provisioned block storage.
+// Make sure database is functional over multiple runs.
+//NOTE: This tests doesn't clean up the cluster or volume after the run, the tests is designed
+//to reuse the same cluster and volume for multiple runs or over a period of time.
+// It is recommended to run this test with -count test param (to repeat th test n number of times)
+// along with --load_parallel_runs params(number of concurrent operations per test)
 func TestK8sBlockLongHaul(t *testing.T) {
 	suite.Run(t, new(K8sBlockLongHaulSuite))
 }
+
+var (
+	logger               = capnslog.NewPackageLogger("github.com/rook/rook", "longhaul")
+	defaultNamespace     = "default"
+	defaultRookNamespace = "longhaul-test"
+)
 
 type K8sBlockLongHaulSuite struct {
 	suite.Suite
@@ -37,6 +47,7 @@ type K8sBlockLongHaulSuite struct {
 
 //Test set up - does the following in order
 //create pool and storage class, create a PVC, Create a MySQL app/service that uses pvc
+
 func (s *K8sBlockLongHaulSuite) SetupSuite() {
 
 	var err error
@@ -44,12 +55,12 @@ func (s *K8sBlockLongHaulSuite) SetupSuite() {
 	assert.Nil(s.T(), err)
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset)
-	if !s.kh.IsRookInstalled() {
-		err = s.installer.InstallRookOnK8s("rook")
+	if !s.kh.IsRookInstalled(defaultRookNamespace) {
+		err = s.installer.InstallRookOnK8s(defaultRookNamespace)
 		require.NoError(s.T(), err)
 	}
 
-	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh, "rook")
+	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh, defaultRookNamespace)
 	require.Nil(s.T(), err)
 
 	s.bc = s.testClient.GetBlockClient()
@@ -60,7 +71,7 @@ func (s *K8sBlockLongHaulSuite) SetupSuite() {
 kind: Pool
 metadata:
   name: {{.poolName}}
-  namespace: rook
+  namespace: {{.namespace}}
 spec:
   replicated:
     size: 1
@@ -76,7 +87,9 @@ metadata:
    name: rook-block
 provisioner: rook.io/block
 parameters:
-    pool: {{.poolName}}`
+    pool: {{.poolName}}
+    clusterName: {{.namespace}}
+    clusterNamespace: {{.namespace}}`
 
 	s.mysqlAppPath = `apiVersion: v1
 kind: Service
@@ -149,7 +162,8 @@ spec:
 
 	//create storage class
 	if scp, _ := s.kh.IsStorageClassPresent("rook-block"); !scp {
-		_, err = s.storageClassOperation("mysql-pool", "create")
+		logger.Infof("Install storage class for rook block")
+		_, err = s.storageClassOperation("mysql-pool", defaultRookNamespace, "create")
 		require.NoError(s.T(), err)
 
 		//make sure storageclass is created
@@ -159,6 +173,7 @@ spec:
 	}
 	//create mysql pod
 	if _, err := s.kh.GetPVCStatus("mysql-pv-claim"); err != nil {
+		logger.Infof("Create PVC")
 
 		s.kh.ResourceOperation("create", s.mysqlAppPath)
 
@@ -196,18 +211,19 @@ func (s *K8sBlockLongHaulSuite) dbOperation(i int) {
 	s.db.InsertRandomData()
 	s.db.InsertRandomData()
 	s.db.InsertRandomData()
+	s.db.SelectRandomData(5)
 	s.db.InsertRandomData()
 	s.db.InsertRandomData()
 	s.db.InsertRandomData()
+	s.db.SelectRandomData(10)
 
 	//delete Data
 	s.db.DeleteRandomRow()
+	s.db.SelectRandomData(20)
 
 }
 func (s *K8sBlockLongHaulSuite) TearDownSuite() {
 	s.db.CloseConnection()
-	s.kh.ResourceOperation("delete", s.mysqlAppPath)
-	s.storageClassOperation("mysql-pool", "delete")
 	s.testClient = nil
 	s.bc = nil
 	s.kh = nil
@@ -215,9 +231,10 @@ func (s *K8sBlockLongHaulSuite) TearDownSuite() {
 	s = nil
 
 }
-func (s *K8sBlockLongHaulSuite) storageClassOperation(poolName string, action string) (string, error) {
+func (s *K8sBlockLongHaulSuite) storageClassOperation(poolName string, namespace string, action string) (string, error) {
 	config := map[string]string{
-		"poolName": poolName,
+		"poolName":  poolName,
+		"namespace": namespace,
 	}
 
 	result, err := s.kh.ResourceOperationFromTemplate(action, s.storageClassPath, config)
