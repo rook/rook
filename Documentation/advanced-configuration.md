@@ -59,20 +59,6 @@ The default is `rook` which will pull from [Docker Hub](https://hub.docker.com/r
 Keeping track of OSDs and their underlying storage devices/directories can be
 difficult.  The following scripts will clear things up quickly.
 
-### Standalone
-
-```bash
-# Run this on each storage node
-
-echo "Node:" $(hostname -s)
-for i in /var/lib/rook/osd*; do
-  [ -f ${i}/ready ] || continue
-  echo -ne "-$(basename ${i}) "
-  echo $(lsblk -n -o NAME,SIZE ${i}/block 2> /dev/null || \
-  findmnt -n -v -o SOURCE,SIZE -T ${i}) $(cat ${i}/type)
-done|sort -V|column -t
-```
-
 ### Kubernetes
 
 ```bash
@@ -338,23 +324,6 @@ daemons not to change the weight of OSDs on startup.
 
 **WARNING**: Modify Ceph settings carefully. You are leaving the sandbox tested by Rook.
 Changing the settings could result in unhealthy daemons or even data loss if used incorrectly.
-
-### Standalone Rook
-
-Here's our custom `ceph.conf` for the OSDs:
-
-```bash
-[global]
-osd crush update on start = false
-osd pool default size     = 2
-```
-
-With our ceph.conf file created we pass the settings to `rook` with the
-`--ceph-config-override` argument, for example:
-
-```bash
-rook --ceph-config-override=ceph.conf --data-devices=sdf
-```
 
 ### Kubernetes
 When the Rook Operator creates a cluster, a placeholder ConfigMap is created that

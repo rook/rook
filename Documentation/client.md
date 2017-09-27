@@ -12,7 +12,6 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
 `rookctl` can be accessed in the following ways:
 
 - Kubernetes: Start the [toolbox](toolbox.md) pod
-- Standalone: [Download the binary](standalone.md#rook-client-tool) to your client machine.
 
 ## Block Storage
 
@@ -28,10 +27,6 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
     ```bash
     # If running in the toolbox container, no need to run privileged
     rookctl block map --name test --format --mount /tmp/rook-volume
-
-    # If running standalone, you may need to run privileged and take ownership of the folder
-    sudo -E ./rookctl block map --name test --format --mount /tmp/rook-volume
-    sudo chown $USER:$USER /tmp/rook-volume
     ```
 
 1. Write and read a file
@@ -46,9 +41,6 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
     ```bash
     # If running in the toolbox container, no need to run privileged
     rookctl block unmap --mount /tmp/rook-volume
-
-    # If running standalone, you may need to run privileged
-    sudo -E ./rookctl block unmap --mount /tmp/rook-volume
     ```
 
 ## Shared File System
@@ -70,10 +62,6 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
    ```bash
    # If running in the toolbox container, no need to run privileged
    rookctl filesystem mount --name testFS --path /tmp/rookFS
-
-   # If running standalone, you may need to run privileged and take ownership of the folder
-   sudo -E ./rookctl filesystem mount --name testFS --path /tmp/rookFS
-   sudo chown $USER:$USER /tmp/rookFS
    ```
 
 1. Write and read a file to the shared file system
@@ -88,9 +76,6 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
    ```bash
    # If running in the toolbox container, no need to run privileged
    rookctl filesystem unmount --path /tmp/rookFS
-
-   # If running standalone, you may need to run privileged
-   sudo -E ./rookctl filesystem unmount --path /tmp/rookFS
    ```
 
 1. Cleanup the shared file system from the cluster (this **does** delete the data from the cluster)

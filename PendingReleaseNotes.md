@@ -15,6 +15,8 @@
 
 ## Breaking Changes
 
+- Rook Standalone
+  - Standalone mode has been disabled and is no longer supported. A Kubernetes environment is required to run Rook.
 - Pool CRD
   - `replication` renamed to `replicated`
   - `erasureCode` renamed to `erasureCoded`
