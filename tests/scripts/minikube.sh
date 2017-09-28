@@ -65,6 +65,8 @@ case "${1:-}" in
 
     copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
     copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
+
+    docker pull ceph/base
     copy_image_to_cluster ceph/base ceph/base
 
     ;;
