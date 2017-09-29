@@ -51,10 +51,13 @@ func (ro *ObjectOperation) ObjectCreate(namespace, storeName string, replicaCoun
 			return fmt.Errorf("failed to create rest api object store. %+v", err)
 		}
 	} else {
-
+		kind := "ObjectStore"
+		if !k8sh.VersionAtLeast("1.7.0") {
+			kind = "Objectstore"
+		}
 		logger.Infof("creating the object store via CRD")
 		storeSpec := fmt.Sprintf(`apiVersion: rook.io/v1alpha1
-kind: Objectstore
+kind: %s
 metadata:
   name: %s
   namespace: %s
@@ -72,7 +75,7 @@ spec:
     securePort:
     instances: %d
     allNodes: false
-`, store.Name, namespace, store.Gateway.Port, store.Gateway.Instances)
+`, kind, store.Name, namespace, store.Gateway.Port, store.Gateway.Instances)
 
 		if _, err := k8sh.ResourceOperation("create", storeSpec); err != nil {
 			return err

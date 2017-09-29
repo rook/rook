@@ -65,7 +65,7 @@ func TestStartRGW(t *testing.T) {
 	validateStart(t, store, clientset, true)
 }
 
-func validateStart(t *testing.T, store *Objectstore, clientset *fake.Clientset, allNodes bool) {
+func validateStart(t *testing.T, store *ObjectStore, clientset *fake.Clientset, allNodes bool) {
 	if !allNodes {
 		r, err := clientset.ExtensionsV1beta1().Deployments(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
 		assert.Nil(t, err)
@@ -197,8 +197,8 @@ func TestValidateSpec(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func simpleStore() *Objectstore {
-	return &Objectstore{
+func simpleStore() *ObjectStore {
+	return &ObjectStore{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"},
 		Spec: ObjectStoreSpec{
 			MetadataPool: pool.PoolSpec{Replicated: pool.ReplicatedSpec{Size: 1}},
