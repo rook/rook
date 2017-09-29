@@ -24,17 +24,20 @@ import (
 	"os"
 	"path"
 	"strings"
+	"testing"
 	"time"
 
 	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/kubernetes/pkg/util/version"
 )
 
 //K8sHelper is a helper for common kubectl commads
@@ -42,6 +45,7 @@ type K8sHelper struct {
 	executor         *exec.CommandExecutor
 	Clientset        *kubernetes.Clientset
 	RunningInCluster bool
+	T                func() *testing.T
 }
 
 const (
@@ -52,7 +56,7 @@ const (
 )
 
 //CreateK8sHelper creates a instance of k8sHelper
-func CreateK8sHelper() (*K8sHelper, error) {
+func CreateK8sHelper(t func() *testing.T) (*K8sHelper, error) {
 	executor := &exec.CommandExecutor{}
 	config, err := getKubeConfig(executor)
 	if err != nil {
@@ -63,7 +67,7 @@ func CreateK8sHelper() (*K8sHelper, error) {
 		return nil, fmt.Errorf("failed to get clientset. %+v", err)
 	}
 
-	h := &K8sHelper{executor: executor, Clientset: clientset}
+	h := &K8sHelper{executor: executor, Clientset: clientset, T: t}
 	if strings.Index(config.Host, "//10.") != -1 {
 		h.RunningInCluster = true
 	}
@@ -74,8 +78,14 @@ var k8slogger = capnslog.NewPackageLogger("github.com/rook/rook", "utils")
 
 //GetK8sServerVersion returns k8s server version under test
 func (k8sh *K8sHelper) GetK8sServerVersion() string {
-	versionInfo, _ := k8sh.Clientset.ServerVersion()
+	versionInfo, err := k8sh.Clientset.ServerVersion()
+	require.Nil(k8sh.T(), err)
 	return versionInfo.GitVersion
+}
+
+func (k8sh *K8sHelper) VersionAtLeast(minVersion string) bool {
+	v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
+	return v.AtLeast(version.MustParseSemantic(minVersion))
 }
 
 //Kubectl is wrapper for executing kubectl commands

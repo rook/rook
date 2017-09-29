@@ -39,12 +39,12 @@ type SmokeSuite struct {
 }
 
 func (suite *SmokeSuite) SetupSuite() {
-	kh, err := utils.CreateK8sHelper()
+	kh, err := utils.CreateK8sHelper(suite.T)
 	require.NoError(suite.T(), err)
 
 	suite.k8sh = kh
 
-	suite.installer = installer.NewK8sRookhelper(kh.Clientset)
+	suite.installer = installer.NewK8sRookhelper(kh.Clientset, suite.T)
 
 	err = suite.installer.InstallRookOnK8s(defaultRookNamespace)
 	require.NoError(suite.T(), err)
