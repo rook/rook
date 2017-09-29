@@ -40,25 +40,25 @@ const (
 
 // Cluster is the ceph mgr manager
 type Cluster struct {
-	Namespace   string
-	Version     string
-	Replicas    int
-	placement   k8sutil.Placement
-	context     *clusterd.Context
-	dataDir     string
-	HostNetwork bool
+	Namespace       string
+	Version         string
+	Replicas        int
+	placement       k8sutil.Placement
+	context         *clusterd.Context
+	dataDirHostPath string
+	HostNetwork     bool
 }
 
 // New creates an instance of the mgr
-func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath, version string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
 	return &Cluster{
-		context:     context,
-		Namespace:   namespace,
-		placement:   placement,
-		Version:     version,
-		Replicas:    1,
-		dataDir:     k8sutil.DataDir,
-		HostNetwork: hostNetwork,
+		context:         context,
+		Namespace:       namespace,
+		placement:       placement,
+		Version:         version,
+		Replicas:        1,
+		dataDirHostPath: dataDirHostPath,
+		HostNetwork:     hostNetwork,
 	}
 }
 
@@ -90,6 +90,11 @@ func (c *Cluster) Start() error {
 }
 
 func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
+	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
+	if c.dataDirHostPath != "" {
+		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
+	}
+
 	deployment := &extensions.Deployment{}
 	deployment.Name = name
 	deployment.Namespace = c.Namespace
@@ -104,7 +109,7 @@ func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
 			Containers:    []v1.Container{c.mgrContainer(name)},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
-				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
+				{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 				k8sutil.ConfigOverrideVolume(),
 			},
 			HostNetwork: c.HostNetwork,
