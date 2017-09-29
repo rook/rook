@@ -30,7 +30,7 @@ pipeline {
                         }
                         sh "wget -O integration https://release.rook.io/build/pr/${params.PR}/${params.version}/tests/linux_amd64/integration"
                         sh "wget -O _output/go-junit-report https://release.rook.io/build/pr/${params.PR}/${params.version}/go-junit-report"
-                        sh "wget -O version https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/version"
+                        sh "wget -O version https://release.rook.io/build/pr/${params.PR}/${params.version}/version"
                         versionId = readFile('version').trim()
                         sh "wget -O _output/charts/index.yaml https://release.rook.io/build/pr/${params.PR}/${params.version}/charts/index.yaml"
                         sh "wget -O _output/charts/rook-${versionId}.tgz https://release.rook.io/build/pr/${params.PR}/${params.version}/charts/rook-${versionId}.tgz"
