@@ -751,5 +751,5 @@ func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
 		logger.Warningf("anon-user-access not created")
 		return
 	}
-	logger.Warningf("anon-user-access created")
+	logger.Infof("anon-user-access created")
 }

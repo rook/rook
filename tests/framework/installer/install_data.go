@@ -189,37 +189,6 @@ spec:
   versionTag: master
   dataDirHostPath:
   hostNetwork: false
-# To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
-# The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage' and
-# tolerate taints with a key of 'storage-node'.
-#  placement:
-#    all:
-#      nodeAffinity:
-#        requiredDuringSchedulingIgnoredDuringExecution:
-#          nodeSelectorTerms:
-#          - matchExpressions:
-#            - key: role
-#              operator: In
-#              values:
-#              - storage-node
-#      tolerations:
-#      - key: storage-node
-#        operator: Exists
-#    api:
-#      nodeAffinity:
-#      tolerations:
-#    mds:
-#      nodeAffinity:
-#      tolerations:
-#    mon:
-#      nodeAffinity:
-#      tolerations:
-#    osd:
-#      nodeAffinity:
-#      tolerations:
-#    rgw:
-#      nodeAffinity:
-#      tolerations:
   storage:                # cluster level storage configuration and selection
     useAllNodes: true
     useAllDevices: false
@@ -230,20 +199,7 @@ spec:
       storeType: filestore
       databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
       journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
-# Individual nodes and their config can be specified as well, but 'useAllNodes' above must be set to false. Then, only the named
-# nodes below will be used as storage resources.  Each node's 'name' field should match their 'kubernetes.io/hostname' label.
-#    nodes:
-#    - name: "172.17.4.101"
-#      directories:         # specific directores to use for storage can be specified for each node
-#      - path: "/rook/storage-dir"
-#    - name: "172.17.4.201"
-#      devices:             # specific devices to use for storage can be specified for each node
-#      - name: "sdb"
-#      - name: "sdc"
-#      storeConfig:         # configuration can be specified at the node level which overrides the cluster level config
-#        storeType: bluestore
-#    - name: "172.17.4.301"
-#      deviceFilter: "^sd."`
+`
 }
 
 //GetRookToolBox returns rook-toolbox manifest
