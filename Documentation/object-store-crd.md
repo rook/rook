@@ -13,7 +13,7 @@ for object stores.
 
 ```yaml
 apiVersion: rook.io/v1alpha1
-kind: Objectstore
+kind: ObjectStore
 metadata:
   name: my-store
   namespace: rook
@@ -49,6 +49,12 @@ spec:
 ```
 
 ## Object Store Settings
+
+### Kind
+If you are using a version of Kubernetes **earlier than 1.7**, you will need to slightly modify the `kind` to be compatible with TPRs (deprecated in 1.7). Notice the different casing.
+```yaml
+kind: Objectstore
+```
 
 ### Metadata
 

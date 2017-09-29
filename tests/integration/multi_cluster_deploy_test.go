@@ -11,7 +11,6 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	utilversion "k8s.io/kubernetes/pkg/util/version"
 )
 
 func TestInstallingMultipleRookCluster(t *testing.T) {
@@ -31,11 +30,11 @@ type MultiRookClusterDeploySuite struct {
 func (mrc *MultiRookClusterDeploySuite) SetupSuite() {
 	//Skipping test until https://github.com/rook/rook/issues/970 is fixed.
 	mrc.Suite.T().SkipNow()
-	kh, err := utils.CreateK8sHelper()
+	kh, err := utils.CreateK8sHelper(mrc.T)
 	require.NoError(mrc.T(), err)
 
 	mrc.k8sh = kh
-	mrc.installer = installer.NewK8sRookhelper(kh.Clientset)
+	mrc.installer = installer.NewK8sRookhelper(kh.Clientset, mrc.T)
 	mrc.installData = installer.NewK8sInstallData()
 
 	err = mrc.installer.CreateK8sRookOperator()
@@ -77,19 +76,13 @@ func (mrc *MultiRookClusterDeploySuite) TearDownSuite() {
 	if skipRookInstall {
 		return
 	}
-	k8sVersion := mrc.k8sh.GetK8sServerVersion()
-	serverVersion, err := mrc.k8sh.Clientset.Discovery().ServerVersion()
-	if err != nil {
-		panic(err)
-	}
-	kubeVersion := utilversion.MustParseSemantic(serverVersion.GitVersion)
 
 	logger.Infof("Uninstalling All Rook Clusters")
-	k8sHelp, err := utils.CreateK8sHelper()
+	k8sHelp, err := utils.CreateK8sHelper(mrc.T)
 	if err != nil {
 		panic(err)
 	}
-	rookOperator := mrc.installData.GetRookOperator(k8sVersion)
+	rookOperator := mrc.installData.GetRookOperator(mrc.k8sh.GetK8sServerVersion())
 
 	//Delete rook operator
 	_, err = mrc.k8sh.KubectlWithStdin(rookOperator, deleteArgs...)
@@ -99,11 +92,11 @@ func (mrc *MultiRookClusterDeploySuite) TearDownSuite() {
 	}
 
 	//delete rook cluster
-	mrc.installer.CleanupCluster(clusterNamespace1, kubeVersion)
-	mrc.installer.CleanupCluster(clusterNamespace2, kubeVersion)
+	mrc.installer.CleanupCluster(clusterNamespace1)
+	mrc.installer.CleanupCluster(clusterNamespace2)
 
 	//Delete clusterrol and clustterrolebindings
-	if kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.6.0")) {
+	if mrc.k8sh.VersionAtLeast("v1.6.0") {
 		_, err = k8sHelp.DeleteResource([]string{"clusterrole", "rook-api"})
 		if err != nil {
 			logger.Errorf("Clusterrole rook-api cannot be deleted")
@@ -117,7 +110,7 @@ func (mrc *MultiRookClusterDeploySuite) TearDownSuite() {
 	}
 
 	// Delete crd/tpr
-	if kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.7.0")) {
+	if mrc.k8sh.VersionAtLeast("v1.7.0") {
 		_, err = k8sHelp.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io", "objectstores.rook.io"})
 		if err != nil {
 			logger.Errorf("crd cannot be deleted")

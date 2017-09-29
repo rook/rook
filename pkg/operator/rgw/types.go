@@ -30,18 +30,25 @@ import (
 // schemeGroupVersion is group version used to register these objects
 var schemeGroupVersion = schema.GroupVersion{Group: k8sutil.CustomResourceGroup, Version: k8sutil.V1Alpha1}
 
-// Objectstore is the definition of the object store custom resource
-type Objectstore struct {
+// ObjectStore is the definition of the object store custom resource
+type ObjectStore struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
 	Spec              ObjectStoreSpec `json:"spec"`
 }
 
-// ObjectstoreList is the definition of a list of object stores
+// ObjectstoreList is the definition of a list of object stores for CRDs (1.7+)
+type ObjectStoreList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []ObjectStore `json:"items"`
+}
+
+// ObjectstoreList is the definition of a list of object stores for TPRs (pre-1.7)
 type ObjectstoreList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []Objectstore `json:"items"`
+	Items           []ObjectStore `json:"items"`
 }
 
 // ObjectStoreSpec represent the spec of a pool

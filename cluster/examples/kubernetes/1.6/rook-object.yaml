@@ -1,6 +1,6 @@
 apiVersion: rook.io/v1alpha1
 # For earlier versions than K8s 1.7, the kind must be Objectstore
-kind: ObjectStore
+kind: Objectstore
 metadata:
   name: my-store
   namespace: rook

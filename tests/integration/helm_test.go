@@ -3,6 +3,8 @@ package integration
 import (
 	"testing"
 
+	"time"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/enums"
@@ -10,7 +12,6 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"time"
 )
 
 var (
@@ -30,13 +31,13 @@ type HelmSuite struct {
 }
 
 func (hs *HelmSuite) SetupSuite() {
-	kh, err := utils.CreateK8sHelper()
+	kh, err := utils.CreateK8sHelper(hs.T)
 	require.NoError(hs.T(), err)
 
 	hs.k8sh = kh
 	hs.hh = utils.NewHelmHelper()
 
-	hs.installer = installer.NewK8sRookhelper(kh.Clientset)
+	hs.installer = installer.NewK8sRookhelper(kh.Clientset, hs.T)
 
 	err = hs.installer.CreateK8sRookOperatorViaHelm(defaultRookNamespace)
 	require.NoError(hs.T(), err)

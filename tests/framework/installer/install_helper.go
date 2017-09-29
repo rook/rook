@@ -18,6 +18,7 @@ package installer
 
 import (
 	"fmt"
+	"testing"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
@@ -27,7 +28,6 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/objects"
 	"github.com/rook/rook/tests/framework/utils"
-	utilversion "k8s.io/kubernetes/pkg/util/version"
 )
 
 const (
@@ -50,6 +50,7 @@ type InstallHelper struct {
 	installData *InstallData
 	helmHelper  *utils.HelmHelper
 	Env         objects.EnvironmentManifest
+	T           func() *testing.T
 }
 
 func init() {
@@ -69,9 +70,8 @@ func (h *InstallHelper) CreateK8sRookOperator() (err error) {
 	if err != nil {
 		return fmt.Errorf("Failed to create rook-operator pod : %v ", err)
 	}
-	kubeVersion := utilversion.MustParseSemantic(h.k8shelper.GetK8sServerVersion())
 
-	if kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.7.0")) {
+	if h.k8shelper.VersionAtLeast("v1.7.0") {
 		if !h.k8shelper.IsCRDPresent(rookOperatorCreatedCrd) {
 			return fmt.Errorf("Failed to start Rook Operator; k8s CustomResourceDefinition did not appear")
 		}
@@ -103,9 +103,7 @@ func (h *InstallHelper) CreateK8sRookOperatorViaHelm(namespace string) (err erro
 
 	}
 
-	kubeVersion := utilversion.MustParseSemantic(h.k8shelper.GetK8sServerVersion())
-
-	if kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.7.0")) {
+	if h.k8shelper.VersionAtLeast("v1.7.0") {
 		if !h.k8shelper.IsCRDPresent(rookOperatorCreatedCrd) {
 			return fmt.Errorf("Failed to start Rook Operator; k8s CustomResourceDefinition did not appear")
 		}
@@ -214,15 +212,9 @@ func (h *InstallHelper) UninstallRookFromK8s(clusterNamespace string, helmInstal
 	if skipRookInstall {
 		return
 	}
-	k8sVersion := h.k8shelper.GetK8sServerVersion()
-	serverVersion, err := h.k8shelper.Clientset.Discovery().ServerVersion()
-	if err != nil {
-		panic(err)
-	}
-	kubeVersion := utilversion.MustParseSemantic(serverVersion.GitVersion)
 
 	logger.Infof("Uninstalling Rook")
-	k8sHelp, err := utils.CreateK8sHelper()
+	k8sHelp, err := utils.CreateK8sHelper(h.T)
 	if err != nil {
 		panic(err)
 	}
@@ -232,7 +224,7 @@ func (h *InstallHelper) UninstallRookFromK8s(clusterNamespace string, helmInstal
 			panic(err)
 		}
 	} else {
-		rookOperator := h.installData.GetRookOperator(k8sVersion)
+		rookOperator := h.installData.GetRookOperator(h.k8shelper.GetK8sServerVersion())
 
 		_, err = h.k8shelper.KubectlWithStdin(rookOperator, deleteArgs...)
 		if err != nil {
@@ -247,7 +239,7 @@ func (h *InstallHelper) UninstallRookFromK8s(clusterNamespace string, helmInstal
 	if err != nil {
 		panic(err)
 	}
-	if kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.6.0")) {
+	if h.k8shelper.VersionAtLeast("v1.6.0") {
 		_, err = k8sHelp.DeleteResource([]string{"clusterrole", "rook-api"})
 		if err != nil {
 			panic(err)
@@ -258,7 +250,7 @@ func (h *InstallHelper) UninstallRookFromK8s(clusterNamespace string, helmInstal
 		}
 	}
 
-	if kubeVersion.AtLeast(utilversion.MustParseSemantic("v1.7.0")) {
+	if h.k8shelper.VersionAtLeast("v1.7.0") {
 		_, err = k8sHelp.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io", "objectstores.rook.io"})
 		if err != nil {
 			panic(err)
@@ -290,7 +282,7 @@ func (h *InstallHelper) UninstallRookFromK8s(clusterNamespace string, helmInstal
 }
 
 //CleanupCluster deletes a rook cluster for a namespace
-func (h *InstallHelper) CleanupCluster(clusterName string, kv *utilversion.Version) {
+func (h *InstallHelper) CleanupCluster(clusterName string) {
 
 	logger.Infof("Uninstalling All Rook Clusters - %s", clusterName)
 	_, err := h.k8shelper.DeleteResource([]string{"-n", clusterName, "cluster", clusterName})
@@ -323,7 +315,7 @@ func (h *InstallHelper) CleanupCluster(clusterName string, kv *utilversion.Versi
 }
 
 //NewK8sRookhelper creates new instance of InstallHelper
-func NewK8sRookhelper(clientset *kubernetes.Clientset) *InstallHelper {
+func NewK8sRookhelper(clientset *kubernetes.Clientset, t func() *testing.T) *InstallHelper {
 
 	version, err := clientset.ServerVersion()
 	if err != nil {
@@ -332,7 +324,7 @@ func NewK8sRookhelper(clientset *kubernetes.Clientset) *InstallHelper {
 		env.K8sVersion = version.String()
 	}
 
-	k8shelp, err := utils.CreateK8sHelper()
+	k8shelp, err := utils.CreateK8sHelper(t)
 	if err != nil {
 		panic("failed to get kubectl client :" + err.Error())
 	}
@@ -341,5 +333,6 @@ func NewK8sRookhelper(clientset *kubernetes.Clientset) *InstallHelper {
 		installData: NewK8sInstallData(),
 		helmHelper:  utils.NewHelmHelper(),
 		Env:         env,
+		T:           t,
 	}
 }

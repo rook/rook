@@ -109,7 +109,7 @@ func (s *clusterHandler) EnableObjectStore(config model.ObjectStore) error {
 }
 
 func (s *clusterHandler) RemoveObjectStore(name string) error {
-	store := &k8srgw.Objectstore{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: s.clusterInfo.Name}}
+	store := &k8srgw.ObjectStore{ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: s.clusterInfo.Name}}
 	return store.Delete(s.context)
 }
 

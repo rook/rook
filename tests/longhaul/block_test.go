@@ -51,10 +51,10 @@ type K8sBlockLongHaulSuite struct {
 func (s *K8sBlockLongHaulSuite) SetupSuite() {
 
 	var err error
-	s.kh, err = utils.CreateK8sHelper()
+	s.kh, err = utils.CreateK8sHelper(s.T)
 	assert.Nil(s.T(), err)
 
-	s.installer = installer.NewK8sRookhelper(s.kh.Clientset)
+	s.installer = installer.NewK8sRookhelper(s.kh.Clientset, s.T)
 	if !s.kh.IsRookInstalled(defaultRookNamespace) {
 		err = s.installer.InstallRookOnK8s(defaultRookNamespace)
 		require.NoError(s.T(), err)
