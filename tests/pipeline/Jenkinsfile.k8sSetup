@@ -36,7 +36,7 @@ pipeline {
                         }
                         sh "wget -O rook.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/rook.tar.gz"
                         sh "wget -O toolbox.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/toolbox.tar.gz"
-                        sh "wget -O version https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/version"
+                        sh "wget -O version https://release.rook.io/build/pr/${params.PR}/${params.version}/version"
 
                     }else {
                         sh "wget -O rook.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/rook.tar.gz"
