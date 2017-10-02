@@ -26,6 +26,7 @@ type EnvironmentManifest struct {
 	RookImageName      string
 	ToolboxImageName   string
 	SkipInstallRook    string
+	LoadVolumeNumber   int
 	LoadConcurrentRuns int
 }
 
@@ -37,6 +38,7 @@ func NewManifest() EnvironmentManifest {
 	flag.StringVar(&e.ToolboxImageName, "toolbox_image", "rook/toolbox", "Docker image name of the toolbox container to install, must be in docker hub or local environment")
 	flag.StringVar(&e.SkipInstallRook, "skip_install_rook", "false", "Indicate if Rook need to installed - false if tests are being running at Rook that is pre-installed")
 	flag.IntVar(&e.LoadConcurrentRuns, "load_parallel_runs", 20, "number of routines for load test")
+	flag.IntVar(&e.LoadVolumeNumber, "load_volumes", 1, "number of volumes(file,object or block) to be created for load test")
 	flag.Parse()
 
 	return e

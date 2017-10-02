@@ -181,7 +181,7 @@ spec:
 }
 
 //GetRookCluster returns rook-cluster manifest
-func (i *InstallData) GetRookCluster(namespace, storeType string) string {
+func (i *InstallData) GetRookCluster(namespace string,storeType string, dataDirHostPath string) string {
 	return `apiVersion: v1
 kind: Namespace
 metadata:
@@ -194,7 +194,7 @@ metadata:
   namespace: ` + namespace + `
 spec:
   versionTag: master
-  dataDirHostPath:
+  dataDirHostPath: ` + dataDirHostPath + `
   hostNetwork: false
   storage:
     useAllNodes: true
