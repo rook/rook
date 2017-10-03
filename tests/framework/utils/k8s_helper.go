@@ -763,3 +763,17 @@ func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
 	}
 	logger.Infof("anon-user-access created")
 }
+
+func (k8sh *K8sHelper) DeleteClusterRoleAndBindings(name string) error {
+	_, err := k8sh.DeleteResource([]string{"clusterrole", name})
+	if err != nil {
+		return err
+	}
+
+	_, err = k8sh.DeleteResource([]string{"clusterrolebinding", name})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}

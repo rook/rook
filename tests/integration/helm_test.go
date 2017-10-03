@@ -75,7 +75,6 @@ func (hs *HelmSuite) TestRookInstallViaHelm() {
 //Test BlockCreation on Rook that was installed via Helm
 func (hs *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
 	runBlockE2ETestLite(hs.helper, hs.k8sh, hs.Suite, defaultRookNamespace)
-
 }
 
 //Test File System Creation on Rook that was installed via helm

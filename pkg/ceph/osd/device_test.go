@@ -24,6 +24,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rook/rook/pkg/util/kvstore"
+
 	"github.com/google/uuid"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/clusterd/inventory"
@@ -160,7 +162,7 @@ NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
 		{Name: "sda", Size: 65},
 	}
 	config := &osdConfig{configRoot: configDir, rootPath: filepath.Join(configDir, "osd1"), id: entry.ID,
-		uuid: entry.OsdUUID, dir: false, partitionScheme: entry}
+		uuid: entry.OsdUUID, dir: false, partitionScheme: entry, kv: kvstore.NewMockKeyValueStore(), storeName: getConfigStoreName("node123")}
 
 	// ensure that our mocking makes it look like rook owns the partitions on sda
 	partitions, _, err := sys.GetDevicePartitions("sda", context.Executor)
@@ -224,7 +226,7 @@ func TestPartitionBluestoreMetadata(t *testing.T) {
 	PopulateDistributedPerfSchemeEntry(e2, "sdc", metadata, storeConfig)
 
 	// perform the metadata device partition
-	err = partitionMetadata(context, metadata, configDir)
+	err = partitionMetadata(context, metadata, kvstore.NewMockKeyValueStore(), getConfigStoreName(nodeID))
 	assert.Nil(t, err)
 	assert.Equal(t, 3, execCount)
 
@@ -270,7 +272,7 @@ func TestPartitionBluestoreMetadataSafe(t *testing.T) {
 
 	// attempt to perform the metadata device partition.  this should fail because we should detect
 	// that the metadata device has a filesystem already (not safe to format)
-	err = partitionMetadata(context, metadata, configDir)
+	err = partitionMetadata(context, metadata, kvstore.NewMockKeyValueStore(), getConfigStoreName(nodeID))
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "already in use (not by rook)"))
 }
@@ -345,7 +347,7 @@ func testPartitionOSDHelper(t *testing.T, storeConfig StoreConfig) {
 	PopulateCollocatedPerfSchemeEntry(entry, "sda", storeConfig)
 
 	config := &osdConfig{configRoot: configDir, rootPath: filepath.Join(configDir, "osd1"), id: entry.ID,
-		uuid: entry.OsdUUID, dir: false, partitionScheme: entry}
+		uuid: entry.OsdUUID, dir: false, partitionScheme: entry, kv: kvstore.NewMockKeyValueStore(), storeName: getConfigStoreName("node123")}
 
 	// partition the OSD on sda now
 	err = partitionOSD(context, config)

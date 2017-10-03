@@ -18,11 +18,9 @@ package osd
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path"
 
 	"github.com/google/uuid"
+	"github.com/rook/rook/pkg/util/kvstore"
 )
 
 const (
@@ -30,7 +28,7 @@ const (
 	Bluestore            = "bluestore"
 	DefaultStore         = Filestore
 	UseRemainingSpace    = -1
-	schemeFilename       = "partition-scheme"
+	schemeKeyName        = "partition-scheme"
 	WalDefaultSizeMB     = 576
 	DBDefaultSizeMB      = 20480
 	JournalDefaultSizeMB = 5120
@@ -66,6 +64,7 @@ type PerfSchemeEntry struct {
 	OsdUUID    uuid.UUID                                     `json:"osdUuid"`
 	Partitions map[PartitionType]*PerfSchemePartitionDetails `json:"partitions"` // mapping of partition name to its details
 	StoreType  string                                        `json:"storeType,omitempty"`
+	FSCreated  bool                                          `json:"fsCreated"`
 }
 
 // details for 1 OSD partition
@@ -112,20 +111,19 @@ func NewMetadataDeviceInfo(device string) *MetadataDeviceInfo {
 }
 
 // Load the persistent partition info from the config directory.
-func LoadScheme(configDir string) (*PerfScheme, error) {
-	filePath := path.Join(configDir, schemeFilename)
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		// the scheme file doesn't exist yet, just return a new empty scheme with no error
-		return NewPerfScheme(), nil
-	}
-
-	b, err := ioutil.ReadFile(filePath)
+func LoadScheme(kv kvstore.KeyValueStore, storeName string) (*PerfScheme, error) {
+	schemeRaw, err := kv.GetValue(storeName, schemeKeyName)
 	if err != nil {
+		if kvstore.IsNotExist(err) {
+			// the scheme key doesn't exist yet, just return a new empty scheme with no error
+			return NewPerfScheme(), nil
+		}
+
 		return nil, err
 	}
 
 	var scheme PerfScheme
-	err = json.Unmarshal(b, &scheme)
+	err = json.Unmarshal([]byte(schemeRaw), &scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -134,15 +132,37 @@ func LoadScheme(configDir string) (*PerfScheme, error) {
 }
 
 // Save the partition scheme to the config dir
-func (s *PerfScheme) Save(configDir string) error {
+func (s *PerfScheme) SaveScheme(kv kvstore.KeyValueStore, storeName string) error {
 	b, err := json.Marshal(s)
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(path.Join(configDir, schemeFilename), b, 0644)
+	err = kv.SetValue(storeName, schemeKeyName, string(b))
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+func (s *PerfScheme) updateSchemeEntry(entry *PerfSchemeEntry) error {
+	if entry == nil {
+		return fmt.Errorf("cannot update a nil entry")
+	}
+
+	foundEntry := false
+	for i := range s.Entries {
+		if s.Entries[i].ID == entry.ID {
+			// found the matching existing entry, update it to the given entry
+			s.Entries[i] = entry
+			foundEntry = true
+			break
+		}
+	}
+
+	if !foundEntry {
+		return fmt.Errorf("failed to find entry %+v", entry)
 	}
 
 	return nil

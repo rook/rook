@@ -95,16 +95,16 @@ func (mrc *MultiRookClusterDeploySuite) TearDownSuite() {
 	mrc.installer.CleanupCluster(clusterNamespace1)
 	mrc.installer.CleanupCluster(clusterNamespace2)
 
-	//Delete clusterrol and clustterrolebindings
+	//Delete ClusterRole and ClusterRoleBindings
 	if mrc.k8sh.VersionAtLeast("v1.6.0") {
-		_, err = k8sHelp.DeleteResource([]string{"clusterrole", "rook-api"})
+		err = k8sHelp.DeleteClusterRoleAndBindings("rook-api")
 		if err != nil {
-			logger.Errorf("Clusterrole rook-api cannot be deleted")
+			logger.Errorf("rook-api cluster role and binding cannot be deleted: %+v", err)
 			panic(err)
 		}
-		_, err = k8sHelp.DeleteResource([]string{"clusterrolebinding", "rook-api"})
+		err = k8sHelp.DeleteClusterRoleAndBindings("rook-ceph-osd")
 		if err != nil {
-			logger.Errorf("clusterrolebinding rook-api cannot be deleted")
+			logger.Errorf("rook-ceph-osd cluster role and binding cannot be deleted: %+v", err)
 			panic(err)
 		}
 	}

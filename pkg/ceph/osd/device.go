@@ -18,8 +18,6 @@ package osd
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -35,6 +33,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
@@ -54,12 +53,16 @@ const (
 )
 
 type osdConfig struct {
-	configRoot      string
+	// the root for all local config (e.g., /var/lib/rook)
+	configRoot string
+	// the root directory for this OSD (e.g., /var/lib/rook/osd0)
 	rootPath        string
 	id              int
 	uuid            uuid.UUID
 	dir             bool
 	partitionScheme *PerfSchemeEntry
+	kv              kvstore.KeyValueStore
+	storeName       string
 }
 
 type Device struct {
@@ -159,15 +162,15 @@ func rookOwnsPartitions(partitions []*sys.Partition) bool {
 }
 
 // partitions a given device exclusively for metadata usage
-func partitionMetadata(context *clusterd.Context, info *MetadataDeviceInfo, configRoot string) error {
+func partitionMetadata(context *clusterd.Context, info *MetadataDeviceInfo, kv kvstore.KeyValueStore, storeName string) error {
 	if len(info.Partitions) == 0 {
 		return nil
 	}
 
 	// check to see if the metadata partition scheme has already been applied
-	savedScheme, err := LoadScheme(configRoot)
+	savedScheme, err := LoadScheme(kv, storeName)
 	if err != nil {
-		return fmt.Errorf("failed to load the saved partition scheme from %s: %+v", configRoot, err)
+		return fmt.Errorf("failed to load the saved partition scheme: %+v", err)
 	}
 
 	if savedScheme.Metadata != nil && len(savedScheme.Metadata.Partitions) > 0 {
@@ -203,8 +206,8 @@ func partitionMetadata(context *clusterd.Context, info *MetadataDeviceInfo, conf
 
 	// save the metadata partition info to disk now that it has been committed
 	savedScheme.Metadata = info
-	if err := savedScheme.Save(configRoot); err != nil {
-		return fmt.Errorf("failed to save partition scheme to %s: %+v", configRoot, err)
+	if err := savedScheme.SaveScheme(kv, storeName); err != nil {
+		return fmt.Errorf("failed to save partition scheme: %+v", err)
 	}
 
 	// associate the OSD IDs with the metadata device in etcd
@@ -250,13 +253,13 @@ func partitionOSD(context *clusterd.Context, config *osdConfig) error {
 	}
 
 	// save the partition scheme entry to disk now that it has been committed
-	savedScheme, err := LoadScheme(config.configRoot)
+	savedScheme, err := LoadScheme(config.kv, config.storeName)
 	if err != nil {
-		return fmt.Errorf("failed to load the saved partition scheme from %s: %+v", config.configRoot, err)
+		return fmt.Errorf("failed to load the saved partition scheme: %+v", err)
 	}
 	savedScheme.Entries = append(savedScheme.Entries, config.partitionScheme)
-	if err := savedScheme.Save(config.configRoot); err != nil {
-		return fmt.Errorf("failed to save partition scheme to %s: %+v", config.configRoot, err)
+	if err := savedScheme.SaveScheme(config.kv, config.storeName); err != nil {
+		return fmt.Errorf("failed to save partition scheme: %+v", err)
 	}
 
 	// update the uuid of the disk in the inventory in memory
@@ -331,7 +334,7 @@ func remountFilestoreDeviceIfNeeded(context *clusterd.Context, config *osdConfig
 		return nil
 	}
 
-	savedScheme, err := LoadScheme(config.configRoot)
+	savedScheme, err := LoadScheme(config.kv, config.storeName)
 	if err != nil {
 		return fmt.Errorf("failed to load the saved partition scheme from %s: %+v", config.configRoot, err)
 	}
@@ -434,7 +437,7 @@ func registerOSD(context *clusterd.Context, clusterName string) (*int, *uuid.UUI
 
 func getStoreSettings(config *osdConfig, storeConfig StoreConfig) (map[string]string, error) {
 	settings := map[string]string{}
-	if config.dir || (config.partitionScheme != nil && config.partitionScheme.StoreType == Filestore) {
+	if config.dir || isFilestoreDevice(config) {
 		// add additional filestore settings for dirs and filestore devices
 		journalSize := JournalDefaultSizeMB
 		if storeConfig.JournalSizeMB > 0 {
@@ -449,24 +452,14 @@ func getStoreSettings(config *osdConfig, storeConfig StoreConfig) (map[string]st
 	}
 
 	// add additional bluestore settings
-	parts := config.partitionScheme.Partitions
-	walPartition, ok := parts[WalPartitionType]
-	if !ok {
-		return nil, fmt.Errorf("failed to find wal partition for osd %d", config.id)
-	}
-	dbPartition, ok := parts[DatabasePartitionType]
-	if !ok {
-		return nil, fmt.Errorf("failed to find db partition for osd %d", config.id)
-	}
-	blockPartition, ok := parts[BlockPartitionType]
-	if !ok {
-		return nil, fmt.Errorf("failed to find block partition for osd %d", config.id)
+	walPath, dbPath, blockPath, err := getBluestorePartitionPaths(config)
+	if err != nil {
+		return nil, err
 	}
 
-	prefix := diskByPartUUID
-	settings["bluestore block wal path"] = path.Join(prefix, walPartition.PartitionUUID)
-	settings["bluestore block db path"] = path.Join(prefix, dbPartition.PartitionUUID)
-	settings["bluestore block path"] = path.Join(prefix, blockPartition.PartitionUUID)
+	settings["bluestore block wal path"] = walPath
+	settings["bluestore block db path"] = dbPath
+	settings["bluestore block path"] = blockPath
 
 	return settings, nil
 }
@@ -504,20 +497,22 @@ func initializeOSD(config *osdConfig, context *clusterd.Context,
 		return fmt.Errorf("failed to write config file: %+v", err)
 	}
 
-	// get the current monmap, it will be needed for creating the OSD file system
-	monMapRaw, err := getMonMap(context, cluster.Name)
-	if err != nil {
-		return fmt.Errorf("failed to get mon map: %+v", err)
-	}
-
-	// create/initalize the OSD file system and journal
-	if err := createOSDFileSystem(context, cluster.Name, config, monMapRaw); err != nil {
-		return err
-	}
-
 	// add auth privileges for the OSD, the bootstrap-osd privileges were very limited
 	if err := addOSDAuth(context, cluster.Name, config.id, config.rootPath); err != nil {
 		return err
+	}
+
+	// check to see if the OSD file system had been created (using osd mkfs) and backed up in the past
+	if !isOSDFilesystemCreated(config) {
+		// create/initialize the OSD file system and journal
+		if err := createOSDFileSystem(context, cluster.Name, config); err != nil {
+			return err
+		}
+	} else {
+		// The OSD file system had previously been created and backed up, try to repair it now
+		if err := repairOSDFileSystem(config); err != nil {
+			return err
+		}
 	}
 
 	// add the new OSD to the cluster crush map
@@ -557,64 +552,14 @@ func getMonMap(context *clusterd.Context, clusterName string) ([]byte, error) {
 	return buf, nil
 }
 
-// creates/initalizes the OSD filesystem and journal via a child process
-func createOSDFileSystem(context *clusterd.Context, clusterName string, config *osdConfig, monMap []byte) error {
-	logger.Infof("Initializing OSD %d file system at %s...", config.id, config.rootPath)
-
-	// the current monmap is needed to create the OSD, save it to a temp location so it is accessible
-	monMapTmpPath := getOSDTempMonMapPath(config.rootPath)
-	monMapTmpDir := filepath.Dir(monMapTmpPath)
-	if err := os.MkdirAll(monMapTmpDir, 0744); err != nil {
-		return fmt.Errorf("failed to create monmap tmp file directory at %s: %+v", monMapTmpDir, err)
-	}
-	if err := ioutil.WriteFile(monMapTmpPath, monMap, 0644); err != nil {
-		return fmt.Errorf("failed to write mon map to tmp file %s, %+v", monMapTmpPath, err)
-	}
-
-	options := []string{
-		"--mkfs",
-		"--mkkey",
-		fmt.Sprintf("--id=%d", config.id),
-		fmt.Sprintf("--cluster=%s", clusterName),
-		fmt.Sprintf("--conf=%s", mon.GetConfFilePath(config.rootPath, clusterName)),
-		fmt.Sprintf("--osd-data=%s", config.rootPath),
-		fmt.Sprintf("--osd-uuid=%s", config.uuid.String()),
-		fmt.Sprintf("--monmap=%s", monMapTmpPath),
-	}
-
-	if !isBluestore(config) {
-		options = append(options, fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(config.rootPath)))
-		options = append(options, fmt.Sprintf("--keyring=%s", getOSDKeyringPath(config.rootPath)))
-	}
-
-	// create the OSD file system and journal
-	err := context.ProcMan.Run(
-		fmt.Sprintf("mkfs-osd%d", config.id),
-		"ceph-osd",
-		options...)
-
-	if err != nil {
-		return fmt.Errorf("failed osd mkfs for OSD ID %d, UUID %s, dataDir %s: %+v",
-			config.id, config.uuid.String(), config.rootPath, err)
-	}
-
-	return nil
-}
-
 // add OSD auth privileges for the given OSD ID.  the bootstrap-osd privileges are limited and a real OSD needs more.
 func addOSDAuth(context *clusterd.Context, clusterName string, osdID int, osdDataPath string) error {
-
-	// create a new auth for this OSD
+	// get an existing auth or create a new auth for this OSD.  After this command is run, the new or existing
+	// keyring will be written to the keyring path specified.
 	osdEntity := fmt.Sprintf("osd.%d", osdID)
-	args := []string{"auth", "add", osdEntity, "-i", getOSDKeyringPath(osdDataPath)}
-	capabilities := []string{"osd", "allow *", "mon", "allow profile osd"}
-	args = append(args, capabilities...)
-	_, err := client.ExecuteCephCommand(context, clusterName, args)
-	if err != nil {
-		return fmt.Errorf("command marshall failed: %+v", err)
-	}
+	caps := []string{"osd", "allow *", "mon", "allow profile osd"}
 
-	return nil
+	return client.AuthGetOrCreate(context, clusterName, osdEntity, getOSDKeyringPath(osdDataPath), caps)
 }
 
 // adds the given OSD to the crush map
@@ -709,4 +654,29 @@ func purgeOSD(context *clusterd.Context, clusterName string, id int) error {
 		return fmt.Errorf("failed to rm osd %d. %v", id, err)
 	}
 	return nil
+}
+
+func getBluestorePartitionPaths(config *osdConfig) (string, string, string, error) {
+	if !isBluestore(config) {
+		return "", "", "", fmt.Errorf("must be bluestore to get bluestore partition paths: %+v", config)
+	}
+	parts := config.partitionScheme.Partitions
+	walPartition, ok := parts[WalPartitionType]
+	if !ok {
+		return "", "", "", fmt.Errorf("failed to find wal partition for osd %d", config.id)
+	}
+	dbPartition, ok := parts[DatabasePartitionType]
+	if !ok {
+		return "", "", "", fmt.Errorf("failed to find db partition for osd %d", config.id)
+	}
+	blockPartition, ok := parts[BlockPartitionType]
+	if !ok {
+		return "", "", "", fmt.Errorf("failed to find block partition for osd %d", config.id)
+	}
+
+	return path.Join(diskByPartUUID, walPartition.PartitionUUID),
+		path.Join(diskByPartUUID, dbPartition.PartitionUUID),
+		path.Join(diskByPartUUID, blockPartition.PartitionUUID),
+		nil
+
 }

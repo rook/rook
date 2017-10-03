@@ -22,6 +22,7 @@ import (
 	"github.com/rook/rook/pkg/ceph/osd"
 	"github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/kvstore"
 )
 
 const (
@@ -30,7 +31,8 @@ const (
 
 // create a new ceph service
 func NewCephService(devices, metadataDevice, directories string, forceFormat bool,
-	location, adminSecret string, storeConfig osd.StoreConfig, nodeName string) *clusterd.ClusterService {
+	location, adminSecret string, storeConfig osd.StoreConfig, nodeName string,
+	kv kvstore.KeyValueStore) *clusterd.ClusterService {
 
 	return &clusterd.ClusterService{
 		Name:   cephName,
@@ -38,7 +40,7 @@ func NewCephService(devices, metadataDevice, directories string, forceFormat boo
 		Agents: []clusterd.ServiceAgent{
 			mon.NewAgent(),
 			mgr.NewAgent(),
-			osd.NewAgent(devices, false, metadataDevice, directories, forceFormat, location, storeConfig, nil, nodeName),
+			osd.NewAgent(devices, false, metadataDevice, directories, forceFormat, location, storeConfig, nil, nodeName, kv),
 			mds.NewAgent(),
 			rgw.NewAgent(),
 		},
