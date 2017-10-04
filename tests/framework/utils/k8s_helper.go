@@ -50,7 +50,7 @@ type K8sHelper struct {
 
 const (
 	//RetryLoop params for tests.
-	RetryLoop = 30
+	RetryLoop = 60
 	//RetryInterval param for test - wait time while in RetryLoop
 	RetryInterval = 5
 )
@@ -334,6 +334,29 @@ func (k8sh *K8sHelper) IsPodWithLabelRunning(label string, namespace string) boo
 	return false
 }
 
+//IsPodWithLabelDeleted returns true if a Pod is deleted within 90s else returns false
+func (k8sh *K8sHelper) IsPodWithLabelDeleted(label string, namespace string) bool {
+	options := metav1.ListOptions{LabelSelector: label}
+	inc := 0
+	for inc < RetryLoop {
+		pods, err := k8sh.Clientset.Pods(namespace).List(options)
+		if err != nil {
+			logger.Infof("error Found err %v", err)
+			return true
+		}
+		if len(pods.Items) == 0 {
+			return true
+		}
+
+		inc++
+		time.Sleep(RetryInterval * time.Second)
+		logger.Infof("waiting for pod with label %s in namespace %s to be deleted", label, namespace)
+
+	}
+	logger.Infof("Giving up waiting for pod with label %s in namespace %s to be deleted", label, namespace)
+	return false
+}
+
 //IsPodRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) IsPodRunning(name string, namespace string) bool {
 	getOpts := metav1.GetOptions{}
@@ -574,7 +597,8 @@ func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, n
 		inc++
 		time.Sleep(RetryInterval * time.Second)
 	}
-	panic(fmt.Errorf("Rook not uninstalled"))
+	logger.Infof("Pod %s in namespace %s not deleted", podNamePattern, namespace)
+	return false
 }
 
 //WaitUntilPodIsDeleted waits for 90s for a pod to be terminated
