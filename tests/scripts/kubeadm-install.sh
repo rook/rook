@@ -5,6 +5,9 @@ KUBE_VERSION=${1:-"v1.7.5"}
 null_str=
 KUBE_INSTALL_VERSION="${KUBE_VERSION/v/$null_str}"-00
 
+#known k8s issue https://github.com/kubernetes/kubernetes/issues/34726
+#need to disable swap when installing k8s 1.8.x via kubeadm
+sudo swapoff -a
 
 wait_for_dpkg_unlock() {
     #wait for dpkg lock to disappear.

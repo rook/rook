@@ -95,7 +95,7 @@ kubeadm_reset() {
     rm -rf $HOME/.kube
     sudo apt-get -y remove kubelet
     sudo apt-get -y remove kubeadm
-
+    sudo swapon -a
 }
 
 
