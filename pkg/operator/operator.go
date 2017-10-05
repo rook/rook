@@ -32,6 +32,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/kit"
+	"github.com/rook/rook/pkg/operator/mds"
 	"github.com/rook/rook/pkg/operator/pool"
 	"github.com/rook/rook/pkg/operator/provisioner"
 	"github.com/rook/rook/pkg/operator/rgw"
@@ -68,7 +69,7 @@ func New(context *clusterd.Context) *Operator {
 	}
 	volumeProvisioner := provisioner.New(context)
 
-	schemes := []kit.CustomResource{cluster.ClusterResource, pool.PoolResource, rgw.ObjectStoreResource}
+	schemes := []kit.CustomResource{cluster.ClusterResource, pool.PoolResource, rgw.ObjectStoreResource, mds.FilesystemResource}
 	return &Operator{
 		context:           context,
 		clusterController: clusterController,

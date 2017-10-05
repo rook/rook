@@ -14,17 +14,52 @@ This example runs a shared file system for the [kube-registry](https://github.co
 
 This guide assumes you have created a Rook cluster and pool as explained in the main [Kubernetes guide](kubernetes.md)
 
-## Rook Client
-
-Setting up the Rook file system requires running `rookctl` commands with the [Rook toolbox](kubernetes.md#tools). This will be simplified in the future with a CRD for the file system.
-
 ## Create the File System
 
-Create the file system with the default pools.
+Create the file system by specifying the desired settings for the metadata pool, data pools, and metadata server in the `Filesystem` CRD. In this example we create the metadata pool with replication of three and a single data pool with erasure coding. For more options, see the documentation on [creating shared file systems](filesystem-crd.md).
+
+Save this shared file system definition as `rook-filesystem.yaml`:
+
+```yaml
+apiVersion: rook.io/v1alpha1
+kind: Filesystem
+metadata:
+  name: myfs
+  namespace: rook
+spec:
+  metadataPool:
+    replicated:
+      size: 3
+  dataPools:
+    - erasureCoded:
+       codingChunks: 2
+       dataChunks: 2
+  metadataServer:
+    activeCount: 1
+    activeStandby: true
+```
+
+Now let's create the file system. The Rook operator will create all the pools and other resources necessary to start the service. This may take a minute to complete.
+```bash
+# Create the file system
+kubectl create -f rook-filesystem.yaml
+
+# To confirm the file system is configured, wait for the mds pods to start
+kubectl -n rook get pod -l app=rook-ceph-mds
+```
+
+To see detailed status of the file system, start and connect to the [Rook toolbox](toolbox.md). A new line will be shown with `ceph status` for the `mds` service. In this example, there is one active instance of MDS which is up, with one MDS instance in `standby-replay` mode in case of failover.
 
 ```bash
-rookctl filesystem create --name registryFS
+$ ceph status                                                                                                                                              
+  ...
+  services:
+    mds: myfs-1/1/1 up {[myfs:0]=mzw58b=up:active}, 1 up:standby-replay
 ```
+
+## Consume the file system
+
+As an example, we will start the kube-registry pod with the shared file system as the backing store. 
 
 If you are consuming the filesystem from a namespace other than `rook` you will need to copy the key to the desired namespace.
 In this example we are copying to the `kube-system` namespace.
@@ -32,21 +67,6 @@ In this example we are copying to the `kube-system` namespace.
 ```bash
 kubectl get secret rook-admin -n rook -o json | jq '.metadata.namespace = "kube-system"' | kubectl apply -f -
 ```
-
-### Optional: Adjust pool parameters
-
-By default the pools do not have any redundancy. To create another copy of the data, let's set the replication to 2.
-
-First you will need to launch the [Rook toolbox](toolbox.md#running-the-toolbox-in-kubernetes) in order to run `ceph` commands.
-
-Now from the toolbox pod we can modify the pool size:
-
-```bash
-ceph osd pool set registryFS-data size 2
-ceph osd pool set registryFS-metadata size 2
-```
-
-## Deploy the Application
 
 Save the following spec as `kube-registry.yaml`:
 
@@ -120,7 +140,7 @@ Start and connect to the [Rook toolbox](toolbox.md).
 ```bash
 # Mount the same filesystem that the kube-registry is using
 mkdir /tmp/registry
-rookctl filesystem mount --name registryFS --path /tmp/registry
+rookctl filesystem mount --name myfs --path /tmp/registry
 
 # If you have pushed images to the registry you will see a directory called docker
 ls /tmp/registry

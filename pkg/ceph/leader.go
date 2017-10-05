@@ -36,7 +36,6 @@ type cephLeader struct {
 	monLeader          *mon.Leader
 	mgrLeader          *mgr.Leader
 	osdLeader          *osd.Leader
-	mdsLeader          *mds.Leader
 	rgwLeader          *rgw.Leader
 	adminSecret        string
 	refreshInitialized bool
@@ -47,7 +46,6 @@ func newLeader(adminSecret string) *cephLeader {
 		monLeader:   mon.NewLeader(),
 		mgrLeader:   mgr.NewLeader(),
 		osdLeader:   osd.NewLeader(),
-		mdsLeader:   mds.NewLeader(),
 		rgwLeader:   rgw.NewLeader(),
 		adminSecret: adminSecret}
 }
@@ -59,7 +57,7 @@ func (c *cephLeader) RefreshKeys() []*clusterd.RefreshKey {
 		Triggered: handleDeviceChanged,
 	}
 	fileChange := &clusterd.RefreshKey{
-		Path:      path.Join(mon.CephKey, mds.FileSystemKey, clusterd.DesiredKey),
+		Path:      path.Join(mon.CephKey, mds.FilesystemKey, clusterd.DesiredKey),
 		Triggered: handleFileSystemChanged,
 	}
 	objectChange := &clusterd.RefreshKey{
@@ -108,7 +106,6 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 	refreshMons := getRefreshMons(e)
 	refreshMgrs := getRefreshMgrs(e)
 	osdsToRefresh := getOSDsToRefresh(e, c.refreshInitialized)
-	refreshFile := getRefreshFile(e)
 	refreshObject := getRefreshObject(e)
 
 	if refreshMons {
@@ -132,14 +129,6 @@ func (c *cephLeader) HandleRefresh(e *clusterd.RefreshEvent) {
 		err := c.osdLeader.Configure(e.Context, osdsToRefresh.ToSlice())
 		if err != nil {
 			logger.Errorf("Failed to configure ceph OSDs. %v", err)
-		}
-	}
-
-	if refreshFile {
-		// Configure the file system(s)
-		err := c.mdsLeader.Configure(e.Context)
-		if err != nil {
-			logger.Errorf("Failed to configure file service. %+v", err)
 		}
 	}
 

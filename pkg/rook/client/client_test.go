@@ -227,7 +227,7 @@ func TestCreateFilesystem(t *testing.T) {
 	mockHttpClient := NewMockHttpClient(mockServer.URL)
 	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
 
-	fsr := model.FilesystemRequest{Name: "myfs1", PoolName: "myfs1-pool"}
+	fsr := model.FilesystemRequest{Name: "myfs1"}
 	resp, err := client.CreateFilesystem(fsr)
 	assert.NotNil(t, err)
 	assert.True(t, IsHttpAccepted(err))
@@ -240,7 +240,7 @@ func TestDeleteFilesystem(t *testing.T) {
 	mockHttpClient := NewMockHttpClient(mockServer.URL)
 	client := NewRookNetworkRestClient(mockServer.URL, mockHttpClient)
 
-	fsr := model.FilesystemRequest{Name: "myfs1", PoolName: "myfs1-pool"}
+	fsr := model.FilesystemRequest{Name: "myfs1"}
 	resp, err := client.DeleteFilesystem(fsr)
 	assert.NotNil(t, err)
 	assert.True(t, IsHttpAccepted(err))

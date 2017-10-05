@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/pool"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -42,58 +42,106 @@ func TestStartMDS(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	c := New(context, "ns", "myversion", k8sutil.Placement{}, false)
-	defer os.RemoveAll(c.dataDir)
+	fs := &Filesystem{
+		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
+		Spec: FilesystemSpec{
+			MetadataPool: pool.PoolSpec{Replicated: pool.ReplicatedSpec{Size: 1}},
+			DataPools:    []pool.PoolSpec{{Replicated: pool.ReplicatedSpec{Size: 1}}},
+			MetadataServer: MetadataServerSpec{
+				ActiveCount: 1,
+			},
+		},
+	}
+
+	//defer os.RemoveAll(c.dataDir)
 
 	// start a basic cluster
-	err := c.Start()
+	err := fs.Create(context, "v0.1", false)
 	assert.Nil(t, err)
-	validateStart(t, c)
+	validateStart(t, context, fs)
 
 	// starting again should be a no-op
-	err = c.Start()
+	err = fs.Create(context, "v0.1", false)
 	assert.Nil(t, err)
-	validateStart(t, c)
+	validateStart(t, context, fs)
 }
 
-func validateStart(t *testing.T, c *Cluster) {
+func validateStart(t *testing.T, context *clusterd.Context, fs *Filesystem) {
 
-	r, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(appName, metav1.GetOptions{})
+	r, err := context.Clientset.ExtensionsV1beta1().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs", metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, appName, r.Name)
+	assert.Equal(t, appName+"-myfs", r.Name)
 }
 
 func TestPodSpecs(t *testing.T) {
-	c := New(nil, "ns", "myversion", k8sutil.Placement{}, false)
+	fs := &Filesystem{
+		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
+		Spec: FilesystemSpec{
+			MetadataServer: MetadataServerSpec{ActiveCount: 1},
+		},
+	}
 	mdsID := "mds1"
 
-	d := c.makeDeployment(mdsID)
+	d := fs.makeDeployment(mdsID, "myversion", false)
 	assert.NotNil(t, d)
-	assert.Equal(t, appName, d.Name)
+	assert.Equal(t, appName+"-myfs", d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, 2, len(d.Spec.Template.Spec.Volumes))
 	assert.Equal(t, "rook-data", d.Spec.Template.Spec.Volumes[0].Name)
 
-	assert.Equal(t, appName, d.ObjectMeta.Name)
+	assert.Equal(t, appName+"-myfs", d.ObjectMeta.Name)
 	assert.Equal(t, appName, d.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, fs.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	cont := d.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 
+	assert.Equal(t, 2, len(cont.Args))
 	assert.Equal(t, "mds", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
-	assert.Equal(t, "--mds-id=mds1", cont.Args[2])
 }
 
 func TestHostNetwork(t *testing.T) {
-	c := New(nil, "ns", "myversion", k8sutil.Placement{}, true)
+	fs := &Filesystem{
+		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
+		Spec: FilesystemSpec{
+			MetadataServer: MetadataServerSpec{ActiveCount: 1},
+		},
+	}
 	mdsID := "mds1"
 
-	d := c.makeDeployment(mdsID)
+	d := fs.makeDeployment(mdsID, "v0.1", true)
 
 	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
+}
+
+func TestValidateSpec(t *testing.T) {
+	fs := &Filesystem{}
+
+	// missing name
+	assert.NotNil(t, fs.validate())
+	fs.Name = "myfs"
+
+	// missing namespace
+	assert.NotNil(t, fs.validate())
+	fs.Namespace = "myns"
+
+	// missing data pools
+	assert.NotNil(t, fs.validate())
+	p := pool.PoolSpec{Replicated: pool.ReplicatedSpec{Size: 1}}
+	fs.Spec.DataPools = append(fs.Spec.DataPools, p)
+
+	// missing metadata pool
+	assert.NotNil(t, fs.validate())
+	fs.Spec.MetadataPool = p
+
+	// missing mds count
+	assert.NotNil(t, fs.validate())
+	fs.Spec.MetadataServer.ActiveCount = 1
+
+	// valid!
+	assert.Nil(t, fs.validate())
 }

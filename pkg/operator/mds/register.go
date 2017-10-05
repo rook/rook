@@ -14,8 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package rgw to manage a rook rgw.
-package rgw
+// Package mds to manage a rook file system.
+package mds
 
 import (
 	"reflect"
@@ -33,14 +33,14 @@ var (
 	addToScheme   = schemeBuilder.AddToScheme
 )
 
-// ObjectStoreResource represents the object store custom resource
-var ObjectStoreResource = kit.CustomResource{
-	Name:    "objectstore",
-	Plural:  "objectstores",
+// FilesystemResource represents the file system custom resource
+var FilesystemResource = kit.CustomResource{
+	Name:    "filesystem",
+	Plural:  "filesystems",
 	Group:   k8sutil.CustomResourceGroup,
 	Version: k8sutil.V1Alpha1,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(ObjectStore{}).Name(),
+	Kind:    reflect.TypeOf(Filesystem{}).Name(),
 }
 
 // Kind takes an unqualified kind and returns back a Group qualified GroupKind
@@ -56,10 +56,8 @@ func Resource(resource string) schema.GroupResource {
 // Adds the list of known types to api.Scheme.
 func addKnownTypes(scheme *runtime.Scheme) error {
 	scheme.AddKnownTypes(schemeGroupVersion,
-		&ObjectStore{},
-		&ObjectStoreList{},
-		// Remove the ObjectstoreList after TPRs are not supported anymore
-		&ObjectstoreList{},
+		&Filesystem{},
+		&FilesystemList{},
 	)
 	metav1.AddToGroupVersion(scheme, schemeGroupVersion)
 	return nil

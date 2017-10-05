@@ -82,7 +82,7 @@ type overallMonStatus struct {
 // /crushmap
 func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
 	// get the crush map
-	crushmap, err := ceph.GetCrushMap(h.context, h.config.ClusterInfo.Name)
+	crushmap, err := ceph.GetCrushMap(h.context, h.config.clusterInfo.Name)
 	if err != nil {
 		logger.Errorf("failed to get crush map, err: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -91,41 +91,6 @@ func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 	w.Write([]byte(crushmap))
-}
-
-// Gets the monitors that have been created in this cluster.
-// GET
-// /mon
-func (h *Handler) GetMonitors(w http.ResponseWriter, r *http.Request) {
-
-	desiredMons, err := h.config.ClusterHandler.GetMonitors()
-	if err != nil {
-		logger.Errorf("failed to load monitors: %+v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	mons := []*mon.CephMonitorConfig{}
-	if len(desiredMons) == 0 {
-		// no monitors to connect to
-		FormatJsonResponse(w, mons)
-		return
-	}
-
-	// get the monitor status
-	monStatusResp, err := ceph.GetMonStatus(h.context, h.config.ClusterInfo.Name, false)
-	if err != nil {
-		logger.Errorf("failed to get mon_status, err: %+v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	status := &overallMonStatus{Status: monStatusResp}
-	for _, mon := range desiredMons {
-		status.Desired = append(status.Desired, mon)
-	}
-
-	FormatJsonResponse(w, status)
 }
 
 func handleReadBody(w http.ResponseWriter, r *http.Request, opName string) ([]byte, bool) {

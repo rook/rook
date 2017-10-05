@@ -16,8 +16,14 @@ limitations under the License.
 package model
 
 type FilesystemRequest struct {
-	Name     string `json:"name"`
-	PoolName string `json:"poolName"`
+	Name           string         `json:"name"`
+	DataPools      []Pool         `json:"dataPools"`
+	MetadataPool   Pool           `json:"metadataPool"`
+	MetadataServer MetadataServer `json:"metadataServer"`
+}
+
+type MetadataServer struct {
+	ActiveCount int32 `json:"activeCount"`
 }
 
 type Filesystem struct {

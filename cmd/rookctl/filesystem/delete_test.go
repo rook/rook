@@ -31,7 +31,6 @@ func TestDeleteFilesystem(t *testing.T) {
 	c := &test.MockRookRestClient{
 		MockDeleteFilesystem: func(fsr model.FilesystemRequest) (string, error) {
 			assert.Equal(t, fsName, fsr.Name)
-			assert.Equal(t, "", fsr.PoolName)
 			return "", nil
 		},
 	}

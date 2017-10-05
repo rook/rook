@@ -28,7 +28,7 @@ import (
 // GET
 // /pool
 func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
-	pools, err := ceph.GetPools(h.context, h.config.ClusterInfo.Name)
+	pools, err := ceph.GetPools(h.context, h.config.clusterInfo.Name)
 	if err != nil {
 		logger.Errorf("failed to get pools: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -55,7 +55,7 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := ceph.CreatePoolWithProfile(h.context, h.config.ClusterInfo.Name, newPool)
+	err := ceph.CreatePoolWithProfile(h.context, h.config.clusterInfo.Name, newPool, newPool.Name)
 	if err != nil {
 		logger.Errorf("failed to create new pool '%s': %+v", newPool.Name, err)
 		w.WriteHeader(http.StatusInternalServerError)

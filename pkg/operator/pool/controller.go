@@ -126,20 +126,13 @@ func (p *Pool) create(context *clusterd.Context) error {
 	}
 
 	// create the pool
-	pool := p.ToModel()
-	logger.Infof("creating pool in namespace %s. %+v", p.Namespace, pool)
-	if err := ceph.CreatePoolWithProfile(context, p.Namespace, pool); err != nil {
+	logger.Infof("creating pool %s in namespace %s", p.Name, p.Namespace)
+	if err := ceph.CreatePoolWithProfile(context, p.Namespace, *p.Spec.ToModel(p.Name), p.Name); err != nil {
 		return fmt.Errorf("failed to create pool %s. %+v", p.Name, err)
 	}
 
 	logger.Infof("created pool %s", p.Name)
 	return nil
-}
-
-func (p *Pool) ToModel() model.Pool {
-	pool := model.Pool{Name: p.Name}
-	p.Spec.ToModel(&pool)
-	return pool
 }
 
 // Delete the pool
@@ -183,7 +176,8 @@ func (p *Pool) validate() error {
 	return nil
 }
 
-func (p *PoolSpec) ToModel(pool *model.Pool) {
+func (p *PoolSpec) ToModel(name string) *model.Pool {
+	pool := &model.Pool{Name: name}
 	r := p.replication()
 	if r != nil {
 		pool.ReplicatedConfig.Size = r.Size
@@ -196,6 +190,7 @@ func (p *PoolSpec) ToModel(pool *model.Pool) {
 			pool.Type = model.ErasureCoded
 		}
 	}
+	return pool
 }
 
 func (p *PoolSpec) replication() *ReplicatedSpec {

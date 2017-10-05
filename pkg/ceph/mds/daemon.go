@@ -18,19 +18,29 @@ package mds
 import (
 	"fmt"
 	"path"
-	"regexp"
+	"strconv"
 
+	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
-	"github.com/rook/rook/pkg/util/proc"
+)
+
+const (
+	keyringTemplate = `
+[mds.%s]
+key = %s
+caps mon = "allow profile mds"
+caps osd = "allow *"
+caps mds = "allow"
+`
 )
 
 type Config struct {
-	ID          string
-	Keyring     string
-	InProc      bool
-	ClusterInfo *mon.ClusterInfo
+	FilesystemID  string
+	ID            string
+	ActiveStandby bool
+	ClusterInfo   *mon.ClusterInfo
 }
 
 func Run(context *clusterd.Context, config *Config) error {
@@ -40,7 +50,7 @@ func Run(context *clusterd.Context, config *Config) error {
 		return fmt.Errorf("failed to generate mds config files. %+v", err)
 	}
 
-	_, err = startMDS(context, config)
+	err = startMDS(context, config)
 	if err != nil {
 		return fmt.Errorf("failed to run mds. %+v", err)
 	}
@@ -54,17 +64,31 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		return fmt.Errorf("failed to write connection config. %+v", err)
 	}
 
-	keyringPath := getMDSKeyringPath(context.ConfigDir, config.ID)
-	_, err := mon.GenerateConnectionConfigFile(context, config.ClusterInfo, getMDSConfDir(context.ConfigDir, config.ID),
-		fmt.Sprintf("mds.%s", config.ID), keyringPath)
+	// Create a keyring for the new mds instance. Each pod will have its own keyring.
+	// If the instance fails, the operator will need to clean up the unused keyring.
+	keyring, err := createKeyring(context, config)
+	if err != nil {
+		return fmt.Errorf("failed to create mds keyring. %+v", err)
+	}
+
+	settings := map[string]string{
+		"mds_standby_for_fscid": config.FilesystemID,
+		"mds_standby_replay":    strconv.FormatBool(config.ActiveStandby),
+	}
+
+	keyringPath := getMDSKeyringPath(context.ConfigDir)
+	_, err = mon.GenerateConfigFile(context, config.ClusterInfo, getMDSConfDir(context.ConfigDir),
+		fmt.Sprintf("mds.%s", config.ID), keyringPath, false, nil, settings)
 	if err != nil {
 		return fmt.Errorf("failed to create mds config file. %+v", err)
 	}
 	keyringEval := func(key string) string {
-		return fmt.Sprintf(keyringTemplate, config.ID, key)
+		r := fmt.Sprintf(keyringTemplate, config.ID, key)
+		logger.Infof("keyring: %s", r)
+		return r
 	}
 
-	err = mon.WriteKeyring(keyringPath, config.Keyring, keyringEval)
+	err = mon.WriteKeyring(keyringPath, keyring, keyringEval)
 	if err != nil {
 		return fmt.Errorf("failed to create mds keyring. %+v", err)
 	}
@@ -72,44 +96,53 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	return nil
 }
 
-func startMDS(context *clusterd.Context, config *Config) (mdsProc *proc.MonitoredProc, err error) {
+func startMDS(context *clusterd.Context, config *Config) error {
 
 	// start the mds daemon in the foreground with the given config
 	logger.Infof("starting mds %s", config.ID)
 
-	confFile := getMDSConfFilePath(context.ConfigDir, config.ID, config.ClusterInfo.Name)
+	confFile := getMDSConfFilePath(context.ConfigDir, config.ClusterInfo.Name)
 	util.WriteFileToLog(logger, confFile)
 
 	mdsNameArg := fmt.Sprintf("--name=mds.%s", config.ID)
 	args := []string{
 		"--foreground",
 		mdsNameArg,
+		"-i", config.ID,
 		fmt.Sprintf("--cluster=%s", config.ClusterInfo.Name),
 		fmt.Sprintf("--conf=%s", confFile),
-		fmt.Sprintf("--keyring=%s", getMDSKeyringPath(context.ConfigDir, config.ID)),
-		"-i", config.ID,
+		fmt.Sprintf("--keyring=%s", getMDSKeyringPath(context.ConfigDir)),
 	}
 
 	name := fmt.Sprintf("mds%s", config.ID)
-	if config.InProc {
-		err = context.ProcMan.Run(name, "ceph-mds", args...)
-	} else {
-		mdsProc, err = context.ProcMan.Start(name, "ceph-mds", regexp.QuoteMeta(mdsNameArg), proc.ReuseExisting, args...)
+	if err := context.ProcMan.Run(name, "ceph-mds", args...); err != nil {
+		return fmt.Errorf("failed to start mds. %+v", err)
 	}
+	return nil
+}
+
+func getMDSConfDir(dir string) string {
+	return path.Join(dir, "mds")
+}
+
+func getMDSConfFilePath(dir, clusterName string) string {
+	return path.Join(getMDSConfDir(dir), fmt.Sprintf("%s.config", clusterName))
+}
+
+func getMDSKeyringPath(dir string) string {
+	return path.Join(getMDSConfDir(dir), "keyring")
+}
+
+// create a keyring for the mds client with a limited set of privileges
+func createKeyring(context *clusterd.Context, config *Config) (string, error) {
+	access := []string{"osd", "allow *", "mds", "allow", "mon", "allow profile mds"}
+	username := fmt.Sprintf("mds.%s", config.ID)
+
+	// get-or-create-key for the user account
+	keyring, err := client.AuthGetOrCreateKey(context, config.ClusterInfo.Name, username, access)
 	if err != nil {
-		err = fmt.Errorf("failed to start mds: %+v", err)
+		return "", fmt.Errorf("failed to get or create mds auth key for %s. %+v", username, err)
 	}
-	return
-}
 
-func getMDSConfDir(dir, id string) string {
-	return path.Join(dir, fmt.Sprintf("mds%s", id))
-}
-
-func getMDSConfFilePath(dir, id, clusterName string) string {
-	return path.Join(getMDSConfDir(dir, id), fmt.Sprintf("%s.config", clusterName))
-}
-
-func getMDSKeyringPath(dir, id string) string {
-	return path.Join(getMDSConfDir(dir, id), "keyring")
+	return keyring, nil
 }

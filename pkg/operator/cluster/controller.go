@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/kit"
+	"github.com/rook/rook/pkg/operator/mds"
 	"github.com/rook/rook/pkg/operator/mgr"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
@@ -134,8 +135,12 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store CRD watcher
-	objectStoreController, err := rgw.NewObjectStoreController(c.context, cluster.Spec.VersionTag, cluster.Spec.HostNetwork)
+	objectStoreController := rgw.NewObjectStoreController(c.context, cluster.Spec.VersionTag, cluster.Spec.HostNetwork)
 	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
+
+	// Start file system CRD watcher
+	fileController := mds.NewFilesystemController(c.context, cluster.Spec.VersionTag, cluster.Spec.HostNetwork)
+	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons)

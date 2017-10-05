@@ -23,94 +23,140 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path"
 	"path/filepath"
 	"strings"
 	"testing"
 
-	cephtest "github.com/rook/rook/pkg/ceph/test"
+	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
+
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/model"
-	"github.com/rook/rook/pkg/util"
 	testexec "github.com/rook/rook/pkg/util/exec/test"
-	"github.com/rook/rook/pkg/util/proc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestCreateObjectStoreHandler(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
+	createdZone := false
+	poolInit := true
+	executor := &testexec.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			//logger.Infof("Command: %s %v", command, args)
+			if args[0] == "auth" {
+				return `{"key":"mykey"}`, nil
+			}
+			if args[1] == "pool" {
+				if args[2] == "create" {
+					return "", nil
+				}
+				if args[2] == "set" && args[4] == "size" {
+					assert.Equal(t, "1", args[5])
+					return "", nil
+				}
+				if args[2] == "application" {
+					poolInit = true
+					return "", nil
+				}
+			}
+			return "", fmt.Errorf("unexpected command '%s'", args[0])
+		},
+		MockExecuteCommandWithCombinedOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			//logger.Infof("Command: %s %v", command, args)
+			if args[0] == "realm" && args[1] == "create" {
+				return `{"id":"realm"}`, nil
+			}
+			if args[0] == "zonegroup" && args[1] == "create" {
+				return `{"id":"group"}`, nil
+			}
+			if args[0] == "zone" && args[1] == "create" {
+				createdZone = true
+				return `{"id":"myzone"}`, nil
+			}
+			if args[0] == "period" && args[1] == "update" {
+				return "", nil
+			}
+
+			return "", fmt.Errorf("unexpected combined output command '%s'", args[0])
+		},
+	}
 	w := httptest.NewRecorder()
-	h := newTestHandler(context)
+	h := newTestHandler(&clusterd.Context{Executor: executor})
 
 	// Valid parameters return a 200
-	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore", strings.NewReader(`{"name": "default","gateway": {"port":1234}}`))
+	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore", strings.NewReader(`{"name": "default","dataConfig":{"replicatedConfig":{"size":1}},"metadataConfig":{"replicatedConfig":{"size":1}},"gateway": {"port":1234}}`))
 	assert.Nil(t, err)
 	h.CreateObjectStore(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
+	assert.True(t, createdZone)
+	assert.True(t, poolInit)
 
 	// Invalid parameters return a 400
 	req, err = http.NewRequest("POST", "http://10.0.0.100/objectstore", strings.NewReader(`{"name": "default"}`))
 	assert.Nil(t, err)
 	h.CreateObjectStore(w, req)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
-
-	assert.Equal(t, "1", etcdClient.GetValue("/rook/services/ceph/object/desired/state"))
 }
 
 func TestRemoveObjectStoreHandler(t *testing.T) {
-	// simulate object store already being installed by setting the desired key in etcd
-	etcdClient := util.NewMockEtcdClient()
-	etcdClient.SetValue("/rook/services/ceph/object/desired/state", "1")
-
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
-
 	req, err := http.NewRequest("DELETE", "http://10.0.0.100/objectstore/mystore", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
-	// call RemoveObjectStore handler and verify the response is 202 Accepted and the desired
-	// key has been deleted from etcd
+	// call RemoveObjectStore handler and verify the response is 202 Accepted
+	context := &clusterd.Context{}
 	w := httptest.NewRecorder()
 	h := newTestHandler(context)
 	h.RemoveObjectStore(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, 0, etcdClient.GetChildDirs("/rook/services/ceph/object/desired").Count())
 }
 
 func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
-	inventory.SetIPAddress(etcdClient, "123", "1.2.3.4", "2.3.4.5")
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient}}
-
-	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/default/connectioninfo", nil)
-	if err != nil {
-		logger.Fatal(err)
-	}
+	context := &clusterd.Context{}
+	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/myinst/connectioninfo?name=myinst", nil)
+	require.Nil(t, err)
 
 	// before RGW has been installed or any user accounts have been created, the handler will return 404 not found
 	w := httptest.NewRecorder()
 	h := newTestHandler(context)
-	h.GetObjectStoreConnectionInfo(w, req)
+
+	// get the connection info
+	r := newRouter(h.GetRoutes())
+	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusNotFound, w.Code)
 
-	// simulate RGW being installed and the built
-	etcdClient.SetValue("/rook/services/ceph/rgw/applied/node/123", "")
+	// now simulate the rgw service with the kubernetes service
+	ns := "default"
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-rgw-myinst",
+			Namespace: ns,
+		},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{
+				{
+					Name:       "http",
+					Port:       80,
+					TargetPort: intstr.FromInt(int(80)),
+					Protocol:   v1.ProtocolTCP,
+				},
+			},
+		},
+	}
+	_, err = context.Clientset.CoreV1().Services(ns).Create(svc)
+	assert.Nil(t, err)
 
 	w = httptest.NewRecorder()
-	h = newTestHandler(context)
-	h.GetObjectStoreConnectionInfo(w, req)
+	r.ServeHTTP(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	expectedRespObj := model.ObjectStoreConnectInfo{
-		Host:      "rook-ceph-rgw:53390",
-		IPAddress: "1.2.3.4",
-		Ports:     []int32{53390},
+		Host:  "rook-ceph-rgw-myinst",
+		Ports: []int32{80},
 	}
 
 	// unmarshal the http response to get the actual object and compare it to the expected object
@@ -121,26 +167,16 @@ func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 }
 
 func TestListUsers(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
 	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/default/users", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-
-	cephtest.CreateClusterInfo(etcdClient, path.Join(configDir, "rookcluster"), []string{"mymon"})
-
 	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 			return runner(args...)
 		}}
-		context := &clusterd.Context{
-			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			Executor:      executor,
-			ProcMan:       proc.New(executor),
-			ConfigDir:     configDir}
+		context := &clusterd.Context{Executor: executor}
 		w := httptest.NewRecorder()
 		h := newTestHandler(context)
 		h.ListUsers(w, req)
@@ -218,7 +254,6 @@ func TestListUsers(t *testing.T) {
 }
 
 func TestGetUser(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
 	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/default/users/someuser", nil)
 	if err != nil {
 		logger.Fatal(err)
@@ -227,19 +262,12 @@ func TestGetUser(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 
-	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
-
 	runTest := func(s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 			checkArgs(t, args, expectedArgs)
 			return s, e
 		}}
-		context := &clusterd.Context{
-			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     configDir,
-			Executor:      executor,
-			ProcMan:       proc.New(executor),
-		}
+		context := &clusterd.Context{Executor: executor}
 		w := httptest.NewRecorder()
 		h := newTestHandler(context)
 		r := newRouter(h.GetRoutes())
@@ -283,28 +311,17 @@ func TestGetUser(t *testing.T) {
 }
 
 func TestCreateUser(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
 	req, err := http.NewRequest("POST", "http://10.0.0.100/objectstore/default/users", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
-
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-
-	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(body string, s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 			checkArgs(t, args, expectedArgs)
 			return s, e
 		}}
-		context := &clusterd.Context{
-			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     configDir,
-			ProcMan:       proc.New(executor),
-			Executor:      executor,
-		}
+		context := &clusterd.Context{Executor: executor}
 		req.Body = ioutil.NopCloser(bytes.NewBufferString(body))
 		w := httptest.NewRecorder()
 		h := newTestHandler(context)
@@ -360,28 +377,17 @@ func TestCreateUser(t *testing.T) {
 }
 
 func TestUpdateUser(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
 	req, err := http.NewRequest("PUT", "http://10.0.0.100/objectstore/default/users/foo", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
-
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-
-	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(body string, s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 			checkArgs(t, args, expectedArgs)
 			return s, e
 		}}
-		context := &clusterd.Context{
-			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     configDir,
-			ProcMan:       proc.New(executor),
-			Executor:      executor,
-		}
+		context := &clusterd.Context{Executor: executor}
 		req.Body = ioutil.NopCloser(bytes.NewBufferString(body))
 		w := httptest.NewRecorder()
 		h := newTestHandler(context)
@@ -441,28 +447,17 @@ func TestUpdateUser(t *testing.T) {
 }
 
 func TestDeleteUser(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
 	req, err := http.NewRequest("DELETE", "http://10.0.0.100/objectstore/default/users/foo", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
-
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-
-	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 			checkArgs(t, args, expectedArgs)
 			return s, e
 		}}
-		context := &clusterd.Context{
-			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     configDir,
-			ProcMan:       proc.New(executor),
-			Executor:      executor,
-		}
+		context := &clusterd.Context{Executor: executor}
 		w := httptest.NewRecorder()
 		h := newTestHandler(context)
 		r := newRouter(h.GetRoutes())
@@ -491,27 +486,16 @@ func TestDeleteUser(t *testing.T) {
 }
 
 func TestListBuckets(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
 	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/default/buckets", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-
-	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
-
 	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 			return runner(args...)
 		}}
-		context := &clusterd.Context{
-			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     configDir,
-			ProcMan:       proc.New(executor),
-			Executor:      executor,
-		}
+		context := &clusterd.Context{Executor: executor}
 		w := httptest.NewRecorder()
 		h := newTestHandler(context)
 		h.ListBuckets(w, req)
@@ -655,27 +639,16 @@ func containsArg(values []string, desired string) bool {
 }
 
 func TestGetBucket(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
 	req, err := http.NewRequest("GET", "http://10.0.0.100/objectstore/default/buckets/test", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-
-	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
-
 	runTest := func(runner func(args ...string) (string, error)) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
 			return runner(args...)
 		}}
-		context := &clusterd.Context{
-			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     configDir,
-			ProcMan:       proc.New(executor),
-			Executor:      executor,
-		}
+		context := &clusterd.Context{Executor: executor}
 		w := httptest.NewRecorder()
 		h := newTestHandler(context)
 		r := newRouter(h.GetRoutes())
@@ -767,16 +740,10 @@ func TestGetBucket(t *testing.T) {
 }
 
 func TestBucketDelete(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
 	req, err := http.NewRequest("DELETE", "http://10.0.0.100/objectstore/default/buckets/test", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
-
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-
-	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mymon"})
 
 	runTest := func(s string, e error, expectedArgs ...string) *httptest.ResponseRecorder {
 		executor := &testexec.MockExecutor{
@@ -785,12 +752,7 @@ func TestBucketDelete(t *testing.T) {
 				return s, e
 			},
 		}
-		context := &clusterd.Context{
-			DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-			ConfigDir:     configDir,
-			Executor:      executor,
-			ProcMan:       proc.New(executor),
-		}
+		context := &clusterd.Context{Executor: executor}
 
 		w := httptest.NewRecorder()
 		h := newTestHandler(context)

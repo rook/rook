@@ -97,7 +97,7 @@ func GenerateAdminConnectionConfig(context *clusterd.Context, cluster *ClusterIn
 	root := path.Join(context.ConfigDir, cluster.Name)
 	keyring := fmt.Sprintf(AdminKeyringTemplate, cluster.AdminSecret)
 	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", client.AdminUsername))
-	err := writeKeyring(cluster, keyring, keyringPath)
+	err := writeKeyring(keyring, keyringPath)
 	if err != nil {
 		return fmt.Errorf("failed to write keyring to %s. %+v", root, err)
 	}
@@ -112,11 +112,11 @@ func GenerateAdminConnectionConfig(context *clusterd.Context, cluster *ClusterIn
 func writeMonKeyring(context *clusterd.Context, c *ClusterInfo, name string) error {
 	keyringPath := getMonKeyringPath(context.ConfigDir, name)
 	keyring := fmt.Sprintf(monitorKeyringTemplate, c.MonitorSecret, c.AdminSecret)
-	return writeKeyring(c, keyring, keyringPath)
+	return writeKeyring(keyring, keyringPath)
 }
 
 // writes the monitor keyring to disk
-func writeKeyring(c *ClusterInfo, keyring, path string) error {
+func writeKeyring(keyring, path string) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0744); err != nil {
 		return fmt.Errorf("failed to create keyring directory for %s: %+v", path, err)
 	}

@@ -20,7 +20,6 @@ import (
 	"os"
 
 	"github.com/rook/rook/pkg/api"
-	apik8s "github.com/rook/rook/pkg/api/k8s"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -73,13 +72,9 @@ func startAPI(cmd *cobra.Command, args []string) error {
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	context := createContext()
 	context.Clientset = clientset
-	apiCfg := &api.Config{
-		Port:           apiPort,
-		ClusterInfo:    &clusterInfo,
-		ClusterHandler: apik8s.New(context, &clusterInfo, namespace, versionTag, hostNetwork),
-	}
+	c := api.NewConfig(context, apiPort, &clusterInfo, namespace, versionTag, hostNetwork)
 
-	err = api.Run(context, apiCfg)
+	err = api.Run(context, c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

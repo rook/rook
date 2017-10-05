@@ -72,12 +72,6 @@ func (h *Handler) GetRoutes() []Route {
 			h.GetClientAccessInfo,
 		},
 		{
-			"GetMonitors",
-			"GET",
-			"/mon",
-			h.GetMonitors,
-		},
-		{
 			"GetCrushMap",
 			"GET",
 			"/crushmap",
