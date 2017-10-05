@@ -21,6 +21,7 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/cluster"
+	"github.com/rook/rook/pkg/operator/mds"
 	"github.com/rook/rook/pkg/operator/pool"
 	"github.com/rook/rook/pkg/operator/rgw"
 	"github.com/rook/rook/pkg/operator/test"
@@ -37,9 +38,9 @@ func TestOperator(t *testing.T) {
 	assert.NotNil(t, o.resources)
 	assert.NotNil(t, o.volumeProvisioner)
 	assert.Equal(t, context, o.context)
-	assert.Equal(t, len(o.resources), 3)
+	assert.Equal(t, len(o.resources), 4)
 	for _, r := range o.resources {
-		if r.Name != cluster.ClusterResource.Name && r.Name != pool.PoolResource.Name && r.Name != rgw.ObjectStoreResource.Name {
+		if r.Name != cluster.ClusterResource.Name && r.Name != pool.PoolResource.Name && r.Name != rgw.ObjectStoreResource.Name && r.Name != mds.FilesystemResource.Name {
 			assert.Fail(t, fmt.Sprintf("Resource %s is not valid", r.Name))
 		}
 	}

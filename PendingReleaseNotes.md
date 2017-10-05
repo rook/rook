@@ -8,6 +8,12 @@
 
 ## Notable Features
 
+- File system
+  - File systems are defined by a CRD and handled by the Operator
+  - Multiple file systems can be created, although still experimental in Ceph
+  - Multiple data pools can be created
+  - Multiple MDS instances can be created per file system
+  - An MDS is started in standby mode for each active MDS
 - Object Store
   - Object Stores are defined by a CRD and handled by the Operator
   - Multiple object stores supported through Ceph realms

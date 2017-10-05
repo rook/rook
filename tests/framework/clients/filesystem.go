@@ -22,40 +22,86 @@ import (
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 )
 
-//FileSystemOperation is a wrapper for k8s rook file operations
-type FileSystemOperation struct {
+//FilesystemOperation is a wrapper for k8s rook file operations
+type FilesystemOperation struct {
 	k8sClient  *utils.K8sHelper
 	restClient contracts.RestAPIOperator
 }
 
-// CreateK8sFileSystemOperation Constructor to create FileSystemOperation - client to perform rook file system operations on k8s
-func CreateK8sFileSystemOperation(k8shelp *utils.K8sHelper, rookRestClient contracts.RestAPIOperator) *FileSystemOperation {
-	return &FileSystemOperation{k8sClient: k8shelp, restClient: rookRestClient}
+// CreateK8sFilesystemOperation Constructor to create FilesystemOperation - client to perform rook file system operations on k8s
+func CreateK8sFilesystemOperation(k8shelp *utils.K8sHelper, rookRestClient contracts.RestAPIOperator) *FilesystemOperation {
+	return &FilesystemOperation{k8sClient: k8shelp, restClient: rookRestClient}
 }
 
-//FSCreate Function to create a fileSystem in rook
+//FSCreate Function to create a filesystem in rook
 //Input parameters -
 // name -  name of the shared file system to be created
 //Output - output returned by rook rest API client
-func (rfs *FileSystemOperation) FSCreate(name string) (string, error) {
-	createFilesystem := model.FilesystemRequest{Name: name}
-	return rfs.restClient.CreateFilesystem(createFilesystem)
+func (rfs *FilesystemOperation) FSCreate(name, namespace string, callAPI bool, k8sh *utils.K8sHelper) error {
+	createFilesystem := model.FilesystemRequest{
+		Name:         name,
+		MetadataPool: model.Pool{ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}},
+		DataPools: []model.Pool{
+			{ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}},
+		},
+		MetadataServer: model.MetadataServer{
+			ActiveCount: 1,
+		},
+	}
+
+	if callAPI {
+		logger.Infof("creating the filesystem via the rest API")
+		if _, err := rfs.restClient.CreateFilesystem(createFilesystem); err != nil {
+			return err
+		}
+	} else {
+		logger.Infof("creating the filesystem via CRD")
+		fsSpec := fmt.Sprintf(`apiVersion: rook.io/v1alpha1
+kind: Filesystem
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  metadataPool:
+    replicated:
+      size: 1
+  dataPools:
+  - replicated:
+      size: 1
+  metadataServer:
+    activeCount: 1
+    activeStandby: true
+`, name, namespace)
+
+		if _, err := k8sh.ResourceOperation("create", fsSpec); err != nil {
+			return err
+		}
+	}
+
+	logger.Infof("Make sure rook-ceph-mds pod is running")
+	assert.True(k8sh.T(), k8sh.IsPodWithLabelRunning(fmt.Sprintf("rook_file_system=%s", name), namespace))
+
+	assert.True(k8sh.T(), k8sh.CheckPodCountAndState("rook-ceph-mds", namespace, 2, "Running"),
+		"Make sure there are two rook-ceph-mds pods present in Running state")
+
+	return nil
 }
 
-//FSDelete Function to delete a fileSystem in rook
+//FSDelete Function to delete a filesystem in rook
 //Input parameters -
 // name -  name of the shared file system to be deleted
 //Output - output returned by rook rest API client
-func (rfs *FileSystemOperation) FSDelete(name string) (string, error) {
+func (rfs *FilesystemOperation) FSDelete(name string) (string, error) {
 	deleteFilesystem := model.FilesystemRequest{Name: name}
 	return rfs.restClient.DeleteFilesystem(deleteFilesystem)
 }
 
-//FSList Function to list a fileSystem in rook
+//FSList Function to list a filesystem in rook
 //Output - output returned by rook rest API client
-func (rfs *FileSystemOperation) FSList() ([]model.Filesystem, error) {
+func (rfs *FilesystemOperation) FSList() ([]model.Filesystem, error) {
 	return rfs.restClient.GetFilesystems()
 
 }
@@ -65,12 +111,12 @@ func (rfs *FileSystemOperation) FSList() ([]model.Filesystem, error) {
 //name - path to the yaml definition file - definition of pod to be created that mounts existing file system
 //path - ignored in this case - moount path is defined in the path definition
 //output - output returned by k8s create pod operaton and/or error
-func (rfs *FileSystemOperation) FSMount(name string, path string) (string, error) {
+func (rfs *FilesystemOperation) FSMount(name string, path string) (string, error) {
 	cmdArgs := []string{"create", "-f", "name"}
 	result, err := rfs.k8sClient.Kubectl(cmdArgs...)
 
 	if err != nil {
-		return "", fmt.Errorf("Unable to mount FileSystem -- : %s", err)
+		return "", fmt.Errorf("Unable to mount Filesystem -- : %s", err)
 	}
 	return result, nil
 
@@ -84,7 +130,7 @@ func (rfs *FileSystemOperation) FSMount(name string, path string) (string, error
 //filename - file where data is written to
 //namespace - optional param - namespace of the pod
 //Output  - k8s exec pod operation output and/or error
-func (rfs *FileSystemOperation) FSWrite(name string, mountpath string, data string, filename string, namespace string) (string, error) {
+func (rfs *FilesystemOperation) FSWrite(name string, mountpath string, data string, filename string, namespace string) (string, error) {
 	wt := "echo \"" + data + "\">" + mountpath + "/" + filename
 	args := []string{"exec", name}
 
@@ -109,7 +155,7 @@ func (rfs *FileSystemOperation) FSWrite(name string, mountpath string, data stri
 //filename - file to be read
 //namespace - optional param - namespace of the pod
 //Output  - k8s exec pod operation output and/or error
-func (rfs *FileSystemOperation) FSRead(name string, mountpath string, filename string, namespace string) (string, error) {
+func (rfs *FilesystemOperation) FSRead(name string, mountpath string, filename string, namespace string) (string, error) {
 	rd := mountpath + "/" + filename
 
 	args := []string{"exec", name}
@@ -133,11 +179,11 @@ func (rfs *FileSystemOperation) FSRead(name string, mountpath string, filename s
 //name - path to the yaml definition file - definition of pod to be deleted that has a file system mounted
 //path - ignored in this case - moount path is defined in the path definition
 //output - output returned by k8s delete pod operaton and/or error
-func (rfs *FileSystemOperation) FSUnmount(name string) (string, error) {
+func (rfs *FilesystemOperation) FSUnmount(name string) (string, error) {
 	args := []string{"delete", "-f", name}
 	result, err := rfs.k8sClient.Kubectl(args...)
 	if err != nil {
-		return "", fmt.Errorf("Unable to unmount FileSystem -- : %s", err)
+		return "", fmt.Errorf("Unable to unmount Filesystem -- : %s", err)
 
 	}
 	return result, nil

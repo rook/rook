@@ -90,12 +90,45 @@ func GetFilesystem(context *clusterd.Context, clusterName string, fsName string)
 	return &fs, nil
 }
 
-func CreateFilesystem(context *clusterd.Context, clusterName string, fsName, metadataPool, dataPool string) error {
-	args := []string{"fs", "new", fsName, metadataPool, dataPool}
+func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool string, dataPools []string, activeMDSCount int32) error {
+	if len(dataPools) == 0 {
+		return fmt.Errorf("at least one data pool is required")
+	}
+
+	// enable multiple file systems in case this is not the first
+	args := []string{"fs", "flag", "set", "enable_multiple", "true", confirmFlag}
 	_, err := ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
-		return fmt.Errorf("failed enabling ceph fs %s: %+v", fsName, err)
+		// continue if this fails
+		logger.Warning("failed enabling multiple file systems. %+v", err)
 	}
+
+	// create the filesystem
+	args = []string{"fs", "new", name, metadataPool, dataPools[0]}
+	_, err = ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed enabling ceph fs %s. %+v", name, err)
+	}
+
+	// add each additional pool
+	for i := 1; i < len(dataPools); i++ {
+		poolName := dataPools[i]
+		args = []string{"fs", "add_data_pool", name, poolName}
+		_, err = ExecuteCephCommand(context, clusterName, args)
+		if err != nil {
+			logger.Errorf("failed to add pool %s to file system %s. %+v", poolName, name, err)
+		}
+	}
+
+	// set the number of active mds instances
+	if activeMDSCount > 1 {
+		args = []string{"fs", "set", name, "max_mds", strconv.Itoa(int(activeMDSCount))}
+		_, err = ExecuteCephCommand(context, clusterName, args)
+		if err != nil {
+			logger.Warningf("failed setting active mds count to %d. %+v", activeMDSCount, err)
+		}
+	}
+
 	return nil
 }
 
@@ -118,7 +151,7 @@ func FailMDS(context *clusterd.Context, clusterName string, gid int) error {
 }
 
 func RemoveFilesystem(context *clusterd.Context, clusterName string, fsName string) error {
-	args := []string{"fs", "rm", fsName, "--yes-i-really-mean-it"}
+	args := []string{"fs", "rm", fsName, confirmFlag}
 	_, err := ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
 		return fmt.Errorf("Failed to delete ceph fs %s. err=%+v", fsName, err)

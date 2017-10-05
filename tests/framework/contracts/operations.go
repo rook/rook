@@ -34,7 +34,7 @@ type BlockOperator interface {
 
 //FileSystemOperator - interface for rook fileSystem operations
 type FileSystemOperator interface {
-	FSCreate(name string) (string, error)
+	FSCreate(name, namespace string, callAPI bool, k8sh *utils.K8sHelper) error
 	FSDelete(name string) (string, error)
 	FSList() ([]model.Filesystem, error)
 	FSMount(name string, mountpath string) (string, error)

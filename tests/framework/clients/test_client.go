@@ -54,7 +54,7 @@ func CreateTestClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHelpe
 	switch {
 	case platform == enums.Kubernetes:
 		blockClient = CreateK8BlockOperation(k8sHelper, rookRestClient)
-		fsClient = CreateK8sFileSystemOperation(k8sHelper, rookRestClient)
+		fsClient = CreateK8sFilesystemOperation(k8sHelper, rookRestClient)
 		objectClient = CreateObjectOperation(rookRestClient)
 		poolClient = CreatePoolClient(rookRestClient)
 	case platform == enums.StandAlone:

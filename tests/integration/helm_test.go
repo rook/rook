@@ -60,7 +60,6 @@ func (hs *HelmSuite) SetupSuite() {
 func (hs *HelmSuite) TearDownSuite() {
 	if hs.T().Failed() {
 		gatherAllRookLogs(hs.k8sh, hs.Suite, defaultRookNamespace, defaultRookNamespace)
-
 	}
 	hs.installer.UninstallRookFromK8s(defaultRookNamespace, true)
 
@@ -79,7 +78,7 @@ func (hs *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
 
 //Test File System Creation on Rook that was installed via helm
 func (hs *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
-	runFileE2ETestLite(hs.helper, hs.k8sh, hs.Suite, defaultRookNamespace, "testFs")
+	runFileE2ETestLite(hs.helper, hs.k8sh, hs.Suite, defaultRookNamespace, "testfs")
 
 }
 

@@ -21,7 +21,6 @@ import (
 	"os"
 	"testing"
 
-	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/pool"
@@ -151,18 +150,25 @@ func TestCreateObjectStore(t *testing.T) {
 			return `{"realms": []}`, nil
 		},
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName, command, outfile string, args ...string) (string, error) {
-			if command == "ceph" && args[1] == "erasure-code-profile" {
-				return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
+			logger.Infof("Command: %s %v", command, args)
+			if command == "ceph" {
+				if args[1] == "erasure-code-profile" {
+					return `{"k":"2","m":"1","plugin":"jerasure","technique":"reed_sol_van"}`, nil
+				}
+				if args[0] == "auth" && args[1] == "get-or-create-key" {
+					return `{"key":"mykey"}`, nil
+				}
 			}
 			return "", nil
 		},
 	}
 
 	store := simpleStore()
-	context := cephrgw.NewContext(&clusterd.Context{Executor: executor}, store.Name, store.Namespace)
+	clientset := testop.New(3)
+	context := &clusterd.Context{Executor: executor, Clientset: clientset}
 
 	// create the pools
-	err := store.createObjectStore(context, "1.2.3.4")
+	err := store.Create(context, "1.2.3.4", false)
 	assert.Nil(t, err)
 }
 

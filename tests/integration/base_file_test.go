@@ -21,7 +21,6 @@ import (
 
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/utils"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -31,25 +30,25 @@ var (
 	filePodName   = "file-test"
 )
 
-// Smoke Test for File System Storage - Test check the following operations on FileSystem Storage in order
+// Smoke Test for File System Storage - Test check the following operations on Filesystem Storage in order
 //Create,Mount,Write,Read,Unmount and Delete.
-func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, fileSystemName string) {
-	defer fileTestDataCleanUp(helper, k8sh, s, filePodName, namespace, fileSystemName, fileMountPath)
+func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
+	defer fileTestDataCleanUp(helper, k8sh, s, filePodName, namespace, filesystemName, fileMountPath)
 	logger.Infof("Running on Rook Cluster %s", namespace)
 	logger.Infof("File Storage End To End Integration Test - create, mount, write to, read from, and unmount")
 	rfc := helper.GetFileSystemClient()
 
 	logger.Infof("Step 1: Create file System")
-	_, fscErr := rfc.FSCreate(fileSystemName)
+	fscErr := rfc.FSCreate(filesystemName, namespace, false, k8sh)
 	require.Nil(s.T(), fscErr)
-	fileSystemList, _ := rfc.FSList()
-	require.Equal(s.T(), 1, len(fileSystemList), "There should one shared file system present")
-	filesystemData := fileSystemList[0]
-	require.Equal(s.T(), fileSystemName, filesystemData.Name, "make sure filesystem name matches")
+	filesystemList, _ := rfc.FSList()
+	require.Equal(s.T(), 1, len(filesystemList), "There should one shared file system present")
+	filesystemData := filesystemList[0]
+	require.Equal(s.T(), filesystemName, filesystemData.Name, "make sure filesystem name matches")
 	logger.Infof("File system created")
 
 	logger.Infof("Step 2: Mount file System")
-	mtfsErr := podWithFileSystem(k8sh, s, filePodName, namespace, fileSystemName, fileMountPath, "create")
+	mtfsErr := podWithFilesystem(k8sh, s, filePodName, namespace, filesystemName, fileMountPath, "create")
 	require.Nil(s.T(), mtfsErr)
 	require.True(s.T(), k8sh.IsPodRunning(filePodName, namespace), "make sure file-test pod is in running state")
 	logger.Infof("File system mounted successfully")
@@ -66,59 +65,51 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	logger.Infof("Read from file system successful")
 
 	logger.Infof("Step 5: UnMount file System")
-	umtfsErr := podWithFileSystem(k8sh, s, filePodName, namespace, fileSystemName, fileMountPath, "delete")
+	umtfsErr := podWithFilesystem(k8sh, s, filePodName, namespace, filesystemName, fileMountPath, "delete")
 	require.Nil(s.T(), umtfsErr)
 	require.True(s.T(), k8sh.IsPodTerminated(filePodName, namespace), "make sure file-test pod is terminated")
 	logger.Infof("File system mounted successfully")
 
 	logger.Infof("Step 6: Deleting file storage")
-	rfc.FSDelete(fileSystemName)
+	rfc.FSDelete(filesystemName)
 	//Delete is not deleting filesystem - known issue
 	//require.Nil(suite.T(), fsd_err)
 	logger.Infof("File system deleted")
 }
 
 //Test File System Creation on Rook that was installed on a custom namespace i.e. Namespace != "rook"
-func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, fileSystemName string) {
-	logger.Infof("File Storage End to End Integration Test - create FileSystem and make sure mds pod is running")
+func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
+	logger.Infof("File Storage End to End Integration Test - create Filesystem and make sure mds pod is running")
 	logger.Infof("Running on Rook Cluster %s", namespace)
 	fc := helper.GetFileSystemClient()
 
 	logger.Infof("Step 1: Create file System")
-	_, fscErr := fc.FSCreate(fileSystemName)
+	fscErr := fc.FSCreate(filesystemName, namespace, true, k8sh)
 	require.Nil(s.T(), fscErr)
-	fileSystemList, _ := fc.FSList()
-	require.Equal(s.T(), 1, len(fileSystemList), "There should one shared file system present")
-
-	logger.Infof("Step 2: Make sure rook-ceph-mds pod is running")
-	require.True(s.T(), k8sh.IsPodInExpectedState("rook-ceph-mds", namespace, "Running"),
-		"Make sure rook-ceph-mds is in running state")
-
-	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mds", namespace, 1, "Running"),
-		"Make sure there is 1 rook-ceph-mds present in Running state")
-
+	filesystemList, _ := fc.FSList()
+	require.Equal(s.T(), 1, len(filesystemList), "There should one shared file system present")
 }
 
-func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, podname string, namespace string, fileSystemName string, fileMountPath string) {
+func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, podname string, namespace string, filesystemName string, fileMountPath string) {
 	logger.Infof("Cleaning up file system")
-	podWithFileSystem(k8sh, s, podname, namespace, fileSystemName, fileMountPath, "delete")
-	helper.GetFileSystemClient().FSDelete(fileSystemName)
+	podWithFilesystem(k8sh, s, podname, namespace, filesystemName, fileMountPath, "delete")
+	helper.GetFileSystemClient().FSDelete(filesystemName)
 
 }
 
-func podWithFileSystem(k8sh *utils.K8sHelper, s suite.Suite, podname string, namespace string, filesystemName string, fileMountPath string, action string) error {
+func podWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, podname string, namespace string, filesystemName string, fileMountPath string, action string) error {
 	mons, err := k8sh.GetMonitorServices(namespace)
 	require.Nil(s.T(), err)
 
 	logger.Infof("mountFileStorage: Mons: %+v", mons)
-	_, err = k8sh.ResourceOperationFromTemplate(action, getFileSystemTestPod(podname, namespace, filesystemName, fileMountPath), mons)
+	_, err = k8sh.ResourceOperationFromTemplate(action, getFilesystemTestPod(podname, namespace, filesystemName, fileMountPath), mons)
 	if err != nil {
-		return fmt.Errorf("failed to %s pod -- %s. %+v", action, getFileSystemTestPod(podname, namespace, filesystemName, fileMountPath), err)
+		return fmt.Errorf("failed to %s pod -- %s. %+v", action, getFilesystemTestPod(podname, namespace, filesystemName, fileMountPath), err)
 	}
 	return nil
 }
 
-func getFileSystemTestPod(podname string, namespace string, filesystemName string, fileMountPath string) string {
+func getFilesystemTestPod(podname string, namespace string, filesystemName string, fileMountPath string) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:

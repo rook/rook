@@ -39,13 +39,12 @@ type ObjectStoreController struct {
 }
 
 // NewObjectStoreController create controller for watching object store custom resources created
-func NewObjectStoreController(context *clusterd.Context, versionTag string, hostNetwork bool) (*ObjectStoreController, error) {
+func NewObjectStoreController(context *clusterd.Context, versionTag string, hostNetwork bool) *ObjectStoreController {
 	return &ObjectStoreController{
 		context:     context,
 		versionTag:  versionTag,
 		hostNetwork: hostNetwork,
-	}, nil
-
+	}
 }
 
 // StartWatch watches for instances of ObjectStore custom resources and acts on them

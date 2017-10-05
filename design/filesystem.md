@@ -10,10 +10,10 @@ A Rook storage cluster must be configured and running in Kubernetes. In this exa
 
 ## File System Walkthrough
 
-When the storage admin is ready to create a shared file system, he will specify his desired configuration settings in a yaml file such as the following `filesystem.yaml`. This example is a simple configuration with metadata that is replicated across different hosts, and the data is erasure coded across multiple devices in the cluster. Three active MDS instances are started, with three more MDS instances started in standby mode.
+When the storage admin is ready to create a shared file system, he will specify his desired configuration settings in a yaml file such as the following `filesystem.yaml`. This example is a simple configuration with metadata that is replicated across different hosts, and the data is erasure coded across multiple devices in the cluster. One active MDS instance is started, with one more MDS instance started in standby mode.
 ```yaml
 apiVersion: rook.io/v1alpha1
-kind: FileSystem
+kind: Filesystem
 metadata:
   name: myfs
   namespace: rook
@@ -26,7 +26,7 @@ spec:
        codingChunks: 2
        dataChunks: 2
   metadataServer:
-    activeCount: 3
+    activeCount: 1
     activeStandby: true
 ```
 
@@ -77,7 +77,7 @@ The metadata server settings correspond to the MDS service.
 
 ```yaml
   metadataServer:
-    activeCount: 3
+    activeCount: 1
     activeStandby: true
     placement:
 ```

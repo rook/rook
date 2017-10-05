@@ -26,7 +26,7 @@ import (
 // GET
 // /status
 func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
-	cephStatus, err := ceph.Status(h.context, h.config.ClusterInfo.Name)
+	cephStatus, err := ceph.Status(h.context, h.config.clusterInfo.Name)
 	if err != nil {
 		logger.Errorf("failed to get status: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -45,7 +45,7 @@ func (h *Handler) GetStatusDetails(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// get the monitor time sync status
-	timeStatus, err := ceph.GetMonTimeStatus(h.context, h.config.ClusterInfo.Name)
+	timeStatus, err := ceph.GetMonTimeStatus(h.context, h.config.clusterInfo.Name)
 	if err != nil {
 		logger.Errorf("failed to get mon time sync status: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)

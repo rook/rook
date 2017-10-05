@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 
@@ -27,8 +26,7 @@ import (
 )
 
 func TestGetImagesHandler(t *testing.T) {
-	context, _, executor := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, executor := testContext()
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/image", nil)
 	if err != nil {
@@ -77,8 +75,7 @@ func TestGetImagesHandler(t *testing.T) {
 }
 
 func TestGetImagesHandlerFailure(t *testing.T) {
-	context, _, executor := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, executor := testContext()
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/image", nil)
 	if err != nil {
@@ -98,8 +95,7 @@ func TestGetImagesHandlerFailure(t *testing.T) {
 }
 
 func TestCreateImageHandler(t *testing.T) {
-	context, _, executor := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, executor := testContext()
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/image", nil)
 	if err != nil {
@@ -158,8 +154,7 @@ func TestCreateImageHandler(t *testing.T) {
 }
 
 func TestCreateImageHandlerFailure(t *testing.T) {
-	context, _, executor := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, executor := testContext()
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/image", strings.NewReader(`{"imageName":"myImage1","poolName":"myPool1","size":1024}`))
 	if err != nil {
@@ -179,8 +174,7 @@ func TestCreateImageHandlerFailure(t *testing.T) {
 }
 
 func TestDeleteImageHandler(t *testing.T) {
-	context, _, executor := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, executor := testContext()
 
 	req, err := http.NewRequest("DELETE", "http://10.0.0.100/image", nil)
 	if err != nil {
@@ -237,8 +231,7 @@ func TestDeleteImageHandler(t *testing.T) {
 }
 
 func TestDeleteImageHandlerFailure(t *testing.T) {
-	context, _, executor := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, executor := testContext()
 
 	req, err := http.NewRequest("DELETE", "http://10.0.0.100/image?name=myImage1&pool=myPool1", nil)
 	if err != nil {

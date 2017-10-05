@@ -156,7 +156,7 @@ func (mrc *MultiRookClusterDeploySuite) TestBlockStoreOnMultipleRookCluster() {
 
 }
 
-//Test FileSystem Creation on multiple rook clusters
+//Test Filesystem Creation on multiple rook clusters
 func (mrc *MultiRookClusterDeploySuite) TestFileStoreOnMultiRookCluster() {
 	runFileE2ETestLite(mrc.helper1, mrc.k8sh, mrc.Suite, clusterNamespace1, "test-fs-1")
 	//TODO - Known Issues #https://github.com/rook/rook/issues/970

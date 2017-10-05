@@ -76,10 +76,6 @@ func portString(config *Config) string {
 }
 
 func generateConfigFiles(context *clusterd.Context, config *Config) error {
-	// write the latest config to the config dir
-	if err := mon.GenerateAdminConnectionConfig(context, config.ClusterInfo); err != nil {
-		return fmt.Errorf("failed to write connection config. %+v", err)
-	}
 
 	// create the rgw data directory
 	dataDir := path.Join(getRGWConfDir(context.ConfigDir), "data")

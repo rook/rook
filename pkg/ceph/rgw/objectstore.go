@@ -26,6 +26,7 @@ import (
 
 const (
 	rootPool = ".rgw.root"
+	appName  = "rgw"
 )
 
 var (
@@ -241,7 +242,7 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 		}
 		if _, err := ceph.GetPoolDetails(context.context, context.ClusterName, name); err != nil {
 			cephConfig.Name = name
-			err := ceph.CreatePool(context.context, context.ClusterName, cephConfig)
+			err := ceph.CreatePoolForApp(context.context, context.ClusterName, cephConfig, appName)
 			if err != nil {
 				return fmt.Errorf("failed to create pool %s for object store %s", name, context.Name)
 			}

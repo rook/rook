@@ -20,7 +20,6 @@ package rgw
 import (
 	"fmt"
 	"path"
-	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
@@ -86,9 +85,9 @@ func (s *ObjectStore) createOrUpdate(context *clusterd.Context, version string, 
 
 	// create the ceph artifacts for the object store
 	objContext := cephrgw.NewContext(context, s.Name, s.Namespace)
-	err = s.createObjectStore(objContext, serviceIP)
+	err = cephrgw.CreateObjectStore(objContext, *s.Spec.MetadataPool.ToModel(""), *s.Spec.DataPool.ToModel(""), serviceIP, s.Spec.Gateway.Port)
 	if err != nil {
-		return fmt.Errorf("failed to create ceph object store. %+v", err)
+		return fmt.Errorf("failed to create pools. %+v", err)
 	}
 
 	if err := s.startRGWPods(context, version, hostNetwork, update); err != nil {
@@ -103,7 +102,14 @@ func (s *ObjectStore) startRGWPods(context *clusterd.Context, version string, ho
 
 	// if intended to update, remove the old pods so they can be created with the new spec settings
 	if update {
-		s.deleteRGWPods(context)
+		err := k8sutil.DeleteDeployment(context.Clientset, s.Namespace, s.instanceName())
+		if err != nil {
+			logger.Warningf(err.Error())
+		}
+		err = k8sutil.DeleteDaemonset(context.Clientset, s.Namespace, s.instanceName())
+		if err != nil {
+			logger.Warningf(err.Error())
+		}
 	}
 
 	// start the deployment or daemonset
@@ -124,21 +130,6 @@ func (s *ObjectStore) startRGWPods(context *clusterd.Context, version string, ho
 		logger.Infof("rgw %s already exists", rgwType)
 	} else {
 		logger.Infof("rgw %s started", rgwType)
-	}
-
-	return nil
-}
-
-func (s *ObjectStore) createObjectStore(context *cephrgw.Context, serviceIP string) error {
-
-	mModel := model.Pool{}
-	dModel := model.Pool{}
-	s.Spec.MetadataPool.ToModel(&mModel)
-	s.Spec.DataPool.ToModel(&dModel)
-
-	err := cephrgw.CreateObjectStore(context, mModel, dModel, serviceIP, s.Spec.Gateway.Port)
-	if err != nil {
-		return fmt.Errorf("failed to create pools. %+v", err)
 	}
 
 	return nil
@@ -169,7 +160,15 @@ func (s *ObjectStore) Delete(context *clusterd.Context) error {
 		logger.Warningf("failed to delete rgw service. %+v", err)
 	}
 
-	s.deleteRGWPods(context)
+	// Make a best effort to delete the rgw pods
+	err = k8sutil.DeleteDeployment(context.Clientset, s.Namespace, s.instanceName())
+	if err != nil {
+		logger.Warningf(err.Error())
+	}
+	err = k8sutil.DeleteDaemonset(context.Clientset, s.Namespace, s.instanceName())
+	if err != nil {
+		logger.Warningf(err.Error())
+	}
 
 	// Delete the rgw keyring
 	err = context.Clientset.CoreV1().Secrets(s.Namespace).Delete(s.instanceName(), options)
@@ -186,52 +185,6 @@ func (s *ObjectStore) Delete(context *clusterd.Context) error {
 
 	logger.Infof("Completed deleting object store %s", s.Name)
 	return nil
-}
-
-// deleteRGWPods makes a best effort at deleting the RGW pods, including the deployment and daemonset
-func (s *ObjectStore) deleteRGWPods(context *clusterd.Context) {
-	logger.Infof("removing rgw pods if they exist")
-
-	var gracePeriod int64
-	propagation := metav1.DeletePropagationForeground
-	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-
-	// Delete the rgw deployment
-	err := context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Delete(s.instanceName(), options)
-	if err != nil && !errors.IsNotFound(err) {
-		logger.Warningf("failed to delete rgw deployment. %+v", err)
-	}
-
-	// Delete the rgw daemonset
-	err = context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Delete(s.instanceName(), options)
-	if err != nil && !errors.IsNotFound(err) {
-		logger.Warningf("failed to delete rgw deployment. %+v", err)
-	}
-
-	// wait for the daemonset and deployments to be deleted
-	sleepTime := 2 * time.Second
-	for i := 0; i < 20; i++ {
-		// check for the existence of the deployment
-		_, err = context.Clientset.ExtensionsV1beta1().Deployments(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
-		if err == nil {
-			logger.Infof("rgw deployment %s still found. waiting...", s.instanceName())
-			time.Sleep(sleepTime)
-			continue
-		}
-
-		// check for the existence of the daemonset
-		_, err = context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Get(s.instanceName(), metav1.GetOptions{})
-		if err == nil {
-			logger.Infof("rgw daemonset %s still found. waiting...", s.instanceName())
-			time.Sleep(sleepTime)
-			continue
-		}
-
-		logger.Infof("confirmed rgw daemonset and deployment %s do not exist", s.instanceName())
-		return
-	}
-
-	logger.Warningf("gave up waiting for rgw pods to be terminated")
 }
 
 // Check if the object store exists depending on either the deployment or the daemonset
@@ -423,7 +376,6 @@ func (s *ObjectStore) rgwContainer(version string) v1.Container {
 			opmon.ClusterNameEnvVar(s.Namespace),
 			opmon.EndpointEnvVar(),
 			opmon.SecretEnvVar(),
-			opmon.AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
 	}

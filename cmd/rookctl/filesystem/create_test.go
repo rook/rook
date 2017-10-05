@@ -26,17 +26,16 @@ import (
 )
 
 func TestCreateFilesystem(t *testing.T) {
-	fsName := "myfs1"
+	fs := model.FilesystemRequest{Name: "myfs1"}
 
 	c := &test.MockRookRestClient{
 		MockCreateFilesystem: func(fsr model.FilesystemRequest) (string, error) {
-			assert.Equal(t, fsName, fsr.Name)
-			assert.Equal(t, fsName, fsr.PoolName)
+			assert.Equal(t, fs.Name, fsr.Name)
 			return "", nil
 		},
 	}
 
-	out, err := createFilesystem(fsName, c)
+	out, err := createFilesystem(fs, c)
 	assert.Nil(t, err)
 	assert.Equal(t, "succeeded starting creation of shared filesystem myfs1", out)
 }
@@ -48,7 +47,8 @@ func TestCreateFilesystemError(t *testing.T) {
 		},
 	}
 
-	out, err := createFilesystem("", c)
+	fs := model.FilesystemRequest{Name: ""}
+	out, err := createFilesystem(fs, c)
 	assert.NotNil(t, err)
 	assert.Equal(t, "", out)
 }

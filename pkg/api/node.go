@@ -15,17 +15,35 @@ limitations under the License.
 */
 package api
 
-import "net/http"
+import (
+	"net/http"
+
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/rook/rook/pkg/model"
+)
 
 // Gets the nodes that are part of this cluster.
 // GET
 // /node
 func (h *Handler) GetNodes(w http.ResponseWriter, r *http.Request) {
-	nodes, err := h.config.ClusterHandler.GetNodes()
+	logger.Infof("Getting nodes")
+	nodes := []model.Node{}
+	options := metav1.ListOptions{}
+	nl, err := h.config.context.Clientset.CoreV1().Nodes().List(options)
 	if err != nil {
-		logger.Errorf("failed to list nodes: %+v", err)
+		logger.Errorf("failed to get nodes. %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
+	}
+
+	for _, n := range nl.Items {
+		node := model.Node{
+			NodeID:      n.Status.NodeInfo.SystemUUID,
+			PublicIP:    n.Spec.ExternalID,
+			ClusterName: n.Namespace,
+		}
+		nodes = append(nodes, node)
 	}
 
 	FormatJsonResponse(w, nodes)

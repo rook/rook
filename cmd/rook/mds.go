@@ -18,6 +18,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rook/rook/pkg/ceph/mds"
 	"github.com/rook/rook/pkg/ceph/mon"
@@ -26,8 +27,9 @@ import (
 )
 
 var (
-	mdsID      string
-	mdsKeyring string
+	podName       string
+	filesystemID  string
+	activeStandby bool
 )
 
 var mdsCmd = &cobra.Command{
@@ -37,8 +39,9 @@ var mdsCmd = &cobra.Command{
 }
 
 func init() {
-	mdsCmd.Flags().StringVar(&mdsID, "mds-id", "", "the mds ID")
-	mdsCmd.Flags().StringVar(&mdsKeyring, "mds-keyring", "", "the mds keyring")
+	mdsCmd.Flags().StringVar(&podName, "pod-name", "", "name of the pod from which the mds ID is derived")
+	mdsCmd.Flags().StringVar(&filesystemID, "filesystem-id", "", "ID of the filesystem this MDS will serve")
+	mdsCmd.Flags().BoolVar(&activeStandby, "active-standby", true, "Whether to start in active standby mode")
 	addCephFlags(mdsCmd)
 
 	flags.SetFlagsFromEnv(mdsCmd.Flags(), RookEnvVarPrefix)
@@ -47,7 +50,7 @@ func init() {
 }
 
 func startMDS(cmd *cobra.Command, args []string) error {
-	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret", "mds-id", "mds-keyring", "public-ipv4", "private-ipv4"}
+	required := []string{"mon-endpoints", "cluster-name", "admin-secret", "filesystem-id", "pod-name", "public-ipv4", "private-ipv4"}
 	if err := flags.VerifyRequiredFlags(mdsCmd, required); err != nil {
 		return err
 	}
@@ -56,12 +59,21 @@ func startMDS(cmd *cobra.Command, args []string) error {
 
 	logStartupInfo(mdsCmd.Flags())
 
+	// the MDS ID is the last part of the pod name
+	id := podName
+	dashIndex := strings.LastIndex(podName, "-")
+	if dashIndex > 0 {
+		id = podName[dashIndex+1:]
+	}
+	// ensure the id has a non-numerical prefix
+	id = "m" + id
+
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &mds.Config{
-		ID:          mdsID,
-		Keyring:     mdsKeyring,
-		ClusterInfo: &clusterInfo,
-		InProc:      true,
+		FilesystemID:  filesystemID,
+		ID:            id,
+		ActiveStandby: activeStandby,
+		ClusterInfo:   &clusterInfo,
 	}
 
 	err := mds.Run(createContext(), config)

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/rook/rook/cmd/rookctl/pool"
 	"github.com/rook/rook/cmd/rookctl/rook"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/rook/client"
@@ -27,7 +28,9 @@ import (
 )
 
 var (
-	newFilesystemName string
+	fileRequest    model.FilesystemRequest
+	dataConfig     pool.Config
+	metadataConfig pool.Config
 )
 
 var createCmd = &cobra.Command{
@@ -36,38 +39,49 @@ var createCmd = &cobra.Command{
 }
 
 func init() {
-	createCmd.Flags().StringVarP(&newFilesystemName, "name", "n", "", "Name of new filesystem to create (required)")
+	createCmd.Flags().StringVarP(&fileRequest.Name, "name", "n", "", "Name of new filesystem to create (required)")
+	createCmd.Flags().Int32VarP(&fileRequest.MetadataServer.ActiveCount, "active-mds", "a", 1, "Number of active MDS servers")
+	pool.AddPoolFlags(createCmd, "data-", &dataConfig)
+	pool.AddPoolFlags(createCmd, "metadata-", &metadataConfig)
 
-	createCmd.MarkFlagRequired("name")
 	createCmd.RunE = createFilesystemEntry
 }
 
 func createFilesystemEntry(cmd *cobra.Command, args []string) error {
 	rook.SetupLogging()
 
-	if err := flags.VerifyRequiredFlags(cmd, []string{"name"}); err != nil {
+	if err := flags.VerifyRequiredFlags(cmd, []string{"name", "data-type", "metadata-type"}); err != nil {
 		return err
 	}
 
-	c := rook.NewRookNetworkRestClient()
-	out, err := createFilesystem(newFilesystemName, c)
+	dataPool, err := pool.ConfigToModel(dataConfig)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintln(os.Stderr, "failed to read data settings", err)
 		os.Exit(1)
 	}
+	fileRequest.DataPools = append(fileRequest.DataPools, *dataPool)
+	metadataPool, err := pool.ConfigToModel(metadataConfig)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "failed to read metadata settings", err)
+		os.Exit(1)
+	}
+	fileRequest.MetadataPool = *metadataPool
 
-	fmt.Println(out)
+	c := rook.NewRookNetworkRestClient()
+	out, err := createFilesystem(fileRequest, c)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, fmt.Errorf("failed to create new file system %s: %+v", fileRequest.Name, err))
+		os.Exit(1)
+	}
+	fmt.Fprintln(os.Stdout, out)
 	return nil
 }
 
-func createFilesystem(filesystemName string, c client.RookRestClient) (string, error) {
-	newFilesystem := model.FilesystemRequest{Name: filesystemName, PoolName: filesystemName}
-	_, err := c.CreateFilesystem(newFilesystem)
-
-	// HTTP 202 Accepted is expected
-	if err != nil && !client.IsHttpAccepted(err) {
-		return "", fmt.Errorf("failed to create new file system '%+v': %+v", newFilesystem, err)
+func createFilesystem(request model.FilesystemRequest, c client.RookRestClient) (string, error) {
+	_, err := c.CreateFilesystem(request)
+	if err != nil {
+		return "", fmt.Errorf("failed to create new file system %s: %+v", request.Name, err)
 	}
 
-	return fmt.Sprintf("succeeded starting creation of shared filesystem %s", filesystemName), nil
+	return fmt.Sprintf("succeeded starting creation of shared filesystem %s", request.Name), nil
 }
