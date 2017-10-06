@@ -121,7 +121,7 @@ func (c *PoolController) onDelete(obj interface{}) {
 // Create the pool
 func (p *Pool) create(context *clusterd.Context) error {
 	// validate the pool settings
-	if err := p.validate(); err != nil {
+	if err := p.validate(context); err != nil {
 		return fmt.Errorf("invalid pool %s arguments. %+v", p.Name, err)
 	}
 
@@ -163,21 +163,21 @@ func (p *Pool) exists(context *clusterd.Context) (bool, error) {
 }
 
 // Validate the pool arguments
-func (p *Pool) validate() error {
+func (p *Pool) validate(context *clusterd.Context) error {
 	if p.Name == "" {
 		return fmt.Errorf("missing name")
 	}
 	if p.Namespace == "" {
 		return fmt.Errorf("missing namespace")
 	}
-	if err := p.Spec.Validate(); err != nil {
+	if err := p.Spec.Validate(context, p.Namespace); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (p *PoolSpec) ToModel(name string) *model.Pool {
-	pool := &model.Pool{Name: name}
+	pool := &model.Pool{Name: name, FailureDomain: p.FailureDomain}
 	r := p.replication()
 	if r != nil {
 		pool.ReplicatedConfig.Size = r.Size
@@ -208,13 +208,32 @@ func (p *PoolSpec) erasureCode() *ErasureCodedSpec {
 	return nil
 }
 
-func (p *PoolSpec) Validate() error {
+func (p *PoolSpec) Validate(context *clusterd.Context, namespace string) error {
 	if p.replication() != nil && p.erasureCode() != nil {
 		return fmt.Errorf("both replication and erasure code settings cannot be specified")
 	}
 	if p.replication() == nil && p.erasureCode() == nil {
 		return fmt.Errorf("neither replication nor erasure code settings were specified")
 	}
+
+	// validate the failure domain if specified
+	if p.FailureDomain != "" {
+		crush, err := ceph.GetCrushMap(context, namespace)
+		if err != nil {
+			return fmt.Errorf("failed to get crush map. %+v", err)
+		}
+		found := false
+		for _, t := range crush.Types {
+			if t.Name == p.FailureDomain {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("unrecognized failure domain %s", p.FailureDomain)
+		}
+	}
+
 	return nil
 }
 

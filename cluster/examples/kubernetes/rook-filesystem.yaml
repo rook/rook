@@ -7,11 +7,13 @@ spec:
   # The metadata pool spec
   metadataPool:
     replicated:
-      size: 1
+      size: 3
   # The list of data pool specs
   dataPools:
-    - replicated:
-        size: 1
+    - failureDomain: osd
+      erasureCoded:
+        dataChunks: 4
+        codingChunks: 2
   # The metadata service (mds) configuration
   metadataServer:
     # The number of active MDS instances

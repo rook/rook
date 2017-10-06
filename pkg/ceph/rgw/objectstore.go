@@ -228,7 +228,7 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 	cephConfig := ceph.ModelPoolToCephPool(poolSpec)
 	if cephConfig.ErasureCodeProfile != "" {
 		// create a new erasure code profile for the new pool
-		if err := ceph.CreateErasureCodeProfile(context.context, context.ClusterName, poolSpec.ErasureCodedConfig, cephConfig.ErasureCodeProfile); err != nil {
+		if err := ceph.CreateErasureCodeProfile(context.context, context.ClusterName, poolSpec.ErasureCodedConfig, cephConfig.ErasureCodeProfile, poolSpec.FailureDomain); err != nil {
 			return fmt.Errorf("failed to create erasure code profile for object store %s: %+v", context.Name, err)
 		}
 	}

@@ -72,12 +72,6 @@ func (h *Handler) GetRoutes() []Route {
 			h.GetClientAccessInfo,
 		},
 		{
-			"GetCrushMap",
-			"GET",
-			"/crushmap",
-			h.GetCrushMap,
-		},
-		{
 			"GetObjectStores",
 			"GET",
 			"/objectstore",

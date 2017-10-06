@@ -45,7 +45,7 @@ type PoolList struct {
 
 // PoolSpec represent the spec of a pool
 type PoolSpec struct {
-	// The failure domain: osd, host, rack
+	// The failure domain: osd or host (technically also any type in the crush map)
 	FailureDomain string `json:"failureDomain"`
 
 	// The replication settings

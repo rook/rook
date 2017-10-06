@@ -63,7 +63,7 @@ func CreateFileSystem(context *clusterd.Context, clusterName string, f *model.Fi
 
 // Create the file system
 func (f *Filesystem) Create(context *clusterd.Context, version string, hostNetwork bool) error {
-	if err := f.validate(); err != nil {
+	if err := f.validate(context); err != nil {
 		return err
 	}
 
@@ -193,7 +193,7 @@ func (f *Filesystem) getLabels() map[string]string {
 	}
 }
 
-func (f *Filesystem) validate() error {
+func (f *Filesystem) validate(context *clusterd.Context) error {
 	if f.Name == "" {
 		return fmt.Errorf("missing name")
 	}
@@ -203,11 +203,11 @@ func (f *Filesystem) validate() error {
 	if len(f.Spec.DataPools) == 0 {
 		return fmt.Errorf("at least one data pool required")
 	}
-	if err := f.Spec.MetadataPool.Validate(); err != nil {
+	if err := f.Spec.MetadataPool.Validate(context, f.Namespace); err != nil {
 		return fmt.Errorf("invalid metadata pool. %+v", err)
 	}
 	for _, pool := range f.Spec.DataPools {
-		if err := pool.Validate(); err != nil {
+		if err := pool.Validate(context, f.Namespace); err != nil {
 			return fmt.Errorf("Invalid data pool. %+v", err)
 		}
 	}
