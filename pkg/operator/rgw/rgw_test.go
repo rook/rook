@@ -173,33 +173,35 @@ func TestCreateObjectStore(t *testing.T) {
 }
 
 func TestValidateSpec(t *testing.T) {
+	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
+
 	// valid store
 	s := simpleStore()
-	err := s.validate()
+	err := s.validate(context)
 	assert.Nil(t, err)
 
 	// no name
 	s.Name = ""
-	err = s.validate()
+	err = s.validate(context)
 	assert.NotNil(t, err)
 	s.Name = "default"
-	err = s.validate()
+	err = s.validate(context)
 	assert.Nil(t, err)
 
 	// no namespace
 	s.Namespace = ""
-	err = s.validate()
+	err = s.validate(context)
 	assert.NotNil(t, err)
 	s.Namespace = "mycluster"
-	err = s.validate()
+	err = s.validate(context)
 	assert.Nil(t, err)
 
 	// no replication or EC
 	s.Spec.MetadataPool.Replicated.Size = 0
-	err = s.validate()
+	err = s.validate(context)
 	assert.NotNil(t, err)
 	s.Spec.MetadataPool.Replicated.Size = 1
-	err = s.validate()
+	err = s.validate(context)
 	assert.Nil(t, err)
 }
 

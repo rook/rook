@@ -57,7 +57,7 @@ func (s *ObjectStore) Update(context *clusterd.Context, version string, hostNetw
 
 func (s *ObjectStore) createOrUpdate(context *clusterd.Context, version string, hostNetwork, update bool) error {
 	// validate the object store settings
-	if err := s.validate(); err != nil {
+	if err := s.validate(context); err != nil {
 		return fmt.Errorf("invalid object store %s arguments. %+v", s.Name, err)
 	}
 
@@ -212,7 +212,7 @@ func (s *ObjectStore) exists(context *clusterd.Context) (bool, error) {
 }
 
 // Validate the object store arguments
-func (s *ObjectStore) validate() error {
+func (s *ObjectStore) validate(context *clusterd.Context) error {
 	logger.Debugf("validating object store: %+v", s)
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
@@ -220,10 +220,10 @@ func (s *ObjectStore) validate() error {
 	if s.Namespace == "" {
 		return fmt.Errorf("missing namespace")
 	}
-	if err := s.Spec.MetadataPool.Validate(); err != nil {
+	if err := s.Spec.MetadataPool.Validate(context, s.Namespace); err != nil {
 		return fmt.Errorf("invalid metadata pool spec. %+v", err)
 	}
-	if err := s.Spec.DataPool.Validate(); err != nil {
+	if err := s.Spec.DataPool.Validate(context, s.Namespace); err != nil {
 		return fmt.Errorf("invalid data pool spec. %+v", err)
 	}
 

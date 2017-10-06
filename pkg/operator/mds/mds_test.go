@@ -119,29 +119,30 @@ func TestHostNetwork(t *testing.T) {
 }
 
 func TestValidateSpec(t *testing.T) {
+	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
 	fs := &Filesystem{}
 
 	// missing name
-	assert.NotNil(t, fs.validate())
+	assert.NotNil(t, fs.validate(context))
 	fs.Name = "myfs"
 
 	// missing namespace
-	assert.NotNil(t, fs.validate())
+	assert.NotNil(t, fs.validate(context))
 	fs.Namespace = "myns"
 
 	// missing data pools
-	assert.NotNil(t, fs.validate())
+	assert.NotNil(t, fs.validate(context))
 	p := pool.PoolSpec{Replicated: pool.ReplicatedSpec{Size: 1}}
 	fs.Spec.DataPools = append(fs.Spec.DataPools, p)
 
 	// missing metadata pool
-	assert.NotNil(t, fs.validate())
+	assert.NotNil(t, fs.validate(context))
 	fs.Spec.MetadataPool = p
 
 	// missing mds count
-	assert.NotNil(t, fs.validate())
+	assert.NotNil(t, fs.validate(context))
 	fs.Spec.MetadataServer.ActiveCount = 1
 
 	// valid!
-	assert.Nil(t, fs.validate())
+	assert.Nil(t, fs.validate(context))
 }

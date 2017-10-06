@@ -42,10 +42,11 @@ var createCmd = &cobra.Command{
 }
 
 type Config struct {
-	PoolType     string
-	ReplicaCount uint
-	DataChunks   uint
-	CodingChunks uint
+	PoolType      string
+	ReplicaCount  uint
+	DataChunks    uint
+	CodingChunks  uint
+	FailureDomain string
 }
 
 func init() {
@@ -62,6 +63,13 @@ func AddPoolFlags(cmd *cobra.Command, prefix string, config *Config) {
 	}
 	cmd.Flags().StringVarP(&config.PoolType, prefix+"type", shorthand, PoolTypeReplicated,
 		fmt.Sprintf("Type of storage pool, '%s' or '%s'", PoolTypeReplicated, PoolTypeErasureCoded))
+
+	shorthand = ""
+	if prefix == "" {
+		shorthand = "f"
+	}
+	cmd.Flags().StringVarP(&config.FailureDomain, prefix+"failure-domain", shorthand, "host",
+		"The data failure domain (osd or host)")
 
 	shorthand = ""
 	if prefix == "" {
@@ -117,7 +125,7 @@ func ConfigToModel(config Config) (*model.Pool, error) {
 			config.PoolType, PoolTypeReplicated, PoolTypeErasureCoded)
 	}
 
-	newPool := &model.Pool{}
+	newPool := &model.Pool{FailureDomain: config.FailureDomain}
 
 	if config.PoolType == PoolTypeReplicated {
 		if config.DataChunks > 0 || config.CodingChunks > 0 {

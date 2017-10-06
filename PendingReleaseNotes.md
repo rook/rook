@@ -17,9 +17,11 @@
 - Object Store
   - Object Stores are defined by a CRD and handled by the Operator
   - Multiple object stores supported through Ceph realms
-  - Pools created by object stores are configurable with all options defined in the pool CRD
 - OSDs
   - If an OSD loses its metadata and config but still has its data devices, the OSD will automatically regenerate the lost metadata to make the data available again.
+- Pools
+  - The failure domain for the CRUSH map can be specified on pools with the `failureDomain` property
+  - Pools created by file systems or object stores are configurable with all options defined in the pool CRD
 
 ## Breaking Changes
 

@@ -28,25 +28,26 @@ const (
 	SuccessPoolCreatedMessage = "pool 'pool1' created"
 )
 
-func TestCreatePoolValidTypeRequired(t *testing.T) {
+func TestConfigConversion(t *testing.T) {
 	config := Config{PoolType: "foo"}
 	_, err := ConfigToModel(config)
 	assert.NotNil(t, err)
 	assert.Equal(t, "invalid pool type 'foo', allowed pool types are 'replicated' and 'erasure-coded'", err.Error())
-}
 
-func TestCreatePoolErasureCodedParamsRequired(t *testing.T) {
-	config := Config{PoolType: PoolTypeErasureCoded}
-	_, err := ConfigToModel(config)
+	config = Config{PoolType: PoolTypeErasureCoded}
+	_, err = ConfigToModel(config)
 	assert.NotNil(t, err)
 	assert.Equal(t, "both data chunks and coding chunks must be greater than zero for pool type 'erasure-coded'", err.Error())
-}
 
-func TestCreatePoolReplicatedErasureCodedParamsNotAllowed(t *testing.T) {
-	config := Config{PoolType: PoolTypeReplicated, DataChunks: 2, CodingChunks: 1}
-	_, err := ConfigToModel(config)
+	config = Config{PoolType: PoolTypeReplicated, DataChunks: 2, CodingChunks: 1}
+	_, err = ConfigToModel(config)
 	assert.NotNil(t, err)
 	assert.Equal(t, "both data chunks and coding chunks must be zero for pool type 'replicated'", err.Error())
+
+	config = Config{PoolType: PoolTypeReplicated, FailureDomain: "osd"}
+	result, err := ConfigToModel(config)
+	assert.Nil(t, err)
+	assert.Equal(t, "osd", result.FailureDomain)
 }
 
 func TestCreatePoolReplicatedNoParams(t *testing.T) {

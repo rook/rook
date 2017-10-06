@@ -7,13 +7,15 @@ metadata:
 spec:
   # The pool spec used to create the metadata pools
   metadataPool:
+    failureDomain: host
     replicated:
-      size: 2
+      size: 3
   # The pool spec used to create the data pool
   dataPool:
+    failureDomain: osd
     erasureCoded:
-      dataChunks: 2
-      codingChunks: 1
+      dataChunks: 4
+      codingChunks: 2
   # The gaeteway service configuration
   gateway:
     # type of the gateway (s3)

@@ -42,6 +42,7 @@ type CephStoragePoolDetails struct {
 	Number             int    `json:"pool_id"`
 	Size               uint   `json:"size"`
 	ErasureCodeProfile string `json:"erasure_code_profile"`
+	FailureDomain      string
 }
 
 type CephStoragePoolStats struct {
@@ -115,7 +116,7 @@ func CreatePoolWithProfile(context *clusterd.Context, clusterName string, newPoo
 	newPool := ModelPoolToCephPool(newPoolReq)
 	if newPoolReq.Type == model.ErasureCoded {
 		// create a new erasure code profile for the new pool
-		if err := CreateErasureCodeProfile(context, clusterName, newPoolReq.ErasureCodedConfig, newPool.ErasureCodeProfile); err != nil {
+		if err := CreateErasureCodeProfile(context, clusterName, newPoolReq.ErasureCodedConfig, newPool.ErasureCodeProfile, newPoolReq.FailureDomain); err != nil {
 			return fmt.Errorf("failed to create erasure code profile for pool '%s': %+v", newPoolReq.Name, err)
 		}
 	}
@@ -129,12 +130,27 @@ func CreatePool(context *clusterd.Context, clusterName string, newPool CephStora
 }
 
 func CreatePoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string) error {
-	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number)}
+	// create a crush rule for a replicated pool, if a failure domain is specified
+	replicated := newPool.ErasureCodeProfile == "" && newPool.Size > 0
+	ruleName := fmt.Sprintf("%s-rule", newPool.Name)
+	if replicated && newPool.FailureDomain != "" {
+		args := []string{"osd", "crush", "rule", "create-simple", ruleName, "default", newPool.FailureDomain}
+		_, err := ExecuteCephCommand(context, clusterName, args)
+		if err != nil {
+			return fmt.Errorf("failed to crush rule %s. %+v", newPool.Name, err)
+		}
+	}
 
+	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number)}
 	if newPool.ErasureCodeProfile != "" {
 		args = append(args, "erasure", newPool.ErasureCodeProfile)
 	} else {
 		args = append(args, "replicated")
+
+		// Associate the crush rule created above with the new pool
+		if newPool.FailureDomain != "" {
+			args = append(args, ruleName)
+		}
 	}
 
 	buf, err := ExecuteCephCommand(context, clusterName, args)
@@ -142,7 +158,7 @@ func CreatePoolForApp(context *clusterd.Context, clusterName string, newPool Cep
 		return fmt.Errorf("failed to create pool %s. %+v", newPool.Name, err)
 	}
 
-	if newPool.ErasureCodeProfile == "" && newPool.Size > 0 {
+	if replicated {
 		// the pool is type replicated, set the size for the pool now that it's been created
 		if err = SetPoolProperty(context, clusterName, newPool.Name, "size", strconv.FormatUint(uint64(newPool.Size), 10)); err != nil {
 			return err

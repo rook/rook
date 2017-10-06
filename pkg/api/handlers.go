@@ -77,22 +77,6 @@ type overallMonStatus struct {
 	Desired []*mon.CephMonitorConfig `json:"desired"`
 }
 
-// Gets the current crush map for the cluster.
-// GET
-// /crushmap
-func (h *Handler) GetCrushMap(w http.ResponseWriter, r *http.Request) {
-	// get the crush map
-	crushmap, err := ceph.GetCrushMap(h.context, h.config.clusterInfo.Name)
-	if err != nil {
-		logger.Errorf("failed to get crush map, err: %+v", err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json; charset=UTF-8")
-	w.Write([]byte(crushmap))
-}
-
 func handleReadBody(w http.ResponseWriter, r *http.Request, opName string) ([]byte, bool) {
 	if r.Body == nil {
 		logger.Errorf("nil request body for %s", opName)
