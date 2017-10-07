@@ -82,7 +82,8 @@ func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 	succeeded := 0
 	var lastErr error
 	for dirPath, osdID := range dirs {
-		config := &osdConfig{id: osdID, configRoot: dirPath, dir: true, kv: a.kv, storeName: getConfigStoreName(a.nodeName)}
+		config := &osdConfig{id: osdID, configRoot: dirPath, dir: true, storeConfig: a.storeConfig,
+			kv: a.kv, storeName: getConfigStoreName(a.nodeName)}
 
 		if config.id == unassignedOSDID {
 			// the osd hasn't been registered with ceph yet, do so now to give it a cluster wide ID
@@ -133,7 +134,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	succeeded := 0
 	for _, entry := range scheme.Entries {
 		config := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configRoot: context.ConfigDir,
-			partitionScheme: entry, kv: a.kv, storeName: getConfigStoreName(a.nodeName)}
+			partitionScheme: entry, storeConfig: a.storeConfig, kv: a.kv, storeName: getConfigStoreName(a.nodeName)}
 		err := a.startOSD(context, config)
 		if err != nil {
 			return fmt.Errorf("failed to config osd %d. %+v", entry.ID, err)
@@ -354,13 +355,13 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, config *osdConfig) error 
 		}
 
 		// osd_data_dir/whoami does not exist yet, create/initialize the OSD
-		err := initializeOSD(config, context, a.cluster, a.location, a.storeConfig)
+		err := initializeOSD(config, context, a.cluster, a.location)
 		if err != nil {
 			return fmt.Errorf("failed to initialize OSD at %s: %+v", config.rootPath, err)
 		}
 	} else {
 		// update the osd config file
-		err := writeConfigFile(config, context, a.cluster, a.storeConfig)
+		err := writeConfigFile(config, context, a.cluster)
 		if err != nil {
 			logger.Warningf("failed to update config file. %+v", err)
 		}
@@ -400,7 +401,7 @@ func (a *OsdAgent) runOSD(context *clusterd.Context, clusterName string, config 
 		osdUUIDArg,
 	}
 
-	if !isBluestore(config) {
+	if isFilestore(config) {
 		params = append(params, fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(config.rootPath)))
 	}
 
@@ -460,11 +461,27 @@ func loadOSDInfo(config *osdConfig) error {
 }
 
 func isBluestore(config *osdConfig) bool {
+	return isBluestoreDevice(config) || isBluestoreDir(config)
+}
+
+func isBluestoreDevice(config *osdConfig) bool {
 	return !config.dir && config.partitionScheme != nil && config.partitionScheme.StoreType == Bluestore
+}
+
+func isBluestoreDir(config *osdConfig) bool {
+	return config.dir && config.storeConfig.StoreType == Bluestore
+}
+
+func isFilestore(config *osdConfig) bool {
+	return isFilestoreDevice(config) || isFilestoreDir(config)
 }
 
 func isFilestoreDevice(config *osdConfig) bool {
 	return !config.dir && config.partitionScheme != nil && config.partitionScheme.StoreType == Filestore
+}
+
+func isFilestoreDir(config *osdConfig) bool {
+	return config.dir && config.storeConfig.StoreType == Filestore
 }
 
 func getConfigStoreName(nodeName string) string {

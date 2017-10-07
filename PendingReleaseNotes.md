@@ -18,6 +18,8 @@
   - Object Stores are defined by a CRD and handled by the Operator
   - Multiple object stores supported through Ceph realms
 - OSDs
+  - Bluestore is now the default backend store for OSDs when creating a new Rook cluster.
+  - Bluestore can now be used on directories in addition to raw block devices that were already supported.
   - If an OSD loses its metadata and config but still has its data devices, the OSD will automatically regenerate the lost metadata to make the data available again.
 - Pools
   - The failure domain for the CRUSH map can be specified on pools with the `failureDomain` property

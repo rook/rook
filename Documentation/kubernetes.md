@@ -72,7 +72,7 @@ spec:
     useAllNodes: true
     useAllDevices: false
     storeConfig:
-      storeType: filestore
+      storeType: bluestore
       databaseSizeMB: 1024
       journalSizeMB: 1024
 ```

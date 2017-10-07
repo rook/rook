@@ -48,7 +48,7 @@ func (suite *SmokeSuite) SetupSuite() {
 
 	suite.installer = installer.NewK8sRookhelper(kh.Clientset, suite.T)
 
-	err = suite.installer.InstallRookOnK8s(suite.namespace)
+	err = suite.installer.InstallRookOnK8s(suite.namespace, "bluestore")
 	require.NoError(suite.T(), err)
 
 	suite.helper, err = clients.CreateTestClient(enums.Kubernetes, kh, suite.namespace)
@@ -75,5 +75,5 @@ func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 
 //Test to make sure all rook components are installed and Running
 func (suite *SmokeSuite) TestRookClusterInstallation_smokeTest() {
-	checkIfRookClusterIsInstalled(suite.k8sh, suite.Suite, installer.SystemNamespace(suite.namespace), suite.namespace)
+	checkIfRookClusterIsInstalled(suite.Suite, suite.k8sh, installer.SystemNamespace(suite.namespace), suite.namespace)
 }

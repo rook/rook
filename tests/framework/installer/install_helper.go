@@ -137,10 +137,10 @@ func (h *InstallHelper) CreateK8sRookToolbox(namespace string) (err error) {
 }
 
 //CreateK8sRookCluster creates rook cluster via kubectl
-func (h *InstallHelper) CreateK8sRookCluster(namespace string) (err error) {
+func (h *InstallHelper) CreateK8sRookCluster(namespace, storeType string) (err error) {
 	logger.Infof("Starting Rook Cluster")
 
-	rookCluster := h.installData.GetRookCluster(namespace)
+	rookCluster := h.installData.GetRookCluster(namespace, storeType)
 
 	_, err = h.k8shelper.KubectlWithStdin(rookCluster, createArgs...)
 
@@ -162,9 +162,8 @@ func SystemNamespace(namespace string) string {
 }
 
 //InstallRookOnK8s installs rook on k8s
-func (h *InstallHelper) InstallRookOnK8s(namespace string) (err error) {
-
-	//flag used for local debuggin purpose, when rook is pre-installed
+func (h *InstallHelper) InstallRookOnK8s(namespace, storeType string) (err error) {
+	//flag used for local debugging purpose, when rook is pre-installed
 	skipRookInstall := strings.EqualFold(h.Env.SkipInstallRook, "true")
 	if skipRookInstall {
 		return
@@ -199,7 +198,7 @@ func (h *InstallHelper) InstallRookOnK8s(namespace string) (err error) {
 	time.Sleep(10 * time.Second)
 
 	//Create rook cluster
-	err = h.CreateK8sRookCluster(namespace)
+	err = h.CreateK8sRookCluster(namespace, storeType)
 	if err != nil {
 		panic(err)
 	}

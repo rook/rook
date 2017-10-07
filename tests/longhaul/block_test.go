@@ -56,7 +56,7 @@ func (s *K8sBlockLongHaulSuite) SetupSuite() {
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset, s.T)
 	if !s.kh.IsRookInstalled(s.namespace) {
-		err = s.installer.InstallRookOnK8s(s.namespace)
+		err = s.installer.InstallRookOnK8s(s.namespace, "bluestore")
 		require.NoError(s.T(), err)
 	}
 

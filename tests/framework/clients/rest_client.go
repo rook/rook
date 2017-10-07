@@ -78,8 +78,9 @@ func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHe
 
 	//make sure rest client is up and available
 	inc := 0
+	var err error
 	for inc < utils.RetryLoop {
-		_, err := client.GetStatusDetails()
+		_, err = client.GetStatusDetails()
 		if err == nil {
 			//hack first get block image calls is intermittently failing in test env
 			client.GetBlockImages()
@@ -90,7 +91,7 @@ func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHe
 		time.Sleep(time.Second * utils.RetryInterval)
 	}
 
-	panic("Cannot access rook API - Abandoning run")
+	panic(fmt.Sprintf("Cannot access rook API - Abandoning run: %+v", err))
 }
 
 //URL returns URL for rookAPI

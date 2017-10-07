@@ -24,14 +24,17 @@ import (
 )
 
 const (
-	Filestore            = "filestore"
-	Bluestore            = "bluestore"
-	DefaultStore         = Filestore
-	UseRemainingSpace    = -1
-	schemeKeyName        = "partition-scheme"
-	WalDefaultSizeMB     = 576
-	DBDefaultSizeMB      = 20480
-	JournalDefaultSizeMB = 5120
+	Filestore             = "filestore"
+	Bluestore             = "bluestore"
+	DefaultStore          = Bluestore
+	UseRemainingSpace     = -1
+	schemeKeyName         = "partition-scheme"
+	WalDefaultSizeMB      = 576
+	DBDefaultSizeMB       = 20480
+	JournalDefaultSizeMB  = 5120
+	bluestoreDirBlockName = "bluestore-block"
+	bluestoreDirWalName   = "bluestore-wal"
+	bluestoreDirDBName    = "bluestore-db"
 )
 
 type PartitionType int

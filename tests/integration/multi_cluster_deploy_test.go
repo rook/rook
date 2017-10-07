@@ -30,8 +30,7 @@ type MultiRookClusterDeploySuite struct {
 
 //Deploy Multiple Rook clusters
 func (mrc *MultiRookClusterDeploySuite) SetupSuite() {
-	//Skipping test until https://github.com/rook/rook/issues/970 is fixed.
-	mrc.Suite.T().SkipNow()
+
 	kh, err := utils.CreateK8sHelper(mrc.T)
 	require.NoError(mrc.T(), err)
 
@@ -50,13 +49,13 @@ func (mrc *MultiRookClusterDeploySuite) SetupSuite() {
 
 	time.Sleep(10 * time.Second)
 
-	err = mrc.installer.CreateK8sRookCluster(mrc.namespace1)
+	err = mrc.installer.CreateK8sRookCluster(mrc.namespace1, "bluestore")
 	require.NoError(mrc.T(), err)
 
 	err = mrc.installer.CreateK8sRookToolbox(mrc.namespace1)
 	require.NoError(mrc.T(), err)
 
-	err = mrc.installer.CreateK8sRookCluster(mrc.namespace2)
+	err = mrc.installer.CreateK8sRookCluster(mrc.namespace2, "filestore")
 	require.NoError(mrc.T(), err)
 
 	err = mrc.installer.CreateK8sRookToolbox(mrc.namespace2)
@@ -67,7 +66,6 @@ func (mrc *MultiRookClusterDeploySuite) SetupSuite() {
 
 	mrc.helper2, err = clients.CreateTestClient(enums.Kubernetes, kh, mrc.namespace2)
 	require.Nil(mrc.T(), err)
-
 }
 
 func (mrc *MultiRookClusterDeploySuite) TearDownSuite() {
@@ -147,11 +145,12 @@ func (mrc *MultiRookClusterDeploySuite) TearDownSuite() {
 func (mrc *MultiRookClusterDeploySuite) TestInstallingMultipleRookClusters() {
 
 	//Check if Rook cluster 1 is deployed successfully
-	checkIfRookClusterIsInstalled(mrc.k8sh, mrc.Suite, installer.SystemNamespace(mrc.namespace1), mrc.namespace1)
+	checkIfRookClusterIsInstalled(mrc.Suite, mrc.k8sh, installer.SystemNamespace(mrc.namespace1), mrc.namespace1)
+	checkIfRookClusterIsHealthy(mrc.Suite, mrc.helper1, mrc.namespace1)
 
 	//Check if Rook cluster 2 is deployed successfully
-	checkIfRookClusterIsInstalled(mrc.k8sh, mrc.Suite, installer.SystemNamespace(mrc.namespace1), mrc.namespace2)
-
+	checkIfRookClusterIsInstalled(mrc.Suite, mrc.k8sh, installer.SystemNamespace(mrc.namespace1), mrc.namespace2)
+	checkIfRookClusterIsHealthy(mrc.Suite, mrc.helper2, mrc.namespace2)
 }
 
 //Test Block Store Creation on multiple rook clusters
