@@ -70,9 +70,9 @@ func TestStartAgentDaemonset(t *testing.T) {
 	assert.Equal(t, "rook-agent", agentDS.Name)
 	assert.True(t, *agentDS.Spec.Template.Spec.Containers[0].SecurityContext.Privileged)
 	volumes := agentDS.Spec.Template.Spec.Volumes
-	assert.Equal(t, 4, len(volumes))
+	assert.Equal(t, 6, len(volumes))
 	volumeMounts := agentDS.Spec.Template.Spec.Containers[0].VolumeMounts
-	assert.Equal(t, 4, len(volumeMounts))
+	assert.Equal(t, 6, len(volumeMounts))
 	envs := agentDS.Spec.Template.Spec.Containers[0].Env
 	assert.Equal(t, 2, len(envs))
 	image := agentDS.Spec.Template.Spec.Containers[0].Image

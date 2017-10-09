@@ -681,6 +681,10 @@ func TestGetCRDNameFromMountDirInvalid(t *testing.T) {
 
 type FakeVolumeManager struct{}
 
+func (f *FakeVolumeManager) Init() error {
+	return nil
+}
+
 func (f *FakeVolumeManager) Attach(image, pool, clusterName string) (string, error) {
 	return fmt.Sprintf("/%s/%s/%s", image, pool, clusterName), nil
 }

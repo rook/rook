@@ -19,14 +19,8 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"os/exec"
 
-	"github.com/rook/rook/pkg/util/sys"
 	"github.com/spf13/cobra"
-)
-
-const (
-	moduleName = "rbd"
 )
 
 var (
@@ -42,23 +36,6 @@ func init() {
 }
 
 func initPlugin(cmd *cobra.Command, args []string) error {
-
-	hasSingleMajor := false
-	// check to see if the rbd kernel module has single_major support
-	out, err := exec.Command("modinfo", "-F", "parm", moduleName).Output()
-	if err == nil {
-		hasSingleMajor = sys.Grep(string(out), "^single_major") != ""
-	}
-
-	opts := []string{moduleName}
-	if hasSingleMajor {
-		opts = append(opts, "single_major=Y")
-	}
-
-	// load the rbd kernel module with options
-	// TODO: should this fail if modprobe fails?
-	exec.Command("modprobe", opts...).Run()
-
 	fmt.Println(`{"status":"Success", "capabilities": {"attach": false}}`)
 	os.Exit(0)
 	return nil

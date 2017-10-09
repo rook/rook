@@ -15,7 +15,6 @@ then
     sudo mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook
     cat << EOF | sudo tee -a /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook/rook
 #!/bin/bash
-modprobe rbd single_major=Y > /dev/null
 echo -ne '{"status": "Success", "capabilities": {"attach": false}}' >&1
 exit 0
 EOF
