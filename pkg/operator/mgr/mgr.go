@@ -56,7 +56,7 @@ func New(context *clusterd.Context, namespace, version string, placement k8sutil
 		Namespace:   namespace,
 		placement:   placement,
 		Version:     version,
-		Replicas:    1,
+		Replicas:    2,
 		dataDir:     k8sutil.DataDir,
 		HostNetwork: hostNetwork,
 	}
