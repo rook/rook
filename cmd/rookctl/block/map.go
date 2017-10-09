@@ -24,6 +24,7 @@ import (
 
 	rc "github.com/rook/rook/cmd/rookctl/client"
 	"github.com/rook/rook/cmd/rookctl/rook"
+	"github.com/rook/rook/pkg/ceph/util"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/pkg/util/exec"
@@ -72,7 +73,7 @@ func mapBlockEntry(cmd *cobra.Command, args []string) error {
 	}
 	c := rook.NewRookNetworkRestClient()
 	e := &exec.CommandExecutor{}
-	out, err := mapBlock(mapImageName, mapImagePoolName, mapImagePath, sys.RBDSysBusPathDefault, sys.RBDDevicePathPrefix, mapFormatRequested, c, e)
+	out, err := mapBlock(mapImageName, mapImagePoolName, mapImagePath, util.RBDSysBusPathDefault, util.RBDDevicePathPrefix, mapFormatRequested, c, e)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -204,7 +205,7 @@ func openRBDFile(hasSingleMajor bool, singleMajorPath, path string) (*os.File, e
 func waitForDevicePath(imageName, poolName, rbdSysBusPath, rbdDevicePathPrefix string, maxRetries, sleepSecs int) (string, error) {
 	retryCount := 0
 	for {
-		mappedFile, err := sys.FindRBDMappedFile(imageName, poolName, rbdSysBusPath)
+		mappedFile, err := util.FindRBDMappedFile(imageName, poolName, rbdSysBusPath)
 		if err != nil {
 			return "", fmt.Errorf("failed to find mapped image: %+v", err)
 		}

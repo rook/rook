@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/rook/rook/cmd/rookctl/rook"
+	"github.com/rook/rook/pkg/ceph/util"
 	"github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/pkg/util/display"
 	"github.com/rook/rook/pkg/util/exec"
@@ -50,7 +51,7 @@ func listBlocksEntry(cmd *cobra.Command, args []string) error {
 
 	c := rook.NewRookNetworkRestClient()
 	e := &exec.CommandExecutor{}
-	out, err := listBlocks(sys.RBDSysBusPathDefault, c, e)
+	out, err := listBlocks(util.RBDSysBusPathDefault, c, e)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -75,8 +76,8 @@ func listBlocks(rbdSysBusPath string, c client.RookRestClient, executor exec.Exe
 			image := &(images[i])
 
 			// look up local device and mount point, ignoring errors
-			imageFile, _ := sys.FindRBDMappedFile(image.Name, image.PoolName, rbdSysBusPath)
-			devPath := sys.RBDDevicePathPrefix + imageFile
+			imageFile, _ := util.FindRBDMappedFile(image.Name, image.PoolName, rbdSysBusPath)
+			devPath := util.RBDDevicePathPrefix + imageFile
 			dev := strings.TrimPrefix(devPath, devicePathPrefix)
 			var mountPoint string
 			if dev != "" {

@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/rook/rook/cmd/rookctl/rook"
+	"github.com/rook/rook/pkg/ceph/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/rook/rook/pkg/util/sys"
@@ -53,7 +54,7 @@ func unmapBlockEntry(cmd *cobra.Command, args []string) error {
 	}
 
 	e := &exec.CommandExecutor{}
-	out, err := unmapBlock(unmapDeviceName, unmapPath, sys.RBDSysBusPathDefault, e)
+	out, err := unmapBlock(unmapDeviceName, unmapPath, util.RBDSysBusPathDefault, e)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -93,7 +94,7 @@ func unmapBlock(device, path, rbdSysBusPath string, executor exec.Executor) (str
 		return "", fmt.Errorf("failed to unmount rbd device %s: %+v", device, err)
 	}
 
-	rbdNum := strings.TrimPrefix(device, sys.RBDDevicePathPrefix)
+	rbdNum := strings.TrimPrefix(device, util.RBDDevicePathPrefix)
 	logger.Infof("removing rbd device %s (%s)", rbdNum, device)
 
 	// determine if the rbd kernel module supports single_major and open the

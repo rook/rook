@@ -17,7 +17,6 @@ package sys
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,14 +28,11 @@ import (
 )
 
 const (
-	DiskType             = "disk"
-	SSDType              = "ssd"
-	PartType             = "part"
-	sgdisk               = "sgdisk"
-	mountCmd             = "mount"
-	RBDSysBusPathDefault = "/sys/bus/rbd"
-	RBDDevicesDir        = "devices"
-	RBDDevicePathPrefix  = "/dev/rbd"
+	DiskType = "disk"
+	SSDType  = "ssd"
+	PartType = "part"
+	sgdisk   = "sgdisk"
+	mountCmd = "mount"
 )
 
 type Partition struct {
@@ -325,32 +321,4 @@ func parseKeyValuePairString(propsRaw string) map[string]string {
 	}
 
 	return propMap
-}
-
-// FindRBDMappedFile search for the mapped RBD volume and returns its device path
-func FindRBDMappedFile(imageName, poolName, sysBusDir string) (string, error) {
-
-	sysBusDeviceDir := filepath.Join(sysBusDir, RBDDevicesDir)
-	// if sysPath does not exist, no attachments has happened
-	if _, err := os.Stat(sysBusDeviceDir); os.IsNotExist(err) {
-		return "", nil
-	}
-
-	files, err := ioutil.ReadDir(sysBusDeviceDir)
-	if err != nil {
-		return "", fmt.Errorf("failed to read rbd device dir: %+v", err)
-	}
-
-	for _, idFile := range files {
-		nameContent, err := ioutil.ReadFile(filepath.Join(sysBusDeviceDir, idFile.Name(), "name"))
-		if err == nil && imageName == strings.TrimSpace(string(nameContent)) {
-			// the image for the current rbd device matches, now try to match pool
-			poolContent, err := ioutil.ReadFile(filepath.Join(sysBusDeviceDir, idFile.Name(), "pool"))
-			if err == nil && poolName == strings.TrimSpace(string(poolContent)) {
-				// match current device matches both image name and pool name, return the device
-				return idFile.Name(), nil
-			}
-		}
-	}
-	return "", nil
 }
