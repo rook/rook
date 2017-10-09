@@ -109,20 +109,13 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	require.Nil(s.T(), err)
 	initBlockCount := len(initialBlocks)
 
-	logger.Infof("step 1: Create StorageClass and pool")
+	logger.Infof("step : Create Pool,StorageClass and PVC")
 	sc := map[string]string{}
-	storageclass := getBlockPoolAndStorageClassDefinition(k8sh, clusterNamespace, "rookpool", "rook-block")
-	res1, err := k8sh.ResourceOperationFromTemplate("create", storageclass, sc)
+	volumeDef := getBlockPoolStorageClassAndPvcDefinition(k8sh, clusterNamespace, "rookpool", "rook-block", "test-block-claim")
+	res1, err := k8sh.ResourceOperationFromTemplate("create", volumeDef, sc)
 	require.Contains(s.T(), res1, "pool \"rookpool\" created", "Make sure test pool is created")
 	require.Contains(s.T(), res1, "storageclass \"rook-block\" created", "Make sure storageclass is created")
-	require.NoError(s.T(), err)
-	// see https://github.com/rook/rook/issues/767
-	time.Sleep(10 * time.Second)
-
-	logger.Infof("step 2: Create pvc")
-	pvc := getPvcDefinition("test-block-claim", "rook-block")
-	res2, err := k8sh.ResourceOperationFromTemplate("create", pvc, sc)
-	require.Contains(s.T(), res2, "persistentvolumeclaim \"test-block-claim\" created", "Make sure pvc is created")
+	require.Contains(s.T(), res1, "persistentvolumeclaim \"test-block-claim\" created", "Make sure pvc is created")
 	require.NoError(s.T(), err)
 
 	require.True(s.T(), isPVCBound(k8sh, "test-block-claim"))
@@ -132,9 +125,7 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	require.Equal(s.T(), initBlockCount+1, len(b), "Make sure new block image is created")
 
 	//Delete pvc and storageclass
-	_, err = k8sh.ResourceOperationFromTemplate("delete", storageclass, sc)
-	require.NoError(s.T(), err)
-	_, err = k8sh.ResourceOperationFromTemplate("delete", pvc, sc)
+	_, err = k8sh.ResourceOperationFromTemplate("delete", volumeDef, sc)
 	require.NoError(s.T(), err)
 	time.Sleep(2 * time.Second)
 
@@ -151,12 +142,8 @@ func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, nam
 }
 
 func blockStorageOperation(helper *clients.TestClient, k8sh *utils.K8sHelper, namespace string, poolname string, storageclassname string, blockname string, action string) error {
-	poolStorageClassDef := getBlockPoolAndStorageClassDefinition(k8sh, namespace, poolname, storageclassname)
-	pvcDef := getPvcDefinition(blockname, storageclassname)
-	k8sh.ResourceOperation(action, poolStorageClassDef)
-	// see https://github.com/rook/rook/issues/767
-	time.Sleep(10 * time.Second)
-	_, err := k8sh.ResourceOperation(action, pvcDef)
+	poolStorageClasPvcDef := getBlockPoolStorageClassAndPvcDefinition(k8sh, namespace, poolname, storageclassname, blockname)
+	_, err := k8sh.ResourceOperation(action, poolStorageClasPvcDef)
 
 	return err
 }
@@ -187,33 +174,7 @@ func cleanUpDymanicBlockStorage(helper *clients.TestClient) {
 
 }
 
-func getBlockPoolAndStorageClassDefinition(k8sh *utils.K8sHelper, namespace string, poolName string, storageclassName string) string {
-	k8sVersion := k8sh.GetK8sServerVersion()
-	if strings.Contains(k8sVersion, "v1.5") {
-		return `apiVersion: rook.io/v1alpha1
-kind: Pool
-metadata:
-  name: ` + poolName + `
-  namespace: ` + namespace + `
-spec:
-  replicated:
-    size: 1
-  # For an erasure-coded pool, comment out the replication size above and uncomment the following settings.
-  # Make sure you have enough OSDs to support the replica size or erasure code chunks.
-  #erasureCoded:
-  #  codingChunks: 2
-  #  dataChunks: 2
----
-apiVersion: storage.k8s.io/v1beta1
-kind: StorageClass
-metadata:
-   name: ` + storageclassName + `
-provisioner: rook.io/block
-parameters:
-    pool: ` + poolName + `
-    clusterName: ` + namespace
-
-	}
+func getBlockPoolStorageClassAndPvcDefinition(k8sh *utils.K8sHelper, namespace string, poolName string, storageclassName string, blockName string) string {
 	return `apiVersion: rook.io/v1alpha1
 kind: Pool
 metadata:
@@ -235,11 +196,9 @@ metadata:
 provisioner: rook.io/block
 parameters:
     pool: ` + poolName + `
-    clusterName: ` + namespace
-}
-
-func getPvcDefinition(blockName string, storageclassName string) string {
-	return `apiVersion: v1
+    clusterName: ` + namespace + `
+---
+apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: ` + blockName + `
