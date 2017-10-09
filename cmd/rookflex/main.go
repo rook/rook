@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/rook/rook/cmd/flexvolume/cmd"
+	"github.com/rook/rook/cmd/rookflex/cmd"
 )
 
 type result struct {

@@ -14,8 +14,7 @@
 
 FROM BASEIMAGE
 
-ADD rook /usr/local/bin/
-COPY flexvolume /
+ADD rook rookflex /usr/local/bin/
 
 ENTRYPOINT ["/tini", "--", "/usr/local/bin/rook"]
 CMD [""]
