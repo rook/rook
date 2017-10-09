@@ -31,10 +31,16 @@ func NewK8sInstallData() *InstallData {
 func (i *InstallData) GetRookOperator(k8sVersion string) string {
 
 	if strings.Contains(k8sVersion, "v1.5") {
-		return `apiVersion: extensions/v1beta1
+		return `kind: Namespace
+apiVersion: v1
+metadata:
+  name: rook-system
+---
+apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
   name: rook-operator
+  namespace: rook-system
 spec:
   replicas: 1
   template:
@@ -48,10 +54,31 @@ spec:
         args: ["operator", "--mon-healthcheck-interval=5s", "--mon-out-timeout=1s"]
         env:
         - name: ROOK_REPO_PREFIX
-          value: rook`
+          value: rook
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: ROOK_OPERATOR_SERVICE_ACCOUNT
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.serviceAccountName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace`
 	}
 
-	return `kind: ClusterRole
+	return `kind: Namespace
+apiVersion: v1
+metadata:
+  name: rook-system
+---
+kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-operator
@@ -65,6 +92,7 @@ rules:
   - pods
   - services
   - nodes
+  - nodes/proxy
   - configmaps
   - events
   - persistentvolumes
@@ -132,13 +160,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-operator
-  namespace: default
+  namespace: rook-system
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-operator
-  namespace: default
+  namespace: rook-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -146,13 +174,13 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-operator
-  namespace: default
+  namespace: rook-system
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: rook-operator
-  namespace: default
+  namespace: rook-system
 spec:
   replicas: 1
   template:
@@ -169,8 +197,30 @@ spec:
         - name: ROOK_REPO_PREFIX
           value: rook
         - name: ROOK_LOG_LEVEL
-          value: INFO`
-
+          value: INFO
+        # The interval to check if every mon is in the quorum.
+        - name: ROOK_MON_HEALTHCHECK_INTERVAL
+          value: "20s"
+        # The duration to wait before trying to failover or remove/replace the
+        # current mon with a new mon (useful for compensating flapping network).
+        - name: ROOK_MON_OUT_TIMEOUT
+          value: "300s"
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: ROOK_OPERATOR_SERVICE_ACCOUNT
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.serviceAccountName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace`
 }
 
 //GetRookCluster returns rook-cluster manifest

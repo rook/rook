@@ -18,6 +18,14 @@ usage(){
 
 #install k8s master node
 install_master(){
+
+    # This is needed on K8S 1.6 to fix a regression. https://github.com/kubernetes/kubernetes/issues/47109
+    if [[ $KUBE_VERSION == v1.6* ]] ;
+    then
+        sudo sed -i 's/KUBELET_SYSTEM_PODS_ARGS=/KUBELET_SYSTEM_PODS_ARGS=--enable-controller-attach-detach=false /g' /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+        sudo systemctl daemon-reload
+    fi
+
     sudo kubeadm init --skip-preflight-checks
 
     sudo cp /etc/kubernetes/admin.conf $HOME/
@@ -98,15 +106,11 @@ kubeadm_reset() {
     sudo swapon -a
 }
 
-
 case "${1:-}" in
   up)
     sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}" root
     install_master
     ${scriptdir}/makeTestImages.sh tag amd64 || true
-    sudo cp ${scriptdir}/kubeadm-rbd /bin/rbd
-    sudo chmod +x /bin/rbd
-    docker pull ceph/base
     ;;
   clean)
     kubeadm_reset

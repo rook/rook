@@ -25,6 +25,23 @@ spec:
           value: {{ .Values.image.prefix }}
         - name: ROOK_LOG_LEVEL
           value: {{ .Values.logLevel }}
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: ROOK_OPERATOR_SERVICE_ACCOUNT
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.serviceAccountName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+
 {{- if .Values.mon }}
 {{- if .Values.mon.healthCheckInterval }}
         - name: ROOK_MON_HEALTHCHECK_INTERVAL

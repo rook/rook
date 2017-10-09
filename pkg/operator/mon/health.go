@@ -205,7 +205,7 @@ func (c *Cluster) removeMon(name string) error {
 	}
 
 	// make sure to rewrite the config so NO new connections are made to the removed mon
-	if err := c.writeConnectionConfig(); err != nil {
+	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", name, err)
 	}
 

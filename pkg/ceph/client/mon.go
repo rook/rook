@@ -22,15 +22,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"path"
+	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
 )
 
 const (
-	AdminUsername = "client.admin"
-	CephTool      = "ceph"
-	RBDTool       = "rbd"
-	CrushTool     = "crushtool"
+	AdminUsername     = "client.admin"
+	CephTool          = "ceph"
+	RBDTool           = "rbd"
+	CrushTool         = "crushtool"
+	cmdExecuteTimeout = 1 * time.Minute
 )
 
 // represents the response from a mon_status mon_command (subset of all available fields, only
@@ -102,6 +104,11 @@ func ExecuteRBDCommand(context *clusterd.Context, clusterName string, args []str
 func ExecuteRBDCommandNoFormat(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
 	return executeCommand(context, RBDTool, args)
+}
+
+func ExecuteRBDCommandWithTimeout(context *clusterd.Context, clusterName string, args []string) (string, error) {
+	output, err := context.Executor.ExecuteCommandWithTimeout(false, cmdExecuteTimeout, "", RBDTool, args...)
+	return output, err
 }
 
 func executeCommand(context *clusterd.Context, tool string, args []string) ([]byte, error) {

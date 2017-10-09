@@ -88,8 +88,7 @@ metadata:
 provisioner: rook.io/block
 parameters:
     pool: {{.poolName}}
-    clusterName: {{.namespace}}
-    clusterNamespace: {{.namespace}}`
+    clusterName: {{.namespace}}`
 
 	s.mysqlAppPath = `apiVersion: v1
 kind: Service

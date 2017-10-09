@@ -144,9 +144,9 @@ func (rb *BlockOperation) BlockRead(name string, mountpath string, filename stri
 
 }
 
-// BlockUnmap Function to map a Block using Rook
+// BlockUnmap Function to unmap a Block using Rook
 // Input parameters -
-//name - ppod definition - the pod described in yam file is deleted
+//name - pod definition - the pod described in yaml file is deleted
 //mountpath - not used in this impl since mountpath is defined in the pod definition
 //Output  - k8s delete pod operation output and/or error
 func (rb *BlockOperation) BlockUnmap(name string, mountpath string) (string, error) {

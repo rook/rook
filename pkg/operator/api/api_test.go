@@ -16,7 +16,7 @@ limitations under the License.
 package api
 
 import (
-	"strings"
+	"sort"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -77,9 +77,20 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 1, len(cont.VolumeMounts))
 	assert.Equal(t, 7, len(cont.Env))
-	for _, v := range cont.Env {
-		assert.True(t, strings.HasPrefix(v.Name, "ROOK_"))
+
+	var envs [7]string
+	for i, v := range cont.Env {
+		envs[i] = v.Name
 	}
+	sort.Strings(envs[:])
+
+	assert.Equal(t, "ROOK_ADMIN_SECRET", envs[0])
+	assert.Equal(t, "ROOK_CLUSTER_NAME", envs[1])
+	assert.Equal(t, "ROOK_MON_ENDPOINTS", envs[2])
+	assert.Equal(t, "ROOK_MON_SECRET", envs[3])
+	assert.Equal(t, "ROOK_NAMESPACE", envs[4])
+	assert.Equal(t, "ROOK_REPO_PREFIX", envs[5])
+	assert.Equal(t, "ROOK_VERSION_TAG", envs[6])
 
 	assert.Equal(t, "api", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])

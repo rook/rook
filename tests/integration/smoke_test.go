@@ -55,7 +55,7 @@ func (suite *SmokeSuite) SetupSuite() {
 
 func (suite *SmokeSuite) TearDownSuite() {
 	if suite.T().Failed() {
-		gatherAllRookLogs(suite.k8sh, suite.Suite, defaultNamespace, defaultRookNamespace)
+		gatherAllRookLogs(suite.k8sh, suite.Suite, defaultRookSystemNamespace, defaultRookNamespace)
 
 	}
 	suite.installer.UninstallRookFromK8s(defaultRookNamespace, false)
@@ -73,5 +73,5 @@ func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 
 //Test to make sure all rook components are installed and Running
 func (suite *SmokeSuite) TestRookClusterInstallation_smokeTest() {
-	checkIfRookClusterIsInstalled(suite.k8sh, suite.Suite, defaultNamespace, defaultRookNamespace)
+	checkIfRookClusterIsInstalled(suite.k8sh, suite.Suite, defaultRookSystemNamespace, defaultRookNamespace)
 }

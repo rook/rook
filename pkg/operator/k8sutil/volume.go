@@ -18,6 +18,8 @@ limitations under the License.
 package k8sutil
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -34,4 +36,13 @@ func PathToVolumeName(path string) string {
 	volumeName = strings.TrimSuffix(volumeName, "-")
 
 	return volumeName
+}
+
+// NodeConfigURI returns the node config URI path for this node
+func NodeConfigURI() (string, error) {
+	nodeName := os.Getenv(NodeNameEnvVar)
+	if nodeName == "" {
+		return "", fmt.Errorf("cannot detect the node name. Please provide using the downward API in the rook operator manifest file")
+	}
+	return fmt.Sprintf("api/v1/nodes/%s/proxy/configz", nodeName), nil
 }

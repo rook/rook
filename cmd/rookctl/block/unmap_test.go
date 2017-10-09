@@ -46,10 +46,11 @@ func TestUnmountBlock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp rbd sys bus dir: %+v", err)
 	}
+	mockRBDDevicePath := filepath.Join(mockRBDSysBusPath, "dev", "rbd")
 	defer os.RemoveAll(mockRBDSysBusPath)
 	os.Create(filepath.Join(mockRBDSysBusPath, rbdRemoveSingleMajorNode))
 	os.Create(filepath.Join(mockRBDSysBusPath, rbdRemoveNode))
-	createMockRBD(mockRBDSysBusPath, "4", "myimage1", "mypool1")
+	createMockRBD(mockRBDSysBusPath, mockRBDDevicePath, "4", "myimage1", "mypool1")
 
 	// call unmountBlock and verify success and output
 	out, err := unmapBlock("", "/tmp/mymount1", mockRBDSysBusPath, e)

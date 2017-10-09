@@ -38,8 +38,9 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	poolName := "replicapool"
 	storageClassName := "rook-block"
 	blockName := "block-pv-claim"
+	podName := "block-test"
 
-	defer blockTestDataCleanUp(helper, k8sh, namespace, poolName, storageClassName, blockName)
+	defer blockTestDataCleanUp(helper, k8sh, namespace, poolName, storageClassName, blockName, podName)
 	logger.Infof("Block Storage End to End Integration Test - create, mount, write to, read from, and unmount")
 	logger.Infof("Running on Rook Cluster %s", namespace)
 	rbc := helper.GetBlockClient()
@@ -55,7 +56,7 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	require.True(s.T(), k8sh.WaitUntilPVCIsBound(blockName), "Make sure PVC is Bound")
 
 	logger.Infof("step 2: Mount block storage")
-	_, mtErr := rbc.BlockMap(getBlockPodDefintion(blockName), blockMountPath)
+	_, mtErr := rbc.BlockMap(getBlockPodDefintion(podName, blockName), blockMountPath)
 	require.Nil(s.T(), mtErr)
 	require.True(s.T(), k8sh.IsPodRunning(blockPodName, defaultNamespace), "make sure block-test pod is in running state")
 	logger.Infof("Block Storage Mounted successfully")
@@ -71,13 +72,26 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	require.Contains(s.T(), read, "Smoke Test Data form Block storage", "make sure content of the files is unchanged")
 	logger.Infof("Read from  Block storage successfully")
 
-	logger.Infof("step 5: Unmount block storage")
-	_, unmtErr := rbc.BlockUnmap(getBlockPodDefintion(blockName), blockMountPath)
+	logger.Infof("step 5: Mount same block storage on a different pod. Should not be allowed")
+	otherPod := "block-test2"
+	_, mtErr = rbc.BlockMap(getBlockPodDefintion(otherPod, blockName), blockMountPath)
+	require.Nil(s.T(), mtErr)
+	require.True(s.T(), k8sh.IsPodInError(otherPod, defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure block-test2 pod errors out while mounting the volume")
+	logger.Infof("Block Storage successfully fenced")
+
+	logger.Infof("step 6: Delete fenced pod")
+	_, unmtErr := rbc.BlockUnmap(getBlockPodDefintion(otherPod, blockName), blockMountPath)
+	require.Nil(s.T(), unmtErr)
+	require.True(s.T(), k8sh.IsPodTerminated(otherPod, defaultNamespace), "make sure block-test2 pod is terminated")
+	logger.Infof("Fenced pod deleted successfully")
+
+	logger.Infof("step 7: Unmount block storage")
+	_, unmtErr = rbc.BlockUnmap(getBlockPodDefintion(podName, blockName), blockMountPath)
 	require.Nil(s.T(), unmtErr)
 	require.True(s.T(), k8sh.IsPodTerminated(blockPodName, defaultNamespace), "make sure block-test pod is terminated")
 	logger.Infof("Block Storage unmounted successfully")
 
-	logger.Infof("step 6: Deleting block storage")
+	logger.Infof("step 8: Deleting block storage")
 	dbErr := blockStorageOperation(helper, k8sh, namespace, poolName, storageClassName, blockName, "delete")
 	require.Nil(s.T(), dbErr)
 	require.True(s.T(), retryBlockImageCountCheck(helper, k8sh, len(initBlockImages), 0), "Make sure a block is deleted")
@@ -89,7 +103,7 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	logger.Infof("Running on Rook Cluster %s", clusterNamespace)
 
 	//Check initial number of blocks
-	defer blockTestDataCleanUp(helper, k8sh, clusterNamespace, "rookpool", "rook-block", "test-block")
+	defer blockTestDataCleanUp(helper, k8sh, clusterNamespace, "rookpool", "rook-block", "test-block", "block-test")
 	bc := helper.GetBlockClient()
 	initialBlocks, err := bc.BlockList()
 	require.Nil(s.T(), err)
@@ -129,9 +143,9 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 
 }
 
-func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, namespace string, poolname string, storageclassname string, blockname string) {
+func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, poolname, storageclassname, blockname, podname string) {
 	logger.Infof("Cleaning up block storage")
-	helper.GetBlockClient().BlockUnmap(getBlockPodDefintion(blockname), blockMountPath)
+	helper.GetBlockClient().BlockUnmap(getBlockPodDefintion(podname, blockname), blockMountPath)
 	blockStorageOperation(helper, k8sh, namespace, poolname, storageclassname, blockname, "delete")
 	cleanUpDymanicBlockStorage(helper)
 }
@@ -197,8 +211,7 @@ metadata:
 provisioner: rook.io/block
 parameters:
     pool: ` + poolName + `
-    clusterName: ` + namespace + `
-    clusterNamespace: ` + namespace
+    clusterName: ` + namespace
 
 	}
 	return `apiVersion: rook.io/v1alpha1
@@ -222,8 +235,7 @@ metadata:
 provisioner: rook.io/block
 parameters:
     pool: ` + poolName + `
-    clusterName: ` + namespace + `
-    clusterNamespace: ` + namespace
+    clusterName: ` + namespace
 }
 
 func getPvcDefinition(blockName string, storageclassName string) string {
@@ -240,11 +252,11 @@ spec:
       storage: 1M`
 }
 
-func getBlockPodDefintion(blockName string) string {
+func getBlockPodDefintion(podname, blockName string) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:
-  name: block-test
+  name: ` + podname + `
 spec:
       containers:
       - image: busybox

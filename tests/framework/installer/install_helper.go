@@ -180,10 +180,16 @@ func (h *InstallHelper) InstallRookOnK8s(clusterNamespace string) (err error) {
 		panic(err)
 	}
 
-	if !h.k8shelper.IsPodInExpectedState("rook-operator", "default", "Running") {
+	if !h.k8shelper.IsPodInExpectedState("rook-operator", "rook-system", "Running") {
 		fmt.Println("rook-operator is not running")
-		h.k8shelper.GetRookLogs("rook-operator", "default", "test-setup")
+		h.k8shelper.GetRookLogs("rook-operator", "rook-system", "test-setup")
 		panic("rook-operator is not Running, abort!")
+	}
+
+	if !h.k8shelper.IsPodInExpectedState("rook-agent", "rook-system", "Running") {
+		fmt.Println("rook-agent is not running")
+		h.k8shelper.GetRookLogs("rook-agent", "rook-system", "test-setup")
+		panic("rook-agent is not Running, abort!")
 	}
 
 	time.Sleep(10 * time.Second)
@@ -230,6 +236,7 @@ func (h *InstallHelper) UninstallRookFromK8s(clusterNamespace string, helmInstal
 		if err != nil {
 			panic(err)
 		}
+		k8sHelp.WaitUntilNameSpaceIsDeleted("rook-system")
 	}
 	_, err = k8sHelp.DeleteResource([]string{"-n", clusterNamespace, "cluster", clusterNamespace})
 	if err != nil {
@@ -267,10 +274,6 @@ func (h *InstallHelper) UninstallRookFromK8s(clusterNamespace string, helmInstal
 			panic(err)
 		}
 	}
-	_, err = k8sHelp.DeleteResource([]string{"secret", clusterNamespace + "-rook-user"})
-	if err != nil {
-		panic(err)
-	}
 	_, err = k8sHelp.DeleteResource([]string{"namespace", clusterNamespace})
 	if err != nil {
 		panic(err)
@@ -305,12 +308,6 @@ func (h *InstallHelper) CleanupCluster(clusterName string) {
 	_, err = h.k8shelper.DeleteResource([]string{"-n", clusterName, "serviceaccount", "rook-ceph-osd"})
 	if err != nil {
 		logger.Errorf("rook-ceph-osd service account in namespace %s cannot be deleted,err -> %v", clusterName, err)
-		panic(err)
-	}
-
-	_, err = h.k8shelper.DeleteResource([]string{"secret", clusterName + "-rook-user"})
-	if err != nil {
-		logger.Errorf("rook-user secret in  namespace  %s cannot be deleted,err -> %v", clusterName, err)
 		panic(err)
 	}
 

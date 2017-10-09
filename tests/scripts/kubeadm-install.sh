@@ -5,9 +5,22 @@ KUBE_VERSION=${1:-"v1.7.5"}
 null_str=
 KUBE_INSTALL_VERSION="${KUBE_VERSION/v/$null_str}"-00
 
-#known k8s issue https://github.com/kubernetes/kubernetes/issues/34726
-#need to disable swap when installing k8s 1.8.x via kubeadm
+# Kubelet cannot run with swap enabled: https://github.com/kubernetes/kubernetes/issues/34726
+# Disabling swap when installing k8s 1.8.x via kubeadm
 sudo swapoff -a
+
+ # init flexvolume
+if [[ $KUBE_VERSION == v1.5* ]] || [[ $KUBE_VERSION == v1.6* ]] || [[ $KUBE_VERSION == v1.7* ]] ;
+then
+    sudo mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook
+    cat << EOF | sudo tee -a /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook/rook
+#!/bin/bash
+modprobe rbd single_major=Y > /dev/null
+echo -ne '{"status": "Success", "capabilities": {"attach": false}}' >&1
+exit 0
+EOF
+    sudo chmod +x /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook/rook
+fi
 
 wait_for_dpkg_unlock() {
     #wait for dpkg lock to disappear.

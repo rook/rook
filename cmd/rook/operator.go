@@ -25,9 +25,6 @@ import (
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 var operatorCmd = &cobra.Command{
@@ -76,22 +73,4 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-func getClientset() (kubernetes.Interface, apiextensionsclient.Interface, error) {
-	// create the k8s client
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get k8s config. %+v", err)
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create k8s clientset. %+v", err)
-	}
-	apiExtClientset, err := apiextensionsclient.NewForConfig(config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create k8s API extension clientset. %+v", err)
-	}
-	return clientset, apiExtClientset, nil
 }

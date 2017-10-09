@@ -49,11 +49,10 @@ type PoolController struct {
 }
 
 // NewPoolController create controller for watching pool custom resources created
-func NewPoolController(context *clusterd.Context) (*PoolController, error) {
+func NewPoolController(context *clusterd.Context) *PoolController {
 	return &PoolController{
 		context: context,
-	}, nil
-
+	}
 }
 
 // Watch watches for instances of Pool custom resources and acts on them
@@ -81,7 +80,7 @@ func (c *PoolController) onAdd(obj interface{}) {
 	// Use scheme.Copy() to make a deep copy of original object.
 	copyObj, err := c.scheme.Copy(pool)
 	if err != nil {
-		fmt.Printf("ERROR creating a deep copy of pool object: %v\n", err)
+		logger.Errorf("failed to create a deep copy of pool object: %v\n", err)
 		return
 	}
 	poolCopy := copyObj.(*Pool)

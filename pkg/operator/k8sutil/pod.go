@@ -81,7 +81,17 @@ func PodIPEnvVar(property string) v1.EnvVar {
 
 // NamespaceEnvVar namespace env var
 func NamespaceEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}
+	return v1.EnvVar{Name: PodNamespaceEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}}
+}
+
+// NameEnvVar pod name env var
+func NameEnvVar() v1.EnvVar {
+	return v1.EnvVar{Name: PodNameEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}}
+}
+
+// NodeEnvVar node env var
+func NodeEnvVar() v1.EnvVar {
+	return v1.EnvVar{Name: NodeNameEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}}
 }
 
 // RepoPrefixEnvVar repo prefix env var

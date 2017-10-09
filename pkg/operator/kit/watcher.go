@@ -40,12 +40,13 @@ type ResourceWatcher struct {
 	resource              CustomResource
 	namespace             string
 	resourceEventHandlers cache.ResourceEventHandlerFuncs
-	client                *rest.RESTClient
+	client                rest.Interface
 	scheme                *runtime.Scheme
+	labels                map[string]string
 }
 
 // NewWatcher creates an instance of a custom resource watcher for the given resource
-func NewWatcher(resource CustomResource, namespace string, handlers cache.ResourceEventHandlerFuncs, client *rest.RESTClient) *ResourceWatcher {
+func NewWatcher(resource CustomResource, namespace string, handlers cache.ResourceEventHandlerFuncs, client rest.Interface) *ResourceWatcher {
 	return &ResourceWatcher{
 		resource:              resource,
 		namespace:             namespace,
@@ -69,7 +70,6 @@ func (w *ResourceWatcher) Watch(objType runtime.Object, done chan struct{}) erro
 		w.resource.Plural,
 		w.namespace,
 		fields.Everything())
-
 	_, controller := cache.NewInformer(
 		source,
 

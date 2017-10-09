@@ -451,6 +451,48 @@ func (k8sh *K8sHelper) GetPodDetails(podNamePattern string, namespace string) (s
 	return strings.TrimSpace(result), nil
 }
 
+//GetPodEvents returns events about a pod
+func (k8sh *K8sHelper) GetPodEvents(podNamePattern string, namespace string) (*v1.EventList, error) {
+	uri := fmt.Sprintf("api/v1/namespaces/%s/events?fieldSelector=involvedObject.name=%s,involvedObject.namespace=%s", namespace, podNamePattern, namespace)
+	result, err := k8sh.Clientset.CoreV1().RESTClient().Get().RequestURI(uri).DoRaw()
+	if err != nil {
+		logger.Errorf("Cannot get events for pod %v in namespace %v, err: %v", podNamePattern, namespace, err)
+		return nil, fmt.Errorf("Cannot get events for pod %s in namespace %s, err: %v", podNamePattern, namespace, err)
+	}
+
+	events := v1.EventList{}
+	err = json.Unmarshal(result, &events)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal eventlist response: %v", err)
+	}
+
+	return &events, nil
+}
+
+//IsPodInError returns true if a Pod is in error status with the given reason and contains the given message
+func (k8sh *K8sHelper) IsPodInError(podNamePattern, namespace, reason, containingMessage string) bool {
+	inc := 0
+	for inc < RetryLoop {
+		events, err := k8sh.GetPodEvents(podNamePattern, namespace)
+		if err != nil {
+			k8slogger.Errorf("Cannot get Pod events for %s in namespace %s: %+v ", podNamePattern, namespace, err)
+			return false
+		}
+
+		for _, e := range events.Items {
+			if e.Reason == reason && strings.Contains(e.Message, containingMessage) {
+				return true
+			}
+		}
+		k8slogger.Infof("waiting for Pod %s in namespace %s to error with reason %s and containing the message: %s", podNamePattern, namespace, reason, containingMessage)
+		time.Sleep(RetryInterval * time.Second)
+		inc++
+
+	}
+	k8slogger.Infof("Pod %s in namespace %s did not error with reason %s", podNamePattern, namespace, reason)
+	return false
+}
+
 //GetPodHostID returns HostIP address of a pod
 func (k8sh *K8sHelper) GetPodHostID(podNamePattern string, namespace string) (string, error) {
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podNamePattern}
