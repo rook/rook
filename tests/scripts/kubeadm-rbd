@@ -1,0 +1,2 @@
+#!/bin/sh
+/usr/bin/docker run --rm -v /sys:/sys --net=host --privileged=true ceph/base rbd "$@"
