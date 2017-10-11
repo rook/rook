@@ -21,6 +21,11 @@ import (
 
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
+	monop "github.com/rook/rook/pkg/operator/mon"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/kubernetes/pkg/api"
 )
 
 const (
@@ -53,8 +58,31 @@ func Run(context *clusterd.Context, c *Config) error {
 		return fmt.Errorf("failed to write connection config. %+v", err)
 	}
 
+	go WatchMonConfig(context, c)
 	ServeRoutes(context, c)
 	return nil
+}
+
+func WatchMonConfig(context *clusterd.Context, c *Config) {
+	opts := metav1.ListOptions{
+		FieldSelector: fields.OneTermEqualSelector(api.ObjectNameField, monop.EndpointConfigMapName).String(),
+	}
+	w, err := context.Clientset.Core().ConfigMaps(c.namespace).Watch(opts)
+	if err != nil {
+		logger.Errorf("API server init error: %+v", err)
+	}
+	defer w.Stop()
+
+	for {
+		e := <-w.ResultChan()
+		if e.Type == watch.Modified {
+			// write the latest config to the config dir
+			if err := mon.GenerateAdminConnectionConfig(context, c.clusterInfo); err != nil {
+				logger.Errorf("failed to write connection config. %+v", err)
+				return
+			}
+		}
+	}
 }
 
 func ServeRoutes(context *clusterd.Context, c *Config) {
