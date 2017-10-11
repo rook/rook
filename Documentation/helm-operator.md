@@ -40,14 +40,14 @@ If role-based access control (RBAC) is enabled in your cluster, you may need to 
 To install the chart from out published registry, run the following:
 
 ```console
-$ helm repo add rook-<channel> http://charts.rook.io/<channel>
+$ helm repo add rook-<channel> https://charts.rook.io/<channel>
 $ helm install rook-<channel>/rook
 ```
 
 Be sure to replace `<channel>` with `alpha` or `master` (in the future `beta` and `stable` when available), for example:
 
 ```console
-$ helm repo add rook-alpha http://charts.rook.io/alpha
+$ helm repo add rook-alpha https://charts.rook.io/alpha
 $ helm install rook-alpha/rook
 ```
 
