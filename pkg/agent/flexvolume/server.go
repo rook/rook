@@ -38,7 +38,8 @@ const (
 	UnixSocketName           = ".rook.sock"
 	FlexvolumeVendor         = "rook.io"
 	FlexvolumeDriver         = "rook"
-	flexvolumeDriverFileName = "flexvolume"
+	flexvolumeDriverFileName = "rookflex"
+	usrBinDir                = "/usr/local/bin/"
 )
 
 var flexVolumeDriverDir = fmt.Sprintf("/flexmnt/%s~%s", FlexvolumeVendor, FlexvolumeDriver)
@@ -63,7 +64,9 @@ func NewFlexvolumeServer(context *clusterd.Context, volumeAttachmentClient rest.
 
 // Start configures the flexvolume driver on the host and starts the unix domain socket server to communicate with the driver
 func (s *FlexvolumeServer) Start() error {
-	err := configureFlexVolume(flexvolumeDriverFileName, flexVolumeDriverDir)
+
+	driverFile := path.Join(usrBinDir, flexvolumeDriverFileName) // /usr/local/bin/rookflex
+	err := configureFlexVolume(driverFile, flexVolumeDriverDir)
 	if err != nil {
 		return fmt.Errorf("unable to configure flexvolume: %v", err)
 	}
@@ -114,17 +117,17 @@ func (s *FlexvolumeServer) Stop() {
 
 }
 
-func configureFlexVolume(driverFileName, driverDir string) error {
+func configureFlexVolume(driverFile, driverDir string) error {
 	// copying flex volume
 	if _, err := os.Stat(driverDir); os.IsNotExist(err) {
 		os.Mkdir(driverDir, 0755)
 	}
-	srcFile := path.Join("/", driverFileName)                          // /flexvolume
+
 	destFile := path.Join(driverDir, "."+FlexvolumeDriver)             // /flextmnt/rook.io~rook/.rook
 	finalDestFile := path.Join(driverDir, path.Join(FlexvolumeDriver)) // /flextmnt/rook.io~rook/rook
-	err := copyFile(srcFile, destFile)
+	err := copyFile(driverFile, destFile)
 	if err != nil {
-		return fmt.Errorf("unable to copy flexvolume from %s to %s: %+v", srcFile, destFile, err)
+		return fmt.Errorf("unable to copy flexvolume from %s to %s: %+v", driverFile, destFile, err)
 	}
 
 	// renaming flex volume. Rename is an atomic execution while copying is not.

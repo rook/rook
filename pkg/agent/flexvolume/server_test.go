@@ -32,9 +32,10 @@ import (
 func TestConfigureFlexVolume(t *testing.T) {
 	driverDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(driverDir)
-	driver, _ := os.OpenFile(path.Join(driverDir, "flexvolume"), os.O_RDONLY|os.O_CREATE, 0755)
+	driverFile := path.Join(driverDir, flexvolumeDriverFileName)
+	os.OpenFile(driverFile, os.O_RDONLY|os.O_CREATE, 0755)
 
-	err := configureFlexVolume(driver.Name(), driverDir)
+	err := configureFlexVolume(driverFile, driverDir)
 	assert.Nil(t, err)
 	_, err = os.Stat(path.Join(driverDir, "rook"))
 	assert.False(t, os.IsNotExist(err))
