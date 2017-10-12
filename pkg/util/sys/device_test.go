@@ -17,9 +17,6 @@ package sys
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -196,19 +193,4 @@ NAME="sda6" SIZE="134217728" TYPE="part" PKNAME="sda"`, nil
 	partitions, unused, err = GetDevicePartitions("sdx", executor)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(partitions))
-}
-
-func TestFindDevicePath(t *testing.T) {
-	// set up a mock RBD sys bus file system
-	mockRBDSysBusPath, err := ioutil.TempDir("", "TestFindDevicePath")
-	if err != nil {
-		t.Fatalf("failed to create temp rbd sys bus dir: %+v", err)
-	}
-	defer os.RemoveAll(mockRBDSysBusPath)
-	dev0Path := filepath.Join(mockRBDSysBusPath, "devices", "3")
-	os.MkdirAll(dev0Path, 0777)
-	ioutil.WriteFile(filepath.Join(dev0Path, "name"), []byte("myimage1"), 0777)
-	ioutil.WriteFile(filepath.Join(dev0Path, "pool"), []byte("mypool1"), 0777)
-	mappedImageFile, _ := FindRBDMappedFile("myimage1", "mypool1", mockRBDSysBusPath)
-	assert.Equal(t, "3", mappedImageFile)
 }

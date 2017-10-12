@@ -25,14 +25,14 @@ import (
 	"strings"
 	"time"
 
-	cephmon "github.com/rook/rook/pkg/ceph/mon"
-	"github.com/rook/rook/pkg/model"
-	"github.com/rook/rook/pkg/util/sys"
-
 	"github.com/coreos/pkg/capnslog"
 	cephclient "github.com/rook/rook/pkg/ceph/client"
+	cephmon "github.com/rook/rook/pkg/ceph/mon"
+	"github.com/rook/rook/pkg/ceph/util"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/mon"
+	"github.com/rook/rook/pkg/util/sys"
 )
 
 const (
@@ -194,13 +194,13 @@ func getClusterInfo(context *clusterd.Context, clusterName string) (string, stri
 
 // FindDevicePath polls and wait for the mapped ceph image device to show up
 func (f *devicePathFinder) FindDevicePath(image, pool, clusterName string) (string, error) {
-	mappedFile, err := sys.FindRBDMappedFile(image, pool, sys.RBDSysBusPathDefault)
+	mappedFile, err := util.FindRBDMappedFile(image, pool, util.RBDSysBusPathDefault)
 	if err != nil {
 		return "", fmt.Errorf("failed to find mapped image: %+v", err)
 	}
 
 	if mappedFile != "" {
-		devicePath := sys.RBDDevicePathPrefix + mappedFile
+		devicePath := util.RBDDevicePathPrefix + mappedFile
 		if _, err := os.Lstat(devicePath); err != nil {
 			return "", fmt.Errorf("sysfs information for image '%s' in pool '%s' found but the rbd device path %s does not exist", image, pool, devicePath)
 		}
