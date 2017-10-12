@@ -48,6 +48,12 @@ func (h *Handler) GetRoutes() []Route {
 			h.CreatePool,
 		},
 		{
+			"DeletePool",
+			"DELETE",
+			"/pool/{name}",
+			h.DeletePool,
+		},
+		{
 			"GetImages",
 			"GET",
 			"/image",

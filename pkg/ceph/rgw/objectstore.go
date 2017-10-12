@@ -198,16 +198,12 @@ func GetObjectStores(context *Context) ([]string, error) {
 func deletePools(context *Context) error {
 	pools := append(metadataPools, dataPools...)
 	for _, pool := range pools {
-		if err := deletePool(context, pool); err != nil {
-			logger.Warningf("failed to delete pool %s", pool)
+		name := poolName(context.Name, pool)
+		if err := ceph.DeletePool(context.context, context.ClusterName, name); err != nil {
+			logger.Warningf("failed to delete pool %s. %+v", name, err)
 		}
 	}
 
-	return nil
-}
-
-func deletePool(context *Context, pool string) error {
-	logger.Infof("skipping deleting of pool %s", pool)
 	return nil
 }
 
@@ -235,11 +231,7 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 
 	for _, pool := range pools {
 		// create the pool if it doesn't exist yet
-		name := pool
-		if !strings.HasPrefix(pool, ".") {
-			// the name of the pool is <instance>.<name>, except for the pool ".rgw.root" that spans object stores
-			name = fmt.Sprintf("%s.%s", context.Name, pool)
-		}
+		name := poolName(context.Name, pool)
 		if _, err := ceph.GetPoolDetails(context.context, context.ClusterName, name); err != nil {
 			cephConfig.Name = name
 			err := ceph.CreatePoolForApp(context.context, context.ClusterName, cephConfig, appName)
@@ -249,4 +241,12 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 		}
 	}
 	return nil
+}
+
+func poolName(storeName, poolName string) string {
+	if strings.HasPrefix(poolName, ".") {
+		return poolName
+	}
+	// the name of the pool is <instance>.<name>, except for the pool ".rgw.root" that spans object stores
+	return fmt.Sprintf("%s.%s", storeName, poolName)
 }

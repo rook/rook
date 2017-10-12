@@ -98,7 +98,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain string) {
 			assert.NotEqual(t, "", failureDomain)
 			assert.Equal(t, "rule", args[2])
 			assert.Equal(t, "create-simple", args[3])
-			assert.Equal(t, "mypool-rule", args[4])
+			assert.Equal(t, "mypool", args[4])
 			assert.Equal(t, "default", args[5])
 			assert.Equal(t, failureDomain, args[6])
 			return "", nil

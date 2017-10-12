@@ -28,6 +28,7 @@ import (
 
 	"k8s.io/api/core/v1"
 
+	"github.com/rook/rook/pkg/ceph/client"
 	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
@@ -179,6 +180,16 @@ func TestRemoveFileSystemHandler(t *testing.T) {
 				}
 				if args[1] == "get" {
 					return basicFS, nil
+				}
+			}
+			if args[0] == "osd" {
+				if args[1] == "lspools" {
+					pools := []*client.CephStoragePoolSummary{
+						{Name: "mypool", Number: 0},
+					}
+					output, err := json.Marshal(pools)
+					assert.Nil(t, err)
+					return string(output), nil
 				}
 			}
 			return "", fmt.Errorf("unexpected command '%s'", args[0])

@@ -82,10 +82,6 @@ func Run(context *clusterd.Context, config *Config) error {
 }
 
 func generateConfigFiles(context *clusterd.Context, config *Config) (string, string, error) {
-	// write the latest config to the config dir
-	if err := GenerateAdminConnectionConfig(context, config.Cluster); err != nil {
-		return "", "", fmt.Errorf("failed to write connection config. %+v", err)
-	}
 
 	// write the keyring to disk
 	if err := writeMonKeyring(context, config.Cluster, config.Name); err != nil {
