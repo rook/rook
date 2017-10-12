@@ -22,7 +22,10 @@ install_master(){
     # This is needed on K8S 1.6 to fix a regression. https://github.com/kubernetes/kubernetes/issues/47109
     if [[ $KUBE_VERSION == v1.6* ]] ;
     then
-        sudo sed -i 's/KUBELET_SYSTEM_PODS_ARGS=/KUBELET_SYSTEM_PODS_ARGS=--enable-controller-attach-detach=false /g' /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+        cat << EOF | sudo tee -a /etc/systemd/system/kubelet.service.d/11-disable_attachdetach_controller.conf
+[Service]
+Environment="KUBELET_SYSTEM_PODS_ARGS=--pod-manifest-path=/etc/kubernetes/manifests --allow-privileged=true --enable-controller-attach-detach=false"
+EOF
         sudo systemctl daemon-reload
     fi
 
