@@ -26,7 +26,7 @@ func NewK8sInstallData() *InstallData {
 }
 
 //GetRookOperator returns rook Operator  manifest
-func (i *InstallData) GetRookOperator(k8sVersion, namespace string) string {
+func (i *InstallData) GetRookOperator(namespace string) string {
 
 	return `kind: Namespace
 apiVersion: v1

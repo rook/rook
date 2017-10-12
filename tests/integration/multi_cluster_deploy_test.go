@@ -7,7 +7,6 @@ import (
 
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/clients"
-	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
@@ -65,10 +64,10 @@ func (mrc *MultiRookClusterDeploySuite) SetupSuite() {
 	err = mrc.installer.CreateK8sRookToolbox(mrc.namespace2)
 	require.NoError(mrc.T(), err)
 
-	mrc.helper1, err = clients.CreateTestClient(enums.Kubernetes, kh, mrc.namespace1)
+	mrc.helper1, err = clients.CreateTestClient(kh, mrc.namespace1)
 	require.Nil(mrc.T(), err)
 
-	mrc.helper2, err = clients.CreateTestClient(enums.Kubernetes, kh, mrc.namespace2)
+	mrc.helper2, err = clients.CreateTestClient(kh, mrc.namespace2)
 	require.Nil(mrc.T(), err)
 
 	// create a test pool in each cluster so that we get some PGs
@@ -85,8 +84,8 @@ func (mrc *MultiRookClusterDeploySuite) SetupSuite() {
 
 func (mrc *MultiRookClusterDeploySuite) TearDownSuite() {
 	if mrc.T().Failed() {
-		gatherAllRookLogs(mrc.k8sh, mrc.Suite, installer.SystemNamespace(mrc.namespace1), mrc.namespace1)
-		gatherAllRookLogs(mrc.k8sh, mrc.Suite, installer.SystemNamespace(mrc.namespace1), mrc.namespace2)
+		gatherAllRookLogs(mrc.k8sh, mrc.Suite, mrc.installer.Env.HostType, installer.SystemNamespace(mrc.namespace1), mrc.namespace1)
+		gatherAllRookLogs(mrc.k8sh, mrc.Suite, mrc.installer.Env.HostType, installer.SystemNamespace(mrc.namespace1), mrc.namespace2)
 	}
 	deleteArgs := []string{"delete", "-f", "-"}
 
@@ -100,7 +99,7 @@ func (mrc *MultiRookClusterDeploySuite) TearDownSuite() {
 	if err != nil {
 		panic(err)
 	}
-	rookOperator := mrc.installData.GetRookOperator(mrc.k8sh.GetK8sServerVersion(), installer.SystemNamespace(mrc.namespace1))
+	rookOperator := mrc.installData.GetRookOperator(installer.SystemNamespace(mrc.namespace1))
 
 	//Delete rook operator
 	_, err = mrc.k8sh.KubectlWithStdin(rookOperator, deleteArgs...)

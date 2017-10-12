@@ -24,7 +24,6 @@ import (
 
 	"github.com/rook/rook/pkg/model"
 	rclient "github.com/rook/rook/pkg/rook/client"
-	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/utils"
 )
 
@@ -34,54 +33,49 @@ type RestAPIClient struct {
 }
 
 //CreateRestAPIClient Create Rook REST API client
-func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHelper, namespace string) *RestAPIClient {
+func CreateRestAPIClient(k8sHelper *utils.K8sHelper, namespace string) *RestAPIClient {
 	var endpoint string
-	switch {
-	case platform == enums.Kubernetes:
-		//Start rook_api_external server via nodePort if not it not already running.
-		externalAPIservice := "rook-api-external-" + namespace
-		_, err := k8sHelper.GetService(externalAPIservice, namespace)
+
+	//Start rook_api_external server via nodePort if not it not already running.
+	externalAPIservice := "rook-api-external-" + namespace
+	_, err := k8sHelper.GetService(externalAPIservice, namespace)
+	if err != nil {
+		_, err = k8sHelper.ResourceOperation("create", getExternalAPIServiceDefinition(namespace))
 		if err != nil {
-			_, err = k8sHelper.ResourceOperation("create", getExternalAPIServiceDefinition(namespace))
-			if err != nil {
-				panic(fmt.Errorf("failed to kubectl create -f -  %v: %+v", getExternalAPIServiceDefinition(namespace), err))
-			}
+			logger.Errorf("failed to kubectl create -f -  %v: %+v", getExternalAPIServiceDefinition(namespace), err)
+			return nil
 		}
-		apiIP, err := k8sHelper.GetPodHostID("rook-api", namespace)
-		if err != nil {
-			panic(fmt.Errorf("Host Ip for Rook-api service not found. %+v", err))
-		}
-		nodePort, err := k8sHelper.GetServiceNodePort(externalAPIservice, namespace)
-		if err != nil {
-			panic(fmt.Errorf("port for external Rook-api service not found. %+v", err))
-		}
-		endpoint = fmt.Sprintf("http://%s:%s", apiIP, nodePort)
-	case platform == enums.StandAlone:
-		endpoint = "http://localhost:8124"
-	default:
-		panic(fmt.Errorf("platform type %s not yet supported", platform))
 	}
+	apiIP, err := k8sHelper.GetPodHostID("rook-api", namespace)
+	if err != nil {
+		logger.Errorf("Host Ip for Rook-api service not found. %+v", err)
+		return nil
+	}
+	nodePort, err := k8sHelper.GetServiceNodePort(externalAPIservice, namespace)
+	if err != nil {
+		logger.Errorf("port for external Rook-api service not found. %+v", err)
+		return nil
+	}
+	endpoint = fmt.Sprintf("http://%s:%s", apiIP, nodePort)
 
 	httpclient := &http.Client{
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
-				Timeout:   60 * time.Second,
+				Timeout:   90 * time.Second,
 				KeepAlive: 0,
 			}).Dial,
 			DisableKeepAlives:     true,
 			DisableCompression:    true,
 			MaxIdleConnsPerHost:   1,
-			ResponseHeaderTimeout: 60 * time.Second,
+			ResponseHeaderTimeout: 90 * time.Second,
 		},
 	}
-	logger.Infof("creating rest client for endpoint %s (namespace %s)", endpoint, namespace)
 	client := rclient.NewRookNetworkRestClient(endpoint, httpclient)
 
 	//make sure rest client is up and available
 	inc := 0
-	var err error
 	for inc < utils.RetryLoop {
-		_, err = client.GetStatusDetails()
+		_, err := client.GetStatusDetails()
 		if err == nil {
 			//hack first get block image calls is intermittently failing in test env
 			client.GetBlockImages()
@@ -92,7 +86,8 @@ func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHe
 		time.Sleep(time.Second * utils.RetryInterval)
 	}
 
-	panic(fmt.Sprintf("Cannot access rook API - Abandoning run: %+v", err))
+	logger.Info("Cannot access rook API - Abandoning run")
+	return nil
 }
 
 //URL returns URL for rookAPI

@@ -7,7 +7,6 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/clients"
-	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
@@ -58,13 +57,13 @@ func (hs *HelmSuite) SetupSuite() {
 	err = hs.installer.CreateK8sRookToolbox(hs.namespace)
 	require.NoError(hs.T(), err)
 
-	hs.helper, err = clients.CreateTestClient(enums.Kubernetes, kh, hs.namespace)
+	hs.helper, err = clients.CreateTestClient(kh, hs.namespace)
 	require.Nil(hs.T(), err)
 }
 
 func (hs *HelmSuite) TearDownSuite() {
 	if hs.T().Failed() {
-		gatherAllRookLogs(hs.k8sh, hs.Suite, hs.namespace, hs.namespace)
+		gatherAllRookLogs(hs.k8sh, hs.Suite, hs.installer.Env.HostType, hs.namespace, hs.namespace)
 	}
 	hs.installer.UninstallRookFromK8s(hs.namespace, true)
 

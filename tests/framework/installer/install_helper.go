@@ -28,6 +28,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/objects"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -50,6 +51,7 @@ type InstallHelper struct {
 	installData *InstallData
 	helmHelper  *utils.HelmHelper
 	Env         objects.EnvironmentManifest
+	k8sVersion  string
 	T           func() *testing.T
 }
 
@@ -63,7 +65,7 @@ func (h *InstallHelper) CreateK8sRookOperator(namespace string) (err error) {
 	//creating clusterrolebinding for kubeadm env.
 	h.k8shelper.CreateAnonSystemClusterBinding()
 
-	rookOperator := h.installData.GetRookOperator(h.k8shelper.GetK8sServerVersion(), namespace)
+	rookOperator := h.installData.GetRookOperator(namespace)
 
 	_, err = h.k8shelper.KubectlWithStdin(rookOperator, createArgs...)
 
@@ -87,7 +89,7 @@ func (h *InstallHelper) CreateK8sRookOperator(namespace string) (err error) {
 }
 
 //CreateK8sRookOperatorViaHelm creates rook operator via Helm chart named local/rook present in local repo
-func (h *InstallHelper) CreateK8sRookOperatorViaHelm(namespace string) (err error) {
+func (h *InstallHelper) CreateK8sRookOperatorViaHelm(namespace string) error {
 	//creating clusterrolebinding for kubeadm env.
 	h.k8shelper.CreateAnonSystemClusterBinding()
 
@@ -162,37 +164,29 @@ func SystemNamespace(namespace string) string {
 }
 
 //InstallRookOnK8s installs rook on k8s
-func (h *InstallHelper) InstallRookOnK8s(namespace, storeType string) (err error) {
-	//flag used for local debugging purpose, when rook is pre-installed
+func (h *InstallHelper) InstallRookOnK8s(namespace, storeType string) (bool, error) {
+	//flag used for local debuggin purpose, when rook is pre-installed
 	skipRookInstall := strings.EqualFold(h.Env.SkipInstallRook, "true")
 	if skipRookInstall {
-		return
+		return true, nil
 	}
 
 	k8sversion := h.k8shelper.GetK8sServerVersion()
 
 	logger.Infof("Installing rook on k8s %s", k8sversion)
-	//Create rook operator
-	if err != nil {
-		panic(err)
-	}
 
-	err = h.CreateK8sRookOperator(SystemNamespace(namespace))
+	//Create rook operator
+	err := h.CreateK8sRookOperator(SystemNamespace(namespace))
 	if err != nil {
-		fmt.Println(err)
-		panic(err)
+		logger.Errorf("Rook Operator not installed ,error -> %v", err)
+		return false, err
 	}
 
 	if !h.k8shelper.IsPodInExpectedState("rook-operator", SystemNamespace(namespace), "Running") {
 		fmt.Println("rook-operator is not running")
-		h.k8shelper.GetRookLogs("rook-operator", SystemNamespace(namespace), "test-setup")
-		panic("rook-operator is not Running, abort!")
-	}
-
-	if !h.k8shelper.IsPodInExpectedState("rook-agent", SystemNamespace(namespace), "Running") {
-		fmt.Println("rook-agent is not running")
-		h.k8shelper.GetRookLogs("rook-agent", SystemNamespace(namespace), "test-setup")
-		panic("rook-agent is not Running, abort!")
+		h.k8shelper.GetRookLogs("rook-operator", h.Env.HostType, SystemNamespace(namespace), "test-setup")
+		logger.Error("rook-operator is not Running, abort!")
+		return false, err
 	}
 
 	time.Sleep(10 * time.Second)
@@ -200,7 +194,8 @@ func (h *InstallHelper) InstallRookOnK8s(namespace, storeType string) (err error
 	//Create rook cluster
 	err = h.CreateK8sRookCluster(namespace, storeType)
 	if err != nil {
-		panic(err)
+		logger.Errorf("Rook cluster %s not installed ,error -> %v", namespace, err)
+		return false, err
 	}
 
 	time.Sleep(5 * time.Second)
@@ -208,10 +203,11 @@ func (h *InstallHelper) InstallRookOnK8s(namespace, storeType string) (err error
 	//Create rook client
 	err = h.CreateK8sRookToolbox(namespace)
 	if err != nil {
-		panic(err)
+		logger.Errorf("Rook toolbox in cluster %s not installed ,error -> %v", namespace, err)
+		return false, err
 	}
-	logger.Infof("installed rook operator and cluster : %s on k8s %s", namespace, h.Env.K8sVersion)
-	return nil
+	logger.Infof("installed rook operator and cluster : %s on k8s %s", namespace, h.k8sVersion)
+	return true, nil
 }
 
 //UninstallRookFromK8s uninstalls rook from k8s
@@ -224,73 +220,56 @@ func (h *InstallHelper) UninstallRookFromK8s(namespace string, helmInstalled boo
 
 	logger.Infof("Uninstalling Rook")
 	k8sHelp, err := utils.CreateK8sHelper(h.T)
-	if err != nil {
-		panic(err)
-	}
+	assert.NoError(h.T(), err, "cannot uninstall rook err ->  %v", err)
+
 	if helmInstalled {
 		err = h.helmHelper.DeleteLocalRookHelmChart(helmDeployName)
-		if err != nil {
-			panic(err)
-		}
+		assert.NoError(h.T(), err, "cannot uninstall Rook helm chart err -> %v", err)
 	} else {
-		rookOperator := h.installData.GetRookOperator(h.k8shelper.GetK8sServerVersion(), SystemNamespace(namespace))
-
+		rookOperator := h.installData.GetRookOperator(SystemNamespace(namespace))
 		_, err = h.k8shelper.KubectlWithStdin(rookOperator, deleteArgs...)
-		if err != nil {
-			panic(err)
-		}
-		k8sHelp.WaitUntilNameSpaceIsDeleted("rook-system")
+		assert.NoError(h.T(), err, "cannot uninstall rook-operator err -> %v", err)
 	}
 	_, err = k8sHelp.DeleteResource([]string{"-n", namespace, "cluster", namespace})
-	if err != nil {
-		panic(err)
-	}
+	assert.NoError(h.T(), err, "cannot remove cluster %s in namespace %s  err -> %v", namespace, namespace, err)
+
 	_, err = k8sHelp.DeleteResource([]string{"-n", namespace, "serviceaccount", "rook-api"})
-	if err != nil {
-		panic(err)
-	}
+	assert.NoError(h.T(), err, "cannot remove serviceaccount rook-api in namespace %s  err -> %v", namespace, err)
+
 	_, err = k8sHelp.DeleteResource([]string{"-n", namespace, "serviceaccount", "rook-ceph-osd"})
-	if err != nil {
-		panic(err)
-	}
+	assert.NoError(h.T(), err, "cannot remove serviceaccount rook-ceph-osd in namespace %s  err -> %v", namespace, err)
+
 	if h.k8shelper.VersionAtLeast("v1.6.0") {
-		err = k8sHelp.DeleteRoleAndBindings("rook-api", namespace)
-		if err != nil {
-			logger.Errorf("rook-api role and binding cannot be deleted from namespace %s: %+v", namespace, err)
-			panic(err)
-		}
+		err = h.k8shelper.DeleteRoleAndBindings("rook-api", namespace)
+		assert.NoError(h.T(), err, "rook-api cluster role and binding cannot be deleted: %+v", err)
+
 		err = k8sHelp.DeleteRoleAndBindings("rook-ceph-osd", namespace)
-		if err != nil {
-			logger.Errorf("rook-ceph-osd role and binding cannot be deleted from namespace %s: %+v", namespace, err)
-			panic(err)
-		}
+		assert.NoError(h.T(), err, "rook-ceph-osd cluster role and binding cannot be deleted: %+v", err)
 	}
 
 	if h.k8shelper.VersionAtLeast("v1.7.0") {
 		_, err = k8sHelp.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io", "objectstores.rook.io", "filesystems.rook.io"})
-		if err != nil {
-			panic(err)
-		}
+		assert.NoError(h.T(), err, "cannot delete CRDs err -> %+v", err)
 	} else {
 		_, err = k8sHelp.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io", "objectstore.rook.io", "filesystem.rook.io"})
-		if err != nil {
-			panic(err)
-		}
+		assert.NoError(h.T(), err, "cannot delete TPRs err -> %+v", err)
 	}
+
 	_, err = k8sHelp.DeleteResource([]string{"namespace", namespace})
-	if err != nil {
-		panic(err)
-	}
+	assert.NoError(h.T(), err, "cannot delete namespace %s err -> %+v", namespace, err)
 
 	isRookUninstalled := k8sHelp.WaitUntilPodInNamespaceIsDeleted("rook-ceph-mon", namespace)
 	isNameSpaceDeleted := k8sHelp.WaitUntilNameSpaceIsDeleted(namespace)
 	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("anon-user-access", nil)
 
+	assert.True(h.T(), isRookUninstalled, "make sure rook is uninstalled")
+	assert.True(h.T(), isNameSpaceDeleted, "make sure rook is uninstalled")
+
 	if isRookUninstalled && isNameSpaceDeleted {
 		logger.Infof("Rook cluster %s uninstalled successfully", namespace)
 		return
 	}
-	panic(fmt.Errorf("Rook cluster %s not uninstalled", namespace))
+	logger.Errorf("Rook cluster %s not uninstalled", namespace)
 }
 
 //CleanupCluster deletes a rook cluster for a namespace
@@ -300,13 +279,11 @@ func (h *InstallHelper) CleanupCluster(clusterName string) {
 	_, err := h.k8shelper.DeleteResource([]string{"-n", clusterName, "cluster", clusterName})
 	if err != nil {
 		logger.Errorf("Rook Cluster  %s cannot be deleted,err -> %v", clusterName, err)
-		panic(err)
 	}
 
 	_, err = h.k8shelper.DeleteResource([]string{"-n", clusterName, "serviceaccount", "rook-api"})
 	if err != nil {
 		logger.Errorf("rook-api service account in namespace %s cannot be deleted,err -> %v", clusterName, err)
-		panic(err)
 	}
 	_, err = h.k8shelper.DeleteResource([]string{"-n", clusterName, "serviceaccount", "rook-ceph-osd"})
 	if err != nil {
@@ -314,21 +291,9 @@ func (h *InstallHelper) CleanupCluster(clusterName string) {
 		panic(err)
 	}
 
-	err = h.k8shelper.DeleteRoleAndBindings("rook-api", clusterName)
-	if err != nil {
-		logger.Errorf("rook-api role and binding cannot be deleted from namespace %s: %+v", clusterName, err)
-		panic(err)
-	}
-	err = h.k8shelper.DeleteRoleAndBindings("rook-ceph-osd", clusterName)
-	if err != nil {
-		logger.Errorf("rook-ceph-osd role and binding cannot be deleted from namespace %s: %+v", clusterName, err)
-		panic(err)
-	}
-
 	_, err = h.k8shelper.DeleteResource([]string{"namespace", clusterName})
 	if err != nil {
 		logger.Errorf("namespace  %s cannot be deleted,err -> %v", clusterName, err)
-		panic(err)
 	}
 
 	h.k8shelper.WaitUntilPodInNamespaceIsDeleted("rook-ceph-mon", clusterName)
@@ -342,8 +307,6 @@ func NewK8sRookhelper(clientset *kubernetes.Clientset, t func() *testing.T) *Ins
 	version, err := clientset.ServerVersion()
 	if err != nil {
 		logger.Infof("failed to get kubectl server version. %+v", err)
-	} else {
-		env.K8sVersion = version.String()
 	}
 
 	k8shelp, err := utils.CreateK8sHelper(t)
@@ -355,6 +318,7 @@ func NewK8sRookhelper(clientset *kubernetes.Clientset, t func() *testing.T) *Ins
 		installData: NewK8sInstallData(),
 		helmHelper:  utils.NewHelmHelper(),
 		Env:         env,
+		k8sVersion:  version.String(),
 		T:           t,
 	}
 }

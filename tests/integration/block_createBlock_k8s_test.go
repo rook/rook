@@ -22,7 +22,6 @@ import (
 
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
-	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -31,6 +30,10 @@ import (
 )
 
 // Test K8s Block Image Creation Scenarios. These tests work when platform is set to Kubernetes
+var (
+	claimName = "test-claim1"
+)
+
 func TestK8sBlockCreate(t *testing.T) {
 	suite.Run(t, new(K8sBlockImageCreateSuite))
 }
@@ -43,26 +46,37 @@ type K8sBlockImageCreateSuite struct {
 	initBlockCount  int
 	pvcDef          string
 	storageclassDef string
+	namespace       string
 	installer       *installer.InstallHelper
 }
 
 func (s *K8sBlockImageCreateSuite) SetupSuite() {
 
 	var err error
+	s.namespace = "block-k8s-ns"
 	s.kh, err = utils.CreateK8sHelper(s.T)
-	require.NoError(s.T(), err)
+	assert.NoError(s.T(), err)
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset, s.T)
 
-	err = s.installer.InstallRookOnK8s("rook", "bluestore")
-	require.NoError(s.T(), err)
+	isRookInstalled, err := s.installer.InstallRookOnK8s(s.namespace, "bluestore")
+	assert.NoError(s.T(), err)
+	if !isRookInstalled {
+		logger.Errorf("Rook Was not installed successfully")
+		s.TearDownSuite()
+		s.T().FailNow()
+	}
 
-	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh, "rook")
-	require.Nil(s.T(), err)
+	s.testClient, err = clients.CreateTestClient(s.kh, s.namespace)
+	if err != nil {
+		logger.Errorf("Cannot create rook test client, er -> %v", err)
+		s.TearDownSuite()
+		s.T().FailNow()
+	}
 
 	s.bc = s.testClient.GetBlockClient()
 	initialBlocks, err := s.bc.BlockList()
-	require.Nil(s.T(), err)
+	assert.Nil(s.T(), err)
 	s.initBlockCount = len(initialBlocks)
 
 	s.pvcDef = `apiVersion: v1
@@ -82,7 +96,7 @@ spec:
 kind: Pool
 metadata:
   name: {{.poolName}}
-  namespace: rook
+  namespace: {{.namespace}}
 spec:
   replicated:
     size: 1
@@ -95,10 +109,11 @@ spec:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-  name: rook-block
+   name: rook-block
 provisioner: rook.io/block
 parameters:
-  pool: {{.poolName}}`
+    pool: {{.poolName}}
+    clusterName: {{.namespace}}`
 }
 
 // Test case when persistentvolumeclaim is created for a storage class that doesn't exist
@@ -211,7 +226,8 @@ func (s *K8sBlockImageCreateSuite) tearDownTest(claimName, poolName string) {
 
 func (s *K8sBlockImageCreateSuite) storageClassOperation(poolName string, action string) (string, error) {
 	config := map[string]string{
-		"poolName": poolName,
+		"poolName":  poolName,
+		"namespace": s.namespace,
 	}
 
 	result, err := s.kh.ResourceOperationFromTemplate(action, s.storageclassDef, config)
@@ -232,5 +248,8 @@ func (s *K8sBlockImageCreateSuite) pvcOperation(claimName string, action string)
 }
 
 func (s *K8sBlockImageCreateSuite) TearDownSuite() {
-	s.installer.UninstallRookFromK8s("rook", false)
+	if s.T().Failed() {
+		gatherAllRookLogs(s.kh, s.Suite, s.installer.Env.HostType, s.namespace, s.namespace)
+	}
+	s.installer.UninstallRookFromK8s(s.namespace, false)
 }

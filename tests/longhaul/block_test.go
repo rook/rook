@@ -4,10 +4,10 @@ import (
 	"sync"
 	"testing"
 
+	"fmt"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
-	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -27,8 +27,9 @@ func TestK8sBlockLongHaul(t *testing.T) {
 }
 
 var (
-	logger           = capnslog.NewPackageLogger("github.com/rook/rook", "longhaul")
-	defaultNamespace = "default"
+	logger               = capnslog.NewPackageLogger("github.com/rook/rook", "longhaul")
+	defaultNamespace     = "default"
+	defaultRookNamespace = "longhaul-test"
 )
 
 type K8sBlockLongHaulSuite struct {
@@ -56,18 +57,20 @@ func (s *K8sBlockLongHaulSuite) SetupSuite() {
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset, s.T)
 	if !s.kh.IsRookInstalled(s.namespace) {
-		err = s.installer.InstallRookOnK8s(s.namespace, "bluestore")
-		require.NoError(s.T(), err)
-	}
+		isInstalled, err := s.installer.InstallRookOnK8s(s.namespace, "bluestore")
+		assert.NoError(s.T(), err)
+		if !isInstalled {
+			panic(fmt.Sprintf("Rook Not installed successfully exiting :err -> %v", err))
+		}
 
-	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh, s.namespace)
-	require.Nil(s.T(), err)
+		s.testClient, err = clients.CreateTestClient(s.kh, s.namespace)
+		require.Nil(s.T(), err)
 
-	s.bc = s.testClient.GetBlockClient()
-	initialBlocks, err := s.bc.BlockList()
-	require.Nil(s.T(), err)
-	s.initBlockCount = len(initialBlocks)
-	s.storageClassPath = `apiVersion: rook.io/v1alpha1
+		s.bc = s.testClient.GetBlockClient()
+		initialBlocks, err := s.bc.BlockList()
+		require.Nil(s.T(), err)
+		s.initBlockCount = len(initialBlocks)
+		s.storageClassPath = `apiVersion: rook.io/v1alpha1
 kind: Pool
 metadata:
   name: {{.poolName}}
@@ -90,7 +93,7 @@ parameters:
     pool: {{.poolName}}
     clusterName: {{.namespace}}`
 
-	s.mysqlAppPath = `apiVersion: v1
+		s.mysqlAppPath = `apiVersion: v1
 kind: Service
 metadata:
   name: mysql-app
@@ -159,40 +162,41 @@ spec:
         persistentVolumeClaim:
           claimName: mysql-pv-claim`
 
-	//create storage class
-	if scp, _ := s.kh.IsStorageClassPresent("rook-block"); !scp {
-		logger.Infof("Install storage class for rook block")
-		_, err = s.storageClassOperation("mysql-pool", s.namespace, "create")
-		require.NoError(s.T(), err)
+		//create storage class
+		if scp, _ := s.kh.IsStorageClassPresent("rook-block"); !scp {
+			logger.Infof("Install storage class for rook block")
+			_, err = s.storageClassOperation("mysql-pool", s.namespace, "create")
+			require.NoError(s.T(), err)
 
-		//make sure storageclass is created
-		present, err := s.kh.IsStorageClassPresent("rook-block")
-		require.NoError(s.T(), err)
-		require.True(s.T(), present, "Make sure storageclass is present")
-	}
-	//create mysql pod
-	if _, err := s.kh.GetPVCStatus(defaultNamespace, "mysql-pv-claim"); err != nil {
-		logger.Infof("Create PVC")
+			//make sure storageclass is created
+			present, err := s.kh.IsStorageClassPresent("rook-block")
+			require.NoError(s.T(), err)
+			require.True(s.T(), present, "Make sure storageclass is present")
+		}
+		//create mysql pod
+		if _, err := s.kh.GetPVCStatus(defaultNamespace, "mysql-pv-claim"); err != nil {
+			logger.Infof("Create PVC")
 
-		s.kh.ResourceOperation("create", s.mysqlAppPath)
+			s.kh.ResourceOperation("create", s.mysqlAppPath)
 
-		//wait till mysql pod is up
-		require.True(s.T(), s.kh.IsPodInExpectedState("mysqldb", "", "Running"))
-		pvcStatus, err := s.kh.GetPVCStatus(defaultNamespace, "mysql-pv-claim")
+			//wait till mysql pod is up
+			require.True(s.T(), s.kh.IsPodInExpectedState("mysqldb", "", "Running"))
+			pvcStatus, err := s.kh.GetPVCStatus(defaultNamespace, "mysql-pv-claim")
+			require.Nil(s.T(), err)
+			require.Contains(s.T(), pvcStatus, "Bound")
+		}
+		dbIP, err := s.kh.GetPodHostID("mysqldb", "")
 		require.Nil(s.T(), err)
-		require.Contains(s.T(), pvcStatus, "Bound")
+		//create database connection
+		s.db = utils.CreateNewMySQLHelper("mysql", "mysql", dbIP+":30003", "sample")
+
+		require.True(s.T(), s.db.PingSuccess())
+
+		if exist := s.db.TableExists(); !exist {
+			s.db.CreateTable()
+		}
+
 	}
-	dbIP, err := s.kh.GetPodHostID("mysqldb", "")
-	require.Nil(s.T(), err)
-	//create database connection
-	s.db = utils.CreateNewMySQLHelper("mysql", "mysql", dbIP+":30003", "sample")
-
-	require.True(s.T(), s.db.PingSuccess())
-
-	if exist := s.db.TableExists(); !exist {
-		s.db.CreateTable()
-	}
-
 }
 
 func (s *K8sBlockLongHaulSuite) TestBlockLonghaulRun() {
