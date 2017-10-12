@@ -163,7 +163,7 @@ Once you've verified the operator is `Running` and on the new version, verify th
 Instructions for verifying cluster health can be found in the [health verification section](#health-verification).
 
 ### Agents
-The Rook agents are deployed by the operator to run on every node. They are in charged of handling all operations related to the consumption of storage from the cluster.
+The Rook agents are deployed by the operator to run on every node. They are in charge of handling all operations related to the consumption of storage from the cluster.
 
 The agents are deployed and managed by a Kubernetes daemonset. So in order to upgrade the version of the agent pods, we will need to edit the image version of the pod template in the daemonset spec and then delete each agent pod so that a new pod is created by the daemonset.
 
