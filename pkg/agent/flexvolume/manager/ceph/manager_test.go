@@ -45,6 +45,64 @@ func (f *fakeDevicePathFinder) FindDevicePath(image, pool, clusterName string) (
 	return response, nil
 }
 
+func TestInitLoadRBDModSingleMajor(t *testing.T) {
+
+	modInfoCalled := false
+	modprobeCalled := false
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			assert.Equal(t, "modinfo", command)
+			assert.Equal(t, "rbd", args[2])
+			modInfoCalled = true
+			return "single_major:Use a single major number for all rbd devices (default: false) (bool)", nil
+		},
+		MockExecuteCommand: func(debug bool, actionName string, command string, args ...string) error {
+			assert.Equal(t, "modprobe", command)
+			assert.Equal(t, "rbd", args[0])
+			assert.Equal(t, "single_major=Y", args[1])
+			modprobeCalled = true
+			return nil
+		},
+	}
+
+	context := &clusterd.Context{
+		Executor: executor,
+	}
+	NewVolumeManager(context)
+	assert.True(t, modInfoCalled)
+	assert.True(t, modprobeCalled)
+}
+
+func TestInitLoadRBDModNoSingleMajor(t *testing.T) {
+
+	modInfoCalled := false
+	modprobeCalled := false
+
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			assert.Equal(t, "modinfo", command)
+			assert.Equal(t, "rbd", args[2])
+			modInfoCalled = true
+			return "", nil
+		},
+		MockExecuteCommand: func(debug bool, actionName string, command string, args ...string) error {
+			assert.Equal(t, "modprobe", command)
+			assert.Equal(t, 1, len(args))
+			assert.Equal(t, "rbd", args[0])
+			modprobeCalled = true
+			return nil
+		},
+	}
+
+	context := &clusterd.Context{
+		Executor: executor,
+	}
+	NewVolumeManager(context)
+	assert.True(t, modInfoCalled)
+	assert.True(t, modprobeCalled)
+}
+
 func TestAttach(t *testing.T) {
 	clientset := test.New(3)
 	clusterName := "testCluster"

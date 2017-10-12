@@ -26,6 +26,7 @@ const (
 
 // VolumeManager handles flexvolume plugin storage operations
 type VolumeManager interface {
+	Init() error
 	Attach(image, pool, clusterName string) (string, error)
 	Detach(image, pool, clusterName string) error
 }

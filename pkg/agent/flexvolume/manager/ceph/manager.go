@@ -37,6 +37,7 @@ import (
 
 const (
 	findDevicePathMaxRetries = 10
+	rbdKernelModuleName      = "rbd"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-volumeattacher")
@@ -51,10 +52,36 @@ type devicePathFinder struct{}
 
 // NewVolumeManager create attacher for ceph volumes
 func NewVolumeManager(context *clusterd.Context) *VolumeManager {
-	return &VolumeManager{
+	vm := &VolumeManager{
 		context:          context,
 		devicePathFinder: &devicePathFinder{},
 	}
+	vm.Init()
+	return vm
+}
+
+// Init the ceph volume manager
+func (vm *VolumeManager) Init() error {
+
+	// check to see if the rbd kernel module has single_major support
+	hasSingleMajor, err := sys.CheckKernelModuleParam(rbdKernelModuleName, "single_major", vm.context.Executor)
+	if err != nil {
+		logger.Noticef("failed %s single_major check, assuming it's unsupported: %+v", rbdKernelModuleName, err)
+		hasSingleMajor = false
+	}
+
+	opts := []string{}
+	if hasSingleMajor {
+		opts = append(opts, "single_major=Y")
+	}
+
+	// load the rbd kernel module with options
+	// TODO: should this fail if modprobe fails?
+	if err := sys.LoadKernelModule(rbdKernelModuleName, opts, vm.context.Executor); err != nil {
+		logger.Noticef("failed to load kernel module %s: %+v", rbdKernelModuleName, err)
+	}
+
+	return nil
 }
 
 // Attach a ceph image to the node

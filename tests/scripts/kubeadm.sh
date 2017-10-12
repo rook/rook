@@ -141,9 +141,6 @@ case "${1:-}" in
             exit 1
         ;;
     esac
-    sudo cp ${scriptdir}/kubeadm-rbd /bin/rbd
-    sudo chmod +x /bin/rbd
-    docker pull ceph/base || true
     ;;
   wait)
     if [ "$#" -eq 2 ]; then

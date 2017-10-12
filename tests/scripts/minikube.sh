@@ -6,7 +6,6 @@ source "${scriptdir}/../../build/common.sh"
 init_flexvolume() {
     cat <<EOF | ssh -i `minikube ssh-key` docker@`minikube ip` -o IdentitiesOnly=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=quiet 'cat - > ~/rook'
 #!/bin/bash
-modprobe rbd single_major=Y > /dev/null
 echo -ne '{"status": "Success", "capabilities": {"attach": false}}' >&1
 exit 0
 EOF
