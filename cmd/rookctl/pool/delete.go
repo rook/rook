@@ -15,15 +15,38 @@ limitations under the License.
 */
 package pool
 
-import "github.com/spf13/cobra"
+import (
+	"fmt"
+	"os"
 
-var Cmd = &cobra.Command{
-	Use:   "pool",
-	Short: "Performs commands and operations on storage pools in the cluster",
+	"github.com/rook/rook/cmd/rookctl/rook"
+	"github.com/spf13/cobra"
+)
+
+var deleteCmd = &cobra.Command{
+	Use:   "delete [name]",
+	Short: "Deletes a pool from the cluster",
 }
 
 func init() {
-	Cmd.AddCommand(listCmd)
-	Cmd.AddCommand(createCmd)
-	Cmd.AddCommand(deleteCmd)
+	deleteCmd.RunE = deleteObjectStoreEntry
+}
+
+func deleteObjectStoreEntry(cmd *cobra.Command, args []string) error {
+	rook.SetupLogging()
+
+	if len(args) == 0 {
+		fmt.Fprintln(os.Stderr, "missing pool name")
+		os.Exit(1)
+	}
+
+	poolName := args[0]
+	c := rook.NewRookNetworkRestClient()
+	err := c.DeletePool(poolName)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+
+	return nil
 }

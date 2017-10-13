@@ -107,7 +107,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	require.Equal(s.T(), uint64(0), ObjNum1)
 	logger.Infof("Object deleted on bucket successfully")
 
-	logger.Infof("Step 6 : Delete  bucket")
+	logger.Infof("Step 7 : Delete bucket")
 	_, bkdelErr := s3client.DeleteBucket(bucketname)
 	require.Nil(s.T(), bkdelErr)
 	BucketsAfterDelete, _ := oc.ObjectBucketList(storeName)
@@ -120,7 +120,6 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	usersAfterDelete, _ := oc.ObjectListUser(storeName)
 	require.Equal(s.T(), len(usersBeforeDelete)-1, len(usersAfterDelete), "Make sure user list count is reducd by 1")
 	logger.Infof("Object store user deleted successfully")
-
 }
 
 //Test Object StoreCreation on Rook that was installed via helm

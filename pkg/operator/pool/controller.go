@@ -136,14 +136,11 @@ func (p *Pool) create(context *clusterd.Context) error {
 
 // Delete the pool
 func (p *Pool) delete(context *clusterd.Context) error {
-	// check if the pool  exists
-	exists, err := p.exists(context)
-	if err == nil && !exists {
-		return nil
+
+	if err := ceph.DeletePool(context, p.Namespace, p.Name); err != nil {
+		return fmt.Errorf("failed to delete pool '%s'. %+v", p.Name, err)
 	}
 
-	logger.Infof("TODO: delete pool %s from namespace %s", p.Name, p.Namespace)
-	//return p.client.DeletePool(p.PoolSpec.Name)
 	return nil
 }
 

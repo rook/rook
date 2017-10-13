@@ -18,6 +18,7 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"path"
 
 	"github.com/rook/rook/pkg/model"
 )
@@ -53,4 +54,14 @@ func (c *RookNetworkRestClient) CreatePool(newPool model.Pool) (string, error) {
 	}
 
 	return string(resp), nil
+}
+
+func (c *RookNetworkRestClient) DeletePool(name string) error {
+
+	_, err := c.DoDelete(path.Join(poolQueryName, name))
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

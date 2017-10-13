@@ -194,7 +194,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request) {
 
 // GetUser gets the passed users info from the object store in this cluster.
 // GET
-// /objectstore/{name}/users/{USER_ID}
+// /objectstore/{name}/users/{id}
 func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request) {
 	id := mux.Vars(r)["id"]
 

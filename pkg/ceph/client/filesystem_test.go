@@ -17,8 +17,12 @@ package client
 
 import (
 	"encoding/json"
+	"fmt"
 	"testing"
 
+	exectest "github.com/rook/rook/pkg/util/exec/test"
+
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -62,6 +66,8 @@ func TestFilesystemGetMarshal(t *testing.T) {
 			Root:           0,
 			TableServer:    0,
 			MaxMDS:         1,
+			MetadataPool:   2,
+			DataPools:      []int{1},
 			In:             []int{0},
 			Up:             map[string]int{"mds_0": 4107},
 			Failed:         []int{},
@@ -80,4 +86,71 @@ func TestFilesystemGetMarshal(t *testing.T) {
 	}
 
 	assert.Equal(t, expectedFS, fs)
+}
+
+func TestFilesystemRemove(t *testing.T) {
+	dataDeleted := false
+	metadataDeleted := false
+	crushDeleted := false
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	fs := CephFilesystemDetails{
+		ID: 1,
+		MDSMap: MDSMap{
+			FilesystemName: "myfs1",
+			MetadataPool:   2,
+			DataPools:      []int{1},
+		},
+	}
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[0] == "fs" {
+			if args[1] == "get" {
+				output, err := json.Marshal(fs)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "rm" {
+				return "", nil
+			}
+		}
+		if args[0] == "osd" {
+			if args[1] == "lspools" {
+				pools := []*CephStoragePoolSummary{
+					{Name: "mydata", Number: 1},
+					{Name: "mymetadata", Number: 2},
+				}
+				output, err := json.Marshal(pools)
+				assert.Nil(t, err)
+				return string(output), nil
+			}
+			if args[1] == "pool" {
+				if args[2] == "get" {
+					return `{"pool_id":1}`, nil
+				}
+				if args[2] == "delete" {
+					if args[3] == "mydata" {
+						dataDeleted = true
+						return "", nil
+					}
+					if args[3] == "mymetadata" {
+						metadataDeleted = true
+						return "", nil
+					}
+				}
+			}
+			if args[1] == "crush" {
+				assert.Equal(t, "rule", args[2])
+				assert.Equal(t, "rm", args[3])
+				crushDeleted = true
+				return "", nil
+			}
+		}
+		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+	}
+	err := RemoveFilesystem(context, "ns", fs.MDSMap.FilesystemName)
+	assert.Nil(t, err)
+	assert.True(t, metadataDeleted)
+	assert.True(t, dataDeleted)
+	assert.True(t, crushDeleted)
 }

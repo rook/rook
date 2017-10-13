@@ -64,3 +64,61 @@ func TestCreateRealm(t *testing.T) {
 	err = createRealm(objContext, "2.3.4.5", 80)
 	assert.Nil(t, err)
 }
+
+func TestDeleteStore(t *testing.T) {
+	realmDeleted := false
+	zoneDeleted := false
+	zoneGroupDeleted := false
+	poolsDeleted := 0
+	rulesDeleted := 0
+	executor := &exectest.MockExecutor{}
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
+		//logger.Infof("command: %s %v", command, args)
+		if args[0] == "osd" {
+			if args[1] == "pool" {
+				if args[2] == "get" {
+					return `{"pool_id":1}`, nil
+				}
+				if args[2] == "delete" {
+					poolsDeleted++
+					return "", nil
+				}
+			}
+			if args[1] == "crush" {
+				assert.Equal(t, "rule", args[2])
+				assert.Equal(t, "rm", args[3])
+				rulesDeleted++
+				return "", nil
+			}
+		}
+		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+	}
+	executor.MockExecuteCommandWithCombinedOutput = func(debug bool, actionName, command string, args ...string) (string, error) {
+		//logger.Infof("Command: %s %v", command, args)
+		if args[0] == "realm" {
+			assert.Equal(t, "delete", args[1])
+			realmDeleted = true
+			return "", nil
+		}
+		if args[0] == "zonegroup" {
+			assert.Equal(t, "delete", args[1])
+			zoneGroupDeleted = true
+			return "", nil
+		}
+		if args[0] == "zone" {
+			assert.Equal(t, "delete", args[1])
+			zoneDeleted = true
+			return "", nil
+		}
+		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+	}
+	context := &Context{context: &clusterd.Context{Executor: executor}, Name: "myobj", ClusterName: "ns"}
+
+	err := DeleteObjectStore(context)
+	assert.Nil(t, err)
+	assert.Equal(t, 6, poolsDeleted)
+	assert.Equal(t, 6, rulesDeleted)
+	assert.True(t, realmDeleted)
+	assert.True(t, zoneGroupDeleted)
+	assert.True(t, zoneDeleted)
+}

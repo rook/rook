@@ -29,7 +29,8 @@ import (
 )
 
 const (
-	confirmFlag = "--yes-i-really-mean-it"
+	confirmFlag       = "--yes-i-really-mean-it"
+	reallyConfirmFlag = "--yes-i-really-really-mean-it"
 )
 
 type CephStoragePoolSummary struct {
@@ -79,6 +80,18 @@ func ListPoolSummaries(context *clusterd.Context, clusterName string) ([]CephSto
 	return pools, nil
 }
 
+func GetPoolNamesByID(context *clusterd.Context, clusterName string) (map[int]string, error) {
+	pools, err := ListPoolSummaries(context, clusterName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pools: %+v", err)
+	}
+	names := map[int]string{}
+	for _, p := range pools {
+		names[p.Number] = p.Name
+	}
+	return names, nil
+}
+
 func GetPoolDetails(context *clusterd.Context, clusterName, name string) (CephStoragePoolDetails, error) {
 	args := []string{"osd", "pool", "get", name, "all"}
 	buf, err := ExecuteCephCommand(context, clusterName, args)
@@ -124,6 +137,32 @@ func CreatePoolWithProfile(context *clusterd.Context, clusterName string, newPoo
 	return CreatePoolForApp(context, clusterName, newPool, appName)
 }
 
+func DeletePool(context *clusterd.Context, clusterName string, name string) error {
+	// check if the pool exists
+	pool, err := GetPoolDetails(context, clusterName, name)
+	if err != nil {
+		logger.Infof("pool %s not found for deletion. %+v", name, err)
+		return nil
+	}
+
+	logger.Infof("purging pool %s (id=%d)", name, pool.Number)
+	args := []string{"osd", "pool", "delete", name, name, reallyConfirmFlag}
+	_, err = ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to delete pool %s. %+v", name, err)
+	}
+
+	// remove the crush rule for this pool and ignore the error in case the rule is still in use or not found
+	args = []string{"osd", "crush", "rule", "rm", name}
+	_, err = ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		logger.Infof("did not delete crush rule %s. %+v", name, err)
+	}
+
+	logger.Infof("purge completed for pool %s", name)
+	return nil
+}
+
 func CreatePool(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails) error {
 	// for a generic/custom pool, just reuse the pool name for its app name
 	return CreatePoolForApp(context, clusterName, newPool, newPool.Name)
@@ -132,7 +171,7 @@ func CreatePool(context *clusterd.Context, clusterName string, newPool CephStora
 func CreatePoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string) error {
 	// create a crush rule for a replicated pool, if a failure domain is specified
 	replicated := newPool.ErasureCodeProfile == "" && newPool.Size > 0
-	ruleName := fmt.Sprintf("%s-rule", newPool.Name)
+	ruleName := newPool.Name
 	if replicated && newPool.FailureDomain != "" {
 		args := []string{"osd", "crush", "rule", "create-simple", ruleName, "default", newPool.FailureDomain}
 		_, err := ExecuteCephCommand(context, clusterName, args)

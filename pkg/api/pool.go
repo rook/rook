@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/gorilla/mux"
 	ceph "github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/model"
 )
@@ -36,6 +37,18 @@ func (h *Handler) GetPools(w http.ResponseWriter, r *http.Request) {
 	}
 
 	FormatJsonResponse(w, pools)
+}
+
+// Creates a storage pool as specified by the request body.
+// DELETE
+// /pool/{name}
+func (h *Handler) DeletePool(w http.ResponseWriter, r *http.Request) {
+	poolName := mux.Vars(r)["name"]
+	if err := ceph.DeletePool(h.config.context, h.config.namespace, poolName); err != nil {
+		logger.Errorf("failed to delete pool '%s'. %+v", poolName, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 }
 
 // Creates a storage pool as specified by the request body.
@@ -57,7 +70,7 @@ func (h *Handler) CreatePool(w http.ResponseWriter, r *http.Request) {
 
 	err := ceph.CreatePoolWithProfile(h.context, h.config.clusterInfo.Name, newPool, newPool.Name)
 	if err != nil {
-		logger.Errorf("failed to create new pool '%s': %+v", newPool.Name, err)
+		logger.Errorf("failed to create new pool '%s'. %+v", newPool.Name, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}

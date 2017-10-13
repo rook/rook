@@ -51,6 +51,7 @@ type GlobalConfig struct {
 	ClusterAddr              string `ini:"cluster addr,omitempty"`
 	ClusterNetwork           string `ini:"cluster network,omitempty"`
 	MonKeyValueDb            string `ini:"mon keyvaluedb"`
+	MonAllowPoolDelete       bool   `ini:"mon_allow_pool_delete"`
 	DebugLogDefaultLevel     int    `ini:"debug default"`
 	DebugLogRadosLevel       int    `ini:"debug rados"`
 	DebugLogMonLevel         int    `ini:"debug mon"`
@@ -263,6 +264,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 			ClusterAddr:            context.NetworkInfo.ClusterAddrIPv4,
 			ClusterNetwork:         context.NetworkInfo.ClusterNetwork,
 			MonKeyValueDb:          "rocksdb",
+			MonAllowPoolDelete:     true,
 			DebugLogDefaultLevel:   cephLogLevel,
 			DebugLogRadosLevel:     cephLogLevel,
 			DebugLogMonLevel:       cephLogLevel,

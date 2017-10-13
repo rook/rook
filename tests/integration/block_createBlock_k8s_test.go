@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -26,15 +27,12 @@ import (
 	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
 // Test K8s Block Image Creation Scenarios. These tests work when platform is set to Kubernetes
-var (
-	claimName = "test-claim1"
-)
-
 func TestK8sBlockCreate(t *testing.T) {
 	suite.Run(t, new(K8sBlockImageCreateSuite))
 }
@@ -107,11 +105,15 @@ parameters:
 
 // Test case when persistentvolumeclaim is created for a storage class that doesn't exist
 func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
+	logger.Infof("Test creating PVC(block images) when storage class is not created")
 
-	s.T().Log("Test creating PVC(block images) when storage class is not created")
 	//Create PVC
+	claimName := "test-no-storage-class-claim"
+	poolName := "test-no-storage-class-pool"
+	defer s.tearDownTest(claimName, poolName)
+
 	result, err := s.pvcOperation(claimName, "create")
-	require.Contains(s.T(), result, "persistentvolumeclaim \"test-claim1\" created", "Make sure pvc is created")
+	require.Contains(s.T(), result, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result)
 	require.NoError(s.T(), err)
 
 	//check status of PVC
@@ -127,11 +129,14 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 
 // Test case when persistentvolumeclaim is created for a valid storage class
 func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenStorageClassExists() {
+	logger.Infof("Test creating PVC(block images) when storage class is created")
+	claimName := "test-with-storage-class-claim"
+	poolName := "test-with-storage-class-pool"
+	defer s.tearDownTest(claimName, poolName)
 
-	s.T().Log("Test creating PVC(block images) when storage class is created")
 	//create pool and storageclass
-	result1, err1 := s.storageClassOperation("test-pool-1", "create")
-	require.Contains(s.T(), result1, "pool \"test-pool-1\" created", "Make sure test pool is created")
+	result1, err1 := s.storageClassOperation(poolName, "create")
+	require.Contains(s.T(), result1, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
 	require.Contains(s.T(), result1, "storageclass \"rook-block\" created", "Make sure storageclass is created")
 	require.NoError(s.T(), err1)
 
@@ -142,7 +147,7 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenStorageClassExists() {
 
 	//create pvc
 	result2, err2 := s.pvcOperation(claimName, "create")
-	require.Contains(s.T(), result2, "persistentvolumeclaim \"test-claim1\" created", "Make sure pvc is created")
+	require.Contains(s.T(), result2, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result2)
 	require.NoError(s.T(), err2)
 
 	//check status of PVC
@@ -156,49 +161,54 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenStorageClassExists() {
 
 // Test case when persistentvolumeclaim is created for a valid storage class twice
 func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
+	logger.Infof("Test creating PVC(create block images) twice")
+	claimName := "test-twice-claim"
+	poolName := "test-twice-pool"
+	defer s.tearDownTest(claimName, poolName)
+	status, _ := s.kh.GetPVCStatus(claimName)
+	logger.Infof("PVC %s status: %s", claimName, status)
+	s.bc.BlockList()
 
-	s.T().Log("Test creating PVC(create block images) twice")
-	//create pool and storageclass
-	result1, err1 := s.storageClassOperation("test-pool-1", "create")
-	require.Contains(s.T(), result1, "pool \"test-pool-1\" created", "Make sure test pool is created")
-	require.Contains(s.T(), result1, "storageclass \"rook-block\" created", "Make sure storageclass is created")
+	logger.Infof("create pool and storageclass")
+	result1, err1 := s.storageClassOperation(poolName, "create")
+	assert.Contains(s.T(), result1, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created. "+result1)
+	assert.Contains(s.T(), result1, "storageclass \"rook-block\" created", "Make sure storageclass is created")
 	require.NoError(s.T(), err1)
 
-	//make sure storageclass is created
+	logger.Infof("make sure storageclass is created")
 	present, err := s.kh.IsStorageClassPresent("rook-block")
 	require.Nil(s.T(), err)
 	require.True(s.T(), present, "Make sure storageclass is present")
 
-	//create pvc
+	logger.Infof("create pvc")
 	result2, err2 := s.pvcOperation(claimName, "create")
-	require.Contains(s.T(), result2, "persistentvolumeclaim \"test-claim1\" created", "Make sure pvc is created")
+	require.Contains(s.T(), result2, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result2)
 	require.NoError(s.T(), err2)
 
-	//check status of PVC
+	logger.Infof("check status of PVC")
 	require.True(s.T(), s.isPVCBound(claimName))
 
-	b1, _ := s.bc.BlockList()
-	require.Equal(s.T(), s.initBlockCount+1, len(b1), "Make sure new block image is created")
+	b1, err := s.bc.BlockList()
+	assert.Nil(s.T(), err)
+	assert.Equal(s.T(), s.initBlockCount+1, len(b1), "Make sure new block image is created")
 
-	//Create same pvc again
+	logger.Infof("Create same pvc again")
 	result3, err3 := s.pvcOperation(claimName, "create")
-	require.Contains(s.T(), result3, "persistentvolumeclaims \"test-claim1\" already exists", "make sure PVC is not created again")
+	require.Contains(s.T(), result3, fmt.Sprintf("persistentvolumeclaims \"%s\" already exists", claimName), "make sure PVC is not created again. "+result3)
 	require.NoError(s.T(), err3)
 
-	//check status of PVC
+	logger.Infof("check status of PVC")
 	require.True(s.T(), s.isPVCBound(claimName))
 
-	//check bock image count
+	logger.Infof("check block image count")
 	b2, _ := s.bc.BlockList()
-	require.Equal(s.T(), len(b1), len(b2), "Make sure new block image is created")
+	assert.Equal(s.T(), len(b1), len(b2), "Make sure new block image is created")
 
 }
 
-func (s *K8sBlockImageCreateSuite) TearDownTest() {
-
+func (s *K8sBlockImageCreateSuite) tearDownTest(claimName, poolName string) {
 	s.pvcOperation(claimName, "delete")
-	s.storageClassOperation("test-pool-1", "delete")
-
+	s.storageClassOperation(poolName, "delete")
 }
 
 func (s *K8sBlockImageCreateSuite) storageClassOperation(poolName string, action string) (string, error) {
@@ -226,7 +236,8 @@ func (s *K8sBlockImageCreateSuite) pvcOperation(claimName string, action string)
 func (s *K8sBlockImageCreateSuite) isPVCBound(name string) bool {
 	inc := 0
 	for inc < utils.RetryLoop {
-		status, _ := s.kh.GetPVCStatus(claimName)
+		status, _ := s.kh.GetPVCStatus(name)
+		logger.Infof("PVC %s status: %s", name, status)
 		if strings.TrimRight(status, "\n") == "'Bound'" {
 			return true
 		}
@@ -236,7 +247,7 @@ func (s *K8sBlockImageCreateSuite) isPVCBound(name string) bool {
 	}
 	return false
 }
-func (s *K8sBlockImageCreateSuite) TearDownSuite() {
 
+func (s *K8sBlockImageCreateSuite) TearDownSuite() {
 	s.installer.UninstallRookFromK8s("rook", false)
 }
