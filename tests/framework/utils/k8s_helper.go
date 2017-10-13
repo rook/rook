@@ -533,15 +533,16 @@ func (k8sh *K8sHelper) IsStorageClassPresent(name string) (bool, error) {
 }
 
 //GetPVCStatus returns status of PVC
-func (k8sh *K8sHelper) GetPVCStatus(name string) (string, error) {
-	args := []string{"get", "pvc", "-o", "jsonpath='{.items[*].metadata.name}'"}
-	result, err := k8sh.Kubectl(args...)
-	if strings.Contains(result, name) {
-		args := []string{"get", "pvc", name, "-o", "jsonpath='{.status.phase}'"}
-		res, _ := k8sh.Kubectl(args...)
-		return res, nil
+func (k8sh *K8sHelper) GetPVCStatus(namespace string, name string) (v1.PersistentVolumeClaimPhase, error) {
+	getOpts := metav1.GetOptions{}
+
+	pvc, err := k8sh.Clientset.PersistentVolumeClaims(namespace).Get(name, getOpts)
+	if err != nil {
+		return v1.ClaimLost, fmt.Errorf("PVC %s not found,err->%v", name, err)
 	}
-	return "PVC NOT FOUND", fmt.Errorf("PVC %s not found,err->%v", name, err)
+
+	return pvc.Status.Phase, nil
+
 }
 
 //IsPodInExpectedState waits for 90s for a pod to be an expected state
@@ -638,16 +639,32 @@ func (k8sh *K8sHelper) WaitUntilPodIsDeleted(podNamePattern string) bool {
 
 //WaitUntilPVCIsBound waits for a PVC to be in bound state for 90 seconds
 //if PVC goes to Bound state within 90s True is returned, if not false
-func (k8sh *K8sHelper) WaitUntilPVCIsBound(pvcname string) bool {
+func (k8sh *K8sHelper) WaitUntilPVCIsBound(namespace string, pvcname string) bool {
 
 	inc := 0
 	for inc < RetryLoop {
-		out, err := k8sh.GetPVCStatus(pvcname)
-		if strings.Contains(out, "Bound") {
+		out, err := k8sh.GetPVCStatus(namespace, pvcname)
+		if err == nil {
+			if out == v1.PersistentVolumeClaimPhase(v1.ClaimBound) {
+				return true
+			}
+		}
+		logger.Infof("waiting for PVC %s  to be bound. current=%s. err=%+v", pvcname, out, err)
+		inc++
+		time.Sleep(RetryInterval * time.Second)
+	}
+	return false
+}
+
+func (k8sh *K8sHelper) WaitUntilPVCIsDeleted(namespace string, pvcname string) bool {
+	getOpts := metav1.GetOptions{}
+	inc := 0
+	for inc < RetryLoop {
+		_, err := k8sh.Clientset.PersistentVolumeClaims(namespace).Get(pvcname, getOpts)
+		if err != nil {
 			return true
 		}
-
-		logger.Infof("waiting for PVC to be bound. current=%s. err=%+v", out, err)
+		logger.Infof("waiting for PVC %s  to be deleted.", pvcname)
 		inc++
 		time.Sleep(RetryInterval * time.Second)
 	}

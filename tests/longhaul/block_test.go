@@ -171,14 +171,14 @@ spec:
 		require.True(s.T(), present, "Make sure storageclass is present")
 	}
 	//create mysql pod
-	if _, err := s.kh.GetPVCStatus("mysql-pv-claim"); err != nil {
+	if _, err := s.kh.GetPVCStatus(defaultNamespace, "mysql-pv-claim"); err != nil {
 		logger.Infof("Create PVC")
 
 		s.kh.ResourceOperation("create", s.mysqlAppPath)
 
 		//wait till mysql pod is up
 		require.True(s.T(), s.kh.IsPodInExpectedState("mysqldb", "", "Running"))
-		pvcStatus, err := s.kh.GetPVCStatus("mysql-pv-claim")
+		pvcStatus, err := s.kh.GetPVCStatus(defaultNamespace, "mysql-pv-claim")
 		require.Nil(s.T(), err)
 		require.Contains(s.T(), pvcStatus, "Bound")
 	}
