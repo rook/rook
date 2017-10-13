@@ -314,3 +314,11 @@ kubectl -n rook get pod -l app=rook-ceph-mds -o jsonpath='{range .items[*]}{.met
 
 ## Completion
 At this point, your Rook cluster should be fully upgraded to running version `rook/rook:v0.5.1` and the cluster should be healthy according to the steps in the [health verification section](#health-verification).
+
+## Upgrading Kubernetes
+:warning: Rook cluster installations on Kubernetes prior to version 1.7.x, use [ThirdPartyResource](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-third-party-resource/) that have been deprecated as of 1.7 and removed in 1.8. If upgrading your Kubernetes cluster Rook TPRs have to be migrated to CustomResourceDefinition (CRD) following [Kubernetes documentation](https://kubernetes.io/docs/tasks/access-kubernetes-api/migrate-third-party-resource/). Rook TPRs that require migration during upgrade are: 
+- Cluster
+- Pool
+- ObjectStore
+- Filesystem
+- VolumeAttachment
