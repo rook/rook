@@ -128,37 +128,7 @@ func (c *Cluster) Start() error {
 	}
 
 	if len(c.clusterInfo.Monitors) < c.Size {
-		// init the mons config
-		mons := c.initMonConfig(c.Size)
-
-		// Assign the pods to nodes
-		if err := c.assignMons(mons); err != nil {
-			return fmt.Errorf("failed to assign pods to mons. %+v", err)
-		}
-
-		// Start one monitor at a time
-		for i := len(c.clusterInfo.Monitors); i < c.Size; i++ {
-			// Init the mon IPs
-			if err := c.initMonIPs(mons[0 : i+1]); err != nil {
-				return fmt.Errorf("failed to init mon services. %+v", err)
-			}
-
-			// save the mon config after we have "initiated the IPs"
-			if err := c.saveMonConfig(); err != nil {
-				return fmt.Errorf("failed to save mons. %+v", err)
-			}
-
-			// make sure we have the connection info generated so connections can happen
-			if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
-				return err
-			}
-
-			// Start pods
-			if err := c.startPods(mons[0 : i+1]); err != nil {
-				return fmt.Errorf("failed to start mon pods. %+v", err)
-			}
-		}
-		logger.Debugf("mon endpoints used are: %s", c.clusterInfo.MonEndpoints())
+		c.startMons()
 	} else {
 		// Check the health of a previously started cluster
 		if err := c.checkHealth(); err != nil {
@@ -166,6 +136,42 @@ func (c *Cluster) Start() error {
 		}
 	}
 
+	return nil
+}
+
+func (c *Cluster) startMons() error {
+	// init the mons config
+	mons := c.initMonConfig(c.Size)
+
+	// Assign the pods to nodes
+	if err := c.assignMons(mons); err != nil {
+		return fmt.Errorf("failed to assign pods to mons. %+v", err)
+	}
+
+	// Start one monitor at a time
+	for i := len(c.clusterInfo.Monitors); i < c.Size; i++ {
+		// Init the mon IPs
+		if err := c.initMonIPs(mons[0 : i+1]); err != nil {
+			return fmt.Errorf("failed to init mon services. %+v", err)
+		}
+
+		// save the mon config after we have "initiated the IPs"
+		if err := c.saveMonConfig(); err != nil {
+			return fmt.Errorf("failed to save mons. %+v", err)
+		}
+
+		// make sure we have the connection info generated so connections can happen
+		if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
+			return err
+		}
+
+		// Start pods
+		if err := c.startPods(mons[0 : i+1]); err != nil {
+			return fmt.Errorf("failed to start mon pods. %+v", err)
+		}
+	}
+
+	logger.Debugf("mon endpoints used are: %s", c.clusterInfo.MonEndpoints())
 	return nil
 }
 

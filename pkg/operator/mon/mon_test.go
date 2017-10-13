@@ -195,20 +195,21 @@ func TestCheckHealth(t *testing.T) {
 		Executor:  executor,
 	}
 	c := New(context, "ns", "", "myversion", k8sutil.Placement{}, false)
+	c.Size = 1
 	c.clusterInfo = test.CreateClusterInfo(1)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
-
-	err := c.checkHealth()
-	assert.Nil(t, err)
 
 	c.mapping.Node["mon1"] = &nodeInfo{
 		Name:    "node0",
 		Address: "",
 	}
 	c.mapping.Port["node0"] = cephmon.DefaultPort
-
 	c.maxMonID = 10
+
+	err := c.checkHealth()
+	assert.Nil(t, err)
+
 	err = c.failoverMon("mon1")
 	assert.Nil(t, err)
 
@@ -464,4 +465,61 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 	assert.Equal(t, strconv.Itoa(cephmon.DefaultPort), sEndpoint[1])
 	sEndpoint = strings.Split(c.clusterInfo.Monitors["mon2"].Endpoint, ":")
 	assert.Equal(t, strconv.Itoa(cephmon.DefaultPort+1), sEndpoint[1])
+}
+
+func TestCheckHealthNotFound(t *testing.T) {
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			return clienttest.MonInQuorumResponse(), nil
+		},
+	}
+	clientset := test.New(1)
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	context := &clusterd.Context{
+		Clientset: clientset,
+		ConfigDir: configDir,
+		Executor:  executor,
+	}
+	c := New(context, "ns", "", "myversion", k8sutil.Placement{}, false)
+	c.Size = 2
+	c.clusterInfo = test.CreateClusterInfo(2)
+	c.waitForStart = false
+	defer os.RemoveAll(c.context.ConfigDir)
+	fmt.Printf("TEST: %+v\n", c.clusterInfo)
+
+	c.mapping.Node["mon1"] = &nodeInfo{
+		Name:    "node0",
+		Address: "",
+	}
+	c.mapping.Node["mon2"] = &nodeInfo{
+		Name:    "node0",
+		Address: "",
+	}
+	c.mapping.Port["node0"] = cephmon.DefaultPort
+	c.maxMonID = 10
+
+	c.saveMonConfig()
+
+	// Check if the two mons are found in the configmap
+	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	if cm.Data[EndpointDataKey] == "mon1=1.2.3.1:6790,mon2=1.2.3.2:6790" {
+		assert.Equal(t, "mon1=1.2.3.1:6790,mon2=1.2.3.2:6790", cm.Data[EndpointDataKey])
+	} else {
+		assert.Equal(t, "mon2=1.2.3.2:6790,mon1=1.2.3.1:6790", cm.Data[EndpointDataKey])
+	}
+
+	// Because mon2 isn't in the MonInQuorumResponse() this will create a mon11
+	err = c.checkHealth()
+	assert.Nil(t, err)
+
+	// recheck that the "not found" mon has been replaced with a new one
+	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	if cm.Data[EndpointDataKey] == "mon1=1.2.3.1:6790,rook-ceph-mon11=:6790" {
+		assert.Equal(t, "mon1=1.2.3.1:6790,rook-ceph-mon11=:6790", cm.Data[EndpointDataKey])
+	} else {
+		assert.Equal(t, "rook-ceph-mon11=:6790,mon1=1.2.3.1:6790", cm.Data[EndpointDataKey])
+	}
 }

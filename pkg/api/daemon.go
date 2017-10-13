@@ -22,6 +22,7 @@ import (
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	monop "github.com/rook/rook/pkg/operator/mon"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/watch"
@@ -76,6 +77,10 @@ func WatchMonConfig(context *clusterd.Context, c *Config) {
 	for {
 		e := <-w.ResultChan()
 		if e.Type == watch.Modified {
+			// "unmarshal" object into configmap and set new endpoints
+			monEndpoints := e.Object.(*v1.ConfigMap)
+			c.clusterInfo.Monitors = mon.ParseMonEndpoints(monEndpoints.Data[monop.EndpointDataKey])
+
 			// write the latest config to the config dir
 			if err := mon.GenerateAdminConnectionConfig(context, c.clusterInfo); err != nil {
 				logger.Errorf("failed to write connection config. %+v", err)
