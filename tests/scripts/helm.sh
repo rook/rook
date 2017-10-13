@@ -65,6 +65,7 @@ case "${1:-}" in
   up)
     install
     cat _output/version | xargs ${scriptdir}/makeTestImages.sh tag amd64 || true
+    helm repo add stable https://kubernetes-charts.storage.googleapis.com/
     ;;
   clean)
     helm_reset
