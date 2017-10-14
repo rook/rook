@@ -38,12 +38,6 @@ var RootCmd = &cobra.Command{
 	SilenceUsage:  true,
 }
 
-type NotSupportedError struct{}
-
-func (e *NotSupportedError) Error() string {
-	return "Not supported"
-}
-
 func Execute() {
 	RootCmd.Execute()
 }

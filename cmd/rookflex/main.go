@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/rook/rook/cmd/rookflex/cmd"
 )
@@ -31,8 +32,8 @@ type result struct {
 func main() {
 	var r result
 	if err := cmd.RootCmd.Execute(); err != nil {
-		if e, ok := err.(*cmd.NotSupportedError); ok {
-			r.Status = e.Error()
+		if strings.HasPrefix(err.Error(), "unknown command") {
+			r.Status = "Not supported"
 		} else {
 			r.Status = "Failure"
 			r.Message = err.Error()
