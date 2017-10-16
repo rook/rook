@@ -108,45 +108,15 @@ func (c *FlexvolumeController) Attach(attachOpts AttachOptions, devicePath *stri
 				return fmt.Errorf("failed to create volume CRD %s. %+v", crdName, err)
 			}
 			// Some other attacher beat us in this race. Kubernetes will retry again.
-			return fmt.Errorf("failed to attach volume %s. Volume is already attached by a different pod", crdName)
+			return fmt.Errorf("failed to attach volume %s for pod %s/%s. Volume is already attached by a different pod",
+				crdName, attachOpts.PodNamespace, attachOpts.Pod)
 		}
 	} else {
 		// Volume has already been attached.
-		// Check if there is already an attachment with RW.
-		index := getPodRWAttachmentObject(volumeattachObj)
-		if index != -1 {
-			// check if the RW attachment is orphaned.
-			attachment := &volumeattachObj.Attachments[index]
-			pod, err := c.clientset.Core().Pods(attachment.PodNamespace).Get(attachment.PodName, metav1.GetOptions{})
-			if err != nil {
-				if !errors.IsNotFound(err) {
-					return fmt.Errorf("failed to get pod CRD %s/%s. %+v", attachment.PodNamespace, attachment.PodName, err)
-				}
-
-				// Attachment is orphaned. Update attachment record and proceed with attaching
-				attachment.Node = node
-				attachment.MountDir = attachOpts.MountDir
-				attachment.PodNamespace = attachOpts.PodNamespace
-				attachment.PodName = attachOpts.Pod
-				attachment.ReadOnly = attachOpts.RW == ReadOnly
-				err = c.volumeAttachmentController.Update(volumeattachObj)
-				if err != nil {
-					return fmt.Errorf("failed to update volume CRD %s. %+v", crdName, err)
-				}
-			} else {
-				// Attachment is not orphaned. Original pod still exists. Dont attach.
-				return fmt.Errorf("failed to attach volume %s. Volume is already attached by pod %s/%s. Status %+v", crdName, attachment.PodNamespace, attachment.PodName, pod.Status.Phase)
-			}
-		} else {
-			// No RW attachment found. Check if this is a RW attachment request.
-			// We only support RW once attachment. No mixing either with RO
-			if attachOpts.RW == "rw" && len(volumeattachObj.Attachments) > 0 {
-				return fmt.Errorf("failed to attach volume %s. Volume is already attached by one or more pods", crdName)
-			}
-
-		}
-
-		// find if the attachment object has been previously created
+		// find if the attachment object has been previously created.
+		// This could be in the case of a multiple attachment for ROs or
+		// it could be the the VolumeAttachment record was created previously and
+		// the attach operation failed and Kubernetes retried.
 		found := false
 		for _, a := range volumeattachObj.Attachments {
 			if a.MountDir == attachOpts.MountDir {
@@ -155,18 +125,53 @@ func (c *FlexvolumeController) Attach(attachOpts AttachOptions, devicePath *stri
 		}
 
 		if !found {
-			// Create a new attachment record and proceed with attaching
-			newAttach := crd.Attachment{
-				Node:         node,
-				PodNamespace: attachOpts.PodNamespace,
-				PodName:      attachOpts.Pod,
-				MountDir:     attachOpts.MountDir,
-				ReadOnly:     attachOpts.RW == ReadOnly,
-			}
-			volumeattachObj.Attachments = append(volumeattachObj.Attachments, newAttach)
-			err = c.volumeAttachmentController.Update(volumeattachObj)
-			if err != nil {
-				return fmt.Errorf("failed to update volume CRD %s. %+v", crdName, err)
+			// Check if there is already an attachment with RW.
+			index := getPodRWAttachmentObject(volumeattachObj)
+			if index != -1 {
+				// check if the RW attachment is orphaned.
+				attachment := &volumeattachObj.Attachments[index]
+				pod, err := c.clientset.Core().Pods(attachment.PodNamespace).Get(attachment.PodName, metav1.GetOptions{})
+				if err != nil {
+					if !errors.IsNotFound(err) {
+						return fmt.Errorf("failed to get pod CRD %s/%s. %+v", attachment.PodNamespace, attachment.PodName, err)
+					}
+
+					// Attachment is orphaned. Update attachment record and proceed with attaching
+					attachment.Node = node
+					attachment.MountDir = attachOpts.MountDir
+					attachment.PodNamespace = attachOpts.PodNamespace
+					attachment.PodName = attachOpts.Pod
+					attachment.ReadOnly = attachOpts.RW == ReadOnly
+					err = c.volumeAttachmentController.Update(volumeattachObj)
+					if err != nil {
+						return fmt.Errorf("failed to update volume CRD %s. %+v", crdName, err)
+					}
+				} else {
+					// Attachment is not orphaned. Original pod still exists. Dont attach.
+					return fmt.Errorf("failed to attach volume %s for pod %s/%s. Volume is already attached by pod %s/%s. Status %+v",
+						crdName, attachOpts.PodNamespace, attachOpts.Pod, attachment.PodNamespace, attachment.PodName, pod.Status.Phase)
+				}
+			} else {
+				// No RW attachment found. Check if this is a RW attachment request.
+				// We only support RW once attachment. No mixing either with RO
+				if attachOpts.RW == "rw" && len(volumeattachObj.Attachments) > 0 {
+					return fmt.Errorf("failed to attach volume %s for pod %s/%s. Volume is already attached by one or more pods",
+						crdName, attachOpts.PodNamespace, attachOpts.Pod)
+				}
+
+				// Create a new attachment record and proceed with attaching
+				newAttach := crd.Attachment{
+					Node:         node,
+					PodNamespace: attachOpts.PodNamespace,
+					PodName:      attachOpts.Pod,
+					MountDir:     attachOpts.MountDir,
+					ReadOnly:     attachOpts.RW == ReadOnly,
+				}
+				volumeattachObj.Attachments = append(volumeattachObj.Attachments, newAttach)
+				err = c.volumeAttachmentController.Update(volumeattachObj)
+				if err != nil {
+					return fmt.Errorf("failed to update volume CRD %s. %+v", crdName, err)
+				}
 			}
 		}
 	}
@@ -174,7 +179,6 @@ func (c *FlexvolumeController) Attach(attachOpts AttachOptions, devicePath *stri
 	if err != nil {
 		return fmt.Errorf("failed to attach volume %s/%s: %+v", attachOpts.Pool, attachOpts.Image, err)
 	}
-
 	return nil
 }
 
@@ -196,8 +200,8 @@ func (c *FlexvolumeController) Detach(detachOpts AttachOptions, _ *struct{} /* v
 	return nil
 }
 
-// RemoveAttachmentObject removes the attachment from the VolumeAttachment CRD
-func (c *FlexvolumeController) RemoveAttachmentObject(detachOpts AttachOptions, _ *struct{} /* void reply */) error {
+// RemoveAttachmentObject removes the attachment from the VolumeAttachment CRD and returns whether the volume is safe to detach
+func (c *FlexvolumeController) RemoveAttachmentObject(detachOpts AttachOptions, safeToDetach *bool) error {
 	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	crdName := detachOpts.VolumeName
 	logger.Infof("Deleting attachment for mountDir %s from Volume attach CRD %s/%s", detachOpts.MountDir, namespace, crdName)
@@ -205,14 +209,26 @@ func (c *FlexvolumeController) RemoveAttachmentObject(detachOpts AttachOptions, 
 	if err != nil {
 		return fmt.Errorf("failed to get Volume attach CRD %s/%s: %+v", namespace, crdName, err)
 	}
+	node := os.Getenv(k8sutil.NodeNameEnvVar)
+	nodeAttachmentCount := 0
+	needUpdate := false
 	for i, v := range volumeAttach.Attachments {
-		if v.MountDir == detachOpts.MountDir {
-			// Deleting slice
-			volumeAttach.Attachments = append(volumeAttach.Attachments[:i], volumeAttach.Attachments[i+1:]...)
-
-			// Update CRD.
-			return c.volumeAttachmentController.Update(volumeAttach)
+		if v.Node == node {
+			nodeAttachmentCount++
+			if v.MountDir == detachOpts.MountDir {
+				// Deleting slice
+				volumeAttach.Attachments = append(volumeAttach.Attachments[:i], volumeAttach.Attachments[i+1:]...)
+				needUpdate = true
+			}
 		}
+	}
+
+	if needUpdate {
+		// only one attachment on this node, which is the one that got removed.
+		if nodeAttachmentCount == 1 {
+			*safeToDetach = true
+		}
+		return c.volumeAttachmentController.Update(volumeAttach)
 	}
 	return fmt.Errorf("VolumeAttachment CRD %s found but attachment to the mountDir %s was not found", crdName, detachOpts.MountDir)
 }
