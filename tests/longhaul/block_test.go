@@ -60,7 +60,7 @@ func BlockVolumeOperations(s *BlockLongHaulSuite, wg *sync.WaitGroup, storageCla
 	performBlockOperations(s.installer, db)
 	if cleanup {
 		mySqlPodOperation(s.kh, storageClassName, appName, appLabel, pvcName, "delete")
-		s.kh.IsPodWithLabelDeleted(appLabel, "default")
+		s.kh.WaitUntilPodWithLabelDeleted(appLabel, "default")
 	}
 	db.CloseConnection()
 	db = nil
@@ -68,7 +68,7 @@ func BlockVolumeOperations(s *BlockLongHaulSuite, wg *sync.WaitGroup, storageCla
 }
 
 func (s *BlockLongHaulSuite) TearDownSuite() {
-	//clean up all ephemeral block storage
+	//clean up all ephemeral block storage, index 1 is persistent block storage which is going to be used among different test runs.
 	for i := 2; i <= s.installer.Env.LoadVolumeNumber; i++ {
 		mySqlPodOperation(s.kh, "rook-block", "mysqlapp-ephemeral-"+strconv.Itoa(i), "mysqldbeph"+strconv.Itoa(i), "mysql-ephemeral-claim"+strconv.Itoa(i), "delete")
 	}

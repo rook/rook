@@ -76,6 +76,7 @@ pipeline {
 
     post {
         always {
+            junit allowEmptyResults: true, keepLongStdio: true, testResults: '_output/tests/*.xml'
             deleteDir()
         }
     }

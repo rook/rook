@@ -50,7 +50,7 @@ type K8sHelper struct {
 
 const (
 	//RetryLoop params for tests.
-	RetryLoop = 60
+	RetryLoop = 30
 	//RetryInterval param for test - wait time while in RetryLoop
 	RetryInterval = 5
 )
@@ -334,13 +334,13 @@ func (k8sh *K8sHelper) IsPodWithLabelRunning(label string, namespace string) boo
 	return false
 }
 
-//IsPodWithLabelDeleted returns true if a Pod is deleted within 90s else returns false
-func (k8sh *K8sHelper) IsPodWithLabelDeleted(label string, namespace string) bool {
+//WaitUntilPodWithLabelDeleted returns true if a Pod is deleted within 90s else returns false
+func (k8sh *K8sHelper) WaitUntilPodWithLabelDeleted(label string, namespace string) bool {
 	options := metav1.ListOptions{LabelSelector: label}
 	inc := 0
 	for inc < RetryLoop {
 		pods, err := k8sh.Clientset.Pods(namespace).List(options)
-		if err != nil {
+		if errors.IsNotFound(err) {
 			logger.Infof("error Found err %v", err)
 			return true
 		}

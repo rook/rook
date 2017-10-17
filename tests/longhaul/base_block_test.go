@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	logger                   = capnslog.NewPackageLogger("github.com/rook/rook", "longhaul")
-	defaultNamespace         = "default"
+	logger           = capnslog.NewPackageLogger("github.com/rook/rook", "longhaul")
+	defaultNamespace = "default"
 )
 
 func setUpRookAndPoolInNamespace(t func() *testing.T, namespace string, storageClassName string, poolName string) (*utils.K8sHelper, *installer.InstallHelper) {
@@ -158,11 +158,6 @@ metadata:
 spec:
   replicated:
     size: 3
-  # For an erasure-coded pool, comment out the replication count above and uncomment the following setting
-  # Make sure you have enough OSDs to support the replica count or erasure code chunk
-  #erasureCoded:
-  #  codingChunks: 2
-  #  dataChunks: 2
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
