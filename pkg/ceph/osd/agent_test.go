@@ -355,10 +355,11 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 	assert.Equal(t, "sdc", scheme.Metadata.Device)
 	assert.Equal(t, 4, len(scheme.Metadata.Partitions))
 
-	// verify the first entry in the performance partition scheme.
+	// verify the first entry in the performance partition scheme.  note that the block device will either be sda or
+	// sdb because ordering of map traversal in golang isn't guaranteed.  Ensure that the first is either sda or sdb
+	// and that the second is the other one.
 	entry := scheme.Entries[0]
 	assert.Equal(t, 11, entry.ID)
-	// verify the first entry in the performance partition scheme.
 	firstBlockDevice := entry.Partitions[BlockPartitionType].Device
 	assert.True(t, firstBlockDevice == "sda" || firstBlockDevice == "sdb", firstBlockDevice)
 	verifyPartitionEntry(t, entry.Partitions[BlockPartitionType], firstBlockDevice, -1, 1)
