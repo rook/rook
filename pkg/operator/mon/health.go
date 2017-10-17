@@ -75,9 +75,36 @@ func (c *Cluster) checkHealth() error {
 	}
 	logger.Debugf("Mon status: %+v", status)
 
-	// failover the unhealthy mons
+	// Source of thruth of which mons should exist is our *clusterInfo*
+	monsNotFound := map[string]interface{}{}
+	for _, mon := range c.clusterInfo.Monitors {
+		monsNotFound[mon.Name] = struct{}{}
+	}
+
+	// first handle mons that are not in quorum but in the cecph mon map
+	//failover the unhealthy mons
 	for _, mon := range status.MonMap.Mons {
 		inQuorum := monInQuorum(mon, status.Quorum)
+		// if the mon is in quorum remove it from our check for "existence"
+		//else see below condition
+		if _, ok := monsNotFound[mon.Name]; ok {
+			delete(monsNotFound, mon.Name)
+		} else {
+			// when the mon isn't in the clusterInfo, but is in qorum and there are
+			//enough mons, remove it else remove it on the next run
+			if inQuorum && len(status.MonMap.Mons) > c.Size {
+				logger.Warningf("mon %s not in source of truth but in quorum, removing", mon.Name)
+				c.removeMon(mon.Name)
+			} else {
+				logger.Warningf(
+					"mon %s not in source of truth and not in quorum, not enough mons to remove now (wanted: %d, current: %d)",
+					mon.Name,
+					c.Size,
+					len(status.MonMap.Mons),
+				)
+			}
+		}
+
 		if inQuorum {
 			logger.Debugf("mon %s found in quorum", mon.Name)
 			// delete the "timeout" for a mon if the pod is in quorum again
@@ -100,25 +127,37 @@ func (c *Cluster) checkHealth() error {
 				continue
 			}
 
-			if len(status.MonMap.Mons) > c.Size {
-				// no need to create a new mon since we have an extra
-				err = c.removeMon(mon.Name)
-				if err != nil {
-					logger.Errorf("failed to remove mon %s. %+v", mon.Name, err)
-				}
-			} else {
-				// bring up a new mon to replace the unhealthy mon
-				err = c.failoverMon(mon.Name)
-				if err != nil {
-					logger.Errorf("failed to failover mon %s. %+v", mon.Name, err)
-				}
-			}
+			c.failMon(len(status.MonMap.Mons), mon.Name)
 			// only deal with one unhealthy mon per health check
 			return nil
 		}
 	}
 
+	// after all unhealthy mons have been removed/failovered
+	//handle all mons that haven't been in the Ceph mon map
+	for mon := range monsNotFound {
+		logger.Warningf("mon %s NOT found in ceph mon map, failover", mon)
+		c.failMon(len(c.clusterInfo.Monitors), mon)
+		// only deal with one "not found in ceph mon map" mon per health check
+		return nil
+	}
+
 	return nil
+}
+
+// failMon monCount is compared against c.Size (wanted mon count)
+func (c *Cluster) failMon(monCount int, name string) {
+	if monCount > c.Size {
+		// no need to create a new mon since we have an extra
+		if err := c.removeMon(name); err != nil {
+			logger.Errorf("failed to remove mon %s. %+v", name, err)
+		}
+	} else {
+		// bring up a new mon to replace the unhealthy mon
+		if err := c.failoverMon(name); err != nil {
+			logger.Errorf("failed to failover mon %s. %+v", name, err)
+		}
+	}
 }
 
 func (c *Cluster) failoverMon(name string) error {
@@ -177,19 +216,22 @@ func (c *Cluster) removeMon(name string) error {
 		return fmt.Errorf("failed to remove mon %s from quorum. %+v", name, err)
 	}
 	delete(c.clusterInfo.Monitors, name)
-	nodeName := c.mapping.Node[name].Name
-	// if node->port "mapping" has been created, decrease or delete it
-	if port, ok := c.mapping.Port[nodeName]; ok {
-		if port == mon.DefaultPort {
-			delete(c.mapping.Port, nodeName)
+	// check if a mapping exists for the mon
+	if _, ok := c.mapping.Node[name]; ok {
+		nodeName := c.mapping.Node[name].Name
+		delete(c.mapping.Node, name)
+		// if node->port "mapping" has been created, decrease or delete it
+		if port, ok := c.mapping.Port[nodeName]; ok {
+			if port == mon.DefaultPort {
+				delete(c.mapping.Port, nodeName)
+			}
+			// don't clean up if a node port is higher than the default port, other
+			//mons could be on the same node with > DefaultPort ports, decreasing could
+			//cause port collsions
+			// This can be solved by using a map[nodeName][]int32 for the ports to
+			//even better check which ports are open for the HostNetwork mode
 		}
-		// don't clean up if a node port is higher than the default port, other
-		//mons could be on the same node with > DefaultPort ports, decreasing could
-		//cause port collsions
-		// This can be solved by using a map[nodeName][]int32 for the ports to
-		//even better check which ports are open for the HostNetwork mode
 	}
-	delete(c.mapping.Node, name)
 
 	// Remove the service endpoint
 	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(name, options); err != nil {
