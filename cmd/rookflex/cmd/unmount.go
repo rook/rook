@@ -19,10 +19,8 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/golang/glog"
 	"github.com/rook/rook/pkg/agent/flexvolume"
 	"github.com/spf13/cobra"
-	mountutil "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/volume/util"
 )
 
@@ -67,15 +65,10 @@ func unmount(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Rook: Unmount volume failed. Cannot get global volume mount path: %v", err)
 	}
 
-	var refs []string
+	safeToDetach := false
 	err = redirectStdout(
 		client,
 		func() error {
-			refs, err = mountutil.GetMountRefs(mounter.Interface, opts.MountDir)
-			if err != nil {
-				glog.Errorf("failed to get reference mount %s", opts.MountDir)
-				return err
-			}
 
 			// Unmount pod mount dir
 			if err := util.UnmountPath(opts.MountDir, mounter.Interface); err != nil {
@@ -83,15 +76,15 @@ func unmount(cmd *cobra.Command, args []string) error {
 			}
 
 			// Remove attachment item from the CRD
-			err = client.Call("FlexvolumeController.RemoveAttachmentObject", opts, nil)
+			err = client.Call("FlexvolumeController.RemoveAttachmentObject", opts, &safeToDetach)
 			if err != nil {
 				log(client, fmt.Sprintf("Unmount volume %s failed: %v", opts.MountDir, err), true)
 				// Do not return error. Try detaching first. If error happens during detach, Kubernetes will retry.
 			}
 
-			// If len(refs) is 1, then all bind mounts have been removed, and the
-			// remaining reference is the global mount. It is safe to detach. Unmount global mount dir
-			if len(refs) == 1 {
+			// If safeToDetach is true, then all attachment on this node has been removed
+			// Unmount global mount dir
+			if safeToDetach {
 				if err := util.UnmountPath(globalVolumeMountPath, mounter.Interface); err != nil {
 					return fmt.Errorf("failed to unmount volume at %s: %+v", opts.MountDir, err)
 				}
@@ -104,7 +97,7 @@ func unmount(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(refs) == 1 {
+	if safeToDetach {
 		// call detach
 		log(client, fmt.Sprintf("calling agent to detach mountDir: %s", opts.MountDir), false)
 		err = client.Call("FlexvolumeController.Detach", opts, nil)

@@ -164,7 +164,7 @@ func TestAttachAlreadyExist(t *testing.T) {
 
 	err := controller.Attach(opts, devicePath)
 	assert.NotNil(t, err)
-	assert.Equal(t, "failed to attach volume pvc-123. Volume is already attached by pod Default/otherpod. Status running", err.Error())
+	assert.Equal(t, "failed to attach volume pvc-123 for pod Default/myPod. Volume is already attached by pod Default/otherpod. Status running", err.Error())
 }
 
 func TestAttachReadOnlyButRWAlreadyExist(t *testing.T) {
@@ -231,7 +231,7 @@ func TestAttachReadOnlyButRWAlreadyExist(t *testing.T) {
 
 	err := controller.Attach(opts, devicePath)
 	assert.NotNil(t, err)
-	assert.Equal(t, "failed to attach volume pvc-123. Volume is already attached by pod Default/otherpod. Status running", err.Error())
+	assert.Equal(t, "failed to attach volume pvc-123 for pod Default/myPod. Volume is already attached by pod Default/otherpod. Status running", err.Error())
 }
 
 func TestAttachRWButROAlreadyExist(t *testing.T) {
@@ -287,7 +287,7 @@ func TestAttachRWButROAlreadyExist(t *testing.T) {
 
 	err := controller.Attach(opts, devicePath)
 	assert.NotNil(t, err)
-	assert.Equal(t, "failed to attach volume pvc-123. Volume is already attached by one or more pods", err.Error())
+	assert.Equal(t, "failed to attach volume pvc-123 for pod Default/myPod. Volume is already attached by one or more pods", err.Error())
 }
 
 func TestMultipleAttachReadOnly(t *testing.T) {
@@ -444,6 +444,79 @@ func TestOrphanAttach(t *testing.T) {
 				), "VolumeAttachment crd does not contain expected attachment")
 
 				return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(req.Body)}, nil
+			default:
+				t.Fatalf("unexpected request: %#v\n%#v", req.URL, req)
+				return nil, nil
+			}
+
+		}),
+	}
+
+	devicePath := ""
+	controller := &FlexvolumeController{
+		clientset:                  context.Clientset,
+		volumeAttachmentController: crd.New(fakeClient),
+		volumeManager:              &FakeVolumeManager{},
+	}
+
+	err := controller.Attach(opts, &devicePath)
+	assert.Nil(t, err)
+}
+
+// This tests the idempotency of the VolumeAttachment record.
+// If the VolumeAttachment record was previously created for this pod
+// and the attach flow should continue.
+func TestVolumeAttachmentExistAttach(t *testing.T) {
+	clientset := test.New(3)
+
+	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
+	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+
+	os.Setenv(k8sutil.NodeNameEnvVar, "node1")
+	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
+
+	context := &clusterd.Context{
+		Clientset: clientset,
+	}
+
+	existingCRD := &crd.VolumeAttachment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pvc-123",
+			Namespace: "rook-system",
+		},
+		Attachments: []crd.Attachment{
+			{
+				Node:         "node1",
+				PodNamespace: "Default",
+				PodName:      "myPod",
+				MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
+				ReadOnly:     false,
+			},
+		},
+	}
+
+	opts := AttachOptions{
+		Image:        "image123",
+		Pool:         "testpool",
+		ClusterName:  "testCluster",
+		MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
+		VolumeName:   "pvc-123",
+		Pod:          "myPod",
+		PodNamespace: "Default",
+		RW:           "rw",
+	}
+
+	scheme := crd.RegisterFakeAPI()
+	fakeClient := &fakerestclient.RESTClient{
+		NegotiatedSerializer: serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)},
+		APIRegistry:          api.Registry,
+		Client: fakerestclient.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
+			switch p, m := req.URL.Path, req.Method; {
+			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "GET":
+				return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(existingCRD)}, nil
+			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "PUT":
+				assert.Fail(t, "VolumeAttachment shoud not be updated")
+				return &http.Response{StatusCode: 500, Header: defaultHeader(), Body: objBody(req.Body)}, nil
 			default:
 				t.Fatalf("unexpected request: %#v\n%#v", req.URL, req)
 				return nil, nil
