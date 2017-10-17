@@ -75,6 +75,9 @@ type ClusterSpec struct {
 
 	// HostNetwork to enable host network
 	HostNetwork bool `json:"hostNetwork"`
+
+	// MonCount sets the mon size
+	MonCount int `json:"monCount"`
 }
 
 // PlacementSpec is a set of Placement configurations for the rook cluster.
