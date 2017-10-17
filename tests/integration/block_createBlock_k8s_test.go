@@ -18,9 +18,7 @@ package integration
 
 import (
 	"fmt"
-	"strings"
 	"testing"
-	"time"
 
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
@@ -117,7 +115,7 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 	require.NoError(s.T(), err)
 
 	//check status of PVC
-	pvcStatus, err := s.kh.GetPVCStatus(claimName)
+	pvcStatus, err := s.kh.GetPVCStatus(defaultNamespace, claimName)
 	require.Nil(s.T(), err)
 	require.Contains(s.T(), pvcStatus, "Pending", "Makes sure PVC is in Pending state")
 
@@ -151,7 +149,7 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenStorageClassExists() {
 	require.NoError(s.T(), err2)
 
 	//check status of PVC
-	require.True(s.T(), s.isPVCBound(claimName))
+	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
 
 	//check block image count
 	b, _ := s.bc.BlockList()
@@ -165,7 +163,7 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 	claimName := "test-twice-claim"
 	poolName := "test-twice-pool"
 	defer s.tearDownTest(claimName, poolName)
-	status, _ := s.kh.GetPVCStatus(claimName)
+	status, _ := s.kh.GetPVCStatus(defaultNamespace, claimName)
 	logger.Infof("PVC %s status: %s", claimName, status)
 	s.bc.BlockList()
 
@@ -186,7 +184,7 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 	require.NoError(s.T(), err2)
 
 	logger.Infof("check status of PVC")
-	require.True(s.T(), s.isPVCBound(claimName))
+	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
 
 	b1, err := s.bc.BlockList()
 	assert.Nil(s.T(), err)
@@ -198,7 +196,7 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 	require.NoError(s.T(), err3)
 
 	logger.Infof("check status of PVC")
-	require.True(s.T(), s.isPVCBound(claimName))
+	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
 
 	logger.Infof("check block image count")
 	b2, _ := s.bc.BlockList()
@@ -231,21 +229,6 @@ func (s *K8sBlockImageCreateSuite) pvcOperation(claimName string, action string)
 
 	return result, err
 
-}
-
-func (s *K8sBlockImageCreateSuite) isPVCBound(name string) bool {
-	inc := 0
-	for inc < utils.RetryLoop {
-		status, _ := s.kh.GetPVCStatus(name)
-		logger.Infof("PVC %s status: %s", name, status)
-		if strings.TrimRight(status, "\n") == "'Bound'" {
-			return true
-		}
-		time.Sleep(time.Second * utils.RetryInterval)
-		inc++
-
-	}
-	return false
 }
 
 func (s *K8sBlockImageCreateSuite) TearDownSuite() {

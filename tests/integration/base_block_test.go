@@ -20,8 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	"strings"
-
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -55,7 +53,7 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	require.Nil(s.T(), cbErr)
 	require.True(s.T(), retryBlockImageCountCheck(helper, k8sh, len(initBlockImages), 1), "Make sure a new block is created")
 	logger.Infof("Block Storage created successfully")
-	require.True(s.T(), k8sh.WaitUntilPVCIsBound(blockName), "Make sure PVC is Bound")
+	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, blockName), "Make sure PVC is Bound")
 
 	logger.Infof("step 2: Mount block storage")
 	_, mtErr := rbc.BlockMap(getBlockPodDefintion(podName, blockName), blockMountPath)
@@ -121,7 +119,7 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	require.Contains(s.T(), res1, "persistentvolumeclaim \"test-block-claim\" created", "Make sure pvc is created")
 	require.NoError(s.T(), err)
 
-	require.True(s.T(), isPVCBound(k8sh, "test-block-claim"))
+	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, "test-block-claim"))
 
 	//Make sure  new block is created
 	b, _ := bc.BlockList()
@@ -131,11 +129,13 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 
 	//Delete pvc and storageclass
 	_, err = k8sh.ResourceOperationFromTemplate("delete", volumeDef, sc)
-	require.NoError(s.T(), err)
-	time.Sleep(2 * time.Second)
+	assert.NoError(s.T(), err)
+
+	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, "test-block-claim"))
+	require.True(s.T(), retryBlockImageCountCheck(helper, k8sh, initBlockCount, 0), "Make sure a new block is deleted")
 
 	b, _ = bc.BlockList()
-	require.Equal(s.T(), initBlockCount, len(b), "Make sure new block image is deleted")
+	assert.Equal(s.T(), initBlockCount, len(b), "Make sure new block image is deleted")
 
 	checkPoolDeleted(helper, s, poolName)
 }
@@ -259,18 +259,4 @@ spec:
         persistentVolumeClaim:
           claimName: ` + blockName + `
       restartPolicy: Never`
-}
-
-func isPVCBound(k8sh *utils.K8sHelper, name string) bool {
-	inc := 0
-	for inc < utils.RetryLoop {
-		status, _ := k8sh.GetPVCStatus(name)
-		if strings.TrimRight(status, "\n") == "'Bound'" {
-			return true
-		}
-		time.Sleep(time.Second * utils.RetryInterval)
-		inc++
-
-	}
-	return false
 }
