@@ -124,7 +124,8 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	//Make sure  new block is created
 	b, _ := bc.BlockList()
 	assert.Equal(s.T(), initBlockCount+1, len(b), "Make sure new block image is created")
-	poolExists := foundPool(helper, s, poolName)
+	poolExists, err := foundPool(helper, s, poolName)
+	assert.Nil(s.T(), err)
 	assert.True(s.T(), poolExists)
 
 	//Delete pvc and storageclass
@@ -143,7 +144,11 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 func checkPoolDeleted(helper *clients.TestClient, s suite.Suite, name string) {
 	i := 0
 	for i < utils.RetryLoop {
-		if !foundPool(helper, s, name) {
+		found, err := foundPool(helper, s, name)
+		if err != nil {
+			// try again on failure since the pool may have been in an unexpected state while deleting
+			logger.Warningf("error getting pools. %+v", err)
+		} else if !found {
 			logger.Infof("pool %s is deleted", name)
 			return
 		}
@@ -154,16 +159,18 @@ func checkPoolDeleted(helper *clients.TestClient, s suite.Suite, name string) {
 	assert.Fail(s.T(), fmt.Sprintf("pool %s was not deleted", name))
 }
 
-func foundPool(helper *clients.TestClient, s suite.Suite, name string) bool {
+func foundPool(helper *clients.TestClient, s suite.Suite, name string) (bool, error) {
 	p := helper.GetPoolClient()
 	pools, err := p.PoolList()
-	assert.Nil(s.T(), err)
+	if err != nil {
+		return false, err
+	}
 	for _, pool := range pools {
 		if name == pool.Name {
-			return true
+			return true, nil
 		}
 	}
-	return false
+	return false, nil
 }
 
 func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, poolname, storageclassname, blockname, podname string) {
