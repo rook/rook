@@ -426,19 +426,19 @@ func getStoreSettings(config *osdConfig) (map[string]string, error) {
 		settings["bluestore block create"] = "true"
 
 		// set the size of the wal and db files
-		walSize := WalDefaultSizeMB
+		walSizeMB := WalDefaultSizeMB
 		if config.storeConfig.WalSizeMB > 0 {
-			walSize = config.storeConfig.WalSizeMB
+			walSizeMB = config.storeConfig.WalSizeMB
 		}
-		dbSize := DBDefaultSizeMB
+		dbSizeMB := DBDefaultSizeMB
 		if config.storeConfig.DatabaseSizeMB > 0 {
-			dbSize = config.storeConfig.DatabaseSizeMB
+			dbSizeMB = config.storeConfig.DatabaseSizeMB
 		}
 
 		// ceph config uses bytes, not MB, so convert to bytes
-		walSize = walSize * 1024 * 1024
+		walSize := walSizeMB * 1024 * 1024
 		settings["bluestore block wal size"] = strconv.Itoa(walSize)
-		dbSize = dbSize * 1024 * 1024
+		dbSize := dbSizeMB * 1024 * 1024
 		settings["bluestore block db size"] = strconv.Itoa(dbSize)
 
 		// Get the total size of the filesystem that contains the OSD root dir and make the bluestore block

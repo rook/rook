@@ -254,14 +254,14 @@ func (h *InstallHelper) UninstallRookFromK8s(namespace string, helmInstalled boo
 		panic(err)
 	}
 	if h.k8shelper.VersionAtLeast("v1.6.0") {
-		err = k8sHelp.DeleteClusterRoleAndBindings("rook-api")
+		err = k8sHelp.DeleteRoleAndBindings("rook-api", namespace)
 		if err != nil {
-			logger.Errorf("rook-api cluster role and binding cannot be deleted: %+v", err)
+			logger.Errorf("rook-api role and binding cannot be deleted from namespace %s: %+v", namespace, err)
 			panic(err)
 		}
-		err = k8sHelp.DeleteClusterRoleAndBindings("rook-ceph-osd")
+		err = k8sHelp.DeleteRoleAndBindings("rook-ceph-osd", namespace)
 		if err != nil {
-			logger.Errorf("rook-ceph-osd cluster role and binding cannot be deleted: %+v", err)
+			logger.Errorf("rook-ceph-osd role and binding cannot be deleted from namespace %s: %+v", namespace, err)
 			panic(err)
 		}
 	}
@@ -311,6 +311,17 @@ func (h *InstallHelper) CleanupCluster(clusterName string) {
 	_, err = h.k8shelper.DeleteResource([]string{"-n", clusterName, "serviceaccount", "rook-ceph-osd"})
 	if err != nil {
 		logger.Errorf("rook-ceph-osd service account in namespace %s cannot be deleted,err -> %v", clusterName, err)
+		panic(err)
+	}
+
+	err = h.k8shelper.DeleteRoleAndBindings("rook-api", clusterName)
+	if err != nil {
+		logger.Errorf("rook-api role and binding cannot be deleted from namespace %s: %+v", clusterName, err)
+		panic(err)
+	}
+	err = h.k8shelper.DeleteRoleAndBindings("rook-ceph-osd", clusterName)
+	if err != nil {
+		logger.Errorf("rook-ceph-osd role and binding cannot be deleted from namespace %s: %+v", clusterName, err)
 		panic(err)
 	}
 

@@ -108,7 +108,7 @@ func TestResolveNodeDefaultValues(t *testing.T) {
 	assert.Equal(t, "", node.Selection.MetadataDevice)
 	assert.False(t, node.Selection.getUseAllDevices())
 	assert.Equal(t, "", node.Config.Location)
-	assert.Equal(t, cephosd.DefaultStore, node.Config.StoreConfig.StoreType)
+	assert.Equal(t, "bluestore", node.Config.StoreConfig.StoreType)
 	assert.Equal(t, 0, node.Config.StoreConfig.DatabaseSizeMB)
 	assert.Equal(t, 0, node.Config.StoreConfig.WalSizeMB)
 	assert.Equal(t, 0, node.Config.StoreConfig.JournalSizeMB)

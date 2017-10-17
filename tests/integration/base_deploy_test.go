@@ -57,9 +57,7 @@ func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, 
 	var status model.StatusDetails
 
 	retryCount := 0
-	maxRetries := 25
-	sleepTime := 5
-	for retryCount < maxRetries {
+	for retryCount < utils.RetryLoop {
 		status, err = clients.IsClusterHealthy(testClient)
 		if err == nil {
 			logger.Infof("cluster %s is healthy. final status: %+v", clusterNamespace, status)
@@ -68,7 +66,7 @@ func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, 
 
 		retryCount++
 		logger.Infof("waiting for cluster %s to become healthy. err: %+v", clusterNamespace, err)
-		<-time.After(time.Duration(sleepTime) * time.Second)
+		<-time.After(time.Duration(utils.RetryInterval) * time.Second)
 	}
 
 	require.Nil(s.T(), err)

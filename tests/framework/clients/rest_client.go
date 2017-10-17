@@ -74,6 +74,7 @@ func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHe
 			ResponseHeaderTimeout: 60 * time.Second,
 		},
 	}
+	logger.Infof("creating rest client for endpoint %s (namespace %s)", endpoint, namespace)
 	client := rclient.NewRookNetworkRestClient(endpoint, httpclient)
 
 	//make sure rest client is up and available

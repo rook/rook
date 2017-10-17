@@ -81,7 +81,7 @@ func (c *Cluster) Start() error {
 	logger.Infof("start running osds in namespace %s", c.Namespace)
 
 	// create the artifacts for the api service to work with RBAC enabled
-	err := k8sutil.MakeClusterRole(c.context.Clientset, c.Namespace, appName, clusterAccessRules)
+	err := k8sutil.MakeRole(c.context.Clientset, c.Namespace, appName, clusterAccessRules)
 	if err != nil {
 		logger.Warningf("failed to init RBAC for OSDs. %+v", err)
 	}

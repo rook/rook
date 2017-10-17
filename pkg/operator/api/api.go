@@ -100,7 +100,7 @@ func (c *Cluster) Start() error {
 	}
 
 	// create the artifacts for the api service to work with RBAC enabled
-	err = c.makeClusterRole()
+	err = c.makeRole()
 	if err != nil {
 		logger.Warningf("failed to init RBAC for the api service. %+v", err)
 	}
@@ -121,8 +121,8 @@ func (c *Cluster) Start() error {
 }
 
 // make a cluster role
-func (c *Cluster) makeClusterRole() error {
-	return k8sutil.MakeClusterRole(c.context.Clientset, c.Namespace, deploymentName, clusterAccessRules)
+func (c *Cluster) makeRole() error {
+	return k8sutil.MakeRole(c.context.Clientset, c.Namespace, deploymentName, clusterAccessRules)
 }
 
 func (c *Cluster) makeDeployment() *extensions.Deployment {

@@ -823,13 +823,13 @@ func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
 	logger.Infof("anon-user-access created")
 }
 
-func (k8sh *K8sHelper) DeleteClusterRoleAndBindings(name string) error {
-	_, err := k8sh.DeleteResource([]string{"clusterrole", name})
+func (k8sh *K8sHelper) DeleteRoleAndBindings(name, namespace string) error {
+	_, err := k8sh.DeleteResource([]string{"role", name, "-n", namespace})
 	if err != nil {
 		return err
 	}
 
-	_, err = k8sh.DeleteResource([]string{"clusterrolebinding", name})
+	_, err = k8sh.DeleteResource([]string{"rolebinding", name, "-n", namespace})
 	if err != nil {
 		return err
 	}

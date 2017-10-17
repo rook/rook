@@ -38,4 +38,7 @@
   - `erasureCode` renamed to `erasureCoded`
 - OSDs
   - OSD pods now require RBAC permissions to create/get/update/delete/list config maps.
-  An upgraded operator will create the necessary service account, cluster role, and cluster role bindings to enable this.
+  An upgraded operator will create the necessary service account, role, and role bindings to enable this.
+- API
+  - The API pod now uses RBAC permissions that are scoped only to the namespace it is running in.
+  An upgraded operator will create the necessary service account, role, and role bindings to enable this.
