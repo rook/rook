@@ -119,7 +119,7 @@ func TestAttach(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateClusterInfo(nil, path.Join(configDir, clusterName), nil)
+				cephtest.CreateConfigDir(path.Join(configDir, clusterName))
 			}
 
 			return "", nil
@@ -184,7 +184,7 @@ func TestDetach(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateClusterInfo(nil, path.Join(configDir, clusterName), nil)
+				cephtest.CreateConfigDir(path.Join(configDir, clusterName))
 			}
 
 			return "", nil

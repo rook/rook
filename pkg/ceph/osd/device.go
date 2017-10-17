@@ -30,21 +30,13 @@ import (
 	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/clusterd/inventory"
-	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
 const (
-	DevicesValue                = "devices"
-	ForceFormatValue            = "forceFormat"
 	diskByPartUUID              = "/dev/disk/by-partuuid"
-	cephOsdKey                  = mon.CephKey + "/osd"
-	desiredOsdRootKey           = cephOsdKey + "/" + clusterd.DesiredKey + "/%s"
-	deviceDesiredKey            = desiredOsdRootKey + "/device"
-	dirDesiredKey               = desiredOsdRootKey + "/dir"
 	bootstrapOSDKeyringTemplate = `
 [client.bootstrap-osd]
 	key = %s
@@ -73,12 +65,6 @@ type Device struct {
 
 type DeviceOsdMapping struct {
 	Entries map[string]*DeviceOsdIDEntry // device name to OSD ID mapping entry
-}
-
-func NewDeviceOsdMapping() *DeviceOsdMapping {
-	return &DeviceOsdMapping{
-		Entries: map[string]*DeviceOsdIDEntry{},
-	}
 }
 
 type DeviceOsdIDEntry struct {
@@ -210,17 +196,6 @@ func partitionMetadata(context *clusterd.Context, info *MetadataDeviceInfo, kv k
 		return fmt.Errorf("failed to save partition scheme: %+v", err)
 	}
 
-	// associate the OSD IDs with the metadata device in etcd
-	if context.EtcdClient != nil {
-		idSet := util.NewSet()
-		for _, part := range info.Partitions {
-			idSet.Add(strconv.Itoa(part.ID))
-		}
-		if err := associateOSDIDsWithMetadataDevice(context.EtcdClient, context.NodeID, info.DiskUUID, strings.Join(idSet.ToSlice(), ",")); err != nil {
-			return fmt.Errorf("failed to associate osd ids '%+v' with metadata device %s (%s): %+v", idSet, info.Device, info.DiskUUID, err)
-		}
-	}
-
 	return nil
 }
 
@@ -264,27 +239,10 @@ func partitionOSD(context *clusterd.Context, config *osdConfig) error {
 
 	// update the uuid of the disk in the inventory in memory
 	logger.Debugf("Updating disk uuid %s on device %s", dataDetails.DiskUUID, dataDetails.Device)
-	for _, disk := range context.Inventory.Local.Disks {
+	for _, disk := range context.Devices {
 		if disk.Name == dataDetails.Device {
 			logger.Debugf("Updated uuid on device %s", dataDetails.Device)
 			disk.UUID = dataDetails.DiskUUID
-		}
-	}
-
-	// save the desired state of the osd for this device
-	if context.EtcdClient != nil {
-		err = associateOsdIDWithDevice(context.EtcdClient, context.NodeID, dataDetails.DiskUUID, config.id, false)
-		if err != nil {
-			return fmt.Errorf("failed to associate osd id %d with device %s (%s)", config.id, dataDetails.Device, dataDetails.DiskUUID)
-		}
-		if config.partitionScheme.IsCollocated() {
-			// the metadata is on the same disk as the data, associate the osd ID with the device for metadata too
-			err = associateOSDIDsWithMetadataDevice(
-				context.EtcdClient, context.NodeID, dataDetails.DiskUUID, fmt.Sprintf("%d", config.id))
-			if err != nil {
-				return fmt.Errorf("failed to associate osd id %d with device %s (%s) for metadata",
-					config.id, dataDetails.Device, dataDetails.DiskUUID)
-			}
 		}
 	}
 
@@ -391,7 +349,7 @@ func getMetadataPartitionDetails(config *osdConfig) (*PerfSchemePartitionDetails
 }
 
 func getDiskSize(context *clusterd.Context, name string) (uint64, error) {
-	for _, device := range context.Inventory.Local.Disks {
+	for _, device := range context.Devices {
 		if device.Name == name {
 			return device.Size, nil
 		}
@@ -616,12 +574,6 @@ func addOSDToCrushMap(context *clusterd.Context, config *osdConfig, clusterName,
 	_, err = client.ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
 		return fmt.Errorf("failed adding %s to crush map: %+v", osdEntity, err)
-	}
-
-	if context.EtcdClient != nil {
-		if err := inventory.SetLocation(context.EtcdClient, context.NodeID, strings.Join(locArgs, ",")); err != nil {
-			return fmt.Errorf("failed to save CRUSH location for OSD %s: %+v", osdEntity, err)
-		}
 	}
 
 	return nil

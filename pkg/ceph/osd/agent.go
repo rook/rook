@@ -24,14 +24,9 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
-
-	ctx "golang.org/x/net/context"
-
-	etcd "github.com/coreos/etcd/client"
 
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
@@ -79,243 +74,6 @@ func NewAgent(devices string, usingDeviceFilter bool, metadataDevice, directorie
 	}
 }
 
-func (a *OsdAgent) Name() string {
-	return osdAgentName
-}
-
-// set the desired state in etcd
-func (a *OsdAgent) Initialize(context *clusterd.Context) error {
-
-	if len(a.devices) > 0 {
-		// add the devices to desired state
-		a.desiredDevices = strings.Split(a.devices, ",")
-		logger.Infof("desired devices for osds: %+v.  desired metadata device: %s", a.desiredDevices, a.metadataDevice)
-	}
-
-	if len(a.directories) > 0 {
-		a.desiredDirectories = strings.Split(a.directories, ",")
-	}
-
-	// if no devices or directories were specified, use the current directory for an osd
-	if len(a.desiredDevices) == 0 && len(a.desiredDirectories) == 0 {
-		logger.Infof("Adding local path %s to desired state", context.ConfigDir)
-		a.desiredDirectories = []string{context.ConfigDir}
-	}
-
-	if len(a.desiredDirectories) > 0 {
-		for _, dir := range a.desiredDirectories {
-			err := AddDesiredDir(context.EtcdClient, dir, context.NodeID)
-			if err != nil {
-				return fmt.Errorf("failed to add desired dir %s. %v", dir, err)
-			}
-		}
-		logger.Infof("desired directories for osds: %+v.", a.desiredDirectories)
-	}
-
-	return nil
-}
-
-func (a *OsdAgent) ConfigureLocalService(context *clusterd.Context) error {
-	required, err := a.osdConfigRequired(context)
-	if err != nil {
-		return err
-	}
-	if !required {
-		return nil
-	}
-
-	// check if osd configuration is already in progress from a previous request
-	if !a.tryStartConfig() {
-		return nil
-	}
-
-	defer a.decrementConfigCounter()
-
-	a.cluster, err = mon.LoadClusterInfo(context.EtcdClient)
-	if err != nil {
-		return fmt.Errorf("failed to load cluster info: %v", err)
-	}
-	if a.cluster == nil {
-		// the ceph cluster is not initialized yet
-		return nil
-	}
-
-	if err := a.createDesiredOSDs(context); err != nil {
-		return err
-	}
-
-	return a.stopUndesiredDevices(context)
-}
-
-// check if osd configured is required at this time
-// 1) the node should be marked in the desired state
-// 2) osd configuration must not already be in progress from a previous orchestration
-func (a *OsdAgent) osdConfigRequired(context *clusterd.Context) (bool, error) {
-	key := path.Join(mon.CephKey, osdAgentName, clusterd.DesiredKey, context.NodeID, "ready")
-	osdsDesired, err := context.EtcdClient.Get(ctx.Background(), key, nil)
-	if err != nil {
-		if util.IsEtcdKeyNotFound(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to get osd desired state. %v", err)
-	}
-
-	if osdsDesired.Node.Value != "1" {
-		// The osd is not in desired state
-		return false, nil
-	}
-
-	return true, nil
-}
-
-// Try to enter the critical section for configuring osds.
-// If a configuration is already in progress, returns false.
-// If configuration can be started, returns true.
-// The caller of this method must call decrementConfigCounter() if true is returned.
-func (a *OsdAgent) tryStartConfig() bool {
-	counter := atomic.AddInt32(&a.configCounter, 1)
-	if counter > 1 {
-		counter = atomic.AddInt32(&a.configCounter, -1)
-		logger.Debugf("osd configuration is already running. counter=%d", counter)
-		return false
-	}
-
-	return true
-}
-
-// increment the config counter when a config step starts
-func (a *OsdAgent) incrementConfigCounter() {
-	atomic.AddInt32(&a.configCounter, 1)
-}
-
-// decrement the config counter when a config step is completed.
-func (a *OsdAgent) decrementConfigCounter() {
-	atomic.AddInt32(&a.configCounter, -1)
-}
-
-func (a *OsdAgent) stopUndesiredDevices(context *clusterd.Context) error {
-	desiredDevices, err := a.loadDesiredDevices(context)
-	if err != nil {
-		return fmt.Errorf("failed to load desired devices. %v", err)
-	}
-
-	desiredDirs, err := loadDesiredDirs(context.EtcdClient, context.NodeID)
-	if err != nil {
-		return fmt.Errorf("failed to load desired dirs. %v", err)
-	}
-
-	applied, err := GetAppliedOSDs(context.NodeID, context.EtcdClient)
-	if err != nil {
-		return fmt.Errorf("failed to get applied OSDs. %v", err)
-	}
-
-	desiredOSDs := map[int]interface{}{}
-	for _, e := range desiredDevices.Entries {
-		desiredOSDs[e.Data] = nil
-	}
-	for _, id := range desiredDirs {
-		desiredOSDs[id] = nil
-	}
-
-	logger.Debugf("stopUndesiredDevices. applied=%+v, desired=%+v", applied, desiredOSDs)
-	var lastErr error
-	for appliedOSD := range applied {
-		if _, ok := desiredOSDs[appliedOSD]; ok {
-			// the osd is both desired and applied
-			continue
-		}
-
-		logger.Infof("removing osd %d", appliedOSD)
-		err := a.removeOSD(context, appliedOSD)
-		if err != nil {
-			lastErr = err
-		}
-	}
-
-	return lastErr
-}
-
-func (a *OsdAgent) removeOSD(context *clusterd.Context, id int) error {
-
-	// mark the OSD as out of the cluster so its data starts to migrate
-	err := markOSDOut(context, a.cluster.Name, id)
-	if err != nil {
-		return fmt.Errorf("failed to mark out osd %d. %v", id, err)
-	}
-
-	// stop the osd process if running
-	proc, ok := a.osdProc[id]
-	if ok {
-		err := proc.Stop()
-		if err != nil {
-			logger.Errorf("failed to stop osd %d. %v", id, err)
-			return err
-		}
-
-		delete(a.osdProc, id)
-	}
-
-	err = purgeOSD(context, a.cluster.Name, id)
-	if err != nil {
-		return fmt.Errorf("faild to remove osd %d from crush map. %v", id, err)
-	}
-
-	// remove the osd from the applied key
-	appliedKey := path.Join(getAppliedKey(context.NodeID), fmt.Sprintf("%d", id))
-	_, err = context.EtcdClient.Delete(ctx.Background(), appliedKey, &etcd.DeleteOptions{Recursive: true, Dir: true})
-	if err != nil {
-		logger.Errorf("failed to remove osd %d from applied state. %v", id, err)
-		return err
-	}
-
-	logger.Infof("Stopped and removed osd device %d", id)
-
-	return nil
-}
-
-func (a *OsdAgent) DestroyLocalService(context *clusterd.Context) error {
-	// stop the OSD processes
-	for id, proc := range a.osdProc {
-		logger.Infof("stopping osd %d", id)
-		proc.Stop()
-	}
-
-	// clear out the osd procs
-	a.osdProc = map[int]*proc.MonitoredProc{}
-	return nil
-}
-
-func getAppliedKey(nodeID string) string {
-	return path.Join(mon.CephKey, osdAgentName, clusterd.AppliedKey, nodeID)
-}
-
-// create and initalize OSDs for all the devices specified in the given config
-func (a *OsdAgent) createDesiredOSDs(context *clusterd.Context) error {
-	devices, err := a.loadDesiredDevices(context)
-	if err != nil {
-		return fmt.Errorf("failed to load desired devices. %v", err)
-	}
-
-	dirs, err := loadDesiredDirs(context.EtcdClient, context.NodeID)
-	if err != nil {
-		return fmt.Errorf("failed to load desired dirs. %v", err)
-	}
-
-	// generate and write the OSD bootstrap keyring
-	if err := createOSDBootstrapKeyring(context, a.cluster.Name); err != nil {
-		logger.Errorf("Failed to create osd bootstrap keyring. %+v", err)
-		return err
-	}
-
-	// initialize the desired OSD directories
-	err = a.configureDirs(context, dirs)
-	if err != nil {
-		return err
-	}
-
-	return a.configureDevices(context, devices)
-}
-
 func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int) error {
 	if len(dirs) == 0 {
 		return nil
@@ -336,14 +94,6 @@ func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 			dirs[dirPath] = *osdID
 			config.id = *osdID
 			config.uuid = *osdUUID
-
-			// set the desired state of the dir with the osd id
-			if context.EtcdClient != nil {
-				err = associateOsdIDWithDevice(context.EtcdClient, context.NodeID, dirPath, config.id, config.dir)
-				if err != nil {
-					return fmt.Errorf("failed to associate osd id %d with the data dir", config.id)
-				}
-			}
 		}
 
 		err := a.startOSD(context, config)
@@ -365,49 +115,34 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 		return nil
 	}
 
-	// reset the signal that the osd config is in progress
-	a.osdsCompleted = make(chan struct{})
+	// compute an OSD layout scheme that will optimize performance
+	scheme, err := a.getPartitionPerfScheme(context, devices)
+	logger.Debugf("partition scheme: %+v, err: %+v", scheme, err)
+	if err != nil {
+		return fmt.Errorf("failed to get OSD partition scheme: %+v", err)
+	}
 
-	// asynchronously configure all of the devices with osds
-	go func() {
-		// set the signal that the osd config is completed
-		defer close(a.osdsCompleted)
+	if scheme.Metadata != nil {
+		// partition the dedicated metadata device
+		if err := partitionMetadata(context, scheme.Metadata, a.kv, getConfigStoreName(a.nodeName)); err != nil {
+			return fmt.Errorf("failed to partition metadata %+v: %+v", scheme.Metadata, err)
+		}
+	}
 
-		a.incrementConfigCounter()
-		defer a.decrementConfigCounter()
-
-		// compute an OSD layout scheme that will optimize performance
-		scheme, err := a.getPartitionPerfScheme(context, devices)
-		logger.Debugf("partition scheme: %+v, err: %+v", scheme, err)
+	// initialize and start all the desired OSDs using the computed scheme
+	succeeded := 0
+	for _, entry := range scheme.Entries {
+		config := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configRoot: context.ConfigDir,
+			partitionScheme: entry, kv: a.kv, storeName: getConfigStoreName(a.nodeName)}
+		err := a.startOSD(context, config)
 		if err != nil {
-			logger.Errorf("failed to get OSD partition scheme: %+v", err)
-			return
+			return fmt.Errorf("failed to config osd %d. %+v", entry.ID, err)
+		} else {
+			succeeded++
 		}
+	}
 
-		if scheme.Metadata != nil {
-			// partition the dedicated metadata device
-			if err := partitionMetadata(context, scheme.Metadata, a.kv, getConfigStoreName(a.nodeName)); err != nil {
-				logger.Errorf("failed to partition metadata %+v: %+v", scheme.Metadata, err)
-				return
-			}
-		}
-
-		// initialize and start all the desired OSDs using the computed scheme
-		succeeded := 0
-		for _, entry := range scheme.Entries {
-			config := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configRoot: context.ConfigDir,
-				partitionScheme: entry, kv: a.kv, storeName: getConfigStoreName(a.nodeName)}
-			err := a.startOSD(context, config)
-			if err != nil {
-				logger.Errorf("failed to config osd %d. %+v", entry.ID, err)
-			} else {
-				succeeded++
-			}
-		}
-
-		logger.Infof("%d/%d osd devices succeeded on this node", succeeded, len(scheme.Entries))
-	}()
-
+	logger.Infof("%d/%d osd devices succeeded on this node", succeeded, len(scheme.Entries))
 	return nil
 }
 
@@ -422,7 +157,7 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 	}
 
 	nameToUUID := map[string]string{}
-	for _, disk := range context.Inventory.Local.Disks {
+	for _, disk := range context.Devices {
 		if disk.UUID != "" {
 			nameToUUID[disk.Name] = disk.UUID
 		}
@@ -623,11 +358,6 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, config *osdConfig) error 
 		if err != nil {
 			return fmt.Errorf("failed to initialize OSD at %s: %+v", config.rootPath, err)
 		}
-
-		// save the osd information to applied state
-		if err := markOSDAsApplied(context, config); err != nil {
-			return fmt.Errorf("failed to mark osd %d as applied: %+v", config.id, err)
-		}
 	} else {
 		// update the osd config file
 		err := writeConfigFile(config, context, a.cluster, a.storeConfig)
@@ -691,256 +421,6 @@ func (a *OsdAgent) runOSD(context *clusterd.Context, clusterName string, config 
 	if process != nil {
 		// if the process was already running Start will return nil in which case we don't want to overwrite it
 		a.osdProc[config.id] = process
-	}
-
-	return nil
-}
-
-// For all applied OSDs, gets a mapping of their osd IDs to their data device uuid
-func GetAppliedOSDs(nodeID string, etcdClient etcd.KeysAPI) (map[int]string, error) {
-
-	osds := map[int]string{}
-	key := getAppliedKey(nodeID)
-	osdKeys, err := etcdClient.Get(ctx.Background(), key, &etcd.GetOptions{Recursive: true})
-	if err != nil {
-		if util.IsEtcdKeyNotFound(err) {
-			return osds, nil
-		}
-		return nil, err
-	}
-
-	// parse the osds from etcd
-	for _, idKey := range osdKeys.Node.Nodes {
-		id, err := strconv.Atoi(util.GetLeafKeyPath(idKey.Key))
-		if err != nil {
-			// skip the unexpected osd id
-			continue
-		}
-
-		for _, setting := range idKey.Nodes {
-			if strings.HasSuffix(setting.Key, "/"+dataDiskUUIDKey) {
-				osds[id] = setting.Value
-			}
-		}
-	}
-
-	return osds, nil
-}
-
-func getPseudoDir(path string) string {
-	// cut off the leading slash so we won't end up with a hidden etcd key
-	if strings.HasPrefix(path, "/") {
-		path = path[1:]
-	}
-
-	return strings.Replace(path, "/", "_", -1)
-}
-
-// loads information about all desired devices.  This includes devices that are already committed as well as
-// new devices that are desired but have not been set up yet.
-func (a *OsdAgent) loadDesiredDevices(context *clusterd.Context) (*DeviceOsdMapping, error) {
-	// get the device UUID to device name mapping
-	uuidToName := map[string]string{}
-	for _, disk := range context.Inventory.Local.Disks {
-		if disk.UUID != "" {
-			uuidToName[disk.UUID] = disk.Name
-		}
-	}
-	logger.Debugf("uuid to name map: %+v", uuidToName)
-
-	// ensure all the desired devices are in the result list
-	deviceOsdMapping := NewDeviceOsdMapping()
-	for _, name := range a.desiredDevices {
-		if _, ok := deviceOsdMapping.Entries[name]; !ok {
-			// add the device to the desired list in an unassigned state
-			deviceOsdMapping.Entries[name] = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: nil}
-		}
-	}
-	if a.metadataDevice != "" {
-		if _, ok := deviceOsdMapping.Entries[a.metadataDevice]; !ok {
-			// add the metadata device to the desired list in an unassigned state
-			deviceOsdMapping.Entries[a.metadataDevice] = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}}
-		}
-	}
-	logger.Debugf("desired osd id mapping when new: %+v", deviceOsdMapping)
-
-	if context.EtcdClient == nil {
-		return deviceOsdMapping, nil
-	}
-
-	// parse the desired devices from etcd, which are based on the disk uuid
-	key := path.Join(fmt.Sprintf(deviceDesiredKey, context.NodeID))
-	devKeys, err := context.EtcdClient.Get(ctx.Background(), key, &etcd.GetOptions{Recursive: true})
-	if err != nil {
-		if util.IsEtcdKeyNotFound(err) {
-			return deviceOsdMapping, nil
-		}
-		return nil, err
-	}
-
-	for _, dev := range devKeys.Node.Nodes {
-		uuid := util.GetLeafKeyPath(dev.Key)
-		osdDataID := unassignedOSDID
-		osdMetadataIDs := []int{}
-
-		// look for OSD data and metadata IDs that are stored on each device
-		for _, setting := range dev.Nodes {
-			if strings.HasSuffix(setting.Key, "/"+osdIDDataKey) {
-				// convert OSD data ID for the current disk from string to int
-				id, err := strconv.Atoi(setting.Value)
-				if err == nil {
-					logger.Debugf("found osd data id %d for disk uuid %s", id, uuid)
-					osdDataID = id
-				} else {
-					logger.Warningf("invalid osd data id %s for disk uuid %s: %+v", setting.Value, uuid, err)
-				}
-			} else if strings.HasSuffix(setting.Key, "/"+osdIDMetadataKey) {
-				// convert OSD metadata ID list for the current disk from strings to ints
-				metadataIDStrings := strings.Split(setting.Value, ",")
-				osdMetadataIDs = make([]int, len(metadataIDStrings))
-				for i, midStr := range metadataIDStrings {
-					if mid, err := strconv.Atoi(midStr); err == nil {
-						logger.Debugf("found osd metadata id %d for disk uuid %s", mid, uuid)
-						osdMetadataIDs[i] = mid
-					} else {
-						logger.Warningf("invalid osd metadata id %s for disk uuid %s: %+v", midStr, uuid, err)
-					}
-				}
-			}
-		}
-
-		// translate the disk uuid to the device name and store its desired OSD data/metadata ID's in the list
-		if name, ok := uuidToName[uuid]; ok {
-			deviceOsdMapping.Entries[name] = &DeviceOsdIDEntry{Data: osdDataID, Metadata: osdMetadataIDs}
-		} else {
-			logger.Warningf("did not find name for disk uuid %s", uuid)
-		}
-	}
-
-	logger.Debugf("final osd id mapping: %+v", deviceOsdMapping)
-
-	return deviceOsdMapping, nil
-}
-
-func associateOsdIDWithDevice(etcdClient etcd.KeysAPI, nodeID, name string, id int, dir bool) error {
-	var key string
-	if dir {
-		key = path.Join(fmt.Sprintf(dirDesiredKey, nodeID), getPseudoDir(name))
-	} else {
-		key = path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), name)
-	}
-
-	_, err := etcdClient.Set(ctx.Background(), path.Join(key, osdIDDataKey), fmt.Sprintf("%d", id), nil)
-	if err != nil {
-		return fmt.Errorf("failed to associate osd %d with %s", id, name)
-	}
-
-	return nil
-}
-
-func associateOSDIDsWithMetadataDevice(etcdClient etcd.KeysAPI, nodeID, name, idList string) error {
-	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), name)
-	_, err := etcdClient.Set(ctx.Background(), path.Join(key, osdIDMetadataKey), idList, nil)
-	return err
-}
-
-func markOSDAsApplied(context *clusterd.Context, config *osdConfig) error {
-	if context.EtcdClient == nil {
-		return nil
-	}
-
-	dataDiskUUID, metadataDiskUUID := "", ""
-	if config.partitionScheme != nil {
-		dataPartDetails, err := getDataPartitionDetails(config)
-		if err != nil {
-			return err
-		}
-
-		metadataPartDetails, err := getMetadataPartitionDetails(config)
-		if err != nil {
-			return err
-		}
-
-		dataDiskUUID = dataPartDetails.DiskUUID
-		metadataDiskUUID = metadataPartDetails.DiskUUID
-	}
-
-	settings := map[string]string{
-		"path":              config.configRoot,
-		dataDiskUUIDKey:     dataDiskUUID,
-		metadataDiskUUIDKey: metadataDiskUUID,
-	}
-	key := path.Join(getAppliedKey(context.NodeID), fmt.Sprintf("%d", config.id))
-	if err := util.StoreEtcdProperties(context.EtcdClient, key, settings); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// add a device to the desired state
-func AddDesiredDevice(etcdClient etcd.KeysAPI, nodeID, uuid string, osdID int) error {
-	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), uuid)
-	err := util.CreateEtcdDir(etcdClient, key)
-	if err != nil {
-		return fmt.Errorf("failed to add device %s on node %s to desired. %v", uuid, nodeID, err)
-	}
-
-	return nil
-}
-
-func loadDesiredDirs(etcdClient etcd.KeysAPI, nodeID string) (map[string]int, error) {
-	dirs := map[string]int{}
-	key := path.Join(fmt.Sprintf(dirDesiredKey, nodeID))
-	dirKeys, err := etcdClient.Get(ctx.Background(), key, &etcd.GetOptions{Recursive: true})
-	if err != nil {
-		if util.IsEtcdKeyNotFound(err) {
-			return dirs, nil
-		}
-		return nil, err
-	}
-
-	// parse the dirs from etcd
-	for _, dev := range dirKeys.Node.Nodes {
-		id := unassignedOSDID
-		var path string
-		for _, setting := range dev.Nodes {
-			if strings.HasSuffix(setting.Key, "/path") {
-				path = setting.Value
-			} else if strings.HasSuffix(setting.Key, "/"+osdIDDataKey) {
-				osdID, err := strconv.Atoi(setting.Value)
-				if err == nil {
-					id = osdID
-				}
-			}
-		}
-
-		if path != "" {
-			dirs[path] = id
-		}
-	}
-
-	return dirs, nil
-}
-
-// add a device to the desired state
-func AddDesiredDir(etcdClient etcd.KeysAPI, dir, nodeID string) error {
-	key := path.Join(fmt.Sprintf(dirDesiredKey, nodeID), getPseudoDir(dir), "path")
-	_, err := etcdClient.Set(ctx.Background(), key, dir, nil)
-	if err != nil {
-		return fmt.Errorf("failed to add desired dir %s on node %s. %v", dir, nodeID, err)
-	}
-
-	return nil
-}
-
-// remove a device from the desired state
-func RemoveDesiredDevice(etcdClient etcd.KeysAPI, nodeID, uuid string) error {
-
-	key := path.Join(fmt.Sprintf(deviceDesiredKey, nodeID), uuid)
-	_, err := etcdClient.Delete(ctx.Background(), key, &etcd.DeleteOptions{Dir: true})
-	if err != nil {
-		return fmt.Errorf("failed to remove device uuid %s on node %s from desired. %v", uuid, nodeID, err)
 	}
 
 	return nil

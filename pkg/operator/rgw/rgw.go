@@ -22,6 +22,7 @@ import (
 	"path"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/ceph/client"
 	cephrgw "github.com/rook/rook/pkg/ceph/rgw"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
@@ -242,7 +243,7 @@ func (s *ObjectStore) createKeyring(context *clusterd.Context) error {
 
 	// create the keyring
 	logger.Infof("generating rgw keyring")
-	keyring, err := cephrgw.CreateKeyring(context, s.Namespace)
+	keyring, err := createKeyring(context, s.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create keyring. %+v", err)
 	}
@@ -443,4 +444,18 @@ func (s *ObjectStore) getLabels() map[string]string {
 		k8sutil.ClusterAttr: s.Namespace,
 		"rook_object_store": s.Name,
 	}
+}
+
+// create a keyring for the rgw client with a limited set of privileges
+func createKeyring(context *clusterd.Context, clusterName string) (string, error) {
+	username := "client.radosgw.gateway"
+	access := []string{"osd", "allow rwx", "mon", "allow rw"}
+
+	// get-or-create-key for the user account
+	key, err := client.AuthGetOrCreateKey(context, clusterName, username, access)
+	if err != nil {
+		return "", fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
+	}
+
+	return key, err
 }

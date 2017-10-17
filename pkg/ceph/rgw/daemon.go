@@ -24,11 +24,14 @@ import (
 
 	"strconv"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/proc"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephrgw")
 
 type Config struct {
 	Name            string

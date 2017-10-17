@@ -13,25 +13,37 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package inventory
+package clusterd
 
 import (
-	"encoding/json"
-	"fmt"
-	"path"
 	"regexp"
 	"strconv"
 
-	etcd "github.com/coreos/etcd/client"
-	ctx "golang.org/x/net/context"
+	"github.com/coreos/pkg/capnslog"
 
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
 var (
-	isRBD = regexp.MustCompile("^rbd[0-9]+p?[0-9]{0,}$")
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "inventory")
+	isRBD  = regexp.MustCompile("^rbd[0-9]+p?[0-9]{0,}$")
 )
+
+type LocalDisk struct {
+	Name        string `json:"name"`
+	ID          string `json:"id"`
+	UUID        string `json:"uuid"`
+	Size        uint64 `json:"size"`
+	Rotational  bool   `json:"rotational"`
+	Readonly    bool   `json:"readonly"`
+	FileSystem  string `json:"fileSystem"`
+	MountPoint  string `json:"mountPoint"`
+	Type        string `json:"type"`
+	Parent      string `json:"parent"`
+	HasChildren bool   `json:"hasChildren"`
+	Empty       bool   `json:"empty"`
+}
 
 func GetAvailableDevices(devices []*LocalDisk) []string {
 
@@ -47,50 +59,6 @@ func GetAvailableDevices(devices []*LocalDisk) []string {
 	return available
 }
 
-func storeDevices(etcdClient etcd.KeysAPI, nodeID string, devices []*LocalDisk) error {
-	// store the basic device info in etcd
-	disks := toClusterDisks(devices)
-	output, err := json.Marshal(disks)
-	if err != nil {
-		return fmt.Errorf("failed to marshal disks. %+v", err)
-	}
-
-	key := path.Join(NodesConfigKey, nodeID, disksKey)
-	_, err = etcdClient.Set(ctx.Background(), key, string(output), nil)
-	if err != nil {
-		return fmt.Errorf("failed to store disks in etcd. %+v", err)
-	}
-
-	return nil
-}
-
-func loadDisksConfig(nodeConfig *NodeConfig, rawDisks string) error {
-	var disks []*Disk
-	if err := json.Unmarshal([]byte(rawDisks), &disks); err != nil {
-		return fmt.Errorf("failed to deserialize disks. %+v", err)
-	}
-	nodeConfig.Disks = disks
-	return nil
-}
-
-// Extract the basic disk info that will be used in cluster-wide orchestration decisions.
-func toClusterDisks(devices []*LocalDisk) []*Disk {
-	var disks []*Disk
-	for _, device := range devices {
-		if device.Type == sys.DiskType || device.Type == sys.SSDType {
-			disk := &Disk{
-				Type:       device.Type,
-				Size:       device.Size,
-				Rotational: device.Rotational,
-				Empty:      device.Empty,
-			}
-			disks = append(disks, disk)
-		}
-	}
-
-	return disks
-}
-
 // check whether a device is completely empty
 func getDeviceEmpty(device *LocalDisk) bool {
 	return device.Parent == "" && device.Type == sys.DiskType && device.FileSystem == ""
@@ -101,7 +69,7 @@ func ignoreDevice(d string) bool {
 }
 
 // Discover all the details of devices available on the local node
-func discoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
+func DiscoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
 
 	var disks []*LocalDisk
 	devices, err := sys.ListDevices(executor)

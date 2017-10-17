@@ -21,7 +21,11 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	"github.com/coreos/pkg/capnslog"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "util")
 
 func WriteFile(filePath string, contentBuffer bytes.Buffer) error {
 	dir := filepath.Dir(filePath)
@@ -33,4 +37,14 @@ func WriteFile(filePath string, contentBuffer bytes.Buffer) error {
 	}
 
 	return nil
+}
+
+func WriteFileToLog(logger *capnslog.PackageLogger, path string) {
+	contents, err := ioutil.ReadFile(path)
+	if err != nil {
+		logger.Warningf("failed to write file %s to log: %+v", path, err)
+		return
+	}
+
+	logger.Infof("Config file %s:\n%s", path, string(contents))
 }

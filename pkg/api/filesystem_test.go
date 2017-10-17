@@ -55,7 +55,7 @@ func TestGetFileSystemsHandler(t *testing.T) {
 			if args[0] == "fs" && args[1] == "ls" {
 				return cephFilesystemListResponseRaw, nil
 			}
-			return "", fmt.Errorf("unexpected mon_command '%s'", args[0])
+			return "", fmt.Errorf("unexpected command '%s'", args[0])
 		},
 	}
 	context := &clusterd.Context{
@@ -97,7 +97,7 @@ func TestCreateFileSystemHandler(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateClusterInfo(nil, path.Join(configDir, clusterName), nil)
+				cephtest.CreateConfigDir(path.Join(configDir, clusterName))
 			}
 
 			return "", nil

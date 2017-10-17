@@ -19,13 +19,19 @@ package mon
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path"
 	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/sys"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -46,7 +52,7 @@ func LoadClusterInfo(context *clusterd.Context, namespace string) (*mon.ClusterI
 			return nil, maxMonID, fmt.Errorf("failed to get mon secrets. %+v", err)
 		}
 
-		clusterInfo, err = mon.CreateNamedClusterInfo(context, "", namespace)
+		clusterInfo, err = createNamedClusterInfo(context, namespace)
 		if err != nil {
 			return nil, maxMonID, fmt.Errorf("failed to create mon secrets. %+v", err)
 		}
@@ -218,4 +224,67 @@ func validNode(node v1.Node, placement k8sutil.Placement) bool {
 	}
 	logger.Infof("node %s is not ready. %+v", node.Name, node.Status.Conditions)
 	return false
+}
+
+// create new cluster info (FSID, shared keys)
+func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*mon.ClusterInfo, error) {
+	fsid, err := uuid.NewRandom()
+	if err != nil {
+		return nil, err
+	}
+
+	dir := path.Join(context.ConfigDir, clusterName)
+	if err = os.MkdirAll(dir, 0744); err != nil {
+		return nil, fmt.Errorf("failed to create dir %s. %+v", dir, err)
+	}
+
+	// generate the mon secret
+	monSecret, err := genSecret(context.Executor, dir, "mon.", []string{"--cap", "mon", "'allow *'"})
+	if err != nil {
+		return nil, err
+	}
+
+	// generate the admin secret if one was not provided at the command line
+	args := []string{"--set-uid=0", "--cap", "mon", "'allow *'", "--cap", "osd", "'allow *'", "--cap", "mgr", "'allow *'", "--cap", "mds", "'allow'"}
+	adminSecret, err := genSecret(context.Executor, dir, client.AdminUsername, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return &mon.ClusterInfo{
+		FSID:          fsid.String(),
+		MonitorSecret: monSecret,
+		AdminSecret:   adminSecret,
+		Name:          clusterName,
+	}, nil
+}
+
+func genSecret(executor exec.Executor, configDir, name string, args []string) (string, error) {
+	path := path.Join(configDir, fmt.Sprintf("%s.keyring", name))
+	path = strings.Replace(path, "..", ".", 1)
+	base := []string{
+		"--create-keyring",
+		path,
+		"--gen-key",
+		"-n", name,
+	}
+	args = append(base, args...)
+	_, err := executor.ExecuteCommandWithOutput(false, "gen secret", "ceph-authtool", args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to gen secret. %+v", err)
+	}
+
+	contents, err := ioutil.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to read secret file. %+v", err)
+	}
+	return extractKey(string(contents))
+}
+
+func extractKey(contents string) (string, error) {
+	secret := sys.Awk(sys.Grep(string(contents), "key"), 3)
+	if secret == "" {
+		return "", fmt.Errorf("failed to parse secret")
+	}
+	return secret, nil
 }

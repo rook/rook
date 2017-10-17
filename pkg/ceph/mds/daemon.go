@@ -20,6 +20,7 @@ import (
 	"path"
 	"strconv"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
@@ -35,6 +36,8 @@ caps osd = "allow *"
 caps mds = "allow"
 `
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephmds")
 
 type Config struct {
 	FilesystemID  string

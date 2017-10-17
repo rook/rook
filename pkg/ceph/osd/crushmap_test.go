@@ -31,7 +31,6 @@ func TestCrushMap(t *testing.T) {
 }
 
 func testCrushMapHelper(t *testing.T, storeConfig *StoreConfig) {
-	etcdClient := util.NewMockEtcdClient()
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		logger.Infof("OUTPUT for %s. %s %+v", name, command, args)
@@ -57,7 +56,7 @@ func testCrushMapHelper(t *testing.T, storeConfig *StoreConfig) {
 		assert.True(t, argsSet.Contains("host=node1"))
 		return "", nil
 	}
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: "node1"}, Executor: executor}
+	context := &clusterd.Context{Executor: executor}
 
 	location := "root=default,dc=datacenter1,host=node1"
 
@@ -70,7 +69,4 @@ func testCrushMapHelper(t *testing.T, storeConfig *StoreConfig) {
 
 	err := addOSDToCrushMap(context, config, "rook", location)
 	assert.Nil(t, err)
-
-	// location should have been stored in etcd as well
-	assert.Equal(t, location, etcdClient.GetValue("/rook/nodes/config/node1/location"))
 }

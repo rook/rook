@@ -87,11 +87,6 @@ func init() {
 	// load the environment variables
 	flags.SetFlagsFromEnv(rootCmd.Flags(), RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(rootCmd.PersistentFlags(), RookEnvVarPrefix)
-
-	rootCmd.Run = func(cmd *cobra.Command, args []string) {
-		fmt.Fprintln(os.Stderr, "Rook standalone support has been removed")
-		os.Exit(1)
-	}
 }
 
 func addCommands() {
