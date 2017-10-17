@@ -23,6 +23,7 @@ import (
 
 	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/ceph/mon"
+	"github.com/rook/rook/pkg/clusterd"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -212,7 +213,7 @@ func (c *Cluster) removeMon(name string) error {
 	}
 
 	// Remove the bad monitor from quorum
-	if err := mon.RemoveMonitorFromQuorum(c.context, c.clusterInfo.Name, name); err != nil {
+	if err := removeMonitorFromQuorum(c.context, c.clusterInfo.Name, name); err != nil {
 		return fmt.Errorf("failed to remove mon %s from quorum. %+v", name, err)
 	}
 	delete(c.clusterInfo.Monitors, name)
@@ -251,5 +252,16 @@ func (c *Cluster) removeMon(name string) error {
 		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", name, err)
 	}
 
+	return nil
+}
+
+func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string) error {
+	logger.Debugf("removing monitor %s", name)
+	args := []string{"mon", "remove", name}
+	if _, err := client.ExecuteCephCommand(context, clusterName, args); err != nil {
+		return fmt.Errorf("mon %s remove failed: %+v", name, err)
+	}
+
+	logger.Infof("removed monitor %s", name)
 	return nil
 }

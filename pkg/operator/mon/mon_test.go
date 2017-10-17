@@ -46,7 +46,7 @@ func newTestStartCluster(namespace string) *clusterd.Context {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateClusterInfo(nil, path.Join(configDir, namespace), nil)
+				cephtest.CreateConfigDir(path.Join(configDir, namespace))
 			}
 			return "", nil
 		},
@@ -150,7 +150,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", "myversion", k8sutil.Placement{}, false)
-	c.clusterInfo = test.CreateClusterInfo(1)
+	c.clusterInfo = test.CreateConfigDir(1)
 
 	// create the initial config map
 	err := c.saveMonConfig()
@@ -196,7 +196,7 @@ func TestCheckHealth(t *testing.T) {
 	}
 	c := New(context, "ns", "", "myversion", k8sutil.Placement{}, false)
 	c.Size = 1
-	c.clusterInfo = test.CreateClusterInfo(1)
+	c.clusterInfo = test.CreateConfigDir(1)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
@@ -259,7 +259,7 @@ func TestMonID(t *testing.T) {
 func TestAvailableMonNodes(t *testing.T) {
 	clientset := test.New(1)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{}, false)
-	c.clusterInfo = test.CreateClusterInfo(0)
+	c.clusterInfo = test.CreateConfigDir(0)
 	nodes, err := c.getAvailableMonNodes()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(nodes))
@@ -276,7 +276,7 @@ func TestAvailableMonNodes(t *testing.T) {
 func TestAvailableNodesInUse(t *testing.T) {
 	clientset := test.New(3)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{}, false)
-	c.clusterInfo = test.CreateClusterInfo(0)
+	c.clusterInfo = test.CreateConfigDir(0)
 
 	// all three nodes are available by default
 	nodes, err := c.getAvailableMonNodes()
@@ -307,7 +307,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 func TestTaintedNodes(t *testing.T) {
 	clientset := test.New(3)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{}, false)
-	c.clusterInfo = test.CreateClusterInfo(0)
+	c.clusterInfo = test.CreateConfigDir(0)
 
 	nodes, err := c.getAvailableMonNodes()
 	assert.Nil(t, err)
@@ -340,7 +340,7 @@ func TestTaintedNodes(t *testing.T) {
 func TestNodeAffinity(t *testing.T) {
 	clientset := test.New(3)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{}, false)
-	c.clusterInfo = test.CreateClusterInfo(0)
+	c.clusterInfo = test.CreateConfigDir(0)
 
 	nodes, err := c.getAvailableMonNodes()
 	assert.Nil(t, err)
@@ -380,7 +380,7 @@ func TestNodeAffinity(t *testing.T) {
 func TestHostNetwork(t *testing.T) {
 	clientset := test.New(3)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{}, false)
-	c.clusterInfo = test.CreateClusterInfo(0)
+	c.clusterInfo = test.CreateConfigDir(0)
 
 	c.HostNetwork = true
 
@@ -410,7 +410,7 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 	}
 
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", k8sutil.Placement{}, true)
-	c.clusterInfo = test.CreateClusterInfo(0)
+	c.clusterInfo = test.CreateConfigDir(0)
 
 	var info *nodeInfo
 	info, err = getNodeInfoFromNode(*node)
@@ -439,7 +439,7 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 		Clientset: clientset,
 		ConfigDir: configDir,
 	}, "ns", "", "myversion", k8sutil.Placement{}, true)
-	c.clusterInfo = test.CreateClusterInfo(0)
+	c.clusterInfo = test.CreateConfigDir(0)
 
 	mons := []*monConfig{
 		{
@@ -483,7 +483,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 	}
 	c := New(context, "ns", "", "myversion", k8sutil.Placement{}, false)
 	c.Size = 2
-	c.clusterInfo = test.CreateClusterInfo(2)
+	c.clusterInfo = test.CreateConfigDir(2)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 	fmt.Printf("TEST: %+v\n", c.clusterInfo)

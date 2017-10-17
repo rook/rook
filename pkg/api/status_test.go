@@ -49,7 +49,7 @@ func TestGetStatusDetailsHandler(t *testing.T) {
 		case args[0] == "time-sync-status":
 			return cephTimeStatusReponseRaw, nil
 		}
-		return "", fmt.Errorf("unexpected mon_command '%v'", args)
+		return "", fmt.Errorf("unexpected command '%v'", args)
 	}
 
 	// make a request to GetStatusDetails and verify the results
@@ -105,7 +105,7 @@ func TestGetStatusDetailsEmptyResponseFromCeph(t *testing.T) {
 		case args[0] == "time-sync-status":
 			return "{}", nil
 		}
-		return "", fmt.Errorf("unexpected mon_command '%v'", args)
+		return "", fmt.Errorf("unexpected command '%v'", args)
 	}
 
 	// make a request to GetStatusDetails and verify the results

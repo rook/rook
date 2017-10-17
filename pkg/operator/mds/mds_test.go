@@ -41,7 +41,7 @@ func TestStartMDS(t *testing.T) {
 		},
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateClusterInfo(nil, path.Join(configDir, "ns"), nil)
+				cephtest.CreateConfigDir(path.Join(configDir, "ns"))
 			}
 
 			return "", nil

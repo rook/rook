@@ -29,6 +29,25 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 )
 
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephmon")
+
+const (
+	MonitorKeyringTemplate = `
+	[mon.]
+		key = %s
+		caps mon = "allow *"` + AdminKeyringTemplate
+
+	AdminKeyringTemplate = `
+	[client.admin]
+		key = %s
+		auid = 0
+		caps mds = "allow"
+		caps mon = "allow *"
+		caps osd = "allow *"
+		caps mgr = "allow *"
+	`
+)
+
 type CephMonitorConfig struct {
 	Name     string `json:"name"`
 	Endpoint string `json:"endpoint"`
@@ -339,4 +358,28 @@ func logLevelToCephLogLevel(logLevel capnslog.LogLevel) int {
 	}
 
 	return 0
+}
+
+// writes the monitor backend file to disk
+func writeBackendFile(monDataDir, backend string) error {
+	backendPath := filepath.Join(monDataDir, "kv_backend")
+	if err := ioutil.WriteFile(backendPath, []byte(backend), 0644); err != nil {
+		return fmt.Errorf("failed to write kv_backend to %s: %+v", backendPath, err)
+	}
+	return nil
+}
+
+func generateMonMap(context *clusterd.Context, cluster *ClusterInfo, folder string) (string, error) {
+	path := path.Join(folder, "monmap")
+	args := []string{path, "--create", "--clobber", "--fsid", cluster.FSID}
+	for _, mon := range cluster.Monitors {
+		args = append(args, "--add", mon.Name, mon.Endpoint)
+	}
+
+	err := context.Executor.ExecuteCommand(false, "", "monmaptool", args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to generate monmap. %+v", err)
+	}
+
+	return path, nil
 }

@@ -24,9 +24,9 @@ import (
 
 	"strings"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/clusterd/inventory"
 	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/rook/rook/pkg/util/sys"
 )
@@ -34,6 +34,8 @@ import (
 const (
 	osdDirsKeyName = "osd-dirs"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephosd")
 
 func Run(context *clusterd.Context, agent *OsdAgent) error {
 	if err := setNodeName(context, agent.nodeName); err != nil {
@@ -47,16 +49,16 @@ func Run(context *clusterd.Context, agent *OsdAgent) error {
 	}
 
 	logger.Infof("discovering hardware")
-	hardware, err := inventory.DiscoverHardware(context.Executor)
+	rawDevices, err := clusterd.DiscoverDevices(context.Executor)
 	if err != nil {
 		return fmt.Errorf("failed initial hardware discovery. %+v", err)
 	}
-	context.Inventory = &inventory.Config{Local: hardware}
+	context.Devices = rawDevices
 
 	logger.Infof("creating and starting the osds")
 
 	// initialize the desired osds
-	devices, err := getAvailableDevices(context, hardware.Disks, agent.devices, agent.metadataDevice, agent.usingDeviceFilter)
+	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice, agent.usingDeviceFilter)
 	if err != nil {
 		return fmt.Errorf("failed to get available devices. %+v", err)
 	}
@@ -86,6 +88,7 @@ func Run(context *clusterd.Context, agent *OsdAgent) error {
 	// FIX
 	log.Printf("sleeping a while to let the osds run...")
 	<-time.After(1000000 * time.Second)
+
 	return nil
 }
 
@@ -104,8 +107,7 @@ func setNodeName(context *clusterd.Context, nodeName string) error {
 	return nil
 }
 
-func getAvailableDevices(context *clusterd.Context, devices []*inventory.LocalDisk, desiredDevices string,
-	metadataDevice string, usingDeviceFilter bool) (*DeviceOsdMapping, error) {
+func getAvailableDevices(context *clusterd.Context, desiredDevices string, metadataDevice string, usingDeviceFilter bool) (*DeviceOsdMapping, error) {
 
 	var deviceList []string
 	if !usingDeviceFilter {
@@ -113,7 +115,7 @@ func getAvailableDevices(context *clusterd.Context, devices []*inventory.LocalDi
 	}
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
-	for _, device := range devices {
+	for _, device := range context.Devices {
 		if device.Type == sys.PartType {
 			continue
 		}

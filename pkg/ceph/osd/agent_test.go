@@ -29,12 +29,11 @@ import (
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/clusterd/inventory"
-	"github.com/rook/rook/pkg/util"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/rook/rook/pkg/util/proc"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOSDAgentWithDevicesFilestore(t *testing.T) {
@@ -53,9 +52,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	}
 	defer os.RemoveAll(configDir)
 
-	clusterName := "mycluster"
-	nodeID := "abc"
-	etcdClient, agent, executor := createTestAgent(t, nodeID, "sdx,sdy", configDir, &storeConfig)
+	agent, executor := createTestAgent(t, "sdx,sdy", configDir, &storeConfig)
 
 	startCount := 0
 	executor.MockStartExecuteCommand = func(debug bool, name string, command string, args ...string) (*exec.Cmd, error) {
@@ -74,7 +71,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 
 	execCount := 0
 	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
-		logger.Infof("RUN %d for %s. %s %+v", execCount, name, command, args)
+		logger.Infof("RUN %d: %s %+v", execCount, command, args)
 		parts := strings.Split(name, " ")
 		nameSuffix := parts[0]
 		if len(parts) > 1 {
@@ -171,70 +168,55 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	}
 
 	context := &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID, Inventory: createInventory()},
-		Executor:      executor,
-		ConfigDir:     configDir,
-		ProcMan:       proc.New(executor),
+		Executor:  executor,
+		ConfigDir: configDir,
+		ProcMan:   proc.New(executor),
 	}
 
 	// Set sdx as already having an assigned osd id, a UUID and saved to the partition scheme.
 	// The other device (sdy) will go through id selection, which is mocked in the createTestAgent method to return an id of 3.
 	_, sdxUUID := mockPartitionSchemeEntry(t, 23, "sdx", &storeConfig, agent.kv, agent.nodeName)
 
-	// sdx should already have desired state set to have its data and metadata collocated on the sdx device
-	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/%s/device/%s/osd-id-data", nodeID, sdxUUID), "23")
-	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/%s/device/%s/osd-id-metadata", nodeID, sdxUUID), "23")
-
 	// note only sdx already has a UUID (it's been through partitioning)
-	context.Inventory.Local.Disks = []*inventory.LocalDisk{
+	context.Devices = []*clusterd.LocalDisk{
 		{Name: "sdx", Size: 1234567890, UUID: sdxUUID},
 		{Name: "sdy", Size: 1234567890},
 	}
-
-	// prep the OSD agent and related orchestration data
-	prepAgentOrchestrationData(t, agent, etcdClient, context, clusterName)
-
-	err = agent.ConfigureLocalService(context)
+	devices := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{
+		"sdx": {Data: -1},
+		"sdy": {Data: -1},
+	}}
+	err = agent.configureDevices(context, devices)
 	assert.Nil(t, err)
-
-	// wait for the async osds to complete
-	<-agent.osdsCompleted
 
 	assert.Equal(t, int32(0), agent.configCounter)
 	assert.Equal(t, 2, startCount) // 2 OSD procs should be started
 	assert.Equal(t, 2, len(agent.osdProc), fmt.Sprintf("procs=%+v", agent.osdProc))
 
 	if storeConfig.StoreType == Bluestore {
-		assert.Equal(t, 12, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
+		assert.Equal(t, 11, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
 		assert.Equal(t, 5, execCount)        // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
 	} else {
-		assert.Equal(t, 10, outputExecCount)
+		assert.Equal(t, 9, outputExecCount)
 		assert.Equal(t, 8, execCount) // 1 for remount sdx, 1 osd mkfs for sdx, 3 partition steps for sdy, 1 mkfs for sdy, 1 mount for sdy, 1 osd mkfs for sdy
 	}
-
-	err = agent.DestroyLocalService(context)
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(agent.osdProc))
 }
 
 func TestOSDAgentNoDevices(t *testing.T) {
 	// set up a temporary config directory that will be cleaned up after test
 	configDir, err := ioutil.TempDir("", "TestOSDAgentNoDevices")
-	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
-	}
+	require.NoError(t, err)
 	defer os.RemoveAll(configDir)
 
-	clusterName := "mycluster"
 	os.MkdirAll(filepath.Join(configDir, "osd3"), 0744)
 
 	// create a test OSD agent with no devices specified
-	nodeID := "abc"
-	etcdClient, agent, _ := createTestAgent(t, nodeID, "", configDir, nil)
+	agent, _ := createTestAgent(t, "", configDir, nil)
 
 	startCount := 0
 	executor := &exectest.MockExecutor{}
 	executor.MockStartExecuteCommand = func(debug bool, name string, command string, args ...string) (*exec.Cmd, error) {
+		logger.Infof("StartExecuteCommand: %s %v", command, args)
 		startCount++
 		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 		return cmd, nil
@@ -242,6 +224,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	runCount := 0
 	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
+		logger.Infof("ExecuteCommand: %s %v", command, args)
 		runCount++
 		createTestKeyring(t, configDir, args)
 		return nil
@@ -249,122 +232,46 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	execWithOutputFileCount := 0
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-		logger.Infof("ExecuteCommandWithOutputFile %d for %s. %s %+v", execWithOutputFileCount, actionName, command, args)
+		logger.Infof("ExecuteCommandWithOutputFile: %s %v", command, args)
 		execWithOutputFileCount++
 		return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 	}
 
 	execWithOutputCount := 0
 	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, arg ...string) (string, error) {
-		logger.Infof("ExecuteCommandWithOutput %d for %s. %s %+v", execWithOutputCount, actionName, command, arg)
+		logger.Infof("ExecuteCommandWithOutput: %s %v", command, arg)
 		execWithOutputCount++
 		return "", nil
 	}
 
 	// set up expected ProcManager commands
 	context := &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID, Inventory: createInventory()},
-		Executor:      executor,
-		ProcMan:       proc.New(executor),
-		ConfigDir:     configDir,
+		Devices:   []*clusterd.LocalDisk{},
+		Executor:  executor,
+		ProcMan:   proc.New(executor),
+		ConfigDir: configDir,
 	}
-
-	// prep the OSD agent and related orchestration data
-	prepAgentOrchestrationData(t, agent, etcdClient, context, clusterName)
-
-	// configure the OSD and verify the results
-	err = agent.Initialize(context)
+	dirs := map[string]int{
+		filepath.Join(configDir, "sdx"): -1,
+		filepath.Join(configDir, "sdy"): -1,
+	}
+	err = agent.configureDirs(context, dirs)
 	assert.Nil(t, err)
-	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/abc/dir/%s/osd-id-data", getPseudoDir(configDir)), "3")
-
-	err = agent.ConfigureLocalService(context)
-	assert.Nil(t, err)
-	assert.Equal(t, 1, runCount)
-	assert.Equal(t, 1, startCount)
-	assert.Equal(t, 3, execWithOutputFileCount)
-	assert.Equal(t, 1, execWithOutputCount)
+	assert.Equal(t, 2, runCount)
+	assert.Equal(t, 2, startCount)
+	assert.Equal(t, 6, execWithOutputFileCount)
+	assert.Equal(t, 2, execWithOutputCount)
 	assert.Equal(t, 1, len(agent.osdProc))
-
-	// the local device should be marked as an applied OSD now
-	osds, err := GetAppliedOSDs(context.NodeID, etcdClient)
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(osds))
-
-	// destroy the OSD and verify the results
-	err = agent.DestroyLocalService(context)
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(agent.osdProc))
 }
 
-func TestAppliedDevices(t *testing.T) {
-	nodeID := "abc"
-	etcdClient := util.NewMockEtcdClient()
-
-	// no applied osds
-	osds, err := GetAppliedOSDs(nodeID, etcdClient)
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(osds))
-
-	// two applied osds
-	appliedOSDKey := "/rook/services/ceph/osd/applied/abc"
-	etcdClient.SetValue(path.Join(appliedOSDKey, "1", dataDiskUUIDKey), "1234")
-	etcdClient.SetValue(path.Join(appliedOSDKey, "2", dataDiskUUIDKey), "2345")
-
-	osds, err = GetAppliedOSDs(nodeID, etcdClient)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(osds))
-	assert.Equal(t, "1234", osds[1])
-	assert.Equal(t, "2345", osds[2])
-}
-
-func TestRemoveDevice(t *testing.T) {
-	// set up a temporary config directory that will be cleaned up after test
-	configDir, err := ioutil.TempDir("", "TestRemoveDevice")
-	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
-	}
-	defer os.RemoveAll(configDir)
-
-	nodeID := "a"
-	etcdClient, agent, executor := createTestAgent(t, nodeID, "", configDir, nil)
-
-	context := &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID, Inventory: createInventory()},
-		Executor:      executor, ProcMan: proc.New(executor),
-	}
-	context.Inventory.Local.Disks = []*inventory.LocalDisk{{Name: "sda", Size: 1234567890, UUID: "5435435333"}}
-	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/5435435333/osd-id-data", "23")
-	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/5435435333/osd-id-metadata", "23")
-
-	// create two applied osds, one of which is desired
-	appliedRoot := "/rook/services/ceph/osd/applied/" + nodeID
-	etcdClient.SetValue(path.Join(appliedRoot, "23", dataDiskUUIDKey), "5435435333")
-	etcdClient.SetValue(path.Join(appliedRoot, "56", dataDiskUUIDKey), "2342342343")
-
-	// removing the device will fail without the id
-	err = agent.stopUndesiredDevices(context)
-	assert.Nil(t, err)
-
-	applied := etcdClient.GetChildDirs(appliedRoot)
-	assert.True(t, applied.Equals(util.CreateSet([]string{"23"})), fmt.Sprintf("applied=%+v", applied))
-}
-
-func createTestAgent(t *testing.T, nodeID, devices, configDir string, storeConfig *StoreConfig) (*util.MockEtcdClient, *OsdAgent, *exectest.MockExecutor) {
+func createTestAgent(t *testing.T, devices, configDir string, storeConfig *StoreConfig) (*OsdAgent, *exectest.MockExecutor) {
 	location := "root=here"
 	forceFormat := false
 	if storeConfig == nil {
 		storeConfig = &StoreConfig{StoreType: Bluestore}
 	}
-	etcdClient := util.NewMockEtcdClient()
 	agent := NewAgent(devices, false, "", "", forceFormat, location, *storeConfig, nil, "myhost", kvstore.NewMockKeyValueStore())
 	agent.cluster = &mon.ClusterInfo{Name: "myclust"}
-	agent.Initialize(&clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID},
-		ConfigDir:     configDir})
-	if devices == "" {
-		assert.Equal(t, configDir, etcdClient.GetValue(fmt.Sprintf(
-			"/rook/services/ceph/osd/desired/%s/dir/%s/path", nodeID, getPseudoDir(configDir))))
-	}
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
@@ -372,27 +279,7 @@ func createTestAgent(t *testing.T, nodeID, devices, configDir string, storeConfi
 		},
 	}
 
-	return etcdClient, agent, executor
-}
-
-func prepAgentOrchestrationData(t *testing.T, agent *OsdAgent, etcdClient *util.MockEtcdClient, context *clusterd.Context, clusterName string) {
-	key := path.Join(mon.CephKey, osdAgentName, clusterd.DesiredKey, context.NodeID)
-	etcdClient.CreateDir(key)
-
-	err := agent.Initialize(context)
-	etcdClient.SetValue(path.Join(mon.CephKey, osdAgentName, clusterd.DesiredKey, context.NodeID, "ready"), "1")
-	assert.Nil(t, err)
-
-	// prep the etcd keys as if the leader initiated the orchestration
-	etcdClient.SetValue(path.Join(mon.CephKey, "fsid"), "id")
-	etcdClient.SetValue(path.Join(mon.CephKey, "name"), clusterName)
-	etcdClient.SetValue(path.Join(mon.CephKey, "_secrets", "monitor"), "monsecret")
-	etcdClient.SetValue(path.Join(mon.CephKey, "_secrets", "admin"), "adminsecret")
-
-	monKey := path.Join(mon.CephKey, "monitor", clusterd.DesiredKey, context.NodeID)
-	etcdClient.SetValue(path.Join(monKey, "id"), "1")
-	etcdClient.SetValue(path.Join(monKey, "ipaddress"), "10.6.5.4")
-	etcdClient.SetValue(path.Join(monKey, "port"), "8743")
+	return agent, executor
 }
 
 func createTestKeyring(t *testing.T, configRoot string, args []string) {
@@ -406,111 +293,21 @@ func createTestKeyring(t *testing.T, configRoot string, args []string) {
 	}
 }
 
-func TestDesiredDeviceState(t *testing.T) {
-	nodeID := "a"
-	etcdClient := util.NewMockEtcdClient()
-
-	// add a device
-	err := AddDesiredDevice(etcdClient, nodeID, "myuuid", 23)
-	assert.Nil(t, err)
-	devices := etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/a/device")
-	assert.Equal(t, 1, devices.Count())
-	assert.True(t, devices.Contains("myuuid"))
-
-	// remove the device
-	err = RemoveDesiredDevice(etcdClient, nodeID, "myuuid")
-	assert.Nil(t, err)
-	devices = etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/a/device")
-	assert.Equal(t, 0, devices.Count())
-
-	// removing a non-existent device is a no-op
-	err = RemoveDesiredDevice(etcdClient, nodeID, "foo")
-	assert.Nil(t, err)
-}
-
-func TestLoadDesiredDevices(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
-	a := &OsdAgent{desiredDevices: []string{}}
-
-	// no devices are desired
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: "a", Inventory: createInventory()}}
-	desired, err := a.loadDesiredDevices(context)
-	assert.Nil(t, err)
-	assert.Equal(t, 0, len(desired.Entries))
-
-	// two devices and one metadata device are desired and it is a new config
-	context.Inventory.Local.Disks = []*inventory.LocalDisk{
-		{Name: "sda", Size: 1234567890, UUID: "12345"},
-		{Name: "sdb", Size: 2234567890, UUID: "54321"},
-		{Name: "sdc", Size: 3234567890, UUID: "99999"},
-	}
-	a.desiredDevices = []string{"sda", "sdb"}
-	a.metadataDevice = "sdc"
-	desired, err = a.loadDesiredDevices(context)
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(desired.Entries))
-	assert.Equal(t, DeviceOsdIDEntry{Data: -1, Metadata: nil}, *desired.Entries["sda"])
-	assert.Equal(t, DeviceOsdIDEntry{Data: -1, Metadata: nil}, *desired.Entries["sdb"])
-	assert.Equal(t, DeviceOsdIDEntry{Data: -1, Metadata: []int{}}, *desired.Entries["sdc"])
-
-	// 3 devices are desired and they have previously been configured (with data on 2 devices and metadata for both on the 3rd)
-	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/12345/osd-id-data", "23")
-	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/54321/osd-id-data", "24")
-	etcdClient.SetValue("/rook/services/ceph/osd/desired/a/device/99999/osd-id-metadata", "23,24")
-	desired, err = a.loadDesiredDevices(context)
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(desired.Entries))
-	assert.Equal(t, DeviceOsdIDEntry{Data: 23, Metadata: []int{}}, *desired.Entries["sda"])
-	assert.Equal(t, DeviceOsdIDEntry{Data: 24, Metadata: []int{}}, *desired.Entries["sdb"])
-	assert.Equal(t, DeviceOsdIDEntry{Data: -1, Metadata: []int{23, 24}}, *desired.Entries["sdc"])
-
-	// no devices are desired but they have previously been configured, so they should be returned
-	a.desiredDevices = []string{}
-	desired, err = a.loadDesiredDevices(context)
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(desired.Entries))
-	assert.Equal(t, DeviceOsdIDEntry{Data: 23, Metadata: []int{}}, *desired.Entries["sda"])
-	assert.Equal(t, DeviceOsdIDEntry{Data: 24, Metadata: []int{}}, *desired.Entries["sdb"])
-	assert.Equal(t, DeviceOsdIDEntry{Data: -1, Metadata: []int{23, 24}}, *desired.Entries["sdc"])
-}
-
-func TestDesiredDirsState(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
-
-	// add a dir
-	err := AddDesiredDir(etcdClient, "/my/dir", "a")
-	assert.Nil(t, err)
-	dirs := etcdClient.GetChildDirs("/rook/services/ceph/osd/desired/a/dir")
-	assert.Equal(t, 1, dirs.Count())
-	assert.True(t, dirs.Contains("my_dir"))
-	assert.Equal(t, "/my/dir", etcdClient.GetValue("/rook/services/ceph/osd/desired/a/dir/my_dir/path"))
-
-	loadedDirs, err := loadDesiredDirs(etcdClient, "a")
-	assert.Nil(t, err)
-
-	assert.Equal(t, 1, len(loadedDirs))
-	assert.Equal(t, unassignedOSDID, loadedDirs["/my/dir"])
-}
-
 func TestGetPartitionPerfScheme(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: "a", Inventory: createInventory()}, ConfigDir: configDir}
-	test.CreateClusterInfo(etcdClient, configDir, []string{"mon0"})
+	context := &clusterd.Context{Devices: []*clusterd.LocalDisk{}, ConfigDir: configDir}
+	test.CreateConfigDir(configDir)
+
 	// 3 disks: 2 for data and 1 for the metadata of both disks (2 WALs and 2 DBs)
-	context.Inventory.Local.Disks = []*inventory.LocalDisk{
+	a := &OsdAgent{desiredDevices: []string{"sda", "sdb"}, metadataDevice: "sdc", kv: kvstore.NewMockKeyValueStore(), nodeName: "a"}
+	context.Devices = []*clusterd.LocalDisk{
 		{Name: "sda", Size: 107374182400}, // 100 GB
 		{Name: "sdb", Size: 107374182400}, // 100 GB
 		{Name: "sdc", Size: 44158681088},  // 1 MB (starting offset) + 2 * (576 MB + 20 GB) = 41.125 GB
 	}
-	a := &OsdAgent{desiredDevices: []string{"sda", "sdb"}, metadataDevice: "sdc", kv: kvstore.NewMockKeyValueStore(), nodeName: "a"}
-	clusterInfo, _ := mon.LoadClusterInfo(context.EtcdClient)
+	clusterInfo := &mon.ClusterInfo{Name: "myclust"}
 	a.cluster = clusterInfo
-
-	devices, err := a.loadDesiredDevices(context)
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(devices.Entries))
 
 	// mock monitor command to return an osd ID when the client registers/creates an osd
 	currOsdID := 10
@@ -521,25 +318,47 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 				currOsdID++
 				return fmt.Sprintf(`{"osdid": %d}`, currOsdID), nil
 			}
-			return "", fmt.Errorf("unexpected mon_command '%v'", args)
+			return "", fmt.Errorf("unexpected command '%v'", args)
+		},
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if command == "lsblk" {
+				if args[0] == "/dev/sda" {
+					return `NAME="sda" SIZE="107374182400" TYPE="disk" PKNAME=""`, nil
+				}
+				if args[0] == "/dev/sdb" {
+					return `NAME="sdb" SIZE="107374182400" TYPE="disk" PKNAME=""`, nil
+				}
+				if args[0] == "/dev/sdc" {
+					return `NAME="sdc" SIZE="44158681088" TYPE="disk" PKNAME=""`, nil
+				}
+			}
+			if command == "blkid" {
+				return "", nil
+			}
+			if command == "df" {
+				return "", nil
+			}
+			return "", fmt.Errorf("unexpected command %s %v", command, args)
 		},
 	}
 	context.Executor = executor
 
+	devices, err := getAvailableDevices(context, "sda,sdb", "sdc", false)
+	assert.Nil(t, err)
 	scheme, err := a.getPartitionPerfScheme(context, devices)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(scheme.Entries))
 
-	// verify the metadata entries, they should be on sdc and there should be 4 of them (2 per OSD)
-	assert.NotNil(t, scheme.Metadata)
+	// verify the metadata entries, they should be on sdc and there should be 2 of them (2 per OSD)
+	require.NotNil(t, scheme.Metadata)
 	assert.Equal(t, "sdc", scheme.Metadata.Device)
 	assert.Equal(t, 4, len(scheme.Metadata.Partitions))
 
-	// verify the first entry in the performance partition scheme.  note that the block device will either be sda or
-	// sdb because ordering of map traversal in golang isn't guaranteed.  Ensure that the first is either sda or sdb
-	// and that the second is the other one.
+	// verify the first entry in the performance partition scheme.
 	entry := scheme.Entries[0]
 	assert.Equal(t, 11, entry.ID)
+	// verify the first entry in the performance partition scheme.
 	firstBlockDevice := entry.Partitions[BlockPartitionType].Device
 	assert.True(t, firstBlockDevice == "sda" || firstBlockDevice == "sdb", firstBlockDevice)
 	verifyPartitionEntry(t, entry.Partitions[BlockPartitionType], firstBlockDevice, -1, 1)
@@ -560,41 +379,48 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 	verifyPartitionEntry(t, entry.Partitions[DatabasePartitionType], "sdc", DBDefaultSizeMB, 21633)
 }
 
-func TestGetPartitionPerfSchemeDiskInUse(t *testing.T) {
+func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 	configDir, err := ioutil.TempDir("", "TestGetPartitionPerfSchemeDiskInUse")
 	if err != nil {
 		t.Fatalf("failed to create temp config dir: %+v", err)
 	}
 	defer os.RemoveAll(configDir)
 
-	etcdClient := util.NewMockEtcdClient()
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if command == "lsblk" {
+				if args[0] == "/dev/sda" {
+					return `NAME="sda" SIZE="20971520000" TYPE="disk" PKNAME=""
+					NAME="sda1" SIZE="19921895424" TYPE="part" PKNAME="sda"
+					NAME="sda2" SIZE="1048576000" TYPE="part" PKNAME="sda"`, nil
+				}
+			}
+			if command == "blkid" {
+				return "", nil
+			}
+			if command == "df" {
+				return "", nil
+			}
+			return "", fmt.Errorf("unexpected command %s %v", command, args)
+		},
+	}
 	context := &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: "a", Inventory: createInventory()},
-		ConfigDir:     configDir,
+		Devices:   []*clusterd.LocalDisk{},
+		ConfigDir: configDir,
+		Executor:  executor,
 	}
 
 	a := &OsdAgent{desiredDevices: []string{"sda"}, kv: kvstore.NewMockKeyValueStore()}
-
-	// mock device sda having been already partitioned
 	_, sdaUUID := mockPartitionSchemeEntry(t, 1, "sda", nil, a.kv, a.nodeName)
 
-	context.Inventory.Local.Disks = []*inventory.LocalDisk{
+	context.Devices = []*clusterd.LocalDisk{
 		{Name: "sda", Size: 107374182400, UUID: sdaUUID}, // 100 GB
 	}
 
-	// mock device sda already being saved to desired state
-	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/a/device/%s/osd-id-data", sdaUUID), "1")
-	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/a/device/%s/osd-id-metadata", sdaUUID), "1")
-
-	// load desired devices, this should return that sda is desired to have osd 1
-	devices, err := a.loadDesiredDevices(context)
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(devices.Entries))
-	assert.Equal(t, 1, devices.Entries["sda"].Data)
-	assert.Equal(t, []int{1}, devices.Entries["sda"].Metadata)
-
-	// get the partition scheme based on the desired devices.  Since sda is already in use, the partition
+	// get the partition scheme based on the available devices.  Since sda is already in use, the partition
 	// scheme returned should reflect that.
+	devices, err := getAvailableDevices(context, "sda", "", false)
 	scheme, err := a.getPartitionPerfScheme(context, devices)
 	assert.Nil(t, err)
 
@@ -612,17 +438,41 @@ func TestGetPartitionPerfSchemeDiskInUse(t *testing.T) {
 	assert.Nil(t, scheme.Metadata)
 }
 
-func TestGetPartitionPerfSchemeDiskNameChanged(t *testing.T) {
+func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 	configDir, err := ioutil.TempDir("", "TestGetPartitionPerfSchemeDiskNameChanged")
 	if err != nil {
 		t.Fatalf("failed to create temp config dir: %+v", err)
 	}
 	defer os.RemoveAll(configDir)
 
-	etcdClient := util.NewMockEtcdClient()
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if command == "lsblk" {
+				if args[0] == "/dev/sda-changed" {
+					return `NAME="sda" SIZE="20971520000" TYPE="disk" PKNAME=""
+					NAME="sda1" SIZE="19921895424" TYPE="part" PKNAME="sda"
+					NAME="sda2" SIZE="1048576000" TYPE="part" PKNAME="sda"`, nil
+				}
+				if args[0] == "/dev/nvme01-changed" {
+					return `NAME="nvme01-changed" SIZE="20971520000" TYPE="disk" PKNAME=""
+					NAME="nvme01-changed1" SIZE="19921895424" TYPE="part" PKNAME="nvme01-changed"
+					NAME="nvme01-changed2" SIZE="1048576000" TYPE="part" PKNAME="nvme01-changed"`, nil
+				}
+			}
+			if command == "blkid" {
+				return "", nil
+			}
+			if command == "df" {
+				return "", nil
+			}
+			return "", fmt.Errorf("unexpected command %s %v", command, args)
+		},
+	}
 	context := &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: "a", Inventory: createInventory()},
-		ConfigDir:     configDir,
+		Devices:   []*clusterd.LocalDisk{},
+		ConfigDir: configDir,
+		Executor:  executor,
 	}
 
 	// mock the currently discovered hardware, note the device names have changed (e.g., across reboots) but their UUIDs are always static
@@ -631,30 +481,21 @@ func TestGetPartitionPerfSchemeDiskNameChanged(t *testing.T) {
 	// setup an existing partition schme with metadata on nvme01 and data on sda
 	_, metadataUUID, sdaUUID := mockDistributedPartitionScheme(t, 1, "nvme01", "sda", a.kv, a.nodeName)
 
-	context.Inventory.Local.Disks = []*inventory.LocalDisk{
+	context.Devices = []*clusterd.LocalDisk{
 		{Name: "nvme01-changed", Size: 107374182400, UUID: metadataUUID},
 		{Name: "sda-changed", Size: 107374182400, UUID: sdaUUID},
 	}
 
-	// mock the 2 devices as being committed to desired state already then load desired devices
-	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/a/device/%s/osd-id-data", sdaUUID), "1")
-	etcdClient.SetValue(fmt.Sprintf("/rook/services/ceph/osd/desired/a/device/%s/osd-id-metadata", metadataUUID), "1")
-	devices, err := a.loadDesiredDevices(context)
-	assert.Nil(t, err)
-
 	// get the current partition scheme.  This should notice that the device names changed and update the
 	// partition scheme to have the latest device names
+	devices, err := getAvailableDevices(context, "sda-changed", "nvme01", false)
 	scheme, err := a.getPartitionPerfScheme(context, devices)
 	assert.Nil(t, err)
-	assert.NotNil(t, scheme)
-	assert.Equal(t, "nvme01-changed", scheme.Metadata.Device)
+	require.NotNil(t, scheme)
 	assert.Equal(t, "sda-changed", scheme.Entries[0].Partitions[BlockPartitionType].Device)
-	assert.Equal(t, "nvme01-changed", scheme.Entries[0].Partitions[WalPartitionType].Device)
-	assert.Equal(t, "nvme01-changed", scheme.Entries[0].Partitions[DatabasePartitionType].Device)
-}
-
-func createInventory() *inventory.Config {
-	return &inventory.Config{Local: &inventory.Hardware{Disks: []*inventory.LocalDisk{}}}
+	assert.Equal(t, "nvme01", scheme.Metadata.Device)
+	assert.Equal(t, "nvme01", scheme.Entries[0].Partitions[WalPartitionType].Device)
+	assert.Equal(t, "nvme01", scheme.Entries[0].Partitions[DatabasePartitionType].Device)
 }
 
 func verifyPartitionEntry(t *testing.T, actual *PerfSchemePartitionDetails, expectedDevice string,

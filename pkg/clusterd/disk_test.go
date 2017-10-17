@@ -13,48 +13,15 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package inventory
+package clusterd
 
 import (
-	"encoding/json"
-	"path"
 	"testing"
 
-	"github.com/rook/rook/pkg/util"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestSerializeClusterDisks(t *testing.T) {
-	nodeID := "df1c87e8266843f2ab822c0d72f584d3"
-	etcdClient := &util.MockEtcdClient{}
-	d1 := &LocalDisk{Name: "sda", UUID: "u1", Size: 23, Rotational: true, Readonly: false,
-		FileSystem: "btrfs", MountPoint: "/mnt/abc", Type: sys.DiskType, HasChildren: true}
-	d1.Empty = getDeviceEmpty(d1)
-	d2 := &LocalDisk{Name: "sdb", UUID: "u2", Size: 24, Rotational: true, Readonly: false,
-		Type: sys.DiskType, HasChildren: true}
-	d2.Empty = getDeviceEmpty(d2)
-
-	err := storeDevices(etcdClient, nodeID, []*LocalDisk{d1, d2})
-	assert.Nil(t, err)
-
-	key := path.Join(NodesConfigKey, nodeID, disksKey)
-	rawDisk := etcdClient.GetValue(key)
-	var disks []*Disk
-	err = json.Unmarshal([]byte(rawDisk), &disks)
-	assert.Nil(t, err)
-	assert.Equal(t, 2, len(disks))
-	assert.False(t, disks[0].Empty)
-	assert.True(t, disks[0].Rotational)
-	assert.Equal(t, d1.Size, disks[0].Size)
-	assert.Equal(t, d1.Type, disks[0].Type)
-
-	assert.True(t, disks[1].Empty)
-	assert.True(t, disks[1].Rotational)
-	assert.Equal(t, d2.Size, disks[1].Size)
-	assert.Equal(t, d2.Type, disks[1].Type)
-}
 
 func TestAvailableDisks(t *testing.T) {
 
@@ -96,7 +63,7 @@ func TestDiscoverDevices(t *testing.T) {
 			return "", nil
 		},
 	}
-	devices, err := discoverDevices(executor)
+	devices, err := DiscoverDevices(executor)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(devices))
 }

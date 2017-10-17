@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
-	cephmgr "github.com/rook/rook/pkg/ceph/mgr"
+	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
@@ -165,7 +165,7 @@ func (c *Cluster) createKeyring(clusterName, name string) error {
 	}
 
 	// get-or-create-key for the user account
-	keyring, err := cephmgr.CreateKeyring(c.context, clusterName, name)
+	keyring, err := createKeyring(c.context, clusterName, name)
 	if err != nil {
 		return fmt.Errorf("failed to create mgr keyring. %+v", err)
 	}
@@ -185,4 +185,22 @@ func (c *Cluster) createKeyring(clusterName, name string) error {
 	}
 
 	return nil
+}
+
+func getKeyringProperties(name string) (string, []string) {
+	username := fmt.Sprintf("mgr.%s", name)
+	access := []string{"mon", "allow *"}
+	return username, access
+}
+
+// create a keyring for the mds client with a limited set of privileges
+func createKeyring(context *clusterd.Context, clusterName, name string) (string, error) {
+	// get-or-create-key for the user account
+	username, access := getKeyringProperties(name)
+	keyring, err := client.AuthGetOrCreateKey(context, clusterName, username, access)
+	if err != nil {
+		return "", fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
+	}
+
+	return keyring, nil
 }

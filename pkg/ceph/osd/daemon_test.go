@@ -24,7 +24,6 @@ import (
 	"os"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/clusterd/inventory"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/rook/rook/pkg/util/proc"
@@ -131,7 +130,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	}
 
 	context := &clusterd.Context{ProcMan: proc.New(executor), Executor: executor}
-	devices := []*inventory.LocalDisk{
+	context.Devices = []*clusterd.LocalDisk{
 		{Name: "sda"},
 		{Name: "sdb"},
 		{Name: "sdc"},
@@ -142,7 +141,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	}
 
 	// select all devices, including nvme01 for metadata
-	mapping, err := getAvailableDevices(context, devices, "all", "nvme01", true)
+	mapping, err := getAvailableDevices(context, "all", "nvme01", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
@@ -154,29 +153,29 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 0, len(mapping.Entries["nvme01"].Metadata))
 
 	// select no devices both using and not using a filter
-	mapping, err = getAvailableDevices(context, devices, "", "", false)
+	mapping, err = getAvailableDevices(context, "", "", false)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
 
-	mapping, err = getAvailableDevices(context, devices, "", "", true)
+	mapping, err = getAvailableDevices(context, "", "", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
 
 	// select the sd* devices
-	mapping, err = getAvailableDevices(context, devices, "^sd.$", "", true)
+	mapping, err = getAvailableDevices(context, "^sd.$", "", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select an exact device
-	mapping, err = getAvailableDevices(context, devices, "sdd", "", false)
+	mapping, err = getAvailableDevices(context, "sdd", "", false)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select all devices except those that have a prefix of "s"
-	mapping, err = getAvailableDevices(context, devices, "^[^s]", "", true)
+	mapping, err = getAvailableDevices(context, "^[^s]", "", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)

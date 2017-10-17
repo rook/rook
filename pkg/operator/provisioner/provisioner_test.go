@@ -44,7 +44,7 @@ func TestProvisionImage(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateClusterInfo(nil, path.Join(configDir, namespace), nil)
+				cephtest.CreateConfigDir(path.Join(configDir, namespace))
 			}
 
 			if command == "rbd" && args[0] == "create" {
