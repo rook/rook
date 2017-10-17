@@ -188,9 +188,10 @@ func (c *Cluster) startService() error {
 	labels := c.getLabels()
 	s := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      deploymentName,
-			Namespace: c.Namespace,
-			Labels:    labels,
+			Name:        deploymentName,
+			Namespace:   c.Namespace,
+			Labels:      labels,
+			Annotations: fmt.Sprintf("prometheus.io/scrape: true,prometheus.io/port: %d" % model.Port),
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
