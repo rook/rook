@@ -108,8 +108,8 @@ func (p *MonitoredProc) waitForProcessExit() {
 		p.cmd.Process.Pid, waitStatus.Exited(), waitStatus.ExitStatus(), waitStatus.Signaled(), waitStatus.Signal(), p.cmd)
 }
 
-func (p *MonitoredProc) Stop() error {
-	p.monitor = false
+func (p *MonitoredProc) Stop(mon bool) error {
+	p.monitor = mon
 	if p.cmd == nil || p.cmd.Process == nil {
 		return nil
 	}
