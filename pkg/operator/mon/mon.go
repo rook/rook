@@ -99,14 +99,14 @@ type nodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath, version string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath, version string, size int, placement k8sutil.Placement, hostNetwork bool) *Cluster {
 	return &Cluster{
 		context:             context,
 		placement:           placement,
 		dataDirHostPath:     dataDirHostPath,
 		Namespace:           namespace,
 		Version:             version,
-		Size:                3,
+		Size:                size,
 		maxMonID:            -1,
 		waitForStart:        true,
 		monPodRetryInterval: 6 * time.Second,

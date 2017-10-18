@@ -51,6 +51,8 @@ const (
 	crushmapCreatedKey       = "initialCrushMapCreated"
 	clusterCreateInterval    = 6 * time.Second
 	clusterCreateTimeout     = 5 * time.Minute
+	defaultMonCount          = 3
+	maxMonCount              = 9
 )
 
 const (
@@ -111,12 +113,24 @@ func (c *ClusterController) onAdd(obj interface{}) {
 
 	cluster.init(c.context)
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
-		logger.Warningf("using all devices in more than one namespace not supported. ignoring devices in namespace %s", cluster.Namespace)
-		cluster.Spec.Storage.ClearUseAllDevices()
+		logger.Errorf("using all devices in more than one namespace not supported")
+		return
 	}
 
 	if cluster.Spec.Storage.AnyUseAllDevices() {
 		c.devicesInUse = true
+	}
+
+	if cluster.Spec.MonCount <= 0 {
+		logger.Warningf("mon count is 0 or less (given: %d), needs to be greater 0", cluster.Spec.MonCount)
+		cluster.Spec.MonCount = defaultMonCount
+	}
+	if cluster.Spec.MonCount > maxMonCount {
+		logger.Warningf("mon count is bigger than %d (given: %d), this is NOT recommended", maxMonCount, cluster.Spec.MonCount)
+		cluster.Spec.MonCount = maxMonCount
+	}
+	if cluster.Spec.MonCount%2 == 0 {
+		logger.Warningf("mon count is even (given: %d), should be uneven", cluster.Spec.MonCount)
 	}
 
 	logger.Infof("starting cluster %s in namespace %s", cluster.Name, cluster.Namespace)
@@ -178,7 +192,7 @@ func (c *Cluster) createInstance() error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.Placement.GetMON(), c.Spec.HostNetwork)
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.MonCount, c.Spec.Placement.GetMON(), c.Spec.HostNetwork)
 	err = c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
