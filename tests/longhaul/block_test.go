@@ -27,9 +27,8 @@ func TestK8sBlockLongHaul(t *testing.T) {
 }
 
 var (
-	logger               = capnslog.NewPackageLogger("github.com/rook/rook", "longhaul")
-	defaultNamespace     = "default"
-	defaultRookNamespace = "longhaul-test"
+	logger           = capnslog.NewPackageLogger("github.com/rook/rook", "longhaul")
+	defaultNamespace = "default"
 )
 
 type K8sBlockLongHaulSuite struct {
@@ -43,24 +42,25 @@ type K8sBlockLongHaulSuite struct {
 	db               *utils.MySQLHelper
 	wg               sync.WaitGroup
 	installer        *installer.InstallHelper
+	namespace        string
 }
 
 //Test set up - does the following in order
 //create pool and storage class, create a PVC, Create a MySQL app/service that uses pvc
 
 func (s *K8sBlockLongHaulSuite) SetupSuite() {
-
+	s.namespace = "longhaul-ns"
 	var err error
 	s.kh, err = utils.CreateK8sHelper(s.T)
 	assert.Nil(s.T(), err)
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset, s.T)
-	if !s.kh.IsRookInstalled(defaultRookNamespace) {
-		err = s.installer.InstallRookOnK8s(defaultRookNamespace)
+	if !s.kh.IsRookInstalled(s.namespace) {
+		err = s.installer.InstallRookOnK8s(s.namespace)
 		require.NoError(s.T(), err)
 	}
 
-	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh, defaultRookNamespace)
+	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, s.kh, s.namespace)
 	require.Nil(s.T(), err)
 
 	s.bc = s.testClient.GetBlockClient()
@@ -162,7 +162,7 @@ spec:
 	//create storage class
 	if scp, _ := s.kh.IsStorageClassPresent("rook-block"); !scp {
 		logger.Infof("Install storage class for rook block")
-		_, err = s.storageClassOperation("mysql-pool", defaultRookNamespace, "create")
+		_, err = s.storageClassOperation("mysql-pool", s.namespace, "create")
 		require.NoError(s.T(), err)
 
 		//make sure storageclass is created

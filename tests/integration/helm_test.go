@@ -28,9 +28,11 @@ type HelmSuite struct {
 	k8sh      *utils.K8sHelper
 	installer *installer.InstallHelper
 	hh        *utils.HelmHelper
+	namespace string
 }
 
 func (hs *HelmSuite) SetupSuite() {
+	hs.namespace = "helm-ns"
 	kh, err := utils.CreateK8sHelper(hs.T)
 	require.NoError(hs.T(), err)
 
@@ -39,54 +41,54 @@ func (hs *HelmSuite) SetupSuite() {
 
 	hs.installer = installer.NewK8sRookhelper(kh.Clientset, hs.T)
 
-	err = hs.installer.CreateK8sRookOperatorViaHelm(defaultRookNamespace)
+	err = hs.installer.CreateK8sRookOperatorViaHelm(hs.namespace)
 	require.NoError(hs.T(), err)
 
-	require.True(hs.T(), kh.IsPodInExpectedState("rook-operator", defaultRookNamespace, "Running"),
+	require.True(hs.T(), kh.IsPodInExpectedState("rook-operator", hs.namespace, "Running"),
 		"Make sure rook-operator is in running state")
 
-	require.True(hs.T(), kh.IsPodInExpectedState("rook-agent", defaultRookNamespace, "Running"),
+	require.True(hs.T(), kh.IsPodInExpectedState("rook-agent", hs.namespace, "Running"),
 		"Make sure rook-agent is in running state")
 
 	time.Sleep(10 * time.Second)
 
-	err = hs.installer.CreateK8sRookCluster(defaultRookNamespace)
+	err = hs.installer.CreateK8sRookCluster(hs.namespace)
 	require.NoError(hs.T(), err)
 
-	err = hs.installer.CreateK8sRookToolbox(defaultRookNamespace)
+	err = hs.installer.CreateK8sRookToolbox(hs.namespace)
 	require.NoError(hs.T(), err)
 
-	hs.helper, err = clients.CreateTestClient(enums.Kubernetes, kh, defaultRookNamespace)
+	hs.helper, err = clients.CreateTestClient(enums.Kubernetes, kh, hs.namespace)
 	require.Nil(hs.T(), err)
 }
 
 func (hs *HelmSuite) TearDownSuite() {
 	if hs.T().Failed() {
-		gatherAllRookLogs(hs.k8sh, hs.Suite, defaultRookNamespace, defaultRookNamespace)
+		gatherAllRookLogs(hs.k8sh, hs.Suite, hs.namespace, hs.namespace)
 	}
-	hs.installer.UninstallRookFromK8s(defaultRookNamespace, true)
+	hs.installer.UninstallRookFromK8s(hs.namespace, true)
 
 }
 
 //Test to make sure all rook components are installed and Running
 func (hs *HelmSuite) TestRookInstallViaHelm() {
-	checkIfRookClusterIsInstalled(hs.k8sh, hs.Suite, defaultRookNamespace, defaultRookNamespace)
+	checkIfRookClusterIsInstalled(hs.k8sh, hs.Suite, hs.namespace, hs.namespace)
 
 }
 
 //Test BlockCreation on Rook that was installed via Helm
 func (hs *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
-	runBlockE2ETestLite(hs.helper, hs.k8sh, hs.Suite, defaultRookNamespace)
+	runBlockE2ETestLite(hs.helper, hs.k8sh, hs.Suite, hs.namespace)
 }
 
 //Test File System Creation on Rook that was installed via helm
 func (hs *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
-	runFileE2ETestLite(hs.helper, hs.k8sh, hs.Suite, defaultRookNamespace, "testfs")
+	runFileE2ETestLite(hs.helper, hs.k8sh, hs.Suite, hs.namespace, "testfs")
 
 }
 
 //Test Object StoreCreation on Rook that was installed via helm
 func (hs *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
-	runObjectE2ETestLite(hs.helper, hs.k8sh, hs.Suite, defaultRookNamespace, "default", 3)
+	runObjectE2ETestLite(hs.helper, hs.k8sh, hs.Suite, hs.namespace, "default", 3)
 
 }

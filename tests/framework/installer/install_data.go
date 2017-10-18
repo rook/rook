@@ -16,8 +16,6 @@ limitations under the License.
 
 package installer
 
-import "strings"
-
 //InstallData wraps rook yaml definitions
 type InstallData struct {
 }
@@ -28,55 +26,12 @@ func NewK8sInstallData() *InstallData {
 }
 
 //GetRookOperator returns rook Operator  manifest
-func (i *InstallData) GetRookOperator(k8sVersion string) string {
-
-	if strings.Contains(k8sVersion, "v1.5") {
-		return `kind: Namespace
-apiVersion: v1
-metadata:
-  name: rook-system
----
-apiVersion: extensions/v1beta1
-kind: Deployment
-metadata:
-  name: rook-operator
-  namespace: rook-system
-spec:
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        name: rook-operator
-    spec:
-      containers:
-      - name: rook-operator
-        image: rook/rook:master
-        args: ["operator", "--mon-healthcheck-interval=5s", "--mon-out-timeout=1s"]
-        env:
-        - name: ROOK_REPO_PREFIX
-          value: rook
-        - name: NODE_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.nodeName
-        - name: ROOK_OPERATOR_SERVICE_ACCOUNT
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.serviceAccountName
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace`
-	}
+func (i *InstallData) GetRookOperator(k8sVersion, namespace string) string {
 
 	return `kind: Namespace
 apiVersion: v1
 metadata:
-  name: rook-system
+  name: ` + namespace + `
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -160,13 +115,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-operator
-  namespace: rook-system
+  namespace: ` + namespace + `
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-operator
-  namespace: rook-system
+  namespace: ` + namespace + `
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -174,13 +129,13 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-operator
-  namespace: rook-system
+  namespace: ` + namespace + `
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: rook-operator
-  namespace: rook-system
+  namespace: ` + namespace + `
 spec:
   replicas: 1
   template:
