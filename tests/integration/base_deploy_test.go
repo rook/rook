@@ -26,11 +26,7 @@ import (
 var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "integrationTest")
 
-	defaultNamespace           = "default"
-	defaultRookSystemNamespace = "rook-system"
-	defaultRookNamespace       = "rook"
-	clusterNamespace1          = "test-cluster-1"
-	clusterNamespace2          = "test-cluster-2"
+	defaultNamespace = "default"
 )
 
 //Test to make sure all rook components are installed and Running

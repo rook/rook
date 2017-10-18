@@ -36,9 +36,11 @@ type SmokeSuite struct {
 	helper    *clients.TestClient
 	k8sh      *utils.K8sHelper
 	installer *installer.InstallHelper
+	namespace string
 }
 
 func (suite *SmokeSuite) SetupSuite() {
+	suite.namespace = "smoke-ns"
 	kh, err := utils.CreateK8sHelper(suite.T)
 	require.NoError(suite.T(), err)
 
@@ -46,32 +48,32 @@ func (suite *SmokeSuite) SetupSuite() {
 
 	suite.installer = installer.NewK8sRookhelper(kh.Clientset, suite.T)
 
-	err = suite.installer.InstallRookOnK8s(defaultRookNamespace)
+	err = suite.installer.InstallRookOnK8s(suite.namespace)
 	require.NoError(suite.T(), err)
 
-	suite.helper, err = clients.CreateTestClient(enums.Kubernetes, kh, defaultRookNamespace)
+	suite.helper, err = clients.CreateTestClient(enums.Kubernetes, kh, suite.namespace)
 	require.Nil(suite.T(), err)
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
 	if suite.T().Failed() {
-		gatherAllRookLogs(suite.k8sh, suite.Suite, defaultRookSystemNamespace, defaultRookNamespace)
+		gatherAllRookLogs(suite.k8sh, suite.Suite, installer.SystemNamespace(suite.namespace), suite.namespace)
 
 	}
-	suite.installer.UninstallRookFromK8s(defaultRookNamespace, false)
+	suite.installer.UninstallRookFromK8s(suite.namespace, false)
 }
 
 func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
-	runBlockE2ETest(suite.helper, suite.k8sh, suite.Suite, defaultRookNamespace)
+	runBlockE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
 }
 func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
-	runFileE2ETest(suite.helper, suite.k8sh, suite.Suite, defaultRookNamespace, "smoke-test-fs")
+	runFileE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace, "smoke-test-fs")
 }
 func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
-	runObjectE2ETest(suite.helper, suite.k8sh, suite.Suite, defaultRookNamespace)
+	runObjectE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
 }
 
 //Test to make sure all rook components are installed and Running
 func (suite *SmokeSuite) TestRookClusterInstallation_smokeTest() {
-	checkIfRookClusterIsInstalled(suite.k8sh, suite.Suite, defaultRookSystemNamespace, defaultRookNamespace)
+	checkIfRookClusterIsInstalled(suite.k8sh, suite.Suite, installer.SystemNamespace(suite.namespace), suite.namespace)
 }

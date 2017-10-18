@@ -87,6 +87,7 @@ func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s sui
 	fscErr := fc.FSCreate(filesystemName, namespace, true, k8sh)
 	require.Nil(s.T(), fscErr)
 	filesystemList, _ := fc.FSList()
+	logger.Infof("Retrieved file systems: %+v", filesystemList)
 	require.Equal(s.T(), 1, len(filesystemList), "There should one shared file system present")
 }
 
