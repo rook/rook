@@ -72,7 +72,7 @@ spec:
     useAllNodes: true
     useAllDevices: false
     storeConfig:
-      storeType: filestore
+      storeType: bluestore
       databaseSizeMB: 1024
       journalSizeMB: 1024
 ```
@@ -123,11 +123,11 @@ kubectl delete -f rook-operator.yaml
 kubectl delete -n rook-system daemonset rook-agent
 kubectl delete -n rook cluster rook
 kubectl delete -n rook serviceaccount rook-api
-kubectl delete clusterrole rook-api
-kubectl delete clusterrolebinding rook-api
+kubectl delete -n rook role rook-api
+kubectl delete -n rook rolebinding rook-api
 kubectl delete -n rook serviceaccount rook-ceph-osd
-kubectl delete clusterrole rook-ceph-osd
-kubectl delete clusterrolebinding rook-ceph-osd
+kubectl delete -n rook role rook-ceph-osd
+kubectl delete -n rook rolebinding rook-ceph-osd
 kubectl delete thirdpartyresources cluster.rook.io pool.rook.io  # ignore errors if on K8s 1.7+
 kubectl delete crd clusters.rook.io pools.rook.io  # ignore errors if on K8s 1.5 and 1.6
 kubectl delete namespace rook

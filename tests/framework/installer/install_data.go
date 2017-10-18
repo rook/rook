@@ -88,6 +88,8 @@ rules:
   resources:
   - clusterroles
   - clusterrolebindings
+  - roles
+  - rolebindings
   verbs:
   - get
   - list
@@ -179,7 +181,7 @@ spec:
 }
 
 //GetRookCluster returns rook-cluster manifest
-func (i *InstallData) GetRookCluster(namespace string) string {
+func (i *InstallData) GetRookCluster(namespace, storeType string) string {
 	return `apiVersion: v1
 kind: Namespace
 metadata:
@@ -194,16 +196,16 @@ spec:
   versionTag: master
   dataDirHostPath:
   hostNetwork: false
-  storage:                # cluster level storage configuration and selection
+  storage:
     useAllNodes: true
     useAllDevices: false
     deviceFilter:
     metadataDevice:
     location:
     storeConfig:
-      storeType: filestore
-      databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
-      journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
+      storeType: ` + storeType + `
+      databaseSizeMB: 1024
+      journalSizeMB: 1024
 `
 }
 

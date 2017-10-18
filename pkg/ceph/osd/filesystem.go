@@ -65,11 +65,11 @@ func createOSDFileSystem(context *clusterd.Context, clusterName string, config *
 		fmt.Sprintf("--keyring=%s", getOSDKeyringPath(config.rootPath)),
 	}
 
-	if !isBluestore(config) {
+	if isFilestore(config) {
 		options = append(options, fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(config.rootPath)))
 	}
 
-	// create the OSD file system and journal
+	// create the OSD file system
 	err = context.ProcMan.Run(
 		fmt.Sprintf("mkfs-osd%d", config.id),
 		"ceph-osd",

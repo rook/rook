@@ -55,7 +55,7 @@ func (s *BlockImageCreateSuite) SetupSuite() {
 
 	s.installer = installer.NewK8sRookhelper(kh.Clientset, s.T)
 
-	err = s.installer.InstallRookOnK8s("rook")
+	err = s.installer.InstallRookOnK8s("rook", "bluestore")
 	require.NoError(s.T(), err)
 
 	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, kh, "rook")

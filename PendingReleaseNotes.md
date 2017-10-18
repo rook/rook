@@ -18,6 +18,8 @@
   - Object Stores are defined by a CRD and handled by the Operator
   - Multiple object stores supported through Ceph realms
 - OSDs
+  - Bluestore is now the default backend store for OSDs when creating a new Rook cluster.
+  - Bluestore can now be used on directories in addition to raw block devices that were already supported.
   - If an OSD loses its metadata and config but still has its data devices, the OSD will automatically regenerate the lost metadata to make the data available again.
 - Pools
   - The failure domain for the CRUSH map can be specified on pools with the `failureDomain` property
@@ -36,4 +38,7 @@
   - `erasureCode` renamed to `erasureCoded`
 - OSDs
   - OSD pods now require RBAC permissions to create/get/update/delete/list config maps.
-  An upgraded operator will create the necessary service account, cluster role, and cluster role bindings to enable this.
+  An upgraded operator will create the necessary service account, role, and role bindings to enable this.
+- API
+  - The API pod now uses RBAC permissions that are scoped only to the namespace it is running in.
+  An upgraded operator will create the necessary service account, role, and role bindings to enable this.

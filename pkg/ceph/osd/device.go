@@ -18,7 +18,6 @@ package osd
 import (
 	"encoding/json"
 	"fmt"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -30,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/display"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/rook/rook/pkg/util/sys"
@@ -42,6 +42,9 @@ const (
 	key = %s
 	caps mon = "allow profile bootstrap-osd"
 `
+	// ratio of disk space that will be used by bluestore on a dir.  This is an upper bound and it
+	// is not preallocated (it is thinly provisioned).
+	bluestoreDirBlockSizeRatio = 0.9
 )
 
 type osdConfig struct {
@@ -52,6 +55,7 @@ type osdConfig struct {
 	id              int
 	uuid            uuid.UUID
 	dir             bool
+	storeConfig     StoreConfig
 	partitionScheme *PerfSchemeEntry
 	kv              kvstore.KeyValueStore
 	storeName       string
@@ -393,26 +397,71 @@ func registerOSD(context *clusterd.Context, clusterName string) (*int, *uuid.UUI
 	return &osdID, &osdUUID, nil
 }
 
-func getStoreSettings(config *osdConfig, storeConfig StoreConfig) (map[string]string, error) {
+func getStoreSettings(config *osdConfig) (map[string]string, error) {
 	settings := map[string]string{}
-	if config.dir || isFilestoreDevice(config) {
-		// add additional filestore settings for dirs and filestore devices
+	if isFilestore(config) {
+		// add additional filestore settings for filestore
 		journalSize := JournalDefaultSizeMB
-		if storeConfig.JournalSizeMB > 0 {
-			journalSize = storeConfig.JournalSizeMB
+		if config.storeConfig.JournalSizeMB > 0 {
+			journalSize = config.storeConfig.JournalSizeMB
 		}
 		settings["osd journal size"] = strconv.Itoa(journalSize)
 		return settings, nil
 	}
 
-	if config.partitionScheme == nil || config.partitionScheme.Partitions == nil {
-		return nil, fmt.Errorf("failed to find partitions from config for osd %d", config.id)
-	}
+	// initialize the full set of config settings for bluestore
+	var walPath, dbPath, blockPath string
+	var err error
 
-	// add additional bluestore settings
-	walPath, dbPath, blockPath, err := getBluestorePartitionPaths(config)
-	if err != nil {
-		return nil, err
+	if isBluestoreDir(config) {
+		// a directory is being used for bluestore, initialize all the required settings
+		walPath, dbPath, blockPath, err = getBluestoreDirPaths(config)
+		if err != nil {
+			return nil, err
+		}
+
+		// ceph will create the block, db, and wal files for us
+		settings["bluestore block wal create"] = "true"
+		settings["bluestore block db create"] = "true"
+		settings["bluestore block create"] = "true"
+
+		// set the size of the wal and db files
+		walSizeMB := WalDefaultSizeMB
+		if config.storeConfig.WalSizeMB > 0 {
+			walSizeMB = config.storeConfig.WalSizeMB
+		}
+		dbSizeMB := DBDefaultSizeMB
+		if config.storeConfig.DatabaseSizeMB > 0 {
+			dbSizeMB = config.storeConfig.DatabaseSizeMB
+		}
+
+		// ceph config uses bytes, not MB, so convert to bytes
+		walSize := walSizeMB * 1024 * 1024
+		settings["bluestore block wal size"] = strconv.Itoa(walSize)
+		dbSize := dbSizeMB * 1024 * 1024
+		settings["bluestore block db size"] = strconv.Itoa(dbSize)
+
+		// Get the total size of the filesystem that contains the OSD root dir and make the bluestore block
+		// file to be a percentage of that size.  Note that by default ceph will not preallocate the full
+		// block file, so it's OK if the entire space is not available.  We will not see any errors until
+		// the disk fills up.
+		totalBytes, err := getSizeForPath(config.rootPath)
+		if err != nil {
+			return nil, err
+		}
+
+		logger.Infof("total bytes for %s: %d (%s)", config.rootPath, totalBytes, display.BytesToString(totalBytes))
+		settings["bluestore block size"] = strconv.Itoa(int(float64(totalBytes) * bluestoreDirBlockSizeRatio))
+	} else {
+		// devices are being used for bluestore, all we need is their paths
+		if config.partitionScheme == nil || config.partitionScheme.Partitions == nil {
+			return nil, fmt.Errorf("failed to find partitions from config for osd %d", config.id)
+		}
+
+		walPath, dbPath, blockPath, err = getBluestorePartitionPaths(config)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	settings["bluestore block wal path"] = walPath
@@ -422,10 +471,10 @@ func getStoreSettings(config *osdConfig, storeConfig StoreConfig) (map[string]st
 	return settings, nil
 }
 
-func writeConfigFile(config *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo, storeConfig StoreConfig) error {
+func writeConfigFile(config *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo) error {
 	cephConfig := mon.CreateDefaultCephConfig(context, cluster, config.rootPath, isBluestore(config))
 
-	if !isBluestore(config) {
+	if config.dir || isFilestoreDevice(config) {
 		// using the local file system requires some config overrides
 		// http://docs.ceph.com/docs/jewel/rados/configuration/filesystem-recommendations/#not-recommended
 		cephConfig.GlobalConfig.OsdMaxObjectNameLen = 256
@@ -433,7 +482,7 @@ func writeConfigFile(config *osdConfig, context *clusterd.Context, cluster *mon.
 	}
 
 	// bluestore has some extra settings
-	settings, err := getStoreSettings(config, storeConfig)
+	settings, err := getStoreSettings(config)
 	if err != nil {
 		return fmt.Errorf("failed to read store settings. %+v", err)
 	}
@@ -448,9 +497,9 @@ func writeConfigFile(config *osdConfig, context *clusterd.Context, cluster *mon.
 	return nil
 }
 
-func initializeOSD(config *osdConfig, context *clusterd.Context,
-	cluster *mon.ClusterInfo, location string, storeConfig StoreConfig) error {
-	err := writeConfigFile(config, context, cluster, storeConfig)
+func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo, location string) error {
+
+	err := writeConfigFile(config, context, cluster)
 	if err != nil {
 		return fmt.Errorf("failed to write config file: %+v", err)
 	}
@@ -526,17 +575,17 @@ func addOSDToCrushMap(context *clusterd.Context, config *osdConfig, clusterName,
 	osdDataPath := config.rootPath
 
 	var totalBytes uint64
-	if !isBluestore(config) {
-		// get the size of the volume containing the OSD data dir.  For filestore directory or device, this will be a
-		// mounted filesystem, so we can use Statfs
-		s := syscall.Statfs_t{}
-		if err := syscall.Statfs(osdDataPath, &s); err != nil {
-			return fmt.Errorf("failed to statfs on %s, %+v", osdDataPath, err)
+	var err error
+	if !isBluestoreDevice(config) {
+		// get the size of the volume containing the OSD data dir.  For filestore/bluestore directory
+		// or device, this will be a mounted filesystem, so we can use Statfs
+		totalBytes, err = getSizeForPath(osdDataPath)
+		if err != nil {
+			return err
 		}
-		totalBytes = s.Blocks * uint64(s.Bsize)
 	} else {
-		// for bluestore, the data partition will be raw, so we can't use Statfs.  Get the full device properties
-		// of the data partition and then get the size from that.
+		// for bluestore devices, the data partition will be raw, so we can't use Statfs.  Get the
+		// full device properties of the data partition and then get the size from that.
 		dataPartDetails, err := getDataPartitionDetails(config)
 		if err != nil {
 			return fmt.Errorf("failed to get data partition details for osd %d (%s): %+v", osdID, osdDataPath, err)
@@ -609,8 +658,8 @@ func purgeOSD(context *clusterd.Context, clusterName string, id int) error {
 }
 
 func getBluestorePartitionPaths(config *osdConfig) (string, string, string, error) {
-	if !isBluestore(config) {
-		return "", "", "", fmt.Errorf("must be bluestore to get bluestore partition paths: %+v", config)
+	if !isBluestoreDevice(config) {
+		return "", "", "", fmt.Errorf("must be bluestore device to get bluestore partition paths: %+v", config)
 	}
 	parts := config.partitionScheme.Partitions
 	walPartition, ok := parts[WalPartitionType]
@@ -626,9 +675,30 @@ func getBluestorePartitionPaths(config *osdConfig) (string, string, string, erro
 		return "", "", "", fmt.Errorf("failed to find block partition for osd %d", config.id)
 	}
 
-	return path.Join(diskByPartUUID, walPartition.PartitionUUID),
-		path.Join(diskByPartUUID, dbPartition.PartitionUUID),
-		path.Join(diskByPartUUID, blockPartition.PartitionUUID),
+	return filepath.Join(diskByPartUUID, walPartition.PartitionUUID),
+		filepath.Join(diskByPartUUID, dbPartition.PartitionUUID),
+		filepath.Join(diskByPartUUID, blockPartition.PartitionUUID),
 		nil
 
+}
+
+func getBluestoreDirPaths(config *osdConfig) (string, string, string, error) {
+	if !isBluestoreDir(config) {
+		return "", "", "", fmt.Errorf("must be bluestore dir to get bluestore dir paths: %+v", config)
+	}
+
+	return filepath.Join(config.rootPath, bluestoreDirWalName),
+		filepath.Join(config.rootPath, bluestoreDirDBName),
+		filepath.Join(config.rootPath, bluestoreDirBlockName),
+		nil
+}
+
+// getSizeForPath returns the size of the filesystem at the given path.
+func getSizeForPath(path string) (uint64, error) {
+	s := syscall.Statfs_t{}
+	if err := syscall.Statfs(path, &s); err != nil {
+		return 0, fmt.Errorf("failed to statfs on %s, %+v", path, err)
+	}
+
+	return s.Blocks * uint64(s.Bsize), nil
 }

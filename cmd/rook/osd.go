@@ -50,7 +50,7 @@ func addOSDFlags(command *cobra.Command) {
 	command.Flags().IntVar(&cfg.storeConfig.WalSizeMB, "osd-wal-size", osd.WalDefaultSizeMB, "default size (MB) for OSD write ahead log (WAL) (bluestore)")
 	command.Flags().IntVar(&cfg.storeConfig.DatabaseSizeMB, "osd-database-size", osd.DBDefaultSizeMB, "default size (MB) for OSD database (bluestore)")
 	command.Flags().IntVar(&cfg.storeConfig.JournalSizeMB, "osd-journal-size", osd.JournalDefaultSizeMB, "default size (MB) for OSD journal (filestore)")
-	command.Flags().StringVar(&cfg.storeConfig.StoreType, "osd-store", osd.Filestore, "type of backing OSD store to use (bluestore or filestore)")
+	command.Flags().StringVar(&cfg.storeConfig.StoreType, "osd-store", osd.DefaultStore, "type of backing OSD store to use (bluestore or filestore)")
 }
 
 func init() {

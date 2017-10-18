@@ -52,7 +52,7 @@ func (hs *HelmSuite) SetupSuite() {
 
 	time.Sleep(10 * time.Second)
 
-	err = hs.installer.CreateK8sRookCluster(hs.namespace)
+	err = hs.installer.CreateK8sRookCluster(hs.namespace, "bluestore")
 	require.NoError(hs.T(), err)
 
 	err = hs.installer.CreateK8sRookToolbox(hs.namespace)
@@ -72,8 +72,7 @@ func (hs *HelmSuite) TearDownSuite() {
 
 //Test to make sure all rook components are installed and Running
 func (hs *HelmSuite) TestRookInstallViaHelm() {
-	checkIfRookClusterIsInstalled(hs.k8sh, hs.Suite, hs.namespace, hs.namespace)
-
+	checkIfRookClusterIsInstalled(hs.Suite, hs.k8sh, hs.namespace, hs.namespace)
 }
 
 //Test BlockCreation on Rook that was installed via Helm
@@ -84,11 +83,9 @@ func (hs *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
 //Test File System Creation on Rook that was installed via helm
 func (hs *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
 	runFileE2ETestLite(hs.helper, hs.k8sh, hs.Suite, hs.namespace, "testfs")
-
 }
 
 //Test Object StoreCreation on Rook that was installed via helm
 func (hs *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
 	runObjectE2ETestLite(hs.helper, hs.k8sh, hs.Suite, hs.namespace, "default", 3)
-
 }

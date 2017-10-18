@@ -102,19 +102,19 @@ func TestClusterRole(t *testing.T) {
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", k8sutil.Placement{}, false)
 
 	// the role is create
-	err := c.makeClusterRole()
+	err := c.makeRole()
 	assert.Nil(t, err)
-	role, err := c.context.Clientset.RbacV1beta1().ClusterRoles().Get(deploymentName, metav1.GetOptions{})
+	role, err := c.context.Clientset.RbacV1beta1().Roles(c.Namespace).Get(deploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, deploymentName, role.Name)
 	assert.Equal(t, 4, len(role.Rules))
 	account, err := c.context.Clientset.CoreV1().ServiceAccounts(c.Namespace).Get(deploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, c.Namespace, account.Namespace)
-	binding, err := c.context.Clientset.RbacV1beta1().ClusterRoleBindings().Get(deploymentName, metav1.GetOptions{})
+	binding, err := c.context.Clientset.RbacV1beta1().RoleBindings(c.Namespace).Get(deploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, deploymentName, binding.RoleRef.Name)
-	assert.Equal(t, "ClusterRole", binding.RoleRef.Kind)
+	assert.Equal(t, "Role", binding.RoleRef.Kind)
 	assert.Equal(t, "rbac.authorization.k8s.io", binding.RoleRef.APIGroup)
 	assert.Equal(t, deploymentName, binding.Subjects[0].Name)
 	assert.Equal(t, "ServiceAccount", binding.Subjects[0].Kind)
@@ -127,9 +127,9 @@ func TestClusterRole(t *testing.T) {
 			Verbs:     []string{"get", "list"},
 		},
 	}
-	err = c.makeClusterRole()
+	err = c.makeRole()
 	assert.Nil(t, err)
-	role, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Get(deploymentName, metav1.GetOptions{})
+	role, err = c.context.Clientset.RbacV1beta1().Roles(c.Namespace).Get(deploymentName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(role.Rules))
 	assert.Equal(t, "", role.Rules[0].APIGroups[0])
