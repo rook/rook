@@ -68,7 +68,7 @@ pipeline {
                 script{
                     def data = [
                         "aws_1.6": "v1.6.7",
-                        "gce_1.7": "v1.7.5",
+                        "gce_1.7": "v1.7.8",
                         "gce_1.8": "v1.8.0"
                     ]
                     testruns = [:]
@@ -140,6 +140,7 @@ def RunIntegrationTest(k, v) {
                             echo "Running Smoke Tests"
                             sh '''#!/bin/bash
                                   set -o pipefail
+                                  export host_type='''+ "${k}" + '''
                                   export KUBECONFIG=$HOME/admin.conf
                                   kubectl config view
                                   _output/tests/linux_amd64/integration -test.v -test.timeout 600s -test.run SmokeSuite 2>&1 | tee _output/tests/integrationTests.log'''

@@ -72,14 +72,14 @@ func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, 
 	require.Nil(s.T(), err)
 }
 
-func gatherAllRookLogs(k8sh *utils.K8sHelper, s suite.Suite, opNamespace string, clusterNamespace string) {
+func gatherAllRookLogs(k8sh *utils.K8sHelper, s suite.Suite, hostType string, opNamespace string, clusterNamespace string) {
 	logger.Infof("Gathering all logs from Rook Cluster %s", clusterNamespace)
-	k8sh.GetRookLogs("rook-operator", opNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-agent", opNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-api", clusterNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-ceph-mgr", clusterNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-ceph-mon", clusterNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-ceph-osd", clusterNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-ceph-rgw", clusterNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-ceph-mds", clusterNamespace, s.T().Name())
+	k8sh.GetRookLogs("rook-operator", hostType, opNamespace, s.T().Name())
+	k8sh.GetRookLogs("rook-agent", hostType, opNamespace, s.T().Name())
+	k8sh.GetRookLogs("rook-api", hostType, clusterNamespace, s.T().Name())
+	k8sh.GetRookLogs("rook-ceph-mgr", hostType, clusterNamespace, s.T().Name())
+	k8sh.GetRookLogs("rook-ceph-mon", hostType, clusterNamespace, s.T().Name())
+	k8sh.GetRookLogs("rook-ceph-osd", hostType, clusterNamespace, s.T().Name())
+	k8sh.GetRookLogs("rook-ceph-rgw", hostType, clusterNamespace, s.T().Name())
+	k8sh.GetRookLogs("rook-ceph-mds", hostType, clusterNamespace, s.T().Name())
 }

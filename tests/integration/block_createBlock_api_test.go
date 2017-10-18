@@ -23,9 +23,9 @@ import (
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
-	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -43,27 +43,38 @@ func TestBlockCreateAPI(t *testing.T) {
 type BlockImageCreateSuite struct {
 	suite.Suite
 	testClient     *clients.TestClient
+	kh             *utils.K8sHelper
 	rc             contracts.RestAPIOperator
 	initBlockCount int
+	namespace      string
 	installer      *installer.InstallHelper
 }
 
 func (s *BlockImageCreateSuite) SetupSuite() {
+	var err error
+	s.namespace = "block-api-ns"
+	s.kh, err = utils.CreateK8sHelper(s.T)
+	assert.NoError(s.T(), err)
 
-	kh, err := utils.CreateK8sHelper(s.T)
-	require.NoError(s.T(), err)
+	s.installer = installer.NewK8sRookhelper(s.kh.Clientset, s.T)
 
-	s.installer = installer.NewK8sRookhelper(kh.Clientset, s.T)
+	isRookInstalled, err := s.installer.InstallRookOnK8s(s.namespace, "bluestore")
+	if !isRookInstalled {
+		logger.Errorf("Rook Was not installed successfully")
+		s.TearDownSuite()
+		s.T().FailNow()
+	}
 
-	err = s.installer.InstallRookOnK8s("rook", "bluestore")
-	require.NoError(s.T(), err)
-
-	s.testClient, err = clients.CreateTestClient(enums.Kubernetes, kh, "rook")
-	require.Nil(s.T(), err)
+	s.testClient, err = clients.CreateTestClient(s.kh, s.namespace)
+	if err != nil {
+		logger.Errorf("Cannot create rook test client, er -> %v", err)
+		s.TearDownSuite()
+		s.T().FailNow()
+	}
 
 	s.rc = s.testClient.GetRestAPIClient()
 	initialBlocks, err := s.rc.GetBlockImages()
-	require.Nil(s.T(), err)
+	assert.Nil(s.T(), err)
 	s.initBlockCount = len(initialBlocks)
 }
 
@@ -156,7 +167,9 @@ func (s *BlockImageCreateSuite) TearDownTest() {
 	}
 }
 func (s *BlockImageCreateSuite) TearDownSuite() {
-
-	s.installer.UninstallRookFromK8s("rook", false)
+	if s.T().Failed() {
+		gatherAllRookLogs(s.kh, s.Suite, s.installer.Env.HostType, s.namespace, s.namespace)
+	}
+	s.installer.UninstallRookFromK8s(s.namespace, false)
 
 }

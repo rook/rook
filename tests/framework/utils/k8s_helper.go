@@ -767,7 +767,7 @@ func (k8sh *K8sHelper) IsRookInstalled(namespace string) bool {
 }
 
 //GetRookLogs captures logs from specified rook pod and writes it to specified file
-func (k8sh *K8sHelper) GetRookLogs(podAppName string, namespace string, testName string) {
+func (k8sh *K8sHelper) GetRookLogs(podAppName string, hostType string, namespace string, testName string) {
 	logOpts := &v1.PodLogOptions{}
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podAppName}
 
@@ -795,7 +795,7 @@ func (k8sh *K8sHelper) GetRookLogs(podAppName string, namespace string, testName
 				continue
 			}
 		}
-		fileName := fmt.Sprintf("%s_%s_%s_%d.log", testName, podName, namespace, time.Now().Unix())
+		fileName := fmt.Sprintf("%s_%s_%s_%s_%d.log", testName, hostType, podName, namespace, time.Now().Unix())
 		fpath = path.Join(fpath, fileName)
 		file, err := os.Create(fpath)
 		if err != nil {

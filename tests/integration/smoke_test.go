@@ -20,9 +20,9 @@ import (
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
-	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -48,16 +48,25 @@ func (suite *SmokeSuite) SetupSuite() {
 
 	suite.installer = installer.NewK8sRookhelper(kh.Clientset, suite.T)
 
-	err = suite.installer.InstallRookOnK8s(suite.namespace, "bluestore")
-	require.NoError(suite.T(), err)
+	isRookInstalled, err := suite.installer.InstallRookOnK8s(suite.namespace, "bluestore")
+	assert.NoError(suite.T(), err)
+	if !isRookInstalled {
+		logger.Errorf("Rook Was not installed successfully")
+		suite.TearDownSuite()
+		suite.T().FailNow()
+	}
 
-	suite.helper, err = clients.CreateTestClient(enums.Kubernetes, kh, suite.namespace)
-	require.Nil(suite.T(), err)
+	suite.helper, err = clients.CreateTestClient(kh, suite.namespace)
+	if err != nil {
+		logger.Errorf("Cannot create rook test client, er -> %v", err)
+		suite.TearDownSuite()
+		suite.T().FailNow()
+	}
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
 	if suite.T().Failed() {
-		gatherAllRookLogs(suite.k8sh, suite.Suite, installer.SystemNamespace(suite.namespace), suite.namespace)
+		gatherAllRookLogs(suite.k8sh, suite.Suite, suite.installer.Env.HostType, installer.SystemNamespace(suite.namespace), suite.namespace)
 
 	}
 	suite.installer.UninstallRookFromK8s(suite.namespace, false)
