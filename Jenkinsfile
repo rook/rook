@@ -25,11 +25,12 @@ pipeline {
                     if (body.contains("[skip ci]")) {
                          echo ("'[skip ci]' spotted in PR body text. Aborting.")
                          env.shouldBuild = "false"
-
+                    }
+                    if (body.contains("[skip tests]")) {
+                         env.shouldTest = "false"
                     }
                     if (body.contains("[smoke only]")) {
                           env.smokeOnly = "true"
-
                     }
                 }
             }
@@ -58,7 +59,7 @@ pipeline {
        stage('Integration Tests') {
             when {
                 expression {
-                    return env.shouldBuild != "false"
+                    return env.shouldBuild != "false" && env.shouldTest != "false"
                 }
             }
             steps{
@@ -91,7 +92,7 @@ pipeline {
         stage('Publish') {
             when {
                 expression {
-                    return env.shouldBuild != "false"
+                    return env.shouldBuild != "false" && env.shouldTest != "false"
                 }
             }
             environment {
