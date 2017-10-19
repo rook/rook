@@ -28,7 +28,7 @@ var (
 	unmountCmd = &cobra.Command{
 		Use:   "unmount",
 		Short: "Unmounts the pod volume",
-		RunE:  unmount,
+		RunE:  handleUnmount,
 	}
 )
 
@@ -36,7 +36,7 @@ func init() {
 	RootCmd.AddCommand(unmountCmd)
 }
 
-func unmount(cmd *cobra.Command, args []string) error {
+func handleUnmount(cmd *cobra.Command, args []string) error {
 
 	client, err := getRPCClient()
 	if err != nil {
@@ -47,7 +47,6 @@ func unmount(cmd *cobra.Command, args []string) error {
 		MountDir: args[0],
 	}
 
-	// unmounts the volume
 	log(client, fmt.Sprintf("unmounting mount dir: %s", opts.MountDir), false)
 
 	err = client.Call("FlexvolumeController.GetAttachInfoFromMountDir", opts.MountDir, &opts)

@@ -19,17 +19,19 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
+	"net/rpc"
 	"os"
 
 	"github.com/rook/rook/pkg/agent/flexvolume"
 	"github.com/spf13/cobra"
+	k8smount "k8s.io/kubernetes/pkg/util/mount"
 )
 
 var (
 	mountCmd = &cobra.Command{
 		Use:   "mount",
 		Short: "Mounts the volume to the pod volume",
-		RunE:  mount,
+		RunE:  handleMount,
 	}
 )
 
@@ -37,7 +39,7 @@ func init() {
 	RootCmd.AddCommand(mountCmd)
 }
 
-func mount(cmd *cobra.Command, args []string) error {
+func handleMount(cmd *cobra.Command, args []string) error {
 
 	client, err := getRPCClient()
 	if err != nil {
@@ -57,23 +59,48 @@ func mount(cmd *cobra.Command, args []string) error {
 	}
 
 	// Attach volume to node
-	log(client, fmt.Sprintf("calling agent to attach volume %s/%s", opts.Pool, opts.Image), false)
-	var devicePath string
-	err = client.Call("FlexvolumeController.Attach", opts, &devicePath)
+	devicePath, err := attach(client, opts)
 	if err != nil {
-		log(client, fmt.Sprintf("Attach volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
-		return fmt.Errorf("Rook: Mount volume failed: %v", err)
+		return err
 	}
 
-	mounter := getMounter()
-
-	// Mount the volume to a global volume path
+	// Get global mount path
 	var globalVolumeMountPath string
 	err = client.Call("FlexvolumeController.GetGlobalMountPath", opts.VolumeName, &globalVolumeMountPath)
 	if err != nil {
 		log(client, fmt.Sprintf("Attach volume %s/%s failed. Cannot get global volume mount path: %v", opts.Pool, opts.Image, err), true)
 		return fmt.Errorf("Rook: Mount volume failed. Cannot get global volume mount path: %v", err)
 	}
+
+	mounter := getMounter()
+	// Mount the volume to a global volume path
+	err = mountDevice(client, mounter, devicePath, globalVolumeMountPath, opts)
+	if err != nil {
+		return err
+	}
+
+	// Mount the global mount path to pod mount dir
+	err = mount(client, mounter, globalVolumeMountPath, opts)
+	if err != nil {
+		return err
+	}
+	log(client, fmt.Sprintf("volume %s/%s has been attached and mounted", opts.Pool, opts.Image), false)
+	return nil
+}
+
+func attach(client *rpc.Client, opts *flexvolume.AttachOptions) (string, error) {
+
+	log(client, fmt.Sprintf("calling agent to attach volume %s/%s", opts.Pool, opts.Image), false)
+	var devicePath string
+	err := client.Call("FlexvolumeController.Attach", opts, &devicePath)
+	if err != nil {
+		log(client, fmt.Sprintf("Attach volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
+		return "", fmt.Errorf("Rook: Mount volume failed: %v", err)
+	}
+	return devicePath, err
+}
+
+func mountDevice(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, devicePath, globalVolumeMountPath string, opts *flexvolume.AttachOptions) error {
 	notMnt, err := mounter.Interface.IsLikelyNotMountPoint(globalVolumeMountPath)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -106,12 +133,15 @@ func mount(cmd *cobra.Command, args []string) error {
 			false)
 		log(client, fmt.Sprintf("formatting volume %v devicePath %v deviceMountPath %v fs %v with options %+v", opts.VolumeName, devicePath, globalVolumeMountPath, opts.FsType, options), false)
 	}
+	return nil
+}
 
-	// Mount the global mount path to pod mount dir
+func mount(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, globalVolumeMountPath string, opts *flexvolume.AttachOptions) error {
+
 	log(client, fmt.Sprintf("mounting global mount path %s on %s", globalVolumeMountPath, opts.MountDir), false)
 	// Perform a bind mount to the full path to allow duplicate mounts of the same volume. This is only supported for RO attachments.
-	options = append(options, "bind")
-	err = redirectStdout(
+	options := []string{opts.RW, "bind"}
+	err := redirectStdout(
 		client,
 		func() error {
 			err := mounter.Interface.Mount(globalVolumeMountPath, opts.MountDir, "", options)
@@ -141,9 +171,6 @@ func mount(cmd *cobra.Command, args []string) error {
 	)
 	if err != nil {
 		log(client, fmt.Sprintf("mount volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
-		return err
 	}
-
-	log(client, fmt.Sprintf("volume %s/%s has been attached and mounted", opts.Pool, opts.Image), false)
-	return nil
+	return err
 }
