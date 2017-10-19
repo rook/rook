@@ -18,12 +18,11 @@ package installer
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
 	"k8s.io/client-go/kubernetes"
-
-	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/objects"
@@ -138,11 +137,15 @@ func (h *InstallHelper) CreateK8sRookToolbox(namespace string) (err error) {
 	return nil
 }
 
+func (h *InstallHelper) CreateK8sRookCluster(namespace string, storeType string) (err error) {
+	return h.CreateK8sRookClusterWithHostPath(namespace, storeType, "")
+}
+
 //CreateK8sRookCluster creates rook cluster via kubectl
-func (h *InstallHelper) CreateK8sRookCluster(namespace, storeType string) (err error) {
+func (h *InstallHelper) CreateK8sRookClusterWithHostPath(namespace string, storeType string, dataDirHostPath string) (err error) {
 	logger.Infof("Starting Rook Cluster")
 
-	rookCluster := h.installData.GetRookCluster(namespace, storeType)
+	rookCluster := h.installData.GetRookCluster(namespace, storeType, dataDirHostPath)
 
 	_, err = h.k8shelper.KubectlWithStdin(rookCluster, createArgs...)
 
@@ -163,8 +166,13 @@ func SystemNamespace(namespace string) string {
 	return fmt.Sprintf("%s-system", namespace)
 }
 
+func (h *InstallHelper) InstallRookOnK8s(namespace string, storeType string) (bool, error) {
+	return h.InstallRookOnK8sWithHostPath(namespace, storeType, "")
+}
+
 //InstallRookOnK8s installs rook on k8s
-func (h *InstallHelper) InstallRookOnK8s(namespace, storeType string) (bool, error) {
+func (h *InstallHelper) InstallRookOnK8sWithHostPath(namespace string, storeType string, dataDirHostPath string) (bool, error) {
+
 	//flag used for local debuggin purpose, when rook is pre-installed
 	skipRookInstall := strings.EqualFold(h.Env.SkipInstallRook, "true")
 	if skipRookInstall {
@@ -192,7 +200,7 @@ func (h *InstallHelper) InstallRookOnK8s(namespace, storeType string) (bool, err
 	time.Sleep(10 * time.Second)
 
 	//Create rook cluster
-	err = h.CreateK8sRookCluster(namespace, storeType)
+	err = h.CreateK8sRookClusterWithHostPath(namespace, storeType, dataDirHostPath)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed ,error -> %v", namespace, err)
 		return false, err
