@@ -16,6 +16,44 @@ EOF
     minikube start --memory=3000 --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
 }
 
+# workaround for kube-dns CrashLoopBackOff issue with RBAC enabled
+#issue https://github.com/kubernetes/minikube/issues/1734 and https://github.com/kubernetes/minikube/issues/1722
+enable_roles_for_RBAC() {
+    cat <<EOF | kubectl create -f -
+# Wide open access to the cluster (mostly for kubelet)
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: cluster-writer
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["*"]
+  - nonResourceURLs: ["*"]
+    verbs: ["*"]
+---
+# Give admin, kubelet, kube-system, kube-proxy god access
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: cluster-write
+subjects:
+  - kind: User
+    name: admin
+  - kind: User
+    name: kubelet
+  - kind: ServiceAccount
+    name: default
+    namespace: kube-system
+  - kind: User
+    name: kube-proxy
+roleRef:
+  kind: ClusterRole
+  name: cluster-writer
+  apiGroup: rbac.authorization.k8s.io
+EOF
+}
+
 wait_for_ssh() {
     local tries=100
     while (( ${tries} > 0 )) ; do
@@ -42,10 +80,9 @@ case "${1:-}" in
   up)
     minikube start --memory=3000 --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
     wait_for_ssh
-
+    enable_roles_for_RBAC
     copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
     copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
-
     if [[ $KUBE_VERSION == v1.5* ]] || [[ $KUBE_VERSION == v1.6* ]] || [[ $KUBE_VERSION == v1.7* ]] ;
     then
         echo "initializing flexvolume for rook"
