@@ -16,6 +16,7 @@ storage cluster.
 - [Configuring Pools](#configuring-pools)
 - [Custom ceph.conf Settings](#custom-cephconf-settings)
 - [OSD CRUSH Settings](#osd-crush-settings)
+- [Phantom OSD Removal](#phantom-osd-removal)
 
 ## Prerequisites
 
@@ -432,4 +433,35 @@ other OSDs holding replica data are unavailable:
 
 ```bash
 ceph osd primary-affinity osd.0 0
+```
+
+## Phantom OSD Removal
+
+If you have OSDs in which are not showing any disks, you can remove those "Phantom OSDs" by following the instructions below.
+To check for "Phantom OSDs", you can run:
+```bash
+ceph osd tree
+```
+An example output looks like this:
+```
+ID  CLASS WEIGHT  TYPE NAME STATUS REWEIGHT PRI-AFF
+ -1       57.38062 root default
+-13        7.17258     host node1.example.com
+  2   hdd  3.61859         osd.2                up  1.00000 1.00000
+ -7              0     host node2.example.com   down    0    1.00000
+```
+The host `node2.example.com` in the output has no disks, so it is most likely a "Phantom OSD".
+
+Now to remove it, use the ID in the first column of the output and replace `<ID>` with it. In the example output above the ID would be `-7`.
+The commands are:
+```bash
+ceph osd out <ID>
+ceph osd crush remove osd.<ID>
+ceph auth del osd.<ID>
+ceph osd rm <ID>
+```
+
+To recheck that the Phantom OSD got removed, re-run the following command and check if the OSD with the ID doesn't show up anymore:
+```bash
+ceph osd tree
 ```
