@@ -18,13 +18,17 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/rpc"
 	"os"
+	"strings"
 
 	"github.com/rook/rook/pkg/agent/flexvolume"
+	"github.com/rook/rook/pkg/model"
 	"github.com/spf13/cobra"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
+	"k8s.io/kubernetes/pkg/volume/util"
 )
 
 var (
@@ -51,6 +55,10 @@ func handleMount(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Rook: Could not parse options for mounting %s. Got %v", args[1], err)
 	}
 	opts.MountDir = args[0]
+
+	if opts.FsType == cephFS {
+		return mountCephFS(client, opts)
+	}
 
 	err = client.Call("FlexvolumeController.GetAttachInfoFromMountDir", opts.MountDir, &opts)
 	if err != nil {
@@ -172,5 +180,73 @@ func mount(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, globalVolum
 	if err != nil {
 		log(client, fmt.Sprintf("mount volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
 	}
+	return err
+}
+
+func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
+
+	if opts.FsName == "" {
+		return errors.New("Rook: Attach filesystem failed: Filesystem name is not provided")
+	}
+
+	log(client, fmt.Sprintf("mounting ceph filesystem %s on %s", opts.FsName, opts.MountDir), false)
+
+	if opts.ClusterName == "" {
+		return fmt.Errorf("Rook: Attach filesystem %s failed: cluster is not provided", opts.FsName)
+	}
+
+	// Get client access info
+	var clientAccessInfo model.ClientAccessInfo
+	err := client.Call("FlexvolumeController.GetClientAccessInfo", opts.ClusterName, &clientAccessInfo)
+	if err != nil {
+		errorMsg := fmt.Sprintf("Attach filesystem %s on cluster %s failed: %v", opts.FsName, opts.ClusterName, err)
+		log(client, errorMsg, true)
+		return fmt.Errorf("Rook: %v", errorMsg)
+	}
+
+	// if a path has not been provided, just use the root of the filesystem.
+	// otherwise, ensure that the provided path starts with the path separator char.
+	path := string(os.PathSeparator)
+	if opts.Path != "" {
+		path = opts.Path
+		if !strings.HasPrefix(path, string(os.PathSeparator)) {
+			path = string(os.PathSeparator) + path
+		}
+	}
+
+	devicePath := fmt.Sprintf("%s:%s", strings.Join(clientAccessInfo.MonAddresses, ","), path)
+	options := []string{fmt.Sprintf("name=%s", clientAccessInfo.UserName), fmt.Sprintf("secret=%s", clientAccessInfo.SecretKey), fmt.Sprintf("mds_namespace=%s", opts.FsName)}
+
+	log(client, fmt.Sprintf("mounting ceph filesystem %s on %s to %s", opts.FsName, devicePath, opts.MountDir), false)
+	mounter := getMounter()
+	err = redirectStdout(
+		client,
+		func() error {
+
+			notMnt, err := mounter.Interface.IsLikelyNotMountPoint(opts.MountDir)
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+			if !notMnt {
+				// Directory is already mounted
+				return nil
+			}
+			os.MkdirAll(opts.MountDir, 0750)
+
+			err = mounter.Interface.Mount(devicePath, opts.MountDir, cephFS, options)
+			if err != nil {
+				// cleanup upon failure
+				util.UnmountPath(opts.MountDir, mounter.Interface)
+				return fmt.Errorf("failed to mount filesystem %s to %s with monitor %s and options %v: %+v", opts.FsName, opts.MountDir, devicePath, options, err)
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		log(client, err.Error(), true)
+	} else {
+		log(client, fmt.Sprintf("ceph filesystem %s has been attached and mounted", opts.FsName), false)
+	}
+
 	return err
 }

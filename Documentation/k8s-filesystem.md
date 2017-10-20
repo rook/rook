@@ -12,7 +12,7 @@ This example runs a shared file system for the [kube-registry](https://github.co
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster and pool as explained in the main [Kubernetes guide](kubernetes.md)
+This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](kubernetes.md)
 
 ## Create the File System
 
@@ -60,14 +60,6 @@ $ ceph status
 ## Consume the file system
 
 As an example, we will start the kube-registry pod with the shared file system as the backing store. 
-
-If you are consuming the filesystem from a namespace other than `rook` you will need to copy the key to the desired namespace.
-In this example we are copying to the `kube-system` namespace.
-
-```bash
-kubectl get secret rook-admin -n rook -o json | jq '.metadata.namespace = "kube-system"' | kubectl apply -f -
-```
-
 Save the following spec as `kube-registry.yaml`:
 
 ```yaml
@@ -113,20 +105,14 @@ spec:
           protocol: TCP
       volumes:
       - name: image-store
-        cephfs:
-          monitors:
-          - INSERT_MONS_HERE
-          user: admin
-          secretRef:
-            name: rook-admin
-```
-
-We will need to update the yaml with the monitor IP addresses with the following commands.
-In the future this step will be improved with a Rook volume plugin.
-```bash
-cd cluster/examples/kubernetes
-export MONS=$(kubectl -n rook get service -l app=rook-ceph-mon -o json|jq ".items[].spec.clusterIP"|tr -d "\""|sed -e 's/$/:6790/'|paste -s -d, -)
-sed "s/INSERT_MONS_HERE/$MONS/g" kube-registry.yaml | kubectl create -f -
+        flexVolume:
+          driver: rook.io/rook
+          fsType: ceph
+          options:
+            fsName: myfs # name of the filesystem specified in the filesystem CRD.
+            clusterName: rook # namespace where the Rook cluster is deployed
+            # by default the path is /, but you can override and mount a specific path of the filesystem by using the path attribute
+            # path: /some/path/inside/cephfs
 ```
 
 You now have a docker registry which is HA with persistent storage.
