@@ -128,8 +128,8 @@ kubectl delete -n rook rolebinding rook-api
 kubectl delete -n rook serviceaccount rook-ceph-osd
 kubectl delete -n rook role rook-ceph-osd
 kubectl delete -n rook rolebinding rook-ceph-osd
-kubectl delete thirdpartyresources cluster.rook.io pool.rook.io  # ignore errors if on K8s 1.7+
-kubectl delete crd clusters.rook.io pools.rook.io  # ignore errors if on K8s 1.5 and 1.6
+kubectl delete thirdpartyresources cluster.rook.io pool.rook.io objectstore.rook.io filesystem.rook.io volumeattachment.rook.io # ignore errors if on K8s 1.7+
+kubectl delete crd clusters.rook.io pools.rook.io objectstores.rook.io filesystems.rook.io volumeattachments.rook.io  # ignore errors if on K8s 1.5 and 1.6
 kubectl delete namespace rook
 kubectl delete namespace rook-system
 ```
