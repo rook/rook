@@ -110,3 +110,9 @@ endif
 COMMA := ,
 SPACE :=
 SPACE +=
+
+# define a newline
+define \n
+
+
+endef
