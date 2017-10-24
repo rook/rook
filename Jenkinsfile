@@ -42,7 +42,7 @@ pipeline {
                 }
             }
             steps {
-                sh 'build/run make -j4 build.all'
+                sh 'build/run make -j\$(nproc) build.all'
             }
         }
         stage('Unit Tests') {
