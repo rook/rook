@@ -159,7 +159,7 @@ go.vet:
 go.fmt:
 	@gofmt_out=$$(gofmt -s -d -e $(GO_SUBDIRS) $(GO_INTEGRATION_TESTS_SUBDIRS) 2>&1) && [ -z "$${gofmt_out}" ] || (echo "$${gofmt_out}" 1>&2; exit 1)
 
-go.validate: go.vet go.fmt
+go.validate: go.vet go.fmt go.lint
 
 go.vendor: $(GLIDE) $(GLIDE_YAML)
 	@echo === updating vendor dependencies
