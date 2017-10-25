@@ -65,7 +65,7 @@ endif
 GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
-GLIDE_VERSION=v0.12.3
+GLIDE_VERSION=v0.13.0
 GLIDE_HOME := $(abspath $(CACHE_DIR)/glide)
 GLIDE := $(TOOLS_HOST_DIR)/glide-$(GLIDE_VERSION)
 GLIDE_YAML := $(ROOT_DIR)/glide.yaml
