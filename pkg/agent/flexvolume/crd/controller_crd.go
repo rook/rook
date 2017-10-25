@@ -40,7 +40,7 @@ func New(client rest.Interface) *VolumeAttachmentCRDController {
 }
 
 // NewVolumeAttachment creates a reference of a Volumeattach CRD object
-func NewVolumeAttachment(name, namespace, node, podNamespace, podName, mountDir string, readOnly bool) VolumeAttachment {
+func NewVolumeAttachment(name, namespace, node, podNamespace, podName, clusterName, mountDir string, readOnly bool) VolumeAttachment {
 	volumeAttachmentObj := VolumeAttachment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -51,6 +51,7 @@ func NewVolumeAttachment(name, namespace, node, podNamespace, podName, mountDir 
 				Node:         node,
 				PodNamespace: podNamespace,
 				PodName:      podName,
+				ClusterName:  clusterName,
 				MountDir:     mountDir,
 				ReadOnly:     readOnly,
 			},
@@ -67,6 +68,15 @@ func (c *VolumeAttachmentCRDController) Get(namespace, name string) (VolumeAttac
 		Resource(CustomResourceNamePlural).
 		Namespace(namespace).
 		Name(name).
+		Do().Into(&result)
+}
+
+// List lists all the volume attachment CRD resources in the given namespace
+func (c *VolumeAttachmentCRDController) List(namespace string) (VolumeAttachmentList, error) {
+	var result VolumeAttachmentList
+	return result, c.client.Get().
+		Resource(CustomResourceNamePlural).
+		Namespace(namespace).
 		Do().Into(&result)
 }
 

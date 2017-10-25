@@ -20,9 +20,18 @@ which also has the apache 2.0 license.
 package crd
 
 import (
+	"fmt"
+
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/kubernetes/pkg/util/version"
+)
+
+const (
+	serverVersionV170 = "v1.7.0"
 )
 
 // schemeGroupVersion is group version used to register these objects
@@ -38,6 +47,7 @@ type Attachment struct {
 	Node         string `json:"node"`
 	PodNamespace string `json:"podNamespace"`
 	PodName      string `json:"podName"`
+	ClusterName  string `json:"clusterName"`
 	MountDir     string `json:"mountDir"`
 	ReadOnly     bool   `json:"readOnly"`
 }
@@ -52,6 +62,26 @@ type VolumeAttachmentList struct {
 type VolumeAttachmentController interface {
 	Create(volumeAttachment VolumeAttachment) error
 	Get(namespace, name string) (VolumeAttachment, error)
+	List(namespace string) (VolumeAttachmentList, error)
 	Update(volumeAttachment VolumeAttachment) error
 	Delete(namespace, name string) error
+}
+
+func NewVolumeAttachmentController(clientset kubernetes.Interface,
+	volumeAttachmentCRDClient rest.Interface) (VolumeAttachmentController, error) {
+
+	var controller VolumeAttachmentController
+	// CRD is available on v1.7.0. TPR became deprecated on v1.7.0
+	// Remove this code when TPR is not longer supported
+	kubeVersion, err := k8sutil.GetK8SVersion(clientset)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting server version: %v", err)
+	}
+	if kubeVersion.AtLeast(version.MustParseSemantic(serverVersionV170)) {
+		controller = New(volumeAttachmentCRDClient)
+	} else {
+		controller = NewTPR(clientset)
+	}
+
+	return controller, nil
 }

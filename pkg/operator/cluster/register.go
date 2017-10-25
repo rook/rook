@@ -31,12 +31,12 @@ import (
 )
 
 var (
-	schemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
+	SchemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
 )
 
 var ClusterResource = opkit.CustomResource{
-	Name:    customResourceName,
-	Plural:  customResourceNamePlural,
+	Name:    CustomResourceName,
+	Plural:  CustomResourceNamePlural,
 	Group:   k8sutil.CustomResourceGroup,
 	Version: k8sutil.V1Alpha1,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,

@@ -60,6 +60,17 @@ func (c *VolumeAttachmentTPRController) Get(namespace, name string) (VolumeAttac
 		Into(&result)
 }
 
+// List lists all the volume attachment TPR resources in the given namespace
+func (c *VolumeAttachmentTPRController) List(namespace string) (VolumeAttachmentList, error) {
+
+	var result VolumeAttachmentList
+	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, namespace, CustomResourceNamePlural)
+	return result, c.clientset.Core().RESTClient().Get().
+		RequestURI(uri).
+		Do().
+		Into(&result)
+}
+
 // Create creates the volume attach TPR resource in Kubernetes
 func (c *VolumeAttachmentTPRController) Create(volumeAttachment VolumeAttachment) error {
 	volumeAttachment.APIVersion = fmt.Sprintf("%s/%s", k8sutil.CustomResourceGroup, k8sutil.V1Alpha1)

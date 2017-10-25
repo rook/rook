@@ -18,6 +18,8 @@ package main
 import (
 	"fmt"
 
+	opkit "github.com/rook/operator-kit"
+	flexcrd "github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -59,7 +61,16 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	context.Clientset = clientset
 	context.APIExtensionClientset = apiExtClientset
 
-	op := operator.New(context)
+	volumeAttachmentClient, _, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, flexcrd.SchemeBuilder)
+	if err != nil {
+		terminateFatal(err)
+	}
+	volumeAttachmentController, err := flexcrd.NewVolumeAttachmentController(context.Clientset, volumeAttachmentClient)
+	if err != nil {
+		terminateFatal(err)
+	}
+
+	op := operator.New(context, volumeAttachmentController)
 	if op == nil {
 		terminateFatal(fmt.Errorf("failed to create operator."))
 	}

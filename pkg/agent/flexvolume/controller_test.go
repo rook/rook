@@ -23,7 +23,6 @@ package flexvolume
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -31,6 +30,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/agent/flexvolume/crd"
+	"github.com/rook/rook/pkg/agent/flexvolume/manager"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
@@ -92,7 +92,7 @@ func TestAttach(t *testing.T) {
 	controller := &FlexvolumeController{
 		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
-		volumeManager:              &FakeVolumeManager{},
+		volumeManager:              &manager.FakeVolumeManager{},
 	}
 
 	err := controller.Attach(opts, &devicePath)
@@ -159,7 +159,7 @@ func TestAttachAlreadyExist(t *testing.T) {
 	controller := &FlexvolumeController{
 		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
-		volumeManager:              &FakeVolumeManager{},
+		volumeManager:              &manager.FakeVolumeManager{},
 	}
 
 	err := controller.Attach(opts, devicePath)
@@ -226,7 +226,7 @@ func TestAttachReadOnlyButRWAlreadyExist(t *testing.T) {
 	controller := &FlexvolumeController{
 		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
-		volumeManager:              &FakeVolumeManager{},
+		volumeManager:              &manager.FakeVolumeManager{},
 	}
 
 	err := controller.Attach(opts, devicePath)
@@ -282,7 +282,7 @@ func TestAttachRWButROAlreadyExist(t *testing.T) {
 	controller := &FlexvolumeController{
 		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
-		volumeManager:              &FakeVolumeManager{},
+		volumeManager:              &manager.FakeVolumeManager{},
 	}
 
 	err := controller.Attach(opts, devicePath)
@@ -372,7 +372,7 @@ func TestMultipleAttachReadOnly(t *testing.T) {
 	controller := &FlexvolumeController{
 		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
-		volumeManager:              &FakeVolumeManager{},
+		volumeManager:              &manager.FakeVolumeManager{},
 	}
 
 	err := controller.Attach(opts, &devicePath)
@@ -456,7 +456,7 @@ func TestOrphanAttach(t *testing.T) {
 	controller := &FlexvolumeController{
 		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
-		volumeManager:              &FakeVolumeManager{},
+		volumeManager:              &manager.FakeVolumeManager{},
 	}
 
 	err := controller.Attach(opts, &devicePath)
@@ -529,7 +529,7 @@ func TestVolumeAttachmentExistAttach(t *testing.T) {
 	controller := &FlexvolumeController{
 		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
-		volumeManager:              &FakeVolumeManager{},
+		volumeManager:              &manager.FakeVolumeManager{},
 	}
 
 	err := controller.Attach(opts, &devicePath)
@@ -574,7 +574,7 @@ func TestDetach(t *testing.T) {
 	controller := &FlexvolumeController{
 		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
-		volumeManager:              &FakeVolumeManager{},
+		volumeManager:              &manager.FakeVolumeManager{},
 	}
 
 	err := controller.Detach(opts, nil)
@@ -626,7 +626,7 @@ func TestDetachWithAttachmentLeft(t *testing.T) {
 	controller := &FlexvolumeController{
 		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
-		volumeManager:              &FakeVolumeManager{},
+		volumeManager:              &manager.FakeVolumeManager{},
 	}
 
 	err := controller.Detach(opts, nil)
@@ -700,7 +700,7 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 
 	controller := &FlexvolumeController{
 		context:       context,
-		volumeManager: &FakeVolumeManager{},
+		volumeManager: &manager.FakeVolumeManager{},
 	}
 
 	err := controller.GetAttachInfoFromMountDir(opts.MountDir, &opts)
@@ -750,20 +750,6 @@ func TestGetCRDNameFromMountDirInvalid(t *testing.T) {
 	mountDir := "volumes/rook.io~rook/pvc-b8aea7f4-99ea-11e7-8994-0800277c89a7"
 	_, _, err := getPodAndPVNameFromMountDir(mountDir)
 	assert.NotNil(t, err)
-}
-
-type FakeVolumeManager struct{}
-
-func (f *FakeVolumeManager) Init() error {
-	return nil
-}
-
-func (f *FakeVolumeManager) Attach(image, pool, clusterName string) (string, error) {
-	return fmt.Sprintf("/%s/%s/%s", image, pool, clusterName), nil
-}
-
-func (f *FakeVolumeManager) Detach(image, pool, clusterName string) error {
-	return nil
 }
 
 func defaultHeader() http.Header {
