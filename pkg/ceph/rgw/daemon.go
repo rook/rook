@@ -98,7 +98,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		"rgw_zonegroup":                  config.Name,
 	}
 	_, err := mon.GenerateConfigFile(context, config.ClusterInfo, getRGWConfDir(context.ConfigDir),
-		"client.radosgw.gateway", getRGWKeyringPath(context.ConfigDir), false, nil, settings)
+		"client.radosgw.gateway", getRGWKeyringPath(context.ConfigDir), nil, settings)
 	if err != nil {
 		return fmt.Errorf("failed to create config file. %+v", err)
 	}

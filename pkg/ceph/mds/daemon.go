@@ -81,7 +81,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
 	keyringPath := getMDSKeyringPath(context.ConfigDir)
 	_, err = mon.GenerateConfigFile(context, config.ClusterInfo, getMDSConfDir(context.ConfigDir),
-		fmt.Sprintf("mds.%s", config.ID), keyringPath, false, nil, settings)
+		fmt.Sprintf("mds.%s", config.ID), keyringPath, nil, settings)
 	if err != nil {
 		return fmt.Errorf("failed to create mds config file. %+v", err)
 	}

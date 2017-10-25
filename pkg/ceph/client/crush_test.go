@@ -249,16 +249,17 @@ func TestCrushLocation(t *testing.T) {
 	loc := "dc=datacenter1"
 
 	// test that root will get filled in with default/runtime values
-	res, err := FormatLocation(loc)
+	res, err := FormatLocation(loc, "my.node")
 	assert.Nil(t, err)
-	assert.Equal(t, 2, len(res))
+	assert.Equal(t, 3, len(res))
 	locSet := util.CreateSet(res)
 	assert.True(t, locSet.Contains("root=default"))
 	assert.True(t, locSet.Contains("dc=datacenter1"))
+	assert.True(t, locSet.Contains("host=my-node"))
 
 	// test that if host name and root are already set they will be honored
 	loc = "root=otherRoot,dc=datacenter2,host=node123"
-	res, err = FormatLocation(loc)
+	res, err = FormatLocation(loc, "othernode")
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(res))
 	locSet = util.CreateSet(res)
@@ -268,7 +269,7 @@ func TestCrushLocation(t *testing.T) {
 
 	// test an invalid CRUSH location format
 	loc = "root=default,prop:value"
-	_, err = FormatLocation(loc)
+	_, err = FormatLocation(loc, "othernode")
 	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "is not in a valid format")
 }
