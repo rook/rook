@@ -120,7 +120,6 @@ To clean up all the artifacts created by the demo, **first cleanup the resources
 
 ```bash
 kubectl delete -f rook-operator.yaml
-kubectl delete -n rook-system daemonset rook-agent
 kubectl delete -n rook cluster rook
 kubectl delete -n rook serviceaccount rook-api
 kubectl delete -n rook role rook-api
@@ -131,7 +130,6 @@ kubectl delete -n rook rolebinding rook-ceph-osd
 kubectl delete thirdpartyresources cluster.rook.io pool.rook.io objectstore.rook.io filesystem.rook.io volumeattachment.rook.io # ignore errors if on K8s 1.7+
 kubectl delete crd clusters.rook.io pools.rook.io objectstores.rook.io filesystems.rook.io volumeattachments.rook.io  # ignore errors if on K8s 1.5 and 1.6
 kubectl delete namespace rook
-kubectl delete namespace rook-system
 ```
 If you modified the demo settings, additional cleanup is up to you for devices, host paths, etc.
 
