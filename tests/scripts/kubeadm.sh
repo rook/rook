@@ -5,7 +5,7 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 tarname=image.tar
 tarfile=${WORK_DIR}/tests/${tarname}
 
-export KUBE_VERSION=${KUBE_VERSION:-"v1.7.5"}
+export KUBE_VERSION=${KUBE_VERSION:-"v1.8.2"}
 
 usage(){
     echo "usage:" >&2
