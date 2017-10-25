@@ -1,6 +1,6 @@
 ---
 title: Advanced Configuration
-weight: 41
+weight: 61
 indent: true
 ---
 
@@ -9,13 +9,14 @@ indent: true
 These examples show how to perform advanced configuration tasks on your Rook
 storage cluster.
 
-- [Change Rook Docker Image Prefix](#change-rook-docker-image-prefix)
 - [Log Collection](#log-collection)
+- [Change Rook Docker Image Prefix](#change-rook-docker-image-prefix)
 - [OSD Information](#osd-information)
 - [Separate Storage Groups](#separate-storage-groups)
 - [Configuring Pools](#configuring-pools)
 - [Custom ceph.conf Settings](#custom-cephconf-settings)
 - [OSD CRUSH Settings](#osd-crush-settings)
+- [Phantom OSD Removal](#phantom-osd-removal)
 
 ## Prerequisites
 
@@ -26,52 +27,38 @@ The Kubernetes based examples assume Rook OSD pods are in the `rook` namespace.
 If you run them in a different namespace, modify `kubectl -n rook [...]` to fit
 your situation.
 
-## Change Rook Docker Image Prefix
-To change the prefix of rook Docker images used, the environment variable `ROOK_REPO_PREFIX` can be changed.
-The variable needs to be, depending on the deployment of the rook-operator, added/changed in the rook-operator deployment.
-The default is `rook` which will pull from [Docker Hub](https://hub.docker.com/r/rook/rook/). For example to use your own built images: `your-registry.example.com/your-name/rook`.
-
 ## Log Collection
 
 All Rook logs can be collected in a Kubernetes environment with the following command:
 ```bash
 (for p in $(kubectl -n rook get pods -o jsonpath='{.items[*].metadata.name}')
 do
-  for c in $(kubectl -n rook get pod ${p} -o jsonpath='{.spec.containers[*].name}')
-  do
-    echo "BEGIN logs from pod: ${p} ${c}"
-    kubectl -n rook logs -c ${c} ${p}
-    echo "END logs from pod: ${p} ${c}"
-  done
+    for c in $(kubectl -n rook get pod ${p} -o jsonpath='{.spec.containers[*].name}')
+    do
+        echo "BEGIN logs from pod: ${p} ${c}"
+        kubectl -n rook logs -c ${c} ${p}
+        echo "END logs from pod: ${p} ${c}"
+    done
 done
 for i in $(kubectl -n default get pods -l app=rook-operator -o jsonpath='{.items[*].metadata.name}')
 do
-  echo "BEGIN logs from pod: ${i}"
-  kubectl -n default logs ${i}
-  echo "END logs from pod: ${i}"
+    echo "BEGIN logs from pod: ${i}"
+    kubectl -n default logs ${i}
+    echo "END logs from pod: ${i}"
 done) | gzip > /tmp/rook-logs.gz
 ```
 This gets the logs for every container in every Rook pod and then compresses them into a `.gz` archive
 for easy sharing.  Note that instead of `gzip`, you could instead pipe to `less` or to a single text file.
 
+## Change Rook Docker Image Prefix
+To change the prefix of rook Docker images used, the environment variable `ROOK_REPO_PREFIX` can be changed.
+The variable needs to be, depending on the deployment of the rook-operator, added/changed in the rook-operator deployment.
+The default is `rook` which will pull from [Docker Hub](https://hub.docker.com/r/rook/rook/). For example to use your own built images: `your-registry.example.com/your-name/rook`.
+
 ## OSD Information
 
 Keeping track of OSDs and their underlying storage devices/directories can be
 difficult.  The following scripts will clear things up quickly.
-
-### Standalone
-
-```bash
-# Run this on each storage node
-
-echo "Node:" $(hostname -s)
-for i in /var/lib/rook/osd*; do
-  [ -f ${i}/ready ] || continue
-  echo -ne "-$(basename ${i}) "
-  echo $(lsblk -n -o NAME,SIZE ${i}/block 2> /dev/null || \
-  findmnt -n -v -o SOURCE,SIZE -T ${i}) $(cat ${i}/type)
-done|sort -V|column -t
-```
 
 ### Kubernetes
 
@@ -232,7 +219,7 @@ ID WEIGHT  TYPE NAME          UP/DOWN REWEIGHT PRIMARY-AFFINITY
 
 Now we have a separate storage group for our SSDs, but we can't use that storage
 until we associate a pool with it.  The default group already has a pool called
-`rbd` in many cases.  If you [created a pool via ThirdPartyResource](pool-crd.md),
+`rbd` in many cases.  If you [created a pool via CustomResourceDefinition](pool-crd.md),
 it will use the default storage group as well.
 
 Here's how to create new pools:
@@ -299,7 +286,7 @@ and OSDs in the `default` root hierarchy.
 The `size` setting of a pool tells the cluster how many copies of the data
 should be kept for redundancy.  By default the cluster will distribute these
 copies between `host` buckets in the CRUSH Map This can be set when [creating a
-pool via ThirdPartyResource](pool-crd.md) or after creation with `ceph`.
+pool via CustomResourceDefinition](pool-crd.md) or after creation with `ceph`.
 
 So for example let's change the `size` of the `rbd` pool to three:
 
@@ -311,9 +298,10 @@ Now if you run `ceph -s` or `rookctl status` you may see "recovery" operations a
 PGs in "undersized" and other "unclean" states.  The cluster is essentially
 fixing itself since the number of replicas has been increased, and should go
 back to "active/clean" state shortly, after data has been replicated between
-hosts.  When that's done you will be able to lose 2/3 of your storage nodes and
-still have access to all your data in that pool.  Of course you will only have
-1/3 the capacity as a tradeoff.
+hosts.  When that's done you will be able to lose two of your storage nodes and
+still have access to all your data in that pool, since the CRUSH algorithm will
+guarantee that at least one replica will still be available on another storage node.
+Of course you will only have 1/3 the capacity as a tradeoff.
 
 ### Setting PG Count
 
@@ -337,23 +325,6 @@ daemons not to change the weight of OSDs on startup.
 
 **WARNING**: Modify Ceph settings carefully. You are leaving the sandbox tested by Rook.
 Changing the settings could result in unhealthy daemons or even data loss if used incorrectly.
-
-### Standalone Rook
-
-Here's our custom `ceph.conf` for the OSDs:
-
-```bash
-[global]
-osd crush update on start = false
-osd pool default size     = 2
-```
-
-With our ceph.conf file created we pass the settings to `rook` with the
-`--ceph-config-override` argument, for example:
-
-```bash
-rook --ceph-config-override=ceph.conf --data-devices=sdf
-```
 
 ### Kubernetes
 When the Rook Operator creates a cluster, a placeholder ConfigMap is created that
@@ -462,4 +433,35 @@ other OSDs holding replica data are unavailable:
 
 ```bash
 ceph osd primary-affinity osd.0 0
+```
+
+## Phantom OSD Removal
+
+If you have OSDs in which are not showing any disks, you can remove those "Phantom OSDs" by following the instructions below.
+To check for "Phantom OSDs", you can run:
+```bash
+ceph osd tree
+```
+An example output looks like this:
+```
+ID  CLASS WEIGHT  TYPE NAME STATUS REWEIGHT PRI-AFF
+ -1       57.38062 root default
+-13        7.17258     host node1.example.com
+  2   hdd  3.61859         osd.2                up  1.00000 1.00000
+ -7              0     host node2.example.com   down    0    1.00000
+```
+The host `node2.example.com` in the output has no disks, so it is most likely a "Phantom OSD".
+
+Now to remove it, use the ID in the first column of the output and replace `<ID>` with it. In the example output above the ID would be `-7`.
+The commands are:
+```bash
+ceph osd out <ID>
+ceph osd crush remove osd.<ID>
+ceph auth del osd.<ID>
+ceph osd rm <ID>
+```
+
+To recheck that the Phantom OSD got removed, re-run the following command and check if the OSD with the ID doesn't show up anymore:
+```bash
+ceph osd tree
 ```

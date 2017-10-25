@@ -29,11 +29,16 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/kubernetes-incubator/external-storage/lib/controller"
+	"github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/agent"
 	"github.com/rook/rook/pkg/operator/cluster"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/kit"
+	"github.com/rook/rook/pkg/operator/mds"
 	"github.com/rook/rook/pkg/operator/pool"
 	"github.com/rook/rook/pkg/operator/provisioner"
+	"github.com/rook/rook/pkg/operator/rgw"
 	"k8s.io/api/core/v1"
 )
 
@@ -62,12 +67,12 @@ type Operator struct {
 func New(context *clusterd.Context) *Operator {
 	clusterController, err := cluster.NewClusterController(context)
 	if err != nil {
-		logger.Errorf("failed to create Operator. %+v.", err)
+		logger.Errorf("failed to create ClusterController. %+v.", err)
 		return nil
 	}
 	volumeProvisioner := provisioner.New(context)
 
-	schemes := []kit.CustomResource{cluster.ClusterResource, pool.PoolResource}
+	schemes := []kit.CustomResource{cluster.ClusterResource, pool.PoolResource, rgw.ObjectStoreResource, mds.FilesystemResource, crd.VolumeAttachmentResource}
 	return &Operator{
 		context:           context,
 		clusterController: clusterController,
@@ -79,6 +84,11 @@ func New(context *clusterd.Context) *Operator {
 // Run the operator instance
 func (o *Operator) Run() error {
 
+	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	if namespace == "" {
+		return fmt.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
+	}
+
 	for {
 		err := o.initResources()
 		if err == nil {
@@ -86,6 +96,12 @@ func (o *Operator) Run() error {
 		}
 		logger.Errorf("failed to init resources. %+v. retrying...", err)
 		<-time.After(initRetryDelay)
+	}
+
+	rookAgent := agent.New(o.context.Clientset)
+
+	if err := rookAgent.Start(namespace); err != nil {
+		return fmt.Errorf("Error starting agent daemonset: %v", err)
 	}
 
 	signalChan := make(chan os.Signal, 1)
@@ -106,6 +122,7 @@ func (o *Operator) Run() error {
 		serverVersion.GitVersion,
 	)
 	go pc.Run(stopChan)
+	logger.Infof("rook-provisioner started")
 
 	// watch for changes to the rook clusters
 	o.clusterController.StartWatch(v1.NamespaceAll, stopChan)

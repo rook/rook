@@ -23,8 +23,8 @@ import (
 	"github.com/rook/rook/pkg/ceph/mon"
 )
 
-// CreateClusterInfo creates a test cluster
-func CreateClusterInfo(mons int) *mon.ClusterInfo {
+// CreateConfigDir creates a test cluster
+func CreateConfigDir(mons int) *mon.ClusterInfo {
 	c := &mon.ClusterInfo{
 		FSID:          "12345",
 		Name:          "default",

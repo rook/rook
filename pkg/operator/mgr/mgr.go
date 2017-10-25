@@ -21,7 +21,7 @@ import (
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
-	cephmgr "github.com/rook/rook/pkg/ceph/mgr"
+	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
@@ -40,23 +40,25 @@ const (
 
 // Cluster is the ceph mgr manager
 type Cluster struct {
-	Namespace string
-	Version   string
-	Replicas  int
-	placement k8sutil.Placement
-	context   *clusterd.Context
-	dataDir   string
+	Namespace   string
+	Version     string
+	Replicas    int
+	placement   k8sutil.Placement
+	context     *clusterd.Context
+	dataDir     string
+	HostNetwork bool
 }
 
 // New creates an instance of the mgr
-func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
 	return &Cluster{
-		context:   context,
-		Namespace: namespace,
-		placement: placement,
-		Version:   version,
-		Replicas:  1,
-		dataDir:   k8sutil.DataDir,
+		context:     context,
+		Namespace:   namespace,
+		placement:   placement,
+		Version:     version,
+		Replicas:    2,
+		dataDir:     k8sutil.DataDir,
+		HostNetwork: hostNetwork,
 	}
 }
 
@@ -105,7 +107,11 @@ func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
 				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
 				k8sutil.ConfigOverrideVolume(),
 			},
+			HostNetwork: c.HostNetwork,
 		},
+	}
+	if c.HostNetwork {
+		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 
@@ -159,7 +165,7 @@ func (c *Cluster) createKeyring(clusterName, name string) error {
 	}
 
 	// get-or-create-key for the user account
-	keyring, err := cephmgr.CreateKeyring(c.context, clusterName, name)
+	keyring, err := createKeyring(c.context, clusterName, name)
 	if err != nil {
 		return fmt.Errorf("failed to create mgr keyring. %+v", err)
 	}
@@ -179,4 +185,22 @@ func (c *Cluster) createKeyring(clusterName, name string) error {
 	}
 
 	return nil
+}
+
+func getKeyringProperties(name string) (string, []string) {
+	username := fmt.Sprintf("mgr.%s", name)
+	access := []string{"mon", "allow *"}
+	return username, access
+}
+
+// create a keyring for the mds client with a limited set of privileges
+func createKeyring(context *clusterd.Context, clusterName, name string) (string, error) {
+	// get-or-create-key for the user account
+	username, access := getKeyringProperties(name)
+	keyring, err := client.AuthGetOrCreateKey(context, clusterName, username, access)
+	if err != nil {
+		return "", fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
+	}
+
+	return keyring, nil
 }

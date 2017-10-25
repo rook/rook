@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/rook/rook/pkg/model"
@@ -36,8 +35,7 @@ const (
 )
 
 func TestGetStatusDetailsHandler(t *testing.T) {
-	context, _, executor := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, executor := testContext()
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/status", nil)
 	if err != nil {
@@ -51,7 +49,7 @@ func TestGetStatusDetailsHandler(t *testing.T) {
 		case args[0] == "time-sync-status":
 			return cephTimeStatusReponseRaw, nil
 		}
-		return "", fmt.Errorf("unexpected mon_command '%v'", args)
+		return "", fmt.Errorf("unexpected command '%v'", args)
 	}
 
 	// make a request to GetStatusDetails and verify the results
@@ -92,8 +90,7 @@ func TestGetStatusDetailsHandler(t *testing.T) {
 }
 
 func TestGetStatusDetailsEmptyResponseFromCeph(t *testing.T) {
-	context, _, executor := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, executor := testContext()
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/status", nil)
 	if err != nil {
@@ -108,7 +105,7 @@ func TestGetStatusDetailsEmptyResponseFromCeph(t *testing.T) {
 		case args[0] == "time-sync-status":
 			return "{}", nil
 		}
-		return "", fmt.Errorf("unexpected mon_command '%v'", args)
+		return "", fmt.Errorf("unexpected command '%v'", args)
 	}
 
 	// make a request to GetStatusDetails and verify the results

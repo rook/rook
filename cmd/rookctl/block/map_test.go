@@ -55,15 +55,17 @@ func TestMountBlock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp rbd sys bus dir: %+v", err)
 	}
+
+	mockRBDDevicePath := filepath.Join(mockRBDSysBusPath, "dev")
 	defer os.RemoveAll(mockRBDSysBusPath)
 	os.Create(filepath.Join(mockRBDSysBusPath, rbdAddSingleMajorNode))
 	os.Create(filepath.Join(mockRBDSysBusPath, rbdAddNode))
-	createMockRBD(mockRBDSysBusPath, "3", "myimage1", "mypool1")
-
+	createMockRBD(mockRBDSysBusPath, mockRBDDevicePath, "3", "myimage1", "mypool1")
+	devicePathPrefix := filepath.Join(mockRBDDevicePath, "rbd")
 	// call mountBlock and verify success and output
-	out, err := mapBlock("myimage1", "mypool1", "/tmp/mymount1", mockRBDSysBusPath, true, c, e)
+	out, err := mapBlock("myimage1", "mypool1", "/tmp/mymount1", mockRBDSysBusPath, devicePathPrefix, true, c, e)
 	assert.Nil(t, err)
-	assert.Equal(t, "succeeded mapping image myimage1 on device /dev/rbd3, formatted, and mounted at /tmp/mymount1", out)
+	assert.Equal(t, fmt.Sprintf("succeeded mapping image myimage1 on device %s3, formatted, and mounted at /tmp/mymount1", devicePathPrefix), out)
 
 	// verify the correct rbd data was written to the add file
 	addFileData, err := ioutil.ReadFile(filepath.Join(mockRBDSysBusPath, rbdAddSingleMajorNode))
@@ -80,7 +82,7 @@ func TestMountBlockFailure(t *testing.T) {
 	e := &exectest.MockExecutor{}
 
 	// expect mountBlock to fail
-	out, err := mapBlock("myimage1", "mypool1", "/tmp/mymount1", "", true, c, e)
+	out, err := mapBlock("myimage1", "mypool1", "/tmp/mymount1", "/dev/rbd", "", true, c, e)
 	assert.NotNil(t, err)
 	assert.Equal(t, "", out)
 }

@@ -30,10 +30,10 @@ func TestListPools(t *testing.T) {
 		MockGetPools: func() ([]model.Pool, error) {
 			pools := []model.Pool{
 				{
-					Name:              "replPool1",
-					Number:            0,
-					Type:              model.Replicated,
-					ReplicationConfig: model.ReplicatedPoolConfig{Size: 3},
+					Name:             "replPool1",
+					Number:           0,
+					Type:             model.Replicated,
+					ReplicatedConfig: model.ReplicatedPoolConfig{Size: 3},
 				},
 				{
 					Name:   "ecPool1",

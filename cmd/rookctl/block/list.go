@@ -23,6 +23,7 @@ import (
 	"strings"
 
 	"github.com/rook/rook/cmd/rookctl/rook"
+	"github.com/rook/rook/pkg/ceph/util"
 	"github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/pkg/util/display"
 	"github.com/rook/rook/pkg/util/exec"
@@ -32,8 +33,9 @@ import (
 )
 
 var listCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "Gets a listing with details of all block images in the cluster and their locally mapped devices",
+	Use:     "list",
+	Short:   "Gets a listing with details of all block images in the cluster and their locally mapped devices",
+	Aliases: []string{"ls"},
 }
 
 func init() {
@@ -49,7 +51,7 @@ func listBlocksEntry(cmd *cobra.Command, args []string) error {
 
 	c := rook.NewRookNetworkRestClient()
 	e := &exec.CommandExecutor{}
-	out, err := listBlocks(rbdSysBusPathDefault, c, e)
+	out, err := listBlocks(util.RBDSysBusPathDefault, c, e)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -68,14 +70,14 @@ func listBlocks(rbdSysBusPath string, c client.RookRestClient, executor exec.Exe
 	if len(images) == 0 {
 		return "", nil
 	}
-
 	if runtime.GOOS == "linux" {
 		// for each image returned from the client API call, look up local details
 		for i := range images {
 			image := &(images[i])
 
 			// look up local device and mount point, ignoring errors
-			devPath, _ := findDevicePath(image.Name, image.PoolName, rbdSysBusPath)
+			imageFile, _ := util.FindRBDMappedFile(image.Name, image.PoolName, rbdSysBusPath)
+			devPath := util.RBDDevicePathPrefix + imageFile
 			dev := strings.TrimPrefix(devPath, devicePathPrefix)
 			var mountPoint string
 			if dev != "" {

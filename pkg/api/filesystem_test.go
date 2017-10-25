@@ -22,14 +22,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path"
 	"strings"
 	"testing"
 
-	"github.com/rook/rook/pkg/ceph/test"
+	"k8s.io/api/core/v1"
+
+	"github.com/rook/rook/pkg/ceph/client"
 	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
-	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -37,30 +40,26 @@ import (
 const (
 	// this JSON was generated from the mon_command "fs ls",  ExecuteMonCommand(conn, map[string]interface{}{"prefix": "fs ls"})
 	cephFilesystemListResponseRaw = `[{"name":"myfs1","metadata_pool":"myfs1-metadata","metadata_pool_id":2,"data_pool_ids":[1],"data_pools":["myfs1-data"]}]`
+	basicFS                       = `{"name":"myfs1","metadataPool":{"replicatedConfig":{"size":1}},"dataPools":[{"replicatedConfig":{"size":1}}],"metadataServer":{"activeCount":1}}`
 )
 
 func TestGetFileSystemsHandler(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
 	req, err := http.NewRequest("GET", "http://10.0.0.100/filesystem", nil)
 	if err != nil {
 		logger.Fatal(err)
 	}
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-	cephtest.CreateClusterInfo(etcdClient, configDir, []string{"mon0"})
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-			logger.Infof("OUTPUT: %s %v", command, args)
+			logger.Infof("Command: %s %v", command, args)
 			if args[0] == "fs" && args[1] == "ls" {
 				return cephFilesystemListResponseRaw, nil
 			}
-			return "", fmt.Errorf("unexpected mon_command '%s'", args[0])
+			return "", fmt.Errorf("unexpected command '%s'", args[0])
 		},
 	}
 	context := &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-		Executor:      executor,
+		Executor: executor,
 	}
 
 	// make a request to GetFileSystems and verify the results
@@ -81,36 +80,74 @@ func TestGetFileSystemsHandler(t *testing.T) {
 }
 
 func TestCreateFileSystemHandler(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
+	created := false
 	configDir, _ := ioutil.TempDir("", "")
-	context := &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-		Executor:      &exectest.MockExecutor{},
-		ConfigDir:     configDir,
+	defer os.RemoveAll(configDir)
+	requestedFS := false
+	clientset := test.New(3)
+	clusterName := "default"
+	cm := &v1.ConfigMap{
+		Data: map[string]string{
+			"data": "rook-ceph-mon0=10.0.0.1:6790,rook-ceph-mon1=10.0.0.2:6790,rook-ceph-mon2=10.0.0.3:6790",
+		},
 	}
-	defer os.RemoveAll(context.ConfigDir)
-	test.CreateClusterInfo(etcdClient, configDir, []string{"a"})
-	defer os.RemoveAll("mon0")
+	cm.Name = "rook-ceph-mon-endpoints"
+	clientset.CoreV1().ConfigMaps(clusterName).Create(cm)
 
-	req, err := http.NewRequest("POST", "http://10.0.0.100/filesystem", strings.NewReader(`{"name": "myfs1", "poolName": "myfs1-pool"}`))
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			if strings.Contains(command, "ceph-authtool") {
+				cephtest.CreateConfigDir(path.Join(configDir, clusterName))
+			}
+
+			return "", nil
+		},
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if args[1] == "pool" {
+				if args[2] == "create" || args[2] == "set" || args[2] == "application" {
+					return "", nil
+				}
+			}
+			if args[0] == "fs" {
+				if args[1] == "new" {
+					created = true
+					return "", nil
+				}
+				if args[1] == "get" {
+					if requestedFS {
+						return `{"name":"myfs1","metadataPool":"myfs1-metadata","dataPools":["myfs1-data0"]}`, nil
+					}
+					requestedFS = true
+					return "", fmt.Errorf("still need to create FS")
+				}
+			}
+
+			return "", fmt.Errorf("unexpected command '%s'", args[0])
+		},
+	}
+	context := &clusterd.Context{
+		Executor:  executor,
+		ConfigDir: configDir,
+		Clientset: clientset,
+	}
+
+	req, err := http.NewRequest("POST", "http://10.0.0.100/filesystem", strings.NewReader(basicFS))
 	if err != nil {
 		logger.Fatal(err)
 	}
 
-	// call the CreateFileSystem handler, which should return http 202 Accepted and record info
-	// about the file system request in etcd
+	// call the CreateFileSystem handler, which should return http 202 Accepted
 	w := httptest.NewRecorder()
 	h := newTestHandler(context)
 	h.CreateFileSystem(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "myfs1-pool", etcdClient.GetValue("/rook/services/ceph/fs/desired/myfs1/pool"))
+	assert.True(t, created)
 }
 
 func TestCreateFileSystemMissingName(t *testing.T) {
-	etcdClient := util.NewMockEtcdClient()
 	context := &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-		Executor:      &exectest.MockExecutor{},
+		Executor: &exectest.MockExecutor{},
 	}
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/filesystem", strings.NewReader(`{"poolName": "myfs1-pool"}`))
@@ -126,14 +163,40 @@ func TestCreateFileSystemMissingName(t *testing.T) {
 }
 
 func TestRemoveFileSystemHandler(t *testing.T) {
-	// mock a created filesystem by adding it to desired state in etcd
-	etcdClient := util.NewMockEtcdClient()
-	etcdClient.SetValue("/rook/services/ceph/fs/desired/myfs1/pool", "myfs1-pool")
+	markedDown := false
+	deleted := false
 
-	context := &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-		Executor:      &exectest.MockExecutor{},
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if args[0] == "fs" {
+				if args[1] == "set" && args[3] == "cluster_down" {
+					markedDown = true
+					return "", nil
+				}
+				if args[1] == "rm" {
+					deleted = true
+					return "", nil
+				}
+				if args[1] == "get" {
+					return basicFS, nil
+				}
+			}
+			if args[0] == "osd" {
+				if args[1] == "lspools" {
+					pools := []*client.CephStoragePoolSummary{
+						{Name: "mypool", Number: 0},
+					}
+					output, err := json.Marshal(pools)
+					assert.Nil(t, err)
+					return string(output), nil
+				}
+			}
+			return "", fmt.Errorf("unexpected command '%s'", args[0])
+		},
 	}
+	context := &clusterd.Context{Executor: executor}
+
 	req, err := http.NewRequest("DELETE", "http://10.0.0.100/filesystem?name=myfs1", nil)
 	if err != nil {
 		logger.Fatal(err)
@@ -145,5 +208,6 @@ func TestRemoveFileSystemHandler(t *testing.T) {
 	h := newTestHandler(context)
 	h.RemoveFileSystem(w, req)
 	assert.Equal(t, http.StatusAccepted, w.Code)
-	assert.Equal(t, "", etcdClient.GetValue("/rook/services/ceph/fs/desired/myfs1/pool"))
+	assert.True(t, markedDown)
+	assert.True(t, deleted)
 }

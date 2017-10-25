@@ -14,7 +14,7 @@
 
 FROM BASEIMAGE
 
-ADD rook /usr/local/bin/
+ADD rook rookflex /usr/local/bin/
 
 ENTRYPOINT ["/tini", "--", "/usr/local/bin/rook"]
 CMD [""]

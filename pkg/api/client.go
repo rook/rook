@@ -29,7 +29,7 @@ func (h *Handler) GetClientAccessInfo(w http.ResponseWriter, r *http.Request) {
 	// TODO: auth is extremely important here because we are returning cephx credentials
 	// https://github.com/rook/rook/issues/209
 
-	monStatus, err := ceph.GetMonStatus(h.context, h.config.ClusterInfo.Name, false)
+	monStatus, err := ceph.GetMonStatus(h.context, h.config.clusterInfo.Name, false)
 	if err != nil {
 		logger.Errorf("failed to get monitor status, err: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -38,7 +38,7 @@ func (h *Handler) GetClientAccessInfo(w http.ResponseWriter, r *http.Request) {
 
 	// TODO: don't always return admin creds
 	entity := ceph.AdminUsername
-	secret, err := ceph.AuthGetKey(h.context, h.config.ClusterInfo.Name, entity)
+	secret, err := ceph.AuthGetKey(h.context, h.config.clusterInfo.Name, entity)
 	if err != nil {
 		logger.Errorf("failed to get key for %s: %+v", entity, err)
 		w.WriteHeader(http.StatusInternalServerError)

@@ -22,24 +22,23 @@ import (
 
 //EnvironmentManifest contains informaton about system under test
 type EnvironmentManifest struct {
-	K8sVersion         string
-	Platform           string
+	HostType           string
 	RookImageName      string
 	ToolboxImageName   string
 	SkipInstallRook    string
+	LoadVolumeNumber   int
 	LoadConcurrentRuns int
 }
 
 //NewManifest creates a new instance of EnvironmentManifest
 func NewManifest() EnvironmentManifest {
 	e := EnvironmentManifest{}
-
-	flag.StringVar(&e.K8sVersion, "k8s_version", "v1.6", "Version of kubernetes to test rook in; v1.5 | v1.6 are the only version of kubernetes currently supported")
-	flag.StringVar(&e.Platform, "rook_platform", "Kubernetes", "Platform to install rook on; Kubernetes is the only platform currently supported")
+	flag.StringVar(&e.HostType, "host_type", "localhost", "Host were tests are run eg - localhost,GCE or AWS")
 	flag.StringVar(&e.RookImageName, "rook_image", "rook/rook", "Docker image name for the rook container to install, must be in docker hub or local environment")
 	flag.StringVar(&e.ToolboxImageName, "toolbox_image", "rook/toolbox", "Docker image name of the toolbox container to install, must be in docker hub or local environment")
 	flag.StringVar(&e.SkipInstallRook, "skip_install_rook", "false", "Indicate if Rook need to installed - false if tests are being running at Rook that is pre-installed")
 	flag.IntVar(&e.LoadConcurrentRuns, "load_parallel_runs", 20, "number of routines for load test")
+	flag.IntVar(&e.LoadVolumeNumber, "load_volumes", 1, "number of volumes(file,object or block) to be created for load test")
 	flag.Parse()
 
 	return e

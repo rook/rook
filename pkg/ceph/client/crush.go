@@ -16,6 +16,7 @@ limitations under the License.
 package client
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -69,14 +70,64 @@ rule replicated_ruleset {
 # end crush map
 `
 
-func GetCrushMap(context *clusterd.Context, clusterName string) (string, error) {
+type CrushMap struct {
+	Devices []struct {
+		ID    int    `json:"id"`
+		Name  string `json:"name"`
+		Class string `json:"class"`
+	} `json:"devices"`
+	Types []struct {
+		ID   int    `json:"type_id"`
+		Name string `json:"name"`
+	} `json:"types"`
+	Buckets []struct {
+		ID       int    `json:"id"`
+		Name     string `json:"name"`
+		TypeID   int    `json:"type_id"`
+		TypeName string `json:"type_name"`
+		Weight   int    `json:"weight"`
+		Alg      string `json:"alg"`
+		Hash     string `json:"hash"`
+		Items    []struct {
+			ID     int `json:"id"`
+			Weight int `json:"weight"`
+			Pos    int `json:"pos"`
+		} `json:"items"`
+	}
+	Rules []struct {
+		ID      int    `json:"rule_id"`
+		Name    string `json:"rule_name"`
+		Ruleset int    `json:"ruleset"`
+		Type    int    `json:"type"`
+		MinSize int    `json:"min_size"`
+		MaxSize int    `json:"max_size"`
+		Steps   []struct {
+			Operation string `json:"op"`
+			Number    int    `json:"num"`
+			Item      int    `json:"item"`
+			ItemName  string `json:"item_name"`
+			Type      string `json:"type"`
+		} `json:"steps"`
+	}
+	Tunables struct {
+		// Add if necessary
+	} `json:"tunables"`
+}
+
+func GetCrushMap(context *clusterd.Context, clusterName string) (CrushMap, error) {
+	var c CrushMap
 	args := []string{"osd", "crush", "dump"}
 	buf, err := ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
-		return "", fmt.Errorf("failed to get crush map. %v", err)
+		return c, fmt.Errorf("failed to get crush map. %v", err)
 	}
 
-	return string(buf), nil
+	err = json.Unmarshal(buf, &c)
+	if err != nil {
+		return c, fmt.Errorf("failed to unmarshal crush map. %+v", err)
+	}
+
+	return c, nil
 }
 
 func SetCrushMap(context *clusterd.Context, clusterName, compiledMap string) (string, error) {

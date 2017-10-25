@@ -25,6 +25,10 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 )
 
+const (
+	keyringFileName = "keyring"
+)
+
 // get the bootstrap OSD root dir
 func getBootstrapOSDDir(configDir string) string {
 	return path.Join(configDir, "bootstrap-osd")
@@ -46,7 +50,7 @@ func getOSDConfFilePath(osdDataPath, clusterName string) string {
 
 // get the full path to the given OSD's keyring
 func getOSDKeyringPath(osdDataPath string) string {
-	return filepath.Join(osdDataPath, "keyring")
+	return filepath.Join(osdDataPath, keyringFileName)
 }
 
 // get the full path to the given OSD's journal

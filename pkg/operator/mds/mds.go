@@ -19,17 +19,20 @@ package mds
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/ceph/client"
 	cephmds "github.com/rook/rook/pkg/ceph/mds"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	opmon "github.com/rook/rook/pkg/operator/mon"
+	"github.com/rook/rook/pkg/operator/pool"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mds")
@@ -39,147 +42,215 @@ const (
 	dataPoolSuffix     = "-data"
 	metadataPoolSuffix = "-metadata"
 	keyringName        = "keyring"
+	adminSecretName    = "rook-admin"
 )
 
-// Cluster for mds management
-type Cluster struct {
-	Namespace string
-	Version   string
-	Replicas  int32
-	context   *clusterd.Context
-	dataDir   string
-	placement k8sutil.Placement
-}
-
-// New creates an instance of the mds manager
-func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
-	return &Cluster{
-		context:   context,
-		Namespace: namespace,
-		placement: placement,
-		Version:   version,
-		Replicas:  1,
-		dataDir:   k8sutil.DataDir,
+func CreateFileSystem(context *clusterd.Context, clusterName string, f *model.FilesystemRequest, version string, hostNetwork bool) error {
+	fs := &Filesystem{
+		ObjectMeta: metav1.ObjectMeta{Name: f.Name, Namespace: clusterName},
+		Spec: FilesystemSpec{
+			MetadataPool: pool.ModelToSpec(f.MetadataPool),
+			MetadataServer: MetadataServerSpec{
+				ActiveCount: f.MetadataServer.ActiveCount,
+			},
+		},
 	}
+	for _, p := range f.DataPools {
+		fs.Spec.DataPools = append(fs.Spec.DataPools, pool.ModelToSpec(p))
+	}
+
+	return fs.Create(context, version, hostNetwork)
 }
 
-// Start the mds manager
-func (c *Cluster) Start() error {
-	logger.Infof("start running mds")
+// Create the file system
+func (f *Filesystem) Create(context *clusterd.Context, version string, hostNetwork bool) error {
+	if err := f.validate(context); err != nil {
+		return err
+	}
 
-	id := "mds1"
-	err := c.createKeyring(c.context.Clientset, id)
+	var dataPools []*model.Pool
+	for _, pool := range f.Spec.DataPools {
+		dataPools = append(dataPools, pool.ToModel(""))
+	}
+	fs := cephmds.NewFS(f.Name, f.Spec.MetadataPool.ToModel(""), dataPools, f.Spec.MetadataServer.ActiveCount)
+	if err := fs.CreateFilesystem(context, f.Namespace); err != nil {
+		return fmt.Errorf("failed to create file system %s: %+v", f.Name, err)
+	}
+
+	filesystem, err := client.GetFilesystem(context, f.Namespace, f.Name)
 	if err != nil {
-		return fmt.Errorf("failed to create mds keyring. %+v", err)
+		return fmt.Errorf("failed to get file system %s. %+v", f.Name, err)
 	}
+
+	err = f.createAdminSecret(context)
+	if err != nil {
+		return fmt.Errorf("failed to create admin secret. %+v", err)
+	}
+
+	logger.Infof("start running mds for file system %s", f.Name)
 
 	// start the deployment
-	deployment := c.makeDeployment(id)
-	_, err = c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
+	deployment := f.makeDeployment(strconv.Itoa(filesystem.ID), version, hostNetwork)
+	_, err = context.Clientset.ExtensionsV1beta1().Deployments(f.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mds deployment. %+v", err)
 		}
-		logger.Infof("mds deployment already exists")
+		logger.Infof("mds deployment %s already exists", deployment.Name)
 	} else {
-		logger.Infof("mds deployment started")
+		logger.Infof("mds deployment %s started", deployment.Name)
 	}
 
 	return nil
 }
 
-func (c *Cluster) createKeyring(clientset kubernetes.Interface, id string) error {
-	_, err := clientset.CoreV1().Secrets(c.Namespace).Get(appName, metav1.GetOptions{})
+// Delete the file system
+func (f *Filesystem) Delete(context *clusterd.Context) error {
+	// Delete the mds deployment
+	k8sutil.DeleteDeployment(context.Clientset, f.Namespace, f.instanceName())
+
+	// Delete the keyring
+	// Delete the rgw keyring
+	err := context.Clientset.CoreV1().Secrets(f.Namespace).Delete(f.instanceName(), &metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		logger.Warningf("failed to delete mds secret. %+v", err)
+	}
+
+	// Delete the ceph file system and pools
+	if err := cephmds.DeleteFilesystem(context, f.Namespace, f.Name); err != nil {
+		return fmt.Errorf("failed to delete file system %s: %+v", f.Name, err)
+	}
+
+	return nil
+}
+
+func (f *Filesystem) instanceName() string {
+	return fmt.Sprintf("%s-%s", appName, f.Name)
+}
+
+func (f *Filesystem) createAdminSecret(context *clusterd.Context) error {
+	_, err := context.Clientset.CoreV1().Secrets(f.Namespace).Get(adminSecretName, metav1.GetOptions{})
 	if err == nil {
-		logger.Infof("the mds keyring was already generated")
+		logger.Infof("the admin secret was already generated")
 		return nil
 	}
 	if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to get mds secrets. %+v", err)
+		return fmt.Errorf("failed to get admin secret. %+v", err)
 	}
 
-	// get-or-create-key for the user account
-	keyring, err := cephmds.CreateKeyring(c.context, c.Namespace, id)
+	clusterInfo, _, err := opmon.LoadClusterInfo(context, f.Namespace)
 	if err != nil {
-		return fmt.Errorf("failed to create mds keyring. %+v", err)
+		return fmt.Errorf("failed to load cluster information from cluster %s: %+v", f.Namespace, err)
 	}
 
-	// Store the keyring in a secret
-	secrets := map[string]string{
-		keyringName: keyring,
+	s := map[string]string{
+		"key": clusterInfo.AdminSecret,
 	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: c.Namespace},
-		StringData: secrets,
+	adminSecret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{Name: adminSecretName, Namespace: f.Namespace},
+		StringData: s,
 		Type:       k8sutil.RookType,
 	}
-	_, err = clientset.CoreV1().Secrets(c.Namespace).Create(secret)
+	_, err = context.Clientset.CoreV1().Secrets(f.Namespace).Create(adminSecret)
 	if err != nil {
-		return fmt.Errorf("failed to save mds secrets. %+v", err)
+		return fmt.Errorf("failed to save admin secret. %+v", err)
 	}
 
 	return nil
 }
 
-func (c *Cluster) makeDeployment(id string) *extensions.Deployment {
+func (f *Filesystem) makeDeployment(filesystemID, version string, hostNetwork bool) *extensions.Deployment {
 	deployment := &extensions.Deployment{}
-	deployment.Name = appName
-	deployment.Namespace = c.Namespace
+	deployment.Name = f.instanceName()
+	deployment.Namespace = f.Namespace
 
 	podSpec := v1.PodSpec{
-		Containers:    []v1.Container{c.mdsContainer(id)},
+		Containers:    []v1.Container{f.mdsContainer(filesystemID, version)},
 		RestartPolicy: v1.RestartPolicyAlways,
 		Volumes: []v1.Volume{
 			{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
 			k8sutil.ConfigOverrideVolume(),
 		},
+		HostNetwork: hostNetwork,
 	}
-	c.placement.ApplyToPodSpec(&podSpec)
+	if hostNetwork {
+		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	}
+	f.Spec.MetadataServer.Placement.ApplyToPodSpec(&podSpec)
 
 	podTemplateSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        appName,
-			Labels:      c.getLabels(),
+			Name:        f.instanceName(),
+			Labels:      f.getLabels(),
 			Annotations: map[string]string{},
 		},
 		Spec: podSpec,
 	}
 
-	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &c.Replicas}
+	// double the number of MDS instances for failover
+	mdsCount := f.Spec.MetadataServer.ActiveCount * 2
+
+	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &mdsCount}
 
 	return deployment
 }
 
-func (c *Cluster) mdsContainer(id string) v1.Container {
+func (f *Filesystem) mdsContainer(filesystemID, version string) v1.Container {
 
 	return v1.Container{
 		Args: []string{
 			"mds",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--mds-id=%s", id),
 		},
-		Name:  appName,
-		Image: k8sutil.MakeRookImage(c.Version),
+		Name:  f.instanceName(),
+		Image: k8sutil.MakeRookImage(version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),
 		},
 		Env: []v1.EnvVar{
-			{Name: "ROOK_MDS_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: keyringName}}},
-			opmon.ClusterNameEnvVar(c.Namespace),
+			{Name: "ROOK_POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
+			{Name: "ROOK_FILESYSTEM_ID", Value: filesystemID},
+			{Name: "ROOK_ACTIVE_STANDBY", Value: strconv.FormatBool(f.Spec.MetadataServer.ActiveStandby)},
+			opmon.ClusterNameEnvVar(f.Namespace),
 			opmon.EndpointEnvVar(),
-			opmon.SecretEnvVar(),
+			opmon.AdminSecretEnvVar(),
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-			opmon.AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
 	}
 }
 
-func (c *Cluster) getLabels() map[string]string {
+func (f *Filesystem) getLabels() map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr:     appName,
-		k8sutil.ClusterAttr: c.Namespace,
+		k8sutil.ClusterAttr: f.Namespace,
+		"rook_file_system":  f.Name,
 	}
+}
+
+func (f *Filesystem) validate(context *clusterd.Context) error {
+	if f.Name == "" {
+		return fmt.Errorf("missing name")
+	}
+	if f.Namespace == "" {
+		return fmt.Errorf("missing namespace")
+	}
+	if len(f.Spec.DataPools) == 0 {
+		return fmt.Errorf("at least one data pool required")
+	}
+	if err := f.Spec.MetadataPool.Validate(context, f.Namespace); err != nil {
+		return fmt.Errorf("invalid metadata pool. %+v", err)
+	}
+	for _, pool := range f.Spec.DataPools {
+		if err := pool.Validate(context, f.Namespace); err != nil {
+			return fmt.Errorf("Invalid data pool. %+v", err)
+		}
+	}
+	if f.Spec.MetadataServer.ActiveCount < 1 {
+		return fmt.Errorf("MetadataServer.ActiveCount must be at least 1")
+	}
+
+	return nil
 }

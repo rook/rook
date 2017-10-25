@@ -23,6 +23,8 @@ Settings can be specified at the global level to apply to the cluster as a whole
 - `versionTag`: The version (tag) of the `rook/rook` container that will be deployed. Upgrades are not yet supported if this setting is updated for an existing cluster, but upgrades will be coming.
 - `dataDirHostPath`: The host path where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.  Therefore, for test scenarios, the path must be deleted if you are going to delete a cluster and start a new cluster on the same hosts.  More details can be found in the Kubernetes [host path docs](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath).
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
+- `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
+- `monCount`: set the amount of mons to be started. The number must be odd and between `1` and `9`. Default if not specified is `3`.
 - `placement`: [placement configuration settings](#placement-configuration-settings)
 - `storage`: Storage selection and configuration that will be used across the cluster.  Note that these settings can be overridden for specific nodes.
   - `useAllNodes`: `true` or `false`, indicating if all nodes in the cluster should be used for storage according to the cluster level storage selection and configuration values.
@@ -60,7 +62,7 @@ Below are the settings available, both at the cluster and individual node level,
 Below are the settings available, both at the cluster and individual node level, that affect how the selected storage resources will be configured.
 - `location`: Location information about the cluster to help with data placement, such as region or data center.  This is directly fed into the underlying Ceph CRUSH map.  More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
 - `storeConfig`: Configuration information about the store format for each OSD.
-  - `storeType`: `filestore` or `bluestore` (default: `filestore`), The underlying storage format to use for each OSD.
+  - `storeType`: `filestore` or `bluestore` (default: `bluestore`), The underlying storage format to use for each OSD.
   - `databaseSizeMB`:  The size in MB of a bluestore database.
   - `walSizeMB`:  The size in MB of a bluestore write ahead log (WAL).
   - `journalSizeMB`:  The size in MB of a filestore journal.
@@ -71,6 +73,8 @@ Placement configuration for the cluster services. It includes the following keys
 
 A Placement configuration is specified (according to the kubernetes [PodSpec](https://kubernetes.io/docs/api-reference/v1.6/#podspec-v1-core)) as:
 - `nodeAffinity`: kubernetes [NodeAffinity](https://kubernetes.io/docs/api-reference/v1.6/#nodeaffinity-v1-core)
+- `podAffinity`: kubernetes [PodAffinity](https://kubernetes.io/docs/api-reference/v1.6/#podaffinity-v1-core)
+- `podAntiAffinity`: kubernetes [PodAntiAffinity](https://kubernetes.io/docs/api-reference/v1.6/#podantiaffinity-v1-core)
 - `tolerations`: list of kubernetes [Toleration](https://kubernetes.io/docs/api-reference/v1.6/#toleration-v1-core)
 
 ## Samples
@@ -92,7 +96,7 @@ spec:
   versionTag: master
   dataDirHostPath:
   # cluster level storage configuration and selection
-  storage:                
+  storage:
     useAllNodes: true
     useAllDevices: true
     deviceFilter:
@@ -106,7 +110,7 @@ spec:
 
 ### Storage Configuration: Specific devices
 
-Individual nodes and their config can be specified so that only the named nodes below will be used as storage resources. 
+Individual nodes and their config can be specified so that only the named nodes below will be used as storage resources.
 Each node's 'name' field should match their 'kubernetes.io/hostname' label.
 
 ```
@@ -131,7 +135,7 @@ spec:
     metadataDevice:
     location:
     storeConfig:
-      storeType: filestore
+      storeType: bluestore
       databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
       journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
     nodes:
@@ -143,7 +147,7 @@ spec:
       - name: "sdb"
       - name: "sdc"
       storeConfig:         # configuration can be specified at the node level which overrides the cluster level config
-        storeType: bluestore
+        storeType: filestore
     - name: "172.17.4.301"
       deviceFilter: "^sd."
 ```

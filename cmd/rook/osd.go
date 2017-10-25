@@ -21,6 +21,7 @@ import (
 
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/ceph/osd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -49,7 +50,7 @@ func addOSDFlags(command *cobra.Command) {
 	command.Flags().IntVar(&cfg.storeConfig.WalSizeMB, "osd-wal-size", osd.WalDefaultSizeMB, "default size (MB) for OSD write ahead log (WAL) (bluestore)")
 	command.Flags().IntVar(&cfg.storeConfig.DatabaseSizeMB, "osd-database-size", osd.DBDefaultSizeMB, "default size (MB) for OSD database (bluestore)")
 	command.Flags().IntVar(&cfg.storeConfig.JournalSizeMB, "osd-journal-size", osd.JournalDefaultSizeMB, "default size (MB) for OSD journal (filestore)")
-	command.Flags().StringVar(&cfg.storeConfig.StoreType, "osd-store", osd.Filestore, "type of backing OSD store to use (bluestore or filestore)")
+	command.Flags().StringVar(&cfg.storeConfig.StoreType, "osd-store", osd.DefaultStore, "type of backing OSD store to use (bluestore or filestore)")
 }
 
 func init() {
@@ -83,12 +84,23 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	logStartupInfo(osdCmd.Flags())
 
+	clientset, _, err := getClientset()
+	if err != nil {
+		fmt.Printf("failed to init k8s client. %+v\n", err)
+		os.Exit(1)
+	}
+
+	context := createContext()
+	context.Clientset = clientset
+
+	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset)
+
 	forceFormat := false
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	agent := osd.NewAgent(dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
-		cfg.location, cfg.storeConfig, &clusterInfo, cfg.nodeName)
+		cfg.location, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
 
-	err := osd.Run(createContext(), agent)
+	err = osd.Run(context, agent)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)

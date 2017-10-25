@@ -32,7 +32,6 @@ import (
 
 var (
 	schemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
-	addToScheme   = schemeBuilder.AddToScheme
 )
 
 var ClusterResource = kit.CustomResource{

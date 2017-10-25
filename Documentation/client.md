@@ -1,6 +1,6 @@
 ---
 title: Rook Client
-weight: 20
+weight: 40
 ---
 
 # Using Rook
@@ -12,7 +12,6 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
 `rookctl` can be accessed in the following ways:
 
 - Kubernetes: Start the [toolbox](toolbox.md) pod
-- Standalone: [Download the binary](standalone.md#rook-client-tool) to your client machine.
 
 ## Block Storage
 
@@ -28,10 +27,6 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
     ```bash
     # If running in the toolbox container, no need to run privileged
     rookctl block map --name test --format --mount /tmp/rook-volume
-
-    # If running standalone, you may need to run privileged and take ownership of the folder
-    sudo -E ./rookctl block map --name test --format --mount /tmp/rook-volume
-    sudo chown $USER:$USER /tmp/rook-volume
     ```
 
 1. Write and read a file
@@ -46,9 +41,6 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
     ```bash
     # If running in the toolbox container, no need to run privileged
     rookctl block unmap --mount /tmp/rook-volume
-
-    # If running standalone, you may need to run privileged
-    sudo -E ./rookctl block unmap --mount /tmp/rook-volume
     ```
 
 ## Shared File System
@@ -70,10 +62,6 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
    ```bash
    # If running in the toolbox container, no need to run privileged
    rookctl filesystem mount --name testFS --path /tmp/rookFS
-
-   # If running standalone, you may need to run privileged and take ownership of the folder
-   sudo -E ./rookctl filesystem mount --name testFS --path /tmp/rookFS
-   sudo chown $USER:$USER /tmp/rookFS
    ```
 
 1. Write and read a file to the shared file system
@@ -88,9 +76,6 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
    ```bash
    # If running in the toolbox container, no need to run privileged
    rookctl filesystem unmount --path /tmp/rookFS
-
-   # If running standalone, you may need to run privileged
-   sudo -E ./rookctl filesystem unmount --path /tmp/rookFS
    ```
 
 1. Cleanup the shared file system from the cluster (this **does** delete the data from the cluster)
@@ -104,13 +89,13 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
 1. Create an object storage instance in the cluster
 
    ```bash
-   rookctl object create
+   rookctl object create -n mystore
    ```
 
 1. Create an object storage user
 
    ```bash
-   rookctl object user create rook-user "my object store user"
+   rookctl object user create mystore rook-user "my object store user"
    ```
 
 ### Consume the Object Storage
@@ -121,7 +106,7 @@ the s3cmd tool is included in the [Rook toolbox](toolbox.md) pod.
 1. Get the connection information for accessing object storage
 
    ```bash
-   eval $(rookctl object connection rook-user --format env-var)
+   eval $(rookctl object connection mystore rook-user --format env-var)
    ```
 
 1. Create a bucket in the object store
@@ -133,7 +118,7 @@ the s3cmd tool is included in the [Rook toolbox](toolbox.md) pod.
 1. List buckets in the object store
 
    ```bash
-   rookctl object bucket list
+   rookctl object bucket list mystore
    ```
 
 1. Upload a file to the newly created bucket

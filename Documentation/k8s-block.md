@@ -25,7 +25,7 @@ metadata:
   name: replicapool
   namespace: rook
 spec:
-  replication:
+  replicated:
     size: 1
 ---
 apiVersion: storage.k8s.io/v1
@@ -40,14 +40,6 @@ parameters:
 Create the storage class.
 ```bash
 kubectl create -f rook-storageclass.yaml
-```
-
-### Secrets
-The pod consuming storage will need access to a secret for the rbd plugin. The secret is automatically generated in the `default`
-namespace, but would need to be copied to other namespaces. In this example we are copying to the `kube-system` namespace.
-
-```bash
-kubectl get secret rook-rook-user -o json | jq '.metadata.namespace = "kube-system"' | kubectl apply -f -
 ```
 
 ## Consume the storage

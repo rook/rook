@@ -16,8 +16,6 @@ limitations under the License.
 
 package installer
 
-import "strings"
-
 //InstallData wraps rook yaml definitions
 type InstallData struct {
 }
@@ -27,30 +25,15 @@ func NewK8sInstallData() *InstallData {
 	return &InstallData{}
 }
 
-func (i *InstallData) getRookOperator(k8sVersion string) string {
+//GetRookOperator returns rook Operator  manifest
+func (i *InstallData) GetRookOperator(namespace string) string {
 
-	if strings.Contains(k8sVersion, "v1.5") {
-		return `apiVersion: extensions/v1beta1
-kind: Deployment
+	return `kind: Namespace
+apiVersion: v1
 metadata:
-  name: rook-operator
-spec:
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        name: rook-operator
-    spec:
-      containers:
-      - name: rook-operator
-        image: rook/rook:master
-        args: ["operator"]
-        env:
-        - name: ROOK_REPO_PREFIX
-          value: roo`
-	}
-
-	return `kind: ClusterRole
+  name: ` + namespace + `
+---
+kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-operator
@@ -64,6 +47,7 @@ rules:
   - pods
   - services
   - nodes
+  - nodes/proxy
   - configmaps
   - events
   - persistentvolumes
@@ -104,6 +88,8 @@ rules:
   resources:
   - clusterroles
   - clusterrolebindings
+  - roles
+  - rolebindings
   verbs:
   - get
   - list
@@ -131,13 +117,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: rook-operator
-  namespace: default
+  namespace: ` + namespace + `
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-operator
-  namespace: default
+  namespace: ` + namespace + `
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -145,13 +131,13 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-operator
-  namespace: default
+  namespace: ` + namespace + `
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
   name: rook-operator
-  namespace: default
+  namespace: ` + namespace + `
 spec:
   replicas: 1
   template:
@@ -163,90 +149,73 @@ spec:
       containers:
       - name: rook-operator
         image: rook/rook:master
-        args: ["operator"]
+        args: ["operator", "--mon-healthcheck-interval=5s", "--mon-out-timeout=1s"]
         env:
         - name: ROOK_REPO_PREFIX
-          value: rook`
-
+          value: rook
+        - name: ROOK_LOG_LEVEL
+          value: INFO
+        # The interval to check if every mon is in the quorum.
+        - name: ROOK_MON_HEALTHCHECK_INTERVAL
+          value: "20s"
+        # The duration to wait before trying to failover or remove/replace the
+        # current mon with a new mon (useful for compensating flapping network).
+        - name: ROOK_MON_OUT_TIMEOUT
+          value: "300s"
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: ROOK_OPERATOR_SERVICE_ACCOUNT
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.serviceAccountName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace`
 }
 
-func (i *InstallData) getRookCluster() string {
+//GetRookCluster returns rook-cluster manifest
+func (i *InstallData) GetRookCluster(namespace string, storeType string, dataDirHostPath string) string {
 	return `apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: ` + namespace + `
 ---
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: ` + namespace + `
+  namespace: ` + namespace + `
 spec:
   versionTag: master
-  dataDirHostPath:
-# To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
-# The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage' and
-# tolerate taints with a key of 'storage-node'.
-#  placement:
-#    all:
-#      nodeAffinity:
-#        requiredDuringSchedulingIgnoredDuringExecution:
-#          nodeSelectorTerms:
-#          - matchExpressions:
-#            - key: role
-#              operator: In
-#              values:
-#              - storage-node
-#      tolerations:
-#      - key: storage-node
-#        operator: Exists
-#    api:
-#      nodeAffinity:
-#      tolerations:
-#    mds:
-#      nodeAffinity:
-#      tolerations:
-#    mon:
-#      nodeAffinity:
-#      tolerations:
-#    osd:
-#      nodeAffinity:
-#      tolerations:
-#    rgw:
-#      nodeAffinity:
-#      tolerations:
-  storage:                # cluster level storage configuration and selection
+  dataDirHostPath: ` + dataDirHostPath + `
+  hostNetwork: false
+  storage:
     useAllNodes: true
     useAllDevices: false
     deviceFilter:
     metadataDevice:
     location:
     storeConfig:
-      storeType: filestore
-      databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
-      journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
-# Individual nodes and their config can be specified as well, but 'useAllNodes' above must be set to false. Then, only the named
-# nodes below will be used as storage resources.  Each node's 'name' field should match their 'kubernetes.io/hostname' label.
-#    nodes:
-#    - name: "172.17.4.101"
-#      directories:         # specific directores to use for storage can be specified for each node
-#      - path: "/rook/storage-dir"
-#    - name: "172.17.4.201"
-#      devices:             # specific devices to use for storage can be specified for each node
-#      - name: "sdb"
-#      - name: "sdc"
-#      storeConfig:         # configuration can be specified at the node level which overrides the cluster level config
-#        storeType: bluestore
-#    - name: "172.17.4.301"
-#      deviceFilter: "^sd."`
+      storeType: ` + storeType + `
+      databaseSizeMB: 1024
+      journalSizeMB: 1024
+`
 }
 
-func (i *InstallData) getRookToolBox() string {
+//GetRookToolBox returns rook-toolbox manifest
+func (i *InstallData) GetRookToolBox(namespace string) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:
   name: rook-tools
-  namespace: rook
+  namespace: ` + namespace + `
 spec:
   containers:
   - name: rook-tools

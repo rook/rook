@@ -28,6 +28,7 @@ type CephErasureCodeProfile struct {
 	CodingChunkCount uint   `json:"m,string"`
 	Plugin           string `json:"plugin"`
 	Technique        string `json:"technique"`
+	FailureDomain    string `json:"crush-failure-domain"`
 }
 
 func ListErasureCodeProfiles(context *clusterd.Context, clusterName string) ([]string, error) {
@@ -62,7 +63,7 @@ func GetErasureCodeProfileDetails(context *clusterd.Context, clusterName, name s
 	return ecProfileDetails, nil
 }
 
-func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, config model.ErasureCodedPoolConfig, name string) error {
+func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, config model.ErasureCodedPoolConfig, name, failureDomain string) error {
 	// look up the default profile so we can use the default plugin/technique
 	defaultProfile, err := GetErasureCodeProfileDetails(context, clusterName, "default")
 	if err != nil {
@@ -75,7 +76,9 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, con
 		fmt.Sprintf("m=%d", config.CodingChunkCount),
 		fmt.Sprintf("plugin=%s", defaultProfile.Plugin),
 		fmt.Sprintf("technique=%s", defaultProfile.Technique),
-		"ruleset-failure-domain=osd",
+	}
+	if failureDomain != "" {
+		profilePairs = append(profilePairs, fmt.Sprintf("crush-failure-domain=%s", failureDomain))
 	}
 
 	args := []string{"osd", "erasure-code-profile", "set", name}
@@ -86,4 +89,20 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, con
 	}
 
 	return nil
+}
+
+func ModelPoolToCephPool(modelPool model.Pool) CephStoragePoolDetails {
+	pool := CephStoragePoolDetails{
+		Name:          modelPool.Name,
+		Number:        modelPool.Number,
+		FailureDomain: modelPool.FailureDomain,
+	}
+
+	if modelPool.Type == model.Replicated {
+		pool.Size = modelPool.ReplicatedConfig.Size
+	} else if modelPool.Type == model.ErasureCoded {
+		pool.ErasureCodeProfile = fmt.Sprintf("%s_ecprofile", modelPool.Name)
+	}
+
+	return pool
 }

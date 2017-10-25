@@ -17,12 +17,14 @@ package exec
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 )
@@ -33,6 +35,7 @@ type Executor interface {
 	ExecuteCommandWithOutput(debug bool, actionName string, command string, arg ...string) (string, error)
 	ExecuteCommandWithCombinedOutput(debug bool, actionName string, command string, arg ...string) (string, error)
 	ExecuteCommandWithOutputFile(debug bool, actionName, command, outfileArg string, arg ...string) (string, error)
+	ExecuteCommandWithTimeout(debug bool, timeout time.Duration, actionName string, command string, arg ...string) (string, error)
 	ExecuteStat(name string) (os.FileInfo, error)
 }
 
@@ -65,6 +68,59 @@ func (*CommandExecutor) ExecuteCommand(debug bool, actionName string, command st
 	}
 
 	return nil
+}
+
+// ExecuteCommandWithTimeout starts a process and wait for its completion with timeout.
+func (*CommandExecutor) ExecuteCommandWithTimeout(debug bool, timeout time.Duration, actionName string, command string, arg ...string) (string, error) {
+	logCommand(debug, command, arg...)
+	cmd := exec.Command(command, arg...)
+
+	var b bytes.Buffer
+	cmd.Stdout = &b
+	cmd.Stderr = &b
+
+	if err := cmd.Start(); err != nil {
+		return "", createCommandError(err, actionName)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+
+	interrupSent := false
+	for {
+		select {
+		case <-time.After(timeout):
+			if interrupSent {
+				logger.Infof("Timeout waiting for process %s to return after interrupt signal was sent. Sending kill signal to the process", command)
+				var e error
+				if err := cmd.Process.Kill(); err != nil {
+					logger.Errorf("Failed to kill process %s: %+v", command, err)
+					e = fmt.Errorf("Timeout waiting for the command %s to return after interrupt signal was sent. Tried to kill the process but that failed: %+v", command, err)
+				} else {
+					e = fmt.Errorf("Timeout waiting for the command %s to return", command)
+				}
+				return strings.TrimSpace(string(b.Bytes())), createCommandError(e, command)
+			}
+
+			logger.Infof("Timeout waiting for process %s to return. Sending interrupt signal to the process", command)
+			if err := cmd.Process.Signal(os.Interrupt); err != nil {
+				logger.Errorf("Failed to send interrupt signal to process %s: %+v", command, err)
+				// kill signal will be sent next loop
+			}
+			interrupSent = true
+		case err := <-done:
+			if err != nil {
+				return strings.TrimSpace(string(b.Bytes())), createCommandError(err, command)
+			}
+			if interrupSent {
+				e := fmt.Errorf("Timeout waiting for the command %s to return", command)
+				return strings.TrimSpace(string(b.Bytes())), createCommandError(e, command)
+			}
+			return strings.TrimSpace(string(b.Bytes())), nil
+		}
+	}
 }
 
 func (*CommandExecutor) ExecuteCommandWithOutput(debug bool, actionName string, command string, arg ...string) (string, error) {

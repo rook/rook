@@ -22,11 +22,9 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
-	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 var operatorCmd = &cobra.Command{
@@ -37,6 +35,8 @@ https://github.com/rook/rook`,
 }
 
 func init() {
+	operatorCmd.Flags().DurationVar(&mon.HealthCheckInterval, "mon-healthcheck-interval", mon.HealthCheckInterval, "mon health check interval (duration)")
+	operatorCmd.Flags().DurationVar(&mon.MonOutTimeout, "mon-out-timeout", mon.MonOutTimeout, "mon out timeout (duration)")
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), RookEnvVarPrefix)
 
 	operatorCmd.RunE = startOperator
@@ -73,22 +73,4 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-func getClientset() (kubernetes.Interface, apiextensionsclient.Interface, error) {
-	// create the k8s client
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get k8s config. %+v", err)
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create k8s clientset. %+v", err)
-	}
-	apiExtClientset, err := apiextensionsclient.NewForConfig(config)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create k8s API extension clientset. %+v", err)
-	}
-	return clientset, apiExtClientset, nil
 }

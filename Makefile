@@ -54,10 +54,11 @@ CLIENT_PLATFORMS := $(filter-out linux_%,$(PLATFORMS))
 CLIENT_PACKAGES = $(GO_PROJECT)/cmd/rookctl
 
 # server projects that we build on server platforms
-SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook
+SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook $(GO_PROJECT)/cmd/rookflex
 
 # tests packages that will be compiled into binaries
-TEST_PACKAGES = $(GO_PROJECT)/tests/smoke
+TEST_PACKAGES = $(GO_PROJECT)/tests/integration
+LONGHAUL_TEST_PACKAGES = $(GO_PROJECT)/tests/longhaul
 
 # the root go project
 GO_PROJECT=github.com/rook/rook
@@ -82,8 +83,10 @@ GO_LDFLAGS=$(LDFLAGS)
 GO_TAGS=$(TAGS)
 
 GO_TEST_PACKAGES=$(TEST_PACKAGES)
+GO_LONGHAUL_TEST_PACKAGES=$(LONGHAUL_TEST_PACKAGES)
 GO_TEST_FLAGS=$(TESTFLAGS)
 GO_TEST_SUITE=$(SUITE)
+GO_TEST_FILTER=$(TESTFILTER)
 
 include build/makelib/golang.mk
 
@@ -184,6 +187,7 @@ help:
 	@echo '    DEBUG        Whether to generate debug symbols. Default is 0.'
 	@echo '    PLATFORM     The platform to build.'
 	@echo '    SUITE        The test suite to run.'
+	@echo '    TESTFILTER   Tests to run in a suite.'
 	@echo '    VERSION      The version information compiled into binaries.'
 	@echo '                 The default is obtained from git.'
 	@echo '    V            Set to 1 enable verbose build. Default is 0.'

@@ -1,1 +1,0 @@
-For documentation on running Rook in your cluster see the [Standalone Quickstart Guide](/Documentation/standalone.md)

@@ -24,8 +24,8 @@ import (
 	"os"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/clusterd/inventory"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/rook/rook/pkg/util/proc"
 	"github.com/stretchr/testify/assert"
 )
@@ -49,36 +49,39 @@ func TestStoreOSDDirMap(t *testing.T) {
 	defer os.RemoveAll(context.ConfigDir)
 	os.MkdirAll(context.ConfigDir, 0755)
 
+	kv := kvstore.NewMockKeyValueStore()
+	nodeName := "node6046"
+
 	// user has specified devices to use, no dirs should be returned
-	dirMap, err := getDataDirs(context, "", true)
+	dirMap, err := getDataDirs(context, kv, "", true, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(dirMap))
 
 	// user has no devices specified, should return default dir
-	dirMap, err = getDataDirs(context, "", false)
+	dirMap, err = getDataDirs(context, kv, "", false, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(dirMap))
 	assert.Equal(t, unassignedOSDID, dirMap[context.ConfigDir])
 
 	// user has no devices specified but does specify dirs, those should be returned
-	dirMap, err = getDataDirs(context, "/rook/dir1", false)
+	dirMap, err = getDataDirs(context, kv, "/rook/dir1", false, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(dirMap))
 	assert.Equal(t, unassignedOSDID, dirMap["/rook/dir1"])
 	dirMap["/rook/dir1"] = 0 // simulate an OSD ID being assigned to the dir
 
 	// save the directory config
-	err = saveDirConfig(context, dirMap)
+	err = saveOSDDirMap(kv, nodeName, dirMap)
 	assert.Nil(t, err)
 
 	// user has specified devices to use, we should still return the saved dir
-	dirMap, err = getDataDirs(context, "", true)
+	dirMap, err = getDataDirs(context, kv, "", true, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(dirMap))
 	assert.Equal(t, 0, dirMap["/rook/dir1"])
 
 	// user has specified devices and also a directory to use.  it should be added to the dir map
-	dirMap, err = getDataDirs(context, "/tmp/mydir", true)
+	dirMap, err = getDataDirs(context, kv, "/tmp/mydir", true, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(dirMap))
 	assert.Equal(t, 0, dirMap["/rook/dir1"])
@@ -86,11 +89,11 @@ func TestStoreOSDDirMap(t *testing.T) {
 
 	// simulate that the user's dir got an OSD by assigning it an ID
 	dirMap["/tmp/mydir"] = 23
-	err = saveDirConfig(context, dirMap)
+	err = saveOSDDirMap(kv, nodeName, dirMap)
 	assert.Nil(t, err)
 
 	// user is still specifying the directory, we should get back it's ID now
-	dirMap, err = getDataDirs(context, "/tmp/mydir", true)
+	dirMap, err = getDataDirs(context, kv, "/tmp/mydir", true, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(dirMap))
 	assert.Equal(t, 0, dirMap["/rook/dir1"])
@@ -127,7 +130,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	}
 
 	context := &clusterd.Context{ProcMan: proc.New(executor), Executor: executor}
-	devices := []*inventory.LocalDisk{
+	context.Devices = []*clusterd.LocalDisk{
 		{Name: "sda"},
 		{Name: "sdb"},
 		{Name: "sdc"},
@@ -138,7 +141,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	}
 
 	// select all devices, including nvme01 for metadata
-	mapping, err := getAvailableDevices(context, devices, "all", "nvme01", true)
+	mapping, err := getAvailableDevices(context, "all", "nvme01", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
@@ -150,29 +153,29 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, 0, len(mapping.Entries["nvme01"].Metadata))
 
 	// select no devices both using and not using a filter
-	mapping, err = getAvailableDevices(context, devices, "", "", false)
+	mapping, err = getAvailableDevices(context, "", "", false)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
 
-	mapping, err = getAvailableDevices(context, devices, "", "", true)
+	mapping, err = getAvailableDevices(context, "", "", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(mapping.Entries))
 
 	// select the sd* devices
-	mapping, err = getAvailableDevices(context, devices, "^sd.$", "", true)
+	mapping, err = getAvailableDevices(context, "^sd.$", "", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sda"].Data)
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select an exact device
-	mapping, err = getAvailableDevices(context, devices, "sdd", "", false)
+	mapping, err = getAvailableDevices(context, "sdd", "", false)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["sdd"].Data)
 
 	// select all devices except those that have a prefix of "s"
-	mapping, err = getAvailableDevices(context, devices, "^[^s]", "", true)
+	mapping, err = getAvailableDevices(context, "^[^s]", "", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(mapping.Entries))
 	assert.Equal(t, -1, mapping.Entries["rda"].Data)

@@ -18,6 +18,7 @@ package test
 import (
 	"os"
 	"os/exec"
+	"time"
 )
 
 // ******************** MockExecutor ********************
@@ -27,6 +28,7 @@ type MockExecutor struct {
 	MockExecuteCommandWithOutput         func(debug bool, actionName string, command string, arg ...string) (string, error)
 	MockExecuteCommandWithCombinedOutput func(debug bool, actionName string, command string, arg ...string) (string, error)
 	MockExecuteCommandWithOutputFile     func(debug bool, actionName string, command, outfileArg string, arg ...string) (string, error)
+	MockExecuteCommandWithTimeout        func(debug bool, timeout time.Duration, actionName string, command string, arg ...string) (string, error)
 	MockExecuteStat                      func(name string) (os.FileInfo, error)
 }
 
@@ -50,6 +52,15 @@ func (e *MockExecutor) StartExecuteCommand(debug bool, actionName string, comman
 func (e *MockExecutor) ExecuteCommandWithOutput(debug bool, actionName string, command string, arg ...string) (string, error) {
 	if e.MockExecuteCommandWithOutput != nil {
 		return e.MockExecuteCommandWithOutput(debug, actionName, command, arg...)
+	}
+
+	return "", nil
+}
+
+func (e *MockExecutor) ExecuteCommandWithTimeout(debug bool, timeout time.Duration, actionName string, command string, arg ...string) (string, error) {
+
+	if e.MockExecuteCommandWithTimeout != nil {
+		return e.MockExecuteCommandWithTimeout(debug, time.Second, actionName, command, arg...)
 	}
 
 	return "", nil

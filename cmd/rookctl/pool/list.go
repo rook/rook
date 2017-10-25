@@ -29,8 +29,9 @@ import (
 )
 
 var listCmd = &cobra.Command{
-	Use:   "ls",
-	Short: "Gets a listing with details of all storage pools in the cluster",
+	Use:     "list",
+	Short:   "Gets a listing with details of all storage pools in the cluster",
+	Aliases: []string{"ls"},
 }
 
 func init() {
@@ -72,7 +73,7 @@ func listPools(c client.RookRestClient) (string, error) {
 
 	for _, p := range pools {
 		fmt.Fprintf(w, "%s\t%d\t%s\t%s\t%s\t%s\t%s\n", p.Name, p.Number, model.PoolTypeToString(p.Type),
-			display.NumToStrOmitEmpty(p.ReplicationConfig.Size),
+			display.NumToStrOmitEmpty(p.ReplicatedConfig.Size),
 			display.NumToStrOmitEmpty(p.ErasureCodedConfig.DataChunkCount),
 			display.NumToStrOmitEmpty(p.ErasureCodedConfig.CodingChunkCount),
 			p.ErasureCodedConfig.Algorithm)

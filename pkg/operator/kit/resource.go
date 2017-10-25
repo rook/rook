@@ -24,6 +24,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rook/rook/pkg/operator/k8sutil"
+
 	"k8s.io/api/extensions/v1beta1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
@@ -70,11 +72,10 @@ type Context struct {
 func CreateCustomResources(context Context, resources []CustomResource) error {
 
 	// CRD is available on v1.7.0. TPR became deprecated on v1.7.0
-	serverVersion, err := context.Clientset.Discovery().ServerVersion()
+	kubeVersion, err := k8sutil.GetK8SVersion(context.Clientset)
 	if err != nil {
 		return fmt.Errorf("Error getting server version: %v", err)
 	}
-	kubeVersion := version.MustParseSemantic(serverVersion.GitVersion)
 
 	if kubeVersion.AtLeast(version.MustParseSemantic(serverVersionV170)) {
 		for _, resource := range resources {

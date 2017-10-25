@@ -63,10 +63,6 @@ func Run(context *clusterd.Context, config *Config) error {
 }
 
 func generateConfigFiles(context *clusterd.Context, config *Config) error {
-	// write the latest config to the config dir
-	/*if err := mon.GenerateAdminConnectionConfig(context, config.ClusterInfo); err != nil {
-		return fmt.Errorf("failed to write connection config. %+v", err)
-	}*/
 
 	keyringPath := getMgrKeyringPath(context.ConfigDir, config.Name)
 	confDir := getMgrConfDir(context.ConfigDir, config.Name)

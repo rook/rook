@@ -22,6 +22,31 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 )
 
+// AuthAdd will create a new user with the given capabilities and using the already generated keyring
+// found at the given keyring path.  This should not be used when the user may already exist.
+func AuthAdd(context *clusterd.Context, clusterName, name, keyringPath string, caps []string) error {
+	args := append([]string{"auth", "add", name, "-i", keyringPath}, caps...)
+	_, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to auth add for %s: %+v", name, err)
+	}
+
+	return nil
+}
+
+// AuthGetOrCreate will either get or create a user with the given capabilities.  The keyring for the
+// user will be written to the given keyring path.
+func AuthGetOrCreate(context *clusterd.Context, clusterName, name, keyringPath string, caps []string) error {
+	args := append([]string{"auth", "get-or-create", name, "-o", keyringPath}, caps...)
+	_, err := ExecuteCephCommandPlainNoOutputFile(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to auth get-or-create for %s: %+v", name, err)
+	}
+
+	return nil
+}
+
+// AuthGetKey gets the key for the given user.
 func AuthGetKey(context *clusterd.Context, clusterName, name string) (string, error) {
 	args := []string{"auth", "get-key", name}
 	buf, err := ExecuteCephCommand(context, clusterName, args)
@@ -32,6 +57,7 @@ func AuthGetKey(context *clusterd.Context, clusterName, name string) (string, er
 	return parseAuthKey(buf)
 }
 
+// AuthGetOrCreateKey gets or creates the key for the given user.
 func AuthGetOrCreateKey(context *clusterd.Context, clusterName, name string, caps []string) (string, error) {
 
 	args := append([]string{"auth", "get-or-create-key", name}, caps...)
@@ -43,6 +69,7 @@ func AuthGetOrCreateKey(context *clusterd.Context, clusterName, name string, cap
 	return parseAuthKey(buf)
 }
 
+// AuthDelete will delete the given user.
 func AuthDelete(context *clusterd.Context, clusterName, name string) error {
 	args := []string{"auth", "del", name}
 	_, err := ExecuteCephCommand(context, clusterName, args)

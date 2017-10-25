@@ -24,18 +24,24 @@ import (
 
 	"strconv"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/proc"
 )
 
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephrgw")
+
 type Config struct {
-	Host        string
-	Port        int
-	Keyring     string
-	InProc      bool
-	ClusterInfo *mon.ClusterInfo
+	Name            string
+	Host            string
+	Port            int
+	SecurePort      int
+	Keyring         string
+	CertificatePath string
+	InProc          bool
+	ClusterInfo     *mon.ClusterInfo
 }
 
 func Run(context *clusterd.Context, config *Config) error {
@@ -53,11 +59,26 @@ func Run(context *clusterd.Context, config *Config) error {
 	return err
 }
 
-func generateConfigFiles(context *clusterd.Context, config *Config) error {
-	// write the latest config to the config dir
-	if err := mon.GenerateAdminConnectionConfig(context, config.ClusterInfo); err != nil {
-		return fmt.Errorf("failed to write connection config. %+v", err)
+func portString(config *Config) string {
+
+	var portString string
+	if config.Port != 0 {
+		portString = strconv.Itoa(config.Port)
 	}
+	if config.SecurePort != 0 && config.CertificatePath != "" {
+		var separator string
+		if config.Port != 0 {
+			separator = "+"
+		}
+		// the suffix is intended to be appended to the end of the rgw_frontends arg, immediately after the port.
+		// with ssl enabled, the port number must end with the letter s.
+		portString = fmt.Sprintf("%s%s%ds ssl_certificate=%s", portString, separator, config.SecurePort, config.CertificatePath)
+	}
+
+	return portString
+}
+
+func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
 	// create the rgw data directory
 	dataDir := path.Join(getRGWConfDir(context.ConfigDir), "data")
@@ -67,12 +88,14 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
 	settings := map[string]string{
 		"host":                           config.Host,
-		"rgw port":                       strconv.Itoa(config.Port),
 		"rgw data":                       dataDir,
-		"rgw dns name":                   fmt.Sprintf("%s:%d", config.Host, config.Port),
+		"rgw dns name":                   config.Host,
 		"rgw log nonexistent bucket":     "true",
 		"rgw intent log object name utc": "true",
 		"rgw enable usage log":           "true",
+		"rgw_frontends":                  fmt.Sprintf("civetweb port=%s", portString(config)),
+		"rgw_zone":                       config.Name,
+		"rgw_zonegroup":                  config.Name,
 	}
 	_, err := mon.GenerateConfigFile(context, config.ClusterInfo, getRGWConfDir(context.ConfigDir),
 		"client.radosgw.gateway", getRGWKeyringPath(context.ConfigDir), false, nil, settings)
@@ -101,7 +124,6 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 }
 
 func startRGW(context *clusterd.Context, config *Config) (rgwProc *proc.MonitoredProc, err error) {
-
 	// start the monitor daemon in the foreground with the given config
 	logger.Infof("starting rgw")
 
@@ -115,7 +137,6 @@ func startRGW(context *clusterd.Context, config *Config) (rgwProc *proc.Monitore
 		fmt.Sprintf("--cluster=%s", config.ClusterInfo.Name),
 		fmt.Sprintf("--conf=%s", confFile),
 		fmt.Sprintf("--keyring=%s", getRGWKeyringPath(context.ConfigDir)),
-		fmt.Sprintf("--rgw-frontends=civetweb port=%d", config.Port),
 		fmt.Sprintf("--rgw-mime-types-file=%s", getMimeTypesPath(context.ConfigDir)),
 	}
 	if config.InProc {

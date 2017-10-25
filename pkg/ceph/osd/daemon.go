@@ -18,24 +18,24 @@ package osd
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"log"
-	"os"
-	"path"
 	"regexp"
 	"time"
 
 	"strings"
 
+	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/clusterd/inventory"
+	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
 const (
-	dirOSDConfigFilename = "osd-dirs"
+	osdDirsKeyName = "osd-dirs"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephosd")
 
 func Run(context *clusterd.Context, agent *OsdAgent) error {
 	if err := setNodeName(context, agent.nodeName); err != nil {
@@ -49,16 +49,16 @@ func Run(context *clusterd.Context, agent *OsdAgent) error {
 	}
 
 	logger.Infof("discovering hardware")
-	hardware, err := inventory.DiscoverHardware(context.Executor)
+	rawDevices, err := clusterd.DiscoverDevices(context.Executor)
 	if err != nil {
 		return fmt.Errorf("failed initial hardware discovery. %+v", err)
 	}
-	context.Inventory = &inventory.Config{Local: hardware}
+	context.Devices = rawDevices
 
 	logger.Infof("creating and starting the osds")
 
 	// initialize the desired osds
-	devices, err := getAvailableDevices(context, hardware.Disks, agent.devices, agent.metadataDevice, agent.usingDeviceFilter)
+	devices, err := getAvailableDevices(context, agent.devices, agent.metadataDevice, agent.usingDeviceFilter)
 	if err != nil {
 		return fmt.Errorf("failed to get available devices. %+v", err)
 	}
@@ -70,8 +70,8 @@ func Run(context *clusterd.Context, agent *OsdAgent) error {
 	}
 
 	// initialize the data directories, with the default dir if no devices were specified
-	devicesSpecified := len(devices.Entries) > 0
-	dirs, err := getDataDirs(context, agent.directories, devicesSpecified)
+	devicesSpecified := len(agent.devices) > 0
+	dirs, err := getDataDirs(context, agent.kv, agent.directories, devicesSpecified, agent.nodeName)
 	if err != nil {
 		return fmt.Errorf("failed to get data dirs. %+v", err)
 	}
@@ -80,14 +80,15 @@ func Run(context *clusterd.Context, agent *OsdAgent) error {
 	if err != nil {
 		return fmt.Errorf("failed to configure dirs %v. %+v", dirs, err)
 	}
-	err = saveDirConfig(context, dirs)
+	err = saveOSDDirMap(agent.kv, agent.nodeName, dirs)
 	if err != nil {
-		return fmt.Errorf("failed to save osd dir config. %+v", err)
+		return fmt.Errorf("failed to save osd dir map. %+v", err)
 	}
 
 	// FIX
 	log.Printf("sleeping a while to let the osds run...")
 	<-time.After(1000000 * time.Second)
+
 	return nil
 }
 
@@ -106,8 +107,7 @@ func setNodeName(context *clusterd.Context, nodeName string) error {
 	return nil
 }
 
-func getAvailableDevices(context *clusterd.Context, devices []*inventory.LocalDisk, desiredDevices string,
-	metadataDevice string, usingDeviceFilter bool) (*DeviceOsdMapping, error) {
+func getAvailableDevices(context *clusterd.Context, desiredDevices string, metadataDevice string, usingDeviceFilter bool) (*DeviceOsdMapping, error) {
 
 	var deviceList []string
 	if !usingDeviceFilter {
@@ -115,7 +115,7 @@ func getAvailableDevices(context *clusterd.Context, devices []*inventory.LocalDi
 	}
 
 	available := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
-	for _, device := range devices {
+	for _, device := range context.Devices {
 		if device.Type == sys.PartType {
 			continue
 		}
@@ -165,46 +165,41 @@ func getAvailableDevices(context *clusterd.Context, devices []*inventory.LocalDi
 	return available, nil
 }
 
-func getDataDirs(context *clusterd.Context, desiredDirs string, devicesSpecified bool) (map[string]int, error) {
+func getDataDirs(context *clusterd.Context, kv kvstore.KeyValueStore, desiredDirs string,
+	devicesSpecified bool, nodeName string) (map[string]int, error) {
+
 	var dirList []string
 	if desiredDirs != "" {
 		dirList = strings.Split(desiredDirs, ",")
 	}
 
-	filePath := path.Join(context.ConfigDir, dirOSDConfigFilename)
-
-	if _, err := os.Stat(filePath); os.IsNotExist(err) {
-		// the config file doesn't exist yet
-		if len(dirList) == 0 {
-			if devicesSpecified {
-				// no dirs desired, user is using devices instead
-				return map[string]int{}, nil
-			} else {
-				// no devices or dirs specified, return the default data dir
-				return map[string]int{context.ConfigDir: unassignedOSDID}, nil
-			}
-		}
-
-		dirMap := make(map[string]int, len(dirList))
+	dirMap, err := loadOSDDirMap(kv, nodeName)
+	if err == nil {
+		// we have an existing saved dir map.  if the user has specified any directories to use, merge them into the saved dir map
 		addDirsToDirMap(dirList, &dirMap)
 		return dirMap, nil
 	}
 
-	// read the saved dir map from disk
-	var dirMap map[string]int
-	b, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return nil, err
+	if !kvstore.IsNotExist(err) {
+		// real error when trying to load the osd dir map, return the err
+		return nil, fmt.Errorf("failed to load OSD dir map: %+v", err)
 	}
 
-	err = json.Unmarshal(b, &dirMap)
-	if err != nil {
-		return nil, err
+	// the osd dirs map doesn't exist yet
+	if len(dirList) == 0 {
+		// no dirs have been specified
+		if devicesSpecified {
+			// user is using devices instead of dirs
+			return map[string]int{}, nil
+		}
+
+		// no devices or dirs specified, return the default data dir
+		return map[string]int{context.ConfigDir: unassignedOSDID}, nil
 	}
 
-	// if the user has specified any directories to use, merge them into the saved config
+	// add the specified dirs to the map and return it
+	dirMap = make(map[string]int, len(dirList))
 	addDirsToDirMap(dirList, &dirMap)
-
 	return dirMap, nil
 }
 
@@ -217,21 +212,35 @@ func addDirsToDirMap(dirList []string, dirMap *map[string]int) {
 	}
 }
 
-func saveDirConfig(context *clusterd.Context, config map[string]int) error {
-	if len(config) == 0 {
+func loadOSDDirMap(kv kvstore.KeyValueStore, nodeName string) (map[string]int, error) {
+	dirMapRaw, err := kv.GetValue(getConfigStoreName(nodeName), osdDirsKeyName)
+	if err != nil {
+		return nil, err
+	}
+
+	var dirMap map[string]int
+	err = json.Unmarshal([]byte(dirMapRaw), &dirMap)
+	if err != nil {
+		return nil, err
+	}
+
+	return dirMap, nil
+}
+
+func saveOSDDirMap(kv kvstore.KeyValueStore, nodeName string, dirMap map[string]int) error {
+	if len(dirMap) == 0 {
 		return nil
 	}
 
-	b, err := json.Marshal(config)
-	if err != nil {
-		return err
-	}
-	filePath := path.Join(context.ConfigDir, dirOSDConfigFilename)
-	err = ioutil.WriteFile(filePath, b, 0644)
+	b, err := json.Marshal(dirMap)
 	if err != nil {
 		return err
 	}
 
-	logger.Debugf("saved osd dir config to %s", filePath)
+	err = kv.SetValue(getConfigStoreName(nodeName), osdDirsKeyName, string(b))
+	if err != nil {
+		return err
+	}
+
 	return nil
 }

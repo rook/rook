@@ -25,17 +25,18 @@ import (
 )
 
 const (
-	Port = 6790
+	DefaultPort = 6790
 )
 
 type Config struct {
 	Name     string
 	Cluster  *ClusterInfo
 	isDaemon bool
+	Port     int32
 }
 
-func NewConfig(name string, cluster *ClusterInfo, isDaemon bool) *Config {
-	return &Config{Name: name, Cluster: cluster, isDaemon: isDaemon}
+func NewConfig(name string, cluster *ClusterInfo, isDaemon bool, port int32) *Config {
+	return &Config{Name: name, Cluster: cluster, isDaemon: isDaemon, Port: port}
 }
 
 func FlattenMonEndpoints(mons map[string]*CephMonitorConfig) string {
@@ -61,8 +62,8 @@ func ParseMonEndpoints(input string) map[string]*CephMonitorConfig {
 	return mons
 }
 
-func ToCephMon(name, ip string) *CephMonitorConfig {
-	return &CephMonitorConfig{Name: name, Endpoint: fmt.Sprintf("%s:%d", ip, Port)}
+func ToCephMon(name, ip string, port int32) *CephMonitorConfig {
+	return &CephMonitorConfig{Name: name, Endpoint: fmt.Sprintf("%s:%d", ip, port)}
 }
 
 func Run(context *clusterd.Context, config *Config) error {
@@ -81,10 +82,6 @@ func Run(context *clusterd.Context, config *Config) error {
 }
 
 func generateConfigFiles(context *clusterd.Context, config *Config) (string, string, error) {
-	// write the latest config to the config dir
-	if err := GenerateAdminConnectionConfig(context, config.Cluster); err != nil {
-		return "", "", fmt.Errorf("failed to write connection config. %+v", err)
-	}
 
 	// write the keyring to disk
 	if err := writeMonKeyring(context, config.Cluster, config.Name); err != nil {
@@ -150,8 +147,8 @@ func startMon(context *clusterd.Context, config *Config, confFilePath, monDataDi
 		fmt.Sprintf("--mon-data=%s", monDataDir),
 		fmt.Sprintf("--conf=%s", confFilePath),
 		fmt.Sprintf("--keyring=%s", keyringPath),
-		fmt.Sprintf("--public-addr=%s:%d", context.NetworkInfo.PublicAddrIPv4, Port),
-		fmt.Sprintf("--public-bind-addr=%s:%d", context.NetworkInfo.ClusterAddrIPv4, Port),
+		fmt.Sprintf("--public-addr=%s:%d", context.NetworkInfo.PublicAddrIPv4, config.Port),
+		fmt.Sprintf("--public-bind-addr=%s:%d", context.NetworkInfo.ClusterAddrIPv4, config.Port),
 	}
 	err = context.ProcMan.Run(config.Name, "ceph-mon", args...)
 	if err != nil {

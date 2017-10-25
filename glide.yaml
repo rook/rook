@@ -15,10 +15,12 @@ import:
   subpackages:
   - client
   - error
+- package: github.com/docker/distribution
+  version: cd27f179f2c10c5d300e6d09025b538c475b0d51
 - package: github.com/spf13/cobra
   version: 1c44ec8d3f1552cac48999f9306da23c4d8a288b
 - package: github.com/spf13/pflag
-  version: 08b1a584251b5b62f458943640fc8ebd4d50aaa5
+  version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
 - package: github.com/google/uuid
 - package: github.com/go-ini/ini
 - package: github.com/gorilla/mux
@@ -34,15 +36,12 @@ import:
 - package: k8s.io/apiextensions-apiserver
   version: 3eb4c5fefbe7ad866747f78c7e4994cb555170c6
 - package: github.com/prometheus/client_golang
-  version: v0.8.0
+  version: e7e903064f5e9eb5da98208bae10b475d4db0f8c
   subpackages:
   - prometheus
   - prometheus/promhttp
 - package: github.com/jbw976/go-ps
   version: 82859aed1b5dafbbe6ad4f3dac5404d2a742cf18
-testImport:
-- package: github.com/ghodss/yaml
-  version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - package: github.com/aws/aws-sdk-go
   version: ^1.7.3
   subpackages:
@@ -50,6 +49,9 @@ testImport:
   - aws/credentials
   - aws/session
   - service/s3
+testImport:
+- package: github.com/ghodss/yaml
+  version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - package: github.com/jmoiron/jsonq
 - package: github.com/go-sql-driver/mysql
 - package: github.com/icrowley/fake

@@ -16,27 +16,18 @@ limitations under the License.
 package api
 
 import (
-	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path"
 	"strings"
 	"testing"
 
-	etcd "github.com/coreos/etcd/client"
-	cephclienttest "github.com/rook/rook/pkg/ceph/client/test"
 	"github.com/rook/rook/pkg/ceph/mon"
-	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/clusterd/inventory"
-	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
-	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
-	ctx "golang.org/x/net/context"
+	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -45,13 +36,13 @@ const (
 )
 
 func newTestHandler(context *clusterd.Context) *Handler {
-	clusterInfo, _ := mon.LoadClusterInfo(context.EtcdClient)
-	return newHandler(context, &Config{ClusterHandler: NewEtcdHandler(context), ClusterInfo: clusterInfo})
+	context.Clientset = test.New(3)
+	clusterInfo := &mon.ClusterInfo{Name: "default"}
+	return newHandler(context, NewConfig(context, 53390, clusterInfo, clusterInfo.Name, "myversion", false))
 }
 
 func TestRegisterMetrics(t *testing.T) {
-	context, _, _ := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, _ := testContext()
 
 	// create and init a new handler.  even though the first attempt fails, it should retry and return no error
 	h := newTestHandler(context)
@@ -60,9 +51,7 @@ func TestRegisterMetrics(t *testing.T) {
 }
 
 func TestGetNodesHandler(t *testing.T) {
-	nodeID := "node1"
-	context, etcdClient, _ := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, _ := testContext()
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/node", nil)
 	if err != nil {
@@ -70,99 +59,17 @@ func TestGetNodesHandler(t *testing.T) {
 	}
 
 	w := httptest.NewRecorder()
-	etcdClient.SetValue("/rook/services/ceph/name", "cluster5")
 	h := newTestHandler(context)
 
-	// no nodes discovered, should return empty set
+	// one node discovered
 	h.GetNodes(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, `[]`, w.Body.String())
-
-	// add the disks to etcd
-	disks := []inventory.Disk{
-		{Type: sys.DiskType, Size: 50, Rotational: true, Empty: true},
-		{Type: sys.DiskType, Size: 100, Rotational: false, Empty: true},
-	}
-	output, _ := json.Marshal(disks)
-	etcdClient.SetValue(path.Join(inventory.NodesConfigKey, nodeID, "disks"), string(output))
-
-	// set up a discovered node in etcd
-	inventory.SetIPAddress(etcdClient, nodeID, "1.2.3.4", "10.0.0.11")
-	inventory.SetLocation(etcdClient, nodeID, "root=default,dc=datacenter1")
-	appliedOSDKey := path.Join("/rook/services/ceph/osd/applied", nodeID)
-	etcdClient.SetValue(path.Join(appliedOSDKey, "12", "disk-uuid"), "123d4869-29ee-4bfd-bf21-dfd597bd222e")
-	etcdClient.SetValue(path.Join(appliedOSDKey, "13", "disk-uuid"), "321d4869-29ee-4bfd-bf21-dfd597bdffff")
-
-	// since a node exists (with storage), it should be returned now
-	w = httptest.NewRecorder()
-	h.GetNodes(w, req)
-
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "[{\"nodeId\":\"node1\",\"clusterName\":\"cluster5\",\"publicIp\":\"1.2.3.4\",\"privateIp\":\"10.0.0.11\",\"storage\":150,\"lastUpdated\":31536000000000000,\"state\":1,\"location\":\"root=default,dc=datacenter1\"}]",
-		w.Body.String())
-}
-
-func TestGetNodesHandlerFailure(t *testing.T) {
-	context, etcdClient, _ := testContext()
-	defer os.RemoveAll(context.ConfigDir)
-
-	req, err := http.NewRequest("GET", "http://10.0.0.100/node", nil)
-	if err != nil {
-		logger.Fatal(err)
-	}
-
-	w := httptest.NewRecorder()
-
-	// failure during node lookup, should return an error status code
-	etcdClient.MockGet = func(context ctx.Context, key string, opts *etcd.GetOptions) (*etcd.Response, error) {
-		return nil, fmt.Errorf("mock etcd GET error")
-	}
-	h := newTestHandler(context)
-	h.GetNodes(w, req)
-	assert.Equal(t, http.StatusInternalServerError, w.Code)
-	assert.Equal(t, ``, w.Body.String())
-}
-
-func TestGetMonsHandler(t *testing.T) {
-	context, etcdClient, executor := testContextWithMons([]string{})
-	defer os.RemoveAll(context.ConfigDir)
-
-	req, err := http.NewRequest("GET", "http://10.0.0.100/mon", nil)
-	assert.Nil(t, err)
-
-	// first return no mons
-	w := httptest.NewRecorder()
-
-	// no mons will be returned, should be empty output
-	h := newTestHandler(context)
-	h.GetMonitors(w, req)
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, `[]`, w.Body.String())
-
-	// now return some monitors from etcd
-	key := "/rook/services/ceph/monitor/desired/a"
-	etcdClient.SetValue(path.Join(key, "id"), "mon0")
-	etcdClient.SetValue(path.Join(key, "ipaddress"), "1.2.3.4")
-	etcdClient.SetValue(path.Join(key, "port"), "8765")
-
-	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-		if args[0] == "mon_status" {
-			return cephclienttest.MonInQuorumResponse(), nil
-		}
-		return "", fmt.Errorf("unrecognized command: %+v", args)
-	}
-
-	// monitors should be returned now, verify the output
-	w = httptest.NewRecorder()
-	h = newTestHandler(context)
-	h.GetMonitors(w, req)
-	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "{\"status\":{\"quorum\":[0],\"monmap\":{\"mons\":[{\"name\":\"mon0\",\"rank\":0,\"addr\":\"1.2.3.4\"}]}},\"desired\":[{\"name\":\"mon0\",\"endpoint\":\"1.2.3.4:8765\"}]}", w.Body.String())
+	response := `[{"nodeId":"","clusterName":"","publicIp":"","privateIp":"","storage":0,"lastUpdated":0,"state":0,"location":""},{"nodeId":"","clusterName":"","publicIp":"","privateIp":"","storage":0,"lastUpdated":0,"state":0,"location":""},{"nodeId":"","clusterName":"","publicIp":"","privateIp":"","storage":0,"lastUpdated":0,"state":0,"location":""}]`
+	assert.Equal(t, response, w.Body.String())
 }
 
 func TestGetPoolsHandler(t *testing.T) {
-	context, _, executor := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, executor := testContext()
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/pool", nil)
 	if err != nil {
@@ -213,12 +120,14 @@ func TestGetPoolsHandler(t *testing.T) {
 	h = newTestHandler(context)
 	h.GetPools(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"replicationConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"replicationConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]", w.Body.String())
+	assert.Equal(t, "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"failureDomain\":\"\",\"replicatedConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"failureDomain\":\"\",\"replicatedConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]", w.Body.String())
 }
 
 func TestGetPoolsHandlerFailure(t *testing.T) {
-	context, _, _ := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, executor := testContext()
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+		return "", fmt.Errorf("test failure")
+	}
 
 	req, err := http.NewRequest("GET", "http://10.0.0.100/pool", nil)
 	if err != nil {
@@ -236,11 +145,10 @@ func TestGetPoolsHandlerFailure(t *testing.T) {
 }
 
 func TestCreatePoolHandler(t *testing.T) {
-	context, _, executor := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, executor := testContext()
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/pool",
-		strings.NewReader(`{"poolName":"ecPool1","poolNum":0,"type":1,"replicationConfig":{"size":0},"erasureCodedConfig":{"dataChunkCount":2,"codingChunkCount":1,"algorithm":""}}`))
+		strings.NewReader(`{"poolName":"ecPool1","poolNum":0,"type":1,"replicatedConfig":{"size":0},"erasureCodedConfig":{"dataChunkCount":2,"codingChunkCount":1,"algorithm":""}}`))
 	if err != nil {
 		logger.Fatal(err)
 	}
@@ -248,6 +156,7 @@ func TestCreatePoolHandler(t *testing.T) {
 	w := httptest.NewRecorder()
 	appEnabled := false
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+		logger.Infof("EXECUTE: %s %v", command, args)
 		switch {
 		case args[1] == "erasure-code-profile" && args[2] == "get":
 			if args[3] == "default" {
@@ -275,8 +184,7 @@ func TestCreatePoolHandler(t *testing.T) {
 }
 
 func TestCreatePoolHandlerFailure(t *testing.T) {
-	context, _, _ := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, _ := testContext()
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/pool", strings.NewReader(`{"poolname":"pool1"}`))
 	if err != nil {
@@ -298,12 +206,11 @@ func TestCreatePoolHandlerFailure(t *testing.T) {
 }
 
 func TestGetClientAccessInfo(t *testing.T) {
-	context, _, executor := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, executor := testContext()
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/image/mapinfo", nil)
 	if err != nil {
-		logger.Fatal(err)
+		require.Fail(t, err.Error())
 	}
 
 	w := httptest.NewRecorder()
@@ -328,8 +235,7 @@ func TestGetClientAccessInfo(t *testing.T) {
 }
 
 func TestGetClientAccessInfoHandlerFailure(t *testing.T) {
-	context, _, _ := testContext()
-	defer os.RemoveAll(context.ConfigDir)
+	context, _ := testContext()
 
 	req, err := http.NewRequest("POST", "http://10.0.0.100/client", nil)
 	if err != nil {
@@ -345,18 +251,14 @@ func TestGetClientAccessInfoHandlerFailure(t *testing.T) {
 	assert.Equal(t, "", w.Body.String())
 }
 
-func testContext() (*clusterd.Context, *util.MockEtcdClient, *exectest.MockExecutor) {
+func testContext() (*clusterd.Context, *exectest.MockExecutor) {
 	return testContextWithMons([]string{"mon0"})
 }
 
-func testContextWithMons(mons []string) (*clusterd.Context, *util.MockEtcdClient, *exectest.MockExecutor) {
-	etcdClient := util.NewMockEtcdClient()
-	configDir, _ := ioutil.TempDir("", "")
-	cephtest.CreateClusterInfo(etcdClient, configDir, mons)
+func testContextWithMons(mons []string) (*clusterd.Context, *exectest.MockExecutor) {
 	executor := &exectest.MockExecutor{}
 	return &clusterd.Context{
-		DirectContext: clusterd.DirectContext{EtcdClient: etcdClient},
-		Executor:      executor,
-		ConfigDir:     configDir,
-	}, etcdClient, executor
+		Executor:  executor,
+		Clientset: test.New(1),
+	}, executor
 }

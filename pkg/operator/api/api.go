@@ -53,7 +53,7 @@ var clusterAccessRules = []v1beta1.PolicyRule{
 	{
 		APIGroups: []string{"extensions"},
 		Resources: []string{"thirdpartyresources", "deployments", "daemonsets", "replicasets"},
-		Verbs:     []string{"get", "list", "create"},
+		Verbs:     []string{"get", "list", "create", "delete"},
 	},
 	{
 		APIGroups: []string{"apiextensions.k8s.io"},
@@ -69,21 +69,23 @@ var clusterAccessRules = []v1beta1.PolicyRule{
 
 // Cluster has the api service properties
 type Cluster struct {
-	context   *clusterd.Context
-	Namespace string
-	placement k8sutil.Placement
-	Version   string
-	Replicas  int32
+	context     *clusterd.Context
+	Namespace   string
+	placement   k8sutil.Placement
+	Version     string
+	Replicas    int32
+	HostNetwork bool
 }
 
 // New creates an instance
-func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
 	return &Cluster{
-		context:   context,
-		Namespace: namespace,
-		placement: placement,
-		Version:   version,
-		Replicas:  1,
+		context:     context,
+		Namespace:   namespace,
+		placement:   placement,
+		Version:     version,
+		Replicas:    1,
+		HostNetwork: hostNetwork,
 	}
 }
 
@@ -98,7 +100,7 @@ func (c *Cluster) Start() error {
 	}
 
 	// create the artifacts for the api service to work with RBAC enabled
-	err = c.makeClusterRole()
+	err = c.makeRole()
 	if err != nil {
 		logger.Warningf("failed to init RBAC for the api service. %+v", err)
 	}
@@ -119,41 +121,8 @@ func (c *Cluster) Start() error {
 }
 
 // make a cluster role
-func (c *Cluster) makeClusterRole() error {
-	account := &v1.ServiceAccount{}
-	account.Name = deploymentName
-	account.Namespace = c.Namespace
-	_, err := c.context.Clientset.CoreV1().ServiceAccounts(c.Namespace).Create(account)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create api service account. %+v", err)
-	}
-
-	// Create the cluster role if it doesn't yet exist.
-	// If the role already exists we have to update it. Otherwise if the permissions change during an upgrade,
-	// the create will fail with an error that we're changing the permissions.
-	role := &v1beta1.ClusterRole{Rules: clusterAccessRules}
-	role.Name = deploymentName
-	_, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Get(role.Name, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
-		logger.Infof("creating cluster role rook-api")
-		_, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Create(role)
-	} else if err == nil {
-		logger.Infof("cluster role rook-api already exists. updating if needed.")
-		_, err = c.context.Clientset.RbacV1beta1().ClusterRoles().Update(role)
-	}
-	if err != nil {
-		return fmt.Errorf("failed to create cluster roles. %+v", err)
-	}
-
-	binding := &v1beta1.ClusterRoleBinding{}
-	binding.Name = deploymentName
-	binding.RoleRef = v1beta1.RoleRef{Name: deploymentName, Kind: "ClusterRole", APIGroup: "rbac.authorization.k8s.io"}
-	binding.Subjects = []v1beta1.Subject{{Kind: "ServiceAccount", Name: deploymentName, Namespace: c.Namespace}}
-	_, err = c.context.Clientset.RbacV1beta1().ClusterRoleBindings().Create(binding)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create api cluster role binding. %+v", err)
-	}
-	return nil
+func (c *Cluster) makeRole() error {
+	return k8sutil.MakeRole(c.context.Clientset, c.Namespace, deploymentName, clusterAccessRules)
 }
 
 func (c *Cluster) makeDeployment() *extensions.Deployment {
@@ -168,6 +137,10 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 		Volumes: []v1.Volume{
 			{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
 		},
+		HostNetwork: c.HostNetwork,
+	}
+	if c.HostNetwork {
+		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.placement.ApplyToPodSpec(&podSpec)
 
@@ -192,6 +165,7 @@ func (c *Cluster) apiContainer() v1.Container {
 			"api",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--port=%d", model.Port),
+			fmt.Sprintf("--hostnetwork=%t", c.HostNetwork),
 		},
 		Name:  deploymentName,
 		Image: k8sutil.MakeRookImage(c.Version),
@@ -200,7 +174,7 @@ func (c *Cluster) apiContainer() v1.Container {
 		},
 		Env: []v1.EnvVar{
 			{Name: "ROOK_VERSION_TAG", Value: c.Version},
-			k8sutil.NamespaceEnvVar(),
+			{Name: "ROOK_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}},
 			k8sutil.RepoPrefixEnvVar(),
 			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
@@ -229,6 +203,10 @@ func (c *Cluster) startService() error {
 			},
 			Selector: labels,
 		},
+	}
+
+	if c.HostNetwork {
+		s.Spec.ClusterIP = v1.ClusterIPNone
 	}
 
 	s, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(s)

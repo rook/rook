@@ -32,11 +32,8 @@ const (
 )
 
 var (
-	newPoolName         string
-	newPoolType         string
-	newPoolReplicaCount uint
-	newPoolDataChunks   uint
-	newPoolCodingChunks uint
+	newPoolName string
+	poolConfig  Config
 )
 
 var createCmd = &cobra.Command{
@@ -44,24 +41,56 @@ var createCmd = &cobra.Command{
 	Short: "Creates a new storage pool in the cluster",
 }
 
+type Config struct {
+	PoolType      string
+	ReplicaCount  uint
+	DataChunks    uint
+	CodingChunks  uint
+	FailureDomain string
+}
+
 func init() {
 	createCmd.Flags().StringVarP(&newPoolName, "name", "n", "", "Name of new storage pool to create (required)")
+	AddPoolFlags(createCmd, "", &poolConfig)
 
-	createCmd.Flags().StringVarP(&newPoolType, "type", "t", PoolTypeReplicated,
-		fmt.Sprintf("Type of storage pool, '%s' or '%s' (required)", PoolTypeReplicated, PoolTypeErasureCoded))
+	createCmd.RunE = createPoolsEntry
+}
 
-	createCmd.Flags().UintVarP(&newPoolReplicaCount, "replica-count", "r", 0,
+func AddPoolFlags(cmd *cobra.Command, prefix string, config *Config) {
+	shorthand := ""
+	if prefix == "" {
+		shorthand = "t"
+	}
+	cmd.Flags().StringVarP(&config.PoolType, prefix+"type", shorthand, PoolTypeReplicated,
+		fmt.Sprintf("Type of storage pool, '%s' or '%s'", PoolTypeReplicated, PoolTypeErasureCoded))
+
+	shorthand = ""
+	if prefix == "" {
+		shorthand = "f"
+	}
+	cmd.Flags().StringVarP(&config.FailureDomain, prefix+"failure-domain", shorthand, "host",
+		"The data failure domain (osd or host)")
+
+	shorthand = ""
+	if prefix == "" {
+		shorthand = "r"
+	}
+	cmd.Flags().UintVarP(&config.ReplicaCount, prefix+"replica-count", shorthand, 0,
 		fmt.Sprintf("Number of copies per object in a replicated storage pool, including the object itself (required for %s pool type)", PoolTypeReplicated))
 
-	createCmd.Flags().UintVarP(&newPoolDataChunks, "ec-data-chunks", "d", 0,
+	shorthand = ""
+	if prefix == "" {
+		shorthand = "d"
+	}
+	cmd.Flags().UintVarP(&config.DataChunks, prefix+"ec-data-chunks", shorthand, 0,
 		fmt.Sprintf("Number of data chunks per object in an erasure coded storage pool (required for %s pool type)", PoolTypeErasureCoded))
 
-	createCmd.Flags().UintVarP(&newPoolCodingChunks, "ec-coding-chunks", "c", 0,
+	shorthand = ""
+	if prefix == "" {
+		shorthand = "c"
+	}
+	cmd.Flags().UintVarP(&config.CodingChunks, prefix+"ec-coding-chunks", shorthand, 0,
 		fmt.Sprintf("Number of coding chunks per object in an erasure coded storage pool (required for %s pool type)", PoolTypeErasureCoded))
-
-	createCmd.MarkFlagRequired("name")
-	createCmd.MarkFlagRequired("type")
-	createCmd.RunE = createPoolsEntry
 }
 
 func createPoolsEntry(cmd *cobra.Command, args []string) error {
@@ -71,8 +100,15 @@ func createPoolsEntry(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	newPool, err := ConfigToModel(poolConfig)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	newPool.Name = newPoolName
+
 	c := rook.NewRookNetworkRestClient()
-	out, err := createPool(newPoolName, newPoolType, newPoolReplicaCount, newPoolDataChunks, newPoolCodingChunks, c)
+	out, err := createPool(*newPool, c)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -82,31 +118,36 @@ func createPoolsEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func createPool(poolName, poolType string, replicaCount, dataChunks, codingChunks uint, c client.RookRestClient) (string, error) {
-	if poolType != PoolTypeReplicated && poolType != PoolTypeErasureCoded {
-		return "", fmt.Errorf("invalid pool type '%s', allowed pool types are '%s' and '%s'",
-			poolType, PoolTypeReplicated, PoolTypeErasureCoded)
+func ConfigToModel(config Config) (*model.Pool, error) {
+
+	if config.PoolType != PoolTypeReplicated && config.PoolType != PoolTypeErasureCoded {
+		return nil, fmt.Errorf("invalid pool type '%s', allowed pool types are '%s' and '%s'",
+			config.PoolType, PoolTypeReplicated, PoolTypeErasureCoded)
 	}
 
-	newPool := model.Pool{Name: poolName}
+	newPool := &model.Pool{FailureDomain: config.FailureDomain}
 
-	if poolType == PoolTypeReplicated {
-		if dataChunks > 0 || codingChunks > 0 {
-			return "", fmt.Errorf("both data chunks and coding chunks must be zero for pool type '%s'", PoolTypeReplicated)
+	if config.PoolType == PoolTypeReplicated {
+		if config.DataChunks > 0 || config.CodingChunks > 0 {
+			return nil, fmt.Errorf("both data chunks and coding chunks must be zero for pool type '%s'", PoolTypeReplicated)
 		}
 
 		// note that a replica count of 0 is okay, the pool will get the ceph default when it's created
 		newPool.Type = model.Replicated
-		newPool.ReplicationConfig.Size = replicaCount
+		newPool.ReplicatedConfig.Size = config.ReplicaCount
 	} else {
-		if dataChunks == 0 || codingChunks == 0 {
-			return "", fmt.Errorf("both data chunks and coding chunks must be greater than zero for pool type '%s'", PoolTypeErasureCoded)
+		if config.DataChunks == 0 || config.CodingChunks == 0 {
+			return nil, fmt.Errorf("both data chunks and coding chunks must be greater than zero for pool type '%s'", PoolTypeErasureCoded)
 		}
 		newPool.Type = model.ErasureCoded
-		newPool.ErasureCodedConfig.DataChunkCount = dataChunks
-		newPool.ErasureCodedConfig.CodingChunkCount = codingChunks
+		newPool.ErasureCodedConfig.DataChunkCount = config.DataChunks
+		newPool.ErasureCodedConfig.CodingChunkCount = config.CodingChunks
 	}
 
+	return newPool, nil
+}
+
+func createPool(newPool model.Pool, c client.RookRestClient) (string, error) {
 	resp, err := c.CreatePool(newPool)
 	if err != nil {
 		return "", fmt.Errorf("failed to create new pool '%s': %+v", newPool.Name, err)

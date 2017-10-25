@@ -22,3 +22,8 @@ type BlockImage struct {
 	Device     string `json:"device"`
 	MountPoint string `json:"mountPoint"`
 }
+
+// DevicePathFinder is used to find the device path after the volume has been attached
+type DevicePathFinder interface {
+	FindDevicePath(image, pool, clusterName string) (string, error)
+}

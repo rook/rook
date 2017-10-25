@@ -24,7 +24,6 @@ import (
 
 	"github.com/rook/rook/pkg/model"
 	rclient "github.com/rook/rook/pkg/rook/client"
-	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/utils"
 )
 
@@ -34,39 +33,41 @@ type RestAPIClient struct {
 }
 
 //CreateRestAPIClient Create Rook REST API client
-func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHelper) *RestAPIClient {
+func CreateRestAPIClient(k8sHelper *utils.K8sHelper, namespace string) *RestAPIClient {
 	var endpoint string
-	switch {
-	case platform == enums.Kubernetes:
-		//Start rook_api_external server via nodePort if not it not already running.
-		_, err := k8sHelper.GetService("rook-api-external")
+
+	//Start rook_api_external server via nodePort if not it not already running.
+	externalAPIservice := "rook-api-external-" + namespace
+	_, err := k8sHelper.GetService(externalAPIservice, namespace)
+	if err != nil {
+		_, err = k8sHelper.ResourceOperation("create", getExternalAPIServiceDefinition(namespace))
 		if err != nil {
-			_, err = k8sHelper.ResourceOperation("create", getExternalAPIServiceDefinition())
-			if err != nil {
-				panic(fmt.Errorf("failed to kubectl create -f -  %v: %+v", getExternalAPIServiceDefinition(), err))
-			}
+			logger.Errorf("failed to kubectl create -f -  %v: %+v", getExternalAPIServiceDefinition(namespace), err)
+			return nil
 		}
-		apiIP, err := k8sHelper.GetPodHostID("rook-api", "rook")
-		if err != nil {
-			panic(fmt.Errorf("Host Ip for Rook-api service not found. %+v", err))
-		}
-		endpoint = "http://" + apiIP + ":30002"
-	case platform == enums.StandAlone:
-		endpoint = "http://localhost:8124"
-	default:
-		panic(fmt.Errorf("platform type %s not yet supported", platform))
 	}
+	apiIP, err := k8sHelper.GetPodHostID("rook-api", namespace)
+	if err != nil {
+		logger.Errorf("Host Ip for Rook-api service not found. %+v", err)
+		return nil
+	}
+	nodePort, err := k8sHelper.GetServiceNodePort(externalAPIservice, namespace)
+	if err != nil {
+		logger.Errorf("port for external Rook-api service not found. %+v", err)
+		return nil
+	}
+	endpoint = fmt.Sprintf("http://%s:%s", apiIP, nodePort)
 
 	httpclient := &http.Client{
 		Transport: &http.Transport{
 			Dial: (&net.Dialer{
-				Timeout:   30 * time.Second,
+				Timeout:   90 * time.Second,
 				KeepAlive: 0,
 			}).Dial,
 			DisableKeepAlives:     true,
 			DisableCompression:    true,
 			MaxIdleConnsPerHost:   1,
-			ResponseHeaderTimeout: 30 * time.Second,
+			ResponseHeaderTimeout: 90 * time.Second,
 		},
 	}
 	client := rclient.NewRookNetworkRestClient(endpoint, httpclient)
@@ -85,7 +86,8 @@ func CreateRestAPIClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHe
 		time.Sleep(time.Second * utils.RetryInterval)
 	}
 
-	panic("Cannot access rook API - Abandoning run")
+	logger.Info("Cannot access rook API - Abandoning run")
+	return nil
 }
 
 //URL returns URL for rookAPI
@@ -149,65 +151,69 @@ func (a *RestAPIClient) GetStatusDetails() (model.StatusDetails, error) {
 }
 
 //CreateObjectStore creates object store
-func (a *RestAPIClient) CreateObjectStore() (string, error) {
-	return a.rrc.CreateObjectStore()
+func (a *RestAPIClient) CreateObjectStore(store model.ObjectStore) (string, error) {
+	return a.rrc.CreateObjectStore(store)
+}
+
+//DeleteObjectStore creates object store
+func (a *RestAPIClient) DeleteObjectStore(storeName string) error {
+	return a.rrc.DeleteObjectStore(storeName)
 }
 
 //GetObjectStoreConnectionInfo returns object store connection info
-func (a *RestAPIClient) GetObjectStoreConnectionInfo() (*model.ObjectStoreConnectInfo, error) {
-	return a.rrc.GetObjectStoreConnectionInfo()
+func (a *RestAPIClient) GetObjectStoreConnectionInfo(storeName string) (*model.ObjectStoreConnectInfo, error) {
+	return a.rrc.GetObjectStoreConnectionInfo(storeName)
 }
 
 //ListBuckets lists all buckets in object store
-func (a *RestAPIClient) ListBuckets() ([]model.ObjectBucket, error) {
-	return a.rrc.ListBuckets()
+func (a *RestAPIClient) ListBuckets(storeName string) ([]model.ObjectBucket, error) {
+	return a.rrc.ListBuckets(storeName)
 }
 
 //ListObjectUsers returns all object store users
-func (a *RestAPIClient) ListObjectUsers() ([]model.ObjectUser, error) {
-	return a.rrc.ListObjectUsers()
+func (a *RestAPIClient) ListObjectUsers(storeName string) ([]model.ObjectUser, error) {
+	return a.rrc.ListObjectUsers(storeName)
 }
 
 //GetObjectUser returns a object user from object store
-func (a *RestAPIClient) GetObjectUser(id string) (*model.ObjectUser, error) {
-	return a.rrc.GetObjectUser(id)
+func (a *RestAPIClient) GetObjectUser(storeName, id string) (*model.ObjectUser, error) {
+	return a.rrc.GetObjectUser(storeName, id)
 }
 
 //CreateObjectUser creates new  user in object store
-func (a *RestAPIClient) CreateObjectUser(user model.ObjectUser) (*model.ObjectUser, error) {
-	return a.rrc.CreateObjectUser(user)
+func (a *RestAPIClient) CreateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error) {
+	return a.rrc.CreateObjectUser(storeName, user)
 }
 
 //UpdateObjectUser updates user in object store
-func (a *RestAPIClient) UpdateObjectUser(user model.ObjectUser) (*model.ObjectUser, error) {
-	return a.rrc.UpdateObjectUser(user)
+func (a *RestAPIClient) UpdateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error) {
+	return a.rrc.UpdateObjectUser(storeName, user)
 
 }
 
 //DeleteObjectUser deletes user from object store
-func (a *RestAPIClient) DeleteObjectUser(id string) error {
-	return a.rrc.DeleteObjectUser(id)
+func (a *RestAPIClient) DeleteObjectUser(storeName, id string) error {
+	return a.rrc.DeleteObjectUser(storeName, id)
 
 }
 
-func getExternalAPIServiceDefinition() string {
+func getExternalAPIServiceDefinition(namespace string) string {
 	return `apiVersion: v1
 kind: Service
 metadata:
-  name: rook-api-external
-  namespace: rook
+  name: rook-api-external-` + namespace + `
+  namespace: ` + namespace + `
   labels:
     app: rook-api
-    rook_cluster: rook
+    rook_cluster: ` + namespace + `
 spec:
   ports:
   - name: rook-api
     port: 8124
     protocol: TCP
-    nodePort: 30002
   selector:
     app: rook-api
-    rook_cluster: rook
+    rook_cluster: ` + namespace + `
   sessionAffinity: None
   type: NodePort
 `

@@ -53,8 +53,9 @@ func TestListBlockImages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp rbd sys bus dir: %+v", err)
 	}
+	mockRBDDevicePath := filepath.Join(mockRBDSysBusPath, "dev", "rbd")
 	defer os.RemoveAll(mockRBDSysBusPath)
-	createMockRBD(mockRBDSysBusPath, "5", "myimage1", "mypool1")
+	createMockRBD(mockRBDSysBusPath, mockRBDDevicePath, "5", "myimage1", "mypool1")
 
 	out, err := listBlocks(mockRBDSysBusPath, c, e)
 	assert.Nil(t, err)
@@ -94,9 +95,11 @@ func TestListBlockImagesZeroImages(t *testing.T) {
 	assert.Equal(t, "", out)
 }
 
-func createMockRBD(mockRBDSysBusPath, deviceID, imageName, poolName string) {
+func createMockRBD(mockRBDSysBusPath, mockRBDDevicePath, deviceID, imageName, poolName string) {
 	dev0Path := filepath.Join(mockRBDSysBusPath, "devices", deviceID)
 	os.MkdirAll(dev0Path, 0777)
+	os.MkdirAll(mockRBDDevicePath, 0777)
 	ioutil.WriteFile(filepath.Join(dev0Path, "name"), []byte(imageName), 0777)
 	ioutil.WriteFile(filepath.Join(dev0Path, "pool"), []byte(poolName), 0777)
+	ioutil.WriteFile(filepath.Join(mockRBDDevicePath, "rbd"+deviceID), []byte(imageName), 0777)
 }

@@ -26,15 +26,16 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/client"
-	cephmon "github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/kit"
+	"github.com/rook/rook/pkg/operator/mds"
 	"github.com/rook/rook/pkg/operator/mgr"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
 	"github.com/rook/rook/pkg/operator/pool"
+	"github.com/rook/rook/pkg/operator/rgw"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -50,12 +51,17 @@ const (
 	crushmapCreatedKey       = "initialCrushMapCreated"
 	clusterCreateInterval    = 6 * time.Second
 	clusterCreateTimeout     = 5 * time.Minute
+	defaultMonCount          = 3
+	maxMonCount              = 9
+)
+
+const (
+	// DefaultClusterName states the default name of the rook-cluster if not provided.
+	DefaultClusterName = "rook"
 )
 
 var (
-	healthCheckInterval = 10 * time.Second
-	clientTimeout       = 15 * time.Second
-	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
 )
 
 // ClusterController controls an instance of a Rook cluster
@@ -100,19 +106,31 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	// Use scheme.Copy() to make a deep copy of original object.
 	copyObj, err := c.scheme.Copy(clusterOrig)
 	if err != nil {
-		logger.Errorf("creating a deep copy of cluster object: %v\n", err)
+		logger.Errorf("failed to create a deep copy of cluster object: %v\n", err)
 		return
 	}
 	cluster := copyObj.(*Cluster)
 
 	cluster.init(c.context)
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
-		logger.Warningf("using all devices in more than one namespace not supported. ignoring devices in namespace %s", cluster.Namespace)
-		cluster.Spec.Storage.ClearUseAllDevices()
+		logger.Errorf("using all devices in more than one namespace not supported")
+		return
 	}
 
 	if cluster.Spec.Storage.AnyUseAllDevices() {
 		c.devicesInUse = true
+	}
+
+	if cluster.Spec.MonCount <= 0 {
+		logger.Warningf("mon count is 0 or less (given: %d), needs to be greater 0", cluster.Spec.MonCount)
+		cluster.Spec.MonCount = defaultMonCount
+	}
+	if cluster.Spec.MonCount > maxMonCount {
+		logger.Warningf("mon count is bigger than %d (given: %d), this is NOT recommended", maxMonCount, cluster.Spec.MonCount)
+		cluster.Spec.MonCount = maxMonCount
+	}
+	if cluster.Spec.MonCount%2 == 0 {
+		logger.Warningf("mon count is even (given: %d), should be uneven", cluster.Spec.MonCount)
 	}
 
 	logger.Infof("starting cluster %s in namespace %s", cluster.Name, cluster.Namespace)
@@ -131,8 +149,16 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	// Start pool CRD watcher
-	poolController, err := pool.NewPoolController(c.context.Clientset)
+	poolController := pool.NewPoolController(c.context)
 	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
+
+	// Start object store CRD watcher
+	objectStoreController := rgw.NewObjectStoreController(c.context, cluster.Spec.VersionTag, cluster.Spec.HostNetwork)
+	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
+
+	// Start file system CRD watcher
+	fileController := mds.NewFilesystemController(c.context, cluster.Spec.VersionTag, cluster.Spec.HostNetwork)
+	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons)
@@ -166,8 +192,8 @@ func (c *Cluster) createInstance() error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.Placement.GetMON())
-	clusterInfo, err := c.mons.Start()
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.MonCount, c.Spec.Placement.GetMON(), c.Spec.HostNetwork)
+	err = c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
 	}
@@ -177,33 +203,23 @@ func (c *Cluster) createInstance() error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetMGR())
+	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetMGR(), c.Spec.HostNetwork)
 	err = c.mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
 	}
 
-	c.apis = api.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetAPI())
+	c.apis = api.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetAPI(), c.Spec.HostNetwork)
 	err = c.apis.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD())
+	c.osds = osd.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD(), c.Spec.HostNetwork)
 	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
-	}
-
-	err = c.createClientAccess(clusterInfo)
-	if err != nil {
-		return fmt.Errorf("failed to create client access. %+v", err)
-	}
-
-	c.rookClient, err = api.GetRookClient(c.Namespace, c.context.Clientset)
-	if err != nil {
-		return fmt.Errorf("Failed to get rook client: %v", err)
 	}
 
 	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
@@ -263,46 +279,6 @@ func (c *Cluster) createInitialCrushMap() error {
 		if _, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
 			return fmt.Errorf("failed to update configmap %s: %+v", crushConfigMapName, err)
 		}
-	}
-
-	return nil
-}
-
-func (c *Cluster) createClientAccess(clusterInfo *cephmon.ClusterInfo) error {
-	// create a user for rbd clients
-	name := fmt.Sprintf("%s-rook-user", c.Namespace)
-	username := fmt.Sprintf("client.%s", name)
-	access := []string{"osd", "allow rwx", "mon", "allow r"}
-
-	// get-or-create-key for the user account
-	rbdKey, err := client.AuthGetOrCreateKey(c.context, c.Namespace, username, access)
-	if err != nil {
-		return fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
-	}
-
-	// store the secret for the rbd user in the default namespace
-	secrets := map[string]string{
-		"key": rbdKey,
-	}
-	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: k8sutil.DefaultNamespace},
-		StringData: secrets,
-		Type:       k8sutil.RbdType,
-	}
-	_, err = c.context.Clientset.CoreV1().Secrets(k8sutil.DefaultNamespace).Create(secret)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to save %s secret. %+v", name, err)
-		}
-
-		// update the secret in case we have a new cluster
-		_, err = c.context.Clientset.CoreV1().Secrets(k8sutil.DefaultNamespace).Update(secret)
-		if err != nil {
-			return fmt.Errorf("failed to update %s secret. %+v", name, err)
-		}
-		logger.Infof("updated existing %s secret", name)
-	} else {
-		logger.Infof("saved %s secret", name)
 	}
 
 	return nil

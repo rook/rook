@@ -45,24 +45,30 @@ type PoolList struct {
 
 // PoolSpec represent the spec of a pool
 type PoolSpec struct {
+	// The failure domain: osd or host (technically also any type in the crush map)
+	FailureDomain string `json:"failureDomain"`
+
 	// The replication settings
-	Replication ReplicationSpec `json:"replication"`
+	Replicated ReplicatedSpec `json:"replicated"`
 
 	// The erasure code setteings
-	ErasureCoding ErasureCodeSpec `json:"erasureCode"`
+	ErasureCoded ErasureCodedSpec `json:"erasureCoded"`
 }
 
 // ReplicationSpec represents the spec for replication in a pool
-type ReplicationSpec struct {
+type ReplicatedSpec struct {
 	// Number of copies per object in a replicated storage pool, including the object itself (required for replicated pool type)
 	Size uint `json:"size"`
 }
 
 // ErasureCodeSpec represents the spec for erasure code in a pool
-type ErasureCodeSpec struct {
+type ErasureCodedSpec struct {
 	// Number of coding chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
 	CodingChunks uint `json:"codingChunks"`
 
 	// Number of data chunks per object in an erasure coded storage pool (required for erasure-coded pool type)
 	DataChunks uint `json:"dataChunks"`
+
+	// The algorithm for erasure coding
+	Algorithm string `json:"algorithm"`
 }

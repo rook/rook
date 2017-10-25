@@ -37,7 +37,8 @@ type Pool struct {
 	Name               string                 `json:"poolName"`
 	Number             int                    `json:"poolNum"`
 	Type               PoolType               `json:"type"`
-	ReplicationConfig  ReplicatedPoolConfig   `json:"replicationConfig"`
+	FailureDomain      string                 `json:"failureDomain"`
+	ReplicatedConfig   ReplicatedPoolConfig   `json:"replicatedConfig"`
 	ErasureCodedConfig ErasureCodedPoolConfig `json:"erasureCodedConfig"`
 }
 

@@ -30,7 +30,6 @@ import (
 
 var (
 	schemeBuilder = runtime.NewSchemeBuilder(addKnownTypes)
-	addToScheme   = schemeBuilder.AddToScheme
 )
 
 // PoolResource represents the Pool custom resource object

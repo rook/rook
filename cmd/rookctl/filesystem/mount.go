@@ -79,7 +79,7 @@ func mountFilesystem(name, path string, c client.RookRestClient, executor exec.E
 
 	monAddrs := rc.ProcessMonAddresses(clientAccessInfo)
 	devicePath := strings.Join(monAddrs, ",") + ":/"
-	options := fmt.Sprintf("name=%s,secret=%s", clientAccessInfo.UserName, clientAccessInfo.SecretKey)
+	options := fmt.Sprintf("name=%s,secret=%s,mds_namespace=%s", clientAccessInfo.UserName, clientAccessInfo.SecretKey, name)
 
 	// runs a mount command in the general form of:
 	// > mount -t ceph -o name=admin,secret=AQAWczxYpVlFGTAAb3UezRRtT3C+2hiiu/4fJA== 127.0.0.1:6790:/ /tmp/myfsmount

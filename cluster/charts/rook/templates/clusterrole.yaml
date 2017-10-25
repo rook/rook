@@ -16,6 +16,7 @@ rules:
   - pods
   - services
   - nodes
+  - nodes/proxy
   - configmaps
   - events
   - persistentvolumes
@@ -56,6 +57,8 @@ rules:
   resources:
   - clusterroles
   - clusterrolebindings
+  - roles
+  - rolebindings
   verbs:
   - get
   - list

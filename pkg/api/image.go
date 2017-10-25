@@ -29,7 +29,7 @@ import (
 // /image
 func (h *Handler) GetImages(w http.ResponseWriter, r *http.Request) {
 	// first list all the pools so that we can retrieve images from all pools
-	pools, err := ceph.ListPoolSummaries(h.context, h.config.ClusterInfo.Name)
+	pools, err := ceph.ListPoolSummaries(h.context, h.config.clusterInfo.Name)
 	if err != nil {
 		logger.Errorf("failed to list pools: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -52,7 +52,7 @@ func (h *Handler) GetImages(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) getImagesForPool(w http.ResponseWriter, poolName string) ([]model.BlockImage, bool) {
-	cephImages, err := ceph.ListImages(h.context, h.config.ClusterInfo.Name, poolName)
+	cephImages, err := ceph.ListImages(h.context, h.config.clusterInfo.Name, poolName)
 	if err != nil {
 		logger.Errorf("failed to get images from pool %s: %+v", poolName, err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -94,7 +94,7 @@ func (h *Handler) CreateImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	createdImage, err := ceph.CreateImage(h.context, h.config.ClusterInfo.Name, newImage.Name,
+	createdImage, err := ceph.CreateImage(h.context, h.config.clusterInfo.Name, newImage.Name,
 		newImage.PoolName, newImage.Size)
 	if err != nil {
 		logger.Errorf("failed to create image %+v: %+v", newImage, err)
@@ -123,7 +123,7 @@ func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := ceph.DeleteImage(h.context, h.config.ClusterInfo.Name, deleteImageReq.Name, deleteImageReq.PoolName)
+	err := ceph.DeleteImage(h.context, h.config.clusterInfo.Name, deleteImageReq.Name, deleteImageReq.PoolName)
 	if err != nil {
 		logger.Errorf("failed to delete image %+v: %+v", deleteImageReq, err)
 		w.WriteHeader(http.StatusInternalServerError)

@@ -44,10 +44,10 @@ var _ prometheus.Collector = &CephExporter{}
 // NewCephExporter creates an instance to CephExporter and returns a reference
 // to it. We can choose to enable a collector to extract stats out of by adding
 // it to the list of collectors.
-func NewCephExporter(handler *Handler) *CephExporter {
+func NewCephExporter(h *Handler) *CephExporter {
 	return &CephExporter{
-		handler:    handler, // not implemented
-		collectors: createCollectors(handler.context, handler.config.ClusterInfo.Name),
+		handler:    h, // not implemented
+		collectors: createCollectors(h.config.context, h.config.clusterInfo.Name),
 	}
 }
 

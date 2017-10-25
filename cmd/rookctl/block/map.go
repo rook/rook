@@ -17,7 +17,6 @@ package block
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +24,7 @@ import (
 
 	rc "github.com/rook/rook/cmd/rookctl/client"
 	"github.com/rook/rook/cmd/rookctl/rook"
+	"github.com/rook/rook/pkg/ceph/util"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/pkg/util/exec"
@@ -35,9 +35,6 @@ import (
 
 const (
 	rbdKernelModuleName      = "rbd"
-	rbdSysBusPathDefault     = "/sys/bus/rbd"
-	rbdDevicesDir            = "devices"
-	rbdDevicePathPrefix      = "/dev/rbd"
 	devicePathPrefix         = "/dev/"
 	rbdAddNode               = "add"
 	rbdAddSingleMajorNode    = "add_single_major"
@@ -76,7 +73,7 @@ func mapBlockEntry(cmd *cobra.Command, args []string) error {
 	}
 	c := rook.NewRookNetworkRestClient()
 	e := &exec.CommandExecutor{}
-	out, err := mapBlock(mapImageName, mapImagePoolName, mapImagePath, rbdSysBusPathDefault, mapFormatRequested, c, e)
+	out, err := mapBlock(mapImageName, mapImagePoolName, mapImagePath, util.RBDSysBusPathDefault, util.RBDDevicePathPrefix, mapFormatRequested, c, e)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
@@ -86,7 +83,7 @@ func mapBlockEntry(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func mapBlock(name, poolName, mountPoint, rbdSysBusPath string, formatRequested bool, c client.RookRestClient, executor exec.Executor) (string, error) {
+func mapBlock(name, poolName, mountPoint, rbdSysBusPath, rbdDevicePathPrefix string, formatRequested bool, c client.RookRestClient, executor exec.Executor) (string, error) {
 	clientAccessInfo, err := c.GetClientAccessInfo()
 	if err != nil {
 		return "", err
@@ -125,7 +122,7 @@ func mapBlock(name, poolName, mountPoint, rbdSysBusPath string, formatRequested 
 	}
 
 	// wait for the device to become available so we can find out its name/ID
-	devicePath, err := waitForDevicePath(name, poolName, rbdSysBusPath, 10, 1)
+	devicePath, err := waitForDevicePath(name, poolName, rbdSysBusPath, rbdDevicePathPrefix, 10, 1)
 	if err != nil {
 		return "", err
 	}
@@ -205,33 +202,19 @@ func openRBDFile(hasSingleMajor bool, singleMajorPath, path string) (*os.File, e
 	return fd, nil
 }
 
-func findDevicePath(imageName, poolName, rbdSysBusPath string) (string, error) {
-	rbdDevicesPath := filepath.Join(rbdSysBusPath, rbdDevicesDir)
-	files, err := ioutil.ReadDir(rbdDevicesPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read rbd device dir: %+v", err)
-	}
-
-	for _, idFile := range files {
-		nameContent, err := ioutil.ReadFile(filepath.Join(rbdDevicesPath, idFile.Name(), "name"))
-		if err == nil && imageName == strings.TrimSpace(string(nameContent)) {
-			// the image for the current rbd device matches, now try to match pool
-			poolContent, err := ioutil.ReadFile(filepath.Join(rbdDevicesPath, idFile.Name(), "pool"))
-			if err == nil && poolName == strings.TrimSpace(string(poolContent)) {
-				// match current device matches both image name and pool name, return the device
-				return rbdDevicePathPrefix + idFile.Name(), nil
-			}
-		}
-	}
-
-	return "", fmt.Errorf("failed to find rbd device path for image '%s' in pool '%s'", imageName, poolName)
-}
-
-func waitForDevicePath(imageName, poolName, rbdSysBusPath string, maxRetries, sleepSecs int) (string, error) {
+func waitForDevicePath(imageName, poolName, rbdSysBusPath, rbdDevicePathPrefix string, maxRetries, sleepSecs int) (string, error) {
 	retryCount := 0
 	for {
-		devicePath, err := findDevicePath(imageName, poolName, rbdSysBusPath)
-		if err == nil {
+		mappedFile, err := util.FindRBDMappedFile(imageName, poolName, rbdSysBusPath)
+		if err != nil {
+			return "", fmt.Errorf("failed to find mapped image: %+v", err)
+		}
+
+		if mappedFile != "" {
+			devicePath := rbdDevicePathPrefix + mappedFile
+			if _, err := os.Lstat(devicePath); err != nil {
+				return "", fmt.Errorf("sysfs information for image '%s' in pool '%s' found but the rbd device path %s does not exist", imageName, poolName, devicePath)
+			}
 			return devicePath, nil
 		}
 

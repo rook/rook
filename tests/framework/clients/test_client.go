@@ -17,11 +17,8 @@ limitations under the License.
 package clients
 
 import (
-	"fmt"
-
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/contracts"
-	"github.com/rook/rook/tests/framework/enums"
 	"github.com/rook/rook/tests/framework/utils"
 )
 
@@ -31,7 +28,6 @@ var (
 
 //TestClient is a wrapper for test client, containing interfaces for all rook operations
 type TestClient struct {
-	platform     enums.RookPlatformType
 	blockClient  contracts.BlockOperator
 	fsClient     contracts.FileSystemOperator
 	objectClient contracts.ObjectOperator
@@ -44,30 +40,18 @@ const (
 )
 
 //CreateTestClient creates new instance of test client for a platform
-func CreateTestClient(platform enums.RookPlatformType, k8sHelper *utils.K8sHelper) (*TestClient, error) {
+func CreateTestClient(k8sHelper *utils.K8sHelper, namespace string) (*TestClient, error) {
 	var blockClient contracts.BlockOperator
 	var fsClient contracts.FileSystemOperator
 	var objectClient contracts.ObjectOperator
 	var poolClient contracts.PoolOperator
-	rookRestClient := CreateRestAPIClient(platform, k8sHelper)
-
-	switch {
-	case platform == enums.Kubernetes:
-		blockClient = CreateK8BlockOperation(k8sHelper, rookRestClient)
-		fsClient = CreateK8sFileSystemOperation(k8sHelper, rookRestClient)
-		objectClient = CreateObjectOperation(rookRestClient)
-		poolClient = CreatePoolClient(rookRestClient)
-	case platform == enums.StandAlone:
-		blockClient = nil  //TODO- Not yet implemented
-		fsClient = nil     //TODO- Not yet implemented
-		objectClient = nil //TODO- Not yet implemented
-		poolClient = nil   //TODO- Not yet implemented
-	default:
-		return &TestClient{}, fmt.Errorf("Unsupported Rook Platform Type")
-	}
+	rookRestClient := CreateRestAPIClient(k8sHelper, namespace)
+	blockClient = CreateK8BlockOperation(k8sHelper, rookRestClient)
+	fsClient = CreateK8sFilesystemOperation(k8sHelper, rookRestClient)
+	objectClient = CreateObjectOperation(rookRestClient)
+	poolClient = CreatePoolClient(rookRestClient)
 
 	return &TestClient{
-		platform,
 		blockClient,
 		fsClient,
 		objectClient,

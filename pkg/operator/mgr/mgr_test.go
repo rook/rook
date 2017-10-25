@@ -43,7 +43,7 @@ func TestStartMGR(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	c := New(context, "ns", "myversion", k8sutil.Placement{})
+	c := New(context, "ns", "myversion", k8sutil.Placement{}, false)
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic service
@@ -68,7 +68,7 @@ func validateStart(t *testing.T, c *Cluster) {
 }
 
 func TestPodSpec(t *testing.T) {
-	c := New(nil, "ns", "myversion", k8sutil.Placement{})
+	c := New(nil, "ns", "myversion", k8sutil.Placement{}, false)
 
 	d := c.makeDeployment("mgr1")
 	assert.NotNil(t, d)
@@ -88,4 +88,14 @@ func TestPodSpec(t *testing.T) {
 
 	assert.Equal(t, "mgr", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
+}
+
+func TestHostNetwork(t *testing.T) {
+	c := New(nil, "ns", "myversion", k8sutil.Placement{}, true)
+
+	d := c.makeDeployment("mgr1")
+	assert.NotNil(t, d)
+
+	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
+	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
 }

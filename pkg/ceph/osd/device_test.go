@@ -24,10 +24,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/rook/rook/pkg/util/kvstore"
+
 	"github.com/google/uuid"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/clusterd/inventory"
-	"github.com/rook/rook/pkg/util"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
@@ -92,9 +92,6 @@ func TestOverwriteRookOwnedPartitions(t *testing.T) {
 	}
 	defer os.RemoveAll(configDir)
 
-	nodeID := "node123"
-	etcdClient := util.NewMockEtcdClient()
-
 	// set up mock execute so we can verify the partitioning happens on sda
 	execCount := 0
 	executor := &exectest.MockExecutor{}
@@ -154,13 +151,12 @@ NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
 	entry.OsdUUID = uuid.Must(uuid.NewRandom())
 	PopulateCollocatedPerfSchemeEntry(entry, "sda", storeConfig)
 
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID, Inventory: createInventory()},
-		Executor: executor, ConfigDir: configDir}
-	context.Inventory.Local.Disks = []*inventory.LocalDisk{
+	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
+	context.Devices = []*clusterd.LocalDisk{
 		{Name: "sda", Size: 65},
 	}
 	config := &osdConfig{configRoot: configDir, rootPath: filepath.Join(configDir, "osd1"), id: entry.ID,
-		uuid: entry.OsdUUID, dir: false, partitionScheme: entry}
+		uuid: entry.OsdUUID, dir: false, partitionScheme: entry, kv: kvstore.NewMockKeyValueStore(), storeName: getConfigStoreName("node123")}
 
 	// ensure that our mocking makes it look like rook owns the partitions on sda
 	partitions, _, err := sys.GetDevicePartitions("sda", context.Executor)
@@ -184,7 +180,6 @@ func TestPartitionBluestoreMetadata(t *testing.T) {
 	defer os.RemoveAll(configDir)
 
 	nodeID := "node123"
-	etcdClient := util.NewMockEtcdClient()
 
 	execCount := 0
 	executor := &exectest.MockExecutor{}
@@ -207,7 +202,7 @@ func TestPartitionBluestoreMetadata(t *testing.T) {
 		return nil
 	}
 
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID}, Executor: executor, ConfigDir: configDir}
+	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
 
 	// create metadata partition information for 2 OSDs (sdb, sdc) storing their metadata on device sda
 	storeConfig := StoreConfig{StoreType: Bluestore, WalSizeMB: 1, DatabaseSizeMB: 2}
@@ -224,16 +219,12 @@ func TestPartitionBluestoreMetadata(t *testing.T) {
 	PopulateDistributedPerfSchemeEntry(e2, "sdc", metadata, storeConfig)
 
 	// perform the metadata device partition
-	err = partitionMetadata(context, metadata, configDir)
+	err = partitionMetadata(context, metadata, kvstore.NewMockKeyValueStore(), getConfigStoreName(nodeID))
 	assert.Nil(t, err)
 	assert.Equal(t, 3, execCount)
 
 	// verify that the metadata device has been associated with the OSDs that are storing their metadata on it,
 	// e.g. OSDs 1 and 2
-	desiredIDsRaw := etcdClient.GetValue(
-		fmt.Sprintf("/rook/services/ceph/osd/desired/node123/device/%s/osd-id-metadata", metadata.DiskUUID))
-	desiredIds := strings.Split(desiredIDsRaw, ",")
-	assert.True(t, util.CreateSet(desiredIds).Equals(util.CreateSet([]string{"1", "2"})))
 }
 
 func TestPartitionBluestoreMetadataSafe(t *testing.T) {
@@ -245,7 +236,6 @@ func TestPartitionBluestoreMetadataSafe(t *testing.T) {
 	defer os.RemoveAll(configDir)
 
 	nodeID := "node123"
-	etcdClient := util.NewMockEtcdClient()
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		if command == "df" {
@@ -258,7 +248,7 @@ func TestPartitionBluestoreMetadataSafe(t *testing.T) {
 		return "", nil
 	}
 
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID}, Executor: executor, ConfigDir: configDir}
+	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
 
 	// create metadata partition information for 1 OSD (sda) storing its metadata on device nvme01
 	storeConfig := StoreConfig{StoreType: Bluestore, WalSizeMB: 1, DatabaseSizeMB: 2}
@@ -270,7 +260,7 @@ func TestPartitionBluestoreMetadataSafe(t *testing.T) {
 
 	// attempt to perform the metadata device partition.  this should fail because we should detect
 	// that the metadata device has a filesystem already (not safe to format)
-	err = partitionMetadata(context, metadata, configDir)
+	err = partitionMetadata(context, metadata, kvstore.NewMockKeyValueStore(), getConfigStoreName(nodeID))
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "already in use (not by rook)"))
 }
@@ -287,9 +277,6 @@ func testPartitionOSDHelper(t *testing.T, storeConfig StoreConfig) {
 		t.Fatalf("failed to create temp config dir: %+v", err)
 	}
 	defer os.RemoveAll(configDir)
-
-	nodeID := "node123"
-	etcdClient := util.NewMockEtcdClient()
 
 	// setup the mock executor to validate the calls to partition the device
 	execCount := 0
@@ -332,9 +319,8 @@ func testPartitionOSDHelper(t *testing.T, storeConfig StoreConfig) {
 	}
 
 	// setup a context with 1 disk: sda
-	context := &clusterd.Context{DirectContext: clusterd.DirectContext{EtcdClient: etcdClient, NodeID: nodeID, Inventory: createInventory()},
-		Executor: executor, ConfigDir: configDir}
-	context.Inventory.Local.Disks = []*inventory.LocalDisk{
+	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
+	context.Devices = []*clusterd.LocalDisk{
 		{Name: "sda", Size: 100},
 	}
 
@@ -345,7 +331,7 @@ func testPartitionOSDHelper(t *testing.T, storeConfig StoreConfig) {
 	PopulateCollocatedPerfSchemeEntry(entry, "sda", storeConfig)
 
 	config := &osdConfig{configRoot: configDir, rootPath: filepath.Join(configDir, "osd1"), id: entry.ID,
-		uuid: entry.OsdUUID, dir: false, partitionScheme: entry}
+		uuid: entry.OsdUUID, dir: false, partitionScheme: entry, kv: kvstore.NewMockKeyValueStore(), storeName: getConfigStoreName("node123")}
 
 	// partition the OSD on sda now
 	err = partitionOSD(context, config)
@@ -360,11 +346,5 @@ func testPartitionOSDHelper(t *testing.T, storeConfig StoreConfig) {
 	// verify that both the data and metadata have been associated with the device in etcd (since data/metadata are collocated)
 	dataDetails, err := getDataPartitionDetails(config)
 	assert.Nil(t, err)
-	dataID := etcdClient.GetValue(
-		fmt.Sprintf("/rook/services/ceph/osd/desired/node123/device/%s/osd-id-data", dataDetails.DiskUUID))
-	assert.Equal(t, "1", dataID)
-
-	metadataID := etcdClient.GetValue(
-		fmt.Sprintf("/rook/services/ceph/osd/desired/node123/device/%s/osd-id-metadata", dataDetails.DiskUUID))
-	assert.Equal(t, "1", metadataID)
+	assert.NotEqual(t, "", dataDetails.DiskUUID)
 }

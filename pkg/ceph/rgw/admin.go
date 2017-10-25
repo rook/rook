@@ -19,28 +19,35 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/ceph/client"
-	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 )
 
-func RunAdminCommand(context *clusterd.Context, getClusterInfo func() (*mon.ClusterInfo, error), command, subcommand string, args ...string) (string, error) {
-	cluster, err := getClusterInfo()
-	if err != nil {
-		return "", fmt.Errorf("failed to get cluster info. %+v", err)
-	}
+type Context struct {
+	context     *clusterd.Context
+	Name        string
+	ClusterName string
+}
 
-	options := []string{
-		command,
-		subcommand,
-	}
-	options = client.AppendAdminConnectionArgs(options, context.ConfigDir, cluster.Name)
-	options = append(options, args...)
+func NewContext(context *clusterd.Context, name, clusterName string) *Context {
+	return &Context{context: context, Name: name, ClusterName: clusterName}
+}
+
+func runAdminCommandNoRealm(c *Context, args ...string) (string, error) {
+	options := client.AppendAdminConnectionArgs(args, c.context.ConfigDir, c.ClusterName)
 
 	// start the rgw admin command
-	output, err := context.Executor.ExecuteCommandWithCombinedOutput(false, "", "radosgw-admin", options...)
+	output, err := c.context.Executor.ExecuteCommandWithCombinedOutput(false, "", "radosgw-admin", options...)
 	if err != nil {
 		return "", fmt.Errorf("failed to run radosgw-admin: %+v", err)
 	}
 
 	return output, nil
+}
+
+func runAdminCommand(c *Context, args ...string) (string, error) {
+	options := []string{
+		fmt.Sprintf("--rgw-realm=%s", c.Name),
+		fmt.Sprintf("--rgw-zonegroup=%s", c.Name),
+	}
+	return runAdminCommandNoRealm(c, append(args, options...)...)
 }

@@ -30,6 +30,7 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
+	"k8s.io/api/rbac/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
@@ -42,6 +43,14 @@ const (
 	appNameFmt = "rook-ceph-osd-%s"
 )
 
+var clusterAccessRules = []v1beta1.PolicyRule{
+	{
+		APIGroups: []string{""},
+		Resources: []string{"configmaps"},
+		Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
+	},
+}
+
 // Cluster keeps track of the OSDs
 type Cluster struct {
 	context         *clusterd.Context
@@ -51,10 +60,11 @@ type Cluster struct {
 	Version         string
 	Storage         StorageSpec
 	dataDirHostPath string
+	HostNetwork     bool
 }
 
 // New creates an instance of the OSD manager
-func New(context *clusterd.Context, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement) *Cluster {
+func New(context *clusterd.Context, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
 	return &Cluster{
 		context:         context,
 		Namespace:       namespace,
@@ -62,12 +72,19 @@ func New(context *clusterd.Context, namespace, version string, storageSpec Stora
 		Version:         version,
 		Storage:         storageSpec,
 		dataDirHostPath: dataDirHostPath,
+		HostNetwork:     hostNetwork,
 	}
 }
 
 // Start the osd management
 func (c *Cluster) Start() error {
 	logger.Infof("start running osds in namespace %s", c.Namespace)
+
+	// create the artifacts for the api service to work with RBAC enabled
+	err := k8sutil.MakeRole(c.context.Clientset, c.Namespace, appName, clusterAccessRules)
+	if err != nil {
+		logger.Warningf("failed to init RBAC for OSDs. %+v", err)
+	}
 
 	if c.Storage.UseAllNodes {
 		// make a daemonset for all nodes in the cluster
@@ -159,9 +176,14 @@ func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, sel
 	}
 
 	podSpec := v1.PodSpec{
-		Containers:    []v1.Container{c.osdContainer(devices, directories, selection, config)},
-		RestartPolicy: v1.RestartPolicyAlways,
-		Volumes:       volumes,
+		ServiceAccountName: appName,
+		Containers:         []v1.Container{c.osdContainer(devices, directories, selection, config)},
+		RestartPolicy:      v1.RestartPolicyAlways,
+		Volumes:            volumes,
+		HostNetwork:        c.HostNetwork,
+	}
+	if c.HostNetwork {
+		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.placement.ApplyToPodSpec(&podSpec)
 

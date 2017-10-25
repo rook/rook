@@ -21,8 +21,9 @@ import (
 
 	"strconv"
 
-	"github.com/rook/rook/pkg/clusterd"
 	"regexp"
+
+	"github.com/rook/rook/pkg/clusterd"
 )
 
 const (
@@ -44,17 +45,17 @@ func ListImages(context *clusterd.Context, clusterName, poolName string) ([]Ceph
 
 	//The regex expression captures the json result at the end buf
 	//When logLevel is DEBUG buf contains log statements of librados (see tests for examples)
-	res := regexp.MustCompile(`\[(.*)\]$`).FindStringSubmatch(string(buf))
+	//It can happen that the end of the "real" output doesn't not contain a new line
+	//that's why looking for the end isn't an option here (anymore?)
+	res := regexp.MustCompile(`(?m)^\[(.*)\]`).FindStringSubmatch(string(buf))
 	if len(res) == 0 {
 		return []CephBlockImage{}, nil
-	} else {
-		buf = []byte(res[0])
 	}
+	buf = []byte(res[0])
 
 	var images []CephBlockImage
-	err = json.Unmarshal(buf, &images)
-	if err != nil {
-		return nil, fmt.Errorf("unmarshal failed: %+v.  raw buffer response: %s", err, string(buf))
+	if err = json.Unmarshal(buf, &images); err != nil {
+		return nil, fmt.Errorf("unmarshal failed: %+v. raw buffer response: %s", err, string(buf))
 	}
 
 	return images, nil
@@ -99,6 +100,46 @@ func DeleteImage(context *clusterd.Context, clusterName, name, poolName string) 
 	if err != nil {
 		return fmt.Errorf("failed to delete image %s in pool %s: %+v. output: %s",
 			name, poolName, err, string(buf))
+	}
+
+	return nil
+}
+
+// MapImage maps an RBD image using admin cephfx and returns the device path
+func MapImage(context *clusterd.Context, imageName, poolName, clusterName, keyring, monitors string) error {
+
+	imageSpec := getImageSpec(imageName, poolName)
+	args := []string{
+		"map",
+		imageSpec,
+		"--id", "admin",
+		fmt.Sprintf("--cluster=%s", clusterName),
+		fmt.Sprintf("--keyring=%s", keyring),
+		"-m", monitors,
+	}
+
+	output, err := ExecuteRBDCommandWithTimeout(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to map image %s: %+v. output: %s", imageSpec, err, output)
+	}
+
+	return nil
+}
+
+// UnMapImage unmap an RBD image from the node
+func UnMapImage(context *clusterd.Context, imageName, poolName, clusterName, keyring, monitors string) error {
+	deviceImage := getImageSpec(imageName, poolName)
+	args := []string{
+		"unmap",
+		deviceImage,
+		"--id", "admin",
+		fmt.Sprintf("--cluster=%s", clusterName),
+		fmt.Sprintf("--keyring=%s", keyring),
+		"-m", monitors,
+	}
+	output, err := ExecuteRBDCommandWithTimeout(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to unmap image %s: %+v. output: %s", deviceImage, err, output)
 	}
 
 	return nil

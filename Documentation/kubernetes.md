@@ -21,27 +21,36 @@ You will need to use the yaml files from the [1.5 folder](/cluster/examples/kube
 
 ### Prerequisites
 
-To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these quick instructions](k8s-pre-reqs.md), including:
-- The `kubelet` requires access to `modprobe` and `rbd` on host
-
-Note that we are striving for even more smooth integration with Kubernetes in the future such that `Rook` will work out of the box with any Kubernetes cluster.
+To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [follow these quick instructions](k8s-pre-reqs.md).
 
 If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, make sure your host has at least 5GB of space available on the specified path.
 
 ### Deploy Rook
 
-With your Kubernetes cluster running, Rook can be setup and deployed by simply creating the rook-operator deployment and creating a rook cluster. To customize the operator settings, see the [Operator Helm Chart](helm-operator.md).
+With your Kubernetes cluster running, Rook can be setup and deployed by simply creating the rook-operator deployment and creating a rook cluster. To customize the operator settings, see the [Rook Helm Chart](helm-operator.md).
 
 ```bash
 cd cluster/examples/kubernetes
 kubectl create -f rook-operator.yaml
 
-# verify the rook-operator pod is in the `Running` state before proceeding
-kubectl get pod
+# verify the rook-operator and rook-agents pods are in the `Running` state before proceeding
+kubectl -n rook-system get pod
 ```
+
+---
+**Restart Kubelet (K8S 1.7 and older)**
+
+For versions of Kubernetes prior to 1.8, the Kubelet process on all nodes will require a restart after the Rook operator and Rook agents have been deployed. As part of their initial setup, the Rook agents deploy and configure a Flexvolume plugin in order to integrate with Kubernetes' volume controller framework. In Kubernetes v1.8+, the [dynamic Flexvolume plugin discovery](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md#dynamic-plugin-discovery) will find and initialize our plugin, but in older versions of Kubernetes a manual restart of the Kubelet will be required.
+
+**Disable Attacher-detacher controller (K8S 1.6.x only)**
+
+For Kubernetes 1.6, it is also necessary to pass the `--enable-controller-attach-detach=false` flag to Kubelet when you restart it.  This is a workaround for a [Kubernetes issue](https://github.com/kubernetes/kubernetes/issues/47109) that only affects 1.6.
+
+---
 
 Now that the rook-operator pod is running, we can create the Rook cluster. For the cluster to survive reboots, 
 make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](cluster-crd.md). 
+
 
 Save the cluster spec as `rook-cluster.yaml`:
 
@@ -63,7 +72,7 @@ spec:
     useAllNodes: true
     useAllDevices: false
     storeConfig:
-      storeType: filestore
+      storeType: bluestore
       databaseSizeMB: 1024
       journalSizeMB: 1024
 ```
@@ -111,14 +120,18 @@ To clean up all the artifacts created by the demo, **first cleanup the resources
 
 ```bash
 kubectl delete -f rook-operator.yaml
+kubectl delete -n rook-system daemonset rook-agent
 kubectl delete -n rook cluster rook
 kubectl delete -n rook serviceaccount rook-api
-kubectl delete clusterrole rook-api
-kubectl delete clusterrolebinding rook-api
-kubectl delete thirdpartyresources cluster.rook.io pool.rook.io  # ignore errors if on K8s 1.7+
-kubectl delete crd clusters.rook.io pools.rook.io  # ignore errors if on K8s 1.5 and 1.6
-kubectl delete secret rook-rook-user
+kubectl delete -n rook role rook-api
+kubectl delete -n rook rolebinding rook-api
+kubectl delete -n rook serviceaccount rook-ceph-osd
+kubectl delete -n rook role rook-ceph-osd
+kubectl delete -n rook rolebinding rook-ceph-osd
+kubectl delete thirdpartyresources cluster.rook.io pool.rook.io objectstore.rook.io filesystem.rook.io volumeattachment.rook.io # ignore errors if on K8s 1.7+
+kubectl delete crd clusters.rook.io pools.rook.io objectstores.rook.io filesystems.rook.io volumeattachments.rook.io  # ignore errors if on K8s 1.5 and 1.6
 kubectl delete namespace rook
+kubectl delete namespace rook-system
 ```
 If you modified the demo settings, additional cleanup is up to you for devices, host paths, etc.
 

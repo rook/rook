@@ -27,8 +27,6 @@ import (
 	"github.com/rook/rook/pkg/operator/mgr"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
-	"github.com/rook/rook/pkg/operator/rgw"
-	rookclient "github.com/rook/rook/pkg/rook/client"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -46,8 +44,6 @@ type Cluster struct {
 	mgrs              *mgr.Cluster
 	osds              *osd.Cluster
 	apis              *api.Cluster
-	rgws              *rgw.Cluster
-	rookClient        rookclient.RookRestClient
 	stopCh            chan struct{}
 }
 
@@ -76,6 +72,12 @@ type ClusterSpec struct {
 
 	// A spec for available storage in the cluster and how it should be used
 	Storage osd.StorageSpec `json:"storage"`
+
+	// HostNetwork to enable host network
+	HostNetwork bool `json:"hostNetwork"`
+
+	// MonCount sets the mon size
+	MonCount int `json:"monCount"`
 }
 
 // PlacementSpec is a set of Placement configurations for the rook cluster.

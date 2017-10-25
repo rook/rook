@@ -25,6 +25,12 @@ import (
 	"strings"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/model"
+)
+
+const (
+	confirmFlag       = "--yes-i-really-mean-it"
+	reallyConfirmFlag = "--yes-i-really-really-mean-it"
 )
 
 type CephStoragePoolSummary struct {
@@ -37,6 +43,7 @@ type CephStoragePoolDetails struct {
 	Number             int    `json:"pool_id"`
 	Size               uint   `json:"size"`
 	ErasureCodeProfile string `json:"erasure_code_profile"`
+	FailureDomain      string
 }
 
 type CephStoragePoolStats struct {
@@ -73,6 +80,18 @@ func ListPoolSummaries(context *clusterd.Context, clusterName string) ([]CephSto
 	return pools, nil
 }
 
+func GetPoolNamesByID(context *clusterd.Context, clusterName string) (map[int]string, error) {
+	pools, err := ListPoolSummaries(context, clusterName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pools: %+v", err)
+	}
+	names := map[int]string{}
+	for _, p := range pools {
+		names[p.Number] = p.Name
+	}
+	return names, nil
+}
+
 func GetPoolDetails(context *clusterd.Context, clusterName, name string) (CephStoragePoolDetails, error) {
 	args := []string{"osd", "pool", "get", name, "all"}
 	buf, err := ExecuteCephCommand(context, clusterName, args)
@@ -106,18 +125,71 @@ func GetPoolDetails(context *clusterd.Context, clusterName, name string) (CephSt
 	return poolDetails, nil
 }
 
+func CreatePoolWithProfile(context *clusterd.Context, clusterName string, newPoolReq model.Pool, appName string) error {
+	newPool := ModelPoolToCephPool(newPoolReq)
+	if newPoolReq.Type == model.ErasureCoded {
+		// create a new erasure code profile for the new pool
+		if err := CreateErasureCodeProfile(context, clusterName, newPoolReq.ErasureCodedConfig, newPool.ErasureCodeProfile, newPoolReq.FailureDomain); err != nil {
+			return fmt.Errorf("failed to create erasure code profile for pool '%s': %+v", newPoolReq.Name, err)
+		}
+	}
+
+	return CreatePoolForApp(context, clusterName, newPool, appName)
+}
+
+func DeletePool(context *clusterd.Context, clusterName string, name string) error {
+	// check if the pool exists
+	pool, err := GetPoolDetails(context, clusterName, name)
+	if err != nil {
+		logger.Infof("pool %s not found for deletion. %+v", name, err)
+		return nil
+	}
+
+	logger.Infof("purging pool %s (id=%d)", name, pool.Number)
+	args := []string{"osd", "pool", "delete", name, name, reallyConfirmFlag}
+	_, err = ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to delete pool %s. %+v", name, err)
+	}
+
+	// remove the crush rule for this pool and ignore the error in case the rule is still in use or not found
+	args = []string{"osd", "crush", "rule", "rm", name}
+	_, err = ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		logger.Infof("did not delete crush rule %s. %+v", name, err)
+	}
+
+	logger.Infof("purge completed for pool %s", name)
+	return nil
+}
+
 func CreatePool(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails) error {
 	// for a generic/custom pool, just reuse the pool name for its app name
 	return CreatePoolForApp(context, clusterName, newPool, newPool.Name)
 }
 
 func CreatePoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string) error {
+	// create a crush rule for a replicated pool, if a failure domain is specified
+	replicated := newPool.ErasureCodeProfile == "" && newPool.Size > 0
+	ruleName := newPool.Name
+	if replicated && newPool.FailureDomain != "" {
+		args := []string{"osd", "crush", "rule", "create-simple", ruleName, "default", newPool.FailureDomain}
+		_, err := ExecuteCephCommand(context, clusterName, args)
+		if err != nil {
+			return fmt.Errorf("failed to crush rule %s. %+v", newPool.Name, err)
+		}
+	}
+
 	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number)}
-	// not implemented: fix the pool create for the different profiles
 	if newPool.ErasureCodeProfile != "" {
 		args = append(args, "erasure", newPool.ErasureCodeProfile)
 	} else {
 		args = append(args, "replicated")
+
+		// Associate the crush rule created above with the new pool
+		if newPool.FailureDomain != "" {
+			args = append(args, ruleName)
+		}
 	}
 
 	buf, err := ExecuteCephCommand(context, clusterName, args)
@@ -125,7 +197,7 @@ func CreatePoolForApp(context *clusterd.Context, clusterName string, newPool Cep
 		return fmt.Errorf("failed to create pool %s. %+v", newPool.Name, err)
 	}
 
-	if newPool.ErasureCodeProfile == "" && newPool.Size > 0 {
+	if replicated {
 		// the pool is type replicated, set the size for the pool now that it's been created
 		if err = SetPoolProperty(context, clusterName, newPool.Name, "size", strconv.FormatUint(uint64(newPool.Size), 10)); err != nil {
 			return err
@@ -133,7 +205,7 @@ func CreatePoolForApp(context *clusterd.Context, clusterName string, newPool Cep
 	}
 
 	// ensure that the newly created pool gets an application tag
-	args = []string{"osd", "pool", "application", "enable", newPool.Name, appName}
+	args = []string{"osd", "pool", "application", "enable", newPool.Name, appName, confirmFlag}
 	_, err = ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
 		return fmt.Errorf("failed to enable application %s on pool %s. %+v", appName, newPool.Name, err)
@@ -165,4 +237,87 @@ func GetPoolStats(context *clusterd.Context, clusterName string) (*CephStoragePo
 	}
 
 	return &poolStats, nil
+}
+
+func GetPools(context *clusterd.Context, clusterName string) ([]model.Pool, error) {
+	// list pool summaries using the ceph client
+	cephPoolSummaries, err := ListPoolSummaries(context, clusterName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list pools: %+v", err)
+	}
+
+	// get the details for each pool from its summary information
+	cephPools := make([]CephStoragePoolDetails, len(cephPoolSummaries))
+	for i := range cephPoolSummaries {
+		poolDetails, err := GetPoolDetails(context, clusterName, cephPoolSummaries[i].Name)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get details for pool %s. %+v", cephPoolSummaries[i].Name, err)
+		}
+
+		cephPools[i] = poolDetails
+	}
+
+	var ecProfileDetails map[string]CephErasureCodeProfile
+	lookupECProfileDetails := false
+	for i := range cephPools {
+		if cephPools[i].ErasureCodeProfile != "" {
+			// at least one pool is erasure coded, we'll need to look up erasure code profile details
+			lookupECProfileDetails = true
+			break
+		}
+	}
+	if lookupECProfileDetails {
+		// list each erasure code profile
+		ecProfileNames, err := ListErasureCodeProfiles(context, clusterName)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list erasure code profiles: %+v", err)
+		}
+
+		// get the details of each erasure code profile and store them in the map
+		ecProfileDetails = make(map[string]CephErasureCodeProfile, len(ecProfileNames))
+		for _, name := range ecProfileNames {
+			ecp, err := GetErasureCodeProfileDetails(context, clusterName, name)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get erasure code profile details for '%s': %+v", name, err)
+			}
+			ecProfileDetails[name] = ecp
+		}
+	}
+
+	// convert the ceph pools details to model pools
+	pools := make([]model.Pool, len(cephPools))
+	for i, p := range cephPools {
+		pool, err := cephPoolToModelPool(p, ecProfileDetails)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert ceph pool to model. %+v", err)
+		}
+		pools[i] = pool
+	}
+	return pools, nil
+}
+
+func cephPoolToModelPool(cephPool CephStoragePoolDetails, ecpDetails map[string]CephErasureCodeProfile) (model.Pool, error) {
+	pool := model.Pool{
+		Name:   cephPool.Name,
+		Number: cephPool.Number,
+	}
+
+	if cephPool.ErasureCodeProfile != "" {
+		ecpDetails, ok := ecpDetails[cephPool.ErasureCodeProfile]
+		if !ok {
+			return model.Pool{}, fmt.Errorf("failed to look up erasure code profile details for '%s'", cephPool.ErasureCodeProfile)
+		}
+
+		pool.Type = model.ErasureCoded
+		pool.ErasureCodedConfig.DataChunkCount = ecpDetails.DataChunkCount
+		pool.ErasureCodedConfig.CodingChunkCount = ecpDetails.CodingChunkCount
+		pool.ErasureCodedConfig.Algorithm = fmt.Sprintf("%s::%s", ecpDetails.Plugin, ecpDetails.Technique)
+	} else if cephPool.Size > 0 {
+		pool.Type = model.Replicated
+		pool.ReplicatedConfig.Size = cephPool.Size
+	} else {
+		pool.Type = model.PoolTypeUnknown
+	}
+
+	return pool, nil
 }

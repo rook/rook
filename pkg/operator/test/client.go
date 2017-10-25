@@ -29,7 +29,19 @@ func New(nodes int) *fake.Clientset {
 	clientset := fake.NewSimpleClientset()
 	for i := 0; i < nodes; i++ {
 		ready := v1.NodeCondition{Type: v1.NodeReady}
-		n := &v1.Node{Status: v1.NodeStatus{Conditions: []v1.NodeCondition{ready}}}
+		n := &v1.Node{
+			Status: v1.NodeStatus{
+				Conditions: []v1.NodeCondition{
+					ready,
+				},
+				Addresses: []v1.NodeAddress{
+					{
+						Type:    v1.NodeExternalIP,
+						Address: fmt.Sprintf("%d.%d.%d.%d", i, i, i, i),
+					},
+				},
+			},
+		}
 		n.Name = fmt.Sprintf("node%d", i)
 		clientset.CoreV1().Nodes().Create(n)
 	}

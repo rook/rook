@@ -1,0 +1,111 @@
+// Jenkins Pipelines for setting up 3 node rook cluster
+
+pipeline {
+
+    parameters {
+          choice(name: 'node', choices: 'gce-reg\ngce-load', description: 'select env to run tests in ')
+          choice(name: 'key', choices: 'master\nPR', description: 'Select master or a PR to run tests aganist - defaults to master')
+          string(name: 'PR', defaultValue: '', description: 'PR number, required if key value is set to PR')
+          string(name: 'version', defaultValue: 'v0.5.0-111.ga4a1a98', description: 'Version to run tests against')
+          string(name: 'kube_version', defaultValue: 'v1.7.5', description: 'Version of kubernetes to  tests against')
+      }
+
+    agent { label "${params.node}-master" }
+
+    options {
+        disableConcurrentBuilds()
+        timestamps()
+    }
+
+    stages {
+        stage('set up rook images') {
+            steps {
+               script {
+                    if ( "${params.key}" == 'PR' ){
+                        if ( "${params.PR}" == '' ){
+                            echo '[FAILURE] Need A valid PR number to continue'
+                            currentBuild.result = 'FAILURE'
+                            error 'Exit pipeline need a pr number'
+                        }
+                        sh "wget -O rook.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/rook.tar.gz"
+                        sh "wget -O toolbox.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/toolbox.tar.gz"
+                        sh "wget -O version https://release.rook.io/build/pr/${params.PR}/${params.version}/version"
+
+                    }else {
+                        sh "wget -O rook.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/rook.tar.gz"
+                        sh "wget -O toolbox.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/toolbox.tar.gz"
+                        sh "wget -O version https://release.rook.io/build/master/${params.version}/version"
+
+                     }
+               stash name: 'test-scripts',includes: 'tests/scripts/'
+               stash name: 'test-images', includes: 'rook.tar.gz,toolbox.tar.gz,version'
+               }
+            }
+        }
+        //start 3 node k8s cluster
+        stage ("Set Up k8s") {
+            steps{
+                script{
+                    withEnv(["KUBE_VERSION=${env.kube_version}"]){
+                        echo "setting up 3 node k8s ${env.kube_version} cluster"
+                        setUpRookImages()
+                        sh '''#!/bin/bash
+                              echo " setting up master"
+                              export KUBE_VERSION='''+ "${env.kube_version}" + '''
+                              kubeadm_join_flags="$(tests/scripts/kubeadm.sh install master | grep '^ *kubeadm join' | sed 's/^ *kubeadm join //')"
+                              echo ${kubeadm_join_flags} > ktoken'''
+                        script{
+                            token = readFile('ktoken').trim()
+                        }
+                        node("${params.node}-n1"){
+                            unstash 'test-images'
+                            setUpRookImages()
+                            unstash 'test-scripts'
+                            sh '''#!/bin/bash
+                                  echo " setting up node 1"
+                                  export KUBE_VERSION='''+ "${env.kube_version}" + '''
+                                  tests/scripts/kubeadm.sh install node ''' + "${token}"
+                        }
+                        node("${params.node}-n2"){
+                            unstash 'test-images'
+                            setUpRookImages()
+                            unstash 'test-scripts'
+                            sh '''#!/bin/bash
+                                  echo " setting up node 2"
+                                  export KUBE_VERSION='''+ "${env.kube_version}" + '''
+                                  tests/scripts/kubeadm.sh install node ''' + "${token}"
+                        }
+                        sh '''#!/bin/bash
+                              export KUBECONFIG=$HOME/admin.conf
+                              tests/scripts/kubeadm.sh wait 3'''
+                    }
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            deleteDir()
+        }
+    }
+}
+
+def setUpRookImages(){
+    //tag rook images need for testing
+    env.versionId = readFile('version').trim()
+    sh'''
+          #!/bin/bash
+          docker load -i rook.tar.gz
+          docker load -i toolbox.tar.gz
+          docker images
+          rookImg=$(docker images |grep rook | awk '{print  $1}')
+          echo $rookImg
+          toolboxImg=$(docker images |grep toolbox | awk '{print  $1}')
+          echo $toolboxImg
+          echo "helm Image:"
+          echo ${versionId}
+          docker tag $rookImg rook/rook:master
+          docker tag $rookImg rook/rook:${versionId}
+          docker tag $toolboxImg rook/toolbox:master'''
+}
