@@ -4,19 +4,36 @@ weight: 42
 indent: true
 ---
 
-# Common Problems and Troubleshooting
+Many of these problem cases are hard to summarize down to a short phrase that adequately describes the problem. Each problem will start with a bulleted list of symptoms. Keep in mind that all symptoms may not apply depending upon the configuration of the Rook. If the majority of the symptoms are seen there is a fair chance you are experiencing that problem.
 
-Many of these problem cases are hard to summarize down to a short phrase that adequately describes the problem. Each problem will start with a bulleted list of symptoms. Keep in mind that all symptoms may not apply depending upon the configuration of the cluster and/or Rook.io. If the majority of the symptoms are seen there is a fair chance you are experiencing that problem.
-
-If after trying the suggestions found on this page and the problem is not resolved, the Rook.io team is very happy to help you troubleshoot the issues in their Slack channel. Once you have [registered for the Rook.io Slack](https://rook-slackin.herokuapp.com/), proceed to the General channel to ask for assistance.
+If after trying the suggestions found on this page and the problem is not resolved, the Rook team is very happy to help you troubleshoot the issues in their Slack channel. Once you have [registered for the Rook Slack](https://rook-slackin.herokuapp.com/), proceed to the General channel to ask for assistance.
 
 - [Cluster failing to service requests](#cluster-failing-to-service-requests)
-- [Reinstall fails to start all Pods](#reinstall-fails-to-start-all-pods)
+- [Only a single monitor pod starts](#only-a-single-monitor-pod-starts)
+
+# Troubleshooting Techniques
+One of the first things that should be done is to start the [rook-tools pod](./toolbox.md) as described in the Toolbox section. Once the pod is up and running one can `kubectl exec` into the pod to execute Ceph commands to evaluate that current state of the cluster. Here is a list of commands that can help one get an understanding of the current state.
+
+* rookctl status
+* ceph status
+* ceph osd status
+* ceph osd df
+* ceph osd utilization
+* ceph osd pool stats
+* ceph osd tree
+* ceph pg stat
 
 
+Of particular note, the first two status commands provide the overall cluster health. The normal state for cluster operations is HEALTH_OK, but will still function when the state is in a HEALTH_WARN state. If you are in a WARN state, then the cluster is in a condition that it may enter the HEALTH_ERROR state at which point *all* disk I/O operations are halted. If a HEALTH_WARN state is observed, then one should take action to prevent the cluster from halting when it enters the HEALTH_ERROR state.
+
+There is literally a ton of Ceph sub-commands to look at and manipulate Ceph objects. Well beyond the scope of a few troubleshooting techniques and there are other sites and documentation sets that deal more with assisting one with troubleshooting a Ceph environment. In addition, there are other helpful hints and some best practices concerning a Ceph environment located in the [Advanced Configuration section](advanced-configuration.md). Of particular note there are scripts for collecting logs and gathering OSD information there.
+
+
+# Common Problems
 
 ## Cluster failing to service requests
 
+### Symptoms
 * Execution of the `ceph` command hangs
 * Execution of the `rookctl` command hangs
 * PersistentVolumes are not being created
@@ -24,8 +41,8 @@ If after trying the suggestions found on this page and the problem is not resolv
 * Large amount of stuck requests are blocking
 * One or more MONs are restarting periodically
 
-### Further Details
-Create a rook-tools pod to investgate the current state of CEPH. Here is an example of what one might see. In this case the `ceph status` command would just hang so a CTRL-C needed to be send. The `rookctl status` command is able to give a good amount of detail. In some cases the rook-api pod needs to be restarted for `rookctl` to be able to gather information. If the rook-api is restarted, then the rook-tools pod should be restarted also. 
+### Investigation
+Create a [rook-tools pod](./toolbox.md) to investigate the current state of CEPH. Here is an example of what one might see. In this case the `ceph status` command would just hang so a CTRL-C needed to be send. The `rookctl status` command is able to give a good amount of detail. In some cases the rook-api pod needs to be restarted for `rookctl` to be able to gather information. If the rook-api is restarted, then the rook-tools pod should be restarted also. 
 
 ```console
 $ kubectl -n rook exec -it rook-tools bash
@@ -84,18 +101,19 @@ rook-ceph-osd-mwxdm                  1/1       Running   0          2d        19
 ```
 
 ### Solution
-What is happening here is that the MON pods are restarting and one or more of the CEPH daemons are not getting configured with the proper cluster information. This is commonly the result of not specifying a value for `dataDiskHostPath` in your Cluster CRD.
+What is happening here is that the MON pods are restarting and one or more of the CEPH daemons are not getting configured with the proper cluster information. This is commonly the result of not specifying a value for `dataDirHostPath` in your Cluster CRD.
 
-The `dataDiskHostPath` setting specifies a path on the local host for the CEPH daemons to store configuration and data. Setting this to a path like `/var/lib/rook`, reapplying your Cluster CRD and restarting all the CEPH daemons (MON, MGR, OSD, RGW) should solve this problem. After the CEPH daemons have been restarted, it is advisable to restart the rook-api and rook-tool Pods. 
+The `dataDirHostPath` setting specifies a path on the local host for the CEPH daemons to store configuration and data. Setting this to a path like `/var/lib/rook`, reapplying your Cluster CRD and restarting all the CEPH daemons (MON, MGR, OSD, RGW) should solve this problem. After the CEPH daemons have been restarted, it is advisable to restart the rook-api and [rook-tool Pods](./toolbox.md).
 
-## Reinstall fails to start all Pods
+## Only a single monitor pod starts
 
-* Entire Rook.io CRDs have been deleted and the Cluster CRD has been reapplied
+### Symptoms
+* Entire Rook CRDs have been deleted and the Cluster CRD has been reapplied
 * Rook operator is running
 * Only a partial number of the MON daemons are started
 
-### Further Details
-When attempting to reinstall Rook.io, the rook-operator pod gets started successfully and then the cluster CRD is then loaded. The rook-operator only starts up a single MON (possibly on rare occasion a second MON may be started) and just hangs. Looking at the log output of the rook-operator the last operation that was occuring was a `ceph mon_status`.
+### Investigation
+When attempting to reinstall Rook, the rook-operator pod gets started successfully and then the cluster CRD is then loaded. The rook-operator only starts up a single MON (possibly on rare occasion a second MON may be started) and just hangs. Looking at the log output of the rook-operator the last operation that was occuring was a `ceph mon_status`.
 
 Attempting to run the same command inside the MON container shows that it is having authentication problems as demonstrated below.
 
@@ -109,20 +127,4 @@ root@rook-ceph-mon0-rc568:/# ceph mon_status --cluster=rook --conf=/var/lib/rook
 ```
 
 ### Solution
-This is a common problem when reinitializing the Rook.io cluster and the local directory used for persistence has not been purged. This directory is the same directory reference by the `dataDiskHostPath` setting in the cluster CRD and is typically set to /var/lib/rook. To remedy simply shutdown all components of Rook.io and then delete the contents of /var/lib/rook or the directory specified by `dataDiskHostPath` on each of the hosts in the cluster. This time when the cluster CRD is applied, the rook-operator should start all the Pods as expected.
-
-## Troubleshooting Techniques
-One of the first things that should be done is to start the rook-tools pod as described in the Toolbox section. Once the pod is up and running one can `kubectl exec` into the pod to execute Ceph commands to evaluate that current state of the cluster. Here is a list of commands that can help one get an understanding of the current state.
-
-* rookctl status
-* ceph status
-* ceph osd status
-* ceph osd df
-* ceph osd utilization
-* ceph osd pool stats
-* ceph pg stat
-
-
-Of particular note, the first two status commands provide the overall cluster health. The normal state for cluster operations is HEALTH_OK, but will still function when the state is in a HEALTH_WARN state. If you are in a WARN state, then the cluster is in a condition that it may enter the HEALTH_ERROR state at which point *all* disk I/O operations are halted. If a HEALTH_WARN state is observed, then one should take action to prevent the cluster from halting when it enters the HEALTH_ERROR state.
-
-There is litterally a ton of Ceph sub-commands to look at and manipulate Ceph objects. Well beyond the scope of a few troubleshooting techniques and there are other sites and documentation sets that deal more with assisting one with troubleshooting a Ceph environment. In addition, there are other helpful hints and some best practices concerning a Ceph environment located in the [Advanced Configuration section](advanced-configuration.md). Of particular note there are scripts for collecting logs and gathering OSD information there.
+This is a common problem when reinitializing the Rook cluster and the local directory used for persistence has not been purged. This directory is the same directory reference by the `dataDiskHostPath` setting in the cluster CRD and is typically set to `/var/lib/rook`. To remedy simply shutdown all components of Rook and then delete the contents of `/var/lib/rook` or the directory specified by `dataDiskHostPath` on each of the hosts in the cluster. This time when the cluster CRD is applied, the rook-operator should start all the Pods as expected.
