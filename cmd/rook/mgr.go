@@ -61,7 +61,6 @@ func startMgr(cmd *cobra.Command, args []string) error {
 		Name:        mgrName,
 		Keyring:     mgrKeyring,
 		ClusterInfo: &clusterInfo,
-		InProc:      true,
 	}
 
 	err := mgr.Run(createContext(), config)

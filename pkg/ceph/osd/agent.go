@@ -59,18 +59,20 @@ type OsdAgent struct {
 	usingDeviceFilter  bool
 	metadataDevice     string
 	directories        string
+	procMan            *proc.ProcManager
 	storeConfig        StoreConfig
 	kv                 kvstore.KeyValueStore
 	configCounter      int32
 	osdsCompleted      chan struct{}
 }
 
-func NewAgent(devices string, usingDeviceFilter bool, metadataDevice, directories string, forceFormat bool,
+func NewAgent(context *clusterd.Context, devices string, usingDeviceFilter bool, metadataDevice, directories string, forceFormat bool,
 	location string, storeConfig StoreConfig, cluster *mon.ClusterInfo, nodeName string, kv kvstore.KeyValueStore) *OsdAgent {
 
 	return &OsdAgent{devices: devices, usingDeviceFilter: usingDeviceFilter, metadataDevice: metadataDevice,
 		directories: directories, forceFormat: forceFormat, location: location, storeConfig: storeConfig,
 		cluster: cluster, nodeName: nodeName, kv: kv,
+		procMan: proc.New(context.Executor), osdProc: make(map[int]*proc.MonitoredProc),
 	}
 }
 
@@ -405,7 +407,7 @@ func (a *OsdAgent) runOSD(context *clusterd.Context, clusterName string, config 
 		params = append(params, fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(config.rootPath)))
 	}
 
-	process, err := context.ProcMan.Start(
+	process, err := a.procMan.Start(
 		fmt.Sprintf("osd%d", config.id),
 		"ceph-osd",
 		regexp.QuoteMeta(osdUUIDArg),
@@ -415,10 +417,6 @@ func (a *OsdAgent) runOSD(context *clusterd.Context, clusterName string, config 
 		return fmt.Errorf("failed to start osd %d: %+v", config.id, err)
 	}
 
-	if a.osdProc == nil {
-		// initialize the osd map
-		a.osdProc = make(map[int]*proc.MonitoredProc)
-	}
 	if process != nil {
 		// if the process was already running Start will return nil in which case we don't want to overwrite it
 		a.osdProc[config.id] = process

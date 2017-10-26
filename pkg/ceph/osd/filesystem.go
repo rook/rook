@@ -69,13 +69,9 @@ func createOSDFileSystem(context *clusterd.Context, clusterName string, config *
 		options = append(options, fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(config.rootPath)))
 	}
 
-	// create the OSD file system
-	err = context.ProcMan.Run(
-		fmt.Sprintf("mkfs-osd%d", config.id),
-		"ceph-osd",
-		options...)
-
-	if err != nil {
+	// create the file system
+	logName := fmt.Sprintf("mkfs-osd%d", config.id)
+	if err = context.Executor.ExecuteCommand(false, logName, "ceph-osd", options...); err != nil {
 		return fmt.Errorf("failed osd mkfs for OSD ID %d, UUID %s, dataDir %s: %+v",
 			config.id, config.uuid.String(), config.rootPath, err)
 	}

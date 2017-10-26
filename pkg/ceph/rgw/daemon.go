@@ -20,7 +20,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"regexp"
 
 	"strconv"
 
@@ -28,7 +27,6 @@ import (
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
-	"github.com/rook/rook/pkg/util/proc"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephrgw")
@@ -40,7 +38,6 @@ type Config struct {
 	SecurePort      int
 	Keyring         string
 	CertificatePath string
-	InProc          bool
 	ClusterInfo     *mon.ClusterInfo
 }
 
@@ -51,7 +48,7 @@ func Run(context *clusterd.Context, config *Config) error {
 		return fmt.Errorf("failed to generate rgw config files. %+v", err)
 	}
 
-	_, err = startRGW(context, config)
+	err = startRGW(context, config)
 	if err != nil {
 		return fmt.Errorf("failed to run rgw. %+v", err)
 	}
@@ -123,7 +120,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	return nil
 }
 
-func startRGW(context *clusterd.Context, config *Config) (rgwProc *proc.MonitoredProc, err error) {
+func startRGW(context *clusterd.Context, config *Config) (err error) {
 	// start the monitor daemon in the foreground with the given config
 	logger.Infof("starting rgw")
 
@@ -139,15 +136,10 @@ func startRGW(context *clusterd.Context, config *Config) (rgwProc *proc.Monitore
 		fmt.Sprintf("--keyring=%s", getRGWKeyringPath(context.ConfigDir)),
 		fmt.Sprintf("--rgw-mime-types-file=%s", getMimeTypesPath(context.ConfigDir)),
 	}
-	if config.InProc {
-		err = context.ProcMan.Run("rgw", "radosgw", args...)
-	} else {
-		rgwProc, err = context.ProcMan.Start("rgw", "radosgw", regexp.QuoteMeta(rgwNameArg), proc.ReuseExisting, args...)
+	if err = context.Executor.ExecuteCommand(false, "rgw", "radosgw", args...); err != nil {
+		return fmt.Errorf("failed to start rgw: %+v", err)
 	}
-	if err != nil {
-		err = fmt.Errorf("failed to start rgw: %+v", err)
-	}
-	return
+	return nil
 }
 
 func getRGWConfFilePath(configDir, clusterName string) string {

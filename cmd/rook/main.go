@@ -32,7 +32,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
-	"github.com/rook/rook/pkg/util/proc"
 	"github.com/rook/rook/pkg/version"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 )
@@ -123,7 +122,6 @@ func createContext() *clusterd.Context {
 	executor := &exec.CommandExecutor{}
 	return &clusterd.Context{
 		Executor:           executor,
-		ProcMan:            proc.New(executor),
 		ConfigDir:          cfg.dataDir,
 		ConfigFileOverride: cfg.cephConfigOverride,
 		LogLevel:           cfg.logLevel,

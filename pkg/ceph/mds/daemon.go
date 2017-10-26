@@ -118,7 +118,7 @@ func startMDS(context *clusterd.Context, config *Config) error {
 	}
 
 	name := fmt.Sprintf("mds%s", config.ID)
-	if err := context.ProcMan.Run(name, "ceph-mds", args...); err != nil {
+	if err := context.Executor.ExecuteCommand(false, name, "ceph-mds", args...); err != nil {
 		return fmt.Errorf("failed to start mds. %+v", err)
 	}
 	return nil

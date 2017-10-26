@@ -121,7 +121,8 @@ func startMon(context *clusterd.Context, config *Config, confFilePath, monDataDi
 
 	monNameArg := fmt.Sprintf("--name=mon.%s", config.Name)
 	keyringPath := getMonKeyringPath(context.ConfigDir, config.Name)
-	err = context.ProcMan.Run(
+	err = context.Executor.ExecuteCommand(
+		false,
 		fmt.Sprintf("mkfs-%s", config.Name),
 		"ceph-mon",
 		"--mkfs",
@@ -150,8 +151,7 @@ func startMon(context *clusterd.Context, config *Config, confFilePath, monDataDi
 		fmt.Sprintf("--public-addr=%s:%d", context.NetworkInfo.PublicAddrIPv4, config.Port),
 		fmt.Sprintf("--public-bind-addr=%s:%d", context.NetworkInfo.ClusterAddrIPv4, config.Port),
 	}
-	err = context.ProcMan.Run(config.Name, "ceph-mon", args...)
-	if err != nil {
+	if err = context.Executor.ExecuteCommand(false, config.Name, "ceph-mon", args...); err != nil {
 		return fmt.Errorf("failed to start mon: %+v", err)
 	}
 
