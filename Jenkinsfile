@@ -140,10 +140,9 @@ def RunIntegrationTest(k, v) {
                             echo "Running Smoke Tests"
                             sh '''#!/bin/bash
                                   set -o pipefail
-                                  export HOST_TYPE='''+ "${k}" + '''
                                   export KUBECONFIG=$HOME/admin.conf
                                   kubectl config view
-                                  _output/tests/linux_amd64/integration -test.v -test.timeout 600s -test.run SmokeSuite 2>&1 | tee _output/tests/integrationTests.log'''
+                                  _output/tests/linux_amd64/integration -test.v -test.timeout 600s -test.run SmokeSuite --host_type '''+"${k}"+''' 2>&1 | tee _output/tests/integrationTests.log'''
                         }
                         else {
                         echo "Running full regression"
@@ -151,7 +150,7 @@ def RunIntegrationTest(k, v) {
                               set -o pipefail
                               export KUBECONFIG=$HOME/admin.conf
                               kubectl config view
-                              _output/tests/linux_amd64/integration -test.v -test.timeout 1800s 2>&1 | tee _output/tests/integrationTests.log'''
+                              _output/tests/linux_amd64/integration -test.v -test.timeout 1800s --host_type '''+"${k}"+''' 2>&1 | tee _output/tests/integrationTests.log'''
                          }
                     }
                     finally{
