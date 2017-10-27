@@ -1,0 +1,83 @@
+
+# Gopkg.toml example
+#
+# Refer to https://github.com/golang/dep/blob/master/docs/Gopkg.toml.md
+# for detailed Gopkg.toml documentation.
+#
+# required = ["github.com/user/thing/cmd/thing"]
+# ignored = ["github.com/user/project/pkgX", "bitbucket.org/user/project/pkgA/pkgY"]
+#
+# [[constraint]]
+#   name = "github.com/user/project"
+#   version = "1.0.0"
+#
+# [[constraint]]
+#   name = "github.com/user/project2"
+#   branch = "dev"
+#   source = "github.com/myfork/project2"
+#
+# [[override]]
+#  name = "github.com/x/y"
+#  version = "2.4.0"
+
+ignored = ["github.com/rook/rook/.cache","github.com/rook/rook/.work","github.com/rook/rook/Documentation","github.com/rook/rook/_output","github.com/rook/rook/build","github.com/rook/rook/cluster","github.com/rook/rook/images"]
+
+[[constraint]]
+  name = "github.com/aws/aws-sdk-go"
+
+[[constraint]]
+  name = "github.com/coreos/pkg"
+
+[[constraint]]
+  name = "github.com/ghodss/yaml"
+
+[[constraint]]
+  name = "github.com/go-ini/ini"
+
+[[constraint]]
+  name = "github.com/go-sql-driver/mysql"
+
+[[constraint]]
+  name = "github.com/google/uuid"
+
+[[constraint]]
+  name = "github.com/gorilla/mux"
+
+[[constraint]]
+  name = "github.com/icrowley/fake"
+
+[[constraint]]
+  name = "github.com/jbw976/go-ps"
+
+[[constraint]]
+  name = "github.com/kubernetes-incubator/external-storage"
+
+[[constraint]]
+  name = "github.com/prometheus/client_golang"
+
+[[constraint]]
+  name = "github.com/rook/operator-kit"
+
+[[constraint]]
+  name = "github.com/spf13/cobra"
+
+[[constraint]]
+  name = "github.com/spf13/pflag"
+
+[[constraint]]
+  name = "github.com/stretchr/testify"
+
+[[constraint]]
+  name = "k8s.io/api"
+
+[[constraint]]
+  name = "k8s.io/apiextensions-apiserver"
+
+[[constraint]]
+  name = "k8s.io/apimachinery"
+
+[[constraint]]
+  name = "k8s.io/client-go"
+
+[[constraint]]
+  name = "k8s.io/kubernetes"

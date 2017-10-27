@@ -65,15 +65,10 @@ endif
 GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
-GLIDE_VERSION=v0.13.0
-GLIDE_HOME := $(abspath $(CACHE_DIR)/glide)
-GLIDE := $(TOOLS_HOST_DIR)/glide-$(GLIDE_VERSION)
-GLIDE_YAML := $(ROOT_DIR)/glide.yaml
-GLIDE_LOCK := $(ROOT_DIR)/glide.lock
-GLIDE_INSTALL_STAMP := $(GO_VENDOR_DIR)/vendor.stamp
+DEP_VERSION=v0.3.2
+DEP := $(TOOLS_HOST_DIR)/dep-$(DEP_VERSION)
 GOLINT := $(TOOLS_HOST_DIR)/golint
 GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
-export GLIDE_HOME
 
 GO := go
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
@@ -115,7 +110,7 @@ endif
 endif
 
 .PHONY: go.init
-go.init: $(GLIDE_INSTALL_STAMP)
+go.init: go.vendor
 	@:
 
 .PHONY: go.build
@@ -161,23 +156,16 @@ go.fmt:
 
 go.validate: go.vet go.fmt
 
-go.vendor: $(GLIDE) $(GLIDE_YAML)
-	@echo === updating vendor dependencies
-	@mkdir -p $(GLIDE_HOME)
-	@$(GLIDE) update --strip-vendor
+.PHONY: go.vendor
+go.vendor: $(DEP)
+	@echo === ensuring vendor dependencies are up to date
+	@$(DEP) ensure
 
-$(GLIDE_INSTALL_STAMP): $(GLIDE) $(GLIDE_LOCK)
-	@echo === installing vendor dependencies
-	@mkdir -p $(GLIDE_HOME)
-	@$(GLIDE) install --strip-vendor
-	@touch $@
-
-$(GLIDE):
-	@echo === installing glide
-	@mkdir -p $(TOOLS_HOST_DIR)/tmp
-	@curl -sL https://github.com/Masterminds/glide/releases/download/$(GLIDE_VERSION)/glide-$(GLIDE_VERSION)-$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
-	@mv $(TOOLS_HOST_DIR)/tmp/$(GOHOSTOS)-$(GOHOSTARCH)/glide $(GLIDE)
-	@rm -fr $(TOOLS_HOST_DIR)/tmp
+$(DEP):
+	@echo === installing dep
+	@mkdir -p $(TOOLS_HOST_DIR)
+	@curl -sL -o $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-$(GOHOSTOS)-$(GOHOSTARCH)
+	@chmod +x $(DEP)
 
 $(GOLINT):
 	@echo === installing golint
@@ -193,5 +181,5 @@ $(GOJUNIT):
 
 .PHONY: go.distclean
 go.distclean:
-	@rm -rf $(GLIDE_INSTALL_STAMP) $(GO_VENDOR_DIR)
+	@rm -rf $(GO_VENDOR_DIR)
 
