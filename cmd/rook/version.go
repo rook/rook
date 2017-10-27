@@ -19,7 +19,6 @@ package main
 import (
 	"fmt"
 
-	etcdversion "github.com/coreos/etcd/version"
 	"github.com/rook/rook/pkg/version"
 	"github.com/spf13/cobra"
 )
@@ -29,13 +28,6 @@ var versionCmd = &cobra.Command{
 	Short: "Print the version number of rook",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Printf(" rook: %s\n", version.Version)
-		fmt.Printf(" etcd: %s\n", etcdversion.Version)
-		fmt.Printf("cephd: %v\n", cephVersion())
 		return nil
 	},
-}
-
-// get the version of the Ceph tools in the container
-func cephVersion() string {
-	return "notimplemented"
 }

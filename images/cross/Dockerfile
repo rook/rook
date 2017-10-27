@@ -37,8 +37,8 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # install go-lang from the official repo
-RUN GO_VERSION=1.9.1 && \
-    GO_HASH=07d81c6b6b4c2dcf1b5ef7c27aaebd3691cdb40548500941f92b221147c5d9c7 && \
+RUN GO_VERSION=1.9.2 && \
+    GO_HASH=de874549d9a8d8d8062be05808509c09a88a248e77ec14eb77453530829ac02b && \
     curl -fsSL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
     echo "${GO_HASH}  golang.tar.gz" | sha256sum -c - && \
     tar -C /usr/local -xzf golang.tar.gz && \
