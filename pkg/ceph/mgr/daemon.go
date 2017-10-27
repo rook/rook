@@ -72,7 +72,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	}
 	logger.Infof("Conf files: dir=%s keyring=%s", confDir, keyringPath)
 	_, err := mon.GenerateConfigFile(context, config.ClusterInfo, confDir,
-		username, keyringPath, false, nil, settings)
+		username, keyringPath, nil, settings)
 	if err != nil {
 		return fmt.Errorf("failed to create config file. %+v", err)
 	}

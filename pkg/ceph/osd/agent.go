@@ -361,7 +361,7 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, config *osdConfig) error 
 		}
 	} else {
 		// update the osd config file
-		err := writeConfigFile(config, context, a.cluster)
+		err := writeConfigFile(config, context, a.cluster, a.location)
 		if err != nil {
 			logger.Warningf("failed to update config file. %+v", err)
 		}
