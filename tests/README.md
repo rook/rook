@@ -132,6 +132,6 @@ For example look at the [block long haul test](/tests/block/k8s/longhaul/basicBl
 
 Prerequisites :
 * Go installed and GO_PATH set
-* Glide installed 
+* Dep installed 
 * when running tests locally, make sure `kubectl` is accessible globally as the test framework uses kubectl 
 
