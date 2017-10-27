@@ -139,18 +139,18 @@ func (h *InstallHelper) CreateK8sRookToolbox(namespace string) (err error) {
 }
 
 func (h *InstallHelper) CreateK8sRookCluster(namespace string, storeType string) (err error) {
-	return h.CreateK8sRookClusterWithHostPath(namespace, storeType, "")
+	return h.CreateK8sRookClusterWithHostPath(namespace, storeType, "", 1)
 }
 
-func (h *InstallHelper) CreateK8sRookClusterWithHostPath(namespace string, storeType string, dataDirHostPath string) (err error) {
-	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, "", IsAdditionalDeviceAvailableOnCluster())
+func (h *InstallHelper) CreateK8sRookClusterWithHostPath(namespace string, storeType string, dataDirHostPath string, mons int) (err error) {
+	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, "", false, mons)
 }
 
 //CreateK8sRookCluster creates rook cluster via kubectl
-func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace string, storeType string, dataDirHostPath string, useAllDevices bool) (err error) {
+func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath string, useAllDevices bool, mons int) (err error) {
 	logger.Infof("Starting Rook Cluster")
 
-	rookCluster := h.installData.GetRookCluster(namespace, storeType, dataDirHostPath, useAllDevices)
+	rookCluster := h.installData.GetRookCluster(namespace, storeType, dataDirHostPath, useAllDevices, mons)
 
 	_, err = h.k8shelper.KubectlWithStdin(rookCluster, createArgs...)
 
@@ -171,12 +171,12 @@ func SystemNamespace(namespace string) string {
 	return fmt.Sprintf("%s-system", namespace)
 }
 
-func (h *InstallHelper) InstallRookOnK8s(namespace string, storeType string) (bool, error) {
-	return h.InstallRookOnK8sWithHostPath(namespace, storeType, "")
+func (h *InstallHelper) InstallRookOnK8s(namespace, storeType string, mons int) (bool, error) {
+	return h.InstallRookOnK8sWithHostPathAndDevices(namespace, storeType, "", false, mons)
 }
 
 //InstallRookOnK8s installs rook on k8s
-func (h *InstallHelper) InstallRookOnK8sWithHostPath(namespace string, storeType string, dataDirHostPath string) (bool, error) {
+func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType, dataDirHostPath string, useDevices bool, mons int) (bool, error) {
 
 	//flag used for local debuggin purpose, when rook is pre-installed
 	skipRookInstall := strings.EqualFold(h.Env.SkipInstallRook, "true")
@@ -204,8 +204,12 @@ func (h *InstallHelper) InstallRookOnK8sWithHostPath(namespace string, storeType
 
 	time.Sleep(10 * time.Second)
 
+	if useDevices {
+		useDevices = IsAdditionalDeviceAvailableOnCluster()
+	}
+
 	//Create rook cluster
-	err = h.CreateK8sRookClusterWithHostPath(namespace, storeType, dataDirHostPath)
+	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath, useDevices, mons)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed ,error -> %v", namespace, err)
 		return false, err
@@ -271,18 +275,9 @@ func (h *InstallHelper) UninstallRookFromK8s(namespace string, helmInstalled boo
 	_, err = k8sHelp.DeleteResource([]string{"namespace", namespace})
 	assert.NoError(h.T(), err, "cannot delete namespace %s err -> %+v", namespace, err)
 
-	isRookUninstalled := k8sHelp.WaitUntilPodInNamespaceIsDeleted("rook-ceph-mon", namespace)
-	isNameSpaceDeleted := k8sHelp.WaitUntilNameSpaceIsDeleted(namespace)
 	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("anon-user-access", nil)
 
-	assert.True(h.T(), isRookUninstalled, "make sure rook is uninstalled")
-	assert.True(h.T(), isNameSpaceDeleted, "make sure rook is uninstalled")
-
-	if isRookUninstalled && isNameSpaceDeleted {
-		logger.Infof("Rook cluster %s uninstalled successfully", namespace)
-		return
-	}
-	logger.Errorf("Rook cluster %s not uninstalled", namespace)
+	logger.Infof("Rook cluster %s uninstalled", namespace)
 }
 
 //CleanupCluster deletes a rook cluster for a namespace
@@ -308,10 +303,6 @@ func (h *InstallHelper) CleanupCluster(clusterName string) {
 	if err != nil {
 		logger.Errorf("namespace  %s cannot be deleted,err -> %v", clusterName, err)
 	}
-
-	h.k8shelper.WaitUntilPodInNamespaceIsDeleted("rook-ceph-mon", clusterName)
-	h.k8shelper.WaitUntilNameSpaceIsDeleted(clusterName)
-
 }
 
 //NewK8sRookhelper creates new instance of InstallHelper

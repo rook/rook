@@ -31,7 +31,7 @@ import (
 
 // Test K8s Block Image Creation Scenarios. These tests work when platform is set to Kubernetes
 
-func TestK8sBlockCreate(t *testing.T) {
+func TestK8sBlockImageCreateSuite(t *testing.T) {
 	suite.Run(t, new(K8sBlockImageCreateSuite))
 }
 
@@ -54,7 +54,7 @@ func (s *K8sBlockImageCreateSuite) SetupSuite() {
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset, s.T)
 
-	isRookInstalled, err := s.installer.InstallRookOnK8s(s.namespace, "bluestore")
+	isRookInstalled, err := s.installer.InstallRookOnK8s(s.namespace, "bluestore", 1)
 	assert.NoError(s.T(), err)
 	if !isRookInstalled {
 		logger.Errorf("Rook Was not installed successfully")
