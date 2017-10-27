@@ -52,13 +52,13 @@ func (mrc *MultiRookClusterDeploySuite) SetupSuite() {
 
 	time.Sleep(10 * time.Second)
 
-	err = mrc.installer.CreateK8sRookCluster(mrc.namespace1, "bluestore")
+	err = mrc.installer.CreateK8sRookClusterWithHostPathAndDevices(mrc.namespace1, "bluestore", "", installer.IsAdditionalDeviceAvailableOnCluster())
 	require.NoError(mrc.T(), err)
 
 	err = mrc.installer.CreateK8sRookToolbox(mrc.namespace1)
 	require.NoError(mrc.T(), err)
 
-	err = mrc.installer.CreateK8sRookCluster(mrc.namespace2, "filestore")
+	err = mrc.installer.CreateK8sRookClusterWithHostPathAndDevices(mrc.namespace2, "filestore", "", false)
 	require.NoError(mrc.T(), err)
 
 	err = mrc.installer.CreateK8sRookToolbox(mrc.namespace2)

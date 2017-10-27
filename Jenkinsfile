@@ -67,9 +67,9 @@ pipeline {
                 stash name: 'repo-amd64',includes: 'rook-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script{
                     def data = [
-                        "aws_1.6": "v1.6.7",
-                        "gce_1.7": "v1.7.8",
-                        "gce_1.8": "v1.8.0"
+                        "gce_1.6": "v1.6.7",
+                        "aws_1.7": "v1.7.8",
+                        "gce_1.8": "v1.8.2",
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
@@ -140,7 +140,7 @@ def RunIntegrationTest(k, v) {
                             echo "Running Smoke Tests"
                             sh '''#!/bin/bash
                                   set -o pipefail
-                                  export host_type='''+ "${k}" + '''
+                                  export HOST_TYPE='''+ "${k}" + '''
                                   export KUBECONFIG=$HOME/admin.conf
                                   kubectl config view
                                   _output/tests/linux_amd64/integration -test.v -test.timeout 600s -test.run SmokeSuite 2>&1 | tee _output/tests/integrationTests.log'''

@@ -22,12 +22,13 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/client-go/kubernetes"
-
 	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/sys"
 	"github.com/rook/rook/tests/framework/objects"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -141,11 +142,15 @@ func (h *InstallHelper) CreateK8sRookCluster(namespace string, storeType string)
 	return h.CreateK8sRookClusterWithHostPath(namespace, storeType, "")
 }
 
-//CreateK8sRookCluster creates rook cluster via kubectl
 func (h *InstallHelper) CreateK8sRookClusterWithHostPath(namespace string, storeType string, dataDirHostPath string) (err error) {
+	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, "", IsAdditionalDeviceAvailableOnCluster())
+}
+
+//CreateK8sRookCluster creates rook cluster via kubectl
+func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace string, storeType string, dataDirHostPath string, useAllDevices bool) (err error) {
 	logger.Infof("Starting Rook Cluster")
 
-	rookCluster := h.installData.GetRookCluster(namespace, storeType, dataDirHostPath)
+	rookCluster := h.installData.GetRookCluster(namespace, storeType, dataDirHostPath, useAllDevices)
 
 	_, err = h.k8shelper.KubectlWithStdin(rookCluster, createArgs...)
 
@@ -329,4 +334,28 @@ func NewK8sRookhelper(clientset *kubernetes.Clientset, t func() *testing.T) *Ins
 		k8sVersion:  version.String(),
 		T:           t,
 	}
+}
+
+func IsAdditionalDeviceAvailableOnCluster() bool {
+	executor := &exec.CommandExecutor{}
+	devices, err := sys.ListDevices(executor)
+	if err != nil {
+		return false
+	}
+	disks := 0
+	logger.Infof("devices : %v", devices)
+	for _, device := range devices {
+		if strings.Contains(device, "loop") {
+			continue
+		}
+		props, _ := sys.GetDeviceProperties(device, executor)
+		if props["TYPE"] == "disk" {
+			disks++
+		}
+	}
+	if disks > 1 {
+		return true
+	}
+	logger.Info("No additional disks found on cluster")
+	return false
 }

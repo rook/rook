@@ -16,6 +16,10 @@ limitations under the License.
 
 package installer
 
+import (
+	"strconv"
+)
+
 //InstallData wraps rook yaml definitions
 type InstallData struct {
 }
@@ -181,7 +185,7 @@ spec:
 }
 
 //GetRookCluster returns rook-cluster manifest
-func (i *InstallData) GetRookCluster(namespace string, storeType string, dataDirHostPath string) string {
+func (i *InstallData) GetRookCluster(namespace string, storeType string, dataDirHostPath string, useAllDevices bool) string {
 	return `apiVersion: v1
 kind: Namespace
 metadata:
@@ -198,7 +202,7 @@ spec:
   hostNetwork: false
   storage:
     useAllNodes: true
-    useAllDevices: false
+    useAllDevices: ` + strconv.FormatBool(useAllDevices) + `
     deviceFilter:
     metadataDevice:
     location:
