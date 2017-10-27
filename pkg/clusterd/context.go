@@ -18,7 +18,6 @@ package clusterd
 import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/util/exec"
-	"github.com/rook/rook/pkg/util/proc"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
 )
@@ -33,9 +32,6 @@ type Context struct {
 
 	// The implementation of executing a console command
 	Executor exec.Executor
-
-	// The process manager for launching a process
-	ProcMan *proc.ProcManager
 
 	// The root configuration directory used by services
 	ConfigDir string

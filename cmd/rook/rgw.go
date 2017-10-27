@@ -77,7 +77,6 @@ func startRGW(cmd *cobra.Command, args []string) error {
 		Port:            rgwPort,
 		SecurePort:      rgwSecurePort,
 		CertificatePath: rgwCert,
-		InProc:          true,
 	}
 
 	err := rgw.Run(createContext(), config)

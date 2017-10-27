@@ -106,7 +106,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	forceFormat := false
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	agent := osd.NewAgent(dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
+	agent := osd.NewAgent(context, dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
 		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
 
 	err = osd.Run(context, agent)

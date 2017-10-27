@@ -31,7 +31,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/kvstore"
-	"github.com/rook/rook/pkg/util/proc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -170,7 +169,6 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig StoreConfig) {
 	context := &clusterd.Context{
 		Executor:  executor,
 		ConfigDir: configDir,
-		ProcMan:   proc.New(executor),
 	}
 
 	// Set sdx as already having an assigned osd id, a UUID and saved to the partition scheme.
@@ -211,10 +209,9 @@ func TestOSDAgentNoDevices(t *testing.T) {
 	os.MkdirAll(filepath.Join(configDir, "osd3"), 0744)
 
 	// create a test OSD agent with no devices specified
-	agent, _ := createTestAgent(t, "", configDir, nil)
+	agent, executor := createTestAgent(t, "", configDir, nil)
 
 	startCount := 0
-	executor := &exectest.MockExecutor{}
 	executor.MockStartExecuteCommand = func(debug bool, name string, command string, args ...string) (*exec.Cmd, error) {
 		logger.Infof("StartExecuteCommand: %s %v", command, args)
 		startCount++
@@ -248,7 +245,6 @@ func TestOSDAgentNoDevices(t *testing.T) {
 	context := &clusterd.Context{
 		Devices:   []*clusterd.LocalDisk{},
 		Executor:  executor,
-		ProcMan:   proc.New(executor),
 		ConfigDir: configDir,
 	}
 	dirs := map[string]int{
@@ -270,14 +266,14 @@ func createTestAgent(t *testing.T, devices, configDir string, storeConfig *Store
 	if storeConfig == nil {
 		storeConfig = &StoreConfig{StoreType: Bluestore}
 	}
-	agent := NewAgent(devices, false, "", "", forceFormat, location, *storeConfig, nil, "myhost", kvstore.NewMockKeyValueStore())
-	agent.cluster = &mon.ClusterInfo{Name: "myclust"}
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 		},
 	}
+	agent := NewAgent(&clusterd.Context{Executor: executor}, devices, false, "", "", forceFormat, location, *storeConfig, nil, "myhost", kvstore.NewMockKeyValueStore())
+	agent.cluster = &mon.ClusterInfo{Name: "myclust"}
 
 	return agent, executor
 }
