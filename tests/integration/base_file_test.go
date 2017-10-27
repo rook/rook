@@ -95,7 +95,6 @@ func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	logger.Infof("Cleaning up file system")
 	podWithFilesystem(k8sh, s, podname, namespace, filesystemName, fileMountPath, "delete")
 	helper.GetFileSystemClient().FSDelete(filesystemName)
-
 }
 
 func podWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, podname string, namespace string, filesystemName string, fileMountPath string, action string) error {

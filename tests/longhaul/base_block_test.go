@@ -22,7 +22,7 @@ func setUpRookAndPoolInNamespace(t func() *testing.T, namespace string, storageC
 
 	i := installer.NewK8sRookhelper(kh.Clientset, t)
 	if !kh.IsRookInstalled(namespace) {
-		isRookInstalled, err := i.InstallRookOnK8sWithHostPath(namespace, "bluestore", "/temp/rookBackup")
+		isRookInstalled, err := i.InstallRookOnK8sWithHostPathAndDevices(namespace, "bluestore", "/temp/rookBackup", true, 3)
 		require.NoError(t(), err)
 		require.True(t(), isRookInstalled)
 	}

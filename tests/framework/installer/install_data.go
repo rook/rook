@@ -185,7 +185,7 @@ spec:
 }
 
 //GetRookCluster returns rook-cluster manifest
-func (i *InstallData) GetRookCluster(namespace string, storeType string, dataDirHostPath string, useAllDevices bool) string {
+func (i *InstallData) GetRookCluster(namespace, storeType, dataDirHostPath string, useAllDevices bool, mons int) string {
 	return `apiVersion: v1
 kind: Namespace
 metadata:
@@ -200,6 +200,7 @@ spec:
   versionTag: master
   dataDirHostPath: ` + dataDirHostPath + `
   hostNetwork: false
+  monCount: ` + strconv.Itoa(mons) + `
   storage:
     useAllNodes: true
     useAllDevices: ` + strconv.FormatBool(useAllDevices) + `
