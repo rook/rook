@@ -20,12 +20,10 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"strconv"
 	"text/tabwriter"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/rook/client"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -52,15 +50,13 @@ https://github.com/rook/rook`,
 }
 
 func init() {
-	defaultHost := os.Getenv("ROOK_API_SERVICE_HOST")
-	if defaultHost == "" {
-		defaultHost = "127.0.0.1"
+	host := os.Getenv("ROOK_API_SERVICE_HOST")
+	port := os.Getenv("ROOK_API_SERVICE_PORT")
+	defaultEndpoint := fmt.Sprintf("%s:%s", host, port)
+	if host == "" || port == "" {
+		fmt.Println("$ROOK_API_SERVICE_HOST or $ROOK_API_SERVICE_PORT are not set. Check if the rook-api service is running.")
+		defaultEndpoint = ""
 	}
-	defaultPort := os.Getenv("ROOK_API_SERVICE_PORT")
-	if defaultPort == "" {
-		defaultPort = strconv.Itoa(model.Port)
-	}
-	defaultEndpoint := fmt.Sprintf("%s:%s", defaultHost, defaultPort)
 
 	RootCmd.PersistentFlags().StringVar(&APIServerEndpoint, "api-server-endpoint", defaultEndpoint, "IP endpoint of API server instance (required)")
 	RootCmd.PersistentFlags().StringVar(&logLevelRaw, "log-level", "WARNING", "logging level for logging/tracing output (valid values: CRITICAL,ERROR,WARNING,NOTICE,INFO,DEBUG,TRACE)")
