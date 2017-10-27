@@ -20,8 +20,8 @@ package rgw
 import (
 	"reflect"
 
+	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,7 +34,7 @@ var (
 )
 
 // ObjectStoreResource represents the object store custom resource
-var ObjectStoreResource = kit.CustomResource{
+var ObjectStoreResource = opkit.CustomResource{
 	Name:    "objectstore",
 	Plural:  "objectstores",
 	Group:   k8sutil.CustomResourceGroup,

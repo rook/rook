@@ -27,12 +27,12 @@ import (
 	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
+	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/agent/flexvolume"
 	"github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/agent/flexvolume/manager/ceph"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rook-agent")
@@ -52,7 +52,7 @@ func New(context *clusterd.Context) *Agent {
 // Run the agent
 func (a *Agent) Run() error {
 
-	volumeAttachmentClient, _, err := kit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, crd.SchemeBuilder)
+	volumeAttachmentClient, _, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, crd.SchemeBuilder)
 	if err != nil {
 		return fmt.Errorf("failed to create Volumeattach CRD client: %+v", err)
 	}
