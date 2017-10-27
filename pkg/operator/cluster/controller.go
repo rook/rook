@@ -25,11 +25,11 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/api"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	"github.com/rook/rook/pkg/operator/mds"
 	"github.com/rook/rook/pkg/operator/mgr"
 	"github.com/rook/rook/pkg/operator/mon"
@@ -82,7 +82,7 @@ func NewClusterController(context *clusterd.Context) (*ClusterController, error)
 // Watch watches instances of cluster resources
 func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
 
-	customResourceClient, scheme, err := kit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
+	customResourceClient, scheme, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
 	if err != nil {
 		return fmt.Errorf("failed to get a k8s client for watching cluster resources: %v", err)
 	}
@@ -94,7 +94,7 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 		DeleteFunc: c.onDelete,
 	}
 
-	watcher := kit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, customResourceClient)
+	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, customResourceClient)
 	go watcher.Watch(&Cluster{}, stopCh)
 	return nil
 }

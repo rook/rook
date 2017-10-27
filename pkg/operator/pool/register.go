@@ -20,8 +20,8 @@ package pool
 import (
 	"reflect"
 
+	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -33,7 +33,7 @@ var (
 )
 
 // PoolResource represents the Pool custom resource object
-var PoolResource = kit.CustomResource{
+var PoolResource = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
 	Group:   k8sutil.CustomResourceGroup,

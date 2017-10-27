@@ -1,5 +1,5 @@
-hash: e008bd3cade741459303102556437de587c1ccf1ed255b4a8003a79f57cde444
-updated: 2017-10-27T11:52:01.297077-07:00
+hash: a6fd8f43ead820805b0ac5a55ac89b43de3f96a7c7096a92c1b5e24c05a1a801
+updated: 2017-10-27T13:15:46.08872-07:00
 imports:
 - name: github.com/aws/aws-sdk-go
   version: 63ce630574a5ec05ecd8e8de5cea16332a5a684d
@@ -169,6 +169,8 @@ imports:
   version: 8a290539e2e8629dbc4e6bad948158f790ec31f4
 - name: github.com/PuerkitoBio/urlesc
   version: 5bd2802263f21d8788851d5305584c82a5c75d7e
+- name: github.com/rook/operator-kit
+  version: 45341276903e293343acbde9209f6c4ff3b688af
 - name: github.com/russross/blackfriday
   version: 300106c228d52c8941d4b3de6054a6062a86dda3
 - name: github.com/shurcooL/sanitized_anchor_name
@@ -247,10 +249,8 @@ imports:
   - pkg/apis/apiextensions
   - pkg/apis/apiextensions/v1beta1
   - pkg/client/clientset/clientset
-  - pkg/client/clientset/clientset/fake
   - pkg/client/clientset/clientset/scheme
   - pkg/client/clientset/clientset/typed/apiextensions/v1beta1
-  - pkg/client/clientset/clientset/typed/apiextensions/v1beta1/fake
 - name: k8s.io/apimachinery
   version: 728b986edb9bd4bb8a022a8cc13573a97ecc2239
   subpackages:

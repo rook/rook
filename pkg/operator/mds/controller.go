@@ -23,9 +23,9 @@ package mds
 import (
 	"fmt"
 
+	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
@@ -49,7 +49,7 @@ func NewFilesystemController(context *clusterd.Context, versionTag string, hostN
 
 // StartWatch watches for instances of Filesystem custom resources and acts on them
 func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}) error {
-	client, scheme, err := kit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
+	client, scheme, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
 	if err != nil {
 		return fmt.Errorf("failed to get a k8s client for watching file system resources: %v", err)
 	}
@@ -60,7 +60,7 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 		UpdateFunc: c.onUpdate,
 		DeleteFunc: c.onDelete,
 	}
-	watcher := kit.NewWatcher(FilesystemResource, namespace, resourceHandlerFuncs, client)
+	watcher := opkit.NewWatcher(FilesystemResource, namespace, resourceHandlerFuncs, client)
 	go watcher.Watch(&Filesystem{}, stopCh)
 	return nil
 }

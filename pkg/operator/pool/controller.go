@@ -24,11 +24,11 @@ import (
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
+	opkit "github.com/rook/operator-kit"
 	ceph "github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
@@ -57,7 +57,7 @@ func NewPoolController(context *clusterd.Context) *PoolController {
 
 // Watch watches for instances of Pool custom resources and acts on them
 func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) error {
-	client, scheme, err := kit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
+	client, scheme, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
 	if err != nil {
 		return fmt.Errorf("failed to get a k8s client for watching pool resources: %v", err)
 	}
@@ -68,7 +68,7 @@ func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) erro
 		UpdateFunc: c.onUpdate,
 		DeleteFunc: c.onDelete,
 	}
-	watcher := kit.NewWatcher(PoolResource, namespace, resourceHandlerFuncs, client)
+	watcher := opkit.NewWatcher(PoolResource, namespace, resourceHandlerFuncs, client)
 	go watcher.Watch(&Pool{}, stopCh)
 	return nil
 }

@@ -28,6 +28,8 @@ import:
   version: 82859aed1b5dafbbe6ad4f3dac5404d2a742cf18
 # Kuberenetes dependencies. These must all be updated together
 # as a compatible set.
+- package: github.com/rook/operator-kit
+  version: 45341276903e293343acbde9209f6c4ff3b688af
 - package: github.com/kubernetes-incubator/external-storage
   version: 0944d3777135a29a532121db4a3282b58d3d3a3f
 - package: k8s.io/apiserver

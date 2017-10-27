@@ -20,8 +20,8 @@ package mds
 import (
 	"reflect"
 
+	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -34,7 +34,7 @@ var (
 )
 
 // FilesystemResource represents the file system custom resource
-var FilesystemResource = kit.CustomResource{
+var FilesystemResource = opkit.CustomResource{
 	Name:    "filesystem",
 	Plural:  "filesystems",
 	Group:   k8sutil.CustomResourceGroup,
