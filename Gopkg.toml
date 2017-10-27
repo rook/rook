@@ -50,9 +50,6 @@ ignored = ["github.com/rook/rook/.cache","github.com/rook/rook/.work","github.co
   name = "github.com/jbw976/go-ps"
 
 [[constraint]]
-  name = "github.com/kubernetes-incubator/external-storage"
-
-[[constraint]]
   name = "github.com/prometheus/client_golang"
 
 [[constraint]]
