@@ -1,8 +1,8 @@
-hash: 90eb2d9001e8cc062c5b410bad7168b9434f753631beef0d2097a5aa4e929fb3
-updated: 2017-09-20T18:50:39.018434283-07:00
+hash: e008bd3cade741459303102556437de587c1ccf1ed255b4a8003a79f57cde444
+updated: 2017-10-27T11:52:01.297077-07:00
 imports:
 - name: github.com/aws/aws-sdk-go
-  version: 599f09b4d88b78336612acd62e94e6ae87334b4b
+  version: 63ce630574a5ec05ecd8e8de5cea16332a5a684d
   subpackages:
   - aws
   - aws/awserr
@@ -20,88 +20,25 @@ imports:
   - aws/request
   - aws/session
   - aws/signer/v4
-  - internal/shareddefaults
   - private/protocol
   - private/protocol/query
   - private/protocol/query/queryutil
   - private/protocol/rest
   - private/protocol/restxml
   - private/protocol/xml/xmlutil
+  - private/waiter
   - service/s3
   - service/sts
 - name: github.com/beorn7/perks
   version: 3ac7bf7a47d159a033b107610db8a1b6575507a4
   subpackages:
   - quantile
-- name: github.com/boltdb/bolt
-  version: 583e8937c61f1af6513608ccc75c97b6abdf4ff9
-- name: github.com/coreos/etcd
-  version: 20490caaf0dcd96bb4a95e40625559def8ef5b04
-  subpackages:
-  - alarm
-  - auth
-  - auth/authpb
-  - client
-  - compactor
-  - discovery
-  - error
-  - etcdserver
-  - etcdserver/api
-  - etcdserver/api/v2http
-  - etcdserver/api/v2http/httptypes
-  - etcdserver/auth
-  - etcdserver/etcdserverpb
-  - etcdserver/membership
-  - etcdserver/stats
-  - lease
-  - lease/leasehttp
-  - lease/leasepb
-  - mvcc
-  - mvcc/backend
-  - mvcc/mvccpb
-  - pkg/adt
-  - pkg/contention
-  - pkg/cors
-  - pkg/cpuutil
-  - pkg/crc
-  - pkg/fileutil
-  - pkg/httputil
-  - pkg/idutil
-  - pkg/ioutil
-  - pkg/logutil
-  - pkg/monotime
-  - pkg/netutil
-  - pkg/pathutil
-  - pkg/pbutil
-  - pkg/runtime
-  - pkg/schedule
-  - pkg/tlsutil
-  - pkg/transport
-  - pkg/types
-  - pkg/wait
-  - raft
-  - raft/raftpb
-  - rafthttp
-  - snap
-  - snap/snappb
-  - store
-  - version
-  - wal
-  - wal/walpb
-- name: github.com/coreos/go-semver
-  version: 568e959cd89871e61434c1143528d9162da89ef2
-  subpackages:
-  - semver
 - name: github.com/coreos/go-systemd
-  version: 48702e0da86bd25e76cfef347e2adeb434a0d0a6
+  version: d2196463941895ee908e13531a23a39feb9e1243
   subpackages:
-  - daemon
-  - dbus
   - journal
-  - unit
-  - util
 - name: github.com/coreos/pkg
-  version: fa29b1d70f0beaddd4c7021607cc3c3be8ce94b8
+  version: 459346e834d8e97be707cd0ea1236acaaa159ffc
   subpackages:
   - capnslog
 - name: github.com/corpix/uarand
@@ -142,35 +79,12 @@ imports:
 - name: github.com/go-openapi/swag
   version: 1d0bd113de87027671077d3c71eb3ac5d7dbba72
 - name: github.com/go-sql-driver/mysql
-  version: be22b3051b3467094e9908389d900e74f72cf08f
+  version: fade21009797158e7b79e04c340118a9220c6f9e
 - name: github.com/gogo/protobuf
   version: c0656edd0d9eab7c66d1eb0c568f9039345796f7
   subpackages:
-  - gogoproto
-  - plugin/compare
-  - plugin/defaultcheck
-  - plugin/description
-  - plugin/embedcheck
-  - plugin/enumstringer
-  - plugin/equal
-  - plugin/face
-  - plugin/gostring
-  - plugin/marshalto
-  - plugin/oneofcheck
-  - plugin/populate
-  - plugin/size
-  - plugin/stringer
-  - plugin/testgen
-  - plugin/union
-  - plugin/unmarshal
   - proto
-  - protoc-gen-gogo/descriptor
-  - protoc-gen-gogo/generator
-  - protoc-gen-gogo/grpc
-  - protoc-gen-gogo/plugin
   - sortkeys
-  - vanity
-  - vanity/command
 - name: github.com/golang/glog
   version: 44145f04b68cf362d9c4df2182967c2275eaefed
 - name: github.com/golang/groupcache
@@ -186,22 +100,14 @@ imports:
   - ptypes/any
   - ptypes/duration
   - ptypes/timestamp
-- name: github.com/google/btree
-  version: 7d79101e329e5a3adf994758c578dab82b90c017
 - name: github.com/google/gofuzz
   version: 44d81051d367757e1c7c6a5a86423ece9afcf63c
 - name: github.com/google/uuid
-  version: 7e072fc3a7be179aee6d3359e46015aa8c995314
+  version: e367a344cbe8e08149f9951115dc299ebd42b919
 - name: github.com/gorilla/context
   version: 215affda49addc4c8ef7e2534915df2c8c35c6cd
 - name: github.com/gorilla/mux
-  version: 24fca303ac6da784b9e8269f724ddeb0b2eea5e7
-- name: github.com/grpc-ecosystem/grpc-gateway
-  version: 84398b94e188ee336f307779b57b3aa91af7063c
-  subpackages:
-  - runtime
-  - runtime/internal
-  - utilities
+  version: 7625a85c14e615274a4ee4bc8654f72310a563e4
 - name: github.com/hashicorp/golang-lru
   version: a0d98a5f288019575c6d1f4bb1573fef2d1fcdc4
   subpackages:
@@ -214,12 +120,12 @@ imports:
   version: 82859aed1b5dafbbe6ad4f3dac5404d2a742cf18
 - name: github.com/jmespath/go-jmespath
   version: 3433f3ea46d9f8019119e7dd41274e112a2359a9
-- name: github.com/jonboulle/clockwork
-  version: 72f9bd7c4e0c2a40055ab3d0f09654f730cce982
+- name: github.com/jmoiron/jsonq
+  version: e874b168d07ecc7808bc950a17998a8aa3141d82
 - name: github.com/juju/ratelimit
   version: 5b9ff866471762aa2ab2dced63c9fb6f53921342
 - name: github.com/kubernetes-incubator/external-storage
-  version: 999a5f33de0f6c51f7325f696ac738d8fc73ec65
+  version: 0944d3777135a29a532121db4a3282b58d3d3a3f
   subpackages:
   - lib/controller
   - lib/leaderelection
@@ -236,6 +142,10 @@ imports:
   - pbutil
 - name: github.com/pborman/uuid
   version: ca53cad383cad2479bbba7f7a1a05797ec1386e4
+- name: github.com/pmezard/go-difflib
+  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
+  subpackages:
+  - difflib
 - name: github.com/prometheus/client_golang
   version: e7e903064f5e9eb5da98208bae10b475d4db0f8c
   subpackages:
@@ -267,33 +177,20 @@ imports:
   version: 1c44ec8d3f1552cac48999f9306da23c4d8a288b
 - name: github.com/spf13/pflag
   version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
+- name: github.com/stretchr/testify
+  version: 976c720a22c8eb4eb6a0b4348ad85ad12491a506
+  subpackages:
+  - assert
+  - require
+  - suite
 - name: github.com/ugorji/go
   version: ded73eae5db7e7a0ef6f55aace87a2873c5d2b74
   subpackages:
   - codec
-  - codec/codecgen
-- name: github.com/xiang90/probing
-  version: 07dd2e8dfe18522e9c447ba95f2fe95262f63bb2
-- name: golang.org/x/crypto
-  version: d172538b2cfce0c13cee31e647d0367aa8cd2486
-  subpackages:
-  - bcrypt
-  - blowfish
-  - curve25519
-  - ed25519
-  - ed25519/internal/edwards25519
-  - nacl/secretbox
-  - pkcs12
-  - pkcs12/internal/rc2
-  - poly1305
-  - salsa20/salsa
-  - ssh
-  - ssh/terminal
 - name: golang.org/x/net
   version: f2499483f923065a842d38eb4c7f1927e6fc6e6d
   subpackages:
   - context
-  - context/ctxhttp
   - html
   - html/atom
   - http2
@@ -301,24 +198,13 @@ imports:
   - idna
   - internal/timeseries
   - lex/httplex
-  - proxy
   - trace
   - websocket
-- name: golang.org/x/sys
-  version: 8f0908ab3b2457e2e15403d3697c9ef5cb4b57a9
-  subpackages:
-  - unix
-  - windows
 - name: golang.org/x/text
   version: 2910a502d2bf9e43193af9d68ca516529614eed3
   subpackages:
   - cases
-  - encoding
-  - encoding/internal
-  - encoding/internal/identifier
-  - encoding/unicode
   - internal/tag
-  - internal/utf8internal
   - language
   - runes
   - secure/bidirule
@@ -327,17 +213,6 @@ imports:
   - unicode/bidi
   - unicode/norm
   - width
-- name: google.golang.org/grpc
-  version: 777daa17ff9b5daef1cfdf915088a2ada3332bf0
-  subpackages:
-  - codes
-  - credentials
-  - grpclog
-  - internal
-  - metadata
-  - naming
-  - peer
-  - transport
 - name: gopkg.in/inf.v0
   version: 3887ee99ecf07df5b447e9b00d9c0b2adaa9f3e4
 - name: gopkg.in/yaml.v2
@@ -367,7 +242,7 @@ imports:
   - storage/v1
   - storage/v1beta1
 - name: k8s.io/apiextensions-apiserver
-  version: 3eb4c5fefbe7ad866747f78c7e4994cb555170c6
+  version: be41f5093e2b05c7a0befe35b04b715eb325ab43
   subpackages:
   - pkg/apis/apiextensions
   - pkg/apis/apiextensions/v1beta1
@@ -431,78 +306,10 @@ imports:
   version: e739ac20f4d03d8612c80b8bc00260c093593345
   subpackages:
   - pkg/admission
-  - pkg/admission/initializer
-  - pkg/admission/plugin/namespace/lifecycle
   - pkg/apis/apiserver
   - pkg/apis/apiserver/install
   - pkg/apis/apiserver/v1alpha1
-  - pkg/apis/audit
-  - pkg/apis/audit/install
-  - pkg/apis/audit/v1alpha1
-  - pkg/apis/audit/validation
-  - pkg/audit
-  - pkg/audit/policy
-  - pkg/authentication/authenticator
-  - pkg/authentication/authenticatorfactory
-  - pkg/authentication/group
-  - pkg/authentication/request/anonymous
-  - pkg/authentication/request/bearertoken
-  - pkg/authentication/request/headerrequest
-  - pkg/authentication/request/union
-  - pkg/authentication/request/websocket
-  - pkg/authentication/request/x509
-  - pkg/authentication/serviceaccount
-  - pkg/authentication/token/tokenfile
   - pkg/authentication/user
-  - pkg/authorization/authorizer
-  - pkg/authorization/authorizerfactory
-  - pkg/authorization/union
-  - pkg/endpoints
-  - pkg/endpoints/discovery
-  - pkg/endpoints/filters
-  - pkg/endpoints/handlers
-  - pkg/endpoints/handlers/negotiation
-  - pkg/endpoints/handlers/responsewriters
-  - pkg/endpoints/metrics
-  - pkg/endpoints/openapi
-  - pkg/endpoints/request
-  - pkg/features
-  - pkg/registry/generic
-  - pkg/registry/generic/registry
-  - pkg/registry/rest
-  - pkg/server
-  - pkg/server/filters
-  - pkg/server/healthz
-  - pkg/server/httplog
-  - pkg/server/mux
-  - pkg/server/openapi
-  - pkg/server/options
-  - pkg/server/routes
-  - pkg/server/routes/data/swagger
-  - pkg/server/storage
-  - pkg/storage
-  - pkg/storage/errors
-  - pkg/storage/etcd
-  - pkg/storage/etcd/metrics
-  - pkg/storage/etcd/util
-  - pkg/storage/etcd3
-  - pkg/storage/names
-  - pkg/storage/storagebackend
-  - pkg/storage/storagebackend/factory
-  - pkg/storage/value
-  - pkg/util/feature
-  - pkg/util/flag
-  - pkg/util/flushwriter
-  - pkg/util/logs
-  - pkg/util/proxy
-  - pkg/util/trace
-  - pkg/util/trie
-  - pkg/util/webhook
-  - pkg/util/wsstream
-  - plugin/pkg/audit/log
-  - plugin/pkg/audit/webhook
-  - plugin/pkg/authenticator/token/webhook
-  - plugin/pkg/authorizer/webhook
 - name: k8s.io/client-go
   version: 42a124578af9e61f5c6902fa7b6b2cb6538f17d2
   subpackages:
@@ -667,16 +474,4 @@ imports:
   - pkg/util/parsers
   - pkg/util/version
   - pkg/volume/util
-testImports:
-- name: github.com/jmoiron/jsonq
-  version: e874b168d07ecc7808bc950a17998a8aa3141d82
-- name: github.com/pmezard/go-difflib
-  version: d8ed2627bdf02c080bf22230dbb337003b7aba2d
-  subpackages:
-  - difflib
-- name: github.com/stretchr/testify
-  version: 976c720a22c8eb4eb6a0b4348ad85ad12491a506
-  subpackages:
-  - assert
-  - require
-  - suite
+testImports: []

@@ -10,31 +10,15 @@ excludeDirs:
 - Documentation
 - images
 import:
-- package: github.com/coreos/etcd
-  version: 20490caaf0dcd96bb4a95e40625559def8ef5b04
-  subpackages:
-  - client
-  - error
-- package: github.com/docker/distribution
-  version: cd27f179f2c10c5d300e6d09025b538c475b0d51
 - package: github.com/spf13/cobra
   version: 1c44ec8d3f1552cac48999f9306da23c4d8a288b
 - package: github.com/spf13/pflag
   version: 9ff6c6923cfffbcd502984b8e0c80539a94968b7
 - package: github.com/google/uuid
 - package: github.com/go-ini/ini
+  version: c787282c39ac1fc618827141a1f762240def08a3
 - package: github.com/gorilla/mux
 - package: github.com/coreos/pkg/capnslog
-- package: github.com/kubernetes-incubator/external-storage
-  version: 999a5f33de0f6c51f7325f696ac738d8fc73ec65
-- package: k8s.io/client-go
-  version: 42a124578af9e61f5c6902fa7b6b2cb6538f17d2
-- package: k8s.io/apimachinery
-  version: 728b986edb9bd4bb8a022a8cc13573a97ecc2239
-- package: k8s.io/api
-  version: e24ed681f56165befbea50a24f7e9f1c079ac366
-- package: k8s.io/apiextensions-apiserver
-  version: 3eb4c5fefbe7ad866747f78c7e4994cb555170c6
 - package: github.com/prometheus/client_golang
   version: e7e903064f5e9eb5da98208bae10b475d4db0f8c
   subpackages:
@@ -42,21 +26,37 @@ import:
   - prometheus/promhttp
 - package: github.com/jbw976/go-ps
   version: 82859aed1b5dafbbe6ad4f3dac5404d2a742cf18
+# Kuberenetes dependencies. These must all be updated together
+# as a compatible set.
+- package: github.com/kubernetes-incubator/external-storage
+  version: 0944d3777135a29a532121db4a3282b58d3d3a3f
+- package: k8s.io/apiserver
+  version: e739ac20f4d03d8612c80b8bc00260c093593345
+- package: k8s.io/apiextensions-apiserver
+  version: be41f5093e2b05c7a0befe35b04b715eb325ab43
+- package: k8s.io/apimachinery
+  version: 728b986edb9bd4bb8a022a8cc13573a97ecc2239
+- package: k8s.io/client-go
+  version: 42a124578af9e61f5c6902fa7b6b2cb6538f17d2
+- package: k8s.io/api
+  version: e24ed681f56165befbea50a24f7e9f1c079ac366
+- package: k8s.io/kubernetes
+  version: df7f4b3526a580ef122aaeef61ab52842a60a88b
+#testImport: imports only used during testing go below
+# note we dont actually use the testImport section to avoid dependency 
+# problems with glide like https://github.com/Masterminds/glide/issues/564
 - package: github.com/aws/aws-sdk-go
-  version: ^1.7.3
   subpackages:
   - aws
   - aws/credentials
   - aws/session
   - service/s3
-testImport:
 - package: github.com/ghodss/yaml
-  version: 73d445a93680fa1a78ae23a5839bad48f32ba1ee
 - package: github.com/jmoiron/jsonq
 - package: github.com/go-sql-driver/mysql
 - package: github.com/icrowley/fake
 - package: github.com/stretchr/testify
   version: 976c720a22c8eb4eb6a0b4348ad85ad12491a506
-  subpackages:
+subpackages:
   - assert
   - require
