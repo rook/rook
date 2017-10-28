@@ -24,8 +24,8 @@ import (
 	"os"
 	"path"
 
-	"k8s.io/kubernetes/pkg/util/exec"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
+	"k8s.io/utils/exec"
 
 	"github.com/rook/rook/pkg/agent/flexvolume"
 	"github.com/spf13/cobra"
