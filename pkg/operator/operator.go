@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/clusterd"
@@ -38,6 +37,7 @@ import (
 	"github.com/rook/rook/pkg/operator/mds"
 	"github.com/rook/rook/pkg/operator/pool"
 	"github.com/rook/rook/pkg/operator/provisioner"
+	"github.com/rook/rook/pkg/operator/provisioner/controller"
 	"github.com/rook/rook/pkg/operator/rgw"
 	"k8s.io/api/core/v1"
 )
