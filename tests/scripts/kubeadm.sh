@@ -11,7 +11,8 @@ usage(){
     echo "usage:" >&2
     echo "  $0 up " >&2
     echo "  $0 install master" >&2
-    echo "  $0 install node --token <token> <master-ip>:<master-port>" >&2
+    echo "  $0 install node --token <token> <master-ip>:<master-port> (for k8s 1.7 and older)" >&2
+    echo "  $0 install node --token <token> <master-ip>:<master-port> --discovery-token-ca-cert-hash sha256:<hash>" >&2
     echo "  $0 wait <number of nodes>" >&2
     echo "  $0 clean" >&2
 }
@@ -59,8 +60,8 @@ EOF
 #install k8s node
 install_node(){
     echo "inside install node function"
-    echo "kubeadm join ${1} ${2} ${3} --skip-preflight-checks"
-    sudo kubeadm join ${1} ${2} ${3} --skip-preflight-checks || true
+    echo "kubeadm join ${1} ${2} ${3} ${4} ${5} --skip-preflight-checks"
+    sudo kubeadm join ${1} ${2} ${3} ${4} ${5} --skip-preflight-checks || true
 }
 
 #wait for all nodes in the cluster to be ready status
@@ -130,8 +131,8 @@ case "${1:-}" in
             install_master
         ;;
         node)
-            if [ "$#" -eq 5 ]; then
-                install_node $3 $4 $5
+            if [ "$#" -eq 5 ] || [ "$#" -eq 7 ]; then
+                install_node $3 $4 $5 $6 $7
             else
                 echo "invalid arguments for install node"
                 usage
