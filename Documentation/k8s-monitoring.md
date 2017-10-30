@@ -54,6 +54,14 @@ You should now see the Prometheus monitoring website.  Click on `Graph` in the t
 select any metric you would like to see, for example `ceph_cluster_used_bytes`, followed by clicking on the `Execute` button.  Below the `Execute` button, ensure
 the `Graph` tab is selected and you should now see a graph of your chosen metric over time.
 
+## Prometheus Consoles
+You can find Prometheus Consoles here: https://github.com/ceph/cephmetrics/tree/master/dashboards/current.
+A guide to how you can write your own Prometheus consoles can be found on the official Prometheus site here: https://prometheus.io/docs/visualization/consoles/
+
+## Grafana Dashboards
+Currently there are no official Rook dashboards, which will change soon, but you can find some here: https://github.com/SUSE/DeepSea/tree/master/srv/salt/ceph/monitoring/grafana/files
+To use the dashboards, just download the JSON file(s) and in Grafan import them by uploading the JSON file.
+
 ## Teardown
 
 To clean up all the artifacts created by the monitoring walkthrough, copy/paste the entire block below (note that errors about resources "not found" can be ignored):
