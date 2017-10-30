@@ -25,7 +25,6 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yy -q --no-install-recommends \
         python-setuptools \
         gperf \
-        \
         cython:${ARCH} \
         python:${ARCH} \
         libaio-dev:${ARCH} \

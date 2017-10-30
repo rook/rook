@@ -37,6 +37,8 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 const (
 	appName     = "rook-ceph-mgr"
 	keyringName = "keyring"
+
+	prometheusModuleName = "prometheus"
 )
 
 // Cluster is the ceph mgr manager
@@ -71,15 +73,28 @@ func (c *Cluster) Start() error {
 
 	for i := 0; i < c.Replicas; i++ {
 		name := fmt.Sprintf("%s%d", appName, i)
-		err := c.createKeyring(c.Namespace, name)
-		if err != nil {
+		if err := c.createKeyring(c.Namespace, name); err != nil {
 			return fmt.Errorf("failed to create mgr keyring. %+v", err)
+		}
+
+		if err := c.enablePrometheusModule(c.Namespace); err != nil {
+			return fmt.Errorf("failed to enable mgr prometheus module. %+v", err)
+		}
+
+		// create the service
+		service := c.makeService(appName)
+		if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(service); err != nil {
+			if !errors.IsAlreadyExists(err) {
+				return fmt.Errorf("failed to create mgr service. %+v", err)
+			}
+			logger.Infof("%s service already exists", name)
+		} else {
+			logger.Infof("%s service started", name)
 		}
 
 		// start the deployment
 		deployment := c.makeDeployment(name)
-		_, err = c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment)
-		if err != nil {
+		if _, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment); err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create mgr deployment. %+v", err)
 			}
@@ -90,6 +105,28 @@ func (c *Cluster) Start() error {
 	}
 
 	return nil
+}
+
+func (c *Cluster) makeService(name string) *v1.Service {
+	service := &v1.Service{}
+	service.Name = name
+	service.Namespace = c.Namespace
+
+	service.Labels = c.getLabels()
+
+	service.Spec = v1.ServiceSpec{
+		Selector: service.Labels,
+		Type:     v1.ServiceTypeClusterIP,
+		Ports: []v1.ServicePort{
+			{
+				Name:     "http-metrics",
+				Port:     int32(9283),
+				Protocol: v1.ProtocolTCP,
+			},
+		},
+	}
+
+	return service
 }
 
 func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
@@ -148,6 +185,18 @@ func (c *Cluster) mgrContainer(name string) v1.Container {
 			k8sutil.ConfigOverrideEnvVar(),
 		},
 		Resources: c.resources,
+		Ports: []v1.ContainerPort{
+			{
+				Name:          "mgr",
+				ContainerPort: int32(6800),
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "http-metrics",
+				ContainerPort: int32(9283),
+				Protocol:      v1.ProtocolTCP,
+			},
+		},
 	}
 }
 
@@ -188,6 +237,14 @@ func (c *Cluster) createKeyring(clusterName, name string) error {
 		return fmt.Errorf("failed to save mgr secrets. %+v", err)
 	}
 
+	return nil
+}
+
+// Ceph docs about the prometheus module: http://docs.ceph.com/docs/master/mgr/prometheus/
+func (c *Cluster) enablePrometheusModule(clusterName string) error {
+	if err := client.MgrEnableModule(c.context, clusterName, prometheusModuleName, true); err != nil {
+		return fmt.Errorf("failed to enable mgr prometheus module. %+v", err)
+	}
 	return nil
 }
 
