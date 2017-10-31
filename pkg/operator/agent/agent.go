@@ -243,7 +243,7 @@ func (a *Agent) discoverFlexvolumeDir() string {
 
 func getDefaultFlexvolumeDir() string {
 	logger.Info("getting flexvolume dir path from provided env var")
-	flexvolumeDirPath := os.Getenv("FLEXVOLUME_DIR_PATH")
+	flexvolumeDirPath := os.Getenv(flexvolumePathDirEnv)
 	if flexvolumeDirPath == "" {
 		logger.Infof("flexvolume dir path is not provided. Defaulting to: %s", flexvolumeDefaultDirPath)
 		flexvolumeDirPath = flexvolumeDefaultDirPath

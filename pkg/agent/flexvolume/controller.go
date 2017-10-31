@@ -49,7 +49,6 @@ const (
 	PoolKey               = "pool"
 	ImageKey              = "image"
 	kubeletDefaultRootDir = "/var/lib/kubelet"
-	serverVersionV170     = "v1.7.0"
 )
 
 var driverLogger = capnslog.NewPackageLogger("github.com/rook/rook", "rook-flexdriver")
