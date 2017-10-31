@@ -215,8 +215,6 @@ func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 		return false, err
 	}
 
-	time.Sleep(5 * time.Second)
-
 	//Create rook client
 	err = h.CreateK8sRookToolbox(namespace)
 	if err != nil {
