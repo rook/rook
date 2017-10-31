@@ -69,7 +69,7 @@ metadata:
   namespace: rook
 spec:
   versionTag: master
-  dataDirHostPath:
+  dataDirHostPath: /var/lib/rook
   storage:
     useAllNodes: true
     useAllDevices: false
