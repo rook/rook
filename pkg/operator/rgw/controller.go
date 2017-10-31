@@ -84,13 +84,18 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 }
 
 func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
-	//oldObjectStore := oldObj.(*ObjectStore)
-	newObjectStore := newObj.(*ObjectStore)
+	// if the object store spec is modified, update the object store
+	oldStore := oldObj.(*ObjectStore)
+	newStore := newObj.(*ObjectStore)
+	if !storeChanged(oldStore.Spec, newStore.Spec) {
+		logger.Debugf("object store %s did not change", newStore.Name)
+		return
+	}
 
-	// if the object store is modified, allow the object store to be created if it wasn't already
-	err := newObjectStore.Update(c.context, c.versionTag, c.hostNetwork)
+	logger.Infof("applying object store %s changes", newStore.Name)
+	err := newStore.Update(c.context, c.versionTag, c.hostNetwork)
 	if err != nil {
-		logger.Errorf("failed to create (modify) object store %s. %+v", newObjectStore.Name, err)
+		logger.Errorf("failed to create (modify) object store %s. %+v", newStore.Name, err)
 	}
 }
 
@@ -100,4 +105,36 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 	if err != nil {
 		logger.Errorf("failed to delete object store %s. %+v", objectStore.Name, err)
 	}
+}
+
+func storeChanged(oldStore, newStore ObjectStoreSpec) bool {
+	if oldStore.DataPool.Replicated.Size != newStore.DataPool.Replicated.Size {
+		logger.Infof("data pool replication changed from %d to %d", oldStore.DataPool.Replicated.Size, newStore.DataPool.Replicated.Size)
+		return true
+	}
+	if oldStore.MetadataPool.Replicated.Size != newStore.MetadataPool.Replicated.Size {
+		logger.Infof("metadata pool replication changed from %d to %d", oldStore.MetadataPool.Replicated.Size, newStore.MetadataPool.Replicated.Size)
+		return true
+	}
+	if oldStore.Gateway.Instances != newStore.Gateway.Instances {
+		logger.Infof("RGW instances changed from %d to %d", oldStore.Gateway.Instances, newStore.Gateway.Instances)
+		return true
+	}
+	if oldStore.Gateway.Port != newStore.Gateway.Port {
+		logger.Infof("Port changed from %d to %d", oldStore.Gateway.Port, newStore.Gateway.Port)
+		return true
+	}
+	if oldStore.Gateway.SecurePort != newStore.Gateway.SecurePort {
+		logger.Infof("SecurePort changed from %d to %d", oldStore.Gateway.SecurePort, newStore.Gateway.SecurePort)
+		return true
+	}
+	if oldStore.Gateway.AllNodes != newStore.Gateway.AllNodes {
+		logger.Infof("AllNodes changed from %t to %t", oldStore.Gateway.AllNodes, newStore.Gateway.AllNodes)
+		return true
+	}
+	if oldStore.Gateway.SSLCertificateRef != newStore.Gateway.SSLCertificateRef {
+		logger.Infof("SSLCertificateRef changed from %s to %s", oldStore.Gateway.SSLCertificateRef, newStore.Gateway.SSLCertificateRef)
+		return true
+	}
+	return false
 }

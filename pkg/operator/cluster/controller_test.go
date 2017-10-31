@@ -51,3 +51,11 @@ func TestCreateInitialCrushMap(t *testing.T) {
 	err = c.createInitialCrushMap()
 	assert.Nil(t, err)
 }
+
+func TestClusterChanged(t *testing.T) {
+	old := ClusterSpec{VersionTag: "v0.6.0", MonCount: 1, HostNetwork: false}
+	new := ClusterSpec{VersionTag: "v0.7.0", MonCount: 3, HostNetwork: true}
+
+	// no changes supported yet
+	assert.False(t, clusterChanged(old, new))
+}

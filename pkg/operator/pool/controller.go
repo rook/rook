@@ -103,11 +103,24 @@ func (c *PoolController) onUpdate(oldObj, newObj interface{}) {
 		logger.Errorf("failed to update pool %s. erasurecoded update not allowed", pool.Name)
 		return
 	}
+	if !poolChanged(oldPool.Spec, pool.Spec) {
+		logger.Debugf("pool %s not changed", pool.Name)
+		return
+	}
 
 	// if the pool is modified, allow the pool to be created if it wasn't already
+	logger.Infof("updating pool %s", pool.Name)
 	if err := pool.create(c.context); err != nil {
 		logger.Errorf("failed to create (modify) pool %s. %+v", pool.ObjectMeta.Name, err)
 	}
+}
+
+func poolChanged(old, new PoolSpec) bool {
+	if old.Replicated.Size != new.Replicated.Size {
+		logger.Infof("pool replication changed from %d to %d", old.Replicated.Size, new.Replicated.Size)
+		return true
+	}
+	return false
 }
 
 func (c *PoolController) onDelete(obj interface{}) {
