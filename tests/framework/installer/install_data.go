@@ -222,11 +222,11 @@ metadata:
   name: rook-tools
   namespace: ` + namespace + `
 spec:
+  dnsPolicy: ClusterFirstWithHostNet
   containers:
   - name: rook-tools
     image: rook/toolbox:master
     imagePullPolicy: IfNotPresent
-    args: ["sleep", "36500d"]
     env:
       - name: ROOK_ADMIN_SECRET
         valueFrom:
@@ -242,6 +242,9 @@ spec:
         name: sysbus
       - mountPath: /lib/modules
         name: libmodules
+      - name: mon-endpoint-volume
+        mountPath: /etc/rook
+  hostNetwork: false
   volumes:
     - name: dev
       hostPath:
@@ -251,5 +254,11 @@ spec:
         path: /sys/bus
     - name: libmodules
       hostPath:
-        path: /lib/modules`
+        path: /lib/modules
+    - name: mon-endpoint-volume
+      configMap:
+        name: rook-ceph-mon-endpoints
+        items:
+        - key: data
+          path: mon-endpoints`
 }
