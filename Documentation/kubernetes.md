@@ -135,12 +135,13 @@ If you modified the demo settings, additional cleanup is up to you for devices, 
 
 ## Design
 
+Rook enables storage software systems to run on Kubernetes using Kubernetes primitives. Although Rook's reference storage system is Ceph, support for other storage systems can be added. The following image illustrates how Rook integrates with Kubernetes:
+
+![Rook Architecture on Kubernetes](media/rook-architecture.png)
 With Rook running in the Kubernetes cluster, Kubernetes applications can
 mount block devices and filesystems managed by Rook, or can use the S3/Swift API for object storage. The Rook operator
-automates configuration of the Ceph storage components and monitors the cluster to ensure the storage remains available
+automates configuration of storage components and monitors the cluster to ensure the storage remains available
 and healthy. There is also a REST API service for configuring the Rook storage and a command line tool called `rookctl`.
-
-![Rook Architecture on Kubernetes](media/kubernetes.png)
 
 The Rook operator is a simple container that has all that is needed to bootstrap
 and monitor the storage cluster. The operator will start and monitor ceph monitor pods and a daemonset for the OSDs, which provides basic
@@ -150,6 +151,10 @@ object storage (S3/Swift) is enabled by starting a deployment for RGW, while a s
 The operator will monitor the storage daemons to ensure the cluster is healthy. Ceph mons will be started or failed over when necessary, and
 other adjustments are made as the cluster grows or shrinks.  The operator will also watch for desired state changes
 requested by the api service and apply the changes.
+
+Rook operator also creates the Rook agents. These agents are pods deployed on every Kubernetes node. Each agent configures a Flexvolume plugin that integrates with Kubernetes' volume controller framework and also handle all storage operations required on the node, such as attaching network storage devices, mounting volumes and formating filesystem.
+
+![Rook Components on Kubernetes](media/kubernetes.png)
 
 The Rook daemons (Mons, OSDs, MGR, RGW, and MDS) are compiled to a single binary `rook`, and included in a minimal container.
 The `rook` container includes Ceph daemons and tools to manage and store all data -- there are no changes to the data path.
