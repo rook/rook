@@ -17,10 +17,15 @@ You will need to use the yaml files from the [1.5 folder](/cluster/examples/kube
 
 ## Privileges
 
-Creating the Rook operator requires privileges for setting up RBAC. To launch the operator you need to have created your user certificate with the `system:masters` privilege:
+Creating the Rook operator requires privileges for setting up RBAC. To launch the operator you need to have created your user certificate that is bound to ClusterRole `cluster-admin`.
+
+One simple way to achieve it is to assign your certificate with the `system:masters` group:
 ```
 -subj "/CN=admin/O=system:masters"
 ```
+
+`system:masters` is a special group that is bound to `cluster-admin` ClusterRole, but it can't be easily revoked so be careful with taking that route in a production setting.
+Binding individual certificate to ClusterRole `cluster-admin` is revocable by deleting the ClusterRoleBinding.
 
 ## Flexvolume Configuration
 
