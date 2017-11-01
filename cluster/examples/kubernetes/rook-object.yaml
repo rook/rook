@@ -14,8 +14,8 @@ spec:
   dataPool:
     failureDomain: osd
     erasureCoded:
-      dataChunks: 4
-      codingChunks: 2
+      dataChunks: 2
+      codingChunks: 1
   # The gaeteway service configuration
   gateway:
     # type of the gateway (s3)

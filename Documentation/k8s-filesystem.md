@@ -32,8 +32,8 @@ spec:
       size: 3
   dataPools:
     - erasureCoded:
-       codingChunks: 2
        dataChunks: 2
+       codingChunks: 1
   metadataServer:
     activeCount: 1
     activeStandby: true

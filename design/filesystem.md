@@ -23,8 +23,8 @@ spec:
       size: 3
   dataPools:
     - erasureCoded:
-       codingChunks: 2
        dataChunks: 2
+       codingChunks: 1
   metadataServer:
     activeCount: 1
     activeStandby: true
@@ -62,15 +62,15 @@ The pools are the backing data store for the file system and are created with sp
     - replicated:
        size: 3
     - erasureCoded:
-       codingChunks: 2
        dataChunks: 2
+       codingChunks: 1
 ```
 
 Multiple data pools can be configured for the file system. Assigning users or files to a pool is left as an exercise for the reader with the [CephFS documentation](http://docs.ceph.com/docs/master/cephfs/file-layouts/).
 
 ### Metadata Server
 
-The metadata server settings correspond to the MDS service. 
+The metadata server settings correspond to the MDS service.
 - `activeCount`: The number of active MDS instances. As load increases, CephFS will automatically partition the file system across the MDS instances. Rook will create double the number of MDS instances as requested by the active count. The extra instances will be in standby mode for failover.
 - `activeStandby`: If true, the extra MDS instances will be in active standby mode and will keep a warm cache of the file system metadata for faster failover. The instances will be assigned by CephFS in failover pairs. If false, the extra MDS instances will all be on passive standby mode and will not maintain a warm cache of the metadata.
 - `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/rook-cluster.yaml).

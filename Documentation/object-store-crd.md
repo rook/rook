@@ -23,8 +23,8 @@ spec:
       size: 3
   dataPool:
     erasureCoded:
-      dataChunks: 6
-      codingChunks: 2
+      dataChunks: 2
+      codingChunks: 1
   gateway:
     type: s3
     sslCertificateRef: 
@@ -63,7 +63,7 @@ kind: Objectstore
 
 ### Pools
 
-The pools allow all of the settings defined in the Pool CRD spec. For more details, see the [Pool CRD](pool-crd.md) settings. In the example above, there must be at least three hosts (size 3) and at least eight devices (6 data + 2 coding chunks) in the cluster.
+The pools allow all of the settings defined in the Pool CRD spec. For more details, see the [Pool CRD](pool-crd.md) settings. In the example above, there must be at least three hosts (size 3) and at least three devices (2 data + 1 coding chunks) in the cluster.
 
 - `metadataPool`: The settings used to create all of the object store metadata pools. Must use replication.
 - `dataPool`: The settings to create the object store data pool. Can use replication or erasure coding.
