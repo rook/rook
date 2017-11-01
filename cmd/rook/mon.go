@@ -74,8 +74,7 @@ func startMon(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := compareMonSecret(clusterInfo.MonitorSecret, path.Join(cfg.dataDir, monName)); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		terminateFatal(err)
 	}
 
 	// at first start the local monitor needs to be added to the list of mons
@@ -89,8 +88,7 @@ func startMon(cmd *cobra.Command, args []string) error {
 	}
 	err := mon.Run(createContext(), monCfg)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		terminateFatal(err)
 	}
 
 	return nil

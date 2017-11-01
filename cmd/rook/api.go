@@ -17,7 +17,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/rook/rook/pkg/api"
 	"github.com/rook/rook/pkg/ceph/mon"
@@ -65,8 +64,7 @@ func startAPI(cmd *cobra.Command, args []string) error {
 
 	clientset, _, err := getClientset()
 	if err != nil {
-		fmt.Printf("failed to init k8s client. %+v\n", err)
-		os.Exit(1)
+		terminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
 	}
 
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
@@ -76,8 +74,7 @@ func startAPI(cmd *cobra.Command, args []string) error {
 
 	err = api.Run(context, c)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		terminateFatal(err)
 	}
 
 	return nil

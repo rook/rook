@@ -38,6 +38,7 @@ import (
 
 const (
 	RookEnvVarPrefix = "ROOK"
+	terminationLog   = "/dev/termination-log"
 )
 
 var rootCmd = &cobra.Command{
@@ -145,4 +146,20 @@ func getClientset() (kubernetes.Interface, apiextensionsclient.Interface, error)
 		return nil, nil, fmt.Errorf("failed to create k8s API extension clientset. %+v", err)
 	}
 	return clientset, apiExtClientset, nil
+}
+
+func terminateFatal(reason error) {
+	fmt.Fprintln(os.Stderr, reason)
+
+	file, err := os.OpenFile(terminationLog, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %+v", err))
+	} else {
+		defer file.Close()
+		if _, err = file.WriteString(reason.Error()); err != nil {
+			fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %+v", err))
+		}
+	}
+
+	os.Exit(1)
 }

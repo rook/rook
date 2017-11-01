@@ -16,8 +16,6 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
-	"os"
 	"strings"
 
 	"github.com/rook/rook/pkg/ceph/mds"
@@ -78,8 +76,7 @@ func startMDS(cmd *cobra.Command, args []string) error {
 
 	err := mds.Run(createContext(), config)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		terminateFatal(err)
 	}
 
 	return nil
