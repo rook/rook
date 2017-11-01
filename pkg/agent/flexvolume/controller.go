@@ -31,15 +31,16 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/agent"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/mon"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/util/version"
 )
@@ -55,7 +56,7 @@ var driverLogger = capnslog.NewPackageLogger("github.com/rook/rook", "rook-flexd
 
 // FlexvolumeController handles all events from the Flexvolume driver
 type FlexvolumeController struct {
-	clientset                  kubernetes.Interface
+	context                    *clusterd.Context
 	volumeManager              VolumeManager
 	volumeAttachmentController crd.VolumeAttachmentController
 }
@@ -76,7 +77,7 @@ func newFlexvolumeController(context *clusterd.Context, volumeAttachmentCRDClien
 	}
 
 	return &FlexvolumeController{
-		clientset:                  context.Clientset,
+		context:                    context,
 		volumeManager:              manager,
 		volumeAttachmentController: controller,
 	}, nil
@@ -129,7 +130,7 @@ func (c *FlexvolumeController) Attach(attachOpts AttachOptions, devicePath *stri
 			if index != -1 {
 				// check if the RW attachment is orphaned.
 				attachment := &volumeattachObj.Attachments[index]
-				pod, err := c.clientset.Core().Pods(attachment.PodNamespace).Get(attachment.PodName, metav1.GetOptions{})
+				pod, err := c.context.Clientset.Core().Pods(attachment.PodNamespace).Get(attachment.PodName, metav1.GetOptions{})
 				if err != nil {
 					if !errors.IsNotFound(err) {
 						return fmt.Errorf("failed to get pod CRD %s/%s. %+v", attachment.PodNamespace, attachment.PodName, err)
@@ -243,7 +244,7 @@ func (c *FlexvolumeController) Log(message LogMessage, _ *struct{} /* void reply
 }
 
 func (c *FlexvolumeController) parseClusterName(storageClassName string) (string, error) {
-	sc, err := c.clientset.Storage().StorageClasses().Get(storageClassName, metav1.GetOptions{})
+	sc, err := c.context.Clientset.Storage().StorageClasses().Get(storageClassName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
@@ -270,7 +271,7 @@ func (c *FlexvolumeController) GetAttachInfoFromMountDir(mountDir string, attach
 		attachOptions.VolumeName = pvName
 	}
 
-	pv, err := c.clientset.CoreV1().PersistentVolumes().Get(attachOptions.VolumeName, metav1.GetOptions{})
+	pv, err := c.context.Clientset.CoreV1().PersistentVolumes().Get(attachOptions.VolumeName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get persistent volume %s: %+v", attachOptions.VolumeName, err)
 	}
@@ -286,7 +287,7 @@ func (c *FlexvolumeController) GetAttachInfoFromMountDir(mountDir string, attach
 		opts := metav1.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector("spec.nodeName", node).String(),
 		}
-		pods, err := c.clientset.Core().Pods(attachOptions.PodNamespace).List(opts)
+		pods, err := c.context.Clientset.Core().Pods(attachOptions.PodNamespace).List(opts)
 		if err != nil {
 			return fmt.Errorf("failed to get pods in namespace %s: %+v", attachOptions.PodNamespace, err)
 		}
@@ -320,6 +321,25 @@ func (c *FlexvolumeController) GetGlobalMountPath(volumeName string, globalMount
 	return nil
 }
 
+// GetClientAccessInfo obtains the cluster monitor endpoints, username and secret
+func (c *FlexvolumeController) GetClientAccessInfo(clusterName string, clientAccessInfo *model.ClientAccessInfo) error {
+	clusterInfo, _, err := mon.LoadClusterInfo(c.context, clusterName)
+	if err != nil {
+		return fmt.Errorf("failed to load cluster information from cluster %s: %+v", clusterName, err)
+	}
+
+	monEndpoints := make([]string, 0, len(clusterInfo.Monitors))
+	for _, monitor := range clusterInfo.Monitors {
+		monEndpoints = append(monEndpoints, monitor.Endpoint)
+	}
+
+	clientAccessInfo.MonAddresses = monEndpoints
+	clientAccessInfo.SecretKey = clusterInfo.AdminSecret
+	clientAccessInfo.UserName = "admin"
+
+	return nil
+}
+
 // getKubeletRootDir queries the kubelet configuration to find the kubelet root dir. Defaults to /var/lib/kubelet
 func (c *FlexvolumeController) getKubeletRootDir() string {
 	nodeConfigURI, err := k8sutil.NodeConfigURI()
@@ -329,7 +349,7 @@ func (c *FlexvolumeController) getKubeletRootDir() string {
 	}
 
 	// determining where the path of the kubelet root dir and flexvolume dir on the node
-	nodeConfig, err := c.clientset.Core().RESTClient().Get().RequestURI(nodeConfigURI).DoRaw()
+	nodeConfig, err := c.context.Clientset.Core().RESTClient().Get().RequestURI(nodeConfigURI).DoRaw()
 	if err != nil {
 		logger.Warningf("unable to query node configuration: %v", err)
 		return kubeletDefaultRootDir

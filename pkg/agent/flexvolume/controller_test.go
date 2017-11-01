@@ -90,7 +90,7 @@ func TestAttach(t *testing.T) {
 	}
 
 	controller := &FlexvolumeController{
-		clientset:                  context.Clientset,
+		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
 		volumeManager:              &FakeVolumeManager{},
 	}
@@ -157,7 +157,7 @@ func TestAttachAlreadyExist(t *testing.T) {
 	}
 
 	controller := &FlexvolumeController{
-		clientset:                  context.Clientset,
+		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
 		volumeManager:              &FakeVolumeManager{},
 	}
@@ -224,7 +224,7 @@ func TestAttachReadOnlyButRWAlreadyExist(t *testing.T) {
 	}
 
 	controller := &FlexvolumeController{
-		clientset:                  context.Clientset,
+		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
 		volumeManager:              &FakeVolumeManager{},
 	}
@@ -280,7 +280,7 @@ func TestAttachRWButROAlreadyExist(t *testing.T) {
 	}
 
 	controller := &FlexvolumeController{
-		clientset:                  context.Clientset,
+		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
 		volumeManager:              &FakeVolumeManager{},
 	}
@@ -370,7 +370,7 @@ func TestMultipleAttachReadOnly(t *testing.T) {
 
 	devicePath := ""
 	controller := &FlexvolumeController{
-		clientset:                  context.Clientset,
+		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
 		volumeManager:              &FakeVolumeManager{},
 	}
@@ -454,7 +454,7 @@ func TestOrphanAttach(t *testing.T) {
 
 	devicePath := ""
 	controller := &FlexvolumeController{
-		clientset:                  context.Clientset,
+		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
 		volumeManager:              &FakeVolumeManager{},
 	}
@@ -527,7 +527,7 @@ func TestVolumeAttachmentExistAttach(t *testing.T) {
 
 	devicePath := ""
 	controller := &FlexvolumeController{
-		clientset:                  context.Clientset,
+		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
 		volumeManager:              &FakeVolumeManager{},
 	}
@@ -572,7 +572,7 @@ func TestDetach(t *testing.T) {
 	}
 
 	controller := &FlexvolumeController{
-		clientset:                  context.Clientset,
+		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
 		volumeManager:              &FakeVolumeManager{},
 	}
@@ -624,7 +624,7 @@ func TestDetachWithAttachmentLeft(t *testing.T) {
 	}
 
 	controller := &FlexvolumeController{
-		clientset:                  context.Clientset,
+		context:                    context,
 		volumeAttachmentController: crd.New(fakeClient),
 		volumeManager:              &FakeVolumeManager{},
 	}
@@ -699,7 +699,7 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 	}
 
 	controller := &FlexvolumeController{
-		clientset:     context.Clientset,
+		context:       context,
 		volumeManager: &FakeVolumeManager{},
 	}
 
@@ -731,7 +731,7 @@ func TestParseClusterName(t *testing.T) {
 	}
 	clientset.StorageV1().StorageClasses().Create(&sc)
 	fc := &FlexvolumeController{
-		clientset:                  context.Clientset,
+		context:                    context,
 		volumeAttachmentController: crd.New(fake.NewSimpleClientset().CoreV1().RESTClient()),
 	}
 	clusterName, _ := fc.parseClusterName("rook-storageclass")

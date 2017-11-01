@@ -18,9 +18,11 @@ package cmd
 
 import (
 	"fmt"
+	"net/rpc"
 
 	"github.com/rook/rook/pkg/agent/flexvolume"
 	"github.com/spf13/cobra"
+	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/volume/util"
 )
 
@@ -42,20 +44,27 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("Rook: Error getting RPC client: %v", err)
 	}
+	mountDir := args[0]
+
+	log(client, fmt.Sprintf("unmounting mount dir: %s", mountDir), false)
+
+	mounter := getMounter()
+
+	// Check if it's a cephfs
+	err = mounter.Runner.Command("df", "--type", cephFS, mountDir).Run()
+	if err == nil {
+		return unmountCephFS(client, mounter, mountDir)
+	}
 
 	var opts = &flexvolume.AttachOptions{
 		MountDir: args[0],
 	}
-
-	log(client, fmt.Sprintf("unmounting mount dir: %s", opts.MountDir), false)
 
 	err = client.Call("FlexvolumeController.GetAttachInfoFromMountDir", opts.MountDir, &opts)
 	if err != nil {
 		log(client, fmt.Sprintf("Unmount volume at mount dir %s failed: %v", opts.MountDir, err), true)
 		return fmt.Errorf("Unmount volume at mount dir %s failed: %v", opts.MountDir, err)
 	}
-
-	mounter := getMounter()
 
 	var globalVolumeMountPath string
 	err = client.Call("FlexvolumeController.GetGlobalMountPath", opts.VolumeName, &globalVolumeMountPath)
@@ -108,4 +117,25 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 	}
 	log(client, fmt.Sprintf("volume has been unmounted from %s", opts.MountDir), false)
 	return nil
+}
+
+func unmountCephFS(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, mountDir string) error {
+	// Unmount pod mount dir
+
+	err := redirectStdout(
+		client,
+		func() error {
+			// Unmount pod mount dir
+			if err := util.UnmountPath(mountDir, mounter.Interface); err != nil {
+				return fmt.Errorf("failed to unmount cephfs volume at %s: %+v", mountDir, err)
+			}
+			return nil
+		},
+	)
+	if err != nil {
+		log(client, fmt.Sprintf("failed to mount cephfs volume from %s: %+v", mountDir, err), true)
+	} else {
+		log(client, fmt.Sprintf("cephfs volume has been unmounted from %s", mountDir), false)
+	}
+	return err
 }

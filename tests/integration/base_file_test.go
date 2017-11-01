@@ -98,11 +98,7 @@ func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 }
 
 func podWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, podname string, namespace string, filesystemName string, fileMountPath string, action string) error {
-	mons, err := k8sh.GetMonitorServices(namespace)
-	require.Nil(s.T(), err)
-
-	logger.Infof("mountFileStorage: Mons: %+v", mons)
-	_, err = k8sh.ResourceOperationFromTemplate(action, getFilesystemTestPod(podname, namespace, filesystemName, fileMountPath), mons)
+	_, err := k8sh.ResourceOperation(action, getFilesystemTestPod(podname, namespace, filesystemName, fileMountPath))
 	if err != nil {
 		return fmt.Errorf("failed to %s pod -- %s. %+v", action, getFilesystemTestPod(podname, namespace, filesystemName, fileMountPath), err)
 	}
@@ -129,15 +125,12 @@ spec:
       name: ` + filesystemName + `
   volumes:
   - name: ` + filesystemName + `
-    cephfs:
-      monitors:
-      - {{.mon0}}
-      - {{.mon1}}
-      - {{.mon2}}
-      user: admin
-      secretRef:
-        name: rook-admin
-      readOnly: false
+    flexVolume:
+      driver: rook.io/rook
+      fsType: ceph
+      options:
+        fsName: ` + filesystemName + `
+        clusterName: ` + namespace + `
   restartPolicy: Never
 `
 }

@@ -82,11 +82,6 @@ func (f *Filesystem) Create(context *clusterd.Context, version string, hostNetwo
 		return fmt.Errorf("failed to get file system %s. %+v", f.Name, err)
 	}
 
-	err = f.createAdminSecret(context)
-	if err != nil {
-		return fmt.Errorf("failed to create admin secret. %+v", err)
-	}
-
 	logger.Infof("start running mds for file system %s", f.Name)
 
 	// start the deployment
@@ -126,37 +121,6 @@ func (f *Filesystem) Delete(context *clusterd.Context) error {
 
 func (f *Filesystem) instanceName() string {
 	return fmt.Sprintf("%s-%s", appName, f.Name)
-}
-
-func (f *Filesystem) createAdminSecret(context *clusterd.Context) error {
-	_, err := context.Clientset.CoreV1().Secrets(f.Namespace).Get(adminSecretName, metav1.GetOptions{})
-	if err == nil {
-		logger.Infof("the admin secret was already generated")
-		return nil
-	}
-	if !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to get admin secret. %+v", err)
-	}
-
-	clusterInfo, _, err := opmon.LoadClusterInfo(context, f.Namespace)
-	if err != nil {
-		return fmt.Errorf("failed to load cluster information from cluster %s: %+v", f.Namespace, err)
-	}
-
-	s := map[string]string{
-		"key": clusterInfo.AdminSecret,
-	}
-	adminSecret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: adminSecretName, Namespace: f.Namespace},
-		StringData: s,
-		Type:       k8sutil.RookType,
-	}
-	_, err = context.Clientset.CoreV1().Secrets(f.Namespace).Create(adminSecret)
-	if err != nil {
-		return fmt.Errorf("failed to save admin secret. %+v", err)
-	}
-
-	return nil
 }
 
 func (f *Filesystem) makeDeployment(filesystemID, version string, hostNetwork bool) *extensions.Deployment {

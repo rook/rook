@@ -31,6 +31,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	cephFS = "ceph"
+)
+
 var RootCmd = &cobra.Command{
 	Use:           "rook",
 	Short:         "Rook Flex volume plugin",
