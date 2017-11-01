@@ -88,8 +88,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	clientset, _, err := getClientset()
 	if err != nil {
-		fmt.Printf("failed to init k8s client. %+v\n", err)
-		os.Exit(1)
+		terminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
 	}
 
 	context := createContext()
@@ -99,8 +98,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
 	if err != nil {
-		fmt.Printf("invalid location. %+v\n", err)
-		os.Exit(1)
+		terminateFatal(fmt.Errorf("invalid location. %+v\n", err))
 	}
 	crushLocation := strings.Join(locArgs, " ")
 
@@ -111,8 +109,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	err = osd.Run(context, agent)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		terminateFatal(err)
 	}
 
 	return nil

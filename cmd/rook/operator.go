@@ -17,7 +17,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator"
@@ -50,8 +49,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	clientset, apiExtClientset, err := getClientset()
 	if err != nil {
-		fmt.Printf("failed to get k8s client. %+v", err)
-		os.Exit(1)
+		terminateFatal(fmt.Errorf("failed to get k8s client. %+v", err))
 	}
 
 	logger.Infof("starting operator")
@@ -63,13 +61,11 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	op := operator.New(context)
 	if op == nil {
-		fmt.Printf("failed to create operator.")
-		os.Exit(1)
+		terminateFatal(fmt.Errorf("failed to create operator."))
 	}
 	err = op.Run()
 	if err != nil {
-		fmt.Printf("failed to run operator. %+v\n", err)
-		os.Exit(1)
+		terminateFatal(fmt.Errorf("failed to run operator. %+v\n", err))
 	}
 
 	return nil

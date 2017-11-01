@@ -21,7 +21,9 @@ Settings can be specified at the global level to apply to the cluster as a whole
 ### Cluster settings
 
 - `versionTag`: The version (tag) of the `rook/rook` container that will be deployed. Upgrades are not yet supported if this setting is updated for an existing cluster, but upgrades will be coming.
-- `dataDirHostPath`: The host path where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.  Therefore, for test scenarios, the path must be deleted if you are going to delete a cluster and start a new cluster on the same hosts.  More details can be found in the Kubernetes [host path docs](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath).
+- `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.
+  - If a path is not specified, an [empty dir](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) will be used and the config will be lost when the pod or host is restarted. This option is **not recommended**.
+  - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start. 
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 - `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
 - `monCount`: set the amount of mons to be started. The number must be odd and between `1` and `9`. Default if not specified is `3`.
@@ -94,7 +96,7 @@ metadata:
   namespace: rook
 spec:
   versionTag: master
-  dataDirHostPath:
+  dataDirHostPath: /var/lib/rook
   # cluster level storage configuration and selection
   storage:
     useAllNodes: true
@@ -126,7 +128,7 @@ metadata:
   namespace: rook
 spec:
   versionTag: master
-  dataDirHostPath:
+  dataDirHostPath: /var/lib/rook
   # cluster level storage configuration and selection
   storage:                
     useAllNodes: false
@@ -171,7 +173,7 @@ metadata:
   namespace: rook
 spec:
   versionTag: master
-  dataDirHostPath:
+  dataDirHostPath: /var/lib/rook
   placement:
     all:
       nodeAffinity:
