@@ -85,6 +85,10 @@ func Run(context *clusterd.Context, agent *OsdAgent) error {
 		return fmt.Errorf("failed to save osd dir map. %+v", err)
 	}
 
+	// OSD processes monitoring
+	mon := NewMonitor(context, agent)
+	go mon.Run()
+
 	// FIX
 	log.Printf("sleeping a while to let the osds run...")
 	<-time.After(1000000 * time.Second)
