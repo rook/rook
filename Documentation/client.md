@@ -112,7 +112,7 @@ the s3cmd tool is included in the [Rook toolbox](toolbox.md) pod.
 1. Create a bucket in the object store
 
    ```bash
-   s3cmd mb --no-ssl --host=${AWS_ENDPOINT} --host-bucket=  s3://rookbucket
+   s3cmd mb --no-ssl --host=${AWS_HOST} --host-bucket=  s3://rookbucket
    ```
 
 1. List buckets in the object store
@@ -125,12 +125,12 @@ the s3cmd tool is included in the [Rook toolbox](toolbox.md) pod.
 
    ```bash
    echo "Hello Rook!" > /tmp/rookObj
-   s3cmd put /tmp/rookObj --no-ssl --host=${AWS_ENDPOINT} --host-bucket=  s3://rookbucket
+   s3cmd put /tmp/rookObj --no-ssl --host=${AWS_HOST} --host-bucket=  s3://rookbucket
    ```
 
 1. Download and verify the file from the bucket
 
    ```bash
-   s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_ENDPOINT} --host-bucket=
+   s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_HOST} --host-bucket=
    cat /tmp/rookObj-download
    ```
