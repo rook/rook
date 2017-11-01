@@ -8,10 +8,10 @@ pipeline {
           string(name: 'PR', defaultValue: '', description: 'PR number, required if key value is set to PR')
           string(name: 'version', defaultValue: '', description: 'Version to run tests against')
           string(name: 'Load_test', defaultValue: 'TestBlockLongHaul', description: 'select a load test to run ')
-          string(name: 'testCount', defaultValue: '10', description: 'Number of times to repeat test per run')
           string(name: 'load_factor', defaultValue: '20', description: 'load factor - number of concurrent threads running per test')
+          string(name: 'load_time', defaultValue: '1800', description: 'load time - number of seconds each thread runs')
           string(name: 'volume_count', defaultValue: '3', description: 'volume count - number of concurrent volumes being create(file/block or object')
-          string(name: 'runs', defaultValue: '100', description: 'number of runs')
+          string(name: 'runs', defaultValue: '20', description: 'number of test runs ')
           string(name: 'run_interval', defaultValue: '600', description: 'interval between test runs in seconds')
       }
 
@@ -56,7 +56,7 @@ pipeline {
                             kubectl get nodes
                             chmod +x longhaul
                             mkdir -p _output/tests/
-                            ./longhaul -test.v -test.run '''+ "${env.Load_test}" + ''' -test.timeout 3600s --test.count '''+"${env.testCount}"+''' --load_parallel_runs '''+"${env.load_factor}"+''' --load_volumes '''+"${env.volume_count}"+''' 2>&1 | tee _output/tests/longHaulTest_'''+"$i"+'''.log
+                            ./longhaul -test.v -test.run '''+ "${env.Load_test}" + ''' -test.timeout 3600s --load_parallel_runs '''+"${env.load_factor}"+''' --load_volumes '''+"${env.volume_count}"+''' --load_time '''+"${env.load_time}"+ ''' 2>&1 | tee _output/tests/longHaulTest_'''+"$i"+'''.log
                              cat _output/tests/longHaulTest_''' + "$i"+'''.log | _output/go-junit-report > _output/tests/longHaulTest_'''+"$i"+'''.xml'''
                         }
                         finally{

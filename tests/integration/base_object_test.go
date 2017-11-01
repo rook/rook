@@ -48,7 +48,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Running on Rook Cluster %s", namespace)
 
 	logger.Infof("Step 0 : Create Object Store")
-	cobsErr := helper.GetObjectClient().ObjectCreate(namespace, storeName, 1, true, k8sh)
+	cobsErr := oc.ObjectCreate(namespace, storeName, 1, true, k8sh)
 	require.Nil(s.T(), cobsErr)
 	logger.Infof("Object store created successfully")
 
@@ -120,6 +120,12 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	usersAfterDelete, _ := oc.ObjectListUser(storeName)
 	require.Equal(s.T(), len(usersBeforeDelete)-1, len(usersAfterDelete), "Make sure user list count is reducd by 1")
 	logger.Infof("Object store user deleted successfully")
+
+	logger.Infof("Step 8: Delete Object Store")
+	dobsErr := oc.ObjectDelete(namespace, storeName, 1, true, k8sh)
+	require.Nil(s.T(), dobsErr)
+	logger.Infof("Object store deleted successfully")
+
 }
 
 //Test Object StoreCreation on Rook that was installed via helm
