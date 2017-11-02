@@ -26,9 +26,11 @@ import (
 	"os"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
+	"k8s.io/api/rbac/v1beta1"
 	kserrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -42,6 +44,24 @@ const (
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-agent")
 
+var clusterAccessRules = []v1beta1.PolicyRule{
+	{
+		APIGroups: []string{""},
+		Resources: []string{"pods", "secrets", "configmaps", "persistentvolumes", "nodes/proxy"},
+		Verbs:     []string{"get", "list"},
+	},
+	{
+		APIGroups: []string{k8sutil.CustomResourceGroup},
+		Resources: []string{crd.CustomResourceNamePlural},
+		Verbs:     []string{"get", "list", "create", "delete", "update"},
+	},
+	{
+		APIGroups: []string{"storage.k8s.io"},
+		Resources: []string{"storageclasses"},
+		Verbs:     []string{"get"},
+	},
+}
+
 // New creates an instance of Agent
 func New(clientset kubernetes.Interface) *Agent {
 	return &Agent{
@@ -51,7 +71,13 @@ func New(clientset kubernetes.Interface) *Agent {
 
 // Start the agent
 func (a *Agent) Start(namespace string) error {
-	err := a.createAgentDaemonSet(namespace)
+
+	err := k8sutil.MakeClusterRole(a.clientset, namespace, agentDaemonsetName, clusterAccessRules)
+	if err != nil {
+		return fmt.Errorf("failed to init RBAC for rook-agents. %+v", err)
+	}
+
+	err = a.createAgentDaemonSet(namespace)
 	if err != nil {
 		return fmt.Errorf("Error starting agent daemonset: %v", err)
 	}
@@ -59,8 +85,6 @@ func (a *Agent) Start(namespace string) error {
 }
 
 func (a *Agent) createAgentDaemonSet(namespace string) error {
-
-	serviceAccount := os.Getenv(k8sutil.RookOperatorServiceAccount)
 
 	// Using the rook-operator image to deploy the rook-agents
 	agentImage, err := getContainerImage(a.clientset)
@@ -80,7 +104,7 @@ func (a *Agent) createAgentDaemonSet(namespace string) error {
 					},
 				},
 				Spec: v1.PodSpec{
-					ServiceAccountName: serviceAccount,
+					ServiceAccountName: agentDaemonsetName,
 					Containers: []v1.Container{
 						{
 							Name:  agentDaemonsetName,
