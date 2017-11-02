@@ -96,13 +96,15 @@ case "${1:-}" in
   up)
     minikube start --memory=3000 --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
     wait_for_ssh
-    enable_roles_for_RBAC
 
     # create a link so the default dataDirHostPath will work for this environment
     minikube ssh "sudo mkdir /mnt/sda1/var/lib/rook;sudo ln -s /mnt/sda1/var/lib/rook /var/lib/rook"
 
     copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
     copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
+
+    enable_roles_for_RBAC
+
     if [[ $KUBE_VERSION == v1.5* ]] || [[ $KUBE_VERSION == v1.6* ]] || [[ $KUBE_VERSION == v1.7* ]] ;
     then
         echo "initializing flexvolume for rook"
