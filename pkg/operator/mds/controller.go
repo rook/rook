@@ -84,13 +84,18 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 }
 
 func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
-	//oldFilesystem := oldObj.(*Filesystem)
-	newFilesystem := newObj.(*Filesystem)
+	oldFS := oldObj.(*Filesystem)
+	newFS := newObj.(*Filesystem)
+	if !filesystemChanged(oldFS.Spec, newFS.Spec) {
+		logger.Debugf("filesystem %s not updated", newFS.Name)
+		return
+	}
 
 	// if the file system is modified, allow the file system to be created if it wasn't already
-	err := newFilesystem.Create(c.context, c.versionTag, c.hostNetwork)
+	logger.Infof("updating filesystem %s", newFS)
+	err := newFS.Create(c.context, c.versionTag, c.hostNetwork)
 	if err != nil {
-		logger.Errorf("failed to create (modify) file system %s. %+v", newFilesystem.Name, err)
+		logger.Errorf("failed to create (modify) file system %s. %+v", newFS.Name, err)
 	}
 }
 
@@ -100,4 +105,20 @@ func (c *FilesystemController) onDelete(obj interface{}) {
 	if err != nil {
 		logger.Errorf("failed to delete file system %s. %+v", filesystem.Name, err)
 	}
+}
+
+func filesystemChanged(oldFS, newFS FilesystemSpec) bool {
+	if len(oldFS.DataPools) != len(newFS.DataPools) {
+		logger.Infof("number of data pools changed from %d to %d", len(oldFS.DataPools), len(newFS.DataPools))
+		return true
+	}
+	if oldFS.MetadataServer.ActiveCount != newFS.MetadataServer.ActiveCount {
+		logger.Infof("number of mds active changed from %d to %d", oldFS.MetadataServer.ActiveCount, newFS.MetadataServer.ActiveCount)
+		return true
+	}
+	if oldFS.MetadataServer.ActiveStandby != newFS.MetadataServer.ActiveStandby {
+		logger.Infof("mds active standby changed from %t to %t", oldFS.MetadataServer.ActiveStandby, newFS.MetadataServer.ActiveStandby)
+		return true
+	}
+	return false
 }

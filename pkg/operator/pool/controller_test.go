@@ -123,6 +123,20 @@ func TestCreatePool(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestUpdatePool(t *testing.T) {
+	// the pool did not change for properties that are updatable
+	old := PoolSpec{FailureDomain: "osd", ErasureCoded: ErasureCodedSpec{CodingChunks: 2, DataChunks: 2}}
+	new := PoolSpec{FailureDomain: "host", ErasureCoded: ErasureCodedSpec{CodingChunks: 3, DataChunks: 3}}
+	changed := poolChanged(old, new)
+	assert.False(t, changed)
+
+	// the pool changed for properties that are updatable
+	old = PoolSpec{FailureDomain: "osd", Replicated: ReplicatedSpec{Size: 1}}
+	new = PoolSpec{FailureDomain: "osd", Replicated: ReplicatedSpec{Size: 2}}
+	changed = poolChanged(old, new)
+	assert.True(t, changed)
+}
+
 func TestDeletePool(t *testing.T) {
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName, command, outfile string, args ...string) (string, error) {

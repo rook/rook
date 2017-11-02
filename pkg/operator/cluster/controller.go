@@ -166,7 +166,17 @@ func (c *ClusterController) onAdd(obj interface{}) {
 }
 
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
-	logger.Infof("modifying a cluster not implemented")
+	oldCluster := oldObj.(*Cluster)
+	newCluster := newObj.(*Cluster)
+	if !clusterChanged(oldCluster.Spec, newCluster.Spec) {
+		logger.Debugf("no updates made in the cluster")
+		return
+	}
+
+	logger.Infof("updating cluster %s", newCluster.Namespace)
+	if err := newCluster.createInstance(); err != nil {
+		logger.Errorf("failed to update cluster %s in namespace %s. %+v", newCluster.Name, newCluster.Namespace, err)
+	}
 }
 
 func (c *ClusterController) onDelete(obj interface{}) {
@@ -282,4 +292,9 @@ func (c *Cluster) createInitialCrushMap() error {
 	}
 
 	return nil
+}
+
+func clusterChanged(oldCluster, newCluster ClusterSpec) bool {
+	// no updates to the cluster supported yet
+	return false
 }
