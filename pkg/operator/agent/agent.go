@@ -172,12 +172,6 @@ func (a *Agent) createAgentDaemonSet(namespace string) error {
 						},
 					},
 					HostNetwork: true,
-					Tolerations: []v1.Toleration{
-						{
-							Effect:   v1.TaintEffectNoSchedule,
-							Operator: v1.TolerationOpExists,
-						},
-					},
 				},
 			},
 		},
