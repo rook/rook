@@ -146,7 +146,7 @@ automates configuration of storage components and monitors the cluster to ensure
 and healthy. There is also a REST API service for configuring the Rook storage and a command line tool called `rookctl`.
 
 The Rook operator is a simple container that has all that is needed to bootstrap
-and monitor the storage cluster. The operator will start and monitor ceph monitor pods and a daemonset for the OSDs, which provides basic
+and monitor the storage cluster. The operator will start and monitor [ceph monitor pods](https://github.com/rook/rook/blob/master/design/mon-health.md) and a daemonset for the OSDs, which provides basic
 RADOS storage as well as a deployment for a RESTful API service. When requested through the api service,
 object storage (S3/Swift) is enabled by starting a deployment for RGW, while a shared file system is enabled with a deployment for MDS.
 
@@ -167,4 +167,4 @@ of physical resources, pools, volumes, filesystems, and buckets.
 Rook is implemented in golang. Ceph is implemented in C++ where the data path is highly optimized. We believe
 this combination offers the best of both worlds.
 
-See [Design](https://github.com/rook/rook/wiki/Design) wiki for more details.
+For more detailed design documentation, see the [design docs](https://github.com/rook/rook/tree/master/design).
