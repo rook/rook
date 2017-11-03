@@ -245,6 +245,10 @@ func (h *InstallHelper) UninstallRookFromK8s(namespace string, helmInstalled boo
 		_, err = h.k8shelper.KubectlWithStdin(rookOperator, deleteArgs...)
 		assert.NoError(h.T(), err, "cannot uninstall rook-operator err -> %v", err)
 	}
+
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rook-agent", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-agent", nil)
+
 	_, err = k8sHelp.DeleteResource([]string{"-n", namespace, "cluster", namespace})
 	assert.NoError(h.T(), err, "cannot remove cluster %s in namespace %s  err -> %v", namespace, namespace, err)
 

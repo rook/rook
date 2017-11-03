@@ -60,8 +60,6 @@ const (
 	PodNamespaceEnvVar = "POD_NAMESPACE"
 	// NodeNameEnvVar is the env variable for getting the node via downward api
 	NodeNameEnvVar = "NODE_NAME"
-	// RookOperatorServiceAccount is the env variable for getting the rook-operator service account via downward api
-	RookOperatorServiceAccount = "ROOK_OPERATOR_SERVICE_ACCOUNT"
 )
 
 // GetK8SVersion gets the version of the running K8S cluster

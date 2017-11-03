@@ -130,6 +130,8 @@ func (mrc *MultiClusterDeploySuite) TearDownSuite() {
 		panic(err)
 	}
 	rookOperator := mrc.installData.GetRookOperator(installer.SystemNamespace(mrc.namespace1))
+	mrc.k8sh.Clientset.RbacV1beta1().ClusterRoles().Delete("rook-agent", nil)
+	mrc.k8sh.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-agent", nil)
 
 	//Delete rook operator
 	_, err = mrc.k8sh.KubectlWithStdin(rookOperator, deleteArgs...)

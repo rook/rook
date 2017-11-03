@@ -122,6 +122,8 @@ To clean up all the artifacts created by the demo, **first cleanup the resources
 
 ```bash
 kubectl delete -f rook-operator.yaml
+kubectl delete clusterroles rook-agent
+kubectl delete clusterrolebindings rook-agent
 kubectl delete -n rook cluster rook
 kubectl delete -n rook serviceaccount rook-api
 kubectl delete -n rook role rook-api

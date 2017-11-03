@@ -31,15 +31,13 @@ import (
 )
 
 func MakeRole(clientset kubernetes.Interface, namespace, name string, rules []v1beta1.PolicyRule) error {
-	account := &v1.ServiceAccount{}
-	account.Name = name
-	account.Namespace = namespace
-	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(account)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create %s service account in namespace %s. %+v", name, namespace, err)
+
+	err := makeServiceAccount(clientset, namespace, name)
+	if err != nil {
+		return err
 	}
 
-	// Create the cluster role if it doesn't yet exist.
+	// Create the role if it doesn't yet exist.
 	// If the role already exists we have to update it. Otherwise if the permissions change during an upgrade,
 	// the create will fail with an error that we're changing the permissions.
 	role := &v1beta1.Role{Rules: rules}
@@ -63,6 +61,52 @@ func MakeRole(clientset kubernetes.Interface, namespace, name string, rules []v1
 	_, err = clientset.RbacV1beta1().RoleBindings(namespace).Create(binding)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create %s role binding in namespace %s. %+v", name, namespace, err)
+	}
+	return nil
+}
+
+func MakeClusterRole(clientset kubernetes.Interface, namespace, name string, rules []v1beta1.PolicyRule) error {
+
+	err := makeServiceAccount(clientset, namespace, name)
+	if err != nil {
+		return err
+	}
+
+	// Create the cluster scoped role if it doesn't yet exist.
+	// If the role already exists we have to update it. Otherwise if the permissions change during an upgrade,
+	// the create will fail with an error that we're changing the permissions.
+	role := &v1beta1.ClusterRole{Rules: rules}
+	role.Name = name
+	_, err = clientset.RbacV1beta1().ClusterRoles().Get(role.Name, metav1.GetOptions{})
+	if errors.IsNotFound(err) {
+		logger.Infof("creating cluster role %s", name)
+		_, err = clientset.RbacV1beta1().ClusterRoles().Create(role)
+	} else if err == nil {
+		logger.Infof("cluster role %s already exists. Updating if needed.", name)
+		_, err = clientset.RbacV1beta1().ClusterRoles().Update(role)
+	}
+	if err != nil {
+		return fmt.Errorf("failed to create/update cluster role %s. %+v", name, err)
+	}
+
+	binding := &v1beta1.ClusterRoleBinding{}
+	binding.Name = name
+	binding.RoleRef = v1beta1.RoleRef{Name: name, Kind: "ClusterRole", APIGroup: "rbac.authorization.k8s.io"}
+	binding.Subjects = []v1beta1.Subject{{Kind: "ServiceAccount", Name: name, Namespace: namespace}}
+	_, err = clientset.RbacV1beta1().ClusterRoleBindings().Create(binding)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create cluster role binding %s. %+v", name, err)
+	}
+	return nil
+}
+
+func makeServiceAccount(clientset kubernetes.Interface, namespace, name string) error {
+	account := &v1.ServiceAccount{}
+	account.Name = name
+	account.Namespace = namespace
+	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(account)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create %s service account in namespace %s. %+v", name, namespace, err)
 	}
 	return nil
 }
