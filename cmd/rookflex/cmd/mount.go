@@ -244,6 +244,10 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 	)
 	if err != nil {
 		log(client, err.Error(), true)
+		log(client, "NOTE: Rook Flexvolume plugin uses 'mds_namespace' to refer to the ceph filesystem. "+
+			"This option is only available on Kernel v4.7 and higher. "+
+			"On older kernels, use the Kubernetes cephFS plugin to mount the filesystem. More details can be "+
+			"found in the Rook docs at https://rook.io/docs/rook/master/common-problems.html#filesystem-mounting", false)
 	} else {
 		log(client, fmt.Sprintf("ceph filesystem %s has been attached and mounted", opts.FsName), false)
 	}
