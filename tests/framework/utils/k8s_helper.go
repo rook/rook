@@ -30,6 +30,8 @@ import (
 	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/agent/flexvolume/crd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
@@ -459,6 +461,80 @@ func (k8sh *K8sHelper) IsCRDPresent(crdName string) bool {
 	}
 
 	return false
+}
+
+// GetVolumeAttachmentResourceName gets the VolumeAttachment object name from the PVC
+func (k8sh *K8sHelper) GetVolumeAttachmentResourceName(namespace, pvcName string) (string, error) {
+
+	getOpts := metav1.GetOptions{}
+	pvc, err := k8sh.Clientset.PersistentVolumeClaims(namespace).Get(pvcName, getOpts)
+	if err != nil {
+		return "", err
+	}
+	return pvc.Spec.VolumeName, nil
+}
+
+//IsVolumeAttachmentResourcePresent returns true if VolumeAttachment resource is present
+func (k8sh *K8sHelper) IsVolumeAttachmentResourcePresent(namespace, volumeAttachmentName string) bool {
+	err := k8sh.waitForVolumeAttachment(namespace, volumeAttachmentName, true)
+	if err != nil {
+		k8slogger.Error(err.Error())
+		return false
+	}
+	return true
+}
+
+//IsVolumeAttachmentResourceAbsent returns true if the VolumeAttachment resource is deleted/absent within 90s else returns false
+func (k8sh *K8sHelper) IsVolumeAttachmentResourceAbsent(namespace, volumeAttachmentName string) bool {
+
+	err := k8sh.waitForVolumeAttachment(namespace, volumeAttachmentName, false)
+	if err != nil {
+		k8slogger.Error(err.Error())
+		return false
+	}
+	return true
+}
+
+func (k8sh *K8sHelper) waitForVolumeAttachment(namespace, volumeAttachmentName string, exist bool) error {
+
+	action := "exist"
+	if !exist {
+		action = "not " + action
+	}
+
+	inc := 0
+	for inc < RetryLoop {
+		isExist, err := k8sh.isVolumeAttachmentExist(namespace, volumeAttachmentName)
+		if err != nil {
+			return fmt.Errorf("Errors encountered while getting VolumeAttachment %s/%s: %v", namespace, volumeAttachmentName, err)
+		}
+		if isExist == exist {
+			return nil
+		}
+
+		k8slogger.Infof("waiting for VolumeAttachment %s in namespace %s to %s", volumeAttachmentName, namespace, action)
+		time.Sleep(RetryInterval * time.Second)
+		inc++
+
+	}
+	return fmt.Errorf("timeout for VolumeAttachment %s in namespace %s wait to %s", volumeAttachmentName, namespace, action)
+}
+
+func (k8sh *K8sHelper) isVolumeAttachmentExist(namespace, name string) (bool, error) {
+	var result crd.VolumeAttachment
+	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, namespace, crd.CustomResourceNamePlural)
+	err := k8sh.Clientset.Core().RESTClient().Get().
+		RequestURI(uri).
+		Name(name).
+		Do().
+		Into(&result)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	return true, nil
 }
 
 //GetPodDetails returns details about a  pod

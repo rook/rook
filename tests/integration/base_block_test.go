@@ -59,6 +59,9 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	logger.Infof("step 2: Mount block storage")
 	_, mtErr := rbc.BlockMap(getBlockPodDefintion(podName, blockName), blockMountPath)
 	require.Nil(s.T(), mtErr)
+	crdName, err := k8sh.GetVolumeAttachmentResourceName(defaultNamespace, blockName)
+	require.Nil(s.T(), err)
+	require.True(s.T(), k8sh.IsVolumeAttachmentResourcePresent(installer.SystemNamespace(namespace), crdName), fmt.Sprintf("make sure VolumeAttachment %s is created", crdName))
 	require.True(s.T(), k8sh.IsPodRunning(blockPodName, defaultNamespace), "make sure block-test pod is in running state")
 	logger.Infof("Block Storage Mounted successfully")
 
@@ -89,6 +92,7 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	logger.Infof("step 7: Unmount block storage")
 	_, unmtErr = rbc.BlockUnmap(getBlockPodDefintion(podName, blockName), blockMountPath)
 	require.Nil(s.T(), unmtErr)
+	require.True(s.T(), k8sh.IsVolumeAttachmentResourceAbsent(installer.SystemNamespace(namespace), crdName), fmt.Sprintf("make sure VolumeAttachment %s is deleted", crdName))
 	require.True(s.T(), k8sh.IsPodTerminated(blockPodName, defaultNamespace), "make sure block-test pod is terminated")
 	logger.Infof("Block Storage unmounted successfully")
 
