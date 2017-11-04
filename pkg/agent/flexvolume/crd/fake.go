@@ -30,3 +30,45 @@ func RegisterFakeAPI() *runtime.Scheme {
 	api.SchemeBuilder.Register(addKnownTypes)
 	return scheme
 }
+
+type MockVolumeAttachmentController struct {
+	MockCreate func(volumeAttachment VolumeAttachment) error
+	MockGet    func(namespace, name string) (VolumeAttachment, error)
+	MockList   func(namespace string) (VolumeAttachmentList, error)
+	MockUpdate func(volumeAttachment VolumeAttachment) error
+	MockDelete func(namespace, name string) error
+}
+
+func (m *MockVolumeAttachmentController) Create(volumeAttachment VolumeAttachment) error {
+	if m.MockCreate != nil {
+		return m.MockCreate(volumeAttachment)
+	}
+	return nil
+}
+func (m *MockVolumeAttachmentController) Get(namespace, name string) (VolumeAttachment, error) {
+	if m.MockGet != nil {
+		return m.MockGet(namespace, name)
+	}
+	return VolumeAttachment{}, nil
+}
+
+func (m *MockVolumeAttachmentController) List(namespace string) (VolumeAttachmentList, error) {
+	if m.MockList != nil {
+		return m.MockList(namespace)
+	}
+	return VolumeAttachmentList{}, nil
+}
+
+func (m *MockVolumeAttachmentController) Update(volumeAttachment VolumeAttachment) error {
+	if m.MockUpdate != nil {
+		return m.MockUpdate(volumeAttachment)
+	}
+	return nil
+}
+
+func (m *MockVolumeAttachmentController) Delete(namespace, name string) error {
+	if m.MockDelete != nil {
+		return m.MockDelete(namespace, name)
+	}
+	return nil
+}

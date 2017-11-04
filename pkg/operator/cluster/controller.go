@@ -22,10 +22,12 @@ package cluster
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
+	flexcrd "github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/api"
@@ -45,8 +47,8 @@ import (
 )
 
 const (
-	customResourceName       = "cluster"
-	customResourceNamePlural = "clusters"
+	CustomResourceName       = "cluster"
+	CustomResourceNamePlural = "clusters"
 	crushConfigMapName       = "crush-config"
 	crushmapCreatedKey       = "initialCrushMapCreated"
 	clusterCreateInterval    = 6 * time.Second
@@ -57,7 +59,9 @@ const (
 
 const (
 	// DefaultClusterName states the default name of the rook-cluster if not provided.
-	DefaultClusterName = "rook"
+	DefaultClusterName         = "rook"
+	clusterDeleteRetryInterval = 2 //seconds
+	clusterDeleteMaxRetries    = 15
 )
 
 var (
@@ -66,23 +70,23 @@ var (
 
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
-	context      *clusterd.Context
-	scheme       *runtime.Scheme
-	devicesInUse bool
+	context                    *clusterd.Context
+	scheme                     *runtime.Scheme
+	volumeAttachmentController flexcrd.VolumeAttachmentController
+	devicesInUse               bool
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context) (*ClusterController, error) {
+func NewClusterController(context *clusterd.Context, volumeAttachmentController flexcrd.VolumeAttachmentController) *ClusterController {
 	return &ClusterController{
-		context: context,
-	}, nil
-
+		context:                    context,
+		volumeAttachmentController: volumeAttachmentController,
+	}
 }
 
 // Watch watches instances of cluster resources
 func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
-
-	customResourceClient, scheme, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
+	customResourceClient, scheme, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, SchemeBuilder)
 	if err != nil {
 		return fmt.Errorf("failed to get a k8s client for watching cluster resources: %v", err)
 	}
@@ -180,7 +184,64 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 }
 
 func (c *ClusterController) onDelete(obj interface{}) {
-	logger.Infof("deleting a cluster not implemented")
+	clusterOrig := obj.(*Cluster)
+
+	// NEVER modify objects from the store. It's a read-only, local cache.
+	// Use scheme.Copy() to make a deep copy of original object.
+	copyObj, err := c.scheme.Copy(clusterOrig)
+	if err != nil {
+		logger.Errorf("failed to create a deep copy of cluster object: %v\n", err)
+		return
+	}
+	cluster := copyObj.(*Cluster)
+
+	c.handleDelete(cluster, time.Duration(clusterDeleteRetryInterval)*time.Second)
+}
+
+func (c *ClusterController) handleDelete(cluster *Cluster, retryInterval time.Duration) {
+	logger.Infof("cluster in namespace %s is being deleted.  Waiting for agents to perform cleanup operations.", cluster.Namespace)
+
+	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
+	retryCount := 0
+	for {
+		// TODO: filter this List operation by cluster namespace on the server side
+		vols, err := c.volumeAttachmentController.List(operatorNamespace)
+		if err != nil {
+			logger.Errorf("failed to get volume attachments for operator namespace %s: %+v", operatorNamespace, err)
+			break
+		}
+
+		// find volume attachments in the deleted cluster
+		attachmentsExist := false
+	AttachmentLoop:
+		for _, vol := range vols.Items {
+			for _, a := range vol.Attachments {
+				if a.ClusterName == cluster.Namespace {
+					// there is still an outstanding volume attachment in the cluster that is being deleted.
+					attachmentsExist = true
+					break AttachmentLoop
+				}
+			}
+		}
+
+		if !attachmentsExist {
+			logger.Infof("all volume attachments for cluster %s have been cleaned up.", cluster.Namespace)
+			break
+		}
+
+		retryCount++
+		if retryCount == clusterDeleteMaxRetries {
+			logger.Warningf(
+				"exceeded retry count while waiting for volume attachments for cluster %s to be cleaned up. vols: %+v",
+				cluster.Namespace,
+				vols.Items)
+			break
+		}
+
+		logger.Infof("waiting for volume attachments in cluster %s to be cleaned up. Retrying in %s.",
+			cluster.Namespace, retryInterval)
+		<-time.After(retryInterval)
+	}
 }
 
 func (c *Cluster) init(context *clusterd.Context) {

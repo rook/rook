@@ -70,7 +70,7 @@ func TestStartAgentDaemonset(t *testing.T) {
 
 	role, err := clientset.RbacV1beta1().ClusterRoles().Get("rook-agent", metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, 3, len(role.Rules))
+	assert.Equal(t, 4, len(role.Rules))
 
 	binding, err := clientset.RbacV1beta1().ClusterRoleBindings().Get("rook-agent", metav1.GetOptions{})
 	assert.Nil(t, err)

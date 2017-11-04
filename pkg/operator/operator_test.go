@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/rook/rook/pkg/agent/flexvolume/crd"
+	flexcrd "github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/mds"
@@ -32,7 +32,7 @@ import (
 func TestOperator(t *testing.T) {
 	clientset := test.New(3)
 	context := &clusterd.Context{Clientset: clientset}
-	o := New(context)
+	o := New(context, &flexcrd.MockVolumeAttachmentController{})
 
 	assert.NotNil(t, o)
 	assert.NotNil(t, o.clusterController)
@@ -41,7 +41,8 @@ func TestOperator(t *testing.T) {
 	assert.Equal(t, context, o.context)
 	assert.Equal(t, len(o.resources), 5)
 	for _, r := range o.resources {
-		if r.Name != cluster.ClusterResource.Name && r.Name != pool.PoolResource.Name && r.Name != rgw.ObjectStoreResource.Name && r.Name != mds.FilesystemResource.Name && r.Name != crd.VolumeAttachmentResource.Name {
+		if r.Name != cluster.ClusterResource.Name && r.Name != pool.PoolResource.Name && r.Name != rgw.ObjectStoreResource.Name &&
+			r.Name != mds.FilesystemResource.Name && r.Name != flexcrd.VolumeAttachmentResource.Name {
 			assert.Fail(t, fmt.Sprintf("Resource %s is not valid", r.Name))
 		}
 	}

@@ -27,6 +27,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/agent/flexvolume/crd"
+	opcluster "github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -54,6 +55,11 @@ var clusterAccessRules = []v1beta1.PolicyRule{
 		APIGroups: []string{k8sutil.CustomResourceGroup},
 		Resources: []string{crd.CustomResourceNamePlural},
 		Verbs:     []string{"get", "list", "create", "delete", "update"},
+	},
+	{
+		APIGroups: []string{k8sutil.CustomResourceGroup},
+		Resources: []string{opcluster.CustomResourceNamePlural},
+		Verbs:     []string{"get", "list", "watch"},
 	},
 	{
 		APIGroups: []string{"storage.k8s.io"},

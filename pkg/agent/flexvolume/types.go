@@ -28,7 +28,16 @@ const (
 type VolumeManager interface {
 	Init() error
 	Attach(image, pool, clusterName string) (string, error)
-	Detach(image, pool, clusterName string) error
+	Detach(image, pool, clusterName string, force bool) error
+}
+
+type VolumeController interface {
+	Attach(attachOpts AttachOptions, devicePath *string) error
+	Detach(detachOpts AttachOptions, _ *struct{} /* void reply */) error
+	DetachForce(detachOpts AttachOptions, _ *struct{} /* void reply */) error
+	RemoveAttachmentObject(detachOpts AttachOptions, safeToDetach *bool) error
+	Log(message LogMessage, _ *struct{} /* void reply */) error
+	GetAttachInfoFromMountDir(mountDir string, attachOptions *AttachOptions) error
 }
 
 type AttachOptions struct {

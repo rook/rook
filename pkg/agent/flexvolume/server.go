@@ -28,7 +28,6 @@ import (
 	"os"
 	"path"
 
-	"k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/util/version"
 
 	"github.com/coreos/pkg/capnslog"
@@ -57,15 +56,11 @@ type FlexvolumeServer struct {
 }
 
 // NewFlexvolumeServer creates an Flexvolume server
-func NewFlexvolumeServer(context *clusterd.Context, volumeAttachmentClient rest.Interface, manager VolumeManager) (*FlexvolumeServer, error) {
-	controller, err := newFlexvolumeController(context, volumeAttachmentClient, manager)
-	if err != nil {
-		return nil, err
-	}
+func NewFlexvolumeServer(context *clusterd.Context, controller *FlexvolumeController, manager VolumeManager) *FlexvolumeServer {
 	return &FlexvolumeServer{
 		context:    context,
 		controller: controller,
-	}, nil
+	}
 }
 
 // Start configures the flexvolume driver on the host and starts the unix domain socket server to communicate with the driver

@@ -41,8 +41,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/rest"
-	"k8s.io/kubernetes/pkg/util/version"
 )
 
 const (
@@ -61,26 +59,14 @@ type FlexvolumeController struct {
 	volumeAttachmentController crd.VolumeAttachmentController
 }
 
-func newFlexvolumeController(context *clusterd.Context, volumeAttachmentCRDClient rest.Interface, manager VolumeManager) (*FlexvolumeController, error) {
-
-	var controller crd.VolumeAttachmentController
-	// CRD is available on v1.7.0. TPR became deprecated on v1.7.0
-	// Remove this code when TPR is not longer supported
-	kubeVersion, err := k8sutil.GetK8SVersion(context.Clientset)
-	if err != nil {
-		return nil, fmt.Errorf("Error getting server version: %v", err)
-	}
-	if kubeVersion.AtLeast(version.MustParseSemantic(serverVersionV170)) {
-		controller = crd.New(volumeAttachmentCRDClient)
-	} else {
-		controller = crd.NewTPR(context.Clientset)
-	}
+func NewFlexvolumeController(context *clusterd.Context, controller crd.VolumeAttachmentController,
+	manager VolumeManager) *FlexvolumeController {
 
 	return &FlexvolumeController{
 		context:                    context,
-		volumeManager:              manager,
 		volumeAttachmentController: controller,
-	}, nil
+		volumeManager:              manager,
+	}
 }
 
 // Attach attaches rook volume to the node
@@ -100,7 +86,7 @@ func (c *FlexvolumeController) Attach(attachOpts AttachOptions, devicePath *stri
 		}
 		// No volumeattach CRD for this volume found. Create one
 		volumeattachObj = crd.NewVolumeAttachment(crdName, namespace, node, attachOpts.PodNamespace, attachOpts.Pod,
-			attachOpts.MountDir, strings.ToLower(attachOpts.RW) == ReadOnly)
+			attachOpts.ClusterName, attachOpts.MountDir, strings.ToLower(attachOpts.RW) == ReadOnly)
 		logger.Infof("Creating Volume attach Resource %s/%s: %+v", volumeattachObj.Namespace, volumeattachObj.Name, attachOpts)
 		err = c.volumeAttachmentController.Create(volumeattachObj)
 		if err != nil {
@@ -141,6 +127,7 @@ func (c *FlexvolumeController) Attach(attachOpts AttachOptions, devicePath *stri
 					attachment.MountDir = attachOpts.MountDir
 					attachment.PodNamespace = attachOpts.PodNamespace
 					attachment.PodName = attachOpts.Pod
+					attachment.ClusterName = attachOpts.ClusterName
 					attachment.ReadOnly = attachOpts.RW == ReadOnly
 					err = c.volumeAttachmentController.Update(volumeattachObj)
 					if err != nil {
@@ -164,6 +151,7 @@ func (c *FlexvolumeController) Attach(attachOpts AttachOptions, devicePath *stri
 					Node:         node,
 					PodNamespace: attachOpts.PodNamespace,
 					PodName:      attachOpts.Pod,
+					ClusterName:  attachOpts.ClusterName,
 					MountDir:     attachOpts.MountDir,
 					ReadOnly:     attachOpts.RW == ReadOnly,
 				}
@@ -184,8 +172,15 @@ func (c *FlexvolumeController) Attach(attachOpts AttachOptions, devicePath *stri
 
 // Detach detaches a rook volume to the node
 func (c *FlexvolumeController) Detach(detachOpts AttachOptions, _ *struct{} /* void reply */) error {
+	return c.doDetach(detachOpts, false /* force */)
+}
 
-	err := c.volumeManager.Detach(detachOpts.Image, detachOpts.Pool, detachOpts.ClusterName)
+func (c *FlexvolumeController) DetachForce(detachOpts AttachOptions, _ *struct{} /* void reply */) error {
+	return c.doDetach(detachOpts, true /* force */)
+}
+
+func (c *FlexvolumeController) doDetach(detachOpts AttachOptions, force bool) error {
+	err := c.volumeManager.Detach(detachOpts.Image, detachOpts.Pool, detachOpts.ClusterName, force)
 	if err != nil {
 		return fmt.Errorf("Failed to detach volume %s/%s: %+v", detachOpts.Pool, detachOpts.Image, err)
 	}

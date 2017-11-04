@@ -133,7 +133,7 @@ func (vm *VolumeManager) Attach(image, pool, clusterName string) (string, error)
 }
 
 // Detach the volume
-func (vm *VolumeManager) Detach(image, pool, clusterName string) error {
+func (vm *VolumeManager) Detach(image, pool, clusterName string, force bool) error {
 	// check if the volume is attached
 	devicePath, err := vm.isAttached(image, pool, clusterName)
 	if err != nil {
@@ -151,7 +151,7 @@ func (vm *VolumeManager) Detach(image, pool, clusterName string) error {
 		return fmt.Errorf("failed to load cluster information from cluster %s: %+v", clusterName, err)
 	}
 
-	err = cephclient.UnMapImage(vm.context, image, pool, clusterName, keyring, monitors)
+	err = cephclient.UnMapImage(vm.context, image, pool, clusterName, keyring, monitors, force)
 	if err != nil {
 		return fmt.Errorf("failed to detach volume %s/%s cluster %s. %+v", pool, image, clusterName, err)
 	}
