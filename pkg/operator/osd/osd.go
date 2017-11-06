@@ -159,11 +159,16 @@ func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, sel
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
 	}
 
-	// create volume config for the data dir and /dev so the pod can access devices on the host
 	volumes := []v1.Volume{
 		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
-		{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}},
 		k8sutil.ConfigOverrideVolume(),
+	}
+
+	// by default, don't define any volume config unless it is required
+	if len(devices) > 0 || selection.DeviceFilter != "" || selection.getUseAllDevices() || selection.MetadataDevice != "" {
+		// create volume config for the data dir and /dev so the pod can access devices on the host
+		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
+		volumes = append(volumes, devVolume)
 	}
 
 	// add each OSD directory as another host path volume source
@@ -214,6 +219,8 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 		k8sutil.ConfigOverrideEnvVar(),
 	}
 
+	devMountNeeded := false
+
 	// only 1 of device list, device filter and use all devices can be specified.  We prioritize in that order.
 	if len(devices) > 0 {
 		deviceNames := make([]string, len(devices))
@@ -221,20 +228,27 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 			deviceNames[i] = devices[i].Name
 		}
 		envVars = append(envVars, dataDevicesEnvVar(strings.Join(deviceNames, ",")))
+		devMountNeeded = true
 	} else if selection.DeviceFilter != "" {
 		envVars = append(envVars, deviceFilterEnvVar(selection.DeviceFilter))
+		devMountNeeded = true
 	} else if selection.getUseAllDevices() {
 		envVars = append(envVars, deviceFilterEnvVar("all"))
+		devMountNeeded = true
 	}
 
 	if selection.MetadataDevice != "" {
 		envVars = append(envVars, metadataDeviceEnvVar(selection.MetadataDevice))
+		devMountNeeded = true
 	}
 
 	volumeMounts := []v1.VolumeMount{
 		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
-		{Name: "devices", MountPath: "/dev"},
 		k8sutil.ConfigOverrideMount(),
+	}
+	if devMountNeeded {
+		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
+		volumeMounts = append(volumeMounts, devMount)
 	}
 
 	if len(directories) > 0 {
@@ -269,15 +283,27 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 		envVars = append(envVars, locationEnvVar(config.Location))
 	}
 
-	privileged := true
+	privileged := false
+	// elevate to be privileged if it is going to mount devices
+	if devMountNeeded {
+		privileged = true
+	}
+	runAsUser := int64(0)
+	runAsNonRoot := false
+	readOnlyRootFilesystem := false
 	return v1.Container{
 		// Set the hostname so we have the pod's host in the crush map rather than the pod container name
-		Args:            []string{"osd"},
-		Name:            appName,
-		Image:           k8sutil.MakeRookImage(c.Version),
-		VolumeMounts:    volumeMounts,
-		Env:             envVars,
-		SecurityContext: &v1.SecurityContext{Privileged: &privileged},
+		Args:         []string{"osd"},
+		Name:         appName,
+		Image:        k8sutil.MakeRookImage(c.Version),
+		VolumeMounts: volumeMounts,
+		Env:          envVars,
+		SecurityContext: &v1.SecurityContext{
+			Privileged:             &privileged,
+			RunAsUser:              &runAsUser,
+			RunAsNonRoot:           &runAsNonRoot,
+			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+		},
 	}
 }
 
