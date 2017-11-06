@@ -26,7 +26,8 @@ Settings can be specified at the global level to apply to the cluster as a whole
   - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start. 
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 - `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
-- `monCount`: set the amount of mons to be started. The number must be odd and between `1` and `9`. Default if not specified is `3`.
+- `monCount`: set the number of mons to be started. The number should be odd and between `1` and `9`. Default if not specified is `3`.
+For more details on the mons and when to choose a number other than `3`, see the [mon health design doc](https://github.com/rook/rook/blob/master/design/mon-health.md).
 - `placement`: [placement configuration settings](#placement-configuration-settings)
 - `storage`: Storage selection and configuration that will be used across the cluster.  Note that these settings can be overridden for specific nodes.
   - `useAllNodes`: `true` or `false`, indicating if all nodes in the cluster should be used for storage according to the cluster level storage selection and configuration values.
