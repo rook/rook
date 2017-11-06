@@ -67,6 +67,8 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	clientset := fake.NewSimpleClientset()
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, dataDir, k8sutil.Placement{}, false)
 
+	devMountNeeded := deviceFilter != "" || allDevices
+
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
 	assert.NotNil(t, replicaSet)
@@ -75,9 +77,16 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	assert.Equal(t, int32(1), *(replicaSet.Spec.Replicas))
 	assert.Equal(t, "node1", replicaSet.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
 	assert.Equal(t, v1.RestartPolicyAlways, replicaSet.Spec.Template.Spec.RestartPolicy)
-	assert.Equal(t, 3, len(replicaSet.Spec.Template.Spec.Volumes))
+	if devMountNeeded {
+		assert.Equal(t, 3, len(replicaSet.Spec.Template.Spec.Volumes))
+	} else {
+		assert.Equal(t, 2, len(replicaSet.Spec.Template.Spec.Volumes))
+	}
 	assert.Equal(t, "rook-data", replicaSet.Spec.Template.Spec.Volumes[0].Name)
-	assert.Equal(t, "devices", replicaSet.Spec.Template.Spec.Volumes[1].Name)
+	assert.Equal(t, "rook-config-override", replicaSet.Spec.Template.Spec.Volumes[1].Name)
+	if devMountNeeded {
+		assert.Equal(t, "devices", replicaSet.Spec.Template.Spec.Volumes[2].Name)
+	}
 	if dataDir == "" {
 		assert.NotNil(t, replicaSet.Spec.Template.Spec.Volumes[0].EmptyDir)
 		assert.Nil(t, replicaSet.Spec.Template.Spec.Volumes[0].HostPath)
@@ -93,7 +102,11 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 
 	cont := replicaSet.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
-	assert.Equal(t, 3, len(cont.VolumeMounts))
+	if devMountNeeded {
+		assert.Equal(t, 3, len(cont.VolumeMounts))
+	} else {
+		assert.Equal(t, 2, len(cont.VolumeMounts))
+	}
 	assert.Equal(t, "osd", cont.Args[0])
 
 	// verify the config dir env var
