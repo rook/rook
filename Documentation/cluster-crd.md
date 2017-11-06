@@ -23,12 +23,13 @@ Settings can be specified at the global level to apply to the cluster as a whole
 - `versionTag`: The version (tag) of the `rook/rook` container that will be deployed. Upgrades are not yet supported if this setting is updated for an existing cluster, but upgrades will be coming.
 - `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.
   - If a path is not specified, an [empty dir](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) will be used and the config will be lost when the pod or host is restarted. This option is **not recommended**.
-  - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start. 
+  - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start.
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 - `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
 - `monCount`: set the number of mons to be started. The number should be odd and between `1` and `9`. Default if not specified is `3`.
 For more details on the mons and when to choose a number other than `3`, see the [mon health design doc](https://github.com/rook/rook/blob/master/design/mon-health.md).
 - `placement`: [placement configuration settings](#placement-configuration-settings)
+- `resources`: [resources configuration settings](#cluster-wide-resources-configuration-settings)
 - `storage`: Storage selection and configuration that will be used across the cluster.  Note that these settings can be overridden for specific nodes.
   - `useAllNodes`: `true` or `false`, indicating if all nodes in the cluster should be used for storage according to the cluster level storage selection and configuration values.
   If individual nodes are specified under the `nodes` field below, then `useAllNodes` must be set to `false`.
@@ -80,11 +81,32 @@ A Placement configuration is specified (according to the kubernetes [PodSpec](ht
 - `podAntiAffinity`: kubernetes [PodAntiAffinity](https://kubernetes.io/docs/api-reference/v1.6/#podantiaffinity-v1-core)
 - `tolerations`: list of kubernetes [Toleration](https://kubernetes.io/docs/api-reference/v1.6/#toleration-v1-core)
 
+### Cluster-wide Resources Configuration Settings
+
+Resources should be specified so that the rook components are handled after [Kubernetes Pod Quality of Service classes](https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/).
+This allows to keep rook components running when for example a node runs out of memory and the rook components are not killed depending on their Quality of Service class.
+
+You can set resource requests/limits for rook components through the [Resource Requirements/Limits](#resource-requirementslimits) structure in the following keys:
+- `api`: Set resource requests/limits for the API.
+- `mgr`: Set resource requests/limits for MGRs.
+- `mon`: Set resource requests/limits for Mons.
+- `osd`: Set resource requests/limits for OSDs.
+
+### Resource Requirements/Limits
+
+For more information on resource requests/limits see the official Kubernetes documentation: [Kubernetes - Managing Compute Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container)
+- `requests`: Requests for cpu or memory.
+  - `cpu`: Request for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
+  - `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
+- `limits`: Limits for cpu or memory.
+  - `cpu`: Limit for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
+  - `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
+
 ## Samples
 
 ### Storage configuration: All devices
 
-```
+```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -116,7 +138,7 @@ spec:
 Individual nodes and their config can be specified so that only the named nodes below will be used as storage resources.
 Each node's 'name' field should match their 'kubernetes.io/hostname' label.
 
-```
+```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -131,7 +153,7 @@ spec:
   versionTag: master
   dataDirHostPath: /var/lib/rook
   # cluster level storage configuration and selection
-  storage:                
+  storage:
     useAllNodes: false
     useAllDevices: false
     deviceFilter:
@@ -161,7 +183,7 @@ To control where various services will be scheduled by kubernetes, use the place
 The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage' and
 tolerate taints with a key of 'storage-node'.
 
-```
+```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -200,4 +222,40 @@ spec:
     osd:
       nodeAffinity:
       tolerations:
+```
+
+### Resource requests/Limits
+
+To control how many resources the rook components can request/use, you can set requests and limits in Kubernetes for them.
+You can override these requests/limits for OSDs per node when using `useAllNodes: false` in the `node` item in the `nodes` list.
+
+**WARNING** Before setting resource requests/limits, please take a look at the Ceph documentation for recommendations for each component: [Ceph - Hardware Recommendations](http://docs.ceph.com/docs/master/start/hardware-recommendations/).
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook
+---
+apiVersion: rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: rook
+  namespace: rook
+spec:
+  versionTag: master
+  dataDirHostPath: /var/lib/rook
+  # cluster level resource requests/limits configuration
+  resources:
+  storage:
+    useAllNodes: false
+    nodes:
+    - name: "172.17.4.201"
+      resources:
+        limits:
+          cpu: "2"
+          memory: "4096Mi"
+        requests:
+          cpu: "2"
+          memory: "4096Mi"
 ```

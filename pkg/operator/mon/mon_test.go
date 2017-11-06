@@ -58,7 +58,7 @@ func newTestStartCluster(namespace string) *clusterd.Context {
 	}
 }
 
-func newCluster(context *clusterd.Context, namespace string, hostNetwork bool) *Cluster {
+func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
 		HostNetwork:         true,
 		context:             context,
@@ -74,13 +74,14 @@ func newCluster(context *clusterd.Context, namespace string, hostNetwork bool) *
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
 		},
+		resources: resources,
 	}
 }
 
 func TestStartMonPods(t *testing.T) {
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
-	c := newCluster(context, namespace, false)
+	c := newCluster(context, namespace, false, v1.ResourceRequirements{})
 
 	// start a basic cluster
 	err := c.Start()
@@ -130,7 +131,7 @@ func TestOperatorRestart(t *testing.T) {
 		},
 	}
 	context.Executor = executor
-	c := newCluster(context, namespace, false)
+	c := newCluster(context, namespace, false, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
@@ -139,7 +140,7 @@ func TestOperatorRestart(t *testing.T) {
 
 	validateStart(t, c)
 
-	c = newCluster(context, namespace, false)
+	c = newCluster(context, namespace, false, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but will not result in an error
 	err = c.Start()
@@ -184,7 +185,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 		},
 	}
 	context.Executor = executor
-	c := newCluster(context, namespace, false)
+	c := newCluster(context, namespace, false, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// start a basic cluster
@@ -193,7 +194,7 @@ func TestOperatorRestartHostNetwork(t *testing.T) {
 
 	validateStart(t, c)
 
-	c = newCluster(context, namespace, true)
+	c = newCluster(context, namespace, true, v1.ResourceRequirements{})
 
 	// starting again should be a no-op, but still results in an error
 	err = c.Start()
@@ -216,7 +217,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", "myversion", 3, k8sutil.Placement{}, false)
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", "myversion", 3, k8sutil.Placement{}, false, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// create the initial config map
@@ -287,7 +288,7 @@ func TestMonID(t *testing.T) {
 
 func TestAvailableMonNodes(t *testing.T) {
 	clientset := test.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, k8sutil.Placement{}, false)
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, k8sutil.Placement{}, false, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(0)
 	nodes, err := c.getMonNodes()
 	assert.Nil(t, err)
@@ -304,7 +305,7 @@ func TestAvailableMonNodes(t *testing.T) {
 
 func TestAvailableNodesInUse(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, k8sutil.Placement{}, false)
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, k8sutil.Placement{}, false, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	// all three nodes are available by default
@@ -335,7 +336,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 func TestTaintedNodes(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, k8sutil.Placement{}, false)
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, k8sutil.Placement{}, false, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	nodes, err := c.getMonNodes()
@@ -368,7 +369,7 @@ func TestTaintedNodes(t *testing.T) {
 
 func TestNodeAffinity(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, k8sutil.Placement{}, false)
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, k8sutil.Placement{}, false, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	nodes, err := c.getMonNodes()
@@ -408,7 +409,7 @@ func TestNodeAffinity(t *testing.T) {
 
 func TestHostNetwork(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, k8sutil.Placement{}, false)
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, k8sutil.Placement{}, false, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	c.HostNetwork = true
@@ -438,7 +439,7 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 		},
 	}
 
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, k8sutil.Placement{}, true)
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, k8sutil.Placement{}, true, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	var info *NodeInfo
@@ -467,7 +468,7 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 	c := New(&clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: configDir,
-	}, "ns", "", "myversion", 3, k8sutil.Placement{}, true)
+	}, "ns", "", "myversion", 3, k8sutil.Placement{}, true, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	mons := []*monConfig{

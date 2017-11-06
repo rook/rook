@@ -182,6 +182,7 @@ func (f *Filesystem) mdsContainer(filesystemID, version string) v1.Container {
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
+		Resources: f.Spec.MetadataServer.Resources,
 	}
 }
 

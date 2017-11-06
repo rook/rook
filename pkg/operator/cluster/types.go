@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/operator/mgr"
 	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/operator/osd"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -78,6 +79,9 @@ type ClusterSpec struct {
 
 	// MonCount sets the mon size
 	MonCount int `json:"monCount"`
+
+	// Resources set resource requests and limits
+	Resources ResourceSpec `json:"resources,omitempty"`
 }
 
 // PlacementSpec is a set of Placement configurations for the rook cluster.
@@ -108,3 +112,11 @@ func (p PlacementSpec) GetOSD() k8sutil.Placement { return p.All.Merge(p.OSD) }
 
 // GetRGW returns the placement for the RGW service
 func (p PlacementSpec) GetRGW() k8sutil.Placement { return p.All.Merge(p.RGW) }
+
+// ResourceSpec is a set of Kubernetes v1.ResourceRequirements for the rook cluster.
+type ResourceSpec struct {
+	API v1.ResourceRequirements `json:"api,omitempty"`
+	MGR v1.ResourceRequirements `json:"mgr,omitempty"`
+	MON v1.ResourceRequirements `json:"mon,omitempty"`
+	OSD v1.ResourceRequirements `json:"osd,omitempty"`
+}
