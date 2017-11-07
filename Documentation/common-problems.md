@@ -157,6 +157,17 @@ If `uname -a` shows that you have a kernel version older than `3.15`, you'll nee
 * Disable some Ceph features by starting the [rook toolbox](./toolbox.md) and running `ceph osd crush tunables bobtail`
 * Upgrade your kernel to `3.15` or later.
 
+### Filesystem Mounting
+
+In the `rook-agent` pod logs, you may see a snippet similar to the following:
+```console
+2017-11-07 00:04:37.808870 I | rook-flexdriver: WARNING: The node kernel version is 4.4.0-87-generic, which do not support multiple ceph filesystems. The kernel version has to be at least 4.7. If you have multiple ceph filesystems, the result could be inconsistent
+```
+
+This will happen in kernels with versions older than 4.7, where the option `mds_namespace` is not supported. This option is used to specify a filesystem namespace.
+
+In this case, if there is only one filesystem in the Rook cluster, there should be no issues and the mount should succeed. If you have more than one filesystem, inconsistent results may arise and the filesystem mounted may not be the one you specified.
+
 If the issue is still not resolved from the steps above, please come chat with us on the **#general** channel of our [Rook Slack](https://rook-slackin.herokuapp.com/).
 We want to help you get your storage working and learn from those lessons to prevent users in the future from seeing the same issue.
 

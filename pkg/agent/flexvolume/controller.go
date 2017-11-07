@@ -335,6 +335,17 @@ func (c *FlexvolumeController) GetClientAccessInfo(clusterName string, clientAcc
 	return nil
 }
 
+// GetKernelVersion returns the kernel version of the current node.
+func (c *FlexvolumeController) GetKernelVersion(_ *struct{} /* no inputs */, kernelVersion *string) error {
+	nodeName := os.Getenv(k8sutil.NodeNameEnvVar)
+	node, err := c.context.Clientset.Core().Nodes().Get(nodeName, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get kernel version from node information for node %s: %+v", nodeName, err)
+	}
+	*kernelVersion = node.Status.NodeInfo.KernelVersion
+	return nil
+}
+
 // getKubeletRootDir queries the kubelet configuration to find the kubelet root dir. Defaults to /var/lib/kubelet
 func (c *FlexvolumeController) getKubeletRootDir() string {
 	nodeConfigURI, err := k8sutil.NodeConfigURI()

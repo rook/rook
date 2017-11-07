@@ -48,7 +48,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-agent")
 var clusterAccessRules = []v1beta1.PolicyRule{
 	{
 		APIGroups: []string{""},
-		Resources: []string{"pods", "secrets", "configmaps", "persistentvolumes", "nodes/proxy"},
+		Resources: []string{"pods", "secrets", "configmaps", "persistentvolumes", "nodes", "nodes/proxy"},
 		Verbs:     []string{"get", "list"},
 	},
 	{

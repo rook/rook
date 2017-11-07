@@ -28,7 +28,12 @@ import (
 	"github.com/rook/rook/pkg/model"
 	"github.com/spf13/cobra"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
+	"k8s.io/kubernetes/pkg/util/version"
 	"k8s.io/kubernetes/pkg/volume/util"
+)
+
+const (
+	mds_namespace_kernel_support = "4.7"
 )
 
 var (
@@ -214,8 +219,32 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 		}
 	}
 
+	options := []string{fmt.Sprintf("name=%s", clientAccessInfo.UserName), fmt.Sprintf("secret=%s", clientAccessInfo.SecretKey)}
+
+	// Get kernel version
+	var kernelVersion string
+	err = client.Call("FlexvolumeController.GetKernelVersion", struct{}{} /* no inputs */, &kernelVersion)
+	if err != nil {
+		log(client, fmt.Sprintf("WARNING: The node kernel version cannot be detected. The kernel version has to be at least %s in order to specify a filesystem namespace."+
+			" If you have multiple ceph filesystems, the result could be inconsistent", mds_namespace_kernel_support), false)
+	} else {
+		kernelVersionParsed, err := version.ParseGeneric(kernelVersion)
+		if err != nil {
+			log(client, fmt.Sprintf("WARNING: The node kernel version %s cannot be parsed. The kernel version has to be at least %s in order to specify a filesystem namespace."+
+				" If you have multiple ceph filesystems, the result could be inconsistent", kernelVersion, mds_namespace_kernel_support), false)
+		} else {
+			if kernelVersionParsed.AtLeast(version.MustParseGeneric(mds_namespace_kernel_support)) {
+				options = append(options, fmt.Sprintf("mds_namespace=%s", opts.FsName))
+			} else {
+				log(client,
+					fmt.Sprintf("WARNING: The node kernel version is %s, which do not support multiple ceph filesystems. "+
+						"The kernel version has to be at least %s. If you have multiple ceph filesystems, the result could be inconsistent",
+						kernelVersion, mds_namespace_kernel_support), false)
+			}
+		}
+	}
+
 	devicePath := fmt.Sprintf("%s:%s", strings.Join(clientAccessInfo.MonAddresses, ","), path)
-	options := []string{fmt.Sprintf("name=%s", clientAccessInfo.UserName), fmt.Sprintf("secret=%s", clientAccessInfo.SecretKey), fmt.Sprintf("mds_namespace=%s", opts.FsName)}
 
 	log(client, fmt.Sprintf("mounting ceph filesystem %s on %s to %s", opts.FsName, devicePath, opts.MountDir), false)
 	mounter := getMounter()
