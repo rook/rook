@@ -42,7 +42,6 @@ const (
 	dataPoolSuffix     = "-data"
 	metadataPoolSuffix = "-metadata"
 	keyringName        = "keyring"
-	adminSecretName    = "rook-admin"
 )
 
 func CreateFileSystem(context *clusterd.Context, clusterName string, f *model.FilesystemRequest, version string, hostNetwork bool) error {
