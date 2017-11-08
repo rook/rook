@@ -117,7 +117,8 @@ spec:
 
 You now have a docker registry which is HA with persistent storage.
 
-**NOTE:** If the Rook cluster has more than one filesystem and the application pod is scheduled to a node with kernel version older than 4.7, inconsistent results may arise since kernels older than 4.7 do not support specifying filesystem namespaces.
+#### Kernel Version Requirement
+If the Rook cluster has more than one filesystem and the application pod is scheduled to a node with kernel version older than 4.7, inconsistent results may arise since kernels older than 4.7 do not support specifying filesystem namespaces.
 
 ## Test the storage
 
