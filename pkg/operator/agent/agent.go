@@ -98,6 +98,7 @@ func (a *Agent) createAgentDaemonSet(namespace string) error {
 		return err
 	}
 	privileged := true
+	securityContext := k8sutil.BuildSecurityContext(privileged, 0 /* run as uid 0 */, false /* run as root */, false /* RW filesystem */)
 	ds := &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: agentDaemonsetName,
@@ -113,12 +114,10 @@ func (a *Agent) createAgentDaemonSet(namespace string) error {
 					ServiceAccountName: agentDaemonsetName,
 					Containers: []v1.Container{
 						{
-							Name:  agentDaemonsetName,
-							Image: agentImage,
-							Args:  []string{"agent"},
-							SecurityContext: &v1.SecurityContext{
-								Privileged: &privileged,
-							},
+							Name:            agentDaemonsetName,
+							Image:           agentImage,
+							Args:            []string{"agent"},
+							SecurityContext: &securityContext,
 							VolumeMounts: []v1.VolumeMount{
 								{
 									Name:      "flexvolume",

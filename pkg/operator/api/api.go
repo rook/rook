@@ -160,6 +160,8 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 
 func (c *Cluster) apiContainer() v1.Container {
 
+	securityContext := k8sutil.BuildSecurityContext(false /* not privileged */, 0 /* run as uid 0 */, false /* run as root */, false /* RW filesystem */)
+
 	return v1.Container{
 		Args: []string{
 			"api",
@@ -181,6 +183,7 @@ func (c *Cluster) apiContainer() v1.Container {
 			opmon.EndpointEnvVar(),
 			opmon.ClusterNameEnvVar(c.Namespace),
 		},
+		SecurityContext: &securityContext,
 	}
 }
 

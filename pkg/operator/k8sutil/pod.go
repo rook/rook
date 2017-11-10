@@ -190,3 +190,24 @@ func deletePodsAndWait(namespace, name string,
 
 	return fmt.Errorf("gave up waiting for %s pods to be terminated", name)
 }
+
+// BuildSecurityContext builds v1.SecurityContext with supplied arguments
+func BuildSecurityContext(privileged bool, runAsUser int64, runAsNonRoot bool, readOnlyRootFilesystem bool) v1.SecurityContext {
+	if runAsNonRoot == true {
+		return v1.SecurityContext{
+			Privileged:             &privileged,
+			RunAsUser:              &runAsUser,
+			RunAsNonRoot:           &runAsNonRoot,
+			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+		}
+	} else {
+		// don't set runAsNonRoot explicitly when it is false, Kubernetes version < 1.6.5 has
+		// an issue with this fixed in https://github.com/kubernetes/kubernetes/pull/47009
+		return v1.SecurityContext{
+			Privileged:             &privileged,
+			RunAsUser:              &runAsUser,
+			RunAsNonRoot:           nil,
+			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+		}
+	}
+}
