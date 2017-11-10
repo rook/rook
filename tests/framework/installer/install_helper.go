@@ -307,6 +307,18 @@ func (h *InstallHelper) CleanupCluster(clusterName string) {
 	}
 }
 
+func (h *InstallHelper) GatherAllRookLogs(nameSpace string, testName string) {
+	logger.Infof("Gathering all logs from Rook Cluster %s", nameSpace)
+	h.k8shelper.GetRookLogs("rook-operator", h.Env.HostType, SystemNamespace(nameSpace), testName)
+	h.k8shelper.GetRookLogs("rook-agent", h.Env.HostType, SystemNamespace(nameSpace), testName)
+	h.k8shelper.GetRookLogs("rook-api", h.Env.HostType, nameSpace, testName)
+	h.k8shelper.GetRookLogs("rook-ceph-mgr", h.Env.HostType, nameSpace, testName)
+	h.k8shelper.GetRookLogs("rook-ceph-mon", h.Env.HostType, nameSpace, testName)
+	h.k8shelper.GetRookLogs("rook-ceph-osd", h.Env.HostType, nameSpace, testName)
+	h.k8shelper.GetRookLogs("rook-ceph-rgw", h.Env.HostType, nameSpace, testName)
+	h.k8shelper.GetRookLogs("rook-ceph-mds", h.Env.HostType, nameSpace, testName)
+}
+
 //NewK8sRookhelper creates new instance of InstallHelper
 func NewK8sRookhelper(clientset *kubernetes.Clientset, t func() *testing.T) *InstallHelper {
 

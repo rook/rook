@@ -37,7 +37,11 @@ var (
 )
 
 func TestBlockImageCreateSuite(t *testing.T) {
-	suite.Run(t, new(BlockImageCreateSuite))
+	s := new(BlockImageCreateSuite)
+	defer func(s *BlockImageCreateSuite) {
+		HandlePanics(recover(), s.o, s.T)
+	}(s)
+	suite.Run(t, s)
 }
 
 type BlockImageCreateSuite struct {
@@ -45,9 +49,10 @@ type BlockImageCreateSuite struct {
 	testClient     *clients.TestClient
 	kh             *utils.K8sHelper
 	rc             contracts.RestAPIOperator
+	installer      *installer.InstallHelper
+	o              contracts.TestOperator
 	initBlockCount int
 	namespace      string
-	installer      *installer.InstallHelper
 }
 
 func (s *BlockImageCreateSuite) SetupSuite() {
@@ -57,10 +62,12 @@ func (s *BlockImageCreateSuite) SetupSuite() {
 	assert.NoError(s.T(), err)
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset, s.T)
+	s.o = NewBaseTestOperations(s.installer, s.T, s.namespace, false)
 
 	isRookInstalled, err := s.installer.InstallRookOnK8s(s.namespace, "bluestore", 1)
 	if !isRookInstalled {
 		logger.Errorf("Rook Was not installed successfully")
+		s.T().Fail()
 		s.TearDownSuite()
 		s.T().FailNow()
 	}
@@ -68,6 +75,7 @@ func (s *BlockImageCreateSuite) SetupSuite() {
 	s.testClient, err = clients.CreateTestClient(s.kh, s.namespace)
 	if err != nil {
 		logger.Errorf("Cannot create rook test client, er -> %v", err)
+		s.T().Fail()
 		s.TearDownSuite()
 		s.T().FailNow()
 	}
@@ -168,9 +176,6 @@ func (s *BlockImageCreateSuite) TearDownTest() {
 	}
 }
 func (s *BlockImageCreateSuite) TearDownSuite() {
-	if s.T().Failed() {
-		gatherAllRookLogs(s.kh, s.Suite, s.installer.Env.HostType, s.namespace, s.namespace)
-	}
-	s.installer.UninstallRookFromK8s(s.namespace, false)
+	s.o.TearDown()
 
 }

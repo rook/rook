@@ -7,6 +7,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/clients"
+	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
@@ -34,7 +35,11 @@ var (
 // - Create the object store via the CRD
 // ***************************************************
 func TestHelmSuite(t *testing.T) {
-	suite.Run(t, new(HelmSuite))
+	s := new(HelmSuite)
+	defer func(s *HelmSuite) {
+		HandlePanics(recover(), s.o, s.T)
+	}(s)
+	suite.Run(t, s)
 }
 
 type HelmSuite struct {
@@ -43,6 +48,7 @@ type HelmSuite struct {
 	k8sh      *utils.K8sHelper
 	installer *installer.InstallHelper
 	hh        *utils.HelmHelper
+	o         contracts.TestOperator
 	namespace string
 }
 
@@ -55,6 +61,7 @@ func (hs *HelmSuite) SetupSuite() {
 	hs.hh = utils.NewHelmHelper()
 
 	hs.installer = installer.NewK8sRookhelper(kh.Clientset, hs.T)
+	hs.o = NewBaseTestOperations(hs.installer, hs.T, hs.namespace, true)
 
 	err = hs.installer.CreateK8sRookOperatorViaHelm(hs.namespace)
 	require.NoError(hs.T(), err)
@@ -78,11 +85,7 @@ func (hs *HelmSuite) SetupSuite() {
 }
 
 func (hs *HelmSuite) TearDownSuite() {
-	if hs.T().Failed() {
-		gatherAllRookLogs(hs.k8sh, hs.Suite, hs.installer.Env.HostType, hs.namespace, hs.namespace)
-	}
-	hs.installer.UninstallRookFromK8s(hs.namespace, true)
-
+	hs.o.TearDown()
 }
 
 //Test to make sure all rook components are installed and Running

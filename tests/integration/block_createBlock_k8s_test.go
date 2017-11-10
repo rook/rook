@@ -32,7 +32,11 @@ import (
 // Test K8s Block Image Creation Scenarios. These tests work when platform is set to Kubernetes
 
 func TestK8sBlockImageCreateSuite(t *testing.T) {
-	suite.Run(t, new(K8sBlockImageCreateSuite))
+	s := new(K8sBlockImageCreateSuite)
+	defer func(s *K8sBlockImageCreateSuite) {
+		HandlePanics(recover(), s.o, s.T)
+	}(s)
+	suite.Run(t, s)
 }
 
 type K8sBlockImageCreateSuite struct {
@@ -43,6 +47,7 @@ type K8sBlockImageCreateSuite struct {
 	initBlockCount int
 	namespace      string
 	installer      *installer.InstallHelper
+	o              contracts.TestOperator
 }
 
 func (s *K8sBlockImageCreateSuite) SetupSuite() {
@@ -53,11 +58,13 @@ func (s *K8sBlockImageCreateSuite) SetupSuite() {
 	assert.NoError(s.T(), err)
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset, s.T)
+	s.o = NewBaseTestOperations(s.installer, s.T, s.namespace, false)
 
 	isRookInstalled, err := s.installer.InstallRookOnK8s(s.namespace, "bluestore", 1)
 	assert.NoError(s.T(), err)
 	if !isRookInstalled {
 		logger.Errorf("Rook Was not installed successfully")
+		s.T().Fail()
 		s.TearDownSuite()
 		s.T().FailNow()
 	}
@@ -65,6 +72,7 @@ func (s *K8sBlockImageCreateSuite) SetupSuite() {
 	s.testClient, err = clients.CreateTestClient(s.kh, s.namespace)
 	if err != nil {
 		logger.Errorf("Cannot create rook test client, er -> %v", err)
+		s.T().Fail()
 		s.TearDownSuite()
 		s.T().FailNow()
 	}
@@ -193,8 +201,5 @@ func (s *K8sBlockImageCreateSuite) tearDownTest(claimName string, poolName strin
 }
 
 func (s *K8sBlockImageCreateSuite) TearDownSuite() {
-	if s.T().Failed() {
-		gatherAllRookLogs(s.kh, s.Suite, s.installer.Env.HostType, s.namespace, s.namespace)
-	}
-	s.installer.UninstallRookFromK8s(s.namespace, false)
+	s.o.TearDown()
 }
