@@ -110,7 +110,7 @@ endif
 endif
 
 .PHONY: go.init
-go.init: go.vendor
+go.init: go.vendor.lite
 	@:
 
 .PHONY: go.build
@@ -155,6 +155,15 @@ go.fmt:
 	@gofmt_out=$$(gofmt -s -d -e $(GO_SUBDIRS) $(GO_INTEGRATION_TESTS_SUBDIRS) 2>&1) && [ -z "$${gofmt_out}" ] || (echo "$${gofmt_out}" 1>&2; exit 1)
 
 go.validate: go.vet go.fmt
+
+.PHONY: go.vendor.lite
+go.vendor.lite: $(DEP)
+#	dep ensure blindly updates the whole vendor tree causing everything to be rebuilt. This workaround
+#	will only call dep ensure if the .lock file changes or if the vendor dir is non-existent.
+	@if [ ! -d $(GO_VENDOR_DIR) ] || [ ! $(DEP) ensure -no-vendor -dry-run &> /dev/null ]; then \
+		echo === updating vendor dependencies ;\
+		$(DEP) ensure ;\
+	fi
 
 .PHONY: go.vendor
 go.vendor: $(DEP)
