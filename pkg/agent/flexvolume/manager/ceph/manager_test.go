@@ -215,7 +215,7 @@ func TestDetach(t *testing.T) {
 			called:   0,
 		},
 	}
-	err := vm.Detach("image1", "testpool", clusterName)
+	err := vm.Detach("image1", "testpool", clusterName, false)
 	assert.Nil(t, err)
 }
 
@@ -227,6 +227,6 @@ func TestAlreadyDetached(t *testing.T) {
 			called:   0,
 		},
 	}
-	err := vm.Detach("image1", "testpool", "testCluster")
+	err := vm.Detach("image1", "testpool", "testCluster", false)
 	assert.Nil(t, err)
 }

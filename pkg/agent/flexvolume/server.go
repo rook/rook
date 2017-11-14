@@ -28,10 +28,11 @@ import (
 	"os"
 	"path"
 
-	"k8s.io/client-go/rest"
+	"k8s.io/kubernetes/pkg/util/version"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
 const (
@@ -40,6 +41,8 @@ const (
 	FlexvolumeDriver         = "rook"
 	flexvolumeDriverFileName = "rookflex"
 	usrBinDir                = "/usr/local/bin/"
+	serverVersionV170        = "v1.7.0"
+	serverVersionV180        = "v1.8.0"
 )
 
 var flexVolumeDriverDir = fmt.Sprintf("/flexmnt/%s~%s", FlexvolumeVendor, FlexvolumeDriver)
@@ -47,24 +50,23 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rook-flexvolume"
 
 // FlexvolumeServer start a unix domain socket server to interact with the flexvolume driver
 type FlexvolumeServer struct {
+	context    *clusterd.Context
 	controller *FlexvolumeController
 	listener   net.Listener
 }
 
 // NewFlexvolumeServer creates an Flexvolume server
-func NewFlexvolumeServer(context *clusterd.Context, volumeAttachmentClient rest.Interface, manager VolumeManager) (*FlexvolumeServer, error) {
-	controller, err := newFlexvolumeController(context, volumeAttachmentClient, manager)
-	if err != nil {
-		return nil, err
-	}
+func NewFlexvolumeServer(context *clusterd.Context, controller *FlexvolumeController, manager VolumeManager) *FlexvolumeServer {
 	return &FlexvolumeServer{
+		context:    context,
 		controller: controller,
-	}, nil
+	}
 }
 
 // Start configures the flexvolume driver on the host and starts the unix domain socket server to communicate with the driver
 func (s *FlexvolumeServer) Start() error {
 
+	// first install the flexvolume driver
 	driverFile := path.Join(usrBinDir, flexvolumeDriverFileName) // /usr/local/bin/rookflex
 	err := configureFlexVolume(driverFile, flexVolumeDriverDir)
 	if err != nil {
@@ -97,6 +99,12 @@ func (s *FlexvolumeServer) Start() error {
 	go rpc.Accept(s.listener)
 
 	logger.Info("Listening on unix socket for Kubernetes volume attach commands.")
+
+	// flexvolume driver was installed OK.  If running on pre 1.8 Kubernetes, then remind the user
+	// to restart the Kubelet. We do this last so that it's the last message in the log, making it
+	// harder for the user to miss.
+	checkIfKubeletRestartRequired(s.context)
+
 	return nil
 }
 
@@ -139,7 +147,12 @@ func configureFlexVolume(driverFile, driverDir string) error {
 		}
 
 	}
-	return os.Rename(destFile, finalDestFile)
+
+	if err := os.Rename(destFile, finalDestFile); err != nil {
+		return fmt.Errorf("failed to rename %s to %s: %+v", destFile, finalDestFile, err)
+	}
+
+	return nil
 }
 
 func copyFile(src, dest string) error {
@@ -160,4 +173,13 @@ func copyFile(src, dest string) error {
 		return fmt.Errorf("error copying file from %s to %s: %v", src, dest, err)
 	}
 	return destFile.Sync()
+}
+
+func checkIfKubeletRestartRequired(context *clusterd.Context) {
+	kubeVersion, err := k8sutil.GetK8SVersion(context.Clientset)
+	if err != nil || kubeVersion.LessThan(version.MustParseSemantic(serverVersionV180)) {
+		logger.Warning("NOTE: The Kubelet must be restarted on this node since this pod appears to " +
+			"be running on a Kubernetes version prior to 1.8. More details can be found in the Rook docs at " +
+			"https://rook.io/docs/rook/master/common-problems.html#kubelet-restart")
+	}
 }

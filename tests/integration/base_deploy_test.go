@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
@@ -35,7 +36,7 @@ var (
 )
 
 //Test to make sure all rook components are installed and Running
-func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNamespace string, clusterNamespace string) {
+func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNamespace, clusterNamespace string, mons int) {
 	logger.Infof("Make sure all Pods in Rook Cluster %s are running", clusterNamespace)
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-operator", opNamespace, 1, "Running"),
 		"Make sure there is 1 rook-operator present in Running state")
@@ -47,8 +48,8 @@ func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNames
 		"Make sure there is 1 rook-ceph-mgr present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-osd", clusterNamespace, 1, "Running"),
 		"Make sure there is at lest 1 rook-ceph-osd present in Running state")
-	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mon", clusterNamespace, 3, "Running"),
-		"Make sure there are 3 rook-ceph-mon present in Running state")
+	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mon", clusterNamespace, mons, "Running"),
+		fmt.Sprintf("Make sure there are %d rook-ceph-mon present in Running state", mons))
 }
 
 func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, clusterNamespace string) {

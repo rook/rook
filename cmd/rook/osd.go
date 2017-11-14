@@ -18,7 +18,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 
+	"github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/ceph/osd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -86,8 +88,7 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	clientset, _, err := getClientset()
 	if err != nil {
-		fmt.Printf("failed to init k8s client. %+v\n", err)
-		os.Exit(1)
+		terminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
 	}
 
 	context := createContext()
@@ -95,15 +96,20 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset)
 
+	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
+	if err != nil {
+		terminateFatal(fmt.Errorf("invalid location. %+v\n", err))
+	}
+	crushLocation := strings.Join(locArgs, " ")
+
 	forceFormat := false
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	agent := osd.NewAgent(dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
-		cfg.location, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
+	agent := osd.NewAgent(context, dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
+		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
 
 	err = osd.Run(context, agent)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		terminateFatal(err)
 	}
 
 	return nil

@@ -65,6 +65,32 @@ type OSDDump struct {
 	} `json:"osds"`
 }
 
+// StatusByID returns status and inCluster states for given OSD id
+func (dump *OSDDump) StatusByID(id int64) (int64, int64, error) {
+	for _, d := range dump.OSDs {
+		i, err := d.OSD.Int64()
+		if err != nil {
+			return 0, 0, err
+		}
+
+		if id == i {
+			in, err := d.In.Int64()
+			if err != nil {
+				return 0, 0, err
+			}
+
+			up, err := d.Up.Int64()
+			if err != nil {
+				return 0, 0, err
+			}
+
+			return up, in, nil
+		}
+	}
+
+	return 0, 0, fmt.Errorf("not found osd.%d in OSDDump", id)
+}
+
 func GetOSDUsage(context *clusterd.Context, clusterName string) (*OSDUsage, error) {
 	args := []string{"osd", "df"}
 	buf, err := ExecuteCephCommand(context, clusterName, args)

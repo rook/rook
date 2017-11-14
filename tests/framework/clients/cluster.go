@@ -31,7 +31,7 @@ func IsClusterHealthy(testClient *TestClient) (model.StatusDetails, error) {
 	}
 
 	// verify all mons are in quorum
-	if len(status.Monitors) < 3 {
+	if len(status.Monitors) == 0 {
 		return status, fmt.Errorf("too few monitors: %+v", status)
 	}
 	for _, m := range status.Monitors {

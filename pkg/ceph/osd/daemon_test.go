@@ -26,21 +26,8 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/kvstore"
-	"github.com/rook/rook/pkg/util/proc"
 	"github.com/stretchr/testify/assert"
 )
-
-func TestSetNodeName(t *testing.T) {
-	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
-		assert.Equal(t, "hostname", command)
-		assert.Equal(t, args[0], "myhost")
-		return nil
-	}
-
-	context := &clusterd.Context{ProcMan: proc.New(executor), Executor: executor}
-	setNodeName(context, "myhost")
-}
 
 func TestStoreOSDDirMap(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
@@ -129,7 +116,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 		return "", fmt.Errorf("unknown command %s %+v", command, args)
 	}
 
-	context := &clusterd.Context{ProcMan: proc.New(executor), Executor: executor}
+	context := &clusterd.Context{Executor: executor}
 	context.Devices = []*clusterd.LocalDisk{
 		{Name: "sda"},
 		{Name: "sdb"},

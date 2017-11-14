@@ -27,12 +27,15 @@ import (
 	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
+	opkit "github.com/rook/operator-kit"
+	"github.com/rook/rook/pkg/agent/cluster"
 	"github.com/rook/rook/pkg/agent/flexvolume"
 	"github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/agent/flexvolume/manager/ceph"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
+
+	"k8s.io/api/core/v1"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rook-agent")
@@ -44,29 +47,42 @@ type Agent struct {
 
 // New creates an Agent instance
 func New(context *clusterd.Context) *Agent {
-	return &Agent{
-		context: context,
-	}
+	return &Agent{context: context}
 }
 
 // Run the agent
 func (a *Agent) Run() error {
 
-	volumeAttachmentClient, _, err := kit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, crd.SchemeBuilder)
+	volumeAttachmentClient, _, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, crd.SchemeBuilder)
 	if err != nil {
 		return fmt.Errorf("failed to create Volumeattach CRD client: %+v", err)
 	}
 
-	flexvolumeServer, err := flexvolume.NewFlexvolumeServer(
-		a.context,
-		volumeAttachmentClient,
-		ceph.NewVolumeManager(a.context),
-	)
+	volumeAttachmentController, err := crd.NewVolumeAttachmentController(a.context.Clientset, volumeAttachmentClient)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create volume attachment controller: %+v", err)
 	}
 
+	volumeManager := ceph.NewVolumeManager(a.context)
+
+	flexvolumeController := flexvolume.NewFlexvolumeController(a.context, volumeAttachmentController, volumeManager)
+
+	flexvolumeServer := flexvolume.NewFlexvolumeServer(
+		a.context,
+		flexvolumeController,
+		volumeManager,
+	)
+
 	flexvolumeServer.Start()
+
+	// create a cluster controller and tell it to start watching for changes to clusters
+	clusterController := cluster.NewClusterController(
+		a.context,
+		flexvolumeController,
+		volumeAttachmentController,
+		volumeManager)
+	stopChan := make(chan struct{})
+	clusterController.StartWatch(v1.NamespaceAll, stopChan)
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM)
@@ -75,6 +91,7 @@ func (a *Agent) Run() error {
 		case <-sigc:
 			logger.Infof("shutdown signal received, exiting...")
 			flexvolumeServer.Stop()
+			close(stopChan)
 			return nil
 		}
 	}

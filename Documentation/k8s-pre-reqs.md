@@ -17,10 +17,46 @@ You will need to use the yaml files from the [1.5 folder](/cluster/examples/kube
 
 ## Privileges
 
-Creating the Rook operator requires privileges for setting up RBAC. To launch the operator you need to have created your user certificate with the `system:masters` privilege:
+Creating the Rook operator requires privileges for setting up RBAC. To launch the operator you need to have created your user certificate that is bound to ClusterRole `cluster-admin`.
+
+One simple way to achieve it is to assign your certificate with the `system:masters` group:
 ```
 -subj "/CN=admin/O=system:masters"
 ```
+
+`system:masters` is a special group that is bound to `cluster-admin` ClusterRole, but it can't be easily revoked so be careful with taking that route in a production setting.
+Binding individual certificate to ClusterRole `cluster-admin` is revocable by deleting the ClusterRoleBinding.
+
+## Flexvolume Configuration
+
+Rook uses [Flexvolume](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md) to integrate with Kubernetes for performing storage operations. In some operating systems where Kubernetes is deployed, the [default Flexvolume plugin directory](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md#prerequisites) (the directory where flexvolume drivers are installed) is **read-only**.
+
+This is the case for Kubernetes deployments on CoreOS and Rancher.
+In these environments, the Kubelet needs to be told to use a different flexvolume plugin directory that is accessible and writeable.
+To do this, you will need to first add the `--volume-plugin-dir` flag to the Kubelet and then restart the Kubelet process. 
+These steps need to be carried out on **all nodes** in your cluster.
+
+### CoreOS Container Linux
+
+In CoreOS, our recomendation is to specify the flag as shown below:
+
+```bash
+--volume-plugin-dir=/var/lib/kubelet/volumeplugins
+```
+
+Restart Kubelet in order for this change to take effect.
+
+### Rancher
+
+Rancher provides an easy way to configure Kubelet. This flag can be provided to the Kubelet configuration template at deployment time or by using the `up to date` feature if Kubernetes is already deployed.
+
+To configure Flexvolume in Rancher, specify this Kubelet flag as shown below:
+
+```bash
+--volume-plugin-dir=/var/lib/kubelet/volumeplugins
+```
+
+Restart Kubelet in order for this change to take effect.
 
 ## Minikube
 

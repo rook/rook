@@ -107,7 +107,6 @@ func DeleteImage(context *clusterd.Context, clusterName, name, poolName string) 
 
 // MapImage maps an RBD image using admin cephfx and returns the device path
 func MapImage(context *clusterd.Context, imageName, poolName, clusterName, keyring, monitors string) error {
-
 	imageSpec := getImageSpec(imageName, poolName)
 	args := []string{
 		"map",
@@ -116,6 +115,7 @@ func MapImage(context *clusterd.Context, imageName, poolName, clusterName, keyri
 		fmt.Sprintf("--cluster=%s", clusterName),
 		fmt.Sprintf("--keyring=%s", keyring),
 		"-m", monitors,
+		"--conf=/dev/null", // no config file needed because we are passing all required config as arguments
 	}
 
 	output, err := ExecuteRBDCommandWithTimeout(context, clusterName, args)
@@ -127,7 +127,7 @@ func MapImage(context *clusterd.Context, imageName, poolName, clusterName, keyri
 }
 
 // UnMapImage unmap an RBD image from the node
-func UnMapImage(context *clusterd.Context, imageName, poolName, clusterName, keyring, monitors string) error {
+func UnMapImage(context *clusterd.Context, imageName, poolName, clusterName, keyring, monitors string, force bool) error {
 	deviceImage := getImageSpec(imageName, poolName)
 	args := []string{
 		"unmap",
@@ -136,7 +136,13 @@ func UnMapImage(context *clusterd.Context, imageName, poolName, clusterName, key
 		fmt.Sprintf("--cluster=%s", clusterName),
 		fmt.Sprintf("--keyring=%s", keyring),
 		"-m", monitors,
+		"--conf=/dev/null", // no config file needed because we are passing all required config as arguments
 	}
+
+	if force {
+		args = append(args, "-o", "force")
+	}
+
 	output, err := ExecuteRBDCommandWithTimeout(context, clusterName, args)
 	if err != nil {
 		return fmt.Errorf("failed to unmap image %s: %+v. output: %s", deviceImage, err, output)

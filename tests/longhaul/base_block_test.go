@@ -20,17 +20,22 @@ func setUpRookAndPoolInNamespace(t func() *testing.T, namespace string, storageC
 	kh, err := utils.CreateK8sHelper(t)
 	assert.Nil(t(), err)
 
-	installer := installer.NewK8sRookhelper(kh.Clientset, t)
+	i := installer.NewK8sRookhelper(kh.Clientset, t)
 	if !kh.IsRookInstalled(namespace) {
-		isRookInstalled, err := installer.InstallRookOnK8sWithHostPath(namespace, "bluestore", "/temp/rookBackup")
+		isRookInstalled, err := i.InstallRookOnK8sWithHostPathAndDevices(namespace, "bluestore", "/temp/rookBackup", true, 3)
 		require.NoError(t(), err)
 		require.True(t(), isRookInstalled)
 	}
 
 	//create storage class
 	if scp, _ := kh.IsStorageClassPresent(storageClassName); !scp {
-		logger.Infof("Install storage class for rook block")
-		_, err := storageClassOperation(kh, storageClassName, poolName, namespace, "create")
+
+		installer.BlockResourceOperation(kh, installer.GetBlockStorageClassDef(poolName, storageClassName, namespace), "create")
+
+		logger.Infof("Install pool and storage class for rook block")
+		_, err := installer.BlockResourceOperation(kh, installer.GetBlockPoolDef(poolName, namespace, "3"), "create")
+		require.NoError(t(), err)
+		_, err = installer.BlockResourceOperation(kh, installer.GetBlockStorageClassDef(poolName, storageClassName, namespace), "create")
 		require.NoError(t(), err)
 
 		//make sure storageclass is created
@@ -38,7 +43,7 @@ func setUpRookAndPoolInNamespace(t func() *testing.T, namespace string, storageC
 		require.NoError(t(), err)
 		require.True(t(), present, "Make sure storageclass is present")
 	}
-	return kh, installer
+	return kh, i
 }
 
 // Set Up rook, storageClass ,pvc and mysql pods for longhaul test
@@ -72,18 +77,6 @@ func createPVCAndMountMysqlPod(t func() *testing.T, kh *utils.K8sHelper, storage
 
 }
 
-func storageClassOperation(k8sh *utils.K8sHelper, storageClassName string, poolName string, namespace string, action string) (string, error) {
-	config := map[string]string{
-		"storageClassName": storageClassName,
-		"poolName":         poolName,
-		"namespace":        namespace,
-	}
-
-	result, err := k8sh.ResourceOperationFromTemplate(action, GetStorageClassDef(), config)
-
-	return result, err
-
-}
 func mySqlPodOperation(k8sh *utils.K8sHelper, storageClassName string, appName string, appLabel string, pvcName string, action string) (string, error) {
 	config := map[string]string{
 		"appName":          appName,
@@ -93,18 +86,6 @@ func mySqlPodOperation(k8sh *utils.K8sHelper, storageClassName string, appName s
 	}
 
 	result, err := k8sh.ResourceOperationFromTemplate(action, GetMySqlPodDef(), config)
-
-	return result, err
-
-}
-
-func createPVCOperation(k8sh *utils.K8sHelper, storageClassName string, pvcName string) (string, error) {
-	config := map[string]string{
-		"storageClassName": storageClassName,
-		"pvcName":          pvcName,
-	}
-
-	result, err := k8sh.ResourceOperationFromTemplate("create", getPvcDefinition(), config)
 
 	return result, err
 
@@ -147,26 +128,6 @@ func dbOperation(db *utils.MySQLHelper, wg *sync.WaitGroup) {
 	db.DeleteRandomRow()
 	db.SelectRandomData(20)
 
-}
-
-func GetStorageClassDef() string {
-	return `apiVersion: rook.io/v1alpha1
-kind: Pool
-metadata:
-  name: {{.poolName}}
-  namespace: {{.namespace}}
-spec:
-  replicated:
-    size: 3
----
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-   name: {{.storageClassName}}
-provisioner: rook.io/block
-parameters:
-    pool: {{.poolName}}
-    clusterName: {{.namespace}}`
 }
 
 func GetMySqlPodDef() string {
@@ -237,20 +198,6 @@ spec:
       - name: mysql-persistent-storage
         persistentVolumeClaim:
           claimName: {{.pvcName}}`
-}
-
-func getPvcDefinition() string {
-	return `apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{.pvcName}}
-spec:
-  storageClassName: {{.storageClassName}}
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1M`
 }
 
 func getBlockPodDefintion() string {

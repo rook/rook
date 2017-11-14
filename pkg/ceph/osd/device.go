@@ -471,8 +471,14 @@ func getStoreSettings(config *osdConfig) (map[string]string, error) {
 	return settings, nil
 }
 
-func writeConfigFile(config *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo) error {
-	cephConfig := mon.CreateDefaultCephConfig(context, cluster, config.rootPath, isBluestore(config))
+func writeConfigFile(config *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo, location string) error {
+	cephConfig := mon.CreateDefaultCephConfig(context, cluster, config.rootPath)
+	if isBluestore(config) {
+		cephConfig.GlobalConfig.OsdObjectStore = Bluestore
+	} else {
+		cephConfig.GlobalConfig.OsdObjectStore = Filestore
+	}
+	cephConfig.CrushLocation = location
 
 	if config.dir || isFilestoreDevice(config) {
 		// using the local file system requires some config overrides
@@ -489,7 +495,7 @@ func writeConfigFile(config *osdConfig, context *clusterd.Context, cluster *mon.
 
 	// write the OSD config file to disk
 	_, err = mon.GenerateConfigFile(context, cluster, config.rootPath, fmt.Sprintf("osd.%d", config.id),
-		getOSDKeyringPath(config.rootPath), isBluestore(config), cephConfig, settings)
+		getOSDKeyringPath(config.rootPath), cephConfig, settings)
 	if err != nil {
 		return fmt.Errorf("failed to write OSD %d config file: %+v", config.id, err)
 	}
@@ -499,7 +505,7 @@ func writeConfigFile(config *osdConfig, context *clusterd.Context, cluster *mon.
 
 func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo, location string) error {
 
-	err := writeConfigFile(config, context, cluster)
+	err := writeConfigFile(config, context, cluster, location)
 	if err != nil {
 		return fmt.Errorf("failed to write config file: %+v", err)
 	}
@@ -611,15 +617,10 @@ func addOSDToCrushMap(context *clusterd.Context, config *osdConfig, clusterName,
 	weight, _ = strconv.ParseFloat(fmt.Sprintf("%.4f", weight), 64)
 
 	osdEntity := fmt.Sprintf("osd.%d", osdID)
-	locArgs, err := client.FormatLocation(location)
-	if err != nil {
-		return err
-	}
-
 	logger.Infof("adding %s (%s), bytes: %d, weight: %.4f, to crush map at '%s'",
-		osdEntity, osdDataPath, totalBytes, weight, strings.Join(locArgs, " "))
+		osdEntity, osdDataPath, totalBytes, weight, location)
 	args := []string{"osd", "crush", "create-or-move", strconv.Itoa(osdID), fmt.Sprintf("%.4f", weight)}
-	args = append(args, locArgs...)
+	args = append(args, strings.Split(location, " ")...)
 	_, err = client.ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
 		return fmt.Errorf("failed adding %s to crush map: %+v", osdEntity, err)

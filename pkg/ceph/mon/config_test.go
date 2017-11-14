@@ -53,20 +53,14 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 		},
 	}
 
-	cephConfig := CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1", false)
-	verifyConfig(t, cephConfig, monMembers, "", "filestore", 0)
-
-	cephConfig = CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1", true)
-	verifyConfig(t, cephConfig, monMembers, "bluestore rocksdb", "bluestore", 0)
+	cephConfig := CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1")
+	verifyConfig(t, cephConfig, monMembers, 0)
 
 	// now use DEBUG level logging
 	context.LogLevel = capnslog.DEBUG
 
-	cephConfig = CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1", false)
-	verifyConfig(t, cephConfig, monMembers, "", "filestore", 10)
-
-	cephConfig = CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1", true)
-	verifyConfig(t, cephConfig, monMembers, "bluestore rocksdb", "bluestore", 10)
+	cephConfig = CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1")
+	verifyConfig(t, cephConfig, monMembers, 10)
 
 	// verify the network info config
 	assert.Equal(t, "10.1.1.1", cephConfig.PublicAddr)
@@ -108,7 +102,7 @@ debug bluestore = 1234`
 	}
 
 	// generate the config file to disk now
-	configFilePath, err := GenerateConfigFile(context, clusterInfo, configDir, "myuser", filepath.Join(configDir, "mykeyring"), false, nil, nil)
+	configFilePath, err := GenerateConfigFile(context, clusterInfo, configDir, "myuser", filepath.Join(configDir, "mykeyring"), nil, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, filepath.Join(configDir, "foo-cluster.config"), configFilePath)
 
@@ -121,7 +115,7 @@ debug bluestore = 1234`
 	verifyConfigValue(t, actualConf, "global", "debug bluestore", "1234")
 }
 
-func verifyConfig(t *testing.T, cephConfig *cephConfig, expectedMonMembers, experimental, objectStore string, loggingLevel int) {
+func verifyConfig(t *testing.T, cephConfig *cephConfig, expectedMonMembers string, loggingLevel int) {
 
 	for _, expectedMon := range strings.Split(expectedMonMembers, " ") {
 		contained := false
@@ -135,8 +129,6 @@ func verifyConfig(t *testing.T, cephConfig *cephConfig, expectedMonMembers, expe
 		assert.True(t, contained, "expectedMons: %+v, actualMons: %+v", expectedMonMembers, cephConfig.MonMembers)
 	}
 
-	assert.Equal(t, experimental, cephConfig.EnableExperimental)
-	assert.Equal(t, objectStore, cephConfig.OsdObjectStore)
 	assert.Equal(t, loggingLevel, cephConfig.DebugLogDefaultLevel)
 	assert.Equal(t, loggingLevel, cephConfig.DebugLogMonLevel)
 	assert.Equal(t, loggingLevel, cephConfig.DebugLogRadosLevel)

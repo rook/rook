@@ -28,15 +28,26 @@ const (
 type VolumeManager interface {
 	Init() error
 	Attach(image, pool, clusterName string) (string, error)
-	Detach(image, pool, clusterName string) error
+	Detach(image, pool, clusterName string, force bool) error
+}
+
+type VolumeController interface {
+	Attach(attachOpts AttachOptions, devicePath *string) error
+	Detach(detachOpts AttachOptions, _ *struct{} /* void reply */) error
+	DetachForce(detachOpts AttachOptions, _ *struct{} /* void reply */) error
+	RemoveAttachmentObject(detachOpts AttachOptions, safeToDetach *bool) error
+	Log(message LogMessage, _ *struct{} /* void reply */) error
+	GetAttachInfoFromMountDir(mountDir string, attachOptions *AttachOptions) error
 }
 
 type AttachOptions struct {
 	Image        string `json:"image"`
 	Pool         string `json:"pool"`
-	ClusterName  string `json:"ClusterName"`
+	ClusterName  string `json:"clusterName"`
 	StorageClass string `json:"storageClass"`
 	MountDir     string `json:"mountDir"`
+	FsName       string `json:"fsName"`
+	Path         string `json:"path"` // Path within the CephFS to mount
 	RW           string `json:"kubernetes.io/readwrite"`
 	FsType       string `json:"kubernetes.io/fsType"`
 	VolumeName   string `json:"kubernetes.io/pvOrVolumeName"` // only available on 1.7

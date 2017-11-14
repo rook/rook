@@ -29,8 +29,8 @@ spec:
       size: 3
   dataPool:
     erasureCoded:
-      dataChunks: 6
-      codingChunks: 2
+      dataChunks: 2
+      codingChunks: 1
   gateway:
     type: s3
     sslCertificateRef: 

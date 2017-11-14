@@ -36,7 +36,7 @@ var (
 	blockImageName = "testImage"
 )
 
-func TestBlockCreateAPI(t *testing.T) {
+func TestBlockImageCreateSuite(t *testing.T) {
 	suite.Run(t, new(BlockImageCreateSuite))
 }
 
@@ -58,7 +58,7 @@ func (s *BlockImageCreateSuite) SetupSuite() {
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset, s.T)
 
-	isRookInstalled, err := s.installer.InstallRookOnK8s(s.namespace, "bluestore")
+	isRookInstalled, err := s.installer.InstallRookOnK8s(s.namespace, "bluestore", 1)
 	if !isRookInstalled {
 		logger.Errorf("Rook Was not installed successfully")
 		s.TearDownSuite()
@@ -158,7 +158,8 @@ func (s *BlockImageCreateSuite) TestRecreatingBlockImageForDifferentPool() {
 // Delete all Block images that have the word Test in their name
 func (s *BlockImageCreateSuite) TearDownTest() {
 
-	blocks, _ := s.rc.GetBlockImages()
+	blocks, err := s.rc.GetBlockImages()
+	assert.NoError(s.T(), err)
 
 	for _, b := range blocks {
 		if strings.Contains(b.Name, "test") {

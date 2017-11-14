@@ -32,13 +32,13 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
-	"github.com/rook/rook/pkg/util/proc"
 	"github.com/rook/rook/pkg/version"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 )
 
 const (
 	RookEnvVarPrefix = "ROOK"
+	terminationLog   = "/dev/termination-log"
 )
 
 var rootCmd = &cobra.Command{
@@ -123,7 +123,6 @@ func createContext() *clusterd.Context {
 	executor := &exec.CommandExecutor{}
 	return &clusterd.Context{
 		Executor:           executor,
-		ProcMan:            proc.New(executor),
 		ConfigDir:          cfg.dataDir,
 		ConfigFileOverride: cfg.cephConfigOverride,
 		LogLevel:           cfg.logLevel,
@@ -147,4 +146,20 @@ func getClientset() (kubernetes.Interface, apiextensionsclient.Interface, error)
 		return nil, nil, fmt.Errorf("failed to create k8s API extension clientset. %+v", err)
 	}
 	return clientset, apiExtClientset, nil
+}
+
+func terminateFatal(reason error) {
+	fmt.Fprintln(os.Stderr, reason)
+
+	file, err := os.OpenFile(terminationLog, os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %+v", err))
+	} else {
+		defer file.Close()
+		if _, err = file.WriteString(reason.Error()); err != nil {
+			fmt.Fprintln(os.Stderr, fmt.Errorf("failed to write message to termination log: %+v", err))
+		}
+	}
+
+	os.Exit(1)
 }

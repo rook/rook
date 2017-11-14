@@ -12,8 +12,8 @@ spec:
   dataPools:
     - failureDomain: osd
       erasureCoded:
-        dataChunks: 4
-        codingChunks: 2
+        dataChunks: 2
+        codingChunks: 1
   # The metadata service (mds) configuration
   metadataServer:
     # The number of active MDS instances

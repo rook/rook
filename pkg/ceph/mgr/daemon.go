@@ -18,13 +18,11 @@ package mgr
 import (
 	"fmt"
 	"path"
-	"regexp"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/util"
-	"github.com/rook/rook/pkg/util/proc"
 )
 
 var (
@@ -41,7 +39,6 @@ const (
 )
 
 type Config struct {
-	InProc      bool
 	ClusterInfo *mon.ClusterInfo
 	Name        string
 	Keyring     string
@@ -49,17 +46,15 @@ type Config struct {
 
 func Run(context *clusterd.Context, config *Config) error {
 	logger.Infof("Starting MGR %s with keyring %s", config.Name, config.Keyring)
-	err := generateConfigFiles(context, config)
-	if err != nil {
+	if err := generateConfigFiles(context, config); err != nil {
 		return fmt.Errorf("failed to generate mgr config files. %+v", err)
 	}
 
-	_, err = startMgr(context, config)
-	if err != nil {
+	if err := startMgr(context, config); err != nil {
 		return fmt.Errorf("failed to run mgr. %+v", err)
 	}
 
-	return err
+	return nil
 }
 
 func generateConfigFiles(context *clusterd.Context, config *Config) error {
@@ -72,7 +67,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	}
 	logger.Infof("Conf files: dir=%s keyring=%s", confDir, keyringPath)
 	_, err := mon.GenerateConfigFile(context, config.ClusterInfo, confDir,
-		username, keyringPath, false, nil, settings)
+		username, keyringPath, nil, settings)
 	if err != nil {
 		return fmt.Errorf("failed to create config file. %+v", err)
 	}
@@ -89,7 +84,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	return nil
 }
 
-func startMgr(context *clusterd.Context, config *Config) (mgrProc *proc.MonitoredProc, err error) {
+func startMgr(context *clusterd.Context, config *Config) error {
 
 	// start the mgr daemon in the foreground with the given config
 	logger.Infof("starting ceph-mgr")
@@ -107,15 +102,10 @@ func startMgr(context *clusterd.Context, config *Config) (mgrProc *proc.Monitore
 		"-i", config.Name,
 	}
 
-	if config.InProc {
-		err = context.ProcMan.Run(cephmgr, cephmgr, args...)
-	} else {
-		mgrProc, err = context.ProcMan.Start(cephmgr, cephmgr, regexp.QuoteMeta(cephmgr), proc.ReuseExisting, args...)
+	if err := context.Executor.ExecuteCommand(false, cephmgr, cephmgr, args...); err != nil {
+		return fmt.Errorf("failed to start mgr: %+v", err)
 	}
-	if err != nil {
-		err = fmt.Errorf("failed to start mgr: %+v", err)
-	}
-	return
+	return nil
 }
 
 func getMgrConfDir(dir, name string) string {

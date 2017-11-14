@@ -17,7 +17,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/ceph/rgw"
@@ -77,13 +76,11 @@ func startRGW(cmd *cobra.Command, args []string) error {
 		Port:            rgwPort,
 		SecurePort:      rgwSecurePort,
 		CertificatePath: rgwCert,
-		InProc:          true,
 	}
 
 	err := rgw.Run(createContext(), config)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		terminateFatal(err)
 	}
 
 	return nil

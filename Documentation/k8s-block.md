@@ -26,7 +26,7 @@ metadata:
   namespace: rook
 spec:
   replicated:
-    size: 1
+    size: 3
 ---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass

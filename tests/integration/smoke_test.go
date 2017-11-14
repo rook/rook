@@ -27,7 +27,31 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-func TestSmokeSuiteK8s(t *testing.T) {
+// ************************************************
+// *** Major scenarios tested by the SmokeSuite ***
+// Setup
+// - via the cluster CRD
+// Monitors
+// - Three mons in the cluster
+// - Failover of an unhealthy monitor
+// OSDs
+// - Bluestore running on devices
+// Block
+// - Mount/unmount a block device through the dynamic provisioner
+// - Fencing of the block device
+// - Read/write to the device
+// File system
+// - Create the file system via the CRD
+// - Mount/unmount a file system in pod
+// - Read/write to the file system
+// - Delete the file system
+// Object
+// - Create the object store via the REST API
+// - Create/delete buckets
+// - Create/delete users
+// - PUT/GET objects
+// ************************************************
+func TestSmokeSuite(t *testing.T) {
 	suite.Run(t, new(SmokeSuite))
 }
 
@@ -48,7 +72,7 @@ func (suite *SmokeSuite) SetupSuite() {
 
 	suite.installer = installer.NewK8sRookhelper(kh.Clientset, suite.T)
 
-	isRookInstalled, err := suite.installer.InstallRookOnK8s(suite.namespace, "bluestore")
+	isRookInstalled, err := suite.installer.InstallRookOnK8sWithHostPathAndDevices(suite.namespace, "bluestore", "", true, 3)
 	assert.NoError(suite.T(), err)
 	if !isRookInstalled {
 		logger.Errorf("Rook Was not installed successfully")
@@ -84,5 +108,5 @@ func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 
 //Test to make sure all rook components are installed and Running
 func (suite *SmokeSuite) TestRookClusterInstallation_smokeTest() {
-	checkIfRookClusterIsInstalled(suite.Suite, suite.k8sh, installer.SystemNamespace(suite.namespace), suite.namespace)
+	checkIfRookClusterIsInstalled(suite.Suite, suite.k8sh, installer.SystemNamespace(suite.namespace), suite.namespace, 3)
 }

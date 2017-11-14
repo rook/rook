@@ -16,9 +16,6 @@ limitations under the License.
 package main
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/rook/rook/pkg/ceph/mgr"
 	"github.com/rook/rook/pkg/ceph/mon"
 	"github.com/rook/rook/pkg/util/flags"
@@ -61,13 +58,11 @@ func startMgr(cmd *cobra.Command, args []string) error {
 		Name:        mgrName,
 		Keyring:     mgrKeyring,
 		ClusterInfo: &clusterInfo,
-		InProc:      true,
 	}
 
 	err := mgr.Run(createContext(), config)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		terminateFatal(err)
 	}
 
 	return nil

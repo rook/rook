@@ -23,9 +23,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/kubernetes-incubator/external-storage/lib/controller"
 	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/provisioner/controller"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"

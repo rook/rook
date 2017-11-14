@@ -40,10 +40,10 @@ do
         echo "END logs from pod: ${p} ${c}"
     done
 done
-for i in $(kubectl -n default get pods -l app=rook-operator -o jsonpath='{.items[*].metadata.name}')
+for i in $(kubectl -n rook-system get pods -o jsonpath='{.items[*].metadata.name}')
 do
     echo "BEGIN logs from pod: ${i}"
-    kubectl -n default logs ${i}
+    kubectl -n rook-system logs ${i}
     echo "END logs from pod: ${i}"
 done) | gzip > /tmp/rook-logs.gz
 ```

@@ -28,16 +28,16 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/kubernetes-incubator/external-storage/lib/controller"
-	"github.com/rook/rook/pkg/agent/flexvolume/crd"
+	opkit "github.com/rook/operator-kit"
+	flexcrd "github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/agent"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	"github.com/rook/rook/pkg/operator/mds"
 	"github.com/rook/rook/pkg/operator/pool"
 	"github.com/rook/rook/pkg/operator/provisioner"
+	"github.com/rook/rook/pkg/operator/provisioner/controller"
 	"github.com/rook/rook/pkg/operator/rgw"
 	"k8s.io/api/core/v1"
 )
@@ -56,7 +56,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "operator")
 // Operator type for managing storage
 type Operator struct {
 	context   *clusterd.Context
-	resources []kit.CustomResource
+	resources []opkit.CustomResource
 	// The custom resource that is global to the kubernetes cluster.
 	// The cluster is global because you create multiple clusers in k8s
 	clusterController *cluster.ClusterController
@@ -64,15 +64,12 @@ type Operator struct {
 }
 
 // New creates an operator instance
-func New(context *clusterd.Context) *Operator {
-	clusterController, err := cluster.NewClusterController(context)
-	if err != nil {
-		logger.Errorf("failed to create ClusterController. %+v.", err)
-		return nil
-	}
+func New(context *clusterd.Context, volumeAttachmentController flexcrd.VolumeAttachmentController) *Operator {
+	clusterController := cluster.NewClusterController(context, volumeAttachmentController)
 	volumeProvisioner := provisioner.New(context)
 
-	schemes := []kit.CustomResource{cluster.ClusterResource, pool.PoolResource, rgw.ObjectStoreResource, mds.FilesystemResource, crd.VolumeAttachmentResource}
+	schemes := []opkit.CustomResource{cluster.ClusterResource, pool.PoolResource, rgw.ObjectStoreResource,
+		mds.FilesystemResource, flexcrd.VolumeAttachmentResource}
 	return &Operator{
 		context:           context,
 		clusterController: clusterController,
@@ -138,7 +135,7 @@ func (o *Operator) Run() error {
 }
 
 func (o *Operator) initResources() error {
-	kitCtx := kit.Context{
+	kitCtx := opkit.Context{
 		Clientset:             o.context.Clientset,
 		APIExtensionClientset: o.context.APIExtensionClientset,
 		Interval:              500 * time.Millisecond,
@@ -146,7 +143,7 @@ func (o *Operator) initResources() error {
 	}
 
 	// Create and wait for CRD resources
-	err := kit.CreateCustomResources(kitCtx, o.resources)
+	err := opkit.CreateCustomResources(kitCtx, o.resources)
 	if err != nil {
 		return fmt.Errorf("failed to create custom resource. %+v", err)
 	}

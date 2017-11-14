@@ -30,24 +30,19 @@ import (
 )
 
 // Test K8s Block Image Creation Scenarios. These tests work when platform is set to Kubernetes
-var (
-	claimName = "test-claim1"
-)
 
-func TestK8sBlockCreate(t *testing.T) {
+func TestK8sBlockImageCreateSuite(t *testing.T) {
 	suite.Run(t, new(K8sBlockImageCreateSuite))
 }
 
 type K8sBlockImageCreateSuite struct {
 	suite.Suite
-	testClient      *clients.TestClient
-	bc              contracts.BlockOperator
-	kh              *utils.K8sHelper
-	initBlockCount  int
-	pvcDef          string
-	storageclassDef string
-	namespace       string
-	installer       *installer.InstallHelper
+	testClient     *clients.TestClient
+	bc             contracts.BlockOperator
+	kh             *utils.K8sHelper
+	initBlockCount int
+	namespace      string
+	installer      *installer.InstallHelper
 }
 
 func (s *K8sBlockImageCreateSuite) SetupSuite() {
@@ -59,7 +54,7 @@ func (s *K8sBlockImageCreateSuite) SetupSuite() {
 
 	s.installer = installer.NewK8sRookhelper(s.kh.Clientset, s.T)
 
-	isRookInstalled, err := s.installer.InstallRookOnK8s(s.namespace, "bluestore")
+	isRookInstalled, err := s.installer.InstallRookOnK8s(s.namespace, "bluestore", 1)
 	assert.NoError(s.T(), err)
 	if !isRookInstalled {
 		logger.Errorf("Rook Was not installed successfully")
@@ -78,42 +73,6 @@ func (s *K8sBlockImageCreateSuite) SetupSuite() {
 	initialBlocks, err := s.bc.BlockList()
 	assert.Nil(s.T(), err)
 	s.initBlockCount = len(initialBlocks)
-
-	s.pvcDef = `apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: {{.claimName}}
-  annotations:
-    volume.beta.kubernetes.io/storage-class: rook-block
-spec:
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1M`
-
-	s.storageclassDef = `apiVersion: rook.io/v1alpha1
-kind: Pool
-metadata:
-  name: {{.poolName}}
-  namespace: {{.namespace}}
-spec:
-  replicated:
-    size: 1
-  # For an erasure-coded pool, comment out the replication count above and uncomment the following settings.
-  # Make sure you have enough OSDs to support the replica count or erasure code chunks.
-  #erasureCoded:
-  #  codingChunks: 2
-  #  dataChunks: 2
----
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-   name: rook-block
-provisioner: rook.io/block
-parameters:
-    pool: {{.poolName}}
-    clusterName: {{.namespace}}`
 }
 
 // Test case when persistentvolumeclaim is created for a storage class that doesn't exist
@@ -123,9 +82,10 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 	//Create PVC
 	claimName := "test-no-storage-class-claim"
 	poolName := "test-no-storage-class-pool"
-	defer s.tearDownTest(claimName, poolName)
+	storageClassName := "rook-block"
+	defer s.tearDownTest(claimName, poolName, storageClassName)
 
-	result, err := s.pvcOperation(claimName, "create")
+	result, err := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName), "create")
 	require.Contains(s.T(), result, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result)
 	require.NoError(s.T(), err)
 
@@ -145,21 +105,24 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenStorageClassExists() {
 	logger.Infof("Test creating PVC(block images) when storage class is created")
 	claimName := "test-with-storage-class-claim"
 	poolName := "test-with-storage-class-pool"
-	defer s.tearDownTest(claimName, poolName)
+	storageClassName := "rook-block"
+	defer s.tearDownTest(claimName, poolName, storageClassName)
 
 	//create pool and storageclass
-	result1, err1 := s.storageClassOperation(poolName, "create")
-	require.Contains(s.T(), result1, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
-	require.Contains(s.T(), result1, "storageclass \"rook-block\" created", "Make sure storageclass is created")
+	result0, err0 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "create")
+	require.Contains(s.T(), result0, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
+	require.NoError(s.T(), err0)
+	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "create")
+	require.Contains(s.T(), result1, fmt.Sprintf("storageclass \"%s\" created", storageClassName), "Make sure storageclass is created")
 	require.NoError(s.T(), err1)
 
 	//make sure storageclass is created
-	present, err := s.kh.IsStorageClassPresent("rook-block")
+	present, err := s.kh.IsStorageClassPresent(storageClassName)
 	require.Nil(s.T(), err)
 	require.True(s.T(), present, "Make sure storageclass is present")
 
 	//create pvc
-	result2, err2 := s.pvcOperation(claimName, "create")
+	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName), "create")
 	require.Contains(s.T(), result2, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result2)
 	require.NoError(s.T(), err2)
 
@@ -177,15 +140,18 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 	logger.Infof("Test creating PVC(create block images) twice")
 	claimName := "test-twice-claim"
 	poolName := "test-twice-pool"
-	defer s.tearDownTest(claimName, poolName)
+	storageClassName := "rook-block"
+	defer s.tearDownTest(claimName, poolName, storageClassName)
 	status, _ := s.kh.GetPVCStatus(defaultNamespace, claimName)
 	logger.Infof("PVC %s status: %s", claimName, status)
 	s.bc.BlockList()
 
 	logger.Infof("create pool and storageclass")
-	result1, err1 := s.storageClassOperation(poolName, "create")
-	assert.Contains(s.T(), result1, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created. "+result1)
-	assert.Contains(s.T(), result1, "storageclass \"rook-block\" created", "Make sure storageclass is created")
+	result0, err0 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "create")
+	require.Contains(s.T(), result0, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
+	require.NoError(s.T(), err0)
+	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "create")
+	require.Contains(s.T(), result1, fmt.Sprintf("storageclass \"%s\" created", storageClassName), "Make sure storageclass is created")
 	require.NoError(s.T(), err1)
 
 	logger.Infof("make sure storageclass is created")
@@ -194,7 +160,7 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 	require.True(s.T(), present, "Make sure storageclass is present")
 
 	logger.Infof("create pvc")
-	result2, err2 := s.pvcOperation(claimName, "create")
+	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName), "create")
 	require.Contains(s.T(), result2, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result2)
 	require.NoError(s.T(), err2)
 
@@ -206,7 +172,7 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 	assert.Equal(s.T(), s.initBlockCount+1, len(b1), "Make sure new block image is created")
 
 	logger.Infof("Create same pvc again")
-	result3, err3 := s.pvcOperation(claimName, "create")
+	result3, err3 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName), "create")
 	require.Contains(s.T(), result3, fmt.Sprintf("persistentvolumeclaims \"%s\" already exists", claimName), "make sure PVC is not created again. "+result3)
 	require.NoError(s.T(), err3)
 
@@ -219,31 +185,10 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 
 }
 
-func (s *K8sBlockImageCreateSuite) tearDownTest(claimName, poolName string) {
-	s.pvcOperation(claimName, "delete")
-	s.storageClassOperation(poolName, "delete")
-}
-
-func (s *K8sBlockImageCreateSuite) storageClassOperation(poolName string, action string) (string, error) {
-	config := map[string]string{
-		"poolName":  poolName,
-		"namespace": s.namespace,
-	}
-
-	result, err := s.kh.ResourceOperationFromTemplate(action, s.storageclassDef, config)
-
-	return result, err
-
-}
-
-func (s *K8sBlockImageCreateSuite) pvcOperation(claimName string, action string) (string, error) {
-	config := map[string]string{
-		"claimName": claimName,
-	}
-
-	result, err := s.kh.ResourceOperationFromTemplate(action, s.pvcDef, config)
-
-	return result, err
+func (s *K8sBlockImageCreateSuite) tearDownTest(claimName string, poolName string, storageClassName string) {
+	installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName), "delete")
+	installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "delete")
+	installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "delete")
 
 }
 

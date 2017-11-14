@@ -29,10 +29,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-        - name: ROOK_OPERATOR_SERVICE_ACCOUNT
-          valueFrom:
-            fieldRef:
-              fieldPath: spec.serviceAccountName
         - name: POD_NAME
           valueFrom:
             fieldRef:

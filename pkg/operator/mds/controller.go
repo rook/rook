@@ -23,9 +23,9 @@ package mds
 import (
 	"fmt"
 
+	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
@@ -49,7 +49,7 @@ func NewFilesystemController(context *clusterd.Context, versionTag string, hostN
 
 // StartWatch watches for instances of Filesystem custom resources and acts on them
 func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}) error {
-	client, scheme, err := kit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
+	client, scheme, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
 	if err != nil {
 		return fmt.Errorf("failed to get a k8s client for watching file system resources: %v", err)
 	}
@@ -60,7 +60,7 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 		UpdateFunc: c.onUpdate,
 		DeleteFunc: c.onDelete,
 	}
-	watcher := kit.NewWatcher(FilesystemResource, namespace, resourceHandlerFuncs, client)
+	watcher := opkit.NewWatcher(FilesystemResource, namespace, resourceHandlerFuncs, client)
 	go watcher.Watch(&Filesystem{}, stopCh)
 	return nil
 }
@@ -84,13 +84,18 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 }
 
 func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
-	//oldFilesystem := oldObj.(*Filesystem)
-	newFilesystem := newObj.(*Filesystem)
+	oldFS := oldObj.(*Filesystem)
+	newFS := newObj.(*Filesystem)
+	if !filesystemChanged(oldFS.Spec, newFS.Spec) {
+		logger.Debugf("filesystem %s not updated", newFS.Name)
+		return
+	}
 
 	// if the file system is modified, allow the file system to be created if it wasn't already
-	err := newFilesystem.Create(c.context, c.versionTag, c.hostNetwork)
+	logger.Infof("updating filesystem %s", newFS)
+	err := newFS.Create(c.context, c.versionTag, c.hostNetwork)
 	if err != nil {
-		logger.Errorf("failed to create (modify) file system %s. %+v", newFilesystem.Name, err)
+		logger.Errorf("failed to create (modify) file system %s. %+v", newFS.Name, err)
 	}
 }
 
@@ -100,4 +105,20 @@ func (c *FilesystemController) onDelete(obj interface{}) {
 	if err != nil {
 		logger.Errorf("failed to delete file system %s. %+v", filesystem.Name, err)
 	}
+}
+
+func filesystemChanged(oldFS, newFS FilesystemSpec) bool {
+	if len(oldFS.DataPools) != len(newFS.DataPools) {
+		logger.Infof("number of data pools changed from %d to %d", len(oldFS.DataPools), len(newFS.DataPools))
+		return true
+	}
+	if oldFS.MetadataServer.ActiveCount != newFS.MetadataServer.ActiveCount {
+		logger.Infof("number of mds active changed from %d to %d", oldFS.MetadataServer.ActiveCount, newFS.MetadataServer.ActiveCount)
+		return true
+	}
+	if oldFS.MetadataServer.ActiveStandby != newFS.MetadataServer.ActiveStandby {
+		logger.Infof("mds active standby changed from %t to %t", oldFS.MetadataServer.ActiveStandby, newFS.MetadataServer.ActiveStandby)
+		return true
+	}
+	return false
 }

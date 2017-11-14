@@ -17,7 +17,23 @@ var (
 	hslogger = capnslog.NewPackageLogger("github.com/rook/rook", "helmSmokeTest")
 )
 
-func TestHelmIntegrationSuite(t *testing.T) {
+// ***************************************************
+// *** Major scenarios tested by the TestHelmSuite ***
+// Setup
+// - A cluster created via the Helm chart
+// Monitors
+// - One mon
+// OSDs
+// - Bluestore running on a directory
+// Block
+// - Create a pool in each cluster
+// - Mount/unmount a block device through the dynamic provisioner
+// File system
+// - Create a file system via the REST API
+// Object
+// - Create the object store via the CRD
+// ***************************************************
+func TestHelmSuite(t *testing.T) {
 	suite.Run(t, new(HelmSuite))
 }
 
@@ -71,7 +87,7 @@ func (hs *HelmSuite) TearDownSuite() {
 
 //Test to make sure all rook components are installed and Running
 func (hs *HelmSuite) TestRookInstallViaHelm() {
-	checkIfRookClusterIsInstalled(hs.Suite, hs.k8sh, hs.namespace, hs.namespace)
+	checkIfRookClusterIsInstalled(hs.Suite, hs.k8sh, hs.namespace, hs.namespace, 1)
 }
 
 //Test BlockCreation on Rook that was installed via Helm

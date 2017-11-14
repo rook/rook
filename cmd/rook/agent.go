@@ -17,7 +17,6 @@ package main
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/rook/rook/pkg/agent"
 	"github.com/rook/rook/pkg/clusterd"
@@ -45,8 +44,7 @@ func startAgent(cmd *cobra.Command, args []string) error {
 
 	clientset, apiExtClientset, err := getClientset()
 	if err != nil {
-		fmt.Printf("failed to get k8s client. %+v", err)
-		os.Exit(1)
+		terminateFatal(fmt.Errorf("failed to get k8s client. %+v", err))
 	}
 
 	logger.Info("starting rook agent")
@@ -59,8 +57,7 @@ func startAgent(cmd *cobra.Command, args []string) error {
 	agent := agent.New(context)
 	err = agent.Run()
 	if err != nil {
-		fmt.Printf("failed to run rook agent. %+v\n", err)
-		os.Exit(1)
+		terminateFatal(fmt.Errorf("failed to run rook agent. %+v\n", err))
 	}
 
 	return nil

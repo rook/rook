@@ -64,6 +64,20 @@ func TestStartAgentDaemonset(t *testing.T) {
 	err := a.Start(namespace)
 	assert.Nil(t, err)
 
+	// check clusters rbac roles
+	_, err = clientset.CoreV1().ServiceAccounts(namespace).Get("rook-agent", metav1.GetOptions{})
+	assert.Nil(t, err)
+
+	role, err := clientset.RbacV1beta1().ClusterRoles().Get("rook-agent", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, 4, len(role.Rules))
+
+	binding, err := clientset.RbacV1beta1().ClusterRoleBindings().Get("rook-agent", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, "rook-agent", binding.Subjects[0].Name)
+	assert.Equal(t, "ServiceAccount", binding.Subjects[0].Kind)
+
+	// check daemonset parameters
 	agentDS, err := clientset.Extensions().DaemonSets(namespace).Get("rook-agent", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, namespace, agentDS.Namespace)

@@ -200,7 +200,7 @@ func CreateDefaultCrushMap(context *clusterd.Context, clusterName string) (strin
 	return "", nil
 }
 
-func FormatLocation(location string) ([]string, error) {
+func FormatLocation(location, hostName string) ([]string, error) {
 	var pairs []string
 	if location == "" {
 		pairs = []string{}
@@ -217,6 +217,12 @@ func FormatLocation(location string) ([]string, error) {
 	// set a default root if it's not already set
 	if !isCrushFieldSet("root", pairs) {
 		pairs = append(pairs, formatProperty("root", "default"))
+	}
+	// set the host name
+	if !isCrushFieldSet("host", pairs) {
+		// keep the fully qualified host name in the crush map, but replace the dots with dashes to satisfy ceph
+		hostName = strings.Replace(hostName, ".", "-", -1)
+		pairs = append(pairs, formatProperty("host", hostName))
 	}
 
 	return pairs, nil

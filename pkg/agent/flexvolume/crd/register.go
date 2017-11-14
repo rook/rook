@@ -20,8 +20,8 @@ package crd
 import (
 	"reflect"
 
+	opkit "github.com/rook/operator-kit"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/kit"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,7 +38,7 @@ var (
 )
 
 // VolumeAttachmentResource represents the VolumeAttachment custom resource object
-var VolumeAttachmentResource = kit.CustomResource{
+var VolumeAttachmentResource = opkit.CustomResource{
 	Name:    CustomResourceName,
 	Plural:  CustomResourceNamePlural,
 	Group:   k8sutil.CustomResourceGroup,

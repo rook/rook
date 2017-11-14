@@ -6,7 +6,7 @@ pipeline {
           choice(name: 'node', choices: 'gce-reg\ngce-load', description: 'select env to run tests in ')
           choice(name: 'key', choices: 'master\nPR', description: 'Select master or a PR to run tests aganist - defaults to master')
           string(name: 'PR', defaultValue: '', description: 'PR number, required if key value is set to PR')
-          string(name: 'version', defaultValue: 'v0.5.0-111.ga4a1a98', description: 'Version to run tests against')
+          string(name: 'version', defaultValue: '', description: 'Version to run tests against')
           string(name: 'Load_test', defaultValue: 'TestBlockLongHaul', description: 'select a load test to run ')
           string(name: 'testCount', defaultValue: '10', description: 'Number of times to repeat test per run')
           string(name: 'load_factor', defaultValue: '20', description: 'load factor - number of concurrent threads running per test')

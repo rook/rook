@@ -123,7 +123,7 @@ func (p *ProcManager) Start(name, command, procSearchPattern string, policy Proc
 func (p *ProcManager) Shutdown() {
 	p.RLock()
 	for _, proc := range p.procs {
-		proc.Stop()
+		proc.Stop(false)
 	}
 	p.procs = nil
 	p.RUnlock()
@@ -187,7 +187,7 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 // Stop and remove a process from the list of managed.
 // Assumes we are inside the process lock.
 func (p *ProcManager) purgeManagedProc(index int, proc *MonitoredProc) {
-	err := proc.Stop()
+	err := proc.Stop(false)
 	if err != nil {
 		logger.Warningf("did not stop process %+v. %+v", proc.cmd, err)
 	}

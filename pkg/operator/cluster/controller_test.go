@@ -20,9 +20,13 @@ package cluster
 
 import (
 	"fmt"
+	"os"
 	"testing"
+	"time"
 
+	flexcrd "github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -50,4 +54,66 @@ func TestCreateInitialCrushMap(t *testing.T) {
 	}
 	err = c.createInitialCrushMap()
 	assert.Nil(t, err)
+}
+
+func TestClusterChanged(t *testing.T) {
+	old := ClusterSpec{VersionTag: "v0.6.0", MonCount: 1, HostNetwork: false}
+	new := ClusterSpec{VersionTag: "v0.7.0", MonCount: 3, HostNetwork: true}
+
+	// no changes supported yet
+	assert.False(t, clusterChanged(old, new))
+}
+
+func TestClusterDelete(t *testing.T) {
+	nodeName := "node841"
+	clusterName := "cluster684"
+	pvName := "pvc-540"
+	rookSystemNamespace := "rook-system-6413"
+
+	os.Setenv(k8sutil.PodNamespaceEnvVar, rookSystemNamespace)
+	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+
+	clientset := testop.New(3)
+	context := &clusterd.Context{
+		Clientset: clientset,
+	}
+
+	listCount := 0
+	volumeAttachmentController := &flexcrd.MockVolumeAttachmentController{
+		MockList: func(namespace string) (flexcrd.VolumeAttachmentList, error) {
+			listCount++
+			if listCount == 1 {
+				// first listing returns an existing volume attachment, so the controller should wait
+				return flexcrd.VolumeAttachmentList{
+					Items: []flexcrd.VolumeAttachment{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name:      pvName,
+								Namespace: rookSystemNamespace,
+							},
+							Attachments: []flexcrd.Attachment{
+								{
+									Node:        nodeName,
+									ClusterName: clusterName,
+								},
+							},
+						},
+					},
+				}, nil
+			} else {
+				// subsequent listings should return no volume attachments, meaning that they have all
+				// been cleaned up and the controller can move on.
+				return flexcrd.VolumeAttachmentList{Items: []flexcrd.VolumeAttachment{}}, nil
+			}
+		},
+	}
+
+	// create the cluster controller and tell it that the cluster has been deleted
+	controller := NewClusterController(context, volumeAttachmentController)
+	clusterToDelete := &Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
+	controller.handleDelete(clusterToDelete, time.Microsecond)
+
+	// listing of volume attachments should have been called twice.  the first time there were volume attachments
+	// that the controller needed to wait on to be cleaned up and the second time they were all cleaned up.
+	assert.Equal(t, 2, listCount)
 }

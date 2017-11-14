@@ -38,11 +38,13 @@ kubectl -n rook-system get pod
 ```
 
 ---
-**Restart Kubelet (K8S 1.7 and older)**
+#### **Restart Kubelet**
+**(K8S 1.7.x and older only)**
 
 For versions of Kubernetes prior to 1.8, the Kubelet process on all nodes will require a restart after the Rook operator and Rook agents have been deployed. As part of their initial setup, the Rook agents deploy and configure a Flexvolume plugin in order to integrate with Kubernetes' volume controller framework. In Kubernetes v1.8+, the [dynamic Flexvolume plugin discovery](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md#dynamic-plugin-discovery) will find and initialize our plugin, but in older versions of Kubernetes a manual restart of the Kubelet will be required.
 
-**Disable Attacher-detacher controller (K8S 1.6.x only)**
+#### **Disable Attacher-detacher controller**
+**(K8S 1.6.x only)**
 
 For Kubernetes 1.6, it is also necessary to pass the `--enable-controller-attach-detach=false` flag to Kubelet when you restart it.  This is a workaround for a [Kubernetes issue](https://github.com/kubernetes/kubernetes/issues/47109) that only affects 1.6.
 
@@ -67,7 +69,7 @@ metadata:
   namespace: rook
 spec:
   versionTag: master
-  dataDirHostPath:
+  dataDirHostPath: /var/lib/rook
   storage:
     useAllNodes: true
     useAllDevices: false
@@ -116,12 +118,24 @@ To learn how to set up monitoring for your Rook cluster, you can follow the step
 
 ## Teardown
 
-To clean up all the artifacts created by the demo, **first cleanup the resources from the block, file, and object walkthroughs** (unmount volumes, delete volume claims, etc), then run the following:
+To clean up all the artifacts created by the demo, first cleanup the resources from the [block](k8s-block.md#teardown) and [file](k8s-filesystem.md#teardown) walkthroughs (unmount volumes, delete volume claims, etc).
+Those steps have been copied below for convenience, but note that some of these may not exist if you did not complete those parts of the demo:
+```console
+kubectl delete -f wordpress.yaml
+kubectl delete -f mysql.yaml
+kubectl delete -n rook pool replicapool
+kubectl delete storageclass rook-block
+kubectl -n kube-system delete secret rook-admin
+kubectl delete -f kube-registry.yaml
+```
 
-```bash
-kubectl delete -f rook-operator.yaml
-kubectl delete -n rook-system daemonset rook-agent
+After those resources have been cleaned up, you can then delete your Rook cluster:
+```console
 kubectl delete -n rook cluster rook
+```
+
+This will begin the process of all cluster resources being cleaned up, after which you can delete the rest of the deployment with the following:
+```console
 kubectl delete -n rook serviceaccount rook-api
 kubectl delete -n rook role rook-api
 kubectl delete -n rook rolebinding rook-api
@@ -130,28 +144,36 @@ kubectl delete -n rook role rook-ceph-osd
 kubectl delete -n rook rolebinding rook-ceph-osd
 kubectl delete thirdpartyresources cluster.rook.io pool.rook.io objectstore.rook.io filesystem.rook.io volumeattachment.rook.io # ignore errors if on K8s 1.7+
 kubectl delete crd clusters.rook.io pools.rook.io objectstores.rook.io filesystems.rook.io volumeattachments.rook.io  # ignore errors if on K8s 1.5 and 1.6
+kubectl delete -n rook-system daemonset rook-agent
+kubectl delete -f rook-operator.yaml
+kubectl delete clusterroles rook-agent
+kubectl delete clusterrolebindings rook-agent
 kubectl delete namespace rook
-kubectl delete namespace rook-system
 ```
 If you modified the demo settings, additional cleanup is up to you for devices, host paths, etc.
 
 ## Design
 
+Rook enables storage software systems to run on Kubernetes using Kubernetes primitives. Although Rook's reference storage system is Ceph, support for other storage systems can be added. The following image illustrates how Rook integrates with Kubernetes:
+
+![Rook Architecture on Kubernetes](media/rook-architecture.png)
 With Rook running in the Kubernetes cluster, Kubernetes applications can
 mount block devices and filesystems managed by Rook, or can use the S3/Swift API for object storage. The Rook operator
-automates configuration of the Ceph storage components and monitors the cluster to ensure the storage remains available
+automates configuration of storage components and monitors the cluster to ensure the storage remains available
 and healthy. There is also a REST API service for configuring the Rook storage and a command line tool called `rookctl`.
 
-![Rook Architecture on Kubernetes](media/kubernetes.png)
-
 The Rook operator is a simple container that has all that is needed to bootstrap
-and monitor the storage cluster. The operator will start and monitor ceph monitor pods and a daemonset for the OSDs, which provides basic
+and monitor the storage cluster. The operator will start and monitor [ceph monitor pods](https://github.com/rook/rook/blob/master/design/mon-health.md) and a daemonset for the OSDs, which provides basic
 RADOS storage as well as a deployment for a RESTful API service. When requested through the api service,
 object storage (S3/Swift) is enabled by starting a deployment for RGW, while a shared file system is enabled with a deployment for MDS.
 
 The operator will monitor the storage daemons to ensure the cluster is healthy. Ceph mons will be started or failed over when necessary, and
 other adjustments are made as the cluster grows or shrinks.  The operator will also watch for desired state changes
 requested by the api service and apply the changes.
+
+Rook operator also creates the Rook agents. These agents are pods deployed on every Kubernetes node. Each agent configures a Flexvolume plugin that integrates with Kubernetes' volume controller framework and also handle all storage operations required on the node, such as attaching network storage devices, mounting volumes and formating filesystem.
+
+![Rook Components on Kubernetes](media/kubernetes.png)
 
 The Rook daemons (Mons, OSDs, MGR, RGW, and MDS) are compiled to a single binary `rook`, and included in a minimal container.
 The `rook` container includes Ceph daemons and tools to manage and store all data -- there are no changes to the data path.
@@ -162,4 +184,4 @@ of physical resources, pools, volumes, filesystems, and buckets.
 Rook is implemented in golang. Ceph is implemented in C++ where the data path is highly optimized. We believe
 this combination offers the best of both worlds.
 
-See [Design](https://github.com/rook/rook/wiki/Design) wiki for more details.
+For more detailed design documentation, see the [design docs](https://github.com/rook/rook/tree/master/design).
