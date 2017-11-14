@@ -60,6 +60,8 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 		UpdateFunc: c.onUpdate,
 		DeleteFunc: c.onDelete,
 	}
+
+	logger.Infof("start watching object store resources in namespace %s", namespace)
 	watcher := opkit.NewWatcher(ObjectStoreResource, namespace, resourceHandlerFuncs, client)
 	go watcher.Watch(&ObjectStore{}, stopCh)
 	return nil

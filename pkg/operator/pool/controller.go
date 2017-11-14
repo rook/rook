@@ -68,6 +68,8 @@ func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) erro
 		UpdateFunc: c.onUpdate,
 		DeleteFunc: c.onDelete,
 	}
+
+	logger.Infof("start watching pool resources in namespace %s", namespace)
 	watcher := opkit.NewWatcher(PoolResource, namespace, resourceHandlerFuncs, client)
 	go watcher.Watch(&Pool{}, stopCh)
 	return nil
