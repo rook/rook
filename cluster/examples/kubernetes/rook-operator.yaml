@@ -123,6 +123,9 @@ spec:
         env:
         - name: ROOK_REPO_PREFIX
           value: rook
+        # To disable RBAC, uncomment the following:
+        # - name: RBAC_ENABLED
+        #  value: "false"
         # The interval to check if every mon is in the quorum.
         - name: ROOK_MON_HEALTHCHECK_INTERVAL
           value: "20s"
