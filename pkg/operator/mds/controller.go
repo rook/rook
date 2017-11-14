@@ -60,6 +60,8 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 		UpdateFunc: c.onUpdate,
 		DeleteFunc: c.onDelete,
 	}
+
+	logger.Infof("start watching filesystem resource in namespace %s", namespace)
 	watcher := opkit.NewWatcher(FilesystemResource, namespace, resourceHandlerFuncs, client)
 	go watcher.Watch(&Filesystem{}, stopCh)
 	return nil

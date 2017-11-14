@@ -98,6 +98,7 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 		DeleteFunc: c.onDelete,
 	}
 
+	logger.Infof("start watching clusters in all namespaces")
 	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, customResourceClient)
 	go watcher.Watch(&Cluster{}, stopCh)
 	return nil
