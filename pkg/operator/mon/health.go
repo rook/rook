@@ -30,7 +30,7 @@ import (
 
 var (
 	// HealthCheckInterval interval to check the mons to be in quorum
-	HealthCheckInterval = 20 * time.Second
+	HealthCheckInterval = 45 * time.Second
 	// MonOutTimeout the duration to wait before removing/failover to a new mon pod
 	MonOutTimeout = 300 * time.Second
 )

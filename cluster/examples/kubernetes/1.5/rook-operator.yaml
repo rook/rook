@@ -24,7 +24,7 @@ spec:
           value: rook
         # The interval to check if every mon is in the quorum.
         - name: ROOK_MON_HEALTHCHECK_INTERVAL
-          value: "20s"
+          value: "45s"
         # The duration to wait before trying to failover or remove/replace the
         # current mon with a new mon (useful for compensating flapping network).
         - name: ROOK_MON_OUT_TIMEOUT
