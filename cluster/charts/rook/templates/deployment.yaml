@@ -23,6 +23,10 @@ spec:
         env:
         - name: ROOK_REPO_PREFIX
           value: {{ .Values.image.prefix }}
+{{- if not .Values.rbacEnable }}
+        - name: RBAC_ENABLED
+          value: "false"
+{{- end }}
         - name: ROOK_LOG_LEVEL
           value: {{ .Values.logLevel }}
         - name: NODE_NAME
