@@ -32,7 +32,7 @@ const (
 	CephTool          = "ceph"
 	RBDTool           = "rbd"
 	CrushTool         = "crushtool"
-	cmdExecuteTimeout = 1 * time.Minute
+	cmdExecuteTimeout = 3 * time.Minute
 )
 
 // represents the response from a mon_status mon_command (subset of all available fields, only
