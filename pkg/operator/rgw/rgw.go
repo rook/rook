@@ -355,6 +355,8 @@ func (s *ObjectStore) startDaemonset(context *clusterd.Context, version string, 
 
 func (s *ObjectStore) rgwContainer(version string) v1.Container {
 
+	securityContext := k8sutil.BuildSecurityContext(false /* not privileged */, 0 /* run as uid 0 */, false /* run as root */, false /* RW filesystem */)
+
 	container := v1.Container{
 		Args: []string{
 			"rgw",
@@ -379,6 +381,7 @@ func (s *ObjectStore) rgwContainer(version string) v1.Container {
 			opmon.SecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
+		SecurityContext: &securityContext,
 	}
 
 	if s.Spec.Gateway.SSLCertificateRef != "" {

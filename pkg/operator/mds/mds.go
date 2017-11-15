@@ -160,6 +160,8 @@ func (f *Filesystem) makeDeployment(filesystemID, version string, hostNetwork bo
 
 func (f *Filesystem) mdsContainer(filesystemID, version string) v1.Container {
 
+	securityContext := k8sutil.BuildSecurityContext(false /* not privileged */, 0 /* run as uid 0 */, false /* run as root */, false /* RW filesystem */)
+
 	return v1.Container{
 		Args: []string{
 			"mds",
@@ -182,6 +184,7 @@ func (f *Filesystem) mdsContainer(filesystemID, version string) v1.Container {
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
+		SecurityContext: &securityContext,
 	}
 }
 

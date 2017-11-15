@@ -288,26 +288,15 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 	if devMountNeeded {
 		privileged = true
 	}
-	runAsUser := int64(0)
-	// don't set runAsNonRoot explicitly when it is false, Kubernetes version < 1.6.4 has
-	// an issue with this fixed in https://github.com/kubernetes/kubernetes/pull/47009
-	// runAsNonRoot := false
-	readOnlyRootFilesystem := false
+	securityContext := k8sutil.BuildSecurityContext(privileged, 0 /* run as uid 0 */, false /* run as root */, false /* RW filesystem */)
 	return v1.Container{
 		// Set the hostname so we have the pod's host in the crush map rather than the pod container name
-		Args:         []string{"osd"},
-		Name:         appName,
-		Image:        k8sutil.MakeRookImage(c.Version),
-		VolumeMounts: volumeMounts,
-		Env:          envVars,
-		SecurityContext: &v1.SecurityContext{
-			Privileged: &privileged,
-			RunAsUser:  &runAsUser,
-			// don't set runAsNonRoot explicitly when it is false, Kubernetes version < 1.6.4 has
-			// an issue with this fixed in https://github.com/kubernetes/kubernetes/pull/47009
-			// RunAsNonRoot:           &runAsNonRoot,
-			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
-		},
+		Args:            []string{"osd"},
+		Name:            appName,
+		Image:           k8sutil.MakeRookImage(c.Version),
+		VolumeMounts:    volumeMounts,
+		Env:             envVars,
+		SecurityContext: &securityContext,
 	}
 }
 

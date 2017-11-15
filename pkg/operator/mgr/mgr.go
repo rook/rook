@@ -122,6 +122,8 @@ func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
 
 func (c *Cluster) mgrContainer(name string) v1.Container {
 
+	securityContext := k8sutil.BuildSecurityContext(false /* not privileged */, 0 /* run as uid 0 */, false /* run as root */, false /* RW filesystem */)
+
 	return v1.Container{
 		Args: []string{
 			"mgr",
@@ -144,6 +146,7 @@ func (c *Cluster) mgrContainer(name string) v1.Container {
 			opmon.AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
+		SecurityContext: &securityContext,
 	}
 }
 

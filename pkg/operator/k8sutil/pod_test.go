@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
 )
 
 func TestMakeRookImage(t *testing.T) {
@@ -35,4 +36,33 @@ func TestMakeRookImageWithEnv(t *testing.T) {
 
 func TestDefaultVersion(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("rook/rook:%s", defaultVersion), MakeRookImage(""))
+}
+
+func TestBuildSecurityContext(t *testing.T) {
+	privileged := true
+	runAsUser := int64(0)
+	runAsNonRoot := false
+	readOnlyRootFilesystem := false
+
+	expected := v1.SecurityContext{
+		Privileged:             &privileged,
+		RunAsUser:              &runAsUser,
+		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+	}
+
+	assert.Equal(t, expected, BuildSecurityContext(true, 0, false, false))
+
+	privileged = false
+	runAsUser = int64(1000)
+	runAsNonRoot = true
+	readOnlyRootFilesystem = true
+
+	expected = v1.SecurityContext{
+		Privileged:             &privileged,
+		RunAsUser:              &runAsUser,
+		RunAsNonRoot:           &runAsNonRoot,
+		ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+	}
+
+	assert.Equal(t, expected, BuildSecurityContext(false, 1000, true, true))
 }

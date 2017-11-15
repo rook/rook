@@ -118,6 +118,8 @@ func (c *Cluster) makeMonPod(config *monConfig, nodeName string) *v1.Pod {
 }
 
 func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
+	securityContext := k8sutil.BuildSecurityContext(false /* not privileged */, 0 /* run as uid 0 */, false /* run as root */, false /* RW filesystem */)
+
 	return v1.Container{
 		Args: []string{
 			"mon",
@@ -148,5 +150,6 @@ func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
 			AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
+		SecurityContext: &securityContext,
 	}
 }
