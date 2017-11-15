@@ -121,7 +121,7 @@ func executeCommandWithOutputFile(context *clusterd.Context, debug bool, tool st
 	return []byte(output), err
 }
 
-// calls mon_status mon_command
+// GetMonStatus calls mon_status mon_command
 func GetMonStatus(context *clusterd.Context, clusterName string, debug bool) (MonStatusResponse, error) {
 	args := []string{"mon_status"}
 	buf, err := executeCephCommandWithOutputFile(context, clusterName, debug, args)
