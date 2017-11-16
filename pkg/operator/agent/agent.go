@@ -136,14 +136,6 @@ func (a *Agent) createAgentDaemonSet(namespace string) error {
 									Name:      "libmodules",
 									MountPath: "/lib/modules",
 								},
-								{
-									Name:      "modprobe",
-									MountPath: "/sbin/modprobe",
-								},
-								{
-									Name:      "modinfo",
-									MountPath: "/sbin/modinfo",
-								},
 							},
 							Env: []v1.EnvVar{
 								k8sutil.NamespaceEnvVar(),
@@ -181,22 +173,6 @@ func (a *Agent) createAgentDaemonSet(namespace string) error {
 							VolumeSource: v1.VolumeSource{
 								HostPath: &v1.HostPathVolumeSource{
 									Path: "/lib/modules",
-								},
-							},
-						},
-						{
-							Name: "modprobe",
-							VolumeSource: v1.VolumeSource{
-								HostPath: &v1.HostPathVolumeSource{
-									Path: "/sbin/modprobe",
-								},
-							},
-						},
-						{
-							Name: "modinfo",
-							VolumeSource: v1.VolumeSource{
-								HostPath: &v1.HostPathVolumeSource{
-									Path: "/sbin/modinfo",
 								},
 							},
 						},
