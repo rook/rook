@@ -78,6 +78,7 @@ type Cluster struct {
 	monTimeoutList      map[string]time.Time
 	HostNetwork         bool
 	mapping             *Mapping
+	resources           v1.ResourceRequirements
 }
 
 // monConfig for a single monitor
@@ -100,7 +101,7 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath, version string, size int, placement k8sutil.Placement, hostNetwork bool) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath, version string, size int, placement k8sutil.Placement, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
 		context:             context,
 		placement:           placement,
@@ -118,6 +119,7 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, version string, 
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
 		},
+		resources: resources,
 	}
 }
 

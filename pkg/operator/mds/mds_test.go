@@ -29,6 +29,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -59,6 +60,14 @@ func TestStartMDS(t *testing.T) {
 			DataPools:    []pool.PoolSpec{{Replicated: pool.ReplicatedSpec{Size: 1}}},
 			MetadataServer: MetadataServerSpec{
 				ActiveCount: 1,
+				Resources: v1.ResourceRequirements{
+					Limits: v1.ResourceList{
+						v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+					},
+					Requests: v1.ResourceList{
+						v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+					},
+				},
 			},
 		},
 	}
@@ -87,7 +96,17 @@ func TestPodSpecs(t *testing.T) {
 	fs := &Filesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
 		Spec: FilesystemSpec{
-			MetadataServer: MetadataServerSpec{ActiveCount: 1},
+			MetadataServer: MetadataServerSpec{
+				ActiveCount: 1,
+				Resources: v1.ResourceRequirements{
+					Limits: v1.ResourceList{
+						v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+					},
+					Requests: v1.ResourceList{
+						v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+					},
+				},
+			},
 		},
 	}
 	mdsID := "mds1"
@@ -111,6 +130,9 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 2, len(cont.Args))
 	assert.Equal(t, "mds", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
+
+	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
+	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 }
 
 func TestHostNetwork(t *testing.T) {

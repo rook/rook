@@ -61,10 +61,11 @@ type Cluster struct {
 	Storage         StorageSpec
 	dataDirHostPath string
 	HostNetwork     bool
+	resources       v1.ResourceRequirements
 }
 
 // New creates an instance of the OSD manager
-func New(context *clusterd.Context, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
+func New(context *clusterd.Context, namespace, version string, storageSpec StorageSpec, dataDirHostPath string, placement k8sutil.Placement, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
 		context:         context,
 		Namespace:       namespace,
@@ -73,6 +74,7 @@ func New(context *clusterd.Context, namespace, version string, storageSpec Stora
 		Storage:         storageSpec,
 		dataDirHostPath: dataDirHostPath,
 		HostNetwork:     hostNetwork,
+		resources:       resources,
 	}
 }
 
@@ -103,8 +105,10 @@ func (c *Cluster) Start() error {
 			// fully resolve the storage config for this node
 			n := c.Storage.resolveNode(c.Storage.Nodes[i].Name)
 
+			resources := k8sutil.MergeResourceRequirements(c.Storage.Nodes[i].Resources, c.resources)
+
 			// create the replicaSet that will run the OSDs for this node
-			rs := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, n.Config)
+			rs := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, resources, n.Config)
 			_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
 			if err != nil {
 				if !errors.IsAlreadyExists(err) {
@@ -125,20 +129,20 @@ func (c *Cluster) makeDaemonSet(selection Selection, config Config) *extensions.
 	ds.Name = appName
 	ds.Namespace = c.Namespace
 
-	podSpec := c.podTemplateSpec(nil, nil, selection, config)
+	podSpec := c.podTemplateSpec(nil, nil, selection, c.resources, config)
 
 	ds.Spec = extensions.DaemonSetSpec{Template: podSpec}
 	return ds
 }
 
 func (c *Cluster) makeReplicaSet(nodeName string, devices []Device, directories []Directory,
-	selection Selection, config Config) *extensions.ReplicaSet {
+	selection Selection, resources v1.ResourceRequirements, config Config) *extensions.ReplicaSet {
 
 	rs := &extensions.ReplicaSet{}
 	rs.Name = fmt.Sprintf(appNameFmt, nodeName)
 	rs.Namespace = c.Namespace
 
-	podSpec := c.podTemplateSpec(devices, directories, selection, config)
+	podSpec := c.podTemplateSpec(devices, directories, selection, resources, config)
 	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
 
 	replicaCount := int32(1)
@@ -151,7 +155,8 @@ func (c *Cluster) makeReplicaSet(nodeName string, devices []Device, directories 
 	return rs
 }
 
-func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, selection Selection, config Config) v1.PodTemplateSpec {
+func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, selection Selection,
+	resources v1.ResourceRequirements, config Config) v1.PodTemplateSpec {
 	// by default, the data/config dir will be an empty volume
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if c.dataDirHostPath != "" {
@@ -182,7 +187,7 @@ func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, sel
 
 	podSpec := v1.PodSpec{
 		ServiceAccountName: appName,
-		Containers:         []v1.Container{c.osdContainer(devices, directories, selection, config)},
+		Containers:         []v1.Container{c.osdContainer(devices, directories, selection, resources, config)},
 		RestartPolicy:      v1.RestartPolicyAlways,
 		Volumes:            volumes,
 		HostNetwork:        c.HostNetwork,
@@ -205,7 +210,8 @@ func (c *Cluster) podTemplateSpec(devices []Device, directories []Directory, sel
 	}
 }
 
-func (c *Cluster) osdContainer(devices []Device, directories []Directory, selection Selection, config Config) v1.Container {
+func (c *Cluster) osdContainer(devices []Device, directories []Directory, selection Selection,
+	resources v1.ResourceRequirements, config Config) v1.Container {
 
 	envVars := []v1.EnvVar{
 		nodeNameEnvVar(),
@@ -308,6 +314,7 @@ func (c *Cluster) osdContainer(devices []Device, directories []Directory, select
 			// RunAsNonRoot:           &runAsNonRoot,
 			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 		},
+		Resources: resources,
 	}
 }
 

@@ -55,6 +55,19 @@ spec:
 #      podAffinity:
 #      podAntiAffinity:
 #      tolerations:
+  resources:
+#    api:
+# The requests and limits set here, allow the api Pod to use half of one CPU core and 1 gigabyte of memory
+#      limits:
+#        cpu: "500m"
+#        memory: "1024Mi"
+#      requests:
+#        cpu: "500m"
+#        memory: "1024Mi"
+# the above example requests/limits can also be added to the other components too
+#    mgr:
+#    mon:
+#    osd:
   storage:                # cluster level storage configuration and selection
     useAllNodes: true
     useAllDevices: false
@@ -71,6 +84,15 @@ spec:
 #    - name: "172.17.4.101"
 #      directories:         # specific directores to use for storage can be specified for each node
 #      - path: "/rook/storage-dir"
+# you can override the cluster wide resource requests/limits per node, but only
+# when using `useAllNodes: false`!
+#      resources:
+#        limits:
+#          cpu: "500m"
+#          memory: "1024Mi"
+#        requests:
+#          cpu: "500m"
+#          memory: "1024Mi"
 #    - name: "172.17.4.201"
 #      devices:             # specific devices to use for storage can be specified for each node
 #      - name: "sdb"

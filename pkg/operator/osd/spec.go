@@ -19,6 +19,7 @@ package osd
 
 import (
 	cephosd "github.com/rook/rook/pkg/ceph/osd"
+	"k8s.io/api/core/v1"
 )
 
 // StorageSpec CRD settings
@@ -31,9 +32,10 @@ type StorageSpec struct {
 
 // Node specific CRD settings
 type Node struct {
-	Name        string      `json:"name,omitempty"`
-	Devices     []Device    `json:"devices,omitempty"`
-	Directories []Directory `json:"directories,omitempty"`
+	Name        string                  `json:"name,omitempty"`
+	Devices     []Device                `json:"devices,omitempty"`
+	Directories []Directory             `json:"directories,omitempty"`
+	Resources   v1.ResourceRequirements `json:"resources,omitempty"`
 	Selection
 	Config
 }

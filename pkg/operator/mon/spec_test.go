@@ -25,6 +25,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 func TestPodSpecs(t *testing.T) {
@@ -34,7 +35,14 @@ func TestPodSpecs(t *testing.T) {
 
 func testPodSpec(t *testing.T, dataDir string) {
 	clientset := testop.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", dataDir, "myversion", 3, k8sutil.Placement{}, false)
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", dataDir, "myversion", 3, k8sutil.Placement{}, false, v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+		},
+	})
 	c.clusterInfo = testop.CreateConfigDir(0)
 	config := &monConfig{Name: "mon0", Port: 6790}
 
@@ -70,4 +78,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "--name=mon0", cont.Args[2])
 	assert.Equal(t, "--port=6790", cont.Args[3])
 	assert.Equal(t, fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID), cont.Args[4])
+
+	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
+	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 }

@@ -23,6 +23,7 @@ package mds
 import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/pool"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -66,4 +67,7 @@ type MetadataServerSpec struct {
 
 	// The affinity to place the mds pods (default is to place on all available node) with a daemonset
 	Placement k8sutil.Placement `json:"placement"`
+
+	// The resource requirements for the rgw pods
+	Resources v1.ResourceRequirements `json:"resources"`
 }

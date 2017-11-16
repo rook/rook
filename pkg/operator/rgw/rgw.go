@@ -346,7 +346,9 @@ func (s *ObjectStore) startDaemonset(context *clusterd.Context, version string, 
 			Name:      s.instanceName(),
 			Namespace: s.Namespace,
 		},
-		Spec: extensions.DaemonSetSpec{Template: s.makeRGWPodSpec(version, hostNetwork)},
+		Spec: extensions.DaemonSetSpec{
+			Template: s.makeRGWPodSpec(version, hostNetwork),
+		},
 	}
 
 	_, err := context.Clientset.ExtensionsV1beta1().DaemonSets(s.Namespace).Create(daemonset)
@@ -379,6 +381,7 @@ func (s *ObjectStore) rgwContainer(version string) v1.Container {
 			opmon.SecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
+		Resources: s.Spec.Gateway.Resources,
 	}
 
 	if s.Spec.Gateway.SSLCertificateRef != "" {

@@ -23,6 +23,7 @@ package rgw
 import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/pool"
+	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
@@ -81,4 +82,7 @@ type GatewaySpec struct {
 
 	// The affinity to place the rgw pods (default is to place on any available node)
 	Placement k8sutil.Placement `json:"placement"`
+
+	// The resource requirements for the rgw pods
+	Resources v1.ResourceRequirements `json:"resources"`
 }

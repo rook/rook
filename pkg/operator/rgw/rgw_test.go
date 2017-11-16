@@ -29,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -93,6 +94,14 @@ func validateStart(t *testing.T, store *ObjectStore, clientset *fake.Clientset, 
 
 func TestPodSpecs(t *testing.T) {
 	store := simpleStore()
+	store.Spec.Gateway.Resources = v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+		},
+	}
 
 	s := store.makeRGWPodSpec("myversion", true)
 	assert.NotNil(t, s)
@@ -119,6 +128,9 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", store.instanceName()), cont.Args[3])
 	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[4])
 	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 0), cont.Args[5])
+
+	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
+	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 }
 
 func TestSSLPodSpec(t *testing.T) {
