@@ -118,6 +118,7 @@ pipeline {
             sh 'make -j\$(nproc) clean'
             sh 'make -j\$(nproc) prune PRUNE_HOURS=48 PRUNE_KEEP=48'
             sh 'make -j\$(nproc) -C build/release clean'
+            notifySlack(currentBuild.result)
             deleteDir()
         }
     }
@@ -183,4 +184,22 @@ def evaluateJson(String json, String gpath){
     def ojson = new groovy.json.JsonSlurper().parseText(json)
     //evaluate gpath as a gstring template where $json is a parsed json parameter
     return new groovy.text.GStringTemplateEngine().createTemplate(gpath).make(json:ojson).toString()
+}
+
+def notifySlack(String buildStatus) {
+
+    // build status of null means successful
+    buildStatus =  buildStatus ?: 'SUCCESS'
+
+    // Default values
+    def colorCode = '#FF0000'
+    def summary = "@channel  ${buildStatus}: $JOB_NAME: \n<$BUILD_URL|Build #$BUILD_NUMBER> - $currentBuild.displayName"
+
+    // Override default values based on build status
+    if (buildStatus != 'SUCCESS') {
+        // Send notifications to channel on non success builds only
+        if (env.BRANCH_NAME == "master" || env.BRANCH_NAME.contains("release")){
+            slackSend (color: colorCode, message: summary)
+        }
+    }
 }
