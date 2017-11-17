@@ -28,6 +28,7 @@ type EnvironmentManifest struct {
 	SkipInstallRook    string
 	LoadVolumeNumber   int
 	LoadConcurrentRuns int
+	LoadTime           int
 }
 
 //NewManifest creates a new instance of EnvironmentManifest
@@ -39,6 +40,7 @@ func NewManifest() EnvironmentManifest {
 	flag.StringVar(&e.SkipInstallRook, "skip_install_rook", "false", "Indicate if Rook need to installed - false if tests are being running at Rook that is pre-installed")
 	flag.IntVar(&e.LoadConcurrentRuns, "load_parallel_runs", 20, "number of routines for load test")
 	flag.IntVar(&e.LoadVolumeNumber, "load_volumes", 1, "number of volumes(file,object or block) to be created for load test")
+	flag.IntVar(&e.LoadTime, "load_time", 1800, "number of seconds each thread perform operations for")
 	flag.Parse()
 
 	return e

@@ -90,6 +90,53 @@ spec:
 	return k8sh.CreateExternalRGWService(namespace, storeName)
 }
 
+func (ro *ObjectOperation) ObjectDelete(namespace, storeName string, replicaCount int32, callAPI bool, k8sh *utils.K8sHelper) error {
+	store := model.ObjectStore{Name: storeName, Gateway: model.Gateway{Instances: replicaCount, Port: model.RGWPort}}
+	store.DataConfig.ReplicatedConfig.Size = 1
+	store.MetadataConfig.ReplicatedConfig.Size = 1
+	if callAPI {
+		logger.Infof("Deleting  the object store via the rest API")
+		if err := ro.restClient.DeleteObjectStore(storeName); err != nil {
+			return fmt.Errorf("failed to delete rest api object store. %+v", err)
+		}
+	} else {
+		kind := "ObjectStore"
+		if !k8sh.VersionAtLeast("1.7.0") {
+			kind = "Objectstore"
+		}
+		logger.Infof("Deleting the object store via CRD")
+		storeSpec := fmt.Sprintf(`apiVersion: rook.io/v1alpha1
+kind: %s
+metadata:
+  name: %s
+  namespace: %s
+spec:
+  metadataPool:
+    replicated:
+      size: 1
+  dataPool:
+    replicated:
+      size: 1
+  gateway:
+    type: s3
+    sslCertificateRef:
+    port: %d
+    securePort:
+    instances: %d
+    allNodes: false
+`, kind, store.Name, namespace, store.Gateway.Port, store.Gateway.Instances)
+
+		if _, err := k8sh.ResourceOperation("delete", storeSpec); err != nil {
+			return err
+		}
+	}
+
+	if !k8sh.WaitUntilPodWithLabelDeleted(fmt.Sprintf("rook_object_store=%s", storeName), namespace) {
+		return fmt.Errorf("rgw did not start via crd")
+	}
+	return nil
+}
+
 //ObjectBucketList Function to get Buckets present in rook object store
 //Input paramatres - None
 //Output - output returned by rook Rest API client

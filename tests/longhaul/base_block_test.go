@@ -9,6 +9,7 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"time"
 )
 
 var (
@@ -107,26 +108,31 @@ func performBlockOperations(installer *installer.InstallHelper, db *utils.MySQLH
 	var wg sync.WaitGroup
 	for i := 1; i <= installer.Env.LoadConcurrentRuns; i++ {
 		wg.Add(1)
-		go dbOperation(db, &wg)
+		go dbOperation(db, &wg, installer.Env.LoadTime)
 	}
 	wg.Wait()
 }
 
-func dbOperation(db *utils.MySQLHelper, wg *sync.WaitGroup) {
+func dbOperation(db *utils.MySQLHelper, wg *sync.WaitGroup, runtime int) {
 	defer wg.Done()
-	//InsertRandomData
-	db.InsertRandomData()
-	db.InsertRandomData()
-	db.InsertRandomData()
-	db.SelectRandomData(5)
-	db.InsertRandomData()
-	db.InsertRandomData()
-	db.InsertRandomData()
-	db.SelectRandomData(10)
+	start := time.Now()
+	elapsed := time.Since(start).Seconds()
+	for elapsed < float64(runtime) {
+		//InsertRandomData
+		db.InsertRandomData()
+		db.InsertRandomData()
+		db.InsertRandomData()
+		db.SelectRandomData(5)
+		db.InsertRandomData()
+		db.InsertRandomData()
+		db.InsertRandomData()
+		db.SelectRandomData(10)
 
-	//delete Data
-	db.DeleteRandomRow()
-	db.SelectRandomData(20)
+		//delete Data
+		db.DeleteRandomRow()
+		db.SelectRandomData(20)
+		elapsed = time.Since(start).Seconds()
+	}
 
 }
 
