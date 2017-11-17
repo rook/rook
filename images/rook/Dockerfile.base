@@ -22,6 +22,7 @@ RUN BOOST_VERSION=1.62.0 && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yy -q --no-install-recommends \
         ca-certificates \
         gdisk \
+        kmod \
         libaio1 \
         libboost-context${BOOST_VERSION} \
         libboost-coroutine${BOOST_VERSION} \
