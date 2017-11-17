@@ -19,7 +19,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: rook-tools
-  namespace: rook
+  namespace: rook-system
 spec:
   dnsPolicy: ClusterFirstWithHostNet
   containers:
