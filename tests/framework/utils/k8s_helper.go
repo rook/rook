@@ -601,7 +601,7 @@ func (k8sh *K8sHelper) GetPodHostID(podNamePattern string, namespace string) (st
 		return "", fmt.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
 	}
 
-	if podList.Size() < 1 {
+	if len(podList.Items) < 1 {
 		logger.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
 		return "", fmt.Errorf("Cannot get hostIp for app : %v in namespace %v, err: %v", podNamePattern, namespace, err)
 	}

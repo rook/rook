@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
+	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +53,11 @@ import (
 // - PUT/GET objects
 // ************************************************
 func TestSmokeSuite(t *testing.T) {
-	suite.Run(t, new(SmokeSuite))
+	s := new(SmokeSuite)
+	defer func(s *SmokeSuite) {
+		HandlePanics(recover(), s.o, s.T)
+	}(s)
+	suite.Run(t, s)
 }
 
 type SmokeSuite struct {
@@ -60,6 +65,7 @@ type SmokeSuite struct {
 	helper    *clients.TestClient
 	k8sh      *utils.K8sHelper
 	installer *installer.InstallHelper
+	o         contracts.TestOperator
 	namespace string
 }
 
@@ -71,11 +77,13 @@ func (suite *SmokeSuite) SetupSuite() {
 	suite.k8sh = kh
 
 	suite.installer = installer.NewK8sRookhelper(kh.Clientset, suite.T)
+	suite.o = NewBaseTestOperations(suite.installer, suite.T, suite.namespace, false)
 
 	isRookInstalled, err := suite.installer.InstallRookOnK8sWithHostPathAndDevices(suite.namespace, "bluestore", "", true, 3)
 	assert.NoError(suite.T(), err)
 	if !isRookInstalled {
 		logger.Errorf("Rook Was not installed successfully")
+		suite.T().Fail()
 		suite.TearDownSuite()
 		suite.T().FailNow()
 	}
@@ -83,17 +91,14 @@ func (suite *SmokeSuite) SetupSuite() {
 	suite.helper, err = clients.CreateTestClient(kh, suite.namespace)
 	if err != nil {
 		logger.Errorf("Cannot create rook test client, er -> %v", err)
+		suite.T().Fail()
 		suite.TearDownSuite()
 		suite.T().FailNow()
 	}
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
-	if suite.T().Failed() {
-		gatherAllRookLogs(suite.k8sh, suite.Suite, suite.installer.Env.HostType, installer.SystemNamespace(suite.namespace), suite.namespace)
-
-	}
-	suite.installer.UninstallRookFromK8s(suite.namespace, false)
+	suite.o.TearDown()
 }
 
 func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {

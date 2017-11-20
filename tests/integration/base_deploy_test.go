@@ -23,10 +23,13 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/clients"
+	"github.com/rook/rook/tests/framework/contracts"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"testing"
 )
 
 var (
@@ -73,14 +76,34 @@ func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, 
 	require.Nil(s.T(), err)
 }
 
-func gatherAllRookLogs(k8sh *utils.K8sHelper, s suite.Suite, hostType string, opNamespace string, clusterNamespace string) {
-	logger.Infof("Gathering all logs from Rook Cluster %s", clusterNamespace)
-	k8sh.GetRookLogs("rook-operator", hostType, opNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-agent", hostType, opNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-api", hostType, clusterNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-ceph-mgr", hostType, clusterNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-ceph-mon", hostType, clusterNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-ceph-osd", hostType, clusterNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-ceph-rgw", hostType, clusterNamespace, s.T().Name())
-	k8sh.GetRookLogs("rook-ceph-mds", hostType, clusterNamespace, s.T().Name())
+func HandlePanics(r interface{}, o contracts.TestOperator, t func() *testing.T) {
+	if r != nil {
+		logger.Infof("unexpected panic occurred during test %s, --> %v", t().Name(), r)
+		t().Fail()
+		o.TearDown()
+		t().FailNow()
+	}
+
+}
+
+//BaseTestOperations struct for handling panic and test suite tear down
+type BaseTestOperations struct {
+	installer     *installer.InstallHelper
+	T             func() *testing.T
+	namespace     string
+	helmInstalled bool
+}
+
+//NewBaseTestOperations creates new instance of BaseTestOperations struct
+func NewBaseTestOperations(i *installer.InstallHelper, t func() *testing.T, namespace string, helmInstalled bool) BaseTestOperations {
+	return BaseTestOperations{i, t, namespace, helmInstalled}
+}
+
+//TearDown is a wrapper for tearDown after Sutie
+func (o BaseTestOperations) TearDown() {
+	if o.installer.T().Failed() {
+		o.installer.GatherAllRookLogs(o.namespace, o.installer.T().Name())
+	}
+	o.installer.UninstallRookFromK8s(o.namespace, o.helmInstalled)
+
 }

@@ -86,3 +86,7 @@ type RestAPIOperator interface {
 	UpdateObjectUser(storeName string, user model.ObjectUser) (*model.ObjectUser, error)
 	DeleteObjectUser(storeName, id string) error
 }
+
+type TestOperator interface {
+	TearDown()
+}
