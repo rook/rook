@@ -64,13 +64,7 @@ CXX := $(CROSS_TRIPLE)-g++
 export CC CXX
 endif
 
-UNAME_S:=$(shell uname -s)
-ifeq ($(UNAME_S),Darwin)
-SED_CMD?=sed -i ""
-endif
-ifeq ($(UNAME_S),Linux)
-SED_CMD?=sed -i
-endif
+SED_CMD?=sed -i -e
 
 # set the version number. you should not need to do this
 # for the majority of scenarios.
