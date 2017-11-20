@@ -44,7 +44,7 @@ const (
 `
 	// ratio of disk space that will be used by bluestore on a dir.  This is an upper bound and it
 	// is not preallocated (it is thinly provisioned).
-	bluestoreDirBlockSizeRatio = 0.9
+	bluestoreDirBlockSizeRatio = 1.0
 )
 
 type osdConfig struct {
