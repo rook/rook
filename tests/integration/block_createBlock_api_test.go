@@ -23,7 +23,6 @@ import (
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
-	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,7 +38,7 @@ var (
 func TestBlockImageCreateSuite(t *testing.T) {
 	s := new(BlockImageCreateSuite)
 	defer func(s *BlockImageCreateSuite) {
-		HandlePanics(recover(), s.o, s.T)
+		HandlePanics(recover(), s.op, s.T)
 	}(s)
 	suite.Run(t, s)
 }
@@ -49,8 +48,7 @@ type BlockImageCreateSuite struct {
 	testClient     *clients.TestClient
 	kh             *utils.K8sHelper
 	rc             contracts.RestAPIOperator
-	installer      *installer.InstallHelper
-	o              contracts.TestOperator
+	op             contracts.Setup
 	initBlockCount int
 	namespace      string
 }
@@ -58,28 +56,8 @@ type BlockImageCreateSuite struct {
 func (s *BlockImageCreateSuite) SetupSuite() {
 	var err error
 	s.namespace = "block-api-ns"
-	s.kh, err = utils.CreateK8sHelper(s.T)
-	assert.NoError(s.T(), err)
-
-	s.installer = installer.NewK8sRookhelper(s.kh.Clientset, s.T)
-	s.o = NewBaseTestOperations(s.installer, s.T, s.namespace, false)
-
-	isRookInstalled, err := s.installer.InstallRookOnK8s(s.namespace, "bluestore", 1)
-	if !isRookInstalled {
-		logger.Errorf("Rook Was not installed successfully")
-		s.T().Fail()
-		s.TearDownSuite()
-		s.T().FailNow()
-	}
-
-	s.testClient, err = clients.CreateTestClient(s.kh, s.namespace)
-	if err != nil {
-		logger.Errorf("Cannot create rook test client, er -> %v", err)
-		s.T().Fail()
-		s.TearDownSuite()
-		s.T().FailNow()
-	}
-
+	s.op, s.kh = NewBaseTestOperations(s.T, s.namespace, "bluestore", "", false, false, 1)
+	s.testClient = GetTestClient(s.kh, s.namespace, s.op, s.T)
 	s.rc = s.testClient.GetRestAPIClient()
 	initialBlocks, err := s.rc.GetBlockImages()
 	assert.Nil(s.T(), err)
@@ -176,6 +154,6 @@ func (s *BlockImageCreateSuite) TearDownTest() {
 	}
 }
 func (s *BlockImageCreateSuite) TearDownSuite() {
-	s.o.TearDown()
+	s.op.TearDown()
 
 }

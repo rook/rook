@@ -6,8 +6,10 @@ import (
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
+	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -31,10 +33,15 @@ type ObjectLongHaulSuite struct {
 	kh        *utils.K8sHelper
 	installer *installer.InstallHelper
 	tc        *clients.TestClient
+	op        contracts.Setup
 }
 
 func (s *ObjectLongHaulSuite) SetupSuite() {
-	s.kh, s.installer, s.tc = setUpRook(s.T, "longhaul-ns")
+	var err error
+	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, "longhaul-ns")
+	s.tc, err = clients.CreateTestClient(s.kh, "longhaul-ns")
+	require.Nil(s.T(), err)
+
 }
 
 func (s *ObjectLongHaulSuite) TestObjectLonghaulRun() {

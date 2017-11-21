@@ -172,12 +172,12 @@ func SystemNamespace(namespace string) string {
 }
 
 func (h *InstallHelper) InstallRookOnK8s(namespace, storeType string, mons int) (bool, error) {
-	return h.InstallRookOnK8sWithHostPathAndDevices(namespace, storeType, "", false, mons)
+	return h.InstallRookOnK8sWithHostPathAndDevices(namespace, storeType, "", false, false, mons)
 }
 
 //InstallRookOnK8s installs rook on k8s
-func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType, dataDirHostPath string, useDevices bool, mons int) (bool, error) {
-
+func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType, dataDirHostPath string, helmInstalled, useDevices bool, mons int) (bool, error) {
+	var err error
 	//flag used for local debuggin purpose, when rook is pre-installed
 	skipRookInstall := strings.EqualFold(h.Env.SkipInstallRook, "true")
 	if skipRookInstall {
@@ -188,16 +188,26 @@ func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 
 	logger.Infof("Installing rook on k8s %s", k8sversion)
 
+	onamespace := namespace
 	//Create rook operator
-	err := h.CreateK8sRookOperator(SystemNamespace(namespace))
-	if err != nil {
-		logger.Errorf("Rook Operator not installed ,error -> %v", err)
-		return false, err
-	}
+	if helmInstalled {
+		err = h.CreateK8sRookOperatorViaHelm(namespace)
+		if err != nil {
+			logger.Errorf("Rook Operator not installed ,error -> %v", err)
+			return false, err
 
-	if !h.k8shelper.IsPodInExpectedState("rook-operator", SystemNamespace(namespace), "Running") {
+		}
+	} else {
+		onamespace = SystemNamespace(namespace)
+		err := h.CreateK8sRookOperator(SystemNamespace(namespace))
+		if err != nil {
+			logger.Errorf("Rook Operator not installed ,error -> %v", err)
+			return false, err
+		}
+	}
+	if !h.k8shelper.IsPodInExpectedState("rook-operator", onamespace, "Running") {
 		fmt.Println("rook-operator is not running")
-		h.k8shelper.GetRookLogs("rook-operator", h.Env.HostType, SystemNamespace(namespace), "test-setup")
+		h.k8shelper.GetRookLogs("rook-operator", h.Env.HostType, onamespace, "test-setup")
 		logger.Error("rook-operator is not Running, abort!")
 		return false, err
 	}

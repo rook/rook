@@ -87,6 +87,7 @@ type RestAPIOperator interface {
 	DeleteObjectUser(storeName, id string) error
 }
 
-type TestOperator interface {
+type Setup interface {
+	SetUp()
 	TearDown()
 }

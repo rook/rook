@@ -11,7 +11,6 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -19,29 +18,6 @@ import (
 func init() {
 	rand.Seed(time.Now().UnixNano())
 
-}
-
-// Set up rook cluster if necessary
-// create object store if necessary
-// create object store user if necessary
-// returns k8s helper, install helper and s3 helper for the object store that was just created.
-func setUpRook(t func() *testing.T, namespace string) (*utils.K8sHelper, *installer.InstallHelper, *clients.TestClient) {
-	kh, err := utils.CreateK8sHelper(t)
-	assert.Nil(t(), err)
-
-	i := installer.NewK8sRookhelper(kh.Clientset, t)
-	if !kh.IsRookInstalled(namespace) {
-		isRookInstalled, err := i.InstallRookOnK8sWithHostPathAndDevices(namespace, "bluestore", "/temp/rookBackup", true, 3)
-		require.NoError(t(), err)
-		require.True(t(), isRookInstalled)
-	}
-	helper, err := clients.CreateTestClient(kh, namespace)
-	if err != nil {
-		logger.Errorf("Cannot create rook test client, er -> %v", err)
-		t().FailNow()
-	}
-
-	return kh, i, helper
 }
 
 func createObjectStoreAndUser(t func() *testing.T, kh *utils.K8sHelper, tc *clients.TestClient, namespace string, storeName string, userId string, userName string) *utils.S3Helper {
