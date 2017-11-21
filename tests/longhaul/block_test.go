@@ -5,6 +5,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/suite"
@@ -28,12 +29,14 @@ type BlockLongHaulSuite struct {
 	suite.Suite
 	kh        *utils.K8sHelper
 	installer *installer.InstallHelper
+	op        contracts.Setup
 }
 
 //Test set up - does the following in order
 //create pool and storage class, create a PVC, Create a MySQL app/service that uses pvc
 func (s *BlockLongHaulSuite) SetupSuite() {
-	s.kh, s.installer = setUpRookAndPoolInNamespace(s.T, "longhaul-ns", "rook-block", "rook-pool")
+	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, "longhaul-ns")
+	createStorageClassAndPool(s.T, s.kh, "longhaul-ns", "rook-block", "rook-pool")
 }
 
 //create a n number  ofPVC, Create a MySQL app/service that uses pvc
