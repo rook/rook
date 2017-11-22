@@ -40,3 +40,10 @@ type NodeConfigControllerManager struct {
 type NodeConfigKubelet struct {
 	ComponentConfig kubeletcomponentconfig.KubeletConfiguration `json:"componentconfig"`
 }
+
+// KubeletConfiguration represents the response from the node config URI (configz) in Kubernetes 1.8+
+type KubeletConfiguration struct {
+	KubeletConfig struct {
+		VolumePluginDir string `json:"volumePluginDir"`
+	} `json:"kubeletconfig"`
+}
