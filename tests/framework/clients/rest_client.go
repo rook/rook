@@ -73,6 +73,7 @@ func CreateRestAPIClient(k8sHelper *utils.K8sHelper, namespace string) *RestAPIC
 	client := rclient.NewRookNetworkRestClient(endpoint, httpclient)
 
 	//make sure rest client is up and available
+	logger.Infof("ensuring API service is accessible by client on external endpoint %s", endpoint)
 	inc := 0
 	for inc < utils.RetryLoop {
 		_, err := client.GetStatusDetails()
@@ -83,6 +84,7 @@ func CreateRestAPIClient(k8sHelper *utils.K8sHelper, namespace string) *RestAPIC
 
 		}
 		inc++
+		logger.Infof("failed to access API service, will retry: %+v", err)
 		time.Sleep(time.Second * utils.RetryInterval)
 	}
 
