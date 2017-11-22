@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
@@ -25,6 +26,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ************************************************
@@ -109,4 +112,26 @@ func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 //Test to make sure all rook components are installed and Running
 func (suite *SmokeSuite) TestRookClusterInstallation_smokeTest() {
 	checkIfRookClusterIsInstalled(suite.Suite, suite.k8sh, installer.SystemNamespace(suite.namespace), suite.namespace, 3)
+}
+
+func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
+	// get the operator pod
+	sysNamespace := installer.SystemNamespace(suite.namespace)
+	listOpts := metav1.ListOptions{LabelSelector: "app=rook-operator"}
+	podList, err := suite.k8sh.Clientset.Pods(sysNamespace).List(listOpts)
+	require.Nil(suite.T(), err)
+	require.Equal(suite.T(), 1, len(podList.Items))
+
+	// get the raw log for the operator pod
+	opPodName := podList.Items[0].Name
+	rawLog, err := suite.k8sh.Clientset.Pods(sysNamespace).GetLogs(opPodName, &v1.PodLogOptions{}).Do().Raw()
+	require.Nil(suite.T(), err)
+
+	logStr := string(rawLog)
+
+	// verify that the volume plugin dir was discovered by the operator pod and that it did not come from
+	// an env var or the default
+	assert.True(suite.T(), strings.Contains(logStr, "discovered flexvolume dir path from source"))
+	assert.False(suite.T(), strings.Contains(logStr, "discovered flexvolume dir path from source env var"))
+	assert.False(suite.T(), strings.Contains(logStr, "discovered flexvolume dir path from source default"))
 }
