@@ -32,6 +32,8 @@ useAllDevices: false
 deviceFilter: "^nvme."
 metadataDevice:
 location: "region=us-west,datacenter=delmar"
+directories:
+- path: "/rook/dir2"
 storeConfig:
   storeType: bluestore
   journalSizeMB: 1024
@@ -60,6 +62,7 @@ nodes:
 		Selection: Selection{
 			UseAllDevices: newBool(false),
 			DeviceFilter:  "^nvme.",
+			Directories:   []Directory{{Path: "/rook/dir2"}},
 		},
 		Config: Config{
 			Location: "region=us-west,datacenter=delmar",
@@ -71,8 +74,10 @@ nodes:
 		},
 		Nodes: []Node{
 			{
-				Name:        "node1",
-				Directories: []Directory{{Path: "/rook/dir1"}},
+				Name: "node1",
+				Selection: Selection{
+					Directories: []Directory{{Path: "/rook/dir1"}},
+				},
 				Config: Config{
 					StoreConfig: cephosd.StoreConfig{
 						StoreType: cephosd.Filestore,
