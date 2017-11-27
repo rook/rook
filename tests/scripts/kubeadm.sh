@@ -21,11 +21,17 @@ usage(){
 install_master(){
 
     # This is needed on K8S 1.6 to fix a regression. https://github.com/kubernetes/kubernetes/issues/47109
-    if [[ $KUBE_VERSION == v1.6* ]] ;
-    then
+    if [[ $KUBE_VERSION == v1.6* ]] ; then
         cat << EOF | sudo tee -a /etc/systemd/system/kubelet.service.d/11-disable_attachdetach_controller.conf
 [Service]
 Environment="KUBELET_SYSTEM_PODS_ARGS=--pod-manifest-path=/etc/kubernetes/manifests --allow-privileged=true --enable-controller-attach-detach=false"
+EOF
+        sudo systemctl daemon-reload
+    elif [[ $KUBE_VERSION == v1.8* ]] ; then
+        # for k8s 1.8, use a non default value for volume plugins
+        cat << EOF | sudo tee -a /etc/systemd/system/kubelet.service.d/11-volume_plugin_dir.conf
+[Service]
+Environment="KUBELET_SYSTEM_PODS_ARGS=--pod-manifest-path=/etc/kubernetes/manifests --allow-privileged=true --volume-plugin-dir=/var/lib/kubelet/volumeplugins"
 EOF
         sudo systemctl daemon-reload
     fi
@@ -60,6 +66,16 @@ EOF
 #install k8s node
 install_node(){
     echo "inside install node function"
+
+    # for k8s 1.8, use a non default value for volume plugins
+    if [[ $KUBE_VERSION == v1.8* ]] ; then
+        cat << EOF | sudo tee -a /etc/systemd/system/kubelet.service.d/11-volume_plugin_dir.conf
+[Service]
+Environment="KUBELET_SYSTEM_PODS_ARGS=--pod-manifest-path=/etc/kubernetes/manifests --allow-privileged=true --volume-plugin-dir=/var/lib/kubelet/volumeplugins"
+EOF
+        sudo systemctl daemon-reload
+    fi
+
     echo "kubeadm join ${1} ${2} ${3} ${4} ${5} --skip-preflight-checks"
     sudo kubeadm join ${1} ${2} ${3} ${4} ${5} --skip-preflight-checks || true
 }
