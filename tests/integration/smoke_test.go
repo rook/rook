@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"regexp"
 	"strings"
 	"testing"
 
@@ -132,11 +133,14 @@ func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
 	rawLog, err := suite.k8sh.Clientset.Pods(sysNamespace).GetLogs(opPodName, &v1.PodLogOptions{}).Do().Raw()
 	require.Nil(suite.T(), err)
 
-	logStr := string(rawLog)
+	r := regexp.MustCompile(`discovered flexvolume dir path from source.*\n`)
+	logStmt := string(r.Find(rawLog))
+	logger.Infof("flexvolume discovery log statement: %s", logStmt)
 
 	// verify that the volume plugin dir was discovered by the operator pod and that it did not come from
 	// an env var or the default
-	assert.True(suite.T(), strings.Contains(logStr, "discovered flexvolume dir path from source"))
-	assert.False(suite.T(), strings.Contains(logStr, "discovered flexvolume dir path from source env var"))
-	assert.False(suite.T(), strings.Contains(logStr, "discovered flexvolume dir path from source default"))
+	require.NotEmpty(suite.T(), logStmt)
+	assert.True(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source"))
+	assert.False(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source env var"))
+	assert.False(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source default"))
 }
