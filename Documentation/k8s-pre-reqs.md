@@ -79,7 +79,7 @@ After these steps, your minikube cluster is ready to install Rook on.
 ## Kubeadm
 
 You can easily spin up Rook on top of a `kubeadm` cluster.
-You can find the instructions on how to install kubeadm in the [`kubeadm` installation page](https://kubernetes.io/docs/getting-started-guides/kubeadm/).
+You can find the instructions on how to install kubeadm in the [Install `kubeadm`] (https://kubernetes.io/docs/setup/independent/install-kubeadm/) page.
 
 By using `kubeadm`, you can use Rook in just a few minutes!
 
