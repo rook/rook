@@ -18,7 +18,7 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
 1. Create a new pool and volume image (10MB)
 
     ```bash
-    rookctl pool create --name rbd
+    rookctl pool create --name rbd --replica-count 1
     rookctl block create --name test --size 10485760
     ```
 
@@ -48,7 +48,7 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
 1. Create a shared file system
 
     ```bash
-    rookctl filesystem create --name testFS
+    rookctl filesystem create --name testfs --data-replica-count 1 --metadata-replica-count 1
     ```
 
 1. Verify the shared file system was created
@@ -61,7 +61,7 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
 
    ```bash
    # If running in the toolbox container, no need to run privileged
-   rookctl filesystem mount --name testFS --path /tmp/rookFS
+   rookctl filesystem mount --name testfs --path /tmp/rookFS
    ```
 
 1. Write and read a file to the shared file system
@@ -81,7 +81,7 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
 1. Cleanup the shared file system from the cluster (this **does** delete the data from the cluster)
 
    ```
-   rookctl filesystem delete --name testFS
+   rookctl filesystem delete --name testfs
    ```
 
 ## Object Storage
@@ -89,13 +89,13 @@ If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](.
 1. Create an object storage instance in the cluster
 
    ```bash
-   rookctl object create -n mystore
+   rookctl object create -n my-store --data-replica-count 1 --metadata-replica-count 1
    ```
 
 1. Create an object storage user
 
    ```bash
-   rookctl object user create mystore rook-user "my object store user"
+   rookctl object user create my-store rook-user "my object store user"
    ```
 
 ### Consume the Object Storage
@@ -106,7 +106,7 @@ the s3cmd tool is included in the [Rook toolbox](toolbox.md) pod.
 1. Get the connection information for accessing object storage
 
    ```bash
-   eval $(rookctl object connection mystore rook-user --format env-var)
+   eval $(rookctl object connection my-store rook-user --format env-var)
    ```
 
 1. Create a bucket in the object store
@@ -118,7 +118,7 @@ the s3cmd tool is included in the [Rook toolbox](toolbox.md) pod.
 1. List buckets in the object store
 
    ```bash
-   rookctl object bucket list mystore
+   rookctl object bucket list my-store
    ```
 
 1. Upload a file to the newly created bucket
