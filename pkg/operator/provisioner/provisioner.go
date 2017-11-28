@@ -141,6 +141,12 @@ func (p *RookVolumeProvisioner) createVolume(image, pool string, size int64) err
 // by the given PV.
 func (p *RookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
 	logger.Infof("Deleting volume %s", volume.Name)
+	if volume.Spec.PersistentVolumeSource.FlexVolume == nil {
+		return fmt.Errorf("Failed to delete rook block image %s/%s: %v", p.provConfig.pool, volume.Name, "PersistentVolume is not a FlexVolume")
+	}
+	if volume.Spec.PersistentVolumeSource.FlexVolume.Options == nil {
+		return fmt.Errorf("Failed to delete rook block image %s/%s: %v", p.provConfig.pool, volume.Name, "PersistentVolume has no image defined for the FlexVolume")
+	}
 	name := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ImageKey]
 	err := ceph.DeleteImage(p.context, p.provConfig.clusterName, name, p.provConfig.pool)
 	if err != nil {
