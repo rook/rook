@@ -97,6 +97,10 @@ func (a *Agent) createAgentDaemonSet(namespace string) error {
 	if err != nil {
 		return err
 	}
+
+	flexvolumeDirPath, source := a.discoverFlexvolumeDir()
+	logger.Infof("discovered flexvolume dir path from source %s. value: %s", source, flexvolumeDirPath)
+
 	privileged := true
 	ds := &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -156,7 +160,7 @@ func (a *Agent) createAgentDaemonSet(namespace string) error {
 							Name: "flexvolume",
 							VolumeSource: v1.VolumeSource{
 								HostPath: &v1.HostPathVolumeSource{
-									Path: a.discoverFlexvolumeDir(),
+									Path: flexvolumeDirPath,
 								},
 							},
 						},
@@ -220,7 +224,7 @@ func (a *Agent) createAgentDaemonSet(namespace string) error {
 
 }
 
-func (a *Agent) discoverFlexvolumeDir() string {
+func (a *Agent) discoverFlexvolumeDir() (flexvolumeDirPath, source string) {
 	//copy flexvolume to flexvolume dir
 	nodeName := os.Getenv(k8sutil.NodeNameEnvVar)
 	if nodeName == "" {
@@ -229,7 +233,6 @@ func (a *Agent) discoverFlexvolumeDir() string {
 	}
 
 	// determining where the path of the flexvolume dir on the node
-	var flexvolumeDirPath string
 	nodeConfigURI, err := k8sutil.NodeConfigURI()
 	if err != nil {
 		logger.Warningf(err.Error())
@@ -241,38 +244,57 @@ func (a *Agent) discoverFlexvolumeDir() string {
 		return getDefaultFlexvolumeDir()
 	}
 
-	// unmarshall to a NodeConfigKubelet
+	// unmarshal to a NodeConfigKubelet
 	configKubelet := NodeConfigKubelet{}
 	if err := json.Unmarshal(nodeConfig, &configKubelet); err != nil {
 		logger.Warningf("unable to parse node config from Kubelet: %+v", err)
-		return getDefaultFlexvolumeDir()
-	}
-	flexvolumeDirPath = configKubelet.ComponentConfig.VolumePluginDir
-	if flexvolumeDirPath == "" {
-		// unmarshall to a NodeConfigControllerManager
-		configControllerManager := NodeConfigControllerManager{}
-		if err := json.Unmarshal(nodeConfig, &configControllerManager); err != nil {
-			logger.Warningf("unable to parse node config from controller manager: %+v", err)
-			return getDefaultFlexvolumeDir()
-		}
-		flexvolumeDirPath = configControllerManager.ComponentConfig.VolumeConfiguration.FlexVolumePluginDir
-		if flexvolumeDirPath == "" {
-			flexvolumeDirPath = getDefaultFlexvolumeDir()
-		}
+	} else {
+		flexvolumeDirPath = configKubelet.ComponentConfig.VolumePluginDir
 	}
 
-	logger.Infof("using flexvolume dir path: %s", flexvolumeDirPath)
-	return flexvolumeDirPath
+	if flexvolumeDirPath != "" {
+		return flexvolumeDirPath, "NodeConfigKubelet"
+	}
+
+	// unmarshal to a NodeConfigControllerManager
+	configControllerManager := NodeConfigControllerManager{}
+	if err := json.Unmarshal(nodeConfig, &configControllerManager); err != nil {
+		logger.Warningf("unable to parse node config from controller manager: %+v", err)
+	} else {
+		flexvolumeDirPath = configControllerManager.ComponentConfig.VolumeConfiguration.FlexVolumePluginDir
+	}
+
+	if flexvolumeDirPath != "" {
+		return flexvolumeDirPath, "NodeConfigControllerManager"
+	}
+
+	// unmarshal to a KubeletConfiguration
+	kubeletConfiguration := KubeletConfiguration{}
+	if err := json.Unmarshal(nodeConfig, &kubeletConfiguration); err != nil {
+		logger.Warningf("unable to parse node config as kubelet configuration: %+v", err)
+	} else {
+		flexvolumeDirPath = kubeletConfiguration.KubeletConfig.VolumePluginDir
+	}
+
+	if flexvolumeDirPath != "" {
+		return flexvolumeDirPath, "KubeletConfiguration"
+	}
+
+	return getDefaultFlexvolumeDir()
 }
 
-func getDefaultFlexvolumeDir() string {
-	logger.Info("getting flexvolume dir path from provided env var")
-	flexvolumeDirPath := os.Getenv(flexvolumePathDirEnv)
-	if flexvolumeDirPath == "" {
-		logger.Infof("flexvolume dir path is not provided. Defaulting to: %s", flexvolumeDefaultDirPath)
-		flexvolumeDirPath = flexvolumeDefaultDirPath
+func getDefaultFlexvolumeDir() (flexvolumeDirPath, source string) {
+	logger.Infof("getting flexvolume dir path from %s env var", flexvolumePathDirEnv)
+	flexvolumeDirPath = os.Getenv(flexvolumePathDirEnv)
+	if flexvolumeDirPath != "" {
+		return flexvolumeDirPath, "env var"
 	}
-	return flexvolumeDirPath
+
+	logger.Infof("flexvolume dir path env var %s is not provided. Defaulting to: %s",
+		flexvolumePathDirEnv, flexvolumeDefaultDirPath)
+	flexvolumeDirPath = flexvolumeDefaultDirPath
+
+	return flexvolumeDirPath, "default"
 }
 
 func getContainerImage(clientset kubernetes.Interface) (string, error) {
