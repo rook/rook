@@ -127,12 +127,7 @@ PRUNE_KEEP ?= 24
 PRUNE_DRYRUN ?= 0
 
 CACHE_DATE_FORMAT := "%Y-%m-%d.%H%M%S"
-ifeq ($(UNAME_S),Linux)
-CACHE_PRUNE_DATE := $(shell date -u --date="$(PRUNE_HOURS) hours ago" +"$(CACHE_DATE_FORMAT)")
-endif
-ifeq ($(UNAME_S),Darwin)
-CACHE_PRUNE_DATE := $(shell date -u -v -$(PRUNE_HOURS)H +"$(CACHE_DATE_FORMAT)")
-endif
+CACHE_PRUNE_DATE := $(shell export TZ="UTC+$(PRUNE_HOURS)"; date +"$(CACHE_DATE_FORMAT)")
 CACHE_TAG := $(shell date -u +"$(CACHE_DATE_FORMAT)")
 
 cache.lookup:

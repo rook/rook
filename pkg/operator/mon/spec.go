@@ -148,5 +148,6 @@ func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
 			AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
+		Resources: c.resources,
 	}
 }

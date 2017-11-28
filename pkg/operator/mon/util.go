@@ -18,6 +18,7 @@ limitations under the License.
 package mon
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -41,25 +42,29 @@ import (
 )
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func LoadClusterInfo(context *clusterd.Context, namespace string) (*mon.ClusterInfo, int, error) {
+func LoadClusterInfo(context *clusterd.Context, namespace string) (*mon.ClusterInfo, int, *Mapping, error) {
 
 	var clusterInfo *mon.ClusterInfo
 	maxMonID := -1
+	monMapping := &Mapping{
+		Node: map[string]*NodeInfo{},
+		Port: map[string]int32{},
+	}
 
 	secrets, err := context.Clientset.CoreV1().Secrets(namespace).Get(appName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			return nil, maxMonID, fmt.Errorf("failed to get mon secrets. %+v", err)
+			return nil, maxMonID, monMapping, fmt.Errorf("failed to get mon secrets. %+v", err)
 		}
 
 		clusterInfo, err = createNamedClusterInfo(context, namespace)
 		if err != nil {
-			return nil, maxMonID, fmt.Errorf("failed to create mon secrets. %+v", err)
+			return nil, maxMonID, monMapping, fmt.Errorf("failed to create mon secrets. %+v", err)
 		}
 
 		err = createClusterAccessSecret(context.Clientset, namespace, clusterInfo)
 		if err != nil {
-			return nil, maxMonID, err
+			return nil, maxMonID, monMapping, err
 		}
 	} else {
 		clusterInfo = &mon.ClusterInfo{
@@ -72,12 +77,12 @@ func LoadClusterInfo(context *clusterd.Context, namespace string) (*mon.ClusterI
 	}
 
 	// get the existing monitor config
-	clusterInfo.Monitors, maxMonID, err = loadMonConfig(context.Clientset, namespace)
+	clusterInfo.Monitors, maxMonID, monMapping, err = loadMonConfig(context.Clientset, namespace)
 	if err != nil {
-		return nil, maxMonID, fmt.Errorf("failed to get mon config. %+v", err)
+		return nil, maxMonID, monMapping, fmt.Errorf("failed to get mon config. %+v", err)
 	}
 
-	return clusterInfo, maxMonID, nil
+	return clusterInfo, maxMonID, monMapping, nil
 }
 
 // WriteConnectionConfig save monitor connection config to disk
@@ -91,18 +96,22 @@ func WriteConnectionConfig(context *clusterd.Context, clusterInfo *mon.ClusterIn
 }
 
 // loadMonConfig returns the monitor endpoints and maxMonID
-func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*mon.CephMonitorConfig, int, error) {
+func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*mon.CephMonitorConfig, int, *Mapping, error) {
 
 	monEndpointMap := map[string]*mon.CephMonitorConfig{}
 	maxMonID := -1
+	monMapping := &Mapping{
+		Node: map[string]*NodeInfo{},
+		Port: map[string]int32{},
+	}
 
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			return nil, -1, err
+			return nil, maxMonID, monMapping, err
 		}
 		// If the config map was not found, initialize the empty set of monitors
-		return monEndpointMap, maxMonID, nil
+		return monEndpointMap, maxMonID, monMapping, nil
 	}
 
 	// Parse the monitor List
@@ -126,8 +135,13 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 		}
 	}
 
-	logger.Infof("loaded: maxMonID=%d, mons=%+v", maxMonID, monEndpointMap)
-	return monEndpointMap, maxMonID, nil
+	err = json.Unmarshal([]byte(cm.Data[MappingKey]), &monMapping)
+	if err != nil {
+		logger.Errorf("invalid JSON in mon mapping. %+v", err)
+	}
+
+	logger.Infof("loaded: maxMonID=%d, mons=%+v, mapping=%+v", maxMonID, monEndpointMap, monMapping)
+	return monEndpointMap, maxMonID, monMapping, nil
 }
 
 // get the ID of a monitor from its name

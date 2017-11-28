@@ -234,7 +234,7 @@
   branch = "master"
   name = "github.com/rook/operator-kit"
   packages = ["."]
-  revision = "45341276903e293343acbde9209f6c4ff3b688af"
+  revision = "4eea2a06c9e6dc46b8bbcf27992e903aa3dba383"
 
 [[projects]]
   name = "github.com/russross/blackfriday"

@@ -169,7 +169,7 @@ func (vm *VolumeManager) isAttached(image, pool, clusterName string) (string, er
 }
 
 func getClusterInfo(context *clusterd.Context, clusterName string) (string, string, error) {
-	clusterInfo, _, err := mon.LoadClusterInfo(context, clusterName)
+	clusterInfo, _, _, err := mon.LoadClusterInfo(context, clusterName)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to load cluster information from cluster %s: %+v", clusterName, err)
 	}

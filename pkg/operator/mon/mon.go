@@ -77,7 +77,8 @@ type Cluster struct {
 	monPodTimeout       time.Duration
 	monTimeoutList      map[string]time.Time
 	HostNetwork         bool
-	mapping             *mapping
+	mapping             *Mapping
+	resources           v1.ResourceRequirements
 }
 
 // monConfig for a single monitor
@@ -87,19 +88,20 @@ type monConfig struct {
 	Port     int32
 }
 
-// mapping mon node and port mapping
-type mapping struct {
-	Node map[string]*nodeInfo `json:"node"`
+// Mapping mon node and port mapping
+type Mapping struct {
+	Node map[string]*NodeInfo `json:"node"`
 	Port map[string]int32     `json:"port"`
 }
 
-type nodeInfo struct {
+// NodeInfo contains name and address of a node
+type NodeInfo struct {
 	Name    string
 	Address string
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath, version string, size int, placement k8sutil.Placement, hostNetwork bool) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath, version string, size int, placement k8sutil.Placement, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
 		context:             context,
 		placement:           placement,
@@ -113,10 +115,11 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, version string, 
 		monPodTimeout:       5 * time.Minute,
 		monTimeoutList:      map[string]time.Time{},
 		HostNetwork:         hostNetwork,
-		mapping: &mapping{
-			Node: map[string]*nodeInfo{},
+		mapping: &Mapping{
+			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
 		},
+		resources: resources,
 	}
 }
 
@@ -182,7 +185,7 @@ func (c *Cluster) initClusterInfo() error {
 
 	var err error
 	// get the cluster info from secret
-	c.clusterInfo, c.maxMonID, err = LoadClusterInfo(c.context, c.Namespace)
+	c.clusterInfo, c.maxMonID, c.mapping, err = LoadClusterInfo(c.context, c.Namespace)
 	if err != nil {
 		return fmt.Errorf("failed to get cluster info. %+v", err)
 	}
@@ -279,7 +282,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 
 func (c *Cluster) assignMons(mons []*monConfig) error {
 	// schedule the mons on different nodes if we have enough nodes to be unique
-	availableNodes, err := c.getAvailableMonNodes()
+	availableNodes, err := c.getMonNodes()
 	if err != nil {
 		return fmt.Errorf("failed to get available nodes for mons. %+v", err)
 	}
@@ -291,11 +294,8 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 			continue
 		}
 
-		// when the available nodes are >= than the mon size we just begin taking
-		// "node0" through nodeX (X = c.Size-1)
-		var node v1.Node
 		// pick one of the available nodes where the mon will be assigned
-		node = availableNodes[nodeIndex%len(availableNodes)]
+		node := availableNodes[nodeIndex%len(availableNodes)]
 		logger.Debugf("mon %s assigned to node %s", m.Name, node.Name)
 		nodeInfo, err := getNodeInfoFromNode(node)
 		if err != nil {
@@ -318,8 +318,8 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 	return nil
 }
 
-func getNodeInfoFromNode(n v1.Node) (*nodeInfo, error) {
-	nr := &nodeInfo{}
+func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
+	nr := &NodeInfo{}
 	nr.Name = n.Name
 	for _, ip := range n.Status.Addresses {
 		if ip.Type == v1.NodeExternalIP || ip.Type == v1.NodeInternalIP {
@@ -410,28 +410,10 @@ func (c *Cluster) saveMonConfig() error {
 }
 
 // detect the nodes that are available for new mons to start.
-func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
-	nodeOptions := metav1.ListOptions{}
-	nodeOptions.TypeMeta.Kind = "Node"
-	nodes, err := c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
+func (c *Cluster) getMonNodes() ([]v1.Node, error) {
+	availableNodes, nodes, err := c.getAvailableMonNodes()
 	if err != nil {
 		return nil, err
-	}
-	logger.Infof("there are %d nodes available for %d mons", len(nodes.Items), len(c.clusterInfo.Monitors))
-
-	// get the nodes that have mons assigned
-	nodesInUse, err := c.getNodesWithMons()
-	if err != nil {
-		logger.Warningf("could not get nodes with mons. %+v", err)
-		nodesInUse = util.NewSet()
-	}
-
-	// choose nodes for the new mons that don't have mons currently
-	availableNodes := []v1.Node{}
-	for _, node := range nodes.Items {
-		if !nodesInUse.Contains(node.Name) && validNode(node, c.placement) {
-			availableNodes = append(availableNodes, node)
-		}
 	}
 	logger.Infof("Found %d running nodes without mons", len(availableNodes))
 
@@ -449,6 +431,33 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 	}
 
 	return availableNodes, nil
+}
+
+func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
+	nodeOptions := metav1.ListOptions{}
+	nodeOptions.TypeMeta.Kind = "Node"
+	nodes, err := c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
+	if err != nil {
+		return nil, nil, err
+	}
+	logger.Infof("there are %d nodes available for %d mons", len(nodes.Items), len(c.clusterInfo.Monitors))
+
+	// get the nodes that have mons assigned
+	nodesInUse, err := c.getNodesWithMons()
+	if err != nil {
+		logger.Warningf("could not get nodes with mons. %+v", err)
+		nodesInUse = util.NewSet()
+	}
+
+	// choose nodes for the new mons that don't have mons currently
+	availableNodes := []v1.Node{}
+	for _, node := range nodes.Items {
+		if !nodesInUse.Contains(node.Name) && validNode(node, c.placement) {
+			availableNodes = append(availableNodes, node)
+		}
+	}
+
+	return availableNodes, nodes, nil
 }
 
 func (c *Cluster) getNodesWithMons() (*util.Set, error) {

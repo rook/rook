@@ -2,20 +2,30 @@
 
 This document defines a high level roadmap for Rook development. The dates below are subject to change but should give a general idea of what we are planning. We use the [milestone](https://github.com/rook/rook/milestones) feature in Github so look there for the most up-to-date and issue plan.
 
-## Rook 0.6 (September 2017)
+## Rook 0.7
 
- - Ceph Block storage declared Beta on K8S
- - Kubernetes 1.8 Support
- - Rook volume plugin support in K8S
- - Rook agent on client nodes
- - Rook is upgradeable
- - Support for local storage (and arbitrary volumes) underneath OSD pods
- - Support for public cloud environments
- - Improved test matrix and more test coverage
- - CRDs for object storage and file system
+- Ceph Block Storage (Cluster and Pool CRDs) declared beta
+- Mon reliability (restarts, failing over too fast, ip changes, etc.)
+- Durability of state (local storage support, config is regenerat-able)
+- Run everywhere (rook-agent uses ceph-fuse, nbd-rbd / tcmu runner)
+- Adding / removing nodes and disk drives (lifecycle issues, failures, etc.)
+- Run with Least Privileged and possibly without privileged containers
+- Shutdown / restart issues
+- Improved data placement and pool configuration (CRUSH maps)
+- Placement group balancer support (ceph-mgr module)
+- Use new Prometheus ceph-mgr module
+- Performance Testing for Block storage
+- Make API and CLI Optional (plan to remove)
+- Dynamic Volume Provisioning for CephFS
 
-## Rook 0.7 (December 2017)
+## Rook 0.8
 
- - Ceph Block storage declared production-ready on K8S
- - Improved data placement and pool configuration
- - Performance Testing infra
+- Operator runs HA
+- Ceph Object storage declared Beta
+- Logging (levels, granularity, etc.)
+- Support ingress controller for RGW (SSL termination)
+- Support for multi-region replication for RGW
+- Object storage User CRD
+- Automated Upgrade
+- CRD validation, cleanup, progress, status (requires engagement with API sig)
+- Volume Snapshotting (consider aligning with SIG-storage)

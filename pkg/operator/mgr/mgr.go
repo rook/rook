@@ -47,10 +47,11 @@ type Cluster struct {
 	context     *clusterd.Context
 	dataDir     string
 	HostNetwork bool
+	resources   v1.ResourceRequirements
 }
 
 // New creates an instance of the mgr
-func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement, hostNetwork bool) *Cluster {
+func New(context *clusterd.Context, namespace, version string, placement k8sutil.Placement, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
 		context:     context,
 		Namespace:   namespace,
@@ -59,6 +60,7 @@ func New(context *clusterd.Context, namespace, version string, placement k8sutil
 		Replicas:    2,
 		dataDir:     k8sutil.DataDir,
 		HostNetwork: hostNetwork,
+		resources:   resources,
 	}
 }
 
@@ -144,6 +146,7 @@ func (c *Cluster) mgrContainer(name string) v1.Container {
 			opmon.AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
+		Resources: c.resources,
 	}
 }
 

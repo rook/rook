@@ -27,6 +27,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -43,7 +44,7 @@ func TestStartMGR(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	c := New(context, "ns", "myversion", k8sutil.Placement{}, false)
+	c := New(context, "ns", "myversion", k8sutil.Placement{}, false, v1.ResourceRequirements{})
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic service
@@ -68,7 +69,14 @@ func validateStart(t *testing.T, c *Cluster) {
 }
 
 func TestPodSpec(t *testing.T) {
-	c := New(nil, "ns", "myversion", k8sutil.Placement{}, false)
+	c := New(nil, "ns", "myversion", k8sutil.Placement{}, false, v1.ResourceRequirements{
+		Limits: v1.ResourceList{
+			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+		},
+		Requests: v1.ResourceList{
+			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+		},
+	})
 
 	d := c.makeDeployment("mgr1")
 	assert.NotNil(t, d)
@@ -88,10 +96,13 @@ func TestPodSpec(t *testing.T) {
 
 	assert.Equal(t, "mgr", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
+
+	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
+	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 }
 
 func TestHostNetwork(t *testing.T) {
-	c := New(nil, "ns", "myversion", k8sutil.Placement{}, true)
+	c := New(nil, "ns", "myversion", k8sutil.Placement{}, true, v1.ResourceRequirements{})
 
 	d := c.makeDeployment("mgr1")
 	assert.NotNil(t, d)

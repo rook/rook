@@ -30,7 +30,7 @@ import (
 
 var (
 	// HealthCheckInterval interval to check the mons to be in quorum
-	HealthCheckInterval = 20 * time.Second
+	HealthCheckInterval = 45 * time.Second
 	// MonOutTimeout the duration to wait before removing/failover to a new mon pod
 	MonOutTimeout = 300 * time.Second
 )
@@ -143,7 +143,63 @@ func (c *Cluster) checkHealth() error {
 		return nil
 	}
 
+	// check if there are more than two mons running on the same node, failover one mon in that case
+	done, err := c.checkMonsOnSameNode()
+	if done || err != nil {
+		return err
+	}
+
+	done, err = c.checkMonsOnValidNodes()
+	if done || err != nil {
+		return err
+	}
+
 	return nil
+}
+
+func (c *Cluster) checkMonsOnSameNode() (bool, error) {
+	nodesUsed := map[string]struct{}{}
+	for name, node := range c.mapping.Node {
+		// when the node is already in the list we have more than one mon on that node
+		if _, ok := nodesUsed[node.Name]; ok {
+			// get list of available nodes for mons
+			availableNodes, _, err := c.getAvailableMonNodes()
+			if err != nil {
+				return true, fmt.Errorf("failed to get available mon nodes. %+v", err)
+			}
+			// if there are enough nodes for one mon "that is too much" to be failovered,
+			// fail it over to an other node
+			if len(availableNodes) > 0 {
+				logger.Infof("rebalance: enough nodes available %d to failover mon %s", len(availableNodes), name)
+				c.failMon(len(c.clusterInfo.Monitors), name)
+			} else {
+				logger.Debugf("rebalance: not enough nodes available to failover mon %s", name)
+			}
+
+			// deal with one mon too much on a node at a time
+			return true, nil
+		}
+		nodesUsed[node.Name] = struct{}{}
+	}
+	return false, nil
+}
+
+func (c *Cluster) checkMonsOnValidNodes() (bool, error) {
+	for mon, nInfo := range c.mapping.Node {
+		// get node to use for validNode() func
+		node, err := c.context.Clientset.CoreV1().Nodes().Get(nInfo.Name, metav1.GetOptions{})
+		if err != nil {
+			return true, err
+		}
+		// check if node the mon is on is still valid
+		if !validNode(*node, c.placement) {
+			logger.Warningf("node %s isn't valid anymore, failover mon %s", nInfo.Name, mon)
+			c.failoverMon(mon)
+			return true, nil
+		}
+		logger.Debugf("node %s with mon %s is still valid", nInfo.Name, mon)
+	}
+	return false, nil
 }
 
 // failMon monCount is compared against c.Size (wanted mon count)

@@ -21,6 +21,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
 
 	cephosd "github.com/rook/rook/pkg/ceph/osd"
 )
@@ -77,12 +78,14 @@ nodes:
 						StoreType: cephosd.Filestore,
 					},
 				},
+				Resources: v1.ResourceRequirements{},
 			},
 			{
 				Name: "node2",
 				Selection: Selection{
 					DeviceFilter: "^sd.",
 				},
+				Resources: v1.ResourceRequirements{},
 			},
 		},
 	}

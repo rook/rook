@@ -318,7 +318,7 @@ func (c *FlexvolumeController) GetGlobalMountPath(volumeName string, globalMount
 
 // GetClientAccessInfo obtains the cluster monitor endpoints, username and secret
 func (c *FlexvolumeController) GetClientAccessInfo(clusterName string, clientAccessInfo *model.ClientAccessInfo) error {
-	clusterInfo, _, err := mon.LoadClusterInfo(c.context, clusterName)
+	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, clusterName)
 	if err != nil {
 		return fmt.Errorf("failed to load cluster information from cluster %s: %+v", clusterName, err)
 	}

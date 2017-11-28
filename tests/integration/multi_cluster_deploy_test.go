@@ -8,6 +8,7 @@ import (
 
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/clients"
+	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
@@ -31,7 +32,11 @@ import (
 // - Create the object store via the CRD
 // *************************************************************
 func TestMultiClusterDeploySuite(t *testing.T) {
-	suite.Run(t, new(MultiClusterDeploySuite))
+	s := new(MultiClusterDeploySuite)
+	defer func(s *MultiClusterDeploySuite) {
+		HandlePanics(recover(), s.o, s.T)
+	}(s)
+	suite.Run(t, s)
 }
 
 type MultiClusterDeploySuite struct {
@@ -43,6 +48,7 @@ type MultiClusterDeploySuite struct {
 	installData *installer.InstallData
 	namespace1  string
 	namespace2  string
+	o           contracts.TestOperator
 }
 
 //Deploy Multiple Rook clusters
@@ -57,6 +63,7 @@ func (mrc *MultiClusterDeploySuite) SetupSuite() {
 	mrc.k8sh = kh
 	mrc.installer = installer.NewK8sRookhelper(kh.Clientset, mrc.T)
 	mrc.installData = installer.NewK8sInstallData()
+	mrc.o = NewMCTestOperations(mrc.installer, mrc.installData, mrc.k8sh, mrc.T, mrc.namespace1, mrc.namespace2)
 
 	err = mrc.installer.CreateK8sRookOperator(installer.SystemNamespace(mrc.namespace1))
 	require.NoError(mrc.T(), err)
@@ -113,39 +120,65 @@ func (mrc *MultiClusterDeploySuite) startCluster(namespace, store string, errCh 
 }
 
 func (mrc *MultiClusterDeploySuite) TearDownSuite() {
-	if mrc.T().Failed() {
-		gatherAllRookLogs(mrc.k8sh, mrc.Suite, mrc.installer.Env.HostType, installer.SystemNamespace(mrc.namespace1), mrc.namespace1)
-		gatherAllRookLogs(mrc.k8sh, mrc.Suite, mrc.installer.Env.HostType, installer.SystemNamespace(mrc.namespace1), mrc.namespace2)
+	mrc.o.TearDown()
+}
+
+//MCTestOperations struct for handling panic and test suite tear down
+type MCTestOperations struct {
+	installer   *installer.InstallHelper
+	installData *installer.InstallData
+	k8sh        *utils.K8sHelper
+	T           func() *testing.T
+	namespace1  string
+	namespace2  string
+}
+
+//NewMCTestOperations creates new instance of BaseTestOperations struct
+func NewMCTestOperations(i *installer.InstallHelper, d *installer.InstallData, k8sh *utils.K8sHelper, t func() *testing.T, namespace1 string, namespace2 string) MCTestOperations {
+	return MCTestOperations{i, d, k8sh, t, namespace1, namespace2}
+}
+
+//TearDown is a wrapper for tearDown after suite
+func (o MCTestOperations) TearDown() {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Infof("Unexpected Errors while cleaning up MultiCluster test --> %v", r)
+			o.T().FailNow()
+		}
+	}()
+	if o.T().Failed() {
+		o.installer.GatherAllRookLogs(o.namespace1, o.T().Name())
+		o.installer.GatherAllRookLogs(o.namespace2, o.T().Name())
 	}
 	deleteArgs := []string{"delete", "-f", "-"}
 
-	skipRookInstall := strings.EqualFold(mrc.installer.Env.SkipInstallRook, "true")
+	skipRookInstall := strings.EqualFold(o.installer.Env.SkipInstallRook, "true")
 	if skipRookInstall {
 		return
 	}
 
 	logger.Infof("Uninstalling All Rook Clusters")
-	k8sHelp, err := utils.CreateK8sHelper(mrc.T)
+	k8sHelp, err := utils.CreateK8sHelper(o.T)
 	if err != nil {
 		panic(err)
 	}
-	rookOperator := mrc.installData.GetRookOperator(installer.SystemNamespace(mrc.namespace1))
-	mrc.k8sh.Clientset.RbacV1beta1().ClusterRoles().Delete("rook-agent", nil)
-	mrc.k8sh.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-agent", nil)
+	rookOperator := o.installData.GetRookOperator(installer.SystemNamespace(o.namespace1))
+	o.k8sh.Clientset.RbacV1beta1().ClusterRoles().Delete("rook-agent", nil)
+	o.k8sh.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-agent", nil)
 
 	//Delete rook operator
-	_, err = mrc.k8sh.KubectlWithStdin(rookOperator, deleteArgs...)
+	_, err = o.k8sh.KubectlWithStdin(rookOperator, deleteArgs...)
 	if err != nil {
 		logger.Errorf("Rook operator cannot be deleted,err -> %v", err)
 		panic(err)
 	}
 
 	//delete rook cluster
-	mrc.installer.CleanupCluster(mrc.namespace1)
-	mrc.installer.CleanupCluster(mrc.namespace2)
+	o.installer.CleanupCluster(o.namespace1)
+	o.installer.CleanupCluster(o.namespace2)
 
 	// Delete crd/tpr
-	if mrc.k8sh.VersionAtLeast("v1.7.0") {
+	if o.k8sh.VersionAtLeast("v1.7.0") {
 		_, err = k8sHelp.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io", "objectstores.rook.io"})
 		if err != nil {
 			logger.Errorf("crd cannot be deleted")
@@ -159,8 +192,9 @@ func (mrc *MultiClusterDeploySuite) TearDownSuite() {
 		}
 	}
 
-	mrc.k8sh.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("anon-user-access", nil)
-	logger.Infof("Rook clusters %s  and  %s uninstalled", mrc.namespace1, mrc.namespace2)
+	o.k8sh.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	logger.Infof("Rook clusters %s  and  %s uninstalled", o.namespace1, o.namespace2)
+
 }
 
 //Test to make sure all rook components are installed and Running

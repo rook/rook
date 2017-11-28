@@ -98,6 +98,7 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 		DeleteFunc: c.onDelete,
 	}
 
+	logger.Infof("start watching clusters in all namespaces")
 	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, customResourceClient)
 	go watcher.Watch(&Cluster{}, stopCh)
 	return nil
@@ -263,7 +264,7 @@ func (c *Cluster) createInstance() error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.MonCount, c.Spec.Placement.GetMON(), c.Spec.HostNetwork)
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.MonCount, c.Spec.Placement.GetMON(), c.Spec.HostNetwork, c.Spec.Resources.MON)
 	err = c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
@@ -274,20 +275,20 @@ func (c *Cluster) createInstance() error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetMGR(), c.Spec.HostNetwork)
+	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetMGR(), c.Spec.HostNetwork, c.Spec.Resources.MGR)
 	err = c.mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
 	}
 
-	c.apis = api.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetAPI(), c.Spec.HostNetwork)
+	c.apis = api.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetAPI(), c.Spec.HostNetwork, c.Spec.Resources.API)
 	err = c.apis.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD(), c.Spec.HostNetwork)
+	c.osds = osd.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD(), c.Spec.HostNetwork, c.Spec.Resources.OSD)
 	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)

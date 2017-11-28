@@ -17,14 +17,19 @@ limitations under the License.
 package integration
 
 import (
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
+	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ************************************************
@@ -52,7 +57,11 @@ import (
 // - PUT/GET objects
 // ************************************************
 func TestSmokeSuite(t *testing.T) {
-	suite.Run(t, new(SmokeSuite))
+	s := new(SmokeSuite)
+	defer func(s *SmokeSuite) {
+		HandlePanics(recover(), s.o, s.T)
+	}(s)
+	suite.Run(t, s)
 }
 
 type SmokeSuite struct {
@@ -60,6 +69,7 @@ type SmokeSuite struct {
 	helper    *clients.TestClient
 	k8sh      *utils.K8sHelper
 	installer *installer.InstallHelper
+	o         contracts.TestOperator
 	namespace string
 }
 
@@ -71,11 +81,13 @@ func (suite *SmokeSuite) SetupSuite() {
 	suite.k8sh = kh
 
 	suite.installer = installer.NewK8sRookhelper(kh.Clientset, suite.T)
+	suite.o = NewBaseTestOperations(suite.installer, suite.T, suite.namespace, false)
 
 	isRookInstalled, err := suite.installer.InstallRookOnK8sWithHostPathAndDevices(suite.namespace, "bluestore", "", true, 3)
 	assert.NoError(suite.T(), err)
 	if !isRookInstalled {
 		logger.Errorf("Rook Was not installed successfully")
+		suite.T().Fail()
 		suite.TearDownSuite()
 		suite.T().FailNow()
 	}
@@ -83,17 +95,14 @@ func (suite *SmokeSuite) SetupSuite() {
 	suite.helper, err = clients.CreateTestClient(kh, suite.namespace)
 	if err != nil {
 		logger.Errorf("Cannot create rook test client, er -> %v", err)
+		suite.T().Fail()
 		suite.TearDownSuite()
 		suite.T().FailNow()
 	}
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
-	if suite.T().Failed() {
-		gatherAllRookLogs(suite.k8sh, suite.Suite, suite.installer.Env.HostType, installer.SystemNamespace(suite.namespace), suite.namespace)
-
-	}
-	suite.installer.UninstallRookFromK8s(suite.namespace, false)
+	suite.o.TearDown()
 }
 
 func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
@@ -109,4 +118,29 @@ func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 //Test to make sure all rook components are installed and Running
 func (suite *SmokeSuite) TestRookClusterInstallation_smokeTest() {
 	checkIfRookClusterIsInstalled(suite.Suite, suite.k8sh, installer.SystemNamespace(suite.namespace), suite.namespace, 3)
+}
+
+func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
+	// get the operator pod
+	sysNamespace := installer.SystemNamespace(suite.namespace)
+	listOpts := metav1.ListOptions{LabelSelector: "app=rook-operator"}
+	podList, err := suite.k8sh.Clientset.Pods(sysNamespace).List(listOpts)
+	require.Nil(suite.T(), err)
+	require.Equal(suite.T(), 1, len(podList.Items))
+
+	// get the raw log for the operator pod
+	opPodName := podList.Items[0].Name
+	rawLog, err := suite.k8sh.Clientset.Pods(sysNamespace).GetLogs(opPodName, &v1.PodLogOptions{}).Do().Raw()
+	require.Nil(suite.T(), err)
+
+	r := regexp.MustCompile(`discovered flexvolume dir path from source.*\n`)
+	logStmt := string(r.Find(rawLog))
+	logger.Infof("flexvolume discovery log statement: %s", logStmt)
+
+	// verify that the volume plugin dir was discovered by the operator pod and that it did not come from
+	// an env var or the default
+	require.NotEmpty(suite.T(), logStmt)
+	assert.True(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source"))
+	assert.False(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source env var"))
+	assert.False(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source default"))
 }

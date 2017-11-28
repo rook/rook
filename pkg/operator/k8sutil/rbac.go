@@ -47,7 +47,7 @@ func MakeRole(clientset kubernetes.Interface, namespace, name string, rules []v1
 		logger.Infof("creating role %s in namespace %s", name, namespace)
 		_, err = clientset.RbacV1beta1().Roles(namespace).Create(role)
 	} else if err == nil {
-		logger.Infof("role %s already exists in namespace. updating if needed.", name, namespace)
+		logger.Infof("role %s already exists in namespace %s. updating if needed.", name, namespace)
 		_, err = clientset.RbacV1beta1().Roles(namespace).Update(role)
 	}
 	if err != nil {
