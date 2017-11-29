@@ -31,7 +31,7 @@ const (
 
 var (
 	metadataPools = []string{
-		rootPool,
+		// .rgw.root (rootPool) is appended to this slice where needed
 		"rgw.control",
 		"rgw.meta",
 		"rgw.log",
@@ -64,12 +64,23 @@ func CreateObjectStore(context *Context, metadataSpec, dataSpec model.Pool, serv
 }
 
 func DeleteObjectStore(context *Context) error {
-	err := deleteRealm(context)
+	stores, err := GetObjectStores(context)
+	if err != nil {
+		return fmt.Errorf("failed to detect object stores during deletion. %+v", err)
+	}
+	logger.Infof("Found stores %v when deleting store %s", stores, context.Name)
+
+	err = deleteRealm(context)
 	if err != nil {
 		return fmt.Errorf("failed to delete realm. %+v", err)
 	}
 
-	err = deletePools(context)
+	lastStore := false
+	if len(stores) == 1 && stores[0] == context.Name {
+		lastStore = true
+	}
+
+	err = deletePools(context, lastStore)
 	if err != nil {
 		return fmt.Errorf("failed to delete object store pools. %+v", err)
 	}
@@ -195,8 +206,12 @@ func GetObjectStores(context *Context) ([]string, error) {
 	return r.Realms, nil
 }
 
-func deletePools(context *Context) error {
+func deletePools(context *Context, lastStore bool) error {
 	pools := append(metadataPools, dataPools...)
+	if lastStore {
+		pools = append(pools, rootPool)
+	}
+
 	for _, pool := range pools {
 		name := poolName(context.Name, pool)
 		if err := ceph.DeletePool(context.context, context.ClusterName, name); err != nil {
@@ -208,7 +223,7 @@ func deletePools(context *Context) error {
 }
 
 func createPools(context *Context, metadataSpec, dataSpec model.Pool) error {
-	if err := createSimilarPools(context, metadataPools, metadataSpec); err != nil {
+	if err := createSimilarPools(context, append(metadataPools, rootPool), metadataSpec); err != nil {
 		return fmt.Errorf("failed to create metadata pools. %+v", err)
 	}
 
