@@ -67,9 +67,9 @@ pipeline {
                 stash name: 'repo-amd64',includes: 'rook-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script{
                     def data = [
-                        "gce_1.6": "v1.6.7",
+                        "aws_1.6": "v1.6.7",
                         "aws_1.7": "v1.7.8",
-                        "gce_1.8": "v1.8.2",
+                        "aws_1.8": "v1.8.2",
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
