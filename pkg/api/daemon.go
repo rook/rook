@@ -65,26 +65,37 @@ func Run(context *clusterd.Context, c *Config) error {
 }
 
 func WatchMonConfig(context *clusterd.Context, c *Config) {
-	opts := metav1.ListOptions{
-		FieldSelector: fields.OneTermEqualSelector(api.ObjectNameField, monop.EndpointConfigMapName).String(),
-	}
-	w, err := context.Clientset.Core().ConfigMaps(c.namespace).Watch(opts)
-	if err != nil {
-		logger.Errorf("API server init error: %+v", err)
-	}
-	defer w.Stop()
-
+	// infinite loop to keep watching forever, this function should be called in a goroutine
 	for {
-		e := <-w.ResultChan()
-		if e.Type == watch.Modified {
-			// "unmarshal" object into configmap and set new endpoints
-			monEndpoints := e.Object.(*v1.ConfigMap)
-			c.clusterInfo.Monitors = mon.ParseMonEndpoints(monEndpoints.Data[monop.EndpointDataKey])
+		// watch for changes only to the monitor endpoints config map
+		opts := metav1.ListOptions{
+			FieldSelector: fields.OneTermEqualSelector(api.ObjectNameField, monop.EndpointConfigMapName).String(),
+		}
+		w, err := context.Clientset.Core().ConfigMaps(c.namespace).Watch(opts)
+		if err != nil {
+			logger.Errorf("WatchMonConfig watch init error: %+v", err)
+			return
+		}
+		defer w.Stop()
 
-			// write the latest config to the config dir
-			if err := mon.GenerateAdminConnectionConfig(context, c.clusterInfo); err != nil {
-				logger.Errorf("failed to write connection config. %+v", err)
-				return
+		for {
+			e, ok := <-w.ResultChan()
+			if !ok {
+				logger.Warning("WatchMonConfig result channel closed, restarting watch.")
+				w.Stop()
+				break
+			}
+
+			if e.Type == watch.Modified {
+				// "unmarshal" object into configmap and set new endpoints
+				monEndpoints := e.Object.(*v1.ConfigMap)
+				c.clusterInfo.Monitors = mon.ParseMonEndpoints(monEndpoints.Data[monop.EndpointDataKey])
+
+				// write the latest config to the config dir
+				if err := mon.GenerateAdminConnectionConfig(context, c.clusterInfo); err != nil {
+					logger.Errorf("failed to write connection config. %+v", err)
+					return
+				}
 			}
 		}
 	}

@@ -417,7 +417,7 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger.Infof("there are %d nodes available for %d mons", len(nodes.Items), len(c.clusterInfo.Monitors))
+	logger.Debugf("there are %d nodes available for %d mons", len(nodes.Items), len(c.clusterInfo.Monitors))
 
 	// get the nodes that have mons assigned
 	nodesInUse, err := c.getNodesWithMons()
