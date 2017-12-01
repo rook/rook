@@ -71,7 +71,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	devMountNeeded := deviceFilter != "" || allDevices
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
-	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, v1.ResourceRequirements{}, n.Config)
+	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
 	assert.NotNil(t, replicaSet)
 	assert.Equal(t, "rook-ceph-osd-node1", replicaSet.Name)
 	assert.Equal(t, c.Namespace, replicaSet.Namespace)
@@ -142,11 +142,16 @@ func verifyEnvVar(t *testing.T, envVars []v1.EnvVar, expectedName, expectedValue
 func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	storageSpec := StorageSpec{
 		Config: Config{},
+		Selection: Selection{
+			Directories: []Directory{{Path: "/rook/dir2"}},
+		},
 		Nodes: []Node{
 			{
-				Name:        "node1",
-				Devices:     []Device{{Name: "sda"}},
-				Directories: []Directory{{Path: "/rook/dir1"}},
+				Name:    "node1",
+				Devices: []Device{{Name: "sda"}},
+				Selection: Selection{
+					Directories: []Directory{{Path: "/rook/dir1"}},
+				},
 			},
 		},
 	}
@@ -155,7 +160,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", k8sutil.Placement{}, false, v1.ResourceRequirements{})
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
-	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, v1.ResourceRequirements{}, n.Config)
+	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
 	assert.NotNil(t, replicaSet)
 
 	// pod spec should have a volume for the given dir
@@ -205,7 +210,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", k8sutil.Placement{}, false, v1.ResourceRequirements{})
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
-	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, c.Storage.Nodes[0].Resources, n.Config)
+	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, c.Storage.Nodes[0].Resources, n.Config)
 	assert.NotNil(t, replicaSet)
 
 	container := replicaSet.Spec.Template.Spec.Containers[0]
@@ -243,7 +248,7 @@ func TestHostNetwork(t *testing.T) {
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", k8sutil.Placement{}, true, v1.ResourceRequirements{})
 
 	n := c.Storage.resolveNode(storageSpec.Nodes[0].Name)
-	r := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, v1.ResourceRequirements{}, n.Config)
+	r := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
 	assert.NotNil(t, r)
 
 	assert.Equal(t, true, r.Spec.Template.Spec.HostNetwork)

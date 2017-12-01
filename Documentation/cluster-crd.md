@@ -44,8 +44,6 @@ In addition to the cluster level settings specified above, each individual node 
 - `name`: The name of the node, which should match its `kubernetes.io/hostname` label.
 - `devices`: A list of individual device names belonging to this node to include in the storage cluster.
   - `name`: The name of the device (e.g., `sda`).
-- `directories`:  A list of directory paths on this node that will be included in the storage cluster.  Note that using two directories on the same physical device can cause a negative performance impact.
-  - `path`: The path on disk of the directory (e.g., `/rook/storage-dir`).
 - [storage selection settings](#storage-selection-settings)
 - [storage configuration settings](#storage-configuration-settings)
 
@@ -60,6 +58,8 @@ Below are the settings available, both at the cluster and individual node level,
   - `^s`: Selects all devices that start with `s`
   - `^[^r]`: Selects all devices that do *not* start with `r`
 - `metadataDevice`: Name of a device to use for the metadata of OSDs on each node.  Performance can be improved by using a low latency device (such as SSD or NVMe) as the metadata device, while other spinning platter (HDD) devices on a node are used to store data.
+- `directories`:  A list of directory paths that will be included in the storage cluster. Note that using two directories on the same physical device can cause a negative performance impact.
+  - `path`: The path on disk of the directory (e.g., `/rook/storage-dir`).
 
 ### Storage Configuration Settings
 
@@ -165,7 +165,7 @@ spec:
       journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
     nodes:
     - name: "172.17.4.101"
-      directories:         # specific directores to use for storage can be specified for each node
+      directories:         # specific directories to use for storage can be specified for each node
       - path: "/rook/storage-dir"
     - name: "172.17.4.201"
       devices:             # specific devices to use for storage can be specified for each node
@@ -175,6 +175,43 @@ spec:
         storeType: filestore
     - name: "172.17.4.301"
       deviceFilter: "^sd."
+```
+
+### Storage Configuration: Cluster wide Directories
+
+This example is based up on the [Storage Configuration: Specific devices](#storage-configuration-specific-devices).
+Individual nodes can override the cluster wide specified directories list.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook
+---
+apiVersion: rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: rook
+  namespace: rook
+spec:
+  versionTag: master
+  dataDirHostPath: /var/lib/rook
+  # cluster level storage configuration and selection
+  storage:
+    useAllNodes: false
+    useAllDevices: false
+    storeConfig:
+      storeType: bluestore
+      databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
+      journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
+    directories:
+    - path: "/rook/storage-dir"
+    nodes:
+    - name: "172.17.4.101"
+      directories: # specific directories to use for storage can be specified for each node
+      # overrides the above `directories` values for this node
+      - path: "/rook/my-node-storage-dir"
+    - name: "172.17.4.201"
 ```
 
 ### Node Affinity

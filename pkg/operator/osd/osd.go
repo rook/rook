@@ -108,7 +108,7 @@ func (c *Cluster) Start() error {
 			resources := k8sutil.MergeResourceRequirements(c.Storage.Nodes[i].Resources, c.resources)
 
 			// create the replicaSet that will run the OSDs for this node
-			rs := c.makeReplicaSet(n.Name, n.Devices, n.Directories, n.Selection, resources, n.Config)
+			rs := c.makeReplicaSet(n.Name, n.Devices, n.Selection, resources, n.Config)
 			_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
 			if err != nil {
 				if !errors.IsAlreadyExists(err) {
@@ -135,14 +135,14 @@ func (c *Cluster) makeDaemonSet(selection Selection, config Config) *extensions.
 	return ds
 }
 
-func (c *Cluster) makeReplicaSet(nodeName string, devices []Device, directories []Directory,
+func (c *Cluster) makeReplicaSet(nodeName string, devices []Device,
 	selection Selection, resources v1.ResourceRequirements, config Config) *extensions.ReplicaSet {
 
 	rs := &extensions.ReplicaSet{}
 	rs.Name = fmt.Sprintf(appNameFmt, nodeName)
 	rs.Namespace = c.Namespace
 
-	podSpec := c.podTemplateSpec(devices, directories, selection, resources, config)
+	podSpec := c.podTemplateSpec(devices, selection.Directories, selection, resources, config)
 	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
 
 	replicaCount := int32(1)
