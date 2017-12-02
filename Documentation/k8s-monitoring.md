@@ -14,7 +14,7 @@ Note that these steps work best with a local Kubernetes cluster running in `Vagr
 First the Prometheus operator needs to be started in the cluster so it can watch for our requests to start monitoring Rook and respond by deploying the correct Prometheus pods and configuration.
 A full explanation can be found in the [Prometheus operator repository on github](https://github.com/coreos/prometheus-operator), but the quick instructions can be found here:
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.8/bundle.yaml
+kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.15/bundle.yaml
 ```
 This will start the Prometheus operator, but before moving on, wait until the operator is in the `Running` state:
 ```bash
