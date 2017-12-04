@@ -96,8 +96,9 @@ type Mapping struct {
 
 // NodeInfo contains name and address of a node
 type NodeInfo struct {
-	Name    string
-	Address string
+	Name     string
+	Address  string
+	Hostname string
 }
 
 // New creates an instance of a mon cluster
@@ -328,6 +329,7 @@ func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 			break
 		}
 	}
+	nr.Hostname = n.Labels["kubernetes.io/hostname"]
 	if nr.Address == "" {
 		return nil, fmt.Errorf("no IP given for node %s", nr.Address)
 	}
@@ -337,9 +339,12 @@ func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 func (c *Cluster) startPods(mons []*monConfig) error {
 	for _, m := range mons {
 		node, _ := c.mapping.Node[m.Name]
-
+		nodeId, err := getNodeId(node)
+		if err != nil {
+			return fmt.Errorf("failed to get a node ID. %+v", err)
+		}
 		// start the mon replicaset/pod
-		err := c.startMon(m, node.Address)
+		err = c.startMon(m, nodeId)
 		if err != nil {
 			return fmt.Errorf("failed to create pod %s. %+v", m.Name, err)
 		}
@@ -475,8 +480,8 @@ func (c *Cluster) getNodesWithMons() (*util.Set, error) {
 	return nodes, nil
 }
 
-func (c *Cluster) startMon(m *monConfig, nodeAddress string) error {
-	rs := c.makeReplicaSet(m, nodeAddress)
+func (c *Cluster) startMon(m *monConfig, nodeId string) error {
+	rs := c.makeReplicaSet(m, nodeId)
 	logger.Debugf("Starting mon: %+v", rs.Name)
 	_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
 	if err != nil {
