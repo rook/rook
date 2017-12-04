@@ -329,7 +329,7 @@ func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 		}
 	}
 	if nr.Address == "" {
-		return nil, fmt.Errorf("no IP given for node %s", nr.address)
+		return nil, fmt.Errorf("no IP given for node %s", nr.Address)
 	}
 	return nr, nil
 }
@@ -452,7 +452,7 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
 	// choose nodes for the new mons that don't have mons currently
 	availableNodes := []v1.Node{}
 	for _, node := range nodes.Items {
-		if !nodesInUse.Contains(node.Address) && validNode(node, c.placement) {
+		if !nodesInUse.Contains(node.Name) && validNode(node, c.placement) {
 			availableNodes = append(availableNodes, node)
 		}
 	}
