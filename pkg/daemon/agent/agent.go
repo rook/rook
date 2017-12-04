@@ -27,8 +27,6 @@ import (
 	"syscall"
 
 	"github.com/coreos/pkg/capnslog"
-	opkit "github.com/rook/operator-kit"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/agent/cluster"
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume"
@@ -52,12 +50,7 @@ func New(context *clusterd.Context) *Agent {
 // Run the agent
 func (a *Agent) Run() error {
 
-	volumeAttachmentClient, _, err := opkit.NewHTTPClient(rookalpha.CustomResourceGroup, rookalpha.Version, attachment.SchemeBuilder)
-	if err != nil {
-		return fmt.Errorf("failed to create Volumeattach CRD client: %+v", err)
-	}
-
-	volumeAttachmentController, err := attachment.CreateController(a.context.Clientset, volumeAttachmentClient)
+	volumeAttachmentController, err := attachment.New(a.context)
 	if err != nil {
 		return fmt.Errorf("failed to create volume attachment controller: %+v", err)
 	}

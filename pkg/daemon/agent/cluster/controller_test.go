@@ -54,7 +54,7 @@ func TestClusterDeleteSingleAttachment(t *testing.T) {
 	}
 
 	// set up an existing volume attachment CRD that belongs to this node and the cluster we will delete later
-	existingVolAttachList := rookalpha.VolumeAttachmentList{
+	existingVolAttachList := &rookalpha.VolumeAttachmentList{
 		Items: []rookalpha.VolumeAttachment{
 			{
 				ObjectMeta: metav1.ObjectMeta{
@@ -77,8 +77,8 @@ func TestClusterDeleteSingleAttachment(t *testing.T) {
 	removeAttachmentCalled := false
 
 	flexvolumeManager := &manager.FakeVolumeManager{}
-	volumeAttachmentController := &attachment.MockController{
-		MockList: func(namespace string) (rookalpha.VolumeAttachmentList, error) {
+	volumeAttachmentController := &attachment.MockAttachment{
+		MockList: func(namespace string) (*rookalpha.VolumeAttachmentList, error) {
 			return existingVolAttachList, nil
 		},
 		MockDelete: func(namespace, name string) error {
@@ -139,7 +139,7 @@ func TestClusterDeleteAttachedToOtherNode(t *testing.T) {
 	}
 
 	// set up an existing volume attachment CRD that belongs to another node
-	existingVolAttachList := rookalpha.VolumeAttachmentList{
+	existingVolAttachList := &rookalpha.VolumeAttachmentList{
 		Items: []rookalpha.VolumeAttachment{
 			{
 				ObjectMeta: metav1.ObjectMeta{
@@ -160,8 +160,8 @@ func TestClusterDeleteAttachedToOtherNode(t *testing.T) {
 	getAttachInfoCalled := false
 
 	flexvolumeManager := &manager.FakeVolumeManager{}
-	volumeAttachmentController := &attachment.MockController{
-		MockList: func(namespace string) (rookalpha.VolumeAttachmentList, error) {
+	volumeAttachmentController := &attachment.MockAttachment{
+		MockList: func(namespace string) (*rookalpha.VolumeAttachmentList, error) {
 			return existingVolAttachList, nil
 		},
 	}
@@ -202,7 +202,7 @@ func TestClusterDeleteMultiAttachmentRace(t *testing.T) {
 	}
 
 	// set up an existing volume attachment CRD that has two pods using the same underlying volume.
-	existingVolAttachList := rookalpha.VolumeAttachmentList{
+	existingVolAttachList := &rookalpha.VolumeAttachmentList{
 		Items: []rookalpha.VolumeAttachment{
 			{
 				ObjectMeta: metav1.ObjectMeta{
@@ -230,8 +230,8 @@ func TestClusterDeleteMultiAttachmentRace(t *testing.T) {
 	var lock sync.Mutex
 
 	deleteCount := 0
-	volumeAttachmentController := &attachment.MockController{
-		MockList: func(namespace string) (rookalpha.VolumeAttachmentList, error) {
+	volumeAttachmentController := &attachment.MockAttachment{
+		MockList: func(namespace string) (*rookalpha.VolumeAttachmentList, error) {
 			return existingVolAttachList, nil
 		},
 		MockDelete: func(namespace, name string) error {

@@ -18,8 +18,6 @@ package main
 import (
 	"fmt"
 
-	opkit "github.com/rook/operator-kit"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/operator"
@@ -62,16 +60,12 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	context.Clientset = clientset
 	context.APIExtensionClientset = apiExtClientset
 	context.RookClientset = rookClientset
-	volumeAttachmentClient, _, err := opkit.NewHTTPClient(rookalpha.CustomResourceGroup, rookalpha.Version, attachment.SchemeBuilder)
-	if err != nil {
-		terminateFatal(err)
-	}
-	volumeAttachmentController, err := attachment.CreateController(context.Clientset, volumeAttachmentClient)
+	volumeAttachment, err := attachment.New(context)
 	if err != nil {
 		terminateFatal(err)
 	}
 
-	op := operator.New(context, volumeAttachmentController)
+	op := operator.New(context, volumeAttachment)
 	if op == nil {
 		terminateFatal(fmt.Errorf("failed to create operator."))
 	}

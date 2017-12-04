@@ -21,8 +21,8 @@ package v1alpha1
 import metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 // NewVolumeAttachment creates a reference of a Volumeattach CRD object
-func NewVolumeAttachment(name, namespace, node, podNamespace, podName, clusterName, mountDir string, readOnly bool) VolumeAttachment {
-	volumeAttachmentObj := VolumeAttachment{
+func NewVolumeAttachment(name, namespace, node, podNamespace, podName, clusterName, mountDir string, readOnly bool) *VolumeAttachment {
+	volumeAttachmentObj := &VolumeAttachment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,

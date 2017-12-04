@@ -55,17 +55,17 @@ var driverLogger = capnslog.NewPackageLogger("github.com/rook/rook", "flexdriver
 
 // Controller handles all events from the Flexvolume driver
 type Controller struct {
-	context              *clusterd.Context
-	volumeManager        VolumeManager
-	attachmentController attachment.Controller
+	context          *clusterd.Context
+	volumeManager    VolumeManager
+	volumeAttachment attachment.Attachment
 }
 
-func NewController(context *clusterd.Context, attachmentController attachment.Controller, manager VolumeManager) *Controller {
+func NewController(context *clusterd.Context, volumeAttachment attachment.Attachment, manager VolumeManager) *Controller {
 
 	return &Controller{
-		context:              context,
-		attachmentController: attachmentController,
-		volumeManager:        manager,
+		context:          context,
+		volumeAttachment: volumeAttachment,
+		volumeManager:    manager,
 	}
 }
 
@@ -79,7 +79,7 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 	crdName := attachOpts.VolumeName
 
 	// Check if this volume has been attached
-	volumeattachObj, err := c.attachmentController.Get(namespace, crdName)
+	volumeattachObj, err := c.volumeAttachment.Get(namespace, crdName)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			return fmt.Errorf("failed to get volume CRD %s. %+v", crdName, err)
@@ -88,7 +88,7 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 		volumeattachObj = rookalpha.NewVolumeAttachment(crdName, namespace, node, attachOpts.PodNamespace, attachOpts.Pod,
 			attachOpts.ClusterName, attachOpts.MountDir, strings.ToLower(attachOpts.RW) == ReadOnly)
 		logger.Infof("Creating Volume attach Resource %s/%s: %+v", volumeattachObj.Namespace, volumeattachObj.Name, attachOpts)
-		err = c.attachmentController.Create(volumeattachObj)
+		err = c.volumeAttachment.Create(volumeattachObj)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create volume CRD %s. %+v", crdName, err)
@@ -134,7 +134,7 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 					attachment.PodName = attachOpts.Pod
 					attachment.ClusterName = attachOpts.ClusterName
 					attachment.ReadOnly = attachOpts.RW == ReadOnly
-					err = c.attachmentController.Update(volumeattachObj)
+					err = c.volumeAttachment.Update(volumeattachObj)
 					if err != nil {
 						return fmt.Errorf("failed to update volume CRD %s. %+v", crdName, err)
 					}
@@ -161,7 +161,7 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 					ReadOnly:     attachOpts.RW == ReadOnly,
 				}
 				volumeattachObj.Attachments = append(volumeattachObj.Attachments, newAttach)
-				err = c.attachmentController.Update(volumeattachObj)
+				err = c.volumeAttachment.Update(volumeattachObj)
 				if err != nil {
 					return fmt.Errorf("failed to update volume CRD %s. %+v", crdName, err)
 				}
@@ -192,10 +192,10 @@ func (c *Controller) doDetach(detachOpts AttachOptions, force bool) error {
 
 	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	crdName := detachOpts.VolumeName
-	volumeAttach, err := c.attachmentController.Get(namespace, crdName)
+	volumeAttach, err := c.volumeAttachment.Get(namespace, crdName)
 	if len(volumeAttach.Attachments) == 0 {
 		logger.Infof("Deleting VolumeAttachment CRD %s/%s", namespace, crdName)
-		return c.attachmentController.Delete(namespace, crdName)
+		return c.volumeAttachment.Delete(namespace, crdName)
 	}
 	return nil
 }
@@ -205,7 +205,7 @@ func (c *Controller) RemoveAttachmentObject(detachOpts AttachOptions, safeToDeta
 	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	crdName := detachOpts.VolumeName
 	logger.Infof("Deleting attachment for mountDir %s from Volume attach CRD %s/%s", detachOpts.MountDir, namespace, crdName)
-	volumeAttach, err := c.attachmentController.Get(namespace, crdName)
+	volumeAttach, err := c.volumeAttachment.Get(namespace, crdName)
 	if err != nil {
 		return fmt.Errorf("failed to get Volume attach CRD %s/%s: %+v", namespace, crdName, err)
 	}
@@ -228,7 +228,7 @@ func (c *Controller) RemoveAttachmentObject(detachOpts AttachOptions, safeToDeta
 		if nodeAttachmentCount == 1 {
 			*safeToDetach = true
 		}
-		return c.attachmentController.Update(volumeAttach)
+		return c.volumeAttachment.Update(volumeAttach)
 	}
 	return fmt.Errorf("VolumeAttachment CRD %s found but attachment to the mountDir %s was not found", crdName, detachOpts.MountDir)
 }
@@ -400,7 +400,7 @@ func findPodByID(pods *v1.PodList, podUID types.UID) *v1.Pod {
 
 // getPodRWAttachmentObject loops through the list of attachments of the VolumeAttachment
 // resource and returns the index of the first RW attachment object
-func getPodRWAttachmentObject(volumeAttachmentObject rookalpha.VolumeAttachment) int {
+func getPodRWAttachmentObject(volumeAttachmentObject *rookalpha.VolumeAttachment) int {
 	for i, a := range volumeAttachmentObject.Attachments {
 		if !a.ReadOnly {
 			return i

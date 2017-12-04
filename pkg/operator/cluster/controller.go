@@ -81,9 +81,9 @@ var ClusterResource = opkit.CustomResource{
 
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
-	context                    *clusterd.Context
-	volumeAttachmentController attachment.Controller
-	devicesInUse               bool
+	context          *clusterd.Context
+	volumeAttachment attachment.Attachment
+	devicesInUse     bool
 }
 
 type cluster struct {
@@ -98,10 +98,10 @@ type cluster struct {
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, volumeAttachmentController attachment.Controller) *ClusterController {
+func NewClusterController(context *clusterd.Context, volumeAttachment attachment.Attachment) *ClusterController {
 	return &ClusterController{
-		context:                    context,
-		volumeAttachmentController: volumeAttachmentController,
+		context:          context,
+		volumeAttachment: volumeAttachment,
 	}
 }
 
@@ -202,7 +202,7 @@ func (c *ClusterController) handleDelete(cluster *rookalpha.Cluster, retryInterv
 	retryCount := 0
 	for {
 		// TODO: filter this List operation by cluster namespace on the server side
-		vols, err := c.volumeAttachmentController.List(operatorNamespace)
+		vols, err := c.volumeAttachment.List(operatorNamespace)
 		if err != nil {
 			logger.Errorf("failed to get volume attachments for operator namespace %s: %+v", operatorNamespace, err)
 			break

@@ -21,55 +21,58 @@ package attachment
 
 import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/kubernetes/pkg/api"
 )
 
-func RegisterFakeAPI() *runtime.Scheme {
-	scheme := runtime.NewScheme()
-	api.SchemeBuilder.AddToScheme(scheme)
-	api.SchemeBuilder.Register(addKnownTypes)
-	return scheme
-}
-
-type MockController struct {
-	MockCreate func(volumeAttachment rookalpha.VolumeAttachment) error
-	MockGet    func(namespace, name string) (rookalpha.VolumeAttachment, error)
-	MockList   func(namespace string) (rookalpha.VolumeAttachmentList, error)
-	MockUpdate func(volumeAttachment rookalpha.VolumeAttachment) error
+type MockAttachment struct {
+	MockCreate func(volumeAttachment *rookalpha.VolumeAttachment) error
+	MockGet    func(namespace, name string) (*rookalpha.VolumeAttachment, error)
+	MockList   func(namespace string) (*rookalpha.VolumeAttachmentList, error)
+	MockUpdate func(volumeAttachment *rookalpha.VolumeAttachment) error
 	MockDelete func(namespace, name string) error
 }
 
-func (m *MockController) Create(volumeAttachment rookalpha.VolumeAttachment) error {
+func (m *MockAttachment) Create(volumeAttachment *rookalpha.VolumeAttachment) error {
 	if m.MockCreate != nil {
 		return m.MockCreate(volumeAttachment)
 	}
 	return nil
 }
-func (m *MockController) Get(namespace, name string) (rookalpha.VolumeAttachment, error) {
+func (m *MockAttachment) Get(namespace, name string) (*rookalpha.VolumeAttachment, error) {
 	if m.MockGet != nil {
 		return m.MockGet(namespace, name)
 	}
-	return rookalpha.VolumeAttachment{}, nil
+	return &rookalpha.VolumeAttachment{}, nil
 }
 
-func (m *MockController) List(namespace string) (rookalpha.VolumeAttachmentList, error) {
+func (m *MockAttachment) List(namespace string) (*rookalpha.VolumeAttachmentList, error) {
 	if m.MockList != nil {
 		return m.MockList(namespace)
 	}
-	return rookalpha.VolumeAttachmentList{}, nil
+	return &rookalpha.VolumeAttachmentList{}, nil
 }
 
-func (m *MockController) Update(volumeAttachment rookalpha.VolumeAttachment) error {
+func (m *MockAttachment) Update(volumeAttachment *rookalpha.VolumeAttachment) error {
 	if m.MockUpdate != nil {
 		return m.MockUpdate(volumeAttachment)
 	}
 	return nil
 }
 
-func (m *MockController) Delete(namespace, name string) error {
+func (m *MockAttachment) Delete(namespace, name string) error {
 	if m.MockDelete != nil {
 		return m.MockDelete(namespace, name)
 	}
+	return nil
+}
+
+// Adds the list of known types to api.Scheme.
+func addKnownTypes(scheme *runtime.Scheme) error {
+	scheme.AddKnownTypes(rookalpha.SchemeGroupVersion,
+		&rookalpha.VolumeAttachment{},
+		&rookalpha.VolumeAttachmentList{},
+	)
+	metav1.AddToGroupVersion(scheme, rookalpha.SchemeGroupVersion)
 	return nil
 }
