@@ -188,7 +188,7 @@ func (p *Pool) validate(context *clusterd.Context) error {
 }
 
 func (p *PoolSpec) ToModel(name string) *model.Pool {
-	pool := &model.Pool{Name: name, FailureDomain: p.FailureDomain}
+	pool := &model.Pool{Name: name, FailureDomain: p.FailureDomain, CrushRoot: p.CrushRoot}
 	r := p.replication()
 	if r != nil {
 		pool.ReplicatedConfig.Size = r.Size
@@ -244,6 +244,23 @@ func (p *PoolSpec) Validate(context *clusterd.Context, namespace string) error {
 			return fmt.Errorf("unrecognized failure domain %s", p.FailureDomain)
 		}
 	}
+	// validate the crush root if specified
+	if p.CrushRoot != "" {
+		crush, err := ceph.GetCrushMap(context, namespace)
+		if err != nil {
+			return fmt.Errorf("failed to get crush map. %+v", err)
+		}
+		found := false
+		for _, t := range crush.Buckets {
+			if t.Name == p.CrushRoot {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("unrecognized crush root %s", p.CrushRoot)
+		}
+	}
 
 	return nil
 }
@@ -254,5 +271,6 @@ func ModelToSpec(pool model.Pool) PoolSpec {
 		FailureDomain: pool.FailureDomain,
 		Replicated:    ReplicatedSpec{Size: pool.ReplicatedConfig.Size},
 		ErasureCoded:  ErasureCodedSpec{CodingChunks: ec.CodingChunkCount, DataChunks: ec.DataChunkCount, Algorithm: ec.Algorithm},
+		CrushRoot:     pool.CrushRoot,
 	}
 }

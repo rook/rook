@@ -27,10 +27,12 @@ spec:
   metadataPool:
     replicated:
       size: 3
+    crushRoot: default
   dataPool:
     erasureCoded:
       dataChunks: 2
       codingChunks: 1
+    crushRoot: default
   gateway:
     type: s3
     sslCertificateRef: 

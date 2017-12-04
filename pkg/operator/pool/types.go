@@ -51,8 +51,11 @@ type PoolSpec struct {
 	// The replication settings
 	Replicated ReplicatedSpec `json:"replicated"`
 
-	// The erasure code setteings
+	// The erasure code settings
 	ErasureCoded ErasureCodedSpec `json:"erasureCoded"`
+
+	// The crush map root settings
+	CrushRoot string `json:"crushRoot"`
 }
 
 // ReplicationSpec represents the spec for replication in a pool

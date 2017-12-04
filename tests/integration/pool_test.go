@@ -37,6 +37,7 @@ func (suite *SmokeSuite) TestPoolResize() {
 		ReplicatedConfig: model.ReplicatedPoolConfig{
 			Size: 1,
 		},
+		CrushRoot: "nonExistant",
 	}
 
 	out, err := pClient.PoolCreate(pool)

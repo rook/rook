@@ -40,6 +40,7 @@ type Pool struct {
 	FailureDomain      string                 `json:"failureDomain"`
 	ReplicatedConfig   ReplicatedPoolConfig   `json:"replicatedConfig"`
 	ErasureCodedConfig ErasureCodedPoolConfig `json:"erasureCodedConfig"`
+	CrushRoot          string                 `json:"crushRoot"`
 }
 
 func PoolTypeToString(poolType PoolType) string {

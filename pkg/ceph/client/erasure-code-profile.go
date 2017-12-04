@@ -96,6 +96,7 @@ func ModelPoolToCephPool(modelPool model.Pool) CephStoragePoolDetails {
 		Name:          modelPool.Name,
 		Number:        modelPool.Number,
 		FailureDomain: modelPool.FailureDomain,
+		CrushRoot:     modelPool.CrushRoot,
 	}
 
 	if modelPool.Type == model.Replicated {

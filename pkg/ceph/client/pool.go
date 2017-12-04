@@ -43,7 +43,8 @@ type CephStoragePoolDetails struct {
 	Number             int    `json:"pool_id"`
 	Size               uint   `json:"size"`
 	ErasureCodeProfile string `json:"erasure_code_profile"`
-	FailureDomain      string
+	FailureDomain      string `json:"failureDomain"`
+	CrushRoot          string `json:"crushRoot"`
 }
 
 type CephStoragePoolStats struct {
@@ -171,9 +172,16 @@ func CreatePool(context *clusterd.Context, clusterName string, newPool CephStora
 func CreatePoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string) error {
 	// create a crush rule for a replicated pool, if a failure domain is specified
 	replicated := newPool.ErasureCodeProfile == "" && newPool.Size > 0
+	// the crush root this pool will be mapped to should have a default if left unspecified
+	var crushRoot string
+	if newPool.CrushRoot != "" {
+		crushRoot = newPool.CrushRoot
+	} else {
+		crushRoot = "default"
+	}
 	ruleName := newPool.Name
 	if replicated && newPool.FailureDomain != "" {
-		args := []string{"osd", "crush", "rule", "create-simple", ruleName, "default", newPool.FailureDomain}
+		args := []string{"osd", "crush", "rule", "create-simple", ruleName, crushRoot, newPool.FailureDomain}
 		_, err := ExecuteCephCommand(context, clusterName, args)
 		if err != nil {
 			return fmt.Errorf("failed to crush rule %s. %+v", newPool.Name, err)

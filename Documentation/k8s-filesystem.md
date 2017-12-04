@@ -30,10 +30,12 @@ spec:
   metadataPool:
     replicated:
       size: 3
+    crushRoot: default
   dataPools:
-    - erasureCoded:
-       dataChunks: 2
-       codingChunks: 1
+    erasureCoded:
+      dataChunks: 2
+      codingChunks: 1
+    crushRoot: default
   metadataServer:
     activeCount: 1
     activeStandby: true
