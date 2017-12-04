@@ -62,13 +62,13 @@ func TestCreateECPool(t *testing.T) {
 }
 
 func TestCreateReplicaPool(t *testing.T) {
-	testCreateReplicaPool(t, "")
+	testCreateReplicaPool(t, "", "")
 }
 func TestCreateReplicaPoolWithFailureDomain(t *testing.T) {
-	testCreateReplicaPool(t, "osd")
+	testCreateReplicaPool(t, "osd", "default")
 }
 
-func testCreateReplicaPool(t *testing.T, failureDomain string) {
+func testCreateReplicaPool(t *testing.T, failureDomain string, crushRoot string) {
 	crushRuleCreated := false
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
@@ -99,14 +99,14 @@ func testCreateReplicaPool(t *testing.T, failureDomain string) {
 			assert.Equal(t, "rule", args[2])
 			assert.Equal(t, "create-simple", args[3])
 			assert.Equal(t, "mypool", args[4])
-			assert.Equal(t, "default", args[5])
+			assert.Equal(t, crushRoot, args[5])
 			assert.Equal(t, failureDomain, args[6])
 			return "", nil
 		}
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
-	p := CephStoragePoolDetails{Name: "mypool", Size: 12345, FailureDomain: failureDomain}
+	p := CephStoragePoolDetails{Name: "mypool", Size: 12345, FailureDomain: failureDomain, CrushRoot: crushRoot}
 	err := CreatePoolForApp(context, "myns", p, "myapp")
 	assert.Nil(t, err)
 	if failureDomain == "" {
