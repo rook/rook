@@ -86,6 +86,9 @@ func (s *StorageSpec) resolveNodeSelection(node *Node) {
 			node.Selection.UseAllDevices = newBool(false)
 		}
 	}
+	if len(node.Selection.Directories) == 0 {
+		node.Selection.Directories = s.Directories
+	}
 }
 
 func (s *StorageSpec) resolveNodeConfig(node *Node) {

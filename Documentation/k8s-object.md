@@ -65,7 +65,7 @@ kubectl -n rook get pod -l app=rook-ceph-rgw
 Creating an object storage user requires running `rookctl` commands with the [Rook toolbox](kubernetes.md#tools) pod. This will be simplified in the future with a CRD for the object store users.
 
 ```bash
-rookctl object user create rook-user "A rook rgw User"
+rookctl object user create my-store rook-user "A rook rgw User"
 ```
 
 The object store is now available by using the creds of `rook-user`.
@@ -74,7 +74,7 @@ The object store is now available by using the creds of `rook-user`.
 
 If your s3 client uses environment variables, the client can print them for you
 ```bash
-rookctl object connection rook-user --format env-var
+rookctl object connection my-store rook-user --format env-var
 ```
 
 See the [Object Storage](client.md#object-storage) documentation for more steps on consuming the object storage.

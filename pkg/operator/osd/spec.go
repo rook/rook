@@ -32,10 +32,9 @@ type StorageSpec struct {
 
 // Node specific CRD settings
 type Node struct {
-	Name        string                  `json:"name,omitempty"`
-	Devices     []Device                `json:"devices,omitempty"`
-	Directories []Directory             `json:"directories,omitempty"`
-	Resources   v1.ResourceRequirements `json:"resources,omitempty"`
+	Name      string                  `json:"name,omitempty"`
+	Devices   []Device                `json:"devices,omitempty"`
+	Resources v1.ResourceRequirements `json:"resources,omitempty"`
 	Selection
 	Config
 }
@@ -59,6 +58,8 @@ type Selection struct {
 	DeviceFilter string `json:"deviceFilter,omitempty"`
 
 	MetadataDevice string `json:"metadataDevice,omitempty"`
+
+	Directories []Directory `json:"directories,omitempty"`
 }
 
 // Config CRD settings

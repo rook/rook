@@ -116,11 +116,16 @@ func (c *FlexvolumeController) Attach(attachOpts AttachOptions, devicePath *stri
 			if index != -1 {
 				// check if the RW attachment is orphaned.
 				attachment := &volumeattachObj.Attachments[index]
+
+				logger.Infof("Volume attachment record %s/%s exists for pod: %s/%s", volumeattachObj.Namespace, volumeattachObj.Name, attachment.PodNamespace, attachment.PodName)
+				// Note this could return the reference of the pod who is requesting the attach if this pod have the same name as the pod in the attachment record.
 				pod, err := c.context.Clientset.Core().Pods(attachment.PodNamespace).Get(attachment.PodName, metav1.GetOptions{})
-				if err != nil {
-					if !errors.IsNotFound(err) {
+				if err != nil || (attachment.PodNamespace == attachOpts.PodNamespace && attachment.PodName == attachOpts.Pod) {
+					if err != nil && !errors.IsNotFound(err) {
 						return fmt.Errorf("failed to get pod CRD %s/%s. %+v", attachment.PodNamespace, attachment.PodName, err)
 					}
+
+					logger.Infof("Volume attachment record %s/%s is orphaned. Updating record with new attachment information for pod %s/%s", volumeattachObj.Namespace, volumeattachObj.Name, attachOpts.PodNamespace, attachOpts.Pod)
 
 					// Attachment is orphaned. Update attachment record and proceed with attaching
 					attachment.Node = node

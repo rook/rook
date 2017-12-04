@@ -9,13 +9,17 @@ spec:
   metadataPool:
     failureDomain: host
     replicated:
-      size: 3
+      # Increase the replication size if you have more than one osd
+      size: 1
   # The pool spec used to create the data pool
   dataPool:
     failureDomain: osd
-    erasureCoded:
-      dataChunks: 2
-      codingChunks: 1
+    replicated:
+      size: 1
+    # If you have at least three osds, erasure coding can be specified
+    # erasureCoded:
+    #   dataChunks: 2
+    #   codingChunks: 1
   # The gaeteway service configuration
   gateway:
     # type of the gateway (s3)

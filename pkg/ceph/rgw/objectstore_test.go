@@ -66,12 +66,18 @@ func TestCreateRealm(t *testing.T) {
 }
 
 func TestDeleteStore(t *testing.T) {
+	deleteStore(t, "myobj", `"mystore","myobj"`, false)
+	deleteStore(t, "myobj", `"myobj"`, true)
+}
+
+func deleteStore(t *testing.T, name string, existingStores string, expectedDeleteRootPool bool) {
 	realmDeleted := false
 	zoneDeleted := false
 	zoneGroupDeleted := false
 	poolsDeleted := 0
 	rulesDeleted := 0
 	executor := &exectest.MockExecutor{}
+	deletedRootPool := false
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
 		//logger.Infof("command: %s %v", command, args)
 		if args[0] == "osd" {
@@ -81,6 +87,9 @@ func TestDeleteStore(t *testing.T) {
 				}
 				if args[2] == "delete" {
 					poolsDeleted++
+					if args[3] == rootPool {
+						deletedRootPool = true
+					}
 					return "", nil
 				}
 			}
@@ -96,9 +105,13 @@ func TestDeleteStore(t *testing.T) {
 	executor.MockExecuteCommandWithCombinedOutput = func(debug bool, actionName, command string, args ...string) (string, error) {
 		//logger.Infof("Command: %s %v", command, args)
 		if args[0] == "realm" {
-			assert.Equal(t, "delete", args[1])
-			realmDeleted = true
-			return "", nil
+			if args[1] == "delete" {
+				realmDeleted = true
+				return "", nil
+			}
+			if args[1] == "list" {
+				return fmt.Sprintf(`{"realms":[%s]}`, existingStores), nil
+			}
 		}
 		if args[0] == "zonegroup" {
 			assert.Equal(t, "delete", args[1])
@@ -114,11 +127,17 @@ func TestDeleteStore(t *testing.T) {
 	}
 	context := &Context{context: &clusterd.Context{Executor: executor}, Name: "myobj", ClusterName: "ns"}
 
+	// Delete an object store
 	err := DeleteObjectStore(context)
 	assert.Nil(t, err)
-	assert.Equal(t, 6, poolsDeleted)
-	assert.Equal(t, 6, rulesDeleted)
+	expectedPoolsDeleted := 5
+	if expectedDeleteRootPool {
+		expectedPoolsDeleted++
+	}
+	assert.Equal(t, expectedPoolsDeleted, poolsDeleted)
+	assert.Equal(t, expectedPoolsDeleted, rulesDeleted)
 	assert.True(t, realmDeleted)
 	assert.True(t, zoneGroupDeleted)
 	assert.True(t, zoneDeleted)
+	assert.Equal(t, expectedDeleteRootPool, deletedRootPool)
 }

@@ -59,6 +59,7 @@ func TestResolveNodeNotExist(t *testing.T) {
 	assert.Equal(t, 1024, node.Config.StoreConfig.DatabaseSizeMB)
 	assert.Equal(t, 128, node.Config.StoreConfig.WalSizeMB)
 	assert.Equal(t, 2048, node.Config.StoreConfig.JournalSizeMB)
+	assert.Equal(t, storageSpec.Directories, node.Directories)
 }
 
 func TestResolveNodeInherentFromCluster(t *testing.T) {
@@ -67,6 +68,7 @@ func TestResolveNodeInherentFromCluster(t *testing.T) {
 		Selection: Selection{
 			DeviceFilter:   "^sd.",
 			MetadataDevice: "nvme01",
+			Directories:    []Directory{{Path: "/rook/datadir1"}},
 		},
 		Config: Config{
 			Location: "root=default,row=a,rack=a2,chassis=a2a,host=a2a1",
@@ -91,6 +93,7 @@ func TestResolveNodeInherentFromCluster(t *testing.T) {
 	assert.Equal(t, 1024, node.Config.StoreConfig.DatabaseSizeMB)
 	assert.Equal(t, 128, node.Config.StoreConfig.WalSizeMB)
 	assert.Equal(t, 2048, node.Config.StoreConfig.JournalSizeMB)
+	assert.Equal(t, []Directory{{Path: "/rook/datadir1"}}, node.Directories)
 }
 
 func TestResolveNodeDefaultValues(t *testing.T) {
@@ -112,10 +115,10 @@ func TestResolveNodeDefaultValues(t *testing.T) {
 	assert.Equal(t, 0, node.Config.StoreConfig.DatabaseSizeMB)
 	assert.Equal(t, 0, node.Config.StoreConfig.WalSizeMB)
 	assert.Equal(t, 0, node.Config.StoreConfig.JournalSizeMB)
+	assert.Equal(t, storageSpec.Directories, node.Directories)
 }
 
 func TestResolveNodeUseAllDevices(t *testing.T) {
-
 	storageSpec := StorageSpec{
 		Selection: Selection{UseAllDevices: newBool(true)}, // UseAllDevices is set to true on the storage spec
 		Nodes: []Node{
@@ -166,4 +169,75 @@ func TestClearUseAllDevices(t *testing.T) {
 	// now clear the use all devices field, it should be cleared from the entire cluster and its nodes
 	storageSpec.ClearUseAllDevices()
 	assert.False(t, storageSpec.AnyUseAllDevices())
+}
+
+func TestClusterDirectoriesInherit(t *testing.T) {
+	// test for no directories given
+	storageSpec := StorageSpec{
+		Nodes: []Node{
+			{
+				Name: "node1",
+			},
+		},
+	}
+	node := storageSpec.resolveNode("node1")
+	assert.NotNil(t, node)
+	// compare both `StorageSpec` and `Node` `Directories` because both are empty (`omitempty`)
+	//empty `Directories` is "interpreted" as `[]osd.Directory(nil)` and not `[]osd.Directory{}`
+	//by `assert.Equal`
+	assert.Equal(t, storageSpec.Directories, node.Directories)
+
+	// test if cluster wide directories is inherited to no-directories node
+	storageSpec = StorageSpec{
+		Selection: Selection{
+			Directories: []Directory{{Path: "/rook/datadir1"}},
+		},
+		Nodes: []Node{
+			{
+				Name: "node1",
+			},
+		},
+	}
+	node = storageSpec.resolveNode("node1")
+	assert.NotNil(t, node)
+	assert.Equal(t, []Directory{{Path: "/rook/datadir1"}}, node.Directories)
+
+	// test if node directories is used
+	storageSpec = StorageSpec{
+		Nodes: []Node{
+			{
+				Name: "node1",
+				Selection: Selection{
+					Directories: []Directory{{Path: "/rook/datadir2"}},
+				},
+			},
+		},
+	}
+	node = storageSpec.resolveNode("node1")
+	assert.NotNil(t, node)
+	assert.Equal(t, []Directory{{Path: "/rook/datadir2"}}, node.Directories)
+
+	// test if cluster wide directories is and isn't inherited to nodes with and without directories
+	storageSpec = StorageSpec{
+		Selection: Selection{
+			Directories: []Directory{{Path: "/rook/datadir4"}},
+		},
+		Nodes: []Node{
+			{
+				Name: "node1",
+				Selection: Selection{
+					Directories: []Directory{{Path: "/rook/datadir3"}},
+				},
+			},
+			{
+				Name: "node2",
+			},
+		},
+	}
+	node = storageSpec.resolveNode("node1")
+	assert.NotNil(t, node)
+	assert.Equal(t, []Directory{{Path: "/rook/datadir3"}}, node.Directories)
+	node = storageSpec.resolveNode("node2")
+	assert.NotNil(t, node)
+	assert.Equal(t, []Directory{{Path: "/rook/datadir4"}}, node.Directories)
 }
