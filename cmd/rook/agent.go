@@ -42,7 +42,7 @@ func startAgent(cmd *cobra.Command, args []string) error {
 
 	logStartupInfo(agentCmd.Flags())
 
-	clientset, apiExtClientset, err := getClientset()
+	clientset, apiExtClientset, rookClientset, err := getClientset()
 	if err != nil {
 		terminateFatal(fmt.Errorf("failed to get k8s client. %+v", err))
 	}
@@ -53,6 +53,7 @@ func startAgent(cmd *cobra.Command, args []string) error {
 	context.ConfigDir = k8sutil.DataDir
 	context.Clientset = clientset
 	context.APIExtensionClientset = apiExtClientset
+	context.RookClientset = rookClientset
 
 	agent := agent.New(context)
 	err = agent.Run()

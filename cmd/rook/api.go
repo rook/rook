@@ -62,7 +62,7 @@ func startAPI(cmd *cobra.Command, args []string) error {
 
 	logStartupInfo(apiCmd.Flags())
 
-	clientset, _, err := getClientset()
+	clientset, _, rookClientset, err := getClientset()
 	if err != nil {
 		terminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
 	}
@@ -70,6 +70,7 @@ func startAPI(cmd *cobra.Command, args []string) error {
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	context := createContext()
 	context.Clientset = clientset
+	context.RookClientset = rookClientset
 	c := api.NewConfig(context, apiPort, &clusterInfo, namespace, versionTag, hostNetwork)
 
 	err = api.Run(context, c)

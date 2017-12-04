@@ -17,6 +17,7 @@ package clusterd
 
 import (
 	"github.com/coreos/pkg/capnslog"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/util/exec"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
@@ -29,6 +30,9 @@ type Context struct {
 
 	// APIExtensionClientset is a connection to the API Extension kubernetes API
 	APIExtensionClientset apiextensionsclient.Interface
+
+	// RookClientset is a typed connection to the rook API
+	RookClientset rookclient.Interface
 
 	// The implementation of executing a console command
 	Executor exec.Executor

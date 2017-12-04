@@ -316,11 +316,6 @@ func (in *Node) DeepCopyInto(out *Node) {
 		*out = make([]Device, len(*in))
 		copy(*out, *in)
 	}
-	if in.Directories != nil {
-		in, out := &in.Directories, &out.Directories
-		*out = make([]Directory, len(*in))
-		copy(*out, *in)
-	}
 	in.Resources.DeepCopyInto(&out.Resources)
 	in.Selection.DeepCopyInto(&out.Selection)
 	out.Config = in.Config
@@ -670,6 +665,11 @@ func (in *Selection) DeepCopyInto(out *Selection) {
 			*out = new(bool)
 			**out = **in
 		}
+	}
+	if in.Directories != nil {
+		in, out := &in.Directories, &out.Directories
+		*out = make([]Directory, len(*in))
+		copy(*out, *in)
 	}
 	return
 }

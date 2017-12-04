@@ -86,13 +86,14 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	logStartupInfo(osdCmd.Flags())
 
-	clientset, _, err := getClientset()
+	clientset, _, rookClientset, err := getClientset()
 	if err != nil {
 		terminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
 	}
 
 	context := createContext()
 	context.Clientset = clientset
+	context.RookClientset = rookClientset
 
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset)
 
