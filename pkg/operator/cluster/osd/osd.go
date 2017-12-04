@@ -136,8 +136,8 @@ func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, config rookalpha.
 	return ds
 }
 
-func (c *Cluster) makeReplicaSet(nodeName string, devices []Device,
-	selection Selection, resources v1.ResourceRequirements, config rookalpha.Config) *extensions.ReplicaSet {
+func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device,
+	selection rookalpha.Selection, resources v1.ResourceRequirements, config rookalpha.Config) *extensions.ReplicaSet {
 
 	rs := &extensions.ReplicaSet{}
 	rs.Name = fmt.Sprintf(appNameFmt, nodeName)

@@ -64,7 +64,7 @@ nodes:
 		Selection: rookalpha.Selection{
 			UseAllDevices: &useAllDevices,
 			DeviceFilter:  "^nvme.",
-			Directories:   []Directory{{Path: "/rook/dir2"}},
+			Directories:   []rookalpha.Directory{{Path: "/rook/dir2"}},
 		},
 		Config: rookalpha.Config{
 			Location: "region=us-west,datacenter=delmar",

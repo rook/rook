@@ -47,20 +47,20 @@ var (
 
 // ClusterController monitors cluster events and reacts to clean up any affected volume attachments
 type ClusterController struct {
-	context                    *clusterd.Context
-	scheme                     *runtime.Scheme
-	volumeAttachmentController attachment.Controller
-	flexvolumeController       flexvolume.VolumeController
+	context              *clusterd.Context
+	scheme               *runtime.Scheme
+	volumeAttachment     attachment.Attachment
+	flexvolumeController flexvolume.VolumeController
 }
 
 // NewClusterController creates a new instance of a ClusterController
 func NewClusterController(context *clusterd.Context, flexvolumeController flexvolume.VolumeController,
-	volumeAttachmentController attachment.Controller, manager flexvolume.VolumeManager) *ClusterController {
+	volumeAttachment attachment.Attachment, manager flexvolume.VolumeManager) *ClusterController {
 
 	return &ClusterController{
-		context:                    context,
-		volumeAttachmentController: volumeAttachmentController,
-		flexvolumeController:       flexvolumeController,
+		context:              context,
+		volumeAttachment:     volumeAttachment,
+		flexvolumeController: flexvolumeController,
 	}
 }
 
@@ -89,7 +89,7 @@ func (c *ClusterController) handleClusterDelete(cluster *rookalpha.Cluster, retr
 	logger.Infof("cluster in namespace %s is being deleted, agent on node %s will attempt to clean up.", cluster.Namespace, node)
 
 	// TODO: filter this List operation by node name and cluster namespace on the server side
-	vols, err := c.volumeAttachmentController.List(agentNamespace)
+	vols, err := c.volumeAttachment.List(agentNamespace)
 	if err != nil {
 		logger.Errorf("failed to get volume attachments for agent namespace %s: %+v", agentNamespace, err)
 	}
@@ -171,7 +171,7 @@ func (c *ClusterController) cleanupVolumeAttachment(mountDir string, retryInterv
 		// its safe to delete the CRD entirely, do so now
 		namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 		crdName := attachInfo.VolumeName
-		if err := c.volumeAttachmentController.Delete(namespace, crdName); err != nil {
+		if err := c.volumeAttachment.Delete(namespace, crdName); err != nil {
 			return err
 		}
 	}

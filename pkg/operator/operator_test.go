@@ -32,7 +32,7 @@ import (
 func TestOperator(t *testing.T) {
 	clientset := test.New(3)
 	context := &clusterd.Context{Clientset: clientset}
-	o := New(context, &attachment.MockController{})
+	o := New(context, &attachment.MockAttachment{})
 
 	assert.NotNil(t, o)
 	assert.NotNil(t, o.clusterController)

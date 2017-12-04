@@ -30,6 +30,7 @@ import (
 	"testing"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned/fake"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume/manager"
@@ -38,13 +39,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
 	storagev1 "k8s.io/api/storage/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/serializer"
-	"k8s.io/client-go/kubernetes/fake"
-	fakeclient "k8s.io/client-go/rest/fake"
-	"k8s.io/kubernetes/pkg/api"
-	cmdtesting "k8s.io/kubernetes/pkg/kubectl/cmd/testing"
 )
 
 func TestAttach(t *testing.T) {
@@ -57,24 +54,8 @@ func TestAttach(t *testing.T) {
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
 	context := &clusterd.Context{
-		Clientset: clientset,
-	}
-
-	scheme := attachment.RegisterFakeAPI()
-	fakeClient := &fakeclient.RESTClient{
-		NegotiatedSerializer: serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)},
-		APIRegistry:          api.Registry,
-		Client: fakeclient.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
-			switch p, m := req.URL.Path, req.Method; {
-			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "GET":
-				return &http.Response{StatusCode: 404, Header: defaultHeader(), Body: ioutil.NopCloser(bytes.NewReader([]byte("")))}, nil
-			case p == "/namespaces/rook-system/volumeattachments" && m == "POST":
-				return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(req.Body)}, nil
-			default:
-				t.Fatalf("unexpected request: %#v\n%#v", req.URL, req)
-				return nil, nil
-			}
-		}),
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 
 	devicePath := ""
@@ -89,18 +70,29 @@ func TestAttach(t *testing.T) {
 		PodNamespace: "Default",
 		RW:           "rw",
 	}
-	attachmentController, err := attachment.CreateController(clientset, fakeClient)
+	att, err := attachment.New(context)
 	assert.Nil(t, err)
 
 	controller := &Controller{
-		context:              context,
-		attachmentController: attachmentController,
-		volumeManager:        &manager.FakeVolumeManager{},
+		context:          context,
+		volumeAttachment: att,
+		volumeManager:    &manager.FakeVolumeManager{},
 	}
 
 	err = controller.Attach(opts, &devicePath)
 	assert.Nil(t, err)
-	assert.Equal(t, "/image123/testpool/testCluster", devicePath)
+	volumeAttachment, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Get("pvc-123", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, volumeAttachment)
+	assert.Equal(t, 1, len(volumeAttachment.Attachments))
+
+	a := volumeAttachment.Attachments[0]
+	assert.Equal(t, "node1", a.Node)
+	assert.Equal(t, "Default", a.PodNamespace)
+	assert.Equal(t, "myPod", a.PodName)
+	assert.Equal(t, "testCluster", a.ClusterName)
+	assert.Equal(t, "/test/pods/pod123/volumes/rook.io~rook/pvc-123", a.MountDir)
+	assert.False(t, a.ReadOnly)
 }
 
 func TestAttachAlreadyExist(t *testing.T) {
@@ -113,7 +105,8 @@ func TestAttachAlreadyExist(t *testing.T) {
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 
 	pod := v1.Pod{
@@ -128,6 +121,10 @@ func TestAttachAlreadyExist(t *testing.T) {
 	clientset.CoreV1().Pods("Default").Create(&pod)
 
 	existingCRD := &rookalpha.VolumeAttachment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pvc-123",
+			Namespace: "rook-system",
+		},
 		Attachments: []rookalpha.Attachment{
 			{
 				Node:         "node1",
@@ -139,14 +136,9 @@ func TestAttachAlreadyExist(t *testing.T) {
 		},
 	}
 
-	_, _, _, ns := cmdtesting.NewAPIFactory()
-	fakeClient := &fakeclient.RESTClient{
-		NegotiatedSerializer: ns,
-		APIRegistry:          api.Registry,
-		Client: fakeclient.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(existingCRD)}, nil
-		}),
-	}
+	volumeAttachment, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Create(existingCRD)
+	assert.Nil(t, err)
+	assert.NotNil(t, volumeAttachment)
 
 	var devicePath *string
 	opts := AttachOptions{
@@ -160,13 +152,13 @@ func TestAttachAlreadyExist(t *testing.T) {
 		RW:           "rw",
 	}
 
-	attachmentController, err := attachment.CreateController(clientset, fakeClient)
+	att, err := attachment.New(context)
 	assert.Nil(t, err)
 
 	controller := &Controller{
-		context:              context,
-		attachmentController: attachmentController,
-		volumeManager:        &manager.FakeVolumeManager{},
+		context:          context,
+		volumeAttachment: att,
+		volumeManager:    &manager.FakeVolumeManager{},
 	}
 
 	err = controller.Attach(opts, devicePath)
@@ -184,7 +176,8 @@ func TestAttachReadOnlyButRWAlreadyExist(t *testing.T) {
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 
 	pod := v1.Pod{
@@ -199,6 +192,10 @@ func TestAttachReadOnlyButRWAlreadyExist(t *testing.T) {
 	clientset.CoreV1().Pods("Default").Create(&pod)
 
 	existingCRD := &rookalpha.VolumeAttachment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pvc-123",
+			Namespace: "rook-system",
+		},
 		Attachments: []rookalpha.Attachment{
 			{
 				Node:         "node1",
@@ -209,15 +206,9 @@ func TestAttachReadOnlyButRWAlreadyExist(t *testing.T) {
 			},
 		},
 	}
-
-	_, _, _, ns := cmdtesting.NewAPIFactory()
-	fakeClient := &fakeclient.RESTClient{
-		NegotiatedSerializer: ns,
-		APIRegistry:          api.Registry,
-		Client: fakeclient.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(existingCRD)}, nil
-		}),
-	}
+	volumeAttachment, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Create(existingCRD)
+	assert.Nil(t, err)
+	assert.NotNil(t, volumeAttachment)
 
 	var devicePath *string
 	opts := AttachOptions{
@@ -231,13 +222,13 @@ func TestAttachReadOnlyButRWAlreadyExist(t *testing.T) {
 		RW:           "ro",
 	}
 
-	attachmentController, err := attachment.CreateController(clientset, fakeClient)
+	att, err := attachment.New(context)
 	assert.Nil(t, err)
 
 	controller := &Controller{
-		context:              context,
-		attachmentController: attachmentController,
-		volumeManager:        &manager.FakeVolumeManager{},
+		context:          context,
+		volumeAttachment: att,
+		volumeManager:    &manager.FakeVolumeManager{},
 	}
 
 	err = controller.Attach(opts, devicePath)
@@ -255,10 +246,15 @@ func TestAttachRWButROAlreadyExist(t *testing.T) {
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 
 	existingCRD := &rookalpha.VolumeAttachment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pvc-123",
+			Namespace: "rook-system",
+		},
 		Attachments: []rookalpha.Attachment{
 			{
 				Node:         "node1",
@@ -269,15 +265,9 @@ func TestAttachRWButROAlreadyExist(t *testing.T) {
 			},
 		},
 	}
-
-	_, _, _, ns := cmdtesting.NewAPIFactory()
-	fakeClient := &fakeclient.RESTClient{
-		NegotiatedSerializer: ns,
-		APIRegistry:          api.Registry,
-		Client: fakeclient.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(existingCRD)}, nil
-		}),
-	}
+	volumeAttachment, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Create(existingCRD)
+	assert.Nil(t, err)
+	assert.NotNil(t, volumeAttachment)
 
 	var devicePath *string
 	opts := AttachOptions{
@@ -290,13 +280,13 @@ func TestAttachRWButROAlreadyExist(t *testing.T) {
 		PodNamespace: "Default",
 		RW:           "rw",
 	}
-	attachmentController, err := attachment.CreateController(clientset, fakeClient)
+	att, err := attachment.New(context)
 	assert.Nil(t, err)
 
 	controller := &Controller{
-		context:              context,
-		attachmentController: attachmentController,
-		volumeManager:        &manager.FakeVolumeManager{},
+		context:          context,
+		volumeAttachment: att,
+		volumeManager:    &manager.FakeVolumeManager{},
 	}
 
 	err = controller.Attach(opts, devicePath)
@@ -314,9 +304,20 @@ func TestMultipleAttachReadOnly(t *testing.T) {
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 
+	opts := AttachOptions{
+		Image:        "image123",
+		Pool:         "testpool",
+		ClusterName:  "testCluster",
+		MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
+		VolumeName:   "pvc-123",
+		Pod:          "myPod",
+		PodNamespace: "Default",
+		RW:           "ro",
+	}
 	existingCRD := &rookalpha.VolumeAttachment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "pvc-123",
@@ -332,68 +333,41 @@ func TestMultipleAttachReadOnly(t *testing.T) {
 			},
 		},
 	}
+	volumeAttachment, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Create(existingCRD)
+	assert.Nil(t, err)
+	assert.NotNil(t, volumeAttachment)
 
-	opts := AttachOptions{
-		Image:        "image123",
-		Pool:         "testpool",
-		ClusterName:  "testCluster",
-		MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
-		VolumeName:   "pvc-123",
-		Pod:          "myPod",
-		PodNamespace: "Default",
-		RW:           "ro",
-	}
-
-	scheme := attachment.RegisterFakeAPI()
-	fakeClient := &fakeclient.RESTClient{
-		NegotiatedSerializer: serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)},
-		APIRegistry:          api.Registry,
-		Client: fakeclient.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
-			switch p, m := req.URL.Path, req.Method; {
-			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "GET":
-				return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(existingCRD)}, nil
-			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "PUT":
-				o, _ := ioutil.ReadAll(req.Body)
-				var volAtt rookalpha.VolumeAttachment
-				json.Unmarshal(o, &volAtt)
-
-				assert.Equal(t, 2, len(volAtt.Attachments))
-
-				assert.True(t, containsAttachment(
-					rookalpha.Attachment{
-						PodNamespace: opts.PodNamespace,
-						PodName:      opts.Pod,
-						MountDir:     opts.MountDir,
-						ReadOnly:     true,
-						Node:         "node1",
-					}, volAtt.Attachments,
-				), "VolumeAttachment crd does not contain expected attachment")
-
-				assert.True(t, containsAttachment(
-					existingCRD.Attachments[0], volAtt.Attachments,
-				), "VolumeAttachment crd does not contain expected attachment")
-
-				return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(req.Body)}, nil
-			default:
-				t.Fatalf("unexpected request: %#v\n%#v", req.URL, req)
-				return nil, nil
-			}
-
-		}),
-	}
-
-	attachmentController, err := attachment.CreateController(clientset, fakeClient)
+	att, err := attachment.New(context)
 	assert.Nil(t, err)
 
 	devicePath := ""
 	controller := &Controller{
-		context:              context,
-		attachmentController: attachmentController,
-		volumeManager:        &manager.FakeVolumeManager{},
+		context:          context,
+		volumeAttachment: att,
+		volumeManager:    &manager.FakeVolumeManager{},
 	}
 
 	err = controller.Attach(opts, &devicePath)
 	assert.Nil(t, err)
+
+	volAtt, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Get("pvc-123", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, volumeAttachment)
+	assert.Equal(t, 2, len(volAtt.Attachments))
+
+	assert.True(t, containsAttachment(
+		rookalpha.Attachment{
+			PodNamespace: opts.PodNamespace,
+			PodName:      opts.Pod,
+			MountDir:     opts.MountDir,
+			ReadOnly:     true,
+			Node:         "node1",
+		}, volAtt.Attachments,
+	), "VolumeAttachment crd does not contain expected attachment")
+
+	assert.True(t, containsAttachment(
+		existingCRD.Attachments[0], volAtt.Attachments,
+	), "VolumeAttachment crd does not contain expected attachment")
 }
 
 func TestOrphanAttachOriginalPodDoesntExist(t *testing.T) {
@@ -406,9 +380,20 @@ func TestOrphanAttachOriginalPodDoesntExist(t *testing.T) {
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 
+	opts := AttachOptions{
+		Image:        "image123",
+		Pool:         "testpool",
+		ClusterName:  "testCluster",
+		MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
+		VolumeName:   "pvc-123",
+		Pod:          "newPod",
+		PodNamespace: "Default",
+		RW:           "rw",
+	}
 	existingCRD := &rookalpha.VolumeAttachment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "pvc-123",
@@ -418,69 +403,42 @@ func TestOrphanAttachOriginalPodDoesntExist(t *testing.T) {
 			{
 				Node:         "otherNode",
 				PodNamespace: "Default",
-				PodName:      "myPod",
+				PodName:      "oldPod",
 				MountDir:     "/tmt/test",
 				ReadOnly:     false,
 			},
 		},
 	}
+	volumeAttachment, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Create(existingCRD)
+	assert.Nil(t, err)
+	assert.NotNil(t, volumeAttachment)
 
-	opts := AttachOptions{
-		Image:        "image123",
-		Pool:         "testpool",
-		ClusterName:  "testCluster",
-		MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
-		VolumeName:   "pvc-123",
-		Pod:          "myPod",
-		PodNamespace: "Default",
-		RW:           "rw",
-	}
-
-	scheme := attachment.RegisterFakeAPI()
-	fakeClient := &fakeclient.RESTClient{
-		NegotiatedSerializer: serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)},
-		APIRegistry:          api.Registry,
-		Client: fakeclient.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
-			switch p, m := req.URL.Path, req.Method; {
-			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "GET":
-				return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(existingCRD)}, nil
-			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "PUT":
-				o, _ := ioutil.ReadAll(req.Body)
-				var volAtt rookalpha.VolumeAttachment
-				json.Unmarshal(o, &volAtt)
-
-				assert.Equal(t, 1, len(volAtt.Attachments))
-				assert.True(t, containsAttachment(
-					rookalpha.Attachment{
-						PodNamespace: opts.PodNamespace,
-						PodName:      opts.Pod,
-						MountDir:     opts.MountDir,
-						ReadOnly:     false,
-						Node:         "node1",
-					}, volAtt.Attachments,
-				), "VolumeAttachment crd does not contain expected attachment")
-
-				return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(req.Body)}, nil
-			default:
-				t.Fatalf("unexpected request: %#v\n%#v", req.URL, req)
-				return nil, nil
-			}
-
-		}),
-	}
-
-	attachmentController, err := attachment.CreateController(clientset, fakeClient)
+	att, err := attachment.New(context)
 	assert.Nil(t, err)
 
 	devicePath := ""
 	controller := &Controller{
-		context:              context,
-		attachmentController: attachmentController,
-		volumeManager:        &manager.FakeVolumeManager{},
+		context:          context,
+		volumeAttachment: att,
+		volumeManager:    &manager.FakeVolumeManager{},
 	}
 
 	err = controller.Attach(opts, &devicePath)
 	assert.Nil(t, err)
+
+	volAtt, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Get("pvc-123", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, volAtt)
+	assert.Equal(t, 1, len(volAtt.Attachments))
+	assert.True(t, containsAttachment(
+		rookalpha.Attachment{
+			PodNamespace: opts.PodNamespace,
+			PodName:      opts.Pod,
+			MountDir:     opts.MountDir,
+			ReadOnly:     false,
+			Node:         "node1",
+		}, volAtt.Attachments,
+	), "VolumeAttachment crd does not contain expected attachment")
 }
 
 func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
@@ -493,7 +451,8 @@ func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 
 	// Setting up the pod to ensure that it is exists
@@ -510,12 +469,12 @@ func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
 	clientset.CoreV1().Pods("Default").Create(&pod)
 
 	// existing record of old attachment. Pod namespace and name must much with the new attachment input to simulate that the new attachment is for the same pod
-	existingCRD := &crd.VolumeAttachment{
+	existingCRD := &rookalpha.VolumeAttachment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "pvc-123",
 			Namespace: "rook-system",
 		},
-		Attachments: []crd.Attachment{
+		Attachments: []rookalpha.Attachment{
 			{
 				Node:         "otherNode",
 				PodNamespace: "Default",
@@ -525,6 +484,10 @@ func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
 			},
 		},
 	}
+
+	volumeAttachment, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Create(existingCRD)
+	assert.Nil(t, err)
+	assert.NotNil(t, volumeAttachment)
 
 	// attachment input. The ID of the pod must be different than the original record to simulate that
 	// the pod resource is a different one but for the same pod metadata. This is reflected in the MountDir.
@@ -540,49 +503,33 @@ func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
 		RW:           "rw",
 	}
 
-	scheme := crd.RegisterFakeAPI()
-	fakeClient := &fakerestclient.RESTClient{
-		NegotiatedSerializer: serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)},
-		APIRegistry:          api.Registry,
-		Client: fakerestclient.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
-			switch p, m := req.URL.Path, req.Method; {
-			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "GET":
-				return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(existingCRD)}, nil
-			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "PUT":
-				o, _ := ioutil.ReadAll(req.Body)
-				var volAtt crd.VolumeAttachment
-				json.Unmarshal(o, &volAtt)
+	att, err := attachment.New(context)
+	assert.Nil(t, err)
 
-				assert.Equal(t, 1, len(volAtt.Attachments))
-				assert.True(t, containsAttachment(
-					crd.Attachment{
-						PodNamespace: opts.PodNamespace,
-						PodName:      opts.Pod,
-						MountDir:     opts.MountDir,
-						ReadOnly:     false,
-						Node:         "node1",
-					}, volAtt.Attachments,
-				), "VolumeAttachment crd does not contain expected attachment")
-
-				return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(req.Body)}, nil
-			default:
-				t.Fatalf("unexpected request: %#v\n%#v", req.URL, req)
-				return nil, nil
-			}
-
-		}),
-	}
-
-	devicePath := ""
-	controller := &FlexvolumeController{
-		context:                    context,
-		volumeAttachmentController: crd.New(fakeClient),
-		volumeManager:              &manager.FakeVolumeManager{},
+	controller := &Controller{
+		context:          context,
+		volumeAttachment: att,
+		volumeManager:    &manager.FakeVolumeManager{},
 	}
 
 	// Attach should succeed and the stale volumeattachment record should be updated to reflect the new pod information
-	err := controller.Attach(opts, &devicePath)
+	devicePath := ""
+	err = controller.Attach(opts, &devicePath)
 	assert.Nil(t, err)
+
+	volAtt, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Get("pvc-123", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, volAtt)
+	assert.Equal(t, 1, len(volAtt.Attachments))
+	assert.True(t, containsAttachment(
+		rookalpha.Attachment{
+			PodNamespace: opts.PodNamespace,
+			PodName:      opts.Pod,
+			MountDir:     opts.MountDir,
+			ReadOnly:     false,
+			Node:         "node1",
+		}, volAtt.Attachments,
+	), "VolumeAttachment crd does not contain expected attachment")
 }
 
 // This tests the idempotency of the VolumeAttachment record.
@@ -598,7 +545,19 @@ func TestVolumeAttachmentExistAttach(t *testing.T) {
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
+	}
+
+	opts := AttachOptions{
+		Image:        "image123",
+		Pool:         "testpool",
+		ClusterName:  "testCluster",
+		MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
+		VolumeName:   "pvc-123",
+		Pod:          "myPod",
+		PodNamespace: "Default",
+		RW:           "rw",
 	}
 
 	existingCRD := &rookalpha.VolumeAttachment{
@@ -616,49 +575,27 @@ func TestVolumeAttachmentExistAttach(t *testing.T) {
 			},
 		},
 	}
+	volumeAttachment, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Create(existingCRD)
+	assert.Nil(t, err)
+	assert.NotNil(t, volumeAttachment)
 
-	opts := AttachOptions{
-		Image:        "image123",
-		Pool:         "testpool",
-		ClusterName:  "testCluster",
-		MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
-		VolumeName:   "pvc-123",
-		Pod:          "myPod",
-		PodNamespace: "Default",
-		RW:           "rw",
-	}
-
-	scheme := attachment.RegisterFakeAPI()
-	fakeClient := &fakeclient.RESTClient{
-		NegotiatedSerializer: serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)},
-		APIRegistry:          api.Registry,
-		Client: fakeclient.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
-			switch p, m := req.URL.Path, req.Method; {
-			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "GET":
-				return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(existingCRD)}, nil
-			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "PUT":
-				assert.Fail(t, "VolumeAttachment shoud not be updated")
-				return &http.Response{StatusCode: 500, Header: defaultHeader(), Body: objBody(req.Body)}, nil
-			default:
-				t.Fatalf("unexpected request: %#v\n%#v", req.URL, req)
-				return nil, nil
-			}
-
-		}),
-	}
-
-	attachmentController, err := attachment.CreateController(clientset, fakeClient)
+	att, err := attachment.New(context)
 	assert.Nil(t, err)
 
 	devicePath := ""
 	controller := &Controller{
-		context:              context,
-		attachmentController: attachmentController,
-		volumeManager:        &manager.FakeVolumeManager{},
+		context:          context,
+		volumeAttachment: att,
+		volumeManager:    &manager.FakeVolumeManager{},
 	}
 
 	err = controller.Attach(opts, &devicePath)
 	assert.Nil(t, err)
+
+	newAttach, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Get("pvc-123", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, newAttach)
+	// TODO: Check that the volume attach was not updated (can't use ResourceVersion in the fake testing)
 }
 
 func TestDetach(t *testing.T) {
@@ -671,44 +608,41 @@ func TestDetach(t *testing.T) {
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 
 	existingCRD := &rookalpha.VolumeAttachment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pvc-123",
+			Namespace: "rook-system",
+		},
 		Attachments: []rookalpha.Attachment{},
 	}
-
-	deleteCRDCalled := false
-	_, _, _, ns := cmdtesting.NewAPIFactory()
-	fakeClient := &fakeclient.RESTClient{
-		NegotiatedSerializer: ns,
-		APIRegistry:          api.Registry,
-		Client: fakeclient.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
-			if req.Method == "DELETE" {
-				deleteCRDCalled = true
-				assert.Equal(t, req.URL.Path, "/namespaces/rook-system/volumeattachments/pvc-123")
-			}
-			return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(existingCRD)}, nil
-		}),
-	}
+	volumeAttachment, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Create(existingCRD)
+	assert.Nil(t, err)
+	assert.NotNil(t, volumeAttachment)
 
 	opts := AttachOptions{
 		VolumeName: "pvc-123",
 		MountDir:   "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
 	}
 
-	attachmentController, err := attachment.CreateController(clientset, fakeClient)
+	att, err := attachment.New(context)
 	assert.Nil(t, err)
 
 	controller := &Controller{
-		context:              context,
-		attachmentController: attachmentController,
-		volumeManager:        &manager.FakeVolumeManager{},
+		context:          context,
+		volumeAttachment: att,
+		volumeManager:    &manager.FakeVolumeManager{},
 	}
 
 	err = controller.Detach(opts, nil)
 	assert.Nil(t, err)
-	assert.True(t, deleteCRDCalled)
+
+	_, err = context.RookClientset.Rook().VolumeAttachments("rook-system").Get("pvc-123", metav1.GetOptions{})
+	assert.NotNil(t, err)
+	assert.True(t, errors.IsNotFound(err))
 }
 
 func TestDetachWithAttachmentLeft(t *testing.T) {
@@ -721,10 +655,15 @@ func TestDetachWithAttachmentLeft(t *testing.T) {
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 
 	existingCRD := &rookalpha.VolumeAttachment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pvc-123",
+			Namespace: "rook-system",
+		},
 		Attachments: []rookalpha.Attachment{
 			{
 				Node:         "node1",
@@ -734,37 +673,30 @@ func TestDetachWithAttachmentLeft(t *testing.T) {
 			},
 		},
 	}
-
-	deleteCRDCalled := false
-	_, _, _, ns := cmdtesting.NewAPIFactory()
-	fakeClient := &fakeclient.RESTClient{
-		NegotiatedSerializer: ns,
-		APIRegistry:          api.Registry,
-		Client: fakeclient.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
-			if req.Method == "DELETE" {
-				deleteCRDCalled = true
-			}
-			return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(existingCRD)}, nil
-		}),
-	}
+	volumeAttachment, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Create(existingCRD)
+	assert.Nil(t, err)
+	assert.NotNil(t, volumeAttachment)
 
 	opts := AttachOptions{
 		VolumeName: "pvc-123",
 		MountDir:   "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
 	}
 
-	attachmentController, err := attachment.CreateController(clientset, fakeClient)
+	att, err := attachment.New(context)
 	assert.Nil(t, err)
 
 	controller := &Controller{
-		context:              context,
-		attachmentController: attachmentController,
-		volumeManager:        &manager.FakeVolumeManager{},
+		context:          context,
+		volumeAttachment: att,
+		volumeManager:    &manager.FakeVolumeManager{},
 	}
 
 	err = controller.Detach(opts, nil)
 	assert.Nil(t, err)
-	assert.False(t, deleteCRDCalled)
+
+	volAttach, err := context.RookClientset.Rook().VolumeAttachments("rook-system").Get("pvc-123", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, volAttach)
 }
 
 func TestGetAttachInfoFromMountDir(t *testing.T) {
@@ -777,7 +709,8 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
 
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 
 	pv := &v1.PersistentVolume{
@@ -852,7 +785,8 @@ func TestParseClusterName(t *testing.T) {
 	clientset := test.New(3)
 
 	context := &clusterd.Context{
-		Clientset: clientset,
+		Clientset:     clientset,
+		RookClientset: rookclient.NewSimpleClientset(),
 	}
 	sc := storagev1.StorageClass{
 		ObjectMeta: metav1.ObjectMeta{
@@ -862,12 +796,12 @@ func TestParseClusterName(t *testing.T) {
 		Parameters:  map[string]string{"pool": "testpool", "clusterName": "testCluster", "fsType": "ext3"},
 	}
 	clientset.StorageV1().StorageClasses().Create(&sc)
-	attachmentController, err := attachment.CreateController(clientset, fake.NewSimpleClientset().CoreV1().RESTClient())
+	volumeAttachment, err := attachment.New(context)
 	assert.Nil(t, err)
 
 	fc := &Controller{
-		context:              context,
-		attachmentController: attachmentController,
+		context:          context,
+		volumeAttachment: volumeAttachment,
 	}
 	clusterName, _ := fc.parseClusterName("rook-storageclass")
 	assert.Equal(t, "testCluster", clusterName)

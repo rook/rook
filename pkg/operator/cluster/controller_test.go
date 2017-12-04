@@ -80,12 +80,12 @@ func TestClusterDelete(t *testing.T) {
 	}
 
 	listCount := 0
-	volumeAttachmentController := &attachment.MockController{
-		MockList: func(namespace string) (rookalpha.VolumeAttachmentList, error) {
+	volumeAttachmentController := &attachment.MockAttachment{
+		MockList: func(namespace string) (*rookalpha.VolumeAttachmentList, error) {
 			listCount++
 			if listCount == 1 {
 				// first listing returns an existing volume attachment, so the controller should wait
-				return rookalpha.VolumeAttachmentList{
+				return &rookalpha.VolumeAttachmentList{
 					Items: []rookalpha.VolumeAttachment{
 						{
 							ObjectMeta: metav1.ObjectMeta{
@@ -104,7 +104,7 @@ func TestClusterDelete(t *testing.T) {
 			} else {
 				// subsequent listings should return no volume attachments, meaning that they have all
 				// been cleaned up and the controller can move on.
-				return rookalpha.VolumeAttachmentList{Items: []rookalpha.VolumeAttachment{}}, nil
+				return &rookalpha.VolumeAttachmentList{Items: []rookalpha.VolumeAttachment{}}, nil
 			}
 		},
 	}

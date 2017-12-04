@@ -34,19 +34,19 @@ const (
 
 var tprlogger = capnslog.NewPackageLogger("github.com/rook/rook", "rook-agent-tpr")
 
-// TPRController is a controller to manage VolumeAttachment TPR objects
+// TPR is a controller to manage VolumeAttachment TPR objects
 // CRD is available on v1.7.0. TPR became deprecated on v1.7.0
 // Remove this code when TPR is not longer supported
-type TPRController struct {
+type tpr struct {
 	clientset kubernetes.Interface
 }
 
 // Get queries the VolumeAttachment TPR from Kubernetes
-func (c *TPRController) Get(namespace, name string) (rookalpha.VolumeAttachment, error) {
+func (t *tpr) Get(namespace, name string) (*rookalpha.VolumeAttachment, error) {
 
 	var result rookalpha.VolumeAttachment
 	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, namespace, CustomResourceNamePlural)
-	return result, c.clientset.Core().RESTClient().Get().
+	return &result, t.clientset.Core().RESTClient().Get().
 		RequestURI(uri).
 		Name(name).
 		Do().
@@ -54,35 +54,35 @@ func (c *TPRController) Get(namespace, name string) (rookalpha.VolumeAttachment,
 }
 
 // List lists all the volume attachment TPR resources in the given namespace
-func (c *TPRController) List(namespace string) (rookalpha.VolumeAttachmentList, error) {
+func (t *tpr) List(namespace string) (*rookalpha.VolumeAttachmentList, error) {
 
 	var result rookalpha.VolumeAttachmentList
 	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, namespace, CustomResourceNamePlural)
-	return result, c.clientset.Core().RESTClient().Get().
+	return &result, t.clientset.Core().RESTClient().Get().
 		RequestURI(uri).
 		Do().
 		Into(&result)
 }
 
 // Create creates the volume attach TPR resource in Kubernetes
-func (c *TPRController) Create(volumeAttachment rookalpha.VolumeAttachment) error {
+func (t *tpr) Create(volumeAttachment *rookalpha.VolumeAttachment) error {
 	volumeAttachment.APIVersion = fmt.Sprintf("%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version)
 	volumeAttachment.Kind = tprKind
 	body, _ := json.Marshal(volumeAttachment)
 	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, volumeAttachment.Namespace, CustomResourceNamePlural)
-	return c.clientset.Core().RESTClient().Post().
+	return t.clientset.Core().RESTClient().Post().
 		RequestURI(uri).
 		Body(body).
 		Do().Error()
 }
 
 // Update updates VolumeAttachment TPR resource
-func (c *TPRController) Update(volumeAttachment rookalpha.VolumeAttachment) error {
+func (t *tpr) Update(volumeAttachment *rookalpha.VolumeAttachment) error {
 	volumeAttachment.APIVersion = fmt.Sprintf("%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version)
 	volumeAttachment.Kind = tprKind
 	body, _ := json.Marshal(volumeAttachment)
 	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, volumeAttachment.Namespace, CustomResourceNamePlural)
-	err := c.clientset.Core().RESTClient().Put().
+	err := t.clientset.Core().RESTClient().Put().
 		RequestURI(uri).
 		Name(volumeAttachment.Name).
 		Body(body).
@@ -96,9 +96,9 @@ func (c *TPRController) Update(volumeAttachment rookalpha.VolumeAttachment) erro
 }
 
 // Delete deletes the volume attach TPR resource in Kubernetes
-func (c *TPRController) Delete(namespace, name string) error {
+func (t *tpr) Delete(namespace, name string) error {
 	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, namespace, CustomResourceNamePlural)
-	return c.clientset.Core().RESTClient().Delete().
+	return t.clientset.Core().RESTClient().Delete().
 		RequestURI(uri).
 		Name(name).
 		Do().

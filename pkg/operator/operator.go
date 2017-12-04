@@ -58,14 +58,14 @@ type Operator struct {
 	context   *clusterd.Context
 	resources []opkit.CustomResource
 	// The custom resource that is global to the kubernetes cluster.
-	// The cluster is global because you create multiple clusers in k8s
+	// The cluster is global because you create multiple clusters in k8s
 	clusterController *cluster.ClusterController
 	volumeProvisioner controller.Provisioner
 }
 
 // New creates an operator instance
-func New(context *clusterd.Context, volumeAttachmentController attachment.Controller) *Operator {
-	clusterController := cluster.NewClusterController(context, volumeAttachmentController)
+func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachment) *Operator {
+	clusterController := cluster.NewClusterController(context, volumeAttachmentWrapper)
 	volumeProvisioner := provisioner.New(context)
 
 	schemes := []opkit.CustomResource{cluster.ClusterResource, pool.PoolResource, rgw.ObjectStoreResource,

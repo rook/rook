@@ -178,7 +178,7 @@ func TestClusterDirectoriesInherit(t *testing.T) {
 			},
 		},
 	}
-	node := storageSpec.resolveNode("node1")
+	node := storageSpec.ResolveNode("node1")
 	assert.NotNil(t, node)
 	// compare both `StorageSpec` and `Node` `Directories` because both are empty (`omitempty`)
 	//empty `Directories` is "interpreted" as `[]osd.Directory(nil)` and not `[]osd.Directory{}`
@@ -196,7 +196,7 @@ func TestClusterDirectoriesInherit(t *testing.T) {
 			},
 		},
 	}
-	node = storageSpec.resolveNode("node1")
+	node = storageSpec.ResolveNode("node1")
 	assert.NotNil(t, node)
 	assert.Equal(t, []Directory{{Path: "/rook/datadir1"}}, node.Directories)
 
@@ -211,7 +211,7 @@ func TestClusterDirectoriesInherit(t *testing.T) {
 			},
 		},
 	}
-	node = storageSpec.resolveNode("node1")
+	node = storageSpec.ResolveNode("node1")
 	assert.NotNil(t, node)
 	assert.Equal(t, []Directory{{Path: "/rook/datadir2"}}, node.Directories)
 
@@ -232,10 +232,10 @@ func TestClusterDirectoriesInherit(t *testing.T) {
 			},
 		},
 	}
-	node = storageSpec.resolveNode("node1")
+	node = storageSpec.ResolveNode("node1")
 	assert.NotNil(t, node)
 	assert.Equal(t, []Directory{{Path: "/rook/datadir3"}}, node.Directories)
-	node = storageSpec.resolveNode("node2")
+	node = storageSpec.ResolveNode("node2")
 	assert.NotNil(t, node)
 	assert.Equal(t, []Directory{{Path: "/rook/datadir4"}}, node.Directories)
 }
