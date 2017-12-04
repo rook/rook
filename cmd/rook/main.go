@@ -27,9 +27,9 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/rook/rook/pkg/ceph/mon"
-	"github.com/rook/rook/pkg/ceph/osd"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/rook/rook/pkg/version"
@@ -63,7 +63,7 @@ type config struct {
 	location           string
 	logLevel           capnslog.LogLevel
 	cephConfigOverride string
-	storeConfig        osd.StoreConfig
+	storeConfig        rookalpha.StoreConfig
 	networkInfo        clusterd.NetworkInfo
 	monEndpoints       string
 	nodeName           string

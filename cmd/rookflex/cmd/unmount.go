@@ -20,7 +20,8 @@ import (
 	"fmt"
 	"net/rpc"
 
-	"github.com/rook/rook/pkg/agent/flexvolume"
+	"github.com/rook/rook/pkg/daemon/agent/flexvolume"
+	"github.com/rook/rook/pkg/util/exec"
 	"github.com/spf13/cobra"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/volume/util"
@@ -32,6 +33,7 @@ var (
 		Short: "Unmounts the pod volume",
 		RunE:  handleUnmount,
 	}
+	executor = &exec.CommandExecutor{}
 )
 
 func init() {
@@ -51,7 +53,7 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 	mounter := getMounter()
 
 	// Check if it's a cephfs
-	err = mounter.Runner.Command("df", "--type", cephFS, mountDir).Run()
+	err = executor.ExecuteCommand(false, "", "df", "--type", cephFS, mountDir)
 	if err == nil {
 		return unmountCephFS(client, mounter, mountDir)
 	}
@@ -60,14 +62,14 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 		MountDir: args[0],
 	}
 
-	err = client.Call("FlexvolumeController.GetAttachInfoFromMountDir", opts.MountDir, &opts)
+	err = client.Call("Controller.GetAttachInfoFromMountDir", opts.MountDir, &opts)
 	if err != nil {
 		log(client, fmt.Sprintf("Unmount volume at mount dir %s failed: %v", opts.MountDir, err), true)
 		return fmt.Errorf("Unmount volume at mount dir %s failed: %v", opts.MountDir, err)
 	}
 
 	var globalVolumeMountPath string
-	err = client.Call("FlexvolumeController.GetGlobalMountPath", opts.VolumeName, &globalVolumeMountPath)
+	err = client.Call("Controller.GetGlobalMountPath", opts.VolumeName, &globalVolumeMountPath)
 	if err != nil {
 		log(client, fmt.Sprintf("Detach volume %s/%s failed. Cannot get global volume mount path: %v", opts.Pool, opts.Image, err), true)
 		return fmt.Errorf("Rook: Unmount volume failed. Cannot get global volume mount path: %v", err)
@@ -84,7 +86,7 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 			}
 
 			// Remove attachment item from the CRD
-			err = client.Call("FlexvolumeController.RemoveAttachmentObject", opts, &safeToDetach)
+			err = client.Call("Controller.RemoveAttachmentObject", opts, &safeToDetach)
 			if err != nil {
 				log(client, fmt.Sprintf("Unmount volume %s failed: %v", opts.MountDir, err), true)
 				// Do not return error. Try detaching first. If error happens during detach, Kubernetes will retry.
@@ -108,7 +110,7 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 	if safeToDetach {
 		// call detach
 		log(client, fmt.Sprintf("calling agent to detach mountDir: %s", opts.MountDir), false)
-		err = client.Call("FlexvolumeController.Detach", opts, nil)
+		err = client.Call("Controller.Detach", opts, nil)
 		if err != nil {
 			log(client, fmt.Sprintf("Detach volume from %s failed: %v", opts.MountDir, err), true)
 			return fmt.Errorf("Rook: Unmount volume failed: %v", err)

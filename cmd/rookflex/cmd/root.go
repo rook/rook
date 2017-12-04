@@ -25,9 +25,8 @@ import (
 	"path"
 
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
-	"k8s.io/utils/exec"
 
-	"github.com/rook/rook/pkg/agent/flexvolume"
+	"github.com/rook/rook/pkg/daemon/agent/flexvolume"
 	"github.com/spf13/cobra"
 )
 
@@ -63,7 +62,7 @@ func getRPCClient() (*rpc.Client, error) {
 func getMounter() *k8smount.SafeFormatAndMount {
 	return &k8smount.SafeFormatAndMount{
 		Interface: k8smount.New("" /* default mount path */),
-		Runner:    exec.New(),
+		Exec:      k8smount.NewOsExec(),
 	}
 }
 
@@ -72,7 +71,7 @@ func log(client *rpc.Client, message string, isError bool) {
 		Message: message,
 		IsError: isError,
 	}
-	client.Call("FlexvolumeController.Log", log, nil)
+	client.Call("Controller.Log", log, nil)
 }
 
 // redirectStdout redirects the stdout for the fn function to the driver logger

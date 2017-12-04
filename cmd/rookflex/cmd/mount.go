@@ -24,7 +24,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rook/rook/pkg/agent/flexvolume"
+	"github.com/rook/rook/pkg/daemon/agent/flexvolume"
 	"github.com/rook/rook/pkg/model"
 	"github.com/spf13/cobra"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
@@ -65,7 +65,7 @@ func handleMount(cmd *cobra.Command, args []string) error {
 		return mountCephFS(client, opts)
 	}
 
-	err = client.Call("FlexvolumeController.GetAttachInfoFromMountDir", opts.MountDir, &opts)
+	err = client.Call("Controller.GetAttachInfoFromMountDir", opts.MountDir, &opts)
 	if err != nil {
 		log(client, fmt.Sprintf("Attach volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
 		return fmt.Errorf("Rook: Mount volume failed: %v", err)
@@ -79,7 +79,7 @@ func handleMount(cmd *cobra.Command, args []string) error {
 
 	// Get global mount path
 	var globalVolumeMountPath string
-	err = client.Call("FlexvolumeController.GetGlobalMountPath", opts.VolumeName, &globalVolumeMountPath)
+	err = client.Call("Controller.GetGlobalMountPath", opts.VolumeName, &globalVolumeMountPath)
 	if err != nil {
 		log(client, fmt.Sprintf("Attach volume %s/%s failed. Cannot get global volume mount path: %v", opts.Pool, opts.Image, err), true)
 		return fmt.Errorf("Rook: Mount volume failed. Cannot get global volume mount path: %v", err)
@@ -105,7 +105,7 @@ func attach(client *rpc.Client, opts *flexvolume.AttachOptions) (string, error) 
 
 	log(client, fmt.Sprintf("calling agent to attach volume %s/%s", opts.Pool, opts.Image), false)
 	var devicePath string
-	err := client.Call("FlexvolumeController.Attach", opts, &devicePath)
+	err := client.Call("Controller.Attach", opts, &devicePath)
 	if err != nil {
 		log(client, fmt.Sprintf("Attach volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
 		return "", fmt.Errorf("Rook: Mount volume failed: %v", err)
@@ -202,7 +202,7 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 
 	// Get client access info
 	var clientAccessInfo model.ClientAccessInfo
-	err := client.Call("FlexvolumeController.GetClientAccessInfo", opts.ClusterName, &clientAccessInfo)
+	err := client.Call("Controller.GetClientAccessInfo", opts.ClusterName, &clientAccessInfo)
 	if err != nil {
 		errorMsg := fmt.Sprintf("Attach filesystem %s on cluster %s failed: %v", opts.FsName, opts.ClusterName, err)
 		log(client, errorMsg, true)
@@ -223,7 +223,7 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 
 	// Get kernel version
 	var kernelVersion string
-	err = client.Call("FlexvolumeController.GetKernelVersion", struct{}{} /* no inputs */, &kernelVersion)
+	err = client.Call("Controller.GetKernelVersion", struct{}{} /* no inputs */, &kernelVersion)
 	if err != nil {
 		log(client, fmt.Sprintf("WARNING: The node kernel version cannot be detected. The kernel version has to be at least %s in order to specify a filesystem namespace."+
 			" If you have multiple ceph filesystems, the result could be inconsistent", mds_namespace_kernel_support), false)

@@ -30,8 +30,8 @@ import (
 	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/pkg/agent/flexvolume/crd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
@@ -467,7 +467,7 @@ func (k8sh *K8sHelper) IsCRDPresent(crdName string) bool {
 func (k8sh *K8sHelper) GetVolumeAttachmentResourceName(namespace, pvcName string) (string, error) {
 
 	getOpts := metav1.GetOptions{}
-	pvc, err := k8sh.Clientset.PersistentVolumeClaims(namespace).Get(pvcName, getOpts)
+	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(pvcName, getOpts)
 	if err != nil {
 		return "", err
 	}
@@ -521,8 +521,8 @@ func (k8sh *K8sHelper) waitForVolumeAttachment(namespace, volumeAttachmentName s
 }
 
 func (k8sh *K8sHelper) isVolumeAttachmentExist(namespace, name string) (bool, error) {
-	var result crd.VolumeAttachment
-	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, namespace, crd.CustomResourceNamePlural)
+	var result rookalpha.VolumeAttachment
+	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, namespace, attachment.CustomResourceNamePlural)
 	err := k8sh.Clientset.Core().RESTClient().Get().
 		RequestURI(uri).
 		Name(name).

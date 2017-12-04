@@ -23,7 +23,7 @@ package agent
 import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/kubernetes/pkg/apis/componentconfig"
-	kubeletcomponentconfig "k8s.io/kubernetes/pkg/apis/componentconfig/v1alpha1"
+	kubeletconfig "k8s.io/kubernetes/pkg/kubelet/apis/kubeletconfig/v1alpha1"
 )
 
 // Agent reference to be deployed
@@ -38,7 +38,7 @@ type NodeConfigControllerManager struct {
 
 // NodeConfigKubelet is a reference of all the configuration for the K8S node from kubelet
 type NodeConfigKubelet struct {
-	ComponentConfig kubeletcomponentconfig.KubeletConfiguration `json:"componentconfig"`
+	ComponentConfig kubeletconfig.KubeletConfiguration `json:"componentconfig"`
 }
 
 // KubeletConfiguration represents the response from the node config URI (configz) in Kubernetes 1.8+

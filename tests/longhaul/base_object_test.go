@@ -5,6 +5,8 @@ import (
 	"sync"
 	"testing"
 
+	"time"
+
 	"github.com/icrowley/fake"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -12,7 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 )
 
 func init() {
@@ -64,7 +65,7 @@ func createObjectStoreAndUser(t func() *testing.T, kh *utils.K8sHelper, tc *clie
 
 func isObjectStorePresent(kh *utils.K8sHelper, namespace string, storeName string) bool {
 	listOpts := metav1.ListOptions{LabelSelector: "app=rook-ceph-rgw"}
-	podList, err := kh.Clientset.Pods(namespace).List(listOpts)
+	podList, err := kh.Clientset.CoreV1().Pods(namespace).List(listOpts)
 	if err == nil {
 		for _, pod := range podList.Items {
 			lables := pod.GetObjectMeta().GetLabels()

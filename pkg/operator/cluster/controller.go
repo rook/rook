@@ -23,22 +23,25 @@ package cluster
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
-	flexcrd "github.com/rook/rook/pkg/agent/flexvolume/crd"
-	"github.com/rook/rook/pkg/ceph/client"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/api"
+	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/operator/cluster/api"
+	"github.com/rook/rook/pkg/operator/cluster/mgr"
+	"github.com/rook/rook/pkg/operator/cluster/mon"
+	"github.com/rook/rook/pkg/operator/cluster/osd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/mds"
-	"github.com/rook/rook/pkg/operator/mgr"
-	"github.com/rook/rook/pkg/operator/mon"
-	"github.com/rook/rook/pkg/operator/osd"
 	"github.com/rook/rook/pkg/operator/pool"
 	"github.com/rook/rook/pkg/operator/rgw"
 	"k8s.io/api/core/v1"
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -68,16 +71,36 @@ var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
 )
 
+var ClusterResource = opkit.CustomResource{
+	Name:    CustomResourceName,
+	Plural:  CustomResourceNamePlural,
+	Group:   rookalpha.CustomResourceGroup,
+	Version: rookalpha.Version,
+	Scope:   apiextensionsv1beta1.NamespaceScoped,
+	Kind:    reflect.TypeOf(rookalpha.Cluster{}).Name(),
+}
+
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
 	context                    *clusterd.Context
 	scheme                     *runtime.Scheme
-	volumeAttachmentController flexcrd.VolumeAttachmentController
+	volumeAttachmentController attachment.Controller
 	devicesInUse               bool
 }
 
+type cluster struct {
+	context   *clusterd.Context
+	Namespace string
+	Spec      rookalpha.ClusterSpec
+	mons      *mon.Cluster
+	mgrs      *mgr.Cluster
+	osds      *osd.Cluster
+	apis      *api.Cluster
+	stopCh    chan struct{}
+}
+
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, volumeAttachmentController flexcrd.VolumeAttachmentController) *ClusterController {
+func NewClusterController(context *clusterd.Context, volumeAttachmentController attachment.Controller) *ClusterController {
 	return &ClusterController{
 		context:                    context,
 		volumeAttachmentController: volumeAttachmentController,
@@ -86,7 +109,7 @@ func NewClusterController(context *clusterd.Context, volumeAttachmentController 
 
 // Watch watches instances of cluster resources
 func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
-	customResourceClient, scheme, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, SchemeBuilder)
+	customResourceClient, scheme, err := opkit.NewHTTPClient(rookalpha.CustomResourceGroup, rookalpha.Version, SchemeBuilder)
 	if err != nil {
 		return fmt.Errorf("failed to get a k8s client for watching cluster resources: %v", err)
 	}
@@ -100,23 +123,13 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 
 	logger.Infof("start watching clusters in all namespaces")
 	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, customResourceClient)
-	go watcher.Watch(&Cluster{}, stopCh)
+	go watcher.Watch(&rookalpha.Cluster{}, stopCh)
 	return nil
 }
 
 func (c *ClusterController) onAdd(obj interface{}) {
-	clusterOrig := obj.(*Cluster)
 
-	// NEVER modify objects from the store. It's a read-only, local cache.
-	// Use scheme.Copy() to make a deep copy of original object.
-	copyObj, err := c.scheme.Copy(clusterOrig)
-	if err != nil {
-		logger.Errorf("failed to create a deep copy of cluster object: %v\n", err)
-		return
-	}
-	cluster := copyObj.(*Cluster)
-
-	cluster.init(c.context)
+	cluster := newCluster(obj.(*rookalpha.Cluster).DeepCopy(), c.context)
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
 		logger.Errorf("using all devices in more than one namespace not supported")
 		return
@@ -138,18 +151,18 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		logger.Warningf("mon count is even (given: %d), should be uneven", cluster.Spec.MonCount)
 	}
 
-	logger.Infof("starting cluster %s in namespace %s", cluster.Name, cluster.Namespace)
+	logger.Infof("starting cluster namespace %s", cluster.Namespace)
 	// Start the Rook cluster components. Retry several times in case of failure.
-	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
-		err = cluster.createInstance()
+	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
+		err := cluster.createInstance()
 		if err != nil {
-			logger.Errorf("failed to create cluster %s in namespace %s. %+v", cluster.Name, cluster.Namespace, err)
+			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
 			return false, nil
 		}
 		return true, nil
 	})
 	if err != nil {
-		logger.Errorf("giving up to create cluster %s in namespace %s after %s", cluster.Name, cluster.Namespace, clusterCreateTimeout)
+		logger.Errorf("giving up to create cluster in namespace %s after %s", cluster.Namespace, clusterCreateTimeout)
 		return
 	}
 
@@ -171,35 +184,25 @@ func (c *ClusterController) onAdd(obj interface{}) {
 }
 
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
-	oldCluster := oldObj.(*Cluster)
-	newCluster := newObj.(*Cluster)
-	if !clusterChanged(oldCluster.Spec, newCluster.Spec) {
+	oldClust := oldObj.(*rookalpha.Cluster).DeepCopy()
+	newClust := newObj.(*rookalpha.Cluster).DeepCopy()
+	if !clusterChanged(oldClust.Spec, newClust.Spec) {
 		logger.Debugf("no updates made in the cluster")
 		return
 	}
 
-	logger.Infof("updating cluster %s", newCluster.Namespace)
-	if err := newCluster.createInstance(); err != nil {
-		logger.Errorf("failed to update cluster %s in namespace %s. %+v", newCluster.Name, newCluster.Namespace, err)
+	logger.Infof("updating cluster %s", newClust.Namespace)
+	cluster := newCluster(newClust, c.context)
+	if err := cluster.createInstance(); err != nil {
+		logger.Errorf("failed to update cluster in namespace %s. %+v", newClust.Namespace, err)
 	}
 }
 
 func (c *ClusterController) onDelete(obj interface{}) {
-	clusterOrig := obj.(*Cluster)
-
-	// NEVER modify objects from the store. It's a read-only, local cache.
-	// Use scheme.Copy() to make a deep copy of original object.
-	copyObj, err := c.scheme.Copy(clusterOrig)
-	if err != nil {
-		logger.Errorf("failed to create a deep copy of cluster object: %v\n", err)
-		return
-	}
-	cluster := copyObj.(*Cluster)
-
-	c.handleDelete(cluster, time.Duration(clusterDeleteRetryInterval)*time.Second)
+	c.handleDelete(obj.(*rookalpha.Cluster).DeepCopy(), time.Duration(clusterDeleteRetryInterval)*time.Second)
 }
 
-func (c *ClusterController) handleDelete(cluster *Cluster, retryInterval time.Duration) {
+func (c *ClusterController) handleDelete(cluster *rookalpha.Cluster, retryInterval time.Duration) {
 	logger.Infof("cluster in namespace %s is being deleted.  Waiting for agents to perform cleanup operations.", cluster.Namespace)
 
 	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
@@ -245,11 +248,11 @@ func (c *ClusterController) handleDelete(cluster *Cluster, retryInterval time.Du
 	}
 }
 
-func (c *Cluster) init(context *clusterd.Context) {
-	c.context = context
+func newCluster(c *rookalpha.Cluster, context *clusterd.Context) *cluster {
+	return &cluster{Namespace: c.Namespace, Spec: c.Spec, context: context}
 }
 
-func (c *Cluster) createInstance() error {
+func (c *cluster) createInstance() error {
 
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
@@ -264,7 +267,7 @@ func (c *Cluster) createInstance() error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.MonCount, c.Spec.Placement.GetMON(), c.Spec.HostNetwork, c.Spec.Resources.MON)
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.MonCount, c.Spec.Placement.GetMon(), c.Spec.HostNetwork, c.Spec.Resources.Mon)
 	err = c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
@@ -275,7 +278,7 @@ func (c *Cluster) createInstance() error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetMGR(), c.Spec.HostNetwork, c.Spec.Resources.MGR)
+	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetMgr(), c.Spec.HostNetwork, c.Spec.Resources.Mgr)
 	err = c.mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
@@ -298,7 +301,7 @@ func (c *Cluster) createInstance() error {
 	return nil
 }
 
-func (c *Cluster) createInitialCrushMap() error {
+func (c *cluster) createInitialCrushMap() error {
 	configMapExists := false
 	createCrushMap := false
 
@@ -356,7 +359,7 @@ func (c *Cluster) createInitialCrushMap() error {
 	return nil
 }
 
-func clusterChanged(oldCluster, newCluster ClusterSpec) bool {
+func clusterChanged(oldCluster, newCluster rookalpha.ClusterSpec) bool {
 	// no updates to the cluster supported yet
 	return false
 }

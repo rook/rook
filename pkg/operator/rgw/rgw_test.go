@@ -21,9 +21,9 @@ import (
 	"os"
 	"testing"
 
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/pool"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -52,43 +52,43 @@ func TestStartRGW(t *testing.T) {
 	version := "v1.1.0"
 
 	// start a basic cluster
-	err := store.Create(context, version, false)
+	err := CreateStore(context, store, version, false)
 	assert.Nil(t, err)
 
 	validateStart(t, store, clientset, false)
 
 	// starting again should update the pods with the new settings
 	store.Spec.Gateway.AllNodes = true
-	err = store.Update(context, version, false)
+	err = UpdateStore(context, store, version, false)
 	assert.Nil(t, err)
 
 	validateStart(t, store, clientset, true)
 }
 
-func validateStart(t *testing.T, store *ObjectStore, clientset *fake.Clientset, allNodes bool) {
+func validateStart(t *testing.T, store rookalpha.ObjectStore, clientset *fake.Clientset, allNodes bool) {
 	if !allNodes {
-		r, err := clientset.ExtensionsV1beta1().Deployments(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
+		r, err := clientset.ExtensionsV1beta1().Deployments(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
 		assert.Nil(t, err)
-		assert.Equal(t, store.instanceName(), r.Name)
+		assert.Equal(t, instanceName(store), r.Name)
 
-		_, err = clientset.ExtensionsV1beta1().DaemonSets(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
+		_, err = clientset.ExtensionsV1beta1().DaemonSets(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
 		assert.True(t, errors.IsNotFound(err))
 	} else {
-		r, err := clientset.ExtensionsV1beta1().DaemonSets(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
+		r, err := clientset.ExtensionsV1beta1().DaemonSets(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
 		assert.Nil(t, err)
-		assert.Equal(t, store.instanceName(), r.Name)
+		assert.Equal(t, instanceName(store), r.Name)
 
-		_, err = clientset.ExtensionsV1beta1().Deployments(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
+		_, err = clientset.ExtensionsV1beta1().Deployments(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
 		assert.True(t, errors.IsNotFound(err))
 	}
 
-	s, err := clientset.CoreV1().Services(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
+	s, err := clientset.CoreV1().Services(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, store.instanceName(), s.Name)
+	assert.Equal(t, instanceName(store), s.Name)
 
-	secret, err := clientset.CoreV1().Secrets(store.Namespace).Get(store.instanceName(), metav1.GetOptions{})
+	secret, err := clientset.CoreV1().Secrets(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, store.instanceName(), secret.Name)
+	assert.Equal(t, instanceName(store), secret.Name)
 	assert.Equal(t, 1, len(secret.StringData))
 }
 
@@ -103,15 +103,15 @@ func TestPodSpecs(t *testing.T) {
 		},
 	}
 
-	s := store.makeRGWPodSpec("myversion", true)
+	s := makeRGWPodSpec(store, "myversion", true)
 	assert.NotNil(t, s)
-	//assert.Equal(t, store.instanceName(), s.Name)
+	//assert.Equal(t, instanceName(store), s.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, s.Spec.RestartPolicy)
 	assert.Equal(t, 2, len(s.Spec.Volumes))
 	assert.Equal(t, "rook-data", s.Spec.Volumes[0].Name)
 	assert.Equal(t, k8sutil.ConfigOverrideName, s.Spec.Volumes[1].Name)
 
-	assert.Equal(t, store.instanceName(), s.ObjectMeta.Name)
+	assert.Equal(t, instanceName(store), s.ObjectMeta.Name)
 	assert.Equal(t, appName, s.ObjectMeta.Labels["app"])
 	assert.Equal(t, store.Namespace, s.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, store.Name, s.ObjectMeta.Labels["rook_object_store"])
@@ -125,7 +125,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "rgw", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
 	assert.Equal(t, fmt.Sprintf("--rgw-name=%s", "default"), cont.Args[2])
-	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", store.instanceName()), cont.Args[3])
+	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", instanceName(store)), cont.Args[3])
 	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[4])
 	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 0), cont.Args[5])
 
@@ -138,9 +138,9 @@ func TestSSLPodSpec(t *testing.T) {
 	store.Spec.Gateway.SSLCertificateRef = "mycert"
 	store.Spec.Gateway.SecurePort = 443
 
-	s := store.makeRGWPodSpec("v1.0", true)
+	s := makeRGWPodSpec(store, "v1.0", true)
 	assert.NotNil(t, s)
-	assert.Equal(t, store.instanceName(), s.Name)
+	assert.Equal(t, instanceName(store), s.Name)
 	assert.Equal(t, 3, len(s.Spec.Volumes))
 	assert.Equal(t, certVolumeName, s.Spec.Volumes[2].Name)
 	assert.True(t, s.Spec.HostNetwork)
@@ -180,7 +180,7 @@ func TestCreateObjectStore(t *testing.T) {
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
 
 	// create the pools
-	err := store.Create(context, "1.2.3.4", false)
+	err := CreateStore(context, store, "1.2.3.4", false)
 	assert.Nil(t, err)
 }
 
@@ -189,43 +189,41 @@ func TestValidateSpec(t *testing.T) {
 
 	// valid store
 	s := simpleStore()
-	err := s.validate(context)
+	err := validateStore(context, s)
 	assert.Nil(t, err)
 
 	// no name
 	s.Name = ""
-	err = s.validate(context)
+	err = validateStore(context, s)
 	assert.NotNil(t, err)
 	s.Name = "default"
-	err = s.validate(context)
+	err = validateStore(context, s)
 	assert.Nil(t, err)
 
 	// no namespace
 	s.Namespace = ""
-	err = s.validate(context)
+	err = validateStore(context, s)
 	assert.NotNil(t, err)
 	s.Namespace = "mycluster"
-	err = s.validate(context)
+	err = validateStore(context, s)
 	assert.Nil(t, err)
 
 	// no replication or EC
 	s.Spec.MetadataPool.Replicated.Size = 0
-	err = s.validate(context)
+	err = validateStore(context, s)
 	assert.NotNil(t, err)
 	s.Spec.MetadataPool.Replicated.Size = 1
-	err = s.validate(context)
+	err = validateStore(context, s)
 	assert.Nil(t, err)
 }
 
-func simpleStore() *ObjectStore {
-	return &ObjectStore{
+func simpleStore() rookalpha.ObjectStore {
+	return rookalpha.ObjectStore{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"},
-		Spec: ObjectStoreSpec{
-			MetadataPool: pool.PoolSpec{Replicated: pool.ReplicatedSpec{Size: 1}},
-			DataPool:     pool.PoolSpec{ErasureCoded: pool.ErasureCodedSpec{CodingChunks: 1, DataChunks: 2}},
-			Gateway: GatewaySpec{
-				Port: 123,
-			},
+		Spec: rookalpha.ObjectStoreSpec{
+			MetadataPool: rookalpha.PoolSpec{Replicated: rookalpha.ReplicatedSpec{Size: 1}},
+			DataPool:     rookalpha.PoolSpec{ErasureCoded: rookalpha.ErasureCodedSpec{CodingChunks: 1, DataChunks: 2}},
+			Gateway:      rookalpha.GatewaySpec{Port: 123},
 		},
 	}
 }

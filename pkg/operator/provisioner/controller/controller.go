@@ -410,7 +410,7 @@ func (ctrl *ProvisionController) Run(stopCh <-chan struct{}) {
 	ctrl.hasRunLock.Unlock()
 	go ctrl.claimController.Run(stopCh)
 	go ctrl.volumeController.Run(stopCh)
-	go ctrl.classReflector.RunUntil(stopCh)
+	go ctrl.classReflector.Run(stopCh)
 	<-stopCh
 }
 

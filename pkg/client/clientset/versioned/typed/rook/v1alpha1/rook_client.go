@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Kubernetes Authors.
+Copyright 2017 The Kubernetes Authors All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -25,12 +25,32 @@ import (
 
 type RookV1alpha1Interface interface {
 	RESTClient() rest.Interface
+	ClustersGetter
+	FilesystemsGetter
+	ObjectStoresGetter
+	PoolsGetter
 	VolumeAttachmentsGetter
 }
 
 // RookV1alpha1Client is used to interact with features provided by the rook.io group.
 type RookV1alpha1Client struct {
 	restClient rest.Interface
+}
+
+func (c *RookV1alpha1Client) Clusters(namespace string) ClusterInterface {
+	return newClusters(c, namespace)
+}
+
+func (c *RookV1alpha1Client) Filesystems(namespace string) FilesystemInterface {
+	return newFilesystems(c, namespace)
+}
+
+func (c *RookV1alpha1Client) ObjectStores(namespace string) ObjectStoreInterface {
+	return newObjectStores(c, namespace)
+}
+
+func (c *RookV1alpha1Client) Pools(namespace string) PoolInterface {
+	return newPools(c, namespace)
 }
 
 func (c *RookV1alpha1Client) VolumeAttachments(namespace string) VolumeAttachmentInterface {

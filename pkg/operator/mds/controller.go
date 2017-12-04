@@ -22,13 +22,26 @@ package mds
 
 import (
 	"fmt"
+	"reflect"
 
 	opkit "github.com/rook/operator-kit"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/pool"
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
+
+// FilesystemResource represents the file system custom resource
+var FilesystemResource = opkit.CustomResource{
+	Name:    "filesystem",
+	Plural:  "filesystems",
+	Group:   rookalpha.CustomResourceGroup,
+	Version: rookalpha.Version,
+	Scope:   apiextensionsv1beta1.NamespaceScoped,
+	Kind:    reflect.TypeOf(rookalpha.Filesystem{}).Name(),
+}
 
 // FilesystemController represents a controller for file system custom resources
 type FilesystemController struct {
@@ -49,7 +62,7 @@ func NewFilesystemController(context *clusterd.Context, versionTag string, hostN
 
 // StartWatch watches for instances of Filesystem custom resources and acts on them
 func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}) error {
-	client, scheme, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
+	client, scheme, err := opkit.NewHTTPClient(rookalpha.CustomResourceGroup, rookalpha.Version, schemeBuilder)
 	if err != nil {
 		return fmt.Errorf("failed to get a k8s client for watching file system resources: %v", err)
 	}
@@ -63,31 +76,22 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 
 	logger.Infof("start watching filesystem resource in namespace %s", namespace)
 	watcher := opkit.NewWatcher(FilesystemResource, namespace, resourceHandlerFuncs, client)
-	go watcher.Watch(&Filesystem{}, stopCh)
+	go watcher.Watch(&rookalpha.Filesystem{}, stopCh)
 	return nil
 }
 
 func (c *FilesystemController) onAdd(obj interface{}) {
-	filesystem := obj.(*Filesystem)
+	filesystem := obj.(*rookalpha.Filesystem).DeepCopy()
 
-	// NEVER modify objects from the store. It's a read-only, local cache.
-	// Use scheme.Copy() to make a deep copy of original object.
-	copyObj, err := c.scheme.Copy(filesystem)
-	if err != nil {
-		fmt.Printf("failed to create a deep copy of file system: %v\n", err)
-		return
-	}
-	fsCopy := copyObj.(*Filesystem)
-
-	err = fsCopy.Create(c.context, c.versionTag, c.hostNetwork)
+	err := CreateFilesystem(c.context, *filesystem, c.versionTag, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create file system %s. %+v", filesystem.Name, err)
 	}
 }
 
 func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
-	oldFS := oldObj.(*Filesystem)
-	newFS := newObj.(*Filesystem)
+	oldFS := oldObj.(*rookalpha.Filesystem)
+	newFS := newObj.(*rookalpha.Filesystem)
 	if !filesystemChanged(oldFS.Spec, newFS.Spec) {
 		logger.Debugf("filesystem %s not updated", newFS.Name)
 		return
@@ -95,21 +99,21 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	// if the file system is modified, allow the file system to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS)
-	err := newFS.Create(c.context, c.versionTag, c.hostNetwork)
+	err := CreateFilesystem(c.context, *newFS, c.versionTag, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create (modify) file system %s. %+v", newFS.Name, err)
 	}
 }
 
 func (c *FilesystemController) onDelete(obj interface{}) {
-	filesystem := obj.(*Filesystem)
-	err := filesystem.Delete(c.context)
+	filesystem := obj.(*rookalpha.Filesystem)
+	err := DeleteFilesystem(c.context, *filesystem)
 	if err != nil {
 		logger.Errorf("failed to delete file system %s. %+v", filesystem.Name, err)
 	}
 }
 
-func filesystemChanged(oldFS, newFS FilesystemSpec) bool {
+func filesystemChanged(oldFS, newFS rookalpha.FilesystemSpec) bool {
 	if len(oldFS.DataPools) != len(newFS.DataPools) {
 		logger.Infof("number of data pools changed from %d to %d", len(oldFS.DataPools), len(newFS.DataPools))
 		return true
@@ -123,4 +127,29 @@ func filesystemChanged(oldFS, newFS FilesystemSpec) bool {
 		return true
 	}
 	return false
+}
+
+func validateFilesystem(context *clusterd.Context, f rookalpha.Filesystem) error {
+	if f.Name == "" {
+		return fmt.Errorf("missing name")
+	}
+	if f.Namespace == "" {
+		return fmt.Errorf("missing namespace")
+	}
+	if len(f.Spec.DataPools) == 0 {
+		return fmt.Errorf("at least one data pool required")
+	}
+	if err := pool.ValidatePoolSpec(context, f.Namespace, &f.Spec.MetadataPool); err != nil {
+		return fmt.Errorf("invalid metadata pool. %+v", err)
+	}
+	for _, p := range f.Spec.DataPools {
+		if err := pool.ValidatePoolSpec(context, f.Namespace, &p); err != nil {
+			return fmt.Errorf("Invalid data pool. %+v", err)
+		}
+	}
+	if f.Spec.MetadataServer.ActiveCount < 1 {
+		return fmt.Errorf("MetadataServer.ActiveCount must be at least 1")
+	}
+
+	return nil
 }
