@@ -379,7 +379,7 @@ func TestMultipleAttachReadOnly(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestOrphanAttach(t *testing.T) {
+func TestOrphanAttachOriginalPodDoesntExist(t *testing.T) {
 	clientset := test.New(3)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
@@ -459,6 +459,108 @@ func TestOrphanAttach(t *testing.T) {
 		volumeManager:              &manager.FakeVolumeManager{},
 	}
 
+	err := controller.Attach(opts, &devicePath)
+	assert.Nil(t, err)
+}
+
+func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
+	clientset := test.New(3)
+
+	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
+	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+
+	os.Setenv(k8sutil.NodeNameEnvVar, "node1")
+	defer os.Unsetenv(k8sutil.NodeNameEnvVar)
+
+	context := &clusterd.Context{
+		Clientset: clientset,
+	}
+
+	// Setting up the pod to ensure that it is exists
+	pod := v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "myPod",
+			Namespace: "Default",
+			UID:       "pod456",
+		},
+		Spec: v1.PodSpec{
+			NodeName: "node1",
+		},
+	}
+	clientset.CoreV1().Pods("Default").Create(&pod)
+
+	// existing record of old attachment. Pod namespace and name must much with the new attachment input to simulate that the new attachment is for the same pod
+	existingCRD := &crd.VolumeAttachment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "pvc-123",
+			Namespace: "rook-system",
+		},
+		Attachments: []crd.Attachment{
+			{
+				Node:         "otherNode",
+				PodNamespace: "Default",
+				PodName:      "myPod",
+				MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
+				ReadOnly:     false,
+			},
+		},
+	}
+
+	// attachment input. The ID of the pod must be different than the original record to simulate that
+	// the pod resource is a different one but for the same pod metadata. This is reflected in the MountDir.
+	// The namespace and name, however, must match.
+	opts := AttachOptions{
+		Image:        "image123",
+		Pool:         "testpool",
+		ClusterName:  "testCluster",
+		MountDir:     "/test/pods/pod456/volumes/rook.io~rook/pvc-123",
+		VolumeName:   "pvc-123",
+		Pod:          "myPod",
+		PodNamespace: "Default",
+		RW:           "rw",
+	}
+
+	scheme := crd.RegisterFakeAPI()
+	fakeClient := &fakerestclient.RESTClient{
+		NegotiatedSerializer: serializer.DirectCodecFactory{CodecFactory: serializer.NewCodecFactory(scheme)},
+		APIRegistry:          api.Registry,
+		Client: fakerestclient.CreateHTTPClient(func(req *http.Request) (*http.Response, error) {
+			switch p, m := req.URL.Path, req.Method; {
+			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "GET":
+				return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(existingCRD)}, nil
+			case p == "/namespaces/rook-system/volumeattachments/pvc-123" && m == "PUT":
+				o, _ := ioutil.ReadAll(req.Body)
+				var volAtt crd.VolumeAttachment
+				json.Unmarshal(o, &volAtt)
+
+				assert.Equal(t, 1, len(volAtt.Attachments))
+				assert.True(t, containsAttachment(
+					crd.Attachment{
+						PodNamespace: opts.PodNamespace,
+						PodName:      opts.Pod,
+						MountDir:     opts.MountDir,
+						ReadOnly:     false,
+						Node:         "node1",
+					}, volAtt.Attachments,
+				), "VolumeAttachment crd does not contain expected attachment")
+
+				return &http.Response{StatusCode: 200, Header: defaultHeader(), Body: objBody(req.Body)}, nil
+			default:
+				t.Fatalf("unexpected request: %#v\n%#v", req.URL, req)
+				return nil, nil
+			}
+
+		}),
+	}
+
+	devicePath := ""
+	controller := &FlexvolumeController{
+		context:                    context,
+		volumeAttachmentController: crd.New(fakeClient),
+		volumeManager:              &manager.FakeVolumeManager{},
+	}
+
+	// Attach should succeed and the stale volumeattachment record should be updated to reflect the new pod information
 	err := controller.Attach(opts, &devicePath)
 	assert.Nil(t, err)
 }
@@ -630,7 +732,6 @@ func TestDetachWithAttachmentLeft(t *testing.T) {
 	}
 
 	err := controller.Detach(opts, nil)
-	assert.Nil(t, err)
 	assert.Nil(t, err)
 	assert.False(t, deleteCRDCalled)
 }
