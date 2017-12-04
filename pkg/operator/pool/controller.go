@@ -31,7 +31,6 @@ import (
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/model"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -57,7 +56,6 @@ var PoolResource = opkit.CustomResource{
 // PoolController represents a controller object for pool custom resources
 type PoolController struct {
 	context *clusterd.Context
-	scheme  *runtime.Scheme
 }
 
 // NewPoolController create controller for watching pool custom resources created
@@ -69,11 +67,6 @@ func NewPoolController(context *clusterd.Context) *PoolController {
 
 // Watch watches for instances of Pool custom resources and acts on them
 func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) error {
-	client, scheme, err := opkit.NewHTTPClient(rookalpha.CustomResourceGroup, rookalpha.Version, schemeBuilder)
-	if err != nil {
-		return fmt.Errorf("failed to get a k8s client for watching pool resources: %v", err)
-	}
-	c.scheme = scheme
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -82,24 +75,15 @@ func (c *PoolController) StartWatch(namespace string, stopCh chan struct{}) erro
 	}
 
 	logger.Infof("start watching pool resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(PoolResource, namespace, resourceHandlerFuncs, client)
+	watcher := opkit.NewWatcher(PoolResource, namespace, resourceHandlerFuncs, c.context.RookClientset.Rook().RESTClient())
 	go watcher.Watch(&rookalpha.Pool{}, stopCh)
 	return nil
 }
 
 func (c *PoolController) onAdd(obj interface{}) {
-	pool := obj.(*rookalpha.Pool)
+	pool := obj.(*rookalpha.Pool).DeepCopy()
 
-	// NEVER modify objects from the store. It's a read-only, local cache.
-	// Use scheme.Copy() to make a deep copy of original object.
-	copyObj, err := c.scheme.Copy(pool)
-	if err != nil {
-		logger.Errorf("failed to create a deep copy of pool object: %v\n", err)
-		return
-	}
-	poolCopy := copyObj.(*rookalpha.Pool)
-
-	err = createPool(c.context, poolCopy)
+	err := createPool(c.context, pool)
 	if err != nil {
 		logger.Errorf("failed to create pool %s. %+v", pool.ObjectMeta.Name, err)
 	}

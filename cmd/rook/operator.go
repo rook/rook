@@ -50,7 +50,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 
 	logStartupInfo(operatorCmd.Flags())
 
-	clientset, apiExtClientset, err := getClientset()
+	clientset, apiExtClientset, rookClientset, err := getClientset()
 	if err != nil {
 		terminateFatal(fmt.Errorf("failed to get k8s client. %+v", err))
 	}
@@ -61,6 +61,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	context.ConfigDir = k8sutil.DataDir
 	context.Clientset = clientset
 	context.APIExtensionClientset = apiExtClientset
+	context.RookClientset = rookClientset
 	volumeAttachmentClient, _, err := opkit.NewHTTPClient(rookalpha.CustomResourceGroup, rookalpha.Version, attachment.SchemeBuilder)
 	if err != nil {
 		terminateFatal(err)

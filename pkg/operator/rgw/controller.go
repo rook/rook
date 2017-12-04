@@ -29,7 +29,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/pool"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -46,7 +45,6 @@ var ObjectStoreResource = opkit.CustomResource{
 // ObjectStoreController represents a controller object for object store custom resources
 type ObjectStoreController struct {
 	context     *clusterd.Context
-	scheme      *runtime.Scheme
 	versionTag  string
 	hostNetwork bool
 }
@@ -62,11 +60,6 @@ func NewObjectStoreController(context *clusterd.Context, versionTag string, host
 
 // StartWatch watches for instances of ObjectStore custom resources and acts on them
 func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{}) error {
-	client, scheme, err := opkit.NewHTTPClient(rookalpha.CustomResourceGroup, rookalpha.Version, schemeBuilder)
-	if err != nil {
-		return fmt.Errorf("failed to get a k8s client for watching object store resources: %v", err)
-	}
-	c.scheme = scheme
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -75,8 +68,8 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 	}
 
 	logger.Infof("start watching object store resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(ObjectStoreResource, namespace, resourceHandlerFuncs, client)
-	go watcher.Watch(&rookalpha.ObjectStore{}, stopCh)
+	watcher := opkit.NewWatcher(ObjectStoreResource, namespace, resourceHandlerFuncs, c.context.RookClientset.Rook().RESTClient())
+	go watcher.Watch(&apiver.ObjectStore{}, stopCh)
 	return nil
 }
 

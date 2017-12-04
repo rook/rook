@@ -29,7 +29,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/pool"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -46,7 +45,6 @@ var FilesystemResource = opkit.CustomResource{
 // FilesystemController represents a controller for file system custom resources
 type FilesystemController struct {
 	context     *clusterd.Context
-	scheme      *runtime.Scheme
 	versionTag  string
 	hostNetwork bool
 }
@@ -62,11 +60,6 @@ func NewFilesystemController(context *clusterd.Context, versionTag string, hostN
 
 // StartWatch watches for instances of Filesystem custom resources and acts on them
 func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}) error {
-	client, scheme, err := opkit.NewHTTPClient(rookalpha.CustomResourceGroup, rookalpha.Version, schemeBuilder)
-	if err != nil {
-		return fmt.Errorf("failed to get a k8s client for watching file system resources: %v", err)
-	}
-	c.scheme = scheme
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -75,7 +68,7 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 	}
 
 	logger.Infof("start watching filesystem resource in namespace %s", namespace)
-	watcher := opkit.NewWatcher(FilesystemResource, namespace, resourceHandlerFuncs, client)
+	watcher := opkit.NewWatcher(FilesystemResource, namespace, resourceHandlerFuncs, c.context.RookClientset.Rook().RESTClient())
 	go watcher.Watch(&rookalpha.Filesystem{}, stopCh)
 	return nil
 }

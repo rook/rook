@@ -20,7 +20,6 @@ which also has the apache 2.0 license.
 package cluster
 
 import (
-	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -68,18 +67,12 @@ func NewClusterController(context *clusterd.Context, flexvolumeController flexvo
 // StartWatch will start the watching of cluster events by this controller
 func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
 
-	customResourceClient, scheme, err := opkit.NewHTTPClient(rookalpha.CustomResourceGroup, rookalpha.Version, opcluster.SchemeBuilder)
-	if err != nil {
-		return fmt.Errorf("failed to get a k8s client for watching cluster resources: %v", err)
-	}
-	c.scheme = scheme
-
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		DeleteFunc: c.onDelete,
 	}
 
 	logger.Infof("start watching cluster resources")
-	watcher := opkit.NewWatcher(opcluster.ClusterResource, namespace, resourceHandlerFuncs, customResourceClient)
+	watcher := opkit.NewWatcher(opcluster.ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.Rook().RESTClient())
 	go watcher.Watch(&rookalpha.Cluster{}, stopCh)
 	return nil
 }

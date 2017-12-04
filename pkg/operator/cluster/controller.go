@@ -44,7 +44,6 @@ import (
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 )
@@ -83,7 +82,6 @@ var ClusterResource = opkit.CustomResource{
 // ClusterController controls an instance of a Rook cluster
 type ClusterController struct {
 	context                    *clusterd.Context
-	scheme                     *runtime.Scheme
 	volumeAttachmentController attachment.Controller
 	devicesInUse               bool
 }
@@ -109,11 +107,6 @@ func NewClusterController(context *clusterd.Context, volumeAttachmentController 
 
 // Watch watches instances of cluster resources
 func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
-	customResourceClient, scheme, err := opkit.NewHTTPClient(rookalpha.CustomResourceGroup, rookalpha.Version, SchemeBuilder)
-	if err != nil {
-		return fmt.Errorf("failed to get a k8s client for watching cluster resources: %v", err)
-	}
-	c.scheme = scheme
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -122,7 +115,7 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 	}
 
 	logger.Infof("start watching clusters in all namespaces")
-	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, customResourceClient)
+	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.Rook().RESTClient())
 	go watcher.Watch(&rookalpha.Cluster{}, stopCh)
 	return nil
 }

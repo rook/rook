@@ -25,4 +25,8 @@ cd ${scriptdir}/../../vendor/k8s.io/code-generator && ./generate-groups.sh \
 #  --go-header-file ${SCRIPT_ROOT}/build/codegen/header.txt
 
 # workaround https://github.com/openshift/origin/issues/10357
-find ${scriptdir}/../../pkg/client -name "clientset_generated.go" -exec sed -i '' 's/return \&Clientset{fakePtr/return \&Clientset{\&fakePtr/g' {} +
+find ${scriptdir}/../../pkg/client -name "clientset_generated.go" -exec sed -i '' 's/fakePtr := testing.Fake{}/cs := \&Clientset{}/g' {} +
+find ${scriptdir}/../../pkg/client -name "clientset_generated.go" -exec sed -i '' 's/fakePtr.AddReactor/cs.Fake.AddReactor/g' {} +
+find ${scriptdir}/../../pkg/client -name "clientset_generated.go" -exec sed -i '' 's/fakePtr.AddWatchReactor/cs.Fake.AddWatchReactor/g' {} +
+find ${scriptdir}/../../pkg/client -name "clientset_generated.go" -exec sed -i '' 's/return &Clientset{fakePtr, \&fakediscovery.FakeDiscovery{Fake: &fakePtr}}/cs.discovery = \&fakediscovery.FakeDiscovery{Fake: \&cs.Fake}\
+	return cs/g' {} +
