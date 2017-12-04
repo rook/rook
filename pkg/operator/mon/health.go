@@ -161,7 +161,7 @@ func (c *Cluster) checkMonsOnSameNode() (bool, error) {
 	nodesUsed := map[string]struct{}{}
 	for name, node := range c.mapping.Node {
 		// when the node is already in the list we have more than one mon on that node
-		if _, ok := nodesUsed[node.Name]; ok {
+		if _, ok := nodesUsed[node.Address]; ok {
 			// get list of available nodes for mons
 			availableNodes, _, err := c.getAvailableMonNodes()
 			if err != nil {
@@ -179,7 +179,7 @@ func (c *Cluster) checkMonsOnSameNode() (bool, error) {
 			// deal with one mon too much on a node at a time
 			return true, nil
 		}
-		nodesUsed[node.Name] = struct{}{}
+		nodesUsed[node.Address] = struct{}{}
 	}
 	return false, nil
 }
@@ -275,17 +275,17 @@ func (c *Cluster) removeMon(name string) error {
 	delete(c.clusterInfo.Monitors, name)
 	// check if a mapping exists for the mon
 	if _, ok := c.mapping.Node[name]; ok {
-		nodeName := c.mapping.Node[name].Name
+		nodeAddress := c.mapping.Node[name].Address
 		delete(c.mapping.Node, name)
 		// if node->port "mapping" has been created, decrease or delete it
-		if port, ok := c.mapping.Port[nodeName]; ok {
+		if port, ok := c.mapping.Port[nodeAddress]; ok {
 			if port == mon.DefaultPort {
-				delete(c.mapping.Port, nodeName)
+				delete(c.mapping.Port, nodeAddress)
 			}
 			// don't clean up if a node port is higher than the default port, other
 			//mons could be on the same node with > DefaultPort ports, decreasing could
 			//cause port collsions
-			// This can be solved by using a map[nodeName][]int32 for the ports to
+			// This can be solved by using a map[nodeAddress][]int32 for the ports to
 			//even better check which ports are open for the HostNetwork mode
 		}
 	}

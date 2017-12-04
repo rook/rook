@@ -219,7 +219,7 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 	for _, m := range mons {
 		if c.HostNetwork {
 			logger.Infof("setting mon endpoints for hostnetwork mode")
-			node, ok := c.mapping.Node[m.Name]
+			node, ok := c.mapping.Node[m.Address]
 			if !ok {
 				return fmt.Errorf("mon doesn't exit in assignment map")
 			}
@@ -289,28 +289,28 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 
 	nodeIndex := 0
 	for _, m := range mons {
-		if _, ok := c.mapping.Node[m.Name]; ok {
+		if _, ok := c.mapping.Node[m.Address]; ok {
 			logger.Debugf("mon %s already assigned to a node, no need to assign", m.Name)
 			continue
 		}
 
 		// pick one of the available nodes where the mon will be assigned
 		node := availableNodes[nodeIndex%len(availableNodes)]
-		logger.Debugf("mon %s assigned to node %s", m.Name, node.Name)
+		logger.Debugf("mon %s assigned to node %s", m.Name, node.Address)
 		nodeInfo, err := getNodeInfoFromNode(node)
 		if err != nil {
-			return fmt.Errorf("couldn't get node info from node %s. %+v", node.Name, err)
+			return fmt.Errorf("couldn't get node info from node %s. %+v", node.Address, err)
 		}
 		// when hostNetwork is used check if we need to increase the port of the node
 		if c.HostNetwork {
-			if _, ok := c.mapping.Port[node.Name]; ok {
+			if _, ok := c.mapping.Port[node.Address]; ok {
 				// when the node was already chosen increase port by 1 and set
 				// assignment and that the node was chosen
-				m.Port = c.mapping.Port[node.Name] + int32(1)
+				m.Port = c.mapping.Port[node.Address] + int32(1)
 			}
-			c.mapping.Port[node.Name] = m.Port
+			c.mapping.Port[node.Address] = m.Port
 		}
-		c.mapping.Node[m.Name] = nodeInfo
+		c.mapping.Node[m.Address] = nodeInfo
 		nodeIndex++
 	}
 
@@ -320,16 +320,16 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 
 func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 	nr := &NodeInfo{}
-	nr.Name = n.Name
+	nr.Address = n.Address
 	for _, ip := range n.Status.Addresses {
 		if ip.Type == v1.NodeExternalIP || ip.Type == v1.NodeInternalIP {
-			logger.Debugf("using IP %s for node %s", ip.Address, n.Name)
+			logger.Debugf("using IP %s for node %s", ip.Address, n.Address)
 			nr.Address = ip.Address
 			break
 		}
 	}
 	if nr.Address == "" {
-		return nil, fmt.Errorf("no IP given for node %s", nr.Name)
+		return nil, fmt.Errorf("no IP given for node %s", nr.address)
 	}
 	return nr, nil
 }
@@ -339,7 +339,7 @@ func (c *Cluster) startPods(mons []*monConfig) error {
 		node, _ := c.mapping.Node[m.Name]
 
 		// start the mon replicaset/pod
-		err := c.startMon(m, node.Name)
+		err := c.startMon(m, node.Address)
 		if err != nil {
 			return fmt.Errorf("failed to create pod %s. %+v", m.Name, err)
 		}
@@ -452,7 +452,7 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
 	// choose nodes for the new mons that don't have mons currently
 	availableNodes := []v1.Node{}
 	for _, node := range nodes.Items {
-		if !nodesInUse.Contains(node.Name) && validNode(node, c.placement) {
+		if !nodesInUse.Contains(node.Address) && validNode(node, c.placement) {
 			availableNodes = append(availableNodes, node)
 		}
 	}
@@ -475,8 +475,8 @@ func (c *Cluster) getNodesWithMons() (*util.Set, error) {
 	return nodes, nil
 }
 
-func (c *Cluster) startMon(m *monConfig, nodeName string) error {
-	rs := c.makeReplicaSet(m, nodeName)
+func (c *Cluster) startMon(m *monConfig, nodeAddress string) error {
+	rs := c.makeReplicaSet(m, nodeAddress)
 	logger.Debugf("Starting mon: %+v", rs.Name)
 	_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
 	if err != nil {

@@ -63,12 +63,12 @@ func (c *Cluster) getLabels(name string) map[string]string {
 	}
 }
 
-func (c *Cluster) makeReplicaSet(config *monConfig, nodeName string) *extensions.ReplicaSet {
+func (c *Cluster) makeReplicaSet(config *monConfig, nodeAddress string) *extensions.ReplicaSet {
 	rs := &extensions.ReplicaSet{}
 	rs.Name = config.Name
 	rs.Namespace = c.Namespace
 
-	pod := c.makeMonPod(config, nodeName)
+	pod := c.makeMonPod(config, nodeAddress)
 	replicaCount := int32(1)
 	rs.Spec = extensions.ReplicaSetSpec{
 		Template: v1.PodTemplateSpec{
@@ -81,7 +81,7 @@ func (c *Cluster) makeReplicaSet(config *monConfig, nodeName string) *extensions
 	return rs
 }
 
-func (c *Cluster) makeMonPod(config *monConfig, nodeName string) *v1.Pod {
+func (c *Cluster) makeMonPod(config *monConfig, nodeAddress string) *v1.Pod {
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if c.dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
@@ -91,7 +91,7 @@ func (c *Cluster) makeMonPod(config *monConfig, nodeName string) *v1.Pod {
 	podSpec := v1.PodSpec{
 		Containers:    []v1.Container{container},
 		RestartPolicy: v1.RestartPolicyAlways,
-		NodeSelector:  map[string]string{apis.LabelHostname: nodeName},
+		NodeSelector:  map[string]string{apis.LabelHostname: nodeAddress},
 		Volumes: []v1.Volume{
 			{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 			k8sutil.ConfigOverrideVolume(),
