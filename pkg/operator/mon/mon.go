@@ -219,7 +219,7 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 	for _, m := range mons {
 		if c.HostNetwork {
 			logger.Infof("setting mon endpoints for hostnetwork mode")
-			node, ok := c.mapping.Node[m.Address]
+			node, ok := c.mapping.Node[m.Name]
 			if !ok {
 				return fmt.Errorf("mon doesn't exit in assignment map")
 			}
@@ -289,28 +289,28 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 
 	nodeIndex := 0
 	for _, m := range mons {
-		if _, ok := c.mapping.Node[m.Address]; ok {
+		if _, ok := c.mapping.Node[m.Name]; ok {
 			logger.Debugf("mon %s already assigned to a node, no need to assign", m.Name)
 			continue
 		}
 
 		// pick one of the available nodes where the mon will be assigned
 		node := availableNodes[nodeIndex%len(availableNodes)]
-		logger.Debugf("mon %s assigned to node %s", m.Name, node.Address)
+		logger.Debugf("mon %s assigned to node %s", m.Name, node.Name)
 		nodeInfo, err := getNodeInfoFromNode(node)
 		if err != nil {
-			return fmt.Errorf("couldn't get node info from node %s. %+v", node.Address, err)
+			return fmt.Errorf("couldn't get node info from node %s. %+v", node.Name, err)
 		}
 		// when hostNetwork is used check if we need to increase the port of the node
 		if c.HostNetwork {
-			if _, ok := c.mapping.Port[node.Address]; ok {
+			if _, ok := c.mapping.Port[node.Name]; ok {
 				// when the node was already chosen increase port by 1 and set
 				// assignment and that the node was chosen
-				m.Port = c.mapping.Port[node.Address] + int32(1)
+				m.Port = c.mapping.Port[node.Name] + int32(1)
 			}
-			c.mapping.Port[node.Address] = m.Port
+			c.mapping.Port[node.Name] = m.Port
 		}
-		c.mapping.Node[m.Address] = nodeInfo
+		c.mapping.Node[m.Name] = nodeInfo
 		nodeIndex++
 	}
 
@@ -320,10 +320,10 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 
 func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 	nr := &NodeInfo{}
-	nr.Address = n.Address
+	nr.Name = n.Name
 	for _, ip := range n.Status.Addresses {
 		if ip.Type == v1.NodeExternalIP || ip.Type == v1.NodeInternalIP {
-			logger.Debugf("using IP %s for node %s", ip.Address, n.Address)
+			logger.Debugf("using IP %s for node %s", ip.Address, n.Name)
 			nr.Address = ip.Address
 			break
 		}
