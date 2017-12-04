@@ -22,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/rook/rook/cmd/rookctl/rook"
-	"github.com/rook/rook/pkg/ceph/util"
+	"github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/rook/rook/pkg/util/sys"

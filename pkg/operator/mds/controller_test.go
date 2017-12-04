@@ -23,20 +23,21 @@ package mds
 import (
 	"testing"
 
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFilesystemChanged(t *testing.T) {
 	// no change
-	old := FilesystemSpec{MetadataServer: MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
-	new := FilesystemSpec{MetadataServer: MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
+	old := rookalpha.FilesystemSpec{MetadataServer: rookalpha.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
+	new := rookalpha.FilesystemSpec{MetadataServer: rookalpha.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
 	changed := filesystemChanged(old, new)
 	assert.False(t, changed)
 
 	// changed properties
-	new = FilesystemSpec{MetadataServer: MetadataServerSpec{ActiveCount: 2, ActiveStandby: true}}
+	new = rookalpha.FilesystemSpec{MetadataServer: rookalpha.MetadataServerSpec{ActiveCount: 2, ActiveStandby: true}}
 	assert.True(t, filesystemChanged(old, new))
 
-	new = FilesystemSpec{MetadataServer: MetadataServerSpec{ActiveCount: 1, ActiveStandby: false}}
+	new = rookalpha.FilesystemSpec{MetadataServer: rookalpha.MetadataServerSpec{ActiveCount: 1, ActiveStandby: false}}
 	assert.True(t, filesystemChanged(old, new))
 }

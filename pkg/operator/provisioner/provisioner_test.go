@@ -23,8 +23,8 @@ import (
 	"strings"
 	"testing"
 
-	cephtest "github.com/rook/rook/pkg/ceph/test"
 	"github.com/rook/rook/pkg/clusterd"
+	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
 	"github.com/rook/rook/pkg/operator/provisioner/controller"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"

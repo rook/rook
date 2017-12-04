@@ -70,8 +70,7 @@ func ObjectStoreOperations(s *ObjectLongHaulSuite, wg *sync.WaitGroup, namespace
 	if deleteStore {
 		delOpts := metav1.DeleteOptions{}
 		s.tc.GetObjectClient().ObjectDelete(namespace, storeName, 3, false, s.kh)
-		s.kh.Clientset.Services(namespace).Delete("rgw-external-"+storeName, &delOpts)
-
+		s.kh.Clientset.CoreV1().Services(namespace).Delete("rgw-external-"+storeName, &delOpts)
 	}
 	s3 = nil
 }

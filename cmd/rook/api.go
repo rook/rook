@@ -18,8 +18,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/api"
-	"github.com/rook/rook/pkg/ceph/mon"
+	"github.com/rook/rook/pkg/daemon/api"
+	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )

@@ -22,9 +22,9 @@ import (
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/pkg/agent/flexvolume"
-	ceph "github.com/rook/rook/pkg/ceph/client"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/agent/flexvolume"
+	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/provisioner/controller"
 	"k8s.io/api/core/v1"

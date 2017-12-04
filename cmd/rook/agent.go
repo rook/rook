@@ -18,8 +18,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/agent"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/agent"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"

@@ -29,8 +29,8 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
-	flexcrd "github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/operator/agent"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -64,12 +64,12 @@ type Operator struct {
 }
 
 // New creates an operator instance
-func New(context *clusterd.Context, volumeAttachmentController flexcrd.VolumeAttachmentController) *Operator {
+func New(context *clusterd.Context, volumeAttachmentController attachment.Controller) *Operator {
 	clusterController := cluster.NewClusterController(context, volumeAttachmentController)
 	volumeProvisioner := provisioner.New(context)
 
 	schemes := []opkit.CustomResource{cluster.ClusterResource, pool.PoolResource, rgw.ObjectStoreResource,
-		mds.FilesystemResource, flexcrd.VolumeAttachmentResource}
+		mds.FilesystemResource, attachment.VolumeAttachmentResource}
 	return &Operator{
 		context:           context,
 		clusterController: clusterController,

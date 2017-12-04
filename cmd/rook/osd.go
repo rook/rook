@@ -20,9 +20,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rook/rook/pkg/ceph/client"
-	"github.com/rook/rook/pkg/ceph/mon"
-	"github.com/rook/rook/pkg/ceph/osd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/daemon/ceph/osd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"

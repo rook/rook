@@ -22,9 +22,9 @@ import (
 	"strings"
 	"testing"
 
-	cephtest "github.com/rook/rook/pkg/ceph/test"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/pool"
+	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -53,12 +53,12 @@ func TestStartMDS(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	fs := &Filesystem{
+	fs := rookalpha.Filesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
-		Spec: FilesystemSpec{
-			MetadataPool: pool.PoolSpec{Replicated: pool.ReplicatedSpec{Size: 1}},
-			DataPools:    []pool.PoolSpec{{Replicated: pool.ReplicatedSpec{Size: 1}}},
-			MetadataServer: MetadataServerSpec{
+		Spec: rookalpha.FilesystemSpec{
+			MetadataPool: rookalpha.PoolSpec{Replicated: rookalpha.ReplicatedSpec{Size: 1}},
+			DataPools:    []rookalpha.PoolSpec{{Replicated: rookalpha.ReplicatedSpec{Size: 1}}},
+			MetadataServer: rookalpha.MetadataServerSpec{
 				ActiveCount: 1,
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
@@ -75,17 +75,17 @@ func TestStartMDS(t *testing.T) {
 	//defer os.RemoveAll(c.dataDir)
 
 	// start a basic cluster
-	err := fs.Create(context, "v0.1", false)
+	err := CreateFilesystem(context, fs, "v0.1", false)
 	assert.Nil(t, err)
 	validateStart(t, context, fs)
 
 	// starting again should be a no-op
-	err = fs.Create(context, "v0.1", false)
+	err = CreateFilesystem(context, fs, "v0.1", false)
 	assert.Nil(t, err)
 	validateStart(t, context, fs)
 }
 
-func validateStart(t *testing.T, context *clusterd.Context, fs *Filesystem) {
+func validateStart(t *testing.T, context *clusterd.Context, fs rookalpha.Filesystem) {
 
 	r, err := context.Clientset.ExtensionsV1beta1().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs", metav1.GetOptions{})
 	assert.Nil(t, err)
@@ -93,10 +93,10 @@ func validateStart(t *testing.T, context *clusterd.Context, fs *Filesystem) {
 }
 
 func TestPodSpecs(t *testing.T) {
-	fs := &Filesystem{
+	fs := rookalpha.Filesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
-		Spec: FilesystemSpec{
-			MetadataServer: MetadataServerSpec{
+		Spec: rookalpha.FilesystemSpec{
+			MetadataServer: rookalpha.MetadataServerSpec{
 				ActiveCount: 1,
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
@@ -111,7 +111,7 @@ func TestPodSpecs(t *testing.T) {
 	}
 	mdsID := "mds1"
 
-	d := fs.makeDeployment(mdsID, "myversion", false)
+	d := makeDeployment(fs, mdsID, "myversion", false)
 	assert.NotNil(t, d)
 	assert.Equal(t, appName+"-myfs", d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
@@ -136,15 +136,15 @@ func TestPodSpecs(t *testing.T) {
 }
 
 func TestHostNetwork(t *testing.T) {
-	fs := &Filesystem{
+	fs := rookalpha.Filesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
-		Spec: FilesystemSpec{
-			MetadataServer: MetadataServerSpec{ActiveCount: 1},
+		Spec: rookalpha.FilesystemSpec{
+			MetadataServer: rookalpha.MetadataServerSpec{ActiveCount: 1},
 		},
 	}
 	mdsID := "mds1"
 
-	d := fs.makeDeployment(mdsID, "v0.1", true)
+	d := makeDeployment(fs, mdsID, "v0.1", true)
 
 	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
@@ -152,29 +152,29 @@ func TestHostNetwork(t *testing.T) {
 
 func TestValidateSpec(t *testing.T) {
 	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
-	fs := &Filesystem{}
+	fs := rookalpha.Filesystem{}
 
 	// missing name
-	assert.NotNil(t, fs.validate(context))
+	assert.NotNil(t, validateFilesystem(context, fs))
 	fs.Name = "myfs"
 
 	// missing namespace
-	assert.NotNil(t, fs.validate(context))
+	assert.NotNil(t, validateFilesystem(context, fs))
 	fs.Namespace = "myns"
 
 	// missing data pools
-	assert.NotNil(t, fs.validate(context))
-	p := pool.PoolSpec{Replicated: pool.ReplicatedSpec{Size: 1}}
+	assert.NotNil(t, validateFilesystem(context, fs))
+	p := rookalpha.PoolSpec{Replicated: rookalpha.ReplicatedSpec{Size: 1}}
 	fs.Spec.DataPools = append(fs.Spec.DataPools, p)
 
 	// missing metadata pool
-	assert.NotNil(t, fs.validate(context))
+	assert.NotNil(t, validateFilesystem(context, fs))
 	fs.Spec.MetadataPool = p
 
 	// missing mds count
-	assert.NotNil(t, fs.validate(context))
+	assert.NotNil(t, validateFilesystem(context, fs))
 	fs.Spec.MetadataServer.ActiveCount = 1
 
 	// valid!
-	assert.Nil(t, fs.validate(context))
+	assert.Nil(t, validateFilesystem(context, fs))
 }

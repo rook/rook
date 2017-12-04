@@ -22,13 +22,26 @@ package rgw
 
 import (
 	"fmt"
+	"reflect"
 
 	opkit "github.com/rook/operator-kit"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/pool"
+	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/tools/cache"
 )
+
+// ObjectStoreResource represents the object store custom resource
+var ObjectStoreResource = opkit.CustomResource{
+	Name:    "objectstore",
+	Plural:  "objectstores",
+	Group:   rookalpha.CustomResourceGroup,
+	Version: rookalpha.Version,
+	Scope:   apiextensionsv1beta1.NamespaceScoped,
+	Kind:    reflect.TypeOf(rookalpha.ObjectStore{}).Name(),
+}
 
 // ObjectStoreController represents a controller object for object store custom resources
 type ObjectStoreController struct {
@@ -49,7 +62,7 @@ func NewObjectStoreController(context *clusterd.Context, versionTag string, host
 
 // StartWatch watches for instances of ObjectStore custom resources and acts on them
 func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{}) error {
-	client, scheme, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, schemeBuilder)
+	client, scheme, err := opkit.NewHTTPClient(rookalpha.CustomResourceGroup, rookalpha.Version, schemeBuilder)
 	if err != nil {
 		return fmt.Errorf("failed to get a k8s client for watching object store resources: %v", err)
 	}
@@ -63,53 +76,43 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 
 	logger.Infof("start watching object store resources in namespace %s", namespace)
 	watcher := opkit.NewWatcher(ObjectStoreResource, namespace, resourceHandlerFuncs, client)
-	go watcher.Watch(&ObjectStore{}, stopCh)
+	go watcher.Watch(&rookalpha.ObjectStore{}, stopCh)
 	return nil
 }
 
 func (c *ObjectStoreController) onAdd(obj interface{}) {
-	objectStore := obj.(*ObjectStore)
-
-	// NEVER modify objects from the store. It's a read-only, local cache.
-	// Use scheme.Copy() to make a deep copy of original object.
-	copyObj, err := c.scheme.Copy(objectStore)
+	store := obj.(*rookalpha.ObjectStore).DeepCopy()
+	err := CreateStore(c.context, *store, c.versionTag, c.hostNetwork)
 	if err != nil {
-		fmt.Printf("ERROR creating a deep copy of object store: %v\n", err)
-		return
-	}
-	objectStoreCopy := copyObj.(*ObjectStore)
-
-	err = objectStoreCopy.Create(c.context, c.versionTag, c.hostNetwork)
-	if err != nil {
-		logger.Errorf("failed to create object store %s. %+v", objectStore.Name, err)
+		logger.Errorf("failed to create object store %s. %+v", store.Name, err)
 	}
 }
 
 func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	// if the object store spec is modified, update the object store
-	oldStore := oldObj.(*ObjectStore)
-	newStore := newObj.(*ObjectStore)
+	oldStore := oldObj.(*rookalpha.ObjectStore).DeepCopy()
+	newStore := newObj.(*rookalpha.ObjectStore).DeepCopy()
 	if !storeChanged(oldStore.Spec, newStore.Spec) {
 		logger.Debugf("object store %s did not change", newStore.Name)
 		return
 	}
 
 	logger.Infof("applying object store %s changes", newStore.Name)
-	err := newStore.Update(c.context, c.versionTag, c.hostNetwork)
+	err := UpdateStore(c.context, *newStore, c.versionTag, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create (modify) object store %s. %+v", newStore.Name, err)
 	}
 }
 
 func (c *ObjectStoreController) onDelete(obj interface{}) {
-	objectStore := obj.(*ObjectStore)
-	err := objectStore.Delete(c.context)
+	store := obj.(*rookalpha.ObjectStore).DeepCopy()
+	err := DeleteStore(c.context, *store)
 	if err != nil {
-		logger.Errorf("failed to delete object store %s. %+v", objectStore.Name, err)
+		logger.Errorf("failed to delete object store %s. %+v", store.Name, err)
 	}
 }
 
-func storeChanged(oldStore, newStore ObjectStoreSpec) bool {
+func storeChanged(oldStore, newStore rookalpha.ObjectStoreSpec) bool {
 	if oldStore.DataPool.Replicated.Size != newStore.DataPool.Replicated.Size {
 		logger.Infof("data pool replication changed from %d to %d", oldStore.DataPool.Replicated.Size, newStore.DataPool.Replicated.Size)
 		return true
@@ -139,4 +142,22 @@ func storeChanged(oldStore, newStore ObjectStoreSpec) bool {
 		return true
 	}
 	return false
+}
+
+// Validate the object store arguments
+func validateStore(context *clusterd.Context, s rookalpha.ObjectStore) error {
+	if s.Name == "" {
+		return fmt.Errorf("missing name")
+	}
+	if s.Namespace == "" {
+		return fmt.Errorf("missing namespace")
+	}
+	if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.MetadataPool); err != nil {
+		return fmt.Errorf("invalid metadata pool spec. %+v", err)
+	}
+	if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.DataPool); err != nil {
+		return fmt.Errorf("invalid data pool spec. %+v", err)
+	}
+
+	return nil
 }

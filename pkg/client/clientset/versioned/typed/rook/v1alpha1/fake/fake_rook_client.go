@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Kubernetes Authors.
+Copyright 2017 The Kubernetes Authors All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -24,6 +24,22 @@ import (
 
 type FakeRookV1alpha1 struct {
 	*testing.Fake
+}
+
+func (c *FakeRookV1alpha1) Clusters(namespace string) v1alpha1.ClusterInterface {
+	return &FakeClusters{c, namespace}
+}
+
+func (c *FakeRookV1alpha1) Filesystems(namespace string) v1alpha1.FilesystemInterface {
+	return &FakeFilesystems{c, namespace}
+}
+
+func (c *FakeRookV1alpha1) ObjectStores(namespace string) v1alpha1.ObjectStoreInterface {
+	return &FakeObjectStores{c, namespace}
+}
+
+func (c *FakeRookV1alpha1) Pools(namespace string) v1alpha1.PoolInterface {
+	return &FakePools{c, namespace}
 }
 
 func (c *FakeRookV1alpha1) VolumeAttachments(namespace string) v1alpha1.VolumeAttachmentInterface {

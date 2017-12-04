@@ -19,11 +19,12 @@ import (
 	"fmt"
 
 	opkit "github.com/rook/operator-kit"
-	flexcrd "github.com/rook/rook/pkg/agent/flexvolume/crd"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/operator"
+	"github.com/rook/rook/pkg/operator/cluster/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -60,12 +61,11 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	context.ConfigDir = k8sutil.DataDir
 	context.Clientset = clientset
 	context.APIExtensionClientset = apiExtClientset
-
-	volumeAttachmentClient, _, err := opkit.NewHTTPClient(k8sutil.CustomResourceGroup, k8sutil.V1Alpha1, flexcrd.SchemeBuilder)
+	volumeAttachmentClient, _, err := opkit.NewHTTPClient(rookalpha.CustomResourceGroup, rookalpha.Version, attachment.SchemeBuilder)
 	if err != nil {
 		terminateFatal(err)
 	}
-	volumeAttachmentController, err := flexcrd.NewVolumeAttachmentController(context.Clientset, volumeAttachmentClient)
+	volumeAttachmentController, err := attachment.CreateController(context.Clientset, volumeAttachmentClient)
 	if err != nil {
 		terminateFatal(err)
 	}
