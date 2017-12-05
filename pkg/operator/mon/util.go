@@ -303,12 +303,12 @@ func extractKey(contents string) (string, error) {
 	return secret, nil
 }
 
-func getNodeId(node *NodeInfo) (string, error) {
+func getNodeId(node *NodeInfo) string {
 	var nodeId string
 	if node.Hostname != "" {
 		nodeId = node.Hostname
 	} else {
 		nodeId = node.Name
 	}
-	return nodeId, nil
+	return nodeId
 }

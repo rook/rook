@@ -329,9 +329,9 @@ func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 			break
 		}
 	}
-	nr.Hostname = n.Labels["kubernetes.io/hostname"]
+	nr.Hostname = n.Labels[apis.LabelHostname]
 	if nr.Address == "" {
-		return nil, fmt.Errorf("no IP given for node %s", nr.Address)
+		return nil, fmt.Errorf("no IP given for node %s", nr.Name)
 	}
 	return nr, nil
 }
@@ -339,12 +339,9 @@ func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 func (c *Cluster) startPods(mons []*monConfig) error {
 	for _, m := range mons {
 		node, _ := c.mapping.Node[m.Name]
-		nodeId, err := getNodeId(node)
-		if err != nil {
-			return fmt.Errorf("failed to get a node ID. %+v", err)
-		}
+		nodeId := getNodeId(node)
 		// start the mon replicaset/pod
-		err = c.startMon(m, nodeId)
+		err := c.startMon(m, nodeId)
 		if err != nil {
 			return fmt.Errorf("failed to create pod %s. %+v", m.Name, err)
 		}

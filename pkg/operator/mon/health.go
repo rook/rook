@@ -161,10 +161,7 @@ func (c *Cluster) checkMonsOnSameNode() (bool, error) {
 	nodesUsed := map[string]struct{}{}
 	for name, node := range c.mapping.Node {
 		// when the node is already in the list we have more than one mon on that node
-		nodeId, err := getNodeId(node)
-		if err != nil {
-			return true, fmt.Errorf("failed to get a node ID. %+v", err)
-		}
+		nodeId := getNodeId(node)
 		if _, ok := nodesUsed[nodeId]; ok {
 			// get list of available nodes for mons
 			availableNodes, _, err := c.getAvailableMonNodes()
