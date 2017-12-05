@@ -236,7 +236,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	c.mapping.Node["mon1"] = &NodeInfo{
 		Name:     "node0",
 		Address:  "1.1.1.1",
-                Hostname: "",
+		Hostname: "",
 	}
 	c.mapping.Port["node0"] = int32(12345)
 	err = c.saveMonConfig()
