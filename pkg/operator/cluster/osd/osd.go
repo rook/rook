@@ -130,7 +130,7 @@ func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, config rookalpha.
 	ds.Name = appName
 	ds.Namespace = c.Namespace
 
-	podSpec := c.podTemplateSpec(nil, nil, selection, c.resources, config)
+	podSpec := c.podTemplateSpec(nil, selection, c.resources, config)
 
 	ds.Spec = extensions.DaemonSetSpec{Template: podSpec}
 	return ds
@@ -143,7 +143,7 @@ func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device,
 	rs.Name = fmt.Sprintf(appNameFmt, nodeName)
 	rs.Namespace = c.Namespace
 
-	podSpec := c.podTemplateSpec(devices, selection.Directories, selection, resources, config)
+	podSpec := c.podTemplateSpec(devices, selection, resources, config)
 	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
 
 	replicaCount := int32(1)
@@ -156,7 +156,7 @@ func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device,
 	return rs
 }
 
-func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, directories []rookalpha.Directory, selection rookalpha.Selection,
+func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection,
 	resources v1.ResourceRequirements, config rookalpha.Config) v1.PodTemplateSpec {
 	// by default, the data/config dir will be an empty volume
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
@@ -178,7 +178,7 @@ func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, directories []rook
 	}
 
 	// add each OSD directory as another host path volume source
-	for _, d := range directories {
+	for _, d := range selection.Directories {
 		dirVolume := v1.Volume{
 			Name:         k8sutil.PathToVolumeName(d.Path),
 			VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: d.Path}},
@@ -188,7 +188,7 @@ func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, directories []rook
 
 	podSpec := v1.PodSpec{
 		ServiceAccountName: appName,
-		Containers:         []v1.Container{c.osdContainer(devices, directories, selection, resources, config)},
+		Containers:         []v1.Container{c.osdContainer(devices, selection, resources, config)},
 		RestartPolicy:      v1.RestartPolicyAlways,
 		Volumes:            volumes,
 		HostNetwork:        c.HostNetwork,
@@ -211,7 +211,7 @@ func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, directories []rook
 	}
 }
 
-func (c *Cluster) osdContainer(devices []rookalpha.Device, directories []rookalpha.Directory, selection rookalpha.Selection,
+func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.Selection,
 	resources v1.ResourceRequirements, config rookalpha.Config) v1.Container {
 
 	envVars := []v1.EnvVar{
@@ -258,11 +258,11 @@ func (c *Cluster) osdContainer(devices []rookalpha.Device, directories []rookalp
 		volumeMounts = append(volumeMounts, devMount)
 	}
 
-	if len(directories) > 0 {
+	if len(selection.Directories) > 0 {
 		// for each directory the user has specified, create a volume mount and pass it to the pod via cmd line arg
-		dirPaths := make([]string, len(directories))
-		for i := range directories {
-			dpath := directories[i].Path
+		dirPaths := make([]string, len(selection.Directories))
+		for i := range selection.Directories {
+			dpath := selection.Directories[i].Path
 			dirPaths[i] = dpath
 			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: k8sutil.PathToVolumeName(dpath), MountPath: dpath})
 		}
