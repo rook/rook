@@ -27,8 +27,8 @@ import (
 )
 
 func TestObjectStoreChanged(t *testing.T) {
-	old := ObjectStoreSpec{Gateway: GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
-	new := ObjectStoreSpec{Gateway: GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	old := ObjectStoreSpec{Gateway: GatewaySpec{DnsName: "stinky-domain.net", Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	new := ObjectStoreSpec{Gateway: GatewaySpec{DnsName: "stinky-domain.net", Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
 	// nothing changed
 	assert.False(t, storeChanged(old, new))
 
@@ -46,5 +46,8 @@ func TestObjectStoreChanged(t *testing.T) {
 	assert.True(t, storeChanged(old, new))
 
 	new = ObjectStoreSpec{Gateway: GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: "mysecret"}}
+	assert.True(t, storeChanged(old, new))
+
+	new = ObjectStoreSpec{Gateway: GatewaySpec{DnsName: "cool.io", Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
 	assert.True(t, storeChanged(old, new))
 }
