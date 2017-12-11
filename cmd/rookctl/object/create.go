@@ -48,6 +48,7 @@ func init() {
 	createCmd.Flags().StringVarP(&store.Name, "name", "n", "default", "The name of the object store instance")
 	createCmd.Flags().Int32VarP(&store.Gateway.Port, "port", "p", model.RGWPort, "The port on which to expose the object store (http)")
 	createCmd.Flags().Int32VarP(&store.Gateway.SecurePort, "secure-port", "s", 0, "The port on which to expose the object store (https)")
+	createCmd.Flags().StringVarP(&store.Gateway.DnsName, "dns-name", "d", store.Name, "The DNS name that will be used to access the objecstore (defaults to the objectstore service name)")
 	createCmd.Flags().Int32VarP(&store.Gateway.Instances, "rgw-instances", "i", 1, "The number of RGW pods for load balancing (ignored if all nodes is set)")
 	createCmd.Flags().BoolVarP(&store.Gateway.AllNodes, "rgw-all-nodes", "a", false, "Whether RGW pods should be started on all nodes")
 	createCmd.Flags().StringVarP(&certificateFile, "certificate", "c", "", "Path to the ssl cert file (pem format)")

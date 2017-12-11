@@ -125,7 +125,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
 	assert.Equal(t, fmt.Sprintf("--rgw-name=%s", "default"), cont.Args[2])
 	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", store.instanceName()), cont.Args[3])
-	assert.Equal(t, fmt.Sprintf("--rgw-dnsName=%s", store.instanceName()), cont.Args[4])
+	assert.Equal(t, fmt.Sprintf("--rgw-dns-name=%s", store.instanceName()), cont.Args[4])
 	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[5])
 	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 0), cont.Args[6])
 
@@ -143,7 +143,7 @@ func TestCustomDNS(t *testing.T) {
 	assert.Equal(t, 2, len(s.Spec.Volumes))
 	cont := s.Spec.Containers[0]
 	assert.Equal(t, 7, len(cont.Args))
-	assert.Equal(t, fmt.Sprintf("--rgw-dnsName=%s", store.Spec.Gateway.DnsName), cont.Args[4])
+	assert.Equal(t, fmt.Sprintf("--rgw-dns-name=%s", store.Spec.Gateway.DnsName), cont.Args[4])
 }
 
 func TestSSLPodSpec(t *testing.T) {
