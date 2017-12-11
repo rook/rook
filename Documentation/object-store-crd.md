@@ -27,7 +27,7 @@ spec:
       codingChunks: 1
   gateway:
     type: s3
-    dnsHost: my-store.rook
+    dnsName: my-store.rook
     sslCertificateRef:
     port: 80
     securePort:
