@@ -21,11 +21,13 @@ which also has the apache 2.0 license.
 package k8sutil
 
 import (
+	"os"
 	"testing"
 
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/rbac/v1beta1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -145,4 +147,84 @@ func TestMakeClusterRole(t *testing.T) {
 	assert.Equal(t, "", role.Rules[0].APIGroups[0])
 	assert.Equal(t, 1, len(role.Rules[0].Resources))
 	assert.Equal(t, 2, len(role.Rules[0].Verbs))
+}
+
+func TestMakeRoleRBACDisabled(t *testing.T) {
+	os.Setenv(enableRBACEnv, "false")
+	defer os.Unsetenv(enableRBACEnv)
+	clientset := test.New(1)
+	namespace := "myns"
+	name := "myapp"
+
+	rules := []v1beta1.PolicyRule{
+		{
+			APIGroups: []string{""},
+			Resources: []string{"namespaces", "secrets", "pods", "services", "nodes", "configmaps", "events"},
+			Verbs:     []string{"get", "list", "watch", "create", "update"},
+		},
+		{
+			APIGroups: []string{"extensions"},
+			Resources: []string{"thirdpartyresources", "deployments", "daemonsets", "replicasets"},
+			Verbs:     []string{"get", "list", "create", "delete"},
+		},
+		{
+			APIGroups: []string{"apiextensions.k8s.io"},
+			Resources: []string{"customresourcedefinitions"},
+			Verbs:     []string{"get", "list", "create"},
+		},
+		{
+			APIGroups: []string{"storage.k8s.io"},
+			Resources: []string{"storageclasses"},
+			Verbs:     []string{"get", "list"},
+		},
+	}
+
+	err := MakeRole(clientset, namespace, name, rules)
+
+	_, err = clientset.RbacV1beta1().Roles(namespace).Get(name, metav1.GetOptions{})
+	assert.NotNil(t, err)
+	assert.True(t, errors.IsNotFound(err))
+
+	account, err := clientset.CoreV1().ServiceAccounts(namespace).Get(name, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, namespace, account.Namespace)
+
+	_, err = clientset.RbacV1beta1().RoleBindings(namespace).Get(name, metav1.GetOptions{})
+	assert.NotNil(t, err)
+	assert.True(t, errors.IsNotFound(err))
+}
+
+func TestMakeClusterRoleRBACDisabled(t *testing.T) {
+	os.Setenv(enableRBACEnv, "false")
+	defer os.Unsetenv(enableRBACEnv)
+	clientset := test.New(1)
+	namespace := "myns"
+	name := "myapp"
+
+	rules := []v1beta1.PolicyRule{
+		{
+			APIGroups: []string{""},
+			Resources: []string{"pods", "secrets", "configmaps", "persistentvolumes", "nodes/proxy"},
+			Verbs:     []string{"get", "list"},
+		},
+		{
+			APIGroups: []string{"storage.k8s.io"},
+			Resources: []string{"storageclasses"},
+			Verbs:     []string{"get"},
+		},
+	}
+
+	err := MakeClusterRole(clientset, namespace, name, rules)
+	assert.Nil(t, err)
+	_, err = clientset.RbacV1beta1().ClusterRoles().Get(name, metav1.GetOptions{})
+	assert.NotNil(t, err)
+	assert.True(t, errors.IsNotFound(err))
+
+	account, err := clientset.CoreV1().ServiceAccounts(namespace).Get(name, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, namespace, account.Namespace)
+
+	_, err = clientset.RbacV1beta1().ClusterRoleBindings().Get(name, metav1.GetOptions{})
+	assert.NotNil(t, err)
+	assert.True(t, errors.IsNotFound(err))
 }
