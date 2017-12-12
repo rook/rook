@@ -19,6 +19,9 @@ package integration
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"strings"
 
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/clients"
@@ -53,7 +56,6 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	cobsErr := oc.ObjectCreate(namespace, storeName, 1, dnsName, true, k8sh)
 	require.Nil(s.T(), cobsErr)
 	logger.Infof("Object store created successfully")
-
 	logger.Infof("Step 1 : Create Object Store User")
 	initialUsers, _ := oc.ObjectListUser(storeName)
 	_, cosuErr := oc.ObjectCreateUser(storeName, userid, userdisplayname)
@@ -82,7 +84,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	require.Equal(s.T(), userid, bkt.Owner)
 	logger.Infof("Bucket created in Object store successfully")
 
-	logger.Infof("Step 4 : Put Object on bucket")
+	logger.Infof("Step 4 : Test correctness of the DNS settings in the RGW")
+	dnsSet, _ := testCorrectDnsSet(bucketname, dnsName, s3endpoint)
+	require.True(s.T(), dnsSet)
+	dnsSet, _ = testCorrectDnsSet(bucketname, storeName, s3endpoint)
+	require.False(s.T(), dnsSet)
+
+	logger.Infof("Step 5 : Put Object on bucket")
 	initObjSize, initObjNum, _ := getBucketSizeAndObjectes(bucketname, BucketsAfterCreate)
 	require.Equal(s.T(), uint64(0), initObjSize)
 	require.Equal(s.T(), uint64(0), initObjNum)
@@ -94,13 +102,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	require.Equal(s.T(), uint64(1), ObjNum)
 	logger.Infof("Object Created on bucket successfully")
 
-	logger.Infof("Step 5 : Put Object from bucket")
+	logger.Infof("Step 6 : Put Object from bucket")
 	read, err := s3client.GetObjectInBucket(bucketname, objectKey)
 	require.Nil(s.T(), err)
 	require.Equal(s.T(), objBody, read)
 	logger.Infof("Object retrieved from bucket successfully")
 
-	logger.Infof("Step 6 : Delete Object on bucket")
+	logger.Infof("Step 7 : Delete Object on bucket")
 	_, delobjErr := s3client.DeleteObjectInBucket(bucketname, objectKey)
 	require.Nil(s.T(), delobjErr)
 	BucketsAfterOjbDelete, _ := oc.ObjectBucketList(storeName)
@@ -109,21 +117,21 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	require.Equal(s.T(), uint64(0), ObjNum1)
 	logger.Infof("Object deleted on bucket successfully")
 
-	logger.Infof("Step 7 : Delete bucket")
+	logger.Infof("Step 8 : Delete bucket")
 	_, bkdelErr := s3client.DeleteBucket(bucketname)
 	require.Nil(s.T(), bkdelErr)
 	BucketsAfterDelete, _ := oc.ObjectBucketList(storeName)
 	require.Equal(s.T(), len(initialBuckets), len(BucketsAfterDelete), "Make sure new bucket is deleted")
 	logger.Infof("Bucket  deleted successfully")
 
-	logger.Infof("Step 7 : Delete  User")
+	logger.Infof("Step 9 : Delete  User")
 	usersBeforeDelete, _ := oc.ObjectListUser(storeName)
 	oc.ObjectDeleteUser(storeName, userid)
 	usersAfterDelete, _ := oc.ObjectListUser(storeName)
 	require.Equal(s.T(), len(usersBeforeDelete)-1, len(usersAfterDelete), "Make sure user list count is reducd by 1")
 	logger.Infof("Object store user deleted successfully")
 
-	logger.Infof("Step 8: Delete Object Store")
+	logger.Infof("Step 10: Delete Object Store")
 	dobsErr := oc.ObjectDelete(namespace, storeName, 1, true, k8sh)
 	require.Nil(s.T(), dobsErr)
 	logger.Infof("Object store deleted successfully")
@@ -183,4 +191,26 @@ func getBucketSizeAndObjectes(bucketname string, bucketList []model.ObjectBucket
 		return 0, 0, errors.New("Bucket not found")
 	}
 	return bkt.Size, bkt.NumberOfObjects, nil
+}
+
+func testCorrectDnsSet(bucketname string, dnsName string, s3endpoint string) (bool, error) {
+	url := fmt.Sprintf("%s/%s", s3endpoint, bucketname)
+	client := &http.Client{}
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return false, errors.New("Error while creating HTTP request")
+	}
+	req.Host = dnsName
+	resp, err := client.Do(req)
+	if err != nil {
+		return false, errors.New("Error while running HTTP request")
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if strings.Contains(string(body), "AccessDenied") {
+		return true, nil
+	} else if strings.Contains(string(body), "NoSuchBucket") {
+		return false, nil
+	}
+	return false, errors.New("Gateway reported an unexpected answer. Erroring..")
 }
