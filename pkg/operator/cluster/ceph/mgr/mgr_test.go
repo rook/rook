@@ -44,7 +44,7 @@ func TestStartMGR(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	c := New(context, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(context, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic service
@@ -76,7 +76,7 @@ func TestPodSpec(t *testing.T) {
 		Requests: v1.ResourceList{
 			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
 		},
-	})
+	}, metav1.OwnerReference{})
 
 	d := c.makeDeployment("mgr1")
 	assert.NotNil(t, d)
@@ -103,7 +103,7 @@ func TestPodSpec(t *testing.T) {
 }
 
 func TestServiceSpec(t *testing.T) {
-	c := New(nil, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(nil, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	s := c.makeService("rook-mgr")
 	assert.NotNil(t, s)
@@ -112,7 +112,7 @@ func TestServiceSpec(t *testing.T) {
 }
 
 func TestHostNetwork(t *testing.T) {
-	c := New(nil, "ns", "myversion", rookalpha.Placement{}, true, v1.ResourceRequirements{})
+	c := New(nil, "ns", "myversion", rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	d := c.makeDeployment("mgr1")
 	assert.NotNil(t, d)

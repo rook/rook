@@ -78,6 +78,7 @@ type Cluster struct {
 	HostNetwork         bool
 	mapping             *Mapping
 	resources           v1.ResourceRequirements
+	ownerRef            metav1.OwnerReference
 }
 
 // monConfig for a single monitor
@@ -100,7 +101,8 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath, version string, size int, placement rookalpha.Placement, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath, version string, size int, placement rookalpha.Placement, hostNetwork bool,
+	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:             context,
 		placement:           placement,
@@ -119,6 +121,7 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, version string, 
 			Port: map[string]int32{},
 		},
 		resources: resources,
+		ownerRef:  ownerRef,
 	}
 }
 
@@ -184,7 +187,7 @@ func (c *Cluster) initClusterInfo() error {
 
 	var err error
 	// get the cluster info from secret
-	c.clusterInfo, c.maxMonID, c.mapping, err = LoadClusterInfo(c.context, c.Namespace)
+	c.clusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
 	if err != nil {
 		return fmt.Errorf("failed to get cluster info. %+v", err)
 	}
@@ -240,8 +243,9 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 	labels := c.getLabels(mon.Name)
 	s := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   mon.Name,
-			Labels: labels,
+			Name:            mon.Name,
+			Labels:          labels,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
@@ -370,9 +374,10 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig) error {
 func (c *Cluster) saveMonConfig() error {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        EndpointConfigMapName,
-			Namespace:   c.Namespace,
-			Annotations: map[string]string{},
+			Name:            EndpointConfigMapName,
+			Namespace:       c.Namespace,
+			Annotations:     map[string]string{},
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
 		},
 	}
 

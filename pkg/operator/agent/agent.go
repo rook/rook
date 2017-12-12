@@ -78,7 +78,7 @@ func New(clientset kubernetes.Interface) *Agent {
 // Start the agent
 func (a *Agent) Start(namespace, agentImage string) error {
 
-	err := k8sutil.MakeClusterRole(a.clientset, namespace, agentDaemonsetName, clusterAccessRules)
+	err := k8sutil.MakeClusterRole(a.clientset, namespace, agentDaemonsetName, clusterAccessRules, nil)
 	if err != nil {
 		return fmt.Errorf("failed to init RBAC for rook-agents. %+v", err)
 	}

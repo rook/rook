@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	mds "github.com/rook/rook/pkg/operator/file/ceph"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -46,14 +47,16 @@ type FilesystemController struct {
 	context     *clusterd.Context
 	rookImage   string
 	hostNetwork bool
+	ownerRef    metav1.OwnerReference
 }
 
 // NewFilesystemController create controller for watching file system custom resources created
-func NewFilesystemController(context *clusterd.Context, rookImage string, hostNetwork bool) *FilesystemController {
+func NewFilesystemController(context *clusterd.Context, rookImage string, hostNetwork bool, ownerRef metav1.OwnerReference) *FilesystemController {
 	return &FilesystemController{
 		context:     context,
 		rookImage:   rookImage,
 		hostNetwork: hostNetwork,
+		ownerRef:    ownerRef,
 	}
 }
 
@@ -75,7 +78,7 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 func (c *FilesystemController) onAdd(obj interface{}) {
 	filesystem := obj.(*rookalpha.Filesystem).DeepCopy()
 
-	err := mds.CreateFilesystem(c.context, *filesystem, c.rookImage, c.hostNetwork)
+	err := mds.CreateFilesystem(c.context, *filesystem, c.rookImage, c.hostNetwork, c.filesystemOwners(filesystem))
 	if err != nil {
 		logger.Errorf("failed to create file system %s. %+v", filesystem.Name, err)
 	}
@@ -91,7 +94,7 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	// if the file system is modified, allow the file system to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS)
-	err := mds.CreateFilesystem(c.context, *newFS, c.rookImage, c.hostNetwork)
+	err := mds.CreateFilesystem(c.context, *newFS, c.rookImage, c.hostNetwork, c.filesystemOwners(newFS))
 	if err != nil {
 		logger.Errorf("failed to create (modify) file system %s. %+v", newFS.Name, err)
 	}
@@ -103,6 +106,15 @@ func (c *FilesystemController) onDelete(obj interface{}) {
 	if err != nil {
 		logger.Errorf("failed to delete file system %s. %+v", filesystem.Name, err)
 	}
+}
+
+func (c *FilesystemController) filesystemOwners(fs *rookalpha.Filesystem) []metav1.OwnerReference {
+
+	// Only set the cluster crd as the owner of the filesystem resources.
+	// If the filesystem crd is deleted, the operator will explicitly remove the filesystem resources.
+	// If the filesystem crd still exists when the cluster crd is deleted, this will make sure the filesystem
+	// resources are cleaned up.
+	return []metav1.OwnerReference{c.ownerRef}
 }
 
 func filesystemChanged(oldFS, newFS rookalpha.FilesystemSpec) bool {

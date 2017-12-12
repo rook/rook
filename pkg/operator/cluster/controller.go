@@ -41,6 +41,7 @@ import (
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
 )
@@ -48,7 +49,7 @@ import (
 const (
 	CustomResourceName       = "cluster"
 	CustomResourceNamePlural = "clusters"
-	crushConfigMapName       = "crush-config"
+	crushConfigMapName       = "rook-crush-config"
 	crushmapCreatedKey       = "initialCrushMapCreated"
 	clusterCreateInterval    = 6 * time.Second
 	clusterCreateTimeout     = 5 * time.Minute
@@ -93,6 +94,7 @@ type cluster struct {
 	osds      *osd.Cluster
 	apis      *api.Cluster
 	stopCh    chan struct{}
+	ownerRef  metav1.OwnerReference
 }
 
 // NewClusterController create controller for watching cluster custom resources created
@@ -163,11 +165,11 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store CRD watcher
-	objectStoreController := object.NewObjectStoreController(c.context, c.rookImage, cluster.Spec.HostNetwork)
+	objectStoreController := object.NewObjectStoreController(c.context, c.rookImage, cluster.Spec.HostNetwork, cluster.ownerRef)
 	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start file system CRD watcher
-	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.HostNetwork)
+	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.HostNetwork, cluster.ownerRef)
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker
@@ -241,7 +243,18 @@ func (c *ClusterController) handleDelete(cluster *rookalpha.Cluster, retryInterv
 }
 
 func newCluster(c *rookalpha.Cluster, context *clusterd.Context) *cluster {
-	return &cluster{Namespace: c.Namespace, Spec: c.Spec, context: context}
+	return &cluster{Namespace: c.Namespace, Spec: c.Spec, context: context, ownerRef: ClusterOwnerRef(c.Namespace, string(c.UID))}
+}
+
+func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
+	blockOwner := true
+	return metav1.OwnerReference{
+		APIVersion:         ClusterResource.Version,
+		Kind:               ClusterResource.Kind,
+		Name:               namespace,
+		UID:                types.UID(clusterID),
+		BlockOwnerDeletion: &blockOwner,
+	}
 }
 
 func (c *cluster) createInstance(rookImage string) error {
@@ -251,15 +264,21 @@ func (c *cluster) createInstance(rookImage string) error {
 	placeholderConfig := map[string]string{
 		k8sutil.ConfigOverrideVal: "",
 	}
-	cm := &v1.ConfigMap{Data: placeholderConfig}
-	cm.Name = k8sutil.ConfigOverrideName
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            k8sutil.ConfigOverrideName,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+		},
+		Data: placeholderConfig,
+	}
+
 	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.MonCount, c.Spec.Placement.GetMon(), c.Spec.HostNetwork, c.Spec.Resources.Mon)
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.MonCount, c.Spec.Placement.GetMon(), c.Spec.HostNetwork, c.Spec.Resources.Mon, c.ownerRef)
 	err = c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
@@ -270,20 +289,20 @@ func (c *cluster) createInstance(rookImage string) error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	c.mgrs = mgr.New(c.context, c.Namespace, rookImage, c.Spec.Placement.GetMgr(), c.Spec.HostNetwork, c.Spec.Resources.Mgr)
+	c.mgrs = mgr.New(c.context, c.Namespace, rookImage, c.Spec.Placement.GetMgr(), c.Spec.HostNetwork, c.Spec.Resources.Mgr, c.ownerRef)
 	err = c.mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
 	}
 
-	c.apis = api.New(c.context, c.Namespace, rookImage, c.Spec.Placement.GetAPI(), c.Spec.HostNetwork, c.Spec.Resources.API)
+	c.apis = api.New(c.context, c.Namespace, rookImage, c.Spec.Placement.GetAPI(), c.Spec.HostNetwork, c.Spec.Resources.API, c.ownerRef)
 	err = c.apis.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD(), c.Spec.HostNetwork, c.Spec.Resources.OSD)
+	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD(), c.Spec.HostNetwork, c.Spec.Resources.OSD, c.ownerRef)
 	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
@@ -332,8 +351,9 @@ func (c *cluster) createInitialCrushMap() error {
 	// save the fact that we've created the initial crushmap to a configmap
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      crushConfigMapName,
-			Namespace: c.Namespace,
+			Name:            crushConfigMapName,
+			Namespace:       c.Namespace,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
 		},
 		Data: map[string]string{crushmapCreatedKey: "1"},
 	}
