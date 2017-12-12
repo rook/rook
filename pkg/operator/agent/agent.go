@@ -38,9 +38,10 @@ import (
 )
 
 const (
-	agentDaemonsetName       = "rook-agent"
-	flexvolumePathDirEnv     = "FLEXVOLUME_DIR_PATH"
-	flexvolumeDefaultDirPath = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/"
+	agentDaemonsetName          = "rook-agent"
+	flexvolumePathDirEnv        = "FLEXVOLUME_DIR_PATH"
+	flexvolumeDefaultDirPath    = "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/"
+	agentDaemonsetTolerationEnv = "AGENT_TOLERATION"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-agent")
@@ -185,6 +186,17 @@ func (a *Agent) createAgentDaemonSet(namespace string) error {
 				},
 			},
 		},
+	}
+
+	// Add toleration if any
+	tolerationValue := os.Getenv(agentDaemonsetTolerationEnv)
+	if tolerationValue != "" {
+		ds.Spec.Template.Spec.Tolerations = []v1.Toleration{
+			{
+				Effect:   v1.TaintEffect(tolerationValue),
+				Operator: v1.TolerationOpExists,
+			},
+		}
 	}
 
 	_, err = a.clientset.Extensions().DaemonSets(namespace).Create(ds)
