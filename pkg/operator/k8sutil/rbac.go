@@ -22,6 +22,7 @@ package k8sutil
 
 import (
 	"fmt"
+	"os"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/api/rbac/v1beta1"
@@ -30,11 +31,19 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const (
+	enableRBACEnv = "RBAC_ENABLED"
+)
+
 func MakeRole(clientset kubernetes.Interface, namespace, name string, rules []v1beta1.PolicyRule) error {
 
 	err := makeServiceAccount(clientset, namespace, name)
 	if err != nil {
 		return err
+	}
+
+	if !isRBACEnabled() {
+		return nil
 	}
 
 	// Create the role if it doesn't yet exist.
@@ -70,6 +79,10 @@ func MakeClusterRole(clientset kubernetes.Interface, namespace, name string, rul
 	err := makeServiceAccount(clientset, namespace, name)
 	if err != nil {
 		return err
+	}
+
+	if !isRBACEnabled() {
+		return nil
 	}
 
 	// Create the cluster scoped role if it doesn't yet exist.
@@ -109,4 +122,12 @@ func makeServiceAccount(clientset kubernetes.Interface, namespace, name string) 
 		return fmt.Errorf("failed to create %s service account in namespace %s. %+v", name, namespace, err)
 	}
 	return nil
+}
+
+func isRBACEnabled() bool {
+	r := os.Getenv(enableRBACEnv)
+	if r == "false" {
+		return false
+	}
+	return true
 }
