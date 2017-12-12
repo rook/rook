@@ -64,9 +64,13 @@ func (c *Cluster) getLabels(name string) map[string]string {
 }
 
 func (c *Cluster) makeReplicaSet(config *monConfig, nodeName string) *extensions.ReplicaSet {
-	rs := &extensions.ReplicaSet{}
-	rs.Name = config.Name
-	rs.Namespace = c.Namespace
+	rs := &extensions.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            config.Name,
+			Namespace:       c.Namespace,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+		},
+	}
 
 	pod := c.makeMonPod(config, nodeName)
 	replicaCount := int32(1)

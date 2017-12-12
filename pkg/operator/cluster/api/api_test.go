@@ -31,7 +31,7 @@ import (
 
 func TestStartAPI(t *testing.T) {
 	clientset := testop.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	// start a basic cluster
 	err := c.Start()
@@ -59,7 +59,7 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestPodSpecs(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)
@@ -99,7 +99,7 @@ func TestPodSpecs(t *testing.T) {
 
 func TestClusterRole(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	// the role is create
 	err := c.makeRole()

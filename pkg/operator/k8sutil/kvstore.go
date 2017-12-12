@@ -28,12 +28,14 @@ import (
 type ConfigMapKVStore struct {
 	namespace string
 	clientset kubernetes.Interface
+	ownerRef  metav1.OwnerReference
 }
 
-func NewConfigMapKVStore(namespace string, clientset kubernetes.Interface) *ConfigMapKVStore {
+func NewConfigMapKVStore(namespace string, clientset kubernetes.Interface, ownerRef metav1.OwnerReference) *ConfigMapKVStore {
 	return &ConfigMapKVStore{
 		namespace: namespace,
 		clientset: clientset,
+		ownerRef:  ownerRef,
 	}
 }
 
@@ -61,8 +63,9 @@ func (kv *ConfigMapKVStore) SetValue(storeName, key, value string) error {
 		// the given config map doesn't exist yet, create it now with the given key/val
 		cm = &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      storeName,
-				Namespace: kv.namespace,
+				Name:            storeName,
+				Namespace:       kv.namespace,
+				OwnerReferences: []metav1.OwnerReference{kv.ownerRef},
 			},
 			Data: map[string]string{key: value},
 		}

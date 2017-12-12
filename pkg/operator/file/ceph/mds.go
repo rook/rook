@@ -59,11 +59,11 @@ func CreateFileSystem(context *clusterd.Context, clusterName string, f *model.Fi
 		fs.Spec.DataPools = append(fs.Spec.DataPools, pool.ModelToSpec(p))
 	}
 
-	return CreateFilesystem(context, *fs, version, hostNetwork)
+	return CreateFilesystem(context, *fs, version, hostNetwork, []metav1.OwnerReference{})
 }
 
 // Create the file system
-func CreateFilesystem(context *clusterd.Context, fs rookalpha.Filesystem, version string, hostNetwork bool) error {
+func CreateFilesystem(context *clusterd.Context, fs rookalpha.Filesystem, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
 	if err := validateFilesystem(context, fs); err != nil {
 		return err
 	}
@@ -85,7 +85,7 @@ func CreateFilesystem(context *clusterd.Context, fs rookalpha.Filesystem, versio
 	logger.Infof("start running mds for file system %s", fs.Name)
 
 	// start the deployment
-	deployment := makeDeployment(fs, strconv.Itoa(filesystem.ID), version, hostNetwork)
+	deployment := makeDeployment(fs, strconv.Itoa(filesystem.ID), version, hostNetwork, ownerRefs)
 	_, err = context.Clientset.ExtensionsV1beta1().Deployments(fs.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -123,10 +123,14 @@ func instanceName(fs rookalpha.Filesystem) string {
 	return fmt.Sprintf("%s-%s", appName, fs.Name)
 }
 
-func makeDeployment(fs rookalpha.Filesystem, filesystemID, version string, hostNetwork bool) *extensions.Deployment {
-	deployment := &extensions.Deployment{}
-	deployment.Name = instanceName(fs)
-	deployment.Namespace = fs.Namespace
+func makeDeployment(fs rookalpha.Filesystem, filesystemID, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) *extensions.Deployment {
+	deployment := &extensions.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            instanceName(fs),
+			Namespace:       fs.Namespace,
+			OwnerReferences: ownerRefs,
+		},
+	}
 
 	podSpec := v1.PodSpec{
 		Containers:    []v1.Container{mdsContainer(fs, filesystemID, version)},

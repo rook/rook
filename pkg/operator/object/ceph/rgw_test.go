@@ -52,14 +52,14 @@ func TestStartRGW(t *testing.T) {
 	version := "v1.1.0"
 
 	// start a basic cluster
-	err := CreateStore(context, store, version, false)
+	err := CreateStore(context, store, version, false, []metav1.OwnerReference{})
 	assert.Nil(t, err)
 
 	validateStart(t, store, clientset, false)
 
 	// starting again should update the pods with the new settings
 	store.Spec.Gateway.AllNodes = true
-	err = UpdateStore(context, store, version, false)
+	err = UpdateStore(context, store, version, false, []metav1.OwnerReference{})
 	assert.Nil(t, err)
 
 	validateStart(t, store, clientset, true)
@@ -180,7 +180,7 @@ func TestCreateObjectStore(t *testing.T) {
 	context := &clusterd.Context{Executor: executor, Clientset: clientset}
 
 	// create the pools
-	err := CreateStore(context, store, "1.2.3.4", false)
+	err := CreateStore(context, store, "1.2.3.4", false, []metav1.OwnerReference{})
 	assert.Nil(t, err)
 }
 

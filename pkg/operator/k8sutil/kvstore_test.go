@@ -24,6 +24,7 @@ import (
 
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 )
@@ -167,5 +168,5 @@ func newKVStore(stores ...*v1.ConfigMap) (*ConfigMapKVStore, string) {
 	}
 
 	clientset := fake.NewSimpleClientset(objects...)
-	return NewConfigMapKVStore(namespace, clientset), storeName
+	return NewConfigMapKVStore(namespace, clientset, metav1.OwnerReference{}), storeName
 }

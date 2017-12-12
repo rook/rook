@@ -25,13 +25,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 func TestStartDaemonset(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", rookalpha.StorageSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", rookalpha.StorageSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	// Start the first time
 	err := c.Start()
@@ -66,7 +67,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", storageSpec, dataDir, rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", storageSpec, dataDir, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	devMountNeeded := deviceFilter != "" || allDevices
 
@@ -157,7 +158,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
@@ -207,7 +208,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, c.Storage.Nodes[0].Resources, n.Config)
@@ -245,7 +246,7 @@ func TestHostNetwork(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", rookalpha.Placement{}, true, v1.ResourceRequirements{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
 	r := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)

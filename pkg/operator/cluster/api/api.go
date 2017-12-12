@@ -77,10 +77,12 @@ type Cluster struct {
 	Replicas    int32
 	HostNetwork bool
 	resources   v1.ResourceRequirements
+	ownerRef    metav1.OwnerReference
 }
 
 // New creates an instance
-func New(context *clusterd.Context, namespace, version string, placement rookalpha.Placement, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
+func New(context *clusterd.Context, namespace, version string, placement rookalpha.Placement, hostNetwork bool,
+	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:     context,
 		Namespace:   namespace,
@@ -89,6 +91,7 @@ func New(context *clusterd.Context, namespace, version string, placement rookalp
 		Replicas:    1,
 		HostNetwork: hostNetwork,
 		resources:   resources,
+		ownerRef:    ownerRef,
 	}
 }
 
@@ -125,13 +128,10 @@ func (c *Cluster) Start() error {
 
 // make a cluster role
 func (c *Cluster) makeRole() error {
-	return k8sutil.MakeRole(c.context.Clientset, c.Namespace, deploymentName, clusterAccessRules)
+	return k8sutil.MakeRole(c.context.Clientset, c.Namespace, deploymentName, clusterAccessRules, c.ownerRef)
 }
 
 func (c *Cluster) makeDeployment() *extensions.Deployment {
-	deployment := &extensions.Deployment{}
-	deployment.Name = deploymentName
-	deployment.Namespace = c.Namespace
 
 	podSpec := v1.PodSpec{
 		ServiceAccountName: deploymentName,
@@ -156,9 +156,14 @@ func (c *Cluster) makeDeployment() *extensions.Deployment {
 		Spec: podSpec,
 	}
 
-	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &c.Replicas}
-
-	return deployment
+	return &extensions.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            deploymentName,
+			Namespace:       c.Namespace,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+		},
+		Spec: extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &c.Replicas},
+	}
 }
 
 func (c *Cluster) apiContainer() v1.Container {
@@ -192,9 +197,10 @@ func (c *Cluster) startService() error {
 	labels := c.getLabels()
 	s := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      deploymentName,
-			Namespace: c.Namespace,
-			Labels:    labels,
+			Name:            deploymentName,
+			Namespace:       c.Namespace,
+			Labels:          labels,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{

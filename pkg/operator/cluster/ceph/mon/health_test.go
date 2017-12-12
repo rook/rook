@@ -51,7 +51,7 @@ func TestCheckHealth(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(context, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(1)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -88,7 +88,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", 2, rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(context, "ns", "", "myversion", 2, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(2)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -161,7 +161,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", 2, rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(context, "ns", "", "myversion", 2, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(2)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -266,7 +266,7 @@ func TestCheckMonsValid(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(context, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(1)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
