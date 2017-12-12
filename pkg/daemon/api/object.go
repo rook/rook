@@ -383,7 +383,7 @@ func enableObjectStore(c *Config, config model.ObjectStore) error {
 	}
 
 	store := oprgw.ModelToSpec(config, c.namespace)
-	err := oprgw.UpdateStore(c.context, *store, c.rookImage, c.hostNetwork)
+	err := oprgw.UpdateStore(c.context, *store, c.rookImage, c.hostNetwork, []metav1.OwnerReference{})
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
 	}

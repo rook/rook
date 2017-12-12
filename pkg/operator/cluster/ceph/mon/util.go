@@ -44,6 +44,11 @@ import (
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
 func LoadClusterInfo(context *clusterd.Context, namespace string) (*mon.ClusterInfo, int, *Mapping, error) {
+	return CreateOrLoadClusterInfo(context, namespace, nil)
+}
+
+// CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
+func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*mon.ClusterInfo, int, *Mapping, error) {
 
 	var clusterInfo *mon.ClusterInfo
 	maxMonID := -1
@@ -57,13 +62,16 @@ func LoadClusterInfo(context *clusterd.Context, namespace string) (*mon.ClusterI
 		if !errors.IsNotFound(err) {
 			return nil, maxMonID, monMapping, fmt.Errorf("failed to get mon secrets. %+v", err)
 		}
+		if ownerRef == nil {
+			return nil, maxMonID, monMapping, fmt.Errorf("not expected to create new cluster info and did not find existing secret")
+		}
 
 		clusterInfo, err = createNamedClusterInfo(context, namespace)
 		if err != nil {
 			return nil, maxMonID, monMapping, fmt.Errorf("failed to create mon secrets. %+v", err)
 		}
 
-		err = createClusterAccessSecret(context.Clientset, namespace, clusterInfo)
+		err = createClusterAccessSecret(context.Clientset, namespace, clusterInfo, ownerRef)
 		if err != nil {
 			return nil, maxMonID, monMapping, err
 		}
@@ -157,7 +165,7 @@ func getMonID(name string) (int, error) {
 	return id, nil
 }
 
-func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *mon.ClusterInfo) error {
+func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *mon.ClusterInfo, ownerRef *metav1.OwnerReference) error {
 	logger.Infof("creating mon secrets for a new cluster")
 	var err error
 
@@ -169,9 +177,15 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 		adminSecretName:   clusterInfo.AdminSecret,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: namespace},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      appName,
+			Namespace: namespace,
+		},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
+	}
+	if ownerRef != nil {
+		secret.OwnerReferences = []metav1.OwnerReference{*ownerRef}
 	}
 
 	if _, err = clientset.CoreV1().Secrets(namespace).Create(secret); err != nil {

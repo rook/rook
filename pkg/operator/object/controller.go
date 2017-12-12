@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	rgw "github.com/rook/rook/pkg/operator/object/ceph"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
 )
 
@@ -46,14 +47,16 @@ type ObjectStoreController struct {
 	context     *clusterd.Context
 	rookImage   string
 	hostNetwork bool
+	ownerRef    metav1.OwnerReference
 }
 
 // NewObjectStoreController create controller for watching object store custom resources created
-func NewObjectStoreController(context *clusterd.Context, rookImage string, hostNetwork bool) *ObjectStoreController {
+func NewObjectStoreController(context *clusterd.Context, rookImage string, hostNetwork bool, ownerRef metav1.OwnerReference) *ObjectStoreController {
 	return &ObjectStoreController{
 		context:     context,
 		rookImage:   rookImage,
 		hostNetwork: hostNetwork,
+		ownerRef:    ownerRef,
 	}
 }
 
@@ -74,7 +77,8 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 
 func (c *ObjectStoreController) onAdd(obj interface{}) {
 	store := obj.(*rookalpha.ObjectStore).DeepCopy()
-	err := rgw.CreateStore(c.context, *store, c.rookImage, c.hostNetwork)
+
+	err := rgw.CreateStore(c.context, *store, c.rookImage, c.hostNetwork, c.storeOwners(store))
 	if err != nil {
 		logger.Errorf("failed to create object store %s. %+v", store.Name, err)
 	}
@@ -90,7 +94,7 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	logger.Infof("applying object store %s changes", newStore.Name)
-	err := rgw.UpdateStore(c.context, *newStore, c.rookImage, c.hostNetwork)
+	err := rgw.UpdateStore(c.context, *newStore, c.rookImage, c.hostNetwork, c.storeOwners(newStore))
 	if err != nil {
 		logger.Errorf("failed to create (modify) object store %s. %+v", newStore.Name, err)
 	}
@@ -102,6 +106,14 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 	if err != nil {
 		logger.Errorf("failed to delete object store %s. %+v", store.Name, err)
 	}
+}
+
+func (c *ObjectStoreController) storeOwners(store *rookalpha.ObjectStore) []metav1.OwnerReference {
+	// Only set the cluster crd as the owner of the object store resources.
+	// If the object store crd is deleted, the operator will explicitly remove the object store resources.
+	// If the object store crd still exists when the cluster crd is deleted, this will make sure the object store
+	// resources are cleaned up.
+	return []metav1.OwnerReference{c.ownerRef}
 }
 
 func storeChanged(oldStore, newStore rookalpha.ObjectStoreSpec) bool {

@@ -49,15 +49,15 @@ const (
 )
 
 // Start the rgw manager
-func CreateStore(context *clusterd.Context, store rookalpha.ObjectStore, version string, hostNetwork bool) error {
-	return createOrUpdate(context, store, version, hostNetwork, false)
+func CreateStore(context *clusterd.Context, store rookalpha.ObjectStore, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
+	return createOrUpdate(context, store, version, hostNetwork, false, ownerRefs)
 }
 
-func UpdateStore(context *clusterd.Context, store rookalpha.ObjectStore, version string, hostNetwork bool) error {
-	return createOrUpdate(context, store, version, hostNetwork, true)
+func UpdateStore(context *clusterd.Context, store rookalpha.ObjectStore, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
+	return createOrUpdate(context, store, version, hostNetwork, true, ownerRefs)
 }
 
-func createOrUpdate(context *clusterd.Context, store rookalpha.ObjectStore, version string, hostNetwork, update bool) error {
+func createOrUpdate(context *clusterd.Context, store rookalpha.ObjectStore, version string, hostNetwork, update bool, ownerRefs []metav1.OwnerReference) error {
 	// validate the object store settings
 	if err := validateStore(context, store); err != nil {
 		return fmt.Errorf("invalid object store %s arguments. %+v", store.Name, err)
@@ -74,13 +74,13 @@ func createOrUpdate(context *clusterd.Context, store rookalpha.ObjectStore, vers
 	}
 
 	logger.Infof("creating object store %s in namespace %s", store.Name, store.Namespace)
-	err = createKeyring(context, store)
+	err = createKeyring(context, store, ownerRefs)
 	if err != nil {
 		return fmt.Errorf("failed to create rgw keyring. %+v", err)
 	}
 
 	// start the service
-	serviceIP, err := startService(context, store, hostNetwork)
+	serviceIP, err := startService(context, store, hostNetwork, ownerRefs)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw service. %+v", err)
 	}
@@ -92,7 +92,7 @@ func createOrUpdate(context *clusterd.Context, store rookalpha.ObjectStore, vers
 		return fmt.Errorf("failed to create pools. %+v", err)
 	}
 
-	if err := startRGWPods(context, store, version, hostNetwork, update); err != nil {
+	if err := startRGWPods(context, store, version, hostNetwork, update, ownerRefs); err != nil {
 		return fmt.Errorf("failed to start pods. %+v", err)
 	}
 
@@ -100,7 +100,7 @@ func createOrUpdate(context *clusterd.Context, store rookalpha.ObjectStore, vers
 	return nil
 }
 
-func startRGWPods(context *clusterd.Context, store rookalpha.ObjectStore, version string, hostNetwork, update bool) error {
+func startRGWPods(context *clusterd.Context, store rookalpha.ObjectStore, version string, hostNetwork, update bool, ownerRefs []metav1.OwnerReference) error {
 
 	// if intended to update, remove the old pods so they can be created with the new spec settings
 	if update {
@@ -119,10 +119,10 @@ func startRGWPods(context *clusterd.Context, store rookalpha.ObjectStore, versio
 	var err error
 	if store.Spec.Gateway.AllNodes {
 		rgwType = "daemonset"
-		err = startDaemonset(context, store, version, hostNetwork)
+		err = startDaemonset(context, store, version, hostNetwork, ownerRefs)
 	} else {
 		rgwType = "deployment"
-		err = startDeployment(context, store, version, store.Spec.Gateway.Instances, hostNetwork)
+		err = startDeployment(context, store, version, store.Spec.Gateway.Instances, hostNetwork, ownerRefs)
 	}
 
 	if err != nil {
@@ -213,7 +213,7 @@ func storeExists(context *clusterd.Context, store rookalpha.ObjectStore) (bool, 
 	return false, nil
 }
 
-func createKeyring(context *clusterd.Context, store rookalpha.ObjectStore) error {
+func createKeyring(context *clusterd.Context, store rookalpha.ObjectStore, ownerRefs []metav1.OwnerReference) error {
 	_, err := context.Clientset.CoreV1().Secrets(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
@@ -235,7 +235,11 @@ func createKeyring(context *clusterd.Context, store rookalpha.ObjectStore) error
 		keyringName: keyring,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: instanceName(store), Namespace: store.Namespace},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            instanceName(store),
+			Namespace:       store.Namespace,
+			OwnerReferences: ownerRefs,
+		},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
@@ -307,12 +311,13 @@ func makeRGWPodSpec(store rookalpha.ObjectStore, version string, hostNetwork boo
 	}
 }
 
-func startDeployment(context *clusterd.Context, store rookalpha.ObjectStore, version string, replicas int32, hostNetwork bool) error {
+func startDeployment(context *clusterd.Context, store rookalpha.ObjectStore, version string, replicas int32, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
 
 	deployment := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instanceName(store),
-			Namespace: store.Namespace,
+			Name:            instanceName(store),
+			Namespace:       store.Namespace,
+			OwnerReferences: ownerRefs,
 		},
 		Spec: extensions.DeploymentSpec{Template: makeRGWPodSpec(store, version, hostNetwork), Replicas: &replicas},
 	}
@@ -320,12 +325,13 @@ func startDeployment(context *clusterd.Context, store rookalpha.ObjectStore, ver
 	return err
 }
 
-func startDaemonset(context *clusterd.Context, store rookalpha.ObjectStore, version string, hostNetwork bool) error {
+func startDaemonset(context *clusterd.Context, store rookalpha.ObjectStore, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
 
 	daemonset := &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instanceName(store),
-			Namespace: store.Namespace,
+			Name:            instanceName(store),
+			Namespace:       store.Namespace,
+			OwnerReferences: ownerRefs,
 		},
 		Spec: extensions.DaemonSetSpec{
 			Template: makeRGWPodSpec(store, version, hostNetwork),
@@ -378,13 +384,14 @@ func rgwContainer(store rookalpha.ObjectStore, version string) v1.Container {
 	return container
 }
 
-func startService(context *clusterd.Context, store rookalpha.ObjectStore, hostNetwork bool) (string, error) {
+func startService(context *clusterd.Context, store rookalpha.ObjectStore, hostNetwork bool, ownerRefs []metav1.OwnerReference) (string, error) {
 	labels := getLabels(store)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instanceName(store),
-			Namespace: store.Namespace,
-			Labels:    labels,
+			Name:            instanceName(store),
+			Namespace:       store.Namespace,
+			Labels:          labels,
+			OwnerReferences: ownerRefs,
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,

@@ -56,7 +56,7 @@ func TestMakeRole(t *testing.T) {
 		},
 	}
 
-	err := MakeRole(clientset, namespace, name, rules)
+	err := MakeRole(clientset, namespace, name, rules, metav1.OwnerReference{})
 
 	role, err := clientset.RbacV1beta1().Roles(namespace).Get(name, metav1.GetOptions{})
 	assert.Nil(t, err)
@@ -82,7 +82,7 @@ func TestMakeRole(t *testing.T) {
 		},
 	}
 
-	err = MakeRole(clientset, namespace, name, newRules)
+	err = MakeRole(clientset, namespace, name, newRules, metav1.OwnerReference{})
 	assert.Nil(t, err)
 	role, err = clientset.RbacV1beta1().Roles(namespace).Get(name, metav1.GetOptions{})
 	assert.Nil(t, err)
@@ -110,7 +110,7 @@ func TestMakeClusterRole(t *testing.T) {
 		},
 	}
 
-	err := MakeClusterRole(clientset, namespace, name, rules)
+	err := MakeClusterRole(clientset, namespace, name, rules, nil)
 
 	role, err := clientset.RbacV1beta1().ClusterRoles().Get(name, metav1.GetOptions{})
 	assert.Nil(t, err)
@@ -136,7 +136,7 @@ func TestMakeClusterRole(t *testing.T) {
 		},
 	}
 
-	err = MakeClusterRole(clientset, namespace, name, newRules)
+	err = MakeClusterRole(clientset, namespace, name, newRules, nil)
 	assert.Nil(t, err)
 	role, err = clientset.RbacV1beta1().ClusterRoles().Get(name, metav1.GetOptions{})
 	assert.Nil(t, err)
@@ -176,7 +176,7 @@ func TestMakeRoleRBACDisabled(t *testing.T) {
 		},
 	}
 
-	err := MakeRole(clientset, namespace, name, rules)
+	err := MakeRole(clientset, namespace, name, rules, metav1.OwnerReference{})
 
 	_, err = clientset.RbacV1beta1().Roles(namespace).Get(name, metav1.GetOptions{})
 	assert.NotNil(t, err)
@@ -211,7 +211,7 @@ func TestMakeClusterRoleRBACDisabled(t *testing.T) {
 		},
 	}
 
-	err := MakeClusterRole(clientset, namespace, name, rules)
+	err := MakeClusterRole(clientset, namespace, name, rules, nil)
 	assert.Nil(t, err)
 	_, err = clientset.RbacV1beta1().ClusterRoles().Get(name, metav1.GetOptions{})
 	assert.NotNil(t, err)

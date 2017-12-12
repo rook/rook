@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/daemon/ceph/osd"
+	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -34,12 +35,13 @@ var osdCmd = &cobra.Command{
 	Hidden: true,
 }
 var (
-	osdCluster          mon.ClusterInfo
 	osdDataDeviceFilter string
+	ownerRefID          string
 )
 
 func addOSDFlags(command *cobra.Command) {
 	command.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
+	command.Flags().StringVar(&ownerRefID, "cluster-id", "", "the UID of the cluster CRD that owns this cluster")
 	command.Flags().StringVar(&osdDataDeviceFilter, "data-device-filter", "", "a regex filter for the device names to use, or \"all\"")
 	command.Flags().StringVar(&cfg.directories, "data-directories", "", "comma separated list of directory paths to use for storage")
 	command.Flags().StringVar(&cfg.metadataDevice, "metadata-device", "", "device to use for metadata (e.g. a high performance SSD/NVMe device)")
@@ -64,7 +66,7 @@ func init() {
 }
 
 func startOSD(cmd *cobra.Command, args []string) error {
-	required := []string{"cluster-name", "mon-endpoints", "mon-secret", "admin-secret", "node-name", "public-ipv4", "private-ipv4"}
+	required := []string{"cluster-name", "cluster-id", "mon-endpoints", "mon-secret", "admin-secret", "node-name", "public-ipv4", "private-ipv4"}
 	if err := flags.VerifyRequiredFlags(osdCmd, required); err != nil {
 		return err
 	}
@@ -95,8 +97,6 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	context.Clientset = clientset
 	context.RookClientset = rookClientset
 
-	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset)
-
 	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
 	if err != nil {
 		terminateFatal(fmt.Errorf("invalid location. %+v\n", err))
@@ -105,6 +105,8 @@ func startOSD(cmd *cobra.Command, args []string) error {
 
 	forceFormat := false
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
+	ownerRef := cluster.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
+	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, ownerRef)
 	agent := osd.NewAgent(context, dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
 		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
 

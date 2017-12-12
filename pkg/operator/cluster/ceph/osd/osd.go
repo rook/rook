@@ -63,10 +63,12 @@ type Cluster struct {
 	dataDirHostPath string
 	HostNetwork     bool
 	resources       v1.ResourceRequirements
+	ownerRef        metav1.OwnerReference
 }
 
 // New creates an instance of the OSD manager
-func New(context *clusterd.Context, namespace, version string, storageSpec rookalpha.StorageSpec, dataDirHostPath string, placement rookalpha.Placement, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
+func New(context *clusterd.Context, namespace, version string, storageSpec rookalpha.StorageSpec, dataDirHostPath string, placement rookalpha.Placement, hostNetwork bool,
+	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:         context,
 		Namespace:       namespace,
@@ -76,6 +78,7 @@ func New(context *clusterd.Context, namespace, version string, storageSpec rooka
 		dataDirHostPath: dataDirHostPath,
 		HostNetwork:     hostNetwork,
 		resources:       resources,
+		ownerRef:        ownerRef,
 	}
 }
 
@@ -83,8 +86,8 @@ func New(context *clusterd.Context, namespace, version string, storageSpec rooka
 func (c *Cluster) Start() error {
 	logger.Infof("start running osds in namespace %s", c.Namespace)
 
-	// create the artifacts for the api service to work with RBAC enabled
-	err := k8sutil.MakeRole(c.context.Clientset, c.Namespace, appName, clusterAccessRules)
+	// create the artifacts for the osd to work with RBAC enabled
+	err := k8sutil.MakeRole(c.context.Clientset, c.Namespace, appName, clusterAccessRules, c.ownerRef)
 	if err != nil {
 		logger.Warningf("failed to init RBAC for OSDs. %+v", err)
 	}
@@ -130,34 +133,35 @@ func (c *Cluster) Start() error {
 }
 
 func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, config rookalpha.Config) *extensions.DaemonSet {
-	ds := &extensions.DaemonSet{}
-	ds.Name = appName
-	ds.Namespace = c.Namespace
-
 	podSpec := c.podTemplateSpec(nil, selection, c.resources, config)
-
-	ds.Spec = extensions.DaemonSetSpec{Template: podSpec}
-	return ds
+	return &extensions.DaemonSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            appName,
+			Namespace:       c.Namespace,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+		},
+		Spec: extensions.DaemonSetSpec{Template: podSpec},
+	}
 }
 
 func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device,
 	selection rookalpha.Selection, resources v1.ResourceRequirements, config rookalpha.Config) *extensions.ReplicaSet {
 
-	rs := &extensions.ReplicaSet{}
-	rs.Name = fmt.Sprintf(appNameFmt, nodeName)
-	rs.Namespace = c.Namespace
-
 	podSpec := c.podTemplateSpec(devices, selection, resources, config)
 	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
-
 	replicaCount := int32(1)
 
-	rs.Spec = extensions.ReplicaSetSpec{
-		Template: podSpec,
-		Replicas: &replicaCount,
+	return &extensions.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            fmt.Sprintf(appNameFmt, nodeName),
+			Namespace:       c.Namespace,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+		},
+		Spec: extensions.ReplicaSetSpec{
+			Template: podSpec,
+			Replicas: &replicaCount,
+		},
 	}
-
-	return rs
 }
 
 func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection,
@@ -220,6 +224,7 @@ func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.S
 
 	envVars := []v1.EnvVar{
 		nodeNameEnvVar(),
+		{Name: "ROOK_CLUSTER_ID", Value: string(c.ownerRef.UID)},
 		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 		opmon.ClusterNameEnvVar(c.Namespace),

@@ -10,6 +10,7 @@
 
 ### Cluster CRD
 - Removed the `versionTag` property. The container version to launch in all pods will be the same as the version of the operator container.
+- Added the `cluster.rook.io` finalizer. When a cluster is deleted, the operator will cleanup resources and remove the finalizer, which then allows K8s to delete the CRD.
 
 ### Operator
 - Removed the `ROOK_REPO_PREFIX` env var. All containers will be launched with the same image as the operator
