@@ -7,14 +7,15 @@ indent: true
 # Monitoring
 
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).  To enable monitoring of Rook in your Kubernetes cluster, you can follow the steps below.
-Note that these steps work best with a local Kubernetes cluster running in `Vagrant`.
+
+Note that these steps work only for Kubernetes 1.7.x or higher. For Kubernetes 1.6.x or older, refer to the Rook 0.5.0 [documentation](https://github.com/rook/rook/blob/release-0.5/Documentation/k8s-monitoring.md) and use these [manifest files](https://github.com/rook/rook/tree/release-0.5/cluster/examples/kubernetes/monitoring).
 
 ## Prometheus Operator
 
 First the Prometheus operator needs to be started in the cluster so it can watch for our requests to start monitoring Rook and respond by deploying the correct Prometheus pods and configuration.
 A full explanation can be found in the [Prometheus operator repository on github](https://github.com/coreos/prometheus-operator), but the quick instructions can be found here:
 ```bash
-kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.8/bundle.yaml
+kubectl apply -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.15/bundle.yaml
 ```
 This will start the Prometheus operator, but before moving on, wait until the operator is in the `Running` state:
 ```bash
