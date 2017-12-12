@@ -18,8 +18,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/api"
-	"github.com/rook/rook/pkg/ceph/mon"
+	"github.com/rook/rook/pkg/daemon/api"
+	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -62,7 +62,7 @@ func startAPI(cmd *cobra.Command, args []string) error {
 
 	logStartupInfo(apiCmd.Flags())
 
-	clientset, _, err := getClientset()
+	clientset, _, rookClientset, err := getClientset()
 	if err != nil {
 		terminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
 	}
@@ -70,6 +70,7 @@ func startAPI(cmd *cobra.Command, args []string) error {
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	context := createContext()
 	context.Clientset = clientset
+	context.RookClientset = rookClientset
 	c := api.NewConfig(context, apiPort, &clusterInfo, namespace, versionTag, hostNetwork)
 
 	err = api.Run(context, c)

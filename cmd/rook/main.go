@@ -27,9 +27,10 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/rook/rook/pkg/ceph/mon"
-	"github.com/rook/rook/pkg/ceph/osd"
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/rook/rook/pkg/version"
@@ -63,7 +64,7 @@ type config struct {
 	location           string
 	logLevel           capnslog.LogLevel
 	cephConfigOverride string
-	storeConfig        osd.StoreConfig
+	storeConfig        rookalpha.StoreConfig
 	networkInfo        clusterd.NetworkInfo
 	monEndpoints       string
 	nodeName           string
@@ -130,22 +131,26 @@ func createContext() *clusterd.Context {
 	}
 }
 
-func getClientset() (kubernetes.Interface, apiextensionsclient.Interface, error) {
+func getClientset() (kubernetes.Interface, apiextensionsclient.Interface, rookclient.Interface, error) {
 	// create the k8s client
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to get k8s config. %+v", err)
+		return nil, nil, nil, fmt.Errorf("failed to get k8s config. %+v", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create k8s clientset. %+v", err)
+		return nil, nil, nil, fmt.Errorf("failed to create k8s clientset. %+v", err)
 	}
 	apiExtClientset, err := apiextensionsclient.NewForConfig(config)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create k8s API extension clientset. %+v", err)
+		return nil, nil, nil, fmt.Errorf("failed to create k8s API extension clientset. %+v", err)
 	}
-	return clientset, apiExtClientset, nil
+	rookClientset, err := rookclient.NewForConfig(config)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf("failed to create rook clientset. %+v", err)
+	}
+	return clientset, apiExtClientset, rookClientset, nil
 }
 
 func terminateFatal(reason error) {

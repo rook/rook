@@ -23,28 +23,29 @@ package rgw
 import (
 	"testing"
 
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestObjectStoreChanged(t *testing.T) {
-	old := ObjectStoreSpec{Gateway: GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
-	new := ObjectStoreSpec{Gateway: GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	old := rookalpha.ObjectStoreSpec{Gateway: rookalpha.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	new := rookalpha.ObjectStoreSpec{Gateway: rookalpha.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
 	// nothing changed
 	assert.False(t, storeChanged(old, new))
 
 	// there was a change
-	new = ObjectStoreSpec{Gateway: GatewaySpec{Port: 81, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	new = rookalpha.ObjectStoreSpec{Gateway: rookalpha.GatewaySpec{Port: 81, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
 	assert.True(t, storeChanged(old, new))
 
-	new = ObjectStoreSpec{Gateway: GatewaySpec{Port: 80, SecurePort: 444, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
+	new = rookalpha.ObjectStoreSpec{Gateway: rookalpha.GatewaySpec{Port: 80, SecurePort: 444, Instances: 1, AllNodes: false, SSLCertificateRef: ""}}
 	assert.True(t, storeChanged(old, new))
 
-	new = ObjectStoreSpec{Gateway: GatewaySpec{Port: 80, SecurePort: 443, Instances: 2, AllNodes: false, SSLCertificateRef: ""}}
+	new = rookalpha.ObjectStoreSpec{Gateway: rookalpha.GatewaySpec{Port: 80, SecurePort: 443, Instances: 2, AllNodes: false, SSLCertificateRef: ""}}
 	assert.True(t, storeChanged(old, new))
 
-	new = ObjectStoreSpec{Gateway: GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: true, SSLCertificateRef: ""}}
+	new = rookalpha.ObjectStoreSpec{Gateway: rookalpha.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: true, SSLCertificateRef: ""}}
 	assert.True(t, storeChanged(old, new))
 
-	new = ObjectStoreSpec{Gateway: GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: "mysecret"}}
+	new = rookalpha.ObjectStoreSpec{Gateway: rookalpha.GatewaySpec{Port: 80, SecurePort: 443, Instances: 1, AllNodes: false, SSLCertificateRef: "mysecret"}}
 	assert.True(t, storeChanged(old, new))
 }

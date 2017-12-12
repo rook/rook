@@ -18,8 +18,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/agent"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/agent"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -42,7 +42,7 @@ func startAgent(cmd *cobra.Command, args []string) error {
 
 	logStartupInfo(agentCmd.Flags())
 
-	clientset, apiExtClientset, err := getClientset()
+	clientset, apiExtClientset, rookClientset, err := getClientset()
 	if err != nil {
 		terminateFatal(fmt.Errorf("failed to get k8s client. %+v", err))
 	}
@@ -53,6 +53,7 @@ func startAgent(cmd *cobra.Command, args []string) error {
 	context.ConfigDir = k8sutil.DataDir
 	context.Clientset = clientset
 	context.APIExtensionClientset = apiExtClientset
+	context.RookClientset = rookClientset
 
 	agent := agent.New(context)
 	err = agent.Run()

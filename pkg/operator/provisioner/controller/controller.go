@@ -38,9 +38,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/kubernetes/scheme"
 	corev1 "k8s.io/client-go/kubernetes/typed/core/v1"
-	"k8s.io/client-go/pkg/api/v1/ref"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
+	ref "k8s.io/client-go/tools/reference"
 	"k8s.io/kubernetes/pkg/api/v1/helper"
 	"k8s.io/kubernetes/pkg/util/goroutinemap"
 	utilversion "k8s.io/kubernetes/pkg/util/version"
@@ -410,7 +410,7 @@ func (ctrl *ProvisionController) Run(stopCh <-chan struct{}) {
 	ctrl.hasRunLock.Unlock()
 	go ctrl.claimController.Run(stopCh)
 	go ctrl.volumeController.Run(stopCh)
-	go ctrl.classReflector.RunUntil(stopCh)
+	go ctrl.classReflector.Run(stopCh)
 	<-stopCh
 }
 

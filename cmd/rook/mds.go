@@ -18,8 +18,8 @@ package main
 import (
 	"strings"
 
-	"github.com/rook/rook/pkg/ceph/mds"
-	"github.com/rook/rook/pkg/ceph/mon"
+	"github.com/rook/rook/pkg/daemon/ceph/mds"
+	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )

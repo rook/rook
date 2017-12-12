@@ -142,6 +142,9 @@ fmt:
 	@$(MAKE) go.init
 	@$(MAKE) go.fmt
 
+codegen:
+	@build/codegen/codegen.sh
+
 vendor: go.vendor
 
 clean:
@@ -155,7 +158,7 @@ prune:
 	@$(MAKE) -C images prune
 
 .PHONY: all build.common cross.build.parallel
-.PHONY: build build.all install test check vet fmt vendor clean distclean prune
+.PHONY: build build.all install test check vet fmt codegen vendor clean distclean prune
 
 # ====================================================================================
 # Help
@@ -172,6 +175,7 @@ help:
 	@echo '    check              Runs unit tests.'
 	@echo '    clean              Remove all files that are created '
 	@echo '                       by building.'
+	@echo '    codegen            Run code generators.'
 	@echo '    distclean          Remove all files that are created '
 	@echo '                       by building or configuring.'
 	@echo '    fmt                Check formatting of go sources.'

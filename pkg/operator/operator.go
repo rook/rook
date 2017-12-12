@@ -29,8 +29,8 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
-	flexcrd "github.com/rook/rook/pkg/agent/flexvolume/crd"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/operator/agent"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -58,18 +58,18 @@ type Operator struct {
 	context   *clusterd.Context
 	resources []opkit.CustomResource
 	// The custom resource that is global to the kubernetes cluster.
-	// The cluster is global because you create multiple clusers in k8s
+	// The cluster is global because you create multiple clusters in k8s
 	clusterController *cluster.ClusterController
 	volumeProvisioner controller.Provisioner
 }
 
 // New creates an operator instance
-func New(context *clusterd.Context, volumeAttachmentController flexcrd.VolumeAttachmentController) *Operator {
-	clusterController := cluster.NewClusterController(context, volumeAttachmentController)
+func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachment) *Operator {
+	clusterController := cluster.NewClusterController(context, volumeAttachmentWrapper)
 	volumeProvisioner := provisioner.New(context)
 
 	schemes := []opkit.CustomResource{cluster.ClusterResource, pool.PoolResource, rgw.ObjectStoreResource,
-		mds.FilesystemResource, flexcrd.VolumeAttachmentResource}
+		mds.FilesystemResource, attachment.VolumeAttachmentResource}
 	return &Operator{
 		context:           context,
 		clusterController: clusterController,

@@ -22,6 +22,7 @@ package k8sutil
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"k8s.io/client-go/kubernetes"
@@ -31,21 +32,8 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-k8sutil")
 
 const (
-	// V1Alpha1 version for kubernetes resources
-	V1Alpha1 = "v1alpha1"
-
-	// V1Beta1 version for kubernetes resources
-	V1Beta1 = "v1beta1"
-
-	// V1 version for kubernetes resources
-	V1 = "v1"
-)
-
-const (
 	// Namespace for rook
 	Namespace = "rook"
-	// CustomResourceGroup for rook CRD
-	CustomResourceGroup = "rook.io"
 	// DefaultNamespace for the cluster
 	DefaultNamespace = "default"
 	// DataDirVolume data dir volume
@@ -67,6 +55,14 @@ func GetK8SVersion(clientset kubernetes.Interface) (*version.Version, error) {
 	serverVersion, err := clientset.Discovery().ServerVersion()
 	if err != nil {
 		return nil, fmt.Errorf("Error getting server version: %v", err)
+	}
+
+	// make sure the kubernetes version is parseable
+	index := strings.Index(serverVersion.GitVersion, "+")
+	if index != -1 {
+		newVersion := serverVersion.GitVersion[:index]
+		logger.Infof("returning version %s instead of %s", newVersion, serverVersion.GitVersion)
+		serverVersion.GitVersion = newVersion
 	}
 	return version.MustParseSemantic(serverVersion.GitVersion), nil
 }
