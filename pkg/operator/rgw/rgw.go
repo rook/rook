@@ -282,6 +282,7 @@ func ModelToSpec(store model.ObjectStore, namespace string) *ObjectStore {
 			Gateway: GatewaySpec{
 				Port:              store.Gateway.Port,
 				SecurePort:        store.Gateway.SecurePort,
+				DnsName:           store.Gateway.DnsName,
 				Instances:         store.Gateway.Instances,
 				AllNodes:          store.Gateway.AllNodes,
 				SSLCertificateRef: store.Gateway.CertificateRef,
@@ -304,6 +305,7 @@ func (s *ObjectStore) makeRGWPodSpec(version string, hostNetwork bool) v1.PodTem
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	s.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
+	// Set the DnsName to the hostname if left unspecified
 
 	// Set the ssl cert if specified
 	if s.Spec.Gateway.SSLCertificateRef != "" {
@@ -363,6 +365,7 @@ func (s *ObjectStore) rgwContainer(version string) v1.Container {
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--rgw-name=%s", s.Name),
 			fmt.Sprintf("--rgw-host=%s", s.instanceName()),
+			fmt.Sprintf("--rgw-dns-name=%s", s.Spec.Gateway.DnsName),
 			fmt.Sprintf("--rgw-port=%d", s.Spec.Gateway.Port),
 			fmt.Sprintf("--rgw-secure-port=%d", s.Spec.Gateway.SecurePort),
 		},
@@ -392,6 +395,11 @@ func (s *ObjectStore) rgwContainer(version string) v1.Container {
 		// Pass the flag for using the ssl cert
 		path := path.Join(certMountPath, certFilename)
 		container.Args = append(container.Args, fmt.Sprintf("--rgw-cert=%s", path))
+	}
+
+	if s.Spec.Gateway.DnsName == "" {
+		container.Args[4] = fmt.Sprintf("--rgw-dns-name=%s", s.instanceName())
+		// s.Spec.Gateway.DnsName = s.instanceName()
 	}
 
 	return container

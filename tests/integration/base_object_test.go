@@ -18,6 +18,7 @@ package integration
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/clients"
@@ -41,6 +42,7 @@ var (
 //Delete user
 func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	storeName := "teststore"
+	dnsName := fmt.Sprintf("%s.%s", storeName, namespace)
 	defer objectTestDataCleanUp(helper, k8sh, namespace, storeName)
 	oc := helper.GetObjectClient()
 
@@ -48,7 +50,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Running on Rook Cluster %s", namespace)
 
 	logger.Infof("Step 0 : Create Object Store")
-	cobsErr := oc.ObjectCreate(namespace, storeName, 1, true, k8sh)
+	cobsErr := oc.ObjectCreate(namespace, storeName, 1, dnsName, true, k8sh)
 	require.Nil(s.T(), cobsErr)
 	logger.Infof("Object store created successfully")
 
@@ -130,12 +132,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 
 //Test Object StoreCreation on Rook that was installed via helm
 func runObjectE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, name string, replicaSize int) {
+	dnsName := fmt.Sprintf("%s.%s", name, namespace)
 	logger.Infof("Object Storage End To End Integration Test - Create Object Store and check if rgw service is Running")
 	logger.Infof("Running on Rook Cluster %s", namespace)
 
 	logger.Infof("Step 1 : Create Object Store")
 	oc := helper.GetObjectClient()
-	err := oc.ObjectCreate(namespace, name, int32(replicaSize), false, k8sh)
+	err := oc.ObjectCreate(namespace, name, int32(replicaSize), dnsName, false, k8sh)
 	require.Nil(s.T(), err)
 
 	logger.Infof("Step 2 : check rook-ceph-rgw service status and count")

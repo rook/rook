@@ -20,10 +20,12 @@ spec:
     # erasureCoded:
     #   dataChunks: 2
     #   codingChunks: 1
-  # The gaeteway service configuration
+  # The gateway service configuration
   gateway:
     # type of the gateway (s3)
     type: s3
+    # Hostname that the object store will accept.
+    dnsName: my-store.rook
     # A reference to the secret in the rook namespace where the ssl certificate is stored
     sslCertificateRef:
     # The port that RGW pods will listen on (http)

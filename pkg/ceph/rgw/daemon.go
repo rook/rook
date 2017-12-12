@@ -34,6 +34,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephrgw")
 type Config struct {
 	Name            string
 	Host            string
+	DnsName         string
 	Port            int
 	SecurePort      int
 	Keyring         string
@@ -86,7 +87,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	settings := map[string]string{
 		"host":                           config.Host,
 		"rgw data":                       dataDir,
-		"rgw dns name":                   config.Host,
+		"rgw dns name":                   config.DnsName,
 		"rgw log nonexistent bucket":     "true",
 		"rgw intent log object name utc": "true",
 		"rgw enable usage log":           "true",

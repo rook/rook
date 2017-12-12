@@ -33,6 +33,7 @@ spec:
       codingChunks: 1
   gateway:
     type: s3
+    dnsName: my-store.rook
     sslCertificateRef: 
     port: 80
     securePort:
@@ -130,3 +131,5 @@ rook-ceph-rgw-my-store-external   10.0.0.26    <nodes>       53390:30041/TCP   1
 ```
 
 Internally the rgw service is running on port `53390`. The external port in this case is `30041`. Now you can access the object store from anywhere! All you need is the hostname for any machine in the cluster, the external port, and the user credentials.
+
+Note that you will have to change the objectstore resource `dnsName` value to the hostname with which you make requests to the objectstore. Otherwise, a `403: SignatureDoesNotMatch` will show up.

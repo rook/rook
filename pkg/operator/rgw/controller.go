@@ -118,6 +118,10 @@ func storeChanged(oldStore, newStore ObjectStoreSpec) bool {
 		logger.Infof("metadata pool replication changed from %d to %d", oldStore.MetadataPool.Replicated.Size, newStore.MetadataPool.Replicated.Size)
 		return true
 	}
+	if oldStore.Gateway.DnsName != newStore.Gateway.DnsName {
+		logger.Infof("The DNS for the object store changed from %s to %s", oldStore.Gateway.DnsName, newStore.Gateway.DnsName)
+		return true
+	}
 	if oldStore.Gateway.Instances != newStore.Gateway.Instances {
 		logger.Infof("RGW instances changed from %d to %d", oldStore.Gateway.Instances, newStore.Gateway.Instances)
 		return true
