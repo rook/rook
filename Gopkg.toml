@@ -69,10 +69,6 @@ ignored = ["github.com/rook/rook/.cache","github.com/rook/rook/.work","github.co
   name = "github.com/rook/operator-kit"
   branch = "master"
 
-[[override]]
-  name = "github.com/docker/distribution"
-  branch = "master"
-
 #
 # The Kubernetes related projects below should all be updated as a set
 # as they are versioned together.
