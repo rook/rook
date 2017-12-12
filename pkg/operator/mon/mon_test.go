@@ -234,8 +234,9 @@ func TestSaveMonEndpoints(t *testing.T) {
 	c.clusterInfo.Monitors["mon1"].Endpoint = "2.3.4.5:6790"
 	c.maxMonID = 2
 	c.mapping.Node["mon1"] = &NodeInfo{
-		Name:    "node0",
-		Address: "1.1.1.1",
+		Name:     "node0",
+		Address:  "1.1.1.1",
+		Hostname: "",
 	}
 	c.mapping.Port["node0"] = int32(12345)
 	err = c.saveMonConfig()
@@ -244,7 +245,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, "mon1=2.3.4.5:6790", cm.Data[EndpointDataKey])
-	assert.Equal(t, `{"node":{"mon1":{"Name":"node0","Address":"1.1.1.1"}},"port":{"node0":12345}}`, cm.Data[MappingKey])
+	assert.Equal(t, `{"node":{"mon1":{"Name":"node0","Address":"1.1.1.1","Hostname":""}},"port":{"node0":12345}}`, cm.Data[MappingKey])
 	assert.Equal(t, "2", cm.Data[MaxMonIDKey])
 }
 
