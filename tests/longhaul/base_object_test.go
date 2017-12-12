@@ -1,6 +1,7 @@
 package longhaul
 
 import (
+	"fmt"
 	"math/rand"
 	"sync"
 	"testing"
@@ -45,7 +46,8 @@ func setUpRook(t func() *testing.T, namespace string) (*utils.K8sHelper, *instal
 
 func createObjectStoreAndUser(t func() *testing.T, kh *utils.K8sHelper, tc *clients.TestClient, namespace string, storeName string, userId string, userName string) *utils.S3Helper {
 	if !isObjectStorePresent(kh, namespace, storeName) {
-		tc.GetObjectClient().ObjectCreate(namespace, storeName, 3, false, kh)
+		dnsName := fmt.Sprintf("%s.%s", storeName, namespace)
+		tc.GetObjectClient().ObjectCreate(namespace, storeName, 3, dnsName, false, kh)
 	}
 
 	ou, err := tc.GetObjectClient().ObjectGetUser(storeName, userId)

@@ -40,8 +40,8 @@ func CreateObjectOperation(rookRestClient contracts.RestAPIOperator) *ObjectOper
 //ObjectCreate Function to create a object store in rook
 //Input parameters -None
 //Output - output returned by rook Rest API client
-func (ro *ObjectOperation) ObjectCreate(namespace, storeName string, replicaCount int32, callAPI bool, k8sh *utils.K8sHelper) error {
-	store := model.ObjectStore{Name: storeName, Gateway: model.Gateway{Instances: replicaCount, Port: model.RGWPort}}
+func (ro *ObjectOperation) ObjectCreate(namespace, storeName string, replicaCount int32, dnsName string, callAPI bool, k8sh *utils.K8sHelper) error {
+	store := model.ObjectStore{Name: storeName, Gateway: model.Gateway{Instances: replicaCount, Port: model.RGWPort, DnsName: dnsName}}
 	store.DataConfig.ReplicatedConfig.Size = 1
 	store.MetadataConfig.ReplicatedConfig.Size = 1
 	if callAPI {
@@ -70,12 +70,13 @@ spec:
       size: 1
   gateway:
     type: s3
+    dnsName: %s
     sslCertificateRef: 
     port: %d
     securePort:
     instances: %d
     allNodes: false
-`, kind, store.Name, namespace, store.Gateway.Port, store.Gateway.Instances)
+`, kind, store.Name, namespace, dnsName, store.Gateway.Port, store.Gateway.Instances)
 
 		if _, err := k8sh.ResourceOperation("create", storeSpec); err != nil {
 			return err

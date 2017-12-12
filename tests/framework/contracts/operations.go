@@ -45,7 +45,7 @@ type FileSystemOperator interface {
 
 //ObjectOperator - interface for rook object operations
 type ObjectOperator interface {
-	ObjectCreate(namespace, storeName string, replicaCount int32, callAPI bool, k8sh *utils.K8sHelper) error
+	ObjectCreate(namespace, storeName string, replicaCount int32, dnsName string, callAPI bool, k8sh *utils.K8sHelper) error
 	ObjectDelete(namespace, storeName string, replicaCount int32, callAPI bool, k8sh *utils.K8sHelper) error
 	ObjectBucketList(storeName string) ([]model.ObjectBucket, error)
 	ObjectConnection(storeName string) (*model.ObjectStoreConnectInfo, error)
