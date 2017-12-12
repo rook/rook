@@ -126,6 +126,9 @@ spec:
         # To disable RBAC, uncomment the following:
         # - name: RBAC_ENABLED
         #  value: "false"
+        # Rook Agent toleration. Choose between NoSchedule, PreferNoSchedule and NoExecute:
+        # - name: AGENT_TOLERATION
+        #  value: "NoSchedule"
         # The interval to check if every mon is in the quorum.
         - name: ROOK_MON_HEALTHCHECK_INTERVAL
           value: "45s"
