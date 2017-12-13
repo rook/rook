@@ -5,7 +5,7 @@ install() {
     #Download and unpack helm
     local dist=`uname -s`
     dist=`echo ${dist} | tr "[A-Z]" "[a-z]"`
-    if [ ! -f https://storage.googleapis.com/kubernetes-helm/helm-v2.6.0-${dist}-amd64.tar.gz ] ; then 
+    if [ ! -f ./helm-v2.6.0-${dist}-amd64.tar.gz ] ; then 
         wget https://storage.googleapis.com/kubernetes-helm/helm-v2.6.0-${dist}-amd64.tar.gz
     fi 
     tar -zxvf helm-v2.6.0-${dist}-amd64.tar.gz
