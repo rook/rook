@@ -398,7 +398,7 @@ func (s *ObjectStore) rgwContainer(version string) v1.Container {
 	}
 
 	if s.Spec.Gateway.DnsName == "" {
-		container.Args[4] = fmt.Sprintf("--rgw-dns-name=%s", s.instanceName())
+		container.Args[4] = fmt.Sprintf("--rgw-dns-name=%s.%s", s.instanceName(), s.Namespace)
 		// s.Spec.Gateway.DnsName = s.instanceName()
 	}
 
