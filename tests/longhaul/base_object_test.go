@@ -56,7 +56,7 @@ func createObjectStoreAndUser(t func() *testing.T, kh *utils.K8sHelper, tc *clie
 
 	conninfo, conninfoError := tc.GetObjectClient().ObjectGetUser(storeName, userId)
 	require.Nil(t(), conninfoError)
-	s3endpoint, _ := kh.GetRGWServiceURL(storeName, namespace)
+	s3endpoint, _ := kh.GetExternalRGWServiceURL(storeName, namespace)
 	s3client := utils.CreateNewS3Helper(s3endpoint, *conninfo.AccessKey, *conninfo.SecretKey)
 
 	return s3client
