@@ -16,23 +16,12 @@ limitations under the License.
 package k8sutil
 
 import (
-	"fmt"
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestMakeRookImage(t *testing.T) {
-	assert.Equal(t, "rook/rook:v1", MakeRookImage("v1"))
-}
-
-func TestMakeRookImageWithEnv(t *testing.T) {
-	os.Setenv(repoPrefixEnvVar, "myrepo.io/rook")
-	assert.Equal(t, "myrepo.io/rook/rook:v1", MakeRookImage("v1"))
-	os.Setenv(repoPrefixEnvVar, "")
-}
-
-func TestDefaultVersion(t *testing.T) {
-	assert.Equal(t, fmt.Sprintf("rook/rook:%s", defaultVersion), MakeRookImage(""))
+	assert.Equal(t, "rook/rook:v1", MakeRookImage("rook/rook:v1"))
+	assert.Equal(t, defaultVersion, MakeRookImage(""))
 }

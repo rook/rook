@@ -103,7 +103,7 @@ func TestPodSpecs(t *testing.T) {
 		},
 	}
 
-	s := makeRGWPodSpec(store, "myversion", true)
+	s := makeRGWPodSpec(store, "rook/rook:myversion", true)
 	assert.NotNil(t, s)
 	//assert.Equal(t, instanceName(store), s.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, s.Spec.RestartPolicy)

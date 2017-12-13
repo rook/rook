@@ -45,14 +45,6 @@ type ClusterList struct {
 }
 
 type ClusterSpec struct {
-	// VersionTag is the expected version of the rook container to run in the cluster.
-	// The operator will eventually make the rook cluster version
-	// equal to the expected version.
-	VersionTag string `json:"versionTag"`
-
-	// Paused is to pause the control of the operator for the rook cluster.
-	Paused bool `json:"paused,omitempty"`
-
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath"`
 

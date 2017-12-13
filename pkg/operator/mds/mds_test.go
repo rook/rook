@@ -111,7 +111,7 @@ func TestPodSpecs(t *testing.T) {
 	}
 	mdsID := "mds1"
 
-	d := makeDeployment(fs, mdsID, "myversion", false)
+	d := makeDeployment(fs, mdsID, "rook/rook:myversion", false)
 	assert.NotNil(t, d)
 	assert.Equal(t, appName+"-myfs", d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)

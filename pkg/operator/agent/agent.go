@@ -78,27 +78,21 @@ func New(clientset kubernetes.Interface) *Agent {
 }
 
 // Start the agent
-func (a *Agent) Start(namespace string) error {
+func (a *Agent) Start(namespace, agentImage string) error {
 
 	err := k8sutil.MakeClusterRole(a.clientset, namespace, agentDaemonsetName, clusterAccessRules)
 	if err != nil {
 		return fmt.Errorf("failed to init RBAC for rook-agents. %+v", err)
 	}
 
-	err = a.createAgentDaemonSet(namespace)
+	err = a.createAgentDaemonSet(namespace, agentImage)
 	if err != nil {
 		return fmt.Errorf("Error starting agent daemonset: %v", err)
 	}
 	return nil
 }
 
-func (a *Agent) createAgentDaemonSet(namespace string) error {
-
-	// Using the rook-operator image to deploy the rook-agents
-	agentImage, err := getContainerImage(a.clientset)
-	if err != nil {
-		return err
-	}
+func (a *Agent) createAgentDaemonSet(namespace, agentImage string) error {
 
 	flexvolumeDirPath, source := a.discoverFlexvolumeDir()
 	logger.Infof("discovered flexvolume dir path from source %s. value: %s", source, flexvolumeDirPath)
@@ -200,7 +194,7 @@ func (a *Agent) createAgentDaemonSet(namespace string) error {
 		}
 	}
 
-	_, err = a.clientset.Extensions().DaemonSets(namespace).Create(ds)
+	_, err := a.clientset.Extensions().DaemonSets(namespace).Create(ds)
 	if err != nil {
 		if !kserrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-agent daemon set. %+v", err)
@@ -284,27 +278,4 @@ func getDefaultFlexvolumeDir() (flexvolumeDirPath, source string) {
 	flexvolumeDirPath = flexvolumeDefaultDirPath
 
 	return flexvolumeDirPath, "default"
-}
-
-func getContainerImage(clientset kubernetes.Interface) (string, error) {
-
-	podName := os.Getenv(k8sutil.PodNameEnvVar)
-	if podName == "" {
-		return "", fmt.Errorf("cannot detect the pod name. Please provide it using the downward API in the manifest file")
-	}
-	podNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	if podName == "" {
-		return "", fmt.Errorf("cannot detect the pod namespace. Please provide it using the downward API in the manifest file")
-	}
-
-	pod, err := clientset.Core().Pods(podNamespace).Get(podName, metav1.GetOptions{})
-	if err != nil {
-		return "", err
-	}
-
-	if len(pod.Spec.Containers) != 1 {
-		return "", fmt.Errorf("failed to get container image. There should only be exactly one container in this pod")
-	}
-
-	return pod.Spec.Containers[0].Image, nil
 }

@@ -36,7 +36,7 @@ func TestPodSpecs(t *testing.T) {
 
 func testPodSpec(t *testing.T, dataDir string) {
 	clientset := testop.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", dataDir, "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", dataDir, "rook/rook:myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{
 		Limits: v1.ResourceList{
 			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
 		},
@@ -65,8 +65,6 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "mon0", pod.ObjectMeta.Name)
 	assert.Equal(t, appName, pod.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
-	assert.Equal(t, 1, len(pod.ObjectMeta.Annotations))
-	assert.Equal(t, "myversion", pod.ObjectMeta.Annotations["rook_version"])
 
 	cont := pod.Spec.Containers[0]
 	assert.Equal(t, "rook/rook:myversion", cont.Image)

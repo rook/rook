@@ -84,6 +84,7 @@ type ClusterController struct {
 	context          *clusterd.Context
 	volumeAttachment attachment.Attachment
 	devicesInUse     bool
+	rookImage        string
 }
 
 type cluster struct {
@@ -98,10 +99,11 @@ type cluster struct {
 }
 
 // NewClusterController create controller for watching cluster custom resources created
-func NewClusterController(context *clusterd.Context, volumeAttachment attachment.Attachment) *ClusterController {
+func NewClusterController(context *clusterd.Context, rookImage string, volumeAttachment attachment.Attachment) *ClusterController {
 	return &ClusterController{
 		context:          context,
 		volumeAttachment: volumeAttachment,
+		rookImage:        rookImage,
 	}
 }
 
@@ -147,7 +149,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	logger.Infof("starting cluster namespace %s", cluster.Namespace)
 	// Start the Rook cluster components. Retry several times in case of failure.
 	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
-		err := cluster.createInstance()
+		err := cluster.createInstance(c.rookImage)
 		if err != nil {
 			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
 			return false, nil
@@ -164,11 +166,11 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store CRD watcher
-	objectStoreController := rgw.NewObjectStoreController(c.context, cluster.Spec.VersionTag, cluster.Spec.HostNetwork)
+	objectStoreController := rgw.NewObjectStoreController(c.context, c.rookImage, cluster.Spec.HostNetwork)
 	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start file system CRD watcher
-	fileController := mds.NewFilesystemController(c.context, cluster.Spec.VersionTag, cluster.Spec.HostNetwork)
+	fileController := mds.NewFilesystemController(c.context, c.rookImage, cluster.Spec.HostNetwork)
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker
@@ -186,7 +188,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 
 	logger.Infof("updating cluster %s", newClust.Namespace)
 	cluster := newCluster(newClust, c.context)
-	if err := cluster.createInstance(); err != nil {
+	if err := cluster.createInstance(c.rookImage); err != nil {
 		logger.Errorf("failed to update cluster in namespace %s. %+v", newClust.Namespace, err)
 	}
 }
@@ -245,7 +247,7 @@ func newCluster(c *rookalpha.Cluster, context *clusterd.Context) *cluster {
 	return &cluster{Namespace: c.Namespace, Spec: c.Spec, context: context}
 }
 
-func (c *cluster) createInstance() error {
+func (c *cluster) createInstance(rookImage string) error {
 
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
@@ -260,7 +262,7 @@ func (c *cluster) createInstance() error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, c.Spec.VersionTag, c.Spec.MonCount, c.Spec.Placement.GetMon(), c.Spec.HostNetwork, c.Spec.Resources.Mon)
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.MonCount, c.Spec.Placement.GetMon(), c.Spec.HostNetwork, c.Spec.Resources.Mon)
 	err = c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
@@ -271,20 +273,20 @@ func (c *cluster) createInstance() error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	c.mgrs = mgr.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetMgr(), c.Spec.HostNetwork, c.Spec.Resources.Mgr)
+	c.mgrs = mgr.New(c.context, c.Namespace, rookImage, c.Spec.Placement.GetMgr(), c.Spec.HostNetwork, c.Spec.Resources.Mgr)
 	err = c.mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
 	}
 
-	c.apis = api.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Placement.GetAPI(), c.Spec.HostNetwork, c.Spec.Resources.API)
+	c.apis = api.New(c.context, c.Namespace, rookImage, c.Spec.Placement.GetAPI(), c.Spec.HostNetwork, c.Spec.Resources.API)
 	err = c.apis.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, c.Spec.VersionTag, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD(), c.Spec.HostNetwork, c.Spec.Resources.OSD)
+	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD(), c.Spec.HostNetwork, c.Spec.Resources.OSD)
 	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)

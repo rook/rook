@@ -38,17 +38,17 @@ type Config struct {
 	port        int
 	clusterInfo *mon.ClusterInfo
 	namespace   string
-	versionTag  string
+	rookImage   string
 	hostNetwork bool
 }
 
-func NewConfig(context *clusterd.Context, port int, clusterInfo *mon.ClusterInfo, namespace, versionTag string, hostNetwork bool) *Config {
+func NewConfig(context *clusterd.Context, port int, clusterInfo *mon.ClusterInfo, namespace, rookImage string, hostNetwork bool) *Config {
 	return &Config{
 		context:     context,
 		port:        port,
 		clusterInfo: clusterInfo,
 		namespace:   namespace,
-		versionTag:  versionTag,
+		rookImage:   rookImage,
 		hostNetwork: hostNetwork,
 	}
 }

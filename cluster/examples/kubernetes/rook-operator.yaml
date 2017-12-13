@@ -121,8 +121,6 @@ spec:
         image: rook/rook:master
         args: ["operator"]
         env:
-        - name: ROOK_REPO_PREFIX
-          value: rook
         # To disable RBAC, uncomment the following:
         # - name: RBAC_ENABLED
         #  value: "false"

@@ -57,6 +57,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "operator")
 type Operator struct {
 	context   *clusterd.Context
 	resources []opkit.CustomResource
+	rookImage string
 	// The custom resource that is global to the kubernetes cluster.
 	// The cluster is global because you create multiple clusters in k8s
 	clusterController *cluster.ClusterController
@@ -64,8 +65,8 @@ type Operator struct {
 }
 
 // New creates an operator instance
-func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachment) *Operator {
-	clusterController := cluster.NewClusterController(context, volumeAttachmentWrapper)
+func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachment, rookImage string) *Operator {
+	clusterController := cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper)
 	volumeProvisioner := provisioner.New(context)
 
 	schemes := []opkit.CustomResource{cluster.ClusterResource, pool.PoolResource, rgw.ObjectStoreResource,
@@ -75,6 +76,7 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 		clusterController: clusterController,
 		resources:         schemes,
 		volumeProvisioner: volumeProvisioner,
+		rookImage:         rookImage,
 	}
 }
 
@@ -97,7 +99,7 @@ func (o *Operator) Run() error {
 
 	rookAgent := agent.New(o.context.Clientset)
 
-	if err := rookAgent.Start(namespace); err != nil {
+	if err := rookAgent.Start(namespace, o.rookImage); err != nil {
 		return fmt.Errorf("Error starting agent daemonset: %v", err)
 	}
 

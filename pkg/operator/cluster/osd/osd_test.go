@@ -66,7 +66,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, dataDir, rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", storageSpec, dataDir, rookalpha.Placement{}, false, v1.ResourceRequirements{})
 
 	devMountNeeded := deviceFilter != "" || allDevices
 
@@ -157,7 +157,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{})
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
@@ -207,7 +207,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{})
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
 	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, c.Storage.Nodes[0].Resources, n.Config)

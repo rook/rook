@@ -59,7 +59,7 @@ func (h *Handler) CreateFileSystem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Infof("Starting the MDS")
-	if err := k8smds.CreateFileSystem(h.config.context, h.config.namespace, fs, h.config.versionTag, h.config.hostNetwork); err != nil {
+	if err := k8smds.CreateFileSystem(h.config.context, h.config.namespace, fs, h.config.rookImage, h.config.hostNetwork); err != nil {
 		logger.Errorf("failed to start mds: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
