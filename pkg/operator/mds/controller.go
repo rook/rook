@@ -45,15 +45,15 @@ var FilesystemResource = opkit.CustomResource{
 // FilesystemController represents a controller for file system custom resources
 type FilesystemController struct {
 	context     *clusterd.Context
-	versionTag  string
+	rookImage   string
 	hostNetwork bool
 }
 
 // NewFilesystemController create controller for watching file system custom resources created
-func NewFilesystemController(context *clusterd.Context, versionTag string, hostNetwork bool) *FilesystemController {
+func NewFilesystemController(context *clusterd.Context, rookImage string, hostNetwork bool) *FilesystemController {
 	return &FilesystemController{
 		context:     context,
-		versionTag:  versionTag,
+		rookImage:   rookImage,
 		hostNetwork: hostNetwork,
 	}
 }
@@ -76,7 +76,7 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 func (c *FilesystemController) onAdd(obj interface{}) {
 	filesystem := obj.(*rookalpha.Filesystem).DeepCopy()
 
-	err := CreateFilesystem(c.context, *filesystem, c.versionTag, c.hostNetwork)
+	err := CreateFilesystem(c.context, *filesystem, c.rookImage, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create file system %s. %+v", filesystem.Name, err)
 	}
@@ -92,7 +92,7 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	// if the file system is modified, allow the file system to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS)
-	err := CreateFilesystem(c.context, *newFS, c.versionTag, c.hostNetwork)
+	err := CreateFilesystem(c.context, *newFS, c.rookImage, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create (modify) file system %s. %+v", newFS.Name, err)
 	}

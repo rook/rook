@@ -38,8 +38,6 @@ const (
 	AppAttr = "app"
 	// ClusterAttr cluster label
 	ClusterAttr = "rook_cluster"
-	// VersionAttr version label
-	VersionAttr = "rook_version"
 	// PublicIPEnvVar public IP env var
 	PublicIPEnvVar = "ROOK_PUBLIC_IPV4"
 	// PrivateIPEnvVar pod IP env var
@@ -51,8 +49,7 @@ const (
 	ConfigOverrideName = "rook-config-override"
 	// ConfigOverrideVal config override value
 	ConfigOverrideVal = "config"
-	repoPrefixEnvVar  = "ROOK_REPO_PREFIX"
-	defaultVersion    = "latest"
+	defaultVersion    = "rook/rook:latest"
 	configMountDir    = "/etc/rook/config"
 	overrideFilename  = "override.conf"
 )
@@ -94,40 +91,41 @@ func NodeEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: NodeNameEnvVar, ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}}
 }
 
-// RepoPrefixEnvVar repo prefix env var
-func RepoPrefixEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: repoPrefixEnvVar, Value: repoPrefix()}
-}
-
 // ConfigDirEnvVar config dir env var
 func ConfigDirEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOK_CONFIG_DIR", Value: DataDir}
 }
 
-func repoPrefix() string {
-	r := os.Getenv(repoPrefixEnvVar)
-	if r == "" {
-		r = DefaultRepoPrefix
-	}
-	return r
-}
+func GetContainerImage(clientset kubernetes.Interface) (string, error) {
 
-func getVersion(version string) string {
-	if version == "" {
-		version = defaultVersion
+	podName := os.Getenv(PodNameEnvVar)
+	if podName == "" {
+		return "", fmt.Errorf("cannot detect the pod name. Please provide it using the downward API in the manifest file")
+	}
+	podNamespace := os.Getenv(PodNamespaceEnvVar)
+	if podName == "" {
+		return "", fmt.Errorf("cannot detect the pod namespace. Please provide it using the downward API in the manifest file")
 	}
 
-	return version
+	pod, err := clientset.Core().Pods(podNamespace).Get(podName, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	if len(pod.Spec.Containers) != 1 {
+		return "", fmt.Errorf("failed to get container image. There should only be exactly one container in this pod")
+	}
+
+	return pod.Spec.Containers[0].Image, nil
 }
 
 // MakeRookImage formats the container name
 func MakeRookImage(version string) string {
-	return fmt.Sprintf("%s/rook:%v", repoPrefix(), getVersion(version))
-}
+	if version == "" {
+		return defaultVersion
+	}
 
-// SetPodVersion sets the pod annotation
-func SetPodVersion(pod *v1.Pod, key, version string) {
-	pod.Annotations[key] = version
+	return version
 }
 
 // DeleteDeployment makes a best effort at deleting a deployment and its pods, then waits for them to be deleted

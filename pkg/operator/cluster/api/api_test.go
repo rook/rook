@@ -59,7 +59,7 @@ func validateStart(t *testing.T, c *Cluster) {
 
 func TestPodSpecs(t *testing.T) {
 	clientset := testop.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{})
 
 	d := c.makeDeployment()
 	assert.NotNil(t, d)
@@ -78,19 +78,19 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, 1, len(cont.VolumeMounts))
 	assert.Equal(t, 7, len(cont.Env))
 
-	var envs [7]string
-	for i, v := range cont.Env {
-		envs[i] = v.Name
+	var envs []string
+	for _, v := range cont.Env {
+		envs = append(envs, v.Name)
 	}
 	sort.Strings(envs[:])
 
-	assert.Equal(t, "ROOK_ADMIN_SECRET", envs[0])
-	assert.Equal(t, "ROOK_CLUSTER_NAME", envs[1])
-	assert.Equal(t, "ROOK_MON_ENDPOINTS", envs[2])
-	assert.Equal(t, "ROOK_MON_SECRET", envs[3])
-	assert.Equal(t, "ROOK_NAMESPACE", envs[4])
-	assert.Equal(t, "ROOK_REPO_PREFIX", envs[5])
-	assert.Equal(t, "ROOK_VERSION_TAG", envs[6])
+	assert.Equal(t, "POD_NAME", envs[0])
+	assert.Equal(t, "POD_NAMESPACE", envs[1])
+	assert.Equal(t, "ROOK_ADMIN_SECRET", envs[2])
+	assert.Equal(t, "ROOK_CLUSTER_NAME", envs[3])
+	assert.Equal(t, "ROOK_MON_ENDPOINTS", envs[4])
+	assert.Equal(t, "ROOK_MON_SECRET", envs[5])
+	assert.Equal(t, "ROOK_NAMESPACE", envs[6])
 
 	assert.Equal(t, "api", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])

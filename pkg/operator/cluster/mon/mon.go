@@ -66,7 +66,6 @@ type Cluster struct {
 	Version             string
 	MasterHost          string
 	Size                int
-	Paused              bool
 	Port                int32
 	clusterInfo         *mon.ClusterInfo
 	placement           rookalpha.Placement

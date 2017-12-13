@@ -61,7 +61,7 @@ func TestStartAgentDaemonset(t *testing.T) {
 	a := New(clientset)
 
 	// start a basic cluster
-	err := a.Start(namespace)
+	err := a.Start(namespace, "rook/rook:myversion")
 	assert.Nil(t, err)
 
 	// check clusters rbac roles
@@ -90,7 +90,7 @@ func TestStartAgentDaemonset(t *testing.T) {
 	envs := agentDS.Spec.Template.Spec.Containers[0].Env
 	assert.Equal(t, 2, len(envs))
 	image := agentDS.Spec.Template.Spec.Containers[0].Image
-	assert.Equal(t, "rook/test", image)
+	assert.Equal(t, "rook/rook:myversion", image)
 	assert.Nil(t, agentDS.Spec.Template.Spec.Tolerations)
 }
 
@@ -120,7 +120,7 @@ func TestGetContainerImage(t *testing.T) {
 	clientset.CoreV1().Pods("Default").Create(&pod)
 
 	// start a basic cluster
-	image, err := getContainerImage(clientset)
+	image, err := k8sutil.GetContainerImage(clientset)
 	assert.Nil(t, err)
 	assert.Equal(t, "rook/test", image)
 }
@@ -155,7 +155,7 @@ func TestGetContainerImageMultipleContainers(t *testing.T) {
 	clientset.CoreV1().Pods("Default").Create(&pod)
 
 	// start a basic cluster
-	_, err := getContainerImage(clientset)
+	_, err := k8sutil.GetContainerImage(clientset)
 	assert.NotNil(t, err)
 	assert.Equal(t, "failed to get container image. There should only be exactly one container in this pod", err.Error())
 }
@@ -192,7 +192,7 @@ func TestStartAgentDaemonsetWithToleration(t *testing.T) {
 	a := New(clientset)
 
 	// start a basic cluster
-	err := a.Start(namespace)
+	err := a.Start(namespace, "rook/test")
 	assert.Nil(t, err)
 
 	// check daemonset toleration

@@ -9,7 +9,6 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: master
   # The path on the host where configuration files will be persisted. If not specified, a kubernetes emptyDir will be created (not recommended).
   # Important: if you reinstall the cluster, make sure you delete this directory from each host or else the mons will fail to start on the new cluster.
   dataDirHostPath: /var/lib/rook

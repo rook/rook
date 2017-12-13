@@ -45,15 +45,15 @@ var ObjectStoreResource = opkit.CustomResource{
 // ObjectStoreController represents a controller object for object store custom resources
 type ObjectStoreController struct {
 	context     *clusterd.Context
-	versionTag  string
+	rookImage   string
 	hostNetwork bool
 }
 
 // NewObjectStoreController create controller for watching object store custom resources created
-func NewObjectStoreController(context *clusterd.Context, versionTag string, hostNetwork bool) *ObjectStoreController {
+func NewObjectStoreController(context *clusterd.Context, rookImage string, hostNetwork bool) *ObjectStoreController {
 	return &ObjectStoreController{
 		context:     context,
-		versionTag:  versionTag,
+		rookImage:   rookImage,
 		hostNetwork: hostNetwork,
 	}
 }
@@ -75,7 +75,7 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 
 func (c *ObjectStoreController) onAdd(obj interface{}) {
 	store := obj.(*rookalpha.ObjectStore).DeepCopy()
-	err := CreateStore(c.context, *store, c.versionTag, c.hostNetwork)
+	err := CreateStore(c.context, *store, c.rookImage, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create object store %s. %+v", store.Name, err)
 	}
@@ -91,7 +91,7 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	logger.Infof("applying object store %s changes", newStore.Name)
-	err := UpdateStore(c.context, *newStore, c.versionTag, c.hostNetwork)
+	err := UpdateStore(c.context, *newStore, c.rookImage, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create (modify) object store %s. %+v", newStore.Name, err)
 	}

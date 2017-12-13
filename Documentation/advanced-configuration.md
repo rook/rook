@@ -50,11 +50,6 @@ done) | gzip > /tmp/rook-logs.gz
 This gets the logs for every container in every Rook pod and then compresses them into a `.gz` archive
 for easy sharing.  Note that instead of `gzip`, you could instead pipe to `less` or to a single text file.
 
-## Change Rook Docker Image Prefix
-To change the prefix of rook Docker images used, the environment variable `ROOK_REPO_PREFIX` can be changed.
-The variable needs to be, depending on the deployment of the rook-operator, added/changed in the rook-operator deployment.
-The default is `rook` which will pull from [Docker Hub](https://hub.docker.com/r/rook/rook/). For example to use your own built images: `your-registry.example.com/your-name/rook`.
-
 ## OSD Information
 
 Keeping track of OSDs and their underlying storage devices/directories can be
