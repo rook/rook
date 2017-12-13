@@ -91,6 +91,7 @@ func TestStartAgentDaemonset(t *testing.T) {
 	assert.Equal(t, 2, len(envs))
 	image := agentDS.Spec.Template.Spec.Containers[0].Image
 	assert.Equal(t, "rook/test", image)
+	assert.Nil(t, agentDS.Spec.Template.Spec.Tolerations)
 }
 
 func TestGetContainerImage(t *testing.T) {
@@ -157,4 +158,47 @@ func TestGetContainerImageMultipleContainers(t *testing.T) {
 	_, err := getContainerImage(clientset)
 	assert.NotNil(t, err)
 	assert.Equal(t, "failed to get container image. There should only be exactly one container in this pod", err.Error())
+}
+
+func TestStartAgentDaemonsetWithToleration(t *testing.T) {
+	clientset := test.New(3)
+
+	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
+	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+
+	os.Setenv(k8sutil.PodNameEnvVar, "rook-operator")
+	defer os.Unsetenv(k8sutil.PodNameEnvVar)
+
+	os.Setenv(agentDaemonsetTolerationEnv, "NoSchedule")
+	defer os.Unsetenv(agentDaemonsetTolerationEnv)
+
+	pod := v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-operator",
+			Namespace: "rook-system",
+		},
+		Spec: v1.PodSpec{
+			Containers: []v1.Container{
+				{
+					Name:  "mypodContainer",
+					Image: "rook/test",
+				},
+			},
+		},
+	}
+	clientset.CoreV1().Pods("rook-system").Create(&pod)
+
+	namespace := "ns"
+	a := New(clientset)
+
+	// start a basic cluster
+	err := a.Start(namespace)
+	assert.Nil(t, err)
+
+	// check daemonset toleration
+	agentDS, err := clientset.Extensions().DaemonSets(namespace).Get("rook-agent", metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(agentDS.Spec.Template.Spec.Tolerations))
+	assert.Equal(t, "NoSchedule", string(agentDS.Spec.Template.Spec.Tolerations[0].Effect))
+	assert.Equal(t, "Exists", string(agentDS.Spec.Template.Spec.Tolerations[0].Operator))
 }

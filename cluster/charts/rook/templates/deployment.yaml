@@ -27,6 +27,12 @@ spec:
         - name: RBAC_ENABLED
           value: "false"
 {{- end }}
+{{- if .Values.agent }}
+{{- if .Values.agent.toleration }}
+        - name: AGENT_TOLERATION
+          value: {{ .Values.agent.toleration }}
+{{- end }}
+{{- end }}
         - name: ROOK_LOG_LEVEL
           value: {{ .Values.logLevel }}
         - name: NODE_NAME
