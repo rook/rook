@@ -69,7 +69,7 @@ func validateStart(t *testing.T, c *Cluster) {
 }
 
 func TestPodSpec(t *testing.T) {
-	c := New(nil, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{
+	c := New(nil, "ns", "rook/rook:myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{
 		Limits: v1.ResourceList{
 			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
 		},

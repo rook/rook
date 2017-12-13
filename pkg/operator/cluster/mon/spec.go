@@ -113,7 +113,6 @@ func (c *Cluster) makeMonPod(config *monConfig, nodeName string) *v1.Pod {
 		Spec: podSpec,
 	}
 
-	k8sutil.SetPodVersion(pod, k8sutil.VersionAttr, c.Version)
 	return pod
 }
 

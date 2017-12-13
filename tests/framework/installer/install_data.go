@@ -155,8 +155,6 @@ spec:
         image: rook/rook:master
         args: ["operator", "--mon-healthcheck-interval=5s", "--mon-out-timeout=1s"]
         env:
-        - name: ROOK_REPO_PREFIX
-          value: rook
         - name: ROOK_LOG_LEVEL
           value: INFO
         # The interval to check if every mon is in the quorum.

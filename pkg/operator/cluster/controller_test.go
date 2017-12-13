@@ -58,8 +58,8 @@ func TestCreateInitialCrushMap(t *testing.T) {
 }
 
 func TestClusterChanged(t *testing.T) {
-	old := rookalpha.ClusterSpec{VersionTag: "v0.6.0", MonCount: 1, HostNetwork: false}
-	new := rookalpha.ClusterSpec{VersionTag: "v0.7.0", MonCount: 3, HostNetwork: true}
+	old := rookalpha.ClusterSpec{MonCount: 1, HostNetwork: false}
+	new := rookalpha.ClusterSpec{MonCount: 3, HostNetwork: true}
 
 	// no changes supported yet
 	assert.False(t, clusterChanged(old, new))
@@ -110,7 +110,7 @@ func TestClusterDelete(t *testing.T) {
 	}
 
 	// create the cluster controller and tell it that the cluster has been deleted
-	controller := NewClusterController(context, volumeAttachmentController)
+	controller := NewClusterController(context, "", volumeAttachmentController)
 	clusterToDelete := &rookalpha.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleDelete(clusterToDelete, time.Microsecond)
 

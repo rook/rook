@@ -383,7 +383,7 @@ func enableObjectStore(c *Config, config model.ObjectStore) error {
 	}
 
 	store := k8srgw.ModelToSpec(config, c.namespace)
-	err := k8srgw.UpdateStore(c.context, *store, c.versionTag, c.hostNetwork)
+	err := k8srgw.UpdateStore(c.context, *store, c.rookImage, c.hostNetwork)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
 	}

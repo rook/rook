@@ -20,6 +20,7 @@ import (
 
 	"github.com/rook/rook/pkg/daemon/api"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -32,14 +33,11 @@ var (
 	apiPort     int
 	repoPrefix  string
 	namespace   string
-	versionTag  string
 	hostNetwork bool
 )
 
 func init() {
 	apiCmd.Flags().IntVar(&apiPort, "port", 0, "port on which the api is listening")
-	apiCmd.Flags().StringVar(&repoPrefix, "repo-prefix", "rook", "the repo from which to pull images")
-	apiCmd.Flags().StringVar(&versionTag, "version-tag", "latest", "version of the rook container to launch")
 	apiCmd.Flags().StringVar(&namespace, "namespace", "", "the namespace in which the api service is running")
 	apiCmd.Flags().BoolVar(&hostNetwork, "hostnetwork", false, "if the hostnetwork should be used")
 	addCephFlags(apiCmd)
@@ -50,7 +48,7 @@ func init() {
 }
 
 func startAPI(cmd *cobra.Command, args []string) error {
-	required := []string{"repo-prefix", "namespace", "config-dir", "cluster-name", "mon-endpoints", "mon-secret", "admin-secret", "public-ipv4", "private-ipv4"}
+	required := []string{"namespace", "config-dir", "cluster-name", "mon-endpoints", "mon-secret", "admin-secret", "public-ipv4", "private-ipv4"}
 	if err := flags.VerifyRequiredFlags(apiCmd, required); err != nil {
 		return err
 	}
@@ -67,11 +65,17 @@ func startAPI(cmd *cobra.Command, args []string) error {
 		terminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
 	}
 
+	// Using the rook-operator image to deploy other rook pods
+	rookImage, err := k8sutil.GetContainerImage(clientset)
+	if err != nil {
+		terminateFatal(fmt.Errorf("failed to get container image. %+v\n", err))
+	}
+
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	context := createContext()
 	context.Clientset = clientset
 	context.RookClientset = rookClientset
-	c := api.NewConfig(context, apiPort, &clusterInfo, namespace, versionTag, hostNetwork)
+	c := api.NewConfig(context, apiPort, &clusterInfo, namespace, rookImage, hostNetwork)
 
 	err = api.Run(context, c)
 	if err != nil {
