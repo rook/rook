@@ -45,7 +45,7 @@ var (
 //Delete user
 func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	storeName := "teststore"
-	dnsName := fmt.Sprintf("%s.%s", storeName, namespace)
+	dnsName := fmt.Sprintf("rook-ceph-rgw-%s.%s", storeName, namespace)
 	defer objectTestDataCleanUp(helper, k8sh, namespace, storeName)
 	oc := helper.GetObjectClient()
 
@@ -74,7 +74,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	s3endpoint, _ := k8sh.GetRGWServiceURL(storeName, namespace)
 	s3client := utils.CreateNewS3Helper(s3endpoint, *conninfo.AccessKey, *conninfo.SecretKey)
 
-	logger.Infof("Step 3 : Create bucket")
+	logger.Infof("Step 3 : Create bucket %s, with dns %s and endpoint %s", bucketname, dnsName, s3endpoint)
 	initialBuckets, _ := oc.ObjectBucketList(storeName)
 	s3client.CreateBucket(bucketname)
 	BucketsAfterCreate, _ := oc.ObjectBucketList(storeName)
@@ -85,9 +85,12 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Bucket created in Object store successfully")
 
 	logger.Infof("Step 4 : Test correctness of the DNS settings in the RGW")
-	dnsSet, _ := testCorrectDnsSet(bucketname, dnsName, s3endpoint)
+	dnsSet, err := testCorrectDnsSet(bucketname, dnsName, s3endpoint)
+	if err != nil {
+		logger.Fatal(err)
+	}
 	require.True(s.T(), dnsSet)
-	dnsSet, _ = testCorrectDnsSet(bucketname, storeName, s3endpoint)
+	dnsSet, err = testCorrectDnsSet(bucketname, storeName, s3endpoint)
 	require.False(s.T(), dnsSet)
 
 	logger.Infof("Step 5 : Put Object on bucket")
@@ -100,7 +103,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	ObjSize, ObjNum, _ := getBucketSizeAndObjectes(bucketname, BucketsAfterPut)
 	require.NotEmpty(s.T(), ObjSize)
 	require.Equal(s.T(), uint64(1), ObjNum)
-	logger.Infof("Object Created on bucket successfully")
+	logger.Infof("Object Cxfreated on bucket successfully")
 
 	logger.Infof("Step 6 : Put Object from bucket")
 	read, err := s3client.GetObjectInBucket(bucketname, objectKey)
@@ -194,9 +197,9 @@ func getBucketSizeAndObjectes(bucketname string, bucketList []model.ObjectBucket
 }
 
 func testCorrectDnsSet(bucketname string, dnsName string, s3endpoint string) (bool, error) {
-	url := fmt.Sprintf("%s/%s", s3endpoint, bucketname)
+	urlStr := fmt.Sprintf("http://%s/%s", s3endpoint, bucketname)
 	client := &http.Client{}
-	req, err := http.NewRequest("GET", url, nil)
+	req, err := http.NewRequest("GET", urlStr, nil)
 	if err != nil {
 		return false, errors.New("Error while creating HTTP request")
 	}
@@ -210,7 +213,8 @@ func testCorrectDnsSet(bucketname string, dnsName string, s3endpoint string) (bo
 	if strings.Contains(string(body), "AccessDenied") {
 		return true, nil
 	} else if strings.Contains(string(body), "NoSuchBucket") {
-		return false, nil
+		return false, errors.New("The DNS is incorrectly set up")
+	} else {
+		return false, errors.New("Gateway reported an unexpected answer. Erroring..")
 	}
-	return false, errors.New("Gateway reported an unexpected answer. Erroring..")
 }
