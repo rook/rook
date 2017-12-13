@@ -96,7 +96,7 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: v0.6.1
+  versionTag: v0.6.2
   dataDirHostPath: /var/lib/rook
   # cluster level storage configuration and selection
   storage:
@@ -128,7 +128,7 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: v0.6.1
+  versionTag: v0.6.2
   dataDirHostPath: /var/lib/rook
   # cluster level storage configuration and selection
   storage:                
@@ -173,7 +173,7 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: v0.6.1
+  versionTag: v0.6.2
   dataDirHostPath: /var/lib/rook
   placement:
     all:
