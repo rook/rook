@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"flag"
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
@@ -42,7 +43,6 @@ var (
 	deleteArgs     = []string{"delete", "-f", "-"}
 	helmChartName  = "local/rook"
 	helmDeployName = "rook"
-	env            objects.EnvironmentManifest
 )
 
 //InstallHelper wraps installing and uninstalling rook on a platform
@@ -53,10 +53,6 @@ type InstallHelper struct {
 	Env         objects.EnvironmentManifest
 	k8sVersion  string
 	T           func() *testing.T
-}
-
-func init() {
-	env = objects.NewManifest()
 }
 
 //CreateK8sRookOperator creates rook-operator via kubectl
@@ -341,14 +337,16 @@ func NewK8sRookhelper(clientset *kubernetes.Clientset, t func() *testing.T) *Ins
 	if err != nil {
 		panic("failed to get kubectl client :" + err.Error())
 	}
-	return &InstallHelper{
+	ih := &InstallHelper{
 		k8shelper:   k8shelp,
 		installData: NewK8sInstallData(),
 		helmHelper:  utils.NewHelmHelper(),
-		Env:         env,
+		Env:         objects.Env,
 		k8sVersion:  version.String(),
 		T:           t,
 	}
+	flag.Parse()
+	return ih
 }
 
 func IsAdditionalDeviceAvailableOnCluster() bool {
