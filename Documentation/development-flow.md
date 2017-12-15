@@ -135,3 +135,27 @@ Once your commit history is clean, ensure you have based on the [latest upstream
 Go to the [Rook github](https://www.github.com/rook/rook) to open the PR. If you have pushed recently, you should see an obvious link to open the PR. If you have not pushed recently, go to the Pull Request tab and select your fork and branch for the PR.
 
 After the PR is open, you can make changes simply by pushing new commits. Your PR will track the changes in your fork and update automatically.
+
+### Backport a Fix to a Release Branch
+
+The flow for getting a fix into a release branch is to first make the commit to master following the process outlined above.
+After the commit is in master, you'll need to cherry-pick the commit to the intended release branch.
+You can do this by first creating a local branch that is based off the release branch, for example:
+```console
+git fetch --all
+git checkout -b backport-my-fix upstream/release-0.6
+```
+
+Then go ahead and cherry-pick the commit using the hash of the commit itself, **not** the merge commit hash:
+```console
+git cherry-pick -x 099cc27b73a8d77e0504831f374a7e117ad0a2e4
+```
+
+This will immediately create a cherry-picked commit with a nice message saying where the commit was cherry-picked from.
+Now go ahead and push to your origin:
+```console
+git push origin HEAD
+```
+
+The last step is to open a PR with the base being the intended release branch.
+Once the PR is approved and merged, then your backported change will be available in the next release.
