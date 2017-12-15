@@ -76,34 +76,70 @@ func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, 
 	require.Nil(s.T(), err)
 }
 
-func HandlePanics(r interface{}, o contracts.TestOperator, t func() *testing.T) {
+func HandlePanics(r interface{}, op contracts.Setup, t func() *testing.T) {
 	if r != nil {
 		logger.Infof("unexpected panic occurred during test %s, --> %v", t().Name(), r)
 		t().Fail()
-		o.TearDown()
+		op.TearDown()
 		t().FailNow()
 	}
 
 }
 
+//GetTestClient sets up SetTestClient for rook
+func GetTestClient(kh *utils.K8sHelper, namespace string, op contracts.Setup, t func() *testing.T) *clients.TestClient {
+	helper, err := clients.CreateTestClient(kh, namespace)
+	if err != nil {
+		logger.Errorf("Cannot create rook test client, er -> %v", err)
+		t().Fail()
+		op.TearDown()
+		t().FailNow()
+	}
+	return helper
+}
+
 //BaseTestOperations struct for handling panic and test suite tear down
 type BaseTestOperations struct {
-	installer     *installer.InstallHelper
-	T             func() *testing.T
-	namespace     string
-	helmInstalled bool
+	installer       *installer.InstallHelper
+	kh              *utils.K8sHelper
+	helper          *clients.TestClient
+	T               func() *testing.T
+	namespace       string
+	storeType       string
+	dataDirHostPath string
+	helmInstalled   bool
+	useDevices      bool
+	mons            int
 }
 
 //NewBaseTestOperations creates new instance of BaseTestOperations struct
-func NewBaseTestOperations(i *installer.InstallHelper, t func() *testing.T, namespace string, helmInstalled bool) BaseTestOperations {
-	return BaseTestOperations{i, t, namespace, helmInstalled}
+func NewBaseTestOperations(t func() *testing.T, namespace, storeType, dataDirHostPath string, helmInstalled, useDevices bool, mons int) (BaseTestOperations, *utils.K8sHelper) {
+	kh, err := utils.CreateK8sHelper(t)
+	require.NoError(t(), err)
+
+	i := installer.NewK8sRookhelper(kh.Clientset, t)
+
+	op := BaseTestOperations{i, kh, nil, t, namespace, storeType, dataDirHostPath, helmInstalled, useDevices, mons}
+	op.SetUp()
+	return op, kh
 }
 
-//TearDown is a wrapper for tearDown after Sutie
-func (o BaseTestOperations) TearDown() {
-	if o.installer.T().Failed() {
-		o.installer.GatherAllRookLogs(o.namespace, o.installer.T().Name())
+//SetUpRook is a wrapper for setting up rook
+func (op BaseTestOperations) SetUp() {
+	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType, op.dataDirHostPath, op.helmInstalled, op.useDevices, op.mons)
+	assert.NoError(op.T(), err)
+	if !isRookInstalled {
+		logger.Errorf("Rook Was not installed successfully")
+		op.T().Fail()
+		op.TearDown()
+		op.T().FailNow()
 	}
-	o.installer.UninstallRookFromK8s(o.namespace, o.helmInstalled)
+}
 
+//TearDownRook is a wrapper for tearDown after Sutie
+func (op BaseTestOperations) TearDown() {
+	if op.installer.T().Failed() {
+		op.installer.GatherAllRookLogs(op.namespace, op.installer.T().Name())
+	}
+	op.installer.UninstallRookFromK8s(op.namespace, op.helmInstalled)
 }

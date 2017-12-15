@@ -3,14 +3,10 @@ package integration
 import (
 	"testing"
 
-	"time"
-
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
-	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -37,7 +33,7 @@ var (
 func TestHelmSuite(t *testing.T) {
 	s := new(HelmSuite)
 	defer func(s *HelmSuite) {
-		HandlePanics(recover(), s.o, s.T)
+		HandlePanics(recover(), s.op, s.T)
 	}(s)
 	suite.Run(t, s)
 }
@@ -45,65 +41,38 @@ func TestHelmSuite(t *testing.T) {
 type HelmSuite struct {
 	suite.Suite
 	helper    *clients.TestClient
-	k8sh      *utils.K8sHelper
-	installer *installer.InstallHelper
-	hh        *utils.HelmHelper
-	o         contracts.TestOperator
+	kh        *utils.K8sHelper
+	op        contracts.Setup
 	namespace string
 }
 
 func (hs *HelmSuite) SetupSuite() {
 	hs.namespace = "helm-ns"
-	kh, err := utils.CreateK8sHelper(hs.T)
-	require.NoError(hs.T(), err)
+	hs.op, hs.kh = NewBaseTestOperations(hs.T, hs.namespace, "bluestore", "", true, false, 3)
+	hs.helper = GetTestClient(hs.kh, hs.namespace, hs.op, hs.T)
 
-	hs.k8sh = kh
-	hs.hh = utils.NewHelmHelper()
-
-	hs.installer = installer.NewK8sRookhelper(kh.Clientset, hs.T)
-	hs.o = NewBaseTestOperations(hs.installer, hs.T, hs.namespace, true)
-
-	err = hs.installer.CreateK8sRookOperatorViaHelm(hs.namespace)
-	require.NoError(hs.T(), err)
-
-	require.True(hs.T(), kh.IsPodInExpectedState("rook-operator", hs.namespace, "Running"),
-		"Make sure rook-operator is in running state")
-
-	require.True(hs.T(), kh.IsPodInExpectedState("rook-agent", hs.namespace, "Running"),
-		"Make sure rook-agent is in running state")
-
-	time.Sleep(10 * time.Second)
-
-	err = hs.installer.CreateK8sRookCluster(hs.namespace, "bluestore")
-	require.NoError(hs.T(), err)
-
-	err = hs.installer.CreateK8sRookToolbox(hs.namespace)
-	require.NoError(hs.T(), err)
-
-	hs.helper, err = clients.CreateTestClient(kh, hs.namespace)
-	require.Nil(hs.T(), err)
 }
 
 func (hs *HelmSuite) TearDownSuite() {
-	hs.o.TearDown()
+	hs.op.TearDown()
 }
 
 //Test to make sure all rook components are installed and Running
 func (hs *HelmSuite) TestRookInstallViaHelm() {
-	checkIfRookClusterIsInstalled(hs.Suite, hs.k8sh, hs.namespace, hs.namespace, 1)
+	checkIfRookClusterIsInstalled(hs.Suite, hs.kh, hs.namespace, hs.namespace, 1)
 }
 
 //Test BlockCreation on Rook that was installed via Helm
 func (hs *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
-	runBlockE2ETestLite(hs.helper, hs.k8sh, hs.Suite, hs.namespace)
+	runBlockE2ETestLite(hs.helper, hs.kh, hs.Suite, hs.namespace)
 }
 
 //Test File System Creation on Rook that was installed via helm
 func (hs *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
-	runFileE2ETestLite(hs.helper, hs.k8sh, hs.Suite, hs.namespace, "testfs")
+	runFileE2ETestLite(hs.helper, hs.kh, hs.Suite, hs.namespace, "testfs")
 }
 
 //Test Object StoreCreation on Rook that was installed via helm
 func (hs *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
-	runObjectE2ETestLite(hs.helper, hs.k8sh, hs.Suite, hs.namespace, "default", 3)
+	runObjectE2ETestLite(hs.helper, hs.kh, hs.Suite, hs.namespace, "default", 3)
 }

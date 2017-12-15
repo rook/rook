@@ -31,6 +31,7 @@ type BlockLongHaulSuiteWithFencing struct {
 	installer  *installer.InstallHelper
 	testClient *clients.TestClient
 	bc         contracts.BlockOperator
+	op         contracts.Setup
 }
 
 //Test set up - does the following in order
@@ -38,7 +39,8 @@ type BlockLongHaulSuiteWithFencing struct {
 //Write some data to the pvc and unmount the pod
 func (s *BlockLongHaulSuiteWithFencing) SetupSuite() {
 	var err error
-	s.kh, s.installer = setUpRookAndPoolInNamespace(s.T, "longhaul-ns", "rook-block", "rook-pool")
+	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, "longhaul-ns")
+	createStorageClassAndPool(s.T, s.kh, "longhaul-ns", "rook-block", "rook-pool")
 	s.testClient, err = clients.CreateTestClient(s.kh, "longhaul-ns")
 	require.Nil(s.T(), err)
 	s.bc = s.testClient.GetBlockClient()
