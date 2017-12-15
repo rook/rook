@@ -5,7 +5,7 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 tarname=image.tar
 tarfile=${WORK_DIR}/tests/${tarname}
 
-export KUBE_VERSION=${KUBE_VERSION:-"v1.8.2"}
+export KUBE_VERSION=${KUBE_VERSION:-"v1.8.5"}
 
 usage(){
     echo "usage:" >&2
@@ -36,7 +36,7 @@ EOF
         sudo systemctl daemon-reload
     fi
 
-    sudo kubeadm init --skip-preflight-checks
+    sudo kubeadm init --skip-preflight-checks --kubernetes-version ${KUBE_VERSION}
 
     sudo cp /etc/kubernetes/admin.conf $HOME/
     sudo chown $(id -u):$(id -g) $HOME/admin.conf
