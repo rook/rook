@@ -45,7 +45,7 @@ func TestStartDaemonset(t *testing.T) {
 func TestPodContainer(t *testing.T) {
 	cluster := &Cluster{Namespace: "myosd", Version: "23"}
 	config := rookalpha.Config{}
-	c := cluster.podTemplateSpec([]rookalpha.Device{}, []rookalpha.Directory{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config)
+	c := cluster.podTemplateSpec([]rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config)
 	assert.NotNil(t, c)
 	assert.Equal(t, 1, len(c.Spec.Containers))
 	container := c.Spec.Containers[0]
