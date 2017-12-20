@@ -58,7 +58,7 @@ func New(context *clusterd.Context, namespace, version string, placement rookalp
 		Namespace:   namespace,
 		placement:   placement,
 		Version:     version,
-		Replicas:    2,
+		Replicas:    1,
 		dataDir:     k8sutil.DataDir,
 		HostNetwork: hostNetwork,
 		resources:   resources,
