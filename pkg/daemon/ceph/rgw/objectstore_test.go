@@ -78,6 +78,7 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	rulesDeleted := 0
 	executor := &exectest.MockExecutor{}
 	deletedRootPool := false
+	deletedErasureCodeProfile := false
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
 		//logger.Infof("command: %s %v", command, args)
 		if args[0] == "osd" {
@@ -98,6 +99,19 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 				assert.Equal(t, "rm", args[3])
 				rulesDeleted++
 				return "", nil
+			}
+			if args[1] == "erasure-code-profile" {
+				if args[2] == "ls" {
+					return `["default","myobj_ecprofile"]`, nil
+				}
+				if args[2] == "rm" {
+					if args[3] == "myobj_ecprofile" {
+						deletedErasureCodeProfile = true
+					} else {
+						assert.Fail(t, fmt.Sprintf("the erasure code profile to be deleted should be myobj_ecprofile. Actual: %s ", args[3]))
+					}
+					return "", nil
+				}
 			}
 		}
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
@@ -140,4 +154,5 @@ func deleteStore(t *testing.T, name string, existingStores string, expectedDelet
 	assert.True(t, zoneGroupDeleted)
 	assert.True(t, zoneDeleted)
 	assert.Equal(t, expectedDeleteRootPool, deletedRootPool)
+	assert.Equal(t, true, deletedErasureCodeProfile)
 }

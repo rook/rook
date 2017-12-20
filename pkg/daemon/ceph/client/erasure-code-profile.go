@@ -91,6 +91,17 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, con
 	return nil
 }
 
+func DeleteErasureCodeProfile(context *clusterd.Context, clusterName string, erasureCodeProfile string) error {
+	args := []string{"osd", "erasure-code-profile", "rm", erasureCodeProfile}
+
+	buf, err := ExecuteCephCommandPlain(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to delete erasure-code-profile %s. Output: %s. Error: %+v", erasureCodeProfile, string(buf), err)
+	}
+
+	return nil
+}
+
 func ModelPoolToCephPool(modelPool model.Pool) CephStoragePoolDetails {
 	pool := CephStoragePoolDetails{
 		Name:          modelPool.Name,
@@ -101,8 +112,12 @@ func ModelPoolToCephPool(modelPool model.Pool) CephStoragePoolDetails {
 	if modelPool.Type == model.Replicated {
 		pool.Size = modelPool.ReplicatedConfig.Size
 	} else if modelPool.Type == model.ErasureCoded {
-		pool.ErasureCodeProfile = fmt.Sprintf("%s_ecprofile", modelPool.Name)
+		pool.ErasureCodeProfile = GetErasureCodeProfileForPool(modelPool.Name)
 	}
 
 	return pool
+}
+
+func GetErasureCodeProfileForPool(poolName string) string {
+	return fmt.Sprintf("%s_ecprofile", poolName)
 }
