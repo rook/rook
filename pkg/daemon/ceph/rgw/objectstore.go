@@ -219,6 +219,22 @@ func deletePools(context *Context, lastStore bool) error {
 		}
 	}
 
+	// Delete erasure code profile if any
+	erasureCodes, err := ceph.ListErasureCodeProfiles(context.context, context.ClusterName)
+	if err != nil {
+		return fmt.Errorf("failed to list erasure code profiles for cluster %s: %+v", context.ClusterName, err)
+	}
+	// cleans up the EC profile for the data pool only. Metadata pools don't support EC (only replication is supported).
+	objectStoreErasureCode := ceph.GetErasureCodeProfileForPool(context.Name)
+	for i := range erasureCodes {
+		if erasureCodes[i] == objectStoreErasureCode {
+			if err := ceph.DeleteErasureCodeProfile(context.context, context.ClusterName, objectStoreErasureCode); err != nil {
+				return fmt.Errorf("failed to delete erasure code profile %s for object store %s: %+v", objectStoreErasureCode, context.Name, err)
+			}
+			break
+		}
+	}
+
 	return nil
 }
 
