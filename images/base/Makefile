@@ -17,6 +17,9 @@ include ../image.mk
 # the final base image
 IMAGE = $(BUILD_REGISTRY)/base-$(GOARCH)
 
+# tini's version
+TINI_VERSION = v0.16.1
+
 # the full OS image from which we generate a smaller rootfs
 ROOTFS_BUILDER_IMAGE := $(BUILD_REGISTRY)/rootfs-builder-$(GOARCH)
 
@@ -51,5 +54,9 @@ do.build: rootfs-build
 	@echo === docker build $(IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) "s|BASEIMAGE|$(ROOTFS_IMAGE)|g" Dockerfile
-	@docker build $(BUILD_ARGS) --build-arg ARCH=$(DEBIAN_ARCH) -t $(IMAGE) $(TEMP)
+	@docker build $(BUILD_ARGS) \
+		--build-arg ARCH=$(DEBIAN_ARCH) \
+		--build-arg TINI_VERSION=$(TINI_VERSION) \
+		-t $(IMAGE) \
+		$(TEMP)
 	@rm -fr $(TEMP)

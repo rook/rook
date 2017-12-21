@@ -25,9 +25,10 @@ RUN HOST_IP=$(route -n | awk '/^0.0.0.0/ {print $2}') && \
     echo 'Acquire::http::ProxyAutoDetect "/usr/local/bin/apt-ng-host-discover";' > /etc/apt/apt.conf.d/30proxy
 
 ARG ARCH
+ARG TINI_VERSION
 
 # Run tini as PID 1 and avoid signal handling issues
-ADD https://github.com/krallin/tini/releases/download/v0.14.0/tini-${ARCH} /tini
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} /tini
 RUN chmod +x /tini
 
 ENTRYPOINT ["/tini", "-g", "--"]
