@@ -158,7 +158,7 @@ func NewBaseLoadTestOperations(t func() *testing.T, namespace string) (BaseLoadT
 func (o BaseLoadTestOperations) SetUp() {
 
 	if !o.kh.IsRookInstalled(o.namespace) {
-		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore", "/temp/rookBackup", false, true, 3)
+		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore", "/temp/rookBackup", false, true, 3, true /* startWithAllNodes */)
 		require.NoError(o.T(), err)
 		require.True(o.T(), isRookInstalled)
 

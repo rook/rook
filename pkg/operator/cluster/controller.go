@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"reflect"
+	"sort"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
@@ -54,6 +55,8 @@ const (
 	crushmapCreatedKey       = "initialCrushMapCreated"
 	clusterCreateInterval    = 6 * time.Second
 	clusterCreateTimeout     = 5 * time.Minute
+	updateClusterInterval    = 30 * time.Second
+	updateClusterTimeout     = 1 * time.Hour
 	defaultMonCount          = 3
 	maxMonCount              = 9
 )
@@ -124,13 +127,17 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 }
 
 func (c *ClusterController) onAdd(obj interface{}) {
-	clust := obj.(*rookalpha.Cluster).DeepCopy()
+	clusterObj := obj.(*rookalpha.Cluster).DeepCopy()
 
-	cluster := newCluster(clust, c.context)
+	cluster := newCluster(clusterObj, c.context)
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
 
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
-		logger.Errorf("using all devices in more than one namespace not supported")
+		message := "using all devices in more than one namespace not supported"
+		logger.Error(message)
+		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, rookalpha.ClusterStateError, message); err != nil {
+			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
+		}
 		return
 	}
 
@@ -152,15 +159,31 @@ func (c *ClusterController) onAdd(obj interface{}) {
 
 	// Start the Rook cluster components. Retry several times in case of failure.
 	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
+		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, rookalpha.ClusterStateCreating, ""); err != nil {
+			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
+			return false, nil
+		}
+
 		err := cluster.createInstance(c.rookImage)
 		if err != nil {
 			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
 			return false, nil
 		}
+
+		// cluster is created, update the cluster CRD status now
+		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, rookalpha.ClusterStateCreated, ""); err != nil {
+			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
+			return false, nil
+		}
+
 		return true, nil
 	})
 	if err != nil {
-		logger.Errorf("giving up to create cluster in namespace %s after %s", cluster.Namespace, clusterCreateTimeout)
+		message := fmt.Sprintf("giving up creating cluster in namespace %s after %s", cluster.Namespace, clusterCreateTimeout)
+		logger.Error(message)
+		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, rookalpha.ClusterStateError, message); err != nil {
+			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
+		}
 		return
 	}
 
@@ -181,7 +204,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	go healthChecker.Check(cluster.stopCh)
 
 	// add the finalizer to the crd
-	err = c.addFinalizer(clust)
+	err = c.addFinalizer(clusterObj)
 	if err != nil {
 		logger.Errorf("failed to add finalizer to cluster crd. %+v", err)
 	}
@@ -190,7 +213,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	oldClust := oldObj.(*rookalpha.Cluster).DeepCopy()
 	newClust := newObj.(*rookalpha.Cluster).DeepCopy()
-	logger.Infof("update to cluster %s", newClust.Namespace)
+	logger.Infof("update event for cluster %s", newClust.Namespace)
 
 	// Check if the cluster is being deleted. This code path is called when a finalizer is specified in the crd.
 	// When a cluster is requested for deletion, K8s will only set the deletion timestamp if there are any finalizers in the list.
@@ -208,15 +231,54 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	if !clusterChanged(oldClust.Spec, newClust.Spec) {
-		logger.Debugf("no updates made in the cluster")
+		logger.Infof("update event for cluster %s is not supported", newClust.Namespace)
 		return
 	}
 
-	logger.Infof("updating cluster %s", newClust.Namespace)
+	logger.Infof("update event for cluster %s is supported, orchestrating update now", newClust.Namespace)
+	logger.Debugf("old cluster: %+v", oldClust.Spec)
+	logger.Debugf("new cluster: %+v", newClust.Spec)
+
 	cluster := newCluster(newClust, c.context)
+
+	// attempt to update the cluster.  note this is done outside of wait.Poll because that function
+	// will wait for the retry interval before trying for the first time.
+	done, _ := c.handleUpdate(newClust, cluster)
+	if done {
+		return
+	}
+
+	err := wait.Poll(updateClusterInterval, updateClusterTimeout, func() (bool, error) {
+		return c.handleUpdate(newClust, cluster)
+	})
+	if err != nil {
+		message := fmt.Sprintf("giving up trying to update cluster in namespace %s after %s", cluster.Namespace, updateClusterTimeout)
+		logger.Error(message)
+		if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, rookalpha.ClusterStateError, message); err != nil {
+			logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
+		}
+		return
+	}
+}
+
+func (c *ClusterController) handleUpdate(newClust *rookalpha.Cluster, cluster *cluster) (bool, error) {
+	if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, rookalpha.ClusterStateUpdating, ""); err != nil {
+		logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
+		return false, nil
+	}
+
 	if err := cluster.createInstance(c.rookImage); err != nil {
 		logger.Errorf("failed to update cluster in namespace %s. %+v", newClust.Namespace, err)
+		return false, nil
 	}
+
+	if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, rookalpha.ClusterStateCreated, ""); err != nil {
+		logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
+		return false, nil
+	}
+
+	logger.Infof("succeeded updating cluster in namespace %s", newClust.Namespace)
+	return true, nil
 }
 
 func (c *ClusterController) onDelete(obj interface{}) {
@@ -235,6 +297,12 @@ func (c *ClusterController) addFinalizer(clust *rookalpha.Cluster) error {
 	if !kubeVersion.AtLeast(version.MustParseSemantic(k8sutil.FirstCRDVersion)) {
 		logger.Infof("not adding finalizer for cluster TPR")
 		return nil
+	}
+
+	// get the latest cluster object since we probably updated it before we got to this point (e.g. by updating its status)
+	clust, err = c.context.RookClientset.RookV1alpha1().Clusters(clust.Namespace).Get(clust.Name, metav1.GetOptions{})
+	if err != nil {
+		return err
 	}
 
 	// add the finalizer (cluster.rook.io) if it is not yet defined on the cluster CRD
@@ -336,6 +404,22 @@ func (c *ClusterController) handleDelete(cluster *rookalpha.Cluster, retryInterv
 	return nil
 }
 
+func (c *ClusterController) updateClusterStatus(namespace, name string, state rookalpha.ClusterState, message string) error {
+	// get the most recent cluster CRD object
+	cluster, err := c.context.RookClientset.RookV1alpha1().Clusters(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get cluster from namespace %s prior to updating its status: %+v", namespace, err)
+	}
+
+	// update the status on the retrieved cluster object
+	cluster.Status = rookalpha.ClusterStatus{State: state, Message: message}
+	if _, err := c.context.RookClientset.RookV1alpha1().Clusters(cluster.Namespace).Update(cluster); err != nil {
+		return fmt.Errorf("failed to update cluster %s status: %+v", cluster.Namespace, err)
+	}
+
+	return nil
+}
+
 func newCluster(c *rookalpha.Cluster, context *clusterd.Context) *cluster {
 	return &cluster{Namespace: c.Namespace, Spec: c.Spec, context: context, ownerRef: ClusterOwnerRef(c.Namespace, string(c.UID))}
 }
@@ -396,7 +480,8 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.Storage, c.Spec.DataDirHostPath, c.Spec.Placement.GetOSD(), c.Spec.HostNetwork, c.Spec.Resources.OSD, c.ownerRef)
+	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.Storage, c.Spec.DataDirHostPath,
+		c.Spec.Placement.GetOSD(), c.Spec.HostNetwork, c.Spec.Resources.OSD, c.ownerRef)
 	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)
@@ -466,6 +551,18 @@ func (c *cluster) createInitialCrushMap() error {
 }
 
 func clusterChanged(oldCluster, newCluster rookalpha.ClusterSpec) bool {
-	// no updates to the cluster supported yet
+
+	oldStorage := oldCluster.Storage
+	newStorage := newCluster.Storage
+
+	// sort the nodes by name then compare to see if there are changes
+	sort.Sort(rookalpha.NodesByName(oldStorage.Nodes))
+	sort.Sort(rookalpha.NodesByName(newStorage.Nodes))
+	if !reflect.DeepEqual(oldStorage.Nodes, newStorage.Nodes) {
+		// the nodes list has changed
+		return true
+	}
+
+	// none of the supported cluster updates were detected
 	return false
 }

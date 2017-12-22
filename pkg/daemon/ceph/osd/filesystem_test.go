@@ -26,19 +26,20 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	"github.com/rook/rook/pkg/operator/cluster/ceph/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestIsOSDFilesystemCreated(t *testing.T) {
-	config := &osdConfig{}
-	assert.False(t, isOSDFilesystemCreated(config))
+	cfg := &osdConfig{}
+	assert.False(t, isOSDFilesystemCreated(cfg))
 
-	config = &osdConfig{partitionScheme: &PerfSchemeEntry{FSCreated: false}}
-	assert.False(t, isOSDFilesystemCreated(config))
+	cfg = &osdConfig{partitionScheme: &config.PerfSchemeEntry{FSCreated: false}}
+	assert.False(t, isOSDFilesystemCreated(cfg))
 
-	config = &osdConfig{partitionScheme: &PerfSchemeEntry{FSCreated: true}}
-	assert.True(t, isOSDFilesystemCreated(config))
+	cfg = &osdConfig{partitionScheme: &config.PerfSchemeEntry{FSCreated: true}}
+	assert.True(t, isOSDFilesystemCreated(cfg))
 }
 
 func TestBackupOSDFileSystem(t *testing.T) {
@@ -52,10 +53,10 @@ func TestBackupOSDFileSystem(t *testing.T) {
 	clusterName := "rook123"
 	kv := mockKVStore()
 
-	config := &osdConfig{
+	cfg := &osdConfig{
 		rootPath:        configDir,
 		id:              osdID,
-		partitionScheme: &PerfSchemeEntry{StoreType: Bluestore},
+		partitionScheme: &config.PerfSchemeEntry{StoreType: config.Bluestore},
 		kv:              kv,
 	}
 
@@ -81,15 +82,15 @@ func TestBackupOSDFileSystem(t *testing.T) {
 	}
 
 	// backup the OSD filesystem
-	err = backupOSDFileSystem(config, clusterName)
+	err = backupOSDFileSystem(cfg, clusterName)
 	assert.Nil(t, err)
 
 	// verify the backed up OSD filesystem (and the not backed up files too)
-	assertBackedUpFile(t, config, kv, "foo", "bar")
-	assertBackedUpFile(t, config, kv, "baz", "biz")
-	assertNotBackedUpFile(t, config, kv, configFileName)
-	assertNotBackedUpFile(t, config, kv, keyringFileName)
-	assertNotBackedUpFile(t, config, kv, oversizeFileName)
+	assertBackedUpFile(t, cfg, kv, "foo", "bar")
+	assertBackedUpFile(t, cfg, kv, "baz", "biz")
+	assertNotBackedUpFile(t, cfg, kv, configFileName)
+	assertNotBackedUpFile(t, cfg, kv, keyringFileName)
+	assertNotBackedUpFile(t, cfg, kv, oversizeFileName)
 }
 
 func createMockMetadata(t *testing.T, configDir, name, content string) {
@@ -119,10 +120,10 @@ func TestRepairOSDFileSystem(t *testing.T) {
 	defer os.RemoveAll(configDir)
 
 	osdID := 123
-	storeConfig := rookalpha.StoreConfig{StoreType: Bluestore}
+	storeConfig := rookalpha.StoreConfig{StoreType: config.Bluestore}
 	kv := mockKVStore()
-	schemeEntry, _ := mockPartitionSchemeEntry(t, osdID, "sdf", &storeConfig, kv, "node3930")
-	config := &osdConfig{
+	schemeEntry, _, _ := mockPartitionSchemeEntry(t, osdID, "sdf", &storeConfig, kv, "node3930")
+	cfg := &osdConfig{
 		rootPath:        configDir,
 		id:              osdID,
 		partitionScheme: schemeEntry,
@@ -130,27 +131,27 @@ func TestRepairOSDFileSystem(t *testing.T) {
 	}
 
 	// mock a backed up OSD filesystem
-	storeName := fmt.Sprintf(osdFSStoreNameFmt, config.id)
+	storeName := fmt.Sprintf(osdFSStoreNameFmt, cfg.id)
 	kv.SetValue(storeName, "foo", "bar")
 	kv.SetValue(storeName, "bif", "bonk")
 
 	// perform the repair of the OSD filesystem
-	err = repairOSDFileSystem(config)
+	err = repairOSDFileSystem(cfg)
 	assert.Nil(t, err)
 
 	// verify the OSD filesystem were restored/repaired
-	assertRepairedFile(t, config, "foo", "bar")
-	assertRepairedFile(t, config, "bif", "bonk")
+	assertRepairedFile(t, cfg, "foo", "bar")
+	assertRepairedFile(t, cfg, "bif", "bonk")
 
 	// verify the block/wal/db symlinks
-	parts := config.partitionScheme.Partitions
-	assertBluestoreSymlink(t, config, bluestoreBlockSymlinkName, parts[BlockPartitionType].PartitionUUID)
-	assertBluestoreSymlink(t, config, bluestoreDBSymlinkName, parts[DatabasePartitionType].PartitionUUID)
-	assertBluestoreSymlink(t, config, bluestoreWalSymlinkName, parts[WalPartitionType].PartitionUUID)
+	parts := cfg.partitionScheme.Partitions
+	assertBluestoreSymlink(t, cfg, bluestoreBlockSymlinkName, parts[config.BlockPartitionType].PartitionUUID)
+	assertBluestoreSymlink(t, cfg, bluestoreDBSymlinkName, parts[config.DatabasePartitionType].PartitionUUID)
+	assertBluestoreSymlink(t, cfg, bluestoreWalSymlinkName, parts[config.WalPartitionType].PartitionUUID)
 }
 
-func assertRepairedFile(t *testing.T, config *osdConfig, name, expectedContent string) {
-	content, err := ioutil.ReadFile(filepath.Join(config.rootPath, name))
+func assertRepairedFile(t *testing.T, cfg *osdConfig, name, expectedContent string) {
+	content, err := ioutil.ReadFile(filepath.Join(cfg.rootPath, name))
 	assert.Nil(t, err)
 	assert.Equal(t, expectedContent, string(content))
 }

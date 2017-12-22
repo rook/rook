@@ -38,9 +38,15 @@ For more details on the mons and when to choose a number other than `3`, see the
   - [storage selection settings](#storage-selection-settings)
   - [storage configuration settings](#storage-configuration-settings)
 
+#### Node updates
+Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n rook edit cluster rook`.
+This will bring up your default text editor and allow you to add and remove storage nodes from the cluster.
+This feature is only available when `useAllNodes` has been set to `false`.
+
 ### Node settings
 
-In addition to the cluster level settings specified above, each individual node can also specify configuration to override the cluster level settings and defaults.  If a node does not specify any configuration then it will inherit the cluster level settings.
+In addition to the cluster level settings specified above, each individual node can also specify configuration to override the cluster level settings and defaults.
+If a node does not specify any configuration then it will inherit the cluster level settings.
 - `name`: The name of the node, which should match its `kubernetes.io/hostname` label.
 - `devices`: A list of individual device names belonging to this node to include in the storage cluster.
   - `name`: The name of the device (e.g., `sda`).

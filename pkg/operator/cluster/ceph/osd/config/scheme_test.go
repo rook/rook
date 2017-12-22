@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package osd
+package config
 
 import (
 	"fmt"
@@ -21,12 +21,15 @@ import (
 
 	"github.com/google/uuid"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestSchemeSaveLoad(t *testing.T) {
 	kv := mockKVStore()
-	storeName := getConfigStoreName("node123")
+	storeName := GetConfigStoreName("node123")
 
 	// loading the scheme when there is no scheme file should return an empty scheme with no error
 	scheme, err := LoadScheme(kv, storeName)
@@ -54,6 +57,7 @@ func TestSchemeSaveLoad(t *testing.T) {
 			OffsetMB:      1,
 		},
 	}
+	scheme.Entries = append(scheme.Entries, e1)
 
 	// save the scheme to disk, should be no error
 	err = scheme.SaveScheme(kv, storeName)
@@ -175,4 +179,68 @@ func TestSchemeEntryGetPartitionArgs(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 
 	logger.Noticef("%+v", args)
+}
+
+func TestDeleteSchemeEntry(t *testing.T) {
+	storeConfig := rookalpha.StoreConfig{WalSizeMB: 1, DatabaseSizeMB: 2}
+
+	// create a partition scheme with some entries
+	scheme := NewPerfScheme()
+	e1 := NewPerfSchemeEntry(Bluestore)
+	e1.ID = 1
+	e1.OsdUUID = uuid.Must(uuid.NewRandom())
+	PopulateCollocatedPerfSchemeEntry(e1, "sdb", storeConfig)
+	scheme.Entries = append(scheme.Entries, e1)
+
+	e2 := NewPerfSchemeEntry(Bluestore)
+	e2.ID = 2
+	e2.OsdUUID = uuid.Must(uuid.NewRandom())
+	PopulateCollocatedPerfSchemeEntry(e2, "sdc", storeConfig)
+	scheme.Entries = append(scheme.Entries, e2)
+
+	assert.Equal(t, 2, len(scheme.Entries))
+
+	// delete 1 of the entries, the scheme should now contain 1 entry
+	err := scheme.DeleteSchemeEntry(e1)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(scheme.Entries))
+
+	// delete the last entry, the scheme should now be empty
+	err = scheme.DeleteSchemeEntry(e2)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(scheme.Entries))
+
+	// try to delete an entry that doesn't exist, an error should be returned
+	e3 := NewPerfSchemeEntry(Bluestore)
+	err = scheme.DeleteSchemeEntry(e3)
+	assert.NotNil(t, err)
+}
+
+func TestUpdateSchemeEntry(t *testing.T) {
+	storeConfig := rookalpha.StoreConfig{WalSizeMB: 1, DatabaseSizeMB: 2}
+
+	// create a partition scheme with an entry in it
+	scheme := NewPerfScheme()
+	e1 := NewPerfSchemeEntry(Bluestore)
+	e1.ID = 835
+	e1.OsdUUID = uuid.Must(uuid.NewRandom())
+	PopulateCollocatedPerfSchemeEntry(e1, "sdx", storeConfig)
+	scheme.Entries = append(scheme.Entries, e1)
+
+	// create a new entry that we will use to update the existing entry (note that the new entry is for the same OSD ID)
+	e1New := NewPerfSchemeEntry(Filestore)
+	e1New.ID = e1.ID
+	e1New.OsdUUID = uuid.Must(uuid.NewRandom())
+	PopulateCollocatedPerfSchemeEntry(e1New, "sdy", storeConfig)
+
+	// update the existing entry with the new entry and verify that the scheme only has the new entry now
+	err := scheme.UpdateSchemeEntry(e1New)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(scheme.Entries))
+	assert.Equal(t, e1New, scheme.Entries[0])
+}
+
+func mockKVStore() *k8sutil.ConfigMapKVStore {
+	clientset := testop.New(1)
+	return k8sutil.NewConfigMapKVStore("myns", clientset, metav1.OwnerReference{})
 }

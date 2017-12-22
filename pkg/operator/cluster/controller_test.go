@@ -54,14 +54,6 @@ func TestCreateInitialCrushMap(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestClusterChanged(t *testing.T) {
-	old := rookalpha.ClusterSpec{MonCount: 1, HostNetwork: false}
-	new := rookalpha.ClusterSpec{MonCount: 3, HostNetwork: true}
-
-	// no changes supported yet
-	assert.False(t, clusterChanged(old, new))
-}
-
 func TestClusterDelete(t *testing.T) {
 	nodeName := "node841"
 	clusterName := "cluster684"
@@ -114,4 +106,45 @@ func TestClusterDelete(t *testing.T) {
 	// listing of volume attachments should have been called twice.  the first time there were volume attachments
 	// that the controller needed to wait on to be cleaned up and the second time they were all cleaned up.
 	assert.Equal(t, 2, listCount)
+}
+
+func TestClusterChanged(t *testing.T) {
+	// a new node added, should be a change
+	old := rookalpha.ClusterSpec{
+		Storage: rookalpha.StorageSpec{
+			Nodes: []rookalpha.Node{
+				{Name: "node1", Devices: []rookalpha.Device{{Name: "sda"}}},
+			},
+		},
+	}
+	new := rookalpha.ClusterSpec{
+		Storage: rookalpha.StorageSpec{
+			Nodes: []rookalpha.Node{
+				{Name: "node1", Devices: []rookalpha.Device{{Name: "sda"}}},
+				{Name: "node2", Devices: []rookalpha.Device{{Name: "sda"}}},
+			},
+		},
+	}
+	assert.True(t, clusterChanged(old, new))
+
+	// a node was removed, should be a change
+	old.Storage.Nodes = []rookalpha.Node{
+		{Name: "node1", Devices: []rookalpha.Device{{Name: "sda"}}},
+		{Name: "node2", Devices: []rookalpha.Device{{Name: "sda"}}},
+	}
+	new.Storage.Nodes = []rookalpha.Node{
+		{Name: "node1", Devices: []rookalpha.Device{{Name: "sda"}}},
+	}
+	assert.True(t, clusterChanged(old, new))
+
+	// the nodes being in a different order should not be a change
+	old.Storage.Nodes = []rookalpha.Node{
+		{Name: "node1", Devices: []rookalpha.Device{{Name: "sda"}}},
+		{Name: "node2", Devices: []rookalpha.Device{{Name: "sda"}}},
+	}
+	new.Storage.Nodes = []rookalpha.Node{
+		{Name: "node2", Devices: []rookalpha.Device{{Name: "sda"}}},
+		{Name: "node1", Devices: []rookalpha.Device{{Name: "sda"}}},
+	}
+	assert.False(t, clusterChanged(old, new))
 }

@@ -38,6 +38,10 @@ const (
 	CephHealthErr = "HEALTH_ERR"
 )
 
+const (
+	clusterStateActiveClean = "active+clean"
+)
+
 type CephStatus struct {
 	Health        HealthStatus `json:"health"`
 	FSID          string       `json:"fsid"`
@@ -157,4 +161,28 @@ func HealthToModelHealthStatus(cephHealth string) model.HealthStatus {
 	default:
 		return model.HealthUnknown
 	}
+}
+
+// IsClusterClean returns a value indicating if the cluster is fully clean yet (i.e., all placement
+// groups are in the active+clean state).
+func IsClusterClean(context *clusterd.Context, clusterName string) error {
+	status, err := Status(context, clusterName)
+	if err != nil {
+		return err
+	}
+
+	if status.PgMap.NumPgs == 0 {
+		// there are no PGs yet, that still counts as clean
+		return nil
+	}
+
+	for _, pg := range status.PgMap.PgsByState {
+		if pg.StateName == clusterStateActiveClean && pg.Count == status.PgMap.NumPgs {
+			// all PGs in the cluster are in active+clean state, cluster is clean.
+			logger.Infof("all placement groups have reached the %s state: %+v", clusterStateActiveClean, status.PgMap.PgsByState)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("cluster is not fully clean. PGs: %+v", status.PgMap.PgsByState)
 }
