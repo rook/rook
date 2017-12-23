@@ -17,7 +17,12 @@
 CEPH_INSTALL_DIR=${CEPH_INSTALL_DIR:-/build/ceph-install}
 CEPH_TARBALL=${CEPH_INSTALL_DIR}.tar
 
-makeargs=-j$(( $(nproc) - 1 ))
+NPROC=$(( $(nproc) - 1 ))
+if [ "$NPROC" -eq 0 ]; then
+    NPROC=1
+fi
+
+makeargs=-j$NPROC
 
 # build and install
 make ${makeargs} rook
