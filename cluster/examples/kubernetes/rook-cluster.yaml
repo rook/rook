@@ -11,6 +11,7 @@ metadata:
 spec:
   # The path on the host where configuration files will be persisted. If not specified, a kubernetes emptyDir will be created (not recommended).
   # Important: if you reinstall the cluster, make sure you delete this directory from each host or else the mons will fail to start on the new cluster.
+  # In Minikube, the '/data' directory is configured to persist across reboots. Use "/data/rook" in Minikube environment.
   dataDirHostPath: /var/lib/rook
   # toggle to use hostNetwork
   hostNetwork: false
