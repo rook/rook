@@ -89,6 +89,10 @@ func (c *Cluster) Start() error {
 		logger.Warningf("failed to init RBAC for OSDs. %+v", err)
 	}
 
+	if c.Storage.UseAllNodes == false && len(c.Storage.Nodes) == 0 {
+		logger.Warningf("useAllNodes is set to false and no nodes are specified, no OSD pods are going to be created")
+	}
+
 	if c.Storage.UseAllNodes {
 		// make a daemonset for all nodes in the cluster
 		ds := c.makeDaemonSet(c.Storage.Selection, c.Storage.Config)
