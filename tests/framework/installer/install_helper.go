@@ -23,6 +23,7 @@ import (
 	"time"
 
 	"flag"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
@@ -143,23 +144,21 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPath(namespace string, store
 }
 
 //CreateK8sRookCluster creates rook cluster via kubectl
-func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath string, useAllDevices bool, mons int) (err error) {
+func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath string, useAllDevices bool, mons int) error {
 	logger.Infof("Starting Rook Cluster")
 
 	rookCluster := h.installData.GetRookCluster(namespace, storeType, dataDirHostPath, useAllDevices, mons)
 
-	_, err = h.k8shelper.KubectlWithStdin(rookCluster, createArgs...)
-
-	if err != nil {
+	if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createArgs...); err != nil {
 		return fmt.Errorf("Failed to create rook cluster : %v ", err)
 	}
 
 	if !h.k8shelper.IsServiceUp("rook-api", namespace) {
 		logger.Infof("Rook Cluster couldn't start")
-	} else {
-		logger.Infof("Rook Cluster started")
+		return fmt.Errorf("failed to start cluster. api service not found.")
 	}
 
+	logger.Infof("Rook Cluster started")
 	return nil
 }
 
