@@ -18,7 +18,7 @@ which also has the apache 2.0 license.
 */
 
 // Package mds to manage a rook file system.
-package mds
+package file
 
 import (
 	"testing"

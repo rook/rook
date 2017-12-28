@@ -18,19 +18,21 @@ which also has the apache 2.0 license.
 */
 
 // Package mds to manage a rook file system.
-package mds
+package file
 
 import (
-	"fmt"
 	"reflect"
 
+	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/pool"
+	mds "github.com/rook/rook/pkg/operator/file/ceph"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-file")
 
 // FilesystemResource represents the file system custom resource
 var FilesystemResource = opkit.CustomResource{
@@ -76,7 +78,7 @@ func (c *FilesystemController) StartWatch(namespace string, stopCh chan struct{}
 func (c *FilesystemController) onAdd(obj interface{}) {
 	filesystem := obj.(*rookalpha.Filesystem).DeepCopy()
 
-	err := CreateFilesystem(c.context, *filesystem, c.rookImage, c.hostNetwork)
+	err := mds.CreateFilesystem(c.context, *filesystem, c.rookImage, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create file system %s. %+v", filesystem.Name, err)
 	}
@@ -92,7 +94,7 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	// if the file system is modified, allow the file system to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS)
-	err := CreateFilesystem(c.context, *newFS, c.rookImage, c.hostNetwork)
+	err := mds.CreateFilesystem(c.context, *newFS, c.rookImage, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create (modify) file system %s. %+v", newFS.Name, err)
 	}
@@ -100,7 +102,7 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 func (c *FilesystemController) onDelete(obj interface{}) {
 	filesystem := obj.(*rookalpha.Filesystem)
-	err := DeleteFilesystem(c.context, *filesystem)
+	err := mds.DeleteFilesystem(c.context, *filesystem)
 	if err != nil {
 		logger.Errorf("failed to delete file system %s. %+v", filesystem.Name, err)
 	}
@@ -120,29 +122,4 @@ func filesystemChanged(oldFS, newFS rookalpha.FilesystemSpec) bool {
 		return true
 	}
 	return false
-}
-
-func validateFilesystem(context *clusterd.Context, f rookalpha.Filesystem) error {
-	if f.Name == "" {
-		return fmt.Errorf("missing name")
-	}
-	if f.Namespace == "" {
-		return fmt.Errorf("missing namespace")
-	}
-	if len(f.Spec.DataPools) == 0 {
-		return fmt.Errorf("at least one data pool required")
-	}
-	if err := pool.ValidatePoolSpec(context, f.Namespace, &f.Spec.MetadataPool); err != nil {
-		return fmt.Errorf("invalid metadata pool. %+v", err)
-	}
-	for _, p := range f.Spec.DataPools {
-		if err := pool.ValidatePoolSpec(context, f.Namespace, &p); err != nil {
-			return fmt.Errorf("Invalid data pool. %+v", err)
-		}
-	}
-	if f.Spec.MetadataServer.ActiveCount < 1 {
-		return fmt.Errorf("MetadataServer.ActiveCount must be at least 1")
-	}
-
-	return nil
 }

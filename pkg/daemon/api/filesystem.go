@@ -22,7 +22,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/model"
-	k8smds "github.com/rook/rook/pkg/operator/mds"
+	mds "github.com/rook/rook/pkg/operator/file/ceph"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -59,7 +59,7 @@ func (h *Handler) CreateFileSystem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	logger.Infof("Starting the MDS")
-	if err := k8smds.CreateFileSystem(h.config.context, h.config.namespace, fs, h.config.rookImage, h.config.hostNetwork); err != nil {
+	if err := mds.CreateFileSystem(h.config.context, h.config.namespace, fs, h.config.rookImage, h.config.hostNetwork); err != nil {
 		logger.Errorf("failed to start mds: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -84,7 +84,7 @@ func (h *Handler) RemoveFileSystem(w http.ResponseWriter, r *http.Request) {
 	}
 
 	f := rookalpha.Filesystem{ObjectMeta: metav1.ObjectMeta{Name: fs.Name, Namespace: h.config.namespace}}
-	if err := k8smds.DeleteFilesystem(h.config.context, f); err != nil {
+	if err := mds.DeleteFilesystem(h.config.context, f); err != nil {
 		logger.Errorf("failed to remove file system: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

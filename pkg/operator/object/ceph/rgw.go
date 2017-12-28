@@ -27,7 +27,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephrgw "github.com/rook/rook/pkg/daemon/ceph/rgw"
 	"github.com/rook/rook/pkg/model"
-	opmon "github.com/rook/rook/pkg/operator/cluster/mon"
+	opmon "github.com/rook/rook/pkg/operator/cluster/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/pool"
 	"k8s.io/api/core/v1"
@@ -442,4 +442,22 @@ func createRGWKeyring(context *clusterd.Context, clusterName string) (string, er
 	}
 
 	return key, err
+}
+
+// Validate the object store arguments
+func validateStore(context *clusterd.Context, s rookalpha.ObjectStore) error {
+	if s.Name == "" {
+		return fmt.Errorf("missing name")
+	}
+	if s.Namespace == "" {
+		return fmt.Errorf("missing namespace")
+	}
+	if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.MetadataPool); err != nil {
+		return fmt.Errorf("invalid metadata pool spec. %+v", err)
+	}
+	if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.DataPool); err != nil {
+		return fmt.Errorf("invalid data pool spec. %+v", err)
+	}
+
+	return nil
 }

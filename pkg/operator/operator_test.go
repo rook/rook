@@ -22,9 +22,9 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/operator/cluster"
-	"github.com/rook/rook/pkg/operator/mds"
+	"github.com/rook/rook/pkg/operator/file"
+	"github.com/rook/rook/pkg/operator/object"
 	"github.com/rook/rook/pkg/operator/pool"
-	"github.com/rook/rook/pkg/operator/rgw"
 	"github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -41,8 +41,8 @@ func TestOperator(t *testing.T) {
 	assert.Equal(t, context, o.context)
 	assert.Equal(t, len(o.resources), 5)
 	for _, r := range o.resources {
-		if r.Name != cluster.ClusterResource.Name && r.Name != pool.PoolResource.Name && r.Name != rgw.ObjectStoreResource.Name &&
-			r.Name != mds.FilesystemResource.Name && r.Name != attachment.VolumeAttachmentResource.Name {
+		if r.Name != cluster.ClusterResource.Name && r.Name != pool.PoolResource.Name && r.Name != object.ObjectStoreResource.Name &&
+			r.Name != file.FilesystemResource.Name && r.Name != attachment.VolumeAttachmentResource.Name {
 			assert.Fail(t, fmt.Sprintf("Resource %s is not valid", r.Name))
 		}
 	}

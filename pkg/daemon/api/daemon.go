@@ -21,7 +21,7 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
-	monop "github.com/rook/rook/pkg/operator/cluster/mon"
+	monop "github.com/rook/rook/pkg/operator/cluster/ceph/mon"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"

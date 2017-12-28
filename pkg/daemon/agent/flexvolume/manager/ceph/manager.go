@@ -31,7 +31,7 @@ import (
 	cephmon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/model"
-	"github.com/rook/rook/pkg/operator/cluster/mon"
+	"github.com/rook/rook/pkg/operator/cluster/ceph/mon"
 	"github.com/rook/rook/pkg/util/sys"
 )
 

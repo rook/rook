@@ -18,19 +18,21 @@ which also has the apache 2.0 license.
 */
 
 // Package rgw to manage a rook object store.
-package rgw
+package object
 
 import (
-	"fmt"
 	"reflect"
 
+	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/pool"
+	rgw "github.com/rook/rook/pkg/operator/object/ceph"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 )
+
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-object")
 
 // ObjectStoreResource represents the object store custom resource
 var ObjectStoreResource = opkit.CustomResource{
@@ -75,7 +77,7 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 
 func (c *ObjectStoreController) onAdd(obj interface{}) {
 	store := obj.(*rookalpha.ObjectStore).DeepCopy()
-	err := CreateStore(c.context, *store, c.rookImage, c.hostNetwork)
+	err := rgw.CreateStore(c.context, *store, c.rookImage, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create object store %s. %+v", store.Name, err)
 	}
@@ -91,7 +93,7 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	logger.Infof("applying object store %s changes", newStore.Name)
-	err := UpdateStore(c.context, *newStore, c.rookImage, c.hostNetwork)
+	err := rgw.UpdateStore(c.context, *newStore, c.rookImage, c.hostNetwork)
 	if err != nil {
 		logger.Errorf("failed to create (modify) object store %s. %+v", newStore.Name, err)
 	}
@@ -99,7 +101,7 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 
 func (c *ObjectStoreController) onDelete(obj interface{}) {
 	store := obj.(*rookalpha.ObjectStore).DeepCopy()
-	err := DeleteStore(c.context, *store)
+	err := rgw.DeleteStore(c.context, *store)
 	if err != nil {
 		logger.Errorf("failed to delete object store %s. %+v", store.Name, err)
 	}
@@ -135,22 +137,4 @@ func storeChanged(oldStore, newStore rookalpha.ObjectStoreSpec) bool {
 		return true
 	}
 	return false
-}
-
-// Validate the object store arguments
-func validateStore(context *clusterd.Context, s rookalpha.ObjectStore) error {
-	if s.Name == "" {
-		return fmt.Errorf("missing name")
-	}
-	if s.Namespace == "" {
-		return fmt.Errorf("missing namespace")
-	}
-	if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.MetadataPool); err != nil {
-		return fmt.Errorf("invalid metadata pool spec. %+v", err)
-	}
-	if err := pool.ValidatePoolSpec(context, s.Namespace, &s.Spec.DataPool); err != nil {
-		return fmt.Errorf("invalid data pool spec. %+v", err)
-	}
-
-	return nil
 }
