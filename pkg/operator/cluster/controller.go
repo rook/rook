@@ -33,13 +33,13 @@ import (
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/cluster/api"
-	"github.com/rook/rook/pkg/operator/cluster/mgr"
-	"github.com/rook/rook/pkg/operator/cluster/mon"
-	"github.com/rook/rook/pkg/operator/cluster/osd"
+	"github.com/rook/rook/pkg/operator/cluster/ceph/mgr"
+	"github.com/rook/rook/pkg/operator/cluster/ceph/mon"
+	"github.com/rook/rook/pkg/operator/cluster/ceph/osd"
+	"github.com/rook/rook/pkg/operator/file"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/mds"
+	"github.com/rook/rook/pkg/operator/object"
 	"github.com/rook/rook/pkg/operator/pool"
-	"github.com/rook/rook/pkg/operator/rgw"
 	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -166,11 +166,11 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store CRD watcher
-	objectStoreController := rgw.NewObjectStoreController(c.context, c.rookImage, cluster.Spec.HostNetwork)
+	objectStoreController := object.NewObjectStoreController(c.context, c.rookImage, cluster.Spec.HostNetwork)
 	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start file system CRD watcher
-	fileController := mds.NewFilesystemController(c.context, c.rookImage, cluster.Spec.HostNetwork)
+	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.HostNetwork)
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker

@@ -24,7 +24,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	opmon "github.com/rook/rook/pkg/operator/cluster/mon"
+	opmon "github.com/rook/rook/pkg/operator/cluster/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"

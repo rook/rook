@@ -35,7 +35,7 @@ import (
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/agent"
 	"github.com/rook/rook/pkg/operator/cluster"
-	"github.com/rook/rook/pkg/operator/cluster/mon"
+	"github.com/rook/rook/pkg/operator/cluster/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
