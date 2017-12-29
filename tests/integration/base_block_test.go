@@ -26,6 +26,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"strconv"
 )
 
 var (
@@ -50,14 +51,14 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	initBlockImages, _ := rbc.BlockList()
 
 	logger.Infof("step 1: Create block storage")
-	_, cbErr := installer.BlockResourceOperation(k8sh, installer.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, blockName), "create")
+	_, cbErr := installer.BlockResourceOperation(k8sh, installer.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, blockName, "ReadWriteOnce"), "create")
 	require.Nil(s.T(), cbErr)
 	require.True(s.T(), retryBlockImageCountCheck(helper, len(initBlockImages), 1), "Make sure a new block is created")
 	logger.Infof("Block Storage created successfully")
 	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, blockName), "Make sure PVC is Bound")
 
 	logger.Infof("step 2: Mount block storage")
-	_, mtErr := rbc.BlockMap(getBlockPodDefintion(podName, blockName), blockMountPath)
+	_, mtErr := rbc.BlockMap(getBlockPodDefintion(podName, blockName, false), blockMountPath)
 	require.Nil(s.T(), mtErr)
 	crdName, err := k8sh.GetVolumeAttachmentResourceName(defaultNamespace, blockName)
 	require.Nil(s.T(), err)
@@ -78,26 +79,26 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 
 	logger.Infof("step 5: Mount same block storage on a different pod. Should not be allowed")
 	otherPod := "block-test2"
-	_, mtErr = rbc.BlockMap(getBlockPodDefintion(otherPod, blockName), blockMountPath)
+	_, mtErr = rbc.BlockMap(getBlockPodDefintion(otherPod, blockName, false), blockMountPath)
 	require.Nil(s.T(), mtErr)
 	require.True(s.T(), k8sh.IsPodInError(otherPod, defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure block-test2 pod errors out while mounting the volume")
 	logger.Infof("Block Storage successfully fenced")
 
 	logger.Infof("step 6: Delete fenced pod")
-	_, unmtErr := rbc.BlockUnmap(getBlockPodDefintion(otherPod, blockName), blockMountPath)
+	_, unmtErr := rbc.BlockUnmap(getBlockPodDefintion(otherPod, blockName, false), blockMountPath)
 	require.Nil(s.T(), unmtErr)
 	require.True(s.T(), k8sh.IsPodTerminated(otherPod, defaultNamespace), "make sure block-test2 pod is terminated")
 	logger.Infof("Fenced pod deleted successfully")
 
 	logger.Infof("step 7: Unmount block storage")
-	_, unmtErr = rbc.BlockUnmap(getBlockPodDefintion(podName, blockName), blockMountPath)
+	_, unmtErr = rbc.BlockUnmap(getBlockPodDefintion(podName, blockName, false), blockMountPath)
 	require.Nil(s.T(), unmtErr)
 	require.True(s.T(), k8sh.IsVolumeAttachmentResourceAbsent(installer.SystemNamespace(namespace), crdName), fmt.Sprintf("make sure VolumeAttachment %s is deleted", crdName))
 	require.True(s.T(), k8sh.IsPodTerminated(blockPodName, defaultNamespace), "make sure block-test pod is terminated")
 	logger.Infof("Block Storage unmounted successfully")
 
 	logger.Infof("step 8: Deleting block storage")
-	_, dbErr := installer.BlockResourceOperation(k8sh, installer.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, blockName), "delete")
+	_, dbErr := installer.BlockResourceOperation(k8sh, installer.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, blockName, "ReadWriteOnce"), "delete")
 	require.Nil(s.T(), dbErr)
 	require.True(s.T(), retryBlockImageCountCheck(helper, len(initBlockImages), 0), "Make sure a block is deleted")
 	logger.Infof("Block Storage deleted successfully")
@@ -117,7 +118,7 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 
 	logger.Infof("step : Create Pool,StorageClass and PVC")
 
-	volumeDef := installer.GetBlockPoolStorageClassAndPvcDef(clusterNamespace, poolName, "rook-block", "test-block-claim")
+	volumeDef := installer.GetBlockPoolStorageClassAndPvcDef(clusterNamespace, poolName, "rook-block", "test-block-claim", "ReadWriteOnce")
 	res1, err := installer.BlockResourceOperation(k8sh, volumeDef, "create")
 	require.Contains(s.T(), res1, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
 	require.Contains(s.T(), res1, "storageclass \"rook-block\" created", "Make sure storageclass is created")
@@ -180,8 +181,8 @@ func foundPool(helper *clients.TestClient, name string) (bool, error) {
 
 func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, poolname, storageclassname, blockname, podname string) {
 	logger.Infof("Cleaning up block storage")
-	helper.GetBlockClient().BlockUnmap(getBlockPodDefintion(podname, blockname), blockMountPath)
-	installer.BlockResourceOperation(k8sh, installer.GetBlockPoolStorageClassAndPvcDef(namespace, poolname, storageclassname, blockname), "delete")
+	helper.GetBlockClient().BlockUnmap(getBlockPodDefintion(podname, blockname, false), blockMountPath)
+	installer.BlockResourceOperation(k8sh, installer.GetBlockPoolStorageClassAndPvcDef(namespace, poolname, storageclassname, blockname, "ReadWriteOnce"), "delete")
 	cleanupDynamicBlockStorage(helper)
 }
 
@@ -211,7 +212,7 @@ func cleanupDynamicBlockStorage(helper *clients.TestClient) {
 
 }
 
-func getBlockPodDefintion(podname, blockName string) string {
+func getBlockPodDefintion(podname, blockName string, readOnly bool) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:
@@ -231,5 +232,58 @@ spec:
       - name: block-persistent-storage
         persistentVolumeClaim:
           claimName: ` + blockName + `
+          readOnly: ` + strconv.FormatBool(readOnly) + `
       restartPolicy: Never`
+}
+
+func getBlockStatefulSetDefintion(statefulsetName, podname, StorageClassName string) string {
+	return `---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ` + statefulsetName + `
+  labels:
+    app: ` + statefulsetName + `
+spec:
+  ports:
+  - port: 80
+    name: ` + podname + `
+  clusterIP: None
+  selector:
+    app: ` + statefulsetName + `
+---
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: ` + podname + `
+spec:
+  serviceName: "` + statefulsetName + `"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ` + statefulsetName + `
+    spec:
+      containers:
+      - name: ` + statefulsetName + `
+        image: busybox
+        command:
+          - sleep
+          - "3600"
+        ports:
+        - containerPort: 80
+          name: ` + podname + `
+        volumeMounts:
+        - name: rookpvc
+          mountPath: /tmp/rook
+  volumeClaimTemplates:
+  - metadata:
+      name: rookpvc
+      annotations:
+        volume.beta.kubernetes.io/storage-class: ` + StorageClassName + `
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 1M`
 }

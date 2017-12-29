@@ -152,7 +152,7 @@ def RunIntegrationTest(k, v) {
                               set -o pipefail
                               export KUBECONFIG=$HOME/admin.conf
                               kubectl config view
-                              _output/tests/linux_amd64/integration -test.v -test.timeout 1800s --host_type '''+"${k}"+''' 2>&1 | tee _output/tests/integrationTests.log'''
+                              _output/tests/linux_amd64/integration -test.v -test.timeout 2400s --host_type '''+"${k}"+''' 2>&1 | tee _output/tests/integrationTests.log'''
                          }
                     }
                     finally{
