@@ -10,7 +10,6 @@ These examples show how to perform advanced configuration tasks on your Rook
 storage cluster.
 
 - [Log Collection](#log-collection)
-- [Change Rook Docker Image Prefix](#change-rook-docker-image-prefix)
 - [OSD Information](#osd-information)
 - [Separate Storage Groups](#separate-storage-groups)
 - [Configuring Pools](#configuring-pools)
