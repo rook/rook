@@ -631,6 +631,55 @@ func (k8sh *K8sHelper) IsStorageClassPresent(name string) (bool, error) {
 
 }
 
+//CheckPvcCount returns True if expected number pvs for a app are found
+func (k8sh *K8sHelper) CheckPvcCountAndStatus(podName string, namespace string, expectedPvcCount int, expectedStatus string) bool {
+	logger.Infof("wait until %d pvc for app=%s are present", expectedPvcCount, podName)
+	listOpts := metav1.ListOptions{LabelSelector: "app=" + podName}
+	pvcCountCheck := false
+
+	actualPvcCount := 0
+	inc := 0
+	for inc < RetryLoop {
+		pvcList, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(listOpts)
+		if err != nil {
+			logger.Errorf("Cannot get pvc for app : %v in namespace %v, err: %v", podName, namespace, err)
+			return false
+		}
+		actualPvcCount = len(pvcList.Items)
+		if actualPvcCount == expectedPvcCount {
+			pvcCountCheck = true
+			break
+		}
+		inc++
+		time.Sleep(RetryInterval * time.Second)
+	}
+
+	if !pvcCountCheck {
+		logger.Errorf("Expecting %d number of PVCs for %s app, found %d ", expectedPvcCount, podName, actualPvcCount)
+		return false
+	}
+
+	inc = 0
+	for inc < RetryLoop {
+		r := true
+		pl, _ := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(listOpts)
+		for _, pvc := range pl.Items {
+			if !(pvc.Status.Phase == v1.PersistentVolumeClaimPhase(expectedStatus)) {
+				r = false
+				logger.Infof("waiting for pvc %v to be in %s Phase, currently in %v Phase", pvc.Name, expectedStatus, pvc.Status.Phase)
+			}
+		}
+		if r {
+			return true
+		}
+		inc++
+		time.Sleep(RetryInterval * time.Second)
+
+	}
+	logger.Errorf("Giving up waiting for %d PVCs for %s app to be in %s phase", expectedPvcCount, podName, expectedStatus)
+	return false
+}
+
 //GetPVCStatus returns status of PVC
 func (k8sh *K8sHelper) GetPVCStatus(namespace string, name string) (v1.PersistentVolumeClaimPhase, error) {
 	getOpts := metav1.GetOptions{}
@@ -641,6 +690,19 @@ func (k8sh *K8sHelper) GetPVCStatus(namespace string, name string) (v1.Persisten
 	}
 
 	return pvc.Status.Phase, nil
+
+}
+
+//GetPVCAccessModes returns AccessModes on PVC
+func (k8sh *K8sHelper) GetPVCAccessModes(namespace string, name string) ([]v1.PersistentVolumeAccessMode, error) {
+	getOpts := metav1.GetOptions{}
+
+	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(name, getOpts)
+	if err != nil {
+		return []v1.PersistentVolumeAccessMode{}, fmt.Errorf("PVC %s not found,err->%v", name, err)
+	}
+
+	return pvc.Status.AccessModes, nil
 
 }
 
@@ -668,6 +730,28 @@ func (k8sh *K8sHelper) IsPodInExpectedState(podNamePattern string, namespace str
 //CheckPodCountAndState returns true if expected number of pods with matching name are found and are in expected state
 func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, minExpected int, expectedPhase string) bool {
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + podName}
+	podCountCheck := false
+	actualPodCount := 0
+	inc := 0
+	for inc < RetryLoop {
+		podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(listOpts)
+		if err != nil {
+			logger.Errorf("Cannot get logs for app : %v in namespace %v, err: %v", podName, namespace, err)
+			return false
+		}
+		actualPodCount = len(podList.Items)
+		if actualPodCount >= minExpected {
+			podCountCheck = true
+			break
+		}
+
+		inc++
+		time.Sleep(RetryInterval * time.Second)
+	}
+	if !podCountCheck {
+		logger.Errorf("Expecting %d number of pods for %s app, found %d ", minExpected, podName, actualPodCount)
+		return false
+	}
 
 	podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(listOpts)
 	if err != nil {
@@ -680,7 +764,7 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 		return false
 	}
 
-	inc := 0
+	inc = 0
 	for inc < RetryLoop {
 		r := true
 		pl, _ := k8sh.Clientset.CoreV1().Pods(namespace).List(listOpts)
@@ -765,6 +849,30 @@ func (k8sh *K8sHelper) WaitUntilPVCIsDeleted(namespace string, pvcname string) b
 			return true
 		}
 		logger.Infof("waiting for PVC %s  to be deleted.", pvcname)
+		inc++
+		time.Sleep(RetryInterval * time.Second)
+	}
+	return false
+}
+
+func (k8sh *K8sHelper) DeletePvcWithLabel(namespace string, podName string) bool {
+	delOpts := metav1.DeleteOptions{}
+	listOpts := metav1.ListOptions{LabelSelector: "app=" + podName}
+
+	err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).DeleteCollection(&delOpts, listOpts)
+	if err != nil {
+		logger.Errorf("cannot deleted PVCs for pods with label app=%s", podName)
+		return false
+	}
+	inc := 0
+	for inc < RetryLoop {
+		pvcs, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(listOpts)
+		if err == nil {
+			if len(pvcs.Items) == 0 {
+				return true
+			}
+		}
+		logger.Infof("waiting for PVCs for pods with label=%s  to be deleted.", podName)
 		inc++
 		time.Sleep(RetryInterval * time.Second)
 	}
@@ -935,4 +1043,15 @@ func (k8sh *K8sHelper) DeleteRoleAndBindings(name, namespace string) error {
 	}
 
 	return nil
+}
+
+func (k8sh *K8sHelper) ScaleStatefulSet(statefulsetName string, replicationSize int) bool {
+	args := []string{"scale", "statefulsets", statefulsetName, fmt.Sprintf("--replicas=%d", replicationSize)}
+	_, err := k8sh.Kubectl(args...)
+	if err != nil {
+		logger.Errorf("stateful set %s not scaled", statefulsetName)
+		return false
+	}
+	logger.Errorf("stateful set %s scaled", statefulsetName)
+	return true
 }
