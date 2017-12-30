@@ -14,6 +14,8 @@
 
 FROM BASEIMAGE
 
+SHELL ["/bin/bash","-c"]
+
 RUN sed -i -e 's/^deb-src/#deb-src/' /etc/apt/sources.list && \
     # update and upgrade
     DEBIAN_FRONTEND=noninteractive apt-get update && \
@@ -23,23 +25,14 @@ RUN sed -i -e 's/^deb-src/#deb-src/' /etc/apt/sources.list && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -yy --no-install-recommends && \
     # cleanup
     DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \
-    DEBIAN_FRONTEND=noninteractive apt-get clean -y
-
-RUN \
-    # keep the copyright files
-    tar -czf /usr/share/copyrights.tar.xz /usr/share/doc/*/copyright && \
-    # remove unecessary files
+    DEBIAN_FRONTEND=noninteractive apt-get clean -y && \
     rm -rf \
-        /usr/share/doc \
-        /usr/share/man \
-        /usr/share/info \
-        /usr/share/locale \
+        /etc/{selinux,systemd,udev} \
+        /lib/{lsb,udev} \
+        /tmp/* \
+        /usr/lib/{locale,systemd,udev} \
+        /usr/share/{doc,info,man} \
+        /var/cache/debconf/* \
         /var/lib/apt/lists/* \
         /var/log/* \
-        /var/cache/debconf/* \
-        /etc/systemd \
-        /lib/lsb \
-        /lib/udev \
-        /usr/lib/x86_64-linux-gnu/gconv/IBM* \
-        /usr/lib/x86_64-linux-gnu/gconv/EBC* && \
-    mkdir -p /usr/share/man/man{1..8}
+        /var/tmp/*

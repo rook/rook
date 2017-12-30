@@ -15,7 +15,7 @@
 FROM BASEIMAGE
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends \
+    DEBIAN_FRONTEND=noninteractive apt-get install -yy -q --no-install-recommends \
         binutils \
         s3cmd \
         curl \
@@ -31,4 +31,13 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \
     DEBIAN_FRONTEND=noninteractive apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+    rm -rf \
+        /etc/{selinux,systemd,udev} \
+        /lib/{lsb,udev} \
+        /tmp/* \
+        /usr/lib/{locale,systemd,udev} \
+        /usr/share/{doc,info,man} \
+        /var/cache/debconf/* \
+        /var/lib/apt/lists/* \
+        /var/log/* \
+        /var/tmp/*

@@ -27,41 +27,13 @@ BASEIMAGE = $(BUILD_REGISTRY)/base-$(GOARCH)
 TEMP := $(shell mktemp -d)
 
 # ====================================================================================
-# Build Ceph
-
-CEPH_BUILD_TYPE ?= release
-
-ifeq ($(GOARCH),amd64)
-CEPH_ALLOCATOR ?= tcmalloc
-else
-CEPH_ALLOCATOR ?= libc
-endif
-
-ifeq ($(CEPH_ALLOCATOR),tcmalloc)
-EXTRA_LIBS += libgoogle-perftools4
-endif
-ifeq ($(CEPH_ALLOCATOR),tcmalloc_minimal)
-EXTRA_LIBS += libtcmalloc_minimal4
-endif
-ifeq ($(CEPH_ALLOCATOR),jemalloc)
-EXTRA_LIBS += libjemalloc1
-endif
-
-CEPH_TARBALL_FILENAME = ceph-install.tar
-CEPH_TARBALL = $(TEMP)/$(CEPH_TARBALL_FILENAME)
-
-$(CEPH_TARBALL):
-	@echo === building ceph for $(ROOK_IMAGE)
-	@$(MAKE) -C ../ceph GOARCH=$(GOARCH) CEPH_ALLOCATOR=$(CEPH_ALLOCATOR) CEPH_BUILD_TYPE=$(CEPH_BUILD_TYPE) $(CEPH_TARBALL)
-
-# ====================================================================================
 # Build Rook
 
-rook-base-image: $(CEPH_TARBALL)
+rook-base-image:
 	@echo === docker build $(ROOK_BASE_IMAGE)
 	@cp Dockerfile.base $(TEMP)/Dockerfile
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
-	@docker build $(BUILD_ARGS) --build-arg EXTRALIBS=$(EXTRA_LIBS) -t $(ROOK_BASE_IMAGE) $(TEMP)
+	@docker build $(BUILD_ARGS) -t $(ROOK_BASE_IMAGE) $(TEMP)
 
 # since this is a leaf image we avoid leaving around a lot of dangling images
 # by removing the last build of the final rook image

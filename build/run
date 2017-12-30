@@ -75,7 +75,6 @@ if [ "`uname -s`" != "Linux" ]; then
     #    /.aws (bind mounted to host ${HOME}/.aws)
     #    /.docker (bind mounted to host ${HOME}/.docker)
     #    /.cache (bind mounted to host ${CACHE_DIR} if set)
-    #    /.ccache
     #    /go/src/github.com/rook/rook (rsync'd from host <source>)
 
     # now copy the source tree to the container volume. Note this also
@@ -89,8 +88,6 @@ if [ "`uname -s`" != "Linux" ]; then
 
     MOUNT_OPTS="${MOUNT_OPTS} -v ${CROSS_IMAGE_VOLUME}:${BUILDER_HOME}"
 
-    CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache \
-        -e CCACHE_DIR_HOST=${BUILDER_HOME}/.ccache -e CCACHE_LOG"
 else
 
     # On linux bind mounts are cheap so we dont need to rsync
@@ -101,7 +98,6 @@ else
     #    /.netrc (bind mounted to host ${HOME}/.netrc)
     #    /.aws (bind mounted to host ${HOME}/.aws)
     #    /.docker (bind mounted to host ${HOME}/.docker)
-    #    /.cache (bind mounted to host ${CCACHE_DIR})
     #    /go
     #       /pkg (bind mounted to <source>/.work/cross_pkg)
     #       /src/github.com/rook/rook (bind mounted to <source>)
@@ -109,18 +105,6 @@ else
     MOUNT_OPTS="${MOUNT_OPTS} \
         -v ${scriptdir}/../.work/cross_pkg:${BUILDER_HOME}/go/pkg
         -v ${scriptdir}/..:${BUILDER_HOME}/go/src/${BUILD_REPO}"
-
-    # if CCACHE_DIR is not set, set it to the default
-    if [[ -z "${CCACHE_DIR}" ]]; then
-        CCACHE_DIR="${HOME}/.ccache"
-    fi
-
-    if [[ -d "${CCACHE_DIR}" ]]; then
-        CCACHE_ARGS="-e CCACHE_DIR=${BUILDER_HOME}/.ccache \
-            -e CCACHE_DIR_HOST=${CCACHE_DIR} \
-            -e CCACHE_LOG \
-            -v ${CCACHE_DIR}:${BUILDER_HOME}/.ccache"
-    fi
 fi
 
 # if CACHE_DIR is not set bind mount it
@@ -179,7 +163,6 @@ docker run \
     ${TTY_ARGS} \
     ${KUBE_ARGS} \
     ${KUBEADM_DIND_ARGS} \
-    ${CCACHE_ARGS} \
     ${DOWNLOAD_ARGS} \
     ${NETRC_ARGS} \
     ${AWS_ARGS} \
