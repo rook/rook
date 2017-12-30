@@ -119,21 +119,6 @@ Linux 7ed5f0d0b618 4.10.0-21-generic #23-Ubuntu SMP Fri Apr 28 16:14:22 UTC 2017
 
 # Improving Build Speed
 
-## Using CCache
-
-C++ code can take time to compile. CCache can increase the speed of compilation. To enable, make sure you have `ccache` installed:
-
-```
-DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends ccache
-```
-
-On a Mac, `ccache` can be installed using brew:
-```
-brew install --HEAD ccache
-```
-
-when building container images we will use `CCACHE_DIR` or `${HOME}/.ccache` by default.
-
 ## Apt Package Caching
 
 When building container images numerous apt-get operations are performed which can slow down the build significantly. To speed things up install the apt-cacher-ng package which will cache apt packages on the host.
@@ -157,8 +142,6 @@ Our base container image enables transparent proxy detection and will use the ap
 
 Doing a complete build of Rook and the dependent packages can take a long time (more than an hour on a typical macbook). To speed things up we rely heavily on image caching in docker. Docker support content-addressable images by default and we use that effectively when building images. Images are factored to increase reusability across builds. We also tag and timestamp images that should remain in the cache to help future builds.
 
-Not all parts of our build, however, can rely on content-addressable image caching. For example to build Ceph using `docker build` would mean that we could not `ccache` and the build could take much longer. Instead we build Ceph by running the build process with `docker run` using a base image that has all the Ceph code and tools. To avoid building Ceph over and over, we create a container image with the output of the ceph build and add it to the docker image cache.
-
 ### Pruning the cache
 
 To prune the number of cached images run `make prune`. There are two options that control the level of pruning performed:
@@ -181,4 +164,3 @@ Or users may want to skip build all together for trivial changes like documentat
 2. [smoke only] - if this text is found in the body of PR, then Jenkins will only run Smoke Test during integration test phase
 
 The above flags work only on PRs,The full regression is run on every merge to master.
- 
