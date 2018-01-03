@@ -49,8 +49,6 @@ spec:
 #      tolerations:
 #    mon:
 #      nodeAffinity:
-#      podAffinity:
-#      podAntiAffinity:
 #      tolerations:
 #    osd:
 #      nodeAffinity:
