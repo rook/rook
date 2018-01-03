@@ -29,9 +29,9 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/display"
 	"github.com/rook/rook/pkg/util/exec"
-	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/rook/rook/pkg/util/sys"
 )
 
@@ -57,7 +57,7 @@ type osdConfig struct {
 	dir             bool
 	storeConfig     rookalpha.StoreConfig
 	partitionScheme *PerfSchemeEntry
-	kv              kvstore.KeyValueStore
+	kv              *k8sutil.ConfigMapKVStore
 	storeName       string
 }
 
@@ -152,7 +152,7 @@ func rookOwnsPartitions(partitions []*sys.Partition) bool {
 }
 
 // partitions a given device exclusively for metadata usage
-func partitionMetadata(context *clusterd.Context, info *MetadataDeviceInfo, kv kvstore.KeyValueStore, storeName string) error {
+func partitionMetadata(context *clusterd.Context, info *MetadataDeviceInfo, kv *k8sutil.ConfigMapKVStore, storeName string) error {
 	if len(info.Partitions) == 0 {
 		return nil
 	}

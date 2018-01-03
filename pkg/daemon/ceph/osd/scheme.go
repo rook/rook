@@ -21,7 +21,8 @@ import (
 
 	"github.com/google/uuid"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
-	"github.com/rook/rook/pkg/util/kvstore"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -108,10 +109,10 @@ func NewMetadataDeviceInfo(device string) *MetadataDeviceInfo {
 }
 
 // Load the persistent partition info from the config directory.
-func LoadScheme(kv kvstore.KeyValueStore, storeName string) (*PerfScheme, error) {
+func LoadScheme(kv *k8sutil.ConfigMapKVStore, storeName string) (*PerfScheme, error) {
 	schemeRaw, err := kv.GetValue(storeName, schemeKeyName)
 	if err != nil {
-		if kvstore.IsNotExist(err) {
+		if errors.IsNotFound(err) {
 			// the scheme key doesn't exist yet, just return a new empty scheme with no error
 			return NewPerfScheme(), nil
 		}
@@ -129,7 +130,7 @@ func LoadScheme(kv kvstore.KeyValueStore, storeName string) (*PerfScheme, error)
 }
 
 // Save the partition scheme to the config dir
-func (s *PerfScheme) SaveScheme(kv kvstore.KeyValueStore, storeName string) error {
+func (s *PerfScheme) SaveScheme(kv *k8sutil.ConfigMapKVStore, storeName string) error {
 	b, err := json.Marshal(s)
 	if err != nil {
 		return err

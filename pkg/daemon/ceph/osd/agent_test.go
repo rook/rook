@@ -30,8 +30,9 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/daemon/ceph/test"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
-	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -273,8 +274,10 @@ func createTestAgent(t *testing.T, devices, configDir string, storeConfig *rooka
 			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 		},
 	}
-	agent := NewAgent(&clusterd.Context{Executor: executor}, devices, false, "", "", forceFormat, location, *storeConfig, nil, "myhost", kvstore.NewMockKeyValueStore())
-	agent.cluster = &mon.ClusterInfo{Name: "myclust"}
+	cluster := &mon.ClusterInfo{Name: "myclust"}
+	agent := NewAgent(
+		&clusterd.Context{Executor: executor, Clientset: testop.New(1)},
+		devices, false, "", "", forceFormat, location, *storeConfig, cluster, "myhost", mockKVStore())
 
 	return agent, executor
 }
@@ -297,7 +300,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 	test.CreateConfigDir(configDir)
 
 	// 3 disks: 2 for data and 1 for the metadata of both disks (2 WALs and 2 DBs)
-	a := &OsdAgent{desiredDevices: []string{"sda", "sdb"}, metadataDevice: "sdc", kv: kvstore.NewMockKeyValueStore(), nodeName: "a"}
+	a := &OsdAgent{desiredDevices: []string{"sda", "sdb"}, metadataDevice: "sdc", kv: mockKVStore(), nodeName: "a"}
 	context.Devices = []*clusterd.LocalDisk{
 		{Name: "sda", Size: 107374182400}, // 100 GB
 		{Name: "sdb", Size: 107374182400}, // 100 GB
@@ -409,7 +412,7 @@ func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 		Executor:  executor,
 	}
 
-	a := &OsdAgent{desiredDevices: []string{"sda"}, kv: kvstore.NewMockKeyValueStore()}
+	a := &OsdAgent{desiredDevices: []string{"sda"}, kv: mockKVStore()}
 	_, sdaUUID := mockPartitionSchemeEntry(t, 1, "sda", nil, a.kv, a.nodeName)
 
 	context.Devices = []*clusterd.LocalDisk{
@@ -474,7 +477,7 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 	}
 
 	// mock the currently discovered hardware, note the device names have changed (e.g., across reboots) but their UUIDs are always static
-	a := &OsdAgent{desiredDevices: []string{"sda-changed"}, kv: kvstore.NewMockKeyValueStore()}
+	a := &OsdAgent{desiredDevices: []string{"sda-changed"}, kv: mockKVStore()}
 
 	// setup an existing partition schme with metadata on nvme01 and data on sda
 	_, metadataUUID, sdaUUID := mockDistributedPartitionScheme(t, 1, "nvme01", "sda", a.kv, a.nodeName)
@@ -505,7 +508,7 @@ func verifyPartitionEntry(t *testing.T, actual *PerfSchemePartitionDetails, expe
 }
 
 func mockPartitionSchemeEntry(t *testing.T, osdID int, device string, storeConfig *rookalpha.StoreConfig,
-	kv kvstore.KeyValueStore, nodeName string) (entry *PerfSchemeEntry, diskUUID string) {
+	kv *k8sutil.ConfigMapKVStore, nodeName string) (entry *PerfSchemeEntry, diskUUID string) {
 
 	if storeConfig == nil {
 		storeConfig = &rookalpha.StoreConfig{StoreType: Bluestore}
@@ -531,7 +534,7 @@ func mockPartitionSchemeEntry(t *testing.T, osdID int, device string, storeConfi
 }
 
 func mockDistributedPartitionScheme(t *testing.T, osdID int, metadataDevice, device string,
-	kv kvstore.KeyValueStore, nodeName string) (*PerfScheme, string, string) {
+	kv *k8sutil.ConfigMapKVStore, nodeName string) (*PerfScheme, string, string) {
 
 	scheme := NewPerfScheme()
 	scheme.Metadata = NewMetadataDeviceInfo(metadataDevice)
@@ -547,4 +550,9 @@ func mockDistributedPartitionScheme(t *testing.T, osdID int, metadataDevice, dev
 
 	// return the full partition scheme, the metadata device UUID and the data device UUID
 	return scheme, scheme.Metadata.DiskUUID, entry.Partitions[BlockPartitionType].DiskUUID
+}
+
+func mockKVStore() *k8sutil.ConfigMapKVStore {
+	clientset := testop.New(1)
+	return k8sutil.NewConfigMapKVStore("myns", clientset)
 }

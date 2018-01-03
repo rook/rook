@@ -28,8 +28,9 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
-	"github.com/rook/rook/pkg/util/kvstore"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
+	"k8s.io/apimachinery/pkg/api/errors"
 )
 
 const (
@@ -154,7 +155,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices string, metad
 	return available, nil
 }
 
-func getDataDirs(context *clusterd.Context, kv kvstore.KeyValueStore, desiredDirs string,
+func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desiredDirs string,
 	devicesSpecified bool, nodeName string) (map[string]int, error) {
 
 	var dirList []string
@@ -169,7 +170,7 @@ func getDataDirs(context *clusterd.Context, kv kvstore.KeyValueStore, desiredDir
 		return dirMap, nil
 	}
 
-	if !kvstore.IsNotExist(err) {
+	if !errors.IsNotFound(err) {
 		// real error when trying to load the osd dir map, return the err
 		return nil, fmt.Errorf("failed to load OSD dir map: %+v", err)
 	}
@@ -201,7 +202,7 @@ func addDirsToDirMap(dirList []string, dirMap *map[string]int) {
 	}
 }
 
-func loadOSDDirMap(kv kvstore.KeyValueStore, nodeName string) (map[string]int, error) {
+func loadOSDDirMap(kv *k8sutil.ConfigMapKVStore, nodeName string) (map[string]int, error) {
 	dirMapRaw, err := kv.GetValue(getConfigStoreName(nodeName), osdDirsKeyName)
 	if err != nil {
 		return nil, err
@@ -216,7 +217,7 @@ func loadOSDDirMap(kv kvstore.KeyValueStore, nodeName string) (map[string]int, e
 	return dirMap, nil
 }
 
-func saveOSDDirMap(kv kvstore.KeyValueStore, nodeName string, dirMap map[string]int) error {
+func saveOSDDirMap(kv *k8sutil.ConfigMapKVStore, nodeName string, dirMap map[string]int) error {
 	if len(dirMap) == 0 {
 		return nil
 	}
