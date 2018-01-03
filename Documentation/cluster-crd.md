@@ -81,6 +81,10 @@ A Placement configuration is specified (according to the kubernetes [PodSpec](ht
 - `podAntiAffinity`: kubernetes [PodAntiAffinity](https://kubernetes.io/docs/api-reference/v1.6/#podantiaffinity-v1-core)
 - `tolerations`: list of kubernetes [Toleration](https://kubernetes.io/docs/api-reference/v1.6/#toleration-v1-core)
 
+The `mon` pod does not allow `Pod` affinity or anti-affinity.
+This is because of the mons having built-in anti-affinity with each other through the operator. The operator chooses which nodes are to run a mon on. Each mon is then tied to a node with a node selector using a hostname.
+See the [mon design doc](https://github.com/rook/rook/blob/master/design/mon-health.md) for more details on the mon failover design.
+
 ### Cluster-wide Resources Configuration Settings
 
 Resources should be specified so that the rook components are handled after [Kubernetes Pod Quality of Service classes](https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/).

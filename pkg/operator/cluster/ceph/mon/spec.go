@@ -102,6 +102,9 @@ func (c *Cluster) makeMonPod(config *monConfig, nodeName string) *v1.Pod {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
 	c.placement.ApplyToPodSpec(&podSpec)
+	// remove Pod (anti-)affinity because we have our own placement logic
+	c.placement.PodAffinity = nil
+	c.placement.PodAntiAffinity = nil
 
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
