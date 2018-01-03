@@ -33,12 +33,12 @@ import (
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/operator/agent"
 	"github.com/rook/rook/pkg/operator/cluster"
+	"github.com/rook/rook/pkg/operator/file"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/mds"
+	"github.com/rook/rook/pkg/operator/object"
 	"github.com/rook/rook/pkg/operator/pool"
 	"github.com/rook/rook/pkg/operator/provisioner"
 	"github.com/rook/rook/pkg/operator/provisioner/controller"
-	"github.com/rook/rook/pkg/operator/rgw"
 	"k8s.io/api/core/v1"
 )
 
@@ -69,8 +69,8 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 	clusterController := cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper)
 	volumeProvisioner := provisioner.New(context)
 
-	schemes := []opkit.CustomResource{cluster.ClusterResource, pool.PoolResource, rgw.ObjectStoreResource,
-		mds.FilesystemResource, attachment.VolumeAttachmentResource}
+	schemes := []opkit.CustomResource{cluster.ClusterResource, pool.PoolResource, object.ObjectStoreResource,
+		file.FilesystemResource, attachment.VolumeAttachmentResource}
 	return &Operator{
 		context:           context,
 		clusterController: clusterController,

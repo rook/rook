@@ -27,7 +27,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephmds "github.com/rook/rook/pkg/daemon/ceph/mds"
 	"github.com/rook/rook/pkg/model"
-	opmon "github.com/rook/rook/pkg/operator/cluster/mon"
+	opmon "github.com/rook/rook/pkg/operator/cluster/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/pool"
 	"k8s.io/api/core/v1"
@@ -193,4 +193,29 @@ func getLabels(fs rookalpha.Filesystem) map[string]string {
 		k8sutil.ClusterAttr: fs.Namespace,
 		"rook_file_system":  fs.Name,
 	}
+}
+
+func validateFilesystem(context *clusterd.Context, f rookalpha.Filesystem) error {
+	if f.Name == "" {
+		return fmt.Errorf("missing name")
+	}
+	if f.Namespace == "" {
+		return fmt.Errorf("missing namespace")
+	}
+	if len(f.Spec.DataPools) == 0 {
+		return fmt.Errorf("at least one data pool required")
+	}
+	if err := pool.ValidatePoolSpec(context, f.Namespace, &f.Spec.MetadataPool); err != nil {
+		return fmt.Errorf("invalid metadata pool. %+v", err)
+	}
+	for _, p := range f.Spec.DataPools {
+		if err := pool.ValidatePoolSpec(context, f.Namespace, &p); err != nil {
+			return fmt.Errorf("Invalid data pool. %+v", err)
+		}
+	}
+	if f.Spec.MetadataServer.ActiveCount < 1 {
+		return fmt.Errorf("MetadataServer.ActiveCount must be at least 1")
+	}
+
+	return nil
 }

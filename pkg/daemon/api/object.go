@@ -28,7 +28,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/daemon/ceph/rgw"
 	"github.com/rook/rook/pkg/model"
-	k8srgw "github.com/rook/rook/pkg/operator/rgw"
+	oprgw "github.com/rook/rook/pkg/operator/object/ceph"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -62,7 +62,7 @@ func (h *Handler) GetObjectStores(w http.ResponseWriter, r *http.Request) {
 
 	// get the rgw service for each realm
 	for _, realm := range realms {
-		service, err := h.config.context.Clientset.CoreV1().Services(h.config.clusterInfo.Name).Get(k8srgw.InstanceName(realm), metav1.GetOptions{})
+		service, err := h.config.context.Clientset.CoreV1().Services(h.config.clusterInfo.Name).Get(oprgw.InstanceName(realm), metav1.GetOptions{})
 		if err != nil {
 			logger.Warningf("RGW realm found, but no k8s service found for %s", realm)
 			continue
@@ -125,7 +125,7 @@ func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
 	storeName := mux.Vars(r)["name"]
 
 	store := rookalpha.ObjectStore{ObjectMeta: metav1.ObjectMeta{Name: storeName, Namespace: h.config.clusterInfo.Name}}
-	if err := k8srgw.DeleteStore(h.config.context, store); err != nil {
+	if err := oprgw.DeleteStore(h.config.context, store); err != nil {
 		logger.Errorf("failed to remove object store: %+v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -140,7 +140,7 @@ func (h *Handler) RemoveObjectStore(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Request) {
 	storeName := mux.Vars(r)["name"]
 
-	n := k8srgw.InstanceName(storeName)
+	n := oprgw.InstanceName(storeName)
 	logger.Infof("Getting the object store connection info for %s", n)
 	service, err := h.config.context.Clientset.CoreV1().Services(h.config.namespace).Get(n, metav1.GetOptions{})
 	if err != nil {
@@ -154,7 +154,7 @@ func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Re
 	}
 
 	s3Info := &model.ObjectStoreConnectInfo{
-		Host:      k8srgw.InstanceName(storeName),
+		Host:      oprgw.InstanceName(storeName),
 		IPAddress: service.Spec.ClusterIP,
 		Ports:     []int32{},
 	}
@@ -382,8 +382,8 @@ func enableObjectStore(c *Config, config model.ObjectStore) error {
 		}
 	}
 
-	store := k8srgw.ModelToSpec(config, c.namespace)
-	err := k8srgw.UpdateStore(c.context, *store, c.rookImage, c.hostNetwork)
+	store := oprgw.ModelToSpec(config, c.namespace)
+	err := oprgw.UpdateStore(c.context, *store, c.rookImage, c.hostNetwork)
 	if err != nil {
 		return fmt.Errorf("failed to start rgw. %+v", err)
 	}

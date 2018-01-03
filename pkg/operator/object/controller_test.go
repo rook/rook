@@ -18,7 +18,7 @@ which also has the apache 2.0 license.
 */
 
 // Package rgw to manage a rook object store.
-package rgw
+package object
 
 import (
 	"testing"
