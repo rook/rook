@@ -20,64 +20,41 @@ package k8sutil
 import (
 	"testing"
 
-	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/stretchr/testify/assert"
 
 	"k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
 func TestGetValueStoreNotExist(t *testing.T) {
-	namespace := "kvstore_test"
-	clientset := fake.NewSimpleClientset()
-	kv := NewConfigMapKVStore(namespace, clientset)
+	kv, storeName := newKVStore()
 
 	// try to get a value from a store that does not exist
-	_, err := kv.GetValue("store1", "key1")
+	_, err := kv.GetValue(storeName, "key1")
 	assert.NotNil(t, err)
-	assert.True(t, kvstore.IsNotExist(err))
+	assert.True(t, errors.IsNotFound(err))
 }
 
 func TestGetValueKeyNotExist(t *testing.T) {
-	namespace := "kvstore_test"
-	storeName := "store1"
-
 	// create a configmap (store) that has no keys in it
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      storeName,
-			Namespace: namespace,
-		},
-		Data: map[string]string{},
-	}
-
-	clientset := fake.NewSimpleClientset(cm)
-	kv := NewConfigMapKVStore(namespace, clientset)
+	cm := &v1.ConfigMap{Data: map[string]string{}}
+	kv, storeName := newKVStore(cm)
 
 	// try to get a value from a store that does exist but from a key that does not exist
 	_, err := kv.GetValue(storeName, "key1")
 	assert.NotNil(t, err)
-	assert.True(t, kvstore.IsNotExist(err))
+	assert.True(t, errors.IsNotFound(err))
 }
 
 func TestGetValue(t *testing.T) {
-	namespace := "kvstore_test"
-	storeName := "store1"
 	key := "key1"
 	value := "value1"
 
 	// create a configmap (store) that has a key value pair in it
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      storeName,
-			Namespace: namespace,
-		},
-		Data: map[string]string{key: value},
-	}
-
-	clientset := fake.NewSimpleClientset(cm)
-	kv := NewConfigMapKVStore(namespace, clientset)
+	cm := &v1.ConfigMap{Data: map[string]string{key: value}}
+	kv, storeName := newKVStore(cm)
 
 	actualValue, err := kv.GetValue(storeName, key)
 	assert.Nil(t, err)
@@ -85,14 +62,11 @@ func TestGetValue(t *testing.T) {
 }
 
 func TestSetValueStoreNotExist(t *testing.T) {
-	namespace := "kvstore_test"
-	storeName := "store1"
 	key := "key1"
 	value := "value1"
 
 	// start with no stores created at all
-	clientset := fake.NewSimpleClientset()
-	kv := NewConfigMapKVStore(namespace, clientset)
+	kv, storeName := newKVStore()
 
 	// try to set a value on a store that doesn't exist.  The store should be created automatically
 	// and there should be no error.
@@ -103,25 +77,21 @@ func TestSetValueStoreNotExist(t *testing.T) {
 	actualValue, err := kv.GetValue(storeName, key)
 	assert.Nil(t, err)
 	assert.Equal(t, value, actualValue)
+
+	// get a value that doesn't exist
+	_, err = kv.GetValue(storeName, "key2")
+	assert.NotNil(t, err)
+	assert.True(t, errors.IsNotFound(err))
+
 }
 
 func TestSetValueUpdate(t *testing.T) {
-	namespace := "kvstore_test"
-	storeName := "store1"
 	key := "key1"
 	value := "value1"
 
 	// create a configmap (store) that has a key value pair in it
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      storeName,
-			Namespace: namespace,
-		},
-		Data: map[string]string{key: value},
-	}
-
-	clientset := fake.NewSimpleClientset(cm)
-	kv := NewConfigMapKVStore(namespace, clientset)
+	cm := &v1.ConfigMap{Data: map[string]string{key: value}}
+	kv, storeName := newKVStore(cm)
 
 	// try to set the already existing key to a new value, which should update it
 	newValue := "value2"
@@ -135,33 +105,20 @@ func TestSetValueUpdate(t *testing.T) {
 }
 
 func TestGetStoreNotExist(t *testing.T) {
-	namespace := "kvstore_test"
-	storeName := "store1"
-	clientset := fake.NewSimpleClientset()
-	kv := NewConfigMapKVStore(namespace, clientset)
+	kv, storeName := newKVStore()
 
 	_, err := kv.GetStore(storeName)
 	assert.NotNil(t, err)
-	assert.True(t, kvstore.IsNotExist(err))
+	assert.True(t, errors.IsNotFound(err))
 }
 
 func TestGetStore(t *testing.T) {
-	namespace := "kvstore_test"
-	storeName := "store1"
 	key := "key1"
 	value := "value1"
 
 	// create a configmap (store) that has a key value pair in it
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      storeName,
-			Namespace: namespace,
-		},
-		Data: map[string]string{key: value},
-	}
-
-	clientset := fake.NewSimpleClientset(cm)
-	kv := NewConfigMapKVStore(namespace, clientset)
+	cm := &v1.ConfigMap{Data: map[string]string{key: value}}
+	kv, storeName := newKVStore(cm)
 
 	actualStore, err := kv.GetStore(storeName)
 	assert.Nil(t, err)
@@ -169,10 +126,7 @@ func TestGetStore(t *testing.T) {
 }
 
 func TestClearStoreNotExist(t *testing.T) {
-	namespace := "kvstore_test"
-	storeName := "store1"
-	clientset := fake.NewSimpleClientset()
-	kv := NewConfigMapKVStore(namespace, clientset)
+	kv, storeName := newKVStore()
 
 	// clearing a store that does not exist is OK, should be no error
 	err := kv.ClearStore(storeName)
@@ -180,22 +134,12 @@ func TestClearStoreNotExist(t *testing.T) {
 }
 
 func TestClearStore(t *testing.T) {
-	namespace := "kvstore_test"
-	storeName := "store1"
 	key := "key1"
 	value := "value1"
 
 	// create a configmap (store) that has a key value pair in it
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      storeName,
-			Namespace: namespace,
-		},
-		Data: map[string]string{key: value},
-	}
-
-	clientset := fake.NewSimpleClientset(cm)
-	kv := NewConfigMapKVStore(namespace, clientset)
+	cm := &v1.ConfigMap{Data: map[string]string{key: value}}
+	kv, storeName := newKVStore(cm)
 
 	// verify the store/key/value exist
 	actualValue, err := kv.GetValue(storeName, key)
@@ -209,5 +153,19 @@ func TestClearStore(t *testing.T) {
 	// getting the store should return an error for not exist
 	_, err = kv.GetStore(storeName)
 	assert.NotNil(t, err)
-	assert.True(t, kvstore.IsNotExist(err))
+	assert.True(t, errors.IsNotFound(err))
+}
+
+func newKVStore(stores ...*v1.ConfigMap) (*ConfigMapKVStore, string) {
+	namespace := "kvstore_test"
+	storeName := "store1"
+	var objects []runtime.Object
+	for _, cm := range stores {
+		cm.Name = storeName
+		cm.Namespace = namespace
+		objects = append(objects, cm)
+	}
+
+	clientset := fake.NewSimpleClientset(objects...)
+	return NewConfigMapKVStore(namespace, clientset), storeName
 }

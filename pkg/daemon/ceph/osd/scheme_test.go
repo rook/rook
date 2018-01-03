@@ -21,12 +21,11 @@ import (
 
 	"github.com/google/uuid"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
-	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSchemeSaveLoad(t *testing.T) {
-	kv := kvstore.NewMockKeyValueStore()
+	kv := mockKVStore()
 	storeName := getConfigStoreName("node123")
 
 	// loading the scheme when there is no scheme file should return an empty scheme with no error

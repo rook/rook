@@ -25,7 +25,6 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
-	"github.com/rook/rook/pkg/util/kvstore"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -36,7 +35,7 @@ func TestStoreOSDDirMap(t *testing.T) {
 	defer os.RemoveAll(context.ConfigDir)
 	os.MkdirAll(context.ConfigDir, 0755)
 
-	kv := kvstore.NewMockKeyValueStore()
+	kv := mockKVStore()
 	nodeName := "node6046"
 
 	// user has specified devices to use, no dirs should be returned
