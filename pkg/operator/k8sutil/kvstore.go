@@ -18,10 +18,10 @@ limitations under the License.
 package k8sutil
 
 import (
-	"github.com/rook/rook/pkg/util/kvstore"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 )
 
@@ -40,16 +40,12 @@ func NewConfigMapKVStore(namespace string, clientset kubernetes.Interface) *Conf
 func (kv *ConfigMapKVStore) GetValue(storeName, key string) (string, error) {
 	cm, err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Get(storeName, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return "", kvstore.NewNotExistError(storeName, key)
-		}
-
 		return "", err
 	}
 
 	val, ok := cm.Data[key]
 	if !ok {
-		return "", kvstore.NewNotExistError(storeName, key)
+		return "", errors.NewNotFound(schema.GroupResource{}, key)
 	}
 
 	return val, nil
@@ -89,10 +85,6 @@ func (kv *ConfigMapKVStore) SetValue(storeName, key, value string) error {
 func (kv *ConfigMapKVStore) GetStore(storeName string) (map[string]string, error) {
 	cm, err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Get(storeName, metav1.GetOptions{})
 	if err != nil {
-		if errors.IsNotFound(err) {
-			return nil, kvstore.NewNotExistError(storeName, "")
-		}
-
 		return nil, err
 	}
 
