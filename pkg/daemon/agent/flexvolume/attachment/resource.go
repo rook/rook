@@ -12,9 +12,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
-Some of the code below came from https://github.com/coreos/etcd-operator
-which also has the apache 2.0 license.
 */
 
 // Package attachment to manage Kubernetes storage attach events.
