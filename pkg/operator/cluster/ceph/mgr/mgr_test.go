@@ -83,6 +83,7 @@ func TestPodSpec(t *testing.T) {
 	assert.Equal(t, "mgr1", d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, 2, len(d.Spec.Template.Spec.Volumes))
+	assert.Equal(t, 2, len(d.Spec.Template.Spec.Containers[0].Ports))
 	assert.Equal(t, "rook-data", d.Spec.Template.Spec.Volumes[0].Name)
 
 	assert.Equal(t, "mgr1", d.ObjectMeta.Name)
@@ -99,6 +100,15 @@ func TestPodSpec(t *testing.T) {
 
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
+}
+
+func TestServiceSpec(t *testing.T) {
+	c := New(nil, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{})
+
+	s := c.makeService("rook-mgr")
+	assert.NotNil(t, s)
+	assert.Equal(t, "rook-mgr", s.Name)
+	assert.Equal(t, 1, len(s.Spec.Ports))
 }
 
 func TestHostNetwork(t *testing.T) {

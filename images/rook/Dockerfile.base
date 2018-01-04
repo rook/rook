@@ -44,6 +44,9 @@ RUN BOOST_VERSION=1.62.0 && \
         libsnappy1v5 \
         python-prettytable \
         python2.7-minimal \
+        python-cherrypy3:${ARCH} \
+        python-pecan:${ARCH} \
+        python-openssl:${ARCH} \
         ${EXTRALIBS} && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \
