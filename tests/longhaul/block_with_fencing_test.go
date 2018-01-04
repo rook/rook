@@ -46,7 +46,7 @@ func (s *BlockLongHaulSuiteWithFencing) SetupSuite() {
 	s.bc = s.testClient.GetBlockClient()
 	if _, err := s.kh.GetPVCStatus(defaultNamespace, "block-pv-one"); err != nil {
 		logger.Infof("Creating PVC and mounting it to pod with readOnly set to false")
-		installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef("block-pv-one", "rook-block"), "create")
+		installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef("block-pv-one", "rook-block", "ReadWriteOnce"), "create")
 		mountUnmountPVCOnPod(s.kh, "block-rw", "block-pv-one", "false", "create")
 		require.True(s.T(), s.kh.IsPodRunning("block-rw", defaultNamespace))
 
