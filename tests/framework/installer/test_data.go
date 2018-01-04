@@ -54,10 +54,8 @@ func concatYaml(first, second string) string {
 func GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, blockName string, accessMode string) string {
 	return concatYaml(GetBlockPoolDef(poolName, namespace, "1"),
 		concatYaml(GetBlockStorageClassDef(poolName, storageClassName, namespace), GetBlockPvcDef(blockName, storageClassName, accessMode)))
-
 }
 
 func GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string) string {
 	return concatYaml(GetBlockPoolDef(poolName, namespace, "1"), GetBlockStorageClassDef(poolName, storageClassName, namespace))
-
 }

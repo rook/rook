@@ -28,6 +28,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // Test K8s Block Image Creation Scenarios. These tests work when platform is set to Kubernetes
@@ -88,42 +89,10 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 
 }
 
-// Test case when persistentvolumeclaim  with ReadWriteOnce access is created for a valid storage class
-func (s *K8sBlockImageCreateSuite) TestCreatePReadWriteOnceVCWhenStorageClassExists() {
-	logger.Infof("Test creating PVC(block images) when storage class is created")
-	claimName := "test-with-storage-class-claim"
-	poolName := "test-with-storage-class-pool"
-	storageClassName := "rook-block"
-	defer s.tearDownTest(claimName, poolName, storageClassName, "ReadWriteOnce")
-
-	//create pool and storageclass
-	result0, err0 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "create")
-	require.Contains(s.T(), result0, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
-	require.NoError(s.T(), err0)
-	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "create")
-	require.Contains(s.T(), result1, fmt.Sprintf("storageclass \"%s\" created", storageClassName), "Make sure storageclass is created")
-	require.NoError(s.T(), err1)
-
-	//make sure storageclass is created
-	present, err := s.kh.IsStorageClassPresent(storageClassName)
-	require.Nil(s.T(), err)
-	require.True(s.T(), present, "Make sure storageclass is present")
-
-	//create pvc
-	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
-	require.Contains(s.T(), result2, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result2)
-	require.NoError(s.T(), err2)
-
-	//check status of PVC
-	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
-	accessModes, err := s.kh.GetPVCAccessModes(defaultNamespace, claimName)
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), accessModes[0], v1.PersistentVolumeAccessMode(v1.ReadWriteOnce))
-
-	//check block image count
-	b, _ := s.bc.BlockList()
-	require.Equal(s.T(), s.initBlockCount+1, len(b), "Make sure new block image is created")
-
+func (s *K8sBlockImageCreateSuite) TestCreatingPVCWithVariousAccessModes() {
+	s.CheckCreatingPVC("rwo", "ReadWriteOnce")
+	s.CheckCreatingPVC("rwx", "ReadWriteMany")
+	s.CheckCreatingPVC("rox", "ReadOnlyMany")
 }
 
 // Test case when persistentvolumeclaim is created for a valid storage class twice
@@ -176,121 +145,58 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 
 }
 
-// Test case when persistentvolumeclaim with ReadOnlyMany
-func (s *K8sBlockImageCreateSuite) TestCreateReadOnlyManyPVCWhenStorageClassExists() {
-	logger.Infof("Test creating PVC(block images) when storage class is created")
-	claimName := "test-with-storage-class-claim-rox"
-	poolName := "test-with-storage-class-pool-rox"
-	storageClassName := "rook-block"
-	defer s.tearDownTest(claimName, poolName, storageClassName, "ReadOnlyMany")
-
-	//create pool and storageclass
-	result0, err0 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "create")
-	require.Contains(s.T(), result0, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
-	require.NoError(s.T(), err0)
-	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "create")
-	require.Contains(s.T(), result1, fmt.Sprintf("storageclass \"%s\" created", storageClassName), "Make sure storageclass is created")
-	require.NoError(s.T(), err1)
-
-	//make sure storageclass is created
-	present, err := s.kh.IsStorageClassPresent(storageClassName)
-	require.Nil(s.T(), err)
-	require.True(s.T(), present, "Make sure storageclass is present")
-
-	//create pvc
-	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadOnlyMany"), "create")
-	require.Contains(s.T(), result2, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result2)
-	require.NoError(s.T(), err2)
-
-	//check status of PVC
-	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
-	accessModes, err := s.kh.GetPVCAccessModes(defaultNamespace, claimName)
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), accessModes[0], v1.PersistentVolumeAccessMode(v1.ReadOnlyMany))
-
-	//check block image count
-	b, _ := s.bc.BlockList()
-	require.Equal(s.T(), s.initBlockCount+1, len(b), "Make sure new block image is created")
-
-}
-
-// Test case when persistentvolumeclaim with ReadWriteMany
-func (s *K8sBlockImageCreateSuite) TestCreateReadWriteManyPVCWhenStorageClassExists() {
-	logger.Infof("Test creating PVC(block images) when storage class is created")
-	claimName := "test-with-storage-class-claim-rwx"
-	poolName := "test-with-storage-class-pool-rwx"
-	storageClassName := "rook-block"
-	defer s.tearDownTest(claimName, poolName, storageClassName, "ReadWriteMany")
-
-	//create pool and storageclass
-	result0, err0 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "create")
-	require.Contains(s.T(), result0, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
-	require.NoError(s.T(), err0)
-	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "create")
-	require.Contains(s.T(), result1, fmt.Sprintf("storageclass \"%s\" created", storageClassName), "Make sure storageclass is created")
-	require.NoError(s.T(), err1)
-
-	//make sure storageclass is created
-	present, err := s.kh.IsStorageClassPresent(storageClassName)
-	require.Nil(s.T(), err)
-	require.True(s.T(), present, "Make sure storageclass is present")
-
-	//create pvc
-	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteMany"), "create")
-	require.Contains(s.T(), result2, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result2)
-	require.NoError(s.T(), err2)
-
-	//check status of PVC
-	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
-	accessModes, err := s.kh.GetPVCAccessModes(defaultNamespace, claimName)
-	require.NoError(s.T(), err)
-	assert.Equal(s.T(), accessModes[0], v1.PersistentVolumeAccessMode(v1.ReadWriteMany))
-
-	//check block image count
-	b, _ := s.bc.BlockList()
-	require.Equal(s.T(), s.initBlockCount+1, len(b), "Make sure new block image is created")
-
-}
-
 func (s *K8sBlockImageCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	poolName := "stspool"
 	storageClassName := "stssc"
 	statefulSetName := "block-stateful-set"
 	statefulPodsName := "ststest"
 
-	defer s.statefulSetDataCleanup(poolName, storageClassName, statefulSetName, statefulPodsName)
+	defer s.statefulSetDataCleanup(defaultNamespace, poolName, storageClassName, statefulSetName, statefulPodsName)
 	logger.Infof("Test case when block persistent volumes are scaled up and down along with StatefulSet")
 	logger.Info("Step 1: Create pool and storageClass")
 	_, cbErr := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClass(s.namespace, poolName, storageClassName), "create")
 	assert.Nil(s.T(), cbErr)
-
 	logger.Info("Step 2 : Deploy statefulSet with 1X replication")
-	_, sderr := installer.BlockResourceOperation(s.kh, getBlockStatefulSetDefintion(statefulSetName, statefulPodsName, storageClassName), "create")
-	assert.Nil(s.T(), sderr)
+	service, statefulset := getBlockStatefulSetAndServiceDefinition(defaultNamespace, statefulSetName, statefulPodsName, storageClassName)
+	_, err1 := s.kh.Clientset.CoreV1().Services(defaultNamespace).Create(service)
+	_, err2 := s.kh.Clientset.AppsV1beta1().StatefulSets(defaultNamespace).Create(statefulset)
+	assert.Nil(s.T(), err1)
+	assert.Nil(s.T(), err2)
 	assert.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 1, "Running"))
 	assert.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 1, "Bound"))
 
 	logger.Info("Step 3 : Scale up replication on statefulSet")
-	s.kh.ScaleStatefulSet(statefulPodsName, 2)
+	scaleerr := s.kh.ScaleStatefulSet(statefulPodsName, defaultNamespace, 2)
+	assert.NoError(s.T(), scaleerr, "make sure scale up is successful")
 	assert.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 2, "Running"))
 	assert.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
 
 	logger.Info("Step 4 : Scale down replication on statefulSet")
-	s.kh.ScaleStatefulSet(statefulPodsName, 1)
+	scaleerr = s.kh.ScaleStatefulSet(statefulPodsName, defaultNamespace, 1)
+	assert.NoError(s.T(), scaleerr, "make sure scale down is successful")
 	assert.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 1, "Running"))
 	assert.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
 
 	logger.Info("Step 5 : Delete statefulSet")
-	_, sddelerr := installer.BlockResourceOperation(s.kh, getBlockStatefulSetDefintion(statefulSetName, statefulPodsName, storageClassName), "delete")
-	assert.Nil(s.T(), sddelerr)
+	delOpts := metav1.DeleteOptions{}
+	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
+	err1 = s.kh.Clientset.CoreV1().Services(defaultNamespace).Delete(statefulSetName, &delOpts)
+	err2 = s.kh.Clientset.AppsV1beta1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
+	err3 := s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
+	assert.Nil(s.T(), err1)
+	assert.Nil(s.T(), err2)
+	assert.Nil(s.T(), err3)
 	assert.True(s.T(), s.kh.WaitUntilPodWithLabelDeleted(fmt.Sprintf("app=%s", statefulSetName), defaultNamespace))
 	assert.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
 }
 
-func (s *K8sBlockImageCreateSuite) statefulSetDataCleanup(poolName, storageClassName, statefulSetName, statefulPodsName string) {
-
+func (s *K8sBlockImageCreateSuite) statefulSetDataCleanup(namespace, poolName, storageClassName, statefulSetName, statefulPodsName string) {
+	delOpts := metav1.DeleteOptions{}
+	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
 	//Delete stateful set
-	installer.BlockResourceOperation(s.kh, getBlockStatefulSetDefintion(statefulSetName, statefulPodsName, storageClassName), "delete")
+	s.kh.Clientset.CoreV1().Services(namespace).Delete(statefulSetName, &delOpts)
+	s.kh.Clientset.AppsV1beta1().StatefulSets(defaultNamespace).Delete(statefulPodsName, &delOpts)
+	s.kh.Clientset.CoreV1().Pods(defaultNamespace).DeleteCollection(&delOpts, listOpts)
 	//Delete all PVCs
 	s.kh.DeletePvcWithLabel(defaultNamespace, statefulSetName)
 	//Delete storageclass and pool
@@ -307,4 +213,41 @@ func (s *K8sBlockImageCreateSuite) tearDownTest(claimName string, poolName strin
 
 func (s *K8sBlockImageCreateSuite) TearDownSuite() {
 	s.op.TearDown()
+}
+
+func (s *K8sBlockImageCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
+	logger.Infof("Test creating %s PVC(block images) when storage class is created", pvcAccessMode)
+	claimName := fmt.Sprintf("test-with-storage-class-claim-%s", pvcName)
+	poolName := fmt.Sprintf("test-with-storage-class-pool-%s", pvcName)
+	storageClassName := "rook-block"
+	defer s.tearDownTest(claimName, poolName, storageClassName, pvcAccessMode)
+
+	//create pool and storageclass
+	result0, err0 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "create")
+	require.Contains(s.T(), result0, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
+	require.NoError(s.T(), err0)
+	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "create")
+	require.Contains(s.T(), result1, fmt.Sprintf("storageclass \"%s\" created", storageClassName), "Make sure storageclass is created")
+	require.NoError(s.T(), err1)
+
+	//make sure storageclass is created
+	present, err := s.kh.IsStorageClassPresent(storageClassName)
+	require.Nil(s.T(), err)
+	require.True(s.T(), present, "Make sure storageclass is present")
+
+	//create pvc
+	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, pvcAccessMode), "create")
+	require.Contains(s.T(), result2, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result2)
+	require.NoError(s.T(), err2)
+
+	//check status of PVC
+	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
+	accessModes, err := s.kh.GetPVCAccessModes(defaultNamespace, claimName)
+	require.NoError(s.T(), err)
+	assert.Equal(s.T(), accessModes[0], v1.PersistentVolumeAccessMode(pvcAccessMode))
+
+	//check block image count
+	b, _ := s.bc.BlockList()
+	require.Equal(s.T(), s.initBlockCount+1, len(b), "Make sure new block image is created")
+
 }

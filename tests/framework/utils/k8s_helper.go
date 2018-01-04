@@ -661,15 +661,15 @@ func (k8sh *K8sHelper) CheckPvcCountAndStatus(podName string, namespace string, 
 
 	inc = 0
 	for inc < RetryLoop {
-		r := true
+		checkAllPVCsStatus := true
 		pl, _ := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(listOpts)
 		for _, pvc := range pl.Items {
 			if !(pvc.Status.Phase == v1.PersistentVolumeClaimPhase(expectedStatus)) {
-				r = false
+				checkAllPVCsStatus = false
 				logger.Infof("waiting for pvc %v to be in %s Phase, currently in %v Phase", pvc.Name, expectedStatus, pvc.Status.Phase)
 			}
 		}
-		if r {
+		if checkAllPVCsStatus {
 			return true
 		}
 		inc++
@@ -746,6 +746,7 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 		}
 
 		inc++
+		logger.Infof("waiting for %d pods with label app=%s,found %d", minExpected, podName, actualPodCount)
 		time.Sleep(RetryInterval * time.Second)
 	}
 	if !podCountCheck {
@@ -753,28 +754,17 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 		return false
 	}
 
-	podList, err := k8sh.Clientset.CoreV1().Pods(namespace).List(listOpts)
-	if err != nil {
-		logger.Errorf("Cannot get logs for app : %v in namespace %v, err: %v", podName, namespace, err)
-		return false
-	}
-
-	if len(podList.Items) < minExpected {
-		logger.Errorf("Expected at least %d pods with name %v, actual count  %d", minExpected, podName, podList.Size())
-		return false
-	}
-
 	inc = 0
 	for inc < RetryLoop {
-		r := true
+		checkAllPodsStatus := true
 		pl, _ := k8sh.Clientset.CoreV1().Pods(namespace).List(listOpts)
 		for _, pod := range pl.Items {
 			if !(pod.Status.Phase == v1.PodPhase(expectedPhase)) {
-				r = false
+				checkAllPodsStatus = false
 				logger.Infof("waiting for pod %v to be in %s Phase, currently in %v Phase", pod.Name, expectedPhase, pod.Status.Phase)
 			}
 		}
-		if r {
+		if checkAllPodsStatus {
 			return true
 		}
 		inc++
@@ -1045,13 +1035,8 @@ func (k8sh *K8sHelper) DeleteRoleAndBindings(name, namespace string) error {
 	return nil
 }
 
-func (k8sh *K8sHelper) ScaleStatefulSet(statefulsetName string, replicationSize int) bool {
-	args := []string{"scale", "statefulsets", statefulsetName, fmt.Sprintf("--replicas=%d", replicationSize)}
+func (k8sh *K8sHelper) ScaleStatefulSet(statefulSetName, namespace string, replicationSize int) error {
+	args := []string{"-n", namespace, "scale", "statefulsets", statefulSetName, fmt.Sprintf("--replicas=%d", replicationSize)}
 	_, err := k8sh.Kubectl(args...)
-	if err != nil {
-		logger.Errorf("stateful set %s not scaled", statefulsetName)
-		return false
-	}
-	logger.Errorf("stateful set %s scaled", statefulsetName)
-	return true
+	return err
 }

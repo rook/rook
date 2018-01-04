@@ -18,6 +18,7 @@ package integration
 
 import (
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/rook/rook/tests/framework/clients"
@@ -26,7 +27,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"strconv"
+	"k8s.io/api/apps/v1beta1"
+	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
@@ -236,54 +240,95 @@ spec:
       restartPolicy: Never`
 }
 
-func getBlockStatefulSetDefintion(statefulsetName, podname, StorageClassName string) string {
-	return `---
-apiVersion: v1
-kind: Service
-metadata:
-  name: ` + statefulsetName + `
-  labels:
-    app: ` + statefulsetName + `
-spec:
-  ports:
-  - port: 80
-    name: ` + podname + `
-  clusterIP: None
-  selector:
-    app: ` + statefulsetName + `
----
-apiVersion: apps/v1beta1
-kind: StatefulSet
-metadata:
-  name: ` + podname + `
-spec:
-  serviceName: "` + statefulsetName + `"
-  replicas: 1
-  template:
-    metadata:
-      labels:
-        app: ` + statefulsetName + `
-    spec:
-      containers:
-      - name: ` + statefulsetName + `
-        image: busybox
-        command:
-          - sleep
-          - "3600"
-        ports:
-        - containerPort: 80
-          name: ` + podname + `
-        volumeMounts:
-        - name: rookpvc
-          mountPath: /tmp/rook
-  volumeClaimTemplates:
-  - metadata:
-      name: rookpvc
-      annotations:
-        volume.beta.kubernetes.io/storage-class: ` + StorageClassName + `
-    spec:
-      accessModes: [ "ReadWriteOnce" ]
-      resources:
-        requests:
-          storage: 1M`
+func getBlockStatefulSetAndServiceDefinition(namespace, statefulsetName, podname, StorageClassName string) (*v1.Service, *v1beta1.StatefulSet) {
+	service := &v1.Service{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "v1",
+			Kind:       "Service",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      statefulsetName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app": statefulsetName,
+			},
+		},
+		Spec: v1.ServiceSpec{
+			Ports: []v1.ServicePort{
+				{
+					Name: statefulsetName,
+					Port: 80,
+				},
+			},
+			ClusterIP: "None",
+			Selector: map[string]string{
+				"app": statefulsetName,
+			},
+		},
+	}
+
+	var replica int32 = 1
+
+	statefulSet := &v1beta1.StatefulSet{
+		TypeMeta: metav1.TypeMeta{
+			APIVersion: "apps/v1beta1",
+			Kind:       "StatefulSet",
+		},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      podname,
+			Namespace: namespace,
+		},
+		Spec: v1beta1.StatefulSetSpec{
+			ServiceName: statefulsetName,
+			Replicas:    &replica,
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": statefulsetName,
+					},
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Name:    statefulsetName,
+							Image:   "busybox",
+							Command: []string{"sleep", "3600"},
+							Ports: []v1.ContainerPort{
+								{
+									ContainerPort: 80,
+									Name:          podname,
+								},
+							},
+							VolumeMounts: []v1.VolumeMount{
+								{
+									Name:      "rookpvc",
+									MountPath: "/tmp/rook",
+								},
+							},
+						},
+					},
+				},
+			},
+			VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+				{
+					ObjectMeta: metav1.ObjectMeta{
+						Name: "rookpvc",
+						Annotations: map[string]string{
+							"volume.beta.kubernetes.io/storage-class": StorageClassName,
+						},
+					},
+					Spec: v1.PersistentVolumeClaimSpec{
+						AccessModes: []v1.PersistentVolumeAccessMode{v1.ReadWriteOnce},
+						Resources: v1.ResourceRequirements{
+							Requests: v1.ResourceList{
+								v1.ResourceStorage: *resource.NewQuantity(1.0, resource.BinarySI),
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	return service, statefulSet
 }
