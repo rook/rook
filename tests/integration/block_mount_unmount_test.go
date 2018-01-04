@@ -253,7 +253,7 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 	assert.True(s.T(), s.kh.IsPodRunning("rwx-block-ro-one", defaultNamespace), "make sure rwx-block-ro-one pod is in running state")
 	assert.True(s.T(), s.kh.IsPodRunning("rwx-block-ro-two", defaultNamespace), "make sure rwx-block-ro-two pod is in running state")
 
-	logger.Infof("Step 7.1: Read Data from both ReadyOnlyMany and ReadWriteOnce pods with ReadOnly Access")
+	logger.Infof("Step 8: Read Data from both ReadyOnlyMany and ReadWriteOnce pods with ReadOnly Access")
 	//Read data from RWO PVC via both ReadOnly pods
 	read1_1, rErr1_1 := s.bc.BlockRead("rwo-block-ro-one", blockMountPath, "bsFile1", "")
 	read2_1, rErr2_1 := s.bc.BlockRead("rwo-block-ro-two", blockMountPath, "bsFile1", "")
@@ -269,7 +269,7 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 	assert.Contains(s.T(), read1_2, "Persisted message one", "make sure previously persisted data is readable from ReadOnlyMany access Pod")
 	assert.Contains(s.T(), read2_2, "Persisted message one", "make sure previously persisted data is readable from ReadOnlyMany access Pod")
 
-	logger.Infof("Step 7.2: Write Data to Pod with ReadOnlyMany and ReadWriteOnce PVC  mounted with ReadOnly access")
+	logger.Infof("Step 9: Write Data to Pod with ReadOnlyMany and ReadWriteOnce PVC  mounted with ReadOnly access")
 	//Write data to RWO PVC via pod with ReadOnly Set to true
 	_, wtErr1 = s.bc.BlockWrite("rwo-block-ro-one", blockMountPath, "Persisted message three", "bsFile3", "")
 	assert.Contains(s.T(), wtErr1.Error(), "Unable to write data to pod")
@@ -277,7 +277,7 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 	_, wtErr2 = s.bc.BlockWrite("rwx-block-ro-one", blockMountPath, "Persisted message three", "bsFile3", "")
 	assert.Contains(s.T(), wtErr2.Error(), "Unable to write data to pod")
 
-	logger.Infof("Step 7.3: UnMount Pod with ReadOnlyMany and ReadWriteOnce PVCs")
+	logger.Infof("Step 10: UnMount Pod with ReadOnlyMany and ReadWriteOnce PVCs")
 	//UnMount RWO PVC from both ReadOnly Pods
 	_, unmtErr1_1 := s.bc.BlockUnmap(getBlockPodDefintion("rwo-block-ro-one", s.pvcNameRWO, true), blockMountPath)
 	_, unmtErr2_1 := s.bc.BlockUnmap(getBlockPodDefintion("rwo-block-ro-two", s.pvcNameRWO, true), blockMountPath)
