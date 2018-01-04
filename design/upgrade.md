@@ -55,16 +55,13 @@ After this update, it will then terminate each agent pod in a rolling fashion so
 Once the operator and all agent pods are running and healthy on the new version, the administrator is free to begin the upgrade process for each of their Rook clusters.
 
 #### **Rook Cluster(s)**
-**Each** individual Rook cluster in the environment can be upgraded independently with the following flow:
-1. The cluster administrator updates their Rook Cluster CRD to update the `versionTag` field using a command similar to `kubectl -n rook edit cluster.rook.io rook`
-1. The Rook operator receives the `update` event for the Cluster CRD instance and sees that the `versionTag` field has changed from its previous value.
-    1. If the Rook system namespace upgrade described above has not yet occurred, then the operator should reject the cluster version `update` event.  The operator should never allow a cluster's version to be newer than its own version.
-1. The upgrade controller begins a reconciliation to bring the clusters actual version value in agreement with the desired version from the cluster CRD.
+1. The Rook operator, at startup after being upgraded, iterates over each Cluster CRD instance and proceeds to verify desired state.
+    1. If the Rook system namespace upgrade described above has not yet occurred, then the operator will delay upgrading a cluster until the system upgrade is completed.  The operator should never allow a cluster's version to be newer than its own version.
+1. The upgrade controller begins a reconciliation to bring the cluster's actual version value in agreement with the desired version, which is the container version of the operator pod.
 As each step in this sequence begins/ends, the status field of the cluster CRD will be updated to indicate the progress (current step) of the upgrade process.
 This will help the upgrade controller resume the upgrade if it were to be interrupted.
 Also, each step should be idempotent so that if the step has already been carried out, there will be no unintended side effects if the step is resumed or run again.
 1. **API:** The API pod will be upgraded first by updating the `image` field of the pod template spec.
-The `ROOK_VERSION_TAG` env var will also be updated within the template spec.
 The deployment managing the API pod will then terminate the old pod and then start a pod on the new version to replace it.
     1. The controller will verify that the new API pod is in the `Running` state with the new version and that basic routes are accessible such as `/status`.
 1. **Mons:** The monitor pods will be upgraded in a rolling fashion next.  **For each** monitor, the following actions will be performed by the upgrade controller:

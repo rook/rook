@@ -80,7 +80,6 @@ metadata:
   name: rook
   namespace: rook
 spec:
-  versionTag: master
   dataDirHostPath: /var/lib/rook
   hostNetwork: false
   monCount: 3
