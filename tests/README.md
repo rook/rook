@@ -80,16 +80,10 @@ In addition to standard go tests parameters, the following custom parameters are
  Parameter | Description | Possible values | Default
  --- |--- | --- | ---
 rook_platform| platform rook needs to be installed on  | kubernetes | kubernetes
-k8s_version  | version of Kubernetes to be installed  | v1.5+  | v1.7.5
+k8s_version  | version of Kubernetes to be installed  | v1.6+  | v1.8.5
 rook_image | rook image name to be installed | valid image name | rook/rook
 toolbox_image | toolbox image name to be installed | valid image name | rook/toolbox
 skip_install_rook | skips installing rook (if already installed) | true or false  | false
-load_parallel_runs | performs concurrent operations (optional used for load test) | any number | 20
-
-If the `install_rook` flag is set to false, then all the other flags are ignored
-and tests are run without rook being installed and setup. Use this flag to run tests against
-a pre-installed/configured rook.
-
 
 ### Running Tests with parameters.
 
@@ -111,23 +105,33 @@ go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration
 
 ##### To run specific without installing rook
 ```
-go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration --skip_install_rook=true
+go test -v -timeout 1800s -run SmokeSuite github.com/rook/rook/tests/integration --skip_install_rook
 ```
 If the `skip_install_rook` flag is set to true, then rook is not uninstalled either. 
 
 #### Run Longhaul Tests
-Using the `go test -count n` option, any tests can be repeated `n` number of times to simulate load or longhaul test. Although 
-any test can be converted to a longhaul test, it's ideal to run integration tests under load for an extended period. Also a new custom test flag `load_parallel_runs` is added to control the number of concurrent operations being performed.
-For example look at the [block long haul test](/tests/block/k8s/longhaul/basicBlockonghaul_test.go)
- 
- To run a longhaul test you can run any integration test with `-count` and `--load_parallel_runs` options
- e.g.
+[Longhaul](/tests/block/k8s/longhaul) tests are integration tests that run for extended period of time. A load profile can be configured
+using the following load test flags 
+
+Parameter | Description | Possible values | Default
+ --- |--- | --- | ---
+load_parallel_runs | performs concurrent operations | any number | 20
+load_volumes | number of volumes | >1 | 1
+load_time | number of seconds to run  | >1 | 1800
+load_size | size of load profile (3M, 10M, or 50M per thread) | small, medium, or large | medium
+enable_chaos | kill random pods in rook cluster | true or false | false
+
+  e.g.
  ```
- go test -run TestK8sBlockLongHaul github.com/rook/rook/tests/longhaul --load_parallel_runs=20 -count=1000
+ go test -run TestObjectLongHaul github.com/rook/rook/tests/longhaul --load_parallel_runs=20 --load_time 1800 --load_size small --load_volumes 3
  ```
  The Longhaul test just like other test is going to install rook if it's not already installed, but it is not going to clean up test data or uninstall rook after the run. 
  Longhaul test is designed to run multiple times on the same setup and installation of rook to tests its stability. Test Data and rook should be cleaned up manually after the test.
  
+ 
+ You can measure memory, cpu, IOPS, throughput, and other settings on a cluster using Prometheus. The metrics collected during load test can be visualize using Grafana. 
+ Here a couple of helpful links to get prometheus and grafana started and collect metrics: 
+ [kube-prometheus](https://github.com/coreos/prometheus-operator/tree/master/contrib/kube-prometheus) and  [cluster-deploy-script](https://github.com/coreos/prometheus-operator/blob/master/contrib/kube-prometheus/hack/cluster-monitoring/deploy)
  
 
 Prerequisites :

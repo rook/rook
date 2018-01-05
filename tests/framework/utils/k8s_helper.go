@@ -318,6 +318,18 @@ func (k8sh *K8sHelper) GetMonitorServices(namespace string) (map[string]string, 
 	}, nil
 }
 
+func (k8sh *K8sHelper) IsPodWithLabelPresent(label string, namespace string) bool {
+	options := metav1.ListOptions{LabelSelector: label}
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
+	if errors.IsNotFound(err) {
+		return false
+	}
+	if len(pods.Items) == 0 {
+		return false
+	}
+	return true
+}
+
 //IsPodWithLabelRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) IsPodWithLabelRunning(label string, namespace string) bool {
 	options := metav1.ListOptions{LabelSelector: label}

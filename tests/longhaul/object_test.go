@@ -1,3 +1,19 @@
+/*
+Copyright 2016 The Rook Authors. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package longhaul
 
 import (
@@ -33,13 +49,15 @@ type ObjectLongHaulSuite struct {
 	kh        *utils.K8sHelper
 	installer *installer.InstallHelper
 	tc        *clients.TestClient
+	namespace string
 	op        contracts.Setup
 }
 
 func (s *ObjectLongHaulSuite) SetupSuite() {
 	var err error
-	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, "longhaul-ns")
-	s.tc, err = clients.CreateTestClient(s.kh, "longhaul-ns")
+	s.namespace = "longhaul-ns"
+	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, s.namespace)
+	s.tc, err = clients.CreateTestClient(s.kh, s.namespace)
 	require.Nil(s.T(), err)
 
 }
@@ -50,9 +68,9 @@ func (s *ObjectLongHaulSuite) TestObjectLonghaulRun() {
 	wg.Add(s.installer.Env.LoadVolumeNumber)
 	for i := 1; i <= s.installer.Env.LoadVolumeNumber; i++ {
 		if i == 1 {
-			go ObjectStoreOperations(s, &wg, "longhaul-ns", storeName+strconv.Itoa(i), false)
+			go ObjectStoreOperations(s, &wg, s.namespace, storeName+strconv.Itoa(i), false)
 		} else {
-			go ObjectStoreOperations(s, &wg, "longhaul-ns", storeName+strconv.Itoa(i), randomBool())
+			go ObjectStoreOperations(s, &wg, s.namespace, storeName+strconv.Itoa(i), randomBool())
 		}
 
 	}
@@ -62,7 +80,7 @@ func (s *ObjectLongHaulSuite) TestObjectLonghaulRun() {
 func ObjectStoreOperations(s *ObjectLongHaulSuite, wg *sync.WaitGroup, namespace string, storeName string, deleteStore bool) {
 	defer wg.Done()
 	bucketName := "loadbucket"
-	s3 := createObjectStoreAndUser(s.T, s.kh, s.tc, "longhaul-ns", storeName, "longhaul", "LongHaulTest")
+	s3 := createObjectStoreAndUser(s.T, s.kh, s.tc, s.namespace, storeName, "longhaul", "LongHaulTest")
 	isFound, err := s3.IsBucketPresent(bucketName)
 	if err == nil {
 		if !isFound {
