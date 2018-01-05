@@ -191,7 +191,6 @@ metadata:
   name: ` + namespace + `
   namespace: ` + namespace + `
 spec:
-  versionTag: master
   dataDirHostPath: ` + dataDirHostPath + `
   hostNetwork: false
   monCount: ` + strconv.Itoa(mons) + `
