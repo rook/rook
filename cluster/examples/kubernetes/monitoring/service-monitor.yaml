@@ -6,6 +6,9 @@ metadata:
   labels:
     team: rook
 spec:
+  namespaceSelector:
+    matchNames:
+      - rook
   selector:
     matchLabels:
       app: rook-ceph-mgr

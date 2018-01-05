@@ -107,3 +107,7 @@ Once you see a url response, your cluster is [ready for use by Rook](kubernetes.
 ## Using Rook in Kubernetes
 
 Now that you have a Kubernetes cluster running, you can start using Rook with [these steps](kubernetes.md#deploy-rook).
+
+## Using Rook on Tectonic Bare Metal
+
+Follow [these instructions](tectonic.md) to run Rook on Tectonic Kubernetes

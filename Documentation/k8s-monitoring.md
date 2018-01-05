@@ -73,3 +73,9 @@ kubectl -n rook delete statefulset prometheus-rook-prometheus
 kubectl delete -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.8/bundle.yaml
 ```
 Then the rest of the instructions in the [Prometheus Operator docs](https://github.com/coreos/prometheus-operator#removal) can be followed to finish cleaning up.
+
+## Special Cases
+
+### Tectonic Bare Metal
+Tectonic strongly discourages the `tectonic-system` Prometheus instance to be used outside their intentions, so you need to create a new [Prometheus Operator](https://coreos.com/operators/prometheus/docs/latest/) yourself.
+After this you only need to create the service monitor as stated above.
