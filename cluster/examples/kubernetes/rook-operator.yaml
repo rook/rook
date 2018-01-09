@@ -124,9 +124,13 @@ spec:
         # To disable RBAC, uncomment the following:
         # - name: RBAC_ENABLED
         #  value: "false"
-        # Rook Agent toleration. Choose between NoSchedule, PreferNoSchedule and NoExecute:
+        # Rook Agent toleration. Will tolerate all taints with all keys.
+        # Choose between NoSchedule, PreferNoSchedule and NoExecute:
         # - name: AGENT_TOLERATION
         #  value: "NoSchedule"
+        # (Optional) Rook Agent toleration key. Set this to the key of the taint you want to tolerate
+        # - name: AGENT_TOLERATION_KEY
+        #  value: "<KeyOfTheTaintToTolerate"
         # The interval to check if every mon is in the quorum.
         - name: ROOK_MON_HEALTHCHECK_INTERVAL
           value: "45s"
