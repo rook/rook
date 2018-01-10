@@ -271,12 +271,6 @@
   revision = "a6e9df898b1336106c743392c48ee0b71f5c4efa"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/rook/operator-kit"
-  packages = ["."]
-  revision = "4b6dbaaf83c346155175c4553b26ee362718f5a2"
-
-[[projects]]
   name = "github.com/spf13/cobra"
   packages = ["."]
   revision = "7b2c5ac9fc04fc5efafb60700713d4fa609b777b"
@@ -387,6 +381,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "39454bb679c497ef9ee296e5ddd81df83f1b64583ac2349bb798553e5d641ad8"
+  inputs-digest = "68e3c66ba0274e0e5545863826b7274997ea128232e6a696db1fb45e06967db0"
   solver-name = "gps-cdcl"
   solver-version = 1
