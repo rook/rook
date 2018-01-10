@@ -116,7 +116,7 @@ func ExecuteCommand(cmdStruct CommandArgs) CommandOut {
 			// The program has exited with an exit code != 0
 			if status, ok := exiterr.Sys().(syscall.WaitStatus); ok {
 				log.Printf("Exit Status: %d", status.ExitStatus())
-				return CommandOut{StdErr: errBuffer.String(), StdOut: outBuffer.String(), Err: exiterr}
+				return CommandOut{StdErr: errBuffer.String(), StdOut: outBuffer.String(), ExitCode: status.ExitStatus(), Err: exiterr}
 			}
 		} else {
 			return CommandOut{StdErr: errBuffer.String(), StdOut: outBuffer.String(), Err: nil}
