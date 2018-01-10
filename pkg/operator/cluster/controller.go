@@ -207,12 +207,6 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		return
 	}
 
-	// start a new cluster if it wasn't yet created because the finalizer was only added in the create method
-	if _, ok := c.initializedClusters[newClust.Namespace]; !ok {
-		c.createNewCluster(newClust)
-		return
-	}
-
 	if !clusterChanged(oldClust.Spec, newClust.Spec) {
 		logger.Debugf("no updates made in the cluster")
 		return

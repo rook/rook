@@ -20,6 +20,8 @@ import (
 	"fmt"
 	"time"
 
+	"testing"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/clients"
@@ -29,7 +31,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 var (
@@ -129,7 +130,7 @@ func (op BaseTestOperations) SetUp() {
 	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType, op.dataDirHostPath, op.helmInstalled, op.useDevices, op.mons)
 	assert.NoError(op.T(), err)
 	if !isRookInstalled {
-		logger.Errorf("Rook Was not installed successfully")
+		logger.Errorf("Rook was not installed successfully")
 		op.T().Fail()
 		op.TearDown()
 		op.T().FailNow()
@@ -141,5 +142,5 @@ func (op BaseTestOperations) TearDown() {
 	if op.installer.T().Failed() {
 		op.installer.GatherAllRookLogs(op.namespace, op.installer.T().Name())
 	}
-	op.installer.UninstallRookFromK8s(op.namespace, op.helmInstalled)
+	op.installer.UninstallRook(op.helmInstalled, op.namespace)
 }

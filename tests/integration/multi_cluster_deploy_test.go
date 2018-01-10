@@ -18,7 +18,6 @@ package integration
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -187,51 +186,8 @@ func (o MCTestOperations) TearDown() {
 		o.installer.GatherAllRookLogs(o.namespace1, o.T().Name())
 		o.installer.GatherAllRookLogs(o.namespace2, o.T().Name())
 	}
-	deleteArgs := []string{"delete", "-f", "-"}
 
-	skipRookInstall := strings.EqualFold(o.installer.Env.SkipInstallRook, "true")
-	if skipRookInstall {
-		return
-	}
-
-	logger.Infof("Uninstalling All Rook Clusters")
-	k8sHelp, err := utils.CreateK8sHelper(o.T)
-	if err != nil {
-		panic(err)
-	}
-	rookOperator := o.installData.GetRookOperator(installer.SystemNamespace(o.namespace1))
-	o.kh.Clientset.RbacV1beta1().ClusterRoles().Delete("rook-agent", nil)
-	o.kh.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-agent", nil)
-
-	//Delete rook operator
-	_, err = o.kh.KubectlWithStdin(rookOperator, deleteArgs...)
-	if err != nil {
-		logger.Errorf("Rook operator cannot be deleted,err -> %v", err)
-		panic(err)
-	}
-
-	//delete rook cluster
-	o.installer.CleanupCluster(o.namespace1)
-	o.installer.CleanupCluster(o.namespace2)
-
-	// Delete crd/tpr
-	if o.kh.VersionAtLeast("v1.7.0") {
-		_, err = k8sHelp.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io", "objectstores.rook.io"})
-		if err != nil {
-			logger.Errorf("crd cannot be deleted")
-			panic(err)
-		}
-	} else {
-		_, err = k8sHelp.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io", "objectstore.rook.io"})
-		if err != nil {
-			logger.Errorf("tpr cannot be deleted")
-			panic(err)
-		}
-	}
-
-	o.kh.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("anon-user-access", nil)
-	logger.Infof("Rook clusters %s  and  %s uninstalled", o.namespace1, o.namespace2)
-
+	o.installer.UninstallRookFromMultipleNS(false, installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
 }
 
 func (o MCTestOperations) startCluster(namespace, store string, errCh chan error) {

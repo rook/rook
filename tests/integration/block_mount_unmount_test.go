@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"fmt"
+
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
@@ -83,8 +84,6 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	poolNameRWO := "block-pool-rwo"
 	storageClassNameRWO := "rook-block-rwo"
 	s.pvcNameRWX = "block-persistent-rwx"
-	poolNameRWX := "block-pool-rwo"
-	storageClassNameRWX := "rook-block-rwo"
 	s.op, s.kh = NewBaseTestOperations(s.T, s.namespace, "bluestore", "", false, false, 1)
 	s.testClient = GetTestClient(s.kh, s.namespace, s.op, s.T)
 	s.bc = s.testClient.GetBlockClient()
@@ -94,7 +93,7 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	require.Nil(s.T(), cbErr)
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWO), "Make sure PVC is Bound")
 
-	_, cbErr2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClassAndPvcDef(s.namespace, poolNameRWX, storageClassNameRWX, s.pvcNameRWX, "ReadWriteMany"), "create")
+	_, cbErr2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(s.pvcNameRWX, storageClassNameRWO, "ReadWriteMany"), "create")
 	require.Nil(s.T(), cbErr2)
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWX), "Make sure PVC is Bound")
 
@@ -119,7 +118,7 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	_, wtErr2 := s.bc.BlockWrite("setup-block-rwx", blockMountPath, "Persisted message one", "bsFile1", "")
 	require.Nil(s.T(), wtErr2)
 
-	//Unmound pod
+	// Unmount pod
 	_, unmtErr1 := s.bc.BlockUnmap(getBlockPodDefintion("setup-block-rwo", s.pvcNameRWO, false), blockMountPath)
 	_, unmtErr2 := s.bc.BlockUnmap(getBlockPodDefintion("setup-block-rwx", s.pvcNameRWO, false), blockMountPath)
 	require.Nil(s.T(), unmtErr1)
