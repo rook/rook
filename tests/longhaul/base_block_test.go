@@ -4,12 +4,13 @@ import (
 	"sync"
 	"testing"
 
+	"time"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
-	"time"
 )
 
 var (
@@ -154,7 +155,6 @@ func (o BaseLoadTestOperations) SetUp() {
 		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore", "/temp/rookBackup", false, true, 3)
 		require.NoError(o.T(), err)
 		require.True(o.T(), isRookInstalled)
-
 	}
 }
 
