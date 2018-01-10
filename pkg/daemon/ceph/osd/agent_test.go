@@ -35,6 +35,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestOSDAgentWithDevicesFilestore(t *testing.T) {
@@ -554,5 +555,5 @@ func mockDistributedPartitionScheme(t *testing.T, osdID int, metadataDevice, dev
 
 func mockKVStore() *k8sutil.ConfigMapKVStore {
 	clientset := testop.New(1)
-	return k8sutil.NewConfigMapKVStore("myns", clientset)
+	return k8sutil.NewConfigMapKVStore("myns", clientset, metav1.OwnerReference{})
 }

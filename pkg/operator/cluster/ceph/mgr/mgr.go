@@ -51,10 +51,12 @@ type Cluster struct {
 	dataDir     string
 	HostNetwork bool
 	resources   v1.ResourceRequirements
+	ownerRef    metav1.OwnerReference
 }
 
 // New creates an instance of the mgr
-func New(context *clusterd.Context, namespace, version string, placement rookalpha.Placement, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
+func New(context *clusterd.Context, namespace, version string, placement rookalpha.Placement, hostNetwork bool,
+	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:     context,
 		Namespace:   namespace,
@@ -64,6 +66,7 @@ func New(context *clusterd.Context, namespace, version string, placement rookalp
 		dataDir:     k8sutil.DataDir,
 		HostNetwork: hostNetwork,
 		resources:   resources,
+		ownerRef:    ownerRef,
 	}
 }
 
@@ -130,9 +133,6 @@ func (c *Cluster) makeService(name string) *v1.Service {
 }
 
 func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
-	deployment := &extensions.Deployment{}
-	deployment.Name = name
-	deployment.Namespace = c.Namespace
 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
@@ -156,8 +156,14 @@ func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
-	deployment.Spec = extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas}
-	return deployment
+	return &extensions.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            name,
+			Namespace:       c.Namespace,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+		},
+		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas},
+	}
 }
 
 func (c *Cluster) mgrContainer(name string) v1.Container {
@@ -228,7 +234,11 @@ func (c *Cluster) createKeyring(clusterName, name string) error {
 		keyringName: keyring,
 	}
 	secret := &v1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: c.Namespace},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            name,
+			Namespace:       c.Namespace,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+		},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}

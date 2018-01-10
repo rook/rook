@@ -23,10 +23,10 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
-
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestPodSpecs(t *testing.T) {
@@ -43,7 +43,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 		Requests: v1.ResourceList{
 			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
 		},
-	})
+	}, metav1.OwnerReference{})
 	c.clusterInfo = testop.CreateConfigDir(0)
 	config := &monConfig{Name: "mon0", Port: 6790}
 

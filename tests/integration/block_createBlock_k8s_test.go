@@ -133,8 +133,7 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 
 	logger.Infof("Create same pvc again")
 	result3, err3 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
-	require.Contains(s.T(), result3, fmt.Sprintf("persistentvolumeclaims \"%s\" already exists", claimName), "make sure PVC is not created again. "+result3)
-	require.NoError(s.T(), err3)
+	require.Contains(s.T(), err3.Error(), fmt.Sprintf("persistentvolumeclaims \"%s\" already exists", claimName), "make sure PVC is not created again. "+result3)
 
 	logger.Infof("check status of PVC")
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))

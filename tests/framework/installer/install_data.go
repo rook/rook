@@ -180,12 +180,7 @@ spec:
 
 //GetRookCluster returns rook-cluster manifest
 func (i *InstallData) GetRookCluster(namespace, storeType, dataDirHostPath string, useAllDevices bool, mons int) string {
-	return `apiVersion: v1
-kind: Namespace
-metadata:
-  name: ` + namespace + `
----
-apiVersion: rook.io/v1alpha1
+	return `apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
   name: ` + namespace + `

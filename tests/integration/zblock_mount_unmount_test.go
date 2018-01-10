@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"fmt"
+
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
@@ -29,8 +30,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// ************************************************
-// ***Scenarios tested by the BlockMountUnMountSuite ***
+// ******************************************************
+// *** Scenarios tested by the BlockMountUnMountSuite ***
 // Setup
 // - via the cluster CRD
 // - set up Block PVC - With ReadWriteOnce
@@ -41,20 +42,24 @@ import (
 // - one mons in the cluster
 // OSDs
 // - Bluestore running on directory
-// Block Mount & UnMount scenarios - repeat for each PVC
+// Block Mount & Unmount scenarios - repeat for each PVC
 // 1. ReadWriteOnce
 // 	  a. Mount Volume on a new pod - make sure persisted data is present and write new data
 //    b. Mount volume on two pods with  - mount should be successful only on first pod
-//2. ReadOnlyMany
+// 2. ReadOnlyMany
 //   a. Mount Multiple pods with same volume - All pods should be able to read data
-//   b. ,Mount Multiple pods with same volume - All pods should not be able to write data
-//4. Run StatefulSet with PVC
+//   b. Mount Multiple pods with same volume - All pods should not be able to write data
+// 3. Run StatefulSet with PVC
 //	a. Scale up pods
-//  b. Scale down Pods
+//  b. Scale down pods
 //  c. Failover pods
-//  d . Delete statefulSet
-// ************************************************
+//  d. Delete StatefulSet
+// ******************************************************
 
+// NOTE: This suite needs to be last.
+// There is an issue on k8s 1.7 where the CRD controller will frequently fail to create a cluster after this suite is run.
+// The error is "the server does not allow this method on the requested resource (post clusters.rook.io)".
+// Everything appears to have been cleaned up successfully in this test, so it is still unclear what is causing the issue between tests.
 func TestBlockMountUnMountSuite(t *testing.T) {
 	s := new(BlockMountUnMountSuite)
 	defer func(s *BlockMountUnMountSuite) {
@@ -83,8 +88,6 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	poolNameRWO := "block-pool-rwo"
 	storageClassNameRWO := "rook-block-rwo"
 	s.pvcNameRWX = "block-persistent-rwx"
-	poolNameRWX := "block-pool-rwo"
-	storageClassNameRWX := "rook-block-rwo"
 	s.op, s.kh = NewBaseTestOperations(s.T, s.namespace, "bluestore", "", false, false, 1)
 	s.testClient = GetTestClient(s.kh, s.namespace, s.op, s.T)
 	s.bc = s.testClient.GetBlockClient()
@@ -94,7 +97,7 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	require.Nil(s.T(), cbErr)
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWO), "Make sure PVC is Bound")
 
-	_, cbErr2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClassAndPvcDef(s.namespace, poolNameRWX, storageClassNameRWX, s.pvcNameRWX, "ReadWriteMany"), "create")
+	_, cbErr2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(s.pvcNameRWX, storageClassNameRWO, "ReadWriteMany"), "create")
 	require.Nil(s.T(), cbErr2)
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWX), "Make sure PVC is Bound")
 
@@ -119,7 +122,7 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	_, wtErr2 := s.bc.BlockWrite("setup-block-rwx", blockMountPath, "Persisted message one", "bsFile1", "")
 	require.Nil(s.T(), wtErr2)
 
-	//Unmound pod
+	// Unmount pod
 	_, unmtErr1 := s.bc.BlockUnmap(getBlockPodDefintion("setup-block-rwo", s.pvcNameRWO, false), blockMountPath)
 	_, unmtErr2 := s.bc.BlockUnmap(getBlockPodDefintion("setup-block-rwx", s.pvcNameRWO, false), blockMountPath)
 	require.Nil(s.T(), unmtErr1)

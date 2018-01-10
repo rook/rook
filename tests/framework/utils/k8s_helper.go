@@ -23,20 +23,21 @@ import (
 	"html/template"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"strconv"
-
 	"github.com/coreos/pkg/capnslog"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/kubernetes/pkg/util/version"
@@ -46,6 +47,7 @@ import (
 type K8sHelper struct {
 	executor         *exec.CommandExecutor
 	Clientset        *kubernetes.Clientset
+	RookClientset    *rookclient.Clientset
 	RunningInCluster bool
 	T                func() *testing.T
 }
@@ -68,8 +70,12 @@ func CreateK8sHelper(t func() *testing.T) (*K8sHelper, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to get clientset. %+v", err)
 	}
+	rookClientset, err := rookclient.NewForConfig(config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get rook clientset. %+v", err)
+	}
 
-	h := &K8sHelper{executor: executor, Clientset: clientset, T: t}
+	h := &K8sHelper{executor: executor, Clientset: clientset, RookClientset: rookClientset, T: t}
 	if strings.Index(config.Host, "//10.") != -1 {
 		h.RunningInCluster = true
 	}
@@ -111,6 +117,9 @@ func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, e
 
 	if cmdOut.ExitCode != 0 {
 		k8slogger.Errorf("Errors Encountered while executing kubectl command : %v", cmdOut.Err.Error())
+		if strings.Index(cmdOut.Err.Error(), "(NotFound)") != -1 {
+			return cmdOut.StdErr, errors.NewNotFound(schema.GroupResource{}, "")
+		}
 		return cmdOut.StdErr, fmt.Errorf("Failed to run kubectl commands on args %v : %v", args, cmdOut.StdErr)
 	}
 	if cmdOut.StdOut == "" {
@@ -274,7 +283,7 @@ func (k8sh *K8sHelper) DeleteResource(args []string) (string, error) {
 }
 
 //GetResource performs a kubectl get on give args
-func (k8sh *K8sHelper) GetResource(args []string) (string, error) {
+func (k8sh *K8sHelper) GetResource(args ...string) (string, error) {
 	args = append([]string{"get"}, args...)
 	result, err := k8sh.Kubectl(args...)
 	if err == nil {
@@ -779,10 +788,9 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 //WaitUntilPodInNamespaceIsDeleted waits for 90s for a pod  in a namespace to be terminated
 //If the pod disappears within 90s true is returned,  if not false
 func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, namespace string) bool {
-	args := []string{"-n", namespace, "pods", "-l", "app=" + podNamePattern}
 	inc := 0
 	for inc < RetryLoop {
-		out, _ := k8sh.GetResource(args)
+		out, _ := k8sh.GetResource("-n", namespace, "pods", "-l", "app="+podNamePattern)
 		if !strings.Contains(out, podNamePattern) {
 			return true
 		}
@@ -797,10 +805,9 @@ func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, n
 //WaitUntilPodIsDeleted waits for 90s for a pod to be terminated
 //If the pod disappears within 90s true is returned,  if not false
 func (k8sh *K8sHelper) WaitUntilPodIsDeleted(podNamePattern string) bool {
-	args := []string{"pods", "-l", "app=" + podNamePattern}
 	inc := 0
 	for inc < RetryLoop {
-		out, _ := k8sh.GetResource(args)
+		out, _ := k8sh.GetResource("pods", "-l", "app="+podNamePattern)
 		if !strings.Contains(out, podNamePattern) {
 			return true
 		}

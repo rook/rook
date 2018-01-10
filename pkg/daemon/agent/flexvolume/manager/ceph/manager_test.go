@@ -24,14 +24,14 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/api/core/v1"
-
-	"github.com/stretchr/testify/assert"
-
 	"github.com/rook/rook/pkg/clusterd"
 	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
+	"github.com/rook/rook/pkg/operator/cluster/ceph/mon"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 type fakeDevicePathFinder struct {
@@ -150,6 +150,8 @@ func TestAttach(t *testing.T) {
 			called:   0,
 		},
 	}
+	mon.CreateOrLoadClusterInfo(context, clusterName, &metav1.OwnerReference{})
+
 	devicePath, err := vm.Attach("image1", "testpool", clusterName)
 	assert.Equal(t, "/dev/rbd3", devicePath)
 	assert.Nil(t, err)
@@ -215,6 +217,7 @@ func TestDetach(t *testing.T) {
 			called:   0,
 		},
 	}
+	mon.CreateOrLoadClusterInfo(context, clusterName, &metav1.OwnerReference{})
 	err := vm.Detach("image1", "testpool", clusterName, false)
 	assert.Nil(t, err)
 }

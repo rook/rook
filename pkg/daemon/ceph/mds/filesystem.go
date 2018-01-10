@@ -36,7 +36,7 @@ const (
 	appName               = "cephfs"
 )
 
-// A castle file system (an instance of CephFS)
+// A file system (an instance of CephFS)
 type Filesystem struct {
 	Name           string
 	metadataPool   *model.Pool

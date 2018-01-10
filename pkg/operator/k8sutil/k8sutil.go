@@ -45,6 +45,8 @@ const (
 	PodNamespaceEnvVar = "POD_NAMESPACE"
 	// NodeNameEnvVar is the env variable for getting the node via downward api
 	NodeNameEnvVar = "NODE_NAME"
+	// FirstCRDVersion is the first K8s version with CRDs to replace TPRs
+	FirstCRDVersion = "v1.7.0"
 )
 
 // GetK8SVersion gets the version of the running K8S cluster
