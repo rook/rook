@@ -30,8 +30,8 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
-// ************************************************
-// ***Scenarios tested by the BlockMountUnMountSuite ***
+// ******************************************************
+// *** Scenarios tested by the BlockMountUnMountSuite ***
 // Setup
 // - via the cluster CRD
 // - set up Block PVC - With ReadWriteOnce
@@ -42,20 +42,24 @@ import (
 // - one mons in the cluster
 // OSDs
 // - Bluestore running on directory
-// Block Mount & UnMount scenarios - repeat for each PVC
+// Block Mount & Unmount scenarios - repeat for each PVC
 // 1. ReadWriteOnce
 // 	  a. Mount Volume on a new pod - make sure persisted data is present and write new data
 //    b. Mount volume on two pods with  - mount should be successful only on first pod
-//2. ReadOnlyMany
+// 2. ReadOnlyMany
 //   a. Mount Multiple pods with same volume - All pods should be able to read data
-//   b. ,Mount Multiple pods with same volume - All pods should not be able to write data
-//4. Run StatefulSet with PVC
+//   b. Mount Multiple pods with same volume - All pods should not be able to write data
+// 3. Run StatefulSet with PVC
 //	a. Scale up pods
-//  b. Scale down Pods
+//  b. Scale down pods
 //  c. Failover pods
-//  d . Delete statefulSet
-// ************************************************
+//  d. Delete StatefulSet
+// ******************************************************
 
+// NOTE: This suite needs to be last.
+// There is an issue on k8s 1.7 where the CRD controller will frequently fail to create a cluster after this suite is run.
+// The error is "the server does not allow this method on the requested resource (post clusters.rook.io)".
+// Everything appears to have been cleaned up successfully in this test, so it is still unclear what is causing the issue between tests.
 func TestBlockMountUnMountSuite(t *testing.T) {
 	s := new(BlockMountUnMountSuite)
 	defer func(s *BlockMountUnMountSuite) {
