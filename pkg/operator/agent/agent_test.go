@@ -169,6 +169,9 @@ func TestStartAgentDaemonsetWithToleration(t *testing.T) {
 	os.Setenv(agentDaemonsetTolerationEnv, "NoSchedule")
 	defer os.Unsetenv(agentDaemonsetTolerationEnv)
 
+	os.Setenv(agentDaemonsetTolerationKeyEnv, "example")
+	defer os.Unsetenv(agentDaemonsetTolerationKeyEnv)
+
 	pod := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "rook-operator",
@@ -197,5 +200,6 @@ func TestStartAgentDaemonsetWithToleration(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(agentDS.Spec.Template.Spec.Tolerations))
 	assert.Equal(t, "NoSchedule", string(agentDS.Spec.Template.Spec.Tolerations[0].Effect))
+	assert.Equal(t, "example", string(agentDS.Spec.Template.Spec.Tolerations[0].Key))
 	assert.Equal(t, "Exists", string(agentDS.Spec.Template.Spec.Tolerations[0].Operator))
 }
