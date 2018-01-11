@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kubernetes/pkg/util/version"
 )
 
 // ************************************************
@@ -98,6 +99,10 @@ func (suite *SmokeSuite) TestRookClusterInstallation_smokeTest() {
 }
 
 func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
+	v := version.MustParseSemantic(suite.k8sh.GetK8sServerVersion())
+	if !v.LessThan(version.MustParseSemantic("1.9.0")) {
+		suite.T().Skip("Skipping test - known issues with k8s 1.9 (https://github.com/rook/rook/issues/1330)")
+	}
 	// get the operator pod
 	sysNamespace := installer.SystemNamespace(suite.namespace)
 	listOpts := metav1.ListOptions{LabelSelector: "app=rook-operator"}
