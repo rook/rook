@@ -80,53 +80,63 @@ See the [Object Storage](client.md#object-storage) documentation for more steps 
 ## Access External to the Cluster
 
 Rook sets up the object storage so pods will have access internal to the cluster. If your applications are running outside the cluster,
-you will need to setup an external service through a `NodePort`.
+you will need another level of setup. In this example we will create an ingress controller. You could also create a service based on a `NodePort`.
 
-First, note the service that exposes RGW internal to the cluster. We will leave this service intact and create a new service for external access.
+First, note the service that exposes RGW internal to the cluster. We will leave this service intact.
 ```bash
 $ kubectl -n rook get service rook-ceph-rgw-my-store
 NAME                     CLUSTER-IP   EXTERNAL-IP   PORT(S)     AGE
 rook-ceph-rgw-my-store   10.3.0.177   <none>        80/TCP      2m
 ```
 
-Save the external service as `rgw-external.yaml`:
+Save the ingress resource as `rgw-external.yaml`:
 
 ```yaml
-apiVersion: v1
-kind: Service
+apiVersion: extensions/v1beta1
+kind: Ingress
 metadata:
-  name: rook-ceph-rgw-my-store-external
+  name: rgw-my-store-external
   namespace: rook
-  labels:
-    app: rook-ceph-rgw
-    rook_cluster: rook
-    rook_object_store: my-store
+  annotations:
+    kubernetes.io/ingress.class: "nginx"
 spec:
-  ports:
-  - name: rgw
-    port: 53390
-    protocol: TCP
-    targetPort: 53390
-  selector:
-    app: rook-ceph-rgw
-    rook_cluster: rook
-    rook_object_store: my-store
-  sessionAffinity: None
-  type: NodePort
+  rules:
+  - host: my-host
+    http:
+      paths:
+      - path: /
+        backend:
+          serviceName: rook-ceph-rgw-my-store
+          servicePort: 80
 ```
 
-Now create the external service.
+Create the ingress resource.
 
 ```bash
 kubectl create -f rgw-external.yaml
 ```
 
-See both rgw services running and notice what port the external service is running on:
+See the ingress controller:
 ```bash
-$ kubectl -n rook get service rook-ceph-rgw-my-store rook-ceph-rgw-my-store-external
-NAME                              CLUSTER-IP   EXTERNAL-IP   PORT(S)           AGE
-rook-ceph-rgw-my-store            10.0.0.83    <none>        80/TCP            21m
-rook-ceph-rgw-my-store-external   10.0.0.26    <nodes>       53390:30041/TCP   1m
+$ kubectl -n rook get ingress
+NAME                    HOSTS         ADDRESS   PORTS     AGE
+rgw-my-store-external   my-host                 80        2s
 ```
 
-Internally the rgw service is running on port `53390`. The external port in this case is `30041`. Now you can access the object store from anywhere! All you need is the hostname for any machine in the cluster, the external port, and the user credentials.
+If you are running in GCE, that is all you need. If running in other environments, you now need to start an ingress controller. The two popular ones are nginx and traefik, which run as pods on "ingress nodes". They listen on port 80/443 and are essentially reverse HTTP proxies which match domain names to deployment endpoints.
+
+A simple way to deploy the nginx ingress is through the helm chart. First create the settings file and save as `nginx-ingress-values.yml`: 
+```
+rbac:
+  create: true
+controller:
+  replicaCount: 1
+  hostNetwork: true
+```
+
+Now install the helm chart.
+```
+$ helm install --values nginx-ingress-values.yml stable/nginx-ingress --namespace nginx-ingress
+```
+
+After the controller is running you can now create DNS records to point at the IP addresses of the nodes where the nginx pods are running. Now you have object store access for clients external to your cluster.
