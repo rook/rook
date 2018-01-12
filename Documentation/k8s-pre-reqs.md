@@ -58,6 +58,17 @@ To configure Flexvolume in Rancher, specify this Kubelet flag as shown below:
 
 Restart Kubelet in order for this change to take effect.
 
+### Atomic host
+
+Atomic is another container focused OS based on RedHat product line for which default flexvolume plugin path for kubelet has to be customized.
+
+
+```bash
+--volume-plugin-dir=/var/lib/kubelet/volumeplugins
+```
+
+Restart Kubelet in order for this change to take effect.
+
 ## Minikube
 
 To install `minikube`, refer to this [page](https://github.com/kubernetes/minikube/releases). Once you have `minikube` installed, start a cluster by doing the following:
