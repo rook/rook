@@ -5,7 +5,7 @@ weight: 90
 
 # Contributing
 
-Thank you for your time and effort to help us improve Rook! Here are a few steps to get started. If you have any questions, 
+Thank you for your time and effort to help us improve Rook! Here are a few steps to get started. If you have any questions,
 don't hesitate to reach out to us on our [Slack](https://Rook-io.slack.com) dev channel.
 
 ## Prerequisites
@@ -35,6 +35,9 @@ cd $GOPATH/src/github.com/rook
 git clone git@github.com:<user>/rook.git
 
 cd rook
+
+# build rook
+make
 ```
 
 ### Add Upstream Remote
