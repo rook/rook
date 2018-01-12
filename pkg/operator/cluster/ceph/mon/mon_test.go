@@ -71,8 +71,9 @@ func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, r
 		monPodTimeout:       1 * time.Second,
 		monTimeoutList:      map[string]time.Time{},
 		mapping: &Mapping{
-			Node: map[string]*NodeInfo{},
-			Port: map[string]int32{},
+			NodesToMons: map[string]int{},
+			MonsToNodes: map[int]string{},
+			Addresses:   map[int]string{},
 		},
 		resources: resources,
 		ownerRef:  metav1.OwnerReference{},
@@ -234,11 +235,8 @@ func TestSaveMonEndpoints(t *testing.T) {
 	// update the config map
 	c.clusterInfo.Monitors["mon1"].Endpoint = "2.3.4.5:6790"
 	c.maxMonID = 2
-	c.mapping.Node["mon1"] = &NodeInfo{
-		Name:    "node0",
-		Address: "1.1.1.1",
-	}
-	c.mapping.Port["node0"] = int32(12345)
+	c.mapping.MonsToNodes[1] = "node0"
+	c.mapping.NodesToMons["node0"] = 1
 	err = c.saveMonConfig()
 	assert.Nil(t, err)
 
@@ -426,30 +424,6 @@ func TestHostNetwork(t *testing.T) {
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, pod.Spec.DNSPolicy)
 }
 
-func TestGetNodeInfoFromNode(t *testing.T) {
-	clientset := test.New(1)
-	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.NotNil(t, node)
-
-	node.Status = v1.NodeStatus{}
-	node.Status.Addresses = []v1.NodeAddress{
-		{
-			Type:    v1.NodeExternalIP,
-			Address: "1.1.1.1",
-		},
-	}
-
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
-
-	var info *NodeInfo
-	info, err = getNodeInfoFromNode(*node)
-	assert.Nil(t, err)
-
-	assert.Equal(t, "1.1.1.1", info.Address)
-}
-
 func TestHostNetworkPortIncrease(t *testing.T) {
 	clientset := test.New(1)
 	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
@@ -489,8 +463,8 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 	err = c.initMonIPs(mons)
 	assert.Nil(t, err)
 
-	assert.Equal(t, node.Name, c.mapping.Node["mon1"].Name)
-	assert.Equal(t, node.Name, c.mapping.Node["mon2"].Name)
+	assert.Equal(t, node.Name, c.mapping.MonsToNodes[1])
+	assert.Equal(t, node.Name, c.mapping.MonsToNodes[2])
 
 	sEndpoint := strings.Split(c.clusterInfo.Monitors["mon1"].Endpoint, ":")
 	assert.Equal(t, strconv.Itoa(cephmon.DefaultPort), sEndpoint[1])

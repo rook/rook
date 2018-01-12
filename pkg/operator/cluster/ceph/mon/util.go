@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"path"
 	"strconv"
@@ -53,8 +54,9 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	var clusterInfo *mon.ClusterInfo
 	maxMonID := -1
 	monMapping := &Mapping{
-		Node: map[string]*NodeInfo{},
-		Port: map[string]int32{},
+		NodesToMons: map[string]int{},
+		MonsToNodes: map[int]string{},
+		Addresses:   map[int]string{},
 	}
 
 	secrets, err := context.Clientset.CoreV1().Secrets(namespace).Get(appName, metav1.GetOptions{})
@@ -110,8 +112,9 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 	monEndpointMap := map[string]*mon.CephMonitorConfig{}
 	maxMonID := -1
 	monMapping := &Mapping{
-		Node: map[string]*NodeInfo{},
-		Port: map[string]int32{},
+		NodesToMons: map[string]int{},
+		MonsToNodes: map[int]string{},
+		Addresses:   map[int]string{},
 	}
 
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
@@ -316,4 +319,12 @@ func extractKey(contents string) (string, error) {
 		return "", fmt.Errorf("failed to parse secret")
 	}
 	return secret, nil
+}
+
+func getMonNameForID(id int) string {
+	return fmt.Sprintf("%s%d", appName, id)
+}
+
+func checkQuorumConsensusForRemoval(monCount, removedMons int) bool {
+	return int(math.Ceil(float64(monCount)/float64(2))-1) >= removedMons
 }

@@ -45,7 +45,7 @@ const (
 	EndpointDataKey = "data"
 	// MaxMonIDKey is the name of the max mon id used
 	MaxMonIDKey = "maxMonId"
-	// MappingKey is the name of the mapping for the mon->node and node->port
+	// MappingKey is the name of the mapping for the node->monID and mon->node
 	MappingKey = "mapping"
 
 	appName           = "rook-ceph-mon"
@@ -83,21 +83,20 @@ type Cluster struct {
 
 // monConfig for a single monitor
 type monConfig struct {
+	ID       int
 	Name     string
 	PublicIP string
 	Port     int32
 }
 
-// Mapping mon node and port mapping
+// Mapping contains the mon -> nodes, nodes -> mons and hostNetwork address mon mapping
 type Mapping struct {
-	Node map[string]*NodeInfo `json:"node"`
-	Port map[string]int32     `json:"port"`
-}
-
-// NodeInfo contains name and address of a node
-type NodeInfo struct {
-	Name    string
-	Address string
+	// Map mon IDs to nodes
+	MonsToNodes map[int]string `json:"monsToNodes"`
+	// "Reversed" mapping of MonsToNodes
+	NodesToMons map[string]int `json:"nodesToMons"`
+	// Node addresses when `hostNetwork: true` is used
+	Addresses map[int]string `json:"addresses"`
 }
 
 // New creates an instance of a mon cluster
@@ -117,8 +116,9 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, version string, 
 		monTimeoutList:      map[string]time.Time{},
 		HostNetwork:         hostNetwork,
 		mapping: &Mapping{
-			Node: map[string]*NodeInfo{},
-			Port: map[string]int32{},
+			NodesToMons: map[string]int{},
+			MonsToNodes: map[int]string{},
+			Addresses:   map[int]string{},
 		},
 		resources: resources,
 		ownerRef:  ownerRef,
@@ -133,24 +133,24 @@ func (c *Cluster) Start() error {
 		return fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
 
-	if len(c.clusterInfo.Monitors) < c.Size {
-		c.startMons()
-	} else {
-		// Check the health of a previously started cluster
-		if err := c.checkHealth(); err != nil {
-			logger.Warningf("failed to check mon health %+v. %+v", c.clusterInfo.Monitors, err)
-		}
+	// when monitors in source of thruth >= monCount we have nothing to start
+	// monitors in source of thruth are expected to be up and running
+	if len(c.clusterInfo.Monitors) >= c.Size {
+		return nil
 	}
 
-	return nil
+	return c.startMons()
 }
 
 func (c *Cluster) startMons() error {
 	// init the mons config
-	mons := c.initMonConfig(c.Size)
+	mons, err := c.initMonConfig(c.Size)
+	if err != nil {
+		return fmt.Errorf("failed to init mon config. %+v", err)
+	}
 
 	// Assign the pods to nodes
-	if err := c.assignMons(mons); err != nil {
+	if err = c.assignMons(mons); err != nil {
 		return fmt.Errorf("failed to assign pods to mons. %+v", err)
 	}
 
@@ -162,13 +162,8 @@ func (c *Cluster) startMons() error {
 		}
 
 		// save the mon config after we have "initiated the IPs"
-		if err := c.saveMonConfig(); err != nil {
+		if err := c.saveConfigChanges(); err != nil {
 			return fmt.Errorf("failed to save mons. %+v", err)
-		}
-
-		// make sure we have the connection info generated so connections can happen
-		if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
-			return err
 		}
 
 		// Start pods
@@ -184,7 +179,6 @@ func (c *Cluster) startMons() error {
 // Retrieve the ceph cluster info if it already exists.
 // If a new cluster create new keys.
 func (c *Cluster) initClusterInfo() error {
-
 	var err error
 	// get the cluster info from secret
 	c.clusterInfo, c.maxMonID, c.mapping, err = CreateOrLoadClusterInfo(c.context, c.Namespace, &c.ownerRef)
@@ -200,32 +194,36 @@ func (c *Cluster) initClusterInfo() error {
 	return nil
 }
 
-func (c *Cluster) initMonConfig(size int) []*monConfig {
+func (c *Cluster) initMonConfig(size int) ([]*monConfig, error) {
 	mons := []*monConfig{}
 
 	// initialize the mon pod info for mons that have been previously created
 	for _, monitor := range c.clusterInfo.Monitors {
-		mons = append(mons, &monConfig{Name: monitor.Name, Port: int32(mon.DefaultPort)})
+		monitorID, err := getMonID(monitor.Name)
+		if err != nil {
+			return mons, fmt.Errorf("failed to init mon config. %+v", err)
+		}
+		mons = append(mons, &monConfig{ID: monitorID, Name: getMonNameForID(monitorID), Port: int32(mon.DefaultPort)})
 	}
 
 	// initialize mon info if we don't have enough mons (at first startup)
 	for i := len(c.clusterInfo.Monitors); i < size; i++ {
 		c.maxMonID++
-		mons = append(mons, &monConfig{Name: fmt.Sprintf("%s%d", appName, c.maxMonID), Port: int32(mon.DefaultPort)})
+		mons = append(mons, &monConfig{ID: c.maxMonID, Name: getMonNameForID(c.maxMonID), Port: int32(mon.DefaultPort)})
 	}
 
-	return mons
+	return mons, nil
 }
 
 func (c *Cluster) initMonIPs(mons []*monConfig) error {
 	for _, m := range mons {
 		if c.HostNetwork {
 			logger.Infof("setting mon endpoints for hostnetwork mode")
-			node, ok := c.mapping.Node[m.Name]
+			address, ok := c.mapping.Addresses[m.ID]
 			if !ok {
-				return fmt.Errorf("mon doesn't exit in assignment map")
+				return fmt.Errorf("mon doesn't exist in assignment map")
 			}
-			m.PublicIP = node.Address
+			m.PublicIP = address
 		} else {
 			serviceIP, err := c.createService(m)
 			if err != nil {
@@ -284,36 +282,50 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 }
 
 func (c *Cluster) assignMons(mons []*monConfig) error {
-	// schedule the mons on different nodes if we have enough nodes to be unique
+	// schedule the mons on different nodes if there are not enough return with error
 	availableNodes, err := c.getMonNodes()
 	if err != nil {
 		return fmt.Errorf("failed to get available nodes for mons. %+v", err)
 	}
 
+	monsMapped := 0
 	nodeIndex := 0
 	for _, m := range mons {
-		if _, ok := c.mapping.Node[m.Name]; ok {
-			logger.Debugf("mon %s already assigned to a node, no need to assign", m.Name)
+		monsMapped++
+
+		// when a mon already has an assigned node, skip assignment
+		if n, ok := c.mapping.MonsToNodes[m.ID]; ok {
+			logger.Debugf("mon %s already assigned to a node (%s), no need to assign", m.Name, n)
 			continue
 		}
 
+		// check if enough nodes are available for placement of (new) mons
+		if len(availableNodes) < (c.Size - len(c.clusterInfo.Monitors)) {
+			return fmt.Errorf("not enough nodes available for mons (available: %d, wanted: %d)", len(availableNodes), c.Size)
+		}
+
 		// pick one of the available nodes where the mon will be assigned
-		node := availableNodes[nodeIndex%len(availableNodes)]
-		logger.Debugf("mon %s assigned to node %s", m.Name, node.Name)
-		nodeInfo, err := getNodeInfoFromNode(node)
-		if err != nil {
-			return fmt.Errorf("couldn't get node info from node %s. %+v", node.Name, err)
-		}
-		// when hostNetwork is used check if we need to increase the port of the node
-		if c.HostNetwork {
-			if _, ok := c.mapping.Port[node.Name]; ok {
-				// when the node was already chosen increase port by 1 and set
-				// assignment and that the node was chosen
-				m.Port = c.mapping.Port[node.Name] + int32(1)
+		node := availableNodes[nodeIndex]
+		for ok := false; ok; _, ok = c.mapping.NodesToMons[node.Name] {
+			nodeIndex++
+			if len(availableNodes) > nodeIndex {
+
 			}
-			c.mapping.Port[node.Name] = m.Port
+			node = availableNodes[nodeIndex]
 		}
-		c.mapping.Node[m.Name] = nodeInfo
+
+		c.mapping.NodesToMons[node.Name] = m.ID
+		c.mapping.MonsToNodes[m.ID] = node.Name
+		logger.Debugf("mon %s assigned to node %s", m.Name, node.Name)
+
+		if c.HostNetwork {
+			ip, err := getNodeIPFromNode(node)
+			if err != nil {
+				return fmt.Errorf("couldn't get node IP from node %s. %+v", node.Name, err)
+			}
+			c.mapping.Addresses[m.ID] = ip
+		}
+
 		nodeIndex++
 	}
 
@@ -321,28 +333,25 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 	return nil
 }
 
-func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
-	nr := &NodeInfo{}
-	nr.Name = n.Name
+func getNodeIPFromNode(n v1.Node) (string, error) {
 	for _, ip := range n.Status.Addresses {
 		if ip.Type == v1.NodeExternalIP || ip.Type == v1.NodeInternalIP {
 			logger.Debugf("using IP %s for node %s", ip.Address, n.Name)
-			nr.Address = ip.Address
-			break
+			return ip.Address, nil
 		}
 	}
-	if nr.Address == "" {
-		return nil, fmt.Errorf("no IP given for node %s", nr.Name)
-	}
-	return nr, nil
+	return "", fmt.Errorf("no IP given for node %s", n.Name)
 }
 
 func (c *Cluster) startPods(mons []*monConfig) error {
 	for _, m := range mons {
-		node, _ := c.mapping.Node[m.Name]
+		nodeName, ok := c.mapping.MonsToNodes[m.ID]
+		if !ok {
+			return fmt.Errorf("failed to get node mapping for mon %s", m.Name)
+		}
 
 		// start the mon replicaset/pod
-		err := c.startMon(m, node.Name)
+		err := c.startMon(m, nodeName)
 		if err != nil {
 			return fmt.Errorf("failed to create pod %s. %+v", m.Name, err)
 		}
@@ -415,21 +424,12 @@ func (c *Cluster) saveMonConfig() error {
 
 // detect the nodes that are available for new mons to start.
 func (c *Cluster) getMonNodes() ([]v1.Node, error) {
-	availableNodes, nodes, err := c.getAvailableMonNodes()
+	availableNodes, err := c.getAvailableMonNodes()
 	if err != nil {
 		return nil, err
 	}
 	logger.Infof("Found %d running nodes without mons", len(availableNodes))
 
-	// if all nodes already have mons, just add all nodes to be available
-	if len(availableNodes) == 0 {
-		logger.Infof("All nodes are running mons. Adding all %d nodes to the availability.", len(nodes.Items))
-		for _, node := range nodes.Items {
-			if validNode(node, c.placement) {
-				availableNodes = append(availableNodes, node)
-			}
-		}
-	}
 	if len(availableNodes) == 0 {
 		return nil, fmt.Errorf("no nodes are available for mons")
 	}
@@ -437,14 +437,14 @@ func (c *Cluster) getMonNodes() ([]v1.Node, error) {
 	return availableNodes, nil
 }
 
-func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
+func (c *Cluster) getAvailableMonNodes() ([]v1.Node, error) {
 	nodeOptions := metav1.ListOptions{}
 	nodeOptions.TypeMeta.Kind = "Node"
 	nodes, err := c.context.Clientset.CoreV1().Nodes().List(nodeOptions)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	logger.Debugf("there are %d nodes available for %d mons", len(nodes.Items), len(c.clusterInfo.Monitors))
+	logger.Debugf("there are %d nodes available for existing %d mons", len(nodes.Items), len(c.clusterInfo.Monitors))
 
 	// get the nodes that have mons assigned
 	nodesInUse, err := c.getNodesWithMons()
@@ -461,7 +461,7 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
 		}
 	}
 
-	return availableNodes, nodes, nil
+	return availableNodes, nil
 }
 
 func (c *Cluster) getNodesWithMons() (*util.Set, error) {
