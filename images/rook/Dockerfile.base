@@ -14,48 +14,32 @@
 
 FROM BASEIMAGE
 
-ARG EXTRALIBS
-
-# install runtime dependencies for ceph and rook
-RUN BOOST_VERSION=1.62.0 && \
+# add Ceph and other packages needed
+ADD 'https://download.ceph.com/keys/release.asc' /tmp/release.asc
+RUN CEPH_VERSION=luminous && \
+    apt-key add /tmp/release.asc && \
+    echo "deb http://download.ceph.com/debian-$CEPH_VERSION/ xenial main" | tee /etc/apt/sources.list.d/ceph-$CEPH_VERSION.list && \
     DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get install -yy -q --no-install-recommends \
         ca-certificates \
-        gdisk \
+        ceph-common \
+        ceph-mon \
+        ceph-osd \
+        ceph-mds \
+        ceph-mgr \
         kmod \
-        libaio1 \
-        libboost-context${BOOST_VERSION} \
-        libboost-coroutine${BOOST_VERSION} \
-        libboost-date-time${BOOST_VERSION} \
-        libboost-filesystem${BOOST_VERSION} \
-        libboost-iostreams${BOOST_VERSION} \
-        libboost-program-options${BOOST_VERSION} \
-        libboost-python${BOOST_VERSION} \
-        libboost-random${BOOST_VERSION} \
-        libboost-regex${BOOST_VERSION} \
-        libboost-system${BOOST_VERSION} \
-        libboost-thread${BOOST_VERSION} \
-        libcurl3-gnutls \
-        libexpat1 \
-        libibverbs1 \
-        libldap-2.4-2 \
-        libnss3 \
-        libpython2.7 \
-        libsnappy1v5 \
-        python-prettytable \
-        python2.7-minimal \
-        python-cherrypy3:${ARCH} \
-        python-pecan:${ARCH} \
-        python-openssl:${ARCH} \
-        ${EXTRALIBS} && \
+        radosgw \
+        rbd-mirror && \
     DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \
-    DEBIAN_FRONTEND=noninteractive apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# add the ceph binaries
-ADD ceph-install.tar /
-
-# ensure dynamic libraries are updated
-RUN ldconfig
-
-ENV PYTHONPATH=$PYTHONPATH:/usr/local/lib/python2.7/site-packages
+    DEBIAN_FRONTEND=noninteractive apt-get clean && \
+    rm -rf \
+        /etc/{selinux,systemd,udev} \
+        /lib/{lsb,udev} \
+        /tmp/* \
+        /usr/lib/{locale,systemd,udev} \
+        /usr/share/{doc,info,man} \
+        /var/cache/debconf/* \
+        /var/lib/apt/lists/* \
+        /var/log/* \
+        /var/tmp/*

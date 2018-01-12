@@ -14,7 +14,7 @@
 
 include image.mk
 
-PLATFORMS ?= linux_amd64 linux_arm linux_arm64
+PLATFORMS ?= linux_amd64 linux_arm64
 
 # ====================================================================================
 # Image Targets
@@ -26,17 +26,11 @@ apt-cacher.%: base.%
 base.%:
 	@$(MAKE) -C base PLATFORM=$*
 
-ceph.%: cross-gnu.linux_amd64
-	@$(MAKE) -C ceph PLATFORM=$*
-
 cross: cross.linux_amd64
 cross.%: base.linux_amd64
 	@$(MAKE) -C cross PLATFORM=$*
 
-cross-gnu.%: base.%
-	@$(MAKE) -C cross-gnu PLATFORM=$*
-
-rook.%: ceph.% base.%
+rook.%: base.%
 	@$(MAKE) -C rook PLATFORM=$*
 
 toolbox.%: rook.%

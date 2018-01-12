@@ -14,6 +14,8 @@
 
 FROM BASEIMAGE
 
+SHELL ["/bin/bash","-c"]
+
 # APT caching to speed up apt-get downloads
 # see http://www.stuartaxon.com/2015/02/02/docker-and-caching-apt-get-for-guests-on-the-same-host/
 RUN HOST_IP=$(route -n | awk '/^0.0.0.0/ {print $2}') && \
