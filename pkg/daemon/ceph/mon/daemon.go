@@ -62,12 +62,11 @@ func ParseMonEndpoints(input string) map[string]*CephMonitorConfig {
 	return mons
 }
 
-func ToCephMon(name, ip string, port int32) *CephMonitorConfig {
-	return &CephMonitorConfig{Name: name, Endpoint: fmt.Sprintf("%s:%d", ip, port)}
+func ToCephMon(name string, address string, port int32) *CephMonitorConfig {
+	return &CephMonitorConfig{Name: name, Endpoint: fmt.Sprintf("%s:%d", address, port)}
 }
 
 func Run(context *clusterd.Context, config *Config) error {
-
 	configFile, monDataDir, err := generateConfigFiles(context, config)
 	if err != nil {
 		return fmt.Errorf("failed to generate mon config files. %+v", err)
@@ -82,7 +81,6 @@ func Run(context *clusterd.Context, config *Config) error {
 }
 
 func generateConfigFiles(context *clusterd.Context, config *Config) (string, string, error) {
-
 	// write the keyring to disk
 	if err := writeMonKeyring(context, config.Cluster, config.Name); err != nil {
 		return "", "", err

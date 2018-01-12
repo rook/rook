@@ -199,9 +199,14 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.HostNetwork, cluster.ownerRef)
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
+	// Start mon endpoint watcher
+	endpointWatcher := mon.NewEndpointWatcher(cluster.mons)
+	go endpointWatcher.StartWatch(cluster.stopCh)
+
 	// Start mon health checker
-	healthChecker := mon.NewHealthChecker(cluster.mons)
-	go healthChecker.Check(cluster.stopCh)
+	// TODO Disabled health checker for now
+	//healthChecker := mon.NewHealthChecker(cluster.mons)
+	//go healthChecker.Check(cluster.stopCh)
 
 	// add the finalizer to the crd
 	err = c.addFinalizer(clusterObj)

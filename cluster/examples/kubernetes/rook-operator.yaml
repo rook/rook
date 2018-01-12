@@ -37,6 +37,7 @@ rules:
   - deployments
   - daemonsets
   - replicasets
+  - statefulsets
   verbs:
   - get
   - list
@@ -44,6 +45,16 @@ rules:
   - create
   - update
   - delete
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - list
+  - create
+  - delete
+  - update
 - apiGroups:
   - apiextensions.k8s.io
   resources:

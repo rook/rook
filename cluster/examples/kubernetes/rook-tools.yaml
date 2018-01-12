@@ -41,5 +41,5 @@ spec:
       configMap:
         name: rook-ceph-mon-endpoints
         items:
-        - key: data
+        - key: endpoints
           path: mon-endpoints

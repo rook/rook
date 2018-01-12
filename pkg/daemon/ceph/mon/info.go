@@ -15,6 +15,7 @@ package mon
 import (
 	"fmt"
 	"strings"
+	"sync"
 )
 
 type ClusterInfo struct {
@@ -23,6 +24,7 @@ type ClusterInfo struct {
 	AdminSecret   string
 	Name          string
 	Monitors      map[string]*CephMonitorConfig
+	MonMutex      sync.Mutex
 }
 
 func (c *ClusterInfo) MonEndpoints() string {
@@ -31,4 +33,9 @@ func (c *ClusterInfo) MonEndpoints() string {
 		endpoints = append(endpoints, fmt.Sprintf("%s-%s", mon.Name, mon.Endpoint))
 	}
 	return strings.Join(endpoints, ",")
+}
+
+func (c *ClusterInfo) RemovePortFromEndpoint(endpoint string) string {
+	split := strings.Split(endpoint, ":")
+	return split[len(split)-1]
 }

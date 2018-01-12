@@ -86,8 +86,7 @@ func startMon(cmd *cobra.Command, args []string) error {
 		Cluster: &clusterInfo,
 		Port:    monPort,
 	}
-	err := mon.Run(createContext(), monCfg)
-	if err != nil {
+	if err := mon.Run(createContext(), monCfg); err != nil {
 		terminateFatal(err)
 	}
 

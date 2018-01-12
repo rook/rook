@@ -39,6 +39,7 @@ import (
 )
 
 const (
+	// RookEnvVarPrefix the environment variable prefix
 	RookEnvVarPrefix = "ROOK"
 	terminationLog   = "/dev/termination-log"
 )

@@ -29,15 +29,13 @@ import (
 func New(nodes int) *fake.Clientset {
 	clientset := fake.NewSimpleClientset()
 	for i := 0; i < nodes; i++ {
-		ready := v1.NodeCondition{Type: v1.NodeReady}
-		name := fmt.Sprintf("node%d", i)
 		n := &v1.Node{
 			ObjectMeta: metav1.ObjectMeta{
-				Name: name,
+				Name: fmt.Sprintf("node%d", i),
 			},
 			Status: v1.NodeStatus{
 				Conditions: []v1.NodeCondition{
-					ready,
+					{Type: v1.NodeReady},
 				},
 				Addresses: []v1.NodeAddress{
 					{
