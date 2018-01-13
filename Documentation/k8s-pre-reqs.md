@@ -1,7 +1,6 @@
 ---
 title: Prerequisites
-weight: 11
-indent: true
+weight: 10
 ---
 
 # Prerequisites
@@ -15,50 +14,20 @@ Kubernetes v1.6 or higher is targeted by Rook (while Rook is in alpha it will tr
 Support is available for Kubernetes v1.5.2, although your mileage may vary.
 You will need to use the yaml files from the [1.5 folder](/cluster/examples/kubernetes/1.5).
 
-## Privileges
+## Privileges and RBAC
 
-Creating the Rook operator requires privileges for setting up RBAC. To launch the operator you need to have created your user certificate that is bound to ClusterRole `cluster-admin`.
-
-One simple way to achieve it is to assign your certificate with the `system:masters` group:
-```
--subj "/CN=admin/O=system:masters"
-```
-
-`system:masters` is a special group that is bound to `cluster-admin` ClusterRole, but it can't be easily revoked so be careful with taking that route in a production setting.
-Binding individual certificate to ClusterRole `cluster-admin` is revocable by deleting the ClusterRoleBinding.
+Rook requires privileges to manage the storage in your cluster. See the details [here](rbac.md) for setting up RBAC.
 
 ## Flexvolume Configuration
 
-Rook uses [Flexvolume](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md) to integrate with Kubernetes for performing storage operations. In some operating systems where Kubernetes is deployed, the [default Flexvolume plugin directory](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md#prerequisites) (the directory where flexvolume drivers are installed) is **read-only**.
+The Rook agent requires setup as a Flex volume plugin to manage the storage attachments in your cluster.
+See the [Flex Volume Configuration](flexvolume.md) topic to configure your Kubernetes deployment to load the Rook volume plugin.
 
-This is the case for Kubernetes deployments on CoreOS and Rancher.
-In these environments, the Kubelet needs to be told to use a different flexvolume plugin directory that is accessible and writeable.
-To do this, you will need to first add the `--volume-plugin-dir` flag to the Kubelet and then restart the Kubelet process. 
-These steps need to be carried out on **all nodes** in your cluster.
+## Bootstrapping Kubernetes
 
-### CoreOS Container Linux
+Rook will run wherever Kubernetes is running. Here are some simple enviroments will help you get started with Rook.
 
-In CoreOS, our recomendation is to specify the flag as shown below:
-
-```bash
---volume-plugin-dir=/var/lib/kubelet/volumeplugins
-```
-
-Restart Kubelet in order for this change to take effect.
-
-### Rancher
-
-Rancher provides an easy way to configure Kubelet. This flag can be provided to the Kubelet configuration template at deployment time or by using the `up to date` feature if Kubernetes is already deployed.
-
-To configure Flexvolume in Rancher, specify this Kubelet flag as shown below:
-
-```bash
---volume-plugin-dir=/var/lib/kubelet/volumeplugins
-```
-
-Restart Kubelet in order for this change to take effect.
-
-## Minikube
+### Minikube
 
 To install `minikube`, refer to this [page](https://github.com/kubernetes/minikube/releases). Once you have `minikube` installed, start a cluster by doing the following:
 
@@ -76,14 +45,14 @@ Kubectl is now configured to use the cluster.
 
 After these steps, your minikube cluster is ready to install Rook on.
 
-## Kubeadm
+### Kubeadm
 
 You can easily spin up Rook on top of a `kubeadm` cluster.
 You can find the instructions on how to install kubeadm in the [Install `kubeadm`] (https://kubernetes.io/docs/setup/independent/install-kubeadm/) page.
 
 By using `kubeadm`, you can use Rook in just a few minutes!
 
-## New local Kubernetes cluster with Vagrant
+### New local Kubernetes cluster with Vagrant
 
 For a quick start with a new local cluster, use the Rook fork of [coreos-kubernetes](https://github.com/rook/coreos-kubernetes). This will bring up a multi-node Kubernetes cluster with `vagrant` and CoreOS virtual machines ready to use Rook immediately.
 
@@ -101,12 +70,12 @@ Then wait for the cluster to come up and verify that kubernetes is done initiali
 kubectl cluster-info
 ```
 
-Once you see a url response, your cluster is [ready for use by Rook](kubernetes.md#deploy-rook).
+Once you see a url response, your cluster is [ready for use by Rook](quickstart.md#deploy-rook).
 
 
 ## Using Rook in Kubernetes
 
-Now that you have a Kubernetes cluster running, you can start using Rook with [these steps](kubernetes.md#deploy-rook).
+Now that you have a Kubernetes cluster running, you can start using Rook with [these steps](quickstart.md#deploy-rook).
 
 ## Using Rook on Tectonic Bare Metal
 

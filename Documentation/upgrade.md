@@ -1,10 +1,9 @@
 ---
-title: Upgrading Rook
-weight: 25
-indent: true
+title: Upgrades
+weight: 60
 ---
 
-# Upgrading the Rook Software
+# Upgrades
 This guide will walk you through the manual steps to upgrade the software in a Rook cluster from one version to the next.
 Rook is a distributed software system and therefore there are multiple components to individually upgrade in the sequence defined in this guide.
 After each component is upgraded, it is important to verify that the cluster returns to a healthy and fully functional state.
@@ -276,7 +275,7 @@ kubectl -n rook get pod -l app=rook-ceph-mgr -o jsonpath='{range .items[*]}{.met
 ```
 
 ### Optional Components
-If you have optionally installed either [object storage](./k8s-object.md) or a [shared file system](./k8s-filesystem.md) in your Rook cluster, the sections below will provide guidance on how to update them as well.
+If you have optionally installed either [object storage](./object.md) or a [shared file system](./filesystem.md) in your Rook cluster, the sections below will provide guidance on how to update them as well.
 They are both managed by deployments, which we have already covered in this guide, so the instructions will be brief.
 
 #### Object Storage (RGW)

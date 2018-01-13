@@ -1,16 +1,16 @@
 ---
 title: Block Storage
-weight: 12
+weight: 22
 indent: true
 ---
 
-# Block Storage Quickstart
+# Block Storage
 
 Block storage allows you to mount storage to a single pod.
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](kubernetes.md)
+This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](quickstart.md)
 
 ## Provision Storage
 

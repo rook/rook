@@ -1,9 +1,12 @@
 ---
 title: Rook Client
-weight: 40
+weight: 74
+indent: true
 ---
 
-# Using Rook
+# Rook Client
+
+** **rookctl has been deprecated. [CRDs](crds.md) are the recommended way to configure the cluster.** **
 
 The `rookctl` client tool can be used to manage your Rook cluster once it is running as well as manage block, file and object storage.  See the sections below for details on how to configure each type of storage.
 
