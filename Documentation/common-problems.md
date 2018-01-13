@@ -1,6 +1,7 @@
 ---
-title: Common Problems
-weight: 70
+title: Common Issues
+weight: 78
+indent: true
 ---
 
 # Common Problems
@@ -45,7 +46,7 @@ There is literally a ton of Ceph sub-commands to look at and manipulate Ceph obj
 * Persistent Volume and/or Claim are failing to be created and bound: [Volume Creation](#volume-creation)
 * `rook-agent` pod is failing to mount and format the volume: [Rook Agent Mounting](#volume-mounting)
 * You are using Kubernetes 1.7.x or earlier and the Kubelet has not been restarted after `rook-agent` is in the `Running` status: [Restart Kubelet](#kubelet-restart)
-* You are using Kubernetes 1.6.x and the attach-detach controller has not been disabled: [Disable attach-detach controller](./kubernetes.md#disable-attacher-detacher-controller)
+* You are using Kubernetes 1.6.x and the attach-detach controller has not been disabled: [Disable attach-detach controller](./quickstart.md#disable-attacher-detacher-controller)
 
 ## Investigation Details
 If you see some of the symptoms above, it's because the requested Rook storage for your pod is not being created and mounted successfully.
@@ -106,7 +107,7 @@ A symptom of this can be found in the Kubelet's log/journal, with the following 
 ```console
 Oct 30 22:23:03 core-02 kubelet-wrapper[31926]: E1030 22:23:03.524159   31926 desired_state_of_world_populator.go:285] Failed to add volume "mysql-persistent-storage" (specName: "pvc-9f273fbc") for pod "9f2ff89a-bdbf" to desiredStateOfWorld. err=failed to get Plugin from volumeSpec for volume "pvc-9f273fbc" err=no volume plugin matched
 ```
-If you encounter this, just **restart the Kubelet process**, as described in the **[Restart Kubelet](./kubernetes.md#restart-kubelet)** section of the Rook deployment guide.
+If you encounter this, just **restart the Kubelet process**, as described in the **[Restart Kubelet](./quickstart.md#restart-kubelet)** section of the Rook deployment guide.
 
 ### Volume Creation
 The volume must first be created in the Rook cluster and then bound to a volume claim before it can be mounted to a pod.

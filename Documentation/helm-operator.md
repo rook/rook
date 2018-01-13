@@ -1,12 +1,12 @@
 ---
-title: Helm Chart
-weight: 23
+title: Operator
+weight: 51
 indent: true
 ---
 
-# Helm Chart
+# Operator Helm Chart
 
-Installs [rook](https://github.com/rook/rook) to create,configure and manage Rook clusters atop Kubernetes.
+Installs [rook](https://github.com/rook/rook) to create, configure, and manage Rook clusters on Kubernetes.
 
 ## Introduction
 
@@ -14,7 +14,7 @@ This chart bootstraps a [rook-operator](https://github.com/rook/rook) deployment
 
 ## Prerequisites
 
-- Kubernetes 1.6+ with Beta APIs & ThirdPartyResources enabled
+- Kubernetes 1.6+
 
 ### RBAC
 

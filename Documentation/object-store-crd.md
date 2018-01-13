@@ -1,10 +1,10 @@
 ---
-title: Object Store CRD
-weight: 19
+title: Object Store
+weight: 36
 indent: true
 ---
 
-# Creating Rook Object Stores
+# Object Store CRD
 
 Rook allows creation and customization of object stores through the custom resource definitions (CRDs). The following settings are available
 for object stores.

@@ -1,14 +1,13 @@
 ---
 title: Monitoring
-weight: 15
-indent: true
+weight: 40
 ---
 
 # Monitoring
 
 Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).  To enable monitoring of Rook in your Kubernetes cluster, you can follow the steps below.
 
-Note that these steps work only for Kubernetes 1.7.x or higher. For Kubernetes 1.6.x or older, refer to the Rook 0.5.0 [documentation](https://github.com/rook/rook/blob/release-0.5/Documentation/k8s-monitoring.md) and use these [manifest files](https://github.com/rook/rook/tree/release-0.5/cluster/examples/kubernetes/monitoring).
+Note that these steps work only for Kubernetes 1.7.x or higher. For Kubernetes 1.6.x or older, refer to the Rook 0.5.0 [documentation](https://github.com/rook/rook/blob/release-0.5/Documentation/monitoring.md) and use these [manifest files](https://github.com/rook/rook/tree/release-0.5/cluster/examples/kubernetes/monitoring).
 
 ## Prometheus Operator
 

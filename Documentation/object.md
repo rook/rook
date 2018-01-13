@@ -1,16 +1,16 @@
 ---
 title: Object Storage
-weight: 13
+weight: 24
 indent: true
 ---
 
-# Object Storage Quickstart
+# Object Storage
 
 Object storage exposes an S3 API to the storage cluster for applications to put and get data.
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](kubernetes.md)
+This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](quickstart.md)
 
 ## Object Store
 
@@ -60,7 +60,7 @@ kubectl -n rook get pod -l app=rook-ceph-rgw
 
 ## Create a User
 
-Creating an object storage user requires running `rookctl` commands with the [Rook toolbox](kubernetes.md#tools) pod. This will be simplified in the future with a CRD for the object store users.
+Creating an object storage user requires running `rookctl` commands with the [Rook toolbox](quickstart.md#tools) pod. This will be simplified in the future with a CRD for the object store users.
 
 ```bash
 rookctl object user create my-store rook-user "A rook rgw User"
