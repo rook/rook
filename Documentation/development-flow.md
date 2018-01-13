@@ -1,9 +1,12 @@
 ---
 title: Contributing
-weight: 50
+weight: 90
 ---
 
 # Contributing
+
+Thank you for your time and effort to help us improve Rook! Here are a few steps to get started. If you have any questions, 
+don't hesitate to reach out to us on our [Slack](https://Rook-io.slack.com) dev channel.
 
 ## Prerequisites
 

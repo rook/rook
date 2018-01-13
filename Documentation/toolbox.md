@@ -1,6 +1,7 @@
 ---
 title: Toolbox
-weight: 60
+weight: 72
+indent: true
 ---
 
 #  Rook Toolbox
@@ -9,7 +10,7 @@ The toolbox is based on Ubuntu, so more tools of your choosing can be easily ins
 
 ## Running the Toolbox in Kubernetes
 
-The rook toolbox can run as a pod in a Kubernetes cluster.  After you ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](kubernetes.md) instructions),
+The rook toolbox can run as a pod in a Kubernetes cluster.  After you ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](quickstart.md) instructions),
 launch the rook-tools pod.
 
 Save the tools spec as `rook-tools.yaml`:

@@ -1,10 +1,10 @@
 ---
-title: File System CRD
-weight: 20
+title: Shared File System
+weight: 38
 indent: true
 ---
 
-# Creating Shared File Systems
+# Shared File System CRD
 
 Rook allows creation and customization of shared file systems through the custom resource definitions (CRDs). The following settings are available
 for file systems.

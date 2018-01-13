@@ -1,10 +1,10 @@
 ---
 title: Shared File System
-weight: 14
+weight: 26
 indent: true
 ---
 
-# Shared File System Quickstart
+# Shared File System
 
 A shared file system can be mounted read-write from multiple pods. This may be useful for applications which can be clustered using a shared filesystem.
 
@@ -12,7 +12,7 @@ This example runs a shared file system for the [kube-registry](https://github.co
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](kubernetes.md)
+This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](quickstart.md)
 
 ## Create the File System
 

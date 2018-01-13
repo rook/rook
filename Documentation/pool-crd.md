@@ -1,10 +1,10 @@
 ---
-title: Pool CRD
-weight: 16
+title: Pool
+weight: 34
 indent: true
 ---
 
-# Creating Rook Storage Pools
+# Pool CRD
 
 Rook allows creation and customization of storage pools through the custom resource definitions (CRDs). The following settings are available
 for pools.

@@ -1,10 +1,10 @@
 ---
-title: Cluster CRD
-weight: 17
+title: Cluster
+weight: 32
 indent: true
 ---
 
-# Creating Rook Clusters
+# Cluster CRD
 
 Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs). The following settings are
 available for a cluster.
