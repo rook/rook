@@ -31,7 +31,7 @@ func New(nodes int) *fake.Clientset {
 		n := &v1.Node{
 			Status: v1.NodeStatus{
 				Conditions: []v1.NodeCondition{
-					v1.NodeCondition{Type: v1.NodeReady},
+					{Type: v1.NodeReady},
 				},
 				Addresses: []v1.NodeAddress{
 					{

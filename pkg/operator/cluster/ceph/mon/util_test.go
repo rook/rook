@@ -17,8 +17,29 @@ package mon
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCheckQuorumConsensusForRemoval(t *testing.T) {
-	// TODO Add test for checkQuorumConsensusForRemoval() func
+	// Quorum sizes with failure tolerance can be found here: https://www.consul.io/docs/internals/consensus.html#deployment-table
+	// for quorum below three nodes false is returned
+	assert.False(t, checkQuorumConsensusForRemoval(0, 1))
+	// one mon should not allow a mon removal
+	assert.False(t, checkQuorumConsensusForRemoval(1, 1))
+	// two mons should not allow a mon removal
+	assert.False(t, checkQuorumConsensusForRemoval(2, 1))
+	// three mons should allow one mon removal
+	assert.True(t, checkQuorumConsensusForRemoval(3, 1))
+	// three mons should allow one mon removal
+	assert.True(t, checkQuorumConsensusForRemoval(4, 1))
+	// four mons should allow one mons removal
+	assert.False(t, checkQuorumConsensusForRemoval(4, 2))
+
+	for i := 5; i <= 10; i++ {
+		// i mons, 1 should be allowed to be removed
+		assert.True(t, checkQuorumConsensusForRemoval(i, 1))
+		// i mons, 2 should be allowed to be removed
+		assert.True(t, checkQuorumConsensusForRemoval(i, 2))
+	}
 }
