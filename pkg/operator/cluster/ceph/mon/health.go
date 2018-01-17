@@ -161,8 +161,7 @@ func (c *Cluster) checkMonsOnSameNode() (bool, error) {
 	nodesUsed := map[string]struct{}{}
 	for name, node := range c.mapping.Node {
 		// when the node is already in the list we have more than one mon on that node
-		nodeId := getNodeId(node)
-		if _, ok := nodesUsed[nodeId]; ok {
+		if _, ok := nodesUsed[node.Name]; ok {
 			// get list of available nodes for mons
 			availableNodes, _, err := c.getAvailableMonNodes()
 			if err != nil {
@@ -176,10 +175,11 @@ func (c *Cluster) checkMonsOnSameNode() (bool, error) {
 			} else {
 				logger.Debugf("rebalance: not enough nodes available to failover mon %s", name)
 			}
+
 			// deal with one mon too much on a node at a time
 			return true, nil
 		}
-		nodesUsed[nodeId] = struct{}{}
+		nodesUsed[node.Name] = struct{}{}
 	}
 	return false, nil
 }

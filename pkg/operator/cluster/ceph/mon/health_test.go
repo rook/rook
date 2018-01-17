@@ -168,12 +168,14 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 
 	// add two mons to the mapping on node0
 	c.mapping.Node["mon1"] = &NodeInfo{
-		Name:    "node0",
-		Address: "0.0.0.0",
+		Name:     "node0",
+		Hostname: "node0",
+		Address:  "0.0.0.0",
 	}
 	c.mapping.Node["mon2"] = &NodeInfo{
-		Name:    "node0",
-		Address: "0.0.0.0",
+		Name:     "node0",
+		Hostname: "node0",
+		Address:  "0.0.0.0",
 	}
 	c.maxMonID = 2
 	c.saveMonConfig()
@@ -192,7 +194,8 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "node0", c.mapping.Node["mon1"].Name)
 	assert.Equal(t, "node0", c.mapping.Node["mon2"].Name)
-
+	assert.Equal(t, "node0", c.mapping.Node["mon1"].Hostname)
+	assert.Equal(t, "node0", c.mapping.Node["mon2"].Hostname)
 	// add new node and check if the second mon gets failovered to it
 	n := &v1.Node{
 		Status: v1.NodeStatus{
