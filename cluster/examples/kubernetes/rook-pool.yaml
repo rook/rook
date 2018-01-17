@@ -5,7 +5,7 @@ metadata:
   namespace: rook
 spec:
   # The failure domain will spread the replicas of the data across different failure zones
-  failureDomain: osd
+  failureDomain: device
   # For a pool based on raw copies, specify the number of copies. A size of 1 indicates no redundancy.
   replicated:
     size: 1
