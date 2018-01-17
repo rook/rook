@@ -96,8 +96,9 @@ type Mapping struct {
 
 // NodeInfo contains name and address of a node
 type NodeInfo struct {
-	Name    string
-	Address string
+	Name     string
+	Hostname string
+	Address  string
 }
 
 // New creates an instance of a mon cluster
@@ -322,8 +323,11 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 }
 
 func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
-	nr := &NodeInfo{}
-	nr.Name = n.Name
+	nr := &NodeInfo{
+		Name:     n.Name,
+		Hostname: n.Labels[apis.LabelHostname],
+	}
+
 	for _, ip := range n.Status.Addresses {
 		if ip.Type == v1.NodeExternalIP || ip.Type == v1.NodeInternalIP {
 			logger.Debugf("using IP %s for node %s", ip.Address, n.Name)
@@ -342,7 +346,7 @@ func (c *Cluster) startPods(mons []*monConfig) error {
 		node, _ := c.mapping.Node[m.Name]
 
 		// start the mon replicaset/pod
-		err := c.startMon(m, node.Name)
+		err := c.startMon(m, node.Hostname)
 		if err != nil {
 			return fmt.Errorf("failed to create pod %s. %+v", m.Name, err)
 		}
@@ -447,7 +451,7 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
 	logger.Debugf("there are %d nodes available for %d mons", len(nodes.Items), len(c.clusterInfo.Monitors))
 
 	// get the nodes that have mons assigned
-	nodesInUse, err := c.getNodesWithMons()
+	nodesInUse, err := c.getNodesWithMons(nodes)
 	if err != nil {
 		logger.Warningf("could not get nodes with mons. %+v", err)
 		nodesInUse = util.NewSet()
@@ -464,23 +468,41 @@ func (c *Cluster) getAvailableMonNodes() ([]v1.Node, *v1.NodeList, error) {
 	return availableNodes, nodes, nil
 }
 
-func (c *Cluster) getNodesWithMons() (*util.Set, error) {
+func (c *Cluster) getNodesWithMons(nodes *v1.NodeList) (*util.Set, error) {
+	// get the mon pods and their node affinity
 	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
 	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(options)
 	if err != nil {
 		return nil, err
 	}
-	nodes := util.NewSet()
+	nodesInUse := util.NewSet()
 	for _, pod := range pods.Items {
 		hostname := pod.Spec.NodeSelector[apis.LabelHostname]
 		logger.Debugf("mon pod on node %s", hostname)
-		nodes.Add(hostname)
+		name, ok := getNodeNameFromHostname(nodes, hostname)
+		if !ok {
+			logger.Errorf("mon %s on hostname %s not found in node list", pod.Name, hostname)
+		}
+		nodesInUse.Add(name)
 	}
-	return nodes, nil
+	return nodesInUse, nil
 }
 
-func (c *Cluster) startMon(m *monConfig, nodeName string) error {
-	rs := c.makeReplicaSet(m, nodeName)
+// Look up the immutable node name from the hostname label
+func getNodeNameFromHostname(nodes *v1.NodeList, hostname string) (string, bool) {
+	for _, node := range nodes.Items {
+		if node.Labels[apis.LabelHostname] == hostname {
+			return node.Name, true
+		}
+		if node.Name == hostname {
+			return node.Name, true
+		}
+	}
+	return "", false
+}
+
+func (c *Cluster) startMon(m *monConfig, hostname string) error {
+	rs := c.makeReplicaSet(m, hostname)
 	logger.Debugf("Starting mon: %+v", rs.Name)
 	_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
 	if err != nil {
