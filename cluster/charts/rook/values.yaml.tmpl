@@ -31,3 +31,8 @@ rbacEnable: true
 ## toleration. Choose between NoSchedule, PreferNoSchedule and NoExecute:
 # agent:
 #   toleration: NoSchedule
+
+## Override FlexVolume plugin directory
+## If unset, the Rook operator tries to discover it or uses a compiled in
+## default.
+#flexVolumeDirPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/

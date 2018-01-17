@@ -45,7 +45,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-
+{{- if .Values.flexVolumeDirPath }}
+        - name: FLEXVOLUME_DIR_PATH
+          value: {{ .Values.flexVolumeDirPath }}
+{{- end }}
 {{- if .Values.mon }}
 {{- if .Values.mon.healthCheckInterval }}
         - name: ROOK_MON_HEALTHCHECK_INTERVAL
