@@ -23,6 +23,12 @@ In CoreOS, our recommendation is to specify the flag as shown below:
 
 Restart Kubelet in order for this change to take effect.
 
+In Kubernetes 1.9.x, you must provide this directory when deploying the [rook-operator](/cluster/examples/kubernetes/rook-operator.yaml) by setting the environment variable `FLEXVOLUME_DIR_PATH`. For example:
+```yaml
+- name: FLEXVOLUME_DIR_PATH
+  value: "/var/lib/kubelet/volumeplugins"
+```
+
 ## Rancher
 
 Rancher provides an easy way to configure Kubelet. This flag can be provided to the Kubelet configuration template at deployment time or by using the `up to date` feature if Kubernetes is already deployed.
@@ -34,6 +40,12 @@ To configure Flexvolume in Rancher, specify this Kubelet flag as shown below:
 ```
 
 Restart Kubelet in order for this change to take effect.
+
+In Kubernetes 1.9.x, you must provide this directory when deploying the [rook-operator](/cluster/examples/kubernetes/rook-operator.yaml) by setting the environment variable `FLEXVOLUME_DIR_PATH`. For example:
+```yaml
+- name: FLEXVOLUME_DIR_PATH
+  value: "/var/lib/kubelet/volumeplugins"
+```
 
 ## Tectonic
 
