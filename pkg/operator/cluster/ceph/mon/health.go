@@ -24,6 +24,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -76,152 +77,164 @@ func (c *Cluster) checkHealth() error {
 	}
 	logger.Debugf("Mon status: %+v", status)
 
-	// Source of thruth of which mons should exist is our *clusterInfo*
-	monsNotFound := map[string]interface{}{}
+	// source of thruth of which mons should exist is our *clusterInfo*
+	monsTruth := map[string]interface{}{}
 	for _, mon := range c.clusterInfo.Monitors {
-		monsNotFound[mon.Name] = struct{}{}
+		monsTruth[mon.Name] = struct{}{}
 	}
 
 	// first handle mons that are not in quorum but in the cecph mon map
-	//failover the unhealthy mons
+	// failover the unhealthy mons
 	for _, mon := range status.MonMap.Mons {
-		inQuorum := monInQuorum(mon, status.Quorum)
-		// if the mon is in quorum remove it from our check for "existence"
-		//else see below condition
-		if _, ok := monsNotFound[mon.Name]; ok {
-			delete(monsNotFound, mon.Name)
-		} else {
-			// when the mon isn't in the clusterInfo, but is in qorum and there are
-			//enough mons, remove it else remove it on the next run
-			if inQuorum && len(status.MonMap.Mons) > c.Size {
-				logger.Warningf("mon %s not in source of truth but in quorum, removing", mon.Name)
-				c.removeMon(mon.Name)
-			} else {
-				logger.Warningf(
-					"mon %s not in source of truth and not in quorum, not enough mons to remove now (wanted: %d, current: %d)",
-					mon.Name,
-					c.Size,
-					len(status.MonMap.Mons),
-				)
-			}
+		if _, ok := monsTruth[mon.Name]; !ok {
+			logger.Warningf("mon %s is not in source of truth but in mon map, trying to remove", mon.Name)
+			return c.removeMon(mon.Name)
 		}
 
+		// all mons below this line are in the source of truth, remove them from
+		// the list as below we remove the mons that remained (not in quorum)
+		inQuorum := monInQuorum(mon, status.Quorum)
 		if inQuorum {
 			logger.Debugf("mon %s found in quorum", mon.Name)
 			// delete the "timeout" for a mon if the pod is in quorum again
 			if _, ok := c.monTimeoutList[mon.Name]; ok {
 				delete(c.monTimeoutList, mon.Name)
+				logger.Infof("mon %s is back in quorum again", mon.Name)
 			}
 		} else {
 			logger.Warningf("mon %s NOT found in quorum. %+v", mon.Name, status)
-
-			// If not yet set, add the current time, for the timeout
-			// calculation, to the list
-			if _, ok := c.monTimeoutList[mon.Name]; !ok {
-				c.monTimeoutList[mon.Name] = time.Now()
-			}
-
-			// when the timeout for the mon has been reached, continue to the
-			// normal failover/delete mon pod part of the code
-			if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
-				logger.Warningf("mon %s NOT found in quorum, STILL in mon out timeout", mon.Name)
-				continue
-			}
-
-			c.failMon(len(status.MonMap.Mons), mon.Name)
 			// only deal with one unhealthy mon per health check
-			return nil
+			return c.failMonWithTimeout(len(status.MonMap.Mons), mon.Name)
 		}
 	}
 
-	// after all unhealthy mons have been removed/failovered
-	//handle all mons that haven't been in the Ceph mon map
-	for mon := range monsNotFound {
-		logger.Warningf("mon %s NOT found in ceph mon map, failover", mon)
-		c.failMon(len(c.clusterInfo.Monitors), mon)
-		// only deal with one "not found in ceph mon map" mon per health check
-		return nil
-	}
-
-	// check if there are more than two mons running on the same node, failover one mon in that case
-	done, err := c.checkMonsOnSameNode()
+	// check if mons are on valid nodes (aka placement check)
+	done, err := c.checkMonsOnValidNodes()
 	if done || err != nil {
 		return err
 	}
 
-	done, err = c.checkMonsOnValidNodes()
-	if done || err != nil {
-		return err
+	// if there should be more mons than wanted by the user
+	if len(c.clusterInfo.Monitors) > c.Size {
+		// get first mon in monitor list and remove it from the node
+		for monName := range c.clusterInfo.Monitors {
+			logger.Debugf("too many mons running (current: %d, wanted: %d)", len(c.clusterInfo.Monitors), c.Size)
+			return c.removeMon(monName)
+		}
+		// if we have less than wanted mons, start new mons
+	} else if len(c.clusterInfo.Monitors) < c.Size {
+		return c.startMons()
 	}
 
 	return nil
 }
 
-func (c *Cluster) checkMonsOnSameNode() (bool, error) {
-	nodesUsed := map[string]struct{}{}
-	for name, node := range c.mapping.Node {
-		// when the node is already in the list we have more than one mon on that node
-		if _, ok := nodesUsed[node.Name]; ok {
-			// get list of available nodes for mons
-			availableNodes, _, err := c.getAvailableMonNodes()
-			if err != nil {
-				return true, fmt.Errorf("failed to get available mon nodes. %+v", err)
-			}
-			// if there are enough nodes for one mon "that is too much" to be failovered,
-			// fail it over to an other node
-			if len(availableNodes) > 0 {
-				logger.Infof("rebalance: enough nodes available %d to failover mon %s", len(availableNodes), name)
-				c.failMon(len(c.clusterInfo.Monitors), name)
-			} else {
-				logger.Debugf("rebalance: not enough nodes available to failover mon %s", name)
-			}
-
-			// deal with one mon too much on a node at a time
-			return true, nil
-		}
-		nodesUsed[node.Name] = struct{}{}
-	}
-	return false, nil
-}
-
 func (c *Cluster) checkMonsOnValidNodes() (bool, error) {
-	for mon, nInfo := range c.mapping.Node {
+	for _, m := range c.clusterInfo.Monitors {
+		monID, err := getMonID(m.Name)
+		if err != nil {
+			return false, err
+		}
+		nodeName := c.mapping.MonsToNodes[monID]
 		// get node to use for validNode() func
-		node, err := c.context.Clientset.CoreV1().Nodes().Get(nInfo.Name, metav1.GetOptions{})
+		node, err := c.context.Clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 		if err != nil {
 			return true, err
 		}
+		monName := getMonNameForID(monID)
+
+		// update node IPs for hostNetwork modewhen they have changed
+		if c.HostNetwork {
+			if err = c.checkMonNodeIP(monID, *node); err != nil {
+				return false, err
+			}
+		}
+
 		// check if node the mon is on is still valid
 		if !validNode(*node, c.placement) {
-			logger.Warningf("node %s isn't valid anymore, failover mon %s", nInfo.Name, mon)
-			c.failoverMon(mon)
+			logger.Warningf("node %s isn't valid anymore, failover mon %s", nodeName, monName)
+			c.failMon(len(c.clusterInfo.Monitors), monName)
 			return true, nil
 		}
-		logger.Debugf("node %s with mon %s is still valid", nInfo.Name, mon)
+		logger.Debugf("node %s with mon %s is still valid", nodeName, monName)
 	}
 	return false, nil
 }
 
-// failMon monCount is compared against c.Size (wanted mon count)
-func (c *Cluster) failMon(monCount int, name string) {
-	if monCount > c.Size {
-		// no need to create a new mon since we have an extra
-		if err := c.removeMon(name); err != nil {
-			logger.Errorf("failed to remove mon %s. %+v", name, err)
+func (c *Cluster) checkMonNodeIP(monID int, node v1.Node) error {
+	if ip, ok := c.mapping.Addresses[monID]; ok {
+		currentIP, err := getNodeIPFromNode(node)
+		if err != nil {
+			return fmt.Errorf("failed to get IP from node %s. %+v", node.Name, err)
 		}
-	} else {
-		// bring up a new mon to replace the unhealthy mon
-		if err := c.failoverMon(name); err != nil {
-			logger.Errorf("failed to failover mon %s. %+v", name, err)
+		if ip != currentIP {
+			c.mapping.Addresses[monID] = currentIP
+			if err := c.saveConfigChanges(); err != nil {
+				return fmt.Errorf("failed to save config after updating node %s IP for mon with ID %d. %+v", node.Name, monID, err)
+			}
 		}
 	}
+	return nil
+}
+
+// failMonWithTimeout takes the mon out timeout into account before failing a mon
+func (c *Cluster) failMonWithTimeout(monCount int, name string) error {
+	// If not yet set, add the current time, for the timeout
+	// calculation, to the list
+	if _, ok := c.monTimeoutList[name]; !ok {
+		c.monTimeoutList[name] = time.Now()
+	}
+
+	// when the timeout for the mon has been reached, continue to the
+	// normal failover/delete mon pod part of the code
+	if time.Since(c.monTimeoutList[name]) <= MonOutTimeout {
+		logger.Warningf("mon %s NOT found in quorum, STILL in mon out timeout", name)
+		return nil
+	}
+
+	return c.failMon(monCount, name)
+}
+
+// failMon monCount is compared against c.Size (wanted mon count)
+func (c *Cluster) failMon(monCount int, name string) error {
+	// when the "quorum" allows removal of a mon, remove it else fail it over
+	if checkQuorumConsensusForRemoval(monCount, 1) {
+		logger.Debugf("removing mon as quorum ", monCount%2)
+		// no need to create a new mon since we have a "spare" mon for some reasons..
+		// example reason: changed monCount in Cluster CRD
+		if err := c.removeMon(name); err != nil {
+			return fmt.Errorf("failed to remove mon %s. %+v", name, err)
+		}
+	} else {
+		// check if enough nodes are available, when not no changes are done until
+		// enough nodes are available
+		availableNodes, err := c.getAvailableMonNodes()
+		if err != nil {
+			return err
+		}
+		logger.Infof("found %d running nodes without mons", len(availableNodes))
+		if len(availableNodes) == 0 {
+			logger.Warningf("not enough nodes without mons available (available: %d)", len(availableNodes))
+			return nil
+		}
+
+		// bring up a new mon to replace the unhealthy mon
+		if err := c.failoverMon(name); err != nil {
+			return fmt.Errorf("failed to failover mon %s. %+v", name, err)
+		}
+	}
+	return nil
 }
 
 func (c *Cluster) failoverMon(name string) error {
-	logger.Infof("Failing over monitor %s", name)
+	logger.Infof("failing over monitor %s", name)
 
 	// Start a new monitor
-	m := &monConfig{Name: fmt.Sprintf("%s%d", appName, c.maxMonID+1), Port: int32(mon.DefaultPort)}
+	m := &monConfig{
+		ID:   c.maxMonID + 1,
+		Name: getMonNameForID(c.maxMonID + 1),
+		Port: int32(mon.DefaultPort),
+	}
 	logger.Infof("starting new mon %s", m.Name)
 
 	// Create the service endpoint
@@ -254,7 +267,7 @@ func (c *Cluster) failoverMon(name string) error {
 }
 
 func (c *Cluster) removeMon(name string) error {
-	logger.Infof("ensuring removal of unhealthy monitor %s", name)
+	logger.Infof("removing monitor %s", name)
 
 	// Remove the mon pod if it is still there
 	var gracePeriod int64
@@ -268,28 +281,6 @@ func (c *Cluster) removeMon(name string) error {
 		}
 	}
 
-	// Remove the bad monitor from quorum
-	if err := removeMonitorFromQuorum(c.context, c.clusterInfo.Name, name); err != nil {
-		return fmt.Errorf("failed to remove mon %s from quorum. %+v", name, err)
-	}
-	delete(c.clusterInfo.Monitors, name)
-	// check if a mapping exists for the mon
-	if _, ok := c.mapping.Node[name]; ok {
-		nodeName := c.mapping.Node[name].Name
-		delete(c.mapping.Node, name)
-		// if node->port "mapping" has been created, decrease or delete it
-		if port, ok := c.mapping.Port[nodeName]; ok {
-			if port == mon.DefaultPort {
-				delete(c.mapping.Port, nodeName)
-			}
-			// don't clean up if a node port is higher than the default port, other
-			//mons could be on the same node with > DefaultPort ports, decreasing could
-			//cause port collsions
-			// This can be solved by using a map[nodeName][]int32 for the ports to
-			//even better check which ports are open for the HostNetwork mode
-		}
-	}
-
 	// Remove the service endpoint
 	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(name, options); err != nil {
 		if errors.IsNotFound(err) {
@@ -299,25 +290,54 @@ func (c *Cluster) removeMon(name string) error {
 		}
 	}
 
-	if err := c.saveMonConfig(); err != nil {
-		return fmt.Errorf("failed to save mon config after failing over mon %s. %+v", name, err)
+	// Remove the bad monitor from quorum
+	if err := removeMonitorFromQuorum(c.context, c.clusterInfo.Name, name); err != nil {
+		return fmt.Errorf("failed to remove mon %s from quorum. %+v", name, err)
+	}
+	if _, ok := c.clusterInfo.Monitors[name]; ok {
+		delete(c.clusterInfo.Monitors, name)
 	}
 
-	// make sure to rewrite the config so NO new connections are made to the removed mon
-	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
-		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", name, err)
+	id, err := getMonID(name)
+	if err != nil {
+		return fmt.Errorf("failed to get mon id from name %s. %+v", name, err)
+	}
+
+	if c.HostNetwork {
+		if _, ok := c.mapping.Addresses[id]; ok {
+			delete(c.mapping.Addresses, id)
+		} else {
+			logger.Debugf("no address mapping for mon %s", name)
+		}
+	}
+
+	if err := c.saveConfigChanges(); err != nil {
+		return fmt.Errorf("error saving config after failing over mon %s. %+v", name, err)
 	}
 
 	return nil
 }
 
 func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string) error {
-	logger.Debugf("removing monitor %s", name)
+	logger.Debugf("removing monitor %s from quorum", name)
 	args := []string{"mon", "remove", name}
 	if _, err := client.ExecuteCephCommand(context, clusterName, args); err != nil {
 		return fmt.Errorf("mon %s remove failed: %+v", name, err)
 	}
 
 	logger.Infof("removed monitor %s", name)
+	return nil
+}
+
+func (c *Cluster) saveConfigChanges() error {
+	if err := c.saveMonConfig(); err != nil {
+		return fmt.Errorf("failed to save mon config. %+v", err)
+	}
+
+	// make sure to rewrite the config so NO new connections are made to the removed mon
+	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
+		return fmt.Errorf("failed to write connection config. %+v", err)
+	}
+
 	return nil
 }

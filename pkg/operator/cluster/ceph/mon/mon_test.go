@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"path"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -30,7 +29,6 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephmon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -71,8 +69,9 @@ func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, r
 		monPodTimeout:       1 * time.Second,
 		monTimeoutList:      map[string]time.Time{},
 		mapping: &Mapping{
-			Node: map[string]*NodeInfo{},
-			Port: map[string]int32{},
+			NodesToMons: map[string]int{},
+			MonsToNodes: map[int]string{},
+			Addresses:   map[int]string{},
 		},
 		resources: resources,
 		ownerRef:  metav1.OwnerReference{},
@@ -119,12 +118,12 @@ func TestOperatorRestart(t *testing.T) {
 				{
 					Name:    "rook-ceph-mon1",
 					Rank:    0,
-					Address: "0.0.0.0",
+					Address: "1.1.1.1",
 				},
 				{
 					Name:    "rook-ceph-mon2",
 					Rank:    0,
-					Address: "0.0.0.0",
+					Address: "2.2.2.2",
 				},
 			}
 			serialized, _ := json.Marshal(resp)
@@ -133,7 +132,7 @@ func TestOperatorRestart(t *testing.T) {
 	}
 	context.Executor = executor
 	c := newCluster(context, namespace, false, v1.ResourceRequirements{})
-	c.clusterInfo = test.CreateConfigDir(1)
+	c.clusterInfo = test.CreateConfigDir(3)
 
 	// start a basic cluster
 	err := c.Start()
@@ -227,25 +226,22 @@ func TestSaveMonEndpoints(t *testing.T) {
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mon1=1.2.3.1:6790", cm.Data[EndpointDataKey])
-	assert.Equal(t, `{"node":{},"port":{}}`, cm.Data[MappingKey])
+	assert.Equal(t, "rook-ceph-mon1=1.1.1.1:6790", cm.Data[EndpointDataKey])
+	assert.Equal(t, `{"monsToNodes":{},"nodesToMons":{},"addresses":{}}`, cm.Data[MappingKey])
 	assert.Equal(t, "-1", cm.Data[MaxMonIDKey])
 
 	// update the config map
-	c.clusterInfo.Monitors["mon1"].Endpoint = "2.3.4.5:6790"
+	c.clusterInfo.Monitors["rook-ceph-mon1"].Endpoint = "2.3.4.5:6790"
 	c.maxMonID = 2
-	c.mapping.Node["mon1"] = &NodeInfo{
-		Name:    "node0",
-		Address: "1.1.1.1",
-	}
-	c.mapping.Port["node0"] = int32(12345)
+	c.mapping.MonsToNodes[1] = "node0"
+	c.mapping.NodesToMons["node0"] = 1
 	err = c.saveMonConfig()
 	assert.Nil(t, err)
 
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mon1=2.3.4.5:6790", cm.Data[EndpointDataKey])
-	assert.Equal(t, `{"node":{"mon1":{"Name":"node0","Address":"1.1.1.1"}},"port":{"node0":12345}}`, cm.Data[MappingKey])
+	assert.Equal(t, "rook-ceph-mon1=2.3.4.5:6790", cm.Data[EndpointDataKey])
+	assert.Equal(t, `{"monsToNodes":{"1":"node0"},"nodesToMons":{"node0":1},"addresses":{}}`, cm.Data[MappingKey])
 	assert.Equal(t, "2", cm.Data[MaxMonIDKey])
 }
 
@@ -306,7 +302,7 @@ func TestAvailableMonNodes(t *testing.T) {
 
 func TestAvailableNodesInUse(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 2, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	// all three nodes are available by default
@@ -325,14 +321,14 @@ func TestAvailableNodesInUse(t *testing.T) {
 	assert.Equal(t, 1, len(reducedNodes))
 	assert.Equal(t, nodes[2].Name, reducedNodes[0].Name)
 
-	// start pods on the remaining node. We expect all nodes to be available for placement
-	// since there is no way to place a mon on an unused node.
-	pod := c.makeMonPod(&monConfig{Name: "mon2"}, nodes[2].Name)
+	// start the third pod on the remaining node. We expect no node to be available
+	// since we don't run more than one mon per node.
+	pod := c.makeMonPod(&monConfig{Name: "rook-ceph-mon2"}, nodes[2].Name)
 	_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
 	assert.Nil(t, err)
 	nodes, err = c.getMonNodes()
-	assert.Nil(t, err)
-	assert.Equal(t, 3, len(nodes))
+	assert.NotNil(t, err)
+	assert.Equal(t, 0, len(nodes))
 }
 
 func TestTaintedNodes(t *testing.T) {
@@ -424,76 +420,4 @@ func TestHostNetwork(t *testing.T) {
 
 	assert.Equal(t, true, pod.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, pod.Spec.DNSPolicy)
-}
-
-func TestGetNodeInfoFromNode(t *testing.T) {
-	clientset := test.New(1)
-	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.NotNil(t, node)
-
-	node.Status = v1.NodeStatus{}
-	node.Status.Addresses = []v1.NodeAddress{
-		{
-			Type:    v1.NodeExternalIP,
-			Address: "1.1.1.1",
-		},
-	}
-
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
-
-	var info *NodeInfo
-	info, err = getNodeInfoFromNode(*node)
-	assert.Nil(t, err)
-
-	assert.Equal(t, "1.1.1.1", info.Address)
-}
-
-func TestHostNetworkPortIncrease(t *testing.T) {
-	clientset := test.New(1)
-	node, err := clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.NotNil(t, node)
-
-	node.Status = v1.NodeStatus{}
-	node.Status.Addresses = []v1.NodeAddress{
-		{
-			Type:    v1.NodeExternalIP,
-			Address: "1.1.1.1",
-		},
-	}
-
-	configDir, _ := ioutil.TempDir("", "")
-	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{
-		Clientset: clientset,
-		ConfigDir: configDir,
-	}, "ns", "", "myversion", 3, rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.clusterInfo = test.CreateConfigDir(0)
-
-	mons := []*monConfig{
-		{
-			Name: "mon1",
-			Port: cephmon.DefaultPort,
-		},
-		{
-			Name: "mon2",
-			Port: cephmon.DefaultPort,
-		},
-	}
-
-	err = c.assignMons(mons)
-	assert.Nil(t, err)
-
-	err = c.initMonIPs(mons)
-	assert.Nil(t, err)
-
-	assert.Equal(t, node.Name, c.mapping.Node["mon1"].Name)
-	assert.Equal(t, node.Name, c.mapping.Node["mon2"].Name)
-
-	sEndpoint := strings.Split(c.clusterInfo.Monitors["mon1"].Endpoint, ":")
-	assert.Equal(t, strconv.Itoa(cephmon.DefaultPort), sEndpoint[1])
-	sEndpoint = strings.Split(c.clusterInfo.Monitors["mon2"].Endpoint, ":")
-	assert.Equal(t, strconv.Itoa(cephmon.DefaultPort+1), sEndpoint[1])
 }
