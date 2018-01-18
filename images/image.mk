@@ -29,7 +29,7 @@ endif
 CACHE_REGISTRY := cache
 
 # the base ubuntu image to use
-OSBASE ?= ubuntu:zesty
+OSBASE ?= ubuntu:xenial
 
 ifeq ($(GOARCH),amd64)
 OSBASEIMAGE=$(OSBASE)
