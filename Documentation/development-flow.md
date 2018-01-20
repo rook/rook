@@ -102,7 +102,7 @@ your request will be accepted into the rook/rook repo. It is prudent to run all 
 From the root of your local Rook repo execute the following to run all of the unit tests:
 
 ```bash
-build/run make test
+make test
 ```
 
 Unit tests for individual packages can be run with the standard `go test` command. Before you open a PR, confirm that you have sufficient code coverage on the packages that you changed. View the `coverage.html` in a browser to inspect your new code.

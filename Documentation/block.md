@@ -6,11 +6,11 @@ indent: true
 
 # Block Storage
 
-Block storage allows you to mount storage to a single pod.
+Block storage allows you to mount storage to a single pod. This example shows how to build a simple, multi-tier web application on Kubernetes using persistent volumes enabled by Rook.
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](quickstart.md)
+This guide assumes you have created a Rook cluster as explained in the main [Quickstart](quickstart.md) guide.
 
 ## Provision Storage
 

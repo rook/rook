@@ -5,7 +5,11 @@ weight: 2
 
 # Quickstart Guide
 
-This example shows how to build a simple, multi-tier web application on Kubernetes using persistent volumes enabled by Rook.
+Welcome to Rook! We hope you have a great experience installing the Rook storage platform to enable highly available, durable storage
+in your cluster. If you have any questions along the way, please don't hesitate to ask us in our [Slack channel](https://Rook-io.slack.com).
+
+This guide will walk you through the basic setup of a Rook cluster. This will enable you to consume block, object, and file storage
+from other pods running in your cluster. 
 
 ## Minimum Version
 
@@ -20,9 +24,20 @@ To make sure you have a Kubernetes cluster that is ready for `Rook`, you can [fo
 
 If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, make sure your host has at least 5GB of space available on the specified path.
 
-## Deploy Rook
+## TL;DR
 
-With your Kubernetes cluster running, Rook can be setup and deployed by simply creating the rook-operator deployment and creating a rook cluster. To customize the operator settings, see the [Rook Helm Chart](helm-operator.md).
+If you're feeling lucky, a simple Rook cluster can be created with the following kubectl commands. For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
+```
+cd cluster/examples/kubernetes
+kubectl create -f rook-operator.yaml
+kubectl create -f rook-cluster.yaml
+```
+
+After the cluster is running, you can create [block, object, or file](#storage) storage to be consumed by other applications in your cluster.
+
+## Deploy the Rook Operator
+
+The first step is to deploy the Rook system components, which include the Rook agent running on each node in your cluster as well as Rook operator pod. 
 
 ```bash
 cd cluster/examples/kubernetes
@@ -31,6 +46,8 @@ kubectl create -f rook-operator.yaml
 # verify the rook-operator and rook-agents pods are in the `Running` state before proceeding
 kubectl -n rook-system get pod
 ```
+
+You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
 
 ---
 ### **Restart Kubelet**
@@ -45,7 +62,9 @@ For Kubernetes 1.6, it is also necessary to pass the `--enable-controller-attach
 
 ---
 
-Now that the rook-operator pod is running, we can create the Rook cluster. For the cluster to survive reboots, 
+## Create a Rook Cluster
+
+Now that the Rook operator and agent pods are running, we can create the Rook cluster. For the cluster to survive reboots, 
 make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](cluster-crd.md). 
 
 
@@ -96,8 +115,8 @@ rook-ceph-osd-0h6nb               1/1       Running   0          5m
 
 For a walkthrough of the three types of storage exposed by Rook, see the guides for:
 - **[Block](block.md)**: Create block storage to be consumed by a pod
-- **[Shared File System](filesystem.md)**: Create a file system to be shared across multiple pods
 - **[Object](object.md)**: Create an object store that is accessible inside or outside the Kubernetes cluster
+- **[Shared File System](filesystem.md)**: Create a file system to be shared across multiple pods
 
 # Tools
 
