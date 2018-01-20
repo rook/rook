@@ -206,8 +206,7 @@ func SystemNamespace(namespace string) string {
 func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType, dataDirHostPath string, helmInstalled, useDevices bool, mons int) (bool, error) {
 	var err error
 	//flag used for local debuggin purpose, when rook is pre-installed
-	skipRookInstall := strings.EqualFold(h.Env.SkipInstallRook, "true")
-	if skipRookInstall {
+	if h.Env.SkipInstallRook {
 		return true, nil
 	}
 
@@ -270,8 +269,7 @@ func (h *InstallHelper) UninstallRook(helmInstalled bool, namespace string) {
 //UninstallRookFromK8s uninstalls rook from multiple namespaces in k8s
 func (h *InstallHelper) UninstallRookFromMultipleNS(helmInstalled bool, systemNamespace string, namespaces ...string) {
 	//flag used for local debugging purpose, when rook is pre-installed
-	skipRookInstall := strings.EqualFold(h.Env.SkipInstallRook, "true")
-	if skipRookInstall {
+	if h.Env.SkipInstallRook {
 		return
 	}
 

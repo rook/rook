@@ -1,3 +1,19 @@
+/*
+Copyright 2016 The Rook Authors. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package longhaul
 
 import (
@@ -29,14 +45,16 @@ type BlockLongHaulSuite struct {
 	suite.Suite
 	kh        *utils.K8sHelper
 	installer *installer.InstallHelper
+	namespace string
 	op        contracts.Setup
 }
 
 //Test set up - does the following in order
 //create pool and storage class, create a PVC, Create a MySQL app/service that uses pvc
 func (s *BlockLongHaulSuite) SetupSuite() {
-	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, "longhaul-ns")
-	createStorageClassAndPool(s.T, s.kh, "longhaul-ns", "rook-block", "rook-pool")
+	s.namespace = "longhaul-ns"
+	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, s.namespace)
+	createStorageClassAndPool(s.T, s.kh, s.namespace, "rook-block", "rook-pool")
 }
 
 //create a n number  ofPVC, Create a MySQL app/service that uses pvc
