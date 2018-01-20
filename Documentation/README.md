@@ -8,6 +8,16 @@ Rook integrates deeply into cloud native environments leveraging extension point
 
 Rook is currently in alpha state and has focused initially on orchestrating Ceph on top of Kubernetes. Ceph is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters. Rook plans to add support for other storage systems beyond Ceph in future releases. 
 
+## Getting Started
+
+Starting Rook in your cluster is as simple as two `kubectl` commands. See our [Quickstart](quickstart.md) guide for the details on what you need to get going.
+
+Once you have a Rook cluster running, walk through the guides for block, object, and file to start consuming the storage in your cluster:
+- **[Block](block.md)**: Create block storage to be consumed by a pod
+- **[Object](object.md)**: Create an object store that is accessible inside or outside the Kubernetes cluster
+- **[Shared File System](filesystem.md)**: Create a file system to be shared across multiple pods
+
+
 ## Design
 
 Rook enables storage software systems to run on Kubernetes using Kubernetes primitives. Although Rook's reference storage system is Ceph, support for other storage systems can be added. The following image illustrates how Rook integrates with Kubernetes:
