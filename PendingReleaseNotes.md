@@ -5,6 +5,10 @@
 ## Notable Features
 - Monitoring is now done through the Ceph MGR service for Ceph storage.
 
+### Operator Settings
+- `AGENT_TOLERATION`: Toleration can be added to the Rook agent, such as to run on the master node.
+- `FLEXVOLUME_DIR_PATH`: Flex volume directory can be overridden on the Rook agent.
+
 ## Breaking Changes
 - `armhf` build of Rook have been removed. Ceph is not supported or tested on `armhf`. arm64 support continues.
 

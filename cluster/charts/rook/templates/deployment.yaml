@@ -30,6 +30,14 @@ spec:
         - name: AGENT_TOLERATION
           value: {{ .Values.agent.toleration }}
 {{- end }}
+{{- if .Values.agent.tolerationKey }}
+        - name: AGENT_TOLERATION_KEY
+          value: {{ .Values.agent.tolerationKey }}
+{{- end }}
+{{- if .Values.agent.flexVolumeDirPath }}
+        - name: FLEXVOLUME_DIR_PATH
+          value: {{ .Values.agent.flexVolumeDirPath }}
+{{- end }}
 {{- end }}
         - name: ROOK_LOG_LEVEL
           value: {{ .Values.logLevel }}
@@ -45,10 +53,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-{{- if .Values.flexVolumeDirPath }}
-        - name: FLEXVOLUME_DIR_PATH
-          value: {{ .Values.flexVolumeDirPath }}
-{{- end }}
 {{- if .Values.mon }}
 {{- if .Values.mon.healthCheckInterval }}
         - name: ROOK_MON_HEALTHCHECK_INTERVAL

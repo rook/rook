@@ -93,7 +93,13 @@ The following tables lists the configurable parameters of the rook-operator char
 | `image.pullPolicy` | Image pull policy                    | `IfNotPresent`       |
 | `rbacEnable`       | If true, create & use RBAC resources | `true`               |
 | `resources`        | Pod resource requests & limits       | `{}`                 |
-| `logLevel`        | Global log level        | `INFO`                 |
+| `logLevel`         | Global log level        | `INFO`                 |
+| `agent.flexVolumeDirPath` | Path where the Rook agent discovers the flex volume plugins | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
+| `agent.toleration`        | Toleration for the agent pods | <none> |
+| `agent.tolerationKey`     | The specific key of the taint to tolerate | <none> |
+| `mon.healthCheckInterval` | The frequency for the operator to check the mon health | `45s` |
+| `mon.monOutTimeout`       | The time to wait before failing over an unhealthy mon | `300s` |
+
 
 ### Command Line
 You can pass the settings with helm command line parameters. Specify each parameter using the 
