@@ -15,5 +15,5 @@ spec:
       rook_cluster: rook
   endpoints:
   - port: http-metrics
-    path: /
+    path: /metrics
     interval: 5s
