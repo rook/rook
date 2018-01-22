@@ -139,15 +139,15 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	if cluster.Spec.MonCount <= 0 {
-		logger.Warningf("mon count is 0 or less (given: %d), needs to be greater 0", cluster.Spec.MonCount)
+		logger.Warningf("mon count is 0 or less (given: %d), should be greater than 0, defaulting to %d", cluster.Spec.MonCount, defaultMonCount)
 		cluster.Spec.MonCount = defaultMonCount
 	}
 	if cluster.Spec.MonCount > maxMonCount {
-		logger.Warningf("mon count is bigger than %d (given: %d), this is NOT recommended", maxMonCount, cluster.Spec.MonCount)
+		logger.Warningf("mon count is bigger than %d (given: %d), not supported, changing to %d", maxMonCount, cluster.Spec.MonCount, maxMonCount)
 		cluster.Spec.MonCount = maxMonCount
 	}
 	if cluster.Spec.MonCount%2 == 0 {
-		logger.Warningf("mon count is even (given: %d), should be uneven", cluster.Spec.MonCount)
+		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.MonCount)
 	}
 
 	// Start the Rook cluster components. Retry several times in case of failure.
