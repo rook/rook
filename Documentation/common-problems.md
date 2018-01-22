@@ -13,7 +13,8 @@ If after trying the suggestions found on this page and the problem is not resolv
 ## Table of Contents
 - [Pod using Rook storage is not running](#pod-using-rook-storage-is-not-running)
 - [Cluster failing to service requests](#cluster-failing-to-service-requests)
-- [Only a single monitor pod starts after redeploy](#only-a-single-monitor-pod-starts-after-redeploy)
+- [Only a single monitor pod starts](#only-a-single-monitor-pod-starts)
+- [OSD pods are failing to start](#osd-pods-are-failing-to-start)
 
 # Troubleshooting Techniques
 One of the first things that should be done is to start the [rook-tools pod](./toolbox.md) as described in the Toolbox section. Once the pod is up and running one can `kubectl exec` into the pod to execute Ceph commands to evaluate that current state of the cluster. Here is a list of commands that can help one get an understanding of the current state.
@@ -246,25 +247,55 @@ What is happening here is that the MON pods are restarting and one or more of th
 
 The `dataDirHostPath` setting specifies a path on the local host for the CEPH daemons to store configuration and data. Setting this to a path like `/var/lib/rook`, reapplying your Cluster CRD and restarting all the CEPH daemons (MON, MGR, OSD, RGW) should solve this problem. After the CEPH daemons have been restarted, it is advisable to restart the rook-api and [rook-tool Pods](./toolbox.md).
 
-# Only a single monitor pod starts after redeploy
+# Only a single monitor pod starts
 
 ## Symptoms
-* After tearing down a working cluster to redeploy a new cluster, the new cluster fails to start
 * Rook operator is running
-* Only a partial number of the MON daemons are created and are failing
-* If the mons started, the OSD pods are failing
+* Only one mon pod is running
 
 ## Investigation
-When attempting to reinstall Rook, the rook-operator pod gets started successfully and then the cluster CRD is then loaded. The rook-operator only starts up a single MON (possibly on rare occasion a second MON may be started) and just hangs. Looking at the log output of the rook-operator the last operation that was occuring was a `ceph mon_status`.
+When the operator is starting a cluster, the operator will start one mon at a time and check that they are healthy before continuing to bring up all three mons.
+If the first mon is not detected healthy, the operator will continue to check until it is healthy. There are two likely causes for the mon health not being detected:
+- The operator pod does not have network connectivity to the mon pod
+- The mon pod is failing to start
 
-Looking at the log or the termination status for the `mon` pod, you will see a message indicating the keyring does not match from a previous deployment.
+### Operator fails to connect to the mon
+First look at the logs of the operator to confirm if it is able to connect to the mons. 
+```
+$ kubectl -n rook-system logs -l app=rook-operator
+```
+
+Likely you will see an error similar to the following that the operator is timing out when connecting to the mon. The last command is `ceph mon_status`, 
+followed by a timeout message five minutes later.
+```
+2018-01-21 21:47:32.375833 I | exec: Running command: ceph mon_status --cluster=rook --conf=/var/lib/rook/rook/rook.config --keyring=/var/lib/rook/rook/client.admin.keyring --format json --out-file /tmp/442263890
+2018-01-21 21:52:35.370533 I | exec: 2018-01-21 21:52:35.071462 7f96a3b82700  0 monclient(hunting): authenticate timed out after 300
+2018-01-21 21:52:35.071462 7f96a3b82700  0 monclient(hunting): authenticate timed out after 300
+2018-01-21 21:52:35.071524 7f96a3b82700  0 librados: client.admin authentication error (110) Connection timed out
+2018-01-21 21:52:35.071524 7f96a3b82700  0 librados: client.admin authentication error (110) Connection timed out
+[errno 110] error connecting to the cluster
+```
+
+The error would appear to be an authentication error, but it is misleading. The real issue is a timeout.
+
+### Solution
+If you see the timeout in the operator log, verify if the mon pod is running (see the next section). 
+If the mon pod is running, check the network connectivity between the operator pod and the mon pod. 
+A common issue is that the CNI is not configured correctly.
+
+### Failing mon pod
+Second we need to verify if the mon pod started successfully. 
 
 ```
-# the mon pod is in a crash loop backoff state
-$ kubectl -n rook get pod
+$ kubectl -n rook get pod -l app=rook-ceph-mon
 NAME                   READY     STATUS             RESTARTS   AGE
 rook-ceph-mon0-r8tbl   0/1       CrashLoopBackOff   2          47s
+```
 
+If the mon pod is failing as in this example, you will need to look at the mon pod status or logs to determine the cause. If the pod is in a crash loop backoff state,
+you should see the reason by describing the pod.
+
+```
 # the pod shows a termination status that the keyring does not match the existing keyring
 $ kubectl -n rook describe pod -l mon=rook-ceph-mon0
 ...
@@ -275,8 +306,30 @@ $ kubectl -n rook describe pod -l mon=rook-ceph-mon0
 ...
 ```
 
-If your cluster is larger than a couple nodes, you may get lucky enough that the monitors were able to start and form quorum. However, now the OSDs pods may fail to start due to state
-from a previous deployment. Looking at the OSD pod logs you will see an error about the file already existing.
+### Solution
+This is a common problem reinitializing the Rook cluster when the local directory used for persistence has **not** been purged. 
+This directory is the `dataDirHostPath` setting in the cluster CRD and is typically set to `/var/lib/rook`. 
+To fix the issue you will need to delete all components of Rook and then delete the contents of `/var/lib/rook` (or the directory specified by `dataDirHostPath`) on each of the hosts in the cluster. 
+Then when the cluster CRD is applied to start a new cluster, the rook-operator should start all the pods as expected.
+
+
+# OSD pods are failing to start
+
+## Symptoms
+* OSD pods are failing to start
+* You have started a cluster after tearing down another cluster
+
+## Investigation
+When an OSD starts, the device or directory will be configured for consumption. If there is an error with the configuration, the pod will crash and you will see the CrashLoopBackoff
+status for the pod. Look in the osd pod logs for an indication of the failure.
+```
+$ kubectl -n rook logs rook-ceph-osd-fl8fs
+...
+```
+
+One common case for failure is that you have re-deployed a test cluster and some state may remain from a previous deployment.
+If your cluster is larger than a few nodes, you may get lucky enough that the monitors were able to start and form quorum. However, now the OSDs pods may fail to start due to the
+old state. Looking at the OSD pod logs you will see an error about the file already existing.
 ```
 $ kubectl -n rook logs rook-ceph-osd-fl8fs
 ...
@@ -288,7 +341,7 @@ $ kubectl -n rook logs rook-ceph-osd-fl8fs
 ```
 
 ## Solution
-This is a common problem reinitializing the Rook cluster when the local directory used for persistence has **not** been purged. 
+If the error is from the file that already exists, this is a common problem reinitializing the Rook cluster when the local directory used for persistence has **not** been purged. 
 This directory is the `dataDirHostPath` setting in the cluster CRD and is typically set to `/var/lib/rook`. 
 To fix the issue you will need to delete all components of Rook and then delete the contents of `/var/lib/rook` (or the directory specified by `dataDirHostPath`) on each of the hosts in the cluster. 
 Then when the cluster CRD is applied to start a new cluster, the rook-operator should start all the pods as expected.
