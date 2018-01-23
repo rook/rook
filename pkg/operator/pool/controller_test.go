@@ -66,28 +66,43 @@ func TestValidatePool(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestValidateFailureDomain(t *testing.T) {
+func TestValidateCrushProperties(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
 		logger.Infof("Command: %s %v", command, args)
 		if args[1] == "crush" && args[2] == "dump" {
-			return `{"types":[{"type_id": 0,"name": "osd"}]}`, nil
+			return `{"types":[{"type_id": 0,"name": "osd"}],"buckets":[{"id": -1,"name":"default"},{"id": -2,"name":"good"}]}`, nil
 		}
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
 	// succeed with a failure domain that exists
-	p := rookalpha.Pool{ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"}}
-	p.Spec.Replicated.Size = 1
-	p.Spec.FailureDomain = "osd"
-	err := ValidatePool(context, &p)
+	p := &rookalpha.Pool{
+		ObjectMeta: metav1.ObjectMeta{Name: "mypool", Namespace: "myns"},
+		Spec: rookalpha.PoolSpec{
+			Replicated:    rookalpha.ReplicatedSpec{Size: 1},
+			FailureDomain: "osd",
+		},
+	}
+	err := ValidatePool(context, p)
 	assert.Nil(t, err)
 
 	// fail with a failure domain that doesn't exist
 	p.Spec.FailureDomain = "doesntexist"
-	err = ValidatePool(context, &p)
+	err = ValidatePool(context, p)
 	assert.NotNil(t, err)
+
+	// fail with a crush root that doesn't exist
+	p.Spec.FailureDomain = "osd"
+	p.Spec.CrushRoot = "bad"
+	err = ValidatePool(context, p)
+	assert.NotNil(t, err)
+
+	// fail with a crush root that does exist
+	p.Spec.CrushRoot = "good"
+	err = ValidatePool(context, p)
+	assert.Nil(t, err)
 }
 
 func TestCreatePool(t *testing.T) {

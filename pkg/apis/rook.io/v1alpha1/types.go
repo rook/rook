@@ -155,10 +155,13 @@ type PoolSpec struct {
 	// The failure domain: osd or host (technically also any type in the crush map)
 	FailureDomain string `json:"failureDomain"`
 
+	// The root of the crush hierarchy utilized by the pool
+	CrushRoot string `json:"crushRoot"`
+
 	// The replication settings
 	Replicated ReplicatedSpec `json:"replicated"`
 
-	// The erasure code setteings
+	// The erasure code settings
 	ErasureCoded ErasureCodedSpec `json:"erasureCoded"`
 }
 

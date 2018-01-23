@@ -122,7 +122,13 @@ func TestCreateFileSystemHandler(t *testing.T) {
 					return "", fmt.Errorf("still need to create FS")
 				}
 			}
-
+			if args[0] == "osd" && args[1] == "crush" {
+				assert.Equal(t, args[2], "rule")
+				assert.Equal(t, args[3], "create-simple")
+				assert.Equal(t, args[5], "default")
+				assert.Equal(t, args[6], "host")
+				return "", nil
+			}
 			return "", fmt.Errorf("unexpected command '%s'", args[0])
 		},
 	}

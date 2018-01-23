@@ -68,7 +68,7 @@ func (s *BlockImageCreateSuite) SetupSuite() {
 func (s *BlockImageCreateSuite) TestCreatingNewBlockImageOnCustomPool() {
 
 	s.T().Log("Test Creating new block image for custom pool")
-	newPool := model.Pool{Name: pool1}
+	newPool := model.Pool{Name: pool1, ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}}
 	_, err := s.rc.CreatePool(newPool)
 	require.Nil(s.T(), err)
 
@@ -86,7 +86,7 @@ func (s *BlockImageCreateSuite) TestRecreatingBlockImageForSamePool() {
 
 	s.T().Log("Test Case when Block Image is created with Name that is already used by another block on same pool")
 	//create pool1
-	newPool1 := model.Pool{Name: pool1}
+	newPool1 := model.Pool{Name: pool1, ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}}
 	_, err := s.rc.CreatePool(newPool1)
 	require.Nil(s.T(), err)
 
@@ -114,12 +114,12 @@ func (s *BlockImageCreateSuite) TestRecreatingBlockImageForDifferentPool() {
 	s.T().Log("Test Case when Block Image is created with Name that is already used by another block on different pool")
 
 	//create pool1
-	newPool1 := model.Pool{Name: pool1}
+	newPool1 := model.Pool{Name: pool1, ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}}
 	_, err := s.rc.CreatePool(newPool1)
 	require.Nil(s.T(), err)
 
 	//create pool2
-	newPool2 := model.Pool{Name: pool2}
+	newPool2 := model.Pool{Name: pool2, ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}}
 	_, err = s.rc.CreatePool(newPool2)
 	require.Nil(s.T(), err)
 

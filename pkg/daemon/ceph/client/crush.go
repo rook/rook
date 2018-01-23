@@ -93,7 +93,7 @@ type CrushMap struct {
 			Weight int `json:"weight"`
 			Pos    int `json:"pos"`
 		} `json:"items"`
-	}
+	} `json:"buckets"`
 	Rules []struct {
 		ID      int    `json:"rule_id"`
 		Name    string `json:"rule_name"`
@@ -108,7 +108,7 @@ type CrushMap struct {
 			ItemName  string `json:"item_name"`
 			Type      string `json:"type"`
 		} `json:"steps"`
-	}
+	} `json:"rules"`
 	Tunables struct {
 		// Add if necessary
 	} `json:"tunables"`
