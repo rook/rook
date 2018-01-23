@@ -18,7 +18,7 @@ package v1alpha1
 import "github.com/rook/rook/pkg/model"
 
 func (p *PoolSpec) ToModel(name string) *model.Pool {
-	pool := &model.Pool{Name: name, FailureDomain: p.FailureDomain}
+	pool := &model.Pool{Name: name, FailureDomain: p.FailureDomain, CrushRoot: p.CrushRoot}
 	r := p.Replication()
 	if r != nil {
 		pool.ReplicatedConfig.Size = r.Size

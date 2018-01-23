@@ -60,6 +60,13 @@ func TestCreateObjectStoreHandler(t *testing.T) {
 					return "", nil
 				}
 			}
+			if args[0] == "osd" && args[1] == "crush" {
+				assert.Equal(t, args[2], "rule")
+				assert.Equal(t, args[3], "create-simple")
+				assert.Equal(t, args[5], "default")
+				assert.Equal(t, args[6], "host")
+				return "", nil
+			}
 			return "", fmt.Errorf("unexpected command '%s'", args[0])
 		},
 		MockExecuteCommandWithCombinedOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {

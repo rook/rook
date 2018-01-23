@@ -120,7 +120,7 @@ func TestGetPoolsHandler(t *testing.T) {
 	h = newTestHandler(context)
 	h.GetPools(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "[{\"poolName\":\"rbd\",\"poolNum\":0,\"type\":0,\"failureDomain\":\"\",\"replicatedConfig\":{\"size\":1},\"erasureCodedConfig\":{\"dataChunkCount\":0,\"codingChunkCount\":0,\"algorithm\":\"\"}},{\"poolName\":\"ecPool1\",\"poolNum\":1,\"type\":1,\"failureDomain\":\"\",\"replicatedConfig\":{\"size\":0},\"erasureCodedConfig\":{\"dataChunkCount\":2,\"codingChunkCount\":1,\"algorithm\":\"jerasure::reed_sol_van\"}}]", w.Body.String())
+	assert.Equal(t, `[{"poolName":"rbd","poolNum":0,"type":0,"failureDomain":"","crushRoot":"","replicatedConfig":{"size":1},"erasureCodedConfig":{"dataChunkCount":0,"codingChunkCount":0,"algorithm":""}},{"poolName":"ecPool1","poolNum":1,"type":1,"failureDomain":"","crushRoot":"","replicatedConfig":{"size":0},"erasureCodedConfig":{"dataChunkCount":2,"codingChunkCount":1,"algorithm":"jerasure::reed_sol_van"}}]`, w.Body.String())
 }
 
 func TestGetPoolsHandlerFailure(t *testing.T) {
@@ -217,9 +217,9 @@ func TestGetClientAccessInfo(t *testing.T) {
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 		switch {
 		case args[0] == "mon_status":
-			response := "{\"name\":\"mon0\",\"rank\":0,\"state\":\"leader\",\"election_epoch\":3,\"quorum\":[0],\"monmap\":{\"epoch\":1," +
-				"\"fsid\":\"22ae0d50-c4bc-4cfb-9cf4-341acbe35302\",\"modified\":\"2016-09-16 04:21:51.635837\",\"created\":\"2016-09-16 04:21:51.635837\"," +
-				"\"mons\":[{\"rank\":0,\"name\":\"mon0\",\"addr\":\"10.37.129.87:6790\"}]}}"
+			response := `{"name":"mon0","rank":0,"state":"leader","election_epoch":3,"quorum":[0],"monmap":{"epoch":1,` +
+				`"fsid":"22ae0d50-c4bc-4cfb-9cf4-341acbe35302","modified":"2016-09-16 04:21:51.635837","created":"2016-09-16 04:21:51.635837",` +
+				`"mons":[{"rank":0,"name":"mon0","addr":"10.37.129.87:6790"}]}}`
 			return response, nil
 		case args[0] == "auth" && args[1] == "get-key":
 			return `{"key":"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg=="}`, nil
@@ -231,7 +231,7 @@ func TestGetClientAccessInfo(t *testing.T) {
 	h := newTestHandler(context)
 	h.GetClientAccessInfo(w, req)
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "{\"monAddresses\":[\"10.37.129.87:6790\"],\"userName\":\"admin\",\"secretKey\":\"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg==\"}", w.Body.String())
+	assert.Equal(t, `{"monAddresses":["10.37.129.87:6790"],"userName":"admin","secretKey":"AQBsCv1X5oD9GhAARHVU9N+kFRWDjyLA1dqzIg=="}`, w.Body.String())
 }
 
 func TestGetClientAccessInfoHandlerFailure(t *testing.T) {

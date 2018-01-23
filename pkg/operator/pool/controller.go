@@ -170,6 +170,7 @@ func ModelToSpec(pool model.Pool) rookalpha.PoolSpec {
 	ec := pool.ErasureCodedConfig
 	return rookalpha.PoolSpec{
 		FailureDomain: pool.FailureDomain,
+		CrushRoot:     pool.CrushRoot,
 		Replicated:    rookalpha.ReplicatedSpec{Size: pool.ReplicatedConfig.Size},
 		ErasureCoded:  rookalpha.ErasureCodedSpec{CodingChunks: ec.CodingChunkCount, DataChunks: ec.DataChunkCount, Algorithm: ec.Algorithm},
 	}
@@ -197,12 +198,17 @@ func ValidatePoolSpec(context *clusterd.Context, namespace string, p *rookalpha.
 		return fmt.Errorf("neither replication nor erasure code settings were specified")
 	}
 
-	// validate the failure domain if specified
-	if p.FailureDomain != "" {
-		crush, err := ceph.GetCrushMap(context, namespace)
+	var crush ceph.CrushMap
+	var err error
+	if p.FailureDomain != "" || p.CrushRoot != "" {
+		crush, err = ceph.GetCrushMap(context, namespace)
 		if err != nil {
 			return fmt.Errorf("failed to get crush map. %+v", err)
 		}
+	}
+
+	// validate the failure domain if specified
+	if p.FailureDomain != "" {
 		found := false
 		for _, t := range crush.Types {
 			if t.Name == p.FailureDomain {
@@ -212,6 +218,20 @@ func ValidatePoolSpec(context *clusterd.Context, namespace string, p *rookalpha.
 		}
 		if !found {
 			return fmt.Errorf("unrecognized failure domain %s", p.FailureDomain)
+		}
+	}
+
+	// validate the crush root if specified
+	if p.CrushRoot != "" {
+		found := false
+		for _, t := range crush.Buckets {
+			if t.Name == p.CrushRoot {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return fmt.Errorf("unrecognized crush root %s", p.CrushRoot)
 		}
 	}
 

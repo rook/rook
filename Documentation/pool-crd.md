@@ -23,6 +23,7 @@ spec:
   erasureCoded:
     dataChunks: 2
     codingChunks: 1
+  crushRoot: default
 ```
 
 ## Pool Settings
@@ -43,3 +44,4 @@ spec:
 with the default of `host`.   For example, if you have replication of size `3` and the failure domain is `host`, all three copies of the data will be 
 placed on osds that are found on unique hosts. In that case you would be guaranteed to tolerate the failure of two hosts. If the failure domain were `osd`, 
 you would be able to tolerate the loss of two devices. Similarly for erasure coding, the data and coding chunks would be spread across the requested failure domain.
+- `crushRoot`: The root in the crush map to be used by the pool. If left empty or unspecified, the default root will be used. Creating a crush hierarchy for the OSDs currently requires the Rook toolbox to run the Ceph tools described [here](http://docs.ceph.com/docs/master/rados/operations/crush-map/#modifying-the-crush-map). 

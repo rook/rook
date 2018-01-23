@@ -4,6 +4,7 @@
 
 ## Notable Features
 - Monitoring is now done through the Ceph MGR service for Ceph storage.
+- The CRUSH root can be specified for pools with the `crushRoot` property, rather than always using the `default` root. Configuration of the CRUSH hierarchy is necessary with the `ceph osd crush` commands in the toolbox.
 
 ### Operator Settings
 - `AGENT_TOLERATION`: Toleration can be added to the Rook agent, such as to run on the master node.
