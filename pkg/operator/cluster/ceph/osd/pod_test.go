@@ -62,37 +62,37 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	devMountNeeded := deviceFilter != "" || allDevices
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
-	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
-	assert.NotNil(t, replicaSet)
-	assert.Equal(t, "rook-ceph-osd-node1", replicaSet.Name)
-	assert.Equal(t, c.Namespace, replicaSet.Namespace)
-	assert.Equal(t, int32(1), *(replicaSet.Spec.Replicas))
-	assert.Equal(t, "node1", replicaSet.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
-	assert.Equal(t, v1.RestartPolicyAlways, replicaSet.Spec.Template.Spec.RestartPolicy)
+	deployment := c.makeDeployment(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
+	assert.NotNil(t, deployment)
+	assert.Equal(t, "rook-ceph-osd-node1", deployment.Name)
+	assert.Equal(t, c.Namespace, deployment.Namespace)
+	assert.Equal(t, int32(1), *(deployment.Spec.Replicas))
+	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
+	assert.Equal(t, v1.RestartPolicyAlways, deployment.Spec.Template.Spec.RestartPolicy)
 	if devMountNeeded {
-		assert.Equal(t, 3, len(replicaSet.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 3, len(deployment.Spec.Template.Spec.Volumes))
 	} else {
-		assert.Equal(t, 2, len(replicaSet.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 2, len(deployment.Spec.Template.Spec.Volumes))
 	}
-	assert.Equal(t, "rook-data", replicaSet.Spec.Template.Spec.Volumes[0].Name)
-	assert.Equal(t, "rook-config-override", replicaSet.Spec.Template.Spec.Volumes[1].Name)
+	assert.Equal(t, "rook-data", deployment.Spec.Template.Spec.Volumes[0].Name)
+	assert.Equal(t, "rook-config-override", deployment.Spec.Template.Spec.Volumes[1].Name)
 	if devMountNeeded {
-		assert.Equal(t, "devices", replicaSet.Spec.Template.Spec.Volumes[2].Name)
+		assert.Equal(t, "devices", deployment.Spec.Template.Spec.Volumes[2].Name)
 	}
 	if dataDir == "" {
-		assert.NotNil(t, replicaSet.Spec.Template.Spec.Volumes[0].EmptyDir)
-		assert.Nil(t, replicaSet.Spec.Template.Spec.Volumes[0].HostPath)
+		assert.NotNil(t, deployment.Spec.Template.Spec.Volumes[0].EmptyDir)
+		assert.Nil(t, deployment.Spec.Template.Spec.Volumes[0].HostPath)
 	} else {
-		assert.Nil(t, replicaSet.Spec.Template.Spec.Volumes[0].EmptyDir)
-		assert.Equal(t, dataDir, replicaSet.Spec.Template.Spec.Volumes[0].HostPath.Path)
+		assert.Nil(t, deployment.Spec.Template.Spec.Volumes[0].EmptyDir)
+		assert.Equal(t, dataDir, deployment.Spec.Template.Spec.Volumes[0].HostPath.Path)
 	}
 
-	assert.Equal(t, appName, replicaSet.Spec.Template.ObjectMeta.Name)
-	assert.Equal(t, appName, replicaSet.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, c.Namespace, replicaSet.Spec.Template.ObjectMeta.Labels["rook_cluster"])
-	assert.Equal(t, 0, len(replicaSet.Spec.Template.ObjectMeta.Annotations))
+	assert.Equal(t, appName, deployment.Spec.Template.ObjectMeta.Name)
+	assert.Equal(t, appName, deployment.Spec.Template.ObjectMeta.Labels["app"])
+	assert.Equal(t, c.Namespace, deployment.Spec.Template.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, 0, len(deployment.Spec.Template.ObjectMeta.Annotations))
 
-	cont := replicaSet.Spec.Template.Spec.Containers[0]
+	cont := deployment.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	if devMountNeeded {
 		assert.Equal(t, 3, len(cont.VolumeMounts))
@@ -152,11 +152,11 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
-	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
-	assert.NotNil(t, replicaSet)
+	deployment := c.makeDeployment(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
+	assert.NotNil(t, deployment)
 
 	// pod spec should have a volume for the given dir
-	podSpec := replicaSet.Spec.Template.Spec
+	podSpec := deployment.Spec.Template.Spec
 	assert.Equal(t, 4, len(podSpec.Volumes))
 	assert.Equal(t, "rook-dir1", podSpec.Volumes[3].Name)
 	assert.Equal(t, "/rook/dir1", podSpec.Volumes[3].VolumeSource.HostPath.Path)
@@ -203,10 +203,10 @@ func TestStorageSpecConfig(t *testing.T) {
 		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
-	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, c.Storage.Nodes[0].Resources, n.Config)
-	assert.NotNil(t, replicaSet)
+	deployment := c.makeDeployment(n.Name, n.Devices, n.Selection, c.Storage.Nodes[0].Resources, n.Config)
+	assert.NotNil(t, deployment)
 
-	container := replicaSet.Spec.Template.Spec.Containers[0]
+	container := deployment.Spec.Template.Spec.Containers[0]
 	assert.NotNil(t, container)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_STORE", "bluestore", true)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_DATABASE_SIZE", strconv.Itoa(10), true)
@@ -242,7 +242,7 @@ func TestHostNetwork(t *testing.T) {
 		storageSpec, "", rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
-	r := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
+	r := c.makeDeployment(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
 	assert.NotNil(t, r)
 
 	assert.Equal(t, true, r.Spec.Template.Spec.HostNetwork)

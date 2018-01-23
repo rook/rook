@@ -26,6 +26,22 @@ The responsibility for performing and orchestrating an upgrade will be handled b
 This controller will be responsible for carrying out the sequence of steps for updating each individual Rook component.
 Additionally, the controller will monitor cluster and component health during the upgrade process, taking corrective steps to restore health, up to and including a full rollback to the old version.
 
+### **Required Changes**
+Prior to starting this automatic Rook upgrade feature, there are some changes that need to be done in order to facilitate the implementation and workflow of this feature. As stated [below](#kubernetes-built-in-support), Kubernetes already has an update controller that can be leveraged to perform some of these update tasks. There are lots of benefits in using the Kubernetes update controller to update the Rook pods, not counting the fact that the update workflow for Rook becomes
+much easier since we can delegate these update tasks to Kubernetes. Here are some of the benefits in using Kubernetes update controller:
+* Control how many pods can be made unavailable at a time. This is extremely useful for upgrading monitor pods since they need to maintain a quorum.
+* Control how many pods can be created at a time. This is useful for OSD pods where Rook cannot start one pod until the older OSD pod has terminated.
+* Toggle services. Pods that are being updated and have a service added, the service will load-balance the traffic only to available Pods during the update.
+* Revert (aka undo) update. This is useful in case something goes wrong with the update and Rook needs to revert that component back to the original version.
+* Revision history. Useful for providing book keeping for users
+* There are also other features that we may or may not use in Rook but are available just in case they are needed. Some examples are pausing the update and set timeout.
+
+In order to use Kubernetes update controller for updating pods, there are two changes that need to be applied.
+* Pods created with a `replicaset` resource must be changed to use the `deployment` resource. A `deployment` resource essentially uses a `replicaset` resource under the hood. However, using a `deployment` will allow Rook to leverage
+the Kubernetes update controller and all its benefits. Components that are currently being started via a `replicaset` are monitors, RGW and OSD pods
+* For monitor pods, which are currently brought up by `replicasets`, must be converted to `statefulsets`. Monitor pods are more complex than other components due to having to maintain a consistent identity. `statefulset` resources also supports rolling updates.
+* Pods started with a `daemonset` resource must set its update strategy to `RollingUpdate` in order to leverage the Kubernetes update controller. Current components that needs to be updated are rook-agent, RGW and OSD daemonsets.
+
 ### **Prerequisites**
 In order for the upgrade controller to begin an upgrade process, the following conditions must be met:
 * The cluster should be in a healthy state in accordance with our defined [health verification checks](#upgrade-health-verification).
@@ -50,7 +66,7 @@ This command will update the image field of the operator's pod template, which w
 
 **Agents:** The Rook agents will also be running in the Rook system namespace since they perform operations for all Rook clusters in the environment.
 When the operator pod comes up on a newer version than the agents, it will use the Kubernetes API to update the image field of the agent's pod template.
-After this update, it will then terminate each agent pod in a rolling fashion so that their managing daemon set will replace them with a new pod on the new version.
+After this update, the Kubernetes controller will then terminate each agent pod in a rolling fashion so that their managing daemon set will replace them with a new pod on the new version.
 
 Once the operator and all agent pods are running and healthy on the new version, the administrator is free to begin the upgrade process for each of their Rook clusters.
 
@@ -63,21 +79,21 @@ This will help the upgrade controller resume the upgrade if it were to be interr
 Also, each step should be idempotent so that if the step has already been carried out, there will be no unintended side effects if the step is resumed or run again.
 1. **API:** The API pod will be upgraded first by updating the `image` field of the pod template spec.
 The deployment managing the API pod will then terminate the old pod and then start a pod on the new version to replace it.
-    1. The controller will verify that the new API pod is in the `Running` state with the new version and that basic routes are accessible such as `/status`.
+    1. The rook update controller will verify that the new API pod is in the `Running` state with the new version and that basic routes are accessible such as `/status`.
 1. **Mons:** The monitor pods will be upgraded in a rolling fashion next.  **For each** monitor, the following actions will be performed by the upgrade controller:
     1. The `image` field of the pod template spec will be updated to the new version number.
-    Then the pod will be terminated, allowing the replica set that is managing it to bring up a new pod on the new version to replace it.
-    1.  The controller will verify that the new pod is on the new version, in the `Running` state, and that the monitor returns to `in quorum` and has a Ceph status of `OK`.
-    The cluster health will be verified as a whole before moving to the next monitor.
+    Kubernetes controller will then terminate the pod, and bring up a new pod on the new version to replace it.
+    1. A `Readiness` probe is leveraged to check whether the new monitor pod is `in quorum`. This means that the monitor returns to `in quorum` and has a Ceph status of `OK`. Once the `Readiness` probe succeeds, the Kubernetes controller will proceed in upgrading the rest of the monitor pods.
 1. **Ceph Managers:** The Ceph manager pod will be upgraded next by updating the `image` field on the pod template spec.
 The deployment that is managing the pod will then terminate it and start a new pod running the new version.
     1. The upgrade controller will verify that the new pod is on the new version, in the `Running` state and that the manager instance shows as `Active` in the Ceph status output.
 1. **OSDs:** The OSD pods will be upgraded in a rolling fashion after the monitors.  **For each** OSD, the following actions will take place:
     1. The `image` field of the pod template spec will be updated to the new version number.
-    1. The lifecycle management of OSDs can be done either as a whole by a single daemon set or individually by a replica set per OSD.
+    1. The lifecycle management of OSDs can be done either as a whole by a single daemon set or individually by a deployment per OSD.
     In either case, each individual OSD pod will be terminated so that its managing controller will respawn a new pod on the new version in its place.
     1. The controller will verify that each OSD is running the new version and that they return to the `UP` and `IN` statuses.
     Placement group health will also be verified to ensure all PGs return to the `active+clean` status before moving on.
+    1. OSD pods must be terminated first before their respective updated pod is created. This is to avoid contention of devices in the hosts.
 1. If the user has installed optional components, such as object storage (**RGW**) or shared file system (**MDS**), they will also be upgraded to the new version.
 They are both managed by deployments, so the upgrade controller will update the `image` field in their pod template specs which then causes the deployment to terminate old pods and start up new pods on the new versions to replace them.
     1.  Cluster health and object/file functionality will be verified before the upgrade controller moves on to the next instances.
@@ -121,7 +137,7 @@ Going forward, it will be important for the Rook project to increase our discipl
 We should be **very** careful about adding any new code that requires a migration during the update process.
 
 ### **Kubernetes Built-in Support**
-Kubernetes has some [built-in support for rolling updates](https://kubernetes.io/docs/tasks/run-application/rolling-update-replication-controller/) with the `kubectl rolling-update` command.
+Kubernetes has some [built-in support for rolling updates](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#rolling-update-deployment) with the `kubectl rolling-update` command.
 Rook can potentially take advantage of this support for our replication controllers that have multiple stateless pods deployed, such as RGW.
 This support is likely not a good fit for some of the more critical and sensitive components in the cluster, such as monitors, that require careful observation to ensure health is maintained and quorum is reestablished.
 
@@ -163,7 +179,7 @@ Listed below are a few techniques for accessing debugging artifacts from pods th
   * All health check status and output it encountered
 
 ## **Next Steps**
-A theme of the `0.6` milestone is that "Rook is upgradeable", which we have demonstrated with the manual process outlined in the [Rook Upgrade User Guide](../Documentation/upgrade.md).
+A theme of the `0.7` milestone is that "Rook is upgradeable", which we have demonstrated with the manual process outlined in the [Rook Upgrade User Guide](../Documentation/upgrade.md).
 Fully automated upgrade support has been described within this design proposal, but will likely need to be implemented in an iterative process, with lessons learned along the way from pre-production field experience.
 
 The next step will be to implement the happy path where the upgrade controller automatically updates all Rook components in the [described sequence](#general-sequence) and stops immediately if any health checks fail and the cluster does not return to a healthy functional state.

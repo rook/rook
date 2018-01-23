@@ -28,7 +28,7 @@ import (
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
-	corev1 "k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -96,12 +96,12 @@ func TestAddRemoveNode(t *testing.T) {
 	kvstore := k8sutil.NewConfigMapKVStore(c.Namespace, c.context.Clientset, metav1.OwnerReference{})
 	config.SaveOSDDirMap(kvstore, nodeName, map[string]int{"/rook/storage1": 0})
 
-	// simulate the OSD pod having been created
-	osdPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
-		Name:            "osdPod",
+	// simulate the OSD replicaset having been created
+	osdReplicaSet := &extensions.ReplicaSet{ObjectMeta: metav1.ObjectMeta{
+		Name:            "osdReplicaset",
 		Labels:          map[string]string{k8sutil.AppAttr: appName},
 		OwnerReferences: []metav1.OwnerReference{{Name: "rook-ceph-osd-node8230"}}}}
-	c.context.Clientset.CoreV1().Pods(c.Namespace).Create(osdPod)
+	c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(osdReplicaSet)
 
 	// mock the ceph calls that will be called during remove node
 	mockExec := &exectest.MockExecutor{
@@ -164,10 +164,10 @@ func TestAddNodeFailure(t *testing.T) {
 		},
 	}
 
-	// create a fake clientset that will return an error when the operator tries to create a replica set
+	// create a fake clientset that will return an error when the operator tries to create a deployment
 	clientset := fake.NewSimpleClientset()
-	clientset.PrependReactor("create", "replicasets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf("mock failed to create replica set")
+	clientset.PrependReactor("create", "deployments", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, fmt.Errorf("mock failed to create deployment")
 	})
 
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion",
@@ -184,7 +184,7 @@ func TestAddNodeFailure(t *testing.T) {
 	// wait for orchestration to complete
 	waitForOrchestrationCompletion(c, nodeName, &startCompleted)
 
-	// verify orchestration failed (because the operator failed to create a replica set)
+	// verify orchestration failed (because the operator failed to create a deployment)
 	assert.True(t, startCompleted)
 	assert.NotNil(t, startErr)
 }

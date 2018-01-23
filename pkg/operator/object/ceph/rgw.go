@@ -334,6 +334,9 @@ func startDaemonset(context *clusterd.Context, store rookalpha.ObjectStore, vers
 			OwnerReferences: ownerRefs,
 		},
 		Spec: extensions.DaemonSetSpec{
+			UpdateStrategy: extensions.DaemonSetUpdateStrategy{
+				Type: extensions.RollingUpdateDaemonSetStrategyType,
+			},
 			Template: makeRGWPodSpec(store, version, hostNetwork),
 		},
 	}

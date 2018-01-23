@@ -316,7 +316,7 @@ type GatewaySpec struct {
 	// The port the rgw service will be listening on (https)
 	SecurePort int32 `json:"securePort"`
 
-	// The number of pods in the rgw replicaset. If "allNodes" is specified, a daemonset is created.
+	// The number of pods in the rgw deployment. If "allNodes" is specified, a daemonset is created.
 	Instances int32 `json:"instances"`
 
 	// Whether the rgw pods should be started as a daemonset on all nodes

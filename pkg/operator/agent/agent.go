@@ -101,6 +101,9 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage string) error {
 			Name: agentDaemonsetName,
 		},
 		Spec: extensions.DaemonSetSpec{
+			UpdateStrategy: extensions.DaemonSetUpdateStrategy{
+				Type: extensions.RollingUpdateDaemonSetStrategyType,
+			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: map[string]string{
