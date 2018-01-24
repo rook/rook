@@ -100,8 +100,8 @@ func (k8sh *K8sHelper) VersionAtLeast(minVersion string) bool {
 func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
 	result, err := k8sh.executor.ExecuteCommandWithOutput(false, "", "kubectl", args...)
 	if err != nil {
-		k8slogger.Errorf("Errors Encountered while executing kubectl command : %v", err)
-		return "", fmt.Errorf("Failed to run kubectl commands on args %v : %v", args, err)
+		k8slogger.Errorf("Failed to execute: kubectl %v : %v", args, err)
+		return "", fmt.Errorf("Failed to run: kubectl %v : %v", args, err)
 
 	}
 	return result, nil
@@ -112,15 +112,14 @@ func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
 func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, error) {
 
 	cmdStruct := CommandArgs{Command: "kubectl", PipeToStdIn: stdin, CmdArgs: args}
-
 	cmdOut := ExecuteCommand(cmdStruct)
 
 	if cmdOut.ExitCode != 0 {
-		k8slogger.Errorf("Errors Encountered while executing kubectl command : %v", cmdOut.Err.Error())
-		if strings.Index(cmdOut.Err.Error(), "(NotFound)") != -1 {
+		k8slogger.Errorf("Failed to execute stdin: kubectl %v : %v", args, cmdOut.Err.Error())
+		if strings.Index(cmdOut.Err.Error(), "(NotFound)") != -1 || strings.Index(cmdOut.StdErr, "(NotFound)") != -1 {
 			return cmdOut.StdErr, errors.NewNotFound(schema.GroupResource{}, "")
 		}
-		return cmdOut.StdErr, fmt.Errorf("Failed to run kubectl commands on args %v : %v", args, cmdOut.StdErr)
+		return cmdOut.StdErr, fmt.Errorf("Failed to run stdin: kubectl %v : %v", args, cmdOut.StdErr)
 	}
 	if cmdOut.StdOut == "" {
 		return cmdOut.StdErr, nil
