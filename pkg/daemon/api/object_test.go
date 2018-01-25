@@ -162,7 +162,7 @@ func TestGetObjectStoreConnectionInfoHandler(t *testing.T) {
 	assert.Equal(t, http.StatusOK, w.Code)
 
 	expectedRespObj := model.ObjectStoreConnectInfo{
-		Host:  "rook-ceph-rgw-myinst",
+		Host:  "rook-ceph-rgw-myinst.default",
 		Ports: []int32{80},
 	}
 
