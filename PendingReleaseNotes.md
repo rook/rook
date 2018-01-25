@@ -11,6 +11,9 @@
 - `AGENT_TOLERATION`: Toleration can be added to the Rook agent, such as to run on the master node.
 - `FLEXVOLUME_DIR_PATH`: Flex volume directory can be overridden on the Rook agent.
 
+### Object Store
+- The dns host name can be set on the object store. See the `host` property on the [object store gateway settings](https://rook.io/docs/rook/master/object-store-crd.html#gateway-settings).
+
 ## Breaking Changes
 - `armhf` build of Rook have been removed. Ceph is not supported or tested on `armhf`. arm64 support continues.
 

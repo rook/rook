@@ -154,7 +154,7 @@ func (h *Handler) GetObjectStoreConnectionInfo(w http.ResponseWriter, r *http.Re
 	}
 
 	s3Info := &model.ObjectStoreConnectInfo{
-		Host:      oprgw.InstanceName(storeName),
+		Host:      fmt.Sprintf("%s.%s", oprgw.InstanceName(storeName), h.config.namespace),
 		IPAddress: service.Spec.ClusterIP,
 		Ports:     []int32{},
 	}

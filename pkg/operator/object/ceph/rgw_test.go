@@ -125,7 +125,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "rgw", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
 	assert.Equal(t, fmt.Sprintf("--rgw-name=%s", "default"), cont.Args[2])
-	assert.Equal(t, fmt.Sprintf("--rgw-host=%s", instanceName(store)), cont.Args[3])
+	assert.Equal(t, fmt.Sprintf("--rgw-host=%s.%s", instanceName(store), store.Namespace), cont.Args[3])
 	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[4])
 	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 0), cont.Args[5])
 

@@ -40,6 +40,7 @@ type ObjectStore struct {
 type Gateway struct {
 	Port           int32  `json:"port"`
 	SecurePort     int32  `json:"securePort"`
+	Host           string `json:"host"`
 	Instances      int32  `json:"instances"`
 	AllNodes       bool   `json:"allNodes"`
 	Certificate    string `json:"certificate"`

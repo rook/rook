@@ -20,7 +20,7 @@ package config
 import (
 	"fmt"
 
-	"github.com/coreos/capnslog"
+	"github.com/coreos/pkg/capnslog"
 )
 
 const (

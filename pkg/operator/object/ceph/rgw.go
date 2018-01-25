@@ -268,6 +268,7 @@ func ModelToSpec(store model.ObjectStore, namespace string) *rookalpha.ObjectSto
 			Gateway: rookalpha.GatewaySpec{
 				Port:              store.Gateway.Port,
 				SecurePort:        store.Gateway.SecurePort,
+				Host:              store.Gateway.Host,
 				Instances:         store.Gateway.Instances,
 				AllNodes:          store.Gateway.AllNodes,
 				SSLCertificateRef: store.Gateway.CertificateRef,
@@ -343,13 +344,20 @@ func startDaemonset(context *clusterd.Context, store rookalpha.ObjectStore, vers
 }
 
 func rgwContainer(store rookalpha.ObjectStore, version string) v1.Container {
+	var hostName string
+	if store.Spec.Gateway.Host == "" {
+		// by default, the name of the service is used, with the namespace as a suffix
+		hostName = fmt.Sprintf("%s.%s", instanceName(store), store.Namespace)
+	} else {
+		hostName = store.Spec.Gateway.Host
+	}
 
 	container := v1.Container{
 		Args: []string{
 			"rgw",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--rgw-name=%s", store.Name),
-			fmt.Sprintf("--rgw-host=%s", instanceName(store)),
+			fmt.Sprintf("--rgw-host=%s", hostName),
 			fmt.Sprintf("--rgw-port=%d", store.Spec.Gateway.Port),
 			fmt.Sprintf("--rgw-secure-port=%d", store.Spec.Gateway.SecurePort),
 		},

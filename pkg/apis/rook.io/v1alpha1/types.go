@@ -316,6 +316,11 @@ type GatewaySpec struct {
 	// The port the rgw service will be listening on (https)
 	SecurePort int32 `json:"securePort"`
 
+	// The dns name that must be resolvable in your cluster and will be expected in the URL provided by s3 client requests.
+	// The default is: <rgwService>-<storeName>.<namespace>
+	// For example: rook-ceph-rgw-my-store.rook
+	Host string `json:"host"`
+
 	// The number of pods in the rgw replicaset. If "allNodes" is specified, a daemonset is created.
 	Instances int32 `json:"instances"`
 
