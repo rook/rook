@@ -39,7 +39,7 @@ func TestOSDStatus(t *testing.T) {
 
 	storeConfig := &rookalpha.StoreConfig{StoreType: "bluestore"}
 	// Mocking agent and executor, re-using a function from agent tests
-	agent, executor := createTestAgent(t, "sdx", configDir, storeConfig)
+	agent, executor, _ := createTestAgent(t, "sdx", configDir, "node1271", storeConfig)
 
 	var execCount = 0
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {

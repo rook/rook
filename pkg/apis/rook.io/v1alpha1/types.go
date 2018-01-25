@@ -33,7 +33,8 @@ import (
 type Cluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec              ClusterSpec `json:"spec"`
+	Spec              ClusterSpec   `json:"spec"`
+	Status            ClusterStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -66,6 +67,20 @@ type ClusterSpec struct {
 	// Resources set resource requests and limits
 	Resources ResourceSpec `json:"resources,omitempty"`
 }
+
+type ClusterStatus struct {
+	State   ClusterState `json:"state,omitempty"`
+	Message string       `json:"message,omitempty"`
+}
+
+type ClusterState string
+
+const (
+	ClusterStateCreating ClusterState = "Creating"
+	ClusterStateCreated  ClusterState = "Created"
+	ClusterStateUpdating ClusterState = "Updating"
+	ClusterStateError    ClusterState = "Error"
+)
 
 type ResourceSpec struct {
 	API v1.ResourceRequirements `json:"api,omitempty"`

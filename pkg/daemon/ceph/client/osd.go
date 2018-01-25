@@ -21,30 +21,33 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	"github.com/rook/rook/pkg/clusterd"
 )
 
 type OSDUsage struct {
-	OSDNodes []struct {
-		Name        string      `json:"name"`
-		CrushWeight json.Number `json:"crush_weight"`
-		Depth       json.Number `json:"depth"`
-		Reweight    json.Number `json:"reweight"`
-		KB          json.Number `json:"kb"`
-		UsedKB      json.Number `json:"kb_used"`
-		AvailKB     json.Number `json:"kb_avail"`
-		Utilization json.Number `json:"utilization"`
-		Variance    json.Number `json:"var"`
-		Pgs         json.Number `json:"pgs"`
-	} `json:"nodes"`
-
-	Summary struct {
+	OSDNodes []OSDNodeUsage `json:"nodes"`
+	Summary  struct {
 		TotalKB      json.Number `json:"total_kb"`
 		TotalUsedKB  json.Number `json:"total_kb_used"`
 		TotalAvailKB json.Number `json:"total_kb_avail"`
 		AverageUtil  json.Number `json:"average_utilization"`
 	} `json:"summary"`
+}
+
+type OSDNodeUsage struct {
+	ID          int         `json:"id"`
+	Name        string      `json:"name"`
+	CrushWeight json.Number `json:"crush_weight"`
+	Depth       json.Number `json:"depth"`
+	Reweight    json.Number `json:"reweight"`
+	KB          json.Number `json:"kb"`
+	UsedKB      json.Number `json:"kb_used"`
+	AvailKB     json.Number `json:"kb_avail"`
+	Utilization json.Number `json:"utilization"`
+	Variance    json.Number `json:"var"`
+	Pgs         json.Number `json:"pgs"`
 }
 
 type OSDPerfStats struct {
@@ -134,4 +137,58 @@ func GetOSDDump(context *clusterd.Context, clusterName string) (*OSDDump, error)
 	}
 
 	return &osdDump, nil
+}
+
+func OSDOut(context *clusterd.Context, clusterName string, osdID int) (string, error) {
+	args := []string{"osd", "out", strconv.Itoa(osdID)}
+	buf, err := ExecuteCephCommand(context, clusterName, args)
+	return string(buf), err
+}
+
+func OSDRemove(context *clusterd.Context, clusterName string, osdID int) (string, error) {
+	args := []string{"osd", "rm", strconv.Itoa(osdID)}
+	buf, err := ExecuteCephCommand(context, clusterName, args)
+	return string(buf), err
+}
+
+func DisableScrubbing(context *clusterd.Context, clusterName string) (string, error) {
+	args := []string{"osd", "set", "noscrub"}
+	buf, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return string(buf), fmt.Errorf("failed to set noscrub: %+v", err)
+	}
+
+	args = []string{"osd", "set", "nodeep-scrub"}
+	buf, err = ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return string(buf), fmt.Errorf("failed to set nodeep-scrub: %+v", err)
+	}
+
+	return string(buf), nil
+}
+
+func EnableScrubbing(context *clusterd.Context, clusterName string) (string, error) {
+	args := []string{"osd", "unset", "noscrub"}
+	buf, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return string(buf), fmt.Errorf("failed to unset noscrub: %+v", err)
+	}
+
+	args = []string{"osd", "unset", "nodeep-scrub"}
+	buf, err = ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return string(buf), fmt.Errorf("failed to unset nodeep-scrub: %+v", err)
+	}
+
+	return string(buf), nil
+}
+
+func (usage *OSDUsage) ByID(osdID int) *OSDNodeUsage {
+	for i := range usage.OSDNodes {
+		if usage.OSDNodes[i].ID == osdID {
+			return &usage.OSDNodes[i]
+		}
+	}
+
+	return nil
 }

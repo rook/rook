@@ -24,7 +24,6 @@ import (
 	"k8s.io/api/core/v1"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
-	cephosd "github.com/rook/rook/pkg/daemon/ceph/osd"
 )
 
 func TestStorageSpecMarshal(t *testing.T) {
@@ -71,7 +70,7 @@ nodes:
 			StoreConfig: rookalpha.StoreConfig{
 				DatabaseSizeMB: 1024,
 				JournalSizeMB:  1024,
-				StoreType:      cephosd.Bluestore,
+				StoreType:      "bluestore",
 			},
 		},
 		Nodes: []rookalpha.Node{
@@ -82,7 +81,7 @@ nodes:
 				},
 				Config: rookalpha.Config{
 					StoreConfig: rookalpha.StoreConfig{
-						StoreType: cephosd.Filestore,
+						StoreType: "filestore",
 					},
 				},
 				Resources: v1.ResourceRequirements{},

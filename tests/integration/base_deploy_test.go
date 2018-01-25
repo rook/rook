@@ -127,7 +127,8 @@ func NewBaseTestOperations(t func() *testing.T, namespace, storeType, dataDirHos
 
 //SetUpRook is a wrapper for setting up rook
 func (op BaseTestOperations) SetUp() {
-	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType, op.dataDirHostPath, op.helmInstalled, op.useDevices, op.mons)
+	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType,
+		op.dataDirHostPath, op.helmInstalled, op.useDevices, op.mons, false /* startWithAllNodes */)
 	assert.NoError(op.T(), err)
 	if !isRookInstalled {
 		logger.Errorf("Rook was not installed successfully")

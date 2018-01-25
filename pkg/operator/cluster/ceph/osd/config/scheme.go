@@ -13,7 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package osd
+package config
 
 import (
 	"encoding/json"
@@ -34,9 +34,9 @@ const (
 	WalDefaultSizeMB      = 576
 	DBDefaultSizeMB       = 20480
 	JournalDefaultSizeMB  = 5120
-	bluestoreDirBlockName = "bluestore-block"
-	bluestoreDirWalName   = "bluestore-wal"
-	bluestoreDirDBName    = "bluestore-db"
+	BluestoreDirBlockName = "bluestore-block"
+	BluestoreDirWalName   = "bluestore-wal"
+	BluestoreDirDBName    = "bluestore-db"
 )
 
 type PartitionType int
@@ -144,7 +144,36 @@ func (s *PerfScheme) SaveScheme(kv *k8sutil.ConfigMapKVStore, storeName string) 
 	return nil
 }
 
-func (s *PerfScheme) updateSchemeEntry(entry *PerfSchemeEntry) error {
+func RemoveFromScheme(e *PerfSchemeEntry, kv *k8sutil.ConfigMapKVStore, storeName string) error {
+	savedScheme, err := LoadScheme(kv, storeName)
+	if err != nil {
+		return fmt.Errorf("failed to load the saved partition scheme: %+v", err)
+	}
+	if err := savedScheme.DeleteSchemeEntry(e); err != nil {
+		return fmt.Errorf("failed to delete partition scheme entry: %+v", err)
+	}
+	if err := savedScheme.SaveScheme(kv, storeName); err != nil {
+		return fmt.Errorf("failed to save partition scheme: %+v", err)
+	}
+
+	return nil
+}
+
+func (s *PerfScheme) UpdateSchemeEntry(e *PerfSchemeEntry) error {
+	return s.doSchemeEntryAction(e, func(scheme *PerfScheme, index int, entry *PerfSchemeEntry) {
+		// the action to perform if the entry is found is to update the entry
+		scheme.Entries[index] = entry
+	})
+}
+
+func (s *PerfScheme) DeleteSchemeEntry(e *PerfSchemeEntry) error {
+	return s.doSchemeEntryAction(e, func(scheme *PerfScheme, index int, entry *PerfSchemeEntry) {
+		// the action to perform if the entry is found is to delete the entry
+		scheme.Entries = append(scheme.Entries[:index], scheme.Entries[index+1:]...)
+	})
+}
+
+func (s *PerfScheme) doSchemeEntryAction(entry *PerfSchemeEntry, action func(*PerfScheme, int, *PerfSchemeEntry)) error {
 	if entry == nil {
 		return fmt.Errorf("cannot update a nil entry")
 	}
@@ -152,15 +181,15 @@ func (s *PerfScheme) updateSchemeEntry(entry *PerfSchemeEntry) error {
 	foundEntry := false
 	for i := range s.Entries {
 		if s.Entries[i].ID == entry.ID {
-			// found the matching existing entry, update it to the given entry
-			s.Entries[i] = entry
+			// found the matching existing entry, perform the given action on it
+			action(s, i, entry)
 			foundEntry = true
 			break
 		}
 	}
 
 	if !foundEntry {
-		return fmt.Errorf("failed to find entry %+v", entry)
+		return fmt.Errorf("failed to find entry %+v from entries %+v", entry, s.Entries)
 	}
 
 	return nil
@@ -354,7 +383,7 @@ func (e *PerfSchemeEntry) GetPartitionArgs() []string {
 		partNum++
 	}
 
-	dataPartitionType := e.getDataPartitionType()
+	dataPartitionType := e.GetDataPartitionType()
 
 	// always create the data partition
 	dataDetails := e.Partitions[dataPartitionType]
@@ -384,7 +413,7 @@ func (e *PerfSchemeEntry) IsCollocated() bool {
 	return collocated
 }
 
-func (e *PerfSchemeEntry) getDataPartitionType() PartitionType {
+func (e *PerfSchemeEntry) GetDataPartitionType() PartitionType {
 	if e.StoreType == Filestore {
 		return FilestoreDataPartitionType
 	} else {
@@ -392,7 +421,7 @@ func (e *PerfSchemeEntry) getDataPartitionType() PartitionType {
 	}
 }
 
-func (e *PerfSchemeEntry) getMetadataPartitionType() PartitionType {
+func (e *PerfSchemeEntry) GetMetadataPartitionType() PartitionType {
 	if e.StoreType == Filestore {
 		return FilestoreJournalPartitionType
 	} else {

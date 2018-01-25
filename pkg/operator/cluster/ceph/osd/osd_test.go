@@ -16,23 +16,31 @@ limitations under the License.
 package osd
 
 import (
-	"strconv"
+	"encoding/json"
+	"fmt"
 	"testing"
+	"time"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
-	cephosd "github.com/rook/rook/pkg/daemon/ceph/osd"
+	"github.com/rook/rook/pkg/operator/cluster/ceph/osd/config"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/resource"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
+	k8stesting "k8s.io/client-go/testing"
 )
 
-func TestStartDaemonset(t *testing.T) {
+func TestStart(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", rookalpha.StorageSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion",
+		rookalpha.StorageSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	// Start the first time
 	err := c.Start()
@@ -43,215 +51,216 @@ func TestStartDaemonset(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func TestPodContainer(t *testing.T) {
-	cluster := &Cluster{Namespace: "myosd", Version: "23"}
-	config := rookalpha.Config{}
-	c := cluster.podTemplateSpec([]rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config)
-	assert.NotNil(t, c)
-	assert.Equal(t, 1, len(c.Spec.Containers))
-	container := c.Spec.Containers[0]
-	assert.Equal(t, "osd", container.Args[0])
-}
-
-func TestDaemonset(t *testing.T) {
-	testPodDevices(t, "", "sda", true)
-	testPodDevices(t, "/var/lib/mydatadir", "sdb", false)
-	testPodDevices(t, "", "", true)
-	testPodDevices(t, "", "", false)
-}
-
-func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool) {
+func TestAddRemoveNode(t *testing.T) {
+	// create a storage spec with the given nodes/devices/dirs
+	nodeName := "node8230"
 	storageSpec := rookalpha.StorageSpec{
-		Selection: rookalpha.Selection{UseAllDevices: &allDevices, DeviceFilter: deviceFilter},
-		Nodes:     []rookalpha.Node{{Name: "node1"}},
+		Nodes: []rookalpha.Node{
+			{
+				Name:      nodeName,
+				Devices:   []rookalpha.Device{{Name: "sdx"}},
+				Selection: rookalpha.Selection{Directories: []rookalpha.Directory{{Path: "/rook/storage1"}}},
+			},
+		},
 	}
 
+	// set up a fake k8s client set and watcher to generate events that the operator will listen to
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", storageSpec, dataDir, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	statusMapWatcher := watch.NewFake()
+	clientset.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(statusMapWatcher, nil))
 
-	devMountNeeded := deviceFilter != "" || allDevices
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion",
+		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
-	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
-	assert.NotNil(t, replicaSet)
-	assert.Equal(t, "rook-ceph-osd-node1", replicaSet.Name)
-	assert.Equal(t, c.Namespace, replicaSet.Namespace)
-	assert.Equal(t, int32(1), *(replicaSet.Spec.Replicas))
-	assert.Equal(t, "node1", replicaSet.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
-	assert.Equal(t, v1.RestartPolicyAlways, replicaSet.Spec.Template.Spec.RestartPolicy)
-	if devMountNeeded {
-		assert.Equal(t, 3, len(replicaSet.Spec.Template.Spec.Volumes))
-	} else {
-		assert.Equal(t, 2, len(replicaSet.Spec.Template.Spec.Volumes))
+	// kick off the start of the orchestration in a goroutine
+	var startErr error
+	startCompleted := false
+	go func() {
+		startErr = c.Start()
+		startCompleted = true
+	}()
+
+	// simulate the completion of the nodes orchestration
+	mockNodeOrchestrationCompletion(c, nodeName, statusMapWatcher)
+
+	// wait for orchestration to complete
+	waitForOrchestrationCompletion(c, nodeName, &startCompleted)
+
+	// verify orchestration for adding the node succeeded
+	assert.True(t, startCompleted)
+	assert.Nil(t, startErr)
+
+	// Now let's get ready for testing the removal of the node we just added.  We first need to simulate/mock some things:
+
+	// simulate the node having created an OSD dir map
+	kvstore := k8sutil.NewConfigMapKVStore(c.Namespace, c.context.Clientset, metav1.OwnerReference{})
+	config.SaveOSDDirMap(kvstore, nodeName, map[string]int{"/rook/storage1": 0})
+
+	// simulate the OSD pod having been created
+	osdPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
+		Name:            "osdPod",
+		Labels:          map[string]string{k8sutil.AppAttr: appName},
+		OwnerReferences: []metav1.OwnerReference{{Name: "rook-ceph-osd-node8230"}}}}
+	c.context.Clientset.CoreV1().Pods(c.Namespace).Create(osdPod)
+
+	// mock the ceph calls that will be called during remove node
+	mockExec := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
+			logger.Infof("Command: %s %v", command, args)
+			if args[0] == "status" {
+				return `{"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
+			}
+			if args[0] == "osd" && args[1] == "df" {
+				return `{"nodes":[{"id":0,"name":"osd.0","kb_used":1}]}`, nil
+			}
+			if args[0] == "df" && args[1] == "detail" {
+				return `{"stats":{"total_bytes":4096,"total_used_bytes":1024,"total_avail_bytes":3072}}`, nil
+			}
+			if args[0] == "osd" && (args[1] == "set" || args[1] == "unset") {
+				return "", nil
+			}
+			return "", fmt.Errorf("unexpected ceph command '%v'", args)
+		},
 	}
-	assert.Equal(t, "rook-data", replicaSet.Spec.Template.Spec.Volumes[0].Name)
-	assert.Equal(t, "rook-config-override", replicaSet.Spec.Template.Spec.Volumes[1].Name)
-	if devMountNeeded {
-		assert.Equal(t, "devices", replicaSet.Spec.Template.Spec.Volumes[2].Name)
+
+	// modify the storage spec to remove the node from the cluster
+	storageSpec.Nodes = []rookalpha.Node{}
+	c = New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: mockExec}, "ns-add-remove", "myversion",
+		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+
+	// reset the orchestration status watcher
+	statusMapWatcher = watch.NewFake()
+	clientset.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(statusMapWatcher, nil))
+
+	// kick off the start of the removal orchestration in a goroutine
+	startErr = nil
+	startCompleted = false
+	go func() {
+		startErr = c.Start()
+		startCompleted = true
+	}()
+
+	// simulate the completion of the removed nodes orchestration
+	mockNodeOrchestrationCompletion(c, nodeName, statusMapWatcher)
+
+	// wait for orchestration to complete
+	waitForOrchestrationCompletion(c, nodeName, &startCompleted)
+
+	// verify orchestration for removing the node succeeded
+	assert.True(t, startCompleted)
+	assert.Nil(t, startErr)
+}
+
+func TestAddNodeFailure(t *testing.T) {
+	// create a storage spec with the given nodes/devices/dirs
+	nodeName := "node1672"
+	storageSpec := rookalpha.StorageSpec{
+		Nodes: []rookalpha.Node{
+			{
+				Name:      nodeName,
+				Devices:   []rookalpha.Device{{Name: "sdx"}},
+				Selection: rookalpha.Selection{Directories: []rookalpha.Directory{{Path: "/rook/storage1"}}},
+			},
+		},
 	}
-	if dataDir == "" {
-		assert.NotNil(t, replicaSet.Spec.Template.Spec.Volumes[0].EmptyDir)
-		assert.Nil(t, replicaSet.Spec.Template.Spec.Volumes[0].HostPath)
-	} else {
-		assert.Nil(t, replicaSet.Spec.Template.Spec.Volumes[0].EmptyDir)
-		assert.Equal(t, dataDir, replicaSet.Spec.Template.Spec.Volumes[0].HostPath.Path)
-	}
 
-	assert.Equal(t, appName, replicaSet.Spec.Template.ObjectMeta.Name)
-	assert.Equal(t, appName, replicaSet.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, c.Namespace, replicaSet.Spec.Template.ObjectMeta.Labels["rook_cluster"])
-	assert.Equal(t, 0, len(replicaSet.Spec.Template.ObjectMeta.Annotations))
+	// create a fake clientset that will return an error when the operator tries to create a replica set
+	clientset := fake.NewSimpleClientset()
+	clientset.PrependReactor("create", "replicasets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, fmt.Errorf("mock failed to create replica set")
+	})
 
-	cont := replicaSet.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, "rook/rook:myversion", cont.Image)
-	if devMountNeeded {
-		assert.Equal(t, 3, len(cont.VolumeMounts))
-	} else {
-		assert.Equal(t, 2, len(cont.VolumeMounts))
-	}
-	assert.Equal(t, "osd", cont.Args[0])
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion",
+		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	// verify the config dir env var
-	verifyEnvVar(t, cont.Env, "ROOK_CONFIG_DIR", "/var/lib/rook", true)
+	// kick off the start of the orchestration in a goroutine
+	var startErr error
+	startCompleted := false
+	go func() {
+		startErr = c.Start()
+		startCompleted = true
+	}()
 
-	// verify the osd store type env var uses the default
-	verifyEnvVar(t, cont.Env, "ROOK_OSD_STORE", cephosd.DefaultStore, true)
+	// wait for orchestration to complete
+	waitForOrchestrationCompletion(c, nodeName, &startCompleted)
 
-	// verify the device filter env var
-	if deviceFilter != "" {
-		verifyEnvVar(t, cont.Env, "ROOK_DATA_DEVICE_FILTER", deviceFilter, true)
-	} else if allDevices {
-		verifyEnvVar(t, cont.Env, "ROOK_DATA_DEVICE_FILTER", "all", true)
-	} else {
-		verifyEnvVar(t, cont.Env, "ROOK_DATA_DEVICE_FILTER", "", false)
+	// verify orchestration failed (because the operator failed to create a replica set)
+	assert.True(t, startCompleted)
+	assert.NotNil(t, startErr)
+}
+
+func TestOrchestrationStatus(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion",
+		rookalpha.StorageSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+
+	// status map should not exist yet
+	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
+	assert.True(t, errors.IsNotFound(err))
+
+	// make the initial status map
+	err = makeOrchestrationStatusMap(c.context.Clientset, c.Namespace)
+	assert.Nil(t, err)
+
+	// the status map should exist now
+	statusMap, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, statusMap)
+
+	// update the status map with some status
+	nodeName := "node09238"
+	status := OrchestrationStatus{Status: OrchestrationStatusOrchestrating, Message: "doing work"}
+	err = UpdateOrchestrationStatusMap(c.context.Clientset, c.Namespace, nodeName, status)
+	assert.Nil(t, err)
+
+	// retrieve the status and verify it
+	statusMap, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
+	assert.Nil(t, err)
+	assert.NotNil(t, statusMap)
+	retrievedStatus := parseOrchestrationStatus(statusMap.Data, nodeName)
+	assert.NotNil(t, retrievedStatus)
+	assert.Equal(t, status, *retrievedStatus)
+}
+
+func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatcher *watch.FakeWatcher) {
+	for {
+		// wait for the node's orchestration status to change to "starting"
+		cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
+		if err == nil {
+			status := parseOrchestrationStatus(cm.Data, nodeName)
+			if status != nil && status.Status == OrchestrationStatusStarting {
+				// the node has started orchestration, simulate its completion now by performing 2 tasks:
+				// 1) update the config map manually (which doesn't trigger a watch event, see https://github.com/kubernetes/kubernetes/issues/54075#issuecomment-337298950)
+				status = &OrchestrationStatus{Status: OrchestrationStatusCompleted}
+				UpdateOrchestrationStatusMap(c.context.Clientset, c.Namespace, nodeName, *status)
+
+				// 2) call modify on the fake watcher so a watch event will get triggered
+				s, _ := json.Marshal(status)
+				cm.Data[nodeName] = string(s)
+				statusMapWatcher.Modify(cm)
+				break
+			} else {
+				logger.Infof("waiting for node %s orchestration to start. status: %+v", nodeName, *status)
+			}
+		} else {
+			logger.Warningf("failed to get node %s orchestration status, will try again: %+v", nodeName, err)
+		}
+		<-time.After(50 * time.Millisecond)
 	}
 }
 
-func verifyEnvVar(t *testing.T, envVars []v1.EnvVar, expectedName, expectedValue string, expectedFound bool) {
-	found := false
-	for _, envVar := range envVars {
-		if envVar.Name == expectedName {
-			assert.Equal(t, expectedValue, envVar.Value)
-			found = true
+func waitForOrchestrationCompletion(c *Cluster, nodeName string, startCompleted *bool) {
+	for {
+		if *startCompleted {
 			break
 		}
+		cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
+		if err == nil {
+			status := parseOrchestrationStatus(cm.Data, nodeName)
+			if status != nil {
+				logger.Infof("start has not completed, status is %+v", status)
+			}
+		}
+		<-time.After(50 * time.Millisecond)
 	}
-
-	assert.Equal(t, expectedFound, found)
-}
-
-func TestStorageSpecDevicesAndDirectories(t *testing.T) {
-	storageSpec := rookalpha.StorageSpec{
-		Config: rookalpha.Config{},
-		Selection: rookalpha.Selection{
-			Directories: []rookalpha.Directory{{Path: "/rook/dir2"}},
-		},
-		Nodes: []rookalpha.Node{
-			{
-				Name:    "node1",
-				Devices: []rookalpha.Device{{Name: "sda"}},
-				Selection: rookalpha.Selection{
-					Directories: []rookalpha.Directory{{Path: "/rook/dir1"}},
-				},
-			},
-		},
-	}
-
-	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
-	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
-	assert.NotNil(t, replicaSet)
-
-	// pod spec should have a volume for the given dir
-	podSpec := replicaSet.Spec.Template.Spec
-	assert.Equal(t, 4, len(podSpec.Volumes))
-	assert.Equal(t, "rook-dir1", podSpec.Volumes[3].Name)
-	assert.Equal(t, "/rook/dir1", podSpec.Volumes[3].VolumeSource.HostPath.Path)
-
-	// container should have a volume mount for the given dir
-	container := podSpec.Containers[0]
-	assert.Equal(t, "rook-dir1", container.VolumeMounts[3].Name)
-	assert.Equal(t, "/rook/dir1", container.VolumeMounts[3].MountPath)
-
-	// container command should have the given dir and device
-	verifyEnvVar(t, container.Env, "ROOK_DATA_DIRECTORIES", "/rook/dir1", true)
-	verifyEnvVar(t, container.Env, "ROOK_DATA_DEVICES", "sda", true)
-}
-
-func TestStorageSpecConfig(t *testing.T) {
-	storageSpec := rookalpha.StorageSpec{
-		Config: rookalpha.Config{},
-		Nodes: []rookalpha.Node{
-			{
-				Name: "node1",
-				Config: rookalpha.Config{
-					Location: "rack=foo",
-					StoreConfig: rookalpha.StoreConfig{
-						StoreType:      cephosd.Bluestore,
-						DatabaseSizeMB: 10,
-						WalSizeMB:      20,
-						JournalSizeMB:  30,
-					},
-				},
-				Resources: v1.ResourceRequirements{
-					Limits: v1.ResourceList{
-						v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
-					},
-					Requests: v1.ResourceList{
-						v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
-					},
-				},
-			},
-		},
-	}
-
-	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "rook/rook:myversion", storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
-	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, c.Storage.Nodes[0].Resources, n.Config)
-	assert.NotNil(t, replicaSet)
-
-	container := replicaSet.Spec.Template.Spec.Containers[0]
-	assert.NotNil(t, container)
-	verifyEnvVar(t, container.Env, "ROOK_OSD_STORE", cephosd.Bluestore, true)
-	verifyEnvVar(t, container.Env, "ROOK_OSD_DATABASE_SIZE", strconv.Itoa(10), true)
-	verifyEnvVar(t, container.Env, "ROOK_OSD_WAL_SIZE", strconv.Itoa(20), true)
-	verifyEnvVar(t, container.Env, "ROOK_OSD_JOURNAL_SIZE", strconv.Itoa(30), true)
-	verifyEnvVar(t, container.Env, "ROOK_LOCATION", "rack=foo", true)
-
-	assert.Equal(t, "100", container.Resources.Limits.Cpu().String())
-	assert.Equal(t, "1337", container.Resources.Requests.Memory().String())
-}
-
-func TestHostNetwork(t *testing.T) {
-	storageSpec := rookalpha.StorageSpec{
-		Config: rookalpha.Config{},
-		Nodes: []rookalpha.Node{
-			{
-				Name: "node1",
-				Config: rookalpha.Config{
-					Location: "rack=foo",
-					StoreConfig: rookalpha.StoreConfig{
-						StoreType:      cephosd.Bluestore,
-						DatabaseSizeMB: 10,
-						WalSizeMB:      20,
-						JournalSizeMB:  30,
-					},
-				},
-			},
-		},
-	}
-
-	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", storageSpec, "", rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	n := c.Storage.ResolveNode(storageSpec.Nodes[0].Name)
-	r := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, n.Config)
-	assert.NotNil(t, r)
-
-	assert.Equal(t, true, r.Spec.Template.Spec.HostNetwork)
-	assert.Equal(t, v1.DNSClusterFirstWithHostNet, r.Spec.Template.Spec.DNSPolicy)
 }

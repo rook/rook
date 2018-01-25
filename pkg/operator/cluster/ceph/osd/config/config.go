@@ -1,11 +1,11 @@
 /*
-Copyright 2018 The Kubernetes Authors.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,14 +14,22 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package v1alpha1
+// Package config for OSD config managed by the operator
+package config
 
-type ClusterExpansion interface{}
+import (
+	"fmt"
 
-type FilesystemExpansion interface{}
+	"github.com/coreos/capnslog"
+)
 
-type ObjectStoreExpansion interface{}
+const (
+	configStoreNameFmt = "rook-ceph-osd-%s-config"
+	osdDirsKeyName     = "osd-dirs"
+)
 
-type PoolExpansion interface{}
+var logger = capnslog.NewPackageLogger("github.com/rook/rook", "osd-config")
 
-type VolumeAttachmentExpansion interface{}
+func GetConfigStoreName(nodeName string) string {
+	return fmt.Sprintf(configStoreNameFmt, nodeName)
+}

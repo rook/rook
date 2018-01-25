@@ -23,6 +23,7 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/operator/cluster/ceph/osd/config"
 	"github.com/rook/rook/pkg/util"
 )
 
@@ -102,23 +103,23 @@ func isOSDFilesystemCreated(config *osdConfig) bool {
 }
 
 // marks the given OSD's filesystem as created and backed up.
-func markOSDFileSystemCreated(config *osdConfig) error {
-	if config.partitionScheme == nil {
+func markOSDFileSystemCreated(cfg *osdConfig) error {
+	if cfg.partitionScheme == nil {
 		return nil
 	}
 
-	savedScheme, err := LoadScheme(config.kv, config.storeName)
+	savedScheme, err := config.LoadScheme(cfg.kv, cfg.storeName)
 	if err != nil {
 		return fmt.Errorf("failed to load the saved partition scheme: %+v", err)
 	}
 
 	// mark the OSD's filesystem as created and backed up.
-	config.partitionScheme.FSCreated = true
-	if err := savedScheme.updateSchemeEntry(config.partitionScheme); err != nil {
-		return fmt.Errorf("failed to update partition scheme entry %+v", config.partitionScheme)
+	cfg.partitionScheme.FSCreated = true
+	if err := savedScheme.UpdateSchemeEntry(cfg.partitionScheme); err != nil {
+		return fmt.Errorf("failed to update partition scheme entry %+v", cfg.partitionScheme)
 	}
 
-	if err := savedScheme.SaveScheme(config.kv, config.storeName); err != nil {
+	if err := savedScheme.SaveScheme(cfg.kv, cfg.storeName); err != nil {
 		return fmt.Errorf("failed to save partition scheme: %+v", err)
 	}
 
@@ -229,6 +230,16 @@ func repairOSDFileSystem(config *osdConfig) error {
 	logger.Infof("Completed repairing OSD %d file system at %s", config.id, config.rootPath)
 
 	return nil
+}
+
+func deleteOSDFileSystem(config *osdConfig) error {
+	if !isBluestore(config) {
+		return nil
+	}
+
+	logger.Infof("Deleting OSD %d file system", config.id)
+	storeName := fmt.Sprintf(osdFSStoreNameFmt, config.id)
+	return config.kv.ClearStore(storeName)
 }
 
 func createBluestoreSymlink(config *osdConfig, targetPath, symlinkName string) error {

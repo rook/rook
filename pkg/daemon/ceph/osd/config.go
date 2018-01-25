@@ -35,7 +35,7 @@ func getBootstrapOSDDir(configDir string) string {
 }
 
 func getOSDRootDir(root string, osdID int) string {
-	return fmt.Sprintf("%s/osd%d", root, osdID)
+	return filepath.Join(root, fmt.Sprintf("osd%d", osdID))
 }
 
 // get the full path to the bootstrap OSD keyring

@@ -18,17 +18,35 @@ package osd
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"strings"
 	"testing"
 
-	"os"
-
+	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/cluster/ceph/osd/config"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestStoreOSDDirMap(t *testing.T) {
+func TestRunDaemon(t *testing.T) {
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	os.MkdirAll(configDir, 0755)
+
+	agent, _, context := createTestAgent(t, "none", configDir, "node5375", &rookalpha.StoreConfig{StoreType: config.Bluestore})
+	agent.usingDeviceFilter = true
+
+	done := make(chan struct{})
+	go func() {
+		done <- struct{}{}
+	}()
+
+	err := Run(context, agent, done)
+	assert.Nil(t, err)
+}
+
+func TestGetDataDirs(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	context := &clusterd.Context{ConfigDir: configDir}
@@ -39,51 +57,60 @@ func TestStoreOSDDirMap(t *testing.T) {
 	nodeName := "node6046"
 
 	// user has specified devices to use, no dirs should be returned
-	dirMap, err := getDataDirs(context, kv, "", true, nodeName)
+	dirMap, removedDirMap, err := getDataDirs(context, kv, "", true, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(dirMap))
+	assert.Equal(t, 0, len(removedDirMap))
 
 	// user has no devices specified, should return default dir
-	dirMap, err = getDataDirs(context, kv, "", false, nodeName)
+	dirMap, removedDirMap, err = getDataDirs(context, kv, "", false, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(dirMap))
 	assert.Equal(t, unassignedOSDID, dirMap[context.ConfigDir])
+	assert.Equal(t, 0, len(removedDirMap))
 
 	// user has no devices specified but does specify dirs, those should be returned
-	dirMap, err = getDataDirs(context, kv, "/rook/dir1", false, nodeName)
+	dirMap, removedDirMap, err = getDataDirs(context, kv, "/rook/dir1", false, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(dirMap))
 	assert.Equal(t, unassignedOSDID, dirMap["/rook/dir1"])
-	dirMap["/rook/dir1"] = 0 // simulate an OSD ID being assigned to the dir
+	assert.Equal(t, 0, len(removedDirMap))
 
+	// simulate an OSD ID being assigned to the dir
+	dirMap["/rook/dir1"] = 1
 	// save the directory config
-	err = saveOSDDirMap(kv, nodeName, dirMap)
+	err = config.SaveOSDDirMap(kv, nodeName, dirMap)
 	assert.Nil(t, err)
 
-	// user has specified devices to use, we should still return the saved dir
-	dirMap, err = getDataDirs(context, kv, "", true, nodeName)
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(dirMap))
-	assert.Equal(t, 0, dirMap["/rook/dir1"])
-
-	// user has specified devices and also a directory to use.  it should be added to the dir map
-	dirMap, err = getDataDirs(context, kv, "/tmp/mydir", true, nodeName)
+	// user has specified devices and also a new directory to use.  it should be added to the dir map
+	dirMap, removedDirMap, err = getDataDirs(context, kv, "/rook/dir1,/tmp/mydir", true, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(dirMap))
-	assert.Equal(t, 0, dirMap["/rook/dir1"])
+	assert.Equal(t, 1, dirMap["/rook/dir1"])
 	assert.Equal(t, unassignedOSDID, dirMap["/tmp/mydir"])
+	assert.Equal(t, 0, len(removedDirMap))
 
 	// simulate that the user's dir got an OSD by assigning it an ID
 	dirMap["/tmp/mydir"] = 23
-	err = saveOSDDirMap(kv, nodeName, dirMap)
+	err = config.SaveOSDDirMap(kv, nodeName, dirMap)
 	assert.Nil(t, err)
 
-	// user is still specifying the directory, we should get back it's ID now
-	dirMap, err = getDataDirs(context, kv, "/tmp/mydir", true, nodeName)
+	// user is still specifying the 2 directories, we should get back their IDs
+	dirMap, removedDirMap, err = getDataDirs(context, kv, "/rook/dir1,/tmp/mydir", true, nodeName)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, len(dirMap))
-	assert.Equal(t, 0, dirMap["/rook/dir1"])
+	assert.Equal(t, 1, dirMap["/rook/dir1"])
 	assert.Equal(t, 23, dirMap["/tmp/mydir"])
+	assert.Equal(t, 0, len(removedDirMap))
+
+	// user is now only specifying 1 of the dirs, the other 1 should be returned as removed
+	dirMap, removedDirMap, err = getDataDirs(context, kv, "/rook/dir1", true, nodeName)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(dirMap))
+	assert.Equal(t, 1, dirMap["/rook/dir1"])
+	assert.Equal(t, 1, len(removedDirMap))
+	assert.Equal(t, 23, removedDirMap["/tmp/mydir"])
+
 }
 
 func TestAvailableDevices(t *testing.T) {

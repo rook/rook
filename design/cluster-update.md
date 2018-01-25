@@ -163,13 +163,14 @@ Of special note for removing storage is that a check should be performed to ensu
 If the cluster does not have enough space for this (e.g., it would hit the `full` ratio), then the removal should not proceed.
 
 For each OSD to remove, the following steps should be performed:
-* mark the OSD as `out` with `ceph osd out <osd.id>`, which will trigger data migration from the OSD.
+* reweight the OSD to 0.0 with `ceph osd crush reweight osd.<id> 0.0`, which will trigger data migration from the OSD.
 * wait for all data to finish migrating from the OSD, meaning all placement groups return to the `active+clean` state
+* mark the OSD as `out` with `ceph osd out osd.<id>`
 * stop the OSD process and remove it from monitoring
-* remove the OSD from the CRUSH map: `ceph osd crush remove <osd.id>`
-* delete the OSD's auth info: `ceph auth del <osd.id>`
-* delete the OSD from the cluster: `ceph osd rm <osd.id>`
-* delete the OSD directory from local storage (if using `dataDirHostPath`): `rm -fr /var/lib/rook/<osd.id>`
+* remove the OSD from the CRUSH map: `ceph osd crush remove osd.<id>`
+* delete the OSD's auth info: `ceph auth del osd.<id>`
+* delete the OSD from the cluster: `ceph osd rm osd.<id>`
+* delete the OSD directory from local storage (if using `dataDirHostPath`): `rm -fr /var/lib/rook/<osdID>`
 
 If the entire node is being removed, ensure that the host node is also removed from the CRUSH map:
 ```console

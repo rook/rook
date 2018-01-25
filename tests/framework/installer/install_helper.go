@@ -22,6 +22,8 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/kubernetes/pkg/kubelet/apis"
+
 	"flag"
 
 	"github.com/coreos/pkg/capnslog"
@@ -139,11 +141,13 @@ func (h *InstallHelper) CreateK8sRookToolbox(namespace string) (err error) {
 }
 
 func (h *InstallHelper) CreateK8sRookCluster(namespace string, storeType string) (err error) {
-	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, "", false, 1)
+	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, "", false, 1, true /* startWithAllNodes */)
 }
 
 //CreateK8sRookCluster creates rook cluster via kubectl
-func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath string, useAllDevices bool, mons int) error {
+func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath string,
+	useAllDevices bool, mons int, startWithAllNodes bool) error {
+
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 	_, err := h.k8shelper.Clientset.CoreV1().Namespaces().Create(ns)
 	if err != nil && !errors.IsAlreadyExists(err) {
@@ -163,7 +167,7 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, st
 				HostNetwork:     false,
 				MonCount:        mons,
 				Storage: rookalpha.StorageSpec{
-					UseAllNodes: true,
+					UseAllNodes: startWithAllNodes,
 					Selection: rookalpha.Selection{
 						UseAllDevices: &useAllDevices,
 					},
@@ -180,6 +184,32 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, st
 		_, err = h.k8shelper.RookClientset.RookV1alpha1().Clusters(namespace).Create(clust)
 		if err != nil {
 			return fmt.Errorf("failed to create cluster %s. %+v", clust.Name, err)
+		}
+
+		if !startWithAllNodes {
+			// now that the cluster is created, let's get all the k8s nodes so we can update the cluster CRD with them
+			logger.Info("cluster was started without all nodes, will update cluster to add nodes now.")
+			k8snodes, err := h.k8shelper.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get k8s nodes to add to cluster CRD: %+v", err)
+			}
+
+			// add all discovered k8s nodes to the cluster CRD
+			rookNodes := make([]rookalpha.Node, len(k8snodes.Items))
+			for i, k8snode := range k8snodes.Items {
+				rookNodes[i] = rookalpha.Node{Name: k8snode.Labels[apis.LabelHostname]}
+			}
+			clust, err = h.k8shelper.RookClientset.RookV1alpha1().Clusters(namespace).Get(namespace, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get rook cluster to add nodes to it: %+v", err)
+			}
+			clust.Spec.Storage.Nodes = rookNodes
+
+			// update the cluster CRD now
+			_, err = h.k8shelper.RookClientset.RookV1alpha1().Clusters(namespace).Update(clust)
+			if err != nil {
+				return fmt.Errorf("failed to update cluster %s with nodes. %+v", clust.Name, err)
+			}
 		}
 	} else {
 		logger.Infof("Starting Rook Cluster with yaml")
@@ -203,7 +233,9 @@ func SystemNamespace(namespace string) string {
 }
 
 //InstallRookOnK8sWithHostPathAndDevices installs rook on k8s
-func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType, dataDirHostPath string, helmInstalled, useDevices bool, mons int) (bool, error) {
+func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType, dataDirHostPath string,
+	helmInstalled, useDevices bool, mons int, startWithAllNodes bool) (bool, error) {
+
 	var err error
 	//flag used for local debuggin purpose, when rook is pre-installed
 	if h.Env.SkipInstallRook {
@@ -245,7 +277,7 @@ func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	}
 
 	//Create rook cluster
-	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath, useDevices, mons)
+	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath, useDevices, mons, startWithAllNodes)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
 		return false, err
