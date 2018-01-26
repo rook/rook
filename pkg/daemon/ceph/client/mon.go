@@ -63,6 +63,10 @@ type MonMapEntry struct {
 }
 
 func AppendAdminConnectionArgs(args []string, configDir, clusterName string) []string {
+	if clusterName == "ceph" && configDir == "/etc" {
+		// no need to append the args if it's the default ceph cluster
+		return args
+	}
 	confFile := fmt.Sprintf("%s.config", clusterName)
 	keyringFile := fmt.Sprintf("%s.keyring", AdminUsername)
 	configArgs := []string{
