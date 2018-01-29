@@ -17,6 +17,8 @@ Rook integrates deeply into cloud native environments leveraging extension point
 
 Rook is currently in alpha state and has focused initially on orchestrating Ceph on-top of Kubernetes. Ceph is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters. Rook plans to add support for other storage systems beyond Ceph and other cloud native environments beyond Kubernetes in future releases. See our [roadmap](ROADMAP.md) for more details.
 
+Rook is hosted by the [Cloud Native Computing Foundation](https://cncf.io) (CNCF) as an inception level project. If you are a company that wants to help shape the evolution of technologies that are container-packaged, dynamically-scheduled and microservices-oriented, consider joining the CNCF. For details about who's involved and how Rook plays a role, read the CNCF [announcement](https://www.cncf.io/blog/2018/01/29/cncf-host-rook-project-cloud-native-storage-capabilities).
+
 ## Getting Started and Documentation
 
 For installation, deployment, and administration, see our [Documentation](https://rook.github.io/docs/rook/master).
