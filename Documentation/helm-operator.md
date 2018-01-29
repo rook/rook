@@ -69,7 +69,7 @@ To deploy from a local build from your development environment:
 1. Install the helm chart
 ```console
 cd cluster/charts/rook
-helm install --name rook --namespace rook .
+helm install --name rook --namespace rook-system .
 ```
 
 ## Uninstalling the Chart
