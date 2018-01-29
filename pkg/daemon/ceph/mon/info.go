@@ -37,5 +37,8 @@ func (c *ClusterInfo) MonEndpoints() string {
 
 func (c *ClusterInfo) RemovePortFromEndpoint(endpoint string) string {
 	split := strings.Split(endpoint, ":")
+	if len(split) <= 1 {
+		return endpoint
+	}
 	return split[len(split)-1]
 }
