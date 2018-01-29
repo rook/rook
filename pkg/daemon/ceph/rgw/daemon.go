@@ -86,7 +86,6 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	settings := map[string]string{
 		"host":                           config.Host,
 		"rgw data":                       dataDir,
-		"rgw dns name":                   config.Host,
 		"rgw log nonexistent bucket":     "true",
 		"rgw intent log object name utc": "true",
 		"rgw enable usage log":           "true",
