@@ -12,6 +12,25 @@ Origin (DCO). This document was created by the Linux Kernel community and is a
 simple statement that you, as a contributor, have the legal right to make the
 contribution. See the [DCO](DCO) file for details.
 
+Contributors sign-off that they adhere to these requirements by adding a
+Signed-off-by line to commit messages. For example:
+
+```
+This is my commit message
+
+Signed-off-by: Random J Developer <random@developer.example.org>
+```
+
+Git even has a -s command line option to append this automatically to your
+commit message:
+
+```
+$ git commit -s -m 'This is my commit message'
+```
+
+We use a [DCO bot](https://github.com/apps/dco) to enforce the DCO on each pull
+request and branch commits.
+
 ## Getting Started
 
 - Fork the repository on GitHub
