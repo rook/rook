@@ -44,7 +44,6 @@ func (hc *EndpointWatcher) StartWatch(stopCh chan struct{}) {
 	// "infinite" loop to keep watching forever until stopped, this function
 	// should be called in a goroutine
 	for {
-		// TODO add watch for mon pods
 		// watch for changes only to the monitor endpoints config map
 		opts := metav1.ListOptions{
 			LabelSelector: labels.FormatLabels(hc.monCluster.getLabels()),
@@ -86,13 +85,12 @@ func (hc *EndpointWatcher) compareAndUpdateMonEndpointFromPod(current *mon.CephM
 			updated.Status.PodIP)
 		hc.monCluster.clusterInfo.MonMutex.Lock()
 		current = mon.ToCephMon(updated.Name, updated.Status.PodIP, mon.DefaultPort)
+		hc.monCluster.clusterInfo.MonMutex.Unlock()
 
-		// release lock first after the config is written
+		// reading access to maps doesn't require lock
 		if err := hc.monCluster.saveConfigChanges(); err != nil {
-			hc.monCluster.clusterInfo.MonMutex.Unlock()
 			logger.Errorf("failed to save mons. %+v", err)
 		}
-		hc.monCluster.clusterInfo.MonMutex.Unlock()
 	} else {
 		logger.Debugf("no change for mon %s Pod IP", updated.Name)
 	}

@@ -111,8 +111,8 @@ func (c *Cluster) Start() error {
 }
 
 func (c *Cluster) startMons() error {
-	// create statefulset with replicas 0
-	c.startStatefulSet(0)
+	// create statefulset with replicas 1
+	c.startStatefulSet(1)
 
 	mons := []*monConfig{}
 
@@ -120,24 +120,18 @@ func (c *Cluster) startMons() error {
 	for i := len(c.clusterInfo.Monitors); i < c.Size; i++ {
 		monName := getMonNameForID(i)
 
-		c.clusterInfo.MonMutex.Lock()
-		c.clusterInfo.Monitors[monName] = mon.ToCephMon(monName, c.getMonDNSEndpoint(), mon.DefaultPort)
-		// Save the mon config after we have initiated/set the mon config
-		if err := c.saveConfigChanges(); err != nil {
-			c.clusterInfo.MonMutex.Unlock()
-			return fmt.Errorf("failed to save mons. %+v", err)
-		}
-		c.clusterInfo.MonMutex.Unlock()
-
 		mons = append(mons, &monConfig{Name: monName})
 		logger.Debugf("mon endpoints used are: %s", c.clusterInfo.MonEndpoints())
-		c.updateStatefulSet(int32(i + 1))
+		if err := c.updateStatefulSet(int32(i + 1)); err != nil {
+			return fmt.Errorf("failed to scale up statefulset to %d. %+v", i+1, err)
+		}
 
 		logger.Debugf("wait for mons to join (currently at id %d)", i)
-		c.waitForMonsToJoin(mons)
+		if err := c.waitForMonsToJoin(mons); err != nil {
+			return fmt.Errorf("failed to wait for current mon %s to join. %+v", monName, err)
+		}
 
 		// get mon Pod IP and add it to endpoints
-		// TODO add a watch that updates the endpoints list on pod changes
 		podIP, err := c.getMonIP(monName)
 		if err != nil {
 			return fmt.Errorf("failed getting ip from mon pod %s. %+v", monName, err)
@@ -147,11 +141,9 @@ func (c *Cluster) startMons() error {
 		c.clusterInfo.MonMutex.Unlock()
 	}
 
-	c.clusterInfo.MonMutex.Lock()
 	if err := c.saveConfigChanges(); err != nil {
 		return fmt.Errorf("failed to save mons. %+v", err)
 	}
-	c.clusterInfo.MonMutex.Unlock()
 
 	return nil
 }
