@@ -91,7 +91,7 @@ func DiscoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
 		}
 
 		diskType, ok := diskProps["TYPE"]
-		if !ok || (diskType != sys.SSDType && diskType != sys.DiskType && diskType != sys.PartType) {
+		if !ok || (diskType != sys.SSDType && diskType != sys.CryptType && diskType != sys.DiskType && diskType != sys.PartType) {
 			// unsupported disk type, just continue
 			continue
 		}
