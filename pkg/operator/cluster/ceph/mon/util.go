@@ -25,6 +25,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
@@ -311,4 +312,23 @@ func (c *Cluster) getMonIP(name string) (string, error) {
 
 func (c *Cluster) getMonDNSEndpoint() string {
 	return appName + "." + c.Namespace + ".svc"
+}
+
+func (c *Cluster) waitForPodReady(name string) error {
+	// TODO Is polling right here or should a watch be used?
+	// Wait for at least 40 * 5 seconds
+	for i := 0; i < 40; i++ {
+		p, err := c.context.Clientset.CoreV1().Pods(c.Namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		for _, condition := range p.Status.Conditions {
+			// the pod as received condition ready
+			if condition.Type == v1.PodReady {
+				return nil
+			}
+		}
+		<-time.After(5 * time.Second)
+	}
+	return fmt.Errorf("")
 }

@@ -111,27 +111,30 @@ func (c *Cluster) Start() error {
 }
 
 func (c *Cluster) startMons() error {
-	// create statefulset with replicas 1
-	c.startStatefulSet(1)
+	// create statefulset with replicas 0, the loop below does the scale up to the desired c.Size
+	c.startStatefulSet(0)
 
 	mons := []*monConfig{}
 
 	// Init the mons config
 	for i := len(c.clusterInfo.Monitors); i < c.Size; i++ {
-		monName := getMonNameForID(i)
-
-		mons = append(mons, &monConfig{Name: monName})
 		logger.Debugf("mon endpoints used are: %s", c.clusterInfo.MonEndpoints())
+		// this scales up the mons to the desired c.Size one by one through the loop
 		if err := c.updateStatefulSet(int32(i + 1)); err != nil {
-			return fmt.Errorf("failed to scale up statefulset to %d. %+v", i+1, err)
+			return fmt.Errorf("failed to scale up replicas for mon statefulset to %d. %+v", i+1, err)
 		}
 
-		logger.Debugf("wait for mons to join (currently at id %d)", i)
-		if err := c.waitForMonsToJoin(mons); err != nil {
-			return fmt.Errorf("failed to wait for current mon %s to join. %+v", monName, err)
+		monName := getMonNameForID(i)
+
+		// wait until the mon Pod is ready before we get the IP
+		// TODO Maybe change this to only check for Pod is in `Running` state
+		if err := c.waitForPodReady(monName); err != nil {
+			return fmt.Errorf("failed waiting for mon pod %s being ready. %+v", monName, err)
 		}
 
 		// get mon Pod IP and add it to endpoints
+		// this is needed as the Mon Pod endpoint watcher is only active after
+		// the first full Mon start run
 		podIP, err := c.getMonIP(monName)
 		if err != nil {
 			return fmt.Errorf("failed getting ip from mon pod %s. %+v", monName, err)
@@ -139,6 +142,17 @@ func (c *Cluster) startMons() error {
 		c.clusterInfo.MonMutex.Lock()
 		c.clusterInfo.Monitors[monName] = mon.ToCephMon(monName, podIP, mon.DefaultPort)
 		c.clusterInfo.MonMutex.Unlock()
+
+		// before we wait for the mon, save the mon IP to the config
+		if err := c.saveMonConfig(); err != nil {
+			return fmt.Errorf("failed to save mon config. %+v", err)
+		}
+
+		logger.Debugf("wait for mons to join (currently at nnumber %d)", i)
+		mons = append(mons, &monConfig{Name: monName})
+		if err := c.waitForMonsToJoin(mons); err != nil {
+			return fmt.Errorf("failed to wait for current mon %s to join. %+v", monName, err)
+		}
 	}
 
 	if err := c.saveConfigChanges(); err != nil {
