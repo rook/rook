@@ -61,7 +61,7 @@ func GetAvailableDevices(devices []*LocalDisk) []string {
 
 // check whether a device is completely empty
 func getDeviceEmpty(device *LocalDisk) bool {
-	return device.Parent == "" && device.Type == sys.DiskType && device.FileSystem == ""
+	return device.Parent == "" && (device.Type == sys.DiskType || device.Type == sys.SSDType || device.Type == sys.CryptType) && device.FileSystem == ""
 }
 
 func ignoreDevice(d string) bool {
