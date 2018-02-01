@@ -320,12 +320,17 @@ func (c *Cluster) waitForPodReady(name string) error {
 	for i := 0; i < 40; i++ {
 		p, err := c.context.Clientset.CoreV1().Pods(c.Namespace).Get(name, metav1.GetOptions{})
 		if err != nil {
-			return err
+			if !errors.IsNotFound(err) {
+				return err
+			}
+			logger.Debugf("pod %s not found yet while waiting for pod ready", name)
 		}
-		for _, condition := range p.Status.Conditions {
-			// the pod as received condition ready
-			if condition.Type == v1.PodReady {
-				return nil
+		if p != nil {
+			for _, condition := range p.Status.Conditions {
+				// pod has received condition ready
+				if condition.Type == v1.PodReady {
+					return nil
+				}
 			}
 		}
 		<-time.After(5 * time.Second)
