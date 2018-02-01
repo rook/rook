@@ -50,19 +50,19 @@ type ClusterSpec struct {
 	Backend string `json:"backend"`
 
 	// The path on the host where config and data can be persisted.
-	DataDirHostPath string `json:"dataDirHostPath"`
+	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	Placement PlacementSpec `json:"placement,omitempty"`
 
 	// A spec for available storage in the cluster and how it should be used
-	Storage StorageSpec `json:"storage"`
+	Storage StorageSpec `json:"storage,omitempty"`
 
 	// HostNetwork to enable host network
-	HostNetwork bool `json:"hostNetwork"`
+	HostNetwork bool `json:"hostNetwork,omitempty"`
 
 	// MonCount sets the mon size
-	MonCount int `json:"monCount"`
+	MonCount int `json:"monCount,omitempty"`
 
 	// Resources set resource requests and limits
 	Resources ResourceSpec `json:"resources,omitempty"`
@@ -246,10 +246,10 @@ type FilesystemList struct {
 // FilesystemSpec represents the spec of a file system
 type FilesystemSpec struct {
 	// The metadata pool settings
-	MetadataPool PoolSpec `json:"metadataPool"`
+	MetadataPool PoolSpec `json:"metadataPool,omitempty"`
 
 	// The data pool settings
-	DataPools []PoolSpec `json:"dataPools"`
+	DataPools []PoolSpec `json:"dataPools,omitempty"`
 
 	// The mds pod info
 	MetadataServer MetadataServerSpec `json:"metadataServer"`
