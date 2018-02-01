@@ -39,10 +39,7 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mds")
 
 const (
-	appName            = "rook-ceph-mds"
-	dataPoolSuffix     = "-data"
-	metadataPoolSuffix = "-metadata"
-	keyringName        = "keyring"
+	appName = "rook-ceph-mds"
 )
 
 func CreateFileSystem(context *clusterd.Context, clusterName string, f *model.FilesystemRequest, version string, hostNetwork bool) error {
