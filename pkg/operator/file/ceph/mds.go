@@ -72,9 +72,15 @@ func CreateFilesystem(context *clusterd.Context, fs rookalpha.Filesystem, versio
 	for _, p := range fs.Spec.DataPools {
 		dataPools = append(dataPools, p.ToModel(""))
 	}
-	f := cephmds.NewFS(fs.Name, fs.Spec.MetadataPool.ToModel(""), dataPools, fs.Spec.MetadataServer.ActiveCount)
-	if err := f.CreateFilesystem(context, fs.Namespace); err != nil {
-		return fmt.Errorf("failed to create file system %s: %+v", fs.Name, err)
+
+	if len(dataPools) > 0 {
+		logger.Infof("Creating FS with %d data pools", len(dataPools))
+		f := cephmds.NewFS(fs.Name, fs.Spec.MetadataPool.ToModel(""), dataPools, fs.Spec.MetadataServer.ActiveCount)
+		if err := f.CreateFilesystem(context, fs.Namespace); err != nil {
+			return fmt.Errorf("failed to create file system %s: %+v", fs.Name, err)
+		}
+	} else {
+		logger.Infof("Skipping FS/pool creation for file system %s", fs.Name)
 	}
 
 	filesystem, err := client.GetFilesystem(context, fs.Namespace, fs.Name)
@@ -206,15 +212,25 @@ func validateFilesystem(context *clusterd.Context, f rookalpha.Filesystem) error
 	if f.Namespace == "" {
 		return fmt.Errorf("missing namespace")
 	}
-	if len(f.Spec.DataPools) == 0 {
-		return fmt.Errorf("at least one data pool required")
-	}
-	if err := pool.ValidatePoolSpec(context, f.Namespace, &f.Spec.MetadataPool); err != nil {
-		return fmt.Errorf("invalid metadata pool. %+v", err)
-	}
-	for _, p := range f.Spec.DataPools {
-		if err := pool.ValidatePoolSpec(context, f.Namespace, &p); err != nil {
-			return fmt.Errorf("Invalid data pool. %+v", err)
+	if f.Spec.MetadataPool != (rookalpha.PoolSpec{}) {
+		if len(f.Spec.DataPools) == 0 {
+			return fmt.Errorf("at least one data pool required")
+		}
+		if err := pool.ValidatePoolSpec(context, f.Namespace, &f.Spec.MetadataPool); err != nil {
+			return fmt.Errorf("invalid metadata pool. %+v", err)
+		}
+		for _, p := range f.Spec.DataPools {
+			if err := pool.ValidatePoolSpec(context, f.Namespace, &p); err != nil {
+				return fmt.Errorf("Invalid data pool. %+v", err)
+			}
+		}
+	} else {
+		// If they left out the metadata pool, this is meant to be a non-rook
+		// -managed filesystem, so there shouldn't be data pools.  If there
+		// are data pools, we assume the omission of the metadata pool was
+		// an accident.
+		if len(f.Spec.DataPools) > 0 {
+			return fmt.Errorf("metadata pool not specified")
 		}
 	}
 	if f.Spec.MetadataServer.ActiveCount < 1 {
