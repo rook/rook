@@ -35,10 +35,10 @@ ifeq ($(GOARCH),amd64)
 OSBASEIMAGE=$(OSBASE)
 endif
 ifeq ($(GOARCH),arm)
-OSBASEIMAGE=armhf/$(OSBASE)
+OSBASEIMAGE=arm32v7/$(OSBASE)
 endif
 ifeq ($(GOARCH),arm64)
-OSBASEIMAGE=aarch64/$(OSBASE)
+OSBASEIMAGE=arm64v8/$(OSBASE)
 endif
 
 # if we are running inside the container get our own cid

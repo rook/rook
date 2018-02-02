@@ -110,11 +110,11 @@ systemctl enable update-binfmt.service
 To test run the following:
 
 ```
-> docker run --rm -ti armhf/ubuntu uname -a
-Linux dece9819612d 4.10.0-21-generic #23-Ubuntu SMP Fri Apr 28 16:14:22 UTC 2017 armv7l armv7l armv7l GNU/Linux
+> docker run --rm -ti arm32v7/ubuntu uname -a
+Linux bad621a75757 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 armv7l armv7l armv7l GNU/Linux
 
-> docker run --rm -ti aarch64/ubuntu uname -a
-Linux 7ed5f0d0b618 4.10.0-21-generic #23-Ubuntu SMP Fri Apr 28 16:14:22 UTC 2017 aarch64 aarch64 aarch64 GNU/Linux
+> docker run --rm -ti arm64v8/ubuntu uname -a
+Linux f51ea93e76a2 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 aarch64 aarch64 aarch64 GNU/Linux
 ```
 
 # Improving Build Speed
@@ -152,12 +152,12 @@ To prune the number of cached images run `make prune`. There are two options tha
 ## CI workflow and options
 Every PR and every merge to master triggers the CI process in [Jenkins](http://jenkins.rook.io).
 The Jenkins CI will build, run unit tests, run integration tests and Publish artifacts- On every commit to PR and master.
-If any of the CI stages fail, then the process is aborted and no artifacts are published. 
-On every successful build Artifacts are pushed to a [s3 bucket](https://release.rook.io/). On every successful master build, 
+If any of the CI stages fail, then the process is aborted and no artifacts are published.
+On every successful build Artifacts are pushed to a [s3 bucket](https://release.rook.io/). On every successful master build,
 images are uploaded to quay and docker hub in addition.  
 
 During Integration tests phase, all End to End Integration tests under [/tests/integration](/tests/integration) are run.
-It may take a while to run all Integration tests. Based on nature of the PR, it may not be required to run full regression 
+It may take a while to run all Integration tests. Based on nature of the PR, it may not be required to run full regression
 Or users may want to skip build all together for trivial changes like documentation changes. Based on the PR body text,Jenkins will skip the build or skip some tests
 
 1. [skip ci] - if this text is found in the body of PR, then Jenkins will skip the build process and accept the commit
