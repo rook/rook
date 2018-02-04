@@ -47,18 +47,23 @@ func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, config rookalpha.
 				k8sutil.ClusterAttr: c.Namespace,
 			},
 		},
-		Spec: extensions.DaemonSetSpec{Template: podSpec},
+		Spec: extensions.DaemonSetSpec{
+			UpdateStrategy: extensions.DaemonSetUpdateStrategy{
+				Type: extensions.RollingUpdateDaemonSetStrategyType,
+			},
+			Template: podSpec,
+		},
 	}
 }
 
-func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device,
-	selection rookalpha.Selection, resources v1.ResourceRequirements, config rookalpha.Config) *extensions.ReplicaSet {
+func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device,
+	selection rookalpha.Selection, resources v1.ResourceRequirements, config rookalpha.Config) *extensions.Deployment {
 
 	podSpec := c.podTemplateSpec(devices, selection, resources, config)
 	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
 	replicaCount := int32(1)
 
-	return &extensions.ReplicaSet{
+	return &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            fmt.Sprintf(appNameFmt, nodeName),
 			Namespace:       c.Namespace,
@@ -68,7 +73,7 @@ func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device,
 				k8sutil.ClusterAttr: c.Namespace,
 			},
 		},
-		Spec: extensions.ReplicaSetSpec{
+		Spec: extensions.DeploymentSpec{
 			Template: podSpec,
 			Replicas: &replicaCount,
 		},
