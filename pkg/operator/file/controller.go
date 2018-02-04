@@ -102,9 +102,14 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 func (c *FilesystemController) onDelete(obj interface{}) {
 	filesystem := obj.(*rookalpha.Filesystem)
-	err := mds.DeleteFilesystem(c.context, *filesystem)
-	if err != nil {
-		logger.Errorf("failed to delete file system %s. %+v", filesystem.Name, err)
+	if len(filesystem.Spec.DataPools) > 0 {
+		err := mds.DeleteFilesystem(c.context, *filesystem)
+		if err != nil {
+			logger.Errorf("failed to delete file system %s. %+v", filesystem.Name, err)
+		}
+	} else {
+		logger.Infof("Not removing filesystem %s from Ceph, it is not Rook-managed",
+			filesystem.Name)
 	}
 }
 
