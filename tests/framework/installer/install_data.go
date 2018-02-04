@@ -29,6 +29,121 @@ func NewK8sInstallData() *InstallData {
 	return &InstallData{}
 }
 
+func (i *InstallData) GetRookTPRs(namespace string) string {
+	return `apiVersion: extensions/v1beta1
+description: ThirdPartyResource for cluster
+kind: ThirdPartyResource
+metadata:
+  name: cluster.rook.io
+versions:
+- name: v1alpha1
+---
+apiVersion: extensions/v1beta1
+description: ThirdPartyResource for filesystem
+kind: ThirdPartyResource
+metadata:
+  name: filesystem.rook.io
+versions:
+- name: v1alpha1
+---
+apiVersion: extensions/v1beta1
+description: ThirdPartyResource for objectstore
+kind: ThirdPartyResource
+metadata:
+  name: objectstore.rook.io
+versions:
+- name: v1alpha1
+---
+apiVersion: extensions/v1beta1
+description: ThirdPartyResource for pool
+kind: ThirdPartyResource
+metadata:
+  name: pool.rook.io
+versions:
+- name: v1alpha1
+---
+apiVersion: extensions/v1beta1
+description: ThirdPartyResource for volumeattachment
+kind: ThirdPartyResource
+metadata:
+  name: volumeattachment.rook.io
+versions:
+- name: v1alpha1`
+}
+
+func (i *InstallData) GetRookCRDs(namespace string) string {
+	return `apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: clusters.rook.io
+spec:
+  group: rook.io
+  names:
+    kind: Cluster
+    listKind: ClusterList
+    plural: clusters
+    singular: cluster
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: filesystems.rook.io
+spec:
+  group: rook.io
+  names:
+    kind: Filesystem
+    listKind: FilesystemList
+    plural: filesystems
+    singular: filesystem
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectstores.rook.io
+spec:
+  group: rook.io
+  names:
+    kind: ObjectStore
+    listKind: ObjectStoreList
+    plural: objectstores
+    singular: objectstore
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: pools.rook.io
+spec:
+  group: rook.io
+  names:
+    kind: Pool
+    listKind: PoolList
+    plural: pools
+    singular: pool
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: volumeattachments.rook.io
+spec:
+  group: rook.io
+  names:
+    kind: VolumeAttachment
+    listKind: VolumeAttachmentList
+    plural: volumeattachments
+    singular: volumeattachment
+  scope: Namespaced
+  version: v1alpha1
+`
+}
+
 //GetRookOperator returns rook Operator  manifest
 func (i *InstallData) GetRookOperator(namespace string) string {
 
@@ -67,20 +182,9 @@ rules:
 - apiGroups:
   - extensions
   resources:
-  - thirdpartyresources
   - deployments
   - daemonsets
   - replicasets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - delete
-- apiGroups:
-  - apiextensions.k8s.io
-  resources:
-  - customresourcedefinitions
   verbs:
   - get
   - list

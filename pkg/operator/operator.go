@@ -22,7 +22,6 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
@@ -37,10 +36,6 @@ import (
 	"github.com/rook/rook/pkg/operator/provisioner"
 	"github.com/rook/rook/pkg/operator/provisioner/controller"
 	"k8s.io/api/core/v1"
-)
-
-const (
-	initRetryDelay = 10 * time.Second
 )
 
 // volume provisioner constant
@@ -85,15 +80,6 @@ func (o *Operator) Run() error {
 		return fmt.Errorf("Rook operator namespace is not provided. Expose it via downward API in the rook operator manifest file using environment variable %s", k8sutil.PodNamespaceEnvVar)
 	}
 
-	for {
-		err := o.initResources()
-		if err == nil {
-			break
-		}
-		logger.Errorf("failed to init resources. %+v. retrying...", err)
-		<-time.After(initRetryDelay)
-	}
-
 	rookAgent := agent.New(o.context.Clientset)
 
 	if err := rookAgent.Start(namespace, o.rookImage); err != nil {
@@ -131,20 +117,4 @@ func (o *Operator) Run() error {
 			return nil
 		}
 	}
-}
-
-func (o *Operator) initResources() error {
-	kitCtx := opkit.Context{
-		Clientset:             o.context.Clientset,
-		APIExtensionClientset: o.context.APIExtensionClientset,
-		Interval:              500 * time.Millisecond,
-		Timeout:               60 * time.Second,
-	}
-
-	// Create and wait for CRD resources
-	err := opkit.CreateCustomResources(kitCtx, o.resources)
-	if err != nil {
-		return fmt.Errorf("failed to create custom resource. %+v", err)
-	}
-	return nil
 }

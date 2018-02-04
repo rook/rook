@@ -43,8 +43,6 @@ kubectl -n rook get cluster
 ## Delete the Operator and Agent 
 This will begin the process of all cluster resources being cleaned up, after which you can delete the rest of the deployment with the following:
 ```console
-kubectl delete thirdpartyresources cluster.rook.io pool.rook.io objectstore.rook.io filesystem.rook.io volumeattachment.rook.io # ignore errors if on K8s 1.7+
-kubectl delete crd clusters.rook.io pools.rook.io objectstores.rook.io filesystems.rook.io volumeattachments.rook.io  # ignore errors if on K8s 1.5 and 1.6
 kubectl delete -n rook-system daemonset rook-agent
 kubectl delete -f rook-operator.yaml
 kubectl delete clusterroles rook-agent
