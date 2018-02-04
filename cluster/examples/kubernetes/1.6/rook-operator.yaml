@@ -1,76 +1,51 @@
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
+apiVersion: extensions/v1beta1
+description: ThirdPartyResource for cluster
+kind: ThirdPartyResource
 metadata:
-  name: clusters.rook.io
-spec:
-  group: rook.io
-  names:
-    kind: Cluster
-    listKind: ClusterList
-    plural: clusters
-    singular: cluster
-  scope: Namespaced
-  version: v1alpha1
+  name: cluster.rook.io
+versions:
+- name: v1alpha1
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
+apiVersion: extensions/v1beta1
+description: ThirdPartyResource for filesystem
+kind: ThirdPartyResource
 metadata:
-  name: filesystems.rook.io
-spec:
-  group: rook.io
-  names:
-    kind: Filesystem
-    listKind: FilesystemList
-    plural: filesystems
-    singular: filesystem
-  scope: Namespaced
-  version: v1alpha1
+  name: filesystem.rook.io
+versions:
+- name: v1alpha1
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
+apiVersion: extensions/v1beta1
+description: ThirdPartyResource for objectstore
+kind: ThirdPartyResource
 metadata:
-  name: objectstores.rook.io
-spec:
-  group: rook.io
-  names:
-    kind: ObjectStore
-    listKind: ObjectStoreList
-    plural: objectstores
-    singular: objectstore
-  scope: Namespaced
-  version: v1alpha1
+  name: objectstore.rook.io
+versions:
+- name: v1alpha1
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
+apiVersion: extensions/v1beta1
+description: ThirdPartyResource for pool
+kind: ThirdPartyResource
 metadata:
-  name: pools.rook.io
-spec:
-  group: rook.io
-  names:
-    kind: Pool
-    listKind: PoolList
-    plural: pools
-    singular: pool
-  scope: Namespaced
-  version: v1alpha1
+  name: pool.rook.io
+versions:
+- name: v1alpha1
 ---
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
+apiVersion: extensions/v1beta1
+description: ThirdPartyResource for volumeattachment
+kind: ThirdPartyResource
 metadata:
-  name: volumeattachments.rook.io
-spec:
-  group: rook.io
-  names:
-    kind: VolumeAttachment
-    listKind: VolumeAttachmentList
-    plural: volumeattachments
-    singular: volumeattachment
-  scope: Namespaced
-  version: v1alpha1
+  name: volumeattachment.rook.io
+versions:
+- name: v1alpha1
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-system
+---
 kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
   name: rook-operator
 rules:
@@ -93,19 +68,6 @@ rules:
   - list
   - watch
   - patch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - extensions
-  resources:
-  - deployments
-  - daemonsets
-  - replicasets
-  verbs:
-  - get
-  - list
-  - watch
   - create
   - update
   - delete
@@ -138,11 +100,6 @@ rules:
   - "*"
   verbs:
   - "*"
----
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-system
 ---
 apiVersion: v1
 kind: ServiceAccount

@@ -63,11 +63,33 @@ type InstallHelper struct {
 	T           func() *testing.T
 }
 
+func (h *InstallHelper) CreateK8sRookResources(namespace string) (err error) {
+	var resources string
+	if h.k8shelper.VersionAtLeast("v1.7.0") {
+		logger.Info("Creating Rook CRD's")
+
+		resources = h.installData.GetRookCRDs(namespace)
+	} else {
+		logger.Info("Creating Rook TPR's")
+
+		resources = h.installData.GetRookTPRs(namespace)
+	}
+
+	_, err = h.k8shelper.KubectlWithStdin(resources, createArgs...)
+
+	return
+}
+
 //CreateK8sRookOperator creates rook-operator via kubectl
 func (h *InstallHelper) CreateK8sRookOperator(namespace string) (err error) {
 	logger.Infof("Starting Rook Operator")
 	//creating clusterrolebinding for kubeadm env.
 	h.k8shelper.CreateAnonSystemClusterBinding()
+
+	//creating rook resources
+	if err = h.CreateK8sRookResources(namespace); err != nil {
+		return err
+	}
 
 	rookOperator := h.installData.GetRookOperator(namespace)
 
@@ -253,6 +275,7 @@ func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 		}
 	} else {
 		onamespace = SystemNamespace(namespace)
+
 		err := h.CreateK8sRookOperator(onamespace)
 		if err != nil {
 			logger.Errorf("Rook Operator not installed ,error -> %v", err)
@@ -327,10 +350,10 @@ func (h *InstallHelper) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 
 	logger.Infof("removing the operator from namespace %s", systemNamespace)
 	if h.k8shelper.VersionAtLeast("v1.7.0") {
-		_, err = h.k8shelper.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io", "objectstores.rook.io", "filesystems.rook.io"})
+		_, err = h.k8shelper.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io", "objectstores.rook.io", "filesystems.rook.io", "volumeattachments.rook.io"})
 		h.checkError(err, "cannot delete CRDs")
 	} else {
-		_, err = h.k8shelper.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io", "objectstore.rook.io", "filesystem.rook.io"})
+		_, err = h.k8shelper.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io", "objectstore.rook.io", "filesystem.rook.io", "volumeattachment.rook.io"})
 		h.checkError(err, "cannot delete TPRs")
 	}
 
