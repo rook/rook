@@ -90,11 +90,12 @@ func TestClusterDelete(t *testing.T) {
 						},
 					},
 				}, nil
-			} else {
-				// subsequent listings should return no volume attachments, meaning that they have all
-				// been cleaned up and the controller can move on.
-				return &rookalpha.VolumeAttachmentList{Items: []rookalpha.VolumeAttachment{}}, nil
 			}
+
+			// subsequent listings should return no volume attachments, meaning that they have all
+			// been cleaned up and the controller can move on.
+			return &rookalpha.VolumeAttachmentList{Items: []rookalpha.VolumeAttachment{}}, nil
+
 		},
 	}
 
