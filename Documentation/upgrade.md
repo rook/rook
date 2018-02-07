@@ -61,6 +61,7 @@ For more information about how to run the toolbox, please visit the [Rook toolbo
 In a healthy Rook cluster, the operator, the agents and all Rook namespace pods should be in the `Running` state and have few, if any, pod restarts.
 To verify this, run the following commands:
 ```bash
+kubectl -n rook-system get pods
 kubectl -n rook get pod
 ```
 If pods aren't running or are restarting due to crashes, you can get more information with `kubectl describe pod` and `kubectl logs` for the affected pods.
