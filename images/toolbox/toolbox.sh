@@ -57,26 +57,6 @@ watch_endpoints() {
     done
 }
 
-if [[ -z ${ROOK_API_SERVER_ENDPOINT} ]]; then
-    if [[ -z ${ROOK_API_SERVICE_HOST} ]] && [[ -z ${ROOK_API_SERVICE_PORT} ]]; then
-        # hostNetwork: true is most likely used, use DNS name for rook API server access
-        ROOK_API_SERVICE_HOST=rook-api
-        ROOK_API_SERVICE_PORT=8124
-    fi
-    # we have some rook env vars set, get client info from the rook API server and construct
-    # a ceph config file from that
-    ROOK_API_SERVER_ENDPOINT=${ROOK_API_SERVICE_HOST}:${ROOK_API_SERVICE_PORT}
-fi
-
-# append to the bashrc file so that the rook tool can find the API server easily
-# additionally add the kubernetes service discovery env vars to be sure they are set
-cat <<EOF >> ~/.bashrc
-
-export ROOK_API_SERVER_ENDPOINT=${ROOK_API_SERVER_ENDPOINT}
-export ROOK_API_SERVICE_HOST=${ROOK_API_SERVICE_HOST}
-export ROOK_API_SERVICE_PORT=${ROOK_API_SERVICE_PORT}
-EOF
-
 # create the keyring file
 cat <<EOF > ${KEYRING_FILE}
 [client.admin]
