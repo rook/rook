@@ -20,6 +20,8 @@ CACHE_IMAGES = $(IMAGES)
 
 BASEIMAGE = $(BUILD_REGISTRY)/base-$(GOARCH)
 
+makeargs=-j$(getconf _NPROCESSORS_ONLN)
+
 TEMP := $(shell mktemp -d)
 
 do.build:
