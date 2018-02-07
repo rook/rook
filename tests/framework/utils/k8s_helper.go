@@ -972,10 +972,10 @@ func (k8sh *K8sHelper) GetExternalRGWServiceURL(storeName string, namespace stri
 	return endpoint, err
 }
 
-//IsRookInstalled returns true is rook-api service is running(indicating rook is installed)
+//IsRookInstalled returns true is rook-ceph-mgr service is running(indicating rook is installed)
 func (k8sh *K8sHelper) IsRookInstalled(namespace string) bool {
 	opts := metav1.GetOptions{}
-	_, err := k8sh.Clientset.CoreV1().Services(namespace).Get("rook-api", opts)
+	_, err := k8sh.Clientset.CoreV1().Services(namespace).Get("rook-ceph-mgr", opts)
 	if err == nil {
 		return true
 	}

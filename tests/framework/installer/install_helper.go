@@ -219,11 +219,6 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, st
 		}
 	}
 
-	if !h.k8shelper.IsServiceUp("rook-api", namespace) {
-		logger.Infof("Rook Cluster couldn't start")
-		return fmt.Errorf("failed to start cluster. api service not found.")
-	}
-
 	logger.Infof("Rook Cluster started")
 	return nil
 }
@@ -310,17 +305,9 @@ func (h *InstallHelper) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 	for _, namespace := range namespaces {
 
 		if !h.k8shelper.VersionAtLeast("v1.8.0") {
-			// make sure service accounts are removed before continuing on pre-1.8
-			_, err = h.k8shelper.DeleteResource([]string{"-n", namespace, "serviceaccount", "rook-api"})
-			h.checkError(err, "cannot remove serviceaccount rook-api in namespace")
-
 			_, err = h.k8shelper.DeleteResource([]string{"-n", namespace, "serviceaccount", "rook-ceph-osd"})
 			h.checkError(err, "cannot remove serviceaccount rook-ceph-osd")
 			assert.NoError(h.T(), err, "%s  err -> %v", namespace, err)
-
-			err = h.k8shelper.DeleteRoleAndBindings("rook-api", namespace)
-			h.checkError(err, "rook-api cluster role and binding cannot be deleted")
-			assert.NoError(h.T(), err, ": %+v", err)
 
 			err = h.k8shelper.DeleteRoleAndBindings("rook-ceph-osd", namespace)
 			h.checkError(err, "rook-ceph-osd cluster role and binding cannot be deleted")
@@ -402,10 +389,6 @@ func (h *InstallHelper) CleanupCluster(clusterName string) {
 		logger.Errorf("Rook Cluster  %s cannot be deleted,err -> %v", clusterName, err)
 	}
 
-	_, err = h.k8shelper.DeleteResource([]string{"-n", clusterName, "serviceaccount", "rook-api"})
-	if err != nil {
-		logger.Errorf("rook-api service account in namespace %s cannot be deleted,err -> %v", clusterName, err)
-	}
 	_, err = h.k8shelper.DeleteResource([]string{"-n", clusterName, "serviceaccount", "rook-ceph-osd"})
 	if err != nil {
 		logger.Errorf("rook-ceph-osd service account in namespace %s cannot be deleted,err -> %v", clusterName, err)
@@ -422,7 +405,6 @@ func (h *InstallHelper) GatherAllRookLogs(nameSpace string, testName string) {
 	logger.Infof("Gathering all logs from Rook Cluster %s", nameSpace)
 	h.k8shelper.GetRookLogs("rook-operator", h.Env.HostType, SystemNamespace(nameSpace), testName)
 	h.k8shelper.GetRookLogs("rook-agent", h.Env.HostType, SystemNamespace(nameSpace), testName)
-	h.k8shelper.GetRookLogs("rook-api", h.Env.HostType, nameSpace, testName)
 	h.k8shelper.GetRookLogs("rook-ceph-mgr", h.Env.HostType, nameSpace, testName)
 	h.k8shelper.GetRookLogs("rook-ceph-mon", h.Env.HostType, nameSpace, testName)
 	h.k8shelper.GetRookLogs("rook-ceph-osd", h.Env.HostType, nameSpace, testName)
