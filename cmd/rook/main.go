@@ -97,7 +97,6 @@ func addCommands() {
 	rootCmd.AddCommand(mgrCmd)
 	rootCmd.AddCommand(rgwCmd)
 	rootCmd.AddCommand(mdsCmd)
-	rootCmd.AddCommand(apiCmd)
 	rootCmd.AddCommand(agentCmd)
 	rootCmd.AddCommand(operatorCmd)
 }
