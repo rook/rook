@@ -50,6 +50,12 @@ func TestAvailableDisks(t *testing.T) {
 	assert.Equal(t, 2, len(disks))
 	assert.Equal(t, "sdb", disks[0])
 	assert.Equal(t, "sdc", disks[1])
+
+	// Crypt disk type results in available disk
+	d6 := &LocalDisk{Name: "sdd", UUID: "myuuid2", Size: 123, Rotational: true, Readonly: false, Type: sys.CryptType, HasChildren: true}
+	disks = GetAvailableDevices([]*LocalDisk{d6})
+	assert.Equal(t, 1, len(disks))
+
 }
 
 func TestDiscoverDevices(t *testing.T) {

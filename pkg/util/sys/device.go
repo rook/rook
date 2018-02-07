@@ -28,11 +28,12 @@ import (
 )
 
 const (
-	DiskType = "disk"
-	SSDType  = "ssd"
-	PartType = "part"
-	sgdisk   = "sgdisk"
-	mountCmd = "mount"
+	DiskType  = "disk"
+	SSDType   = "ssd"
+	PartType  = "part"
+	CryptType = "crypt"
+	sgdisk    = "sgdisk"
+	mountCmd  = "mount"
 )
 
 type Partition struct {

@@ -61,7 +61,7 @@ func GetAvailableDevices(devices []*LocalDisk) []string {
 
 // check whether a device is completely empty
 func getDeviceEmpty(device *LocalDisk) bool {
-	return device.Parent == "" && device.Type == sys.DiskType && device.FileSystem == ""
+	return device.Parent == "" && (device.Type == sys.DiskType || device.Type == sys.SSDType || device.Type == sys.CryptType) && device.FileSystem == ""
 }
 
 func ignoreDevice(d string) bool {
@@ -91,7 +91,7 @@ func DiscoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
 		}
 
 		diskType, ok := diskProps["TYPE"]
-		if !ok || (diskType != sys.SSDType && diskType != sys.DiskType && diskType != sys.PartType) {
+		if !ok || (diskType != sys.SSDType && diskType != sys.CryptType && diskType != sys.DiskType && diskType != sys.PartType) {
 			// unsupported disk type, just continue
 			continue
 		}
