@@ -1,20 +1,20 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: ceph
 ---
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: ceph
+  namespace: ceph
 spec:
   # the storage backend (only ceph is currently implemented)
   backend: ceph
   # The path on the host where configuration files will be persisted. If not specified, a kubernetes emptyDir will be created (not recommended).
   # Important: if you reinstall the cluster, make sure you delete this directory from each host or else the mons will fail to start on the new cluster.
   # In Minikube, the '/data' directory is configured to persist across reboots. Use "/data/rook" in Minikube environment.
-  dataDirHostPath: /var/lib/rook
+  dataDirHostPath: /var/lib/ceph
   # toggle to use hostNetwork
   hostNetwork: false
   # set the amount of mons to be started

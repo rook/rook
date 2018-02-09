@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: rook-tools
-  namespace: rook
+  namespace: ceph
 spec:
   dnsPolicy: ClusterFirstWithHostNet
   containers:
@@ -10,7 +10,7 @@ spec:
     image: rook/toolbox:master
     imagePullPolicy: IfNotPresent
     env:
-      - name: ROOK_ADMIN_SECRET
+      - name: CEPH_ADMIN_SECRET
         valueFrom:
           secretKeyRef:
             name: rook-ceph-mon

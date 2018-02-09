@@ -82,7 +82,7 @@ var ClusterResource = opkit.CustomResource{
 	Kind:    reflect.TypeOf(rookalpha.Cluster{}).Name(),
 }
 
-// ClusterController controls an instance of a Rook cluster
+// ClusterController controls an instance of a Ceph cluster
 type ClusterController struct {
 	context          *clusterd.Context
 	volumeAttachment attachment.Attachment
@@ -157,7 +157,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.MonCount)
 	}
 
-	// Start the Rook cluster components. Retry several times in case of failure.
+	// Start the Ceph cluster components. Retry several times in case of failure.
 	err := wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
 		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, rookalpha.ClusterStateCreating, ""); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)

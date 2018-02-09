@@ -7,7 +7,7 @@ This document will describe a design for how cluster updating can be implemented
 
 ## Design Overview
 As previously mentioned, the interface for a user who wants to update their cluster will be the Cluster CRD.
-To specify changes to a Rook cluster, the user could run a command like the following:
+To specify changes to a Ceph cluster, the user could run a command like the following:
 ```console
 kubectl -n rook edit cluster rook
 ```
@@ -18,9 +18,9 @@ Of course, it is also possible to update a cluster CRD via the Kubernetes API in
 This will trigger an update of the CRD object, which the operator is already subscribed to events for.
 The update event is provided both the new and old cluster objects, making it possible to perform a diff between desired and actual state.
 Once the difference is calculated, the operator will begin to bring actual state in alignment with desired state by performing similar operations to what it does to create a cluster in the first place.
-Controllers, pod templates, config maps, etc. will be updated and configured with the end result of the Rook cluster pods and state representing the users desired cluster state.
+Controllers, pod templates, config maps, etc. will be updated and configured with the end result of the Ceph cluster pods and state representing the users desired cluster state.
 
-The most common case for updating a Rook cluster will be to add and remove storage resources.
+The most common case for updating a Ceph cluster will be to add and remove storage resources.
 This will essentially alter the number of OSDs in the cluster which will cause data rebalancing and migration.
 Therefore, updating storage resources should be performed by the operator with special consideration as to not degrade cluster performance and health beyond acceptable levels.
 

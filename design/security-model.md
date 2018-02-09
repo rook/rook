@@ -104,7 +104,7 @@ subjects:
   namespace: rook-system
 ```
 
-When the cluster admin create a new Rook cluster they do so by adding a namespace and the rook cluster spec:
+When the cluster admin create a new Ceph cluster they do so by adding a namespace and the rook cluster spec:
 
 ```
 apiVersion: v1
@@ -256,7 +256,7 @@ Notably absent here are privileges to set other RBAC rules read cluster-wide sec
 
 Also note that while we use a `ClusterRole` for rook-system we only use a `RoleBinding` to grant it access to the `rook-system` namespace. It does not have cluster-wide privileges.
 
-When creating a Rook cluster the cluster admin will continue to define the namespace and cluster CRD as follows:
+When creating a Ceph cluster the cluster admin will continue to define the namespace and cluster CRD as follows:
 
 ```
 apiVersion: v1

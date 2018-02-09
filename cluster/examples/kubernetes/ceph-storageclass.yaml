@@ -2,7 +2,7 @@ apiVersion: rook.io/v1alpha1
 kind: Pool
 metadata:
   name: replicapool
-  namespace: rook
+  namespace: ceph
 spec:
   replicated:
     size: 1
@@ -15,13 +15,13 @@ spec:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: rook-block
+   name: ceph-block
 provisioner: rook.io/block
 parameters:
   pool: replicapool
-  # Specify the Rook cluster from which to create volumes.
+  # Specify the Ceph cluster from which to create volumes.
   # If not specified, it will use `rook` as the name of the cluster.
   # This is also the namespace where the cluster will be
-  clusterName: rook
+  clusterName: ceph
   # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
   # fstype: ext4

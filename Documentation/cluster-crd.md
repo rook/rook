@@ -16,11 +16,11 @@ Settings can be specified at the global level to apply to the cluster as a whole
 ### Cluster metadata
 
 - `name`: The name that will be used internally for the Ceph cluster. Most commonly the name is the same as the namespace since multiple clusters are not supported in the same namespace.
-- `namespace`: The Kubernetes namespace that will be created for the Rook cluster. The services, pods, and other resources created by the operator will be added to this namespace. The common scenario is to create a single Rook cluster. If multiple clusters are created, they must not have conflicting devices or host paths.
+- `namespace`: The Kubernetes namespace that will be created for the Ceph cluster. The services, pods, and other resources created by the operator will be added to this namespace. The common scenario is to create a single Ceph cluster. If multiple clusters are created, they must not have conflicting devices or host paths.
 
 ### Cluster settings
 
-- `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.
+- `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where backend config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.
   - On **Minikube** environments, use `/data/rook`. Minikube boots into a tmpfs but it provides some [directories](https://github.com/kubernetes/minikube/blob/master/docs/persistent_volumes.md) where files can be persisted across reboots. Using one of these directories will ensure that Rook's data and configuration files are persisted and that enough storage space is available.
   - If a path is not specified, an [empty dir](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) will be used and the config will be lost when the pod or host is restarted. This option is **not recommended**.
   - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start.
@@ -39,7 +39,7 @@ For more details on the mons and when to choose a number other than `3`, see the
   - [storage configuration settings](#storage-configuration-settings)
 
 #### Node updates
-Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n rook edit cluster rook`.
+Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n ceph edit cluster ceph`.
 This will bring up your default text editor and allow you to add and remove storage nodes from the cluster.
 This feature is only available when `useAllNodes` has been set to `false`.
 
@@ -120,15 +120,15 @@ For more information on resource requests/limits see the official Kubernetes doc
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: ceph
 ---
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: ceph
+  namespace: ceph
 spec:
-  dataDirHostPath: /var/lib/rook
+  dataDirHostPath: /var/lib/ceph
   # cluster level storage configuration and selection
   storage:
     useAllNodes: true
@@ -151,15 +151,15 @@ Each node's 'name' field should match their 'kubernetes.io/hostname' label.
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: ceph
 ---
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: ceph
+  namespace: ceph
 spec:
-  dataDirHostPath: /var/lib/rook
+  dataDirHostPath: /var/lib/ceph
   # cluster level storage configuration and selection
   storage:
     useAllNodes: false
@@ -194,15 +194,15 @@ Individual nodes can override the cluster wide specified directories list.
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: ceph
 ---
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: ceph
+  namespace: ceph
 spec:
-  dataDirHostPath: /var/lib/rook
+  dataDirHostPath: /var/lib/ceph
   # cluster level storage configuration and selection
   storage:
     useAllNodes: false
@@ -212,12 +212,12 @@ spec:
       databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
       journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
     directories:
-    - path: "/rook/storage-dir"
+    - path: "/ceph/storage-dir"
     nodes:
     - name: "172.17.4.101"
       directories: # specific directories to use for storage can be specified for each node
       # overrides the above `directories` values for this node
-      - path: "/rook/my-node-storage-dir"
+      - path: "/ceph/my-node-storage-dir"
     - name: "172.17.4.201"
 ```
 
@@ -231,15 +231,15 @@ tolerate taints with a key of 'storage-node'.
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: ceph
 ---
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: ceph
+  namespace: ceph
 spec:
-  dataDirHostPath: /var/lib/rook
+  dataDirHostPath: /var/lib/ceph
   placement:
     all:
       nodeAffinity:
@@ -278,15 +278,15 @@ You can override these requests/limits for OSDs per node when using `useAllNodes
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: ceph
 ---
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: ceph
+  namespace: ceph
 spec:
-  dataDirHostPath: /var/lib/rook
+  dataDirHostPath: /var/lib/ceph
   # cluster level resource requests/limits configuration
   resources:
   storage:

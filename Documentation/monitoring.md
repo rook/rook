@@ -5,7 +5,7 @@ weight: 40
 
 # Monitoring
 
-Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).  To enable monitoring of Rook in your Kubernetes cluster, you can follow the steps below.
+Each Ceph cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).  To enable monitoring of Rook in your Kubernetes cluster, you can follow the steps below.
 
 Note that these steps work only for Kubernetes 1.7.x or higher. For Kubernetes 1.6.x or older, refer to the Rook 0.5.0 [documentation](https://github.com/rook/rook/blob/release-0.5/Documentation/monitoring.md) and use these [manifest files](https://github.com/rook/rook/tree/release-0.5/cluster/examples/kubernetes/monitoring).
 
@@ -24,7 +24,7 @@ Once the Prometheus operator is in the `Running` state, proceed to the next sect
 
 ## Prometheus Instances
 
-With the Prometheus operator running, we can create a service monitor that will watch the Rook cluster and collect metrics regularly.
+With the Prometheus operator running, we can create a service monitor that will watch the Ceph cluster and collect metrics regularly.
 From the root of your locally cloned Rook repo, go the monitoring directory:
 ```bash
 cd cluster/examples/kubernetes/monitoring
@@ -68,7 +68,7 @@ To clean up all the artifacts created by the monitoring walkthrough, copy/paste 
 kubectl delete -f service-monitor.yaml
 kubectl delete -f prometheus.yaml
 kubectl delete -f prometheus-service.yaml
-kubectl -n rook delete statefulset prometheus-rook-prometheus
+kubectl -n ceph delete statefulset prometheus-rook-prometheus
 kubectl delete -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.8/bundle.yaml
 ```
 Then the rest of the instructions in the [Prometheus Operator docs](https://github.com/coreos/prometheus-operator#removal) can be followed to finish cleaning up.

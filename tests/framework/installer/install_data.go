@@ -158,7 +158,7 @@ spec:
         - name: ROOK_LOG_LEVEL
           value: INFO
         # The interval to check if every mon is in the quorum.
-        - name: ROOK_MON_HEALTHCHECK_INTERVAL
+        - name: CEPH_MON_HEALTHCHECK_INTERVAL
           value: "20s"
         # The duration to wait before trying to failover or remove/replace the
         # current mon with a new mon (useful for compensating flapping network).

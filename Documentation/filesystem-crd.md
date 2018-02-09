@@ -16,7 +16,7 @@ apiVersion: rook.io/v1alpha1
 kind: Filesystem
 metadata:
   name: myfs
-  namespace: rook
+  namespace: ceph
 spec:
   metadataPool:
     replicated:
@@ -56,7 +56,7 @@ spec:
 ### Metadata
 
 - `name`: The name of the file system to create, which will be reflected in the pool and other resource names.
-- `namespace`: The namespace of the Rook cluster where the file system is created.
+- `namespace`: The namespace of the Ceph cluster where the file system is created.
 
 ### Pools
 
@@ -71,5 +71,5 @@ The metadata server settings correspond to the MDS daemon settings.
 
 - `activeCount`: The number of active MDS instances. As load increases, CephFS will automatically partition the file system across the MDS instances. Rook will create double the number of MDS instances as requested by the active count. The extra instances will be in standby mode for failover.
 - `activeStandby`: If true, the extra MDS instances will be in active standby mode and will keep a warm cache of the file system metadata for faster failover. The instances will be assigned by CephFS in failover pairs. If false, the extra MDS instances will all be on passive standby mode and will not maintain a warm cache of the metadata.
-- `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/rook-cluster.yaml).
+- `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/ceph-cluster.yaml).
 - `resources`: Set resource requests/limits for the Filesystem MDS Pod(s), see [Resource Requirements/Limits](cluster-crd.md#resource-requirementslimits).

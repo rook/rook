@@ -55,7 +55,7 @@ spec:
               fieldPath: metadata.namespace
 {{- if .Values.mon }}
 {{- if .Values.mon.healthCheckInterval }}
-        - name: ROOK_MON_HEALTHCHECK_INTERVAL
+        - name: CEPH_MON_HEALTHCHECK_INTERVAL
           value: {{ .Values.mon.healthCheckInterval }}
 {{- end }}
 {{- if .Values.mon.monOutTimeout }}

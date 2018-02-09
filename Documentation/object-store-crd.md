@@ -16,7 +16,7 @@ apiVersion: rook.io/v1alpha1
 kind: ObjectStore
 metadata:
   name: my-store
-  namespace: rook
+  namespace: ceph
 spec:
   metadataPool:
     replicated:
@@ -66,7 +66,7 @@ kind: Objectstore
 ### Metadata
 
 - `name`: The name of the object store to create, which will be reflected in the pool and other resource names.
-- `namespace`: The namespace of the Rook cluster where the object store is created.
+- `namespace`: The namespace of the Ceph cluster where the object store is created.
 
 ### Pools
 
