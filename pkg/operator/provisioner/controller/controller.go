@@ -1077,7 +1077,7 @@ func (ctrl *ProvisionController) scheduleOperation(operationName string, operati
 		if goroutinemap.IsAlreadyExists(err) {
 			glog.V(4).Infof("operation %q is already running, skipping", operationName)
 		} else {
-			glog.Errorf("Error scheduling operaion %q: %v", operationName, err)
+			glog.Errorf("Error scheduling operation %q: %v", operationName, err)
 		}
 	}
 }
