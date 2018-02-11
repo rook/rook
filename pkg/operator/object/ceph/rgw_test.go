@@ -121,13 +121,12 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 
-	assert.Equal(t, 6, len(cont.Args))
+	assert.Equal(t, 5, len(cont.Args))
 	assert.Equal(t, "rgw", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
-	assert.Equal(t, fmt.Sprintf("--rgw-name=%s", "default"), cont.Args[2])
-	assert.Equal(t, fmt.Sprintf("--rgw-host=%s.%s", instanceName(store), store.Namespace), cont.Args[3])
-	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[4])
-	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 0), cont.Args[5])
+	assert.Equal(t, fmt.Sprintf("--rgw-host=%s.%s", instanceName(store), store.Namespace), cont.Args[2])
+	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[3])
+	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 0), cont.Args[4])
 
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
@@ -151,9 +150,9 @@ func TestSSLPodSpec(t *testing.T) {
 	assert.Equal(t, certVolumeName, cont.VolumeMounts[2].Name)
 	assert.Equal(t, certMountPath, cont.VolumeMounts[2].MountPath)
 
-	assert.Equal(t, 7, len(cont.Args))
-	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 443), cont.Args[5])
-	assert.Equal(t, fmt.Sprintf("--rgw-cert=%s/%s", certMountPath, certFilename), cont.Args[6])
+	assert.Equal(t, 6, len(cont.Args))
+	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 443), cont.Args[4])
+	assert.Equal(t, fmt.Sprintf("--rgw-cert=%s/%s", certMountPath, certFilename), cont.Args[5])
 }
 
 func TestCreateObjectStore(t *testing.T) {
