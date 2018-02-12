@@ -115,7 +115,7 @@ func (c *Cluster) Start() error {
 	}
 
 	// ensure the orchestration status map is created
-	if err := makeOrchestrationStatusMap(c.context.Clientset, c.Namespace); err != nil {
+	if err := makeOrchestrationStatusMap(c.context.Clientset, c.Namespace, &c.ownerRef); err != nil {
 		return fmt.Errorf("failed to make OSD orchestration status config map: %+v", err)
 	}
 
@@ -270,7 +270,7 @@ func UpdateOrchestrationStatusMap(clientset kubernetes.Interface, namespace stri
 		}
 
 		// the status map doesn't exist yet, make it now
-		if err := makeOrchestrationStatusMap(clientset, namespace); err != nil {
+		if err := makeOrchestrationStatusMap(clientset, namespace, nil); err != nil {
 			return err
 		}
 
@@ -296,7 +296,7 @@ func UpdateOrchestrationStatusMap(clientset kubernetes.Interface, namespace stri
 	return nil
 }
 
-func makeOrchestrationStatusMap(clientset kubernetes.Interface, namespace string) error {
+func makeOrchestrationStatusMap(clientset kubernetes.Interface, namespace string, ownerRef *metav1.OwnerReference) error {
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
@@ -310,6 +310,11 @@ func makeOrchestrationStatusMap(clientset kubernetes.Interface, namespace string
 				Namespace: namespace,
 			},
 			Data: make(map[string]string),
+		}
+		// the owner ref will be set the first time when the cluster is created, but if it is created later by the osd daemon
+		// we skip setting the owner since we are in an unexpected state of the configmap not already existing.
+		if ownerRef != nil {
+			cm.OwnerReferences = []metav1.OwnerReference{*ownerRef}
 		}
 
 		cm, err = clientset.CoreV1().ConfigMaps(namespace).Create(cm)
