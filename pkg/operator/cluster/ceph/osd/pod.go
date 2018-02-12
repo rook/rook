@@ -47,7 +47,12 @@ func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, config rookalpha.
 				k8sutil.ClusterAttr: c.Namespace,
 			},
 		},
-		Spec: extensions.DaemonSetSpec{Template: podSpec},
+		Spec: extensions.DaemonSetSpec{
+			UpdateStrategy: extensions.DaemonSetUpdateStrategy{
+				Type: extensions.RollingUpdateDaemonSetStrategyType,
+			},
+			Template: podSpec,
+		},
 	}
 }
 
