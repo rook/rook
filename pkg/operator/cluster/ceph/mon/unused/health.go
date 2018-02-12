@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"k8s.io/api/core/v1"
@@ -272,16 +271,5 @@ func (c *Cluster) removeMon(name string) error {
 		return fmt.Errorf("error saving config after failing over mon %s. %+v", name, err)
 	}
 
-	return nil
-}
-
-func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string) error {
-	logger.Debugf("removing monitor %s from quorum", name)
-	args := []string{"mon", "remove", name}
-	if _, err := client.ExecuteCephCommand(context, clusterName, args); err != nil {
-		return fmt.Errorf("mon %s remove failed: %+v", name, err)
-	}
-
-	logger.Infof("removed monitor %s", name)
 	return nil
 }

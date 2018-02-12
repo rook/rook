@@ -223,7 +223,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	assert.Equal(t, "rook-ceph-mon-1=1.1.1.1:6790", cm.Data[MonEndpointKey])
 
 	// update the config map
-	c.clusterInfo.Monitors["rook-ceph-mon-1"].Endpoint = "2.3.4.5:6790"
+	c.clusterInfo.mons["rook-ceph-mon-1"].Endpoint = "2.3.4.5:6790"
 	c.maxMonID = 2
 	err = c.saveMonConfig()
 	assert.Nil(t, err)
@@ -232,42 +232,4 @@ func TestSaveMonEndpoints(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, "rook-ceph-mon-1=2.3.4.5:6790", cm.Data[MonEndpointKey])
 	assert.Equal(t, "rook-ceph-mon=rook-ceph-mon.ns.svc:6790", cm.Data[EndpointKey])
-}
-
-func TestMonInQuourm(t *testing.T) {
-	entry := client.MonMapEntry{Name: "foo", Rank: 23}
-	quorum := []int{}
-	// Nothing in quorum
-	assert.False(t, monInQuorum(entry, quorum))
-
-	// One or more members in quorum
-	quorum = []int{23}
-	assert.True(t, monInQuorum(entry, quorum))
-	quorum = []int{5, 6, 7, 23, 8}
-	assert.True(t, monInQuorum(entry, quorum))
-
-	// Not in quorum
-	entry.Rank = 1
-	assert.False(t, monInQuorum(entry, quorum))
-}
-
-func TestGetMonID(t *testing.T) {
-	// invalid
-	id, err := GetMonID("m")
-	assert.NotNil(t, err)
-	assert.Equal(t, -1, id)
-	id, err = GetMonID("mon")
-	assert.NotNil(t, err)
-	assert.Equal(t, -1, id)
-	id, err = GetMonID("rook-ceph-monitor0")
-	assert.NotNil(t, err)
-	assert.Equal(t, -1, id)
-
-	// valid
-	id, err = GetMonID("rook-ceph-mon0")
-	assert.Nil(t, err)
-	assert.Equal(t, 0, id)
-	id, err = GetMonID("rook-ceph-mon123")
-	assert.Nil(t, err)
-	assert.Equal(t, 123, id)
 }

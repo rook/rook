@@ -30,7 +30,7 @@ func TestAvailableMonNodes(t *testing.T) {
 	clientset := test.New(1)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
-	nodes, err := c.getMonNodes()
+	nodes, err := c.getAvailableMonNodes()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(nodes))
 
@@ -38,7 +38,7 @@ func TestAvailableMonNodes(t *testing.T) {
 	nodes[0].Status = v1.NodeStatus{Conditions: []v1.NodeCondition{conditions}}
 	clientset.CoreV1().Nodes().Update(&nodes[0])
 
-	emptyNodes, err := c.getMonNodes()
+	emptyNodes, err := c.getAvailableMonNodes()
 	assert.NotNil(t, err)
 	assert.Nil(t, emptyNodes)
 }

@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -18,7 +18,11 @@ limitations under the License.
 package mon
 
 import (
+	"fmt"
 	"time"
+
+	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
 var (
@@ -60,5 +64,64 @@ func (hc *HealthChecker) Check(stopCh chan struct{}) {
 
 func (c *Cluster) checkHealth() error {
 	// TODO Copy old/Reimplement health check logic for StatefulSet/Pods
+	logger.Debugf("Checking health for mons. %+v", c.clusterInfo)
+
+	// connect to the mons and get the status and check for quorum
+	status, err := client.GetMonStatus(c.context, c.clusterInfo.Name, true)
+	if err != nil {
+		return fmt.Errorf("failed to get mon status. %+v", err)
+	}
+	logger.Debugf("Mon status: %+v", status)
+
+	// source of thruth of which mons should exist is our *clusterInfo*
+	monsTruth := map[string]interface{}{}
+	for _, mon := range c.clusterInfo.Monitors {
+		monsTruth[mon.Name] = struct{}{}
+	}
+
+	// first handle mons that are not in quorum but in the cecph mon map
+	// failover the unhealthy mons
+	for _, mon := range status.MonMap.Mons {
+		if _, ok := monsTruth[mon.Name]; !ok {
+			logger.Warningf("mon %s is not in source of truth but in mon map", mon.Name)
+		}
+
+		// all mons below this line are in the source of truth, remove them from
+		// the list as below we remove the mons that remained (not in quorum)
+		if monInQuorum(mon, status.Quorum) {
+			logger.Debugf("mon %s found in quorum", mon.Name)
+			// delete the "timeout" for a mon if the pod is in quorum again
+			if _, ok := c.monTimeoutList[mon.Name]; ok {
+				delete(c.monTimeoutList, mon.Name)
+				logger.Infof("mon %s is back in quorum again", mon.Name)
+			}
+		} else {
+			logger.Warningf("mon %s NOT found in quorum. %+v", mon.Name, status)
+			// only deal with one unhealthy mon per health check
+			return nil
+		}
+	}
+
+	// if there should be more mons than wanted by the user
+	if len(c.clusterInfo.Monitors) > c.Size {
+		// TODO scale down the StatefulSet
+		if err := c.updateStatefulSet(int32(c.Size)); err != nil {
+			return fmt.Errorf("failed to scale down replicas for mon statefulset to %d. %+v", c.Size, err)
+		}
+	} else if len(c.clusterInfo.Monitors) < c.Size {
+		return c.startMons()
+	}
+
+	return nil
+}
+
+func removeMonitorFromQuorum(context *clusterd.Context, clusterName, name string) error {
+	logger.Debugf("removing monitor %s from quorum", name)
+	args := []string{"mon", "remove", name}
+	if _, err := client.ExecuteCephCommand(context, clusterName, args); err != nil {
+		return fmt.Errorf("mon %s remove failed: %+v", name, err)
+	}
+
+	logger.Infof("removed monitor %s", name)
 	return nil
 }

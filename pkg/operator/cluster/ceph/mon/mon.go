@@ -148,7 +148,7 @@ func (c *Cluster) startMons() error {
 			return fmt.Errorf("failed to save mon config. %+v", err)
 		}
 
-		logger.Debugf("wait for mons to join (currently at nnumber %d)", i)
+		logger.Debugf("wait for mons to join (currently at number %d from %d)", i, c.Size)
 		mons = append(mons, &monConfig{Name: monName})
 		if err := c.waitForMonsToJoin(mons); err != nil {
 			return fmt.Errorf("failed to wait for current mon %s to join. %+v", monName, err)

@@ -79,12 +79,12 @@ func (hc *EndpointWatcher) StartWatch(stopCh chan struct{}) {
 
 func (hc *EndpointWatcher) compareAndUpdateMonEndpointFromPod(current *mon.CephMonitorConfig, updated *v1.Pod) {
 	if current.Endpoint != fmt.Sprintf("%s:%d", updated.Status.PodIP, mon.DefaultPort) {
-		logger.Debugf("mon %s Pod IP change (current: %s, new: %s)",
+		logger.Infof("mon %s Pod IP change (current: %s, new: %s)",
 			updated.Name,
 			hc.monCluster.clusterInfo.RemovePortFromEndpoint(current.Endpoint),
 			updated.Status.PodIP)
 		hc.monCluster.clusterInfo.MonMutex.Lock()
-		current = mon.ToCephMon(updated.Name, updated.Status.PodIP, mon.DefaultPort)
+		*current = *mon.ToCephMon(updated.Name, updated.Status.PodIP, mon.DefaultPort)
 		hc.monCluster.clusterInfo.MonMutex.Unlock()
 
 		// reading access to maps doesn't require lock
