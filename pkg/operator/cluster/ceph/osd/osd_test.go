@@ -199,7 +199,7 @@ func TestOrchestrationStatus(t *testing.T) {
 	assert.True(t, errors.IsNotFound(err))
 
 	// make the initial status map
-	err = makeOrchestrationStatusMap(c.context.Clientset, c.Namespace)
+	err = makeOrchestrationStatusMap(c.context.Clientset, c.Namespace, nil)
 	assert.Nil(t, err)
 
 	// the status map should exist now

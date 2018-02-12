@@ -111,25 +111,26 @@ func (c *Cluster) Start() error {
 }
 
 func (c *Cluster) makeService(name string) *v1.Service {
-	service := &v1.Service{}
-	service.Name = name
-	service.Namespace = c.Namespace
-
-	service.Labels = c.getLabels()
-
-	service.Spec = v1.ServiceSpec{
-		Selector: service.Labels,
-		Type:     v1.ServiceTypeClusterIP,
-		Ports: []v1.ServicePort{
-			{
-				Name:     "http-metrics",
-				Port:     int32(9283),
-				Protocol: v1.ProtocolTCP,
+	labels := c.getLabels()
+	return &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            name,
+			Namespace:       c.Namespace,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Labels:          labels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: labels,
+			Type:     v1.ServiceTypeClusterIP,
+			Ports: []v1.ServicePort{
+				{
+					Name:     "http-metrics",
+					Port:     int32(9283),
+					Protocol: v1.ProtocolTCP,
+				},
 			},
 		},
 	}
-
-	return service
 }
 
 func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
