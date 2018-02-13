@@ -16,6 +16,7 @@ limitations under the License.
 package main
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -113,6 +114,9 @@ func setLogLevel() {
 }
 
 func logStartupInfo(cmdFlags *pflag.FlagSet) {
+	// workaround a k8s logging issue: https://github.com/kubernetes/kubernetes/issues/17162
+	flag.CommandLine.Parse([]string{})
+
 	// log the version number, arguments, and all final flag values (environment variable overrides
 	// have already been taken into account)
 	flagValues := flags.GetFlagsAndValues(cmdFlags, "secret")

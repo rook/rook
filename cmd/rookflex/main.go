@@ -17,6 +17,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -30,6 +31,9 @@ type result struct {
 }
 
 func main() {
+	// workaround a k8s logging issue: https://github.com/kubernetes/kubernetes/issues/17162
+	flag.CommandLine.Parse([]string{})
+
 	var r result
 	if err := cmd.RootCmd.Execute(); err != nil {
 		if strings.HasPrefix(err.Error(), "unknown command") {

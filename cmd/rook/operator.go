@@ -16,7 +16,6 @@ limitations under the License.
 package main
 
 import (
-	"flag"
 	"fmt"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -46,9 +45,6 @@ func init() {
 func startOperator(cmd *cobra.Command, args []string) error {
 
 	setLogLevel()
-
-	// workaround a k8s logging issue: https://github.com/kubernetes/kubernetes/issues/17162
-	flag.CommandLine.Parse([]string{})
 
 	logStartupInfo(operatorCmd.Flags())
 
