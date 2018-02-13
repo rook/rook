@@ -348,7 +348,7 @@ func rgwContainer(store rookalpha.ObjectStore, version string) v1.Container {
 		Args: []string{
 			"rgw",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--rgw-host=%s", fmt.Sprintf("%s.%s", instanceName(store), store.Namespace)),
+			fmt.Sprintf("--rgw-name=%s", store.Name),
 			fmt.Sprintf("--rgw-port=%d", store.Spec.Gateway.Port),
 			fmt.Sprintf("--rgw-secure-port=%d", store.Spec.Gateway.SecurePort),
 		},

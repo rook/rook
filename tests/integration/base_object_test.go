@@ -37,7 +37,7 @@ var (
 )
 
 // Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
-//Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,
+// Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,
 // Check issues in MGRs, Delete Bucket and Delete user
 func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	storeName := "teststore"
