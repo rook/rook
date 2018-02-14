@@ -238,6 +238,11 @@ func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desire
 		dirList = strings.Split(desiredDirs, ",")
 	}
 
+	if len(dirList) == 0 && !devicesSpecified {
+		// user has not specified any dirs or any devices, give them the default dir at least
+		dirList = append(dirList, context.ConfigDir)
+	}
+
 	removedDirs = make(map[string]int)
 
 	dirMap, err := config.LoadOSDDirMap(kv, nodeName)
@@ -256,15 +261,10 @@ func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desire
 	}
 
 	// the osd dirs map doesn't exist yet
-	if len(dirList) == 0 {
-		// no dirs have been specified
-		if devicesSpecified {
-			// user is using devices instead of dirs
-			return map[string]int{}, removedDirs, nil
-		}
 
-		// no devices or dirs specified, return the default data dir
-		return map[string]int{context.ConfigDir: unassignedOSDID}, removedDirs, nil
+	if len(dirList) == 0 {
+		// no dirs should be used because the user has requested no dirs but they have requested devices
+		return map[string]int{}, removedDirs, nil
 	}
 
 	// add the specified dirs to the map and return it

@@ -76,6 +76,13 @@ func TestGetDataDirs(t *testing.T) {
 	assert.Equal(t, unassignedOSDID, dirMap["/rook/dir1"])
 	assert.Equal(t, 0, len(removedDirMap))
 
+	// user has devices specified and also specifies dirs, those should be returned
+	dirMap, removedDirMap, err = getDataDirs(context, kv, "/rook/dir1", true, nodeName)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(dirMap))
+	assert.Equal(t, unassignedOSDID, dirMap["/rook/dir1"])
+	assert.Equal(t, 0, len(removedDirMap))
+
 	// simulate an OSD ID being assigned to the dir
 	dirMap["/rook/dir1"] = 1
 	// save the directory config
@@ -111,6 +118,27 @@ func TestGetDataDirs(t *testing.T) {
 	assert.Equal(t, 1, len(removedDirMap))
 	assert.Equal(t, 23, removedDirMap["/tmp/mydir"])
 
+	// clear the dir map and simulate the scenario where an OSD has been created in the default dir
+	kv.ClearStore(config.GetConfigStoreName(nodeName))
+	osdID := 9802
+	dirMap = map[string]int{context.ConfigDir: osdID}
+	err = config.SaveOSDDirMap(kv, nodeName, dirMap)
+	assert.Nil(t, err)
+
+	// when an OSD has been created in the default dir, no dirs are specified, and no devices are specified,
+	// the default dir should still be in use (it should not come back as removed!)
+	dirMap, removedDirMap, err = getDataDirs(context, kv, "", false, nodeName)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(dirMap))
+	assert.Equal(t, osdID, dirMap[context.ConfigDir])
+	assert.Equal(t, 0, len(removedDirMap))
+
+	// if devices are specified (but no dirs), the existing osd in the default dir will not be preserved
+	dirMap, removedDirMap, err = getDataDirs(context, kv, "", true, nodeName)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(dirMap))
+	assert.Equal(t, 1, len(removedDirMap))
+	assert.Equal(t, osdID, removedDirMap[context.ConfigDir])
 }
 
 func TestAvailableDevices(t *testing.T) {
