@@ -77,6 +77,11 @@ type DeviceOsdIDEntry struct {
 	Metadata []int // OSD IDs (multiple) that have metadata stored here
 }
 
+func (m *DeviceOsdMapping) String() string {
+	b, _ := json.Marshal(m)
+	return string(b)
+}
+
 // format the given device for usage by an OSD
 func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool, storeConfig rookalpha.StoreConfig) error {
 	dataDetails, err := getDataPartitionDetails(config)

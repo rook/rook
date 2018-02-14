@@ -223,3 +223,37 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	assert.Equal(t, -1, mapping.Entries["rdb"].Data)
 	assert.Equal(t, -1, mapping.Entries["nvme01"].Data)
 }
+
+func TestGetRemovedDevices(t *testing.T) {
+	testGetRemovedDevicesHelper(t, &rookalpha.StoreConfig{StoreType: config.Bluestore})
+	testGetRemovedDevicesHelper(t, &rookalpha.StoreConfig{StoreType: config.Filestore})
+}
+
+func testGetRemovedDevicesHelper(t *testing.T, storeConfig *rookalpha.StoreConfig) {
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	os.MkdirAll(configDir, 0755)
+	nodeName := "node3391"
+	agent, _, _ := createTestAgent(t, "none", configDir, nodeName, storeConfig)
+
+	// mock the pre-existence of osd 1 on device sdx
+	_, _, _ = mockPartitionSchemeEntry(t, 1, "sdx", &agent.storeConfig, agent.kv, nodeName)
+
+	// get the removed devices for this configuration (note we said to use devices "none" above),
+	// it should be osd 1 on device sdx
+	scheme, mapping, err := getRemovedDevices(agent)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(mapping.Entries))
+	assert.Equal(t, 1, len(scheme.Entries))
+
+	// assert the scheme has an entry for osd 1 and its data partition is on sdx
+	schemeEntry := scheme.Entries[0]
+	assert.Equal(t, 1, schemeEntry.ID)
+	assert.Equal(t, "sdx", schemeEntry.Partitions[schemeEntry.GetDataPartitionType()].Device)
+
+	// assert the removed device mapping has an entry for device sdx and it points to osd 1
+	mappingEntry, ok := mapping.Entries["sdx"]
+	assert.True(t, ok)
+	assert.NotNil(t, mappingEntry)
+	assert.Equal(t, 1, mappingEntry.Data)
+}

@@ -216,6 +216,10 @@ func TestStorageSpecConfig(t *testing.T) {
 
 	assert.Equal(t, "100", container.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", container.Resources.Requests.Memory().String())
+
+	// verify that osd config can be discovered from the container and matches the original config from the spec
+	cfg := getConfigFromContainer(container)
+	assert.Equal(t, storageSpec.Nodes[0].Config, cfg)
 }
 
 func TestHostNetwork(t *testing.T) {

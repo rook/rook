@@ -297,8 +297,16 @@ func getRemovedDevices(agent *OsdAgent) (*config.PerfScheme, *DeviceOsdMapping, 
 	}
 
 	for _, entry := range scheme.Entries {
+		// determine which partition the data lives on for this entry
+		dataDetails, ok := entry.Partitions[entry.GetDataPartitionType()]
+		if !ok || dataDetails == nil {
+			return nil, nil, fmt.Errorf("failed to find data partition for entry %+v", entry)
+		}
+
+		// add the current scheme entry to the removed devices scheme and its device to the removed
+		// devices mapping
 		removedDevicesScheme.Entries = append(removedDevicesScheme.Entries, entry)
-		removedDevicesMapping.Entries[entry.Partitions[config.BlockPartitionType].Device] = &DeviceOsdIDEntry{Data: entry.ID}
+		removedDevicesMapping.Entries[dataDetails.Device] = &DeviceOsdIDEntry{Data: entry.ID}
 	}
 
 	return removedDevicesScheme, removedDevicesMapping, nil
