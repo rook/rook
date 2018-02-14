@@ -204,9 +204,8 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	go endpointWatcher.StartWatch(cluster.stopCh)
 
 	// Start mon health checker
-	// TODO Disabled health checker for now
-	//healthChecker := mon.NewHealthChecker(cluster.mons)
-	//go healthChecker.Check(cluster.stopCh)
+	healthChecker := mon.NewHealthChecker(cluster.mons)
+	go healthChecker.Check(cluster.stopCh)
 
 	// add the finalizer to the crd
 	err = c.addFinalizer(clusterObj)

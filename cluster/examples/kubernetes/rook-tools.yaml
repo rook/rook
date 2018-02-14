@@ -24,7 +24,7 @@ spec:
         name: sysbus
       - mountPath: /lib/modules
         name: libmodules
-      - name: mon-endpoint-volume
+      - name: mon-endpoints-volume
         mountPath: /etc/rook
   hostNetwork: false
   volumes:
@@ -37,9 +37,9 @@ spec:
     - name: libmodules
       hostPath:
         path: /lib/modules
-    - name: mon-endpoint-volume
+    - name: mon-endpoints-volume
       configMap:
         name: rook-ceph-mon-endpoints
         items:
-        - key: endpoints
+        - key: mon-endpoints
           path: mon-endpoints

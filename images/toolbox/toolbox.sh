@@ -28,7 +28,7 @@ KEYRING_FILE="/etc/ceph/keyring"
 # without specifying any arguments
 write_endpoints() {
     endpoints=$(cat ${MON_CONFIG})
-    mon_endpoints=$(echo ${endpoints} | sed 's/rook-ceph-mon[0-9]\+=//g')
+    mon_endpoints=$(echo ${endpoints} | sed 's/rook-ceph-mon[0-9]\*=//g')
     DATE=$(date)
     echo "$DATE writing mon endpoints to ${CEPH_CONFIG}: ${endpoints}"
     cat <<EOF > ${CEPH_CONFIG}
