@@ -92,7 +92,7 @@ func TestCheckHealthNotInSourceOfTruth(t *testing.T) {
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
 
-	assert.Equal(t, "rook-ceph-mon1=1.1.1.1:6790", cm.Data[MonEndpointKey])
+	assert.Equal(t, "rook-ceph-mon1=1.1.1.1:6790", cm.Data[MonEndpointsKey])
 
 	// Because rook-ceph-mon2 isn't in the MonInQuorumResponse() but in the
 	// clusterinfo this will create a rook-ceph-mon2
@@ -102,9 +102,9 @@ func TestCheckHealthNotInSourceOfTruth(t *testing.T) {
 	// recheck that the "not found" mon has been replaced with a new one
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	if cm.Data[MonEndpointKey] == "rook-ceph-mon1=:6790,rook-ceph-mon11=:6790" {
-		assert.Equal(t, "rook-ceph-mon1=:6790,rook-ceph-mon11=:6790", cm.Data[MonEndpointKey])
+	if cm.Data[MonEndpointsKey] == "rook-ceph-mon1=:6790,rook-ceph-mon11=:6790" {
+		assert.Equal(t, "rook-ceph-mon1=:6790,rook-ceph-mon11=:6790", cm.Data[MonEndpointsKey])
 	} else {
-		assert.Equal(t, "rook-ceph-mon11=:6790,rook-ceph-mon1=:6790", cm.Data[MonEndpointKey])
+		assert.Equal(t, "rook-ceph-mon11=:6790,rook-ceph-mon1=:6790", cm.Data[MonEndpointsKey])
 	}
 }

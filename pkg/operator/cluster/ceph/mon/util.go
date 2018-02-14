@@ -87,7 +87,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	}
 
 	// get the existing monitor config
-	clusterInfo.Monitors, err = loadMonConfig(context.Clientset, namespace)
+	clusterInfo.Monitors, clusterInfo.MonitorAddresses, err = loadMonConfig(context.Clientset, namespace)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get mon config. %+v", err)
 	}
@@ -106,25 +106,33 @@ func WriteConnectionConfig(context *clusterd.Context, clusterInfo *mon.ClusterIn
 }
 
 // loadMonConfig returns the monitor endpoints
-func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*mon.CephMonitorConfig, error) {
-	monEndpointMap := map[string]*mon.CephMonitorConfig{}
+func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*mon.CephMonitorConfig, map[string]*mon.CephMonitorConfig, error) {
+	monEndpointsMap := map[string]*mon.CephMonitorConfig{
+		appName: mon.ToCephMon(appName, getMonDNSEndpoint(appName, namespace), mon.DefaultPort),
+	}
+	monAddrMap := map[string]*mon.CephMonitorConfig{}
 
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			return nil, err
+			return nil, nil, err
 		}
 		// If the config map was not found, initialize the empty set of monitors
-		return monEndpointMap, nil
+		return monEndpointsMap, monAddrMap, nil
 	}
 
-	// Parse the monitor List
-	if info, ok := cm.Data[MonEndpointKey]; ok {
-		monEndpointMap = mon.ParseMonEndpoints(info)
+	// Parse the mon-endpoints key containing the mon List
+	if info, ok := cm.Data[MonEndpointsKey]; ok {
+		monEndpointsMap = mon.ParseMonEndpoints(info)
 	}
 
-	logger.Infof("loaded: mons=%+v, mapping=%+v", monEndpointMap)
-	return monEndpointMap, nil
+	// Parse the mon address name list
+	if info, ok := cm.Data[MonAddrKey]; ok {
+		monAddrMap = mon.ParseMonEndpoints(info)
+	}
+
+	logger.Infof("loaded: mons=%+v, monsDNS=%+v", monEndpointsMap, monAddrMap)
+	return monEndpointsMap, monAddrMap, nil
 }
 
 // GetMonID get the ID of a monitor from its name
@@ -310,8 +318,8 @@ func (c *Cluster) getMonIP(name string) (string, error) {
 	return p.Status.PodIP, nil
 }
 
-func (c *Cluster) getMonDNSEndpoint() string {
-	return appName + "." + c.Namespace + ".svc"
+func getMonDNSEndpoint(name, namespace string) string {
+	return fmt.Sprintf("%s.%s.svc", name, namespace)
 }
 
 func (c *Cluster) waitForPodReady(name string) error {

@@ -178,7 +178,7 @@ func mdsContainer(fs rookalpha.Filesystem, filesystemID, version string) v1.Cont
 			{Name: "ROOK_FILESYSTEM_ID", Value: filesystemID},
 			{Name: "ROOK_ACTIVE_STANDBY", Value: strconv.FormatBool(fs.Spec.MetadataServer.ActiveStandby)},
 			opmon.ClusterNameEnvVar(fs.Namespace),
-			opmon.EndpointEnvVar(),
+			opmon.MonEndpointsEnvVar(),
 			opmon.AdminSecretEnvVar(),
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),

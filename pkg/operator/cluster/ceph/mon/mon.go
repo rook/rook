@@ -36,11 +36,11 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mon")
 const (
 	// EndpointConfigMapName is the name of the configmap with mon endpoints
 	EndpointConfigMapName = "rook-ceph-mon-endpoints"
-	// MonEndpointKey is the name of the key inside the mon configmap to get the endpoints
-	MonEndpointKey = "mon-endpoints"
-	// EndpointKey is the name of the key inside the mon configmap to get the mon dns endpoint
-	// it is used for != mon ceph components
-	EndpointKey = "endpoints"
+	// MonEndpointsKey is the name of the key inside the mon configmap to get the endpoints
+	MonEndpointsKey = "mon-endpoints"
+	// MonAddrKey is the name of the key inside the mon configmap to get the mon dns endpoint
+	// it is used for != mon ceph component
+	MonAddrKey = "mon-addresses"
 
 	appName           = "rook-ceph-mon"
 	monNodeAttr       = "mon_node"
@@ -117,8 +117,8 @@ func (c *Cluster) startMons() error {
 	mons := []*monConfig{}
 
 	// Init the mons config
-	for i := len(c.clusterInfo.Monitors); i < c.Size; i++ {
-		logger.Debugf("mon endpoints used are: %s", c.clusterInfo.MonEndpoints())
+	for i := len(c.clusterInfo.MonitorAddresses); i < c.Size; i++ {
+		logger.Debugf("mon endpoints used are: %s", c.clusterInfo.MonAddresses())
 		// this scales up the mons to the desired c.Size one by one through the loop
 		if err := c.updateStatefulSet(int32(i + 1)); err != nil {
 			return fmt.Errorf("failed to scale up replicas for mon statefulset to %d. %+v", i+1, err)
@@ -132,26 +132,24 @@ func (c *Cluster) startMons() error {
 			return fmt.Errorf("failed waiting for mon pod %s being ready. %+v", monName, err)
 		}
 
-		// get mon Pod IP and add it to endpoints
-		// this is needed as the Mon Pod endpoint watcher is only active after
-		// the first full Mon start run
+		logger.Debugf("wait for mons to join (currently at number %d from %d)", i, c.Size)
+		mons = append(mons, &monConfig{Name: monName})
+		if err := c.waitForMonsToJoin(mons); err != nil {
+			return fmt.Errorf("failed to wait for current mon %s to join. %+v", monName, err)
+		}
+
+		// get mon Pod IP and add it to endpoints after it started
 		podIP, err := c.getMonIP(monName)
 		if err != nil {
 			return fmt.Errorf("failed getting ip from mon pod %s. %+v", monName, err)
 		}
 		c.clusterInfo.MonMutex.Lock()
-		c.clusterInfo.Monitors[monName] = mon.ToCephMon(monName, podIP, mon.DefaultPort)
+		c.clusterInfo.MonitorAddresses[monName] = mon.ToCephMon(monName, podIP, mon.DefaultPort)
 		c.clusterInfo.MonMutex.Unlock()
 
 		// before we wait for the mon, save the mon IP to the config
-		if err := c.saveMonConfig(); err != nil {
+		if err := c.saveConfigChanges(); err != nil {
 			return fmt.Errorf("failed to save mon config. %+v", err)
-		}
-
-		logger.Debugf("wait for mons to join (currently at number %d from %d)", i, c.Size)
-		mons = append(mons, &monConfig{Name: monName})
-		if err := c.waitForMonsToJoin(mons); err != nil {
-			return fmt.Errorf("failed to wait for current mon %s to join. %+v", monName, err)
 		}
 	}
 
@@ -216,10 +214,8 @@ func (c *Cluster) saveMonConfig() error {
 	}
 
 	configMap.Data = map[string]string{
-		MonEndpointKey: mon.FlattenMonEndpoints(c.clusterInfo.Monitors),
-		EndpointKey: mon.FlattenMonEndpoints(map[string]*mon.CephMonitorConfig{
-			appName: mon.ToCephMon(appName, c.getMonDNSEndpoint(), mon.DefaultPort),
-		}),
+		MonEndpointsKey: mon.FlattenMonEndpoints(c.clusterInfo.Monitors),
+		MonAddrKey:      mon.FlattenMonEndpoints(c.clusterInfo.MonitorAddresses),
 	}
 
 	if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {

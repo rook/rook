@@ -186,7 +186,7 @@ func (c *Cluster) apiContainer() v1.Container {
 			k8sutil.NamespaceEnvVar(),
 			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
-			opmon.EndpointEnvVar(),
+			opmon.MonEndpointsEnvVar(),
 			opmon.ClusterNameEnvVar(c.Namespace),
 		},
 		Resources: c.resources,

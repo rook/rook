@@ -89,7 +89,7 @@ func WatchMonConfig(context *clusterd.Context, c *Config) {
 			if e.Type == watch.Modified {
 				// "unmarshal" object into configmap and set new endpoints
 				monEndpoints := e.Object.(*v1.ConfigMap)
-				c.clusterInfo.Monitors = mon.ParseMonEndpoints(monEndpoints.Data[monop.MonEndpointKey])
+				c.clusterInfo.Monitors = mon.ParseMonEndpoints(monEndpoints.Data[monop.MonEndpointsKey])
 
 				// write the latest config to the config dir
 				if err := mon.GenerateAdminConnectionConfig(context, c.clusterInfo); err != nil {

@@ -33,15 +33,15 @@ func ClusterNameEnvVar(name string) v1.EnvVar {
 	return v1.EnvVar{Name: "ROOK_CLUSTER_NAME", Value: name}
 }
 
-// EndpointsEnvVar is the mon endpoint environment var
-func EndpointsEnvVar() v1.EnvVar {
-	ref := &v1.ConfigMapKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: EndpointConfigMapName}, Key: MonEndpointKey}
+// MonEndpointsEnvVar is the mon dns endpoint(s) environment var
+func MonEndpointsEnvVar() v1.EnvVar {
+	ref := &v1.ConfigMapKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: EndpointConfigMapName}, Key: MonEndpointsKey}
 	return v1.EnvVar{Name: "ROOK_MON_ENDPOINTS", ValueFrom: &v1.EnvVarSource{ConfigMapKeyRef: ref}}
 }
 
-// EndpointEnvVar is the mon dns name endpoint environment var
-func EndpointEnvVar() v1.EnvVar {
-	ref := &v1.ConfigMapKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: EndpointConfigMapName}, Key: EndpointKey}
+// MonAddressEnvVar is the mon endpoint environment var
+func MonAddressEnvVar() v1.EnvVar {
+	ref := &v1.ConfigMapKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: EndpointConfigMapName}, Key: MonAddrKey}
 	return v1.EnvVar{Name: "ROOK_MON_ENDPOINTS", ValueFrom: &v1.EnvVarSource{ConfigMapKeyRef: ref}}
 }
 
@@ -160,7 +160,7 @@ func (c *Cluster) monContainer(fsid string) v1.Container {
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			ClusterNameEnvVar(c.Namespace),
-			EndpointsEnvVar(),
+			MonAddressEnvVar(),
 			SecretEnvVar(),
 			AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),

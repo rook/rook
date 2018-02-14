@@ -19,14 +19,16 @@ import (
 )
 
 type ClusterInfo struct {
-	FSID          string
-	MonitorSecret string
-	AdminSecret   string
-	Name          string
-	Monitors      map[string]*CephMonitorConfig
-	MonMutex      sync.Mutex
+	FSID             string
+	MonitorSecret    string
+	AdminSecret      string
+	Name             string
+	Monitors         map[string]*CephMonitorConfig
+	MonitorAddresses map[string]*CephMonitorConfig
+	MonMutex         sync.Mutex
 }
 
+// MonEndpoints returns the Monitors as a comma separated string
 func (c *ClusterInfo) MonEndpoints() string {
 	var endpoints []string
 	for _, mon := range c.Monitors {
@@ -35,6 +37,16 @@ func (c *ClusterInfo) MonEndpoints() string {
 	return strings.Join(endpoints, ",")
 }
 
+// MonAddresses returns the MonitorAddresses as a comma separated string
+func (c *ClusterInfo) MonAddresses() string {
+	var endpoints []string
+	for _, mon := range c.MonitorAddresses {
+		endpoints = append(endpoints, fmt.Sprintf("%s-%s", mon.Name, mon.Endpoint))
+	}
+	return strings.Join(endpoints, ",")
+}
+
+// RemovePortFromEndpoint removes the port from a given endpoint
 func (c *ClusterInfo) RemovePortFromEndpoint(endpoint string) string {
 	split := strings.Split(endpoint, ":")
 	if len(split) <= 1 {

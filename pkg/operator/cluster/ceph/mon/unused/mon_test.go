@@ -220,7 +220,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "rook-ceph-mon-1=1.1.1.1:6790", cm.Data[MonEndpointKey])
+	assert.Equal(t, "rook-ceph-mon-1=1.1.1.1:6790", cm.Data[MonEndpointsKey])
 
 	// update the config map
 	c.clusterInfo.mons["rook-ceph-mon-1"].Endpoint = "2.3.4.5:6790"
@@ -230,6 +230,6 @@ func TestSaveMonEndpoints(t *testing.T) {
 
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "rook-ceph-mon-1=2.3.4.5:6790", cm.Data[MonEndpointKey])
+	assert.Equal(t, "rook-ceph-mon-1=2.3.4.5:6790", cm.Data[MonEndpointsKey])
 	assert.Equal(t, "rook-ceph-mon=rook-ceph-mon.ns.svc:6790", cm.Data[EndpointKey])
 }

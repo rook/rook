@@ -152,12 +152,12 @@ func writeKeyring(keyring, path string) error {
 	return nil
 }
 
-// generates and writes the monitor config file to disk
+// GenerateConnectionConfigFile generates and writes the monitor config file to disk
 func GenerateConnectionConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string) (string, error) {
 	return GenerateConfigFile(context, cluster, pathRoot, user, keyringPath, nil, nil)
 }
 
-// generates and writes the monitor config file to disk
+// GenerateConfigFile generates and writes the monitor config file to disk
 func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string,
 	globalConfig *cephConfig, clientSettings map[string]string) (string, error) {
 
