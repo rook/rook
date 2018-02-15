@@ -537,6 +537,40 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 	assert.Equal(t, "nvme01", scheme.Entries[0].Partitions[config.DatabasePartitionType].Device)
 }
 
+func TestPrepareOSDRoot(t *testing.T) {
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	os.MkdirAll(configDir, 0755)
+
+	cfg := &osdConfig{id: 516, configRoot: configDir}
+	cfg.rootPath = getOSDRootDir(cfg.configRoot, cfg.id)
+
+	// clean slate, definitely a new OSD
+	newOSD, err := prepareOSDRoot(cfg)
+	assert.Nil(t, err)
+	assert.True(t, newOSD)
+
+	// simulate the failure of a previous osd mkfs that left the osd dir in an intermediate state
+	// this should also be considered a new OSD and the previous (stale) state should have been cleaned
+	ioutil.WriteFile(filepath.Join(cfg.rootPath, "whoami"), []byte("516"), 0644)
+	newOSD, err = prepareOSDRoot(cfg)
+	assert.Nil(t, err)
+	assert.True(t, newOSD)
+	fis, err := ioutil.ReadDir(cfg.rootPath)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(fis)) // osd dir should have been cleaned
+
+	// simulate a completed osd mkfs, where the osd is ready.  this should not be considered a new
+	// osd and the osd dir should be left intact
+	ioutil.WriteFile(filepath.Join(cfg.rootPath, "ready"), []byte("ready"), 0644)
+	newOSD, err = prepareOSDRoot(cfg)
+	assert.Nil(t, err)
+	assert.False(t, newOSD)
+	fis, err = ioutil.ReadDir(cfg.rootPath)
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(fis)) // osd dir should NOT have been cleaned
+}
+
 func verifyPartitionEntry(t *testing.T, actual *config.PerfSchemePartitionDetails, expectedDevice string,
 	expectedSize int, expectedOffset int) {
 

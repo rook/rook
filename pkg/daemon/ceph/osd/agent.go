@@ -375,15 +375,10 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, cfg *osdConfig) error {
 		return err
 	}
 
-	newOSD := false
-	if isOSDDataNotExist(cfg.rootPath) {
-		// consider this a new osd if the "whoami" file is not found
-		newOSD = true
-
-		// ensure the config path exists
-		if err := os.MkdirAll(cfg.rootPath, 0744); err != nil {
-			return fmt.Errorf("failed to make osd %d config at %s: %+v", cfg.id, cfg.rootPath, err)
-		}
+	// prepare the osd root dir, which will tell us if it's a new osd
+	newOSD, err := prepareOSDRoot(cfg)
+	if err != nil {
+		return err
 	}
 
 	if newOSD {
@@ -414,7 +409,7 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, cfg *osdConfig) error {
 			}
 		}
 
-		// osd_data_dir/whoami does not exist yet, create/initialize the OSD
+		// osd_data_dir/ready does not exist yet, create/initialize the OSD
 		err := initializeOSD(cfg, context, a.cluster, a.location)
 		if err != nil {
 			return fmt.Errorf("failed to initialize OSD at %s: %+v", cfg.rootPath, err)
@@ -426,7 +421,7 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, cfg *osdConfig) error {
 			logger.Warningf("failed to update config file. %+v", err)
 		}
 
-		// osd_data_dir/whoami already exists, meaning the OSD is already set up.
+		// osd_data_dir/ready already exists, meaning the OSD is already set up.
 		// look up some basic information about it so we can run it.
 		err = loadOSDInfo(cfg)
 		if err != nil {
@@ -435,12 +430,33 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, cfg *osdConfig) error {
 	}
 
 	// run the OSD in a child process now that it is fully initialized and ready to go
-	err := a.runOSD(context, a.cluster.Name, cfg)
+	err = a.runOSD(context, a.cluster.Name, cfg)
 	if err != nil {
 		return fmt.Errorf("failed to run osd %d: %+v", cfg.id, err)
 	}
 
 	return nil
+}
+
+func prepareOSDRoot(cfg *osdConfig) (newOSD bool, err error) {
+	newOSD = isOSDDataNotExist(cfg.rootPath)
+	if !newOSD {
+		// osd is not new (it's ready), nothing to prepare
+		return newOSD, nil
+	}
+
+	// osd is new (it's not ready), make sure there is no stale state in the OSD dir by deleting the entire thing
+	logger.Infof("osd.%d appears to be new, cleaning the root dir at %s", cfg.id, cfg.rootPath)
+	if err := os.RemoveAll(cfg.rootPath); err != nil {
+		logger.Warningf("failed to clean osd.%d root dir at %s, will proceed with starting osd: %+v", cfg.id, cfg.rootPath, err)
+	}
+
+	// prepare the osd dir by creating it now
+	if err := os.MkdirAll(cfg.rootPath, 0744); err != nil {
+		return newOSD, fmt.Errorf("failed to make osd.%d config at %s: %+v", cfg.id, cfg.rootPath, err)
+	}
+
+	return newOSD, nil
 }
 
 // runs an OSD with the given config in a child process
@@ -601,7 +617,7 @@ func waitForRebalance(context *clusterd.Context, clusterName string, osdID int, 
 }
 
 func isOSDDataNotExist(osdDataPath string) bool {
-	_, err := os.Stat(filepath.Join(osdDataPath, "whoami"))
+	_, err := os.Stat(filepath.Join(osdDataPath, "ready"))
 	return os.IsNotExist(err)
 }
 
