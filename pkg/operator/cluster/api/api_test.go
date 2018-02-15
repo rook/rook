@@ -70,7 +70,7 @@ func TestPodSpecs(t *testing.T) {
 
 	assert.Equal(t, deploymentName, d.ObjectMeta.Name)
 	assert.Equal(t, deploymentName, d.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["ceph_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	cont := d.Spec.Template.Spec.Containers[0]

@@ -89,7 +89,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 
 	assert.Equal(t, appName, replicaSet.Spec.Template.ObjectMeta.Name)
 	assert.Equal(t, appName, replicaSet.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, c.Namespace, replicaSet.Spec.Template.ObjectMeta.Labels["rook_cluster"])
+	assert.Equal(t, c.Namespace, replicaSet.Spec.Template.ObjectMeta.Labels["ceph_cluster"])
 	assert.Equal(t, 0, len(replicaSet.Spec.Template.ObjectMeta.Annotations))
 
 	cont := replicaSet.Spec.Template.Spec.Containers[0]

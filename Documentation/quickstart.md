@@ -8,8 +8,8 @@ weight: 2
 Welcome to Rook! We hope you have a great experience installing the Rook storage platform to enable highly available, durable storage
 in your cluster. If you have any questions along the way, please don't hesitate to ask us in our [Slack channel](https://Rook-io.slack.com).
 
-This guide will walk you through the basic setup of a Rook cluster. This will enable you to consume block, object, and file storage
-from other pods running in your cluster. 
+This guide will walk you through the basic setup of a Ceph cluster. This will enable you to consume block, object, and file storage
+from other pods running in your cluster.
 
 ## Minimum Version
 
@@ -26,18 +26,18 @@ If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, mak
 
 ## TL;DR
 
-If you're feeling lucky, a simple Rook cluster can be created with the following kubectl commands. For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
+If you're feeling lucky, a simple Ceph cluster can be created with the following kubectl commands. For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
 ```
 cd cluster/examples/kubernetes
 kubectl create -f rook-operator.yaml
-kubectl create -f rook-cluster.yaml
+kubectl create -f ceph-cluster.yaml
 ```
 
 After the cluster is running, you can create [block, object, or file](#storage) storage to be consumed by other applications in your cluster.
 
 ## Deploy the Rook Operator
 
-The first step is to deploy the Rook system components, which include the Rook agent running on each node in your cluster as well as Rook operator pod. 
+The first step is to deploy the Rook system components, which include the Rook agent running on each node in your cluster as well as Rook operator pod.
 
 ```bash
 cd cluster/examples/kubernetes
@@ -64,23 +64,23 @@ For Kubernetes 1.6, it is also necessary to pass the `--enable-controller-attach
 
 ## Create a Rook Cluster
 
-Now that the Rook operator and agent pods are running, we can create the Rook cluster. For the cluster to survive reboots, 
-make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](cluster-crd.md). 
+Now that the Rook operator and agent pods are running, we can create the Ceph cluster. For the cluster to survive reboots,
+make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](cluster-crd.md).
 
 
-Save the cluster spec as `rook-cluster.yaml`:
+Save the cluster spec as `ceph-cluster.yaml`:
 
 ```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: ceph
 ---
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: ceph
+  namespace: ceph
 spec:
   dataDirHostPath: /var/lib/rook
   storage:
@@ -98,10 +98,10 @@ Create the cluster:
 kubectl create -f rook-cluster.yaml
 ```
 
-Use `kubectl` to list pods in the `rook` namespace. You should be able to see the following pods once they are all running:
+Use `kubectl` to list pods in the `ceph` namespace. You should be able to see the following pods once they are all running:
 
 ```bash
-$ kubectl -n rook get pod
+$ kubectl -n ceph get pod
 NAME                              READY     STATUS    RESTARTS   AGE
 rook-api-1511082791-7qs0m         1/1       Running   0          5m
 rook-ceph-mgr0-1279756402-wc4vt   1/1       Running   0          5m
@@ -120,14 +120,14 @@ For a walkthrough of the three types of storage exposed by Rook, see the guides 
 
 # Tools
 
-We have created a toolbox container that contains the full suite of Ceph clients for debugging and troubleshooting your Rook cluster.  Please see the [toolbox readme](toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
+We have created a toolbox container that contains the full suite of Ceph clients for debugging and troubleshooting your Ceph cluster.  Please see the [toolbox readme](toolbox.md) for setup and usage information. Also see our [advanced configuration](advanced-configuration.md) document for helpful maintenance and tuning examples.
 
 The toolbox also contains the `rookctl` tool as required in the [File System](filesystem.md) and [Object](object.md) walkthroughs, or a [simplified walkthrough of block, file and object storage](client.md). In the near future, `rookctl` will not be required for kubernetes scenarios.
 
 # Monitoring
 
-Each Rook cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
-To learn how to set up monitoring for your Rook cluster, you can follow the steps in the [monitoring guide](./monitoring.md).
+Each Ceph cluster has some built in metrics collectors/exporters for monitoring with [Prometheus](https://prometheus.io/).
+To learn how to set up monitoring for your Ceph cluster, you can follow the steps in the [monitoring guide](./monitoring.md).
 
 # Teardown
 
@@ -136,15 +136,15 @@ Those steps have been copied below for convenience, but note that some of these 
 ```console
 kubectl delete -f wordpress.yaml
 kubectl delete -f mysql.yaml
-kubectl delete -n rook pool replicapool
+kubectl delete -n ceph pool replicapool
 kubectl delete storageclass rook-block
 kubectl -n kube-system delete secret rook-admin
 kubectl delete -f kube-registry.yaml
 ```
 
-After those resources have been cleaned up, you can then delete your Rook cluster:
+After those resources have been cleaned up, you can then delete your Ceph cluster:
 ```console
-kubectl delete -n rook cluster rook
+kubectl delete -n ceph cluster rook
 ```
 
 This will begin the process of all cluster resources being cleaned up, after which you can delete the rest of the deployment with the following:
@@ -155,7 +155,7 @@ kubectl delete -n rook-system daemonset rook-agent
 kubectl delete -f rook-operator.yaml
 kubectl delete clusterroles rook-agent
 kubectl delete clusterrolebindings rook-agent
-kubectl delete namespace rook
+kubectl delete namespace ceph
 ```
 
 IMPORTANT: The final cleanup step requires deleting files on each host in the cluster. All files under the `dataDirHostPath` property specified in the cluster CRD will need to be deleted. Otherwise, inconsistent state will remain when a new cluster is started.

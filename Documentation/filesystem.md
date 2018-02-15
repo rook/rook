@@ -12,20 +12,20 @@ This example runs a shared file system for the [kube-registry](https://github.co
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](quickstart.md)
+This guide assumes you have created a Ceph cluster as explained in the main [Kubernetes guide](quickstart.md)
 
 ## Create the File System
 
 Create the file system by specifying the desired settings for the metadata pool, data pools, and metadata server in the `Filesystem` CRD. In this example we create the metadata pool with replication of three and a single data pool with erasure coding. For more options, see the documentation on [creating shared file systems](filesystem-crd.md).
 
-Save this shared file system definition as `rook-filesystem.yaml`:
+Save this shared file system definition as `ceph-filesystem.yaml`:
 
 ```yaml
 apiVersion: rook.io/v1alpha1
 kind: Filesystem
 metadata:
   name: myfs
-  namespace: rook
+  namespace: ceph
 spec:
   metadataPool:
     replicated:
@@ -42,10 +42,10 @@ spec:
 Now let's create the file system. The Rook operator will create all the pools and other resources necessary to start the service. This may take a minute to complete.
 ```bash
 # Create the file system
-kubectl create -f rook-filesystem.yaml
+kubectl create -f ceph-filesystem.yaml
 
 # To confirm the file system is configured, wait for the mds pods to start
-kubectl -n rook get pod -l app=rook-ceph-mds
+kubectl -n ceph get pod -l app=rook-ceph-mds
 ```
 
 To see detailed status of the file system, start and connect to the [Rook toolbox](toolbox.md). A new line will be shown with `ceph status` for the `mds` service. In this example, there is one active instance of MDS which is up, with one MDS instance in `standby-replay` mode in case of failover.
@@ -59,7 +59,7 @@ $ ceph status
 
 ## Consume the file system
 
-As an example, we will start the kube-registry pod with the shared file system as the backing store. 
+As an example, we will start the kube-registry pod with the shared file system as the backing store.
 Save the following spec as `kube-registry.yaml`:
 
 ```yaml
@@ -110,7 +110,7 @@ spec:
           fsType: ceph
           options:
             fsName: myfs # name of the filesystem specified in the filesystem CRD.
-            clusterName: rook # namespace where the Rook cluster is deployed
+            clusterName: ceph # namespace where the Ceph cluster is deployed
             # by default the path is /, but you can override and mount a specific path of the filesystem by using the path attribute
             # path: /some/path/inside/cephfs
 ```
@@ -118,7 +118,7 @@ spec:
 You now have a docker registry which is HA with persistent storage.
 
 #### Kernel Version Requirement
-If the Rook cluster has more than one filesystem and the application pod is scheduled to a node with kernel version older than 4.7, inconsistent results may arise since kernels older than 4.7 do not support specifying filesystem namespaces.
+If the Ceph cluster has more than one filesystem and the application pod is scheduled to a node with kernel version older than 4.7, inconsistent results may arise since kernels older than 4.7 do not support specifying filesystem namespaces.
 
 ## Test the storage
 

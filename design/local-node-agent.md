@@ -22,15 +22,15 @@ One can think of the agent as a mini operator that functions at the node level.
 The initial proposed responsibilities of the agent are:
 
 1. Deploy the Rook Flexvolume driver to the `volume-plugin-dir` directory on every node
-1. Perform storage operations on behalf of the Flexvolume driver, such as attaching, detaching, mounting and unmounting Rook cluster storage
-1. Cluster clean up operations, such as forcefully unmapping RBD devices when the Rook cluster is being deleted while there are still pods consuming those volumes
+1. Perform storage operations on behalf of the Flexvolume driver, such as attaching, detaching, mounting and unmounting Ceph cluster storage
+1. Cluster clean up operations, such as forcefully unmapping RBD devices when the Ceph cluster is being deleted while there are still pods consuming those volumes
 1. Proxy I/O traffic from kernel modules to user space (e.g. Network Block Device (NBD) kernel module to librbd in userspace)
 
 ### **Deployment**
 The Rook operator will deploy the Rook agent to all nodes in the cluster via a Daemonset in the same namespace in which the operator is running.
 It is a permanent (long running) daemon that has a lifecycle tied to the node that it is scheduled on.
 The agent deployment will happen when the operator is first created, in the same flow where the operator is declaring CRDs for clusters, pools, etc.
-This means that the Rook agents are not associated with a specific Rook cluster and that they will be able to handle operations for any Rook cluster instance.
+This means that the Rook agents are not associated with a specific Ceph cluster and that they will be able to handle operations for any Ceph cluster instance.
 The Rook operator CRD will be updated to allow selectors to control the set of nodes that the agent is scheduled on, but in most cases it is desirable for it to be running on all nodes.
 
 Each agent pod will be running the same `rook/rook` container image in use today, but with a new `agent` command (similar to the existing `mon` or `osd` commands).
@@ -184,10 +184,10 @@ Rook makes storage as a service a deeply integrated part of the Kubernetes clust
 This integration makes more attention to lifecycle management of the storage components necessary.
 
 #### Hung RBD Kernel Module
-If the monitor pods of a Rook cluster are no longer accessible while block storage is mapped to a node, the kernel RBD module will be hung and require a [power cycle of the machine](https://github.com/rook/rook/issues/376#issuecomment-318803799).
+If the monitor pods of a Ceph cluster are no longer accessible while block storage is mapped to a node, the kernel RBD module will be hung and require a [power cycle of the machine](https://github.com/rook/rook/issues/376#issuecomment-318803799).
 
 The Rook agent can help mitigate this scenario, by watching for the cluster CRD delete event.
-When a Rook cluster is being deleted, there may still be consumers of the storage in the cluster in the form of pods with PVCs.
+When a Ceph cluster is being deleted, there may still be consumers of the storage in the cluster in the form of pods with PVCs.
 When a Rook agent receives a cluster CRD delete event, they will respond by checking for any Rook storage on the local node they are running on and then forcefully remove them.
 
 To forcefully remove the storage from local pods, the agent will perform the following sequence of steps for each Rook PVC:

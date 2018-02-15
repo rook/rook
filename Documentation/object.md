@@ -10,19 +10,19 @@ Object storage exposes an S3 API to the storage cluster for applications to put 
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](quickstart.md)
+This guide assumes you have created a Ceph cluster as explained in the main [Kubernetes guide](quickstart.md)
 
 ## Object Store
 
 Now we will create the object store, which starts the RGW service in the cluster with the S3 API.
-Specify your desired settings for the object store in the `rook-object.yaml`. For more details on the settings see the [Object Store CRD](object-store-crd.md).
+Specify your desired settings for the object store in the `ceph-object.yaml`. For more details on the settings see the [Object Store CRD](object-store-crd.md).
 
 ```yaml
 apiVersion: rook.io/v1alpha1
 kind: ObjectStore
 metadata:
   name: my-store
-  namespace: rook
+  namespace: ceph
 spec:
   metadataPool:
     replicated:
@@ -33,7 +33,7 @@ spec:
       codingChunks: 1
   gateway:
     type: s3
-    sslCertificateRef: 
+    sslCertificateRef:
     port: 80
     securePort:
     instances: 1
@@ -55,7 +55,7 @@ Now let's create the object store. The Rook operator will create all the pools a
 kubectl create -f rook-object.yaml
 
 # To confirm the object store is configured, wait for the rgw pod to start
-kubectl -n rook get pod -l app=rook-ceph-rgw
+kubectl -n ceph get pod -l app=rook-ceph-rgw
 ```
 
 ## Create a User
@@ -84,7 +84,7 @@ you will need to setup an external service through a `NodePort`.
 
 First, note the service that exposes RGW internal to the cluster. We will leave this service intact and create a new service for external access.
 ```bash
-$ kubectl -n rook get service rook-ceph-rgw-my-store
+$ kubectl -n ceph get service rook-ceph-rgw-my-store
 NAME                     CLUSTER-IP   EXTERNAL-IP   PORT(S)     AGE
 rook-ceph-rgw-my-store   10.3.0.177   <none>        80/TCP      2m
 ```
@@ -96,11 +96,11 @@ apiVersion: v1
 kind: Service
 metadata:
   name: rook-ceph-rgw-my-store-external
-  namespace: rook
+  namespace: ceph
   labels:
     app: rook-ceph-rgw
-    rook_cluster: rook
-    rook_object_store: my-store
+    ceph_cluster: ceph
+    ceph_object_store: my-store
 spec:
   ports:
   - name: rgw
@@ -109,8 +109,8 @@ spec:
     targetPort: 53390
   selector:
     app: rook-ceph-rgw
-    rook_cluster: rook
-    rook_object_store: my-store
+    ceph_cluster: ceph
+    ceph_object_store: my-store
   sessionAffinity: None
   type: NodePort
 ```
@@ -123,7 +123,7 @@ kubectl create -f rgw-external.yaml
 
 See both rgw services running and notice what port the external service is running on:
 ```bash
-$ kubectl -n rook get service rook-ceph-rgw-my-store rook-ceph-rgw-my-store-external
+$ kubectl -n ceph get service rook-ceph-rgw-my-store rook-ceph-rgw-my-store-external
 NAME                              CLUSTER-IP   EXTERNAL-IP   PORT(S)           AGE
 rook-ceph-rgw-my-store            10.0.0.83    <none>        80/TCP            21m
 rook-ceph-rgw-my-store-external   10.0.0.26    <nodes>       53390:30041/TCP   1m

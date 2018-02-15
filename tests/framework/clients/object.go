@@ -81,7 +81,7 @@ spec:
 			return err
 		}
 
-		if !k8sh.IsPodWithLabelRunning(fmt.Sprintf("rook_object_store=%s", storeName), namespace) {
+		if !k8sh.IsPodWithLabelRunning(fmt.Sprintf("ceph_object_store=%s", storeName), namespace) {
 			return fmt.Errorf("rgw did not start via crd")
 		}
 	}
@@ -131,7 +131,7 @@ spec:
 		}
 	}
 
-	if !k8sh.WaitUntilPodWithLabelDeleted(fmt.Sprintf("rook_object_store=%s", storeName), namespace) {
+	if !k8sh.WaitUntilPodWithLabelDeleted(fmt.Sprintf("ceph_object_store=%s", storeName), namespace) {
 		return fmt.Errorf("rgw did not start via crd")
 	}
 	return nil

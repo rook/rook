@@ -155,7 +155,7 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, st
 	}
 
 	if h.k8shelper.VersionAtLeast("v1.8.0") {
-		logger.Infof("Starting Rook cluster with strongly typed clientset")
+		logger.Infof("Starting Ceph cluster with strongly typed clientset")
 
 		clust := &rookalpha.Cluster{
 			ObjectMeta: metav1.ObjectMeta{
@@ -279,7 +279,7 @@ func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	//Create rook cluster
 	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath, useDevices, mons, startWithAllNodes)
 	if err != nil {
-		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
+		logger.Errorf("Ceph cluster %s not installed, error -> %v", namespace, err)
 		return false, err
 	}
 

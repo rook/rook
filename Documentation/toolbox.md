@@ -6,7 +6,7 @@ indent: true
 
 #  Rook Toolbox
 The Rook toolbox is a container with common tools used for rook debugging and testing.
-The toolbox is based on Ubuntu, so more tools of your choosing can be easily installed with `apt-get`. 
+The toolbox is based on Ubuntu, so more tools of your choosing can be easily installed with `apt-get`.
 
 ## Running the Toolbox in Kubernetes
 
@@ -20,7 +20,7 @@ apiVersion: v1
 kind: Pod
 metadata:
   name: rook-tools
-  namespace: rook
+  namespace: ceph
 spec:
   dnsPolicy: ClusterFirstWithHostNet
   containers:
@@ -70,12 +70,12 @@ kubectl create -f rook-tools.yaml
 
 Wait for the toolbox pod to download its container and get to the `running` state:
 ```bash
-kubectl -n rook get pod rook-tools
+kubectl -n ceph get pod rook-tools
 ```
 
 Once the rook-tools pod is running, you can connect to it with:
 ```bash
-kubectl -n rook exec -it rook-tools bash
+kubectl -n ceph exec -it rook-tools bash
 ```
 
 All available tools in the toolbox are ready for your troubleshooting needs.  Example:
@@ -87,5 +87,5 @@ rados df
 
 When you are done with the toolbox, remove the pod:
 ```bash
-kubectl -n rook delete pod rook-tools
+kubectl -n ceph delete pod rook-tools
 ```

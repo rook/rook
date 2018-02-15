@@ -915,7 +915,7 @@ metadata:
   namespace: ` + namespace + `
   labels:
     app: rook-ceph-rgw
-    rook_cluster: ` + namespace + `
+    ceph_cluster: ` + namespace + `
 spec:
   ports:
   - name: rook-ceph-rgw
@@ -923,7 +923,7 @@ spec:
     protocol: TCP
   selector:
     app: rook-ceph-rgw
-    rook_cluster: ` + namespace + `
+    ceph_cluster: ` + namespace + `
   sessionAffinity: None
   type: NodePort
 `

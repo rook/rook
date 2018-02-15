@@ -96,11 +96,11 @@ func (mrc *MultiClusterDeploySuite) TearDownSuite() {
 
 //Test to make sure all rook components are installed and Running
 func (mrc *MultiClusterDeploySuite) TestInstallingMultipleRookClusters() {
-	//Check if Rook cluster 1 is deployed successfully
+	//Check if Ceph cluster 1 is deployed successfully
 	checkIfRookClusterIsInstalled(mrc.Suite, mrc.k8sh, installer.SystemNamespace(mrc.namespace1), mrc.namespace1, 1)
 	checkIfRookClusterIsHealthy(mrc.Suite, mrc.helper1, mrc.namespace1)
 
-	//Check if Rook cluster 2 is deployed successfully
+	//Check if Ceph cluster 2 is deployed successfully
 	checkIfRookClusterIsInstalled(mrc.Suite, mrc.k8sh, installer.SystemNamespace(mrc.namespace1), mrc.namespace2, 1)
 	checkIfRookClusterIsHealthy(mrc.Suite, mrc.helper2, mrc.namespace2)
 }

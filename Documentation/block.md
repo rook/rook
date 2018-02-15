@@ -10,20 +10,20 @@ Block storage allows you to mount storage to a single pod. This example shows ho
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Quickstart](quickstart.md) guide.
+This guide assumes you have created a Ceph cluster as explained in the main [Quickstart](quickstart.md) guide.
 
 ## Provision Storage
 
 Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. For more options on pools, see the documentation on [creating storage pools](pool-crd.md).
 
-Save this storage class definition as `rook-storageclass.yaml`:
+Save this storage class definition as `ceph-storageclass.yaml`:
 
 ```yaml
 apiVersion: rook.io/v1alpha1
 kind: Pool
 metadata:
   name: replicapool
-  namespace: rook
+  namespace: ceph
 spec:
   replicated:
     size: 3
@@ -31,7 +31,7 @@ spec:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: rook-block
+   name: ceph-block
 provisioner: rook.io/block
 parameters:
   pool: replicapool
@@ -39,7 +39,7 @@ parameters:
 
 Create the storage class.
 ```bash
-kubectl create -f rook-storageclass.yaml
+kubectl create -f ceph-storageclass.yaml
 ```
 
 ## Consume the storage
@@ -83,5 +83,5 @@ To clean up all the artifacts created by the block demo:
 kubectl delete -f wordpress.yaml
 kubectl delete -f mysql.yaml
 kubectl delete -n rook pool replicapool
-kubectl delete storageclass rook-block
+kubectl delete storageclass ceph-block
 ```

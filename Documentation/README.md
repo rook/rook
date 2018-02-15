@@ -12,7 +12,7 @@ Rook is currently in alpha state and has focused initially on orchestrating Ceph
 
 Starting Rook in your cluster is as simple as two `kubectl` commands. See our [Quickstart](quickstart.md) guide for the details on what you need to get going.
 
-Once you have a Rook cluster running, walk through the guides for block, object, and file to start consuming the storage in your cluster:
+Once you have a Ceph cluster running, walk through the guides for block, object, and file to start consuming the storage in your cluster:
 - **[Block](block.md)**: Create block storage to be consumed by a pod
 - **[Object](object.md)**: Create an object store that is accessible inside or outside the Kubernetes cluster
 - **[Shared File System](filesystem.md)**: Create a file system to be shared across multiple pods

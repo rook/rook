@@ -4,24 +4,24 @@ weight: 60
 ---
 
 # Upgrades
-This guide will walk you through the manual steps to upgrade the software in a Rook cluster from one version to the next.
+This guide will walk you through the manual steps to upgrade the software in a Ceph cluster from one version to the next.
 Rook is a distributed software system and therefore there are multiple components to individually upgrade in the sequence defined in this guide.
 After each component is upgraded, it is important to verify that the cluster returns to a healthy and fully functional state.
 
 
 This guide is just the beginning of upgrade support in Rook.
-The goal is to provide prescriptive guidance and knowledge on how to upgrade a live Rook cluster and we hope to get valuable feedback from the community that will be incorporated into an automated upgrade solution by the Rook operator.
+The goal is to provide prescriptive guidance and knowledge on how to upgrade a live Ceph cluster and we hope to get valuable feedback from the community that will be incorporated into an automated upgrade solution by the Rook operator.
 
 We welcome feedback and opening issues!
 
 ## Considerations
 With this manual upgrade guide, there are a few notes to consider:
-* **WARNING:** Upgrading a Rook cluster is a manual process in its very early stages.  There may be unexpected issues or obstacles that damage the integrity and health of your storage cluster, including data loss.  Only proceed with this guide if you are comfortable with that.
+* **WARNING:** Upgrading a Ceph cluster is a manual process in its very early stages.  There may be unexpected issues or obstacles that damage the integrity and health of your storage cluster, including data loss.  Only proceed with this guide if you are comfortable with that.
 * Rook is still in an alpha state.  Migrations and general support for breaking changes across versions are not supported or covered in this guide.
-* This guide assumes that your Rook operator and its agents are running in the `rook-system` namespace. It also assumes that your Rook cluster is in the `rook` namespace.  If any of these components is in a different namespace, search/replace all instances of `-n rook-system` and `-n rook` in this guide with `-n <your namespace>`.
+* This guide assumes that your Rook operator and its agents are running in the `rook-system` namespace. It also assumes that your Ceph cluster is in the `ceph` namespace.  If any of these components is in a different namespace, search/replace all instances of `-n rook-system` and `-n ceph` in this guide with `-n <your namespace>`.
 
 ## Prerequisites
-In order to successfully upgrade a Rook cluster, the following prerequisites must be met:
+In order to successfully upgrade a Ceph cluster, the following prerequisites must be met:
 * The cluster should be in a healthy state with full functionality.
 Review the [health verification section](#health-verification) in order to verify your cluster is in a good starting state.
 * `dataDirHostPath` must be set in your Cluster spec.
@@ -34,13 +34,13 @@ The minimal sample Cluster spec that will be used in this guide can be found bel
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: ceph
 ---
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: ceph
+  namespace: ceph
 spec:
   dataDirHostPath: /var/lib/rook
   storage:
@@ -58,11 +58,11 @@ Most of the health verification checks for your cluster during the upgrade proce
 For more information about how to run the toolbox, please visit the [Rook toolbox readme](./toolbox.md#running-the-toolbox-in-kubernetes).
 
 ### Pods all Running
-In a healthy Rook cluster, the operator, the agents and all Rook namespace pods should be in the `Running` state and have few, if any, pod restarts.
+In a healthy Ceph cluster, the operator, the agents and all Rook namespace pods should be in the `Running` state and have few, if any, pod restarts.
 To verify this, run the following commands:
 ```bash
 kubectl -n rook-system get pods
-kubectl -n rook get pod
+kubectl -n ceph get pod
 ```
 If pods aren't running or are restarting due to crashes, you can get more information with `kubectl describe pod` and `kubectl logs` for the affected pods.
 
@@ -105,9 +105,9 @@ In the output above, note the following indications that the cluster is in a hea
 If your `rookctl status` output has deviations from the general good health described above, there may be an issue that needs to be investigated further.
 
 ### Pod Version
-The version of a specific pod in the Rook cluster can be verified in its pod spec output.  For example, for the monitor pod `mon0`, we can verify the version it is running with the below commands:
+The version of a specific pod in the Ceph cluster can be verified in its pod spec output.  For example, for the monitor pod `mon0`, we can verify the version it is running with the below commands:
 ```bash
-MON0_POD_NAME=$(kubectl -n rook get pod -l mon=rook-ceph-mon0 -o jsonpath='{.items[0].metadata.name}')
+MON0_POD_NAME=$(kubectl -n ceph get pod -l mon=rook-ceph-mon0 -o jsonpath='{.items[0].metadata.name}')
 kubectl -n rook get pod ${MON0_POD_NAME} -o jsonpath='{.spec.containers[0].image}'
 ```
 
@@ -115,7 +115,7 @@ kubectl -n rook get pod ${MON0_POD_NAME} -o jsonpath='{.spec.containers[0].image
 The status and version of all Rook pods can be collected all at once with the following commands:
 ```bash
 kubectl -n rook-system get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t"}{.spec.containers[0].image}{"\n"}{end}'
-kubectl -n rook get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t"}{.spec.containers[0].image}{"\n"}{end}'
+kubectl -n ceph get pod -o jsonpath='{range .items[*]}{.metadata.name}{"\n\t"}{.status.phase}{"\t"}{.spec.containers[0].image}{"\n"}{end}'
 ```
 
 ### Rook Volume Health
@@ -127,7 +127,7 @@ Any pod that is using a Rook volume should also remain healthy:
 ## Upgrade Process
 The general flow of the upgrade process will be to upgrade the version of a Rook pod, verify the pod is running with the new version, then verify that the overall cluster health is still in a good state.
 
-In this guide, we will be upgrading a live Rook cluster running `v0.5.0` to the next available version of `v0.5.1`.
+In this guide, we will be upgrading a live Ceph cluster running `v0.5.0` to the next available version of `v0.5.1`.
 Let's get started!
 
 ### Operator
@@ -177,7 +177,7 @@ Similar to the operator, the Rook API pod is managed by a Kubernetes deployment.
 However, this time we will edit the deployment directly, because there is another field besides just the image version that needs to be updated in the Rook API deployment.
 Begin editing the deployment with:
 ```bash
-kubectl -n rook edit deployment rook-api
+kubectl -n ceph edit deployment rook-api
 ```
 
 Note there are 2 fields that need to be updated.
@@ -195,7 +195,7 @@ These are the two relevant snippets you should update in your editor to use the 
 After updating the version fields, the `rook-api` deployment should terminate the old pod and start a new one using the new version.
 We can verify the new pod is in the `Running` state and using the new version with these commands:
 ```bash
-API_POD_NAME=$(kubectl -n rook get pod -l app=rook-api -o jsonpath='{.items[0].metadata.name}')
+API_POD_NAME=$(kubectl -n ceph get pod -l app=rook-api -o jsonpath='{.items[0].metadata.name}')
 kubectl -n rook get pod ${API_POD_NAME} -o jsonpath='{.status.phase}{"\n"}{.spec.containers[0].image}{"\n"}'
 ```
 
@@ -206,19 +206,19 @@ There are multiple monitor pods to upgrade and they are each individually manage
 **For each** monitor's replica set, you will need to update the pod template spec's image version field to `rook/rook:v0.5.1`.
 For example, we can update the replica set for `mon0` with:
 ```bash
-kubectl -n rook set image replicaset/rook-ceph-mon0 rook-ceph-mon=rook/rook:v0.5.1
+kubectl -n ceph set image replicaset/rook-ceph-mon0 rook-ceph-mon=rook/rook:v0.5.1
 ```
 
 Once the replica set has been updated, we need to manually terminate the old pod which will trigger the replica set to create a new pod using the new version.
 ```bash
-MON0_POD_NAME=$(kubectl -n rook get pod -l mon=rook-ceph-mon0 -o jsonpath='{.items[0].metadata.name}')
-kubectl -n rook delete pod ${MON0_POD_NAME}
+MON0_POD_NAME=$(kubectl -n ceph get pod -l mon=rook-ceph-mon0 -o jsonpath='{.items[0].metadata.name}')
+kubectl -n ceph delete pod ${MON0_POD_NAME}
 ```
 
 After the new monitor pod comes up, we can verify that it's in the `Running` state and on the new version:
 ```bash
-MON0_POD_NAME=$(kubectl -n rook get pod -l mon=rook-ceph-mon0 -o jsonpath='{.items[0].metadata.name}')
-kubectl -n rook get pod ${MON0_POD_NAME} -o jsonpath='{.status.phase}{"\n"}{.spec.containers[0].image}{"\n"}'
+MON0_POD_NAME=$(kubectl -n ceph get pod -l mon=rook-ceph-mon0 -o jsonpath='{.items[0].metadata.name}')
+kubectl -n ceph get pod ${MON0_POD_NAME} -o jsonpath='{.status.phase}{"\n"}{.spec.containers[0].image}{"\n"}'
 ```
 
 At this point, it's very important to ensure that all monitors are `OK` and `in quorum`.
@@ -240,24 +240,24 @@ In this example, we are going to walk through the case where `useAllNodes: true`
 
 Let's edit the image version of the pod template in the daemon set:
 ```bash
-kubectl -n rook set image daemonset/rook-ceph-osd rook-ceph-osd=rook/rook:v0.5.1
+kubectl -n ceph set image daemonset/rook-ceph-osd rook-ceph-osd=rook/rook:v0.5.1
 ```
 
 Once the daemon set is updated, we can begin deleting each OSD pod **one at a time** and verifying a new one comes up to replace it that is running the new version.
 After each pod, the cluster health and OSD status should remain or return to an okay state as described in the [health verification section](#health-verification).
 To get the names of all the OSD pods, the following can be used:
 ```bash
-kubectl -n rook get pod -l app=rook-ceph-osd -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
+kubectl -n ceph get pod -l app=rook-ceph-osd -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
 ```
 
 Below is an example of deleting just one of the OSD pods (note that the names of your OSD pods will be different):
 ```bash
-kubectl -n rook delete pod rook-ceph-osd-kcj8f
+kubectl -n ceph delete pod rook-ceph-osd-kcj8f
 ```
 
 The status and version for all OSD pods can be collected with the following command:
 ```bash
-kubectl -n rook get pod -l app=rook-ceph-osd -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.phase}{" "}{.spec.containers[0].image}{"\n"}{end}'
+kubectl -n ceph get pod -l app=rook-ceph-osd -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.phase}{" "}{.spec.containers[0].image}{"\n"}{end}'
 ```
 
 Remember after each OSD pod to verify the cluster health using the instructions found in the [health verification section](#health-verification).
@@ -266,45 +266,45 @@ Remember after each OSD pod to verify the cluster health using the instructions 
 Similar to the Rook API and operator, the Ceph manager pods are managed by a deployment.
 We will edit the deployment to use the new image version of `rook/rook:v0.5.1`:
 ```bash
-kubectl -n rook set image deployment/rook-ceph-mgr0 rook-ceph-mgr0=rook/rook:v0.5.1
+kubectl -n ceph set image deployment/rook-ceph-mgr0 rook-ceph-mgr0=rook/rook:v0.5.1
 ```
 
 To verify that the manager pod is `Running` and on the new version, use the following:
 ```bash
-kubectl -n rook get pod -l app=rook-ceph-mgr -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.phase}{" "}{.spec.containers[0].image}{"\n"}{end}'
+kubectl -n ceph get pod -l app=rook-ceph-mgr -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.phase}{" "}{.spec.containers[0].image}{"\n"}{end}'
 ```
 
 ### Optional Components
-If you have optionally installed either [object storage](./object.md) or a [shared file system](./filesystem.md) in your Rook cluster, the sections below will provide guidance on how to update them as well.
+If you have optionally installed either [object storage](./object.md) or a [shared file system](./filesystem.md) in your Ceph cluster, the sections below will provide guidance on how to update them as well.
 They are both managed by deployments, which we have already covered in this guide, so the instructions will be brief.
 
 #### Object Storage (RGW)
 If you have object storage installed, first edit the RGW deployment to use the new image version of `rook/rook:v0.5.1`:
 ```bash
-kubectl -n rook set image deployment/rook-ceph-rgw-default rook-ceph-rgw-default=rook/rook:v0.5.1
+kubectl -n ceph set image deployment/rook-ceph-rgw-default rook-ceph-rgw-default=rook/rook:v0.5.1
 ```
 
 To verify that the RGW pod is `Running` and on the new version, use the following:
 ```bash
-kubectl -n rook get pod -l app=rook-ceph-rgw -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.phase}{" "}{.spec.containers[0].image}{"\n"}{end}'
+kubectl -n ceph get pod -l app=rook-ceph-rgw -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.phase}{" "}{.spec.containers[0].image}{"\n"}{end}'
 ```
 
 #### Shared File System (MDS)
 If you have a shared file system installed, first edit the MDS deployment to use the new image version of `rook/rook:v0.5.1`:
 ```bash
-kubectl -n rook set image deployment/rook-ceph-mds rook-ceph-mds=rook/rook:v0.5.1
+kubectl -n ceph set image deployment/rook-ceph-mds rook-ceph-mds=rook/rook:v0.5.1
 ```
 
 To verify that the MDS pod is `Running` and on the new version, use the following:
 ```bash
-kubectl -n rook get pod -l app=rook-ceph-mds -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.phase}{" "}{.spec.containers[0].image}{"\n"}{end}'
+kubectl -n ceph get pod -l app=rook-ceph-mds -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.phase}{" "}{.spec.containers[0].image}{"\n"}{end}'
 ```
 
 ## Completion
-At this point, your Rook cluster should be fully upgraded to running version `rook/rook:v0.5.1` and the cluster should be healthy according to the steps in the [health verification section](#health-verification).
+At this point, your Ceph cluster should be fully upgraded to running version `rook/rook:v0.5.1` and the cluster should be healthy according to the steps in the [health verification section](#health-verification).
 
 ## Upgrading Kubernetes
-:warning: Rook cluster installations on Kubernetes prior to version 1.7.x, use [ThirdPartyResource](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-third-party-resource/) that have been deprecated as of 1.7 and removed in 1.8. If upgrading your Kubernetes cluster Rook TPRs have to be migrated to CustomResourceDefinition (CRD) following [Kubernetes documentation](https://kubernetes.io/docs/tasks/access-kubernetes-api/migrate-third-party-resource/). Rook TPRs that require migration during upgrade are: 
+:warning: Ceph cluster installations on Kubernetes prior to version 1.7.x, use [ThirdPartyResource](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-third-party-resource/) that have been deprecated as of 1.7 and removed in 1.8. If upgrading your Kubernetes cluster Rook TPRs have to be migrated to CustomResourceDefinition (CRD) following [Kubernetes documentation](https://kubernetes.io/docs/tasks/access-kubernetes-api/migrate-third-party-resource/). Rook TPRs that require migration during upgrade are:
 - Cluster
 - Pool
 - ObjectStore

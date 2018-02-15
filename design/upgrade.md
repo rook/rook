@@ -17,7 +17,7 @@ The cluster should be maintained in a healthy state the entire time.
 * **Rollback:** In the event that the upgrade is not successful, the Rook software should be rolled back to the previous version and cluster health should be restored.
 
 ## **User Guide**
-Until automated upgrade support is available in Rook, we have authored a user guide that walks you through the steps to upgrade the software in a Rook cluster.
+Until automated upgrade support is available in Rook, we have authored a user guide that walks you through the steps to upgrade the software in a Ceph cluster.
 Consideration is also provided in the guide for how to verify the cluster remains healthy during and after the upgrade process.
 Please refer to the [Rook Upgrade User Guide](../Documentation/upgrade.md) to learn more about the current Rook upgrade process.
 
@@ -33,7 +33,7 @@ The upgrade controller should not begin an upgrade if the cluster is currently u
 * Metadata for pods must be persistent.  If config files and other metadata only resides on an ephemeral empty dir for the pods (i.e., `dataDirHostPath` is not set), then the upgrade controller will not perform an upgrade.
 
 ### **General Sequence**
-This section describes in a broad sense the general sequence of steps for upgrading a Rook cluster after a new Rook software version is released, e.g. `v0.6.1`.
+This section describes in a broad sense the general sequence of steps for upgrading a Ceph cluster after a new Rook software version is released, e.g. `v0.6.1`.
 Note that this sequence is modeled after the [Rook Upgrade User Guide](../Documentation/upgrade.md), including the cluster health checks described in the [health verification section](../Documentation/upgrade.md#health-verification).
 
 #### **Rook System Namespace**

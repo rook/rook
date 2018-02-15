@@ -34,25 +34,25 @@ func PublicIPEnvVar(publicIP string) v1.EnvVar {
 
 // ClusterNameEnvVar is the cluster name environment var
 func ClusterNameEnvVar(name string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_CLUSTER_NAME", Value: name}
+	return v1.EnvVar{Name: "CEPH_CLUSTER_NAME", Value: name}
 }
 
 // EndpointEnvVar is the mon endpoint environment var
 func EndpointEnvVar() v1.EnvVar {
 	ref := &v1.ConfigMapKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: EndpointConfigMapName}, Key: EndpointDataKey}
-	return v1.EnvVar{Name: "ROOK_MON_ENDPOINTS", ValueFrom: &v1.EnvVarSource{ConfigMapKeyRef: ref}}
+	return v1.EnvVar{Name: "CEPH_MON_ENDPOINTS", ValueFrom: &v1.EnvVarSource{ConfigMapKeyRef: ref}}
 }
 
 // SecretEnvVar is the mon secret environment var
 func SecretEnvVar() v1.EnvVar {
 	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: monSecretName}
-	return v1.EnvVar{Name: "ROOK_MON_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
+	return v1.EnvVar{Name: "CEPH_MON_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
 }
 
 // AdminSecretEnvVar is the admin secret environment var
 func AdminSecretEnvVar() v1.EnvVar {
 	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: adminSecretName}
-	return v1.EnvVar{Name: "ROOK_ADMIN_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
+	return v1.EnvVar{Name: "CEPH_ADMIN_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
 }
 
 func (c *Cluster) getLabels(name string) map[string]string {

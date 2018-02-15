@@ -22,7 +22,7 @@ import (
 	"github.com/rook/rook/pkg/model"
 )
 
-// IsClusterHealthy determines if the Rook cluster is currently healthy or not.
+// IsClusterHealthy determines if the Ceph cluster is currently healthy or not.
 func IsClusterHealthy(testClient *TestClient) (model.StatusDetails, error) {
 
 	status, err := testClient.Status()

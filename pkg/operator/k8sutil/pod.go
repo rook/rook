@@ -34,7 +34,7 @@ const (
 	// AppAttr app label
 	AppAttr = "app"
 	// ClusterAttr cluster label
-	ClusterAttr = "rook_cluster"
+	ClusterAttr = "ceph_cluster"
 	// PublicIPEnvVar public IP env var
 	PublicIPEnvVar = "ROOK_PUBLIC_IPV4"
 	// PrivateIPEnvVar pod IP env var

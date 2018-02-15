@@ -436,7 +436,7 @@ func getLabels(store rookalpha.ObjectStore) map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr:     appName,
 		k8sutil.ClusterAttr: store.Namespace,
-		"rook_object_store": store.Name,
+		"ceph_object_store": store.Name,
 	}
 }
 

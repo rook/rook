@@ -207,7 +207,7 @@ metadata:
   namespace: ` + namespace + `
   labels:
     app: rook-api
-    rook_cluster: ` + namespace + `
+    ceph_cluster: ` + namespace + `
 spec:
   ports:
   - name: rook-api
@@ -215,7 +215,7 @@ spec:
     protocol: TCP
   selector:
     app: rook-api
-    rook_cluster: ` + namespace + `
+    ceph_cluster: ` + namespace + `
   sessionAffinity: None
   type: NodePort
 `

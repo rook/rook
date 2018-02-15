@@ -9,7 +9,7 @@ Multiple instances of the operator can be on standby in an HA configuration
 
 # Storage Cluster
 The cluster CRD defines desired settings for a storage cluster
-All resources for a Rook cluster are created in the same Kubernetes namespace
+All resources for a Ceph cluster are created in the same Kubernetes namespace
 A cluster has an odd number of mons that form quorum
 A cluster has an osd per storage device
 A cluster has zero or more pools

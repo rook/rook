@@ -8,9 +8,9 @@ indent: true
 
 ** **rookctl has been deprecated. [CRDs](crds.md) are the recommended way to configure the cluster.** **
 
-The `rookctl` client tool can be used to manage your Rook cluster once it is running as well as manage block, file and object storage.  See the sections below for details on how to configure each type of storage.
+The `rookctl` client tool can be used to manage your Ceph cluster once it is running as well as manage block, file and object storage.  See the sections below for details on how to configure each type of storage.
 
-If you don't yet have a Rook cluster running, refer to our [Quickstart Guides](../README.md#quickstart-guides).
+If you don't yet have a Ceph cluster running, refer to our [Quickstart Guides](../README.md#quickstart-guides).
 
 `rookctl` can be accessed in the following ways:
 

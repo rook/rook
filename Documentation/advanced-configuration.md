@@ -60,7 +60,7 @@ difficult.  The following scripts will clear things up quickly.
 # Get OSD Pods
 # This uses the example/default cluster name "rook"
 OSD_PODS=$(kubectl get pods --all-namespaces -l \
-  app=rook-ceph-osd,rook_cluster=rook -o jsonpath='{.items[*].metadata.name}')
+  app=rook-ceph-osd,ceph_cluster=rook -o jsonpath='{.items[*].metadata.name}')
 
 # Find node and drive associations from OSD pods
 for pod in $(echo ${OSD_PODS})

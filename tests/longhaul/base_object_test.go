@@ -61,7 +61,7 @@ func isObjectStorePresent(kh *utils.K8sHelper, namespace string, storeName strin
 	if err == nil {
 		for _, pod := range podList.Items {
 			lables := pod.GetObjectMeta().GetLabels()
-			if lables["rook_object_store"] == storeName {
+			if lables["ceph_object_store"] == storeName {
 				return true
 			}
 		}

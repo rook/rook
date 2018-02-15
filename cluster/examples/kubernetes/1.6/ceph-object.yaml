@@ -3,7 +3,7 @@ apiVersion: rook.io/v1alpha1
 kind: Objectstore
 metadata:
   name: my-store
-  namespace: rook
+  namespace: ceph
 spec:
   # The pool spec used to create the metadata pools
   metadataPool:
@@ -19,7 +19,7 @@ spec:
     # type of the gateway (s3)
     type: s3
     # A reference to the secret in the rook namespace where the ssl certificate is stored
-    sslCertificateRef: 
+    sslCertificateRef:
     # The port that RGW pods will listen on (http)
     port: 80
     # The port that RGW pods will listen on (https). An ssl certificate is required.
