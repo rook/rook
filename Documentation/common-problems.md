@@ -15,6 +15,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 - [Cluster failing to service requests](#cluster-failing-to-service-requests)
 - [Only a single monitor pod starts](#only-a-single-monitor-pod-starts)
 - [OSD pods are failing to start](#osd-pods-are-failing-to-start)
+- [Node hangs after reboot](#node-hangs-after-reboot)
 
 # Troubleshooting Techniques
 One of the first things that should be done is to start the [rook-tools pod](./toolbox.md) as described in the Toolbox section. Once the pod is up and running one can `kubectl exec` into the pod to execute Ceph commands to evaluate that current state of the cluster. Here is a list of commands that can help one get an understanding of the current state.
@@ -345,3 +346,24 @@ If the error is from the file that already exists, this is a common problem rein
 This directory is the `dataDirHostPath` setting in the cluster CRD and is typically set to `/var/lib/rook`. 
 To fix the issue you will need to delete all components of Rook and then delete the contents of `/var/lib/rook` (or the directory specified by `dataDirHostPath`) on each of the hosts in the cluster. 
 Then when the cluster CRD is applied to start a new cluster, the rook-operator should start all the pods as expected.
+
+# Node hangs after reboot
+
+## Symptoms
+* After issuing a `reboot` command, node never returned online
+* Only a power cycle helps
+
+## Solution
+The node needs to be [drained](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/) before reboot. After the successful drain, the node can be rebooted as usual.
+
+Because `kubectl drain` command automatically marks the node as unschedulable (`kubectl cordon` effect), the node needs to be uncordoned once it's back online. 
+
+Drain the node:
+```
+$ kubectl drain <node-name> --ignore-daemonsets --delete-local-data
+```
+
+Uncordon the node:
+```
+kubectl uncordon <node-name>
+```
