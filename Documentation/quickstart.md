@@ -131,33 +131,4 @@ To learn how to set up monitoring for your Rook cluster, you can follow the step
 
 # Teardown
 
-To clean up all the artifacts created by the demo, first cleanup the resources from the [block](block.md#teardown) and [file](filesystem.md#teardown) walkthroughs (unmount volumes, delete volume claims, etc).
-Those steps have been copied below for convenience, but note that some of these may not exist if you did not complete those parts of the demo:
-```console
-kubectl delete -f wordpress.yaml
-kubectl delete -f mysql.yaml
-kubectl delete -n rook pool replicapool
-kubectl delete storageclass rook-block
-kubectl -n kube-system delete secret rook-admin
-kubectl delete -f kube-registry.yaml
-```
-
-After those resources have been cleaned up, you can then delete your Rook cluster:
-```console
-kubectl delete -n rook cluster rook
-```
-
-This will begin the process of all cluster resources being cleaned up, after which you can delete the rest of the deployment with the following:
-```console
-kubectl delete thirdpartyresources cluster.rook.io pool.rook.io objectstore.rook.io filesystem.rook.io volumeattachment.rook.io # ignore errors if on K8s 1.7+
-kubectl delete crd clusters.rook.io pools.rook.io objectstores.rook.io filesystems.rook.io volumeattachments.rook.io  # ignore errors if on K8s 1.5 and 1.6
-kubectl delete -n rook-system daemonset rook-agent
-kubectl delete -f rook-operator.yaml
-kubectl delete clusterroles rook-agent
-kubectl delete clusterrolebindings rook-agent
-kubectl delete namespace rook
-```
-
-IMPORTANT: The final cleanup step requires deleting files on each host in the cluster. All files under the `dataDirHostPath` property specified in the cluster CRD will need to be deleted. Otherwise, inconsistent state will remain when a new cluster is started.
-
-If you modified the demo settings, additional cleanup is up to you for devices, host paths, etc.
+When you are done with the test cluster, see [these instructions](teardown.md) to clean up the cluster.

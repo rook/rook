@@ -25,7 +25,7 @@ See the [Flex Volume Configuration](flexvolume.md) topic to configure your Kuber
 
 ## Bootstrapping Kubernetes
 
-Rook will run wherever Kubernetes is running. Here are some simple enviroments will help you get started with Rook.
+Rook will run wherever Kubernetes is running. Here are some simple environments to help you get started with Rook.
 
 ### Minikube
 
