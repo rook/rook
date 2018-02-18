@@ -36,12 +36,6 @@ make -j4 build.all
 
 See instructions below for setting up the build environment to support `arm` and `arm64` platforms.
 
-Or if you wanted to build all release artifacts run:
-
-```
-make -j4 release
-```
-
 Run `make help` for more options.
 
 ## Building inside the cross container
