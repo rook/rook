@@ -32,7 +32,12 @@ import (
 )
 
 const (
-	dataDirsEnvVarName = "ROOK_DATA_DIRECTORIES"
+	dataDirsEnvVarName        = "ROOK_DATA_DIRECTORIES"
+	osdStoreEnvVarName        = "ROOK_OSD_STORE"
+	osdDatabaseSizeEnvVarName = "ROOK_OSD_DATABASE_SIZE"
+	osdWalSizeEnvVarName      = "ROOK_OSD_WAL_SIZE"
+	osdJournalSizeEnvVarName  = "ROOK_OSD_JOURNAL_SIZE"
+	locationEnvVarName        = "ROOK_LOCATION"
 )
 
 func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, config rookalpha.Config) *extensions.DaemonSet {
@@ -267,21 +272,67 @@ func dataDirectoriesEnvVar(dataDirectories string) v1.EnvVar {
 }
 
 func osdStoreEnvVar(osdStore string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_OSD_STORE", Value: osdStore}
+	return v1.EnvVar{Name: osdStoreEnvVarName, Value: osdStore}
 }
 
 func osdDatabaseSizeEnvVar(databaseSize int) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_OSD_DATABASE_SIZE", Value: strconv.Itoa(databaseSize)}
+	return v1.EnvVar{Name: osdDatabaseSizeEnvVarName, Value: strconv.Itoa(databaseSize)}
 }
 
 func osdWalSizeEnvVar(walSize int) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_OSD_WAL_SIZE", Value: strconv.Itoa(walSize)}
+	return v1.EnvVar{Name: osdWalSizeEnvVarName, Value: strconv.Itoa(walSize)}
 }
 
 func osdJournalSizeEnvVar(journalSize int) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_OSD_JOURNAL_SIZE", Value: strconv.Itoa(journalSize)}
+	return v1.EnvVar{Name: osdJournalSizeEnvVarName, Value: strconv.Itoa(journalSize)}
 }
 
 func locationEnvVar(location string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_LOCATION", Value: location}
+	return v1.EnvVar{Name: locationEnvVarName, Value: location}
+}
+
+func getDirectoriesFromContainer(osdContainer v1.Container) []rookalpha.Directory {
+	var dirsArg string
+	for _, envVar := range osdContainer.Env {
+		if envVar.Name == dataDirsEnvVarName {
+			dirsArg = envVar.Value
+		}
+	}
+
+	var dirsList []string
+	if dirsArg != "" {
+		dirsList = strings.Split(dirsArg, ",")
+	}
+
+	dirs := make([]rookalpha.Directory, len(dirsList))
+	for dirNum, dir := range dirsList {
+		dirs[dirNum] = rookalpha.Directory{Path: dir}
+	}
+
+	return dirs
+}
+
+func getConfigFromContainer(osdContainer v1.Container) rookalpha.Config {
+	cfg := rookalpha.Config{}
+
+	for _, envVar := range osdContainer.Env {
+		switch envVar.Name {
+		case osdStoreEnvVarName:
+			cfg.StoreConfig.StoreType = envVar.Value
+		case osdDatabaseSizeEnvVarName:
+			size, _ := strconv.Atoi(envVar.Value)
+			cfg.StoreConfig.DatabaseSizeMB = size
+		case osdWalSizeEnvVarName:
+			size, _ := strconv.Atoi(envVar.Value)
+			cfg.StoreConfig.WalSizeMB = size
+		case osdJournalSizeEnvVarName:
+			size, _ := strconv.Atoi(envVar.Value)
+			cfg.StoreConfig.JournalSizeMB = size
+		case locationEnvVarName:
+			cfg.Location = envVar.Value
+		}
+
+	}
+
+	return cfg
 }

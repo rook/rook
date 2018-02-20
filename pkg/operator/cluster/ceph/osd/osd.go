@@ -223,7 +223,7 @@ func (c *Cluster) Start() error {
 
 		// trigger orchestration on the removed node by telling it not to use any storage at all.  note that the directories are still passed in
 		// so that the pod will be able to mount them and migrate data from them.
-		rs := c.makeReplicaSet(n.Name, nil, rookalpha.Selection{DeviceFilter: "none", Directories: n.Directories}, v1.ResourceRequirements{}, rookalpha.Config{})
+		rs := c.makeReplicaSet(n.Name, nil, rookalpha.Selection{DeviceFilter: "none", Directories: n.Directories}, v1.ResourceRequirements{}, n.Config)
 		rs, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Update(rs)
 		if err != nil {
 			message := fmt.Sprintf("failed to update osd replica set for removed node %s. %+v", n.Name, err)
@@ -422,14 +422,15 @@ func (c *Cluster) waitForCompletion(node string) error {
 		}
 		defer w.Stop()
 
+	ResultLoop:
 		for {
 			select {
 			case e, ok := <-w.ResultChan():
 				if !ok {
-					logger.Warning("orchestration status config map result channel closed, restarting watch.")
-					<-time.After(100 * time.Millisecond)
+					logger.Warning("orchestration status config map result channel closed, will restart watch.")
 					w.Stop()
-					break
+					<-time.After(100 * time.Millisecond)
+					break ResultLoop
 				}
 
 				if e.Type == watch.Modified {
@@ -520,6 +521,7 @@ func (c *Cluster) discoverStorageNodes() ([]rookalpha.Node, error) {
 			Selection: rookalpha.Selection{
 				Directories: getDirectoriesFromContainer(osdContainer),
 			},
+			Config: getConfigFromContainer(osdContainer),
 		}
 
 		discoveredNodes[i] = node
@@ -646,25 +648,4 @@ func (c *Cluster) getOSDsForNode(node rookalpha.Node) ([]int, error) {
 	}
 
 	return osdsForNode, nil
-}
-
-func getDirectoriesFromContainer(osdContainer v1.Container) []rookalpha.Directory {
-	var dirsArg string
-	for _, envVar := range osdContainer.Env {
-		if envVar.Name == dataDirsEnvVarName {
-			dirsArg = envVar.Value
-		}
-	}
-
-	var dirsList []string
-	if dirsArg != "" {
-		dirsList = strings.Split(dirsArg, ",")
-	}
-
-	dirs := make([]rookalpha.Directory, len(dirsList))
-	for dirNum, dir := range dirsList {
-		dirs[dirNum] = rookalpha.Directory{Path: dir}
-	}
-
-	return dirs
 }

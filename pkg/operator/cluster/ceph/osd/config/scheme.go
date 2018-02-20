@@ -159,6 +159,11 @@ func RemoveFromScheme(e *PerfSchemeEntry, kv *k8sutil.ConfigMapKVStore, storeNam
 	return nil
 }
 
+func (s *PerfScheme) String() string {
+	b, _ := json.Marshal(s)
+	return string(b)
+}
+
 func (s *PerfScheme) UpdateSchemeEntry(e *PerfSchemeEntry) error {
 	return s.doSchemeEntryAction(e, func(scheme *PerfScheme, index int, entry *PerfSchemeEntry) {
 		// the action to perform if the entry is found is to update the entry
@@ -361,6 +366,11 @@ func (m *MetadataDeviceInfo) GetPartitionArgs() []string {
 	args = append(args, []string{fmt.Sprintf("--disk-guid=%s", m.DiskUUID), "/dev/" + m.Device}...)
 
 	return args
+}
+
+func (e *PerfSchemeEntry) String() string {
+	b, _ := json.Marshal(e)
+	return string(b)
 }
 
 func (e *PerfSchemeEntry) GetPartitionArgs() []string {
