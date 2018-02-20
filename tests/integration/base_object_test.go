@@ -37,8 +37,8 @@ var (
 )
 
 // Smoke Test for ObjectStore - Test check the following operations on ObjectStore in order
-//Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,Delete Bucket and
-//Delete user
+// Create object store, Create User, Connect to Object Store, Create Bucket, Read/Write/Delete to bucket,
+// Check issues in MGRs, Delete Bucket and Delete user
 func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	storeName := "teststore"
 	defer objectTestDataCleanUp(helper, k8sh, namespace, storeName)
@@ -48,7 +48,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Running on Rook Cluster %s", namespace)
 
 	logger.Infof("Step 0 : Create Object Store")
-	cobsErr := oc.ObjectCreate(namespace, storeName, 1, true, k8sh)
+	cobsErr := oc.ObjectCreate(namespace, storeName, 3, true, k8sh)
 	require.Nil(s.T(), cobsErr)
 	logger.Infof("Object store created successfully")
 
@@ -114,14 +114,18 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	require.Equal(s.T(), len(initialBuckets), len(BucketsAfterDelete), "Make sure new bucket is deleted")
 	logger.Infof("Bucket  deleted successfully")
 
-	logger.Infof("Step 7 : Delete  User")
+	logger.Infof("Step 8 : Delete  User")
 	usersBeforeDelete, _ := oc.ObjectListUser(storeName)
 	oc.ObjectDeleteUser(storeName, userid)
 	usersAfterDelete, _ := oc.ObjectListUser(storeName)
 	require.Equal(s.T(), len(usersBeforeDelete)-1, len(usersAfterDelete), "Make sure user list count is reducd by 1")
 	logger.Infof("Object store user deleted successfully")
 
-	logger.Infof("Step 8: Delete Object Store")
+	logger.Infof("Step 9: Check that MGRs are not in a crashloop")
+	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mgr", namespace, 1, "Running"))
+	logger.Infof("Ceph MGRs are running alright")
+
+	logger.Infof("Step 10: Delete Object Store")
 	dobsErr := oc.ObjectDelete(namespace, storeName, 1, true, k8sh)
 	require.Nil(s.T(), dobsErr)
 	logger.Infof("Object store deleted successfully")
