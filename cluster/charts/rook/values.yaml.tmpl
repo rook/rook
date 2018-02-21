@@ -8,6 +8,11 @@ image:
   tag: %%VERSION%%
   pullPolicy: IfNotPresent
 
+hyperkube:
+  repository: k8s.gcr.io/hyperkube
+  tag: v1.7.12
+  pullPolicy: IfNotPresent
+
 resources:
   limits:
     cpu: 100m
