@@ -127,8 +127,39 @@ Any pod that is using a Rook volume should also remain healthy:
 ## Upgrade Process
 The general flow of the upgrade process will be to upgrade the version of a Rook pod, verify the pod is running with the new version, then verify that the overall cluster health is still in a good state.
 
-In this guide, we will be upgrading a live Rook cluster running `v0.5.0` to the next available version of `v0.5.1`.
+In this guide, we will be upgrading a live Rook cluster running `v0.6.2` to the next available version of `v0.7.0`.
 Let's get started!
+
+### Pre-Upgrade Steps
+Before we start the operator upgrade, we need to update a ConfigMap that has been renamed in v0.7. 
+
+Save the following yaml as `crush.yaml`:
+```
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rook-crush-config
+  namespace: rook
+data:
+  initialCrushMapCreated: "1"
+```
+
+Create the ConfigMap:
+```
+kubectl create -f crush.yaml
+```
+
+### Agents
+The Rook agents are deployed by the operator to run on every node. They are in charge of handling all operations related to the consumption of storage from the cluster.
+The agents are deployed and managed by a Kubernetes daemonset. Since the agents are stateless, the simplest way to update them is by deleting them and allowing the operator
+to create them again.
+
+Delete the agent daemonset:
+```bash
+kubectl -n rook-system delete daemonset rook-agent
+```
+
+Now when the operator is updated, the agent daemonset will automatically be created again with the new version.
 
 ### Operator
 The Rook operator is the management brains of the cluster, so it should be upgraded first before other components.
@@ -136,12 +167,18 @@ In the event that the new version requires a migration of metadata or config, th
 
 The operator is managed by a Kubernetes deployment, so in order to upgrade the version of the operator pod, we will need to edit the image version of the pod template in the deployment spec.  This can be done with the following command:
 ```bash
-kubectl -n rook-system set image deployment/rook-operator rook-operator=rook/rook:v0.5.1
+kubectl -n rook-system set image deployment/rook-operator rook-operator=rook/rook:v0.7.0
 ```
 Once the command is executed, Kubernetes will begin the flow of the deployment updating the operator pod.
 
+#### v0.6.2 Operator Cleanup
+Delete the following ConfigMap that is no longer needed since it was created with a new name in a previous step.
+```
+kubectl -n rook delete configmap crush-config
+```
+
 #### Operator Health Verification
-To verify the operator pod is `Running` and using the new version of `rook/rook:v0.5.1`, use the following commands:
+To verify the operator pod is `Running` and using the new version of `rook/rook:v0.7.0`, use the following commands:
 ```bash
 OPERATOR_POD_NAME=$(kubectl -n rook-system get pods -l app=rook-operator -o jsonpath='{.items[0].metadata.name}')
 kubectl -n rook-system get pod ${OPERATOR_POD_NAME} -o jsonpath='{.status.phase}{"\n"}{.spec.containers[0].image}{"\n"}'
@@ -150,49 +187,56 @@ kubectl -n rook-system get pod ${OPERATOR_POD_NAME} -o jsonpath='{.status.phase}
 Once you've verified the operator is `Running` and on the new version, verify the health of the cluster is still OK.
 Instructions for verifying cluster health can be found in the [health verification section](#health-verification).
 
-### Agents
-The Rook agents are deployed by the operator to run on every node. They are in charge of handling all operations related to the consumption of storage from the cluster.
-
-The agents are deployed and managed by a Kubernetes daemonset. So in order to upgrade the version of the agent pods, we will need to edit the image version of the pod template in the daemonset spec and then delete each agent pod so that a new pod is created by the daemonset.
-
-The following command updates the image of the agent daemonset:
-```bash
-kubectl -n rook-system set image daemonset/rook-agent rook-agent=rook/rook:v0.5.1
+#### Possible Issue: PGs unknown
+After upgrading the operator, the placement groups may show as status unknown. If you see this, go to the section
+on [upgrading OSDs](#object-storage-daemons-osds). Upgrading the OSDs will resolve this issue.
+```
+kubectl -n rook exec -it rook-tools -- ceph status
+...
+    pgs:     100.000% pgs unknown
+             100 unknown
 ```
 
-Once the daemonset is updated, we can begin deleting each agent pod **one at a time** and verifying a new one comes up to replace it that is running the new version.
-
-The following is an example of deleting just one of the agent pods (note that the names of your agent pods will be different):
+### Toolbox
+The toolbox pod runs the tools we will use during the upgrade for cluster status. The toolbox is not expected to contain any state,
+so we will delete the old pod and start the new toolbox. You will need to either create the toolbox using the yaml in the release-0.7 branch
+or simply set the version of the container to `rook/rook:v0.7.0` before creating the toolbox.
 ```bash
-kubectl -n rook-system delete pod rook-agent-56m61
+kubectl -n rook delete pod rook-tools
 ```
-
-After all the agent pods have been updated, verify that they are `Running`.
-```bash
-kubectl -n rook-system get pod -l app=rook-agent
+After verifying the old tools pod has terminated, start the new toolbox.
+```
+kubectl create -f rook-tools.yaml
 ```
 
 ### API
-Similar to the operator, the Rook API pod is managed by a Kubernetes deployment.
-However, this time we will edit the deployment directly, because there is another field besides just the image version that needs to be updated in the Rook API deployment.
+Similar to the operator, the Rook API pod is managed by a Kubernetes deployment. In order to upgrade the version of the api pod, 
+we will need to edit the image version of the pod template in the deployment spec as well as add two environment variables.
 Begin editing the deployment with:
 ```bash
 kubectl -n rook edit deployment rook-api
 ```
 
-Note there are 2 fields that need to be updated.
-These are the two relevant snippets you should update in your editor to use the new version of `rook/rook:v0.5.1` as shown:
+First update the container image version
 ```
-        - name: ROOK_VERSION_TAG
-          value: v0.5.1
-```
-```
-        image: rook/rook:v0.5.1
-        imagePullPolicy: IfNotPresent
-        name: rook-api
+        image: rook/rook:v0.7.0
 ```
 
-After updating the version fields, the `rook-api` deployment should terminate the old pod and start a new one using the new version.
+Now add the two new environment variables, ensuring that the spacing is consistent with other variables.
+```bash
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.namespace
+```
+
+After updating the deployment, the old `rook-api` pod should terminate a new one will start using the new version.
 We can verify the new pod is in the `Running` state and using the new version with these commands:
 ```bash
 API_POD_NAME=$(kubectl -n rook get pod -l app=rook-api -o jsonpath='{.items[0].metadata.name}')
@@ -203,10 +247,10 @@ Remember to verify the cluster health using the instructions found in the [healt
 
 ### Monitors
 There are multiple monitor pods to upgrade and they are each individually managed by their own replica set.
-**For each** monitor's replica set, you will need to update the pod template spec's image version field to `rook/rook:v0.5.1`.
+**For each** monitor's replica set, you will need to update the pod template spec's image version field to `rook/rook:v0.7.0`.
 For example, we can update the replica set for `mon0` with:
 ```bash
-kubectl -n rook set image replicaset/rook-ceph-mon0 rook-ceph-mon=rook/rook:v0.5.1
+kubectl -n rook set image replicaset/rook-ceph-mon0 rook-ceph-mon=rook/rook:v0.7.0
 ```
 
 Once the replica set has been updated, we need to manually terminate the old pod which will trigger the replica set to create a new pod using the new version.
@@ -225,8 +269,7 @@ At this point, it's very important to ensure that all monitors are `OK` and `in 
 Refer to the [status output section](#status-output) for instructions.
 If all of the monitors (and the cluster health overall) look good, then we can move on and repeat the same upgrade steps for the next monitor until all are completed.
 
-**NOTE:** In the `v0.5.x` releases, the Rook operator is aggressive about replacing monitor pods that it finds out of quorum, even if it's only for a short time.
-It is possible while upgrading your monitor pods that the operator will find them out of quorum and immediately replace them with a new monitor, such as `mon0` getting replaced by `mon3`.
+**NOTE:** It is possible while upgrading your monitor pods that the operator will find them out of quorum and immediately replace them with a new monitor, such as `mon0` getting replaced by `mon3`.
 This is okay as long as the cluster health looks good and all monitors eventually reach quorum again.
 
 ### Object Storage Daemons (OSDs)
@@ -238,9 +281,30 @@ Each of these replica sets will need to be edited to update the image version, t
 
 In this example, we are going to walk through the case where `useAllNodes: true` was set in the cluster spec, so there will be a single daemon set managing all the OSD pods.
 
-Let's edit the image version of the pod template in the daemon set:
-```bash
-kubectl -n rook set image daemonset/rook-ceph-osd rook-ceph-osd=rook/rook:v0.5.1
+In addition to updating the version of the container, we will need to add a new environment variable for the `uid` of the cluster. First, we will look up the value of the cluster `uid` that is required for the new variable.
+```
+kubectl -n rook get cluster rook -o jsonpath='{.metadata.uid}'
+6a4d0134-1800-11e8-b483-08002732be0b
+```
+
+Now let's edit either the single OSD daemonset or every OSD replicaset (depending on how the OSDs were deployed).
+```
+# If using a daemonset for all nodes
+kubectl -n rook edit daemonset rook-ceph-osd
+
+# If using a replicaset for specific nodes, edit each one by one
+kubectl -n rook edit replicaset rook-ceph-osd-<node>
+```
+
+Add two new lines next to other environment variables, replacing the example value with your cluster `uid`:
+```
+        - name: ROOK_CLUSTER_ID
+          value: <your_uid>
+```
+
+Before exiting the editor, also update the version of the container.
+```
+        image: rook/rook:v0.7.0
 ```
 
 Once the daemon set is updated, we can begin deleting each OSD pod **one at a time** and verifying a new one comes up to replace it that is running the new version.
@@ -263,10 +327,11 @@ kubectl -n rook get pod -l app=rook-ceph-osd -o jsonpath='{range .items[*]}{.met
 Remember after each OSD pod to verify the cluster health using the instructions found in the [health verification section](#health-verification).
 
 ### Ceph Manager
-Similar to the Rook API and operator, the Ceph manager pods are managed by a deployment.
-We will edit the deployment to use the new image version of `rook/rook:v0.5.1`:
+Similar to the Rook operator, the Ceph manager pods are managed by a deployment.
+We will edit the deployment to use the new image version of `rook/rook:v0.7.0`:
 ```bash
-kubectl -n rook set image deployment/rook-ceph-mgr0 rook-ceph-mgr0=rook/rook:v0.5.1
+kubectl -n rook set image deploy/rook-ceph-mgr0 rook-ceph-mgr0=rook/rook:v0.7.0
+kubectl -n rook set image deploy/rook-ceph-mgr1 rook-ceph-mgr1=rook/rook:v0.7.0
 ```
 
 To verify that the manager pod is `Running` and on the new version, use the following:
@@ -279,9 +344,9 @@ If you have optionally installed either [object storage](./object.md) or a [shar
 They are both managed by deployments, which we have already covered in this guide, so the instructions will be brief.
 
 #### Object Storage (RGW)
-If you have object storage installed, first edit the RGW deployment to use the new image version of `rook/rook:v0.5.1`:
+If you have object storage installed, first edit the RGW deployment to use the new image version of `rook/rook:v0.7.0`:
 ```bash
-kubectl -n rook set image deployment/rook-ceph-rgw-default rook-ceph-rgw-default=rook/rook:v0.5.1
+kubectl -n rook set image deploy/rook-ceph-rgw-my-store rook-ceph-rgw-my-store=rook/rook:v0.7.0
 ```
 
 To verify that the RGW pod is `Running` and on the new version, use the following:
@@ -290,9 +355,9 @@ kubectl -n rook get pod -l app=rook-ceph-rgw -o jsonpath='{range .items[*]}{.met
 ```
 
 #### Shared File System (MDS)
-If you have a shared file system installed, first edit the MDS deployment to use the new image version of `rook/rook:v0.5.1`:
+If you have a shared file system installed, first edit the MDS deployment to use the new image version of `rook/rook:v0.7.0`:
 ```bash
-kubectl -n rook set image deployment/rook-ceph-mds rook-ceph-mds=rook/rook:v0.5.1
+kubectl -n rook set image deploy/rook-ceph-mds-myfs rook-ceph-mds-myfs=rook/rook:v0.7.0
 ```
 
 To verify that the MDS pod is `Running` and on the new version, use the following:
@@ -301,10 +366,10 @@ kubectl -n rook get pod -l app=rook-ceph-mds -o jsonpath='{range .items[*]}{.met
 ```
 
 ## Completion
-At this point, your Rook cluster should be fully upgraded to running version `rook/rook:v0.5.1` and the cluster should be healthy according to the steps in the [health verification section](#health-verification).
+At this point, your Rook cluster should be fully upgraded to running version `rook/rook:v0.7.0` and the cluster should be healthy according to the steps in the [health verification section](#health-verification).
 
 ## Upgrading Kubernetes
-:warning: Rook cluster installations on Kubernetes prior to version 1.7.x, use [ThirdPartyResource](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-third-party-resource/) that have been deprecated as of 1.7 and removed in 1.8. If upgrading your Kubernetes cluster Rook TPRs have to be migrated to CustomResourceDefinition (CRD) following [Kubernetes documentation](https://kubernetes.io/docs/tasks/access-kubernetes-api/migrate-third-party-resource/). Rook TPRs that require migration during upgrade are: 
+Rook cluster installations on Kubernetes prior to version 1.7.x, use [ThirdPartyResource](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-third-party-resource/) that have been deprecated as of 1.7 and removed in 1.8. If upgrading your Kubernetes cluster Rook TPRs have to be migrated to CustomResourceDefinition (CRD) following [Kubernetes documentation](https://kubernetes.io/docs/tasks/access-kubernetes-api/migrate-third-party-resource/). Rook TPRs that require migration during upgrade are: 
 - Cluster
 - Pool
 - ObjectStore
