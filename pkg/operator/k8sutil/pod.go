@@ -46,7 +46,7 @@ const (
 	ConfigOverrideName = "rook-config-override"
 	// ConfigOverrideVal config override value
 	ConfigOverrideVal = "config"
-	defaultVersion    = "rook/rook:latest"
+	defaultVersion    = "rook/rook:master"
 	configMountDir    = "/etc/rook/config"
 	overrideFilename  = "override.conf"
 )
