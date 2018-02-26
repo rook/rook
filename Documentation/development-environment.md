@@ -12,13 +12,24 @@ There are a bunch of pre-requisites to be able to deploy the following environme
 
 * A Linux workstation (CentOS or Fedora)
 * KVM/QEMU installation
+* docker service allowing insecure local repository
 
 For other Linux distribution, there is no guarantee the following will work.
 However adapting commands (apt/yum/dnf) could just work.
 
 ## Prerequisites installation
 
-On your host machine, execute `tests/scripts/multi-node/rpm-system-prerequisites.sh`.
+On your host machine, execute `tests/scripts/multi-node/rpm-system-prerequisites.sh` (or
+do the equivalent for your distribution)
+
+Edit `/etc/docker/daemon.json` to add insecure-registries:
+
+```
+{
+        "insecure-registries":  ["172.17.8.1:5000"]
+}
+```
+
 
 ## Deploy Kubernetes with Kubespray
 
