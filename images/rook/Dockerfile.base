@@ -16,7 +16,7 @@ FROM BASEIMAGE
 
 # add Ceph and other packages needed
 ADD 'https://download.ceph.com/keys/release.asc' /tmp/release.asc
-RUN CEPH_VERSION=luminous && \
+RUN CEPH_VERSION=luminous  && \
     apt-key add /tmp/release.asc && \
     echo "deb http://download.ceph.com/debian-$CEPH_VERSION/ xenial main" | tee /etc/apt/sources.list.d/ceph-$CEPH_VERSION.list && \
     DEBIAN_FRONTEND=noninteractive apt-get update && \
