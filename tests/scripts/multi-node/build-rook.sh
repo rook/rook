@@ -103,12 +103,14 @@ function config_kubectl {
   local k8s_01_vm
   k8s_01_vm=$(vagrant global-status | awk '/k8s-01/ { print $1 }')
   mkdir -p $HOME/.kube/
-  if [ -f $HOME/.kube/config ]; then
+  vagrant ssh $k8s_01_vm -c "sudo cat /root/.kube/config" > $HOME/.kube/config.rook
+  if [ -f "$HOME/.kube/config" ] && \
+       ! diff $HOME/.kube/config $HOME/.kube/config.rook >/dev/null 2>&1 ;
+  then
     echo "Backing up existing Kubernetes configuration file."
     mv $HOME/.kube/config $HOME/.kube/config.before.rook."$(date +%s)"
+    ln -sf $HOME/.kube/config.rook $HOME/.kube/config
   fi
-  vagrant ssh $k8s_01_vm -c "sudo cat /root/.kube/config" > $HOME/.kube/config.rook
-  ln -sf $HOME/.kube/config.rook $HOME/.kube/config
   kubectl get nodes
 }
 
