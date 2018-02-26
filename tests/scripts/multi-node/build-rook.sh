@@ -87,6 +87,10 @@ function make_rook {
 function run_rook {
   cd "$rook_kube_templates_dir"
   kubectl create -f rook-operator.yaml
+  while ! kubectl get crd clusters.rook.io >/dev/null 2>&1; do
+    echo "waiting for Rook operator"
+    sleep 10
+  done
   kubectl create -f rook-cluster.yaml
   cd -
 }
