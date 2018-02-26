@@ -32,6 +32,7 @@ const (
 	SSDType   = "ssd"
 	PartType  = "part"
 	CryptType = "crypt"
+	LvType    = "lvm"
 	sgdisk    = "sgdisk"
 	mountCmd  = "mount"
 )
