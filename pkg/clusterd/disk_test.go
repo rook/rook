@@ -56,6 +56,11 @@ func TestAvailableDisks(t *testing.T) {
 	disks = GetAvailableDevices([]*LocalDisk{d6})
 	assert.Equal(t, 1, len(disks))
 
+	// Logical volume disk type results in available disk
+	d7 := &LocalDisk{Name: "sdl", UUID: "myuuid3", Size: 123, Rotational: true, Readonly: false, Type: sys.LvType, HasChildren: true}
+	disks = GetAvailableDevices([]*LocalDisk{d7})
+	assert.Equal(t, 1, len(disks))
+
 }
 
 func TestDiscoverDevices(t *testing.T) {
