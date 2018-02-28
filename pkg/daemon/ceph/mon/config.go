@@ -67,6 +67,7 @@ type GlobalConfig struct {
 	MonClusterLogFile        string `ini:"mon cluster log file,omitempty"`
 	PublicAddr               string `ini:"public addr,omitempty"`
 	PublicNetwork            string `ini:"public network,omitempty"`
+	PublicBindAddr           string `ini:"public bind addr,omitempty"`
 	ClusterAddr              string `ini:"cluster addr,omitempty"`
 	ClusterNetwork           string `ini:"cluster network,omitempty"`
 	MonKeyValueDb            string `ini:"mon keyvaluedb"`
@@ -278,6 +279,7 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 			MonClusterLogFile:      "/dev/stdout",
 			PublicAddr:             context.NetworkInfo.PublicAddrIPv4,
 			PublicNetwork:          context.NetworkInfo.PublicNetwork,
+			PublicBindAddr:         fmt.Sprintf("%s:%d", context.NetworkInfo.ClusterAddrIPv4, 6790), // FIXME: mon port should be part of clusterInfo
 			ClusterAddr:            context.NetworkInfo.ClusterAddrIPv4,
 			ClusterNetwork:         context.NetworkInfo.ClusterNetwork,
 			MonKeyValueDb:          "rocksdb",

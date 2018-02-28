@@ -135,7 +135,9 @@ func (c *Cluster) Start() error {
 	}
 
 	if len(c.clusterInfo.Monitors) < c.Size {
-		c.startMons()
+		if err := c.startMons(); err != nil {
+			return err
+		}
 	} else {
 		// Check the health of a previously started cluster
 		if err := c.checkHealth(); err != nil {
@@ -503,7 +505,7 @@ func getNodeNameFromHostname(nodes *v1.NodeList, hostname string) (string, bool)
 
 func (c *Cluster) startMon(m *monConfig, hostname string) error {
 	rs := c.makeReplicaSet(m, hostname)
-	logger.Debugf("Starting mon: %+v", rs.Name)
+	logger.Infof("Starting mon: %+v", rs.Name)
 	_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
