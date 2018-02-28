@@ -1,0 +1,22 @@
+{{- if .Values.rgw.externalService.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template "name" . }}-rgw-external
+  labels:
+    app: rgw
+    rook_cluster: {{ template "name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+spec:
+  ports:
+  - port: {{ .Values.rgw.externalService.externalPort }}
+    targetPort: {{ .Values.rgw.externalService.internalPort }}
+    protocol: TCP
+    name: {{ .Values.rgw.externalService.name }}
+  selector:
+    app: rgw
+    rook_cluster: {{ .Values.clusterName }}
+  sessionAffinity: None
+  type: {{ .Values.rgw.externalService.type }}
+{{ end -}}

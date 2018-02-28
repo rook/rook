@@ -1,0 +1,31 @@
+{{- if .Values.rgw.ingress.enabled }}
+{{- $serviceName := include "name" . -}}
+{{- $servicePort := .Values.rgw.externalService.externalPort -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ template "name" . }}-rgw
+  labels:
+    app: rgw
+    rook_cluster: {{ template "name" . }}
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+  annotations:
+    {{- range $key, $value := .Values.rgw.ingress.annotations }}
+      {{ $key }}: {{ $value | quote }}
+    {{- end }}
+spec:
+  rules:
+    {{- range $host := .Values.rgw.ingress.hosts }}
+    - host: {{ $host }}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: {{ $serviceName }}-rgw-external
+              servicePort: {{ $servicePort }}
+    {{- end -}}
+  {{- if .Values.rgw.ingress.tls }}
+  tls:
+{{ toYaml .Values.rgw.ingress.tls | indent 4 }}
+  {{- end -}}
+{{- end -}}
