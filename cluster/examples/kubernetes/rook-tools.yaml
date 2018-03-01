@@ -15,6 +15,10 @@ spec:
           secretKeyRef:
             name: rook-ceph-mon
             key: admin-secret
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
     securityContext:
       privileged: true
     volumeMounts:
@@ -24,8 +28,6 @@ spec:
         name: sysbus
       - mountPath: /lib/modules
         name: libmodules
-      - name: mon-endpoints-volume
-        mountPath: /etc/rook
   hostNetwork: false
   volumes:
     - name: dev
@@ -37,9 +39,3 @@ spec:
     - name: libmodules
       hostPath:
         path: /lib/modules
-    - name: mon-endpoints-volume
-      configMap:
-        name: rook-ceph-mon-endpoints
-        items:
-        - key: mon-endpoints
-          path: mon-endpoints
