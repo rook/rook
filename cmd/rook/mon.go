@@ -33,8 +33,9 @@ var monCmd = &cobra.Command{
 }
 
 var (
-	monName string
-	monPort int32
+	monName  string
+	monPort  int32
+	initOnly bool
 )
 
 func addCephFlags(command *cobra.Command) {
@@ -52,6 +53,7 @@ func addCephFlags(command *cobra.Command) {
 func init() {
 	monCmd.Flags().StringVar(&monName, "name", "", "name of the monitor")
 	monCmd.Flags().Int32Var(&monPort, "port", 0, "port of the monitor")
+	monCmd.Flags().BoolVar(&initOnly, "init-only", true, "init but not start ceph monitor")
 	addCephFlags(monCmd)
 
 	flags.SetFlagsFromEnv(monCmd.Flags(), RookEnvVarPrefix)
@@ -86,7 +88,7 @@ func startMon(cmd *cobra.Command, args []string) error {
 		Cluster: &clusterInfo,
 		Port:    monPort,
 	}
-	err := mon.Run(createContext(), monCfg)
+	err := mon.Run(createContext(), monCfg, initOnly)
 	if err != nil {
 		terminateFatal(err)
 	}

@@ -66,14 +66,14 @@ func ToCephMon(name, ip string, port int32) *CephMonitorConfig {
 	return &CephMonitorConfig{Name: name, Endpoint: fmt.Sprintf("%s:%d", ip, port)}
 }
 
-func Run(context *clusterd.Context, config *Config) error {
+func Run(context *clusterd.Context, config *Config, initOnly bool) error {
 
 	configFile, monDataDir, err := generateConfigFiles(context, config)
 	if err != nil {
 		return fmt.Errorf("failed to generate mon config files. %+v", err)
 	}
 
-	err = initMon(context, config, configFile, monDataDir)
+	err = startMon(context, config, configFile, monDataDir, initOnly)
 	if err != nil {
 		return fmt.Errorf("failed to run mon. %+v", err)
 	}
@@ -109,7 +109,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) (string, str
 	return confFilePath, monDataDir, nil
 }
 
-func initMon(context *clusterd.Context, config *Config, confFilePath, monDataDir string) error {
+func startMon(context *clusterd.Context, config *Config, confFilePath, monDataDir string, initOnly bool) error {
 	// call mon --mkfs in a child process
 	logger.Infof("initializing mon")
 
@@ -137,13 +137,12 @@ func initMon(context *clusterd.Context, config *Config, confFilePath, monDataDir
 	}
 
 	util.WriteFileToLog(logger, confFilePath)
-	return nil
-}
+	if initOnly {
+		return nil
+	}
 
-func startMon(context *clusterd.Context, config *Config, confFilePath, monDataDir, keyringPath string) error {
 	// start the monitor daemon in the foreground with the given config
 	logger.Infof("starting mon")
-	monNameArg := fmt.Sprintf("--name=mon.%s", config.Name)
 
 	args := []string{
 		"--foreground",
@@ -151,7 +150,6 @@ func startMon(context *clusterd.Context, config *Config, confFilePath, monDataDi
 		fmt.Sprintf("--cluster=%s", config.Cluster.Name),
 		fmt.Sprintf("--mon-data=%s", monDataDir),
 		fmt.Sprintf("--conf=%s", confFilePath),
-		fmt.Sprintf("--keyring=%s", keyringPath),
 	}
 	if err := context.Executor.ExecuteCommand(false, config.Name, "ceph-mon", args...); err != nil {
 		return fmt.Errorf("failed to start mon: %+v", err)

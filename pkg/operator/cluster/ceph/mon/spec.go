@@ -131,7 +131,7 @@ func (c *Cluster) monContainer(config *monConfig) v1.Container {
 	confFilePath := path.Join(k8sutil.DataDir, config.Name, "rook.config")
 	monDataDir := path.Join(k8sutil.DataDir, config.Name, "data")
 	monNameArg := fmt.Sprintf("--name=mon.%s", config.Name)
-
+	logger.Infof("run image %s", c.CephImage)
 	return v1.Container{
 		Command: []string{
 			"ceph-mon",
@@ -142,7 +142,7 @@ func (c *Cluster) monContainer(config *monConfig) v1.Container {
 			fmt.Sprintf("--conf=%s", confFilePath),
 		},
 		Name:  appName,
-		Image: k8sutil.MakeRookImage(c.Version),
+		Image: c.CephImage,
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "client",
@@ -162,6 +162,7 @@ func (c *Cluster) monInitContainer(config *monConfig, fsid string) v1.Container 
 	return v1.Container{
 		Args: []string{
 			"mon",
+			fmt.Sprintf("--init-only=true"),
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--name=%s", config.Name),
 			fmt.Sprintf("--port=%d", config.Port),

@@ -49,6 +49,9 @@ type ClusterSpec struct {
 	// The type of backend for the cluster (only "ceph" is implemented)
 	Backend string `json:"backend"`
 
+	// The container image backend runs. If not provided, use operator's image
+	Image string `json:"image,omitempty"`
+
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath"`
 

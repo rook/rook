@@ -37,6 +37,7 @@ https://github.com/rook/rook`,
 func init() {
 	operatorCmd.Flags().DurationVar(&mon.HealthCheckInterval, "mon-healthcheck-interval", mon.HealthCheckInterval, "mon health check interval (duration)")
 	operatorCmd.Flags().DurationVar(&mon.MonOutTimeout, "mon-out-timeout", mon.MonOutTimeout, "mon out timeout (duration)")
+
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), RookEnvVarPrefix)
 
 	operatorCmd.RunE = startOperator
@@ -70,7 +71,6 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		terminateFatal(fmt.Errorf("failed to get container image. %+v\n", err))
 	}
-
 	op := operator.New(context, volumeAttachment, rookImage)
 	err = op.Run()
 	if err != nil {
