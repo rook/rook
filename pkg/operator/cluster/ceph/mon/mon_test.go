@@ -61,3 +61,14 @@ func TestGetMonID(t *testing.T) {
 }
 
 // TODO Add tests for mon start, restart of operator, etc.
+func TestStartMons(t *testing.T) {
+	// TODO Check if Service and StatefulSet exists
+}
+
+func TestReStartMonsScale(t *testing.T) {
+	// TODO Check if Service and StatefulSet exists and then scale the StatefulSet to 1 and check if it rescaled on re-start
+}
+
+func TestReStartMonsNoChange(t *testing.T) {
+	// TODO Check if Service and StatefulSet exists and that no changes occur on second StartMons() call
+}

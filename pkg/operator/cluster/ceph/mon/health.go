@@ -75,7 +75,7 @@ func (c *Cluster) checkHealth() error {
 
 	// source of thruth of which mons should exist is our *clusterInfo*
 	monsTruth := map[string]interface{}{}
-	for _, mon := range c.clusterInfo.Monitors {
+	for _, mon := range c.clusterInfo.MonitorAddresses {
 		monsTruth[mon.Name] = struct{}{}
 	}
 

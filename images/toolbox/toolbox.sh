@@ -34,7 +34,7 @@ if [[ -z ${ROOK_API_SERVER_ENDPOINT} ]]; then
     if [[ -z ${ROOK_API_SERVICE_HOST} ]] && [[ -z ${ROOK_API_SERVICE_PORT} ]]; then
         # When hostNetwork: true is most likely used, the DNS name for rook API
         # should be used for access
-        ROOK_API_SERVICE_HOST=rook-api
+        ROOK_API_SERVICE_HOST="rook-api.${NAMESPACE}.svc"
         ROOK_API_SERVICE_PORT=8124
     fi
     # We have some rook env vars set, get client info from the rook API server and construct
