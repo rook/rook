@@ -23,7 +23,7 @@ write_endpoints() {
     echo "Writing mon endpoint to ${CEPH_CONFIG}"
     cat <<EOF > ${CEPH_CONFIG}
 [global]
-mon_host = rook-ceph-mon.${NAMESPACE}.svc
+mon_host = rook-ceph-mon.${NAMESPACE}.svc:6790
 
 [client.admin]
 keyring = ${KEYRING_FILE}
