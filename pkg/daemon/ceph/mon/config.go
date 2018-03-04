@@ -61,7 +61,6 @@ type GlobalConfig struct {
 	EnableExperimental       string `ini:"enable experimental unrecoverable data corrupting features,omitempty"`
 	FSID                     string `ini:"fsid,omitempty"`
 	RunDir                   string `ini:"run dir,omitempty"`
-	MonMembers               string `ini:"mon initial members,omitempty"`
 	MonHost                  string `ini:"mon host"`
 	LogFile                  string `ini:"log file,omitempty"`
 	MonClusterLogFile        string `ini:"mon cluster log file,omitempty"`
@@ -153,12 +152,12 @@ func writeKeyring(keyring, path string) error {
 	return nil
 }
 
-// generates and writes the monitor config file to disk
+// GenerateConnectionConfigFile generates and writes the monitor config file to disk
 func GenerateConnectionConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string) (string, error) {
 	return GenerateConfigFile(context, cluster, pathRoot, user, keyringPath, nil, nil)
 }
 
-// generates and writes the monitor config file to disk
+// GenerateConfigFile generates and writes the monitor config file to disk
 func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoot, user, keyringPath string,
 	globalConfig *cephConfig, clientSettings map[string]string) (string, error) {
 
@@ -255,13 +254,9 @@ func getFirstMonitor(cluster *ClusterInfo) string {
 }
 
 func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, runDir string) *cephConfig {
-	// extract a list of just the monitor names, which will populate the "mon initial members"
-	// global config field
-	monMembers := make([]string, len(cluster.Monitors))
 	monHosts := make([]string, len(cluster.Monitors))
 	i := 0
 	for _, monitor := range cluster.Monitors {
-		monMembers[i] = monitor.Name
 		monHosts[i] = monitor.Endpoint
 		i++
 	}
@@ -272,7 +267,6 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 		GlobalConfig: &GlobalConfig{
 			FSID:                   cluster.FSID,
 			RunDir:                 runDir,
-			MonMembers:             strings.Join(monMembers, " "),
 			MonHost:                strings.Join(monHosts, ","),
 			LogFile:                "/dev/stdout",
 			MonClusterLogFile:      "/dev/stdout",

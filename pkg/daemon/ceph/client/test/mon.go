@@ -17,6 +17,7 @@ package test
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -24,7 +25,7 @@ import (
 
 func MonInQuorumResponse() string {
 	resp := client.MonStatusResponse{Quorum: []int{0}}
-	resp.MonMap.Mons = []client.MonMapEntry{{Name: "mon1", Rank: 0, Address: "1.2.3.4"}}
+	resp.MonMap.Mons = []client.MonMapEntry{{Name: "rook-ceph-mon1", Rank: 0, Address: "1.1.1.1"}}
 	serialized, _ := json.Marshal(resp)
 	return string(serialized)
 }
@@ -33,7 +34,11 @@ func MonInQuorumResponseMany(count int) string {
 	resp := client.MonStatusResponse{Quorum: []int{0}}
 	resp.MonMap.Mons = []client.MonMapEntry{}
 	for i := 1; i <= count; i++ {
-		resp.MonMap.Mons = append(resp.MonMap.Mons, client.MonMapEntry{Name: "mon" + strconv.Itoa(i), Rank: 0, Address: "1.2.3.4"})
+		resp.MonMap.Mons = append(resp.MonMap.Mons, client.MonMapEntry{
+			Name:    "rook-ceph-mon" + strconv.Itoa(i),
+			Rank:    0,
+			Address: fmt.Sprintf("%d.%d.%d.%d", i, i, i, i),
+		})
 	}
 	serialized, _ := json.Marshal(resp)
 	return string(serialized)

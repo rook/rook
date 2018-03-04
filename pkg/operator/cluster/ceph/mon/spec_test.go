@@ -22,6 +22,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/operator/test"
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
@@ -45,11 +46,10 @@ func testPodSpec(t *testing.T, dataDir string) {
 		},
 	}, metav1.OwnerReference{})
 	c.clusterInfo = testop.CreateConfigDir(0)
-	config := &monConfig{Name: "mon0", Port: 6790}
 
-	pod := c.makeMonPod(config, "foo")
+	pod := c.makeMonPod()
 	assert.NotNil(t, pod)
-	assert.Equal(t, "mon0", pod.Name)
+	assert.Equal(t, "rook-ceph-mon", pod.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, pod.Spec.RestartPolicy)
 	assert.Equal(t, 2, len(pod.Spec.Volumes))
 	assert.Equal(t, "rook-data", pod.Spec.Volumes[0].Name)
@@ -62,22 +62,35 @@ func testPodSpec(t *testing.T, dataDir string) {
 		assert.Equal(t, dataDir, pod.Spec.Volumes[0].HostPath.Path)
 	}
 
-	assert.Equal(t, "mon0", pod.ObjectMeta.Name)
+	assert.Equal(t, "rook-ceph-mon", pod.ObjectMeta.Name)
 	assert.Equal(t, appName, pod.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
 
 	cont := pod.Spec.Containers[0]
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
-	assert.Equal(t, 7, len(cont.Env))
+	assert.Equal(t, 8, len(cont.Env))
 
 	logger.Infof("Command : %+v", cont.Command)
 	assert.Equal(t, "mon", cont.Args[0])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[1])
-	assert.Equal(t, "--name=mon0", cont.Args[2])
+	assert.Equal(t, fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID), cont.Args[2])
 	assert.Equal(t, "--port=6790", cont.Args[3])
-	assert.Equal(t, fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID), cont.Args[4])
 
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
+}
+
+func TestPodSpecHostNetwork(t *testing.T) {
+	clientset := test.New(3)
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c.clusterInfo = test.CreateConfigDir(0)
+
+	c.HostNetwork = true
+
+	pod := c.makeMonPod()
+	assert.NotNil(t, pod)
+
+	assert.Equal(t, true, pod.Spec.HostNetwork)
+	assert.Equal(t, v1.DNSClusterFirstWithHostNet, pod.Spec.DNSPolicy)
 }

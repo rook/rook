@@ -366,7 +366,7 @@ func rgwContainer(store rookalpha.ObjectStore, version string) v1.Container {
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 			opmon.ClusterNameEnvVar(store.Namespace),
-			opmon.EndpointEnvVar(),
+			opmon.MonEndpointsEnvVar(),
 			opmon.SecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},

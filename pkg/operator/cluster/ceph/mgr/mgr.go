@@ -186,7 +186,7 @@ func (c *Cluster) mgrContainer(name string) v1.Container {
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 			opmon.ClusterNameEnvVar(c.Namespace),
-			opmon.EndpointEnvVar(),
+			opmon.MonEndpointsEnvVar(),
 			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),

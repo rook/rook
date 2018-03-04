@@ -18,13 +18,14 @@ limitations under the License.
 package mon
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"os"
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
@@ -42,38 +43,38 @@ import (
 	helper "k8s.io/kubernetes/pkg/api/v1/helper"
 )
 
-// LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func LoadClusterInfo(context *clusterd.Context, namespace string) (*mon.ClusterInfo, int, *Mapping, error) {
+// GetMonDNSAddress get dns address for mon id with namespace
+func GetMonDNSAddress(id int, namespace string) string {
+	return getMonNameForID(id) + "." + appName + "." + namespace + ".svc"
+}
+
+// LoadClusterInfo constructs or loads a clusterinfo and returns it
+func LoadClusterInfo(context *clusterd.Context, namespace string) (*mon.ClusterInfo, error) {
 	return CreateOrLoadClusterInfo(context, namespace, nil)
 }
 
-// CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*mon.ClusterInfo, int, *Mapping, error) {
+// CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it
+func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*mon.ClusterInfo, error) {
 
 	var clusterInfo *mon.ClusterInfo
-	maxMonID := -1
-	monMapping := &Mapping{
-		Node: map[string]*NodeInfo{},
-		Port: map[string]int32{},
-	}
 
 	secrets, err := context.Clientset.CoreV1().Secrets(namespace).Get(appName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			return nil, maxMonID, monMapping, fmt.Errorf("failed to get mon secrets. %+v", err)
+			return nil, fmt.Errorf("failed to get mon secrets. %+v", err)
 		}
 		if ownerRef == nil {
-			return nil, maxMonID, monMapping, fmt.Errorf("not expected to create new cluster info and did not find existing secret")
+			return nil, fmt.Errorf("not expected to create new cluster info and did not find existing secret")
 		}
 
 		clusterInfo, err = createNamedClusterInfo(context, namespace)
 		if err != nil {
-			return nil, maxMonID, monMapping, fmt.Errorf("failed to create mon secrets. %+v", err)
+			return nil, fmt.Errorf("failed to create mon secrets. %+v", err)
 		}
 
 		err = createClusterAccessSecret(context.Clientset, namespace, clusterInfo, ownerRef)
 		if err != nil {
-			return nil, maxMonID, monMapping, err
+			return nil, err
 		}
 	} else {
 		clusterInfo = &mon.ClusterInfo{
@@ -86,12 +87,12 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	}
 
 	// get the existing monitor config
-	clusterInfo.Monitors, maxMonID, monMapping, err = loadMonConfig(context.Clientset, namespace)
+	clusterInfo.Monitors, clusterInfo.MonitorAddresses, err = loadMonConfig(context.Clientset, namespace)
 	if err != nil {
-		return nil, maxMonID, monMapping, fmt.Errorf("failed to get mon config. %+v", err)
+		return nil, fmt.Errorf("failed to get mon config. %+v", err)
 	}
 
-	return clusterInfo, maxMonID, monMapping, nil
+	return clusterInfo, nil
 }
 
 // WriteConnectionConfig save monitor connection config to disk
@@ -104,61 +105,43 @@ func WriteConnectionConfig(context *clusterd.Context, clusterInfo *mon.ClusterIn
 	return nil
 }
 
-// loadMonConfig returns the monitor endpoints and maxMonID
-func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*mon.CephMonitorConfig, int, *Mapping, error) {
-
-	monEndpointMap := map[string]*mon.CephMonitorConfig{}
-	maxMonID := -1
-	monMapping := &Mapping{
-		Node: map[string]*NodeInfo{},
-		Port: map[string]int32{},
+// loadMonConfig returns the monitor endpoints
+func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*mon.CephMonitorConfig, map[string]*mon.CephMonitorConfig, error) {
+	monEndpointsMap := map[string]*mon.CephMonitorConfig{
+		appName: mon.ToCephMon(appName, getMonDNSEndpoint(appName, namespace), mon.DefaultPort),
 	}
+	monAddrMap := map[string]*mon.CephMonitorConfig{}
 
 	cm, err := clientset.CoreV1().ConfigMaps(namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			return nil, maxMonID, monMapping, err
+			return nil, nil, err
 		}
 		// If the config map was not found, initialize the empty set of monitors
-		return monEndpointMap, maxMonID, monMapping, nil
+		return monEndpointsMap, monAddrMap, nil
 	}
 
-	// Parse the monitor List
-	if info, ok := cm.Data[EndpointDataKey]; ok {
-		monEndpointMap = mon.ParseMonEndpoints(info)
+	// Parse the mon-endpoints key containing the mon List
+	if info, ok := cm.Data[MonEndpointsKey]; ok {
+		monEndpointsMap = mon.ParseMonEndpoints(info)
 	}
 
-	// Parse the max monitor id
-	if id, ok := cm.Data[MaxMonIDKey]; ok {
-		maxMonID, err = strconv.Atoi(id)
-		if err != nil {
-			logger.Errorf("invalid max mon id %s. %+v", id, err)
-		}
+	// Parse the mon address name list
+	if info, ok := cm.Data[MonAddrKey]; ok {
+		monAddrMap = mon.ParseMonEndpoints(info)
 	}
 
-	// Make sure the max id is consistent with the current monitors
-	for _, m := range monEndpointMap {
-		id, _ := getMonID(m.Name)
-		if maxMonID < id {
-			maxMonID = id
-		}
-	}
-
-	err = json.Unmarshal([]byte(cm.Data[MappingKey]), &monMapping)
-	if err != nil {
-		logger.Errorf("invalid JSON in mon mapping. %+v", err)
-	}
-
-	logger.Infof("loaded: maxMonID=%d, mons=%+v, mapping=%+v", maxMonID, monEndpointMap, monMapping)
-	return monEndpointMap, maxMonID, monMapping, nil
+	logger.Infof("loaded: mons=%+v, monsDNS=%+v", monEndpointsMap, monAddrMap)
+	return monEndpointsMap, monAddrMap, nil
 }
 
-// get the ID of a monitor from its name
-func getMonID(name string) (int, error) {
+// GetMonID get the ID of a monitor from its name
+func GetMonID(name string) (int, error) {
 	if strings.Index(name, appName) != 0 || len(name) < len(appName) {
 		return -1, fmt.Errorf("unexpected mon name")
 	}
-	id, err := strconv.Atoi(name[len(appName):])
+	// +1 here to compensate for `-` before the number
+	id, err := strconv.Atoi(name[len(appName)+1:])
 	if err != nil {
 		return -1, err
 	}
@@ -316,4 +299,49 @@ func extractKey(contents string) (string, error) {
 		return "", fmt.Errorf("failed to parse secret")
 	}
 	return secret, nil
+}
+
+func getMonNameForID(id int) string {
+	return fmt.Sprintf("%s-%d", appName, id)
+}
+
+func checkQuorumConsensusForRemoval(monCount, removedMons int) bool {
+	return int(math.Ceil(float64(monCount)/float64(2))-1) >= removedMons
+}
+
+func (c *Cluster) getMonIP(name string) (string, error) {
+	p, err := c.context.Clientset.CoreV1().Pods(c.Namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return "", err
+	}
+
+	return p.Status.PodIP, nil
+}
+
+func getMonDNSEndpoint(name, namespace string) string {
+	return fmt.Sprintf("%s.%s.svc", name, namespace)
+}
+
+func (c *Cluster) waitForPodReady(name string) error {
+	// TODO Is polling right here or should a watch be used?
+	// Wait for at least 40 * 5 seconds
+	for i := 0; i < 40; i++ {
+		p, err := c.context.Clientset.CoreV1().Pods(c.Namespace).Get(name, metav1.GetOptions{})
+		if err != nil {
+			if !errors.IsNotFound(err) {
+				return err
+			}
+			logger.Debugf("pod %s not found yet while waiting for pod ready", name)
+		}
+		if p != nil {
+			for _, condition := range p.Status.Conditions {
+				// pod has received condition ready
+				if condition.Type == v1.PodReady {
+					return nil
+				}
+			}
+		}
+		<-time.After(5 * time.Second)
+	}
+	return fmt.Errorf("")
 }

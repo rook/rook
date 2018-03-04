@@ -94,7 +94,6 @@ func ConfigDirEnvVar() v1.EnvVar {
 }
 
 func GetContainerImage(clientset kubernetes.Interface) (string, error) {
-
 	podName := os.Getenv(PodNameEnvVar)
 	if podName == "" {
 		return "", fmt.Errorf("cannot detect the pod name. Please provide it using the downward API in the manifest file")

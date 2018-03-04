@@ -35,12 +35,12 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 		AdminSecret:   "adminsecret",
 		Name:          "foo-cluster",
 		Monitors: map[string]*CephMonitorConfig{
-			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6790"},
-			"node1": {Name: "mon1", Endpoint: "10.0.0.2:6790"},
+			"node0": {Name: "rook-ceph-mon1", Endpoint: "10.0.0.2:6790"},
+			"node1": {Name: "rook-ceph-mon1", Endpoint: "10.0.0.2:6790"},
 		},
 	}
 
-	monMembers := "mon0 mon1"
+	monHosts := "rook-ceph-mon0,rook-ceph-mon1"
 
 	// start with INFO level logging
 	context := &clusterd.Context{
@@ -54,13 +54,13 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 	}
 
 	cephConfig := CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1")
-	verifyConfig(t, cephConfig, monMembers, 0)
+	verifyConfig(t, cephConfig, monHosts, 0)
 
 	// now use DEBUG level logging
 	context.LogLevel = capnslog.DEBUG
 
 	cephConfig = CreateDefaultCephConfig(context, clusterInfo, "/var/lib/rook1")
-	verifyConfig(t, cephConfig, monMembers, 10)
+	verifyConfig(t, cephConfig, monHosts, 10)
 
 	// verify the network info config
 	assert.Equal(t, "10.1.1.1", cephConfig.PublicAddr)
@@ -97,7 +97,7 @@ debug bluestore = 1234`
 		AdminSecret:   "adminsecret",
 		Name:          "foo-cluster",
 		Monitors: map[string]*CephMonitorConfig{
-			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6790"},
+			"node0": {Name: "rook-ceph-mon0", Endpoint: "10.0.0.1:6790"},
 		},
 	}
 
@@ -115,18 +115,18 @@ debug bluestore = 1234`
 	verifyConfigValue(t, actualConf, "global", "debug bluestore", "1234")
 }
 
-func verifyConfig(t *testing.T, cephConfig *cephConfig, expectedMonMembers string, loggingLevel int) {
+func verifyConfig(t *testing.T, cephConfig *cephConfig, expectedMonHosts string, loggingLevel int) {
 
-	for _, expectedMon := range strings.Split(expectedMonMembers, " ") {
+	for _, expectedMon := range strings.Split(expectedMonHosts, ",") {
 		contained := false
-		for _, actualMon := range strings.Split(cephConfig.MonMembers, " ") {
+		for _, actualMon := range strings.Split(cephConfig.MonHost, ",") {
 			if expectedMon == actualMon {
 				contained = true
 				break
 			}
 		}
 
-		assert.True(t, contained, "expectedMons: %+v, actualMons: %+v", expectedMonMembers, cephConfig.MonMembers)
+		assert.True(t, contained, "expectedMons: %+v, actualMons: %+v", expectedMonHosts, cephConfig.MonHost)
 	}
 
 	assert.Equal(t, loggingLevel, cephConfig.DebugLogDefaultLevel)
