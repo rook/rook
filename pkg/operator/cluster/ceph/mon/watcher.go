@@ -50,47 +50,54 @@ func (hc *EndpointWatcher) StartWatch(stopCh chan struct{}) {
 		}
 		w, err := hc.monCluster.context.Clientset.Core().Pods(hc.monCluster.Namespace).Watch(opts)
 		if err != nil {
-			logger.Errorf("WatchMonConfig watch init error: %+v", err)
+			logger.Errorf("watchMonConfig watch init error: %+v", err)
 			return
 		}
 		defer w.Stop()
+	innerloop:
+		for {
+			select {
+			case <-stopCh:
+				logger.Infof("stopping mon endpoint watcher of cluster in namespace %s", hc.monCluster.Namespace)
+				return
+			case e, ok := <-w.ResultChan():
+				if !ok {
+					logger.Warning("result channel closed of EndpointWatcher.StartWatch, restarting watch.")
+					w.Stop()
+					break innerloop
+				}
+				logger.Debug("received mon Pod change")
 
-		select {
-		case <-stopCh:
-			logger.Infof("stopping mon endpoint watcher of cluster in namespace %s", hc.monCluster.Namespace)
-			return
-		case e, ok := <-w.ResultChan():
-			if !ok {
-				logger.Warning("EndpointWatcher.StartWatch result channel closed, restarting watch.")
-				w.Stop()
-				break
-			}
+				if e.Type == watch.Added || e.Type == watch.Modified {
+					// cast object into Pod and update mon endpoint IP if changed
+					updated := e.Object.(*v1.Pod)
+					current := hc.monCluster.clusterInfo.MonitorAddresses[updated.Name]
 
-			if e.Type == watch.Modified {
-				// cast object into Pod and update mon endpoint IP if changed
-				updated := e.Object.(*v1.Pod)
-				current := hc.monCluster.clusterInfo.Monitors[updated.Name]
-
-				hc.compareAndUpdateMonEndpointFromPod(current, updated)
+					hc.compareAndUpdateMonEndpointFromPod(current, updated)
+				}
 			}
 		}
 	}
 }
 
 func (hc *EndpointWatcher) compareAndUpdateMonEndpointFromPod(current *mon.CephMonitorConfig, updated *v1.Pod) {
+	if updated.Status.PodIP == "" {
+		logger.Debugf("empty mon %s Pod IP given")
+		return
+	}
 	if current.Endpoint != fmt.Sprintf("%s:%d", updated.Status.PodIP, mon.DefaultPort) {
 		logger.Infof("mon %s Pod IP change (current: %s, new: %s)",
 			updated.Name,
 			hc.monCluster.clusterInfo.RemovePortFromEndpoint(current.Endpoint),
 			updated.Status.PodIP)
 		hc.monCluster.clusterInfo.MonMutex.Lock()
-		*current = *mon.ToCephMon(updated.Name, updated.Status.PodIP, mon.DefaultPort)
-		hc.monCluster.clusterInfo.MonMutex.Unlock()
+		current.Endpoint = fmt.Sprintf("%s:%d", updated.Status.PodIP, mon.DefaultPort)
 
 		// reading access to maps doesn't require lock
 		if err := hc.monCluster.saveConfigChanges(); err != nil {
 			logger.Errorf("failed to save mons. %+v", err)
 		}
+		hc.monCluster.clusterInfo.MonMutex.Unlock()
 	} else {
 		logger.Debugf("no change for mon %s Pod IP", updated.Name)
 	}

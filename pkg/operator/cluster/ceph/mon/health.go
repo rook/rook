@@ -53,7 +53,7 @@ func (hc *HealthChecker) Check(stopCh chan struct{}) {
 			return
 
 		case <-time.After(HealthCheckInterval):
-			logger.Debugf("checking health of mons")
+			logger.Debug("checking health of mons")
 			err := hc.monCluster.checkHealth()
 			if err != nil {
 				logger.Infof("failed to check mon health. %+v", err)

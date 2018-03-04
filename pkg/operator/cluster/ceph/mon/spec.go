@@ -191,6 +191,21 @@ func (c *Cluster) monContainer(fsid string) v1.Container {
 			SuccessThreshold:    1,
 			TimeoutSeconds:      2,
 		},
+		/*Lifecycle: &v1.Lifecycle{
+			PreStop: &v1.Handler{
+				Exec: &v1.ExecAction{
+					Command: []string{
+						"ceph",
+						fmt.Sprintf("--conf=%s/$(ROOK_NAME)/rook.config", k8sutil.DataDir),
+						fmt.Sprintf("--cluster=%s", c.clusterInfo.Name),
+						fmt.Sprintf("-m %s", getMonDNSEndpoint(appName, c.Namespace)),
+						"mon",
+						"rm",
+						"$(ROOK_NAME)",
+					},
+				},
+			},
+		},*/
 	}
 }
 

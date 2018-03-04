@@ -52,5 +52,5 @@ func (c *ClusterInfo) RemovePortFromEndpoint(endpoint string) string {
 	if len(split) <= 1 {
 		return endpoint
 	}
-	return split[len(split)-1]
+	return split[0]
 }
