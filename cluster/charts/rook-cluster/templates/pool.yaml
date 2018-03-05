@@ -1,0 +1,13 @@
+apiVersion: rook.io/v1alpha1
+kind: Pool
+metadata:
+  name: {{ .Values.pool.name }}
+  namespace: {{ .Values.namespace }}
+spec:
+  replicated:
+    size: 1
+  # For an erasure-coded pool, comment out the replication size above and uncomment the following settings.
+  # Make sure you have enough OSDs to support the replica size or erasure code chunks.
+  #erasureCoded:
+  #  dataChunks: 2
+  #  codingChunks: 1

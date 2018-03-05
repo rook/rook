@@ -1,0 +1,15 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: {{ .Value.storageClass.name }}
+   annotations:
+{{- if .Values.storageClass.isDefault }}
+     storageclass.kubernetes.io/is-default-class: true
+{{- else }}
+     storageclass.kubernetes.io/is-default-class: false
+{{- end }}
+provisioner: rook.io/block
+parameters:
+  pool: {{ .Values.pool.name }}
+  clusterName: {{ .Values.name }}
+  fstype: {{ .Values.storageClass.fstype }}
