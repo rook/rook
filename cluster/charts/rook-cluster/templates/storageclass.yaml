@@ -1,15 +1,21 @@
+{{- range $i, $value := $.Values.pools -}}
+{{- if $value.storageClass.enabled }}
+---
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: {{ .Value.storageClass.name }}
-   annotations:
-{{- if .Values.storageClass.isDefault }}
-     storageclass.kubernetes.io/is-default-class: true
-{{- else }}
-     storageclass.kubernetes.io/is-default-class: false
-{{- end }}
+    name: {{ template "name" $ }}-{{ $value.name }}-block
+    label:
+      chart: "{{ $.Chart.Name }}-{{ $.Chart.Version | replace "+" "_" }}"
+      rook_cluster: {{ template "name" $ }}
+    {{- if $value.storageClass.default }}
+    annotations:
+      storageclass.kubernetes.io/is-default-class: "true"
+    {{ end -}}
 provisioner: rook.io/block
 parameters:
-  pool: {{ .Values.pool.name }}
-  clusterName: {{ .Values.name }}
-  fstype: {{ .Values.storageClass.fstype }}
+  pool: {{ $value.name }}
+  clusterName: {{ template "name" $ }}
+  clusterNamespace: {{ $.Release.Namespace }}
+{{ end }}
+{{ end -}}
