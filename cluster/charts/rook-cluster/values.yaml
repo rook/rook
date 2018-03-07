@@ -52,7 +52,7 @@ cluster:
 #      podAffinity:
 #      podAntiAffinity:
 #      tolerations:
-  resources:
+#  resources:
 #    api:
 # The requests and limits set here, allow the api Pod to use half of one CPU core and 1 gigabyte of memory
 #      limits:
@@ -68,9 +68,9 @@ cluster:
   storage: # cluster level storage configuration and selection
     useAllNodes: true
     useAllDevices: false
-    deviceFilter:
-    metadataDevice:
-    location:
+#    deviceFilter:
+#    metadataDevice:
+#    location:
     storeConfig:
       storeType: bluestore
       databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
