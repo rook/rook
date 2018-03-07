@@ -1,9 +1,9 @@
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: {{ template "name" . }}
+  name: {{ .Release.Namespace }}
   namespace: {{ .Release.Namespace }}
   label:
-    rook_cluster: {{ template "name" . }}
+    rook_cluster: {{ .Release.Namespace }}
 spec:
 {{ toYaml .Values.cluster | indent 2 }}

@@ -1,13 +1,13 @@
-{{- range $i, $value := $.Values.pools -}}
+{{- range .Values.pools }}
 ---
 apiVersion: rook.io/v1alpha1
 kind: Pool
 metadata:
-  name: {{ $value.name }}
+  name: {{ .name }}
   namespace: {{ $.Release.Namespace }}
   label:
     chart: "{{ $.Chart.Name }}-{{ $.Chart.Version | replace "+" "_" }}"
-    rook_cluster: {{ template "name" $ }}
+    rook_cluster: {{ $.Release.Namespace }}
 spec:
-{{ toYaml $value.spec | indent 2 }}
-{{ end -}}
+{{ toYaml .spec | indent 2 }}
+{{- end }}

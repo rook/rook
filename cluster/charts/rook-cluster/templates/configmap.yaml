@@ -3,7 +3,7 @@ apiVersion: v1
 metadata:
   name: rook-config-override
   labels:
-    rook_cluster: {{ template "name" . }}
+    rook_cluster: {{ .Release.Namespace }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
 data:
   {{ if .Values.rookConfigOverride -}}
