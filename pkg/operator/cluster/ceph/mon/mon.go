@@ -224,7 +224,7 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 			logger.Infof("setting mon endpoints for hostnetwork mode")
 			node, ok := c.mapping.Node[m.Name]
 			if !ok {
-				return fmt.Errorf("mon doesn't exit in assignment map")
+				return fmt.Errorf("mon doesn't exist in assignment map")
 			}
 			m.PublicIP = node.Address
 		} else {
