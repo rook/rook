@@ -230,17 +230,23 @@ func (c *Cluster) failoverMon(name string) error {
 		return fmt.Errorf("failed to create mon service. %+v", err)
 	}
 
-	if !c.HostNetwork {
-		m.PublicIP = serviceIP
-		c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.PublicIP, m.Port)
-	}
-
 	mConf := []*monConfig{m}
 
 	// Assign the pod to a node
 	if err = c.assignMons(mConf); err != nil {
 		return fmt.Errorf("failed to assign pods to mons. %+v", err)
 	}
+
+	if c.HostNetwork {
+		node, ok := c.mapping.Node[m.Name]
+		if !ok {
+			return fmt.Errorf("mon %s doesn't exist in assignment map", m.Name)
+		}
+		m.PublicIP = node.Address
+	} else {
+		m.PublicIP = serviceIP
+	}
+	c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.PublicIP, m.Port)
 
 	// Start the pod
 	if err = c.startPods(mConf); err != nil {
