@@ -60,7 +60,7 @@ func newTestStartCluster(namespace string) *clusterd.Context {
 
 func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
-		HostNetwork:         true,
+		HostNetwork:         hostNetwork,
 		context:             context,
 		Namespace:           namespace,
 		Version:             "myversion",
