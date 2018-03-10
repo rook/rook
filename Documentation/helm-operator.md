@@ -89,7 +89,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | Parameter          | Description                          | Default              |
 |--------------------|--------------------------------------|----------------------|
 | `image.repository` | Image                                | `rook/rook`          |
-| `image.tag`        | Image tag                            | `v0.7.0`             |
+| `image.tag`        | Image tag                            | `v0.7.1`             |
 | `image.pullPolicy` | Image pull policy                    | `IfNotPresent`       |
 | `rbacEnable`       | If true, create & use RBAC resources | `true`               |
 | `resources`        | Pod resource requests & limits       | `{}`                 |
@@ -122,7 +122,7 @@ Here are the sample settings to get you started.
 image:
   prefix: rook
   repository: rook/rook
-  tag: v0.7.0
+  tag: v0.7.1
   pullPolicy: IfNotPresent
 
 resources:
