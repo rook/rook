@@ -88,6 +88,7 @@ type ClusterController struct {
 	volumeAttachment attachment.Attachment
 	devicesInUse     bool
 	rookImage        string
+	stopCh           chan struct{}
 }
 
 type cluster struct {
@@ -186,6 +187,10 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		}
 		return
 	}
+
+	// Make and save stopCh for onDelete
+	cluster.stopCh = make(chan struct{})
+	c.stopCh = cluster.stopCh
 
 	// Start pool CRD watcher
 	poolController := pool.NewPoolController(c.context)
@@ -286,6 +291,10 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	err := c.handleDelete(clust, time.Duration(clusterDeleteRetryInterval)*time.Second)
 	if err != nil {
 		logger.Errorf("failed to delete cluster. %+v", err)
+	}
+	close(c.stopCh)
+	if clust.Spec.Storage.AnyUseAllDevices() {
+		c.devicesInUse = false
 	}
 }
 
