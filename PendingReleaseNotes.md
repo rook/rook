@@ -3,6 +3,7 @@
 ## Action Required
 
 ## Notable Features
+- added nodeSelector for operator deployment to chart
 
 ## Breaking Changes
 
