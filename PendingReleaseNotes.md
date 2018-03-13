@@ -3,8 +3,12 @@
 ## Action Required
 
 ## Notable Features
+<<<<<<< 181d71c4e3816474c0563e5f4fa93d888afbb6fa
 - Ceph tools can be run [from any rook pod](Documentation/common-issues.md#ceph-tools).
 - Output from stderr will be included in error messages returned from the `exec` of external tools
+=======
+- added nodeSelector for operator deployment to chart
+>>>>>>> chart: added nodeSelector to operator deployment
 
 ## Breaking Changes
 
