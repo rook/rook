@@ -146,10 +146,14 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		c.devicesInUse = true
 	}
 
-	if cluster.Spec.MonCount <= 0 {
-		logger.Warningf("mon count is 0 or less (given: %d), should be greater than 0, defaulting to %d", cluster.Spec.MonCount, defaultMonCount)
-		cluster.Spec.MonCount = defaultMonCount
-	}
+	// TODO: reinstate a friendlier default behaviour, rather than defaulting
+	// to "run your own mons" if someone hasn't specified the field.
+	/*
+		if cluster.Spec.MonCount <= 0 {
+			logger.Warningf("mon count is 0 or less (given: %d), should be greater than 0, defaulting to %d", cluster.Spec.MonCount, defaultMonCount)
+			cluster.Spec.MonCount = defaultMonCount
+		}
+	*/
 	if cluster.Spec.MonCount > maxMonCount {
 		logger.Warningf("mon count is bigger than %d (given: %d), not supported, changing to %d", maxMonCount, cluster.Spec.MonCount, maxMonCount)
 		cluster.Spec.MonCount = maxMonCount
@@ -205,8 +209,10 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker
-	healthChecker := mon.NewHealthChecker(cluster.mons)
-	go healthChecker.Check(cluster.stopCh)
+	if cluster.Spec.MonCount > 0 {
+		healthChecker := mon.NewHealthChecker(cluster.mons)
+		go healthChecker.Check(cluster.stopCh)
+	}
 
 	// add the finalizer to the crd
 	err = c.addFinalizer(clusterObj)
@@ -465,35 +471,43 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.MonCount, c.Spec.Placement.GetMon(), c.Spec.HostNetwork, c.Spec.Resources.Mon, c.ownerRef)
-	err = c.mons.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the mons. %+v", err)
-	}
+	if c.Spec.MonCount > 0 {
+		c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.MonCount, c.Spec.Placement.GetMon(), c.Spec.HostNetwork, c.Spec.Resources.Mon, c.ownerRef)
+		err = c.mons.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the mons. %+v", err)
+		}
 
-	err = c.createInitialCrushMap()
-	if err != nil {
-		return fmt.Errorf("failed to create initial crushmap: %+v", err)
-	}
+		err = c.createInitialCrushMap()
+		if err != nil {
+			return fmt.Errorf("failed to create initial crushmap: %+v", err)
+		}
 
-	c.mgrs = mgr.New(c.context, c.Namespace, rookImage, c.Spec.Placement.GetMgr(), c.Spec.HostNetwork, c.Spec.Resources.Mgr, c.ownerRef)
-	err = c.mgrs.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
-	}
+		c.mgrs = mgr.New(c.context, c.Namespace, rookImage, c.Spec.Placement.GetMgr(), c.Spec.HostNetwork, c.Spec.Resources.Mgr, c.ownerRef)
+		err = c.mgrs.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the ceph mgr. %+v", err)
+		}
 
-	c.apis = api.New(c.context, c.Namespace, rookImage, c.Spec.Placement.GetAPI(), c.Spec.HostNetwork, c.Spec.Resources.API, c.ownerRef)
-	err = c.apis.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the REST api. %+v", err)
+		c.apis = api.New(c.context, c.Namespace, rookImage, c.Spec.Placement.GetAPI(), c.Spec.HostNetwork, c.Spec.Resources.API, c.ownerRef)
+		err = c.apis.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the REST api. %+v", err)
+		}
+	} else {
+		logger.Infof("Rook is not managing mon/mgr daemons in namespace %s", c.Namespace)
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.Storage, c.Spec.DataDirHostPath,
-		c.Spec.Placement.GetOSD(), c.Spec.HostNetwork, c.Spec.Resources.OSD, c.ownerRef)
-	err = c.osds.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the osds. %+v", err)
+	if len(c.Spec.Storage.Nodes) > 0 || c.Spec.Storage.UseAllNodes {
+		c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.Storage, c.Spec.DataDirHostPath,
+			c.Spec.Placement.GetOSD(), c.Spec.HostNetwork, c.Spec.Resources.OSD, c.ownerRef)
+		err = c.osds.Start()
+		if err != nil {
+			return fmt.Errorf("failed to start the osds. %+v", err)
+		}
+	} else {
+		logger.Infof("Rook is not managing OSDs in namespace %s", c.Namespace)
 	}
 
 	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
