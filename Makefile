@@ -50,9 +50,6 @@ PLATFORMS ?= $(ALL_PLATFORMS)
 SERVER_PLATFORMS := $(filter linux_%,$(PLATFORMS))
 CLIENT_PLATFORMS := $(filter-out linux_%,$(PLATFORMS))
 
-# client projects that we build on all platforms
-CLIENT_PACKAGES = $(GO_PROJECT)/cmd/rookctl
-
 # server projects that we build on server platforms
 SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook $(GO_PROJECT)/cmd/rookflex
 
