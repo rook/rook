@@ -20,8 +20,6 @@ import (
 	"fmt"
 
 	"strings"
-
-	"github.com/rook/rook/pkg/model"
 )
 
 const (
@@ -31,6 +29,14 @@ const (
 	RGWErrorBadData  = iota
 	RGWErrorParse    = iota
 )
+
+type ObjectUser struct {
+	UserID      string  `json:"userId"`
+	DisplayName *string `json:"displayName"`
+	Email       *string `json:"email"`
+	AccessKey   *string `json:"accessKey"`
+	SecretKey   *string `json:"secretKey"`
+}
 
 func ListUsers(c *Context) ([]string, int, error) {
 	result, err := runAdminCommand(c, "user", "list")
@@ -56,14 +62,14 @@ type rgwUserInfo struct {
 	}
 }
 
-func decodeUser(data string) (*model.ObjectUser, int, error) {
+func decodeUser(data string) (*ObjectUser, int, error) {
 	var user rgwUserInfo
 	err := json.Unmarshal([]byte(data), &user)
 	if err != nil {
 		return nil, RGWErrorParse, fmt.Errorf("Failed to unmarshal json: %+v", err)
 	}
 
-	rookUser := model.ObjectUser{UserID: user.UserID, DisplayName: &user.DisplayName, Email: &user.Email}
+	rookUser := ObjectUser{UserID: user.UserID, DisplayName: &user.DisplayName, Email: &user.Email}
 
 	if len(user.Keys) > 0 {
 		rookUser.AccessKey = &user.Keys[0].AccessKey
@@ -73,7 +79,7 @@ func decodeUser(data string) (*model.ObjectUser, int, error) {
 	return &rookUser, RGWErrorNone, nil
 }
 
-func GetUser(c *Context, id string) (*model.ObjectUser, int, error) {
+func GetUser(c *Context, id string) (*ObjectUser, int, error) {
 	logger.Infof("Getting user: %s", id)
 
 	result, err := runAdminCommand(c, "user", "info", "--uid", id)
@@ -86,7 +92,7 @@ func GetUser(c *Context, id string) (*model.ObjectUser, int, error) {
 	return decodeUser(result)
 }
 
-func CreateUser(c *Context, user model.ObjectUser) (*model.ObjectUser, int, error) {
+func CreateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 	logger.Infof("Creating user: %s", user.UserID)
 
 	if strings.TrimSpace(user.UserID) == "" {
@@ -124,7 +130,7 @@ func CreateUser(c *Context, user model.ObjectUser) (*model.ObjectUser, int, erro
 	return decodeUser(result)
 }
 
-func UpdateUser(c *Context, user model.ObjectUser) (*model.ObjectUser, int, error) {
+func UpdateUser(c *Context, user ObjectUser) (*ObjectUser, int, error) {
 	logger.Infof("Updating user: %s", user.UserID)
 
 	args := []string{"user", "modify", "--uid", user.UserID}

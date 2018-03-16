@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/rook/rook/pkg/daemon/ceph/model"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
@@ -33,18 +34,17 @@ import (
 
 // Test K8s Block Image Creation Scenarios. These tests work when platform is set to Kubernetes
 
-func TestK8sBlockImageCreateSuite(t *testing.T) {
-	s := new(K8sBlockImageCreateSuite)
-	defer func(s *K8sBlockImageCreateSuite) {
+func TestBlockCreateSuite(t *testing.T) {
+	s := new(BlockCreateSuite)
+	defer func(s *BlockCreateSuite) {
 		HandlePanics(recover(), s.op, s.T)
 	}(s)
 	suite.Run(t, s)
 }
 
-type K8sBlockImageCreateSuite struct {
+type BlockCreateSuite struct {
 	suite.Suite
 	testClient     *clients.TestClient
-	bc             contracts.BlockOperator
 	kh             *utils.K8sHelper
 	initBlockCount int
 	namespace      string
@@ -52,20 +52,19 @@ type K8sBlockImageCreateSuite struct {
 	op             contracts.Setup
 }
 
-func (s *K8sBlockImageCreateSuite) SetupSuite() {
+func (s *BlockCreateSuite) SetupSuite() {
 
 	var err error
 	s.namespace = "block-k8s-ns"
 	s.op, s.kh = NewBaseTestOperations(s.T, s.namespace, "bluestore", "", false, false, 1)
 	s.testClient = GetTestClient(s.kh, s.namespace, s.op, s.T)
-	s.bc = s.testClient.GetBlockClient()
-	initialBlocks, err := s.bc.BlockList()
+	initialBlocks, err := s.testClient.BlockClient.List(s.namespace)
 	assert.Nil(s.T(), err)
 	s.initBlockCount = len(initialBlocks)
 }
 
 // Test case when persistentvolumeclaim is created for a storage class that doesn't exist
-func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
+func (s *BlockCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 	logger.Infof("Test creating PVC(block images) when storage class is not created")
 
 	//Create PVC
@@ -84,19 +83,18 @@ func (s *K8sBlockImageCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 	require.Contains(s.T(), pvcStatus, "Pending", "Makes sure PVC is in Pending state")
 
 	//check block image count
-	b, _ := s.bc.BlockList()
+	b, _ := s.testClient.BlockClient.List(s.namespace)
 	require.Equal(s.T(), s.initBlockCount, len(b), "Make sure new block image is not created")
-
 }
 
-func (s *K8sBlockImageCreateSuite) TestCreatingPVCWithVariousAccessModes() {
+func (s *BlockCreateSuite) TestCreatingPVCWithVariousAccessModes() {
 	s.CheckCreatingPVC("rwo", "ReadWriteOnce")
 	s.CheckCreatingPVC("rwx", "ReadWriteMany")
 	s.CheckCreatingPVC("rox", "ReadOnlyMany")
 }
 
 // Test case when persistentvolumeclaim is created for a valid storage class twice
-func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
+func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	logger.Infof("Test creating PVC(create block images) twice")
 	claimName := "test-twice-claim"
 	poolName := "test-twice-pool"
@@ -104,10 +102,11 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 	defer s.tearDownTest(claimName, poolName, storageClassName, "ReadWriteOnce")
 	status, _ := s.kh.GetPVCStatus(defaultNamespace, claimName)
 	logger.Infof("PVC %s status: %s", claimName, status)
-	s.bc.BlockList()
+	s.testClient.BlockClient.List(s.namespace)
 
 	logger.Infof("create pool and storageclass")
-	result0, err0 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "create")
+	pool := model.Pool{Name: poolName, ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}}
+	result0, err0 := s.testClient.PoolClient.Create(pool, s.namespace)
 	require.Contains(s.T(), result0, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
 	require.NoError(s.T(), err0)
 	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "create")
@@ -127,7 +126,7 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 	logger.Infof("check status of PVC")
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
 
-	b1, err := s.bc.BlockList()
+	b1, err := s.testClient.BlockClient.List(s.namespace)
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), s.initBlockCount+1, len(b1), "Make sure new block image is created")
 
@@ -139,12 +138,12 @@ func (s *K8sBlockImageCreateSuite) TestCreateSamePVCTwice() {
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
 
 	logger.Infof("check block image count")
-	b2, _ := s.bc.BlockList()
+	b2, _ := s.testClient.BlockClient.List(s.namespace)
 	assert.Equal(s.T(), len(b1), len(b2), "Make sure new block image is created")
 
 }
 
-func (s *K8sBlockImageCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {
+func (s *BlockCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	poolName := "stspool"
 	storageClassName := "stssc"
 	statefulSetName := "block-stateful-set"
@@ -189,7 +188,7 @@ func (s *K8sBlockImageCreateSuite) TestBlockStorageMountUnMountForStatefulSets()
 	assert.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
 }
 
-func (s *K8sBlockImageCreateSuite) statefulSetDataCleanup(namespace, poolName, storageClassName, statefulSetName, statefulPodsName string) {
+func (s *BlockCreateSuite) statefulSetDataCleanup(namespace, poolName, storageClassName, statefulSetName, statefulPodsName string) {
 	delOpts := metav1.DeleteOptions{}
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
 	//Delete stateful set
@@ -203,18 +202,18 @@ func (s *K8sBlockImageCreateSuite) statefulSetDataCleanup(namespace, poolName, s
 
 }
 
-func (s *K8sBlockImageCreateSuite) tearDownTest(claimName string, poolName string, storageClassName string, accessMode string) {
+func (s *BlockCreateSuite) tearDownTest(claimName string, poolName string, storageClassName string, accessMode string) {
 	installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, accessMode), "delete")
 	installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "delete")
 	installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "delete")
 
 }
 
-func (s *K8sBlockImageCreateSuite) TearDownSuite() {
+func (s *BlockCreateSuite) TearDownSuite() {
 	s.op.TearDown()
 }
 
-func (s *K8sBlockImageCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
+func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 	logger.Infof("Test creating %s PVC(block images) when storage class is created", pvcAccessMode)
 	claimName := fmt.Sprintf("test-with-storage-class-claim-%s", pvcName)
 	poolName := fmt.Sprintf("test-with-storage-class-pool-%s", pvcName)
@@ -246,7 +245,7 @@ func (s *K8sBlockImageCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode strin
 	assert.Equal(s.T(), accessModes[0], v1.PersistentVolumeAccessMode(pvcAccessMode))
 
 	//check block image count
-	b, _ := s.bc.BlockList()
+	b, _ := s.testClient.BlockClient.List(s.namespace)
 	require.Equal(s.T(), s.initBlockCount+1, len(b), "Make sure new block image is created")
 
 }

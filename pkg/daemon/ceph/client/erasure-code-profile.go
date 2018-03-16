@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/daemon/ceph/model"
 )
 
 type CephErasureCodeProfile struct {

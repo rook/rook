@@ -71,7 +71,7 @@ func TestBlockMountUnMountSuite(t *testing.T) {
 type BlockMountUnMountSuite struct {
 	suite.Suite
 	testClient *clients.TestClient
-	bc         contracts.BlockOperator
+	bc         *clients.BlockOperation
 	kh         *utils.K8sHelper
 	namespace  string
 	pvcNameRWO string
@@ -90,7 +90,7 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	s.pvcNameRWX = "block-persistent-rwx"
 	s.op, s.kh = NewBaseTestOperations(s.T, s.namespace, "bluestore", "", false, false, 1)
 	s.testClient = GetTestClient(s.kh, s.namespace, s.op, s.T)
-	s.bc = s.testClient.GetBlockClient()
+	s.bc = s.testClient.BlockClient
 
 	// Create PVCs
 	_, cbErr := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClassAndPvcDef(s.namespace, poolNameRWO, storageClassNameRWO, s.pvcNameRWO, "ReadWriteOnce"), "create")
@@ -117,9 +117,9 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	require.True(s.T(), s.kh.IsPodRunning("setup-block-rwx", defaultNamespace), "make sure setup-block-rwx pod is in running state")
 
 	// Write Data to Pod
-	_, wtErr1 := s.bc.BlockWrite("setup-block-rwo", blockMountPath, "Persisted message one", "bsFile1", "")
+	_, wtErr1 := s.bc.Write("setup-block-rwo", blockMountPath, "Persisted message one", "bsFile1", "")
 	require.Nil(s.T(), wtErr1)
-	_, wtErr2 := s.bc.BlockWrite("setup-block-rwx", blockMountPath, "Persisted message one", "bsFile1", "")
+	_, wtErr2 := s.bc.Write("setup-block-rwx", blockMountPath, "Persisted message one", "bsFile1", "")
 	require.Nil(s.T(), wtErr2)
 
 	// Unmount pod
@@ -134,20 +134,20 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 
 func (s *BlockMountUnMountSuite) TearDownSuite() {
 	logger.Infof("Cleaning up block storage")
-	s.testClient.GetBlockClient().BlockUnmap(getBlockPodDefintion("setup-block-rwo", s.pvcNameRWO, false), blockMountPath)
-	s.testClient.GetBlockClient().BlockUnmap(getBlockPodDefintion("setup-block-rwx", s.pvcNameRWX, false), blockMountPath)
-	s.testClient.GetBlockClient().BlockUnmap(getBlockPodDefintion("rwo-block-rw-one", s.pvcNameRWO, false), blockMountPath)
-	s.testClient.GetBlockClient().BlockUnmap(getBlockPodDefintion("rwo-block-rw-two", s.pvcNameRWO, false), blockMountPath)
-	s.testClient.GetBlockClient().BlockUnmap(getBlockPodDefintion("rwo-block-ro-one", s.pvcNameRWO, true), blockMountPath)
-	s.testClient.GetBlockClient().BlockUnmap(getBlockPodDefintion("rwo-block-ro-two", s.pvcNameRWO, true), blockMountPath)
-	s.testClient.GetBlockClient().BlockUnmap(getBlockPodDefintion("rwx-block-rw-one", s.pvcNameRWX, false), blockMountPath)
-	s.testClient.GetBlockClient().BlockUnmap(getBlockPodDefintion("rwx-block-rw-two", s.pvcNameRWX, false), blockMountPath)
-	s.testClient.GetBlockClient().BlockUnmap(getBlockPodDefintion("rwx-block-ro-one", s.pvcNameRWX, true), blockMountPath)
-	s.testClient.GetBlockClient().BlockUnmap(getBlockPodDefintion("rwx-block-ro-two", s.pvcNameRWX, true), blockMountPath)
+	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("setup-block-rwo", s.pvcNameRWO, false), blockMountPath)
+	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("setup-block-rwx", s.pvcNameRWX, false), blockMountPath)
+	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("rwo-block-rw-one", s.pvcNameRWO, false), blockMountPath)
+	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("rwo-block-rw-two", s.pvcNameRWO, false), blockMountPath)
+	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("rwo-block-ro-one", s.pvcNameRWO, true), blockMountPath)
+	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("rwo-block-ro-two", s.pvcNameRWO, true), blockMountPath)
+	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("rwx-block-rw-one", s.pvcNameRWX, false), blockMountPath)
+	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("rwx-block-rw-two", s.pvcNameRWX, false), blockMountPath)
+	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("rwx-block-ro-one", s.pvcNameRWX, true), blockMountPath)
+	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("rwx-block-ro-two", s.pvcNameRWX, true), blockMountPath)
 	installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClassAndPvcDef(s.namespace, "block-pool-rwo", "rook-block-rwo", s.pvcNameRWO, "ReadWriteOnce"), "delete")
 	installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClassAndPvcDef(s.namespace, "block-pool-rwx", "rook-block-rwx", s.pvcNameRWX, "ReadWriteMany"), "delete")
 
-	cleanupDynamicBlockStorage(s.testClient)
+	cleanupDynamicBlockStorage(s.testClient, s.namespace)
 	s.op.TearDown()
 }
 
@@ -172,27 +172,27 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 
 	logger.Infof("Step 2: Check if previously persisted data is readable from ReadWriteOnce and ReadWriteMany PVC")
 	//Read data on RWO PVC Mounted on pod with RW Access
-	read1, rErr1 := s.bc.BlockRead("rwo-block-rw-one", blockMountPath, "bsFile1", "")
+	read1, rErr1 := s.bc.Read("rwo-block-rw-one", blockMountPath, "bsFile1", "")
 	assert.Nil(s.T(), rErr1)
 	assert.Contains(s.T(), read1, "Persisted message one", "make sure previously persisted data is readable")
 	//Read data on RWX PVC Mounted on pod with RW Access
-	read2, rErr2 := s.bc.BlockRead("rwx-block-rw-one", blockMountPath, "bsFile1", "")
+	read2, rErr2 := s.bc.Read("rwx-block-rw-one", blockMountPath, "bsFile1", "")
 	assert.Nil(s.T(), rErr2)
 	assert.Contains(s.T(), read2, "Persisted message one", "make sure previously persisted data is readable")
 
 	logger.Infof("Step 3: Check if read/write works on ReadWriteOnce and ReadWriteMany PVC")
 	//Write data on RWO PVC Mounted on pod with RW Access
-	_, wtErr1 := s.bc.BlockWrite("rwo-block-rw-one", blockMountPath, "Persisted message two", "bsFile2", "")
+	_, wtErr1 := s.bc.Write("rwo-block-rw-one", blockMountPath, "Persisted message two", "bsFile2", "")
 	assert.Nil(s.T(), wtErr1)
 	//Read data on RWO PVC Mounted on pod with RW Access
-	read1, rErr1 = s.bc.BlockRead("rwo-block-rw-one", blockMountPath, "bsFile2", "")
+	read1, rErr1 = s.bc.Read("rwo-block-rw-one", blockMountPath, "bsFile2", "")
 	assert.Nil(s.T(), rErr1)
 	assert.Contains(s.T(), read1, "Persisted message two", "make sure new persisted data is readable")
 	//Write data on RWX PVC Mounted on pod with RW Access
-	_, wtErr2 := s.bc.BlockWrite("rwx-block-rw-one", blockMountPath, "Persisted message two", "bsFile2", "")
+	_, wtErr2 := s.bc.Write("rwx-block-rw-one", blockMountPath, "Persisted message two", "bsFile2", "")
 	assert.Nil(s.T(), wtErr2)
 	//Read data on RWX PVC Mounted on pod with RW Access
-	read2, rErr2 = s.bc.BlockRead("rwx-block-rw-one", blockMountPath, "bsFile2", "")
+	read2, rErr2 = s.bc.Read("rwx-block-rw-one", blockMountPath, "bsFile2", "")
 	assert.Nil(s.T(), rErr2)
 	assert.Contains(s.T(), read2, "Persisted message two", "make sure new persisted data is readable")
 
@@ -258,15 +258,15 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 
 	logger.Infof("Step 8: Read Data from both ReadyOnlyMany and ReadWriteOnce pods with ReadOnly Access")
 	//Read data from RWO PVC via both ReadOnly pods
-	read1_1, rErr1_1 := s.bc.BlockRead("rwo-block-ro-one", blockMountPath, "bsFile1", "")
-	read2_1, rErr2_1 := s.bc.BlockRead("rwo-block-ro-two", blockMountPath, "bsFile1", "")
+	read1_1, rErr1_1 := s.bc.Read("rwo-block-ro-one", blockMountPath, "bsFile1", "")
+	read2_1, rErr2_1 := s.bc.Read("rwo-block-ro-two", blockMountPath, "bsFile1", "")
 	assert.Nil(s.T(), rErr1_1)
 	assert.Nil(s.T(), rErr2_1)
 	assert.Contains(s.T(), read1_1, "Persisted message one", "make sure previously persisted data is readable from ReadOnlyMany access Pod")
 	assert.Contains(s.T(), read2_1, "Persisted message one", "make sure previously persisted data is readable from ReadOnlyMany access Pod")
 	//Read data from RWX PVC via both ReadOnly pods
-	read1_2, rErr1_2 := s.bc.BlockRead("rwx-block-ro-one", blockMountPath, "bsFile1", "")
-	read2_2, rErr2_2 := s.bc.BlockRead("rwx-block-ro-two", blockMountPath, "bsFile1", "")
+	read1_2, rErr1_2 := s.bc.Read("rwx-block-ro-one", blockMountPath, "bsFile1", "")
+	read2_2, rErr2_2 := s.bc.Read("rwx-block-ro-two", blockMountPath, "bsFile1", "")
 	assert.Nil(s.T(), rErr1_2)
 	assert.Nil(s.T(), rErr2_2)
 	assert.Contains(s.T(), read1_2, "Persisted message one", "make sure previously persisted data is readable from ReadOnlyMany access Pod")
@@ -274,10 +274,10 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 
 	logger.Infof("Step 9: Write Data to Pod with ReadOnlyMany and ReadWriteOnce PVC  mounted with ReadOnly access")
 	//Write data to RWO PVC via pod with ReadOnly Set to true
-	_, wtErr1 = s.bc.BlockWrite("rwo-block-ro-one", blockMountPath, "Persisted message three", "bsFile3", "")
+	_, wtErr1 = s.bc.Write("rwo-block-ro-one", blockMountPath, "Persisted message three", "bsFile3", "")
 	assert.Contains(s.T(), wtErr1.Error(), "Unable to write data to pod")
 	//Write data to RWx PVC via pod with ReadOnly Set to true
-	_, wtErr2 = s.bc.BlockWrite("rwx-block-ro-one", blockMountPath, "Persisted message three", "bsFile3", "")
+	_, wtErr2 = s.bc.Write("rwx-block-ro-one", blockMountPath, "Persisted message three", "bsFile3", "")
 	assert.Contains(s.T(), wtErr2.Error(), "Unable to write data to pod")
 
 	logger.Infof("Step 10: UnMount Pod with ReadOnlyMany and ReadWriteOnce PVCs")

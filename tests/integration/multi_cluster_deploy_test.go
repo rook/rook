@@ -21,7 +21,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
@@ -42,7 +41,7 @@ import (
 // - Create a pool in each cluster
 // - Mount/unmount a block device through the dynamic provisioner
 // File system
-// - Create a file system via the REST API
+// - Create a file system via the CRD
 // Object
 // - Create the object store via the CRD
 // *************************************************************
@@ -77,16 +76,17 @@ func (mrc *MultiClusterDeploySuite) SetupSuite() {
 
 }
 func (mrc *MultiClusterDeploySuite) createPools() {
-	var err error
 	// create a test pool in each cluster so that we get some PGs
-	_, err = mrc.helper1.GetPoolClient().PoolCreate(model.Pool{
-		Name:             "multi-cluster-install-pool1",
-		ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}})
+	poolName := "multi-cluster-pool1"
+	logger.Infof("Creating pool %s", poolName)
+	result, err := installer.BlockResourceOperation(mrc.k8sh, installer.GetBlockPoolDef(poolName, mrc.namespace1, "1"), "create")
+	require.Contains(mrc.T(), result, fmt.Sprintf("pool \"%s\" created", poolName))
 	require.Nil(mrc.T(), err)
 
-	_, err = mrc.helper2.GetPoolClient().PoolCreate(model.Pool{
-		Name:             "multi-cluster-install-pool2",
-		ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}})
+	poolName = "multi-cluster-pool2"
+	logger.Infof("Creating pool %s", poolName)
+	result, err = installer.BlockResourceOperation(mrc.k8sh, installer.GetBlockPoolDef(poolName, mrc.namespace2, "1"), "create")
+	require.Contains(mrc.T(), result, fmt.Sprintf("pool \"%s\" created", poolName))
 	require.Nil(mrc.T(), err)
 }
 

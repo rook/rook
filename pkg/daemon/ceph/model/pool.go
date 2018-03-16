@@ -15,13 +15,13 @@ limitations under the License.
 */
 package model
 
-type PoolType int
-
 const (
 	Replicated PoolType = iota
 	ErasureCoded
 	PoolTypeUnknown
 )
+
+type PoolType int
 
 type ReplicatedPoolConfig struct {
 	Size uint `json:"size"`
@@ -41,15 +41,4 @@ type Pool struct {
 	CrushRoot          string                 `json:"crushRoot"`
 	ReplicatedConfig   ReplicatedPoolConfig   `json:"replicatedConfig"`
 	ErasureCodedConfig ErasureCodedPoolConfig `json:"erasureCodedConfig"`
-}
-
-func PoolTypeToString(poolType PoolType) string {
-	switch poolType {
-	case Replicated:
-		return "replicated"
-	case ErasureCoded:
-		return "erasure coded"
-	default:
-		return "unknown"
-	}
 }

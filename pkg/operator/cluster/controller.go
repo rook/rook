@@ -30,7 +30,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/cluster/api"
 	"github.com/rook/rook/pkg/operator/cluster/ceph/mgr"
 	"github.com/rook/rook/pkg/operator/cluster/ceph/mon"
 	"github.com/rook/rook/pkg/operator/cluster/ceph/osd"
@@ -98,7 +97,6 @@ type cluster struct {
 	mons      *mon.Cluster
 	mgrs      *mgr.Cluster
 	osds      *osd.Cluster
-	apis      *api.Cluster
 	stopCh    chan struct{}
 	ownerRef  metav1.OwnerReference
 }
@@ -480,12 +478,6 @@ func (c *cluster) createInstance(rookImage string) error {
 	err = c.mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
-	}
-
-	c.apis = api.New(c.context, c.Namespace, rookImage, c.Spec.Placement.GetAPI(), c.Spec.HostNetwork, c.Spec.Resources.API, c.ownerRef)
-	err = c.apis.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the REST api. %+v", err)
 	}
 
 	// Start the OSDs

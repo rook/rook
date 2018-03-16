@@ -15,6 +15,6 @@
 FROM BASEIMAGE
 
 RUN mkdir -p /etc/ceph
-COPY rookctl toolbox.sh /usr/local/bin/
+COPY toolbox.sh /usr/local/bin/
 
 ENTRYPOINT ["/tini", "-g", "--", "/usr/local/bin/toolbox.sh"]

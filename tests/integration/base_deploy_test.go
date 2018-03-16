@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
-	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
@@ -46,8 +45,6 @@ func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNames
 		"Make sure there is 1 rook-operator present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-agent", opNamespace, 1, "Running"),
 		"Make sure there is 1 rook-agent present in Running state")
-	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-api", clusterNamespace, 1, "Running"),
-		"Make sure there is 1 rook-api present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mgr", clusterNamespace, 1, "Running"),
 		"Make sure there is 1 rook-ceph-mgr present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-osd", clusterNamespace, 1, "Running"),
@@ -59,13 +56,12 @@ func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNames
 func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, clusterNamespace string) {
 	logger.Infof("Testing cluster %s health", clusterNamespace)
 	var err error
-	var status model.StatusDetails
 
 	retryCount := 0
 	for retryCount < utils.RetryLoop {
-		status, err = clients.IsClusterHealthy(testClient)
+		err = clients.IsClusterHealthy(testClient, clusterNamespace)
 		if err == nil {
-			logger.Infof("cluster %s is healthy. final status: %+v", clusterNamespace, status)
+			logger.Infof("cluster %s is healthy", clusterNamespace)
 			return
 		}
 

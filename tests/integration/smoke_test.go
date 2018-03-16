@@ -52,7 +52,7 @@ import (
 // - Read/write to the file system
 // - Delete the file system
 // Object
-// - Create the object store via the REST API
+// - Create the object store via the CRD
 // - Create/delete buckets
 // - Create/delete users
 // - PUT/GET objects

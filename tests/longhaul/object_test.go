@@ -59,7 +59,6 @@ func (s *ObjectLongHaulSuite) SetupSuite() {
 	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, s.namespace)
 	s.tc, err = clients.CreateTestClient(s.kh, s.namespace)
 	require.Nil(s.T(), err)
-
 }
 
 func (s *ObjectLongHaulSuite) TestObjectLonghaulRun() {
@@ -94,7 +93,7 @@ func ObjectStoreOperations(s *ObjectLongHaulSuite, wg *sync.WaitGroup, namespace
 	performObjectStoreOperations(s.installer, s3, bucketName)
 	if deleteStore {
 		delOpts := metav1.DeleteOptions{}
-		s.tc.GetObjectClient().ObjectDelete(namespace, storeName, 3, false, s.kh)
+		s.tc.ObjectClient.Delete(namespace, storeName, 3)
 		s.kh.Clientset.CoreV1().Services(namespace).Delete("rgw-external-"+storeName, &delOpts)
 	}
 	s3 = nil

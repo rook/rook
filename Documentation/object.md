@@ -12,7 +12,7 @@ Object storage exposes an S3 API to the storage cluster for applications to put 
 
 This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](quickstart.md)
 
-## Object Store
+## Create an Object Store
 
 Now we will create the object store, which starts the RGW service in the cluster with the S3 API.
 Specify your desired settings for the object store in the `rook-object.yaml`. For more details on the settings see the [Object Store CRD](object-store-crd.md).
@@ -40,16 +40,7 @@ spec:
     allNodes: false
 ```
 
-### Kubernetes 1.6 or earlier
-
-If you are using a version of Kubernetes earlier than 1.7, you will need to slightly modify one setting to be compatible with TPRs (deprecated in 1.7). Notice the different casing.
-```yaml
-kind: Objectstore
-```
-
-### Create the Object Store
-
-Now let's create the object store. The Rook operator will create all the pools and other resources necessary to start the service. This may take a minute to complete.
+When the object store is created the Rook operator will create all the pools and other resources necessary to start the service. This may take a minute to complete.
 ```bash
 # Create the object store
 kubectl create -f rook-object.yaml
@@ -60,22 +51,81 @@ kubectl -n rook get pod -l app=rook-ceph-rgw
 
 ## Create a User
 
-Creating an object storage user requires running `rookctl` commands with the [Rook toolbox](quickstart.md#tools) pod. This will be simplified in the future with a CRD for the object store users.
+Creating an object storage user requires running a `radosgw-admin` command with the [Rook toolbox](quickstart.md#tools) pod. This will be simplified in the future with a CRD for the object store users.
 
 ```bash
-rookctl object user create my-store rook-user "A rook rgw User"
+radosgw-admin user create --uid rook-user --display-name "A rook rgw User" --rgw-realm=my-store --rgw-zonegroup=my-store
 ```
 
-The object store is now available by using the creds of `rook-user`.
+The object store is now available by using the creds of `rook-user`. Take note of the `access_key` and `secret_key` printed by the user creation. For example:
+```json
+{
+    "user": "rook-user",
+    "access_key": "XEZDB3UJ6X7HVBE7X7MA",
+    "secret_key": "7yGIZON7EhFORz0I40BFniML36D2rl8CQQ5kXU6l"
+}
+```
 
-## Environment Variables
+## Consume the Object Storage
 
-If your s3 client uses environment variables, the client can print them for you
+Use an S3 compatible client to create a bucket in the object store. 
+
+This section will allow you to test connecting to the object store and uploading and downloading from it. The `s3cmd` tool is included in the [Rook toolbox](toolbox.md) pod to simplify your testing. Run the following commands after you have connected to the toolbox.
+
+### Connection Environment Variables
+
+To simplify the s3 client commands, you will want to set the four environment variables for use by your client (ie. inside the toolbox):
 ```bash
-rookctl object connection my-store rook-user --format env-var
+export AWS_HOST=<host>
+export AWS_ENDPOINT=<endpoint>
+export AWS_ACCESS_KEY_ID=<accessKey>
+export AWS_SECRET_ACCESS_KEY=<secretKey>
 ```
 
-See the [Object Storage](client.md#object-storage) documentation for more steps on consuming the object storage.
+- `Host`: The DNS host name where the rgw service is found in the cluster. Assuming you are using the default `rook` cluster, it will be `rook-ceph-rgw-my-store.rook`.
+- `Endpoint`: The endpoint where the rgw service is listening. Run `kubectl -n rook get svc rook-ceph-rgw-my-store`, then combine the clusterIP and the port.
+- `Access key`: The user's `access_key` as printed above
+- `Secret key`: The user's `secret_key` as printed above
+
+The variables for the user generated in this example would be:
+```bash
+export AWS_HOST=rook-ceph-rgw-my-store.rook
+export AWS_ENDPOINT=10.104.35.31:80
+export AWS_ACCESS_KEY_ID=XEZDB3UJ6X7HVBE7X7MA
+export AWS_SECRET_ACCESS_KEY=7yGIZON7EhFORz0I40BFniML36D2rl8CQQ5kXU6l
+```
+
+### Create a bucket
+
+Now that the user connection variables were set above, we can proceed to perform operations such as creating buckets.
+
+Create a bucket in the object store
+
+   ```bash
+   s3cmd mb --no-ssl --host=${AWS_HOST} --host-bucket=  s3://rookbucket
+   ```
+
+List buckets in the object store
+
+   ```bash
+   s3cmd ls --no-ssl --host=${AWS_HOST}
+   ```
+
+### PUT or GET an object
+
+Upload a file to the newly created bucket
+
+   ```bash
+   echo "Hello Rook!" > /tmp/rookObj
+   s3cmd put /tmp/rookObj --no-ssl --host=${AWS_HOST} --host-bucket=  s3://rookbucket
+   ```
+
+Download and verify the file from the bucket
+
+   ```bash
+   s3cmd get s3://rookbucket/rookObj /tmp/rookObj-download --no-ssl --host=${AWS_HOST} --host-bucket=
+   cat /tmp/rookObj-download
+   ```
 
 ## Access External to the Cluster
 

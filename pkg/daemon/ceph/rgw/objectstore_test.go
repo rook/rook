@@ -20,7 +20,6 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/model"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
@@ -52,9 +51,9 @@ func TestCreateRealm(t *testing.T) {
 		},
 	}
 
-	store := model.ObjectStore{Name: "myobject", Gateway: model.Gateway{Port: 123}}
+	storeName := "myobject"
 	context := &clusterd.Context{Executor: executor}
-	objContext := NewContext(context, store.Name, "mycluster")
+	objContext := NewContext(context, storeName, "mycluster")
 	// create the first realm, marked as default
 	err := createRealm(objContext, "1.2.3.4", 80)
 	assert.Nil(t, err)

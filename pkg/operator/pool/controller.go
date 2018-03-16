@@ -26,7 +26,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/daemon/ceph/model"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/client-go/tools/cache"
 )

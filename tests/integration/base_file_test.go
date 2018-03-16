@@ -36,12 +36,11 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	defer fileTestDataCleanUp(helper, k8sh, s, filePodName, namespace, filesystemName, fileMountPath)
 	logger.Infof("Running on Rook Cluster %s", namespace)
 	logger.Infof("File Storage End To End Integration Test - create, mount, write to, read from, and unmount")
-	rfc := helper.GetFileSystemClient()
 
 	logger.Infof("Step 1: Create file System")
-	fscErr := rfc.FSCreate(filesystemName, namespace, false, k8sh)
+	fscErr := helper.FSClient.Create(filesystemName, namespace)
 	require.Nil(s.T(), fscErr)
-	filesystemList, _ := rfc.FSList()
+	filesystemList, _ := helper.FSClient.List(namespace)
 	require.Equal(s.T(), 1, len(filesystemList), "There should one shared file system present")
 	filesystemData := filesystemList[0]
 	require.Equal(s.T(), filesystemName, filesystemData.Name, "make sure filesystem name matches")
@@ -54,12 +53,12 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	logger.Infof("File system mounted successfully")
 
 	logger.Infof("Step 3: Write to file system")
-	_, wfsErr := rfc.FSWrite(filePodName, fileMountPath, "Smoke Test Data for file system storage", "fsFile1", namespace)
+	_, wfsErr := helper.FSClient.Write(filePodName, fileMountPath, "Smoke Test Data for file system storage", "fsFile1", namespace)
 	require.Nil(s.T(), wfsErr)
 	logger.Infof("Write to file system successful")
 
 	logger.Infof("Step 4: Read from file system")
-	read, rdErr := rfc.FSRead(filePodName, fileMountPath, "fsFile1", namespace)
+	read, rdErr := helper.FSClient.Read(filePodName, fileMountPath, "fsFile1", namespace)
 	require.Nil(s.T(), rdErr)
 	require.Contains(s.T(), read, "Smoke Test Data for file system storage", "make sure content of the files is unchanged")
 	logger.Infof("Read from file system successful")
@@ -71,7 +70,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	logger.Infof("File system mounted successfully")
 
 	logger.Infof("Step 6: Deleting file storage")
-	rfc.FSDelete(filesystemName)
+	helper.FSClient.Delete(filesystemName, namespace)
 	//Delete is not deleting filesystem - known issue
 	//require.Nil(suite.T(), fsd_err)
 	logger.Infof("File system deleted")
@@ -81,12 +80,11 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
 	logger.Infof("File Storage End to End Integration Test - create Filesystem and make sure mds pod is running")
 	logger.Infof("Running on Rook Cluster %s", namespace)
-	fc := helper.GetFileSystemClient()
 
 	logger.Infof("Step 1: Create file System")
-	fscErr := fc.FSCreate(filesystemName, namespace, true, k8sh)
+	fscErr := helper.FSClient.Create(filesystemName, namespace)
 	require.Nil(s.T(), fscErr)
-	filesystemList, _ := fc.FSList()
+	filesystemList, _ := helper.FSClient.List(namespace)
 	logger.Infof("Retrieved file systems: %+v", filesystemList)
 	require.Equal(s.T(), 1, len(filesystemList), "There should one shared file system present")
 }
@@ -94,7 +92,7 @@ func runFileE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s sui
 func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, podname string, namespace string, filesystemName string, fileMountPath string) {
 	logger.Infof("Cleaning up file system")
 	podWithFilesystem(k8sh, s, podname, namespace, filesystemName, fileMountPath, "delete")
-	helper.GetFileSystemClient().FSDelete(filesystemName)
+	helper.FSClient.Delete(filesystemName, namespace)
 }
 
 func podWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, podname string, namespace string, filesystemName string, fileMountPath string, action string) error {

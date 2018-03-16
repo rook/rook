@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -12,27 +12,14 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
-Some of the code below came from https://github.com/digitalocean/ceph_exporter
-which has the same license.
 */
 package client
 
 import (
 	"encoding/json"
 	"fmt"
-	"path"
-	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
-)
-
-const (
-	AdminUsername     = "client.admin"
-	CephTool          = "ceph"
-	RBDTool           = "rbd"
-	CrushTool         = "crushtool"
-	cmdExecuteTimeout = 1 * time.Minute
 )
 
 // represents the response from a mon_status mon_command (subset of all available fields, only
@@ -60,69 +47,6 @@ type MonMapEntry struct {
 	Name    string `json:"name"`
 	Rank    int    `json:"rank"`
 	Address string `json:"addr"`
-}
-
-func AppendAdminConnectionArgs(args []string, configDir, clusterName string) []string {
-	if clusterName == "ceph" && configDir == "/etc" {
-		// no need to append the args if it's the default ceph cluster
-		return args
-	}
-	confFile := fmt.Sprintf("%s.config", clusterName)
-	keyringFile := fmt.Sprintf("%s.keyring", AdminUsername)
-	configArgs := []string{
-		fmt.Sprintf("--cluster=%s", clusterName),
-		fmt.Sprintf("--conf=%s", path.Join(configDir, clusterName, confFile)),
-		fmt.Sprintf("--keyring=%s", path.Join(configDir, clusterName, keyringFile)),
-	}
-	return append(args, configArgs...)
-}
-
-func ExecuteCephCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
-	return executeCephCommandWithOutputFile(context, clusterName, false, args)
-}
-
-func ExecuteCephCommandPlain(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
-	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
-	args = append(args, "--format", "plain")
-	return executeCommandWithOutputFile(context, false, CephTool, args)
-}
-
-func ExecuteCephCommandPlainNoOutputFile(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
-	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
-	args = append(args, "--format", "plain")
-	return executeCommand(context, CephTool, args)
-}
-
-func executeCephCommandWithOutputFile(context *clusterd.Context, clusterName string, debug bool, args []string) ([]byte, error) {
-	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
-	args = append(args, "--format", "json")
-	return executeCommandWithOutputFile(context, debug, CephTool, args)
-}
-
-func ExecuteRBDCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
-	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
-	args = append(args, "--format", "json")
-	return executeCommand(context, RBDTool, args)
-}
-
-func ExecuteRBDCommandNoFormat(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
-	args = AppendAdminConnectionArgs(args, context.ConfigDir, clusterName)
-	return executeCommand(context, RBDTool, args)
-}
-
-func ExecuteRBDCommandWithTimeout(context *clusterd.Context, clusterName string, args []string) (string, error) {
-	output, err := context.Executor.ExecuteCommandWithTimeout(false, cmdExecuteTimeout, "", RBDTool, args...)
-	return output, err
-}
-
-func executeCommand(context *clusterd.Context, tool string, args []string) ([]byte, error) {
-	output, err := context.Executor.ExecuteCommandWithOutput(false, "", tool, args...)
-	return []byte(output), err
-}
-
-func executeCommandWithOutputFile(context *clusterd.Context, debug bool, tool string, args []string) ([]byte, error) {
-	output, err := context.Executor.ExecuteCommandWithOutputFile(debug, "", tool, "--out-file", args...)
-	return []byte(output), err
 }
 
 // GetMonStatus calls mon_status mon_command

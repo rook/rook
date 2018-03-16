@@ -29,7 +29,6 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
-	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/agent"
 	"github.com/rook/rook/pkg/operator/cluster"
 	"github.com/rook/rook/pkg/operator/cluster/ceph/mon"
@@ -55,6 +54,12 @@ type Controller struct {
 	context          *clusterd.Context
 	volumeManager    VolumeManager
 	volumeAttachment attachment.Attachment
+}
+
+type ClientAccessInfo struct {
+	MonAddresses []string `json:"monAddresses"`
+	UserName     string   `json:"userName"`
+	SecretKey    string   `json:"secretKey"`
 }
 
 func NewController(context *clusterd.Context, volumeAttachment attachment.Attachment, manager VolumeManager) *Controller {
@@ -319,7 +324,7 @@ func (c *Controller) GetGlobalMountPath(volumeName string, globalMountPath *stri
 }
 
 // GetClientAccessInfo obtains the cluster monitor endpoints, username and secret
-func (c *Controller) GetClientAccessInfo(clusterName string, clientAccessInfo *model.ClientAccessInfo) error {
+func (c *Controller) GetClientAccessInfo(clusterName string, clientAccessInfo *ClientAccessInfo) error {
 	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, clusterName)
 	if err != nil {
 		return fmt.Errorf("failed to load cluster information from cluster %s: %+v", clusterName, err)

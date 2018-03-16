@@ -80,7 +80,8 @@ kubectl -n rook exec -it rook-tools bash
 
 All available tools in the toolbox are ready for your troubleshooting needs.  Example:
 ```bash
-rookctl status
+ceph status
+ceph osd status
 ceph df
 rados df
 ```

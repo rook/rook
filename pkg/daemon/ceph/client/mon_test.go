@@ -12,13 +12,11 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
-Some of the code below came from https://github.com/digitalocean/ceph_exporter
-which has the same license.
 */
 package client
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -27,24 +25,41 @@ import (
 func TestCephArgs(t *testing.T) {
 	// cluster a under /etc
 	args := []string{}
-	result := AppendAdminConnectionArgs(args, "/etc", "a")
-	assert.Equal(t, 3, len(result))
-	assert.Equal(t, "--cluster=a", result[0])
-	assert.Equal(t, "--conf=/etc/a/a.config", result[1])
-	assert.Equal(t, "--keyring=/etc/a/client.admin.keyring", result[2])
+	command, args := FinalizeCephCommandArgs(CephTool, args, "/etc", "a")
+	assert.Equal(t, CephTool, command)
+	assert.Equal(t, 3, len(args))
+	assert.Equal(t, "--cluster=a", args[0])
+	assert.Equal(t, "--conf=/etc/a/a.config", args[1])
+	assert.Equal(t, "--keyring=/etc/a/client.admin.keyring", args[2])
+
+	RunAllCephCommandsInToolbox = true
+	args = []string{}
+	command, args = FinalizeCephCommandArgs(CephTool, args, "/etc", "a")
+	assert.Equal(t, Kubectl, command)
+	assert.Equal(t, 7, len(args), fmt.Sprintf("%+v", args))
+	assert.Equal(t, "-it", args[0])
+	assert.Equal(t, "exec", args[1])
+	assert.Equal(t, "rook-tools", args[2])
+	assert.Equal(t, "-n", args[3])
+	assert.Equal(t, "a", args[4])
+	assert.Equal(t, "--", args[5])
+	assert.Equal(t, CephTool, args[6])
+	RunAllCephCommandsInToolbox = false
 
 	// cluster under /var/lib/rook
 	args = []string{"myarg"}
-	result = AppendAdminConnectionArgs(args, "/var/lib/rook", "rook")
-	assert.Equal(t, 4, len(result))
-	assert.Equal(t, "myarg", result[0])
-	assert.Equal(t, "--cluster=rook", result[1])
-	assert.Equal(t, "--conf=/var/lib/rook/rook/rook.config", result[2])
-	assert.Equal(t, "--keyring=/var/lib/rook/rook/client.admin.keyring", result[3])
+	command, args = FinalizeCephCommandArgs(RBDTool, args, "/var/lib/rook", "rook")
+	assert.Equal(t, RBDTool, command)
+	assert.Equal(t, 4, len(args))
+	assert.Equal(t, "myarg", args[0])
+	assert.Equal(t, "--cluster=rook", args[1])
+	assert.Equal(t, "--conf=/var/lib/rook/rook/rook.config", args[2])
+	assert.Equal(t, "--keyring=/var/lib/rook/rook/client.admin.keyring", args[3])
 
 	// the default ceph cluster will not need the config args
 	args = []string{"myarg"}
-	result = AppendAdminConnectionArgs(args, "/etc", "ceph")
-	assert.Equal(t, 1, len(result))
-	assert.Equal(t, "myarg", result[0])
+	command, args = FinalizeCephCommandArgs(CephTool, args, "/etc", "ceph")
+	assert.Equal(t, CephTool, command)
+	assert.Equal(t, 1, len(args))
+	assert.Equal(t, "myarg", args[0])
 }
