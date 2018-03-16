@@ -152,18 +152,6 @@
   version = "v0.1.0"
 
 [[projects]]
-  name = "github.com/gorilla/context"
-  packages = ["."]
-  revision = "1ea25387ff6f684839d82767c1733ff4d4d15d0a"
-  version = "v1.1"
-
-[[projects]]
-  name = "github.com/gorilla/mux"
-  packages = ["."]
-  revision = "7f08801859139f86dfafd1c296e2cba9a80d292e"
-  version = "v1.6.0"
-
-[[projects]]
   branch = "master"
   name = "github.com/gregjones/httpcache"
   packages = [".","diskcache"]
@@ -248,7 +236,7 @@
 
 [[projects]]
   name = "github.com/prometheus/client_golang"
-  packages = ["prometheus","prometheus/promhttp"]
+  packages = ["prometheus"]
   revision = "c5b7fccd204277076155f10851dad72b76a49317"
   version = "v0.8.0"
 
@@ -387,6 +375,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8cdf401487ba3a25dd7005c5e15521d72a29a67ea044a1ef203d7f51b4b84c60"
+  inputs-digest = "feee191d0b91e9635d6a51b6c40190be741b9c2c822c7a524b3ce3a8480203a6"
   solver-name = "gps-cdcl"
   solver-version = 1
