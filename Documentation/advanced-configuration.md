@@ -288,7 +288,7 @@ So for example let's change the `size` of the `rbd` pool to three:
 ceph osd pool set rbd size 3
 ```
 
-Now if you run `ceph -s` or `rookctl status` you may see "recovery" operations and
+Now if you run `ceph -s` you may see "recovery" operations and
 PGs in "undersized" and other "unclean" states.  The cluster is essentially
 fixing itself since the number of replicas has been increased, and should go
 back to "active/clean" state shortly, after data has been replicated between

@@ -37,11 +37,6 @@ spec:
 #      tolerations:
 #      - key: storage-node
 #        operator: Exists
-#    api:
-#      nodeAffinity:
-#      podAffinity:
-#      podAntiAffinity:
-#      tolerations:
 #    mgr:
 #      nodeAffinity:
 #      podAffinity:
@@ -56,16 +51,15 @@ spec:
 #      podAntiAffinity:
 #      tolerations:
   resources:
-#    api:
-# The requests and limits set here, allow the api Pod to use half of one CPU core and 1 gigabyte of memory
+# The requests and limits set here, allow the mgr pod to use half of one CPU core and 1 gigabyte of memory
+#    mgr:
 #      limits:
 #        cpu: "500m"
 #        memory: "1024Mi"
 #      requests:
 #        cpu: "500m"
 #        memory: "1024Mi"
-# the above example requests/limits can also be added to the other components too
-#    mgr:
+# The above example requests/limits can also be added to the mon and osd components
 #    mon:
 #    osd:
   storage: # cluster level storage configuration and selection

@@ -42,7 +42,7 @@ Create the storage class.
 kubectl create -f rook-storageclass.yaml
 ```
 
-## Consume the storage
+## Consume the storage: Wordpress sample
 
 We create a sample app to consume the block storage provisioned by Rook with the classic wordpress and mysql apps.
 Both of these apps will make use of block volumes provisioned by Rook.
@@ -74,6 +74,10 @@ wordpress   10.3.0.155   <pending>     80:30841/TCP   2m
 You should see the wordpress app running.
 
 **NOTE:** When running in a vagrant environment, there will be no external IP address to reach wordpress with.  You will only be able to reach wordpress via the `CLUSTER-IP` from inside the Kubernetes cluster.
+
+## Consume the storage: Toolbox
+
+With the pool that was created above, we can also create a block image and mount it directly in a pod. See the [Direct Block Tools](direct-tools.md#block-storage-tools) topic for more details.
 
 ## Teardown
 

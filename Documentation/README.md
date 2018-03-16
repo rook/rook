@@ -41,11 +41,10 @@ The Rook operator also creates the Rook agents. These agents are pods deployed o
 
 ![Rook Components on Kubernetes](media/kubernetes.png)
 
-The Rook daemons (Mons, OSDs, MGR, RGW, and MDS) are compiled to a single binary `rook`, and included in a minimal container.
-The `rook` container includes Ceph daemons and tools to manage and store all data -- there are no changes to the data path.
+The `rook` container includes all necessary Ceph daemons and tools to manage and store all data -- there are no changes to the data path.
 Rook does not attempt to maintain full fidelity with Ceph. Many of the Ceph concepts like placement groups and crush maps
 are hidden so you don't have to worry about them. Instead Rook creates a much simplified UX for admins that is in terms
-of physical resources, pools, volumes, filesystems, and buckets.
+of physical resources, pools, volumes, filesystems, and buckets. At the same time, advanced configuration can be applied when needed with the Ceph tools.
 
 Rook is implemented in golang. Ceph is implemented in C++ where the data path is highly optimized. We believe
 this combination offers the best of both worlds.

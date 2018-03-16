@@ -61,10 +61,7 @@ Once the operator and all agent pods are running and healthy on the new version,
 As each step in this sequence begins/ends, the status field of the cluster CRD will be updated to indicate the progress (current step) of the upgrade process.
 This will help the upgrade controller resume the upgrade if it were to be interrupted.
 Also, each step should be idempotent so that if the step has already been carried out, there will be no unintended side effects if the step is resumed or run again.
-1. **API:** The API pod will be upgraded first by updating the `image` field of the pod template spec.
-The deployment managing the API pod will then terminate the old pod and then start a pod on the new version to replace it.
-    1. The controller will verify that the new API pod is in the `Running` state with the new version and that basic routes are accessible such as `/status`.
-1. **Mons:** The monitor pods will be upgraded in a rolling fashion next.  **For each** monitor, the following actions will be performed by the upgrade controller:
+1. **Mons:** The monitor pods will be upgraded in a rolling fashion.  **For each** monitor, the following actions will be performed by the upgrade controller:
     1. The `image` field of the pod template spec will be updated to the new version number.
     Then the pod will be terminated, allowing the replica set that is managing it to bring up a new pod on the new version to replace it.
     1.  The controller will verify that the new pod is on the new version, in the `Running` state, and that the monitor returns to `in quorum` and has a Ceph status of `OK`.
@@ -107,12 +104,12 @@ To roll a component back to the previous version, the controller will simply set
 The hope is that cluster health and stability will be restored once it has been rolled back to the previous version, but it is possible that simply rolling back the version may not solve all cases of cluster instability that begin during an upgrade process.
 We will need more hands on experience with cluster upgrades in order to improve both upgrade reliability and rollback effectiveness.
 
-### `rookctl`
-We should consider implementing a few new commands in `rookctl` that will help the user monitor and verify the upgrade progress and status.
+### **Upgrade Tools**
+We should consider implementing status commands that will help the user monitor and verify the upgrade progress and status.
 Some examples for potential new commands would be:
-* `rookctl versions`: This command would return the version of all Rook components in the cluster, so they can see at a glance which components have finished upgrading.
-This is similar to the new [`ceph versions` command](http://ceph.com/community/new-luminous-upgrade-complete/).
-* `rookctl status --upgrade`:  This command would return a summary, retrieved from the upgrade controller, of the most recent completed steps and status of the upgrade that it is currently working on.
+* `rook versions`: This command would return the version of all Rook components in the cluster, so they can see at a glance which components have finished upgrading.
+This is similar to the [`ceph versions` command](http://ceph.com/community/new-luminous-upgrade-complete/).
+* `rook status --upgrade`:  This command would return a summary, retrieved from the upgrade controller, of the most recent completed steps and status of the upgrade that it is currently working on.
 
 ### **Migrations and Breaking Changes**
 When a breaking change or a data format change occurs, the upgrade controller will have the ability to automatically perform the necessary migration steps during the upgrade process.
@@ -163,7 +160,7 @@ Listed below are a few techniques for accessing debugging artifacts from pods th
   * All health check status and output it encountered
 
 ## **Next Steps**
-A theme of the `0.6` milestone is that "Rook is upgradeable", which we have demonstrated with the manual process outlined in the [Rook Upgrade User Guide](../Documentation/upgrade.md).
+We have demonstrated that Rook is upgradable with the manual process outlined in the [Rook Upgrade User Guide](../Documentation/upgrade.md).
 Fully automated upgrade support has been described within this design proposal, but will likely need to be implemented in an iterative process, with lessons learned along the way from pre-production field experience.
 
 The next step will be to implement the happy path where the upgrade controller automatically updates all Rook components in the [described sequence](#general-sequence) and stops immediately if any health checks fail and the cluster does not return to a healthy functional state.
