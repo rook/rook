@@ -7,6 +7,9 @@ metadata:
     chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
 spec:
   replicas: 1
+  selector:
+    matchLabels:
+      app: rook-operator
   template:
     metadata:
       labels:
