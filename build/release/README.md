@@ -54,10 +54,6 @@ Binaries go to an S3 bucket `rook-release` (and https://release.rook.io) and hav
          /v0.3.0-2-g787822d
              (binaries)
          /v0.3.0-2-g770ebbc
-               darwin_amd64/rookctl
-               linux_amd64/rookctl
-               linux_arm64/rookctl
-               windows_amd64/rookctl
                version
          /current
              (binaries)
