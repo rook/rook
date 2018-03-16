@@ -26,7 +26,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephmds "github.com/rook/rook/pkg/daemon/ceph/mds"
-	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/daemon/ceph/model"
 	opmon "github.com/rook/rook/pkg/operator/cluster/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/pool"
@@ -41,23 +41,6 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mds")
 const (
 	appName = "rook-ceph-mds"
 )
-
-func CreateFileSystem(context *clusterd.Context, clusterName string, f *model.FilesystemRequest, version string, hostNetwork bool) error {
-	fs := &rookalpha.Filesystem{
-		ObjectMeta: metav1.ObjectMeta{Name: f.Name, Namespace: clusterName},
-		Spec: rookalpha.FilesystemSpec{
-			MetadataPool: pool.ModelToSpec(f.MetadataPool),
-			MetadataServer: rookalpha.MetadataServerSpec{
-				ActiveCount: f.MetadataServer.ActiveCount,
-			},
-		},
-	}
-	for _, p := range f.DataPools {
-		fs.Spec.DataPools = append(fs.Spec.DataPools, pool.ModelToSpec(p))
-	}
-
-	return CreateFilesystem(context, *fs, version, hostNetwork, []metav1.OwnerReference{})
-}
 
 // Create the file system
 func CreateFilesystem(context *clusterd.Context, fs rookalpha.Filesystem, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {

@@ -25,7 +25,7 @@ import (
 	"strings"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/daemon/ceph/model"
 )
 
 const (

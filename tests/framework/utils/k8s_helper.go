@@ -31,6 +31,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/require"
@@ -94,6 +95,10 @@ func (k8sh *K8sHelper) GetK8sServerVersion() string {
 func (k8sh *K8sHelper) VersionAtLeast(minVersion string) bool {
 	v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
 	return v.AtLeast(version.MustParseSemantic(minVersion))
+}
+
+func (k8sh *K8sHelper) MakeContext() *clusterd.Context {
+	return &clusterd.Context{Clientset: k8sh.Clientset, RookClientset: k8sh.RookClientset, Executor: k8sh.executor}
 }
 
 //Kubectl is wrapper for executing kubectl commands

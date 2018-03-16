@@ -41,7 +41,7 @@ var (
 // - Create a pool in each cluster
 // - Mount/unmount a block device through the dynamic provisioner
 // File system
-// - Create a file system via the REST API
+// - Create a file system via the CRD
 // Object
 // - Create the object store via the CRD
 // ***************************************************

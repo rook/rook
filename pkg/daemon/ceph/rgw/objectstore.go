@@ -21,7 +21,7 @@ import (
 	"strings"
 
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/daemon/ceph/model"
 )
 
 const (

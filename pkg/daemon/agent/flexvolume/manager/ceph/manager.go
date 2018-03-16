@@ -27,7 +27,6 @@ import (
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephmon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/daemon/ceph/util"
-	"github.com/rook/rook/pkg/model"
 	"github.com/rook/rook/pkg/operator/cluster/ceph/mon"
 	"github.com/rook/rook/pkg/util/sys"
 )
@@ -42,10 +41,15 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-volumeattac
 // VolumeManager represents an object for perform volume attachment requests for Ceph volumes
 type VolumeManager struct {
 	context          *clusterd.Context
-	devicePathFinder model.DevicePathFinder
+	devicePathFinder pathFinder
 }
 
 type devicePathFinder struct{}
+
+// DevicePathFinder is used to find the device path after the volume has been attached
+type pathFinder interface {
+	FindDevicePath(image, pool, clusterName string) (string, error)
+}
 
 // NewVolumeManager create attacher for ceph volumes
 func NewVolumeManager(context *clusterd.Context) *VolumeManager {

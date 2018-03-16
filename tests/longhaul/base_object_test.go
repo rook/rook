@@ -27,32 +27,31 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
-
 }
 
 func createObjectStoreAndUser(t func() *testing.T, kh *utils.K8sHelper, tc *clients.TestClient, namespace string, storeName string, userId string, userName string) *utils.S3Helper {
 	if !isObjectStorePresent(kh, namespace, storeName) {
-		tc.GetObjectClient().ObjectCreate(namespace, storeName, 3, false, kh)
+		tc.ObjectClient.Create(namespace, storeName, 3)
 	}
 
-	ou, err := tc.GetObjectClient().ObjectGetUser(storeName, userId)
+	/*ou, err := tc.ObjectClient.ObjectGetUser(storeName, userId)
 	if err != nil || *ou.DisplayName != userName {
-		tc.GetObjectClient().ObjectCreateUser(storeName, userId, userName)
+		tc.ObjectClient.CreateUser(storeName, userId, userName)
 	}
 
-	conninfo, conninfoError := tc.GetObjectClient().ObjectGetUser(storeName, userId)
+	conninfo, conninfoError := tc.ObjectClient.ObjectGetUser(storeName, userId)
 	require.Nil(t(), conninfoError)
 	s3endpoint, _ := kh.GetRGWServiceURL(storeName, namespace)
 	s3client := utils.CreateNewS3Helper(s3endpoint, *conninfo.AccessKey, *conninfo.SecretKey)
 
-	return s3client
-
+	return s3client*/
+	// TODO: Implement object user crd
+	return nil
 }
 
 func isObjectStorePresent(kh *utils.K8sHelper, namespace string, storeName string) bool {

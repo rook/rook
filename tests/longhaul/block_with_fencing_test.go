@@ -21,13 +21,14 @@ import (
 	"sync"
 	"testing"
 
+	"time"
+
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"time"
 )
 
 // Rook Block Storage fencing longhaul test
@@ -46,7 +47,6 @@ type BlockLongHaulSuiteWithFencing struct {
 	kh         *utils.K8sHelper
 	installer  *installer.InstallHelper
 	testClient *clients.TestClient
-	bc         contracts.BlockOperator
 	namespace  string
 	op         contracts.Setup
 }
@@ -61,14 +61,13 @@ func (s *BlockLongHaulSuiteWithFencing) SetupSuite() {
 	createStorageClassAndPool(s.T, s.kh, s.namespace, "rook-block", "rook-pool")
 	s.testClient, err = clients.CreateTestClient(s.kh, s.namespace)
 	require.Nil(s.T(), err)
-	s.bc = s.testClient.GetBlockClient()
 	if _, err := s.kh.GetPVCStatus(defaultNamespace, "block-pv-one"); err != nil {
 		logger.Infof("Creating PVC and mounting it to pod with readOnly set to false")
 		installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef("block-pv-one", "rook-block", "ReadWriteOnce"), "create")
 		mountUnmountPVCOnPod(s.kh, "block-rw", "block-pv-one", "false", "create")
 		require.True(s.T(), s.kh.IsPodRunning("block-rw", defaultNamespace))
 
-		s.bc.BlockWrite("block-rw", "/tmp/rook1", "this is long running test", "longhaul", defaultNamespace)
+		s.testClient.BlockClient.Write("block-rw", "/tmp/rook1", "this is long running test", "longhaul", defaultNamespace)
 		mountUnmountPVCOnPod(s.kh, "block-rw", "block-pv-one", "false", "delete")
 		require.True(s.T(), s.kh.IsPodTerminated("block-rw", defaultNamespace))
 		time.Sleep(5 * time.Second)
@@ -91,7 +90,7 @@ func blockVolumeFencingOperations(s *BlockLongHaulSuiteWithFencing, wg *sync.Wai
 	defer wg.Done()
 	mountUnmountPVCOnPod(s.kh, podName, pvcName, "true", "create")
 	require.True(s.T(), s.kh.IsPodRunning(podName, defaultNamespace))
-	read, rErr := s.bc.BlockRead(podName, "/tmp/rook1", "longhaul", "default")
+	read, rErr := s.testClient.BlockClient.Read(podName, "/tmp/rook1", "longhaul", "default")
 	require.Nil(s.T(), rErr)
 	require.Contains(s.T(), read, "this is long running test")
 	mountUnmountPVCOnPod(s.kh, podName, pvcName, "true", "delete")
@@ -101,6 +100,5 @@ func blockVolumeFencingOperations(s *BlockLongHaulSuiteWithFencing, wg *sync.Wai
 func (s *BlockLongHaulSuiteWithFencing) TearDownSuite() {
 	s.kh = nil
 	s.testClient = nil
-	s.bc = nil
 	s = nil
 }

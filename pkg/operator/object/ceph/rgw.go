@@ -26,7 +26,6 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephrgw "github.com/rook/rook/pkg/daemon/ceph/rgw"
-	"github.com/rook/rook/pkg/model"
 	opmon "github.com/rook/rook/pkg/operator/cluster/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/pool"
@@ -257,23 +256,6 @@ func instanceName(store rookalpha.ObjectStore) string {
 
 func InstanceName(name string) string {
 	return fmt.Sprintf("%s-%s", appName, name)
-}
-
-func ModelToSpec(store model.ObjectStore, namespace string) *rookalpha.ObjectStore {
-	return &rookalpha.ObjectStore{
-		ObjectMeta: metav1.ObjectMeta{Name: store.Name, Namespace: namespace},
-		Spec: rookalpha.ObjectStoreSpec{
-			MetadataPool: pool.ModelToSpec(store.MetadataConfig),
-			DataPool:     pool.ModelToSpec(store.DataConfig),
-			Gateway: rookalpha.GatewaySpec{
-				Port:              store.Gateway.Port,
-				SecurePort:        store.Gateway.SecurePort,
-				Instances:         store.Gateway.Instances,
-				AllNodes:          store.Gateway.AllNodes,
-				SSLCertificateRef: store.Gateway.CertificateRef,
-			},
-		},
-	}
 }
 
 func makeRGWPodSpec(store rookalpha.ObjectStore, version string, hostNetwork bool) v1.PodTemplateSpec {

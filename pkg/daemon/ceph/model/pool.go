@@ -12,16 +12,19 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
+
+Some of the code below came from https://github.com/digitalocean/ceph_exporter
+which has the same license.
 */
 package model
-
-type PoolType int
 
 const (
 	Replicated PoolType = iota
 	ErasureCoded
 	PoolTypeUnknown
 )
+
+type PoolType int
 
 type ReplicatedPoolConfig struct {
 	Size uint `json:"size"`
@@ -41,15 +44,4 @@ type Pool struct {
 	CrushRoot          string                 `json:"crushRoot"`
 	ReplicatedConfig   ReplicatedPoolConfig   `json:"replicatedConfig"`
 	ErasureCodedConfig ErasureCodedPoolConfig `json:"erasureCodedConfig"`
-}
-
-func PoolTypeToString(poolType PoolType) string {
-	switch poolType {
-	case Replicated:
-		return "replicated"
-	case ErasureCoded:
-		return "erasure coded"
-	default:
-		return "unknown"
-	}
 }

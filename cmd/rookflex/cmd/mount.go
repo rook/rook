@@ -25,7 +25,6 @@ import (
 	"strings"
 
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume"
-	"github.com/rook/rook/pkg/model"
 	"github.com/spf13/cobra"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/version"
@@ -201,7 +200,7 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 	}
 
 	// Get client access info
-	var clientAccessInfo model.ClientAccessInfo
+	var clientAccessInfo flexvolume.ClientAccessInfo
 	err := client.Call("Controller.GetClientAccessInfo", opts.ClusterName, &clientAccessInfo)
 	if err != nil {
 		errorMsg := fmt.Sprintf("Attach filesystem %s on cluster %s failed: %v", opts.FsName, opts.ClusterName, err)

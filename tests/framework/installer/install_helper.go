@@ -28,6 +28,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
 	"github.com/rook/rook/tests/framework/objects"
@@ -414,6 +415,9 @@ func (h *InstallHelper) GatherAllRookLogs(nameSpace string, testName string) {
 
 //NewK8sRookhelper creates new instance of InstallHelper
 func NewK8sRookhelper(clientset *kubernetes.Clientset, t func() *testing.T) *InstallHelper {
+
+	// All e2e tests should run ceph commands in the toolbox since we are not inside a container
+	client.RunAllCephCommandsInToolbox = true
 
 	version, err := clientset.ServerVersion()
 	if err != nil {

@@ -23,7 +23,6 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/model"
 )
 
 const (
@@ -138,29 +137,6 @@ func Status(context *clusterd.Context, clusterName string) (CephStatus, error) {
 	}
 
 	return status, nil
-}
-
-func StatusPlain(context *clusterd.Context, clusterName string) ([]byte, error) {
-	args := []string{"status"}
-	buf, err := ExecuteCephCommandPlain(context, clusterName, args)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get status: %+v", err)
-	}
-
-	return buf, nil
-}
-
-func HealthToModelHealthStatus(cephHealth string) model.HealthStatus {
-	switch cephHealth {
-	case CephHealthOK:
-		return model.HealthOK
-	case CephHealthWarn:
-		return model.HealthWarning
-	case CephHealthErr:
-		return model.HealthError
-	default:
-		return model.HealthUnknown
-	}
 }
 
 // IsClusterClean returns a value indicating if the cluster is fully clean yet (i.e., all placement
