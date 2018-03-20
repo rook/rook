@@ -654,10 +654,12 @@ func isBluestore(config *osdConfig) bool {
 }
 
 func isBluestoreDevice(cfg *osdConfig) bool {
-	return !cfg.dir && cfg.partitionScheme != nil && cfg.partitionScheme.StoreType == config.Bluestore
+	// A device will use bluestore unless explicitly requested to be filestore (the default is blank)
+	return !cfg.dir && cfg.partitionScheme != nil && cfg.partitionScheme.StoreType != config.Filestore
 }
 
 func isBluestoreDir(cfg *osdConfig) bool {
+	// A dir will use filestore unless explicitly requested to be bluestore
 	return cfg.dir && cfg.storeConfig.StoreType == config.Bluestore
 }
 
@@ -666,9 +668,11 @@ func isFilestore(cfg *osdConfig) bool {
 }
 
 func isFilestoreDevice(cfg *osdConfig) bool {
+	// A device will use bluestore unless explicitly requested to be filestore (the default is blank)
 	return !cfg.dir && cfg.partitionScheme != nil && cfg.partitionScheme.StoreType == config.Filestore
 }
 
 func isFilestoreDir(cfg *osdConfig) bool {
-	return cfg.dir && cfg.storeConfig.StoreType == config.Filestore
+	// A dir will use filestore unless explicitly requested to be bluestore (the default is blank)
+	return cfg.dir && cfg.storeConfig.StoreType != config.Bluestore
 }

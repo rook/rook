@@ -39,6 +39,44 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+func TestStoreTypeDefaults(t *testing.T) {
+	// A filestore dir
+	cfg := &osdConfig{dir: true, storeConfig: rookalpha.StoreConfig{StoreType: ""}}
+	assert.True(t, isFilestore(cfg))
+	assert.False(t, isFilestoreDevice(cfg))
+	assert.True(t, isFilestoreDir(cfg))
+	assert.False(t, isBluestore(cfg))
+	assert.False(t, isBluestoreDevice(cfg))
+	assert.False(t, isBluestoreDir(cfg))
+
+	// A bluestore dir
+	cfg = &osdConfig{dir: true, storeConfig: rookalpha.StoreConfig{StoreType: "bluestore"}}
+	assert.False(t, isFilestore(cfg))
+	assert.False(t, isFilestoreDevice(cfg))
+	assert.False(t, isFilestoreDir(cfg))
+	assert.True(t, isBluestore(cfg))
+	assert.False(t, isBluestoreDevice(cfg))
+	assert.True(t, isBluestoreDir(cfg))
+
+	// a bluestore device
+	cfg = &osdConfig{dir: false, partitionScheme: &config.PerfSchemeEntry{StoreType: ""}}
+	assert.False(t, isFilestore(cfg))
+	assert.False(t, isFilestoreDevice(cfg))
+	assert.False(t, isFilestoreDir(cfg))
+	assert.True(t, isBluestore(cfg))
+	assert.True(t, isBluestoreDevice(cfg))
+	assert.False(t, isBluestoreDir(cfg))
+
+	// A filestore device
+	cfg = &osdConfig{dir: false, partitionScheme: &config.PerfSchemeEntry{StoreType: "filestore"}}
+	assert.True(t, isFilestore(cfg))
+	assert.True(t, isFilestoreDevice(cfg))
+	assert.False(t, isFilestoreDir(cfg))
+	assert.False(t, isBluestore(cfg))
+	assert.False(t, isBluestoreDevice(cfg))
+	assert.False(t, isBluestoreDir(cfg))
+}
+
 func TestOSDAgentWithDevicesFilestore(t *testing.T) {
 	testOSDAgentWithDevicesHelper(t, rookalpha.StoreConfig{StoreType: config.Filestore})
 }
