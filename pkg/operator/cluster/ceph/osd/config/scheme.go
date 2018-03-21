@@ -28,7 +28,6 @@ import (
 const (
 	Filestore             = "filestore"
 	Bluestore             = "bluestore"
-	DefaultStore          = Bluestore
 	UseRemainingSpace     = -1
 	schemeKeyName         = "partition-scheme"
 	WalDefaultSizeMB      = 576

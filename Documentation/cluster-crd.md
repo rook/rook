@@ -72,7 +72,7 @@ Below are the settings available, both at the cluster and individual node level,
 Below are the settings available, both at the cluster and individual node level, that affect how the selected storage resources will be configured.
 - `location`: Location information about the cluster to help with data placement, such as region or data center.  This is directly fed into the underlying Ceph CRUSH map.  More information on CRUSH maps can be found in the [ceph docs](http://docs.ceph.com/docs/master/rados/operations/crush-map/).
 - `storeConfig`: Configuration information about the store format for each OSD.
-  - `storeType`: `filestore` or `bluestore` (default: `bluestore`), The underlying storage format to use for each OSD.
+  - `storeType`: `filestore` or `bluestore`, the underlying storage format to use for each OSD. The default is set dynamically to `bluestore` for devices, while `filestore` is the default for directories. Set this store type explicitly to override the default. Warning: Bluestore is **not** recommended for directories in production. Bluestore does not purge data from the directory and over time will grow without the ability to compact or shrink.
   - `databaseSizeMB`:  The size in MB of a bluestore database.
   - `walSizeMB`:  The size in MB of a bluestore write ahead log (WAL).
   - `journalSizeMB`:  The size in MB of a filestore journal.
@@ -136,7 +136,6 @@ spec:
     metadataDevice:
     location:
     storeConfig:
-      storeType: bluestore
       databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
       journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
 ```
@@ -167,7 +166,6 @@ spec:
     metadataDevice:
     location:
     storeConfig:
-      storeType: bluestore
       databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
       journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
     nodes:
@@ -179,7 +177,7 @@ spec:
       - name: "sdb"
       - name: "sdc"
       storeConfig:         # configuration can be specified at the node level which overrides the cluster level config
-        storeType: filestore
+        storeType: bluestore
     - name: "172.17.4.301"
       deviceFilter: "^sd."
 ```
@@ -207,7 +205,6 @@ spec:
     useAllNodes: false
     useAllDevices: false
     storeConfig:
-      storeType: bluestore
       databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
       journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
     directories:

@@ -69,7 +69,9 @@ spec:
     metadataDevice:
     location:
     storeConfig:
-      storeType: bluestore
+      # The default and recommended storeType is dynamically set to bluestore for devices and filestore for directories.
+      # Set the storeType explicitly only if it is required not to use the default.
+      # storeType: bluestore 
       databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
       journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
 # Cluster level list of directories to use for storage. These values will be set for all nodes that have no `directories` set.
