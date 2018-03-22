@@ -120,6 +120,49 @@ k8s-08    Ready     node          2m        v1.9.0+coreos.0
 k8s-09    Ready     node          2m        v1.9.0+coreos.0
 ```
 
+## Running the Kubernetes Dashboard UI
+
+kubespray sets up the Dashboard pod by default, but you must authenticate with a bearer token, even for localhost access with kubectl proxy.  To allow access, one possible solution is to:
+
+1) Create an admin user by creating admin-user.yaml with these contents (and using kubectl -f create admin-user.yaml):
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: admin-user
+  namespace: kube-system
+```
+
+2) Grant that user the ClusterRole authorization by creating and applying admin-user-cluster.role.yaml:
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: admin-user
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: admin-user
+  namespace: kube-system
+```
+
+3) Find the admin-user token in the kube-system namespace:
+
+```bash
+kubectl -n kube-system describe secret $(kubectl -n kube-system get secret | grep admin-user | awk '{print $1}')
+```
+
+and you can use that token to log into the UI at http://localhost:8001/ui.
+
+(See [https://github.com/kubernetes/dashboard/wiki/Creating-sample-user](https://github.com/kubernetes/dashboard/wiki/Creating-sample-user))
+
+
+
 ## Development workflow on the host
 
 Everything should happen on the host, your development environment will reside on the host machine NOT inside the virtual machines running the Kubernetes cluster.
