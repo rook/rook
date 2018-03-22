@@ -171,6 +171,7 @@ func (c *Cluster) Start() error {
 
 	// start with nodes currently in the storage spec
 	for i := range storage.Nodes {
+		logger.Infof("start node %v", storage.Nodes[i])
 		// fully resolve the storage config and resources for this node
 		n := storage.ResolveNode(storage.Nodes[i].Name)
 		resources := k8sutil.MergeResourceRequirements(storage.Nodes[i].Resources, c.resources)
@@ -226,15 +227,18 @@ func (c *Cluster) Start() error {
 			}
 		}
 	}
-
 	// find all removed nodes (if any) and start orchestration to remove them from the cluster
-	removedNodes, err := c.findRemovedNodes()
+	removedNodes, err := c.findRemovedNodes(storage.Nodes)
 	if err != nil {
 		return fmt.Errorf("failed to find removed nodes: %+v", err)
 	}
 
 	for i := range removedNodes {
 		n := removedNodes[i]
+		if len(n.Name) == 0 {
+			continue
+		}
+		logger.Infof("removing node %v", n)
 		if err := c.isSafeToRemoveNode(n); err != nil {
 			message := fmt.Sprintf("skipping the removal of node %s because it is not safe to do so: %+v", n.Name, err)
 			c.handleOrchestrationFailure(n, message, &errorMessages)
@@ -254,7 +258,7 @@ func (c *Cluster) Start() error {
 		pod := c.makePod(n.Name, nil, rookalpha.Selection{DeviceFilter: "none", Directories: n.Directories}, v1.ResourceRequirements{}, n.Config)
 		pod, err := c.context.Clientset.CoreV1().Pods(c.Namespace).Update(pod)
 		if err != nil {
-			message := fmt.Sprintf("failed to update osd replica set for removed node %s. %+v", n.Name, err)
+			message := fmt.Sprintf("failed to update osd pod for removed node %s. %+v", n.Name, err)
 			c.handleOrchestrationFailure(n, message, &errorMessages)
 			continue
 		} else {
@@ -487,7 +491,7 @@ func IsRemovingNode(devices string) bool {
 	return devices == "none"
 }
 
-func (c *Cluster) findRemovedNodes() ([]rookalpha.Node, error) {
+func (c *Cluster) findRemovedNodes(nodes []rookalpha.Node) ([]rookalpha.Node, error) {
 	var removedNodes []rookalpha.Node
 
 	// first discover the storage nodes that are still running
@@ -495,10 +499,10 @@ func (c *Cluster) findRemovedNodes() ([]rookalpha.Node, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to discover storage nodes: %+v", err)
 	}
-
+	logger.Infof("removing %v from %v", discoveredNodes, nodes)
 	for i, discoveredNode := range discoveredNodes {
 		found := false
-		for _, newNode := range c.Storage.Nodes {
+		for _, newNode := range nodes {
 			// discovered storage node still exists in the current storage spec, move on to next discovered node
 			if discoveredNode.Name == newNode.Name {
 				found = true
@@ -511,7 +515,6 @@ func (c *Cluster) findRemovedNodes() ([]rookalpha.Node, error) {
 			removedNodes = append(removedNodes, discoveredNodes[i])
 		}
 	}
-
 	return removedNodes, nil
 }
 
@@ -519,24 +522,21 @@ func (c *Cluster) discoverStorageNodes() ([]rookalpha.Node, error) {
 	var discoveredNodes []rookalpha.Node
 
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
-	osdReplicaSets, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).List(listOpts)
+	osdPods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(listOpts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list osd replica sets: %+v", err)
+		return nil, fmt.Errorf("failed to list osd pods: %+v", err)
 	}
-
-	discoveredNodes = make([]rookalpha.Node, len(osdReplicaSets.Items))
-	for i, osdReplicaSet := range osdReplicaSets.Items {
-		osdPodSpec := osdReplicaSet.Spec.Template.Spec
-
+	discoveredNodes = make([]rookalpha.Node, len(osdPods.Items))
+	for i, osdPod := range osdPods.Items {
+		osdPodSpec := osdPod.Spec
 		// get the node name from the node selector
 		nodeName, ok := osdPodSpec.NodeSelector[apis.LabelHostname]
 		if !ok || nodeName == "" {
-			return nil, fmt.Errorf("osd replicaset %s doesn't have a node name on its node selector: %+v", osdReplicaSet.Name, osdPodSpec.NodeSelector)
+			continue
 		}
-
 		// get the osd container, there should be exactly 1
 		if len(osdPodSpec.Containers) != 1 {
-			return nil, fmt.Errorf("osd pod spec should have exactly 1 container: %+v", osdPodSpec.Containers)
+			continue
 		}
 		osdContainer := osdPodSpec.Containers[0]
 
@@ -551,9 +551,10 @@ func (c *Cluster) discoverStorageNodes() ([]rookalpha.Node, error) {
 			},
 			Config: getConfigFromContainer(osdContainer),
 		}
-
 		discoveredNodes[i] = node
 	}
+
+	logger.Infof("discovered nodes %v", discoveredNodes)
 
 	return discoveredNodes, nil
 }
