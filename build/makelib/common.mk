@@ -35,7 +35,7 @@ GOHOSTOS := $(shell go env GOHOSTOS)
 GOHOSTARCH := $(shell go env GOHOSTARCH)
 HOST_PLATFORM := $(GOHOSTOS)_$(GOHOSTARCH)
 
-ALL_PLATFORMS ?= darwin_amd64 windows_amd64 linux_amd64 linux_arm64
+ALL_PLATFORMS ?= darwin_amd64 windows_amd64 linux_amd64 linux_arm64 linux_ppc64le
 
 ifeq ($(PLATFORM),linux_amd64)
 CROSS_TRIPLE = x86_64-linux-gnu
@@ -50,6 +50,10 @@ CROSS_TRIPLE=x86_64-apple-darwin15
 endif
 ifeq ($(PLATFORM),windows_amd64)
 CROSS_TRIPLE=x86_64-w64-mingw32
+endif
+ifeq ($(PLATFORM),ppc64le)
+CROSS_TRIPLE = powerpc64le-linux-gnu
+DEBIAN_ARCH = ppc64el
 endif
 export GOARM
 
