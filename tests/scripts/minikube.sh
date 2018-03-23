@@ -92,10 +92,6 @@ function check_context() {
 # configure minikube
 KUBE_VERSION=${KUBE_VERSION:-"v1.9.1"}
 MEMORY=${MEMORY:-"3000"}
-# IP for kubelet to use. This is the default IP when using the virtualbox driver.
-# Using kubeadm bootstrapper, kubelet uses the internal host IP to be used when using NodePort service, which will prevent tests being run
-# outside the host access to any exposed services via NodePort.
-NODE_IP=${NODE_IP:-"192.168.99.100"}
 
 case "${1:-}" in
   up)
@@ -109,7 +105,7 @@ case "${1:-}" in
       init_flexvolume
     else
       echo "starting minikube with kubeadm bootstrapper"
-      minikube start --memory=${MEMORY} -b kubeadm --kubernetes-version ${KUBE_VERSION} --extra-config=kubelet.node-ip=${NODE_IP}
+      minikube start --memory=${MEMORY} -b kubeadm --kubernetes-version ${KUBE_VERSION}
       wait_for_ssh
     fi
     # create a link so the default dataDirHostPath will work for this environment
