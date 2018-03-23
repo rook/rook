@@ -125,7 +125,7 @@ If the Rook cluster has more than one filesystem and the application pod is sche
 
 ## Consume the Shared File System: Toolbox
 
-Once you have pushed an image to the registry (see the [instructions](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry) to expose and use the kube-registry), verify that kube-registry is using the filesystem that was configured above by mounting the shared file system in the toolbox pod. See the [Direct Filesystem](direct-tools.md#shared-filesystem-tools) topic for more details.
+Once you have pushed an image to the registry (see the [instructions](https://github.com/kubernetes/kubernetes/tree/7ef585be224dae4ec5deae0f135653116e21a6e0/cluster/addons/registry) to expose and use the kube-registry), verify that kube-registry is using the filesystem that was configured above by mounting the shared file system in the toolbox pod. See the [Direct Filesystem](direct-tools.md#shared-filesystem-tools) topic for more details.
 
 
 ## Teardown
