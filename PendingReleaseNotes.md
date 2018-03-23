@@ -3,6 +3,7 @@
 ## Action Required
 
 ## Notable Features
+- Ceph tools can be run [from any rook pod](Documentation/common-problems.md#ceph-tools).
 
 ## Breaking Changes
 

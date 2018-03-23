@@ -46,6 +46,9 @@ const (
 		caps osd = "allow *"
 		caps mgr = "allow *"
 	`
+	defaultConfigDir   = "/etc/ceph"
+	defaultConfigFile  = "ceph.conf"
+	defaultKeyringFile = "keyring"
 )
 
 type CephMonitorConfig struct {
@@ -102,7 +105,7 @@ func getMonRunDirPath(configDir, monName string) string {
 
 // get the path of a given monitor's keyring
 func getMonKeyringPath(configDir, monName string) string {
-	return filepath.Join(getMonRunDirPath(configDir, monName), "keyring")
+	return filepath.Join(getMonRunDirPath(configDir, monName), defaultKeyringFile)
 }
 
 // get the path of a given monitor's data dir
@@ -142,15 +145,39 @@ func writeMonKeyring(context *clusterd.Context, c *ClusterInfo, name string) err
 }
 
 // writes the monitor keyring to disk
-func writeKeyring(keyring, path string) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0744); err != nil {
-		return fmt.Errorf("failed to create keyring directory for %s: %+v", path, err)
+func writeKeyring(keyring, keyringPath string) error {
+	// save the keyring to the given path
+	if err := os.MkdirAll(filepath.Dir(keyringPath), 0744); err != nil {
+		return fmt.Errorf("failed to create keyring directory for %s: %+v", keyringPath, err)
 	}
-	if err := ioutil.WriteFile(path, []byte(keyring), 0644); err != nil {
-		return fmt.Errorf("failed to write monitor keyring to %s: %+v", path, err)
+	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0644); err != nil {
+		return fmt.Errorf("failed to write monitor keyring to %s: %+v", keyringPath, err)
+	}
+
+	// Save the keyring to the default path. This allows the user to any pod to easily execute Ceph commands.
+	// It is recommended to connect to the operator pod rather than monitors and OSDs since the operator always has the latest configuration files.
+	// The mon and OSD pods will only re-create the config files when the pod is restarted. If a monitor fails over, the config
+	// in the other mon and osd pods may be out of date. This could cause your ceph commands to timeout connecting to invalid mons.
+	// Note that the running mon and osd daemons are not affected by this issue because of their live connection to the mon quorum.
+	// If you have multiple Rook clusters, it is preferred to connect to the Rook toolbox for a specific cluster. Otherwise, your ceph commands
+	// may connect to the wrong cluster.
+	if err := os.MkdirAll(defaultConfigDir, 0744); err != nil {
+		logger.Warningf("failed to create default directory %s: %+v", defaultConfigDir, err)
+		return nil
+	}
+	defaultPath := path.Join(defaultConfigDir, defaultKeyringFile)
+	if err := ioutil.WriteFile(defaultPath, []byte(keyring), 0644); err != nil {
+		logger.Warningf("failed to copy keyring to %s: %+v", defaultPath, err)
+		return nil
 	}
 
 	return nil
+}
+
+func WriteKeyring(keyringPath, keyring string, generateContents func(string) string) error {
+	// write the keyring to disk
+	contents := generateContents(keyring)
+	return writeKeyring(contents, keyringPath)
 }
 
 // generates and writes the monitor config file to disk
@@ -196,6 +223,13 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 		return "", fmt.Errorf("failed to save config file %s. %+v", filePath, err)
 	}
 
+	// copy the config to /etc/ceph/ceph.conf
+	defaultPath := path.Join(defaultConfigDir, defaultConfigFile)
+	logger.Infof("copying config to %s", defaultPath)
+	if err := configFile.SaveTo(defaultPath); err != nil {
+		logger.Warningf("failed to save config file %s. %+v", defaultPath, err)
+	}
+
 	return filePath, nil
 }
 
@@ -218,22 +252,6 @@ func CreateKeyring(context *clusterd.Context, clusterName, username, keyringPath
 	}
 
 	return WriteKeyring(keyringPath, key, generateContents)
-}
-
-func WriteKeyring(keyringPath, keyring string, generateContents func(string) string) error {
-	// write the keyring to disk
-	keyringDir := filepath.Dir(keyringPath)
-	if err := os.MkdirAll(keyringDir, 0744); err != nil {
-		return fmt.Errorf("failed to create keyring dir at %s: %+v", keyringDir, err)
-	}
-
-	contents := generateContents(keyring)
-	logger.Debugf("Writing keyring to: %s", keyringPath)
-	if err := ioutil.WriteFile(keyringPath, []byte(contents), 0644); err != nil {
-		return fmt.Errorf("failed to write keyring to %s: %+v", keyringPath, err)
-	}
-
-	return nil
 }
 
 // prepends "client." if a user namespace is not already specified
