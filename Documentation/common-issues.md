@@ -4,13 +4,14 @@ weight: 78
 indent: true
 ---
 
-# Common Problems
+# Common Issues
 
 Many of these problem cases are hard to summarize down to a short phrase that adequately describes the problem. Each problem will start with a bulleted list of symptoms. Keep in mind that all symptoms may not apply depending upon the configuration of the Rook. If the majority of the symptoms are seen there is a fair chance you are experiencing that problem.
 
 If after trying the suggestions found on this page and the problem is not resolved, the Rook team is very happy to help you troubleshoot the issues in their Slack channel. Once you have [registered for the Rook Slack](https://rook-slackin.herokuapp.com/), proceed to the General channel to ask for assistance.
 
 ## Table of Contents
+- [Troubleshooting Techniques](#troubleshooting-techniques)
 - [Pod using Rook storage is not running](#pod-using-rook-storage-is-not-running)
 - [Cluster failing to service requests](#cluster-failing-to-service-requests)
 - [Only a single monitor pod starts](#only-a-single-monitor-pod-starts)
@@ -18,8 +19,48 @@ If after trying the suggestions found on this page and the problem is not resolv
 - [Node hangs after reboot](#node-hangs-after-reboot)
 
 # Troubleshooting Techniques
-One of the first things that should be done is to start the [rook-tools pod](./toolbox.md) as described in the Toolbox section. Once the pod is up and running one can `kubectl exec` into the pod to execute Ceph commands to evaluate that current state of the cluster. Here is a list of commands that can help one get an understanding of the current state.
+There are two main categories of information you will need to investigate issues in the cluster:
+1. Kubernetes status and logs
+1. Ceph status
 
+## Kubernetes Tools
+Kubernetes status is the first line of investigating when something goes wrong with the cluster. Here are a few artifacts that are helpful to gather:
+- Rook pod status: 
+  - `kubectl get pod -n rook -o wide`
+  - `kubectl get pod -n rook-system -o wide`
+- Logs for Rook pods
+  - Logs for the operator: `kubectl logs -n rook-system -l app=rook-operator`
+  - Logs for a specific pod: `kubectl logs -n rook <pod-name>`, or a pod using a label such as mon1: `kubectl logs -n rook -l mon=rook-ceph-mon1`
+  - Logs on a specific node to find why a PVC is failing to mount:
+    - Rook agent errors around the attach/detach: `kubectl logs -n rook-system <rook-agent-pod>`
+    - Connect to the node, then get kubelet logs (if your distro is using systemd): `journalctl -u kubelet`
+  - See the [log collection topic](advanced-configuration.md#log-collection) for a script that will help you gather the logs
+- Other Rook artifacts:
+  - The monitors that are expected to be in quorum: `kubectl -n rook get configmap rook-ceph-mon-endpoints -o yaml | grep data`
+  - More artifacts in the `rook` namespace: `kubectl -n rook get all`
+  
+## Ceph Tools
+After you verify the basic health of the running pods, next you will want to run Ceph tools for status of the storage components. There are two ways to run the Ceph tools, either in the Rook toolbox or inside other Rook pods that are already running.
+
+### Tools in the Rook Toolbox
+ The [rook-tools pod](./toolbox.md) is a one-stop shop for both Ceph tools and other troubleshooting tools. Once the pod is up and running one connect to the pod to execute Ceph commands to evaluate that current state of the cluster. 
+ ```bash
+ kubectl exec -it rook-tools bash
+ ```
+
+### Tools in other pods
+The Ceph tools are found in all of the Rook pods where Ceph is running, such as the operator, monitors, and OSDs. Rather than starting the toolbox pod, you can connect to the existing pods to more quickly execute the Ceph tools. For example, to connect to the operator pod:
+
+```bash
+kubectl -n rook-system exec -it $(kubectl -n rook-system get pods -l app=rook-operator -o jsonpath='{.items[0].metadata.name}') -- bash
+```
+
+Now from inside the operator pod you can execute the Ceph tools.
+
+It is preferred to connect to the operator pod rather than monitors and OSDs since the operator always has the latest configuration files. If you have multiple Rook clusters, it is preferred to connect to the Rook toolbox for a specific cluster. Otherwise, your ceph commands may connect to the wrong cluster.
+
+### Ceph Commands
+Here are some common commands to troubleshoot the cluster.
 * ceph status
 * ceph osd status
 * ceph osd df
@@ -28,9 +69,9 @@ One of the first things that should be done is to start the [rook-tools pod](./t
 * ceph osd tree
 * ceph pg stat
 
-Of particular note, the first two status commands provide the overall cluster health. The normal state for cluster operations is HEALTH_OK, but will still function when the state is in a HEALTH_WARN state. If you are in a WARN state, then the cluster is in a condition that it may enter the HEALTH_ERROR state at which point *all* disk I/O operations are halted. If a HEALTH_WARN state is observed, then one should take action to prevent the cluster from halting when it enters the HEALTH_ERROR state.
+The first two status commands provide the overall cluster health. The normal state for cluster operations is HEALTH_OK, but will still function when the state is in a HEALTH_WARN state. If you are in a WARN state, then the cluster is in a condition that it may enter the HEALTH_ERROR state at which point *all* disk I/O operations are halted. If a HEALTH_WARN state is observed, then one should take action to prevent the cluster from halting when it enters the HEALTH_ERROR state.
 
-There is literally a ton of Ceph sub-commands to look at and manipulate Ceph objects. Well beyond the scope of a few troubleshooting techniques and there are other sites and documentation sets that deal more with assisting one with troubleshooting a Ceph environment. In addition, there are other helpful hints and some best practices concerning a Ceph environment located in the [Advanced Configuration section](advanced-configuration.md). Of particular note there are scripts for collecting logs and gathering OSD information there.
+There are many Ceph sub-commands to look at and manipulate Ceph objects, well beyond the scope this document. See the [Ceph documentation]() for more details of gathering information about the health of the cluster. In addition, there are other helpful hints and some best practices located in the [Advanced Configuration section](advanced-configuration.md). Of particular note there are scripts for collecting logs and gathering OSD information there.
 
 
 # Pod Using Rook Storage Is Not Running

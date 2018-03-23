@@ -177,6 +177,6 @@ func checkIfKubeletRestartRequired(context *clusterd.Context) {
 	if err != nil || kubeVersion.LessThan(version.MustParseSemantic(serverVersionV180)) {
 		logger.Warning("NOTE: The Kubelet must be restarted on this node since this pod appears to " +
 			"be running on a Kubernetes version prior to 1.8. More details can be found in the Rook docs at " +
-			"https://rook.io/docs/rook/master/common-problems.html#kubelet-restart")
+			"https://rook.io/docs/rook/master/common-issues.html#kubelet-restart")
 	}
 }
