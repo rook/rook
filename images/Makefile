@@ -14,7 +14,7 @@
 
 include image.mk
 
-PLATFORMS ?= linux_amd64 linux_arm64
+PLATFORMS ?= linux_amd64 linux_arm64 linux_ppc64le
 
 # ====================================================================================
 # Image Targets

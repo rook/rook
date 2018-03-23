@@ -31,6 +31,12 @@ CACHE_REGISTRY := cache
 # the base ubuntu image to use
 OSBASE ?= ubuntu:xenial
 
+# Need to use ubuntu:artful as ceph mon packages are
+# not available in xenial
+ifeq ($(GOARCH),ppc64le)
+OSBASE ?= ubuntu:artful
+endif
+
 ifeq ($(GOARCH),amd64)
 OSBASEIMAGE=$(OSBASE)
 endif
@@ -39,6 +45,9 @@ OSBASEIMAGE=arm32v7/$(OSBASE)
 endif
 ifeq ($(GOARCH),arm64)
 OSBASEIMAGE=arm64v8/$(OSBASE)
+endif
+ifeq ($(GOARCH),ppc64le)
+OSBASEIMAGE=ppc64le/$(OSBASE)
 endif
 
 # if we are running inside the container get our own cid
