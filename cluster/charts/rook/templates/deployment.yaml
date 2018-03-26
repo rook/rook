@@ -16,7 +16,6 @@ spec:
         app: rook-operator
         chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
     spec:
-      serviceAccountName: rook-operator
       containers:
       - name: rook-operator
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
