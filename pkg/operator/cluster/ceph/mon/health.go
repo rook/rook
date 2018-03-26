@@ -111,9 +111,10 @@ func (c *Cluster) checkHealth() error {
 			// delete the "timeout" for a mon if the pod is in quorum again
 			if _, ok := c.monTimeoutList[mon.Name]; ok {
 				delete(c.monTimeoutList, mon.Name)
+				logger.Infof("mon %s is back in quorum, removed from mon out timeout list", mon.Name)
 			}
 		} else {
-			logger.Warningf("mon %s NOT found in quorum. %+v", mon.Name, status)
+			logger.Debugf("mon %s NOT found in quorum. Mon status: %+v", mon.Name, status)
 
 			// If not yet set, add the current time, for the timeout
 			// calculation, to the list
@@ -124,10 +125,11 @@ func (c *Cluster) checkHealth() error {
 			// when the timeout for the mon has been reached, continue to the
 			// normal failover/delete mon pod part of the code
 			if time.Since(c.monTimeoutList[mon.Name]) <= MonOutTimeout {
-				logger.Warningf("mon %s NOT found in quorum, STILL in mon out timeout", mon.Name)
+				logger.Warningf("mon %s not found in quorum, still in mon out timeout", mon.Name)
 				continue
 			}
 
+			logger.Warningf("mon %s NOT found in quorum and timeout exceeded, mon will be failed over", mon.Name)
 			c.failMon(len(status.MonMap.Mons), mon.Name)
 			// only deal with one unhealthy mon per health check
 			return nil
