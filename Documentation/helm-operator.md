@@ -36,7 +36,7 @@ kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"sp
 The Rook Operator helm chart will install the basic components necessary to create a storage platform for your Kubernetes cluster. 
 After the helm chart is installed, you will need to [create a Rook cluster](quickstart.md#create-a-rook-cluster).
 
-The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. The operator should be installed into a separate namespace from your clusters, typically rook-system.
+The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. It is recommended the operator be installed into a separate namespace from your clusters, typically _rook-system_.
 
 Rook currently publishes builds to the `alpha` and `master` channels. In the future, `beta` and `stable` will also be available.
 
