@@ -72,6 +72,6 @@ spec:
       nodeSelector:
 {{ toYaml .Values.nodeSelector | indent 8 }}
 {{- end }}
-    {{- if .Values.rbacEnable }}
+{{- if .Values.rbacEnable }}
       serviceAccountName: rook-operator
-    {{- end }}
+{{- end }}
