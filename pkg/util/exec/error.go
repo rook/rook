@@ -27,7 +27,13 @@ type CommandError struct {
 }
 
 func (e *CommandError) Error() string {
-	return fmt.Sprintf("Failed to complete %s: %+v", e.ActionName, e.Err)
+	var exitErrMsg string
+	if exitErr, ok := e.Err.(*exec.ExitError); ok {
+		// the error is an ExitError, include the stderr output in the final error output
+		exitErrMsg = string(exitErr.Stderr)
+	}
+
+	return fmt.Sprintf("Failed to complete '%s': %+v. %s", e.ActionName, e.Err, exitErrMsg)
 }
 
 func (e *CommandError) ExitStatus() int {
