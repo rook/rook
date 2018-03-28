@@ -36,7 +36,7 @@ kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"sp
 The Rook Operator helm chart will install the basic components necessary to create a storage platform for your Kubernetes cluster. 
 After the helm chart is installed, you will need to [create a Rook cluster](quickstart.md#create-a-rook-cluster).
 
-The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
+The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. It is recommended the operator be installed into a separate namespace from your clusters, typically _rook-system_.
 
 Rook currently publishes builds to the `alpha` and `master` channels. In the future, `beta` and `stable` will also be available.
 
@@ -44,7 +44,7 @@ Rook currently publishes builds to the `alpha` and `master` channels. In the fut
 The alpha channel is the most recent release of Rook that is considered ready for testing by the community. 
 ```console
 helm repo add rook-alpha https://charts.rook.io/alpha
-helm install rook-alpha/rook
+helm install --namespace rook-system rook-alpha/rook
 ```
 
 ### Master
@@ -54,12 +54,12 @@ To install the helm chart from master, you will need to pass the specific versio
 ```console
 helm repo add rook-master https://charts.rook.io/master
 helm search rook
-helm install rook-master/rook --version <version>
+helm install --namespace rook-system rook-master/rook --version <version>
 ```
 
 For example:
 ```
-helm install rook-master/rook --version v0.6.0-156.gef983d6
+helm install --namespace rook-system rook-master/rook --version v0.6.0-156.gef983d6
 ```
 
 ### Development Build
@@ -106,14 +106,14 @@ You can pass the settings with helm command line parameters. Specify each parame
 `--set key=value[,key=value]` argument to `helm install`. For example, the following command will install rook where RBAC is not enabled.
 
 ```console
-$ helm install --name rook rook-alpha/rook --set rbacEnable=false
+$ helm install --namespace rook-system --name rook rook-alpha/rook --set rbacEnable=false
 ```
 
 ### Settings File
 Alternatively, a yaml file that specifies the values for the above parameters (`values.yaml`) can be provided while installing the chart.
 
 ```console
-$ helm install --name rook rook-alpha/rook -f values.yaml
+$ helm install --namespace rook-system --name rook rook-alpha/rook -f values.yaml
 ```
 
 Here are the sample settings to get you started.
