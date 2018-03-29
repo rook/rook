@@ -49,9 +49,29 @@ Once the Prometheus server is running, you can open a web browser and go to the 
 echo "http://$(kubectl -n rook -o jsonpath={.status.hostIP} get pod prometheus-rook-prometheus-0):30900"
 ```
 
-You should now see the Prometheus monitoring website.  Click on `Graph` in the top navigation bar.  In the dropdown that says `insert metric at cursor`,
-select any metric you would like to see, for example `ceph_cluster_used_bytes`, followed by clicking on the `Execute` button.  Below the `Execute` button, ensure
-the `Graph` tab is selected and you should now see a graph of your chosen metric over time.
+You should now see the Prometheus monitoring website.  
+
+![Prometheus Monitoring Website](media/prometheus-monitor.png)
+
+
+Click on `Graph` in the top navigation bar.  
+
+![Prometheus Add graph](media/prometheus-graph.png)
+
+
+In the dropdown that says `insert metric at cursor`, select any metric you would like to see, for example `ceph_cluster_total_used_bytes`
+
+![Prometheus Select Metric](media/prometheus-metric-cursor.png)
+
+
+Click on the `Execute` button.  
+
+![Prometheus Execute Metric](media/prometheus-execute-metric-cursor.png)
+
+Below the `Execute` button, ensure the `Graph` tab is selected and you should now see a graph of your chosen metric over time.
+
+![Prometheus Execute Metric](media/prometheus-metric-cursor-graph.png) 
+
 
 ## Prometheus Consoles
 You can find Prometheus Consoles here: https://github.com/ceph/cephmetrics/tree/master/dashboards/current.
