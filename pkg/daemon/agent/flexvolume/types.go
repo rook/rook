@@ -38,19 +38,20 @@ type VolumeController interface {
 }
 
 type AttachOptions struct {
-	Image        string `json:"image"`
-	Pool         string `json:"pool"`
-	ClusterName  string `json:"clusterName"`
-	StorageClass string `json:"storageClass"`
-	MountDir     string `json:"mountDir"`
-	FsName       string `json:"fsName"`
-	Path         string `json:"path"` // Path within the CephFS to mount
-	RW           string `json:"kubernetes.io/readwrite"`
-	FsType       string `json:"kubernetes.io/fsType"`
-	VolumeName   string `json:"kubernetes.io/pvOrVolumeName"` // only available on 1.7
-	Pod          string `json:"kubernetes.io/pod.name"`
-	PodID        string `json:"kubernetes.io/pod.uid"`
-	PodNamespace string `json:"kubernetes.io/pod.namespace"`
+	Image            string `json:"image"`
+	Pool             string `json:"pool"`
+	ClusterNamespace string `json:"clusterNamespace"`
+	ClusterName      string `json:"clusterName"`
+	StorageClass     string `json:"storageClass"`
+	MountDir         string `json:"mountDir"`
+	FsName           string `json:"fsName"`
+	Path             string `json:"path"` // Path within the CephFS to mount
+	RW               string `json:"kubernetes.io/readwrite"`
+	FsType           string `json:"kubernetes.io/fsType"`
+	VolumeName       string `json:"kubernetes.io/pvOrVolumeName"` // only available on 1.7
+	Pod              string `json:"kubernetes.io/pod.name"`
+	PodID            string `json:"kubernetes.io/pod.uid"`
+	PodNamespace     string `json:"kubernetes.io/pod.namespace"`
 }
 
 type LogMessage struct {

@@ -65,7 +65,7 @@ func TestProvisionImage(t *testing.T) {
 	}
 
 	provisioner := New(context)
-	volume := newVolumeOptions(newStorageClass("class-1", "rook.io/block", map[string]string{"pool": "testpool", "clusterName": "testCluster", "fsType": "ext3"}), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil))
+	volume := newVolumeOptions(newStorageClass("class-1", "rook.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3"}), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil))
 
 	pv, err := provisioner.Provision(volume)
 	assert.Nil(t, err)
@@ -89,7 +89,7 @@ func TestParseClassParameters(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, "testPool", provConfig.pool)
-	assert.Equal(t, "myname", provConfig.clusterName)
+	assert.Equal(t, "myname", provConfig.clusterNamespace)
 	assert.Equal(t, "ext4", provConfig.fstype)
 }
 
@@ -101,7 +101,7 @@ func TestParseClassParametersDefault(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, "testPool", provConfig.pool)
-	assert.Equal(t, "rook", provConfig.clusterName)
+	assert.Equal(t, "rook", provConfig.clusterNamespace)
 	assert.Equal(t, "", provConfig.fstype)
 }
 
