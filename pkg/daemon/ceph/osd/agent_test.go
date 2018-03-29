@@ -226,12 +226,10 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig rookalpha.StoreConf
 		"sdx": {Data: -1},
 		"sdy": {Data: -1},
 	}}
-	err = agent.configureDevices(context, devices)
+	_, err = agent.configureDevices(context, devices)
 	assert.Nil(t, err)
 
 	assert.Equal(t, int32(0), agent.configCounter)
-	assert.Equal(t, 2, startCount) // 2 OSD procs should be started
-	assert.Equal(t, 2, len(agent.osdProc), fmt.Sprintf("procs=%+v", agent.osdProc))
 
 	if storeConfig.StoreType == config.Bluestore {
 		assert.Equal(t, 11, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
@@ -293,13 +291,10 @@ func TestOSDAgentNoDevices(t *testing.T) {
 		filepath.Join(configDir, "sdx"): -1,
 		filepath.Join(configDir, "sdy"): -1,
 	}
-	err = agent.configureDirs(context, dirs)
+	_, err = agent.configureDirs(context, dirs)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, runCount)
-	assert.Equal(t, 2, startCount)
 	assert.Equal(t, 6, execWithOutputFileCount)
-	assert.Equal(t, 2, execWithOutputCount)
-	assert.Equal(t, 1, len(agent.osdProc))
 }
 
 func TestRemoveDevices(t *testing.T) {

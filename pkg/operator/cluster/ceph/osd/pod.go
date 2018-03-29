@@ -61,6 +61,152 @@ func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, config rookalpha.
 	}
 }
 
+func (c *Cluster) makePod(nodeName string, devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements, config rookalpha.Config) *v1.Pod {
+	// by default, the data/config dir will be an empty volume
+	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
+	if c.dataDirHostPath != "" {
+		// the user has specified a host path to use for the data dir, use that instead
+		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
+	}
+
+	volumes := []v1.Volume{
+		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
+		k8sutil.ConfigOverrideVolume(),
+	}
+
+	// by default, don't define any volume config unless it is required
+	if len(devices) > 0 || selection.DeviceFilter != "" || selection.GetUseAllDevices() || selection.MetadataDevice != "" {
+		// create volume config for the data dir and /dev so the pod can access devices on the host
+		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
+		volumes = append(volumes, devVolume)
+	}
+
+	// add each OSD directory as another host path volume source
+	for _, d := range selection.Directories {
+		dirVolume := v1.Volume{
+			Name:         k8sutil.PathToVolumeName(d.Path),
+			VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: d.Path}},
+		}
+		volumes = append(volumes, dirVolume)
+	}
+
+	podSpec := v1.PodSpec{
+		NodeSelector:       map[string]string{apis.LabelHostname: nodeName},
+		ServiceAccountName: appName,
+		Containers:         []v1.Container{c.osdContainer(devices, selection, resources, config)},
+		RestartPolicy:      v1.RestartPolicyNever,
+		Volumes:            volumes,
+		HostNetwork:        c.HostNetwork,
+	}
+	if c.HostNetwork {
+		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
+	}
+	c.placement.ApplyToPodSpec(&podSpec)
+
+	return &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            fmt.Sprintf(appNameFmt, nodeName),
+			Namespace:       c.Namespace,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Labels: map[string]string{
+				k8sutil.AppAttr:     appName,
+				k8sutil.ClusterAttr: c.Namespace,
+			},
+		},
+		Spec: podSpec,
+	}
+
+}
+
+func (c *Cluster) makeOSDReplicaSet(nodeName string, resources v1.ResourceRequirements, osd OSDInfo) *extensions.ReplicaSet {
+	replicaCount := int32(1)
+	volumeMounts := []v1.VolumeMount{
+		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
+		k8sutil.ConfigOverrideMount(),
+	}
+
+	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
+	if c.dataDirHostPath != "" {
+		// the user has specified a host path to use for the data dir, use that instead
+		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
+	}
+
+	volumes := []v1.Volume{
+		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
+		k8sutil.ConfigOverrideVolume(),
+	}
+	// FIXME: detect device first
+	privileged := true
+	runAsUser := int64(0)
+	// don't set runAsNonRoot explicitly when it is false, Kubernetes version < 1.6.4 has
+	// an issue with this fixed in https://github.com/kubernetes/kubernetes/pull/47009
+	// runAsNonRoot := false
+	readOnlyRootFilesystem := false
+	DNSPolicy := v1.DNSClusterFirst
+	if c.HostNetwork {
+		DNSPolicy = v1.DNSClusterFirstWithHostNet
+	}
+
+	return &extensions.ReplicaSet{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            fmt.Sprintf(osdPodNameFmt, osd.Cluster, nodeName, osd.ID),
+			Namespace:       c.Namespace,
+			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Labels: map[string]string{
+				k8sutil.AppAttr:     appName,
+				k8sutil.ClusterAttr: c.Namespace,
+			},
+		},
+		Spec: extensions.ReplicaSetSpec{
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: appName,
+					Labels: map[string]string{
+						k8sutil.AppAttr:     appName,
+						k8sutil.ClusterAttr: c.Namespace,
+					},
+					Annotations: map[string]string{},
+				},
+				Spec: v1.PodSpec{
+					NodeSelector: map[string]string{apis.LabelHostname: nodeName},
+					//FIXME: use a diff SA for osd daemon
+					ServiceAccountName: appName,
+					RestartPolicy:      v1.RestartPolicyAlways,
+					HostNetwork:        c.HostNetwork,
+					DNSPolicy:          DNSPolicy,
+					Containers: []v1.Container{
+						{
+							Command: []string{"ceph-osd",
+								"--foreground",
+								"--id", osd.ID,
+								"--conf", osd.Config,
+								"--osd-data", osd.DataPath,
+								"--keyring", osd.KeyringPath,
+								"--cluster", osd.Cluster,
+								"--osd-uuid", osd.UUID,
+							},
+							Name:         appName,
+							Image:        k8sutil.MakeRookImage(c.Version),
+							VolumeMounts: volumeMounts,
+							Resources:    resources,
+							SecurityContext: &v1.SecurityContext{
+								Privileged: &privileged,
+								RunAsUser:  &runAsUser,
+								// don't set runAsNonRoot explicitly when it is false, Kubernetes version < 1.6.4 has
+								// an issue with this fixed in https://github.com/kubernetes/kubernetes/pull/47009
+								// RunAsNonRoot:           &runAsNonRoot,
+								ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+							},
+						},
+					},
+					Volumes: volumes,
+				},
+			},
+			Replicas: &replicaCount,
+		},
+	}
+}
+
 func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device,
 	selection rookalpha.Selection, resources v1.ResourceRequirements, config rookalpha.Config) *extensions.ReplicaSet {
 
