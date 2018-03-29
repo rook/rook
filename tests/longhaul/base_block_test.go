@@ -23,7 +23,7 @@ func createStorageClassAndPool(t func() *testing.T, kh *utils.K8sHelper, namespa
 		logger.Infof("Install pool and storage class for rook block")
 		_, err := installer.BlockResourceOperation(kh, installer.GetBlockPoolDef(poolName, namespace, "3"), "create")
 		require.NoError(t(), err)
-		_, err = installer.BlockResourceOperation(kh, installer.GetBlockStorageClassDef(poolName, storageClassName, namespace), "create")
+		_, err = installer.BlockResourceOperation(kh, installer.GetBlockStorageClassDef(poolName, storageClassName, namespace, false), "create")
 		require.NoError(t(), err)
 
 		//make sure storageclass is created
