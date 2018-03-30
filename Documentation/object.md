@@ -154,9 +154,9 @@ metadata:
 spec:
   ports:
   - name: rgw
-    port: 53390
+    port: 80
     protocol: TCP
-    targetPort: 53390
+    targetPort: 80
   selector:
     app: rook-ceph-rgw
     rook_cluster: rook
@@ -176,7 +176,7 @@ See both rgw services running and notice what port the external service is runni
 $ kubectl -n rook get service rook-ceph-rgw-my-store rook-ceph-rgw-my-store-external
 NAME                              CLUSTER-IP   EXTERNAL-IP   PORT(S)           AGE
 rook-ceph-rgw-my-store            10.0.0.83    <none>        80/TCP            21m
-rook-ceph-rgw-my-store-external   10.0.0.26    <nodes>       53390:30041/TCP   1m
+rook-ceph-rgw-my-store-external   10.0.0.26    <nodes>       80:30041/TCP      1m
 ```
 
-Internally the rgw service is running on port `53390`. The external port in this case is `30041`. Now you can access the object store from anywhere! All you need is the hostname for any machine in the cluster, the external port, and the user credentials.
+Internally the rgw service is running on port `80`. The external port in this case is `30041`. Now you can access the object store from anywhere! All you need is the hostname for any machine in the cluster, the external port, and the user credentials.
