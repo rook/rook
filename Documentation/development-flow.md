@@ -57,6 +57,26 @@ Now you should have at least `origin` and `upstream` remotes. You can also add o
 
 To add a feature or to make a bug fix, you will need to create a branch in your fork and then submit a pull request (PR) from the branch.
 
+### Design Document
+
+For new features of significant scope and complexity, a design document is recommended before work begins on the implementation.
+For smaller, straightforward features and bug fixes, there is no need for a design document.
+Authoring a design document for big features has many advantages:
+
+* helps flesh out the approach by forcing the author to think critically about the feature and can identify potential issues early on
+* gets agreement amongst the community before code is written that could be wasted effort in the wrong direction
+* serves as an artifact of the architecture that is easier to read for visitors to the project than just the code by itself
+
+Note that writing code to prototype the feature while working on the design may be very useful to help flesh out the approach.
+
+A design document should be written as a markdown file in the [design folder](/design).
+You will see many examples of previous design documents in that folder.
+Submit a pull request for the design to be discussed and approved by the community before being merged into master, just like any other change to the repository.
+
+An issue should be opened to track the work of authoring and completing the design document.
+This issue is in addition to the issue that is tracking the implementation of the feature.
+The [design label](https://github.com/rook/rook/labels/design) should be assigned to the issue to denote it as such.
+
 ### Create a Branch
 
 From a console, create a new branch based on your fork and start working on it:
