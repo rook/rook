@@ -35,6 +35,10 @@ metadata:
 provisioner: rook.io/block
 parameters:
   pool: replicapool
+  # Specify the Rook cluster from which to create volumes.
+  # If not specified, it will use `rook` as the name of the cluster.
+  # i.e. if you are in a different namespace this must be set to that namespace's name
+  #clusterName: rook  
 ```
 
 Create the storage class.
