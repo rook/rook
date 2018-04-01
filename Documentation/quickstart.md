@@ -9,7 +9,7 @@ Welcome to Rook! We hope you have a great experience installing the Rook storage
 in your cluster. If you have any questions along the way, please don't hesitate to ask us in our [Slack channel](https://Rook-io.slack.com).
 
 This guide will walk you through the basic setup of a Rook cluster. This will enable you to consume block, object, and file storage
-from other pods running in your cluster. 
+from other pods running in your cluster.
 
 ## Minimum Version
 
@@ -37,7 +37,7 @@ After the cluster is running, you can create [block, object, or file](#storage) 
 
 ## Deploy the Rook Operator
 
-The first step is to deploy the Rook system components, which include the Rook agent running on each node in your cluster as well as Rook operator pod. 
+The first step is to deploy the Rook system components, which include the Rook agent running on each node in your cluster as well as Rook operator pod.
 
 ```bash
 cd cluster/examples/kubernetes
@@ -64,8 +64,8 @@ For Kubernetes 1.6, it is also necessary to pass the `--enable-controller-attach
 
 ## Create a Rook Cluster
 
-Now that the Rook operator and agent pods are running, we can create the Rook cluster. For the cluster to survive reboots, 
-make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](cluster-crd.md). 
+Now that the Rook operator and agent pods are running, we can create the Rook cluster. For the cluster to survive reboots,
+make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](cluster-crd.md).
 
 
 Save the cluster spec as `rook-cluster.yaml`:

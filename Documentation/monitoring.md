@@ -70,7 +70,7 @@ Click on the `Execute` button.
 
 Below the `Execute` button, ensure the `Graph` tab is selected and you should now see a graph of your chosen metric over time.
 
-![Prometheus Execute Metric](media/prometheus-metric-cursor-graph.png) 
+![Prometheus Execute Metric](media/prometheus-metric-cursor-graph.png)
 
 
 ## Prometheus Consoles

@@ -62,7 +62,7 @@ $ ceph status
 
 ## Consume the Shared File System: K8s Registry Sample
 
-As an example, we will start the kube-registry pod with the shared file system as the backing store. 
+As an example, we will start the kube-registry pod with the shared file system as the backing store.
 Save the following spec as `kube-registry.yaml`:
 
 ```yaml

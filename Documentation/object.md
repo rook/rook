@@ -33,7 +33,7 @@ spec:
       codingChunks: 1
   gateway:
     type: s3
-    sslCertificateRef: 
+    sslCertificateRef:
     port: 80
     securePort:
     instances: 1
@@ -68,7 +68,7 @@ The object store is now available by using the creds of `rook-user`. Take note o
 
 ## Consume the Object Storage
 
-Use an S3 compatible client to create a bucket in the object store. 
+Use an S3 compatible client to create a bucket in the object store.
 
 This section will allow you to test connecting to the object store and uploading and downloading from it. The `s3cmd` tool is included in the [Rook toolbox](toolbox.md) pod to simplify your testing. Run the following commands after you have connected to the toolbox.
 

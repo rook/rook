@@ -6,7 +6,7 @@ indent: true
 
 #  Rook Toolbox
 The Rook toolbox is a container with common tools used for rook debugging and testing.
-The toolbox is based on Ubuntu, so more tools of your choosing can be easily installed with `apt-get`. 
+The toolbox is based on Ubuntu, so more tools of your choosing can be easily installed with `apt-get`.
 
 ## Running the Toolbox in Kubernetes
 
@@ -92,4 +92,4 @@ kubectl -n rook delete pod rook-tools
 ```
 
 ## Troubleshooting without the Toolbox
-The Ceph tools will commonly be the only tools needed to troubleshoot a cluster. In that case, you can connect to any of the rook pods and execute the ceph commands in the same way that you would in the toolbox pod. For example, you can connect to the mon, osd, or even the operator pod to execute commands such as `ceph status`. 
+The Ceph tools will commonly be the only tools needed to troubleshoot a cluster. In that case, you can connect to any of the rook pods and execute the ceph commands in the same way that you would in the toolbox pod. For example, you can connect to the mon, osd, or even the operator pod to execute commands such as `ceph status`.

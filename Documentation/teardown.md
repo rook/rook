@@ -17,7 +17,7 @@ If you see issues tearing down the cluster, see the [Troubleshooting](#troublesh
 If you are tearing down a cluster frequently for development purposes, it is instead recommended to use an environment such as Minikube that can easily be restarted without worrying about any of these steps.
 
 ## Delete the Block and File artifacts
-First you will need to clean up the resources created on top of the Rook cluster. 
+First you will need to clean up the resources created on top of the Rook cluster.
 
 These commands will clean up the resources from the [block](block.md#teardown) and [file](filesystem.md#teardown) walkthroughs (unmount volumes, delete volume claims, etc). If you did not complete those parts of the walkthrough, you can skip these instructions:
 ```console
@@ -40,7 +40,7 @@ Verify that the cluster CRD has been deleted before continuing to the next step.
 kubectl -n rook get cluster
 ```
 
-## Delete the Operator and Agent 
+## Delete the Operator and Agent
 This will begin the process of all cluster resources being cleaned up, after which you can delete the rest of the deployment with the following:
 ```console
 kubectl delete thirdpartyresources cluster.rook.io pool.rook.io objectstore.rook.io filesystem.rook.io volumeattachment.rook.io # ignore errors if on K8s 1.7+
@@ -57,7 +57,7 @@ kubectl delete namespace rook
 ```
 
 ## Delete the data on hosts
-IMPORTANT: The final cleanup step requires deleting files on each host in the cluster. All files under the `dataDirHostPath` property specified in the cluster CRD will need to be deleted. Otherwise, inconsistent state will remain when a new cluster is started. 
+IMPORTANT: The final cleanup step requires deleting files on each host in the cluster. All files under the `dataDirHostPath` property specified in the cluster CRD will need to be deleted. Otherwise, inconsistent state will remain when a new cluster is started.
 
 Connect to each machine and delete `/var/lib/rook`, or the path specified by the `dataDirHostPath`.
 
