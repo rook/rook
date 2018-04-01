@@ -20,12 +20,12 @@ Binding individual certificate to ClusterRole `cluster-admin` is revocable by de
 ## RBAC for PodSecurityPolicies
 
 If you have activated the [PodSecurityPolicy Admission Controller](https://kubernetes.io/docs/admin/admission-controllers/#podsecuritypolicy) and thus are
-using [PodSecurityPolicies](https://kubernetes.io/docs/concepts/policy/pod-security-policy/), you will require additional `(Cluster)RoleBindings` 
+using [PodSecurityPolicies](https://kubernetes.io/docs/concepts/policy/pod-security-policy/), you will require additional `(Cluster)RoleBindings`
 for the different `ServiceAccounts` Rook uses to start the Rook Storage Pods.
- 
+
 **Note**: You do not have to perform these steps if you do not have the `PodSecurityPolicy` Admission Controller activated!  
 
-##### PodSecurityPolicy 
+##### PodSecurityPolicy
 
 You need one `PodSecurityPolicy` that allows privileged `Pod` execution. Here is an example:
 
@@ -54,7 +54,7 @@ spec:
 ```
 
 **Hint**: Allowing `hostNetwork` usage is required when using `hostNetwork: true` in the Cluster `CustomResourceDefinition`!
-You are then also required to allow the usage of `hostPorts` in the `PodSecurityPolicy`. The given port range is a minimal 
+You are then also required to allow the usage of `hostPorts` in the `PodSecurityPolicy`. The given port range is a minimal
 working recommendation for rook:
  ```yaml
  hostPorts:
@@ -86,9 +86,9 @@ rules:
   - privileged
   verbs:
   - use
-  
+
 ```
-and 
+and
 ```yaml
 apiVersion: v1
 kind: Namespace
@@ -108,13 +108,13 @@ subjects:
 - kind: ServiceAccount
   name: rook-agent
   namespace: rook-system
-``` 
+```
 
 Save these definitions to one or multiple yaml files and create them by executing `kubectl apply -f <nameOfYourFile>.yaml`
 
 You will also require two more `RoleBindings` for each Rook Cluster you deploy:
 Create these two `RoleBindings` in the Namespace you plan to deploy your Rook Cluster into (default is "rook" namespace):
- 
+
 ```yaml
 apiVersion: v1
 kind: Namespace
@@ -150,4 +150,4 @@ subjects:
 - kind: ServiceAccount
   name: rook-ceph-osd
   namespace: rook
-``` 
+```

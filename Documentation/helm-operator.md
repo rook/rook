@@ -33,7 +33,7 @@ kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"sp
 
 ## Installing
 
-The Rook Operator helm chart will install the basic components necessary to create a storage platform for your Kubernetes cluster. 
+The Rook Operator helm chart will install the basic components necessary to create a storage platform for your Kubernetes cluster.
 After the helm chart is installed, you will need to [create a Rook cluster](quickstart.md#create-a-rook-cluster).
 
 The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
@@ -41,7 +41,7 @@ The `helm install` command deploys rook on the Kubernetes cluster in the default
 Rook currently publishes builds to the `alpha` and `master` channels. In the future, `beta` and `stable` will also be available.
 
 ### Alpha
-The alpha channel is the most recent release of Rook that is considered ready for testing by the community. 
+The alpha channel is the most recent release of Rook that is considered ready for testing by the community.
 ```console
 helm repo add rook-alpha https://charts.rook.io/alpha
 helm install rook-alpha/rook
@@ -102,7 +102,7 @@ The following tables lists the configurable parameters of the rook-operator char
 
 
 ### Command Line
-You can pass the settings with helm command line parameters. Specify each parameter using the 
+You can pass the settings with helm command line parameters. Specify each parameter using the
 `--set key=value[,key=value]` argument to `helm install`. For example, the following command will install rook where RBAC is not enabled.
 
 ```console

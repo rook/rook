@@ -25,7 +25,7 @@ There are two main categories of information you will need to investigate issues
 
 ## Kubernetes Tools
 Kubernetes status is the first line of investigating when something goes wrong with the cluster. Here are a few artifacts that are helpful to gather:
-- Rook pod status: 
+- Rook pod status:
   - `kubectl get pod -n rook -o wide`
   - `kubectl get pod -n rook-system -o wide`
 - Logs for Rook pods
@@ -38,12 +38,12 @@ Kubernetes status is the first line of investigating when something goes wrong w
 - Other Rook artifacts:
   - The monitors that are expected to be in quorum: `kubectl -n rook get configmap rook-ceph-mon-endpoints -o yaml | grep data`
   - More artifacts in the `rook` namespace: `kubectl -n rook get all`
-  
+
 ## Ceph Tools
 After you verify the basic health of the running pods, next you will want to run Ceph tools for status of the storage components. There are two ways to run the Ceph tools, either in the Rook toolbox or inside other Rook pods that are already running.
 
 ### Tools in the Rook Toolbox
- The [rook-tools pod](./toolbox.md) is a one-stop shop for both Ceph tools and other troubleshooting tools. Once the pod is up and running one connect to the pod to execute Ceph commands to evaluate that current state of the cluster. 
+ The [rook-tools pod](./toolbox.md) is a one-stop shop for both Ceph tools and other troubleshooting tools. Once the pod is up and running one connect to the pod to execute Ceph commands to evaluate that current state of the cluster.
  ```bash
  kubectl exec -it rook-tools bash
  ```
@@ -276,12 +276,12 @@ If the first mon is not detected healthy, the operator will continue to check un
 - The mon pod is failing to start
 
 ### Operator fails to connect to the mon
-First look at the logs of the operator to confirm if it is able to connect to the mons. 
+First look at the logs of the operator to confirm if it is able to connect to the mons.
 ```
 $ kubectl -n rook-system logs -l app=rook-operator
 ```
 
-Likely you will see an error similar to the following that the operator is timing out when connecting to the mon. The last command is `ceph mon_status`, 
+Likely you will see an error similar to the following that the operator is timing out when connecting to the mon. The last command is `ceph mon_status`,
 followed by a timeout message five minutes later.
 ```
 2018-01-21 21:47:32.375833 I | exec: Running command: ceph mon_status --cluster=rook --conf=/var/lib/rook/rook/rook.config --keyring=/var/lib/rook/rook/client.admin.keyring --format json --out-file /tmp/442263890
@@ -295,12 +295,12 @@ followed by a timeout message five minutes later.
 The error would appear to be an authentication error, but it is misleading. The real issue is a timeout.
 
 ### Solution
-If you see the timeout in the operator log, verify if the mon pod is running (see the next section). 
-If the mon pod is running, check the network connectivity between the operator pod and the mon pod. 
+If you see the timeout in the operator log, verify if the mon pod is running (see the next section).
+If the mon pod is running, check the network connectivity between the operator pod and the mon pod.
 A common issue is that the CNI is not configured correctly.
 
 ### Failing mon pod
-Second we need to verify if the mon pod started successfully. 
+Second we need to verify if the mon pod started successfully.
 
 ```
 $ kubectl -n rook get pod -l app=rook-ceph-mon
@@ -317,15 +317,15 @@ $ kubectl -n rook describe pod -l mon=rook-ceph-mon0
 ...
     Last State:		Terminated
       Reason:		Error
-      Message:		The keyring does not match the existing keyring in /var/lib/rook/rook-ceph-mon0/data/keyring. 
+      Message:		The keyring does not match the existing keyring in /var/lib/rook/rook-ceph-mon0/data/keyring.
                     You may need to delete the contents of dataDirHostPath on the host from a previous deployment.
 ...
 ```
 
 ### Solution
-This is a common problem reinitializing the Rook cluster when the local directory used for persistence has **not** been purged. 
-This directory is the `dataDirHostPath` setting in the cluster CRD and is typically set to `/var/lib/rook`. 
-To fix the issue you will need to delete all components of Rook and then delete the contents of `/var/lib/rook` (or the directory specified by `dataDirHostPath`) on each of the hosts in the cluster. 
+This is a common problem reinitializing the Rook cluster when the local directory used for persistence has **not** been purged.
+This directory is the `dataDirHostPath` setting in the cluster CRD and is typically set to `/var/lib/rook`.
+To fix the issue you will need to delete all components of Rook and then delete the contents of `/var/lib/rook` (or the directory specified by `dataDirHostPath`) on each of the hosts in the cluster.
 Then when the cluster CRD is applied to start a new cluster, the rook-operator should start all the pods as expected.
 
 **Important: Deleting the `dataDirHostPath` folder is destructive to the storage. Only delete the folder if you are trying to permanently purge the Rook cluster.**
@@ -351,7 +351,7 @@ old state. Looking at the OSD pod logs you will see an error about the file alre
 ```
 $ kubectl -n rook logs rook-ceph-osd-fl8fs
 ...
-2017-10-31 20:13:11.187106 I | mkfs-osd0: 2017-10-31 20:13:11.186992 7f0059d62e00 -1 bluestore(/var/lib/rook/osd0) _read_fsid unparsable uuid 
+2017-10-31 20:13:11.187106 I | mkfs-osd0: 2017-10-31 20:13:11.186992 7f0059d62e00 -1 bluestore(/var/lib/rook/osd0) _read_fsid unparsable uuid
 2017-10-31 20:13:11.187208 I | mkfs-osd0: 2017-10-31 20:13:11.187026 7f0059d62e00 -1 bluestore(/var/lib/rook/osd0) _setup_block_symlink_or_file failed to create block symlink to /dev/disk/by-partuuid/651153ba-2dfc-4231-ba06-94759e5ba273: (17) File exists
 2017-10-31 20:13:11.187233 I | mkfs-osd0: 2017-10-31 20:13:11.187038 7f0059d62e00 -1 bluestore(/var/lib/rook/osd0) mkfs failed, (17) File exists
 2017-10-31 20:13:11.187254 I | mkfs-osd0: 2017-10-31 20:13:11.187042 7f0059d62e00 -1 OSD::mkfs: ObjectStore::mkfs failed with error (17) File exists
@@ -359,9 +359,9 @@ $ kubectl -n rook logs rook-ceph-osd-fl8fs
 ```
 
 ## Solution
-If the error is from the file that already exists, this is a common problem reinitializing the Rook cluster when the local directory used for persistence has **not** been purged. 
-This directory is the `dataDirHostPath` setting in the cluster CRD and is typically set to `/var/lib/rook`. 
-To fix the issue you will need to delete all components of Rook and then delete the contents of `/var/lib/rook` (or the directory specified by `dataDirHostPath`) on each of the hosts in the cluster. 
+If the error is from the file that already exists, this is a common problem reinitializing the Rook cluster when the local directory used for persistence has **not** been purged.
+This directory is the `dataDirHostPath` setting in the cluster CRD and is typically set to `/var/lib/rook`.
+To fix the issue you will need to delete all components of Rook and then delete the contents of `/var/lib/rook` (or the directory specified by `dataDirHostPath`) on each of the hosts in the cluster.
 Then when the cluster CRD is applied to start a new cluster, the rook-operator should start all the pods as expected.
 
 # Node hangs after reboot
@@ -373,7 +373,7 @@ Then when the cluster CRD is applied to start a new cluster, the rook-operator s
 ## Solution
 The node needs to be [drained](https://kubernetes.io/docs/tasks/administer-cluster/safely-drain-node/) before reboot. After the successful drain, the node can be rebooted as usual.
 
-Because `kubectl drain` command automatically marks the node as unschedulable (`kubectl cordon` effect), the node needs to be uncordoned once it's back online. 
+Because `kubectl drain` command automatically marks the node as unschedulable (`kubectl cordon` effect), the node needs to be uncordoned once it's back online.
 
 Drain the node:
 ```
