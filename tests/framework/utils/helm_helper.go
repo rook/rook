@@ -22,7 +22,6 @@ import (
 
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
-	"time"
 )
 
 //HelmHelper is wrapper for running helm commands
@@ -74,23 +73,19 @@ func (h *HelmHelper) InstallLocalRookHelmChart(chartName string, deployName stri
 	}
 	var result string
 	var err error
-	inc := 0
-	for inc < RetryLoop {
-		result, err = h.Execute(cmdArgs...)
-		if err == nil {
-			return nil
-		}
-		logger.Infof("helm install for %s failed %v, err ->%v", chartName, result, err)
-		ls, _ := h.Execute([]string{"ls"}...)
-		logger.Infof("Helm ls result : %v", ls)
-		ss, _ := h.Execute([]string{"search"}...)
-		logger.Infof("Helm search result : %v", ss)
-		rl, _ := h.Execute([]string{"repo", "list"}...)
-		logger.Infof("Helm repo list result : %v", rl)
 
-		inc++
-		time.Sleep(RetryInterval * time.Second)
+	result, err = h.Execute(cmdArgs...)
+	if err == nil {
+		return nil
 	}
+
+	logger.Infof("helm install for %s failed %v, err ->%v", chartName, result, err)
+	ls, _ := h.Execute([]string{"ls"}...)
+	logger.Infof("Helm ls result : %v", ls)
+	ss, _ := h.Execute([]string{"search"}...)
+	logger.Infof("Helm search result : %v", ss)
+	rl, _ := h.Execute([]string{"repo", "list"}...)
+	logger.Infof("Helm repo list result : %v", rl)
 
 	logger.Errorf("cannot install helm chart with name : %v, version: %v, namespace: %v  - %v , err: %v", chartName, chartVersion, namespace, result, err)
 	return fmt.Errorf("cannot install helm chart with name : %v, version: %v, namespace: %v - %v, err: %v", chartName, chartVersion, namespace, result, err)
