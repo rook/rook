@@ -6,7 +6,7 @@ indent: true
 
 # Direct Tools
 
-Rook is designed with Kubernetes design principles from the ground up. This topic is going to escape the bounds of Kubernetes storage and show you how to 
+Rook is designed with Kubernetes design principles from the ground up. This topic is going to escape the bounds of Kubernetes storage and show you how to
 use block and file storage directly from a pod without any of the Kubernetes magic. The purpose of this topic is to help you quickly test a new configuration,
 although it is not meant to be used in production. All of the benefits of Kubernetes storage including failover, detach, and attach will not be available.
 If your pod dies, your mount will die with it.
@@ -59,7 +59,7 @@ rbd unmap /dev/rbd0
 
 ## Shared Filesystem Tools
 
-After you have created a file system as described in the [Shared Filesystem](filesystem.md) topic, you can mount the filesystem from multiple pods. 
+After you have created a file system as described in the [Shared Filesystem](filesystem.md) topic, you can mount the filesystem from multiple pods.
 The the other topic you may have mounted the filesystem already in the registry pod. Now we will mount the same file system in the toolbox pod.
 This is just a simple way to validate the Ceph file system and is not recommended for production Kubernetes pods.
 

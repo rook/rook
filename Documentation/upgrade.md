@@ -16,7 +16,7 @@ We welcome feedback and opening issues!
 ## Supported Versions
 The supported version for this upgrade guide is **from an 0.7 release to the latest builds**. Until 0.8 is released, the latest builds are labeled such as `v0.7.0-27.gbfc8ec6`. Build-to-build upgrades are not guaranteed to work. This guide is to test upgrades only between the official releases.
 
-For a guide to upgrade previous versions of Rook, please refer to the version of documentation for those releases. 
+For a guide to upgrade previous versions of Rook, please refer to the version of documentation for those releases.
 - [Upgrade 0.6 to 0.7](https://rook.io/docs/rook/v0.7/upgrade.html)
 - [Upgrade 0.5 to 0.6](https://rook.io/docs/rook/v0.6/upgrade.html)
 
@@ -80,12 +80,12 @@ Let's look at some sample output and review some of the details:
   cluster:
     id:     fe7ae378-dc77-46a1-801b-de05286aa78e
     health: HEALTH_OK
- 
+
   services:
     mon: 3 daemons, quorum rook-ceph-mon0,rook-ceph-mon1,rook-ceph-mon2
     mgr: rook-ceph-mgr0(active)
     osd: 1 osds: 1 up, 1 in
- 
+
   data:
     pools:   1 pools, 100 pgs
     objects: 0 objects, 0 bytes
@@ -125,7 +125,7 @@ Any pod that is using a Rook volume should also remain healthy:
 ## Upgrade Process
 The general flow of the upgrade process will be to upgrade the version of a Rook pod, verify the pod is running with the new version, then verify that the overall cluster health is still in a good state.
 
-In this guide, we will be upgrading a live Rook cluster running `v0.7.0` to the next available version of `v0.8`. Until the `v0.8` release is completed, we will instead use the latest `v0.7` tag such as `v0.7.0-27.gbfc8ec6`. 
+In this guide, we will be upgrading a live Rook cluster running `v0.7.0` to the next available version of `v0.8`. Until the `v0.8` release is completed, we will instead use the latest `v0.7` tag such as `v0.7.0-27.gbfc8ec6`.
 
 Let's get started!
 
@@ -173,7 +173,7 @@ kubectl -n rook exec -it rook-tools -- ceph status
 
 ### Toolbox
 The toolbox pod runs the tools we will use during the upgrade for cluster status. The toolbox is not expected to contain any state,
-so we will delete the old pod and start the new toolbox. 
+so we will delete the old pod and start the new toolbox.
 ```bash
 kubectl -n rook delete pod rook-tools
 ```
@@ -299,7 +299,7 @@ kubectl -n rook get pod -l app=rook-ceph-mds -o jsonpath='{range .items[*]}{.met
 At this point, your Rook cluster should be fully upgraded to running version `rook/rook:v0.7.0-27.gbfc8ec6` and the cluster should be healthy according to the steps in the [health verification section](#health-verification).
 
 ## Upgrading Kubernetes
-Rook cluster installations on Kubernetes prior to version 1.7.x, use [ThirdPartyResource](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-third-party-resource/) that have been deprecated as of 1.7 and removed in 1.8. If upgrading your Kubernetes cluster Rook TPRs have to be migrated to CustomResourceDefinition (CRD) following [Kubernetes documentation](https://kubernetes.io/docs/tasks/access-kubernetes-api/migrate-third-party-resource/). Rook TPRs that require migration during upgrade are: 
+Rook cluster installations on Kubernetes prior to version 1.7.x, use [ThirdPartyResource](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-third-party-resource/) that have been deprecated as of 1.7 and removed in 1.8. If upgrading your Kubernetes cluster Rook TPRs have to be migrated to CustomResourceDefinition (CRD) following [Kubernetes documentation](https://kubernetes.io/docs/tasks/access-kubernetes-api/migrate-third-party-resource/). Rook TPRs that require migration during upgrade are:
 - Cluster
 - Pool
 - ObjectStore
