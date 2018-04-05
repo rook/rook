@@ -160,6 +160,9 @@ func (o MCTestOperations) SetUp() {
 	require.True(o.T(), o.kh.IsPodInExpectedState("rook-agent", installer.SystemNamespace(o.namespace1), "Running"),
 		"Make sure rook-agent is in running state")
 
+	require.True(o.T(), o.kh.IsPodInExpectedState("rook-discover", installer.SystemNamespace(o.namespace1), "Running"),
+		"Make sure rook-discover is in running state")
+
 	time.Sleep(10 * time.Second)
 
 	// start the two clusters in parallel

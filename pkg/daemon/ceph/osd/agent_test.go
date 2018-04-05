@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -218,7 +219,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig rookalpha.StoreConf
 	_, _, sdxUUID := mockPartitionSchemeEntry(t, 23, "sdx", &storeConfig, agent.kv, agent.nodeName)
 
 	// note only sdx already has a UUID (it's been through partitioning)
-	context.Devices = []*clusterd.LocalDisk{
+	context.Devices = []*sys.LocalDisk{
 		{Name: "sdx", Size: 1234567890, UUID: sdxUUID},
 		{Name: "sdy", Size: 1234567890},
 	}
@@ -285,7 +286,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 
 	// set up expected ProcManager commands
 	context := &clusterd.Context{
-		Devices:   []*clusterd.LocalDisk{},
+		Devices:   []*sys.LocalDisk{},
 		Executor:  executor,
 		ConfigDir: configDir,
 	}
@@ -372,12 +373,12 @@ func createTestKeyring(t *testing.T, configRoot string, args []string) {
 func TestGetPartitionPerfScheme(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	context := &clusterd.Context{Devices: []*clusterd.LocalDisk{}, ConfigDir: configDir}
+	context := &clusterd.Context{Devices: []*sys.LocalDisk{}, ConfigDir: configDir}
 	test.CreateConfigDir(configDir)
 
 	// 3 disks: 2 for data and 1 for the metadata of both disks (2 WALs and 2 DBs)
 	a := &OsdAgent{devices: "sda,sdb", metadataDevice: "sdc", kv: mockKVStore(), nodeName: "a"}
-	context.Devices = []*clusterd.LocalDisk{
+	context.Devices = []*sys.LocalDisk{
 		{Name: "sda", Size: 107374182400}, // 100 GB
 		{Name: "sdb", Size: 107374182400}, // 100 GB
 		{Name: "sdc", Size: 44158681088},  // 1 MB (starting offset) + 2 * (576 MB + 20 GB) = 41.125 GB
@@ -412,7 +413,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 			if command == "blkid" {
 				return "", nil
 			}
-			if command == "df" {
+			if command == "udevadm" {
 				return "", nil
 			}
 			return "", fmt.Errorf("unexpected command %s %v", command, args)
@@ -476,14 +477,14 @@ func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 			if command == "blkid" {
 				return "", nil
 			}
-			if command == "df" {
+			if command == "udevadm" {
 				return "", nil
 			}
 			return "", fmt.Errorf("unexpected command %s %v", command, args)
 		},
 	}
 	context := &clusterd.Context{
-		Devices:   []*clusterd.LocalDisk{},
+		Devices:   []*sys.LocalDisk{},
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
@@ -491,7 +492,7 @@ func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 	a := &OsdAgent{devices: "sda", kv: mockKVStore()}
 	_, _, sdaUUID := mockPartitionSchemeEntry(t, 1, "sda", nil, a.kv, a.nodeName)
 
-	context.Devices = []*clusterd.LocalDisk{
+	context.Devices = []*sys.LocalDisk{
 		{Name: "sda", Size: 107374182400, UUID: sdaUUID}, // 100 GB
 	}
 
@@ -540,14 +541,14 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 			if command == "blkid" {
 				return "", nil
 			}
-			if command == "df" {
+			if command == "udevadm" {
 				return "", nil
 			}
 			return "", fmt.Errorf("unexpected command %s %v", command, args)
 		},
 	}
 	context := &clusterd.Context{
-		Devices:   []*clusterd.LocalDisk{},
+		Devices:   []*sys.LocalDisk{},
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
@@ -558,7 +559,7 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 	// setup an existing partition schme with metadata on nvme01 and data on sda
 	_, metadataUUID, sdaUUID := mockDistributedPartitionScheme(t, 1, "nvme01", "sda", a.kv, a.nodeName)
 
-	context.Devices = []*clusterd.LocalDisk{
+	context.Devices = []*sys.LocalDisk{
 		{Name: "nvme01-changed", Size: 107374182400, UUID: metadataUUID},
 		{Name: "sda-changed", Size: 107374182400, UUID: sdaUUID},
 	}

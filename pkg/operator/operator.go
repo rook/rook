@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/operator/agent"
 	"github.com/rook/rook/pkg/operator/cluster"
+	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/file"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/object"
@@ -84,6 +85,11 @@ func (o *Operator) Run() error {
 
 	if err := rookAgent.Start(namespace, o.rookImage); err != nil {
 		return fmt.Errorf("Error starting agent daemonset: %v", err)
+	}
+
+	rookDiscover := discover.New(o.context.Clientset)
+	if err := rookDiscover.Start(namespace, o.rookImage); err != nil {
+		return fmt.Errorf("Error starting device discovery daemonset: %v", err)
 	}
 
 	signalChan := make(chan os.Signal, 1)

@@ -62,7 +62,7 @@ func (h *HelmHelper) GetLocalRookHelmChartVersion(chartName string) (string, err
 	}
 	cd := strings.Replace(sys.Grep(result, chartName), "\t", " ", 2)
 
-	return sys.Awk(cd, 2), nil
+	return sys.Awk(cd, 2, " "), nil
 }
 
 //InstallLocalRookHelmChart installs a give helm chart
