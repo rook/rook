@@ -28,6 +28,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/cluster/ceph/osd/config"
+	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/display"
 	"k8s.io/api/core/v1"
@@ -105,7 +106,7 @@ func (c *Cluster) Start() error {
 	logger.Infof("start running osds in namespace %s", c.Namespace)
 
 	// create the artifacts for the osd to work with RBAC enabled
-	err := k8sutil.MakeRole(c.context.Clientset, c.Namespace, appName, clusterAccessRules, c.ownerRef)
+	err := k8sutil.MakeRole(c.context.Clientset, c.Namespace, appName, clusterAccessRules, &c.ownerRef)
 	if err != nil {
 		logger.Warningf("failed to init RBAC for OSDs. %+v", err)
 	}
@@ -168,9 +169,16 @@ func (c *Cluster) Start() error {
 			errorMessages = append(errorMessages, fmt.Sprintf("failed to set orchestration starting status for node %s: %+v", n.Name, err))
 			continue
 		}
-
+		devicesToUse := n.Devices
+		availDev, deviceErr := discover.GetAvailableDevices(c.context, n.Name, c.Namespace, n.Devices, n.Selection.DeviceFilter, n.Selection.GetUseAllDevices())
+		if deviceErr != nil {
+			logger.Warningf("failed to get devices for node %s cluster %s: %v", n.Name, c.Namespace, deviceErr)
+		} else {
+			devicesToUse = availDev
+			logger.Infof("avail devices for node %s: %+v", n.Name, availDev)
+		}
 		// create the replicaSet that will run the OSDs for this node
-		rs := c.makeReplicaSet(n.Name, n.Devices, n.Selection, resources, n.Config)
+		rs := c.makeReplicaSet(n.Name, devicesToUse, n.Selection, resources, n.Config)
 		_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {

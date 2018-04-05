@@ -93,26 +93,7 @@ func TestOverwriteRookOwnedPartitions(t *testing.T) {
 	defer os.RemoveAll(configDir)
 
 	// set up mock execute so we can verify the partitioning happens on sda
-	execCount := 0
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
-		logger.Infof("RUN %d for '%s'. %s %+v", execCount, name, command, args)
-		assert.Equal(t, "sgdisk", command)
-		switch execCount {
-		case 0:
-			assert.Equal(t, []string{"--zap-all", "/dev/sda"}, args)
-		case 1:
-			assert.Equal(t, []string{"--clear", "--mbrtogpt", "/dev/sda"}, args)
-		case 2:
-			assert.Equal(t, 11, len(args))
-			assert.Equal(t, "--change-name=1:ROOK-OSD1-WAL", args[1])
-			assert.Equal(t, "--change-name=2:ROOK-OSD1-DB", args[4])
-			assert.Equal(t, "--change-name=3:ROOK-OSD1-BLOCK", args[7])
-			assert.Equal(t, "/dev/sda", args[10])
-		}
-		execCount++
-		return nil
-	}
 
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
 	outputExecCount := 0
@@ -120,23 +101,29 @@ func TestOverwriteRookOwnedPartitions(t *testing.T) {
 		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
 		var output string
 		switch outputExecCount {
-		case 0, 4: // we'll call this twice, once explicitly below to verify rook owns the partitions and a 2nd time within formatDevice
+		case 0, 7: // we'll call this twice, once explicitly below to verify rook owns the partitions and a 2nd time within formatDevice
 			assert.Equal(t, command, "lsblk")
 			output = `NAME="sda" SIZE="65" TYPE="disk" PKNAME=""
 NAME="sda1" SIZE="30" TYPE="part" PKNAME="sda"
 NAME="sda2" SIZE="10" TYPE="part" PKNAME="sda"
 NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
-		case 1, 5:
-			assert.Equal(t, "blkid /dev/sda1", name)
-			output = "ROOK-OSD0-WAL"
-		case 2, 6:
-			assert.Equal(t, "blkid /dev/sda2", name)
-			output = "ROOK-OSD0-DB"
-		case 3, 7:
-			assert.Equal(t, "blkid /dev/sda3", name)
-			output = "ROOK-OSD0-BLOCK"
-		case 8:
-			assert.Equal(t, command, "df")
+		case 1, 8:
+			assert.Equal(t, "udevadm /dev/sda1", name)
+			output = "ID_PART_ENTRY_NAME=ROOK-OSD0-WAL"
+		case 2, 9:
+			assert.Equal(t, "get filesystem type for sda1", name)
+			output = ""
+		case 3, 10:
+			assert.Equal(t, "udevadm /dev/sda2", name)
+			output = "ID_PART_ENTRY_NAME=ROOK-OSD0-DB"
+		case 4, 11:
+			assert.Equal(t, "get filesystem type for sda2", name)
+			output = ""
+		case 5, 12:
+			assert.Equal(t, "udevadm /dev/sda3", name)
+			output = "ID_PART_ENTRY_NAME=ROOK-OSD0-BLOCK"
+		case 6, 13:
+			assert.Equal(t, "get filesystem type for sda3", name)
 			output = ""
 		}
 		outputExecCount++
@@ -152,7 +139,7 @@ NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
 	config.PopulateCollocatedPerfSchemeEntry(entry, "sda", storeConfig)
 
 	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
-	context.Devices = []*clusterd.LocalDisk{
+	context.Devices = []*sys.LocalDisk{
 		{Name: "sda", Size: 65},
 	}
 	config := &osdConfig{configRoot: configDir, rootPath: filepath.Join(configDir, "osd1"), id: entry.ID,
@@ -161,14 +148,13 @@ NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
 	// ensure that our mocking makes it look like rook owns the partitions on sda
 	partitions, _, err := sys.GetDevicePartitions("sda", context.Executor)
 	assert.Nil(t, err)
-	assert.True(t, rookOwnsPartitions(partitions))
+	assert.True(t, sys.RookOwnsPartitions(partitions))
 
 	// try to format the device.  even though the device has existing partitions, they are owned by rook, so it is safe
 	// to format and the format/partitioning will happen.
 	err = formatDevice(context, config, false, storeConfig)
 	assert.Nil(t, err)
-	assert.Equal(t, 3, execCount)
-	assert.Equal(t, 9, outputExecCount)
+	assert.Equal(t, 15, outputExecCount)
 }
 
 func TestPartitionBluestoreMetadata(t *testing.T) {
@@ -238,10 +224,10 @@ func TestPartitionBluestoreMetadataSafe(t *testing.T) {
 	nodeID := "node123"
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
-		if command == "df" {
+		if command == "udevadm" {
 			// mock that the metadata device already has a filesytem, this should abort the partition effort
 			if strings.Index(name, "nvme01") != -1 {
-				return "/dev/nvme01 ext4", nil
+				return udevFSOutput, nil
 			}
 		}
 
@@ -320,7 +306,7 @@ func testPartitionOSDHelper(t *testing.T, storeConfig rookalpha.StoreConfig) {
 
 	// setup a context with 1 disk: sda
 	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
-	context.Devices = []*clusterd.LocalDisk{
+	context.Devices = []*sys.LocalDisk{
 		{Name: "sda", Size: 100},
 	}
 

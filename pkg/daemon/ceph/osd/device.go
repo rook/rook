@@ -90,7 +90,7 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 	}
 
 	// check if partitions belong to rook
-	ownPartitions, devFS, err := checkIfDeviceAvailable(context.Executor, dataDetails.Device)
+	ownPartitions, devFS, err := sys.CheckIfDeviceAvailable(context.Executor, dataDetails.Device)
 	if err != nil {
 		return fmt.Errorf("failed to format device. %+v", err)
 	}
@@ -125,38 +125,6 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 	return nil
 }
 
-func checkIfDeviceAvailable(executor exec.Executor, name string) (bool, string, error) {
-	ownPartitions := true
-	partitions, _, err := sys.GetDevicePartitions(name, executor)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to get %s partitions. %+v", name, err)
-	}
-	if !rookOwnsPartitions(partitions) {
-		ownPartitions = false
-	}
-
-	// check if there is a file system on the device
-	devFS, err := sys.GetDeviceFilesystems(name, executor)
-	if err != nil {
-		return false, "", fmt.Errorf("failed to get device %s filesystem: %+v", name, err)
-	}
-
-	return ownPartitions, devFS, nil
-}
-
-func rookOwnsPartitions(partitions []*sys.Partition) bool {
-
-	// if there are partitions, they must all have the rook osd label
-	for _, p := range partitions {
-		if !strings.HasPrefix(p.Label, "ROOK-OSD") {
-			return false
-		}
-	}
-
-	// if there are no partitions, or the partitions are all from rook OSDs, then rook owns the device
-	return true
-}
-
 // partitions a given device exclusively for metadata usage
 func partitionMetadata(context *clusterd.Context, info *config.MetadataDeviceInfo, kv *k8sutil.ConfigMapKVStore, storeName string) error {
 	if len(info.Partitions) == 0 {
@@ -181,7 +149,7 @@ func partitionMetadata(context *clusterd.Context, info *config.MetadataDeviceInf
 	}
 
 	// check one last time to make sure it's OK for us to format this metadata device
-	ownPartitions, fs, err := checkIfDeviceAvailable(context.Executor, info.Device)
+	ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, info.Device)
 	if err != nil {
 		return fmt.Errorf("failed to get metadata device %s info: %+v", info.Device, err)
 	} else if fs != "" || !ownPartitions {

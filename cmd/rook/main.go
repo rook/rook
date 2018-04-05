@@ -100,6 +100,7 @@ func addCommands() {
 	rootCmd.AddCommand(mdsCmd)
 	rootCmd.AddCommand(agentCmd)
 	rootCmd.AddCommand(operatorCmd)
+	rootCmd.AddCommand(discoverCmd)
 }
 
 func setLogLevel() {
