@@ -5,6 +5,7 @@
 ## Notable Features
 - Ceph tools can be run [from any rook pod](Documentation/common-issues.md#ceph-tools).
 - Output from stderr will be included in error messages returned from the `exec` of external tools
+- Rook-Operator no longer creates the resources CRD's or TPR's at the runtime. Instead, those resources are provisioned during deployment via `helm` or `kubectl`.
 
 ## Breaking Changes
 

@@ -32,7 +32,6 @@ rules:
 - apiGroups:
   - extensions
   resources:
-  - thirdpartyresources
   - deployments
   - daemonsets
   - replicasets
@@ -44,15 +43,29 @@ rules:
   - update
   - delete
 - apiGroups:
+  - extensions
+  resources:
+  - thirdpartyresources
+  resourceNames:
+  - cluster.rook.io
+  - pool.rook.io
+  - objectstore.rook.io
+  - filesystem.rook.io
+  - volumeattachment.rook.io
+  verbs:
+  - get
+- apiGroups:
   - apiextensions.k8s.io
   resources:
   - customresourcedefinitions
+  resourceNames:
+  - clusters.rook.io
+  - pools.rook.io
+  - objectstores.rook.io
+  - filesystems.rook.io
+  - volumeattachments.rook.io
   verbs:
   - get
-  - list
-  - watch
-  - create
-  - delete
 - apiGroups:
   - rbac.authorization.k8s.io
   resources:
