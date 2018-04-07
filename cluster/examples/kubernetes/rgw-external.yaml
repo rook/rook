@@ -10,9 +10,9 @@ metadata:
 spec:
   ports:
   - name: rgw
-    port: 53390
+    port: 80
     protocol: TCP
-    targetPort: 53390
+    targetPort: 80
   selector:
     app: rook-ceph-rgw
     rook_cluster: rook
