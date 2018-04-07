@@ -22,13 +22,13 @@ If role-based access control (RBAC) is enabled in your cluster, you may need to 
 
 ```console
 # Create a ServiceAccount for Tiller in the `kube-system` namespace
-kubectl -n kube-system create sa tiller
+kubectl --namespace kube-system create sa tiller
 
 # Create a ClusterRoleBinding for Tiller
 kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
 
 # Patch Tiller's Deployment to use the new ServiceAccount
-kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
+kubectl --namespace kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
 ```
 
 ## Installing
@@ -44,7 +44,7 @@ Rook currently publishes builds to the `alpha` and `master` channels. In the fut
 The alpha channel is the most recent release of Rook that is considered ready for testing by the community.
 ```console
 helm repo add rook-alpha https://charts.rook.io/alpha
-helm install rook-alpha/rook
+helm install --namespace rook-alpha/rook
 ```
 
 ### Master
@@ -69,7 +69,7 @@ To deploy from a local build from your development environment:
 1. Install the helm chart
 ```console
 cd cluster/charts/rook
-helm install --name rook --namespace rook-system .
+helm install --namespace rook-system --name rook .
 ```
 
 ## Uninstalling the Chart
