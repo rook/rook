@@ -202,7 +202,7 @@ func TestController(t *testing.T) {
 		time.Sleep(2 * resyncPeriod)
 		ctrl.runningOperations.Wait()
 
-		pvList, _ := client.Core().PersistentVolumes().List(metav1.ListOptions{})
+		pvList, _ := client.CoreV1().PersistentVolumes().List(metav1.ListOptions{})
 		if !reflect.DeepEqual(test.expectedVolumes, pvList.Items) {
 			t.Logf("test case: %s", test.name)
 			t.Errorf("expected PVs:\n %v\n but got:\n %v\n", test.expectedVolumes, pvList.Items)

@@ -104,7 +104,7 @@ func GetContainerImage(clientset kubernetes.Interface) (string, error) {
 		return "", fmt.Errorf("cannot detect the pod namespace. Please provide it using the downward API in the manifest file")
 	}
 
-	pod, err := clientset.Core().Pods(podNamespace).Get(podName, metav1.GetOptions{})
+	pod, err := clientset.CoreV1().Pods(podNamespace).Get(podName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}

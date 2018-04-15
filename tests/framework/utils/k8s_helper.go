@@ -548,7 +548,7 @@ func (k8sh *K8sHelper) waitForVolumeAttachment(namespace, volumeAttachmentName s
 func (k8sh *K8sHelper) isVolumeAttachmentExist(namespace, name string) (bool, error) {
 	var result rookalpha.VolumeAttachment
 	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, namespace, attachment.CustomResourceNamePlural)
-	err := k8sh.Clientset.Core().RESTClient().Get().
+	err := k8sh.Clientset.CoreV1().RESTClient().Get().
 		RequestURI(uri).
 		Name(name).
 		Do().
