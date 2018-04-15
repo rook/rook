@@ -40,7 +40,7 @@ type ProvisionPVCLock struct {
 func (pl *ProvisionPVCLock) Get() (*LeaderElectionRecord, error) {
 	var record LeaderElectionRecord
 	var err error
-	pl.p, err = pl.Client.Core().PersistentVolumeClaims(pl.PVCMeta.Namespace).Get(pl.PVCMeta.Name, metav1.GetOptions{})
+	pl.p, err = pl.Client.CoreV1().PersistentVolumeClaims(pl.PVCMeta.Namespace).Get(pl.PVCMeta.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func (pl *ProvisionPVCLock) Update(ler LeaderElectionRecord) error {
 		return err
 	}
 	pl.p.Annotations[LeaderElectionRecordAnnotationKey] = string(recordBytes)
-	pl.p, err = pl.Client.Core().PersistentVolumeClaims(pl.PVCMeta.Namespace).Update(pl.p)
+	pl.p, err = pl.Client.CoreV1().PersistentVolumeClaims(pl.PVCMeta.Namespace).Update(pl.p)
 	return err
 }
 

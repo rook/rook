@@ -121,7 +121,7 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 
 				logger.Infof("Volume attachment record %s/%s exists for pod: %s/%s", volumeattachObj.Namespace, volumeattachObj.Name, attachment.PodNamespace, attachment.PodName)
 				// Note this could return the reference of the pod who is requesting the attach if this pod have the same name as the pod in the attachment record.
-				pod, err := c.context.Clientset.Core().Pods(attachment.PodNamespace).Get(attachment.PodName, metav1.GetOptions{})
+				pod, err := c.context.Clientset.CoreV1().Pods(attachment.PodNamespace).Get(attachment.PodName, metav1.GetOptions{})
 				if err != nil || (attachment.PodNamespace == attachOpts.PodNamespace && attachment.PodName == attachOpts.Pod) {
 					if err != nil && !errors.IsNotFound(err) {
 						return fmt.Errorf("failed to get pod CRD %s/%s. %+v", attachment.PodNamespace, attachment.PodName, err)
@@ -289,7 +289,7 @@ func (c *Controller) GetAttachInfoFromMountDir(mountDir string, attachOptions *A
 		opts := metav1.ListOptions{
 			FieldSelector: fields.OneTermEqualSelector("spec.nodeName", node).String(),
 		}
-		pods, err := c.context.Clientset.Core().Pods(attachOptions.PodNamespace).List(opts)
+		pods, err := c.context.Clientset.CoreV1().Pods(attachOptions.PodNamespace).List(opts)
 		if err != nil {
 			return fmt.Errorf("failed to get pods in namespace %s: %+v", attachOptions.PodNamespace, err)
 		}
@@ -345,7 +345,7 @@ func (c *Controller) GetClientAccessInfo(clusterName string, clientAccessInfo *C
 // GetKernelVersion returns the kernel version of the current node.
 func (c *Controller) GetKernelVersion(_ *struct{} /* no inputs */, kernelVersion *string) error {
 	nodeName := os.Getenv(k8sutil.NodeNameEnvVar)
-	node, err := c.context.Clientset.Core().Nodes().Get(nodeName, metav1.GetOptions{})
+	node, err := c.context.Clientset.CoreV1().Nodes().Get(nodeName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get kernel version from node information for node %s: %+v", nodeName, err)
 	}
@@ -362,7 +362,7 @@ func (c *Controller) getKubeletRootDir() string {
 	}
 
 	// determining where the path of the kubelet root dir and flexvolume dir on the node
-	nodeConfig, err := c.context.Clientset.Core().RESTClient().Get().RequestURI(nodeConfigURI).DoRaw()
+	nodeConfig, err := c.context.Clientset.CoreV1().RESTClient().Get().RequestURI(nodeConfigURI).DoRaw()
 	if err != nil {
 		logger.Warningf("unable to query node configuration: %v", err)
 		return kubeletDefaultRootDir
