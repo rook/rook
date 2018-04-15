@@ -43,7 +43,7 @@ func (t *tpr) Get(namespace, name string) (*rookalpha.VolumeAttachment, error) {
 
 	var result rookalpha.VolumeAttachment
 	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, namespace, CustomResourceNamePlural)
-	return &result, t.clientset.Core().RESTClient().Get().
+	return &result, t.clientset.CoreV1().RESTClient().Get().
 		RequestURI(uri).
 		Name(name).
 		Do().
@@ -55,7 +55,7 @@ func (t *tpr) List(namespace string) (*rookalpha.VolumeAttachmentList, error) {
 
 	var result rookalpha.VolumeAttachmentList
 	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, namespace, CustomResourceNamePlural)
-	return &result, t.clientset.Core().RESTClient().Get().
+	return &result, t.clientset.CoreV1().RESTClient().Get().
 		RequestURI(uri).
 		Do().
 		Into(&result)
@@ -67,7 +67,7 @@ func (t *tpr) Create(volumeAttachment *rookalpha.VolumeAttachment) error {
 	volumeAttachment.Kind = tprKind
 	body, _ := json.Marshal(volumeAttachment)
 	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, volumeAttachment.Namespace, CustomResourceNamePlural)
-	return t.clientset.Core().RESTClient().Post().
+	return t.clientset.CoreV1().RESTClient().Post().
 		RequestURI(uri).
 		Body(body).
 		Do().Error()
@@ -79,7 +79,7 @@ func (t *tpr) Update(volumeAttachment *rookalpha.VolumeAttachment) error {
 	volumeAttachment.Kind = tprKind
 	body, _ := json.Marshal(volumeAttachment)
 	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, volumeAttachment.Namespace, CustomResourceNamePlural)
-	err := t.clientset.Core().RESTClient().Put().
+	err := t.clientset.CoreV1().RESTClient().Put().
 		RequestURI(uri).
 		Name(volumeAttachment.Name).
 		Body(body).
@@ -95,7 +95,7 @@ func (t *tpr) Update(volumeAttachment *rookalpha.VolumeAttachment) error {
 // Delete deletes the volume attach TPR resource in Kubernetes
 func (t *tpr) Delete(namespace, name string) error {
 	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, namespace, CustomResourceNamePlural)
-	return t.clientset.Core().RESTClient().Delete().
+	return t.clientset.CoreV1().RESTClient().Delete().
 		RequestURI(uri).
 		Name(name).
 		Do().

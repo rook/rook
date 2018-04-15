@@ -285,7 +285,7 @@ func NewProvisionController(
 ) *ProvisionController {
 	identity := uuid.NewUUID()
 	broadcaster := record.NewBroadcaster()
-	broadcaster.StartRecordingToSink(&corev1.EventSinkImpl{Interface: client.Core().Events(v1.NamespaceAll)})
+	broadcaster.StartRecordingToSink(&corev1.EventSinkImpl{Interface: client.CoreV1().Events(v1.NamespaceAll)})
 	var eventRecorder record.EventRecorder
 	out, err := exec.Command("hostname").Output()
 	if err != nil {
@@ -330,10 +330,10 @@ func NewProvisionController(
 
 	controller.claimSource = &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return client.Core().PersistentVolumeClaims(v1.NamespaceAll).List(options)
+			return client.CoreV1().PersistentVolumeClaims(v1.NamespaceAll).List(options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return client.Core().PersistentVolumeClaims(v1.NamespaceAll).Watch(options)
+			return client.CoreV1().PersistentVolumeClaims(v1.NamespaceAll).Watch(options)
 		},
 	}
 	controller.claims, controller.claimController = cache.NewInformer(
@@ -349,10 +349,10 @@ func NewProvisionController(
 
 	controller.volumeSource = &cache.ListWatch{
 		ListFunc: func(options metav1.ListOptions) (runtime.Object, error) {
-			return client.Core().PersistentVolumes().List(options)
+			return client.CoreV1().PersistentVolumes().List(options)
 		},
 		WatchFunc: func(options metav1.ListOptions) (watch.Interface, error) {
-			return client.Core().PersistentVolumes().Watch(options)
+			return client.CoreV1().PersistentVolumes().Watch(options)
 		},
 	}
 	controller.volumes, controller.volumeController = cache.NewInformer(
@@ -752,7 +752,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 	//  the locks. Check that PV (with deterministic name) hasn't been provisioned
 	//  yet.
 	pvName := ctrl.getProvisionedVolumeNameForClaim(claim)
-	volume, err := ctrl.client.Core().PersistentVolumes().Get(pvName, metav1.GetOptions{})
+	volume, err := ctrl.client.CoreV1().PersistentVolumes().Get(pvName, metav1.GetOptions{})
 	if err == nil && volume != nil {
 		// Volume has been already provisioned, nothing to do.
 		glog.V(4).Infof("provisionClaimOperation [%s]: volume already exists, skipping", claimToClaimKey(claim))
@@ -818,7 +818,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 	// Try to create the PV object several times
 	for i := 0; i < ctrl.createProvisionedPVRetryCount; i++ {
 		glog.V(4).Infof("provisionClaimOperation [%s]: trying to save volume %s", claimToClaimKey(claim), volume.Name)
-		if _, err = ctrl.client.Core().PersistentVolumes().Create(volume); err == nil {
+		if _, err = ctrl.client.CoreV1().PersistentVolumes().Create(volume); err == nil {
 			// Save succeeded.
 			glog.Infof("volume %q for claim %q saved", volume.Name, claimToClaimKey(claim))
 			break
@@ -996,9 +996,9 @@ func (ctrl *ProvisionController) watchPVC(claim *v1.PersistentVolumeClaim, stopC
 func (ctrl *ProvisionController) getPVCEventWatch(claim *v1.PersistentVolumeClaim, eventType, reason string) (watch.Interface, error) {
 	claimKind := "PersistentVolumeClaim"
 	claimUID := string(claim.UID)
-	fieldSelector := ctrl.client.Core().Events(claim.Namespace).GetFieldSelector(&claim.Name, &claim.Namespace, &claimKind, &claimUID).String() + ",type=" + eventType + ",reason=" + reason
+	fieldSelector := ctrl.client.CoreV1().Events(claim.Namespace).GetFieldSelector(&claim.Name, &claim.Namespace, &claimKind, &claimUID).String() + ",type=" + eventType + ",reason=" + reason
 
-	list, err := ctrl.client.Core().Events(claim.Namespace).List(metav1.ListOptions{
+	list, err := ctrl.client.CoreV1().Events(claim.Namespace).List(metav1.ListOptions{
 		FieldSelector: fieldSelector,
 	})
 	if err != nil {
@@ -1010,7 +1010,7 @@ func (ctrl *ProvisionController) getPVCEventWatch(claim *v1.PersistentVolumeClai
 		resourceVersion = list.Items[len(list.Items)-1].ResourceVersion
 	}
 
-	return ctrl.client.Core().Events(claim.Namespace).Watch(metav1.ListOptions{
+	return ctrl.client.CoreV1().Events(claim.Namespace).Watch(metav1.ListOptions{
 		FieldSelector:   fieldSelector,
 		Watch:           true,
 		ResourceVersion: resourceVersion,
@@ -1024,7 +1024,7 @@ func (ctrl *ProvisionController) deleteVolumeOperation(volume *v1.PersistentVolu
 	// Our check does not have to be as sophisticated as PV controller's, we can
 	// trust that the PV controller has set the PV to Released/Failed and it's
 	// ours to delete
-	newVolume, err := ctrl.client.Core().PersistentVolumes().Get(volume.Name, metav1.GetOptions{})
+	newVolume, err := ctrl.client.CoreV1().PersistentVolumes().Get(volume.Name, metav1.GetOptions{})
 	if err != nil {
 		return nil
 	}
@@ -1050,7 +1050,7 @@ func (ctrl *ProvisionController) deleteVolumeOperation(volume *v1.PersistentVolu
 
 	glog.V(4).Infof("deleteVolumeOperation [%s]: success", volume.Name)
 	// Delete the volume
-	if err = ctrl.client.Core().PersistentVolumes().Delete(volume.Name, nil); err != nil {
+	if err = ctrl.client.CoreV1().PersistentVolumes().Delete(volume.Name, nil); err != nil {
 		// Oops, could not delete the volume and therefore the controller will
 		// try to delete the volume again on next update.
 		glog.Infof("failed to delete volume %q from database: %v", volume.Name, err)

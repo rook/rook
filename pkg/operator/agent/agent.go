@@ -223,7 +223,7 @@ func (a *Agent) discoverFlexvolumeDir() (flexvolumeDirPath, source string) {
 		logger.Warningf(err.Error())
 		return getDefaultFlexvolumeDir()
 	}
-	nodeConfig, err := a.clientset.Core().RESTClient().Get().RequestURI(nodeConfigURI).DoRaw()
+	nodeConfig, err := a.clientset.CoreV1().RESTClient().Get().RequestURI(nodeConfigURI).DoRaw()
 	if err != nil {
 		logger.Warningf("unable to query node configuration: %v", err)
 		return getDefaultFlexvolumeDir()
