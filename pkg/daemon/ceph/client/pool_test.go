@@ -25,7 +25,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 )
 
-func TestCreateECPool(t *testing.T) {
+func TestCreateECPoolWithOverwrites(t *testing.T) {
 	p := CephStoragePoolDetails{Name: "mypool", Size: 12345, ErasureCodeProfile: "myecprofile", FailureDomain: "host"}
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
@@ -40,8 +40,8 @@ func TestCreateECPool(t *testing.T) {
 			}
 			if args[2] == "set" {
 				assert.Equal(t, "mypool", args[3])
-				assert.Equal(t, "size", args[4])
-				assert.Equal(t, "12345", args[5])
+				assert.Equal(t, "allow_ec_overwrites", args[4])
+				assert.Equal(t, "true", args[5])
 				return "", nil
 			}
 			if args[2] == "application" {
@@ -54,7 +54,34 @@ func TestCreateECPool(t *testing.T) {
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
-	err := CreatePoolForApp(context, "myns", p, "myapp")
+	err := CreateECPoolForApp(context, "myns", p, "myapp", true)
+	assert.Nil(t, err)
+}
+
+func TestCreateECPoolWithoutOverwrites(t *testing.T) {
+	p := CephStoragePoolDetails{Name: "mypool", Size: 12345, ErasureCodeProfile: "myecprofile", FailureDomain: "host"}
+	executor := &exectest.MockExecutor{}
+	context := &clusterd.Context{Executor: executor}
+	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName, command, outputFile string, args ...string) (string, error) {
+		logger.Infof("Command: %s %v", command, args)
+		if args[1] == "pool" {
+			if args[2] == "create" {
+				assert.Equal(t, "mypool", args[3])
+				assert.Equal(t, "erasure", args[5])
+				assert.Equal(t, p.ErasureCodeProfile, args[6])
+				return "", nil
+			}
+			if args[2] == "application" {
+				assert.Equal(t, "enable", args[3])
+				assert.Equal(t, "mypool", args[4])
+				assert.Equal(t, "myapp", args[5])
+				return "", nil
+			}
+		}
+		return "", fmt.Errorf("unexpected ceph command '%v'", args)
+	}
+
+	err := CreateECPoolForApp(context, "myns", p, "myapp", false)
 	assert.Nil(t, err)
 }
 
@@ -111,7 +138,7 @@ func testCreateReplicaPool(t *testing.T, failureDomain, crushRoot string) {
 	}
 
 	p := CephStoragePoolDetails{Name: "mypool", Size: 12345, FailureDomain: failureDomain, CrushRoot: crushRoot}
-	err := CreatePoolForApp(context, "myns", p, "myapp")
+	err := CreateReplicatedPoolForApp(context, "myns", p, "myapp")
 	assert.Nil(t, err)
 	assert.True(t, crushRuleCreated)
 }
