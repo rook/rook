@@ -1,0 +1,28 @@
+{{- if .Values.pspEnable }}
+# PSP for rook-operator
+# name starts with 00- helps in policy order to keep it at the top - https://kubernetes.io/docs/concepts/policy/pod-security-policy/#policy-order
+apiVersion: extensions/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: 00-rook-operator
+spec:
+  allowPrivilegeEscalation: false
+  fsGroup:
+    rule: RunAsAny
+  readOnlyRootFilesystem: true
+  requiredDropCapabilities:
+  - ALL
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - configMap
+  - emptyDir
+  - projected
+  - secret
+  - downwardAPI
+  - persistentVolumeClaim
+{{- end }}
