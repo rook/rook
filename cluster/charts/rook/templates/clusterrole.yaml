@@ -95,4 +95,14 @@ rules:
   - "*"
   verbs:
   - "*"
+{{- if .Values.pspEnable }}
+- apiGroups:
+  - extensions
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - 00-rook-operator
+  verbs:
+  - use
+{{- end }}
 {{- end }}
