@@ -6,7 +6,6 @@ kind: PodSecurityPolicy
 metadata:
   name: 00-rook-operator
 spec:
-  allowPrivilegeEscalation: false
   fsGroup:
     rule: RunAsAny
   readOnlyRootFilesystem: true
