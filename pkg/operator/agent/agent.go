@@ -201,7 +201,11 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage string) error {
 		if !kserrors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create rook-agent daemon set. %+v", err)
 		}
-		logger.Infof("rook-agent daemonset already exists")
+		logger.Infof("rook-agent daemonset already exists, updating ...")
+		_, err = a.clientset.Extensions().DaemonSets(namespace).Update(ds)
+		if err != nil {
+			return fmt.Errorf("failed to update rook-agent daemon set. %+v", err)
+		}
 	} else {
 		logger.Infof("rook-agent daemonset started")
 	}
