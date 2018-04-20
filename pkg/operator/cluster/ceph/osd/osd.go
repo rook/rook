@@ -506,11 +506,11 @@ func (c *Cluster) discoverStorageNodes() ([]rookalpha.Node, error) {
 			return nil, fmt.Errorf("osd replicaset %s doesn't have a node name on its node selector: %+v", osdReplicaSet.Name, osdPodSpec.NodeSelector)
 		}
 
-		// get the osd container, there should be exactly 1
-		if len(osdPodSpec.Containers) != 1 {
-			return nil, fmt.Errorf("osd pod spec should have exactly 1 container: %+v", osdPodSpec.Containers)
+		// get the osd container
+		osdContainer, err := k8sutil.GetMatchingContainer(osdPodSpec.Containers, appName)
+		if err != nil {
+			return nil, err
 		}
-		osdContainer := osdPodSpec.Containers[0]
 
 		// populate the discovered node with the properties discovered from its running artifacts.
 		// note that we are populating just a subset here, the minimum subset needed to be able

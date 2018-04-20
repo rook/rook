@@ -27,6 +27,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const containerName = "rook-operator"
+
 var operatorCmd = &cobra.Command{
 	Use:   "operator",
 	Short: "Runs the rook operator tool for storage in a kubernetes cluster",
@@ -66,7 +68,7 @@ func startOperator(cmd *cobra.Command, args []string) error {
 	}
 
 	// Using the rook-operator image to deploy other rook pods
-	rookImage, err := k8sutil.GetContainerImage(clientset)
+	rookImage, err := k8sutil.GetContainerImage(clientset, containerName)
 	if err != nil {
 		terminateFatal(fmt.Errorf("failed to get container image. %+v\n", err))
 	}

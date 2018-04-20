@@ -117,7 +117,7 @@ func TestGetContainerImage(t *testing.T) {
 	clientset.CoreV1().Pods("Default").Create(&pod)
 
 	// start a basic cluster
-	image, err := k8sutil.GetContainerImage(clientset)
+	image, err := k8sutil.GetContainerImage(clientset, "")
 	assert.Nil(t, err)
 	assert.Equal(t, "rook/test", image)
 }
@@ -152,9 +152,9 @@ func TestGetContainerImageMultipleContainers(t *testing.T) {
 	clientset.CoreV1().Pods("Default").Create(&pod)
 
 	// start a basic cluster
-	_, err := k8sutil.GetContainerImage(clientset)
+	_, err := k8sutil.GetContainerImage(clientset, "foo")
 	assert.NotNil(t, err)
-	assert.Equal(t, "failed to get container image. There should only be exactly one container in this pod", err.Error())
+	assert.Equal(t, "failed to find image for container foo", err.Error())
 }
 
 func TestStartAgentDaemonsetWithToleration(t *testing.T) {
