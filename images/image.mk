@@ -21,10 +21,6 @@ override GOOS=linux
 SELF_DIR := $(dir $(lastword $(MAKEFILE_LIST)))
 include $(SELF_DIR)/../build/makelib/common.mk
 
-ifneq ($(GOHOSTARCH),amd64)
-$(error image build only supported on amd64 host currently)
-endif
-
 # the registry used for cached images
 CACHE_REGISTRY := cache
 
