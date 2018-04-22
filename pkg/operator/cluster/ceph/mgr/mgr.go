@@ -19,6 +19,7 @@ package mgr
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
@@ -39,6 +40,7 @@ const (
 	keyringName = "keyring"
 
 	prometheusModuleName = "prometheus"
+	metricsPort          = 9283
 )
 
 // Cluster is the ceph mgr manager
@@ -125,7 +127,7 @@ func (c *Cluster) makeService(name string) *v1.Service {
 			Ports: []v1.ServicePort{
 				{
 					Name:     "http-metrics",
-					Port:     int32(9283),
+					Port:     int32(metricsPort),
 					Protocol: v1.ProtocolTCP,
 				},
 			},
@@ -137,9 +139,10 @@ func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        name,
-			Labels:      c.getLabels(),
-			Annotations: map[string]string{},
+			Name:   name,
+			Labels: c.getLabels(),
+			Annotations: map[string]string{"prometheus.io/scrape": "true",
+				"prometheus.io/port": strconv.Itoa(metricsPort)},
 		},
 		Spec: v1.PodSpec{
 			Containers:    []v1.Container{c.mgrContainer(name)},
@@ -200,7 +203,7 @@ func (c *Cluster) mgrContainer(name string) v1.Container {
 			},
 			{
 				Name:          "http-metrics",
-				ContainerPort: int32(9283),
+				ContainerPort: int32(metricsPort),
 				Protocol:      v1.ProtocolTCP,
 			},
 		},

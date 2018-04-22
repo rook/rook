@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"testing"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
@@ -90,6 +91,10 @@ func TestPodSpec(t *testing.T) {
 	assert.Equal(t, appName, d.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
+
+	assert.Equal(t, 2, len(d.Spec.Template.ObjectMeta.Annotations))
+	assert.Equal(t, "true", d.Spec.Template.ObjectMeta.Annotations["prometheus.io/scrape"])
+	assert.Equal(t, strconv.Itoa(metricsPort), d.Spec.Template.ObjectMeta.Annotations["prometheus.io/port"])
 
 	cont := d.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
