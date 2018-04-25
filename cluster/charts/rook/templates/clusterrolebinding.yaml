@@ -14,4 +14,7 @@ subjects:
 - kind: ServiceAccount
   name: rook-operator
   namespace: {{ .Release.Namespace }}
+- kind: ServiceAccount
+  name: rook-agent
+  namespace: {{ .Release.Namespace }}
 {{- end }}
