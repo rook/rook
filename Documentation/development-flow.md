@@ -77,6 +77,43 @@ An issue should be opened to track the work of authoring and completing the desi
 This issue is in addition to the issue that is tracking the implementation of the feature.
 The [design label](https://github.com/rook/rook/labels/design) should be assigned to the issue to denote it as such.
 
+### Build and Test
+
+As a developer, probably you need to build your own binaries and container images from the Rook source code repository,
+thus you can use them to replace the pre-built ones in the YAML file to test the codes you've just modified.
+
+You can build Rook by simple running:
+
+```bash
+make -j4
+```
+
+(This kind of build has already been supported on both `amd64` and `arm64` platform). The above command will build the Rook binaries
+and container images on the host platform, for example, on `arm64` platform, the Rook `operator` container image will look like
+this: `build-a65dbb1e/rook-arm64`, you can re-tag and push it to the docker hub with you own account. Suppose the final container
+image is `arm64b/rook-operator-arm64b:latest` in the docker hub after re-tagged and pushed, now we can replace the pre-built `operator`
+container image from `rook/rook:master` to `arm64b/rook-operator-arm64b:latest` in the `cluster/examples/kubernetes/rook-operator.yaml`
+file. Then deploy the Rook `operator` according to the steps detailed in [Rook documentation](https://rook.github.io/docs/rook/master/quickstart.html).
+With this method, we can change the code, build it and test it.
+
+In some circumstances, you may want to build the Rook container images on a host platform which has different architecture than the
+built images'. In this case, you can try to use below command:
+
+```bash
+make -j4 build.all
+```
+
+But in order to make the above command can run smoothly, we need to follow below steps (this has been tested on an Ubuntu machine with a
+4.8+ kernel on `amd64` platform, `arm64` doesn't support it yet due to the `qemu-register` issue. If you're using a recent Docker for Mac
+build you can skip this section):
+
+```bash
+DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends binfmt-support qemu-user-static
+docker run --rm --privileged hypriot/qemu-register
+```
+
+After that, you should be able to build the binaries and images on all supported platforms.
+
 ### Create a Branch
 
 From a console, create a new branch based on your fork and start working on it:
