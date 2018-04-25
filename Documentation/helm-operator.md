@@ -92,6 +92,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `image.tag`        | Image tag                            | `master`             |
 | `image.pullPolicy` | Image pull policy                    | `IfNotPresent`       |
 | `rbacEnable`       | If true, create & use RBAC resources | `true`               |
+| `pspEnable`        | If true, create & use PSP resources  | `true`               |
 | `resources`        | Pod resource requests & limits       | `{}`                 |
 | `logLevel`         | Global log level        | `INFO`                 |
 | `agent.flexVolumeDirPath` | Path where the Rook agent discovers the flex volume plugins (*) | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
@@ -135,4 +136,5 @@ resources:
     memory: 128Mi
 
 rbacEnable: true
+pspEnable: true
 ```
