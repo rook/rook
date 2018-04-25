@@ -1,0 +1,33 @@
+{{ $parentScope := .}}
+{{- if .Values.pool.enabled }}
+{{- range $key, $value := .Values.pool.pools }}
+apiVersion: rook.io/v1alpha1
+kind: Pool
+metadata:
+  name: {{ printf "%s-%s" $parentScope.Release.Name $key }}
+  namespace: {{ $parentScope.Release.Namespace }}
+spec:
+  replicated:
+    {{- if $value.replicated }}
+    size: {{ $value.replicated.size }}
+    {{- end }}
+  erasureCoded:
+    dataChunks: {{ $value.erasureCoded.dataChunks }}
+    codingChunks: {{ $value.erasureCoded.codingChunks }}
+  failureDomain: {{ .failureDomain }}
+  crushRoot: {{ $value.crushRoot }}
+---
+{{- if $value.storageClass.enabled }}
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  annotations:
+    storageclass.kubernetes.io/is-default-class: "{{ $value.storageClass.isDefaultClass }}"
+  name: {{ printf "%s-%s" $parentScope.Release.Name $key }}
+provisioner: rook.io/block
+parameters:
+  pool: {{ printf "%s-%s" $parentScope.Release.Name $key }}
+---
+{{- end }}
+{{- end }}
+{{- end }}

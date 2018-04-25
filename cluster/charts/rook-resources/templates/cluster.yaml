@@ -1,0 +1,53 @@
+{{- if .Values.cluster.enabled }}
+apiVersion: rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: {{ template "rook-resources.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  dataDirHostPath: {{ .Values.cluster.dataDirHostPath }}
+  hostNetwork: {{ .Values.cluster.hostNetwork }}
+  monCount: {{ .Values.cluster.monCount }}
+  placement:
+    mgr:
+{{ toYaml .Values.cluster.placement.mgr | indent 6 }}
+    mon:
+{{ toYaml .Values.cluster.placement.mon | indent 6 }}
+    osd:
+{{ toYaml .Values.cluster.placement.osd | indent 6 }}
+    all:
+{{ toYaml .Values.cluster.placement.all | indent 6 }}
+  storage:
+    useAllNodes: {{ .Values.cluster.storage.useAllNodes }}
+    useAllDevices: {{ .Values.cluster.storage.useAllDevices }}
+    deviceFilter: {{ .Values.cluster.storage.deviceFilter }}
+    metadataDevice:
+    directories:
+    storeConfig:
+      storeType: {{ .Values.cluster.storage.storeConfig.storeType }}
+      databaseSizeMB: {{ .Values.cluster.storage.storeConfig.databaseSizeMB }}
+      journalSizeMB: {{ .Values.cluster.storage.storeConfig.journalSizeMB }}
+    nodes: {{ .Values.cluster.storage.nodes }}
+  resources:
+    mgr:
+      requests:
+          cpu: "{{ .Values.cluster.resources.mgr.requests.cpu }}"
+          memory: "{{ .Values.cluster.resources.mgr.requests.memory }}"
+      limits:
+          cpu: "{{ .Values.cluster.resources.mgr.limits.cpu }}"
+          memory: "{{ .Values.cluster.resources.mgr.limits.memory }}"
+    mon:
+      requests:
+          cpu: "{{ .Values.cluster.resources.mon.requests.cpu }}"
+          memory: "{{ .Values.cluster.resources.mon.requests.memory }}"
+      limits:
+          cpu: "{{ .Values.cluster.resources.mon.limits.cpu }}"
+          memory: "{{ .Values.cluster.resources.mon.limits.memory }}"
+    osd:
+      requests:
+          cpu: "{{ .Values.cluster.resources.osd.requests.cpu }}"
+          memory: "{{ .Values.cluster.resources.osd.requests.memory }}"
+      limits:
+          cpu: "{{ .Values.cluster.resources.osd.limits.cpu }}"
+          memory: "{{ .Values.cluster.resources.osd.limits.memory }}"
+{{- end }}
