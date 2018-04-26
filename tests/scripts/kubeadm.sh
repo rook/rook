@@ -41,7 +41,7 @@ EOF
     echo "wait for K8s master node to be Ready"
     INC=0
     while [[ $INC -lt 20 ]]; do
-        kube_ready=$(kubectl get node -o jsonpath='{.items[0].status.conditions[3].status}')
+        kube_ready=$(kubectl get node -o jsonpath='{.items['$count'].status.conditions[?(@.reason == "KubeletReady")].status}')
         if [ "${kube_ready}" == "True" ]; then
             break
         fi
@@ -88,8 +88,7 @@ wait_for_ready(){
         echo "wait for K8s node $count to be Ready."        
         INC=0
         while [[ $INC -lt 90 ]]; do
-            kubectl get node -o jsonpath='{.items['$count'].status.conditions[?(@.reason == "KubeletReady")]}'
-            kube_ready=$(kubectl get node -o jsonpath='{.items['$count'].status.conditions[3].status}')
+            kube_ready=$(kubectl get node -o jsonpath='{.items['$count'].status.conditions[?(@.reason == "KubeletReady")].status}')
             if [ "${kube_ready}" != "True" ]; then
               break
             fi

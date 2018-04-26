@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -92,7 +93,7 @@ func blockVolumeFencingOperations(s *BlockLongHaulSuiteWithFencing, wg *sync.Wai
 	require.True(s.T(), s.kh.IsPodRunning(podName, defaultNamespace))
 	read, rErr := s.testClient.BlockClient.Read(podName, "/tmp/rook1", "longhaul", "default")
 	require.Nil(s.T(), rErr)
-	require.Contains(s.T(), read, "this is long running test")
+	assert.Contains(s.T(), read, "this is long running test")
 	mountUnmountPVCOnPod(s.kh, podName, pvcName, "true", "delete")
 	require.True(s.T(), s.kh.IsPodTerminated(podName, defaultNamespace))
 }

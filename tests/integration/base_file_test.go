@@ -23,6 +23,7 @@ import (
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"k8s.io/kubernetes/pkg/util/version"
@@ -63,7 +64,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	logger.Infof("Step 4: Read from file system")
 	read, rdErr := helper.FSClient.Read(filePodName, fileMountPath, "fsFile1", namespace)
 	require.Nil(s.T(), rdErr)
-	require.Contains(s.T(), read, "Smoke Test Data for file system storage", "make sure content of the files is unchanged")
+	assert.Contains(s.T(), read, "Smoke Test Data for file system storage", "make sure content of the files is unchanged")
 	logger.Infof("Read from file system successful")
 
 	logger.Infof("Step 5: UnMount file System")
