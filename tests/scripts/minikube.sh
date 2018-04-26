@@ -118,6 +118,7 @@ case "${1:-}" in
     copy_image_to_cluster ${BUILD_REGISTRY}/ceph-amd64 rook/ceph:master
     copy_image_to_cluster ${BUILD_REGISTRY}/ceph-toolbox-amd64 rook/ceph-toolbox:master
     copy_image_to_cluster ${BUILD_REGISTRY}/cockroachdb-amd64 rook/cockroachdb:master
+    copy_image_to_cluster ${BUILD_REGISTRY}/minio-amd64 rook/minio:master
     ;;
   down)
     minikube stop
@@ -131,6 +132,7 @@ case "${1:-}" in
     copy_image_to_cluster ${BUILD_REGISTRY}/ceph-amd64 rook/ceph:master
     copy_image_to_cluster ${BUILD_REGISTRY}/ceph-toolbox-amd64 rook/ceph-toolbox:master
     copy_image_to_cluster ${BUILD_REGISTRY}/cockroachdb-amd64 rook/cockroachdb:master
+    copy_image_to_cluster ${BUILD_REGISTRY}/minio-amd64 rook/minio:master
     ;;
   restart)
     if check_context; then
@@ -152,6 +154,7 @@ case "${1:-}" in
     echo " copying rook image for helm"
     helm_tag="`cat _output/version`"
     copy_image_to_cluster ${BUILD_REGISTRY}/ceph-amd64 rook/ceph:${helm_tag}
+    copy_image_to_cluster ${BUILD_REGISTRY}/minio-amd64 rook/minio:${helm_tag}
     ;;
   clean)
     minikube delete

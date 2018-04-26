@@ -19,6 +19,7 @@ package scheme
 import (
 	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
+	miniov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
 	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -53,6 +54,7 @@ func init() {
 func AddToScheme(scheme *runtime.Scheme) {
 	cephv1alpha1.AddToScheme(scheme)
 	cockroachdbv1alpha1.AddToScheme(scheme)
+	miniov1alpha1.AddToScheme(scheme)
 	rookv1alpha1.AddToScheme(scheme)
 	rookv1alpha2.AddToScheme(scheme)
 
