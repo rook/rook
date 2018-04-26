@@ -109,7 +109,7 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	result0, err0 := s.testClient.PoolClient.Create(pool, s.namespace)
 	require.Contains(s.T(), result0, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
 	require.NoError(s.T(), err0)
-	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "create")
+	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace, true), "create")
 	require.Contains(s.T(), result1, fmt.Sprintf("storageclass \"%s\" created", storageClassName), "Make sure storageclass is created")
 	require.NoError(s.T(), err1)
 
@@ -205,7 +205,7 @@ func (s *BlockCreateSuite) statefulSetDataCleanup(namespace, poolName, storageCl
 func (s *BlockCreateSuite) tearDownTest(claimName string, poolName string, storageClassName string, accessMode string) {
 	installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, accessMode), "delete")
 	installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "delete")
-	installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "delete")
+	installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace, true), "delete")
 
 }
 
@@ -224,7 +224,7 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 	result0, err0 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "create")
 	require.Contains(s.T(), result0, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
 	require.NoError(s.T(), err0)
-	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "create")
+	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace, true), "create")
 	require.Contains(s.T(), result1, fmt.Sprintf("storageclass \"%s\" created", storageClassName), "Make sure storageclass is created")
 	require.NoError(s.T(), err1)
 

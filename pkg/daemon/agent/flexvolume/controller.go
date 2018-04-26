@@ -88,7 +88,7 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 		}
 		// No volumeattach CRD for this volume found. Create one
 		volumeattachObj = rookalpha.NewVolumeAttachment(crdName, namespace, node, attachOpts.PodNamespace, attachOpts.Pod,
-			attachOpts.ClusterName, attachOpts.MountDir, strings.ToLower(attachOpts.RW) == ReadOnly)
+			attachOpts.ClusterNamespace, attachOpts.MountDir, strings.ToLower(attachOpts.RW) == ReadOnly)
 		logger.Infof("Creating Volume attach Resource %s/%s: %+v", volumeattachObj.Namespace, volumeattachObj.Name, attachOpts)
 		err = c.volumeAttachment.Create(volumeattachObj)
 		if err != nil {
@@ -134,7 +134,7 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 					attachment.MountDir = attachOpts.MountDir
 					attachment.PodNamespace = attachOpts.PodNamespace
 					attachment.PodName = attachOpts.Pod
-					attachment.ClusterName = attachOpts.ClusterName
+					attachment.ClusterName = attachOpts.ClusterNamespace
 					attachment.ReadOnly = attachOpts.RW == ReadOnly
 					err = c.volumeAttachment.Update(volumeattachObj)
 					if err != nil {
@@ -158,7 +158,7 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 					Node:         node,
 					PodNamespace: attachOpts.PodNamespace,
 					PodName:      attachOpts.Pod,
-					ClusterName:  attachOpts.ClusterName,
+					ClusterName:  attachOpts.ClusterNamespace,
 					MountDir:     attachOpts.MountDir,
 					ReadOnly:     attachOpts.RW == ReadOnly,
 				}
@@ -170,7 +170,7 @@ func (c *Controller) Attach(attachOpts AttachOptions, devicePath *string) error 
 			}
 		}
 	}
-	*devicePath, err = c.volumeManager.Attach(attachOpts.Image, attachOpts.Pool, attachOpts.ClusterName)
+	*devicePath, err = c.volumeManager.Attach(attachOpts.Image, attachOpts.Pool, attachOpts.ClusterNamespace)
 	if err != nil {
 		return fmt.Errorf("failed to attach volume %s/%s: %+v", attachOpts.Pool, attachOpts.Image, err)
 	}
@@ -187,7 +187,7 @@ func (c *Controller) DetachForce(detachOpts AttachOptions, _ *struct{} /* void r
 }
 
 func (c *Controller) doDetach(detachOpts AttachOptions, force bool) error {
-	err := c.volumeManager.Detach(detachOpts.Image, detachOpts.Pool, detachOpts.ClusterName, force)
+	err := c.volumeManager.Detach(detachOpts.Image, detachOpts.Pool, detachOpts.ClusterNamespace, force)
 	if err != nil {
 		return fmt.Errorf("Failed to detach volume %s/%s: %+v", detachOpts.Pool, detachOpts.Image, err)
 	}
@@ -245,18 +245,24 @@ func (c *Controller) Log(message LogMessage, _ *struct{} /* void reply */) error
 	return nil
 }
 
-func (c *Controller) parseClusterName(storageClassName string) (string, error) {
+func (c *Controller) parseClusterNamespace(storageClassName string) (string, error) {
 	sc, err := c.context.Clientset.Storage().StorageClasses().Get(storageClassName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
-	clusterName, ok := sc.Parameters["clusterName"]
+	clusterNamespace, ok := sc.Parameters["clusterNamespace"]
 	if !ok {
-		// Defaults to rook if not found
-		logger.Infof("clusterName not specified in the storage class %s. Defaulting to '%s'", storageClassName, cluster.DefaultClusterName)
-		return cluster.DefaultClusterName, nil
+		// Checks for older version of parameter i.e., clusterName if clusterNamespace not found
+		logger.Infof("clusterNamespace not specified in the storage class %s. Checking for clusterName", storageClassName)
+		clusterNamespace, ok := sc.Parameters["clusterName"]
+		if !ok {
+			// Defaults to rook if not found
+			logger.Infof("clusterNamespace not specified in the storage class %s. Defaulting to '%s'", storageClassName, cluster.DefaultClusterName)
+			return cluster.DefaultClusterName, nil
+		}
+		return clusterNamespace, nil
 	}
-	return clusterName, nil
+	return clusterNamespace, nil
 }
 
 // GetAttachInfoFromMountDir obtain pod and volume information from the mountDir. K8s does not provide
@@ -309,9 +315,9 @@ func (c *Controller) GetAttachInfoFromMountDir(mountDir string, attachOptions *A
 	if attachOptions.StorageClass == "" {
 		attachOptions.StorageClass = pv.Spec.PersistentVolumeSource.FlexVolume.Options[StorageClassKey]
 	}
-	attachOptions.ClusterName, err = c.parseClusterName(attachOptions.StorageClass)
+	attachOptions.ClusterNamespace, err = c.parseClusterNamespace(attachOptions.StorageClass)
 	if err != nil {
-		return fmt.Errorf("Failed to parse clusterName from storageClass %s: %+v", attachOptions.StorageClass, err)
+		return fmt.Errorf("Failed to parse clusterNamespace from storageClass %s: %+v", attachOptions.StorageClass, err)
 	}
 	return nil
 }
@@ -324,10 +330,10 @@ func (c *Controller) GetGlobalMountPath(volumeName string, globalMountPath *stri
 }
 
 // GetClientAccessInfo obtains the cluster monitor endpoints, username and secret
-func (c *Controller) GetClientAccessInfo(clusterName string, clientAccessInfo *ClientAccessInfo) error {
-	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, clusterName)
+func (c *Controller) GetClientAccessInfo(clusterNamespace string, clientAccessInfo *ClientAccessInfo) error {
+	clusterInfo, _, _, err := mon.LoadClusterInfo(c.context, clusterNamespace)
 	if err != nil {
-		return fmt.Errorf("failed to load cluster information from cluster %s: %+v", clusterName, err)
+		return fmt.Errorf("failed to load cluster information from clusters namespace %s: %+v", clusterNamespace, err)
 	}
 
 	monEndpoints := make([]string, 0, len(clusterInfo.Monitors))

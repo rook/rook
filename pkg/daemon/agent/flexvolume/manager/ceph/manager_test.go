@@ -39,7 +39,7 @@ type fakeDevicePathFinder struct {
 	called   int
 }
 
-func (f *fakeDevicePathFinder) FindDevicePath(image, pool, clusterName string) (string, error) {
+func (f *fakeDevicePathFinder) FindDevicePath(image, pool, clusterNamespace string) (string, error) {
 	response := f.response[f.called]
 	f.called++
 	return response, nil
@@ -105,7 +105,7 @@ func TestInitLoadRBDModNoSingleMajor(t *testing.T) {
 
 func TestAttach(t *testing.T) {
 	clientset := test.New(3)
-	clusterName := "testCluster"
+	clusterNamespace := "testCluster"
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	cm := &v1.ConfigMap{
@@ -114,12 +114,12 @@ func TestAttach(t *testing.T) {
 		},
 	}
 	cm.Name = "rook-ceph-mon-endpoints"
-	clientset.CoreV1().ConfigMaps(clusterName).Create(cm)
+	clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateConfigDir(path.Join(configDir, clusterName))
+				cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
 			}
 
 			return "", nil
@@ -150,9 +150,9 @@ func TestAttach(t *testing.T) {
 			called:   0,
 		},
 	}
-	mon.CreateOrLoadClusterInfo(context, clusterName, &metav1.OwnerReference{})
+	mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
 
-	devicePath, err := vm.Attach("image1", "testpool", clusterName)
+	devicePath, err := vm.Attach("image1", "testpool", clusterNamespace)
 	assert.Equal(t, "/dev/rbd3", devicePath)
 	assert.Nil(t, err)
 }
@@ -172,7 +172,7 @@ func TestAttachAlreadyExists(t *testing.T) {
 
 func TestDetach(t *testing.T) {
 	clientset := test.New(3)
-	clusterName := "testCluster"
+	clusterNamespace := "testCluster"
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	cm := &v1.ConfigMap{
@@ -181,12 +181,12 @@ func TestDetach(t *testing.T) {
 		},
 	}
 	cm.Name = "rook-ceph-mon-endpoints"
-	clientset.CoreV1().ConfigMaps(clusterName).Create(cm)
+	clientset.CoreV1().ConfigMaps(clusterNamespace).Create(cm)
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateConfigDir(path.Join(configDir, clusterName))
+				cephtest.CreateConfigDir(path.Join(configDir, clusterNamespace))
 			}
 
 			return "", nil
@@ -217,8 +217,8 @@ func TestDetach(t *testing.T) {
 			called:   0,
 		},
 	}
-	mon.CreateOrLoadClusterInfo(context, clusterName, &metav1.OwnerReference{})
-	err := vm.Detach("image1", "testpool", clusterName, false)
+	mon.CreateOrLoadClusterInfo(context, clusterNamespace, &metav1.OwnerReference{})
+	err := vm.Detach("image1", "testpool", clusterNamespace, false)
 	assert.Nil(t, err)
 }
 

@@ -195,15 +195,19 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 
 	log(client, fmt.Sprintf("mounting ceph filesystem %s on %s", opts.FsName, opts.MountDir), false)
 
-	if opts.ClusterName == "" {
-		return fmt.Errorf("Rook: Attach filesystem %s failed: cluster is not provided", opts.FsName)
+	if opts.ClusterNamespace == "" {
+		if opts.ClusterName == "" {
+			return fmt.Errorf("Rook: Attach filesystem %s failed: cluster namespace is not provided", opts.FsName)
+		} else {
+			opts.ClusterNamespace = opts.ClusterName
+		}
 	}
 
 	// Get client access info
 	var clientAccessInfo flexvolume.ClientAccessInfo
-	err := client.Call("Controller.GetClientAccessInfo", opts.ClusterName, &clientAccessInfo)
+	err := client.Call("Controller.GetClientAccessInfo", opts.ClusterNamespace, &clientAccessInfo)
 	if err != nil {
-		errorMsg := fmt.Sprintf("Attach filesystem %s on cluster %s failed: %v", opts.FsName, opts.ClusterName, err)
+		errorMsg := fmt.Sprintf("Attach filesystem %s on cluster %s failed: %v", opts.FsName, opts.ClusterNamespace, err)
 		log(client, errorMsg, true)
 		return fmt.Errorf("Rook: %v", errorMsg)
 	}

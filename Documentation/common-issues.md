@@ -171,17 +171,17 @@ kubectl -n rook-system logs `kubectl -n rook-system -l app=rook-operator get pod
 
 If the volume is failing to be created, there should be details in the `rook-operator` log output, especially those tagged with `op-provisioner`.
 
-One common cause for the `rook-operator` failing to create the volume is when the `clusterName` field of the `StorageClass` doesn't match the **namespace** of the Rook cluster, as described in [#1502](https://github.com/rook/rook/issues/1502).
+One common cause for the `rook-operator` failing to create the volume is when the `clusterNamespace` field of the `StorageClass` doesn't match the **namespace** of the Rook cluster, as described in [#1502](https://github.com/rook/rook/issues/1502).
 In that scenario, the `rook-operator` log would show a failure similar to the following:
 
 ```
-2018-03-28 18:58:32.041603 I | op-provisioner: creating volume with configuration {pool:replicapool clusterName:rook fstype:}
+2018-03-28 18:58:32.041603 I | op-provisioner: creating volume with configuration {pool:replicapool clusterNamespace:rook fstype:}
 2018-03-28 18:58:32.041728 I | exec: Running command: rbd create replicapool/pvc-fd8aba49-32b9-11e8-978e-08002762c796 --size 20480 --cluster=rook --conf=/var/lib/rook/rook/rook.config --keyring=/var/lib/rook/rook/client.admin.keyring
 E0328 18:58:32.060893       5 controller.go:801] Failed to provision volume for claim "default/mysql-pv-claim" with StorageClass "rook-block": Failed to create rook block image replicapool/pvc-fd8aba49-32b9-11e8-978e-08002762c796: failed to create image pvc-fd8aba49-32b9-11e8-978e-08002762c796 in pool replicapool of size 21474836480: Failed to complete '': exit status 1. global_init: unable to open config file from search list /var/lib/rook/rook/rook.config
 . output:
 ```
 
-The solution is to ensure that the [`clusterName`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/rook-storageclass.yaml#L25) field matches the **namespace** of the Rook cluster when creating the `StorageClass`.
+The solution is to ensure that the [`clusterNamespace`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/rook-storageclass.yaml#L25) field matches the **namespace** of the Rook cluster when creating the `StorageClass`.
 
 ### Volume Mounting
 The final step in preparing Rook storage for your pod is for the `rook-agent` pod to mount and format it.

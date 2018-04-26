@@ -57,15 +57,15 @@ func TestAttach(t *testing.T) {
 
 	devicePath := ""
 	opts := AttachOptions{
-		Image:        "image123",
-		Pool:         "testpool",
-		ClusterName:  "testCluster",
-		StorageClass: "storageclass1",
-		MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
-		VolumeName:   "pvc-123",
-		Pod:          "myPod",
-		PodNamespace: "Default",
-		RW:           "rw",
+		Image:            "image123",
+		Pool:             "testpool",
+		ClusterNamespace: "testCluster",
+		StorageClass:     "storageclass1",
+		MountDir:         "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
+		VolumeName:       "pvc-123",
+		Pod:              "myPod",
+		PodNamespace:     "Default",
+		RW:               "rw",
 	}
 	att, err := attachment.New(context)
 	assert.Nil(t, err)
@@ -306,14 +306,14 @@ func TestMultipleAttachReadOnly(t *testing.T) {
 	}
 
 	opts := AttachOptions{
-		Image:        "image123",
-		Pool:         "testpool",
-		ClusterName:  "testCluster",
-		MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
-		VolumeName:   "pvc-123",
-		Pod:          "myPod",
-		PodNamespace: "Default",
-		RW:           "ro",
+		Image:            "image123",
+		Pool:             "testpool",
+		ClusterNamespace: "testCluster",
+		MountDir:         "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
+		VolumeName:       "pvc-123",
+		Pod:              "myPod",
+		PodNamespace:     "Default",
+		RW:               "ro",
 	}
 	existingCRD := &rookalpha.VolumeAttachment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -382,14 +382,14 @@ func TestOrphanAttachOriginalPodDoesntExist(t *testing.T) {
 	}
 
 	opts := AttachOptions{
-		Image:        "image123",
-		Pool:         "testpool",
-		ClusterName:  "testCluster",
-		MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
-		VolumeName:   "pvc-123",
-		Pod:          "newPod",
-		PodNamespace: "Default",
-		RW:           "rw",
+		Image:            "image123",
+		Pool:             "testpool",
+		ClusterNamespace: "testCluster",
+		MountDir:         "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
+		VolumeName:       "pvc-123",
+		Pod:              "newPod",
+		PodNamespace:     "Default",
+		RW:               "rw",
 	}
 	existingCRD := &rookalpha.VolumeAttachment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -490,14 +490,14 @@ func TestOrphanAttachOriginalPodNameSame(t *testing.T) {
 	// the pod resource is a different one but for the same pod metadata. This is reflected in the MountDir.
 	// The namespace and name, however, must match.
 	opts := AttachOptions{
-		Image:        "image123",
-		Pool:         "testpool",
-		ClusterName:  "testCluster",
-		MountDir:     "/test/pods/pod456/volumes/rook.io~rook/pvc-123",
-		VolumeName:   "pvc-123",
-		Pod:          "myPod",
-		PodNamespace: "Default",
-		RW:           "rw",
+		Image:            "image123",
+		Pool:             "testpool",
+		ClusterNamespace: "testCluster",
+		MountDir:         "/test/pods/pod456/volumes/rook.io~rook/pvc-123",
+		VolumeName:       "pvc-123",
+		Pod:              "myPod",
+		PodNamespace:     "Default",
+		RW:               "rw",
 	}
 
 	att, err := attachment.New(context)
@@ -547,14 +547,14 @@ func TestVolumeAttachmentExistAttach(t *testing.T) {
 	}
 
 	opts := AttachOptions{
-		Image:        "image123",
-		Pool:         "testpool",
-		ClusterName:  "testCluster",
-		MountDir:     "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
-		VolumeName:   "pvc-123",
-		Pod:          "myPod",
-		PodNamespace: "Default",
-		RW:           "rw",
+		Image:            "image123",
+		Pool:             "testpool",
+		ClusterNamespace: "testCluster",
+		MountDir:         "/test/pods/pod123/volumes/rook.io~rook/pvc-123",
+		VolumeName:       "pvc-123",
+		Pod:              "myPod",
+		PodNamespace:     "Default",
+		RW:               "rw",
 	}
 
 	existingCRD := &rookalpha.VolumeAttachment{
@@ -739,7 +739,7 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 			Name: "storageClass1",
 		},
 		Provisioner: "rook.io/rook",
-		Parameters:  map[string]string{"pool": "testpool", "clusterName": "testCluster", "fsType": "ext3"},
+		Parameters:  map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3"},
 	}
 	clientset.StorageV1().StorageClasses().Create(&sc)
 
@@ -775,10 +775,18 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 	assert.Equal(t, "pvc-123", opts.Image)
 	assert.Equal(t, "pool123", opts.Pool)
 	assert.Equal(t, "storageClass1", opts.StorageClass)
-	assert.Equal(t, "testCluster", opts.ClusterName)
+	assert.Equal(t, "testCluster", opts.ClusterNamespace)
+}
+
+func TestParseClusterNamespace(t *testing.T) {
+	testParseClusterNamespace(t, "clusterNamespace")
 }
 
 func TestParseClusterName(t *testing.T) {
+	testParseClusterNamespace(t, "clusterName")
+}
+
+func testParseClusterNamespace(t *testing.T, namespaceParameter string) {
 	clientset := test.New(3)
 
 	context := &clusterd.Context{
@@ -790,7 +798,7 @@ func TestParseClusterName(t *testing.T) {
 			Name: "rook-storageclass",
 		},
 		Provisioner: "rook.io/rook",
-		Parameters:  map[string]string{"pool": "testpool", "clusterName": "testCluster", "fsType": "ext3"},
+		Parameters:  map[string]string{"pool": "testpool", namespaceParameter: "testCluster", "fsType": "ext3"},
 	}
 	clientset.StorageV1().StorageClasses().Create(&sc)
 	volumeAttachment, err := attachment.New(context)
@@ -800,8 +808,8 @@ func TestParseClusterName(t *testing.T) {
 		context:          context,
 		volumeAttachment: volumeAttachment,
 	}
-	clusterName, _ := fc.parseClusterName("rook-storageclass")
-	assert.Equal(t, "testCluster", clusterName)
+	clusterNamespace, _ := fc.parseClusterNamespace("rook-storageclass")
+	assert.Equal(t, "testCluster", clusterNamespace)
 }
 
 func TestGetPodAndPVNameFromMountDir(t *testing.T) {

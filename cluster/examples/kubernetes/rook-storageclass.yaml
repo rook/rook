@@ -19,9 +19,9 @@ metadata:
 provisioner: rook.io/block
 parameters:
   pool: replicapool
-  # Specify the Rook cluster from which to create volumes.
-  # If not specified, it will use `rook` as the name of the cluster.
+  # Specify the namespace of the rook cluster from which to create volumes.
+  # If not specified, it will use `rook` as the default namespace of the cluster.
   # This is also the namespace where the cluster will be
-  clusterName: rook
+  clusterNamespace: rook
   # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
   # fstype: ext4

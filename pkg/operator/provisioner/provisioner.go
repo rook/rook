@@ -52,7 +52,7 @@ type provisionerConfig struct {
 	pool string
 
 	// Optional: Name of the cluster. Default is `rook`
-	clusterName string
+	clusterNamespace string
 
 	// Optional: File system type used for mounting the image. Default is `ext4`
 	fstype string
@@ -128,7 +128,7 @@ func (p *RookVolumeProvisioner) createVolume(image, pool string, size int64) err
 		return fmt.Errorf("image missing required fields (image=%s, pool=%s, size=%d)", image, pool, size)
 	}
 
-	createdImage, err := ceph.CreateImage(p.context, p.provConfig.clusterName, image, pool, uint64(size))
+	createdImage, err := ceph.CreateImage(p.context, p.provConfig.clusterNamespace, image, pool, uint64(size))
 	if err != nil {
 		return fmt.Errorf("Failed to create rook block image %s/%s: %v", pool, image, err)
 	}
@@ -148,7 +148,7 @@ func (p *RookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
 		return fmt.Errorf("Failed to delete rook block image %s/%s: %v", p.provConfig.pool, volume.Name, "PersistentVolume has no image defined for the FlexVolume")
 	}
 	name := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ImageKey]
-	err := ceph.DeleteImage(p.context, p.provConfig.clusterName, name, p.provConfig.pool)
+	err := ceph.DeleteImage(p.context, p.provConfig.clusterNamespace, name, p.provConfig.pool)
 	if err != nil {
 		return fmt.Errorf("Failed to delete rook block image %s/%s: %v", p.provConfig.pool, volume.Name, err)
 	}
@@ -176,8 +176,10 @@ func parseClassParameters(params map[string]string) (*provisionerConfig, error) 
 		switch strings.ToLower(k) {
 		case "pool":
 			cfg.pool = v
+		case "clusternamespace":
+			cfg.clusterNamespace = v
 		case "clustername":
-			cfg.clusterName = v
+			cfg.clusterNamespace = v
 		case "fstype":
 			cfg.fstype = v
 		default:
@@ -189,8 +191,8 @@ func parseClassParameters(params map[string]string) (*provisionerConfig, error) 
 		return nil, fmt.Errorf("StorageClass for provisioner %s must contain 'pool' parameter", "rookVolumeProvisioner")
 	}
 
-	if len(cfg.clusterName) == 0 {
-		cfg.clusterName = cluster.DefaultClusterName
+	if len(cfg.clusterNamespace) == 0 {
+		cfg.clusterNamespace = cluster.DefaultClusterName
 	}
 
 	return &cfg, nil
