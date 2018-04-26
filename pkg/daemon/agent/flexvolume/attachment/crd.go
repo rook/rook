@@ -17,25 +17,15 @@ limitations under the License.
 package attachment
 
 import (
-	"fmt"
-
 	"github.com/coreos/pkg/capnslog"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/k8sutil"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/kubernetes/pkg/util/version"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "rook-agent-crd")
 
-const (
-	serverVersionV170 = "v1.7.0"
-)
-
 // Attachment handles custom resource VolumeAttachment storage operations.
-// This interface goes away when there is no longer a need to support TPRs since
-// we can call the RookClientset directly.
 type Attachment interface {
 	Create(volumeAttachment *rookalpha.VolumeAttachment) error
 	Get(namespace, name string) (*rookalpha.VolumeAttachment, error)
@@ -51,22 +41,7 @@ type crd struct {
 
 // CreateController creates a new controller for volume attachment
 func New(context *clusterd.Context) (Attachment, error) {
-
-	// CRD is available on v1.7.0. TPR became deprecated on v1.7.0
-	// Remove this code when TPR is not longer supported
-	kubeVersion, err := k8sutil.GetK8SVersion(context.Clientset)
-	if err != nil {
-		return nil, fmt.Errorf("Error getting server version: %v", err)
-	}
-	if kubeVersion.AtLeast(version.MustParseSemantic(serverVersionV170)) {
-		return &crd{
-			context: context,
-		}, nil
-	}
-
-	return &tpr{
-		clientset: context.Clientset,
-	}, nil
+	return &crd{context: context}, nil
 }
 
 // Get queries the VolumeAttachment CRD from Kubernetes

@@ -29,8 +29,7 @@ function purge_rook_pods {
   kubectl -n kube-system delete secret rook-admin || true
   kubectl delete -f kube-registry.yaml || true
   kubectl delete -n rook cluster rook || true
-  kubectl delete thirdpartyresources cluster.rook.io pool.rook.io objectstore.rook.io filesystem.rook.io volumeattachment.rook.io || true # ignore errors if on K8s 1.7+
-  kubectl delete crd clusters.rook.io pools.rook.io objectstores.rook.io filesystems.rook.io volumeattachments.rook.io || true # ignore errors if on K8s 1.5 and 1.6
+  kubectl delete crd clusters.rook.io pools.rook.io objectstores.rook.io filesystems.rook.io volumeattachments.rook.io || true
   kubectl delete -n rook-system daemonset rook-agent || true
   kubectl delete -f rook-operator.yaml || true
   kubectl delete clusterroles rook-agent || true

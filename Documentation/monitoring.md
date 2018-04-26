@@ -10,8 +10,6 @@ If you do not have Prometheus running, follow the steps below to enable monitori
 contains a Prometheus instance, it will automatically discover Rooks scrape endpoint using the standard
 `prometheus.io/scrape` and `prometheus.io/port` annotations.
 
-Note that these steps work only for Kubernetes 1.7.x or higher. For Kubernetes 1.6.x or older, refer to the Rook 0.5.0 [documentation](https://github.com/rook/rook/blob/release-0.5/Documentation/monitoring.md) and use these [manifest files](https://github.com/rook/rook/tree/release-0.5/cluster/examples/kubernetes/monitoring).
-
 
 ## Prometheus Operator
 

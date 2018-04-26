@@ -8,6 +8,7 @@
 - Rook-Operator no longer creates the resources CRD's or TPR's at the runtime. Instead, those resources are provisioned during deployment via `helm` or `kubectl`.
 
 ## Breaking Changes
+- Removed support for Kubernetes 1.6, including the legacy Third Party Resources (TPRs).
 
 ### Removal of the API service and rookctl tool
 The [REST API service](https://github.com/rook/rook/issues/1122) has been removed. All cluster configuration is now accomplished through the 

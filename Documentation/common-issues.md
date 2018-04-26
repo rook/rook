@@ -88,7 +88,6 @@ There are many Ceph sub-commands to look at and manipulate Ceph objects, well be
 * Persistent Volume and/or Claim are failing to be created and bound: [Volume Creation](#volume-creation)
 * `rook-agent` pod is failing to mount and format the volume: [Rook Agent Mounting](#volume-mounting)
 * You are using Kubernetes 1.7.x or earlier and the Kubelet has not been restarted after `rook-agent` is in the `Running` status: [Restart Kubelet](#kubelet-restart)
-* You are using Kubernetes 1.6.x and the attach-detach controller has not been disabled: [Disable attach-detach controller](./quickstart.md#disable-attacher-detacher-controller)
 
 ## Investigation Details
 If you see some of the symptoms above, it's because the requested Rook storage for your pod is not being created and mounted successfully.
@@ -142,8 +141,8 @@ kubectl -n rook-system delete pod -l app=rook-operator
 ```
 
 ### Kubelet Restart
-#### **Kubernetes 1.7.x and earlier only**
-If the `rook-agent` pods are all in the `Running` state then another thing to confirm is that **if you are running on Kubernetes 1.7.x or earlier**, the Kubelet must be restarted after the `rook-agent` pods are running.
+#### **Kubernetes 1.7.x only**
+If the `rook-agent` pods are all in the `Running` state then another thing to confirm is that **if you are running on Kubernetes 1.7.x**, the Kubelet must be restarted after the `rook-agent` pods are running.
 
 A symptom of this can be found in the Kubelet's log/journal, with the following error saying `no volume plugin matched`:
 ```console
