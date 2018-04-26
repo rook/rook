@@ -1,5 +1,5 @@
 /*
-Copyright 2017 The Rook Authors. All rights reserved.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -69,9 +69,15 @@ func TestCheckHealth(t *testing.T) {
 	err = c.failoverMon("mon1")
 	assert.Nil(t, err)
 
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, "rook-ceph-mon11=:6790", cm.Data[EndpointDataKey])
+	newMons := []string{
+		"rook-ceph-mon11",
+		"rook-ceph-mon12",
+		"rook-ceph-mon13",
+	}
+	for _, monName := range newMons {
+		_, ok := c.clusterInfo.Monitors[monName]
+		assert.True(t, ok, fmt.Sprintf("mon %s not found in monitor list", monName))
+	}
 }
 
 func TestCheckHealthNotFound(t *testing.T) {
@@ -334,4 +340,31 @@ func TestCheckMonsValid(t *testing.T) {
 	// the failovered mon's name is "rook-ceph-mon0"
 	assert.Equal(t, "node2", c.mapping.Node["rook-ceph-mon0"].Name)
 	assert.Equal(t, "node1", c.mapping.Node["mon2"].Name)
+}
+
+func TestCheckLessMonsStartNewMons(t *testing.T) {
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			return clienttest.MonInQuorumResponse(), nil
+		},
+	}
+	clientset := test.New(1)
+	configDir, _ := ioutil.TempDir("", "")
+	defer os.RemoveAll(configDir)
+	context := &clusterd.Context{
+		Clientset: clientset,
+		ConfigDir: configDir,
+		Executor:  executor,
+	}
+	c := New(context, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c.clusterInfo = test.CreateConfigDir(1)
+	c.waitForStart = false
+	defer os.RemoveAll(c.context.ConfigDir)
+
+	c.Size = 5
+
+	err := c.checkHealth()
+	assert.Nil(t, err)
+	assert.Equal(t, 5, len(c.clusterInfo.Monitors))
+
 }
