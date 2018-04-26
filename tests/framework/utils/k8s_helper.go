@@ -29,10 +29,8 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
@@ -529,13 +527,7 @@ func (k8sh *K8sHelper) waitForVolumeAttachment(namespace, volumeAttachmentName s
 }
 
 func (k8sh *K8sHelper) isVolumeAttachmentExist(namespace, name string) (bool, error) {
-	var result rookalpha.VolumeAttachment
-	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, namespace, attachment.CustomResourceNamePlural)
-	err := k8sh.Clientset.CoreV1().RESTClient().Get().
-		RequestURI(uri).
-		Name(name).
-		Do().
-		Into(&result)
+	_, err := k8sh.RookClientset.RookV1alpha1().VolumeAttachments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil

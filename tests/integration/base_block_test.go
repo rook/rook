@@ -77,7 +77,7 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	logger.Infof("step 4: Read from  block storage")
 	read, rErr := helper.BlockClient.Read(blockPodName, blockMountPath, "bsFile1", "")
 	require.Nil(s.T(), rErr)
-	require.Contains(s.T(), read, "Smoke Test Data form Block storage", "make sure content of the files is unchanged")
+	assert.Contains(s.T(), read, "Smoke Test Data form Block storage", "make sure content of the files is unchanged")
 	logger.Infof("Read from  Block storage successfully")
 
 	logger.Infof("step 5: Mount same block storage on a different pod. Should not be allowed")
@@ -123,9 +123,9 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 
 	volumeDef := installer.GetBlockPoolStorageClassAndPvcDef(clusterNamespace, poolName, "rook-block", "test-block-claim", "ReadWriteOnce")
 	res1, err := installer.BlockResourceOperation(k8sh, volumeDef, "create")
-	require.Contains(s.T(), res1, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
-	require.Contains(s.T(), res1, "storageclass \"rook-block\" created", "Make sure storageclass is created")
-	require.Contains(s.T(), res1, "persistentvolumeclaim \"test-block-claim\" created", "Make sure pvc is created")
+	assert.Contains(s.T(), res1, fmt.Sprintf("\"%s\" created", poolName), "Make sure test pool is created")
+	assert.Contains(s.T(), res1, "\"rook-block\" created", "Make sure storageclass is created")
+	assert.Contains(s.T(), res1, "\"test-block-claim\" created", "Make sure pvc is created")
 	require.NoError(s.T(), err)
 
 	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, "test-block-claim"))
