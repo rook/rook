@@ -9,10 +9,7 @@ Rook can be installed on any existing Kubernetes clusters as long as it meets th
 
 ## Minimum Version
 
-Kubernetes v1.6 or higher is targeted by Rook (while Rook is in alpha it will track the latest release to use the latest features).
-
-Support is available for Kubernetes v1.5.2, although your mileage may vary.
-You will need to use the yaml files from the [1.5 folder](/cluster/examples/kubernetes/1.5).
+Kubernetes v1.7 or higher is supported by Rook.
 
 ## Privileges and RBAC
 

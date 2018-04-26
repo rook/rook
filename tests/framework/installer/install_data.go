@@ -29,48 +29,6 @@ func NewK8sInstallData() *InstallData {
 	return &InstallData{}
 }
 
-func (i *InstallData) GetRookTPRs(namespace string) string {
-	return `apiVersion: extensions/v1beta1
-description: ThirdPartyResource for cluster
-kind: ThirdPartyResource
-metadata:
-  name: cluster.rook.io
-versions:
-- name: v1alpha1
----
-apiVersion: extensions/v1beta1
-description: ThirdPartyResource for filesystem
-kind: ThirdPartyResource
-metadata:
-  name: filesystem.rook.io
-versions:
-- name: v1alpha1
----
-apiVersion: extensions/v1beta1
-description: ThirdPartyResource for objectstore
-kind: ThirdPartyResource
-metadata:
-  name: objectstore.rook.io
-versions:
-- name: v1alpha1
----
-apiVersion: extensions/v1beta1
-description: ThirdPartyResource for pool
-kind: ThirdPartyResource
-metadata:
-  name: pool.rook.io
-versions:
-- name: v1alpha1
----
-apiVersion: extensions/v1beta1
-description: ThirdPartyResource for volumeattachment
-kind: ThirdPartyResource
-metadata:
-  name: volumeattachment.rook.io
-versions:
-- name: v1alpha1`
-}
-
 func (i *InstallData) GetRookCRDs(namespace string) string {
 	return `apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition

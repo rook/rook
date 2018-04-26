@@ -61,8 +61,6 @@ func addKnownTypes(scheme *runtime.Scheme) error {
 		&FilesystemList{},
 		&ObjectStore{},
 		&ObjectStoreList{},
-		// TODO: Remove ObjectstoreList after TPRs are no longer supported
-		&ObjectstoreList{},
 		&VolumeAttachment{},
 		&VolumeAttachmentList{},
 	)

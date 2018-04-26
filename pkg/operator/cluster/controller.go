@@ -44,7 +44,6 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/kubernetes/pkg/util/version"
 )
 
 const (
@@ -297,17 +296,9 @@ func (c *ClusterController) onDelete(obj interface{}) {
 }
 
 func (c *ClusterController) addFinalizer(clust *rookalpha.Cluster) error {
-	kubeVersion, err := k8sutil.GetK8SVersion(c.context.Clientset)
-	if err != nil {
-		return fmt.Errorf("Error getting server version: %v", err)
-	}
-	if !kubeVersion.AtLeast(version.MustParseSemantic(k8sutil.FirstCRDVersion)) {
-		logger.Infof("not adding finalizer for cluster TPR")
-		return nil
-	}
 
 	// get the latest cluster object since we probably updated it before we got to this point (e.g. by updating its status)
-	clust, err = c.context.RookClientset.RookV1alpha1().Clusters(clust.Namespace).Get(clust.Name, metav1.GetOptions{})
+	clust, err := c.context.RookClientset.RookV1alpha1().Clusters(clust.Namespace).Get(clust.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}

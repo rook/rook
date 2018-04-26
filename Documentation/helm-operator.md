@@ -14,7 +14,7 @@ This chart bootstraps a [rook-operator](https://github.com/rook/rook) deployment
 
 ## Prerequisites
 
-- Kubernetes 1.6+
+- Kubernetes 1.7+
 
 ### RBAC
 
