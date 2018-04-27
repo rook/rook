@@ -36,7 +36,7 @@ rm -f /var/lib/rook/${good_mon_id}/data/store.db/LOCK
 ceph-mon -i ${good_mon_id} --extract-monmap ${monmap_path} \
   --cluster=${cluster_namespace} --mon-data=/var/lib/rook/${good_mon_id}/data \
   --conf=/var/lib/rook/${good_mon_id}/${cluster_namespace}.config \
-  --keyring=/var/lib/${good_mon_id}/keyring \
+  --keyring=/var/lib/rook/${good_mon_id}/keyring \
   --monmap=/var/lib/rook/${good_mon_id}/monmap
 
 # review the contents of the monmap
@@ -53,7 +53,7 @@ monmaptool ${monmap_path} --rm rook-ceph-mon2
 ceph-mon -i ${good_mon_id} --inject-monmap ${monmap_path} \
   --cluster=${cluster_namespace} --mon-data=/var/lib/rook/${good_mon_id}/data \
   --conf=/var/lib/rook/${good_mon_id}/${cluster_namespace}.config \
-  --keyring=/var/lib/${good_mon_id}/keyring
+  --keyring=/var/lib/rook/${good_mon_id}/keyring
 ```
 
 Exit the shell to continue.
