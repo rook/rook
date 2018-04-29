@@ -1,4 +1,12 @@
-# Restoring Mon Quorum
+---
+title: Disaster Recovery
+weight: 82
+indent: true
+---
+
+# Disaster Recovery
+
+## Restoring Mon Quorum
 
 Under extenuating circumstances, the mons may lose quorum. If the mons cannot form quorum again, 
 there is a manual procedure to get the quorum going again. The only requirement is that at least one mon
@@ -8,13 +16,13 @@ mons from quorum and allow you to form a quorum again with a single mon, then gr
 For example, if you have three mons and lose quorum, you will need to remove the two bad mons from quorum, notify the good mon
 that it is the only mon in quorum, and then restart the good mon.
 
-## Stop the operator
+### Stop the operator
 First, stop the operator so it will not try to failover the mons while we are modifying the monmap
 ```bash
 kubectl -n rook-system delete deployment rook-operator
 ```
 
-## Inject a new monmap
+### Inject a new monmap
 **WARNING: Injecting a monmap must be done very carefully. If run incorrectly, your cluster could be permanently destroyed.**
 
 The Ceph monmap keeps track of the mon quorum. We will update the monmap to only contain the healthy mon.
@@ -58,7 +66,7 @@ ceph-mon -i ${good_mon_id} --inject-monmap ${monmap_path} \
 
 Exit the shell to continue.
 
-## Edit the rook configmap for mons
+### Edit the rook configmap for mons
 
 Edit the configmap that the operator uses to track the mons.
 ```bash
@@ -77,7 +85,7 @@ data: rook-ceph-mon1=10.100.35.233:6790
 
 Save the file and exit.
 
-## Restart the mon
+### Restart the mon
 You will need to restart the good mon pod to pick up the changes. Delete the good mon pod and kubernetes will automatically restart the mon.
 ```bash
 kubectl -n rook delete pod -l mon=rook-ceph-mon1
@@ -90,7 +98,7 @@ ceph -s
 
 The status should show one mon in quorum. If the status looks good, your cluster should be healthy again.
 
-## Restart the operator
+### Restart the operator
 Start the rook operator again to resume monitoring the health of the cluster. 
 ```bash
 # create the operator. it is safe to ignore the errors that a number of resources already exist.
