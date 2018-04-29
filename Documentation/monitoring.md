@@ -53,12 +53,12 @@ Once the Prometheus server is running, you can open a web browser and go to the 
 echo "http://$(kubectl -n rook -o jsonpath={.status.hostIP} get pod prometheus-rook-prometheus-0):30900"
 ```
 
-You should now see the Prometheus monitoring website.  
+You should now see the Prometheus monitoring website.
 
 ![Prometheus Monitoring Website](media/prometheus-monitor.png)
 
 
-Click on `Graph` in the top navigation bar.  
+Click on `Graph` in the top navigation bar.
 
 ![Prometheus Add graph](media/prometheus-graph.png)
 
@@ -68,7 +68,7 @@ In the dropdown that says `insert metric at cursor`, select any metric you would
 ![Prometheus Select Metric](media/prometheus-metric-cursor.png)
 
 
-Click on the `Execute` button.  
+Click on the `Execute` button.
 
 ![Prometheus Execute Metric](media/prometheus-execute-metric-cursor.png)
 
@@ -79,11 +79,17 @@ Below the `Execute` button, ensure the `Graph` tab is selected and you should no
 
 ## Prometheus Consoles
 You can find Prometheus Consoles here: https://github.com/ceph/cephmetrics/tree/master/dashboards/current.
-A guide to how you can write your own Prometheus consoles can be found on the official Prometheus site here: https://prometheus.io/docs/visualization/consoles/
+A guide to how you can write your own Prometheus consoles can be found on the official Prometheus site here: https://prometheus.io/docs/visualization/consoles/.
 
 ## Grafana Dashboards
-Currently there are no official Rook dashboards, which will change soon, but you can find some here: https://github.com/SUSE/DeepSea/tree/master/srv/salt/ceph/monitoring/grafana/files
-To use the dashboards, just download the JSON file(s) and in Grafan import them by uploading the JSON file.
+The dashboards have been created by [@galexrt](https://github.com/galexrt). For feedback on the dashboards please reach out to him on the [Rook.io Slack](https://rook-slackin.herokuapp.com/).
+
+> **NOTE** The dashboards are only compatible with Grafana 5.0.3 or higher.
+
+The following Grafana dashboards are available:
+* [Ceph - Cluster](https://grafana.com/dashboards/2842)
+* [Ceph - OSD](https://grafana.com/dashboards/5336)
+* [Ceph - Pools](https://grafana.com/dashboards/5342)
 
 ## Teardown
 
