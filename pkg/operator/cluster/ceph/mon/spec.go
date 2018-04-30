@@ -19,6 +19,9 @@ package mon
 
 import (
 	"fmt"
+	"path"
+
+	_ "github.com/rook/rook/pkg/daemon/ceph/mon"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
@@ -90,12 +93,13 @@ func (c *Cluster) makeMonPod(config *monConfig, hostname string) *v1.Pod {
 	if c.dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
 	}
-
-	container := c.monContainer(config, c.clusterInfo.FSID)
+	initContainer := c.monInitContainer(config, c.clusterInfo.FSID)
+	container := c.monContainer(config)
 	podSpec := v1.PodSpec{
-		Containers:    []v1.Container{container},
-		RestartPolicy: v1.RestartPolicyAlways,
-		NodeSelector:  map[string]string{apis.LabelHostname: hostname},
+		InitContainers: []v1.Container{initContainer},
+		Containers:     []v1.Container{container},
+		RestartPolicy:  v1.RestartPolicyAlways,
+		NodeSelector:   map[string]string{apis.LabelHostname: hostname},
 		Volumes: []v1.Volume{
 			{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 			k8sutil.ConfigOverrideVolume(),
@@ -123,17 +127,22 @@ func (c *Cluster) makeMonPod(config *monConfig, hostname string) *v1.Pod {
 	return pod
 }
 
-func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
+func (c *Cluster) monContainer(config *monConfig) v1.Container {
+	confFilePath := path.Join(k8sutil.DataDir, config.Name, "rook.config")
+	monDataDir := path.Join(k8sutil.DataDir, config.Name, "data")
+	monNameArg := fmt.Sprintf("--name=mon.%s", config.Name)
+	logger.Infof("run image %s", c.CephImage)
 	return v1.Container{
-		Args: []string{
-			"mon",
-			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--name=%s", config.Name),
-			fmt.Sprintf("--port=%d", config.Port),
-			fmt.Sprintf("--fsid=%s", fsid),
+		Command: []string{
+			"ceph-mon",
+			"--foreground",
+			monNameArg,
+			fmt.Sprintf("--cluster=%s", c.Namespace),
+			fmt.Sprintf("--mon-data=%s", monDataDir),
+			fmt.Sprintf("--conf=%s", confFilePath),
 		},
 		Name:  appName,
-		Image: k8sutil.MakeRookImage(c.Version),
+		Image: c.CephImage,
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "client",
@@ -141,6 +150,26 @@ func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
+		VolumeMounts: []v1.VolumeMount{
+			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
+			k8sutil.ConfigOverrideMount(),
+		},
+		Resources: c.resources,
+	}
+}
+
+func (c *Cluster) monInitContainer(config *monConfig, fsid string) v1.Container {
+	return v1.Container{
+		Args: []string{
+			"mon",
+			fmt.Sprintf("--init-only=true"),
+			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
+			fmt.Sprintf("--name=%s", config.Name),
+			fmt.Sprintf("--port=%d", config.Port),
+			fmt.Sprintf("--fsid=%s", fsid),
+		},
+		Name:  "init-" + appName,
+		Image: k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),

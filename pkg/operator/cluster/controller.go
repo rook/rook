@@ -163,7 +163,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 			return false, nil
 		}
 
-		err := cluster.createInstance(c.rookImage)
+		err := cluster.createInstance(c.rookImage, cluster.Spec.Image)
 		if err != nil {
 			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
 			return false, nil
@@ -270,7 +270,7 @@ func (c *ClusterController) handleUpdate(newClust *rookalpha.Cluster, cluster *c
 		return false, nil
 	}
 
-	if err := cluster.createInstance(c.rookImage); err != nil {
+	if err := cluster.createInstance(c.rookImage, cluster.Spec.Image); err != nil {
 		logger.Errorf("failed to update cluster in namespace %s. %+v", newClust.Namespace, err)
 		return false, nil
 	}
@@ -442,7 +442,7 @@ func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
 	}
 }
 
-func (c *cluster) createInstance(rookImage string) error {
+func (c *cluster) createInstance(rookImage, cephImage string) error {
 
 	// Create a configmap for overriding ceph config settings
 	// These settings should only be modified by a user after they are initialized
@@ -463,7 +463,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.MonCount, c.Spec.Placement.GetMon(), c.Spec.HostNetwork, c.Spec.Resources.Mon, c.ownerRef)
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, cephImage, c.Spec.MonCount, c.Spec.Placement.GetMon(), c.Spec.HostNetwork, c.Spec.Resources.Mon, c.ownerRef)
 	err = c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)

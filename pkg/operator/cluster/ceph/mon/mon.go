@@ -64,6 +64,7 @@ type Cluster struct {
 	Namespace           string
 	Keyring             string
 	Version             string
+	CephImage           string
 	MasterHost          string
 	Size                int
 	Port                int32
@@ -102,7 +103,7 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath, version string, size int, placement rookalpha.Placement, hostNetwork bool,
+func New(context *clusterd.Context, namespace, dataDirHostPath, version, cephImage string, size int, placement rookalpha.Placement, hostNetwork bool,
 	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:             context,
@@ -110,6 +111,7 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, version string, 
 		dataDirHostPath:     dataDirHostPath,
 		Namespace:           namespace,
 		Version:             version,
+		CephImage:           cephImage,
 		Size:                size,
 		maxMonID:            -1,
 		waitForStart:        true,
@@ -135,7 +137,9 @@ func (c *Cluster) Start() error {
 	}
 
 	if len(c.clusterInfo.Monitors) < c.Size {
-		c.startMons()
+		if err := c.startMons(); err != nil {
+			return err
+		}
 	} else {
 		// Check the health of a previously started cluster
 		if err := c.checkHealth(); err != nil {
@@ -503,7 +507,7 @@ func getNodeNameFromHostname(nodes *v1.NodeList, hostname string) (string, bool)
 
 func (c *Cluster) startMon(m *monConfig, hostname string) error {
 	rs := c.makeReplicaSet(m, hostname)
-	logger.Debugf("Starting mon: %+v", rs.Name)
+	logger.Infof("Starting mon: %+v", rs.Name)
 	_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
