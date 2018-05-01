@@ -100,29 +100,26 @@ func TestOverwriteRookOwnedPartitions(t *testing.T) {
 		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
 		var output string
 		switch outputExecCount {
-		case 0, 7: // we'll call this twice, once explicitly below to verify rook owns the partitions and a 2nd time within formatDevice
+		case 0: // we'll call this twice, once explicitly below to verify rook owns the partitions and a 2nd time within formatDevice
 			assert.Equal(t, command, "lsblk")
 			output = `NAME="sda" SIZE="65" TYPE="disk" PKNAME=""
 NAME="sda1" SIZE="30" TYPE="part" PKNAME="sda"
 NAME="sda2" SIZE="10" TYPE="part" PKNAME="sda"
 NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
-		case 1, 8:
-			assert.Equal(t, "udevadm /dev/sda1", name)
+		case 1:
+			assert.Equal(t, "udevadm info sda1", name)
 			output = "ID_PART_ENTRY_NAME=ROOK-OSD0-WAL"
-		case 2, 9:
-			assert.Equal(t, "get filesystem type for sda1", name)
-			output = ""
-		case 3, 10:
-			assert.Equal(t, "udevadm /dev/sda2", name)
+		case 2:
+			assert.Equal(t, "udevadm info sda2", name)
 			output = "ID_PART_ENTRY_NAME=ROOK-OSD0-DB"
-		case 4, 11:
-			assert.Equal(t, "get filesystem type for sda2", name)
-			output = ""
-		case 5, 12:
-			assert.Equal(t, "udevadm /dev/sda3", name)
+		case 3:
+			assert.Equal(t, "udevadm info sda3", name)
 			output = "ID_PART_ENTRY_NAME=ROOK-OSD0-BLOCK"
-		case 6, 13:
-			assert.Equal(t, "get filesystem type for sda3", name)
+		case 4:
+			assert.Equal(t, "lsblk /dev/sda", name)
+			output = ""
+		case 5:
+			assert.Equal(t, "get filesystem type for sda", name)
 			output = ""
 		}
 		outputExecCount++
@@ -153,7 +150,7 @@ NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
 	// to format and the format/partitioning will happen.
 	err = formatDevice(context, config, false, storeConfig)
 	assert.Nil(t, err)
-	assert.Equal(t, 15, outputExecCount)
+	assert.Equal(t, 6, outputExecCount)
 }
 
 func TestPartitionBluestoreMetadata(t *testing.T) {

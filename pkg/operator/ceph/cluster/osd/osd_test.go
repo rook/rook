@@ -18,11 +18,13 @@ package osd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
 	"time"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -51,6 +53,24 @@ func TestStart(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func createDiscoverConfigmap(nodeName, ns string, clientset *fake.Clientset) error {
+	data := make(map[string]string, 1)
+	data[discoverDaemon.LocalDiskCMData] = `[{"name":"sdx","parent":"","hasChildren":false,"devLinks":"/dev/disk/by-id/scsi-36001405f826bd553d8c4dbf9f41c18be    /dev/disk/by-id/wwn-0x6001405f826bd553d8c4dbf9f41c18be /dev/disk/by-path/ip-127.0.0.1:3260-iscsi-iqn.2016-06.world.srv:storage.target01-lun-1","size":10737418240,"uuid":"","serial":"36001405f826bd553d8c4dbf9f41c18be","type":"disk","rotational":true,"readOnly":false,"ownPartition":true,"filesystem":"","vendor":"LIO-ORG","model":"disk02","wwn":"0x6001405f826bd553","wwnVendorExtension":"0x6001405f826bd553d8c4dbf9f41c18be","empty":true}]`
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "local-device-" + nodeName,
+			Namespace: ns,
+			Labels: map[string]string{
+				k8sutil.AppAttr:         discoverDaemon.AppName,
+				discoverDaemon.NodeAttr: nodeName,
+			},
+		},
+		Data: data,
+	}
+	_, err := clientset.CoreV1().ConfigMaps(ns).Create(cm)
+	return err
+}
+
 func TestAddRemoveNode(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node8230"
@@ -68,6 +88,12 @@ func TestAddRemoveNode(t *testing.T) {
 
 	// set up a fake k8s client set and watcher to generate events that the operator will listen to
 	clientset := fake.NewSimpleClientset()
+	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
+	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+
+	cmErr := createDiscoverConfigmap(nodeName, "rook-system", clientset)
+	assert.Nil(t, cmErr)
+
 	statusMapWatcher := watch.NewFake()
 	clientset.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(statusMapWatcher, nil))
 
@@ -102,8 +128,7 @@ func TestAddRemoveNode(t *testing.T) {
 	osdPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
 		Name:            "osdPod",
 		Labels:          map[string]string{k8sutil.AppAttr: appName},
-		OwnerReferences: []metav1.OwnerReference{{Name: "rook-ceph-osd-node8230"}},
-	}}
+		OwnerReferences: []metav1.OwnerReference{{Name: "rook-ceph-osd-id-1"}}}}
 	c.context.Clientset.CoreV1().Pods(c.Namespace).Create(osdPod)
 
 	// mock the ceph calls that will be called during remove node
@@ -169,11 +194,17 @@ func TestAddNodeFailure(t *testing.T) {
 		},
 	}
 
-	// create a fake clientset that will return an error when the operator tries to create a replica set
+	// create a fake clientset that will return an error when the operator tries to create a job
 	clientset := fake.NewSimpleClientset()
-	clientset.PrependReactor("create", "replicasets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf("mock failed to create replica set")
+	clientset.PrependReactor("create", "jobs", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, fmt.Errorf("mock failed to create jobs")
 	})
+
+	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
+	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+
+	cmErr := createDiscoverConfigmap(nodeName, "rook-system", clientset)
+	assert.Nil(t, cmErr)
 
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion", "",
 		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
@@ -189,7 +220,7 @@ func TestAddNodeFailure(t *testing.T) {
 	// wait for orchestration to complete
 	waitForOrchestrationCompletion(c, nodeName, &startCompleted)
 
-	// verify orchestration failed (because the operator failed to create a replica set)
+	// verify orchestration failed (because the operator failed to create a job)
 	assert.True(t, startCompleted)
 	assert.NotNil(t, startErr)
 }
@@ -236,7 +267,18 @@ func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatch
 			if status != nil && status.Status == OrchestrationStatusStarting {
 				// the node has started orchestration, simulate its completion now by performing 2 tasks:
 				// 1) update the config map manually (which doesn't trigger a watch event, see https://github.com/kubernetes/kubernetes/issues/54075#issuecomment-337298950)
-				status = &OrchestrationStatus{Status: OrchestrationStatusCompleted}
+				status = &OrchestrationStatus{
+					OSDs: []OSDInfo{
+						{
+							ID:          1,
+							DataPath:    "/tmp",
+							Config:      "/foo/bar/ceph.conf",
+							Cluster:     "rook",
+							KeyringPath: "/foo/bar/key",
+						},
+					},
+					Status: OrchestrationStatusCompleted,
+				}
 				UpdateOrchestrationStatusMap(c.context.Clientset, c.Namespace, nodeName, *status)
 
 				// 2) call modify on the fake watcher so a watch event will get triggered
@@ -245,7 +287,7 @@ func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatch
 				statusMapWatcher.Modify(cm)
 				break
 			} else {
-				logger.Infof("waiting for node %s orchestration to start. status: %+v", nodeName, *status)
+				logger.Debugf("waiting for node %s orchestration to start. status: %+v", nodeName, *status)
 			}
 		} else {
 			logger.Warningf("failed to get node %s orchestration status, will try again: %+v", nodeName, err)
@@ -263,7 +305,7 @@ func waitForOrchestrationCompletion(c *Cluster, nodeName string, startCompleted 
 		if err == nil {
 			status := parseOrchestrationStatus(cm.Data, nodeName)
 			if status != nil {
-				logger.Infof("start has not completed, status is %+v", status)
+				logger.Debugf("start has not completed, status is %+v", status)
 			}
 		}
 		<-time.After(50 * time.Millisecond)

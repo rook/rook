@@ -73,7 +73,7 @@ func TestOSDStatus(t *testing.T) {
 		"sdx": {Data: -1},
 	}}
 	// Creating an OSD for which Down status will be returned
-	err = agent.configureDevices(context, devices)
+	_, err = agent.configureDevices(context, devices)
 	assert.Nil(t, err)
 
 	// Initializing an OSD monitoring

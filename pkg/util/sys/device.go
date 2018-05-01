@@ -30,6 +30,7 @@ const (
 	SSDType   = "ssd"
 	PartType  = "part"
 	CryptType = "crypt"
+	LVMType   = "lvm"
 	sgdisk    = "sgdisk"
 	mountCmd  = "mount"
 )
@@ -118,17 +119,16 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 			}
 			totalPartitionSize += p.Size
 
-			label, err := GetPartitionLabel(name, executor)
+			info, err := GetUdevInfo(name, executor)
 			if err != nil {
 				return nil, 0, err
 			}
-			p.Label = label
-
-			fs, err := GetDeviceFilesystems(name, executor)
-			if err != nil {
-				return nil, 0, err
+			if v, ok := info["ID_PART_ENTRY_NAME"]; ok {
+				p.Label = v
 			}
-			p.Filesystem = fs
+			if v, ok := info["ID_FS_TYPE"]; ok {
+				p.Filesystem = v
+			}
 
 			partitions = append(partitions, p)
 		}

@@ -32,12 +32,14 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
+	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
@@ -381,6 +383,7 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	if clust.Spec.Storage.AnyUseAllDevices() {
 		c.devicesInUse = false
 	}
+	discover.FreeDevicesByCluster(c.context, clust.Name)
 }
 
 func (c *ClusterController) handleDelete(cluster *cephv1alpha1.Cluster, retryInterval time.Duration) error {

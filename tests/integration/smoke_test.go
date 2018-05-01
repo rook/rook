@@ -75,7 +75,7 @@ type SmokeSuite struct {
 
 func (suite *SmokeSuite) SetupSuite() {
 	suite.namespace = "smoke-ns"
-	suite.op, suite.k8sh = StartBaseTestOperations(suite.T, suite.namespace, "bluestore", "", false, false, 3)
+	suite.op, suite.k8sh = StartBaseTestOperations(suite.T, suite.namespace, "bluestore", installer.DefaultDataDirHostPath(suite.namespace), false, false, 3)
 	suite.helper = GetTestClient(suite.k8sh, suite.namespace, suite.op, suite.T)
 }
 

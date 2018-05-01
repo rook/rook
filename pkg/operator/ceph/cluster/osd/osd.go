@@ -20,6 +20,7 @@ package osd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -52,7 +53,11 @@ const (
 	OrchestrationStatusCompleted     = "completed"
 	OrchestrationStatusFailed        = "failed"
 	appName                          = "rook-ceph-osd"
+	prepareAppName                   = "rook-ceph-osd-prepare"
+	prepareAppNameFmt                = "rook-ceph-osd-prepare-%s"
+	osdAppNameFmt                    = "rook-ceph-osd-id-%d"
 	appNameFmt                       = "rook-ceph-osd-%s"
+	osdLabelKey                      = "ceph-osd-id"
 	clusterAvailableSpaceReserve     = 0.05
 	defaultServiceAccountName        = "rook-ceph-cluster"
 )
@@ -97,9 +102,26 @@ func New(context *clusterd.Context, namespace, version, serviceAccount string, s
 	}
 }
 
+type OSDInfo struct {
+	ID          int    `json:"id"`
+	DataPath    string `json:"data-path"`
+	Config      string `json:"conf"`
+	Cluster     string `json:"cluster"`
+	KeyringPath string `json:"keyring-path"`
+	UUID        string `json:"uuid"`
+	Journal     string `json:"journal"`
+	IsFileStore bool   `json:"is-file-store"`
+}
+
 type OrchestrationStatus struct {
-	Status  string `json:"status"`
-	Message string `json:"message"`
+	OSDs    []OSDInfo `json:"osds"`
+	Status  string    `json:"status"`
+	Message string    `json:"message"`
+}
+
+type deploymentPerNode struct {
+	node        rookalpha.Node
+	deployments []*extensions.Deployment
 }
 
 // Start the osd management
@@ -126,34 +148,35 @@ func (c *Cluster) Start() error {
 	}()
 
 	if c.Storage.UseAllNodes {
-		// make a daemonset for all nodes in the cluster
-		storeConfig := config.ToStoreConfig(c.Storage.Config)
-		metadataDevice := config.MetadataDevice(c.Storage.Config)
-		ds := c.makeDaemonSet(c.Storage.Selection, storeConfig, metadataDevice, c.Storage.Location)
-		_, err := c.context.Clientset.Extensions().DaemonSets(c.Namespace).Create(ds)
+		// resolve all storage nodes
+		c.Storage.Nodes = nil
+		rookSystemNS := os.Getenv(k8sutil.PodNamespaceEnvVar)
+		allNodeDevices, err := discover.ListDevices(c.context, rookSystemNS, "" /* all nodes */)
 		if err != nil {
-			if !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("failed to create osd daemon set. %+v", err)
-			}
-			logger.Infof("osd daemon set already exists")
-		} else {
-			logger.Infof("osd daemon set started")
+			logger.Warningf("failed to get storage nodes from namespace %s: %v", rookSystemNS, err)
+			return err
 		}
-
-		return nil
+		for nodeName := range allNodeDevices {
+			storageNode := rookalpha.Node{
+				Name: nodeName,
+			}
+			c.Storage.Nodes = append(c.Storage.Nodes, storageNode)
+		}
+		logger.Debugf("storage nodes: %+v", c.Storage.Nodes)
 	}
 
 	// orchestrate individual nodes, starting with any that are still ongoing (in the case that we
 	// are resuming a previous orchestration attempt)
 	if inProgressNode, status := c.findInProgressNode(); inProgressNode != "" {
 		logger.Infof("resuming orchestration of in progress node %s, status: %+v", inProgressNode, status)
-		if err := c.waitForCompletion(inProgressNode); err != nil {
+		if _, err := c.waitForCompletion(inProgressNode); err != nil {
 			logger.Warningf("failed waiting for in progress node %s, will continue with orchestration.  %+v", inProgressNode, err)
 		}
 	}
 
 	errorMessages := make([]string, 0)
-
+	clusterName := c.Namespace
+	devicesToUse := make(map[string][]rookalpha.Device, len(c.Storage.Nodes))
 	// start with nodes currently in the storage spec
 	for i := range c.Storage.Nodes {
 		// fully resolve the storage config and resources for this node
@@ -167,41 +190,99 @@ func (c *Cluster) Start() error {
 			errorMessages = append(errorMessages, fmt.Sprintf("failed to set orchestration starting status for node %s: %+v", n.Name, err))
 			continue
 		}
-		devicesToUse := n.Devices
-		availDev, deviceErr := discover.GetAvailableDevices(c.context, n.Name, c.Namespace, n.Devices, n.Selection.DeviceFilter, n.Selection.GetUseAllDevices())
+		devicesToUse[n.Name] = n.Devices
+		availDev, deviceErr := discover.GetAvailableDevices(c.context, n.Name, clusterName, n.Devices, n.Selection.DeviceFilter, n.Selection.GetUseAllDevices())
 		if deviceErr != nil {
-			logger.Warningf("failed to get devices for node %s cluster %s: %v", n.Name, c.Namespace, deviceErr)
+			logger.Warningf("failed to get devices for node %s cluster %s: %v", n.Name, clusterName, deviceErr)
 		} else {
-			devicesToUse = availDev
+			devicesToUse[n.Name] = availDev
 			logger.Infof("avail devices for node %s: %+v", n.Name, availDev)
 		}
-		// create the replicaSet that will run the OSDs for this node
-		rs := c.makeReplicaSet(n.Name, devicesToUse, n.Selection, n.Resources, storeConfig, metadataDevice, n.Location)
-		_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
+		if len(availDev) == 0 && len(c.dataDirHostPath) == 0 {
+			errorMessages = append(errorMessages, fmt.Sprintf("empty volumes for node %s", n.Name))
+			continue
+		}
+		// create the job that prepares osds on the node
+		job, err := c.makeJob(n.Name, devicesToUse[n.Name], n.Selection, n.Resources, storeConfig, metadataDevice, n.Location)
+		if err != nil {
+			message := fmt.Sprintf("failed to create prepare job node %s: %v", n.Name, err)
+			logger.Info(message)
+			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
+			if err := UpdateOrchestrationStatusMap(c.context.Clientset, c.Namespace, n.Name, status); err != nil {
+				errorMessages = append(errorMessages, message)
+				continue
+			}
+		}
+		_, err = c.context.Clientset.Batch().Jobs(c.Namespace).Create(job)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
-				// we failed to create the replica set, update the orchestration status for this node
-				message := fmt.Sprintf("failed to create osd replica set for node %s. %+v", n.Name, err)
+				// we failed to create job, update the orchestration status for this node
+				message := fmt.Sprintf("failed to create osd prepare job for node %s. %+v", n.Name, err)
 				c.handleOrchestrationFailure(*n, message, &errorMessages)
+				err = discover.FreeDevices(c.context, n.Name, clusterName)
+				if err != nil {
+					logger.Warningf("failed to free devices: %s", err)
+				}
 				continue
 			} else {
-				// TODO: if the replica set already exists, we may need to edit the pod template spec, for example if device filter has changed
-				message := fmt.Sprintf("osd replica set already exists for node %s", n.Name)
+				// TODO: if the job already exists, we may need to edit the pod template spec, for example if device filter has changed
+				message := fmt.Sprintf("failed to set orchestration status for node %s, status: %+v: %+v", n.Name, status, err)
 				logger.Info(message)
 				status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
 				if err := UpdateOrchestrationStatusMap(c.context.Clientset, c.Namespace, n.Name, status); err != nil {
-					errorMessages = append(errorMessages, fmt.Sprintf("failed to set orchestration status for node %s, status: %+v: %+v", n.Name, status, err))
+					errorMessages = append(errorMessages, message)
 					continue
 				}
 			}
 		} else {
-			logger.Infof("osd replica set started for node %s", n.Name)
+			logger.Infof("osd prepare job started for node %s", n.Name)
 		}
+	}
+	for i := range c.Storage.Nodes {
+		// fully resolve the storage config and resources for this node
+		n := c.resolveNode(c.Storage.Nodes[i])
+		storeConfig := config.ToStoreConfig(n.Config)
+		metadataDevice := config.MetadataDevice(n.Config)
 
 		// wait for the current node's orchestration to be completed
-		if err := c.waitForCompletion(n.Name); err != nil {
-			errorMessages = append(errorMessages, err.Error())
+		if status, err := c.waitForCompletion(n.Name); err != nil {
+			logger.Warningf("failed to prepare node %s: %v", n.Name, err)
+			err = discover.FreeDevices(c.context, n.Name, clusterName)
+			if err != nil {
+				logger.Warningf("failed to free devices: %s", err)
+				errorMessages = append(errorMessages, err.Error())
+			}
 			continue
+		} else {
+			// start osds
+			osds := status.OSDs
+			logger.Debugf("osds prepared on node %s: %+v", n.Name, osds)
+			for _, osd := range osds {
+				logger.Debugf("start osd %v", osd)
+				dp, err := c.makeDeployment(n.Name, devicesToUse[n.Name], n.Selection, n.Resources, storeConfig, metadataDevice, n.Location, osd)
+				if err != nil {
+					errMsg := fmt.Sprintf("nil deployment for node %s: %v", n.Name, err)
+					logger.Warningf(errMsg)
+					errorMessages = append(errorMessages, errMsg)
+					err = discover.FreeDevices(c.context, n.Name, clusterName)
+					if err != nil {
+						logger.Warningf("failed to free devices: %s", err)
+					}
+					continue
+				}
+				dp, err = c.context.Clientset.Extensions().Deployments(c.Namespace).Create(dp)
+				if err != nil {
+					if !errors.IsAlreadyExists(err) {
+						// we failed to create job, update the orchestration status for this node
+						logger.Warningf("failed to create osd deployment for node %s, osd %v: %+v", n.Name, osd, err)
+						err = discover.FreeDevices(c.context, n.Name, clusterName)
+						if err != nil {
+							logger.Warningf("failed to free devices: %s", err)
+						}
+						continue
+					}
+				}
+			}
 		}
 	}
 
@@ -213,53 +294,60 @@ func (c *Cluster) Start() error {
 
 	for i := range removedNodes {
 		n := removedNodes[i]
-		storeConfig := config.ToStoreConfig(n.Config)
-		metadataDevice := config.MetadataDevice(n.Config)
+		storeConfig := config.ToStoreConfig(n.node.Config)
+		metadataDevice := config.MetadataDevice(n.node.Config)
 
-		if err := c.isSafeToRemoveNode(n); err != nil {
-			message := fmt.Sprintf("skipping the removal of node %s because it is not safe to do so: %+v", n.Name, err)
-			c.handleOrchestrationFailure(n, message, &errorMessages)
+		if err := c.isSafeToRemoveNode(n.node); err != nil {
+			message := fmt.Sprintf("skipping the removal of node %s because it is not safe to do so: %+v", n.node.Name, err)
+			c.handleOrchestrationFailure(n.node, message, &errorMessages)
 			continue
 		}
-
-		logger.Infof("removing node %s from the cluster", n.Name)
+		if len(n.node.Name) == 0 {
+			continue
+		}
+		logger.Infof("removing node %s from the cluster", n.node.Name)
 
 		// update the orchestration status of this removed node to the starting state
-		if err := UpdateOrchestrationStatusMap(c.context.Clientset, c.Namespace, n.Name, OrchestrationStatus{Status: OrchestrationStatusStarting}); err != nil {
-			errorMessages = append(errorMessages, fmt.Sprintf("failed to set orchestration starting status for removed node %s: %+v", n.Name, err))
+		if err := UpdateOrchestrationStatusMap(c.context.Clientset, c.Namespace, n.node.Name, OrchestrationStatus{Status: OrchestrationStatusStarting}); err != nil {
+			errorMessages = append(errorMessages, fmt.Sprintf("failed to set orchestration starting status for removed node %s: %+v", n.node.Name, err))
 			continue
 		}
 
 		// trigger orchestration on the removed node by telling it not to use any storage at all.  note that the directories are still passed in
 		// so that the pod will be able to mount them and migrate data from them.
-		rs := c.makeReplicaSet(n.Name, nil, rookalpha.Selection{DeviceFilter: "none", Directories: n.Directories},
-			v1.ResourceRequirements{}, storeConfig, metadataDevice, n.Location)
-		rs, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Update(rs)
+		job, err := c.makeJob(n.node.Name, nil, rookalpha.Selection{DeviceFilter: "none", Directories: n.node.Directories}, v1.ResourceRequirements{}, storeConfig, metadataDevice, "")
 		if err != nil {
-			message := fmt.Sprintf("failed to update osd replica set for removed node %s. %+v", n.Name, err)
-			c.handleOrchestrationFailure(n, message, &errorMessages)
+			message := fmt.Sprintf("failed to create osd job for removed node %s. %+v", n.node.Name, err)
+			c.handleOrchestrationFailure(n.node, message, &errorMessages)
+			continue
+		}
+		job, err = c.context.Clientset.Batch().Jobs(c.Namespace).Update(job)
+		if err != nil {
+			message := fmt.Sprintf("failed to update osd job for removed node %s. %+v", n.node.Name, err)
+			c.handleOrchestrationFailure(n.node, message, &errorMessages)
 			continue
 		} else {
-			logger.Infof("osd replica set updated for node %s", n.Name)
+			logger.Infof("osd job updated for node %s", n.node.Name)
 		}
+		for _, dp := range n.deployments {
+			// delete the pod associated with the deployment so that it will be restarted with the new template
+			if err := c.deleteOSDPod(dp); err != nil {
+				message := fmt.Sprintf("failed to find and delete OSD pod for deployments %s. %+v", dp.Name, err)
+				c.handleOrchestrationFailure(n.node, message, &errorMessages)
+				continue
+			}
 
-		// delete the pod associated with the replica set so that it will be restarted with the new template
-		if err := c.deleteOSDPod(rs); err != nil {
-			message := fmt.Sprintf("failed to find and delete OSD pod for replica set %s. %+v", rs.Name, err)
-			c.handleOrchestrationFailure(n, message, &errorMessages)
-			continue
-		}
+			// wait for the removed node's orchestration to be completed
+			if _, err := c.waitForCompletion(n.node.Name); err != nil {
+				errorMessages = append(errorMessages, err.Error())
+				continue
+			}
 
-		// wait for the removed node's orchestration to be completed
-		if err := c.waitForCompletion(n.Name); err != nil {
-			errorMessages = append(errorMessages, err.Error())
-			continue
-		}
-
-		// orchestration of the removed node completed, we can delete the replica set now
-		if err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Delete(rs.Name, &metav1.DeleteOptions{}); err != nil {
-			errorMessages = append(errorMessages, fmt.Sprintf("failed to delete replica set %s: %+v", rs.Name, err))
-			continue
+			// orchestration of the removed node completed, we can delete the deployment now
+			if err := c.context.Clientset.Extensions().Deployments(c.Namespace).Delete(dp.Name, &metav1.DeleteOptions{}); err != nil {
+				errorMessages = append(errorMessages, fmt.Sprintf("failed to delete deployment %s: %+v", dp.Name, err))
+				continue
+			}
 		}
 	}
 
@@ -393,12 +481,12 @@ func (c *Cluster) findInProgressNode() (string, *OrchestrationStatus) {
 	return "", nil
 }
 
-func (c *Cluster) waitForCompletion(node string) error {
+func (c *Cluster) waitForCompletion(node string) (*OrchestrationStatus, error) {
 	// check the status map to see if the node is already completed before we start watching
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
-			return err
+			return nil, err
 		}
 		// the status map doesn't exist yet, watching below is still an OK thing to do
 	} else {
@@ -406,27 +494,28 @@ func (c *Cluster) waitForCompletion(node string) error {
 		status := parseOrchestrationStatus(cm.Data, node)
 		if status != nil {
 			if status.Status == OrchestrationStatusCompleted {
-				return nil
+				return status, nil
 			} else if status.Status == OrchestrationStatusFailed {
-				return fmt.Errorf("orchestration for node %s failed: %+v", node, status)
+				return nil, fmt.Errorf("orchestration for node %s failed: %+v", node, status)
 			}
 		}
 	}
 
 	// start watching for changes on the orchestration status map
-	var startingVersion string
+	startingVersion := "0"
 	if cm != nil {
 		startingVersion = cm.ResourceVersion
 	}
 	opts := metav1.ListOptions{
 		FieldSelector:   fields.OneTermEqualSelector(api.ObjectNameField, OrchestrationStatusMapName).String(),
 		ResourceVersion: startingVersion,
+		Watch:           true,
 	}
 
 	for {
 		w, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Watch(opts)
 		if err != nil {
-			return fmt.Errorf("failed to start watch on %s: %+v", OrchestrationStatusMapName, err)
+			return nil, fmt.Errorf("failed to start watch on %s: %+v", OrchestrationStatusMapName, err)
 		}
 		defer w.Stop()
 
@@ -440,7 +529,6 @@ func (c *Cluster) waitForCompletion(node string) error {
 					<-time.After(100 * time.Millisecond)
 					break ResultLoop
 				}
-
 				if e.Type == watch.Modified {
 					statusMap := e.Object.(*v1.ConfigMap)
 					status := parseOrchestrationStatus(statusMap.Data, node)
@@ -449,9 +537,9 @@ func (c *Cluster) waitForCompletion(node string) error {
 					}
 
 					if status.Status == OrchestrationStatusCompleted {
-						return nil
+						return status, nil
 					} else if status.Status == OrchestrationStatusFailed {
-						return fmt.Errorf("orchestration for node %s failed: %+v", node, status)
+						return nil, fmt.Errorf("orchestration for node %s failed: %+v", node, status)
 					}
 				}
 
@@ -467,8 +555,8 @@ func IsRemovingNode(devices string) bool {
 	return devices == "none"
 }
 
-func (c *Cluster) findRemovedNodes() ([]rookalpha.Node, error) {
-	var removedNodes []rookalpha.Node
+func (c *Cluster) findRemovedNodes() ([]deploymentPerNode, error) {
+	var removedNodes []deploymentPerNode
 
 	// first discover the storage nodes that are still running
 	discoveredNodes, err := c.discoverStorageNodes()
@@ -480,7 +568,7 @@ func (c *Cluster) findRemovedNodes() ([]rookalpha.Node, error) {
 		found := false
 		for _, newNode := range c.Storage.Nodes {
 			// discovered storage node still exists in the current storage spec, move on to next discovered node
-			if discoveredNode.Name == newNode.Name {
+			if discoveredNode.node.Name == newNode.Name {
 				found = true
 				break
 			}
@@ -495,25 +583,23 @@ func (c *Cluster) findRemovedNodes() ([]rookalpha.Node, error) {
 	return removedNodes, nil
 }
 
-func (c *Cluster) discoverStorageNodes() ([]rookalpha.Node, error) {
-	var discoveredNodes []rookalpha.Node
+func (c *Cluster) discoverStorageNodes() ([]deploymentPerNode, error) {
+	var discoveredNodes []deploymentPerNode
 
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
-	osdReplicaSets, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).List(listOpts)
+	osdDeployments, err := c.context.Clientset.Extensions().Deployments(c.Namespace).List(listOpts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list osd replica sets: %+v", err)
+		return nil, fmt.Errorf("failed to list osd deployment: %+v", err)
 	}
-
-	discoveredNodes = make([]rookalpha.Node, len(osdReplicaSets.Items))
-	for i, osdReplicaSet := range osdReplicaSets.Items {
-		osdPodSpec := osdReplicaSet.Spec.Template.Spec
+	discoveredNodes = make([]deploymentPerNode, len(osdDeployments.Items))
+	for i, osdDeployment := range osdDeployments.Items {
+		osdPodSpec := osdDeployment.Spec.Template.Spec
 
 		// get the node name from the node selector
 		nodeName, ok := osdPodSpec.NodeSelector[apis.LabelHostname]
 		if !ok || nodeName == "" {
-			return nil, fmt.Errorf("osd replicaset %s doesn't have a node name on its node selector: %+v", osdReplicaSet.Name, osdPodSpec.NodeSelector)
+			return nil, fmt.Errorf("osd deployment %s doesn't have a node name on its node selector: %+v", osdDeployment.Name, osdPodSpec.NodeSelector)
 		}
-
 		// get the osd container
 		osdContainer, err := k8sutil.GetMatchingContainer(osdPodSpec.Containers, appName)
 		if err != nil {
@@ -532,8 +618,18 @@ func (c *Cluster) discoverStorageNodes() ([]rookalpha.Node, error) {
 			Location: rookalpha.GetLocationFromContainer(osdContainer),
 			Config:   getConfigFromContainer(osdContainer),
 		}
-
-		discoveredNodes[i] = node
+		found := false
+		for _, n := range discoveredNodes {
+			if nodeName == n.node.Name {
+				n.deployments = append(n.deployments, &osdDeployment)
+				found = true
+				break
+			}
+		}
+		if !found {
+			discoveredNodes[i].node = node
+			discoveredNodes[i].deployments = append(discoveredNodes[i].deployments, &osdDeployment)
+		}
 	}
 
 	return discoveredNodes, nil
@@ -597,7 +693,10 @@ func (c *Cluster) isSafeToRemoveNode(node rookalpha.Node) error {
 	return nil
 }
 
-func (c *Cluster) deleteOSDPod(rs *extensions.ReplicaSet) error {
+func (c *Cluster) deleteOSDPod(dp *extensions.Deployment) error {
+	if dp == nil {
+		return nil
+	}
 	// list all OSD pods first
 	opts := metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector(k8sutil.AppAttr, appName).String()}
 	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(opts)
@@ -605,13 +704,13 @@ func (c *Cluster) deleteOSDPod(rs *extensions.ReplicaSet) error {
 		return err
 	}
 
-	// iterate over all the OSD pods, looking for a match to the given replica set and the pod's owner
+	// iterate over all the OSD pods, looking for a match to the given deployment and the pod's owner
 	var pod *v1.Pod
 	for i := range pods.Items {
 		p := &pods.Items[i]
 		for _, owner := range p.OwnerReferences {
-			if owner.Name == rs.Name && owner.UID == rs.UID {
-				// the owner of this pod matches the name and UID of the given replica set
+			if owner.Name == dp.Name && owner.UID == dp.UID {
+				// the owner of this pod matches the name and UID of the given deployment
 				pod = p
 				break
 			}
@@ -623,7 +722,7 @@ func (c *Cluster) deleteOSDPod(rs *extensions.ReplicaSet) error {
 	}
 
 	if pod == nil {
-		return fmt.Errorf("pod for replica set %s not found", rs.Name)
+		return fmt.Errorf("pod for deployment %s not found", dp.Name)
 	}
 
 	err = c.context.Clientset.CoreV1().Pods(c.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})

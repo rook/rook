@@ -201,6 +201,17 @@ rules:
   - list
   - watch
 - apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete   
+- apiGroups:
   - ceph.rook.io
   resources:
   - "*"

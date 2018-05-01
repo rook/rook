@@ -166,6 +166,8 @@ def RunIntegrationTest(k, v) {
             }
             finally{
                 archive '_output/tests/*.log'
+                sh 'sudo rm -rf ${PWD}/rook-test'
+                sh 'sudo ls -l ${PWD}'
                 deleteDir()
             }
         }

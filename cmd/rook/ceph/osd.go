@@ -18,7 +18,9 @@ package ceph
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -40,6 +42,7 @@ var osdCmd = &cobra.Command{
 var (
 	osdDataDeviceFilter string
 	ownerRefID          string
+	prepareOnly         bool
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -58,6 +61,9 @@ func addOSDFlags(command *cobra.Command) {
 	command.Flags().IntVar(&cfg.storeConfig.DatabaseSizeMB, "osd-database-size", osdcfg.DBDefaultSizeMB, "default size (MB) for OSD database (bluestore)")
 	command.Flags().IntVar(&cfg.storeConfig.JournalSizeMB, "osd-journal-size", osdcfg.JournalDefaultSizeMB, "default size (MB) for OSD journal (filestore)")
 	command.Flags().StringVar(&cfg.storeConfig.StoreType, "osd-store", "", "type of backing OSD store to use (bluestore or filestore)")
+
+	// only prepare devices but not start ceph-osd daemon
+	command.Flags().BoolVar(&prepareOnly, "osd-prepare-only", true, "true to only prepare ceph osd directories or devices but not start ceph-osd daemon")
 }
 
 func init() {
@@ -115,9 +121,11 @@ func startOSD(cmd *cobra.Command, args []string) error {
 	ownerRef := cluster.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, ownerRef)
 	agent := osd.NewAgent(context, dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
-		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
+		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, prepareOnly)
 
-	err = osd.Run(context, agent, nil)
+	sigc := make(chan os.Signal, 1)
+	signal.Notify(sigc, syscall.SIGTERM)
+	err = osd.Run(context, agent, sigc)
 	if err != nil {
 		// something failed in the OSD orchestration, update the status map with failure details
 		status := oposd.OrchestrationStatus{

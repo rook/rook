@@ -226,7 +226,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 		"sdx": {Data: -1},
 		"sdy": {Data: -1},
 	}}
-	err = agent.configureDevices(context, devices)
+	_, err = agent.configureDevices(context, devices)
 	assert.Nil(t, err)
 
 	assert.Equal(t, int32(0), agent.configCounter)
@@ -293,7 +293,7 @@ func TestOSDAgentNoDevices(t *testing.T) {
 		filepath.Join(configDir, "sdx"): -1,
 		filepath.Join(configDir, "sdy"): -1,
 	}
-	err = agent.configureDirs(context, dirs)
+	_, err = agent.configureDirs(context, dirs)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, runCount)
 	assert.Equal(t, 2, startCount)
@@ -353,7 +353,7 @@ func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeCon
 	cluster := &mon.ClusterInfo{Name: "myclust"}
 	context := &clusterd.Context{ConfigDir: configDir, Executor: executor, Clientset: testop.New(1)}
 	agent := NewAgent(context, devices, false, "", "", forceFormat, location, *storeConfig,
-		cluster, nodeName, mockKVStore())
+		cluster, nodeName, mockKVStore(), false /* prepareOnly */)
 
 	return agent, executor, context
 }
