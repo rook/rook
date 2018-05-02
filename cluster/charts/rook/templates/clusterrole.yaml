@@ -95,4 +95,23 @@ rules:
   - "*"
   verbs:
   - "*"
+{{- if .Values.pspEnable }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-operator-psp-user
+  labels:
+    operator: rook
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+rules:
+- apiGroups:
+  - extensions
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - 00-rook-operator
+  verbs:
+  - use
+{{- end }}
 {{- end }}
