@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -154,6 +154,12 @@ func (c *Cluster) checkHealth() error {
 	done, err = c.checkMonsOnValidNodes()
 	if done || err != nil {
 		return err
+	}
+
+	// create/start new mons when there are less mons
+	if len(status.MonMap.Mons) < c.Size {
+		logger.Infof("found only %d mons less than given monCount %d, starting more mons", len(status.MonMap.Mons), c.Size)
+		return c.startMons()
 	}
 
 	return nil
