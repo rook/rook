@@ -16,6 +16,7 @@ The following tools are need on the host:
   - docker (1.12+) or Docker for Mac (17+)
   - git
   - make
+  - golang
   - rsync (if you're using the build container on mac)
 
 ## Build
