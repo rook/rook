@@ -37,13 +37,13 @@ func Grep(input, searchFor string) string {
 
 // awk finds the space-delimited token at the given position.
 // 0 returns the whole line, while 1 is the first token.
-func Awk(input string, position int) string {
+func Awk(input string, position int, delimit string) string {
 	logger.Debugf("awk %d from %s", position, input)
 	if position == 0 {
 		return input
 	}
 
-	words := strings.Split(strings.TrimSpace(input), " ")
+	words := strings.Split(strings.TrimSpace(input), delimit)
 	position--
 	if position < 0 || position >= len(words) {
 		// out of range

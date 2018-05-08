@@ -19,6 +19,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/sys"
 	apiextensionsclient "k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset"
 	"k8s.io/client-go/kubernetes"
 )
@@ -50,5 +51,5 @@ type Context struct {
 	NetworkInfo NetworkInfo
 
 	// The local devices detected on the node
-	Devices []*LocalDisk
+	Devices []*sys.LocalDisk
 }

@@ -30,22 +30,7 @@ var (
 	isRBD  = regexp.MustCompile("^rbd[0-9]+p?[0-9]{0,}$")
 )
 
-type LocalDisk struct {
-	Name        string `json:"name"`
-	ID          string `json:"id"`
-	UUID        string `json:"uuid"`
-	Size        uint64 `json:"size"`
-	Rotational  bool   `json:"rotational"`
-	Readonly    bool   `json:"readonly"`
-	FileSystem  string `json:"fileSystem"`
-	MountPoint  string `json:"mountPoint"`
-	Type        string `json:"type"`
-	Parent      string `json:"parent"`
-	HasChildren bool   `json:"hasChildren"`
-	Empty       bool   `json:"empty"`
-}
-
-func GetAvailableDevices(devices []*LocalDisk) []string {
+func GetAvailableDevices(devices []*sys.LocalDisk) []string {
 
 	var available []string
 	for _, device := range devices {
@@ -60,8 +45,8 @@ func GetAvailableDevices(devices []*LocalDisk) []string {
 }
 
 // check whether a device is completely empty
-func getDeviceEmpty(device *LocalDisk) bool {
-	return device.Parent == "" && (device.Type == sys.DiskType || device.Type == sys.SSDType || device.Type == sys.CryptType) && device.FileSystem == ""
+func getDeviceEmpty(device *sys.LocalDisk) bool {
+	return device.Parent == "" && (device.Type == sys.DiskType || device.Type == sys.SSDType || device.Type == sys.CryptType) && device.Filesystem == ""
 }
 
 func ignoreDevice(d string) bool {
@@ -69,9 +54,9 @@ func ignoreDevice(d string) bool {
 }
 
 // Discover all the details of devices available on the local node
-func DiscoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
+func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 
-	var disks []*LocalDisk
+	var disks []*sys.LocalDisk
 	devices, err := sys.ListDevices(executor)
 	if err != nil {
 		return nil, err
@@ -99,19 +84,20 @@ func DiscoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
 		// get the UUID for disks
 		var diskUUID string
 		if diskType != sys.PartType {
-			diskUUID, err = sys.GetDiskUUID(d, executor)
+			diskUUID, err = sys.GetFSUUID(d, executor)
 			if err != nil {
 				logger.Warningf("skipping device %s with an unknown uuid. %+v", d, err)
 				continue
 			}
 		}
 
-		fs, err := sys.GetDeviceFilesystems(d, executor)
+		udevInfo, err := sys.GetUdevInfo(d, executor)
 		if err != nil {
-			return nil, err
+			logger.Warningf("failed to get udev info for device %s: %+v", d, err)
+			continue
 		}
 
-		disk := &LocalDisk{Name: d, UUID: diskUUID, FileSystem: fs}
+		disk := &sys.LocalDisk{Name: d, UUID: diskUUID}
 
 		if val, ok := diskProps["TYPE"]; ok {
 			disk.Type = val
@@ -136,6 +122,36 @@ func DiscoverDevices(executor exec.Executor) ([]*LocalDisk, error) {
 		}
 
 		disk.Empty = getDeviceEmpty(disk)
+
+		// parse udev info output
+		if val, ok := udevInfo["DEVLINKS"]; ok {
+			disk.DevLinks = val
+		}
+		if val, ok := udevInfo["ID_FS_UUID"]; ok {
+			disk.UUID = val
+		}
+		if val, ok := udevInfo["ID_FS_TYPE"]; ok {
+			disk.Filesystem = val
+		}
+		if val, ok := udevInfo["ID_SERIAL"]; ok {
+			disk.Serial = val
+		}
+
+		if val, ok := udevInfo["ID_VENDOR"]; ok {
+			disk.Vendor = val
+		}
+
+		if val, ok := udevInfo["ID_MODEL"]; ok {
+			disk.Model = val
+		}
+
+		if val, ok := udevInfo["ID_WWN_WITH_EXTENSION"]; ok {
+			disk.WWNVendorExtension = val
+		}
+
+		if val, ok := udevInfo["ID_WWN"]; ok {
+			disk.WWN = val
+		}
 
 		disks = append(disks, disk)
 	}

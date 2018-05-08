@@ -56,6 +56,6 @@ func TestAwk(t *testing.T) {
 }
 
 func testAwk(t *testing.T, index int, input, expected string) {
-	out := Awk(input, index)
+	out := Awk(input, index, " ")
 	assert.Equal(t, expected, out)
 }

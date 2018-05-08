@@ -184,7 +184,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices string, metad
 		if device.Type == sys.PartType {
 			continue
 		}
-		ownPartitions, fs, err := checkIfDeviceAvailable(context.Executor, device.Name)
+		ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, device.Name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get device %s info. %+v", device.Name, err)
 		}
