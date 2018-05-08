@@ -96,7 +96,7 @@ MEMORY=${MEMORY:-"3000"}
 case "${1:-}" in
   up)
     # Use kubeadm bootstrapper for 1.9+ since localkube was deprecated in 1.8
-    if [[ $KUBE_VERSION == v1.5* ]] || [[ $KUBE_VERSION == v1.6* ]] || [[ $KUBE_VERSION == v1.7* ]] ; then
+    if [[ $KUBE_VERSION == v1.7* ]] ; then
       echo "starting minikube with localkube bootstrapper"
       minikube start --memory=${MEMORY} --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
       wait_for_ssh

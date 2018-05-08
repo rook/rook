@@ -65,15 +65,9 @@ type InstallHelper struct {
 
 func (h *InstallHelper) CreateK8sRookResources(namespace string) (err error) {
 	var resources string
-	if h.k8shelper.VersionAtLeast("v1.7.0") {
-		logger.Info("Creating Rook CRD's")
+	logger.Info("Creating Rook CRD's")
 
-		resources = h.installData.GetRookCRDs(namespace)
-	} else {
-		logger.Info("Creating Rook TPR's")
-
-		resources = h.installData.GetRookTPRs(namespace)
-	}
+	resources = h.installData.GetRookCRDs(namespace)
 
 	_, err = h.k8shelper.KubectlWithStdin(resources, createArgs...)
 
@@ -98,14 +92,8 @@ func (h *InstallHelper) CreateK8sRookOperator(namespace string) (err error) {
 		return fmt.Errorf("Failed to create rook-operator pod : %v ", err)
 	}
 
-	if h.k8shelper.VersionAtLeast("v1.7.0") {
-		if !h.k8shelper.IsCRDPresent(rookOperatorCreatedCrd) {
-			return fmt.Errorf("Failed to start Rook Operator; k8s CustomResourceDefinition did not appear")
-		}
-	} else {
-		if !h.k8shelper.IsThirdPartyResourcePresent(rookOperatorCreatedTpr) {
-			return fmt.Errorf("Failed to start Rook Operator; k8s thirdpartyresource did not appear")
-		}
+	if !h.k8shelper.IsCRDPresent(rookOperatorCreatedCrd) {
+		return fmt.Errorf("Failed to start Rook Operator; k8s CustomResourceDefinition did not appear")
 	}
 
 	logger.Infof("Rook Operator started")
@@ -130,14 +118,8 @@ func (h *InstallHelper) CreateK8sRookOperatorViaHelm(namespace string) error {
 
 	}
 
-	if h.k8shelper.VersionAtLeast("v1.7.0") {
-		if !h.k8shelper.IsCRDPresent(rookOperatorCreatedCrd) {
-			return fmt.Errorf("Failed to start Rook Operator; k8s CustomResourceDefinition did not appear")
-		}
-	} else {
-		if !h.k8shelper.IsThirdPartyResourcePresent(rookOperatorCreatedTpr) {
-			return fmt.Errorf("Failed to start Rook Operator; k8s thirdpartyresource did not appear")
-		}
+	if !h.k8shelper.IsCRDPresent(rookOperatorCreatedCrd) {
+		return fmt.Errorf("Failed to start Rook Operator; k8s CustomResourceDefinition did not appear")
 	}
 
 	return nil
@@ -349,13 +331,8 @@ func (h *InstallHelper) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 	}
 
 	logger.Infof("removing the operator from namespace %s", systemNamespace)
-	if h.k8shelper.VersionAtLeast("v1.7.0") {
-		_, err = h.k8shelper.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io", "objectstores.rook.io", "filesystems.rook.io", "volumeattachments.rook.io"})
-		h.checkError(err, "cannot delete CRDs")
-	} else {
-		_, err = h.k8shelper.DeleteResource([]string{"thirdpartyresources", "cluster.rook.io", "pool.rook.io", "objectstore.rook.io", "filesystem.rook.io", "volumeattachment.rook.io"})
-		h.checkError(err, "cannot delete TPRs")
-	}
+	_, err = h.k8shelper.DeleteResource([]string{"crd", "clusters.rook.io", "pools.rook.io", "objectstores.rook.io", "filesystems.rook.io", "volumeattachments.rook.io"})
+	h.checkError(err, "cannot delete CRDs")
 
 	if helmInstalled {
 		err = h.helmHelper.DeleteLocalRookHelmChart(helmDeployName)
@@ -381,7 +358,6 @@ func (h *InstallHelper) checkError(err error, message string) {
 
 func (h *InstallHelper) waitForCustomResourceDeletion(namespace string) error {
 	if !h.k8shelper.VersionAtLeast("v1.8.0") {
-		// v1.6 does not have finalizers for TPRs
 		// v1.7 has an intermittent issue with long delay to delete resources so we will skip waiting
 		return nil
 	}

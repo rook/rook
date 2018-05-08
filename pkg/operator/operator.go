@@ -97,8 +97,6 @@ func (o *Operator) Run() error {
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// Run volume provisioner
-	// The controller needs to know what the server version is because out-of-tree
-	// provisioners aren't officially supported until 1.5
 	serverVersion, err := o.context.Clientset.Discovery().ServerVersion()
 	if err != nil {
 		return fmt.Errorf("Error getting server version: %v", err)

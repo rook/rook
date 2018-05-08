@@ -13,10 +13,7 @@ from other pods running in your cluster.
 
 ## Minimum Version
 
-Kubernetes **v1.6** or higher is targeted by Rook (while Rook is in alpha it will track the latest release to use the latest features).
-
-Support is available for Kubernetes **v1.5.2**, although your mileage may vary.
-You will need to use the yaml files from the [1.5 folder](/cluster/examples/kubernetes/1.5).
+Kubernetes **v1.7** or higher is supported by Rook.
 
 ## Prerequisites
 
@@ -51,14 +48,9 @@ You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
 
 ---
 ### **Restart Kubelet**
-**(K8S 1.7.x and older only)**
+**(K8S 1.7.x only)**
 
 For versions of Kubernetes prior to 1.8, the Kubelet process on all nodes will require a restart after the Rook operator and Rook agents have been deployed. As part of their initial setup, the Rook agents deploy and configure a Flexvolume plugin in order to integrate with Kubernetes' volume controller framework. In Kubernetes v1.8+, the [dynamic Flexvolume plugin discovery](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md#dynamic-plugin-discovery) will find and initialize our plugin, but in older versions of Kubernetes a manual restart of the Kubelet will be required.
-
-### **Disable Attacher-detacher controller**
-**(K8S 1.6.x only)**
-
-For Kubernetes 1.6, it is also necessary to pass the `--enable-controller-attach-detach=false` flag to Kubelet when you restart it.  This is a workaround for a [Kubernetes issue](https://github.com/kubernetes/kubernetes/issues/47109) that only affects 1.6.
 
 ---
 

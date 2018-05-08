@@ -288,15 +288,6 @@ type ObjectStoreList struct {
 	Items           []ObjectStore `json:"items"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// ObjectstoreList is the definition of a list of object stores for TPRs (pre-1.7)
-type ObjectstoreList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata"`
-	Items           []ObjectStore `json:"items"`
-}
-
 // ObjectStoreSpec represent the spec of a pool
 type ObjectStoreSpec struct {
 	// The metadata pool settings
