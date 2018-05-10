@@ -18,6 +18,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 - [OSD pods are failing to start](#osd-pods-are-failing-to-start)
 - [Node hangs after reboot](#node-hangs-after-reboot)
 - [Rook Agent modprobe exec format error](#rook-agent-modprobe-exec-format-error)
+- [Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7](#using-multiple-shared-filesystem-cephfs-is-attempted-on-a-kernel-version-older-than-47)
 
 # Troubleshooting Techniques
 There are two main categories of information you will need to investigate issues in the cluster:
@@ -405,3 +406,15 @@ For both paths create a file called `rbd.conf` with the following content:
 rbd
 ```
 Now when a host is restarted, the module should be loaded automatically.
+
+# Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7
+## Symptoms
+* More than one shared filesystem (CephFS) has been created in the cluster
+* A pod attempts to mount any other shared filesystem besides the **first** one that was created
+* The pod incorrectly gets the first filesystem mounted instead of the intended filesystem
+
+## Solution
+The only solution to this problem is to upgrade your kernel to `4.7` or higher.
+This is due to a mount flag added in the kernel version `4.7` which allows to chose the filesystem by name.
+
+For additional info on the kernel version requirement for multiple shared filesystems (CephFS), see [Filesystem - Kernel version requirement](filesystem.md#kernel-version-requirement).
