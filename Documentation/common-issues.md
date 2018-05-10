@@ -17,6 +17,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 - [Only a single monitor pod starts](#only-a-single-monitor-pod-starts)
 - [OSD pods are failing to start](#osd-pods-are-failing-to-start)
 - [Node hangs after reboot](#node-hangs-after-reboot)
+- [Rook Agent modprobe exec format error](#rook-agent-modprobe-exec-format-error)
 
 # Troubleshooting Techniques
 There are two main categories of information you will need to investigate issues in the cluster:
@@ -383,3 +384,24 @@ Uncordon the node:
 ```
 kubectl uncordon <node-name>
 ```
+
+# Rook Agent modprobe exec format error
+## Symptoms
+* PersistentVolumes from Ceph fail/timeout to mount
+* Rook Agent logs contain `modinfo: ERROR: could not get modinfo from 'rbd': Exec format error` lines
+
+## Solution
+If it is feasible to upgrade your kernel, you should upgrade to `4.x`, even better is >= `4.7` due to a feature for CephFS added to the kernel.
+
+If you are unable to upgrade the kernel, you need to go to each host that will consume storage and run:
+```
+modprobe rbd
+```
+This command inserts the `rbd` module into the kernel.
+
+To persist this fix, you need to add the `rbd` kernel module to either `/etc/modprobe.d/` or `/etc/modules-load.d/`.
+For both paths create a file called `rbd.conf` with the following content:
+```
+rbd
+```
+Now when a host is restarted, the module should be loaded automatically.
