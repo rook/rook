@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -56,29 +57,35 @@ const (
 	monSecretName     = "mon-secret"
 	adminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
+
+	// DefaultMonCount Default mon count for cluster
+	DefaultMonCount = 3
+	// MaxMonCount Maximum allowed mon count for a cluster
+	MaxMonCount = 9
 )
 
 // Cluster is for the cluster of monitors
 type Cluster struct {
-	context             *clusterd.Context
-	Namespace           string
-	Keyring             string
-	Version             string
-	MasterHost          string
-	Size                int
-	Port                int32
-	clusterInfo         *mon.ClusterInfo
-	placement           rookalpha.Placement
-	maxMonID            int
-	waitForStart        bool
-	dataDirHostPath     string
-	monPodRetryInterval time.Duration
-	monPodTimeout       time.Duration
-	monTimeoutList      map[string]time.Time
-	HostNetwork         bool
-	mapping             *Mapping
-	resources           v1.ResourceRequirements
-	ownerRef            metav1.OwnerReference
+	context              *clusterd.Context
+	Namespace            string
+	Keyring              string
+	Version              string
+	MasterHost           string
+	Size                 int
+	AllowMultiplePerNode bool
+	Port                 int32
+	clusterInfo          *mon.ClusterInfo
+	placement            rookalpha.Placement
+	maxMonID             int
+	waitForStart         bool
+	dataDirHostPath      string
+	monPodRetryInterval  time.Duration
+	monPodTimeout        time.Duration
+	monTimeoutList       map[string]time.Time
+	HostNetwork          bool
+	mapping              *Mapping
+	resources            v1.ResourceRequirements
+	ownerRef             metav1.OwnerReference
 }
 
 // monConfig for a single monitor
@@ -102,21 +109,22 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath, version string, size int, placement rookalpha.Placement, hostNetwork bool,
+func New(context *clusterd.Context, namespace, dataDirHostPath, version string, mon cephv1alpha1.MonSpec, placement rookalpha.Placement, hostNetwork bool,
 	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
-		context:             context,
-		placement:           placement,
-		dataDirHostPath:     dataDirHostPath,
-		Namespace:           namespace,
-		Version:             version,
-		Size:                size,
-		maxMonID:            -1,
-		waitForStart:        true,
-		monPodRetryInterval: 6 * time.Second,
-		monPodTimeout:       5 * time.Minute,
-		monTimeoutList:      map[string]time.Time{},
-		HostNetwork:         hostNetwork,
+		context:              context,
+		placement:            placement,
+		dataDirHostPath:      dataDirHostPath,
+		Namespace:            namespace,
+		Version:              version,
+		Size:                 mon.Count,
+		AllowMultiplePerNode: mon.AllowMultiplePerNode,
+		maxMonID:             -1,
+		waitForStart:         true,
+		monPodRetryInterval:  6 * time.Second,
+		monPodTimeout:        5 * time.Minute,
+		monTimeoutList:       map[string]time.Time{},
+		HostNetwork:          hostNetwork,
 		mapping: &Mapping{
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
@@ -134,16 +142,17 @@ func (c *Cluster) Start() error {
 		return fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
 
+	// when we don't have enough monitors, start them
 	if len(c.clusterInfo.Monitors) < c.Size {
-		c.startMons()
-	} else {
-		// Check the health of a previously started cluster
-		if err := c.checkHealth(); err != nil {
-			logger.Warningf("failed to check mon health %+v. %+v", c.clusterInfo.Monitors, err)
-		}
+		return c.startMons()
+	}
+	// we have enough mons, run a health check
+	err := c.checkHealth()
+	if err != nil {
+		logger.Warningf("failed to check mon health %+v. %+v", c.clusterInfo.Monitors, err)
 	}
 
-	return nil
+	return err
 }
 
 func (c *Cluster) startMons() error {
@@ -291,6 +300,11 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		return fmt.Errorf("failed to get available nodes for mons. %+v", err)
 	}
 
+	// if all nodes already have mons return error as we don't place two mons on one node
+	if len(availableNodes) == 0 {
+		return fmt.Errorf("no nodes available for mon placement")
+	}
+
 	nodeIndex := 0
 	for _, m := range mons {
 		if _, ok := c.mapping.Node[m.Name]; ok {
@@ -318,7 +332,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		nodeIndex++
 	}
 
-	logger.Debug("assigned mons to nodes")
+	logger.Debug("mons have been assigned to nodes")
 	return nil
 }
 
@@ -336,7 +350,7 @@ func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 		}
 	}
 	if nr.Address == "" {
-		return nil, fmt.Errorf("no IP given for node %s", nr.Name)
+		return nil, fmt.Errorf("couldn't get IP of node %s", nr.Name)
 	}
 	return nr, nil
 }
@@ -425,17 +439,14 @@ func (c *Cluster) getMonNodes() ([]v1.Node, error) {
 	}
 	logger.Infof("Found %d running nodes without mons", len(availableNodes))
 
-	// if all nodes already have mons, just add all nodes to be available
-	if len(availableNodes) == 0 {
+	// if all nodes already have mons and the user has given the mon.count, add all nodes to be available
+	if c.AllowMultiplePerNode && len(availableNodes) == 0 {
 		logger.Infof("All nodes are running mons. Adding all %d nodes to the availability.", len(nodes.Items))
 		for _, node := range nodes.Items {
 			if validNode(node, c.placement) {
 				availableNodes = append(availableNodes, node)
 			}
 		}
-	}
-	if len(availableNodes) == 0 {
-		return nil, fmt.Errorf("no nodes are available for mons")
 	}
 
 	return availableNodes, nil

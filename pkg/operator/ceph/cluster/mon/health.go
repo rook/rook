@@ -158,7 +158,7 @@ func (c *Cluster) checkHealth() error {
 
 	// create/start new mons when there are less mons
 	if len(status.MonMap.Mons) < c.Size {
-		logger.Infof("found only %d mons less than given monCount %d, starting more mons", len(status.MonMap.Mons), c.Size)
+		logger.Infof("found only %d mons less than given mon.count %d, starting more mons", len(status.MonMap.Mons), c.Size)
 		return c.startMons()
 	}
 
@@ -242,7 +242,7 @@ func (c *Cluster) failoverMon(name string) error {
 
 	// Assign the pod to a node
 	if err = c.assignMons(mConf); err != nil {
-		return fmt.Errorf("failed to assign pods to mons. %+v", err)
+		return fmt.Errorf("failed to place new mon on a node. %+v", err)
 	}
 
 	if c.HostNetwork {
