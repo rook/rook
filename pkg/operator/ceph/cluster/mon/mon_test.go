@@ -19,17 +19,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"os"
-
+	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
 	cephmon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
 	"github.com/rook/rook/pkg/operator/test"
@@ -50,6 +51,10 @@ func newTestStartCluster(namespace string) *clusterd.Context {
 			}
 			return "", nil
 		},
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			// mock quorum health check because a second `Start()` triggers a health check
+			return clienttest.MonInQuorumResponseMany(3), nil
+		},
 	}
 	return &clusterd.Context{
 		Clientset: clientset,
@@ -60,16 +65,17 @@ func newTestStartCluster(namespace string) *clusterd.Context {
 
 func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, resources v1.ResourceRequirements) *Cluster {
 	return &Cluster{
-		HostNetwork:         hostNetwork,
-		context:             context,
-		Namespace:           namespace,
-		Version:             "myversion",
-		Size:                3,
-		maxMonID:            -1,
-		waitForStart:        false,
-		monPodRetryInterval: 10 * time.Millisecond,
-		monPodTimeout:       1 * time.Second,
-		monTimeoutList:      map[string]time.Time{},
+		HostNetwork:          hostNetwork,
+		context:              context,
+		Namespace:            namespace,
+		Version:              "myversion",
+		Size:                 3,
+		AllowMultiplePerNode: true,
+		maxMonID:             -1,
+		waitForStart:         false,
+		monPodRetryInterval:  10 * time.Millisecond,
+		monPodTimeout:        1 * time.Second,
+		monTimeoutList:       map[string]time.Time{},
 		mapping: &Mapping{
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
@@ -218,7 +224,9 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", "myversion",
+		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{}, false,
+		v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(1)
 
 	// create the initial config map
@@ -290,24 +298,36 @@ func TestMonID(t *testing.T) {
 
 func TestAvailableMonNodes(t *testing.T) {
 	clientset := test.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
+		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
 	nodes, err := c.getMonNodes()
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(nodes))
 
+	// set node to not ready
 	conditions := v1.NodeCondition{Type: v1.NodeOutOfDisk}
 	nodes[0].Status = v1.NodeStatus{Conditions: []v1.NodeCondition{conditions}}
 	clientset.CoreV1().Nodes().Update(&nodes[0])
 
+	// when the node is not ready there should be no nodes returned and an error
 	emptyNodes, err := c.getMonNodes()
-	assert.NotNil(t, err)
-	assert.Nil(t, emptyNodes)
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(emptyNodes))
+
+	// even if AllowMultiplePerNode is true there should be no node returned
+	c.AllowMultiplePerNode = true
+	emptyNodes, err = c.getMonNodes()
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(emptyNodes))
 }
 
 func TestAvailableNodesInUse(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
+		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	// all three nodes are available by default
@@ -326,19 +346,29 @@ func TestAvailableNodesInUse(t *testing.T) {
 	assert.Equal(t, 1, len(reducedNodes))
 	assert.Equal(t, nodes[2].Name, reducedNodes[0].Name)
 
-	// start pods on the remaining node. We expect all nodes to be available for placement
+	// start pods on the remaining node. We expect no nodes to be available for placement
 	// since there is no way to place a mon on an unused node.
 	pod := c.makeMonPod(&monConfig{Name: "mon2"}, nodes[2].Name)
 	_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
 	assert.Nil(t, err)
 	nodes, err = c.getMonNodes()
+	// no mon nodes is no error, just an empty nodes list
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(nodes))
+
+	// no nodes should be returned when AllowMultiplePerNode is false
+	c.AllowMultiplePerNode = false
+	nodes, err = c.getMonNodes()
+	// no mon nodes is no error, just an empty nodes list
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(nodes))
 }
 
 func TestTaintedNodes(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
+		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	nodes, err := c.getMonNodes()
@@ -371,7 +401,9 @@ func TestTaintedNodes(t *testing.T) {
 
 func TestNodeAffinity(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
+		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	nodes, err := c.getMonNodes()
@@ -411,7 +443,9 @@ func TestNodeAffinity(t *testing.T) {
 
 func TestHostNetwork(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
+		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	c.HostNetwork = true
@@ -441,7 +475,9 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 		},
 	}
 
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", 3, rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
+		true, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	var info *NodeInfo
@@ -470,7 +506,8 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 	c := New(&clusterd.Context{
 		Clientset: clientset,
 		ConfigDir: configDir,
-	}, "ns", "", "myversion", 3, rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	}, "ns", "", "myversion", cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+		rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
 
 	mons := []*monConfig{

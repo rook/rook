@@ -82,7 +82,9 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   hostNetwork: false
-  monCount: 3
+  mon:
+    count: 3
+    allowMultiplePerNode: false
   placement:
   resources:
     api:

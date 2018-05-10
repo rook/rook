@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -158,7 +159,9 @@ func StartBaseLoadTestOperations(t func() *testing.T, namespace string) (BaseLoa
 func (o BaseLoadTestOperations) SetUp() {
 
 	if !o.kh.IsRookInstalled(o.namespace) {
-		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore", "/temp/rookBackup", false, true, 3, true /* startWithAllNodes */)
+		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore",
+			"/temp/rookBackup", false, true, cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+			true /* startWithAllNodes */)
 		require.NoError(o.T(), err)
 		require.True(o.T(), isRookInstalled)
 

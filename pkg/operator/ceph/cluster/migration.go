@@ -99,7 +99,10 @@ func convertLegacyCluster(legacyCluster *rookv1alpha1.Cluster) *cephv1alpha1.Clu
 			},
 			Resources:       convertLegacyResourceSpec(legacySpec.Resources),
 			DataDirHostPath: legacySpec.DataDirHostPath,
-			MonCount:        legacySpec.MonCount,
+			Mon: cephv1alpha1.MonSpec{
+				Count:                legacySpec.MonCount,
+				AllowMultiplePerNode: false,
+			},
 		},
 	}
 

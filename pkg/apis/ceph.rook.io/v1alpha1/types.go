@@ -63,8 +63,8 @@ type ClusterSpec struct {
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
-	// MonCount sets the mon size
-	MonCount int `json:"monCount,omitempty"`
+	// A spec for mon releated options
+	Mon MonSpec `json:"mon"`
 }
 
 type ClusterStatus struct {
@@ -80,6 +80,11 @@ const (
 	ClusterStateUpdating ClusterState = "Updating"
 	ClusterStateError    ClusterState = "Error"
 )
+
+type MonSpec struct {
+	Count                int  `json:"count,omitempty"`
+	AllowMultiplePerNode bool `json:"allowMultiplePerNode,omitempty"`
+}
 
 // +genclient
 // +genclient:noStatus

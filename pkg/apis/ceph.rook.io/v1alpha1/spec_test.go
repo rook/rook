@@ -29,7 +29,9 @@ import (
 func TestClusterSpecMarshal(t *testing.T) {
 	specYaml := []byte(`
 dataDirHostPath: /var/lib/rook
-monCount: 5
+mon:
+  count: 5
+  allowMultiplePerNode: false
 network:
   hostNetwork: true
 storage:
@@ -65,7 +67,10 @@ storage:
 	// the unmarshalled storage spec should equal the expected spec below
 	useAllDevices := false
 	expectedSpec := ClusterSpec{
-		MonCount:        5,
+		Mon: MonSpec{
+			Count:                5,
+			AllowMultiplePerNode: false,
+		},
 		DataDirHostPath: "/var/lib/rook",
 		Network: rookalpha.NetworkSpec{
 			HostNetwork: true,

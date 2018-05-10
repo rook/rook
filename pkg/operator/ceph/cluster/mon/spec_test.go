@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"testing"
 
+	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -36,14 +37,16 @@ func TestPodSpecs(t *testing.T) {
 
 func testPodSpec(t *testing.T, dataDir string) {
 	clientset := testop.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", dataDir, "rook/rook:myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{
-		Limits: v1.ResourceList{
-			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
-		},
-		Requests: v1.ResourceList{
-			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
-		},
-	}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", dataDir, "rook/rook:myversion",
+		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{}, false,
+		v1.ResourceRequirements{
+			Limits: v1.ResourceList{
+				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+			},
+			Requests: v1.ResourceList{
+				v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+			},
+		}, metav1.OwnerReference{})
 	c.clusterInfo = testop.CreateConfigDir(0)
 	config := &monConfig{Name: "mon0", Port: 6790}
 

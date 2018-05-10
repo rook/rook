@@ -224,8 +224,11 @@ func TestConvertLegacyCluster(t *testing.T) {
 		},
 		Spec: cephv1alpha1.ClusterSpec{
 			DataDirHostPath: "/var/lib/rook302",
-			MonCount:        5,
-			Network:         rookv1alpha2.NetworkSpec{HostNetwork: true},
+			Mon: cephv1alpha1.MonSpec{
+				Count:                5,
+				AllowMultiplePerNode: false,
+			},
+			Network: rookv1alpha2.NetworkSpec{HostNetwork: true},
 			Placement: rookv1alpha2.PlacementSpec{
 				rookv1alpha2.PlacementKeyAll: rookv1alpha2.Placement{Tolerations: []v1.Toleration{{Key: "storage-node", Operator: v1.TolerationOpExists}}},
 				cephv1alpha1.PlacementKeyMon: rookv1alpha2.Placement{
