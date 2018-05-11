@@ -197,4 +197,3 @@ $(GOJUNIT):
 .PHONY: go.distclean
 go.distclean:
 	@rm -rf $(GO_VENDOR_DIR)
-

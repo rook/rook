@@ -24,17 +24,17 @@ include $(SELF_DIR)/../build/makelib/common.mk
 # the registry used for cached images
 CACHE_REGISTRY := cache
 
-# the base ubuntu image to use
-OSBASE ?= ubuntu:xenial
+# the base image to use
+OSBASE ?= centos:7
 
 ifeq ($(GOARCH),amd64)
-OSBASEIMAGE=$(OSBASE)
-endif
-ifeq ($(GOARCH),arm)
-OSBASEIMAGE=arm32v7/$(OSBASE)
-endif
-ifeq ($(GOARCH),arm64)
-OSBASEIMAGE=arm64v8/$(OSBASE)
+PLATFORM_ARCH = x86_64
+OSBASEIMAGE = $(OSBASE)
+else ifeq ($(GOARCH),arm64)
+PLATFORM_ARCH = aarch64
+OSBASEIMAGE = arm64v8/$(OSBASE)
+else
+$(error Unknown go architecture $(GOARCH))
 endif
 
 # if we are running inside the container get our own cid

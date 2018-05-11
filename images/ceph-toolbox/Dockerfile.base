@@ -14,10 +14,13 @@
 
 FROM BASEIMAGE
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -yy -q --no-install-recommends \
+SHELL ["/bin/bash","-c"]
+
+RUN yum --assumeyes update && \
+    yum --assumeyes install epel-release && \
+    yum --assumeyes update && \
+    yum --assumeyes install \
         binutils \
-        s3cmd \
         curl \
         fio \
         gdb \
@@ -26,18 +29,27 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
         kmod \
         less \
         man-db \
+        net-tools \
+        nmap-ncat \
+        s3cmd \
         sudo \
         vim && \
-    DEBIAN_FRONTEND=noninteractive apt-get upgrade -y && \
-    DEBIAN_FRONTEND=noninteractive apt-get autoremove -y && \
-    DEBIAN_FRONTEND=noninteractive apt-get clean && \
+    yum clean all && \
     rm -rf \
         /etc/{selinux,systemd,udev} \
         /lib/{lsb,udev} \
         /tmp/* \
         /usr/lib/{locale,systemd,udev} \
         /usr/share/{doc,info,man} \
-        /var/cache/debconf/* \
-        /var/lib/apt/lists/* \
         /var/log/* \
         /var/tmp/*
+
+ARG ARCH
+ARG TINI_VERSION
+
+# Run tini as PID 1 and avoid signal handling issues
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} /tini
+RUN chmod +x /tini
+
+ENTRYPOINT ["/tini", "-g", "--"]
+CMD ["/bin/bash"]

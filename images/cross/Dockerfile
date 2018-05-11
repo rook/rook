@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM BASEIMAGE
+FROM ubuntu:16.04
 
 # install build tools, compilers and cross compilers for all supported platforms
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
@@ -44,6 +44,13 @@ RUN GO_VERSION=1.10.1 && \
     tar -C /usr/local -xzf golang.tar.gz && \
     rm golang.tar.gz
 ENV PATH /usr/local/go/bin:$PATH
+
+ARG ARCH
+ARG TINI_VERSION
+
+# Run tini as PID 1 and avoid signal handling issues
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} /tini
+RUN chmod +x /tini
 
 # precompile the go standard library for all supported platforms and configurations
 # the install suffixes match those in golang.mk so please keep them in sync

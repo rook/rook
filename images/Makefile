@@ -16,21 +16,20 @@ include image.mk
 
 PLATFORMS ?= linux_amd64 linux_arm64
 
+CEPH_BASE_IMAGE ?= ceph/daemon-base:v3.0.5-stable-3.0-luminous-centos-7-$(PLATFORM_ARCH)
+export CEPH_BASE_IMAGE
+
+# tini's version
+export TINI_VERSION = v0.16.1
+
 # ====================================================================================
 # Image Targets
 
-apt-cacher: apt-cacher.linux_amd64
-apt-cacher.%: base.%
-	@$(MAKE) -C apt-cacher PLATFORM=$*
-
-base.%:
-	@$(MAKE) -C base PLATFORM=$*
-
 cross: cross.linux_amd64
-cross.%: base.linux_amd64
+cross.%:
 	@$(MAKE) -C cross PLATFORM=$*
 
-ceph.%: base.%
+ceph.%:
 	@$(MAKE) -C ceph PLATFORM=$*
 
 ceph-toolbox.%: ceph.%
