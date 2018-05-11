@@ -38,8 +38,8 @@ var (
 )
 
 func addCephFlags(command *cobra.Command) {
-	command.Flags().StringVar(&cfg.networkInfo.PublicAddrIPv4, "public-ipv4", "127.0.0.1", "public IPv4 address for this machine")
-	command.Flags().StringVar(&cfg.networkInfo.ClusterAddrIPv4, "private-ipv4", "127.0.0.1", "private IPv4 address for this machine")
+	command.Flags().StringVar(&cfg.networkInfo.PublicAddr, "public-ip", "127.0.0.1", "public IP address for this machine")
+	command.Flags().StringVar(&cfg.networkInfo.ClusterAddr, "private-ip", "127.0.0.1", "private IP address for this machine")
 	command.Flags().StringVar(&clusterInfo.Name, "cluster-name", "rookcluster", "ceph cluster name")
 	command.Flags().StringVar(&clusterInfo.FSID, "fsid", "", "the cluster uuid")
 	command.Flags().StringVar(&clusterInfo.MonitorSecret, "mon-secret", "", "the cephx keyring for monitors")
@@ -60,7 +60,7 @@ func init() {
 }
 
 func startMon(cmd *cobra.Command, args []string) error {
-	required := []string{"name", "fsid", "mon-secret", "admin-secret", "config-dir", "cluster-name", "public-ipv4", "private-ipv4"}
+	required := []string{"name", "fsid", "mon-secret", "admin-secret", "config-dir", "cluster-name", "public-ip", "private-ip"}
 	if err := flags.VerifyRequiredFlags(monCmd, required); err != nil {
 		return err
 	}
@@ -79,7 +79,7 @@ func startMon(cmd *cobra.Command, args []string) error {
 
 	// at first start the local monitor needs to be added to the list of mons
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	clusterInfo.Monitors[monName] = mon.ToCephMon(monName, cfg.networkInfo.PublicAddrIPv4, monPort)
+	clusterInfo.Monitors[monName] = mon.ToCephMon(monName, cfg.networkInfo.PublicAddr, monPort)
 
 	monCfg := &mon.Config{
 		Name:    monName,

@@ -21,18 +21,18 @@ import (
 )
 
 type NetworkInfo struct {
-	PublicAddrIPv4  string
-	ClusterAddrIPv4 string
-	PublicNetwork   string // public network and subnet mask in CIDR notation
-	ClusterNetwork  string // cluster network and subnet mask in CIDR notation
+	PublicAddr     string
+	ClusterAddr    string
+	PublicNetwork  string // public network and subnet mask in CIDR notation
+	ClusterNetwork string // cluster network and subnet mask in CIDR notation
 }
 
 func VerifyNetworkInfo(networkInfo NetworkInfo) error {
-	if err := verifyIPAddr(networkInfo.PublicAddrIPv4); err != nil {
+	if err := verifyIPAddr(networkInfo.PublicAddr); err != nil {
 		return err
 	}
 
-	if err := verifyIPAddr(networkInfo.ClusterAddrIPv4); err != nil {
+	if err := verifyIPAddr(networkInfo.ClusterAddr); err != nil {
 		return err
 	}
 

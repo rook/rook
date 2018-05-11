@@ -48,7 +48,7 @@ func init() {
 }
 
 func startMDS(cmd *cobra.Command, args []string) error {
-	required := []string{"mon-endpoints", "cluster-name", "admin-secret", "filesystem-id", "pod-name", "public-ipv4", "private-ipv4"}
+	required := []string{"mon-endpoints", "cluster-name", "admin-secret", "filesystem-id", "pod-name", "public-ip", "private-ip"}
 	if err := flags.VerifyRequiredFlags(mdsCmd, required); err != nil {
 		return err
 	}
