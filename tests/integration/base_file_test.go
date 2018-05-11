@@ -19,10 +19,13 @@ package integration
 import (
 	"fmt"
 
+	"github.com/rook/rook/pkg/daemon/agent/flexvolume"
 	"github.com/rook/rook/tests/framework/clients"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	"k8s.io/kubernetes/pkg/util/version"
 )
 
 var (
@@ -96,14 +99,22 @@ func fileTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 }
 
 func podWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, podname string, namespace string, filesystemName string, fileMountPath string, action string) error {
-	_, err := k8sh.ResourceOperation(action, getFilesystemTestPod(podname, namespace, filesystemName, fileMountPath))
+	driverName := installer.SystemNamespace(namespace)
+	v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
+	if v.LessThan(version.MustParseSemantic("1.10.0")) {
+		// k8s 1.10 and newer requires the new driver name to avoid conflicts in the test
+		driverName = flexvolume.FlexDriverName
+	}
+
+	testPod := getFilesystemTestPod(podname, namespace, filesystemName, fileMountPath, driverName)
+	_, err := k8sh.ResourceOperation(action, testPod)
 	if err != nil {
-		return fmt.Errorf("failed to %s pod -- %s. %+v", action, getFilesystemTestPod(podname, namespace, filesystemName, fileMountPath), err)
+		return fmt.Errorf("failed to %s pod -- %s. %+v", action, testPod, err)
 	}
 	return nil
 }
 
-func getFilesystemTestPod(podname string, namespace string, filesystemName string, fileMountPath string) string {
+func getFilesystemTestPod(podname, namespace, filesystemName, fileMountPath, driverName string) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:
@@ -124,7 +135,7 @@ spec:
   volumes:
   - name: ` + filesystemName + `
     flexVolume:
-      driver: rook.io/rook
+      driver: rook.io/` + driverName + `
       fsType: ceph
       options:
         fsName: ` + filesystemName + `

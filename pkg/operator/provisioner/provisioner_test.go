@@ -40,6 +40,8 @@ func TestProvisionImage(t *testing.T) {
 	clientset := test.New(3)
 	namespace := "ns"
 	configDir, _ := ioutil.TempDir("", "")
+	os.Setenv("POD_NAMESPACE", "rook-system")
+	defer os.Setenv("POD_NAMESPACE", "")
 	defer os.RemoveAll(configDir)
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
@@ -72,7 +74,7 @@ func TestProvisionImage(t *testing.T) {
 
 	assert.Equal(t, "pvc-uid-1-1", pv.Name)
 	assert.NotNil(t, pv.Spec.PersistentVolumeSource.FlexVolume)
-	assert.Equal(t, "rook.io/rook", pv.Spec.PersistentVolumeSource.FlexVolume.Driver)
+	assert.Equal(t, "rook.io/rook-system", pv.Spec.PersistentVolumeSource.FlexVolume.Driver)
 	assert.Equal(t, "ext3", pv.Spec.PersistentVolumeSource.FlexVolume.FSType)
 	assert.Equal(t, "class-1", pv.Spec.PersistentVolumeSource.FlexVolume.Options["storageClass"])
 	assert.Equal(t, "testpool", pv.Spec.PersistentVolumeSource.FlexVolume.Options["pool"])
