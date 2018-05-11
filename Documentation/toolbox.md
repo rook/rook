@@ -6,7 +6,7 @@ indent: true
 
 #  Rook Toolbox
 The Rook toolbox is a container with common tools used for rook debugging and testing.
-The toolbox is based on Ubuntu, so more tools of your choosing can be easily installed with `apt-get`.
+The toolbox is based on CentOS, so more tools of your choosing can be easily installed with `yum`.
 
 ## Running the Toolbox in Kubernetes
 

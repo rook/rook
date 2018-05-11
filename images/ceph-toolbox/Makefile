@@ -19,15 +19,21 @@ TOOLBOX_BASE_IMAGE = $(BUILD_REGISTRY)/ceph-toolbox-base-$(GOARCH)
 IMAGES = $(TOOLBOX_IMAGE) $(TOOLBOX_BASE_IMAGE)
 CACHE_IMAGES = $(TOOLBOX_BASE_IMAGE)
 
-BASEIMAGE = $(BUILD_REGISTRY)/ceph-base-$(GOARCH)
+BASEIMAGE = $(CEPH_BASE_IMAGE)
 
 TEMP := $(shell mktemp -d)
 
+# Split into base image and main image so that the base image may be cached on
+# the CI servers to speed up rebuilds.
 toolbox-base-image:
 	@echo === docker build $(TOOLBOX_BASE_IMAGE)
 	@cp Dockerfile.base $(TEMP)/Dockerfile
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
-	@docker build $(BUILD_ARGS) -t $(TOOLBOX_BASE_IMAGE) $(TEMP)
+	@docker build $(BUILD_ARGS) \
+		--build-arg ARCH=$(GOARCH) \
+		--build-arg TINI_VERSION=$(TINI_VERSION) \
+		-t $(TOOLBOX_BASE_IMAGE) \
+		$(TEMP)
 
 # since this is a leaf image we avoid leaving around a lot of dangling images
 # by removing the last build of the final toolbox image

@@ -114,25 +114,6 @@ systemctl enable update-binfmt.service
 
 # Improving Build Speed
 
-## Apt Package Caching
-
-When building container images numerous apt-get operations are performed which can slow down the build significantly. To speed things up install the apt-cacher-ng package which will cache apt packages on the host.
-
-On an Ubuntu host you can run the following:
-
-```
-DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends apt-cacher-ng
-```
-
-on other platforms you can run apt-cacher-ng in a container:
-
-```
-make -C images apt-cacher
-docker run -d --restart always --name apt-cacher-ng -p 3142:3142 -v ${HOME}/.apt-cacher:/var/cache/apt-cacher-ng apt-cacher-ng-amd64
-```
-
-Our base container image enables transparent proxy detection and will use the apt-cacher if available on the host. See images/base/Dockerfile for more information.
-
 ## Image Caching and Pruning
 
 Doing a complete build of Rook and the dependent packages can take a long time (more than an hour on a typical macbook). To speed things up we rely heavily on image caching in docker. Docker support content-addressable images by default and we use that effectively when building images. Images are factored to increase reusability across builds. We also tag and timestamp images that should remain in the cache to help future builds.
@@ -149,7 +130,7 @@ Every PR and every merge to master triggers the CI process in [Jenkins](http://j
 The Jenkins CI will build, run unit tests, run integration tests and Publish artifacts- On every commit to PR and master.
 If any of the CI stages fail, then the process is aborted and no artifacts are published.
 On every successful build Artifacts are pushed to a [s3 bucket](https://release.rook.io/). On every successful master build,
-images are uploaded to quay and docker hub in addition.  
+images are uploaded to quay and docker hub in addition.
 
 During Integration tests phase, all End to End Integration tests under [/tests/integration](/tests/integration) are run.
 It may take a while to run all Integration tests. Based on nature of the PR, it may not be required to run full regression
