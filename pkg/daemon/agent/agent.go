@@ -19,6 +19,7 @@ package agent
 
 import (
 	"fmt"
+	"net/rpc"
 	"os"
 	"os/signal"
 	"syscall"
@@ -62,7 +63,27 @@ func (a *Agent) Run() error {
 		volumeManager,
 	)
 
-	flexvolumeServer.Start()
+	err = rpc.Register(flexvolumeController)
+	if err != nil {
+		return fmt.Errorf("unable to register rpc: %v", err)
+	}
+
+	driverName, err := flexvolume.RookDriverName(a.context)
+	if err != nil {
+		return fmt.Errorf("failed to get driver name. %+v", err)
+	}
+
+	err = flexvolumeServer.Start(driverName)
+	if err != nil {
+		return fmt.Errorf("failed to start flex volume server %s, %+v", driverName, err)
+	}
+
+	// Register drivers both with the name of the namespace and the name "rook"
+	// for the volume plugins not based on the namespace.
+	err = flexvolumeServer.Start(flexvolume.FlexDriverName)
+	if err != nil {
+		return fmt.Errorf("failed to start flex volume server %s. %+v", flexvolume.FlexDriverName, err)
+	}
 
 	// create a cluster controller and tell it to start watching for changes to clusters
 	clusterController := cluster.NewClusterController(
@@ -79,7 +100,7 @@ func (a *Agent) Run() error {
 		select {
 		case <-sigc:
 			logger.Infof("shutdown signal received, exiting...")
-			flexvolumeServer.Stop()
+			flexvolumeServer.StopAll()
 			close(stopChan)
 			return nil
 		}
