@@ -35,21 +35,20 @@ import (
 const (
 	UnixSocketName           = ".rook.sock"
 	FlexvolumeVendor         = "rook.io"
-	FlexvolumeDriver         = "rook"
+	FlexDriverName           = "rook"
 	flexvolumeDriverFileName = "rookflex"
+	flexMountPath            = "/flexmnt/%s~%s"
 	usrBinDir                = "/usr/local/bin/"
-	serverVersionV170        = "v1.7.0"
 	serverVersionV180        = "v1.8.0"
 )
 
-var flexVolumeDriverDir = fmt.Sprintf("/flexmnt/%s~%s", FlexvolumeVendor, FlexvolumeDriver)
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "flexvolume")
 
 // FlexvolumeServer start a unix domain socket server to interact with the flexvolume driver
 type FlexvolumeServer struct {
 	context    *clusterd.Context
 	controller *Controller
-	listener   net.Listener
+	listeners  map[string]net.Listener
 }
 
 // NewFlexvolumeServer creates an Flexvolume server
@@ -57,26 +56,29 @@ func NewFlexvolumeServer(context *clusterd.Context, controller *Controller, mana
 	return &FlexvolumeServer{
 		context:    context,
 		controller: controller,
+		listeners:  make(map[string]net.Listener),
 	}
 }
 
 // Start configures the flexvolume driver on the host and starts the unix domain socket server to communicate with the driver
-func (s *FlexvolumeServer) Start() error {
+func (s *FlexvolumeServer) Start(driverName string) error {
 
 	// first install the flexvolume driver
-	driverFile := path.Join(usrBinDir, flexvolumeDriverFileName) // /usr/local/bin/rookflex
-	err := configureFlexVolume(driverFile, flexVolumeDriverDir)
+	// /usr/local/bin/rookflex
+	driverFile := path.Join(usrBinDir, flexvolumeDriverFileName)
+	// /flexmnt/rook.io~rook-system
+	flexVolumeDriverDir := fmt.Sprintf(flexMountPath, FlexvolumeVendor, driverName)
+
+	err := configureFlexVolume(driverFile, flexVolumeDriverDir, driverName)
 	if err != nil {
 		return fmt.Errorf("unable to configure flexvolume: %v", err)
 	}
 
-	err = rpc.Register(s.controller)
-	if err != nil {
-		return fmt.Errorf("unable to register rpc: %v", err)
+	unixSocketFile := path.Join(flexVolumeDriverDir, UnixSocketName) // /flextmnt/rook.io~rook-system/.rook.sock
+	if _, ok := s.listeners[unixSocketFile]; ok {
+		logger.Infof("flex server already running at %s", unixSocketFile)
+		return nil
 	}
-	logger.Info("Rook Flexvolume configured")
-
-	unixSocketFile := path.Join(flexVolumeDriverDir, path.Join(UnixSocketName)) // /flextmnt/rook.io~rook/.rook.sock
 
 	// remove unix socket if it existed previously
 	if _, err := os.Stat(unixSocketFile); !os.IsNotExist(err) {
@@ -84,18 +86,19 @@ func (s *FlexvolumeServer) Start() error {
 		os.Remove(unixSocketFile)
 	}
 
-	s.listener, err = net.Listen("unix", unixSocketFile)
+	listener, err := net.Listen("unix", unixSocketFile)
 	if err != nil {
 		return fmt.Errorf("unable to listen at %s: %v", unixSocketFile, err)
 	}
+	s.listeners[unixSocketFile] = listener
 
 	if err := os.Chmod(unixSocketFile, 0770); err != nil {
 		return fmt.Errorf("unable to set file permission to unix socket %s: %v", unixSocketFile, err)
 	}
 
-	go rpc.Accept(s.listener)
+	go rpc.Accept(listener)
 
-	logger.Info("Listening on unix socket for Kubernetes volume attach commands.")
+	logger.Infof("Listening on unix socket for Kubernetes volume attach commands: %s", unixSocketFile)
 
 	// flexvolume driver was installed OK.  If running on pre 1.8 Kubernetes, then remind the user
 	// to restart the Kubelet. We do this last so that it's the last message in the log, making it
@@ -106,30 +109,49 @@ func (s *FlexvolumeServer) Start() error {
 }
 
 // Stop the unix domain socket server and deletes the socket file
-func (s *FlexvolumeServer) Stop() {
-	if s.listener != nil {
-		logger.Info("Stopping unix socket rpc server.")
-		if err := s.listener.Close(); err != nil {
+func (s *FlexvolumeServer) StopAll() {
+	logger.Infof("Stopping %d unix socket rpc server(s).", len(s.listeners))
+	for unixSocketFile, listener := range s.listeners {
+		if err := listener.Close(); err != nil {
 			logger.Errorf("Failed to stop unix socket rpc server: %+v", err)
 		}
-	}
-	// closing the listener should remove the unix socket file. But lets try it remove it just in case.
-	unixSocketFile := path.Join(flexVolumeDriverDir, path.Join(UnixSocketName)) // /flextmnt/rook.io~rook/.rook.sock
-	if _, err := os.Stat(unixSocketFile); !os.IsNotExist(err) {
-		logger.Info("Deleting unix domain socket file.")
-		os.Remove(unixSocketFile)
-	}
 
+		// closing the listener should remove the unix socket file. But lets try it remove it just in case.
+		if _, err := os.Stat(unixSocketFile); !os.IsNotExist(err) {
+			logger.Infof("Deleting unix domain socket file %s.", unixSocketFile)
+			os.Remove(unixSocketFile)
+		}
+	}
+	s.listeners = make(map[string]net.Listener)
 }
 
-func configureFlexVolume(driverFile, driverDir string) error {
+func RookDriverName(context *clusterd.Context) (string, error) {
+	kubeVersion, err := k8sutil.GetK8SVersion(context.Clientset)
+	if err != nil {
+		return "", fmt.Errorf("Error getting server version: %v", err)
+	}
+	// K8s 1.7 returns an error when trying to run multiple drivers under the same rook.io provider,
+	// so we will fall back to the rook driver name in that case.
+	if kubeVersion.AtLeast(version.MustParseSemantic(serverVersionV180)) {
+		// the driver name needs to be the same as the namespace so that we can support multiple namespaces
+		// without the drivers conflicting with each other
+		return os.Getenv(k8sutil.PodNamespaceEnvVar), nil
+	}
+	// fall back to the rook driver name where multiple system namespaces are not supported
+	return FlexDriverName, nil
+}
+
+func configureFlexVolume(driverFile, driverDir, driverName string) error {
 	// copying flex volume
 	if _, err := os.Stat(driverDir); os.IsNotExist(err) {
-		os.Mkdir(driverDir, 0755)
+		err := os.Mkdir(driverDir, 0755)
+		if err != nil {
+			logger.Errorf("failed to create dir %s. %+v", driverDir, err)
+		}
 	}
 
-	destFile := path.Join(driverDir, "."+FlexvolumeDriver)             // /flextmnt/rook.io~rook/.rook
-	finalDestFile := path.Join(driverDir, path.Join(FlexvolumeDriver)) // /flextmnt/rook.io~rook/rook
+	destFile := path.Join(driverDir, "."+driverName)  // /flextmnt/rook.io~rook-system/.rook-system
+	finalDestFile := path.Join(driverDir, driverName) // /flextmnt/rook.io~rook-system/rook-system
 	err := copyFile(driverFile, destFile)
 	if err != nil {
 		return fmt.Errorf("unable to copy flexvolume from %s to %s: %+v", driverFile, destFile, err)

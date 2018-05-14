@@ -32,9 +32,11 @@ func TestConfigureFlexVolume(t *testing.T) {
 	driverFile := path.Join(driverDir, flexvolumeDriverFileName)
 	os.OpenFile(driverFile, os.O_RDONLY|os.O_CREATE, 0755)
 
-	err := configureFlexVolume(driverFile, driverDir)
+	driverName := "rook"
+	os.Setenv("POD_NAMESPACE", driverName)
+	defer os.Setenv("POD_NAMESPACE", "")
+	err := configureFlexVolume(driverFile, driverDir, driverName)
 	assert.Nil(t, err)
 	_, err = os.Stat(path.Join(driverDir, "rook"))
 	assert.False(t, os.IsNotExist(err))
-
 }

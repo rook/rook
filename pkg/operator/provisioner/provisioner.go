@@ -37,7 +37,6 @@ const (
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-provisioner")
-var flexdriver = fmt.Sprintf("%s/%s", flexvolume.FlexvolumeVendor, flexvolume.FlexvolumeDriver)
 
 // RookVolumeProvisioner is used to provision Rook volumes on Kubernetes
 type RookVolumeProvisioner struct {
@@ -95,6 +94,12 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 		return nil, err
 	}
 
+	driverName, err := flexvolume.RookDriverName(p.context)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get driver name. %+v", err)
+	}
+
+	flexdriver := fmt.Sprintf("%s/%s", flexvolume.FlexvolumeVendor, driverName)
 	pv := &v1.PersistentVolume{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: imageName,

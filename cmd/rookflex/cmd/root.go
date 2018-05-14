@@ -51,7 +51,7 @@ func getRPCClient() (*rpc.Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error getting path of the Rook flexvolume driver: %v", err)
 	}
-	unixSocketFile := path.Join(path.Dir(ex), path.Join(flexvolume.UnixSocketName)) // /usr/libexec/kubernetes/plugin/volume/rook.io~rook/.rook.sock
+	unixSocketFile := path.Join(path.Dir(ex), flexvolume.UnixSocketName) // /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook/rook/.rook.sock
 	conn, err := net.Dial("unix", unixSocketFile)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to socket %s: %+v", unixSocketFile, err)

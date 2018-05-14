@@ -325,7 +325,11 @@ func (c *Controller) GetAttachInfoFromMountDir(mountDir string, attachOptions *A
 // GetGlobalMountPath generate the global mount path where the device path is mounted.
 // It is based on the kubelet root dir, which defaults to /var/lib/kubelet
 func (c *Controller) GetGlobalMountPath(volumeName string, globalMountPath *string) error {
-	*globalMountPath = path.Join(c.getKubeletRootDir(), "plugins", FlexvolumeVendor, FlexvolumeDriver, "mounts", volumeName)
+	driverName, err := RookDriverName(c.context)
+	if err != nil {
+		return err
+	}
+	*globalMountPath = path.Join(c.getKubeletRootDir(), "plugins", FlexvolumeVendor, driverName, "mounts", volumeName)
 	return nil
 }
 
