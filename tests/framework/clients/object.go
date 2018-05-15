@@ -66,8 +66,9 @@ spec:
 		return err
 	}
 
-	if !ro.k8sh.IsPodWithLabelRunning(fmt.Sprintf("rook_object_store=%s", storeName), namespace) {
-		return fmt.Errorf("rgw did not start via crd")
+	running, err := ro.k8sh.WaitForLabeledPodToRun(fmt.Sprintf("rook_object_store=%s", storeName), namespace)
+	if !running || err != nil {
+		return fmt.Errorf("rgw did not start via crd. %+v", err)
 	}
 
 	// create the external service

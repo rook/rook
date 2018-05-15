@@ -225,7 +225,8 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, st
 	}
 
 	logger.Infof("Rook Cluster started")
-	return nil
+	_, err = h.k8shelper.WaitForLabeledPodToRun("app=rook-ceph-osd", namespace)
+	return err
 }
 
 func SystemNamespace(namespace string) string {
