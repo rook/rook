@@ -35,7 +35,19 @@ You can also run the build for all supported platforms:
 make -j4 build.all
 ```
 
-See instructions below for setting up the build environment to support `arm` and `arm64` platforms.
+Currently, only `amd64` platform supports this kind of 'cross' build. In order to make `build.all` succeed, we need to follow the steps specified by the below section
+`Building for other platforms` first.
+
+We suggest to use native `build` to create the binaries and container images on `arm{32,64}` platform, but if you do want to build those `arm{32,64}` binaries and images
+on `amd64` platform with `build.all` command, please make sure the multi-arch feature is supported. To test run the following:
+
+```
+> docker run --rm -ti arm32v7/ubuntu uname -a
+Linux bad621a75757 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 armv7l armv7l armv7l GNU/Linux
+
+> docker run --rm -ti arm64v8/ubuntu uname -a
+Linux f51ea93e76a2 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 aarch64 aarch64 aarch64 GNU/Linux
+```
 
 Run `make help` for more options.
 
@@ -98,18 +110,6 @@ WantedBy=multi-user.target
 EOF
 
 systemctl enable update-binfmt.service
-```
-
-### Checking if multi-arch is supported
-
-To test run the following:
-
-```
-> docker run --rm -ti arm32v7/ubuntu uname -a
-Linux bad621a75757 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 armv7l armv7l armv7l GNU/Linux
-
-> docker run --rm -ti arm64v8/ubuntu uname -a
-Linux f51ea93e76a2 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 aarch64 aarch64 aarch64 GNU/Linux
 ```
 
 # Improving Build Speed
