@@ -53,7 +53,13 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	logger.Infof("Step 2: Mount file System")
 	mtfsErr := podWithFilesystem(k8sh, s, filePodName, namespace, filesystemName, fileMountPath, "create")
 	require.Nil(s.T(), mtfsErr)
-	require.True(s.T(), k8sh.IsPodRunning(filePodName, namespace), "make sure file-test pod is in running state")
+	filePodRunning := k8sh.IsPodRunning(filePodName, namespace)
+	if !filePodRunning {
+		k8sh.PrintPodDescribe(filePodName, namespace)
+		k8sh.PrintPodStatus(namespace)
+		k8sh.PrintPodStatus(installer.SystemNamespace(namespace))
+	}
+	require.True(s.T(), filePodRunning, "make sure file-test pod is in running state")
 	logger.Infof("File system mounted successfully")
 
 	logger.Infof("Step 3: Write to file system")
@@ -108,6 +114,7 @@ func podWithFilesystem(k8sh *utils.K8sHelper, s suite.Suite, podname string, nam
 	}
 
 	testPod := getFilesystemTestPod(podname, namespace, filesystemName, fileMountPath, driverName)
+	logger.Infof("creating test pod: %s", testPod)
 	_, err := k8sh.ResourceOperation(action, testPod)
 	if err != nil {
 		return fmt.Errorf("failed to %s pod -- %s. %+v", action, testPod, err)

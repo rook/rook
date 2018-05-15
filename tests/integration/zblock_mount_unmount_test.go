@@ -82,15 +82,18 @@ type BlockMountUnMountSuite struct {
 
 func (s *BlockMountUnMountSuite) SetupSuite() {
 
-	var err error
 	s.namespace = "block-test-ns"
 	s.pvcNameRWO = "block-persistent-rwo"
-	poolNameRWO := "block-pool-rwo"
-	storageClassNameRWO := "rook-block-rwo"
 	s.pvcNameRWX = "block-persistent-rwx"
-	s.op, s.kh = NewBaseTestOperations(s.T, s.namespace, "bluestore", "", false, false, 1)
+	s.op, s.kh = StartBaseTestOperations(s.T, s.namespace, "bluestore", "", false, false, 1)
 	s.testClient = GetTestClient(s.kh, s.namespace, s.op, s.T)
 	s.bc = s.testClient.BlockClient
+}
+
+func (s *BlockMountUnMountSuite) setupPVCs() {
+	logger.Infof("creating the test PVCs")
+	poolNameRWO := "block-pool-rwo"
+	storageClassNameRWO := "rook-block-rwo"
 
 	// Create PVCs
 	_, cbErr := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClassAndPvcDef(s.namespace, poolNameRWO, storageClassNameRWO, s.pvcNameRWO, "ReadWriteOnce"), "create")
@@ -106,13 +109,19 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	require.Nil(s.T(), mtErr)
 	crdName, err := s.kh.GetVolumeAttachmentResourceName(defaultNamespace, s.pvcNameRWO)
 	require.Nil(s.T(), err)
-	require.True(s.T(), s.kh.IsVolumeAttachmentResourcePresent(installer.SystemNamespace(s.namespace), crdName), fmt.Sprintf("make sure VolumeAttachment %s is created", crdName))
+	rwoVolumeAttachPresent := s.kh.IsVolumeAttachmentResourcePresent(installer.SystemNamespace(s.namespace), crdName)
+	if !rwoVolumeAttachPresent {
+		s.kh.PrintPodDescribe("setup-block-rwo", defaultNamespace)
+		s.kh.PrintPodStatus(s.namespace)
+		s.kh.PrintPodStatus(installer.SystemNamespace(s.namespace))
+	}
+	require.True(s.T(), rwoVolumeAttachPresent, fmt.Sprintf("make sure rwo VolumeAttachment %s is created", crdName))
 
 	_, mtErr1 := s.bc.BlockMap(getBlockPodDefintion("setup-block-rwx", s.pvcNameRWX, false), blockMountPath)
 	require.Nil(s.T(), mtErr1)
 	crdName1, err1 := s.kh.GetVolumeAttachmentResourceName(defaultNamespace, s.pvcNameRWX)
 	require.Nil(s.T(), err1)
-	require.True(s.T(), s.kh.IsVolumeAttachmentResourcePresent(installer.SystemNamespace(s.namespace), crdName1), fmt.Sprintf("make sure VolumeAttachment %s is created", crdName))
+	require.True(s.T(), s.kh.IsVolumeAttachmentResourcePresent(installer.SystemNamespace(s.namespace), crdName1), fmt.Sprintf("make sure rwx VolumeAttachment %s is created", crdName))
 	require.True(s.T(), s.kh.IsPodRunning("setup-block-rwo", defaultNamespace), "make sure setup-block-rwo pod is in running state")
 	require.True(s.T(), s.kh.IsPodRunning("setup-block-rwx", defaultNamespace), "make sure setup-block-rwx pod is in running state")
 
@@ -129,7 +138,6 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	require.Nil(s.T(), unmtErr2)
 	require.True(s.T(), s.kh.IsPodTerminated("setup-block-rwo", defaultNamespace), "make sure setup-block-rwo pod is terminated")
 	require.True(s.T(), s.kh.IsPodTerminated("setup-block-rwx", defaultNamespace), "make sure setup-block-rwx pod is terminated")
-
 }
 
 func (s *BlockMountUnMountSuite) TearDownSuite() {
@@ -152,6 +160,8 @@ func (s *BlockMountUnMountSuite) TearDownSuite() {
 }
 
 func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessModes() {
+	s.setupPVCs()
+
 	logger.Infof("Test case when existing RWO PVC is mounted and unmounted on pods with various accessModes")
 	logger.Infof("Step 1.1: Mount existing ReadWriteOnce and ReadWriteMany PVC on a Pod with RW access")
 	//mount PVC with RWO access on a pod with readonly set to false

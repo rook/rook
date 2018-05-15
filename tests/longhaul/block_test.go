@@ -21,11 +21,12 @@ import (
 	"sync"
 	"testing"
 
+	"time"
+
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/suite"
-	"time"
 )
 
 // Rook Block Storage longhaul test
@@ -53,7 +54,7 @@ type BlockLongHaulSuite struct {
 //create pool and storage class, create a PVC, Create a MySQL app/service that uses pvc
 func (s *BlockLongHaulSuite) SetupSuite() {
 	s.namespace = "longhaul-ns"
-	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, s.namespace)
+	s.op, s.kh, s.installer = StartBaseLoadTestOperations(s.T, s.namespace)
 	createStorageClassAndPool(s.T, s.kh, s.namespace, "rook-block", "rook-pool")
 }
 

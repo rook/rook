@@ -58,7 +58,7 @@ type BlockLongHaulSuiteWithFencing struct {
 func (s *BlockLongHaulSuiteWithFencing) SetupSuite() {
 	var err error
 	s.namespace = "longhaul-ns"
-	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, s.namespace)
+	s.op, s.kh, s.installer = StartBaseLoadTestOperations(s.T, s.namespace)
 	createStorageClassAndPool(s.T, s.kh, s.namespace, "rook-block", "rook-pool")
 	s.testClient, err = clients.CreateTestClient(s.kh, s.namespace)
 	require.Nil(s.T(), err)

@@ -111,8 +111,8 @@ type BaseTestOperations struct {
 	mons            int
 }
 
-//NewBaseTestOperations creates new instance of BaseTestOperations struct
-func NewBaseTestOperations(t func() *testing.T, namespace, storeType, dataDirHostPath string, helmInstalled, useDevices bool, mons int) (BaseTestOperations, *utils.K8sHelper) {
+// StartBaseTestOperations creates new instance of BaseTestOperations struct
+func StartBaseTestOperations(t func() *testing.T, namespace, storeType, dataDirHostPath string, helmInstalled, useDevices bool, mons int) (BaseTestOperations, *utils.K8sHelper) {
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
