@@ -27,6 +27,7 @@ import (
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -57,7 +58,7 @@ type BlockLongHaulSuiteWithFencing struct {
 func (s *BlockLongHaulSuiteWithFencing) SetupSuite() {
 	var err error
 	s.namespace = "longhaul-ns"
-	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, s.namespace)
+	s.op, s.kh, s.installer = StartBaseLoadTestOperations(s.T, s.namespace)
 	createStorageClassAndPool(s.T, s.kh, s.namespace, "rook-block", "rook-pool")
 	s.testClient, err = clients.CreateTestClient(s.kh, s.namespace)
 	require.Nil(s.T(), err)
@@ -92,7 +93,7 @@ func blockVolumeFencingOperations(s *BlockLongHaulSuiteWithFencing, wg *sync.Wai
 	require.True(s.T(), s.kh.IsPodRunning(podName, defaultNamespace))
 	read, rErr := s.testClient.BlockClient.Read(podName, "/tmp/rook1", "longhaul", "default")
 	require.Nil(s.T(), rErr)
-	require.Contains(s.T(), read, "this is long running test")
+	assert.Contains(s.T(), read, "this is long running test")
 	mountUnmountPVCOnPod(s.kh, podName, pvcName, "true", "delete")
 	require.True(s.T(), s.kh.IsPodTerminated(podName, defaultNamespace))
 }

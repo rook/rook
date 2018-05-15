@@ -64,7 +64,9 @@ spec:
 	}
 
 	logger.Infof("Make sure rook-ceph-mds pod is running")
-	assert.True(f.k8sh.T(), f.k8sh.IsPodWithLabelRunning(fmt.Sprintf("rook_file_system=%s", name), namespace))
+	running, err := f.k8sh.WaitForLabeledPodToRun(fmt.Sprintf("rook_file_system=%s", name), namespace)
+	assert.Nil(f.k8sh.T(), err)
+	assert.True(f.k8sh.T(), running)
 
 	assert.True(f.k8sh.T(), f.k8sh.CheckPodCountAndState("rook-ceph-mds", namespace, 2, "Running"),
 		"Make sure there are two rook-ceph-mds pods present in Running state")

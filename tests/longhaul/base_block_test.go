@@ -142,8 +142,8 @@ type BaseLoadTestOperations struct {
 	namespace string
 }
 
-//NewBaseTestOperations creates new instance of BaseTestOperations struct
-func NewBaseLoadTestOperations(t func() *testing.T, namespace string) (BaseLoadTestOperations, *utils.K8sHelper, *installer.InstallHelper) {
+// StartBaseTestOperations creates new instance of BaseTestOperations struct
+func StartBaseLoadTestOperations(t func() *testing.T, namespace string) (BaseLoadTestOperations, *utils.K8sHelper, *installer.InstallHelper) {
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 

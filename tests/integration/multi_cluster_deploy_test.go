@@ -25,6 +25,7 @@ import (
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 )
@@ -80,13 +81,13 @@ func (mrc *MultiClusterDeploySuite) createPools() {
 	poolName := "multi-cluster-pool1"
 	logger.Infof("Creating pool %s", poolName)
 	result, err := installer.BlockResourceOperation(mrc.k8sh, installer.GetBlockPoolDef(poolName, mrc.namespace1, "1"), "create")
-	require.Contains(mrc.T(), result, fmt.Sprintf("pool \"%s\" created", poolName))
+	assert.Contains(mrc.T(), result, fmt.Sprintf("\"%s\" created", poolName))
 	require.Nil(mrc.T(), err)
 
 	poolName = "multi-cluster-pool2"
 	logger.Infof("Creating pool %s", poolName)
 	result, err = installer.BlockResourceOperation(mrc.k8sh, installer.GetBlockPoolDef(poolName, mrc.namespace2, "1"), "create")
-	require.Contains(mrc.T(), result, fmt.Sprintf("pool \"%s\" created", poolName))
+	assert.Contains(mrc.T(), result, fmt.Sprintf("\"%s\" created", poolName))
 	require.Nil(mrc.T(), err)
 }
 

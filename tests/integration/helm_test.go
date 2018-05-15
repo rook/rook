@@ -63,7 +63,7 @@ type HelmSuite struct {
 
 func (hs *HelmSuite) SetupSuite() {
 	hs.namespace = "helm-ns"
-	hs.op, hs.kh = NewBaseTestOperations(hs.T, hs.namespace, "bluestore", "", true, false, 3)
+	hs.op, hs.kh = StartBaseTestOperations(hs.T, hs.namespace, "bluestore", "", true, false, 3)
 	hs.helper = GetTestClient(hs.kh, hs.namespace, hs.op, hs.T)
 
 }

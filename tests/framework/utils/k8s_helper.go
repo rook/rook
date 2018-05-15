@@ -29,10 +29,8 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	rookclient "github.com/rook/rook/pkg/client/clientset/versioned"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/agent/flexvolume/attachment"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
@@ -322,43 +320,24 @@ func (k8sh *K8sHelper) GetMonitorServices(namespace string) (map[string]string, 
 	}, nil
 }
 
-func (k8sh *K8sHelper) IsPodWithLabelPresent(label string, namespace string) bool {
-	options := metav1.ListOptions{LabelSelector: label}
-	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
-	if errors.IsNotFound(err) {
-		return false
-	}
-	if len(pods.Items) == 0 {
-		return false
-	}
-	return true
-}
-
-//IsPodWithLabelRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
-func (k8sh *K8sHelper) IsPodWithLabelRunning(label string, namespace string) bool {
+//WaitForLabeledPodToRun returns true if a Pod is running status or goes to Running status within 90s else returns false
+func (k8sh *K8sHelper) WaitForLabeledPodToRun(label string, namespace string) (bool, error) {
 	options := metav1.ListOptions{LabelSelector: label}
 	inc := 0
 	for inc < RetryLoop {
 		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
-		if err != nil {
-			logger.Errorf("failed to find pod with label %s. %+v", label, err)
-			return false
-		}
-
-		if len(pods.Items) > 0 {
+		if err == nil && len(pods.Items) > 0 {
 			for _, pod := range pods.Items {
 				if pod.Status.Phase == "Running" {
-					return true
+					return true, nil
 				}
 			}
 		}
 		inc++
+		logger.Infof("waiting for pod with label %s in namespace %s to be running. err=%+v", label, namespace, err)
 		time.Sleep(RetryInterval * time.Second)
-		logger.Infof("waiting for pod with label %s in namespace %s to be running", label, namespace)
-
 	}
-	logger.Infof("Giving up waiting for pod with label %s in namespace %s to be running", label, namespace)
-	return false
+	return false, fmt.Errorf("Giving up waiting for pod with label %s in namespace %s to be running", label, namespace)
 }
 
 //WaitUntilPodWithLabelDeleted returns true if a Pod is deleted within 90s else returns false
@@ -382,6 +361,37 @@ func (k8sh *K8sHelper) WaitUntilPodWithLabelDeleted(label string, namespace stri
 	}
 	logger.Infof("Giving up waiting for pod with label %s in namespace %s to be deleted", label, namespace)
 	return false
+}
+
+func (k8sh *K8sHelper) PrintPodStatus(namespace string) {
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Info("failed to get pod status in namespace %s. %+v", namespace, err)
+		return
+	}
+	for _, pod := range pods.Items {
+		logger.Infof("%s (%s) pod status: %+v", pod.Name, namespace, pod.Status)
+	}
+}
+
+func (k8sh *K8sHelper) PrintPodDescribe(name, namespace string) {
+	pod, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		logger.Warningf("failed to get pod %s in namespace %s. %+v", name, namespace)
+		return
+	}
+	logger.Infof("pod %s in namespace %s: %+v", name, namespace, pod)
+
+	events, err := k8sh.Clientset.CoreV1().Events(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Warningf("failed to get events in namespace %s. %+v", namespace, err)
+		return
+	}
+	logger.Infof("DUMPING events in namespace %s", namespace)
+	for _, event := range events.Items {
+		logger.Infof("%+v", event)
+	}
+	logger.Infof("DONE DUMPING events in namespace %s", namespace)
 }
 
 //IsPodRunning returns true if a Pod is running status or goes to Running status within 90s else returns false
@@ -525,17 +535,53 @@ func (k8sh *K8sHelper) waitForVolumeAttachment(namespace, volumeAttachmentName s
 		inc++
 
 	}
+	k8sh.printVolumeAttachments(namespace, volumeAttachmentName)
+	k8sh.printPVs()
+	k8sh.printPVCs(namespace)
 	return fmt.Errorf("timeout for VolumeAttachment %s in namespace %s wait to %s", volumeAttachmentName, namespace, action)
 }
 
+func (k8sh *K8sHelper) printPVs() {
+	pvs, err := k8sh.Clientset.CoreV1().PersistentVolumes().List(metav1.ListOptions{})
+	if err != nil {
+		logger.Infof("failed to list pvs. %+v", err)
+	}
+
+	var names []string
+	for _, pv := range pvs.Items {
+		names = append(names, pv.Name)
+	}
+	logger.Infof("Found PVs: %v", names)
+}
+
+func (k8sh *K8sHelper) printPVCs(namespace string) {
+	pvcs, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Infof("failed to list pvcs. %+v", err)
+	}
+
+	var names []string
+	for _, pvc := range pvcs.Items {
+		names = append(names, pvc.Name)
+	}
+	logger.Infof("Found PVCs: %v", names)
+}
+
+func (k8sh *K8sHelper) printVolumeAttachments(namespace, desiredVolumeAttachment string) {
+	attachments, err := k8sh.RookClientset.RookV1alpha1().VolumeAttachments(namespace).List(metav1.ListOptions{})
+	if err != nil {
+		logger.Infof("failed to list volume attachments in ns %s. %+v", namespace, err)
+	}
+
+	var names []string
+	for _, attachment := range attachments.Items {
+		names = append(names, attachment.Name)
+	}
+	logger.Infof("looking for volume attachment %s in namespace %s. Found attachments: %v", desiredVolumeAttachment, namespace, names)
+}
+
 func (k8sh *K8sHelper) isVolumeAttachmentExist(namespace, name string) (bool, error) {
-	var result rookalpha.VolumeAttachment
-	uri := fmt.Sprintf("apis/%s/%s/namespaces/%s/%s", rookalpha.CustomResourceGroup, rookalpha.Version, namespace, attachment.CustomResourceNamePlural)
-	err := k8sh.Clientset.CoreV1().RESTClient().Get().
-		RequestURI(uri).
-		Name(name).
-		Do().
-		Into(&result)
+	_, err := k8sh.RookClientset.RookV1alpha1().VolumeAttachments(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil

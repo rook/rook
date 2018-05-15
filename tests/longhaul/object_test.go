@@ -56,7 +56,7 @@ type ObjectLongHaulSuite struct {
 func (s *ObjectLongHaulSuite) SetupSuite() {
 	var err error
 	s.namespace = "longhaul-ns"
-	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, s.namespace)
+	s.op, s.kh, s.installer = StartBaseLoadTestOperations(s.T, s.namespace)
 	s.tc, err = clients.CreateTestClient(s.kh, s.namespace)
 	require.Nil(s.T(), err)
 }
