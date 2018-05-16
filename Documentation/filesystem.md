@@ -10,9 +10,15 @@ A shared file system can be mounted read-write from multiple pods. This may be u
 
 This example runs a shared file system for the [kube-registry](https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/registry).
 
-## Prerequisites
+### Prerequisites
 
 This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](quickstart.md)
+
+### Multiple File Systems Not Supported
+
+By default only one shared file system can be created with Rook. Multiple file system support in Ceph is still considered experimental and can be enabled with the environment variable `ROOK_ALLOW_MULTIPLE_FILESYSTEMS` defined in `rook-operator.yaml`.
+
+Please refer to [cephfs experimental features](http://docs.ceph.com/docs/master/cephfs/experimental-features/#multiple-filesystems-within-a-ceph-cluster) page for more information.
 
 ## Create the File System
 

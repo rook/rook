@@ -16,6 +16,7 @@ limitations under the License.
 package mds
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path"
@@ -35,6 +36,8 @@ import (
 
 func TestStartMDS(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
+	// Output to check multiple file system creation
+	fses := `[{"name":"myfs","metadata_pool":"myfs-metadata","metadata_pool_id":1,"data_pool_ids":[2],"data_pools":["myfs-data0"]}]`
 
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
@@ -83,6 +86,33 @@ func TestStartMDS(t *testing.T) {
 	err = CreateFilesystem(context, fs, "v0.1", false, []metav1.OwnerReference{})
 	assert.Nil(t, err)
 	validateStart(t, context, fs)
+
+	// Test multiple filesystem creation
+	executor = &exectest.MockExecutor{
+		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
+			if contains(args, "ls") {
+				return fses, nil
+			}
+			return "{\"key\":\"mysecurekey\"}", errors.New("multiple fs")
+		},
+	}
+	context = &clusterd.Context{
+		Executor:  executor,
+		ConfigDir: configDir,
+		Clientset: testop.New(3)}
+
+	//Create another filesystem which should fail
+	err = CreateFilesystem(context, fs, "v0.1", false, []metav1.OwnerReference{})
+	assert.Equal(t, "failed to create file system myfs: Cannot create multiple filesystems. Enable ROOK_ALLOW_MULTIPLE_FILESYSTEMS env variable to create more than one", err.Error())
+}
+
+func contains(arr []string, str string) bool {
+	for _, a := range arr {
+		if a == str {
+			return true
+		}
+	}
+	return false
 }
 
 func validateStart(t *testing.T, context *clusterd.Context, fs rookalpha.Filesystem) {
