@@ -49,7 +49,7 @@ pipeline {
                     withEnv(["KUBE_VERSION=${env.kube_version}"]){
                         echo "setting up 3 node k8s ${env.kube_version} cluster"
                         setUpRookImages()
-                        sh '''#!/bin/bash
+                        sh '''#!/bin/sh
                               echo " setting up master"
                               export KUBE_VERSION='''+ "${env.kube_version}" + '''
                               kubeadm_join_flags="$(tests/scripts/kubeadm.sh install master | grep '^ *kubeadm join' | sed 's/^ *kubeadm join //')"
@@ -61,7 +61,7 @@ pipeline {
                             unstash 'test-images'
                             setUpRookImages()
                             unstash 'test-scripts'
-                            sh '''#!/bin/bash
+                            sh '''#!/bin/sh
                                   echo " setting up node 1"
                                   export KUBE_VERSION='''+ "${env.kube_version}" + '''
                                   tests/scripts/kubeadm.sh install node ''' + "${token}"
@@ -70,12 +70,12 @@ pipeline {
                             unstash 'test-images'
                             setUpRookImages()
                             unstash 'test-scripts'
-                            sh '''#!/bin/bash
+                            sh '''#!/bin/sh
                                   echo " setting up node 2"
                                   export KUBE_VERSION='''+ "${env.kube_version}" + '''
                                   tests/scripts/kubeadm.sh install node ''' + "${token}"
                         }
-                        sh '''#!/bin/bash
+                        sh '''#!/bin/sh
                               export KUBECONFIG=$HOME/admin.conf
                               tests/scripts/kubeadm.sh wait 3'''
                     }
@@ -95,7 +95,7 @@ def setUpRookImages(){
     //tag rook images need for testing
     env.versionId = readFile('version').trim()
     sh'''
-          #!/bin/bash
+          #!/bin/sh
           docker load -i rook.tar.gz
           docker load -i toolbox.tar.gz
           docker images

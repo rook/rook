@@ -51,12 +51,12 @@ pipeline {
         stage ("Run Regression") {
             steps{
                 script {
-                    sh '''#!/bin/bash
+                    sh '''#!/bin/sh
                            export KUBECONFIG=$HOME/admin.conf
                            chmod +x helm.sh
                            ./helm.sh up'''
                     try{
-                        sh '''#!/bin/bash
+                        sh '''#!/bin/sh
                               set -o pipefail
                               export KUBECONFIG=$HOME/admin.conf
                               kubectl config view

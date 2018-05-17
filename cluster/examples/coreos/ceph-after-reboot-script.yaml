@@ -5,7 +5,7 @@ metadata:
   namespace: rook
 data:
   status-check.sh: |-
-    #!/bin/bash
+    #!/bin/sh
 
     # preflightCheck checks for existence of "dependencies"
     preflightCheck() {

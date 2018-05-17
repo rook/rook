@@ -1,4 +1,4 @@
-#!/bin/bash +e
+#!/bin/sh +e
 
 KUBE_VERSION=${1:-"v1.8.5"}
 
@@ -14,7 +14,7 @@ if [[ $KUBE_VERSION == v1.7* ]] ;
 then
     sudo mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook
     cat << EOF | sudo tee -a /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook/rook
-#!/bin/bash
+#!/bin/sh
 echo -ne '{"status": "Success", "capabilities": {"attach": false}}' >&1
 exit 0
 EOF
