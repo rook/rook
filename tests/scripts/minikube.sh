@@ -1,11 +1,11 @@
-#!/bin/bash -e
+#!/bin/sh -e
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${scriptdir}/../../build/common.sh"
 
 function init_flexvolume() {
     cat <<EOF | ssh -i `minikube ssh-key` docker@`minikube ip` -o IdentitiesOnly=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=quiet 'cat - > ~/rook'
-#!/bin/bash
+#!/bin/sh
 echo -ne '{"status": "Success", "capabilities": {"attach": false}}' >&1
 exit 0
 EOF

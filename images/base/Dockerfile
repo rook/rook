@@ -14,12 +14,12 @@
 
 FROM BASEIMAGE
 
-SHELL ["/bin/bash","-c"]
+SHELL ["/bin/sh","-c"]
 
 # APT caching to speed up apt-get downloads
 # see http://www.stuartaxon.com/2015/02/02/docker-and-caching-apt-get-for-guests-on-the-same-host/
 RUN HOST_IP=$(route -n | awk '/^0.0.0.0/ {print $2}') && \
-    echo "#!/bin/bash" > /usr/local/bin/apt-ng-host-discover && \
+    echo "#!/bin/sh" > /usr/local/bin/apt-ng-host-discover && \
     echo "if nc -w1 -z $HOST_IP 3142; then printf http://$HOST_IP:3142; else printf DIRECT; fi" >> /usr/local/bin/apt-ng-host-discover && \
     chmod +x /usr/local/bin/apt-ng-host-discover && \
     echo 'Acquire::http::ProxyAutoDetect "/usr/local/bin/apt-ng-host-discover";' > /etc/apt/apt.conf.d/30proxy
@@ -32,4 +32,4 @@ ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARC
 RUN chmod +x /tini
 
 ENTRYPOINT ["/tini", "-g", "--"]
-CMD ["/bin/bash"]
+CMD ["/bin/sh"]

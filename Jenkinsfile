@@ -134,13 +134,13 @@ def RunIntegrationTest(k, v) {
                     echo "running tests on k8s version ${v}"
                     sh 'tests/scripts/makeTestImages.sh load amd64'
                     sh "tests/scripts/kubeadm.sh up"
-                    sh '''#!/bin/bash
+                    sh '''#!/bin/sh
                           export KUBECONFIG=$HOME/admin.conf
                           tests/scripts/helm.sh up'''
                     try{
                         if ("${env.smokeOnly}" == "true") {
                             echo "Running Smoke Tests"
-                            sh '''#!/bin/bash
+                            sh '''#!/bin/sh
                                   set -o pipefail
                                   export KUBECONFIG=$HOME/admin.conf
                                   kubectl config view
@@ -148,7 +148,7 @@ def RunIntegrationTest(k, v) {
                         }
                         else {
                         echo "Running full regression"
-                        sh '''#!/bin/bash
+                        sh '''#!/bin/sh
                               set -o pipefail
                               export KUBECONFIG=$HOME/admin.conf
                               kubectl config view
@@ -156,7 +156,7 @@ def RunIntegrationTest(k, v) {
                          }
                     }
                     finally{
-                        sh '''#!/bin/bash
+                        sh '''#!/bin/sh
                               export KUBECONFIG=$HOME/admin.conf
                               tests/scripts/helm.sh clean || true'''
                         sh "mv _output/tests/integrationTests.log _output/tests/${k}_${v}_integrationTests.log"

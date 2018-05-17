@@ -20,8 +20,7 @@ all: build
 # ====================================================================================
 # Build Options
 
-# set the shell to bash in case some environments use sh
-SHELL := /bin/bash
+SHELL := /bin/sh
 
 # Can be used or additional go build flags
 BUILDFLAGS ?=

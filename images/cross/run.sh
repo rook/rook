@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 
 # Copyright 2016 The Rook Authors. All rights reserved.
 #
@@ -16,7 +16,7 @@
 
 ARGS="$@"
 if [ $# -eq 0 ]; then
-    ARGS=/bin/bash
+    ARGS=/bin/sh
 fi
 
 BUILDER_USER=${BUILDER_USER:-rook}

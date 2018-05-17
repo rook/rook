@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Copyright 2017 Mirantis
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -587,7 +587,7 @@ function dind::accelerate-kube-dns {
   # TODO: do this in wrapkubeadm
   # 'kubectl version --short' is a quick check for kubectl 1.4
   # which doesn't support 'kubectl apply --force'
-  docker exec kube-master /bin/bash -c \
+  docker exec kube-master /bin/sh -c \
          "kubectl get deployment kube-dns -n kube-system -o json | jq '.spec.template.spec.containers[0].readinessProbe.initialDelaySeconds = 3|.spec.template.spec.containers[0].readinessProbe.periodSeconds = 3' | if kubectl version --short >&/dev/null; then kubectl apply --force -f -; else kubectl apply -f -; fi"
 }
 

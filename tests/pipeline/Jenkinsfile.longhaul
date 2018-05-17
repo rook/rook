@@ -51,7 +51,7 @@ pipeline {
                 script {
                     for(i=0; i< "${env.runs}".toInteger() ; i++) {
                         try{
-                            sh '''#!/bin/bash
+                            sh '''#!/bin/sh
                             set -o pipefail
                             export KUBECONFIG=$HOME/admin.conf
                             kubectl config view

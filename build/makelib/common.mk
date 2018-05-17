@@ -15,7 +15,7 @@
 # remove default suffixes as we dont use them
 .SUFFIXES:
 
-SHELL := /bin/bash
+SHELL := /bin/sh
 
 ifeq ($(origin PLATFORM), undefined)
 ifeq ($(origin GOOS), undefined)

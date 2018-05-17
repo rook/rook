@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${scriptdir}/../../build/common.sh"

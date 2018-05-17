@@ -1,4 +1,4 @@
-#!/bin/bash +e
+#!/bin/sh +e
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${scriptdir}/../../build/common.sh"
@@ -13,19 +13,19 @@ copy_image_to_cluster() {
     docker save -o ${tarfile} ${final_image}
     for c in kube-master kube-node-1 kube-node-2; do
         docker cp ${tarfile} ${c}:/
-        docker exec ${c} /bin/bash -c "docker load -i /${tarname}"
+        docker exec ${c} /bin/sh -c "docker load -i /${tarname}"
     done
 }
 
 copy_rbd() {
     for c in kube-master kube-node-1 kube-node-2; do
         docker cp ${scriptdir}/dind-cluster-rbd ${c}:/bin/rbd
-        docker exec ${c} /bin/bash -c "chmod +x /bin/rbd"
+        docker exec ${c} /bin/sh -c "chmod +x /bin/rbd"
         # hack for Azure, after vm is started first docker pull command fails intermittently
         local maxRetry=3
         local cur=1
         while [ $cur -le $maxRetry ]; do
-            docker exec ${c} /bin/bash -c "docker pull ceph/base"
+            docker exec ${c} /bin/sh -c "docker pull ceph/base"
             if [ $? -eq 0 ]; then
                 break
             fi

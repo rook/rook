@@ -14,7 +14,7 @@
 
 FROM BASEIMAGE
 
-SHELL ["/bin/bash","-c"]
+SHELL ["/bin/sh","-c"]
 
 RUN sed -i -e 's/^deb-src/#deb-src/' /etc/apt/sources.list && \
     # update and upgrade
