@@ -17,7 +17,9 @@ limitations under the License.
 package scheme
 
 import (
+	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
@@ -48,6 +50,8 @@ func init() {
 // After this, RawExtensions in Kubernetes types will serialize kube-aggregator types
 // correctly.
 func AddToScheme(scheme *runtime.Scheme) {
+	cephv1alpha1.AddToScheme(scheme)
 	rookv1alpha1.AddToScheme(scheme)
+	rookv1alpha2.AddToScheme(scheme)
 
 }
