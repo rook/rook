@@ -26,11 +26,10 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/daemon/ceph/test"
-	"github.com/rook/rook/pkg/operator/cluster/ceph/osd/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -42,7 +41,7 @@ import (
 
 func TestStoreTypeDefaults(t *testing.T) {
 	// A filestore dir
-	cfg := &osdConfig{dir: true, storeConfig: rookalpha.StoreConfig{StoreType: ""}}
+	cfg := &osdConfig{dir: true, storeConfig: config.StoreConfig{StoreType: ""}}
 	assert.True(t, isFilestore(cfg))
 	assert.False(t, isFilestoreDevice(cfg))
 	assert.True(t, isFilestoreDir(cfg))
@@ -51,7 +50,7 @@ func TestStoreTypeDefaults(t *testing.T) {
 	assert.False(t, isBluestoreDir(cfg))
 
 	// A bluestore dir
-	cfg = &osdConfig{dir: true, storeConfig: rookalpha.StoreConfig{StoreType: "bluestore"}}
+	cfg = &osdConfig{dir: true, storeConfig: config.StoreConfig{StoreType: "bluestore"}}
 	assert.False(t, isFilestore(cfg))
 	assert.False(t, isFilestoreDevice(cfg))
 	assert.False(t, isFilestoreDir(cfg))
@@ -79,14 +78,14 @@ func TestStoreTypeDefaults(t *testing.T) {
 }
 
 func TestOSDAgentWithDevicesFilestore(t *testing.T) {
-	testOSDAgentWithDevicesHelper(t, rookalpha.StoreConfig{StoreType: config.Filestore})
+	testOSDAgentWithDevicesHelper(t, config.StoreConfig{StoreType: config.Filestore})
 }
 
 func TestOSDAgentWithDevicesBluestore(t *testing.T) {
-	testOSDAgentWithDevicesHelper(t, rookalpha.StoreConfig{StoreType: config.Bluestore})
+	testOSDAgentWithDevicesHelper(t, config.StoreConfig{StoreType: config.Bluestore})
 }
 
-func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig rookalpha.StoreConfig) {
+func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig) {
 	// set up a temporary config directory that will be cleaned up after test
 	configDir, err := ioutil.TempDir("", "")
 	if err != nil {
@@ -309,7 +308,7 @@ func TestRemoveDevices(t *testing.T) {
 	os.MkdirAll(configDir, 0755)
 
 	nodeName := "node0347"
-	agent, mockExec, context := createTestAgent(t, "none", configDir, nodeName, &rookalpha.StoreConfig{StoreType: config.Bluestore})
+	agent, mockExec, context := createTestAgent(t, "none", configDir, nodeName, &config.StoreConfig{StoreType: config.Bluestore})
 	agent.usingDeviceFilter = true
 
 	_, removedDevices, _ := mockPartitionSchemeEntry(t, 1, "sdx", &agent.storeConfig, agent.kv, nodeName)
@@ -339,11 +338,11 @@ func TestRemoveDevices(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeConfig *rookalpha.StoreConfig) (*OsdAgent, *exectest.MockExecutor, *clusterd.Context) {
+func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeConfig *config.StoreConfig) (*OsdAgent, *exectest.MockExecutor, *clusterd.Context) {
 	location := "root=here"
 	forceFormat := false
 	if storeConfig == nil {
-		storeConfig = &rookalpha.StoreConfig{StoreType: config.Bluestore}
+		storeConfig = &config.StoreConfig{StoreType: config.Bluestore}
 	}
 
 	executor := &exectest.MockExecutor{
@@ -618,11 +617,11 @@ func verifyPartitionEntry(t *testing.T, actual *config.PerfSchemePartitionDetail
 	assert.Equal(t, expectedOffset, actual.OffsetMB)
 }
 
-func mockPartitionSchemeEntry(t *testing.T, osdID int, device string, storeConfig *rookalpha.StoreConfig,
+func mockPartitionSchemeEntry(t *testing.T, osdID int, device string, storeConfig *config.StoreConfig,
 	kv *k8sutil.ConfigMapKVStore, nodeName string) (entry *config.PerfSchemeEntry, scheme *config.PerfScheme, diskUUID string) {
 
 	if storeConfig == nil {
-		storeConfig = &rookalpha.StoreConfig{StoreType: config.Bluestore}
+		storeConfig = &config.StoreConfig{StoreType: config.Bluestore}
 	}
 
 	entry = config.NewPerfSchemeEntry(storeConfig.StoreType)
@@ -654,7 +653,7 @@ func mockDistributedPartitionScheme(t *testing.T, osdID int, metadataDevice, dev
 	entry.ID = osdID
 	entry.OsdUUID = uuid.Must(uuid.NewRandom())
 
-	config.PopulateDistributedPerfSchemeEntry(entry, device, scheme.Metadata, rookalpha.StoreConfig{})
+	config.PopulateDistributedPerfSchemeEntry(entry, device, scheme.Metadata, config.StoreConfig{})
 	scheme.Entries = append(scheme.Entries, entry)
 	err := scheme.SaveScheme(kv, config.GetConfigStoreName(nodeName))
 	assert.Nil(t, err)

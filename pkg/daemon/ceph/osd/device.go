@@ -25,11 +25,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
+
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
-	"github.com/rook/rook/pkg/operator/cluster/ceph/osd/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/display"
 	"github.com/rook/rook/pkg/util/exec"
@@ -56,7 +56,7 @@ type osdConfig struct {
 	id              int
 	uuid            uuid.UUID
 	dir             bool
-	storeConfig     rookalpha.StoreConfig
+	storeConfig     config.StoreConfig
 	partitionScheme *config.PerfSchemeEntry
 	kv              *k8sutil.ConfigMapKVStore
 	storeName       string
@@ -83,7 +83,7 @@ func (m *DeviceOsdMapping) String() string {
 }
 
 // format the given device for usage by an OSD
-func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool, storeConfig rookalpha.StoreConfig) error {
+func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool, storeConfig config.StoreConfig) error {
 	dataDetails, err := getDataPartitionDetails(config)
 	if err != nil {
 		return err

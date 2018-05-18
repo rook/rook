@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"net/rpc"
 
-	"github.com/rook/rook/pkg/daemon/agent/flexvolume"
+	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/spf13/cobra"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
@@ -68,8 +68,18 @@ func handleUnmount(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Unmount volume at mount dir %s failed: %v", opts.MountDir, err)
 	}
 
+	// construct the input we'll need to get the global mount path
+	driverDir, err := getDriverDir()
+	if err != nil {
+		return err
+	}
+	globalMountPathInput := flexvolume.GlobalMountPathInput{
+		VolumeName: opts.VolumeName,
+		DriverDir:  driverDir,
+	}
+
 	var globalVolumeMountPath string
-	err = client.Call("Controller.GetGlobalMountPath", opts.VolumeName, &globalVolumeMountPath)
+	err = client.Call("Controller.GetGlobalMountPath", globalMountPathInput, &globalVolumeMountPath)
 	if err != nil {
 		log(client, fmt.Sprintf("Detach volume %s/%s failed. Cannot get global volume mount path: %v", opts.Pool, opts.Image, err), true)
 		return fmt.Errorf("Rook: Unmount volume failed. Cannot get global volume mount path: %v", err)

@@ -22,8 +22,8 @@ import (
 	"testing"
 	"time"
 
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -37,7 +37,7 @@ func TestOSDStatus(t *testing.T) {
 	}
 	defer os.RemoveAll(configDir)
 
-	storeConfig := &rookalpha.StoreConfig{StoreType: "bluestore"}
+	storeConfig := &config.StoreConfig{StoreType: "bluestore"}
 	// Mocking agent and executor, re-using a function from agent tests
 	agent, executor, _ := createTestAgent(t, "sdx", configDir, "node1271", storeConfig)
 

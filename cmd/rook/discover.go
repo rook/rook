@@ -17,7 +17,12 @@ package main
 
 import (
 	"fmt"
+
+	rook "github.com/rook/rook/cmd/rook/rook"
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/discover"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util/exec"
 	"github.com/spf13/cobra"
 )
 
@@ -32,22 +37,27 @@ func init() {
 }
 
 func startDiscover(cmd *cobra.Command, args []string) error {
-	setLogLevel()
+	rook.SetLogLevel()
 
-	logStartupInfo(discoverCmd.Flags())
+	rook.LogStartupInfo(discoverCmd.Flags())
 
-	clientset, _, rookClientset, err := getClientset()
+	clientset, apiExtClientset, rookClientset, err := rook.GetClientset()
 	if err != nil {
-		terminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
+		rook.TerminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
 	}
 
-	context := createContext()
-	context.Clientset = clientset
-	context.RookClientset = rookClientset
+	context := &clusterd.Context{
+		Executor:              &exec.CommandExecutor{},
+		ConfigDir:             k8sutil.DataDir,
+		NetworkInfo:           clusterd.NetworkInfo{},
+		Clientset:             clientset,
+		APIExtensionClientset: apiExtClientset,
+		RookClientset:         rookClientset,
+	}
 
 	err = discover.Run(context)
 	if err != nil {
-		terminateFatal(err)
+		rook.TerminateFatal(err)
 	}
 
 	return nil
