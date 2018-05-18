@@ -19,7 +19,7 @@ that it is the only mon in quorum, and then restart the good mon.
 ### Stop the operator
 First, stop the operator so it will not try to failover the mons while we are modifying the monmap
 ```bash
-kubectl -n rook-system delete deployment rook-operator
+kubectl -n rook-ceph-system delete deployment rook-operator
 ```
 
 ### Inject a new monmap
@@ -30,7 +30,7 @@ In this example, the healthy mon is `rook-ceph-mon1`, while the unhealthy mons a
 
 Connect to the pod of a healthy mon and run the following commands.
 ```bash
-kubectl -n rook exec -it <mon-pod> bash
+kubectl -n rook-ceph exec -it <mon-pod> bash
 
 # set a few simple variables
 cluster_namespace=rook
@@ -70,7 +70,7 @@ Exit the shell to continue.
 
 Edit the configmap that the operator uses to track the mons.
 ```bash
-kubectl -n rook edit configmap rook-ceph-mon-endpoints
+kubectl -n rook-ceph edit configmap rook-ceph-mon-endpoints
 ```
 
 In the `data` element you will see three mons such as the following (or more depending on your `moncount`):
@@ -88,7 +88,7 @@ Save the file and exit.
 ### Restart the mon
 You will need to restart the good mon pod to pick up the changes. Delete the good mon pod and kubernetes will automatically restart the mon.
 ```bash
-kubectl -n rook delete pod -l mon=rook-ceph-mon1
+kubectl -n rook-ceph delete pod -l mon=rook-ceph-mon1
 ```
 
 Start the rook [toolbox](/Documentation/toolbox.md) and verify the status of the cluster. 
@@ -102,7 +102,7 @@ The status should show one mon in quorum. If the status looks good, your cluster
 Start the rook operator again to resume monitoring the health of the cluster. 
 ```bash
 # create the operator. it is safe to ignore the errors that a number of resources already exist.
-kubectl create -f rook-operator.yaml
+kubectl create -f operator.yaml
 ```
 
 The operator will automatically add more mons to increase the quorum size again, depending on the `monCount`.

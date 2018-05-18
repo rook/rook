@@ -28,18 +28,18 @@ There are two main categories of information you will need to investigate issues
 ## Kubernetes Tools
 Kubernetes status is the first line of investigating when something goes wrong with the cluster. Here are a few artifacts that are helpful to gather:
 - Rook pod status:
-  - `kubectl get pod -n rook -o wide`
-  - `kubectl get pod -n rook-system -o wide`
+  - `kubectl get pod -n rook-ceph -o wide`
+  - `kubectl get pod -n rook-ceph-system -o wide`
 - Logs for Rook pods
-  - Logs for the operator: `kubectl logs -n rook-system -l app=rook-operator`
-  - Logs for a specific pod: `kubectl logs -n rook <pod-name>`, or a pod using a label such as mon1: `kubectl logs -n rook -l mon=rook-ceph-mon1`
+  - Logs for the operator: `kubectl logs -n rook-ceph-system -l app=rook-operator`
+  - Logs for a specific pod: `kubectl logs -n rook-ceph <pod-name>`, or a pod using a label such as mon1: `kubectl logs -n rook-ceph -l mon=rook-ceph-mon1`
   - Logs on a specific node to find why a PVC is failing to mount:
-    - Rook agent errors around the attach/detach: `kubectl logs -n rook-system <rook-agent-pod>`
+    - Rook agent errors around the attach/detach: `kubectl logs -n rook-ceph-system <rook-ceph-agent-pod>`
     - Connect to the node, then get kubelet logs (if your distro is using systemd): `journalctl -u kubelet`
   - See the [log collection topic](advanced-configuration.md#log-collection) for a script that will help you gather the logs
 - Other Rook artifacts:
-  - The monitors that are expected to be in quorum: `kubectl -n rook get configmap rook-ceph-mon-endpoints -o yaml | grep data`
-  - More artifacts in the `rook` namespace: `kubectl -n rook get all`
+  - The monitors that are expected to be in quorum: `kubectl -n rook-ceph get configmap rook-ceph-mon-endpoints -o yaml | grep data`
+  - More artifacts in the `rook` namespace: `kubectl -n rook-ceph get all`
 
 ## Ceph Tools
 After you verify the basic health of the running pods, next you will want to run Ceph tools for status of the storage components. There are two ways to run the Ceph tools, either in the Rook toolbox or inside other Rook pods that are already running.
@@ -54,7 +54,7 @@ After you verify the basic health of the running pods, next you will want to run
 The Ceph tools are found in all of the Rook pods where Ceph is running, such as the operator, monitors, and OSDs. Rather than starting the toolbox pod, you can connect to the existing pods to more quickly execute the Ceph tools. For example, to connect to the operator pod:
 
 ```bash
-kubectl -n rook-system exec -it $(kubectl -n rook-system get pods -l app=rook-operator -o jsonpath='{.items[0].metadata.name}') -- bash
+kubectl -n rook-ceph-system exec -it $(kubectl -n rook-ceph-system get pods -l app=rook-operator -o jsonpath='{.items[0].metadata.name}') -- bash
 ```
 
 Now from inside the operator pod you can execute the Ceph tools.
@@ -83,13 +83,13 @@ There are many Ceph sub-commands to look at and manipulate Ceph objects, well be
 * `kubectl describe pod` for the pod mentions one or more of the following:
   * `PersistentVolumeClaim is not bound`
   * `timeout expired waiting for volumes to attach/mount`
-* `kubectl -n rook-system get pod` shows the rook-agent pods in a `CrashLoopBackOff` status
+* `kubectl -n rook-ceph-system get pod` shows the rook-ceph-agent pods in a `CrashLoopBackOff` status
 
 ## Possible Solutions Summary
-* `rook-agent` pod is in a `CrashLoopBackOff` status because it cannot deploy its driver on a read-only filesystem: [Flexvolume configuration pre-reqs](./k8s-pre-reqs.md#flexvolume-configuration)
+* `rook-ceph-agent` pod is in a `CrashLoopBackOff` status because it cannot deploy its driver on a read-only filesystem: [Flexvolume configuration pre-reqs](./k8s-pre-reqs.md#flexvolume-configuration)
 * Persistent Volume and/or Claim are failing to be created and bound: [Volume Creation](#volume-creation)
-* `rook-agent` pod is failing to mount and format the volume: [Rook Agent Mounting](#volume-mounting)
-* You are using Kubernetes 1.7.x or earlier and the Kubelet has not been restarted after `rook-agent` is in the `Running` status: [Restart Kubelet](#kubelet-restart)
+* `rook-ceph-agent` pod is failing to mount and format the volume: [Rook Agent Mounting](#volume-mounting)
+* You are using Kubernetes 1.7.x or earlier and the Kubelet has not been restarted after `rook-ceph-agent` is in the `Running` status: [Restart Kubelet](#kubelet-restart)
 
 ## Investigation Details
 If you see some of the symptoms above, it's because the requested Rook storage for your pod is not being created and mounted successfully.
@@ -113,38 +113,38 @@ Events:
 To troubleshoot this, let's walk through the volume provisioning steps in order to confirm where the failure is happening.
 
 ### Rook Agent Deployment
-The `rook-agent` pods are responsible for mapping and mounting the volume from the cluster onto the node that your pod will be running on.
-If the `rook-agent` pod is not running then it cannot perform this function.
-Below is an example of the `rook-agent` pods failing to get to the `Running` status because they are in a `CrashLoopBackOff` status:
+The `rook-ceph-agent` pods are responsible for mapping and mounting the volume from the cluster onto the node that your pod will be running on.
+If the `rook-ceph-agent` pod is not running then it cannot perform this function.
+Below is an example of the `rook-ceph-agent` pods failing to get to the `Running` status because they are in a `CrashLoopBackOff` status:
 ```console
-> kubectl -n rook-system get pod
-NAME                             READY     STATUS             RESTARTS   AGE
-rook-agent-ct5pj                 0/1       CrashLoopBackOff   16         59m
-rook-agent-zb6n9                 0/1       CrashLoopBackOff   16         59m
-rook-operator-2203999069-pmhzn   1/1       Running            0          59m
+> kubectl -n rook-ceph-system get pod
+NAME                                  READY     STATUS             RESTARTS   AGE
+rook-ceph-agent-ct5pj                 0/1       CrashLoopBackOff   16         59m
+rook-ceph-agent-zb6n9                 0/1       CrashLoopBackOff   16         59m
+rook-operator-2203999069-pmhzn        1/1       Running            0          59m
 ```
-If you see this occurring, you can get more details about why the `rook-agent` pods are continuing to crash with the following command and its sample output:
+If you see this occurring, you can get more details about why the `rook-ceph-agent` pods are continuing to crash with the following command and its sample output:
 ```console
-> kubectl -n rook-system get pod -l app=rook-agent -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].lastState.terminated.message}{"\n"}{end}'
-rook-agent-ct5pj	mkdir /usr/libexec/kubernetes: read-only file system
-rook-agent-zb6n9	mkdir /usr/libexec/kubernetes: read-only file system
+> kubectl -n rook-ceph-system get pod -l app=rook-ceph-agent -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.status.containerStatuses[0].lastState.terminated.message}{"\n"}{end}'
+rook-ceph-agent-ct5pj	mkdir /usr/libexec/kubernetes: read-only file system
+rook-ceph-agent-zb6n9	mkdir /usr/libexec/kubernetes: read-only file system
 ```
 From the output above, we can see that the agents were not able to bind mount to `/usr/libexec/kubernetes` on the host they are scheduled to run on.
 For some environments, this default path is read-only and therefore a better path must be provided to the agents.
 
 First, clean up the agent deployment with:
 ```console
-kubectl -n rook-system delete daemonset rook-agent
+kubectl -n rook-ceph-system delete daemonset rook-ceph-agent
 ```
-Once the `rook-agent` pods are gone, **follow the instructions in the [Flexvolume configuration pre-reqs](./k8s-pre-reqs.md#flexvolume-configuration)** to ensure a good value for `--volume-plugin-dir` has been provided to the Kubelet.
+Once the `rook-ceph-agent` pods are gone, **follow the instructions in the [Flexvolume configuration pre-reqs](./k8s-pre-reqs.md#flexvolume-configuration)** to ensure a good value for `--volume-plugin-dir` has been provided to the Kubelet.
 After that has been configured, and the Kubelet has been restarted, start the agent pods up again by restarting `rook-operator`:
 ```console
-kubectl -n rook-system delete pod -l app=rook-operator
+kubectl -n rook-ceph-system delete pod -l app=rook-operator
 ```
 
 ### Kubelet Restart
 #### **Kubernetes 1.7.x only**
-If the `rook-agent` pods are all in the `Running` state then another thing to confirm is that **if you are running on Kubernetes 1.7.x**, the Kubelet must be restarted after the `rook-agent` pods are running.
+If the `rook-ceph-agent` pods are all in the `Running` state then another thing to confirm is that **if you are running on Kubernetes 1.7.x**, the Kubelet must be restarted after the `rook-ceph-agent` pods are running.
 
 A symptom of this can be found in the Kubelet's log/journal, with the following error saying `no volume plugin matched`:
 ```console
@@ -158,16 +158,16 @@ Let's confirm that with the following commands and their output:
 ```console
 > kubectl get pv
 NAME                                       CAPACITY   ACCESSMODES   RECLAIMPOLICY   STATUS     CLAIM                    STORAGECLASS   REASON    AGE
-pvc-9f273fbc-bdbf-11e7-bc4c-001c428b9fc8   20Gi       RWO           Delete          Bound      default/mysql-pv-claim   rook-block               25m
+pvc-9f273fbc-bdbf-11e7-bc4c-001c428b9fc8   20Gi       RWO           Delete          Bound      default/mysql-pv-claim   rook-ceph-block               25m
 
 > kubectl get pvc
 NAME             STATUS    VOLUME                                     CAPACITY   ACCESSMODES   STORAGECLASS   AGE
-mysql-pv-claim   Bound     pvc-9f273fbc-bdbf-11e7-bc4c-001c428b9fc8   20Gi       RWO           rook-block     25m
+mysql-pv-claim   Bound     pvc-9f273fbc-bdbf-11e7-bc4c-001c428b9fc8   20Gi       RWO           rook-ceph-block     25m
 ```
 Both your volume and its claim should be in the `Bound` status.
 If one or neither of them is not in the `Bound` status, then look for details of the issue in the `rook-operator` logs:
 ```console
-kubectl -n rook-system logs `kubectl -n rook-system -l app=rook-operator get pods -o jsonpath='{.items[*].metadata.name}'`
+kubectl -n rook-ceph-system logs `kubectl -n rook-ceph-system -l app=rook-operator get pods -o jsonpath='{.items[*].metadata.name}'`
 ```
 
 If the volume is failing to be created, there should be details in the `rook-operator` log output, especially those tagged with `op-provisioner`.
@@ -176,31 +176,31 @@ One common cause for the `rook-operator` failing to create the volume is when th
 In that scenario, the `rook-operator` log would show a failure similar to the following:
 
 ```
-2018-03-28 18:58:32.041603 I | op-provisioner: creating volume with configuration {pool:replicapool clusterNamespace:rook fstype:}
-2018-03-28 18:58:32.041728 I | exec: Running command: rbd create replicapool/pvc-fd8aba49-32b9-11e8-978e-08002762c796 --size 20480 --cluster=rook --conf=/var/lib/rook/rook/rook.config --keyring=/var/lib/rook/rook/client.admin.keyring
-E0328 18:58:32.060893       5 controller.go:801] Failed to provision volume for claim "default/mysql-pv-claim" with StorageClass "rook-block": Failed to create rook block image replicapool/pvc-fd8aba49-32b9-11e8-978e-08002762c796: failed to create image pvc-fd8aba49-32b9-11e8-978e-08002762c796 in pool replicapool of size 21474836480: Failed to complete '': exit status 1. global_init: unable to open config file from search list /var/lib/rook/rook/rook.config
+2018-03-28 18:58:32.041603 I | op-provisioner: creating volume with configuration {pool:replicapool clusterNamespace:rook-ceph fstype:}
+2018-03-28 18:58:32.041728 I | exec: Running command: rbd create replicapool/pvc-fd8aba49-32b9-11e8-978e-08002762c796 --size 20480 --cluster=rook --conf=/var/lib/rook/rook-ceph/rook.config --keyring=/var/lib/rook/rook-ceph/client.admin.keyring
+E0328 18:58:32.060893       5 controller.go:801] Failed to provision volume for claim "default/mysql-pv-claim" with StorageClass "rook-ceph-block": Failed to create rook block image replicapool/pvc-fd8aba49-32b9-11e8-978e-08002762c796: failed to create image pvc-fd8aba49-32b9-11e8-978e-08002762c796 in pool replicapool of size 21474836480: Failed to complete '': exit status 1. global_init: unable to open config file from search list /var/lib/rook/rook-ceph/rook.config
 . output:
 ```
 
 The solution is to ensure that the [`clusterNamespace`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/rook-storageclass.yaml#L25) field matches the **namespace** of the Rook cluster when creating the `StorageClass`.
 
 ### Volume Mounting
-The final step in preparing Rook storage for your pod is for the `rook-agent` pod to mount and format it.
-If all the preceding sections have been successful or inconclusive, then take a look at the `rook-agent` pod logs for further clues.
-You can determine which `rook-agent` is running on the same node that your pod is scheduled on by using the `-o wide` output, then you can get the logs for that `rook-agent` pod similar to the example below:
+The final step in preparing Rook storage for your pod is for the `rook-ceph-agent` pod to mount and format it.
+If all the preceding sections have been successful or inconclusive, then take a look at the `rook-ceph-agent` pod logs for further clues.
+You can determine which `rook-ceph-agent` is running on the same node that your pod is scheduled on by using the `-o wide` output, then you can get the logs for that `rook-ceph-agent` pod similar to the example below:
 ```console
-> kubectl -n rook-system get pod -o wide
-NAME                             READY     STATUS    RESTARTS   AGE       IP             NODE
-rook-agent-h6scx                 1/1       Running   0          9m        172.17.8.102   172.17.8.102
-rook-agent-mp7tn                 1/1       Running   0          9m        172.17.8.101   172.17.8.101
-rook-operator-2203999069-3tb68   1/1       Running   0          9m        10.32.0.7      172.17.8.101
+> kubectl -n rook-ceph-system get pod -o wide
+NAME                                  READY     STATUS    RESTARTS   AGE       IP             NODE
+rook-ceph-agent-h6scx                 1/1       Running   0          9m        172.17.8.102   172.17.8.102
+rook-ceph-agent-mp7tn                 1/1       Running   0          9m        172.17.8.101   172.17.8.101
+rook-operator-2203999069-3tb68        1/1       Running   0          9m        10.32.0.7      172.17.8.101
 
-> kubectl -n rook-system logs rook-agent-h6scx
+> kubectl -n rook-ceph-system logs rook-ceph-agent-h6scx
 2017-10-30 23:07:06.984108 I | rook: starting Rook v0.5.0-241.g48ce6de.dirty with arguments '/usr/local/bin/rook agent'
 ...
 ```
 
-In the `rook-agent` pod logs, you may see a snippet similar to the following:
+In the `rook-ceph-agent` pod logs, you may see a snippet similar to the following:
 ```console
 Failed to complete rbd: signal: interrupt.
 ```
@@ -216,7 +216,7 @@ If `uname -a` shows that you have a kernel version older than `3.15`, you'll nee
 
 ### Filesystem Mounting
 
-In the `rook-agent` pod logs, you may see a snippet similar to the following:
+In the `rook-ceph-agent` pod logs, you may see a snippet similar to the following:
 ```console
 2017-11-07 00:04:37.808870 I | rook-flexdriver: WARNING: The node kernel version is 4.4.0-87-generic, which do not support multiple ceph filesystems. The kernel version has to be at least 4.7. If you have multiple ceph filesystems, the result could be inconsistent
 ```
@@ -241,7 +241,7 @@ We want to help you get your storage working and learn from those lessons to pre
 Create a [rook-tools pod](./toolbox.md) to investigate the current state of CEPH. Here is an example of what one might see. In this case the `ceph status` command would just hang so a CTRL-C needed to be sent.
 
 ```console
-$ kubectl -n rook exec -it rook-tools bash
+$ kubectl -n rook-ceph exec -it rook-tools bash
 root@rook-tools:/# ceph status
 ^CCluster connection interrupted or timed out
 ```
@@ -249,7 +249,7 @@ root@rook-tools:/# ceph status
 Another indication is when one or more of the MON pods restart frequently. Note the 'mon107' that has only been up for 16 minutes in the following output.
 
 ```console
-$ kubectl -n rook get all -o wide --show-all
+$ kubectl -n rook-ceph get all -o wide --show-all
 NAME                                 READY     STATUS    RESTARTS   AGE       IP               NODE
 po/rook-ceph-mgr0-2487684371-gzlbq   1/1       Running   0          17h       192.168.224.46   k8-host-0402
 po/rook-ceph-mon107-p74rj            1/1       Running   0          16m       192.168.224.28   k8-host-0402
@@ -279,13 +279,13 @@ If the first mon is not detected healthy, the operator will continue to check un
 ### Operator fails to connect to the mon
 First look at the logs of the operator to confirm if it is able to connect to the mons.
 ```
-$ kubectl -n rook-system logs -l app=rook-operator
+$ kubectl -n rook-ceph-system logs -l app=rook-operator
 ```
 
 Likely you will see an error similar to the following that the operator is timing out when connecting to the mon. The last command is `ceph mon_status`,
 followed by a timeout message five minutes later.
 ```
-2018-01-21 21:47:32.375833 I | exec: Running command: ceph mon_status --cluster=rook --conf=/var/lib/rook/rook/rook.config --keyring=/var/lib/rook/rook/client.admin.keyring --format json --out-file /tmp/442263890
+2018-01-21 21:47:32.375833 I | exec: Running command: ceph mon_status --cluster=rook --conf=/var/lib/rook/rook-ceph/rook.config --keyring=/var/lib/rook/rook-ceph/client.admin.keyring --format json --out-file /tmp/442263890
 2018-01-21 21:52:35.370533 I | exec: 2018-01-21 21:52:35.071462 7f96a3b82700  0 monclient(hunting): authenticate timed out after 300
 2018-01-21 21:52:35.071462 7f96a3b82700  0 monclient(hunting): authenticate timed out after 300
 2018-01-21 21:52:35.071524 7f96a3b82700  0 librados: client.admin authentication error (110) Connection timed out
@@ -304,7 +304,7 @@ A common issue is that the CNI is not configured correctly.
 Second we need to verify if the mon pod started successfully.
 
 ```
-$ kubectl -n rook get pod -l app=rook-ceph-mon
+$ kubectl -n rook-ceph get pod -l app=rook-ceph-mon
 NAME                   READY     STATUS             RESTARTS   AGE
 rook-ceph-mon0-r8tbl   0/1       CrashLoopBackOff   2          47s
 ```
@@ -314,7 +314,7 @@ you should see the reason by describing the pod.
 
 ```
 # the pod shows a termination status that the keyring does not match the existing keyring
-$ kubectl -n rook describe pod -l mon=rook-ceph-mon0
+$ kubectl -n rook-ceph describe pod -l mon=rook-ceph-mon0
 ...
     Last State:		Terminated
       Reason:		Error
@@ -342,7 +342,7 @@ Then when the cluster CRD is applied to start a new cluster, the rook-operator s
 When an OSD starts, the device or directory will be configured for consumption. If there is an error with the configuration, the pod will crash and you will see the CrashLoopBackoff
 status for the pod. Look in the osd pod logs for an indication of the failure.
 ```
-$ kubectl -n rook logs rook-ceph-osd-fl8fs
+$ kubectl -n rook-ceph logs rook-ceph-osd-fl8fs
 ...
 ```
 
@@ -350,7 +350,7 @@ One common case for failure is that you have re-deployed a test cluster and some
 If your cluster is larger than a few nodes, you may get lucky enough that the monitors were able to start and form quorum. However, now the OSDs pods may fail to start due to the
 old state. Looking at the OSD pod logs you will see an error about the file already existing.
 ```
-$ kubectl -n rook logs rook-ceph-osd-fl8fs
+$ kubectl -n rook-ceph logs rook-ceph-osd-fl8fs
 ...
 2017-10-31 20:13:11.187106 I | mkfs-osd0: 2017-10-31 20:13:11.186992 7f0059d62e00 -1 bluestore(/var/lib/rook/osd0) _read_fsid unparsable uuid
 2017-10-31 20:13:11.187208 I | mkfs-osd0: 2017-10-31 20:13:11.187026 7f0059d62e00 -1 bluestore(/var/lib/rook/osd0) _setup_block_symlink_or_file failed to create block symlink to /dev/disk/by-partuuid/651153ba-2dfc-4231-ba06-94759e5ba273: (17) File exists

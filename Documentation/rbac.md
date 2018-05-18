@@ -68,7 +68,7 @@ working recommendation for rook:
 
 ##### ClusterRole and ClusterRoleBinding
 
-Next up you require a `ClusterRole` and a corresponding `ClusterRoleBinding`, which enables the Rook Agent `ServiceAccount` to run the rook-agent `Pods` on all nodes
+Next up you require a `ClusterRole` and a corresponding `ClusterRoleBinding`, which enables the Rook Agent `ServiceAccount` to run the rook-ceph-agent `Pods` on all nodes
 with privileged rights. Here are the definitions:
 
 ```yaml
@@ -95,18 +95,18 @@ kind: Namespace
 metadata:
   name: rook-system
 ---
-# Allow the rook-agent serviceAccount to use the privileged PSP
+# Allow the rook-ceph-agent serviceAccount to use the privileged PSP
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: rook-agent-psp
+  name: rook-ceph-agent-psp
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: privileged-psp-user
 subjects:
 - kind: ServiceAccount
-  name: rook-agent
+  name: rook-ceph-agent
   namespace: rook-system
 ```
 
@@ -126,7 +126,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: rook-default-psp
-  namespace: rook
+  namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -134,14 +134,14 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: default
-  namespace: rook
+  namespace: rook-ceph
 ---
 # Allow the rook-ceph-osd serviceAccount to use the privileged PSP
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: rook-ceph-osd-psp
-  namespace: rook
+  namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -149,5 +149,5 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-osd
-  namespace: rook
+  namespace: rook-ceph
 ```

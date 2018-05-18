@@ -145,9 +145,10 @@ This idea will become more clear in the following sections of this document.
 
 With the intent for Rook's resources to fulfill the desirable properties mentioned above, we propose the following API groups:
 
-* `rook.io`: common abstractions and implementations, in the form of `*Spec` types, that have use across multiple storage backends and types.  For example, storage scope, network information, placement, and resource usage.
-* `ceph.rook.io`: Ceph specific `Cluster` CRD type that the user can instantiate to have the Ceph controller deploy a Ceph cluster for them. This Ceph specific API group allows Ceph types to be versioned independently.
+* `rook.io`: common abstractions and implementations, in the form of `*Spec` types, that have use across multiple storage backends and types.  For example, storage, network information, placement, and resource usage.
+* `ceph.rook.io`: Ceph specific `Cluster` CRD type that the user can instantiate to have the Ceph controller deploy a Ceph cluster or Ceph resources for them. This Ceph specific API group allows Ceph types to be versioned independently.
 * `minio.rook.io`: Similar, but for Minio.
+* `cockroachdb.rook.io`: Similar, but for CockroachDB.
 * `nexenta.rook.io`: Similar, but for Nexenta.
 
 With this approach, the user experience to create a cluster would look like the following in `yaml`, where they are declaring and configuring a Ceph specific CRD type (from the `ceph.rook.io` API group), but with many common `*Spec` types that provide configuration and logic that is reusable across storage providers.
@@ -158,16 +159,15 @@ With this approach, the user experience to create a cluster would look like the 
 apiVersion: ceph.rook.io/v1
 kind: Cluster
 spec:
-  version: "rook/ceph:v0.1.0"
+  monCount: 3
   network:
   placement:
   resources:
-  scope:
+  storage:
     deviceFilter: "^sd."
-  monCount: 3
-  storeConfig:
-    storeType: bluestore
-    databaseSizeMB: 1024
+    config:
+      storeType: "bluestore"
+      databaseSizeMB: "1024"
 ```
 
 Our `golang` strongly typed definitions would look like the following, where the Ceph specific `Cluster` CRD type has common `*Spec` fields.
@@ -190,13 +190,11 @@ type Cluster struct {
 }
 
 type ClusterSpec struct {
-  Scope       rook.StorageScopeSpec `json:"scope"`
+  Storage     rook.StorageScopeSpec `json:"storage"`
   Network     rook.NetworkSpec      `json:"network"`
   Placement   rook.PlacementSpec    `json:"placement"`
   Resources   rook.ResourceSpec     `json:"resources"`
-  Version     string                `json:"version"`
   MonCount    int                   `json:"monCount"`
-  StoreConfig storeConfigSpec       `json:"storeConfig"`
 }
 ```
 
@@ -208,7 +206,7 @@ For example, both Ceph and Minio present object storage.
 Both Ceph and Nexenta present shared file systems.
 However, the implementation details for what components and configuration comprise these storage presentations is very provider specific.
 Therefore, it is not reasonable to define a common CRD that attempts to normalize how all providers deploy their object or file system presentations.
-Any commonality that can be reasonably achieved should be in the form of reusable `*Spec` types and their associated library.
+Any commonality that can be reasonably achieved should be in the form of reusable `*Spec` types and their associated libraries.
 
 Each provider can make a decision about how to expose their storage concepts.
 They could be defined as instantiable top level CRDs or they could be defined as collections underneath the top level storage provider CRD.
@@ -349,6 +347,7 @@ A source code layout that includes these new additions is shown below, annotated
   - rook # main command entry points for operators and daemons
     - ceph
     - minio
+    - cockroachdb
   - rookflex
 - pkg
   - apis
@@ -359,15 +358,22 @@ A source code layout that includes these new additions is shown below, annotated
       - v1alpha1
     - minio.rook.io # minio specific specs for cluster, object
       - v1alpha1
+    - cockroachdb.rook.io # cockroachdb specific specs
+      - v1alpha1
   - client
     - clientset # generated strongly typed client code to access Rook APIs
   - daemon # daemons for each storage backend
     - ceph
     - minio
-  - operator # all orchestration logic
-    - cluster # custom controllers for each storage backend
-      - ceph
-      - minio
+    - cockroachdb
+  - operator # all orchestration logic and custom controllers for each storage backend
+    - ceph
+      - cluster
+      - file
+      - object
+      - pool
+    - minio
+    - cockroachdb
 ```
 
 ## Summary
@@ -392,11 +398,6 @@ metadata:
   namespace: rook-ceph
 spec:
   monCount: 3
-  storeConfig:
-    storeType: bluestore
-    databaseSizeMB: 1024
-  metadataDevice: nvme01
-  version: "rook/ceph:v0.1.0"
   network:
     hostNetwork: false
   placement:
@@ -413,9 +414,14 @@ spec:
     requests:
       cpu: "500m"
       memory: "1024Mi"
-  scope:
+  storage:
     deviceFilter: "^sd."
     location:
+    config:
+      storeConfig:
+      storeType: bluestore
+      databaseSizeMB: "1024"
+      metadataDevice: nvme01
     directories:
     - path: /rook/storage-dir
     nodes:
@@ -444,7 +450,7 @@ spec:
 
 ```yaml
 apiVersion: minio.rook.io/v1alpha1
-kind: Cluster
+kind: ObjectStore
 metadata:
   name: minio
   namespace: rook-minio
@@ -452,11 +458,11 @@ spec:
   mode: distributed
   accessKey: AKIAIOSFODNN7EXAMPLE
   secretKey: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
-  version: "rook/minio:v0.1.0"
   network:
     hostNetwork: false
   placement:
   resources:
-  scope:
-    nodeCount: 4 # use 4 nodes in the cluster to host storage daemons
+  storage:
+    config:
+      nodeCount: 4 # use 4 nodes in the cluster to host storage daemons
 ```
