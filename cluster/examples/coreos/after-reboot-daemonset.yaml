@@ -2,7 +2,7 @@ apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
   name: ceph-after-reboot-check
-  namespace: rook
+  namespace: rook-ceph
 spec:
   template:
     metadata:

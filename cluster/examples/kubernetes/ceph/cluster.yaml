@@ -1,27 +1,26 @@
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: rook-ceph
 ---
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: rook-ceph
+  namespace: rook-ceph
 spec:
-  # the storage backend (only ceph is currently implemented)
-  backend: ceph
   # The path on the host where configuration files will be persisted. If not specified, a kubernetes emptyDir will be created (not recommended).
   # Important: if you reinstall the cluster, make sure you delete this directory from each host or else the mons will fail to start on the new cluster.
   # In Minikube, the '/data' directory is configured to persist across reboots. Use "/data/rook" in Minikube environment.
   dataDirHostPath: /var/lib/rook
-  # toggle to use hostNetwork
-  hostNetwork: false
   # set the amount of mons to be started
   monCount: 3
-# To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
-# The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage' and
-# tolerate taints with a key of 'storage-node'.
+  network:
+    # toggle to use hostNetwork
+    hostNetwork: false  
+  # To control where various services will be scheduled by kubernetes, use the placement configuration sections below.
+  # The example under 'all' would have all services scheduled on kubernetes nodes labeled with 'role=storage' and
+  # tolerate taints with a key of 'storage-node'.
 #  placement:
 #    all:
 #      nodeAffinity:
@@ -37,19 +36,10 @@ spec:
 #      tolerations:
 #      - key: storage-node
 #        operator: Exists
-#    mgr:
-#      nodeAffinity:
-#      podAffinity:
-#      podAntiAffinity:
-#      tolerations:
+# The above placement information can also be specified for mon, osd, and mgr components
 #    mon:
-#      nodeAffinity:
-#      tolerations:
 #    osd:
-#      nodeAffinity:
-#      podAffinity:
-#      podAntiAffinity:
-#      tolerations:
+#    mgr:
   resources:
 # The requests and limits set here, allow the mgr pod to use half of one CPU core and 1 gigabyte of memory
 #    mgr:
@@ -66,14 +56,13 @@ spec:
     useAllNodes: true
     useAllDevices: false
     deviceFilter:
-    metadataDevice:
     location:
-    storeConfig:
+    config:
       # The default and recommended storeType is dynamically set to bluestore for devices and filestore for directories.
       # Set the storeType explicitly only if it is required not to use the default.
       # storeType: bluestore 
-      databaseSizeMB: 1024 # this value can be removed for environments with normal sized disks (100 GB or larger)
-      journalSizeMB: 1024  # this value can be removed for environments with normal sized disks (20 GB or larger)
+      databaseSizeMB: "1024" # this value can be removed for environments with normal sized disks (100 GB or larger)
+      journalSizeMB: "1024"  # this value can be removed for environments with normal sized disks (20 GB or larger)
 # Cluster level list of directories to use for storage. These values will be set for all nodes that have no `directories` set.
 #    directories:
 #    - path: /rook/storage-dir
@@ -83,8 +72,6 @@ spec:
 #    - name: "172.17.4.101"
 #      directories: # specific directories to use for storage can be specified for each node
 #      - path: "/rook/storage-dir"
-# you can override the cluster wide resource requests/limits per node, but only
-# when using `useAllNodes: false`!
 #      resources:
 #        limits:
 #          cpu: "500m"
@@ -96,7 +83,7 @@ spec:
 #      devices: # specific devices to use for storage can be specified for each node
 #      - name: "sdb"
 #      - name: "sdc"
-#      storeConfig: # configuration can be specified at the node level which overrides the cluster level config
-#        storeType: bluestore
+#      config: # configuration can be specified at the node level which overrides the cluster level config
+#        storeType: filestore
 #    - name: "172.17.4.301"
 #      deviceFilter: "^sd."

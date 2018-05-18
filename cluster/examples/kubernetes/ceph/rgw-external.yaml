@@ -2,10 +2,10 @@ apiVersion: v1
 kind: Service
 metadata:
   name: rook-ceph-rgw-my-store-external
-  namespace: rook
+  namespace: rook-ceph
   labels:
     app: rook-ceph-rgw
-    rook_cluster: rook
+    rook_cluster: rook-ceph
     rook_object_store: my-store
 spec:
   ports:
@@ -15,7 +15,7 @@ spec:
     targetPort: 80
   selector:
     app: rook-ceph-rgw
-    rook_cluster: rook
+    rook_cluster: rook-ceph
     rook_object_store: my-store
   sessionAffinity: None
   type: NodePort

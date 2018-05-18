@@ -1,8 +1,8 @@
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1alpha1
 kind: Filesystem
 metadata:
   name: myfs
-  namespace: rook
+  namespace: rook-ceph
 spec:
   # The metadata pool spec
   metadataPool:

@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: ceph-before-reboot-script
-  namespace: rook
+  namespace: rook-ceph
 data:
   status-check.sh: |-
     #!/bin/bash

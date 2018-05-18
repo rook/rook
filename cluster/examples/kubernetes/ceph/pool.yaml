@@ -1,8 +1,8 @@
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1alpha1
 kind: Pool
 metadata:
   name: replicapool
-  namespace: rook
+  namespace: rook-ceph
 spec:
   # The failure domain will spread the replicas of the data across different failure zones
   failureDomain: osd

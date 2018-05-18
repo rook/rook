@@ -1,8 +1,8 @@
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1alpha1
 kind: ObjectStore
 metadata:
   name: my-store
-  namespace: rook
+  namespace: rook-ceph
 spec:
   # The pool spec used to create the metadata pools
   metadataPool:

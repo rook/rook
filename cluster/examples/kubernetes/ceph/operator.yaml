@@ -1,10 +1,14 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-ceph-system
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: clusters.rook.io
+  name: clusters.ceph.rook.io
 spec:
-  group: rook.io
+  group: ceph.rook.io
   names:
     kind: Cluster
     listKind: ClusterList
@@ -16,9 +20,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: filesystems.rook.io
+  name: filesystems.ceph.rook.io
 spec:
-  group: rook.io
+  group: ceph.rook.io
   names:
     kind: Filesystem
     listKind: FilesystemList
@@ -30,9 +34,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: objectstores.rook.io
+  name: objectstores.ceph.rook.io
 spec:
-  group: rook.io
+  group: ceph.rook.io
   names:
     kind: ObjectStore
     listKind: ObjectStoreList
@@ -44,9 +48,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: pools.rook.io
+  name: pools.ceph.rook.io
 spec:
-  group: rook.io
+  group: ceph.rook.io
   names:
     kind: Pool
     listKind: PoolList
@@ -58,21 +62,24 @@ spec:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: volumeattachments.rook.io
+  name: volumes.rook.io
 spec:
   group: rook.io
   names:
-    kind: VolumeAttachment
-    listKind: VolumeAttachmentList
-    plural: volumeattachments
-    singular: volumeattachment
+    kind: Volume
+    listKind: VolumeList
+    plural: volumes
+    singular: volume
   scope: Namespaced
-  version: v1alpha1
+  version: v1alpha2
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: rook-operator
+  name: rook-ceph-operator
+  labels:
+    operator: rook
+    storage-backend: ceph
 rules:
 - apiGroups:
   - ""
@@ -133,6 +140,12 @@ rules:
   - watch
   - delete
 - apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
   - rook.io
   resources:
   - "*"
@@ -140,47 +153,51 @@ rules:
   - "*"
 ---
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-system
----
-apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rook-operator
-  namespace: rook-system
+  name: rook-ceph-operator
+  namespace: rook-ceph-system
+  labels:
+    operator: rook
+    storage-backend: ceph
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-operator
-  namespace: rook-system
+  name: rook-ceph-operator
+  namespace: rook-ceph-system
+  labels:
+    operator: rook
+    storage-backend: ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rook-operator
+  name: rook-ceph-operator
 subjects:
 - kind: ServiceAccount
-  name: rook-operator
-  namespace: rook-system
+  name: rook-ceph-operator
+  namespace: rook-ceph-system
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: rook-operator
-  namespace: rook-system
+  name: rook-ceph-operator
+  namespace: rook-ceph-system
+  labels:
+    operator: rook
+    storage-backend: ceph
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: rook-operator
+        app: rook-ceph-operator
     spec:
-      serviceAccountName: rook-operator
+      serviceAccountName: rook-ceph-operator
       containers:
-      - name: rook-operator
-        image: rook/rook:master
-        args: ["operator"]
+      - name: rook-ceph-operator
+        image: rook/ceph:master
+        args: ["ceph", "operator"]
         env:
         # To disable RBAC, uncomment the following:
         # - name: RBAC_ENABLED
