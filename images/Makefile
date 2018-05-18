@@ -30,13 +30,13 @@ cross: cross.linux_amd64
 cross.%: base.linux_amd64
 	@$(MAKE) -C cross PLATFORM=$*
 
-rook.%: base.%
-	@$(MAKE) -C rook PLATFORM=$*
+ceph.%: base.%
+	@$(MAKE) -C ceph PLATFORM=$*
 
-toolbox.%: rook.%
+toolbox.%: ceph.%
 	@$(MAKE) -C toolbox PLATFORM=$*
 
-do.build.images.%: rook.% toolbox.% ;
+do.build.images.%: ceph.% toolbox.% ;
 do.build: do.build.images.$(PLATFORM) ;
 build.all: $(foreach p,$(PLATFORMS), do.build.images.$(p)) ;
 

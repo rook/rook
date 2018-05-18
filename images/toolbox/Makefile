@@ -19,7 +19,7 @@ TOOLBOX_BASE_IMAGE = $(BUILD_REGISTRY)/toolbox-base-$(GOARCH)
 IMAGES = $(TOOLBOX_IMAGE) $(TOOLBOX_BASE_IMAGE)
 CACHE_IMAGES = $(TOOLBOX_BASE_IMAGE)
 
-BASEIMAGE = $(BUILD_REGISTRY)/rook-base-$(GOARCH)
+BASEIMAGE = $(BUILD_REGISTRY)/ceph-base-$(GOARCH)
 
 TEMP := $(shell mktemp -d)
 
@@ -30,7 +30,7 @@ toolbox-base-image:
 	@docker build $(BUILD_ARGS) -t $(TOOLBOX_BASE_IMAGE) $(TEMP)
 
 # since this is a leaf image we avoid leaving around a lot of dangling images
-# by removing the last build of the final rook image
+# by removing the last build of the final toolbox image
 OLD_IMAGE_ID := $(shell docker images -q $(TOOLBOX_IMAGE))
 CURRENT_IMAGE_ID := $$(docker images -q $(TOOLBOX_IMAGE))
 IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/toolbox.tar.gz
