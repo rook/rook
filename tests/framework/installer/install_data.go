@@ -33,9 +33,9 @@ func (i *InstallData) GetRookCRDs(namespace string) string {
 	return `apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: clusters.rook.io
+  name: clusters.ceph.rook.io
 spec:
-  group: rook.io
+  group: ceph.rook.io
   names:
     kind: Cluster
     listKind: ClusterList
@@ -47,9 +47,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: filesystems.rook.io
+  name: filesystems.ceph.rook.io
 spec:
-  group: rook.io
+  group: ceph.rook.io
   names:
     kind: Filesystem
     listKind: FilesystemList
@@ -61,9 +61,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: objectstores.rook.io
+  name: objectstores.ceph.rook.io
 spec:
-  group: rook.io
+  group: ceph.rook.io
   names:
     kind: ObjectStore
     listKind: ObjectStoreList
@@ -75,9 +75,9 @@ spec:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: pools.rook.io
+  name: pools.ceph.rook.io
 spec:
-  group: rook.io
+  group: ceph.rook.io
   names:
     kind: Pool
     listKind: PoolList
@@ -89,16 +89,16 @@ spec:
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: volumeattachments.rook.io
+  name: volumes.rook.io
 spec:
   group: rook.io
   names:
-    kind: VolumeAttachment
-    listKind: VolumeAttachmentList
-    plural: volumeattachments
-    singular: volumeattachment
+    kind: Volume
+    listKind: VolumeList
+    plural: volumes
+    singular: volume
   scope: Namespaced
-  version: v1alpha1
+  version: v1alpha2 
 `
 }
 
@@ -110,10 +110,10 @@ apiVersion: v1
 metadata:
   name: ` + namespace + `
 ---
-kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
 metadata:
-  name: rook-operator
+  name: rook-ceph-operator
 rules:
 - apiGroups:
   - ""
@@ -148,6 +148,7 @@ rules:
   - list
   - watch
   - create
+  - update
   - delete
 - apiGroups:
   - rbac.authorization.k8s.io
@@ -173,6 +174,12 @@ rules:
   - watch
   - delete
 - apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
   - rook.io
   resources:
   - "*"
@@ -182,50 +189,47 @@ rules:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rook-operator
+  name: rook-ceph-operator
   namespace: ` + namespace + `
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-operator
+  name: rook-ceph-operator
   namespace: ` + namespace + `
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rook-operator
+  name: rook-ceph-operator
 subjects:
 - kind: ServiceAccount
-  name: rook-operator
+  name: rook-ceph-operator
   namespace: ` + namespace + `
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: rook-operator
+  name: rook-ceph-operator
   namespace: ` + namespace + `
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: rook-operator
+        app: rook-ceph-operator
     spec:
-      serviceAccountName: rook-operator
+      serviceAccountName: rook-ceph-operator
       containers:
-      - name: rook-operator
-        image: rook/rook:master
-        args: ["operator", "--mon-healthcheck-interval=5s", "--mon-out-timeout=1s"]
+      - name: rook-ceph-operator
+        image: rook/ceph:master
+        args: ["ceph", "operator"]
         env:
         - name: ROOK_LOG_LEVEL
           value: INFO
-        # The interval to check if every mon is in the quorum.
         - name: ROOK_MON_HEALTHCHECK_INTERVAL
-          value: "20s"
-        # The duration to wait before trying to failover or remove/replace the
-        # current mon with a new mon (useful for compensating flapping network).
+          value: "10s"
         - name: ROOK_MON_OUT_TIMEOUT
-          value: "300s"
+          value: "15s"
         - name: NODE_NAME
           valueFrom:
             fieldRef:
@@ -242,26 +246,27 @@ spec:
 
 //GetRookCluster returns rook-cluster manifest
 func (i *InstallData) GetRookCluster(namespace, storeType, dataDirHostPath string, useAllDevices bool, mons int) string {
-	return `apiVersion: rook.io/v1alpha1
+	return `apiVersion: ceph.rook.io/v1alpha1
 kind: Cluster
 metadata:
   name: ` + namespace + `
   namespace: ` + namespace + `
 spec:
   dataDirHostPath: ` + dataDirHostPath + `
-  hostNetwork: false
+  network:
+    hostNetwork: false  
   monCount: ` + strconv.Itoa(mons) + `
+  metadataDevice:
   storage:
     useAllNodes: true
     useAllDevices: ` + strconv.FormatBool(useAllDevices) + `
     deviceFilter:
-    metadataDevice:
     location:
-    storeConfig:
-      storeType: ` + storeType + `
-      databaseSizeMB: 1024
-      journalSizeMB: 1024
-`
+    config:
+      storeType: "` + storeType + `"
+      databaseSizeMB: "1024"
+      journalSizeMB: "1024"
+    `
 }
 
 //GetRookToolBox returns rook-toolbox manifest

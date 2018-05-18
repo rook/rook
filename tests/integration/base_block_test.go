@@ -42,7 +42,7 @@ var (
 //Create,Mount,Write,Read,Unmount and Delete.
 func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 	poolName := "replicapool"
-	storageClassName := "rook-block"
+	storageClassName := "rook-ceph-block"
 	blockName := "block-pv-claim"
 	podName := "block-test"
 
@@ -63,9 +63,9 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	logger.Infof("step 2: Mount block storage")
 	_, mtErr := helper.BlockClient.BlockMap(getBlockPodDefintion(podName, blockName, false), blockMountPath)
 	require.Nil(s.T(), mtErr)
-	crdName, err := k8sh.GetVolumeAttachmentResourceName(defaultNamespace, blockName)
+	crdName, err := k8sh.GetVolumeResourceName(defaultNamespace, blockName)
 	require.Nil(s.T(), err)
-	require.True(s.T(), k8sh.IsVolumeAttachmentResourcePresent(installer.SystemNamespace(namespace), crdName), fmt.Sprintf("make sure VolumeAttachment %s is created", crdName))
+	require.True(s.T(), k8sh.IsVolumeResourcePresent(installer.SystemNamespace(namespace), crdName), fmt.Sprintf("make sure Volume %s is created", crdName))
 	require.True(s.T(), k8sh.IsPodRunning(blockPodName, defaultNamespace), "make sure block-test pod is in running state")
 	logger.Infof("Block Storage Mounted successfully")
 
@@ -96,7 +96,7 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	logger.Infof("step 7: Unmount block storage")
 	_, unmtErr = helper.BlockClient.BlockUnmap(getBlockPodDefintion(podName, blockName, false), blockMountPath)
 	require.Nil(s.T(), unmtErr)
-	require.True(s.T(), k8sh.IsVolumeAttachmentResourceAbsent(installer.SystemNamespace(namespace), crdName), fmt.Sprintf("make sure VolumeAttachment %s is deleted", crdName))
+	require.True(s.T(), k8sh.IsVolumeResourceAbsent(installer.SystemNamespace(namespace), crdName), fmt.Sprintf("make sure Volume %s is deleted", crdName))
 	require.True(s.T(), k8sh.IsPodTerminated(blockPodName, defaultNamespace), "make sure block-test pod is terminated")
 	logger.Infof("Block Storage unmounted successfully")
 
@@ -113,7 +113,7 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 	poolName := "rookpool"
 
 	//Check initial number of blocks
-	defer blockTestDataCleanUp(helper, k8sh, clusterNamespace, poolName, "rook-block", "test-block", "block-test")
+	defer blockTestDataCleanUp(helper, k8sh, clusterNamespace, poolName, "rook-ceph-block", "test-block", "block-test")
 	bc := helper.BlockClient
 	initialBlocks, err := bc.List(clusterNamespace)
 	require.Nil(s.T(), err)
@@ -121,10 +121,10 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 
 	logger.Infof("step : Create Pool,StorageClass and PVC")
 
-	volumeDef := installer.GetBlockPoolStorageClassAndPvcDef(clusterNamespace, poolName, "rook-block", "test-block-claim", "ReadWriteOnce")
+	volumeDef := installer.GetBlockPoolStorageClassAndPvcDef(clusterNamespace, poolName, "rook-ceph-block", "test-block-claim", "ReadWriteOnce")
 	res1, err := installer.BlockResourceOperation(k8sh, volumeDef, "create")
 	assert.Contains(s.T(), res1, fmt.Sprintf("\"%s\" created", poolName), "Make sure test pool is created")
-	assert.Contains(s.T(), res1, "\"rook-block\" created", "Make sure storageclass is created")
+	assert.Contains(s.T(), res1, "\"rook-ceph-block\" created", "Make sure storageclass is created")
 	assert.Contains(s.T(), res1, "\"test-block-claim\" created", "Make sure pvc is created")
 	require.NoError(s.T(), err)
 

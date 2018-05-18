@@ -105,7 +105,7 @@ func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
 	}
 	// get the operator pod
 	sysNamespace := installer.SystemNamespace(suite.namespace)
-	listOpts := metav1.ListOptions{LabelSelector: "app=rook-operator"}
+	listOpts := metav1.ListOptions{LabelSelector: "app=rook-ceph-operator"}
 	podList, err := suite.k8sh.Clientset.CoreV1().Pods(sysNamespace).List(listOpts)
 	require.Nil(suite.T(), err)
 	require.Equal(suite.T(), 1, len(podList.Items))
