@@ -14,11 +14,11 @@ A Rook storage cluster must be configured and running in Kubernetes. In this exa
 
 When the storage admin is ready to create an object storage, he will specify his desired configuration settings in a yaml file such as the following `object-store.yaml`. This example is a simple object store with metadata that is replicated across different hosts, and the data is erasure coded across multiple devices in the cluster.
 ```yaml
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1alpha1
 kind: ObjectStore
 metadata:
   name: my-store
-  namespace: rook
+  namespace: rook-ceph
 spec:
   metadataPool:
     failureDomain: host
@@ -61,7 +61,7 @@ The object store settings are exposed to Rook as a Custom Resource Definition (C
 
 ### Pools
 
-The pools are the backing data store for the object store and are created with specific names to be private to an object store. Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/pool-crd.md). The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` and `dataPool` elements of the object store CRD. All metadata pools are created with the same settings, while the data pool can be created with independent settings. The metadata pools must use replication, while the data pool can use replication or erasure coding. 
+The pools are the backing data store for the object store and are created with specific names to be private to an object store. Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/ceph-pool-crd.md). The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` and `dataPool` elements of the object store CRD. All metadata pools are created with the same settings, while the data pool can be created with independent settings. The metadata pools must use replication, while the data pool can use replication or erasure coding. 
 
 ```yaml
   metadataPool:
@@ -84,7 +84,7 @@ The gateway settings correspond to the RGW service.
 - `securePort`: The service port where the RGW service will be listening (https)
 - `instances`: The number of RGW pods that will be started for this object store (ignored if allNodes=true)
 - `allNodes`: Whether all nodes in the cluster should run RGW as a daemonset
-- `placement`: The rgw pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/rook-cluster.yaml).
+- `placement`: The rgw pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/ceph/cluster.yaml).
 
 The RGW service can be configured to listen on both http and https by specifying both `port` and `securePort`.
 

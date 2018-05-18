@@ -14,16 +14,16 @@ This guide assumes you have created a Rook cluster as explained in the main [Qui
 
 ## Provision Storage
 
-Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. For more options on pools, see the documentation on [creating storage pools](pool-crd.md).
+Before Rook can start provisioning storage, a StorageClass and its storage pool need to be created. This is needed for Kubernetes to interoperate with Rook for provisioning persistent volumes. For more options on pools, see the documentation on [creating storage pools](ceph-pool-crd.md).
 
-Save this storage class definition as `rook-storageclass.yaml`:
+Save this storage class definition as `storageclass.yaml`:
 
 ```yaml
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1alpha1
 kind: Pool
 metadata:
   name: replicapool
-  namespace: rook
+  namespace: rook-ceph
 spec:
   replicated:
     size: 3
@@ -31,8 +31,8 @@ spec:
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
-   name: rook-block
-provisioner: rook.io/block
+   name: rook-ceph-block
+provisioner: ceph.rook.io/block
 parameters:
   pool: replicapool
   #The value of "clusterNamespace" MUST be the same as the one in which your rook cluster exist
@@ -41,7 +41,7 @@ parameters:
 
 Create the storage class.
 ```bash
-kubectl create -f rook-storageclass.yaml
+kubectl create -f storageclass.yaml
 ```
 
 ## Consume the storage: Wordpress sample
@@ -65,7 +65,7 @@ mysql-pv-claim   Bound     pvc-95402dbc-efc0-11e6-bc9a-0cc47a3459ee   20Gi      
 wp-pv-claim      Bound     pvc-39e43169-efc1-11e6-bc9a-0cc47a3459ee   20Gi       RWO           1m
 ```
 
-Once the wordpress and mysql pods are in the `Running` state, get the cluster IP of the wordpress app and enter it in your brower:
+Once the wordpress and mysql pods are in the `Running` state, get the cluster IP of the wordpress app and enter it in your browser:
 
 ```bash
 $ kubectl get svc wordpress
@@ -74,6 +74,12 @@ wordpress   10.3.0.155   <pending>     80:30841/TCP   2m
 ```
 
 You should see the wordpress app running.
+
+If you are using Minikube, the Wordpress URL can be retrieved with this one-line command:
+
+```console
+echo http://$(minikube ip):$(kubectl get service wordpress -o jsonpath='{.spec.ports[0].nodePort}')
+```
 
 **NOTE:** When running in a vagrant environment, there will be no external IP address to reach wordpress with.  You will only be able to reach wordpress via the `CLUSTER-IP` from inside the Kubernetes cluster.
 
@@ -88,6 +94,6 @@ To clean up all the artifacts created by the block demo:
 ```
 kubectl delete -f wordpress.yaml
 kubectl delete -f mysql.yaml
-kubectl delete -n rook pool replicapool
-kubectl delete storageclass rook-block
+kubectl delete -n rook-ceph pool replicapool
+kubectl delete storageclass rook-ceph-block
 ```

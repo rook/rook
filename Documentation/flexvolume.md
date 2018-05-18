@@ -23,12 +23,12 @@ Please refer to the below sections for more information on your specific platfor
 Restart Kubelet in order for this change to take effect.
 
 ## For Kubernetes >= 1.9.x
-In Kubernetes 1.9.x, you must provide the above set Flexvolume plugin directory when deploying the [rook-operator](/cluster/examples/kubernetes/rook-operator.yaml) by setting the environment variable `FLEXVOLUME_DIR_PATH`. For example:
+In Kubernetes 1.9.x, you must provide the above set Flexvolume plugin directory when deploying the [rook-operator](/cluster/examples/kubernetes/ceph/operator.yaml) by setting the environment variable `FLEXVOLUME_DIR_PATH`. For example:
 ```yaml
 - name: FLEXVOLUME_DIR_PATH
   value: "/var/lib/kubelet/volumeplugins"
 ```
-(In the `rook-operator.yaml` manifest replace `<PathToFlexVolumes>` with the path)
+(In the `operator.yaml` manifest replace `<PathToFlexVolumes>` with the path)
 
 
 ## For Rancher

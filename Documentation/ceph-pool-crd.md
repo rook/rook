@@ -1,10 +1,10 @@
 ---
-title: Pool
+title: Ceph Pool
 weight: 34
 indent: true
 ---
 
-# Pool CRD
+# Ceph Pool CRD
 
 Rook allows creation and customization of storage pools through the custom resource definitions (CRDs). The following settings are available
 for pools.
@@ -12,11 +12,11 @@ for pools.
 ## Sample
 
 ```yaml
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1alpha1
 kind: Pool
 metadata:
   name: ecpool
-  namespace: rook
+  namespace: rook-ceph
 spec:
   replicated:
   #  size: 3

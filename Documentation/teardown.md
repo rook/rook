@@ -6,8 +6,8 @@ indent: true
 
 # Cleaning up a Cluster
 If you want to tear down the cluster and bring up a new one, be aware of the following resources that will need to be cleaned up:
-- `rook-system` namespace: The Rook operator and agent created by `rook-operator.yaml`
-- `rook` namespace: The Rook storage cluster created by `rook-cluster.yaml` (the cluster CRD)
+- `rook-ceph-system` namespace: The Rook operator and agent created by `operator.yaml`
+- `rook-ceph` namespace: The Rook storage cluster created by `cluster.yaml` (the cluster CRD)
 - `/var/lib/rook`: Path on each host in the cluster where configuration is cached by the ceph mons and osds
 
 Note that if you changed the default namespaces or paths in the sample yaml files, you will need to adjust these namespaces and paths throughout these instructions.
@@ -23,35 +23,34 @@ These commands will clean up the resources from the [block](block.md#teardown) a
 ```console
 kubectl delete -f wordpress.yaml
 kubectl delete -f mysql.yaml
-kubectl delete -n rook pool replicapool
-kubectl delete storageclass rook-block
-kubectl delete -n kube-system secret rook-admin
+kubectl delete -n rook-ceph pool replicapool
+kubectl delete storageclass rook-ceph-block
 kubectl delete -f kube-registry.yaml
 ```
 
 ## Delete the Cluster CRD
 After those block and file resources have been cleaned up, you can then delete your Rook cluster. This is important to delete **before removing the Rook operator and agent or else resources may not be cleaned up properly**.
 ```console
-kubectl delete -n rook cluster rook
+kubectl delete -n rook-ceph cluster rook-ceph
 ```
 
 Verify that the cluster CRD has been deleted before continuing to the next step.
 ```
-kubectl -n rook get cluster
+kubectl -n rook-ceph get cluster
 ```
 
 ## Delete the Operator and Agent
 This will begin the process of all cluster resources being cleaned up, after which you can delete the rest of the deployment with the following:
 ```console
-kubectl delete -n rook-system daemonset rook-agent
-kubectl delete -f rook-operator.yaml
-kubectl delete clusterroles rook-agent
-kubectl delete clusterrolebindings rook-agent
+kubectl delete -n rook-ceph-system daemonset rook-ceph-agent
+kubectl delete -f operator.yaml
+kubectl delete clusterroles rook-ceph-agent
+kubectl delete clusterrolebindings rook-ceph-agent
 ```
 
-Optionally remove the rook namespace if it is not in use by any other resources.
+Optionally remove the rook-ceph namespace if it is not in use by any other resources.
 ```
-kubectl delete namespace rook
+kubectl delete namespace rook-ceph
 ```
 
 ## Delete the data on hosts
@@ -70,13 +69,13 @@ The most common issue cleaning up the cluster is that the `rook` namespace or th
 
 Look at the pods:
 ```
-kubectl -n rook get pod
+kubectl -n rook-ceph get pod
 ```
 If a pod is still terminating, you will need to wait or else attempt to forcefully terminate it (`kubectl delete pod <name>`).
 
 Now look at the cluster CRD:
 ```
-kubectl -n rook get cluster
+kubectl -n rook-ceph get cluster
 ```
 If the cluster CRD still exists even though you have executed the delete command earlier, see the next section on removing the finalizer.
 
@@ -86,12 +85,12 @@ When a Cluster CRD is created, a [finalizer](https://kubernetes.io/docs/tasks/ac
 The operator is responsible for removing the finalizer after the mounts have been cleaned up. If for some reason the operator is not able to remove the finalizer (ie. the operator is not running anymore), you can delete the finalizer manually.
 
 ```
-kubectl -n rook edit cluster rook
+kubectl -n rook-ceph edit cluster rook-ceph
 ```
 
 This will open a text editor (usually `vi`) to allow you to edit the CRD. Look for the `finalizers` element and delete the following line:
 ```
-  - cluster.rook.io
+  - cluster.ceph.rook.io
 ```
 
 Now save the changes and exit the editor. Within a few seconds you should see that the cluster CRD has been deleted and will no longer block other cleanup such as deleting the `rook` namespace.

@@ -25,9 +25,9 @@ If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, mak
 
 If you're feeling lucky, a simple Rook cluster can be created with the following kubectl commands. For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
 ```
-cd cluster/examples/kubernetes
-kubectl create -f rook-operator.yaml
-kubectl create -f rook-cluster.yaml
+cd cluster/examples/kubernetes/ceph
+kubectl create -f operator.yaml
+kubectl create -f cluster.yaml
 ```
 
 After the cluster is running, you can create [block, object, or file](#storage) storage to be consumed by other applications in your cluster.
@@ -37,11 +37,11 @@ After the cluster is running, you can create [block, object, or file](#storage) 
 The first step is to deploy the Rook system components, which include the Rook agent running on each node in your cluster as well as Rook operator pod.
 
 ```bash
-cd cluster/examples/kubernetes
-kubectl create -f rook-operator.yaml
+cd cluster/examples/kubernetes/ceph
+kubectl create -f operator.yaml
 
-# verify the rook-operator and rook-agents pods are in the `Running` state before proceeding
-kubectl -n rook-system get pod
+# verify the rook-ceph-operator and rook-ceph-agent pods are in the `Running` state before proceeding
+kubectl -n rook-ceph-system get pod
 ```
 
 You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
@@ -57,43 +57,43 @@ For versions of Kubernetes prior to 1.8, the Kubelet process on all nodes will r
 ## Create a Rook Cluster
 
 Now that the Rook operator and agent pods are running, we can create the Rook cluster. For the cluster to survive reboots,
-make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](cluster-crd.md).
+make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](ceph-cluster-crd.md).
 
 
-Save the cluster spec as `rook-cluster.yaml`:
+Save the cluster spec as `cluster.yaml`:
 
 ```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: rook-ceph
 ---
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: rook-ceph
+  namespace: rook-ceph
 spec:
   dataDirHostPath: /var/lib/rook
   storage:
     useAllNodes: true
     useAllDevices: false
-    storeConfig:
+    config:
       storeType: bluestore
-      databaseSizeMB: 1024
-      journalSizeMB: 1024
+      databaseSizeMB: "1024"
+      journalSizeMB: "1024"
 ```
 
 Create the cluster:
 
 ```bash
-kubectl create -f rook-cluster.yaml
+kubectl create -f cluster.yaml
 ```
 
 Use `kubectl` to list pods in the `rook` namespace. You should be able to see the following pods once they are all running:
 
 ```bash
-$ kubectl -n rook get pod
+$ kubectl -n rook-ceph get pod
 NAME                              READY     STATUS    RESTARTS   AGE
 rook-ceph-mgr0-1279756402-wc4vt   1/1       Running   0          5m
 rook-ceph-mon0-jflt5              1/1       Running   0          6m

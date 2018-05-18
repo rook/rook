@@ -41,14 +41,14 @@ kubectl create -f prometheus-service.yaml
 
 Ensure that the Prometheus server pod gets created and advances to the `Running` state before moving on:
 ```bash
-kubectl -n rook get pod prometheus-rook-prometheus-0
+kubectl -n rook-ceph get pod prometheus-rook-prometheus-0
 ```
 
 ## Prometheus Web Console
 
 Once the Prometheus server is running, you can open a web browser and go to the URL that is output from this command:
 ```bash
-echo "http://$(kubectl -n rook -o jsonpath={.status.hostIP} get pod prometheus-rook-prometheus-0):30900"
+echo "http://$(kubectl -n rook-ceph -o jsonpath={.status.hostIP} get pod prometheus-rook-prometheus-0):30900"
 ```
 
 You should now see the Prometheus monitoring website.
@@ -96,7 +96,7 @@ To clean up all the artifacts created by the monitoring walkthrough, copy/paste 
 kubectl delete -f service-monitor.yaml
 kubectl delete -f prometheus.yaml
 kubectl delete -f prometheus-service.yaml
-kubectl -n rook delete statefulset prometheus-rook-prometheus
+kubectl -n rook-ceph delete statefulset prometheus-rook-prometheus
 kubectl delete -f https://raw.githubusercontent.com/coreos/prometheus-operator/release-0.8/bundle.yaml
 ```
 Then the rest of the instructions in the [Prometheus Operator docs](https://github.com/coreos/prometheus-operator#removal) can be followed to finish cleaning up.

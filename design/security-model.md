@@ -71,13 +71,13 @@ Once the rook operator is up and running it will automatically create the servic
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rook-agent
+  name: rook-ceph-agent
   namespace: rook-system
 ---
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-agent
+  name: rook-ceph-agent
 rules:
 - apiGroups: [""]
   resources: ["pods", "secrets", "configmaps", "persistenvolumes", "nodes", "nodes/proxy"]
@@ -92,15 +92,15 @@ rules:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-agent
+  name: rook-ceph-agent
   namespace: rook-system
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rook-agent
+  name: rook-ceph-agent
 subjects:
 - kind: ServiceAccount
-  name: rook-agent
+  name: rook-ceph-agent
   namespace: rook-system
 ```
 

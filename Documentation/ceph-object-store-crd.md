@@ -1,22 +1,22 @@
 ---
-title: Object Store
+title: Ceph Object Store
 weight: 36
 indent: true
 ---
 
-# Object Store CRD
+# Ceph Object Store CRD
 
 Rook allows creation and customization of object stores through the custom resource definitions (CRDs). The following settings are available
-for object stores.
+for Ceph object stores.
 
 ## Sample
 
 ```yaml
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1alpha1
 kind: ObjectStore
 metadata:
   name: my-store
-  namespace: rook
+  namespace: rook-ceph
 spec:
   metadataPool:
     replicated:
@@ -64,7 +64,7 @@ spec:
 
 ### Pools
 
-The pools allow all of the settings defined in the Pool CRD spec. For more details, see the [Pool CRD](pool-crd.md) settings. In the example above, there must be at least three hosts (size 3) and at least three devices (2 data + 1 coding chunks) in the cluster.
+The pools allow all of the settings defined in the Pool CRD spec. For more details, see the [Pool CRD](ceph-pool-crd.md) settings. In the example above, there must be at least three hosts (size 3) and at least three devices (2 data + 1 coding chunks) in the cluster.
 
 - `metadataPool`: The settings used to create all of the object store metadata pools. Must use replication.
 - `dataPool`: The settings to create the object store data pool. Can use replication or erasure coding.
@@ -80,4 +80,4 @@ The gateway settings correspond to the RGW daemon settings.
 - `instances`: The number of pods that will be started to load balance this object store. Ignored if `allNodes` is true.
 - `allNodes`: Whether RGW pods should be started on all nodes. If true, a daemonset is created. If false, `instances` must be set.
 - `placement`: The Kubernetes placement settings to determine where the RGW pods should be started in the cluster.
-- `resources`: Set resource requests/limits for the Gateway Pod(s), see [Resource Requirements/Limits](cluster-crd.md#resource-requirementslimits).
+- `resources`: Set resource requests/limits for the Gateway Pod(s), see [Resource Requirements/Limits](ceph-cluster-crd.md#resource-requirementslimits).
