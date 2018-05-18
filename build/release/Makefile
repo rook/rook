@@ -58,7 +58,7 @@ endif
 DOCKER_REGISTRY ?= rook
 QUAY_REGISTRY ?= quay.io/rook
 REGISTRIES ?= $(DOCKER_REGISTRY) $(QUAY_REGISTRY)
-IMAGES ?= rook toolbox
+IMAGES ?= ceph toolbox
 IMAGE_ARCHS := $(subst linux_,,$(filter linux_%,$(PLATFORMS)))
 IMAGE_PLATFORMS := $(subst _,/,$(subst $(SPACE),$(COMMA),$(filter linux_%,$(PLATFORMS))))
 

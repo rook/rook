@@ -64,6 +64,6 @@ Binaries go to an S3 bucket `rook-release` (and https://release.rook.io) and hav
 Containers go to docker hub and quay.io where we have the following repos:
 
 ```
-rook/rook
+rook/ceph
 rook/toolbox
 ```
