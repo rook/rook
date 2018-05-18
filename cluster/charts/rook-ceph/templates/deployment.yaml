@@ -1,27 +1,27 @@
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: rook-operator
+  name: rook-ceph-operator
   labels:
     operator: rook
+    storage-backend: ceph
     chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: rook-operator
+      app: rook-ceph-operator
   template:
     metadata:
       labels:
-        app: rook-operator
+        app: rook-ceph-operator
         chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
     spec:
       containers:
-      - name: rook-operator
+      - name: rook-ceph-operator
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-        args:
-          - operator
+        args: ["ceph", "operator"]
         env:
 {{- if not .Values.rbacEnable }}
         - name: RBAC_ENABLED
@@ -68,5 +68,5 @@ spec:
         resources:
 {{ toYaml .Values.resources | indent 10 }}
     {{- if .Values.rbacEnable }}
-      serviceAccountName: rook-operator
+      serviceAccountName: rook-ceph-operator
     {{- end }}
