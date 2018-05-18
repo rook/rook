@@ -59,12 +59,12 @@ func (s *BlockLongHaulSuiteWithFencing) SetupSuite() {
 	var err error
 	s.namespace = "longhaul-ns"
 	s.op, s.kh, s.installer = StartBaseLoadTestOperations(s.T, s.namespace)
-	createStorageClassAndPool(s.T, s.kh, s.namespace, "rook-block", "rook-pool")
+	createStorageClassAndPool(s.T, s.kh, s.namespace, "rook-ceph-block", "rook-pool")
 	s.testClient, err = clients.CreateTestClient(s.kh, s.namespace)
 	require.Nil(s.T(), err)
 	if _, err := s.kh.GetPVCStatus(defaultNamespace, "block-pv-one"); err != nil {
 		logger.Infof("Creating PVC and mounting it to pod with readOnly set to false")
-		installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef("block-pv-one", "rook-block", "ReadWriteOnce"), "create")
+		installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef("block-pv-one", "rook-ceph-block", "ReadWriteOnce"), "create")
 		mountUnmountPVCOnPod(s.kh, "block-rw", "block-pv-one", "false", "create")
 		require.True(s.T(), s.kh.IsPodRunning("block-rw", defaultNamespace))
 

@@ -155,11 +155,11 @@ func (o MCTestOperations) SetUp() {
 	err = o.installer.CreateK8sRookOperator(installer.SystemNamespace(o.namespace1))
 	require.NoError(o.T(), err)
 
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-operator", installer.SystemNamespace(o.namespace1), "Running"),
+	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-operator", installer.SystemNamespace(o.namespace1), "Running"),
 		"Make sure rook-operator is in running state")
 
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-agent", installer.SystemNamespace(o.namespace1), "Running"),
-		"Make sure rook-agent is in running state")
+	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-agent", installer.SystemNamespace(o.namespace1), "Running"),
+		"Make sure rook-ceph-agent is in running state")
 
 	require.True(o.T(), o.kh.IsPodInExpectedState("rook-discover", installer.SystemNamespace(o.namespace1), "Running"),
 		"Make sure rook-discover is in running state")

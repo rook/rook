@@ -19,7 +19,7 @@ package integration
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/daemon/agent/flexvolume"
+	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -143,7 +143,7 @@ spec:
   volumes:
   - name: ` + filesystemName + `
     flexVolume:
-      driver: rook.io/` + driverName + `
+      driver: ceph.rook.io/` + driverName + `
       fsType: ceph
       options:
         fsName: ` + filesystemName + `

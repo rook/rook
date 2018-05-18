@@ -8,14 +8,14 @@ case "${1:-}" in
   save)
     case "${2:-}" in
         arm|arm64|amd64)
-            docker tag ${BUILD_REGISTRY}/rook-$2:latest rook/rook:master
+            docker tag ${BUILD_REGISTRY}/ceph-$2:latest rook/ceph:master
             docker tag ${BUILD_REGISTRY}/toolbox-$2:latest rook/toolbox:master
             if [ ! -z $3 ]
                 then
-                    docker tag ${BUILD_REGISTRY}/rook-$2:latest rook/rook:$3
-                    docker save -o rook-$2.tar rook/rook:master rook/rook:$3 rook/toolbox:master
+                    docker tag ${BUILD_REGISTRY}/ceph-$2:latest rook/ceph:$3
+                    docker save -o ceph-$2.tar rook/ceph:master rook/ceph:$3 rook/toolbox:master
                 else
-                   docker save -o rook-$2.tar rook/rook:master rook/toolbox:master
+                   docker save -o ceph-$2.tar rook/ceph:master rook/toolbox:master
             fi
             ;;
         *)
@@ -26,7 +26,7 @@ case "${1:-}" in
   load)
     case "${2:-}" in
          arm|arm64|amd64)
-            docker load -i rook-$2.tar
+            docker load -i ceph-$2.tar
             ;;
         *)
             echo "usage :" >&2
@@ -38,7 +38,7 @@ case "${1:-}" in
     case "${2:- }" in
         arm|arm64|amd64)
             tag_version="${3:-"master"}"
-            docker tag ${BUILD_REGISTRY}/rook-$2:latest rook/rook:${tag_version}
+            docker tag ${BUILD_REGISTRY}/ceph-$2:latest rook/ceph:${tag_version}
             docker tag ${BUILD_REGISTRY}/toolbox-$2:latest rook/toolbox:${tag_version}
             ;;
         *)

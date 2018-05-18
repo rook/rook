@@ -42,7 +42,7 @@ func CreateK8sFilesystemOperation(k8sh *utils.K8sHelper) *FilesystemOperation {
 func (f *FilesystemOperation) Create(name, namespace string) error {
 
 	logger.Infof("creating the filesystem via CRD")
-	fsSpec := fmt.Sprintf(`apiVersion: rook.io/v1alpha1
+	fsSpec := fmt.Sprintf(`apiVersion: ceph.rook.io/v1alpha1
 kind: Filesystem
 metadata:
   name: %s
@@ -100,8 +100,7 @@ func (f *FilesystemOperation) List(namespace string) ([]client.CephFilesystem, e
 // path - ignored in this case - moount path is defined in the path definition
 // output - output returned by k8s create pod operaton and/or error
 func (f *FilesystemOperation) Mount(name string, path string) (string, error) {
-	cmdArgs := []string{"create", "-f", "name"}
-	result, err := f.k8sh.Kubectl(cmdArgs...)
+	result, err := f.k8sh.Kubectl("create", "-f", "name")
 
 	if err != nil {
 		return "", fmt.Errorf("Unable to mount Filesystem -- : %s", err)
@@ -168,8 +167,7 @@ func (f *FilesystemOperation) Read(name string, mountpath string, filename strin
 // path - ignored in this case - moount path is defined in the path definition
 // output - output returned by k8s delete pod operaton and/or error
 func (f *FilesystemOperation) Unmount(name string) (string, error) {
-	args := []string{"delete", "-f", name}
-	result, err := f.k8sh.Kubectl(args...)
+	result, err := f.k8sh.Kubectl("delete", "-f", name)
 	if err != nil {
 		return "", fmt.Errorf("Unable to unmount Filesystem -- : %s", err)
 

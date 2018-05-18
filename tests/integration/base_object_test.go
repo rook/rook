@@ -128,7 +128,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Ceph MGRs are running alright")
 
 	logger.Infof("Delete Object Store")
-	dobsErr := helper.ObjectClient.Delete(namespace, storeName, 1)
+	dobsErr := helper.ObjectClient.Delete(namespace, storeName)
 	require.Nil(s.T(), dobsErr)
 	logger.Infof("Object store deleted successfully")
 }

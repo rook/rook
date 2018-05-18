@@ -70,7 +70,7 @@ func (s *BlockCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 	//Create PVC
 	claimName := "test-no-storage-class-claim"
 	poolName := "test-no-storage-class-pool"
-	storageClassName := "rook-block"
+	storageClassName := "rook-ceph-block"
 	defer s.tearDownTest(claimName, poolName, storageClassName, "ReadWriteOnce")
 
 	result, err := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
@@ -98,7 +98,7 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	logger.Infof("Test creating PVC(create block images) twice")
 	claimName := "test-twice-claim"
 	poolName := "test-twice-pool"
-	storageClassName := "rook-block"
+	storageClassName := "rook-ceph-block"
 	defer s.tearDownTest(claimName, poolName, storageClassName, "ReadWriteOnce")
 	status, _ := s.kh.GetPVCStatus(defaultNamespace, claimName)
 	logger.Infof("PVC %s status: %s", claimName, status)
@@ -115,7 +115,7 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	require.NoError(s.T(), err1)
 
 	logger.Infof("make sure storageclass is created")
-	present, err := s.kh.IsStorageClassPresent("rook-block")
+	present, err := s.kh.IsStorageClassPresent("rook-ceph-block")
 	require.Nil(s.T(), err)
 	require.True(s.T(), present, "Make sure storageclass is present")
 
@@ -218,7 +218,7 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 	logger.Infof("Test creating %s PVC(block images) when storage class is created", pvcAccessMode)
 	claimName := fmt.Sprintf("test-with-storage-class-claim-%s", pvcName)
 	poolName := fmt.Sprintf("test-with-storage-class-pool-%s", pvcName)
-	storageClassName := "rook-block"
+	storageClassName := "rook-ceph-block"
 	defer s.tearDownTest(claimName, poolName, storageClassName, pvcAccessMode)
 
 	//create pool and storageclass

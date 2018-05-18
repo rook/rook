@@ -55,7 +55,7 @@ type BlockLongHaulSuite struct {
 func (s *BlockLongHaulSuite) SetupSuite() {
 	s.namespace = "longhaul-ns"
 	s.op, s.kh, s.installer = StartBaseLoadTestOperations(s.T, s.namespace)
-	createStorageClassAndPool(s.T, s.kh, s.namespace, "rook-block", "rook-pool")
+	createStorageClassAndPool(s.T, s.kh, s.namespace, "rook-ceph-block", "rook-pool")
 }
 
 //create a n number  ofPVC, Create a MySQL app/service that uses pvc
@@ -66,9 +66,9 @@ func (s *BlockLongHaulSuite) TestBlockLonghaulRun() {
 	wg.Add(s.installer.Env.LoadVolumeNumber)
 	for i := 1; i <= s.installer.Env.LoadVolumeNumber; i++ {
 		if i == 1 {
-			go BlockVolumeOperations(s, &wg, "rook-block", "mysqlapp-persist", "mysqldb", "mysql-persist-claim", false)
+			go BlockVolumeOperations(s, &wg, "rook-ceph-block", "mysqlapp-persist", "mysqldb", "mysql-persist-claim", false)
 		} else {
-			go BlockVolumeOperations(s, &wg, "rook-block", "mysqlapp-ephemeral-"+strconv.Itoa(i), "mysqldbeph"+strconv.Itoa(i), "mysql-ephemeral-claim"+strconv.Itoa(i), randomBool())
+			go BlockVolumeOperations(s, &wg, "rook-ceph-block", "mysqlapp-ephemeral-"+strconv.Itoa(i), "mysqldbeph"+strconv.Itoa(i), "mysql-ephemeral-claim"+strconv.Itoa(i), randomBool())
 
 		}
 
@@ -92,7 +92,7 @@ func BlockVolumeOperations(s *BlockLongHaulSuite, wg *sync.WaitGroup, storageCla
 func (s *BlockLongHaulSuite) TearDownSuite() {
 	//clean up all ephemeral block storage, index 1 is persistent block storage which is going to be used among different test runs.
 	for i := 2; i <= s.installer.Env.LoadVolumeNumber; i++ {
-		mySqlPodOperation(s.kh, "rook-block", "mysqlapp-ephemeral-"+strconv.Itoa(i), "mysqldbeph"+strconv.Itoa(i), "mysql-ephemeral-claim"+strconv.Itoa(i), "delete")
+		mySqlPodOperation(s.kh, "rook-ceph-block", "mysqlapp-ephemeral-"+strconv.Itoa(i), "mysqldbeph"+strconv.Itoa(i), "mysql-ephemeral-claim"+strconv.Itoa(i), "delete")
 	}
 	s.kh = nil
 	s = nil
