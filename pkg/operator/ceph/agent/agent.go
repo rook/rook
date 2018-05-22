@@ -117,7 +117,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage string) error {
 						{
 							Name:  agentDaemonsetName,
 							Image: agentImage,
-							Args:  []string{"agent"},
+							Args:  []string{"ceph", "agent"},
 							SecurityContext: &v1.SecurityContext{
 								Privileged: &privileged,
 							},

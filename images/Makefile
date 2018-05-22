@@ -33,10 +33,10 @@ cross.%: base.linux_amd64
 ceph.%: base.%
 	@$(MAKE) -C ceph PLATFORM=$*
 
-toolbox.%: ceph.%
-	@$(MAKE) -C toolbox PLATFORM=$*
+ceph-toolbox.%: ceph.%
+	@$(MAKE) -C ceph-toolbox PLATFORM=$*
 
-do.build.images.%: ceph.% toolbox.% ;
+do.build.images.%: ceph.% ceph-toolbox.% ;
 do.build: do.build.images.$(PLATFORM) ;
 build.all: $(foreach p,$(PLATFORMS), do.build.images.$(p)) ;
 

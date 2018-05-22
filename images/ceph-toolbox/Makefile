@@ -14,8 +14,8 @@
 
 include ../image.mk
 
-TOOLBOX_IMAGE = $(BUILD_REGISTRY)/toolbox-$(GOARCH)
-TOOLBOX_BASE_IMAGE = $(BUILD_REGISTRY)/toolbox-base-$(GOARCH)
+TOOLBOX_IMAGE = $(BUILD_REGISTRY)/ceph-toolbox-$(GOARCH)
+TOOLBOX_BASE_IMAGE = $(BUILD_REGISTRY)/ceph-toolbox-base-$(GOARCH)
 IMAGES = $(TOOLBOX_IMAGE) $(TOOLBOX_BASE_IMAGE)
 CACHE_IMAGES = $(TOOLBOX_BASE_IMAGE)
 
@@ -33,7 +33,7 @@ toolbox-base-image:
 # by removing the last build of the final toolbox image
 OLD_IMAGE_ID := $(shell docker images -q $(TOOLBOX_IMAGE))
 CURRENT_IMAGE_ID := $$(docker images -q $(TOOLBOX_IMAGE))
-IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/toolbox.tar.gz
+IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/ceph-toolbox.tar.gz
 
 do.build: toolbox-base-image
 	@echo === docker build $(TOOLBOX_IMAGE)

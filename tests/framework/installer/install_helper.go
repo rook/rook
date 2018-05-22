@@ -126,7 +126,7 @@ func (h *InstallHelper) CreateK8sRookOperatorViaHelm(namespace string) error {
 	return nil
 }
 
-//CreateK8sRookToolbox creates rook-tools via kubectl
+//CreateK8sRookToolbox creates rook-ceph-tools via kubectl
 func (h *InstallHelper) CreateK8sRookToolbox(namespace string) (err error) {
 	logger.Infof("Starting Rook toolbox")
 
@@ -138,7 +138,7 @@ func (h *InstallHelper) CreateK8sRookToolbox(namespace string) (err error) {
 		return fmt.Errorf("Failed to create rook-toolbox pod : %v ", err)
 	}
 
-	if !h.k8shelper.IsPodRunning("rook-tools", namespace) {
+	if !h.k8shelper.IsPodRunning("rook-ceph-tools", namespace) {
 		return fmt.Errorf("Rook Toolbox couldn't start")
 	}
 	logger.Infof("Rook Toolbox started")

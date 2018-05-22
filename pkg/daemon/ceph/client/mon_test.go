@@ -39,7 +39,7 @@ func TestCephArgs(t *testing.T) {
 	assert.Equal(t, 7, len(args), fmt.Sprintf("%+v", args))
 	assert.Equal(t, "-it", args[0])
 	assert.Equal(t, "exec", args[1])
-	assert.Equal(t, "rook-tools", args[2])
+	assert.Equal(t, "rook-ceph-tools", args[2])
 	assert.Equal(t, "-n", args[3])
 	assert.Equal(t, "a", args[4])
 	assert.Equal(t, "--", args[5])

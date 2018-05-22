@@ -13,12 +13,11 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package agent
+package ceph
 
 import (
 	"fmt"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent"
@@ -28,31 +27,29 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var AgentCmd = &cobra.Command{
+var agentCmd = &cobra.Command{
 	Use:    "agent",
-	Short:  "Runs the rook agent",
+	Short:  "Runs the rook ceph agent",
 	Hidden: true,
 }
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "agentcmd")
-
 func init() {
-	flags.SetFlagsFromEnv(AgentCmd.Flags(), "ROOK")
-	AgentCmd.RunE = startAgent
+	flags.SetFlagsFromEnv(agentCmd.Flags(), rook.RookEnvVarPrefix)
+	agentCmd.RunE = startAgent
 }
 
 func startAgent(cmd *cobra.Command, args []string) error {
 
 	rook.SetLogLevel()
 
-	rook.LogStartupInfo(AgentCmd.Flags())
+	rook.LogStartupInfo(agentCmd.Flags())
 
 	clientset, apiExtClientset, rookClientset, err := rook.GetClientset()
 	if err != nil {
 		rook.TerminateFatal(fmt.Errorf("failed to get k8s client. %+v", err))
 	}
 
-	logger.Info("starting rook agent")
+	logger.Info("starting rook ceph agent")
 	context := &clusterd.Context{
 		Executor:              &exec.CommandExecutor{},
 		ConfigDir:             k8sutil.DataDir,
@@ -65,7 +62,7 @@ func startAgent(cmd *cobra.Command, args []string) error {
 	agent := agent.New(context)
 	err = agent.Run()
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to run rook agent. %+v\n", err))
+		rook.TerminateFatal(fmt.Errorf("failed to run rook ceph agent. %+v\n", err))
 	}
 
 	return nil
