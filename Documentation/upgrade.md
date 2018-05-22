@@ -25,6 +25,7 @@ With this manual upgrade guide, there are a few notes to consider:
 * **WARNING:** Upgrading a Rook cluster is a manual process in its very early stages.  There may be unexpected issues or obstacles that damage the integrity and health of your storage cluster, including data loss.  Only proceed with this guide if you are comfortable with that.
 * Rook is still in an alpha state.  Migrations and general support for breaking changes across versions are not supported or covered in this guide.
 * This guide assumes that your Rook operator and its agents are running in the `rook-system` namespace. It also assumes that your Rook cluster is in the `rook` namespace.  If any of these components is in a different namespace, search/replace all instances of `-n rook-system` and `-n rook` in this guide with `-n <your namespace>`.
+  * New Ceph specific namespaces (`rook-ceph-system` and `rook-ceph`) are now used by default in the new release, but this guide maintains the usage of `rook-system` and `rook` for backwards compatibility.  Note that all user guides and examples have been updated to the new namespaces, so you will need to tweak them to maintain compatibility with the legacy `rook-system` and `rook` namespaces.
 
 ## Prerequisites
 In order to successfully upgrade a Rook cluster, the following prerequisites must be met:
@@ -76,7 +77,7 @@ If pods aren't running or are restarting due to crashes, you can get more inform
 The Rook toolbox contains the Ceph tools that can give you status details of the cluster with the `ceph status` command.
 Let's look at some sample output and review some of the details:
 ```bash
-> kubectl -n rook exec -it rook-tools -- ceph status
+> kubectl -n rook exec -it rook-ceph-tools -- ceph status
   cluster:
     id:     fe7ae378-dc77-46a1-801b-de05286aa78e
     health: HEALTH_OK
@@ -160,7 +161,8 @@ Now we need to create the new Ceph specific operator.
 
 **IMPORTANT:** Ensure that you are using the latest manifests from either `master` or the `release-0.8` branch.  If you have custom configuration options set in your old `rook-operator.yaml` manifest, you will need to set those values in the new Ceph operator manifest below.
 
-Navigate to the new Ceph manifests directory, apply your custom configuration options if you are using any, and then create the new Ceph operator:
+Navigate to the new Ceph manifests directory, apply your custom configuration options if you are using any, and then create the new Ceph operator with the command below.
+Note that the new operator by default uses by `rook-ceph-system` namespace, but we will use `sed` to edit it in place to use `rook-system` instead for backwards compatibility with your existing cluster.
 ```bash
 cd cluster/examples/kubernetes/ceph
 cat operator.yaml | sed -e 's/namespace: rook-ceph-system/namespace: rook-system/g' | kubectl create -f -
@@ -180,7 +182,7 @@ Instructions for verifying cluster health can be found in the [health verificati
 After upgrading the operator, the placement groups may show as status unknown. If you see this, go to the section
 on [upgrading OSDs](#object-storage-daemons-osds). Upgrading the OSDs will resolve this issue.
 ```
-kubectl -n rook exec -it rook-tools -- ceph status
+kubectl -n rook exec -it rook-ceph-tools -- ceph status
 ...
     pgs:     100.000% pgs unknown
              100 unknown
@@ -190,12 +192,13 @@ kubectl -n rook exec -it rook-tools -- ceph status
 The toolbox pod runs the tools we will use during the upgrade for cluster status. The toolbox is not expected to contain any state,
 so we will delete the old pod and start the new toolbox.
 ```bash
-kubectl -n rook delete pod rook-tools
+kubectl -n rook delete pod rook-ceph-tools
 ```
-After verifying the old tools pod has terminated, start the new toolbox. You will need to either create the toolbox using the yaml in the master branch
-or simply set the version of the container to `rook/toolbox:master` before creating the toolbox.
+After verifying the old tools pod has terminated, start the new toolbox.
+You will need to either create the toolbox using the yaml in the master branch or simply set the version of the container to `rook/ceph-toolbox:master` before creating the toolbox.
+Note the below command uses `sed` to change the new default namespace for the toolbox from `rook-ceph` to `rook` to be backwards compatible with your existing cluster.
 ```
-cat rook-tools.yaml | sed -e 's/namespace: rook-ceph/namespace: rook/g' | kubectl create -f -
+cat toolbox.yaml | sed -e 's/namespace: rook-ceph/namespace: rook/g' | kubectl create -f -
 ```
 
 ### API

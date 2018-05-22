@@ -65,5 +65,5 @@ Containers go to docker hub and quay.io where we have the following repos:
 
 ```
 rook/ceph
-rook/toolbox
+rook/ceph-toolbox
 ```

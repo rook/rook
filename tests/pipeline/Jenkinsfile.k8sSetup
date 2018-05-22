@@ -27,18 +27,18 @@ pipeline {
                             currentBuild.result = 'FAILURE'
                             error 'Exit pipeline need a pr number'
                         }
-                        sh "wget -O rook.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/rook.tar.gz"
-                        sh "wget -O toolbox.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/toolbox.tar.gz"
+                        sh "wget -O ceph.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/ceph.tar.gz"
+                        sh "wget -O ceph-toolbox.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/ceph-toolbox.tar.gz"
                         sh "wget -O version https://release.rook.io/build/pr/${params.PR}/${params.version}/version"
 
                     }else {
-                        sh "wget -O rook.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/rook.tar.gz"
-                        sh "wget -O toolbox.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/toolbox.tar.gz"
+                        sh "wget -O ceph.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/ceph.tar.gz"
+                        sh "wget -O ceph-toolbox.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/ceph-toolbox.tar.gz"
                         sh "wget -O version https://release.rook.io/build/master/${params.version}/version"
 
                      }
                stash name: 'test-scripts',includes: 'tests/scripts/'
-               stash name: 'test-images', includes: 'rook.tar.gz,toolbox.tar.gz,version'
+               stash name: 'test-images', includes: 'ceph.tar.gz,ceph-toolbox.tar.gz,version'
                }
             }
         }
@@ -96,8 +96,8 @@ def setUpRookImages(){
     env.versionId = readFile('version').trim()
     sh'''
           #!/bin/bash
-          docker load -i rook.tar.gz
-          docker load -i toolbox.tar.gz
+          docker load -i ceph.tar.gz
+          docker load -i ceph-toolbox.tar.gz
           docker images
           rookImg=$(docker images |grep rook | awk '{print  $1}')
           echo $rookImg
@@ -105,7 +105,7 @@ def setUpRookImages(){
           echo $toolboxImg
           echo "helm Image:"
           echo ${versionId}
-          docker tag $rookImg rook/rook:master
-          docker tag $rookImg rook/rook:${versionId}
-          docker tag $toolboxImg rook/toolbox:master'''
+          docker tag $rookImg rook/ceph:master
+          docker tag $rookImg rook/ceph:${versionId}
+          docker tag $toolboxImg rook/ceph-toolbox:master'''
 }

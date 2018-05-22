@@ -274,13 +274,13 @@ func (i *InstallData) GetRookToolBox(namespace string) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:
-  name: rook-tools
+  name: rook-ceph-tools
   namespace: ` + namespace + `
 spec:
   dnsPolicy: ClusterFirstWithHostNet
   containers:
-  - name: rook-tools
-    image: rook/toolbox:master
+  - name: rook-ceph-tools
+    image: rook/ceph-toolbox:master
     imagePullPolicy: IfNotPresent
     env:
       - name: ROOK_ADMIN_SECRET

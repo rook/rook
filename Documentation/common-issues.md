@@ -45,9 +45,9 @@ Kubernetes status is the first line of investigating when something goes wrong w
 After you verify the basic health of the running pods, next you will want to run Ceph tools for status of the storage components. There are two ways to run the Ceph tools, either in the Rook toolbox or inside other Rook pods that are already running.
 
 ### Tools in the Rook Toolbox
- The [rook-tools pod](./toolbox.md) is a one-stop shop for both Ceph tools and other troubleshooting tools. Once the pod is up and running one connect to the pod to execute Ceph commands to evaluate that current state of the cluster.
+ The [rook-ceph-tools pod](./toolbox.md) is a one-stop shop for both Ceph tools and other troubleshooting tools. Once the pod is up and running one connect to the pod to execute Ceph commands to evaluate that current state of the cluster.
  ```bash
- kubectl exec -it rook-tools bash
+ kubectl exec -it rook-ceph-tools bash
  ```
 
 ### Tools in other pods
@@ -238,11 +238,11 @@ We want to help you get your storage working and learn from those lessons to pre
 * One or more MONs are restarting periodically
 
 ## Investigation
-Create a [rook-tools pod](./toolbox.md) to investigate the current state of CEPH. Here is an example of what one might see. In this case the `ceph status` command would just hang so a CTRL-C needed to be sent.
+Create a [rook-ceph-tools pod](./toolbox.md) to investigate the current state of CEPH. Here is an example of what one might see. In this case the `ceph status` command would just hang so a CTRL-C needed to be sent.
 
 ```console
-$ kubectl -n rook-ceph exec -it rook-tools bash
-root@rook-tools:/# ceph status
+$ kubectl -n rook-ceph exec -it rook-ceph-tools bash
+root@rook-ceph-tools:/# ceph status
 ^CCluster connection interrupted or timed out
 ```
 

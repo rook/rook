@@ -50,7 +50,7 @@ case "${1:-}" in
     ${scriptdir}/dind-cluster.sh reup
     ${scriptdir}/makeTestImages.sh save amd64 || true
     copy_image_to_cluster rook/rook:master
-    copy_image_to_cluster rook/toolbox:master
+    copy_image_to_cluster rook/ceph-toolbox:master
     set +e
     copy_image_to_cluster ceph/base ceph/base:latest
     set -e
@@ -64,7 +64,7 @@ case "${1:-}" in
     ;;
   update)
     copy_image_to_cluster rook/rook:master
-    copy_image_to_cluster rook/toolbox:master
+    copy_image_to_cluster rook/ceph-toolbox:master
     ;;
   wordpress)
     copy_image_to_cluster mysql:5.6

@@ -18,7 +18,6 @@ package main
 import (
 	"fmt"
 
-	"github.com/rook/rook/cmd/rook/agent"
 	"github.com/rook/rook/cmd/rook/ceph"
 	rook "github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/cmd/rook/version"
@@ -33,7 +32,6 @@ func main() {
 
 func addCommands() {
 	rook.RootCmd.AddCommand(version.VersionCmd)
-	rook.RootCmd.AddCommand(agent.AgentCmd)
 	rook.RootCmd.AddCommand(discoverCmd)
 	rook.RootCmd.AddCommand(ceph.Cmd)
 
