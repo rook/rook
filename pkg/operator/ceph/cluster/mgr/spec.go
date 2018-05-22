@@ -49,9 +49,10 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig, port int) *extensions.Dep
 			Containers: []v1.Container{
 				c.makeMgrDaemonContainer(mgrConfig, port),
 			},
-			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       opspec.PodVolumes(""),
-			HostNetwork:   c.HostNetwork,
+			ServiceAccountName: "rook-ceph-mgr",
+			RestartPolicy:      v1.RestartPolicyAlways,
+			Volumes:            opspec.PodVolumes(""),
+			HostNetwork:        c.HostNetwork,
 		},
 	}
 	if c.HostNetwork {
