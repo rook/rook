@@ -18,8 +18,12 @@ package fake
 
 import (
 	clientset "github.com/rook/rook/pkg/client/clientset/versioned"
+	cephv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph/v1alpha1"
+	fakecephv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph/v1alpha1/fake"
 	rookv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook/v1alpha1"
 	fakerookv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook/v1alpha1/fake"
+	rookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook/v1alpha2"
+	fakerookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook/v1alpha2/fake"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/discovery"
@@ -61,6 +65,16 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 
 var _ clientset.Interface = &Clientset{}
 
+// CephV1alpha1 retrieves the CephV1alpha1Client
+func (c *Clientset) CephV1alpha1() cephv1alpha1.CephV1alpha1Interface {
+	return &fakecephv1alpha1.FakeCephV1alpha1{Fake: &c.Fake}
+}
+
+// Ceph retrieves the CephV1alpha1Client
+func (c *Clientset) Ceph() cephv1alpha1.CephV1alpha1Interface {
+	return &fakecephv1alpha1.FakeCephV1alpha1{Fake: &c.Fake}
+}
+
 // RookV1alpha1 retrieves the RookV1alpha1Client
 func (c *Clientset) RookV1alpha1() rookv1alpha1.RookV1alpha1Interface {
 	return &fakerookv1alpha1.FakeRookV1alpha1{Fake: &c.Fake}
@@ -69,4 +83,9 @@ func (c *Clientset) RookV1alpha1() rookv1alpha1.RookV1alpha1Interface {
 // Rook retrieves the RookV1alpha1Client
 func (c *Clientset) Rook() rookv1alpha1.RookV1alpha1Interface {
 	return &fakerookv1alpha1.FakeRookV1alpha1{Fake: &c.Fake}
+}
+
+// RookV1alpha2 retrieves the RookV1alpha2Client
+func (c *Clientset) RookV1alpha2() rookv1alpha2.RookV1alpha2Interface {
+	return &fakerookv1alpha2.FakeRookV1alpha2{Fake: &c.Fake}
 }

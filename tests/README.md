@@ -98,8 +98,8 @@ In addition to standard go tests parameters, the following custom parameters are
  --- |--- | --- | ---
 rook_platform| platform rook needs to be installed on  | kubernetes | kubernetes
 k8s_version  | version of Kubernetes to be installed  | v1.7+  | v1.8.5
-rook_image | rook image name to be installed | valid image name | rook/rook
-toolbox_image | toolbox image name to be installed | valid image name | rook/toolbox
+rook_image | rook image name to be installed | valid image name | rook/ceph
+toolbox_image | toolbox image name to be installed | valid image name | rook/ceph-toolbox
 skip_install_rook | skips installing rook (if already installed) | true or false  | false
 
 ### Running Tests with parameters.

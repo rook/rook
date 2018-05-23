@@ -20,7 +20,7 @@ cd ${scriptdir}/../../vendor/k8s.io/code-generator && ./generate-groups.sh \
   all \
   github.com/rook/rook/pkg/client \
   github.com/rook/rook/pkg/apis \
-  "rook.io:v1alpha1"
+  "rook.io:v1alpha1,v1alpha2 ceph.rook.io:v1alpha1"
 # this seems busted in the release-1.8 branch
 #  --go-header-file ${SCRIPT_ROOT}/build/codegen/header.txt
 

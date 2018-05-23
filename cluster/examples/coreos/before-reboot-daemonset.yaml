@@ -2,7 +2,7 @@ apiVersion: extensions/v1beta1
 kind: DaemonSet
 metadata:
   name: ceph-before-reboot-check
-  namespace: rook
+  namespace: rook-ceph
 spec:
   template:
     metadata:
@@ -18,7 +18,7 @@ spec:
         effect: NoSchedule
       containers:
       - name: ceph-before-reboot-check
-        image: rook/toolbox:master
+        image: rook/ceph-toolbox:master
         imagePullPolicy: IfNotPresent
         command: ["/scripts/status-check.sh"]
         env:

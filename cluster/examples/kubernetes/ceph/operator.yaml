@@ -1,0 +1,249 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-ceph-system
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: clusters.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: Cluster
+    listKind: ClusterList
+    plural: clusters
+    singular: cluster
+    shortNames:
+    - rcc
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: filesystems.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: Filesystem
+    listKind: FilesystemList
+    plural: filesystems
+    singular: filesystem
+    shortNames:
+    - rcfs
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectstores.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: ObjectStore
+    listKind: ObjectStoreList
+    plural: objectstores
+    singular: objectstore
+    shortNames:
+    - rco
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: pools.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: Pool
+    listKind: PoolList
+    plural: pools
+    singular: pool
+    shortNames:
+    - rcp
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: volumes.rook.io
+spec:
+  group: rook.io
+  names:
+    kind: Volume
+    listKind: VolumeList
+    plural: volumes
+    singular: volume
+    shortNames:
+    - rv
+  scope: Namespaced
+  version: v1alpha2
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-operator
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - serviceaccounts
+  - secrets
+  - pods
+  - services
+  - nodes
+  - nodes/proxy
+  - configmaps
+  - events
+  - persistentvolumes
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  - daemonsets
+  - replicasets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - rbac.authorization.k8s.io
+  resources:
+  - clusterroles
+  - clusterrolebindings
+  - roles
+  - rolebindings
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - storage.k8s.io
+  resources:
+  - storageclasses
+  verbs:
+  - get
+  - list
+  - watch
+  - delete
+- apiGroups:
+  - ceph.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-operator
+  namespace: rook-ceph-system
+  labels:
+    operator: rook
+    storage-backend: ceph
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-operator
+  namespace: rook-ceph-system
+  labels:
+    operator: rook
+    storage-backend: ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-operator
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-operator
+  namespace: rook-ceph-system
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: rook-ceph-operator
+  namespace: rook-ceph-system
+  labels:
+    operator: rook
+    storage-backend: ceph
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: rook-ceph-operator
+    spec:
+      serviceAccountName: rook-ceph-operator
+      containers:
+      - name: rook-ceph-operator
+        image: rook/ceph:master
+        args: ["ceph", "operator"]
+        env:
+        # To disable RBAC, uncomment the following:
+        # - name: RBAC_ENABLED
+        #  value: "false"
+        # Rook Agent toleration. Will tolerate all taints with all keys.
+        # Choose between NoSchedule, PreferNoSchedule and NoExecute:
+        # - name: AGENT_TOLERATION
+        #  value: "NoSchedule"
+        # (Optional) Rook Agent toleration key. Set this to the key of the taint you want to tolerate
+        # - name: AGENT_TOLERATION_KEY
+        #  value: "<KeyOfTheTaintToTolerate>"
+        # Set the path where the Rook agent can find the flex volumes
+        # - name: FLEXVOLUME_DIR_PATH
+        #  value: "<PathToFlexVolumes>"
+        # Allow rook to create multiple file systems. Note: This is considered
+        # an experimental feature in Ceph as described at
+        # http://docs.ceph.com/docs/master/cephfs/experimental-features/#multiple-filesystems-within-a-ceph-cluster
+        # which might cause mons to crash as seen in https://github.com/rook/rook/issues/1027
+        - name: ROOK_ALLOW_MULTIPLE_FILESYSTEMS
+          value: "false"
+        # The interval to check if every mon is in the quorum.
+        - name: ROOK_MON_HEALTHCHECK_INTERVAL
+          value: "45s"
+        # The duration to wait before trying to failover or remove/replace the
+        # current mon with a new mon (useful for compensating flapping network).
+        - name: ROOK_MON_OUT_TIMEOUT
+          value: "300s"
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace

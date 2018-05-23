@@ -274,7 +274,7 @@ func (k8sh *K8sHelper) ResourceOperation(action string, podDefiniton string) (st
 }
 
 //DeleteResource performs a kubectl delete on give args
-func (k8sh *K8sHelper) DeleteResource(args []string) (string, error) {
+func (k8sh *K8sHelper) DeleteResource(args ...string) (string, error) {
 	args = append([]string{"delete"}, args...)
 	result, err := k8sh.Kubectl(args...)
 	if err == nil {
@@ -295,29 +295,46 @@ func (k8sh *K8sHelper) GetResource(args ...string) (string, error) {
 
 }
 
-//GetMonitorServices returns all ceph mon pod names
-func (k8sh *K8sHelper) GetMonitorServices(namespace string) (map[string]string, error) {
-	listOpts := metav1.ListOptions{LabelSelector: "app=rook-ceph-mon"}
-
-	podList, err := k8sh.Clientset.CoreV1().Services(namespace).List(listOpts)
+func (k8sh *K8sHelper) CountPodsWithLabel(label string, namespace string) (int, error) {
+	options := metav1.ListOptions{LabelSelector: label}
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
 	if err != nil {
-		logger.Errorf("Cannot get rook monitor pods in namespace %s, err: %v", namespace, err)
-		return nil, fmt.Errorf("Cannot get rook monitor pods in namespace %s, err: %v", namespace, err)
+		if errors.IsNotFound(err) {
+			return 0, nil
+		}
+		return 0, err
 	}
-	mons := []string{}
-	for _, svc := range podList.Items {
-		mons = append(mons, svc.Spec.ClusterIP)
+	return len(pods.Items), nil
+}
+
+//WaitForPodCount waits until the desired number of pods with the label are started
+func (k8sh *K8sHelper) WaitForPodCount(label, namespace string, count int) error {
+	options := metav1.ListOptions{LabelSelector: label}
+	inc := 0
+	for inc < RetryLoop {
+		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
+		if err != nil {
+			return fmt.Errorf("failed to find pod with label %s. %+v", label, err)
+		}
+
+		if len(pods.Items) == count {
+			logger.Infof("found for %d pods with label %s", count, label)
+			return nil
+		}
+		inc++
+		time.Sleep(RetryInterval * time.Second)
+		logger.Infof("waiting for %d pods (found %d) with label %s in namespace %s", count, len(pods.Items), label, namespace)
 
 	}
-	if len(mons) != 3 {
-		return nil, fmt.Errorf("Unexpected monitors: %+v", mons)
-	}
+	return fmt.Errorf("Giving up waiting for pods with label %s", label, namespace)
+}
 
-	return map[string]string{
-		"mon0": fmt.Sprintf("%s:6790", mons[0]),
-		"mon1": fmt.Sprintf("%s:6790", mons[1]),
-		"mon2": fmt.Sprintf("%s:6790", mons[2]),
-	}, nil
+func (k8sh *K8sHelper) IsPodWithLabelPresent(label string, namespace string) bool {
+	count, err := k8sh.CountPodsWithLabel(label, namespace)
+	if err != nil {
+		return false
+	}
+	return count > 0
 }
 
 //WaitForLabeledPodToRun returns true if a Pod is running status or goes to Running status within 90s else returns false
@@ -481,8 +498,8 @@ func (k8sh *K8sHelper) IsCRDPresent(crdName string) bool {
 	return false
 }
 
-// GetVolumeAttachmentResourceName gets the VolumeAttachment object name from the PVC
-func (k8sh *K8sHelper) GetVolumeAttachmentResourceName(namespace, pvcName string) (string, error) {
+// GetVolumeResourceName gets the Volume object name from the PVC
+func (k8sh *K8sHelper) GetVolumeResourceName(namespace, pvcName string) (string, error) {
 
 	getOpts := metav1.GetOptions{}
 	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(pvcName, getOpts)
@@ -492,9 +509,9 @@ func (k8sh *K8sHelper) GetVolumeAttachmentResourceName(namespace, pvcName string
 	return pvc.Spec.VolumeName, nil
 }
 
-//IsVolumeAttachmentResourcePresent returns true if VolumeAttachment resource is present
-func (k8sh *K8sHelper) IsVolumeAttachmentResourcePresent(namespace, volumeAttachmentName string) bool {
-	err := k8sh.waitForVolumeAttachment(namespace, volumeAttachmentName, true)
+//IsVolumeResourcePresent returns true if Volume resource is present
+func (k8sh *K8sHelper) IsVolumeResourcePresent(namespace, volumeName string) bool {
+	err := k8sh.waitForVolume(namespace, volumeName, true)
 	if err != nil {
 		k8slogger.Error(err.Error())
 		return false
@@ -502,10 +519,10 @@ func (k8sh *K8sHelper) IsVolumeAttachmentResourcePresent(namespace, volumeAttach
 	return true
 }
 
-//IsVolumeAttachmentResourceAbsent returns true if the VolumeAttachment resource is deleted/absent within 90s else returns false
-func (k8sh *K8sHelper) IsVolumeAttachmentResourceAbsent(namespace, volumeAttachmentName string) bool {
+//IsVolumeResourceAbsent returns true if the Volume resource is deleted/absent within 90s else returns false
+func (k8sh *K8sHelper) IsVolumeResourceAbsent(namespace, volumeName string) bool {
 
-	err := k8sh.waitForVolumeAttachment(namespace, volumeAttachmentName, false)
+	err := k8sh.waitForVolume(namespace, volumeName, false)
 	if err != nil {
 		k8slogger.Error(err.Error())
 		return false
@@ -513,7 +530,7 @@ func (k8sh *K8sHelper) IsVolumeAttachmentResourceAbsent(namespace, volumeAttachm
 	return true
 }
 
-func (k8sh *K8sHelper) waitForVolumeAttachment(namespace, volumeAttachmentName string, exist bool) error {
+func (k8sh *K8sHelper) waitForVolume(namespace, volumeName string, exist bool) error {
 
 	action := "exist"
 	if !exist {
@@ -522,23 +539,24 @@ func (k8sh *K8sHelper) waitForVolumeAttachment(namespace, volumeAttachmentName s
 
 	inc := 0
 	for inc < RetryLoop {
-		isExist, err := k8sh.isVolumeAttachmentExist(namespace, volumeAttachmentName)
+		isExist, err := k8sh.isVolumeExist(namespace, volumeName)
 		if err != nil {
-			return fmt.Errorf("Errors encountered while getting VolumeAttachment %s/%s: %v", namespace, volumeAttachmentName, err)
+			return fmt.Errorf("Errors encountered while getting Volume %s/%s: %v", namespace, volumeName, err)
 		}
 		if isExist == exist {
 			return nil
 		}
 
-		k8slogger.Infof("waiting for VolumeAttachment %s in namespace %s to %s", volumeAttachmentName, namespace, action)
+		k8slogger.Infof("waiting for Volume %s in namespace %s to %s", volumeName, namespace, action)
 		time.Sleep(RetryInterval * time.Second)
 		inc++
 
 	}
-	k8sh.printVolumeAttachments(namespace, volumeAttachmentName)
+
+	k8sh.printVolumes(namespace, volumeName)
 	k8sh.printPVs()
 	k8sh.printPVCs(namespace)
-	return fmt.Errorf("timeout for VolumeAttachment %s in namespace %s wait to %s", volumeAttachmentName, namespace, action)
+	return fmt.Errorf("timeout for Volume %s in namespace %s wait to %s", volumeName, namespace, action)
 }
 
 func (k8sh *K8sHelper) printPVs() {
@@ -567,21 +585,21 @@ func (k8sh *K8sHelper) printPVCs(namespace string) {
 	logger.Infof("Found PVCs: %v", names)
 }
 
-func (k8sh *K8sHelper) printVolumeAttachments(namespace, desiredVolumeAttachment string) {
-	attachments, err := k8sh.RookClientset.RookV1alpha1().VolumeAttachments(namespace).List(metav1.ListOptions{})
+func (k8sh *K8sHelper) printVolumes(namespace, desiredVolume string) {
+	volumes, err := k8sh.RookClientset.RookV1alpha2().Volumes(namespace).List(metav1.ListOptions{})
 	if err != nil {
-		logger.Infof("failed to list volume attachments in ns %s. %+v", namespace, err)
+		logger.Infof("failed to list volumes in ns %s. %+v", namespace, err)
 	}
 
 	var names []string
-	for _, attachment := range attachments.Items {
-		names = append(names, attachment.Name)
+	for _, volume := range volumes.Items {
+		names = append(names, volume.Name)
 	}
-	logger.Infof("looking for volume attachment %s in namespace %s. Found attachments: %v", desiredVolumeAttachment, namespace, names)
+	logger.Infof("looking for volume %s in namespace %s. Found volumes: %v", desiredVolume, namespace, names)
 }
 
-func (k8sh *K8sHelper) isVolumeAttachmentExist(namespace, name string) (bool, error) {
-	_, err := k8sh.RookClientset.RookV1alpha1().VolumeAttachments(namespace).Get(name, metav1.GetOptions{})
+func (k8sh *K8sHelper) isVolumeExist(namespace, name string) (bool, error) {
+	_, err := k8sh.RookClientset.RookV1alpha2().Volumes(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil
@@ -1074,12 +1092,12 @@ func (k8sh *K8sHelper) CreateAnonSystemClusterBinding() {
 }
 
 func (k8sh *K8sHelper) DeleteRoleAndBindings(name, namespace string) error {
-	_, err := k8sh.DeleteResource([]string{"role", name, "-n", namespace})
+	_, err := k8sh.DeleteResource("role", name, "-n", namespace)
 	if err != nil {
 		return err
 	}
 
-	_, err = k8sh.DeleteResource([]string{"rolebinding", name, "-n", namespace})
+	_, err = k8sh.DeleteResource("rolebinding", name, "-n", namespace)
 	if err != nil {
 		return err
 	}

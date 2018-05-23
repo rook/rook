@@ -41,10 +41,10 @@ var (
 //Test to make sure all rook components are installed and Running
 func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNamespace, clusterNamespace string, mons int) {
 	logger.Infof("Make sure all Pods in Rook Cluster %s are running", clusterNamespace)
-	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-operator", opNamespace, 1, "Running"),
+	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-operator", opNamespace, 1, "Running"),
 		"Make sure there is 1 rook-operator present in Running state")
-	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-agent", opNamespace, 1, "Running"),
-		"Make sure there is 1 rook-agent present in Running state")
+	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-agent", opNamespace, 1, "Running"),
+		"Make sure there is 1 rook-ceph-agent present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-discover", opNamespace, 1, "Running"),
 		"Make sure there is 1 rook-discover present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mgr", clusterNamespace, 1, "Running"),

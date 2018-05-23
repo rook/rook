@@ -31,7 +31,7 @@ We use the [milestone](https://github.com/rook/rook/milestones) feature in Githu
   * Improved data placement and pool configuration (CRUSH maps)
   * Dynamic Volume Provisioning for CephFS
   * ceph-volume provisioning for OSDs
-  * Ceph CSI plug-in that runs everywhere (rook-agent uses ceph-fuse, nbd-rbd / tcmu runner)
+  * Ceph CSI plug-in that runs everywhere (rook-ceph-agent uses ceph-fuse, nbd-rbd / tcmu runner)
 * Cluster and Pool types are declared Beta
 
 ## Rook 1.0

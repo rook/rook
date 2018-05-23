@@ -4,6 +4,8 @@ scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${scriptdir}/../../build/common.sh"
 
 function init_flexvolume() {
+    local flexname=$1
+
     cat <<EOF | ssh -i `minikube ssh-key` docker@`minikube ip` -o IdentitiesOnly=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=quiet 'cat - > ~/rook'
 #!/bin/bash
 echo -ne '{"status": "Success", "capabilities": {"attach": false}}' >&1
@@ -11,9 +13,8 @@ exit 0
 EOF
     minikube ssh "chmod +x ~/rook"
     minikube ssh "sudo chown root:root ~/rook"
-    minikube ssh "sudo mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook"
-    minikube ssh "sudo mv ~/rook /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook"
-    minikube start --memory=${MEMORY}  --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
+    minikube ssh "sudo mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/${flexname}~rook"
+    minikube ssh "sudo mv ~/rook /usr/libexec/kubernetes/kubelet-plugins/volume/exec/${flexname}~rook"
 }
 
 # workaround for kube-dns CrashLoopBackOff issue with RBAC enabled
@@ -95,14 +96,18 @@ MEMORY=${MEMORY:-"3000"}
 
 case "${1:-}" in
   up)
-    # Use kubeadm bootstrapper for 1.9+ since localkube was deprecated in 1.8
+    # Use kubeadm bootstrapper for 1.8+ since localkube was deprecated in 1.8
     if [[ $KUBE_VERSION == v1.7* ]] ; then
       echo "starting minikube with localkube bootstrapper"
-      minikube start --memory=${MEMORY} --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
+      minikube start --memory=${MEMORY} -b localkube --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
       wait_for_ssh
       enable_roles_for_RBAC
-      echo "initializing flexvolume for rook"
-      init_flexvolume
+      echo "initializing flexvolume for ceph.rook.io"
+      init_flexvolume ceph.rook.io
+      echo "initializing flexvolume for rook.io"
+      init_flexvolume rook.io
+      echo "restarting minikube"
+      minikube start --memory=${MEMORY} -b localkube --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
     else
       echo "starting minikube with kubeadm bootstrapper"
       minikube start --memory=${MEMORY} -b kubeadm --kubernetes-version ${KUBE_VERSION}
@@ -110,8 +115,8 @@ case "${1:-}" in
     fi
     # create a link so the default dataDirHostPath will work for this environment
     minikube ssh "sudo mkdir /mnt/sda1/var/lib/rook;sudo ln -s /mnt/sda1/var/lib/rook /var/lib/rook"
-    copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
-    copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
+    copy_image_to_cluster ${BUILD_REGISTRY}/ceph-amd64 rook/ceph:master
+    copy_image_to_cluster ${BUILD_REGISTRY}/ceph-toolbox-amd64 rook/ceph-toolbox:master
     ;;
   down)
     minikube stop
@@ -122,8 +127,8 @@ case "${1:-}" in
     ;;
   update)
     echo "updating the rook images"
-    copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:master
-    copy_image_to_cluster ${BUILD_REGISTRY}/toolbox-amd64 rook/toolbox:master
+    copy_image_to_cluster ${BUILD_REGISTRY}/ceph-amd64 rook/ceph:master
+    copy_image_to_cluster ${BUILD_REGISTRY}/ceph-toolbox-amd64 rook/ceph-toolbox:master
     ;;
   restart)
     if check_context; then
@@ -144,7 +149,7 @@ case "${1:-}" in
   helm)
     echo " copying rook image for helm"
     helm_tag="`cat _output/version`"
-    copy_image_to_cluster ${BUILD_REGISTRY}/rook-amd64 rook/rook:${helm_tag}
+    copy_image_to_cluster ${BUILD_REGISTRY}/ceph-amd64 rook/ceph:${helm_tag}
     ;;
   clean)
     minikube delete

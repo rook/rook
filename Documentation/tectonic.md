@@ -45,4 +45,4 @@ Visit the official [Tectonic manual boot](https://coreos.com/tectonic/docs/lates
 
 ## Start Rook
 After the Tectonic Installer ran and the Kubernetes cluster is started and ready, you can follow the [Rook installation guide](quickstart.md).
-If you want to specify which disks Rook uses, follow the instructions in [creating Rook clusters](cluster-crd.md)
+If you want to specify which disks Rook uses, follow the instructions in [creating Rook clusters](ceph-cluster-crd.md)
