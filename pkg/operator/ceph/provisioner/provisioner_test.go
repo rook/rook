@@ -76,6 +76,7 @@ func TestProvisionImage(t *testing.T) {
 	assert.NotNil(t, pv.Spec.PersistentVolumeSource.FlexVolume)
 	assert.Equal(t, "foo.io/rook-system", pv.Spec.PersistentVolumeSource.FlexVolume.Driver)
 	assert.Equal(t, "ext3", pv.Spec.PersistentVolumeSource.FlexVolume.FSType)
+	assert.Equal(t, "testCluster", pv.Spec.PersistentVolumeSource.FlexVolume.Options["clusterNamespace"])
 	assert.Equal(t, "class-1", pv.Spec.PersistentVolumeSource.FlexVolume.Options["storageClass"])
 	assert.Equal(t, "testpool", pv.Spec.PersistentVolumeSource.FlexVolume.Options["pool"])
 	assert.Equal(t, "pvc-uid-1-1", pv.Spec.PersistentVolumeSource.FlexVolume.Options["image"])
