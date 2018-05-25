@@ -101,7 +101,7 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 			(*out)[key] = *newVal
 		}
 	}
-	out.Network = in.Network
+	in.Network.DeepCopyInto(&out.Network)
 	if in.Resources != nil {
 		in, out := &in.Resources, &out.Resources
 		*out = make(v1alpha2.ResourceSpec, len(*in))

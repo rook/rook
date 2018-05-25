@@ -192,7 +192,7 @@ kubectl -n rook exec -it rook-ceph-tools -- ceph status
 The toolbox pod runs the tools we will use during the upgrade for cluster status. The toolbox is not expected to contain any state,
 so we will delete the old pod and start the new toolbox.
 ```bash
-kubectl -n rook delete pod rook-ceph-tools
+kubectl -n rook delete pod rook-tools
 ```
 After verifying the old tools pod has terminated, start the new toolbox.
 You will need to either create the toolbox using the yaml in the master branch or simply set the version of the container to `rook/ceph-toolbox:master` before creating the toolbox.

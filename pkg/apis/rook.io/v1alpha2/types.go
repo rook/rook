@@ -32,6 +32,7 @@ type StorageScopeSpec struct {
 	metav1.TypeMeta `json:",inline"`
 	Nodes           []Node            `json:"nodes,omitempty"`
 	UseAllNodes     bool              `json:"useAllNodes,omitempty"`
+	NodeCount       int               `json:"nodeCount,omitempty"`
 	Location        string            `json:"location,omitempty"`
 	Config          map[string]string `json:"config"`
 	Selection
@@ -84,6 +85,14 @@ type NetworkSpec struct {
 
 	// HostNetwork to enable host network
 	HostNetwork bool `json:"hostNetwork"`
+
+	// Set of named ports that can be configured for this resource
+	Ports []PortSpec `json:"ports,omitempty"`
+}
+
+type PortSpec struct {
+	Name string `json:"name,omitempty"`
+	Port int32  `json:"port,omitempty"`
 }
 
 // +genclient

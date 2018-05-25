@@ -182,6 +182,10 @@ func TestStorageSpecConfig(t *testing.T) {
 					"databaseSizeMB": "10",
 					"walSizeMB":      "20",
 					"journalSizeMB":  "30",
+					"metadataDevice": "nvme093",
+				},
+				Selection: rookalpha.Selection{
+					Directories: []rookalpha.Directory{{Path: "/rook/storageDir472"}},
 				},
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
@@ -212,13 +216,16 @@ func TestStorageSpecConfig(t *testing.T) {
 	verifyEnvVar(t, container.Env, "ROOK_OSD_WAL_SIZE", "20", true)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_JOURNAL_SIZE", "30", true)
 	verifyEnvVar(t, container.Env, "ROOK_LOCATION", "rack=foo", true)
+	verifyEnvVar(t, container.Env, "ROOK_METADATA_DEVICE", "nvme093", true)
 
 	assert.Equal(t, "100", container.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", container.Resources.Requests.Memory().String())
 
 	// verify that osd config can be discovered from the container and matches the original config from the spec
-	cfg := getStoreConfigFromContainer(container)
-	assert.Equal(t, storeConfig, cfg)
+	discoveredConfig := getConfigFromContainer(container)
+	assert.Equal(t, n.Config, discoveredConfig)
+	discoveredDirs := getDirectoriesFromContainer(container)
+	assert.Equal(t, n.Directories, discoveredDirs)
 }
 
 func TestHostNetwork(t *testing.T) {

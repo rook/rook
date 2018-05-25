@@ -71,8 +71,6 @@ func (s *StorageScopeSpec) ResolveNode(nodeName string) *Node {
 }
 
 func (s *StorageScopeSpec) resolveNodeSelection(node *Node) {
-	resolveString(&(node.Selection.DeviceFilter), s.Selection.DeviceFilter, "")
-
 	if node.Selection.UseAllDevices == nil {
 		if s.Selection.UseAllDevices != nil {
 			// the node does not have a value specified for use all devices, but the cluster does. Use the cluster's.
@@ -82,6 +80,13 @@ func (s *StorageScopeSpec) resolveNodeSelection(node *Node) {
 			node.Selection.UseAllDevices = newBool(false)
 		}
 	}
+
+	resolveString(&(node.Selection.DeviceFilter), s.Selection.DeviceFilter, "")
+
+	if len(node.Selection.Devices) == 0 {
+		node.Selection.Devices = s.Devices
+	}
+
 	if len(node.Selection.Directories) == 0 {
 		node.Selection.Directories = s.Directories
 	}
