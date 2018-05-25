@@ -219,6 +219,9 @@ func (c *Cluster) Start() error {
 
 	for i := range removedNodes {
 		n := removedNodes[i]
+		storeConfig := config.ToStoreConfig(n.Config)
+		metadataDevice := config.MetadataDevice(n.Config)
+
 		if err := c.isSafeToRemoveNode(n); err != nil {
 			message := fmt.Sprintf("skipping the removal of node %s because it is not safe to do so: %+v", n.Name, err)
 			c.handleOrchestrationFailure(n, message, &errorMessages)
@@ -236,7 +239,7 @@ func (c *Cluster) Start() error {
 		// trigger orchestration on the removed node by telling it not to use any storage at all.  note that the directories are still passed in
 		// so that the pod will be able to mount them and migrate data from them.
 		rs := c.makeReplicaSet(n.Name, nil, rookalpha.Selection{DeviceFilter: "none", Directories: n.Directories},
-			v1.ResourceRequirements{}, config.StoreConfig{}, "", "")
+			v1.ResourceRequirements{}, storeConfig, metadataDevice, n.Location)
 		rs, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Update(rs)
 		if err != nil {
 			message := fmt.Sprintf("failed to update osd replica set for removed node %s. %+v", n.Name, err)
@@ -535,6 +538,7 @@ func (c *Cluster) discoverStorageNodes() ([]rookalpha.Node, error) {
 				Directories: getDirectoriesFromContainer(osdContainer),
 			},
 			Location: rookalpha.GetLocationFromContainer(osdContainer),
+			Config:   getConfigFromContainer(osdContainer),
 		}
 
 		discoveredNodes[i] = node
