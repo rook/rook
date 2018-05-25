@@ -33,11 +33,12 @@ import (
 )
 
 const (
-	dataDirsEnvVarName        = "ROOK_DATA_DIRECTORIES"
-	osdStoreEnvVarName        = "ROOK_OSD_STORE"
-	osdDatabaseSizeEnvVarName = "ROOK_OSD_DATABASE_SIZE"
-	osdWalSizeEnvVarName      = "ROOK_OSD_WAL_SIZE"
-	osdJournalSizeEnvVarName  = "ROOK_OSD_JOURNAL_SIZE"
+	dataDirsEnvVarName          = "ROOK_DATA_DIRECTORIES"
+	osdStoreEnvVarName          = "ROOK_OSD_STORE"
+	osdDatabaseSizeEnvVarName   = "ROOK_OSD_DATABASE_SIZE"
+	osdWalSizeEnvVarName        = "ROOK_OSD_WAL_SIZE"
+	osdJournalSizeEnvVarName    = "ROOK_OSD_JOURNAL_SIZE"
+	osdMetadataDeviceEnvVarName = "ROOK_METADATA_DEVICE"
 )
 
 func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, storeConfig config.StoreConfig, metadataDevice, location string) *extensions.DaemonSet {
@@ -264,7 +265,7 @@ func deviceFilterEnvVar(filter string) v1.EnvVar {
 }
 
 func metadataDeviceEnvVar(metadataDevice string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_METADATA_DEVICE", Value: metadataDevice}
+	return v1.EnvVar{Name: osdMetadataDeviceEnvVarName, Value: metadataDevice}
 }
 
 func dataDirectoriesEnvVar(dataDirectories string) v1.EnvVar {
@@ -308,22 +309,21 @@ func getDirectoriesFromContainer(osdContainer v1.Container) []rookalpha.Director
 	return dirs
 }
 
-func getStoreConfigFromContainer(osdContainer v1.Container) config.StoreConfig {
-	cfg := config.StoreConfig{}
+func getConfigFromContainer(osdContainer v1.Container) map[string]string {
+	cfg := map[string]string{}
 
 	for _, envVar := range osdContainer.Env {
 		switch envVar.Name {
 		case osdStoreEnvVarName:
-			cfg.StoreType = envVar.Value
+			cfg[config.StoreTypeKey] = envVar.Value
 		case osdDatabaseSizeEnvVarName:
-			size, _ := strconv.Atoi(envVar.Value)
-			cfg.DatabaseSizeMB = size
+			cfg[config.DatabaseSizeMBKey] = envVar.Value
 		case osdWalSizeEnvVarName:
-			size, _ := strconv.Atoi(envVar.Value)
-			cfg.WalSizeMB = size
+			cfg[config.WalSizeMBKey] = envVar.Value
 		case osdJournalSizeEnvVarName:
-			size, _ := strconv.Atoi(envVar.Value)
-			cfg.JournalSizeMB = size
+			cfg[config.JournalSizeMBKey] = envVar.Value
+		case osdMetadataDeviceEnvVarName:
+			cfg[config.MetadataDeviceKey] = envVar.Value
 		}
 	}
 
