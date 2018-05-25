@@ -70,7 +70,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	assert.Equal(t, "node1", replicaSet.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
 	assert.Equal(t, v1.RestartPolicyAlways, replicaSet.Spec.Template.Spec.RestartPolicy)
 	if devMountNeeded {
-		assert.Equal(t, 3, len(replicaSet.Spec.Template.Spec.Volumes))
+		assert.Equal(t, 4, len(replicaSet.Spec.Template.Spec.Volumes))
 	} else {
 		assert.Equal(t, 2, len(replicaSet.Spec.Template.Spec.Volumes))
 	}
@@ -95,7 +95,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	cont := replicaSet.Spec.Template.Spec.Containers[0]
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	if devMountNeeded {
-		assert.Equal(t, 3, len(cont.VolumeMounts))
+		assert.Equal(t, 4, len(cont.VolumeMounts))
 	} else {
 		assert.Equal(t, 2, len(cont.VolumeMounts))
 	}
@@ -157,14 +157,14 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 
 	// pod spec should have a volume for the given dir
 	podSpec := replicaSet.Spec.Template.Spec
-	assert.Equal(t, 4, len(podSpec.Volumes))
-	assert.Equal(t, "rook-dir1", podSpec.Volumes[3].Name)
-	assert.Equal(t, "/rook/dir1", podSpec.Volumes[3].VolumeSource.HostPath.Path)
+	assert.Equal(t, 5, len(podSpec.Volumes))
+	assert.Equal(t, "rook-dir1", podSpec.Volumes[4].Name)
+	assert.Equal(t, "/rook/dir1", podSpec.Volumes[4].VolumeSource.HostPath.Path)
 
 	// container should have a volume mount for the given dir
 	container := podSpec.Containers[0]
-	assert.Equal(t, "rook-dir1", container.VolumeMounts[3].Name)
-	assert.Equal(t, "/rook/dir1", container.VolumeMounts[3].MountPath)
+	assert.Equal(t, "rook-dir1", container.VolumeMounts[4].Name)
+	assert.Equal(t, "/rook/dir1", container.VolumeMounts[4].MountPath)
 
 	// container command should have the given dir and device
 	verifyEnvVar(t, container.Env, "ROOK_DATA_DIRECTORIES", "/rook/dir1", true)
