@@ -41,6 +41,7 @@ import (
 )
 
 const (
+	ClusterNamespaceKey   = "clusterNamespace"
 	StorageClassKey       = "storageClass"
 	PoolKey               = "pool"
 	ImageKey              = "image"

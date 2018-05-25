@@ -44,9 +44,6 @@ type RookVolumeProvisioner struct {
 
 	// The flex driver vendor dir to use
 	flexDriverVendor string
-
-	// Configuration of rook volume provisioner
-	provConfig provisionerConfig
 }
 
 type provisionerConfig struct {
@@ -80,9 +77,8 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 	if err != nil {
 		return nil, err
 	}
-	p.provConfig = *cfg
 
-	logger.Infof("creating volume with configuration %+v", p.provConfig)
+	logger.Infof("creating volume with configuration %+v", *cfg)
 
 	capacity := options.PVC.Spec.Resources.Requests[v1.ResourceName(v1.ResourceStorage)]
 	requestBytes := capacity.Value()
@@ -94,7 +90,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 		return nil, err
 	}
 
-	if err := p.createVolume(imageName, p.provConfig.pool, requestBytes); err != nil {
+	if err := p.createVolume(imageName, cfg.pool, cfg.clusterNamespace, requestBytes); err != nil {
 		return nil, err
 	}
 
@@ -117,11 +113,12 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 			PersistentVolumeSource: v1.PersistentVolumeSource{
 				FlexVolume: &v1.FlexVolumeSource{
 					Driver: flexdriver,
-					FSType: p.provConfig.fstype,
+					FSType: cfg.fstype,
 					Options: map[string]string{
-						flexvolume.StorageClassKey: storageClass,
-						flexvolume.PoolKey:         p.provConfig.pool,
-						flexvolume.ImageKey:        imageName,
+						flexvolume.StorageClassKey:     storageClass,
+						flexvolume.PoolKey:             cfg.pool,
+						flexvolume.ImageKey:            imageName,
+						flexvolume.ClusterNamespaceKey: cfg.clusterNamespace,
 					},
 				},
 			},
@@ -132,12 +129,12 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 }
 
 // createVolume creates a rook block volume.
-func (p *RookVolumeProvisioner) createVolume(image, pool string, size int64) error {
-	if image == "" || pool == "" || size == 0 {
-		return fmt.Errorf("image missing required fields (image=%s, pool=%s, size=%d)", image, pool, size)
+func (p *RookVolumeProvisioner) createVolume(image, pool string, clusterNamespace string, size int64) error {
+	if image == "" || pool == "" || clusterNamespace == "" || size == 0 {
+		return fmt.Errorf("image missing required fields (image=%s, pool=%s, clusterNamespace=%s, size=%d)", image, pool, clusterNamespace, size)
 	}
 
-	createdImage, err := ceph.CreateImage(p.context, p.provConfig.clusterNamespace, image, pool, uint64(size))
+	createdImage, err := ceph.CreateImage(p.context, clusterNamespace, image, pool, uint64(size))
 	if err != nil {
 		return fmt.Errorf("Failed to create rook block image %s/%s: %v", pool, image, err)
 	}
@@ -151,15 +148,17 @@ func (p *RookVolumeProvisioner) createVolume(image, pool string, size int64) err
 func (p *RookVolumeProvisioner) Delete(volume *v1.PersistentVolume) error {
 	logger.Infof("Deleting volume %s", volume.Name)
 	if volume.Spec.PersistentVolumeSource.FlexVolume == nil {
-		return fmt.Errorf("Failed to delete rook block image %s/%s: %v", p.provConfig.pool, volume.Name, "PersistentVolume is not a FlexVolume")
+		return fmt.Errorf("Failed to delete rook block image %s: %v", volume.Name, "PersistentVolume is not a FlexVolume")
 	}
 	if volume.Spec.PersistentVolumeSource.FlexVolume.Options == nil {
-		return fmt.Errorf("Failed to delete rook block image %s/%s: %v", p.provConfig.pool, volume.Name, "PersistentVolume has no image defined for the FlexVolume")
+		return fmt.Errorf("Failed to delete rook block image %s: %v", volume.Name, "PersistentVolume has no image defined for the FlexVolume")
 	}
 	name := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ImageKey]
-	err := ceph.DeleteImage(p.context, p.provConfig.clusterNamespace, name, p.provConfig.pool)
+	clusterns := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.ClusterNamespaceKey]
+	pool := volume.Spec.PersistentVolumeSource.FlexVolume.Options[flexvolume.PoolKey]
+	err := ceph.DeleteImage(p.context, clusterns, name, pool)
 	if err != nil {
-		return fmt.Errorf("Failed to delete rook block image %s/%s: %v", p.provConfig.pool, volume.Name, err)
+		return fmt.Errorf("Failed to delete rook block image %s/%s: %v", pool, volume.Name, err)
 	}
 	logger.Infof("succeeded deleting volume %+v", volume)
 	return nil
