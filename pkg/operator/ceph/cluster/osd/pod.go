@@ -105,6 +105,8 @@ func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalph
 		// create volume config for the data dir and /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 		volumes = append(volumes, devVolume)
+		udevVolume := v1.Volume{Name: "udev", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/run/udev"}}}
+		volumes = append(volumes, udevVolume)
 	}
 
 	// add each OSD directory as another host path volume source
@@ -187,6 +189,8 @@ func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.S
 	if devMountNeeded {
 		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
 		volumeMounts = append(volumeMounts, devMount)
+		udevMount := v1.VolumeMount{Name: "udev", MountPath: "/run/udev"}
+		volumeMounts = append(volumeMounts, udevMount)
 	}
 
 	if len(selection.Directories) > 0 {
