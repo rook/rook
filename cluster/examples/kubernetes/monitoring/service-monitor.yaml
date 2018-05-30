@@ -8,11 +8,11 @@ metadata:
 spec:
   namespaceSelector:
     matchNames:
-      - rook
+      - rook-ceph
   selector:
     matchLabels:
       app: rook-ceph-mgr
-      rook_cluster: rook
+      rook_cluster: rook-ceph
   endpoints:
   - port: http-metrics
     path: /metrics
