@@ -34,7 +34,7 @@ import (
 
 func TestPodContainer(t *testing.T) {
 	cluster := &Cluster{Namespace: "myosd", Version: "23"}
-	c := cluster.podTemplateSpec([]rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "")
+	c := cluster.podTemplateSpec([]rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", "")
 	assert.NotNil(t, c)
 	assert.Equal(t, 1, len(c.Spec.Containers))
 	container := c.Spec.Containers[0]
@@ -56,16 +56,17 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "mysa",
 		storageSpec, dataDir, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	devMountNeeded := deviceFilter != "" || allDevices
 
 	n := c.resolveNode(storageSpec.Nodes[0])
-	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location)
+	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, c.serviceAccount, "", n.Location)
 	assert.NotNil(t, replicaSet)
 	assert.Equal(t, "rook-ceph-osd-node1", replicaSet.Name)
 	assert.Equal(t, c.Namespace, replicaSet.Namespace)
+	assert.Equal(t, c.serviceAccount, replicaSet.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, int32(1), *(replicaSet.Spec.Replicas))
 	assert.Equal(t, "node1", replicaSet.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
 	assert.Equal(t, v1.RestartPolicyAlways, replicaSet.Spec.Template.Spec.RestartPolicy)
@@ -148,11 +149,11 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "",
 		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.resolveNode(storageSpec.Nodes[0])
-	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location)
+	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", n.Location)
 	assert.NotNil(t, replicaSet)
 
 	// pod spec should have a volume for the given dir
@@ -200,13 +201,13 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "",
 		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.resolveNode(storageSpec.Nodes[0])
 	storeConfig := config.ToStoreConfig(storageSpec.Nodes[0].Config)
 	metadataDevice := config.MetadataDevice(storageSpec.Nodes[0].Config)
-	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, c.Storage.Nodes[0].Resources, storeConfig, metadataDevice, n.Location)
+	replicaSet := c.makeReplicaSet(n.Name, n.Devices, n.Selection, c.Storage.Nodes[0].Resources, storeConfig, "", metadataDevice, n.Location)
 	assert.NotNil(t, replicaSet)
 
 	container := replicaSet.Spec.Template.Spec.Containers[0]
@@ -245,11 +246,11 @@ func TestHostNetwork(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", "",
 		storageSpec, "", rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.resolveNode(storageSpec.Nodes[0])
-	r := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location)
+	r := c.makeReplicaSet(n.Name, n.Devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", n.Location)
 	assert.NotNil(t, r)
 
 	assert.Equal(t, true, r.Spec.Template.Spec.HostNetwork)

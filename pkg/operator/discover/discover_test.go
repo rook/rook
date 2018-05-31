@@ -46,14 +46,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 	a := New(clientset)
 
 	// start a basic cluster
-	err := a.Start(namespace, "rook/rook:myversion")
-	assert.Nil(t, err)
-
-	// check clusters rbac roles
-	_, err = clientset.CoreV1().ServiceAccounts(namespace).Get("rook-discover", metav1.GetOptions{})
-	assert.Nil(t, err)
-
-	_, err = clientset.RbacV1beta1().Roles(namespace).Get("rook-discover", metav1.GetOptions{})
+	err := a.Start(namespace, "rook/rook:myversion", "mysa")
 	assert.Nil(t, err)
 
 	// check daemonset parameters
@@ -61,6 +54,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, namespace, agentDS.Namespace)
 	assert.Equal(t, "rook-discover", agentDS.Name)
+	assert.Equal(t, "mysa", agentDS.Spec.Template.Spec.ServiceAccountName)
 	assert.False(t, *agentDS.Spec.Template.Spec.Containers[0].SecurityContext.Privileged)
 	volumes := agentDS.Spec.Template.Spec.Volumes
 	assert.Equal(t, 3, len(volumes))

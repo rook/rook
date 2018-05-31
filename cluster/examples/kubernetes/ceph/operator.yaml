@@ -83,10 +83,11 @@ spec:
   scope: Namespaced
   version: v1alpha2
 ---
+# The cluster role for managing all the cluster-specific resources in a namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: rook-ceph-operator
+  name: rook-ceph-cluster-mgmt
   labels:
     operator: rook
     storage-backend: ceph
@@ -94,17 +95,10 @@ rules:
 - apiGroups:
   - ""
   resources:
-  - namespaces
-  - serviceaccounts
   - secrets
   - pods
   - services
-  - nodes
-  - nodes/proxy
   - configmaps
-  - events
-  - persistentvolumes
-  - persistentvolumeclaims
   verbs:
   - get
   - list
@@ -126,17 +120,75 @@ rules:
   - create
   - update
   - delete
+---
+# The role for the operator to manage resources in the system namespace
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: rook-ceph-system
+  namespace: rook-ceph-system
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
 - apiGroups:
-  - rbac.authorization.k8s.io
+  - ""
   resources:
-  - clusterroles
-  - clusterrolebindings
-  - roles
-  - rolebindings
+  - pods
+  - configmaps
   verbs:
   - get
   - list
   - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - extensions
+  resources:
+  - daemonsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+---
+# The cluster role for managing the Rook CRDs
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-global
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  # Pod access is needed for fencing
+  - pods
+  # Node access is needed for determining nodes where mons should run
+  - nodes
+  - nodes/proxy
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+    # PVs and PVCs are managed by the Rook provisioner
+  - persistentvolumes
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
   - create
   - update
   - delete
@@ -148,7 +200,6 @@ rules:
   - get
   - list
   - watch
-  - delete
 - apiGroups:
   - ceph.rook.io
   resources:
@@ -162,19 +213,39 @@ rules:
   verbs:
   - "*"
 ---
+# The rook system service account used by the operator, agent, and discovery pods
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rook-ceph-operator
+  name: rook-ceph-system
   namespace: rook-ceph-system
   labels:
     operator: rook
     storage-backend: ceph
 ---
+# Grant the operator, agent, and discovery agents access to resources in the rook-ceph-system namespace
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-system
+  namespace: rook-ceph-system
+  labels:
+    operator: rook
+    storage-backend: ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-system
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: rook-ceph-system
+---
+# Grant the rook system daemons cluster-wide access to manage the Rook CRDs, PVCs, and storage classes
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-operator
+  name: rook-ceph-global
   namespace: rook-ceph-system
   labels:
     operator: rook
@@ -182,12 +253,13 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rook-ceph-operator
+  name: rook-ceph-global
 subjects:
 - kind: ServiceAccount
-  name: rook-ceph-operator
+  name: rook-ceph-system
   namespace: rook-ceph-system
 ---
+# The deployment for the rook operator
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
@@ -203,7 +275,7 @@ spec:
       labels:
         app: rook-ceph-operator
     spec:
-      serviceAccountName: rook-ceph-operator
+      serviceAccountName: rook-ceph-system
       containers:
       - name: rook-ceph-operator
         image: rook/ceph:master
@@ -235,6 +307,9 @@ spec:
         # which might cause mons to crash as seen in https://github.com/rook/rook/issues/1027
         - name: ROOK_ALLOW_MULTIPLE_FILESYSTEMS
           value: "false"
+        # The logging level for the operator: INFO | DEBUG 
+        - name: ROOK_LOG_LEVEL
+          value: "INFO"
         # The interval to check if every mon is in the quorum.
         - name: ROOK_MON_HEALTHCHECK_INTERVAL
           value: "45s"

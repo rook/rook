@@ -1,27 +1,20 @@
 {{- if .Values.rbacEnable }}
+# The cluster role for managing all the cluster-specific resources in a namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
-  name: rook-ceph-operator
+  name: rook-ceph-cluster-mgmt
   labels:
     operator: rook
     storage-backend: ceph
-    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
 rules:
 - apiGroups:
   - ""
   resources:
-  - namespaces
-  - serviceaccounts
   - secrets
   - pods
   - services
-  - nodes
-  - nodes/proxy
   - configmaps
-  - events
-  - persistentvolumes
-  - persistentvolumeclaims
   verbs:
   - get
   - list
@@ -43,17 +36,40 @@ rules:
   - create
   - update
   - delete
+---
+# The cluster role for managing the Rook CRDs
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-global
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
 - apiGroups:
-  - rbac.authorization.k8s.io
+  - ""
   resources:
-  - clusterroles
-  - clusterrolebindings
-  - roles
-  - rolebindings
+  # Pod access is needed for fencing
+  - pods
+  # Node access is needed for determining nodes where mons should run
+  - nodes
+  - nodes/proxy
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  # PVs and PVCs are managed by the Rook provisioner
+  - persistentvolumes
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
   - create
   - update
   - delete
@@ -65,7 +81,6 @@ rules:
   - get
   - list
   - watch
-  - delete
 - apiGroups:
   - ceph.rook.io
   resources:

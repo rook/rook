@@ -61,8 +61,13 @@ func startOperator(cmd *cobra.Command, args []string) error {
 		rook.TerminateFatal(err)
 	}
 
-	// Using the rook-operator image to deploy other rook pods
-	rookImage, err := k8sutil.GetContainerImage(clientset, containerName)
+	// Using the current image version to deploy other rook pods
+	pod, err := k8sutil.GetRunningPod(clientset)
+	if err != nil {
+		rook.TerminateFatal(fmt.Errorf("failed to get pod. %+v\n", err))
+	}
+
+	rookImage, err := k8sutil.GetContainerImage(pod, containerName)
 	if err != nil {
 		rook.TerminateFatal(fmt.Errorf("failed to get container image. %+v\n", err))
 	}

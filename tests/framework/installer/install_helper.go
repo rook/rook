@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"k8s.io/api/core/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 
 	"flag"
@@ -67,11 +68,11 @@ type InstallHelper struct {
 	T           func() *testing.T
 }
 
-func (h *InstallHelper) CreateK8sRookResources(namespace string) (err error) {
+func (h *InstallHelper) CreateK8sRookResources() (err error) {
 	var resources string
 	logger.Info("Creating Rook CRD's")
 
-	resources = h.installData.GetRookCRDs(namespace)
+	resources = h.installData.GetRookCRDs()
 
 	_, err = h.k8shelper.KubectlWithStdin(resources, createFromStdinArgs...)
 
@@ -85,7 +86,7 @@ func (h *InstallHelper) CreateK8sRookOperator(namespace string) (err error) {
 	h.k8shelper.CreateAnonSystemClusterBinding()
 
 	//creating rook resources
-	if err = h.CreateK8sRookResources(namespace); err != nil {
+	if err = h.CreateK8sRookResources(); err != nil {
 		return err
 	}
 
@@ -149,17 +150,26 @@ func (h *InstallHelper) CreateK8sRookToolbox(namespace string) (err error) {
 	return nil
 }
 
-func (h *InstallHelper) CreateK8sRookCluster(namespace string, storeType string) (err error) {
-	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, "", false,
+func (h *InstallHelper) CreateK8sRookCluster(namespace, systemNamespace string, storeType string) (err error) {
+	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType, "", false,
 		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true /* startWithAllNodes */)
 }
 
 //CreateK8sRookCluster creates rook cluster via kubectl
-func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath string,
+func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType, dataDirHostPath string,
 	useAllDevices bool, mon cephv1alpha1.MonSpec, startWithAllNodes bool) error {
 
-	if err := h.k8shelper.CreateNamespace(namespace); err != nil {
-		return err
+	logger.Infof("Creating namespace %s", namespace)
+	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
+	_, err := h.k8shelper.Clientset.CoreV1().Namespaces().Create(ns)
+	if err != nil && !errors.IsAlreadyExists(err) {
+		return fmt.Errorf("failed to create namespace %s. %+v", namespace, err)
+	}
+
+	logger.Infof("Creating cluster roles")
+	roles := h.installData.GetClusterRoles(namespace, systemNamespace)
+	if _, err := h.k8shelper.KubectlWithStdin(roles, createFromStdinArgs...); err != nil {
+		return fmt.Errorf("Failed to create cluster roles. %+v", err)
 	}
 
 	if h.k8shelper.IsRookClientsetAvailable() {
@@ -171,6 +181,7 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, st
 				Namespace: namespace,
 			},
 			Spec: v1alpha1.ClusterSpec{
+				ServiceAccount:  "rook-ceph-cluster",
 				DataDirHostPath: dataDirHostPath,
 				Mon: v1alpha1.MonSpec{
 					Count:                mon.Count,
@@ -236,7 +247,7 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, st
 	}
 
 	logger.Infof("Rook Cluster started")
-	err := h.k8shelper.WaitForLabeledPodToRun("app=rook-ceph-osd", namespace)
+	err = h.k8shelper.WaitForLabeledPodToRun("app=rook-ceph-osd", namespace)
 	return err
 }
 
@@ -288,7 +299,7 @@ func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	}
 
 	//Create rook cluster
-	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath,
+	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, onamespace, storeType, dataDirHostPath,
 		useDevices, cephv1alpha1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
@@ -322,13 +333,17 @@ func (h *InstallHelper) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 	for _, namespace := range namespaces {
 
 		if !h.k8shelper.VersionAtLeast("v1.8.0") {
-			_, err = h.k8shelper.DeleteResource("-n", namespace, "serviceaccount", "rook-ceph-osd")
-			h.checkError(err, "cannot remove serviceaccount rook-ceph-osd")
+			_, err = h.k8shelper.DeleteResource("-n", namespace, "serviceaccount", "rook-ceph-cluster")
+			h.checkError(err, "cannot remove serviceaccount rook-ceph-cluster")
 			assert.NoError(h.T(), err, "%s  err -> %v", namespace, err)
 
-			err = h.k8shelper.DeleteRoleAndBindings("rook-ceph-osd", namespace)
-			h.checkError(err, "rook-ceph-osd cluster role and binding cannot be deleted")
-			assert.NoError(h.T(), err, "rook-ceph-osd cluster role and binding cannot be deleted: %+v", err)
+			err = h.k8shelper.DeleteRoleAndBindings("rook-ceph-cluster", namespace)
+			h.checkError(err, "rook-ceph-cluster cluster role and binding cannot be deleted")
+			assert.NoError(h.T(), err, "rook-ceph-cluster cluster role and binding cannot be deleted: %+v", err)
+
+			err = h.k8shelper.DeleteRoleBinding("rook-ceph-cluster-mgmt", namespace)
+			h.checkError(err, "rook-ceph-cluster-mgmt binding cannot be deleted")
+			assert.NoError(h.T(), err, "rook-ceph-cluster-mgmt binding cannot be deleted: %+v", err)
 		}
 
 		_, err = h.k8shelper.DeleteResource("-n", namespace, "cluster.ceph.rook.io", namespace)
@@ -357,9 +372,13 @@ func (h *InstallHelper) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 	}
 	h.checkError(err, "cannot uninstall rook-operator")
 
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rook-ceph-agent", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-ceph-agent", nil)
-	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("anon-user-access", nil)
+	h.k8shelper.Clientset.RbacV1beta1().RoleBindings(systemNamespace).Delete("rook-ceph-system", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoleBindings().Delete("rook-ceph-global", nil)
+	h.k8shelper.Clientset.CoreV1().ServiceAccounts(systemNamespace).Delete("rook-ceph-system", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rook-ceph-cluster-mgmt", nil)
+	h.k8shelper.Clientset.RbacV1beta1().ClusterRoles().Delete("rook-ceph-global", nil)
+	h.k8shelper.Clientset.RbacV1beta1().Roles(systemNamespace).Delete("rook-ceph-system", nil)
+
 	logger.Infof("done removing the operator from namespace %s", systemNamespace)
 }
 

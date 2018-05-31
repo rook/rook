@@ -1232,6 +1232,11 @@ func (k8sh *K8sHelper) DeleteRoleAndBindings(name, namespace string) error {
 	return nil
 }
 
+func (k8sh *K8sHelper) DeleteRoleBinding(name, namespace string) error {
+	_, err := k8sh.DeleteResource("rolebinding", name, "-n", namespace)
+	return err
+}
+
 func (k8sh *K8sHelper) ScaleStatefulSet(statefulSetName, namespace string, replicationSize int) error {
 	args := []string{"-n", namespace, "scale", "statefulsets", statefulSetName, fmt.Sprintf("--replicas=%d", replicationSize)}
 	_, err := k8sh.Kubectl(args...)

@@ -41,8 +41,8 @@ const (
 	osdMetadataDeviceEnvVarName = "ROOK_METADATA_DEVICE"
 )
 
-func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, storeConfig config.StoreConfig, metadataDevice, location string) *extensions.DaemonSet {
-	podSpec := c.podTemplateSpec(nil, selection, c.resources, storeConfig, metadataDevice, location)
+func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, storeConfig config.StoreConfig, serviceAccount, metadataDevice, location string) *extensions.DaemonSet {
+	podSpec := c.podTemplateSpec(nil, selection, c.resources, storeConfig, serviceAccount, metadataDevice, location)
 	return &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:            appName,
@@ -63,9 +63,9 @@ func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, storeConfig confi
 }
 
 func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string) *extensions.ReplicaSet {
+	storeConfig config.StoreConfig, serviceAccount, metadataDevice, location string) *extensions.ReplicaSet {
 
-	podSpec := c.podTemplateSpec(devices, selection, resources, storeConfig, metadataDevice, location)
+	podSpec := c.podTemplateSpec(devices, selection, resources, storeConfig, serviceAccount, metadataDevice, location)
 	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
 	replicaCount := int32(1)
 
@@ -87,7 +87,7 @@ func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device, se
 }
 
 func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string) v1.PodTemplateSpec {
+	storeConfig config.StoreConfig, serviceAccount, metadataDevice, location string) v1.PodTemplateSpec {
 	// by default, the data/config dir will be an empty volume
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if c.dataDirHostPath != "" {
@@ -119,7 +119,7 @@ func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalph
 	}
 
 	podSpec := v1.PodSpec{
-		ServiceAccountName: appName,
+		ServiceAccountName: serviceAccount,
 		Containers:         []v1.Container{c.osdContainer(devices, selection, resources, storeConfig, metadataDevice, location)},
 		RestartPolicy:      v1.RestartPolicyAlways,
 		Volumes:            volumes,

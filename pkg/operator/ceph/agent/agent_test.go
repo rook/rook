@@ -58,27 +58,15 @@ func TestStartAgentDaemonset(t *testing.T) {
 	a := New(clientset)
 
 	// start a basic cluster
-	err := a.Start(namespace, "rook/rook:myversion")
+	err := a.Start(namespace, "rook/rook:myversion", "mysa")
 	assert.Nil(t, err)
-
-	// check clusters rbac roles
-	_, err = clientset.CoreV1().ServiceAccounts(namespace).Get("rook-ceph-agent", metav1.GetOptions{})
-	assert.Nil(t, err)
-
-	role, err := clientset.RbacV1beta1().ClusterRoles().Get("rook-ceph-agent", metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, 4, len(role.Rules))
-
-	binding, err := clientset.RbacV1beta1().ClusterRoleBindings().Get("rook-ceph-agent", metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.Equal(t, "rook-ceph-agent", binding.Subjects[0].Name)
-	assert.Equal(t, "ServiceAccount", binding.Subjects[0].Kind)
 
 	// check daemonset parameters
 	agentDS, err := clientset.Extensions().DaemonSets(namespace).Get("rook-ceph-agent", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, namespace, agentDS.Namespace)
 	assert.Equal(t, "rook-ceph-agent", agentDS.Name)
+	assert.Equal(t, "mysa", agentDS.Spec.Template.Spec.ServiceAccountName)
 	assert.True(t, *agentDS.Spec.Template.Spec.Containers[0].SecurityContext.Privileged)
 	volumes := agentDS.Spec.Template.Spec.Volumes
 	assert.Equal(t, 4, len(volumes))
@@ -117,19 +105,12 @@ func TestGetContainerImage(t *testing.T) {
 	clientset.CoreV1().Pods("Default").Create(&pod)
 
 	// start a basic cluster
-	image, err := k8sutil.GetContainerImage(clientset, "")
+	returnPod, err := k8sutil.GetRunningPod(clientset)
 	assert.Nil(t, err)
-	assert.Equal(t, "rook/test", image)
+	assert.Equal(t, "mypod", returnPod.Name)
 }
 
 func TestGetContainerImageMultipleContainers(t *testing.T) {
-	clientset := test.New(3)
-
-	os.Setenv(k8sutil.PodNamespaceEnvVar, "Default")
-	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
-
-	os.Setenv(k8sutil.PodNameEnvVar, "mypod")
-	defer os.Unsetenv(k8sutil.PodNameEnvVar)
 
 	pod := v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -149,11 +130,11 @@ func TestGetContainerImageMultipleContainers(t *testing.T) {
 			},
 		},
 	}
-	clientset.CoreV1().Pods("Default").Create(&pod)
 
 	// start a basic cluster
-	_, err := k8sutil.GetContainerImage(clientset, "foo")
+	container, err := k8sutil.GetContainerImage(&pod, "foo")
 	assert.NotNil(t, err)
+	assert.Equal(t, "", container)
 	assert.Equal(t, "failed to find image for container foo", err.Error())
 }
 
@@ -192,13 +173,14 @@ func TestStartAgentDaemonsetWithToleration(t *testing.T) {
 	a := New(clientset)
 
 	// start a basic cluster
-	err := a.Start(namespace, "rook/test")
+	err := a.Start(namespace, "rook/test", "mysa")
 	assert.Nil(t, err)
 
 	// check daemonset toleration
 	agentDS, err := clientset.Extensions().DaemonSets(namespace).Get("rook-ceph-agent", metav1.GetOptions{})
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(agentDS.Spec.Template.Spec.Tolerations))
+	assert.Equal(t, "mysa", agentDS.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, "NoSchedule", string(agentDS.Spec.Template.Spec.Tolerations[0].Effect))
 	assert.Equal(t, "example", string(agentDS.Spec.Template.Spec.Tolerations[0].Key))
 	assert.Equal(t, "Exists", string(agentDS.Spec.Template.Spec.Tolerations[0].Operator))

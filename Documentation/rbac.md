@@ -95,18 +95,18 @@ kind: Namespace
 metadata:
   name: rook-system
 ---
-# Allow the rook-ceph-agent serviceAccount to use the privileged PSP
+# Allow the rook-ceph-system serviceAccount to use the privileged PSP
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: rook-ceph-agent-psp
+  name: rook-ceph-system-psp
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: privileged-psp-user
 subjects:
 - kind: ServiceAccount
-  name: rook-ceph-agent
+  name: rook-ceph-system
   namespace: rook-system
 ```
 
@@ -148,6 +148,6 @@ roleRef:
   name: privileged-psp-user
 subjects:
 - kind: ServiceAccount
-  name: rook-ceph-osd
+  name: rook-ceph-cluster
   namespace: rook-ceph
 ```

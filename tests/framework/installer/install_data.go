@@ -29,7 +29,7 @@ func NewK8sInstallData() *InstallData {
 	return &InstallData{}
 }
 
-func (i *InstallData) GetRookCRDs(namespace string) string {
+func (i *InstallData) GetRookCRDs() string {
 	return `apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -110,24 +110,54 @@ metadata:
   name: ` + namespace + `
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
-kind: ClusterRole
+kind: Role
 metadata:
-  name: rook-ceph-operator
+  name: rook-ceph-system
+  namespace: ` + namespace + `
+  labels:
+    operator: rook
+    storage-backend: ceph
 rules:
 - apiGroups:
   - ""
   resources:
-  - namespaces
-  - serviceaccounts
+  - pods
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - extensions
+  resources:
+  - daemonsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-cluster-mgmt
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
   - secrets
   - pods
   - services
-  - nodes
-  - nodes/proxy
   - configmaps
-  - events
-  - persistentvolumes
-  - persistentvolumeclaims
   verbs:
   - get
   - list
@@ -149,17 +179,36 @@ rules:
   - create
   - update
   - delete
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-global
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
 - apiGroups:
-  - rbac.authorization.k8s.io
+  - ""
   resources:
-  - clusterroles
-  - clusterrolebindings
-  - roles
-  - rolebindings
+  - pods
+  - nodes
+  - nodes/proxy
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - events
+  - persistentvolumes
+  - persistentvolumeclaims
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
   - create
   - update
   - delete
@@ -171,7 +220,6 @@ rules:
   - get
   - list
   - watch
-  - delete
 - apiGroups:
   - ceph.rook.io
   resources:
@@ -188,21 +236,44 @@ rules:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rook-ceph-operator
+  name: rook-ceph-system
+  namespace: ` + namespace + `
+  labels:
+    operator: rook
+    storage-backend: ceph
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-system
+  namespace: ` + namespace + `
+  labels:
+    operator: rook
+    storage-backend: ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-system
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
   namespace: ` + namespace + `
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-operator
+  name: rook-ceph-global
   namespace: ` + namespace + `
+  labels:
+    operator: rook
+    storage-backend: ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rook-ceph-operator
+  name: rook-ceph-global
 subjects:
 - kind: ServiceAccount
-  name: rook-ceph-operator
+  name: rook-ceph-system
   namespace: ` + namespace + `
 ---
 apiVersion: apps/v1beta1
@@ -210,6 +281,9 @@ kind: Deployment
 metadata:
   name: rook-ceph-operator
   namespace: ` + namespace + `
+  labels:
+    operator: rook
+    storage-backend: ceph
 spec:
   replicas: 1
   template:
@@ -217,7 +291,7 @@ spec:
       labels:
         app: rook-ceph-operator
     spec:
-      serviceAccountName: rook-ceph-operator
+      serviceAccountName: rook-ceph-system
       containers:
       - name: rook-ceph-operator
         image: rook/ceph:master
@@ -244,6 +318,55 @@ spec:
 }
 
 //GetRookCluster returns rook-cluster manifest
+func (i *InstallData) GetClusterRoles(namespace, systemNamespace string) string {
+	return `apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cluster
+  namespace: ` + namespace + `
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: ` + namespace + `
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Allow the operator to create resources in this cluster's namespace
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster-mgmt
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-cluster-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: ` + systemNamespace + `
+---
+# Allow the pods in this namespace to work with configmaps
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: ` + namespace + `
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cluster
+  namespace: ` + namespace
+}
+
+//GetRookCluster returns rook-cluster manifest
 func (i *InstallData) GetRookCluster(namespace, storeType, dataDirHostPath string, useAllDevices bool, mons int) string {
 	return `apiVersion: ceph.rook.io/v1alpha1
 kind: Cluster
@@ -251,6 +374,7 @@ metadata:
   name: ` + namespace + `
   namespace: ` + namespace + `
 spec:
+  serviceAccount: rook-ceph-cluster
   dataDirHostPath: ` + dataDirHostPath + `
   network:
     hostNetwork: false
