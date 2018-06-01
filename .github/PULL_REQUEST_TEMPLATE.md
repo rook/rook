@@ -10,3 +10,4 @@ Resolves #
 Checklist:
 - [ ] Documentation has been updated, if necessary.
 - [ ] Pending release notes updated with breaking and/or notable changes, if necessary.
+- [ ] Upgrade from previous release is tested and upgrade user guide is updated, if necessary.
