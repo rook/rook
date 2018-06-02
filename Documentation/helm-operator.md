@@ -108,6 +108,8 @@ The following tables lists the configurable parameters of the rook-operator char
 | `agent.flexVolumeDirPath` | Path where the Rook agent discovers the flex volume plugins (*) | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
 | `agent.toleration`        | Toleration for the agent pods | <none> |
 | `agent.tolerationKey`     | The specific key of the taint to tolerate | <none> |
+| `discover.toleration`        | Toleration for the discover pods | <none> |
+| `discover.tolerationKey`     | The specific key of the taint to tolerate | <none> |
 | `mon.healthCheckInterval` | The frequency for the operator to check the mon health | `45s` |
 | `mon.monOutTimeout`       | The time to wait before failing over an unhealthy mon | `300s` |
 
