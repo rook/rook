@@ -129,6 +129,9 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 		}
 		if val, ok := udevInfo["ID_FS_UUID"]; ok {
 			disk.UUID = val
+		} else if val, ok := udevInfo["ID_PART_TABLE_UUID"]; ok {
+			// fall back to the part_table_uuid if the fs_uuid was not found
+			disk.UUID = val
 		}
 		if val, ok := udevInfo["ID_FS_TYPE"]; ok {
 			disk.Filesystem = val
