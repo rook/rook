@@ -222,6 +222,13 @@ spec:
         # Set the path where the Rook agent can find the flex volumes
         # - name: FLEXVOLUME_DIR_PATH
         #  value: "<PathToFlexVolumes>"
+        # Rook Discover toleration. Will tolerate all taints with all keys.
+        # Choose between NoSchedule, PreferNoSchedule and NoExecute:
+        # - name: DISCOVER_TOLERATION
+        #  value: "NoSchedule"
+        # (Optional) Rook Discover toleration key. Set this to the key of the taint you want to tolerate
+        # - name: DISCOVER_TOLERATION_KEY
+        #  value: "<KeyOfTheTaintToTolerate>"
         # Allow rook to create multiple file systems. Note: This is considered
         # an experimental feature in Ceph as described at
         # http://docs.ceph.com/docs/master/cephfs/experimental-features/#multiple-filesystems-within-a-ceph-cluster
