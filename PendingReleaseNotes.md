@@ -12,6 +12,7 @@
 - Rook-Operator no longer creates the resources CRD's or TPR's at the runtime. Instead, those resources are provisioned during deployment via `helm` or `kubectl`.
 - The 'rook' image is now based on the ceph-container project's 'daemon-base' image so that Rook no
   longer has to manage installs of Ceph in image.
+- Rook CRD code generation is now working with BSD (Mac) and GNU sed.
 
 ## Breaking Changes
 
