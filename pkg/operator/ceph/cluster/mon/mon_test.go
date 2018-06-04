@@ -16,7 +16,6 @@ limitations under the License.
 package mon
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -106,38 +105,6 @@ func TestStartMonPods(t *testing.T) {
 func TestOperatorRestart(t *testing.T) {
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
-	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, arg ...string) (string, error) {
-			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateConfigDir(path.Join(context.ConfigDir, namespace))
-			}
-			return "", nil
-		},
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-			cephtest.CreateConfigDir(path.Join(context.ConfigDir, namespace))
-			resp := client.MonStatusResponse{Quorum: []int{0}}
-			resp.MonMap.Mons = []client.MonMapEntry{
-				{
-					Name:    "rook-ceph-mon0",
-					Rank:    0,
-					Address: "0.0.0.0",
-				},
-				{
-					Name:    "rook-ceph-mon1",
-					Rank:    0,
-					Address: "0.0.0.0",
-				},
-				{
-					Name:    "rook-ceph-mon2",
-					Rank:    0,
-					Address: "0.0.0.0",
-				},
-			}
-			serialized, _ := json.Marshal(resp)
-			return string(serialized), nil
-		},
-	}
-	context.Executor = executor
 	c := newCluster(context, namespace, false, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(1)
 
@@ -160,38 +127,6 @@ func TestOperatorRestart(t *testing.T) {
 func TestOperatorRestartHostNetwork(t *testing.T) {
 	namespace := "ns"
 	context := newTestStartCluster(namespace)
-	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, arg ...string) (string, error) {
-			if strings.Contains(command, "ceph-authtool") {
-				cephtest.CreateConfigDir(path.Join(context.ConfigDir, namespace))
-			}
-			return "", nil
-		},
-		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-			cephtest.CreateConfigDir(path.Join(context.ConfigDir, namespace))
-			resp := client.MonStatusResponse{Quorum: []int{0}}
-			resp.MonMap.Mons = []client.MonMapEntry{
-				{
-					Name:    "rook-ceph-mon0",
-					Rank:    0,
-					Address: "0.0.0.0",
-				},
-				{
-					Name:    "rook-ceph-mon1",
-					Rank:    0,
-					Address: "0.0.0.0",
-				},
-				{
-					Name:    "rook-ceph-mon2",
-					Rank:    0,
-					Address: "0.0.0.0",
-				},
-			}
-			serialized, _ := json.Marshal(resp)
-			return string(serialized), nil
-		},
-	}
-	context.Executor = executor
 	c := newCluster(context, namespace, false, v1.ResourceRequirements{})
 	c.clusterInfo = test.CreateConfigDir(1)
 
@@ -235,14 +170,14 @@ func TestSaveMonEndpoints(t *testing.T) {
 
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mon1=1.2.3.1:6790", cm.Data[EndpointDataKey])
+	assert.Equal(t, "rook-ceph-mon1=1.2.3.1:6790", cm.Data[EndpointDataKey])
 	assert.Equal(t, `{"node":{},"port":{}}`, cm.Data[MappingKey])
 	assert.Equal(t, "-1", cm.Data[MaxMonIDKey])
 
 	// update the config map
-	c.clusterInfo.Monitors["mon1"].Endpoint = "2.3.4.5:6790"
+	c.clusterInfo.Monitors["rook-ceph-mon1"].Endpoint = "2.3.4.5:6790"
 	c.maxMonID = 2
-	c.mapping.Node["mon1"] = &NodeInfo{
+	c.mapping.Node["rook-ceph-mon1"] = &NodeInfo{
 		Name:     "node0",
 		Address:  "1.1.1.1",
 		Hostname: "myhost",
@@ -253,8 +188,8 @@ func TestSaveMonEndpoints(t *testing.T) {
 
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, "mon1=2.3.4.5:6790", cm.Data[EndpointDataKey])
-	assert.Equal(t, `{"node":{"mon1":{"Name":"node0","Hostname":"myhost","Address":"1.1.1.1"}},"port":{"node0":12345}}`, cm.Data[MappingKey])
+	assert.Equal(t, "rook-ceph-mon1=2.3.4.5:6790", cm.Data[EndpointDataKey])
+	assert.Equal(t, `{"node":{"rook-ceph-mon1":{"Name":"node0","Hostname":"myhost","Address":"1.1.1.1"}},"port":{"node0":12345}}`, cm.Data[MappingKey])
 	assert.Equal(t, "2", cm.Data[MaxMonIDKey])
 }
 
@@ -348,7 +283,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 	// start pods on the remaining node. We expect no nodes to be available for placement
 	// since there is no way to place a mon on an unused node.
-	pod := c.makeMonPod(&monConfig{Name: "mon2"}, nodes[2].Name)
+	pod := c.makeMonPod(&monConfig{Name: "rook-ceph-mon2"}, nodes[2].Name)
 	_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
 	assert.Nil(t, err)
 	nodes, err = c.getMonNodes()
@@ -454,7 +389,7 @@ func TestHostNetwork(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(nodes))
 
-	pod := c.makeMonPod(&monConfig{Name: "mon2"}, nodes[2].Name)
+	pod := c.makeMonPod(&monConfig{Name: "rook-ceph-mon2"}, nodes[2].Name)
 	assert.NotNil(t, pod)
 
 	assert.Equal(t, true, pod.Spec.HostNetwork)
@@ -512,11 +447,11 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 
 	mons := []*monConfig{
 		{
-			Name: "mon1",
+			Name: "rook-ceph-mon1",
 			Port: cephmon.DefaultPort,
 		},
 		{
-			Name: "mon2",
+			Name: "rook-ceph-mon2",
 			Port: cephmon.DefaultPort,
 		},
 	}
@@ -527,11 +462,11 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 	err = c.initMonIPs(mons)
 	assert.Nil(t, err)
 
-	assert.Equal(t, node.Name, c.mapping.Node["mon1"].Name)
-	assert.Equal(t, node.Name, c.mapping.Node["mon2"].Name)
+	assert.Equal(t, node.Name, c.mapping.Node["rook-ceph-mon1"].Name)
+	assert.Equal(t, node.Name, c.mapping.Node["rook-ceph-mon2"].Name)
 
-	sEndpoint := strings.Split(c.clusterInfo.Monitors["mon1"].Endpoint, ":")
+	sEndpoint := strings.Split(c.clusterInfo.Monitors["rook-ceph-mon1"].Endpoint, ":")
 	assert.Equal(t, strconv.Itoa(cephmon.DefaultPort), sEndpoint[1])
-	sEndpoint = strings.Split(c.clusterInfo.Monitors["mon2"].Endpoint, ":")
+	sEndpoint = strings.Split(c.clusterInfo.Monitors["rook-ceph-mon2"].Endpoint, ":")
 	assert.Equal(t, strconv.Itoa(cephmon.DefaultPort+1), sEndpoint[1])
 }

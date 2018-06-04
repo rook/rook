@@ -48,11 +48,11 @@ func testPodSpec(t *testing.T, dataDir string) {
 			},
 		}, metav1.OwnerReference{})
 	c.clusterInfo = testop.CreateConfigDir(0)
-	config := &monConfig{Name: "mon0", Port: 6790}
+	config := &monConfig{Name: "rook-ceph-mon0", Port: 6790}
 
 	pod := c.makeMonPod(config, "foo")
 	assert.NotNil(t, pod)
-	assert.Equal(t, "mon0", pod.Name)
+	assert.Equal(t, "rook-ceph-mon0", pod.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, pod.Spec.RestartPolicy)
 	assert.Equal(t, 2, len(pod.Spec.Volumes))
 	assert.Equal(t, "rook-data", pod.Spec.Volumes[0].Name)
@@ -65,7 +65,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 		assert.Equal(t, dataDir, pod.Spec.Volumes[0].HostPath.Path)
 	}
 
-	assert.Equal(t, "mon0", pod.ObjectMeta.Name)
+	assert.Equal(t, "rook-ceph-mon0", pod.ObjectMeta.Name)
 	assert.Equal(t, appName, pod.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
 
@@ -78,7 +78,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "ceph", cont.Args[0])
 	assert.Equal(t, "mon", cont.Args[1])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[2])
-	assert.Equal(t, "--name=mon0", cont.Args[3])
+	assert.Equal(t, "--name=rook-ceph-mon0", cont.Args[3])
 	assert.Equal(t, "--port=6790", cont.Args[4])
 	assert.Equal(t, fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID), cont.Args[5])
 
