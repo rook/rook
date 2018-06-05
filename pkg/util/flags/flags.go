@@ -37,6 +37,26 @@ func VerifyRequiredFlags(cmd *cobra.Command, requiredFlags []string) error {
 	return createRequiredFlagError(cmd.Name(), missingFlags)
 }
 
+type RenamedFlag struct {
+	NewFlagName string
+	OldFlagName string
+}
+
+func VerifyRenamedFlags(cmd *cobra.Command, renamedFlags []RenamedFlag) error {
+	var missingFlags []string
+	for _, renamedFlag := range renamedFlags {
+		val, err := cmd.Flags().GetString(renamedFlag.NewFlagName)
+		if err != nil || val == "" {
+			val, err := cmd.Flags().GetString(renamedFlag.OldFlagName)
+			if err != nil || val == "" {
+				missingFlags = append(missingFlags, renamedFlag.NewFlagName)
+			}
+		}
+	}
+
+	return createRequiredFlagError(cmd.Name(), missingFlags)
+}
+
 func VerifyRequiredUint64Flags(cmd *cobra.Command, requiredFlags []string) error {
 	var missingFlags []string
 	for _, reqFlag := range requiredFlags {

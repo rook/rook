@@ -23,5 +23,5 @@ parameters:
   # If not specified, it will use `rook` as the default namespace of the cluster.
   # This is also the namespace where the cluster will be
   clusterNamespace: rook-ceph
-  # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
-  # fstype: ext4
+  # Specify the filesystem type of the volume. If not specified, it will use `ext4` as the kubernetes default. Ceph recommends 'xfs'.
+  fstype: xfs
