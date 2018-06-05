@@ -69,7 +69,7 @@ pipeline {
                     def data = [
                         "aws_1.7.x": "v1.7.11",
                         "aws_1.8.x": "v1.8.5",
-                        "gce-1.9.x": "v1.9.6",
+                        "gce_1.9.x": "v1.9.6",
                         "aws_1.10.x": "v1.10.1"
                     ]
                     testruns = [:]
