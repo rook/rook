@@ -51,3 +51,5 @@ Here are some sample commands to help with your transition.
 
 - Legacy CRD types in the `rook.io/v1alpha1` API group have been deprecated.  The types from
   `rook.io/v1alpha2` should now be used instead.
+- Legacy command flag `public-ipv4` in the ceph components have been deprecated, `public-ip` should now be used instead.
+- Legacy command flag `private-ipv4` in the ceph components have been deprecated, `private-ip` should now be used instead.

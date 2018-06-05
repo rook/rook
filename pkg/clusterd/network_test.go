@@ -26,31 +26,62 @@ func TestVerifyNetworkInfo(t *testing.T) {
 
 	// well formed network info is OK
 	networkInfo = NetworkInfo{
-		PublicAddrIPv4:  "10.1.1.1",
-		PublicNetwork:   "10.1.1.0/24",
-		ClusterAddrIPv4: "10.1.2.2",
-		ClusterNetwork:  "10.1.2.0/24",
+		PublicAddr:     "10.1.1.1",
+		PublicNetwork:  "10.1.1.0/24",
+		ClusterAddr:    "10.1.2.2",
+		ClusterNetwork: "10.1.2.0/24",
 	}
 	err = VerifyNetworkInfo(networkInfo)
 	assert.Nil(t, err)
 
 	// malformed IP address is not OK
 	networkInfo = NetworkInfo{
-		PublicAddrIPv4:  "10.1.1.256",
-		PublicNetwork:   "10.1.1.0/24",
-		ClusterAddrIPv4: "10.1.2.256",
-		ClusterNetwork:  "10.1.2.0/24",
+		PublicAddr:     "10.1.1.256",
+		PublicNetwork:  "10.1.1.0/24",
+		ClusterAddr:    "10.1.2.256",
+		ClusterNetwork: "10.1.2.0/24",
 	}
 	err = VerifyNetworkInfo(networkInfo)
 	assert.NotNil(t, err)
 
 	// malformed network address is not OK
 	networkInfo = NetworkInfo{
-		PublicAddrIPv4:  "10.1.1.1",
-		PublicNetwork:   "10.1.1.0/33",
-		ClusterAddrIPv4: "10.1.2.2",
-		ClusterNetwork:  "10.1.2.0/33",
+		PublicAddr:     "10.1.1.1",
+		PublicNetwork:  "10.1.1.0/33",
+		ClusterAddr:    "10.1.2.2",
+		ClusterNetwork: "10.1.2.0/33",
 	}
 	err = VerifyNetworkInfo(networkInfo)
 	assert.NotNil(t, err)
+}
+
+func TestNetworkInfoSimplify(t *testing.T) {
+
+	out := NetworkInfo{
+		PublicAddr:     "10.1.1.1",
+		PublicNetwork:  "10.1.1.0/24",
+		ClusterAddr:    "10.1.2.2",
+		ClusterNetwork: "10.1.2.0/24",
+	}
+
+	// only has old fields
+	in := NetworkInfo{
+		PublicAddrIPv4:  "10.1.1.1",
+		PublicNetwork:   "10.1.1.0/24",
+		ClusterAddrIPv4: "10.1.2.2",
+		ClusterNetwork:  "10.1.2.0/24",
+	}
+	assert.Equal(t, out, in.Simplify())
+
+	// has both new and old fields
+	in = NetworkInfo{
+		PublicAddr:      "10.1.1.1",
+		PublicAddrIPv4:  "10.9.1.1",
+		PublicNetwork:   "10.1.1.0/24",
+		ClusterAddr:     "10.1.2.2",
+		ClusterAddrIPv4: "10.9.2.2",
+		ClusterNetwork:  "10.1.2.0/24",
+	}
+	assert.Equal(t, out, in.Simplify())
+
 }

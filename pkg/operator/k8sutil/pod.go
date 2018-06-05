@@ -36,9 +36,9 @@ const (
 	// ClusterAttr cluster label
 	ClusterAttr = "rook_cluster"
 	// PublicIPEnvVar public IP env var
-	PublicIPEnvVar = "ROOK_PUBLIC_IPV4"
+	PublicIPEnvVar = "ROOK_PUBLIC_IP"
 	// PrivateIPEnvVar pod IP env var
-	PrivateIPEnvVar = "ROOK_PRIVATE_IPV4"
+	PrivateIPEnvVar = "ROOK_PRIVATE_IP"
 
 	// DefaultRepoPrefix repo prefix
 	DefaultRepoPrefix = "rook"
