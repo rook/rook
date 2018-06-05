@@ -78,8 +78,8 @@ func createContext() *clusterd.Context {
 }
 
 func addCephFlags(command *cobra.Command) {
-	command.Flags().StringVar(&cfg.networkInfo.PublicAddrIPv4, "public-ipv4", "127.0.0.1", "public IPv4 address for this machine")
-	command.Flags().StringVar(&cfg.networkInfo.ClusterAddrIPv4, "private-ipv4", "127.0.0.1", "private IPv4 address for this machine")
+	command.Flags().StringVar(&cfg.networkInfo.PublicAddr, "public-ip", "127.0.0.1", "public IP address for this machine")
+	command.Flags().StringVar(&cfg.networkInfo.ClusterAddr, "private-ip", "127.0.0.1", "private IP address for this machine")
 	command.Flags().StringVar(&clusterInfo.Name, "cluster-name", "rookcluster", "ceph cluster name")
 	command.Flags().StringVar(&clusterInfo.FSID, "fsid", "", "the cluster uuid")
 	command.Flags().StringVar(&clusterInfo.MonitorSecret, "mon-secret", "", "the cephx keyring for monitors")

@@ -46,10 +46,10 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 	context := &clusterd.Context{
 		LogLevel: capnslog.INFO,
 		NetworkInfo: clusterd.NetworkInfo{
-			PublicAddrIPv4:  "10.1.1.1",
-			PublicNetwork:   "10.1.1.0/24",
-			ClusterAddrIPv4: "10.1.2.2",
-			ClusterNetwork:  "10.1.2.0/24",
+			PublicAddr:     "10.1.1.1",
+			PublicNetwork:  "10.1.1.0/24",
+			ClusterAddr:    "10.1.2.2",
+			ClusterNetwork: "10.1.2.0/24",
 		},
 	}
 
