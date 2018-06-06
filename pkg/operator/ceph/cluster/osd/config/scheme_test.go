@@ -158,23 +158,49 @@ func TestMetadataGetPartitionArgs(t *testing.T) {
 }
 
 func TestSchemeEntryGetPartitionArgs(t *testing.T) {
-	e1 := NewPerfSchemeEntry(Bluestore)
-	e1.ID = 1
-	e1.OsdUUID = uuid.Must(uuid.NewRandom())
+	// A device will use bluestore unless explicitly requested to be filestore (the default is blank)
+	// This test verifies we get the right values
+	testPartitionArgs(t, "")
 
-	storeConfig := StoreConfig{WalSizeMB: 1, DatabaseSizeMB: 2}
-	err := PopulateCollocatedPerfSchemeEntry(e1, "sdb", storeConfig)
+	//Test explicitly testing bluestore
+	testPartitionArgs(t, Bluestore)
+
+	//Test for Filestore
+	testPartitionArgs(t, Filestore)
+}
+
+func testPartitionArgs(t *testing.T, store string) {
+	//Create args to test the store
+	e := NewPerfSchemeEntry(store)
+	e.ID = 1
+	e.OsdUUID = uuid.Must(uuid.NewRandom())
+	storeConfig := StoreConfig{}
+	expectedArgs := []string{}
+
+	if store == Filestore {
+		storeConfig = StoreConfig{StoreType: Filestore}
+	} else {
+		storeConfig = StoreConfig{WalSizeMB: 1, DatabaseSizeMB: 2}
+	}
+	err := PopulateCollocatedPerfSchemeEntry(e, "sdb", storeConfig)
 	assert.Nil(t, err)
 
-	expectedArgs := []string{
-		"--new=1:2048:+2048", "--change-name=1:ROOK-OSD1-WAL", fmt.Sprintf("--partition-guid=1:%s", e1.Partitions[WalPartitionType].PartitionUUID),
-		"--new=2:4096:+4096", "--change-name=2:ROOK-OSD1-DB", fmt.Sprintf("--partition-guid=2:%s", e1.Partitions[DatabasePartitionType].PartitionUUID),
-		"--largest-new=3", "--change-name=3:ROOK-OSD1-BLOCK", fmt.Sprintf("--partition-guid=3:%s", e1.Partitions[BlockPartitionType].PartitionUUID),
-		fmt.Sprintf("--disk-guid=%s", e1.Partitions[BlockPartitionType].DiskUUID), "/dev/sdb",
+	if store == Filestore {
+		expectedArgs = []string{
+			"--largest-new=1",
+			"--change-name=1:ROOK-OSD1-FS-DATA", fmt.Sprintf("--partition-guid=1:%s", e.Partitions[FilestoreDataPartitionType].PartitionUUID),
+			fmt.Sprintf("--disk-guid=%s", e.Partitions[FilestoreDataPartitionType].DiskUUID), "/dev/sdb",
+		}
+	} else {
+		expectedArgs = []string{
+			"--new=1:2048:+2048", "--change-name=1:ROOK-OSD1-WAL", fmt.Sprintf("--partition-guid=1:%s", e.Partitions[WalPartitionType].PartitionUUID),
+			"--new=2:4096:+4096", "--change-name=2:ROOK-OSD1-DB", fmt.Sprintf("--partition-guid=2:%s", e.Partitions[DatabasePartitionType].PartitionUUID),
+			"--largest-new=3", "--change-name=3:ROOK-OSD1-BLOCK", fmt.Sprintf("--partition-guid=3:%s", e.Partitions[BlockPartitionType].PartitionUUID),
+			fmt.Sprintf("--disk-guid=%s", e.Partitions[BlockPartitionType].DiskUUID), "/dev/sdb",
+		}
 	}
 
-	// get the partition args and verify against expected
-	args := e1.GetPartitionArgs()
+	args := e.GetPartitionArgs()
 	assert.Equal(t, expectedArgs, args)
 
 	logger.Noticef("%+v", args)
