@@ -222,6 +222,9 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 			nameToUUID[disk.Name] = disk.UUID
 		}
 	}
+	for _, device := range context.Devices {
+		logger.Debugf("context.Device: %+v", device)
+	}
 
 	numDataNeeded := 0
 	var metadataEntry *DeviceOsdIDEntry
@@ -232,12 +235,15 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 		if isDeviceInUse(name, nameToUUID, perfScheme) {
 			// device is already in use for either data or metadata, update the details for each of its partitions
 			// (i.e. device name could have changed)
+			logger.Infof("device %s (%s) is already in use", name, nameToUUID)
 			refreshDeviceInfo(name, nameToUUID, perfScheme)
 		} else if isDeviceDesiredForData(mapping) {
 			// device needs data partitioning
+			logger.Infof("configuring device %s (%s) for data", name, nameToUUID)
 			numDataNeeded++
 		} else if isDeviceDesiredForMetadata(mapping, perfScheme) {
 			// device is desired to store metadata for other OSDs
+			logger.Infof("configuring device %s (%s) for metadata", name, nameToUUID)
 			if perfScheme.Metadata != nil {
 				// TODO: this perf scheme creation algorithm assumes either zero or one metadata device, enhance to allow multiple
 				// https://github.com/rook/rook/issues/341
