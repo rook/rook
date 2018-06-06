@@ -75,6 +75,8 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 
 func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
 	storeConfig config.StoreConfig, metadataDevice, location string, osd OSDInfo) (*extensions.Deployment, error) {
+	logger.Debugf("making deployment for osd %+v with config: %+v", osd, storeConfig)
+
 	replicaCount := int32(1)
 	volumeMounts := []v1.VolumeMount{
 		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
@@ -87,6 +89,15 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		volumes = append(volumes, v1.Volume{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource})
 	} else {
 		logger.Infof("no data dir provided")
+	}
+
+	// Mount the path to the directory-based osd unless it is already available under the dataDirHostPath
+	if osd.IsDirectory && !strings.HasPrefix(osd.DataPath, k8sutil.DataDir) {
+		logger.Infof("mounting osd data path %s", osd.DataPath)
+		volumeName := k8sutil.PathToVolumeName(osd.DataPath)
+		dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: osd.DataPath}}
+		volumes = append(volumes, v1.Volume{Name: volumeName, VolumeSource: dataDirSource})
+		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: volumeName, MountPath: osd.DataPath})
 	}
 
 	// by default, don't define any volume config unless it is required

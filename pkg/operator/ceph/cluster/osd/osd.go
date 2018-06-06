@@ -111,6 +111,7 @@ type OSDInfo struct {
 	UUID        string `json:"uuid"`
 	Journal     string `json:"journal"`
 	IsFileStore bool   `json:"is-file-store"`
+	IsDirectory bool   `json:"is-directory"`
 }
 
 type OrchestrationStatus struct {

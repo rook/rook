@@ -495,6 +495,7 @@ func getOSDInfo(clusterName string, config *osdConfig) *oposd.OSDInfo {
 		KeyringPath: getOSDKeyringPath(config.rootPath),
 		UUID:        config.uuid.String(),
 		IsFileStore: isFilestore(config),
+		IsDirectory: config.dir,
 	}
 
 	if isFilestore(config) {
