@@ -6,9 +6,18 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 )
 
-// MgrEnableModule Enable module for mgr
+// MgrEnableModule enables a mgr module
 func MgrEnableModule(context *clusterd.Context, clusterName, name string, force bool) error {
-	args := []string{"mgr", "module", "enable", name}
+	return enableModule(context, clusterName, name, force, "enable")
+}
+
+// MgrDisableModule disables a mgr module
+func MgrDisableModule(context *clusterd.Context, clusterName, name string) error {
+	return enableModule(context, clusterName, name, false, "disable")
+}
+
+func enableModule(context *clusterd.Context, clusterName, name string, force bool, action string) error {
+	args := []string{"mgr", "module", action, name}
 	if force {
 		args = append(args, "--force")
 	}

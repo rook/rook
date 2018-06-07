@@ -17,6 +17,9 @@ spec:
   mon:
     count: 3
     allowMultiplePerNode: true
+  # enable the ceph dashboard for viewing cluster status
+  dashboard:
+    enabled: true
   network:
     # toggle to use hostNetwork
     hostNetwork: false

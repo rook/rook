@@ -8,11 +8,12 @@
 
 - Rook is now architected to be a general cloud-native storage orchestrator, and can now support multiple types of storage and providers beyond Ceph.  More storage providers such as CockroachDB and Minio will be available in master builds soon.
 - Ceph tools can be run [from any rook pod](Documentation/common-issues.md#ceph-tools).
-- Output from stderr will be included in error messages returned from the `exec` of external tools
+- Output from stderr will be included in error messages returned from the `exec` of external tools.
 - Rook-Operator no longer creates the resources CRD's or TPR's at the runtime. Instead, those resources are provisioned during deployment via `helm` or `kubectl`.
 - The 'rook' image is now based on the ceph-container project's 'daemon-base' image so that Rook no
   longer has to manage installs of Ceph in image.
 - Rook CRD code generation is now working with BSD (Mac) and GNU sed.
+- The [Ceph dashboard](Documentation/ceph-dashboard.md) can be enabled by the cluster CRD.
 
 ## Breaking Changes
 

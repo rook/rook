@@ -21,6 +21,8 @@ Settings can be specified at the global level to apply to the cluster as a whole
   - If a path is not specified, an [empty dir](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) will be used and the config will be lost when the pod or host is restarted. This option is **not recommended**.
   - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start.
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
+- `dashboard`: Settings for the Ceph dashboard. To view the dashboard in your browser see the [dashboard guide](ceph-dashboard.md).
+  - `enabled`: Whether to enable the dashboard to view cluster status
 - `network`: The network settings for the cluster
   - `hostNetwork`: uses network of the hosts instead of using the SDN below the containers.
 - `mon`: contains mon related options [mon settings](#mon-settings)
@@ -124,6 +126,8 @@ metadata:
   namespace: rook-ceph
 spec:
   dataDirHostPath: /var/lib/rook
+  dashboard:
+    enabled: true
   # cluster level storage configuration and selection
   storage:
     useAllNodes: true

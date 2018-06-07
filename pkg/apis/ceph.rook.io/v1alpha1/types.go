@@ -51,6 +51,9 @@ type ClusterSpec struct {
 	// A spec for available storage in the cluster and how it should be used
 	Storage rook.StorageScopeSpec `json:"storage,omitempty"`
 
+	// Dashboard settings
+	Dashboard DashboardSpec `json:"dashboard,omitempty"`
+
 	// The placement-related configuration to pass to kubernetes (affinity, node selector, tolerations).
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
 
@@ -65,6 +68,12 @@ type ClusterSpec struct {
 
 	// A spec for mon releated options
 	Mon MonSpec `json:"mon"`
+}
+
+// DashboardSpec represents the settings for the Ceph dashboard
+type DashboardSpec struct {
+	// Whether to enable the dashboard
+	Enabled bool `json:"enabled,omitempty"`
 }
 
 type ClusterStatus struct {

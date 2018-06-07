@@ -75,11 +75,12 @@ metadata:
   namespace: rook-ceph
 spec:
   dataDirHostPath: /var/lib/rook
+  dashboard:
+    enabled: true
   storage:
     useAllNodes: true
     useAllDevices: false
     config:
-      storeType: bluestore
       databaseSizeMB: "1024"
       journalSizeMB: "1024"
 ```
@@ -108,6 +109,10 @@ For a walkthrough of the three types of storage exposed by Rook, see the guides 
 - **[Block](block.md)**: Create block storage to be consumed by a pod
 - **[Object](object.md)**: Create an object store that is accessible inside or outside the Kubernetes cluster
 - **[Shared File System](filesystem.md)**: Create a file system to be shared across multiple pods
+
+# Ceph Dashboard
+
+Ceph has a dashboard in which you can view the status of your cluster. Please see the [dashboard guide](ceph-dashboard.md) for more details.
 
 # Tools
 
