@@ -57,8 +57,6 @@ const (
 	clusterCreateTimeout     = 5 * time.Minute
 	updateClusterInterval    = 30 * time.Second
 	updateClusterTimeout     = 1 * time.Hour
-	defaultMonCount          = 3
-	maxMonCount              = 9
 )
 
 const (
@@ -184,16 +182,16 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		c.devicesInUse = true
 	}
 
-	if cluster.Spec.MonCount <= 0 {
-		logger.Warningf("mon count is 0 or less (given: %d), should be greater than 0, defaulting to %d", cluster.Spec.MonCount, defaultMonCount)
-		cluster.Spec.MonCount = defaultMonCount
+	if cluster.Spec.Mon.Count <= 0 {
+		logger.Warning("mon count is 0 or less, should be at least 1, will use default value of %d", mon.DefaultMonCount)
+		cluster.Spec.Mon.Count = 0
 	}
-	if cluster.Spec.MonCount > maxMonCount {
-		logger.Warningf("mon count is bigger than %d (given: %d), not supported, changing to %d", maxMonCount, cluster.Spec.MonCount, maxMonCount)
-		cluster.Spec.MonCount = maxMonCount
+	if cluster.Spec.Mon.Count > mon.MaxMonCount {
+		logger.Warningf("mon count is bigger than %d (given: %d), not supported, changing to %d", mon.MaxMonCount, cluster.Spec.Mon.Count, mon.MaxMonCount)
+		cluster.Spec.Mon.Count = mon.MaxMonCount
 	}
-	if cluster.Spec.MonCount%2 == 0 {
-		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.MonCount)
+	if cluster.Spec.Mon.Count%2 == 0 {
+		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
 
 	// Start the Rook cluster components. Retry several times in case of failure.
@@ -594,7 +592,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.MonCount, cephv1alpha1.GetMonPlacement(c.Spec.Placement),
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.Mon, cephv1alpha1.GetMonPlacement(c.Spec.Placement),
 		c.Spec.Network.HostNetwork, cephv1alpha1.GetMonResources(c.Spec.Resources), c.ownerRef)
 	err = c.mons.Start()
 	if err != nil {

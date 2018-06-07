@@ -29,7 +29,9 @@ Therefore, updating storage resources should be performed by the operator with s
 The Cluster CRD has many fields, but not all of them will be updatable (i.e., the operator will not attempt to make any changes to the cluster for updates to some fields).
 #### Supported Fields
 The following fields will be **supported** for updates:
-* `monCount`: The number of monitors can be updated and the operator will ensure that as monitors are scaled up or down the cluster remains in quorum.
+* `moun`: Ceph mon specific settings can be changed.
+  * `count`: The number of monitors can be updated and the operator will ensure that as monitors are scaled up or down the cluster remains in quorum.
+  * `allowMultiplePerNode`: The policy to allow multiple mons to be placed on one node can be toggled.
 * `deviceFilter`: The regex filter for devices allowed to be used for storage can be updated and OSDs will be added or removed to match the new filter pattern.
 * `useAllDevices`: If this value is updated to `true`, then OSDs will be added to start using all devices on nodes.
 However, if this value is updated to `false`, the operator will only allow OSDs to be removed if there is a value set for `deviceFilter`.
@@ -88,7 +90,7 @@ Let's walk through a couple simple scenarios to illustrate this approach:
 
 ### Orchestration
 When the operator receives an event that the Cluster CRD has been updated, it will need to perform some orchestration in order to bring actual state of the cluster in agreement with the desired state.
-For example, when `monCount` is updated, the operator will add or remove a single monitor at a time, ensuring that quorum is restored before moving onto the next monitor.
+For example, when `mon.count` is updated, the operator will add or remove a single monitor at a time, ensuring that quorum is restored before moving onto the next monitor.
 Updates to the storage spec for the cluster require even more careful consideration and management by the operator, which will be discussed in this section.
 
 First and foremost, changes to the cluster state should not be carried out when the cluster is not in a healthy state.
@@ -205,5 +207,5 @@ One proposal for implementation phases would be:
 Cluster performance impact would not be ideal but may be tolerable for many scenarios, and Rook clusters would then have dynamic storage capabilities.
 1. **Simple remove storage**:  Similar to the simple adding of storage, storage resources can be removed from the Cluster CRD with minimal orchestration.
 1. **Dynamic storage orchestration**: The more careful orchestration of storage changes would be implemented, with the operator and OSD pods coordinating across the cluster to slowly ramp up/down storage changes with minimal impact to cluster performance.
-1. **Non-storage cluster field updates**: All other properties in the cluster CRD supported for updates will be implemented (e.g., `monCount`, `resources`, etc.).
+1. **Non-storage cluster field updates**: All other properties in the cluster CRD supported for updates will be implemented (e.g., `mon`, `resources`, etc.).
 1. **Placement Group updates**: Placement group counts will be updated over time as the cluster grows in order to optimize cluster performance.

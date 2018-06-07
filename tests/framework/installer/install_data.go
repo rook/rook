@@ -98,8 +98,7 @@ spec:
     plural: volumes
     singular: volume
   scope: Namespaced
-  version: v1alpha2 
-`
+  version: v1alpha2`
 }
 
 //GetRookOperator returns rook Operator  manifest
@@ -254,8 +253,10 @@ metadata:
 spec:
   dataDirHostPath: ` + dataDirHostPath + `
   network:
-    hostNetwork: false  
-  monCount: ` + strconv.Itoa(mons) + `
+    hostNetwork: false
+  mon:
+    count: ` + strconv.Itoa(mons) + `
+    allowMultiplePerNode: true
   metadataDevice:
   storage:
     useAllNodes: true
@@ -265,8 +266,7 @@ spec:
     config:
       storeType: "` + storeType + `"
       databaseSizeMB: "1024"
-      journalSizeMB: "1024"
-    `
+      journalSizeMB: "1024"`
 }
 
 //GetRookToolBox returns rook-toolbox manifest

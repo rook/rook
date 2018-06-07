@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"testing"
 
+	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -36,20 +37,22 @@ func TestPodSpecs(t *testing.T) {
 
 func testPodSpec(t *testing.T, dataDir string) {
 	clientset := testop.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", dataDir, "rook/rook:myversion", 3, rookalpha.Placement{}, false, v1.ResourceRequirements{
-		Limits: v1.ResourceList{
-			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
-		},
-		Requests: v1.ResourceList{
-			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
-		},
-	}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", dataDir, "rook/rook:myversion",
+		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{}, false,
+		v1.ResourceRequirements{
+			Limits: v1.ResourceList{
+				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
+			},
+			Requests: v1.ResourceList{
+				v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
+			},
+		}, metav1.OwnerReference{})
 	c.clusterInfo = testop.CreateConfigDir(0)
-	config := &monConfig{Name: "mon0", Port: 6790}
+	config := &monConfig{Name: "rook-ceph-mon0", Port: 6790}
 
 	pod := c.makeMonPod(config, "foo")
 	assert.NotNil(t, pod)
-	assert.Equal(t, "mon0", pod.Name)
+	assert.Equal(t, "rook-ceph-mon0", pod.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, pod.Spec.RestartPolicy)
 	assert.Equal(t, 2, len(pod.Spec.Volumes))
 	assert.Equal(t, "rook-data", pod.Spec.Volumes[0].Name)
@@ -62,7 +65,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 		assert.Equal(t, dataDir, pod.Spec.Volumes[0].HostPath.Path)
 	}
 
-	assert.Equal(t, "mon0", pod.ObjectMeta.Name)
+	assert.Equal(t, "rook-ceph-mon0", pod.ObjectMeta.Name)
 	assert.Equal(t, appName, pod.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
 
@@ -75,7 +78,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "ceph", cont.Args[0])
 	assert.Equal(t, "mon", cont.Args[1])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[2])
-	assert.Equal(t, "--name=mon0", cont.Args[3])
+	assert.Equal(t, "--name=rook-ceph-mon0", cont.Args[3])
 	assert.Equal(t, "--port=6790", cont.Args[4])
 	assert.Equal(t, fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID), cont.Args[5])
 

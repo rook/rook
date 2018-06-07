@@ -159,7 +159,9 @@ With this approach, the user experience to create a cluster would look like the 
 apiVersion: ceph.rook.io/v1
 kind: Cluster
 spec:
-  monCount: 3
+  mon:
+    count: 3
+    allowMultiplePerNode: false
   network:
   placement:
   resources:
@@ -194,7 +196,7 @@ type ClusterSpec struct {
   Network     rook.NetworkSpec      `json:"network"`
   Placement   rook.PlacementSpec    `json:"placement"`
   Resources   rook.ResourceSpec     `json:"resources"`
-  MonCount    int                   `json:"monCount"`
+  Mon         rook.MonSpec          `json:"mon"`
 }
 ```
 
@@ -397,7 +399,9 @@ metadata:
   name: ceph
   namespace: rook-ceph
 spec:
-  monCount: 3
+  mon:
+    count: 3
+    allowMultiplePerNode: false
   network:
     hostNetwork: false
   placement:

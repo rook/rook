@@ -28,6 +28,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -147,12 +148,13 @@ func (h *InstallHelper) CreateK8sRookToolbox(namespace string) (err error) {
 }
 
 func (h *InstallHelper) CreateK8sRookCluster(namespace string, storeType string) (err error) {
-	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, "", false, 1, true /* startWithAllNodes */)
+	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, "", false,
+		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true /* startWithAllNodes */)
 }
 
 //CreateK8sRookCluster creates rook cluster via kubectl
 func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath string,
-	useAllDevices bool, mons int, startWithAllNodes bool) error {
+	useAllDevices bool, mon cephv1alpha1.MonSpec, startWithAllNodes bool) error {
 
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
 	_, err := h.k8shelper.Clientset.CoreV1().Namespaces().Create(ns)
@@ -170,7 +172,10 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, st
 			},
 			Spec: v1alpha1.ClusterSpec{
 				DataDirHostPath: dataDirHostPath,
-				MonCount:        mons,
+				Mon: v1alpha1.MonSpec{
+					Count:                mon.Count,
+					AllowMultiplePerNode: mon.AllowMultiplePerNode,
+				},
 				Storage: rookalpha.StorageScopeSpec{
 					UseAllNodes: startWithAllNodes,
 					Selection: rookalpha.Selection{
@@ -216,13 +221,13 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, st
 		}
 	} else {
 		logger.Infof("Starting Rook Cluster with yaml")
-		rookCluster := h.installData.GetRookCluster(namespace, storeType, dataDirHostPath, useAllDevices, mons)
+		rookCluster := h.installData.GetRookCluster(namespace, storeType, dataDirHostPath, useAllDevices, mon.Count)
 		if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createArgs...); err != nil {
 			return fmt.Errorf("Failed to create rook cluster : %v ", err)
 		}
 	}
 
-	err = h.k8shelper.WaitForPodCount("app=rook-ceph-mon", namespace, mons)
+	err = h.k8shelper.WaitForPodCount("app=rook-ceph-mon", namespace, mon.Count)
 	if err != nil {
 		return err
 	}
@@ -243,7 +248,7 @@ func SystemNamespace(namespace string) string {
 
 //InstallRookOnK8sWithHostPathAndDevices installs rook on k8s
 func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType, dataDirHostPath string,
-	helmInstalled, useDevices bool, mons int, startWithAllNodes bool) (bool, error) {
+	helmInstalled, useDevices bool, mon cephv1alpha1.MonSpec, startWithAllNodes bool) (bool, error) {
 
 	var err error
 	//flag used for local debuggin purpose, when rook is pre-installed
@@ -285,7 +290,8 @@ func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	}
 
 	//Create rook cluster
-	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath, useDevices, mons, startWithAllNodes)
+	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, storeType, dataDirHostPath,
+		useDevices, cephv1alpha1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
 		return false, err
