@@ -22,12 +22,14 @@ import (
 	"strconv"
 	"testing"
 
+	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -45,7 +47,7 @@ func TestStartMGR(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	c := New(context, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(context, "ns", "myversion", rookalpha.Placement{}, false, cephv1alpha1.DashboardSpec{Enabled: true}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic service
@@ -55,6 +57,7 @@ func TestStartMGR(t *testing.T) {
 
 	// starting again with more replicas
 	c.Replicas = 3
+	c.dashboard.Enabled = false
 	err = c.Start()
 	assert.Nil(t, err)
 	validateStart(t, c)
@@ -67,10 +70,20 @@ func validateStart(t *testing.T, c *Cluster) {
 		_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(fmt.Sprintf("rook-ceph-mgr%d", i), metav1.GetOptions{})
 		assert.Nil(t, err)
 	}
+
+	_, err := c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr", metav1.GetOptions{})
+	assert.Nil(t, err)
+
+	_, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get("rook-ceph-mgr-dashboard", metav1.GetOptions{})
+	if c.dashboard.Enabled {
+		assert.Nil(t, err)
+	} else {
+		assert.True(t, errors.IsNotFound(err))
+	}
 }
 
 func TestPodSpec(t *testing.T) {
-	c := New(nil, "ns", "rook/rook:myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{
+	c := New(nil, "ns", "rook/rook:myversion", rookalpha.Placement{}, false, cephv1alpha1.DashboardSpec{}, v1.ResourceRequirements{
 		Limits: v1.ResourceList{
 			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
 		},
@@ -109,7 +122,7 @@ func TestPodSpec(t *testing.T) {
 }
 
 func TestServiceSpec(t *testing.T) {
-	c := New(nil, "ns", "myversion", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(nil, "ns", "myversion", rookalpha.Placement{}, false, cephv1alpha1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	s := c.makeService("rook-mgr")
 	assert.NotNil(t, s)
@@ -118,7 +131,7 @@ func TestServiceSpec(t *testing.T) {
 }
 
 func TestHostNetwork(t *testing.T) {
-	c := New(nil, "ns", "myversion", rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(nil, "ns", "myversion", rookalpha.Placement{}, true, cephv1alpha1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	d := c.makeDeployment("mgr1")
 	assert.NotNil(t, d)

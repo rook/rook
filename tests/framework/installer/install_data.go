@@ -257,6 +257,8 @@ spec:
   mon:
     count: ` + strconv.Itoa(mons) + `
     allowMultiplePerNode: true
+  dashboard:
+    enabled: true
   metadataDevice:
   storage:
     useAllNodes: true
