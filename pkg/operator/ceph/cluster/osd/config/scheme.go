@@ -379,7 +379,8 @@ func (e *PerfSchemeEntry) GetPartitionArgs() []string {
 	args := []string{}
 	partNum := 1
 
-	if collocated && e.StoreType == Bluestore {
+	// A device will use bluestore unless explicitly requested to be filestore (the default is blank)
+	if collocated && e.StoreType != Filestore {
 		// partitions are collocated, create the metadata partitions on the same device
 		walDetails := e.Partitions[WalPartitionType]
 		partArgs := getPartitionArgsFromDetails(partNum, WalPartitionType, e.ID, walDetails)
