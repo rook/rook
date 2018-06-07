@@ -605,7 +605,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	c.mgrs = mgr.New(c.context, c.Namespace, rookImage, cephv1alpha1.GetMgrPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, cephv1alpha1.GetMgrResources(c.Spec.Resources), c.ownerRef)
+		c.Spec.Network.HostNetwork, c.Spec.Dashboard, cephv1alpha1.GetMgrResources(c.Spec.Resources), c.ownerRef)
 	err = c.mgrs.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
@@ -683,7 +683,7 @@ func (c *cluster) createInitialCrushMap() error {
 }
 
 func clusterChanged(oldCluster, newCluster cephv1alpha1.ClusterSpec) bool {
-
+	changeFound := false
 	oldStorage := oldCluster.Storage
 	newStorage := newCluster.Storage
 
@@ -691,10 +691,14 @@ func clusterChanged(oldCluster, newCluster cephv1alpha1.ClusterSpec) bool {
 	sort.Sort(rookv1alpha2.NodesByName(oldStorage.Nodes))
 	sort.Sort(rookv1alpha2.NodesByName(newStorage.Nodes))
 	if !reflect.DeepEqual(oldStorage.Nodes, newStorage.Nodes) {
-		// the nodes list has changed
-		return true
+		logger.Infof("The list of nodes has changed")
+		changeFound = true
 	}
 
-	// none of the supported cluster updates were detected
-	return false
+	if oldCluster.Dashboard.Enabled != newCluster.Dashboard.Enabled {
+		logger.Infof("dashboard enabled has changed from %t to %t", oldCluster.Dashboard.Enabled, newCluster.Dashboard.Enabled)
+		changeFound = true
+	}
+
+	return changeFound
 }
