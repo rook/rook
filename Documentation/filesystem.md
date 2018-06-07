@@ -121,6 +121,7 @@ spec:
             fsName: myfs # name of the filesystem specified in the filesystem CRD.
             clusterNamespace: rook-ceph # namespace where the Rook cluster is deployed
             # by default the path is /, but you can override and mount a specific path of the filesystem by using the path attribute
+            # the path must exist on the filesystem, otherwise mounting the filesystem at that path will fail
             # path: /some/path/inside/cephfs
 ```
 
