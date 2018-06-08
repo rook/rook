@@ -15,7 +15,7 @@ In these environments, the Kubelet needs to be told to use a different flexvolum
 To do this, you will need to first add the `--volume-plugin-dir` flag to the Kubelet and then restart the Kubelet process.
 These steps need to be carried out on **all nodes** in your cluster.
 
-Please refer to the below sections for more information on your specific platform and/or Kubernetes version used.
+Please refer to all below sections that are applicable for you, they contain more information on your specific platform and/or Kubernetes version used.
 
 ```bash
 --volume-plugin-dir=/var/lib/kubelet/volumeplugins
@@ -23,7 +23,7 @@ Please refer to the below sections for more information on your specific platfor
 Restart Kubelet in order for this change to take effect.
 
 ## For Kubernetes >= 1.9.x
-In Kubernetes 1.9.x, you must provide the above set Flexvolume plugin directory when deploying the [rook-operator](/cluster/examples/kubernetes/ceph/operator.yaml) by setting the environment variable `FLEXVOLUME_DIR_PATH`. For example:
+In Kubernetes >= `1.9.x`, you must provide the above set Flexvolume plugin directory when deploying the [rook-operator](/cluster/examples/kubernetes/ceph/operator.yaml) by setting the environment variable `FLEXVOLUME_DIR_PATH`. For example:
 ```yaml
 - name: FLEXVOLUME_DIR_PATH
   value: "/var/lib/kubelet/volumeplugins"
