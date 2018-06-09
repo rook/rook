@@ -1,12 +1,13 @@
 #!/bin/bash -e
 
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# shellcheck disable=SC1090
 source "${scriptdir}/../../build/common.sh"
 
 function init_flexvolume() {
     local flexname=$1
 
-    cat <<EOF | ssh -i `minikube ssh-key` docker@`minikube ip` -o IdentitiesOnly=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=quiet 'cat - > ~/rook'
+    cat <<EOF | ssh -i "$(minikube ssh-key)" "docker@$(minikube ip)" -o IdentitiesOnly=yes -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -o LogLevel=quiet 'cat - > ~/rook'
 #!/bin/bash
 echo -ne '{"status": "Success", "capabilities": {"attach": false}}' >&1
 exit 0
@@ -57,11 +58,11 @@ EOF
 
 function wait_for_ssh() {
     local tries=100
-    while (( ${tries} > 0 )) ; do
-        if `minikube ssh echo connected &> /dev/null` ; then
+    while (( tries > 0 )) ; do
+        if minikube ssh echo connected &> /dev/null ; then
             return 0
         fi
-        tries=$(( ${tries} - 1 ))
+        tries=$(( tries - 1 ))
         sleep 0.1
     done
     echo ERROR: ssh did not come up >&2
@@ -71,23 +72,23 @@ function wait_for_ssh() {
 function copy_image_to_cluster() {
     local build_image=$1
     local final_image=$2
-    docker save ${build_image} | (eval $(minikube docker-env --shell bash) && docker load && docker tag ${build_image} ${final_image})
+    docker save "${build_image}" | (eval "$(minikube docker-env --shell bash)" && docker load && docker tag "${build_image}" "${final_image}")
 }
 
 # Deletes pods with 'rook-' prefix. Namespace is expected as the first argument
 function delete_rook_pods() {
-  for P in $(kubectl get pods -n $1 | awk "/$2/ {print \$1}"); do
-      kubectl delete pod $P -n $1
-  done 
+    for P in $(kubectl get pods -n "$1" | awk "/$2/ {print \$1}"); do
+        kubectl delete pod "$P" -n "$1"
+    done
 }
 
 # current kubectl context == minikube, returns boolean
 function check_context() {
-  if [ "$(kubectl config view 2>/dev/null | awk '/current-context/ {print $NF}')" = "minikube" ]; then
-    return 0
-  fi
+    if [ "$(kubectl config view 2>/dev/null | awk '/current-context/ {print $NF}')" = "minikube" ]; then
+        return 0
+    fi
 
-  return 1
+    return 1
 }
 
 # configure minikube
@@ -99,7 +100,7 @@ case "${1:-}" in
     # Use kubeadm bootstrapper for 1.8+ since localkube was deprecated in 1.8
     if [[ $KUBE_VERSION == v1.7* ]] ; then
       echo "starting minikube with localkube bootstrapper"
-      minikube start --memory=${MEMORY} -b localkube --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
+      minikube start --memory="${MEMORY}" -b localkube --kubernetes-version "${KUBE_VERSION}" --extra-config=apiserver.Authorization.Mode=RBAC
       wait_for_ssh
       enable_roles_for_RBAC
       echo "initializing flexvolume for ceph.rook.io"
@@ -107,18 +108,18 @@ case "${1:-}" in
       echo "initializing flexvolume for rook.io"
       init_flexvolume rook.io
       echo "restarting minikube"
-      minikube start --memory=${MEMORY} -b localkube --kubernetes-version ${KUBE_VERSION} --extra-config=apiserver.Authorization.Mode=RBAC
+      minikube start --memory="${MEMORY}" -b localkube --kubernetes-version "${KUBE_VERSION}" --extra-config=apiserver.Authorization.Mode=RBAC
     else
       echo "starting minikube with kubeadm bootstrapper"
-      minikube start --memory=${MEMORY} -b kubeadm --kubernetes-version ${KUBE_VERSION}
+      minikube start --memory="${MEMORY}" -b kubeadm --kubernetes-version "${KUBE_VERSION}"
       wait_for_ssh
     fi
     # create a link so the default dataDirHostPath will work for this environment
     minikube ssh "sudo mkdir /mnt/sda1/var/lib/rook;sudo ln -s /mnt/sda1/var/lib/rook /var/lib/rook"
-    copy_image_to_cluster ${BUILD_REGISTRY}/ceph-amd64 rook/ceph:master
-    copy_image_to_cluster ${BUILD_REGISTRY}/ceph-toolbox-amd64 rook/ceph-toolbox:master
-    copy_image_to_cluster ${BUILD_REGISTRY}/cockroachdb-amd64 rook/cockroachdb:master
-    copy_image_to_cluster ${BUILD_REGISTRY}/minio-amd64 rook/minio:master
+    copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" rook/ceph:master
+    copy_image_to_cluster "${BUILD_REGISTRY}/ceph-toolbox-amd64" rook/ceph-toolbox:master
+    copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
+    copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" rook/minio:master
     ;;
   down)
     minikube stop
@@ -129,10 +130,10 @@ case "${1:-}" in
     ;;
   update)
     echo "updating the rook images"
-    copy_image_to_cluster ${BUILD_REGISTRY}/ceph-amd64 rook/ceph:master
-    copy_image_to_cluster ${BUILD_REGISTRY}/ceph-toolbox-amd64 rook/ceph-toolbox:master
-    copy_image_to_cluster ${BUILD_REGISTRY}/cockroachdb-amd64 rook/cockroachdb:master
-    copy_image_to_cluster ${BUILD_REGISTRY}/minio-amd64 rook/minio:master
+    copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" rook/ceph:master
+    copy_image_to_cluster "${BUILD_REGISTRY}/ceph-toolbox-amd64" rook/ceph-toolbox:master
+    copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
+    copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" rook/minio:master
     ;;
   restart)
     if check_context; then
@@ -152,9 +153,9 @@ case "${1:-}" in
     ;;
   helm)
     echo " copying rook image for helm"
-    helm_tag="`cat _output/version`"
-    copy_image_to_cluster ${BUILD_REGISTRY}/ceph-amd64 rook/ceph:${helm_tag}
-    copy_image_to_cluster ${BUILD_REGISTRY}/minio-amd64 rook/minio:${helm_tag}
+    helm_tag="$(cat _output/version)"
+    copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" "rook/ceph:${helm_tag}"
+    copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" "rook/minio:${helm_tag}"
     ;;
   clean)
     minikube delete
