@@ -58,7 +58,7 @@ const (
 	adminSecretName   = "admin-secret"
 	clusterSecretName = "cluster-name"
 
-	// DefaultMonCount Default mon count for cluster
+	// DefaultMonCount Default mon count for a cluster
 	DefaultMonCount = 3
 	// MaxMonCount Maximum allowed mon count for a cluster
 	MaxMonCount = 9

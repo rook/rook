@@ -226,7 +226,7 @@ func TestConvertLegacyCluster(t *testing.T) {
 			DataDirHostPath: "/var/lib/rook302",
 			Mon: cephv1alpha1.MonSpec{
 				Count:                5,
-				AllowMultiplePerNode: false,
+				AllowMultiplePerNode: true,
 			},
 			Network: rookv1alpha2.NetworkSpec{HostNetwork: true},
 			Placement: rookv1alpha2.PlacementSpec{
@@ -300,6 +300,11 @@ func TestConvertLegacyCluster(t *testing.T) {
 	}
 
 	// convert the legacy cluster and compare it to the expected cluster result
+	assert.Equal(t, expectedCluster, *(convertLegacyCluster(&legacyCluster)))
+
+	// check if legacy monCount is `0` that we default to `3`
+	legacyCluster.Spec.MonCount = 0
+	expectedCluster.Spec.Mon.Count = 3
 	assert.Equal(t, expectedCluster, *(convertLegacyCluster(&legacyCluster)))
 }
 
