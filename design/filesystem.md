@@ -48,11 +48,11 @@ After the MDS pods start, the file system is ready to be mounted.
 
 ## File System CRD
 
-The file system settings are exposed to Rook as a Custom Resource Definition (CRD). The CRD is the Kubernetes-native means by which the Rook operator can watch for new resources. The operator stays in a control loop to watch for a new file system, changes to an existing file system, or requests to delete a file system. 
+The file system settings are exposed to Rook as a Custom Resource Definition (CRD). The CRD is the Kubernetes-native means by which the Rook operator can watch for new resources. The operator stays in a control loop to watch for a new file system, changes to an existing file system, or requests to delete a file system.
 
 ### Pools
 
-The pools are the backing data store for the file system and are created with specific names to be private to a file system. Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/ceph-pool-crd.md). The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` element and the `dataPools` elements of the file system CRD. 
+The pools are the backing data store for the file system and are created with specific names to be private to a file system. Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/ceph-pool-crd.md). The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` element and the `dataPools` elements of the file system CRD.
 
 ```yaml
   metadataPool:

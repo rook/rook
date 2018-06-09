@@ -355,6 +355,3 @@ metadata:
   namespace: mycluster
 	...
 ```
-
-
-

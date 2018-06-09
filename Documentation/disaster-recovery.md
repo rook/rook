@@ -8,10 +8,10 @@ indent: true
 
 ## Restoring Mon Quorum
 
-Under extenuating circumstances, the mons may lose quorum. If the mons cannot form quorum again, 
+Under extenuating circumstances, the mons may lose quorum. If the mons cannot form quorum again,
 there is a manual procedure to get the quorum going again. The only requirement is that at least one mon
 is still healthy. The following steps will remove the unhealthy
-mons from quorum and allow you to form a quorum again with a single mon, then grow the quorum back to the original size. 
+mons from quorum and allow you to form a quorum again with a single mon, then grow the quorum back to the original size.
 
 For example, if you have three mons and lose quorum, you will need to remove the two bad mons from quorum, notify the good mon
 that it is the only mon in quorum, and then restart the good mon.
@@ -48,7 +48,7 @@ ceph-mon -i ${good_mon_id} --extract-monmap ${monmap_path} \
   --monmap=/var/lib/rook/${good_mon_id}/monmap
 
 # review the contents of the monmap
-monmaptool --print /tmp/monmap 
+monmaptool --print /tmp/monmap
 
 # remove the bad mon(s) from the monmap
 monmaptool ${monmap_path} --rm <bad_mon>
@@ -91,7 +91,7 @@ You will need to restart the good mon pod to pick up the changes. Delete the goo
 kubectl -n rook-ceph delete pod -l mon=rook-ceph-mon1
 ```
 
-Start the rook [toolbox](/Documentation/toolbox.md) and verify the status of the cluster. 
+Start the rook [toolbox](/Documentation/toolbox.md) and verify the status of the cluster.
 ```bash
 ceph -s
 ```
@@ -99,7 +99,7 @@ ceph -s
 The status should show one mon in quorum. If the status looks good, your cluster should be healthy again.
 
 ### Restart the operator
-Start the rook operator again to resume monitoring the health of the cluster. 
+Start the rook operator again to resume monitoring the health of the cluster.
 ```bash
 # create the operator. it is safe to ignore the errors that a number of resources already exist.
 kubectl create -f operator.yaml

@@ -57,11 +57,11 @@ The number of data and coding chunks you choose will depend on your resiliency t
 Here are some examples to illustrate how the number of chunks affects the storage and loss toleration.
 
 | Data chunks (k) | Coding chunks (m) | Total storage | Losses Tolerated | OSDs required |
-|---|---|---|---|---|
-| 2 | 1 | 1.5x | 1 | 3 |
-| 2 | 2 | 2x | 2 | 4 |
-| 4 | 2 | 1.5x | 2 | 6 | 
-| 16 | 4 | 1.25x | 4 | 20 |
+| --------------- | ----------------- | ------------- | ---------------- | ------------- |
+| 2               | 1                 | 1.5x          | 1                | 3             |
+| 2               | 2                 | 2x            | 2                | 4             |
+| 4               | 2                 | 1.5x          | 2                | 6             |
+| 16              | 4                 | 1.25x         | 4                | 20            |
 
 The `failureDomain` must be also be taken into account when determining the number of chunks. The failure domain determines the level in the Ceph CRUSH hierarchy where the chunks must be uniquely distributed. This decision will impact whether node losses or disk losses are tolerated. There could also be performance differences of placing the data across nodes or osds.
 - `host`: All chunks will be placed on unique hosts
