@@ -6,7 +6,7 @@ weight: 2
 # Quickstart Guide
 
 Welcome to Rook! We hope you have a great experience installing the Rook storage platform to enable highly available, durable storage
-in your cluster. If you have any questions along the way, please don't hesitate to ask us in our [Slack channel](https://Rook-io.slack.com).
+in your cluster. If you have any questions along the way, please don't hesitate to ask us in our [Slack channel](https://rook-io.slack.com). Sign up for our Slack [here](https://rook-slackin.herokuapp.com/).
 
 This guide will walk you through the basic setup of a Rook cluster. This will enable you to consume block, object, and file storage
 from other pods running in your cluster.
