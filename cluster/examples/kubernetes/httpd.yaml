@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: httpd-pv-claim
+  labels:
+    app: web
+spec:
+  storageClassName: rook-nfs
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: web-server
+  labels:
+    app: web
+spec:
+  template:
+    metadata:
+      labels:
+        app: web
+        tier: httpd
+    spec:
+      containers:
+      - image: httpd
+        name: httpd
+        ports:
+        - containerPort: 80
+          name: httpd
+        volumeMounts:
+        - name: httpd-persistent-storage
+          mountPath: /var/www/html
+      volumes:
+      - name: httpd-persistent-storage
+        persistentVolumeClaim:
+          claimName: httpd-pv-claim

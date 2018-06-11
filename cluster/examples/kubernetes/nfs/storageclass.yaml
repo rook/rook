@@ -1,0 +1,10 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: rook-nfs
+provisioner: nfs.rook.io/nfs
+parameters:
+  # Name of the nfs-daemon
+  server: nfs-vol
+  # Name of the export shared by the NFS daemon mentioned above
+  export: nfs-share
