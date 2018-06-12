@@ -12,5 +12,6 @@ spec:
       squash: root
     # A Persistent Volume Claim must be created before creating NFS CRD instance.
     # Create a Ceph cluster for using this example
+    # Create a ceph PVC after creating the rook ceph cluster using ceph-pvc.yaml
     persistentVolumeClaim:
       claimName: ceph-claim

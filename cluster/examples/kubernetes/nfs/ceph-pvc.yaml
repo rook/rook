@@ -1,0 +1,13 @@
+# A rook ceph cluster must be running
+# Create a rook ceph cluster using examples in rook/cluster/examples/kubernetes/ceph
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ceph-claim
+spec:
+  storageClassName: rook-ceph-block
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 2Gi

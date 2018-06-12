@@ -47,32 +47,34 @@ type NetworkFileSystemList struct {
 // NetworkFileSystemSpec represents the spec of NFS daemon
 type NetworkFileSystemSpec struct {
 	// Replicas of the NFS daemon
-	Replicas int           `json:"replicas,omitempty"`
+	Replicas int `json:"replicas,omitempty"`
 
 	// The parameters to configure the NFS export
-	Exports  []ExportsSpec `json:"exports,omitempty"`
+	Exports []ExportsSpec `json:"exports,omitempty"`
 }
 
 // ExportsSpec represents the spec of NFS exports
 type ExportsSpec struct {
 	// Name of the export
-	Name                  string                       `json:"name,omitempty"`
+	Name string `json:"name,omitempty"`
 
 	// The NFS server configuration
-	Server                []ServerSpec                 `json:"server,omitempty"`
+	Server []ServerSpec `json:"server,omitempty"`
 
 	// PVC from which the NFS daemon gets storage for sharing
-	PersistantVolumeClaim v1.PersistentVolumeClaimSpec `json:"name,omitempty"`
+	PersistentVolumeClaim v1.PersistentVolumeClaimSpec `json:"persistentVolumeClaim,omitempty"`
 }
 
 // ServerSpec represents the spec for configuring the NFS server
 type ServerSpec struct {
 
 	// Reading and Writing permissions on the export
-	AccessMode     string               `json:"accessMode,omitempty"`
+	// Valid values are "ReadOnly", "ReadWrite" and "none"
+	AccessMode string `json:"accessMode,omitempty"`
 
 	// This prevents the root users connected remotely from having root privileges
-	Squash         string               `json:"squash,omitempty"`
+	// Valid values are "none", "rootid", "root", and "all"
+	Squash string `json:"squash,omitempty"`
 
 	// The clients allowed to access the NFS export
 	AllowedClients []AllowedClientsSpec `json:"allowedClients,omitempty"`
@@ -82,14 +84,19 @@ type ServerSpec struct {
 type AllowedClientsSpec struct {
 
 	// Name of the clients group
-	Name       string   `json:"name,omitempty"`
+	Name string `json:"name,omitempty"`
 
 	// The clients that can access the share
-	Clients    []string `json:"clients,omitempty"`
+	// Values can be hostname, ip address, netgroup, CIDR network address, or all
+	Clients []string `json:"clients,omitempty"`
 
 	// Reading and Writing permissions for the client to access the NFS export
-	AccessMode string   `json:"accessMode,omitempty"`
+	// Valid values are "ReadOnly", "ReadWrite" and "none"
+	// Gets overridden when ServerSpec.accessMode is specified
+	AccessMode string `json:"accessMode,omitempty"`
 
 	// Squash options for clients
-	Squash     string   `json:"Squash,omitempty"`
+	// Valid values are "none", "rootid", "root", and "all"
+	// Gets overridden when ServerSpec.squash is specified
+	Squash string `json:"squash,omitempty"`
 }
