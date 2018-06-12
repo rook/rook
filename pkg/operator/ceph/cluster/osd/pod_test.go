@@ -34,7 +34,7 @@ import (
 
 func TestPodContainer(t *testing.T) {
 	cluster := &Cluster{Namespace: "myosd", Version: "23"}
-	c, err := cluster.podTemplateSpec([]rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", false /* prepareOnly */, v1.RestartPolicyAlways)
+	c, err := cluster.provisionPodTemplateSpec([]rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", v1.RestartPolicyAlways)
 	assert.NotNil(t, c)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(c.Spec.Containers))
@@ -107,7 +107,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	} else {
 		assert.Equal(t, 3, len(cont.VolumeMounts))
 	}
-	assert.Equal(t, "sh", cont.Command[0])
+	assert.Equal(t, "/tini", cont.Command[0])
 }
 
 func verifyEnvVar(t *testing.T, envVars []v1.EnvVar, expectedName, expectedValue string, expectedFound bool) {

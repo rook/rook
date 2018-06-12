@@ -19,9 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"testing"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -71,13 +69,8 @@ func TestRunDaemon(t *testing.T) {
 
 	agent, _, context := createTestAgent(t, "none", configDir, "node5375", &config.StoreConfig{StoreType: config.Bluestore})
 	agent.usingDeviceFilter = true
-	sigc := make(chan os.Signal, 1)
-	signal.Notify(sigc, syscall.SIGTERM)
-	go func() {
-		sigc <- syscall.SIGTERM
-	}()
 
-	err := Run(context, agent, sigc)
+	err := Provision(context, agent)
 	assert.Nil(t, err)
 }
 

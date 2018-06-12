@@ -17,7 +17,6 @@ package osd
 
 import (
 	"fmt"
-	"os"
 	"path"
 	"regexp"
 
@@ -35,11 +34,29 @@ import (
 )
 
 var (
-	logger      = capnslog.NewPackageLogger("github.com/rook/rook", "cephosd")
-	mountPoints = []string{}
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephosd")
 )
 
-func Run(context *clusterd.Context, agent *OsdAgent, done chan os.Signal) error {
+func RunFilestoreOnDevice(context *clusterd.Context, mountSourcePath, mountPath string, cephArgs []string) error {
+
+	// start the OSD daemon in the foreground with the given config
+	logger.Infof("starting filestore osd on a device")
+
+	if err := sys.MountDevice(mountSourcePath, mountPath, context.Executor); err != nil {
+		return fmt.Errorf("failed to mount device. %+v", err)
+	}
+	// unmount the device before exit
+	defer sys.UnmountDevice(mountPath, context.Executor)
+
+	// run the ceph-osd daemon
+	if err := context.Executor.ExecuteCommand(false, "", "ceph-osd", cephArgs...); err != nil {
+		return fmt.Errorf("failed to start osd. %+v", err)
+	}
+
+	return nil
+}
+
+func Provision(context *clusterd.Context, agent *OsdAgent) error {
 
 	// set the initial orchestration status
 	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
@@ -154,35 +171,13 @@ func Run(context *clusterd.Context, agent *OsdAgent, done chan os.Signal) error 
 	}
 	logger.Infof("device osds:%v\ndir osds: %v", deviceOSDs, dirOSDs)
 	osds := append(deviceOSDs, dirOSDs...)
+
 	// orchestration is completed, update the status
 	status = oposd.OrchestrationStatus{OSDs: osds, Status: oposd.OrchestrationStatusCompleted}
 	if err := oposd.UpdateOrchestrationStatusMap(context.Clientset, agent.cluster.Name, agent.nodeName, status); err != nil {
 		return err
 	}
 
-	if len(mountPoints) == 0 {
-		// no device mounted, exit now
-		return nil
-	}
-
-	// if there are devices mounted for filestore, wait and unmount them before exit
-	// OSD processes monitoring
-	mon := NewMonitor(context, agent)
-	go mon.Run()
-
-	select {
-	case <-done:
-		logger.Infof("done channel signaled")
-	}
-
-	// umount devices
-	for m := range mountPoints {
-		logger.Infof("unmount %s", mountPoints[m])
-		if err = sys.UnmountDevice(mountPoints[m], context.Executor); err != nil {
-			logger.Warningf("failed to unmount %s", mountPoints[m])
-		}
-
-	}
 	return nil
 }
 

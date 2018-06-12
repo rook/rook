@@ -20,6 +20,7 @@ package osd
 import (
 	"fmt"
 	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -49,7 +50,7 @@ const (
 func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 	selection rookalpha.Selection, resources v1.ResourceRequirements, storeConfig config.StoreConfig, metadataDevice, location string) (*batch.Job, error) {
 
-	podSpec, err := c.podTemplateSpec(devices, selection, resources, storeConfig, metadataDevice, location, true /* prepare-only */, v1.RestartPolicyOnFailure)
+	podSpec, err := c.provisionPodTemplateSpec(devices, selection, resources, storeConfig, metadataDevice, location, v1.RestartPolicyOnFailure)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +76,6 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 
 func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
 	storeConfig config.StoreConfig, metadataDevice, location string, osd OSDInfo) (*extensions.Deployment, error) {
-	logger.Debugf("making deployment for osd %+v with config: %+v", osd, storeConfig)
 
 	replicaCount := int32(1)
 	volumeMounts := []v1.VolumeMount{
@@ -93,15 +93,14 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 
 	// Mount the path to the directory-based osd unless it is already available under the dataDirHostPath
 	if osd.IsDirectory && !strings.HasPrefix(osd.DataPath, k8sutil.DataDir) {
-		logger.Infof("mounting osd data path %s", osd.DataPath)
 		volumeName := k8sutil.PathToVolumeName(osd.DataPath)
 		dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: osd.DataPath}}
 		volumes = append(volumes, v1.Volume{Name: volumeName, VolumeSource: dataDirSource})
 		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: volumeName, MountPath: osd.DataPath})
 	}
 
-	// by default, don't define any volume config unless it is required
-	if len(devices) > 0 || metadataDevice != "" {
+	// Mount the required device
+	if !osd.IsDirectory {
 		// create volume config for the data dir and /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 		volumes = append(volumes, devVolume)
@@ -119,16 +118,44 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 	}
 
+	commonArgs := []string{
+		"--foreground",
+		"--id", strconv.Itoa(osd.ID),
+		"--conf", osd.Config,
+		"--osd-data", osd.DataPath,
+		"--keyring", osd.KeyringPath,
+		"--cluster", osd.Cluster,
+		"--osd-uuid", osd.UUID,
+	}
+	if osd.IsFileStore {
+		commonArgs = append(commonArgs, fmt.Sprintf("--osd-journal=%s", osd.Journal))
+	}
+
+	var command []string
+	var args []string
+	if !osd.IsDirectory && osd.IsFileStore {
+		// filestore on a device requires indirection through the rook entrypoint so we can mount the image
+		sourcePath := path.Join("/dev/disk/by-partuuid", osd.DevicePartUUID)
+		args = append([]string{
+			"ceph", "osd", "filestore-device",
+			"--source-path", sourcePath,
+			"--mount-path", osd.DataPath,
+			"--",
+		}, commonArgs...)
+	} else {
+		// other osds can launch the osd daemon directly
+		command = append([]string{"/tini", "--", "ceph-osd",
+			fmt.Sprintf("--public-addr=$(%s)", k8sutil.PublicIPEnvVar),
+			fmt.Sprintf("--cluster-addr=$(%s)", k8sutil.PrivateIPEnvVar),
+		}, commonArgs...)
+	}
+
 	privileged := true
 	runAsUser := int64(0)
 	readOnlyRootFilesystem := false
 	DNSPolicy := v1.DNSClusterFirst
 	if c.HostNetwork {
 		DNSPolicy = v1.DNSClusterFirstWithHostNet
-	}
-	journalStr := ""
-	if osd.IsFileStore {
-		journalStr = fmt.Sprintf("--osd-journal=%s", osd.Journal)
 	}
 	deployment := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -152,26 +179,14 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 					Annotations: map[string]string{},
 				},
 				Spec: v1.PodSpec{
-					NodeSelector: map[string]string{apis.LabelHostname: nodeName},
-					//FIXME: use a diff SA for osd daemon
-					// ServiceAccountName: appName,
+					NodeSelector:  map[string]string{apis.LabelHostname: nodeName},
 					RestartPolicy: v1.RestartPolicyAlways,
 					HostNetwork:   c.HostNetwork,
 					DNSPolicy:     DNSPolicy,
 					Containers: []v1.Container{
 						{
-							Command: []string{"sh", "-c",
-								fmt.Sprintf("ceph-osd --foreground --id %d --conf %s --osd-data %s --keyring %s --cluster %s --osd-uuid %s %s %s %s",
-									osd.ID,
-									osd.Config,
-									osd.DataPath,
-									osd.KeyringPath,
-									osd.Cluster,
-									osd.UUID,
-									fmt.Sprintf("--public-addr=${%s}", k8sutil.PublicIPEnvVar),
-									fmt.Sprintf("--cluster-addr=${%s}", k8sutil.PrivateIPEnvVar),
-									journalStr),
-							},
+							Command:      command,
+							Args:         args,
 							Name:         appName,
 							Image:        k8sutil.MakeRookImage(c.Version),
 							VolumeMounts: volumeMounts,
@@ -194,8 +209,8 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 	return deployment, nil
 }
 
-func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string, prepareOnly bool, restart v1.RestartPolicy) (*v1.PodTemplateSpec, error) {
+func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
+	storeConfig config.StoreConfig, metadataDevice, location string, restart v1.RestartPolicy) (*v1.PodTemplateSpec, error) {
 	volumes := []v1.Volume{k8sutil.ConfigOverrideVolume()}
 
 	if c.dataDirHostPath != "" {
@@ -228,7 +243,7 @@ func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalph
 
 	podSpec := v1.PodSpec{
 		ServiceAccountName: c.serviceAccount,
-		Containers:         []v1.Container{c.osdContainer(devices, selection, resources, storeConfig, metadataDevice, location, prepareOnly)},
+		Containers:         []v1.Container{c.provisionOSDContainer(devices, selection, resources, storeConfig, metadataDevice, location)},
 		RestartPolicy:      restart,
 		Volumes:            volumes,
 		HostNetwork:        c.HostNetwork,
@@ -251,8 +266,8 @@ func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalph
 	}, nil
 }
 
-func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string, prepareOnly bool) v1.Container {
+func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
+	storeConfig config.StoreConfig, metadataDevice, location string) v1.Container {
 
 	envVars := []v1.EnvVar{
 		nodeNameEnvVar(),
@@ -265,7 +280,7 @@ func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.S
 		opmon.AdminSecretEnvVar(),
 		k8sutil.ConfigDirEnvVar(),
 		k8sutil.ConfigOverrideEnvVar(),
-		{Name: osdPrepareOnlyEnvVarName, Value: strconv.FormatBool(prepareOnly)},
+		{Name: osdPrepareOnlyEnvVarName, Value: strconv.FormatBool(true)},
 	}
 
 	devMountNeeded := false
@@ -293,11 +308,6 @@ func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.S
 	}
 
 	dataVolume := v1.VolumeMount{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir}
-	if storeConfig.StoreType == config.Filestore {
-		prop := v1.MountPropagationBidirectional
-		dataVolume.MountPropagation = &prop
-		privileged = true
-	}
 	volumeMounts := []v1.VolumeMount{
 		dataVolume,
 		k8sutil.ConfigOverrideMount(),
@@ -354,7 +364,7 @@ func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.S
 	readOnlyRootFilesystem := false
 	return v1.Container{
 		// Set the hostname so we have the pod's host in the crush map rather than the pod container name
-		Args:         []string{"ceph", "osd"},
+		Args:         []string{"ceph", "osd", "provision"},
 		Name:         appName,
 		Image:        k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: volumeMounts,

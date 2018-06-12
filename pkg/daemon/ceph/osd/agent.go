@@ -20,7 +20,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -35,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/proc"
+	"github.com/rook/rook/pkg/util/sys"
 )
 
 const (
@@ -106,7 +106,7 @@ func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 			config.uuid = *osdUUID
 		}
 
-		osd, err := a.startOSD(context, config)
+		osd, err := a.prepareOSD(context, config)
 		if err != nil {
 			logger.Errorf("failed to config osd in path %s. %+v", dirPath, err)
 			lastErr = err
@@ -173,7 +173,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	for _, entry := range scheme.Entries {
 		config := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configRoot: context.ConfigDir,
 			partitionScheme: entry, storeConfig: a.storeConfig, kv: a.kv, storeName: config.GetConfigStoreName(a.nodeName)}
-		osd, err := a.startOSD(context, config)
+		osd, err := a.prepareOSD(context, config)
 		if err != nil {
 			return osds, fmt.Errorf("failed to config osd %d. %+v", entry.ID, err)
 		} else {
@@ -386,13 +386,14 @@ func refreshDeviceInfo(name string, nameToUUID map[string]string, scheme *config
 	}
 }
 
-func (a *OsdAgent) startOSD(context *clusterd.Context, cfg *osdConfig) (*oposd.OSDInfo, error) {
+func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd.OSDInfo, error) {
 
 	cfg.rootPath = getOSDRootDir(cfg.configRoot, cfg.id)
 
 	// if the osd is using filestore on a device and it's previously been formatted/partitioned,
 	// go ahead and remount the device now.
-	if err := remountFilestoreDeviceIfNeeded(context, cfg); err != nil {
+	devPartInfo, err := remountFilestoreDeviceIfNeeded(context, cfg)
+	if err != nil {
 		return nil, err
 	}
 
@@ -420,7 +421,7 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, cfg *osdConfig) (*oposd.O
 			}
 
 			if !skipFormat {
-				err = formatDevice(context, cfg, a.forceFormat, a.storeConfig)
+				devPartInfo, err = formatDevice(context, cfg, a.forceFormat, a.storeConfig)
 				if err != nil {
 					return nil, fmt.Errorf("failed format/partition of osd %d. %+v", cfg.id, err)
 				}
@@ -449,15 +450,11 @@ func (a *OsdAgent) startOSD(context *clusterd.Context, cfg *osdConfig) (*oposd.O
 			return nil, fmt.Errorf("failed to get OSD information from %s: %+v", cfg.rootPath, err)
 		}
 	}
-	osdInfo := getOSDInfo(a.cluster.Name, cfg)
-	if a.prepareOnly {
-		logger.Infof("done with preparing osd %v", osdInfo)
-		return osdInfo, nil
-	}
-	// run the OSD in a child process now that it is fully initialized and ready to go
-	err = a.runOSD(osdInfo)
-	if err != nil {
-		return osdInfo, fmt.Errorf("failed to run osd %d: %+v", cfg.id, err)
+	osdInfo := getOSDInfo(a.cluster.Name, cfg, devPartInfo)
+	logger.Infof("completed preparing osd %v", osdInfo)
+
+	if devPartInfo != nil {
+		sys.UnmountDevice(devPartInfo.pathToUnmount, context.Executor)
 	}
 
 	return osdInfo, nil
@@ -484,7 +481,7 @@ func prepareOSDRoot(cfg *osdConfig) (newOSD bool, err error) {
 	return newOSD, nil
 }
 
-func getOSDInfo(clusterName string, config *osdConfig) *oposd.OSDInfo {
+func getOSDInfo(clusterName string, config *osdConfig, devPartInfo *devicePartInfo) *oposd.OSDInfo {
 	confFile := getOSDConfFilePath(config.rootPath, clusterName)
 	util.WriteFileToLog(logger, confFile)
 	osd := &oposd.OSDInfo{
@@ -497,48 +494,14 @@ func getOSDInfo(clusterName string, config *osdConfig) *oposd.OSDInfo {
 		IsFileStore: isFilestore(config),
 		IsDirectory: config.dir,
 	}
+	if devPartInfo != nil {
+		osd.DevicePartUUID = devPartInfo.deviceUUID
+	}
 
 	if isFilestore(config) {
 		osd.Journal = getOSDJournalPath(config.rootPath)
 	}
 	return osd
-}
-
-// runs an OSD with the given config in a child process
-func (a *OsdAgent) runOSD(osdInfo *oposd.OSDInfo) error {
-	// start the OSD daemon in the foreground with the given config
-	logger.Infof("starting osd %s at %s", osdInfo.ID, osdInfo.DataPath)
-
-	osdUUIDArg := fmt.Sprintf("--osd-uuid=%s", osdInfo.UUID)
-	params := []string{"--foreground",
-		fmt.Sprintf("--id=%d", osdInfo.ID),
-		fmt.Sprintf("--cluster=%s", osdInfo.Cluster),
-		fmt.Sprintf("--osd-data=%s", osdInfo.DataPath),
-		fmt.Sprintf("--conf=%s", osdInfo.Config),
-		fmt.Sprintf("--keyring=%s", osdInfo.KeyringPath),
-		osdUUIDArg,
-	}
-
-	if osdInfo.IsFileStore {
-		params = append(params, fmt.Sprintf("--osd-journal=%s", osdInfo.Journal))
-	}
-
-	process, err := a.procMan.Start(
-		fmt.Sprintf("osd%d", osdInfo.ID),
-		"ceph-osd",
-		regexp.QuoteMeta(osdUUIDArg),
-		proc.ReuseExisting,
-		params...)
-	if err != nil {
-		return fmt.Errorf("failed to start osd %d: %+v", osdInfo.ID, err)
-	}
-
-	if process != nil {
-		// if the process was already running Start will return nil in which case we don't want to overwrite it
-		a.osdProc[osdInfo.ID] = process
-	}
-
-	return nil
 }
 
 func (a *OsdAgent) removeOSD(context *clusterd.Context, config *osdConfig) error {
@@ -564,12 +527,7 @@ func (a *OsdAgent) removeOSD(context *clusterd.Context, config *osdConfig) error
 		return fmt.Errorf("failed to wait for cluster rebalancing after removing osd.%d: %+v", config.id, err)
 	}
 
-	// stop the OSD process and remove it from monitoring
-	if proc, ok := a.osdProc[config.id]; ok {
-		if err := proc.Stop(false); err != nil {
-			return fmt.Errorf("failed to stop proc for osd.%d: %+v", config.id, err)
-		}
-	}
+	// FIX: stop the OSD process and remove it from monitoring
 
 	// purge the OSD from the cluster
 	if err := purgeOSD(context, a.cluster.Name, config.id); err != nil {
