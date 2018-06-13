@@ -16,11 +16,9 @@ limitations under the License.
 package osd
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"testing"
-	"time"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
@@ -31,7 +29,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -223,91 +220,4 @@ func TestAddNodeFailure(t *testing.T) {
 	// verify orchestration failed (because the operator failed to create a job)
 	assert.True(t, startCompleted)
 	assert.NotNil(t, startErr)
-}
-
-func TestOrchestrationStatus(t *testing.T) {
-	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", "",
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	// status map should not exist yet
-	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
-	assert.True(t, errors.IsNotFound(err))
-
-	// make the initial status map
-	err = makeOrchestrationStatusMap(c.context.Clientset, c.Namespace, nil)
-	assert.Nil(t, err)
-
-	// the status map should exist now
-	statusMap, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.NotNil(t, statusMap)
-
-	// update the status map with some status
-	nodeName := "node09238"
-	status := OrchestrationStatus{Status: OrchestrationStatusOrchestrating, Message: "doing work"}
-	err = UpdateOrchestrationStatusMap(c.context.Clientset, c.Namespace, nodeName, status)
-	assert.Nil(t, err)
-
-	// retrieve the status and verify it
-	statusMap, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.NotNil(t, statusMap)
-	retrievedStatus := parseOrchestrationStatus(statusMap.Data, nodeName)
-	assert.NotNil(t, retrievedStatus)
-	assert.Equal(t, status, *retrievedStatus)
-}
-
-func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatcher *watch.FakeWatcher) {
-	for {
-		// wait for the node's orchestration status to change to "starting"
-		cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
-		if err == nil {
-			status := parseOrchestrationStatus(cm.Data, nodeName)
-			if status != nil && status.Status == OrchestrationStatusStarting {
-				// the node has started orchestration, simulate its completion now by performing 2 tasks:
-				// 1) update the config map manually (which doesn't trigger a watch event, see https://github.com/kubernetes/kubernetes/issues/54075#issuecomment-337298950)
-				status = &OrchestrationStatus{
-					OSDs: []OSDInfo{
-						{
-							ID:          1,
-							DataPath:    "/tmp",
-							Config:      "/foo/bar/ceph.conf",
-							Cluster:     "rook",
-							KeyringPath: "/foo/bar/key",
-						},
-					},
-					Status: OrchestrationStatusCompleted,
-				}
-				UpdateOrchestrationStatusMap(c.context.Clientset, c.Namespace, nodeName, *status)
-
-				// 2) call modify on the fake watcher so a watch event will get triggered
-				s, _ := json.Marshal(status)
-				cm.Data[nodeName] = string(s)
-				statusMapWatcher.Modify(cm)
-				break
-			} else {
-				logger.Debugf("waiting for node %s orchestration to start. status: %+v", nodeName, *status)
-			}
-		} else {
-			logger.Warningf("failed to get node %s orchestration status, will try again: %+v", nodeName, err)
-		}
-		<-time.After(50 * time.Millisecond)
-	}
-}
-
-func waitForOrchestrationCompletion(c *Cluster, nodeName string, startCompleted *bool) {
-	for {
-		if *startCompleted {
-			break
-		}
-		cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
-		if err == nil {
-			status := parseOrchestrationStatus(cm.Data, nodeName)
-			if status != nil {
-				logger.Debugf("start has not completed, status is %+v", status)
-			}
-		}
-		<-time.After(50 * time.Millisecond)
-	}
 }

@@ -175,7 +175,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 			Status:  oposd.OrchestrationStatusFailed,
 			Message: err.Error(),
 		}
-		oposd.UpdateOrchestrationStatusMap(clientset, clusterInfo.Name, cfg.nodeName, status)
+		oposd.UpdateNodeStatus(kv, cfg.nodeName, status)
 
 		rook.TerminateFatal(err)
 	}

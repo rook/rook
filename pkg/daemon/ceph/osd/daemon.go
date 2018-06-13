@@ -60,7 +60,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 
 	// set the initial orchestration status
 	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
-	if err := oposd.UpdateOrchestrationStatusMap(context.Clientset, agent.cluster.Name, agent.nodeName, status); err != nil {
+	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
 		return err
 	}
 
@@ -115,7 +115,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 
 	// orchestration is about to start, update the status
 	status = oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating}
-	if err := oposd.UpdateOrchestrationStatusMap(context.Clientset, agent.cluster.Name, agent.nodeName, status); err != nil {
+	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
 		return err
 	}
 
@@ -174,7 +174,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 
 	// orchestration is completed, update the status
 	status = oposd.OrchestrationStatus{OSDs: osds, Status: oposd.OrchestrationStatusCompleted}
-	if err := oposd.UpdateOrchestrationStatusMap(context.Clientset, agent.cluster.Name, agent.nodeName, status); err != nil {
+	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
 		return err
 	}
 
