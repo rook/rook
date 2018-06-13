@@ -45,7 +45,6 @@ const (
 	DatabasePartitionType
 	BlockPartitionType
 	FilestoreDataPartitionType
-	FilestoreJournalPartitionType
 )
 
 // top level representation of an overall performance oriented partition scheme, with a dedicated metadata device
@@ -431,14 +430,6 @@ func (e *PerfSchemeEntry) GetDataPartitionType() PartitionType {
 	}
 }
 
-func (e *PerfSchemeEntry) GetMetadataPartitionType() PartitionType {
-	if e.StoreType == Filestore {
-		return FilestoreJournalPartitionType
-	} else {
-		return DatabasePartitionType
-	}
-}
-
 // Get the arguments necessary to create an sgdisk partition with the given parameters.
 // number is the partition number.
 // The offset and length are in MB. Under the covers this is translated to sectors.
@@ -475,8 +466,6 @@ func getPartitionLabel(id int, partType PartitionType) string {
 		return fmt.Sprintf("ROOK-OSD%d-BLOCK", id)
 	case FilestoreDataPartitionType:
 		return fmt.Sprintf("ROOK-OSD%d-FS-DATA", id)
-	case FilestoreJournalPartitionType:
-		return fmt.Sprintf("ROOK-OSD%d-FS-JOURNAL", id)
 	}
 
 	return ""

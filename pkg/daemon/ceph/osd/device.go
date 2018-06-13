@@ -306,26 +306,6 @@ func getDataPartitionDetails(config *osdConfig) (*config.PerfSchemePartitionDeta
 	return dataDetails, nil
 }
 
-func getMetadataPartitionDetails(cfg *osdConfig) (*config.PerfSchemePartitionDetails, error) {
-	if cfg.partitionScheme == nil {
-		return nil, fmt.Errorf("partition scheme missing from %+v", cfg)
-	}
-
-	metadataPartitionType := cfg.partitionScheme.GetMetadataPartitionType()
-
-	if cfg.partitionScheme.StoreType == config.Filestore {
-		// TODO: support separate metadata device for filestore (just use the data partition details for now)
-		return getDataPartitionDetails(cfg)
-	}
-
-	metadataDetails, ok := cfg.partitionScheme.Partitions[metadataPartitionType]
-	if !ok || metadataDetails == nil {
-		return nil, fmt.Errorf("metadata partition missing from %+v", cfg.partitionScheme)
-	}
-
-	return metadataDetails, nil
-}
-
 func getDiskSize(context *clusterd.Context, name string) (uint64, error) {
 	for _, device := range context.Devices {
 		if device.Name == name {
