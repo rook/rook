@@ -54,6 +54,7 @@ const (
 	appName                          = "rook-ceph-osd"
 	appNameFmt                       = "rook-ceph-osd-%s"
 	clusterAvailableSpaceReserve     = 0.05
+	defaultServiceAccountName        = "rook-ceph-cluster"
 )
 
 // Cluster keeps track of the OSDs
@@ -75,6 +76,12 @@ type Cluster struct {
 func New(context *clusterd.Context, namespace, version, serviceAccount string, storageSpec rookalpha.StorageScopeSpec,
 	dataDirHostPath string, placement rookalpha.Placement, hostNetwork bool,
 	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
+
+	if serviceAccount == "" {
+		// if the service account was not set, make a best effort with the example service account name since the default is unlikely to be sufficient.
+		serviceAccount = defaultServiceAccountName
+		logger.Infof("setting the osd pods to use the service account name: %s", serviceAccount)
+	}
 
 	return &Cluster{
 		context:         context,
@@ -122,7 +129,7 @@ func (c *Cluster) Start() error {
 		// make a daemonset for all nodes in the cluster
 		storeConfig := config.ToStoreConfig(c.Storage.Config)
 		metadataDevice := config.MetadataDevice(c.Storage.Config)
-		ds := c.makeDaemonSet(c.Storage.Selection, storeConfig, c.serviceAccount, metadataDevice, c.Storage.Location)
+		ds := c.makeDaemonSet(c.Storage.Selection, storeConfig, metadataDevice, c.Storage.Location)
 		_, err := c.context.Clientset.Extensions().DaemonSets(c.Namespace).Create(ds)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
@@ -169,7 +176,7 @@ func (c *Cluster) Start() error {
 			logger.Infof("avail devices for node %s: %+v", n.Name, availDev)
 		}
 		// create the replicaSet that will run the OSDs for this node
-		rs := c.makeReplicaSet(n.Name, devicesToUse, n.Selection, n.Resources, storeConfig, c.serviceAccount, metadataDevice, n.Location)
+		rs := c.makeReplicaSet(n.Name, devicesToUse, n.Selection, n.Resources, storeConfig, metadataDevice, n.Location)
 		_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
@@ -226,7 +233,7 @@ func (c *Cluster) Start() error {
 		// trigger orchestration on the removed node by telling it not to use any storage at all.  note that the directories are still passed in
 		// so that the pod will be able to mount them and migrate data from them.
 		rs := c.makeReplicaSet(n.Name, nil, rookalpha.Selection{DeviceFilter: "none", Directories: n.Directories},
-			v1.ResourceRequirements{}, storeConfig, c.serviceAccount, metadataDevice, n.Location)
+			v1.ResourceRequirements{}, storeConfig, metadataDevice, n.Location)
 		rs, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Update(rs)
 		if err != nil {
 			message := fmt.Sprintf("failed to update osd replica set for removed node %s. %+v", n.Name, err)
