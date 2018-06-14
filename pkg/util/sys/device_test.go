@@ -17,7 +17,6 @@ package sys
 
 import (
 	"fmt"
-	"strings"
 	"testing"
 
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -105,36 +104,6 @@ func TestParseFileSystem(t *testing.T) {
 
 	result := parseFS(output)
 	assert.Equal(t, "ext2", result)
-}
-
-func TestGetDeviceFromMountPoint(t *testing.T) {
-	const device = "/dev/rbd3"
-	e := &exectest.MockExecutor{
-		MockExecuteCommandWithOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
-			switch {
-			case strings.HasPrefix(actionName, "get device from mount point"):
-				// verify that the mount path being searched for has been cleaned
-				assert.Equal(t, command, "mount")
-				return fmt.Sprintf("%s on /tmp/mymountpath blah", device), nil
-			}
-			return "", nil
-		},
-	}
-
-	// no trailing slash should work OK
-	d, err := GetDeviceFromMountPoint("/tmp/mymountpath", e)
-	assert.Nil(t, err)
-	assert.Equal(t, device, d)
-
-	// a trailing slash should be cleaned and work OK
-	d, err = GetDeviceFromMountPoint("/tmp/mymountpath/", e)
-	assert.Nil(t, err)
-	assert.Equal(t, device, d)
-
-	// a parent directory '..' in the middle of the path should work OK
-	d, err = GetDeviceFromMountPoint("/tmp/somedir/../mymountpath/", e)
-	assert.Nil(t, err)
-	assert.Equal(t, device, d)
 }
 
 func TestMountDeviceWithOptions(t *testing.T) {

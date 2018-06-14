@@ -311,7 +311,11 @@ func genSecret(executor exec.Executor, configDir, name string, args []string) (s
 }
 
 func extractKey(contents string) (string, error) {
-	secret := sys.Awk(sys.Grep(string(contents), "key"), 3, " ")
+	secret := ""
+	slice := strings.Fields(sys.Grep(string(contents), "key"))
+	if len(slice) >= 3 {
+		secret = slice[2]
+	}
 	if secret == "" {
 		return "", fmt.Errorf("failed to parse secret")
 	}

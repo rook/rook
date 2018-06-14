@@ -18,7 +18,6 @@ package sys
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 
@@ -239,32 +238,6 @@ func GetPartitionLabel(deviceName string, executor exec.Executor) (string, error
 	}
 
 	return parsePartLabel(output), nil
-}
-
-// look up the mount point of the given device.  empty string returned if device is not mounted.
-func GetDeviceMountPoint(deviceName string, executor exec.Executor) (string, error) {
-	cmd := fmt.Sprintf("get mount point for %s", deviceName)
-	output, err := executor.ExecuteCommandWithOutput(false, cmd, mountCmd)
-	if err != nil {
-		return "", fmt.Errorf("command %s failed: %+v", cmd, err)
-	}
-
-	searchFor := fmt.Sprintf("^/dev/%s on", deviceName)
-	mountPoint := Awk(Grep(output, searchFor), 3, " ")
-	return mountPoint, nil
-}
-
-func GetDeviceFromMountPoint(mountPoint string, executor exec.Executor) (string, error) {
-	mountPoint = filepath.Clean(mountPoint)
-	cmd := fmt.Sprintf("get device from mount point %s", mountPoint)
-	output, err := executor.ExecuteCommandWithOutput(false, cmd, mountCmd)
-	if err != nil {
-		return "", fmt.Errorf("command %s failed: %+v", cmd, err)
-	}
-
-	searchFor := fmt.Sprintf("on %s ", mountPoint)
-	device := Awk(Grep(output, searchFor), 1, " ")
-	return device, nil
 }
 
 func MountDevice(devicePath, mountPath string, executor exec.Executor) error {

@@ -48,7 +48,7 @@ func (h *HelmHelper) Execute(args ...string) (string, error) {
 
 }
 
-//GetLocalRookHelmChartVersion returns helm chart version for a give chart
+//GetLocalRookHelmChartVersion returns helm chart version for a given chart
 func (h *HelmHelper) GetLocalRookHelmChartVersion(chartName string) (string, error) {
 	cmdArgs := []string{"search", chartName}
 	result, err := h.Execute(cmdArgs...)
@@ -60,9 +60,16 @@ func (h *HelmHelper) GetLocalRookHelmChartVersion(chartName string) (string, err
 	if strings.Contains(result, "No results found") {
 		return "", fmt.Errorf("Failed to find helm chart  %v ", chartName)
 	}
-	cd := strings.Replace(sys.Grep(result, chartName), "\t", " ", 2)
 
-	return sys.Awk(cd, 2, " "), nil
+	version := ""
+	slice := strings.Fields(sys.Grep(result, chartName))
+	if len(slice) >= 2 {
+		version = slice[1]
+	}
+	if version == "" {
+		return "", fmt.Errorf("Failed to find version for helm chart %v", chartName)
+	}
+	return version, nil
 }
 
 //InstallLocalRookHelmChart installs a give helm chart
