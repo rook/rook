@@ -119,7 +119,7 @@ func validateStart(t *testing.T, context *clusterd.Context, fs cephv1alpha1.File
 
 	r, err := context.Clientset.ExtensionsV1beta1().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs", metav1.GetOptions{})
 	assert.Nil(t, err)
-	assert.Equal(t, appName+"-myfs", r.Name)
+	assert.Equal(t, AppName+"-myfs", r.Name)
 }
 
 func TestPodSpecs(t *testing.T) {
@@ -143,13 +143,13 @@ func TestPodSpecs(t *testing.T) {
 
 	d := makeDeployment(fs, mdsID, "rook/rook:myversion", false, []metav1.OwnerReference{})
 	assert.NotNil(t, d)
-	assert.Equal(t, appName+"-myfs", d.Name)
+	assert.Equal(t, AppName+"-myfs", d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, 2, len(d.Spec.Template.Spec.Volumes))
 	assert.Equal(t, "rook-data", d.Spec.Template.Spec.Volumes[0].Name)
 
-	assert.Equal(t, appName+"-myfs", d.ObjectMeta.Name)
-	assert.Equal(t, appName, d.Spec.Template.ObjectMeta.Labels["app"])
+	assert.Equal(t, AppName+"-myfs", d.ObjectMeta.Name)
+	assert.Equal(t, AppName, d.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, fs.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 

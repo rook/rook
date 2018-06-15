@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	appName = "rook-ceph-mds"
+	AppName = "rook-ceph-mds"
 )
 
 // Create the file system
@@ -97,7 +97,7 @@ func DeleteFilesystem(context *clusterd.Context, fs cephv1alpha1.Filesystem) err
 }
 
 func instanceName(fs cephv1alpha1.Filesystem) string {
-	return fmt.Sprintf("%s-%s", appName, fs.Name)
+	return fmt.Sprintf("%s-%s", AppName, fs.Name)
 }
 
 func makeDeployment(fs cephv1alpha1.Filesystem, filesystemID, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) *extensions.Deployment {
@@ -171,7 +171,7 @@ func mdsContainer(fs cephv1alpha1.Filesystem, filesystemID, version string) v1.C
 
 func getLabels(fs cephv1alpha1.Filesystem) map[string]string {
 	return map[string]string{
-		k8sutil.AppAttr:     appName,
+		k8sutil.AppAttr:     AppName,
 		k8sutil.ClusterAttr: fs.Namespace,
 		"rook_file_system":  fs.Name,
 	}

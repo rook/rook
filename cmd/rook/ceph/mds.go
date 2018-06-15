@@ -21,6 +21,7 @@ import (
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/daemon/ceph/mds"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -58,14 +59,7 @@ func startMDS(cmd *cobra.Command, args []string) error {
 
 	rook.LogStartupInfo(mdsCmd.Flags())
 
-	// the MDS ID is the last part of the pod name
-	id := podName
-	dashIndex := strings.LastIndex(podName, "-")
-	if dashIndex > 0 {
-		id = podName[dashIndex+1:]
-	}
-	// ensure the id has a non-numerical prefix
-	id = "m" + id
+	id := extractMdsID(podName)
 
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &mds.Config{
@@ -81,4 +75,15 @@ func startMDS(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+func extractMdsID(mdsName string) string {
+	prefix := file.AppName + "-"
+	if strings.Index(mdsName, prefix) == 0 && len(mdsName) > len(prefix) {
+		// remove the prefix from the mds name
+		return mdsName[len(prefix):]
+	}
+
+	// return the original name if we did not find the prefix
+	return mdsName
 }
