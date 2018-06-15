@@ -37,14 +37,15 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 
 const (
-	appName     = "rook-ceph-mgr"
-	keyringName = "keyring"
-
+	appName              = "rook-ceph-mgr"
+	keyringName          = "keyring"
 	prometheusModuleName = "prometheus"
 	dashboardModuleName  = "dashboard"
 	metricsPort          = 9283
 	dashboardPort        = 7000
 )
+
+var mgrNames = []string{"a", "b"}
 
 // Cluster is the ceph mgr manager
 type Cluster struct {
@@ -82,16 +83,21 @@ func (c *Cluster) Start() error {
 	logger.Infof("start running mgr")
 
 	for i := 0; i < c.Replicas; i++ {
-		name := fmt.Sprintf("%s%d", appName, i)
-		if err := c.createKeyring(c.Namespace, name); err != nil {
-			return fmt.Errorf("failed to create mgr keyring. %+v", err)
+		if i >= len(mgrNames) {
+			logger.Errorf("cannot have more than %d mgrs", len(mgrNames))
+			break
+		}
+		daemonName := mgrNames[i]
+		name := fmt.Sprintf("%s-%s", appName, daemonName)
+		if err := c.createKeyring(c.Namespace, name, daemonName); err != nil {
+			return fmt.Errorf("failed to create %s keyring. %+v", name, err)
 		}
 
 		// start the deployment
-		deployment := c.makeDeployment(name)
+		deployment := c.makeDeployment(name, daemonName)
 		if _, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment); err != nil {
 			if !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("failed to create mgr deployment. %+v", err)
+				return fmt.Errorf("failed to create %s deployment. %+v", name, err)
 			}
 			logger.Infof("%s deployment already exists", name)
 		} else {
@@ -104,7 +110,7 @@ func (c *Cluster) Start() error {
 	}
 
 	// create the metrics service
-	service := c.makeService(appName)
+	service := c.makeMetricsService(appName)
 	if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(service); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mgr service. %+v", err)
@@ -119,7 +125,7 @@ func (c *Cluster) Start() error {
 
 func (c *Cluster) configureDashboard() error {
 	// enable or disable the dashboard module
-	if err := c.enableDashboardModule(c.Namespace, c.dashboard.Enabled); err != nil {
+	if err := c.configureDashboardModule(c.Namespace, c.dashboard.Enabled); err != nil {
 		return fmt.Errorf("failed to enable mgr dashboard module. %+v", err)
 	}
 
@@ -145,7 +151,7 @@ func (c *Cluster) configureDashboard() error {
 	return nil
 }
 
-func (c *Cluster) makeService(name string) *v1.Service {
+func (c *Cluster) makeMetricsService(name string) *v1.Service {
 	labels := c.getLabels()
 	return &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -191,17 +197,17 @@ func (c *Cluster) makeDashboardService(name string) *v1.Service {
 	}
 }
 
-func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
+func (c *Cluster) makeDeployment(name, daemonName string) *extensions.Deployment {
 
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   name,
-			Labels: c.getLabels(),
+			Labels: c.getDaemonLabels(daemonName),
 			Annotations: map[string]string{"prometheus.io/scrape": "true",
 				"prometheus.io/port": strconv.Itoa(metricsPort)},
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.mgrContainer(name)},
+			Containers:    []v1.Container{c.mgrContainer(name, daemonName)},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
 				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
@@ -226,7 +232,7 @@ func (c *Cluster) makeDeployment(name string) *extensions.Deployment {
 	}
 }
 
-func (c *Cluster) mgrContainer(name string) v1.Container {
+func (c *Cluster) mgrContainer(name, daemonName string) v1.Container {
 
 	return v1.Container{
 		Args: []string{
@@ -241,7 +247,7 @@ func (c *Cluster) mgrContainer(name string) v1.Container {
 			k8sutil.ConfigOverrideMount(),
 		},
 		Env: []v1.EnvVar{
-			{Name: "ROOK_MGR_NAME", Value: name},
+			{Name: "ROOK_MGR_NAME", Value: daemonName},
 			{Name: "ROOK_MGR_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: name}, Key: keyringName}}},
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
@@ -263,6 +269,11 @@ func (c *Cluster) mgrContainer(name string) v1.Container {
 				ContainerPort: int32(metricsPort),
 				Protocol:      v1.ProtocolTCP,
 			},
+			{
+				Name:          "dashboard",
+				ContainerPort: int32(dashboardPort),
+				Protocol:      v1.ProtocolTCP,
+			},
 		},
 	}
 }
@@ -274,7 +285,13 @@ func (c *Cluster) getLabels() map[string]string {
 	}
 }
 
-func (c *Cluster) createKeyring(clusterName, name string) error {
+func (c *Cluster) getDaemonLabels(daemonName string) map[string]string {
+	labels := c.getLabels()
+	labels["instance"] = daemonName
+	return labels
+}
+
+func (c *Cluster) createKeyring(clusterName, name, daemonName string) error {
 	_, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(name, metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the mgr keyring was already generated")
@@ -285,7 +302,7 @@ func (c *Cluster) createKeyring(clusterName, name string) error {
 	}
 
 	// get-or-create-key for the user account
-	keyring, err := createKeyring(c.context, clusterName, name)
+	keyring, err := createKeyring(c.context, clusterName, daemonName)
 	if err != nil {
 		return fmt.Errorf("failed to create mgr keyring. %+v", err)
 	}
@@ -320,7 +337,7 @@ func (c *Cluster) enablePrometheusModule(clusterName string) error {
 }
 
 // Ceph docs about the dashboard module: http://docs.ceph.com/docs/luminous/mgr/dashboard/
-func (c *Cluster) enableDashboardModule(clusterName string, enable bool) error {
+func (c *Cluster) configureDashboardModule(clusterName string, enable bool) error {
 	if enable {
 		if err := client.MgrEnableModule(c.context, clusterName, dashboardModuleName, true); err != nil {
 			return fmt.Errorf("failed to enable mgr dashboard module. %+v", err)

@@ -276,15 +276,13 @@ kubectl -n rook get pod -l app=rook-ceph-osd -o jsonpath='{range .items[*]}{.met
 Remember after each OSD pod to verify the cluster health using the instructions found in the [health verification section](#health-verification).
 
 ### Ceph Manager
-Similar to the Rook operator, the Ceph manager pods are managed by a deployment.
-We will edit the deployment to use the new image version of `rook/ceph:master`:
-```bash
-kubectl -n rook set image deploy/rook-ceph-mgr0 rook-ceph-mgr0=rook/ceph:master
-```
+The ceph manager has been renamed in 0.8. The new manager will be started automatically by the operator. 
+The old manager and its secret can simply be deleted.
 
-To verify that the manager pod is `Running` and on the new version, use the following:
+To delete the 0.7 manager, run the following:
 ```bash
-kubectl -n rook get pod -l app=rook-ceph-mgr -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.phase}{" "}{.spec.containers[0].image}{"\n"}{end}'
+kubectl -n rook delete deploy rook-ceph-mgr0
+kubectl -n rook delete secret rook-ceph-mgr0
 ```
 
 ### Legacy Custom Resource Definitions (CRDs)
