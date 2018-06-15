@@ -109,7 +109,7 @@ func startMgr(context *clusterd.Context, config *Config) error {
 }
 
 func getMgrConfDir(dir, name string) string {
-	return path.Join(dir, fmt.Sprintf("mgr%s", name))
+	return path.Join(dir, fmt.Sprintf("mgr-%s", name))
 }
 
 func getMgrConfFilePath(dir, name, clusterName string) string {

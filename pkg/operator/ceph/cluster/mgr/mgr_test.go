@@ -66,8 +66,12 @@ func TestStartMGR(t *testing.T) {
 func validateStart(t *testing.T, c *Cluster) {
 
 	for i := 0; i < c.Replicas; i++ {
+		if i == len(mgrNames) {
+			break
+		}
 		logger.Infof("Looking for cephmgr replica %d", i)
-		_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(fmt.Sprintf("rook-ceph-mgr%d", i), metav1.GetOptions{})
+		daemonName := mgrNames[i]
+		_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Get(fmt.Sprintf("rook-ceph-mgr-%s", daemonName), metav1.GetOptions{})
 		assert.Nil(t, err)
 	}
 
@@ -92,15 +96,14 @@ func TestPodSpec(t *testing.T) {
 		},
 	}, metav1.OwnerReference{})
 
-	d := c.makeDeployment("mgr1")
+	d := c.makeDeployment("mgr-a", "a")
 	assert.NotNil(t, d)
-	assert.Equal(t, "mgr1", d.Name)
+	assert.Equal(t, "mgr-a", d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
 	assert.Equal(t, 2, len(d.Spec.Template.Spec.Volumes))
-	assert.Equal(t, 2, len(d.Spec.Template.Spec.Containers[0].Ports))
+	assert.Equal(t, 3, len(d.Spec.Template.Spec.Containers[0].Ports))
 	assert.Equal(t, "rook-data", d.Spec.Template.Spec.Volumes[0].Name)
-
-	assert.Equal(t, "mgr1", d.ObjectMeta.Name)
+	assert.Equal(t, "mgr-a", d.ObjectMeta.Name)
 	assert.Equal(t, appName, d.Spec.Template.ObjectMeta.Labels["app"])
 	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
@@ -124,7 +127,7 @@ func TestPodSpec(t *testing.T) {
 func TestServiceSpec(t *testing.T) {
 	c := New(nil, "ns", "myversion", rookalpha.Placement{}, false, cephv1alpha1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	s := c.makeService("rook-mgr")
+	s := c.makeMetricsService("rook-mgr")
 	assert.NotNil(t, s)
 	assert.Equal(t, "rook-mgr", s.Name)
 	assert.Equal(t, 1, len(s.Spec.Ports))
@@ -133,7 +136,7 @@ func TestServiceSpec(t *testing.T) {
 func TestHostNetwork(t *testing.T) {
 	c := New(nil, "ns", "myversion", rookalpha.Placement{}, true, cephv1alpha1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
-	d := c.makeDeployment("mgr1")
+	d := c.makeDeployment("mgr-a", "a")
 	assert.NotNil(t, d)
 
 	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
