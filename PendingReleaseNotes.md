@@ -14,6 +14,8 @@
   longer has to manage installs of Ceph in image.
 - Rook CRD code generation is now working with BSD (Mac) and GNU sed.
 - The [Ceph dashboard](Documentation/ceph-dashboard.md) can be enabled by the cluster CRD.
+- `monCount` has been renamed to `count`, which has been moved into the [`mon` spec](Documentation/ceph-cluster-crd.md#mon-settings). Additionally the default if unspecified or `0`, is now `3`.
+- You can now toggle if multiple Ceph mons might be placed on one node with the `allowMultiplePerNode` option (default `false`) in the [`mon` spec](Documentation/ceph-cluster-crd.md#mon-settings).
 
 ## Breaking Changes
 

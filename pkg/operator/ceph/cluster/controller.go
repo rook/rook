@@ -183,8 +183,9 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	if cluster.Spec.Mon.Count <= 0 {
-		logger.Warning("mon count is 0 or less, should be at least 1, will use default value of %d", mon.DefaultMonCount)
-		cluster.Spec.Mon.Count = 0
+		logger.Warningf("mon count is 0 or less, should be at least 1, will use default value of %d", mon.DefaultMonCount)
+		cluster.Spec.Mon.Count = mon.DefaultMonCount
+		cluster.Spec.Mon.AllowMultiplePerNode = true
 	}
 	if cluster.Spec.Mon.Count > mon.MaxMonCount {
 		logger.Warningf("mon count is bigger than %d (given: %d), not supported, changing to %d", mon.MaxMonCount, cluster.Spec.Mon.Count, mon.MaxMonCount)

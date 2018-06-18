@@ -43,7 +43,7 @@ This will bring up your default text editor and allow you to add and remove stor
 This feature is only available when `useAllNodes` has been set to `false`.
 
 ### Mon Settings
-- `count`: set the number of mons to be started. The number should be odd and between `1` and `9`. Default if not specified is `3`.
+- `count`: set the number of mons to be started. The number should be odd and between `1` and `9`. If not specified will be set to `3` and `allowMultiplePerNode` is also set to `true`.
 - `allowMultiplePerNode`: enable (`true`) or disable (`false`) the placement of multiple mons on one node. Default is `false`.
 
 ### Node Settings

@@ -24,6 +24,7 @@ import (
 	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -86,6 +87,11 @@ func convertLegacyCluster(legacyCluster *rookv1alpha1.Cluster) *cephv1alpha1.Clu
 
 	legacySpec := legacyCluster.Spec
 
+	// default to `3` mons during upgrade when legacy monCount is `0`
+	if legacySpec.MonCount <= 0 {
+		legacySpec.MonCount = mon.DefaultMonCount
+	}
+
 	cluster := &cephv1alpha1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      legacyCluster.Name,
@@ -100,8 +106,9 @@ func convertLegacyCluster(legacyCluster *rookv1alpha1.Cluster) *cephv1alpha1.Clu
 			Resources:       convertLegacyResourceSpec(legacySpec.Resources),
 			DataDirHostPath: legacySpec.DataDirHostPath,
 			Mon: cephv1alpha1.MonSpec{
-				Count:                legacySpec.MonCount,
-				AllowMultiplePerNode: false,
+				Count: legacySpec.MonCount,
+				// preserve "legacy" behavior to place "multiple mons on one node"
+				AllowMultiplePerNode: true,
 			},
 		},
 	}

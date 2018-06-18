@@ -91,8 +91,8 @@ const (
 )
 
 type MonSpec struct {
-	Count                int  `json:"count,omitempty"`
-	AllowMultiplePerNode bool `json:"allowMultiplePerNode,omitempty"`
+	Count                int  `json:"count"`
+	AllowMultiplePerNode bool `json:"allowMultiplePerNode"`
 }
 
 // +genclient
