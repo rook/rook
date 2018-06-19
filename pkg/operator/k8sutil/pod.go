@@ -147,6 +147,24 @@ func MakeRookImage(version string) string {
 	return version
 }
 
+// GetPodPhaseMap takes a list of pods and returns a map of pod phases to the names of pods that are in that phase
+func GetPodPhaseMap(pods *v1.PodList) map[v1.PodPhase][]string {
+	podPhaseMap := map[v1.PodPhase][]string{} // status to list of pod names with that phase
+	for _, pod := range pods.Items {
+		podPhase := pod.Status.Phase
+		podList, ok := podPhaseMap[podPhase]
+		if !ok {
+			// haven't seen this status yet, create a slice to keep track of pod names with this status
+			podPhaseMap[podPhase] = []string{pod.Name}
+		} else {
+			// add this pod name to the list of pods already seen with this status
+			podPhaseMap[podPhase] = append(podList, pod.Name)
+		}
+	}
+
+	return podPhaseMap
+}
+
 // DeleteDeployment makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
 func DeleteDeployment(clientset kubernetes.Interface, namespace, name string) error {
 	logger.Infof("removing %s deployment if it exists", name)
