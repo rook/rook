@@ -78,7 +78,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	assert.NotNil(t, deployment)
 	assert.Equal(t, "rook-ceph-osd-id-0", deployment.Name)
 	assert.Equal(t, c.Namespace, deployment.Namespace)
-	assert.Equal(t, c.serviceAccount, replicaSet.Spec.Template.Spec.ServiceAccountName)
+	assert.Equal(t, "", deployment.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, int32(1), *(deployment.Spec.Replicas))
 	assert.Equal(t, "node1", deployment.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
 	assert.Equal(t, v1.RestartPolicyAlways, deployment.Spec.Template.Spec.RestartPolicy)
