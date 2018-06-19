@@ -83,7 +83,6 @@ func HandlePanics(r interface{}, op contracts.Setup, t func() *testing.T) {
 		op.TearDown()
 		t().FailNow()
 	}
-
 }
 
 //GetTestClient sets up SetTestClient for rook

@@ -20,7 +20,7 @@ var (
 // Create StorageClass and poll if needed
 func createStorageClassAndPool(t func() *testing.T, kh *utils.K8sHelper, namespace string, storageClassName string, poolName string) {
 	//create storage class
-	if scp, _ := kh.IsStorageClassPresent(storageClassName); !scp {
+	if err := kh.IsStorageClassPresent(storageClassName); err != nil {
 		logger.Infof("Install pool and storage class for rook block")
 		_, err := installer.BlockResourceOperation(kh, installer.GetBlockPoolDef(poolName, namespace, "3"), "create")
 		require.NoError(t(), err)
@@ -28,9 +28,8 @@ func createStorageClassAndPool(t func() *testing.T, kh *utils.K8sHelper, namespa
 		require.NoError(t(), err)
 
 		//make sure storageclass is created
-		present, err := kh.IsStorageClassPresent(storageClassName)
+		err = kh.IsStorageClassPresent(storageClassName)
 		require.NoError(t(), err)
-		require.True(t(), present, "Make sure storageclass is present")
 	}
 }
 
