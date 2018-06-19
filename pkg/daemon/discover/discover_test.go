@@ -26,7 +26,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const udevOutput = `DEVLINKS=/dev/disk/by-id/scsi-36001405d27e5d898829468b90ce4ef8c /dev/disk/by-id/wwn-0x6001405d27e5d898829468b90ce4ef8c /dev/disk/by-path/ip-127.0.0.1:3260-iscsi-iqn.2016-06.world.srv:storage.target01-lun-0 /dev/disk/by-uuid/f2d38cba-37da-411d-b7ba-9a6696c58174
+const (
+	udevOutput = `DEVLINKS=/dev/disk/by-id/scsi-36001405d27e5d898829468b90ce4ef8c /dev/disk/by-id/wwn-0x6001405d27e5d898829468b90ce4ef8c /dev/disk/by-path/ip-127.0.0.1:3260-iscsi-iqn.2016-06.world.srv:storage.target01-lun-0 /dev/disk/by-uuid/f2d38cba-37da-411d-b7ba-9a6696c58174
 DEVNAME=/dev/sdk
 DEVPATH=/devices/platform/host6/session2/target6:0:0/6:0:0:0/block/sdk
 DEVTYPE=disk
@@ -58,6 +59,12 @@ SUBSYSTEM=block
 TAGS=:systemd:
 USEC_INITIALIZED=15981915740802
 `
+	sgdiskOutput = `Disk /dev/sdb: 20971520 sectors, 10.0 GiB
+Logical sector size: 512 bytes
+Disk identifier (GUID): 819C2F95-7015-438F-A624-D40DBA2C2069
+Partition table holds up to 128 entries
+`
+)
 
 func TestProbeDevices(t *testing.T) {
 	// set up mock execute so we can verify the partitioning happens on sda
@@ -80,8 +87,8 @@ testa2   centos_host13-root
 testa2   centos_host13-swap
 testa2   centos_host13-home
 `
-		case "get disk testa fs uuid":
-			output = udevOutput
+		case "get disk testa uuid":
+			output = sgdiskOutput
 
 		case "get disk testa fs serial":
 			output = udevOutput

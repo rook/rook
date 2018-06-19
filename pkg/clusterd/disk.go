@@ -84,7 +84,7 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 		// get the UUID for disks
 		var diskUUID string
 		if diskType != sys.PartType {
-			diskUUID, err = sys.GetFSUUID(d, executor)
+			diskUUID, err = sys.GetDiskUUID(d, executor)
 			if err != nil {
 				logger.Warningf("skipping device %s with an unknown uuid. %+v", d, err)
 				continue
@@ -126,12 +126,6 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 		// parse udev info output
 		if val, ok := udevInfo["DEVLINKS"]; ok {
 			disk.DevLinks = val
-		}
-		if val, ok := udevInfo["ID_FS_UUID"]; ok {
-			disk.UUID = val
-		} else if val, ok := udevInfo["ID_PART_TABLE_UUID"]; ok {
-			// fall back to the part_table_uuid if the fs_uuid was not found
-			disk.UUID = val
 		}
 		if val, ok := udevInfo["ID_FS_TYPE"]; ok {
 			disk.Filesystem = val
