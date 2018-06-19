@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-cockroachdb
+---
+apiVersion: cockroachdb.rook.io/v1alpha1
+kind: Cluster
+metadata:
+  name: rook-cockroachdb
+  namespace: rook-cockroachdb
+spec:
+  # full documentation on all available settings can be found at:
+  # https://rook.io/docs/rook/master/cockroachdb-cluster-crd.html
+  scope:
+    nodeCount: 3
+  network:
+    ports:
+    - name: http
+      port: 8080
+    - name: grpc
+      port: 26257
+  secure: false
+  volumeSize: 1Gi
+  cachePercent: 25
+  maxSQLMemoryPercent: 25

@@ -38,7 +38,7 @@ For more details on the mons and when to choose a number other than `3`, see the
   - [storage configuration settings](#storage-configuration-settings)
 
 #### Node Updates
-Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n rook-ceph edit cluster rook`.
+Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n rook-ceph edit cluster.ceph.rook.io rook-ceph`.
 This will bring up your default text editor and allow you to add and remove storage nodes from the cluster.
 This feature is only available when `useAllNodes` has been set to `false`.
 

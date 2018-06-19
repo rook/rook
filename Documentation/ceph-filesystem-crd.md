@@ -1,6 +1,6 @@
 ---
 title: Ceph Shared File System
-weight: 38
+weight: 35
 indent: true
 ---
 
