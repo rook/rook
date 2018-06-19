@@ -282,16 +282,6 @@ func UnmountDevice(devicePath string, executor exec.Executor) error {
 	return nil
 }
 
-func GetFSUUID(device string, executor exec.Executor) (string, error) {
-	cmd := fmt.Sprintf("get disk %s fs uuid", device)
-	output, err := executor.ExecuteCommandWithOutput(false, cmd,
-		"udevadm", "info", "--query=property", fmt.Sprintf("/dev/%s", device))
-	if err != nil {
-		return "", err
-	}
-	return parseFSUUID(output), nil
-}
-
 func CheckIfDeviceAvailable(executor exec.Executor, name string) (bool, string, error) {
 	ownPartitions := true
 	partitions, _, err := GetDevicePartitions(name, executor)
