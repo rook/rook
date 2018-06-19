@@ -35,7 +35,10 @@ ceph.%:
 ceph-toolbox.%: ceph.%
 	@$(MAKE) -C ceph-toolbox PLATFORM=$*
 
-do.build.images.%: ceph.% ceph-toolbox.% ;
+cockroachdb.%:
+	@$(MAKE) -C cockroachdb PLATFORM=$*
+
+do.build.images.%: ceph.% ceph-toolbox.% cockroachdb.% ;
 do.build: do.build.images.$(PLATFORM) ;
 build.all: $(foreach p,$(PLATFORMS), do.build.images.$(p)) ;
 
