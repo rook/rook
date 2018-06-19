@@ -115,9 +115,8 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	require.NoError(s.T(), err1)
 
 	logger.Infof("make sure storageclass is created")
-	present, err := s.kh.IsStorageClassPresent("rook-ceph-block")
+	err := s.kh.IsStorageClassPresent("rook-ceph-block")
 	require.Nil(s.T(), err)
-	require.True(s.T(), present, "Make sure storageclass is present")
 
 	logger.Infof("create pvc")
 	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
@@ -230,9 +229,8 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 	require.NoError(s.T(), err1)
 
 	//make sure storageclass is created
-	present, err := s.kh.IsStorageClassPresent(storageClassName)
+	err := s.kh.IsStorageClassPresent(storageClassName)
 	require.Nil(s.T(), err)
-	require.True(s.T(), present, "Make sure storageclass is present")
 
 	//create pvc
 	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, pvcAccessMode), "create")

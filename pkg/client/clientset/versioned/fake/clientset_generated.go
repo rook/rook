@@ -20,6 +20,8 @@ import (
 	clientset "github.com/rook/rook/pkg/client/clientset/versioned"
 	cephv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph/v1alpha1"
 	fakecephv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph/v1alpha1/fake"
+	cockroachdbv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cockroachdb/v1alpha1"
+	fakecockroachdbv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cockroachdb/v1alpha1/fake"
 	rookv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook/v1alpha1"
 	fakerookv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook/v1alpha1/fake"
 	rookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook/v1alpha2"
@@ -73,6 +75,16 @@ func (c *Clientset) CephV1alpha1() cephv1alpha1.CephV1alpha1Interface {
 // Ceph retrieves the CephV1alpha1Client
 func (c *Clientset) Ceph() cephv1alpha1.CephV1alpha1Interface {
 	return &fakecephv1alpha1.FakeCephV1alpha1{Fake: &c.Fake}
+}
+
+// CockroachdbV1alpha1 retrieves the CockroachdbV1alpha1Client
+func (c *Clientset) CockroachdbV1alpha1() cockroachdbv1alpha1.CockroachdbV1alpha1Interface {
+	return &fakecockroachdbv1alpha1.FakeCockroachdbV1alpha1{Fake: &c.Fake}
+}
+
+// Cockroachdb retrieves the CockroachdbV1alpha1Client
+func (c *Clientset) Cockroachdb() cockroachdbv1alpha1.CockroachdbV1alpha1Interface {
+	return &fakecockroachdbv1alpha1.FakeCockroachdbV1alpha1{Fake: &c.Fake}
 }
 
 // RookV1alpha1 retrieves the RookV1alpha1Client

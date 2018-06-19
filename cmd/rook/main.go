@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/cmd/rook/ceph"
+	"github.com/rook/rook/cmd/rook/cockroachdb"
 	rook "github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/cmd/rook/version"
 )
@@ -34,6 +35,7 @@ func addCommands() {
 	rook.RootCmd.AddCommand(version.VersionCmd)
 	rook.RootCmd.AddCommand(discoverCmd)
 	rook.RootCmd.AddCommand(ceph.Cmd)
+	rook.RootCmd.AddCommand(cockroachdb.Cmd)
 
 	// add the ceph legacy commands to the main command for backwards compatibility
 	// TODO: remove these Ceph legacy commands in the future

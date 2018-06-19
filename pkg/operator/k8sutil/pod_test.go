@@ -20,6 +20,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestMakeRookImage(t *testing.T) {
@@ -52,4 +53,30 @@ func TestGetContainerInPod(t *testing.T) {
 		expectedName)
 	assert.Nil(t, err)
 	assert.Equal(t, imageName, container.Image)
+}
+
+func TestGetPodPhaseMap(t *testing.T) {
+	// empty pod list should result in empty pod phase map
+	pods := &v1.PodList{Items: []v1.Pod{}}
+	podPhaseMap := GetPodPhaseMap(pods)
+	assert.Equal(t, 0, len(podPhaseMap))
+
+	// 2 running pods, 1 failed pod
+	pods = &v1.PodList{
+		Items: []v1.Pod{
+			{ObjectMeta: metav1.ObjectMeta{Name: "pod1"}, Status: v1.PodStatus{Phase: v1.PodRunning}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "pod2"}, Status: v1.PodStatus{Phase: v1.PodRunning}},
+			{ObjectMeta: metav1.ObjectMeta{Name: "pod3"}, Status: v1.PodStatus{Phase: v1.PodFailed}},
+		},
+	}
+	podPhaseMap = GetPodPhaseMap(pods)
+
+	// map should have 2 entries, 1 list of running pods and 1 list of failed pods
+	assert.Equal(t, 2, len(podPhaseMap))
+
+	// list of running pods should have 2 entries
+	assert.Equal(t, 2, len(podPhaseMap[v1.PodRunning]))
+
+	// list of failed pods should have 1 entry
+	assert.Equal(t, 1, len(podPhaseMap[v1.PodFailed]))
 }

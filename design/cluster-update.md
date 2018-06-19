@@ -9,7 +9,7 @@ This document will describe a design for how cluster updating can be implemented
 As previously mentioned, the interface for a user who wants to update their cluster will be the Cluster CRD.
 To specify changes to a Rook cluster, the user could run a command like the following:
 ```console
-kubectl -n rook edit cluster rook
+kubectl -n rook-ceph edit cluster.ceph.rook.io rook-ceph
 ```
 This will bring up a text editor with the current value of the cluster CRD.
 After their desired edits are made, for instance to add a new storage node, they will save and exit the editor.

@@ -13,3 +13,6 @@ has its own CRD defined.
 - [Pool](ceph-pool-crd.md): A pool manages the backing store for a block store. Pools are also used internally by object and file stores.
 - [Object Store](ceph-object-store-crd.md): An object store exposes storage with an S3-compatible interface.
 - [File System](ceph-filesystem-crd.md): A file system provides shared storage for multiple Kubernetes pods.
+
+## CockroachDB
+- [Cluster](cockroachdb-cluster-crd.md): CockroachDB is an open-source distributed SQL database that is highly scalable across multiple global regions and also highly durable.

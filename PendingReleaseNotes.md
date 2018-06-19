@@ -6,7 +6,8 @@
 
 ## Notable Features
 
-- Rook is now architected to be a general cloud-native storage orchestrator, and can now support multiple types of storage and providers beyond Ceph.  More storage providers such as CockroachDB and Minio will be available in master builds soon.
+- Rook is now architected to be a general cloud-native storage orchestrator, and can now support multiple types of storage and providers beyond Ceph.
+  - [CockroachDB](https://www.cockroachlabs.com/) is now supported by Rook with a new operator to deploy, configure and manage instances of this popular and resilient SQL database.  Databases can be automatically deployed by creating an instance of the new `cluster.cockroachdb.rook.io` custom resource. See the [user guide](Documentation/cockroachdb.md) to get started with CockroachDB.
 - Ceph tools can be run [from any rook pod](Documentation/common-issues.md#ceph-tools).
 - Output from stderr will be included in error messages returned from the `exec` of external tools.
 - Rook-Operator no longer creates the resources CRD's or TPR's at the runtime. Instead, those resources are provisioned during deployment via `helm` or `kubectl`.

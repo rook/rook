@@ -1,6 +1,6 @@
 ---
 title: Ceph Pool
-weight: 34
+weight: 33
 indent: true
 ---
 

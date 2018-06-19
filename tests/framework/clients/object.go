@@ -66,8 +66,8 @@ spec:
 		return err
 	}
 
-	running, err := ro.k8sh.WaitForLabeledPodToRun(fmt.Sprintf("rook_object_store=%s", storeName), namespace)
-	if !running || err != nil {
+	err := ro.k8sh.WaitForLabeledPodToRun(fmt.Sprintf("rook_object_store=%s", storeName), namespace)
+	if err != nil {
 		return fmt.Errorf("rgw did not start via crd. %+v", err)
 	}
 

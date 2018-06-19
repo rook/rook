@@ -19,6 +19,7 @@ package versioned
 import (
 	glog "github.com/golang/glog"
 	cephv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph/v1alpha1"
+	cockroachdbv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cockroachdb/v1alpha1"
 	rookv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook/v1alpha2"
 	discovery "k8s.io/client-go/discovery"
@@ -31,6 +32,9 @@ type Interface interface {
 	CephV1alpha1() cephv1alpha1.CephV1alpha1Interface
 	// Deprecated: please explicitly pick a version if possible.
 	Ceph() cephv1alpha1.CephV1alpha1Interface
+	CockroachdbV1alpha1() cockroachdbv1alpha1.CockroachdbV1alpha1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Cockroachdb() cockroachdbv1alpha1.CockroachdbV1alpha1Interface
 	RookV1alpha1() rookv1alpha1.RookV1alpha1Interface
 	// Deprecated: please explicitly pick a version if possible.
 	Rook() rookv1alpha1.RookV1alpha1Interface
@@ -41,9 +45,10 @@ type Interface interface {
 // version included in a Clientset.
 type Clientset struct {
 	*discovery.DiscoveryClient
-	cephV1alpha1 *cephv1alpha1.CephV1alpha1Client
-	rookV1alpha1 *rookv1alpha1.RookV1alpha1Client
-	rookV1alpha2 *rookv1alpha2.RookV1alpha2Client
+	cephV1alpha1        *cephv1alpha1.CephV1alpha1Client
+	cockroachdbV1alpha1 *cockroachdbv1alpha1.CockroachdbV1alpha1Client
+	rookV1alpha1        *rookv1alpha1.RookV1alpha1Client
+	rookV1alpha2        *rookv1alpha2.RookV1alpha2Client
 }
 
 // CephV1alpha1 retrieves the CephV1alpha1Client
@@ -55,6 +60,17 @@ func (c *Clientset) CephV1alpha1() cephv1alpha1.CephV1alpha1Interface {
 // Please explicitly pick a version.
 func (c *Clientset) Ceph() cephv1alpha1.CephV1alpha1Interface {
 	return c.cephV1alpha1
+}
+
+// CockroachdbV1alpha1 retrieves the CockroachdbV1alpha1Client
+func (c *Clientset) CockroachdbV1alpha1() cockroachdbv1alpha1.CockroachdbV1alpha1Interface {
+	return c.cockroachdbV1alpha1
+}
+
+// Deprecated: Cockroachdb retrieves the default version of CockroachdbClient.
+// Please explicitly pick a version.
+func (c *Clientset) Cockroachdb() cockroachdbv1alpha1.CockroachdbV1alpha1Interface {
+	return c.cockroachdbV1alpha1
 }
 
 // RookV1alpha1 retrieves the RookV1alpha1Client
@@ -93,6 +109,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs.cockroachdbV1alpha1, err = cockroachdbv1alpha1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 	cs.rookV1alpha1, err = rookv1alpha1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
@@ -115,6 +135,7 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 func NewForConfigOrDie(c *rest.Config) *Clientset {
 	var cs Clientset
 	cs.cephV1alpha1 = cephv1alpha1.NewForConfigOrDie(c)
+	cs.cockroachdbV1alpha1 = cockroachdbv1alpha1.NewForConfigOrDie(c)
 	cs.rookV1alpha1 = rookv1alpha1.NewForConfigOrDie(c)
 	cs.rookV1alpha2 = rookv1alpha2.NewForConfigOrDie(c)
 
@@ -126,6 +147,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 func New(c rest.Interface) *Clientset {
 	var cs Clientset
 	cs.cephV1alpha1 = cephv1alpha1.New(c)
+	cs.cockroachdbV1alpha1 = cockroachdbv1alpha1.New(c)
 	cs.rookV1alpha1 = rookv1alpha1.New(c)
 	cs.rookV1alpha2 = rookv1alpha2.New(c)
 
