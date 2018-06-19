@@ -49,6 +49,24 @@ subjects:
   name: rook-ceph-cluster
   namespace: rook-ceph
 ---
+# Set psp for Rook's main Ceph namespace
+# TODO: Is this still necessary?
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-ceph-default-psp
+  labels:
+      operator: rook
+      storage-backend: ceph
+roleRef:
+  kind: ClusterRole
+  name: suse:caasp:psp:privileged
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: default
+  namespace: rook-ceph
+---
 apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
