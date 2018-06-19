@@ -19,8 +19,10 @@ package installer
 import (
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -54,12 +56,29 @@ const (
 )
 
 var (
+	// ** Variables that might need to be changed depending on the dev environment. The init function below will modify some of them automatically. **
+	baseTestDir       string
+	forceUseDevices   = false
+	createBaseTestDir = true
+	// ** end of Variables to modify
 	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "installer")
 	createArgs          = []string{"create", "-f"}
 	createFromStdinArgs = append(createArgs, "-")
 	deleteArgs          = []string{"delete", "-f"}
 	deleteFromStdinArgs = append(deleteArgs, "-")
 )
+
+func init() {
+	// this default will only work if running kubernetes on the local machine
+	baseTestDir, _ = os.Getwd()
+
+	// The following settings could apply to any environment when the kube context is running on the host and the tests are running inside a
+	// VM such as minikube. This is a cheap test for this condition, we need to find a better way to automate these settings.
+	if runtime.GOOS == "darwin" {
+		createBaseTestDir = false
+		baseTestDir = "/data"
+	}
+}
 
 //InstallHelper wraps installing and uninstalling rook on a platform
 type InstallHelper struct {
@@ -155,23 +174,20 @@ func (h *InstallHelper) CreateK8sRookToolbox(namespace string) (err error) {
 }
 
 func (h *InstallHelper) CreateK8sRookCluster(namespace, systemNamespace string, storeType string) (err error) {
-	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType, "", false,
+	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType, false,
 		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true /* startWithAllNodes */)
 }
 
 //CreateK8sRookCluster creates rook cluster via kubectl
-func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType, dataDirHostPath string,
+func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType string,
 	useAllDevices bool, mon cephv1alpha1.MonSpec, startWithAllNodes bool) error {
-	if err := os.MkdirAll(DefaultDataDirHostPath(namespace), 0777); err != nil {
-		return err
-	}
 
-	dataDir, err := ioutil.TempDir(DefaultDataDirHostPath(namespace), "test-")
+	err := h.initTestDir(namespace)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to create test dir. %+v", err)
 	}
-	dataDirHostPath = dataDir
-	h.dataDir = dataDir
+	logger.Infof("Creating cluster: namespace=%s, systemNamespace=%s, storeType=%s, dataDirHostPath=%s, useAllDevices=%t, startWithAllNodes=%t, mons=%+v",
+		namespace, systemNamespace, storeType, h.dataDir, useAllDevices, startWithAllNodes, mon)
 
 	logger.Infof("Creating namespace %s", namespace)
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
@@ -196,7 +212,7 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 			},
 			Spec: v1alpha1.ClusterSpec{
 				ServiceAccount:  "rook-ceph-cluster",
-				DataDirHostPath: dataDirHostPath,
+				DataDirHostPath: h.dataDir,
 				Mon: v1alpha1.MonSpec{
 					Count:                mon.Count,
 					AllowMultiplePerNode: mon.AllowMultiplePerNode,
@@ -222,15 +238,15 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 		if !startWithAllNodes {
 			// now that the cluster is created, let's get all the k8s nodes so we can update the cluster CRD with them
 			logger.Info("cluster was started without all nodes, will update cluster to add nodes now.")
-			k8snodes, err := h.k8shelper.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+			nodeNames, err := h.GetNodeHostnames()
 			if err != nil {
 				return fmt.Errorf("failed to get k8s nodes to add to cluster CRD: %+v", err)
 			}
 
 			// add all discovered k8s nodes to the cluster CRD
-			rookNodes := make([]rookalpha.Node, len(k8snodes.Items))
-			for i, k8snode := range k8snodes.Items {
-				rookNodes[i] = rookalpha.Node{Name: k8snode.Labels[apis.LabelHostname]}
+			rookNodes := make([]rookalpha.Node, len(nodeNames))
+			for i, hostname := range nodeNames {
+				rookNodes[i] = rookalpha.Node{Name: hostname}
 			}
 			clust, err = h.k8shelper.RookClientset.CephV1alpha1().Clusters(namespace).Get(namespace, metav1.GetOptions{})
 			if err != nil {
@@ -246,7 +262,7 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 		}
 	} else {
 		logger.Infof("Starting Rook Cluster with yaml")
-		rookCluster := h.installData.GetRookCluster(namespace, storeType, dataDirHostPath, useAllDevices, mon.Count)
+		rookCluster := h.installData.GetRookCluster(namespace, storeType, h.dataDir, useAllDevices, mon.Count)
 		if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
 			return fmt.Errorf("Failed to create rook cluster : %v ", err)
 		}
@@ -265,12 +281,47 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 	return err
 }
 
+func (h *InstallHelper) initTestDir(namespace string) error {
+	testDir := path.Join(baseTestDir, "rook-test", namespace)
+
+	if createBaseTestDir {
+		// Create the test dir on the local host
+		if err := os.MkdirAll(testDir, 0777); err != nil {
+			return err
+		}
+
+		dataDir, err := ioutil.TempDir(testDir, "test-")
+		if err != nil {
+			return err
+		}
+		h.dataDir = dataDir
+	} else {
+		// Compose a random test directory name without actually creating it since not running on the localhost
+		r := rand.Int()
+		h.dataDir = path.Join(testDir, fmt.Sprintf("test-%d", r))
+	}
+	return nil
+}
+
+func (h *InstallHelper) GetNodeHostnames() ([]string, error) {
+	nodes, err := h.k8shelper.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get k8s nodes. %+v", err)
+	}
+	var names []string
+	for _, node := range nodes.Items {
+		names = append(names, node.Labels[apis.LabelHostname])
+	}
+
+	return names, nil
+}
+
 func SystemNamespace(namespace string) string {
 	return fmt.Sprintf("%s-system", namespace)
 }
 
 //InstallRookOnK8sWithHostPathAndDevices installs rook on k8s
-func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType, dataDirHostPath string,
+func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType string,
 	helmInstalled, useDevices bool, mon cephv1alpha1.MonSpec, startWithAllNodes bool) (bool, error) {
 
 	var err error
@@ -308,12 +359,17 @@ func (h *InstallHelper) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 		return false, err
 	}
 
-	if useDevices {
+	if forceUseDevices {
+		logger.Infof("Forcing the use of devices")
+		useDevices = true
+	} else if useDevices {
+		// This check only looks at the local machine for devices. If you want to force using devices,
+		// set the forceUseDevices flag
 		useDevices = IsAdditionalDeviceAvailableOnCluster()
 	}
 
 	//Create rook cluster
-	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, onamespace, storeType, dataDirHostPath,
+	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, onamespace, storeType,
 		useDevices, cephv1alpha1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
@@ -396,15 +452,19 @@ func (h *InstallHelper) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 	logger.Infof("done removing the operator from namespace %s", systemNamespace)
 	logger.Infof("removing host data dir %s", h.dataDir)
 	// removing data dir if exists
-	if len(h.dataDir) > 0 {
-		err = h.cleanupDir(h.dataDir)
-		logger.Infof("removing %s, err %v", h.dataDir, err)
+	if h.dataDir != "" {
+		nodes, err := h.GetNodeHostnames()
+		h.checkError(err, "cannot get node names")
+		for _, node := range nodes {
+			err = h.cleanupDir(node, h.dataDir)
+			logger.Infof("removing %s from node %s. err=%v", h.dataDir, node, err)
+		}
 	}
 }
 
-func (h *InstallHelper) cleanupDir(dir string) error {
-	resources := h.installData.GetCleanupPod(dir)
-	_, err := h.k8shelper.KubectlWithStdin(resources, createArgs...)
+func (h *InstallHelper) cleanupDir(node, dir string) error {
+	resources := h.installData.GetCleanupPod(node, dir)
+	_, err := h.k8shelper.KubectlWithStdin(resources, createFromStdinArgs...)
 	return err
 }
 
@@ -464,15 +524,17 @@ func (h *InstallHelper) CleanupCluster(clusterName string) {
 	}
 }
 
-func (h *InstallHelper) GatherAllRookLogs(nameSpace string, testName string) {
-	logger.Infof("Gathering all logs from Rook Cluster %s", nameSpace)
-	h.k8shelper.GetRookLogs("rook-ceph-operator", h.Env.HostType, SystemNamespace(nameSpace), testName)
-	h.k8shelper.GetRookLogs("rook-ceph-agent", h.Env.HostType, SystemNamespace(nameSpace), testName)
-	h.k8shelper.GetRookLogs("rook-ceph-mgr", h.Env.HostType, nameSpace, testName)
-	h.k8shelper.GetRookLogs("rook-ceph-mon", h.Env.HostType, nameSpace, testName)
-	h.k8shelper.GetRookLogs("rook-ceph-osd", h.Env.HostType, nameSpace, testName)
-	h.k8shelper.GetRookLogs("rook-ceph-rgw", h.Env.HostType, nameSpace, testName)
-	h.k8shelper.GetRookLogs("rook-ceph-mds", h.Env.HostType, nameSpace, testName)
+func (h *InstallHelper) GatherAllRookLogs(namespace, systemNamespace string, testName string) {
+	logger.Infof("Gathering all logs from Rook Cluster %s", namespace)
+	h.k8shelper.GetRookLogs("rook-ceph-operator", h.Env.HostType, systemNamespace, testName)
+	h.k8shelper.GetRookLogs("rook-ceph-agent", h.Env.HostType, systemNamespace, testName)
+	h.k8shelper.GetRookLogs("rook-discover", h.Env.HostType, systemNamespace, testName)
+	h.k8shelper.GetRookLogs("rook-ceph-mgr", h.Env.HostType, namespace, testName)
+	h.k8shelper.GetRookLogs("rook-ceph-mon", h.Env.HostType, namespace, testName)
+	h.k8shelper.GetRookLogs("rook-ceph-osd", h.Env.HostType, namespace, testName)
+	h.k8shelper.GetRookLogs("rook-ceph-osd-prepare", h.Env.HostType, namespace, testName)
+	h.k8shelper.GetRookLogs("rook-ceph-rgw", h.Env.HostType, namespace, testName)
+	h.k8shelper.GetRookLogs("rook-ceph-mds", h.Env.HostType, namespace, testName)
 }
 
 //NewK8sRookhelper creates new instance of InstallHelper
@@ -524,10 +586,4 @@ func IsAdditionalDeviceAvailableOnCluster() bool {
 	}
 	logger.Info("No additional disks found on cluster")
 	return false
-}
-
-func DefaultDataDirHostPath(namespace string) string {
-	cwd, _ := os.Getwd()
-	testDir := path.Join(cwd, "rook-test", namespace)
-	return testDir
 }

@@ -104,8 +104,8 @@ func runFilestoreDeviceOSD(cmd *cobra.Command, args []string) error {
 	}
 
 	args = append(args, []string{
-		fmt.Sprintf("--public-addr=%s", cfg.networkInfo.PublicAddrIPv4),
-		fmt.Sprintf("--cluster-addr=%s", cfg.networkInfo.ClusterAddrIPv4),
+		fmt.Sprintf("--public-addr=%s", cfg.NetworkInfo().PublicAddr),
+		fmt.Sprintf("--cluster-addr=%s", cfg.NetworkInfo().ClusterAddr),
 	}...)
 
 	commonOSDInit(filestoreDeviceCmd)

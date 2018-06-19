@@ -17,8 +17,9 @@ limitations under the License.
 package installer
 
 import (
-	"github.com/google/uuid"
 	"strconv"
+
+	"github.com/google/uuid"
 )
 
 //InstallData wraps rook yaml definitions
@@ -457,7 +458,7 @@ spec:
 }
 
 //GetCleanupPod gets a cleanup Pod manifest
-func (i *InstallData) GetCleanupPod(removalDir string) string {
+func (i *InstallData) GetCleanupPod(node, removalDir string) string {
 	return `apiVersion: batch/v1
 kind: Job
 metadata:
@@ -478,6 +479,8 @@ spec:
                     - "sh"
                     - "-c"
                     - "rm -rf /scrub/*"
+          nodeSelector:
+            kubernetes.io/hostname: ` + node + `
           volumes:
               - name: cleaner
                 hostPath:

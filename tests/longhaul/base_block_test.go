@@ -159,7 +159,7 @@ func (o BaseLoadTestOperations) SetUp() {
 
 	if !o.kh.IsRookInstalled(o.namespace) {
 		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore",
-			"/temp/rookBackup", false, true, cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+			false, true, cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 			true /* startWithAllNodes */)
 		require.NoError(o.T(), err)
 		require.True(o.T(), isRookInstalled)

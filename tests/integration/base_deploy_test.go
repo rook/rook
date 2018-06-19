@@ -18,8 +18,6 @@ package integration
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
 	"time"
 
 	"testing"
@@ -101,48 +99,39 @@ func GetTestClient(kh *utils.K8sHelper, namespace string, op contracts.Setup, t 
 
 //BaseTestOperations struct for handling panic and test suite tear down
 type BaseTestOperations struct {
-	installer       *installer.InstallHelper
-	kh              *utils.K8sHelper
-	helper          *clients.TestClient
-	T               func() *testing.T
-	namespace       string
-	storeType       string
-	dataDirHostPath string
-	helmInstalled   bool
-	useDevices      bool
-	mons            int
+	installer     *installer.InstallHelper
+	kh            *utils.K8sHelper
+	helper        *clients.TestClient
+	T             func() *testing.T
+	namespace     string
+	storeType     string
+	helmInstalled bool
+	useDevices    bool
+	mons          int
 }
 
 // StartBaseTestOperations creates new instance of BaseTestOperations struct
-func StartBaseTestOperations(t func() *testing.T, namespace, storeType, dataDirHostPath string, helmInstalled, useDevices bool, mons int) (BaseTestOperations, *utils.K8sHelper) {
+func StartBaseTestOperations(t func() *testing.T, namespace, storeType string, helmInstalled, useDevices bool, mons int) (BaseTestOperations, *utils.K8sHelper) {
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
 	i := installer.NewK8sRookhelper(kh.Clientset, t)
 
-	op := BaseTestOperations{i, kh, nil, t, namespace, storeType, dataDirHostPath, helmInstalled, useDevices, mons}
+	op := BaseTestOperations{i, kh, nil, t, namespace, storeType, helmInstalled, useDevices, mons}
 	op.SetUp()
 	return op, kh
 }
 
 //SetUpRook is a wrapper for setting up rook
 func (op BaseTestOperations) SetUp() {
-	if err := os.MkdirAll(op.dataDirHostPath, 0755); err != nil {
-		logger.Warningf("failed to mkdir %s:%v", op.dataDirHostPath, err)
-		return
-	}
-	dataDir, err := ioutil.TempDir(op.dataDirHostPath, "test-")
-	if err != nil {
-		logger.Warningf("failed to make temp dir %s: %v", op.dataDirHostPath, err)
-		return
-	}
-	op.dataDirHostPath = dataDir
 	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType,
-		op.dataDirHostPath, op.helmInstalled, op.useDevices,
-		cephv1alpha1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */)
+		op.helmInstalled, op.useDevices, cephv1alpha1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */)
 	assert.NoError(op.T(), err)
 	if !isRookInstalled {
 		logger.Errorf("Rook was not installed successfully")
+		if !op.installer.T().Failed() {
+			op.installer.GatherAllRookLogs(op.namespace, installer.SystemNamespace(op.namespace), op.installer.T().Name())
+		}
 		op.T().Fail()
 		op.TearDown()
 		op.T().FailNow()
@@ -152,7 +141,7 @@ func (op BaseTestOperations) SetUp() {
 //TearDownRook is a wrapper for tearDown after Sutie
 func (op BaseTestOperations) TearDown() {
 	if op.installer.T().Failed() {
-		op.installer.GatherAllRookLogs(op.namespace, op.installer.T().Name())
+		op.installer.GatherAllRookLogs(op.namespace, installer.SystemNamespace(op.namespace), op.installer.T().Name())
 	}
 	op.installer.UninstallRook(op.helmInstalled, op.namespace)
 }

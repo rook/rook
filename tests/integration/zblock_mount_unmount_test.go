@@ -85,8 +85,9 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	s.namespace = "block-test-ns"
 	s.pvcNameRWO = "block-persistent-rwo"
 	s.pvcNameRWX = "block-persistent-rwx"
-
-	s.op, s.kh = StartBaseTestOperations(s.T, s.namespace, "bluestore", installer.DefaultDataDirHostPath(s.namespace), false, false, 1)
+	useHelm := false
+	useDevices := true
+	s.op, s.kh = StartBaseTestOperations(s.T, s.namespace, "filestore", useHelm, useDevices, 1)
 	s.testClient = GetTestClient(s.kh, s.namespace, s.op, s.T)
 	s.bc = s.testClient.BlockClient
 }
