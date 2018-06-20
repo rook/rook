@@ -48,6 +48,38 @@ func TestStringFlags(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func TestRenamedFlags(t *testing.T) {
+	cmd := &cobra.Command{
+		Use:   "test",
+		Short: "Creates a test arg",
+	}
+
+	var arg1 string
+	var arg2 string
+	cmd.Flags().StringVar(&arg1, "foo", "", "test 1")
+	cmd.Flags().StringVar(&arg2, "bar", "", "test 2")
+
+	// both arguments are missing
+	err := VerifyRenamedFlags(cmd, []RenamedFlag{{"foo", "bar"}})
+	assert.Equal(t, "foo is required for test", err.Error())
+
+	// old argument is missing
+	cmd.Flags().Set("foo", "fooval")
+	err = VerifyRenamedFlags(cmd, []RenamedFlag{{"foo", "bar"}})
+	assert.Nil(t, err)
+
+	// new argument is missing
+	cmd.Flags().Set("foo", "")
+	cmd.Flags().Set("bar", "barval")
+	err = VerifyRenamedFlags(cmd, []RenamedFlag{{"foo", "bar"}})
+	assert.Nil(t, err)
+
+	// no arguments are missing
+	cmd.Flags().Set("foo", "fooval")
+	err = VerifyRenamedFlags(cmd, []RenamedFlag{{"foo", "bar"}})
+	assert.Nil(t, err)
+}
+
 func TestUintFlags(t *testing.T) {
 	cmd := &cobra.Command{
 		Use:   "test",

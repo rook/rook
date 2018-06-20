@@ -45,8 +45,12 @@ func init() {
 }
 
 func startMgr(cmd *cobra.Command, args []string) error {
-	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret", "public-ipv4", "private-ipv4"}
+	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret"}
 	if err := flags.VerifyRequiredFlags(mgrCmd, required); err != nil {
+		return err
+	}
+
+	if err := verifyRenamedFlags(mgrCmd); err != nil {
 		return err
 	}
 
