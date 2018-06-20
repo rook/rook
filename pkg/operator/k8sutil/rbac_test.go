@@ -56,7 +56,8 @@ func TestMakeRole(t *testing.T) {
 		},
 	}
 
-	err := MakeRole(clientset, namespace, name, rules, metav1.OwnerReference{})
+	ownerRef := metav1.OwnerReference{}
+	err := MakeRole(clientset, namespace, name, rules, &ownerRef)
 
 	role, err := clientset.RbacV1beta1().Roles(namespace).Get(name, metav1.GetOptions{})
 	assert.Nil(t, err)
@@ -82,7 +83,7 @@ func TestMakeRole(t *testing.T) {
 		},
 	}
 
-	err = MakeRole(clientset, namespace, name, newRules, metav1.OwnerReference{})
+	err = MakeRole(clientset, namespace, name, newRules, &ownerRef)
 	assert.Nil(t, err)
 	role, err = clientset.RbacV1beta1().Roles(namespace).Get(name, metav1.GetOptions{})
 	assert.Nil(t, err)
@@ -175,8 +176,8 @@ func TestMakeRoleRBACDisabled(t *testing.T) {
 			Verbs:     []string{"get", "list"},
 		},
 	}
-
-	err := MakeRole(clientset, namespace, name, rules, metav1.OwnerReference{})
+	ownerRef := metav1.OwnerReference{}
+	err := MakeRole(clientset, namespace, name, rules, &ownerRef)
 
 	_, err = clientset.RbacV1beta1().Roles(namespace).Get(name, metav1.GetOptions{})
 	assert.NotNil(t, err)

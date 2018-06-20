@@ -45,7 +45,7 @@ In order to successfully deploy Kubernetes with Kubespray, you must have this co
 Edit `inventory/group_vars/k8s-cluster.yml` with:
 
 ```bash
-docker_options: "--insecure-registry=172.17.8.1:5000 --insecure-registry={{ kube_service_addresses }} --graph={{ docker_daemon_graph }}  {{ docker_log_opts }}"
+docker_options: {% raw %}"--insecure-registry=172.17.8.1:5000 --insecure-registry={{ kube_service_addresses }} --graph={{ docker_daemon_graph }}  {{ docker_log_opts }}"{% endraw %}
 ```
 
 FYI: `172.17.8.1` is the libvirt bridge IP, so it's reachable from all your virtual machines.

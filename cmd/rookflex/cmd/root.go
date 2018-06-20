@@ -26,7 +26,7 @@ import (
 
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
 
-	"github.com/rook/rook/pkg/daemon/agent/flexvolume"
+	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/spf13/cobra"
 )
 
@@ -46,17 +46,26 @@ func Execute() {
 }
 
 func getRPCClient() (*rpc.Client, error) {
-
-	ex, err := os.Executable()
+	driverDir, err := getDriverDir()
 	if err != nil {
-		return nil, fmt.Errorf("error getting path of the Rook flexvolume driver: %v", err)
+		return nil, err
 	}
-	unixSocketFile := path.Join(path.Dir(ex), path.Join(flexvolume.UnixSocketName)) // /usr/libexec/kubernetes/plugin/volume/rook.io~rook/.rook.sock
+
+	unixSocketFile := path.Join(driverDir, flexvolume.UnixSocketName) // /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook/rook/.rook.sock
 	conn, err := net.Dial("unix", unixSocketFile)
 	if err != nil {
 		return nil, fmt.Errorf("error connecting to socket %s: %+v", unixSocketFile, err)
 	}
 	return rpc.NewClient(conn), nil
+}
+
+func getDriverDir() (string, error) {
+	ex, err := os.Executable()
+	if err != nil {
+		return "", fmt.Errorf("error getting path of the Rook flexvolume driver: %v", err)
+	}
+
+	return path.Dir(ex), nil
 }
 
 func getMounter() *k8smount.SafeFormatAndMount {

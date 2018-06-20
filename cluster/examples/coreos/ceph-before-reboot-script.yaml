@@ -1,0 +1,120 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ceph-before-reboot-script
+  namespace: rook-ceph
+data:
+  status-check.sh: |-
+    #!/bin/bash
+
+    # preflightCheck checks for existence of "dependencies"
+    preflightCheck() {
+        if [ ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token" ]; then
+            echo "$(date) | No Kubernetes ServiceAccount token found."
+            exit 1
+        else
+            KUBE_TOKEN="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+            export KUBE_TOKEN
+        fi
+    }
+
+    # updateNodeRebootAnnotation sets the `ceph-reboot-check` annotation to `true` on `$NODE`
+    updateNodeRebootAnnotation(){
+        export PATCH="[{ \"op\": \"add\", \"path\": \"/metadata/annotations/ceph-before-reboot-check\", \"value\": \"true\" }]"
+
+        TRIES=0
+        until [ $TRIES -eq 10 ]; do
+            if curl -sSk \
+                --fail \
+                -XPATCH \
+                -H "Authorization: Bearer $KUBE_TOKEN" \
+                -H "Accept: application/json" \
+                -H "Content-Type:application/json-patch+json" \
+                --data "$PATCH" \
+                "https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_PORT_443_TCP_PORT/api/v1/nodes/$NODE"; then
+                echo "$(date) | Annotation \"ceph-reboot-check\" from node $NODE updated to \"true\". Reboot confirmed!"
+                return 0
+            else
+                echo "$(date) | Kubernetes API server connection error, will retry in 5 seconds..."
+                (( TRIES++ ))
+                /bin/sleep 5
+            fi
+        done
+        return 1
+    }
+
+    # Check if noout option should be set
+    checkForNoout() {
+
+        # Fetch the annotations list of the node
+        TRIES=0
+        until [ $TRIES -eq 10 ]; do
+            if NODE_ANNOTATIONS=$(curl -sSk \
+                --fail \
+                -H "Authorization: Bearer $KUBE_TOKEN" \
+                -H "Accept: application/json" \
+                "https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_PORT_443_TCP_PORT/api/v1/nodes/$NODE" \
+                | jq ".metadata.annotations") ; then
+                echo "$(date) | Node annotations collected, looking for \"ceph-no-noout\" annotation"
+
+                if [ $(echo "$NODE_ANNOTATIONS" | jq '."ceph-no-noout"') != "null" ] ; then
+                    echo "$(date) | Node annotation \"ceph-no-noout\" exists, not setting Ceph noout flag"
+                else
+                    echo "$(date) | Node annotation \"ceph-no-noout\" doesn't exist, setting Ceph noout flag"
+                    ceph osd set noout
+                fi
+                return 0
+            else
+                echo "$(date) | Kubernetes API server connection error, will retry in 5 seconds..."
+                (( TRIES++ ))
+                /bin/sleep 5
+            fi
+        done
+        return 1
+
+    }
+
+    # checkCephClusterHealth checks `ceph health` command for `HEALTH_OK`
+    checkCephClusterHealth(){
+        echo "$(date) | Running ceph health command"
+        if /usr/bin/ceph health | grep -q "HEALTH_OK"; then
+            echo "$(date) | Ceph cluster health is: OKAY"
+            return 0
+        fi
+        return 1
+    }
+
+    preflightCheck
+
+    echo "$(date) | Running the rook toolbox config initiation script..."
+    /usr/local/bin/toolbox.sh &
+
+    TRIES=0
+    until [ -f /etc/ceph/ceph.conf ]; do
+        [ $TRIES -eq 10 ] && { echo "$(date) | No Ceph config found after 10 tries. Exiting ..."; exit 1; }
+        echo "$(date) | Waiting for Ceph config (try $TRIES from 10) ..."
+        (( TRIES++ ))
+        sleep 3
+    done
+
+    while true; do
+        if checkCephClusterHealth; then
+            if checkForNoout; then
+                if updateNodeRebootAnnotation; then
+                    while true; do
+                        echo "$(date) | Waiting for $NODE to reboot ..."
+                        /bin/sleep 30
+                    done
+                    exit 0
+                else
+                    echo "$(date) | Failed updating annotation for $NODE. Exiting."
+                    exit 1
+                fi
+            else
+                echo "$(date) | Failed setting the Ceph osd noout flag. Exiting."
+                exit 1
+            fi
+        fi
+        echo "$(date) | Ceph cluster Health not HEALTH_OK currently. Checking again in 20 seconds ..."
+        /bin/sleep 20
+    done

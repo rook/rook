@@ -22,19 +22,52 @@ import (
 	"strings"
 	"testing"
 
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/operator/cluster/ceph/osd/config"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
+	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
 )
+
+const udevFSOutput = `
+DEVNAME=/dev/sdk
+DEVPATH=/devices/platform/host6/session2/target6:0:0/6:0:0:0/block/sdk
+DEVTYPE=disk
+ID_BUS=scsi
+ID_FS_TYPE=ext2
+ID_FS_USAGE=filesystem
+ID_FS_UUID=f2d38cba-37da-411d-b7ba-9a6696c58174
+ID_FS_UUID_ENC=f2d38cba-37da-411d-b7ba-9a6696c58174
+ID_FS_VERSION=1.0
+ID_MODEL=disk01
+ID_MODEL_ENC=disk01\x20\x20\x20\x20\x20\x20\x20\x20\x20\x20
+ID_PATH=ip-127.0.0.1:3260-iscsi-iqn.2016-06.world.srv:storage.target01-lun-0
+ID_PATH_TAG=ip-127_0_0_1_3260-iscsi-iqn_2016-06_world_srv_storage_target01-lun-0
+ID_REVISION=4.0
+ID_SCSI=1
+ID_SCSI_SERIAL=d27e5d89-8829-468b-90ce-4ef8c02f07fe
+ID_SERIAL=36001405d27e5d898829468b90ce4ef8c
+ID_SERIAL_SHORT=6001405d27e5d898829468b90ce4ef8c
+ID_TARGET_PORT=0
+ID_TYPE=disk
+ID_VENDOR=LIO-ORG
+ID_VENDOR_ENC=LIO-ORG\x20
+ID_WWN=0x6001405d27e5d898
+ID_WWN_VENDOR_EXTENSION=0x829468b90ce4ef8c
+ID_WWN_WITH_EXTENSION=0x6001405d27e5d898829468b90ce4ef8c
+MAJOR=8
+MINOR=160
+SUBSYSTEM=block
+TAGS=:systemd:
+USEC_INITIALIZED=15981915740802
+`
 
 func TestRunDaemon(t *testing.T) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	os.MkdirAll(configDir, 0755)
 
-	agent, _, context := createTestAgent(t, "none", configDir, "node5375", &rookalpha.StoreConfig{StoreType: config.Bluestore})
+	agent, _, context := createTestAgent(t, "none", configDir, "node5375", &config.StoreConfig{StoreType: config.Bluestore})
 	agent.usingDeviceFilter = true
 
 	done := make(chan struct{})
@@ -159,10 +192,10 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 				// partition sdb1 has a label MY-PART
 				return "MY-PART", nil
 			}
-		} else if command == "df" {
+		} else if command == "udevadm" {
 			if strings.Index(name, "sdc") != -1 {
 				// /dev/sdc has a file system
-				return "/dev/sdc ext4", nil
+				return udevFSOutput, nil
 			}
 			return "", nil
 		}
@@ -171,7 +204,7 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 	}
 
 	context := &clusterd.Context{Executor: executor}
-	context.Devices = []*clusterd.LocalDisk{
+	context.Devices = []*sys.LocalDisk{
 		{Name: "sda"},
 		{Name: "sdb"},
 		{Name: "sdc"},
@@ -225,11 +258,11 @@ NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 }
 
 func TestGetRemovedDevices(t *testing.T) {
-	testGetRemovedDevicesHelper(t, &rookalpha.StoreConfig{StoreType: config.Bluestore})
-	testGetRemovedDevicesHelper(t, &rookalpha.StoreConfig{StoreType: config.Filestore})
+	testGetRemovedDevicesHelper(t, &config.StoreConfig{StoreType: config.Bluestore})
+	testGetRemovedDevicesHelper(t, &config.StoreConfig{StoreType: config.Filestore})
 }
 
-func testGetRemovedDevicesHelper(t *testing.T, storeConfig *rookalpha.StoreConfig) {
+func testGetRemovedDevicesHelper(t *testing.T, storeConfig *config.StoreConfig) {
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
 	os.MkdirAll(configDir, 0755)

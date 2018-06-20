@@ -75,7 +75,7 @@ type SmokeSuite struct {
 
 func (suite *SmokeSuite) SetupSuite() {
 	suite.namespace = "smoke-ns"
-	suite.op, suite.k8sh = NewBaseTestOperations(suite.T, suite.namespace, "bluestore", "", false, false, 3)
+	suite.op, suite.k8sh = StartBaseTestOperations(suite.T, suite.namespace, "bluestore", "", false, false, 3)
 	suite.helper = GetTestClient(suite.k8sh, suite.namespace, suite.op, suite.T)
 }
 
@@ -105,14 +105,14 @@ func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
 	}
 	// get the operator pod
 	sysNamespace := installer.SystemNamespace(suite.namespace)
-	listOpts := metav1.ListOptions{LabelSelector: "app=rook-operator"}
-	podList, err := suite.k8sh.Clientset.Core().Pods(sysNamespace).List(listOpts)
+	listOpts := metav1.ListOptions{LabelSelector: "app=rook-ceph-operator"}
+	podList, err := suite.k8sh.Clientset.CoreV1().Pods(sysNamespace).List(listOpts)
 	require.Nil(suite.T(), err)
 	require.Equal(suite.T(), 1, len(podList.Items))
 
 	// get the raw log for the operator pod
 	opPodName := podList.Items[0].Name
-	rawLog, err := suite.k8sh.Clientset.Core().Pods(sysNamespace).GetLogs(opPodName, &v1.PodLogOptions{}).Do().Raw()
+	rawLog, err := suite.k8sh.Clientset.CoreV1().Pods(sysNamespace).GetLogs(opPodName, &v1.PodLogOptions{}).Do().Raw()
 	require.Nil(suite.T(), err)
 
 	r := regexp.MustCompile(`discovered flexvolume dir path from source.*\n`)

@@ -38,8 +38,8 @@ var Env EnvironmentManifest
 func init() {
 	Env = EnvironmentManifest{}
 	flag.StringVar(&Env.HostType, "host_type", "localhost", "Host were tests are run eg - localhost,GCE or AWS")
-	flag.StringVar(&Env.RookImageName, "rook_image", "rook/rook", "Docker image name for the rook container to install, must be in docker hub or local environment")
-	flag.StringVar(&Env.ToolboxImageName, "toolbox_image", "rook/toolbox", "Docker image name of the toolbox container to install, must be in docker hub or local environment")
+	flag.StringVar(&Env.RookImageName, "rook_image", "rook/ceph", "Docker image name for the rook container to install, must be in docker hub or local environment")
+	flag.StringVar(&Env.ToolboxImageName, "toolbox_image", "rook/ceph-toolbox", "Docker image name of the toolbox container to install, must be in docker hub or local environment")
 	flag.BoolVar(&Env.SkipInstallRook, "skip_install_rook", false, "Indicate if Rook need to installed - false if tests are being running at Rook that is pre-installed")
 	flag.IntVar(&Env.LoadConcurrentRuns, "load_parallel_runs", 20, "number of routines for load test")
 	flag.IntVar(&Env.LoadVolumeNumber, "load_volumes", 1, "number of volumes(file,object or block) to be created for load test")

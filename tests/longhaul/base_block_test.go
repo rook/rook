@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
@@ -23,7 +24,7 @@ func createStorageClassAndPool(t func() *testing.T, kh *utils.K8sHelper, namespa
 		logger.Infof("Install pool and storage class for rook block")
 		_, err := installer.BlockResourceOperation(kh, installer.GetBlockPoolDef(poolName, namespace, "3"), "create")
 		require.NoError(t(), err)
-		_, err = installer.BlockResourceOperation(kh, installer.GetBlockStorageClassDef(poolName, storageClassName, namespace), "create")
+		_, err = installer.BlockResourceOperation(kh, installer.GetBlockStorageClassDef(poolName, storageClassName, namespace, false), "create")
 		require.NoError(t(), err)
 
 		//make sure storageclass is created
@@ -142,8 +143,8 @@ type BaseLoadTestOperations struct {
 	namespace string
 }
 
-//NewBaseTestOperations creates new instance of BaseTestOperations struct
-func NewBaseLoadTestOperations(t func() *testing.T, namespace string) (BaseLoadTestOperations, *utils.K8sHelper, *installer.InstallHelper) {
+// StartBaseTestOperations creates new instance of BaseTestOperations struct
+func StartBaseLoadTestOperations(t func() *testing.T, namespace string) (BaseLoadTestOperations, *utils.K8sHelper, *installer.InstallHelper) {
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
@@ -158,7 +159,9 @@ func NewBaseLoadTestOperations(t func() *testing.T, namespace string) (BaseLoadT
 func (o BaseLoadTestOperations) SetUp() {
 
 	if !o.kh.IsRookInstalled(o.namespace) {
-		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore", "/temp/rookBackup", false, true, 3, true /* startWithAllNodes */)
+		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore",
+			"/temp/rookBackup", false, true, cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+			true /* startWithAllNodes */)
 		require.NoError(o.T(), err)
 		require.True(o.T(), isRookInstalled)
 

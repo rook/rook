@@ -7,7 +7,7 @@ set -e
 #############
 
 rook_git_root=$(git rev-parse --show-toplevel)
-rook_kube_templates_dir="$rook_git_root/cluster/examples/kubernetes/"
+rook_kube_templates_dir="$rook_git_root/cluster/examples/kubernetes/ceph/"
 
 
 #############
@@ -24,18 +24,16 @@ function fail_if {
 
 function purge_rook_pods {
   cd "$rook_kube_templates_dir"
-  kubectl delete -n rook pool replicapool || true
-  kubectl delete storageclass rook-block || true
-  kubectl -n kube-system delete secret rook-admin || true
+  kubectl delete -n rook-ceph pool replicapool || true
+  kubectl delete storageclass rook-ceph-block || true
   kubectl delete -f kube-registry.yaml || true
-  kubectl delete -n rook cluster rook || true
-  kubectl delete thirdpartyresources cluster.rook.io pool.rook.io objectstore.rook.io filesystem.rook.io volumeattachment.rook.io || true # ignore errors if on K8s 1.7+
-  kubectl delete crd clusters.rook.io pools.rook.io objectstores.rook.io filesystems.rook.io volumeattachments.rook.io || true # ignore errors if on K8s 1.5 and 1.6
-  kubectl delete -n rook-system daemonset rook-agent || true
-  kubectl delete -f rook-operator.yaml || true
-  kubectl delete clusterroles rook-agent || true
-  kubectl delete clusterrolebindings rook-agent || true
-  kubectl delete namespace rook || true
+  kubectl delete -n rook-ceph cluster rook-ceph || true
+  kubectl delete crd clusters.ceph.rook.io pools.ceph.rook.io objectstores.ceph.rook.io filesystems.ceph.rook.io volumes.rook.io || true
+  kubectl delete -n rook-ceph-system daemonset rook-ceph-agent || true
+  kubectl delete -f operator.yaml || true
+  kubectl delete clusterroles rook-ceph-agent || true
+  kubectl delete clusterrolebindings rook-ceph-agent || true
+  kubectl delete namespace rook-ceph || true
   cd "$rook_git_root"
 }
 
@@ -69,10 +67,10 @@ function run_docker_registry {
 }
 
 function docker_import {
-  img=$(docker images | grep -Eo '^build-[a-z0-9]{8}/rook-[a-z0-9]+\s')
+  img=$(docker images | grep -Eo '^build-[a-z0-9]{8}/ceph-[a-z0-9]+\s')
   # shellcheck disable=SC2086
-  docker tag $img 172.17.8.1:5000/rook/rook:latest
-  docker --debug push 172.17.8.1:5000/rook/rook:latest
+  docker tag $img 172.17.8.1:5000/rook/ceph:latest
+  docker --debug push 172.17.8.1:5000/rook/ceph:latest
   # shellcheck disable=SC2086
   docker rmi $img
 }
@@ -86,19 +84,19 @@ function make_rook {
 
 function run_rook {
   cd "$rook_kube_templates_dir"
-  kubectl create -f rook-operator.yaml
-  while ! kubectl get crd clusters.rook.io >/dev/null 2>&1; do
+  kubectl create -f operator.yaml
+  while ! kubectl get crd clusters.ceph.rook.io >/dev/null 2>&1; do
     echo "waiting for Rook operator"
     sleep 10
   done
-  kubectl create -f rook-cluster.yaml
+  kubectl create -f cluster.yaml
   cd -
 }
 
 function edit_rook_cluster_template {
   cd "$rook_kube_templates_dir"
-  sed -i 's|image: .*$|image: 172.17.8.1:5000/rook/rook:latest|' rook-operator.yaml
-  echo "rook-operator.yml has been edited with the new image '172.17.8.1:5000/rook/rook:latest'"
+  sed -i 's|image: .*$|image: 172.17.8.1:5000/rook/ceph:latest|' operator.yaml
+  echo "rook-operator.yml has been edited with the new image '172.17.8.1:5000/rook/ceph:latest'"
   cd -
 }
 

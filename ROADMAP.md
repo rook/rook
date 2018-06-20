@@ -10,32 +10,31 @@ We use the [milestone](https://github.com/rook/rook/milestones) feature in Githu
   * Full design
   * Refactor code base and repositories to enable
   * Consider support for Minio, potentially early support for other backends time permitting
-* Switch CRDs to API Aggregation
 * Run on arbitrary PVs
 * Remove Rook API and CLI
-* Migrate CI and release pipelines to a solution hosted by the CNCF
-* Run with Least Privileged and possibly without privileged containers
-* Shutdown / restart issues
+* Run with Least Privileged design
+  * Improved support for OpenShift
 * Support Kubernetes 1.7+ only
 * Ceph features and improvements
   * Disk management (1 OSD per pod, adding/removing disks)
   * Placement group balancer support (ceph-mgr module)
-  * Mon reliability (restarts, failing over too fast, ip changes, etc.)
-  * Mimic support
+  * Mon reliability (one mon per node, failing over too fast, etc.)
 
 ## Rook 0.9
 
-* Automated upgrades
 * Durability of state (local storage support, config can be regenerated)
 * Custom resource validation, progress, status
 * Design for Volume Snapshotting and policies (consider aligning with SIG-storage)
+* Run without privileged containers
 * Ceph features and improvements
+  * Mimic support
   * Improved data placement and pool configuration (CRUSH maps)
   * Dynamic Volume Provisioning for CephFS
   * ceph-volume provisioning for OSDs
-  * Ceph CSI plug-in that runs everywhere (rook-agent uses ceph-fuse, nbd-rbd / tcmu runner)
+  * Ceph CSI plug-in that runs everywhere (rook-ceph-agent uses ceph-fuse, nbd-rbd / tcmu runner)
 * Cluster and Pool types are declared Beta
 
 ## Rook 1.0
 
 * Declare numerous types as v1
+* Automated upgrades

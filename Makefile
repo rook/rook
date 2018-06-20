@@ -110,11 +110,14 @@ build: build.common
 	@$(MAKE) go.build
 # if building on non-linux platforms, also build the linux container
 ifneq ($(GOOS),linux)
-	@$(MAKE) go.build PLATFORM=linux_amd64
+	@$(MAKE) go.build PLATFORM=linux_$(GOHOSTARCH)
 endif
-	@$(MAKE) -C images PLATFORM=linux_amd64
+	@$(MAKE) -C images PLATFORM=linux_$(GOHOSTARCH)
 
 build.all: build.common
+ifneq ($(GOHOSTARCH),amd64)
+	$(error cross platform image build only supported on amd64 host currently)
+endif
 	@$(MAKE) do.build.parallel
 	@$(MAKE) -C images build.all
 

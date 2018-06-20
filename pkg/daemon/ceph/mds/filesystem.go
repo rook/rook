@@ -20,7 +20,6 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
 )
 
@@ -61,7 +60,6 @@ func NewFS(name string, metadataPool *model.Pool, dataPools []*model.Pool, activ
 }
 
 func (f *Filesystem) CreateFilesystem(context *clusterd.Context, clusterName string) error {
-	logger.Infof("Creating file system %s", f.Name)
 	_, err := client.GetFilesystem(context, clusterName, f.Name)
 	if err == nil {
 		logger.Infof("file system %s already exists", f.Name)
@@ -71,7 +69,16 @@ func (f *Filesystem) CreateFilesystem(context *clusterd.Context, clusterName str
 		return fmt.Errorf("at least one data pool must be specified")
 	}
 
-	err = ceph.CreatePoolWithProfile(context, clusterName, *f.metadataPool, appName)
+	fslist, err := client.ListFilesystems(context, clusterName)
+	if err != nil {
+		return fmt.Errorf("Unable to list existing file systems. %+v", err)
+	}
+	if len(fslist) > 0 && !client.IsMultiFSEnabled() {
+		return fmt.Errorf("Cannot create multiple filesystems. Enable %s env variable to create more than one", client.MultiFsEnv)
+	}
+
+	logger.Infof("Creating file system %s", f.Name)
+	err = client.CreatePoolWithProfile(context, clusterName, *f.metadataPool, appName)
 	if err != nil {
 		return fmt.Errorf("failed to create metadata pool '%s': %+v", f.metadataPool.Name, err)
 	}
@@ -79,7 +86,7 @@ func (f *Filesystem) CreateFilesystem(context *clusterd.Context, clusterName str
 	var dataPoolNames []string
 	for _, pool := range f.dataPools {
 		dataPoolNames = append(dataPoolNames, pool.Name)
-		err = ceph.CreatePoolWithProfile(context, clusterName, *pool, appName)
+		err = client.CreatePoolWithProfile(context, clusterName, *pool, appName)
 		if err != nil {
 			return fmt.Errorf("failed to create data pool %s. %+v", pool.Name, err)
 		}

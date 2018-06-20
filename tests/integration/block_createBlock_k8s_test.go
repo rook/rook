@@ -56,7 +56,7 @@ func (s *BlockCreateSuite) SetupSuite() {
 
 	var err error
 	s.namespace = "block-k8s-ns"
-	s.op, s.kh = NewBaseTestOperations(s.T, s.namespace, "bluestore", "", false, false, 1)
+	s.op, s.kh = StartBaseTestOperations(s.T, s.namespace, "bluestore", "", false, false, 1)
 	s.testClient = GetTestClient(s.kh, s.namespace, s.op, s.T)
 	initialBlocks, err := s.testClient.BlockClient.List(s.namespace)
 	assert.Nil(s.T(), err)
@@ -70,17 +70,17 @@ func (s *BlockCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 	//Create PVC
 	claimName := "test-no-storage-class-claim"
 	poolName := "test-no-storage-class-pool"
-	storageClassName := "rook-block"
+	storageClassName := "rook-ceph-block"
 	defer s.tearDownTest(claimName, poolName, storageClassName, "ReadWriteOnce")
 
 	result, err := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
-	require.Contains(s.T(), result, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result)
+	assert.Contains(s.T(), result, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result)
 	require.NoError(s.T(), err)
 
 	//check status of PVC
 	pvcStatus, err := s.kh.GetPVCStatus(defaultNamespace, claimName)
 	require.Nil(s.T(), err)
-	require.Contains(s.T(), pvcStatus, "Pending", "Makes sure PVC is in Pending state")
+	assert.Contains(s.T(), pvcStatus, "Pending", "Makes sure PVC is in Pending state")
 
 	//check block image count
 	b, _ := s.testClient.BlockClient.List(s.namespace)
@@ -98,7 +98,7 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	logger.Infof("Test creating PVC(create block images) twice")
 	claimName := "test-twice-claim"
 	poolName := "test-twice-pool"
-	storageClassName := "rook-block"
+	storageClassName := "rook-ceph-block"
 	defer s.tearDownTest(claimName, poolName, storageClassName, "ReadWriteOnce")
 	status, _ := s.kh.GetPVCStatus(defaultNamespace, claimName)
 	logger.Infof("PVC %s status: %s", claimName, status)
@@ -107,20 +107,21 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	logger.Infof("create pool and storageclass")
 	pool := model.Pool{Name: poolName, ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}}
 	result0, err0 := s.testClient.PoolClient.Create(pool, s.namespace)
-	require.Contains(s.T(), result0, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
+	assert.Contains(s.T(), result0, fmt.Sprintf("\"%s\" created", poolName), "Make sure test pool is created")
 	require.NoError(s.T(), err0)
-	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "create")
-	require.Contains(s.T(), result1, fmt.Sprintf("storageclass \"%s\" created", storageClassName), "Make sure storageclass is created")
+
+	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace, true), "create")
+	assert.Contains(s.T(), result1, fmt.Sprintf("\"%s\" created", storageClassName), "Make sure storageclass is created")
 	require.NoError(s.T(), err1)
 
 	logger.Infof("make sure storageclass is created")
-	present, err := s.kh.IsStorageClassPresent("rook-block")
+	present, err := s.kh.IsStorageClassPresent("rook-ceph-block")
 	require.Nil(s.T(), err)
 	require.True(s.T(), present, "Make sure storageclass is present")
 
 	logger.Infof("create pvc")
 	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
-	require.Contains(s.T(), result2, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result2)
+	assert.Contains(s.T(), result2, fmt.Sprintf("\"%s\" created", claimName), "Make sure pvc is created. "+result2)
 	require.NoError(s.T(), err2)
 
 	logger.Infof("check status of PVC")
@@ -132,7 +133,7 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 
 	logger.Infof("Create same pvc again")
 	result3, err3 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
-	require.Contains(s.T(), err3.Error(), fmt.Sprintf("persistentvolumeclaims \"%s\" already exists", claimName), "make sure PVC is not created again. "+result3)
+	assert.Contains(s.T(), err3.Error(), fmt.Sprintf("\"%s\" already exists", claimName), "make sure PVC is not created again. "+result3)
 
 	logger.Infof("check status of PVC")
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
@@ -205,7 +206,7 @@ func (s *BlockCreateSuite) statefulSetDataCleanup(namespace, poolName, storageCl
 func (s *BlockCreateSuite) tearDownTest(claimName string, poolName string, storageClassName string, accessMode string) {
 	installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, accessMode), "delete")
 	installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "delete")
-	installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "delete")
+	installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace, true), "delete")
 
 }
 
@@ -217,15 +218,15 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 	logger.Infof("Test creating %s PVC(block images) when storage class is created", pvcAccessMode)
 	claimName := fmt.Sprintf("test-with-storage-class-claim-%s", pvcName)
 	poolName := fmt.Sprintf("test-with-storage-class-pool-%s", pvcName)
-	storageClassName := "rook-block"
+	storageClassName := "rook-ceph-block"
 	defer s.tearDownTest(claimName, poolName, storageClassName, pvcAccessMode)
 
 	//create pool and storageclass
 	result0, err0 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "create")
-	require.Contains(s.T(), result0, fmt.Sprintf("pool \"%s\" created", poolName), "Make sure test pool is created")
+	assert.Contains(s.T(), result0, fmt.Sprintf("\"%s\" created", poolName), "Make sure test pool is created")
 	require.NoError(s.T(), err0)
-	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace), "create")
-	require.Contains(s.T(), result1, fmt.Sprintf("storageclass \"%s\" created", storageClassName), "Make sure storageclass is created")
+	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace, true), "create")
+	assert.Contains(s.T(), result1, fmt.Sprintf("\"%s\" created", storageClassName), "Make sure storageclass is created")
 	require.NoError(s.T(), err1)
 
 	//make sure storageclass is created
@@ -235,7 +236,7 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 
 	//create pvc
 	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, pvcAccessMode), "create")
-	require.Contains(s.T(), result2, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result2)
+	assert.Contains(s.T(), result2, fmt.Sprintf("\"%s\" created", claimName), "Make sure pvc is created. "+result2)
 	require.NoError(s.T(), err2)
 
 	//check status of PVC

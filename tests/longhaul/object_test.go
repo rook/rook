@@ -56,7 +56,7 @@ type ObjectLongHaulSuite struct {
 func (s *ObjectLongHaulSuite) SetupSuite() {
 	var err error
 	s.namespace = "longhaul-ns"
-	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, s.namespace)
+	s.op, s.kh, s.installer = StartBaseLoadTestOperations(s.T, s.namespace)
 	s.tc, err = clients.CreateTestClient(s.kh, s.namespace)
 	require.Nil(s.T(), err)
 }
@@ -93,7 +93,7 @@ func ObjectStoreOperations(s *ObjectLongHaulSuite, wg *sync.WaitGroup, namespace
 	performObjectStoreOperations(s.installer, s3, bucketName)
 	if deleteStore {
 		delOpts := metav1.DeleteOptions{}
-		s.tc.ObjectClient.Delete(namespace, storeName, 3)
+		s.tc.ObjectClient.Delete(namespace, storeName)
 		s.kh.Clientset.CoreV1().Services(namespace).Delete("rgw-external-"+storeName, &delOpts)
 	}
 	s3 = nil

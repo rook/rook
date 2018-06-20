@@ -25,6 +25,10 @@ if [ ! -z $DOCKER_HOST ]; then
 fi
 
 # build the the container if we've not done so already
+if [ "`uname -m`" != "x86_64" ]; then
+    echo ERROR: we only support the cross container build on amd64 host.
+    exit 1
+fi
 echo ==== building the cross container \(this could take minutes the first time\)
 make_cmd="make --no-print-directory -C ${scriptdir}/../images cross PULL=0"
 make_output=$($make_cmd 2>&1) || {

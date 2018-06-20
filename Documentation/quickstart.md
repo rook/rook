@@ -6,17 +6,14 @@ weight: 2
 # Quickstart Guide
 
 Welcome to Rook! We hope you have a great experience installing the Rook storage platform to enable highly available, durable storage
-in your cluster. If you have any questions along the way, please don't hesitate to ask us in our [Slack channel](https://Rook-io.slack.com).
+in your cluster. If you have any questions along the way, please don't hesitate to ask us in our [Slack channel](https://rook-io.slack.com). Sign up for our Slack [here](https://rook-slackin.herokuapp.com/).
 
 This guide will walk you through the basic setup of a Rook cluster. This will enable you to consume block, object, and file storage
-from other pods running in your cluster. 
+from other pods running in your cluster.
 
 ## Minimum Version
 
-Kubernetes **v1.6** or higher is targeted by Rook (while Rook is in alpha it will track the latest release to use the latest features).
-
-Support is available for Kubernetes **v1.5.2**, although your mileage may vary.
-You will need to use the yaml files from the [1.5 folder](/cluster/examples/kubernetes/1.5).
+Kubernetes **v1.7** or higher is supported by Rook.
 
 ## Prerequisites
 
@@ -28,80 +25,76 @@ If you are using `dataDirHostPath` to persist rook data on kubernetes hosts, mak
 
 If you're feeling lucky, a simple Rook cluster can be created with the following kubectl commands. For the more detailed install, skip to the next section to [deploy the Rook operator](#deploy-the-rook-operator).
 ```
-cd cluster/examples/kubernetes
-kubectl create -f rook-operator.yaml
-kubectl create -f rook-cluster.yaml
+cd cluster/examples/kubernetes/ceph
+kubectl create -f operator.yaml
+kubectl create -f cluster.yaml
 ```
 
 After the cluster is running, you can create [block, object, or file](#storage) storage to be consumed by other applications in your cluster.
 
 ## Deploy the Rook Operator
 
-The first step is to deploy the Rook system components, which include the Rook agent running on each node in your cluster as well as Rook operator pod. 
+The first step is to deploy the Rook system components, which include the Rook agent running on each node in your cluster as well as Rook operator pod.
 
 ```bash
-cd cluster/examples/kubernetes
-kubectl create -f rook-operator.yaml
+cd cluster/examples/kubernetes/ceph
+kubectl create -f operator.yaml
 
-# verify the rook-operator and rook-agents pods are in the `Running` state before proceeding
-kubectl -n rook-system get pod
+# verify the rook-ceph-operator and rook-ceph-agent pods are in the `Running` state before proceeding
+kubectl -n rook-ceph-system get pod
 ```
 
 You can also deploy the operator with the [Rook Helm Chart](helm-operator.md).
 
 ---
 ### **Restart Kubelet**
-**(K8S 1.7.x and older only)**
+**(K8S 1.7.x only)**
 
 For versions of Kubernetes prior to 1.8, the Kubelet process on all nodes will require a restart after the Rook operator and Rook agents have been deployed. As part of their initial setup, the Rook agents deploy and configure a Flexvolume plugin in order to integrate with Kubernetes' volume controller framework. In Kubernetes v1.8+, the [dynamic Flexvolume plugin discovery](https://github.com/kubernetes/community/blob/master/contributors/devel/flexvolume.md#dynamic-plugin-discovery) will find and initialize our plugin, but in older versions of Kubernetes a manual restart of the Kubelet will be required.
-
-### **Disable Attacher-detacher controller**
-**(K8S 1.6.x only)**
-
-For Kubernetes 1.6, it is also necessary to pass the `--enable-controller-attach-detach=false` flag to Kubelet when you restart it.  This is a workaround for a [Kubernetes issue](https://github.com/kubernetes/kubernetes/issues/47109) that only affects 1.6.
 
 ---
 
 ## Create a Rook Cluster
 
-Now that the Rook operator and agent pods are running, we can create the Rook cluster. For the cluster to survive reboots, 
-make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](cluster-crd.md). 
+Now that the Rook operator and agent pods are running, we can create the Rook cluster. For the cluster to survive reboots,
+make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](ceph-cluster-crd.md).
 
 
-Save the cluster spec as `rook-cluster.yaml`:
+Save the cluster spec as `cluster.yaml`:
 
 ```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: rook-ceph
 ---
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: rook-ceph
+  namespace: rook-ceph
 spec:
   dataDirHostPath: /var/lib/rook
+  dashboard:
+    enabled: true
   storage:
     useAllNodes: true
     useAllDevices: false
-    storeConfig:
-      storeType: bluestore
-      databaseSizeMB: 1024
-      journalSizeMB: 1024
+    config:
+      databaseSizeMB: "1024"
+      journalSizeMB: "1024"
 ```
 
 Create the cluster:
 
 ```bash
-kubectl create -f rook-cluster.yaml
+kubectl create -f cluster.yaml
 ```
 
 Use `kubectl` to list pods in the `rook` namespace. You should be able to see the following pods once they are all running:
 
 ```bash
-$ kubectl -n rook get pod
+$ kubectl -n rook-ceph get pod
 NAME                              READY     STATUS    RESTARTS   AGE
 rook-ceph-mgr0-1279756402-wc4vt   1/1       Running   0          5m
 rook-ceph-mon0-jflt5              1/1       Running   0          6m
@@ -116,6 +109,10 @@ For a walkthrough of the three types of storage exposed by Rook, see the guides 
 - **[Block](block.md)**: Create block storage to be consumed by a pod
 - **[Object](object.md)**: Create an object store that is accessible inside or outside the Kubernetes cluster
 - **[Shared File System](filesystem.md)**: Create a file system to be shared across multiple pods
+
+# Ceph Dashboard
+
+Ceph has a dashboard in which you can view the status of your cluster. Please see the [dashboard guide](ceph-dashboard.md) for more details.
 
 # Tools
 

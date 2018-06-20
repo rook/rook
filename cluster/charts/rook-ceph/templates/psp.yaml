@@ -1,0 +1,35 @@
+{{- if .Values.pspEnable }}
+# PSP for rook-ceph-operator
+
+# Most of the teams follow the kubernetes docs and have these PSPs.
+# * privileged (for kube-system namespace)
+# * restricted (for all logged in users)
+#
+# If we name it as `rook-ceph-operator`, it comes next to `restricted` PSP alphabetically,
+# and applies `restricted` capabilities to `rook-system`. Thats reason this is named with `00-rook-ceph-operator`,
+# so it stays somewhere close to top and `rook-system` gets the intended PSP.
+#
+# More info on PSP ordering : https://kubernetes.io/docs/concepts/policy/pod-security-policy/#policy-order
+
+apiVersion: extensions/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: 00-rook-ceph-operator
+spec:
+  fsGroup:
+    rule: RunAsAny
+  privileged: true
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - '*'
+  allowedCapabilities:
+  - '*'
+  hostPID: true
+  hostIPC: true
+  hostNetwork: true
+{{- end }}

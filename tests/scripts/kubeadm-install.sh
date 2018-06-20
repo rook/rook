@@ -10,7 +10,7 @@ KUBE_INSTALL_VERSION="${KUBE_VERSION/v/$null_str}"-00
 sudo swapoff -a
 
  # init flexvolume
-if [[ $KUBE_VERSION == v1.5* ]] || [[ $KUBE_VERSION == v1.6* ]] || [[ $KUBE_VERSION == v1.7* ]] ;
+if [[ $KUBE_VERSION == v1.7* ]] ;
 then
     sudo mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook
     cat << EOF | sudo tee -a /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook/rook
@@ -19,6 +19,14 @@ echo -ne '{"status": "Success", "capabilities": {"attach": false}}' >&1
 exit 0
 EOF
     sudo chmod +x /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook/rook
+
+    sudo mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ceph.rook.io~rook
+    cat << EOF | sudo tee -a /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ceph.rook.io~rook/rook
+#!/bin/bash
+echo -ne '{"status": "Success", "capabilities": {"attach": false}}' >&1
+exit 0
+EOF
+    sudo chmod +x /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ceph.rook.io~rook/rook
 fi
 
 wait_for_dpkg_unlock() {

@@ -24,7 +24,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/rook/rook/pkg/daemon/agent/flexvolume"
+	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/spf13/cobra"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/version"
@@ -76,9 +76,19 @@ func handleMount(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// construct the input we'll need to get the global mount path
+	driverDir, err := getDriverDir()
+	if err != nil {
+		return err
+	}
+	globalMountPathInput := flexvolume.GlobalMountPathInput{
+		VolumeName: opts.VolumeName,
+		DriverDir:  driverDir,
+	}
+
 	// Get global mount path
 	var globalVolumeMountPath string
-	err = client.Call("Controller.GetGlobalMountPath", opts.VolumeName, &globalVolumeMountPath)
+	err = client.Call("Controller.GetGlobalMountPath", globalMountPathInput, &globalVolumeMountPath)
 	if err != nil {
 		log(client, fmt.Sprintf("Attach volume %s/%s failed. Cannot get global volume mount path: %v", opts.Pool, opts.Image, err), true)
 		return fmt.Errorf("Rook: Mount volume failed. Cannot get global volume mount path: %v", err)
@@ -195,15 +205,19 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 
 	log(client, fmt.Sprintf("mounting ceph filesystem %s on %s", opts.FsName, opts.MountDir), false)
 
-	if opts.ClusterName == "" {
-		return fmt.Errorf("Rook: Attach filesystem %s failed: cluster is not provided", opts.FsName)
+	if opts.ClusterNamespace == "" {
+		if opts.ClusterName == "" {
+			return fmt.Errorf("Rook: Attach filesystem %s failed: cluster namespace is not provided", opts.FsName)
+		} else {
+			opts.ClusterNamespace = opts.ClusterName
+		}
 	}
 
 	// Get client access info
 	var clientAccessInfo flexvolume.ClientAccessInfo
-	err := client.Call("Controller.GetClientAccessInfo", opts.ClusterName, &clientAccessInfo)
+	err := client.Call("Controller.GetClientAccessInfo", opts.ClusterNamespace, &clientAccessInfo)
 	if err != nil {
-		errorMsg := fmt.Sprintf("Attach filesystem %s on cluster %s failed: %v", opts.FsName, opts.ClusterName, err)
+		errorMsg := fmt.Sprintf("Attach filesystem %s on cluster %s failed: %v", opts.FsName, opts.ClusterNamespace, err)
 		log(client, errorMsg, true)
 		return fmt.Errorf("Rook: %v", errorMsg)
 	}

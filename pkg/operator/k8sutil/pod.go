@@ -93,7 +93,7 @@ func ConfigDirEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOK_CONFIG_DIR", Value: DataDir}
 }
 
-func GetContainerImage(clientset kubernetes.Interface) (string, error) {
+func GetContainerImage(clientset kubernetes.Interface, name string) (string, error) {
 
 	podName := os.Getenv(PodNameEnvVar)
 	if podName == "" {
@@ -104,16 +104,38 @@ func GetContainerImage(clientset kubernetes.Interface) (string, error) {
 		return "", fmt.Errorf("cannot detect the pod namespace. Please provide it using the downward API in the manifest file")
 	}
 
-	pod, err := clientset.Core().Pods(podNamespace).Get(podName, metav1.GetOptions{})
+	pod, err := clientset.CoreV1().Pods(podNamespace).Get(podName, metav1.GetOptions{})
 	if err != nil {
 		return "", err
 	}
 
-	if len(pod.Spec.Containers) != 1 {
-		return "", fmt.Errorf("failed to get container image. There should only be exactly one container in this pod")
+	image, err := GetMatchingContainer(pod.Spec.Containers, name)
+	if err != nil {
+		return "", err
+	}
+	return image.Image, nil
+}
+
+func GetMatchingContainer(containers []v1.Container, name string) (v1.Container, error) {
+	var result *v1.Container
+	if len(containers) == 1 {
+		// if there is only one pod, use its image rather than require a set container name
+		result = &containers[0]
+	} else {
+		// if there are multiple pods, we require the container to have the expected name
+		for _, container := range containers {
+			if container.Name == name {
+				result = &container
+				break
+			}
+		}
 	}
 
-	return pod.Spec.Containers[0].Image, nil
+	if result == nil {
+		return v1.Container{}, fmt.Errorf("failed to find image for container %s", name)
+	}
+
+	return *result, nil
 }
 
 // MakeRookImage formats the container name

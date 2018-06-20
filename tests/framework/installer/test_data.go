@@ -9,7 +9,7 @@ func BlockResourceOperation(k8sh *utils.K8sHelper, yaml string, action string) (
 }
 
 func GetBlockPoolDef(poolName string, namespace string, replicaSize string) string {
-	return `apiVersion: rook.io/v1alpha1
+	return `apiVersion: ceph.rook.io/v1alpha1
 kind: Pool
 metadata:
   name: ` + poolName + `
@@ -19,15 +19,19 @@ spec:
     size: ` + replicaSize
 }
 
-func GetBlockStorageClassDef(poolName string, storageClassName string, namespace string) string {
+func GetBlockStorageClassDef(poolName string, storageClassName string, namespace string, varClusterName bool) string {
+	namespaceParameter := "clusterNamespace"
+	if varClusterName {
+		namespaceParameter = "clusterName"
+	}
 	return `apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
    name: ` + storageClassName + `
-provisioner: rook.io/block
+provisioner: ceph.rook.io/block
 parameters:
     pool: ` + poolName + `
-    clusterName: ` + namespace
+    ` + namespaceParameter + `: ` + namespace
 }
 
 func GetBlockPvcDef(claimName string, storageClassName string, accessModes string) string {
@@ -53,9 +57,9 @@ func concatYaml(first, second string) string {
 
 func GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, blockName string, accessMode string) string {
 	return concatYaml(GetBlockPoolDef(poolName, namespace, "1"),
-		concatYaml(GetBlockStorageClassDef(poolName, storageClassName, namespace), GetBlockPvcDef(blockName, storageClassName, accessMode)))
+		concatYaml(GetBlockStorageClassDef(poolName, storageClassName, namespace, false), GetBlockPvcDef(blockName, storageClassName, accessMode)))
 }
 
 func GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string) string {
-	return concatYaml(GetBlockPoolDef(poolName, namespace, "1"), GetBlockStorageClassDef(poolName, storageClassName, namespace))
+	return concatYaml(GetBlockPoolDef(poolName, namespace, "1"), GetBlockStorageClassDef(poolName, storageClassName, namespace, false))
 }

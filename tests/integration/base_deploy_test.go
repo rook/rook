@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/coreos/pkg/capnslog"
+	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
@@ -41,10 +42,12 @@ var (
 //Test to make sure all rook components are installed and Running
 func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNamespace, clusterNamespace string, mons int) {
 	logger.Infof("Make sure all Pods in Rook Cluster %s are running", clusterNamespace)
-	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-operator", opNamespace, 1, "Running"),
+	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-operator", opNamespace, 1, "Running"),
 		"Make sure there is 1 rook-operator present in Running state")
-	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-agent", opNamespace, 1, "Running"),
-		"Make sure there is 1 rook-agent present in Running state")
+	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-agent", opNamespace, 1, "Running"),
+		"Make sure there is 1 rook-ceph-agent present in Running state")
+	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-discover", opNamespace, 1, "Running"),
+		"Make sure there is 1 rook-discover present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-mgr", clusterNamespace, 1, "Running"),
 		"Make sure there is 1 rook-ceph-mgr present in Running state")
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-osd", clusterNamespace, 1, "Running"),
@@ -109,8 +112,8 @@ type BaseTestOperations struct {
 	mons            int
 }
 
-//NewBaseTestOperations creates new instance of BaseTestOperations struct
-func NewBaseTestOperations(t func() *testing.T, namespace, storeType, dataDirHostPath string, helmInstalled, useDevices bool, mons int) (BaseTestOperations, *utils.K8sHelper) {
+// StartBaseTestOperations creates new instance of BaseTestOperations struct
+func StartBaseTestOperations(t func() *testing.T, namespace, storeType, dataDirHostPath string, helmInstalled, useDevices bool, mons int) (BaseTestOperations, *utils.K8sHelper) {
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
@@ -124,7 +127,8 @@ func NewBaseTestOperations(t func() *testing.T, namespace, storeType, dataDirHos
 //SetUpRook is a wrapper for setting up rook
 func (op BaseTestOperations) SetUp() {
 	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType,
-		op.dataDirHostPath, op.helmInstalled, op.useDevices, op.mons, false /* startWithAllNodes */)
+		op.dataDirHostPath, op.helmInstalled, op.useDevices,
+		cephv1alpha1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */)
 	assert.NoError(op.T(), err)
 	if !isRookInstalled {
 		logger.Errorf("Rook was not installed successfully")

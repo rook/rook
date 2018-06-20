@@ -20,14 +20,7 @@ usage(){
 #install k8s master node
 install_master(){
 
-    # This is needed on K8S 1.6 to fix a regression. https://github.com/kubernetes/kubernetes/issues/47109
-    if [[ $KUBE_VERSION == v1.6* ]] ; then
-        cat << EOF | sudo tee -a /etc/systemd/system/kubelet.service.d/11-disable_attachdetach_controller.conf
-[Service]
-Environment="KUBELET_SYSTEM_PODS_ARGS=--pod-manifest-path=/etc/kubernetes/manifests --allow-privileged=true --enable-controller-attach-detach=false"
-EOF
-        sudo systemctl daemon-reload
-    elif [[ $KUBE_VERSION == v1.8* ]] ; then
+    if [[ $KUBE_VERSION == v1.8* ]] ; then
         # for k8s 1.8, use a non default value for volume plugins
         cat << EOF | sudo tee -a /etc/systemd/system/kubelet.service.d/11-volume_plugin_dir.conf
 [Service]
@@ -45,17 +38,19 @@ EOF
     kubectl taint nodes --all node-role.kubernetes.io/master-
     kubectl apply -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
 
-     echo "wait for K8s master node to be Ready"
-    kube_ready=$(kubectl get node -o jsonpath='{.items[0].status.conditions[3].status}')
+    echo "wait for K8s master node to be Ready"
     INC=0
-    until [[ "${kube_ready}" == "True" || $INC -gt 20 ]]; do
+    while [[ $INC -lt 20 ]]; do
+        kube_ready=$(kubectl get node -o jsonpath='{.items['$count'].status.conditions[?(@.reason == "KubeletReady")].status}')
+        if [ "${kube_ready}" == "True" ]; then
+            break
+        fi
         echo "."
         sleep 10
         ((++INC))
-        kube_ready=$(kubectl get node -o jsonpath='{.items[0].status.conditions[3].status}')
     done
 
-    if [ "${kube_ready}" == "False" ]; then
+    if [ "${kube_ready}" != "True" ]; then
         echo "k8s master node never went to Ready status"
         exit 1
     fi
@@ -90,17 +85,19 @@ wait_for_ready(){
     export KUBECONFIG=$HOME/admin.conf
 
     until [[ $count -eq $numberOfNode ]]; do
-        echo "wait for K8s node $count to be Ready"
-        kube_ready=$(kubectl get node -o jsonpath='{.items['$count'].status.conditions[3].status}')
+        echo "wait for K8s node $count to be Ready."        
         INC=0
-        until [[ "${kube_ready}" == "True" || $INC -gt 90 ]]; do
+        while [[ $INC -lt 90 ]]; do
+            kube_ready=$(kubectl get node -o jsonpath='{.items['$count'].status.conditions[?(@.reason == "KubeletReady")].status}')
+            if [ "${kube_ready}" != "True" ]; then
+              break
+            fi
             echo  -n "."
             sleep 10
             ((++INC))
-            kube_ready=$(kubectl get node -o jsonpath='{.items['$count'].status.conditions[3].status}')
         done
         echo
-        if [ "${kube_ready}" == "False" ]; then
+        if [ "${kube_ready}" != "True" ]; then
             echo "k8s node ${count} never went to Ready status"
             exit 1
         fi

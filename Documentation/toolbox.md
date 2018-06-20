@@ -6,26 +6,26 @@ indent: true
 
 #  Rook Toolbox
 The Rook toolbox is a container with common tools used for rook debugging and testing.
-The toolbox is based on Ubuntu, so more tools of your choosing can be easily installed with `apt-get`. 
+The toolbox is based on CentOS, so more tools of your choosing can be easily installed with `yum`.
 
 ## Running the Toolbox in Kubernetes
 
 The rook toolbox can run as a pod in a Kubernetes cluster.  After you ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](quickstart.md) instructions),
-launch the rook-tools pod.
+launch the rook-ceph-tools pod.
 
-Save the tools spec as `rook-tools.yaml`:
+Save the tools spec as `toolbox.yaml`:
 
 ```yaml
 apiVersion: v1
 kind: Pod
 metadata:
-  name: rook-tools
-  namespace: rook
+  name: rook-ceph-tools
+  namespace: rook-ceph
 spec:
   dnsPolicy: ClusterFirstWithHostNet
   containers:
-  - name: rook-tools
-    image: rook/toolbox:master
+  - name: rook-ceph-tools
+    image: rook/ceph-toolbox:master
     imagePullPolicy: IfNotPresent
     env:
       - name: ROOK_ADMIN_SECRET
@@ -63,19 +63,19 @@ spec:
           path: mon-endpoints
 ```
 
-Launch the rook-tools pod:
+Launch the rook-ceph-tools pod:
 ```bash
-kubectl create -f rook-tools.yaml
+kubectl create -f toolbox.yaml
 ```
 
 Wait for the toolbox pod to download its container and get to the `running` state:
 ```bash
-kubectl -n rook get pod rook-tools
+kubectl -n rook-ceph get pod rook-ceph-tools
 ```
 
-Once the rook-tools pod is running, you can connect to it with:
+Once the rook-ceph-tools pod is running, you can connect to it with:
 ```bash
-kubectl -n rook exec -it rook-tools bash
+kubectl -n rook-ceph exec -it rook-ceph-tools bash
 ```
 
 All available tools in the toolbox are ready for your troubleshooting needs.  Example:
@@ -88,8 +88,8 @@ rados df
 
 When you are done with the toolbox, remove the pod:
 ```bash
-kubectl -n rook delete pod rook-tools
+kubectl -n rook-ceph delete pod rook-ceph-tools
 ```
 
 ## Troubleshooting without the Toolbox
-The Ceph tools will commonly be the only tools needed to troubleshoot a cluster. In that case, you can connect to any of the rook pods and execute the ceph commands in the same way that you would in the toolbox pod. For example, you can connect to the mon, osd, or even the operator pod to execute commands such as `ceph status`. 
+The Ceph tools will commonly be the only tools needed to troubleshoot a cluster. In that case, you can connect to any of the rook pods and execute the ceph commands in the same way that you would in the toolbox pod. For example, you can connect to the mon, osd, or even the operator pod to execute commands such as `ceph status`.

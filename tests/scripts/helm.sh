@@ -36,7 +36,7 @@ install() {
     kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
     kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
 
-    #set up local repo for helm and add local/rook
+    #set up local repo for helm and add local/rook-ceph
     helm repo remove local
     helm repo remove stable
 
@@ -45,7 +45,7 @@ install() {
     sleep 10 # wait for helm serve to start
 
     helm repo add local http://127.0.0.1:8879
-    helm search rook
+    helm search rook-ceph
 
 }
 

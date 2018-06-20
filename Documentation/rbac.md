@@ -20,12 +20,12 @@ Binding individual certificate to ClusterRole `cluster-admin` is revocable by de
 ## RBAC for PodSecurityPolicies
 
 If you have activated the [PodSecurityPolicy Admission Controller](https://kubernetes.io/docs/admin/admission-controllers/#podsecuritypolicy) and thus are
-using [PodSecurityPolicies](https://kubernetes.io/docs/concepts/policy/pod-security-policy/), you will require additional `(Cluster)RoleBindings` 
+using [PodSecurityPolicies](https://kubernetes.io/docs/concepts/policy/pod-security-policy/), you will require additional `(Cluster)RoleBindings`
 for the different `ServiceAccounts` Rook uses to start the Rook Storage Pods.
- 
+
 **Note**: You do not have to perform these steps if you do not have the `PodSecurityPolicy` Admission Controller activated!  
 
-##### PodSecurityPolicy 
+##### PodSecurityPolicy
 
 You need one `PodSecurityPolicy` that allows privileged `Pod` execution. Here is an example:
 
@@ -54,7 +54,7 @@ spec:
 ```
 
 **Hint**: Allowing `hostNetwork` usage is required when using `hostNetwork: true` in the Cluster `CustomResourceDefinition`!
-You are then also required to allow the usage of `hostPorts` in the `PodSecurityPolicy`. The given port range is a minimal 
+You are then also required to allow the usage of `hostPorts` in the `PodSecurityPolicy`. The given port range is a minimal
 working recommendation for rook:
  ```yaml
  hostPorts:
@@ -68,7 +68,7 @@ working recommendation for rook:
 
 ##### ClusterRole and ClusterRoleBinding
 
-Next up you require a `ClusterRole` and a corresponding `ClusterRoleBinding`, which enables the Rook Agent `ServiceAccount` to run the rook-agent `Pods` on all nodes
+Next up you require a `ClusterRole` and a corresponding `ClusterRoleBinding`, which enables the Rook Agent `ServiceAccount` to run the rook-ceph-agent `Pods` on all nodes
 with privileged rights. Here are the definitions:
 
 ```yaml
@@ -86,35 +86,35 @@ rules:
   - privileged
   verbs:
   - use
-  
+
 ```
-and 
+and
 ```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
   name: rook-system
 ---
-# Allow the rook-agent serviceAccount to use the privileged PSP
+# Allow the rook-ceph-agent serviceAccount to use the privileged PSP
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: rook-agent-psp
+  name: rook-ceph-agent-psp
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: privileged-psp-user
 subjects:
 - kind: ServiceAccount
-  name: rook-agent
+  name: rook-ceph-agent
   namespace: rook-system
-``` 
+```
 
 Save these definitions to one or multiple yaml files and create them by executing `kubectl apply -f <nameOfYourFile>.yaml`
 
 You will also require two more `RoleBindings` for each Rook Cluster you deploy:
 Create these two `RoleBindings` in the Namespace you plan to deploy your Rook Cluster into (default is "rook" namespace):
- 
+
 ```yaml
 apiVersion: v1
 kind: Namespace
@@ -126,7 +126,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: rook-default-psp
-  namespace: rook
+  namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -134,14 +134,14 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: default
-  namespace: rook
+  namespace: rook-ceph
 ---
 # Allow the rook-ceph-osd serviceAccount to use the privileged PSP
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: rook-ceph-osd-psp
-  namespace: rook
+  namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -149,5 +149,5 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-osd
-  namespace: rook
-``` 
+  namespace: rook-ceph
+```

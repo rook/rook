@@ -49,7 +49,7 @@ If the mitigating steps for mon failure don't bring a mon back up, the operator 
 and bring up a new monitor with a new identity. This is an operation that must be done while there is mon quorum.
 
 The operator checks for mon health every 20 seconds. If a monitor is down, the operator will wait 5 minutes before failing over the bad mon.
-These two intervals can be configured as parameters to the rook [operator pod](/cluster/examples/kubernetes/rook-operator.yaml). If the intervals are too short, it could be unhealthy if the mons are failed over too aggressively. If the intervals are too long, the cluster could be at risk of losing quorum if a new monitor is not brought up before another mon fails.
+These two intervals can be configured as parameters to the rook [operator pod](/cluster/examples/kubernetes/ceph/operator.yaml). If the intervals are too short, it could be unhealthy if the mons are failed over too aggressively. If the intervals are too long, the cluster could be at risk of losing quorum if a new monitor is not brought up before another mon fails.
 ```
 - name: ROOK_MON_HEALTHCHECK_INTERVAL
     value: "45s"
@@ -60,7 +60,7 @@ These two intervals can be configured as parameters to the rook [operator pod](/
 ### Example Failover
 Rook will create mons with pod names such as mon0, mon1, and mon2. Let's say mon1 had an issue and the pod failed.
 ```
-$ kubectl -n rook get pod -l app=rook-ceph-mon
+$ kubectl -n rook-ceph get pod -l app=rook-ceph-mon
 NAME                             READY     STATUS    RESTARTS   AGE
 rook-ceph-mon0-7976n             1/1       Running   0          9m
 rook-ceph-mon1-m675r             1/1       Error     0          9m
@@ -69,7 +69,7 @@ rook-ceph-mon2-cjbgk             1/1       Running   0          8m
 
 After a failover, you will see the unhealthy mon removed and a new mon added such as mon0, mon2, and mon3. A fully healthy mon quorum is now running again.
 ```
-$ kubectl -n rook get pod -l app=rook-ceph-mon
+$ kubectl -n rook-ceph get pod -l app=rook-ceph-mon
 NAME                             READY     STATUS    RESTARTS   AGE
 rook-ceph-mon0-7976n             1/1       Running   0          9m
 rook-ceph-mon2-cjbgk             1/1       Running   0          8m

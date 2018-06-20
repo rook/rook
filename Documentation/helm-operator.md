@@ -1,20 +1,20 @@
 ---
-title: Operator
+title: Ceph Operator
 weight: 51
 indent: true
 ---
 
-# Operator Helm Chart
+# Ceph Operator Helm Chart
 
-Installs [rook](https://github.com/rook/rook) to create, configure, and manage Rook clusters on Kubernetes.
+Installs [rook](https://github.com/rook/rook) to create, configure, and manage Ceph clusters on Kubernetes.
 
 ## Introduction
 
-This chart bootstraps a [rook-operator](https://github.com/rook/rook) deployment on a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) package manager.
+This chart bootstraps a [rook-ceph-operator](https://github.com/rook/rook) deployment on a [Kubernetes](http://kubernetes.io) cluster using the [Helm](https://helm.sh) package manager.
 
 ## Prerequisites
 
-- Kubernetes 1.6+
+- Kubernetes 1.7+
 
 ### RBAC
 
@@ -22,29 +22,39 @@ If role-based access control (RBAC) is enabled in your cluster, you may need to 
 
 ```console
 # Create a ServiceAccount for Tiller in the `kube-system` namespace
-kubectl -n kube-system create sa tiller
+kubectl --namespace kube-system create sa tiller
 
 # Create a ClusterRoleBinding for Tiller
 kubectl create clusterrolebinding tiller --clusterrole cluster-admin --serviceaccount=kube-system:tiller
 
 # Patch Tiller's Deployment to use the new ServiceAccount
-kubectl -n kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
+kubectl --namespace kube-system patch deploy/tiller-deploy -p '{"spec": {"template": {"spec": {"serviceAccountName": "tiller"}}}}'
 ```
 
 ## Installing
 
-The Rook Operator helm chart will install the basic components necessary to create a storage platform for your Kubernetes cluster. 
+The Ceph Operator helm chart will install the basic components necessary to create a storage platform for your Kubernetes cluster.
 After the helm chart is installed, you will need to [create a Rook cluster](quickstart.md#create-a-rook-cluster).
 
-The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation.
+The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. It is recommended that the rook operator be installed into the `rook-ceph-system` namespace (you will install your clusters into separate namespaces).
 
 Rook currently publishes builds to the `alpha` and `master` channels. In the future, `beta` and `stable` will also be available.
 
 ### Alpha
-The alpha channel is the most recent release of Rook that is considered ready for testing by the community. 
+The alpha channel is the most recent release of Rook that is considered ready for testing by the community.
+
 ```console
 helm repo add rook-alpha https://charts.rook.io/alpha
-helm install rook-alpha/rook
+```
+
+For the v0.7 release (see the [v0.7 documentation](https://rook.io/docs/rook/v0.7/helm-operator.html)):
+```console
+helm install --namespace rook-system rook-alpha/rook
+```
+
+After the v0.8 release is available:
+```console
+helm install --namespace rook-ceph-system rook-alpha/rook-ceph
 ```
 
 ### Master
@@ -53,13 +63,13 @@ The master channel includes the latest commits, with all automated tests green. 
 To install the helm chart from master, you will need to pass the specific version returned by the `search` command.
 ```console
 helm repo add rook-master https://charts.rook.io/master
-helm search rook
-helm install rook-master/rook --version <version>
+helm search rook-ceph
+helm install --namespace rook-ceph-system rook-master/rook-ceph --version <version>
 ```
 
 For example:
 ```
-helm install rook-master/rook --version v0.6.0-156.gef983d6
+helm install rook-master/rook-ceph --version v0.6.0-156.gef983d6
 ```
 
 ### Development Build
@@ -68,16 +78,16 @@ To deploy from a local build from your development environment:
 1. Copy the image to your K8s cluster, such as with the `docker save` then the `docker load` commands
 1. Install the helm chart
 ```console
-cd cluster/charts/rook
-helm install --name rook --namespace rook-system .
+cd cluster/charts/rook-ceph
+helm install --namespace rook-ceph-system --name rook-ceph .
 ```
 
 ## Uninstalling the Chart
 
-To uninstall/delete the `rook` deployment:
+To uninstall/delete the `rook-ceph` deployment:
 
 ```console
-$ helm delete --purge rook
+$ helm delete --purge rook-ceph
 ```
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
@@ -88,32 +98,36 @@ The following tables lists the configurable parameters of the rook-operator char
 
 | Parameter          | Description                          | Default              |
 |--------------------|--------------------------------------|----------------------|
-| `image.repository` | Image                                | `rook/rook`          |
+| `image.repository` | Image                                | `rook/ceph`          |
 | `image.tag`        | Image tag                            | `master`             |
 | `image.pullPolicy` | Image pull policy                    | `IfNotPresent`       |
 | `rbacEnable`       | If true, create & use RBAC resources | `true`               |
+| `pspEnable`        | If true, create & use PSP resources  | `true`               |
 | `resources`        | Pod resource requests & limits       | `{}`                 |
 | `logLevel`         | Global log level        | `INFO`                 |
-| `agent.flexVolumeDirPath` | Path where the Rook agent discovers the flex volume plugins | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
+| `agent.flexVolumeDirPath` | Path where the Rook agent discovers the flex volume plugins (*) | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
 | `agent.toleration`        | Toleration for the agent pods | <none> |
 | `agent.tolerationKey`     | The specific key of the taint to tolerate | <none> |
+| `discover.toleration`        | Toleration for the discover pods | <none> |
+| `discover.tolerationKey`     | The specific key of the taint to tolerate | <none> |
 | `mon.healthCheckInterval` | The frequency for the operator to check the mon health | `45s` |
 | `mon.monOutTimeout`       | The time to wait before failing over an unhealthy mon | `300s` |
 
+&ast; For Kubernetes 1.9.x `agent.flexVolumeDirPath` should be changed to `/var/lib/kubelet/volumeplugins/`. [Flexvolume documentation](flexvolume.md#for-kubernetes--19x)
 
 ### Command Line
-You can pass the settings with helm command line parameters. Specify each parameter using the 
+You can pass the settings with helm command line parameters. Specify each parameter using the
 `--set key=value[,key=value]` argument to `helm install`. For example, the following command will install rook where RBAC is not enabled.
 
 ```console
-$ helm install --name rook rook-alpha/rook --set rbacEnable=false
+$ helm install --namespace rook-ceph-system --name rook-ceph rook-alpha/rook-ceph --set rbacEnable=false
 ```
 
 ### Settings File
 Alternatively, a yaml file that specifies the values for the above parameters (`values.yaml`) can be provided while installing the chart.
 
 ```console
-$ helm install --name rook rook-alpha/rook -f values.yaml
+$ helm install --namespace rook-ceph-system --name rook-ceph rook-alpha/rook-ceph -f values.yaml
 ```
 
 Here are the sample settings to get you started.
@@ -121,7 +135,7 @@ Here are the sample settings to get you started.
 ```yaml
 image:
   prefix: rook
-  repository: rook/rook
+  repository: rook/ceph
   tag: master
   pullPolicy: IfNotPresent
 
@@ -134,4 +148,5 @@ resources:
     memory: 128Mi
 
 rbacEnable: true
+pspEnable: true
 ```

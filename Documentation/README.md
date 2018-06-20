@@ -6,7 +6,7 @@ Rook turns distributed storage software into a self-managing, self-scaling, and 
 
 Rook integrates deeply into cloud native environments leveraging extension points and providing a seamless experience for scheduling, lifecycle management, resource management, security, monitoring, and user experience.
 
-Rook is currently in alpha state and has focused initially on orchestrating Ceph on top of Kubernetes. Ceph is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters. Rook plans to add support for other storage systems beyond Ceph in future releases. 
+Rook is currently in alpha state and has focused initially on orchestrating Ceph on top of Kubernetes. Ceph is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters. Rook plans to add support for other storage systems beyond Ceph in future releases.
 
 ## Getting Started
 
@@ -30,7 +30,7 @@ and healthy.
 
 The Rook operator is a simple container that has all that is needed to bootstrap
 and monitor the storage cluster. The operator will start and monitor [ceph monitor pods](https://github.com/rook/rook/blob/master/design/mon-health.md) and a daemonset for the OSDs, which provides basic
-RADOS storage. The operator manages CRDs for pools, object stores (S3/Swift), and file systems by initializing the pods and other artifacts necessary to 
+RADOS storage. The operator manages CRDs for pools, object stores (S3/Swift), and file systems by initializing the pods and other artifacts necessary to
 run the services.
 
 The operator will monitor the storage daemons to ensure the cluster is healthy. Ceph mons will be started or failed over when necessary, and

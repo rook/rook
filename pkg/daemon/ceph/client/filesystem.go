@@ -18,9 +18,14 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"strconv"
 
 	"github.com/rook/rook/pkg/clusterd"
+)
+
+const (
+	MultiFsEnv = "ROOK_ALLOW_MULTIPLE_FILESYSTEMS"
 )
 
 type CephFilesystem struct {
@@ -97,12 +102,17 @@ func CreateFilesystem(context *clusterd.Context, clusterName, name, metadataPool
 		return fmt.Errorf("at least one data pool is required")
 	}
 
-	// enable multiple file systems in case this is not the first
-	args := []string{"fs", "flag", "set", "enable_multiple", "true", confirmFlag}
-	_, err := ExecuteCephCommand(context, clusterName, args)
-	if err != nil {
-		// continue if this fails
-		logger.Warning("failed enabling multiple file systems. %+v", err)
+	args := []string{}
+	var err error
+
+	if IsMultiFSEnabled() {
+		// enable multiple file systems in case this is not the first
+		args = []string{"fs", "flag", "set", "enable_multiple", "true", confirmFlag}
+		_, err = ExecuteCephCommand(context, clusterName, args)
+		if err != nil {
+			// continue if this fails
+			logger.Warning("failed enabling multiple file systems. %+v", err)
+		}
 	}
 
 	// create the filesystem
@@ -169,6 +179,14 @@ func RemoveFilesystem(context *clusterd.Context, clusterName, fsName string) err
 		return fmt.Errorf("failed to delete fs %s pools. %+v", fsName, err)
 	}
 	return nil
+}
+
+func IsMultiFSEnabled() bool {
+	t := os.Getenv(MultiFsEnv)
+	if t == "true" {
+		return true
+	}
+	return false
 }
 
 func deleteFSPools(context *clusterd.Context, clusterName string, fs *CephFilesystemDetails) error {

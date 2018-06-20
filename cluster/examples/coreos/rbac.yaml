@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-node-annotator
+  namespace: rook-ceph
+---
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: rook-ceph
+  name: rook-node-annotator
+rules:
+- apiGroups: [""]
+  resources: ["nodes"]
+  verbs: ["patch", "get"]
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-node-annotator
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-node-annotator
+subjects:
+- kind: ServiceAccount
+  name: rook-node-annotator
+  namespace: rook-ceph

@@ -58,7 +58,7 @@ import (
 
 // NOTE: This suite needs to be last.
 // There is an issue on k8s 1.7 where the CRD controller will frequently fail to create a cluster after this suite is run.
-// The error is "the server does not allow this method on the requested resource (post clusters.rook.io)".
+// The error is "the server does not allow this method on the requested resource (post clusters.ceph.rook.io)".
 // Everything appears to have been cleaned up successfully in this test, so it is still unclear what is causing the issue between tests.
 func TestBlockMountUnMountSuite(t *testing.T) {
 	s := new(BlockMountUnMountSuite)
@@ -82,15 +82,18 @@ type BlockMountUnMountSuite struct {
 
 func (s *BlockMountUnMountSuite) SetupSuite() {
 
-	var err error
 	s.namespace = "block-test-ns"
 	s.pvcNameRWO = "block-persistent-rwo"
-	poolNameRWO := "block-pool-rwo"
-	storageClassNameRWO := "rook-block-rwo"
 	s.pvcNameRWX = "block-persistent-rwx"
-	s.op, s.kh = NewBaseTestOperations(s.T, s.namespace, "bluestore", "", false, false, 1)
+	s.op, s.kh = StartBaseTestOperations(s.T, s.namespace, "bluestore", "", false, false, 1)
 	s.testClient = GetTestClient(s.kh, s.namespace, s.op, s.T)
 	s.bc = s.testClient.BlockClient
+}
+
+func (s *BlockMountUnMountSuite) setupPVCs() {
+	logger.Infof("creating the test PVCs")
+	poolNameRWO := "block-pool-rwo"
+	storageClassNameRWO := "rook-ceph-block-rwo"
 
 	// Create PVCs
 	_, cbErr := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClassAndPvcDef(s.namespace, poolNameRWO, storageClassNameRWO, s.pvcNameRWO, "ReadWriteOnce"), "create")
@@ -104,15 +107,21 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	// Mount PVC on a pod and write some data.
 	_, mtErr := s.bc.BlockMap(getBlockPodDefintion("setup-block-rwo", s.pvcNameRWO, false), blockMountPath)
 	require.Nil(s.T(), mtErr)
-	crdName, err := s.kh.GetVolumeAttachmentResourceName(defaultNamespace, s.pvcNameRWO)
+	crdName, err := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWO)
 	require.Nil(s.T(), err)
-	require.True(s.T(), s.kh.IsVolumeAttachmentResourcePresent(installer.SystemNamespace(s.namespace), crdName), fmt.Sprintf("make sure VolumeAttachment %s is created", crdName))
+	rwoVolumePresent := s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName)
+	if !rwoVolumePresent {
+		s.kh.PrintPodDescribe("setup-block-rwo", defaultNamespace)
+		s.kh.PrintPodStatus(s.namespace)
+		s.kh.PrintPodStatus(installer.SystemNamespace(s.namespace))
+	}
+	require.True(s.T(), rwoVolumePresent, fmt.Sprintf("make sure rwo Volume %s is created", crdName))
 
 	_, mtErr1 := s.bc.BlockMap(getBlockPodDefintion("setup-block-rwx", s.pvcNameRWX, false), blockMountPath)
 	require.Nil(s.T(), mtErr1)
-	crdName1, err1 := s.kh.GetVolumeAttachmentResourceName(defaultNamespace, s.pvcNameRWX)
+	crdName1, err1 := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWX)
 	require.Nil(s.T(), err1)
-	require.True(s.T(), s.kh.IsVolumeAttachmentResourcePresent(installer.SystemNamespace(s.namespace), crdName1), fmt.Sprintf("make sure VolumeAttachment %s is created", crdName))
+	require.True(s.T(), s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName1), fmt.Sprintf("make sure rwx Volume %s is created", crdName))
 	require.True(s.T(), s.kh.IsPodRunning("setup-block-rwo", defaultNamespace), "make sure setup-block-rwo pod is in running state")
 	require.True(s.T(), s.kh.IsPodRunning("setup-block-rwx", defaultNamespace), "make sure setup-block-rwx pod is in running state")
 
@@ -129,7 +138,6 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	require.Nil(s.T(), unmtErr2)
 	require.True(s.T(), s.kh.IsPodTerminated("setup-block-rwo", defaultNamespace), "make sure setup-block-rwo pod is terminated")
 	require.True(s.T(), s.kh.IsPodTerminated("setup-block-rwx", defaultNamespace), "make sure setup-block-rwx pod is terminated")
-
 }
 
 func (s *BlockMountUnMountSuite) TearDownSuite() {
@@ -144,14 +152,16 @@ func (s *BlockMountUnMountSuite) TearDownSuite() {
 	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("rwx-block-rw-two", s.pvcNameRWX, false), blockMountPath)
 	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("rwx-block-ro-one", s.pvcNameRWX, true), blockMountPath)
 	s.testClient.BlockClient.BlockUnmap(getBlockPodDefintion("rwx-block-ro-two", s.pvcNameRWX, true), blockMountPath)
-	installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClassAndPvcDef(s.namespace, "block-pool-rwo", "rook-block-rwo", s.pvcNameRWO, "ReadWriteOnce"), "delete")
-	installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClassAndPvcDef(s.namespace, "block-pool-rwx", "rook-block-rwx", s.pvcNameRWX, "ReadWriteMany"), "delete")
+	installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClassAndPvcDef(s.namespace, "block-pool-rwo", "rook-ceph-block-rwo", s.pvcNameRWO, "ReadWriteOnce"), "delete")
+	installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClassAndPvcDef(s.namespace, "block-pool-rwx", "rook-ceph-block-rwx", s.pvcNameRWX, "ReadWriteMany"), "delete")
 
 	cleanupDynamicBlockStorage(s.testClient, s.namespace)
 	s.op.TearDown()
 }
 
 func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessModes() {
+	s.setupPVCs()
+
 	logger.Infof("Test case when existing RWO PVC is mounted and unmounted on pods with various accessModes")
 	logger.Infof("Step 1.1: Mount existing ReadWriteOnce and ReadWriteMany PVC on a Pod with RW access")
 	//mount PVC with RWO access on a pod with readonly set to false
@@ -160,14 +170,14 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 	//mount PVC with RWX access on a pod with readonly set to false
 	_, mtErr2 := s.bc.BlockMap(getBlockPodDefintion("rwx-block-rw-one", s.pvcNameRWX, false), blockMountPath)
 	require.Nil(s.T(), mtErr2)
-	crdName1, err1 := s.kh.GetVolumeAttachmentResourceName(defaultNamespace, s.pvcNameRWO)
-	crdName2, err2 := s.kh.GetVolumeAttachmentResourceName(defaultNamespace, s.pvcNameRWX)
+	crdName1, err1 := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWO)
+	crdName2, err2 := s.kh.GetVolumeResourceName(defaultNamespace, s.pvcNameRWX)
 	assert.Nil(s.T(), err1)
 	assert.Nil(s.T(), err2)
 
-	assert.True(s.T(), s.kh.IsVolumeAttachmentResourcePresent(installer.SystemNamespace(s.namespace), crdName1), fmt.Sprintf("make sure VolumeAttachment %s is created", crdName1))
+	assert.True(s.T(), s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName1), fmt.Sprintf("make sure Volume %s is created", crdName1))
 	assert.True(s.T(), s.kh.IsPodRunning("rwo-block-rw-one", defaultNamespace), "make sure block-rw-one pod is in running state")
-	assert.True(s.T(), s.kh.IsVolumeAttachmentResourcePresent(installer.SystemNamespace(s.namespace), crdName2), fmt.Sprintf("make sure VolumeAttachment %s is created", crdName2))
+	assert.True(s.T(), s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName2), fmt.Sprintf("make sure Volume %s is created", crdName2))
 	assert.True(s.T(), s.kh.IsPodRunning("rwx-block-rw-one", defaultNamespace), "make sure rwx-block-rw-one pod is in running state")
 
 	logger.Infof("Step 2: Check if previously persisted data is readable from ReadWriteOnce and ReadWriteMany PVC")

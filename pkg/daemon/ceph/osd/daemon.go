@@ -27,8 +27,8 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
-	oposd "github.com/rook/rook/pkg/operator/cluster/ceph/osd"
-	"github.com/rook/rook/pkg/operator/cluster/ceph/osd/config"
+	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -184,7 +184,7 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices string, metad
 		if device.Type == sys.PartType {
 			continue
 		}
-		ownPartitions, fs, err := checkIfDeviceAvailable(context.Executor, device.Name)
+		ownPartitions, fs, err := sys.CheckIfDeviceAvailable(context.Executor, device.Name)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get device %s info. %+v", device.Name, err)
 		}

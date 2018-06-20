@@ -32,9 +32,9 @@ const (
 	enableRBACEnv = "RBAC_ENABLED"
 )
 
-func MakeRole(clientset kubernetes.Interface, namespace, name string, rules []v1beta1.PolicyRule, ownerRef metav1.OwnerReference) error {
+func MakeRole(clientset kubernetes.Interface, namespace, name string, rules []v1beta1.PolicyRule, ownerRef *metav1.OwnerReference) error {
 
-	err := makeServiceAccount(clientset, namespace, name, &ownerRef)
+	err := makeServiceAccount(clientset, namespace, name, ownerRef)
 	if err != nil {
 		return err
 	}
@@ -48,10 +48,12 @@ func MakeRole(clientset kubernetes.Interface, namespace, name string, rules []v1
 	// the create will fail with an error that we're changing the permissions.
 	role := &v1beta1.Role{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Name: name,
 		},
 		Rules: rules,
+	}
+	if ownerRef != nil {
+		role.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
 	}
 	_, err = clientset.RbacV1beta1().Roles(namespace).Get(role.Name, metav1.GetOptions{})
 	if errors.IsNotFound(err) {
@@ -67,8 +69,7 @@ func MakeRole(clientset kubernetes.Interface, namespace, name string, rules []v1
 
 	binding := &v1beta1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			OwnerReferences: []metav1.OwnerReference{ownerRef},
+			Name: name,
 		},
 		RoleRef: v1beta1.RoleRef{
 			Name:     name,
@@ -78,6 +79,9 @@ func MakeRole(clientset kubernetes.Interface, namespace, name string, rules []v1
 		Subjects: []v1beta1.Subject{
 			{Kind: "ServiceAccount", Name: name, Namespace: namespace},
 		},
+	}
+	if ownerRef != nil {
+		binding.ObjectMeta.OwnerReferences = []metav1.OwnerReference{*ownerRef}
 	}
 	_, err = clientset.RbacV1beta1().RoleBindings(namespace).Create(binding)
 	if err != nil && !errors.IsAlreadyExists(err) {
