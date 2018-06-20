@@ -35,7 +35,8 @@ metadata:
 provisioner: ceph.rook.io/block
 parameters:
   pool: replicapool
-  clusterName: rook-ceph
+  #The value of "clusterNamespace" MUST be the same as the one in which your rook cluster exist
+  clusterNamespace: rook-ceph
 ```
 
 Create the storage class.
