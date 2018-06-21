@@ -25,7 +25,7 @@ import (
 
 type NfsV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	NetworkFileSystemsGetter
+	NFSExportsGetter
 }
 
 // NfsV1alpha1Client is used to interact with features provided by the nfs.rook.io group.
@@ -33,8 +33,8 @@ type NfsV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *NfsV1alpha1Client) NetworkFileSystems(namespace string) NetworkFileSystemInterface {
-	return newNetworkFileSystems(c, namespace)
+func (c *NfsV1alpha1Client) NFSExports(namespace string) NFSExportInterface {
+	return newNFSExports(c, namespace)
 }
 
 // NewForConfig creates a new NfsV1alpha1Client for the given config.

@@ -30,22 +30,22 @@ import (
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type NetworkFileSystem struct {
+type NFSExport struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec              NetworkFileSystemSpec `json:"spec"`
+	Spec              NFSExportSpec `json:"spec"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type NetworkFileSystemList struct {
+type NFSExportList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []NetworkFileSystem `json:"items"`
+	Items           []NFSExports `json:"items"`
 }
 
-// NetworkFileSystemSpec represents the spec of NFS daemon
-type NetworkFileSystemSpec struct {
+// NFSSpec represents the spec of NFS daemon
+type NFSExportSpec struct {
 	// Replicas of the NFS daemon
 	Replicas int `json:"replicas,omitempty"`
 

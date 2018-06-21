@@ -1,14 +1,14 @@
 apiVersion: nfs.rook.io/v1alpha1
-kind: NetworkFileSystem
+kind: NFS
 metadata:
-  name: nfs-vol
-  namespace: rook
+  name: rook-nfs
+  namespace: rook-nfs
 spec:
   replicas: 1
   exports:
   - name: nfs-share
     server:
-      accessMode: ReadWrire
+      accessMode: ReadWrite
       squash: root
     # A Persistent Volume Claim must be created before creating NFS CRD instance.
     # Create a Ceph cluster for using this example

@@ -4,7 +4,7 @@ metadata:
   name: rook-nfs
 provisioner: nfs.rook.io/nfs
 parameters:
-  # Name of the nfs-daemon
+  # Name of the NFS CRD instance i.e., nfs.nfs.rook.io instance declared in nfs.yaml
   server: nfs-vol
-  # Name of the export shared by the NFS daemon mentioned above
+  # Name of the export shared by the NFS CRD instance mentioned above
   export: nfs-share
