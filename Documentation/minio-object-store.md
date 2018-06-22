@@ -27,7 +27,7 @@ kubectl create -f operator.yaml
 You can check if the operator is up and running with:
 
 ```console
- kubectl -n rook-minio-system get pod
+kubectl -n rook-minio-system get pod
 ```
 
 ## Create and Initialize a Distributed Minio Object Store 
@@ -73,7 +73,7 @@ If you are using [Minikube](https://github.com/kubernetes/minikube), you can get
 The full address of the Minio service when using Minikube can be obtained with the following:
 
 ```console
-echo http://$(minikube ip):$(kubectl -n rook-minio get service my-store-service -o jsonpath='{.spec.ports[0].nodePort}')
+echo http://$(minikube ip):$(kubectl -n rook-minio get service minio-service -o jsonpath='{.spec.ports[0].nodePort}')
 ```
 
 Copy and paste the full address and port into an internet browser and you will be taken to the Minio web console login page, as shown in the screenshot below:
