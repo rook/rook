@@ -1,0 +1,47 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-minio
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: access-keys
+  namespace: rook-minio
+type: Opaque
+data:
+  # Base64 encoded string: "TEMP_DEMO_ACCESS_KEY"
+  username: VEVNUF9ERU1PX0FDQ0VTU19LRVk=
+  # Base64 encoded string: "TEMP_DEMO_SECRET_KEY"
+  password: VEVNUF9ERU1PX1NFQ1JFVF9LRVk=
+---
+apiVersion: minio.rook.io/v1alpha1
+kind: ObjectStore
+metadata:
+  name: my-store
+  namespace: rook-minio
+spec:
+  scope:
+    nodeCount: 4
+  placement:
+    tolerations:
+    nodeAffinity:
+    podAffinity:
+    podAnyAffinity:
+  port: 9000
+  credentials:
+    name: access-keys
+    namespace: rook-minio
+  storageAmount: "10G"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-service
+  namespace: rook-minio
+spec:
+  type: NodePort
+  ports:
+    - port: 9000
+  selector:
+    app: minio
