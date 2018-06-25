@@ -3,7 +3,7 @@
 scriptdir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 tarname=image.tar
-tarfile=${WORK_DIR}/tests/${tarname}
+tarfile="${WORK_DIR}/tests/${tarname}"
 
 export KUBE_VERSION=${KUBE_VERSION:-"v1.8.5"}
 
@@ -85,12 +85,12 @@ wait_for_ready(){
     export KUBECONFIG=$HOME/admin.conf
 
     until [[ $count -eq $numberOfNode ]]; do
-        echo "wait for K8s node $count to be Ready."        
+        echo "wait for K8s node $count to be Ready."
         INC=0
         while [[ $INC -lt 90 ]]; do
             kube_ready=$(kubectl get node -o jsonpath='{.items['$count'].status.conditions[?(@.reason == "KubeletReady")].status}')
             if [ "${kube_ready}" != "True" ]; then
-              break
+                break
             fi
             echo  -n "."
             sleep 10
@@ -124,51 +124,51 @@ kubeadm_reset() {
 }
 
 case "${1:-}" in
-  up)
-    sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}" root
-    install_master
-    ${scriptdir}/makeTestImages.sh tag amd64 || true
-    ;;
-  clean)
-    kubeadm_reset
-    ;;
-  install)
-    if [ "$#" -lt 2 ]; then
-        echo "invalid arguments for install"
-        usage
-        exit 1
-    fi
-    sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}" root
-    case "${2:-}" in
-        master)
-            install_master
+    up)
+        sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}" root
+        install_master
+        ${scriptdir}/makeTestImages.sh tag amd64 || true
         ;;
-        node)
-            if [ "$#" -eq 5 ] || [ "$#" -eq 7 ]; then
-                install_node $3 $4 $5 $6 $7
-            else
-                echo "invalid arguments for install node"
-                usage
-                exit 1
-            fi
+    clean)
+        kubeadm_reset
         ;;
-        *)
-            echo "invalid arguments for install" >&2
+    install)
+        if [ "$#" -lt 2 ]; then
+            echo "invalid arguments for install"
             usage
             exit 1
+        fi
+        sudo sh -c "${scriptdir}/kubeadm-install.sh ${KUBE_VERSION}" root
+        case "${2:-}" in
+            master)
+                install_master
+                ;;
+            node)
+                if [ "$#" -eq 5 ] || [ "$#" -eq 7 ]; then
+                    install_node $3 $4 $5 $6 $7
+                else
+                    echo "invalid arguments for install node"
+                    usage
+                    exit 1
+                fi
+                ;;
+            *)
+                echo "invalid arguments for install" >&2
+                usage
+                exit 1
+                ;;
+        esac
         ;;
-    esac
-    ;;
-  wait)
-    if [ "$#" -eq 2 ]; then
-        wait_for_ready $2
-    else
-        echo "invalid number of arguments for wait"
+    wait)
+        if [ "$#" -eq 2 ]; then
+            wait_for_ready $2
+        else
+            echo "invalid number of arguments for wait"
+            usage
+            exit 1
+        fi
+        ;;
+    *)
         usage
         exit 1
-    fi
-    ;;
-  *)
-    usage
-    exit 1
 esac

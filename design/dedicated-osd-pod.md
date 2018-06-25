@@ -14,7 +14,7 @@ As observed, all Ceph OSDs are running in the same Pod.
 
 The limitations of current design are:
 
-- Reliability issue. One Pod for all OSDs doesn't have the highest reliability nor efficiency. If the Pod is deleted, accidentally or during maintenence, all OSDs are down till the ReplicaSet restart. 
+- Reliability issue. One Pod for all OSDs doesn't have the highest reliability nor efficiency. If the Pod is deleted, accidentally or during maintenence, all OSDs are down till the ReplicaSet restart.
 - Efficiency issue. Resource limits cannot be set effectively on the OSDs since the number of osds per in the pod could vary from node to node. The operator cannot make decisions about the topology because it doesn't know in advance what devices are available on the nodes.
 - Tight Ceph coupling. The monolithic device discovery and provisioning code cannot be reused for other backends.
 - Process management issue. Rook's process management is very simple. Using Kubernetes pod management is much more reliable.
@@ -24,7 +24,7 @@ A more comprehensive discussions can be found at [this issue](https://github.com
 
 ## Terms
 
-- Device Discovery. A DaemonSet that discovers unformatted devices on the host. The DaemonSet populates a per node Raw Device Configmap with device information. The deamonSet is running on nodes that are labelled as storage nodes. The DaemonSet can start independently of Rook Operator. Device Discovery is storage backend agnostic. 
+- Device Discovery. A DaemonSet that discovers unformatted devices on the host. The DaemonSet populates a per node Raw Device Configmap with device information. The deamonSet is running on nodes that are labelled as storage nodes. The DaemonSet can start independently of Rook Operator. Device Discovery is storage backend agnostic.
 
 - Device Provisioner. A Pod that is given device or directory paths upon start and make backend specific storage types. For instance, the provisioner prepares OSDs for Ceph backend. It is a Kubernetes batch job and exits after the devices are prepared.
 
@@ -34,7 +34,7 @@ We propose the following change to address the limitations.
 
 
 ### Create new OSDs
-| Sequence |Rook Operator | Device Discovery  | Device Provisioner   | Ceph OSD Deployment | 
+| Sequence |Rook Operator | Device Discovery  | Device Provisioner   | Ceph OSD Deployment |
 |---|---|---|---|---|
 | 0  |  | Start on labeled storage nodes, discover unformatted devices and store device information in per node Raw Device Configmap  |   |
 | 1  | Read devices and node filters from cluster CRD |   |   |
@@ -52,7 +52,7 @@ This change addresses the above limitations in the follow ways:
 
 ### Detailed Device Discovery Process
 
-Each `Device Discovery` DaemonSet walks through device trees to unformatted block devices and stores the device information in a per node `Raw Device Configmap`. 
+Each `Device Discovery` DaemonSet walks through device trees to unformatted block devices and stores the device information in a per node `Raw Device Configmap`.
 
 A sample of `Raw Device Configmap` from Node `node1` is as the following:
 
@@ -72,14 +72,14 @@ data:
       size: 214748364800                         # size in byte
       rotational: 1                              # 0 for ssd/nvme, 1 for hdd, based on reading from sysfs
 ```
- 
+
 ### Discussions
 
 It is expected Device Discovery will be merged into Rook Operator once local PVs are supported in Rook Cluster CRD. Rook Operator can infer the device topology from local PV Configmaps. However, as long as raw devices or directories are still in use, a dedicated Device Discovery Pod is still needed.
 
 If the storage nodes are also compute nodes, it is possible that dynamically attached and unformatted devices to those nodes are discovered by Device Discovery DaemonSet. To avoid this race condition, admin can choose to use separate device tree directories: one for devices used for Rook and the other for compute. Or the Cluster CRD should explicitly identify which devices should be used for Rook.
 
-Alternatively, since `rook agent` is currently running as a DaemonSet on all nodes, it is conceivable to make `rook agent` to poll devices and update device orchestration Configmap. This approach, however, needs to give `rook agent` the privilege to modify Configmaps. Moreover, `Device Discovery` Pod doesn't need privileged mode, host network, or write access to hosts' `/dev` directory, all of which are required by `rook agent`. 
+Alternatively, since `rook agent` is currently running as a DaemonSet on all nodes, it is conceivable to make `rook agent` to poll devices and update device orchestration Configmap. This approach, however, needs to give `rook agent` the privilege to modify Configmaps. Moreover, `Device Discovery` Pod doesn't need privileged mode, host network, or write access to hosts' `/dev` directory, all of which are required by `rook agent`.
 
 ## Impact
 
@@ -89,9 +89,8 @@ Alternatively, since `rook agent` is currently running as a DaemonSet on all nod
 
 - Device Discovery. It is a new long running process in a DaemonSet that runs on each node that has matching labels. It discovers storage devices on the nodes and populates the raw devices Configmaps.
 
-- Device Provisioner. Device Provisioner becomes a batch job, it no longer exec Ceph OSD daemon. 
+- Device Provisioner. Device Provisioner becomes a batch job, it no longer exec Ceph OSD daemon.
 
-- Ceph OSD Daemon. `ceph-osd` is no longer exec'ed by Device Provisioner, it becomes the Pod entrypoint. 
+- Ceph OSD Daemon. `ceph-osd` is no longer exec'ed by Device Provisioner, it becomes the Pod entrypoint.
 
 - Ceph OSD Pod naming. Rook Operator creates Ceph OSD Pod metadata using cluster name, node name, and OSD ID.
-
