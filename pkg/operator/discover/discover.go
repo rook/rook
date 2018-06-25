@@ -67,21 +67,16 @@ func New(clientset kubernetes.Interface) *Discover {
 }
 
 // Start the discover
-func (d *Discover) Start(namespace, discoverImage string) error {
+func (d *Discover) Start(namespace, discoverImage, securityAccount string) error {
 
-	err := k8sutil.MakeRole(d.clientset, namespace, discoverDaemonsetName, accessRules, nil)
-	if err != nil {
-		return fmt.Errorf("failed to init RBAC for rook-discover. %+v", err)
-	}
-
-	err = d.createDiscoverDaemonSet(namespace, discoverImage)
+	err := d.createDiscoverDaemonSet(namespace, discoverImage, securityAccount)
 	if err != nil {
 		return fmt.Errorf("Error starting discover daemonset: %v", err)
 	}
 	return nil
 }
 
-func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage string) error {
+func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAccount string) error {
 	privileged := false
 	ds := &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -98,7 +93,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage string) erro
 					},
 				},
 				Spec: v1.PodSpec{
-					ServiceAccountName: discoverDaemonsetName,
+					ServiceAccountName: securityAccount,
 					Containers: []v1.Container{
 						{
 							Name:  discoverDaemonsetName,

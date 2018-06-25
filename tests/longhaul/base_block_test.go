@@ -163,7 +163,6 @@ func (o BaseLoadTestOperations) SetUp() {
 			true /* startWithAllNodes */)
 		require.NoError(o.T(), err)
 		require.True(o.T(), isRookInstalled)
-
 	}
 
 	// Enable chaos monkey if enable_chaos flag is present

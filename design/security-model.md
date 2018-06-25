@@ -12,7 +12,7 @@ The Rook operator currently uses a highly privileged service account with permis
 
 Today the cluster admin creates the rook system namespace, rook-operator service account and RBAC rules as follows:
 
-```
+```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -67,7 +67,7 @@ subjects:
 
 Once the rook operator is up and running it will automatically create the service account for the rook agent and the following RBAC rules:
 
-```
+```yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -106,7 +106,7 @@ subjects:
 
 When the cluster admin create a new Rook cluster they do so by adding a namespace and the rook cluster spec:
 
-```
+```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -124,7 +124,7 @@ At this point the rook operator will notice that a new rook cluster CRD showed u
 
 The `rook-api` service account and RBAC rules are as follows:
 
-```
+```yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -167,7 +167,7 @@ subjects:
 
 The `rook-ceph-osd` service account and RBAC rules are as follows:
 
-```
+```yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -203,7 +203,7 @@ subjects:
 
 Just as we do today the cluster admin is responsible for creating the `rook-system` namespace. I propose we have a single service account in this namespace and call it `rook-system` by default. The names used are inconsequential and can be set to something different by the cluster admin.
 
-```
+```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -218,7 +218,7 @@ metadata:
 
 The `rook-system` service account is responsible for launching all pods, services, daemonsets, etc. for Rook and should have enough privilege to do and nothing more. I've not audited all the RBAC rules but a good tool to do is [here](https://github.com/liggitt/audit2rbac). For example:
 
-```
+```yaml
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
@@ -252,13 +252,13 @@ subjects:
   namespace: rook-system
 ```
 
-Notably absent here are privileges to set other RBAC rules read cluster-wide secrets, etc. Because the admin created the `rook-system` namespace and service account they are free to set policies on them using PSP or namespace quotas. Similar to the ones defined [here](https://github.com/rook/rook/blob/master/Documentation/kubernetes.md#rbac-for-podsecuritypolicies)).
+Notably absent here are privileges to set other RBAC rules and create read cluster-wide secrets and other resources. Because the admin created the `rook-system` namespace and service account they are free to set policies on them using PSP or namespace quotas. Similar to the ones defined [here](https://github.com/rook/rook/blob/master/Documentation/kubernetes.md#rbac-for-podsecuritypolicies)).
 
 Also note that while we use a `ClusterRole` for rook-system we only use a `RoleBinding` to grant it access to the `rook-system` namespace. It does not have cluster-wide privileges.
 
 When creating a Rook cluster the cluster admin will continue to define the namespace and cluster CRD as follows:
 
-```
+```yaml
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -274,7 +274,7 @@ metadata:
 
 In addition we will require that the cluster-admin define a service account and role binding as follows:
 
-```
+```yaml
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -284,7 +284,7 @@ metadata:
 kind: Role
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-osd
+  name: rook-cluster
   namespace: mycluster
 rules:
 - apiGroups: [""]
@@ -331,11 +331,11 @@ Also all rook pods except the rook operator pod should run using `rook-cluster` 
 
 Finally, we should support running multiple rook clusters in the same namespaces. While namespaces are a great organizational unit for pods etc. they are also a unit of policy and quotas. While we can force the cluster admin to go to an approach where they need to manage multiple namespaces, we would be better off if we give the option to cluster admin decide how they use namespace.
 
-For example, it should be possible to run rook-operator, rook-agent, and multiple independent rook clusters in a single namespace. This is going to require setting a prefix for pod names and other resources that could collide. It also means that removing a rook cluster would require enumerating each of the resources and removing them.
+For example, it should be possible to run rook-operator, rook-agent, and multiple independent rook clusters in a single namespace. This is going to require setting a prefix for pod names and other resources that could collide. 
 
 The following should be possible:
 
-```
+```yaml
 apiVersion: v1
 kind: Namespace
 metadata:

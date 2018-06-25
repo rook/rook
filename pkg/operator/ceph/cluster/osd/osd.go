@@ -33,7 +33,6 @@ import (
 	"github.com/rook/rook/pkg/util/display"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
-	"k8s.io/api/rbac/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
@@ -55,15 +54,8 @@ const (
 	appName                          = "rook-ceph-osd"
 	appNameFmt                       = "rook-ceph-osd-%s"
 	clusterAvailableSpaceReserve     = 0.05
+	defaultServiceAccountName        = "rook-ceph-cluster"
 )
-
-var clusterAccessRules = []v1beta1.PolicyRule{
-	{
-		APIGroups: []string{""},
-		Resources: []string{"configmaps"},
-		Verbs:     []string{"get", "list", "watch", "create", "update", "delete"},
-	},
-}
 
 // Cluster keeps track of the OSDs
 type Cluster struct {
@@ -77,16 +69,24 @@ type Cluster struct {
 	HostNetwork     bool
 	resources       v1.ResourceRequirements
 	ownerRef        metav1.OwnerReference
+	serviceAccount  string
 }
 
 // New creates an instance of the OSD manager
-func New(context *clusterd.Context, namespace, version string, storageSpec rookalpha.StorageScopeSpec,
+func New(context *clusterd.Context, namespace, version, serviceAccount string, storageSpec rookalpha.StorageScopeSpec,
 	dataDirHostPath string, placement rookalpha.Placement, hostNetwork bool,
 	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
+
+	if serviceAccount == "" {
+		// if the service account was not set, make a best effort with the example service account name since the default is unlikely to be sufficient.
+		serviceAccount = defaultServiceAccountName
+		logger.Infof("setting the osd pods to use the service account name: %s", serviceAccount)
+	}
 
 	return &Cluster{
 		context:         context,
 		Namespace:       namespace,
+		serviceAccount:  serviceAccount,
 		placement:       placement,
 		Version:         version,
 		Storage:         storageSpec,
@@ -105,12 +105,6 @@ type OrchestrationStatus struct {
 // Start the osd management
 func (c *Cluster) Start() error {
 	logger.Infof("start running osds in namespace %s", c.Namespace)
-
-	// create the artifacts for the osd to work with RBAC enabled
-	err := k8sutil.MakeRole(c.context.Clientset, c.Namespace, appName, clusterAccessRules, &c.ownerRef)
-	if err != nil {
-		logger.Warningf("failed to init RBAC for OSDs. %+v", err)
-	}
 
 	if c.Storage.UseAllNodes == false && len(c.Storage.Nodes) == 0 {
 		logger.Warningf("useAllNodes is set to false and no nodes are specified, no OSD pods are going to be created")

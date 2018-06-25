@@ -78,5 +78,5 @@ spec:
         resources:
 {{ toYaml .Values.resources | indent 10 }}
     {{- if .Values.rbacEnable }}
-      serviceAccountName: rook-ceph-operator
+      serviceAccountName: rook-ceph-system
     {{- end }}

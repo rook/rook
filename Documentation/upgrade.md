@@ -145,6 +145,64 @@ kubectl delete clusterrolebindings rook-agent
 
 Now when the operator is recreated, the agent daemonset will automatically be created again with the new version.
 
+### Operator Access to Clusters
+No longer is the operator given privileges across every namespace. The operator will need privileges to manage each Ceph cluster that is configured. 
+The following service account, role, and role bindings are included in `cluster.yaml` when creating a new cluster. Save the following yaml as `cluster-privs.yaml`, 
+modifying the `namespace:` attribute of each resource if you are not using the default `rook` or `rook-system` namespaces.
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Allow the operator to create resources in this cluster's namespace
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster-mgmt
+  namespace: rook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-cluster-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: rook-system
+---
+# Allow the pods in this namespace to work with configmaps
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cluster
+  namespace: rook
+```
+
+Now create the objects in the cluster:
+```bash
+kubectl create -f cluster-privs.yaml
+```
+
 ### Operator
 The Rook operator is the management brains of the cluster, so it should be upgraded first before other components.
 In the event that the new version requires a migration of metadata or config, the operator is the one that would understand how to perform that migration.

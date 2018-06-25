@@ -61,16 +61,17 @@ var provisionerConfigs = map[string]string{
 
 // Operator type for managing storage
 type Operator struct {
-	context   *clusterd.Context
-	resources []opkit.CustomResource
-	rookImage string
+	context         *clusterd.Context
+	resources       []opkit.CustomResource
+	rookImage       string
+	securityAccount string
 	// The custom resource that is global to the kubernetes cluster.
 	// The cluster is global because you create multiple clusters in k8s
 	clusterController *cluster.ClusterController
 }
 
 // New creates an operator instance
-func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachment, rookImage string) *Operator {
+func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachment, rookImage, securityAccount string) *Operator {
 	clusterController := cluster.NewClusterController(context, rookImage, volumeAttachmentWrapper)
 
 	schemes := []opkit.CustomResource{cluster.ClusterResource, pool.PoolResource, object.ObjectStoreResource,
@@ -80,6 +81,7 @@ func New(context *clusterd.Context, volumeAttachmentWrapper attachment.Attachmen
 		clusterController: clusterController,
 		resources:         schemes,
 		rookImage:         rookImage,
+		securityAccount:   securityAccount,
 	}
 }
 
@@ -112,12 +114,12 @@ func (o *Operator) Run() error {
 
 	rookAgent := agent.New(o.context.Clientset)
 
-	if err := rookAgent.Start(namespace, o.rookImage); err != nil {
+	if err := rookAgent.Start(namespace, o.rookImage, o.securityAccount); err != nil {
 		return fmt.Errorf("Error starting agent daemonset: %v", err)
 	}
 
 	rookDiscover := discover.New(o.context.Clientset)
-	if err := rookDiscover.Start(namespace, o.rookImage); err != nil {
+	if err := rookDiscover.Start(namespace, o.rookImage, o.securityAccount); err != nil {
 		return fmt.Errorf("Error starting device discovery daemonset: %v", err)
 	}
 

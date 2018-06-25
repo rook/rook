@@ -23,14 +23,9 @@ import (
 	"os"
 
 	"github.com/coreos/pkg/capnslog"
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
-	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
-	opcluster "github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
-	"k8s.io/api/rbac/v1beta1"
 	kserrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -46,29 +41,6 @@ const (
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-agent")
 
-var clusterAccessRules = []v1beta1.PolicyRule{
-	{
-		APIGroups: []string{""},
-		Resources: []string{"pods", "secrets", "configmaps", "persistentvolumes", "nodes", "nodes/proxy"},
-		Verbs:     []string{"get", "list"},
-	},
-	{
-		APIGroups: []string{rookv1alpha2.CustomResourceGroup},
-		Resources: []string{attachment.CustomResourceNamePlural},
-		Verbs:     []string{"get", "list", "create", "delete", "update"},
-	},
-	{
-		APIGroups: []string{cephv1alpha1.CustomResourceGroup},
-		Resources: []string{opcluster.CustomResourceNamePlural},
-		Verbs:     []string{"get", "list", "watch"},
-	},
-	{
-		APIGroups: []string{"storage.k8s.io"},
-		Resources: []string{"storageclasses"},
-		Verbs:     []string{"get"},
-	},
-}
-
 // New creates an instance of Agent
 func New(clientset kubernetes.Interface) *Agent {
 	return &Agent{
@@ -77,21 +49,16 @@ func New(clientset kubernetes.Interface) *Agent {
 }
 
 // Start the agent
-func (a *Agent) Start(namespace, agentImage string) error {
+func (a *Agent) Start(namespace, agentImage, serviceAccount string) error {
 
-	err := k8sutil.MakeClusterRole(a.clientset, namespace, agentDaemonsetName, clusterAccessRules, nil)
-	if err != nil {
-		return fmt.Errorf("failed to init RBAC for rook-ceph-agents. %+v", err)
-	}
-
-	err = a.createAgentDaemonSet(namespace, agentImage)
+	err := a.createAgentDaemonSet(namespace, agentImage, serviceAccount)
 	if err != nil {
 		return fmt.Errorf("Error starting agent daemonset: %v", err)
 	}
 	return nil
 }
 
-func (a *Agent) createAgentDaemonSet(namespace, agentImage string) error {
+func (a *Agent) createAgentDaemonSet(namespace, agentImage, serviceAccount string) error {
 
 	flexvolumeDirPath, source := a.discoverFlexvolumeDir()
 	logger.Infof("discovered flexvolume dir path from source %s. value: %s", source, flexvolumeDirPath)
@@ -112,7 +79,7 @@ func (a *Agent) createAgentDaemonSet(namespace, agentImage string) error {
 					},
 				},
 				Spec: v1.PodSpec{
-					ServiceAccountName: agentDaemonsetName,
+					ServiceAccountName: serviceAccount,
 					Containers: []v1.Container{
 						{
 							Name:  agentDaemonsetName,

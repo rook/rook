@@ -3,6 +3,52 @@ kind: Namespace
 metadata:
   name: rook-ceph
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Allow the operator to create resources in this cluster's namespace
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster-mgmt
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-cluster-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: rook-ceph-system
+---
+# Allow the pods in this namespace to work with configmaps
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+---
 apiVersion: ceph.rook.io/v1alpha1
 kind: Cluster
 metadata:
@@ -13,6 +59,8 @@ spec:
   # Important: if you reinstall the cluster, make sure you delete this directory from each host or else the mons will fail to start on the new cluster.
   # In Minikube, the '/data' directory is configured to persist across reboots. Use "/data/rook" in Minikube environment.
   dataDirHostPath: /var/lib/rook
+  # The service account under which to run the daemon pods in this cluster if the default account is not sufficient (OSDs)
+  serviceAccount: rook-ceph-cluster
   # set the amount of mons to be started
   mon:
     count: 3

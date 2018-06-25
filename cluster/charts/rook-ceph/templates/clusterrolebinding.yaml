@@ -1,8 +1,9 @@
 {{- if .Values.rbacEnable }}
-apiVersion: rbac.authorization.k8s.io/v1beta1
+# Grant the rook system daemons cluster-wide access to manage the Rook CRDs, PVCs, and storage classes
 kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-ceph-operator
+  name: rook-ceph-global
   labels:
     operator: rook
     storage-backend: ceph
@@ -10,17 +11,17 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rook-ceph-operator
+  name: rook-ceph-global
 subjects:
 - kind: ServiceAccount
-  name: rook-ceph-operator
+  name: rook-ceph-system
   namespace: {{ .Release.Namespace }}
 {{- if .Values.pspEnable }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
-  name: rook-ceph-operator-psp-users
+  name: rook-ceph-system-psp-users
   labels:
     operator: rook
     storage-backend: ceph
@@ -28,13 +29,10 @@ metadata:
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rook-ceph-operator-psp-user
+  name: rook-ceph-system-psp-user
 subjects:
 - kind: ServiceAccount
-  name: rook-ceph-operator
-  namespace: {{ .Release.Namespace }}
-- kind: ServiceAccount
-  name: rook-ceph-agent
+  name: rook-ceph-system
   namespace: {{ .Release.Namespace }}
 {{- end }}
 {{- end }}

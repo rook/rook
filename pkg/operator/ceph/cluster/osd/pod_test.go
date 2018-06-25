@@ -56,7 +56,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "mysa",
 		storageSpec, dataDir, rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	devMountNeeded := deviceFilter != "" || allDevices
@@ -66,6 +66,7 @@ func testPodDevices(t *testing.T, dataDir, deviceFilter string, allDevices bool)
 	assert.NotNil(t, replicaSet)
 	assert.Equal(t, "rook-ceph-osd-node1", replicaSet.Name)
 	assert.Equal(t, c.Namespace, replicaSet.Namespace)
+	assert.Equal(t, c.serviceAccount, replicaSet.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, int32(1), *(replicaSet.Spec.Replicas))
 	assert.Equal(t, "node1", replicaSet.Spec.Template.Spec.NodeSelector[apis.LabelHostname])
 	assert.Equal(t, v1.RestartPolicyAlways, replicaSet.Spec.Template.Spec.RestartPolicy)
@@ -148,7 +149,7 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "",
 		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.resolveNode(storageSpec.Nodes[0])
@@ -200,7 +201,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "rook/rook:myversion", "",
 		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.resolveNode(storageSpec.Nodes[0])
@@ -245,7 +246,7 @@ func TestHostNetwork(t *testing.T) {
 	}
 
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", "",
 		storageSpec, "", rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	n := c.resolveNode(storageSpec.Nodes[0])

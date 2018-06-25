@@ -119,7 +119,7 @@ func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalph
 	}
 
 	podSpec := v1.PodSpec{
-		ServiceAccountName: appName,
+		ServiceAccountName: c.serviceAccount,
 		Containers:         []v1.Container{c.osdContainer(devices, selection, resources, storeConfig, metadataDevice, location)},
 		RestartPolicy:      v1.RestartPolicyAlways,
 		Volumes:            volumes,

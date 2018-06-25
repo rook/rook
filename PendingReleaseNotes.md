@@ -30,6 +30,8 @@
   - Namespaces: The example namespaces are now backend-specific. Instead of `rook-system` and `rook`, you will see `rook-ceph-system` and `rook-ceph`.
   - Volume plugins: The dynamic provisioner and flex driver are now based on `ceph.rook.io` instead of `rook.io`
 - Ceph container images now use CentOS 7 as a base
+- Minimal privileges are configured with a new cluster role for the operator and Ceph daemons, following the new [security design](design/security-model.md).
+  - A role binding must be defined for each cluster to be managed by the operator.
 
 ### Removal of the API service and rookctl tool
 

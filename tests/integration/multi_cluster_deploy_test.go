@@ -155,13 +155,14 @@ func (o MCTestOperations) SetUp() {
 	err = o.installer.CreateK8sRookOperator(installer.SystemNamespace(o.namespace1))
 	require.NoError(o.T(), err)
 
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-operator", installer.SystemNamespace(o.namespace1), "Running"),
+	systemNamespace := installer.SystemNamespace(o.namespace1)
+	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-operator", systemNamespace, "Running"),
 		"Make sure rook-operator is in running state")
 
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-agent", installer.SystemNamespace(o.namespace1), "Running"),
+	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-agent", systemNamespace, "Running"),
 		"Make sure rook-ceph-agent is in running state")
 
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-discover", installer.SystemNamespace(o.namespace1), "Running"),
+	require.True(o.T(), o.kh.IsPodInExpectedState("rook-discover", systemNamespace, "Running"),
 		"Make sure rook-discover is in running state")
 
 	time.Sleep(10 * time.Second)
@@ -170,8 +171,8 @@ func (o MCTestOperations) SetUp() {
 	logger.Infof("starting two clusters in parallel")
 	errCh1 := make(chan error, 1)
 	errCh2 := make(chan error, 1)
-	go o.startCluster(o.namespace1, "bluestore", errCh1)
-	go o.startCluster(o.namespace2, "filestore", errCh2)
+	go o.startCluster(o.namespace1, systemNamespace, "bluestore", errCh1)
+	go o.startCluster(o.namespace2, systemNamespace, "filestore", errCh2)
 	require.NoError(o.T(), <-errCh1)
 	require.NoError(o.T(), <-errCh2)
 	logger.Infof("finished starting clusters")
@@ -194,9 +195,9 @@ func (o MCTestOperations) TearDown() {
 	o.installer.UninstallRookFromMultipleNS(false, installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
 }
 
-func (o MCTestOperations) startCluster(namespace, store string, errCh chan error) {
+func (o MCTestOperations) startCluster(namespace, systemNamespace, store string, errCh chan error) {
 	logger.Infof("starting cluster %s", namespace)
-	if err := o.installer.CreateK8sRookCluster(namespace, store); err != nil {
+	if err := o.installer.CreateK8sRookCluster(namespace, systemNamespace, store); err != nil {
 		errCh <- fmt.Errorf("failed to create cluster %s. %+v", namespace, err)
 		return
 	}

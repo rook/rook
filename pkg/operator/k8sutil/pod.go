@@ -93,27 +93,30 @@ func ConfigDirEnvVar() v1.EnvVar {
 	return v1.EnvVar{Name: "ROOK_CONFIG_DIR", Value: DataDir}
 }
 
-func GetContainerImage(clientset kubernetes.Interface, name string) (string, error) {
-
-	podName := os.Getenv(PodNameEnvVar)
-	if podName == "" {
-		return "", fmt.Errorf("cannot detect the pod name. Please provide it using the downward API in the manifest file")
-	}
-	podNamespace := os.Getenv(PodNamespaceEnvVar)
-	if podName == "" {
-		return "", fmt.Errorf("cannot detect the pod namespace. Please provide it using the downward API in the manifest file")
-	}
-
-	pod, err := clientset.CoreV1().Pods(podNamespace).Get(podName, metav1.GetOptions{})
-	if err != nil {
-		return "", err
-	}
+func GetContainerImage(pod *v1.Pod, name string) (string, error) {
 
 	image, err := GetMatchingContainer(pod.Spec.Containers, name)
 	if err != nil {
 		return "", err
 	}
 	return image.Image, nil
+}
+
+func GetRunningPod(clientset kubernetes.Interface) (*v1.Pod, error) {
+	podName := os.Getenv(PodNameEnvVar)
+	if podName == "" {
+		return nil, fmt.Errorf("cannot detect the pod name. Please provide it using the downward API in the manifest file")
+	}
+	podNamespace := os.Getenv(PodNamespaceEnvVar)
+	if podName == "" {
+		return nil, fmt.Errorf("cannot detect the pod namespace. Please provide it using the downward API in the manifest file")
+	}
+
+	pod, err := clientset.CoreV1().Pods(podNamespace).Get(podName, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	}
+	return pod, nil
 }
 
 func GetMatchingContainer(containers []v1.Container, name string) (v1.Container, error) {

@@ -1,0 +1,35 @@
+{{- if .Values.rbacEnable }}
+# The role for the operator to manage resources in the system namespace
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: rook-ceph-system
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - extensions
+  resources:
+  - daemonsets
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete
+{{- end }}
