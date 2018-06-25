@@ -77,7 +77,7 @@ func (d *Discover) Start(namespace, discoverImage, securityAccount string) error
 }
 
 func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAccount string) error {
-	privileged := false
+	privileged := true
 	ds := &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: discoverDaemonsetName,
