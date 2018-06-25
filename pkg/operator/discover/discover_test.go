@@ -55,7 +55,7 @@ func TestStartDiscoveryDaemonset(t *testing.T) {
 	assert.Equal(t, namespace, agentDS.Namespace)
 	assert.Equal(t, "rook-discover", agentDS.Name)
 	assert.Equal(t, "mysa", agentDS.Spec.Template.Spec.ServiceAccountName)
-	assert.False(t, *agentDS.Spec.Template.Spec.Containers[0].SecurityContext.Privileged)
+	assert.True(t, *agentDS.Spec.Template.Spec.Containers[0].SecurityContext.Privileged)
 	volumes := agentDS.Spec.Template.Spec.Volumes
 	assert.Equal(t, 3, len(volumes))
 	volumeMounts := agentDS.Spec.Template.Spec.Containers[0].VolumeMounts
