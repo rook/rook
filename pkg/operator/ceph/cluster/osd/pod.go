@@ -116,6 +116,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		nodeNameEnvVar(),
 		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+		{Name: "TINI_SUBREAPER", Value: ""},
 	}
 
 	commonArgs := []string{
