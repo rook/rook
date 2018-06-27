@@ -553,11 +553,27 @@ func IsAdditionalDeviceAvailableOnCluster() bool {
 			continue
 		}
 		props, _ := sys.GetDeviceProperties(device, executor)
-		if props["TYPE"] == "disk" {
-			disks++
+		if props["TYPE"] != "disk" {
+			continue
 		}
+
+		ownPartitions, fs, err := sys.CheckIfDeviceAvailable(executor, device)
+		if err != nil {
+			logger.Warningf("failed to detect device %s availability. %+v", device, err)
+			continue
+		}
+		if !ownPartitions {
+			logger.Infof("skipping device %s since don't own partitions", device)
+			continue
+		}
+		if fs != "" {
+			logger.Infof("skipping device %s since it has file system %s", device, fs)
+			continue
+		}
+		logger.Infof("available device: %s", device)
+		disks++
 	}
-	if disks > 1 {
+	if disks > 0 {
 		return true
 	}
 	logger.Info("No additional disks found on cluster")
