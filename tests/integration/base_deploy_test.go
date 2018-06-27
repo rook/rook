@@ -126,9 +126,9 @@ func StartBaseTestOperations(t func() *testing.T, namespace, storeType string, h
 func (op BaseTestOperations) SetUp() {
 	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType,
 		op.helmInstalled, op.useDevices, cephv1alpha1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */)
-	assert.NoError(op.T(), err)
-	if !isRookInstalled {
-		logger.Errorf("Rook was not installed successfully")
+
+	if !isRookInstalled || err != nil {
+		logger.Errorf("Rook was not installed successfully: %v", err)
 		if !op.installer.T().Failed() {
 			op.installer.GatherAllRookLogs(op.namespace, installer.SystemNamespace(op.namespace), op.installer.T().Name())
 		}

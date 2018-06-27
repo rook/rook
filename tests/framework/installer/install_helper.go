@@ -82,13 +82,13 @@ func init() {
 
 //InstallHelper wraps installing and uninstalling rook on a platform
 type InstallHelper struct {
-	k8shelper   *utils.K8sHelper
-	installData *InstallData
-	dataDir     string
-	helmHelper  *utils.HelmHelper
-	Env         objects.EnvironmentManifest
-	k8sVersion  string
-	T           func() *testing.T
+	k8shelper        *utils.K8sHelper
+	installData      *InstallData
+	hostPathToDelete string
+	helmHelper       *utils.HelmHelper
+	Env              objects.EnvironmentManifest
+	k8sVersion       string
+	T                func() *testing.T
 }
 
 func (h *InstallHelper) CreateK8sRookResources() (err error) {
@@ -182,12 +182,12 @@ func (h *InstallHelper) CreateK8sRookCluster(namespace, systemNamespace string, 
 func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType string,
 	useAllDevices bool, mon cephv1alpha1.MonSpec, startWithAllNodes bool) error {
 
-	err := h.initTestDir(namespace)
+	dataDirHostPath, err := h.initTestDir(namespace)
 	if err != nil {
 		return fmt.Errorf("failed to create test dir. %+v", err)
 	}
 	logger.Infof("Creating cluster: namespace=%s, systemNamespace=%s, storeType=%s, dataDirHostPath=%s, useAllDevices=%t, startWithAllNodes=%t, mons=%+v",
-		namespace, systemNamespace, storeType, h.dataDir, useAllDevices, startWithAllNodes, mon)
+		namespace, systemNamespace, storeType, dataDirHostPath, useAllDevices, startWithAllNodes, mon)
 
 	logger.Infof("Creating namespace %s", namespace)
 	ns := &v1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}
@@ -212,7 +212,7 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 			},
 			Spec: v1alpha1.ClusterSpec{
 				ServiceAccount:  "rook-ceph-cluster",
-				DataDirHostPath: h.dataDir,
+				DataDirHostPath: dataDirHostPath,
 				Mon: v1alpha1.MonSpec{
 					Count:                mon.Count,
 					AllowMultiplePerNode: mon.AllowMultiplePerNode,
@@ -262,7 +262,7 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 		}
 	} else {
 		logger.Infof("Starting Rook Cluster with yaml")
-		rookCluster := h.installData.GetRookCluster(namespace, storeType, h.dataDir, useAllDevices, mon.Count)
+		rookCluster := h.installData.GetRookCluster(namespace, storeType, dataDirHostPath, useAllDevices, mon.Count)
 		if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
 			return fmt.Errorf("Failed to create rook cluster : %v ", err)
 		}
@@ -281,26 +281,26 @@ func (h *InstallHelper) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 	return err
 }
 
-func (h *InstallHelper) initTestDir(namespace string) error {
-	testDir := path.Join(baseTestDir, "rook-test", namespace)
+func (h *InstallHelper) initTestDir(namespace string) (string, error) {
+	h.hostPathToDelete = path.Join(baseTestDir, "rook-test")
+	testDir := path.Join(h.hostPathToDelete, namespace)
 
 	if createBaseTestDir {
 		// Create the test dir on the local host
 		if err := os.MkdirAll(testDir, 0777); err != nil {
-			return err
+			return "", err
 		}
 
-		dataDir, err := ioutil.TempDir(testDir, "test-")
-		if err != nil {
-			return err
+		var err error
+		if testDir, err = ioutil.TempDir(testDir, "test-"); err != nil {
+			return "", err
 		}
-		h.dataDir = dataDir
 	} else {
 		// Compose a random test directory name without actually creating it since not running on the localhost
 		r := rand.Int()
-		h.dataDir = path.Join(testDir, fmt.Sprintf("test-%d", r))
+		testDir = path.Join(testDir, fmt.Sprintf("test-%d", r))
 	}
-	return nil
+	return testDir, nil
 }
 
 func (h *InstallHelper) GetNodeHostnames() ([]string, error) {
@@ -450,14 +450,14 @@ func (h *InstallHelper) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 	h.k8shelper.Clientset.RbacV1beta1().Roles(systemNamespace).Delete("rook-ceph-system", nil)
 
 	logger.Infof("done removing the operator from namespace %s", systemNamespace)
-	logger.Infof("removing host data dir %s", h.dataDir)
+	logger.Infof("removing host data dir %s", h.hostPathToDelete)
 	// removing data dir if exists
-	if h.dataDir != "" {
+	if h.hostPathToDelete != "" {
 		nodes, err := h.GetNodeHostnames()
 		h.checkError(err, "cannot get node names")
 		for _, node := range nodes {
-			err = h.cleanupDir(node, h.dataDir)
-			logger.Infof("removing %s from node %s. err=%v", h.dataDir, node, err)
+			err = h.cleanupDir(node, h.hostPathToDelete)
+			logger.Infof("removing %s from node %s. err=%v", h.hostPathToDelete, node, err)
 		}
 	}
 }
@@ -498,30 +498,6 @@ func (h *InstallHelper) waitForCustomResourceDeletion(namespace string, checkerF
 	}
 	logger.Errorf("gave up deleting custom resource %s", namespace)
 	return nil
-}
-
-//CleanupCluster deletes a rook cluster for a namespace
-func (h *InstallHelper) CleanupCluster(clusterName string) {
-
-	logger.Infof("Uninstalling All Rook Clusters - %s", clusterName)
-	_, err := h.k8shelper.DeleteResource("-n", clusterName, "cluster", clusterName)
-	if err != nil {
-		logger.Warningf("Rook Cluster %s cannot be deleted,err -> %v", clusterName, err)
-	}
-
-	_, err = h.k8shelper.DeleteResource("-n", clusterName, "serviceaccount", "rook-ceph-osd")
-	if err != nil {
-		logger.Warningf("rook-ceph-osd service account in namespace %s cannot be deleted,err -> %v", clusterName, err)
-	}
-
-	_, err = h.k8shelper.DeleteResource("namespace", clusterName)
-	if err != nil {
-		logger.Warningf("namespace %s cannot be deleted,err -> %v", clusterName, err)
-	}
-	if len(h.dataDir) > 0 {
-		err = os.RemoveAll(h.dataDir)
-		logger.Infof("removing %s, err %v", h.dataDir, err)
-	}
 }
 
 func (h *InstallHelper) GatherAllRookLogs(namespace, systemNamespace string, testName string) {
