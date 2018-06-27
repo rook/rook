@@ -68,7 +68,6 @@ func ToCephMon(name, ip string, port int32) *CephMonitorConfig {
 }
 
 func Run(context *clusterd.Context, config *Config) error {
-
 	configFile, monDataDir, err := generateConfigFiles(context, config)
 	if err != nil {
 		return fmt.Errorf("failed to generate mon config files. %+v", err)

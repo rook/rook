@@ -72,7 +72,7 @@ func startMon(cmd *cobra.Command, args []string) error {
 
 	// at first start the local monitor needs to be added to the list of mons
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	clusterInfo.Monitors[monName] = mon.ToCephMon(monName, cfg.networkInfo.PublicAddr, monPort)
+	clusterInfo.Monitors[monName] = mon.ToCephMon(monName, cfg.NetworkInfo().PublicAddr, monPort)
 
 	monCfg := &mon.Config{
 		Name:    monName,

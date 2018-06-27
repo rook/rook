@@ -34,8 +34,8 @@ type NetworkInfo struct {
 
 // Simplify adapts deprecated fields
 // TODO: remove this function in the future
-func (in NetworkInfo) Simplify() (out NetworkInfo) {
-	out = NetworkInfo{
+func (in NetworkInfo) Simplify() NetworkInfo {
+	out := NetworkInfo{
 		PublicNetwork:  in.PublicNetwork,
 		ClusterNetwork: in.ClusterNetwork,
 	}

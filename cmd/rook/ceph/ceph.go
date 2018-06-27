@@ -74,13 +74,13 @@ func createContext() *clusterd.Context {
 		ConfigDir:          cfg.dataDir,
 		ConfigFileOverride: cfg.cephConfigOverride,
 		LogLevel:           rook.Cfg.LogLevel,
-		NetworkInfo:        cfg.networkInfo.Simplify(),
+		NetworkInfo:        cfg.NetworkInfo(),
 	}
 }
 
 func addCephFlags(command *cobra.Command) {
-	command.Flags().StringVar(&cfg.networkInfo.PublicAddr, "public-ip", "127.0.0.1", "public IP address for this machine")
-	command.Flags().StringVar(&cfg.networkInfo.ClusterAddr, "private-ip", "127.0.0.1", "private IP address for this machine")
+	command.Flags().StringVar(&cfg.networkInfo.PublicAddr, "public-ip", "", "public IP address for this machine")
+	command.Flags().StringVar(&cfg.networkInfo.ClusterAddr, "private-ip", "", "private IP address for this machine")
 	command.Flags().StringVar(&clusterInfo.Name, "cluster-name", "rookcluster", "ceph cluster name")
 	command.Flags().StringVar(&clusterInfo.FSID, "fsid", "", "the cluster uuid")
 	command.Flags().StringVar(&clusterInfo.MonitorSecret, "mon-secret", "", "the cephx keyring for monitors")
@@ -91,8 +91,8 @@ func addCephFlags(command *cobra.Command) {
 
 	// deprecated ipv4 format address
 	// TODO: remove these legacy flags in the future
-	command.Flags().StringVar(&cfg.networkInfo.PublicAddrIPv4, "public-ipv4", "127.0.0.1", "public IPv4 address for this machine")
-	command.Flags().StringVar(&cfg.networkInfo.ClusterAddrIPv4, "private-ipv4", "127.0.0.1", "private IPv4 address for this machine")
+	command.Flags().StringVar(&cfg.networkInfo.PublicAddrIPv4, "public-ipv4", "", "public IPv4 address for this machine")
+	command.Flags().StringVar(&cfg.networkInfo.ClusterAddrIPv4, "private-ipv4", "", "private IPv4 address for this machine")
 	command.Flags().MarkDeprecated("public-ipv4", "Use --public-ip instead. Will be removed in a future version.")
 	command.Flags().MarkDeprecated("private-ipv4", "Use --private-ip instead. Will be removed in a future version.")
 }
@@ -103,4 +103,8 @@ func verifyRenamedFlags(cmd *cobra.Command) error {
 		{NewFlagName: "private-ip", OldFlagName: "private-ipv4"},
 	}
 	return flags.VerifyRenamedFlags(cmd, renamed)
+}
+
+func (c *config) NetworkInfo() clusterd.NetworkInfo {
+	return c.networkInfo.Simplify()
 }
