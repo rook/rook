@@ -21,6 +21,11 @@ resources:
     cpu: 100m
     memory: 128Mi
 
+nodeSelector:
+# Constraint rook-ceph-operator Deployment to nodes with label `disktype: ssd`.
+# For more info, see https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+#  disktype: ssd
+
 mon:
   healthCheckInterval: "45s"
   monOutTimeout: "300s"
