@@ -381,6 +381,9 @@ func parsePartLabel(output string) string {
 	if v, ok := m["ID_PART_ENTRY_NAME"]; ok {
 		return v
 	}
+	if v, ok := m["PARTNAME"]; ok {
+		return v
+	}
 	return ""
 }
 
