@@ -36,6 +36,7 @@ provisioner: ceph.rook.io/block
 parameters:
   pool: replicapool
   clusterName: rook-ceph
+  fstype: xfs
 ```
 
 Create the storage class.
