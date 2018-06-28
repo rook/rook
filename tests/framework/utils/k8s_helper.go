@@ -977,15 +977,16 @@ func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, n
 
 //WaitUntilPodIsDeleted waits for 90s for a pod to be terminated
 //If the pod disappears within 90s true is returned,  if not false
-func (k8sh *K8sHelper) WaitUntilPodIsDeleted(podNamePattern string) bool {
+func (k8sh *K8sHelper) WaitUntilPodIsDeleted(name, namespace string) bool {
 	inc := 0
 	for inc < RetryLoop {
-		out, _ := k8sh.GetResource("pods", "-l", "app="+podNamePattern)
-		if !strings.Contains(out, podNamePattern) {
+		_, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+		if err != nil && errors.IsNotFound(err) {
 			return true
 		}
 
 		inc++
+		logger.Infof("pod %s in namespace %s is not deleted yet", name, namespace)
 		time.Sleep(RetryInterval * time.Second)
 	}
 	return false
