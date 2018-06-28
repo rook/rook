@@ -35,8 +35,13 @@ metadata:
 provisioner: ceph.rook.io/block
 parameters:
   pool: replicapool
+<<<<<<< HEAD
   #The value of "clusterNamespace" MUST be the same as the one in which your rook cluster exist
   clusterNamespace: rook-ceph
+=======
+  clusterName: rook-ceph
+  fstype: xfs
+>>>>>>> Added fstype: xfs as "default" example to bring Rook in line with Ceph recommendations
 ```
 
 Create the storage class.
