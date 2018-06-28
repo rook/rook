@@ -174,6 +174,9 @@ func (c *Cluster) Start() error {
 
 	if len(config.errorMessages) == 0 {
 		logger.Infof("completed running osds in namespace %s", c.Namespace)
+		// start osd health monitor
+		mon := NewMonitor(c.context, c.Namespace)
+		go mon.Run()
 		return nil
 	}
 
