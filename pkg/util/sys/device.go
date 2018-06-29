@@ -97,7 +97,6 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get device %s partitions. %+v", device, err)
 	}
-
 	partInfo := strings.Split(output, "\n")
 	var deviceSize uint64
 	var totalPartitionSize uint64
@@ -124,6 +123,9 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 				return nil, 0, err
 			}
 			if v, ok := info["ID_PART_ENTRY_NAME"]; ok {
+				p.Label = v
+			}
+			if v, ok := info["PARTNAME"]; ok {
 				p.Label = v
 			}
 			if v, ok := info["ID_FS_TYPE"]; ok {
