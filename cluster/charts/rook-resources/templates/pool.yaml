@@ -1,7 +1,7 @@
 {{ $parentScope := .}}
 {{- if .Values.pool.enabled }}
 {{- range $key, $value := .Values.pool.pools }}
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1alpha1
 kind: Pool
 metadata:
   name: {{ printf "%s-%s" $parentScope.Release.Name $key }}
@@ -24,9 +24,10 @@ metadata:
   annotations:
     storageclass.kubernetes.io/is-default-class: "{{ $value.storageClass.isDefaultClass }}"
   name: {{ printf "%s-%s" $parentScope.Release.Name $key }}
-provisioner: rook.io/block
+provisioner: ceph.rook.io/block
 parameters:
   pool: {{ printf "%s-%s" $parentScope.Release.Name $key }}
+  clusterNamespace: {{ $parentScope.Release.Namespace }}
 ---
 {{- end }}
 {{- end }}

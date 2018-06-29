@@ -1,0 +1,13 @@
+{{- if .Values.rbacEnable }}
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+{{- end }}
