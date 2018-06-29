@@ -27,6 +27,12 @@ CACHE_REGISTRY := cache
 # the base image to use
 OSBASE ?= centos:7
 
+# Need to use ubuntu:artful as ceph mon packages are
+# not available in xenial
+ifeq ($(GOARCH),ppc64le)
+OSBASE ?= ubuntu:artful
+endif
+
 ifeq ($(GOARCH),amd64)
 PLATFORM_ARCH = x86_64
 OSBASEIMAGE = $(OSBASE)
@@ -35,6 +41,9 @@ PLATFORM_ARCH = aarch64
 OSBASEIMAGE = arm64v8/$(OSBASE)
 else
 $(error Unknown go architecture $(GOARCH))
+endif
+ifeq ($(GOARCH),ppc64le)
+OSBASEIMAGE=ppc64le/$(OSBASE)
 endif
 
 # if we are running inside the container get our own cid
