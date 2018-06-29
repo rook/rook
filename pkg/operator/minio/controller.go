@@ -43,7 +43,6 @@ const (
 	minioCtrName             = "minio"
 	minioLabel               = "minio"
 	minioPVCName             = "minio-pvc"
-	minioServerSuffixFmt     = "%s.svc.cluster.local"
 	minioVolumeName          = "data"
 	objectStoreDataDir       = "/data"
 )
@@ -112,7 +111,7 @@ func (c *MinioController) makeMinioHeadlessService(name, namespace string, spec 
 func (c *MinioController) buildMinioCtrArgs(statefulSetPrefix, headlessServiceName, namespace string, serverCount int32) []string {
 	args := []string{"server"}
 	for i := int32(0); i < serverCount; i++ {
-		serverAddress := fmt.Sprintf("http://%s-%d.%s.%s%s", statefulSetPrefix, i, headlessServiceName, fmt.Sprintf(minioServerSuffixFmt, namespace), objectStoreDataDir)
+		serverAddress := fmt.Sprintf("http://%s-%d.%s.%s%s", statefulSetPrefix, i, headlessServiceName, namespace, objectStoreDataDir)
 		args = append(args, serverAddress)
 	}
 
