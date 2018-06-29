@@ -1,24 +1,61 @@
 {{- if .Values.cluster.enabled -}}
 {{- if .Values.rbacEnable }}
-{{- if .Values.pspEnable }}
-apiVersion: rbac.authorization.k8s.io/v1beta1
+# Allow the operator to create resources in this cluster's namespace
 kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-operator-psp-users
-  namespace: {{ .Release.Namespace }}
+  name: rook-ceph-cluster-mgmt
   labels:
     operator: rook
+    storage-backend: ceph
     chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rook-operator-psp-user
+  name: rook-ceph-cluster-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: {{ .Values.operator.namespace }}
+---
+# Allow the pods in this namespace to work with configmaps
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: {{ .Release.Namespace }}
+  labels:
+    operator: rook
+    storage-backend: ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cluster
+  namespace: {{ .Release.Namespace }}
+{{- if .Values.pspEnable }}
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: RoleBinding
+metadata:
+  name: rook-ceph-system-psp-users
+  namespace: {{ .Release.Namespace }}
+  labels:
+    operator: rook
+    storage-backend: ceph
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-system-psp-user
 subjects:
 - kind: ServiceAccount
   name: default
   namespace: {{ .Release.Namespace }}
 - kind: ServiceAccount
-  name: rook-ceph-osd
+  name: rook-ceph-cluster
   namespace: {{ .Release.Namespace }}
 {{- end }}
 {{- end }}

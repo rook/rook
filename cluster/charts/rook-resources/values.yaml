@@ -10,12 +10,18 @@ rbacEnable: true
 ##
 pspEnable: true
 
+operator:
+  # Namespace in which the Rook Ceph Operator is installed
+  namespace: rook-ceph-system
+
 # Cluster resource - https://rook.io/docs/rook/master/cluster-crd.html
 cluster:
   enabled: true
   dataDirHostPath:
-  hostNetwork: false
-  monCount: 3
+  network:
+    hostNetwork: false
+  mon:
+    count: 3
   placement:
     mgr:
     mon:
@@ -33,7 +39,7 @@ cluster:
     deviceFilter:
     metadataDevice:
     directories: []
-    storeConfig:
+    config:
       storeType: filestore
       databaseSizeMB:
       walSizeMB:

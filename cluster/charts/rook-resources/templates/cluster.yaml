@@ -1,13 +1,17 @@
 {{- if .Values.cluster.enabled }}
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1alpha1
 kind: Cluster
 metadata:
   name: {{ template "rook-resources.fullname" . }}
   namespace: {{ .Release.Namespace }}
 spec:
   dataDirHostPath: {{ .Values.cluster.dataDirHostPath }}
-  hostNetwork: {{ .Values.cluster.hostNetwork }}
-  monCount: {{ .Values.cluster.monCount }}
+  dashboard:
+    enabled: true
+  network:
+    hostNetwork: {{ .Values.cluster.network.hostNetwork }}
+  mon:
+    count: {{ .Values.cluster.mon.count }}
   placement:
     mgr:
 {{ toYaml .Values.cluster.placement.mgr | indent 6 }}
@@ -23,10 +27,11 @@ spec:
     deviceFilter: {{ .Values.cluster.storage.deviceFilter }}
     metadataDevice:
     directories:
-    storeConfig:
-      storeType: {{ .Values.cluster.storage.storeConfig.storeType }}
-      databaseSizeMB: {{ .Values.cluster.storage.storeConfig.databaseSizeMB }}
-      journalSizeMB: {{ .Values.cluster.storage.storeConfig.journalSizeMB }}
+    config:
+      storeType: {{ .Values.cluster.storage.config.storeType }}
+      databaseSizeMB: {{ .Values.cluster.storage.config.databaseSizeMB }}
+      walSizeMB: {{ .Values.cluster.storage.config.walSizeMB }}
+      journalSizeMB: {{ .Values.cluster.storage.config.journalSizeMB }}
     nodes: {{ .Values.cluster.storage.nodes }}
   resources:
     mgr:
