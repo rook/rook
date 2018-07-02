@@ -1,0 +1,8 @@
+apiVersion: v1
+appVersion: "master"
+description: Rook Minio Operator
+icon: https://rook.io/images/logos/rook/rook-logo-color-on-transparent.png
+name: rook-minio-operator
+sources:
+  - https://github.com/rook/rook
+version: 0.1.0

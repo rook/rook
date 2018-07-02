@@ -1,0 +1,5 @@
+The Rook Minio Operator has been installed. Check its status by running:
+  kubectl get pods --namespace {{ .Release.Namespace }} -l "app={{ template "rook-minio-operator.name" . }},release={{ .Release.Name }}
+
+Visit https://rook.io/docs/rook/master for instructions on how
+to create & configure Minio object stores

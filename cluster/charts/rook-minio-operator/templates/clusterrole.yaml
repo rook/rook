@@ -1,0 +1,42 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: {{ template "rook-minio-operator.fullname" . }}
+  labels:
+    app: {{ template "rook-minio-operator.name" . }}
+    chart: {{ template "rook-minio-operator.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - secrets
+  - pods
+  - services
+  verbs:
+  - get
+  - watch
+  - create
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - create
+- apiGroups:
+  - minio.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+{{- end }}
