@@ -30,22 +30,22 @@ import (
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type NFSExport struct {
+type NFSServer struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec              NFSExportSpec `json:"spec"`
+	Spec              NFSServerSpec `json:"spec"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type NFSExportList struct {
+type NFSServerList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []NFSExports `json:"items"`
+	Items           []NFSServer `json:"items"`
 }
 
 // NFSSpec represents the spec of NFS daemon
-type NFSExportSpec struct {
+type NFSServerSpec struct {
 	// Replicas of the NFS daemon
 	Replicas int `json:"replicas,omitempty"`
 
@@ -62,7 +62,7 @@ type ExportsSpec struct {
 	Server []ServerSpec `json:"server,omitempty"`
 
 	// PVC from which the NFS daemon gets storage for sharing
-	PersistentVolumeClaim v1.PersistentVolumeClaimSpec `json:"persistentVolumeClaim,omitempty"`
+	PersistentVolumeClaim v1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty"`
 }
 
 // ServerSpec represents the spec for configuring the NFS server

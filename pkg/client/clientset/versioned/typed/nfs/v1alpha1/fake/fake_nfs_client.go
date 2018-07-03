@@ -26,8 +26,8 @@ type FakeNfsV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeNfsV1alpha1) NFSExports(namespace string) v1alpha1.NFSExportInterface {
-	return &FakeNFSExports{c, namespace}
+func (c *FakeNfsV1alpha1) NFSServers(namespace string) v1alpha1.NFSServerInterface {
+	return &FakeNFSServers{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

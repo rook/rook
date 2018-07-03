@@ -39,7 +39,7 @@ You can check if the operator is up and running with:
 
 ## Create and Initialize NFS Server
 
-Now that the operator is running, we can create an instance of a NFS server by creating an instance of the `export.nfs.rook.io` resource.
+Now that the operator is running, we can create an instance of a NFS server by creating an instance of the `nfsexports.nfs.rook.io` resource.
 The resource values are used to configure the NFS server and export.
 Full details of the configuration option can be found in the [NFS CRD documentation](nfs-crd.md).
 
@@ -52,7 +52,7 @@ kubectl create -f nfs.yaml
 We can verify that a Kubernetes object has been created that represents our new NFS export with the command below.
 
 ```console
-kubectl -n rook-nfs get export.nfs.rook.io
+kubectl -n rook-nfs get nfsexports.nfs.rook.io
 ```
 
 To check if the NFS server is running:

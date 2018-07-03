@@ -31,7 +31,7 @@ EXPORT {
 the CRD instance will look like the following:
 ```yaml
 apiVersion: nfs.rook.io/v1alpha1
-kind: NFSExport
+kind: NFSServer
 metadata:
   name: nfs-vol
   namespace: rook
@@ -99,7 +99,7 @@ EXPORT {
         Squash = root;
     }
     CLIENT {
-        Clients = 172.17.0.0/16, node-1;
+        Clients = 172.17.0.0/16, serverX;
         Access_Type = RW;
         Squash = none;
     }
@@ -108,7 +108,7 @@ EXPORT {
 the CRD instance will look like the following:
 ```yaml
 apiVersion: nfs.rook.io/v1alpha1
-kind: NFSExport
+kind: NFSServer
 metadata:
   name: nfs-vol
   namespace: rook
@@ -126,7 +126,7 @@ spec:
         clients:
         - 172.17.0.0/16
         - serverX
-        accessMode: ReadWrire
+        accessMode: ReadWrite
         squash: none
     persistentVolumeClaim:
       claimName: ebs-claim
@@ -168,7 +168,7 @@ EXPORT {
 the CRD instance will look like the following:
 ```yaml
 apiVersion: nfs.rook.io/v1alpha1
-kind: NFSExport
+kind: NFSServer
 metadata:
   name: nfs-multi-vol
   namespace: rook

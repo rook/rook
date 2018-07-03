@@ -1,5 +1,5 @@
 apiVersion: nfs.rook.io/v1alpha1
-kind: NFS
+kind: NFSServer
 metadata:
   name: rook-nfs
   namespace: rook-nfs
