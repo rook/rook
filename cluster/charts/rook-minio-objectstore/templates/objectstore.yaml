@@ -1,0 +1,21 @@
+apiVersion: minio.rook.io/v1alpha1
+kind: ObjectStore
+metadata:
+  name: {{ template "rook-minio-objectstore.fullname" . }}
+  labels:
+    app: {{ template "rook-minio-objectstore.name" . }}
+    chart: {{ template "rook-minio-objectstore.chart" . }}
+    release: {{ .Release.Name }}
+    heritage: {{ .Release.Service }}
+spec:
+  scope:
+    nodeCount: 4
+  placement:
+    tolerations:
+    nodeAffinity:
+    podAffinity:
+    podAnyAffinity:
+  port: {{ .Values.service.port }}
+  credentials:
+    name: {{ template "rook-minio-objectstore.fullname" . }}
+  storageAmount: "10G"
