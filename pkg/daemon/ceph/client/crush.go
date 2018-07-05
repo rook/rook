@@ -164,11 +164,8 @@ func SetCrushTunables(context *clusterd.Context, clusterName, profile string) (s
 func CrushReweight(context *clusterd.Context, clusterName string, id int, weight float64) (string, error) {
 	args := []string{"osd", "crush", "reweight", fmt.Sprintf("osd.%d", id), fmt.Sprintf("%.1f", weight)}
 	buf, err := ExecuteCephCommand(context, clusterName, args)
-	if err != nil {
-		return "", fmt.Errorf("failed to crush reweight: %+v, %s", err, string(buf))
-	}
 
-	return string(buf), nil
+	return string(buf), err
 }
 
 func CrushRemove(context *clusterd.Context, clusterName, name string) (string, error) {

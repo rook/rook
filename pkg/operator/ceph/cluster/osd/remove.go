@@ -19,6 +19,7 @@ package osd
 
 import (
 	"fmt"
+	"syscall"
 	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -26,6 +27,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
+	"github.com/rook/rook/pkg/util/exec"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -40,18 +42,29 @@ func removeOSD(context *clusterd.Context, namespace, deploymentName string, id i
 
 	// first reweight the OSD to be 0.0, which will begin the data migration
 	o, err := client.CrushReweight(context, namespace, id, 0.0)
+	alreadyPurged := false
 	if err != nil {
-		return fmt.Errorf("failed to reweight osd.%d to 0.0: %+v. %s", id, err, o)
+		// Special error handling for this initial step, to pick up
+		// the case where the OSD is already removed from Ceph cluster,
+		// and skip the next few steps if so.
+		cmdErr, ok := err.(*exec.CommandError)
+		if ok && cmdErr.ExitStatus() == int(syscall.ENOENT) {
+			alreadyPurged = true
+		} else {
+			return fmt.Errorf("failed to reweight osd.%d to 0.0: %+v. %s", id, err, o)
+		}
 	}
 
-	// mark the OSD as out
-	if err := markOSDOut(context, namespace, id); err != nil {
-		return fmt.Errorf("failed to mark osd.%d out: %+v", id, err)
-	}
+	if !alreadyPurged {
+		// mark the OSD as out
+		if err := markOSDOut(context, namespace, id); err != nil {
+			return fmt.Errorf("failed to mark osd.%d out: %+v", id, err)
+		}
 
-	// wait for the OSDs data to be migrated
-	if err := waitForRebalance(context, namespace, id, initialUsage); err != nil {
-		return fmt.Errorf("failed to wait for cluster rebalancing after removing osd.%d: %+v", id, err)
+		// wait for the OSDs data to be migrated
+		if err := waitForRebalance(context, namespace, id, initialUsage); err != nil {
+			return fmt.Errorf("failed to wait for cluster rebalancing after removing osd.%d: %+v", id, err)
+		}
 	}
 
 	// data is migrated off the osd, we can delete the deployment now
