@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/watch"
@@ -54,7 +55,7 @@ func newProvisionConfig() *provisionConfig {
 
 func (c *provisionConfig) addError(message string, args ...interface{}) {
 	logger.Errorf(message, args)
-	c.errorMessages = append(c.errorMessages, fmt.Sprintf(message, args))
+	c.errorMessages = append(c.errorMessages, fmt.Sprintf(message, args...))
 }
 
 func (c *Cluster) updateNodeStatus(node string, status OrchestrationStatus) error {
@@ -80,11 +81,11 @@ func UpdateNodeStatus(kv *k8sutil.ConfigMapKVStore, node string, status Orchestr
 	return nil
 }
 
-func (c *Cluster) handleOrchestrationFailure(config *provisionConfig, n rookalpha.Node, message string) {
+func (c *Cluster) handleOrchestrationFailure(config *provisionConfig, nodeName, message string) {
 	config.addError(message)
 	status := OrchestrationStatus{Status: OrchestrationStatusFailed, Message: message}
-	if err := c.updateNodeStatus(n.Name, status); err != nil {
-		config.addError("failed to update status for node %s. %+v", n.Name, err)
+	if err := c.updateNodeStatus(nodeName, status); err != nil {
+		config.addError("failed to update status for node %s. %+v", nodeName, err)
 	}
 }
 
@@ -118,15 +119,6 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig) bool {
 		orchestrationStatusKey, provisioningLabelKey,
 	)
 	return c.processOSDsWithLabels(config, selector, true)
-}
-
-func (c *Cluster) completeOSDsForNodeRemoval(config *provisionConfig, node string) bool {
-	selector := fmt.Sprintf("%s=%s,%s=%s,%s=%s",
-		k8sutil.AppAttr, appName,
-		orchestrationStatusKey, provisioningLabelKey,
-		nodeLabelKey, node,
-	)
-	return c.processOSDsWithLabels(config, selector, false)
 }
 
 func (c *Cluster) processOSDsWithLabels(config *provisionConfig, labelSelector string, configOSDs bool) bool {
@@ -252,8 +244,8 @@ func IsRemovingNode(devices string) bool {
 	return devices == "none"
 }
 
-func (c *Cluster) findRemovedNodes() ([]deploymentPerNode, error) {
-	var removedNodes []deploymentPerNode
+func (c *Cluster) findRemovedNodes() (map[string][]*extensions.Deployment, error) {
+	removedNodes := map[string][]*extensions.Deployment{}
 
 	// first discover the storage nodes that are still running
 	discoveredNodes, err := c.discoverStorageNodes()
@@ -261,11 +253,11 @@ func (c *Cluster) findRemovedNodes() ([]deploymentPerNode, error) {
 		return nil, fmt.Errorf("failed to discover storage nodes: %+v", err)
 	}
 
-	for i, discoveredNode := range discoveredNodes {
+	for existingNode, osdDeployments := range discoveredNodes {
 		found := false
-		for _, newNode := range c.Storage.Nodes {
+		for _, declaredNode := range c.Storage.Nodes {
 			// discovered storage node still exists in the current storage spec, move on to next discovered node
-			if discoveredNode.node.Name == newNode.Name {
+			if existingNode == declaredNode.Name {
 				found = true
 				break
 			}
@@ -273,8 +265,8 @@ func (c *Cluster) findRemovedNodes() ([]deploymentPerNode, error) {
 
 		if !found {
 			// the discovered storage node was not found in the current storage spec, add it to the removed nodes set
-			logger.Infof("adding node %s to the removed nodes list. %+v", discoveredNode.node.Name, discoveredNode.node)
-			removedNodes = append(removedNodes, discoveredNodes[i])
+			logger.Infof("adding node %s to the removed nodes list", existingNode)
+			removedNodes[existingNode] = osdDeployments
 		}
 	}
 

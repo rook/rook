@@ -20,6 +20,7 @@ package osd
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,11 +32,11 @@ import (
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/display"
+	batch "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
@@ -50,6 +51,7 @@ const (
 	osdLabelKey                  = "ceph-osd-id"
 	clusterAvailableSpaceReserve = 0.05
 	defaultServiceAccountName    = "rook-ceph-cluster"
+	unknownID                    = -1
 )
 
 // Cluster keeps track of the OSDs
@@ -111,11 +113,6 @@ type OrchestrationStatus struct {
 	OSDs    []OSDInfo `json:"osds"`
 	Status  string    `json:"status"`
 	Message string    `json:"message"`
-}
-
-type deploymentPerNode struct {
-	node        rookalpha.Node
-	deployments []*extensions.Deployment
 }
 
 // Start the osd management
@@ -196,8 +193,6 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 			continue
 		}
 
-		storeConfig := osdconfig.ToStoreConfig(n.Config)
-		metadataDevice := osdconfig.MetadataDevice(n.Config)
 		if n.Name == "" {
 			logger.Warningf("skipping node with a blank name! %+v", n)
 			continue
@@ -221,7 +216,10 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 			config.addError("empty volumes for node %s", n.Name)
 			continue
 		}
+
 		// create the job that prepares osds on the node
+		storeConfig := osdconfig.ToStoreConfig(n.Config)
+		metadataDevice := osdconfig.MetadataDevice(n.Config)
 		job, err := c.makeJob(n.Name, config.devicesToUse[n.Name], n.Selection, n.Resources, storeConfig, metadataDevice, n.Location)
 		if err != nil {
 			message := fmt.Sprintf("failed to create prepare job node %s: %v", n.Name, err)
@@ -233,48 +231,53 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 			}
 		}
 
-		// check if the job was already created and what its status is
-		existingJob, err := c.context.Clientset.Batch().Jobs(c.Namespace).Get(job.Name, metav1.GetOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			config.addError("failed to detect provisioning job for node %s. %+v", n.Name, err)
-		} else if err == nil {
-			// delete the job that already exists from a previous run
-			if existingJob.Status.Active > 0 {
-				logger.Infof("Found previous provisioning job for node %s. Status=%+v", n.Name, existingJob.Status)
-			} else {
-				logger.Infof("Removing previous provisioning job for node %s to start a new one", n.Name)
-				err := c.deleteBatchJob(existingJob.Name)
-				if err != nil {
-					logger.Warningf("failed to remove job %s. %+v", n.Name, err)
-				}
-			}
-		}
+		c.updateJob(job, n.Name, config, "provision")
+	}
+}
 
-		_, err = c.context.Clientset.Batch().Jobs(c.Namespace).Create(job)
-		if err != nil {
-			if !errors.IsAlreadyExists(err) {
-				// we failed to create job, update the orchestration status for this node
-				message := fmt.Sprintf("failed to create osd prepare job for node %s. %+v", n.Name, err)
-				c.handleOrchestrationFailure(config, *n, message)
-				err = discover.FreeDevices(c.context, n.Name, c.Namespace)
-				if err != nil {
-					logger.Warningf("failed to free devices: %s", err)
-				}
-				continue
-			} else {
-				// TODO: if the job already exists, we may need to edit the pod template spec, for example if device filter has changed
-				message := fmt.Sprintf("provisioning job already exists for node %s", n.Name)
-				config.addError(message)
-				status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
-				if err := c.updateNodeStatus(n.Name, status); err != nil {
-					config.addError("failed to update status for node %s. %+v", n.Name, err)
-					continue
-				}
-			}
+func (c *Cluster) updateJob(job *batch.Job, nodeName string, config *provisionConfig, action string) bool {
+	// check if the job was already created and what its status is
+	existingJob, err := c.context.Clientset.Batch().Jobs(c.Namespace).Get(job.Name, metav1.GetOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		config.addError("failed to detect %s job for node %s. %+v", action, nodeName, err)
+	} else if err == nil {
+		// delete the job that already exists from a previous run
+		if existingJob.Status.Active > 0 {
+			logger.Infof("Found previous %s job for node %s. Status=%+v", action, nodeName, existingJob.Status)
 		} else {
-			logger.Infof("osd prepare job started for node %s", n.Name)
+			logger.Infof("Removing previous %s job for node %s to start a new one", action, nodeName)
+			err := c.deleteBatchJob(existingJob.Name)
+			if err != nil {
+				logger.Warningf("failed to remove job %s. %+v", nodeName, err)
+			}
 		}
 	}
+
+	_, err = c.context.Clientset.Batch().Jobs(c.Namespace).Create(job)
+	if err != nil {
+		if !errors.IsAlreadyExists(err) {
+			// we failed to create job, update the orchestration status for this node
+			message := fmt.Sprintf("failed to create %s job for node %s. %+v", action, nodeName, err)
+			c.handleOrchestrationFailure(config, nodeName, message)
+			err = discover.FreeDevices(c.context, nodeName, c.Namespace)
+			if err != nil {
+				logger.Warningf("failed to free devices: %s", err)
+			}
+			return false
+		} else {
+			// TODO: if the job already exists, we may need to edit the pod template spec, for example if device filter has changed
+			message := fmt.Sprintf("%s job already exists for node %s", action, nodeName)
+			config.addError(message)
+			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
+			if err := c.updateNodeStatus(nodeName, status); err != nil {
+				config.addError("failed to update status for node %s. %+v", nodeName, err)
+				return false
+			}
+		}
+	}
+
+	logger.Infof("osd %s job started for node %s", action, nodeName)
+	return true
 }
 
 func (c *Cluster) deleteBatchJob(name string) error {
@@ -358,76 +361,73 @@ func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
 	if err != nil {
 		config.addError("failed to find removed nodes: %+v", err)
 	}
+	logger.Infof("processing %d removed nodes", len(removedNodes))
 
-	for i := range removedNodes {
-		n := removedNodes[i]
-		storeConfig := osdconfig.ToStoreConfig(n.node.Config)
-		metadataDevice := osdconfig.MetadataDevice(n.node.Config)
-
-		if err := c.isSafeToRemoveNode(n.node); err != nil {
-			message := fmt.Sprintf("skipping the removal of node %s because it is not safe to do so: %+v", n.node.Name, err)
-			c.handleOrchestrationFailure(config, n.node, message)
+	for removedNode, osdDeployments := range removedNodes {
+		logger.Infof("processing removed node %s", removedNode)
+		if err := c.isSafeToRemoveNode(removedNode, osdDeployments); err != nil {
+			logger.Warningf("skipping the removal of node %s because it is not safe to do so: %+v", removedNode, err)
 			continue
 		}
-		if len(n.node.Name) == 0 {
-			continue
-		}
-		logger.Infof("removing node %s from the cluster", n.node.Name)
+
+		logger.Infof("removing node %s from the cluster with %d OSDs", removedNode, len(osdDeployments))
 
 		// update the orchestration status of this removed node to the starting state
-		if err := c.updateNodeStatus(n.node.Name, OrchestrationStatus{Status: OrchestrationStatusStarting}); err != nil {
-			config.addError("failed to set orchestration starting status for removed node %s: %+v", n.node.Name, err)
+		if err := c.updateNodeStatus(removedNode, OrchestrationStatus{Status: OrchestrationStatusStarting}); err != nil {
+			config.addError("failed to set orchestration starting status for removed node %s: %+v", removedNode, err)
 			continue
+		}
+
+		for _, dp := range osdDeployments {
+			logger.Infof("processing removed osd %s", dp.Name)
+			id := getIDFromDeployment(dp)
+			if id == unknownID {
+				config.addError("cannot remove unknown osd %s", dp.Name)
+				continue
+			}
+
+			logger.Infof("removed osd %s has id %d", dp.Name, id)
+			if err := removeOSD(c.context, c.Namespace, dp.Name, id); err != nil {
+				config.addError("failed to remove osd %d. %+v", id, err)
+				continue
+			}
 		}
 
 		// trigger orchestration on the removed node by telling it not to use any storage at all.  note that the directories are still passed in
 		// so that the pod will be able to mount them and migrate data from them.
-		job, err := c.makeJob(n.node.Name, nil, rookalpha.Selection{DeviceFilter: "none", Directories: n.node.Directories}, v1.ResourceRequirements{}, storeConfig, metadataDevice, "")
+		logger.Infof("done processing %d osd removals on node %s. Starting cleanup job on the node.", len(osdDeployments), removedNode)
+		job, err := c.makeJob(removedNode, []rookalpha.Device{}, rookalpha.Selection{DeviceFilter: "none"},
+			v1.ResourceRequirements{}, osdconfig.StoreConfig{}, "", "")
 		if err != nil {
-			message := fmt.Sprintf("failed to create osd job for removed node %s. %+v", n.node.Name, err)
-			c.handleOrchestrationFailure(config, n.node, message)
+			message := fmt.Sprintf("failed to create prepare job node %s: %v", removedNode, err)
+			config.addError(message)
+			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
+			if err := c.updateNodeStatus(removedNode, status); err != nil {
+				config.addError("failed to update node %s status. %+v", removedNode, err)
+			}
 			continue
 		}
-		job, err = c.context.Clientset.Batch().Jobs(c.Namespace).Update(job)
-		if err != nil {
-			message := fmt.Sprintf("failed to update osd job for removed node %s. %+v", n.node.Name, err)
-			c.handleOrchestrationFailure(config, n.node, message)
-			continue
-		} else {
-			logger.Infof("osd job updated for node %s", n.node.Name)
-		}
-		for _, dp := range n.deployments {
-			// delete the pod associated with the deployment so that it will be restarted with the new template
-			if err := c.deleteOSDPod(dp); err != nil {
-				message := fmt.Sprintf("failed to find and delete OSD pod for deployments %s. %+v", dp.Name, err)
-				c.handleOrchestrationFailure(config, n.node, message)
-				continue
-			}
 
-			// wait for the removed node's orchestration to be completed
-			if ok := c.completeOSDsForNodeRemoval(config, n.node.Name); !ok {
-				continue
-			}
-
-			// orchestration of the removed node completed, we can delete the deployment now
-			if err := c.context.Clientset.Extensions().Deployments(c.Namespace).Delete(dp.Name, &metav1.DeleteOptions{}); err != nil {
-				config.addError("failed to delete deployment %s: %+v", dp.Name, err)
-				continue
+		if c.updateJob(job, removedNode, config, "remove") {
+			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("completed removing osds from node %s", removedNode)}
+			if err := c.updateNodeStatus(removedNode, status); err != nil {
+				config.addError("failed to update node %s status. %+v", removedNode, err)
 			}
 		}
 	}
+
+	logger.Infof("done processing removed nodes")
 }
 
-func (c *Cluster) discoverStorageNodes() ([]deploymentPerNode, error) {
-	var discoveredNodes []deploymentPerNode
+func (c *Cluster) discoverStorageNodes() (map[string][]*extensions.Deployment, error) {
 
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
 	osdDeployments, err := c.context.Clientset.Extensions().Deployments(c.Namespace).List(listOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list osd deployment: %+v", err)
 	}
-	discoveredNodes = make([]deploymentPerNode, len(osdDeployments.Items))
-	for i, osdDeployment := range osdDeployments.Items {
+	discoveredNodes := map[string][]*extensions.Deployment{}
+	for _, osdDeployment := range osdDeployments.Items {
 		osdPodSpec := osdDeployment.Spec.Template.Spec
 
 		// get the node name from the node selector
@@ -435,42 +435,20 @@ func (c *Cluster) discoverStorageNodes() ([]deploymentPerNode, error) {
 		if !ok || nodeName == "" {
 			return nil, fmt.Errorf("osd deployment %s doesn't have a node name on its node selector: %+v", osdDeployment.Name, osdPodSpec.NodeSelector)
 		}
-		// get the osd container
-		osdContainer, err := k8sutil.GetMatchingContainer(osdPodSpec.Containers, appName)
-		if err != nil {
-			return nil, err
+
+		if _, ok := discoveredNodes[nodeName]; !ok {
+			discoveredNodes[nodeName] = []*extensions.Deployment{}
 		}
 
-		// populate the discovered node with the properties discovered from its running artifacts.
-		// note that we are populating just a subset here, the minimum subset needed to be able
-		// to remove the node if needed.  As we support updating more properties in the future (as
-		// opposed to simply removing the whole node) we'll need to discover and populate them here too.
-		node := rookalpha.Node{
-			Name: nodeName,
-			Selection: rookalpha.Selection{
-				Directories: getDirectoriesFromContainer(osdContainer),
-			},
-			Location: rookalpha.GetLocationFromContainer(osdContainer),
-			Config:   getConfigFromContainer(osdContainer),
-		}
-		found := false
-		for _, n := range discoveredNodes {
-			if nodeName == n.node.Name {
-				n.deployments = append(n.deployments, &osdDeployment)
-				found = true
-				break
-			}
-		}
-		if !found {
-			discoveredNodes[i].node = node
-			discoveredNodes[i].deployments = append(discoveredNodes[i].deployments, &osdDeployment)
-		}
+		logger.Debugf("adding osd %s to node %s", osdDeployment.Name, nodeName)
+		osdCopy := osdDeployment
+		discoveredNodes[nodeName] = append(discoveredNodes[nodeName], &osdCopy)
 	}
 
 	return discoveredNodes, nil
 }
 
-func (c *Cluster) isSafeToRemoveNode(node rookalpha.Node) error {
+func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*extensions.Deployment) error {
 	if err := client.IsClusterClean(c.context, c.Namespace); err != nil {
 		// the cluster isn't clean, it's not safe to remove this node
 		return err
@@ -482,15 +460,14 @@ func (c *Cluster) isSafeToRemoveNode(node rookalpha.Node) error {
 		return err
 	}
 
-	// get the set of OSD IDs that are on the given node
-	osdsForNode, err := c.getOSDsForNode(node)
-	if err != nil {
-		return err
-	}
-
 	// sum up the total OSD used space for the node by summing the used space of each OSD on the node
 	nodeUsage := int64(0)
-	for _, id := range osdsForNode {
+	for _, osdDeployment := range osdDeployments {
+		id := getIDFromDeployment(osdDeployment)
+		if id == unknownID {
+			continue
+		}
+
 		osdUsage := currUsage.ByID(id)
 		if osdUsage != nil {
 			osdKB, err := osdUsage.UsedKB.Int64()
@@ -521,75 +498,24 @@ func (c *Cluster) isSafeToRemoveNode(node rookalpha.Node) error {
 		// the remaining available space in the cluster after the space that this node is using gets moved elsewhere
 		// would be less than the cluster available space reserve, it's not safe to remove this node
 		return fmt.Errorf("insufficient available space in the cluster to remove node %s. node usage: %s, cluster available: %s",
-			node.Name, display.BytesToString(uint64(nodeUsage)), display.BytesToString(uint64(clusterAvailableBytes)))
+			nodeName, display.BytesToString(uint64(nodeUsage)), display.BytesToString(uint64(clusterAvailableBytes)))
 	}
 
 	// looks safe to remove the node
 	return nil
 }
 
-func (c *Cluster) deleteOSDPod(dp *extensions.Deployment) error {
-	if dp == nil {
-		return nil
-	}
-	// list all OSD pods first
-	opts := metav1.ListOptions{LabelSelector: fields.OneTermEqualSelector(k8sutil.AppAttr, appName).String()}
-	pods, err := c.context.Clientset.CoreV1().Pods(c.Namespace).List(opts)
-	if err != nil {
-		return err
-	}
-
-	// iterate over all the OSD pods, looking for a match to the given deployment and the pod's owner
-	var pod *v1.Pod
-	for i := range pods.Items {
-		p := &pods.Items[i]
-		for _, owner := range p.OwnerReferences {
-			if owner.Name == dp.Name && owner.UID == dp.UID {
-				// the owner of this pod matches the name and UID of the given deployment
-				pod = p
-				break
-			}
+func getIDFromDeployment(deployment *extensions.Deployment) int {
+	if idstr, ok := deployment.Labels[osdLabelKey]; ok {
+		id, err := strconv.Atoi(idstr)
+		if err != nil {
+			logger.Errorf("unknown osd id from label %s", idstr)
+			return unknownID
 		}
-
-		if pod != nil {
-			break
-		}
+		return id
 	}
-
-	if pod == nil {
-		return fmt.Errorf("pod for deployment %s not found", dp.Name)
-	}
-
-	err = c.context.Clientset.CoreV1().Pods(c.Namespace).Delete(pod.Name, &metav1.DeleteOptions{})
-	return err
-}
-
-func (c *Cluster) getOSDsForNode(node rookalpha.Node) ([]int, error) {
-
-	// load all the OSD dirs/devices for the given node
-	dirMap, err := osdconfig.LoadOSDDirMap(c.kv, node.Name)
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, err
-	}
-	scheme, err := osdconfig.LoadScheme(c.kv, osdconfig.GetConfigStoreName(node.Name))
-	if err != nil && !errors.IsNotFound(err) {
-		return nil, err
-	}
-
-	// loop through all the known OSDs for the node and collect their IDs into the result
-	osdsForNode := make([]int, len(dirMap)+len(scheme.Entries))
-	idNum := 0
-
-	for _, id := range dirMap {
-		osdsForNode[idNum] = id
-		idNum++
-	}
-	for _, entry := range scheme.Entries {
-		osdsForNode[idNum] = entry.ID
-		idNum++
-	}
-
-	return osdsForNode, nil
+	logger.Errorf("unknown osd id for deployment %s", deployment.Name)
+	return unknownID
 }
 
 func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {

@@ -93,7 +93,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	}
 
 	// determine the set of removed OSDs and the node's crush name (if needed)
-	removedDevicesScheme, removedDevicesMapping, err := getRemovedDevices(agent)
+	removedDevicesScheme, _, err := getRemovedDevices(agent)
 	if err != nil {
 		return fmt.Errorf("failed to get removed devices: %+v", err)
 	}
@@ -126,26 +126,11 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 		return fmt.Errorf("failed to configure devices. %+v", err)
 	}
 
-	// also start OSDs for the devices that will be removed.  In order to remove devices, we need the
-	// OSDs to first be running so they can participate in the rebalancing
-	logger.Infof("configuring removed osd devices: %+v", removedDevicesMapping)
-	if _, err := agent.configureDevices(context, removedDevicesMapping); err != nil {
-		// some devices that will be removed may be legitimately dead, let's try to remove them even if they can't start up
-		logger.Warningf("failed to configure removed devices, but proceeding with removal attempts. %+v", err)
-	}
-
 	// start up the OSDs for directories
 	logger.Infof("configuring osd dirs: %+v", dirs)
 	dirOSDs, err := agent.configureDirs(context, dirs)
 	if err != nil {
 		return fmt.Errorf("failed to configure dirs %v. %+v", dirs, err)
-	}
-
-	// start up the OSDs for directories that will be removed.
-	logger.Infof("configuring removed osd dirs: %+v", removedDirs)
-	if _, err := agent.configureDirs(context, removedDirs); err != nil {
-		// some dirs that will be removed may be legitimately dead, let's try to remove them even if they can't start up
-		logger.Warningf("failed to configure removed dirs, but proceeding with removal attempts. %+v", err)
 	}
 
 	// now we can start removing OSDs from devices and directories

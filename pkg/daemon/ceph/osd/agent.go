@@ -27,7 +27,6 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -505,112 +504,11 @@ func getOSDInfo(clusterName string, config *osdConfig, devPartInfo *devicePartIn
 }
 
 func (a *OsdAgent) removeOSD(context *clusterd.Context, config *osdConfig) error {
-	// get a baseline for OSD usage so we can compare usage to it later on to know when migration has started
-	initialUsage, err := client.GetOSDUsage(context, a.cluster.Name)
-	if err != nil {
-		logger.Warningf("failed to get baseline OSD usage, but will still continue")
-	}
-
-	// first reweight the OSD to be 0.0, which will begin the data migration
-	o, err := client.CrushReweight(context, a.cluster.Name, config.id, 0.0)
-	if err != nil {
-		return fmt.Errorf("failed to reweight osd.%d to 0.0: %+v. %s", config.id, err, o)
-	}
-
-	// mark the OSD as out
-	if err := markOSDOut(context, a.cluster.Name, config.id); err != nil {
-		return fmt.Errorf("failed to mark osd.%d out: %+v", config.id, err)
-	}
-
-	// wait for the OSDs data to be migrated
-	if err := waitForRebalance(context, a.cluster.Name, config.id, initialUsage); err != nil {
-		return fmt.Errorf("failed to wait for cluster rebalancing after removing osd.%d: %+v", config.id, err)
-	}
-
-	// FIX: stop the OSD process and remove it from monitoring
-
-	// purge the OSD from the cluster
-	if err := purgeOSD(context, a.cluster.Name, config.id); err != nil {
-		return fmt.Errorf("failed to purge osd.%d from the cluster: %+v", config.id, err)
-	}
-
-	// delete any backups of the OSD filesystem
-	if err := deleteOSDFileSystem(config); err != nil {
-		logger.Warningf("failed to delete osd.%d filesystem, it may need to be cleaned up manually: %+v", config.id, err)
-	}
-
 	// delete the OSD's local storage
 	osdRootDir := getOSDRootDir(config.configRoot, config.id)
 	if err := os.RemoveAll(osdRootDir); err != nil {
 		logger.Warningf("failed to delete osd.%d root dir from %s, it may need to be cleaned up manually: %+v",
 			config.id, osdRootDir, err)
-	}
-
-	return nil
-}
-
-func waitForRebalance(context *clusterd.Context, clusterName string, osdID int, initialUsage *client.OSDUsage) error {
-	if initialUsage != nil {
-		// start a retry loop to wait for rebalancing to start
-		err := util.Retry(20, 5*time.Second, func() error {
-			currUsage, err := client.GetOSDUsage(context, clusterName)
-			if err != nil {
-				return err
-			}
-
-			init := initialUsage.ByID(osdID)
-			curr := currUsage.ByID(osdID)
-
-			if init == nil || curr == nil {
-				return fmt.Errorf("initial OSD usage or current OSD usage for osd.%d not found. init: %+v, curr: %+v",
-					osdID, initialUsage, currUsage)
-			}
-
-			if curr.UsedKB >= init.UsedKB && curr.Pgs >= init.Pgs {
-				return fmt.Errorf("current used space and pg count for osd.%d has not decreased still", osdID)
-			}
-
-			// either the used space or the number of PGs has decreased for the OSD, data rebalancing has started
-			return nil
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	// wait until the cluster gets fully rebalanced again
-	err := util.Retry(3000, 15*time.Second, func() error {
-		// get a dump of all placement groups
-		pgDump, err := client.GetPGDumpBrief(context, clusterName)
-		if err != nil {
-			return err
-		}
-
-		// ensure that the given OSD is no longer assigned to any placement groups
-		for _, pg := range pgDump {
-			if pg.UpPrimaryID == osdID {
-				return fmt.Errorf("osd.%d is still up primary for pg %s", osdID, pg.ID)
-			}
-			if pg.ActingPrimaryID == osdID {
-				return fmt.Errorf("osd.%d is still acting primary for pg %s", osdID, pg.ID)
-			}
-			for _, id := range pg.UpOsdIDs {
-				if id == osdID {
-					return fmt.Errorf("osd.%d is still up for pg %s", osdID, pg.ID)
-				}
-			}
-			for _, id := range pg.ActingOsdIDs {
-				if id == osdID {
-					return fmt.Errorf("osd.%d is still acting for pg %s", osdID, pg.ID)
-				}
-			}
-		}
-
-		// finally, ensure the cluster gets back to a clean state, meaning rebalancing is complete
-		return client.IsClusterClean(context, clusterName)
-	})
-	if err != nil {
-		return err
 	}
 
 	return nil

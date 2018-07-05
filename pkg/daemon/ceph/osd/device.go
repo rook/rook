@@ -600,32 +600,6 @@ func addOSDToCrushMap(context *clusterd.Context, config *osdConfig, clusterName,
 	return nil
 }
 
-func markOSDOut(context *clusterd.Context, clusterName string, id int) error {
-	_, err := client.OSDOut(context, clusterName, id)
-	return err
-}
-
-func purgeOSD(context *clusterd.Context, clusterName string, id int) error {
-	// remove the OSD from the crush map
-	_, err := client.CrushRemove(context, clusterName, fmt.Sprintf("osd.%d", id))
-	if err != nil {
-		return fmt.Errorf("failed to remove osd.%d from crush map. %v", id, err)
-	}
-
-	// delete the auth for the OSD
-	err = client.AuthDelete(context, clusterName, fmt.Sprintf("osd.%d", id))
-	if err != nil {
-		return err
-	}
-
-	// delete the OSD from the cluster
-	_, err = client.OSDRemove(context, clusterName, id)
-	if err != nil {
-		return fmt.Errorf("failed to rm osd.%d. %v", id, err)
-	}
-	return nil
-}
-
 func getBluestorePartitionPaths(cfg *osdConfig) (string, string, string, error) {
 	if !isBluestoreDevice(cfg) {
 		return "", "", "", fmt.Errorf("must be bluestore device to get bluestore partition paths: %+v", cfg)
