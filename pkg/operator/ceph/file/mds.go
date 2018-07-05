@@ -33,6 +33,7 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -62,7 +63,7 @@ func CreateFilesystem(context *clusterd.Context, fs cephv1alpha1.Filesystem, ver
 	logger.Infof("start running mds for file system %s", fs.Name)
 
 	// start the deployment
-	deployment := makeDeployment(fs, strconv.Itoa(filesystem.ID), version, hostNetwork, ownerRefs)
+	deployment := makeDeployment(context.Clientset, fs, strconv.Itoa(filesystem.ID), version, hostNetwork, ownerRefs)
 	_, err = context.Clientset.ExtensionsV1beta1().Deployments(fs.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -100,14 +101,14 @@ func instanceName(fs cephv1alpha1.Filesystem) string {
 	return fmt.Sprintf("%s-%s", AppName, fs.Name)
 }
 
-func makeDeployment(fs cephv1alpha1.Filesystem, filesystemID, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) *extensions.Deployment {
+func makeDeployment(clientset kubernetes.Interface, fs cephv1alpha1.Filesystem, filesystemID, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) *extensions.Deployment {
 	deployment := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            instanceName(fs),
-			Namespace:       fs.Namespace,
-			OwnerReferences: ownerRefs,
+			Name:      instanceName(fs),
+			Namespace: fs.Namespace,
 		},
 	}
+	k8sutil.SetOwnerRefs(clientset, fs.Namespace, &deployment.ObjectMeta, ownerRefs)
 
 	podSpec := v1.PodSpec{
 		Containers:    []v1.Container{mdsContainer(fs, filesystemID, version)},

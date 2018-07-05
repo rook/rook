@@ -125,7 +125,7 @@ func TestPodSpec(t *testing.T) {
 }
 
 func TestServiceSpec(t *testing.T) {
-	c := New(nil, "ns", "myversion", rookalpha.Placement{}, false, cephv1alpha1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{}, "ns", "myversion", rookalpha.Placement{}, false, cephv1alpha1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	s := c.makeMetricsService("rook-mgr")
 	assert.NotNil(t, s)

@@ -141,7 +141,7 @@ func TestPodSpecs(t *testing.T) {
 	}
 	mdsID := "mds1"
 
-	d := makeDeployment(fs, mdsID, "rook/rook:myversion", false, []metav1.OwnerReference{})
+	d := makeDeployment(nil, fs, mdsID, "rook/rook:myversion", false, []metav1.OwnerReference{})
 	assert.NotNil(t, d)
 	assert.Equal(t, AppName+"-myfs", d.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
@@ -175,7 +175,7 @@ func TestHostNetwork(t *testing.T) {
 	}
 	mdsID := "mds1"
 
-	d := makeDeployment(fs, mdsID, "v0.1", true, []metav1.OwnerReference{})
+	d := makeDeployment(nil, fs, mdsID, "v0.1", true, []metav1.OwnerReference{})
 
 	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)

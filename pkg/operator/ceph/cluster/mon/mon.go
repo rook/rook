@@ -29,6 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -253,9 +254,8 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 	labels := c.getLabels(mon.Name)
 	s := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            mon.Name,
-			Labels:          labels,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:   mon.Name,
+			Labels: labels,
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
@@ -269,6 +269,7 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 			Selector: labels,
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &s.ObjectMeta, &c.ownerRef)
 	if c.HostNetwork {
 		s.Spec.ClusterIP = v1.ClusterIPNone
 	}
@@ -392,12 +393,12 @@ func (c *Cluster) waitForMonsToJoin(mons []*monConfig) error {
 func (c *Cluster) saveMonConfig() error {
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            EndpointConfigMapName,
-			Namespace:       c.Namespace,
-			Annotations:     map[string]string{},
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:        EndpointConfigMapName,
+			Namespace:   c.Namespace,
+			Annotations: map[string]string{},
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &configMap.ObjectMeta, &c.ownerRef)
 
 	monMapping, err := json.Marshal(c.mapping)
 	if err != nil {

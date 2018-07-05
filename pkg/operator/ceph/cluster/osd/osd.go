@@ -323,9 +323,7 @@ func makeOrchestrationStatusMap(clientset kubernetes.Interface, namespace string
 		}
 		// the owner ref will be set the first time when the cluster is created, but if it is created later by the osd daemon
 		// we skip setting the owner since we are in an unexpected state of the configmap not already existing.
-		if ownerRef != nil {
-			cm.OwnerReferences = []metav1.OwnerReference{*ownerRef}
-		}
+		k8sutil.SetOwnerRef(clientset, namespace, &cm.ObjectMeta, ownerRef)
 
 		cm, err = clientset.CoreV1().ConfigMaps(namespace).Create(cm)
 		if err != nil {

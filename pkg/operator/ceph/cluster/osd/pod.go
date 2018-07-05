@@ -19,6 +19,7 @@ package osd
 
 import (
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
@@ -43,11 +44,10 @@ const (
 
 func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, storeConfig config.StoreConfig, metadataDevice, location string) *extensions.DaemonSet {
 	podSpec := c.podTemplateSpec(nil, selection, c.resources, storeConfig, metadataDevice, location)
-	return &extensions.DaemonSet{
+	ds := &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            appName,
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:      appName,
+			Namespace: c.Namespace,
 			Labels: map[string]string{
 				k8sutil.AppAttr:     appName,
 				k8sutil.ClusterAttr: c.Namespace,
@@ -60,6 +60,8 @@ func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, storeConfig confi
 			Template: podSpec,
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &ds.ObjectMeta, &c.ownerRef)
+	return ds
 }
 
 func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
@@ -69,11 +71,10 @@ func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device, se
 	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
 	replicaCount := int32(1)
 
-	return &extensions.ReplicaSet{
+	rs := &extensions.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf(appNameFmt, nodeName),
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:      fmt.Sprintf(appNameFmt, nodeName),
+			Namespace: c.Namespace,
 			Labels: map[string]string{
 				k8sutil.AppAttr:     appName,
 				k8sutil.ClusterAttr: c.Namespace,
@@ -84,6 +85,8 @@ func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device, se
 			Replicas: &replicaCount,
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &rs.ObjectMeta, &c.ownerRef)
+	return rs
 }
 
 func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
@@ -228,8 +231,8 @@ func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.S
 	}
 
 	privileged := false
-	// elevate to be privileged if it is going to mount devices
-	if devMountNeeded {
+	// elevate to be privileged if it is going to mount devices or if running in a restricted environment such as openshift
+	if devMountNeeded || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" {
 		privileged = true
 	}
 	runAsUser := int64(0)

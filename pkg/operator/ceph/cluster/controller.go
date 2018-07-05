@@ -581,11 +581,11 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            k8sutil.ConfigOverrideName,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name: k8sutil.ConfigOverrideName,
 		},
 		Data: placeholderConfig,
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &cm.ObjectMeta, &c.ownerRef)
 
 	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
 	if err != nil && !errors.IsAlreadyExists(err) {
@@ -663,12 +663,12 @@ func (c *cluster) createInitialCrushMap() error {
 	// save the fact that we've created the initial crushmap to a configmap
 	configMap := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            crushConfigMapName,
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:      crushConfigMapName,
+			Namespace: c.Namespace,
 		},
 		Data: map[string]string{crushmapCreatedKey: "1"},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &configMap.ObjectMeta, &c.ownerRef)
 
 	if !configMapExists {
 		if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {

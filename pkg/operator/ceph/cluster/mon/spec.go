@@ -19,6 +19,7 @@ package mon
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
@@ -66,11 +67,11 @@ func (c *Cluster) getLabels(name string) map[string]string {
 func (c *Cluster) makeReplicaSet(config *monConfig, hostname string) *extensions.ReplicaSet {
 	rs := &extensions.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            config.Name,
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:      config.Name,
+			Namespace: c.Namespace,
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &rs.ObjectMeta, &c.ownerRef)
 
 	pod := c.makeMonPod(config, hostname)
 	replicaCount := int32(1)
@@ -124,6 +125,12 @@ func (c *Cluster) makeMonPod(config *monConfig, hostname string) *v1.Pod {
 }
 
 func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
+	// Running the mon privileged is required to use hostPath when a PodSecurityPolicy is enabled with selinux
+	// After local volumes are used (instead of hostPath), privileged will not be needed anymore
+	privileged := false
+	if os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" {
+		privileged = true
+	}
 	return v1.Container{
 		Args: []string{
 			"ceph",
@@ -135,6 +142,9 @@ func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
 		},
 		Name:  appName,
 		Image: k8sutil.MakeRookImage(c.Version),
+		SecurityContext: &v1.SecurityContext{
+			Privileged: &privileged,
+		},
 		Ports: []v1.ContainerPort{
 			{
 				Name:          "client",

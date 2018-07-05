@@ -298,7 +298,7 @@ func (c *Cluster) removeMon(name string) error {
 			}
 			// don't clean up if a node port is higher than the default port, other
 			//mons could be on the same node with > DefaultPort ports, decreasing could
-			//cause port collsions
+			//cause port collisions
 			// This can be solved by using a map[nodeName][]int32 for the ports to
 			//even better check which ports are open for the HostNetwork mode
 		}
