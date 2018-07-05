@@ -1,0 +1,41 @@
+kind: SecurityContextConstraints
+apiVersion: v1
+metadata:
+  name: rook
+allowPrivilegedContainer: true
+allowHostNetwork: true
+allowHostDirVolumePlugin: true
+priority: 
+allowedCapabilities: []
+allowHostPorts: false
+allowHostPID: true
+allowHostIPC: false
+readOnlyRootFilesystem: false
+requiredDropCapabilities: []
+defaultAddCapabilities: []
+runAsUser:
+  type: RunAsAny
+seLinuxContext:
+  type: MustRunAs
+fsGroup:
+  type: MustRunAs
+supplementalGroups:
+  type: RunAsAny
+allowedFlexVolumes: 
+  - driver: "rook.io/rook"
+volumes:
+  - configMap
+  - downwardAPI
+  - emptyDir
+  - flexVolume
+  - hostPath
+  - persistentVolumeClaim
+  - projected
+  - secret
+users:
+  # A user needs to be added for each rook service account. 
+  # This assumes running in the default sample "rook-ceph" and "rook-ceph-system" namespaces.
+  # If other namespaces or service accounts are configured, they need to be updated here.
+  - system:serviceaccount:rook-ceph-system:rook-ceph-system
+  - system:serviceaccount:rook-ceph:default
+  - system:serviceaccount:rook-ceph:rook-ceph-cluster

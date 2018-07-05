@@ -153,12 +153,11 @@ func (c *Cluster) configureDashboard() error {
 
 func (c *Cluster) makeMetricsService(name string) *v1.Service {
 	labels := c.getLabels()
-	return &v1.Service{
+	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
-			Labels:          labels,
+			Name:      name,
+			Namespace: c.Namespace,
+			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
@@ -172,16 +171,18 @@ func (c *Cluster) makeMetricsService(name string) *v1.Service {
 			},
 		},
 	}
+
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	return svc
 }
 
 func (c *Cluster) makeDashboardService(name string) *v1.Service {
 	labels := c.getLabels()
-	return &v1.Service{
+	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-dashboard", name),
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
-			Labels:          labels,
+			Name:      fmt.Sprintf("%s-dashboard", name),
+			Namespace: c.Namespace,
+			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
@@ -195,6 +196,8 @@ func (c *Cluster) makeDashboardService(name string) *v1.Service {
 			},
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	return svc
 }
 
 func (c *Cluster) makeDeployment(name, daemonName string) *extensions.Deployment {
@@ -224,9 +227,9 @@ func (c *Cluster) makeDeployment(name, daemonName string) *extensions.Deployment
 	replicas := int32(1)
 	return &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:      name,
+			Namespace: c.Namespace,
+			//: []metav1.OwnerReference{c.ownerRef},
 		},
 		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas},
 	}
@@ -313,13 +316,14 @@ func (c *Cluster) createKeyring(clusterName, name, daemonName string) error {
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:      name,
+			Namespace: c.Namespace,
 		},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &secret.ObjectMeta, &c.ownerRef)
+
 	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		return fmt.Errorf("failed to save mgr secrets. %+v", err)

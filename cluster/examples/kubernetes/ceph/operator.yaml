@@ -280,6 +280,11 @@ spec:
       - name: rook-ceph-operator
         image: rook/ceph:master
         args: ["ceph", "operator"]
+        volumeMounts:
+        - mountPath: /var/lib/rook
+          name: rook-config
+        - mountPath: /etc/ceph
+          name: default-config-dir
         env:
         # To disable RBAC, uncomment the following:
         # - name: RBAC_ENABLED
@@ -317,15 +322,28 @@ spec:
         # current mon with a new mon (useful for compensating flapping network).
         - name: ROOK_MON_OUT_TIMEOUT
           value: "300s"
+        # Whether to start pods as privileged that mount a host path, which includes the Ceph mon and osd pods.
+        # This is necessary to workaround the anyuid issues when running on OpenShift.
+        # For more details see https://github.com/rook/rook/issues/1314#issuecomment-355799641
+        - name: ROOK_HOSTPATH_REQUIRES_PRIVILEGED
+          value: "false"
+        # The name of the node to pass with the downward API
         - name: NODE_NAME
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+        # The pod name to pass with the downward API
         - name: POD_NAME
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
+        # The pod namespace to pass with the downward API
         - name: POD_NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+      volumes:
+      - name: rook-config
+        emptyDir: {}
+      - name: default-config-dir
+        emptyDir: {}

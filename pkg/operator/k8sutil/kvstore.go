@@ -63,12 +63,12 @@ func (kv *ConfigMapKVStore) SetValue(storeName, key, value string) error {
 		// the given config map doesn't exist yet, create it now with the given key/val
 		cm = &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:            storeName,
-				Namespace:       kv.namespace,
-				OwnerReferences: []metav1.OwnerReference{kv.ownerRef},
+				Name:      storeName,
+				Namespace: kv.namespace,
 			},
 			Data: map[string]string{key: value},
 		}
+		SetOwnerRef(kv.clientset, kv.namespace, &cm.ObjectMeta, &kv.ownerRef)
 
 		_, err = kv.clientset.CoreV1().ConfigMaps(kv.namespace).Create(cm)
 		return err

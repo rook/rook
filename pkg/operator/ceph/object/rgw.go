@@ -232,13 +232,13 @@ func createKeyring(context *clusterd.Context, store cephv1alpha1.ObjectStore, ow
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            instanceName(store),
-			Namespace:       store.Namespace,
-			OwnerReferences: ownerRefs,
+			Name:      instanceName(store),
+			Namespace: store.Namespace,
 		},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
+	k8sutil.SetOwnerRefs(context.Clientset, store.Namespace, &secret.ObjectMeta, ownerRefs)
 	_, err = context.Clientset.CoreV1().Secrets(store.Namespace).Create(secret)
 	if err != nil {
 		return fmt.Errorf("failed to save rgw secrets. %+v", err)
@@ -294,12 +294,12 @@ func startDeployment(context *clusterd.Context, store cephv1alpha1.ObjectStore, 
 
 	deployment := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            instanceName(store),
-			Namespace:       store.Namespace,
-			OwnerReferences: ownerRefs,
+			Name:      instanceName(store),
+			Namespace: store.Namespace,
 		},
 		Spec: extensions.DeploymentSpec{Template: makeRGWPodSpec(store, version, hostNetwork), Replicas: &replicas},
 	}
+	k8sutil.SetOwnerRefs(context.Clientset, store.Namespace, &deployment.ObjectMeta, ownerRefs)
 	_, err := context.Clientset.ExtensionsV1beta1().Deployments(store.Namespace).Create(deployment)
 	return err
 }
@@ -308,9 +308,8 @@ func startDaemonset(context *clusterd.Context, store cephv1alpha1.ObjectStore, v
 
 	daemonset := &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            instanceName(store),
-			Namespace:       store.Namespace,
-			OwnerReferences: ownerRefs,
+			Name:      instanceName(store),
+			Namespace: store.Namespace,
 		},
 		Spec: extensions.DaemonSetSpec{
 			UpdateStrategy: extensions.DaemonSetUpdateStrategy{
@@ -319,6 +318,7 @@ func startDaemonset(context *clusterd.Context, store cephv1alpha1.ObjectStore, v
 			Template: makeRGWPodSpec(store, version, hostNetwork),
 		},
 	}
+	k8sutil.SetOwnerRefs(context.Clientset, store.Namespace, &daemonset.ObjectMeta, ownerRefs)
 
 	_, err := context.Clientset.ExtensionsV1beta1().DaemonSets(store.Namespace).Create(daemonset)
 	return err
@@ -370,15 +370,15 @@ func startService(context *clusterd.Context, store cephv1alpha1.ObjectStore, hos
 	labels := getLabels(store)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            instanceName(store),
-			Namespace:       store.Namespace,
-			Labels:          labels,
-			OwnerReferences: ownerRefs,
+			Name:      instanceName(store),
+			Namespace: store.Namespace,
+			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
 		},
 	}
+	k8sutil.SetOwnerRefs(context.Clientset, store.Namespace, &svc.ObjectMeta, ownerRefs)
 	if hostNetwork {
 		svc.Spec.ClusterIP = v1.ClusterIPNone
 	}

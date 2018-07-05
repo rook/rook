@@ -73,6 +73,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, 7, len(cont.Env))
+	assert.False(t, *cont.SecurityContext.Privileged)
 
 	logger.Infof("Command : %+v", cont.Command)
 	assert.Equal(t, "ceph", cont.Args[0])
