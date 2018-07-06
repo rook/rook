@@ -58,9 +58,8 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf(prepareAppNameFmt, nodeName),
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:      fmt.Sprintf(prepareAppNameFmt, nodeName),
+			Namespace: c.Namespace,
 			Labels: map[string]string{
 				k8sutil.AppAttr:     prepareAppName,
 				k8sutil.ClusterAttr: c.Namespace,
