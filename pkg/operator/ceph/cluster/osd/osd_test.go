@@ -162,6 +162,9 @@ func TestAddRemoveNode(t *testing.T) {
 					assert.Equal(t, "1", args[2])
 					return "", nil
 				}
+				if args[1] == "find" {
+					return `{"crush_location":{"host":"my-host"}}`, nil
+				}
 			}
 			if args[0] == "df" && args[1] == "detail" {
 				return `{"stats":{"total_bytes":0,"total_used_bytes":0,"total_avail_bytes":3072}}`, nil
@@ -193,6 +196,9 @@ func TestAddRemoveNode(t *testing.T) {
 		startErr = c.Start()
 		startCompleted = true
 	}()
+
+	// simulate the completion of the nodes orchestration
+	mockNodeOrchestrationCompletion(c, nodeName, statusMapWatcher)
 
 	// wait for orchestration to complete
 	waitForOrchestrationCompletion(c, nodeName, &startCompleted)

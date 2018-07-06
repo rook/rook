@@ -124,24 +124,20 @@ func (a *OsdAgent) removeDirs(context *clusterd.Context, removedDirs map[string]
 		return nil
 	}
 
-	var errorMessages []string
-
-	// walk through each of the directories and remove the OSD associated with them
+	// walk through each of the OSD directories and remove them
+	var failedDirs []string
 	for dir, osdID := range removedDirs {
-		config := &osdConfig{id: osdID, configRoot: dir, dir: true, storeConfig: a.storeConfig,
-			kv: a.kv, storeName: config.GetConfigStoreName(a.nodeName)}
-
-		if err := a.removeOSD(context, config); err != nil {
+		if err := a.removeOSDConfigDir(dir, osdID); err != nil {
 			errMsg := fmt.Sprintf("failed to remove osd.%d. %+v", osdID, err)
 			logger.Error(errMsg)
-			errorMessages = append(errorMessages, errMsg)
+			failedDirs = append(failedDirs, dir)
 			continue
 		}
 	}
 
-	if len(errorMessages) > 0 {
+	if len(failedDirs) > 0 {
 		// at least one OSD failed, return an overall error
-		return fmt.Errorf(strings.Join(errorMessages, "\n"))
+		return fmt.Errorf("failed to cleanup directories: %v", failedDirs)
 	}
 
 	return nil
@@ -194,10 +190,8 @@ func (a *OsdAgent) removeDevices(context *clusterd.Context, removedDevicesScheme
 
 	// now start removing each OSD since they should now be running
 	for _, entry := range removedDevicesScheme.Entries {
-		cfg := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configRoot: context.ConfigDir,
-			partitionScheme: entry, storeConfig: a.storeConfig, kv: a.kv, storeName: config.GetConfigStoreName(a.nodeName)}
 
-		if err := a.removeOSD(context, cfg); err != nil {
+		if err := a.removeOSDConfigDir(context.ConfigDir, entry.ID); err != nil {
 			errMsg := fmt.Sprintf("failed to remove osd.%d. %+v", entry.ID, err)
 			logger.Error(errMsg)
 			errorMessages = append(errorMessages, errMsg)
@@ -503,12 +497,13 @@ func getOSDInfo(clusterName string, config *osdConfig, devPartInfo *devicePartIn
 	return osd
 }
 
-func (a *OsdAgent) removeOSD(context *clusterd.Context, config *osdConfig) error {
+func (a *OsdAgent) removeOSDConfigDir(configRoot string, id int) error {
 	// delete the OSD's local storage
-	osdRootDir := getOSDRootDir(config.configRoot, config.id)
+	osdRootDir := getOSDRootDir(configRoot, id)
+	logger.Infof("deleting osd dir: %s", osdRootDir)
 	if err := os.RemoveAll(osdRootDir); err != nil {
 		logger.Warningf("failed to delete osd.%d root dir from %s, it may need to be cleaned up manually: %+v",
-			config.id, osdRootDir, err)
+			id, osdRootDir, err)
 	}
 
 	return nil

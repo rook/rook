@@ -113,18 +113,24 @@ func parseOrchestrationStatus(data map[string]string) *OrchestrationStatus {
 	return &status
 }
 
-func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig) bool {
+func (c *Cluster) completeProvision(config *provisionConfig) bool {
+	timeoutMinutes := 10
+	return c.completeOSDsForAllNodes(config, true, timeoutMinutes)
+}
+
+func (c *Cluster) completeProvisionSkipOSDStart(config *provisionConfig) bool {
+	timeoutMinutes := 2
+	return c.completeOSDsForAllNodes(config, false, timeoutMinutes)
+}
+
+func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bool, timeoutMinutes int) bool {
 	selector := fmt.Sprintf("%s=%s,%s=%s",
 		k8sutil.AppAttr, appName,
 		orchestrationStatusKey, provisioningLabelKey,
 	)
-	return c.processOSDsWithLabels(config, selector, true)
-}
-
-func (c *Cluster) processOSDsWithLabels(config *provisionConfig, labelSelector string, configOSDs bool) bool {
 
 	opts := metav1.ListOptions{
-		LabelSelector: labelSelector,
+		LabelSelector: selector,
 	}
 
 	// check the status map to see if the node is already completed before we start watching
@@ -161,7 +167,6 @@ func (c *Cluster) processOSDsWithLabels(config *provisionConfig, labelSelector s
 	}
 
 	opts.Watch = true
-	timeoutMinutes := 10
 	currentTimeoutMinutes := 0
 	for {
 		logger.Infof("%d/%d node(s) completed osd provisioning", (originalNodes - remainingNodes.Count()), originalNodes)

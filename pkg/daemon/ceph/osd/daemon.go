@@ -24,7 +24,6 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -97,20 +96,12 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	if err != nil {
 		return fmt.Errorf("failed to get removed devices: %+v", err)
 	}
-	nodeCrushName, err := getNodeCrushNameFromDevices(context, agent, removedDevicesScheme)
-	if err != nil {
-		return fmt.Errorf("failed to get node crush name from devices: %+v", err)
-	}
 
 	// determine the set of directories that can/should be used for OSDs, with the default dir if no devices were specified.  save off the node's crush name if needed.
 	devicesSpecified := len(agent.devices) > 0
 	dirs, removedDirs, err := getDataDirs(context, agent.kv, agent.directories, devicesSpecified, agent.nodeName)
 	if err != nil {
 		return fmt.Errorf("failed to get data dirs. %+v", err)
-	}
-	nodeCrushName, err = getNodeCrushNameFromDirs(context, agent, removedDirs, nodeCrushName)
-	if err != nil {
-		return fmt.Errorf("failed to get node crush name from dirs: %+v", err)
 	}
 
 	// orchestration is about to start, update the status
@@ -149,11 +140,6 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 		return fmt.Errorf("failed to save osd dir map. %+v", err)
 	}
 
-	if oposd.IsRemovingNode(agent.devices) {
-		if err := cleanUpNodeResources(context, agent, nodeCrushName); err != nil {
-			logger.Warningf("failed to clean up node resources, they may need to be cleaned up manually: %+v", err)
-		}
-	}
 	logger.Infof("device osds:%v\ndir osds: %v", deviceOSDs, dirOSDs)
 	osds := append(deviceOSDs, dirOSDs...)
 
@@ -335,63 +321,4 @@ func getActiveAndRemovedDirs(currentDirList []string, savedDirMap map[string]int
 	}
 
 	return activeDirs, removedDirs
-}
-
-func getNodeCrushNameFromDevices(context *clusterd.Context, agent *OsdAgent, removedDevices *config.PerfScheme) (string, error) {
-	var nodeCrushName string
-	var err error
-
-	if oposd.IsRemovingNode(agent.devices) && len(removedDevices.Entries) > 0 {
-		// the node is being removed, save off the node's crush name so we can remove the entire node from the crush map later
-		// note we just use the ID of the first OSD in the removed devices list to look up its crush host
-		id := removedDevices.Entries[0].ID
-		nodeCrushName, err = client.GetCrushHostName(context, agent.cluster.Name, id)
-		if err != nil {
-			return "", fmt.Errorf("failed to get crush host name for osd.%d: %+v", id, err)
-		}
-	}
-
-	return nodeCrushName, nil
-}
-
-func getNodeCrushNameFromDirs(context *clusterd.Context, agent *OsdAgent, removedDirs map[string]int, nodeCrushName string) (string, error) {
-	if nodeCrushName != "" {
-		// we've already determined the node's crush name, just return it
-		return nodeCrushName, nil
-	}
-
-	var err error
-	if oposd.IsRemovingNode(agent.devices) && len(removedDirs) > 0 {
-		// the node is being removed and we don't yet have the node's crush name. try to look it up from the first OSD
-		// in the the removed dirs list so we can remove the entire node from the crush map later
-		var id int
-		for _, v := range removedDirs {
-			id = v
-			break
-		}
-
-		nodeCrushName, err = client.GetCrushHostName(context, agent.cluster.Name, id)
-		if err != nil {
-			return "", fmt.Errorf("failed to get crush host name for osd.%d: %+v", id, err)
-		}
-	}
-
-	return nodeCrushName, nil
-}
-
-func cleanUpNodeResources(context *clusterd.Context, agent *OsdAgent, nodeCrushName string) error {
-	if nodeCrushName != "" {
-		// we have the crush name for this node, meaning we should remove it from the crush map
-		if o, err := client.CrushRemove(context, agent.cluster.Name, nodeCrushName); err != nil {
-			return fmt.Errorf("failed to remove node %s from crush map.  %+v.  %s", nodeCrushName, err, o)
-		}
-	}
-
-	// clean up node config store
-	configStoreName := config.GetConfigStoreName(agent.nodeName)
-	if err := agent.kv.ClearStore(configStoreName); err != nil {
-		logger.Warningf("failed to delete node config store %s, may need to be cleaned up manually: %+v", configStoreName, err)
-	}
-
-	return nil
 }

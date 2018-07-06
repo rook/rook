@@ -1,5 +1,5 @@
 /*
-Copyright 2016 The Rook Authors. All rights reserved.
+Copyright 2018 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -176,5 +176,23 @@ func deleteOSDFileSystem(clientset kubernetes.Interface, namespace string, id in
 	if err != nil && !errors.IsNotFound(err) {
 		return err
 	}
+	return nil
+}
+
+func (c *Cluster) cleanUpNodeResources(nodeName, nodeCrushName string) error {
+
+	if nodeCrushName != "" {
+		// we have the crush name for this node, meaning we should remove it from the crush map
+		if o, err := client.CrushRemove(c.context, c.Namespace, nodeCrushName); err != nil {
+			return fmt.Errorf("failed to remove node %s from crush map.  %+v.  %s", nodeCrushName, err, o)
+		}
+	}
+
+	// clean up node config store
+	configStoreName := config.GetConfigStoreName(nodeName)
+	if err := c.kv.ClearStore(configStoreName); err != nil {
+		logger.Warningf("failed to delete node config store %s, may need to be cleaned up manually: %+v", configStoreName, err)
+	}
+
 	return nil
 }

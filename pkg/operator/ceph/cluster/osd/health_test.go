@@ -75,3 +75,11 @@ func TestOSDStatus(t *testing.T) {
 	// OSD monitor should stop tracking that process once the action is triggered
 	assert.Equal(t, 1, len(osdMon.lastStatus))
 }
+
+func TestMonitorStart(t *testing.T) {
+	stopCh := make(chan struct{})
+	osdMon := NewMonitor(&clusterd.Context{}, "cluster")
+	logger.Infof("starting osd monitor")
+	go osdMon.Start(stopCh)
+	close(stopCh)
+}

@@ -39,19 +39,26 @@ type Monitor struct {
 	lastStatus map[int]time.Time
 }
 
-// NewMonitor instantiates OSD monitoring
+// newMonitor instantiates OSD monitoring
 func NewMonitor(context *clusterd.Context, clusterName string) *Monitor {
 	return &Monitor{context, clusterName, make(map[int]time.Time)}
 }
 
 // Run runs monitoring logic for osds status at set intervals
-func (m *Monitor) Run() {
+func (m *Monitor) Start(stopCh chan struct{}) {
+
 	for {
-		<-time.After(healthCheckInterval)
-		logger.Debug("Checking osd processes status.")
-		err := m.osdStatus()
-		if err != nil {
-			logger.Warningf("Failed OSD status check: %+v", err)
+		select {
+		case <-time.After(healthCheckInterval):
+			logger.Debug("Checking osd processes status.")
+			err := m.osdStatus()
+			if err != nil {
+				logger.Warningf("Failed OSD status check: %+v", err)
+			}
+
+		case <-stopCh:
+			logger.Infof("Stopping monitoring of OSDs in namespace %s", m.clusterName)
+			return
 		}
 	}
 }

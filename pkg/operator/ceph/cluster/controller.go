@@ -21,19 +21,15 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"sort"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
 	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
-	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/file"
@@ -41,9 +37,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -99,18 +93,7 @@ type ClusterController struct {
 	devicesInUse     bool
 	rookImage        string
 	watchLegacyTypes bool
-	stopCh           chan struct{}
-}
-
-type cluster struct {
-	context   *clusterd.Context
-	Namespace string
-	Spec      cephv1alpha1.ClusterSpec
-	mons      *mon.Cluster
-	mgrs      *mgr.Cluster
-	osds      *osd.Cluster
-	stopCh    chan struct{}
-	ownerRef  metav1.OwnerReference
+	clusterMap       map[string]*cluster
 }
 
 // NewClusterController create controller for watching cluster custom resources created
@@ -119,6 +102,7 @@ func NewClusterController(context *clusterd.Context, rookImage string, volumeAtt
 		context:          context,
 		volumeAttachment: volumeAttachment,
 		rookImage:        rookImage,
+		clusterMap:       make(map[string]*cluster),
 	}
 }
 
@@ -147,6 +131,13 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 	return nil
 }
 
+func (c *ClusterController) StopWatch() {
+	for _, cluster := range c.clusterMap {
+		close(cluster.stopCh)
+	}
+	c.clusterMap = make(map[string]*cluster)
+}
+
 // ************************************************************************************************
 // Add event functions
 // ************************************************************************************************
@@ -169,6 +160,8 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	cluster := newCluster(clusterObj, c.context)
+	c.clusterMap[cluster.Namespace] = cluster
+
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
 
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
@@ -227,10 +220,6 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		return
 	}
 
-	// Make and save stopCh for onDelete
-	cluster.stopCh = make(chan struct{})
-	c.stopCh = cluster.stopCh
-
 	// Start pool CRD watcher
 	poolController := pool.NewPoolController(c.context)
 	poolController.StartWatch(cluster.Namespace, cluster.stopCh, c.watchLegacyTypes)
@@ -246,6 +235,10 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons)
 	go healthChecker.Check(cluster.stopCh)
+
+	// Start the osd health checker
+	osdChecker := osd.NewMonitor(c.context, cluster.Namespace)
+	go osdChecker.Start(cluster.stopCh)
 
 	// add the finalizer to the crd
 	err = c.addFinalizer(clusterObj)
@@ -314,7 +307,12 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	logger.Debugf("old cluster: %+v", oldClust.Spec)
 	logger.Debugf("new cluster: %+v", newClust.Spec)
 
-	cluster := newCluster(newClust, c.context)
+	cluster, ok := c.clusterMap[newClust.Namespace]
+	if !ok {
+		logger.Errorf("Cannot update cluster %s that does not exist", newClust.Namespace)
+		return
+	}
+	cluster.Spec = &newClust.Spec
 
 	// attempt to update the cluster.  note this is done outside of wait.Poll because that function
 	// will wait for the retry interval before trying for the first time.
@@ -379,11 +377,14 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	if err != nil {
 		logger.Errorf("failed to delete cluster. %+v", err)
 	}
-	close(c.stopCh)
+	if cluster, ok := c.clusterMap[clust.Namespace]; ok {
+		close(cluster.stopCh)
+		delete(c.clusterMap, clust.Namespace)
+	}
 	if clust.Spec.Storage.AnyUseAllDevices() {
 		c.devicesInUse = false
 	}
-	discover.FreeDevicesByCluster(c.context, clust.Name)
+	discover.FreeDevicesByCluster(c.context, clust.Namespace)
 }
 
 func (c *ClusterController) handleDelete(cluster *cephv1alpha1.Cluster, retryInterval time.Duration) error {
@@ -560,10 +561,6 @@ func (c *ClusterController) updateClusterStatus(namespace, name string, state ce
 	return nil
 }
 
-func newCluster(c *cephv1alpha1.Cluster, context *clusterd.Context) *cluster {
-	return &cluster{Namespace: c.Namespace, Spec: c.Spec, context: context, ownerRef: ClusterOwnerRef(c.Namespace, string(c.UID))}
-}
-
 func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
 	blockOwner := true
 	return metav1.OwnerReference{
@@ -573,136 +570,4 @@ func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
 		UID:                types.UID(clusterID),
 		BlockOwnerDeletion: &blockOwner,
 	}
-}
-
-func (c *cluster) createInstance(rookImage string) error {
-
-	// Create a configmap for overriding ceph config settings
-	// These settings should only be modified by a user after they are initialized
-	placeholderConfig := map[string]string{
-		k8sutil.ConfigOverrideVal: "",
-	}
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: k8sutil.ConfigOverrideName,
-		},
-		Data: placeholderConfig,
-	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &cm.ObjectMeta, &c.ownerRef)
-
-	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
-	}
-
-	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.Mon, cephv1alpha1.GetMonPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, cephv1alpha1.GetMonResources(c.Spec.Resources), c.ownerRef)
-	err = c.mons.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the mons. %+v", err)
-	}
-
-	err = c.createInitialCrushMap()
-	if err != nil {
-		return fmt.Errorf("failed to create initial crushmap: %+v", err)
-	}
-
-	c.mgrs = mgr.New(c.context, c.Namespace, rookImage, cephv1alpha1.GetMgrPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, c.Spec.Dashboard, cephv1alpha1.GetMgrResources(c.Spec.Resources), c.ownerRef)
-	err = c.mgrs.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
-	}
-
-	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath,
-		cephv1alpha1.GetOSDPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork, cephv1alpha1.GetOSDResources(c.Spec.Resources), c.ownerRef)
-	err = c.osds.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the osds. %+v", err)
-	}
-
-	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
-	return nil
-}
-
-func (c *cluster) createInitialCrushMap() error {
-	configMapExists := false
-	createCrushMap := false
-
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(crushConfigMapName, metav1.GetOptions{})
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
-
-		// crush config map was not found, meaning we haven't created the initial crush map
-		createCrushMap = true
-	} else {
-		// crush config map was found, look in it to verify we've created the initial crush map
-		configMapExists = true
-		val, ok := cm.Data[crushmapCreatedKey]
-		if !ok {
-			createCrushMap = true
-		} else if val != "1" {
-			createCrushMap = true
-		}
-	}
-
-	if !createCrushMap {
-		// no need to create the crushmap, bail out
-		return nil
-	}
-
-	logger.Info("creating initial crushmap")
-	out, err := client.CreateDefaultCrushMap(c.context, c.Namespace)
-	if err != nil {
-		return fmt.Errorf("failed to create initial crushmap: %+v. output: %s", err, out)
-	}
-
-	logger.Info("created initial crushmap")
-
-	// save the fact that we've created the initial crushmap to a configmap
-	configMap := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      crushConfigMapName,
-			Namespace: c.Namespace,
-		},
-		Data: map[string]string{crushmapCreatedKey: "1"},
-	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &configMap.ObjectMeta, &c.ownerRef)
-
-	if !configMapExists {
-		if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {
-			return fmt.Errorf("failed to create configmap %s: %+v", crushConfigMapName, err)
-		}
-	} else {
-		if _, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
-			return fmt.Errorf("failed to update configmap %s: %+v", crushConfigMapName, err)
-		}
-	}
-
-	return nil
-}
-
-func clusterChanged(oldCluster, newCluster cephv1alpha1.ClusterSpec) bool {
-	changeFound := false
-	oldStorage := oldCluster.Storage
-	newStorage := newCluster.Storage
-
-	// sort the nodes by name then compare to see if there are changes
-	sort.Sort(rookv1alpha2.NodesByName(oldStorage.Nodes))
-	sort.Sort(rookv1alpha2.NodesByName(newStorage.Nodes))
-	if !reflect.DeepEqual(oldStorage.Nodes, newStorage.Nodes) {
-		logger.Infof("The list of nodes has changed")
-		changeFound = true
-	}
-
-	if oldCluster.Dashboard.Enabled != newCluster.Dashboard.Enabled {
-		logger.Infof("dashboard enabled has changed from %t to %t", oldCluster.Dashboard.Enabled, newCluster.Dashboard.Enabled)
-		changeFound = true
-	}
-
-	return changeFound
 }

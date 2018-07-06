@@ -155,7 +155,7 @@ func (c *Cluster) Start() error {
 	// are resuming a previous orchestration attempt)
 	config := newProvisionConfig()
 	logger.Infof("checking if orchestration is still in progress")
-	c.completeOSDsForAllNodes(config)
+	c.completeProvisionSkipOSDStart(config)
 
 	// start the jobs to provision the OSD devices and directories
 	logger.Infof("start provisioning the osds on nodes, if needed")
@@ -163,22 +163,19 @@ func (c *Cluster) Start() error {
 
 	// start the OSD pods, waiting for the provisioning to be completed
 	logger.Infof("start osds after provisioning is completed, if needed")
-	c.completeOSDsForAllNodes(config)
+	c.completeProvision(config)
 
 	// handle the removed nodes and rebalance the PGs
 	logger.Infof("checking if any nodes were removed")
 	c.handleRemovedNodes(config)
 
-	if len(config.errorMessages) == 0 {
-		logger.Infof("completed running osds in namespace %s", c.Namespace)
-		// start osd health monitor
-		mon := NewMonitor(c.context, c.Namespace)
-		go mon.Run()
-		return nil
+	if len(config.errorMessages) > 0 {
+		return fmt.Errorf("%d failures encountered while running osds in namespace %s: %+v",
+			len(config.errorMessages), c.Namespace, strings.Join(config.errorMessages, "\n"))
 	}
 
-	return fmt.Errorf("%d failures encountered while running osds in namespace %s: %+v",
-		len(config.errorMessages), c.Namespace, strings.Join(config.errorMessages, "\n"))
+	logger.Infof("completed running osds in namespace %s", c.Namespace)
+	return nil
 }
 
 func (c *Cluster) startProvisioning(config *provisionConfig) {
@@ -231,7 +228,11 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 			}
 		}
 
-		c.updateJob(job, n.Name, config, "provision")
+		if !c.updateJob(job, n.Name, config, "provision") {
+			if err = discover.FreeDevices(c.context, n.Name, c.Namespace); err != nil {
+				logger.Warningf("failed to free devices: %s", err)
+			}
+		}
 	}
 }
 
@@ -244,12 +245,13 @@ func (c *Cluster) updateJob(job *batch.Job, nodeName string, config *provisionCo
 		// delete the job that already exists from a previous run
 		if existingJob.Status.Active > 0 {
 			logger.Infof("Found previous %s job for node %s. Status=%+v", action, nodeName, existingJob.Status)
-		} else {
-			logger.Infof("Removing previous %s job for node %s to start a new one", action, nodeName)
-			err := c.deleteBatchJob(existingJob.Name)
-			if err != nil {
-				logger.Warningf("failed to remove job %s. %+v", nodeName, err)
-			}
+			return true
+		}
+
+		logger.Infof("Removing previous %s job for node %s to start a new one", action, nodeName)
+		err := c.deleteBatchJob(existingJob.Name)
+		if err != nil {
+			logger.Warningf("failed to remove job %s. %+v", nodeName, err)
 		}
 	}
 
@@ -259,21 +261,10 @@ func (c *Cluster) updateJob(job *batch.Job, nodeName string, config *provisionCo
 			// we failed to create job, update the orchestration status for this node
 			message := fmt.Sprintf("failed to create %s job for node %s. %+v", action, nodeName, err)
 			c.handleOrchestrationFailure(config, nodeName, message)
-			err = discover.FreeDevices(c.context, nodeName, c.Namespace)
-			if err != nil {
-				logger.Warningf("failed to free devices: %s", err)
-			}
 			return false
-		} else {
-			// TODO: if the job already exists, we may need to edit the pod template spec, for example if device filter has changed
-			message := fmt.Sprintf("%s job already exists for node %s", action, nodeName)
-			config.addError(message)
-			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
-			if err := c.updateNodeStatus(nodeName, status); err != nil {
-				config.addError("failed to update status for node %s. %+v", nodeName, err)
-				return false
-			}
 		}
+
+		// the job is already in progress so we will let it run to completion
 	}
 
 	logger.Infof("osd %s job started for node %s", action, nodeName)
@@ -309,7 +300,7 @@ func (c *Cluster) deleteBatchJob(name string) error {
 func (c *Cluster) startOSDDaemon(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) bool {
 
 	osds := status.OSDs
-	logger.Infof("starting %d osd daemons on node %s: %+v", len(osds), nodeName, osds)
+	logger.Infof("starting %d osd daemons on node %s", len(osds), nodeName)
 
 	// fully resolve the storage config and resources for this node
 	n := c.resolveNode(nodeName)
@@ -372,13 +363,10 @@ func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
 
 		logger.Infof("removing node %s from the cluster with %d OSDs", removedNode, len(osdDeployments))
 
-		// update the orchestration status of this removed node to the starting state
-		if err := c.updateNodeStatus(removedNode, OrchestrationStatus{Status: OrchestrationStatusStarting}); err != nil {
-			config.addError("failed to set orchestration starting status for removed node %s: %+v", removedNode, err)
-			continue
-		}
-
+		var nodeCrushName string
+		errorOnCurrentNode := false
 		for _, dp := range osdDeployments {
+
 			logger.Infof("processing removed osd %s", dp.Name)
 			id := getIDFromDeployment(dp)
 			if id == unknownID {
@@ -386,37 +374,74 @@ func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
 				continue
 			}
 
-			logger.Infof("removed osd %s has id %d", dp.Name, id)
+			// on the first osd, get the crush name of the host
+			if nodeCrushName == "" {
+				nodeCrushName, err = client.GetCrushHostName(c.context, c.Namespace, id)
+				if err != nil {
+					config.addError("failed to get crush host name for osd.%d: %+v", id, err)
+				}
+			}
+
 			if err := removeOSD(c.context, c.Namespace, dp.Name, id); err != nil {
 				config.addError("failed to remove osd %d. %+v", id, err)
+				errorOnCurrentNode = true
 				continue
 			}
 		}
 
-		// trigger orchestration on the removed node by telling it not to use any storage at all.  note that the directories are still passed in
-		// so that the pod will be able to mount them and migrate data from them.
-		logger.Infof("done processing %d osd removals on node %s. Starting cleanup job on the node.", len(osdDeployments), removedNode)
-		job, err := c.makeJob(removedNode, []rookalpha.Device{}, rookalpha.Selection{DeviceFilter: "none"},
-			v1.ResourceRequirements{}, osdconfig.StoreConfig{}, "", "")
-		if err != nil {
-			message := fmt.Sprintf("failed to create prepare job node %s: %v", removedNode, err)
-			config.addError(message)
-			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
-			if err := c.updateNodeStatus(removedNode, status); err != nil {
-				config.addError("failed to update node %s status. %+v", removedNode, err)
-			}
-			continue
+		if err := c.updateNodeStatus(removedNode, OrchestrationStatus{Status: OrchestrationStatusCompleted}); err != nil {
+			config.addError("failed to set orchestration starting status for removed node %s: %+v", removedNode, err)
 		}
 
-		if c.updateJob(job, removedNode, config, "remove") {
-			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("completed removing osds from node %s", removedNode)}
-			if err := c.updateNodeStatus(removedNode, status); err != nil {
-				config.addError("failed to update node %s status. %+v", removedNode, err)
-			}
+		if errorOnCurrentNode {
+			logger.Warningf("done processing %d osd removals on node %s with an error removing the osds. skipping node cleanup", len(osdDeployments), removedNode)
+		} else {
+			logger.Infof("succeeded processing %d osd removals on node %s. starting cleanup job on the node.", len(osdDeployments), removedNode)
+			c.cleanupRemovedNode(config, removedNode, nodeCrushName)
 		}
 	}
-
 	logger.Infof("done processing removed nodes")
+}
+
+func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushName string) {
+	// update the orchestration status of this removed node to the starting state
+	if err := c.updateNodeStatus(nodeName, OrchestrationStatus{Status: OrchestrationStatusStarting}); err != nil {
+		config.addError("failed to set orchestration starting status for removed node %s: %+v", nodeName, err)
+		return
+	}
+
+	// trigger orchestration on the removed node by telling it not to use any storage at all.  note that the directories are still passed in
+	// so that the pod will be able to mount them and migrate data from them.
+	job, err := c.makeJob(nodeName, []rookalpha.Device{}, rookalpha.Selection{DeviceFilter: "none"},
+		v1.ResourceRequirements{}, osdconfig.StoreConfig{}, "", "")
+	if err != nil {
+		message := fmt.Sprintf("failed to create prepare job node %s: %v", nodeName, err)
+		config.addError(message)
+		status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
+		if err := c.updateNodeStatus(nodeName, status); err != nil {
+			config.addError("failed to update node %s status. %+v", nodeName, err)
+		}
+		return
+	}
+
+	if !c.updateJob(job, nodeName, config, "remove") {
+		status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to cleanup osd config on node %s", nodeName)}
+		if err := c.updateNodeStatus(nodeName, status); err != nil {
+			config.addError("failed to update node %s status. %+v", nodeName, err)
+		}
+		return
+	}
+
+	logger.Infof("waiting for removal cleanup on node %s", nodeName)
+	c.completeProvisionSkipOSDStart(config)
+	logger.Infof("done waiting for removal cleanup on node %s", nodeName)
+
+	// after the batch job is finished, clean up all the resources related to the node
+	if crushName != "" {
+		if err := c.cleanUpNodeResources(nodeName, crushName); err != nil {
+			config.addError("failed to cleanup node resources for %s", crushName)
+		}
+	}
 }
 
 func (c *Cluster) discoverStorageNodes() (map[string][]*extensions.Deployment, error) {
