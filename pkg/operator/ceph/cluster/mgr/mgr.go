@@ -22,7 +22,7 @@ import (
 	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -58,11 +58,11 @@ type Cluster struct {
 	HostNetwork bool
 	resources   v1.ResourceRequirements
 	ownerRef    metav1.OwnerReference
-	dashboard   cephv1alpha1.DashboardSpec
+	dashboard   cephv1beta1.DashboardSpec
 }
 
 // New creates an instance of the mgr
-func New(context *clusterd.Context, namespace, version string, placement rookalpha.Placement, hostNetwork bool, dashboard cephv1alpha1.DashboardSpec,
+func New(context *clusterd.Context, namespace, version string, placement rookalpha.Placement, hostNetwork bool, dashboard cephv1beta1.DashboardSpec,
 	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:     context,

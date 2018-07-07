@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -35,7 +35,7 @@ import (
 
 func TestGetClusterObject(t *testing.T) {
 	// get a current version cluster object, should return with no error and no migration needed
-	cluster, migrationNeeded, err := getClusterObject(&cephv1alpha1.Cluster{})
+	cluster, migrationNeeded, err := getClusterObject(&cephv1beta1.Cluster{})
 	assert.NotNil(t, cluster)
 	assert.False(t, migrationNeeded)
 	assert.Nil(t, err)
@@ -77,7 +77,7 @@ func TestMigrateClusterObject(t *testing.T) {
 	assert.Nil(t, err)
 
 	// perform the migration of the converted legacy cluster
-	err = controller.migrateClusterObject(convertedCluster)
+	err = controller.migrateClusterObject(convertedCluster, legacyCluster)
 	assert.Nil(t, err)
 
 	assertLegacyClusterMigrated(t, context, legacyCluster)
@@ -115,7 +115,7 @@ func TestOnUpdateLegacyClusterDeleted(t *testing.T) {
 			Name:              "legacy-cluster-428",
 			Namespace:         "rook-361",
 			DeletionTimestamp: &metav1.Time{Time: time.Now()},
-			Finalizers:        []string{finalizerNameLegacy},
+			Finalizers:        []string{finalizerNameRookLegacy},
 		},
 	}
 
@@ -217,34 +217,34 @@ func TestConvertLegacyCluster(t *testing.T) {
 		},
 	}
 
-	expectedCluster := cephv1alpha1.Cluster{
+	expectedCluster := cephv1beta1.Cluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-cluster-5283",
 			Namespace: "rook-9837",
 		},
-		Spec: cephv1alpha1.ClusterSpec{
+		Spec: cephv1beta1.ClusterSpec{
 			DataDirHostPath: "/var/lib/rook302",
-			Mon: cephv1alpha1.MonSpec{
+			Mon: cephv1beta1.MonSpec{
 				Count:                5,
 				AllowMultiplePerNode: true,
 			},
 			Network: rookv1alpha2.NetworkSpec{HostNetwork: true},
 			Placement: rookv1alpha2.PlacementSpec{
 				rookv1alpha2.PlacementKeyAll: rookv1alpha2.Placement{Tolerations: []v1.Toleration{{Key: "storage-node", Operator: v1.TolerationOpExists}}},
-				cephv1alpha1.PlacementKeyMon: rookv1alpha2.Placement{
+				cephv1beta1.PlacementKeyMon: rookv1alpha2.Placement{
 					PodAntiAffinity: &v1.PodAntiAffinity{
 						RequiredDuringSchedulingIgnoredDuringExecution: []v1.PodAffinityTerm{
 							{LabelSelector: &metav1.LabelSelector{MatchLabels: map[string]string{"label": "value"}}},
 						},
 					},
 				},
-				cephv1alpha1.PlacementKeyMgr: rookv1alpha2.Placement{},
-				cephv1alpha1.PlacementKeyOSD: rookv1alpha2.Placement{},
+				cephv1beta1.PlacementKeyMgr: rookv1alpha2.Placement{},
+				cephv1beta1.PlacementKeyOSD: rookv1alpha2.Placement{},
 			},
 			Resources: rookv1alpha2.ResourceSpec{
-				cephv1alpha1.ResourcesKeyOSD: v1.ResourceRequirements{Limits: v1.ResourceList{v1.ResourceMemory: resource.MustParse("250Mi")}},
-				cephv1alpha1.ResourcesKeyMon: v1.ResourceRequirements{},
-				cephv1alpha1.ResourcesKeyMgr: v1.ResourceRequirements{},
+				cephv1beta1.ResourcesKeyOSD: v1.ResourceRequirements{Limits: v1.ResourceList{v1.ResourceMemory: resource.MustParse("250Mi")}},
+				cephv1beta1.ResourcesKeyMon: v1.ResourceRequirements{},
+				cephv1beta1.ResourcesKeyMgr: v1.ResourceRequirements{},
 			},
 			Storage: rookv1alpha2.StorageScopeSpec{
 				UseAllNodes: false,
@@ -300,17 +300,17 @@ func TestConvertLegacyCluster(t *testing.T) {
 	}
 
 	// convert the legacy cluster and compare it to the expected cluster result
-	assert.Equal(t, expectedCluster, *(convertLegacyCluster(&legacyCluster)))
+	assert.Equal(t, expectedCluster, *(convertRookLegacyCluster(&legacyCluster)))
 
 	// check if legacy monCount is `0` that we default to `3`
 	legacyCluster.Spec.MonCount = 0
 	expectedCluster.Spec.Mon.Count = 3
-	assert.Equal(t, expectedCluster, *(convertLegacyCluster(&legacyCluster)))
+	assert.Equal(t, expectedCluster, *(convertRookLegacyCluster(&legacyCluster)))
 }
 
 func assertLegacyClusterMigrated(t *testing.T, context *clusterd.Context, legacyCluster *rookv1alpha1.Cluster) {
 	// assert that a current cluster object was created via the migration
-	migratedCluster, err := context.RookClientset.CephV1alpha1().Clusters(legacyCluster.Namespace).Get(legacyCluster.Name, metav1.GetOptions{})
+	migratedCluster, err := context.RookClientset.CephV1beta1().Clusters(legacyCluster.Namespace).Get(legacyCluster.Name, metav1.GetOptions{})
 	assert.NotNil(t, migratedCluster)
 	assert.Nil(t, err)
 

@@ -22,7 +22,7 @@ import (
 	"strconv"
 	"testing"
 
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -47,7 +47,7 @@ func TestStartMGR(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	c := New(context, "ns", "myversion", rookalpha.Placement{}, false, cephv1alpha1.DashboardSpec{Enabled: true}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(context, "ns", "myversion", rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{Enabled: true}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic service
@@ -87,7 +87,7 @@ func validateStart(t *testing.T, c *Cluster) {
 }
 
 func TestPodSpec(t *testing.T) {
-	c := New(nil, "ns", "rook/rook:myversion", rookalpha.Placement{}, false, cephv1alpha1.DashboardSpec{}, v1.ResourceRequirements{
+	c := New(nil, "ns", "rook/rook:myversion", rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{
 		Limits: v1.ResourceList{
 			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
 		},
@@ -125,7 +125,7 @@ func TestPodSpec(t *testing.T) {
 }
 
 func TestServiceSpec(t *testing.T) {
-	c := New(&clusterd.Context{}, "ns", "myversion", rookalpha.Placement{}, false, cephv1alpha1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{}, "ns", "myversion", rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	s := c.makeMetricsService("rook-mgr")
 	assert.NotNil(t, s)
@@ -134,7 +134,7 @@ func TestServiceSpec(t *testing.T) {
 }
 
 func TestHostNetwork(t *testing.T) {
-	c := New(nil, "ns", "myversion", rookalpha.Placement{}, true, cephv1alpha1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(nil, "ns", "myversion", rookalpha.Placement{}, true, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	d := c.makeDeployment("mgr-a", "a")
 	assert.NotNil(t, d)

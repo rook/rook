@@ -9,7 +9,7 @@ func BlockResourceOperation(k8sh *utils.K8sHelper, yaml string, action string) (
 }
 
 func GetBlockPoolDef(poolName string, namespace string, replicaSize string) string {
-	return `apiVersion: ceph.rook.io/v1alpha1
+	return `apiVersion: ceph.rook.io/v1beta1
 kind: Pool
 metadata:
   name: ` + poolName + `

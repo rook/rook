@@ -44,7 +44,7 @@ spec:
     plural: clusters
     singular: cluster
   scope: Namespaced
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -58,7 +58,7 @@ spec:
     plural: filesystems
     singular: filesystem
   scope: Namespaced
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -72,7 +72,7 @@ spec:
     plural: objectstores
     singular: objectstore
   scope: Namespaced
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -86,7 +86,7 @@ spec:
     plural: pools
     singular: pool
   scope: Namespaced
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -381,7 +381,7 @@ subjects:
 
 //GetRookCluster returns rook-cluster manifest
 func (i *InstallData) GetRookCluster(namespace, storeType, dataDirHostPath string, useAllDevices bool, mons int) string {
-	return `apiVersion: ceph.rook.io/v1alpha1
+	return `apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
   name: ` + namespace + `

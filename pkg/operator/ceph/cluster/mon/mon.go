@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -110,7 +110,7 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath, version string, mon cephv1alpha1.MonSpec, placement rookalpha.Placement, hostNetwork bool,
+func New(context *clusterd.Context, namespace, dataDirHostPath, version string, mon cephv1beta1.MonSpec, placement rookalpha.Placement, hostNetwork bool,
 	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:              context,
