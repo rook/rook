@@ -68,7 +68,7 @@ kind: Namespace
 metadata:
   name: rook-ceph
 ---
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
   name: rook-ceph
