@@ -41,7 +41,7 @@ spec:
   - name: nfs-share
     server:
       accessMode: ReadWrire
-      squash: root
+      squash: none
     persistentVolumeClaim:
       claimName: googlePD-claim
 ```

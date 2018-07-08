@@ -38,6 +38,9 @@ cockroachdb.%:
 minio.%:
 	@$(MAKE) -C minio PLATFORM=$*
 
+nfs.%:
+	@$(MAKE) -C nfs PLATFORM=$*
+
 do.build.images.%: $(foreach i,$(IMAGES), $(i).%);
 
 do.build: do.build.images.$(PLATFORM) ;

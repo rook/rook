@@ -18,8 +18,9 @@ limitations under the License.
 package nfs
 
 import (
-	goerrors "errors"
+	"fmt"
 	"reflect"
+	s "strings"
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
@@ -40,8 +41,8 @@ const (
 	customResourceName       = "nfsserver"
 	customResourceNamePlural = "nfsservers"
 	appName                  = "rook-nfs"
-	nfsVolumeName            = "nfsConfigData"
-	nfsConfigDataDir         = "/nfs-ganesha"
+	nfsConfigMapName         = "nfs-ganesha-config"
+	nfsConfigMapPath         = "/nfs-ganesha/config"
 	nfsPort                  = 2049
 	rpcPort                  = 111
 )
@@ -120,10 +121,8 @@ func getServerConfig(exports []nfsv1alpha1.ExportsSpec) map[string]string {
 	configOpt := make(map[string]string)
 
 	for _, export := range exports {
-		for _, server := range export.Server {
-			configOpt["accessMode"] = server.AccessMode
-			configOpt["squash"] = server.Squash
-		}
+		configOpt["accessMode"] = export.Server.AccessMode
+		configOpt["squash"] = export.Server.Squash
 	}
 
 	return configOpt
@@ -133,11 +132,9 @@ func getClientConfig(exports []nfsv1alpha1.ExportsSpec) map[string]string {
 	configOpt := make(map[string]string)
 
 	for _, export := range exports {
-		for _, server := range export.Server {
-			for _, client := range server.AllowedClients {
-				configOpt["accessMode"] = client.AccessMode
-				configOpt["squash"] = client.Squash
-			}
+		for _, client := range export.Server.AllowedClients {
+			configOpt["accessMode"] = client.AccessMode
+			configOpt["squash"] = client.Squash
 		}
 	}
 
@@ -175,9 +172,10 @@ func validateServerConfig(spec *nfsv1alpha1.NFSServerSpec) error {
 func checkAccessMode(accessMode string) error {
 	// TODO: Add code to check access mode for "ReadWrite", "ReadOnly" and "none"
 	// Current focusing on MVP which will have only ReadWrite for the time being
-	if accessMode != "ReadWrite" {
-		return goerrors.New(`Currently "ReadWrite" is the only supported access mode`)
-	}
+	//if accessMode != "ReadWrite" {
+	//	err := fmt.Sprintf("%s not supported, Currently ReadWrite is the only supported access mode", accessMode)
+	//	return goerrors.New(err)
+	//}
 
 	return nil
 }
@@ -185,9 +183,10 @@ func checkAccessMode(accessMode string) error {
 func checkSquash(squash string) error {
 	// TODO: Add code to check squash mode for "none", "rootid", "root" and "all"
 	// Current focusing on MVP which will have only "root" as squash value for the time being
-	if squash != "root" {
-		return goerrors.New(`Currently "root" is the only supported squash option`)
-	}
+	//if squash != "none" {
+	//	err := fmt.Sprintf("%s not supported, Currently none is the only supported squash option", squash)
+	//	return goerrors.New(err)
+	//	}
 
 	return nil
 }
@@ -241,30 +240,125 @@ func (c *Controller) createNFSService(nfsServer *nfsServer) error {
 	return nil
 }
 
-func createPVCSpec(pvcName string, claimName string) v1.Volume {
-	pvcSpec := v1.Volume{
-		Name: pvcName,
-		VolumeSource: v1.VolumeSource{
-			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
-				ClaimName: claimName,
+func createGaneshaExport(id int, path string) string {
+	id = id + 10
+	idStr := fmt.Sprintf("%v", id)
+	nfsGaneshaConfig := `
+EXPORT {
+	Export_Id = ` + idStr + `;
+	Path = /` + path + `;
+	Pseudo = /` + path + `;
+	Protocols = 4;
+	Transports = TCP;
+	Sectype = sys;
+	Access_Type = RW;
+	Squash = none;
+	FSAL {
+		Name = VFS;
+	}
+}`
+
+	return nfsGaneshaConfig
+}
+
+func createGaneshaConfig(spec *nfsv1alpha1.NFSServerSpec) string {
+	pvcNameList := getPVCNameList(spec)
+
+	exportsList := make([]string, 0)
+	for id, claimName := range pvcNameList {
+		exportsList = append(exportsList, createGaneshaExport(id, claimName))
+	}
+	nfsGaneshaConfig := s.Join(exportsList, "\n")
+
+	return nfsGaneshaConfig
+}
+
+func (c *Controller) createNFSConfigMap(nfsServer *nfsServer) error {
+	nfsGaneshaConfig := createGaneshaConfig(&nfsServer.spec)
+
+	configMap := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:            nfsConfigMapName,
+			Namespace:       nfsServer.namespace,
+			OwnerReferences: []metav1.OwnerReference{nfsServer.ownerRef},
+			Labels:          createAppLabels(),
+		},
+		Data: map[string]string{
+			nfsConfigMapName: nfsGaneshaConfig,
+		},
+	}
+	_, err := c.context.Clientset.CoreV1().ConfigMaps(nfsServer.namespace).Create(configMap)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func getPVCNameList(spec *nfsv1alpha1.NFSServerSpec) []string {
+	exports := spec.Exports
+	pvcNameList := make([]string, 0)
+	for _, export := range exports {
+		claimName := export.PersistentVolumeClaim.ClaimName
+		if claimName != "" {
+			pvcNameList = append(pvcNameList, claimName)
+		}
+	}
+
+	return pvcNameList
+}
+
+func createPVCSpecList(spec *nfsv1alpha1.NFSServerSpec) []v1.Volume {
+	pvcSpecList := make([]v1.Volume, 0)
+	pvcNameList := getPVCNameList(spec)
+	for _, claimName := range pvcNameList {
+		pvcSpecList = append(pvcSpecList, v1.Volume{
+			Name: claimName,
+			VolumeSource: v1.VolumeSource{
+				PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+					ClaimName: claimName,
+				},
+			},
+		})
+	}
+
+	configMapSrc := &v1.ConfigMapVolumeSource{
+		Items: []v1.KeyToPath{
+			{
+				Key:  nfsConfigMapName,
+				Path: nfsConfigMapName,
 			},
 		},
 	}
+	configMapSrc.Name = nfsConfigMapName
+	configMapVol := v1.Volume{
+		Name: nfsConfigMapName,
+		VolumeSource: v1.VolumeSource{
+			ConfigMap: configMapSrc,
+		},
+	}
+	pvcSpecList = append(pvcSpecList, configMapVol)
 
-	return pvcSpec
+	return pvcSpecList
 }
 
-func createPVCList(spec *nfsv1alpha1.NFSServerSpec) []v1.Volume {
-	exports := spec.Exports
-
-	pvcList := make([]v1.Volume, 1)
-	for _, export := range exports {
-		pvcName := export.Name
-		claimName := export.PersistentVolumeClaim.ClaimName
-		pvcList = append(pvcList, createPVCSpec(pvcName, claimName))
+func createVolumeMountList(spec *nfsv1alpha1.NFSServerSpec) []v1.VolumeMount {
+	volumeMountList := make([]v1.VolumeMount, 0)
+	pvcNameList := getPVCNameList(spec)
+	for _, claimName := range pvcNameList {
+		volumeMountList = append(volumeMountList, v1.VolumeMount{
+			Name:      claimName,
+			MountPath: "/" + claimName,
+		})
 	}
 
-	return pvcList
+	configMapVolMount := v1.VolumeMount{
+		Name:      nfsConfigMapName,
+		MountPath: nfsConfigMapPath,
+	}
+	volumeMountList = append(volumeMountList, configMapVolMount)
+
+	return volumeMountList
 }
 
 func (c *Controller) createNfsPodSpec(nfsServer *nfsServer) v1.PodTemplateSpec {
@@ -279,34 +373,29 @@ func (c *Controller) createNfsPodSpec(nfsServer *nfsServer) v1.PodTemplateSpec {
 				{
 					Name:    nfsServer.name,
 					Image:   c.containerImage,
-					Command: []string{"/nfs-ganesha/start"},
+					Command: []string{"/start.sh"},
 					Ports: []v1.ContainerPort{
 						{
-							Name:          "nfsPort",
+							Name:          "nfs-port",
 							ContainerPort: int32(nfsPort),
 						},
 						{
-							Name:          "rpcPort",
+							Name:          "rpc-port",
 							ContainerPort: int32(rpcPort),
 						},
 					},
-					VolumeMounts: []v1.VolumeMount{
-						{
-							Name:      nfsVolumeName,
-							MountPath: nfsConfigDataDir,
-						},
-					},
+					VolumeMounts: createVolumeMountList(&nfsServer.spec),
 					SecurityContext: &v1.SecurityContext{
 						Capabilities: &v1.Capabilities{
 							Add: []v1.Capability{
-								"CAP_SYS_ADMIN",
+								"SYS_ADMIN",
 								"DAC_READ_SEARCH",
 							},
 						},
 					},
 				},
 			},
-			Volumes: createPVCList(&nfsServer.spec),
+			Volumes: createPVCSpecList(&nfsServer.spec),
 		},
 	}
 
@@ -354,14 +443,22 @@ func (c *Controller) onAdd(obj interface{}) {
 
 	logger.Infof("new NFS server %s added to namespace %s", nfsObj.Name, nfsServer.namespace)
 
+	logger.Infof("validating nfs server server spec in namespace %s", nfsServer.namespace)
 	if err := validateServerConfig(&nfsServer.spec); err != nil {
 		logger.Errorf("Invalid NFS server configuration spec %+v", err)
 	}
 
+	logger.Infof("creating nfs server service in namespace %s", nfsServer.namespace)
 	if err := c.createNFSService(nfsServer); err != nil {
 		logger.Errorf("Unable to create NFS service %+v", err)
 	}
 
+	logger.Infof("creating nfs server configuration in namespace %s", nfsServer.namespace)
+	if err := c.createNFSConfigMap(nfsServer); err != nil {
+		logger.Errorf("Unable to create NFS ConfigMap %+v", err)
+	}
+
+	logger.Infof("creating nfs server stateful set in namespace %s", nfsServer.namespace)
 	if err := c.createNfsStatefulSet(nfsServer, int32(nfsServer.spec.Replicas)); err != nil {
 		logger.Errorf("Unable to create NFS stateful set %+v", err)
 	}

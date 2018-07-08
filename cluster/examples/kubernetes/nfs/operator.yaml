@@ -1,0 +1,101 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name:  rook-nfs-system
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: nfsservers.nfs.rook.io
+spec:
+  group: nfs.rook.io
+  names:
+    kind: NFSServer
+    listKind: NFSServerList
+    plural: nfsservers
+    singular: nfsserver
+  scope: Namespaced
+  version: v1alpha1
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-nfs-operator
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - namespaces
+  - configmaps
+  - pods
+  - services
+  verbs:
+  - get
+  - watch
+  - create
+- apiGroups:
+  - apps
+  resources:
+  - statefulsets
+  verbs:
+  - get
+  - create
+- apiGroups:
+  - nfs.rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+- apiGroups:
+  - rook.io
+  resources:
+  - "*"
+  verbs:
+  - "*"
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-nfs-operator
+  namespace: rook-nfs-system
+---
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-nfs-operator
+  namespace: rook-nfs-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-nfs-operator
+subjects:
+- kind: ServiceAccount
+  name: rook-nfs-operator
+  namespace: rook-nfs-system
+---
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: rook-nfs-operator
+  namespace: rook-nfs-system
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: rook-nfs-operator
+    spec:
+      serviceAccountName: rook-nfs-operator
+      containers:
+      - name: rook-nfs-operator
+        image: rook/nfs:master
+        args: ["nfs", "operator"]
+        env:
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace

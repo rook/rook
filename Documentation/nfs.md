@@ -18,8 +18,9 @@ The limitations of these volumes also apply while they are shared by NFS. The li
 You can [follow these instructions](quickstart.md) to deploy a sample Rook Ceph cluster that can be attached to the NFS server pod for sharing.
 After the Rook Ceph cluster is up and running, create a PVC to consume it using the following command:
 ```console
-cd cluster/examples/kubernetes/nfs
-kubectl create -f ceph-pvc.yaml
+$ cd cluster/examples/kubernetes/nfs
+$ kubectl create -f namespace.yaml
+$ kubectl create -f ceph-pvc.yaml
 ```
 
 ## Deploy NFS Operator
@@ -27,14 +28,14 @@ kubectl create -f ceph-pvc.yaml
 First deploy the Rook NFS operator using the following commands:
 
 ```console
-cd cluster/examples/kubernetes/nfs
-kubectl create -f operator.yaml
+$ cd cluster/examples/kubernetes/nfs
+$ kubectl create -f operator.yaml
 ```
 
 You can check if the operator is up and running with:
 
 ```console
- kubectl -n rook-nfs-system get pod
+$ kubectl -n rook-nfs-system get pod
 ```
 
 ## Create and Initialize NFS Server
@@ -46,27 +47,32 @@ Full details of the configuration option can be found in the [NFS CRD documentat
 When you are ready to create a nfs export, simply run:
 
 ```console
-kubectl create -f nfs.yaml
+$ kubectl create -f nfs.yaml
 ```
 
 We can verify that a Kubernetes object has been created that represents our new NFS export with the command below.
 
 ```console
-kubectl -n rook-nfs get nfsexports.nfs.rook.io
+$ kubectl -n rook-nfs get nfsexports.nfs.rook.io
 ```
 
 To check if the NFS server is running:
 
 ```console
-kubectl -n rook-nfs get pod -l app=rook-nfs
+$ kubectl -n rook-nfs get pod -l app=rook-nfs
 ```
 
 ## Accessing the Export
 
-To access the export, first create a storageclass:
+To access the export, first create a persistant volume:
+To create the persistent volume, it is required to get the valid cluster ip of the nfs server pod. The following command gives the ip of the nfs server pod
+```console
+$ kubectl -n rook-nfs get service -l app=rook-nfs
+```
+Then edit the ip in nfs-pv.yaml
 
 ```console
-kubectl create -f storageclass.yaml
+$ kubectl create -f nfs-pv.yaml
 ```
 Then a PVC is used to access this storage.
 
@@ -74,22 +80,58 @@ Then a PVC is used to access this storage.
 
 There is an example of a web server app that utilizes the NFS Export to store data of its document root.
 ```console
-cd ../
-kubectl create -f httpd.yaml
+$ kubectl create -f nfs-pvc.yaml
 ```
+
+The NFS busybox controller uses a simple script to generate data written to the NFS server we just started.
+It updates index.html on the NFS server every 10 seconds.
+We start that now
+```console
+$ kubectl create -f nfs-busybox-rc.yaml
+```
+
+Now we mount the same NFS volume in a web server. We start a web server controller.
+```console
+$ kubectl create -f nfs-web-rc.yaml
+```
+Now we create a service for the web server
+```console
+$ kubectl create -f web-service.yaml
+```
+
 To check if the PVC is attached run the following command:
 ```console
-kubectl get pvc
+$ kubectl get pvc
 ```
+We can then use the busybox container we launched before to check that nginx is serving the data appropriately.
+```console
+$ kubectl get pod -l name=nfs-busybox
+NAME                READY     STATUS    RESTARTS   AGE
+nfs-busybox-jdhf3   1/1       Running   0          1h
+nfs-busybox-w3s4t   1/1       Running   0          1h
+$ kubectl get services nfs-web
+NAME      LABELS    SELECTOR            IP(S)        PORT(S)
+nfs-web   <none>    role=web-frontend   10.0.68.37   80/TCP
+$ kubectl exec nfs-busybox-jdhf3 -- wget -qO- http://10.0.68.37
+Thu Oct 22 19:28:55 UTC 2015
+nfs-busybox-w3s4t
+```
+
 
 ## Teardown
 
 To clean up all resources associated with this walk-through, you can run the commands below.
 
 ```console
-kubectl delete -f nfs.yaml
-kubectl delete -f operator.yaml
-kubectl delete -f ceph-pvc.yaml
+$ kubectl delete -f web-service.yaml
+$ kubectl delete -f nfs-web-rc.yaml
+$ kubectl delete -f nfs-busybox-rc.yaml
+$ kubectl delete -f nfs-pvc.yaml
+$ kubectl delete -f nfs-pv.yaml
+$ kubectl delete -f nfs.yaml
+$ kubectl delete -f ceph-pvc.yaml
+$ kubectl delete -f namepace.yaml
+$ kubectl delete -f operator.yaml
 ```
 
 ## Troubleshooting

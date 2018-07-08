@@ -56,7 +56,7 @@ func NewSimpleClientset(objects ...runtime.Object) *Clientset {
 	cs.Fake.AddWatchReactor("*", testing.DefaultWatchReactor(watch.NewFake(), nil))
 
 	cs.discovery = &fakediscovery.FakeDiscovery{Fake: &cs.Fake}
-    return cs
+	return cs
 }
 
 // Clientset implements clientset.Interface. Meant to be embedded into a

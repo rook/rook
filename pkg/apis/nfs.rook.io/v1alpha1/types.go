@@ -59,7 +59,7 @@ type ExportsSpec struct {
 	Name string `json:"name,omitempty"`
 
 	// The NFS server configuration
-	Server []ServerSpec `json:"server,omitempty"`
+	Server ServerSpec `json:"server,omitempty"`
 
 	// PVC from which the NFS daemon gets storage for sharing
 	PersistentVolumeClaim v1.PersistentVolumeClaimVolumeSource `json:"persistentVolumeClaim,omitempty"`

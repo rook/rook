@@ -5,6 +5,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: ceph-claim
+  namespace: rook-nfs
 spec:
   storageClassName: rook-ceph-block
   accessModes:

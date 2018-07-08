@@ -121,6 +121,7 @@ case "${1:-}" in
     copy_image_to_cluster "${BUILD_REGISTRY}/ceph-toolbox-amd64" rook/ceph-toolbox:master
     copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
     copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" rook/minio:master
+    copy_image_to_cluster ${BUILD_REGISTRY}/nfs-amd64 rook/nfs:master
     ;;
   down)
     minikube stop
@@ -135,6 +136,7 @@ case "${1:-}" in
     copy_image_to_cluster "${BUILD_REGISTRY}/ceph-toolbox-amd64" rook/ceph-toolbox:master
     copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
     copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" rook/minio:master
+    copy_image_to_cluster ${BUILD_REGISTRY}/nfs-amd64 rook/nfs:master
     ;;
   restart)
     if check_context; then
