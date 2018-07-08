@@ -33,7 +33,7 @@ spec:
           - name: POD_NAMESPACE
             valueFrom:
               fieldRef:
-                fieldPath: metadata.namespac
+                fieldPath: metadata.namespace
           resources:
 {{ toYaml .Values.resources | indent 12 }}
     {{- with .Values.nodeSelector }}
