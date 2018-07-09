@@ -96,22 +96,23 @@ The command removes all the Kubernetes components associated with the chart and 
 
 The following tables lists the configurable parameters of the rook-operator chart and their default values.
 
-| Parameter          | Description                          | Default              |
-|--------------------|--------------------------------------|----------------------|
-| `image.repository` | Image                                | `rook/ceph`          |
-| `image.tag`        | Image tag                            | `master`             |
-| `image.pullPolicy` | Image pull policy                    | `IfNotPresent`       |
-| `rbacEnable`       | If true, create & use RBAC resources | `true`               |
-| `pspEnable`        | If true, create & use PSP resources  | `true`               |
-| `resources`        | Pod resource requests & limits       | `{}`                 |
-| `logLevel`         | Global log level        | `INFO`                 |
+| Parameter                 | Description                                                     | Default                                                |
+| ------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
+| `image.repository`        | Image                                                           | `rook/ceph`                                            |
+| `image.tag`               | Image tag                                                       | `master`                                               |
+| `image.pullPolicy`        | Image pull policy                                               | `IfNotPresent`                                         |
+| `rbacEnable`              | If true, create & use RBAC resources                            | `true`                                                 |
+| `pspEnable`               | If true, create & use PSP resources                             | `true`                                                 |
+| `resources`               | Pod resource requests & limits                                  | `{}`                                                   |
+| `logLevel`                | Global log level                                                | `INFO`                                                 |
+| `nodeSelector`            | Kubernetes `nodeSelector` to add to the Deployment.             | <none>                                                 |
 | `agent.flexVolumeDirPath` | Path where the Rook agent discovers the flex volume plugins (*) | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
-| `agent.toleration`        | Toleration for the agent pods | <none> |
-| `agent.tolerationKey`     | The specific key of the taint to tolerate | <none> |
-| `discover.toleration`        | Toleration for the discover pods | <none> |
-| `discover.tolerationKey`     | The specific key of the taint to tolerate | <none> |
-| `mon.healthCheckInterval` | The frequency for the operator to check the mon health | `45s` |
-| `mon.monOutTimeout`       | The time to wait before failing over an unhealthy mon | `300s` |
+| `agent.toleration`        | Toleration for the agent pods                                   | <none>                                                 |
+| `agent.tolerationKey`     | The specific key of the taint to tolerate                       | <none>                                                 |
+| `discover.toleration`     | Toleration for the discover pods                                | <none>                                                 |
+| `discover.tolerationKey`  | The specific key of the taint to tolerate                       | <none>                                                 |
+| `mon.healthCheckInterval` | The frequency for the operator to check the mon health          | `45s`                                                  |
+| `mon.monOutTimeout`       | The time to wait before failing over an unhealthy mon           | `300s`                                                 |
 
 &ast; For Kubernetes 1.9.x `agent.flexVolumeDirPath` should be changed to `/var/lib/kubelet/volumeplugins/`. [Flexvolume documentation](flexvolume.md#for-kubernetes--19x)
 
