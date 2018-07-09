@@ -89,11 +89,46 @@ func waitForRebalance(context *clusterd.Context, namespace string, osdID int, in
 					osdID, initialUsage, currUsage)
 			}
 
-			if curr.UsedKB == "0" && curr.Pgs == "" {
+			var initUsedKB, initPGs int64
+			if init.UsedKB != "" {
+				initUsedKB, err = init.UsedKB.Int64()
+				if err != nil {
+					return fmt.Errorf("error converting init used KB to int64. %+v", err)
+				}
+			}
+			if init.Pgs != "" {
+				initPGs, err = init.Pgs.Int64()
+				if err != nil {
+					return fmt.Errorf("error converting init PGs to int64. %+v", err)
+				}
+			}
+
+			// when the initial OSD PG count or used KB is zero there is nothing to do here
+			if initPGs == 0 || initUsedKB == 0 {
 				return nil
 			}
 
-			if curr.UsedKB >= init.UsedKB && curr.Pgs >= init.Pgs {
+			var currUsedKB, currPGs int64
+
+			if curr.UsedKB != "" {
+				currUsedKB, err = curr.UsedKB.Int64()
+				if err != nil {
+					return fmt.Errorf("error converting current used KB to int64. %+v", err)
+				}
+			}
+
+			if curr.Pgs != "" {
+				currPGs, err = curr.Pgs.Int64()
+				if err != nil {
+					return fmt.Errorf("error converting current PGs to int64. %+v", err)
+				}
+			}
+
+			if currUsedKB == 0 && currPGs == 0 {
+				return nil
+			}
+
+			if currUsedKB >= initUsedKB && currPGs >= initPGs {
 				return fmt.Errorf("current used space and pg count for osd.%d has not decreased still. curr=%+v", osdID, curr)
 			}
 
