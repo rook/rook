@@ -93,7 +93,7 @@ and
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook-system
+  name: rook-ceph-system
 ---
 # Allow the rook-ceph-system serviceAccount to use the privileged PSP
 apiVersion: rbac.authorization.k8s.io/v1
@@ -107,7 +107,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: rook-system
+  namespace: rook-ceph-system
 ```
 
 Save these definitions to one or multiple yaml files and create them by executing `kubectl apply -f <nameOfYourFile>.yaml`
