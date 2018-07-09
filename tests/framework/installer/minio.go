@@ -18,7 +18,6 @@ package installer
 
 import (
 	"fmt"
-	"strconv"
 
 	"github.com/rook/rook/tests/framework/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -146,27 +145,38 @@ func (i *InstallData) GetMinioCRDs() string {
 	return `apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
-  name: clusters.minio.rook.io
+  name: objectstores.minio.rook.io
 spec:
-  group: cockroachdb.rook.io
+  group: minio.rook.io
   names:
-    kind: Cluster
-    listKind: ClusterList
-    plural: clusters
-    singular: cluster
+    kind: ObjectStore
+    listKind: ObjectStoreList
+    plural: objectstores
+    singular: objectstore
   scope: Namespaced
   version: v1alpha1
 `
-	// TODO: tallen
 }
 
 func (i *InstallData) GetMinioOperator(namespace string) string {
-	// TODO: tallen
-
-	return `kind: Namespace
-apiVersion: v1
+	return `apiVersion: v1
+kind: Namespace
 metadata:
   name: ` + namespace + `
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectstores.minio.rook.io
+spec:
+  group: minio.rook.io
+  names:
+    kind: ObjectStore
+    listKind: ObjectStoreList
+    plural: objectstores
+    singular: objectstore
+  scope: Namespaced
+  version: v1alpha1
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -176,33 +186,29 @@ rules:
 - apiGroups:
   - ""
   resources:
+  - namespaces
+  - secrets
   - pods
-  verbs:
-  - get
-  - list
-- apiGroups:
-  - ""
-  resources:
   - services
   verbs:
   - get
-  - list
+  - watch
   - create
-  - update
 - apiGroups:
   - apps
   resources:
   - statefulsets
   verbs:
+  - get
   - create
 - apiGroups:
-  - policy
+  - minio.rook.io
   resources:
-  - poddisruptionbudgets
+  - "*"
   verbs:
-  - create
+  - "*"
 - apiGroups:
-  - cockroachdb.rook.io
+  - rook.io
   resources:
   - "*"
   verbs:
@@ -211,40 +217,40 @@ rules:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: rook-cockroachdb-operator
+  name: rook-minio-operator
   namespace: ` + namespace + `
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1beta1
 metadata:
-  name: rook-cockroachdb-operator
+  name: rook-minio-operator
   namespace: ` + namespace + `
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: rook-cockroachdb-operator
+  name: rook-minio-operator
 subjects:
 - kind: ServiceAccount
-  name: rook-cockroachdb-operator
+  name: rook-minio-operator
   namespace: ` + namespace + `
 ---
 apiVersion: apps/v1beta1
 kind: Deployment
 metadata:
-  name: rook-cockroachdb-operator
+  name: rook-minio-operator
   namespace: ` + namespace + `
 spec:
   replicas: 1
   template:
     metadata:
       labels:
-        app: rook-cockroachdb-operator
+        app: rook-minio-operator
     spec:
-      serviceAccountName: rook-cockroachdb-operator
+      serviceAccountName: rook-minio-operator
       containers:
-      - name: rook-cockroachdb-operator
-        image: rook/cockroachdb:master
-        args: ["cockroachdb", "operator"]
+      - name: rook-minio-operator
+        image: rook/minio:master
+        args: ["minio", "operator"]
         env:
         - name: POD_NAME
           valueFrom:
@@ -258,18 +264,36 @@ spec:
 }
 
 func (i *InstallData) GetMinioCluster(namespace string, count int) string {
-	return `apiVersion: minio.rook.io/v1alpha1
-kind: Cluster
+	return `apiVersion: v1
+kind: Secret
 metadata:
-  name: ` + namespace + `
+  name: access-keys
+  namespace: ` + namespace + `
+type: Opaque
+data:
+  # Base64 encoded string: "TEMP_DEMO_ACCESS_KEY"
+  username: VEVNUF9ERU1PX0FDQ0VTU19LRVk=
+  # Base64 encoded string: "TEMP_DEMO_SECRET_KEY"
+  password: VEVNUF9ERU1PX1NFQ1JFVF9LRVk=
+---
+apiVersion: minio.rook.io/v1alpha1
+kind: ObjectStore
+metadata:
+  name: my-store
   namespace: ` + namespace + `
 spec:
   scope:
-    nodeCount: ` + strconv.Itoa(count) + `
-  secure: false
-  volumeSize: 1Gi
-  cachePercent: 25
-  maxSQLMemoryPercent: 25
+    nodeCount: 4
+  placement:
+    tolerations:
+    nodeAffinity:
+    podAffinity:
+    podAnyAffinity:
+  port: 9000
+  credentials:
+    name: access-keys
+  namespace: ` + namespace + `
+  storageAmount: "10G"
 `
 }
 
