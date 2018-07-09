@@ -52,7 +52,7 @@ func (hc *HealthChecker) Check(stopCh chan struct{}) {
 	for {
 		select {
 		case <-stopCh:
-			logger.Infof("Stopping monitoring of cluster in namespace %s", hc.monCluster.Namespace)
+			logger.Infof("Stopping monitoring of mons in namespace %s", hc.monCluster.Namespace)
 			return
 
 		case <-time.After(HealthCheckInterval):

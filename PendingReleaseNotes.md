@@ -18,6 +18,7 @@
 - The [Ceph dashboard](Documentation/ceph-dashboard.md) can be enabled by the cluster CRD.
 - `monCount` has been renamed to `count`, which has been moved into the [`mon` spec](Documentation/ceph-cluster-crd.md#mon-settings). Additionally the default if unspecified or `0`, is now `3`.
 - You can now toggle if multiple Ceph mons might be placed on one node with the `allowMultiplePerNode` option (default `false`) in the [`mon` spec](Documentation/ceph-cluster-crd.md#mon-settings).
+- One OSD will run per pod to increase the reliability and maintainability of the OSDs. No longer will restarting an OSD pod mean that all OSDs on that node will go down. See the [design doc](design/dedicated-osd-pod.md).
 
 ## Breaking Changes
 
@@ -32,6 +33,7 @@
 - Ceph container images now use CentOS 7 as a base
 - Minimal privileges are configured with a new cluster role for the operator and Ceph daemons, following the new [security design](design/security-model.md).
   - A role binding must be defined for each cluster to be managed by the operator.
+- OSD pods are started by a deployment, instead of a daemonset or a replicaset. The new OSD pods will crash loop until the old daemonset or replicasets are removed.
 
 ### Removal of the API service and rookctl tool
 

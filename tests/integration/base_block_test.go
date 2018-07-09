@@ -74,37 +74,68 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	require.Nil(s.T(), wtErr)
 	logger.Infof("Write to Block storage successfully")
 
-	logger.Infof("step 4: Read from  block storage")
+	logger.Infof("step 4: Read from block storage")
 	read, rErr := helper.BlockClient.Read(blockPodName, blockMountPath, "bsFile1", "")
 	require.Nil(s.T(), rErr)
 	assert.Contains(s.T(), read, "Smoke Test Data form Block storage", "make sure content of the files is unchanged")
 	logger.Infof("Read from  Block storage successfully")
 
-	logger.Infof("step 5: Mount same block storage on a different pod. Should not be allowed")
+	logger.Infof("step 5: Restart the OSDs to confirm they are still healthy after restart")
+	restartOSDPods(k8sh, s, namespace)
+
+	logger.Infof("step 6: Read from block storage again")
+	read, rErr = helper.BlockClient.Read(blockPodName, blockMountPath, "bsFile1", "")
+	require.Nil(s.T(), rErr)
+	assert.Contains(s.T(), read, "Smoke Test Data form Block storage", "make sure content of the files is unchanged")
+	logger.Infof("Read from  Block storage successfully")
+
+	logger.Infof("step 7: Mount same block storage on a different pod. Should not be allowed")
 	otherPod := "block-test2"
 	_, mtErr = helper.BlockClient.BlockMap(getBlockPodDefintion(otherPod, blockName, false), blockMountPath)
 	require.Nil(s.T(), mtErr)
 	require.True(s.T(), k8sh.IsPodInError(otherPod, defaultNamespace, "FailedMount", "Volume is already attached by pod"), "make sure block-test2 pod errors out while mounting the volume")
 	logger.Infof("Block Storage successfully fenced")
 
-	logger.Infof("step 6: Delete fenced pod")
+	logger.Infof("step 8: Delete fenced pod")
 	_, unmtErr := helper.BlockClient.BlockUnmap(getBlockPodDefintion(otherPod, blockName, false), blockMountPath)
 	require.Nil(s.T(), unmtErr)
 	require.True(s.T(), k8sh.IsPodTerminated(otherPod, defaultNamespace), "make sure block-test2 pod is terminated")
 	logger.Infof("Fenced pod deleted successfully")
 
-	logger.Infof("step 7: Unmount block storage")
+	logger.Infof("step 9: Unmount block storage")
 	_, unmtErr = helper.BlockClient.BlockUnmap(getBlockPodDefintion(podName, blockName, false), blockMountPath)
 	require.Nil(s.T(), unmtErr)
 	require.True(s.T(), k8sh.IsVolumeResourceAbsent(installer.SystemNamespace(namespace), crdName), fmt.Sprintf("make sure Volume %s is deleted", crdName))
 	require.True(s.T(), k8sh.IsPodTerminated(blockPodName, defaultNamespace), "make sure block-test pod is terminated")
 	logger.Infof("Block Storage unmounted successfully")
 
-	logger.Infof("step 8: Deleting block storage")
+	logger.Infof("step 10: Deleting block storage")
 	_, dbErr := installer.BlockResourceOperation(k8sh, installer.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, blockName, "ReadWriteOnce"), "delete")
 	require.Nil(s.T(), dbErr)
 	require.True(s.T(), retryBlockImageCountCheck(helper, len(initBlockImages), 0, namespace), "Make sure a block is deleted")
 	logger.Infof("Block Storage deleted successfully")
+}
+
+func restartOSDPods(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
+	osdLabel := "app=rook-ceph-osd"
+
+	// Delete the osd pod(s)
+	logger.Infof("Deleting osd pod(s)")
+	pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: osdLabel})
+	for _, pod := range pods.Items {
+		options := metav1.DeleteOptions{}
+		err = k8sh.Clientset.CoreV1().Pods(namespace).Delete(pod.Name, &options)
+		assert.Nil(s.T(), err)
+
+		logger.Infof("Waiting for osd pod %s to be deleted", pod.Name)
+		deleted := k8sh.WaitUntilPodIsDeleted(pod.Name, namespace)
+		assert.True(s.T(), deleted)
+	}
+
+	// Wait for the new pods to run
+	logger.Infof("Waiting for new osd pod to run")
+	err = k8sh.WaitForLabeledPodToRun(osdLabel, namespace)
+	assert.Nil(s.T(), err)
 }
 
 func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, clusterNamespace string) {

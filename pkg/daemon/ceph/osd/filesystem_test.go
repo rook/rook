@@ -97,15 +97,15 @@ func createMockMetadata(t *testing.T, configDir, name, content string) {
 	assert.Nil(t, err)
 }
 
-func assertBackedUpFile(t *testing.T, config *osdConfig, kv *k8sutil.ConfigMapKVStore, name, expectedContent string) {
-	storeName := fmt.Sprintf(osdFSStoreNameFmt, config.id)
+func assertBackedUpFile(t *testing.T, c *osdConfig, kv *k8sutil.ConfigMapKVStore, name, expectedContent string) {
+	storeName := fmt.Sprintf(config.OSDFSStoreNameFmt, c.id)
 	val, err := kv.GetValue(storeName, name)
 	assert.Nil(t, err)
 	assert.Equal(t, expectedContent, val)
 }
 
-func assertNotBackedUpFile(t *testing.T, config *osdConfig, kv *k8sutil.ConfigMapKVStore, name string) {
-	storeName := fmt.Sprintf(osdFSStoreNameFmt, config.id)
+func assertNotBackedUpFile(t *testing.T, c *osdConfig, kv *k8sutil.ConfigMapKVStore, name string) {
+	storeName := fmt.Sprintf(config.OSDFSStoreNameFmt, c.id)
 	_, err := kv.GetValue(storeName, name)
 	assert.NotNil(t, err)
 	assert.True(t, errors.IsNotFound(err))
@@ -130,7 +130,7 @@ func TestRepairOSDFileSystem(t *testing.T) {
 	}
 
 	// mock a backed up OSD filesystem
-	storeName := fmt.Sprintf(osdFSStoreNameFmt, cfg.id)
+	storeName := fmt.Sprintf(config.OSDFSStoreNameFmt, cfg.id)
 	kv.SetValue(storeName, "foo", "bar")
 	kv.SetValue(storeName, "bif", "bonk")
 

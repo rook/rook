@@ -44,8 +44,6 @@ This will begin the process of all cluster resources being cleaned up, after whi
 ```console
 kubectl delete -n rook-ceph-system daemonset rook-ceph-agent
 kubectl delete -f operator.yaml
-kubectl delete clusterroles rook-ceph-agent
-kubectl delete clusterrolebindings rook-ceph-agent
 ```
 
 Optionally remove the rook-ceph namespace if it is not in use by any other resources.

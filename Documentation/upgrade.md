@@ -226,6 +226,9 @@ cd cluster/examples/kubernetes/ceph
 cat operator.yaml | sed -e 's/namespace: rook-ceph-system/namespace: rook-system/g' | kubectl create -f -
 ```
 
+After the operator starts, after several minutes you may see some new OSD pods being started and then crash looping. This is expected. This will be resolved when you get to the 
+[OSD section](#object-storage-daemons-osds).
+
 #### Operator Health Verification
 To verify the operator pod is `Running` and using the new version of `rook/ceph:master`, use the following commands:
 ```bash
@@ -240,7 +243,7 @@ Instructions for verifying cluster health can be found in the [health verificati
 After upgrading the operator, the placement groups may show as status unknown. If you see this, go to the section
 on [upgrading OSDs](#object-storage-daemons-osds). Upgrading the OSDs will resolve this issue.
 ```
-kubectl -n rook exec -it rook-ceph-tools -- ceph status
+kubectl -n rook exec -it rook-tools -- ceph status
 ...
     pgs:     100.000% pgs unknown
              100 unknown
@@ -292,46 +295,25 @@ If all of the monitors (and the cluster health overall) look good, then we can m
 This is okay as long as the cluster health looks good and all monitors eventually reach quorum again.
 
 ### Object Storage Daemons (OSDs)
-The OSD pods can be managed in two different ways, depending on how you specified your storage configuration in your [Cluster spec](./ceph-cluster-crd.md#cluster-settings).  
-* **Use all nodes:** all storage nodes in the cluster will be managed by a single daemon set.
-Only the one daemon set will need to be edited to update the image version, then each OSD pod will need to be deleted so that a new pod will be created by the daemon set to take its place.
-* **Specify individual nodes:** each storage node specified in the cluster spec will be managed by its own individual replica set.
-Each of these replica sets will need to be edited to update the image version, then each OSD pod will need to be deleted so its replica set will start a new pod on the new version to replace it.
+The OSDs have gone through major changes in the 0.8. While the upgrade steps will seem very disruptive, we feel confident that this will keep your cluster running.
+The critical changes to the OSDs include (see also the [design doc](/design/dedicated-osd-pod.md)):
+- Each OSD will run in its own pod. No longer will a DaemonSet be deployed to run OSDs on all nodes, or ReplicaSets to run all the OSDs on individual nodes. 
+- Each OSD is manged by a K8s Deployment
+- A new "discovery" DaemonSet is running in the rook system namespace that will identify all the available devices in the cluster
+- The operator will analyze the available devices, provision the desired OSDs with a "prepare" pod on each node where devices will run, then start the deployment for each OSD
 
-In this example, we are going to walk through the case where `useAllNodes: true` was set in the cluster spec, so there will be a single daemon set managing all the OSD pods.
+When the operator starts, it will automatically detect all the OSDs that had been configured previously and start the OSD pods with the new design.
+These new pods will crash loop until you delete the DaemonSet or ReplicaSets from the 0.7 release as follows. After they are deleted, the OSD pods should then start
+up with the same configuration and your data will be preserved.
 
-Let's update the container version of either the single OSD daemonset or every OSD replicaset (depending on how the OSDs were deployed).
-```
-# If using a daemonset for all nodes
-kubectl -n rook edit daemonset rook-ceph-osd
-
-# If using a replicaset for specific nodes, edit each one by one
-kubectl -n rook edit replicaset rook-ceph-osd-<node>
-```
-
-Update the version of the container.
-```
-        image: rook/ceph:master
-```
-
-Once the daemon set (or replica set) is updated, we can begin deleting each OSD pod **one at a time** and verifying a new one comes up to replace it that is running the new version.
-After each pod, the cluster health and OSD status should remain or return to an okay state as described in the [health verification section](#health-verification).
-To get the names of all the OSD pods, the following can be used:
+To move to this new design, you will need to delete the previous DaemonSets and ReplicaSets.
 ```bash
-kubectl -n rook get pod -l app=rook-ceph-osd -o jsonpath='{range .items[*]}{.metadata.name}{"\n"}{end}'
-```
+# If you are using the DaemonSet (useAllNodes: true)
+kubectl -n rook delete daemonset rook-ceph-osd
 
-Below is an example of deleting just one of the OSD pods (note that the names of your OSD pods will be different):
-```bash
-kubectl -n rook delete pod rook-ceph-osd-kcj8f
+# If you are using the ReplicaSets (useAllNodes: false), you will need to delete the replicaset for each node
+kubectl -n rook delete replicaset rook-ceph-osd-<node>
 ```
-
-The status and version for all OSD pods can be collected with the following command:
-```bash
-kubectl -n rook get pod -l app=rook-ceph-osd -o jsonpath='{range .items[*]}{.metadata.name}{" "}{.status.phase}{" "}{.spec.containers[0].image}{"\n"}{end}'
-```
-
-Remember after each OSD pod to verify the cluster health using the instructions found in the [health verification section](#health-verification).
 
 ### Ceph Manager
 The ceph manager has been renamed in 0.8. The new manager will be started automatically by the operator. 
