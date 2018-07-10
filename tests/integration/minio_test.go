@@ -54,7 +54,7 @@ func (suite *MinioSuite) TearDownSuite() {
 
 func (suite *MinioSuite) SetUp() {
 	suite.namespace = "minio-ns"
-	suite.systemNamespace = installer.SystemNamespace(suite.namespace)
+	suite.systemNamespace = suite.namespace
 	suite.instanceCount = 4
 
 	k8sHelper, err := utils.CreateK8sHelper(suite.T)
