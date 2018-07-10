@@ -106,7 +106,7 @@ func (h *InstallHelper) CreateMinioCluster(namespace string, count int) error {
 func (h *InstallHelper) UninstallMinio(systemNamespace, namespace string) {
 	logger.Infof("uninstalling minio from namespace %s", namespace)
 
-	_, err := h.k8shelper.DeleteResource("-n", namespace, "cluster.minio.rook.io", namespace)
+	_, err := h.k8shelper.DeleteResource("-n", namespace, "objectstores.minio.rook.io", namespace)
 	h.checkError(err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 	crdCheckerFunc := func() error {
@@ -120,7 +120,7 @@ func (h *InstallHelper) UninstallMinio(systemNamespace, namespace string) {
 	h.checkError(err, fmt.Sprintf("cannot delete namespace %s", namespace))
 
 	logger.Infof("removing the operator from namespace %s", systemNamespace)
-	_, err = h.k8shelper.DeleteResource("crd", "clusters.minio.rook.io")
+	_, err = h.k8shelper.DeleteResource("crd", "objectstores.minio.rook.io")
 	h.checkError(err, "cannot delete CRDs")
 
 	minioOperator := h.installData.GetMinioOperator(systemNamespace)
@@ -163,20 +163,6 @@ func (i *InstallData) GetMinioOperator(namespace string) string {
 kind: Namespace
 metadata:
   name: ` + namespace + `
----
-apiVersion: apiextensions.k8s.io/v1beta1
-kind: CustomResourceDefinition
-metadata:
-  name: objectstores.minio.rook.io
-spec:
-  group: minio.rook.io
-  names:
-    kind: ObjectStore
-    listKind: ObjectStoreList
-    plural: objectstores
-    singular: objectstore
-  scope: Namespaced
-  version: v1alpha1
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
@@ -283,7 +269,7 @@ metadata:
   namespace: ` + namespace + `
 spec:
   scope:
-    nodeCount: 4
+    nodeCount: ` + string(count) + `
   placement:
     tolerations:
     nodeAffinity:
