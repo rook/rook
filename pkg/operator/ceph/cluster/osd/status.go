@@ -54,7 +54,7 @@ func newProvisionConfig() *provisionConfig {
 }
 
 func (c *provisionConfig) addError(message string, args ...interface{}) {
-	logger.Errorf(message, args)
+	logger.Errorf(message, args...)
 	c.errorMessages = append(c.errorMessages, fmt.Sprintf(message, args...))
 }
 

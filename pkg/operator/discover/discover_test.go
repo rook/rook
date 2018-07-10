@@ -112,10 +112,10 @@ func TestGetAvailableDevices(t *testing.T) {
 	devices, err := GetAvailableDevices(context, nodeName, ns, d, "^sd.", false)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(devices))
-	// devices should be in use now, 2nd try gets empty devices
+	// devices should be in use now, 2nd try gets the same list
 	devices, err = GetAvailableDevices(context, nodeName, ns, d, "^sd.", false)
 	assert.Nil(t, err)
-	assert.Equal(t, 0, len(devices))
+	assert.Equal(t, 1, len(devices))
 
 	err = FreeDevices(context, nodeName, ns)
 	assert.Nil(t, err)
@@ -123,10 +123,10 @@ func TestGetAvailableDevices(t *testing.T) {
 	devices, err = GetAvailableDevices(context, nodeName, ns, nil, "^sd.", false)
 	assert.Nil(t, err)
 	assert.Equal(t, 4, len(devices))
-	// devices should be in use now, 2nd try gets empty devices
+	// devices should be in use now, 2nd try gets the same list
 	devices, err = GetAvailableDevices(context, nodeName, ns, nil, "^sd.", false)
 	assert.Nil(t, err)
-	assert.Equal(t, 0, len(devices))
+	assert.Equal(t, 4, len(devices))
 
 	err = FreeDevices(context, nodeName, ns)
 	assert.Nil(t, err)
@@ -134,10 +134,10 @@ func TestGetAvailableDevices(t *testing.T) {
 	devices, err = GetAvailableDevices(context, nodeName, ns, nil, "", true)
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(devices))
-	// devices should be in use now, 2nd try gets empty devices
+	// devices should be in use now, 2nd try gets the same list
 	devices, err = GetAvailableDevices(context, nodeName, ns, nil, "", true)
 	assert.Nil(t, err)
-	assert.Equal(t, 0, len(devices))
+	assert.Equal(t, 5, len(devices))
 
 	err = FreeDevices(context, nodeName, ns)
 	assert.Nil(t, err)
