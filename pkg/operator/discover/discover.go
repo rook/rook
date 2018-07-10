@@ -30,7 +30,6 @@ import (
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/sys"
-
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/api/rbac/v1beta1"
@@ -345,19 +344,16 @@ func GetAvailableDevices(context *clusterd.Context, nodeName, clusterName string
 		return results, err
 	}
 
-	// filter those in use
 	nodeDevices := []sys.LocalDisk{}
-	for i := range nodeAllDevices {
-		isInUse := false
-		for j := range devicesInUse {
-			if nodeAllDevices[i].Name == devicesInUse[j].Name {
-				isInUse = true
+	for _, nodeDevice := range nodeAllDevices {
+		// TODO: Filter out devices that are in use by another cluster.
+		// We need to retain the devices in use for this cluster so the provisioner will continue to configure the same OSDs.
+		for _, device := range devicesInUse {
+			if nodeDevice.Name == device.Name {
 				break
 			}
 		}
-		if !isInUse {
-			nodeDevices = append(nodeDevices, nodeAllDevices[i])
-		}
+		nodeDevices = append(nodeDevices, nodeDevice)
 	}
 	claimedDevices := []sys.LocalDisk{}
 	// now those left are free to use
@@ -413,12 +409,15 @@ func GetAvailableDevices(context *clusterd.Context, nodeName, clusterName string
 			},
 			Data: data,
 		}
-		cm, err = context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
-
+		_, err = context.Clientset.CoreV1().ConfigMaps(namespace).Create(cm)
 		if err != nil {
-			logger.Warningf("failed to update device in use for cluster %s node %s: %v", clusterName, nodeName, err)
+			if !kserrors.IsAlreadyExists(err) {
+				return results, fmt.Errorf("failed to update device in use for cluster %s node %s: %v", clusterName, nodeName, err)
+			}
+			if _, err := context.Clientset.CoreV1().ConfigMaps(namespace).Update(cm); err != nil {
+				return results, fmt.Errorf("failed to update devices in use. %+v", err)
+			}
 		}
-		return results, err
 	}
 	return results, nil
 }
