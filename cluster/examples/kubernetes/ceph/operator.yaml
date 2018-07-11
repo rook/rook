@@ -17,7 +17,7 @@ spec:
     shortNames:
     - rcc
   scope: Namespaced
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -33,7 +33,7 @@ spec:
     shortNames:
     - rcfs
   scope: Namespaced
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -49,7 +49,7 @@ spec:
     shortNames:
     - rco
   scope: Namespaced
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -65,7 +65,7 @@ spec:
     shortNames:
     - rcp
   scope: Namespaced
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition

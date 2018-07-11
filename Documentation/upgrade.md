@@ -23,7 +23,6 @@ For a guide to upgrade previous versions of Rook, please refer to the version of
 ## Considerations
 With this manual upgrade guide, there are a few notes to consider:
 * **WARNING:** Upgrading a Rook cluster is a manual process in its very early stages.  There may be unexpected issues or obstacles that damage the integrity and health of your storage cluster, including data loss.  Only proceed with this guide if you are comfortable with that.
-* Rook is still in an alpha state.  Migrations and general support for breaking changes across versions are not supported or covered in this guide.
 * This guide assumes that your Rook operator and its agents are running in the `rook-system` namespace. It also assumes that your Rook cluster is in the `rook` namespace.  If any of these components is in a different namespace, search/replace all instances of `-n rook-system` and `-n rook` in this guide with `-n <your namespace>`.
   * New Ceph specific namespaces (`rook-ceph-system` and `rook-ceph`) are now used by default in the new release, but this guide maintains the usage of `rook-system` and `rook` for backwards compatibility.  Note that all user guides and examples have been updated to the new namespaces, so you will need to tweak them to maintain compatibility with the legacy `rook-system` and `rook` namespaces.
 
@@ -129,6 +128,14 @@ The general flow of the upgrade process will be to upgrade the version of a Rook
 In this guide, we will be upgrading a live Rook cluster running `v0.7.0` to the next available version of `v0.8`. Until the `v0.8` release is completed, we will instead use the latest `v0.7` tag such as `v0.7.0-27.gbfc8ec6`.
 
 Let's get started!
+
+### Upgrading a Build From Master
+
+It is **strongly recommended** that you use [official releases](https://github.com/rook/rook/releases) of Rook, as unreleased versions from the master branch are subject to changes and incompatibilities that will not be supported in the official releases.
+Builds from the master branch can have functionality changed and even removed at any time without compatibility support and without prior notice.
+
+If you have a cluster that is running a master build, please see the [appendix for special steps to manually upgrade](#appendix-upgrading-a-build-from-master) the `ceph.rook.io` CRDs in your cluster.
+
 
 ### Agents
 The Rook agents are deployed by the operator to run on every node.
@@ -384,3 +391,69 @@ Rook cluster installations on Kubernetes prior to version 1.7.x, use [ThirdParty
 - ObjectStore
 - Filesystem
 - VolumeAttachment
+
+## Appendix: Upgrading a Build from Master
+
+As previously mentioned, it is not recommended to run builds from master since they can change and be otherwise incompatible with the official releases.
+However, this section will attempt to provide the steps needed to upgrade a master build of Rook to the `v0.8` release.
+These steps are provided "as-is" with no guarantees of correctness in all environments.
+
+**NOTE:** Do not perform these commands if you are using official release versions of Rook, these steps are only for **builds from master**.
+
+First, stop and delete the operator, agents and discover pods:
+
+```console
+kubectl -n rook-ceph-system delete daemonset rook-ceph-agent
+kubectl -n rook-ceph-system delete daemonset rook-discover
+kubectl -n rook-ceph-system delete deployment rook-ceph-operator
+```
+
+Ensure the cluster finalizer has been removed so the cluster object can be deleted.
+
+```console
+kubectl -n rook-ceph patch clusters.ceph.rook.io rook-ceph -p '{"metadata":{"finalizers": []}}' --type=merge
+```
+
+Now backup all of the `ceph.rook.io/v1alpha1` CRD instances:
+
+```console
+for c in $(kubectl -n rook-ceph get clusters.ceph.rook.io -o jsonpath='{.items[*].metadata.name}'); do kubectl -n rook-ceph get clusters.ceph.rook.io ${c} -o yaml --export > rook-clusters-${c}-backup.yaml; done
+for p in $(kubectl -n rook-ceph get pools.ceph.rook.io -o jsonpath='{.items[*].metadata.name}'); do kubectl -n rook-ceph get pools.ceph.rook.io ${p} -o yaml --export > rook-pools-${p}-backup.yaml; done
+for f in $(kubectl -n rook-ceph get filesystems.ceph.rook.io -o jsonpath='{.items[*].metadata.name}'); do kubectl -n rook-ceph get filesystems.ceph.rook.io ${f} -o yaml --export > rook-filesystems-${f}-backup.yaml; done
+for o in $(kubectl -n rook-ceph get objectstores.ceph.rook.io -o jsonpath='{.items[*].metadata.name}'); do kubectl -n rook-ceph get objectstores.ceph.rook.io ${o} -o yaml --export > rook-objectstores-${o}-backup.yaml; done
+```
+
+Since they have all been backed up, let's remove (delete) the instances now:
+
+```console
+kubectl -n rook-ceph delete clusters.ceph.rook.io --all --cascade=false
+kubectl -n rook-ceph delete pools.ceph.rook.io --all --cascade=false
+kubectl -n rook-ceph delete filesystems.ceph.rook.io --all --cascade=false
+kubectl -n rook-ceph delete objectstores.ceph.rook.io --all --cascade=false
+```
+
+And we also need to delete the CRD types too:
+
+```console
+kubectl delete crd clusters.ceph.rook.io
+kubectl delete crd filesystems.ceph.rook.io
+kubectl delete crd objectstores.ceph.rook.io
+kubectl delete crd pools.ceph.rook.io
+```
+
+Wait a few seconds to make sure the types have been completely removed, and now start the oeprator back up again:
+
+```console
+kubectl create -f operator.yaml
+```
+
+After the operator is running, we can restore all the CRD instances as their new `ceph.rook.io/v1beta1` types:
+
+```console
+for c in $(ls rook-clusters-*-backup.yaml); do cat ${c} | sed -e 's/ceph.rook.io\/v1alpha1/ceph.rook.io\/v1beta1/g' -e 's/namespace: ""/namespace: rook-ceph/g' | kubectl create -f -; done
+for p in $(ls rook-pools-*-backup.yaml); do cat ${p} | sed -e 's/ceph.rook.io\/v1alpha1/ceph.rook.io\/v1beta1/g' -e 's/namespace: ""/namespace: rook-ceph/g' | kubectl create -f -; done
+for f in $(ls rook-filesystems-*-backup.yaml); do cat ${f} | sed -e 's/ceph.rook.io\/v1alpha1/ceph.rook.io\/v1beta1/g' -e 's/namespace: ""/namespace: rook-ceph/g' | kubectl create -f -; done
+for o in $(ls rook-objectstores-*-backup.yaml); do cat ${o} | sed -e 's/ceph.rook.io\/v1alpha1/ceph.rook.io\/v1beta1/g' -e 's/namespace: ""/namespace: rook-ceph/g' | kubectl create -f -; done
+```
+
+The `ceph.rook.io` CRDs should now be upgraded to `v1beta1`, so you can proceed with the rest of the upgrade process in the [operator health verification section](#operator-health-verification).

@@ -12,7 +12,7 @@ A Rook storage cluster must be configured and running in Kubernetes. In this exa
 
 When the storage admin is ready to create a shared file system, he will specify his desired configuration settings in a yaml file such as the following `filesystem.yaml`. This example is a simple configuration with metadata that is replicated across different hosts, and the data is erasure coded across multiple devices in the cluster. One active MDS instance is started, with one more MDS instance started in standby mode.
 ```yaml
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: Filesystem
 metadata:
   name: myfs

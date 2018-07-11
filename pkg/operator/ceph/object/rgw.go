@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"path"
 
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephrgw "github.com/rook/rook/pkg/daemon/ceph/rgw"
@@ -45,15 +45,15 @@ const (
 )
 
 // Start the rgw manager
-func CreateStore(context *clusterd.Context, store cephv1alpha1.ObjectStore, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
+func CreateStore(context *clusterd.Context, store cephv1beta1.ObjectStore, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
 	return createOrUpdate(context, store, version, hostNetwork, false, ownerRefs)
 }
 
-func UpdateStore(context *clusterd.Context, store cephv1alpha1.ObjectStore, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
+func UpdateStore(context *clusterd.Context, store cephv1beta1.ObjectStore, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
 	return createOrUpdate(context, store, version, hostNetwork, true, ownerRefs)
 }
 
-func createOrUpdate(context *clusterd.Context, store cephv1alpha1.ObjectStore, version string, hostNetwork, update bool, ownerRefs []metav1.OwnerReference) error {
+func createOrUpdate(context *clusterd.Context, store cephv1beta1.ObjectStore, version string, hostNetwork, update bool, ownerRefs []metav1.OwnerReference) error {
 	// validate the object store settings
 	if err := validateStore(context, store); err != nil {
 		return fmt.Errorf("invalid object store %s arguments. %+v", store.Name, err)
@@ -96,7 +96,7 @@ func createOrUpdate(context *clusterd.Context, store cephv1alpha1.ObjectStore, v
 	return nil
 }
 
-func startRGWPods(context *clusterd.Context, store cephv1alpha1.ObjectStore, version string, hostNetwork, update bool, ownerRefs []metav1.OwnerReference) error {
+func startRGWPods(context *clusterd.Context, store cephv1beta1.ObjectStore, version string, hostNetwork, update bool, ownerRefs []metav1.OwnerReference) error {
 
 	// if intended to update, remove the old pods so they can be created with the new spec settings
 	if update {
@@ -135,7 +135,7 @@ func startRGWPods(context *clusterd.Context, store cephv1alpha1.ObjectStore, ver
 
 // Delete the object store.
 // WARNING: This is a very destructive action that deletes all metadata and data pools.
-func DeleteStore(context *clusterd.Context, store cephv1alpha1.ObjectStore) error {
+func DeleteStore(context *clusterd.Context, store cephv1beta1.ObjectStore) error {
 	// check if the object store  exists
 	exists, err := storeExists(context, store)
 	if err != nil {
@@ -186,7 +186,7 @@ func DeleteStore(context *clusterd.Context, store cephv1alpha1.ObjectStore) erro
 }
 
 // Check if the object store exists depending on either the deployment or the daemonset
-func storeExists(context *clusterd.Context, store cephv1alpha1.ObjectStore) (bool, error) {
+func storeExists(context *clusterd.Context, store cephv1beta1.ObjectStore) (bool, error) {
 	_, err := context.Clientset.ExtensionsV1beta1().Deployments(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
@@ -209,7 +209,7 @@ func storeExists(context *clusterd.Context, store cephv1alpha1.ObjectStore) (boo
 	return false, nil
 }
 
-func createKeyring(context *clusterd.Context, store cephv1alpha1.ObjectStore, ownerRefs []metav1.OwnerReference) error {
+func createKeyring(context *clusterd.Context, store cephv1beta1.ObjectStore, ownerRefs []metav1.OwnerReference) error {
 	_, err := context.Clientset.CoreV1().Secrets(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
@@ -247,7 +247,7 @@ func createKeyring(context *clusterd.Context, store cephv1alpha1.ObjectStore, ow
 	return nil
 }
 
-func instanceName(store cephv1alpha1.ObjectStore) string {
+func instanceName(store cephv1beta1.ObjectStore) string {
 	return InstanceName(store.Name)
 }
 
@@ -255,7 +255,7 @@ func InstanceName(name string) string {
 	return fmt.Sprintf("%s-%s", appName, name)
 }
 
-func makeRGWPodSpec(store cephv1alpha1.ObjectStore, version string, hostNetwork bool) v1.PodTemplateSpec {
+func makeRGWPodSpec(store cephv1beta1.ObjectStore, version string, hostNetwork bool) v1.PodTemplateSpec {
 	podSpec := v1.PodSpec{
 		Containers:    []v1.Container{rgwContainer(store, version)},
 		RestartPolicy: v1.RestartPolicyAlways,
@@ -290,7 +290,7 @@ func makeRGWPodSpec(store cephv1alpha1.ObjectStore, version string, hostNetwork 
 	}
 }
 
-func startDeployment(context *clusterd.Context, store cephv1alpha1.ObjectStore, version string, replicas int32, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
+func startDeployment(context *clusterd.Context, store cephv1beta1.ObjectStore, version string, replicas int32, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
 
 	deployment := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -304,7 +304,7 @@ func startDeployment(context *clusterd.Context, store cephv1alpha1.ObjectStore, 
 	return err
 }
 
-func startDaemonset(context *clusterd.Context, store cephv1alpha1.ObjectStore, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
+func startDaemonset(context *clusterd.Context, store cephv1beta1.ObjectStore, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
 
 	daemonset := &extensions.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -324,7 +324,7 @@ func startDaemonset(context *clusterd.Context, store cephv1alpha1.ObjectStore, v
 	return err
 }
 
-func rgwContainer(store cephv1alpha1.ObjectStore, version string) v1.Container {
+func rgwContainer(store cephv1beta1.ObjectStore, version string) v1.Container {
 
 	container := v1.Container{
 		Args: []string{
@@ -366,7 +366,7 @@ func rgwContainer(store cephv1alpha1.ObjectStore, version string) v1.Container {
 	return container
 }
 
-func startService(context *clusterd.Context, store cephv1alpha1.ObjectStore, hostNetwork bool, ownerRefs []metav1.OwnerReference) (string, error) {
+func startService(context *clusterd.Context, store cephv1beta1.ObjectStore, hostNetwork bool, ownerRefs []metav1.OwnerReference) (string, error) {
 	labels := getLabels(store)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -411,7 +411,7 @@ func addPort(service *v1.Service, name string, port int32) {
 	})
 }
 
-func getLabels(store cephv1alpha1.ObjectStore) map[string]string {
+func getLabels(store cephv1beta1.ObjectStore) map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr:     appName,
 		k8sutil.ClusterAttr: store.Namespace,
@@ -434,7 +434,7 @@ func createRGWKeyring(context *clusterd.Context, clusterName string) (string, er
 }
 
 // Validate the object store arguments
-func validateStore(context *clusterd.Context, s cephv1alpha1.ObjectStore) error {
+func validateStore(context *clusterd.Context, s cephv1beta1.ObjectStore) error {
 	if s.Name == "" {
 		return fmt.Errorf("missing name")
 	}

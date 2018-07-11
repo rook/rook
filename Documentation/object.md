@@ -18,7 +18,7 @@ Now we will create the object store, which starts the RGW service in the cluster
 Specify your desired settings for the object store in the `object.yaml`. For more details on the settings see the [Object Store CRD](ceph-object-store-crd.md).
 
 ```yaml
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: ObjectStore
 metadata:
   name: my-store

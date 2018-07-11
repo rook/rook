@@ -19,7 +19,7 @@ Before Rook can start provisioning storage, a StorageClass and its storage pool 
 Save this storage class definition as `storageclass.yaml`:
 
 ```yaml
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: Pool
 metadata:
   name: replicapool

@@ -20,7 +20,7 @@ package file
 import (
 	"testing"
 
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	rookfake "github.com/rook/rook/pkg/client/clientset/versioned/fake"
@@ -35,22 +35,22 @@ import (
 
 func TestFilesystemChanged(t *testing.T) {
 	// no change
-	old := cephv1alpha1.FilesystemSpec{MetadataServer: cephv1alpha1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
-	new := cephv1alpha1.FilesystemSpec{MetadataServer: cephv1alpha1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
+	old := cephv1beta1.FilesystemSpec{MetadataServer: cephv1beta1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
+	new := cephv1beta1.FilesystemSpec{MetadataServer: cephv1beta1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: true}}
 	changed := filesystemChanged(old, new)
 	assert.False(t, changed)
 
 	// changed properties
-	new = cephv1alpha1.FilesystemSpec{MetadataServer: cephv1alpha1.MetadataServerSpec{ActiveCount: 2, ActiveStandby: true}}
+	new = cephv1beta1.FilesystemSpec{MetadataServer: cephv1beta1.MetadataServerSpec{ActiveCount: 2, ActiveStandby: true}}
 	assert.True(t, filesystemChanged(old, new))
 
-	new = cephv1alpha1.FilesystemSpec{MetadataServer: cephv1alpha1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: false}}
+	new = cephv1beta1.FilesystemSpec{MetadataServer: cephv1beta1.MetadataServerSpec{ActiveCount: 1, ActiveStandby: false}}
 	assert.True(t, filesystemChanged(old, new))
 }
 
 func TestGetFilesystemObject(t *testing.T) {
 	// get a current version filesystem object, should return with no error and no migration needed
-	filesystem, migrationNeeded, err := getFilesystemObject(&cephv1alpha1.Filesystem{})
+	filesystem, migrationNeeded, err := getFilesystemObject(&cephv1beta1.Filesystem{})
 	assert.NotNil(t, filesystem)
 	assert.False(t, migrationNeeded)
 	assert.Nil(t, err)
@@ -92,11 +92,11 @@ func TestMigrateFilesystemObject(t *testing.T) {
 	assert.Nil(t, err)
 
 	// perform the migration of the converted legacy filesystem
-	err = controller.migrateFilesystemObject(convertedFilesystem)
+	err = controller.migrateFilesystemObject(convertedFilesystem, legacyFilesystem)
 	assert.Nil(t, err)
 
 	// assert that a current filesystem object was created via the migration
-	migratedFilesystem, err := context.RookClientset.CephV1alpha1().Filesystems(legacyFilesystem.Namespace).Get(
+	migratedFilesystem, err := context.RookClientset.CephV1beta1().Filesystems(legacyFilesystem.Namespace).Get(
 		legacyFilesystem.Name, metav1.GetOptions{})
 	assert.NotNil(t, migratedFilesystem)
 	assert.Nil(t, err)
@@ -142,26 +142,26 @@ func TestConvertLegacyFilesystem(t *testing.T) {
 		},
 	}
 
-	expectedFilesystem := cephv1alpha1.Filesystem{
+	expectedFilesystem := cephv1beta1.Filesystem{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "legacy-filesystem-3215",
 			Namespace: "rook-6468",
 		},
-		Spec: cephv1alpha1.FilesystemSpec{
-			MetadataPool: cephv1alpha1.PoolSpec{
+		Spec: cephv1beta1.FilesystemSpec{
+			MetadataPool: cephv1beta1.PoolSpec{
 				FailureDomain: "fd1",
-				Replicated:    cephv1alpha1.ReplicatedSpec{Size: 5}},
-			DataPools: []cephv1alpha1.PoolSpec{
+				Replicated:    cephv1beta1.ReplicatedSpec{Size: 5}},
+			DataPools: []cephv1beta1.PoolSpec{
 				{
 					CrushRoot: "root32",
-					ErasureCoded: cephv1alpha1.ErasureCodedSpec{
+					ErasureCoded: cephv1beta1.ErasureCodedSpec{
 						CodingChunks: 5,
 						DataChunks:   10,
 						Algorithm:    "ec-algorithm-048",
 					},
 				},
 			},
-			MetadataServer: cephv1alpha1.MetadataServerSpec{
+			MetadataServer: cephv1beta1.MetadataServerSpec{
 				ActiveCount:   2,
 				ActiveStandby: true,
 				Placement: rookv1alpha2.Placement{
@@ -176,5 +176,5 @@ func TestConvertLegacyFilesystem(t *testing.T) {
 		},
 	}
 
-	assert.Equal(t, expectedFilesystem, *convertLegacyFilesystem(&legacyFilesystem))
+	assert.Equal(t, expectedFilesystem, *convertRookLegacyFilesystem(&legacyFilesystem))
 }

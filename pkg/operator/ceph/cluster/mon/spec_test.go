@@ -19,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -38,7 +38,7 @@ func TestPodSpecs(t *testing.T) {
 func testPodSpec(t *testing.T, dataDir string) {
 	clientset := testop.New(1)
 	c := New(&clusterd.Context{Clientset: clientset}, "ns", dataDir, "rook/rook:myversion",
-		cephv1alpha1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{}, false,
+		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{}, false,
 		v1.ResourceRequirements{
 			Limits: v1.ResourceList{
 				v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),

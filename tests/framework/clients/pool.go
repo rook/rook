@@ -20,7 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
 	"github.com/rook/rook/tests/framework/installer"
@@ -69,8 +69,8 @@ func (p *PoolOperation) GetCephPoolDetails(namespace, name string) (client.CephS
 	return details, nil
 }
 
-func (p *PoolOperation) ListPoolCRDs(namespace string) ([]cephv1alpha1.Pool, error) {
-	pools, err := p.k8sh.RookClientset.CephV1alpha1().Pools(namespace).List(metav1.ListOptions{})
+func (p *PoolOperation) ListPoolCRDs(namespace string) ([]cephv1beta1.Pool, error) {
+	pools, err := p.k8sh.RookClientset.CephV1beta1().Pools(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -82,7 +82,7 @@ func (p *PoolOperation) ListPoolCRDs(namespace string) ([]cephv1alpha1.Pool, err
 }
 
 func (p *PoolOperation) PoolCRDExists(namespace, name string) (bool, error) {
-	_, err := p.k8sh.RookClientset.CephV1alpha1().Pools(namespace).Get(name, metav1.GetOptions{})
+	_, err := p.k8sh.RookClientset.CephV1beta1().Pools(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil

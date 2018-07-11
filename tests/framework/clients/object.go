@@ -41,7 +41,7 @@ func CreateObjectOperation(k8sh *utils.K8sHelper) *ObjectOperation {
 func (ro *ObjectOperation) Create(namespace, storeName string, replicaCount int32) error {
 
 	logger.Infof("creating the object store via CRD")
-	storeSpec := fmt.Sprintf(`apiVersion: ceph.rook.io/v1alpha1
+	storeSpec := fmt.Sprintf(`apiVersion: ceph.rook.io/v1beta1
 kind: ObjectStore
 metadata:
   name: %s

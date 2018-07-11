@@ -23,7 +23,7 @@ import (
 	"strings"
 	"testing"
 
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -56,12 +56,12 @@ func TestStartMDS(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	fs := cephv1alpha1.Filesystem{
+	fs := cephv1beta1.Filesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
-		Spec: cephv1alpha1.FilesystemSpec{
-			MetadataPool: cephv1alpha1.PoolSpec{Replicated: cephv1alpha1.ReplicatedSpec{Size: 1}},
-			DataPools:    []cephv1alpha1.PoolSpec{{Replicated: cephv1alpha1.ReplicatedSpec{Size: 1}}},
-			MetadataServer: cephv1alpha1.MetadataServerSpec{
+		Spec: cephv1beta1.FilesystemSpec{
+			MetadataPool: cephv1beta1.PoolSpec{Replicated: cephv1beta1.ReplicatedSpec{Size: 1}},
+			DataPools:    []cephv1beta1.PoolSpec{{Replicated: cephv1beta1.ReplicatedSpec{Size: 1}}},
+			MetadataServer: cephv1beta1.MetadataServerSpec{
 				ActiveCount: 1,
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
@@ -115,7 +115,7 @@ func contains(arr []string, str string) bool {
 	return false
 }
 
-func validateStart(t *testing.T, context *clusterd.Context, fs cephv1alpha1.Filesystem) {
+func validateStart(t *testing.T, context *clusterd.Context, fs cephv1beta1.Filesystem) {
 
 	r, err := context.Clientset.ExtensionsV1beta1().Deployments(fs.Namespace).Get("rook-ceph-mds-myfs", metav1.GetOptions{})
 	assert.Nil(t, err)
@@ -123,10 +123,10 @@ func validateStart(t *testing.T, context *clusterd.Context, fs cephv1alpha1.File
 }
 
 func TestPodSpecs(t *testing.T) {
-	fs := cephv1alpha1.Filesystem{
+	fs := cephv1beta1.Filesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
-		Spec: cephv1alpha1.FilesystemSpec{
-			MetadataServer: cephv1alpha1.MetadataServerSpec{
+		Spec: cephv1beta1.FilesystemSpec{
+			MetadataServer: cephv1beta1.MetadataServerSpec{
 				ActiveCount: 1,
 				Resources: v1.ResourceRequirements{
 					Limits: v1.ResourceList{
@@ -167,10 +167,10 @@ func TestPodSpecs(t *testing.T) {
 }
 
 func TestHostNetwork(t *testing.T) {
-	fs := cephv1alpha1.Filesystem{
+	fs := cephv1beta1.Filesystem{
 		ObjectMeta: metav1.ObjectMeta{Name: "myfs", Namespace: "ns"},
-		Spec: cephv1alpha1.FilesystemSpec{
-			MetadataServer: cephv1alpha1.MetadataServerSpec{ActiveCount: 1},
+		Spec: cephv1beta1.FilesystemSpec{
+			MetadataServer: cephv1beta1.MetadataServerSpec{ActiveCount: 1},
 		},
 	}
 	mdsID := "mds1"
@@ -183,7 +183,7 @@ func TestHostNetwork(t *testing.T) {
 
 func TestValidateSpec(t *testing.T) {
 	context := &clusterd.Context{Executor: &exectest.MockExecutor{}}
-	fs := cephv1alpha1.Filesystem{}
+	fs := cephv1beta1.Filesystem{}
 
 	// missing name
 	assert.NotNil(t, validateFilesystem(context, fs))
@@ -195,7 +195,7 @@ func TestValidateSpec(t *testing.T) {
 
 	// missing data pools
 	assert.NotNil(t, validateFilesystem(context, fs))
-	p := cephv1alpha1.PoolSpec{Replicated: cephv1alpha1.ReplicatedSpec{Size: 1}}
+	p := cephv1beta1.PoolSpec{Replicated: cephv1beta1.ReplicatedSpec{Size: 1}}
 	fs.Spec.DataPools = append(fs.Spec.DataPools, p)
 
 	// missing metadata pool
