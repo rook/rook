@@ -225,14 +225,15 @@ func (c *Cluster) makeDeployment(name, daemonName string) *extensions.Deployment
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
-	return &extensions.Deployment{
+	d := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: c.Namespace,
-			//: []metav1.OwnerReference{c.ownerRef},
 		},
 		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
+	return d
 }
 
 func (c *Cluster) mgrContainer(name, daemonName string) v1.Container {
