@@ -1,5 +1,7 @@
 # Releasing
 
+## Release Flow
+
 At a high level the release workflow is as follows:
 
 1. Jenkins CI will build, publish and test every commit from master
@@ -8,6 +10,34 @@ At a high level the release workflow is as follows:
 4. Depending on the stability and feedback from the field, we might promote the build to beta and stable channels.
 
 Jenkins has all the jobs to do the release -- there is no need to perform any of the release tasks on a build/dev machine.
+
+## Release Criteria
+
+Before the process of releasing a new version of Rook can begin, all items in the below release criteria must be completed and verified.
+The maintainers have the responsibility of ensuring this criteria is met.
+
+* Project Management
+  * All issues in the milestone are closed.
+  * All issues in the project board are in the "Done" column, with the exception of issues we are planning to include in a possible upcoming minor release.
+  * Pending release notes have been authored and cover all notable features and changes in the release.
+* Codebase Hygiene
+  * Dependencies in the vendor tree as well as the vendor lock file are up to date (`make vendor`).
+  * Generated code is up to date and in sync with the types in each API group (`make codegen`).
+* Documentation
+  * The Quickstart guides for each storage provider have been tested thoroughly and completely.
+  * All mainstream scenarios and examples for each storage provider have been manually tested.
+  * All documentation has been reviewed for accuracy.  Documentation for non mainstream scenarios (e.g., advanced troubleshooting) should be reviewed visually but doesn’t have to be fully manually tested.
+* Manual Testing
+  * Sanity test on a single-node simple cluster (e.g. Minikube) to verify each storage provider deploys OK.
+  * Test a multi-node configuration with at least 3 nodes, with devices, directories and provider specific settings.
+  * Helm is used to verify the charts can deploy supported operators and storage providers.
+* Automated Testing
+  * Latest build from master is Green with unit tests and integration tests succeeding for the full test matrix.
+  * Future item: Longhaul testing has been run successfully with no issues for a period of at least 48 hours.  This requires [#1847](https://github.com/rook/rook/issues/1847) to be resolved.
+* Upgrade
+  * The upgrade guide is fully walked through with all optional components from the previous **official release** to the release candidate in master, using a multi-node cluster with devices, directories, and provider specific settings.
+* Sign-off
+  * All maintainers have given their approval for the release. If unavailable, advance approval is okay.  Approval can be verbal or written.
 
 ## Tagging a new release
 
