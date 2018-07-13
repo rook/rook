@@ -1,14 +1,12 @@
 ---
-title: Quickstart
-weight: 2
+title: Ceph Storage
+weight: 3
+indent: true
 ---
 
-# Quickstart Guide
+# Ceph Storage Quickstart
 
-Welcome to Rook! We hope you have a great experience installing the Rook storage platform to enable highly available, durable storage
-in your cluster. If you have any questions along the way, please don't hesitate to ask us in our [Slack channel](https://rook-io.slack.com). Sign up for our Slack [here](https://rook-slackin.herokuapp.com/).
-
-This guide will walk you through the basic setup of a Rook cluster. This will enable you to consume block, object, and file storage
+This guide will walk you through the basic setup of a Ceph cluster and enable you to consume block, object, and file storage
 from other pods running in your cluster.
 
 ## Minimum Version
@@ -40,7 +38,7 @@ The first step is to deploy the Rook system components, which include the Rook a
 cd cluster/examples/kubernetes/ceph
 kubectl create -f operator.yaml
 
-# verify the rook-ceph-operator and rook-ceph-agent pods are in the `Running` state before proceeding
+# verify the rook-ceph-operator, rook-ceph-agent, and rook-discover pods are in the `Running` state before proceeding
 kubectl -n rook-ceph-system get pod
 ```
 
@@ -56,7 +54,7 @@ For versions of Kubernetes prior to 1.8, the Kubelet process on all nodes will r
 
 ## Create a Rook Cluster
 
-Now that the Rook operator and agent pods are running, we can create the Rook cluster. For the cluster to survive reboots,
+Now that the Rook operator, agent, and discover pods are running, we can create the Rook cluster. For the cluster to survive reboots,
 make sure you set the `dataDirHostPath` property. For more settings, see the documentation on [configuring the cluster](ceph-cluster-crd.md).
 
 
@@ -91,16 +89,20 @@ Create the cluster:
 kubectl create -f cluster.yaml
 ```
 
-Use `kubectl` to list pods in the `rook` namespace. You should be able to see the following pods once they are all running:
+Use `kubectl` to list pods in the `rook` namespace. You should be able to see the following pods once they are all running.
+The number of osd pods will depend on the number of nodes in the cluster and the number of devices and directories configured.
 
 ```bash
 $ kubectl -n rook-ceph get pod
-NAME                              READY     STATUS    RESTARTS   AGE
-rook-ceph-mgr0-1279756402-wc4vt   1/1       Running   0          5m
-rook-ceph-mon0-jflt5              1/1       Running   0          6m
-rook-ceph-mon1-wkc8p              1/1       Running   0          6m
-rook-ceph-mon2-p31dj              1/1       Running   0          6m
-rook-ceph-osd-0h6nb               1/1       Running   0          5m
+NAME                                      READY     STATUS      RESTARTS   AGE
+rook-ceph-mgr-a-75cc4ccbf4-t8qtx          1/1       Running     0          24m
+rook-ceph-mon0-72vx7                      1/1       Running     0          25m
+rook-ceph-mon1-rrpm6                      1/1       Running     0          24m
+rook-ceph-mon2-zff9r                      1/1       Running     0          24m
+rook-ceph-osd-id-0-5fd8cb9747-dvlsb       1/1       Running     0          23m
+rook-ceph-osd-id-1-84dc695b48-r5mhf       1/1       Running     0          23m
+rook-ceph-osd-id-2-558878cd84-cnp67       1/1       Running     0          23m
+rook-ceph-osd-prepare-minikube-wq4f5      0/1       Completed   0          24m
 ```
 
 # Storage
@@ -125,4 +127,4 @@ To learn how to set up monitoring for your Rook cluster, you can follow the step
 
 # Teardown
 
-When you are done with the test cluster, see [these instructions](teardown.md) to clean up the cluster.
+When you are done with the test cluster, see [these instructions](ceph-teardown.md) to clean up the cluster.

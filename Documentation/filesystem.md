@@ -12,7 +12,7 @@ This example runs a shared file system for the [kube-registry](https://github.co
 
 ### Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](quickstart.md)
+This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](ceph-quickstart.md)
 
 ### Multiple File Systems Not Supported
 

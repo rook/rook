@@ -44,5 +44,5 @@ Visit the official [Tectonic manual boot](https://coreos.com/tectonic/docs/lates
 **Remark:** The Tectonic installer contains the correct terraform binary out of the box. This terraform binary can be found in following directory `~/tectonic/tectonic-installer/linux`.
 
 ## Start Rook
-After the Tectonic Installer ran and the Kubernetes cluster is started and ready, you can follow the [Rook installation guide](quickstart.md).
+After the Tectonic Installer ran and the Kubernetes cluster is started and ready, you can follow the [Rook installation guide](ceph-quickstart.md).
 If you want to specify which disks Rook uses, follow the instructions in [creating Rook clusters](ceph-cluster-crd.md)

@@ -78,7 +78,7 @@ do
 done
 ```
 
-The output should look something like this:
+The output should look something like this. Note that OSDs on the same node will show duplicate information.
 
 ```bash
 Pod:  osd-m2fz2
@@ -300,7 +300,7 @@ Of course you will only have 1/3 the capacity as a tradeoff.
 ### Setting PG Count
 
 Be sure to read the [placement group sizing](#placement-group-sizing) section
-before changing the numner of PGs.
+before changing the number of PGs.
 
 ```bash
 # Set the number of PGs in the rbd pool to 512

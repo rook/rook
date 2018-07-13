@@ -10,7 +10,7 @@ The toolbox is based on CentOS, so more tools of your choosing can be easily ins
 
 ## Running the Toolbox in Kubernetes
 
-The rook toolbox can run as a pod in a Kubernetes cluster.  After you ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](quickstart.md) instructions),
+The rook toolbox can run as a pod in a Kubernetes cluster.  After you ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](ceph-quickstart.md) instructions),
 launch the rook-ceph-tools pod.
 
 Save the tools spec as `toolbox.yaml`:
@@ -92,4 +92,6 @@ kubectl -n rook-ceph delete pod rook-ceph-tools
 ```
 
 ## Troubleshooting without the Toolbox
-The Ceph tools will commonly be the only tools needed to troubleshoot a cluster. In that case, you can connect to any of the rook pods and execute the ceph commands in the same way that you would in the toolbox pod. For example, you can connect to the mon, osd, or even the operator pod to execute commands such as `ceph status`.
+The Ceph tools will commonly be the only tools needed to troubleshoot a cluster. In that case, you can connect to any of the rook pods and execute the ceph commands in the same way that you would in the toolbox pod such as the mon pods or the operator pod. 
+If connecting to the mon pods, make sure you connect to the mon most recently started. The mons keep the config updated in memory after starting and may not have the latest config on disk. 
+For example, after starting the cluster connect to the `mon2` pod instead of `mon0`.

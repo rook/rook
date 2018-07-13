@@ -11,7 +11,7 @@ We plan to continue adding support for other storage systems and environments ba
 
 ## Getting Started
 
-Starting Rook in your cluster is as simple as two `kubectl` commands. See our [Quickstart](quickstart.md) guide for the details on what you need to get going.
+Starting Rook in your cluster is as simple as two `kubectl` commands. See our [Quickstart](ceph-quickstart.md) guide for the details on what you need to get going.
 
 Once you have a Rook cluster running, walk through the guides for block, object, and file to start consuming the storage in your cluster:
 - **[Block](block.md)**: Create block storage to be consumed by a pod

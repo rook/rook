@@ -45,7 +45,7 @@ mount /dev/rbd0 /tmp/rook-volume
 
 Write and read a file:
 ```bash
-echo "Hello Rook!" > /tmp/rook-volume/hello
+echo "Hello Rook" > /tmp/rook-volume/hello
 cat /tmp/rook-volume/hello
 ```
 
@@ -88,7 +88,7 @@ ls /tmp/registry
 Try writing and reading a file to the shared file system.
 
 ```bash
-echo "Hello Rook!" > /tmp/registry/hello
+echo "Hello Rook" > /tmp/registry/hello
 cat /tmp/registry/hello
 
 # delete the file when you're done

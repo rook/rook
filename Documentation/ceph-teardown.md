@@ -1,6 +1,6 @@
 ---
-title: Cleanup
-weight: 5
+title: Ceph Cleanup
+weight: 4
 indent: true
 ---
 
@@ -21,8 +21,8 @@ First you will need to clean up the resources created on top of the Rook cluster
 
 These commands will clean up the resources from the [block](block.md#teardown) and [file](filesystem.md#teardown) walkthroughs (unmount volumes, delete volume claims, etc). If you did not complete those parts of the walkthrough, you can skip these instructions:
 ```console
-kubectl delete -f wordpress.yaml
-kubectl delete -f mysql.yaml
+kubectl delete -f ../wordpress.yaml
+kubectl delete -f ../mysql.yaml
 kubectl delete -n rook-ceph pool replicapool
 kubectl delete storageclass rook-ceph-block
 kubectl delete -f kube-registry.yaml
@@ -39,10 +39,9 @@ Verify that the cluster CRD has been deleted before continuing to the next step.
 kubectl -n rook-ceph get cluster.ceph.rook.io
 ```
 
-## Delete the Operator and Agent
-This will begin the process of all cluster resources being cleaned up, after which you can delete the rest of the deployment with the following:
+## Delete the Operator
+This will begin the process of all cluster resources being cleaned up, after which you can delete the operator and related resources such as the agent and discover daemonsets with the following:
 ```console
-kubectl delete -n rook-ceph-system daemonset rook-ceph-agent
 kubectl delete -f operator.yaml
 ```
 

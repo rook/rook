@@ -14,7 +14,9 @@ The goal is to provide prescriptive guidance and knowledge on how to upgrade a l
 We welcome feedback and opening issues!
 
 ## Supported Versions
-The supported version for this upgrade guide is **from an 0.7 release to the latest builds**. Until 0.8 is released, the latest builds are labeled such as `v0.7.0-27.gbfc8ec6`. Build-to-build upgrades are not guaranteed to work. This guide is to test upgrades only between the official releases.
+The supported version for this upgrade guide is **from an 0.7 release to the latest builds**. Until 0.8 is released, 
+the latest builds are labeled such as `v0.7.0-280.g41829b1`. Build-to-build upgrades are not guaranteed to work. 
+This guide is to test upgrades only between the official releases.
 
 For a guide to upgrade previous versions of Rook, please refer to the version of documentation for those releases.
 - [Upgrade 0.6 to 0.7](https://rook.io/docs/rook/v0.7/upgrade.html)
@@ -35,7 +37,7 @@ This persists metadata on host nodes, enabling pods to be terminated during the 
 More details about `dataDirHostPath` can be found in the [Cluster CRD readme](./ceph-cluster-crd.md#cluster-settings).
 * All pods consuming Rook storage should be created, running, and in a steady state.  No Rook persistent volumes should be in the act of being created or deleted.
 
-The minimal sample Cluster spec that will be used in this guide can be found below (note that the specific configuration may not be applicable to all environments):
+The minimal sample v0.7 Cluster spec that will be used in this guide can be found below (note that the specific configuration may not be applicable to all environments):
 ```
 apiVersion: v1
 kind: Namespace
@@ -125,7 +127,7 @@ Any pod that is using a Rook volume should also remain healthy:
 ## Upgrade Process
 The general flow of the upgrade process will be to upgrade the version of a Rook pod, verify the pod is running with the new version, then verify that the overall cluster health is still in a good state.
 
-In this guide, we will be upgrading a live Rook cluster running `v0.7.0` to the next available version of `v0.8`. Until the `v0.8` release is completed, we will instead use the latest `v0.7` tag such as `v0.7.0-27.gbfc8ec6`.
+In this guide, we will be upgrading a live Rook cluster running `v0.7.1` to the next available version of `v0.8`. Until the `v0.8` release is completed, we will instead use the latest `v0.7` tag such as `v0.7.0-280.g41829b1`.
 
 Let's get started!
 
@@ -322,6 +324,19 @@ kubectl -n rook delete daemonset rook-ceph-osd
 kubectl -n rook delete replicaset rook-ceph-osd-<node>
 ```
 
+Now that the 0.7 OSD pods have been deleted, soon you should see the new 0.8 OSD pods in the `Running` state. It may take a few minutes until Kubernetes retries starting the pods.
+Once they have all been started, you will see the pods running. If they do not start in a timely manner, you can delete the pods and their K8s deployment will immediately create new pods to replace them.
+```
+$ kubectl -n rook get pod -l app=rook-ceph-osd
+NAME                                  READY     STATUS    RESTARTS   AGE
+rook-ceph-osd-id-0-5675d6f5f8-r5b2g   1/1       Running   6          6m
+rook-ceph-osd-id-1-69cc6bd8f6-59tcn   1/1       Running   6          6m
+rook-ceph-osd-id-2-74b7cf67c5-mtl92   1/1       Running   6          6m
+rook-ceph-osd-id-3-757b845567-bk259   1/1       Running   6          6m
+rook-ceph-osd-id-4-6cccb5f7d8-wxl2w   1/1       Running   6          6m
+rook-ceph-osd-id-5-5b8598cc9f-2pnfb   1/1       Running   6          6m
+```
+
 ### Ceph Manager
 The ceph manager has been renamed in 0.8. The new manager will be started automatically by the operator. 
 The old manager and its secret can simply be deleted.
@@ -334,7 +349,7 @@ kubectl -n rook delete secret rook-ceph-mgr0
 
 ### Legacy Custom Resource Definitions (CRDs)
 
-During this upgrade process, the new Ceph operator automatically migrated legacy custom resources to their new `rook.io/v1alpha2` and `ceph.rook.io/v1alpha1` types.
+During this upgrade process, the new Ceph operator automatically migrated legacy custom resources to their new `rook.io/v1alpha2` and `ceph.rook.io/v1beta1` types.
 First confirm that there are no remaining legacy CRD instances:
 
 ```bash
@@ -353,6 +368,12 @@ kubectl delete crd filesystems.rook.io
 kubectl delete crd objectstores.rook.io
 kubectl delete crd pools.rook.io
 kubectl delete crd volumeattachments.rook.io
+```
+
+After the legacy CRDs are deleted, you will see some errors in the operator log since the operator was trying to watch the legacy CRDs.
+To run with a clean log, restart the operator again by deleting the pod.
+```bash
+kubectl -n rook-system delete pod -l app=rook-ceph-operator
 ```
 
 ### Optional Components

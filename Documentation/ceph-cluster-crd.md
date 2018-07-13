@@ -18,7 +18,6 @@ Settings can be specified at the global level to apply to the cluster as a whole
 ### Cluster Settings
 - `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.
   - On **Minikube** environments, use `/data/rook`. Minikube boots into a tmpfs but it provides some [directories](https://github.com/kubernetes/minikube/blob/master/docs/persistent_volumes.md) where files can be persisted across reboots. Using one of these directories will ensure that Rook's data and configuration files are persisted and that enough storage space is available.
-  - If a path is not specified, an [empty dir](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) will be used and the config will be lost when the pod or host is restarted. This option is **not recommended**.
   - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start.
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 - `dashboard`: Settings for the Ceph dashboard. To view the dashboard in your browser see the [dashboard guide](ceph-dashboard.md).
@@ -44,7 +43,7 @@ This will bring up your default text editor and allow you to add and remove stor
 This feature is only available when `useAllNodes` has been set to `false`.
 
 ### Mon Settings
-- `count`: set the number of mons to be started. The number should be odd and between `1` and `9`. If not specified will be set to `3` and `allowMultiplePerNode` is also set to `true`.
+- `count`: set the number of mons to be started. The number should be odd and between `1` and `9`. If not specified the default is set to `3` and `allowMultiplePerNode` is also set to `true`.
 - `allowMultiplePerNode`: enable (`true`) or disable (`false`) the placement of multiple mons on one node. Default is `false`.
 
 ### Node Settings
@@ -113,13 +112,10 @@ For more information on resource requests/limits see the official Kubernetes doc
   - `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
 
 ## Samples
+Here are several samples for configuring Ceph clusters. Each of the samples must also include the namespace and corresponding access granted for management by the Ceph operator. See the [common cluster resources](#common-cluster-resources) below.
+
 ### Storage configuration: All devices
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
 apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
@@ -147,11 +143,6 @@ Individual nodes and their config can be specified so that only the named nodes 
 Each node's 'name' field should match their 'kubernetes.io/hostname' label.
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
 apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
@@ -189,11 +180,6 @@ This example is based up on the [Storage Configuration: Specific devices](#stora
 Individual nodes can override the cluster wide specified directories list.
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
 apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
@@ -225,11 +211,6 @@ The example under 'all' would have all services scheduled on kubernetes nodes la
 tolerate taints with a key of 'storage-node'.
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
 apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
@@ -269,11 +250,6 @@ You can override these requests/limits for OSDs per node when using `useAllNodes
 **WARNING** Before setting resource requests/limits, please take a look at the Ceph documentation for recommendations for each component: [Ceph - Hardware Recommendations](http://docs.ceph.com/docs/master/start/hardware-recommendations/).
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
 apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
@@ -295,4 +271,60 @@ spec:
         requests:
           cpu: "2"
           memory: "4096Mi"
+```
+
+## Common Cluster Resources
+Each Ceph cluster must be created in a namespace and also give access to the Rook operator to manage the cluster in the namespace. Creating the namespace and these controls must be added to each of the examples previously shown.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-ceph
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Allow the operator to create resources in this cluster's namespace
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster-mgmt
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-cluster-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: rook-ceph-system
+---
+# Allow the pods in this namespace to work with configmaps
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cluster
+  namespace: rook-ceph
 ```
