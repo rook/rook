@@ -16,3 +16,6 @@ has its own CRD defined.
 
 ## CockroachDB
 - [Cluster](cockroachdb-cluster-crd.md): CockroachDB is an open-source distributed SQL database that is highly scalable across multiple global regions and also highly durable.
+
+## Minio
+- [Object Store](minio-object-store-crd.md): Minio is a high performance distributed object storage server, designed for large-scale private cloud infrastructure.

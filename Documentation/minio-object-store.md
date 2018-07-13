@@ -1,10 +1,10 @@
 ---
 title: Minio Object Store
-weight: 28
+weight: 6
 indent: true
 ---
 
-# Minio
+# Minio Object Store Quickstart
 
 Minio is a high performance distributed object storage server, designed for 
 large-scale private cloud infrastructure.

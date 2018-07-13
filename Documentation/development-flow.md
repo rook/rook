@@ -10,7 +10,7 @@ don't hesitate to reach out to us on our [Slack](https://Rook-io.slack.com) dev 
 
 ## Prerequisites
 
-1. [GO 1.8](https://golang.org/dl/) or greater installed
+1. [GO 1.10](https://golang.org/dl/) or greater installed
 2. Git client installed
 3. Github account
 
@@ -63,9 +63,9 @@ For new features of significant scope and complexity, a design document is recom
 For smaller, straightforward features and bug fixes, there is no need for a design document.
 Authoring a design document for big features has many advantages:
 
-* helps flesh out the approach by forcing the author to think critically about the feature and can identify potential issues early on
-* gets agreement amongst the community before code is written that could be wasted effort in the wrong direction
-* serves as an artifact of the architecture that is easier to read for visitors to the project than just the code by itself
+* Helps flesh out the approach by forcing the author to think critically about the feature and can identify potential issues early on
+* Gets agreement amongst the community before code is written that could be wasted effort in the wrong direction
+* Serves as an artifact of the architecture that is easier to read for visitors to the project than just the code by itself
 
 Note that writing code to prototype the feature while working on the design may be very useful to help flesh out the approach.
 
@@ -112,13 +112,13 @@ Rebasing is a very powerful feature of Git. You need to understand how it works 
 
 ## Submitting a Pull Request
 
-Once you have implemented the feature or bug fix in your branch, you will open a PR to the upstream rook repo. Before opening the PR ensure you have added unit tests, are passing the E2E tests, cleaned your commit history, and have rebased on the latest upstream.
+Once you have implemented the feature or bug fix in your branch, you will open a PR to the upstream rook repo. Before opening the PR ensure you have added unit tests, are passing the integration tests, cleaned your commit history, and have rebased on the latest upstream.
 
 In order to open a pull request (PR) it is required to be up to date with the latest changes upstream. If other commits are pushed upstream before your PR is merged, you will also need to rebase again before it will be merged.
 
 ### Regression Testing
 
-All pull requests must pass the unit and e2e smoke tests before they can be merged. These tests automatically
+All pull requests must pass the unit and integration tests before they can be merged. These tests automatically
 run as a part of the build process. The results of these tests along with code reviews and other criterias determine whether
 your request will be accepted into the `rook/rook` repo. It is prudent to run all tests locally on your development box prior to submitting a pull request to the `rook/rook` repo.
 
@@ -137,9 +137,9 @@ go test -coverprofile=coverage.out
 go tool cover -html=coverage.out -o coverage.html
 ```
 
-#### Running the E2E Tests
+#### Running the Integration Tests
 For instructions on how to execute the end to end smoke test suite,
-follow the [e2e instructions](../e2e/README.md).
+follow the [test instructions](https://github.com/rook/rook/blob/master/tests/README.md).
 
 ### Commit History
 

@@ -10,7 +10,7 @@ Block storage allows you to mount storage to a single pod. This example shows ho
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Quickstart](quickstart.md) guide.
+This guide assumes you have created a Rook cluster as explained in the main [Quickstart](ceph-quickstart.md) guide.
 
 ## Provision Storage
 
