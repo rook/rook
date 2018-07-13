@@ -87,7 +87,7 @@ func validateStart(t *testing.T, c *Cluster) {
 }
 
 func TestPodSpec(t *testing.T) {
-	c := New(nil, "ns", "rook/rook:myversion", rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{
+	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "rook/rook:myversion", rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{
 		Limits: v1.ResourceList{
 			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
 		},
@@ -134,7 +134,7 @@ func TestServiceSpec(t *testing.T) {
 }
 
 func TestHostNetwork(t *testing.T) {
-	c := New(nil, "ns", "myversion", rookalpha.Placement{}, true, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "myversion", rookalpha.Placement{}, true, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	d := c.makeDeployment("mgr-a", "a")
 	assert.NotNil(t, d)
