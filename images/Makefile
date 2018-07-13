@@ -16,7 +16,7 @@ include image.mk
 
 PLATFORMS ?= linux_amd64 linux_arm64
 
-CEPH_BASE_IMAGE ?= ceph/daemon-base:v3.0.5-stable-3.0-luminous-centos-7-$(PLATFORM_ARCH)
+CEPH_BASE_IMAGE ?= ceph/daemon-base:v3.0.5-stable-3.0-luminous-centos-7
 export CEPH_BASE_IMAGE
 
 # tini's version
