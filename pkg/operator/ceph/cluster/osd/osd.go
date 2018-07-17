@@ -71,9 +71,18 @@ type Cluster struct {
 }
 
 // New creates an instance of the OSD manager
-func New(context *clusterd.Context, namespace, version, serviceAccount string, storageSpec rookalpha.StorageScopeSpec,
-	dataDirHostPath string, placement rookalpha.Placement, hostNetwork bool,
-	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
+func New(
+	context *clusterd.Context,
+	namespace,
+	version,
+	serviceAccount string,
+	storageSpec rookalpha.StorageScopeSpec,
+	dataDirHostPath string,
+	placement rookalpha.Placement,
+	hostNetwork bool,
+	resources v1.ResourceRequirements,
+	ownerRef metav1.OwnerReference,
+) *Cluster {
 
 	if serviceAccount == "" {
 		// if the service account was not set, make a best effort with the example service account name since the default is unlikely to be sufficient.
