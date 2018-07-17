@@ -105,6 +105,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `resources`               | Pod resource requests & limits                                  | `{}`                                                   |
 | `logLevel`                | Global log level                                                | `INFO`                                                 |
 | `nodeSelector`            | Kubernetes `nodeSelector` to add to the Deployment.             | <none>                                                 |
+| `tolerations`             | List of Kubernetes `tolerations` to add to the Deployment.      | `[]`                                                   |
 | `agent.flexVolumeDirPath` | Path where the Rook agent discovers the flex volume plugins (*) | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
 | `agent.toleration`        | Toleration for the agent pods                                   | <none>                                                 |
 | `agent.tolerationKey`     | The specific key of the taint to tolerate                       | <none>                                                 |
