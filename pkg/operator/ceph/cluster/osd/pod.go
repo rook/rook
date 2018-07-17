@@ -207,6 +207,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &deployment.ObjectMeta, &c.ownerRef)
+	c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	return deployment, nil
 }
 
