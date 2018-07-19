@@ -194,6 +194,7 @@ func TestStorageSpecConfig(t *testing.T) {
 	job, err := c.makeJob(n.Name, n.Devices, n.Selection, c.Storage.Nodes[0].Resources, storeConfig, metadataDevice, n.Location)
 	assert.NotNil(t, job)
 	assert.Nil(t, err)
+	assert.Equal(t, "rook-ceph-osd-prepare-node1", job.ObjectMeta.Name)
 	container := job.Spec.Template.Spec.Containers[0]
 	assert.NotNil(t, container)
 	verifyEnvVar(t, container.Env, "ROOK_OSD_STORE", "bluestore", true)
@@ -241,6 +242,7 @@ func TestHostNetwork(t *testing.T) {
 	assert.NotNil(t, r)
 	assert.Nil(t, err)
 
+	assert.Equal(t, "rook-ceph-osd-id-0", r.ObjectMeta.Name)
 	assert.Equal(t, true, r.Spec.Template.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, r.Spec.Template.Spec.DNSPolicy)
 }
