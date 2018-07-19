@@ -98,7 +98,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | Parameter                 | Description                                                     | Default                                                |
 | ------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
 | `image.repository`        | Image                                                           | `rook/ceph`                                            |
-| `image.tag`               | Image tag                                                       | `master`                                               |
+| `image.tag`               | Image tag                                                       | `v0.8.0`                                               |
 | `image.pullPolicy`        | Image pull policy                                               | `IfNotPresent`                                         |
 | `rbacEnable`              | If true, create & use RBAC resources                            | `true`                                                 |
 | `pspEnable`               | If true, create & use PSP resources                             | `true`                                                 |
