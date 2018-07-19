@@ -137,10 +137,16 @@ func CreatePoolWithProfile(context *clusterd.Context, clusterName string, newPoo
 	isReplicatedPool := newPool.ErasureCodeProfile == "" && newPool.Size > 0
 	if isReplicatedPool {
 		return CreateReplicatedPoolForApp(context, clusterName, newPool, appName)
-	} else {
-		// If the pool is not a replicated pool, then the only other option is an erasure coded pool.
-		return CreateECPoolForApp(context, clusterName, newPool, appName, true /* enableECOverwrite */)
 	}
+	// If the pool is not a replicated pool, then the only other option is an erasure coded pool.
+	return CreateECPoolForApp(
+		context,
+		clusterName,
+		newPool,
+		appName,
+		true, /* enableECOverwrite */
+		newPoolReq.ErasureCodedConfig,
+	)
 }
 
 func DeletePool(context *clusterd.Context, clusterName string, name string) error {
@@ -179,7 +185,7 @@ func givePoolAppTag(context *clusterd.Context, clusterName string, poolName stri
 	return nil
 }
 
-func CreateECPoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string, enableECOverwrite bool) error {
+func CreateECPoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string, enableECOverwrite bool, erasureCodedConfig model.ErasureCodedPoolConfig) error {
 	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number), "erasure", newPool.ErasureCodeProfile}
 
 	buf, err := ExecuteCephCommand(context, clusterName, args)
@@ -187,9 +193,12 @@ func CreateECPoolForApp(context *clusterd.Context, clusterName string, newPool C
 		return fmt.Errorf("failed to create EC pool %s. %+v", newPool.Name, err)
 	}
 
+	if err = SetPoolProperty(context, clusterName, newPool.Name, "min_size", strconv.FormatUint(uint64(erasureCodedConfig.DataChunkCount), 10)); err != nil {
+		return fmt.Errorf("failed to set min size to %d for pool %s. %+v", erasureCodedConfig.DataChunkCount, newPool.Name, err)
+	}
+
 	if enableECOverwrite {
-		err = SetPoolProperty(context, clusterName, newPool.Name, "allow_ec_overwrites", "true")
-		if err != nil {
+		if err = SetPoolProperty(context, clusterName, newPool.Name, "allow_ec_overwrites", "true"); err != nil {
 			return fmt.Errorf("failed to allow EC overwrite for pool %s. %+v", newPool.Name, err)
 		}
 	}
