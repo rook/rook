@@ -21,32 +21,19 @@ The following tools are need on the host:
 
 ## Build
 
-You can build Rook by simply running:
+You can build the Rook binaries and all container images for the host platform by simply running the
+command below. Building in parallel with the `-j` option is recommended.
 
 ```
 make -j4
 ```
 
-This will build the Rook binaries and container images for the host platform.
-
-You can also run the build for all supported platforms:
-
-```
-make -j4 build.all
-```
-
-Currently, only `amd64` platform supports this kind of 'cross' build. In order to make `build.all` succeed, we need to follow the steps specified by the below section
-`Building for other platforms` first.
-
-We suggest to use native `build` to create the binaries and container images on `arm{32,64}` platform, but if you do want to build those `arm{32,64}` binaries and images
-on `amd64` platform with `build.all` command, please make sure the multi-arch feature is supported. To test run the following:
+Developers may often wish to make only images for a particular backend in their testing. This can
+be done by specifying the `IMAGES` environment variable with `make` as exemplified below. Possible
+values for are as defined by subdir names in the `/rook/images/` dir.
 
 ```
-> docker run --rm -ti arm32v7/ubuntu uname -a
-Linux bad621a75757 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 armv7l armv7l armv7l GNU/Linux
-
-> docker run --rm -ti arm64v8/ubuntu uname -a
-Linux f51ea93e76a2 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 aarch64 aarch64 aarch64 GNU/Linux
+make -j4 IMAGES='ceph ceph-toolbox' build
 ```
 
 Run `make help` for more options.
@@ -72,6 +59,35 @@ build/reset
 ```
 
 ## Building for other platforms
+
+You can also run the build for all supported platforms:
+
+```
+make -j4 build.all
+```
+
+Or from the cross container:
+
+```
+build/run make -j4 build.all
+```
+
+Currently, only `amd64` platform supports this kind of 'cross' build. In order to make `build.all`
+succeed, we need to follow the steps specified by the below section `Building for other platforms`
+first.
+
+We suggest to use native `build` to create the binaries and container images on `arm{32,64}`
+platform, but if you do want to build those `arm{32,64}` binaries and images on `amd64` platform
+with `build.all` command, please make sure the multi-arch feature is supported. To test run the
+following:
+
+```
+> docker run --rm -ti arm32v7/ubuntu uname -a
+Linux bad621a75757 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 armv7l armv7l armv7l GNU/Linux
+
+> docker run --rm -ti arm64v8/ubuntu uname -a
+Linux f51ea93e76a2 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 aarch64 aarch64 aarch64 GNU/Linux
+```
 
 In order to build container images for these platforms we rely on cross-compilers and QEMU. Cross compiling is much faster than QEMU and so we lean heavily on it.
 
