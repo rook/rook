@@ -14,8 +14,8 @@ The goal is to provide prescriptive guidance and knowledge on how to upgrade a l
 We welcome feedback and opening issues!
 
 ## Supported Versions
-The supported version for this upgrade guide is **from an 0.7 release to the latest builds**. Until 0.8 is released, 
-the latest builds are labeled such as `v0.7.0-280.g41829b1`. Build-to-build upgrades are not guaranteed to work. 
+The supported version for this upgrade guide is **from a 0.7 release to a 0.8 release**.
+Build-to-build upgrades are not guaranteed to work.
 This guide is to test upgrades only between the official releases.
 
 For a guide to upgrade previous versions of Rook, please refer to the version of documentation for those releases.
@@ -127,7 +127,7 @@ Any pod that is using a Rook volume should also remain healthy:
 ## Upgrade Process
 The general flow of the upgrade process will be to upgrade the version of a Rook pod, verify the pod is running with the new version, then verify that the overall cluster health is still in a good state.
 
-In this guide, we will be upgrading a live Rook cluster running `v0.7.1` to the next available version of `v0.8`. Until the `v0.8` release is completed, we will instead use the latest `v0.7` tag such as `v0.7.0-280.g41829b1`.
+In this guide, we will be upgrading a live Rook cluster running `v0.7.1` to the next available version of `v0.8`.
 
 Let's get started!
 
@@ -226,7 +226,7 @@ kubectl delete clusterrolebindings rook-operator
 
 Now we need to create the new Ceph specific operator.
 
-**IMPORTANT:** Ensure that you are using the latest manifests from either `master` or the `release-0.8` branch.  If you have custom configuration options set in your old `rook-operator.yaml` manifest, you will need to set those values in the new Ceph operator manifest below.
+**IMPORTANT:** Ensure that you are using the latest manifests from the `release-0.8` branch.  If you have custom configuration options set in your old `rook-operator.yaml` manifest, you will need to set those values in the new Ceph operator manifest below.
 
 Navigate to the new Ceph manifests directory, apply your custom configuration options if you are using any, and then create the new Ceph operator with the command below.
 Note that the new operator by default uses by `rook-ceph-system` namespace, but we will use `sed` to edit it in place to use `rook-system` instead for backwards compatibility with your existing cluster.
@@ -239,7 +239,7 @@ After the operator starts, after several minutes you may see some new OSD pods b
 [OSD section](#object-storage-daemons-osds).
 
 #### Operator Health Verification
-To verify the operator pod is `Running` and using the new version of `rook/ceph:master`, use the following commands:
+To verify the operator pod is `Running` and using the new version of `rook/ceph:v0.8.0`, use the following commands:
 ```bash
 OPERATOR_POD_NAME=$(kubectl -n rook-system get pods -l app=rook-ceph-operator -o jsonpath='{.items[0].metadata.name}')
 kubectl -n rook-system get pod ${OPERATOR_POD_NAME} -o jsonpath='{.status.phase}{"\n"}{.spec.containers[0].image}{"\n"}'
@@ -265,7 +265,7 @@ so we will delete the old pod and start the new toolbox.
 kubectl -n rook delete pod rook-tools
 ```
 After verifying the old tools pod has terminated, start the new toolbox.
-You will need to either create the toolbox using the yaml in the master branch or simply set the version of the container to `rook/ceph-toolbox:master` before creating the toolbox.
+You will need to either create the toolbox using the yaml in the `release-0.8` branch or simply set the version of the container to `rook/ceph-toolbox:v0.8.0` before creating the toolbox.
 Note the below command uses `sed` to change the new default namespace for the toolbox from `rook-ceph` to `rook` to be backwards compatible with your existing cluster.
 ```
 cat toolbox.yaml | sed -e 's/namespace: rook-ceph/namespace: rook/g' | kubectl create -f -
@@ -280,10 +280,10 @@ kubectl -n rook delete deploy rook-api
 
 ### Monitors
 There are multiple monitor pods to upgrade and they are each individually managed by their own replica set.
-**For each** monitor's replica set, you will need to update the pod template spec's image version field to `rook/ceph:master`.
+**For each** monitor's replica set, you will need to update the pod template spec's image version field to `rook/ceph:v0.8.0`.
 For example, we can update the replica set for `mon0` with:
 ```bash
-kubectl -n rook set image replicaset/rook-ceph-mon0 rook-ceph-mon=rook/ceph:master
+kubectl -n rook set image replicaset/rook-ceph-mon0 rook-ceph-mon=rook/ceph:v0.8.0
 ```
 
 Once the replica set has been updated, we need to manually terminate the old pod which will trigger the replica set to create a new pod using the new version.
@@ -381,9 +381,9 @@ If you have optionally installed either [object storage](./object.md) or a [shar
 They are both managed by deployments, which we have already covered in this guide, so the instructions will be brief.
 
 #### Object Storage (RGW)
-If you have object storage installed, first edit the RGW deployment to use the new image version of `rook/ceph:master`:
+If you have object storage installed, first edit the RGW deployment to use the new image version of `rook/ceph:v0.8.0`:
 ```bash
-kubectl -n rook set image deploy/rook-ceph-rgw-my-store rook-ceph-rgw-my-store=rook/ceph:master
+kubectl -n rook set image deploy/rook-ceph-rgw-my-store rook-ceph-rgw-my-store=rook/ceph:v0.8.0
 ```
 
 To verify that the RGW pod is `Running` and on the new version, use the following:
@@ -392,9 +392,9 @@ kubectl -n rook get pod -l app=rook-ceph-rgw -o jsonpath='{range .items[*]}{.met
 ```
 
 #### Shared File System (MDS)
-If you have a shared file system installed, first edit the MDS deployment to use the new image version of `rook/ceph:master`:
+If you have a shared file system installed, first edit the MDS deployment to use the new image version of `rook/ceph:v0.8.0`:
 ```bash
-kubectl -n rook set image deploy/rook-ceph-mds-myfs rook-ceph-mds-myfs=rook/ceph:master
+kubectl -n rook set image deploy/rook-ceph-mds-myfs rook-ceph-mds-myfs=rook/ceph:v0.8.0
 ```
 
 To verify that the MDS pod is `Running` and on the new version, use the following:
@@ -403,7 +403,7 @@ kubectl -n rook get pod -l app=rook-ceph-mds -o jsonpath='{range .items[*]}{.met
 ```
 
 ## Completion
-At this point, your Rook cluster should be fully upgraded to running version `rook/ceph:master` and the cluster should be healthy according to the steps in the [health verification section](#health-verification).
+At this point, your Rook cluster should be fully upgraded to running version `rook/ceph:v0.8.0` and the cluster should be healthy according to the steps in the [health verification section](#health-verification).
 
 ## Upgrading Kubernetes
 Rook cluster installations on Kubernetes prior to version 1.7.x, use [ThirdPartyResource](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-third-party-resource/) that have been deprecated as of 1.7 and removed in 1.8. If upgrading your Kubernetes cluster Rook TPRs have to be migrated to CustomResourceDefinition (CRD) following [Kubernetes documentation](https://kubernetes.io/docs/tasks/access-kubernetes-api/migrate-third-party-resource/). Rook TPRs that require migration during upgrade are:
