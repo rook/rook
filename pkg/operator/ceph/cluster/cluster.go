@@ -267,6 +267,10 @@ func clusterChanged(oldCluster, newCluster cephv1beta1.ClusterSpec, clusterRef *
 		logger.Infof("dashboard enabled has changed from %t to %t", oldCluster.Dashboard.Enabled, newCluster.Dashboard.Enabled)
 		changeFound = true
 	}
+	if oldCluster.Dashboard.UrlPrefix != newCluster.Dashboard.UrlPrefix {
+		logger.Infof("dashboard url prefix has changed from \"%s\" to \"%s\"", oldCluster.Dashboard.UrlPrefix, newCluster.Dashboard.UrlPrefix)
+		changeFound = true
+	}
 
 	if oldCluster.Mon.Count != newCluster.Mon.Count {
 		logger.Infof("number of mons have changed from %d to %d. The health check will update the mons...", oldCluster.Mon.Count, newCluster.Mon.Count)
