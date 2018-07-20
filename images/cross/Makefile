@@ -15,8 +15,7 @@
 include ../image.mk
 
 IMAGE = $(BUILD_REGISTRY)/cross-$(GOARCH)
-IMAGES := $(IMAGE)
-CACHE_IMAGES = $(IMAGES)
+CACHE_IMAGES = $(IMAGE)
 
 TEMP := $(shell mktemp -d)
 
