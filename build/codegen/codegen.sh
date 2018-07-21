@@ -40,5 +40,5 @@ find "${scriptdir}/../../pkg/client" -name "clientset_generated.go" -exec \
 # Disables backslash+linefeed is literal check.
 find "${scriptdir}/../../pkg/client" -name "clientset_generated.go" -exec \
     $SED 's/return \&Clientset{fakePtr, \&fakediscovery.FakeDiscovery{Fake: \&fakePtr}}/cs.discovery = \&fakediscovery.FakeDiscovery{Fake: \&cs.Fake}\
-    return cs/g' {} +
+	return cs/g' {} +
 find "${scriptdir}/../../pkg/client" -name "clientset_generated.go.bak" -delete
