@@ -290,6 +290,7 @@ func (c *Controller) GetAttachInfoFromMountDir(mountDir string, attachOptions *A
 		attachOptions.PodNamespace = pv.Spec.ClaimRef.Namespace
 	}
 
+	var pod *v1.Pod
 	node := os.Getenv(k8sutil.NodeNameEnvVar)
 	if attachOptions.Pod == "" {
 		// Find all pods scheduled to this node
@@ -301,9 +302,32 @@ func (c *Controller) GetAttachInfoFromMountDir(mountDir string, attachOptions *A
 			return fmt.Errorf("failed to get pods in namespace %s: %+v", attachOptions.PodNamespace, err)
 		}
 
-		pod := findPodByID(pods, types.UID(attachOptions.PodID))
+		pod = findPodByID(pods, types.UID(attachOptions.PodID))
 		if pod != nil {
 			attachOptions.Pod = pod.GetName()
+		}
+	}
+
+	if attachOptions.PodUser == 0 || attachOptions.PodGroup == 0 {
+		if pod == nil {
+			pod, err = c.context.Clientset.CoreV1().Pods(attachOptions.PodNamespace).Get(attachOptions.Pod, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("failed to get pod %s in namespace %s: %+v", attachOptions.Pod, attachOptions.PodNamespace, err)
+			}
+		}
+		if pod != nil && pod.Spec.SecurityContext != nil {
+			if attachOptions.PodUser == 0 && pod.Spec.SecurityContext.RunAsUser != nil {
+				attachOptions.PodUser = *pod.Spec.SecurityContext.RunAsUser
+				if pod.Spec.SecurityContext.FSGroup == nil {
+					attachOptions.PodGroup = attachOptions.PodUser
+				}
+			}
+			if attachOptions.PodGroup == 0 && pod.Spec.SecurityContext.FSGroup != nil {
+				attachOptions.PodGroup = *pod.Spec.SecurityContext.FSGroup
+				if pod.Spec.SecurityContext.RunAsUser == nil {
+					attachOptions.PodUser = attachOptions.PodGroup
+				}
+			}
 		}
 	}
 

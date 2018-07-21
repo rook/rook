@@ -52,6 +52,8 @@ type AttachOptions struct {
 	Pod              string `json:"kubernetes.io/pod.name"`
 	PodID            string `json:"kubernetes.io/pod.uid"`
 	PodNamespace     string `json:"kubernetes.io/pod.namespace"`
+	PodUser          int64  `json:"kubernetes.io/pod.user"`
+	PodGroup         int64  `json:"kubernetes.io/pod.group"`
 }
 
 type LogMessage struct {

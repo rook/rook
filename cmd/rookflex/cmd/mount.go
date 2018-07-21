@@ -154,6 +154,12 @@ func mountDevice(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, devic
 			"Ignore error about Mount failed: exit status 32. Kubernetes does this to check whether the volume has been formatted. It will format and retry again. https://github.com/kubernetes/kubernetes/blob/release-1.7/pkg/util/mount/mount_linux.go#L360",
 			false)
 		log(client, fmt.Sprintf("formatting volume %v devicePath %v deviceMountPath %v fs %v with options %+v", opts.VolumeName, devicePath, globalVolumeMountPath, opts.FsType, options), false)
+		err = os.Chown(opts.MountDir, int(opts.PodUser), int(opts.PodGroup))
+		if err != nil {
+			log(client, fmt.Sprintf("Rook: chown failed. Cannot set permissions to: %d:%d, %v", opts.PodUser, opts.PodGroup, err), true)
+			return err
+		}
+		log(client, fmt.Sprintf("Chowning %s to %d:%d", opts.MountDir, opts.PodUser, opts.PodGroup), false)
 	}
 	return nil
 }

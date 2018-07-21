@@ -321,7 +321,7 @@
   branch = "master"
   name = "github.com/rook/operator-kit"
   packages = ["."]
-  revision = "4b6dbaaf83c346155175c4553b26ee362718f5a2"
+  revision = "4041a1b434c046113ff88030ad7acaf58548d81b"
 
 [[projects]]
   name = "github.com/spf13/cobra"
