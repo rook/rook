@@ -18,7 +18,6 @@ include ../image.mk
 # Image Build Options
 
 COCKROACHDB_IMAGE = $(BUILD_REGISTRY)/cockroachdb-$(GOARCH)
-IMAGES = $(COCKROACHDB_IMAGE)
 
 TEMP := $(shell mktemp -d)
 

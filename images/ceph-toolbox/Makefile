@@ -16,7 +16,6 @@ include ../image.mk
 
 TOOLBOX_IMAGE = $(BUILD_REGISTRY)/ceph-toolbox-$(GOARCH)
 TOOLBOX_BASE_IMAGE = $(BUILD_REGISTRY)/ceph-toolbox-base-$(GOARCH)
-IMAGES = $(TOOLBOX_IMAGE) $(TOOLBOX_BASE_IMAGE)
 CACHE_IMAGES = $(TOOLBOX_BASE_IMAGE)
 
 CEPH_VERSION = $(shell cat ../ceph/ceph_version)
