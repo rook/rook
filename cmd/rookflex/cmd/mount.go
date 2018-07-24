@@ -159,7 +159,7 @@ func mountDevice(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, devic
 			log(client, fmt.Sprintf("Rook: chown failed. Cannot set permissions to: %d:%d, %v", opts.PodUser, opts.PodGroup, err), true)
 			return err
 		}
-		log(client, fmt.Sprintf("Chowning %s to %d:%d", opts.MountDir, opts.PodUser, opts.PodGroup), false)
+		log(client, fmt.Sprintf("Chowned %s to %d:%d", opts.MountDir, opts.PodUser, opts.PodGroup), false)
 	}
 	return nil
 }
