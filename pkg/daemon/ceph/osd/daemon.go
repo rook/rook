@@ -19,13 +19,11 @@ import (
 	"fmt"
 	"path"
 	"regexp"
-	"time"
 
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -34,20 +32,45 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephosd")
+var (
+	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephosd")
+)
 
-func Run(context *clusterd.Context, agent *OsdAgent, done chan struct{}) error {
+func RunFilestoreOnDevice(context *clusterd.Context, mountSourcePath, mountPath string, cephArgs []string) error {
+
+	// start the OSD daemon in the foreground with the given config
+	logger.Infof("starting filestore osd on a device")
+
+	if err := sys.MountDevice(mountSourcePath, mountPath, context.Executor); err != nil {
+		return fmt.Errorf("failed to mount device. %+v", err)
+	}
+	// unmount the device before exit
+	defer sys.UnmountDevice(mountPath, context.Executor)
+
+	// run the ceph-osd daemon
+	if err := context.Executor.ExecuteCommand(false, "", "ceph-osd", cephArgs...); err != nil {
+		return fmt.Errorf("failed to start osd. %+v", err)
+	}
+
+	return nil
+}
+
+func Provision(context *clusterd.Context, agent *OsdAgent) error {
 
 	// set the initial orchestration status
 	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
-	if err := oposd.UpdateOrchestrationStatusMap(context.Clientset, agent.cluster.Name, agent.nodeName, status); err != nil {
+	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
 		return err
 	}
 
 	// set the crush location in the osd config file
 	cephConfig := mon.CreateDefaultCephConfig(context, agent.cluster, path.Join(context.ConfigDir, agent.cluster.Name))
 	cephConfig.GlobalConfig.CrushLocation = agent.location
-
+	// don't set public or cluster addr if prepare only
+	if agent.prepareOnly {
+		cephConfig.PublicAddr = ""
+		cephConfig.ClusterAddr = ""
+	}
 	// write the latest config to the config dir
 	if err := mon.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig); err != nil {
 		return fmt.Errorf("failed to write connection config. %+v", err)
@@ -69,13 +92,9 @@ func Run(context *clusterd.Context, agent *OsdAgent, done chan struct{}) error {
 	}
 
 	// determine the set of removed OSDs and the node's crush name (if needed)
-	removedDevicesScheme, removedDevicesMapping, err := getRemovedDevices(agent)
+	removedDevicesScheme, _, err := getRemovedDevices(agent)
 	if err != nil {
 		return fmt.Errorf("failed to get removed devices: %+v", err)
-	}
-	nodeCrushName, err := getNodeCrushNameFromDevices(context, agent, removedDevicesScheme)
-	if err != nil {
-		return fmt.Errorf("failed to get node crush name from devices: %+v", err)
 	}
 
 	// determine the set of directories that can/should be used for OSDs, with the default dir if no devices were specified.  save off the node's crush name if needed.
@@ -84,42 +103,25 @@ func Run(context *clusterd.Context, agent *OsdAgent, done chan struct{}) error {
 	if err != nil {
 		return fmt.Errorf("failed to get data dirs. %+v", err)
 	}
-	nodeCrushName, err = getNodeCrushNameFromDirs(context, agent, removedDirs, nodeCrushName)
-	if err != nil {
-		return fmt.Errorf("failed to get node crush name from dirs: %+v", err)
-	}
 
 	// orchestration is about to start, update the status
 	status = oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusOrchestrating}
-	if err := oposd.UpdateOrchestrationStatusMap(context.Clientset, agent.cluster.Name, agent.nodeName, status); err != nil {
+	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
 		return err
 	}
 
 	// start the desired OSDs on devices
 	logger.Infof("configuring osd devices: %+v", devices)
-	if err := agent.configureDevices(context, devices); err != nil {
+	deviceOSDs, err := agent.configureDevices(context, devices)
+	if err != nil {
 		return fmt.Errorf("failed to configure devices. %+v", err)
-	}
-
-	// also start OSDs for the devices that will be removed.  In order to remove devices, we need the
-	// OSDs to first be running so they can participate in the rebalancing
-	logger.Infof("configuring removed osd devices: %+v", removedDevicesMapping)
-	if err := agent.configureDevices(context, removedDevicesMapping); err != nil {
-		// some devices that will be removed may be legitimately dead, let's try to remove them even if they can't start up
-		logger.Warningf("failed to configure removed devices, but proceeding with removal attempts. %+v", err)
 	}
 
 	// start up the OSDs for directories
 	logger.Infof("configuring osd dirs: %+v", dirs)
-	if err := agent.configureDirs(context, dirs); err != nil {
+	dirOSDs, err := agent.configureDirs(context, dirs)
+	if err != nil {
 		return fmt.Errorf("failed to configure dirs %v. %+v", dirs, err)
-	}
-
-	// start up the OSDs for directories that will be removed.
-	logger.Infof("configuring removed osd dirs: %+v", removedDirs)
-	if err := agent.configureDirs(context, removedDirs); err != nil {
-		// some dirs that will be removed may be legitimately dead, let's try to remove them even if they can't start up
-		logger.Warningf("failed to configure removed dirs, but proceeding with removal attempts. %+v", err)
 	}
 
 	// now we can start removing OSDs from devices and directories
@@ -138,29 +140,13 @@ func Run(context *clusterd.Context, agent *OsdAgent, done chan struct{}) error {
 		return fmt.Errorf("failed to save osd dir map. %+v", err)
 	}
 
-	if oposd.IsRemovingNode(agent.devices) {
-		if err := cleanUpNodeResources(context, agent, nodeCrushName); err != nil {
-			logger.Warningf("failed to clean up node resources, they may need to be cleaned up manually: %+v", err)
-		}
-	}
+	logger.Infof("device osds:%v\ndir osds: %v", deviceOSDs, dirOSDs)
+	osds := append(deviceOSDs, dirOSDs...)
 
 	// orchestration is completed, update the status
-	status = oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusCompleted}
-	if err := oposd.UpdateOrchestrationStatusMap(context.Clientset, agent.cluster.Name, agent.nodeName, status); err != nil {
+	status = oposd.OrchestrationStatus{OSDs: osds, Status: oposd.OrchestrationStatusCompleted}
+	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
 		return err
-	}
-
-	// OSD processes monitoring
-	mon := NewMonitor(context, agent)
-	go mon.Run()
-
-	// FIX
-	logger.Infof("sleeping a while to let the osds run...")
-	select {
-	case <-time.After(1000000 * time.Second):
-		logger.Warning("OSD sleep has expired")
-	case <-done:
-		logger.Infof("done channel signaled")
 	}
 
 	return nil
@@ -335,63 +321,4 @@ func getActiveAndRemovedDirs(currentDirList []string, savedDirMap map[string]int
 	}
 
 	return activeDirs, removedDirs
-}
-
-func getNodeCrushNameFromDevices(context *clusterd.Context, agent *OsdAgent, removedDevices *config.PerfScheme) (string, error) {
-	var nodeCrushName string
-	var err error
-
-	if oposd.IsRemovingNode(agent.devices) && len(removedDevices.Entries) > 0 {
-		// the node is being removed, save off the node's crush name so we can remove the entire node from the crush map later
-		// note we just use the ID of the first OSD in the removed devices list to look up its crush host
-		id := removedDevices.Entries[0].ID
-		nodeCrushName, err = client.GetCrushHostName(context, agent.cluster.Name, id)
-		if err != nil {
-			return "", fmt.Errorf("failed to get crush host name for osd.%d: %+v", id, err)
-		}
-	}
-
-	return nodeCrushName, nil
-}
-
-func getNodeCrushNameFromDirs(context *clusterd.Context, agent *OsdAgent, removedDirs map[string]int, nodeCrushName string) (string, error) {
-	if nodeCrushName != "" {
-		// we've already determined the node's crush name, just return it
-		return nodeCrushName, nil
-	}
-
-	var err error
-	if oposd.IsRemovingNode(agent.devices) && len(removedDirs) > 0 {
-		// the node is being removed and we don't yet have the node's crush name. try to look it up from the first OSD
-		// in the the removed dirs list so we can remove the entire node from the crush map later
-		var id int
-		for _, v := range removedDirs {
-			id = v
-			break
-		}
-
-		nodeCrushName, err = client.GetCrushHostName(context, agent.cluster.Name, id)
-		if err != nil {
-			return "", fmt.Errorf("failed to get crush host name for osd.%d: %+v", id, err)
-		}
-	}
-
-	return nodeCrushName, nil
-}
-
-func cleanUpNodeResources(context *clusterd.Context, agent *OsdAgent, nodeCrushName string) error {
-	if nodeCrushName != "" {
-		// we have the crush name for this node, meaning we should remove it from the crush map
-		if o, err := client.CrushRemove(context, agent.cluster.Name, nodeCrushName); err != nil {
-			return fmt.Errorf("failed to remove node %s from crush map.  %+v.  %s", nodeCrushName, err, o)
-		}
-	}
-
-	// clean up node config store
-	configStoreName := config.GetConfigStoreName(agent.nodeName)
-	if err := agent.kv.ClearStore(configStoreName); err != nil {
-		logger.Warningf("failed to delete node config store %s, may need to be cleaned up manually: %+v", configStoreName, err)
-	}
-
-	return nil
 }

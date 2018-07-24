@@ -10,7 +10,7 @@ Block storage allows you to mount storage to a single pod. This example shows ho
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Quickstart](quickstart.md) guide.
+This guide assumes you have created a Rook cluster as explained in the main [Quickstart](ceph-quickstart.md) guide.
 
 ## Provision Storage
 
@@ -19,7 +19,7 @@ Before Rook can start provisioning storage, a StorageClass and its storage pool 
 Save this storage class definition as `storageclass.yaml`:
 
 ```yaml
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: Pool
 metadata:
   name: replicapool

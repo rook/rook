@@ -16,9 +16,6 @@ include image.mk
 
 PLATFORMS ?= linux_amd64 linux_arm64
 
-CEPH_BASE_IMAGE ?= ceph/daemon-base:v3.0.5-stable-3.0-luminous-centos-7-$(PLATFORM_ARCH)
-export CEPH_BASE_IMAGE
-
 # tini's version
 export TINI_VERSION = v0.16.1
 
@@ -41,7 +38,7 @@ cockroachdb.%:
 minio.%:
 	@$(MAKE) -C minio PLATFORM=$*
 
-do.build.images.%: ceph.% ceph-toolbox.% cockroachdb.% minio.% ;
+do.build.images.%: $(foreach i,$(IMAGES), $(i).%);
 
 do.build: do.build.images.$(PLATFORM) ;
 build.all: $(foreach p,$(PLATFORMS), do.build.images.$(p)) ;

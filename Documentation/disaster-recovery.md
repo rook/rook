@@ -19,7 +19,7 @@ that it is the only mon in quorum, and then restart the good mon.
 ### Stop the operator
 First, stop the operator so it will not try to failover the mons while we are modifying the monmap
 ```bash
-kubectl -n rook-ceph-system delete deployment rook-operator
+kubectl -n rook-ceph-system delete deployment rook-ceph-operator
 ```
 
 ### Inject a new monmap

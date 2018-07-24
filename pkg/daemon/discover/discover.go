@@ -53,22 +53,24 @@ func Run(context *clusterd.Context) error {
 	nodeName = os.Getenv(k8sutil.NodeNameEnvVar)
 	namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
 	cmName = LocalDiskCMName + nodeName
-	tick := time.NewTicker(probeInterval).C
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM)
+	err := updateDeviceCM(context)
+	if err != nil {
+		logger.Infof("failed to update device configmap: %v", err)
+		return err
+	}
 	for {
 		select {
 		case <-sigc:
 			logger.Infof("shutdown signal received, exiting...")
 			return nil
-		case <-tick:
-			err := updateDeviceCM(context)
-			if err != nil {
-				logger.Infof("failed to update device configmap: %v", err)
-			}
+		case <-time.After(probeInterval):
+			updateDeviceCM(context)
 		}
 	}
 }
+
 func updateDeviceCM(context *clusterd.Context) error {
 	logger.Infof("updating device configmap")
 	devices, err := probeDevices(context)
@@ -156,6 +158,8 @@ func probeDevices(context *clusterd.Context) ([]sys.LocalDisk, error) {
 		}
 		device.Partitions = partitions
 		device.Filesystem = fs
+		device.Empty = clusterd.GetDeviceEmpty(device)
+
 		devices = append(devices, *device)
 	}
 

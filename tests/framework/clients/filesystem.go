@@ -42,7 +42,7 @@ func CreateK8sFilesystemOperation(k8sh *utils.K8sHelper) *FilesystemOperation {
 func (f *FilesystemOperation) Create(name, namespace string) error {
 
 	logger.Infof("creating the filesystem via CRD")
-	fsSpec := fmt.Sprintf(`apiVersion: ceph.rook.io/v1alpha1
+	fsSpec := fmt.Sprintf(`apiVersion: ceph.rook.io/v1beta1
 kind: Filesystem
 metadata:
   name: %s

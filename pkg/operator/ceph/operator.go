@@ -153,6 +153,7 @@ func (o *Operator) Run() error {
 		case <-signalChan:
 			logger.Infof("shutdown signal received, exiting...")
 			close(stopChan)
+			o.clusterController.StopWatch()
 			return nil
 		}
 	}

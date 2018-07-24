@@ -30,6 +30,7 @@ const (
 	SSDType   = "ssd"
 	PartType  = "part"
 	CryptType = "crypt"
+	LVMType   = "lvm"
 	sgdisk    = "sgdisk"
 	mountCmd  = "mount"
 )
@@ -96,7 +97,6 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 	if err != nil {
 		return nil, 0, fmt.Errorf("failed to get device %s partitions. %+v", device, err)
 	}
-
 	partInfo := strings.Split(output, "\n")
 	var deviceSize uint64
 	var totalPartitionSize uint64
@@ -118,17 +118,19 @@ func GetDevicePartitions(device string, executor exec.Executor) (partitions []Pa
 			}
 			totalPartitionSize += p.Size
 
-			label, err := GetPartitionLabel(name, executor)
+			info, err := GetUdevInfo(name, executor)
 			if err != nil {
 				return nil, 0, err
 			}
-			p.Label = label
-
-			fs, err := GetDeviceFilesystems(name, executor)
-			if err != nil {
-				return nil, 0, err
+			if v, ok := info["ID_PART_ENTRY_NAME"]; ok {
+				p.Label = v
 			}
-			p.Filesystem = fs
+			if v, ok := info["PARTNAME"]; ok {
+				p.Label = v
+			}
+			if v, ok := info["ID_FS_TYPE"]; ok {
+				p.Filesystem = v
+			}
 
 			partitions = append(partitions, p)
 		}
@@ -304,14 +306,18 @@ func CheckIfDeviceAvailable(executor exec.Executor, name string) (bool, string, 
 func RookOwnsPartitions(partitions []Partition) bool {
 
 	// if there are partitions, they must all have the rook osd label
+	ownPartitions := true
 	for _, p := range partitions {
-		if !strings.HasPrefix(p.Label, "ROOK-OSD") {
-			return false
+		if strings.HasPrefix(p.Label, "ROOK-OSD") {
+			logger.Infof("rook partition: %s", p.Label)
+		} else {
+			logger.Infof("non-rook partition: %s", p.Label)
+			ownPartitions = false
 		}
 	}
 
 	// if there are no partitions, or the partitions are all from rook OSDs, then rook owns the device
-	return true
+	return ownPartitions
 }
 
 // finds the disk uuid in the output of sgdisk

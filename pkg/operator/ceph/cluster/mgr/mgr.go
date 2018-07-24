@@ -22,7 +22,7 @@ import (
 	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -58,11 +58,11 @@ type Cluster struct {
 	HostNetwork bool
 	resources   v1.ResourceRequirements
 	ownerRef    metav1.OwnerReference
-	dashboard   cephv1alpha1.DashboardSpec
+	dashboard   cephv1beta1.DashboardSpec
 }
 
 // New creates an instance of the mgr
-func New(context *clusterd.Context, namespace, version string, placement rookalpha.Placement, hostNetwork bool, dashboard cephv1alpha1.DashboardSpec,
+func New(context *clusterd.Context, namespace, version string, placement rookalpha.Placement, hostNetwork bool, dashboard cephv1beta1.DashboardSpec,
 	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:     context,
@@ -153,12 +153,11 @@ func (c *Cluster) configureDashboard() error {
 
 func (c *Cluster) makeMetricsService(name string) *v1.Service {
 	labels := c.getLabels()
-	return &v1.Service{
+	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
-			Labels:          labels,
+			Name:      name,
+			Namespace: c.Namespace,
+			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
@@ -172,16 +171,18 @@ func (c *Cluster) makeMetricsService(name string) *v1.Service {
 			},
 		},
 	}
+
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	return svc
 }
 
 func (c *Cluster) makeDashboardService(name string) *v1.Service {
 	labels := c.getLabels()
-	return &v1.Service{
+	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf("%s-dashboard", name),
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
-			Labels:          labels,
+			Name:      fmt.Sprintf("%s-dashboard", name),
+			Namespace: c.Namespace,
+			Labels:    labels,
 		},
 		Spec: v1.ServiceSpec{
 			Selector: labels,
@@ -195,6 +196,8 @@ func (c *Cluster) makeDashboardService(name string) *v1.Service {
 			},
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	return svc
 }
 
 func (c *Cluster) makeDeployment(name, daemonName string) *extensions.Deployment {
@@ -222,14 +225,15 @@ func (c *Cluster) makeDeployment(name, daemonName string) *extensions.Deployment
 	c.placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
-	return &extensions.Deployment{
+	d := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:      name,
+			Namespace: c.Namespace,
 		},
 		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
+	return d
 }
 
 func (c *Cluster) mgrContainer(name, daemonName string) v1.Container {
@@ -313,13 +317,14 @@ func (c *Cluster) createKeyring(clusterName, name, daemonName string) error {
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            name,
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:      name,
+			Namespace: c.Namespace,
 		},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &secret.ObjectMeta, &c.ownerRef)
+
 	_, err = c.context.Clientset.CoreV1().Secrets(c.Namespace).Create(secret)
 	if err != nil {
 		return fmt.Errorf("failed to save mgr secrets. %+v", err)

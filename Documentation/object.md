@@ -10,7 +10,7 @@ Object storage exposes an S3 API to the storage cluster for applications to put 
 
 ## Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](quickstart.md)
+This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](ceph-quickstart.md)
 
 ## Create an Object Store
 
@@ -18,7 +18,7 @@ Now we will create the object store, which starts the RGW service in the cluster
 Specify your desired settings for the object store in the `object.yaml`. For more details on the settings see the [Object Store CRD](ceph-object-store-crd.md).
 
 ```yaml
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: ObjectStore
 metadata:
   name: my-store
@@ -51,7 +51,7 @@ kubectl -n rook-ceph get pod -l app=rook-ceph-rgw
 
 ## Create a User
 
-Creating an object storage user requires running a `radosgw-admin` command with the [Rook toolbox](quickstart.md#tools) pod. This will be simplified in the future with a CRD for the object store users.
+Creating an object storage user requires running a `radosgw-admin` command with the [Rook toolbox](ceph-quickstart.md#tools) pod. This will be simplified in the future with a CRD for the object store users.
 
 ```bash
 radosgw-admin user create --uid rook-user --display-name "A rook rgw User" --rgw-realm=my-store --rgw-zonegroup=my-store
@@ -116,7 +116,7 @@ List buckets in the object store
 Upload a file to the newly created bucket
 
    ```bash
-   echo "Hello Rook!" > /tmp/rookObj
+   echo "Hello Rook" > /tmp/rookObj
    s3cmd put /tmp/rookObj --no-ssl --host=${AWS_HOST} --host-bucket=  s3://rookbucket
    ```
 

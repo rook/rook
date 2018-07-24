@@ -18,9 +18,9 @@ include ../image.mk
 # Image Build Options
 
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
-IMAGES = $(CEPH_IMAGE)
 
-BASEIMAGE = $(CEPH_BASE_IMAGE)
+CEPH_VERSION = $(shell cat ceph_version)
+BASEIMAGE = $(CEPH_VERSION)-$(PLATFORM_ARCH)
 
 TEMP := $(shell mktemp -d)
 

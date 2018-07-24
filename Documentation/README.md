@@ -1,16 +1,17 @@
 # Rook
 
-Rook is an open source orchestrator for distributed storage systems running in Kubernetes.
+Rook is an open source **cloud-native storage orchestrator**, providing the platform, framework, and support for a diverse set of storage solutions to natively integrate with cloud-native environments.
 
-Rook turns distributed storage software into a self-managing, self-scaling, and self-healing storage services. It does this by automating deployment, bootstrapping, configuration, provisioning, scaling, upgrading, migration, disaster recovery, monitoring, and resource management. Rook uses the facilities provided by the underlying cloud-native container management, scheduling and orchestration platform to perform its duties.
+Rook turns storage software into self-managing, self-scaling, and self-healing storage services. It does this by automating deployment, bootstrapping, configuration, provisioning, scaling, upgrading, migration, disaster recovery, monitoring, and resource management. Rook uses the facilities provided by the underlying cloud-native container management, scheduling and orchestration platform to perform its duties.
 
 Rook integrates deeply into cloud native environments leveraging extension points and providing a seamless experience for scheduling, lifecycle management, resource management, security, monitoring, and user experience.
 
-Rook is currently in alpha state and has focused initially on orchestrating Ceph on top of Kubernetes. Ceph is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters. Rook plans to add support for other storage systems beyond Ceph in future releases.
+For more details about the status of storage solutions currently supported by Rook, please refer to the [project status section](https://github.com/rook/rook/blob/master/README.md#project-status) of the Rook repository.
+We plan to continue adding support for other storage systems and environments based on community demand and engagement in future releases.
 
 ## Getting Started
 
-Starting Rook in your cluster is as simple as two `kubectl` commands. See our [Quickstart](quickstart.md) guide for the details on what you need to get going.
+Starting Rook in your cluster is as simple as two `kubectl` commands. See our [Quickstart](ceph-quickstart.md) guide for the details on what you need to get going.
 
 Once you have a Rook cluster running, walk through the guides for block, object, and file to start consuming the storage in your cluster:
 - **[Block](block.md)**: Create block storage to be consumed by a pod

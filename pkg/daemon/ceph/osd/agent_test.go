@@ -101,8 +101,6 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 
 		switch {
-		case startCount < 2:
-			assert.Equal(t, "ceph-osd", command)
 		default:
 			assert.Fail(t, fmt.Sprintf("unexpected case %d", startCount))
 		}
@@ -153,28 +151,32 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 				// the osd mkfs for sdx
 				assert.Equal(t, "--mkfs", args[0])
 				createTestKeyring(t, configDir, args)
-			case execCount == 2: // all remaining execs are for partitioning sdy then mkfs sdy
+			case execCount == 2:
+				assert.Equal(t, "umount", command)
+			case execCount == 3: // all remaining execs are for partitioning sdy then mkfs sdy
 				assert.Equal(t, "sgdisk", command)
 				assert.Equal(t, "--zap-all", args[0])
 				assert.Equal(t, "/dev/"+nameSuffix, args[1])
-			case execCount == 3:
+			case execCount == 4:
 				assert.Equal(t, "sgdisk", command)
 				assert.Equal(t, "--clear", args[0])
 				assert.Equal(t, "/dev/"+nameSuffix, args[2])
-			case execCount == 4:
+			case execCount == 5:
 				// the partitioning for sdy.
 				assert.Equal(t, "sgdisk", command)
 				assert.Equal(t, "/dev/"+nameSuffix, args[4])
-			case execCount == 5:
+			case execCount == 6:
 				// mkfs.ext4 for sdy filestore
 				assert.Equal(t, "mkfs.ext4", command)
-			case execCount == 6:
+			case execCount == 7:
 				// the mount for sdy filestore
 				assert.Equal(t, "mount", command)
-			case execCount == 7:
+			case execCount == 8:
 				// the osd mkfs for sdy filestore
 				assert.Equal(t, "--mkfs", args[0])
 				createTestKeyring(t, configDir, args)
+			case execCount == 9:
+				assert.Equal(t, "umount", command)
 			default:
 				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
 			}
@@ -226,19 +228,18 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 		"sdx": {Data: -1},
 		"sdy": {Data: -1},
 	}}
-	err = agent.configureDevices(context, devices)
+	_, err = agent.configureDevices(context, devices)
 	assert.Nil(t, err)
 
 	assert.Equal(t, int32(0), agent.configCounter)
-	assert.Equal(t, 2, startCount) // 2 OSD procs should be started
-	assert.Equal(t, 2, len(agent.osdProc), fmt.Sprintf("procs=%+v", agent.osdProc))
+	assert.Equal(t, 0, startCount) // 2 OSD procs should be started
 
 	if storeConfig.StoreType == config.Bluestore {
 		assert.Equal(t, 11, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
 		assert.Equal(t, 5, execCount)        // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
 	} else {
 		assert.Equal(t, 9, outputExecCount)
-		assert.Equal(t, 8, execCount) // 1 for remount sdx, 1 osd mkfs for sdx, 3 partition steps for sdy, 1 mkfs for sdy, 1 mount for sdy, 1 osd mkfs for sdy
+		assert.Equal(t, 10, execCount) // 1 for remount sdx, 1 osd mkfs for sdx, 3 partition steps for sdy, 1 mkfs for sdy, 1 mount for sdy, 1 osd mkfs for sdy
 	}
 }
 
@@ -293,13 +294,12 @@ func TestOSDAgentNoDevices(t *testing.T) {
 		filepath.Join(configDir, "sdx"): -1,
 		filepath.Join(configDir, "sdy"): -1,
 	}
-	err = agent.configureDirs(context, dirs)
+	_, err = agent.configureDirs(context, dirs)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, runCount)
-	assert.Equal(t, 2, startCount)
+	assert.Equal(t, 0, startCount)
 	assert.Equal(t, 6, execWithOutputFileCount)
 	assert.Equal(t, 2, execWithOutputCount)
-	assert.Equal(t, 1, len(agent.osdProc))
 }
 
 func TestRemoveDevices(t *testing.T) {
@@ -353,7 +353,7 @@ func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeCon
 	cluster := &mon.ClusterInfo{Name: "myclust"}
 	context := &clusterd.Context{ConfigDir: configDir, Executor: executor, Clientset: testop.New(1)}
 	agent := NewAgent(context, devices, false, "", "", forceFormat, location, *storeConfig,
-		cluster, nodeName, mockKVStore())
+		cluster, nodeName, mockKVStore(), false /* prepareOnly */)
 
 	return agent, executor, context
 }

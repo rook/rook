@@ -1,10 +1,10 @@
 ---
 title: CockroachDB
-weight: 27
+weight: 5
 indent: true
 ---
 
-# CockroachDB
+# CockroachDB Quickstart
 
 CockroachDB is a cloud-native SQL database for building global, scalable cloud services that survive disasters.
 Rook provides an operator to deploy and manage CockroachDB clusters.

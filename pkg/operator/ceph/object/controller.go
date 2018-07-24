@@ -23,7 +23,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
@@ -45,13 +45,13 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-object")
 var ObjectStoreResource = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
-	Group:   cephv1alpha1.CustomResourceGroup,
-	Version: cephv1alpha1.Version,
+	Group:   cephv1beta1.CustomResourceGroup,
+	Version: cephv1beta1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(cephv1alpha1.ObjectStore{}).Name(),
+	Kind:    reflect.TypeOf(cephv1beta1.ObjectStore{}).Name(),
 }
 
-var ObjectStoreResourceLegacy = opkit.CustomResource{
+var ObjectStoreResourceRookLegacy = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
 	Group:   rookv1alpha1.CustomResourceGroup,
@@ -79,7 +79,7 @@ func NewObjectStoreController(context *clusterd.Context, rookImage string, hostN
 }
 
 // StartWatch watches for instances of ObjectStore custom resources and acts on them
-func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{}, watchLegacyTypes bool) error {
+func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{}) error {
 
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
@@ -88,14 +88,11 @@ func (c *ObjectStoreController) StartWatch(namespace string, stopCh chan struct{
 	}
 
 	logger.Infof("start watching object store resources in namespace %s", namespace)
-	watcher := opkit.NewWatcher(ObjectStoreResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1alpha1().RESTClient())
-	go watcher.Watch(&cephv1alpha1.ObjectStore{}, stopCh)
+	watcher := opkit.NewWatcher(ObjectStoreResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1beta1().RESTClient())
+	go watcher.Watch(&cephv1beta1.ObjectStore{}, stopCh)
 
-	if watchLegacyTypes {
-		logger.Infof("start watching legacy objectstores in all namespaces")
-		watcherLegacy := opkit.NewWatcher(ObjectStoreResourceLegacy, namespace, resourceHandlerFuncs, c.context.RookClientset.RookV1alpha1().RESTClient())
-		go watcherLegacy.Watch(&cephv1alpha1.ObjectStore{}, stopCh)
-	}
+	// watch for events on all legacy types too
+	c.watchLegacyObjectStores(namespace, stopCh, resourceHandlerFuncs)
 
 	return nil
 }
@@ -108,7 +105,7 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 	}
 
 	if migrationNeeded {
-		if err = c.migrateObjectStoreObject(objectstore); err != nil {
+		if err = c.migrateObjectStoreObject(objectstore, obj); err != nil {
 			logger.Errorf("failed to migrate objectstore %s in namespace %s: %+v", objectstore.Name, objectstore.Namespace, err)
 		}
 		return
@@ -133,7 +130,7 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	if migrationNeeded {
-		if err = c.migrateObjectStoreObject(newStore); err != nil {
+		if err = c.migrateObjectStoreObject(newStore, newObj); err != nil {
 			logger.Errorf("failed to migrate objectstore %s in namespace %s: %+v", newStore.Name, newStore.Namespace, err)
 		}
 		return
@@ -167,7 +164,7 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 	}
 }
 
-func (c *ObjectStoreController) storeOwners(store *cephv1alpha1.ObjectStore) []metav1.OwnerReference {
+func (c *ObjectStoreController) storeOwners(store *cephv1beta1.ObjectStore) []metav1.OwnerReference {
 	// Only set the cluster crd as the owner of the object store resources.
 	// If the object store crd is deleted, the operator will explicitly remove the object store resources.
 	// If the object store crd still exists when the cluster crd is deleted, this will make sure the object store
@@ -175,7 +172,7 @@ func (c *ObjectStoreController) storeOwners(store *cephv1alpha1.ObjectStore) []m
 	return []metav1.OwnerReference{c.ownerRef}
 }
 
-func storeChanged(oldStore, newStore cephv1alpha1.ObjectStoreSpec) bool {
+func storeChanged(oldStore, newStore cephv1beta1.ObjectStoreSpec) bool {
 	if oldStore.DataPool.Replicated.Size != newStore.DataPool.Replicated.Size {
 		logger.Infof("data pool replication changed from %d to %d", oldStore.DataPool.Replicated.Size, newStore.DataPool.Replicated.Size)
 		return true
@@ -207,28 +204,39 @@ func storeChanged(oldStore, newStore cephv1alpha1.ObjectStoreSpec) bool {
 	return false
 }
 
-func getObjectStoreObject(obj interface{}) (objectstore *cephv1alpha1.ObjectStore, migrationNeeded bool, err error) {
+func (c *ObjectStoreController) watchLegacyObjectStores(namespace string, stopCh chan struct{}, resourceHandlerFuncs cache.ResourceEventHandlerFuncs) {
+	// watch for objectstore.rook.io/v1alpha1 events if the CRD exists
+	if _, err := c.context.RookClientset.RookV1alpha1().ObjectStores(namespace).List(metav1.ListOptions{}); err != nil {
+		logger.Infof("skipping watching for legacy rook objectstore events (legacy objectstore CRD probably doesn't exist): %+v", err)
+	} else {
+		logger.Infof("start watching legacy rook objectstores in all namespaces")
+		watcherLegacy := opkit.NewWatcher(ObjectStoreResourceRookLegacy, namespace, resourceHandlerFuncs, c.context.RookClientset.RookV1alpha1().RESTClient())
+		go watcherLegacy.Watch(&rookv1alpha1.ObjectStore{}, stopCh)
+	}
+}
+
+func getObjectStoreObject(obj interface{}) (objectstore *cephv1beta1.ObjectStore, migrationNeeded bool, err error) {
 	var ok bool
-	objectstore, ok = obj.(*cephv1alpha1.ObjectStore)
+	objectstore, ok = obj.(*cephv1beta1.ObjectStore)
 	if ok {
 		// the objectstore object is of the latest type, simply return it
 		return objectstore.DeepCopy(), false, nil
 	}
 
-	// type assertion to current objectstore type failed, try instead asserting to the legacy objectstore type
+	// type assertion to current objectstore type failed, try instead asserting to the legacy objectstore types
 	// then convert it to the current objectstore type
-	objectStoreLegacy, ok := obj.(*rookv1alpha1.ObjectStore)
+	objectStoreRookLegacy, ok := obj.(*rookv1alpha1.ObjectStore)
 	if ok {
-		return convertLegacyObjectStore(objectStoreLegacy.DeepCopy()), true, nil
+		return convertRookLegacyObjectStore(objectStoreRookLegacy.DeepCopy()), true, nil
 	}
 
 	return nil, false, fmt.Errorf("not a known objectstore object: %+v", obj)
 }
 
-func (c *ObjectStoreController) migrateObjectStoreObject(objectstoreToMigrate *cephv1alpha1.ObjectStore) error {
+func (c *ObjectStoreController) migrateObjectStoreObject(objectstoreToMigrate *cephv1beta1.ObjectStore, legacyObj interface{}) error {
 	logger.Infof("migrating legacy objectstore %s in namespace %s", objectstoreToMigrate.Name, objectstoreToMigrate.Namespace)
 
-	_, err := c.context.RookClientset.CephV1alpha1().ObjectStores(objectstoreToMigrate.Namespace).Get(objectstoreToMigrate.Name, metav1.GetOptions{})
+	_, err := c.context.RookClientset.CephV1beta1().ObjectStores(objectstoreToMigrate.Namespace).Get(objectstoreToMigrate.Name, metav1.GetOptions{})
 	if err == nil {
 		// objectstore of current type with same name/namespace already exists, don't overwrite it
 		logger.Warningf("objectstore object %s in namespace %s already exists, will not overwrite with migrated legacy objectstore.",
@@ -239,7 +247,7 @@ func (c *ObjectStoreController) migrateObjectStoreObject(objectstoreToMigrate *c
 		}
 
 		// objectstore of current type does not already exist, create it now to complete the migration
-		_, err = c.context.RookClientset.CephV1alpha1().ObjectStores(objectstoreToMigrate.Namespace).Create(objectstoreToMigrate)
+		_, err = c.context.RookClientset.CephV1beta1().ObjectStores(objectstoreToMigrate.Namespace).Create(objectstoreToMigrate)
 		if err != nil {
 			return err
 		}
@@ -248,29 +256,32 @@ func (c *ObjectStoreController) migrateObjectStoreObject(objectstoreToMigrate *c
 	}
 
 	// delete the legacy objectstore instance, it should not be used anymore now that a migrated instance of the current type exists
-	logger.Infof("deleting legacy objectstore %s in namespace %s", objectstoreToMigrate.Name, objectstoreToMigrate.Namespace)
 	deletePropagation := metav1.DeletePropagationOrphan
-	err = c.context.RookClientset.RookV1alpha1().ObjectStores(objectstoreToMigrate.Namespace).Delete(
-		objectstoreToMigrate.Name, &metav1.DeleteOptions{PropagationPolicy: &deletePropagation})
-	return err
+	if _, ok := legacyObj.(*rookv1alpha1.ObjectStore); ok {
+		logger.Infof("deleting legacy rook objectstore %s in namespace %s", objectstoreToMigrate.Name, objectstoreToMigrate.Namespace)
+		return c.context.RookClientset.RookV1alpha1().ObjectStores(objectstoreToMigrate.Namespace).Delete(
+			objectstoreToMigrate.Name, &metav1.DeleteOptions{PropagationPolicy: &deletePropagation})
+	}
+
+	return fmt.Errorf("not a known objectstore object: %+v", legacyObj)
 }
 
-func convertLegacyObjectStore(legacyObjectStore *rookv1alpha1.ObjectStore) *cephv1alpha1.ObjectStore {
+func convertRookLegacyObjectStore(legacyObjectStore *rookv1alpha1.ObjectStore) *cephv1beta1.ObjectStore {
 	if legacyObjectStore == nil {
 		return nil
 	}
 
 	legacySpec := legacyObjectStore.Spec
 
-	objectStore := &cephv1alpha1.ObjectStore{
+	objectStore := &cephv1beta1.ObjectStore{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      legacyObjectStore.Name,
 			Namespace: legacyObjectStore.Namespace,
 		},
-		Spec: cephv1alpha1.ObjectStoreSpec{
-			MetadataPool: pool.ConvertLegacyPoolSpec(legacySpec.MetadataPool),
-			DataPool:     pool.ConvertLegacyPoolSpec(legacySpec.DataPool),
-			Gateway: cephv1alpha1.GatewaySpec{
+		Spec: cephv1beta1.ObjectStoreSpec{
+			MetadataPool: pool.ConvertRookLegacyPoolSpec(legacySpec.MetadataPool),
+			DataPool:     pool.ConvertRookLegacyPoolSpec(legacySpec.DataPool),
+			Gateway: cephv1beta1.GatewaySpec{
 				Port:              legacySpec.Gateway.Port,
 				SecurePort:        legacySpec.Gateway.SecurePort,
 				Instances:         legacySpec.Gateway.Instances,

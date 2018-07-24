@@ -21,27 +21,23 @@ import (
 	"fmt"
 	"os"
 	"reflect"
-	"sort"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	opkit "github.com/rook/operator-kit"
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
-	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/mgr"
+
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/object"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
+	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
@@ -67,21 +63,21 @@ const (
 )
 
 var (
-	logger              = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
-	finalizerName       = fmt.Sprintf("%s.%s", ClusterResource.Name, ClusterResource.Group)
-	finalizerNameLegacy = fmt.Sprintf("%s.%s", ClusterResourceLegacy.Name, ClusterResourceLegacy.Group)
+	logger                  = capnslog.NewPackageLogger("github.com/rook/rook", "op-cluster")
+	finalizerName           = fmt.Sprintf("%s.%s", ClusterResource.Name, ClusterResource.Group)
+	finalizerNameRookLegacy = fmt.Sprintf("%s.%s", ClusterResourceRookLegacy.Name, ClusterResourceRookLegacy.Group)
 )
 
 var ClusterResource = opkit.CustomResource{
 	Name:    CustomResourceName,
 	Plural:  CustomResourceNamePlural,
-	Group:   cephv1alpha1.CustomResourceGroup,
-	Version: cephv1alpha1.Version,
+	Group:   cephv1beta1.CustomResourceGroup,
+	Version: cephv1beta1.Version,
 	Scope:   apiextensionsv1beta1.NamespaceScoped,
-	Kind:    reflect.TypeOf(cephv1alpha1.Cluster{}).Name(),
+	Kind:    reflect.TypeOf(cephv1beta1.Cluster{}).Name(),
 }
 
-var ClusterResourceLegacy = opkit.CustomResource{
+var ClusterResourceRookLegacy = opkit.CustomResource{
 	Name:    CustomResourceName,
 	Plural:  CustomResourceNamePlural,
 	Group:   rookv1alpha1.CustomResourceGroup,
@@ -96,19 +92,7 @@ type ClusterController struct {
 	volumeAttachment attachment.Attachment
 	devicesInUse     bool
 	rookImage        string
-	watchLegacyTypes bool
-	stopCh           chan struct{}
-}
-
-type cluster struct {
-	context   *clusterd.Context
-	Namespace string
-	Spec      cephv1alpha1.ClusterSpec
-	mons      *mon.Cluster
-	mgrs      *mgr.Cluster
-	osds      *osd.Cluster
-	stopCh    chan struct{}
-	ownerRef  metav1.OwnerReference
+	clusterMap       map[string]*cluster
 }
 
 // NewClusterController create controller for watching cluster custom resources created
@@ -117,12 +101,12 @@ func NewClusterController(context *clusterd.Context, rookImage string, volumeAtt
 		context:          context,
 		volumeAttachment: volumeAttachment,
 		rookImage:        rookImage,
+		clusterMap:       make(map[string]*cluster),
 	}
 }
 
 // Watch watches instances of cluster resources
 func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
-
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		AddFunc:    c.onAdd,
 		UpdateFunc: c.onUpdate,
@@ -130,19 +114,20 @@ func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) e
 	}
 
 	logger.Infof("start watching clusters in all namespaces")
-	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1alpha1().RESTClient())
-	go watcher.Watch(&cephv1alpha1.Cluster{}, stopCh)
+	watcher := opkit.NewWatcher(ClusterResource, namespace, resourceHandlerFuncs, c.context.RookClientset.CephV1beta1().RESTClient())
+	go watcher.Watch(&cephv1beta1.Cluster{}, stopCh)
 
-	if _, err := c.context.RookClientset.RookV1alpha1().Clusters(namespace).List(metav1.ListOptions{}); err != nil {
-		logger.Infof("skipping watching for legacy cluster events due to failing to retrieve all (legacy cluster CRD probably doesn't exist): %+v", err)
-	} else {
-		logger.Infof("start watching legacy clusters in all namespaces")
-		c.watchLegacyTypes = true
-		watcherLegacy := opkit.NewWatcher(ClusterResourceLegacy, namespace, resourceHandlerFuncs, c.context.RookClientset.RookV1alpha1().RESTClient())
-		go watcherLegacy.Watch(&rookv1alpha1.Cluster{}, stopCh)
-	}
+	// watch for events on all legacy types too
+	c.watchLegacyClusters(namespace, stopCh, resourceHandlerFuncs)
 
 	return nil
+}
+
+func (c *ClusterController) StopWatch() {
+	for _, cluster := range c.clusterMap {
+		close(cluster.stopCh)
+	}
+	c.clusterMap = make(map[string]*cluster)
 }
 
 // ************************************************************************************************
@@ -156,7 +141,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	if migrationNeeded {
-		err = c.migrateClusterObject(clusterObj)
+		err = c.migrateClusterObject(clusterObj, obj)
 		if err != nil {
 			logger.Errorf("failed to migrate legacy cluster %s in namespace %s: %+v", clusterObj.Name, clusterObj.Namespace, err)
 		}
@@ -167,12 +152,14 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	}
 
 	cluster := newCluster(clusterObj, c.context)
+	c.clusterMap[cluster.Namespace] = cluster
+
 	logger.Infof("starting cluster in namespace %s", cluster.Namespace)
 
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
 		message := "using all devices in more than one namespace not supported"
 		logger.Error(message)
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1alpha1.ClusterStateError, message); err != nil {
+		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateError, message); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		}
 		return
@@ -197,7 +184,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 
 	// Start the Rook cluster components. Retry several times in case of failure.
 	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1alpha1.ClusterStateCreating, ""); err != nil {
+		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateCreating, ""); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 			return false, nil
 		}
@@ -209,7 +196,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		}
 
 		// cluster is created, update the cluster CRD status now
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1alpha1.ClusterStateCreated, ""); err != nil {
+		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateCreated, ""); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 			return false, nil
 		}
@@ -219,31 +206,31 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	if err != nil {
 		message := fmt.Sprintf("giving up creating cluster in namespace %s after %s", cluster.Namespace, clusterCreateTimeout)
 		logger.Error(message)
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1alpha1.ClusterStateError, message); err != nil {
+		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateError, message); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		}
 		return
 	}
 
-	// Make and save stopCh for onDelete
-	cluster.stopCh = make(chan struct{})
-	c.stopCh = cluster.stopCh
-
 	// Start pool CRD watcher
 	poolController := pool.NewPoolController(c.context)
-	poolController.StartWatch(cluster.Namespace, cluster.stopCh, c.watchLegacyTypes)
+	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store CRD watcher
 	objectStoreController := object.NewObjectStoreController(c.context, c.rookImage, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
-	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh, c.watchLegacyTypes)
+	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start file system CRD watcher
 	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
-	fileController.StartWatch(cluster.Namespace, cluster.stopCh, c.watchLegacyTypes)
+	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker
 	healthChecker := mon.NewHealthChecker(cluster.mons)
 	go healthChecker.Check(cluster.stopCh)
+
+	// Start the osd health checker
+	osdChecker := osd.NewMonitor(c.context, cluster.Namespace)
+	go osdChecker.Start(cluster.stopCh)
 
 	// add the finalizer to the crd
 	err = c.addFinalizer(clusterObj)
@@ -273,11 +260,11 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		if isLegacyClusterObjectDeleted(newObj) {
 			// the legacy cluster object has been requested to be deleted but the finalizer is preventing
 			// that.  Let's remove the finalizer and allow the deletion of the legacy object to proceed.
-			c.removeLegacyFinalizer(newObj)
+			c.removeFinalizer(newObj)
 			return
 		}
 
-		if err = c.migrateClusterObject(newClust); err != nil {
+		if err = c.migrateClusterObject(newClust, newObj); err != nil {
 			logger.Errorf("failed to migrate legacy cluster %s in namespace %s: %+v", newClust.Name, newClust.Namespace, err)
 		}
 
@@ -312,7 +299,12 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	logger.Debugf("old cluster: %+v", oldClust.Spec)
 	logger.Debugf("new cluster: %+v", newClust.Spec)
 
-	cluster := newCluster(newClust, c.context)
+	cluster, ok := c.clusterMap[newClust.Namespace]
+	if !ok {
+		logger.Errorf("Cannot update cluster %s that does not exist", newClust.Namespace)
+		return
+	}
+	cluster.Spec = &newClust.Spec
 
 	// attempt to update the cluster.  note this is done outside of wait.Poll because that function
 	// will wait for the retry interval before trying for the first time.
@@ -327,15 +319,15 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	if err != nil {
 		message := fmt.Sprintf("giving up trying to update cluster in namespace %s after %s", cluster.Namespace, updateClusterTimeout)
 		logger.Error(message)
-		if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1alpha1.ClusterStateError, message); err != nil {
+		if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1beta1.ClusterStateError, message); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
 		}
 		return
 	}
 }
 
-func (c *ClusterController) handleUpdate(newClust *cephv1alpha1.Cluster, cluster *cluster) (bool, error) {
-	if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1alpha1.ClusterStateUpdating, ""); err != nil {
+func (c *ClusterController) handleUpdate(newClust *cephv1beta1.Cluster, cluster *cluster) (bool, error) {
+	if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1beta1.ClusterStateUpdating, ""); err != nil {
 		logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
 		return false, nil
 	}
@@ -345,7 +337,7 @@ func (c *ClusterController) handleUpdate(newClust *cephv1alpha1.Cluster, cluster
 		return false, nil
 	}
 
-	if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1alpha1.ClusterStateCreated, ""); err != nil {
+	if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1beta1.ClusterStateCreated, ""); err != nil {
 		logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
 		return false, nil
 	}
@@ -377,13 +369,17 @@ func (c *ClusterController) onDelete(obj interface{}) {
 	if err != nil {
 		logger.Errorf("failed to delete cluster. %+v", err)
 	}
-	close(c.stopCh)
+	if cluster, ok := c.clusterMap[clust.Namespace]; ok {
+		close(cluster.stopCh)
+		delete(c.clusterMap, clust.Namespace)
+	}
 	if clust.Spec.Storage.AnyUseAllDevices() {
 		c.devicesInUse = false
 	}
+	discover.FreeDevicesByCluster(c.context, clust.Namespace)
 }
 
-func (c *ClusterController) handleDelete(cluster *cephv1alpha1.Cluster, retryInterval time.Duration) error {
+func (c *ClusterController) handleDelete(cluster *cephv1beta1.Cluster, retryInterval time.Duration) error {
 
 	operatorNamespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
 	retryCount := 0
@@ -430,22 +426,23 @@ func (c *ClusterController) handleDelete(cluster *cephv1alpha1.Cluster, retryInt
 }
 
 func isLegacyClusterObjectDeleted(obj interface{}) bool {
-	clusterLegacy, ok := obj.(*rookv1alpha1.Cluster)
-	if !ok {
-		return false
+	// if the object is a legacy cluster type and the deletion timestamp on the legacy cluster object is set,
+	// it has been requested to be deleted
+	if clusterLegacy, ok := obj.(*rookv1alpha1.Cluster); ok {
+		return clusterLegacy.DeletionTimestamp != nil
 	}
 
-	// if the deletion timestamp on the legacy cluster object is set, it has been requested to be deleted
-	return clusterLegacy.DeletionTimestamp != nil
+	// not a legacy type
+	return false
 }
 
 // ************************************************************************************************
 // Finalizer functions
 // ************************************************************************************************
-func (c *ClusterController) addFinalizer(clust *cephv1alpha1.Cluster) error {
+func (c *ClusterController) addFinalizer(clust *cephv1beta1.Cluster) error {
 
 	// get the latest cluster object since we probably updated it before we got to this point (e.g. by updating its status)
-	clust, err := c.context.RookClientset.CephV1alpha1().Clusters(clust.Namespace).Get(clust.Name, metav1.GetOptions{})
+	clust, err := c.context.RookClientset.CephV1beta1().Clusters(clust.Namespace).Get(clust.Name, metav1.GetOptions{})
 	if err != nil {
 		return err
 	}
@@ -462,7 +459,7 @@ func (c *ClusterController) addFinalizer(clust *cephv1alpha1.Cluster) error {
 	clust.Finalizers = append(clust.Finalizers, finalizerName)
 
 	// update the crd
-	_, err = c.context.RookClientset.CephV1alpha1().Clusters(clust.Namespace).Update(clust)
+	_, err = c.context.RookClientset.CephV1beta1().Clusters(clust.Namespace).Update(clust)
 	if err != nil {
 		return fmt.Errorf("failed to add finalizer to cluster. %+v", err)
 	}
@@ -471,94 +468,74 @@ func (c *ClusterController) addFinalizer(clust *cephv1alpha1.Cluster) error {
 	return nil
 }
 
-func (c *ClusterController) removeFinalizer(clust *cephv1alpha1.Cluster) {
-	// remove the finalizer (cluster.ceph.rook.io) if found in the slice
+func (c *ClusterController) removeFinalizer(obj interface{}) {
+	var fname string
+	var objectMeta *metav1.ObjectMeta
+
+	// first determine what type/version of cluster we are dealing with
+	if cl, ok := obj.(*cephv1beta1.Cluster); ok {
+		fname = finalizerName
+		objectMeta = &cl.ObjectMeta
+	} else if cl, ok := obj.(*rookv1alpha1.Cluster); ok {
+		fname = finalizerNameRookLegacy
+		objectMeta = &cl.ObjectMeta
+	} else {
+		logger.Warningf("cannot remove finalizer from object that is not a cluster: %+v", obj)
+		return
+	}
+
+	// remove the finalizer from the slice if it exists
 	found := false
-	for i, finalizer := range clust.Finalizers {
-		if finalizer == finalizerName {
-			clust.Finalizers = append(clust.Finalizers[:i], clust.Finalizers[i+1:]...)
+	for i, finalizer := range objectMeta.Finalizers {
+		if finalizer == fname {
+			objectMeta.Finalizers = append(objectMeta.Finalizers[:i], objectMeta.Finalizers[i+1:]...)
 			found = true
 			break
 		}
 	}
 	if !found {
-		logger.Infof("finalizer %s not found in the cluster crd '%s'", finalizerName, clust.Name)
+		logger.Infof("finalizer %s not found in the cluster crd '%s'", fname, objectMeta.Name)
 		return
 	}
 
-	// update the crd. retry several times in case of intermittent failures.
+	// update the crd to remove the finalizer for good. retry several times in case of intermittent failures.
 	maxRetries := 5
 	retrySeconds := 5 * time.Second
 	for i := 0; i < maxRetries; i++ {
-		_, err := c.context.RookClientset.CephV1alpha1().Clusters(clust.Namespace).Update(clust)
+		var err error
+		if cluster, ok := obj.(*cephv1beta1.Cluster); ok {
+			_, err = c.context.RookClientset.CephV1beta1().Clusters(cluster.Namespace).Update(cluster)
+		} else {
+			clusterLegacy := obj.(*rookv1alpha1.Cluster)
+			_, err = c.context.RookClientset.RookV1alpha1().Clusters(clusterLegacy.Namespace).Update(clusterLegacy)
+		}
+
 		if err != nil {
-			logger.Errorf("failed to remove finalizer from cluster. %+v", err)
+			logger.Errorf("failed to remove finalizer %s from cluster %s. %+v", fname, objectMeta.Name, err)
 			time.Sleep(retrySeconds)
 			continue
 		}
-		logger.Infof("removed finalizer from cluster %s", clust.Name)
+		logger.Infof("removed finalizer %s from cluster %s", fname, objectMeta.Name)
 		return
 	}
 
-	logger.Warning("giving up from removing the cluster finalizer")
+	logger.Warningf("giving up from removing the %s cluster finalizer", fname)
 }
 
-func (c *ClusterController) removeLegacyFinalizer(obj interface{}) {
-	clusterLegacy, ok := obj.(*rookv1alpha1.Cluster)
-	if !ok {
-		logger.Warningf("cannot remove finalizer from object that is not a legacy cluster: %+v", obj)
-		return
-	}
-
-	// remove the finalizer (cluster.rook.io) if found in the slice
-	found := false
-	for i, finalizer := range clusterLegacy.Finalizers {
-		if finalizer == finalizerNameLegacy {
-			clusterLegacy.Finalizers = append(clusterLegacy.Finalizers[:i], clusterLegacy.Finalizers[i+1:]...)
-			found = true
-			break
-		}
-	}
-	if !found {
-		logger.Infof("finalizer %s not found in the legacy cluster crd '%s'", finalizerNameLegacy, clusterLegacy.Name)
-		return
-	}
-
-	// update the crd. retry several times in case of intermittent failures.
-	maxRetries := 5
-	retrySeconds := 5 * time.Second
-	for i := 0; i < maxRetries; i++ {
-		_, err := c.context.RookClientset.RookV1alpha1().Clusters(clusterLegacy.Namespace).Update(clusterLegacy)
-		if err != nil {
-			logger.Errorf("failed to remove finalizer from legacy cluster %s. %+v", clusterLegacy.Name, err)
-			time.Sleep(retrySeconds)
-			continue
-		}
-		logger.Infof("removed finalizer from legacy cluster %s", clusterLegacy.Name)
-		return
-	}
-
-	logger.Warning("giving up from removing the legacy cluster finalizer")
-}
-
-func (c *ClusterController) updateClusterStatus(namespace, name string, state cephv1alpha1.ClusterState, message string) error {
+func (c *ClusterController) updateClusterStatus(namespace, name string, state cephv1beta1.ClusterState, message string) error {
 	// get the most recent cluster CRD object
-	cluster, err := c.context.RookClientset.CephV1alpha1().Clusters(namespace).Get(name, metav1.GetOptions{})
+	cluster, err := c.context.RookClientset.CephV1beta1().Clusters(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get cluster from namespace %s prior to updating its status: %+v", namespace, err)
 	}
 
 	// update the status on the retrieved cluster object
-	cluster.Status = cephv1alpha1.ClusterStatus{State: state, Message: message}
-	if _, err := c.context.RookClientset.CephV1alpha1().Clusters(cluster.Namespace).Update(cluster); err != nil {
+	cluster.Status = cephv1beta1.ClusterStatus{State: state, Message: message}
+	if _, err := c.context.RookClientset.CephV1beta1().Clusters(cluster.Namespace).Update(cluster); err != nil {
 		return fmt.Errorf("failed to update cluster %s status: %+v", cluster.Namespace, err)
 	}
 
 	return nil
-}
-
-func newCluster(c *cephv1alpha1.Cluster, context *clusterd.Context) *cluster {
-	return &cluster{Namespace: c.Namespace, Spec: c.Spec, context: context, ownerRef: ClusterOwnerRef(c.Namespace, string(c.UID))}
 }
 
 func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
@@ -570,136 +547,4 @@ func ClusterOwnerRef(namespace, clusterID string) metav1.OwnerReference {
 		UID:                types.UID(clusterID),
 		BlockOwnerDeletion: &blockOwner,
 	}
-}
-
-func (c *cluster) createInstance(rookImage string) error {
-
-	// Create a configmap for overriding ceph config settings
-	// These settings should only be modified by a user after they are initialized
-	placeholderConfig := map[string]string{
-		k8sutil.ConfigOverrideVal: "",
-	}
-	cm := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            k8sutil.ConfigOverrideName,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
-		},
-		Data: placeholderConfig,
-	}
-
-	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(cm)
-	if err != nil && !errors.IsAlreadyExists(err) {
-		return fmt.Errorf("failed to create override configmap %s. %+v", c.Namespace, err)
-	}
-
-	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.Mon, cephv1alpha1.GetMonPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, cephv1alpha1.GetMonResources(c.Spec.Resources), c.ownerRef)
-	err = c.mons.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the mons. %+v", err)
-	}
-
-	err = c.createInitialCrushMap()
-	if err != nil {
-		return fmt.Errorf("failed to create initial crushmap: %+v", err)
-	}
-
-	c.mgrs = mgr.New(c.context, c.Namespace, rookImage, cephv1alpha1.GetMgrPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, c.Spec.Dashboard, cephv1alpha1.GetMgrResources(c.Spec.Resources), c.ownerRef)
-	err = c.mgrs.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the ceph mgr. %+v", err)
-	}
-
-	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath,
-		cephv1alpha1.GetOSDPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork, cephv1alpha1.GetOSDResources(c.Spec.Resources), c.ownerRef)
-	err = c.osds.Start()
-	if err != nil {
-		return fmt.Errorf("failed to start the osds. %+v", err)
-	}
-
-	logger.Infof("Done creating rook instance in namespace %s", c.Namespace)
-	return nil
-}
-
-func (c *cluster) createInitialCrushMap() error {
-	configMapExists := false
-	createCrushMap := false
-
-	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(crushConfigMapName, metav1.GetOptions{})
-	if err != nil {
-		if !errors.IsNotFound(err) {
-			return err
-		}
-
-		// crush config map was not found, meaning we haven't created the initial crush map
-		createCrushMap = true
-	} else {
-		// crush config map was found, look in it to verify we've created the initial crush map
-		configMapExists = true
-		val, ok := cm.Data[crushmapCreatedKey]
-		if !ok {
-			createCrushMap = true
-		} else if val != "1" {
-			createCrushMap = true
-		}
-	}
-
-	if !createCrushMap {
-		// no need to create the crushmap, bail out
-		return nil
-	}
-
-	logger.Info("creating initial crushmap")
-	out, err := client.CreateDefaultCrushMap(c.context, c.Namespace)
-	if err != nil {
-		return fmt.Errorf("failed to create initial crushmap: %+v. output: %s", err, out)
-	}
-
-	logger.Info("created initial crushmap")
-
-	// save the fact that we've created the initial crushmap to a configmap
-	configMap := &v1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:            crushConfigMapName,
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
-		},
-		Data: map[string]string{crushmapCreatedKey: "1"},
-	}
-
-	if !configMapExists {
-		if _, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Create(configMap); err != nil {
-			return fmt.Errorf("failed to create configmap %s: %+v", crushConfigMapName, err)
-		}
-	} else {
-		if _, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Update(configMap); err != nil {
-			return fmt.Errorf("failed to update configmap %s: %+v", crushConfigMapName, err)
-		}
-	}
-
-	return nil
-}
-
-func clusterChanged(oldCluster, newCluster cephv1alpha1.ClusterSpec) bool {
-	changeFound := false
-	oldStorage := oldCluster.Storage
-	newStorage := newCluster.Storage
-
-	// sort the nodes by name then compare to see if there are changes
-	sort.Sort(rookv1alpha2.NodesByName(oldStorage.Nodes))
-	sort.Sort(rookv1alpha2.NodesByName(newStorage.Nodes))
-	if !reflect.DeepEqual(oldStorage.Nodes, newStorage.Nodes) {
-		logger.Infof("The list of nodes has changed")
-		changeFound = true
-	}
-
-	if oldCluster.Dashboard.Enabled != newCluster.Dashboard.Enabled {
-		logger.Infof("dashboard enabled has changed from %t to %t", oldCluster.Dashboard.Enabled, newCluster.Dashboard.Enabled)
-		changeFound = true
-	}
-
-	return changeFound
 }

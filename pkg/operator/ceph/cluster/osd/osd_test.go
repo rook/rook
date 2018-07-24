@@ -16,20 +16,21 @@ limitations under the License.
 package osd
 
 import (
-	"encoding/json"
 	"fmt"
+	"os"
 	"testing"
-	"time"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/api/core/v1"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/watch"
@@ -51,6 +52,24 @@ func TestStart(t *testing.T) {
 	assert.Nil(t, err)
 }
 
+func createDiscoverConfigmap(nodeName, ns string, clientset *fake.Clientset) error {
+	data := make(map[string]string, 1)
+	data[discoverDaemon.LocalDiskCMData] = `[{"name":"sdx","parent":"","hasChildren":false,"devLinks":"/dev/disk/by-id/scsi-36001405f826bd553d8c4dbf9f41c18be    /dev/disk/by-id/wwn-0x6001405f826bd553d8c4dbf9f41c18be /dev/disk/by-path/ip-127.0.0.1:3260-iscsi-iqn.2016-06.world.srv:storage.target01-lun-1","size":10737418240,"uuid":"","serial":"36001405f826bd553d8c4dbf9f41c18be","type":"disk","rotational":true,"readOnly":false,"ownPartition":true,"filesystem":"","vendor":"LIO-ORG","model":"disk02","wwn":"0x6001405f826bd553","wwnVendorExtension":"0x6001405f826bd553d8c4dbf9f41c18be","empty":true}]`
+	cm := &v1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "local-device-" + nodeName,
+			Namespace: ns,
+			Labels: map[string]string{
+				k8sutil.AppAttr:         discoverDaemon.AppName,
+				discoverDaemon.NodeAttr: nodeName,
+			},
+		},
+		Data: data,
+	}
+	_, err := clientset.CoreV1().ConfigMaps(ns).Create(cm)
+	return err
+}
+
 func TestAddRemoveNode(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node8230"
@@ -68,6 +87,12 @@ func TestAddRemoveNode(t *testing.T) {
 
 	// set up a fake k8s client set and watcher to generate events that the operator will listen to
 	clientset := fake.NewSimpleClientset()
+	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
+	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+
+	cmErr := createDiscoverConfigmap(nodeName, "rook-system", clientset)
+	assert.Nil(t, cmErr)
+
 	statusMapWatcher := watch.NewFake()
 	clientset.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(statusMapWatcher, nil))
 
@@ -100,9 +125,8 @@ func TestAddRemoveNode(t *testing.T) {
 
 	// simulate the OSD pod having been created
 	osdPod := &corev1.Pod{ObjectMeta: metav1.ObjectMeta{
-		Name:            "osdPod",
-		Labels:          map[string]string{k8sutil.AppAttr: appName},
-		OwnerReferences: []metav1.OwnerReference{{Name: "rook-ceph-osd-node8230"}}}}
+		Name:   "osdPod",
+		Labels: map[string]string{k8sutil.AppAttr: appName}}}
 	c.context.Clientset.CoreV1().Pods(c.Namespace).Create(osdPod)
 
 	// mock the ceph calls that will be called during remove node
@@ -112,13 +136,43 @@ func TestAddRemoveNode(t *testing.T) {
 			if args[0] == "status" {
 				return `{"pgmap":{"num_pgs":100,"pgs_by_state":[{"state_name":"active+clean","count":100}]}}`, nil
 			}
-			if args[0] == "osd" && args[1] == "df" {
-				return `{"nodes":[{"id":0,"name":"osd.0","kb_used":1}]}`, nil
+			if args[0] == "osd" {
+				if args[1] == "df" {
+					return `{"nodes":[{"id":0,"name":"osd.0","kb_used":0},{"id":1,"name":"osd.1","kb_used":0}]}`, nil
+				}
+				if args[1] == "set" {
+					return "", nil
+				}
+				if args[1] == "unset" {
+					return "", nil
+				}
+				if args[1] == "crush" {
+					if args[2] == "reweight" {
+						return "", nil
+					}
+					if args[2] == "rm" {
+						return "", nil
+					}
+				}
+				if args[1] == "out" {
+					return "", nil
+				}
+				if args[1] == "rm" {
+					assert.Equal(t, "1", args[2])
+					return "", nil
+				}
+				if args[1] == "find" {
+					return `{"crush_location":{"host":"my-host"}}`, nil
+				}
 			}
 			if args[0] == "df" && args[1] == "detail" {
-				return `{"stats":{"total_bytes":4096,"total_used_bytes":1024,"total_avail_bytes":3072}}`, nil
+				return `{"stats":{"total_bytes":0,"total_used_bytes":0,"total_avail_bytes":3072}}`, nil
 			}
-			if args[0] == "osd" && (args[1] == "set" || args[1] == "unset") {
+			if args[0] == "pg" && args[1] == "dump" {
+				return `[]`, nil
+			}
+			if args[0] == "auth" && args[1] == "del" {
+				assert.Equal(t, "osd.1", args[2])
 				return "", nil
 			}
 			return "", fmt.Errorf("unexpected ceph command '%v'", args)
@@ -142,7 +196,7 @@ func TestAddRemoveNode(t *testing.T) {
 		startCompleted = true
 	}()
 
-	// simulate the completion of the removed nodes orchestration
+	// simulate the completion of the nodes orchestration
 	mockNodeOrchestrationCompletion(c, nodeName, statusMapWatcher)
 
 	// wait for orchestration to complete
@@ -151,6 +205,58 @@ func TestAddRemoveNode(t *testing.T) {
 	// verify orchestration for removing the node succeeded
 	assert.True(t, startCompleted)
 	assert.Nil(t, startErr)
+}
+
+func TestGetIDFromDeployment(t *testing.T) {
+	d := &extensions.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "foo"}}
+	d.Labels = map[string]string{"ceph-osd-id": "0"}
+	assert.Equal(t, 0, getIDFromDeployment(d))
+
+	d.Labels = map[string]string{}
+	assert.Equal(t, -1, getIDFromDeployment(d))
+
+	d.Labels = map[string]string{"ceph-osd-id": "101"}
+	assert.Equal(t, 101, getIDFromDeployment(d))
+}
+
+func TestDiscoverOSDs(t *testing.T) {
+	c := New(&clusterd.Context{}, "ns", "myversion", "",
+		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	node1 := "n1"
+	node2 := "n2"
+
+	osd1 := OSDInfo{ID: 0, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
+	d1, err := c.makeDeployment(node1, []rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd1)
+	assert.Nil(t, err)
+	assert.NotNil(t, d1)
+
+	osd2 := OSDInfo{ID: 101, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
+	d2, err := c.makeDeployment(node1, []rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd2)
+	assert.Nil(t, err)
+	assert.NotNil(t, d2)
+
+	osd3 := OSDInfo{ID: 23, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
+	d3, err := c.makeDeployment(node2, []rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd3)
+	assert.Nil(t, err)
+	assert.NotNil(t, d3)
+
+	clientset := fake.NewSimpleClientset(d1, d2, d3)
+	c.context.Clientset = clientset
+
+	discovered, err := c.discoverStorageNodes()
+	require.Nil(t, err)
+	assert.Equal(t, 2, len(discovered))
+
+	assert.Equal(t, 2, len(discovered[node1]))
+	if discovered[node1][0].Name == "rook-ceph-osd-id-0" {
+		assert.Equal(t, "rook-ceph-osd-id-101", discovered[node1][1].Name)
+	} else {
+		assert.Equal(t, "rook-ceph-osd-id-101", discovered[node1][0].Name)
+		assert.Equal(t, "rook-ceph-osd-id-0", discovered[node1][1].Name)
+	}
+
+	assert.Equal(t, 1, len(discovered[node2]))
+	assert.Equal(t, "rook-ceph-osd-id-23", discovered[node2][0].Name)
 }
 
 func TestAddNodeFailure(t *testing.T) {
@@ -168,11 +274,17 @@ func TestAddNodeFailure(t *testing.T) {
 		},
 	}
 
-	// create a fake clientset that will return an error when the operator tries to create a replica set
+	// create a fake clientset that will return an error when the operator tries to create a job
 	clientset := fake.NewSimpleClientset()
-	clientset.PrependReactor("create", "replicasets", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, fmt.Errorf("mock failed to create replica set")
+	clientset.PrependReactor("create", "jobs", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
+		return true, nil, fmt.Errorf("mock failed to create jobs")
 	})
+
+	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
+	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
+
+	cmErr := createDiscoverConfigmap(nodeName, "rook-system", clientset)
+	assert.Nil(t, cmErr)
 
 	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion", "",
 		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
@@ -188,83 +300,7 @@ func TestAddNodeFailure(t *testing.T) {
 	// wait for orchestration to complete
 	waitForOrchestrationCompletion(c, nodeName, &startCompleted)
 
-	// verify orchestration failed (because the operator failed to create a replica set)
+	// verify orchestration failed (because the operator failed to create a job)
 	assert.True(t, startCompleted)
 	assert.NotNil(t, startErr)
-}
-
-func TestOrchestrationStatus(t *testing.T) {
-	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", "",
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	// status map should not exist yet
-	_, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
-	assert.True(t, errors.IsNotFound(err))
-
-	// make the initial status map
-	err = makeOrchestrationStatusMap(c.context.Clientset, c.Namespace, nil)
-	assert.Nil(t, err)
-
-	// the status map should exist now
-	statusMap, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.NotNil(t, statusMap)
-
-	// update the status map with some status
-	nodeName := "node09238"
-	status := OrchestrationStatus{Status: OrchestrationStatusOrchestrating, Message: "doing work"}
-	err = UpdateOrchestrationStatusMap(c.context.Clientset, c.Namespace, nodeName, status)
-	assert.Nil(t, err)
-
-	// retrieve the status and verify it
-	statusMap, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
-	assert.Nil(t, err)
-	assert.NotNil(t, statusMap)
-	retrievedStatus := parseOrchestrationStatus(statusMap.Data, nodeName)
-	assert.NotNil(t, retrievedStatus)
-	assert.Equal(t, status, *retrievedStatus)
-}
-
-func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatcher *watch.FakeWatcher) {
-	for {
-		// wait for the node's orchestration status to change to "starting"
-		cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
-		if err == nil {
-			status := parseOrchestrationStatus(cm.Data, nodeName)
-			if status != nil && status.Status == OrchestrationStatusStarting {
-				// the node has started orchestration, simulate its completion now by performing 2 tasks:
-				// 1) update the config map manually (which doesn't trigger a watch event, see https://github.com/kubernetes/kubernetes/issues/54075#issuecomment-337298950)
-				status = &OrchestrationStatus{Status: OrchestrationStatusCompleted}
-				UpdateOrchestrationStatusMap(c.context.Clientset, c.Namespace, nodeName, *status)
-
-				// 2) call modify on the fake watcher so a watch event will get triggered
-				s, _ := json.Marshal(status)
-				cm.Data[nodeName] = string(s)
-				statusMapWatcher.Modify(cm)
-				break
-			} else {
-				logger.Infof("waiting for node %s orchestration to start. status: %+v", nodeName, *status)
-			}
-		} else {
-			logger.Warningf("failed to get node %s orchestration status, will try again: %+v", nodeName, err)
-		}
-		<-time.After(50 * time.Millisecond)
-	}
-}
-
-func waitForOrchestrationCompletion(c *Cluster, nodeName string, startCompleted *bool) {
-	for {
-		if *startCompleted {
-			break
-		}
-		cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(OrchestrationStatusMapName, metav1.GetOptions{})
-		if err == nil {
-			status := parseOrchestrationStatus(cm.Data, nodeName)
-			if status != nil {
-				logger.Infof("start has not completed, status is %+v", status)
-			}
-		}
-		<-time.After(50 * time.Millisecond)
-	}
 }

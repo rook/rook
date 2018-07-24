@@ -23,7 +23,7 @@ cd "${scriptdir}/../../vendor/k8s.io/code-generator" && ./generate-groups.sh \
     all \
     github.com/rook/rook/pkg/client \
     github.com/rook/rook/pkg/apis \
-    "rook.io:v1alpha1,v1alpha2 ceph.rook.io:v1alpha1 cockroachdb.rook.io:v1alpha1 minio.rook.io:v1alpha1"
+    "rook.io:v1alpha1,v1alpha2 ceph.rook.io:v1alpha1,v1beta1 cockroachdb.rook.io:v1alpha1 minio.rook.io:v1alpha1"
 # this seems busted in the release-1.8 branch
 #  --go-header-file ${SCRIPT_ROOT}/build/codegen/header.txt
 
@@ -40,5 +40,5 @@ find "${scriptdir}/../../pkg/client" -name "clientset_generated.go" -exec \
 # Disables backslash+linefeed is literal check.
 find "${scriptdir}/../../pkg/client" -name "clientset_generated.go" -exec \
     $SED 's/return \&Clientset{fakePtr, \&fakediscovery.FakeDiscovery{Fake: \&fakePtr}}/cs.discovery = \&fakediscovery.FakeDiscovery{Fake: \&cs.Fake}\
-    return cs/g' {} +
+	return cs/g' {} +
 find "${scriptdir}/../../pkg/client" -name "clientset_generated.go.bak" -delete

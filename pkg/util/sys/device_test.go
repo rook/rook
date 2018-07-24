@@ -155,14 +155,11 @@ NAME="sdb3" SIZE="20" TYPE="part" PKNAME="sdb"
 NAME="sdb1" SIZE="30" TYPE="part" PKNAME="sdb"`, nil
 			case run == 3:
 				return fmt.Sprintf(udevPartOutput, "ROOK-OSD0-DB"), nil
-			case run == 4 || run == 6 || run == 8:
-				// get filesystem
-				return "", nil
-			case run == 5:
+			case run == 4:
 				return fmt.Sprintf(udevPartOutput, "ROOK-OSD0-BLOCK"), nil
-			case run == 7:
+			case run == 5:
 				return fmt.Sprintf(udevPartOutput, "ROOK-OSD0-WAL"), nil
-			case run == 9:
+			case run == 6:
 				return `NAME="sda" SIZE="19818086400" TYPE="disk" PKNAME=""
 NAME="sda4" SIZE="1073741824" TYPE="part" PKNAME="sda"
 NAME="sda2" SIZE="2097152" TYPE="part" PKNAME="sda"
@@ -172,14 +169,6 @@ NAME="sda3" SIZE="1073741824" TYPE="part" PKNAME="sda"
 NAME="usr" SIZE="1065345024" TYPE="crypt" PKNAME="sda3"
 NAME="sda1" SIZE="134217728" TYPE="part" PKNAME="sda"
 NAME="sda6" SIZE="134217728" TYPE="part" PKNAME="sda"`, nil
-			case run == 9:
-				return fmt.Sprintf(udevPartOutput, "ROOT"), nil
-			case run == 10:
-				return fmt.Sprintf(udevPartOutput, "OEM-CONFIG"), nil
-			case run == 11:
-				return fmt.Sprintf(udevPartOutput, "USR-A"), nil
-			case run == 12:
-				return fmt.Sprintf(udevPartOutput, "EFI-SYSTEM"), nil
 			}
 			return "", nil
 		},

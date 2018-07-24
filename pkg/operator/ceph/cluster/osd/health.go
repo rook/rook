@@ -20,7 +20,6 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/util/proc"
 )
 
 const upStatus = 1
@@ -32,27 +31,34 @@ var (
 
 // Monitor defines OSD process monitoring
 type Monitor struct {
-	context *clusterd.Context
-	agent   *OsdAgent
+	context     *clusterd.Context
+	clusterName string
 
 	// lastStatus keeps track of OSDs status
 	// key - OSD id; value: time of the status change.
 	lastStatus map[int]time.Time
 }
 
-// NewMonitor instantiates OSD monitoring
-func NewMonitor(context *clusterd.Context, agent *OsdAgent) *Monitor {
-	return &Monitor{context, agent, make(map[int]time.Time)}
+// newMonitor instantiates OSD monitoring
+func NewMonitor(context *clusterd.Context, clusterName string) *Monitor {
+	return &Monitor{context, clusterName, make(map[int]time.Time)}
 }
 
 // Run runs monitoring logic for osds status at set intervals
-func (m *Monitor) Run() {
+func (m *Monitor) Start(stopCh chan struct{}) {
+
 	for {
-		<-time.After(healthCheckInterval)
-		logger.Debug("Checking osd processes status.")
-		err := m.osdStatus()
-		if err != nil {
-			logger.Warningf("Failed OSD status check: %+v", err)
+		select {
+		case <-time.After(healthCheckInterval):
+			logger.Debug("Checking osd processes status.")
+			err := m.osdStatus()
+			if err != nil {
+				logger.Warningf("Failed OSD status check: %+v", err)
+			}
+
+		case <-stopCh:
+			logger.Infof("Stopping monitoring of OSDs in namespace %s", m.clusterName)
+			return
 		}
 	}
 }
@@ -60,29 +66,28 @@ func (m *Monitor) Run() {
 // OSDStatus validates osd dump output
 func (m *Monitor) osdStatus() error {
 	logger.Debugf("OSDs with previously detected Down status: %+v", m.lastStatus)
-	osdDump, err := client.GetOSDDump(m.context, m.agent.cluster.Name)
+	osdDump, err := client.GetOSDDump(m.context, m.clusterName)
 	if err != nil {
 		return err
 	}
+	logger.Debugf("osd dump %v", osdDump)
 
-	evalDownStatus := func(id int, proc *proc.MonitoredProc) {
+	evalDownStatus := func(id int) {
 		if now := time.Now(); now.Sub(m.lastStatus[id]) > osdGracePeriod {
-			logger.Infof("stopping osd.%d, it has been down for longer than the grace period (down since %+v)", id, m.lastStatus[id])
-			// Stopping the process, continuing monitoring so that ProcMan would replace it with a new proc
-			err = proc.Stop(true)
-			if err != nil {
-				// Logging the error and continuing with the next osd.id status check.
-				logger.Warningf("failed to stop osd.%d: %+v", id, err)
-			} else {
-				logger.Infof("stopped osd.%d", id)
-				delete(m.lastStatus, id)
-			}
+			logger.Warningf("osd.%d has been down for longer than the grace period (down since %+v)", id, m.lastStatus[id])
+			m.lastStatus[id] = time.Now()
 		} else {
 			logger.Warningf("waiting for the osd.%d to exceed the grace period", id)
 		}
 	}
 
-	for id, proc := range m.agent.osdProc {
+	for _, osdStatus := range osdDump.OSDs {
+		id64, err := osdStatus.OSD.Int64()
+		if err != nil {
+			continue
+		}
+		id := int(id64)
+
 		logger.Debugf("validating status of osd.%d", id)
 		_, tracked := m.lastStatus[id]
 
@@ -95,7 +100,7 @@ func (m *Monitor) osdStatus() error {
 		if status != upStatus {
 			logger.Infof("osd.%d is marked 'DOWN'", id)
 			if tracked {
-				evalDownStatus(id, proc)
+				evalDownStatus(id)
 			} else {
 				m.lastStatus[id] = time.Now()
 			}

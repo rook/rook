@@ -18,13 +18,14 @@ limitations under the License.
 package config
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 )
 
 const (
+	OSDFSStoreNameFmt  = "rook-ceph-osd-%d-fs-backup"
 	configStoreNameFmt = "rook-ceph-osd-%s-config"
 	osdDirsKeyName     = "osd-dirs"
 )
@@ -32,7 +33,7 @@ const (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "osd-config")
 
 func GetConfigStoreName(nodeName string) string {
-	return fmt.Sprintf(configStoreNameFmt, nodeName)
+	return k8sutil.TruncateNodeName(configStoreNameFmt, nodeName)
 }
 
 const (

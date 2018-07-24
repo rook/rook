@@ -81,7 +81,7 @@ clean: clean.build
 prune: cache.prune
 
 clean.images:
-	@for i in $(IMAGES); do \
+	@for i in $(CLEAN_IMAGES); do \
 		if [ -n "$$(docker images -q $$i)" ]; then \
 			for c in $$(docker ps -a -q --no-trunc --filter=ancestor=$$i); do \
 				if [ "$$c" != "$(SELF_CID)" ]; then \
@@ -98,7 +98,7 @@ clean.images:
 # this will clean everything for this build
 clean.build:
 	@echo === cleaning images for $(BUILD_REGISTRY)
-	@$(MAKE) clean.images IMAGES="$(shell docker images | grep -E '^$(BUILD_REGISTRY)/' | awk '{print $$1":"$$2}')"
+	@$(MAKE) clean.images CLEAN_IMAGES="$(shell docker images | grep -E '^$(BUILD_REGISTRY)/' | awk '{print $$1":"$$2}')"
 
 # =====================================================================================
 # Caching

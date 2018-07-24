@@ -100,29 +100,26 @@ func TestOverwriteRookOwnedPartitions(t *testing.T) {
 		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
 		var output string
 		switch outputExecCount {
-		case 0, 7: // we'll call this twice, once explicitly below to verify rook owns the partitions and a 2nd time within formatDevice
+		case 0: // we'll call this twice, once explicitly below to verify rook owns the partitions and a 2nd time within formatDevice
 			assert.Equal(t, command, "lsblk")
 			output = `NAME="sda" SIZE="65" TYPE="disk" PKNAME=""
 NAME="sda1" SIZE="30" TYPE="part" PKNAME="sda"
 NAME="sda2" SIZE="10" TYPE="part" PKNAME="sda"
 NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
-		case 1, 8:
-			assert.Equal(t, "udevadm /dev/sda1", name)
+		case 1:
+			assert.Equal(t, "udevadm info sda1", name)
 			output = "ID_PART_ENTRY_NAME=ROOK-OSD0-WAL"
-		case 2, 9:
-			assert.Equal(t, "get filesystem type for sda1", name)
-			output = ""
-		case 3, 10:
-			assert.Equal(t, "udevadm /dev/sda2", name)
+		case 2:
+			assert.Equal(t, "udevadm info sda2", name)
 			output = "ID_PART_ENTRY_NAME=ROOK-OSD0-DB"
-		case 4, 11:
-			assert.Equal(t, "get filesystem type for sda2", name)
-			output = ""
-		case 5, 12:
-			assert.Equal(t, "udevadm /dev/sda3", name)
+		case 3:
+			assert.Equal(t, "udevadm info sda3", name)
 			output = "ID_PART_ENTRY_NAME=ROOK-OSD0-BLOCK"
-		case 6, 13:
-			assert.Equal(t, "get filesystem type for sda3", name)
+		case 4:
+			assert.Equal(t, "lsblk /dev/sda", name)
+			output = ""
+		case 5:
+			assert.Equal(t, "get filesystem type for sda", name)
 			output = ""
 		}
 		outputExecCount++
@@ -151,9 +148,10 @@ NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
 
 	// try to format the device.  even though the device has existing partitions, they are owned by rook, so it is safe
 	// to format and the format/partitioning will happen.
-	err = formatDevice(context, config, false, storeConfig)
+	devInfo, err := formatDevice(context, config, false, storeConfig)
+	assert.Nil(t, devInfo)
 	assert.Nil(t, err)
-	assert.Equal(t, 15, outputExecCount)
+	assert.Equal(t, 6, outputExecCount)
 }
 
 func TestPartitionBluestoreMetadata(t *testing.T) {
@@ -268,35 +266,40 @@ func testPartitionOSDHelper(t *testing.T, storeConfig config.StoreConfig) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
 		logger.Infof("RUN %d for '%s'. %s %+v", execCount, name, command, args)
-		if execCount <= 2 {
-			assert.Equal(t, "sgdisk", command)
-		}
 		switch execCount {
 		case 0:
+			assert.Equal(t, "sgdisk", command)
 			assert.Equal(t, []string{"--zap-all", "/dev/sda"}, args)
 		case 1:
+			assert.Equal(t, "sgdisk", command)
 			assert.Equal(t, []string{"--clear", "--mbrtogpt", "/dev/sda"}, args)
-		case 2:
-			if storeConfig.StoreType == config.Bluestore {
+		}
+
+		if storeConfig.StoreType == config.Bluestore {
+			switch execCount {
+			case 2:
 				assert.Equal(t, 11, len(args))
 				assert.Equal(t, "--change-name=1:ROOK-OSD1-WAL", args[1])
 				assert.Equal(t, "--change-name=2:ROOK-OSD1-DB", args[4])
 				assert.Equal(t, "--change-name=3:ROOK-OSD1-BLOCK", args[7])
-			} else {
+			case 3:
+				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
+			case 4:
+				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
+			case 5:
+				assert.Fail(t, "unexpected bluestore command")
+			}
+		} else { // filestore
+			switch execCount {
+			case 2:
 				assert.Equal(t, 5, len(args))
 				assert.Equal(t, "--change-name=1:ROOK-OSD1-FS-DATA", args[1])
-			}
-		case 3:
-			if storeConfig.StoreType == config.Bluestore {
-				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
-			} else {
+			case 3:
 				assert.Equal(t, "mkfs.ext4", command)
-			}
-		case 4:
-			if storeConfig.StoreType == config.Bluestore {
-				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
-			} else {
+			case 4:
 				assert.Equal(t, "mount", command)
+			case 5:
+				assert.Fail(t, "unexpected filestore command")
 			}
 		}
 		execCount++
@@ -319,13 +322,16 @@ func testPartitionOSDHelper(t *testing.T, storeConfig config.StoreConfig) {
 		uuid: entry.OsdUUID, dir: false, partitionScheme: entry, kv: mockKVStore(), storeName: config.GetConfigStoreName("node123")}
 
 	// partition the OSD on sda now
-	err = partitionOSD(context, cfg)
+	devPartInfo, err := partitionOSD(context, cfg)
 	assert.Nil(t, err)
 
 	if storeConfig.StoreType == config.Bluestore {
 		assert.Equal(t, 3, execCount)
+		assert.Nil(t, devPartInfo)
 	} else {
 		assert.Equal(t, 5, execCount)
+		assert.NotEqual(t, "", devPartInfo.deviceUUID)
+		assert.NotEqual(t, "", devPartInfo.pathToUnmount)
 	}
 
 	// verify that both the data and metadata have been associated with the device in etcd (since data/metadata are collocated)

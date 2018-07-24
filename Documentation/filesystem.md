@@ -12,7 +12,7 @@ This example runs a shared file system for the [kube-registry](https://github.co
 
 ### Prerequisites
 
-This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](quickstart.md)
+This guide assumes you have created a Rook cluster as explained in the main [Kubernetes guide](ceph-quickstart.md)
 
 ### Multiple File Systems Not Supported
 
@@ -27,7 +27,7 @@ Create the file system by specifying the desired settings for the metadata pool,
 Save this shared file system definition as `filesystem.yaml`:
 
 ```yaml
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: Filesystem
 metadata:
   name: myfs

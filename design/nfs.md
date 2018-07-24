@@ -2,7 +2,7 @@
 
 ## Overview
 
-Rook is an open source orchestrator for distributed storage systems running in kubernetes, currently in alpha state and has focused initially on orchestrating Ceph on top of Kubernetes. This document explores a design to add NFS to Rook. This is a part of the rook feature request [#1551](https://github.com/rook/rook/issues/1551).
+This document explores a design to add NFS to Rook. This is a part of the rook feature request [#1551](https://github.com/rook/rook/issues/1551).
 
 ## Rook Architecture
 

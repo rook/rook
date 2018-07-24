@@ -92,7 +92,7 @@ type GlobalConfig struct {
 	OsdPoolDefaultPgpNum     int    `ini:"osd pool default pgp num,omitempty"`
 	OsdMaxObjectNameLen      int    `ini:"osd max object name len,omitempty"`
 	OsdMaxObjectNamespaceLen int    `ini:"osd max object namespace len,omitempty"`
-	OsdObjectStore           string `ini:"osd objectstore"`
+	OsdObjectStore           string `ini:"osd objectstore,omitempty"`
 	CrushLocation            string `ini:"crush location,omitempty"`
 	RbdDefaultFeatures       int    `ini:"rbd_default_features,omitempty"`
 	FatalSignalHandlers      string `ini:"fatal signal handlers"`

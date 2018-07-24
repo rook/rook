@@ -19,6 +19,8 @@ package osd
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"strconv"
 	"strings"
 
@@ -26,8 +28,11 @@ import (
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+
+	batch "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
@@ -39,65 +44,181 @@ const (
 	osdWalSizeEnvVarName        = "ROOK_OSD_WAL_SIZE"
 	osdJournalSizeEnvVarName    = "ROOK_OSD_JOURNAL_SIZE"
 	osdMetadataDeviceEnvVarName = "ROOK_METADATA_DEVICE"
+	osdPrepareOnlyEnvVarName    = "ROOK_OSD_PREPARE_ONLY"
 )
 
-func (c *Cluster) makeDaemonSet(selection rookalpha.Selection, storeConfig config.StoreConfig, metadataDevice, location string) *extensions.DaemonSet {
-	podSpec := c.podTemplateSpec(nil, selection, c.resources, storeConfig, metadataDevice, location)
-	return &extensions.DaemonSet{
+func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
+	selection rookalpha.Selection, resources v1.ResourceRequirements, storeConfig config.StoreConfig, metadataDevice, location string) (*batch.Job, error) {
+
+	podSpec, err := c.provisionPodTemplateSpec(devices, selection, resources, storeConfig, metadataDevice, location, v1.RestartPolicyOnFailure)
+	if err != nil {
+		return nil, err
+	}
+	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
+
+	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            appName,
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:      k8sutil.TruncateNodeName(prepareAppNameFmt, nodeName),
+			Namespace: c.Namespace,
 			Labels: map[string]string{
-				k8sutil.AppAttr:     appName,
+				k8sutil.AppAttr:     prepareAppName,
 				k8sutil.ClusterAttr: c.Namespace,
 			},
 		},
-		Spec: extensions.DaemonSetSpec{
-			UpdateStrategy: extensions.DaemonSetUpdateStrategy{
-				Type: extensions.RollingUpdateDaemonSetStrategyType,
-			},
-			Template: podSpec,
+		Spec: batch.JobSpec{
+			Template: *podSpec,
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &job.ObjectMeta, &c.ownerRef)
+	return job, nil
 }
 
-func (c *Cluster) makeReplicaSet(nodeName string, devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string) *extensions.ReplicaSet {
+func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
+	storeConfig config.StoreConfig, metadataDevice, location string, osd OSDInfo) (*extensions.Deployment, error) {
 
-	podSpec := c.podTemplateSpec(devices, selection, resources, storeConfig, metadataDevice, location)
-	podSpec.Spec.NodeSelector = map[string]string{apis.LabelHostname: nodeName}
 	replicaCount := int32(1)
+	volumeMounts := []v1.VolumeMount{
+		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
+		k8sutil.ConfigOverrideMount(),
+	}
+	volumes := []v1.Volume{k8sutil.ConfigOverrideVolume()}
+	if c.dataDirHostPath != "" {
+		// the user has specified a host path to use for the data dir, use that instead
+		dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
+		volumes = append(volumes, v1.Volume{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource})
+	} else {
+		logger.Infof("no data dir provided")
+	}
 
-	return &extensions.ReplicaSet{
+	// Mount the path to the directory-based osd unless it is already available under the dataDirHostPath
+	if osd.IsDirectory && !strings.HasPrefix(osd.DataPath, k8sutil.DataDir) {
+		volumeName := k8sutil.PathToVolumeName(osd.DataPath)
+		dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: osd.DataPath}}
+		volumes = append(volumes, v1.Volume{Name: volumeName, VolumeSource: dataDirSource})
+		volumeMounts = append(volumeMounts, v1.VolumeMount{Name: volumeName, MountPath: osd.DataPath})
+	}
+
+	// Mount the required device
+	if !osd.IsDirectory {
+		// create volume config for the data dir and /dev so the pod can access devices on the host
+		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
+		volumes = append(volumes, devVolume)
+		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
+		volumeMounts = append(volumeMounts, devMount)
+	}
+
+	if len(volumes) == 0 {
+		return nil, fmt.Errorf("empty volumes")
+	}
+
+	envVars := []v1.EnvVar{
+		nodeNameEnvVar(),
+		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+		{Name: "TINI_SUBREAPER", Value: ""},
+	}
+
+	commonArgs := []string{
+		"--foreground",
+		"--id", strconv.Itoa(osd.ID),
+		"--conf", osd.Config,
+		"--osd-data", osd.DataPath,
+		"--keyring", osd.KeyringPath,
+		"--cluster", osd.Cluster,
+		"--osd-uuid", osd.UUID,
+	}
+	if osd.IsFileStore {
+		commonArgs = append(commonArgs, fmt.Sprintf("--osd-journal=%s", osd.Journal))
+	}
+
+	var command []string
+	var args []string
+	if !osd.IsDirectory && osd.IsFileStore {
+		// filestore on a device requires indirection through the rook entrypoint so we can mount the image
+		sourcePath := path.Join("/dev/disk/by-partuuid", osd.DevicePartUUID)
+		args = append([]string{
+			"ceph", "osd", "filestore-device",
+			"--source-path", sourcePath,
+			"--mount-path", osd.DataPath,
+			"--",
+		}, commonArgs...)
+	} else {
+		// other osds can launch the osd daemon directly
+		command = append([]string{"/tini", "--", "ceph-osd",
+			fmt.Sprintf("--public-addr=$(%s)", k8sutil.PublicIPEnvVar),
+			fmt.Sprintf("--cluster-addr=$(%s)", k8sutil.PrivateIPEnvVar),
+		}, commonArgs...)
+	}
+
+	privileged := true
+	runAsUser := int64(0)
+	readOnlyRootFilesystem := false
+	DNSPolicy := v1.DNSClusterFirst
+	if c.HostNetwork {
+		DNSPolicy = v1.DNSClusterFirstWithHostNet
+	}
+	deployment := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            fmt.Sprintf(appNameFmt, nodeName),
-			Namespace:       c.Namespace,
-			OwnerReferences: []metav1.OwnerReference{c.ownerRef},
+			Name:      fmt.Sprintf(osdAppNameFmt, osd.ID),
+			Namespace: c.Namespace,
 			Labels: map[string]string{
 				k8sutil.AppAttr:     appName,
 				k8sutil.ClusterAttr: c.Namespace,
+				osdLabelKey:         fmt.Sprintf("%d", osd.ID),
 			},
 		},
-		Spec: extensions.ReplicaSetSpec{
-			Template: podSpec,
+		Spec: extensions.DeploymentSpec{
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: appName,
+					Labels: map[string]string{
+						k8sutil.AppAttr:     appName,
+						k8sutil.ClusterAttr: c.Namespace,
+						osdLabelKey:         fmt.Sprintf("%d", osd.ID),
+					},
+					Annotations: map[string]string{},
+				},
+				Spec: v1.PodSpec{
+					NodeSelector:  map[string]string{apis.LabelHostname: nodeName},
+					RestartPolicy: v1.RestartPolicyAlways,
+					HostNetwork:   c.HostNetwork,
+					HostPID:       true,
+					DNSPolicy:     DNSPolicy,
+					Containers: []v1.Container{
+						{
+							Command:      command,
+							Args:         args,
+							Name:         appName,
+							Image:        k8sutil.MakeRookImage(c.Version),
+							VolumeMounts: volumeMounts,
+							Env:          envVars,
+							Resources:    resources,
+							SecurityContext: &v1.SecurityContext{
+								Privileged:             &privileged,
+								RunAsUser:              &runAsUser,
+								ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
+							},
+						},
+					},
+					Volumes: volumes,
+				},
+			},
 			Replicas: &replicaCount,
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &deployment.ObjectMeta, &c.ownerRef)
+	c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
+	return deployment, nil
 }
 
-func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string) v1.PodTemplateSpec {
-	// by default, the data/config dir will be an empty volume
-	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
+func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
+	storeConfig config.StoreConfig, metadataDevice, location string, restart v1.RestartPolicy) (*v1.PodTemplateSpec, error) {
+	volumes := []v1.Volume{k8sutil.ConfigOverrideVolume()}
+
 	if c.dataDirHostPath != "" {
 		// the user has specified a host path to use for the data dir, use that instead
-		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
-	}
-
-	volumes := []v1.Volume{
-		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
-		k8sutil.ConfigOverrideVolume(),
+		dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
+		volumes = append(volumes, v1.Volume{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource})
 	}
 
 	// by default, don't define any volume config unless it is required
@@ -118,10 +239,14 @@ func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalph
 		volumes = append(volumes, dirVolume)
 	}
 
+	if len(volumes) == 0 {
+		return nil, fmt.Errorf("empty volumes")
+	}
+
 	podSpec := v1.PodSpec{
 		ServiceAccountName: c.serviceAccount,
-		Containers:         []v1.Container{c.osdContainer(devices, selection, resources, storeConfig, metadataDevice, location)},
-		RestartPolicy:      v1.RestartPolicyAlways,
+		Containers:         []v1.Container{c.provisionOSDContainer(devices, selection, resources, storeConfig, metadataDevice, location)},
+		RestartPolicy:      restart,
 		Volumes:            volumes,
 		HostNetwork:        c.HostNetwork,
 	}
@@ -130,20 +255,20 @@ func (c *Cluster) podTemplateSpec(devices []rookalpha.Device, selection rookalph
 	}
 	c.placement.ApplyToPodSpec(&podSpec)
 
-	return v1.PodTemplateSpec{
+	return &v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name: appName,
 			Labels: map[string]string{
-				k8sutil.AppAttr:     appName,
+				k8sutil.AppAttr:     prepareAppName,
 				k8sutil.ClusterAttr: c.Namespace,
 			},
 			Annotations: map[string]string{},
 		},
 		Spec: podSpec,
-	}
+	}, nil
 }
 
-func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
+func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
 	storeConfig config.StoreConfig, metadataDevice, location string) v1.Container {
 
 	envVars := []v1.EnvVar{
@@ -157,9 +282,11 @@ func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.S
 		opmon.AdminSecretEnvVar(),
 		k8sutil.ConfigDirEnvVar(),
 		k8sutil.ConfigOverrideEnvVar(),
+		{Name: osdPrepareOnlyEnvVarName, Value: strconv.FormatBool(true)},
 	}
 
 	devMountNeeded := false
+	privileged := false
 
 	// only 1 of device list, device filter and use all devices can be specified.  We prioritize in that order.
 	if len(devices) > 0 {
@@ -182,8 +309,9 @@ func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.S
 		devMountNeeded = true
 	}
 
+	dataVolume := v1.VolumeMount{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir}
 	volumeMounts := []v1.VolumeMount{
-		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
+		dataVolume,
 		k8sutil.ConfigOverrideMount(),
 	}
 	if devMountNeeded {
@@ -227,9 +355,8 @@ func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.S
 		envVars = append(envVars, rookalpha.LocationEnvVar(location))
 	}
 
-	privileged := false
-	// elevate to be privileged if it is going to mount devices
-	if devMountNeeded {
+	// elevate to be privileged if it is going to mount devices or if running in a restricted environment such as openshift
+	if devMountNeeded || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" {
 		privileged = true
 	}
 	runAsUser := int64(0)
@@ -239,7 +366,7 @@ func (c *Cluster) osdContainer(devices []rookalpha.Device, selection rookalpha.S
 	readOnlyRootFilesystem := false
 	return v1.Container{
 		// Set the hostname so we have the pod's host in the crush map rather than the pod container name
-		Args:         []string{"ceph", "osd"},
+		Args:         []string{"ceph", "osd", "provision"},
 		Name:         appName,
 		Image:        k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: volumeMounts,

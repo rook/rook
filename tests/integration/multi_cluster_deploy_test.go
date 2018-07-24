@@ -126,14 +126,15 @@ func (mrc *MultiClusterDeploySuite) TestObjectStoreOnMultiRookCluster() {
 
 //MCTestOperations struct for handling panic and test suite tear down
 type MCTestOperations struct {
-	installer   *installer.InstallHelper
-	installData *installer.InstallData
-	kh          *utils.K8sHelper
-	T           func() *testing.T
-	namespace1  string
-	namespace2  string
-	helper1     *clients.TestClient
-	helper2     *clients.TestClient
+	installer       *installer.InstallHelper
+	installData     *installer.InstallData
+	kh              *utils.K8sHelper
+	T               func() *testing.T
+	namespace1      string
+	namespace2      string
+	systemNamespace string
+	helper1         *clients.TestClient
+	helper2         *clients.TestClient
 }
 
 //NewMCTestOperations creates new instance of BaseTestOperations struct
@@ -144,7 +145,7 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 	i := installer.NewK8sRookhelper(kh.Clientset, t)
 	d := installer.NewK8sInstallData()
 
-	op := MCTestOperations{i, d, kh, t, namespace1, namespace2, nil, nil}
+	op := MCTestOperations{i, d, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1), nil, nil}
 	op.SetUp()
 	return op, kh
 }
@@ -155,14 +156,13 @@ func (o MCTestOperations) SetUp() {
 	err = o.installer.CreateK8sRookOperator(installer.SystemNamespace(o.namespace1))
 	require.NoError(o.T(), err)
 
-	systemNamespace := installer.SystemNamespace(o.namespace1)
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-operator", systemNamespace, "Running"),
+	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-operator", o.systemNamespace, "Running"),
 		"Make sure rook-operator is in running state")
 
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-agent", systemNamespace, "Running"),
+	require.True(o.T(), o.kh.IsPodInExpectedState("rook-ceph-agent", o.systemNamespace, "Running"),
 		"Make sure rook-ceph-agent is in running state")
 
-	require.True(o.T(), o.kh.IsPodInExpectedState("rook-discover", systemNamespace, "Running"),
+	require.True(o.T(), o.kh.IsPodInExpectedState("rook-discover", o.systemNamespace, "Running"),
 		"Make sure rook-discover is in running state")
 
 	time.Sleep(10 * time.Second)
@@ -171,8 +171,8 @@ func (o MCTestOperations) SetUp() {
 	logger.Infof("starting two clusters in parallel")
 	errCh1 := make(chan error, 1)
 	errCh2 := make(chan error, 1)
-	go o.startCluster(o.namespace1, systemNamespace, "bluestore", errCh1)
-	go o.startCluster(o.namespace2, systemNamespace, "filestore", errCh2)
+	go o.startCluster(o.namespace1, "bluestore", errCh1)
+	go o.startCluster(o.namespace2, "filestore", errCh2)
 	require.NoError(o.T(), <-errCh1)
 	require.NoError(o.T(), <-errCh2)
 	logger.Infof("finished starting clusters")
@@ -188,21 +188,23 @@ func (o MCTestOperations) TearDown() {
 		}
 	}()
 	if o.T().Failed() {
-		o.installer.GatherAllRookLogs(o.namespace1, o.T().Name())
-		o.installer.GatherAllRookLogs(o.namespace2, o.T().Name())
+		o.installer.GatherAllRookLogs(o.namespace1, o.systemNamespace, o.T().Name())
+		o.installer.GatherAllRookLogs(o.namespace2, o.systemNamespace, o.T().Name())
 	}
 
 	o.installer.UninstallRookFromMultipleNS(false, installer.SystemNamespace(o.namespace1), o.namespace1, o.namespace2)
 }
 
-func (o MCTestOperations) startCluster(namespace, systemNamespace, store string, errCh chan error) {
+func (o MCTestOperations) startCluster(namespace, store string, errCh chan error) {
 	logger.Infof("starting cluster %s", namespace)
-	if err := o.installer.CreateK8sRookCluster(namespace, systemNamespace, store); err != nil {
+	if err := o.installer.CreateK8sRookCluster(namespace, o.systemNamespace, store); err != nil {
+		o.installer.GatherAllRookLogs(namespace, o.systemNamespace, o.T().Name())
 		errCh <- fmt.Errorf("failed to create cluster %s. %+v", namespace, err)
 		return
 	}
 
 	if err := o.installer.CreateK8sRookToolbox(namespace); err != nil {
+		o.installer.GatherAllRookLogs(namespace, o.systemNamespace, o.T().Name())
 		errCh <- fmt.Errorf("failed to create toolbox for %s. %+v", namespace, err)
 		return
 	}

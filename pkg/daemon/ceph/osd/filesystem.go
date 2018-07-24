@@ -23,13 +23,12 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/util"
 )
 
 const (
 	maxFileBackupSize         = 1 * 1024 * 1024 // 1 MB
-	osdFSStoreNameFmt         = "rook-ceph-osd-%d-fs-backup"
 	bluestoreBlockSymlinkName = "block"
 	bluestoreDBSymlinkName    = "block.db"
 	bluestoreWalSymlinkName   = "block.wal"
@@ -108,7 +107,7 @@ func markOSDFileSystemCreated(cfg *osdConfig) error {
 		return nil
 	}
 
-	savedScheme, err := config.LoadScheme(cfg.kv, cfg.storeName)
+	savedScheme, err := osdconfig.LoadScheme(cfg.kv, cfg.storeName)
 	if err != nil {
 		return fmt.Errorf("failed to load the saved partition scheme: %+v", err)
 	}
@@ -133,7 +132,7 @@ func backupOSDFileSystem(config *osdConfig, clusterName string) error {
 
 	logger.Infof("Backing up OSD %d file system from %s", config.id, config.rootPath)
 
-	storeName := fmt.Sprintf(osdFSStoreNameFmt, config.id)
+	storeName := fmt.Sprintf(osdconfig.OSDFSStoreNameFmt, config.id)
 
 	// ensure the store we are backing up to is clear first
 	if err := config.kv.ClearStore(storeName); err != nil {
@@ -197,7 +196,7 @@ func repairOSDFileSystem(config *osdConfig) error {
 
 	logger.Infof("Repairing OSD %d file system at %s", config.id, config.rootPath)
 
-	storeName := fmt.Sprintf(osdFSStoreNameFmt, config.id)
+	storeName := fmt.Sprintf(osdconfig.OSDFSStoreNameFmt, config.id)
 	store, err := config.kv.GetStore(storeName)
 	if err != nil {
 		return err
@@ -230,16 +229,6 @@ func repairOSDFileSystem(config *osdConfig) error {
 	logger.Infof("Completed repairing OSD %d file system at %s", config.id, config.rootPath)
 
 	return nil
-}
-
-func deleteOSDFileSystem(config *osdConfig) error {
-	if !isBluestore(config) {
-		return nil
-	}
-
-	logger.Infof("Deleting OSD %d file system", config.id)
-	storeName := fmt.Sprintf(osdFSStoreNameFmt, config.id)
-	return config.kv.ClearStore(storeName)
 }
 
 func createBluestoreSymlink(config *osdConfig, targetPath, symlinkName string) error {

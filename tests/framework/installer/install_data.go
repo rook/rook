@@ -18,6 +18,8 @@ package installer
 
 import (
 	"strconv"
+
+	"github.com/google/uuid"
 )
 
 //InstallData wraps rook yaml definitions
@@ -42,7 +44,7 @@ spec:
     plural: clusters
     singular: cluster
   scope: Namespaced
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -56,7 +58,7 @@ spec:
     plural: filesystems
     singular: filesystem
   scope: Namespaced
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -70,7 +72,7 @@ spec:
     plural: objectstores
     singular: objectstore
   scope: Namespaced
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -84,7 +86,7 @@ spec:
     plural: pools
     singular: pool
   scope: Namespaced
-  version: v1alpha1
+  version: v1beta1
 ---
 apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
@@ -220,6 +222,17 @@ rules:
   - get
   - list
   - watch
+- apiGroups:
+  - batch
+  resources:
+  - jobs
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - delete  
 - apiGroups:
   - ceph.rook.io
   resources:
@@ -368,7 +381,7 @@ subjects:
 
 //GetRookCluster returns rook-cluster manifest
 func (i *InstallData) GetRookCluster(namespace, storeType, dataDirHostPath string, useAllDevices bool, mons int) string {
-	return `apiVersion: ceph.rook.io/v1alpha1
+	return `apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
   name: ` + namespace + `
@@ -442,4 +455,34 @@ spec:
         items:
         - key: data
           path: mon-endpoints`
+}
+
+//GetCleanupPod gets a cleanup Pod manifest
+func (i *InstallData) GetCleanupPod(node, removalDir string) string {
+	return `apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rook-cleanup-` + uuid.Must(uuid.NewRandom()).String() + `
+spec:
+    template: 
+      spec:
+          restartPolicy: Never
+          containers:
+              - name: rook-cleaner
+                image: rook/rook:master
+                securityContext:
+                    privileged: true
+                volumeMounts:
+                    - name: cleaner
+                      mountPath: /scrub
+                command: 
+                    - "sh"
+                    - "-c"
+                    - "rm -rf /scrub/*"
+          nodeSelector:
+            kubernetes.io/hostname: ` + node + `
+          volumes:
+              - name: cleaner
+                hostPath:
+                   path:  ` + removalDir
 }

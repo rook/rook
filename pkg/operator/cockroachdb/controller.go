@@ -201,10 +201,9 @@ func (c *ClusterController) createClientService(cluster *cluster) error {
 	// automatically load balance connections to the different database pods.
 	clientService := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            "cockroachdb-public",
-			Namespace:       cluster.namespace,
-			OwnerReferences: []metav1.OwnerReference{cluster.ownerRef},
-			Labels:          createAppLabels(),
+			Name:      "cockroachdb-public",
+			Namespace: cluster.namespace,
+			Labels:    createAppLabels(),
 		},
 		Spec: v1.ServiceSpec{
 			Selector: createAppLabels(),
@@ -212,6 +211,7 @@ func (c *ClusterController) createClientService(cluster *cluster) error {
 			Ports:    createServicePorts(httpPort, grpcPort),
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, cluster.namespace, &clientService.ObjectMeta, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(clientService); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -237,10 +237,9 @@ func (c *ClusterController) createReplicaService(cluster *cluster) error {
 	// in most circumstances.
 	replicaService := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            appName,
-			Namespace:       cluster.namespace,
-			OwnerReferences: []metav1.OwnerReference{cluster.ownerRef},
-			Labels:          createAppLabels(),
+			Name:      appName,
+			Namespace: cluster.namespace,
+			Labels:    createAppLabels(),
 			Annotations: map[string]string{
 				// Use this annotation in addition to the actual publishNotReadyAddresses
 				// field below because the annotation will stop being respected soon but the
@@ -262,6 +261,7 @@ func (c *ClusterController) createReplicaService(cluster *cluster) error {
 			Ports:                    createServicePorts(httpPort, grpcPort),
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, cluster.namespace, &replicaService.ObjectMeta, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.CoreV1().Services(cluster.namespace).Create(replicaService); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -280,10 +280,9 @@ func (c *ClusterController) createPodDisruptionBudget(cluster *cluster) error {
 
 	pdb := &policyv1beta1.PodDisruptionBudget{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            "cockroachdb-budget",
-			Namespace:       cluster.namespace,
-			OwnerReferences: []metav1.OwnerReference{cluster.ownerRef},
-			Labels:          createAppLabels(),
+			Name:      "cockroachdb-budget",
+			Namespace: cluster.namespace,
+			Labels:    createAppLabels(),
 		},
 		Spec: policyv1beta1.PodDisruptionBudgetSpec{
 			Selector: &metav1.LabelSelector{
@@ -292,6 +291,7 @@ func (c *ClusterController) createPodDisruptionBudget(cluster *cluster) error {
 			MaxUnavailable: &maxUnavailable,
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, cluster.namespace, &pdb.ObjectMeta, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.PolicyV1beta1().PodDisruptionBudgets(cluster.namespace).Create(pdb); err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -315,9 +315,8 @@ func (c *ClusterController) createStatefulSet(cluster *cluster) error {
 
 	statefulSet := &appsv1beta1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            appName,
-			Namespace:       cluster.namespace,
-			OwnerReferences: []metav1.OwnerReference{cluster.ownerRef},
+			Name:      appName,
+			Namespace: cluster.namespace,
 		},
 		Spec: appsv1beta1.StatefulSetSpec{
 			ServiceName: appName,
@@ -351,6 +350,7 @@ func (c *ClusterController) createStatefulSet(cluster *cluster) error {
 			},
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, cluster.namespace, &statefulSet.ObjectMeta, &cluster.ownerRef)
 
 	if _, err := c.context.Clientset.AppsV1beta1().StatefulSets(cluster.namespace).Create(statefulSet); err != nil {
 		if !errors.IsAlreadyExists(err) {

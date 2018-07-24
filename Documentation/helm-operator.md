@@ -34,26 +34,25 @@ kubectl --namespace kube-system patch deploy/tiller-deploy -p '{"spec": {"templa
 ## Installing
 
 The Ceph Operator helm chart will install the basic components necessary to create a storage platform for your Kubernetes cluster.
-After the helm chart is installed, you will need to [create a Rook cluster](quickstart.md#create-a-rook-cluster).
+After the helm chart is installed, you will need to [create a Rook cluster](ceph-quickstart.md#create-a-rook-cluster).
 
 The `helm install` command deploys rook on the Kubernetes cluster in the default configuration. The [configuration](#configuration) section lists the parameters that can be configured during installation. It is recommended that the rook operator be installed into the `rook-ceph-system` namespace (you will install your clusters into separate namespaces).
 
-Rook currently publishes builds to the `alpha` and `master` channels. In the future, `beta` and `stable` will also be available.
+Rook currently publishes builds of the Ceph operator to the `beta`, `alpha`, and `master` channels. In the future `stable` will also be available.
+
+### Beta
+The beta channel is the most recent release of Rook that is considered nearly stable for the community, starting with the v0.8 release.
+
+```console
+helm repo add rook-beta https://charts.rook.io/beta
+helm install --namespace rook-ceph-system rook-beta/rook-ceph
+```
 
 ### Alpha
 The alpha channel is the most recent release of Rook that is considered ready for testing by the community.
 
 ```console
 helm repo add rook-alpha https://charts.rook.io/alpha
-```
-
-For the v0.7 release (see the [v0.7 documentation](https://rook.io/docs/rook/v0.7/helm-operator.html)):
-```console
-helm install --namespace rook-system rook-alpha/rook
-```
-
-After the v0.8 release is available:
-```console
 helm install --namespace rook-ceph-system rook-alpha/rook-ceph
 ```
 
@@ -69,7 +68,7 @@ helm install --namespace rook-ceph-system rook-master/rook-ceph --version <versi
 
 For example:
 ```
-helm install rook-master/rook-ceph --version v0.6.0-156.gef983d6
+helm install --namespace rook-ceph-system rook-master/rook-ceph --version v0.7.0-278.gcbd9726
 ```
 
 ### Development Build
@@ -96,22 +95,24 @@ The command removes all the Kubernetes components associated with the chart and 
 
 The following tables lists the configurable parameters of the rook-operator chart and their default values.
 
-| Parameter          | Description                          | Default              |
-|--------------------|--------------------------------------|----------------------|
-| `image.repository` | Image                                | `rook/ceph`          |
-| `image.tag`        | Image tag                            | `master`             |
-| `image.pullPolicy` | Image pull policy                    | `IfNotPresent`       |
-| `rbacEnable`       | If true, create & use RBAC resources | `true`               |
-| `pspEnable`        | If true, create & use PSP resources  | `true`               |
-| `resources`        | Pod resource requests & limits       | `{}`                 |
-| `logLevel`         | Global log level        | `INFO`                 |
+| Parameter                 | Description                                                     | Default                                                |
+| ------------------------- | --------------------------------------------------------------- | ------------------------------------------------------ |
+| `image.repository`        | Image                                                           | `rook/ceph`                                            |
+| `image.tag`               | Image tag                                                       | `master`                                               |
+| `image.pullPolicy`        | Image pull policy                                               | `IfNotPresent`                                         |
+| `rbacEnable`              | If true, create & use RBAC resources                            | `true`                                                 |
+| `pspEnable`               | If true, create & use PSP resources                             | `true`                                                 |
+| `resources`               | Pod resource requests & limits                                  | `{}`                                                   |
+| `logLevel`                | Global log level                                                | `INFO`                                                 |
+| `nodeSelector`            | Kubernetes `nodeSelector` to add to the Deployment.             | <none>                                                 |
+| `tolerations`             | List of Kubernetes `tolerations` to add to the Deployment.      | `[]`                                                   |
 | `agent.flexVolumeDirPath` | Path where the Rook agent discovers the flex volume plugins (*) | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
-| `agent.toleration`        | Toleration for the agent pods | <none> |
-| `agent.tolerationKey`     | The specific key of the taint to tolerate | <none> |
-| `discover.toleration`        | Toleration for the discover pods | <none> |
-| `discover.tolerationKey`     | The specific key of the taint to tolerate | <none> |
-| `mon.healthCheckInterval` | The frequency for the operator to check the mon health | `45s` |
-| `mon.monOutTimeout`       | The time to wait before failing over an unhealthy mon | `300s` |
+| `agent.toleration`        | Toleration for the agent pods                                   | <none>                                                 |
+| `agent.tolerationKey`     | The specific key of the taint to tolerate                       | <none>                                                 |
+| `discover.toleration`     | Toleration for the discover pods                                | <none>                                                 |
+| `discover.tolerationKey`  | The specific key of the taint to tolerate                       | <none>                                                 |
+| `mon.healthCheckInterval` | The frequency for the operator to check the mon health          | `45s`                                                  |
+| `mon.monOutTimeout`       | The time to wait before failing over an unhealthy mon           | `300s`                                                 |
 
 &ast; For Kubernetes 1.9.x `agent.flexVolumeDirPath` should be changed to `/var/lib/kubelet/volumeplugins/`. [Flexvolume documentation](flexvolume.md#for-kubernetes--19x)
 
@@ -120,14 +121,14 @@ You can pass the settings with helm command line parameters. Specify each parame
 `--set key=value[,key=value]` argument to `helm install`. For example, the following command will install rook where RBAC is not enabled.
 
 ```console
-$ helm install --namespace rook-ceph-system --name rook-ceph rook-alpha/rook-ceph --set rbacEnable=false
+$ helm install --namespace rook-ceph-system --name rook-ceph rook-beta/rook-ceph --set rbacEnable=false
 ```
 
 ### Settings File
 Alternatively, a yaml file that specifies the values for the above parameters (`values.yaml`) can be provided while installing the chart.
 
 ```console
-$ helm install --namespace rook-ceph-system --name rook-ceph rook-alpha/rook-ceph -f values.yaml
+$ helm install --namespace rook-ceph-system --name rook-ceph rook-beta/rook-ceph -f values.yaml
 ```
 
 Here are the sample settings to get you started.

@@ -54,6 +54,10 @@ func (kv *ConfigMapKVStore) GetValue(storeName, key string) (string, error) {
 }
 
 func (kv *ConfigMapKVStore) SetValue(storeName, key, value string) error {
+	return kv.SetValueWithLabels(storeName, key, value, nil)
+}
+
+func (kv *ConfigMapKVStore) SetValueWithLabels(storeName, key, value string, labels map[string]string) error {
 	cm, err := kv.clientset.CoreV1().ConfigMaps(kv.namespace).Get(storeName, metav1.GetOptions{})
 	if err != nil {
 		if !errors.IsNotFound(err) {
@@ -63,12 +67,15 @@ func (kv *ConfigMapKVStore) SetValue(storeName, key, value string) error {
 		// the given config map doesn't exist yet, create it now with the given key/val
 		cm = &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:            storeName,
-				Namespace:       kv.namespace,
-				OwnerReferences: []metav1.OwnerReference{kv.ownerRef},
+				Name:      storeName,
+				Namespace: kv.namespace,
 			},
 			Data: map[string]string{key: value},
 		}
+		if labels != nil {
+			cm.Labels = labels
+		}
+		SetOwnerRef(kv.clientset, kv.namespace, &cm.ObjectMeta, &kv.ownerRef)
 
 		_, err = kv.clientset.CoreV1().ConfigMaps(kv.namespace).Create(cm)
 		return err
