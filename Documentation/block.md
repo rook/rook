@@ -35,8 +35,10 @@ metadata:
 provisioner: ceph.rook.io/block
 parameters:
   pool: replicapool
-  #The value of "clusterNamespace" MUST be the same as the one in which your rook cluster exist
+  # The value of "clusterNamespace" MUST be the same as the one in which your rook cluster exist
   clusterNamespace: rook-ceph
+  # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
+  fstype: xfs
 ```
 
 Create the storage class.
