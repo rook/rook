@@ -33,7 +33,7 @@ RUN yum --assumeyes update && \
         nmap-ncat \
         s3cmd \
         sudo \
-        vim && \
+        vim || true && \
     yum clean all && \
     rm -rf \
         /etc/{selinux,systemd,udev} \

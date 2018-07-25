@@ -16,7 +16,7 @@ FROM BASEIMAGE
 
 RUN yum --assumeyes install \
         net-tools \
-        nmap-ncat && \
+        nmap-ncat || true && \
     yum clean all && rm -rf /tmp/* /var/tmp/*
 
 ARG ARCH
