@@ -53,7 +53,10 @@ func (a *Agent) Run() error {
 		return fmt.Errorf("failed to create volume attachment controller: %+v", err)
 	}
 
-	volumeManager := ceph.NewVolumeManager(a.context)
+	volumeManager, err := ceph.NewVolumeManager(a.context)
+	if err != nil {
+		return fmt.Errorf("failed to create volume manager: %+v", err)
+	}
 
 	flexvolumeController := flexvolume.NewController(a.context, volumeAttachmentController, volumeManager)
 

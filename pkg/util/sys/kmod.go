@@ -21,6 +21,18 @@ import (
 	"github.com/rook/rook/pkg/util/exec"
 )
 
+const builtinModDir = "/lib/modules/$(uname -r)/modules.builtin"
+
+func IsBuiltinKernelModule(name string, executor exec.Executor) (bool, error) {
+	out, err := executor.ExecuteCommandWithCombinedOutput(false, "check builtin kmod", "cat", builtinModDir)
+	if err != nil {
+		return false, fmt.Errorf("failed to cat /lib/modules: %+v", err)
+	}
+
+	result := Grep(out, name)
+	return result != "", nil
+}
+
 func LoadKernelModule(name string, options []string, executor exec.Executor) error {
 	if options == nil {
 		options = []string{}
