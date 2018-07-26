@@ -22,6 +22,7 @@
 - You can now toggle if multiple Ceph mons might be placed on one node with the `allowMultiplePerNode` option (default `false`) in the [`mon` spec](Documentation/ceph-cluster-crd.md#mon-settings).
 - One OSD will run per pod to increase the reliability and maintainability of the OSDs. No longer will restarting an OSD pod mean that all OSDs on that node will go down. See the [design doc](design/dedicated-osd-pod.md).
 - Added `nodeSelector` to Rook Ceph operator Helm chart.
+- Ceph is updated to Luminous 12.2.7.
 
 ## Breaking Changes
 
