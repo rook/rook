@@ -168,6 +168,9 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 			},
 		},
 		Spec: extensions.DeploymentSpec{
+			Strategy: extensions.DeploymentStrategy{
+				Type: extensions.RecreateDeploymentStrategyType,
+			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Name: appName,
