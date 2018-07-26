@@ -4,7 +4,7 @@ pipeline {
 
     parameters {
           choice(name: 'node', choices: 'gce-reg\ngce-load', description: 'select env to run tests in ')
-          choice(name: 'key', choices: 'master\nPR', description: 'Select master or a PR to run tests aganist - defaults to master')
+          choice(name: 'key', choices: 'master\nPR', description: 'Select master or a PR to run tests against - defaults to master')
           string(name: 'PR', defaultValue: '', description: 'PR number, required if key value is set to PR')
           string(name: 'version', defaultValue: '', description: 'Version to run tests against')
           string(name: 'kube_version', defaultValue: 'v1.8.2', description: 'Version of kubernetes to  tests against')

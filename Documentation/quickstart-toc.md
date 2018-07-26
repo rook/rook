@@ -14,4 +14,4 @@ Rook provides three types of storage providers to a Kubernetes cluster, each wit
 |---|---|---|
 | [Ceph](ceph-quickstart.md) | Beta | Ceph is a highly scalable distributed storage solution for block storage, object storage, and shared file systems with years of production deployments. |
 | [CockroachDB](cockroachdb.md) | Alpha | CockroachDB is a cloud-native SQL database for building global, scalable cloud services that survive disasters.  |
-| [Minio](minio-object-store.md) | Alpha | Minio is a high performance distributed object storage server, designed for large-scale private cloud infrastructure. | 
+| [Minio](minio-object-store.md) | Alpha | Minio is a high performance distributed object storage server, designed for large-scale private cloud infrastructure. |

@@ -375,13 +375,13 @@ Then when the cluster CRD is applied to start a new cluster, the rook-operator s
 * One OSD pod is started on each node instead of multiple pods for each device
 
 ## Investigation
-First, ensure that you have specified the devices correctly in the CRD. 
+First, ensure that you have specified the devices correctly in the CRD.
 The [Cluster CRD](ceph-cluster-crd.md#storage-selection-settings) has several ways to specify the devices that are to be consumed by the Rook storage:
 - `useAllDevices: true`: Rook will consume all devices it determines to be available
 - `deviceFilter`: Consume all devices that match this regular expression
 - `devices`: Explicit list of device names on each node to consume
 
-Second, if Rook determines that a device is not available (has existing partitions or a formatted file system), Rook will skip consuming the devices. 
+Second, if Rook determines that a device is not available (has existing partitions or a formatted file system), Rook will skip consuming the devices.
 If Rook is not starting OSDs on the devices you expect, Rook may have skipped it for this reason. To see if a device was skipped, view the OSD preparation log
 on the node where the device was skipped.
 
@@ -397,7 +397,7 @@ rook-ceph-osd-prepare-node3-7rgnv      0/1       Completed   0          22m
 $ kubectl -n rook-ceph logs rook-ceph-osd-prepare-node1-fvmrp
 ```
 
-Towards the begining of the log you will see messages such as the following:
+Towards the beginning of the log you will see messages such as the following:
 ```
 # message that the device sda was skipped
 cephosd: skipping device sda that is in use (not by rook)

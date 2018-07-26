@@ -215,7 +215,7 @@ func (a *OsdAgent) removeDevices(context *clusterd.Context, removedDevicesScheme
 	return nil
 }
 
-// computes a partitioning scheme for all the given desired devices.  This could be devics already in use,
+// computes a partitioning scheme for all the given desired devices.  This could be devices already in use,
 // devices dedicated to metadata, and devices with all bluestore partitions collocated.
 func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *DeviceOsdMapping) (*config.PerfScheme, error) {
 

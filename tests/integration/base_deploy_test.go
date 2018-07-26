@@ -138,7 +138,7 @@ func (op BaseTestOperations) SetUp() {
 	}
 }
 
-//TearDownRook is a wrapper for tearDown after Sutie
+//TearDownRook is a wrapper for tearDown after Suite
 func (op BaseTestOperations) TearDown() {
 	if op.installer.T().Failed() {
 		op.installer.GatherAllRookLogs(op.namespace, installer.SystemNamespace(op.namespace), op.installer.T().Name())

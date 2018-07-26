@@ -222,7 +222,7 @@ func TestPartitionBluestoreMetadataSafe(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		if command == "udevadm" {
-			// mock that the metadata device already has a filesytem, this should abort the partition effort
+			// mock that the metadata device already has a filesystem, this should abort the partition effort
 			if strings.Index(name, "nvme01") != -1 {
 				return udevFSOutput, nil
 			}

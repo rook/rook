@@ -19,13 +19,14 @@ package longhaul
 import (
 	"math/rand"
 
+	"time"
+
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"time"
 )
 
-//utility to install and promethous and grafana to monitor rook cluster
+//utility to install and prometheus and grafana to monitor rook cluster
 var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "longhaul")
 )

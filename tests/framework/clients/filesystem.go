@@ -96,7 +96,7 @@ func (f *FilesystemOperation) List(namespace string) ([]client.CephFilesystem, e
 // Mount Function to Mount a file system created by rook(on a pod)
 // Input parameters -
 // name - path to the yaml definition file - definition of pod to be created that mounts existing file system
-// path - ignored in this case - moount path is defined in the path definition
+// path - ignored in this case - mount path is defined in the path definition
 // output - output returned by k8s create pod operaton and/or error
 func (f *FilesystemOperation) Mount(name string, path string) (string, error) {
 	result, err := f.k8sh.Kubectl("create", "-f", "name")
@@ -163,7 +163,7 @@ func (f *FilesystemOperation) Read(name string, mountpath string, filename strin
 // Unmount Function to UnMount a file system created by rook(delete pod)
 // Input parameters -
 // name - path to the yaml definition file - definition of pod to be deleted that has a file system mounted
-// path - ignored in this case - moount path is defined in the path definition
+// path - ignored in this case - mount path is defined in the path definition
 // output - output returned by k8s delete pod operaton and/or error
 func (f *FilesystemOperation) Unmount(name string) (string, error) {
 	result, err := f.k8sh.Kubectl("delete", "-f", name)

@@ -395,7 +395,7 @@ func getPodAndPVNameFromMountDir(mountDir string) (string, string, error) {
 	// mountDir is in the form of <rootDir>/pods/<podID>/volumes/rook.io~rook/<pv name>
 	filepath.Clean(mountDir)
 	token := strings.Split(mountDir, string(filepath.Separator))
-	// token lenght should at least size 5
+	// token length should at least size 5
 	length := len(token)
 	if length < 5 {
 		return "", "", fmt.Errorf("failed to parse mountDir %s for CRD name and podID", mountDir)

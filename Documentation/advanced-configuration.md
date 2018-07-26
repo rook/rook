@@ -122,7 +122,7 @@ In the following example we will separate SSD drives from spindle-based drives,
 a common practice for those looking to target certain workloads onto faster
 (database) or slower (file archive) storage.
 
-### CRUSH Heirarchy
+### CRUSH Hierarchy
 
 To see the CRUSH hierarchy of all your hosts and OSDs run:
 ```bash

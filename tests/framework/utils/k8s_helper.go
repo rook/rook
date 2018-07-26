@@ -277,10 +277,10 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinitio
 }
 
 //ResourceOperation performs a kubectl action on a pod definition
-func (k8sh *K8sHelper) ResourceOperation(action string, podDefiniton string) (string, error) {
+func (k8sh *K8sHelper) ResourceOperation(action string, podDefinition string) (string, error) {
 
 	args := []string{action, "-f", "-"}
-	result, err := k8sh.KubectlWithStdin(podDefiniton, args...)
+	result, err := k8sh.KubectlWithStdin(podDefinition, args...)
 	if err == nil {
 		return result, nil
 	}

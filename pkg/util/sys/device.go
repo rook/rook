@@ -175,7 +175,7 @@ func GetUdevInfo(device string, executor exec.Executor) (map[string]string, erro
 	return parseUdevInfo(output), nil
 }
 
-// get the file systems availab
+// get the file systems available
 func GetDeviceFilesystems(device string, executor exec.Executor) (string, error) {
 	cmd := fmt.Sprintf("get filesystem type for %s", device)
 	output, err := executor.ExecuteCommandWithOutput(false, cmd, "udevadm", "info", "--query=property", fmt.Sprintf("/dev/%s", device))

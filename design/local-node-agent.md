@@ -200,7 +200,7 @@ $ sudo umount <mount point>
 ```
 
 As mentioned above, each agent will be watching for events on cluster CRDs.
-Even in a large scale cluster, this is appropriate to have many watchers on the cluster CRDs for a couple reasons:  
+Even in a large scale cluster, this is appropriate to have many watchers on the cluster CRDs for a couple reasons:
 1. Cluster CRD events are relatively rare since they are tied to cluster lifecycles
 1. Each agent truly does need to be informed about cluster CRD events since they all may need to act on them
 

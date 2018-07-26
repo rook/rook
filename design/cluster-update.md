@@ -29,7 +29,7 @@ Therefore, updating storage resources should be performed by the operator with s
 The Cluster CRD has many fields, but not all of them will be updatable (i.e., the operator will not attempt to make any changes to the cluster for updates to some fields).
 #### Supported Fields
 The following fields will be **supported** for updates:
-* `moun`: Ceph mon specific settings can be changed.
+* `mon`: Ceph mon specific settings can be changed.
   * `count`: The number of monitors can be updated and the operator will ensure that as monitors are scaled up or down the cluster remains in quorum.
   * `allowMultiplePerNode`: The policy to allow multiple mons to be placed on one node can be toggled.
 * `deviceFilter`: The regex filter for devices allowed to be used for storage can be updated and OSDs will be added or removed to match the new filter pattern.

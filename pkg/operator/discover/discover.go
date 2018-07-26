@@ -321,7 +321,7 @@ func FreeDevicesByCluster(context *clusterd.Context, clusterName string) error {
 	return nil
 }
 
-// GetAvailableDevices conducts outter join using input filters with free devices that a node has. It marks the devices from join result as in-use.
+// GetAvailableDevices conducts outer join using input filters with free devices that a node has. It marks the devices from join result as in-use.
 func GetAvailableDevices(context *clusterd.Context, nodeName, clusterName string, devices []rookalpha.Device, filter string, useAllDevices bool) ([]rookalpha.Device, error) {
 	results := []rookalpha.Device{}
 	if len(devices) == 0 && len(filter) == 0 && !useAllDevices {

@@ -26,7 +26,7 @@ import (
 func TestTruncateNodeName(t *testing.T) {
 	// An entry's key is the result. The first value in the []string is the format and the second is the nodeName
 	tests := map[string][]string{
-		"rook-ceph-osd-prepare-47d1eb58e063be11c11c995b74cc5fbe-config": { // 61 chras
+		"rook-ceph-osd-prepare-47d1eb58e063be11c11c995b74cc5fbe-config": { // 61 chars
 			"rook-ceph-osd-prepare-%s-config",                                      // 29 chars (without format)
 			"k8s-worker-1234567890.this.is.a.very.very.long.node.name.example.com", // 68 chars
 		},

@@ -79,7 +79,7 @@ type MetadataDeviceInfo struct {
 	Partitions []*MetadataDevicePartition `json:"partitions"`
 }
 
-// representsa specific partition on a metadata device, including details about which OSD it belongs to
+// represents a specific partition on a metadata device, including details about which OSD it belongs to
 type MetadataDevicePartition struct {
 	ID            int           `json:"id"`
 	OsdUUID       uuid.UUID     `json:"osdUuid"`

@@ -20,7 +20,7 @@ import (
 	"flag"
 )
 
-//EnvironmentManifest contains informaton about system under test
+//EnvironmentManifest contains information about system under test
 type EnvironmentManifest struct {
 	HostType           string
 	RookImageName      string

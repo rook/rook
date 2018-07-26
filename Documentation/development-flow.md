@@ -119,7 +119,7 @@ In order to open a pull request (PR) it is required to be up to date with the la
 ### Regression Testing
 
 All pull requests must pass the unit and integration tests before they can be merged. These tests automatically
-run as a part of the build process. The results of these tests along with code reviews and other criterias determine whether
+run as a part of the build process. The results of these tests along with code reviews and other criteria determine whether
 your request will be accepted into the `rook/rook` repo. It is prudent to run all tests locally on your development box prior to submitting a pull request to the `rook/rook` repo.
 
 #### Unit Tests

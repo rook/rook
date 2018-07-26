@@ -21,7 +21,7 @@ The contents of an NFS volume are preserved and the volume is merely unmounted i
 NFS supports multiple read/write simultaneously so a single share can be attached to multiple pods.
 
 ## Design
-With this design Rook is exploring to providing another widely adopted storage option for admins and users of cloud-native environments. This deisign tends to automate NFS starting from its configuration (such as allowed hosts, read/write permissions etc.) to deployment and provisioning. The operations on NFS which cannot be done natively by Kubernetes will be automated.
+With this design Rook is exploring to providing another widely adopted storage option for admins and users of cloud-native environments. This design tends to automate NFS starting from its configuration (such as allowed hosts, read/write permissions etc.) to deployment and provisioning. The operations on NFS which cannot be done natively by Kubernetes will be automated.
 NFS doesn’t provide an internal provisioner for kubernetes, so Rook is needed as an external provisioner.
 This design uses NFS-Ganesha server and NFS v4.
 
@@ -37,7 +37,7 @@ The flow of creating NFS backed storage in Rook is
 
 The NFS CRD spec will specify the following:
 1. NFS server storage backend configuration. E.g., configuration for various storage backends(ceph, ebs, azure disk etc) that will be shared using NFS.
-2. NFS server configuration  
+2. NFS server configuration
    The following points are required for configuring NFS server:
     - export (The volume being exported)
     - client (The host or network to which the export is being shared)
@@ -59,7 +59,7 @@ EXPORT {
         Name = VFS;
     }
 }
-```  
+```
 the CRD instance will look like the following:
 ```yaml
 apiVersion: rook.io/v1alpha1
@@ -72,7 +72,7 @@ spec:
   exports:
   - name: nfs-share
     server:
-      accessMode: ReadWrire
+      accessMode: ReadWrite
       squash: root
     persistentVolumeClaim:
       claimName: googlePD-claim
@@ -136,7 +136,7 @@ EXPORT {
         Squash = none;
     }
 }
-```  
+```
 the CRD instance will look like the following:
 ```yaml
 apiVersion: rook.io/v1alpha1
@@ -158,7 +158,7 @@ spec:
         clients:
         - 172.17.0.0/16
         - serverX
-        accessMode: ReadWrire
+        accessMode: ReadWrite
         squash: none
     persistentVolumeClaim:
       claimName: ebs-claim
@@ -196,7 +196,7 @@ EXPORT {
         Squash = none;
     }
 }
-```  
+```
 the CRD instance will look like the following:
 ```yaml
 apiVersion: rook.io/v1alpha1
@@ -231,7 +231,7 @@ spec:
 Exports can be added and removed by updating the CRD using kubectl edit/replace -f rook-nfs.yaml
 
 ## Client Access
-The administrator creates a storage class.  
+The administrator creates a storage class.
 Here is an example of NFS storage class for Example 1:
 ```yaml
 apiVersion: storage.k8s.io/v1
@@ -244,7 +244,7 @@ parameters:
   export: nfs-share
 ```
 
-The user can use the NFS volume by creating a PVC.  
+The user can use the NFS volume by creating a PVC.
 Here is an example of NFS PVC
 ```yaml
 apiVersion: v1
