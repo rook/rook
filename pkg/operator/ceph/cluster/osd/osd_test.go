@@ -70,6 +70,23 @@ func createDiscoverConfigmap(nodeName, ns string, clientset *fake.Clientset) err
 	return err
 }
 
+func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake.Clientset) error {
+	node := &v1.Node{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: nodeName,
+		},
+		Status: v1.NodeStatus{
+			Conditions: []v1.NodeCondition{
+				{
+					Type: condition,
+				},
+			},
+		},
+	}
+	_, err := clientset.CoreV1().Nodes().Create(node)
+	return err
+}
+
 func TestAddRemoveNode(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node8230"
@@ -90,6 +107,8 @@ func TestAddRemoveNode(t *testing.T) {
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)
 
+	nodeErr := createNode(nodeName, v1.NodeReady, clientset)
+	assert.Nil(t, nodeErr)
 	cmErr := createDiscoverConfigmap(nodeName, "rook-system", clientset)
 	assert.Nil(t, cmErr)
 
@@ -279,6 +298,8 @@ func TestAddNodeFailure(t *testing.T) {
 	clientset.PrependReactor("create", "jobs", func(action k8stesting.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, fmt.Errorf("mock failed to create jobs")
 	})
+	nodeErr := createNode(nodeName, v1.NodeReady, clientset)
+	assert.Nil(t, nodeErr)
 
 	os.Setenv(k8sutil.PodNamespaceEnvVar, "rook-system")
 	defer os.Unsetenv(k8sutil.PodNamespaceEnvVar)

@@ -159,7 +159,9 @@ func (c *Cluster) Start() error {
 		}
 		logger.Debugf("storage nodes: %+v", c.Storage.Nodes)
 	}
-
+	validNodes := k8sutil.GetValidNodes(c.Storage.Nodes, c.context.Clientset, c.placement)
+	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.Storage.Nodes))
+	c.Storage.Nodes = validNodes
 	// orchestrate individual nodes, starting with any that are still ongoing (in the case that we
 	// are resuming a previous orchestration attempt)
 	config := newProvisionConfig()

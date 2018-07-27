@@ -27,7 +27,6 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
@@ -37,9 +36,7 @@ import (
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	helper "k8s.io/kubernetes/pkg/api/v1/helper"
 )
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
@@ -199,57 +196,6 @@ func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
 			return true
 		}
 	}
-	return false
-}
-
-func validNode(node v1.Node, placement rookalpha.Placement) bool {
-	// a node cannot be disabled
-	if node.Spec.Unschedulable {
-		return false
-	}
-
-	// a node matches the NodeAffinity configuration
-	// ignoring `PreferredDuringSchedulingIgnoredDuringExecution` terms: they
-	// should not be used to judge a node unusable
-	if placement.NodeAffinity != nil && placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-		nodeMatches := false
-		for _, req := range placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-			nodeSelector, err := helper.NodeSelectorRequirementsAsSelector(req.MatchExpressions)
-			if err != nil {
-				logger.Infof("failed to parse MatchExpressions: %+v, regarding as not match.", req.MatchExpressions)
-				return false
-			}
-			if nodeSelector.Matches(labels.Set(node.Labels)) {
-				nodeMatches = true
-				break
-			}
-		}
-		if !nodeMatches {
-			return false
-		}
-	}
-
-	// a node is tainted and cannot be tolerated
-	for _, taint := range node.Spec.Taints {
-		isTolerated := false
-		for _, toleration := range placement.Tolerations {
-			if toleration.ToleratesTaint(&taint) {
-				isTolerated = true
-				break
-			}
-		}
-		if !isTolerated {
-			return false
-		}
-	}
-
-	// a node must be Ready
-	for _, c := range node.Status.Conditions {
-		if c.Type == v1.NodeReady {
-			return true
-		}
-	}
-	logger.Infof("node %s is not ready. %+v", node.Name, node.Status.Conditions)
 	return false
 }
 

@@ -24,6 +24,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -200,7 +201,10 @@ func (c *Cluster) checkMonsOnValidNodes() (bool, error) {
 			return true, err
 		}
 		// check if node the mon is on is still valid
-		if !validNode(*node, c.placement) {
+		valid, err := k8sutil.ValidNode(*node, c.placement)
+		if err != nil {
+			logger.Warning("failed to validate node %s %v", node.Name, err)
+		} else if !valid {
 			logger.Warningf("node %s isn't valid anymore, failover mon %s", nInfo.Name, mon)
 			c.failoverMon(mon)
 			return true, nil
