@@ -17,6 +17,7 @@ limitations under the License.
 package integration
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -126,4 +127,13 @@ func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
 	assert.True(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source"))
 	assert.False(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source env var"))
 	assert.False(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source default"))
+}
+
+func checkOrderedSubstrings(t *testing.T, input string, substrings ...string) {
+	original := input
+	for i, substring := range substrings {
+		assert.Contains(t, input, substring, fmt.Sprintf("missing substring %d. original=%s", i, original))
+		index := strings.Index(input, substring)
+		input = input[index+len(substring):]
+	}
 }

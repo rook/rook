@@ -154,9 +154,7 @@ func runBlockE2ETestLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s su
 
 	volumeDef := installer.GetBlockPoolStorageClassAndPvcDef(clusterNamespace, poolName, "rook-ceph-block", "test-block-claim", "ReadWriteOnce")
 	res1, err := installer.BlockResourceOperation(k8sh, volumeDef, "create")
-	assert.Contains(s.T(), res1, fmt.Sprintf("\"%s\" created", poolName), "Make sure test pool is created")
-	assert.Contains(s.T(), res1, "\"rook-ceph-block\" created", "Make sure storageclass is created")
-	assert.Contains(s.T(), res1, "\"test-block-claim\" created", "Make sure pvc is created")
+	checkOrderedSubstrings(s.T(), res1, poolName, "created", "rook-ceph-block", "created", "test-block-claim", "created")
 	require.NoError(s.T(), err)
 
 	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, "test-block-claim"))

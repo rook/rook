@@ -74,7 +74,7 @@ func (s *BlockCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 	defer s.tearDownTest(claimName, poolName, storageClassName, "ReadWriteOnce")
 
 	result, err := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
-	assert.Contains(s.T(), result, fmt.Sprintf("persistentvolumeclaim \"%s\" created", claimName), "Make sure pvc is created. "+result)
+	checkOrderedSubstrings(s.T(), result, "persistentvolumeclaim", claimName, "created")
 	require.NoError(s.T(), err)
 
 	//check status of PVC
@@ -107,11 +107,11 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	logger.Infof("create pool and storageclass")
 	pool := model.Pool{Name: poolName, ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}}
 	result0, err0 := s.testClient.PoolClient.Create(pool, s.namespace)
-	assert.Contains(s.T(), result0, fmt.Sprintf("\"%s\" created", poolName), "Make sure test pool is created")
+	checkOrderedSubstrings(s.T(), result0, poolName, "created")
 	require.NoError(s.T(), err0)
 
 	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace, true), "create")
-	assert.Contains(s.T(), result1, fmt.Sprintf("\"%s\" created", storageClassName), "Make sure storageclass is created")
+	checkOrderedSubstrings(s.T(), result1, storageClassName, "created")
 	require.NoError(s.T(), err1)
 
 	logger.Infof("make sure storageclass is created")
@@ -120,7 +120,7 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 
 	logger.Infof("create pvc")
 	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
-	assert.Contains(s.T(), result2, fmt.Sprintf("\"%s\" created", claimName), "Make sure pvc is created. "+result2)
+	checkOrderedSubstrings(s.T(), result2, claimName, "created")
 	require.NoError(s.T(), err2)
 
 	logger.Infof("check status of PVC")
@@ -131,8 +131,8 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	assert.Equal(s.T(), s.initBlockCount+1, len(b1), "Make sure new block image is created")
 
 	logger.Infof("Create same pvc again")
-	result3, err3 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
-	assert.Contains(s.T(), err3.Error(), fmt.Sprintf("\"%s\" already exists", claimName), "make sure PVC is not created again. "+result3)
+	_, err3 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
+	checkOrderedSubstrings(s.T(), err3.Error(), claimName, "already exists")
 
 	logger.Infof("check status of PVC")
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, claimName))
@@ -222,10 +222,10 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 
 	//create pool and storageclass
 	result0, err0 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "create")
-	assert.Contains(s.T(), result0, fmt.Sprintf("\"%s\" created", poolName), "Make sure test pool is created")
+	checkOrderedSubstrings(s.T(), result0, poolName, "created")
 	require.NoError(s.T(), err0)
 	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace, true), "create")
-	assert.Contains(s.T(), result1, fmt.Sprintf("\"%s\" created", storageClassName), "Make sure storageclass is created")
+	checkOrderedSubstrings(s.T(), result1, storageClassName, "created")
 	require.NoError(s.T(), err1)
 
 	//make sure storageclass is created
@@ -234,7 +234,7 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 
 	//create pvc
 	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, pvcAccessMode), "create")
-	assert.Contains(s.T(), result2, fmt.Sprintf("\"%s\" created", claimName), "Make sure pvc is created. "+result2)
+	checkOrderedSubstrings(s.T(), result2, claimName, "created")
 	require.NoError(s.T(), err2)
 
 	//check status of PVC
