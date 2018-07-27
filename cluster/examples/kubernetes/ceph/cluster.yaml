@@ -32,7 +32,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: rook-ceph-system
+  namespace: rook-ceph
 ---
 # Allow the pods in this namespace to work with configmaps
 kind: RoleBinding
