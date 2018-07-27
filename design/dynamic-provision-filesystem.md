@@ -4,7 +4,7 @@
 
 Currently in Rook, to consume a CephFS, the user will have to specify the CephFS volume plugin as well as the required inputs. Some of this inputs are very cumbersome and required hacky commands to obtain them. We should use the dynamic provision feature with PVCs and PVs to facilitate the consumption of CephFS. There are many benefits to this.
 Using PVCs allows us to deeply adhere to the Kubernetes API. That means, we get all the features that Kubernetes gives us like: setting reclaim policy on the volume, use RBAC on provisioning and defining accessmode.
-On consumption, the pod only has to reference the PVCs. That means, the pod manifest doesnt have to change whether you change the PVC to use block or filesystems.
+On consumption, the pod only has to reference the PVCs. That means, the pod manifest doesn't have to change whether you change the PVC to use block or filesystems.
 
 Another benefit is that it allows us to consume StorageClass that the admin users define and create. The users don't have to worry about metadataPool, erasureCoded, affinity, toleration etc. All they care is creating a filesystem PVC and referencing a storageClass that matches their filesystem needs.
 

@@ -36,7 +36,7 @@ tests/scripts/minikube.sh helm
 
 Stopping the cluster and destroying the Minikube VM can be done with:
 ```console
-tests/scripts/miniube.sh clean
+tests/scripts/minikube.sh clean
 ```
 
 #### Kubeadm (recommended for Ubuntu)

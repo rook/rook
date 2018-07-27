@@ -555,7 +555,7 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 	// mock the currently discovered hardware, note the device names have changed (e.g., across reboots) but their UUIDs are always static
 	a := &OsdAgent{devices: "sda-changed", kv: mockKVStore()}
 
-	// setup an existing partition schme with metadata on nvme01 and data on sda
+	// setup an existing partition scheme with metadata on nvme01 and data on sda
 	_, metadataUUID, sdaUUID := mockDistributedPartitionScheme(t, 1, "nvme01", "sda", a.kv, a.nodeName)
 
 	context.Devices = []*sys.LocalDisk{

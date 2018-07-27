@@ -155,8 +155,8 @@ kubectl delete clusterrolebindings rook-agent
 Now when the operator is recreated, the agent daemonset will automatically be created again with the new version.
 
 ### Operator Access to Clusters
-No longer is the operator given privileges across every namespace. The operator will need privileges to manage each Ceph cluster that is configured. 
-The following service account, role, and role bindings are included in `cluster.yaml` when creating a new cluster. Save the following yaml as `cluster-privs.yaml`, 
+No longer is the operator given privileges across every namespace. The operator will need privileges to manage each Ceph cluster that is configured.
+The following service account, role, and role bindings are included in `cluster.yaml` when creating a new cluster. Save the following yaml as `cluster-privs.yaml`,
 modifying the `namespace:` attribute of each resource if you are not using the default `rook` or `rook-system` namespaces.
 
 ```yaml
@@ -235,7 +235,7 @@ cd cluster/examples/kubernetes/ceph
 cat operator.yaml | sed -e 's/namespace: rook-ceph-system/namespace: rook-system/g' | kubectl create -f -
 ```
 
-After the operator starts, after several minutes you may see some new OSD pods being started and then crash looping. This is expected. This will be resolved when you get to the 
+After the operator starts, after several minutes you may see some new OSD pods being started and then crash looping. This is expected. This will be resolved when you get to the
 [OSD section](#object-storage-daemons-osds).
 
 #### Operator Health Verification
@@ -306,7 +306,7 @@ This is okay as long as the cluster health looks good and all monitors eventuall
 ### Object Storage Daemons (OSDs)
 The OSDs have gone through major changes in the 0.8. While the upgrade steps will seem very disruptive, we feel confident that this will keep your cluster running.
 The critical changes to the OSDs include (see also the [design doc](/design/dedicated-osd-pod.md)):
-- Each OSD will run in its own pod. No longer will a DaemonSet be deployed to run OSDs on all nodes, or ReplicaSets to run all the OSDs on individual nodes. 
+- Each OSD will run in its own pod. No longer will a DaemonSet be deployed to run OSDs on all nodes, or ReplicaSets to run all the OSDs on individual nodes.
 - Each OSD is manged by a K8s Deployment
 - A new "discovery" DaemonSet is running in the rook system namespace that will identify all the available devices in the cluster
 - The operator will analyze the available devices, provision the desired OSDs with a "prepare" pod on each node where devices will run, then start the deployment for each OSD
@@ -338,7 +338,7 @@ rook-ceph-osd-id-5-5b8598cc9f-2pnfb   1/1       Running   6          6m
 ```
 
 ### Ceph Manager
-The ceph manager has been renamed in 0.8. The new manager will be started automatically by the operator. 
+The ceph manager has been renamed in 0.8. The new manager will be started automatically by the operator.
 The old manager and its secret can simply be deleted.
 
 To delete the 0.7 manager, run the following:
@@ -462,7 +462,7 @@ kubectl delete crd objectstores.ceph.rook.io
 kubectl delete crd pools.ceph.rook.io
 ```
 
-Wait a few seconds to make sure the types have been completely removed, and now start the oeprator back up again:
+Wait a few seconds to make sure the types have been completely removed, and now start the operator back up again:
 
 ```console
 kubectl create -f operator.yaml
@@ -477,4 +477,5 @@ for f in $(ls rook-filesystems-*-backup.yaml); do cat ${f} | sed -e 's/ceph.rook
 for o in $(ls rook-objectstores-*-backup.yaml); do cat ${o} | sed -e 's/ceph.rook.io\/v1alpha1/ceph.rook.io\/v1beta1/g' -e 's/namespace: ""/namespace: rook-ceph/g' | kubectl create -f -; done
 ```
 
-The `ceph.rook.io` CRDs should now be upgraded to `v1beta1`, so you can proceed with the rest of the upgrade process in the [operator health verification section](#operator-health-verification).
+The `ceph.rook.io` CRDs should now be upgraded to `v1beta1`, so you can proceed with the rest of the
+upgrade process in the [operator health verification section](#operator-health-verification).

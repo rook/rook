@@ -34,7 +34,7 @@ const (
 	bluestoreWalSymlinkName   = "block.wal"
 )
 
-// creates/initalizes the OSD filesystem and journal via a child process
+// creates/initializes the OSD filesystem and journal via a child process
 func createOSDFileSystem(context *clusterd.Context, clusterName string, config *osdConfig) error {
 	logger.Infof("Initializing OSD %d file system at %s...", config.id, config.rootPath)
 

@@ -23,7 +23,7 @@ If you have activated the [PodSecurityPolicy Admission Controller](https://kuber
 using [PodSecurityPolicies](https://kubernetes.io/docs/concepts/policy/pod-security-policy/), you will require additional `(Cluster)RoleBindings`
 for the different `ServiceAccounts` Rook uses to start the Rook Storage Pods.
 
-**Note**: You do not have to perform these steps if you do not have the `PodSecurityPolicy` Admission Controller activated!  
+**Note**: You do not have to perform these steps if you do not have the `PodSecurityPolicy` Admission Controller activated!
 
 ##### PodSecurityPolicy
 
@@ -121,7 +121,7 @@ kind: Namespace
 metadata:
   name: rook
 ---
-# Allow the default serviceAccount to use the priviliged PSP
+# Allow the default serviceAccount to use the privileged PSP
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:

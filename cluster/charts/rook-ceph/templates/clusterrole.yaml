@@ -91,7 +91,7 @@ rules:
   - watch
   - create
   - update
-  - delete  
+  - delete
 - apiGroups:
   - ceph.rook.io
   resources:

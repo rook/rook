@@ -222,7 +222,7 @@ func retryBlockImageCountCheck(helper *clients.TestClient, imageCount, expectedC
 	return false
 }
 
-//CleanUpDymanicBlockStorage is helper method to clean up bock storage created by tests
+//CleanUpDynamicBlockStorage is helper method to clean up bock storage created by tests
 func cleanupDynamicBlockStorage(helper *clients.TestClient, namespace string) {
 	// Delete storage pool, storage class and pvc
 	blockImagesList, _ := helper.BlockClient.List(namespace)

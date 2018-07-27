@@ -232,7 +232,7 @@ rules:
   - watch
   - create
   - update
-  - delete  
+  - delete
 - apiGroups:
   - ceph.rook.io
   resources:
@@ -464,7 +464,7 @@ kind: Job
 metadata:
   name: rook-cleanup-` + uuid.Must(uuid.NewRandom()).String() + `
 spec:
-    template: 
+    template:
       spec:
           restartPolicy: Never
           containers:
@@ -475,7 +475,7 @@ spec:
                 volumeMounts:
                     - name: cleaner
                       mountPath: /scrub
-                command: 
+                command:
                     - "sh"
                     - "-c"
                     - "rm -rf /scrub/*"

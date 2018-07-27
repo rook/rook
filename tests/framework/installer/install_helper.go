@@ -92,7 +92,7 @@ type InstallHelper struct {
 
 func (h *InstallHelper) CreateK8sRookResources() (err error) {
 	var resources string
-	logger.Info("Creating Rook CRD's")
+	logger.Info("Creating Rook CRDs")
 
 	resources = h.installData.GetRookCRDs()
 
@@ -141,7 +141,7 @@ func (h *InstallHelper) CreateK8sRookOperatorViaHelm(namespace string) error {
 
 	err = h.helmHelper.InstallLocalRookHelmChart(helmChartName, helmDeployName, helmTag, namespace)
 	if err != nil {
-		return fmt.Errorf("failed toinstall rook operator via helm, err : %v", err)
+		return fmt.Errorf("failed to install rook operator via helm, err : %v", err)
 
 	}
 

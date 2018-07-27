@@ -55,7 +55,7 @@ spec:
       size: 1
   gateway:
     type: s3
-    sslCertificateRef: 
+    sslCertificateRef:
     port: %d
     securePort:
     instances: %d

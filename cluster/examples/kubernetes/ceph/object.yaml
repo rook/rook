@@ -28,7 +28,7 @@ spec:
     # The port that RGW pods will listen on (http)
     port: 80
     # The port that RGW pods will listen on (https). An ssl certificate is required.
-    securePort: 
+    securePort:
     # The number of pods in the rgw deployment (ignored if allNodes=true)
     instances: 1
     # Whether the rgw pods should be deployed on all nodes as a daemonset

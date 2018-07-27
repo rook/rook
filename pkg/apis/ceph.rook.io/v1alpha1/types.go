@@ -69,7 +69,7 @@ type ClusterSpec struct {
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
-	// A spec for mon releated options
+	// A spec for mon related options
 	Mon MonSpec `json:"mon"`
 }
 

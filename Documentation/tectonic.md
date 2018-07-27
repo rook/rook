@@ -7,7 +7,7 @@ indent: true
 # Tectonic Bare Metal
 Here is a running guide on how to implement Rook on Tectonic. A complete guide on how to install Tectonic is out of the scope of the Rook project. More info can be found on the [Tectonic website](https://coreos.com/tectonic/docs/latest/)
 
-## Prequisites
+## Prerequisites
 - An installed tectonic-installer. These steps are described on [the Tectonic website](https://coreos.com/tectonic/docs/latest/install/bare-metal/#4-tectonic-installer)
 - A running matchbox node which will do the provisioning (Matchbox is only required if you are running Tectonic on Bare metal)
 - You can run through all steps of the GUI installer, but in the last step, choose `Boot manually`. This way we can make the necessary changes first.
