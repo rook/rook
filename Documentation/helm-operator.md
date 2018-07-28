@@ -114,7 +114,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `mon.healthCheckInterval` | The frequency for the operator to check the mon health          | `45s`                                                  |
 | `mon.monOutTimeout`       | The time to wait before failing over an unhealthy mon           | `300s`                                                 |
 
-&ast; For Kubernetes 1.9.x `agent.flexVolumeDirPath` should be changed to `/var/lib/kubelet/volumeplugins/`. [Flexvolume documentation](flexvolume.md#for-kubernetes--19x)
+&ast; For information on what to set `agent.flexVolumeDirPath` to, please refer to the [Rook flexvolume documentation](flexvolume.md)
 
 ### Command Line
 You can pass the settings with helm command line parameters. Specify each parameter using the
