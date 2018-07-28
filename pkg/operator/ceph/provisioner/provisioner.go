@@ -55,6 +55,9 @@ type provisionerConfig struct {
 
 	// Optional: File system type used for mounting the image. Default is `ext4`
 	fstype string
+
+	// Optional: For erasure coded pools the data pool must be given
+	dataPool string
 }
 
 // New creates RookVolumeProvisioner
@@ -90,7 +93,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 		return nil, err
 	}
 
-	if err := p.createVolume(imageName, cfg.pool, cfg.clusterNamespace, requestBytes); err != nil {
+	if err = p.createVolume(imageName, cfg.pool, cfg.dataPool, cfg.clusterNamespace, requestBytes); err != nil {
 		return nil, err
 	}
 
@@ -119,6 +122,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 						flexvolume.PoolKey:             cfg.pool,
 						flexvolume.ImageKey:            imageName,
 						flexvolume.ClusterNamespaceKey: cfg.clusterNamespace,
+						flexvolume.DataPoolKey:         cfg.dataPool,
 					},
 				},
 			},
@@ -129,12 +133,12 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 }
 
 // createVolume creates a rook block volume.
-func (p *RookVolumeProvisioner) createVolume(image, pool string, clusterNamespace string, size int64) error {
+func (p *RookVolumeProvisioner) createVolume(image, pool, dataPool string, clusterNamespace string, size int64) error {
 	if image == "" || pool == "" || clusterNamespace == "" || size == 0 {
 		return fmt.Errorf("image missing required fields (image=%s, pool=%s, clusterNamespace=%s, size=%d)", image, pool, clusterNamespace, size)
 	}
 
-	createdImage, err := ceph.CreateImage(p.context, clusterNamespace, image, pool, uint64(size))
+	createdImage, err := ceph.CreateImage(p.context, clusterNamespace, image, pool, dataPool, uint64(size))
 	if err != nil {
 		return fmt.Errorf("Failed to create rook block image %s/%s: %v", pool, image, err)
 	}
@@ -190,6 +194,8 @@ func parseClassParameters(params map[string]string) (*provisionerConfig, error) 
 			cfg.clusterNamespace = v
 		case "fstype":
 			cfg.fstype = v
+		case "datapool":
+			cfg.dataPool = v
 		default:
 			return nil, fmt.Errorf("invalid option %q for volume plugin %s", k, "rookVolumeProvisioner")
 		}
