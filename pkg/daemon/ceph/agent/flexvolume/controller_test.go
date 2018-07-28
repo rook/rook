@@ -724,6 +724,7 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 						StorageClassKey: "storageClass1",
 						PoolKey:         "pool123",
 						ImageKey:        "pvc-123",
+						DataPoolKey:     "",
 					},
 				},
 			},

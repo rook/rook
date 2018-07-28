@@ -3,7 +3,13 @@ title: Ceph Shared File System
 weight: 35
 indent: true
 ---
-
+{% assign url = page.url | split: '/' %}
+{% assign currentVersion = url[3] %}
+{% if currentVersion != 'master' %}
+{% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
+{% else %}
+{% assign branchName = currentVersion %}
+{% endif %}
 # Ceph Shared File System CRD
 
 Rook allows creation and customization of shared file systems through the custom resource definitions (CRDs). The following settings are available
@@ -71,5 +77,5 @@ The metadata server settings correspond to the MDS daemon settings.
 
 - `activeCount`: The number of active MDS instances. As load increases, CephFS will automatically partition the file system across the MDS instances. Rook will create double the number of MDS instances as requested by the active count. The extra instances will be in standby mode for failover.
 - `activeStandby`: If true, the extra MDS instances will be in active standby mode and will keep a warm cache of the file system metadata for faster failover. The instances will be assigned by CephFS in failover pairs. If false, the extra MDS instances will all be on passive standby mode and will not maintain a warm cache of the metadata.
-- `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/ceph/cluster.yaml).
+- `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml).
 - `resources`: Set resource requests/limits for the Filesystem MDS Pod(s), see [Resource Requirements/Limits](ceph-cluster-crd.md#resource-requirementslimits).
