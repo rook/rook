@@ -18,7 +18,6 @@ include ../image.mk
 # Image Build Options
 
 NFS_IMAGE = $(BUILD_REGISTRY)/nfs-$(GOARCH)
-IMAGES = $(NFS_IMAGE)
 
 TEMP := $(shell mktemp -d)
 
