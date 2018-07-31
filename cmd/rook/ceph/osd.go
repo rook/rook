@@ -30,11 +30,17 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var osdCmd = &cobra.Command{
 	Use:    "osd",
 	Short:  "Provisions and runs the osd daemon",
+	Hidden: true,
+}
+var osdConfigCmd = &cobra.Command{
+	Use:    "config",
+	Short:  "Updates ceph.conf for the osd",
 	Hidden: true,
 }
 var provisionCmd = &cobra.Command{
@@ -50,48 +56,57 @@ var filestoreDeviceCmd = &cobra.Command{
 var (
 	osdDataDeviceFilter string
 	ownerRefID          string
-	prepareOnly         bool
 	mountSourcePath     string
 	mountPath           string
+	osdID               int
 )
 
 func addOSDFlags(command *cobra.Command) {
+	addOSDConfigFlags(osdConfigCmd)
+	addOSDConfigFlags(provisionCmd)
+
+	// flags specific to provisioning
 	provisionCmd.Flags().StringVar(&cfg.devices, "data-devices", "", "comma separated list of devices to use for storage")
-	provisionCmd.Flags().StringVar(&ownerRefID, "cluster-id", "", "the UID of the cluster CRD that owns this cluster")
 	provisionCmd.Flags().StringVar(&osdDataDeviceFilter, "data-device-filter", "", "a regex filter for the device names to use, or \"all\"")
 	provisionCmd.Flags().StringVar(&cfg.directories, "data-directories", "", "comma separated list of directory paths to use for storage")
 	provisionCmd.Flags().StringVar(&cfg.metadataDevice, "metadata-device", "", "device to use for metadata (e.g. a high performance SSD/NVMe device)")
-	provisionCmd.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
 	provisionCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
-	provisionCmd.Flags().StringVar(&cfg.nodeName, "node-name", os.Getenv("HOSTNAME"), "the host name of the node")
 
-	// OSD store config flags
-	provisionCmd.Flags().IntVar(&cfg.storeConfig.WalSizeMB, "osd-wal-size", osdcfg.WalDefaultSizeMB, "default size (MB) for OSD write ahead log (WAL) (bluestore)")
-	provisionCmd.Flags().IntVar(&cfg.storeConfig.DatabaseSizeMB, "osd-database-size", osdcfg.DBDefaultSizeMB, "default size (MB) for OSD database (bluestore)")
-	provisionCmd.Flags().IntVar(&cfg.storeConfig.JournalSizeMB, "osd-journal-size", osdcfg.JournalDefaultSizeMB, "default size (MB) for OSD journal (filestore)")
-	provisionCmd.Flags().StringVar(&cfg.storeConfig.StoreType, "osd-store", "", "type of backing OSD store to use (bluestore or filestore)")
-
-	// only prepare devices but not start ceph-osd daemon
-	provisionCmd.Flags().BoolVar(&prepareOnly, "osd-prepare-only", true, "true to only prepare ceph osd directories or devices but not start ceph-osd daemon")
+	// flags for generating the osd config file
+	osdConfigCmd.Flags().IntVar(&osdID, "osd-id", -1, "osd id for which to generate config")
 
 	// flags for running filestore on a device
 	filestoreDeviceCmd.Flags().StringVar(&mountSourcePath, "source-path", "", "the source path of the device to mount")
 	filestoreDeviceCmd.Flags().StringVar(&mountPath, "mount-path", "", "the path where the device should be mounted")
 
 	// add the subcommands to the parent osd command
+	osdCmd.AddCommand(osdConfigCmd)
 	osdCmd.AddCommand(provisionCmd)
 	osdCmd.AddCommand(filestoreDeviceCmd)
+}
 
+func addOSDConfigFlags(command *cobra.Command) {
+	command.Flags().StringVar(&ownerRefID, "cluster-id", "", "the UID of the cluster CRD that owns this cluster")
+	command.Flags().StringVar(&cfg.location, "location", "", "location of this node for CRUSH placement")
+	command.Flags().StringVar(&cfg.nodeName, "node-name", os.Getenv("HOSTNAME"), "the host name of the node")
+
+	// OSD store config flags
+	command.Flags().IntVar(&cfg.storeConfig.WalSizeMB, "osd-wal-size", osdcfg.WalDefaultSizeMB, "default size (MB) for OSD write ahead log (WAL) (bluestore)")
+	command.Flags().IntVar(&cfg.storeConfig.DatabaseSizeMB, "osd-database-size", osdcfg.DBDefaultSizeMB, "default size (MB) for OSD database (bluestore)")
+	command.Flags().IntVar(&cfg.storeConfig.JournalSizeMB, "osd-journal-size", osdcfg.JournalDefaultSizeMB, "default size (MB) for OSD journal (filestore)")
+	command.Flags().StringVar(&cfg.storeConfig.StoreType, "osd-store", "", "type of backing OSD store to use (bluestore or filestore)")
 }
 
 func init() {
 	addOSDFlags(osdCmd)
 	addCephFlags(osdCmd)
 	flags.SetFlagsFromEnv(osdCmd.Flags(), rook.RookEnvVarPrefix)
+	flags.SetFlagsFromEnv(osdConfigCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(provisionCmd.Flags(), rook.RookEnvVarPrefix)
 	flags.SetFlagsFromEnv(filestoreDeviceCmd.Flags(), rook.RookEnvVarPrefix)
 
+	osdConfigCmd.RunE = writeOSDConfig
 	provisionCmd.RunE = prepareOSD
 	filestoreDeviceCmd.RunE = runFilestoreDeviceOSD
 }
@@ -118,14 +133,50 @@ func runFilestoreDeviceOSD(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// Provision a device or directory for an OSD
-func prepareOSD(cmd *cobra.Command, args []string) error {
+func verifyConfigFlags(configCmd *cobra.Command) error {
 	required := []string{"cluster-id", "node-name"}
-	if err := flags.VerifyRequiredFlags(provisionCmd, required); err != nil {
+	if err := flags.VerifyRequiredFlags(configCmd, required); err != nil {
 		return err
 	}
 	required = []string{"cluster-name", "mon-endpoints", "mon-secret", "admin-secret"}
 	if err := flags.VerifyRequiredFlags(osdCmd, required); err != nil {
+		return err
+	}
+	return nil
+}
+
+func writeOSDConfig(cmd *cobra.Command, args []string) error {
+	if err := verifyConfigFlags(osdConfigCmd); err != nil {
+		return err
+	}
+	if osdID == -1 {
+		return fmt.Errorf("osd id not specified")
+	}
+
+	clientset, _, _, err := rook.GetClientset()
+	if err != nil {
+		rook.TerminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
+	}
+
+	context := createContext()
+	context.Clientset = clientset
+	commonOSDInit(osdConfigCmd)
+	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
+	if err != nil {
+		rook.TerminateFatal(fmt.Errorf("invalid location %s. %+v\n", cfg.location, err))
+	}
+	crushLocation := strings.Join(locArgs, " ")
+	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, metav1.OwnerReference{})
+
+	if err := osd.WriteConfigFile(context, &clusterInfo, kv, osdID, cfg.storeConfig, cfg.nodeName, crushLocation); err != nil {
+		logger.Errorf("failed to write osd config file. %+v", err)
+	}
+	return nil
+}
+
+// Provision a device or directory for an OSD
+func prepareOSD(cmd *cobra.Command, args []string) error {
+	if err := verifyConfigFlags(provisionCmd); err != nil {
 		return err
 	}
 
@@ -166,7 +217,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	ownerRef := cluster.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, ownerRef)
 	agent := osd.NewAgent(context, dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
-		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv, prepareOnly)
+		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
 
 	err = osd.Provision(context, agent)
 	if err != nil {

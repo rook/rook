@@ -22,6 +22,10 @@ For a guide to upgrade previous versions of Rook, please refer to the version of
 - [Upgrade 0.6 to 0.7](https://rook.io/docs/rook/v0.7/upgrade.html)
 - [Upgrade 0.5 to 0.6](https://rook.io/docs/rook/v0.6/upgrade.html)
 
+### Patch Release Upgrades
+The changes in patch releases are scoped to the minimal changes necessary and are expected to be straight forward to upgrade.
+For upgrades of 0.8 patch releases such as `0.8.0` to `0.8.1`, see the [patch release upgrade guide](upgrade-patch.md).
+
 ## Considerations
 With this manual upgrade guide, there are a few notes to consider:
 * **WARNING:** Upgrading a Rook cluster is a manual process in its very early stages.  There may be unexpected issues or obstacles that damage the integrity and health of your storage cluster, including data loss.  Only proceed with this guide if you are comfortable with that.
