@@ -353,7 +353,7 @@ func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeCon
 	cluster := &mon.ClusterInfo{Name: "myclust"}
 	context := &clusterd.Context{ConfigDir: configDir, Executor: executor, Clientset: testop.New(1)}
 	agent := NewAgent(context, devices, false, "", "", forceFormat, location, *storeConfig,
-		cluster, nodeName, mockKVStore(), false /* prepareOnly */)
+		cluster, nodeName, mockKVStore())
 
 	return agent, executor, context
 }
