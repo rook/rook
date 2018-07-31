@@ -48,11 +48,15 @@ pspEnable: true
 ## toleration: NoSchedule, PreferNoSchedule or NoExecute
 ## tolerationKey: Set this to the specific key of the taint to tolerate
 ## flexVolumeDirPath: The path where the Rook agent discovers the flex volume plugins
-# agent:
+agent:
+  enabled: true
 #   toleration: NoSchedule
 #   tolerationKey: key
 ## For Kubernetes >= 1.9.x flexVolumeDirPath should be changed to /var/lib/kubelet/volumeplugins/
+## Trying to guess if not defined
 #   flexVolumeDirPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/
+
+
 
 ## Rook Discover configuration
 ## toleration: NoSchedule, PreferNoSchedule or NoExecute
