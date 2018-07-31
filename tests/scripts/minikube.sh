@@ -91,6 +91,24 @@ function check_context() {
     return 1
 }
 
+function copy_images() {
+    if [[ "$1" == "" || "$1" == "ceph" ]]; then
+      echo "copying ceph images"
+      copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" rook/ceph:master
+      copy_image_to_cluster "${BUILD_REGISTRY}/ceph-toolbox-amd64" rook/ceph-toolbox:master
+    fi
+
+    if [[ "$1" == "" || "$1" == "cockroachdb" ]]; then
+      echo "copying cockroachdb image"
+      copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
+    fi
+
+    if [[ "$1" == "" || "$1" == "minio" ]]; then
+      echo "copying minio image"
+      copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" rook/minio:master
+    fi
+}
+
 # configure minikube
 KUBE_VERSION=${KUBE_VERSION:-"v1.11.0"}
 MEMORY=${MEMORY:-"3000"}
@@ -117,10 +135,7 @@ case "${1:-}" in
     # create a link so the default dataDirHostPath will work for this environment
     minikube ssh "sudo mkdir -p /mnt/sda1/${PWD}; sudo mkdir -p $(dirname $PWD); sudo ln -s /mnt/sda1/${PWD} $(dirname $PWD)/"
     minikube ssh "sudo mkdir /mnt/sda1/var/lib/rook;sudo ln -s /mnt/sda1/var/lib/rook /var/lib/rook"
-    copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" rook/ceph:master
-    copy_image_to_cluster "${BUILD_REGISTRY}/ceph-toolbox-amd64" rook/ceph-toolbox:master
-    copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
-    copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" rook/minio:master
+    copy_images "$2"
     ;;
   down)
     minikube stop
@@ -130,11 +145,7 @@ case "${1:-}" in
     minikube ssh
     ;;
   update)
-    echo "updating the rook images"
-    copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" rook/ceph:master
-    copy_image_to_cluster "${BUILD_REGISTRY}/ceph-toolbox-amd64" rook/ceph-toolbox:master
-    copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
-    copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" rook/minio:master
+    copy_images "$2"
     ;;
   restart)
     if check_context; then
@@ -163,11 +174,11 @@ case "${1:-}" in
     ;;
   *)
     echo "usage:" >&2
-    echo "  $0 up" >&2
+    echo "  $0 up [ceph | cockroachdb | minio]" >&2
     echo "  $0 down" >&2
     echo "  $0 clean" >&2
     echo "  $0 ssh" >&2
-    echo "  $0 update" >&2
+    echo "  $0 update [ceph | cockroachdb | minio]" >&2
     echo "  $0 restart <pod-name-regex> (the pod name is a regex to match e.g. restart ^rook-ceph-osd)" >&2
     echo "  $0 wordpress" >&2
     echo "  $0 helm" >&2
