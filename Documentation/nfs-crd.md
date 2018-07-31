@@ -1,47 +1,15 @@
-# Add NFS to Rook
+---
+title: NFS Export
+weight: 38
+indent: true
+---
 
-## Overview
+# NFS Export CRD
+NFS Exports can be created and configured using the `export.nfs.rook.io` custom resource definition (CRD).
+Please refer to the [user guide walk-through](nfs.md) for complete instructions.
+This page will explain all the available configuration options on the NFS CRD.
 
-This document explores a design to add NFS to Rook. This is a part of the rook feature request [#1551](https://github.com/rook/rook/issues/1551).
-
-## Rook Architecture
-
-Rook turns distributed storage software into a self-managing, self-scaling, and self-healing storage services. It does this by automating deployment, bootstrapping, configuration, provisioning, scaling, upgrading, migration, disaster recovery, monitoring, and resource management. Rook uses the facilities provided by the underlying cloud-native container management, scheduling and orchestration platform to perform its duties.
-![Rook Architecture on Kubernetes](../Documentation/media/rook-architecture.png)
-
-## Network File System (NFS)
-
-NFS allows remote hosts to mount file systems over a network and interact with those file systems as though they are mounted locally. This enables system administrators to consolidate resources onto centralized servers on the network.
-
-## Why NFS?
-
-NFS is widely used for persistent storage in kubernetes cluster. Using NFS storage is a convenient and easy way to provision storage for applications.
-An NFS volume allows an existing NFS (Network File System) share to be mounted into the pod.
-The contents of an NFS volume are preserved and the volume is merely unmounted if the pod is stopped/destroyed. This means that an NFS volume can be pre-populated with data, and that data can be “handed off” between pods.
-NFS supports multiple read/write simultaneously so a single share can be attached to multiple pods.
-
-## Design
-With this design Rook is exploring to providing another widely adopted storage option for admins and users of cloud-native environments. This design tends to automate NFS starting from its configuration (such as allowed hosts, read/write permissions etc.) to deployment and provisioning. The operations on NFS which cannot be done natively by Kubernetes will be automated.
-NFS doesn’t provide an internal provisioner for kubernetes, so Rook is needed as an external provisioner.
-This design uses NFS-Ganesha server and NFS v4.
-
-### Initial Setup
-
-The flow of creating NFS backed storage in Rook is
-1. The settings are determined and saved in an NFS server CRD (rook-nfs.yaml)
-2. `kubectl create -f rook-nfs.yaml`
-3. When the NFS CRD instance is created, Rook responds to this request by starting the NFS daemon with the required configuration and exports stated in the CRD and creates a service to expose NFS.
-4. NFS volume is ready to be consumed by other pods through a PVC.
-
-### NFS CRD
-
-The NFS CRD spec will specify the following:
-1. NFS server storage backend configuration. E.g., configuration for various storage backends(ceph, ebs, azure disk etc) that will be shared using NFS.
-2. NFS server configuration
-   The following points are required for configuring NFS server:
-    - export (The volume being exported)
-    - client (The host or network to which the export is being shared)
-    - client options (The options to be used for the client) e.g., read and write permission, root squash etc.
+## Sample
 
 The parameters to configure NFS CRD are demonstrated in the example bellow which is followed by a table that explains the parameters:
 
@@ -59,11 +27,11 @@ EXPORT {
         Name = VFS;
     }
 }
-```
+```  
 the CRD instance will look like the following:
 ```yaml
-apiVersion: rook.io/v1alpha1
-kind: NetworkFileSystem
+apiVersion: nfs.rook.io/v1alpha1
+kind: NFSServer
 metadata:
   name: nfs-vol
   namespace: rook
@@ -72,8 +40,8 @@ spec:
   exports:
   - name: nfs-share
     server:
-      accessMode: ReadWrite
-      squash: root
+      accessMode: ReadWrire
+      squash: none
     persistentVolumeClaim:
       claimName: googlePD-claim
 ```
@@ -136,11 +104,11 @@ EXPORT {
         Squash = none;
     }
 }
-```
+```  
 the CRD instance will look like the following:
 ```yaml
-apiVersion: rook.io/v1alpha1
-kind: NetworkFileSystem
+apiVersion: nfs.rook.io/v1alpha1
+kind: NFSServer
 metadata:
   name: nfs-vol
   namespace: rook
@@ -196,11 +164,11 @@ EXPORT {
         Squash = none;
     }
 }
-```
+```  
 the CRD instance will look like the following:
 ```yaml
-apiVersion: rook.io/v1alpha1
-kind: NetworkFileSystem
+apiVersion: nfs.rook.io/v1alpha1
+kind: NFSServer
 metadata:
   name: nfs-multi-vol
   namespace: rook
@@ -226,65 +194,3 @@ spec:
     persistentVolumeClaim:
       claimName: cephfs-claim
 ```
-
-## Adding and Removing exports from an existing NFS server
-Exports can be added and removed by updating the CRD using kubectl edit/replace -f rook-nfs.yaml
-
-## Client Access
-The administrator creates a storage class.
-Here is an example of NFS storage class for Example 1:
-```yaml
-apiVersion: storage.k8s.io/v1
-kind: StorageClass
-metadata:
-  name: rook-nfs
-provisioner: nfs.rook.io/nfs
-parameters:
-  server: nfs-vol
-  export: nfs-share
-```
-
-The user can use the NFS volume by creating a PVC.
-Here is an example of NFS PVC
-```yaml
-apiVersion: v1
-kind: PersistentVolumeClaim
-metadata:
-  name: httpd-pv-claim
-  labels:
-    app: web
-spec:
-  storageClassName: rook-nfs
-  accessModes:
-  - ReadWriteOnce
-  resources:
-    requests:
-      storage: 1Gi
----
-apiVersion: apps/v1beta1
-kind: Deployment
-metadata:
-  name: web-server
-  labels:
-    app: web
-spec:
-  template:
-    metadata:
-      labels:
-        app: web
-        tier: httpd
-    spec:
-      containers:
-      - image: httpd
-        name: httpd
-        ports:
-        - containerPort: 80
-          name: httpd
-        volumeMounts:
-        - name: httpd-persistent-storage
-          mountPath: /var/www/html
-      volumes:
-      - name: httpd-persistent-storage
-        persistentVolumeClaim:
-          claimName: httpd-pv-claim
----

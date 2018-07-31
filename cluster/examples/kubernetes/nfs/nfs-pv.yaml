@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rook-nfs-pv
+  namespace: rook-nfs
+spec:
+  capacity:
+    storage: 1Mi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    # FIXME: use the right IP
+    # run the bellow command to get the valid IP
+    # $ kubectl -n rook-nfs get service -l app=rook-nfs
+    server: 10.109.88.64
+    path: "/ceph-claim"
