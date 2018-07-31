@@ -308,7 +308,7 @@ func (c *Cluster) deleteBatchJob(name string) error {
 	return nil
 }
 
-func (c *Cluster) startOSDDaemon(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) bool {
+func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) {
 
 	osds := status.OSDs
 	logger.Infof("starting %d osd daemons on node %s", len(osds), nodeName)
@@ -317,14 +317,13 @@ func (c *Cluster) startOSDDaemon(nodeName string, config *provisionConfig, confi
 	n := c.resolveNode(nodeName)
 	if n == nil {
 		config.addError("node %s did not resolve to start osds", nodeName)
-		return false
+		return
 	}
 
 	storeConfig := osdconfig.ToStoreConfig(n.Config)
 	metadataDevice := osdconfig.MetadataDevice(n.Config)
 
 	// start osds
-	succeeded := 0
 	for _, osd := range osds {
 		logger.Debugf("start osd %v", osd)
 		dp, err := c.makeDeployment(n.Name, config.devicesToUse[n.Name], n.Selection, n.Resources, storeConfig, metadataDevice, n.Location, osd)
@@ -337,7 +336,7 @@ func (c *Cluster) startOSDDaemon(nodeName string, config *provisionConfig, confi
 			}
 			continue
 		}
-		dp, err = c.context.Clientset.Extensions().Deployments(c.Namespace).Create(dp)
+		_, err = c.context.Clientset.Extensions().Deployments(c.Namespace).Create(dp)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				// we failed to create job, update the orchestration status for this node
@@ -348,13 +347,14 @@ func (c *Cluster) startOSDDaemon(nodeName string, config *provisionConfig, confi
 				}
 				continue
 			}
-			logger.Infof("deployment for osd %d already exists", osd.ID)
+			logger.Infof("deployment for osd %d already exists. updating if needed", osd.ID)
+			if err = k8sutil.UpdateDeploymentAndWait(c.context, dp, c.Namespace); err != nil {
+				config.addError(fmt.Sprintf("failed to update osd deployment %d. %+v", osd.ID, err))
+			}
 		}
-		logger.Infof("started deployment for osd %d (dir=%t, type=%s)", osd.ID, osd.IsDirectory, storeConfig.StoreType)
-		succeeded++
-	}
 
-	return succeeded == len(osds)
+		logger.Infof("started deployment for osd %d (dir=%t, type=%s)", osd.ID, osd.IsDirectory, storeConfig.StoreType)
+	}
 }
 
 func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
@@ -561,5 +561,17 @@ func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {
 		return nil
 	}
 	rookNode.Resources = k8sutil.MergeResourceRequirements(rookNode.Resources, c.resources)
+
+	// ensure no invalid dirs are specified
+	var validDirs []rookalpha.Directory
+	for _, dir := range rookNode.Directories {
+		if dir.Path == k8sutil.DataDir || dir.Path == c.dataDirHostPath {
+			logger.Warningf("skipping directory %s that would conflict with the dataDirHostPath", dir.Path)
+			continue
+		}
+		validDirs = append(validDirs, dir)
+	}
+	rookNode.Directories = validDirs
+
 	return rookNode
 }

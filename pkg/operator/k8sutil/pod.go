@@ -89,13 +89,16 @@ func NodeEnvVar() v1.EnvVar {
 }
 
 // ConfigDirEnvVar config dir env var
-func ConfigDirEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_CONFIG_DIR", Value: DataDir}
+func ConfigDirEnvVar(dataDir string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOK_CONFIG_DIR", Value: dataDir}
 }
 
 func GetContainerImage(pod *v1.Pod, name string) (string, error) {
+	return GetSpecContainerImage(pod.Spec, name)
+}
 
-	image, err := GetMatchingContainer(pod.Spec.Containers, name)
+func GetSpecContainerImage(spec v1.PodSpec, name string) (string, error) {
+	image, err := GetMatchingContainer(spec.Containers, name)
 	if err != nil {
 		return "", err
 	}

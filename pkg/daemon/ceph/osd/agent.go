@@ -58,11 +58,10 @@ type OsdAgent struct {
 	kv                *k8sutil.ConfigMapKVStore
 	configCounter     int32
 	osdsCompleted     chan struct{}
-	prepareOnly       bool
 }
 
 func NewAgent(context *clusterd.Context, devices string, usingDeviceFilter bool, metadataDevice, directories string, forceFormat bool,
-	location string, storeConfig config.StoreConfig, cluster *mon.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore, prepareOnly bool) *OsdAgent {
+	location string, storeConfig config.StoreConfig, cluster *mon.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore) *OsdAgent {
 
 	return &OsdAgent{
 		devices:           devices,
@@ -77,7 +76,6 @@ func NewAgent(context *clusterd.Context, devices string, usingDeviceFilter bool,
 		kv:                kv,
 		procMan:           proc.New(context.Executor),
 		osdProc:           make(map[int]*proc.MonitoredProc),
-		prepareOnly:       prepareOnly,
 	}
 }
 
@@ -425,13 +423,13 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 		}
 
 		// osd_data_dir/ready does not exist yet, create/initialize the OSD
-		err := initializeOSD(cfg, context, a.cluster, a.location, a.prepareOnly)
+		err := initializeOSD(cfg, context, a.cluster, a.location)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize OSD at %s: %+v", cfg.rootPath, err)
 		}
 	} else {
 		// update the osd config file
-		err := writeConfigFile(cfg, context, a.cluster, a.location, a.prepareOnly)
+		err := writeConfigFile(cfg, context, a.cluster, a.location)
 		if err != nil {
 			logger.Warningf("failed to update config file. %+v", err)
 		}
