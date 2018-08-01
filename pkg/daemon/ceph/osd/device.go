@@ -31,6 +31,7 @@ import (
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	"github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/display"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
@@ -438,7 +439,55 @@ func getStoreSettings(cfg *osdConfig) (map[string]string, error) {
 	return settings, nil
 }
 
-func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo, location string, prepareOnly bool) error {
+func WriteConfigFile(context *clusterd.Context, cluster *mon.ClusterInfo, kv *k8sutil.ConfigMapKVStore, osdID int, storeConfig config.StoreConfig, nodeName, location string) error {
+	scheme, err := config.LoadScheme(kv, config.GetConfigStoreName(nodeName))
+	if err != nil {
+		return fmt.Errorf("failed to load partition scheme: %+v", err)
+	}
+
+	cfg := &osdConfig{id: osdID, configRoot: context.ConfigDir, rootPath: getOSDRootDir(context.ConfigDir, osdID),
+		storeConfig: storeConfig, kv: kv, storeName: config.GetConfigStoreName(nodeName)}
+
+	// if a device, search the osd scheme for the requested osd id
+	device := false
+	for _, entry := range scheme.Entries {
+		if entry.ID == osdID {
+			device = true
+			cfg.partitionScheme = entry
+			cfg.uuid = entry.OsdUUID
+			logger.Infof("found osd %d in device map for uuid %s", osdID, cfg.uuid.String())
+			break
+		}
+	}
+	// if not identified as a device, confirm that it is found in the map of directories
+	if !device {
+		cfg.dir = true
+		dirMap, err := config.LoadOSDDirMap(kv, nodeName)
+		if err != nil {
+			return fmt.Errorf("failed to load osd dir map. %+v", err)
+		}
+
+		id, ok := dirMap[context.ConfigDir]
+		if !ok {
+			return fmt.Errorf("dir %s was not found in the dir map. %+v", context.ConfigDir, dirMap)
+		}
+		if id != osdID {
+			return fmt.Errorf("dir found in dirMap, but desired osd ID %d does not match dirMap id %d", osdID, id)
+		}
+		logger.Infof("found osd %d in dir map for path %s", osdID, context.ConfigDir)
+	}
+
+	logger.Infof("updating config for osd %d", osdID)
+	err = writeConfigFile(cfg, context, cluster, location)
+	if err != nil {
+		return err
+	}
+	confFile := getOSDConfFilePath(cfg.rootPath, cluster.Name)
+	util.WriteFileToLog(logger, confFile)
+	return nil
+}
+
+func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo, location string) error {
 	cephConfig := mon.CreateDefaultCephConfig(context, cluster, cfg.rootPath)
 	if isBluestore(cfg) {
 		cephConfig.GlobalConfig.OsdObjectStore = config.Bluestore
@@ -446,11 +495,6 @@ func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *mon.Clu
 		cephConfig.GlobalConfig.OsdObjectStore = config.Filestore
 	}
 	cephConfig.CrushLocation = location
-	// don't set public or cluster addr if prepare only
-	if prepareOnly {
-		cephConfig.PublicAddr = ""
-		cephConfig.ClusterAddr = ""
-	}
 
 	if cfg.dir || isFilestoreDevice(cfg) {
 		// using the local file system requires some config overrides
@@ -475,8 +519,8 @@ func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *mon.Clu
 	return nil
 }
 
-func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo, location string, prepareOnly bool) error {
-	err := writeConfigFile(config, context, cluster, location, prepareOnly)
+func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo, location string) error {
+	err := writeConfigFile(config, context, cluster, location)
 	if err != nil {
 		return fmt.Errorf("failed to write config file: %+v", err)
 	}

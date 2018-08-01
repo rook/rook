@@ -231,10 +231,11 @@ func (c *Cluster) handleStatusConfigMapStatus(nodeName string, config *provision
 
 	logger.Infof("osd orchestration status for node %s is %s", nodeName, status.Status)
 	if status.Status == OrchestrationStatusCompleted {
-		if !configOSDs || c.startOSDDaemon(nodeName, config, configMap, status) {
-			// upon success provisioning or removing OSDs on the node, remove the status configmap
-			c.kv.ClearStore(fmt.Sprintf(orchestrationStatusMapName, nodeName))
+		if configOSDs {
+			c.startOSDDaemonsOnNode(nodeName, config, configMap, status)
 		}
+		// remove the status configmap that indicated the progress
+		c.kv.ClearStore(fmt.Sprintf(orchestrationStatusMapName, nodeName))
 		return true
 	}
 
