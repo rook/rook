@@ -25,7 +25,7 @@ spec:
   dnsPolicy: ClusterFirstWithHostNet
   containers:
   - name: rook-ceph-tools
-    image: rook/ceph-toolbox:v0.8.0
+    image: rook/ceph-toolbox:v0.8.1
     imagePullPolicy: IfNotPresent
     env:
       - name: ROOK_ADMIN_SECRET
