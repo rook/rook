@@ -160,6 +160,11 @@ func (c *Cluster) Start() error {
 		logger.Debugf("storage nodes: %+v", c.Storage.Nodes)
 	}
 	validNodes := k8sutil.GetValidNodes(c.Storage.Nodes, c.context.Clientset, c.placement)
+	// no valid node is ready to run an osd
+	if len(validNodes) == 0 {
+		logger.Warningf("no valid node available to run an osd in namespace %s", c.Namespace)
+		return nil
+	}
 	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.Storage.Nodes))
 	c.Storage.Nodes = validNodes
 	// orchestrate individual nodes, starting with any that are still ongoing (in the case that we
