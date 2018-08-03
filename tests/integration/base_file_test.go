@@ -147,7 +147,7 @@ spec:
       fsType: ceph
       options:
         fsName: ` + filesystemName + `
-        clusterName: ` + namespace + `
+        clusterNamespace: ` + namespace + `
   restartPolicy: Never
 `
 }
