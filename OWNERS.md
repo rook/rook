@@ -16,7 +16,10 @@ This page lists all active maintainers and their areas of expertise. This can be
 
 ## Maintainers
 
-There are currently no standard maintainers.  Maintainers will be added according to the [process for adding a maintainer](GOVERNANCE.md#becoming-a-maintainer) in the [governance](GOVERNANCE.md).
+Maintainers will be added according to the [process for adding a maintainer](GOVERNANCE.md#becoming-a-maintainer) in the [governance](GOVERNANCE.md).
+
+* Alexander Trost <galexrt@googlemail.com> ([galexrt](https://github.com/galexrt))
+  * Ceph, Operators/Orchestration, User support
 
 ## Emeritus maintainers
 
@@ -28,7 +31,6 @@ This section lists people that are not currently maintainers but have demonstrat
 They typically help out with technical, code and design reviews and also with support and troubleshooting.
 Feel free to loop them in as needed.
 
-* Alexander Trost <Galexrt@googlemail.com> ([galexrt](https://github.com/galexrt))
 * Blaine Gardner <blaine.gardner@suse.com> ([BlaineEXE](https://github.com/BlaineEXE))
 * Christian Hüning ([christianhuening](https://github.com/christianhuening))
 * Dan Kerns <kerns@pobox.com> ([DanKerns](https://github.com/DanKerns))
