@@ -494,7 +494,7 @@ spec:
     size: ` + replicaSize
 }
 
-func (m *CephManifestsV0_8) GetBlockStorageClassDef(poolName string, storageClassName string, namespace string, varClusterName bool) string {
+func (m *CephManifestsV0_8) GetBlockStorageClassDef(poolName string, storageClassName string, reclaimPolicy string, namespace string, varClusterName bool) string {
 	namespaceParameter := "clusterNamespace"
 	if varClusterName {
 		namespaceParameter = "clusterName"
@@ -524,13 +524,13 @@ spec:
       storage: 10M`
 }
 
-func (m *CephManifestsV0_8) GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, blockName string, accessMode string) string {
+func (m *CephManifestsV0_8) GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, reclaimPolicy string, blockName string, accessMode string) string {
 	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"),
-		concatYaml(m.GetBlockStorageClassDef(poolName, storageClassName, namespace, false), m.GetBlockPvcDef(blockName, storageClassName, accessMode)))
+		concatYaml(m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false), m.GetBlockPvcDef(blockName, storageClassName, accessMode)))
 }
 
-func (m *CephManifestsV0_8) GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string) string {
-	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"), m.GetBlockStorageClassDef(poolName, storageClassName, namespace, false))
+func (m *CephManifestsV0_8) GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string {
+	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"), m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false))
 }
 
 func (m *CephManifestsV0_8) GetFilesystem(namespace, name string) string {

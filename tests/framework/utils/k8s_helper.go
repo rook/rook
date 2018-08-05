@@ -1031,6 +1031,18 @@ func (k8sh *K8sHelper) GetPVCStatus(namespace string, name string) (v1.Persisten
 
 }
 
+//GetPVCVolumeName returns volume name of PVC
+func (k8sh *K8sHelper) GetPVCVolumeName(namespace string, name string) (string, error) {
+	getOpts := metav1.GetOptions{}
+
+	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(name, getOpts)
+	if err != nil {
+		return "", fmt.Errorf("PVC %s not found,err->%v", name, err)
+	}
+
+	return pvc.Spec.VolumeName, nil
+}
+
 //GetPVCAccessModes returns AccessModes on PVC
 func (k8sh *K8sHelper) GetPVCAccessModes(namespace string, name string) ([]v1.PersistentVolumeAccessMode, error) {
 	getOpts := metav1.GetOptions{}
@@ -1042,6 +1054,17 @@ func (k8sh *K8sHelper) GetPVCAccessModes(namespace string, name string) ([]v1.Pe
 
 	return pvc.Status.AccessModes, nil
 
+}
+
+//GetPV returns PV by name
+func (k8sh *K8sHelper) GetPV(name string) (*v1.PersistentVolume, error) {
+	getOpts := metav1.GetOptions{}
+
+	pv, err := k8sh.Clientset.CoreV1().PersistentVolumes().Get(name, getOpts)
+	if err != nil {
+		return nil, fmt.Errorf("PV %s not found,err->%v", name, err)
+	}
+	return pv, nil
 }
 
 //IsPodInExpectedState waits for 90s for a pod to be an expected state

@@ -69,7 +69,8 @@ func (s *BlockCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 	claimName := "test-no-storage-class-claim"
 	poolName := "test-no-storage-class-pool"
 	storageClassName := "rook-ceph-block"
-	defer s.tearDownTest(claimName, poolName, storageClassName, "ReadWriteOnce")
+	reclaimPolicy := "Delete"
+	defer s.tearDownTest(claimName, poolName, storageClassName, reclaimPolicy, "ReadWriteOnce")
 
 	result, err := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
 	checkOrderedSubstrings(s.T(), result, "persistentvolumeclaim", claimName, "created")
@@ -97,7 +98,8 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	claimName := "test-twice-claim"
 	poolName := "test-twice-pool"
 	storageClassName := "rook-ceph-block"
-	defer s.tearDownTest(claimName, poolName, storageClassName, "ReadWriteOnce")
+	reclaimPolicy := "Delete"
+	defer s.tearDownTest(claimName, poolName, storageClassName, reclaimPolicy, "ReadWriteOnce")
 	status, _ := s.kh.GetPVCStatus(defaultNamespace, claimName)
 	logger.Infof("PVC %s status: %s", claimName, status)
 	s.testClient.BlockClient.List(s.namespace)
@@ -107,7 +109,7 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	checkOrderedSubstrings(s.T(), result0, poolName, "created")
 	require.NoError(s.T(), err0)
 
-	result1, err1 := s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, s.namespace, true)
+	result1, err1 := s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, reclaimPolicy, s.namespace, true)
 	checkOrderedSubstrings(s.T(), result1, storageClassName, "created")
 	require.NoError(s.T(), err1)
 
@@ -143,14 +145,15 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 func (s *BlockCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	poolName := "stspool"
 	storageClassName := "stssc"
+	reclaimPolicy := "Delete"
 	statefulSetName := "block-stateful-set"
 	statefulPodsName := "ststest"
 
-	defer s.statefulSetDataCleanup(defaultNamespace, poolName, storageClassName, statefulSetName, statefulPodsName)
+	defer s.statefulSetDataCleanup(defaultNamespace, poolName, storageClassName, reclaimPolicy, statefulSetName, statefulPodsName)
 	logger.Infof("Test case when block persistent volumes are scaled up and down along with StatefulSet")
 	logger.Info("Step 1: Create pool and storageClass")
 
-	_, cbErr := s.testClient.PoolClient.CreateStorageClass(s.namespace, poolName, storageClassName)
+	_, cbErr := s.testClient.PoolClient.CreateStorageClass(s.namespace, poolName, storageClassName, reclaimPolicy)
 	assert.Nil(s.T(), cbErr)
 	logger.Info("Step 2 : Deploy statefulSet with 1X replication")
 	service, statefulset := getBlockStatefulSetAndServiceDefinition(defaultNamespace, statefulSetName, statefulPodsName, storageClassName)
@@ -186,7 +189,7 @@ func (s *BlockCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
 }
 
-func (s *BlockCreateSuite) statefulSetDataCleanup(namespace, poolName, storageClassName, statefulSetName, statefulPodsName string) {
+func (s *BlockCreateSuite) statefulSetDataCleanup(namespace, poolName, storageClassName, reclaimPolicy, statefulSetName, statefulPodsName string) {
 	delOpts := metav1.DeleteOptions{}
 	listOpts := metav1.ListOptions{LabelSelector: "app=" + statefulSetName}
 	//Delete stateful set
@@ -196,13 +199,13 @@ func (s *BlockCreateSuite) statefulSetDataCleanup(namespace, poolName, storageCl
 	//Delete all PVCs
 	s.kh.DeletePvcWithLabel(defaultNamespace, statefulSetName)
 	//Delete storageclass and pool
-	s.testClient.PoolClient.DeleteStorageClass(s.namespace, poolName, storageClassName)
+	s.testClient.PoolClient.DeleteStorageClass(s.namespace, poolName, storageClassName, reclaimPolicy)
 }
 
-func (s *BlockCreateSuite) tearDownTest(claimName string, poolName string, storageClassName string, accessMode string) {
+func (s *BlockCreateSuite) tearDownTest(claimName string, poolName string, storageClassName string, reclaimPolicy string, accessMode string) {
 	s.testClient.BlockClient.DeletePvc(claimName, storageClassName, accessMode)
 	s.testClient.PoolClient.Delete(poolName, s.namespace)
-	s.testClient.BlockClient.DeleteStorageClass(poolName, storageClassName, s.namespace)
+	s.testClient.BlockClient.DeleteStorageClass(poolName, storageClassName, reclaimPolicy, s.namespace)
 }
 
 func (s *BlockCreateSuite) TearDownSuite() {
@@ -214,13 +217,14 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 	claimName := fmt.Sprintf("test-with-storage-class-claim-%s", pvcName)
 	poolName := fmt.Sprintf("test-with-storage-class-pool-%s", pvcName)
 	storageClassName := "rook-ceph-block"
-	defer s.tearDownTest(claimName, poolName, storageClassName, pvcAccessMode)
+	reclaimPolicy := "Delete"
+	defer s.tearDownTest(claimName, poolName, storageClassName, reclaimPolicy, pvcAccessMode)
 
 	//create pool and storageclass
 	result0, err0 := s.testClient.PoolClient.Create(poolName, s.namespace, 1)
 	checkOrderedSubstrings(s.T(), result0, poolName, "created")
 	require.NoError(s.T(), err0)
-	result1, err1 := s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, s.namespace, true)
+	result1, err1 := s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, reclaimPolicy, s.namespace, true)
 	checkOrderedSubstrings(s.T(), result1, storageClassName, "created")
 	require.NoError(s.T(), err1)
 

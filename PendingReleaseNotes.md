@@ -10,6 +10,7 @@
 - Rook Ceph block storage provisioner can now correctly create erasure coded block images. See [Advanced Example: Erasure Coded Block Storage](Documentation/block.md#advanced-example-erasure-coded-block-storage) for an example usage.
 - [Network File System (NFS)](https://github.com/nfs-ganesha/nfs-ganesha/wiki) is now supported by Rook with a new operator to deploy and manage this widely used server. NFS servers can be automatically deployed by creating an instance of the new `nfsservers.nfs.rook.io` custom resource. See the [NFS server user guide](Documentation/nfs.md) to get started with NFS.
 - The minimum version of Kubernetes supported by Rook changed from `1.7` to `1.8`.
+- `reclaimPolicy` parameter of `StorageClass` definition is now supported. 
 
 ## Breaking Changes
 - Mons are [named consistently](https://github.com/rook/rook/issues/1751) with other daemons with the letters a, b, c, etc.

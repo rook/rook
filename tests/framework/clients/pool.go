@@ -110,20 +110,25 @@ func (p *PoolOperation) CephPoolExists(namespace, name string) (bool, error) {
 	return false, nil
 }
 
-func (p *PoolOperation) CreateStorageClassAndPvc(namespace, poolName, storageClassName, blockName, mode string) (string, error) {
-	return p.k8sh.ResourceOperation("create", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, blockName, mode))
+func (p *PoolOperation) CreateStorageClassAndPvc(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) (string, error) {
+	return p.k8sh.ResourceOperation("create", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode))
 }
 
-func (p *PoolOperation) DeleteStorageClass(namespace, poolName, storageClassName string) error {
-	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolStorageClass(namespace, poolName, storageClassName))
+func (p *PoolOperation) DeleteStorageClass(namespace, poolName, storageClassName, reclaimPolicy string) error {
+	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolStorageClass(namespace, poolName, storageClassName, reclaimPolicy))
 	return err
 }
 
-func (p *PoolOperation) DeleteStorageClassAndPvc(namespace, poolName, storageClassName, blockName, mode string) error {
-	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, blockName, mode))
+func (p *PoolOperation) DeleteStorageClassAndPvc(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) error {
+	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode))
 	return err
 }
 
-func (p *PoolOperation) CreateStorageClass(namespace, poolName, storageClassName string) (string, error) {
-	return p.k8sh.ResourceOperation("create", p.manifests.GetBlockPoolStorageClass(namespace, poolName, storageClassName))
+func (p *PoolOperation) DeletePvc(blockName, storageClassName, mode string) error {
+	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPvcDef(blockName, storageClassName, mode))
+	return err
+}
+
+func (p *PoolOperation) CreateStorageClass(namespace, poolName, storageClassName, reclaimPolicy string) (string, error) {
+	return p.k8sh.ResourceOperation("create", p.manifests.GetBlockPoolStorageClass(namespace, poolName, storageClassName, reclaimPolicy))
 }
