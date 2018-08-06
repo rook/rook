@@ -5,8 +5,26 @@ indent: true
 ---
 
 # Ceph Cluster CRD
-Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs). The following settings are
-available for a Ceph cluster.
+Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs).
+
+## Sample
+To get you started, here is a simple example of a CRD to configure a Ceph cluster with all nodes and all devices. More examples are included [later in this doc](#samples).
+
+```yaml
+apiVersion: ceph.rook.io/v1beta1
+kind: Cluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  dataDirHostPath: /var/lib/rook
+  serviceAccount: rook-ceph-cluster
+  storage:
+    useAllNodes: true
+    useAllDevices: true
+```
+
+In addition to the CRD, you will also need to create a namespace, role, and role binding as seen in the [common cluster resources](#common-cluster-resources) below.
 
 ## Settings
 Settings can be specified at the global level to apply to the cluster as a whole, while other settings can be specified at more fine-grained levels.  If any setting is unspecified, a suitable default will be used automatically.
@@ -131,9 +149,11 @@ metadata:
   namespace: rook-ceph
 spec:
   dataDirHostPath: /var/lib/rook
+  serviceAccount: rook-ceph-cluster
+  network:
+    hostNetwork: false
   dashboard:
     enabled: true
-  serviceAccount: rook-ceph-cluster
   # cluster level storage configuration and selection
   storage:
     useAllNodes: true
@@ -159,6 +179,10 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
+  network:
+    hostNetwork: false
+  dashboard:
+    enabled: true
   # cluster level storage configuration and selection
   storage:
     useAllNodes: false
@@ -196,6 +220,10 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
+  network:
+    hostNetwork: false
+  dashboard:
+    enabled: true
   # cluster level storage configuration and selection
   storage:
     useAllNodes: false
@@ -227,6 +255,10 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
+  network:
+    hostNetwork: false
+  dashboard:
+    enabled: true
   placement:
     all:
       nodeAffinity:
