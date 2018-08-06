@@ -396,18 +396,12 @@ func (k8sh *K8sHelper) WaitForLabeledPodToRun(label string, namespace string) er
 		time.Sleep(RetryInterval * time.Second)
 	}
 
-	k8sh.describePod(namespace, lastPod.Name)
-	return fmt.Errorf("Giving up waiting for pod with label %s in namespace %s to be running", label, namespace)
-}
-
-func (k8sh *K8sHelper) describePod(namespace string, args ...string) {
-	args = append([]string{"describe", "pod", "-n", namespace}, args...)
-	description, err := k8sh.Kubectl(args...)
-	if err != nil {
-		logger.Errorf("failed to describe pod. %v %+v", args, err)
+	if len(lastPod.Name) == 0 {
+		logger.Infof("no pod was found with label %s", label)
 	} else {
-		logger.Infof("pod description for %v:\n%s", args, description)
+		k8sh.PrintPodDescribe(namespace, lastPod.Name)
 	}
+	return fmt.Errorf("Giving up waiting for pod with label %s in namespace %s to be running", label, namespace)
 }
 
 //WaitUntilPodWithLabelDeleted returns true if a Pod is deleted within 90s else returns false
@@ -458,15 +452,14 @@ func (k8sh *K8sHelper) PrintPodDescribeForNamespace(namespace string) {
 	k8sh.PrintEventsForNamespace(namespace)
 }
 
-func (k8sh *K8sHelper) PrintPodDescribe(name, namespace string) {
-	pod, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+func (k8sh *K8sHelper) PrintPodDescribe(namespace string, args ...string) {
+	args = append([]string{"describe", "pod", "-n", namespace}, args...)
+	description, err := k8sh.Kubectl(args...)
 	if err != nil {
-		logger.Warningf("failed to get pod %s in namespace %s. %+v", name, namespace)
-		return
+		logger.Errorf("failed to describe pod. %v %+v", args, err)
+	} else {
+		logger.Infof("pod description:\n%s\n", description)
 	}
-	logger.Infof("pod %s in namespace %s: %+v", name, namespace, pod)
-
-	k8sh.PrintEventsForNamespace(namespace)
 }
 
 func (k8sh *K8sHelper) PrintEventsForNamespace(namespace string) {
@@ -977,7 +970,7 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 	}
 
 	logger.Errorf("All pods with app Name %v not in %v phase ", podName, expectedPhase)
-	k8sh.describePod(namespace, "-l", listOpts.LabelSelector)
+	k8sh.PrintPodDescribe(namespace, "-l", listOpts.LabelSelector)
 	return false
 
 }
@@ -1178,6 +1171,10 @@ func (k8sh *K8sHelper) GetRookLogs(podAppName string, hostType string, namespace
 	if err != nil {
 		logger.Errorf("Cannot get logs for app : %v in namespace %v, err: %v", podAppName, namespace, err)
 		return
+	}
+
+	if len(podList.Items) == 0 {
+		logger.Infof("no logs found for pod %s in namespace %s", podAppName, namespace)
 	}
 
 	for _, pod := range podList.Items {

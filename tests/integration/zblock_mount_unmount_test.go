@@ -113,7 +113,7 @@ func (s *BlockMountUnMountSuite) setupPVCs() {
 	require.Nil(s.T(), err)
 	rwoVolumePresent := s.kh.IsVolumeResourcePresent(installer.SystemNamespace(s.namespace), crdName)
 	if !rwoVolumePresent {
-		s.kh.PrintPodDescribe("setup-block-rwo", defaultNamespace)
+		s.kh.PrintPodDescribe(defaultNamespace, "setup-block-rwo")
 		s.kh.PrintPodStatus(s.namespace)
 		s.kh.PrintPodStatus(installer.SystemNamespace(s.namespace))
 	}
