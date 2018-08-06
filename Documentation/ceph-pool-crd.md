@@ -9,8 +9,26 @@ indent: true
 Rook allows creation and customization of storage pools through the custom resource definitions (CRDs). The following settings are available
 for pools.
 
-## Sample
+## Samples
 
+### Replicated
+
+For optimal performance while adding redundancy to the system, configure the data to be copied in full to multiple locations.
+```yaml
+apiVersion: ceph.rook.io/v1beta1
+kind: Pool
+metadata:
+  name: replicapool
+  namespace: rook-ceph
+spec:
+  failureDomain: host
+  replicated:
+    size: 3
+```
+
+### Erasure Coded
+
+To lower your storage capacity requirements while adding redundancy, use [erasure coding](#erasure-coding).
 ```yaml
 apiVersion: ceph.rook.io/v1beta1
 kind: Pool
@@ -18,13 +36,17 @@ metadata:
   name: ecpool
   namespace: rook-ceph
 spec:
-  replicated:
-  #  size: 3
+  failureDomain: osd
   erasureCoded:
     dataChunks: 2
     codingChunks: 1
-  crushRoot: default
 ```
+
+High performance applications typically will not use erasure coding due to the performance overhead of creating and distributing the chunks in the cluster.
+
+When creating an erasure-coded pool, it is highly recommended to create the pool when you have **bluestore OSDs** in your cluster
+(see the [OSD configuration settings](ceph-cluster-crd.md#osd-configuration-settings). Filestore OSDs have
+[limitations](http://docs.ceph.com/docs/luminous/rados/operations/erasure-code/#erasure-coding-with-overwrites) that are unsafe and lower performance.
 
 ## Pool Settings
 
