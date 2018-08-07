@@ -31,6 +31,8 @@ var (
 [mgr.%s]
 	key = %s
 	caps mon = "allow *"
+	caps mds = "allow *"
+	caps osd = "allow *"
 `
 )
 
