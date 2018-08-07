@@ -60,6 +60,10 @@ func TestOrchestrationStatus(t *testing.T) {
 }
 
 func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatcher *watch.FakeWatcher) {
+	// if no valid osd node, don't need to check its status, return immediately
+	if len(c.Storage.Nodes) == 0 {
+		return
+	}
 	for {
 		// wait for the node's orchestration status to change to "starting"
 		cmName := fmt.Sprintf(orchestrationStatusMapName, nodeName)
