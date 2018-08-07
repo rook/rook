@@ -30,7 +30,9 @@ var (
 	keyringTemplate = `
 [mgr.%s]
 	key = %s
-	caps mon = "allow *"
+	caps mon = "allow profile mgr"
+	caps mds = "allow *"
+	caps osd = "allow *"
 `
 )
 
