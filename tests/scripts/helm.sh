@@ -19,10 +19,10 @@ install() {
     helm_ready=$(kubectl get pods -l app=helm -n kube-system -o jsonpath='{.items[0].status.phase}')
     INC=0
     until [[ "${helm_ready}" == "Running" || $INC -gt 20 ]]; do
-        echo "."
         sleep 10
         ((++INC))
         helm_ready=$(kubectl get pods -l app=helm -n kube-system -o jsonpath='{.items[0].status.phase}')
+        echo "helm pod status: $(helm_ready)"
     done
 
     if [ "${helm_ready}" != "Running" ]; then
