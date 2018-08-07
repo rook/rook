@@ -116,7 +116,6 @@ func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
 		return result, fmt.Errorf("Failed to run: kubectl %v : %v", args, err)
 	}
 	return result, nil
-
 }
 
 //KubectlWithStdin is wrapper for executing kubectl commands in stdin
@@ -277,7 +276,6 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinitio
 	}
 	logger.Errorf("Failed to execute kubectl %v %v -- %v", args, podDef, err)
 	return "", fmt.Errorf("Could Not create resource in args : %v  %v-- %v", args, podDef, err)
-
 }
 
 //ResourceOperation performs a kubectl action on a pod definition
@@ -290,18 +288,29 @@ func (k8sh *K8sHelper) ResourceOperation(action string, podDefinition string) (s
 	}
 	logger.Errorf("Failed to execute kubectl %v -- %v", args, err)
 	return "", fmt.Errorf("Could Not create resource in args : %v -- %v", args, err)
-
 }
 
 //DeleteResource performs a kubectl delete on give args
 func (k8sh *K8sHelper) DeleteResource(args ...string) (string, error) {
+	return k8sh.DeleteResourceAndWait(true, args...)
+}
+
+// DeleteResource performs a kubectl delete on give args.
+// If wait is false, a flag will be passed to indicate the delete should return immediately
+func (k8sh *K8sHelper) DeleteResourceAndWait(wait bool, args ...string) (string, error) {
+	if !wait {
+		// new flag in k8s 1.11
+		v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
+		if v.AtLeast(version.MustParseSemantic("1.11.0")) {
+			args = append(args, "--wait=false")
+		}
+	}
 	args = append([]string{"delete"}, args...)
 	result, err := k8sh.Kubectl(args...)
 	if err == nil {
 		return result, nil
 	}
 	return "", fmt.Errorf("Could Not delete resource in k8s -- %v", err)
-
 }
 
 //GetResource performs a kubectl get on give args
@@ -370,19 +379,27 @@ func (k8sh *K8sHelper) IsPodWithLabelPresent(label string, namespace string) boo
 //WaitForLabeledPodToRun returns true if a Pod is running status or goes to Running status within 90s else returns false
 func (k8sh *K8sHelper) WaitForLabeledPodToRun(label string, namespace string) error {
 	options := metav1.ListOptions{LabelSelector: label}
-	inc := 0
-	for inc < RetryLoop {
+	var lastPod v1.Pod
+	for i := 0; i < RetryLoop; i++ {
 		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
+		lastStatus := ""
 		if err == nil && len(pods.Items) > 0 {
 			for _, pod := range pods.Items {
 				if pod.Status.Phase == "Running" {
 					return nil
 				}
+				lastPod = pod
+				lastStatus = string(pod.Status.Phase)
 			}
 		}
-		inc++
-		logger.Infof("waiting for pod with label %s in namespace %s to be running. err=%+v", label, namespace, err)
+		logger.Infof("waiting for pod with label %s in namespace %s to be running. status=%s, err=%+v", label, namespace, lastStatus, err)
 		time.Sleep(RetryInterval * time.Second)
+	}
+
+	if len(lastPod.Name) == 0 {
+		logger.Infof("no pod was found with label %s", label)
+	} else {
+		k8sh.PrintPodDescribe(namespace, lastPod.Name)
 	}
 	return fmt.Errorf("Giving up waiting for pod with label %s in namespace %s to be running", label, namespace)
 }
@@ -390,8 +407,7 @@ func (k8sh *K8sHelper) WaitForLabeledPodToRun(label string, namespace string) er
 //WaitUntilPodWithLabelDeleted returns true if a Pod is deleted within 90s else returns false
 func (k8sh *K8sHelper) WaitUntilPodWithLabelDeleted(label string, namespace string) bool {
 	options := metav1.ListOptions{LabelSelector: label}
-	inc := 0
-	for inc < RetryLoop {
+	for i := 0; i < RetryLoop; i++ {
 		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
 		if errors.IsNotFound(err) {
 			logger.Infof("error Found err %v", err)
@@ -401,7 +417,6 @@ func (k8sh *K8sHelper) WaitUntilPodWithLabelDeleted(label string, namespace stri
 			return true
 		}
 
-		inc++
 		time.Sleep(RetryInterval * time.Second)
 		logger.Infof("waiting for pod with label %s in namespace %s to be deleted", label, namespace)
 
@@ -437,15 +452,14 @@ func (k8sh *K8sHelper) PrintPodDescribeForNamespace(namespace string) {
 	k8sh.PrintEventsForNamespace(namespace)
 }
 
-func (k8sh *K8sHelper) PrintPodDescribe(name, namespace string) {
-	pod, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+func (k8sh *K8sHelper) PrintPodDescribe(namespace string, args ...string) {
+	args = append([]string{"describe", "pod", "-n", namespace}, args...)
+	description, err := k8sh.Kubectl(args...)
 	if err != nil {
-		logger.Warningf("failed to get pod %s in namespace %s. %+v", name, namespace)
-		return
+		logger.Errorf("failed to describe pod. %v %+v", args, err)
+	} else {
+		logger.Infof("pod description:\n%s\n", description)
 	}
-	logger.Infof("pod %s in namespace %s: %+v", name, namespace, pod)
-
-	k8sh.PrintEventsForNamespace(namespace)
 }
 
 func (k8sh *K8sHelper) PrintEventsForNamespace(namespace string) {
@@ -932,7 +946,7 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 		}
 
 		inc++
-		logger.Infof("waiting for %d pods with label app=%s,found %d", minExpected, podName, actualPodCount)
+		logger.Infof("waiting for %d pods with label app=%s, found %d", minExpected, podName, actualPodCount)
 		time.Sleep(RetryInterval * time.Second)
 	}
 	if !podCountCheck {
@@ -940,8 +954,7 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 		return false
 	}
 
-	inc = 0
-	for inc < RetryLoop {
+	for i := 0; i < RetryLoop; i++ {
 		checkAllPodsStatus := true
 		pl, _ := k8sh.Clientset.CoreV1().Pods(namespace).List(listOpts)
 		for _, pod := range pl.Items {
@@ -953,11 +966,11 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 		if checkAllPodsStatus {
 			return true
 		}
-		inc++
 		time.Sleep(RetryInterval * time.Second)
-
 	}
+
 	logger.Errorf("All pods with app Name %v not in %v phase ", podName, expectedPhase)
+	k8sh.PrintPodDescribe(namespace, "-l", listOpts.LabelSelector)
 	return false
 
 }
@@ -1158,6 +1171,10 @@ func (k8sh *K8sHelper) GetRookLogs(podAppName string, hostType string, namespace
 	if err != nil {
 		logger.Errorf("Cannot get logs for app : %v in namespace %v, err: %v", podAppName, namespace, err)
 		return
+	}
+
+	if len(podList.Items) == 0 {
+		logger.Infof("no logs found for pod %s in namespace %s", podAppName, namespace)
 	}
 
 	for _, pod := range podList.Items {

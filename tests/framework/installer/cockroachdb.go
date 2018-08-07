@@ -107,7 +107,7 @@ func (h *InstallHelper) CreateCockroachDBCluster(namespace string, count int) er
 func (h *InstallHelper) UninstallCockroachDB(systemNamespace, namespace string) {
 	logger.Infof("uninstalling cockroachdb from namespace %s", namespace)
 
-	_, err := h.k8shelper.DeleteResource("-n", namespace, "cluster.cockroachdb.rook.io", namespace)
+	_, err := h.k8shelper.DeleteResourceAndWait(false, "-n", namespace, "cluster.cockroachdb.rook.io", namespace)
 	h.checkError(err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 	crdCheckerFunc := func() error {
@@ -117,7 +117,7 @@ func (h *InstallHelper) UninstallCockroachDB(systemNamespace, namespace string) 
 	err = h.waitForCustomResourceDeletion(namespace, crdCheckerFunc)
 	h.checkError(err, fmt.Sprintf("failed to wait for crd %s deletion", namespace))
 
-	_, err = h.k8shelper.DeleteResource("namespace", namespace)
+	_, err = h.k8shelper.DeleteResourceAndWait(false, "namespace", namespace)
 	h.checkError(err, fmt.Sprintf("cannot delete namespace %s", namespace))
 
 	logger.Infof("removing the operator from namespace %s", systemNamespace)

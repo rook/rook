@@ -160,20 +160,20 @@ func (s *BlockCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	_, err2 := s.kh.Clientset.AppsV1beta1().StatefulSets(defaultNamespace).Create(statefulset)
 	assert.Nil(s.T(), err1)
 	assert.Nil(s.T(), err2)
-	assert.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 1, "Running"))
-	assert.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 1, "Bound"))
+	require.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 1, "Running"))
+	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 1, "Bound"))
 
 	logger.Info("Step 3 : Scale up replication on statefulSet")
 	scaleerr := s.kh.ScaleStatefulSet(statefulPodsName, defaultNamespace, 2)
 	assert.NoError(s.T(), scaleerr, "make sure scale up is successful")
-	assert.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 2, "Running"))
-	assert.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
+	require.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 2, "Running"))
+	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
 
 	logger.Info("Step 4 : Scale down replication on statefulSet")
 	scaleerr = s.kh.ScaleStatefulSet(statefulPodsName, defaultNamespace, 1)
 	assert.NoError(s.T(), scaleerr, "make sure scale down is successful")
-	assert.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 1, "Running"))
-	assert.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
+	require.True(s.T(), s.kh.CheckPodCountAndState(statefulSetName, defaultNamespace, 1, "Running"))
+	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
 
 	logger.Info("Step 5 : Delete statefulSet")
 	delOpts := metav1.DeleteOptions{}
@@ -184,8 +184,8 @@ func (s *BlockCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	assert.Nil(s.T(), err1)
 	assert.Nil(s.T(), err2)
 	assert.Nil(s.T(), err3)
-	assert.True(s.T(), s.kh.WaitUntilPodWithLabelDeleted(fmt.Sprintf("app=%s", statefulSetName), defaultNamespace))
-	assert.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
+	require.True(s.T(), s.kh.WaitUntilPodWithLabelDeleted(fmt.Sprintf("app=%s", statefulSetName), defaultNamespace))
+	require.True(s.T(), s.kh.CheckPvcCountAndStatus(statefulSetName, defaultNamespace, 2, "Bound"))
 }
 
 func (s *BlockCreateSuite) statefulSetDataCleanup(namespace, poolName, storageClassName, statefulSetName, statefulPodsName string) {

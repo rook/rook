@@ -55,7 +55,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	require.Nil(s.T(), mtfsErr)
 	filePodRunning := k8sh.IsPodRunning(filePodName, namespace)
 	if !filePodRunning {
-		k8sh.PrintPodDescribe(filePodName, namespace)
+		k8sh.PrintPodDescribe(namespace, filePodName)
 		k8sh.PrintPodStatus(namespace)
 		k8sh.PrintPodStatus(installer.SystemNamespace(namespace))
 	}
