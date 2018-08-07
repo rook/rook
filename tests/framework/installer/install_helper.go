@@ -569,6 +569,10 @@ func IsAdditionalDeviceAvailableOnCluster() bool {
 			logger.Infof("skipping device %s since it has file system %s", device, fs)
 			continue
 		}
+		if strings.HasPrefix(device, "rbd") {
+			logger.Infof("skipping unexpected rbd device: %s", device)
+			continue
+		}
 		logger.Infof("available device: %s", device)
 		disks++
 	}
