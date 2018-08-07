@@ -103,6 +103,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `rbacEnable`              | If true, create & use RBAC resources                            | `true`                                                 |
 | `pspEnable`               | If true, create & use PSP resources                             | `true`                                                 |
 | `resources`               | Pod resource requests & limits                                  | `{}`                                                   |
+| `annotations`             | Pod annotations                                                 | `{}`                                                   |
 | `logLevel`                | Global log level                                                | `INFO`                                                 |
 | `nodeSelector`            | Kubernetes `nodeSelector` to add to the Deployment.             | <none>                                                 |
 | `tolerations`             | List of Kubernetes `tolerations` to add to the Deployment.      | `[]`                                                   |

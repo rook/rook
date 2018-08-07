@@ -16,6 +16,10 @@ spec:
       labels:
         app: rook-ceph-operator
         chart: "{{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}"
+{{- if .Values.annotations }}
+      annotations:
+{{ toYaml .Values.annotations | indent 8 }}
+{{- end }}
     spec:
       containers:
       - name: rook-ceph-operator
