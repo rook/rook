@@ -41,7 +41,7 @@ const (
 	[client.admin]
 		key = %s
 		auid = 0
-		caps mds = "allow"
+		caps mds = "allow *"
 		caps mon = "allow *"
 		caps osd = "allow *"
 		caps mgr = "allow *"
