@@ -130,6 +130,10 @@ func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
 }
 
 func checkOrderedSubstrings(t *testing.T, input string, substrings ...string) {
+	if len(input) == 0 {
+		// Nothing to compare. An error was likely returned, which should be checked elsewhere.
+		return
+	}
 	original := input
 	for i, substring := range substrings {
 		assert.Contains(t, input, substring, fmt.Sprintf("missing substring %d. original=%s", i, original))
