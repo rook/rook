@@ -157,11 +157,12 @@ def RunIntegrationTest(k, v) {
                          }
                     }
                     finally{
+                        sh "journalctl -u kubelet > _output/tests/kubelet_${v}.log"
                         sh '''#!/bin/bash
                               export KUBECONFIG=$HOME/admin.conf
                               tests/scripts/helm.sh clean || true'''
                         sh "mv _output/tests/integrationTests.log _output/tests/${k}_${v}_integrationTests.log"
-                        stash name: "${k}_${v}_result",includes : "_output/tests/${k}_${v}_integrationTests.log"
+                        stash name: "${k}_${v}_result",includes : "_output/tests/${k}_${v}_integrationTests.log,_output/tests/kubelet_${v}.log"
                     }
                 }
             }
