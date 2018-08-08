@@ -22,8 +22,12 @@ import (
 	"fmt"
 	"net/rpc"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"syscall"
 
+	"github.com/golang/glog"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/spf13/cobra"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
@@ -32,6 +36,8 @@ import (
 )
 
 const (
+	rwMask                       = os.FileMode(0660)
+	roMask                       = os.FileMode(0440)
 	mds_namespace_kernel_support = "4.7"
 )
 
@@ -54,21 +60,23 @@ func handleMount(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("Rook: Error getting RPC client: %v", err)
 	}
 
+	log(client, fmt.Sprintf("%#+v", args), false)
 	var opts = &flexvolume.AttachOptions{}
 	if err := json.Unmarshal([]byte(args[1]), opts); err != nil {
 		return fmt.Errorf("Rook: Could not parse options for mounting %s. Got %v", args[1], err)
 	}
 	opts.MountDir = args[0]
+	log(client, fmt.Sprintf("%#+v", opts), false)
 
 	if opts.FsType == cephFS {
 		return mountCephFS(client, opts)
 	}
 
-	err = client.Call("Controller.GetAttachInfoFromMountDir", opts.MountDir, &opts)
-	if err != nil {
-		log(client, fmt.Sprintf("Attach volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
-		return fmt.Errorf("Rook: Mount volume failed: %v", err)
-	}
+	// err = client.Call("Controller.GetAttachInfoFromMountDir", opts.MountDir, &opts)
+	// if err != nil {
+	// 	log(client, fmt.Sprintf("Attach volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
+	// 	return fmt.Errorf("Rook: Mount volume failed: %v", err)
+	// }
 
 	// Attach volume to node
 	devicePath, err := attach(client, opts)
@@ -155,6 +163,19 @@ func mountDevice(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, devic
 			false)
 		log(client, fmt.Sprintf("formatting volume %v devicePath %v deviceMountPath %v fs %v with options %+v", opts.VolumeName, devicePath, globalVolumeMountPath, opts.FsType, options), false)
 	}
+
+	// This code works here, but not in mount
+	if opts.FsGroup != "" {
+		fsGroupInt, err := strconv.Atoi(opts.FsGroup)
+		fsGroup := int64(fsGroupInt)
+		err = SetVolumeOwnership(client, opts.MountDir, &fsGroup)
+		if err != nil {
+			log(client, fmt.Sprintf("Rook: chown failed. Cannot set group to: %d, %v", fsGroup, err), true)
+			return err
+		}
+		log(client, fmt.Sprintf("Chowned %s to %d", opts.MountDir, fsGroup), false)
+		return nil
+	}
 	return nil
 }
 
@@ -194,6 +215,20 @@ func mount(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, globalVolum
 	if err != nil {
 		log(client, fmt.Sprintf("mount volume %s/%s failed: %v", opts.Pool, opts.Image, err), true)
 	}
+
+	// This code will run without error, but it won't actually change permissions
+	// if opts.FsGroup != "" {
+	// 	fsGroupInt, err := strconv.Atoi(opts.FsGroup)
+	// 	fsGroup := int64(fsGroupInt)
+	// 	err = SetVolumeOwnership(client, opts.MountDir, &fsGroup)
+	// 	if err != nil {
+	// 		log(client, fmt.Sprintf("Rook: chown failed. Cannot set group to: %d, %v", fsGroup, err), true)
+	// 		return err
+	// 	}
+	// 	log(client, fmt.Sprintf("Chowned %s to %d", opts.MountDir, fsGroup), false)
+	// 	return nil
+	// }
+	// log(client, fmt.Sprintf("Rook: chown failed. Cannot chown %s to: %s", opts.MountDir, opts.FsGroup), true)
 	return err
 }
 
@@ -291,4 +326,69 @@ func mountCephFS(client *rpc.Client, opts *flexvolume.AttachOptions) error {
 	}
 
 	return err
+}
+
+func SetVolumeOwnership(client *rpc.Client, path string, fsGroup *int64) error {
+
+	log(client, fmt.Sprintf("Entered SetVolumeOwnership"), false)
+	if fsGroup == nil {
+		return errors.New("No fsgroup???")
+	}
+
+	return filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		log(client, fmt.Sprintf("Processing %s with fsGroup %d, info %#+v, err %#+v", path, *fsGroup, info, err), false)
+		if err != nil {
+			log(client, fmt.Sprintf("Returning err %#+v", err), true)
+			return err
+		}
+
+		// chown and chmod pass through to the underlying file for symlinks.
+		// Symlinks have a mode of 777 but this really doesn't mean anything.
+		// The permissions of the underlying file are what matter.
+		// However, if one reads the mode of a symlink then chmods the symlink
+		// with that mode, it changes the mode of the underlying file, overridden
+		// the defaultMode and permissions initialized by the volume plugin, which
+		// is not what we want; thus, we skip chown/chmod for symlinks.
+		if info.Mode()&os.ModeSymlink != 0 {
+			log(client, fmt.Sprintf("Skipping chown/chmod for symlinks"), true)
+			return errors.New("info.Mode()&os.ModeSymlink failed or whatever")
+		}
+
+		stat, ok := info.Sys().(*syscall.Stat_t)
+		if !ok {
+			log(client, fmt.Sprintf("syscall.Stat_t not ok"), true)
+			return errors.New("The syscall.Stat_t thing failed")
+		}
+
+		if stat == nil {
+			log(client, fmt.Sprintf("Got nil stat_t for path %v while setting ownership of volume", path), true)
+			glog.Errorf("Got nil stat_t for path %v while setting ownership of volume", path)
+			return fmt.Errorf("Got nil stat_t for path %v while setting ownership of volume", path)
+		}
+
+		err = os.Chown(path, int(stat.Uid), int(*fsGroup))
+		if err != nil {
+			log(client, fmt.Sprintf("Returning err %#+v", err), true)
+			glog.Errorf("Chown failed on %v: %v", path, err)
+			return err
+		}
+
+		mask := rwMask
+		log(client, fmt.Sprintf("mask:  %#+v", mask), false)
+
+		if info.IsDir() {
+			mask |= os.ModeSetgid
+			log(client, fmt.Sprintf(" isDir, mask changing to:  %#+v", mask), false)
+		}
+
+		err = os.Chmod(path, info.Mode()|mask)
+		if err != nil {
+			glog.Errorf("Chmod failed on %v: %v", path, err)
+			log(client, fmt.Sprintf("Returning err %#+v", err), true)
+			return err
+		}
+
+		log(client, fmt.Sprintf("path %s chowned to %d", path, *fsGroup), false)
+		return nil
+	})
 }
