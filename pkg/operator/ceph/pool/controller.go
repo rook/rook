@@ -39,6 +39,7 @@ const (
 	customResourceNamePlural = "pools"
 	replicatedType           = "replicated"
 	erasureCodeType          = "erasure-coded"
+	poolApplicationNameRBD   = "rbd"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-pool")
@@ -186,7 +187,7 @@ func createPool(context *clusterd.Context, p *cephv1beta1.Pool) error {
 
 	// create the pool
 	logger.Infof("creating pool %s in namespace %s", p.Name, p.Namespace)
-	if err := ceph.CreatePoolWithProfile(context, p.Namespace, *p.Spec.ToModel(p.Name), p.Name); err != nil {
+	if err := ceph.CreatePoolWithProfile(context, p.Namespace, *p.Spec.ToModel(p.Name), poolApplicationNameRBD); err != nil {
 		return fmt.Errorf("failed to create pool %s. %+v", p.Name, err)
 	}
 
