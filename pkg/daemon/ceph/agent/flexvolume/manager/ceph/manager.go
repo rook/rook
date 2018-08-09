@@ -52,17 +52,26 @@ type pathFinder interface {
 }
 
 // NewVolumeManager create attacher for ceph volumes
-func NewVolumeManager(context *clusterd.Context) *VolumeManager {
+func NewVolumeManager(context *clusterd.Context) (*VolumeManager, error) {
 	vm := &VolumeManager{
 		context:          context,
 		devicePathFinder: &devicePathFinder{},
 	}
-	vm.Init()
-	return vm
+	err := vm.Init()
+	return vm, err
 }
 
 // Init the ceph volume manager
 func (vm *VolumeManager) Init() error {
+	// check if the rbd is a builtin kernel module, if it is then we don't need to load it manually
+	in, err := sys.IsBuiltinKernelModule(rbdKernelModuleName, vm.context.Executor)
+	if err != nil {
+		return err
+	}
+	if in == true {
+		logger.Noticef("volume manager is a builtin kernel module, don't load it manually")
+		return nil
+	}
 
 	// check to see if the rbd kernel module has single_major support
 	hasSingleMajor, err := sys.CheckKernelModuleParam(rbdKernelModuleName, "single_major", vm.context.Executor)
@@ -77,9 +86,9 @@ func (vm *VolumeManager) Init() error {
 	}
 
 	// load the rbd kernel module with options
-	// TODO: should this fail if modprobe fails?
 	if err := sys.LoadKernelModule(rbdKernelModuleName, opts, vm.context.Executor); err != nil {
 		logger.Noticef("failed to load kernel module %s: %+v", rbdKernelModuleName, err)
+		return err
 	}
 
 	return nil
