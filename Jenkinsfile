@@ -71,7 +71,7 @@ pipeline {
                         "aws_1.8.x": "v1.8.5",
                         "gce_1.9.x": "v1.9.9",
                         "aws_1.10.x": "v1.10.5",
-                        "aws_1.11.x": "v1.11.0"
+                        "aws_1.11.x": "v1.11.1"
                     ]
                     testruns = [:]
                     for (kv in mapToList(data)) {
@@ -157,11 +157,12 @@ def RunIntegrationTest(k, v) {
                          }
                     }
                     finally{
+                        sh "journalctl -u kubelet > _output/tests/kubelet_${v}.log"
                         sh '''#!/bin/bash
                               export KUBECONFIG=$HOME/admin.conf
                               tests/scripts/helm.sh clean || true'''
                         sh "mv _output/tests/integrationTests.log _output/tests/${k}_${v}_integrationTests.log"
-                        stash name: "${k}_${v}_result",includes : "_output/tests/${k}_${v}_integrationTests.log"
+                        stash name: "${k}_${v}_result",includes : "_output/tests/${k}_${v}_integrationTests.log,_output/tests/kubelet_${v}.log"
                     }
                 }
             }
