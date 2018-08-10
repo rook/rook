@@ -19,6 +19,7 @@ If after trying the suggestions found on this page and the problem is not resolv
 - [OSDs are not created on my devices](#osd-pods-are-not-created-on-my-devices)
 - [Node hangs after reboot](#node-hangs-after-reboot)
 - [Rook Agent modprobe exec format error](#rook-agent-modprobe-exec-format-error)
+- [Rook Agent rbd module missing error](#rook-agent-rbd-module-missing-error)
 - [Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7](#using-multiple-shared-filesystem-cephfs-is-attempted-on-a-kernel-version-older-than-47)
 
 # Troubleshooting Techniques
@@ -457,6 +458,37 @@ For both paths create a file called `rbd.conf` with the following content:
 rbd
 ```
 Now when a host is restarted, the module should be loaded automatically.
+
+# Rook Agent rbd module missing error
+## Symptoms
+* Rook Agent in `Error` or `CrashLoopBackOff` status when deploying the Rook operator with `kubectl create -f operator.yaml`:
+```
+$kubectl -n rook-ceph-system get pod
+NAME                                 READY     STATUS    RESTARTS   AGE
+rook-ceph-agent-gfrm5                0/1       Error     0          14s
+rook-ceph-operator-5f4866946-vmtff   1/1       Running   0          23s
+rook-discover-qhx6c                  1/1       Running   0          14s
+```
+* Rook Agent logs contain below messages:
+```
+2018-08-10 09:09:09.461798 I | exec: Running command: cat /lib/modules/4.15.2/modules.builtin
+2018-08-10 09:09:09.473858 I | exec: Running command: modinfo -F parm rbd
+2018-08-10 09:09:09.477215 N | ceph-volumeattacher: failed rbd single_major check, assuming it's unsupported: failed to check for rbd module single_major param: Failed to complete 'check kmod param': exit status 1. modinfo: ERROR: Module rbd not found.
+2018-08-10 09:09:09.477239 I | exec: Running command: modprobe rbd
+2018-08-10 09:09:09.480353 I | modprobe rbd: modprobe: FATAL: Module rbd not found.
+2018-08-10 09:09:09.480452 N | ceph-volumeattacher: failed to load kernel module rbd: failed to load kernel module rbd: Failed to complete 'modprobe rbd': exit status 1.
+failed to run rook ceph agent. failed to create volume manager: failed to load kernel module rbd: Failed to complete 'modprobe rbd': exit status 1.
+```
+
+## Solution
+From the log message of Agent, we can see that the `rbd` kernel module is not available in the current system, neither as a builtin nor a loadable external kernel module.
+
+In this case, you have to [re-configure and build](https://www.linuxjournal.com/article/6568) a new kernel to address this issue, there're two options:
+
+* Re-configure your kernel to make sure the `CONFIG_BLK_DEV_RBD=y` in the `.config` file, then build the kernel.
+* Re-configure your kernel to make sure the `CONFIG_BLK_DEV_RBD=m` in the `.config` file, then build the kernel.
+
+Rebooting the system to use the new kernel, this issue should be fixed: the Agent will be in normal `running` status if everything was done correctly.
 
 # Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7
 ## Symptoms
