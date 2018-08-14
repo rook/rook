@@ -28,6 +28,13 @@ commit message:
 $ git commit -s -m 'This is my commit message'
 ```
 
+If you have already made a commit and forgot to include the sign-off, you can amend your last commit
+to add the sign-off with the following command, which can then be force pushed.
+
+```
+git commit --amend -s
+```
+
 We use a [DCO bot](https://github.com/apps/dco) to enforce the DCO on each pull
 request and branch commits.
 
