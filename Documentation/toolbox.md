@@ -44,7 +44,8 @@ spec:
         name: libmodules
       - name: mon-endpoint-volume
         mountPath: /etc/rook
-  hostNetwork: false
+  # if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
+  hostNetwork: true
   volumes:
     - name: dev
       hostPath:
