@@ -22,6 +22,7 @@ import (
 	cephv1beta1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph/v1beta1"
 	cockroachdbv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cockroachdb/v1alpha1"
 	miniov1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/minio/v1alpha1"
+	nfsv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/nfs/v1alpha1"
 	rookv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/client/clientset/versioned/typed/rook/v1alpha2"
 	discovery "k8s.io/client-go/discovery"
@@ -41,6 +42,9 @@ type Interface interface {
 	MinioV1alpha1() miniov1alpha1.MinioV1alpha1Interface
 	// Deprecated: please explicitly pick a version if possible.
 	Minio() miniov1alpha1.MinioV1alpha1Interface
+	NfsV1alpha1() nfsv1alpha1.NfsV1alpha1Interface
+	// Deprecated: please explicitly pick a version if possible.
+	Nfs() nfsv1alpha1.NfsV1alpha1Interface
 	RookV1alpha1() rookv1alpha1.RookV1alpha1Interface
 	// Deprecated: please explicitly pick a version if possible.
 	Rook() rookv1alpha1.RookV1alpha1Interface
@@ -55,6 +59,7 @@ type Clientset struct {
 	cephV1beta1         *cephv1beta1.CephV1beta1Client
 	cockroachdbV1alpha1 *cockroachdbv1alpha1.CockroachdbV1alpha1Client
 	minioV1alpha1       *miniov1alpha1.MinioV1alpha1Client
+	nfsV1alpha1         *nfsv1alpha1.NfsV1alpha1Client
 	rookV1alpha1        *rookv1alpha1.RookV1alpha1Client
 	rookV1alpha2        *rookv1alpha2.RookV1alpha2Client
 }
@@ -95,6 +100,17 @@ func (c *Clientset) MinioV1alpha1() miniov1alpha1.MinioV1alpha1Interface {
 // Please explicitly pick a version.
 func (c *Clientset) Minio() miniov1alpha1.MinioV1alpha1Interface {
 	return c.minioV1alpha1
+}
+
+// NfsV1alpha1 retrieves the NfsV1alpha1Client
+func (c *Clientset) NfsV1alpha1() nfsv1alpha1.NfsV1alpha1Interface {
+	return c.nfsV1alpha1
+}
+
+// Deprecated: Nfs retrieves the default version of NfsClient.
+// Please explicitly pick a version.
+func (c *Clientset) Nfs() nfsv1alpha1.NfsV1alpha1Interface {
+	return c.nfsV1alpha1
 }
 
 // RookV1alpha1 retrieves the RookV1alpha1Client
@@ -145,6 +161,10 @@ func NewForConfig(c *rest.Config) (*Clientset, error) {
 	if err != nil {
 		return nil, err
 	}
+	cs.nfsV1alpha1, err = nfsv1alpha1.NewForConfig(&configShallowCopy)
+	if err != nil {
+		return nil, err
+	}
 	cs.rookV1alpha1, err = rookv1alpha1.NewForConfig(&configShallowCopy)
 	if err != nil {
 		return nil, err
@@ -170,6 +190,7 @@ func NewForConfigOrDie(c *rest.Config) *Clientset {
 	cs.cephV1beta1 = cephv1beta1.NewForConfigOrDie(c)
 	cs.cockroachdbV1alpha1 = cockroachdbv1alpha1.NewForConfigOrDie(c)
 	cs.minioV1alpha1 = miniov1alpha1.NewForConfigOrDie(c)
+	cs.nfsV1alpha1 = nfsv1alpha1.NewForConfigOrDie(c)
 	cs.rookV1alpha1 = rookv1alpha1.NewForConfigOrDie(c)
 	cs.rookV1alpha2 = rookv1alpha2.NewForConfigOrDie(c)
 
@@ -184,6 +205,7 @@ func New(c rest.Interface) *Clientset {
 	cs.cephV1beta1 = cephv1beta1.New(c)
 	cs.cockroachdbV1alpha1 = cockroachdbv1alpha1.New(c)
 	cs.minioV1alpha1 = miniov1alpha1.New(c)
+	cs.nfsV1alpha1 = nfsv1alpha1.New(c)
 	cs.rookV1alpha1 = rookv1alpha1.New(c)
 	cs.rookV1alpha2 = rookv1alpha2.New(c)
 
