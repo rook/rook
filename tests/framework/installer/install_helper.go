@@ -50,6 +50,7 @@ import (
 const (
 	rookOperatorCreatedCrd = "clusters.ceph.rook.io"
 	cockroachDBCRD         = "clusters.cockroachdb.rook.io"
+	nfsServerCRD           = "nfsservers.nfs.rook.io"
 	helmChartName          = "local/rook-ceph"
 	helmDeployName         = "rook-ceph"
 )

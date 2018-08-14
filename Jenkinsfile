@@ -64,7 +64,7 @@ pipeline {
             }
             steps{
                 sh 'cat _output/version | xargs tests/scripts/makeTestImages.sh  save amd64'
-                stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
+                stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,nfs-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script{
                     def data = [
                         "aws_1.7.x": "v1.7.11",
