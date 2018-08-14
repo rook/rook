@@ -90,8 +90,8 @@ func (suite *NfsSuite) SetUp() {
 
 func (suite *NfsSuite) TearDown() {
 	if suite.T().Failed() {
-		installer.GatherNFSServerDebuggingInfo(suite.k8sHelper, suite.systemNamespace)
-		installer.GatherNFSServerDebuggingInfo(suite.k8sHelper, suite.namespace)
+		suite.installHelper.GatherCRDObjectDebuggingInfo(suite.systemNamespace)
+		suite.installHelper.GatherCRDObjectDebuggingInfo(suite.namespace)
 		suite.installHelper.GatherAllNFSServerLogs(suite.systemNamespace, suite.namespace, suite.T().Name())
 	}
 	suite.installHelper.UninstallNFSServer(suite.systemNamespace, suite.namespace)
@@ -108,15 +108,8 @@ func (suite *NfsSuite) TestNfsServerInstallation() {
 	assert.True(suite.T(), suite.k8sHelper.CheckPodCountAndState("rook-nfs", suite.namespace, suite.instanceCount, "Running"),
 		fmt.Sprintf("%d rook-nfs pods must be in Running state", suite.instanceCount))
 
-	// determine the nfs operator pod name
-	podNames, err := suite.k8sHelper.GetPodNamesForApp("rook-nfs-operator", suite.systemNamespace)
-	require.NoError(suite.T(), err)
-	require.Equal(suite.T(), 1, len(podNames))
-
 	// verify nfs server storage
-	nfsPVC, err := suite.k8sHelper.GetPVCStatus("default", "nfs-pv-claim")
-	require.NoError(suite.T(), err)
-	assert.Contains(suite.T(), nfsPVC, "Bound")
+	assert.True(suite.T(), true, suite.k8sHelper.WaitUntilPVCIsBound("default", "nfs-pv-claim"))
 
 	defer suite.rwClient.Delete()
 	podList, err := suite.rwClient.CreateWriteClient("nfs-pv-claim")
@@ -128,7 +121,10 @@ func (suite *NfsSuite) checkReadData(podList []string) bool {
 	inc := 0
 	var result string
 	var err error
+	// the following for loop retries to read data from the first pod in the pod list
 	for inc < utils.RetryLoop {
+		// the nfs volume is mounted on "/mnt" and the data(hostname of the pod) is written in "/mnt/data" of the pod
+		// results stores the hostname of either one of the pod which is same as the pod name, which is read from "/mnt/data"
 		result, err = suite.rwClient.Read(podList[0])
 		logger.Infof("nfs volume read exited, err: %+v. result: %s", err, result)
 		if err == nil {
@@ -139,6 +135,7 @@ func (suite *NfsSuite) checkReadData(podList []string) bool {
 		time.Sleep(utils.RetryInterval * time.Second)
 	}
 	require.NoError(suite.T(), err)
+	// the value of result must be same as the name of pod.
 	if result == podList[0] || result == podList[1] {
 		return true
 	}

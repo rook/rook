@@ -50,7 +50,7 @@ func (o *Operator) Run() error {
 	stopChan := make(chan struct{})
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
-	// Watch for changes to the object stores.
+	// Watch for changes to the nfs server.
 	o.controller.StartWatch(v1.NamespaceAll, stopChan)
 	logger.Infof("Started watch for NFS Servers")
 

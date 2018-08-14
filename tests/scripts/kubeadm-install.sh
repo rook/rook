@@ -75,8 +75,4 @@ wget "https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/
 chmod +x kubectl
 sudo cp kubectl /usr/local/bin
 
-wait_for_dpkg_unlock
-sleep 5
-wait_for_dpkg_unlock
-
 sudo apt-get install -y nfs-common

@@ -26,7 +26,6 @@ case "${1:-}" in
                     docker save -o "cockroachdb-$2.tar" rook/cockroachdb:master
                     docker save -o "nfs-$2.tar" rook/nfs:master
                 fi
-                echo "checking dir after docker save" && pwd && ls -al;
                 ;;
             *)
                 echo "usage :" >&2
@@ -36,7 +35,6 @@ case "${1:-}" in
     load)
         case "${2:-}" in
             arm|arm64|amd64)
-                echo "checking dir before docker load" && pwd && ls -al;
                 docker load -i "ceph-$2.tar"
                 docker load -i "cockroachdb-$2.tar"
                 docker load -i "nfs-$2.tar"
