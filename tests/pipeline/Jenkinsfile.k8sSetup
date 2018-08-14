@@ -30,17 +30,19 @@ pipeline {
                         sh "wget -O ceph.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/ceph.tar.gz"
                         sh "wget -O ceph-toolbox.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/ceph-toolbox.tar.gz"
                         sh "wget -O cockroachdb.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/cockroachdb.tar.gz"
+                        sh "wget -O nfs.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/nfs.tar.gz"
                         sh "wget -O version https://release.rook.io/build/pr/${params.PR}/${params.version}/version"
 
                     }else {
                         sh "wget -O ceph.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/ceph.tar.gz"
                         sh "wget -O ceph-toolbox.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/ceph-toolbox.tar.gz"
                         sh "wget -O cockroachdb.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/cockroachdb.tar.gz"
+                        sh "wget -O nfs.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/nfs.tar.gz"
                         sh "wget -O version https://release.rook.io/build/master/${params.version}/version"
 
                      }
                stash name: 'test-scripts',includes: 'tests/scripts/'
-               stash name: 'test-images', includes: 'ceph.tar.gz,ceph-toolbox.tar.gz,cockroachdb.tar.gz,version'
+               stash name: 'test-images', includes: 'ceph.tar.gz,ceph-toolbox.tar.gz,cockroachdb.tar.gz,nfs.tar.gz,version'
                }
             }
         }
@@ -101,6 +103,7 @@ def setUpRookImages(){
           docker load -i ceph.tar.gz
           docker load -i ceph-toolbox.tar.gz
           docker load -i cockroachdb.tar.gz
+          docker load -i nfs.tar.gz
           docker images
           rookImg=$(docker images |grep rook | awk '{print  $1}')
           echo $rookImg
@@ -113,4 +116,6 @@ def setUpRookImages(){
           docker tag $toolboxImg rook/ceph-toolbox:master'''
           docker tag $rookImg rook/cockroachdb:master
           docker tag $rookImg rook/cockroachdb:${versionId}
+          docker tag $rookImg rook/nfs:master
+          docker tag $rookImg rook/nfs:${versionId}
 }
