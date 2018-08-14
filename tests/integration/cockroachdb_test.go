@@ -89,8 +89,8 @@ func (suite *CockroachDBSuite) SetUp() {
 
 func (suite *CockroachDBSuite) TearDown() {
 	if suite.T().Failed() {
-		installer.GatherCockroachDBDebuggingInfo(suite.k8sHelper, suite.systemNamespace)
-		installer.GatherCockroachDBDebuggingInfo(suite.k8sHelper, suite.namespace)
+		suite.installHelper.GatherCRDObjectDebuggingInfo(suite.systemNamespace)
+		suite.installHelper.GatherCRDObjectDebuggingInfo(suite.namespace)
 		suite.installHelper.GatherAllCockroachDBLogs(suite.systemNamespace, suite.namespace, suite.T().Name())
 	}
 	suite.installHelper.UninstallCockroachDB(suite.systemNamespace, suite.namespace)
