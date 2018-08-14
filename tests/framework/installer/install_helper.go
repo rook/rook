@@ -513,6 +513,14 @@ func (h *InstallHelper) GatherAllRookLogs(namespace, systemNamespace string, tes
 	h.k8shelper.GetRookLogs("rook-ceph-mds", h.Env.HostType, namespace, testName)
 }
 
+// GatherCRDObjectDebuggingInfo gathers all the descriptions for pods, pvs and pvcs
+func (h *InstallHelper) GatherCRDObjectDebuggingInfo(namespace string) {
+	h.k8shelper.PrintPodDescribeForNamespace(namespace)
+	h.k8shelper.PrintPVs(true /*detailed*/)
+	h.k8shelper.PrintPVCs(namespace, true /*detailed*/)
+	h.k8shelper.PrintStorageClasses(true /*detailed*/)
+}
+
 //NewK8sRookhelper creates new instance of InstallHelper
 func NewK8sRookhelper(clientset *kubernetes.Clientset, t func() *testing.T) *InstallHelper {
 

@@ -215,6 +215,10 @@ func createGaneshaConfig(spec *nfsv1alpha1.NFSServerSpec) string {
 		exportsList = append(exportsList, createGaneshaExport(id, claimName, claimConfig["accessMode"], claimConfig["squash"]))
 		id++
 	}
+
+	// fsid_device parameter is important as in case of an overlayfs there is a chance that the fsid of the mounted share is same as that of the fsid of "/"
+	// so setting this to true uses device number as fsid
+	// related issue https://github.com/nfs-ganesha/nfs-ganesha/issues/140
 	exportsList = append(exportsList, `NFS_Core_Param
 {
 	fsid_device = true;

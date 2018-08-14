@@ -19,7 +19,6 @@ package installer
 import (
 	"fmt"
 
-	"github.com/rook/rook/tests/framework/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -180,13 +179,6 @@ func (h *InstallHelper) GatherAllNFSServerLogs(systemNamespace, namespace, testN
 	logger.Infof("Gathering all logs from NFSServer %s", namespace)
 	h.k8shelper.GetRookLogs("rook-nfs-operator", h.Env.HostType, systemNamespace, testName)
 	h.k8shelper.GetRookLogs("rook-nfs", h.Env.HostType, namespace, testName)
-}
-
-// GatherNFSServerDebuggingInfo gathers all the descriptions for pods, pvs and pvcs
-func GatherNFSServerDebuggingInfo(k8shelper *utils.K8sHelper, namespace string) {
-	k8shelper.PrintPodDescribeForNamespace(namespace)
-	k8shelper.PrintPVs(true /*detailed*/)
-	k8shelper.PrintPVCs(namespace, true /*detailed*/)
 }
 
 // GetNFSServerClusterIP gets the nfs server cluster ip on which it serves
