@@ -29,7 +29,8 @@ rbd feature disable replicapool/test fast-diff deep-flatten object-map
 
 Map the block volume and format it and mount it:
 ```bash
-# Map the rbd device. If this command appears to hang, ctrl-c and check if it actually completed successfully by continuing.
+# Map the rbd device. If the toolbox was started with "hostNetwork: false" this hangs and you have to stop it with Ctrl-C,
+# however the command still succeeds; see https://github.com/rook/rook/issues/2021
 rbd map replicapool/test
 
 # Find the device name, such as rbd0
