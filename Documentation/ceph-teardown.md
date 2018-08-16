@@ -62,7 +62,7 @@ If you modified the demo settings, additional cleanup is up to you for devices, 
 ## Troubleshooting
 If the cleanup instructions are not executed in the order above, or you otherwise have difficulty cleaning up the cluster, here are a few things to try.
 
-The most common issue cleaning up the cluster is that the `rook` namespace or the cluster CRD remain indefinitely in the `terminating` state. A namespace cannot be removed until all of its resources are removed, so look at which resources are pending termination.
+The most common issue cleaning up the cluster is that the `rook-ceph` namespace or the cluster CRD remain indefinitely in the `terminating` state. A namespace cannot be removed until all of its resources are removed, so look at which resources are pending termination.
 
 Look at the pods:
 ```
@@ -79,15 +79,11 @@ If the cluster CRD still exists even though you have executed the delete command
 ### Removing the Cluster CRD Finalizer
 When a Cluster CRD is created, a [finalizer](https://kubernetes.io/docs/tasks/access-kubernetes-api/extend-api-custom-resource-definitions/#finalizers) is added automatically by the Rook operator. The finalizer will allow the operator to ensure that before the cluster CRD is deleted, all block and file mounts will be cleaned up. Without proper cleanup, pods consuming the storage will be hung indefinitely until a system reboot.
 
-The operator is responsible for removing the finalizer after the mounts have been cleaned up. If for some reason the operator is not able to remove the finalizer (ie. the operator is not running anymore), you can delete the finalizer manually.
+The operator is responsible for removing the finalizer after the mounts have been cleaned up.
+If for some reason the operator is not able to remove the finalizer (ie. the operator is not running anymore), you can delete the finalizer manually with the following command:
 
 ```
-kubectl -n rook-ceph edit cluster.ceph.rook.io rook-ceph
+kubectl -n rook-ceph patch clusters.ceph.rook.io rook-ceph -p '{"metadata":{"finalizers": []}}' --type=merge
 ```
 
-This will open a text editor (usually `vi`) to allow you to edit the CRD. Look for the `finalizers` element and delete the following line:
-```
-  - cluster.ceph.rook.io
-```
-
-Now save the changes and exit the editor. Within a few seconds you should see that the cluster CRD has been deleted and will no longer block other cleanup such as deleting the `rook` namespace.
+Within a few seconds you should see that the cluster CRD has been deleted and will no longer block other cleanup such as deleting the `rook-ceph` namespace.
