@@ -3,13 +3,21 @@ title: Ceph Shared File System
 weight: 35
 indent: true
 ---
-
+{% assign url = page.url | split: '/' %}
+{% assign currentVersion = url[3] %}
+{% if currentVersion != 'master' %}
+{% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
+{% else %}
+{% assign branchName = currentVersion %}
+{% endif %}
 # Ceph Shared File System CRD
 
 Rook allows creation and customization of shared file systems through the custom resource definitions (CRDs). The following settings are available
 for Ceph file systems.
 
-## Sample
+## Samples
+
+### Replicated
 
 ```yaml
 apiVersion: ceph.rook.io/v1beta1
@@ -22,9 +30,8 @@ spec:
     replicated:
       size: 3
   dataPools:
-    - erasureCoded:
-       dataChunks: 2
-       codingChunks: 1
+    - replicated:
+        size: 3
   metadataServer:
     activeCount: 1
     activeStandby: true
@@ -50,6 +57,38 @@ spec:
     #    cpu: "500m"
     #    memory: "1024Mi"
 ```
+
+(These definitions can also be found in the [`filesystem.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/filesystem.yaml) file)
+
+### Erasure Coded
+
+If you want to use erasure coded pool with filesystem, your OSDs must use `bluestore` as their `storeType`.
+Additionally erasure coded can only be used as a data pool and not as a metadata pool. The metadata pool must still be a replicated pool.
+
+The sample below requires that you have at least 3 `bluestore` OSDs on different nodes.
+For erasure coded to make sense, you need **at least three OSDs for the below `dataPools` config** to work.
+
+```yaml
+apiVersion: ceph.rook.io/v1beta1
+kind: Filesystem
+metadata:
+  name: myfs-ec
+  namespace: rook-ceph
+spec:
+  metadataPool:
+    replicated:
+      size: 3
+  dataPools:
+    - erasureCoded:
+        dataChunks: 2
+        codingChunks: 1
+  metadataServer:
+    activeCount: 1
+    activeStandby: true
+```
+
+(These definitions can also be found in the [`ec-filesystem.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/ec-filesystem.yaml) file)
+
 
 ## File System Settings
 

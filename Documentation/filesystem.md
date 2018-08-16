@@ -3,7 +3,6 @@ title: Shared File System
 weight: 26
 indent: true
 ---
-
 # Shared File System
 
 A shared file system can be mounted with read/write permission from multiple pods. This may be useful for applications which can be clustered using a shared filesystem.
@@ -16,7 +15,7 @@ This guide assumes you have created a Rook cluster as explained in the main [Kub
 
 ### Multiple File Systems Not Supported
 
-By default only one shared file system can be created with Rook. Multiple file system support in Ceph is still considered experimental and can be enabled with the environment variable `ROOK_ALLOW_MULTIPLE_FILESYSTEMS` defined in `rook-operator.yaml`.
+By default only one shared file system can be created with Rook. Multiple file system support in Ceph is still considered experimental and can be enabled with the environment variable `ROOK_ALLOW_MULTIPLE_FILESYSTEMS` defined in `operator.yaml`.
 
 Please refer to [cephfs experimental features](http://docs.ceph.com/docs/master/cephfs/experimental-features/#multiple-filesystems-within-a-ceph-cluster) page for more information.
 
@@ -37,9 +36,8 @@ spec:
     replicated:
       size: 3
   dataPools:
-    - erasureCoded:
-       dataChunks: 2
-       codingChunks: 1
+    - replicated:
+        size: 3
   metadataServer:
     activeCount: 1
     activeStandby: true
@@ -145,3 +143,6 @@ To delete the filesystem components and backing data, delete the Filesystem CRD.
 ```
 kubectl -n rook-ceph delete Filesystem myfs
 ```
+### Advanced Example: Erasure Coded Filesystem
+
+The Ceph filesystem example can be found here: [Ceph Shared File System - Samples - Erasure Coded](ceph-filesystem-crd.md#erasure-coded).

@@ -230,7 +230,7 @@ kubectl delete clusterrolebindings rook-operator
 
 Now we need to create the new Ceph specific operator.
 
-**IMPORTANT:** Ensure that you are using the latest manifests from the `release-0.8` branch.  If you have custom configuration options set in your old `rook-operator.yaml` manifest, you will need to set those values in the new Ceph operator manifest below.
+**IMPORTANT:** Ensure that you are using the latest manifests from the `release-0.8` branch.  If you have custom configuration options set in your old `operator.yaml` manifest, you will need to set those values in the new Ceph operator manifest below.
 
 Navigate to the new Ceph manifests directory, apply your custom configuration options if you are using any, and then create the new Ceph operator with the command below.
 Note that the new operator by default uses by `rook-ceph-system` namespace, but we will use `sed` to edit it in place to use `rook-system` instead for backwards compatibility with your existing cluster.
