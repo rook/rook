@@ -53,11 +53,64 @@ make sure you set the `dataDirHostPath` property. For more settings, see the doc
 Save the cluster spec as `cluster.yaml`:
 
 ```yaml
+#################################################################################
+# This example first defines some necessary namespace and RBAC security objects.
+# The actual Ceph Cluster CRD example can be found at the bottom of this example.
+#################################################################################
 apiVersion: v1
 kind: Namespace
 metadata:
   name: rook-ceph
 ---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Allow the operator to create resources in this cluster's namespace
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster-mgmt
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-cluster-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: rook-ceph-system
+---
+# Allow the pods in this namespace to work with configmaps
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+---
+#################################################################################
+# The Ceph Cluster CRD example
+#################################################################################
 apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:

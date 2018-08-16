@@ -55,15 +55,15 @@ spec:
 
 **Hint**: Allowing `hostNetwork` usage is required when using `hostNetwork: true` in the Cluster `CustomResourceDefinition`!
 You are then also required to allow the usage of `hostPorts` in the `PodSecurityPolicy`. The given port range is a minimal
-working recommendation for rook:
+working recommendation for a Rook Ceph cluster:
  ```yaml
- hostPorts:
-   # CEPH ports
-   - min: 6789
-     max: 7300
-   # rook-api port
-   - min: 8124
-     max: 8124
+   hostPorts:
+     # Ceph ports
+     - min: 6789
+       max: 7300
+     # Ceph MGR Prometheus Metrics
+     - min: 9283
+       max: 9283
 ```
 
 ##### ClusterRole and ClusterRoleBinding
@@ -119,7 +119,7 @@ Create these two `RoleBindings` in the Namespace you plan to deploy your Rook Cl
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: rook-ceph
 ---
 # Allow the default serviceAccount to use the privileged PSP
 apiVersion: rbac.authorization.k8s.io/v1

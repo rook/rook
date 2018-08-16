@@ -1,7 +1,7 @@
 kind: SecurityContextConstraints
 apiVersion: v1
 metadata:
-  name: rook
+  name: rook-ceph
 allowPrivilegedContainer: true
 allowHostNetwork: true
 allowHostDirVolumePlugin: true
