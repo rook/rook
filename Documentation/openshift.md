@@ -24,7 +24,7 @@ Before starting the Rook operator or cluster, create the security context constr
 kind: SecurityContextConstraints
 apiVersion: v1
 metadata:
-  name: rook
+  name: rook-ceph
 allowPrivilegedContainer: true
 allowHostNetwork: true
 allowHostDirVolumePlugin: true
