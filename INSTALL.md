@@ -146,7 +146,7 @@ Every PR and every merge to master triggers the CI process in [Jenkins](http://j
 The Jenkins CI will build, run unit tests, run integration tests and Publish artifacts- On every commit to PR and master.
 If any of the CI stages fail, then the process is aborted and no artifacts are published.
 On every successful build Artifacts are pushed to a [s3 bucket](https://release.rook.io/). On every successful master build,
-images are uploaded to quay and docker hub in addition.
+images are uploaded to docker hub in addition.
 
 During Integration tests phase, all End to End Integration tests under [/tests/integration](/tests/integration) are run.
 It may take a while to run all Integration tests. Based on nature of the PR, it may not be required to run full regression
