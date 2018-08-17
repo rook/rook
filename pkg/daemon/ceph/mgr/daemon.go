@@ -48,10 +48,12 @@ type Config struct {
 
 func Run(context *clusterd.Context, config *Config) error {
 	logger.Infof("Starting MGR %s with keyring %s", config.Name, config.Keyring)
+	// init container
 	if err := generateConfigFiles(context, config); err != nil {
 		return fmt.Errorf("failed to generate mgr config files. %+v", err)
 	}
 
+	// Not run in daemon
 	if err := startMgr(context, config); err != nil {
 		return fmt.Errorf("failed to run mgr. %+v", err)
 	}
@@ -59,6 +61,7 @@ func Run(context *clusterd.Context, config *Config) error {
 	return nil
 }
 
+// Do in init container
 func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
 	keyringPath := getMgrKeyringPath(context.ConfigDir, config.Name)
@@ -86,16 +89,22 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	return nil
 }
 
+// This should be what is put into the running container
+// ceph-mgr --foreground --cluster=<config.ClusterInfo.Name> --conf=<configFile>
+//          --keyring=<keyringPath> --id <config.Name>
 func startMgr(context *clusterd.Context, config *Config) error {
 
 	// start the mgr daemon in the foreground with the given config
 	logger.Infof("starting ceph-mgr")
 
+	// operator must figure this out
 	confFile := getMgrConfFilePath(context.ConfigDir, config.Name, config.ClusterInfo.Name)
 	util.WriteFileToLog(logger, confFile)
 
+	// operator must figure this out too
 	keyringPath := getMgrKeyringPath(context.ConfigDir, config.Name)
 	util.WriteFileToLog(logger, keyringPath)
+
 	args := []string{
 		"--foreground",
 		fmt.Sprintf("--cluster=%s", config.ClusterInfo.Name),

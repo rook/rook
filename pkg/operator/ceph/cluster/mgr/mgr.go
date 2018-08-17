@@ -210,8 +210,9 @@ func (c *Cluster) makeDeployment(name, daemonName string) *extensions.Deployment
 				"prometheus.io/port": strconv.Itoa(metricsPort)},
 		},
 		Spec: v1.PodSpec{
-			Containers:    []v1.Container{c.mgrContainer(name, daemonName)},
-			RestartPolicy: v1.RestartPolicyAlways,
+			Containers:     []v1.Container{c.mgrContainer(name, daemonName)},
+			InitContainers: []v1.Container{c.mgrInitContainer(name, daemonName)},
+			RestartPolicy:  v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
 				{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
 				k8sutil.ConfigOverrideVolume(),
@@ -246,6 +247,48 @@ func (c *Cluster) mgrContainer(name, daemonName string) v1.Container {
 		},
 		Name:  name,
 		Image: k8sutil.MakeRookImage(c.Version),
+		VolumeMounts: []v1.VolumeMount{
+			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
+			k8sutil.ConfigOverrideMount(),
+		},
+		Env: []v1.EnvVar{
+			{Name: "ROOK_MGR_NAME", Value: daemonName},
+			{Name: "ROOK_MGR_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: name}, Key: keyringName}}},
+			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+			opmon.ClusterNameEnvVar(c.Namespace),
+			opmon.EndpointEnvVar(),
+			opmon.SecretEnvVar(),
+			opmon.AdminSecretEnvVar(),
+			k8sutil.ConfigOverrideEnvVar(),
+		},
+		Resources: c.resources,
+		Ports: []v1.ContainerPort{
+			{
+				Name:          "mgr",
+				ContainerPort: int32(6800),
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "http-metrics",
+				ContainerPort: int32(metricsPort),
+				Protocol:      v1.ProtocolTCP,
+			},
+			{
+				Name:          "dashboard",
+				ContainerPort: int32(dashboardPort),
+				Protocol:      v1.ProtocolTCP,
+			},
+		},
+	}
+}
+
+func (c *Cluster) mgrInitContainer(name, daemonName string) v1.Container {
+	return v1.Container{
+		Command: []string{"/usr/bin/env"},
+		Args:    []string{},
+		Name:    fmt.Sprintf("%s-init", name),
+		Image:   k8sutil.MakeRookImage(c.Version),
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),
