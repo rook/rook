@@ -24,8 +24,10 @@ import (
 )
 
 var (
-	mgrName    string
-	mgrKeyring string
+	mgrName        string
+	mgrKeyring     string
+	mgrKeyringPath string
+	mgrConfDir     string
 )
 
 var mgrCmd = &cobra.Command{
@@ -37,6 +39,8 @@ var mgrCmd = &cobra.Command{
 func init() {
 	mgrCmd.Flags().StringVar(&mgrName, "mgr-name", "", "the mgr name")
 	mgrCmd.Flags().StringVar(&mgrKeyring, "mgr-keyring", "", "the mgr keyring")
+	mgrCmd.Flags().StringVar(&mgrKeyringPath, "mgr-keyring-path", "", "path to the mgr keyring")
+	mgrCmd.Flags().StringVar(&mgrConfDir, "mgr-conf-dir", "", "dir where the mgr's config is stored")
 	addCephFlags(mgrCmd)
 
 	flags.SetFlagsFromEnv(mgrCmd.Flags(), rook.RookEnvVarPrefix)
@@ -44,6 +48,7 @@ func init() {
 	mgrCmd.RunE = startMgr
 }
 
+// Rename to prepareMgr or something similar?
 func startMgr(cmd *cobra.Command, args []string) error {
 	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret"}
 	if err := flags.VerifyRequiredFlags(mgrCmd, required); err != nil {
@@ -62,6 +67,8 @@ func startMgr(cmd *cobra.Command, args []string) error {
 	config := &mgr.Config{
 		Name:        mgrName,
 		Keyring:     mgrKeyring,
+		KeyringPath: mgrKeyringPath,
+		ConfDir:     mgrConfDir,
 		ClusterInfo: &clusterInfo,
 	}
 

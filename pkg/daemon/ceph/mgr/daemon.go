@@ -17,12 +17,10 @@ package mgr
 
 import (
 	"fmt"
-	"path"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
-	"github.com/rook/rook/pkg/util"
 )
 
 var (
@@ -36,36 +34,40 @@ var (
 `
 )
 
-const (
-	cephmgr = "ceph-mgr"
-)
+// const (
+// 	cephmgr = "ceph-mgr"
+// )
 
 type Config struct {
 	ClusterInfo *mon.ClusterInfo
-	Name        string
-	Keyring     string
+	Name        string // name of this mgr
+	Keyring     string // this mgr's keyring
+	KeyringPath string // path where the keyring is written
+	ConfDir     string // dir where this mgr's config is stored
 }
 
+// Rename this to 'Prepare' or something similar? Or is 'Run' a go-ism?
 func Run(context *clusterd.Context, config *Config) error {
-	logger.Infof("Starting MGR %s with keyring %s", config.Name, config.Keyring)
+	//logger.Infof("Starting MGR %s with keyring %s", config.Name, config.Keyring)
+	logger.Infof("Preparing MGR %s with keyring %s", config.Name, config.Keyring)
 	// init container
 	if err := generateConfigFiles(context, config); err != nil {
 		return fmt.Errorf("failed to generate mgr config files. %+v", err)
 	}
 
-	// Not run in daemon
-	if err := startMgr(context, config); err != nil {
-		return fmt.Errorf("failed to run mgr. %+v", err)
-	}
+	// if err := startMgr(context, config); err != nil {
+	// 	return fmt.Errorf("failed to run mgr. %+v", err)
+	// }
 
+	logger.Infof("MGR preparation complete")
 	return nil
 }
 
 // Do in init container
 func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
-	keyringPath := getMgrKeyringPath(context.ConfigDir, config.Name)
-	confDir := getMgrConfDir(context.ConfigDir, config.Name)
+	keyringPath := config.KeyringPath // getMgrKeyringPath(context.ConfigDir, config.Name)
+	confDir := config.ConfDir         // getMgrConfDir(context.ConfigDir, config.Name)
 	username := fmt.Sprintf("mgr.%s", config.Name)
 	settings := map[string]string{
 		"mgr data": confDir,
@@ -89,44 +91,32 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	return nil
 }
 
-// This should be what is put into the running container
-// ceph-mgr --foreground --cluster=<config.ClusterInfo.Name> --conf=<configFile>
-//          --keyring=<keyringPath> --id <config.Name>
-func startMgr(context *clusterd.Context, config *Config) error {
+// // This should be what is put into the running container
+// // ceph-mgr --foreground --cluster=<config.ClusterInfo.Name> --conf=<configFile>
+// //          --keyring=<keyringPath> --id <config.Name>
+// func startMgr(context *clusterd.Context, config *Config) error {
 
-	// start the mgr daemon in the foreground with the given config
-	logger.Infof("starting ceph-mgr")
+// 	// start the mgr daemon in the foreground with the given config
+// 	logger.Infof("starting ceph-mgr")
 
-	// operator must figure this out
-	confFile := getMgrConfFilePath(context.ConfigDir, config.Name, config.ClusterInfo.Name)
-	util.WriteFileToLog(logger, confFile)
+// 	if err := context.Executor.ExecuteCommand(false, cephmgr, cephmgr, args...); err != nil {
+// 		return fmt.Errorf("failed to start mgr: %+v", err)
+// 	}
+// 	return nil
+// }
 
-	// operator must figure this out too
-	keyringPath := getMgrKeyringPath(context.ConfigDir, config.Name)
-	util.WriteFileToLog(logger, keyringPath)
+//
+// We don't want to duplicate the below code items from the operator; pass these in as vars somehow
+//
 
-	args := []string{
-		"--foreground",
-		fmt.Sprintf("--cluster=%s", config.ClusterInfo.Name),
-		fmt.Sprintf("--conf=%s", confFile),
-		fmt.Sprintf("--keyring=%s", keyringPath),
-		"-i", config.Name,
-	}
+// func getMgrConfDir(dir, name string) string {
+// 	return path.Join(dir, fmt.Sprintf("mgr-%s", name))
+// }
 
-	if err := context.Executor.ExecuteCommand(false, cephmgr, cephmgr, args...); err != nil {
-		return fmt.Errorf("failed to start mgr: %+v", err)
-	}
-	return nil
-}
+// func getMgrConfFilePath(dir, name, clusterName string) string {
+// 	return path.Join(getMgrConfDir(dir, name), fmt.Sprintf("%s.config", clusterName))
+// }
 
-func getMgrConfDir(dir, name string) string {
-	return path.Join(dir, fmt.Sprintf("mgr-%s", name))
-}
-
-func getMgrConfFilePath(dir, name, clusterName string) string {
-	return path.Join(getMgrConfDir(dir, name), fmt.Sprintf("%s.config", clusterName))
-}
-
-func getMgrKeyringPath(dir, name string) string {
-	return path.Join(getMgrConfDir(dir, name), "keyring")
-}
+// func getMgrKeyringPath(dir, name string) string {
+// 	return path.Join(getMgrConfDir(dir, name), "keyring")
+// }

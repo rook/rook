@@ -40,16 +40,16 @@ import (
 )
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func LoadClusterInfo(context *clusterd.Context, namespace string) (*mon.ClusterInfo, int, *Mapping, error) {
+func LoadClusterInfo(context *clusterd.Context, namespace string) (clusterInfo *mon.ClusterInfo, maxMonID int, monMapping *Mapping, bool error) {
 	return CreateOrLoadClusterInfo(context, namespace, nil)
 }
 
 // CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*mon.ClusterInfo, int, *Mapping, error) {
+func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (clusterInfo *mon.ClusterInfo, maxMonID int, monMapping *Mapping, bool error) {
 
-	var clusterInfo *mon.ClusterInfo
-	maxMonID := -1
-	monMapping := &Mapping{
+	//var clusterInfo *mon.ClusterInfo
+	maxMonID = -1
+	monMapping = &Mapping{
 		Node: map[string]*NodeInfo{},
 		Port: map[string]int32{},
 	}
