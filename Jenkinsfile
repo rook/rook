@@ -99,13 +99,11 @@ pipeline {
             }
             environment {
                 DOCKER = credentials('rook-docker-hub')
-                QUAY = credentials('rook-quay-io')
                 AWS = credentials('rook-jenkins-aws')
                 GIT = credentials('rook-github')
             }
             steps {
                 sh 'docker login -u="${DOCKER_USR}" -p="${DOCKER_PSW}"'
-                sh 'docker login -u="${QUAY_USR}" -p="${QUAY_PSW}" quay.io'
                 sh 'build/run make -j\$(nproc) -C build/release build BRANCH_NAME=${BRANCH_NAME} GIT_API_TOKEN=${GIT_PSW}'
                 sh 'build/run make -j\$(nproc) -C build/release publish BRANCH_NAME=${BRANCH_NAME} AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW} GIT_API_TOKEN=${GIT_PSW}'
                 sh '[ "${BRANCH_NAME}" != "master" ] || build/run make -j\$(nproc) -C build/release promote BRANCH_NAME=master CHANNEL=master AWS_ACCESS_KEY_ID=${AWS_USR} AWS_SECRET_ACCESS_KEY=${AWS_PSW}'
