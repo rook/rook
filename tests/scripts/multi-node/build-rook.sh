@@ -96,7 +96,7 @@ function run_rook {
 function edit_rook_cluster_template {
   cd "$rook_kube_templates_dir"
   sed -i 's|image: .*$|image: 172.17.8.1:5000/rook/ceph:latest|' operator.yaml
-  echo "rook-operator.yml has been edited with the new image '172.17.8.1:5000/rook/ceph:latest'"
+  echo "operator.yml has been edited with the new image '172.17.8.1:5000/rook/ceph:latest'"
   cd -
 }
 

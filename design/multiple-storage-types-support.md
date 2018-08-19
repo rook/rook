@@ -65,7 +65,7 @@ Controllers would all watch the same custom resource types via a `SharedInformer
 Even though all controllers are watching, only the applicable controller responds to and handles an event.
 For example, the user runs `kubectl create cluster.yaml` to create a `cluster.rook.io` instance that has Ceph specific properties.
 All controllers will receive the created event via the `SharedInformer`, but only the Ceph controller will queue and handle it.
-We can consider only loading the controllers the user specifically asks for, perhaps via an environment variable in `rook-operator.yaml`.
+We can consider only loading the controllers the user specifically asks for, perhaps via an environment variable in `operator.yaml`.
 
 Note that this architecture can be used with either API aggregation or CRDs.
 
