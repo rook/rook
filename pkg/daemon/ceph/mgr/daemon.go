@@ -34,10 +34,6 @@ var (
 `
 )
 
-// const (
-// 	cephmgr = "ceph-mgr"
-// )
-
 type Config struct {
 	ClusterInfo *mon.ClusterInfo
 	Name        string // name of this mgr
@@ -48,22 +44,17 @@ type Config struct {
 
 // Rename this to 'Prepare' or something similar? Or is 'Run' a go-ism?
 func Run(context *clusterd.Context, config *Config) error {
-	//logger.Infof("Starting MGR %s with keyring %s", config.Name, config.Keyring)
 	logger.Infof("Preparing MGR %s with keyring %s", config.Name, config.Keyring)
-	// init container
+
 	if err := generateConfigFiles(context, config); err != nil {
 		return fmt.Errorf("failed to generate mgr config files. %+v", err)
 	}
-
-	// if err := startMgr(context, config); err != nil {
-	// 	return fmt.Errorf("failed to run mgr. %+v", err)
-	// }
 
 	logger.Infof("MGR preparation complete")
 	return nil
 }
 
-// Do in init container
+// Generate configuration files for the Ceph mgr
 func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
 	keyringPath := config.KeyringPath // getMgrKeyringPath(context.ConfigDir, config.Name)
@@ -85,38 +76,8 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
 	err = mon.WriteKeyring(keyringPath, config.Keyring, keyringEval)
 	if err != nil {
-		return fmt.Errorf("failed to create mds keyring. %+v", err)
+		return fmt.Errorf("failed to create mds keyring. %+v", err) // TODO: is 'mds' right here?
 	}
 
 	return nil
 }
-
-// // This should be what is put into the running container
-// // ceph-mgr --foreground --cluster=<config.ClusterInfo.Name> --conf=<configFile>
-// //          --keyring=<keyringPath> --id <config.Name>
-// func startMgr(context *clusterd.Context, config *Config) error {
-
-// 	// start the mgr daemon in the foreground with the given config
-// 	logger.Infof("starting ceph-mgr")
-
-// 	if err := context.Executor.ExecuteCommand(false, cephmgr, cephmgr, args...); err != nil {
-// 		return fmt.Errorf("failed to start mgr: %+v", err)
-// 	}
-// 	return nil
-// }
-
-//
-// We don't want to duplicate the below code items from the operator; pass these in as vars somehow
-//
-
-// func getMgrConfDir(dir, name string) string {
-// 	return path.Join(dir, fmt.Sprintf("mgr-%s", name))
-// }
-
-// func getMgrConfFilePath(dir, name, clusterName string) string {
-// 	return path.Join(getMgrConfDir(dir, name), fmt.Sprintf("%s.config", clusterName))
-// }
-
-// func getMgrKeyringPath(dir, name string) string {
-// 	return path.Join(getMgrConfDir(dir, name), "keyring")
-// }

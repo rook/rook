@@ -205,8 +205,6 @@ func (c *Cluster) makeDashboardService(name string) *v1.Service {
 }
 
 func (c *Cluster) makeDeployment(name, daemonName string) *extensions.Deployment {
-
-	// operator must figure this out
 	clusterInfo, _, _, _ := opmon.LoadClusterInfo(c.context, c.Namespace)
 	// TODO: Swallow any errors for now. Will need to handle this and return an error condition in
 	//   makeDeployment before finalizing this work
@@ -217,7 +215,6 @@ func (c *Cluster) makeDeployment(name, daemonName string) *extensions.Deployment
 	confFile := getMgrConfFilePath(c.context.ConfigDir, daemonName, clusterInfo.Name)
 	util.WriteFileToLog(logger, confFile)
 
-	// operator must figure this out too
 	keyringPath := getMgrKeyringPath(c.context.ConfigDir, daemonName)
 	util.WriteFileToLog(logger, keyringPath)
 
@@ -278,6 +275,8 @@ func (c *Cluster) mgrContainer(name, clusterName, confFilePath, keyringPath stri
 			k8sutil.ConfigOverrideMount(),
 			{Name: "ceph-default-config-dir", MountPath: ceph.DefaultConfigDir}
 		},
+		// TODO: Should all/some of the below be kept so the env vars can give useful info to
+		//       admins poking through running containers?
 		// Env: []v1.EnvVar{
 		// 	// {Name: "ROOK_MGR_NAME", Value: daemonName},
 		// 	// {Name: "ROOK_MGR_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: name}, Key: keyringName}}},
@@ -342,23 +341,6 @@ func (c *Cluster) mgrInitContainer(name, daemonName, keyringPath, confDir string
 			k8sutil.ConfigOverrideEnvVar(),
 		},
 		Resources: c.resources,
-		// Ports: []v1.ContainerPort{
-		// 	{
-		// 		Name:          "mgr",
-		// 		ContainerPort: int32(6800),
-		// 		Protocol:      v1.ProtocolTCP,
-		// 	},
-		// 	{
-		// 		Name:          "http-metrics",
-		// 		ContainerPort: int32(metricsPort),
-		// 		Protocol:      v1.ProtocolTCP,
-		// 	},
-		// 	{
-		// 		Name:          "dashboard",
-		// 		ContainerPort: int32(dashboardPort),
-		// 		Protocol:      v1.ProtocolTCP,
-		// 	},
-		// },
 	}
 }
 
