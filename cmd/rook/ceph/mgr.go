@@ -31,7 +31,7 @@ var (
 )
 
 var mgrCmd = &cobra.Command{
-	Use:    "mgr",
+	Use:    "mgr-init",
 	Short:  "Generates mgr config",
 	Hidden: true,
 }
@@ -45,11 +45,10 @@ func init() {
 
 	flags.SetFlagsFromEnv(mgrCmd.Flags(), rook.RookEnvVarPrefix)
 
-	mgrCmd.RunE = startMgr
+	mgrCmd.RunE = initializeMgr
 }
 
-// Rename to prepareMgr or something similar?
-func startMgr(cmd *cobra.Command, args []string) error {
+func initializeMgr(cmd *cobra.Command, args []string) error {
 	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret"}
 	if err := flags.VerifyRequiredFlags(mgrCmd, required); err != nil {
 		return err
@@ -72,7 +71,7 @@ func startMgr(cmd *cobra.Command, args []string) error {
 		ClusterInfo: &clusterInfo,
 	}
 
-	err := mgr.Run(createContext(), config)
+	err := mgr.Initialize(createContext(), config)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}

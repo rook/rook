@@ -42,8 +42,8 @@ type Config struct {
 	ConfDir     string // dir where this mgr's config is stored
 }
 
-// Rename this to 'Prepare' or something similar? Or is 'Run' a go-ism?
-func Run(context *clusterd.Context, config *Config) error {
+// Initialize generates configuration files for running the Ceph mgr daemon
+func Initialize(context *clusterd.Context, config *Config) error {
 	logger.Infof("Preparing MGR %s with keyring %s", config.Name, config.Keyring)
 
 	if err := generateConfigFiles(context, config); err != nil {
@@ -54,16 +54,16 @@ func Run(context *clusterd.Context, config *Config) error {
 	return nil
 }
 
-// Generate configuration files for the Ceph mgr
 func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
-	keyringPath := config.KeyringPath // getMgrKeyringPath(context.ConfigDir, config.Name)
-	confDir := config.ConfDir         // getMgrConfDir(context.ConfigDir, config.Name)
+	keyringPath := config.KeyringPath
+	confDir := config.ConfDir
 	username := fmt.Sprintf("mgr.%s", config.Name)
 	settings := map[string]string{
 		"mgr data": confDir,
 	}
 	logger.Infof("Conf files: dir=%s keyring=%s", confDir, keyringPath)
+	// I feel like `GenerateConfigFile` doesn't belong in mon but in a higher-level ceph module
 	_, err := mon.GenerateConfigFile(context, config.ClusterInfo, confDir,
 		username, keyringPath, nil, settings)
 	if err != nil {

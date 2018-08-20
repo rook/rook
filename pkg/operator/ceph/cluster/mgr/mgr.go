@@ -26,6 +26,7 @@ import (
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/daemon/ceph/ceph"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -34,7 +35,6 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"github.com/rook/rook/pkg/daemon/ceph/ceph"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
@@ -273,7 +273,7 @@ func (c *Cluster) mgrContainer(name, clusterName, confFilePath, keyringPath stri
 		VolumeMounts: []v1.VolumeMount{
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),
-			{Name: "ceph-default-config-dir", MountPath: ceph.DefaultConfigDir}
+			{Name: "ceph-default-config-dir", MountPath: ceph.DefaultConfigDir},
 		},
 		// TODO: Should all/some of the below be kept so the env vars can give useful info to
 		//       admins poking through running containers?
@@ -313,7 +313,7 @@ func (c *Cluster) mgrInitContainer(name, daemonName, keyringPath, confDir string
 	return v1.Container{
 		Args: []string{
 			"ceph",
-			"mgr",
+			"mgr-init",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 		},
 		Name:  "mgr-init",
@@ -325,7 +325,7 @@ func (c *Cluster) mgrInitContainer(name, daemonName, keyringPath, confDir string
 			// initializes the configuration and keyring and copies it to /etc/ceph, the data will
 			// be persisted to the running container as well.
 			// Is this going to overwrite any critical files installed by default into /etc/ceph?
-			{Name: "ceph-default-config-dir", MountPath: ceph.DefaultConfigDir}
+			{Name: "ceph-default-config-dir", MountPath: ceph.DefaultConfigDir},
 		},
 		Env: []v1.EnvVar{
 			{Name: "ROOK_MGR_NAME", Value: daemonName},
