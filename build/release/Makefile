@@ -152,7 +152,11 @@ promote.output:
 
 # 1: registry 2: image, 3: arch
 define repo.targets
-build.image.$(1).$(2).$(3): ; @docker tag $(BUILD_REGISTRY)/$(2)-$(3) $(1)/$(2)-$(3):$(VERSION)
+build.image.$(1).$(2).$(3):
+	@docker tag $(BUILD_REGISTRY)/$(2)-$(3) $(1)/$(2)-$(3):$(VERSION)
+	@# Save image as _output/images/linux_<arch>/<image>.tar.gz (no builds for darwin or windows)
+	@mkdir -p $(OUTPUT_DIR)/images/linux_$(3)
+	@docker save $(BUILD_REGISTRY)/$(2)-$(3) | gzip -c > $(OUTPUT_DIR)/images/linux_$(3)/$(2).tar.gz
 build.all.images: build.image.$(1).$(2).$(3)
 publish.image.$(1).$(2).$(3): ; @docker push $(1)/$(2)-$(3):$(VERSION)
 publish.all.images: publish.image.$(1).$(2).$(3)
