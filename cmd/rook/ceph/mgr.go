@@ -32,7 +32,7 @@ var (
 
 var mgrCmd = &cobra.Command{
 	Use:    "mgr",
-	Short:  "Generates mgr config and runs the mgr daemon",
+	Short:  "Generates mgr config",
 	Hidden: true,
 }
 
