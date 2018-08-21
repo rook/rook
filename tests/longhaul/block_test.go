@@ -21,9 +21,10 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/rook/rook/tests/framework/clients"
+
 	"time"
 
-	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/suite"
@@ -44,18 +45,20 @@ func TestBlockLongHaul(t *testing.T) {
 
 type BlockLongHaulSuite struct {
 	suite.Suite
-	kh        *utils.K8sHelper
-	installer *installer.InstallHelper
-	namespace string
-	op        contracts.Setup
+	kh         *utils.K8sHelper
+	installer  *installer.CephInstaller
+	namespace  string
+	op         installer.TestSuite
+	testClient *clients.TestClient
 }
 
 //Test set up - does the following in order
 //create pool and storage class, create a PVC, Create a MySQL app/service that uses pvc
 func (s *BlockLongHaulSuite) SetupSuite() {
 	s.namespace = "longhaul-ns"
-	s.op, s.kh, s.installer = StartBaseLoadTestOperations(s.T, s.namespace)
-	createStorageClassAndPool(s.T, s.kh, s.namespace, "rook-ceph-block", "rook-pool")
+	s.op, s.kh, s.installer = StartLoadTestCluster(s.T, s.namespace)
+	s.testClient = clients.CreateTestClient(s.kh, s.installer.Manifests)
+	createStorageClassAndPool(s.T, s.testClient, s.kh, s.namespace, "rook-ceph-block", "rook-pool")
 }
 
 //create a n number  ofPVC, Create a MySQL app/service that uses pvc
@@ -63,8 +66,8 @@ func (s *BlockLongHaulSuite) SetupSuite() {
 //All other PVC and mounts are created and deleted/unmounted per test
 func (s *BlockLongHaulSuite) TestBlockLonghaulRun() {
 	var wg sync.WaitGroup
-	wg.Add(s.installer.Env.LoadVolumeNumber)
-	for i := 1; i <= s.installer.Env.LoadVolumeNumber; i++ {
+	wg.Add(installer.Env.LoadVolumeNumber)
+	for i := 1; i <= installer.Env.LoadVolumeNumber; i++ {
 		if i == 1 {
 			go BlockVolumeOperations(s, &wg, "rook-ceph-block", "mysqlapp-persist", "mysqldb", "mysql-persist-claim", false)
 		} else {
@@ -79,7 +82,7 @@ func (s *BlockLongHaulSuite) TestBlockLonghaulRun() {
 func BlockVolumeOperations(s *BlockLongHaulSuite, wg *sync.WaitGroup, storageClassName string, appName string, appLabel string, pvcName string, cleanup bool) {
 	defer wg.Done()
 	db := createPVCAndMountMysqlPod(s.T, s.kh, storageClassName, appName, appLabel, pvcName)
-	performBlockOperations(s.installer, db)
+	performBlockOperations(db)
 	if cleanup {
 		mySqlPodOperation(s.kh, storageClassName, appName, appLabel, pvcName, "delete")
 		s.kh.WaitUntilPodWithLabelDeleted(appLabel, "default")
@@ -91,7 +94,7 @@ func BlockVolumeOperations(s *BlockLongHaulSuite, wg *sync.WaitGroup, storageCla
 
 func (s *BlockLongHaulSuite) TearDownSuite() {
 	//clean up all ephemeral block storage, index 1 is persistent block storage which is going to be used among different test runs.
-	for i := 2; i <= s.installer.Env.LoadVolumeNumber; i++ {
+	for i := 2; i <= installer.Env.LoadVolumeNumber; i++ {
 		mySqlPodOperation(s.kh, "rook-ceph-block", "mysqlapp-ephemeral-"+strconv.Itoa(i), "mysqldbeph"+strconv.Itoa(i), "mysql-ephemeral-claim"+strconv.Itoa(i), "delete")
 	}
 	s.kh = nil

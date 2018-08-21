@@ -20,8 +20,11 @@ import (
 	"strconv"
 )
 
+type NFSManifests struct {
+}
+
 // GetNFSServerCRDs returns NFSServer CRD definition
-func (i *InstallData) GetNFSServerCRDs() string {
+func (i *NFSManifests) GetNFSServerCRDs() string {
 	return `apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -39,7 +42,7 @@ spec:
 }
 
 // GetNFSServerOperator returns the NFSServer operator definition
-func (i *InstallData) GetNFSServerOperator(namespace string) string {
+func (i *NFSManifests) GetNFSServerOperator(namespace string) string {
 	return `kind: Namespace
 apiVersion: v1
 metadata:
@@ -131,7 +134,7 @@ spec:
 }
 
 // GetNFSServerPV returns NFSServer PV definition
-func (i *InstallData) GetNFSServerPV(namespace string, clusterIP string) string {
+func (i *NFSManifests) GetNFSServerPV(namespace string, clusterIP string) string {
 	return `apiVersion: v1
 kind: PersistentVolume
 metadata:
@@ -152,7 +155,7 @@ spec:
 }
 
 // GetNFSServerPVC returns NFSServer PVC definition
-func (i *InstallData) GetNFSServerPVC() string {
+func (i *NFSManifests) GetNFSServerPVC() string {
 	return `apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -168,7 +171,7 @@ spec:
 }
 
 // GetNFSServer returns NFSServer CRD instance definition
-func (i *InstallData) GetNFSServer(namespace string, count int, storageClassName string) string {
+func (i *NFSManifests) GetNFSServer(namespace string, count int, storageClassName string) string {
 	return `apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

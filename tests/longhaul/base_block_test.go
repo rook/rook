@@ -18,13 +18,13 @@ var (
 )
 
 // Create StorageClass and poll if needed
-func createStorageClassAndPool(t func() *testing.T, kh *utils.K8sHelper, namespace string, storageClassName string, poolName string) {
+func createStorageClassAndPool(t func() *testing.T, testClient *clients.TestClient, kh *utils.K8sHelper, namespace string, storageClassName string, poolName string) {
 	//create storage class
 	if err := kh.IsStorageClassPresent(storageClassName); err != nil {
 		logger.Infof("Install pool and storage class for rook block")
-		_, err := installer.BlockResourceOperation(kh, installer.GetBlockPoolDef(poolName, namespace, "3"), "create")
+		_, err := testClient.PoolClient.Create(poolName, namespace, 3)
 		require.NoError(t(), err)
-		_, err = installer.BlockResourceOperation(kh, installer.GetBlockStorageClassDef(poolName, storageClassName, namespace, false), "create")
+		_, err = testClient.BlockClient.CreateStorageClass(poolName, storageClassName, namespace, false)
 		require.NoError(t(), err)
 
 		//make sure storageclass is created
@@ -90,7 +90,7 @@ func mountUnmountPVCOnPod(k8sh *utils.K8sHelper, podName string, pvcName string,
 	return result, err
 }
 
-func performBlockOperations(installer *installer.InstallHelper, db *utils.MySQLHelper) {
+func performBlockOperations(db *utils.MySQLHelper) {
 	var wg sync.WaitGroup
 	for i := 1; i <= installer.Env.LoadConcurrentRuns; i++ {
 		wg.Add(1)
@@ -133,29 +133,29 @@ func dbOperation(db *utils.MySQLHelper, wg *sync.WaitGroup, runtime int, loadSiz
 
 }
 
-//BaseTestOperations struct for handling panic and test suite tear down
-type BaseLoadTestOperations struct {
-	installer *installer.InstallHelper
+// LoadTestCluster struct for handling panic and test suite tear down
+type LoadTestCluster struct {
+	installer *installer.CephInstaller
 	kh        *utils.K8sHelper
 	helper    *clients.TestClient
 	T         func() *testing.T
 	namespace string
 }
 
-// StartBaseTestOperations creates new instance of BaseTestOperations struct
-func StartBaseLoadTestOperations(t func() *testing.T, namespace string) (BaseLoadTestOperations, *utils.K8sHelper, *installer.InstallHelper) {
+// StartLoadTestCluster creates new instance of TestCluster struct
+func StartLoadTestCluster(t func() *testing.T, namespace string) (LoadTestCluster, *utils.K8sHelper, *installer.CephInstaller) {
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
-	i := installer.NewK8sRookhelper(kh.Clientset, t)
+	i := installer.NewCephInstaller(t, kh.Clientset, installer.VersionMaster)
 
-	op := BaseLoadTestOperations{i, kh, nil, t, namespace}
-	op.SetUp()
+	op := LoadTestCluster{i, kh, nil, t, namespace}
+	op.Setup()
 	return op, kh, i
 }
 
-//SetUpRook is a wrapper for setting up rook
-func (o BaseLoadTestOperations) SetUp() {
+// Setup is a wrapper for setting up rook
+func (o LoadTestCluster) Setup() {
 
 	if !o.kh.IsRookInstalled(o.namespace) {
 		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore",
@@ -166,14 +166,14 @@ func (o BaseLoadTestOperations) SetUp() {
 	}
 
 	// Enable chaos monkey if enable_chaos flag is present
-	if o.installer.Env.EnableChaos {
+	if installer.Env.EnableChaos {
 		c := NewChaosHelper(o.namespace, o.kh)
 		go c.Monkey()
 	}
 }
 
 //TearDownRook is a wrapper for tearDown after suite
-func (o BaseLoadTestOperations) TearDown() {
+func (o LoadTestCluster) Teardown() {
 	// No Clean up for load test
 }
 
@@ -262,7 +262,7 @@ spec:
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: block-persistent-storage
-          mountPath: /tmp/rook1
+          mountPath: ` + clients.TestMountPath + `
       volumes:
       - name: block-persistent-storage
         persistentVolumeClaim:

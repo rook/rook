@@ -25,7 +25,6 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/tests/framework/clients"
-	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -33,10 +32,12 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+const (
+	defaultNamespace = "default"
+)
+
 var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "integrationTest")
-
-	defaultNamespace = "default"
 )
 
 //Test to make sure all rook components are installed and Running
@@ -76,30 +77,18 @@ func checkIfRookClusterIsHealthy(s suite.Suite, testClient *clients.TestClient, 
 	require.Nil(s.T(), err)
 }
 
-func HandlePanics(r interface{}, op contracts.Setup, t func() *testing.T) {
+func HandlePanics(r interface{}, op installer.TestSuite, t func() *testing.T) {
 	if r != nil {
 		logger.Infof("unexpected panic occurred during test %s, --> %v", t().Name(), r)
 		t().Fail()
-		op.TearDown()
+		op.Teardown()
 		t().FailNow()
 	}
 }
 
-//GetTestClient sets up SetTestClient for rook
-func GetTestClient(kh *utils.K8sHelper, namespace string, op contracts.Setup, t func() *testing.T) *clients.TestClient {
-	helper, err := clients.CreateTestClient(kh, namespace)
-	if err != nil {
-		logger.Errorf("Cannot create rook test client, er -> %v", err)
-		t().Fail()
-		op.TearDown()
-		t().FailNow()
-	}
-	return helper
-}
-
-//BaseTestOperations struct for handling panic and test suite tear down
-type BaseTestOperations struct {
-	installer     *installer.InstallHelper
+//TestCluster struct for handling panic and test suite tear down
+type TestCluster struct {
+	installer     *installer.CephInstaller
 	kh            *utils.K8sHelper
 	helper        *clients.TestClient
 	T             func() *testing.T
@@ -110,20 +99,20 @@ type BaseTestOperations struct {
 	mons          int
 }
 
-// StartBaseTestOperations creates new instance of BaseTestOperations struct
-func StartBaseTestOperations(t func() *testing.T, namespace, storeType string, helmInstalled, useDevices bool, mons int) (BaseTestOperations, *utils.K8sHelper) {
+// StartTestCluster creates new instance of TestCluster struct
+func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInstalled, useDevices bool, mons int, rookVersion string) (*TestCluster, *utils.K8sHelper) {
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
-	i := installer.NewK8sRookhelper(kh.Clientset, t)
+	i := installer.NewCephInstaller(t, kh.Clientset, rookVersion)
 
-	op := BaseTestOperations{i, kh, nil, t, namespace, storeType, helmInstalled, useDevices, mons}
-	op.SetUp()
+	op := &TestCluster{i, kh, nil, t, namespace, storeType, helmInstalled, useDevices, mons}
+	op.Setup()
 	return op, kh
 }
 
 //SetUpRook is a wrapper for setting up rook
-func (op BaseTestOperations) SetUp() {
+func (op *TestCluster) Setup() {
 	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType,
 		op.helmInstalled, op.useDevices, cephv1beta1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */)
 
@@ -133,13 +122,18 @@ func (op BaseTestOperations) SetUp() {
 			op.installer.GatherAllRookLogs(op.namespace, installer.SystemNamespace(op.namespace), op.installer.T().Name())
 		}
 		op.T().Fail()
-		op.TearDown()
+		op.Teardown()
 		op.T().FailNow()
 	}
 }
 
+// SetInstallData updates the installer helper based on the version of Rook desired
+func (op *TestCluster) SetInstallData(version string) {
+
+}
+
 //TearDownRook is a wrapper for tearDown after Suite
-func (op BaseTestOperations) TearDown() {
+func (op *TestCluster) Teardown() {
 	if op.installer.T().Failed() {
 		op.installer.GatherAllRookLogs(op.namespace, installer.SystemNamespace(op.namespace), op.installer.T().Name())
 	}

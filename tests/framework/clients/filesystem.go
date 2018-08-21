@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -27,12 +28,13 @@ import (
 
 //FilesystemOperation is a wrapper for k8s rook file operations
 type FilesystemOperation struct {
-	k8sh *utils.K8sHelper
+	k8sh      *utils.K8sHelper
+	manifests installer.CephManifests
 }
 
-// CreateK8sFilesystemOperation Constructor to create FilesystemOperation - client to perform rook file system operations on k8s
-func CreateK8sFilesystemOperation(k8sh *utils.K8sHelper) *FilesystemOperation {
-	return &FilesystemOperation{k8sh: k8sh}
+// CreateFilesystemOperation Constructor to create FilesystemOperation - client to perform rook file system operations on k8s
+func CreateFilesystemOperation(k8sh *utils.K8sHelper, manifests installer.CephManifests) *FilesystemOperation {
+	return &FilesystemOperation{k8sh, manifests}
 }
 
 // FSCreate Function to create a filesystem in rook
@@ -42,24 +44,7 @@ func CreateK8sFilesystemOperation(k8sh *utils.K8sHelper) *FilesystemOperation {
 func (f *FilesystemOperation) Create(name, namespace string) error {
 
 	logger.Infof("creating the filesystem via CRD")
-	fsSpec := fmt.Sprintf(`apiVersion: ceph.rook.io/v1beta1
-kind: Filesystem
-metadata:
-  name: %s
-  namespace: %s
-spec:
-  metadataPool:
-    replicated:
-      size: 1
-  dataPools:
-  - replicated:
-      size: 1
-  metadataServer:
-    activeCount: 1
-    activeStandby: true
-`, name, namespace)
-
-	if _, err := f.k8sh.ResourceOperation("create", fsSpec); err != nil {
+	if _, err := f.k8sh.ResourceOperation("create", f.manifests.GetFilesystem(namespace, name)); err != nil {
 		return err
 	}
 
@@ -93,21 +78,6 @@ func (f *FilesystemOperation) List(namespace string) ([]client.CephFilesystem, e
 	return filesystems, nil
 }
 
-// Mount Function to Mount a file system created by rook(on a pod)
-// Input parameters -
-// name - path to the yaml definition file - definition of pod to be created that mounts existing file system
-// path - ignored in this case - mount path is defined in the path definition
-// output - output returned by k8s create pod operaton and/or error
-func (f *FilesystemOperation) Mount(name string, path string) (string, error) {
-	result, err := f.k8sh.Kubectl("create", "-f", "name")
-
-	if err != nil {
-		return "", fmt.Errorf("Unable to mount Filesystem -- : %s", err)
-	}
-	return result, nil
-
-}
-
 // Write Function to write  data to file system created by rook ,i.e. write data to a pod that has filesystem mounted
 // Input parameters -
 // name - path to a yaml file that creates a pod  - pod should be defined to use a pvc that was created earlier
@@ -116,22 +86,8 @@ func (f *FilesystemOperation) Mount(name string, path string) (string, error) {
 // filename - file where data is written to
 // namespace - optional param - namespace of the pod
 // Output  - k8s exec pod operation output and/or error
-func (f *FilesystemOperation) Write(name string, mountpath string, data string, filename string, namespace string) (string, error) {
-	wt := "echo \"" + data + "\">" + mountpath + "/" + filename
-	args := []string{"exec", name}
-
-	if namespace != "" {
-		args = append(args, "-n", namespace)
-	}
-	args = append(args, "--", "sh", "-c", wt)
-
-	result, err := f.k8sh.Kubectl(args...)
-	if err != nil {
-		return "", fmt.Errorf("Unable to write data to pod -- : %s", err)
-
-	}
-	return result, nil
-
+func (f *FilesystemOperation) Write(name string, data string, filename string, namespace string) (string, error) {
+	return writeToPod(f.k8sh, name, data, filename, namespace)
 }
 
 // Read Function to write read from file system  created by rook ,i.e. Read data from a pod that filesystem mounted
@@ -141,35 +97,6 @@ func (f *FilesystemOperation) Write(name string, mountpath string, data string, 
 // filename - file to be read
 // namespace - optional param - namespace of the pod
 // Output  - k8s exec pod operation output and/or error
-func (f *FilesystemOperation) Read(name string, mountpath string, filename string, namespace string) (string, error) {
-	rd := mountpath + "/" + filename
-
-	args := []string{"exec", name}
-
-	if namespace != "" {
-		args = append(args, "-n", namespace)
-	}
-	args = append(args, "--", "cat", rd)
-
-	result, err := f.k8sh.Kubectl(args...)
-	if err != nil {
-		return "", fmt.Errorf("Unable to write data to pod -- : %s", err)
-
-	}
-	return result, nil
-
-}
-
-// Unmount Function to UnMount a file system created by rook(delete pod)
-// Input parameters -
-// name - path to the yaml definition file - definition of pod to be deleted that has a file system mounted
-// path - ignored in this case - mount path is defined in the path definition
-// output - output returned by k8s delete pod operaton and/or error
-func (f *FilesystemOperation) Unmount(name string) (string, error) {
-	result, err := f.k8sh.Kubectl("delete", "-f", name)
-	if err != nil {
-		return "", fmt.Errorf("Unable to unmount Filesystem -- : %s", err)
-
-	}
-	return result, nil
+func (f *FilesystemOperation) Read(name string, filename string, namespace string) (string, error) {
+	return readFromPod(f.k8sh, name, filename, namespace)
 }

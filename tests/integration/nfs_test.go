@@ -47,8 +47,8 @@ func TestNfsSuite(t *testing.T) {
 
 type NfsSuite struct {
 	suite.Suite
-	k8sHelper       *utils.K8sHelper
-	installHelper   *installer.InstallHelper
+	k8shelper       *utils.K8sHelper
+	installer       *installer.NFSInstaller
 	rwClient        *clients.ReadWriteOperation
 	namespace       string
 	systemNamespace string
@@ -56,60 +56,60 @@ type NfsSuite struct {
 }
 
 func (suite *NfsSuite) SetupSuite() {
-	suite.SetUp()
+	suite.Setup()
 }
 
 func (suite *NfsSuite) TearDownSuite() {
-	suite.TearDown()
+	suite.Teardown()
 }
 
-func (suite *NfsSuite) SetUp() {
+func (suite *NfsSuite) Setup() {
 	suite.namespace = "nfs-ns"
 	suite.systemNamespace = installer.SystemNamespace(suite.namespace)
 	suite.instanceCount = 1
 
-	k8sHelper, err := utils.CreateK8sHelper(suite.T)
+	k8shelper, err := utils.CreateK8sHelper(suite.T)
 	require.NoError(suite.T(), err)
-	suite.k8sHelper = k8sHelper
+	suite.k8shelper = k8shelper
 
-	k8sversion := suite.k8sHelper.GetK8sServerVersion()
+	k8sversion := suite.k8shelper.GetK8sServerVersion()
 	logger.Infof("Installing nfs server on k8s %s", k8sversion)
 
-	suite.installHelper = installer.NewK8sRookhelper(suite.k8sHelper.Clientset, suite.T)
+	suite.installer = installer.NewNFSInstaller(suite.k8shelper, suite.T)
 
-	suite.rwClient = clients.CreateReadWriteOperation(suite.k8sHelper)
+	suite.rwClient = clients.CreateReadWriteOperation(suite.k8shelper)
 
-	err = suite.installHelper.InstallNFSServer(suite.systemNamespace, suite.namespace, suite.instanceCount)
+	err = suite.installer.InstallNFSServer(suite.systemNamespace, suite.namespace, suite.instanceCount)
 	if err != nil {
 		logger.Errorf("nfs server installation failed: %+v", err)
 		suite.T().Fail()
-		suite.TearDown()
+		suite.Teardown()
 		suite.T().FailNow()
 	}
 }
 
-func (suite *NfsSuite) TearDown() {
+func (suite *NfsSuite) Teardown() {
 	if suite.T().Failed() {
-		suite.installHelper.GatherCRDObjectDebuggingInfo(suite.systemNamespace)
-		suite.installHelper.GatherCRDObjectDebuggingInfo(suite.namespace)
-		suite.installHelper.GatherAllNFSServerLogs(suite.systemNamespace, suite.namespace, suite.T().Name())
+		installer.GatherCRDObjectDebuggingInfo(suite.k8shelper, suite.systemNamespace)
+		installer.GatherCRDObjectDebuggingInfo(suite.k8shelper, suite.namespace)
+		suite.installer.GatherAllNFSServerLogs(suite.systemNamespace, suite.namespace, suite.T().Name())
 	}
-	suite.installHelper.UninstallNFSServer(suite.systemNamespace, suite.namespace)
+	suite.installer.UninstallNFSServer(suite.systemNamespace, suite.namespace)
 }
 
 func (suite *NfsSuite) TestNfsServerInstallation() {
 	logger.Infof("Verifying that nfs server pod %s is running", suite.namespace)
 
 	// verify nfs server operator is running OK
-	assert.True(suite.T(), suite.k8sHelper.CheckPodCountAndState("rook-nfs-operator", suite.systemNamespace, 1, "Running"),
+	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState("rook-nfs-operator", suite.systemNamespace, 1, "Running"),
 		"1 rook-nfs-operator must be in Running state")
 
 	// verify nfs server instances are running OK
-	assert.True(suite.T(), suite.k8sHelper.CheckPodCountAndState("rook-nfs", suite.namespace, suite.instanceCount, "Running"),
+	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState("rook-nfs", suite.namespace, suite.instanceCount, "Running"),
 		fmt.Sprintf("%d rook-nfs pods must be in Running state", suite.instanceCount))
 
 	// verify nfs server storage
-	assert.True(suite.T(), true, suite.k8sHelper.WaitUntilPVCIsBound("default", "nfs-pv-claim"))
+	assert.True(suite.T(), true, suite.k8shelper.WaitUntilPVCIsBound("default", "nfs-pv-claim"))
 
 	defer suite.rwClient.Delete()
 	podList, err := suite.rwClient.CreateWriteClient("nfs-pv-claim")
