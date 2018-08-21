@@ -107,6 +107,13 @@ func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInst
 	i := installer.NewCephInstaller(t, kh.Clientset, rookVersion)
 
 	op := &TestCluster{i, kh, nil, t, namespace, storeType, helmInstalled, useDevices, mons}
+
+	if rookVersion != installer.VersionMaster {
+		// make sure we have the images from a previous release locally so the test doesn't hit a timeout
+		assert.NoError(t(), kh.GetDockerImage("rook/ceph:"+rookVersion))
+		assert.NoError(t(), kh.GetDockerImage("rook/ceph-toolbox:"+rookVersion))
+	}
+
 	op.Setup()
 	return op, kh
 }

@@ -17,53 +17,17 @@ limitations under the License.
 package installer
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/google/uuid"
 )
 
-type CephManifests interface {
-	GetRookCRDs() string
-	GetRookOperator(namespace string) string
-	GetClusterRoles(namespace, systemNamespace string) string
-	GetRookCluster(settings *ClusterSettings) string
-	GetRookToolBox(namespace string) string
-	GetCleanupPod(node, removalDir string) string
-	GetBlockPoolDef(poolName string, namespace string, replicaSize string) string
-	GetBlockStorageClassDef(poolName string, storageClassName string, namespace string, varClusterName bool) string
-	GetBlockPvcDef(claimName string, storageClassName string, accessModes string) string
-	GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, blockName string, accessMode string) string
-	GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string) string
-	GetFilesystem(namepace, name string) string
-	GetObjectStore(namespace, name string, replicaCount, port int) string
-}
-
-type ClusterSettings struct {
-	Namespace       string
-	StoreType       string
-	DataDirHostPath string
-	UseAllDevices   bool
-	Mons            int
-}
-
-//CephManifestsMaster wraps rook yaml definitions
-type CephManifestsMaster struct {
+//CephManifestsV0_8 wraps rook yaml definitions
+type CephManifestsV0_8 struct {
 	imageTag string
 }
 
-// NewCephManifests gets the manifest type depending on the Rook version desired
-func NewCephManifests(version string) CephManifests {
-	switch version {
-	case VersionMaster:
-		return &CephManifestsMaster{imageTag: VersionMaster}
-	case Version0_8:
-		return &CephManifestsV0_8{imageTag: Version0_8}
-	}
-	panic(fmt.Errorf("unrecognized ceph manifest version: %s", version))
-}
-
-func (m *CephManifestsMaster) GetRookCRDs() string {
+func (m *CephManifestsV0_8) GetRookCRDs() string {
 	return `apiVersion: apiextensions.k8s.io/v1beta1
 kind: CustomResourceDefinition
 metadata:
@@ -136,7 +100,7 @@ spec:
 }
 
 //GetRookOperator returns rook Operator  manifest
-func (m *CephManifestsMaster) GetRookOperator(namespace string) string {
+func (m *CephManifestsV0_8) GetRookOperator(namespace string) string {
 
 	return `kind: Namespace
 apiVersion: v1
@@ -363,7 +327,7 @@ spec:
 }
 
 //GetRookCluster returns rook-cluster manifest
-func (m *CephManifestsMaster) GetClusterRoles(namespace, systemNamespace string) string {
+func (m *CephManifestsV0_8) GetClusterRoles(namespace, systemNamespace string) string {
 	return `apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -412,7 +376,7 @@ subjects:
 }
 
 //GetRookCluster returns rook-cluster manifest
-func (m *CephManifestsMaster) GetRookCluster(settings *ClusterSettings) string {
+func (m *CephManifestsV0_8) GetRookCluster(settings *ClusterSettings) string {
 	return `apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
@@ -441,7 +405,7 @@ spec:
 }
 
 //GetRookToolBox returns rook-toolbox manifest
-func (m *CephManifestsMaster) GetRookToolBox(namespace string) string {
+func (m *CephManifestsV0_8) GetRookToolBox(namespace string) string {
 	return `apiVersion: v1
 kind: Pod
 metadata:
@@ -490,7 +454,7 @@ spec:
 }
 
 //GetCleanupPod gets a cleanup Pod manifest
-func (m *CephManifestsMaster) GetCleanupPod(node, removalDir string) string {
+func (m *CephManifestsV0_8) GetCleanupPod(node, removalDir string) string {
 	return `apiVersion: batch/v1
 kind: Job
 metadata:
@@ -519,7 +483,7 @@ spec:
                    path:  ` + removalDir
 }
 
-func (m *CephManifestsMaster) GetBlockPoolDef(poolName string, namespace string, replicaSize string) string {
+func (m *CephManifestsV0_8) GetBlockPoolDef(poolName string, namespace string, replicaSize string) string {
 	return `apiVersion: ceph.rook.io/v1beta1
 kind: Pool
 metadata:
@@ -530,7 +494,7 @@ spec:
     size: ` + replicaSize
 }
 
-func (m *CephManifestsMaster) GetBlockStorageClassDef(poolName string, storageClassName string, namespace string, varClusterName bool) string {
+func (m *CephManifestsV0_8) GetBlockStorageClassDef(poolName string, storageClassName string, namespace string, varClusterName bool) string {
 	namespaceParameter := "clusterNamespace"
 	if varClusterName {
 		namespaceParameter = "clusterName"
@@ -545,7 +509,7 @@ parameters:
     ` + namespaceParameter + `: ` + namespace
 }
 
-func (m *CephManifestsMaster) GetBlockPvcDef(claimName string, storageClassName string, accessModes string) string {
+func (m *CephManifestsV0_8) GetBlockPvcDef(claimName string, storageClassName string, accessModes string) string {
 	return `apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -557,19 +521,19 @@ spec:
     - ` + accessModes + `
   resources:
     requests:
-      storage: 1M`
+      storage: 10M`
 }
 
-func (m *CephManifestsMaster) GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, blockName string, accessMode string) string {
+func (m *CephManifestsV0_8) GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, blockName string, accessMode string) string {
 	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"),
 		concatYaml(m.GetBlockStorageClassDef(poolName, storageClassName, namespace, false), m.GetBlockPvcDef(blockName, storageClassName, accessMode)))
 }
 
-func (m *CephManifestsMaster) GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string) string {
+func (m *CephManifestsV0_8) GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string) string {
 	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"), m.GetBlockStorageClassDef(poolName, storageClassName, namespace, false))
 }
 
-func (m *CephManifestsMaster) GetFilesystem(namespace, name string) string {
+func (m *CephManifestsV0_8) GetFilesystem(namespace, name string) string {
 	return `apiVersion: ceph.rook.io/v1beta1
 kind: Filesystem
 metadata:
@@ -587,7 +551,7 @@ spec:
     activeStandby: true`
 }
 
-func (m *CephManifestsMaster) GetObjectStore(namespace, name string, replicaCount, port int) string {
+func (m *CephManifestsV0_8) GetObjectStore(namespace, name string, replicaCount, port int) string {
 	return `apiVersion: ceph.rook.io/v1beta1
 kind: ObjectStore
 metadata:

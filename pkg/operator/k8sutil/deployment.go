@@ -17,14 +17,76 @@ package k8sutil
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"k8s.io/api/extensions/v1beta1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
-func UpdateDeploymentAndWait(context *clusterd.Context, deployment *v1beta1.Deployment, namespace string) error {
+// GetDeploymentVersion returns the version of the image running in the pod spec for the desired container
+func GetDeploymentVersion(clientset kubernetes.Interface, namespace, name, container string) (string, error) {
+	d, err := clientset.Extensions().Deployments(namespace).Get(name, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("failed to find deployment %s. %v", name, err)
+	}
+	return GetDeploymentSpecVersion(clientset, *d, container)
+}
+
+func GetDeploymentSpecVersion(clientset kubernetes.Interface, d extensions.Deployment, container string) (string, error) {
+	image, err := GetSpecContainerImage(d.Spec.Template.Spec, container)
+	if err != nil {
+		return "", err
+	}
+
+	parts := strings.Split(image, ":")
+	if len(parts) != 2 {
+		return "", fmt.Errorf("unexpected version in image: %s", image)
+	}
+
+	return parts[1], nil
+}
+
+func WaitForDeploymentVersion(clientset kubernetes.Interface, namespace, label, container, desiredVersion string) error {
+
+	sleepTime := 3
+	attempts := 30
+	for i := 0; i < attempts; i++ {
+		deployments, err := clientset.Extensions().Deployments(namespace).List(metav1.ListOptions{LabelSelector: label})
+		if err != nil {
+			return fmt.Errorf("failed to list deployments with label %s. %v", label, err)
+		}
+
+		matches := 0
+		for _, d := range deployments.Items {
+			version, err := GetDeploymentSpecVersion(clientset, d, container)
+			if err != nil {
+				logger.Infof("failed to get version for deployment %s. %+v", d.Name, err)
+				continue
+			}
+			if version == desiredVersion {
+				matches++
+			}
+		}
+
+		if matches == len(deployments.Items) && matches > 0 {
+			logger.Infof("all %d %s deployments are on version %s", matches, container, desiredVersion)
+			break
+		}
+
+		if len(deployments.Items) == 0 {
+			logger.Infof("waiting for at least one deployment to start to see the version")
+		} else {
+			logger.Infof("%d/%d %s deployments match version %s", matches, len(deployments.Items), container, desiredVersion)
+		}
+		time.Sleep(time.Duration(sleepTime) * time.Second)
+	}
+	return nil
+}
+
+func UpdateDeploymentAndWait(context *clusterd.Context, deployment *extensions.Deployment, namespace string) error {
 	original, err := context.Clientset.Extensions().Deployments(namespace).Get(deployment.Name, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get deployment %s. %+v", deployment.Name, err)

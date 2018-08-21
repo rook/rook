@@ -31,6 +31,8 @@ import (
 const (
 	// Version tag for the latest manifests
 	VersionMaster = "master"
+	// Version tag for Rook v0.8
+	Version0_8 = "v0.8.1"
 )
 
 var (
