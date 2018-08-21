@@ -24,7 +24,6 @@ import (
 	"time"
 
 	"github.com/rook/rook/tests/framework/clients"
-	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -46,42 +45,40 @@ func TestBlockWithFencingLongHaul(t *testing.T) {
 type BlockLongHaulSuiteWithFencing struct {
 	suite.Suite
 	kh         *utils.K8sHelper
-	installer  *installer.InstallHelper
+	installer  *installer.CephInstaller
 	testClient *clients.TestClient
 	namespace  string
-	op         contracts.Setup
+	op         installer.TestSuite
 }
 
 //Test set up - does the following in order
 //create pool and storage class, Create a PVC and mount a pod with ReadOnly=false.
 //Write some data to the pvc and unmount the pod
 func (s *BlockLongHaulSuiteWithFencing) SetupSuite() {
-	var err error
 	s.namespace = "longhaul-ns"
-	s.op, s.kh, s.installer = StartBaseLoadTestOperations(s.T, s.namespace)
-	createStorageClassAndPool(s.T, s.kh, s.namespace, "rook-ceph-block", "rook-pool")
-	s.testClient, err = clients.CreateTestClient(s.kh, s.namespace)
-	require.Nil(s.T(), err)
+	s.op, s.kh, s.installer = StartLoadTestCluster(s.T, s.namespace)
+	s.testClient = clients.CreateTestClient(s.kh, s.installer.Manifests)
+	createStorageClassAndPool(s.T, s.testClient, s.kh, s.namespace, "rook-ceph-block", "rook-pool")
 	if _, err := s.kh.GetPVCStatus(defaultNamespace, "block-pv-one"); err != nil {
 		logger.Infof("Creating PVC and mounting it to pod with readOnly set to false")
-		installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef("block-pv-one", "rook-ceph-block", "ReadWriteOnce"), "create")
+		_, err = s.testClient.BlockClient.CreatePvc("block-pv-one", "rook-ceph-block", "ReadWriteOnce")
+		require.Nil(s.T(), err)
 		mountUnmountPVCOnPod(s.kh, "block-rw", "block-pv-one", "false", "create")
 		require.True(s.T(), s.kh.IsPodRunning("block-rw", defaultNamespace))
 
-		s.testClient.BlockClient.Write("block-rw", "/tmp/rook1", "this is long running test", "longhaul", defaultNamespace)
+		s.testClient.BlockClient.Write("block-rw", "this is long running test", "longhaul", defaultNamespace)
 		mountUnmountPVCOnPod(s.kh, "block-rw", "block-pv-one", "false", "delete")
 		require.True(s.T(), s.kh.IsPodTerminated("block-rw", defaultNamespace))
 		time.Sleep(5 * time.Second)
 	}
-
 }
 
 //Mount n number of pods on the same PVC created earlier with readOnly=True.
 func (s *BlockLongHaulSuiteWithFencing) TestBlockWithFencingLonghaulRun() {
 
 	var wg sync.WaitGroup
-	wg.Add(s.installer.Env.LoadVolumeNumber)
-	for i := 1; i <= s.installer.Env.LoadVolumeNumber; i++ {
+	wg.Add(installer.Env.LoadVolumeNumber)
+	for i := 1; i <= installer.Env.LoadVolumeNumber; i++ {
 		go blockVolumeFencingOperations(s, &wg, "block-read"+strconv.Itoa(i), "block-pv-one")
 	}
 	wg.Wait()
@@ -91,7 +88,7 @@ func blockVolumeFencingOperations(s *BlockLongHaulSuiteWithFencing, wg *sync.Wai
 	defer wg.Done()
 	mountUnmountPVCOnPod(s.kh, podName, pvcName, "true", "create")
 	require.True(s.T(), s.kh.IsPodRunning(podName, defaultNamespace))
-	read, rErr := s.testClient.BlockClient.Read(podName, "/tmp/rook1", "longhaul", "default")
+	read, rErr := s.testClient.BlockClient.Read(podName, "longhaul", "default")
 	require.Nil(s.T(), rErr)
 	assert.Contains(s.T(), read, "this is long running test")
 	mountUnmountPVCOnPod(s.kh, podName, pvcName, "true", "delete")

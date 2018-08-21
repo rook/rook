@@ -290,9 +290,51 @@ func (k8sh *K8sHelper) ResourceOperation(action string, podDefinition string) (s
 	return "", fmt.Errorf("Could Not create resource in args : %v -- %v", args, err)
 }
 
-//DeleteResource performs a kubectl delete on give args
+//DeletePod performs a kubectl delete pod on the given pod
+func (k8sh *K8sHelper) DeletePod(namespace, name string) (string, error) {
+	args := append([]string{"--grace-period=0", "pod"}, name)
+	if namespace != "" {
+		args = append(args, []string{"-n", namespace}...)
+	}
+	return k8sh.DeleteResourceAndWait(true, args...)
+}
+
+//DeletePods performs a kubectl delete pod on the given pods
+func (k8sh *K8sHelper) DeletePods(pods ...string) (msg string, err error) {
+	for _, pod := range pods {
+		msg, err = k8sh.DeletePod("", pod)
+	}
+	return
+}
+
+//DeleteResource performs a kubectl delete on the given args
 func (k8sh *K8sHelper) DeleteResource(args ...string) (string, error) {
 	return k8sh.DeleteResourceAndWait(true, args...)
+}
+
+//WaitForCustomResourceDeletion waits for the CRD deletion
+func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace string, checkerFunc func() error) error {
+	if !k8sh.VersionAtLeast("v1.8.0") {
+		// v1.7 has an intermittent issue with long delay to delete resources so we will skip waiting
+		return nil
+	}
+
+	// wait for the operator to finalize and delete the CRD
+	for i := 0; i < 10; i++ {
+		err := checkerFunc()
+		if err == nil {
+			logger.Infof("custom resource %s still exists", namespace)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		if errors.IsNotFound(err) {
+			logger.Infof("custom resource %s deleted", namespace)
+			return nil
+		}
+		return err
+	}
+	logger.Errorf("gave up deleting custom resource %s", namespace)
+	return nil
 }
 
 // DeleteResource performs a kubectl delete on give args.

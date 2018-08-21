@@ -20,7 +20,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/clients"
-	"github.com/rook/rook/tests/framework/contracts"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/suite"
 )
@@ -57,18 +57,18 @@ type HelmSuite struct {
 	suite.Suite
 	helper    *clients.TestClient
 	kh        *utils.K8sHelper
-	op        contracts.Setup
+	op        *TestCluster
 	namespace string
 }
 
 func (hs *HelmSuite) SetupSuite() {
 	hs.namespace = "helm-ns"
-	hs.op, hs.kh = StartBaseTestOperations(hs.T, hs.namespace, "bluestore", true, false, 1)
-	hs.helper = GetTestClient(hs.kh, hs.namespace, hs.op, hs.T)
+	hs.op, hs.kh = StartTestCluster(hs.T, hs.namespace, "bluestore", true, false, 1, installer.VersionMaster)
+	hs.helper = clients.CreateTestClient(hs.kh, hs.op.installer.Manifests)
 }
 
 func (hs *HelmSuite) TearDownSuite() {
-	hs.op.TearDown()
+	hs.op.Teardown()
 }
 
 //Test to make sure all rook components are installed and Running
