@@ -38,6 +38,10 @@ func (c *FakeCephV1beta1) ObjectStores(namespace string) v1beta1.ObjectStoreInte
 	return &FakeObjectStores{c, namespace}
 }
 
+func (c *FakeCephV1beta1) Objectstoreusers(namespace string) v1beta1.ObjectstoreuserInterface {
+	return &FakeObjectstoreusers{c, namespace}
+}
+
 func (c *FakeCephV1beta1) Pools(namespace string) v1beta1.PoolInterface {
 	return &FakePools{c, namespace}
 }
