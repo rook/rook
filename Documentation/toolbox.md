@@ -10,58 +10,69 @@ The toolbox is based on CentOS, so more tools of your choosing can be easily ins
 
 ## Running the Toolbox in Kubernetes
 
-The rook toolbox can run as a pod in a Kubernetes cluster.  After you ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](ceph-quickstart.md) instructions),
-launch the rook-ceph-tools pod.
+The rook toolbox can run as a deployment in a Kubernetes cluster.  After you ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](quickstart.md) instructions),
+launch the rook-tools pod.
 
 Save the tools spec as `toolbox.yaml`:
 
 ```yaml
-apiVersion: v1
-kind: Pod
+apiVersion: apps/v1
+kind: Deployment
 metadata:
-  name: rook-ceph-tools
-  namespace: rook-ceph
+  name: rook-tools
+  namespace: rook
+  labels:
+    app: rook-tools
 spec:
-  dnsPolicy: ClusterFirstWithHostNet
-  containers:
-  - name: rook-ceph-tools
-    image: rook/ceph-toolbox:master
-    imagePullPolicy: IfNotPresent
-    env:
-      - name: ROOK_ADMIN_SECRET
-        valueFrom:
-          secretKeyRef:
-            name: rook-ceph-mon
-            key: admin-secret
-    securityContext:
-      privileged: true
-    volumeMounts:
-      - mountPath: /dev
-        name: dev
-      - mountPath: /sys/bus
-        name: sysbus
-      - mountPath: /lib/modules
-        name: libmodules
-      - name: mon-endpoint-volume
-        mountPath: /etc/rook
-  # if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
-  hostNetwork: true
-  volumes:
-    - name: dev
-      hostPath:
-        path: /dev
-    - name: sysbus
-      hostPath:
-        path: /sys/bus
-    - name: libmodules
-      hostPath:
-        path: /lib/modules
-    - name: mon-endpoint-volume
-      configMap:
-        name: rook-ceph-mon-endpoints
-        items:
-        - key: data
-          path: mon-endpoints
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rook-tools
+  template:
+    metadata:
+      labels:
+        app: rook-tools
+    spec:
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: rook-tools
+        image: rook/ceph-toolbox:master
+        imagePullPolicy: IfNotPresent
+        env:
+          - name: ROOK_ADMIN_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: rook-ceph-mon
+                key: admin-secret
+        securityContext:
+          privileged: true
+        volumeMounts:
+          - mountPath: /dev
+            name: dev
+          - mountPath: /sys/bus
+            name: sysbus
+          - mountPath: /lib/modules
+            name: libmodules
+          - name: mon-endpoint-volume
+            mountPath: /etc/rook
+      # if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021      
+      hostNetwork: true
+      volumes:
+        - name: dev
+          hostPath:
+            path: /dev
+        - name: sysbus
+          hostPath:
+            path: /sys/bus
+        - name: libmodules
+          hostPath:
+            path: /lib/modules
+        - name: mon-endpoint-volume
+          configMap:
+            name: rook-ceph-mon-endpoints
+            items:
+            - key: data
+              path: mon-endpoints
 ```
 
 Launch the rook-ceph-tools pod:
@@ -71,12 +82,12 @@ kubectl create -f toolbox.yaml
 
 Wait for the toolbox pod to download its container and get to the `running` state:
 ```bash
-kubectl -n rook-ceph get pod rook-ceph-tools
+kubectl -n rook get pod -l "app=rook-tools"
 ```
 
 Once the rook-ceph-tools pod is running, you can connect to it with:
 ```bash
-kubectl -n rook-ceph exec -it rook-ceph-tools bash
+kubectl -n rook exec -it $(kubectl -n rook get pod -l "app=rook-tools" -o jsonpath='{.items[0].metadata.name}') bash
 ```
 
 All available tools in the toolbox are ready for your troubleshooting needs.  Example:
