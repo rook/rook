@@ -63,7 +63,6 @@ func (a *Agent) Run() error {
 	flexvolumeServer := flexvolume.NewFlexvolumeServer(
 		a.context,
 		flexvolumeController,
-		volumeManager,
 	)
 
 	err = rpc.Register(flexvolumeController)
@@ -95,8 +94,7 @@ func (a *Agent) Run() error {
 	clusterController := cluster.NewClusterController(
 		a.context,
 		flexvolumeController,
-		volumeAttachmentController,
-		volumeManager)
+		volumeAttachmentController)
 	stopChan := make(chan struct{})
 	clusterController.StartWatch(v1.NamespaceAll, stopChan)
 
