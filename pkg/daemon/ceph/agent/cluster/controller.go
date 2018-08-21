@@ -52,7 +52,7 @@ type ClusterController struct {
 
 // NewClusterController creates a new instance of a ClusterController
 func NewClusterController(context *clusterd.Context, flexvolumeController flexvolume.VolumeController,
-	volumeAttachment attachment.Attachment, manager flexvolume.VolumeManager) *ClusterController {
+	volumeAttachment attachment.Attachment) *ClusterController {
 
 	return &ClusterController{
 		context:              context,
