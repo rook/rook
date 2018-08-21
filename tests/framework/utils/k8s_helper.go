@@ -104,6 +104,16 @@ func (k8sh *K8sHelper) MakeContext() *clusterd.Context {
 	return &clusterd.Context{Clientset: k8sh.Clientset, RookClientset: k8sh.RookClientset, Executor: k8sh.executor}
 }
 
+func (k8sh *K8sHelper) GetDockerImage(image string) error {
+	return k8sh.executor.ExecuteCommand(false, "", "docker", "pull", image)
+}
+
+// SetDeploymentVersion sets the container version on the deployment. It is assumed to be the rook/ceph image.
+func (k8sh *K8sHelper) SetDeploymentVersion(namespace, deploymentName, containerName, version string) error {
+	_, err := k8sh.Kubectl("-n", namespace, "set", "image", "deploy/"+deploymentName, containerName+"=rook/ceph:"+version)
+	return err
+}
+
 //Kubectl is wrapper for executing kubectl commands
 func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
 	result, err := k8sh.executor.ExecuteCommandWithTimeout(false, 15*time.Second, "kubectl", "kubectl", args...)
@@ -275,14 +285,13 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinitio
 		return result, nil
 	}
 	logger.Errorf("Failed to execute kubectl %v %v -- %v", args, podDef, err)
-	return "", fmt.Errorf("Could Not create resource in args : %v  %v-- %v", args, podDef, err)
+	return "", fmt.Errorf("Could not %s resource in args : %v  %v-- %v", action, args, podDef, err)
 }
 
 //ResourceOperation performs a kubectl action on a pod definition
-func (k8sh *K8sHelper) ResourceOperation(action string, podDefinition string) (string, error) {
-
+func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) (string, error) {
 	args := []string{action, "-f", "-"}
-	result, err := k8sh.KubectlWithStdin(podDefinition, args...)
+	result, err := k8sh.KubectlWithStdin(manifest, args...)
 	if err == nil {
 		return result, nil
 	}
