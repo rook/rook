@@ -76,7 +76,7 @@ func writeAndReadToFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper,
 
 func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
 	logger.Infof("Unmount file System")
-	_, err := k8sh.DeleteResource("pod", filePodName, "-n", namespace)
+	_, err := k8sh.DeletePod(namespace, filePodName)
 	require.Nil(s.T(), err)
 	require.True(s.T(), k8sh.IsPodTerminated(filePodName, namespace), "make sure file-test pod is terminated")
 	logger.Infof("File system unmounted successfully")
