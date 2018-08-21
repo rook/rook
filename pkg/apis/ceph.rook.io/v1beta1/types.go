@@ -231,7 +231,7 @@ type ObjectStoreSpec struct {
 type Objectstoreuser struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec   ObjectstoreuserSpec   `json:"spec"`
+	Spec              ObjectstoreuserSpec `json:"spec"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
