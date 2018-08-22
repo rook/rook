@@ -184,7 +184,7 @@ E0328 18:58:32.060893       5 controller.go:801] Failed to provision volume for 
 . output:
 ```
 
-The solution is to ensure that the [`clusterNamespace`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/rook-storageclass.yaml#L25) field matches the **namespace** of the Rook cluster when creating the `StorageClass`.
+The solution is to ensure that the [`clusterNamespace`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/storageclass.yaml#L20) field matches the **namespace** of the Rook cluster when creating the `StorageClass`.
 
 ### Volume Mounting
 The final step in preparing Rook storage for your pod is for the `rook-ceph-agent` pod to mount and format it.

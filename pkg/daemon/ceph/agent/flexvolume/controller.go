@@ -45,6 +45,7 @@ const (
 	StorageClassKey       = "storageClass"
 	PoolKey               = "pool"
 	ImageKey              = "image"
+	DataPoolKey           = "dataPool"
 	kubeletDefaultRootDir = "/var/lib/kubelet"
 )
 
