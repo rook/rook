@@ -59,6 +59,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	keyringPath := config.KeyringPath
 	confDir := config.ConfDir
 	username := fmt.Sprintf("mgr.%s", config.Name)
+	// In Ceph's config, set the 'mgr data' key to the config dir Rook uses
 	settings := map[string]string{
 		"mgr data": confDir,
 	}

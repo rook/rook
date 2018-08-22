@@ -226,7 +226,7 @@ func (c *Cluster) makeDeployment(name, daemonName string) *extensions.Deployment
 				"prometheus.io/port": strconv.Itoa(metricsPort)},
 		},
 		Spec: v1.PodSpec{
-			Containers:     []v1.Container{c.mgrContainer(name, clusterInfo.Name, confFile, keyringPath)},
+			Containers:     []v1.Container{c.mgrContainer(name, daemonName, clusterInfo.Name, confFile, keyringPath)},
 			InitContainers: []v1.Container{c.mgrInitContainer(name, daemonName, keyringPath, getMgrConfDir(c.context.ConfigDir, daemonName))},
 			RestartPolicy:  v1.RestartPolicyAlways,
 			Volumes: []v1.Volume{
@@ -254,7 +254,7 @@ func (c *Cluster) makeDeployment(name, daemonName string) *extensions.Deployment
 	return d
 }
 
-func (c *Cluster) mgrContainer(name, clusterName, confFilePath, keyringPath string) v1.Container {
+func (c *Cluster) mgrContainer(name, daemonName, clusterName, confFilePath, keyringPath string) v1.Container {
 	return v1.Container{
 		Command: []string{
 			"/usr/bin/ceph-mgr",
@@ -263,9 +263,12 @@ func (c *Cluster) mgrContainer(name, clusterName, confFilePath, keyringPath stri
 			"--foreground",
 			fmt.Sprintf("--cluster=%s", clusterName),
 			fmt.Sprintf("--conf=%s", confFilePath),
-			fmt.Sprintf("--keyring=%s", keyringPath),
+			fmt.Sprintf("--id=%s", daemonName),
+			// --keyring option seems to do nothing, and from the ceph codebase I think I gather
+			// that this arg only applies to the monitor
+			// fmt.Sprintf("--keyring=%s", keyringPath),
 		},
-		// There is no need to name containers in the pod 'rook-ceph-mgr-<name>'. 'mgr' and
+		// There is no need to name containers in the pod 'rook-ceph-mgr-<daemonName>'. 'mgr' and
 		//   'mgr-init' should be sufficient, and then it's easier to get specific mgr container
 		//   logs from any mgr pod since the containers inside will have deterministic names
 		Name:  "mgr",
