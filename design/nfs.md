@@ -131,7 +131,7 @@ EXPORT {
         Squash = root;
     }
     CLIENT {
-        Clients = 172.17.0.0/16, node-1;
+        Clients = 172.17.0.0/16, serverX;
         Access_Type = RW;
         Squash = none;
     }

@@ -70,6 +70,7 @@ Rook Framework|The framework for common storage specs and logic used to support 
 Ceph|[Ceph](https://ceph.com/) is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters.|ceph.rook.io/v1beta1|Beta
 CockroachDB|[CockroachDB](https://www.cockroachlabs.com/product/cockroachdb/) is a cloud-native SQL database for building global, scalable cloud services that survive disasters.|cockroachdb.rook.io/v1alpha1|Alpha
 Minio|[Minio](https://www.minio.io/) is a high performance distributed object storage server, designed for large-scale private cloud infrastructure.|minio.rook.io/v1alpha1|Alpha
+NFS|[Network File System (NFS)](https://github.com/nfs-ganesha/nfs-ganesha/wiki) allows remote hosts to mount file systems over a network and interact with those file systems as though they are mounted locally.|nfs.rook.io/v1alpha1|Alpha
 
 ### Official Releases
 
