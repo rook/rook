@@ -10,8 +10,8 @@ The toolbox is based on CentOS, so more tools of your choosing can be easily ins
 
 ## Running the Toolbox in Kubernetes
 
-The rook toolbox can run as a deployment in a Kubernetes cluster.  After you ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](quickstart.md) instructions),
-launch the rook-tools pod.
+The rook toolbox can run as a deployment in a Kubernetes cluster.  After you ensure you have a running Kubernetes cluster with rook deployed (see the [Kubernetes](ceph-quickstart.md) instructions),
+launch the rook-ceph-tools pod.
 
 Save the tools spec as `toolbox.yaml`:
 
@@ -19,23 +19,23 @@ Save the tools spec as `toolbox.yaml`:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rook-tools
-  namespace: rook
+  name: rook-ceph-tools
+  namespace: rook-ceph
   labels:
-    app: rook-tools
+    app: rook-ceph-tools
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: rook-tools
+      app: rook-ceph-tools
   template:
     metadata:
       labels:
-        app: rook-tools
+        app: rook-ceph-tools
     spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
-      - name: rook-tools
+      - name: rook-ceph-tools
         image: rook/ceph-toolbox:master
         imagePullPolicy: IfNotPresent
         env:
@@ -82,12 +82,12 @@ kubectl create -f toolbox.yaml
 
 Wait for the toolbox pod to download its container and get to the `running` state:
 ```bash
-kubectl -n rook get pod -l "app=rook-tools"
+kubectl -n rook-ceph get pod -l "app=rook-ceph-tools"
 ```
 
 Once the rook-ceph-tools pod is running, you can connect to it with:
 ```bash
-kubectl -n rook exec -it $(kubectl -n rook get pod -l "app=rook-tools" -o jsonpath='{.items[0].metadata.name}') bash
+kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
 ```
 
 All available tools in the toolbox are ready for your troubleshooting needs.  Example:
@@ -100,7 +100,7 @@ rados df
 
 When you are done with the toolbox, remove the pod:
 ```bash
-kubectl -n rook-ceph delete pod rook-ceph-tools
+kubectl -n rook-ceph delete deployment rook-ceph-tools
 ```
 
 ## Troubleshooting without the Toolbox

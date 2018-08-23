@@ -49,7 +49,7 @@ After you verify the basic health of the running pods, next you will want to run
 ### Tools in the Rook Toolbox
  The [rook-ceph-tools pod](./toolbox.md) is a one-stop shop for both Ceph tools and other troubleshooting tools. Once the pod is up and running one connect to the pod to execute Ceph commands to evaluate that current state of the cluster.
  ```bash
- kubectl exec -it rook-ceph-tools bash
+ kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
  ```
 
 ### Tools in other pods
@@ -243,7 +243,7 @@ We want to help you get your storage working and learn from those lessons to pre
 Create a [rook-ceph-tools pod](./toolbox.md) to investigate the current state of CEPH. Here is an example of what one might see. In this case the `ceph status` command would just hang so a CTRL-C needed to be sent.
 
 ```console
-$ kubectl -n rook-ceph exec -it rook-ceph-tools bash
+$ kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
 root@rook-ceph-tools:/# ceph status
 ^CCluster connection interrupted or timed out
 ```
