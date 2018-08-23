@@ -7,7 +7,7 @@ spec:
   dnsPolicy: ClusterFirstWithHostNet
   containers:
   - name: rook-ceph-tools
-    image: rook/ceph-toolbox:master
+    image: docker.target.com/app/unimatrix-platform/ceph-toolbox:v0.8.0-4.7dba772c
     imagePullPolicy: IfNotPresent
     env:
       - name: ROOK_ADMIN_SECRET
