@@ -24,12 +24,6 @@ TEMP := $(shell mktemp -d)
 # ====================================================================================
 # Build Rook CockroachDB
 
-# since this is a leaf image we avoid leaving around a lot of dangling images
-# by removing the last build of the final cockroachdb image
-OLD_IMAGE_ID := $(shell docker images -q $(COCKROACHDB_IMAGE))
-CURRENT_IMAGE_ID := $$(docker images -q $(COCKROACHDB_IMAGE))
-IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/cockroachdb.tar.gz
-
 do.build:
 	@echo === docker build $(COCKROACHDB_IMAGE)
 	@cp Dockerfile $(TEMP)
@@ -37,10 +31,4 @@ do.build:
 	@docker build $(BUILD_ARGS) \
 		-t $(COCKROACHDB_IMAGE) \
 		$(TEMP)
-	@[ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] && [ -n "$(OLD_IMAGE_ID)" ] && docker rmi $(OLD_IMAGE_ID) || true
-	@if [ ! -e "$(IMAGE_FILENAME)" ] || [ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] || [ -n "$(OLD_IMAGE_ID)" ]; then \
-		echo === saving image $(COCKROACHDB_IMAGE); \
-		mkdir -p $(IMAGE_OUTPUT_DIR); \
-		docker save $(COCKROACHDB_IMAGE) | gzip -c > $(IMAGE_FILENAME); \
-	fi
 	@rm -fr $(TEMP)
