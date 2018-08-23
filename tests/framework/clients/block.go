@@ -18,15 +18,10 @@ package clients
 
 import (
 	"fmt"
-	"path"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
-)
-
-const (
-	TestMountPath = "/tmp/testrook"
 )
 
 //BlockOperation is wrapper for k8s rook block operations
@@ -152,59 +147,4 @@ func (b *BlockOperation) BlockMap(manifest string) (string, error) {
 	}
 	return result, nil
 
-}
-
-// Write Function to write  data to block created by rook ,i.e. write data to a pod that is using a pvc
-// Input parameters -
-// manifest - path to a yaml file that creates a pod  - pod should be defined to use a pvc that was created earlier
-// data - data to be written
-// filename - file where data is written to
-// namespace - optional param - namespace of the pod
-// Output  - k8s exec pod operation output and/or error
-func (b *BlockOperation) Write(name string, data string, filename string, namespace string) (string, error) {
-	return writeToPod(b.k8sClient, name, data, filename, namespace)
-}
-
-// Read Function to read from block created by rook ,i.e. Read data from a pod that is using a pvc
-// Input parameters -
-// manifest - path to a yaml file that creates a pod  - pod should be defined to use a pvc that was created earlier
-// filename - file to be read
-// namespace - optional param - namespace of the pod
-// Output  - k8s exec pod operation output and/or error
-func (b *BlockOperation) Read(name string, filename string, namespace string) (string, error) {
-	return readFromPod(b.k8sClient, name, filename, namespace)
-}
-
-func writeToPod(k8sh *utils.K8sHelper, name string, data string, filename string, namespace string) (string, error) {
-	wt := "echo \"" + data + "\">" + path.Join(TestMountPath, filename)
-	args := []string{"exec", name}
-
-	if namespace != "" {
-		args = append(args, "-n", namespace)
-	}
-	args = append(args, "--", "sh", "-c", wt)
-
-	result, err := k8sh.Kubectl(args...)
-	if err != nil {
-		return "", fmt.Errorf("Unable to write data to pod --: %s", err)
-
-	}
-	return result, nil
-}
-
-func readFromPod(k8sh *utils.K8sHelper, name string, filename string, namespace string) (string, error) {
-	rd := path.Join(TestMountPath, filename)
-	args := []string{"exec", name}
-
-	if namespace != "" {
-		args = append(args, "-n", namespace)
-	}
-	args = append(args, "--", "cat", rd)
-
-	result, err := k8sh.Kubectl(args...)
-	if err != nil {
-		return "", fmt.Errorf("Unable to read data to pod -- : %s", err)
-
-	}
-	return result, nil
 }

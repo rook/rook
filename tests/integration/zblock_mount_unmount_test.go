@@ -127,14 +127,16 @@ func (s *BlockMountUnMountSuite) setupPVCs() {
 	require.True(s.T(), s.kh.IsPodRunning("setup-block-rwx", defaultNamespace), "make sure setup-block-rwx pod is in running state")
 
 	// Write Data to Pod
-	_, wtErr1 := s.bc.Write("setup-block-rwo", "Persisted message one", "bsFile1", "")
-	require.Nil(s.T(), wtErr1)
-	_, wtErr2 := s.bc.Write("setup-block-rwx", "Persisted message one", "bsFile1", "")
-	require.Nil(s.T(), wtErr2)
+	message := "Persisted message one"
+	filename := "bsFile1"
+	err = s.kh.WriteToPod("", "setup-block-rwo", filename, message)
+	require.Nil(s.T(), err)
+	err = s.kh.WriteToPod("", "setup-block-rwx", filename, message)
+	require.Nil(s.T(), err)
 
 	// Unmount pod
-	_, unmtErr1 := s.kh.DeletePods("setup-block-rwo", "setup-block-rwx")
-	require.Nil(s.T(), unmtErr1)
+	_, err = s.kh.DeletePods("setup-block-rwo", "setup-block-rwx")
+	require.Nil(s.T(), err)
 	require.True(s.T(), s.kh.IsPodTerminated("setup-block-rwo", defaultNamespace), "make sure setup-block-rwo pod is terminated")
 	require.True(s.T(), s.kh.IsPodTerminated("setup-block-rwx", defaultNamespace), "make sure setup-block-rwx pod is terminated")
 }
@@ -175,29 +177,29 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 
 	logger.Infof("Step 2: Check if previously persisted data is readable from ReadWriteOnce and ReadWriteMany PVC")
 	//Read data on RWO PVC Mounted on pod with RW Access
-	read1, err := s.bc.Read("rwo-block-rw-one", "bsFile1", "")
+	filename1 := "bsFile1"
+	message1 := "Persisted message one"
+	err = s.kh.ReadFromPod("", "rwo-block-rw-one", filename1, message1)
 	assert.Nil(s.T(), err)
-	assert.Contains(s.T(), read1, "Persisted message one", "make sure previously persisted data is readable")
+
 	//Read data on RWX PVC Mounted on pod with RW Access
-	read2, err := s.bc.Read("rwx-block-rw-one", "bsFile1", "")
+	err = s.kh.ReadFromPod("", "rwx-block-rw-one", filename1, message1)
 	assert.Nil(s.T(), err)
-	assert.Contains(s.T(), read2, "Persisted message one", "make sure previously persisted data is readable")
 
 	logger.Infof("Step 3: Check if read/write works on ReadWriteOnce and ReadWriteMany PVC")
 	//Write data on RWO PVC Mounted on pod with RW Access
-	_, err = s.bc.Write("rwo-block-rw-one", "Persisted message two", "bsFile2", "")
-	assert.Nil(s.T(), err)
+	filename2 := "bsFile2"
+	message2 := "Persisted message two"
+	assert.Nil(s.T(), s.kh.WriteToPod("", "rwo-block-rw-one", filename2, message2))
+
 	//Read data on RWO PVC Mounted on pod with RW Access
-	read1, err = s.bc.Read("rwo-block-rw-one", "bsFile2", "")
-	assert.Nil(s.T(), err)
-	assert.Contains(s.T(), read1, "Persisted message two", "make sure new persisted data is readable")
+	assert.Nil(s.T(), s.kh.ReadFromPod("", "rwo-block-rw-one", filename2, message2))
+
 	//Write data on RWX PVC Mounted on pod with RW Access
-	_, err = s.bc.Write("rwx-block-rw-one", "Persisted message two", "bsFile2", "")
-	assert.Nil(s.T(), err)
+	assert.Nil(s.T(), s.kh.WriteToPod("", "rwx-block-rw-one", filename2, message2))
+
 	//Read data on RWX PVC Mounted on pod with RW Access
-	read2, err = s.bc.Read("rwx-block-rw-one", "bsFile2", "")
-	assert.Nil(s.T(), err)
-	assert.Contains(s.T(), read2, "Persisted message two", "make sure new persisted data is readable")
+	assert.Nil(s.T(), s.kh.ReadFromPod("", "rwx-block-rw-one", filename2, message2))
 
 	//Mount another Pod with RW access on same PVC
 	logger.Infof("Step 4: Mount existing ReadWriteOnce and ReadWriteMany PVC on a new Pod with RW access")
@@ -252,27 +254,23 @@ func (s *BlockMountUnMountSuite) TestBlockStorageMountUnMountForDifferentAccessM
 
 	logger.Infof("Step 8: Read Data from both ReadyOnlyMany and ReadWriteOnce pods with ReadOnly Access")
 	//Read data from RWO PVC via both ReadOnly pods
-	read1_1, err1 := s.bc.Read("rwo-block-ro-one", "bsFile1", "")
-	read2_1, err2 := s.bc.Read("rwo-block-ro-two", "bsFile1", "")
-	assert.Nil(s.T(), err1)
-	assert.Nil(s.T(), err2)
-	assert.Contains(s.T(), read1_1, "Persisted message one", "make sure previously persisted data is readable from ReadOnlyMany access Pod")
-	assert.Contains(s.T(), read2_1, "Persisted message one", "make sure previously persisted data is readable from ReadOnlyMany access Pod")
+	assert.Nil(s.T(), s.kh.ReadFromPod("", "rwo-block-ro-one", filename1, message1))
+	assert.Nil(s.T(), s.kh.ReadFromPod("", "rwo-block-ro-two", filename1, message1))
+
 	//Read data from RWX PVC via both ReadOnly pods
-	read1_2, err1 := s.bc.Read("rwx-block-ro-one", "bsFile1", "")
-	read2_2, err2 := s.bc.Read("rwx-block-ro-two", "bsFile1", "")
-	assert.Nil(s.T(), err1)
-	assert.Nil(s.T(), err2)
-	assert.Contains(s.T(), read1_2, "Persisted message one", "make sure previously persisted data is readable from ReadOnlyMany access Pod")
-	assert.Contains(s.T(), read2_2, "Persisted message one", "make sure previously persisted data is readable from ReadOnlyMany access Pod")
+	assert.Nil(s.T(), s.kh.ReadFromPod("", "rwx-block-ro-one", filename1, message1))
+	assert.Nil(s.T(), s.kh.ReadFromPod("", "rwx-block-ro-two", filename1, message1))
 
 	logger.Infof("Step 9: Write Data to Pod with ReadOnlyMany and ReadWriteOnce PVC  mounted with ReadOnly access")
 	//Write data to RWO PVC via pod with ReadOnly Set to true
-	_, err = s.bc.Write("rwo-block-ro-one", "Persisted message three", "bsFile3", "")
-	assert.Contains(s.T(), err.Error(), "Unable to write data to pod")
+	message3 := "Persisted message three"
+	filename3 := "bsFile3"
+	err = s.kh.WriteToPod("", "rwo-block-ro-one", filename3, message3)
+	assert.Contains(s.T(), err.Error(), "failed to write file")
+
 	//Write data to RWx PVC via pod with ReadOnly Set to true
-	_, err = s.bc.Write("rwx-block-ro-one", "Persisted message three", "bsFile3", "")
-	assert.Contains(s.T(), err.Error(), "Unable to write data to pod")
+	err = s.kh.WriteToPod("", "rwx-block-ro-one", filename3, message3)
+	assert.Contains(s.T(), err.Error(), "failed to write file")
 
 	logger.Infof("Step 10: UnMount Pod with ReadOnlyMany and ReadWriteOnce PVCs")
 	//UnMount RWO PVC from both ReadOnly Pods

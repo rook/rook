@@ -94,7 +94,12 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), "v0.8.1", version)
 
-	s.simpleWriteAndRead(podName, "pre-upgrade-file")
+	message := "my simple message"
+	preFilename := "pre-upgrade-file"
+	assert.Nil(s.T(), s.k8sh.WriteToPod("", podName, preFilename, message))
+	assert.Nil(s.T(), s.k8sh.ReadFromPod("", podName, preFilename, message))
+	assert.Nil(s.T(), s.k8sh.WriteToPod(s.namespace, filePodName, preFilename, message))
+	assert.Nil(s.T(), s.k8sh.ReadFromPod(s.namespace, filePodName, preFilename, message))
 
 	// Upgrade to master
 	require.Nil(s.T(), s.k8sh.SetDeploymentVersion(systemNamespace, operatorContainer, operatorContainer, installer.VersionMaster))
@@ -110,22 +115,11 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	logger.Infof("Done with automatic upgrade to master")
 
 	// test writing and reading from the mounts that were created before the upgrade
-	s.simpleWriteAndRead(podName, "post-upgrade-file")
-}
-
-func (s *UpgradeSuite) simpleWriteAndRead(podName, filename string) {
-	// Verify the block storage is functional
-	logger.Infof("Write to block storage")
-	message := "basic data written after upgrade"
-	_, wtErr := s.helper.BlockClient.Write(podName, message, filename, "")
-	require.Nil(s.T(), wtErr)
-
-	logger.Infof("Read from block storage")
-	data, rErr := s.helper.BlockClient.Read(podName, filename, "")
-	assert.Nil(s.T(), rErr)
-	require.Contains(s.T(), data, message, "make sure content of the files is unchanged")
-	logger.Infof("Read from  Block storage successfully")
-
-	// Verify the file storage is functional
-	writeAndReadToFilesystem(s.helper, s.k8sh, s.Suite, s.namespace, filename)
+	postFilename := "post-upgrade-file"
+	assert.Nil(s.T(), s.k8sh.ReadFromPod("", podName, preFilename, message))
+	assert.Nil(s.T(), s.k8sh.WriteToPod("", podName, postFilename, message))
+	assert.Nil(s.T(), s.k8sh.ReadFromPod("", podName, postFilename, message))
+	assert.Nil(s.T(), s.k8sh.ReadFromPod(s.namespace, filePodName, preFilename, message))
+	assert.Nil(s.T(), s.k8sh.WriteToPod(s.namespace, filePodName, postFilename, message))
+	assert.Nil(s.T(), s.k8sh.ReadFromPod(s.namespace, filePodName, postFilename, message))
 }
