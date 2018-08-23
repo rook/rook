@@ -160,11 +160,12 @@ func createUser(context *clusterd.Context, u *cephv1beta1.ObjectStoreUser) error
 	// create the user
 	logger.Infof("creating user %s in namespace %s", u.Name, u.Namespace)
 	userConfig := cephrgw.ObjectUser{
-		UserID: u.Name,
+		UserID:      u.Name,
+		DisplayName: &u.Name,
 	}
-	objContext := cephrgw.NewContext(context, u.Name, u.Namespace)
+	objContext := cephrgw.NewContext(context, u.Spec.Store, u.Namespace)
 	if user, rgwerr, err := cephrgw.CreateUser(objContext, userConfig); err != nil {
-		return fmt.Errorf("failed to create user %s. RadosGW returned error: %d", u.Name, rgwerr)
+		return fmt.Errorf("failed to create user %s. RadosGW returned error %d: %+v", u.Name, rgwerr, err)
 	} else {
 		logger.Infof("user accessKey: %s", user.AccessKey)
 		logger.Infof("user accessKey: %s", user.SecretKey)
@@ -176,9 +177,9 @@ func createUser(context *clusterd.Context, u *cephv1beta1.ObjectStoreUser) error
 
 // Delete the user
 func deleteUser(context *clusterd.Context, u *cephv1beta1.ObjectStoreUser) error {
-	objContext := cephrgw.NewContext(context, u.Name, u.Namespace)
+	objContext := cephrgw.NewContext(context, u.Spec.Store, u.Namespace)
 	if result, rgwerr, err := cephrgw.DeleteUser(objContext, u.Name); err != nil {
-		return fmt.Errorf("failed to delete user '%s'. RadosGW returned error: %d", u.Name, rgwerr)
+		return fmt.Errorf("failed to delete user '%s'. RadosGW returned error %d: %+v", u.Name, rgwerr, err)
 	} else if result != "" {
 		logger.Infof("Result of user delete is: %s", result)
 	}
