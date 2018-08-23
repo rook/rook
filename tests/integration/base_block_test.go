@@ -60,23 +60,23 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	crdName := createPodWithBlock(helper, k8sh, s, namespace, blockName, podName)
 
 	logger.Infof("step 3: Write to block storage")
-	_, wtErr := helper.BlockClient.Write(podName, "Smoke Test Data form Block storage", "bsFile1", "")
-	require.Nil(s.T(), wtErr)
+	message := "Smoke Test Data for Block storage"
+	filename := "bsFile1"
+	err := k8sh.WriteToPod("", podName, filename, message)
+	require.Nil(s.T(), err)
 	logger.Infof("Write to Block storage successfully")
 
 	logger.Infof("step 4: Read from block storage")
-	read, rErr := helper.BlockClient.Read(podName, "bsFile1", "")
-	require.Nil(s.T(), rErr)
-	assert.Contains(s.T(), read, "Smoke Test Data form Block storage", "make sure content of the files is unchanged")
+	err = k8sh.ReadFromPod("", podName, filename, message)
+	require.Nil(s.T(), err)
 	logger.Infof("Read from  Block storage successfully")
 
 	logger.Infof("step 5: Restart the OSDs to confirm they are still healthy after restart")
 	restartOSDPods(k8sh, s, namespace)
 
 	logger.Infof("step 6: Read from block storage again")
-	read, rErr = helper.BlockClient.Read(podName, "bsFile1", "")
-	require.Nil(s.T(), rErr)
-	assert.Contains(s.T(), read, "Smoke Test Data form Block storage", "make sure content of the files is unchanged")
+	err = k8sh.ReadFromPod("", podName, filename, message)
+	require.Nil(s.T(), err)
 	logger.Infof("Read from  Block storage successfully")
 
 	logger.Infof("step 7: Mount same block storage on a different pod. Should not be allowed")
@@ -258,7 +258,7 @@ spec:
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: block-persistent-storage
-          mountPath: ` + clients.TestMountPath + `
+          mountPath: ` + utils.TestMountPath + `
       volumes:
       - name: block-persistent-storage
         persistentVolumeClaim:

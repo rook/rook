@@ -57,6 +57,8 @@ const (
 	RetryLoop = 30
 	//RetryInterval param for test - wait time while in RetryLoop
 	RetryInterval = 5
+	//TestMountPath is the path inside a test pod where storage is mounted
+	TestMountPath = "/tmp/testrook"
 )
 
 //CreateK8sHelper creates a instance of k8sHelper
@@ -611,6 +613,62 @@ func (k8sh *K8sHelper) IsCRDPresent(crdName string) bool {
 	}
 
 	return false
+}
+
+func (k8sh *K8sHelper) WriteToPod(namespace, podName, filename, message string) error {
+	logger.Infof("Writing file %s to pod %s", filename, podName)
+	err := k8sh.writeToPod(namespace, podName, filename, message)
+	if err != nil {
+		return fmt.Errorf("failed to write file %s to pod %s. %+v", filename, podName, err)
+	}
+	logger.Infof("Wrote file %s to pod %s", filename, podName)
+	return nil
+}
+
+func (k8sh *K8sHelper) ReadFromPod(namespace, podName, filename, expectedMessage string) error {
+	logger.Infof("Reading file %s from pod %s", filename, podName)
+	data, err := k8sh.readFromPod(namespace, podName, filename)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s from pod %s. %+v", filename, podName, err)
+	}
+	if !strings.Contains(data, expectedMessage) {
+		return fmt.Errorf(`file %s in pod %s returned message "%s" instead of "%s"`, filename, podName, data, expectedMessage)
+	}
+	logger.Infof("Successfully read file %s from pod %s", filename, podName)
+	return nil
+}
+
+func (k8sh *K8sHelper) writeToPod(namespace, name, filename, message string) error {
+	wt := "echo \"" + message + "\">" + path.Join(TestMountPath, filename)
+	args := []string{"exec", name}
+
+	if namespace != "" {
+		args = append(args, "-n", namespace)
+	}
+	args = append(args, "--", "sh", "-c", wt)
+
+	_, err := k8sh.Kubectl(args...)
+	if err != nil {
+		return fmt.Errorf("failed to write file %s to pod %s. %+v", filename, name, err)
+	}
+
+	return nil
+}
+
+func (k8sh *K8sHelper) readFromPod(namespace, name, filename string) (string, error) {
+	rd := path.Join(TestMountPath, filename)
+	args := []string{"exec", name}
+
+	if namespace != "" {
+		args = append(args, "-n", namespace)
+	}
+	args = append(args, "--", "cat", rd)
+
+	result, err := k8sh.Kubectl(args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file %s from pod %s. %+v", filename, name, err)
+	}
+	return result, nil
 }
 
 // GetVolumeResourceName gets the Volume object name from the PVC

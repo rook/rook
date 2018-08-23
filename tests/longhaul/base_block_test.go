@@ -262,7 +262,7 @@ spec:
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: block-persistent-storage
-          mountPath: ` + clients.TestMountPath + `
+          mountPath: ` + utils.TestMountPath + `
       volumes:
       - name: block-persistent-storage
         persistentVolumeClaim:

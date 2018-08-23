@@ -63,15 +63,11 @@ func writeAndReadToFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper,
 
 	logger.Infof("Write to file system")
 	message := "Test Data for file system storage"
-	_, wfsErr := helper.FSClient.Write(filePodName, message, filename, namespace)
-	require.Nil(s.T(), wfsErr)
-	logger.Infof("Write to file system successful")
+	err := k8sh.WriteToPod(namespace, filePodName, filename, message)
+	require.Nil(s.T(), err)
 
-	logger.Infof("Read from file system")
-	read, rdErr := helper.FSClient.Read(filePodName, filename, namespace)
-	require.Nil(s.T(), rdErr)
-	require.Contains(s.T(), read, message)
-	logger.Infof("Read from file system successful")
+	err = k8sh.ReadFromPod(namespace, filePodName, filename, message)
+	require.Nil(s.T(), err)
 }
 
 func cleanupFilesystemConsumer(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace string, filesystemName string) {
@@ -144,7 +140,7 @@ spec:
     imagePullPolicy: IfNotPresent
     env:
     volumeMounts:
-    - mountPath: "` + clients.TestMountPath + `"
+    - mountPath: "` + utils.TestMountPath + `"
       name: ` + filesystemName + `
   volumes:
   - name: ` + filesystemName + `
