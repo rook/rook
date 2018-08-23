@@ -25,42 +25,42 @@ import (
 	rest "k8s.io/client-go/rest"
 )
 
-// ObjectstoreusersGetter has a method to return a ObjectstoreuserInterface.
+// ObjectStoreUsersGetter has a method to return a ObjectStoreUserInterface.
 // A group's client should implement this interface.
-type ObjectstoreusersGetter interface {
-	Objectstoreusers(namespace string) ObjectstoreuserInterface
+type ObjectStoreUsersGetter interface {
+	ObjectStoreUsers(namespace string) ObjectStoreUserInterface
 }
 
-// ObjectstoreuserInterface has methods to work with Objectstoreuser resources.
-type ObjectstoreuserInterface interface {
-	Create(*v1beta1.Objectstoreuser) (*v1beta1.Objectstoreuser, error)
-	Update(*v1beta1.Objectstoreuser) (*v1beta1.Objectstoreuser, error)
+// ObjectStoreUserInterface has methods to work with ObjectStoreUser resources.
+type ObjectStoreUserInterface interface {
+	Create(*v1beta1.ObjectStoreUser) (*v1beta1.ObjectStoreUser, error)
+	Update(*v1beta1.ObjectStoreUser) (*v1beta1.ObjectStoreUser, error)
 	Delete(name string, options *v1.DeleteOptions) error
 	DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error
-	Get(name string, options v1.GetOptions) (*v1beta1.Objectstoreuser, error)
-	List(opts v1.ListOptions) (*v1beta1.ObjectstoreuserList, error)
+	Get(name string, options v1.GetOptions) (*v1beta1.ObjectStoreUser, error)
+	List(opts v1.ListOptions) (*v1beta1.ObjectStoreUserList, error)
 	Watch(opts v1.ListOptions) (watch.Interface, error)
-	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.Objectstoreuser, err error)
-	ObjectstoreuserExpansion
+	Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.ObjectStoreUser, err error)
+	ObjectStoreUserExpansion
 }
 
-// objectstoreusers implements ObjectstoreuserInterface
-type objectstoreusers struct {
+// objectStoreUsers implements ObjectStoreUserInterface
+type objectStoreUsers struct {
 	client rest.Interface
 	ns     string
 }
 
-// newObjectstoreusers returns a Objectstoreusers
-func newObjectstoreusers(c *CephV1beta1Client, namespace string) *objectstoreusers {
-	return &objectstoreusers{
+// newObjectStoreUsers returns a ObjectStoreUsers
+func newObjectStoreUsers(c *CephV1beta1Client, namespace string) *objectStoreUsers {
+	return &objectStoreUsers{
 		client: c.RESTClient(),
 		ns:     namespace,
 	}
 }
 
-// Get takes name of the objectstoreuser, and returns the corresponding objectstoreuser object, and an error if there is any.
-func (c *objectstoreusers) Get(name string, options v1.GetOptions) (result *v1beta1.Objectstoreuser, err error) {
-	result = &v1beta1.Objectstoreuser{}
+// Get takes name of the objectStoreUser, and returns the corresponding objectStoreUser object, and an error if there is any.
+func (c *objectStoreUsers) Get(name string, options v1.GetOptions) (result *v1beta1.ObjectStoreUser, err error) {
+	result = &v1beta1.ObjectStoreUser{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("objectstoreusers").
@@ -71,9 +71,9 @@ func (c *objectstoreusers) Get(name string, options v1.GetOptions) (result *v1be
 	return
 }
 
-// List takes label and field selectors, and returns the list of Objectstoreusers that match those selectors.
-func (c *objectstoreusers) List(opts v1.ListOptions) (result *v1beta1.ObjectstoreuserList, err error) {
-	result = &v1beta1.ObjectstoreuserList{}
+// List takes label and field selectors, and returns the list of ObjectStoreUsers that match those selectors.
+func (c *objectStoreUsers) List(opts v1.ListOptions) (result *v1beta1.ObjectStoreUserList, err error) {
+	result = &v1beta1.ObjectStoreUserList{}
 	err = c.client.Get().
 		Namespace(c.ns).
 		Resource("objectstoreusers").
@@ -83,8 +83,8 @@ func (c *objectstoreusers) List(opts v1.ListOptions) (result *v1beta1.Objectstor
 	return
 }
 
-// Watch returns a watch.Interface that watches the requested objectstoreusers.
-func (c *objectstoreusers) Watch(opts v1.ListOptions) (watch.Interface, error) {
+// Watch returns a watch.Interface that watches the requested objectStoreUsers.
+func (c *objectStoreUsers) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	opts.Watch = true
 	return c.client.Get().
 		Namespace(c.ns).
@@ -93,33 +93,33 @@ func (c *objectstoreusers) Watch(opts v1.ListOptions) (watch.Interface, error) {
 		Watch()
 }
 
-// Create takes the representation of a objectstoreuser and creates it.  Returns the server's representation of the objectstoreuser, and an error, if there is any.
-func (c *objectstoreusers) Create(objectstoreuser *v1beta1.Objectstoreuser) (result *v1beta1.Objectstoreuser, err error) {
-	result = &v1beta1.Objectstoreuser{}
+// Create takes the representation of a objectStoreUser and creates it.  Returns the server's representation of the objectStoreUser, and an error, if there is any.
+func (c *objectStoreUsers) Create(objectStoreUser *v1beta1.ObjectStoreUser) (result *v1beta1.ObjectStoreUser, err error) {
+	result = &v1beta1.ObjectStoreUser{}
 	err = c.client.Post().
 		Namespace(c.ns).
 		Resource("objectstoreusers").
-		Body(objectstoreuser).
+		Body(objectStoreUser).
 		Do().
 		Into(result)
 	return
 }
 
-// Update takes the representation of a objectstoreuser and updates it. Returns the server's representation of the objectstoreuser, and an error, if there is any.
-func (c *objectstoreusers) Update(objectstoreuser *v1beta1.Objectstoreuser) (result *v1beta1.Objectstoreuser, err error) {
-	result = &v1beta1.Objectstoreuser{}
+// Update takes the representation of a objectStoreUser and updates it. Returns the server's representation of the objectStoreUser, and an error, if there is any.
+func (c *objectStoreUsers) Update(objectStoreUser *v1beta1.ObjectStoreUser) (result *v1beta1.ObjectStoreUser, err error) {
+	result = &v1beta1.ObjectStoreUser{}
 	err = c.client.Put().
 		Namespace(c.ns).
 		Resource("objectstoreusers").
-		Name(objectstoreuser.Name).
-		Body(objectstoreuser).
+		Name(objectStoreUser.Name).
+		Body(objectStoreUser).
 		Do().
 		Into(result)
 	return
 }
 
-// Delete takes name of the objectstoreuser and deletes it. Returns an error if one occurs.
-func (c *objectstoreusers) Delete(name string, options *v1.DeleteOptions) error {
+// Delete takes name of the objectStoreUser and deletes it. Returns an error if one occurs.
+func (c *objectStoreUsers) Delete(name string, options *v1.DeleteOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("objectstoreusers").
@@ -130,7 +130,7 @@ func (c *objectstoreusers) Delete(name string, options *v1.DeleteOptions) error 
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *objectstoreusers) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *objectStoreUsers) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	return c.client.Delete().
 		Namespace(c.ns).
 		Resource("objectstoreusers").
@@ -140,9 +140,9 @@ func (c *objectstoreusers) DeleteCollection(options *v1.DeleteOptions, listOptio
 		Error()
 }
 
-// Patch applies the patch and returns the patched objectstoreuser.
-func (c *objectstoreusers) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.Objectstoreuser, err error) {
-	result = &v1beta1.Objectstoreuser{}
+// Patch applies the patch and returns the patched objectStoreUser.
+func (c *objectStoreUsers) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.ObjectStoreUser, err error) {
+	result = &v1beta1.ObjectStoreUser{}
 	err = c.client.Patch(pt).
 		Namespace(c.ns).
 		Resource("objectstoreusers").

@@ -26,31 +26,31 @@ import (
 	testing "k8s.io/client-go/testing"
 )
 
-// FakeObjectstoreusers implements ObjectstoreuserInterface
-type FakeObjectstoreusers struct {
+// FakeObjectStoreUsers implements ObjectStoreUserInterface
+type FakeObjectStoreUsers struct {
 	Fake *FakeCephV1beta1
 	ns   string
 }
 
 var objectstoreusersResource = schema.GroupVersionResource{Group: "ceph.rook.io", Version: "v1beta1", Resource: "objectstoreusers"}
 
-var objectstoreusersKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1beta1", Kind: "Objectstoreuser"}
+var objectstoreusersKind = schema.GroupVersionKind{Group: "ceph.rook.io", Version: "v1beta1", Kind: "ObjectStoreUser"}
 
-// Get takes name of the objectstoreuser, and returns the corresponding objectstoreuser object, and an error if there is any.
-func (c *FakeObjectstoreusers) Get(name string, options v1.GetOptions) (result *v1beta1.Objectstoreuser, err error) {
+// Get takes name of the objectStoreUser, and returns the corresponding objectStoreUser object, and an error if there is any.
+func (c *FakeObjectStoreUsers) Get(name string, options v1.GetOptions) (result *v1beta1.ObjectStoreUser, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewGetAction(objectstoreusersResource, c.ns, name), &v1beta1.Objectstoreuser{})
+		Invokes(testing.NewGetAction(objectstoreusersResource, c.ns, name), &v1beta1.ObjectStoreUser{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1beta1.Objectstoreuser), err
+	return obj.(*v1beta1.ObjectStoreUser), err
 }
 
-// List takes label and field selectors, and returns the list of Objectstoreusers that match those selectors.
-func (c *FakeObjectstoreusers) List(opts v1.ListOptions) (result *v1beta1.ObjectstoreuserList, err error) {
+// List takes label and field selectors, and returns the list of ObjectStoreUsers that match those selectors.
+func (c *FakeObjectStoreUsers) List(opts v1.ListOptions) (result *v1beta1.ObjectStoreUserList, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewListAction(objectstoreusersResource, objectstoreusersKind, c.ns, opts), &v1beta1.ObjectstoreuserList{})
+		Invokes(testing.NewListAction(objectstoreusersResource, objectstoreusersKind, c.ns, opts), &v1beta1.ObjectStoreUserList{})
 
 	if obj == nil {
 		return nil, err
@@ -60,8 +60,8 @@ func (c *FakeObjectstoreusers) List(opts v1.ListOptions) (result *v1beta1.Object
 	if label == nil {
 		label = labels.Everything()
 	}
-	list := &v1beta1.ObjectstoreuserList{}
-	for _, item := range obj.(*v1beta1.ObjectstoreuserList).Items {
+	list := &v1beta1.ObjectStoreUserList{}
+	for _, item := range obj.(*v1beta1.ObjectStoreUserList).Items {
 		if label.Matches(labels.Set(item.Labels)) {
 			list.Items = append(list.Items, item)
 		}
@@ -69,58 +69,58 @@ func (c *FakeObjectstoreusers) List(opts v1.ListOptions) (result *v1beta1.Object
 	return list, err
 }
 
-// Watch returns a watch.Interface that watches the requested objectstoreusers.
-func (c *FakeObjectstoreusers) Watch(opts v1.ListOptions) (watch.Interface, error) {
+// Watch returns a watch.Interface that watches the requested objectStoreUsers.
+func (c *FakeObjectStoreUsers) Watch(opts v1.ListOptions) (watch.Interface, error) {
 	return c.Fake.
 		InvokesWatch(testing.NewWatchAction(objectstoreusersResource, c.ns, opts))
 
 }
 
-// Create takes the representation of a objectstoreuser and creates it.  Returns the server's representation of the objectstoreuser, and an error, if there is any.
-func (c *FakeObjectstoreusers) Create(objectstoreuser *v1beta1.Objectstoreuser) (result *v1beta1.Objectstoreuser, err error) {
+// Create takes the representation of a objectStoreUser and creates it.  Returns the server's representation of the objectStoreUser, and an error, if there is any.
+func (c *FakeObjectStoreUsers) Create(objectStoreUser *v1beta1.ObjectStoreUser) (result *v1beta1.ObjectStoreUser, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewCreateAction(objectstoreusersResource, c.ns, objectstoreuser), &v1beta1.Objectstoreuser{})
+		Invokes(testing.NewCreateAction(objectstoreusersResource, c.ns, objectStoreUser), &v1beta1.ObjectStoreUser{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1beta1.Objectstoreuser), err
+	return obj.(*v1beta1.ObjectStoreUser), err
 }
 
-// Update takes the representation of a objectstoreuser and updates it. Returns the server's representation of the objectstoreuser, and an error, if there is any.
-func (c *FakeObjectstoreusers) Update(objectstoreuser *v1beta1.Objectstoreuser) (result *v1beta1.Objectstoreuser, err error) {
+// Update takes the representation of a objectStoreUser and updates it. Returns the server's representation of the objectStoreUser, and an error, if there is any.
+func (c *FakeObjectStoreUsers) Update(objectStoreUser *v1beta1.ObjectStoreUser) (result *v1beta1.ObjectStoreUser, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewUpdateAction(objectstoreusersResource, c.ns, objectstoreuser), &v1beta1.Objectstoreuser{})
+		Invokes(testing.NewUpdateAction(objectstoreusersResource, c.ns, objectStoreUser), &v1beta1.ObjectStoreUser{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1beta1.Objectstoreuser), err
+	return obj.(*v1beta1.ObjectStoreUser), err
 }
 
-// Delete takes name of the objectstoreuser and deletes it. Returns an error if one occurs.
-func (c *FakeObjectstoreusers) Delete(name string, options *v1.DeleteOptions) error {
+// Delete takes name of the objectStoreUser and deletes it. Returns an error if one occurs.
+func (c *FakeObjectStoreUsers) Delete(name string, options *v1.DeleteOptions) error {
 	_, err := c.Fake.
-		Invokes(testing.NewDeleteAction(objectstoreusersResource, c.ns, name), &v1beta1.Objectstoreuser{})
+		Invokes(testing.NewDeleteAction(objectstoreusersResource, c.ns, name), &v1beta1.ObjectStoreUser{})
 
 	return err
 }
 
 // DeleteCollection deletes a collection of objects.
-func (c *FakeObjectstoreusers) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
+func (c *FakeObjectStoreUsers) DeleteCollection(options *v1.DeleteOptions, listOptions v1.ListOptions) error {
 	action := testing.NewDeleteCollectionAction(objectstoreusersResource, c.ns, listOptions)
 
-	_, err := c.Fake.Invokes(action, &v1beta1.ObjectstoreuserList{})
+	_, err := c.Fake.Invokes(action, &v1beta1.ObjectStoreUserList{})
 	return err
 }
 
-// Patch applies the patch and returns the patched objectstoreuser.
-func (c *FakeObjectstoreusers) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.Objectstoreuser, err error) {
+// Patch applies the patch and returns the patched objectStoreUser.
+func (c *FakeObjectStoreUsers) Patch(name string, pt types.PatchType, data []byte, subresources ...string) (result *v1beta1.ObjectStoreUser, err error) {
 	obj, err := c.Fake.
-		Invokes(testing.NewPatchSubresourceAction(objectstoreusersResource, c.ns, name, data, subresources...), &v1beta1.Objectstoreuser{})
+		Invokes(testing.NewPatchSubresourceAction(objectstoreusersResource, c.ns, name, data, subresources...), &v1beta1.ObjectStoreUser{})
 
 	if obj == nil {
 		return nil, err
 	}
-	return obj.(*v1beta1.Objectstoreuser), err
+	return obj.(*v1beta1.ObjectStoreUser), err
 }

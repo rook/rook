@@ -22,6 +22,6 @@ type FilesystemExpansion interface{}
 
 type ObjectStoreExpansion interface{}
 
-type ObjectstoreuserExpansion interface{}
+type ObjectStoreUserExpansion interface{}
 
 type PoolExpansion interface{}
