@@ -1,7 +1,7 @@
 apiVersion: ceph.rook.io/v1beta1
 kind: ObjectStoreUser
 metadata:
-  name: my-user
+  name: ben99
   namespace: rook-ceph
 spec:
   store: my-store
