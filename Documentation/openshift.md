@@ -45,7 +45,8 @@ fsGroup:
 supplementalGroups:
   type: RunAsAny
 allowedFlexVolumes:
-  - driver: "rook.io/rook"
+  - driver: "ceph.rook.io/rook"
+  - driver: "ceph.rook.io/rook-ceph"
 volumes:
   - configMap
   - downwardAPI
