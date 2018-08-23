@@ -66,7 +66,8 @@ func (s *BlockLongHaulSuiteWithFencing) SetupSuite() {
 		mountUnmountPVCOnPod(s.kh, "block-rw", "block-pv-one", "false", "create")
 		require.True(s.T(), s.kh.IsPodRunning("block-rw", defaultNamespace))
 
-		s.testClient.BlockClient.Write("block-rw", "this is long running test", "longhaul", defaultNamespace)
+		filename := "longhaul"
+		assert.Nil(s.T(), s.kh.WriteToPod(defaultNamespace, "block-rw", filename, "this is long running test"))
 		mountUnmountPVCOnPod(s.kh, "block-rw", "block-pv-one", "false", "delete")
 		require.True(s.T(), s.kh.IsPodTerminated("block-rw", defaultNamespace))
 		time.Sleep(5 * time.Second)
@@ -88,9 +89,9 @@ func blockVolumeFencingOperations(s *BlockLongHaulSuiteWithFencing, wg *sync.Wai
 	defer wg.Done()
 	mountUnmountPVCOnPod(s.kh, podName, pvcName, "true", "create")
 	require.True(s.T(), s.kh.IsPodRunning(podName, defaultNamespace))
-	read, rErr := s.testClient.BlockClient.Read(podName, "longhaul", "default")
-	require.Nil(s.T(), rErr)
-	assert.Contains(s.T(), read, "this is long running test")
+	message := "this is long running test"
+	require.Nil(s.T(), s.kh.ReadFromPod("default", podName, "longhaul", message))
+
 	mountUnmountPVCOnPod(s.kh, podName, pvcName, "true", "delete")
 	require.True(s.T(), s.kh.IsPodTerminated(podName, defaultNamespace))
 }

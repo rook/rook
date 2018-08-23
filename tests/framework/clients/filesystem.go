@@ -77,26 +77,3 @@ func (f *FilesystemOperation) List(namespace string) ([]client.CephFilesystem, e
 	}
 	return filesystems, nil
 }
-
-// Write Function to write  data to file system created by rook ,i.e. write data to a pod that has filesystem mounted
-// Input parameters -
-// name - path to a yaml file that creates a pod  - pod should be defined to use a pvc that was created earlier
-// mountpath - folder on the pod were data is supposed to be written(should match the mountpath described in the pod definition)
-// data - data to be written
-// filename - file where data is written to
-// namespace - optional param - namespace of the pod
-// Output  - k8s exec pod operation output and/or error
-func (f *FilesystemOperation) Write(name string, data string, filename string, namespace string) (string, error) {
-	return writeToPod(f.k8sh, name, data, filename, namespace)
-}
-
-// Read Function to write read from file system  created by rook ,i.e. Read data from a pod that filesystem mounted
-// Input parameters -
-// name - path to a yaml file that creates a pod  - pod should be defined to use a pvc that was created earlier
-// mountpath - folder on the pod were data is supposed to be written(should match the mountpath described in the pod definition)
-// filename - file to be read
-// namespace - optional param - namespace of the pod
-// Output  - k8s exec pod operation output and/or error
-func (f *FilesystemOperation) Read(name string, filename string, namespace string) (string, error) {
-	return readFromPod(f.k8sh, name, filename, namespace)
-}
