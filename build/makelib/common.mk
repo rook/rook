@@ -95,7 +95,7 @@ BUILD_REGISTRY := build-$(shell echo $(HOSTNAME)-$(ROOT_DIR) | shasum -a 256 | c
 endif
 
 # Select which images (backends) to make; default to all possible images
-IMAGES ?= ceph ceph-toolbox cockroachdb minio
+IMAGES ?= ceph ceph-toolbox cockroachdb minio nfs
 
 COMMA := ,
 SPACE :=

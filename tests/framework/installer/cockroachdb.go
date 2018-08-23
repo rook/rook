@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"strconv"
 
-	"github.com/rook/rook/tests/framework/utils"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -268,11 +267,4 @@ spec:
   cachePercent: 25
   maxSQLMemoryPercent: 25
 `
-}
-
-func GatherCockroachDBDebuggingInfo(k8shelper *utils.K8sHelper, namespace string) {
-	k8shelper.PrintPodDescribeForNamespace(namespace)
-	k8shelper.PrintPVs(true /*detailed*/)
-	k8shelper.PrintPVCs(namespace, true /*detailed*/)
-	k8shelper.PrintStorageClasses(true /*detailed*/)
 }

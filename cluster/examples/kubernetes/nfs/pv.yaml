@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: rook-nfs-pv
+  namespace: rook-nfs
+  annotations:
+    volume.beta.kubernetes.io/mount-options: "vers=4.1"
+spec:
+  storageClassName: rook-nfs-sc
+  capacity:
+    storage: 1Mi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    # FIXME: replace <Cluster IP> with the current IP of the NFS server pod.
+    # Run the below command to get the current IP address:
+    # kubectl -n rook-nfs get service -l app=rook-nfs -o jsonpath='{.items[0].spec.clusterIP}'
+    server: <Cluster IP>
+    path: "/<Claim name>"

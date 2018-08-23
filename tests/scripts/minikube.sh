@@ -107,6 +107,11 @@ function copy_images() {
       echo "copying minio image"
       copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" rook/minio:master
     fi
+
+    if [[ "$1" == "" || "$1" == "nfs" ]]; then
+        echo "copying nfs image"
+        copy_image_to_cluster "${BUILD_REGISTRY}/nfs-amd64" rook/nfs:master
+    fi
 }
 
 # configure minikube
@@ -174,11 +179,11 @@ case "${1:-}" in
     ;;
   *)
     echo "usage:" >&2
-    echo "  $0 up [ceph | cockroachdb | minio]" >&2
+    echo "  $0 up [ceph | cockroachdb | minio | nfs]" >&2
     echo "  $0 down" >&2
     echo "  $0 clean" >&2
     echo "  $0 ssh" >&2
-    echo "  $0 update [ceph | cockroachdb | minio]" >&2
+    echo "  $0 update [ceph | cockroachdb | minio | nfs]" >&2
     echo "  $0 restart <pod-name-regex> (the pod name is a regex to match e.g. restart ^rook-ceph-osd)" >&2
     echo "  $0 wordpress" >&2
     echo "  $0 helm" >&2

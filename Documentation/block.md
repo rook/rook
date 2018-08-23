@@ -3,7 +3,13 @@ title: Block Storage
 weight: 22
 indent: true
 ---
-
+{% assign url = page.url | split: '/' %}
+{% assign currentVersion = url[3] %}
+{% if currentVersion != 'master' %}
+{% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
+{% else %}
+{% assign branchName = currentVersion %}
+{% endif %}
 # Block Storage
 
 Block storage allows you to mount storage to a single pod. This example shows how to build a simple, multi-tier web application on Kubernetes using persistent volumes enabled by Rook.
@@ -99,3 +105,52 @@ kubectl delete -f mysql.yaml
 kubectl delete -n rook-ceph pool replicapool
 kubectl delete storageclass rook-ceph-block
 ```
+
+## Advanced Example: Erasure Coded Block Storage
+
+If you want to use erasure coded pool with RBD, your OSDs must use `bluestore` as their `storeType`.
+Additionally the nodes that are going to mount the erasure coded RBD block storage must have Linux kernel >= `4.11`.
+
+To be able to use an erasure coded pool you need to create two pools (as seen below in the definitions): one erasure coded and one replicated.
+The replicated pool must be specified as the `pool` parameter. It is used for the metadata of the RBD images.
+The erasure coded pool must be set as the `dataPool` parameter below. It is used for the data of the RBD images.
+
+```yaml
+apiVersion: ceph.rook.io/v1beta1
+kind: Pool
+metadata:
+  name: replicated-metadata-pool
+  namespace: rook-ceph
+spec:
+  replicated:
+    size: 3
+---
+apiVersion: ceph.rook.io/v1beta1
+kind: Pool
+metadata:
+  name: ec-data-pool
+  namespace: rook-ceph
+spec:
+  # Make sure you have enough nodes and OSDs running bluestore to support the replica size or erasure code chunks.
+  # For the below settings, you need at least 3 OSDs on different nodes (because the `failureDomain` is `host` by default).
+  erasureCoded:
+    dataChunks: 2
+    codingChunks: 1
+---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+   name: rook-ceph-block
+provisioner: ceph.rook.io/block
+parameters:
+  pool: replicated-metadata-pool
+  dataPool: ec-data-pool
+  # Specify the namespace of the rook cluster from which to create volumes.
+  # If not specified, it will use `rook` as the default namespace of the cluster.
+  # This is also the namespace where the cluster will be
+  clusterNamespace: rook-ceph
+  # Specify the filesystem type of the volume. If not specified, it will use `ext4`.
+  fstype: xfs
+```
+
+(These definitions can also be found in the [`ec-storageclass.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml) file)
