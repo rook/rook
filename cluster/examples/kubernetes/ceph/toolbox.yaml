@@ -1,23 +1,23 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rook-tools
-  namespace: rook
+  name: rook-ceph-tools
+  namespace: rook-ceph
   labels:
-    app: rook-tools
+    app: rook-ceph-tools
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: rook-tools
+      app: rook-ceph-tools
   template:
     metadata:
       labels:
-        app: rook-tools
+        app: rook-ceph-tools
     spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
-      - name: rook-tools
+      - name: rook-ceph-tools
         image: rook/ceph-toolbox:master
         imagePullPolicy: IfNotPresent
         env:

@@ -82,7 +82,7 @@ If pods aren't running or are restarting due to crashes, you can get more inform
 The Rook toolbox contains the Ceph tools that can give you status details of the cluster with the `ceph status` command.
 Let's look at some sample output and review some of the details:
 ```bash
-> kubectl -n rook exec -it rook-ceph-tools -- ceph status
+> kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') -- ceph status
   cluster:
     id:     fe7ae378-dc77-46a1-801b-de05286aa78e
     health: HEALTH_OK
@@ -256,7 +256,7 @@ Instructions for verifying cluster health can be found in the [health verificati
 After upgrading the operator, the placement groups may show as status unknown. If you see this, go to the section
 on [upgrading OSDs](#object-storage-daemons-osds). Upgrading the OSDs will resolve this issue.
 ```
-kubectl -n rook exec -it rook-tools -- ceph status
+kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') -- ceph status
 ...
     pgs:     100.000% pgs unknown
              100 unknown
@@ -266,7 +266,7 @@ kubectl -n rook exec -it rook-tools -- ceph status
 The toolbox pod runs the tools we will use during the upgrade for cluster status. The toolbox is not expected to contain any state,
 so we will delete the old pod and start the new toolbox.
 ```bash
-kubectl -n rook delete pod rook-tools
+kubectl -n rook-ceph delete deployment rook-ceph-tools
 ```
 After verifying the old tools pod has terminated, start the new toolbox.
 You will need to either create the toolbox using the yaml in the `release-0.8` branch or simply set the version of the container to `rook/ceph-toolbox:v0.8.0` before creating the toolbox.
