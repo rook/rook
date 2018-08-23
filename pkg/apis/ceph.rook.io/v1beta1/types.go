@@ -228,22 +228,22 @@ type ObjectStoreSpec struct {
 // +genclient:noStatus
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type Objectstoreuser struct {
+type ObjectStoreUser struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec              ObjectstoreuserSpec `json:"spec"`
+	Spec              ObjectStoreUserSpec `json:"spec"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-type ObjectstoreuserList struct {
+type ObjectStoreUserList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
-	Items           []Objectstoreuser `json:"items"`
+	Items           []ObjectStoreUser `json:"items"`
 }
 
-// ObjectstoreuserSpec represent the spec of an Objectstoreuser
-type ObjectstoreuserSpec struct {
+// ObjectStoreUserSpec represent the spec of an Objectstoreuser
+type ObjectStoreUserSpec struct {
 	//The store the user will be created in
 	Store string `json:"store,omitempty"`
 }
