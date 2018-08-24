@@ -233,8 +233,8 @@ func (c *Cluster) failoverMon(name string) error {
 	logger.Infof("Failing over monitor %s", name)
 
 	// Start a new monitor
-	m := &monConfig{Name: fmt.Sprintf("%s%d", appName, c.maxMonID+1), Port: int32(mon.DefaultPort)}
-	logger.Infof("starting new mon %s", m.Name)
+	m := newMonConfig(c.maxMonID + 1)
+	logger.Infof("starting new mon: %+v", m)
 
 	// Create the service endpoint
 	serviceIP, err := c.createService(m)
@@ -258,7 +258,7 @@ func (c *Cluster) failoverMon(name string) error {
 	} else {
 		m.PublicIP = serviceIP
 	}
-	c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.PublicIP, m.Port)
+	c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.DaemonName, m.PublicIP, m.Port)
 
 	// Start the pod
 	if err = c.startPods(mConf); err != nil {

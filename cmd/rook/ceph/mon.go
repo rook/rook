@@ -66,7 +66,7 @@ func startMon(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("missing mon port")
 	}
 
-	if err := compareMonSecret(clusterInfo.MonitorSecret, path.Join(cfg.dataDir, monName)); err != nil {
+	if err := compareMonSecret(clusterInfo.MonitorSecret, mon.GetMonRunDirPath(cfg.dataDir, monName)); err != nil {
 		rook.TerminateFatal(err)
 	}
 

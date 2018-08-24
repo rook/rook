@@ -55,30 +55,30 @@ func TestCheckHealth(t *testing.T) {
 	c := New(context, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(1)
+	logger.Infof("initial mons: %v", c.clusterInfo.Monitors)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
-	c.mapping.Node["rook-ceph-mon1"] = &NodeInfo{
+	c.mapping.Node["rook-ceph-mon-f"] = &NodeInfo{
 		Name:    "node0",
 		Address: "",
 	}
 	c.mapping.Port["node0"] = cephmon.DefaultPort
-	c.maxMonID = 10
+	c.maxMonID = 4
 
 	err := c.checkHealth()
 	assert.Nil(t, err)
+	logger.Infof("mons after checkHealth: %v", c.clusterInfo.Monitors)
 
-	err = c.failoverMon("rook-ceph-mon1")
+	err = c.failoverMon("f")
 	assert.Nil(t, err)
 
 	newMons := []string{
-		"rook-ceph-mon11",
-		"rook-ceph-mon12",
-		"rook-ceph-mon13",
+		"rook-ceph-mon-g",
 	}
 	for _, monName := range newMons {
 		_, ok := c.clusterInfo.Monitors[monName]
-		assert.True(t, ok, fmt.Sprintf("mon %s not found in monitor list", monName))
+		assert.True(t, ok, fmt.Sprintf("mon %s not found in monitor list. %v", monName, c.clusterInfo.Monitors))
 	}
 }
 
@@ -102,39 +102,34 @@ func TestCheckHealthNotFound(t *testing.T) {
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
-	c.mapping.Node["rook-ceph-mon1"] = &NodeInfo{
-		Name:    "node0",
-		Address: "",
+	c.mapping.Node["rook-ceph-mon-a"] = &NodeInfo{
+		Name: "node0",
 	}
-	c.mapping.Node["rook-ceph-mon2"] = &NodeInfo{
-		Name:    "node0",
-		Address: "",
+	c.mapping.Node["rook-ceph-mon-b"] = &NodeInfo{
+		Name: "node0",
 	}
 	c.mapping.Port["node0"] = cephmon.DefaultPort
-	c.maxMonID = 10
+	c.maxMonID = 4
 
 	c.saveMonConfig()
 
 	// Check if the two mons are found in the configmap
 	cm, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	if cm.Data[EndpointDataKey] == "rook-ceph-mon1=1.2.3.1:6790,rook-ceph-mon2=1.2.3.2:6790" {
-		assert.Equal(t, "rook-ceph-mon1=1.2.3.1:6790,rook-ceph-mon2=1.2.3.2:6790", cm.Data[EndpointDataKey])
-	} else {
-		assert.Equal(t, "rook-ceph-mon2=1.2.3.2:6790,rook-ceph-mon1=1.2.3.1:6790", cm.Data[EndpointDataKey])
+	if cm.Data[EndpointDataKey] != "a=1.2.3.1:6790,b=1.2.3.2:6790" {
+		assert.Equal(t, "b=1.2.3.2:6790,a=1.2.3.1:6790", cm.Data[EndpointDataKey])
 	}
 
-	// Because mon2 isn't in the MonInQuorumResponse() this will create a mon11
+	// Because the mon a isn't in the MonInQuorumResponse() this will create a new mon
+	delete(c.mapping.Node, "rook-ceph-mon-a")
 	err = c.checkHealth()
 	assert.Nil(t, err)
 
 	// recheck that the "not found" mon has been replaced with a new one
 	cm, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Get(EndpointConfigMapName, metav1.GetOptions{})
 	assert.Nil(t, err)
-	if cm.Data[EndpointDataKey] == "rook-ceph-mon1=1.2.3.1:6790,rook-ceph-mon11=:6790" {
-		assert.Equal(t, "rook-ceph-mon1=1.2.3.1:6790,rook-ceph-mon11=:6790", cm.Data[EndpointDataKey])
-	} else {
-		assert.Equal(t, "rook-ceph-mon11=:6790,rook-ceph-mon1=1.2.3.1:6790", cm.Data[EndpointDataKey])
+	if cm.Data[EndpointDataKey] != "b=1.2.3.2:6790,f=:6790" {
+		assert.Equal(t, "f=:6790,b=1.2.3.2:6790", cm.Data[EndpointDataKey])
 	}
 }
 
@@ -146,12 +141,12 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 				resp := client.MonStatusResponse{Quorum: []int{0}}
 				resp.MonMap.Mons = []client.MonMapEntry{
 					{
-						Name:    "rook-ceph-mon1",
+						Name:    "a",
 						Rank:    0,
 						Address: "1.2.3.4",
 					},
 					{
-						Name:    "rook-ceph-mon3",
+						Name:    "c",
 						Rank:    0,
 						Address: "1.2.3.4",
 					},
@@ -177,24 +172,27 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	defer os.RemoveAll(c.context.ConfigDir)
 
 	// add two mons to the mapping on node0
-	c.mapping.Node["rook-ceph-mon1"] = &NodeInfo{
+	c.mapping.Node["a"] = &NodeInfo{
 		Name:     "node0",
 		Hostname: "mynode0",
 		Address:  "0.0.0.0",
 	}
-	c.mapping.Node["rook-ceph-mon2"] = &NodeInfo{
+	c.mapping.Node["b"] = &NodeInfo{
 		Name:     "node0",
 		Hostname: "mynode0",
 		Address:  "0.0.0.0",
 	}
-	c.maxMonID = 2
+	c.maxMonID = 1
 	c.saveMonConfig()
 
-	for i := 1; i <= 2; i++ {
-		rs := c.makeReplicaSet(&monConfig{Name: fmt.Sprintf("mon%d", i)}, "node0")
+	monNames := []string{"a", "b"}
+	for i := 0; i < len(monNames); i++ {
+		prefix := appName + "-"
+		name := monNames[i]
+		rs := c.makeReplicaSet(&monConfig{Name: prefix + name, DaemonName: name}, "node0")
 		_, err := clientset.ExtensionsV1beta1().ReplicaSets(c.Namespace).Create(rs)
 		assert.Nil(t, err)
-		po := c.makeMonPod(&monConfig{Name: fmt.Sprintf("mon%d", i)}, "node0")
+		po := c.makeMonPod(&monConfig{Name: prefix + name, DaemonName: name}, "node0")
 		_, err = clientset.CoreV1().Pods(c.Namespace).Create(po)
 		assert.Nil(t, err)
 	}
@@ -202,10 +200,10 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	// initial health check should already see that there is more than one mon on one node (node1)
 	_, err := c.checkMonsOnSameNode()
 	assert.Nil(t, err)
-	assert.Equal(t, "node0", c.mapping.Node["rook-ceph-mon1"].Name)
-	assert.Equal(t, "node0", c.mapping.Node["rook-ceph-mon2"].Name)
-	assert.Equal(t, "mynode0", c.mapping.Node["rook-ceph-mon1"].Hostname)
-	assert.Equal(t, "mynode0", c.mapping.Node["rook-ceph-mon2"].Hostname)
+	assert.Equal(t, "node0", c.mapping.Node["a"].Name)
+	assert.Equal(t, "node0", c.mapping.Node["b"].Name)
+	assert.Equal(t, "mynode0", c.mapping.Node["a"].Hostname)
+	assert.Equal(t, "mynode0", c.mapping.Node["b"].Hostname)
 
 	// add new node and check if the second mon gets failovered to it
 	n := &v1.Node{
@@ -229,9 +227,10 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	_, err = c.checkMonsOnSameNode()
 	assert.Nil(t, err)
 
-	// check that mon rook-ceph-mon3 exists
-	assert.NotNil(t, c.mapping.Node["rook-ceph-mon3"])
-	assert.Equal(t, "node2", c.mapping.Node["rook-ceph-mon3"].Name)
+	// check that mon rook-ceph-mon-c exists
+	logger.Infof("mapping: %+v", c.mapping.Node)
+	assert.NotNil(t, c.mapping.Node["rook-ceph-mon-c"])
+	assert.Equal(t, "node2", c.mapping.Node["rook-ceph-mon-c"].Name)
 
 	// check if mon2 has been deleted
 	var rsses *v1beta1.ReplicaSetList
@@ -240,13 +239,13 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 
 	deleted := false
 	for _, rs := range rsses.Items {
-		if rs.Name == "rook-ceph-mon1" || rs.Name == "rook-ceph-mon3" {
+		if rs.Name == "rook-ceph-mon-a" || rs.Name == "rook-ceph-mon-c" {
 			deleted = true
 		} else {
 			deleted = false
 		}
 	}
-	assert.Equal(t, true, deleted, "rook-ceph-mon2 not failovered/deleted after health check")
+	assert.Equal(t, true, deleted, "rook-ceph-mon-b not failovered/deleted after health check")
 
 	// enable different ceph mon map output
 	executorNextMons = true
@@ -260,7 +259,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	for _, rs := range rsses.Items {
 		// both mons should always be on the same node as in this test due to the order
 		//the mons are processed in the loop
-		if (rs.Name == "rook-ceph-mon1" && rs.Spec.Template.Spec.NodeSelector[apis.LabelHostname] == "node1") || (rs.Name != "rook-ceph-mon3" && rs.Spec.Template.Spec.NodeSelector[apis.LabelHostname] == "node2") {
+		if (rs.Name == "rook-ceph-mon-a" && rs.Spec.Template.Spec.NodeSelector[apis.LabelHostname] == "node1") || (rs.Name != "rook-ceph-mon-c" && rs.Spec.Template.Spec.NodeSelector[apis.LabelHostname] == "node2") {
 			assert.Fail(t, fmt.Sprintf("mon %s shouldn't exist", rs.Name))
 		}
 	}
@@ -287,14 +286,15 @@ func TestCheckMonsValid(t *testing.T) {
 	defer os.RemoveAll(c.context.ConfigDir)
 
 	// add two mons to the mapping on node0
-	c.mapping.Node["rook-ceph-mon1"] = &NodeInfo{
+	c.mapping.Node["rook-ceph-mon-a"] = &NodeInfo{
 		Name:    "node0",
 		Address: "0.0.0.0",
 	}
-	c.mapping.Node["rook-ceph-mon2"] = &NodeInfo{
+	c.mapping.Node["rook-ceph-mon-b"] = &NodeInfo{
 		Name:    "node1",
 		Address: "0.0.0.0",
 	}
+	c.maxMonID = 1
 
 	// add three nodes
 	for i := 0; i < 3; i++ {
@@ -319,8 +319,8 @@ func TestCheckMonsValid(t *testing.T) {
 
 	_, err := c.checkMonsOnValidNodes()
 	assert.Nil(t, err)
-	assert.Equal(t, "node0", c.mapping.Node["rook-ceph-mon1"].Name)
-	assert.Equal(t, "node1", c.mapping.Node["rook-ceph-mon2"].Name)
+	assert.Equal(t, "node0", c.mapping.Node["rook-ceph-mon-a"].Name)
+	assert.Equal(t, "node1", c.mapping.Node["rook-ceph-mon-b"].Name)
 
 	// set node1 unschedulable and check that mon2 gets failovered to be mon3 to node2
 	node0, err := c.context.Clientset.CoreV1().Nodes().Get("node0", metav1.GetOptions{})
@@ -331,7 +331,8 @@ func TestCheckMonsValid(t *testing.T) {
 
 	// add the pods so the getNodesInUse() works correctly
 	for i := 1; i <= 2; i++ {
-		po := c.makeMonPod(&monConfig{Name: fmt.Sprintf("mon%d", i)}, fmt.Sprintf("node%d", i-1))
+		name := fmt.Sprintf("mon%d", i)
+		po := c.makeMonPod(&monConfig{Name: name, DaemonName: name}, fmt.Sprintf("node%d", i-1))
 		_, err = clientset.CoreV1().Pods(c.Namespace).Create(po)
 		assert.Nil(t, err)
 	}
@@ -340,11 +341,12 @@ func TestCheckMonsValid(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Len(t, c.mapping.Node, 2)
-	assert.Nil(t, c.mapping.Node["rook-ceph-mon1"])
+	logger.Infof("mapping: %+v", c.mapping)
+	assert.Nil(t, c.mapping.Node["rook-ceph-mon-a"])
 	// the new mon should always be on the empty node2
-	// the failovered mon's name is "rook-ceph-mon0"
-	assert.Equal(t, "node2", c.mapping.Node["rook-ceph-mon0"].Name)
-	assert.Equal(t, "node1", c.mapping.Node["rook-ceph-mon2"].Name)
+	// the failovered mon's name is "rook-ceph-mon-a"
+	assert.Equal(t, "node2", c.mapping.Node["rook-ceph-mon-c"].Name)
+	assert.Equal(t, "node1", c.mapping.Node["rook-ceph-mon-b"].Name)
 }
 
 func TestCheckLessMonsStartNewMons(t *testing.T) {
@@ -363,12 +365,12 @@ func TestCheckLessMonsStartNewMons(t *testing.T) {
 	}
 	c := New(context, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 5, AllowMultiplePerNode: true},
 		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
-	c.maxMonID = 1
-	c.clusterInfo = test.CreateConfigDir(1)
+	c.maxMonID = 0
+	c.clusterInfo = test.CreateConfigDir(0)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
 	err := c.checkHealth()
 	assert.Nil(t, err)
-	assert.Equal(t, 5, len(c.clusterInfo.Monitors))
+	assert.Equal(t, 5, len(c.clusterInfo.Monitors), fmt.Sprintf("mons: %v", c.clusterInfo.Monitors))
 }

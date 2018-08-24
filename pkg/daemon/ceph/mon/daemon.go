@@ -89,7 +89,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) (string, str
 	}
 
 	// write the config file to disk
-	confFilePath, err := GenerateConnectionConfigFile(context, config.Cluster, getMonRunDirPath(context.ConfigDir, config.Name),
+	confFilePath, err := GenerateConnectionConfigFile(context, config.Cluster, GetMonRunDirPath(context.ConfigDir, config.Name),
 		"admin", getMonKeyringPath(context.ConfigDir, config.Name))
 	if err != nil {
 		return "", "", err
@@ -114,7 +114,7 @@ func startMon(context *clusterd.Context, config *Config, confFilePath, monDataDi
 	logger.Infof("initializing mon")
 
 	// generate the monmap
-	monmapPath, err := generateMonMap(context, config.Cluster, getMonRunDirPath(context.ConfigDir, config.Name))
+	monmapPath, err := generateMonMap(context, config.Cluster, GetMonRunDirPath(context.ConfigDir, config.Name))
 	if err != nil {
 		return err
 	}

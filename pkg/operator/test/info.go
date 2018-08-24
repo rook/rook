@@ -24,7 +24,7 @@ import (
 )
 
 // CreateConfigDir creates a test cluster
-func CreateConfigDir(mons int) *mon.ClusterInfo {
+func CreateConfigDir(monCount int) *mon.ClusterInfo {
 	c := &mon.ClusterInfo{
 		FSID:          "12345",
 		Name:          "default",
@@ -32,11 +32,12 @@ func CreateConfigDir(mons int) *mon.ClusterInfo {
 		AdminSecret:   "adminsecret",
 		Monitors:      map[string]*mon.CephMonitorConfig{},
 	}
-	for i := 1; i <= mons; i++ {
-		id := fmt.Sprintf("rook-ceph-mon%d", i)
+	mons := []string{"a", "b", "c", "d", "e"}
+	for i := 0; i < monCount; i++ {
+		id := mons[i]
 		c.Monitors[id] = &mon.CephMonitorConfig{
 			Name:     id,
-			Endpoint: fmt.Sprintf("1.2.3.%d:6790", i),
+			Endpoint: fmt.Sprintf("1.2.3.%d:6790", i+1),
 		}
 	}
 	return c

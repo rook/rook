@@ -69,6 +69,7 @@ func (c *Cluster) makeReplicaSet(config *monConfig, hostname string) *extensions
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      config.Name,
 			Namespace: c.Namespace,
+			Labels:    c.getLabels(config.DaemonName),
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &rs.ObjectMeta, &c.ownerRef)
@@ -115,7 +116,7 @@ func (c *Cluster) makeMonPod(config *monConfig, hostname string) *v1.Pod {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:        config.Name,
 			Namespace:   c.Namespace,
-			Labels:      c.getLabels(config.Name),
+			Labels:      c.getLabels(config.DaemonName),
 			Annotations: map[string]string{},
 		},
 		Spec: podSpec,
@@ -136,7 +137,7 @@ func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
 			"ceph",
 			"mon",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--name=%s", config.Name),
+			fmt.Sprintf("--name=%s", config.DaemonName),
 			fmt.Sprintf("--port=%d", config.Port),
 			fmt.Sprintf("--fsid=%s", fsid),
 		},
