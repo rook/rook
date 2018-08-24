@@ -55,7 +55,7 @@ type FlexvolumeServer struct {
 }
 
 // NewFlexvolumeServer creates an Flexvolume server
-func NewFlexvolumeServer(context *clusterd.Context, controller *Controller, manager VolumeManager) *FlexvolumeServer {
+func NewFlexvolumeServer(context *clusterd.Context, controller *Controller) *FlexvolumeServer {
 	return &FlexvolumeServer{
 		context:    context,
 		controller: controller,
