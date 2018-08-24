@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rook/rook/pkg/daemon/ceph/model"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,8 +28,7 @@ func (suite *SmokeSuite) TestPoolResize() {
 	logger.Infof("Pool Resize Smoke Test")
 
 	poolName := "testpool"
-	pool := model.Pool{Name: "testpool", ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}}
-	out, err := suite.helper.PoolClient.Create(pool, suite.namespace)
+	out, err := suite.helper.PoolClient.Create(poolName, suite.namespace, 1)
 	logger.Infof("poolCreate: %+v", out)
 	require.Nil(suite.T(), err)
 
@@ -56,8 +54,7 @@ func (suite *SmokeSuite) TestPoolResize() {
 
 	require.Equal(suite.T(), true, poolFound, "pool not found")
 
-	pool.ReplicatedConfig.Size = 3
-	_, err = suite.helper.PoolClient.Update(pool, suite.namespace)
+	_, err = suite.helper.PoolClient.Update(poolName, suite.namespace, 3)
 	logger.Infof("poolCreate (modify): %+v", out)
 	require.Nil(suite.T(), err)
 
