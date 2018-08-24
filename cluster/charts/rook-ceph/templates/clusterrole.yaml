@@ -65,11 +65,27 @@ rules:
   # PVs and PVCs are managed by the Rook provisioner
   - persistentvolumes
   - persistentvolumeclaims
+  - configmaps
+  - secrets
+  - services
   verbs:
   - get
   - list
   - watch
   - patch
+  - create
+  - update
+  - delete
+- apiGroups:
+  - extensions
+  resources:
+  - deployments
+  - daemonsets
+  - replicasets
+  verbs:
+  - get
+  - list
+  - watch
   - create
   - update
   - delete
