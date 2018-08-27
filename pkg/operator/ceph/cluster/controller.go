@@ -57,7 +57,7 @@ const (
 
 const (
 	// DefaultClusterName states the default name of the rook-cluster if not provided.
-	DefaultClusterName         = "rook"
+	DefaultClusterName         = "rook-ceph"
 	clusterDeleteRetryInterval = 2 //seconds
 	clusterDeleteMaxRetries    = 15
 )
