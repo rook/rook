@@ -305,7 +305,7 @@ spec:
       serviceAccountName: rook-ceph-system
       containers:
       - name: rook-ceph-operator
-        image: docker.target.com/app/unimatrix-platform/ceph:v0.8.0-4.7dba772g
+        image: rook/ceph:master
         args: ["ceph", "operator"]
         volumeMounts:
         - mountPath: /var/lib/rook

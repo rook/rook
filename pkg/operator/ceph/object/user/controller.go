@@ -26,6 +26,8 @@ import (
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephrgw "github.com/rook/rook/pkg/daemon/ceph/rgw"
+	"github.com/rook/rook/pkg/operator/k8sutil"
+	"k8s.io/api/core/v1"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/cache"
@@ -89,7 +91,7 @@ func (c *ObjectStoreUserController) onAdd(obj interface{}) {
 		return
 	}
 
-	if err = createUser(c.context, user); err != nil {
+	if err = c.createUser(c.context, user); err != nil {
 		logger.Errorf("failed to create object store user %s. %+v", user.Name, err)
 	}
 }
@@ -151,7 +153,7 @@ func getObjectStoreUserObject(obj interface{}) (objectstoreuser *cephv1beta1.Obj
 }
 
 // Create the user
-func createUser(context *clusterd.Context, u *cephv1beta1.ObjectStoreUser) error {
+func (c *ObjectStoreUserController) createUser(context *clusterd.Context, u *cephv1beta1.ObjectStoreUser) error {
 	// validate the user settings
 	if err := ValidateUser(context, u); err != nil {
 		return fmt.Errorf("invalid user %s arguments. %+v", u.Name, err)
@@ -164,26 +166,51 @@ func createUser(context *clusterd.Context, u *cephv1beta1.ObjectStoreUser) error
 		DisplayName: &u.Name,
 	}
 	objContext := cephrgw.NewContext(context, u.Spec.Store, u.Namespace)
-	if user, rgwerr, err := cephrgw.CreateUser(objContext, userConfig); err != nil {
+
+	user, rgwerr, err := cephrgw.CreateUser(objContext, userConfig)
+	if err != nil {
 		return fmt.Errorf("failed to create user %s. RadosGW returned error %d: %+v", u.Name, rgwerr, err)
-	} else {
-		logger.Infof("user accessKey: %s", user.AccessKey)
-		logger.Infof("user accessKey: %s", user.SecretKey)
-		logger.Infof("created user %s", u.Name)
 	}
 
+	// Store the keys in a secret
+	secrets := map[string]string{
+		"AccessKey": *user.AccessKey,
+		"SecretKey": *user.SecretKey,
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rook-ceph-object-user-" + u.Name,
+			Namespace: u.Namespace,
+		},
+		StringData: secrets,
+		Type:       k8sutil.RookType,
+	}
+	k8sutil.SetOwnerRef(context.Clientset, u.Namespace, &secret.ObjectMeta, &c.ownerRef)
+
+	_, err = context.Clientset.CoreV1().Secrets(u.Namespace).Create(secret)
+	if err != nil {
+		return fmt.Errorf("failed to save user %s secret. %+v", u.Name, err)
+	}
+	logger.Infof("created user %s", u.Name)
 	return nil
 }
 
 // Delete the user
 func deleteUser(context *clusterd.Context, u *cephv1beta1.ObjectStoreUser) error {
 	objContext := cephrgw.NewContext(context, u.Spec.Store, u.Namespace)
-	if result, rgwerr, err := cephrgw.DeleteUser(objContext, u.Name); err != nil {
+	result, rgwerr, err := cephrgw.DeleteUser(objContext, u.Name)
+	if err != nil {
 		return fmt.Errorf("failed to delete user '%s'. RadosGW returned error %d: %+v", u.Name, rgwerr, err)
 	} else if result != "" {
-		logger.Infof("Result of user delete is: %s", result)
+		logger.Infof("result of user delete is: %s", result)
 	}
 
+	err = context.Clientset.CoreV1().Secrets(u.Namespace).Delete("rook-ceph-object-user-"+u.Name, &metav1.DeleteOptions{})
+	if err != nil {
+		logger.Warningf("failed to delete user %s secret. %+v", u.Name, err)
+	}
+
+	logger.Infof("user %s deleted successfully", u.Name)
 	return nil
 }
 
