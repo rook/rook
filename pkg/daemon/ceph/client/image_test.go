@@ -26,6 +26,10 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+const (
+	sizeMB = 1048576 // 1 MB
+)
+
 func TestCreateImage(t *testing.T) {
 	executor := &exectest.MockExecutor{}
 	context := &clusterd.Context{Executor: executor}
@@ -39,7 +43,7 @@ func TestCreateImage(t *testing.T) {
 		}
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
-	image, err := CreateImage(context, "foocluster", "image1", "pool1", "", uint64(1048576)) // 1MB
+	image, err := CreateImage(context, "foocluster", "image1", "pool1", "", uint64(sizeMB)) // 1MB
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "mocked detailed ceph error output stream"))
 
@@ -77,7 +81,7 @@ func TestCreateImage(t *testing.T) {
 
 	// (1 MB - 1 byte) --> 1 MB
 	expectedSizeArg = "1"
-	image, err = CreateImage(context, "foocluster", "image1", "pool1", "", uint64(1048575))
+	image, err = CreateImage(context, "foocluster", "image1", "pool1", "", uint64(sizeMB-1))
 	assert.Nil(t, err)
 	assert.NotNil(t, image)
 	assert.True(t, createCalled)
@@ -85,7 +89,39 @@ func TestCreateImage(t *testing.T) {
 
 	// 1 MB
 	expectedSizeArg = "1"
-	image, err = CreateImage(context, "foocluster", "image1", "pool1", "", uint64(1048576))
+	image, err = CreateImage(context, "foocluster", "image1", "pool1", "", uint64(sizeMB))
+	assert.Nil(t, err)
+	assert.NotNil(t, image)
+	assert.True(t, createCalled)
+	createCalled = false
+
+	// (1 MB + 1 byte) --> 2 MB
+	expectedSizeArg = "2"
+	image, err = CreateImage(context, "foocluster", "image1", "pool1", "", uint64(sizeMB+1))
+	assert.Nil(t, err)
+	assert.NotNil(t, image)
+	assert.True(t, createCalled)
+	createCalled = false
+
+	// (2 MB - 1 byte) --> 2 MB
+	expectedSizeArg = "2"
+	image, err = CreateImage(context, "foocluster", "image1", "pool1", "", uint64(sizeMB*2-1))
+	assert.Nil(t, err)
+	assert.NotNil(t, image)
+	assert.True(t, createCalled)
+	createCalled = false
+
+	// 2 MB
+	expectedSizeArg = "2"
+	image, err = CreateImage(context, "foocluster", "image1", "pool1", "", uint64(sizeMB*2))
+	assert.Nil(t, err)
+	assert.NotNil(t, image)
+	assert.True(t, createCalled)
+	createCalled = false
+
+	// (2 MB + 1 byte) --> 3MB
+	expectedSizeArg = "3"
+	image, err = CreateImage(context, "foocluster", "image1", "pool1", "", uint64(sizeMB*2+1))
 	assert.Nil(t, err)
 	assert.NotNil(t, image)
 	assert.True(t, createCalled)
@@ -93,7 +129,7 @@ func TestCreateImage(t *testing.T) {
 
 	// Pool with data pool
 	expectedSizeArg = "1"
-	image, err = CreateImage(context, "foocluster", "image1", "pool1", "datapool1", uint64(1048576))
+	image, err = CreateImage(context, "foocluster", "image1", "pool1", "datapool1", uint64(sizeMB))
 	assert.Nil(t, err)
 	assert.NotNil(t, image)
 	assert.True(t, createCalled)
