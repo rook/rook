@@ -23,7 +23,6 @@ import (
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
-	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -69,7 +68,7 @@ func TestSmokeSuite(t *testing.T) {
 type SmokeSuite struct {
 	suite.Suite
 	helper    *clients.TestClient
-	op        contracts.Setup
+	op        *TestCluster
 	k8sh      *utils.K8sHelper
 	namespace string
 }
@@ -77,12 +76,12 @@ type SmokeSuite struct {
 func (suite *SmokeSuite) SetupSuite() {
 	suite.namespace = "smoke-ns"
 	useDevices := true
-	suite.op, suite.k8sh = StartBaseTestOperations(suite.T, suite.namespace, "bluestore", false, useDevices, 3)
-	suite.helper = GetTestClient(suite.k8sh, suite.namespace, suite.op, suite.T)
+	suite.op, suite.k8sh = StartTestCluster(suite.T, suite.namespace, "bluestore", false, useDevices, 3, installer.VersionMaster)
+	suite.helper = clients.CreateTestClient(suite.k8sh, suite.op.installer.Manifests)
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
-	suite.op.TearDown()
+	suite.op.Teardown()
 }
 
 func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {

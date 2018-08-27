@@ -20,9 +20,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/rook/rook/pkg/daemon/ceph/model"
 	"github.com/rook/rook/tests/framework/clients"
-	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -48,16 +46,16 @@ type BlockCreateSuite struct {
 	kh             *utils.K8sHelper
 	initBlockCount int
 	namespace      string
-	installer      *installer.InstallHelper
-	op             contracts.Setup
+	installer      *installer.CephInstaller
+	op             *TestCluster
 }
 
 func (s *BlockCreateSuite) SetupSuite() {
 
 	var err error
 	s.namespace = "block-k8s-ns"
-	s.op, s.kh = StartBaseTestOperations(s.T, s.namespace, "bluestore", false, false, 1)
-	s.testClient = GetTestClient(s.kh, s.namespace, s.op, s.T)
+	s.op, s.kh = StartTestCluster(s.T, s.namespace, "bluestore", false, false, 1, installer.VersionMaster)
+	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
 	initialBlocks, err := s.testClient.BlockClient.List(s.namespace)
 	assert.Nil(s.T(), err)
 	s.initBlockCount = len(initialBlocks)
@@ -73,7 +71,7 @@ func (s *BlockCreateSuite) TestCreatePVCWhenNoStorageClassExists() {
 	storageClassName := "rook-ceph-block"
 	defer s.tearDownTest(claimName, poolName, storageClassName, "ReadWriteOnce")
 
-	result, err := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
+	result, err := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
 	checkOrderedSubstrings(s.T(), result, "persistentvolumeclaim", claimName, "created")
 	require.NoError(s.T(), err)
 
@@ -105,12 +103,11 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	s.testClient.BlockClient.List(s.namespace)
 
 	logger.Infof("create pool and storageclass")
-	pool := model.Pool{Name: poolName, ReplicatedConfig: model.ReplicatedPoolConfig{Size: 1}}
-	result0, err0 := s.testClient.PoolClient.Create(pool, s.namespace)
+	result0, err0 := s.testClient.PoolClient.Create(poolName, s.namespace, 1)
 	checkOrderedSubstrings(s.T(), result0, poolName, "created")
 	require.NoError(s.T(), err0)
 
-	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace, true), "create")
+	result1, err1 := s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, s.namespace, true)
 	checkOrderedSubstrings(s.T(), result1, storageClassName, "created")
 	require.NoError(s.T(), err1)
 
@@ -119,7 +116,7 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	require.Nil(s.T(), err)
 
 	logger.Infof("create pvc")
-	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
+	result2, err2 := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
 	checkOrderedSubstrings(s.T(), result2, claimName, "created")
 	require.NoError(s.T(), err2)
 
@@ -131,7 +128,7 @@ func (s *BlockCreateSuite) TestCreateSamePVCTwice() {
 	assert.Equal(s.T(), s.initBlockCount+1, len(b1), "Make sure new block image is created")
 
 	logger.Infof("Create same pvc again")
-	_, err3 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, "ReadWriteOnce"), "create")
+	_, err3 := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, "ReadWriteOnce")
 	checkOrderedSubstrings(s.T(), err3.Error(), claimName, "already exists")
 
 	logger.Infof("check status of PVC")
@@ -152,7 +149,8 @@ func (s *BlockCreateSuite) TestBlockStorageMountUnMountForStatefulSets() {
 	defer s.statefulSetDataCleanup(defaultNamespace, poolName, storageClassName, statefulSetName, statefulPodsName)
 	logger.Infof("Test case when block persistent volumes are scaled up and down along with StatefulSet")
 	logger.Info("Step 1: Create pool and storageClass")
-	_, cbErr := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClass(s.namespace, poolName, storageClassName), "create")
+
+	_, cbErr := s.testClient.PoolClient.CreateStorageClass(s.namespace, poolName, storageClassName)
 	assert.Nil(s.T(), cbErr)
 	logger.Info("Step 2 : Deploy statefulSet with 1X replication")
 	service, statefulset := getBlockStatefulSetAndServiceDefinition(defaultNamespace, statefulSetName, statefulPodsName, storageClassName)
@@ -198,19 +196,17 @@ func (s *BlockCreateSuite) statefulSetDataCleanup(namespace, poolName, storageCl
 	//Delete all PVCs
 	s.kh.DeletePvcWithLabel(defaultNamespace, statefulSetName)
 	//Delete storageclass and pool
-	installer.BlockResourceOperation(s.kh, installer.GetBlockPoolStorageClass(s.namespace, poolName, storageClassName), "delete")
-
+	s.testClient.PoolClient.DeleteStorageClass(s.namespace, poolName, storageClassName)
 }
 
 func (s *BlockCreateSuite) tearDownTest(claimName string, poolName string, storageClassName string, accessMode string) {
-	installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, accessMode), "delete")
-	installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "delete")
-	installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace, true), "delete")
-
+	s.testClient.BlockClient.DeletePvc(claimName, storageClassName, accessMode)
+	s.testClient.PoolClient.Delete(poolName, s.namespace)
+	s.testClient.BlockClient.DeleteStorageClass(poolName, storageClassName, s.namespace)
 }
 
 func (s *BlockCreateSuite) TearDownSuite() {
-	s.op.TearDown()
+	s.op.Teardown()
 }
 
 func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
@@ -221,10 +217,10 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 	defer s.tearDownTest(claimName, poolName, storageClassName, pvcAccessMode)
 
 	//create pool and storageclass
-	result0, err0 := installer.BlockResourceOperation(s.kh, installer.GetBlockPoolDef(poolName, s.namespace, "1"), "create")
+	result0, err0 := s.testClient.PoolClient.Create(poolName, s.namespace, 1)
 	checkOrderedSubstrings(s.T(), result0, poolName, "created")
 	require.NoError(s.T(), err0)
-	result1, err1 := installer.BlockResourceOperation(s.kh, installer.GetBlockStorageClassDef(poolName, storageClassName, s.namespace, true), "create")
+	result1, err1 := s.testClient.BlockClient.CreateStorageClass(poolName, storageClassName, s.namespace, true)
 	checkOrderedSubstrings(s.T(), result1, storageClassName, "created")
 	require.NoError(s.T(), err1)
 
@@ -233,7 +229,7 @@ func (s *BlockCreateSuite) CheckCreatingPVC(pvcName, pvcAccessMode string) {
 	require.Nil(s.T(), err)
 
 	//create pvc
-	result2, err2 := installer.BlockResourceOperation(s.kh, installer.GetBlockPvcDef(claimName, storageClassName, pvcAccessMode), "create")
+	result2, err2 := s.testClient.BlockClient.CreatePvc(claimName, storageClassName, pvcAccessMode)
 	checkOrderedSubstrings(s.T(), result2, claimName, "created")
 	require.NoError(s.T(), err2)
 

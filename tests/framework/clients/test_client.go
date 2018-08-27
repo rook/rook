@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 )
 
@@ -41,15 +42,15 @@ const (
 )
 
 //CreateTestClient creates new instance of test client for a platform
-func CreateTestClient(k8sHelper *utils.K8sHelper, namespace string) (*TestClient, error) {
+func CreateTestClient(k8sHelper *utils.K8sHelper, manifests installer.CephManifests) *TestClient {
 
 	return &TestClient{
-		CreateK8BlockOperation(k8sHelper),
-		CreateK8sFilesystemOperation(k8sHelper),
-		CreateObjectOperation(k8sHelper),
-		CreatePoolOperation(k8sHelper),
+		CreateBlockOperation(k8sHelper, manifests),
+		CreateFilesystemOperation(k8sHelper, manifests),
+		CreateObjectOperation(k8sHelper, manifests),
+		CreatePoolOperation(k8sHelper, manifests),
 		k8sHelper,
-	}, nil
+	}
 }
 
 //Status returns rook status details

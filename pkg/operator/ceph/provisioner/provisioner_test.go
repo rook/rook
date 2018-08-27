@@ -120,7 +120,7 @@ func TestParseClassParametersDefault(t *testing.T) {
 	assert.Nil(t, err)
 
 	assert.Equal(t, "testPool", provConfig.pool)
-	assert.Equal(t, "rook", provConfig.clusterNamespace)
+	assert.Equal(t, "rook-ceph", provConfig.clusterNamespace)
 	assert.Equal(t, "", provConfig.fstype)
 }
 

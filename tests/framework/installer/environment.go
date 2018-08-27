@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package objects
+package installer
 
 import (
 	"flag"
@@ -37,7 +37,7 @@ var Env EnvironmentManifest
 
 func init() {
 	Env = EnvironmentManifest{}
-	flag.StringVar(&Env.HostType, "host_type", "localhost", "Host were tests are run eg - localhost,GCE or AWS")
+	flag.StringVar(&Env.HostType, "host_type", "localhost", "Host where tests are run eg - localhost,GCE or AWS")
 	flag.StringVar(&Env.RookImageName, "rook_image", "rook/ceph", "Docker image name for the rook container to install, must be in docker hub or local environment")
 	flag.StringVar(&Env.ToolboxImageName, "toolbox_image", "rook/ceph-toolbox", "Docker image name of the toolbox container to install, must be in docker hub or local environment")
 	flag.BoolVar(&Env.SkipInstallRook, "skip_install_rook", false, "Indicate if Rook need to installed - false if tests are being running at Rook that is pre-installed")

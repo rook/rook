@@ -69,7 +69,7 @@ func isObjectStorePresent(kh *utils.K8sHelper, namespace string, storeName strin
 	return false
 }
 
-func performObjectStoreOperations(installer *installer.InstallHelper, s3 *utils.S3Helper, bucketName string) {
+func performObjectStoreOperations(s3 *utils.S3Helper, bucketName string) {
 	var wg sync.WaitGroup
 	for i := 1; i <= installer.Env.LoadConcurrentRuns; i++ {
 		wg.Add(1)

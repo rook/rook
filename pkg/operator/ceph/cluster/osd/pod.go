@@ -395,9 +395,7 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 		privileged = true
 	}
 	runAsUser := int64(0)
-	// don't set runAsNonRoot explicitly when it is false, Kubernetes version < 1.6.4 has
-	// an issue with this fixed in https://github.com/kubernetes/kubernetes/pull/47009
-	// runAsNonRoot := false
+	runAsNonRoot := false
 	readOnlyRootFilesystem := false
 	return v1.Container{
 		// Set the hostname so we have the pod's host in the crush map rather than the pod container name
@@ -407,11 +405,9 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 		VolumeMounts: volumeMounts,
 		Env:          envVars,
 		SecurityContext: &v1.SecurityContext{
-			Privileged: &privileged,
-			RunAsUser:  &runAsUser,
-			// don't set runAsNonRoot explicitly when it is false, Kubernetes version < 1.6.4 has
-			// an issue with this fixed in https://github.com/kubernetes/kubernetes/pull/47009
-			// RunAsNonRoot:           &runAsNonRoot,
+			Privileged:             &privileged,
+			RunAsUser:              &runAsUser,
+			RunAsNonRoot:           &runAsNonRoot,
 			ReadOnlyRootFilesystem: &readOnlyRootFilesystem,
 		},
 		Resources: resources,

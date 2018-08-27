@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/coreos/pkg/capnslog"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 )
 
@@ -29,60 +30,40 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook/tests", "clients")
 
 // ObjectOperation is wrapper for k8s rook object operations
 type ObjectOperation struct {
-	k8sh *utils.K8sHelper
+	k8sh      *utils.K8sHelper
+	manifests installer.CephManifests
 }
 
 // CreateObjectOperation creates new rook object client
-func CreateObjectOperation(k8sh *utils.K8sHelper) *ObjectOperation {
-	return &ObjectOperation{k8sh: k8sh}
+func CreateObjectOperation(k8sh *utils.K8sHelper, manifests installer.CephManifests) *ObjectOperation {
+	return &ObjectOperation{k8sh, manifests}
 }
 
 // ObjectCreate Function to create a object store in rook
-func (ro *ObjectOperation) Create(namespace, storeName string, replicaCount int32) error {
+func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32) error {
 
 	logger.Infof("creating the object store via CRD")
-	storeSpec := fmt.Sprintf(`apiVersion: ceph.rook.io/v1beta1
-kind: ObjectStore
-metadata:
-  name: %s
-  namespace: %s
-spec:
-  metadataPool:
-    replicated:
-      size: 1
-  dataPool:
-    replicated:
-      size: 1
-  gateway:
-    type: s3
-    sslCertificateRef:
-    port: %d
-    securePort:
-    instances: %d
-    allNodes: false
-`, storeName, namespace, rgwPort, replicaCount)
-
-	if _, err := ro.k8sh.ResourceOperation("create", storeSpec); err != nil {
+	if _, err := o.k8sh.ResourceOperation("create", o.manifests.GetObjectStore(namespace, storeName, int(replicaCount), rgwPort)); err != nil {
 		return err
 	}
 
-	err := ro.k8sh.WaitForLabeledPodToRun(fmt.Sprintf("rook_object_store=%s", storeName), namespace)
+	err := o.k8sh.WaitForLabeledPodToRun(fmt.Sprintf("rook_object_store=%s", storeName), namespace)
 	if err != nil {
 		return fmt.Errorf("rgw did not start via crd. %+v", err)
 	}
 
 	// create the external service
-	return ro.k8sh.CreateExternalRGWService(namespace, storeName)
+	return o.k8sh.CreateExternalRGWService(namespace, storeName)
 }
 
-func (ro *ObjectOperation) Delete(namespace, storeName string) error {
+func (o *ObjectOperation) Delete(namespace, storeName string) error {
 
 	logger.Infof("Deleting the object store via CRD")
-	if _, err := ro.k8sh.DeleteResource("-n", namespace, "ObjectStore", storeName); err != nil {
+	if _, err := o.k8sh.DeleteResource("-n", namespace, "ObjectStore", storeName); err != nil {
 		return err
 	}
 
-	if !ro.k8sh.WaitUntilPodWithLabelDeleted(fmt.Sprintf("rook_object_store=%s", storeName), namespace) {
+	if !o.k8sh.WaitUntilPodWithLabelDeleted(fmt.Sprintf("rook_object_store=%s", storeName), namespace) {
 		return fmt.Errorf("rgw did not stop via crd")
 	}
 	return nil

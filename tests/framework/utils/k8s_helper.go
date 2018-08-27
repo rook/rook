@@ -57,6 +57,8 @@ const (
 	RetryLoop = 30
 	//RetryInterval param for test - wait time while in RetryLoop
 	RetryInterval = 5
+	//TestMountPath is the path inside a test pod where storage is mounted
+	TestMountPath = "/tmp/testrook"
 )
 
 //CreateK8sHelper creates a instance of k8sHelper
@@ -102,6 +104,16 @@ func (k8sh *K8sHelper) IsRookClientsetAvailable() bool {
 
 func (k8sh *K8sHelper) MakeContext() *clusterd.Context {
 	return &clusterd.Context{Clientset: k8sh.Clientset, RookClientset: k8sh.RookClientset, Executor: k8sh.executor}
+}
+
+func (k8sh *K8sHelper) GetDockerImage(image string) error {
+	return k8sh.executor.ExecuteCommand(false, "", "docker", "pull", image)
+}
+
+// SetDeploymentVersion sets the container version on the deployment. It is assumed to be the rook/ceph image.
+func (k8sh *K8sHelper) SetDeploymentVersion(namespace, deploymentName, containerName, version string) error {
+	_, err := k8sh.Kubectl("-n", namespace, "set", "image", "deploy/"+deploymentName, containerName+"=rook/ceph:"+version)
+	return err
 }
 
 //Kubectl is wrapper for executing kubectl commands
@@ -275,14 +287,13 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinitio
 		return result, nil
 	}
 	logger.Errorf("Failed to execute kubectl %v %v -- %v", args, podDef, err)
-	return "", fmt.Errorf("Could Not create resource in args : %v  %v-- %v", args, podDef, err)
+	return "", fmt.Errorf("Could not %s resource in args : %v  %v-- %v", action, args, podDef, err)
 }
 
 //ResourceOperation performs a kubectl action on a pod definition
-func (k8sh *K8sHelper) ResourceOperation(action string, podDefinition string) (string, error) {
-
+func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) (string, error) {
 	args := []string{action, "-f", "-"}
-	result, err := k8sh.KubectlWithStdin(podDefinition, args...)
+	result, err := k8sh.KubectlWithStdin(manifest, args...)
 	if err == nil {
 		return result, nil
 	}
@@ -290,9 +301,51 @@ func (k8sh *K8sHelper) ResourceOperation(action string, podDefinition string) (s
 	return "", fmt.Errorf("Could Not create resource in args : %v -- %v", args, err)
 }
 
-//DeleteResource performs a kubectl delete on give args
+//DeletePod performs a kubectl delete pod on the given pod
+func (k8sh *K8sHelper) DeletePod(namespace, name string) (string, error) {
+	args := append([]string{"--grace-period=0", "pod"}, name)
+	if namespace != "" {
+		args = append(args, []string{"-n", namespace}...)
+	}
+	return k8sh.DeleteResourceAndWait(true, args...)
+}
+
+//DeletePods performs a kubectl delete pod on the given pods
+func (k8sh *K8sHelper) DeletePods(pods ...string) (msg string, err error) {
+	for _, pod := range pods {
+		msg, err = k8sh.DeletePod("", pod)
+	}
+	return
+}
+
+//DeleteResource performs a kubectl delete on the given args
 func (k8sh *K8sHelper) DeleteResource(args ...string) (string, error) {
 	return k8sh.DeleteResourceAndWait(true, args...)
+}
+
+//WaitForCustomResourceDeletion waits for the CRD deletion
+func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace string, checkerFunc func() error) error {
+	if !k8sh.VersionAtLeast("v1.8.0") {
+		// v1.7 has an intermittent issue with long delay to delete resources so we will skip waiting
+		return nil
+	}
+
+	// wait for the operator to finalize and delete the CRD
+	for i := 0; i < 10; i++ {
+		err := checkerFunc()
+		if err == nil {
+			logger.Infof("custom resource %s still exists", namespace)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		if errors.IsNotFound(err) {
+			logger.Infof("custom resource %s deleted", namespace)
+			return nil
+		}
+		return err
+	}
+	logger.Errorf("gave up deleting custom resource %s", namespace)
+	return nil
 }
 
 // DeleteResource performs a kubectl delete on give args.
@@ -560,6 +613,62 @@ func (k8sh *K8sHelper) IsCRDPresent(crdName string) bool {
 	}
 
 	return false
+}
+
+func (k8sh *K8sHelper) WriteToPod(namespace, podName, filename, message string) error {
+	logger.Infof("Writing file %s to pod %s", filename, podName)
+	err := k8sh.writeToPod(namespace, podName, filename, message)
+	if err != nil {
+		return fmt.Errorf("failed to write file %s to pod %s. %+v", filename, podName, err)
+	}
+	logger.Infof("Wrote file %s to pod %s", filename, podName)
+	return nil
+}
+
+func (k8sh *K8sHelper) ReadFromPod(namespace, podName, filename, expectedMessage string) error {
+	logger.Infof("Reading file %s from pod %s", filename, podName)
+	data, err := k8sh.readFromPod(namespace, podName, filename)
+	if err != nil {
+		return fmt.Errorf("failed to read file %s from pod %s. %+v", filename, podName, err)
+	}
+	if !strings.Contains(data, expectedMessage) {
+		return fmt.Errorf(`file %s in pod %s returned message "%s" instead of "%s"`, filename, podName, data, expectedMessage)
+	}
+	logger.Infof("Successfully read file %s from pod %s", filename, podName)
+	return nil
+}
+
+func (k8sh *K8sHelper) writeToPod(namespace, name, filename, message string) error {
+	wt := "echo \"" + message + "\">" + path.Join(TestMountPath, filename)
+	args := []string{"exec", name}
+
+	if namespace != "" {
+		args = append(args, "-n", namespace)
+	}
+	args = append(args, "--", "sh", "-c", wt)
+
+	_, err := k8sh.Kubectl(args...)
+	if err != nil {
+		return fmt.Errorf("failed to write file %s to pod %s. %+v", filename, name, err)
+	}
+
+	return nil
+}
+
+func (k8sh *K8sHelper) readFromPod(namespace, name, filename string) (string, error) {
+	rd := path.Join(TestMountPath, filename)
+	args := []string{"exec", name}
+
+	if namespace != "" {
+		args = append(args, "-n", namespace)
+	}
+	args = append(args, "--", "cat", rd)
+
+	result, err := k8sh.Kubectl(args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file %s from pod %s. %+v", filename, name, err)
+	}
+	return result, nil
 }
 
 // GetVolumeResourceName gets the Volume object name from the PVC
