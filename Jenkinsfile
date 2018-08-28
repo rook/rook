@@ -67,7 +67,6 @@ pipeline {
                 stash name: 'repo-amd64',includes: 'ceph-amd64.tar,cockroachdb-amd64.tar,nfs-amd64.tar,build/common.sh,_output/tests/linux_amd64/,_output/charts/,tests/scripts/'
                 script{
                     def data = [
-                        "aws_1.7.x": "v1.7.11",
                         "aws_1.8.x": "v1.8.5",
                         "gce_1.9.x": "v1.9.9",
                         "aws_1.10.x": "v1.10.5",
