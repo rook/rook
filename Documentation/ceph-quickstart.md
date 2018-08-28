@@ -91,8 +91,8 @@ rook-ceph-mgr-a-9c44495df-ln9sq        1/1       Running     0          1m
 rook-ceph-mon-a-69fb9c78cd-58szd       1/1       Running     0          2m
 rook-ceph-mon-b-cf4ddc49c-c756f        1/1       Running     0          2m
 rook-ceph-mon-c-5b467747f4-8cbmv       1/1       Running     0          2m
-rook-ceph-osd-id-0-f6549956d-6z294     1/1       Running     0          1m
-rook-ceph-osd-id-1-5b96b56684-r7zsp    1/1       Running     0          1m
+rook-ceph-osd-0-f6549956d-6z294        1/1       Running     0          1m
+rook-ceph-osd-1-5b96b56684-r7zsp       1/1       Running     0          1m
 rook-ceph-osd-prepare-mynode-ftt57     0/1       Completed   0          1m
 ```
 

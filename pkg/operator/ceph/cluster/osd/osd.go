@@ -46,7 +46,7 @@ const (
 	appName                      = "rook-ceph-osd"
 	prepareAppName               = "rook-ceph-osd-prepare"
 	prepareAppNameFmt            = "rook-ceph-osd-prepare-%s"
-	osdAppNameFmt                = "rook-ceph-osd-id-%d"
+	osdAppNameFmt                = "rook-ceph-osd-%d"
 	appNameFmt                   = "rook-ceph-osd-%s"
 	osdLabelKey                  = "ceph-osd-id"
 	clusterAvailableSpaceReserve = 0.05

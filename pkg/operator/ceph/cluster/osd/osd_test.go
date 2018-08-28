@@ -267,15 +267,15 @@ func TestDiscoverOSDs(t *testing.T) {
 	assert.Equal(t, 2, len(discovered))
 
 	assert.Equal(t, 2, len(discovered[node1]))
-	if discovered[node1][0].Name == "rook-ceph-osd-id-0" {
-		assert.Equal(t, "rook-ceph-osd-id-101", discovered[node1][1].Name)
+	if discovered[node1][0].Name == "rook-ceph-osd-0" {
+		assert.Equal(t, "rook-ceph-osd-101", discovered[node1][1].Name)
 	} else {
-		assert.Equal(t, "rook-ceph-osd-id-101", discovered[node1][0].Name)
-		assert.Equal(t, "rook-ceph-osd-id-0", discovered[node1][1].Name)
+		assert.Equal(t, "rook-ceph-osd-101", discovered[node1][0].Name)
+		assert.Equal(t, "rook-ceph-osd-0", discovered[node1][1].Name)
 	}
 
 	assert.Equal(t, 1, len(discovered[node2]))
-	assert.Equal(t, "rook-ceph-osd-id-23", discovered[node2][0].Name)
+	assert.Equal(t, "rook-ceph-osd-23", discovered[node2][0].Name)
 }
 
 func TestAddNodeFailure(t *testing.T) {
