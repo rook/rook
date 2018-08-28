@@ -14,7 +14,7 @@ This chart bootstraps a [rook-ceph-operator](https://github.com/rook/rook) deplo
 
 ## Prerequisites
 
-- Kubernetes 1.7+
+- Kubernetes 1.8+
 
 ### RBAC
 

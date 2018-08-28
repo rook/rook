@@ -19,7 +19,7 @@ You can choose any Kubernetes flavor of your choice.  The test framework only de
 The framework also provides scripts to install Kubernetes. There are two scripts to start the cluster:
 1. **Minikube** (recommended for MacOS): Run [minikube.sh](/tests/scripts/minikube.sh) to setup a single-node Minikube Kubernetes.
     1. Minikube v0.21.0 and higher is supported. Older minikube versions do not have cephfs or rbd tools installed.
-    1. If using Kubernetes v1.7.3 or higher, then Minikube v0.22.2 or higher is required.
+    1. If using Kubernetes v1.8 or higher, then Minikube v0.23.0 or higher is required.
 1. **Kubeadm** (recommended for Ubuntu): run [kubeadm.sh](/tests/scripts/kubeadm.sh) to setup a single-node K8s cluster using kubeadm
 
 #### Minikube (recommended for MacOS)
@@ -97,7 +97,7 @@ In addition to standard go tests parameters, the following custom parameters are
 | Parameter         | Description                                  | Possible values  | Default           |
 | ----------------- | -------------------------------------------- | ---------------- | ----------------- |
 | rook_platform     | platform Rook needs to be installed on       | kubernetes       | kubernetes        |
-| k8s_version       | version of Kubernetes to be installed        | v1.7+            | v1.8.5            |
+| k8s_version       | version of Kubernetes to be installed        | v1.8+            | v1.8.5            |
 | rook_image        | Rook image name to be installed              | valid image name | rook/ceph         |
 | toolbox_image     | toolbox image name to be installed           | valid image name | rook/ceph-toolbox |
 | skip_install_rook | skips installing Rook (if already installed) | true or false    | false             |
