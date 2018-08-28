@@ -121,22 +121,9 @@ MEMORY=${MEMORY:-"3000"}
 case "${1:-}" in
   up)
     # Use kubeadm bootstrapper for 1.8+ since localkube was deprecated in 1.8
-    if [[ $KUBE_VERSION == v1.7* ]] ; then
-      echo "starting minikube with localkube bootstrapper"
-      minikube start --memory="${MEMORY}" -b localkube --kubernetes-version "${KUBE_VERSION}" --extra-config=apiserver.Authorization.Mode=RBAC
-      wait_for_ssh
-      enable_roles_for_RBAC
-      echo "initializing flexvolume for ceph.rook.io"
-      init_flexvolume ceph.rook.io
-      echo "initializing flexvolume for rook.io"
-      init_flexvolume rook.io
-      echo "restarting minikube"
-      minikube start --memory="${MEMORY}" -b localkube --kubernetes-version "${KUBE_VERSION}" --extra-config=apiserver.Authorization.Mode=RBAC
-    else
-      echo "starting minikube with kubeadm bootstrapper"
-      minikube start --memory="${MEMORY}" -b kubeadm --kubernetes-version "${KUBE_VERSION}"
-      wait_for_ssh
-    fi
+    echo "starting minikube with kubeadm bootstrapper"
+    minikube start --memory="${MEMORY}" -b kubeadm --kubernetes-version "${KUBE_VERSION}"
+    wait_for_ssh
     # create a link so the default dataDirHostPath will work for this environment
     minikube ssh "sudo mkdir -p /mnt/sda1/${PWD}; sudo mkdir -p $(dirname $PWD); sudo ln -s /mnt/sda1/${PWD} $(dirname $PWD)/"
     minikube ssh "sudo mkdir /mnt/sda1/var/lib/rook;sudo ln -s /mnt/sda1/var/lib/rook /var/lib/rook"

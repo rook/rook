@@ -11,7 +11,6 @@ usage(){
     echo "usage:" >&2
     echo "  $0 up " >&2
     echo "  $0 install master" >&2
-    echo "  $0 install node --token <token> <master-ip>:<master-port> (for k8s 1.7 and older)" >&2
     echo "  $0 install node --token <token> <master-ip>:<master-port> --discovery-token-ca-cert-hash sha256:<hash>" >&2
     echo "  $0 wait <number of nodes>" >&2
     echo "  $0 clean" >&2
