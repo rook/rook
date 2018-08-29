@@ -71,7 +71,10 @@ func CreateImage(context *clusterd.Context, clusterName, name, poolName, dataPoo
 		size = ImageMinSize
 	}
 
-	sizeMB := int(size / 1024 / 1024)
+	// Roundup the size of the volume image since we only create images on 1MB bundaries and we should never create an image
+	// size that's smaller than the requested one, e.g, requested 1048698 bytes should be 2MB while not be truncated to 1MB
+	sizeMB := int((size + ImageMinSize - 1) / ImageMinSize)
+
 	imageSpec := getImageSpec(name, poolName)
 
 	args := []string{"create", imageSpec, "--size", strconv.Itoa(sizeMB)}
