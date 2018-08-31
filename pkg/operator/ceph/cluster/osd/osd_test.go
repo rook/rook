@@ -87,6 +87,35 @@ func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake
 	return err
 }
 
+func TestLegacyDeployment(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", "",
+		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+
+	osdID := 23
+	d := &extensions.Deployment{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf(legacyAppNameFmt, osdID), Namespace: c.Namespace}}
+	_, err := clientset.Extensions().Deployments(c.Namespace).Create(d)
+	require.Nil(t, err)
+
+	// delete the deployment
+	assert.Nil(t, c.deleteDeploymentWithLegacyName(osdID))
+	deployments, err := clientset.Extensions().Deployments(c.Namespace).List(metav1.ListOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(deployments.Items))
+
+	// return success if the deployment doesn't exist
+	assert.Nil(t, c.deleteDeploymentWithLegacyName(osdID))
+
+	// don't delete the newer deployment name
+	d = &extensions.Deployment{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf(osdAppNameFmt, osdID), Namespace: c.Namespace}}
+	_, err = clientset.Extensions().Deployments(c.Namespace).Create(d)
+	require.Nil(t, err)
+	assert.Nil(t, c.deleteDeploymentWithLegacyName(osdID))
+	deployments, err = clientset.Extensions().Deployments(c.Namespace).List(metav1.ListOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(deployments.Items))
+}
+
 func TestAddRemoveNode(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node8230"

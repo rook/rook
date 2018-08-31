@@ -46,8 +46,8 @@ const (
 	appName                      = "rook-ceph-osd"
 	prepareAppName               = "rook-ceph-osd-prepare"
 	prepareAppNameFmt            = "rook-ceph-osd-prepare-%s"
+	legacyAppNameFmt             = "rook-ceph-osd-id-%d"
 	osdAppNameFmt                = "rook-ceph-osd-%d"
-	appNameFmt                   = "rook-ceph-osd-%s"
 	osdLabelKey                  = "ceph-osd-id"
 	clusterAvailableSpaceReserve = 0.05
 	defaultServiceAccountName    = "rook-ceph-cluster"
@@ -341,6 +341,11 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 			}
 			continue
 		}
+
+		if err = c.deleteDeploymentWithLegacyName(osd.ID); err != nil {
+			logger.Warningf("failed to delete legacy osd deployment. %+v", err)
+		}
+
 		_, err = c.context.Clientset.Extensions().Deployments(c.Namespace).Create(dp)
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
@@ -360,6 +365,11 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 
 		logger.Infof("started deployment for osd %d (dir=%t, type=%s)", osd.ID, osd.IsDirectory, storeConfig.StoreType)
 	}
+}
+
+func (c *Cluster) deleteDeploymentWithLegacyName(osdID int) error {
+	legacyName := fmt.Sprintf(legacyAppNameFmt, osdID)
+	return k8sutil.DeleteDeployment(c.context.Clientset, c.Namespace, legacyName)
 }
 
 func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
