@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package osd
 
 import (
@@ -24,7 +25,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -64,11 +65,11 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	}
 
 	// set the crush location in the osd config file
-	cephConfig := mon.CreateDefaultCephConfig(context, agent.cluster, path.Join(context.ConfigDir, agent.cluster.Name))
+	cephConfig := cephconfig.CreateDefaultCephConfig(context, agent.cluster, path.Join(context.ConfigDir, agent.cluster.Name))
 	cephConfig.GlobalConfig.CrushLocation = agent.location
 
 	// write the latest config to the config dir
-	if err := mon.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig); err != nil {
+	if err := cephconfig.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig); err != nil {
 		return fmt.Errorf("failed to write connection config. %+v", err)
 	}
 

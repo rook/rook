@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package ceph
 
 import (
@@ -22,6 +23,7 @@ import (
 
 	"github.com/go-ini/ini"
 	"github.com/rook/rook/cmd/rook/rook"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -72,7 +74,7 @@ func startMon(cmd *cobra.Command, args []string) error {
 
 	// at first start the local monitor needs to be added to the list of mons
 	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	clusterInfo.Monitors[monName] = mon.ToCephMon(monName, cfg.NetworkInfo().PublicAddr, monPort)
+	clusterInfo.Monitors[monName] = cephconfig.NewMonInfo(monName, cfg.NetworkInfo().PublicAddr, monPort)
 
 	monCfg := &mon.Config{
 		Name:    monName,

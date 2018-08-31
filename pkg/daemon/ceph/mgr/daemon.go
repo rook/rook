@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package mgr
 
 import (
@@ -21,7 +22,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/util"
 )
 
@@ -41,7 +42,7 @@ const (
 )
 
 type Config struct {
-	ClusterInfo *mon.ClusterInfo
+	ClusterInfo *cephconfig.ClusterInfo
 	Name        string
 	Keyring     string
 }
@@ -68,7 +69,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		"mgr data": confDir,
 	}
 	logger.Infof("Conf files: dir=%s keyring=%s", confDir, keyringPath)
-	_, err := mon.GenerateConfigFile(context, config.ClusterInfo, confDir,
+	_, err := cephconfig.GenerateConfigFile(context, config.ClusterInfo, confDir,
 		username, keyringPath, nil, settings)
 	if err != nil {
 		return fmt.Errorf("failed to create config file. %+v", err)
@@ -78,7 +79,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		return fmt.Sprintf(keyringTemplate, config.Name, key)
 	}
 
-	err = mon.WriteKeyring(keyringPath, config.Keyring, keyringEval)
+	err = cephconfig.WriteKeyring(keyringPath, config.Keyring, keyringEval)
 	if err != nil {
 		return fmt.Errorf("failed to create mds keyring. %+v", err)
 	}

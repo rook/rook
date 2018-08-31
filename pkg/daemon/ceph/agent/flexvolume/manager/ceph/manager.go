@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package ceph
 
 import (
@@ -25,7 +26,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
-	cephmon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/util/sys"
@@ -190,7 +191,7 @@ func getClusterInfo(context *clusterd.Context, clusterNamespace string) (string,
 		return "", "", err
 	}
 
-	keyring := fmt.Sprintf(cephmon.AdminKeyringTemplate, clusterInfo.AdminSecret)
+	keyring := cephconfig.AdminKeyring(clusterInfo)
 	if err := ioutil.WriteFile(keyringFile.Name(), []byte(keyring), 0644); err != nil {
 		return "", "", fmt.Errorf("failed to write monitor keyring to %s: %+v", keyringFile.Name(), err)
 	}

@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package ceph
 
 import (
@@ -21,7 +22,7 @@ import (
 
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/flags"
@@ -35,7 +36,7 @@ var Cmd = &cobra.Command{
 
 var (
 	cfg         = &config{}
-	clusterInfo mon.ClusterInfo
+	clusterInfo cephconfig.ClusterInfo
 	logger      = capnslog.NewPackageLogger("github.com/rook/rook", "cephcmd")
 )
 

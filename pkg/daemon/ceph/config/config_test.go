@@ -13,7 +13,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
-package mon
+
+package config
 
 import (
 	"io/ioutil"
@@ -34,7 +35,7 @@ func TestCreateDefaultCephConfig(t *testing.T) {
 		MonitorSecret: "monsecret",
 		AdminSecret:   "adminsecret",
 		Name:          "foo-cluster",
-		Monitors: map[string]*CephMonitorConfig{
+		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6790"},
 			"node1": {Name: "mon1", Endpoint: "10.0.0.2:6790"},
 		},
@@ -96,7 +97,7 @@ debug bluestore = 1234`
 		MonitorSecret: "monsecret",
 		AdminSecret:   "adminsecret",
 		Name:          "foo-cluster",
-		Monitors: map[string]*CephMonitorConfig{
+		Monitors: map[string]*MonInfo{
 			"node0": {Name: "mon0", Endpoint: "10.0.0.1:6790"},
 		},
 	}
@@ -115,7 +116,7 @@ debug bluestore = 1234`
 	verifyConfigValue(t, actualConf, "global", "debug bluestore", "1234")
 }
 
-func verifyConfig(t *testing.T, cephConfig *cephConfig, expectedMonMembers string, loggingLevel int) {
+func verifyConfig(t *testing.T, cephConfig *CephConfig, expectedMonMembers string, loggingLevel int) {
 
 	for _, expectedMon := range strings.Split(expectedMonMembers, " ") {
 		contained := false

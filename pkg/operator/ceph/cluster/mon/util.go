@@ -29,6 +29,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
@@ -44,14 +45,14 @@ const (
 )
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func LoadClusterInfo(context *clusterd.Context, namespace string) (*mon.ClusterInfo, int, *Mapping, error) {
+func LoadClusterInfo(context *clusterd.Context, namespace string) (*cephconfig.ClusterInfo, int, *Mapping, error) {
 	return CreateOrLoadClusterInfo(context, namespace, nil)
 }
 
 // CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*mon.ClusterInfo, int, *Mapping, error) {
+func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*cephconfig.ClusterInfo, int, *Mapping, error) {
 
-	var clusterInfo *mon.ClusterInfo
+	var clusterInfo *cephconfig.ClusterInfo
 	maxMonID := -1
 	monMapping := &Mapping{
 		Node: map[string]*NodeInfo{},
@@ -77,7 +78,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 			return nil, maxMonID, monMapping, err
 		}
 	} else {
-		clusterInfo = &mon.ClusterInfo{
+		clusterInfo = &cephconfig.ClusterInfo{
 			Name:          string(secrets.Data[clusterSecretName]),
 			FSID:          string(secrets.Data[fsidSecretName]),
 			MonitorSecret: string(secrets.Data[monSecretName]),
@@ -96,9 +97,9 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 }
 
 // WriteConnectionConfig save monitor connection config to disk
-func WriteConnectionConfig(context *clusterd.Context, clusterInfo *mon.ClusterInfo) error {
+func WriteConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo) error {
 	// write the latest config to the config dir
-	if err := mon.GenerateAdminConnectionConfig(context, clusterInfo); err != nil {
+	if err := cephconfig.GenerateAdminConnectionConfig(context, clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config. %+v", err)
 	}
 
@@ -106,9 +107,9 @@ func WriteConnectionConfig(context *clusterd.Context, clusterInfo *mon.ClusterIn
 }
 
 // loadMonConfig returns the monitor endpoints and maxMonID
-func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*mon.CephMonitorConfig, int, *Mapping, error) {
+func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*cephconfig.MonInfo, int, *Mapping, error) {
 
-	monEndpointMap := map[string]*mon.CephMonitorConfig{}
+	monEndpointMap := map[string]*cephconfig.MonInfo{}
 	maxMonID := -1
 	monMapping := &Mapping{
 		Node: map[string]*NodeInfo{},
@@ -154,7 +155,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 	return monEndpointMap, maxMonID, monMapping, nil
 }
 
-func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *mon.ClusterInfo, ownerRef *metav1.OwnerReference) error {
+func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephconfig.ClusterInfo, ownerRef *metav1.OwnerReference) error {
 	logger.Infof("creating mon secrets for a new cluster")
 	var err error
 
@@ -192,7 +193,7 @@ func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
 }
 
 // create new cluster info (FSID, shared keys)
-func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*mon.ClusterInfo, error) {
+func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*cephconfig.ClusterInfo, error) {
 	fsid, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
@@ -216,7 +217,7 @@ func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*mon
 		return nil, err
 	}
 
-	return &mon.ClusterInfo{
+	return &cephconfig.ClusterInfo{
 		FSID:          fsid.String(),
 		MonitorSecret: monSecret,
 		AdminSecret:   adminSecret,

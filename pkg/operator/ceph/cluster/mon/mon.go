@@ -29,6 +29,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
@@ -66,7 +67,7 @@ const (
 	MaxMonCount = 9
 )
 
-// Cluster is for the cluster of monitors
+// Cluster represents the Rook configuration settings for Ceph mons.
 type Cluster struct {
 	context              *clusterd.Context
 	Namespace            string
@@ -75,7 +76,7 @@ type Cluster struct {
 	Size                 int
 	AllowMultiplePerNode bool
 	Port                 int32
-	clusterInfo          *mon.ClusterInfo
+	clusterInfo          *cephconfig.ClusterInfo
 	placement            rookalpha.Placement
 	maxMonID             int
 	waitForStart         bool
@@ -136,7 +137,7 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, version string, 
 	}
 }
 
-// Start the mon cluster
+// Start begins the process of running a cluster of Ceph mons.
 func (c *Cluster) Start() error {
 	logger.Infof("start running mons")
 
@@ -186,7 +187,7 @@ func (c *Cluster) startMons() error {
 		}
 	}
 
-	logger.Debugf("mon endpoints used are: %s", c.clusterInfo.MonEndpoints())
+	logger.Debugf("mon endpoints used are: %s", mon.FlattenMonEndpoints(c.clusterInfo.Monitors))
 	return nil
 }
 
@@ -255,7 +256,7 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 			}
 			m.PublicIP = serviceIP
 		}
-		c.clusterInfo.Monitors[m.DaemonName] = mon.ToCephMon(m.DaemonName, m.PublicIP, m.Port)
+		c.clusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 	}
 
 	return nil
