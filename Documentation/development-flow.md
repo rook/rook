@@ -52,6 +52,66 @@ git remote -v
 ```
 Now you should have at least `origin` and `upstream` remotes. You can also add other remotes to collaborate with other contributors.
 
+## Layout
+
+A source code layout is shown below, annotated with comments about the use of each important directory:
+```
+rook
+├── build                         # build makefiles and logic to build, publish and release all Rook artifacts
+├── cluster
+│   ├── charts                    # Helm charts
+│   │   └── rook-ceph
+│   └── examples                  # Sample yaml files for Rook cluster
+│
+├── cmd                           # Binaries with main entrypoint
+│   ├── rook                      # Main command entry points for operators and daemons
+│   └── rookflex                  # Main command entry points for Rook flexvolume driver
+│
+├── design                        # Design documents for the various components of the Rook project
+├── Documentation                 # Rook project Documentation
+├── images                        # Dockerfiles to build images for all supported storage providers
+│
+├── pkg
+│   ├── apis
+│   │   ├── ceph.rook.io          # ceph specific specs for cluster, file, object
+│   │   │   ├── v1alpha1
+│   │   │   └── v1beta1
+│   │   ├── cockroachdb.rook.io   # cockroachdb specific specs
+│   │   │   └── v1alpha1
+│   │   ├── minio.rook.io         # minio specific specs for cluster, object
+│   │   │   └── v1alpha1
+│   │   ├── nfs.rook.io           # nfs server specific specs
+│   │   │   └── v1alpha1
+│   │   └── rook.io               # rook.io API group of common types
+│   │       ├── v1alpha1
+│   │       └── v1alpha2
+│   ├── client                    # auto-generated strongly typed client code to access Rook APIs
+│   ├── clusterd
+│   ├── daemon                    # daemons for each storage provider
+│   │   ├── ceph
+│   │   └── discover
+│   ├── operator                  # all orchestration logic and custom controllers for each storage provider
+│   │   ├── ceph
+│   │   ├── cockroachdb
+│   │   ├── discover
+│   │   ├── k8sutil
+│   │   ├── minio
+│   │   ├── nfs
+│   │   └── test
+│   ├── test
+│   ├── util
+│   └── version
+└── tests                         # integration tests
+    ├── framework                 # the Rook testing framework
+    │   ├── clients               # test clients used to consume Rook resources during integration tests
+    │   ├── installer             # installs Rook and its supported storage providers into integration tests environments
+    │   └── utils
+    ├── integration               # all test cases that will be invoked during integration testing
+    ├── longhaul                  # longhaul tests
+    ├── pipeline                  # Jenkins pipeline
+    └── scripts                   # scripts for setting up integration and manual testing environments
+
+```
 
 ## Development
 
