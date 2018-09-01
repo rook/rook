@@ -49,7 +49,7 @@ func (f *FilesystemOperation) Create(name, namespace string) error {
 	}
 
 	logger.Infof("Make sure rook-ceph-mds pod is running")
-	err := f.k8sh.WaitForLabeledPodToRun(fmt.Sprintf("rook_file_system=%s", name), namespace)
+	err := f.k8sh.WaitForLabeledPodsToRun(fmt.Sprintf("rook_file_system=%s", name), namespace)
 	assert.Nil(f.k8sh.T(), err)
 
 	assert.True(f.k8sh.T(), f.k8sh.CheckPodCountAndState("rook-ceph-mds", namespace, 2, "Running"),

@@ -26,7 +26,7 @@ func MonInQuorumResponse() string {
 	resp := client.MonStatusResponse{Quorum: []int{0}}
 	resp.MonMap.Mons = []client.MonMapEntry{
 		{
-			Name:    "rook-ceph-mon-a",
+			Name:    "a",
 			Rank:    0,
 			Address: "1.2.3.1",
 		},

@@ -135,7 +135,7 @@ func restartOSDPods(k8sh *utils.K8sHelper, s suite.Suite, namespace string) {
 
 	// Wait for the new pods to run
 	logger.Infof("Waiting for new osd pod to run")
-	err = k8sh.WaitForLabeledPodToRun(osdLabel, namespace)
+	err = k8sh.WaitForLabeledPodsToRun(osdLabel, namespace)
 	assert.Nil(s.T(), err)
 }
 

@@ -167,7 +167,8 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 		return fmt.Errorf("Failed to create cluster roles. %+v", err)
 	}
 
-	if h.k8shelper.IsRookClientsetAvailable() {
+	// for increasing the test matrix, sometimes use the strongly typed client instead of the yaml
+	if h.k8shelper.VersionAtLeast("v1.10.0") {
 		logger.Infof("Starting Rook cluster with strongly typed clientset")
 
 		clust := &cephv1beta1.Cluster{
@@ -242,7 +243,7 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 	}
 
 	logger.Infof("Rook Cluster started")
-	err = h.k8shelper.WaitForLabeledPodToRun("app=rook-ceph-osd", namespace)
+	err = h.k8shelper.WaitForLabeledPodsToRun("app=rook-ceph-osd", namespace)
 	return err
 }
 

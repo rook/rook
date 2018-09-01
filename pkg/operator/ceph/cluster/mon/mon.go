@@ -91,10 +91,10 @@ type Cluster struct {
 
 // monConfig for a single monitor
 type monConfig struct {
-	Name       string
-	DaemonName string
-	PublicIP   string
-	Port       int32
+	ResourceName string
+	DaemonName   string
+	PublicIP     string
+	Port         int32
 }
 
 // Mapping mon node and port mapping
@@ -144,17 +144,8 @@ func (c *Cluster) Start() error {
 		return fmt.Errorf("failed to initialize ceph cluster info. %+v", err)
 	}
 
-	// when we don't have enough monitors, start them
-	if len(c.clusterInfo.Monitors) < c.Size {
-		return c.startMons()
-	}
-	// we have enough mons, run a health check
-	err := c.checkHealth()
-	if err != nil {
-		logger.Warningf("failed to check mon health %+v. %+v", c.clusterInfo.Monitors, err)
-	}
-
-	return err
+	// create the mons for a new cluster or ensure mons are running in an existing cluster
+	return c.startMons()
 }
 
 func (c *Cluster) startMons() error {
@@ -167,9 +158,15 @@ func (c *Cluster) startMons() error {
 	}
 
 	// Start one monitor at a time
-	for i := len(c.clusterInfo.Monitors); i < c.Size; i++ {
+	for i := 0; i < c.Size; i++ {
+		logger.Infof("ensuring mon %s (%s) is started", mons[i].ResourceName, mons[i].DaemonName)
+		endIndex := len(c.clusterInfo.Monitors)
+		if endIndex < c.Size {
+			endIndex++
+		}
+
 		// Init the mon IPs
-		if err := c.initMonIPs(mons[0 : i+1]); err != nil {
+		if err := c.initMonIPs(mons[0:endIndex]); err != nil {
 			return fmt.Errorf("failed to init mon services. %+v", err)
 		}
 
@@ -183,8 +180,8 @@ func (c *Cluster) startMons() error {
 			return err
 		}
 
-		// Start pods
-		if err := c.startPods(mons[0 : i+1]); err != nil {
+		// Start the deployment
+		if err := c.startDeployments(mons[0:endIndex], i); err != nil {
 			return fmt.Errorf("failed to start mon pods. %+v", err)
 		}
 	}
@@ -217,7 +214,7 @@ func (c *Cluster) initMonConfig(size int) []*monConfig {
 
 	// initialize the mon pod info for mons that have been previously created
 	for _, monitor := range c.clusterInfo.Monitors {
-		mons = append(mons, &monConfig{Name: monitor.Name, DaemonName: daemonName(monitor.Name), Port: int32(mon.DefaultPort)})
+		mons = append(mons, &monConfig{ResourceName: resourceName(monitor.Name), DaemonName: monitor.Name, Port: int32(mon.DefaultPort)})
 	}
 
 	// initialize mon info if we don't have enough mons (at first startup)
@@ -231,24 +228,22 @@ func (c *Cluster) initMonConfig(size int) []*monConfig {
 
 func newMonConfig(monID int) *monConfig {
 	daemonName := indexToName(monID)
-	return &monConfig{Name: fmt.Sprintf("%s-%s", appName, daemonName), DaemonName: daemonName, Port: int32(mon.DefaultPort)}
+	return &monConfig{ResourceName: resourceName(daemonName), DaemonName: daemonName, Port: int32(mon.DefaultPort)}
 }
 
-// Extract the daemon name from the full deployment name.
-func daemonName(fullName string) string {
-	prefix := appName + "-"
-	if strings.HasPrefix(fullName, prefix) {
-		return fullName[len(prefix):]
+// Ensure the mon name has the rook-ceph-mon prefix
+func resourceName(name string) string {
+	if strings.HasPrefix(name, appName) {
+		return name
 	}
-	// If the deployment name did not have the prefix, we have a legacy daemon name that was in the form rook-ceph-mon0 and should not change
-	return fullName
+	return fmt.Sprintf("%s-%s", appName, name)
 }
 
 func (c *Cluster) initMonIPs(mons []*monConfig) error {
 	for _, m := range mons {
 		if c.HostNetwork {
 			logger.Infof("setting mon endpoints for hostnetwork mode")
-			node, ok := c.mapping.Node[m.Name]
+			node, ok := c.mapping.Node[m.DaemonName]
 			if !ok {
 				return fmt.Errorf("mon doesn't exist in assignment map")
 			}
@@ -270,13 +265,13 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 	labels := c.getLabels(mon.DaemonName)
 	s := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   mon.Name,
+			Name:   mon.ResourceName,
 			Labels: labels,
 		},
 		Spec: v1.ServiceSpec{
 			Ports: []v1.ServicePort{
 				{
-					Name:       mon.Name,
+					Name:       mon.ResourceName,
 					Port:       mon.Port,
 					TargetPort: intstr.FromInt(int(mon.Port)),
 					Protocol:   v1.ProtocolTCP,
@@ -295,14 +290,14 @@ func (c *Cluster) createService(mon *monConfig) (string, error) {
 		if !errors.IsAlreadyExists(err) {
 			return "", fmt.Errorf("failed to create mon service. %+v", err)
 		}
-		s, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get(mon.Name, metav1.GetOptions{})
+		s, err = c.context.Clientset.CoreV1().Services(c.Namespace).Get(mon.ResourceName, metav1.GetOptions{})
 		if err != nil {
-			return "", fmt.Errorf("failed to get mon %s service ip. %+v", mon.Name, err)
+			return "", fmt.Errorf("failed to get mon %s service ip. %+v", mon.ResourceName, err)
 		}
 	}
 
 	if s == nil {
-		logger.Warningf("service ip not found for mon %s. this better be a test", mon.Name)
+		logger.Warningf("service ip not found for mon %s. this better be a test", mon.ResourceName)
 		return "", nil
 	}
 
@@ -324,14 +319,14 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 
 	nodeIndex := 0
 	for _, m := range mons {
-		if _, ok := c.mapping.Node[m.Name]; ok {
-			logger.Debugf("mon %s already assigned to a node, no need to assign", m.Name)
+		if _, ok := c.mapping.Node[m.DaemonName]; ok {
+			logger.Debugf("mon %s already assigned to a node, no need to assign", m.DaemonName)
 			continue
 		}
 
 		// pick one of the available nodes where the mon will be assigned
 		node := availableNodes[nodeIndex%len(availableNodes)]
-		logger.Debugf("mon %s assigned to node %s", m.Name, node.Name)
+		logger.Debugf("mon %s assigned to node %s", m.DaemonName, node.Name)
 		nodeInfo, err := getNodeInfoFromNode(node)
 		if err != nil {
 			return fmt.Errorf("couldn't get node info from node %s. %+v", node.Name, err)
@@ -345,7 +340,7 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 			}
 			c.mapping.Port[node.Name] = m.Port
 		}
-		c.mapping.Node[m.Name] = nodeInfo
+		c.mapping.Node[m.DaemonName] = nodeInfo
 		nodeIndex++
 	}
 
@@ -372,15 +367,17 @@ func getNodeInfoFromNode(n v1.Node) (*NodeInfo, error) {
 	return nr, nil
 }
 
-func (c *Cluster) startPods(mons []*monConfig) error {
-	for _, m := range mons {
-		node, _ := c.mapping.Node[m.Name]
+func (c *Cluster) startDeployments(mons []*monConfig, index int) error {
+	if len(mons) == 0 {
+		return fmt.Errorf("cannot start 0 mons")
+	}
 
-		// start the mon replicaset/pod
-		err := c.startMon(m, node.Hostname)
-		if err != nil {
-			return fmt.Errorf("failed to create pod %s. %+v", m.Name, err)
-		}
+	// Start the last mon in the list. The others have already been started by a previous call.
+	m := mons[index]
+	node, _ := c.mapping.Node[m.DaemonName]
+	err := c.startMon(m, node.Hostname)
+	if err != nil {
+		return fmt.Errorf("failed to create mon %s. %+v", m.DaemonName, err)
 	}
 
 	logger.Infof("mons created: %d", len(mons))
@@ -538,15 +535,21 @@ func getNodeNameFromHostname(nodes *v1.NodeList, hostname string) (string, bool)
 }
 
 func (c *Cluster) startMon(m *monConfig, hostname string) error {
-	rs := c.makeReplicaSet(m, hostname)
-	logger.Debugf("Starting mon: %+v", rs.Name)
-	_, err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Create(rs)
+	// If we determine the legacy replicaset exists, delete it so we can start the new deployment in its place
+	if err := k8sutil.DeleteReplicaSet(c.context.Clientset, c.Namespace, m.ResourceName); err != nil {
+		logger.Errorf("failed to delete legacy mon replicaset. %+v", err)
+	}
+
+	d := c.makeDeployment(m, hostname)
+	logger.Debugf("Starting mon: %+v", d.Name)
+	_, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Create(d)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create mon %s. %+v", m.Name, err)
+			return fmt.Errorf("failed to create mon %s. %+v", m.ResourceName, err)
 		}
-		logger.Infof("replicaset %s already exists", m.Name)
+		logger.Infof("mon %s already exists", m.ResourceName)
 	}
+
 	return nil
 }
 

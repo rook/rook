@@ -98,10 +98,6 @@ func (k8sh *K8sHelper) VersionAtLeast(minVersion string) bool {
 	return v.AtLeast(version.MustParseSemantic(minVersion))
 }
 
-func (k8sh *K8sHelper) IsRookClientsetAvailable() bool {
-	return k8sh.VersionAtLeast("v1.8.0")
-}
-
 func (k8sh *K8sHelper) MakeContext() *clusterd.Context {
 	return &clusterd.Context{Clientset: k8sh.Clientset, RookClientset: k8sh.RookClientset, Executor: k8sh.executor}
 }
@@ -429,23 +425,29 @@ func (k8sh *K8sHelper) IsPodWithLabelPresent(label string, namespace string) boo
 	return count > 0
 }
 
-//WaitForLabeledPodToRun returns true if a Pod is running status or goes to Running status within 90s else returns false
-func (k8sh *K8sHelper) WaitForLabeledPodToRun(label string, namespace string) error {
+//WaitForLabeledPodsToRun returns true if a Pod is running status or goes to Running status within 90s else returns false
+func (k8sh *K8sHelper) WaitForLabeledPodsToRun(label string, namespace string) error {
 	options := metav1.ListOptions{LabelSelector: label}
 	var lastPod v1.Pod
 	for i := 0; i < RetryLoop; i++ {
 		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
 		lastStatus := ""
+		running := 0
 		if err == nil && len(pods.Items) > 0 {
 			for _, pod := range pods.Items {
 				if pod.Status.Phase == "Running" {
-					return nil
+					running++
 				}
 				lastPod = pod
 				lastStatus = string(pod.Status.Phase)
 			}
+			if running == len(pods.Items) {
+				logger.Infof("All %d pod(s) with label %s are running", len(pods.Items), label)
+				return nil
+			}
 		}
-		logger.Infof("waiting for pod with label %s in namespace %s to be running. status=%s, err=%+v", label, namespace, lastStatus, err)
+		logger.Infof("waiting for pod(s) with label %s in namespace %s to be running. status=%s, running=%d/%d, err=%+v",
+			label, namespace, lastStatus, running, len(pods.Items), err)
 		time.Sleep(RetryInterval * time.Second)
 	}
 
@@ -616,26 +618,53 @@ func (k8sh *K8sHelper) IsCRDPresent(crdName string) bool {
 }
 
 func (k8sh *K8sHelper) WriteToPod(namespace, podName, filename, message string) error {
+	return k8sh.WriteToPodRetry(namespace, podName, filename, message, 1)
+}
+
+func (k8sh *K8sHelper) WriteToPodRetry(namespace, podName, filename, message string, retries int) error {
 	logger.Infof("Writing file %s to pod %s", filename, podName)
-	err := k8sh.writeToPod(namespace, podName, filename, message)
-	if err != nil {
-		return fmt.Errorf("failed to write file %s to pod %s. %+v", filename, podName, err)
+	var err error
+	for i := 0; i < retries; i++ {
+		if i > 0 {
+			logger.Infof("retrying write in 5s...")
+			time.Sleep(5 * time.Second)
+		}
+
+		err = k8sh.writeToPod(namespace, podName, filename, message)
+		if err == nil {
+			logger.Infof("write file %s in pod %s was successful", filename, podName)
+			return nil
+		}
 	}
-	logger.Infof("Wrote file %s to pod %s", filename, podName)
-	return nil
+
+	return fmt.Errorf("failed to write file %s to pod %s. %+v", filename, podName, err)
 }
 
 func (k8sh *K8sHelper) ReadFromPod(namespace, podName, filename, expectedMessage string) error {
+	return k8sh.ReadFromPodRetry(namespace, podName, filename, expectedMessage, 1)
+}
+
+func (k8sh *K8sHelper) ReadFromPodRetry(namespace, podName, filename, expectedMessage string, retries int) error {
 	logger.Infof("Reading file %s from pod %s", filename, podName)
-	data, err := k8sh.readFromPod(namespace, podName, filename)
-	if err != nil {
-		return fmt.Errorf("failed to read file %s from pod %s. %+v", filename, podName, err)
+	var err error
+	for i := 0; i < retries; i++ {
+		if i > 0 {
+			logger.Infof("retrying read in 5s...")
+			time.Sleep(5 * time.Second)
+		}
+
+		var data string
+		data, err = k8sh.readFromPod(namespace, podName, filename)
+		if err == nil {
+			logger.Infof("read file %s from pod %s was successful after %d attempt(s)", filename, podName, (i + 1))
+			if !strings.Contains(data, expectedMessage) {
+				return fmt.Errorf(`file %s in pod %s returned message "%s" instead of "%s"`, filename, podName, data, expectedMessage)
+			}
+			return nil
+		}
 	}
-	if !strings.Contains(data, expectedMessage) {
-		return fmt.Errorf(`file %s in pod %s returned message "%s" instead of "%s"`, filename, podName, data, expectedMessage)
-	}
-	logger.Infof("Successfully read file %s from pod %s", filename, podName)
-	return nil
+
+	return fmt.Errorf("failed to read file %s from pod %s. %+v", filename, podName, err)
 }
 
 func (k8sh *K8sHelper) writeToPod(namespace, name, filename, message string) error {

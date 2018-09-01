@@ -108,7 +108,7 @@ func (h *CockroachDBInstaller) CreateCockroachDBCluster(namespace string, count 
 		return err
 	}
 
-	err := h.k8shelper.WaitForLabeledPodToRun("app=rook-cockroachdb", namespace)
+	err := h.k8shelper.WaitForLabeledPodsToRun("app=rook-cockroachdb", namespace)
 	if err != nil {
 		logger.Errorf("cockroachdb cluster pods in namespace %s are not running", namespace)
 		return err

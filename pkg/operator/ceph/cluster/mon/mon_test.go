@@ -84,12 +84,10 @@ func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, r
 	}
 }
 
-func TestExtractDaemonName(t *testing.T) {
-	assert.Equal(t, "a", daemonName("rook-ceph-mon-a"))
-	assert.Equal(t, "b", daemonName("rook-ceph-mon-b"))
-	assert.Equal(t, "zz", daemonName("rook-ceph-mon-zz"))
-	assert.Equal(t, "rook-ceph-mon0", daemonName("rook-ceph-mon0"))
-	assert.Equal(t, "rook-ceph-mon123", daemonName("rook-ceph-mon123"))
+func TestResourceName(t *testing.T) {
+	assert.Equal(t, "rook-ceph-mon-a", resourceName("rook-ceph-mon-a"))
+	assert.Equal(t, "rook-ceph-mon123", resourceName("rook-ceph-mon123"))
+	assert.Equal(t, "rook-ceph-mon-b", resourceName("b"))
 }
 
 func TestStartMonPods(t *testing.T) {
@@ -159,7 +157,7 @@ func validateStart(t *testing.T, c *Cluster) {
 	assert.Equal(t, 4, len(s.StringData))
 
 	// there is only one pod created. the other two won't be created since the first one doesn't start
-	_, err = c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Get("rook-ceph-mon-a", metav1.GetOptions{})
+	_, err = c.context.Clientset.Extensions().Deployments(c.Namespace).Get("rook-ceph-mon-a", metav1.GetOptions{})
 	assert.Nil(t, err)
 }
 
@@ -280,7 +278,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 	// start pods on two of the nodes so that only one node will be available
 	for i := 0; i < 2; i++ {
-		pod := c.makeMonPod(&monConfig{Name: fmt.Sprintf("rook-ceph-mon%d", i)}, nodes[i].Name)
+		pod := c.makeMonPod(&monConfig{ResourceName: fmt.Sprintf("rook-ceph-mon%d", i)}, nodes[i].Name)
 		_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
 		assert.Nil(t, err)
 	}
@@ -291,7 +289,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 	// start pods on the remaining node. We expect no nodes to be available for placement
 	// since there is no way to place a mon on an unused node.
-	pod := c.makeMonPod(&monConfig{Name: "rook-ceph-mon2"}, nodes[2].Name)
+	pod := c.makeMonPod(&monConfig{ResourceName: "rook-ceph-mon2"}, nodes[2].Name)
 	_, err = clientset.CoreV1().Pods(c.Namespace).Create(pod)
 	assert.Nil(t, err)
 	nodes, err = c.getMonNodes()
@@ -397,7 +395,7 @@ func TestHostNetwork(t *testing.T) {
 	assert.Nil(t, err)
 	assert.Equal(t, 3, len(nodes))
 
-	pod := c.makeMonPod(&monConfig{Name: "rook-ceph-mon2"}, nodes[2].Name)
+	pod := c.makeMonPod(&monConfig{ResourceName: "rook-ceph-mon2"}, nodes[2].Name)
 	assert.NotNil(t, pod)
 
 	assert.Equal(t, true, pod.Spec.HostNetwork)
@@ -455,14 +453,14 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 
 	mons := []*monConfig{
 		{
-			Name:       "rook-ceph-mon-a",
-			DaemonName: "a",
-			Port:       cephmon.DefaultPort,
+			ResourceName: "rook-ceph-mon-a",
+			DaemonName:   "a",
+			Port:         cephmon.DefaultPort,
 		},
 		{
-			Name:       "rook-ceph-mon-b",
-			DaemonName: "b",
-			Port:       cephmon.DefaultPort,
+			ResourceName: "rook-ceph-mon-b",
+			DaemonName:   "b",
+			Port:         cephmon.DefaultPort,
 		},
 	}
 	c.maxMonID = 1
@@ -473,8 +471,8 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 	err = c.initMonIPs(mons)
 	assert.Nil(t, err)
 
-	assert.Equal(t, node.Name, c.mapping.Node["rook-ceph-mon-a"].Name)
-	assert.Equal(t, node.Name, c.mapping.Node["rook-ceph-mon-b"].Name)
+	assert.Equal(t, node.Name, c.mapping.Node["a"].Name)
+	assert.Equal(t, node.Name, c.mapping.Node["b"].Name)
 
 	sEndpoint := strings.Split(c.clusterInfo.Monitors["a"].Endpoint, ":")
 	assert.Equal(t, strconv.Itoa(cephmon.DefaultPort), sEndpoint[1])

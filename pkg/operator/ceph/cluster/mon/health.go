@@ -83,7 +83,7 @@ func (c *Cluster) checkHealth() error {
 		monsNotFound[mon.Name] = struct{}{}
 	}
 
-	// first handle mons that are not in quorum but in the cecph mon map
+	// first handle mons that are not in quorum but in the ceph mon map
 	//failover the unhealthy mons
 	for _, mon := range status.MonMap.Mons {
 		inQuorum := monInQuorum(mon, status.Quorum)
@@ -250,19 +250,19 @@ func (c *Cluster) failoverMon(name string) error {
 	}
 
 	if c.HostNetwork {
-		node, ok := c.mapping.Node[m.Name]
+		node, ok := c.mapping.Node[m.DaemonName]
 		if !ok {
-			return fmt.Errorf("mon %s doesn't exist in assignment map", m.Name)
+			return fmt.Errorf("mon %s doesn't exist in assignment map", m.DaemonName)
 		}
 		m.PublicIP = node.Address
 	} else {
 		m.PublicIP = serviceIP
 	}
-	c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.DaemonName, m.PublicIP, m.Port)
+	c.clusterInfo.Monitors[m.DaemonName] = mon.ToCephMon(m.DaemonName, m.PublicIP, m.Port)
 
-	// Start the pod
-	if err = c.startPods(mConf); err != nil {
-		return fmt.Errorf("failed to start new mon %s. %+v", m.Name, err)
+	// Start the deployment
+	if err = c.startDeployments(mConf, len(mConf)-1); err != nil {
+		return fmt.Errorf("failed to start new mon %s. %+v", m.DaemonName, err)
 	}
 
 	// Only increment the max mon id if the new pod started successfully
@@ -271,30 +271,32 @@ func (c *Cluster) failoverMon(name string) error {
 	return c.removeMon(name)
 }
 
-func (c *Cluster) removeMon(name string) error {
-	logger.Infof("ensuring removal of unhealthy monitor %s", name)
+func (c *Cluster) removeMon(daemonName string) error {
+	logger.Infof("ensuring removal of unhealthy monitor %s", daemonName)
+
+	resourceName := resourceName(daemonName)
 
 	// Remove the mon pod if it is still there
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	if err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Delete(name, options); err != nil {
+	if err := c.context.Clientset.Extensions().Deployments(c.Namespace).Delete(resourceName, options); err != nil {
 		if errors.IsNotFound(err) {
-			logger.Infof("dead mon %s was already gone", name)
+			logger.Infof("dead mon %s was already gone", resourceName)
 		} else {
-			return fmt.Errorf("failed to remove dead mon pod %s. %+v", name, err)
+			return fmt.Errorf("failed to remove dead mon deployment %s. %+v", resourceName, err)
 		}
 	}
 
 	// Remove the bad monitor from quorum
-	if err := removeMonitorFromQuorum(c.context, c.clusterInfo.Name, name); err != nil {
-		return fmt.Errorf("failed to remove mon %s from quorum. %+v", name, err)
+	if err := removeMonitorFromQuorum(c.context, c.clusterInfo.Name, daemonName); err != nil {
+		return fmt.Errorf("failed to remove mon %s from quorum. %+v", daemonName, err)
 	}
-	delete(c.clusterInfo.Monitors, name)
+	delete(c.clusterInfo.Monitors, daemonName)
 	// check if a mapping exists for the mon
-	if _, ok := c.mapping.Node[name]; ok {
-		nodeName := c.mapping.Node[name].Name
-		delete(c.mapping.Node, name)
+	if _, ok := c.mapping.Node[daemonName]; ok {
+		nodeName := c.mapping.Node[daemonName].Name
+		delete(c.mapping.Node, daemonName)
 		// if node->port "mapping" has been created, decrease or delete it
 		if port, ok := c.mapping.Port[nodeName]; ok {
 			if port == mon.DefaultPort {
@@ -309,21 +311,21 @@ func (c *Cluster) removeMon(name string) error {
 	}
 
 	// Remove the service endpoint
-	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(name, options); err != nil {
+	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(resourceName, options); err != nil {
 		if errors.IsNotFound(err) {
-			logger.Infof("dead mon service %s was already gone", name)
+			logger.Infof("dead mon service %s was already gone", resourceName)
 		} else {
-			return fmt.Errorf("failed to remove dead mon pod %s. %+v", name, err)
+			return fmt.Errorf("failed to remove dead mon service %s. %+v", resourceName, err)
 		}
 	}
 
 	if err := c.saveMonConfig(); err != nil {
-		return fmt.Errorf("failed to save mon config after failing over mon %s. %+v", name, err)
+		return fmt.Errorf("failed to save mon config after failing over mon %s. %+v", daemonName, err)
 	}
 
 	// make sure to rewrite the config so NO new connections are made to the removed mon
 	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
-		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", name, err)
+		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", daemonName, err)
 	}
 
 	return nil

@@ -47,7 +47,7 @@ func (o *ObjectOperation) Create(namespace, storeName string, replicaCount int32
 		return err
 	}
 
-	err := o.k8sh.WaitForLabeledPodToRun(fmt.Sprintf("rook_object_store=%s", storeName), namespace)
+	err := o.k8sh.WaitForLabeledPodsToRun(fmt.Sprintf("rook_object_store=%s", storeName), namespace)
 	if err != nil {
 		return fmt.Errorf("rgw did not start via crd. %+v", err)
 	}
