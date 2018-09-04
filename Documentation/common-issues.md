@@ -307,8 +307,8 @@ Second we need to verify if the mon pod started successfully.
 
 ```
 $ kubectl -n rook-ceph get pod -l app=rook-ceph-mon
-NAME                   READY     STATUS             RESTARTS   AGE
-rook-ceph-mon0-r8tbl   0/1       CrashLoopBackOff   2          47s
+NAME                                READY     STATUS               RESTARTS   AGE
+rook-ceph-mon-a-69fb9c78cd-58szd    1/1       CrashLoopBackOff     2          47s
 ```
 
 If the mon pod is failing as in this example, you will need to look at the mon pod status or logs to determine the cause. If the pod is in a crash loop backoff state,

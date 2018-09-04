@@ -30,45 +30,47 @@ func (suite *SmokeSuite) TestMonFailover() {
 	logger.Infof("Mon Failover Smoke Test")
 
 	opts := metav1.ListOptions{LabelSelector: "app=rook-ceph-mon"}
-	monReplicas, err := suite.k8sh.Clientset.Extensions().ReplicaSets(suite.namespace).List(opts)
+	deployments, err := suite.k8sh.Clientset.Extensions().Deployments(suite.namespace).List(opts)
 	require.Nil(suite.T(), err)
-	assert.Equal(suite.T(), 3, len(monReplicas.Items))
+	require.Equal(suite.T(), 3, len(deployments.Items))
 
-	monToKill := monReplicas.Items[0].Name
+	monToKill := deployments.Items[0].Name
 	logger.Infof("Killing mon %s", monToKill)
 	propagation := metav1.DeletePropagationForeground
 	delOptions := &metav1.DeleteOptions{PropagationPolicy: &propagation}
-	err = suite.k8sh.Clientset.Extensions().ReplicaSets(suite.namespace).Delete(monToKill, delOptions)
+	err = suite.k8sh.Clientset.Extensions().Deployments(suite.namespace).Delete(monToKill, delOptions)
 	require.Nil(suite.T(), err)
 
 	// Wait for the health check to start a new monitor
 	for i := 0; i < 10; i++ {
-		monReplicas, err := suite.k8sh.Clientset.Extensions().ReplicaSets(suite.namespace).List(opts)
+		deployments, err := suite.k8sh.Clientset.Extensions().Deployments(suite.namespace).List(opts)
 		require.Nil(suite.T(), err)
 
 		// Make sure the old mon is not still alive
 		foundOldMon := false
-		for _, mon := range monReplicas.Items {
+		for _, mon := range deployments.Items {
 			if mon.Name == monToKill {
 				foundOldMon = true
 			}
 		}
 
 		// Check if we have three monitors
-		if !foundOldMon {
-			if len(monReplicas.Items) == 3 {
+		if foundOldMon {
+			logger.Infof("Waiting for old monitor to stop")
+		} else {
+			logger.Infof("Waiting for a new monitor to start")
+			if len(deployments.Items) == 3 {
 				var newMons []string
-				for _, mon := range monReplicas.Items {
+				for _, mon := range deployments.Items {
 					newMons = append(newMons, mon.Name)
 				}
 				logger.Infof("Found a new monitor! monitors=%v", newMons)
 				return
 			}
 
-			assert.Equal(suite.T(), 2, len(monReplicas.Items))
+			assert.Equal(suite.T(), 2, len(deployments.Items))
 		}
 
-		logger.Infof("Waiting for a new monitor to start")
 		time.Sleep(8 * time.Second)
 	}
 

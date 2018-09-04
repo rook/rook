@@ -64,26 +64,30 @@ func (c *Cluster) getLabels(name string) map[string]string {
 	}
 }
 
-func (c *Cluster) makeReplicaSet(config *monConfig, hostname string) *extensions.ReplicaSet {
-	rs := &extensions.ReplicaSet{
+func (c *Cluster) makeDeployment(config *monConfig, hostname string) *extensions.Deployment {
+	d := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      config.Name,
+			Name:      config.ResourceName,
 			Namespace: c.Namespace,
+			Labels:    c.getLabels(config.DaemonName),
 		},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &rs.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
 
 	pod := c.makeMonPod(config, hostname)
 	replicaCount := int32(1)
-	rs.Spec = extensions.ReplicaSetSpec{
+	d.Spec = extensions.DeploymentSpec{
 		Template: v1.PodTemplateSpec{
 			ObjectMeta: pod.ObjectMeta,
 			Spec:       pod.Spec,
 		},
 		Replicas: &replicaCount,
+		Strategy: extensions.DeploymentStrategy{
+			Type: extensions.RecreateDeploymentStrategyType,
+		},
 	}
 
-	return rs
+	return d
 }
 
 func (c *Cluster) makeMonPod(config *monConfig, hostname string) *v1.Pod {
@@ -113,9 +117,9 @@ func (c *Cluster) makeMonPod(config *monConfig, hostname string) *v1.Pod {
 
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        config.Name,
+			Name:        config.ResourceName,
 			Namespace:   c.Namespace,
-			Labels:      c.getLabels(config.Name),
+			Labels:      c.getLabels(config.DaemonName),
 			Annotations: map[string]string{},
 		},
 		Spec: podSpec,
@@ -136,7 +140,7 @@ func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
 			"ceph",
 			"mon",
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--name=%s", config.Name),
+			fmt.Sprintf("--name=%s", config.DaemonName),
 			fmt.Sprintf("--port=%d", config.Port),
 			fmt.Sprintf("--fsid=%s", fsid),
 		},

@@ -118,7 +118,7 @@ func (h *NFSInstaller) CreateNFSServer(namespace string, count int, storageClass
 		return err
 	}
 
-	err := h.k8shelper.WaitForLabeledPodToRun("app=rook-nfs", namespace)
+	err := h.k8shelper.WaitForLabeledPodsToRun("app=rook-nfs", namespace)
 	if err != nil {
 		logger.Errorf("nfs server pods in namespace %s are not running", namespace)
 		return err

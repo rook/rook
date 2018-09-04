@@ -86,15 +86,14 @@ The number of osd pods will depend on the number of nodes in the cluster and the
 
 ```bash
 $ kubectl -n rook-ceph get pod
-NAME                                      READY     STATUS      RESTARTS   AGE
-rook-ceph-mgr-a-75cc4ccbf4-t8qtx          1/1       Running     0          24m
-rook-ceph-mon0-72vx7                      1/1       Running     0          25m
-rook-ceph-mon1-rrpm6                      1/1       Running     0          24m
-rook-ceph-mon2-zff9r                      1/1       Running     0          24m
-rook-ceph-osd-id-0-5fd8cb9747-dvlsb       1/1       Running     0          23m
-rook-ceph-osd-id-1-84dc695b48-r5mhf       1/1       Running     0          23m
-rook-ceph-osd-id-2-558878cd84-cnp67       1/1       Running     0          23m
-rook-ceph-osd-prepare-minikube-wq4f5      0/1       Completed   0          24m
+NAME                                   READY     STATUS      RESTARTS   AGE
+rook-ceph-mgr-a-9c44495df-ln9sq        1/1       Running     0          1m
+rook-ceph-mon-a-69fb9c78cd-58szd       1/1       Running     0          2m
+rook-ceph-mon-b-cf4ddc49c-c756f        1/1       Running     0          2m
+rook-ceph-mon-c-5b467747f4-8cbmv       1/1       Running     0          2m
+rook-ceph-osd-id-0-f6549956d-6z294     1/1       Running     0          1m
+rook-ceph-osd-id-1-5b96b56684-r7zsp    1/1       Running     0          1m
+rook-ceph-osd-prepare-mynode-ftt57     0/1       Completed   0          1m
 ```
 
 # Storage

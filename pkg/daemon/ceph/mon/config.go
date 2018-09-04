@@ -99,18 +99,22 @@ type GlobalConfig struct {
 }
 
 // get the path of a given monitor's run dir
-func getMonRunDirPath(configDir, monName string) string {
+func GetMonRunDirPath(configDir, monName string) string {
+	if strings.Index(monName, "mon") == -1 {
+		// if the mon name doesn't have "mon" in it, include it in the directory
+		return path.Join(configDir, "mon-"+monName)
+	}
 	return path.Join(configDir, monName)
 }
 
 // get the path of a given monitor's keyring
 func getMonKeyringPath(configDir, monName string) string {
-	return filepath.Join(getMonRunDirPath(configDir, monName), defaultKeyringFile)
+	return filepath.Join(GetMonRunDirPath(configDir, monName), defaultKeyringFile)
 }
 
 // get the path of a given monitor's data dir
 func getMonDataDirPath(configDir, monName string) string {
-	return filepath.Join(getMonRunDirPath(configDir, monName), "data")
+	return filepath.Join(GetMonRunDirPath(configDir, monName), "data")
 }
 
 // get the path of a given monitor's config file
@@ -190,7 +194,7 @@ func GenerateConfigFile(context *clusterd.Context, cluster *ClusterInfo, pathRoo
 	globalConfig *cephConfig, clientSettings map[string]string) (string, error) {
 
 	if pathRoot == "" {
-		pathRoot = getMonRunDirPath(context.ConfigDir, getFirstMonitor(cluster))
+		pathRoot = GetMonRunDirPath(context.ConfigDir, getFirstMonitor(cluster))
 	}
 
 	// create the config directory

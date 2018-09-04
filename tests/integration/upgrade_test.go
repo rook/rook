@@ -17,7 +17,10 @@ limitations under the License.
 package integration
 
 import (
+	"fmt"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/clients"
@@ -26,6 +29,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // ************************************************
@@ -57,7 +61,7 @@ func (s *UpgradeSuite) SetupSuite() {
 	s.namespace = "upgrade-ns"
 	useDevices := true
 
-	s.op, s.k8sh = StartTestCluster(s.T, s.namespace, "bluestore", false, useDevices, 1, installer.Version0_8)
+	s.op, s.k8sh = StartTestCluster(s.T, s.namespace, "bluestore", false, useDevices, 3, installer.Version0_8)
 	s.helper = clients.CreateTestClient(s.k8sh, s.op.installer.Manifests)
 }
 
@@ -109,17 +113,65 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	assert.Nil(s.T(), err)
 	assert.Equal(s.T(), installer.VersionMaster, version)
 
+	// wait for the legacy mon replicasets to be deleted
+	err = s.waitForLegacyMonReplicaSetDeletion()
+	require.Nil(s.T(), err)
+
+	// wait for the mon pods to be running
+	err = k8sutil.WaitForDeploymentVersion(s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon", "rook-ceph-mon", installer.VersionMaster)
+	require.Nil(s.T(), err)
+
+	s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-mon", s.namespace)
+
 	// wait for the osd pods to be updated
 	err = k8sutil.WaitForDeploymentVersion(s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd", "rook-ceph-osd", installer.VersionMaster)
 	require.Nil(s.T(), err)
+
+	s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-osd", s.namespace)
 	logger.Infof("Done with automatic upgrade to master")
 
-	// test writing and reading from the mounts that were created before the upgrade
+	// Give a few seconds for the daemons to settle down after the upgrade
+	time.Sleep(5 * time.Second)
+
+	// Test writing and reading from the pod with cephfs mounted that was created before the upgrade.
 	postFilename := "post-upgrade-file"
-	assert.Nil(s.T(), s.k8sh.ReadFromPod("", podName, preFilename, message))
-	assert.Nil(s.T(), s.k8sh.WriteToPod("", podName, postFilename, message))
-	assert.Nil(s.T(), s.k8sh.ReadFromPod("", podName, postFilename, message))
 	assert.Nil(s.T(), s.k8sh.ReadFromPod(s.namespace, filePodName, preFilename, message))
 	assert.Nil(s.T(), s.k8sh.WriteToPod(s.namespace, filePodName, postFilename, message))
 	assert.Nil(s.T(), s.k8sh.ReadFromPod(s.namespace, filePodName, postFilename, message))
+
+	// Test writing and reading from the pod with rbd mounted that was created before the upgrade.
+	// There is some unreliability right after the upgrade when there is only one osd, so we will retry if needed
+	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry("", podName, preFilename, message, 3))
+	assert.Nil(s.T(), s.k8sh.WriteToPodRetry("", podName, postFilename, message, 3))
+	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry("", podName, postFilename, message, 3))
+}
+
+func (s *UpgradeSuite) waitForLegacyMonReplicaSetDeletion() error {
+	// Wait for the legacy mon replicasets to be deleted during the upgrade
+	sleepTime := 3
+	attempts := 30
+	for i := 0; i < attempts; i++ {
+		rs, err := s.k8sh.Clientset.ExtensionsV1beta1().ReplicaSets(s.namespace).List(metav1.ListOptions{LabelSelector: "app=rook-ceph-mon"})
+		if err != nil {
+			return fmt.Errorf("failed to list mon replicasets. %v", err)
+		}
+
+		matches := 0
+		for _, r := range rs.Items {
+			// a legacy mon replicaset will have two dashes (rook-ceph-mon0) and a new mon replicaset will have four (rook-ceph-mon -a-66d5468994)
+			if strings.Count(r.Name, "-") == 2 {
+				matches++
+			}
+		}
+
+		if matches == 0 {
+			logger.Infof("all %d replicasets were deleted", len(rs.Items))
+			break
+		}
+
+		logger.Infof("%d legacy mon replicasets still exist", matches)
+		time.Sleep(time.Duration(sleepTime) * time.Second)
+	}
+
+	return nil
 }

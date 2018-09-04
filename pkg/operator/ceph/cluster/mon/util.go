@@ -39,6 +39,10 @@ import (
 	"k8s.io/client-go/kubernetes"
 )
 
+const (
+	maxPerChar = 26
+)
+
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
 func LoadClusterInfo(context *clusterd.Context, namespace string) (*mon.ClusterInfo, int, *Mapping, error) {
 	return CreateOrLoadClusterInfo(context, namespace, nil)
@@ -135,7 +139,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 
 	// Make sure the max id is consistent with the current monitors
 	for _, m := range monEndpointMap {
-		id, _ := getMonID(m.Name)
+		id, _ := fullNameToIndex(m.Name)
 		if maxMonID < id {
 			maxMonID = id
 		}
@@ -148,18 +152,6 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 
 	logger.Infof("loaded: maxMonID=%d, mons=%+v, mapping=%+v", maxMonID, monEndpointMap, monMapping)
 	return monEndpointMap, maxMonID, monMapping, nil
-}
-
-// get the ID of a monitor from its name
-func getMonID(name string) (int, error) {
-	if strings.Index(name, appName) != 0 || len(name) < len(appName) {
-		return -1, fmt.Errorf("unexpected mon name")
-	}
-	id, err := strconv.Atoi(name[len(appName):])
-	if err != nil {
-		return -1, err
-	}
-	return id, nil
 }
 
 func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *mon.ClusterInfo, ownerRef *metav1.OwnerReference) error {
@@ -264,4 +256,57 @@ func extractKey(contents string) (string, error) {
 		return "", fmt.Errorf("failed to parse secret")
 	}
 	return secret, nil
+}
+
+// convert an index to a mon name based on as few letters of the alphabet as possible
+func indexToName(index int) string {
+	var result string
+	for {
+		i := index % maxPerChar
+		c := 'z' - maxPerChar + i + 1
+		result = fmt.Sprintf("%c%s", c, result)
+		if index < maxPerChar {
+			break
+		}
+		// subtract 1 since the character conversion is zero-based
+		index = (index / maxPerChar) - 1
+	}
+	return result
+}
+
+// convert the mon name to the numeric mon ID
+func fullNameToIndex(name string) (int, error) {
+	prefix := appName + "-"
+	if strings.Index(name, prefix) != -1 && len(prefix) < len(name) {
+		return nameToIndex(name[len(prefix)+1:])
+	}
+
+	// attempt to parse the legacy mon name
+	legacyPrefix := appName
+	if strings.Index(name, legacyPrefix) == -1 || len(name) < len(appName) {
+		return -1, fmt.Errorf("unexpected mon name")
+	}
+	id, err := strconv.Atoi(name[len(legacyPrefix):])
+	if err != nil {
+		return -1, err
+	}
+	return id, nil
+}
+
+func nameToIndex(name string) (int, error) {
+	factor := 1
+	for i := 1; i < len(name); i++ {
+		factor *= maxPerChar
+	}
+	var result int
+	for _, c := range name {
+		charVal := int('z' - c + 1)
+		if charVal < 0 || charVal >= maxPerChar {
+			return -1, fmt.Errorf("invalid char '%c' in %s", c, name)
+		}
+		result += charVal * factor
+		factor /= maxPerChar
+	}
+	return result, nil
+
 }
