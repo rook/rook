@@ -333,12 +333,12 @@ Once they have all been started, you will see the pods running. If they do not s
 ```
 $ kubectl -n rook get pod -l app=rook-ceph-osd
 NAME                                  READY     STATUS    RESTARTS   AGE
-rook-ceph-osd-id-0-5675d6f5f8-r5b2g   1/1       Running   6          6m
-rook-ceph-osd-id-1-69cc6bd8f6-59tcn   1/1       Running   6          6m
-rook-ceph-osd-id-2-74b7cf67c5-mtl92   1/1       Running   6          6m
-rook-ceph-osd-id-3-757b845567-bk259   1/1       Running   6          6m
-rook-ceph-osd-id-4-6cccb5f7d8-wxl2w   1/1       Running   6          6m
-rook-ceph-osd-id-5-5b8598cc9f-2pnfb   1/1       Running   6          6m
+rook-ceph-osd-0-5675d6f5f8-r5b2g      1/1       Running   6          6m
+rook-ceph-osd-1-69cc6bd8f6-59tcn      1/1       Running   6          6m
+rook-ceph-osd-2-74b7cf67c5-mtl92      1/1       Running   6          6m
+rook-ceph-osd-3-757b845567-bk259      1/1       Running   6          6m
+rook-ceph-osd-4-6cccb5f7d8-wxl2w      1/1       Running   6          6m
+rook-ceph-osd-5-5b8598cc9f-2pnfb      1/1       Running   6          6m
 ```
 
 ### Ceph Manager

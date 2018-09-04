@@ -77,7 +77,7 @@ func testPodDevices(t *testing.T, dataDir, deviceName string, allDevices bool) {
 	deployment, err := c.makeDeployment(n.Name, devices, n.Selection, v1.ResourceRequirements{}, config.StoreConfig{}, "", n.Location, osd)
 	assert.Nil(t, err)
 	assert.NotNil(t, deployment)
-	assert.Equal(t, "rook-ceph-osd-id-0", deployment.Name)
+	assert.Equal(t, "rook-ceph-osd-0", deployment.Name)
 	assert.Equal(t, c.Namespace, deployment.Namespace)
 	assert.Equal(t, "mysa", deployment.Spec.Template.Spec.ServiceAccountName)
 	assert.Equal(t, int32(1), *(deployment.Spec.Replicas))
@@ -289,7 +289,7 @@ func TestHostNetwork(t *testing.T) {
 	assert.NotNil(t, r)
 	assert.Nil(t, err)
 
-	assert.Equal(t, "rook-ceph-osd-id-0", r.ObjectMeta.Name)
+	assert.Equal(t, "rook-ceph-osd-0", r.ObjectMeta.Name)
 	assert.Equal(t, true, r.Spec.Template.Spec.HostNetwork)
 	assert.Equal(t, v1.DNSClusterFirstWithHostNet, r.Spec.Template.Spec.DNSPolicy)
 }

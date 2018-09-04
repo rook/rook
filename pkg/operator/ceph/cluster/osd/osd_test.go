@@ -87,6 +87,35 @@ func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake
 	return err
 }
 
+func TestLegacyDeployment(t *testing.T) {
+	clientset := fake.NewSimpleClientset()
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", "",
+		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+
+	osdID := 23
+	d := &extensions.Deployment{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf(legacyAppNameFmt, osdID), Namespace: c.Namespace}}
+	_, err := clientset.Extensions().Deployments(c.Namespace).Create(d)
+	require.Nil(t, err)
+
+	// delete the deployment
+	assert.Nil(t, c.deleteDeploymentWithLegacyName(osdID))
+	deployments, err := clientset.Extensions().Deployments(c.Namespace).List(metav1.ListOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, 0, len(deployments.Items))
+
+	// return success if the deployment doesn't exist
+	assert.Nil(t, c.deleteDeploymentWithLegacyName(osdID))
+
+	// don't delete the newer deployment name
+	d = &extensions.Deployment{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf(osdAppNameFmt, osdID), Namespace: c.Namespace}}
+	_, err = clientset.Extensions().Deployments(c.Namespace).Create(d)
+	require.Nil(t, err)
+	assert.Nil(t, c.deleteDeploymentWithLegacyName(osdID))
+	deployments, err = clientset.Extensions().Deployments(c.Namespace).List(metav1.ListOptions{})
+	assert.Nil(t, err)
+	assert.Equal(t, 1, len(deployments.Items))
+}
+
 func TestAddRemoveNode(t *testing.T) {
 	// create a storage spec with the given nodes/devices/dirs
 	nodeName := "node8230"
@@ -267,15 +296,15 @@ func TestDiscoverOSDs(t *testing.T) {
 	assert.Equal(t, 2, len(discovered))
 
 	assert.Equal(t, 2, len(discovered[node1]))
-	if discovered[node1][0].Name == "rook-ceph-osd-id-0" {
-		assert.Equal(t, "rook-ceph-osd-id-101", discovered[node1][1].Name)
+	if discovered[node1][0].Name == "rook-ceph-osd-0" {
+		assert.Equal(t, "rook-ceph-osd-101", discovered[node1][1].Name)
 	} else {
-		assert.Equal(t, "rook-ceph-osd-id-101", discovered[node1][0].Name)
-		assert.Equal(t, "rook-ceph-osd-id-0", discovered[node1][1].Name)
+		assert.Equal(t, "rook-ceph-osd-101", discovered[node1][0].Name)
+		assert.Equal(t, "rook-ceph-osd-0", discovered[node1][1].Name)
 	}
 
 	assert.Equal(t, 1, len(discovered[node2]))
-	assert.Equal(t, "rook-ceph-osd-id-23", discovered[node2][0].Name)
+	assert.Equal(t, "rook-ceph-osd-23", discovered[node2][0].Name)
 }
 
 func TestAddNodeFailure(t *testing.T) {

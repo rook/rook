@@ -173,7 +173,7 @@ func GetPodPhaseMap(pods *v1.PodList) map[v1.PodPhase][]string {
 
 // DeleteDeployment makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
 func DeleteDeployment(clientset kubernetes.Interface, namespace, name string) error {
-	logger.Infof("removing %s deployment if it exists", name)
+	logger.Debugf("removing %s deployment if it exists", name)
 	deleteAction := func(options *metav1.DeleteOptions) error {
 		return clientset.ExtensionsV1beta1().Deployments(namespace).Delete(name, options)
 	}
