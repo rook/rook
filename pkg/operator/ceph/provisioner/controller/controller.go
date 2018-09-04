@@ -783,9 +783,9 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 	options := VolumeOptions{
 		// TODO SHOULD be set to `Delete` unless user manually configures other reclaim policy.
 		PersistentVolumeReclaimPolicy: v1.PersistentVolumeReclaimDelete,
-		PVName:     pvName,
-		PVC:        claim,
-		Parameters: parameters,
+		PVName:                        pvName,
+		PVC:                           claim,
+		Parameters:                    parameters,
 	}
 
 	ctrl.eventRecorder.Event(claim, v1.EventTypeNormal, "Provisioning", fmt.Sprintf("External provisioner is provisioning volume for claim %q", claimToClaimKey(claim)))

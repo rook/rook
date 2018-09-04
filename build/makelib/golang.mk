@@ -148,7 +148,7 @@ go.lint: $(GOLINT)
 .PHONY: go.vet
 go.vet:
 	@echo === go vet
-	@$(GOHOST) vet $(GO_COMMON_FLAGS) $(GO_PACKAGES) $(GO_INTEGRATION_TEST_PACKAGES)
+	@CGO_ENABLED=0 $(GOHOST) vet $(GO_COMMON_FLAGS) $(GO_PACKAGES) $(GO_INTEGRATION_TEST_PACKAGES)
 
 .PHONY: go.fmt
 go.fmt:

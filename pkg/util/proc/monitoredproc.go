@@ -38,8 +38,8 @@ type MonitoredProc struct {
 
 func newMonitoredProc(p *ProcManager, cmd *exec.Cmd) *MonitoredProc {
 	m := &MonitoredProc{
-		parent: p,
-		cmd:    cmd,
+		parent:                   p,
+		cmd:                      cmd,
 		retrySecondsExponentBase: 2,
 	}
 	m.waitForExit = m.waitForProcessExit
