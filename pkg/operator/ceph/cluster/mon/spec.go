@@ -14,13 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package mon for the Ceph monitors.
 package mon
 
 import (
 	"fmt"
+	"net"
 	"os"
+	"path"
 
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -28,33 +31,14 @@ import (
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
-// PublicIPEnvVar is the public ip env var for monitors
-func PublicIPEnvVar(publicIP string) v1.EnvVar {
-	return v1.EnvVar{Name: k8sutil.PublicIPEnvVar, Value: publicIP}
-}
+const (
+	// Full path of command used to invoke the monmap tool
+	monmaptoolCommand = "/usr/bin/monmaptool"
+	// Full path of the command used to invoke the Ceph mon daemon
+	cephMonCommand = "/usr/bin/ceph-mon"
 
-// ClusterNameEnvVar is the cluster name environment var
-func ClusterNameEnvVar(name string) v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_CLUSTER_NAME", Value: name}
-}
-
-// EndpointEnvVar is the mon endpoint environment var
-func EndpointEnvVar() v1.EnvVar {
-	ref := &v1.ConfigMapKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: EndpointConfigMapName}, Key: EndpointDataKey}
-	return v1.EnvVar{Name: "ROOK_MON_ENDPOINTS", ValueFrom: &v1.EnvVarSource{ConfigMapKeyRef: ref}}
-}
-
-// SecretEnvVar is the mon secret environment var
-func SecretEnvVar() v1.EnvVar {
-	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: monSecretName}
-	return v1.EnvVar{Name: "ROOK_MON_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
-}
-
-// AdminSecretEnvVar is the admin secret environment var
-func AdminSecretEnvVar() v1.EnvVar {
-	ref := &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: appName}, Key: adminSecretName}
-	return v1.EnvVar{Name: "ROOK_ADMIN_SECRET", ValueFrom: &v1.EnvVarSource{SecretKeyRef: ref}}
-}
+	monmapFile = "monmap"
+)
 
 func (c *Cluster) getLabels(name string) map[string]string {
 	return map[string]string{
@@ -64,17 +48,17 @@ func (c *Cluster) getLabels(name string) map[string]string {
 	}
 }
 
-func (c *Cluster) makeDeployment(config *monConfig, hostname string) *extensions.Deployment {
+func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *extensions.Deployment {
 	d := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      config.ResourceName,
+			Name:      monConfig.ResourceName,
 			Namespace: c.Namespace,
-			Labels:    c.getLabels(config.DaemonName),
+			Labels:    c.getLabels(monConfig.DaemonName),
 		},
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
 
-	pod := c.makeMonPod(config, hostname)
+	pod := c.makeMonPod(monConfig, hostname)
 	replicaCount := int32(1)
 	d.Spec = extensions.DeploymentSpec{
 		Template: v1.PodTemplateSpec{
@@ -90,22 +74,53 @@ func (c *Cluster) makeDeployment(config *monConfig, hostname string) *extensions
 	return d
 }
 
-func (c *Cluster) makeMonPod(config *monConfig, hostname string) *v1.Pod {
+/*
+ *  Pod / container Volumes
+ */
+
+// Volumes mounted to the pod
+func (c *Cluster) podVolumes() []v1.Volume {
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if c.dataDirHostPath != "" {
 		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
 	}
+	return []v1.Volume{
+		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
+		k8sutil.ConfigOverrideVolume(),
+		cephconfig.DefaultConfigVolume(),
+	}
+}
 
-	container := c.monContainer(config, c.clusterInfo.FSID)
+// Mounts for containers running Ceph binaries
+func cephMounts() []v1.VolumeMount {
+	return []v1.VolumeMount{
+		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
+		// Rook doesn't run in ceph containers, so it doesn't need the config override mounted
+		cephconfig.DefaultConfigMount(),
+	}
+}
+
+/*
+ * Pod spec
+ */
+
+func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 	podSpec := v1.PodSpec{
-		Containers:    []v1.Container{container},
+		InitContainers: []v1.Container{
+			// Config file init performed by Rook
+			c.makeConfigInitContainer(monConfig, "config-init"),
+			// Ceph monmap init performed by 'monmaptool'
+			c.makeMonmapInitContainer(monConfig, "monmap-init"),
+			// mon filesystem init performed by mon daemon
+			c.makeMonFSInitContainer(monConfig, "mon-fs-init"),
+		},
+		Containers: []v1.Container{
+			c.makeMonDaemonContainer(monConfig, "mon"),
+		},
 		RestartPolicy: v1.RestartPolicyAlways,
 		NodeSelector:  map[string]string{apis.LabelHostname: hostname},
-		Volumes: []v1.Volume{
-			{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
-			k8sutil.ConfigOverrideVolume(),
-		},
-		HostNetwork: c.HostNetwork,
+		Volumes:       c.podVolumes(),
+		HostNetwork:   c.HostNetwork,
 	}
 	if c.HostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
@@ -117,9 +132,9 @@ func (c *Cluster) makeMonPod(config *monConfig, hostname string) *v1.Pod {
 
 	pod := &v1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:        config.ResourceName,
+			Name:        monConfig.ResourceName,
 			Namespace:   c.Namespace,
-			Labels:      c.getLabels(config.DaemonName),
+			Labels:      c.getLabels(monConfig.DaemonName),
 			Annotations: map[string]string{},
 		},
 		Spec: podSpec,
@@ -128,47 +143,157 @@ func (c *Cluster) makeMonPod(config *monConfig, hostname string) *v1.Pod {
 	return pod
 }
 
-func (c *Cluster) monContainer(config *monConfig, fsid string) v1.Container {
-	// Running the mon privileged is required to use hostPath when a PodSecurityPolicy is enabled with selinux
-	// After local volumes are used (instead of hostPath), privileged will not be needed anymore
+/*
+ * Container specs
+ */
+
+// Init and daemon containers require the same context, so we call it 'pod' context
+func podSecurityContext() *v1.SecurityContext {
 	privileged := false
 	if os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" {
 		privileged = true
 	}
+	return &v1.SecurityContext{Privileged: &privileged}
+}
+
+func (c *Cluster) makeConfigInitContainer(monConfig *monConfig, containerName string) v1.Container {
 	return v1.Container{
+		Name: containerName,
 		Args: []string{
 			"ceph",
-			"mon",
+			mondaemon.InitCommand,
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--name=%s", config.DaemonName),
-			fmt.Sprintf("--port=%d", config.Port),
-			fmt.Sprintf("--fsid=%s", fsid),
+			fmt.Sprintf("--name=%s", monConfig.DaemonName),
+			fmt.Sprintf("--port=%d", monConfig.Port),
+			fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID),
 		},
-		Name:  appName,
 		Image: k8sutil.MakeRookImage(c.Version),
-		SecurityContext: &v1.SecurityContext{
-			Privileged: &privileged,
-		},
-		Ports: []v1.ContainerPort{
-			{
-				Name:          "client",
-				ContainerPort: config.Port,
-				Protocol:      v1.ProtocolTCP,
-			},
-		},
-		VolumeMounts: []v1.VolumeMount{
-			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
-			k8sutil.ConfigOverrideMount(),
-		},
 		Env: []v1.EnvVar{
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-			PublicIPEnvVar(config.PublicIP),
+			{Name: k8sutil.PublicIPEnvVar, Value: monConfig.PublicIP},
 			ClusterNameEnvVar(c.Namespace),
 			EndpointEnvVar(),
 			SecretEnvVar(),
 			AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
+		VolumeMounts: append(
+			cephMounts(),
+			k8sutil.ConfigOverrideMount(),
+		),
+		SecurityContext: podSecurityContext(),
+		Resources:       c.resources,
+	}
+}
+
+func (c *Cluster) monmapFilePath(monConfig *monConfig) string {
+	return path.Join(
+		mondaemon.GetMonRunDirPath(c.context.ConfigDir, monConfig.DaemonName),
+		monmapFile,
+	)
+}
+
+func (c *Cluster) makeMonmapInitContainer(monConfig *monConfig, containerName string) v1.Container {
+	// Add mons w/ monmaptool w/ args: [--add <mon-name> <mon-endpoint>]...
+	monmapAddMonArgs := []string{}
+	for _, mon := range c.clusterInfo.Monitors {
+		monmapAddMonArgs = append(monmapAddMonArgs, "--add", mon.Name, mon.Endpoint)
+	}
+
+	return v1.Container{
+		Name: containerName,
+		Command: []string{
+			monmaptoolCommand,
+		},
+		Args: append(
+			[]string{
+				c.monmapFilePath(monConfig),
+				"--create",
+				"--clobber",
+				"--fsid", c.clusterInfo.FSID,
+			},
+			monmapAddMonArgs...,
+		),
+		Image:           k8sutil.MakeRookImage(c.Version), // TODO: ceph:<vers> image
+		VolumeMounts:    cephMounts(),
+		SecurityContext: podSecurityContext(),
+		// monmap creation does not require ports to be exposed
 		Resources: c.resources,
 	}
+}
+
+// args needed for all ceph-mon calls
+func (c *Cluster) cephMonCommonArgs(monConfig *monConfig) []string {
+	return []string{
+		"--name", fmt.Sprintf("mon.%s", monConfig.DaemonName),
+		"--cluster", c.clusterInfo.Name,
+		"--mon-data", mondaemon.GetMonDataDirPath(c.context.ConfigDir, monConfig.DaemonName),
+		// It's safe to use the default path for the config b/c 'GenerateConfigFile'
+		// also writes a copy of the config to the default path
+		"--conf", cephconfig.DefaultConfigFilePath(),
+		// It's similarly safe to use the default path for the keyring b/c
+		// 'CreateKeyring' also writes a copy of the keyring to the default path
+		"--keyring", cephconfig.DefaultKeyringFilePath(),
+	}
+}
+
+func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig, containerName string) v1.Container {
+	return v1.Container{
+		Name: containerName,
+		Command: []string{
+			cephMonCommand,
+		},
+		Args: append(
+			[]string{
+				"--mkfs",
+				"--monmap", c.monmapFilePath(monConfig),
+			},
+			c.cephMonCommonArgs(monConfig)...,
+		),
+		Image:           k8sutil.MakeRookImage(c.Version), // TODO: ceph:<vers> image
+		VolumeMounts:    cephMounts(),
+		SecurityContext: podSecurityContext(),
+		// filesystem creation does not require ports to be exposed
+		Resources: c.resources,
+	}
+}
+
+func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig, containerName string) v1.Container {
+	return v1.Container{
+		// The operator has set up the mon's service already, so the IP that the mon should
+		// broadcast as its own (--public-addr) is known. But the pod's IP, which the mon should
+		// bind to (--public-bind-addr) isn't known until runtime. 3 solutions were considered for
+		// resolving this issue:
+		// 1. Rook in config init sets "public_bind_addr" in the Ceph config file
+		//    - Chosen solution, but is not as transparent to inspection as using commandline arg
+		// 2. Use bash to do variable substitution with the pod IP env var; but bash is a poor PID1
+		// 3. Use tini to do var substitution as above; but tini doesn't exist in the ceph images.
+		Name: containerName,
+		Command: []string{
+			cephMonCommand,
+		},
+		Args: append(
+			[]string{
+				"--foreground",
+				"--public-addr", joinHostPort(monConfig.PublicIP, monConfig.Port),
+				// --public-bind-addr is set in the config file at init time
+			},
+			c.cephMonCommonArgs(monConfig)...,
+		),
+		Image:           k8sutil.MakeRookImage(c.Version), // TODO: ceph:<vers> image
+		VolumeMounts:    cephMounts(),
+		SecurityContext: podSecurityContext(),
+		Ports: []v1.ContainerPort{
+			{
+				Name:          "client",
+				ContainerPort: monConfig.Port,
+				Protocol:      v1.ProtocolTCP,
+			},
+		},
+		Resources: c.resources,
+	}
+}
+
+func joinHostPort(host string, port int32) string {
+	return net.JoinHostPort(host, fmt.Sprintf("%d", port))
 }

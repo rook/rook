@@ -30,7 +30,7 @@ import (
 )
 
 var monCmd = &cobra.Command{
-	Use:    "mon",
+	Use:    mondaemon.InitCommand,
 	Short:  "Generates mon config and runs the mon daemon",
 	Hidden: true,
 }
@@ -47,10 +47,10 @@ func init() {
 
 	flags.SetFlagsFromEnv(monCmd.Flags(), rook.RookEnvVarPrefix)
 
-	monCmd.RunE = startMon
+	monCmd.RunE = initMon
 }
 
-func startMon(cmd *cobra.Command, args []string) error {
+func initMon(cmd *cobra.Command, args []string) error {
 	required := []string{"name", "fsid", "mon-secret", "admin-secret", "config-dir", "cluster-name"}
 	if err := flags.VerifyRequiredFlags(monCmd, required); err != nil {
 		return err
@@ -81,7 +81,7 @@ func startMon(cmd *cobra.Command, args []string) error {
 		Cluster: &clusterInfo,
 		Port:    monPort,
 	}
-	err := mondaemon.Run(createContext(), monCfg)
+	err := mondaemon.Initialize(createContext(), monCfg)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}

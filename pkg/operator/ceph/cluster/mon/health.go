@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package mon for the Ceph monitors.
 package mon
 
 import (
@@ -31,13 +30,13 @@ import (
 )
 
 var (
-	// HealthCheckInterval interval to check the mons to be in quorum
+	// HealthCheckInterval is the interval to check if the mons are in quorum
 	HealthCheckInterval = 45 * time.Second
-	// MonOutTimeout the duration to wait before removing/failover to a new mon pod
+	// MonOutTimeout is the duration to wait before removing/failover to a new mon pod
 	MonOutTimeout = 300 * time.Second
 )
 
-// HealthChecker check health for the monitors
+// HealthChecker aggregates the mon/cluster info needed to check the health of the monitors
 type HealthChecker struct {
 	monCluster *Cluster
 }
@@ -49,7 +48,7 @@ func NewHealthChecker(monCluster *Cluster) *HealthChecker {
 	}
 }
 
-// Check periodically the health of the monitors
+// Check periodically checks the health of the monitors
 func (hc *HealthChecker) Check(stopCh chan struct{}) {
 	for {
 		select {
@@ -85,11 +84,11 @@ func (c *Cluster) checkHealth() error {
 	}
 
 	// first handle mons that are not in quorum but in the ceph mon map
-	//failover the unhealthy mons
+	// failover the unhealthy mons
 	for _, mon := range status.MonMap.Mons {
 		inQuorum := monInQuorum(mon, status.Quorum)
 		// if the mon is in quorum remove it from our check for "existence"
-		//else see below condition
+		// else see below condition
 		if _, ok := monsNotFound[mon.Name]; ok {
 			delete(monsNotFound, mon.Name)
 		} else {
@@ -139,7 +138,7 @@ func (c *Cluster) checkHealth() error {
 	}
 
 	// after all unhealthy mons have been removed/failovered
-	//handle all mons that haven't been in the Ceph mon map
+	// handle all mons that haven't been in the Ceph mon map
 	for mon := range monsNotFound {
 		logger.Warningf("mon %s NOT found in ceph mon map, failover", mon)
 		c.failMon(len(c.clusterInfo.Monitors), mon)
@@ -215,7 +214,7 @@ func (c *Cluster) checkMonsOnValidNodes() (bool, error) {
 	return false, nil
 }
 
-// failMon monCount is compared against c.Size (wanted mon count)
+// failMon compares the monCount against c.Size (wanted mon count)
 func (c *Cluster) failMon(monCount int, name string) {
 	if monCount > c.Size {
 		// no need to create a new mon since we have an extra
@@ -304,10 +303,10 @@ func (c *Cluster) removeMon(daemonName string) error {
 				delete(c.mapping.Port, nodeName)
 			}
 			// don't clean up if a node port is higher than the default port, other
-			//mons could be on the same node with > DefaultPort ports, decreasing could
-			//cause port collisions
+			// mons could be on the same node with > DefaultPort ports, decreasing could
+			// cause port collisions
 			// This can be solved by using a map[nodeName][]int32 for the ports to
-			//even better check which ports are open for the HostNetwork mode
+			// even better check which ports are open for the HostNetwork mode
 		}
 	}
 
@@ -325,7 +324,7 @@ func (c *Cluster) removeMon(daemonName string) error {
 	}
 
 	// make sure to rewrite the config so NO new connections are made to the removed mon
-	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
+	if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", daemonName, err)
 	}
 
