@@ -35,7 +35,7 @@ We use the [milestone](https://github.com/rook/rook/milestones) feature in Githu
   * Helm chart deployment [#1814](https://github.com/rook/rook/issues/1814)
   * Run on arbitrary PVs [#919](https://github.com/rook/rook/issues/919)
 * Ceph
-  * Update to Mimic [#1536](https://github.com/rook/rook/issues/1536)
+  * Added support for Mimic and later versions in addition to Luminous [#2004](https://github.com/rook/rook/issues/2004)
   * Automated upgrade support (initial) [#997](https://github.com/rook/rook/issues/997)
   * Manage an existing Ceph cluster (basic) [#1868](https://github.com/rook/rook/issues/1868)
   * OSDs
