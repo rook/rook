@@ -24,7 +24,7 @@ import (
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephrgw "github.com/rook/rook/pkg/daemon/ceph/rgw"
+	rgwdaemon "github.com/rook/rook/pkg/daemon/ceph/rgw"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -82,8 +82,8 @@ func createOrUpdate(context *clusterd.Context, store cephv1beta1.ObjectStore, ve
 	}
 
 	// create the ceph artifacts for the object store
-	objContext := cephrgw.NewContext(context, store.Name, store.Namespace)
-	err = cephrgw.CreateObjectStore(objContext, *store.Spec.MetadataPool.ToModel(""), *store.Spec.DataPool.ToModel(""), serviceIP, store.Spec.Gateway.Port)
+	objContext := rgwdaemon.NewContext(context, store.Name, store.Namespace)
+	err = rgwdaemon.CreateObjectStore(objContext, *store.Spec.MetadataPool.ToModel(""), *store.Spec.DataPool.ToModel(""), serviceIP, store.Spec.Gateway.Port)
 	if err != nil {
 		return fmt.Errorf("failed to create pools. %+v", err)
 	}
@@ -175,8 +175,8 @@ func DeleteStore(context *clusterd.Context, store cephv1beta1.ObjectStore) error
 	}
 
 	// Delete the realm and pools
-	objContext := cephrgw.NewContext(context, store.Name, store.Namespace)
-	err = cephrgw.DeleteObjectStore(objContext)
+	objContext := rgwdaemon.NewContext(context, store.Name, store.Namespace)
+	err = rgwdaemon.DeleteObjectStore(objContext)
 	if err != nil {
 		return fmt.Errorf("failed to delete the realm and pools. %+v", err)
 	}

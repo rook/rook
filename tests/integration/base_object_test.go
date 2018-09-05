@@ -19,7 +19,7 @@ package integration
 import (
 	"errors"
 
-	"github.com/rook/rook/pkg/daemon/ceph/rgw"
+	rgwdaemon "github.com/rook/rook/pkg/daemon/ceph/rgw"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -167,7 +167,7 @@ func objectTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, na
 	helper.ObjectClient.DeleteUser(storeName, userid)*/
 }
 
-func getBucket(bucketname string, bucketList []rgw.ObjectBucket) (rgw.ObjectBucket, error) {
+func getBucket(bucketname string, bucketList []rgwdaemon.ObjectBucket) (rgwdaemon.ObjectBucket, error) {
 
 	for _, bucket := range bucketList {
 		if bucket.Name == bucketname {
@@ -175,10 +175,10 @@ func getBucket(bucketname string, bucketList []rgw.ObjectBucket) (rgw.ObjectBuck
 		}
 	}
 
-	return rgw.ObjectBucket{}, errors.New("Bucket not found")
+	return rgwdaemon.ObjectBucket{}, errors.New("Bucket not found")
 }
 
-func getBucketSizeAndObjects(bucketname string, bucketList []rgw.ObjectBucket) (uint64, uint64, error) {
+func getBucketSizeAndObjects(bucketname string, bucketList []rgwdaemon.ObjectBucket) (uint64, uint64, error) {
 	bkt, err := getBucket(bucketname, bucketList)
 	if err != nil {
 		return 0, 0, errors.New("Bucket not found")

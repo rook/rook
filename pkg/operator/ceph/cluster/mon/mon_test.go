@@ -31,7 +31,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
-	cephmon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
@@ -456,12 +456,12 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 		{
 			ResourceName: "rook-ceph-mon-a",
 			DaemonName:   "a",
-			Port:         cephmon.DefaultPort,
+			Port:         mondaemon.DefaultPort,
 		},
 		{
 			ResourceName: "rook-ceph-mon-b",
 			DaemonName:   "b",
-			Port:         cephmon.DefaultPort,
+			Port:         mondaemon.DefaultPort,
 		},
 	}
 	c.maxMonID = 1
@@ -476,7 +476,7 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 	assert.Equal(t, node.Name, c.mapping.Node["b"].Name)
 
 	sEndpoint := strings.Split(c.clusterInfo.Monitors["a"].Endpoint, ":")
-	assert.Equal(t, strconv.Itoa(cephmon.DefaultPort), sEndpoint[1])
+	assert.Equal(t, strconv.Itoa(mondaemon.DefaultPort), sEndpoint[1])
 	sEndpoint = strings.Split(c.clusterInfo.Monitors["b"].Endpoint, ":")
-	assert.Equal(t, strconv.Itoa(cephmon.DefaultPort+1), sEndpoint[1])
+	assert.Equal(t, strconv.Itoa(mondaemon.DefaultPort+1), sEndpoint[1])
 }

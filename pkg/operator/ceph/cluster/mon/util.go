@@ -30,7 +30,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
@@ -127,7 +127,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 
 	// Parse the monitor List
 	if info, ok := cm.Data[EndpointDataKey]; ok {
-		monEndpointMap = mon.ParseMonEndpoints(info)
+		monEndpointMap = mondaemon.ParseMonEndpoints(info)
 	}
 
 	// Parse the max monitor id

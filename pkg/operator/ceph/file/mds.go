@@ -24,7 +24,7 @@ import (
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephmds "github.com/rook/rook/pkg/daemon/ceph/mds"
+	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
@@ -50,7 +50,7 @@ func CreateFilesystem(context *clusterd.Context, fs cephv1beta1.Filesystem, vers
 	for _, p := range fs.Spec.DataPools {
 		dataPools = append(dataPools, p.ToModel(""))
 	}
-	f := cephmds.NewFS(fs.Name, fs.Spec.MetadataPool.ToModel(""), dataPools, fs.Spec.MetadataServer.ActiveCount)
+	f := mdsdaemon.NewFS(fs.Name, fs.Spec.MetadataPool.ToModel(""), dataPools, fs.Spec.MetadataServer.ActiveCount)
 	if err := f.CreateFilesystem(context, fs.Namespace); err != nil {
 		return fmt.Errorf("failed to create file system %s: %+v", fs.Name, err)
 	}
@@ -90,7 +90,7 @@ func DeleteFilesystem(context *clusterd.Context, fs cephv1beta1.Filesystem) erro
 	}
 
 	// Delete the ceph file system and pools
-	if err := cephmds.DeleteFilesystem(context, fs.Namespace, fs.Name); err != nil {
+	if err := mdsdaemon.DeleteFilesystem(context, fs.Namespace, fs.Name); err != nil {
 		return fmt.Errorf("failed to delete file system %s: %+v", fs.Name, err)
 	}
 

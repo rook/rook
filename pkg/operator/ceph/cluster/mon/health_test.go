@@ -29,7 +29,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	clienttest "github.com/rook/rook/pkg/daemon/ceph/client/test"
-	cephmon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -64,7 +64,7 @@ func TestCheckHealth(t *testing.T) {
 		Name:    "node0",
 		Address: "",
 	}
-	c.mapping.Port["node0"] = cephmon.DefaultPort
+	c.mapping.Port["node0"] = mondaemon.DefaultPort
 	c.maxMonID = 4
 
 	err := c.checkHealth()
@@ -109,7 +109,7 @@ func TestCheckHealthNotFound(t *testing.T) {
 	c.mapping.Node["b"] = &NodeInfo{
 		Name: "node0",
 	}
-	c.mapping.Port["node0"] = cephmon.DefaultPort
+	c.mapping.Port["node0"] = mondaemon.DefaultPort
 	c.maxMonID = 4
 
 	c.saveMonConfig()
