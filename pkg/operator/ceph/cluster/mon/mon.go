@@ -228,7 +228,7 @@ func (c *Cluster) initMonConfig(size int) []*monConfig {
 }
 
 func newMonConfig(monID int) *monConfig {
-	daemonName := indexToName(monID)
+	daemonName := k8sutil.IndexToName(monID)
 	return &monConfig{ResourceName: resourceName(daemonName), DaemonName: daemonName, Port: int32(mondaemon.DefaultPort)}
 }
 
