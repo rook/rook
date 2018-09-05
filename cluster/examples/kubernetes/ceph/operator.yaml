@@ -270,6 +270,23 @@ subjects:
   name: rook-ceph-system
   namespace: rook-ceph-system
 ---
+# Set psp for Rook's system namespace
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: rook-ceph-system-psp
+  labels:
+      operator: rook
+      storage-backend: ceph
+roleRef:
+  kind: ClusterRole
+  name: suse:caasp:psp:privileged
+  apiGroup: rbac.authorization.k8s.io
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: rook-ceph-system
+---
 # The deployment for the rook operator
 apiVersion: apps/v1beta1
 kind: Deployment
@@ -289,7 +306,7 @@ spec:
       serviceAccountName: rook-ceph-system
       containers:
       - name: rook-ceph-operator
-        image: rook/ceph:master
+        image: admin:5000/ceph-amd64
         args: ["ceph", "operator"]
         volumeMounts:
         - mountPath: /var/lib/rook
@@ -308,8 +325,8 @@ spec:
         # - name: AGENT_TOLERATION_KEY
         #  value: "<KeyOfTheTaintToTolerate>"
         # Set the path where the Rook agent can find the flex volumes
-        # - name: FLEXVOLUME_DIR_PATH
-        #  value: "<PathToFlexVolumes>"
+        - name: FLEXVOLUME_DIR_PATH
+          value: "/var/lib/kubelet/plugins/volume/exec/"
         # Rook Discover toleration. Will tolerate all taints with all keys.
         # Choose between NoSchedule, PreferNoSchedule and NoExecute:
         # - name: DISCOVER_TOLERATION

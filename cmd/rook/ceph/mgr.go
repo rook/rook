@@ -24,27 +24,31 @@ import (
 )
 
 var (
-	mgrName    string
-	mgrKeyring string
+	mgrName        string
+	mgrKeyring     string
+	mgrKeyringPath string
+	mgrConfDir     string
 )
 
 var mgrCmd = &cobra.Command{
-	Use:    "mgr",
-	Short:  "Generates mgr config and runs the mgr daemon",
+	Use:    "mgr-init",
+	Short:  "Generates mgr config",
 	Hidden: true,
 }
 
 func init() {
 	mgrCmd.Flags().StringVar(&mgrName, "mgr-name", "", "the mgr name")
 	mgrCmd.Flags().StringVar(&mgrKeyring, "mgr-keyring", "", "the mgr keyring")
+	mgrCmd.Flags().StringVar(&mgrKeyringPath, "mgr-keyring-path", "", "path to the mgr keyring")
+	mgrCmd.Flags().StringVar(&mgrConfDir, "mgr-conf-dir", "", "dir where the mgr's config is stored")
 	addCephFlags(mgrCmd)
 
 	flags.SetFlagsFromEnv(mgrCmd.Flags(), rook.RookEnvVarPrefix)
 
-	mgrCmd.RunE = startMgr
+	mgrCmd.RunE = initializeMgr
 }
 
-func startMgr(cmd *cobra.Command, args []string) error {
+func initializeMgr(cmd *cobra.Command, args []string) error {
 	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret"}
 	if err := flags.VerifyRequiredFlags(mgrCmd, required); err != nil {
 		return err
@@ -62,10 +66,12 @@ func startMgr(cmd *cobra.Command, args []string) error {
 	config := &mgr.Config{
 		Name:        mgrName,
 		Keyring:     mgrKeyring,
+		KeyringPath: mgrKeyringPath,
+		ConfDir:     mgrConfDir,
 		ClusterInfo: &clusterInfo,
 	}
 
-	err := mgr.Run(createContext(), config)
+	err := mgr.Initialize(createContext(), config)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
