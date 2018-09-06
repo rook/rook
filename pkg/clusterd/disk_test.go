@@ -24,7 +24,6 @@ import (
 )
 
 func TestAvailableDisks(t *testing.T) {
-
 	// no disks discovered for a node is an error
 	disks := GetAvailableDevices([]*sys.LocalDisk{})
 	assert.Equal(t, 0, len(disks))
@@ -56,6 +55,9 @@ func TestAvailableDisks(t *testing.T) {
 	disks = GetAvailableDevices([]*sys.LocalDisk{d6})
 	assert.Equal(t, 1, len(disks))
 
+	d7 := &sys.LocalDisk{Name: "dm-4", UUID: "myuuid6", Size: 123, Rotational: true, Readonly: false, Type: sys.LVMType, HasChildren: true}
+	disks = GetAvailableDevices([]*sys.LocalDisk{d7})
+	assert.Equal(t, 1, len(disks))
 }
 
 func TestDiscoverDevices(t *testing.T) {

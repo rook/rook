@@ -31,7 +31,6 @@ var (
 )
 
 func GetAvailableDevices(devices []*sys.LocalDisk) []string {
-
 	var available []string
 	for _, device := range devices {
 		logger.Debugf("Evaluating device %+v", device)
@@ -55,7 +54,6 @@ func ignoreDevice(d string) bool {
 
 // Discover all the details of devices available on the local node
 func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
-
 	var disks []*sys.LocalDisk
 	devices, err := sys.ListDevices(executor)
 	if err != nil {
@@ -76,7 +74,7 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 		}
 
 		diskType, ok := diskProps["TYPE"]
-		if !ok || (diskType != sys.SSDType && diskType != sys.CryptType && diskType != sys.DiskType && diskType != sys.PartType) {
+		if !ok || (diskType != sys.DiskType && diskType != sys.SSDType && diskType != sys.CryptType && diskType != sys.LVMType && diskType != sys.PartType) {
 			// unsupported disk type, just continue
 			continue
 		}
