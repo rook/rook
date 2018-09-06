@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package osd
 
 import (
@@ -28,7 +29,7 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
@@ -439,7 +440,7 @@ func getStoreSettings(cfg *osdConfig) (map[string]string, error) {
 	return settings, nil
 }
 
-func WriteConfigFile(context *clusterd.Context, cluster *mon.ClusterInfo, kv *k8sutil.ConfigMapKVStore, osdID int, storeConfig config.StoreConfig, nodeName, location string) error {
+func WriteConfigFile(context *clusterd.Context, cluster *cephconfig.ClusterInfo, kv *k8sutil.ConfigMapKVStore, osdID int, storeConfig config.StoreConfig, nodeName, location string) error {
 	scheme, err := config.LoadScheme(kv, config.GetConfigStoreName(nodeName))
 	if err != nil {
 		return fmt.Errorf("failed to load partition scheme: %+v", err)
@@ -487,8 +488,8 @@ func WriteConfigFile(context *clusterd.Context, cluster *mon.ClusterInfo, kv *k8
 	return nil
 }
 
-func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo, location string) error {
-	cephConfig := mon.CreateDefaultCephConfig(context, cluster, cfg.rootPath)
+func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *cephconfig.ClusterInfo, location string) error {
+	cephConfig := cephconfig.CreateDefaultCephConfig(context, cluster, cfg.rootPath)
 	if isBluestore(cfg) {
 		cephConfig.GlobalConfig.OsdObjectStore = config.Bluestore
 	} else {
@@ -510,7 +511,7 @@ func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *mon.Clu
 	}
 
 	// write the OSD config file to disk
-	_, err = mon.GenerateConfigFile(context, cluster, cfg.rootPath, fmt.Sprintf("osd.%d", cfg.id),
+	_, err = cephconfig.GenerateConfigFile(context, cluster, cfg.rootPath, fmt.Sprintf("osd.%d", cfg.id),
 		getOSDKeyringPath(cfg.rootPath), cephConfig, settings)
 	if err != nil {
 		return fmt.Errorf("failed to write OSD %d config file: %+v", cfg.id, err)
@@ -519,7 +520,7 @@ func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *mon.Clu
 	return nil
 }
 
-func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *mon.ClusterInfo, location string) error {
+func initializeOSD(config *osdConfig, context *clusterd.Context, cluster *cephconfig.ClusterInfo, location string) error {
 	err := writeConfigFile(config, context, cluster, location)
 	if err != nil {
 		return fmt.Errorf("failed to write config file: %+v", err)

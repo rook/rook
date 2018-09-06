@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package osd
 
 import (
@@ -27,7 +28,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -44,7 +45,7 @@ const (
 )
 
 type OsdAgent struct {
-	cluster           *mon.ClusterInfo
+	cluster           *cephconfig.ClusterInfo
 	nodeName          string
 	forceFormat       bool
 	location          string
@@ -61,7 +62,7 @@ type OsdAgent struct {
 }
 
 func NewAgent(context *clusterd.Context, devices string, usingDeviceFilter bool, metadataDevice, directories string, forceFormat bool,
-	location string, storeConfig config.StoreConfig, cluster *mon.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore) *OsdAgent {
+	location string, storeConfig config.StoreConfig, cluster *cephconfig.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore) *OsdAgent {
 
 	return &OsdAgent{
 		devices:           devices,

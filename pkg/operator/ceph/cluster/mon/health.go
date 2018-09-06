@@ -23,6 +23,7 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -77,7 +78,7 @@ func (c *Cluster) checkHealth() error {
 	}
 	logger.Debugf("Mon status: %+v", status)
 
-	// Source of thruth of which mons should exist is our *clusterInfo*
+	// Source of truth of which mons should exist is our *clusterInfo*
 	monsNotFound := map[string]interface{}{}
 	for _, mon := range c.clusterInfo.Monitors {
 		monsNotFound[mon.Name] = struct{}{}
@@ -92,7 +93,7 @@ func (c *Cluster) checkHealth() error {
 		if _, ok := monsNotFound[mon.Name]; ok {
 			delete(monsNotFound, mon.Name)
 		} else {
-			// when the mon isn't in the clusterInfo, but is in qorum and there are
+			// when the mon isn't in the clusterInfo, but is in quorum and there are
 			//enough mons, remove it else remove it on the next run
 			if inQuorum && len(status.MonMap.Mons) > c.Size {
 				logger.Warningf("mon %s not in source of truth but in quorum, removing", mon.Name)
@@ -258,7 +259,7 @@ func (c *Cluster) failoverMon(name string) error {
 	} else {
 		m.PublicIP = serviceIP
 	}
-	c.clusterInfo.Monitors[m.DaemonName] = mon.ToCephMon(m.DaemonName, m.PublicIP, m.Port)
+	c.clusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 
 	// Start the deployment
 	if err = c.startDeployments(mConf, len(mConf)-1); err != nil {

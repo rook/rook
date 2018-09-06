@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package osd
 
 import (
@@ -22,7 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 )
 
 const (
@@ -72,5 +73,5 @@ func createOSDBootstrapKeyring(context *clusterd.Context, clusterName string) er
 		return fmt.Sprintf(bootstrapOSDKeyringTemplate, key)
 	}
 
-	return mon.CreateKeyring(context, clusterName, username, keyringPath, access, keyringEval)
+	return cephconfig.CreateKeyring(context, clusterName, username, keyringPath, access, keyringEval)
 }

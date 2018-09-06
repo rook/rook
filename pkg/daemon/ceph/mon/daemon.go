@@ -1,18 +1,17 @@
 /*
 Copyright 2016 The Rook Authors. All rights reserved.
-
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
-
 	http://www.apache.org/licenses/LICENSE-2.0
-
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package mon provides methods for configuring and running Ceph mons.
 package mon
 
 import (
@@ -22,25 +21,26 @@ import (
 	"strings"
 
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/util"
 )
 
 const (
+	// DefaultPort is the default port Ceph mons use to communicate amongst themselves.
 	DefaultPort = 6790
 )
 
+// Config contains the necessary parameters Rook needs to know to set up a mon for a Ceph cluster.
 type Config struct {
 	Name     string
-	Cluster  *ClusterInfo
+	Cluster  *cephconfig.ClusterInfo
 	isDaemon bool
 	Port     int32
 }
 
-func NewConfig(name string, cluster *ClusterInfo, isDaemon bool, port int32) *Config {
-	return &Config{Name: name, Cluster: cluster, isDaemon: isDaemon, Port: port}
-}
-
-func FlattenMonEndpoints(mons map[string]*CephMonitorConfig) string {
+// FlattenMonEndpoints returns a comma-delimited string of all mons and endpoints in the form
+// <mon-name>=<mon-endpoint>
+func FlattenMonEndpoints(mons map[string]*cephconfig.MonInfo) string {
 	endpoints := []string{}
 	for _, m := range mons {
 		endpoints = append(endpoints, fmt.Sprintf("%s=%s", m.Name, m.Endpoint))
@@ -48,9 +48,11 @@ func FlattenMonEndpoints(mons map[string]*CephMonitorConfig) string {
 	return strings.Join(endpoints, ",")
 }
 
-func ParseMonEndpoints(input string) map[string]*CephMonitorConfig {
+// ParseMonEndpoints parses a flattened representation of mons and endpoints in the form
+// <mon-name>=<mon-endpoint> and returns a list of Ceph mon configs.
+func ParseMonEndpoints(input string) map[string]*cephconfig.MonInfo {
 	logger.Infof("parsing mon endpoints: %s", input)
-	mons := map[string]*CephMonitorConfig{}
+	mons := map[string]*cephconfig.MonInfo{}
 	rawMons := strings.Split(input, ",")
 	for _, rawMon := range rawMons {
 		parts := strings.Split(rawMon, "=")
@@ -58,15 +60,12 @@ func ParseMonEndpoints(input string) map[string]*CephMonitorConfig {
 			logger.Warningf("ignoring invalid monitor %s", rawMon)
 			continue
 		}
-		mons[parts[0]] = &CephMonitorConfig{Name: parts[0], Endpoint: parts[1]}
+		mons[parts[0]] = &cephconfig.MonInfo{Name: parts[0], Endpoint: parts[1]}
 	}
 	return mons
 }
 
-func ToCephMon(name, ip string, port int32) *CephMonitorConfig {
-	return &CephMonitorConfig{Name: name, Endpoint: joinHostPort(ip, port)}
-}
-
+// Run generates configuration files for a Ceph mon and then runs a mon daemon with the config
 func Run(context *clusterd.Context, config *Config) error {
 	configFile, monDataDir, err := generateConfigFiles(context, config)
 	if err != nil {
@@ -89,7 +88,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) (string, str
 	}
 
 	// write the config file to disk
-	confFilePath, err := GenerateConnectionConfigFile(context, config.Cluster, GetMonRunDirPath(context.ConfigDir, config.Name),
+	confFilePath, err := generateConnectionConfigFile(context, config.Cluster, GetMonRunDirPath(context.ConfigDir, config.Name),
 		"admin", getMonKeyringPath(context.ConfigDir, config.Name))
 	if err != nil {
 		return "", "", err
