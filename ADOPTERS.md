@@ -1,6 +1,6 @@
 # Rook Adopters
 
-Below is a list of adopters of Rook in **production environments** that have publicly shared the details of their usage as well as the benefits provided by Rook that their business relies on.  There are additional adopters of Rook, especially those with on-premise deployments, that are not ready to share the details of their usage publicly at this time.
+Below is a list of adopters of Rook in **production environments** that have publicly shared the details of their usage as well as the benefits provided by Rook that their business relies on.  There are additional adopters of Rook, especially those with on-premises deployments, that are not ready to share the details of their usage publicly at this time.
 
 * [Pacific Research Platform (UCSD)](https://prp.ucsd.edu/) is funded by the National Science Foundation (NSF) and is described as *"the future of big data collaboration"*. Rook provides block storage on baremetal clusters with dedicated NVMEs/SSDs for fast data access by applications such as machine learning, network monitoring, image processing, and physical simulations.
 * [Centre of Excellence in Next Generation Networks (CENGN)](https://www.cengn.ca) uses Rook to deploy and manage Ceph to provide block storage and shared filesystems from heterogeneous mix of nodes with high disk density, and more compute-focused nodes.
