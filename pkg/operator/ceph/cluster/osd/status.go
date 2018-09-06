@@ -169,7 +169,7 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 	opts.Watch = true
 	currentTimeoutMinutes := 0
 	for {
-		logger.Infof("%d/%d node(s) completed osd provisioning", (originalNodes - remainingNodes.Count()), originalNodes)
+		logger.Infof("%d/%d node(s) completed osd provisioning, resource version %v", (originalNodes - remainingNodes.Count()), originalNodes, opts.ResourceVersion)
 		w, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Watch(opts)
 		if err != nil {
 			logger.Warningf("failed to start watch on osd status, trying again. %+v", err)
@@ -186,6 +186,11 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 					logger.Infof("orchestration status config map result channel closed, will restart watch.")
 					w.Stop()
 					<-time.After(100 * time.Millisecond)
+					opts.ResourceVersion = ""
+					st, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).List(opts)
+					if err == nil {
+						opts.ResourceVersion = st.ResourceVersion
+					}
 					break ResultLoop
 				}
 				if e.Type == watch.Modified {
