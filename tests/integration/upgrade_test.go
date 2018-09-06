@@ -135,9 +135,9 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 
 	// Test writing and reading from the pod with cephfs mounted that was created before the upgrade.
 	postFilename := "post-upgrade-file"
-	assert.Nil(s.T(), s.k8sh.ReadFromPod(s.namespace, filePodName, preFilename, message))
-	assert.Nil(s.T(), s.k8sh.WriteToPod(s.namespace, filePodName, postFilename, message))
-	assert.Nil(s.T(), s.k8sh.ReadFromPod(s.namespace, filePodName, postFilename, message))
+	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry(s.namespace, filePodName, preFilename, message, 3))
+	assert.Nil(s.T(), s.k8sh.WriteToPodRetry(s.namespace, filePodName, postFilename, message, 3))
+	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry(s.namespace, filePodName, postFilename, message, 3))
 
 	// Test writing and reading from the pod with rbd mounted that was created before the upgrade.
 	// There is some unreliability right after the upgrade when there is only one osd, so we will retry if needed
