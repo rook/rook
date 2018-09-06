@@ -259,27 +259,11 @@ func extractKey(contents string) (string, error) {
 	return secret, nil
 }
 
-// convert an index to a mon name based on as few letters of the alphabet as possible
-func indexToName(index int) string {
-	var result string
-	for {
-		i := index % maxPerChar
-		c := 'z' - maxPerChar + i + 1
-		result = fmt.Sprintf("%c%s", c, result)
-		if index < maxPerChar {
-			break
-		}
-		// subtract 1 since the character conversion is zero-based
-		index = (index / maxPerChar) - 1
-	}
-	return result
-}
-
 // convert the mon name to the numeric mon ID
 func fullNameToIndex(name string) (int, error) {
 	prefix := appName + "-"
 	if strings.Index(name, prefix) != -1 && len(prefix) < len(name) {
-		return nameToIndex(name[len(prefix)+1:])
+		return k8sutil.NameToIndex(name[len(prefix)+1:])
 	}
 
 	// attempt to parse the legacy mon name
@@ -292,22 +276,4 @@ func fullNameToIndex(name string) (int, error) {
 		return -1, err
 	}
 	return id, nil
-}
-
-func nameToIndex(name string) (int, error) {
-	factor := 1
-	for i := 1; i < len(name); i++ {
-		factor *= maxPerChar
-	}
-	var result int
-	for _, c := range name {
-		charVal := int('z' - c + 1)
-		if charVal < 0 || charVal >= maxPerChar {
-			return -1, fmt.Errorf("invalid char '%c' in %s", c, name)
-		}
-		result += charVal * factor
-		factor /= maxPerChar
-	}
-	return result, nil
-
 }
