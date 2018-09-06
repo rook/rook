@@ -52,6 +52,18 @@ Stopping the cluster can be done with:
 tests/scripts/kubeadm.sh clean
 ```
 
+#### k8s-vagrant-multi-node (recommended for multi node testing)
+Starting the cluster using [`galexrt/k8s-vagrant-multi-node`](https://github.com/galexrt/k8s-vagrant-multi-node) is as simple as running:
+```console
+tests/scripts/k8s-vagrant-multi-node.sh up
+```
+This will start a 1x master and 2x nodes Kubernetes cluster using `kubeadm` in Vagrant VirtualBox VMs on your machine.
+
+Stopping the multi node cluster can be done with:
+```console
+tests/scripts/k8s-vagrant-multi-node.sh clean
+```
+
 #### Alternate Kubernetes Versions
 These two scripts can install any version of Kubernetes you wish based on the `KUBE_VERSION` environment variable.
 To use an alternate version, simply set this variable before running the relevant `up` command from above.
