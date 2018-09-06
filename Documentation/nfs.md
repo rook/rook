@@ -15,6 +15,7 @@ NFS allows remote hosts to mount file systems over a network and interact with t
 Any type of PVC can be attached and exported, such as Host Path, AWS Elastic Block Store, GCP Persistent Disk, CephFS, Ceph RBD, etc.
 The limitations of these volumes also apply while they are shared by NFS.
 You can read further about the details and limitations of these volumes in the [Kubernetes docs](https://kubernetes.io/docs/concepts/storage/persistent-volumes/).
+3. NFS client packages must be installed on all nodes where Kubernetes might run pods with NFS mounted. Install `nfs-utils` on CentOS nodes or `nfs-common` on Ubuntu nodes.
 
 
 ## Deploy NFS Operator
