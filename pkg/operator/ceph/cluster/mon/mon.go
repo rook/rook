@@ -30,7 +30,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"k8s.io/api/core/v1"
@@ -187,7 +187,7 @@ func (c *Cluster) startMons() error {
 		}
 	}
 
-	logger.Debugf("mon endpoints used are: %s", mon.FlattenMonEndpoints(c.clusterInfo.Monitors))
+	logger.Debugf("mon endpoints used are: %s", mondaemon.FlattenMonEndpoints(c.clusterInfo.Monitors))
 	return nil
 }
 
@@ -215,7 +215,7 @@ func (c *Cluster) initMonConfig(size int) []*monConfig {
 
 	// initialize the mon pod info for mons that have been previously created
 	for _, monitor := range c.clusterInfo.Monitors {
-		mons = append(mons, &monConfig{ResourceName: resourceName(monitor.Name), DaemonName: monitor.Name, Port: int32(mon.DefaultPort)})
+		mons = append(mons, &monConfig{ResourceName: resourceName(monitor.Name), DaemonName: monitor.Name, Port: int32(mondaemon.DefaultPort)})
 	}
 
 	// initialize mon info if we don't have enough mons (at first startup)
@@ -229,7 +229,7 @@ func (c *Cluster) initMonConfig(size int) []*monConfig {
 
 func newMonConfig(monID int) *monConfig {
 	daemonName := indexToName(monID)
-	return &monConfig{ResourceName: resourceName(daemonName), DaemonName: daemonName, Port: int32(mon.DefaultPort)}
+	return &monConfig{ResourceName: resourceName(daemonName), DaemonName: daemonName, Port: int32(mondaemon.DefaultPort)}
 }
 
 // Ensure the mon name has the rook-ceph-mon prefix
@@ -420,7 +420,7 @@ func (c *Cluster) saveMonConfig() error {
 	}
 
 	configMap.Data = map[string]string{
-		EndpointDataKey: mon.FlattenMonEndpoints(c.clusterInfo.Monitors),
+		EndpointDataKey: mondaemon.FlattenMonEndpoints(c.clusterInfo.Monitors),
 		MaxMonIDKey:     strconv.Itoa(c.maxMonID),
 		MappingKey:      string(monMapping),
 	}

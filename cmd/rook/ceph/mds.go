@@ -20,8 +20,8 @@ import (
 	"strings"
 
 	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/daemon/ceph/mds"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
+	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
@@ -66,15 +66,15 @@ func startMDS(cmd *cobra.Command, args []string) error {
 
 	id := extractMdsID(podName)
 
-	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	config := &mds.Config{
+	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
+	config := &mdsdaemon.Config{
 		FilesystemID:  filesystemID,
 		ID:            id,
 		ActiveStandby: activeStandby,
 		ClusterInfo:   &clusterInfo,
 	}
 
-	err := mds.Run(createContext(), config)
+	err := mdsdaemon.Run(createContext(), config)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}

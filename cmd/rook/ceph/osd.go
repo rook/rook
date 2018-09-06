@@ -23,8 +23,8 @@ import (
 
 	"github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
-	"github.com/rook/rook/pkg/daemon/ceph/osd"
+	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	osddaemon "github.com/rook/rook/pkg/daemon/ceph/osd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	osdcfg "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
@@ -127,7 +127,7 @@ func runFilestoreDeviceOSD(cmd *cobra.Command, args []string) error {
 	commonOSDInit(filestoreDeviceCmd)
 
 	context := createContext()
-	err := osd.RunFilestoreOnDevice(context, mountSourcePath, mountPath, args)
+	err := osddaemon.RunFilestoreOnDevice(context, mountSourcePath, mountPath, args)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -169,7 +169,7 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 	crushLocation := strings.Join(locArgs, " ")
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, metav1.OwnerReference{})
 
-	if err := osd.WriteConfigFile(context, &clusterInfo, kv, osdID, cfg.storeConfig, cfg.nodeName, crushLocation); err != nil {
+	if err := osddaemon.WriteConfigFile(context, &clusterInfo, kv, osdID, cfg.storeConfig, cfg.nodeName, crushLocation); err != nil {
 		logger.Errorf("failed to write osd config file. %+v", err)
 	}
 	return nil
@@ -217,10 +217,10 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	forceFormat := false
 	ownerRef := cluster.ClusterOwnerRef(clusterInfo.Name, ownerRefID)
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, ownerRef)
-	agent := osd.NewAgent(context, dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
+	agent := osddaemon.NewAgent(context, dataDevices, usingDeviceFilter, cfg.metadataDevice, cfg.directories, forceFormat,
 		crushLocation, cfg.storeConfig, &clusterInfo, cfg.nodeName, kv)
 
-	err = osd.Provision(context, agent)
+	err = osddaemon.Provision(context, agent)
 	if err != nil {
 		// something failed in the OSD orchestration, update the status map with failure details
 		status := oposd.OrchestrationStatus{
@@ -239,5 +239,5 @@ func commonOSDInit(cmd *cobra.Command) {
 	rook.SetLogLevel()
 	rook.LogStartupInfo(cmd.Flags())
 
-	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
+	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
 }
