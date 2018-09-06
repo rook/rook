@@ -83,8 +83,8 @@ pipeline {
                     finally{
                         sh "build/run go get -u -f  github.com/jstemmer/go-junit-report"
                         for (kv in mapToList(data)) {
-                            unstash "${kv[0]}_${kv[1]}_result"
-                            sh "cat _output/tests/${kv[0]}_${kv[1]}_integrationTests.log | _output/go-junit-report > _output/tests/${kv[0]}_${kv[1]}_integrationTests.xml"
+                            unstash "${kv[1]}_result"
+                            sh "cat _output/tests/${kv[1]}_integrationTests.log | _output/go-junit-report > _output/tests/${kv[1]}_integrationTests.xml"
                         }
                     }
                 }
@@ -155,11 +155,13 @@ def RunIntegrationTest(k, v) {
                     }
                     finally{
                         sh "journalctl -u kubelet > _output/tests/kubelet_${v}.log"
+                        sh "journalctl > _output/tests/system_journalctl_${v}.log"
+                        sh "dmesg > _output/tests/system_dmesg_${v}.log"
                         sh '''#!/bin/bash
                               export KUBECONFIG=$HOME/admin.conf
                               tests/scripts/helm.sh clean || true'''
-                        sh "mv _output/tests/integrationTests.log _output/tests/${k}_${v}_integrationTests.log"
-                        stash name: "${k}_${v}_result",includes : "_output/tests/${k}_${v}_integrationTests.log,_output/tests/kubelet_${v}.log"
+                        sh "mv _output/tests/integrationTests.log _output/tests/${v}_integrationTests.log"
+                        stash name: "${v}_result",includes : "_output/tests/${v}_integrationTests.log"
                     }
                 }
             }
