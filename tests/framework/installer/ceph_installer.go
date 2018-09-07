@@ -22,7 +22,9 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"strings"
 	"testing"
+	"time"
 
 	"k8s.io/api/core/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
@@ -56,15 +58,42 @@ type CephInstaller struct {
 	T                func() *testing.T
 }
 
-func (h *CephInstaller) CreateCephCRDs() (err error) {
+func (h *CephInstaller) CreateCephCRDs() error {
 	var resources string
 	logger.Info("Creating Rook CRDs")
 
 	resources = h.Manifests.GetRookCRDs()
 
-	_, err = h.k8shelper.KubectlWithStdin(resources, createFromStdinArgs...)
+	var err error
+	for i := 0; i < 5; i++ {
+		if i > 0 {
+			logger.Infof("waiting 10s...")
+			time.Sleep(10 * time.Second)
+		}
 
-	return
+		_, err = h.k8shelper.KubectlWithStdin(resources, createFromStdinArgs...)
+		if err == nil {
+			return nil
+		}
+
+		// If the CRD already exists, the previous test must not have completed cleanup yet.
+		// Delete the CRDs and attempt to wait for the cleanup.
+		if strings.Index(err.Error(), "AlreadyExists") == -1 {
+			return err
+		}
+
+		// remove the finalizer from the cluster CRD
+		if _, err := h.k8shelper.Kubectl("patch", "crd", "clusters.ceph.rook.io", "-p", `{"metadata":{"finalizers": []}}`, "--type=merge"); err != nil {
+			logger.Warningf("could not remove finalizer from cluster crd. %+v", err)
+		}
+
+		logger.Warningf("CRDs were not cleaned up from a previous test. Deleting them to try again...")
+		if _, err := h.k8shelper.KubectlWithStdin(resources, deleteFromStdinArgs...); err != nil {
+			logger.Infof("deleting the crds returned an error: %+v", err)
+		}
+	}
+
+	return err
 }
 
 //CreateCephOperator creates rook-operator via kubectl
