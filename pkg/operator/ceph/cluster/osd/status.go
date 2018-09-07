@@ -134,7 +134,6 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 	}
 
 	// check the status map to see if the node is already completed before we start watching
-	remainingNodes := util.NewSet()
 	statuses, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).List(opts)
 	if err != nil {
 		if !errors.IsNotFound(err) {
@@ -143,33 +142,37 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 		}
 		// the status map doesn't exist yet, watching below is still an OK thing to do
 	}
+	originalNodes := 0
+	remainingNodes := util.NewSet()
+	checkStatus := func() {
+		remainingNodes = util.NewSet()
+		// check the nodes to see which ones are already completed
+		originalNodes = len(statuses.Items)
+		for _, configMap := range statuses.Items {
+			node, ok := configMap.Labels[nodeLabelKey]
+			if !ok {
+				logger.Infof("missing node label on configmap %s", configMap.Name)
+				continue
+			}
 
-	// check the nodes to see which ones are already completed
-	originalNodes := len(statuses.Items)
-	for _, configMap := range statuses.Items {
-		node, ok := configMap.Labels[nodeLabelKey]
-		if !ok {
-			logger.Infof("missing node label on configmap %s", configMap.Name)
-			continue
+			completed := c.handleStatusConfigMapStatus(node, config, &configMap, configOSDs)
+			if !completed {
+				remainingNodes.Add(node)
+			}
 		}
-
-		completed := c.handleStatusConfigMapStatus(node, config, &configMap, configOSDs)
-		if !completed {
-			remainingNodes.Add(node)
-		}
+	}
+	checkStatus()
+	if remainingNodes.Count() == 0 {
+		return true
 	}
 
 	// start watching for changes on the orchestration status map
 	opts.ResourceVersion = statuses.ResourceVersion
 
-	if remainingNodes.Count() == 0 {
-		return true
-	}
-
-	opts.Watch = true
 	currentTimeoutMinutes := 0
 	for {
-		logger.Infof("%d/%d node(s) completed osd provisioning", (originalNodes - remainingNodes.Count()), originalNodes)
+		logger.Infof("%d/%d node(s) completed osd provisioning, resource version %v", (originalNodes - remainingNodes.Count()), originalNodes, opts.ResourceVersion)
+		opts.Watch = true
 		w, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Watch(opts)
 		if err != nil {
 			logger.Warningf("failed to start watch on osd status, trying again. %+v", err)
@@ -186,6 +189,20 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 					logger.Infof("orchestration status config map result channel closed, will restart watch.")
 					w.Stop()
 					<-time.After(100 * time.Millisecond)
+					opts.ResourceVersion = ""
+					opts.Watch = false
+					statuses, err = c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).List(opts)
+					if err == nil {
+						logger.Infof("checking listing status")
+						checkStatus()
+						if remainingNodes.Count() == 0 {
+							logger.Infof("%d/%d node(s) completed osd provisioning", originalNodes, originalNodes)
+							return true
+						}
+						opts.ResourceVersion = statuses.ResourceVersion
+					} else {
+						logger.Infof("failed to list status: %v", err)
+					}
 					break ResultLoop
 				}
 				if e.Type == watch.Modified {
