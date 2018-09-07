@@ -18,6 +18,7 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"strconv"
 
@@ -74,7 +75,7 @@ func CreateImage(context *clusterd.Context, clusterName, name, poolName string, 
 
 	args := []string{"create", imageSpec, "--size", strconv.Itoa(sizeMB)}
 	buf, err := ExecuteRBDCommandNoFormat(context, clusterName, args)
-	if err != nil {
+	if err != nil && !strings.Contains(string(buf), fmt.Sprintf("%s already exists", name)) {
 		return nil, fmt.Errorf("failed to create image %s in pool %s of size %d: %+v. output: %s",
 			name, poolName, size, err, string(buf))
 	}
