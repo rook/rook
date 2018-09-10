@@ -72,6 +72,16 @@ GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
 
 GO := go
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
+GO_VERSION := $(shell $(GO) version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
+
+# we use a consistent version of gofmt even while running different go compilers.
+# see https://github.com/golang/go/issues/26397 for more details
+GOFMT_VERSION := 1.11
+ifneq ($(findstring $(GOFMT_VERSION),$(GO_VERSION)),)
+GOFMT := $(shell which gofmt)
+else
+GOFMT := $(TOOLS_HOST_DIR)/gofmt$(GOFMT_VERSION)
+endif
 
 GO_OUT_DIR := $(abspath $(OUTPUT_DIR)/bin/$(PLATFORM))
 GO_TEST_OUTPUT := $(abspath $(OUTPUT_DIR)/tests/$(PLATFORM))
@@ -151,8 +161,8 @@ go.vet:
 	@CGO_ENABLED=0 $(GOHOST) vet $(GO_COMMON_FLAGS) $(GO_PACKAGES) $(GO_INTEGRATION_TEST_PACKAGES)
 
 .PHONY: go.fmt
-go.fmt:
-	@gofmt_out=$$(gofmt -s -d -e $(GO_SUBDIRS) $(GO_INTEGRATION_TESTS_SUBDIRS) 2>&1) && [ -z "$${gofmt_out}" ] || (echo "$${gofmt_out}" 1>&2; exit 1)
+go.fmt: $(GOFMT)
+	@gofmt_out=$$($(GOFMT) -s -d -e $(GO_SUBDIRS) $(GO_INTEGRATION_TESTS_SUBDIRS) 2>&1) && [ -z "$${gofmt_out}" ] || (echo "$${gofmt_out}" 1>&2; exit 1)
 
 go.validate: go.vet go.fmt
 
@@ -186,6 +196,13 @@ $(GOLINT):
 	@echo === installing golint
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
 	@GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get github.com/golang/lint/golint
+	@rm -fr $(TOOLS_HOST_DIR)/tmp
+
+$(GOFMT):
+	@echo === installing gofmt$(GOFMT_VERSION)
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@curl -sL https://dl.google.com/go/go$(GOFMT_VERSION).$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
+	@mv $(TOOLS_HOST_DIR)/tmp/go/bin/gofmt $(GOFMT)
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
 $(GOJUNIT):
