@@ -490,7 +490,7 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rook
 	h := &CephInstaller{
 		Manifests:  NewCephManifests(rookVersion),
 		k8shelper:  k8shelp,
-		helmHelper: utils.NewHelmHelper(),
+		helmHelper: utils.NewHelmHelper(Env.Helm),
 		k8sVersion: version.String(),
 		T:          t,
 	}

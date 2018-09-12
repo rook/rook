@@ -140,17 +140,19 @@ def RunIntegrationTest(k, v) {
                             echo "Running Smoke Tests"
                             sh '''#!/bin/bash
                                   set -o pipefail
-                                  export KUBECONFIG=$HOME/admin.conf
+                                  export PATH="/tmp/rook-tests-scripts-helm/linux-amd64:$PATH" \
+                                      KUBECONFIG=$HOME/admin.conf
                                   kubectl config view
-                                  _output/tests/linux_amd64/integration -test.v -test.timeout 600s -test.run SmokeSuite --host_type '''+"${k}"+''' 2>&1 | tee _output/tests/integrationTests.log'''
+                                  _output/tests/linux_amd64/integration -test.v -test.timeout 600s -test.run SmokeSuite --host_type '''+"${k}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
                         }
                         else {
                         echo "Running full regression"
                         sh '''#!/bin/bash
                               set -o pipefail
-                              export KUBECONFIG=$HOME/admin.conf
+                              export PATH="/tmp/rook-tests-scripts-helm/linux-amd64:$PATH" \
+                                  KUBECONFIG=$HOME/admin.conf
                               kubectl config view
-                              _output/tests/linux_amd64/integration -test.v -test.timeout 2400s --host_type '''+"${k}"+''' 2>&1 | tee _output/tests/integrationTests.log'''
+                              _output/tests/linux_amd64/integration -test.v -test.timeout 2400s --host_type '''+"${k}"+''' --helm /tmp/rook-tests-scripts-helm/linux-amd64/helm 2>&1 | tee _output/tests/integrationTests.log'''
                          }
                     }
                     finally{
