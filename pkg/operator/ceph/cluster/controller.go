@@ -50,7 +50,7 @@ const (
 	crushConfigMapName       = "rook-crush-config"
 	crushmapCreatedKey       = "initialCrushMapCreated"
 	clusterCreateInterval    = 6 * time.Second
-	clusterCreateTimeout     = 5 * time.Minute
+	clusterCreateTimeout     = 60 * time.Minute
 	updateClusterInterval    = 30 * time.Second
 	updateClusterTimeout     = 1 * time.Hour
 )

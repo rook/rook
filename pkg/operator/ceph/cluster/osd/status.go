@@ -43,6 +43,8 @@ const (
 	orchestrationStatusKey           = "status"
 	provisioningLabelKey             = "provisioning"
 	nodeLabelKey                     = "node"
+	completeProvisionTimeout         = 20
+	completeProvisionSkipOSDTimeout  = 5
 )
 
 type provisionConfig struct {
@@ -115,13 +117,11 @@ func parseOrchestrationStatus(data map[string]string) *OrchestrationStatus {
 }
 
 func (c *Cluster) completeProvision(config *provisionConfig) bool {
-	timeoutMinutes := 10
-	return c.completeOSDsForAllNodes(config, true, timeoutMinutes)
+	return c.completeOSDsForAllNodes(config, true, completeProvisionTimeout)
 }
 
 func (c *Cluster) completeProvisionSkipOSDStart(config *provisionConfig) bool {
-	timeoutMinutes := 2
-	return c.completeOSDsForAllNodes(config, false, timeoutMinutes)
+	return c.completeOSDsForAllNodes(config, false, completeProvisionSkipOSDTimeout)
 }
 
 func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, configOSDs bool) (int, *util.Set, bool, *corev1.ConfigMapList, error) {
@@ -198,12 +198,14 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 					w.Stop()
 					<-time.After(5 * time.Second)
 					leftNodes := 0
-					leftNodes, remainingNodes, completed, statuses, err = c.checkNodesCompleted(selector, config, configOSDs)
+					leftRemaingNodes := util.NewSet()
+					leftNodes, leftRemaingNodes, completed, statuses, err = c.checkNodesCompleted(selector, config, configOSDs)
 					if err == nil {
 						if completed {
 							logger.Infof("additional %d/%d node(s) completed osd provisioning", leftNodes, originalNodes)
 							return true
 						}
+						remainingNodes = leftRemaingNodes
 					} else {
 						logger.Warningf("failed to list orchestration configmap, status: %v", err)
 					}
