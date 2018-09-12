@@ -24,6 +24,7 @@ import (
 
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
@@ -75,32 +76,6 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *extensi
 }
 
 /*
- *  Pod / container Volumes
- */
-
-// Volumes mounted to the pod
-func (c *Cluster) podVolumes() []v1.Volume {
-	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
-	if c.dataDirHostPath != "" {
-		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
-	}
-	return []v1.Volume{
-		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
-		k8sutil.ConfigOverrideVolume(),
-		cephconfig.DefaultConfigVolume(),
-	}
-}
-
-// Mounts for containers running Ceph binaries
-func cephMounts() []v1.VolumeMount {
-	return []v1.VolumeMount{
-		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
-		// Rook doesn't run in ceph containers, so it doesn't need the config override mounted
-		cephconfig.DefaultConfigMount(),
-	}
-}
-
-/*
  * Pod spec
  */
 
@@ -108,7 +83,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
 			// Config file init performed by Rook
-			c.makeConfigInitContainer(monConfig, "config-init"),
+			c.makeConfigInitContainer(monConfig, opspec.ConfigInitContainerName),
 			// Ceph monmap init performed by 'monmaptool'
 			c.makeMonmapInitContainer(monConfig, "monmap-init"),
 			// mon filesystem init performed by mon daemon
@@ -119,7 +94,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 		},
 		RestartPolicy: v1.RestartPolicyAlways,
 		NodeSelector:  map[string]string{apis.LabelHostname: hostname},
-		Volumes:       c.podVolumes(),
+		Volumes:       opspec.PodVolumes(c.dataDirHostPath),
 		HostNetwork:   c.HostNetwork,
 	}
 	if c.HostNetwork {
@@ -177,10 +152,7 @@ func (c *Cluster) makeConfigInitContainer(monConfig *monConfig, containerName st
 			AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
-		VolumeMounts: append(
-			cephMounts(),
-			k8sutil.ConfigOverrideMount(),
-		),
+		VolumeMounts:    opspec.RookVolumeMounts(),
 		SecurityContext: podSecurityContext(),
 		Resources:       c.resources,
 	}
@@ -215,7 +187,7 @@ func (c *Cluster) makeMonmapInitContainer(monConfig *monConfig, containerName st
 			monmapAddMonArgs...,
 		),
 		Image:           k8sutil.MakeRookImage(c.Version), // TODO: ceph:<vers> image
-		VolumeMounts:    cephMounts(),
+		VolumeMounts:    opspec.CephVolumeMounts(),
 		SecurityContext: podSecurityContext(),
 		// monmap creation does not require ports to be exposed
 		Resources: c.resources,
@@ -251,7 +223,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig, containerName str
 			c.cephMonCommonArgs(monConfig)...,
 		),
 		Image:           k8sutil.MakeRookImage(c.Version), // TODO: ceph:<vers> image
-		VolumeMounts:    cephMounts(),
+		VolumeMounts:    opspec.CephVolumeMounts(),
 		SecurityContext: podSecurityContext(),
 		// filesystem creation does not require ports to be exposed
 		Resources: c.resources,
@@ -281,7 +253,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig, containerName str
 			c.cephMonCommonArgs(monConfig)...,
 		),
 		Image:           k8sutil.MakeRookImage(c.Version), // TODO: ceph:<vers> image
-		VolumeMounts:    cephMounts(),
+		VolumeMounts:    opspec.CephVolumeMounts(),
 		SecurityContext: podSecurityContext(),
 		Ports: []v1.ContainerPort{
 			{
