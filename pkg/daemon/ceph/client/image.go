@@ -18,12 +18,14 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"syscall"
 
 	"strconv"
 
 	"regexp"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -75,8 +77,14 @@ func CreateImage(context *clusterd.Context, clusterName, name, poolName string, 
 	args := []string{"create", imageSpec, "--size", strconv.Itoa(sizeMB)}
 	buf, err := ExecuteRBDCommandNoFormat(context, clusterName, args)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create image %s in pool %s of size %d: %+v. output: %s",
-			name, poolName, size, err, string(buf))
+		cmdErr, ok := err.(*exec.CommandError)
+		if ok && cmdErr.ExitStatus() == int(syscall.EEXIST) {
+			// Image with the same name already exists in the given rbd pool. Continuing with the link to PV.
+			logger.Warningf("Requested image %s exists in pool %s. Continuing", name, poolName)
+		} else {
+			return nil, fmt.Errorf("failed to create image %s in pool %s of size %d: %+v. output: %s",
+				name, poolName, size, err, string(buf))
+		}
 	}
 
 	// now that the image is created, retrieve it
