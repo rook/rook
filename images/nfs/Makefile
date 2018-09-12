@@ -19,6 +19,14 @@ include ../image.mk
 
 NFS_IMAGE = $(BUILD_REGISTRY)/nfs-$(GOARCH)
 
+NFS_BASE ?= fedora:26
+
+ifeq ($(GOARCH),amd64)
+NFS_BASEIMAGE = $(NFS_BASE)
+else ifeq ($(GOARCH),arm64)
+NFS_BASEIMAGE = arm64v8/$(NFS_BASE)
+endif
+
 TEMP := $(shell mktemp -d)
 
 # ====================================================================================
@@ -35,6 +43,7 @@ do.build:
 	@cp Dockerfile $(TEMP)
 	@cp start.sh $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
+	@cd $(TEMP) && $(SED_CMD) 's|NFS_BASEIMAGE|$(NFS_BASEIMAGE)|g' Dockerfile
 	@docker build $(BUILD_ARGS) \
 		-t $(NFS_IMAGE) \
 		$(TEMP)
