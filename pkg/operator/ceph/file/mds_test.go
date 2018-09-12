@@ -26,6 +26,7 @@ import (
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephtest "github.com/rook/rook/pkg/daemon/ceph/test"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
@@ -161,6 +162,8 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "ceph", cont.Args[0])
 	assert.Equal(t, "mds", cont.Args[1])
 	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[2])
+
+	assert.Equal(t, (9 + len(k8sutil.ClusterDaemonEnvVars())), len(cont.Env))
 
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())

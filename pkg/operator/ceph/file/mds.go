@@ -143,6 +143,19 @@ func makeDeployment(clientset kubernetes.Interface, fs cephv1beta1.Filesystem, f
 
 func mdsContainer(fs cephv1beta1.Filesystem, filesystemID, version string) v1.Container {
 
+	envVars := []v1.EnvVar{
+		{Name: "ROOK_POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
+		{Name: "ROOK_FILESYSTEM_ID", Value: filesystemID},
+		{Name: "ROOK_ACTIVE_STANDBY", Value: strconv.FormatBool(fs.Spec.MetadataServer.ActiveStandby)},
+		opmon.ClusterNameEnvVar(fs.Namespace),
+		opmon.EndpointEnvVar(),
+		opmon.AdminSecretEnvVar(),
+		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+		k8sutil.ConfigOverrideEnvVar(),
+	}
+	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars()...)
+
 	return v1.Container{
 		Args: []string{
 			"ceph",
@@ -155,17 +168,7 @@ func mdsContainer(fs cephv1beta1.Filesystem, filesystemID, version string) v1.Co
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),
 		},
-		Env: []v1.EnvVar{
-			{Name: "ROOK_POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
-			{Name: "ROOK_FILESYSTEM_ID", Value: filesystemID},
-			{Name: "ROOK_ACTIVE_STANDBY", Value: strconv.FormatBool(fs.Spec.MetadataServer.ActiveStandby)},
-			opmon.ClusterNameEnvVar(fs.Namespace),
-			opmon.EndpointEnvVar(),
-			opmon.AdminSecretEnvVar(),
-			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-			k8sutil.ConfigOverrideEnvVar(),
-		},
+		Env:       envVars,
 		Resources: fs.Spec.MetadataServer.Resources,
 	}
 }

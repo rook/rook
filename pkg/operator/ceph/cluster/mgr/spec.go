@@ -131,6 +131,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
+		Env:       k8sutil.ClusterDaemonEnvVars(),
 		Resources: c.resources,
 	}
 }

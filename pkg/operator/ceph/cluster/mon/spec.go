@@ -254,6 +254,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
+		Env:       k8sutil.ClusterDaemonEnvVars(),
 		Resources: c.resources,
 	}
 }

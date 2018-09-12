@@ -169,6 +169,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 
 	// main mon daemon container
+	monDaemonEnvs := len(k8sutil.ClusterDaemonEnvVars())
 	monDaemonContDev := test_opceph.ContainerTestDefinition{
 		Image: &cephImage,
 		Command: []string{
@@ -178,7 +179,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 			[]string{"--foreground"},
 			[]string{"--public-addr", "2.4.6.1:6790"}),
 		VolumeMountNames: cephVolumeMountNames,
-		EnvCount:         &cephEnvs,
+		EnvCount:         &monDaemonEnvs,
 		Ports: []v1.ContainerPort{
 			{ContainerPort: config.Port,
 				Protocol: v1.ProtocolTCP}},

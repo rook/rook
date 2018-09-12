@@ -326,6 +326,17 @@ func startDaemonset(context *clusterd.Context, store cephv1beta1.ObjectStore, ve
 
 func rgwContainer(store cephv1beta1.ObjectStore, version string) v1.Container {
 
+	envVars := []v1.EnvVar{
+		{Name: "ROOK_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: instanceName(store)}, Key: keyringName}}},
+		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+		opmon.ClusterNameEnvVar(store.Namespace),
+		opmon.EndpointEnvVar(),
+		opmon.SecretEnvVar(),
+		k8sutil.ConfigOverrideEnvVar(),
+	}
+	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars()...)
+
 	container := v1.Container{
 		Args: []string{
 			"ceph",
@@ -341,15 +352,7 @@ func rgwContainer(store cephv1beta1.ObjectStore, version string) v1.Container {
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),
 		},
-		Env: []v1.EnvVar{
-			{Name: "ROOK_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: instanceName(store)}, Key: keyringName}}},
-			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-			opmon.ClusterNameEnvVar(store.Namespace),
-			opmon.EndpointEnvVar(),
-			opmon.SecretEnvVar(),
-			k8sutil.ConfigOverrideEnvVar(),
-		},
+		Env:       envVars,
 		Resources: store.Spec.Gateway.Resources,
 	}
 
