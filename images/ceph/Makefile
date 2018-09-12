@@ -27,9 +27,16 @@ TEMP := $(shell mktemp -d)
 # ====================================================================================
 # Build Rook
 
-do.build:
-	@echo === docker build $(CEPH_IMAGE)
-	@cp Dockerfile $(TEMP)
+$(TEMP)/Dockerfile: Dockerfile Dockerfile.suse
+	@if [[ "$(BASEIMAGE)" =~ .*suse* ]] ; \
+	then \
+		cp Dockerfile.suse $(TEMP)/Dockerfile ; \
+	else \
+		cp Dockerfile $(TEMP)/Dockerfile ; \
+	fi \
+
+do.build: $(TEMP)/Dockerfile
+	@echo === docker build $(CEPH_IMAGE) in $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
