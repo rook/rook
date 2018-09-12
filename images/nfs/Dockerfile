@@ -14,7 +14,7 @@
 
 #Portions of this file came from https://github.com/kubernetes-incubator/external-storage/blob/master/nfs/deploy/docker/Dockerfile, which uses the same license.
 
-FROM fedora:26
+FROM NFS_BASEIMAGE
 
 # Build ganesha from source, installing deps and removing them in one line.
 # Why?
