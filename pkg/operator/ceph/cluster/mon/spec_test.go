@@ -81,15 +81,12 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "a", pod.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, pod.Spec.RestartPolicy)
 	assert.Equal(t, 3, len(pod.Spec.Volumes))
-	assert.Equal(t, "rook-data", pod.Spec.Volumes[0].Name)
-	assert.Equal(t, k8sutil.ConfigOverrideName, pod.Spec.Volumes[1].Name)
-	assert.Equal(t, cephconfig.DefaultConfigVolume(), pod.Spec.Volumes[2])
+	assert.Nil(t, testop.VolumeExists("rook-data", pod.Spec.Volumes))
+	assert.Nil(t, testop.VolumeExists(k8sutil.ConfigOverrideName, pod.Spec.Volumes))
 	if dataDir == "" {
-		assert.NotNil(t, pod.Spec.Volumes[0].EmptyDir)
-		assert.Nil(t, pod.Spec.Volumes[0].HostPath)
+		assert.Nil(t, testop.VolumeIsEmptyDir(k8sutil.DataDirVolume, pod.Spec.Volumes))
 	} else {
-		assert.Nil(t, pod.Spec.Volumes[0].EmptyDir)
-		assert.Equal(t, dataDir, pod.Spec.Volumes[0].HostPath.Path)
+		assert.Nil(t, testop.VolumeIsHostPath(k8sutil.DataDirVolume, dataDir, pod.Spec.Volumes))
 	}
 
 	assert.Equal(t, "a", pod.ObjectMeta.Name)
@@ -101,7 +98,8 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 0, len(cont.Ports))
 	assert.Equal(t, 3, len(cont.VolumeMounts))
-	assert.Equal(t, cephconfig.DefaultConfigMount(), cont.VolumeMounts[1])
+	assert.Nil(t, testop.VolumeMountExists(cephconfig.DefaultConfigMountName, cont.VolumeMounts))
+	assert.Nil(t, testop.VolumeMountExists(k8sutil.ConfigOverrideName, cont.VolumeMounts))
 	assert.Equal(t, 7, len(cont.Env))
 	assert.False(t, *cont.SecurityContext.Privileged)
 	logCommandWithArgs("confg init", cont.Command, cont.Args)
@@ -118,7 +116,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 0, len(cont.Ports))
 	assert.Equal(t, 2, len(cont.VolumeMounts))
-	assert.Equal(t, cephconfig.DefaultConfigMount(), cont.VolumeMounts[1])
+	assert.Nil(t, testop.VolumeMountExists(cephconfig.DefaultConfigMountName, cont.VolumeMounts))
 	assert.Equal(t, 0, len(cont.Env))
 	assert.False(t, *cont.SecurityContext.Privileged)
 	logCommandWithArgs("monmap init", cont.Command, cont.Args)
@@ -135,7 +133,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 0, len(cont.Ports))
 	assert.Equal(t, 2, len(cont.VolumeMounts))
-	assert.Equal(t, cephconfig.DefaultConfigMount(), cont.VolumeMounts[1])
+	assert.Nil(t, testop.VolumeMountExists(cephconfig.DefaultConfigMountName, cont.VolumeMounts))
 	assert.Equal(t, 0, len(cont.Env))
 	assert.False(t, *cont.SecurityContext.Privileged)
 	logCommandWithArgs("mon fs init", cont.Command, cont.Args)
@@ -154,16 +152,28 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, cont.Ports[0].ContainerPort, int32(6790))
 	assert.Equal(t, cont.Ports[0].Protocol, v1.ProtocolTCP)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
-	assert.Equal(t, cephconfig.DefaultConfigMount(), cont.VolumeMounts[1])
+	assert.Nil(t, testop.VolumeMountExists(cephconfig.DefaultConfigMountName, cont.VolumeMounts))
 	assert.Equal(t, 0, len(cont.Env))
 	assert.False(t, *cont.SecurityContext.Privileged)
 	logCommandWithArgs("main mon daemon", cont.Command, cont.Args)
+
 	assert.Equal(t, 1, len(cont.Command))
 	assert.Equal(t, "/usr/bin/ceph-mon", cont.Command[0])
 	assert.Equal(t, "--foreground", cont.Args[0])
 	assert.Equal(t, "--public-addr", cont.Args[1])
 	assert.Equal(t, "2.4.6.1:6790", cont.Args[2])
 	testCephMonCommonArgs(t, c, name, cont, 3)
+
+	// Verify that all the mounts have volumes and that there are no extraneous volumes
+	volsMountsTestDef := testop.VolumesAndMountsTestDefinition{
+		VolumesSpec: &testop.VolumesSpec{Moniker: "mon pod volumes", Volumes: pod.Spec.Volumes},
+		MountsSpecItems: []*testop.MountsSpec{
+			{Moniker: "mon config init mounts", Mounts: pod.Spec.InitContainers[0].VolumeMounts},
+			{Moniker: "mon monmap init mounts", Mounts: pod.Spec.InitContainers[1].VolumeMounts},
+			{Moniker: "mon fs init mounts", Mounts: pod.Spec.InitContainers[2].VolumeMounts},
+			{Moniker: "mon daemon mounts", Mounts: pod.Spec.Containers[0].VolumeMounts}},
+	}
+	volsMountsTestDef.TestMountsMatchVolumes(t)
 
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
