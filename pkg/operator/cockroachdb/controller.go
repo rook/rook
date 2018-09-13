@@ -246,9 +246,9 @@ func (c *ClusterController) createReplicaService(cluster *cluster) error {
 				// field is broken in some versions of Kubernetes:
 				// https://github.com/kubernetes/kubernetes/issues/58662
 				"service.alpha.kubernetes.io/tolerate-unready-endpoints": "true",
-				"prometheus.io/scrape":                                   "true",
-				"prometheus.io/path":                                     "_status/vars",
-				"prometheus.io/port":                                     strconv.Itoa(int(httpPort)),
+				"prometheus.io/scrape": "true",
+				"prometheus.io/path":   "_status/vars",
+				"prometheus.io/port":   strconv.Itoa(int(httpPort)),
 			},
 		},
 		Spec: v1.ServiceSpec{

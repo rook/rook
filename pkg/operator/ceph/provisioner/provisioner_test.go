@@ -146,9 +146,9 @@ func TestParseClassParametersInvalidOption(t *testing.T) {
 func newVolumeOptions(storageClass *storagebeta.StorageClass, claim *v1.PersistentVolumeClaim) controller.VolumeOptions {
 	return controller.VolumeOptions{
 		PersistentVolumeReclaimPolicy: v1.PersistentVolumeReclaimDelete,
-		PVName:     "pvc-" + string(claim.ObjectMeta.UID),
-		PVC:        claim,
-		Parameters: storageClass.Parameters,
+		PVName:                        "pvc-" + string(claim.ObjectMeta.UID),
+		PVC:                           claim,
+		Parameters:                    storageClass.Parameters,
 	}
 }
 
