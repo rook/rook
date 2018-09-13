@@ -143,7 +143,7 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	// if the file system is modified, allow the file system to be created if it wasn't already
-	logger.Infof("updating filesystem %s", newFS)
+	logger.Infof("updating filesystem %s", newFS.Name)
 	err = CreateFilesystem(c.context, *newFS, c.rookImage, c.hostNetwork, c.filesystemOwners(newFS))
 	if err != nil {
 		logger.Errorf("failed to create (modify) file system %s. %+v", newFS.Name, err)

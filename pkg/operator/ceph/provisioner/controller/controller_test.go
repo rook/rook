@@ -560,9 +560,9 @@ func newProvisionedVolume(storageClass *storagebeta.StorageClass, claim *v1.Pers
 	// pv.Spec MUST be set to match requirements in claim.Spec, especially access mode and PV size. The provisioned volume size MUST NOT be smaller than size requested in the claim, however it MAY be larger.
 	options := VolumeOptions{
 		PersistentVolumeReclaimPolicy: v1.PersistentVolumeReclaimDelete,
-		PVName:     "pvc-" + string(claim.ObjectMeta.UID),
-		PVC:        claim,
-		Parameters: storageClass.Parameters,
+		PVName:                        "pvc-" + string(claim.ObjectMeta.UID),
+		PVC:                           claim,
+		Parameters:                    storageClass.Parameters,
 	}
 	volume, _ := newTestProvisioner().Provision(options)
 
