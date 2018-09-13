@@ -11,6 +11,7 @@ This is the case for Kubernetes deployments on:
 * [ContainerLinux](https://coreos.com/os/docs/latest/) (previously named CoreOS)
 * [OpenShift](https://www.openshift.com/)
 * [Rancher](http://rancher.com/)
+* [Google Kubernetes Engine (GKE)](https://cloud.google.com/kubernetes-engine/)
 
 Especially in these environments, the kubelet needs to be told to use a different FlexVolume plugin directory that is accessible and read/write (`rw`).
 These steps need to be carried out on **all nodes** in your cluster.
@@ -44,6 +45,12 @@ Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path
 ### Rancher
 Rancher provides an easy way to configure kubelet. The FlexVolume flag will be shown later on in the [configuring the FlexVolume path](#configuring-the-flexvolume-path).
 It can be provided to the kubelet configuration template at deployment time or by using the `up to date` feature if Kubernetes is already deployed.
+
+Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
+
+### Google Kubernetes Engine (GKE)
+Google's Kubernetes Engine uses a non-standard FlexVolume plugin directory: `/home/kubernetes/flexvolume`
+The kubelet on GKE is already configured to use that directory. 
 
 Continue with [configuring the FlexVolume path](#configuring-the-flexvolume-path) to configure Rook to use the FlexVolume path.
 
