@@ -24,7 +24,7 @@ func createStorageClassAndPool(t func() *testing.T, testClient *clients.TestClie
 		logger.Infof("Install pool and storage class for rook block")
 		_, err := testClient.PoolClient.Create(poolName, namespace, 3)
 		require.NoError(t(), err)
-		_, err = testClient.BlockClient.CreateStorageClass(poolName, storageClassName, namespace, false)
+		_, err = testClient.BlockClient.CreateStorageClass(poolName, storageClassName, "Delete", namespace, false)
 		require.NoError(t(), err)
 
 		//make sure storageclass is created

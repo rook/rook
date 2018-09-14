@@ -42,7 +42,13 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	storageClassName := "rook-ceph-block"
 	blockName := "block-pv-claim"
 
+	podNameWithPVRetained := "block-test-retained"
+	poolNameRetained := "replicapoolretained"
+	storageClassNameRetained := "rook-ceph-block-retained"
+	blockNameRetained := "block-pv-claim-retained"
+
 	defer blockTestDataCleanUp(helper, k8sh, namespace, poolName, storageClassName, blockName, podName)
+	defer blockTestDataCleanUp(helper, k8sh, namespace, poolNameRetained, storageClassNameRetained, blockNameRetained, podNameWithPVRetained)
 	logger.Infof("Block Storage End to End Integration Test - create, mount, write to, read from, and unmount")
 	logger.Infof("Running on Rook Cluster %s", namespace)
 
@@ -50,14 +56,19 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	initBlockImages, _ := helper.BlockClient.List(namespace)
 
 	logger.Infof("step 1: Create block storage")
-	_, cbErr := helper.PoolClient.CreateStorageClassAndPvc(namespace, poolName, storageClassName, blockName, "ReadWriteOnce")
+	_, cbErr := helper.PoolClient.CreateStorageClassAndPvc(namespace, poolName, storageClassName, "Delete", blockName, "ReadWriteOnce")
 	require.Nil(s.T(), cbErr)
 	require.True(s.T(), retryBlockImageCountCheck(helper, len(initBlockImages), 1, namespace), "Make sure a new block is created")
+	_, cbErr = helper.PoolClient.CreateStorageClassAndPvc(namespace, poolNameRetained, storageClassNameRetained, "Retain", blockNameRetained, "ReadWriteOnce")
+	require.Nil(s.T(), cbErr)
+	require.True(s.T(), retryBlockImageCountCheck(helper, len(initBlockImages), 2, namespace), "Make sure another new block is created")
 	logger.Infof("Block Storage created successfully")
 	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, blockName), "Make sure PVC is Bound")
+	require.True(s.T(), k8sh.WaitUntilPVCIsBound(defaultNamespace, blockNameRetained), "Make sure PVC with reclaimPolicy:Retain is Bound")
 
 	logger.Infof("step 2: Mount block storage")
 	crdName := createPodWithBlock(helper, k8sh, s, namespace, blockName, podName)
+	crdNameRetained := createPodWithBlock(helper, k8sh, s, namespace, blockNameRetained, podNameWithPVRetained)
 
 	logger.Infof("step 3: Write to block storage")
 	message := "Smoke Test Data for Block storage"
@@ -95,15 +106,43 @@ func runBlockE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 	logger.Infof("step 9: Unmount block storage")
 	_, unmtErr = k8sh.DeletePod(k8sutil.DefaultNamespace, podName)
 	require.Nil(s.T(), unmtErr)
+	_, unmtErr = k8sh.DeletePod(k8sutil.DefaultNamespace, podNameWithPVRetained)
+	require.Nil(s.T(), unmtErr)
 	require.True(s.T(), k8sh.IsVolumeResourceAbsent(installer.SystemNamespace(namespace), crdName), fmt.Sprintf("make sure Volume %s is deleted", crdName))
+	require.True(s.T(), k8sh.IsVolumeResourceAbsent(installer.SystemNamespace(namespace), crdNameRetained), fmt.Sprintf("make sure Volume %s is deleted", crdNameRetained))
 	require.True(s.T(), k8sh.IsPodTerminated(podName, defaultNamespace), "make sure block-test pod is terminated")
+	require.True(s.T(), k8sh.IsPodTerminated(podNameWithPVRetained, defaultNamespace), "make sure block-test-retained pod is terminated")
 	logger.Infof("Block Storage unmounted successfully")
 
 	logger.Infof("step 10: Deleting block storage")
-	dbErr := helper.PoolClient.DeleteStorageClassAndPvc(namespace, poolName, storageClassName, blockName, "ReadWriteOnce")
+	pvName, err := k8sh.GetPVCVolumeName(defaultNamespace, blockName)
+	pv, _ := k8sh.GetPV(pvName)
+	require.Nil(s.T(), err)
+	dbErr := helper.PoolClient.DeletePvc(blockName, storageClassName, "ReadWriteOnce")
 	require.Nil(s.T(), dbErr)
-	require.True(s.T(), retryBlockImageCountCheck(helper, len(initBlockImages), 0, namespace), "Make sure a block is deleted")
+	require.Equal(s.T(), string((*pv).Spec.PersistentVolumeReclaimPolicy), "Delete")
+	require.True(s.T(), retryPVCheck(k8sh, pvName, false, ""))
+	logger.Infof("PV: %s deleted successfully", pvName)
+	require.True(s.T(), retryBlockImageCountCheck(helper, len(initBlockImages), 1, namespace), "Make sure a block is deleted")
 	logger.Infof("Block Storage deleted successfully")
+
+	pvName, err = k8sh.GetPVCVolumeName(defaultNamespace, blockNameRetained)
+	pv, _ = k8sh.GetPV(pvName)
+	require.Nil(s.T(), err)
+	dbErr = helper.PoolClient.DeletePvc(blockNameRetained, storageClassNameRetained, "ReadWriteOnce")
+	require.Nil(s.T(), dbErr)
+	require.Equal(s.T(), string((*pv).Spec.PersistentVolumeReclaimPolicy), "Retain")
+	require.True(s.T(), retryPVCheck(k8sh, pvName, true, "Released"))
+	require.True(s.T(), retryBlockImageCountCheck(helper, len(initBlockImages), 1, namespace), "Make sure a block is retained")
+	logger.Infof("Block Storage retained")
+	k8sh.Kubectl("delete", "pv", pvName)
+
+	logger.Infof("step 11: Delete storage class and pool")
+	dsErr := helper.PoolClient.DeleteStorageClass(namespace, poolName, storageClassName, "Delete")
+	require.Nil(s.T(), dsErr)
+	dsErr = helper.PoolClient.DeleteStorageClass(namespace, poolNameRetained, storageClassNameRetained, "Retain")
+	require.Nil(s.T(), dsErr)
+	logger.Infof("Block Storage class and pool deleted successfully")
 }
 
 func createPodWithBlock(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, blockName, podName string) string {
@@ -161,7 +200,7 @@ func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 
 	logger.Infof("step : Create Pool,StorageClass and PVC")
 
-	res1, err := helper.PoolClient.CreateStorageClassAndPvc(clusterNamespace, poolName, storageClassName, blockName, "ReadWriteOnce")
+	res1, err := helper.PoolClient.CreateStorageClassAndPvc(clusterNamespace, poolName, storageClassName, "Delete", blockName, "ReadWriteOnce")
 	checkOrderedSubstrings(s.T(), res1, poolName, "created", storageClassName, "created", blockName, "created")
 	require.NoError(s.T(), err)
 
@@ -181,7 +220,7 @@ func deleteBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.
 
 	logger.Infof("deleteBlockLite: cleaning up after test")
 	//Delete pvc and storageclass
-	err := helper.PoolClient.DeleteStorageClassAndPvc(clusterNamespace, poolName, storageClassName, blockName, "ReadWriteOnce")
+	err := helper.PoolClient.DeleteStorageClassAndPvc(clusterNamespace, poolName, storageClassName, "Delete", blockName, "ReadWriteOnce")
 	assert.NoError(s.T(), err)
 
 	assert.True(s.T(), k8sh.WaitUntilPVCIsDeleted(defaultNamespace, blockName))
@@ -214,7 +253,7 @@ func checkPoolDeleted(helper *clients.TestClient, s suite.Suite, namespace, name
 func blockTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, namespace, poolname, storageclassname, blockname, podname string) {
 	logger.Infof("Cleaning up block storage")
 	k8sh.DeletePod(k8sutil.DefaultNamespace, podname)
-	helper.PoolClient.DeleteStorageClassAndPvc(namespace, poolname, storageclassname, blockname, "ReadWriteOnce")
+	helper.PoolClient.DeleteStorageClassAndPvc(namespace, poolname, storageclassname, "Delete", blockname, "ReadWriteOnce")
 	cleanupDynamicBlockStorage(helper, namespace)
 }
 
@@ -227,6 +266,26 @@ func retryBlockImageCountCheck(helper *clients.TestClient, imageCount, expectedC
 		blockImages, _ := helper.BlockClient.List(namespace)
 		if imageCount+expectedChange == len(blockImages) {
 			return true
+		}
+		time.Sleep(time.Second * utils.RetryInterval)
+		inc++
+	}
+	return false
+}
+
+func retryPVCheck(k8sh *utils.K8sHelper, name string, exists bool, status string) bool {
+	inc := 0
+	for inc < utils.RetryLoop {
+		pv, err := k8sh.GetPV(name)
+		if err != nil {
+			if !exists {
+				return true
+			}
+		}
+		if exists {
+			if string((*pv).Status.Phase) == status {
+				return true
+			}
 		}
 		time.Sleep(time.Second * utils.RetryInterval)
 		inc++

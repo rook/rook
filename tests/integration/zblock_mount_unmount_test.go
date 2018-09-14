@@ -97,7 +97,7 @@ func (s *BlockMountUnMountSuite) setupPVCs() {
 	storageClassNameRWO := "rook-ceph-block-rwo"
 
 	// Create PVCs
-	_, cbErr := s.testClient.PoolClient.CreateStorageClassAndPvc(s.namespace, poolNameRWO, storageClassNameRWO, s.pvcNameRWO, "ReadWriteOnce")
+	_, cbErr := s.testClient.PoolClient.CreateStorageClassAndPvc(s.namespace, poolNameRWO, storageClassNameRWO, "Delete", s.pvcNameRWO, "ReadWriteOnce")
 	require.Nil(s.T(), cbErr)
 	require.True(s.T(), s.kh.WaitUntilPVCIsBound(defaultNamespace, s.pvcNameRWO), "Make sure PVC is Bound")
 
@@ -147,8 +147,8 @@ func (s *BlockMountUnMountSuite) TearDownSuite() {
 	s.kh.DeletePods(
 		"setup-block-rwo", "setup-block-rwx", "rwo-block-rw-one", "rwo-block-rw-two", "rwo-block-ro-one",
 		"rwo-block-ro-two", "rwx-block-rw-one", "rwx-block-rw-two", "rwx-block-ro-one", "rwx-block-ro-two")
-	s.testClient.PoolClient.DeleteStorageClassAndPvc(s.namespace, "block-pool-rwo", "rook-ceph-block-rwo", s.pvcNameRWO, "ReadWriteOnce")
-	s.testClient.PoolClient.DeleteStorageClassAndPvc(s.namespace, "block-pool-rwx", "rook-ceph-block-rwx", s.pvcNameRWX, "ReadWriteMany")
+	s.testClient.PoolClient.DeleteStorageClassAndPvc(s.namespace, "block-pool-rwo", "rook-ceph-block-rwo", "Delete", s.pvcNameRWO, "ReadWriteOnce")
+	s.testClient.PoolClient.DeleteStorageClassAndPvc(s.namespace, "block-pool-rwx", "rook-ceph-block-rwx", "Delete", s.pvcNameRWX, "ReadWriteMany")
 
 	cleanupDynamicBlockStorage(s.testClient, s.namespace)
 	s.op.Teardown()

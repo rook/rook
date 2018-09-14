@@ -579,7 +579,7 @@ func (ctrl *ProvisionController) shouldProvision(claim *v1.PersistentVolumeClaim
 
 	// Kubernetes 1.4 provisioning, evaluating class.Provisioner
 	claimClass := helper.GetPersistentVolumeClaimClass(claim)
-	provisioner, _, err := ctrl.getStorageClassFields(claimClass)
+	provisioner, _, _, err := ctrl.getStorageClassFields(claimClass)
 	if err != nil {
 		glog.Errorf("Error getting claim %q's StorageClass's fields: %v", claimToClaimKey(claim), err)
 		return false
@@ -767,7 +767,7 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 		return nil
 	}
 
-	provisioner, parameters, err := ctrl.getStorageClassFields(claimClass)
+	provisioner, reclaimPolicyField, parameters, err := ctrl.getStorageClassFields(claimClass)
 	if err != nil {
 		glog.Errorf("Error getting claim %q's StorageClass's fields: %v", claimToClaimKey(claim), err)
 		return nil
@@ -780,9 +780,15 @@ func (ctrl *ProvisionController) provisionClaimOperation(claim *v1.PersistentVol
 		return nil
 	}
 
+	var reclaimPolicy v1.PersistentVolumeReclaimPolicy
+	if reclaimPolicyField == nil {
+		reclaimPolicy = v1.PersistentVolumeReclaimDelete
+	} else {
+		reclaimPolicy = *reclaimPolicyField
+	}
+
 	options := VolumeOptions{
-		// TODO SHOULD be set to `Delete` unless user manually configures other reclaim policy.
-		PersistentVolumeReclaimPolicy: v1.PersistentVolumeReclaimDelete,
+		PersistentVolumeReclaimPolicy: reclaimPolicy,
 		PVName:                        pvName,
 		PVC:                           claim,
 		Parameters:                    parameters,
@@ -1082,13 +1088,13 @@ func (ctrl *ProvisionController) scheduleOperation(operationName string, operati
 	}
 }
 
-func (ctrl *ProvisionController) getStorageClassFields(name string) (string, map[string]string, error) {
+func (ctrl *ProvisionController) getStorageClassFields(name string) (string, *v1.PersistentVolumeReclaimPolicy, map[string]string, error) {
 	classObj, found, err := ctrl.classes.GetByKey(name)
 	if err != nil {
-		return "", nil, err
+		return "", nil, nil, err
 	}
 	if !found {
-		return "", nil, fmt.Errorf("StorageClass %q not found", name)
+		return "", nil, nil, fmt.Errorf("StorageClass %q not found", name)
 		// 3. It tries to find a StorageClass instance referenced by annotation
 		//    `claim.Annotations["volume.beta.kubernetes.io/storage-class"]`. If not
 		//    found, it SHOULD report an error (by sending an event to the claim) and it
@@ -1096,11 +1102,11 @@ func (ctrl *ProvisionController) getStorageClassFields(name string) (string, map
 	}
 	switch class := classObj.(type) {
 	case *storage.StorageClass:
-		return class.Provisioner, class.Parameters, nil
+		return class.Provisioner, class.ReclaimPolicy, class.Parameters, nil
 	case *storagebeta.StorageClass:
-		return class.Provisioner, class.Parameters, nil
+		return class.Provisioner, class.ReclaimPolicy, class.Parameters, nil
 	}
-	return "", nil, fmt.Errorf("Cannot convert object to StorageClass: %+v", classObj)
+	return "", nil, nil, fmt.Errorf("Cannot convert object to StorageClass: %+v", classObj)
 }
 
 func claimToClaimKey(claim *v1.PersistentVolumeClaim) string {
