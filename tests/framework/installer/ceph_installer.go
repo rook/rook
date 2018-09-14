@@ -82,6 +82,11 @@ func (h *CephInstaller) CreateCephCRDs() error {
 			return err
 		}
 
+		// ensure all the cluster CRDs are removed
+		if err = h.k8shelper.PurgeClusters(); err != nil {
+			logger.Warningf("could not purge cluster crds. %+v", err)
+		}
+
 		// remove the finalizer from the cluster CRD
 		if _, err := h.k8shelper.Kubectl("patch", "crd", "clusters.ceph.rook.io", "-p", `{"metadata":{"finalizers": []}}`, "--type=merge"); err != nil {
 			logger.Warningf("could not remove finalizer from cluster crd. %+v", err)

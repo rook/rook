@@ -126,6 +126,35 @@ func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
 	return result, nil
 }
 
+func (k8sh *K8sHelper) PurgeClusters() error {
+	// get all namespaces
+	namespaces, err := k8sh.Clientset.CoreV1().Namespaces().List(metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get namespaces to remove finalizers. %+v", err)
+	}
+
+	// look for the clusters in all namespaces
+	for _, n := range namespaces.Items {
+		namespace := n.Name
+		logger.Infof("looking in namespace %s for clusters to purge", namespace)
+		clusters, err := k8sh.RookClientset.CephV1beta1().Clusters(namespace).List(metav1.ListOptions{})
+		if err != nil {
+			logger.Warningf("failed to get clusters in namespace %s. %+v", namespace, err)
+			continue
+		}
+		for _, cluster := range clusters.Items {
+			logger.Infof("Ensuring rook cluster crd %s in namespace %s is deleted", cluster.Name, namespace)
+			if _, err := k8sh.Kubectl("patch", "clusters.ceph.rook.io", cluster.Name, "-n", namespace, "-p", `{"metadata":{"finalizers": []}}`, "--type=merge"); err != nil {
+				logger.Warningf("failed to remove finalizer from cluster %s. %+v", cluster.Name, err)
+			}
+			if err := k8sh.RookClientset.CephV1beta1().Clusters(namespace).Delete(cluster.Name, &metav1.DeleteOptions{}); err != nil {
+				logger.Warningf("failed to delete cluster %s", cluster.Name)
+			}
+		}
+	}
+	return nil
+}
+
 //KubectlWithStdin is wrapper for executing kubectl commands in stdin
 func (k8sh *K8sHelper) KubectlWithStdin(stdin string, args ...string) (string, error) {
 
