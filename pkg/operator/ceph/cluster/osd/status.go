@@ -26,6 +26,7 @@ import (
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util"
 	"k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -123,33 +124,28 @@ func (c *Cluster) completeProvisionSkipOSDStart(config *provisionConfig) bool {
 	return c.completeOSDsForAllNodes(config, false, timeoutMinutes)
 }
 
-func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bool, timeoutMinutes int) bool {
-	selector := fmt.Sprintf("%s=%s,%s=%s",
-		k8sutil.AppAttr, appName,
-		orchestrationStatusKey, provisioningLabelKey,
-	)
-
+func (c *Cluster) checkNodesCompleted(selector string, config *provisionConfig, configOSDs bool) (int, *util.Set, bool, *corev1.ConfigMapList, error) {
 	opts := metav1.ListOptions{
 		LabelSelector: selector,
+		Watch:         false,
 	}
-
-	// check the status map to see if the node is already completed before we start watching
 	remainingNodes := util.NewSet()
+	// check the status map to see if the node is already completed before we start watching
 	statuses, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).List(opts)
 	if err != nil {
 		if !errors.IsNotFound(err) {
 			config.addError("failed to get config status. %+v", err)
-			return false
+			return 0, remainingNodes, false, statuses, err
 		}
 		// the status map doesn't exist yet, watching below is still an OK thing to do
 	}
 
-	// check the nodes to see which ones are already completed
 	originalNodes := len(statuses.Items)
+	// check the nodes to see which ones are already completed
 	for _, configMap := range statuses.Items {
 		node, ok := configMap.Labels[nodeLabelKey]
 		if !ok {
-			logger.Infof("missing node label on configmap %s", configMap.Name)
+			logger.Warningf("missing node label on configmap %s", configMap.Name)
 			continue
 		}
 
@@ -158,18 +154,33 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 			remainingNodes.Add(node)
 		}
 	}
-
-	// start watching for changes on the orchestration status map
-	opts.ResourceVersion = statuses.ResourceVersion
-
 	if remainingNodes.Count() == 0 {
+		return originalNodes, remainingNodes, true, statuses, nil
+	}
+	return originalNodes, remainingNodes, false, statuses, nil
+}
+
+func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bool, timeoutMinutes int) bool {
+	selector := fmt.Sprintf("%s=%s,%s=%s",
+		k8sutil.AppAttr, appName,
+		orchestrationStatusKey, provisioningLabelKey,
+	)
+
+	originalNodes, remainingNodes, completed, statuses, err := c.checkNodesCompleted(selector, config, configOSDs)
+	if err == nil && completed {
 		return true
 	}
 
-	opts.Watch = true
 	currentTimeoutMinutes := 0
 	for {
-		logger.Infof("%d/%d node(s) completed osd provisioning", (originalNodes - remainingNodes.Count()), originalNodes)
+		opts := metav1.ListOptions{
+			LabelSelector: selector,
+			Watch:         true,
+			// start watching for changes on the orchestration status map
+			ResourceVersion: statuses.ResourceVersion,
+		}
+		logger.Infof("%d/%d node(s) completed osd provisioning, resource version %v", (originalNodes - remainingNodes.Count()), originalNodes, opts.ResourceVersion)
+
 		w, err := c.context.Clientset.CoreV1().ConfigMaps(c.Namespace).Watch(opts)
 		if err != nil {
 			logger.Warningf("failed to start watch on osd status, trying again. %+v", err)
@@ -185,7 +196,17 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 				if !ok {
 					logger.Infof("orchestration status config map result channel closed, will restart watch.")
 					w.Stop()
-					<-time.After(100 * time.Millisecond)
+					<-time.After(5 * time.Second)
+					leftNodes := 0
+					leftNodes, remainingNodes, completed, statuses, err = c.checkNodesCompleted(selector, config, configOSDs)
+					if err == nil {
+						if completed {
+							logger.Infof("additional %d/%d node(s) completed osd provisioning", leftNodes, originalNodes)
+							return true
+						}
+					} else {
+						logger.Warningf("failed to list orchestration configmap, status: %v", err)
+					}
 					break ResultLoop
 				}
 				if e.Type == watch.Modified {
