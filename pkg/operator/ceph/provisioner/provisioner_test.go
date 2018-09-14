@@ -101,6 +101,46 @@ func TestProvisionImage(t *testing.T) {
 	assert.Equal(t, "iamdatapool", pv.Spec.PersistentVolumeSource.FlexVolume.Options["dataPool"])
 }
 
+func TestReclaimPolicyForProvisionedImages(t *testing.T) {
+	clientset := test.New(3)
+	namespace := "ns"
+	configDir, _ := ioutil.TempDir("", "")
+	os.Setenv("POD_NAMESPACE", "rook-system")
+	defer os.Setenv("POD_NAMESPACE", "")
+	defer os.RemoveAll(configDir)
+	executor := &exectest.MockExecutor{
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+			if strings.Contains(command, "ceph-authtool") {
+				cephtest.CreateConfigDir(path.Join(configDir, namespace))
+			}
+
+			if command == "rbd" && args[0] == "create" {
+				return `[{"image":"pvc-uid-1-1","size":1048576,"format":2}]`, nil
+			}
+
+			if command == "rbd" && args[0] == "ls" && args[1] == "-l" {
+				return `[{"image":"pvc-uid-1-1","size":1048576,"format":2}]`, nil
+			}
+			return "", nil
+		},
+	}
+
+	context := &clusterd.Context{
+		Clientset: clientset,
+		Executor:  executor,
+		ConfigDir: configDir,
+	}
+
+	provisioner := New(context, "foo.io")
+	for _, reclaimPolicy := range []v1.PersistentVolumeReclaimPolicy{v1.PersistentVolumeReclaimDelete, v1.PersistentVolumeReclaimRetain, v1.PersistentVolumeReclaimRecycle} {
+		volume := newVolumeOptions(newStorageClass("class-1", "foo.io/block", map[string]string{"pool": "testpool", "clusterNamespace": "testCluster", "fsType": "ext3", "dataPool": "iamdatapool"}, reclaimPolicy), newClaim("claim-1", "uid-1-1", "class-1", "", "class-1", nil), reclaimPolicy)
+		pv, err := provisioner.Provision(volume)
+		assert.Nil(t, err)
+
+		assert.Equal(t, reclaimPolicy, pv.Spec.PersistentVolumeReclaimPolicy)
+	}
+}
+
 func TestParseClassParameters(t *testing.T) {
 	cfg := make(map[string]string)
 	cfg["pool"] = "testPool"
