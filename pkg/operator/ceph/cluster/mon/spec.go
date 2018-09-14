@@ -22,7 +22,6 @@ import (
 	"os"
 	"path"
 
-	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -198,14 +197,7 @@ func (c *Cluster) makeMonmapInitContainer(monConfig *monConfig, containerName st
 func (c *Cluster) cephMonCommonArgs(monConfig *monConfig) []string {
 	return []string{
 		"--name", fmt.Sprintf("mon.%s", monConfig.DaemonName),
-		"--cluster", c.clusterInfo.Name,
 		"--mon-data", mondaemon.GetMonDataDirPath(c.context.ConfigDir, monConfig.DaemonName),
-		// It's safe to use the default path for the config b/c 'GenerateConfigFile'
-		// also writes a copy of the config to the default path
-		"--conf", cephconfig.DefaultConfigFilePath(),
-		// It's similarly safe to use the default path for the keyring b/c
-		// 'CreateKeyring' also writes a copy of the keyring to the default path
-		"--keyring", cephconfig.DefaultKeyringFilePath(),
 	}
 }
 

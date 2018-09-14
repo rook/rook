@@ -29,7 +29,7 @@ const (
 	ConfigInitContainerName = "config-init"
 )
 
-// PodVolumes returns the common list of Kubernetes volumes for use in Ceph pods.
+// PodVolumes fills in the volumes parameter with the common list of Kubernetes volumes for use in Ceph pods.
 func PodVolumes(dataDirHostPath string) []v1.Volume {
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	if dataDirHostPath != "" {
@@ -48,7 +48,6 @@ func CephVolumeMounts() []v1.VolumeMount {
 		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 		cephconfig.DefaultConfigMount(),
 		// Rook doesn't run in ceph containers, so it doesn't need the config override mounted
-
 	}
 }
 

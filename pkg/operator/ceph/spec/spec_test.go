@@ -20,7 +20,7 @@ import (
 	"testing"
 
 	"github.com/rook/rook/pkg/operator/k8sutil"
-	"github.com/rook/rook/pkg/operator/testlib"
+	"github.com/rook/rook/pkg/operator/test"
 )
 
 func TestPodVolumes(t *testing.T) {
@@ -28,13 +28,13 @@ func TestPodVolumes(t *testing.T) {
 		dataDirHostPath string
 	}
 	t.Run("Empty string dataDirHostPath is EmptyDir volume", func(t *testing.T) {
-		err := testlib.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes(""))
+		err := test.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes(""))
 		if err != nil {
 			t.Errorf("PodVolumes(\"\") - dataDirHostPath is not EmptyDir: %s", err.Error())
 		}
 	})
 	t.Run("Specified dataDirHostPath is HostPath volume", func(t *testing.T) {
-		err := testlib.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/sdb", PodVolumes("/dev/sdb"))
+		err := test.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/sdb", PodVolumes("/dev/sdb"))
 		if err != nil {
 			t.Errorf("PodVolumes(\"/dev/sdb\") - dataDirHostPath is not HostPath: %s", err.Error())
 		}
@@ -42,19 +42,12 @@ func TestPodVolumes(t *testing.T) {
 }
 
 func TestMountsMatchVolumes(t *testing.T) {
-	volsSpec := testlib.VolumesSpec{
-		Moniker: "PodVolumes(\"/dev/sdc\")",
-		Volumes: PodVolumes("/dev/sdc"),
+	volsMountsTestDef := test.VolumesAndMountsTestDefinition{
+		VolumesSpec: &test.VolumesSpec{
+			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes("/dev/sdc")},
+		MountsSpecItems: []*test.MountsSpec{
+			{Moniker: "CephVolumeMounts()", Mounts: CephVolumeMounts()},
+			{Moniker: "RookVolumeMounts()", Mounts: RookVolumeMounts()}},
 	}
-	mountsSpecItems := []testlib.MountsSpec{
-		{
-			Moniker: "CephVolumeMounts()",
-			Mounts:  CephVolumeMounts(),
-		},
-		{
-			Moniker: "RookVolumeMounts()",
-			Mounts:  RookVolumeMounts(),
-		},
-	}
-	testlib.TestMountsMatchVolumes(t, volsSpec, mountsSpecItems...)
+	volsMountsTestDef.TestMountsMatchVolumes(t)
 }
