@@ -31,7 +31,7 @@ import (
 
 var monCmd = &cobra.Command{
 	Use:    mondaemon.InitCommand,
-	Short:  "Generates mon config and runs the mon daemon",
+	Short:  "Generates mon config",
 	Hidden: true,
 }
 

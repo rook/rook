@@ -24,21 +24,12 @@ import (
 )
 
 func TestPodVolumes(t *testing.T) {
-	type args struct {
-		dataDirHostPath string
+	if err := test.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes("")); err != nil {
+		t.Errorf("PodVolumes(\"\") - data dir source is not EmptyDir: %s", err.Error())
 	}
-	t.Run("Empty string dataDirHostPath is EmptyDir volume", func(t *testing.T) {
-		err := test.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes(""))
-		if err != nil {
-			t.Errorf("PodVolumes(\"\") - dataDirHostPath is not EmptyDir: %s", err.Error())
-		}
-	})
-	t.Run("Specified dataDirHostPath is HostPath volume", func(t *testing.T) {
-		err := test.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/sdb", PodVolumes("/dev/sdb"))
-		if err != nil {
-			t.Errorf("PodVolumes(\"/dev/sdb\") - dataDirHostPath is not HostPath: %s", err.Error())
-		}
-	})
+	if err := test.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/sdb", PodVolumes("/dev/sdb")); err != nil {
+		t.Errorf("PodVolumes(\"/dev/sdb\") - data dir source is not HostPath: %s", err.Error())
+	}
 }
 
 func TestMountsMatchVolumes(t *testing.T) {

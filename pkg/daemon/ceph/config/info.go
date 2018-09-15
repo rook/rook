@@ -19,6 +19,9 @@ package config
 import (
 	"fmt"
 	"net"
+	"strings"
+
+	"github.com/coreos/pkg/capnslog"
 )
 
 // ClusterInfo is a collection of information about a particular Ceph cluster. Rook uses information
@@ -40,4 +43,24 @@ type MonInfo struct {
 // NewMonInfo returns a new Ceph mon info struct from the given inputs.
 func NewMonInfo(name, ip string, port int32) *MonInfo {
 	return &MonInfo{Name: name, Endpoint: net.JoinHostPort(ip, fmt.Sprintf("%d", port))}
+}
+
+// Log writes the cluster info struct to the logger
+func (c *ClusterInfo) Log(logger *capnslog.PackageLogger) {
+	mons := []string{}
+	for _, m := range c.Monitors {
+		mons = append(mons, fmt.Sprintf("{Name: %s, Endpoint: %s}", m.Name, m.Endpoint))
+	}
+	monsec := ""
+	if c.MonitorSecret != "" {
+		monsec = "<hidden>"
+	}
+	admsec := ""
+	if c.AdminSecret != "" {
+		admsec = "<hidden>"
+	}
+	s := fmt.Sprintf(
+		"ClusterInfo: {FSID: %s, MonitorSecret: %s, AdminSecret: %s, Name: %s, Monitors: %s}",
+		c.FSID, monsec, admsec, c.Name, strings.Join(mons, " "))
+	logger.Info(s)
 }

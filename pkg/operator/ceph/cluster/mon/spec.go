@@ -35,7 +35,7 @@ const (
 	// Full path of command used to invoke the monmap tool
 	monmaptoolCommand = "/usr/bin/monmaptool"
 	// Full path of the command used to invoke the Ceph mon daemon
-	cephMonCommand = "/usr/bin/ceph-mon"
+	cephMonCommand = "ceph-mon"
 
 	monmapFile = "monmap"
 )
@@ -82,14 +82,14 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
 			// Config file init performed by Rook
-			c.makeConfigInitContainer(monConfig, opspec.ConfigInitContainerName),
+			c.makeConfigInitContainer(monConfig),
 			// Ceph monmap init performed by 'monmaptool'
-			c.makeMonmapInitContainer(monConfig, "monmap-init"),
+			c.makeMonmapInitContainer(monConfig),
 			// mon filesystem init performed by mon daemon
-			c.makeMonFSInitContainer(monConfig, "mon-fs-init"),
+			c.makeMonFSInitContainer(monConfig),
 		},
 		Containers: []v1.Container{
-			c.makeMonDaemonContainer(monConfig, "mon"),
+			c.makeMonDaemonContainer(monConfig),
 		},
 		RestartPolicy: v1.RestartPolicyAlways,
 		NodeSelector:  map[string]string{apis.LabelHostname: hostname},
@@ -130,9 +130,9 @@ func podSecurityContext() *v1.SecurityContext {
 	return &v1.SecurityContext{Privileged: &privileged}
 }
 
-func (c *Cluster) makeConfigInitContainer(monConfig *monConfig, containerName string) v1.Container {
+func (c *Cluster) makeConfigInitContainer(monConfig *monConfig) v1.Container {
 	return v1.Container{
-		Name: containerName,
+		Name: opspec.ConfigInitContainerName,
 		Args: []string{
 			"ceph",
 			mondaemon.InitCommand,
@@ -164,7 +164,7 @@ func (c *Cluster) monmapFilePath(monConfig *monConfig) string {
 	)
 }
 
-func (c *Cluster) makeMonmapInitContainer(monConfig *monConfig, containerName string) v1.Container {
+func (c *Cluster) makeMonmapInitContainer(monConfig *monConfig) v1.Container {
 	// Add mons w/ monmaptool w/ args: [--add <mon-name> <mon-endpoint>]...
 	monmapAddMonArgs := []string{}
 	for _, mon := range c.clusterInfo.Monitors {
@@ -172,7 +172,7 @@ func (c *Cluster) makeMonmapInitContainer(monConfig *monConfig, containerName st
 	}
 
 	return v1.Container{
-		Name: containerName,
+		Name: "monmap-init",
 		Command: []string{
 			monmaptoolCommand,
 		},
@@ -201,9 +201,9 @@ func (c *Cluster) cephMonCommonArgs(monConfig *monConfig) []string {
 	}
 }
 
-func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig, containerName string) v1.Container {
+func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 	return v1.Container{
-		Name: containerName,
+		Name: "mon-fs-init",
 		Command: []string{
 			cephMonCommand,
 		},
@@ -222,7 +222,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig, containerName str
 	}
 }
 
-func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig, containerName string) v1.Container {
+func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 	return v1.Container{
 		// The operator has set up the mon's service already, so the IP that the mon should
 		// broadcast as its own (--public-addr) is known. But the pod's IP, which the mon should
@@ -232,7 +232,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig, containerName str
 		//    - Chosen solution, but is not as transparent to inspection as using commandline arg
 		// 2. Use bash to do variable substitution with the pod IP env var; but bash is a poor PID1
 		// 3. Use tini to do var substitution as above; but tini doesn't exist in the ceph images.
-		Name: containerName,
+		Name: "mon",
 		Command: []string{
 			cephMonCommand,
 		},

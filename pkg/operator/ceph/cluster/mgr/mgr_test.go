@@ -19,7 +19,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"testing"
 
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
@@ -30,7 +29,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -84,61 +82,4 @@ func validateStart(t *testing.T, c *Cluster) {
 	} else {
 		assert.True(t, errors.IsNotFound(err))
 	}
-}
-
-func TestPodSpec(t *testing.T) {
-	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "rook/rook:myversion", rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{
-		Limits: v1.ResourceList{
-			v1.ResourceCPU: *resource.NewQuantity(100.0, resource.BinarySI),
-		},
-		Requests: v1.ResourceList{
-			v1.ResourceMemory: *resource.NewQuantity(1337.0, resource.BinarySI),
-		},
-	}, metav1.OwnerReference{})
-
-	d := c.makeDeployment("mgr-a", "a")
-	assert.NotNil(t, d)
-	assert.Equal(t, "mgr-a", d.Name)
-	assert.Equal(t, v1.RestartPolicyAlways, d.Spec.Template.Spec.RestartPolicy)
-	assert.Equal(t, 2, len(d.Spec.Template.Spec.Volumes))
-	assert.Equal(t, 3, len(d.Spec.Template.Spec.Containers[0].Ports))
-	assert.Equal(t, "rook-data", d.Spec.Template.Spec.Volumes[0].Name)
-	assert.Equal(t, "mgr-a", d.ObjectMeta.Name)
-	assert.Equal(t, appName, d.Spec.Template.ObjectMeta.Labels["app"])
-	assert.Equal(t, c.Namespace, d.Spec.Template.ObjectMeta.Labels["rook_cluster"])
-	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
-
-	assert.Equal(t, 2, len(d.Spec.Template.ObjectMeta.Annotations))
-	assert.Equal(t, "true", d.Spec.Template.ObjectMeta.Annotations["prometheus.io/scrape"])
-	assert.Equal(t, strconv.Itoa(metricsPort), d.Spec.Template.ObjectMeta.Annotations["prometheus.io/port"])
-
-	cont := d.Spec.Template.Spec.Containers[0]
-	assert.Equal(t, "rook/rook:myversion", cont.Image)
-	assert.Equal(t, 2, len(cont.VolumeMounts))
-
-	assert.Equal(t, "ceph", cont.Args[0])
-	assert.Equal(t, "mgr", cont.Args[1])
-	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[2])
-
-	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
-	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
-}
-
-func TestServiceSpec(t *testing.T) {
-	c := New(&clusterd.Context{}, "ns", "myversion", rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	s := c.makeMetricsService("rook-mgr")
-	assert.NotNil(t, s)
-	assert.Equal(t, "rook-mgr", s.Name)
-	assert.Equal(t, 1, len(s.Spec.Ports))
-}
-
-func TestHostNetwork(t *testing.T) {
-	c := New(&clusterd.Context{Clientset: testop.New(1)}, "ns", "myversion", rookalpha.Placement{}, true, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
-
-	d := c.makeDeployment("mgr-a", "a")
-	assert.NotNil(t, d)
-
-	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)
-	assert.Equal(t, v1.DNSClusterFirstWithHostNet, d.Spec.Template.Spec.DNSPolicy)
 }

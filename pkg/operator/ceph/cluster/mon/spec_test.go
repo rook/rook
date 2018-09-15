@@ -153,7 +153,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	monFsContDev := test_opceph.ContainerTestDefinition{
 		Image: &cephImage,
 		Command: []string{
-			"/usr/bin/ceph-mon"},
+			"ceph-mon"},
 		Args: append(
 			monCommonExpectedArgs(name, c),
 			[]string{"--mkfs"},
@@ -172,7 +172,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	monDaemonContDev := test_opceph.ContainerTestDefinition{
 		Image: &cephImage,
 		Command: []string{
-			"/usr/bin/ceph-mon"},
+			"ceph-mon"},
 		Args: append(
 			monCommonExpectedArgs(name, c),
 			[]string{"--foreground"},
