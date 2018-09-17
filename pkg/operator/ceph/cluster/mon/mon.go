@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package mon for the Ceph monitors.
+// Package mon provides methods for creating clusters of Ceph mons in Kubernetes, for monitoring the
+// cluster's status, for taking corrective actions if the status is non-ideal, and for reporting
+// mon cluster failures.
 package mon
 
 import (
@@ -92,13 +94,17 @@ type Cluster struct {
 
 // monConfig for a single monitor
 type monConfig struct {
+	// ResourceName is the name given to the mon's Kubernetes resources in metadata
 	ResourceName string
-	DaemonName   string
-	PublicIP     string
-	Port         int32
+	// DaemonName is the name given the mon daemon ("a", "b", "c,", etc.)
+	DaemonName string
+	// PublicIP is the IP of the mon's service that the mon will receive connections on
+	PublicIP string
+	// Port is the port on which the mon will listen for connections
+	Port int32
 }
 
-// Mapping mon node and port mapping
+// Mapping is mon node and port mapping
 type Mapping struct {
 	Node map[string]*NodeInfo `json:"node"`
 	Port map[string]int32     `json:"port"`
@@ -177,7 +183,7 @@ func (c *Cluster) startMons() error {
 		}
 
 		// make sure we have the connection info generated so connections can happen
-		if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
+		if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
 			return err
 		}
 
@@ -191,8 +197,8 @@ func (c *Cluster) startMons() error {
 	return nil
 }
 
-// Retrieve the ceph cluster info if it already exists.
-// If a new cluster create new keys.
+// initClusterInfo retrieves the ceph cluster info if it already exists.
+// If a new cluster, create new keys.
 func (c *Cluster) initClusterInfo() error {
 
 	var err error
@@ -232,7 +238,7 @@ func newMonConfig(monID int) *monConfig {
 	return &monConfig{ResourceName: resourceName(daemonName), DaemonName: daemonName, Port: int32(mondaemon.DefaultPort)}
 }
 
-// Ensure the mon name has the rook-ceph-mon prefix
+// resourceName ensures the mon name has the rook-ceph-mon prefix
 func resourceName(name string) string {
 	if strings.HasPrefix(name, appName) {
 		return name
@@ -439,14 +445,14 @@ func (c *Cluster) saveMonConfig() error {
 	logger.Infof("saved mon endpoints to config map %+v", configMap.Data)
 
 	// write the latest config to the config dir
-	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
+	if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config for new mons. %+v", err)
 	}
 
 	return nil
 }
 
-// detect the nodes that are available for new mons to start.
+// getMonNodes detects the nodes that are available for new mons to start.
 func (c *Cluster) getMonNodes() ([]v1.Node, error) {
 	availableNodes, nodes, err := c.getAvailableMonNodes()
 	if err != nil {

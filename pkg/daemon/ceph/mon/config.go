@@ -18,12 +18,11 @@ package mon
 
 import (
 	"fmt"
-	"io/ioutil"
+	"net"
 	"path"
 	"path/filepath"
 	"strings"
 
-	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 )
@@ -38,9 +37,8 @@ const (
 	%s`
 )
 
-var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephmon")
-
-// GetMonRunDirPath returns the path of a given monitor's run dir
+// GetMonRunDirPath returns the path of a given monitor's run dir. The run dir is where a mon's
+// monmap file should be stored.
 func GetMonRunDirPath(configDir, monName string) string {
 	if strings.Index(monName, "mon") == -1 {
 		// if the mon name doesn't have "mon" in it, include it in the directory
@@ -49,13 +47,9 @@ func GetMonRunDirPath(configDir, monName string) string {
 	return path.Join(configDir, monName)
 }
 
-// get the path of a given monitor's keyring
-func getMonKeyringPath(configDir, monName string) string {
-	return filepath.Join(GetMonRunDirPath(configDir, monName), cephconfig.DefaultKeyringFile)
-}
-
-// get the path of a given monitor's data dir
-func getMonDataDirPath(configDir, monName string) string {
+// GetMonDataDirPath returns the path of a given monitor's data dir. The data dir is where a mon's
+// '--mon-data' flag should be configured.
+func GetMonDataDirPath(configDir, monName string) string {
 	return filepath.Join(GetMonRunDirPath(configDir, monName), "data")
 }
 
@@ -65,31 +59,29 @@ func writeMonKeyring(context *clusterd.Context, c *cephconfig.ClusterInfo, name 
 	return cephconfig.WriteKeyring(keyringPath, "", func(_ string) string { return keyring })
 }
 
-// generates and writes the monitor config file to disk
-func generateConnectionConfigFile(context *clusterd.Context, cluster *cephconfig.ClusterInfo, pathRoot, user, keyringPath string) (string, error) {
-	return cephconfig.GenerateConfigFile(context, cluster, pathRoot, user, keyringPath, nil, nil)
+// getMonKeyringPath gets the path of a given monitor's keyring
+func getMonKeyringPath(configDir, monName string) string {
+	return filepath.Join(GetMonRunDirPath(configDir, monName), cephconfig.DefaultKeyringFile)
 }
 
-// writes the monitor backend file to disk
-func writeBackendFile(monDataDir, backend string) error {
-	backendPath := filepath.Join(monDataDir, "kv_backend")
-	if err := ioutil.WriteFile(backendPath, []byte(backend), 0644); err != nil {
-		return fmt.Errorf("failed to write kv_backend to %s: %+v", backendPath, err)
-	}
-	return nil
-}
-
-func generateMonMap(context *clusterd.Context, cluster *cephconfig.ClusterInfo, folder string) (string, error) {
-	path := path.Join(folder, "monmap")
-	args := []string{path, "--create", "--clobber", "--fsid", cluster.FSID}
-	for _, mon := range cluster.Monitors {
-		args = append(args, "--add", mon.Name, mon.Endpoint)
+// generateConnectionConfigFile generates and writes the monitor config file to disk
+func generateConnectionConfigFile(context *clusterd.Context, config *Config, pathRoot, keyringPath string) (string, error) {
+	// public_bind_addr is set from the pod IP which can only be known at runtime, so set this
+	// at config init int the Ceph config file.
+	// See pkg/operator/ceph/cluster/mon/spec.go - makeMonDaemonContainer() comment notes for more
+	privateAddr := net.JoinHostPort(context.NetworkInfo.ClusterAddr, fmt.Sprintf("%d", config.Port))
+	settings := map[string]string{
+		"public bind addr": privateAddr,
 	}
 
-	err := context.Executor.ExecuteCommand(false, "", "monmaptool", args...)
-	if err != nil {
-		return "", fmt.Errorf("failed to generate monmap. %+v", err)
-	}
+	// The user is "mon.<mon-name>" for mon config items
+	clientUser := fmt.Sprintf("mon.%s", config.Name)
 
-	return path, nil
+	return cephconfig.GenerateConfigFile(
+		context,
+		config.Cluster,
+		pathRoot, clientUser, keyringPath,
+		nil,
+		settings,
+	)
 }
