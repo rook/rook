@@ -93,19 +93,19 @@ function check_context() {
 
 function copy_images() {
     if [[ "$1" == "" || "$1" == "ceph" ]]; then
-      echo "copying ceph images"
-      copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" rook/ceph:master
-      copy_image_to_cluster "${BUILD_REGISTRY}/ceph-toolbox-amd64" rook/ceph-toolbox:master
+        echo "copying ceph images"
+        copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" rook/ceph:master
+        copy_image_to_cluster "${BUILD_REGISTRY}/ceph-toolbox-amd64" rook/ceph-toolbox:master
     fi
 
     if [[ "$1" == "" || "$1" == "cockroachdb" ]]; then
-      echo "copying cockroachdb image"
-      copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
+        echo "copying cockroachdb image"
+        copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
     fi
 
     if [[ "$1" == "" || "$1" == "minio" ]]; then
-      echo "copying minio image"
-      copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" rook/minio:master
+        echo "copying minio image"
+        copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" rook/minio:master
     fi
 
     if [[ "$1" == "" || "$1" == "nfs" ]]; then
@@ -119,59 +119,59 @@ KUBE_VERSION=${KUBE_VERSION:-"v1.11.0"}
 MEMORY=${MEMORY:-"3000"}
 
 case "${1:-}" in
-  up)
-    # Use kubeadm bootstrapper for 1.8+ since localkube was deprecated in 1.8
-    echo "starting minikube with kubeadm bootstrapper"
-    minikube start --memory="${MEMORY}" -b kubeadm --kubernetes-version "${KUBE_VERSION}"
-    wait_for_ssh
-    # create a link so the default dataDirHostPath will work for this environment
-    minikube ssh "sudo mkdir -p /mnt/sda1/${PWD}; sudo mkdir -p $(dirname $PWD); sudo ln -s /mnt/sda1/${PWD} $(dirname $PWD)/"
-    minikube ssh "sudo mkdir /mnt/sda1/var/lib/rook;sudo ln -s /mnt/sda1/var/lib/rook /var/lib/rook"
-    copy_images "$2"
-    ;;
-  down)
-    minikube stop
-    ;;
-  ssh)
-    echo "connecting to minikube"
-    minikube ssh
-    ;;
-  update)
-    copy_images "$2"
-    ;;
-  restart)
-    if check_context; then
-        [ "$2" ] && regex=$2 || regex="^rook-"
-        echo "Restarting Rook pods matching the regex \"$regex\" in \"rook\" namespace."
-        delete_rook_pods "rook" $regex
-        echo "Restarting Rook pods matching the regex \"$regex\" in \"rook-system\" namespace.."
-        delete_rook_pods "rook-system" $regex
-    else
-      echo "To prevent accidental data loss acting only on 'minikube' context. No action is taken."
-    fi
-    ;;
-  wordpress)
-    echo "copying the wordpress images"
-    copy_image_to_cluster mysql:5.6 mysql:5.6
-    copy_image_to_cluster wordpress:4.6.1-apache wordpress:4.6.1-apache
-    ;;
-  helm)
-    echo " copying rook image for helm"
-    helm_tag="$(cat _output/version)"
-    copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" "rook/ceph:${helm_tag}"
-    copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" "rook/minio:${helm_tag}"
-    ;;
-  clean)
-    minikube delete
-    ;;
-  *)
-    echo "usage:" >&2
-    echo "  $0 up [ceph | cockroachdb | minio | nfs]" >&2
-    echo "  $0 down" >&2
-    echo "  $0 clean" >&2
-    echo "  $0 ssh" >&2
-    echo "  $0 update [ceph | cockroachdb | minio | nfs]" >&2
-    echo "  $0 restart <pod-name-regex> (the pod name is a regex to match e.g. restart ^rook-ceph-osd)" >&2
-    echo "  $0 wordpress" >&2
-    echo "  $0 helm" >&2
+    up)
+        # Use kubeadm bootstrapper for 1.8+ since localkube was deprecated in 1.8
+        echo "starting minikube with kubeadm bootstrapper"
+        minikube start --memory="${MEMORY}" -b kubeadm --kubernetes-version "${KUBE_VERSION}"
+        wait_for_ssh
+        # create a link so the default dataDirHostPath will work for this environment
+        minikube ssh "sudo mkdir -p /mnt/sda1/${PWD}; sudo mkdir -p $(dirname $PWD); sudo ln -s /mnt/sda1/${PWD} $(dirname $PWD)/"
+        minikube ssh "sudo mkdir /mnt/sda1/var/lib/rook;sudo ln -s /mnt/sda1/var/lib/rook /var/lib/rook"
+        copy_images "$2"
+        ;;
+    down)
+        minikube stop
+        ;;
+    ssh)
+        echo "connecting to minikube"
+        minikube ssh
+        ;;
+    update)
+        copy_images "$2"
+        ;;
+    restart)
+        if check_context; then
+            [ "$2" ] && regex=$2 || regex="^rook-"
+            echo "Restarting Rook pods matching the regex \"$regex\" in \"rook\" namespace."
+            delete_rook_pods "rook" $regex
+            echo "Restarting Rook pods matching the regex \"$regex\" in \"rook-system\" namespace.."
+            delete_rook_pods "rook-system" $regex
+        else
+            echo "To prevent accidental data loss acting only on 'minikube' context. No action is taken."
+        fi
+        ;;
+    wordpress)
+        echo "copying the wordpress images"
+        copy_image_to_cluster mysql:5.6 mysql:5.6
+        copy_image_to_cluster wordpress:4.6.1-apache wordpress:4.6.1-apache
+        ;;
+    helm)
+        echo " copying rook image for helm"
+        helm_tag="$(cat _output/version)"
+        copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" "rook/ceph:${helm_tag}"
+        copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" "rook/minio:${helm_tag}"
+        ;;
+    clean)
+        minikube delete
+        ;;
+    *)
+        echo "usage:" >&2
+        echo "  $0 up [ceph | cockroachdb | minio | nfs]" >&2
+        echo "  $0 down" >&2
+        echo "  $0 clean" >&2
+        echo "  $0 ssh" >&2
+        echo "  $0 update [ceph | cockroachdb | minio | nfs]" >&2
+        echo "  $0 restart <pod-name-regex> (the pod name is a regex to match e.g. restart ^rook-ceph-osd)" >&2
+        echo "  $0 wordpress" >&2
+        echo "  $0 helm" >&2
 esac
