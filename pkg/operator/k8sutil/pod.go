@@ -153,6 +153,21 @@ func MakeRookImage(version string) string {
 	return version
 }
 
+func PodsRunningWithLabel(clientset kubernetes.Interface, namespace, label string) (int, error) {
+	pods, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: label})
+	if err != nil {
+		return 0, err
+	}
+
+	running := 0
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == v1.PodRunning {
+			running++
+		}
+	}
+	return running, nil
+}
+
 // GetPodPhaseMap takes a list of pods and returns a map of pod phases to the names of pods that are in that phase
 func GetPodPhaseMap(pods *v1.PodList) map[v1.PodPhase][]string {
 	podPhaseMap := map[v1.PodPhase][]string{} // status to list of pod names with that phase
