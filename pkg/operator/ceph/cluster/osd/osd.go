@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -48,6 +49,9 @@ const (
 	prepareAppNameFmt            = "rook-ceph-osd-prepare-%s"
 	legacyAppNameFmt             = "rook-ceph-osd-id-%d"
 	osdAppNameFmt                = "rook-ceph-osd-%d"
+	osdPVCNameFmt                = "rook-ceph-osd-%s-%s"
+	osdPVCPathFmt                = "/pvcs/%s"
+	osdPVCDataDirName            = "datadir"
 	osdLabelKey                  = "ceph-osd-id"
 	clusterAvailableSpaceReserve = 0.05
 	defaultServiceAccountName    = "rook-ceph-cluster"
@@ -68,6 +72,7 @@ type Cluster struct {
 	ownerRef        metav1.OwnerReference
 	serviceAccount  string
 	kv              *k8sutil.ConfigMapKVStore
+	OSDSettings     cephv1beta1.OSDSpec
 }
 
 // New creates an instance of the OSD manager
@@ -82,6 +87,7 @@ func New(
 	hostNetwork bool,
 	resources v1.ResourceRequirements,
 	ownerRef metav1.OwnerReference,
+	osdSettings cephv1beta1.OSDSpec,
 ) *Cluster {
 
 	if serviceAccount == "" {
@@ -102,6 +108,7 @@ func New(
 		resources:       resources,
 		ownerRef:        ownerRef,
 		kv:              k8sutil.NewConfigMapKVStore(namespace, context.Clientset, ownerRef),
+		OSDSettings:     osdSettings,
 	}
 }
 
@@ -130,6 +137,7 @@ func (c *Cluster) Start() error {
 
 	if c.Storage.UseAllNodes == false && len(c.Storage.Nodes) == 0 {
 		logger.Warningf("useAllNodes is set to false and no nodes are specified, no OSD pods are going to be created")
+		return nil
 	}
 
 	// disable scrubbing during orchestration and ensure it gets enabled again afterwards
@@ -249,7 +257,7 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 			message := fmt.Sprintf("failed to create prepare job node %s: %v", n.Name, err)
 			config.addError(message)
 			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
-			if err := c.updateNodeStatus(n.Name, status); err != nil {
+			if err = c.updateNodeStatus(n.Name, status); err != nil {
 				config.addError("failed to update node %s status. %+v", n.Name, err)
 				continue
 			}
@@ -264,6 +272,17 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 }
 
 func (c *Cluster) updateJob(job *batch.Job, nodeName string, config *provisionConfig, action string) bool {
+	volumeClaimTemplates := c.Storage.Selection.VolumeClaimTemplates
+	if c.OSDSettings.VolumeClaimTemplate != nil {
+		c.OSDSettings.VolumeClaimTemplate.SetName(getOSDPVCName(nodeName, osdPVCDataDirName))
+		volumeClaimTemplates = append(volumeClaimTemplates, *c.OSDSettings.VolumeClaimTemplate)
+	}
+	if err := c.createPersistentVolumeClaims(nodeName, volumeClaimTemplates); err != nil {
+		message := fmt.Sprintf("failed to create %s job persistent volume claims for node %s. %+v", action, nodeName, err)
+		c.handleOrchestrationFailure(config, nodeName, message)
+		return false
+	}
+
 	// check if the job was already created and what its status is
 	existingJob, err := c.context.Clientset.Batch().Jobs(c.Namespace).Get(job.Name, metav1.GetOptions{})
 	if err != nil && !errors.IsNotFound(err) {
@@ -276,8 +295,7 @@ func (c *Cluster) updateJob(job *batch.Job, nodeName string, config *provisionCo
 		}
 
 		logger.Infof("Removing previous %s job for node %s to start a new one", action, nodeName)
-		err := c.deleteBatchJob(existingJob.Name)
-		if err != nil {
+		if err = c.deleteBatchJob(existingJob.Name); err != nil {
 			logger.Warningf("failed to remove job %s. %+v", nodeName, err)
 		}
 	}
@@ -285,17 +303,44 @@ func (c *Cluster) updateJob(job *batch.Job, nodeName string, config *provisionCo
 	_, err = c.context.Clientset.Batch().Jobs(c.Namespace).Create(job)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
-			// we failed to create job, update the orchestration status for this node
+			// we failed to create the job, update the orchestration status for this node
 			message := fmt.Sprintf("failed to create %s job for node %s. %+v", action, nodeName, err)
 			c.handleOrchestrationFailure(config, nodeName, message)
 			return false
 		}
-
 		// the job is already in progress so we will let it run to completion
 	}
 
 	logger.Infof("osd %s job started for node %s", action, nodeName)
 	return true
+}
+
+func (c *Cluster) createPersistentVolumeClaims(nodeName string, volumeClaimTemplates []v1.PersistentVolumeClaim) error {
+	for _, p := range volumeClaimTemplates {
+		if err := c.createPersistentVolumeClaim(nodeName, p); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *Cluster) createPersistentVolumeClaim(nodeName string, volumeClaimTemplate v1.PersistentVolumeClaim) error {
+	_, err := c.context.Clientset.Core().PersistentVolumeClaims(c.Namespace).Get(getOSDPVCName(nodeName, volumeClaimTemplate.GetName()), metav1.GetOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		return err
+	} else if errors.IsNotFound(err) {
+		_, err = c.context.Clientset.Core().PersistentVolumeClaims(c.Namespace).Create(&volumeClaimTemplate)
+		if err != nil && !errors.IsAlreadyExists(err) {
+			return err
+		}
+	} else if err == nil {
+		// update PVC
+		_, err := c.context.Clientset.Core().PersistentVolumeClaims(c.Namespace).Update(&volumeClaimTemplate)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (c *Cluster) deleteBatchJob(name string) error {
@@ -325,7 +370,6 @@ func (c *Cluster) deleteBatchJob(name string) error {
 }
 
 func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) {
-
 	osds := status.OSDs
 	logger.Infof("starting %d osd daemons on node %s", len(osds), nodeName)
 
@@ -597,7 +641,16 @@ func (c *Cluster) resolveNode(nodeName string) *rookalpha.Node {
 		}
 		validDirs = append(validDirs, dir)
 	}
+
 	rookNode.Directories = validDirs
 
 	return rookNode
+}
+
+func getOSDPVCName(nodeName string, pvcName string) string {
+	return k8sutil.TruncateNodeName(fmt.Sprintf(osdPVCNameFmt, "%s", pvcName), nodeName)
+}
+
+func getOSDPVCPath(pvcName string) string {
+	return fmt.Sprintf(osdPVCPathFmt, pvcName)
 }

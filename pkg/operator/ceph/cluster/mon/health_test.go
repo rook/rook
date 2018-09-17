@@ -53,8 +53,17 @@ func TestCheckHealth(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(
+		context,
+		"ns",
+		"",
+		"myversion",
+		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+		rookalpha.Placement{},
+		false,
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+	)
 	c.clusterInfo = test.CreateConfigDir(1)
 	logger.Infof("initial mons: %v", c.clusterInfo.Monitors)
 	c.waitForStart = false
@@ -97,8 +106,17 @@ func TestCheckHealthNotFound(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(
+		context,
+		"ns",
+		"",
+		"myversion",
+		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+		rookalpha.Placement{},
+		false,
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+	)
 	c.clusterInfo = test.CreateConfigDir(2)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -166,8 +184,17 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(
+		context,
+		"ns",
+		"",
+		"myversion",
+		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+		rookalpha.Placement{},
+		false,
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+	)
 	c.clusterInfo = test.CreateConfigDir(2)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -277,8 +304,17 @@ func TestCheckMonsValid(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(
+		context,
+		"ns",
+		"",
+		"myversion",
+		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+		rookalpha.Placement{},
+		false,
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+	)
 	c.clusterInfo = test.CreateConfigDir(1)
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
@@ -361,8 +397,17 @@ func TestCheckLessMonsStartNewMons(t *testing.T) {
 		ConfigDir: configDir,
 		Executor:  executor,
 	}
-	c := New(context, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 5, AllowMultiplePerNode: true},
-		rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(
+		context,
+		"ns",
+		"",
+		"myversion",
+		cephv1beta1.MonSpec{Count: 5, AllowMultiplePerNode: true},
+		rookalpha.Placement{},
+		false,
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+	)
 	c.maxMonID = 0
 	c.clusterInfo = test.CreateConfigDir(0)
 	c.waitForStart = false

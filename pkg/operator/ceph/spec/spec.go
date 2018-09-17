@@ -30,11 +30,26 @@ const (
 )
 
 // PodVolumes fills in the volumes parameter with the common list of Kubernetes volumes for use in Ceph pods.
-func PodVolumes(dataDirHostPath string) []v1.Volume {
+func PodVolumes(dataDirHostPath string, pvcName string) []v1.Volume {
 	dataDirSource := v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
-	if dataDirHostPath != "" {
-		dataDirSource = v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: dataDirHostPath}}
+
+	if pvcName != "" {
+		dataDirSource = v1.VolumeSource{
+			PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+				ClaimName: pvcName,
+				ReadOnly:  false,
+			},
+		}
+	} else if dataDirHostPath != "" {
+		dataDirSource = v1.VolumeSource{
+			HostPath: &v1.HostPathVolumeSource{
+				Path: dataDirHostPath,
+			},
+		}
+	} else {
+		dataDirSource = v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}
 	}
+
 	return []v1.Volume{
 		{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource},
 		cephconfig.DefaultConfigVolume(),

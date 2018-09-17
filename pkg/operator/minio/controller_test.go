@@ -24,6 +24,7 @@ import (
 	testop "github.com/rook/rook/pkg/operator/test"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -38,13 +39,48 @@ func TestOnAdd(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: miniov.ObjectStoreSpec{
-			Storage: rookalpha.StorageScopeSpec{NodeCount: 6},
-			Port:    magicPort,
+			Storage: rookalpha.StorageScopeSpec{
+				NodeCount: 6,
+				Selection: rookalpha.Selection{
+					VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "rook-cockroachdb-test1",
+							},
+							Spec: v1.PersistentVolumeClaimSpec{
+								AccessModes: []v1.PersistentVolumeAccessMode{
+									v1.ReadWriteOnce,
+								},
+								Resources: v1.ResourceRequirements{
+									Requests: v1.ResourceList{
+										v1.ResourceStorage: resource.MustParse("10Gi"),
+									},
+								},
+							},
+						},
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "rook-cockroachdb-test2",
+							},
+							Spec: v1.PersistentVolumeClaimSpec{
+								AccessModes: []v1.PersistentVolumeAccessMode{
+									v1.ReadWriteOnce,
+								},
+								Resources: v1.ResourceRequirements{
+									Requests: v1.ResourceList{
+										v1.ResourceStorage: resource.MustParse("10Gi"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Port: magicPort,
 			Credentials: v1.SecretReference{
 				Name:      "whatever",
 				Namespace: namespace,
 			},
-			StorageSize: "1337G",
 		},
 	}
 
@@ -80,11 +116,13 @@ func TestOnAdd(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, ss)
 	assert.Equal(t, int32(6), *ss.Spec.Replicas)
-	assert.Equal(t, 1, len(ss.Spec.VolumeClaimTemplates))
+	assert.Equal(t, 2, len(ss.Spec.VolumeClaimTemplates))
 	assert.Equal(t, 1, len(ss.Spec.Template.Spec.Containers))
 	container := ss.Spec.Template.Spec.Containers[0]
 	expectedContainerPorts := []v1.ContainerPort{{ContainerPort: magicPort}}
 	assert.Equal(t, expectedContainerPorts, container.Ports)
+	assert.Equal(t, 4, len(container.VolumeMounts))
+	assert.Equal(t, 13, len(container.Args))
 }
 
 func TestSpecVerification(t *testing.T) {
@@ -95,13 +133,33 @@ func TestSpecVerification(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: miniov.ObjectStoreSpec{
-			Storage: rookalpha.StorageScopeSpec{NodeCount: 6},
-			Port:    magicPort,
+			Storage: rookalpha.StorageScopeSpec{
+				NodeCount: 6,
+				Selection: rookalpha.Selection{
+					VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "rook-minio-test",
+							},
+							Spec: v1.PersistentVolumeClaimSpec{
+								AccessModes: []v1.PersistentVolumeAccessMode{
+									v1.ReadWriteOnce,
+								},
+								Resources: v1.ResourceRequirements{
+									Requests: v1.ResourceList{
+										v1.ResourceStorage: resource.MustParse("10Gi"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			Port: magicPort,
 			Credentials: v1.SecretReference{
 				Name:      "whatever",
 				Namespace: namespace,
 			},
-			StorageSize: "1337G",
 		},
 	}
 
@@ -126,4 +184,8 @@ func TestSpecVerification(t *testing.T) {
 	objectstore.Spec.Port = 1000
 	err = validateObjectStoreSpec(objectstore.Spec)
 	assert.NotNil(t, err)
+}
+
+func TestGetPVCDataDir(t *testing.T) {
+	assert.Equal(t, "/data/rook-test123", getPVCDataDir(v1.PersistentVolumeClaim{ObjectMeta: metav1.ObjectMeta{Name: "rook-test123"}}))
 }

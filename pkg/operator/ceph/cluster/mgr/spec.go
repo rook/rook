@@ -50,7 +50,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *extensions.Deployment {
 				c.makeMgrDaemonContainer(mgrConfig),
 			},
 			RestartPolicy: v1.RestartPolicyAlways,
-			Volumes:       opspec.PodVolumes(""),
+			Volumes:       opspec.PodVolumes("", ""),
 			HostNetwork:   c.HostNetwork,
 		},
 	}

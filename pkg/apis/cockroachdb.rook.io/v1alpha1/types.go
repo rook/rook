@@ -16,7 +16,6 @@ limitations under the License.
 package v1alpha1
 
 import (
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -50,7 +49,6 @@ type ClusterSpec struct {
 	Storage             rook.StorageScopeSpec `json:"scope,omitempty"`
 	Network             rook.NetworkSpec      `json:"network,omitempty"`
 	Secure              bool                  `json:"secure,omitempty"`
-	VolumeSize          resource.Quantity     `json:"volumeSize,omitempty"`
 	CachePercent        int                   `json:"cachePercent,omitempty"`
 	MaxSQLMemoryPercent int                   `json:"maxSQLMemoryPercent,omitempty"`
 }

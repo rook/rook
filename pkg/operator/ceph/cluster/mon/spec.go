@@ -79,6 +79,10 @@ func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *extensi
  */
 
 func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
+	pvcName := ""
+	if c.MonSettings.VolumeClaimTemplate != nil {
+		pvcName = monConfig.ResourceName
+	}
 	podSpec := v1.PodSpec{
 		InitContainers: []v1.Container{
 			// Config file init performed by Rook
@@ -93,7 +97,7 @@ func (c *Cluster) makeMonPod(monConfig *monConfig, hostname string) *v1.Pod {
 		},
 		RestartPolicy: v1.RestartPolicyAlways,
 		NodeSelector:  map[string]string{apis.LabelHostname: hostname},
-		Volumes:       opspec.PodVolumes(c.dataDirHostPath),
+		Volumes:       opspec.PodVolumes(c.dataDirHostPath, pvcName),
 		HostNetwork:   c.HostNetwork,
 	}
 	if c.HostNetwork {

@@ -89,7 +89,6 @@ func (in *ClusterSpec) DeepCopyInto(out *ClusterSpec) {
 	*out = *in
 	in.Storage.DeepCopyInto(&out.Storage)
 	in.Network.DeepCopyInto(&out.Network)
-	out.VolumeSize = in.VolumeSize.DeepCopy()
 	return
 }
 

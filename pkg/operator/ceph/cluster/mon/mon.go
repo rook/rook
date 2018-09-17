@@ -37,6 +37,7 @@ import (
 	"github.com/rook/rook/pkg/util"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	kserrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
@@ -87,6 +88,7 @@ type Cluster struct {
 	monPodTimeout        time.Duration
 	monTimeoutList       map[string]time.Time
 	HostNetwork          bool
+	MonSettings          cephv1beta1.MonSpec
 	mapping              *Mapping
 	resources            v1.ResourceRequirements
 	ownerRef             metav1.OwnerReference
@@ -118,8 +120,15 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath, version string, mon cephv1beta1.MonSpec, placement rookalpha.Placement, hostNetwork bool,
-	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
+func New(context *clusterd.Context,
+	namespace, dataDirHostPath,
+	version string,
+	mon cephv1beta1.MonSpec,
+	placement rookalpha.Placement,
+	hostNetwork bool,
+	resources v1.ResourceRequirements,
+	ownerRef metav1.OwnerReference,
+) *Cluster {
 	return &Cluster{
 		context:              context,
 		placement:            placement,
@@ -134,6 +143,7 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, version string, 
 		monPodTimeout:        5 * time.Minute,
 		monTimeoutList:       map[string]time.Time{},
 		HostNetwork:          hostNetwork,
+		MonSettings:          mon,
 		mapping: &Mapping{
 			Node: map[string]*NodeInfo{},
 			Port: map[string]int32{},
@@ -548,9 +558,22 @@ func (c *Cluster) startMon(m *monConfig, hostname string) error {
 	}
 
 	d := c.makeDeployment(m, hostname)
-	logger.Debugf("Starting mon: %+v", d.Name)
-	_, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Create(d)
-	if err != nil {
+
+	if c.MonSettings.VolumeClaimTemplate != nil {
+		pvc := c.MonSettings.VolumeClaimTemplate
+		pvc.ObjectMeta.SetName(m.ResourceName)
+		logger.Infof("creating persistent volume claim for mon %+v from template", m.ResourceName)
+		var err error
+		if pvc, err = c.context.Clientset.Core().PersistentVolumeClaims(c.Namespace).Create(pvc); err != nil {
+			if !kserrors.IsAlreadyExists(err) {
+				return fmt.Errorf("error creating persistent volume claim (%+v) for mon %+v from template. %+v", pvc.GetName(), m.ResourceName, err)
+			}
+			logger.Infof("persistent volume claim for mon %+v already exists", m.ResourceName)
+		}
+	}
+
+	logger.Debugf("starting mon: %+v", d.Name)
+	if _, err := c.context.Clientset.Extensions().Deployments(c.Namespace).Create(d); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mon %s. %+v", m.ResourceName, err)
 		}

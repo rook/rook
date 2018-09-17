@@ -13,6 +13,13 @@ spec:
   # https://rook.io/docs/rook/master/cockroachdb-cluster-crd.html
   scope:
     nodeCount: 3
+    volumeClaimTemplates:
+      - spec:
+          accessModes: [ "ReadWriteOnce" ]
+          storageClassName: "my-storage-class"
+          resources:
+            requests:
+              storage: "8Gi"
   network:
     ports:
     - name: http
@@ -20,6 +27,5 @@ spec:
     - name: grpc
       port: 26257
   secure: false
-  volumeSize: 1Gi
   cachePercent: 25
   maxSQLMemoryPercent: 25

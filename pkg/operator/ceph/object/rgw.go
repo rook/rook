@@ -198,7 +198,7 @@ func storeExists(context *clusterd.Context, store cephv1beta1.ObjectStore) (bool
 
 	_, err = context.Clientset.ExtensionsV1beta1().DaemonSets(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
 	if err == nil {
-		//  the daemonset was found
+		// the daemonset was found
 		return true, nil
 	}
 	if err != nil && !errors.IsNotFound(err) {

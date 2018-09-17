@@ -328,6 +328,17 @@ func (c *Cluster) removeMon(daemonName string) error {
 		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", daemonName, err)
 	}
 
+	// Remove the PersistentVolumeClaim if it is used
+	if c.MonSettings.VolumeClaimTemplate != nil {
+		if err := c.context.Clientset.CoreV1().PersistentVolumeClaims(c.Namespace).Delete(resourceName, options); err != nil {
+			if errors.IsNotFound(err) {
+				logger.Infof("dead mon persistent volume claim %s was already gone", resourceName)
+			} else {
+				return fmt.Errorf("failed to remove dead mon persistent volume claim %s. %+v", resourceName, err)
+			}
+		}
+	}
+
 	return nil
 }
 

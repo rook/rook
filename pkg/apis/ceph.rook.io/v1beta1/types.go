@@ -66,8 +66,11 @@ type ClusterSpec struct {
 	// The path on the host where config and data can be persisted.
 	DataDirHostPath string `json:"dataDirHostPath,omitempty"`
 
-	// A spec for mon related options
+	// A spec for mon related options.
 	Mon MonSpec `json:"mon"`
+
+	// A spec for OSD related options.
+	OSD OSDSpec `json:"osd"`
 
 	// Dashboard settings
 	Dashboard DashboardSpec `json:"dashboard,omitempty"`
@@ -94,8 +97,13 @@ const (
 )
 
 type MonSpec struct {
-	Count                int  `json:"count"`
-	AllowMultiplePerNode bool `json:"allowMultiplePerNode"`
+	Count                int                       `json:"count"`
+	AllowMultiplePerNode bool                      `json:"allowMultiplePerNode"`
+	VolumeClaimTemplate  *v1.PersistentVolumeClaim `json:"volumeClaimTemplate"`
+}
+
+type OSDSpec struct {
+	VolumeClaimTemplate *v1.PersistentVolumeClaim `json:"volumeClaimTemplate"`
 }
 
 // +genclient

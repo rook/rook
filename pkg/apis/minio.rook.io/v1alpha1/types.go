@@ -60,7 +60,4 @@ type ObjectStoreSpec struct {
 
 	// Minio cluster credential configuration.
 	Credentials v1.SecretReference `json:"credentials"`
-
-	// The amount of storage that will be available in the object store.
-	StorageSize string `json:"storageAmount"`
 }

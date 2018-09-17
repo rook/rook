@@ -115,14 +115,34 @@ func TestOnAdd(t *testing.T) {
 			Namespace: namespace,
 		},
 		Spec: cockroachdbv1alpha1.ClusterSpec{
-			Storage: rookalpha.StorageScopeSpec{NodeCount: 5},
+			Storage: rookalpha.StorageScopeSpec{
+				NodeCount: 5,
+				Selection: rookalpha.Selection{
+					VolumeClaimTemplates: []v1.PersistentVolumeClaim{
+						{
+							ObjectMeta: metav1.ObjectMeta{
+								Name: "rook-cockroachdb-test",
+							},
+							Spec: v1.PersistentVolumeClaimSpec{
+								AccessModes: []v1.PersistentVolumeAccessMode{
+									v1.ReadWriteOnce,
+								},
+								Resources: v1.ResourceRequirements{
+									Requests: v1.ResourceList{
+										v1.ResourceStorage: resource.MustParse("10Gi"),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
 			Network: rookalpha.NetworkSpec{
 				Ports: []rookalpha.PortSpec{
 					{Name: "http", Port: 123},
 					{Name: "grpc", Port: 456},
 				},
 			},
-			VolumeSize:          resource.MustParse("1Mi"),
 			CachePercent:        30,
 			MaxSQLMemoryPercent: 40,
 		},
@@ -186,8 +206,6 @@ func TestOnAdd(t *testing.T) {
 	assert.NotNil(t, ss)
 	assert.Equal(t, int32(5), *ss.Spec.Replicas)
 	assert.Equal(t, 1, len(ss.Spec.VolumeClaimTemplates))
-	assert.Equal(t, cluster.Spec.VolumeSize,
-		ss.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests[v1.ResourceStorage])
 	assert.Equal(t, 1, len(ss.Spec.Template.Spec.Containers))
 	container := ss.Spec.Template.Spec.Containers[0]
 

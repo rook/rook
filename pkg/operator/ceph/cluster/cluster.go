@@ -73,8 +73,17 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.Mon, cephv1beta1.GetMonPlacement(c.Spec.Placement),
-		c.Spec.Network.HostNetwork, cephv1beta1.GetMonResources(c.Spec.Resources), c.ownerRef)
+	c.mons = mon.New(
+		c.context,
+		c.Namespace,
+		c.Spec.DataDirHostPath,
+		rookImage,
+		c.Spec.Mon,
+		cephv1beta1.GetMonPlacement(c.Spec.Placement),
+		c.Spec.Network.HostNetwork,
+		cephv1beta1.GetMonResources(c.Spec.Resources),
+		c.ownerRef,
+	)
 	err = c.mons.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the mons. %+v", err)
@@ -93,8 +102,19 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath,
-		cephv1beta1.GetOSDPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork, cephv1beta1.GetOSDResources(c.Spec.Resources), c.ownerRef)
+	c.osds = osd.New(
+		c.context,
+		c.Namespace,
+		rookImage,
+		c.Spec.ServiceAccount,
+		c.Spec.Storage,
+		c.Spec.DataDirHostPath,
+		cephv1beta1.GetOSDPlacement(c.Spec.Placement),
+		c.Spec.Network.HostNetwork,
+		cephv1beta1.GetOSDResources(c.Spec.Resources),
+		c.ownerRef,
+		c.Spec.OSD,
+	)
 	err = c.osds.Start()
 	if err != nil {
 		return fmt.Errorf("failed to start the osds. %+v", err)

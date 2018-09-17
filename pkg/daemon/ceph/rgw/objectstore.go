@@ -160,7 +160,7 @@ func createRealm(context *Context, serviceIP string, port int32) error {
 }
 
 func deleteRealm(context *Context) error {
-	//  <name>
+	// <name>
 	_, err := runAdminCommand(context, "realm", "delete", "--rgw-realm", context.Name)
 	if err != nil {
 		logger.Warningf("failed to delete rgw realm %s. %+v", context.Name, err)

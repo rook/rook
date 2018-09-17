@@ -159,7 +159,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	if c.devicesInUse && cluster.Spec.Storage.AnyUseAllDevices() {
 		message := "using all devices in more than one namespace not supported"
 		logger.Error(message)
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateError, message); err != nil {
+		if err = c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateError, message); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		}
 		return
@@ -184,19 +184,18 @@ func (c *ClusterController) onAdd(obj interface{}) {
 
 	// Start the Rook cluster components. Retry several times in case of failure.
 	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateCreating, ""); err != nil {
+		if err = c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateCreating, ""); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 			return false, nil
 		}
 
-		err := cluster.createInstance(c.rookImage)
-		if err != nil {
+		if err = cluster.createInstance(c.rookImage); err != nil {
 			logger.Errorf("failed to create cluster in namespace %s. %+v", cluster.Namespace, err)
 			return false, nil
 		}
 
 		// cluster is created, update the cluster CRD status now
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateCreated, ""); err != nil {
+		if err = c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateCreated, ""); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 			return false, nil
 		}
@@ -206,7 +205,7 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	if err != nil {
 		message := fmt.Sprintf("giving up creating cluster in namespace %s after %s", cluster.Namespace, clusterCreateTimeout)
 		logger.Error(message)
-		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateError, message); err != nil {
+		if err = c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateError, message); err != nil {
 			logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		}
 		return
@@ -280,7 +279,7 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	// K8s will only delete the crd and child resources when the finalizers have been removed from the crd.
 	if newClust.DeletionTimestamp != nil {
 		logger.Infof("cluster %s has a deletion timestamp", newClust.Namespace)
-		err := c.handleDelete(newClust, time.Duration(clusterDeleteRetryInterval)*time.Second)
+		err = c.handleDelete(newClust, time.Duration(clusterDeleteRetryInterval)*time.Second)
 		if err != nil {
 			logger.Errorf("failed finalizer for cluster. %+v", err)
 			return

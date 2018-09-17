@@ -46,10 +46,16 @@ const (
 	osdMetadataDeviceEnvVarName = "ROOK_METADATA_DEVICE"
 )
 
-func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
-	selection rookalpha.Selection, resources v1.ResourceRequirements, storeConfig config.StoreConfig, metadataDevice, location string) (*batch.Job, error) {
-
-	podSpec, err := c.provisionPodTemplateSpec(devices, selection, resources, storeConfig, metadataDevice, nodeName, location, v1.RestartPolicyOnFailure)
+func (c *Cluster) makeJob(
+	nodeName string,
+	devices []rookalpha.Device,
+	selection rookalpha.Selection,
+	resources v1.ResourceRequirements,
+	storeConfig config.StoreConfig,
+	metadataDevice,
+	location string,
+) (*batch.Job, error) {
+	podSpec, err := c.provisionPodTemplateSpec(devices, selection, resources, storeConfig, metadataDevice, location, nodeName, v1.RestartPolicyOnFailure)
 	if err != nil {
 		return nil, err
 	}
@@ -72,14 +78,24 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 	return job, nil
 }
 
-func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string, osd OSDInfo) (*extensions.Deployment, error) {
-
+func (c *Cluster) makeDeployment(
+	nodeName string,
+	devices []rookalpha.Device,
+	selection rookalpha.Selection,
+	resources v1.ResourceRequirements,
+	storeConfig config.StoreConfig,
+	metadataDevice string,
+	location string,
+	osd OSDInfo,
+) (*extensions.Deployment, error) {
 	replicaCount := int32(1)
 	volumeMounts := opspec.CephVolumeMounts()
 	configVolumeMounts := opspec.RookVolumeMounts()
-	volumes := opspec.PodVolumes(c.dataDirHostPath)
-
+	pvcName := ""
+	if c.OSDSettings.VolumeClaimTemplate != nil {
+		pvcName = getOSDPVCName(nodeName, osdPVCDataDirName)
+	}
+	volumes := opspec.PodVolumes(c.dataDirHostPath, pvcName)
 	var dataDir string
 	if osd.IsDirectory {
 		// Mount the path to the directory-based osd
@@ -249,12 +265,24 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 	return deployment, nil
 }
 
-func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, nodeName, location string, restart v1.RestartPolicy) (*v1.PodTemplateSpec, error) {
+func (c *Cluster) provisionPodTemplateSpec(
+	devices []rookalpha.Device,
+	selection rookalpha.Selection,
+	resources v1.ResourceRequirements,
+	storeConfig config.StoreConfig,
+	metadataDevice string,
+	nodeName string,
+	location string,
+	restart v1.RestartPolicy,
+) (*v1.PodTemplateSpec, error) {
+	pvcName := ""
+	if c.OSDSettings.VolumeClaimTemplate != nil {
+		pvcName = getOSDPVCName(nodeName, osdPVCDataDirName)
+	}
 
-	volumes := opspec.PodVolumes(c.dataDirHostPath)
+	volumes := opspec.PodVolumes(c.dataDirHostPath, pvcName)
 
-	// by default, don't define any volume config unless it is required
+	// By default, don't define any volume config unless it is required
 	if len(devices) > 0 || selection.DeviceFilter != "" || selection.GetUseAllDevices() || metadataDevice != "" {
 		// create volume config for the data dir and /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
@@ -263,11 +291,25 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 		volumes = append(volumes, udevVolume)
 	}
 
-	// add each OSD directory as another host path volume source
+	// Add each OSD directory as another host path volume source
 	for _, d := range selection.Directories {
 		dirVolume := v1.Volume{
 			Name:         k8sutil.PathToVolumeName(d.Path),
 			VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: d.Path}},
+		}
+		volumes = append(volumes, dirVolume)
+	}
+	// Add each OSD PVC as a directory
+	for _, p := range selection.VolumeClaimTemplates {
+		pvcName := getOSDPVCName(nodeName, p.GetName())
+		dirVolume := v1.Volume{
+			Name: pvcName,
+			VolumeSource: v1.VolumeSource{
+				PersistentVolumeClaim: &v1.PersistentVolumeClaimVolumeSource{
+					ClaimName: pvcName,
+					ReadOnly:  false,
+				},
+			},
 		}
 		volumes = append(volumes, dirVolume)
 	}
@@ -338,14 +380,20 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 	return envVars
 }
 
-func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, nodeName, location string) v1.Container {
+func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device,
+	selection rookalpha.Selection,
+	resources v1.ResourceRequirements,
+	storeConfig config.StoreConfig,
+	metadataDevice string,
+	nodeName string,
+	location string,
+) v1.Container {
 
 	envVars := c.getConfigEnvVars(storeConfig, k8sutil.DataDir, nodeName, location)
 	devMountNeeded := false
 	privileged := false
 
-	// only 1 of device list, device filter and use all devices can be specified.  We prioritize in that order.
+	// Only 1 of device list, device filter and use all devices can be specified.  We prioritize in that order.
 	if len(devices) > 0 {
 		deviceNames := make([]string, len(devices))
 		for i := range devices {
@@ -374,21 +422,32 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 		volumeMounts = append(volumeMounts, udevMount)
 	}
 
-	if len(selection.Directories) > 0 {
-		// for each directory the user has specified, create a volume mount and pass it to the pod via cmd line arg
-		dirPaths := make([]string, len(selection.Directories))
-		for i := range selection.Directories {
-			dpath := selection.Directories[i].Path
-			dirPaths[i] = dpath
-			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: k8sutil.PathToVolumeName(dpath), MountPath: dpath})
-		}
+	dirPaths := []string{}
 
-		if !IsRemovingNode(selection.DeviceFilter) {
-			envVars = append(envVars, dataDirectoriesEnvVar(strings.Join(dirPaths, ",")))
-		}
+	// For each directory the user has specified, create a volume mount and pass it to the pod via cmd line arg
+	for _, dir := range selection.Directories {
+		dpath := dir.Path
+		dirPaths = append(dirPaths, dpath)
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
+			Name:      k8sutil.PathToVolumeName(dpath),
+			MountPath: dpath,
+		})
 	}
 
-	// elevate to be privileged if it is going to mount devices or if running in a restricted environment such as openshift
+	for _, pv := range selection.VolumeClaimTemplates {
+		dpath := getOSDPVCPath(pv.GetName())
+		dirPaths = append(dirPaths, dpath)
+		volumeMounts = append(volumeMounts, v1.VolumeMount{
+			Name:      getOSDPVCName(nodeName, pv.GetName()),
+			MountPath: dpath,
+		})
+	}
+
+	if !IsRemovingNode(selection.DeviceFilter) {
+		envVars = append(envVars, dataDirectoriesEnvVar(strings.Join(dirPaths, ",")))
+	}
+
+	// Elevate to be privileged if it is going to mount devices or if running in a restricted environment such as openshift
 	if devMountNeeded || os.Getenv("ROOK_HOSTPATH_REQUIRES_PRIVILEGED") == "true" {
 		privileged = true
 	}

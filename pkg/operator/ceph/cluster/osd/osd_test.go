@@ -20,6 +20,7 @@ import (
 	"os"
 	"testing"
 
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	discoverDaemon "github.com/rook/rook/pkg/daemon/discover"
@@ -40,8 +41,19 @@ import (
 
 func TestStart(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns", "myversion", "",
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(
+		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}},
+		"ns",
+		"myversion",
+		"",
+		rookalpha.StorageScopeSpec{},
+		"",
+		rookalpha.Placement{},
+		false,
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+		cephv1beta1.OSDSpec{},
+	)
 
 	// Start the first time
 	err := c.Start()
@@ -89,8 +101,19 @@ func createNode(nodeName string, condition v1.NodeConditionType, clientset *fake
 
 func TestLegacyDeployment(t *testing.T) {
 	clientset := fake.NewSimpleClientset()
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "myversion", "",
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(
+		&clusterd.Context{Clientset: clientset},
+		"ns",
+		"myversion",
+		"",
+		rookalpha.StorageScopeSpec{},
+		"",
+		rookalpha.Placement{},
+		false,
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+		cephv1beta1.OSDSpec{},
+	)
 
 	osdID := 23
 	d := &extensions.Deployment{ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf(legacyAppNameFmt, osdID), Namespace: c.Namespace}}
@@ -144,8 +167,19 @@ func TestAddRemoveNode(t *testing.T) {
 	statusMapWatcher := watch.NewFake()
 	clientset.PrependWatchReactor("configmaps", k8stesting.DefaultWatchReactor(statusMapWatcher, nil))
 
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion", "",
-		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(
+		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}},
+		"ns-add-remove",
+		"myversion",
+		"",
+		storageSpec,
+		"",
+		rookalpha.Placement{},
+		false,
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+		cephv1beta1.OSDSpec{},
+	)
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error
@@ -229,8 +263,19 @@ func TestAddRemoveNode(t *testing.T) {
 
 	// modify the storage spec to remove the node from the cluster
 	storageSpec.Nodes = []rookalpha.Node{}
-	c = New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: mockExec}, "ns-add-remove", "myversion", "",
-		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c = New(
+		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: mockExec},
+		"ns-add-remove",
+		"myversion",
+		"",
+		storageSpec,
+		"",
+		rookalpha.Placement{},
+		false,
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+		cephv1beta1.OSDSpec{},
+	)
 
 	// reset the orchestration status watcher
 	statusMapWatcher = watch.NewFake()
@@ -268,8 +313,19 @@ func TestGetIDFromDeployment(t *testing.T) {
 }
 
 func TestDiscoverOSDs(t *testing.T) {
-	c := New(&clusterd.Context{}, "ns", "myversion", "",
-		rookalpha.StorageScopeSpec{}, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(
+		&clusterd.Context{},
+		"ns",
+		"myversion",
+		"",
+		rookalpha.StorageScopeSpec{},
+		"",
+		rookalpha.Placement{},
+		false,
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+		cephv1beta1.OSDSpec{},
+	)
 	node1 := "n1"
 	node2 := "n2"
 
@@ -336,8 +392,19 @@ func TestAddNodeFailure(t *testing.T) {
 	cmErr := createDiscoverConfigmap(nodeName, "rook-system", clientset)
 	assert.Nil(t, cmErr)
 
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}}, "ns-add-remove", "myversion", "",
-		storageSpec, "", rookalpha.Placement{}, false, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(
+		&clusterd.Context{Clientset: clientset, ConfigDir: "/var/lib/rook", Executor: &exectest.MockExecutor{}},
+		"ns-add-remove",
+		"myversion",
+		"",
+		storageSpec,
+		"",
+		rookalpha.Placement{},
+		false,
+		v1.ResourceRequirements{},
+		metav1.OwnerReference{},
+		cephv1beta1.OSDSpec{},
+	)
 
 	// kick off the start of the orchestration in a goroutine
 	var startErr error

@@ -23,6 +23,13 @@ metadata:
 spec:
   scope:
     nodeCount: 4
+    volumeClaimTemplates:
+      - spec:
+          accessModes: [ "ReadWriteOnce" ]
+          storageClassName: "my-storage-class"
+          resources:
+            requests:
+              storage: "8Gi"
   placement:
     tolerations:
     nodeAffinity:
