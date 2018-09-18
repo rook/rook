@@ -578,6 +578,17 @@ func waitForQuorumWithMons(context *clusterd.Context, clusterName string, mons [
 			<-time.After(time.Duration(sleepTime) * time.Second)
 		}
 
+		// wait for the mon pods to be running
+		running, err := k8sutil.PodsRunningWithLabel(context.Clientset, clusterName, "app="+appName)
+		if err != nil {
+			logger.Infof("failed to query mon pod status, trying again. %+v", err)
+			continue
+		}
+		if running != len(mons) {
+			logger.Infof("%d/%d mon pods are running. waiting for pods to start", running, len(mons))
+			continue
+		}
+
 		// get the mon_status response that contains info about all monitors in the mon map and
 		// their quorum status
 		monStatusResp, err := client.GetMonStatus(context, clusterName, false)
