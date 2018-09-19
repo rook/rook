@@ -88,6 +88,7 @@ func (f *Filesystem) CreateFilesystem(context *clusterd.Context, clusterName str
 		dataPoolNames = append(dataPoolNames, pool.Name)
 		err = client.CreatePoolWithProfile(context, clusterName, *pool, appName)
 		if err != nil {
+			client.DeletePool(context, clusterName, f.metadataPool.Name)
 			return fmt.Errorf("failed to create data pool %s. %+v", pool.Name, err)
 		}
 		if pool.Type == model.ErasureCoded {
@@ -100,6 +101,10 @@ func (f *Filesystem) CreateFilesystem(context *clusterd.Context, clusterName str
 
 	// create the file system
 	if err := client.CreateFilesystem(context, clusterName, f.Name, f.metadataPool.Name, dataPoolNames, f.activeMDSCount); err != nil {
+		for _, pool := range f.dataPools {
+			client.DeletePool(context, clusterName, pool.Name)
+		}
+		client.DeletePool(context, clusterName, f.metadataPool.Name)
 		return err
 	}
 

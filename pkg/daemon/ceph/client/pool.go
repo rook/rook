@@ -133,7 +133,6 @@ func CreatePoolWithProfile(context *clusterd.Context, clusterName string, newPoo
 			return fmt.Errorf("failed to create erasure code profile for pool '%s': %+v", newPoolReq.Name, err)
 		}
 	}
-
 	isReplicatedPool := newPool.ErasureCodeProfile == "" && newPool.Size > 0
 	if isReplicatedPool {
 		return CreateReplicatedPoolForApp(context, clusterName, newPool, appName)
@@ -150,22 +149,22 @@ func CreatePoolWithProfile(context *clusterd.Context, clusterName string, newPoo
 }
 
 func DeletePool(context *clusterd.Context, clusterName string, name string) error {
-	// check if the pool exists
-	pool, err := GetPoolDetails(context, clusterName, name)
-	if err != nil {
-		logger.Infof("pool %s not found for deletion. %+v", name, err)
-		return nil
-	}
 
-	logger.Infof("purging pool %s (id=%d)", name, pool.Number)
-	args := []string{"osd", "pool", "delete", name, name, reallyConfirmFlag}
-	_, err = ExecuteCephCommand(context, clusterName, args)
+	logger.Infof("purging pool %s", name)
+	// check if the pool exists
+	_, err := GetPoolDetails(context, clusterName, name)
 	if err != nil {
-		return fmt.Errorf("failed to delete pool %s. %+v", name, err)
+		logger.Infof("pool %s not found; skipping pool delete. %+v", name, err)
+	} else {
+		args := []string{"osd", "pool", "delete", name, name, reallyConfirmFlag}
+		_, err = ExecuteCephCommand(context, clusterName, args)
+		if err != nil {
+			logger.Infof("failed to delete pool %s. %+v", name, err)
+		}
 	}
 
 	// remove the crush rule for this pool and ignore the error in case the rule is still in use or not found
-	args = []string{"osd", "crush", "rule", "rm", name}
+	args := []string{"osd", "crush", "rule", "rm", name}
 	_, err = ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
 		logger.Infof("did not delete crush rule %s. %+v", name, err)
@@ -190,21 +189,28 @@ func CreateECPoolForApp(context *clusterd.Context, clusterName string, newPool C
 
 	buf, err := ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
+		DeleteErasureCodeProfile(context, clusterName, newPool.ErasureCodeProfile)
 		return fmt.Errorf("failed to create EC pool %s. %+v", newPool.Name, err)
 	}
 
 	if err = SetPoolProperty(context, clusterName, newPool.Name, "min_size", strconv.FormatUint(uint64(erasureCodedConfig.DataChunkCount), 10)); err != nil {
+		DeletePool(context, clusterName, newPool.Name)
+		DeleteErasureCodeProfile(context, clusterName, newPool.ErasureCodeProfile)
 		return fmt.Errorf("failed to set min size to %d for pool %s. %+v", erasureCodedConfig.DataChunkCount, newPool.Name, err)
 	}
 
 	if enableECOverwrite {
 		if err = SetPoolProperty(context, clusterName, newPool.Name, "allow_ec_overwrites", "true"); err != nil {
+			DeletePool(context, clusterName, newPool.Name)
+			DeleteErasureCodeProfile(context, clusterName, newPool.ErasureCodeProfile)
 			return fmt.Errorf("failed to allow EC overwrite for pool %s. %+v", newPool.Name, err)
 		}
 	}
 
 	err = givePoolAppTag(context, clusterName, newPool.Name, appName)
 	if err != nil {
+		DeletePool(context, clusterName, newPool.Name)
+		DeleteErasureCodeProfile(context, clusterName, newPool.ErasureCodeProfile)
 		return err
 	}
 
@@ -222,17 +228,22 @@ func CreateReplicatedPoolForApp(context *clusterd.Context, clusterName string, n
 
 	buf, err := ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
+		deleteCrushRule(context, clusterName, newPool.Name)
 		return fmt.Errorf("failed to create replicated pool %s. %+v", newPool.Name, err)
 	}
 
 	// the pool is type replicated, set the size for the pool now that it's been created
 	if err = SetPoolProperty(context, clusterName, newPool.Name, "size", strconv.FormatUint(uint64(newPool.Size), 10)); err != nil {
+		deleteCrushRule(context, clusterName, newPool.Name)
+		DeletePool(context, clusterName, newPool.Name)
 		return err
 	}
 
 	// ensure that the newly created pool gets an application tag
 	err = givePoolAppTag(context, clusterName, newPool.Name, appName)
 	if err != nil {
+		deleteCrushRule(context, clusterName, newPool.Name)
+		DeletePool(context, clusterName, newPool.Name)
 		return err
 	}
 
@@ -261,6 +272,12 @@ func createReplicationCrushRule(context *clusterd.Context, clusterName string, n
 	}
 
 	return nil
+}
+
+func deleteCrushRule(context *clusterd.Context, clusterName string, ruleName string) {
+	args := []string{"osd", "crush", "rule", "rm", ruleName}
+	// ignore errors
+	_, _ = ExecuteCephCommand(context, clusterName, args)
 }
 
 func SetPoolProperty(context *clusterd.Context, clusterName, name, propName string, propVal string) error {
