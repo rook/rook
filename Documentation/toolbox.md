@@ -25,7 +25,7 @@ spec:
   dnsPolicy: ClusterFirstWithHostNet
   containers:
   - name: rook-ceph-tools
-    image: rook/ceph-toolbox:v0.8.1
+    image: rook/ceph-toolbox:v0.8.2
     imagePullPolicy: IfNotPresent
     env:
       - name: ROOK_ADMIN_SECRET
@@ -92,6 +92,6 @@ kubectl -n rook-ceph delete pod rook-ceph-tools
 ```
 
 ## Troubleshooting without the Toolbox
-The Ceph tools will commonly be the only tools needed to troubleshoot a cluster. In that case, you can connect to any of the rook pods and execute the ceph commands in the same way that you would in the toolbox pod such as the mon pods or the operator pod. 
-If connecting to the mon pods, make sure you connect to the mon most recently started. The mons keep the config updated in memory after starting and may not have the latest config on disk. 
+The Ceph tools will commonly be the only tools needed to troubleshoot a cluster. In that case, you can connect to any of the rook pods and execute the ceph commands in the same way that you would in the toolbox pod such as the mon pods or the operator pod.
+If connecting to the mon pods, make sure you connect to the mon most recently started. The mons keep the config updated in memory after starting and may not have the latest config on disk.
 For example, after starting the cluster connect to the `mon2` pod instead of `mon0`.
