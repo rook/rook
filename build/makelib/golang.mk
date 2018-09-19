@@ -170,9 +170,10 @@ go.validate: go.vet go.fmt
 go.vendor.lite: $(DEP)
 #	dep ensure blindly updates the whole vendor tree causing everything to be rebuilt. This workaround
 #	will only call dep ensure if the .lock file changes or if the vendor dir is non-existent.
-	@if [ ! -d $(GO_VENDOR_DIR) ] || [ ! $(DEP) ensure -no-vendor -dry-run &> /dev/null ]; then \
-		echo === updating vendor dependencies ;\
-		$(DEP) ensure ;\
+	@if [ ! -d $(GO_VENDOR_DIR) ]; then \
+		$(MAKE) go.vendor; \
+	elif ! $(DEP) ensure -no-vendor -dry-run &> /dev/null; then \
+		$(MAKE) go.vendor; \
 	fi
 
 .PHONY: go.vendor
