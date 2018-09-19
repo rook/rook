@@ -101,3 +101,10 @@ ignored = ["github.com/rook/rook/.cache","github.com/rook/rook/.work","github.co
 [[constraint]]
   name = "k8s.io/client-go"
   version = "v5.0.1"
+
+# goland/dep does not follow k8s.io/code-generator's Godeps.json and gengo's master
+# version does not work with release-1.8 k8s.io/code-generator. So we have to
+# override it.
+[[override]]
+  name = "k8s.io/gengo"
+revision = "9e661e9308f078838e266cca1c673922088c0ea4"
