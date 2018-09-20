@@ -18,6 +18,8 @@ package osd
 
 import (
 	"fmt"
+	"io"
+	"os"
 
 	"path"
 	"path/filepath"
@@ -74,4 +76,37 @@ func createOSDBootstrapKeyring(context *clusterd.Context, clusterName string) er
 	}
 
 	return cephconfig.CreateKeyring(context, clusterName, username, keyringPath, access, keyringEval)
+}
+
+// CopyBinariesForDaemon copies the "tini" and "rook" binaries to a shared volume at the target path.
+// This is necessary for the filestore on a device scenario when rook needs to mount a directory
+// in the same container as the ceph process so it can be unmounted upon exit.
+func CopyBinariesForDaemon(target string) error {
+	if err := copyBinary("/usr/local/bin", target, "rook"); err != nil {
+		return err
+	}
+	return copyBinary("/", target, "tini")
+}
+
+func copyBinary(sourceDir, targetDir, filename string) error {
+	sourcePath := path.Join(sourceDir, filename)
+	targetPath := path.Join(targetDir, filename)
+	logger.Infof("copying %s to %s", sourcePath, targetPath)
+
+	sourceFile, err := os.Open(sourcePath)
+	if err != nil {
+		return err
+	}
+	defer sourceFile.Close()
+
+	destinationFile, err := os.Create(targetPath)
+	if err != nil {
+		return err
+	}
+	defer destinationFile.Close()
+	if _, err := io.Copy(destinationFile, sourceFile); err != nil {
+		return err
+	}
+
+	return os.Chmod(targetPath, 0755)
 }

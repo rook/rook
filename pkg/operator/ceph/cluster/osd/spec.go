@@ -28,12 +28,11 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
-
 	batch "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
-
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
@@ -77,19 +76,9 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 	storeConfig config.StoreConfig, metadataDevice, location string, osd OSDInfo) (*extensions.Deployment, error) {
 
 	replicaCount := int32(1)
-	var volumeMounts []v1.VolumeMount
-	configVolumeMounts := []v1.VolumeMount{
-		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
-		k8sutil.ConfigOverrideMount(),
-	}
-	volumes := []v1.Volume{k8sutil.ConfigOverrideVolume()}
-	if c.dataDirHostPath != "" {
-		// the user has specified a host path to use for the data dir, use that instead
-		dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
-		volumes = append(volumes, v1.Volume{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource})
-	} else {
-		logger.Infof("no data dir provided")
-	}
+	volumeMounts := opspec.CephVolumeMounts()
+	configVolumeMounts := opspec.RookVolumeMounts()
+	volumes := opspec.PodVolumes(c.dataDirHostPath)
 
 	var dataDir string
 	if osd.IsDirectory {
@@ -104,17 +93,16 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 			dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: parentDir}}
 			volumes = append(volumes, v1.Volume{Name: volumeName, VolumeSource: dataDirSource})
 			configVolumeMounts = append(configVolumeMounts, v1.VolumeMount{Name: volumeName, MountPath: parentDir})
+			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: volumeName, MountPath: parentDir})
 		}
-		volumeMounts = configVolumeMounts
 	} else {
-		// Mount the required device
 		dataDir = k8sutil.DataDir
 
-		// create volume config for the data dir and /dev so the pod can access devices on the host
+		// Create volume config for /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 		volumes = append(volumes, devVolume)
 		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
-		volumeMounts = append(configVolumeMounts, devMount)
+		volumeMounts = append(volumeMounts, devMount)
 	}
 
 	if len(volumes) == 0 {
@@ -151,20 +139,37 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 	var command []string
 	var args []string
 	if !osd.IsDirectory && osd.IsFileStore {
-		// filestore on a device requires indirection through the rook entrypoint so we can mount the image
+		// All scenarios except one can call the ceph-osd daemon directly. The one different scenario is when
+		// filestore is running on a device. Rook needs to mount the device, run the ceph-osd daemon, and then
+		// when the daemon exits, rook needs to unmount the device. Since rook needs to be in the container
+		// for this scenario, we will copy the binaries necessary to a mount, which will then be mounted
+		// to the daemon container.
 		sourcePath := path.Join("/dev/disk/by-partuuid", osd.DevicePartUUID)
+		mountPath := "/rook"
+		command = []string{path.Join(mountPath, "tini")}
 		args = append([]string{
+			"--", path.Join(mountPath, "rook"),
 			"ceph", "osd", "filestore-device",
 			"--source-path", sourcePath,
 			"--mount-path", osd.DataPath,
-			"--",
-		}, commonArgs...)
+			"--"},
+			commonArgs...)
+
+		// To get rook inside the container, the config init container needs to copy "tini" and "rook" binaries into a volume.
+		// Set the config flag so rook will copy the binaries.
+		configEnvVars = append(configEnvVars, v1.EnvVar{Name: "ROOK_COPY_BINARIES_PATH", Value: mountPath})
+
+		// Create the volume and mount that will be shared between the init container and the daemon container
+		volumeName := "rookbinaries"
+		binariesVolume := v1.Volume{Name: volumeName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
+		volumes = append(volumes, binariesVolume)
+		binariesMount := v1.VolumeMount{Name: volumeName, MountPath: mountPath}
+		volumeMounts = append(volumeMounts, binariesMount)
+		configVolumeMounts = append(configVolumeMounts, binariesMount)
 	} else {
 		// other osds can launch the osd daemon directly
-		command = append([]string{"/tini", "--", "ceph-osd",
-			fmt.Sprintf("--public-addr=$(%s)", k8sutil.PublicIPEnvVar),
-			fmt.Sprintf("--cluster-addr=$(%s)", k8sutil.PrivateIPEnvVar),
-		}, commonArgs...)
+		command = []string{"ceph-osd"}
+		args = commonArgs
 	}
 
 	privileged := true
@@ -213,8 +218,8 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 					DNSPolicy:          DNSPolicy,
 					InitContainers: []v1.Container{
 						{
-							Args:            []string{"ceph", "osd", "config"},
-							Name:            "osd-init-config",
+							Args:            []string{"ceph", "osd", "init"},
+							Name:            opspec.ConfigInitContainerName,
 							Image:           k8sutil.MakeRookImage(c.Version),
 							VolumeMounts:    configVolumeMounts,
 							Env:             configEnvVars,
@@ -225,7 +230,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 						{
 							Command:         command,
 							Args:            args,
-							Name:            appName,
+							Name:            "osd",
 							Image:           k8sutil.MakeRookImage(c.Version),
 							VolumeMounts:    volumeMounts,
 							Env:             envVars,
@@ -246,13 +251,8 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 
 func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
 	storeConfig config.StoreConfig, metadataDevice, location string, restart v1.RestartPolicy) (*v1.PodTemplateSpec, error) {
-	volumes := []v1.Volume{k8sutil.ConfigOverrideVolume()}
 
-	if c.dataDirHostPath != "" {
-		// the user has specified a host path to use for the data dir, use that instead
-		dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: c.dataDirHostPath}}
-		volumes = append(volumes, v1.Volume{Name: k8sutil.DataDirVolume, VolumeSource: dataDirSource})
-	}
+	volumes := opspec.PodVolumes(c.dataDirHostPath)
 
 	// by default, don't define any volume config unless it is required
 	if len(devices) > 0 || selection.DeviceFilter != "" || selection.GetUseAllDevices() || metadataDevice != "" {
@@ -366,10 +366,7 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 		devMountNeeded = true
 	}
 
-	volumeMounts := []v1.VolumeMount{
-		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
-		k8sutil.ConfigOverrideMount(),
-	}
+	volumeMounts := opspec.CephVolumeMounts()
 	if devMountNeeded {
 		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
 		volumeMounts = append(volumeMounts, devMount)
