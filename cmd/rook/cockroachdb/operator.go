@@ -37,6 +37,7 @@ https://github.com/rook/rook`,
 
 func init() {
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), rook.RookEnvVarPrefix)
+	flags.SetLoggingFlags(operatorCmd.Flags())
 
 	operatorCmd.RunE = startOperator
 }
