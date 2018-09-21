@@ -12,12 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM BASEIMAGE
-
-RUN yum --assumeyes install \
-    net-tools \
-    nmap-ncat && \
-    yum clean all && rm -rf /tmp/* /var/tmp/*
+FROM ceph/ceph-amd64:v13.2.2-20181011
 
 ARG ARCH
 ARG TINI_VERSION
