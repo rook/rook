@@ -55,6 +55,15 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
+  cephVersion:
+    # The container image used to launch the Ceph daemon pods (mon, mgr, osd, mds, rgw)
+    image: ceph/ceph:v12.2.7
+    # The name of the major release of Ceph. Must be luminous, mimic, or nautilus
+    name: luminous
+    # Whether to allow unsupported versions of Ceph. Currently only luminous and mimic are supported.
+    # After nautilus is released, Rook will be updated to support nautilus.
+    # Do not set to true in production.
+    allowUnsupported: false
   # The path on the host where configuration files will be persisted. If not specified, a kubernetes emptyDir will be created (not recommended).
   # Important: if you reinstall the cluster, make sure you delete this directory from each host or else the mons will fail to start on the new cluster.
   # In Minikube, the '/data' directory is configured to persist across reboots. Use "/data/rook" in Minikube environment.
@@ -64,7 +73,7 @@ spec:
   # set the amount of mons to be started
   mon:
     count: 3
-    allowMultiplePerNode: true
+    allowMultiplePerNode: True
   # enable the ceph dashboard for viewing cluster status
   dashboard:
     enabled: true
