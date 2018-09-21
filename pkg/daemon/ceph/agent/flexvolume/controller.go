@@ -18,7 +18,6 @@ limitations under the License.
 package flexvolume
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path"
@@ -29,7 +28,6 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
-	"github.com/rook/rook/pkg/operator/ceph/agent"
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -368,24 +366,6 @@ func (c *Controller) GetKernelVersion(_ *struct{} /* no inputs */, kernelVersion
 
 // getKubeletRootDir queries the kubelet configuration to find the kubelet root dir. Defaults to /var/lib/kubelet
 func (c *Controller) getKubeletRootDir() string {
-	nodeConfigURI, err := k8sutil.NodeConfigURI()
-	if err != nil {
-		logger.Warningf(err.Error())
-		return kubeletDefaultRootDir
-	}
-
-	// determining where the path of the kubelet root dir and flexvolume dir on the node
-	nodeConfig, err := c.context.Clientset.CoreV1().RESTClient().Get().RequestURI(nodeConfigURI).DoRaw()
-	if err != nil {
-		logger.Warningf("unable to query node configuration: %v", err)
-		return kubeletDefaultRootDir
-	}
-	configKubelet := agent.NodeConfigKubelet{}
-	if err := json.Unmarshal(nodeConfig, &configKubelet); err != nil {
-		logger.Warningf("unable to parse node config from Kubelet: %+v", err)
-		return kubeletDefaultRootDir
-	}
-
 	// in k8s 1.8 it does not appear possible to change the default root dir
 	// see https://github.com/rook/rook/issues/1282
 	return kubeletDefaultRootDir

@@ -65,6 +65,11 @@ ignored = ["github.com/rook/rook/.cache","github.com/rook/rook/.work","github.co
 [[constraint]]
   name = "k8s.io/utils"
 
+[[override]]
+  name = "github.com/docker/distribution"
+  revision = "edc3ab29cdff8694dd6feb85cfeb4b5f1b38ed9c"
+# "v2.6.0-rc.1-209-gedc3ab29"
+
 [[constraint]]
   name = "github.com/rook/operator-kit"
   branch = "master"
@@ -76,28 +81,28 @@ ignored = ["github.com/rook/rook/.cache","github.com/rook/rook/.work","github.co
 
 [[constraint]]
   name = "k8s.io/kubernetes"
-  version = "=v1.8.2"
+  version = "=v1.11.3"
 
 [[constraint]]
   name = "k8s.io/api"
-  version = "kubernetes-1.8.2"
+  version = "kubernetes-1.11.3"
 
 [[constraint]]
   name = "k8s.io/apiextensions-apiserver"
-  version = "kubernetes-1.8.2"
+  version = "kubernetes-1.11.3"
 
 [[constraint]]
   name = "k8s.io/apimachinery"
-  version = "kubernetes-1.8.2"
+  version = "kubernetes-1.11.3"
 
 [[constraint]]
   name = "k8s.io/apiserver"
-  version = "kubernetes-1.8.2"
+  version = "kubernetes-1.11.3"
 
 [[constraint]]
   name = "k8s.io/code-generator"
-  version = "kubernetes-1.8.2"
+  version = "kubernetes-1.11.3"
 
 [[constraint]]
   name = "k8s.io/client-go"
-  version = "v5.0.1"
+  version = "v8.0.0"

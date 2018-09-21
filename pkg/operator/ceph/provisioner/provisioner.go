@@ -125,7 +125,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 				v1.ResourceName(v1.ResourceStorage): quantity,
 			},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
-				FlexVolume: &v1.FlexVolumeSource{
+				FlexVolume: &v1.FlexPersistentVolumeSource{
 					Driver: flexdriver,
 					FSType: cfg.fstype,
 					Options: map[string]string{

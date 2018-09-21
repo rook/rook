@@ -201,30 +201,6 @@ func (a *Agent) discoverFlexvolumeDir() (flexvolumeDirPath, source string) {
 		return getDefaultFlexvolumeDir()
 	}
 
-	// unmarshal to a NodeConfigKubelet
-	configKubelet := NodeConfigKubelet{}
-	if err := json.Unmarshal(nodeConfig, &configKubelet); err != nil {
-		logger.Warningf("unable to parse node config from Kubelet: %+v", err)
-	} else {
-		flexvolumeDirPath = configKubelet.ComponentConfig.VolumePluginDir
-	}
-
-	if flexvolumeDirPath != "" {
-		return flexvolumeDirPath, "NodeConfigKubelet"
-	}
-
-	// unmarshal to a NodeConfigControllerManager
-	configControllerManager := NodeConfigControllerManager{}
-	if err := json.Unmarshal(nodeConfig, &configControllerManager); err != nil {
-		logger.Warningf("unable to parse node config from controller manager: %+v", err)
-	} else {
-		flexvolumeDirPath = configControllerManager.ComponentConfig.VolumeConfiguration.FlexVolumePluginDir
-	}
-
-	if flexvolumeDirPath != "" {
-		return flexvolumeDirPath, "NodeConfigControllerManager"
-	}
-
 	// unmarshal to a KubeletConfiguration
 	kubeletConfiguration := KubeletConfiguration{}
 	if err := json.Unmarshal(nodeConfig, &kubeletConfiguration); err != nil {
