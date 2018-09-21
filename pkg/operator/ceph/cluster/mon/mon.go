@@ -69,7 +69,7 @@ const (
 	MaxMonCount = 9
 )
 
-// Cluster represents the Rook configuration settings for Ceph mons.
+// Cluster represents the Rook and environment configuration settings needed to set up Ceph mons.
 type Cluster struct {
 	context              *clusterd.Context
 	Namespace            string

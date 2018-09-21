@@ -14,7 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package test for the operator tests
+// Package test provides common resources useful for testing many operators. This includes functions
+// for creating fake/mock resources and functions for testing that resources match what is expected.
 package test
 
 import (

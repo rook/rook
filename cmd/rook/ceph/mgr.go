@@ -30,23 +30,25 @@ var (
 )
 
 var mgrCmd = &cobra.Command{
-	Use:    "mgr",
-	Short:  "Generates mgr config and runs the mgr daemon",
+	Use:    mgrdaemon.InitCommand,
+	Short:  "Generates mgr config",
 	Hidden: true,
 }
 
 func init() {
-	mgrCmd.Flags().StringVar(&mgrName, "mgr-name", "", "the mgr name")
+	mgrCmd.Flags().StringVar(&mgrName, "mgr-name", "", "name of the mgr")
 	mgrCmd.Flags().StringVar(&mgrKeyring, "mgr-keyring", "", "the mgr keyring")
 	addCephFlags(mgrCmd)
 
 	flags.SetFlagsFromEnv(mgrCmd.Flags(), rook.RookEnvVarPrefix)
 
-	mgrCmd.RunE = startMgr
+	mgrCmd.RunE = initMgr
 }
 
-func startMgr(cmd *cobra.Command, args []string) error {
-	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret"}
+func initMgr(cmd *cobra.Command, args []string) error {
+	required := []string{
+		"mgr-name", "mgr-keyring",
+		"mon-endpoints", "cluster-name", "mon-secret", "admin-secret"}
 	if err := flags.VerifyRequiredFlags(mgrCmd, required); err != nil {
 		return err
 	}
@@ -66,7 +68,7 @@ func startMgr(cmd *cobra.Command, args []string) error {
 		ClusterInfo: &clusterInfo,
 	}
 
-	err := mgrdaemon.Run(createContext(), config)
+	err := mgrdaemon.Initialize(createContext(), config)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}

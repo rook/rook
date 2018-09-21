@@ -38,30 +38,33 @@ var (
 )
 
 const (
+	// InitCommand is the `rook ceph` subcommand which will perform mgr initialization
+	InitCommand = "mgr-init"
+
 	cephmgr = "ceph-mgr"
 )
 
+// Config contains the necessary parameters Rook needs to know to set up a mgr for a Ceph cluster.
 type Config struct {
 	ClusterInfo *cephconfig.ClusterInfo
 	Name        string
 	Keyring     string
 }
 
-func Run(context *clusterd.Context, config *Config) error {
-	logger.Infof("Starting MGR %s with keyring %s", config.Name, config.Keyring)
+// Initialize generates configuration files for a Ceph mgr
+func Initialize(context *clusterd.Context, config *Config) error {
+	logger.Infof("Creating config for MGR %s with keyring %s", config.Name, config.Keyring)
+	config.ClusterInfo.Log(logger)
 	if err := generateConfigFiles(context, config); err != nil {
 		return fmt.Errorf("failed to generate mgr config files. %+v", err)
 	}
 
-	if err := startMgr(context, config); err != nil {
-		return fmt.Errorf("failed to run mgr. %+v", err)
-	}
+	util.WriteFileToLog(logger, cephconfig.DefaultConfigFilePath())
 
 	return nil
 }
 
 func generateConfigFiles(context *clusterd.Context, config *Config) error {
-
 	keyringPath := getMgrKeyringPath(context.ConfigDir, config.Name)
 	confDir := getMgrConfDir(context.ConfigDir, config.Name)
 	username := fmt.Sprintf("mgr.%s", config.Name)
@@ -84,30 +87,6 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		return fmt.Errorf("failed to create mds keyring. %+v", err)
 	}
 
-	return nil
-}
-
-func startMgr(context *clusterd.Context, config *Config) error {
-
-	// start the mgr daemon in the foreground with the given config
-	logger.Infof("starting ceph-mgr")
-
-	confFile := getMgrConfFilePath(context.ConfigDir, config.Name, config.ClusterInfo.Name)
-	util.WriteFileToLog(logger, confFile)
-
-	keyringPath := getMgrKeyringPath(context.ConfigDir, config.Name)
-	util.WriteFileToLog(logger, keyringPath)
-	args := []string{
-		"--foreground",
-		fmt.Sprintf("--cluster=%s", config.ClusterInfo.Name),
-		fmt.Sprintf("--conf=%s", confFile),
-		fmt.Sprintf("--keyring=%s", keyringPath),
-		"-i", config.Name,
-	}
-
-	if err := context.Executor.ExecuteCommand(false, cephmgr, cephmgr, args...); err != nil {
-		return fmt.Errorf("failed to start mgr: %+v", err)
-	}
 	return nil
 }
 

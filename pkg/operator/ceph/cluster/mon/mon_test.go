@@ -200,7 +200,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	assert.Equal(t, "2", cm.Data[MaxMonIDKey])
 }
 
-func TestMonInQuourm(t *testing.T) {
+func TestMonInQuorum(t *testing.T) {
 	entry := client.MonMapEntry{Name: "foo", Rank: 23}
 	quorum := []int{}
 	// Nothing in quorum

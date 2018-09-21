@@ -19,17 +19,18 @@ package config
 import "k8s.io/api/core/v1"
 
 const (
-	defaultConfigMountName = "ceph-default-config-dir"
+	// DefaultConfigMountName is the name of the volume mount used to mount the default Ceph config
+	DefaultConfigMountName = "ceph-default-config-dir"
 )
 
 // DefaultConfigVolume returns an empty volume used to store Ceph's config at the default path
 // in containers.
 func DefaultConfigVolume() v1.Volume {
-	return v1.Volume{Name: defaultConfigMountName,
+	return v1.Volume{Name: DefaultConfigMountName,
 		VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
 }
 
 // DefaultConfigMount returns a volume mount to Ceph's default config path.
 func DefaultConfigMount() v1.VolumeMount {
-	return v1.VolumeMount{Name: defaultConfigMountName, MountPath: DefaultConfigDir}
+	return v1.VolumeMount{Name: DefaultConfigMountName, MountPath: DefaultConfigDir}
 }

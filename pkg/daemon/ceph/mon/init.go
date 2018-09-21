@@ -23,6 +23,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	"github.com/rook/rook/pkg/util"
 )
 
 const (
@@ -44,10 +45,14 @@ type Config struct {
 
 // Initialize generates configuration files for a Ceph mon
 func Initialize(context *clusterd.Context, config *Config) error {
+	logger.Infof("Creating config for MON %s with port %d", config.Name, config.Port)
+	config.Cluster.Log(logger)
 	err := generateConfigFiles(context, config)
 	if err != nil {
 		return fmt.Errorf("failed to generate mon config files. %+v", err)
 	}
+
+	util.WriteFileToLog(logger, cephconfig.DefaultConfigFilePath())
 
 	return err
 }
