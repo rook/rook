@@ -30,7 +30,6 @@ import (
 	storagebeta "k8s.io/api/storage/v1beta1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/conversion"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
@@ -702,14 +701,7 @@ func (r *claimReactor) React(action testclient.Action) (handled bool, ret runtim
 		name := action.(testclient.GetAction).GetName()
 		claim, found := r.claims[name]
 		if found {
-			clone, err := conversion.NewCloner().DeepCopy(claim)
-			if err != nil {
-				return true, nil, fmt.Errorf("Error cloning claim %s: %v", name, err)
-			}
-			claimClone, ok := clone.(*v1.PersistentVolumeClaim)
-			if !ok {
-				return true, nil, fmt.Errorf("Error casting clone of claim %s: %v", name, claimClone)
-			}
+			claimClone := claim.DeepCopy()
 			return true, claimClone, nil
 		}
 		return true, nil, fmt.Errorf("Cannot find claim %s", name)

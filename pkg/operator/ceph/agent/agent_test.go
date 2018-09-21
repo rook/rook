@@ -185,3 +185,15 @@ func TestStartAgentDaemonsetWithToleration(t *testing.T) {
 	assert.Equal(t, "example", string(agentDS.Spec.Template.Spec.Tolerations[0].Key))
 	assert.Equal(t, "Exists", string(agentDS.Spec.Template.Spec.Tolerations[0].Operator))
 }
+
+func TestDiscoverFlexDir(t *testing.T) {
+	path, source := getDefaultFlexvolumeDir()
+	assert.Equal(t, "default", source)
+	assert.Equal(t, "/usr/libexec/kubernetes/kubelet-plugins/volume/exec/", path)
+
+	os.Setenv(flexvolumePathDirEnv, "/my/flex/path/")
+	defer os.Unsetenv(flexvolumePathDirEnv)
+	path, source = getDefaultFlexvolumeDir()
+	assert.Equal(t, "env var", source)
+	assert.Equal(t, "/my/flex/path/", path)
+}

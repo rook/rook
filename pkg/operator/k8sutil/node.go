@@ -25,7 +25,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	helper "k8s.io/kubernetes/pkg/api/v1/helper"
+	helper "k8s.io/kubernetes/pkg/apis/core/v1/helper"
 )
 
 func ValidNode(node v1.Node, placement rookalpha.Placement) (bool, error) {

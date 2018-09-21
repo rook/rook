@@ -11,6 +11,7 @@
 - [Network File System (NFS)](https://github.com/nfs-ganesha/nfs-ganesha/wiki) is now supported by Rook with a new operator to deploy and manage this widely used server. NFS servers can be automatically deployed by creating an instance of the new `nfsservers.nfs.rook.io` custom resource. See the [NFS server user guide](Documentation/nfs.md) to get started with NFS.
 - The minimum version of Kubernetes supported by Rook changed from `1.7` to `1.8`.
 - `reclaimPolicy` parameter of `StorageClass` definition is now supported.
+- K8s client-go updated from version 1.8.2 to 1.11.3
 
 ## Breaking Changes
 - Ceph mons are [named consistently](https://github.com/rook/rook/issues/1751) with other daemons with the letters a, b, c, etc.
