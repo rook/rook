@@ -185,6 +185,13 @@ func givePoolAppTag(context *clusterd.Context, clusterName string, poolName stri
 }
 
 func CreateECPoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string, enableECOverwrite bool, erasureCodedConfig model.ErasureCodedPoolConfig) error {
+
+	// check for existence, skip all this if it's already there
+	_, err := GetPoolDetails(context, clusterName, newPool.Name)
+	if err == nil {
+		logger.Infof("pool %s already exists, not creating", newPool.Name)
+		return nil
+	}
 	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number), "erasure", newPool.ErasureCodeProfile}
 
 	buf, err := ExecuteCephCommand(context, clusterName, args)
