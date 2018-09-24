@@ -72,12 +72,12 @@ The requests/limits configured are as an example and not to be used in productio
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: rook-ceph
 ---
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
+  name: rook-ceph
   namespace: rook-ceph
 spec:
   dataDirHostPath: /var/lib/rook
