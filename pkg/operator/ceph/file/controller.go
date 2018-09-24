@@ -14,13 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package mds to manage a rook file system.
+// Package file manages a CephFS filesystem and the required daemons.
 package file
 
 import (
 	"fmt"
 	"reflect"
 
+	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 
 	"github.com/coreos/pkg/capnslog"
@@ -28,7 +29,6 @@ import (
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookv1alpha1 "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
-	"github.com/rook/rook/pkg/clusterd"
 	apiextensionsv1beta1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -52,7 +52,7 @@ var FilesystemResource = opkit.CustomResource{
 	Kind:    reflect.TypeOf(cephv1beta1.Filesystem{}).Name(),
 }
 
-var FilesystemResourceRookLegacy = opkit.CustomResource{
+var filesystemResourceRookLegacy = opkit.CustomResource{
 	Name:    customResourceName,
 	Plural:  customResourceNamePlural,
 	Group:   rookv1alpha1.CustomResourceGroup,
@@ -70,7 +70,12 @@ type FilesystemController struct {
 }
 
 // NewFilesystemController create controller for watching file system custom resources created
-func NewFilesystemController(context *clusterd.Context, rookImage string, hostNetwork bool, ownerRef metav1.OwnerReference) *FilesystemController {
+func NewFilesystemController(
+	context *clusterd.Context,
+	rookImage string,
+	hostNetwork bool,
+	ownerRef metav1.OwnerReference,
+) *FilesystemController {
 	return &FilesystemController{
 		context:     context,
 		rookImage:   rookImage,
@@ -112,9 +117,9 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 		return
 	}
 
-	err = CreateFilesystem(c.context, *filesystem, c.rookImage, c.hostNetwork, c.filesystemOwners(filesystem))
+	err = createFilesystem(c.context, *filesystem, c.rookImage, c.hostNetwork, c.filesystemOwners(filesystem))
 	if err != nil {
-		logger.Errorf("failed to create file system %s. %+v", filesystem.Name, err)
+		logger.Errorf("failed to create file system %s: %+v", filesystem.Name, err)
 	}
 }
 
@@ -144,9 +149,9 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	// if the file system is modified, allow the file system to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS.Name)
-	err = CreateFilesystem(c.context, *newFS, c.rookImage, c.hostNetwork, c.filesystemOwners(newFS))
+	err = createFilesystem(c.context, *newFS, c.rookImage, c.hostNetwork, c.filesystemOwners(newFS))
 	if err != nil {
-		logger.Errorf("failed to create (modify) file system %s. %+v", newFS.Name, err)
+		logger.Errorf("failed to create (modify) file system %s: %+v", newFS.Name, err)
 	}
 }
 
@@ -162,14 +167,13 @@ func (c *FilesystemController) onDelete(obj interface{}) {
 		return
 	}
 
-	err = DeleteFilesystem(c.context, *filesystem)
+	err = deleteFilesystem(c.context, *filesystem)
 	if err != nil {
-		logger.Errorf("failed to delete file system %s. %+v", filesystem.Name, err)
+		logger.Errorf("failed to delete file system %s: %+v", filesystem.Name, err)
 	}
 }
 
 func (c *FilesystemController) filesystemOwners(fs *cephv1beta1.Filesystem) []metav1.OwnerReference {
-
 	// Only set the cluster crd as the owner of the filesystem resources.
 	// If the filesystem crd is deleted, the operator will explicitly remove the filesystem resources.
 	// If the filesystem crd still exists when the cluster crd is deleted, this will make sure the filesystem
@@ -199,7 +203,7 @@ func (c *FilesystemController) watchLegacyFilesystems(namespace string, stopCh c
 		logger.Infof("skipping watching for legacy rook filesystem events (legacy filesystem CRD probably doesn't exist): %+v", err)
 	} else {
 		logger.Infof("start watching legacy rook filesystems in all namespaces")
-		watcherLegacy := opkit.NewWatcher(FilesystemResourceRookLegacy, namespace, resourceHandlerFuncs, c.context.RookClientset.RookV1alpha1().RESTClient())
+		watcherLegacy := opkit.NewWatcher(filesystemResourceRookLegacy, namespace, resourceHandlerFuncs, c.context.RookClientset.RookV1alpha1().RESTClient())
 		go watcherLegacy.Watch(&rookv1alpha1.Filesystem{}, stopCh)
 	}
 }

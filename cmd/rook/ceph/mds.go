@@ -17,41 +17,41 @@ limitations under the License.
 package ceph
 
 import (
-	"strings"
-
 	"github.com/rook/rook/cmd/rook/rook"
 	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
 	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
-	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
 var (
-	podName       string
+	mdsName       string
 	filesystemID  string
 	activeStandby bool
+	keyring       string
 )
 
 var mdsCmd = &cobra.Command{
-	Use:    "mds",
+	Use:    mdsdaemon.InitCommand,
 	Short:  "Generates mds config and runs the mds daemon",
 	Hidden: true,
 }
 
 func init() {
-	mdsCmd.Flags().StringVar(&podName, "pod-name", "", "name of the pod from which the mds ID is derived")
-	mdsCmd.Flags().StringVar(&filesystemID, "filesystem-id", "", "ID of the filesystem this MDS will serve")
-	mdsCmd.Flags().BoolVar(&activeStandby, "active-standby", true, "Whether to start in active standby mode")
+	mdsCmd.Flags().StringVar(&mdsName, "mds-name", "", "name of the mds")
+	mdsCmd.Flags().StringVar(&keyring, "mds-keyring", "", "the mds keyring")
+	mdsCmd.Flags().StringVar(&filesystemID, "filesystem-id", "", "ID of the filesystem the mds will serve")
+	mdsCmd.Flags().BoolVar(&activeStandby, "active-standby", true, "whether to start in active standby mode")
 	addCephFlags(mdsCmd)
 
 	flags.SetFlagsFromEnv(mdsCmd.Flags(), rook.RookEnvVarPrefix)
 
-	mdsCmd.RunE = startMDS
+	mdsCmd.RunE = initMds
 }
 
-func startMDS(cmd *cobra.Command, args []string) error {
-	required := []string{"mon-endpoints", "cluster-name", "admin-secret", "filesystem-id", "pod-name"}
+func initMds(cmd *cobra.Command, args []string) error {
+	required := []string{"mon-endpoints", "cluster-name", "admin-secret",
+		"mds-name", "mds-keyring", "filesystem-id"}
 	if err := flags.VerifyRequiredFlags(mdsCmd, required); err != nil {
 		return err
 	}
@@ -64,31 +64,19 @@ func startMDS(cmd *cobra.Command, args []string) error {
 
 	rook.LogStartupInfo(mdsCmd.Flags())
 
-	id := extractMdsID(podName)
-
 	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
 	config := &mdsdaemon.Config{
 		FilesystemID:  filesystemID,
-		ID:            id,
+		Name:          mdsName,
 		ActiveStandby: activeStandby,
+		Keyring:       keyring,
 		ClusterInfo:   &clusterInfo,
 	}
 
-	err := mdsdaemon.Run(createContext(), config)
+	err := mdsdaemon.Initialize(createContext(), config)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
 
 	return nil
-}
-
-func extractMdsID(mdsName string) string {
-	prefix := file.AppName + "-"
-	if strings.Index(mdsName, prefix) == 0 && len(mdsName) > len(prefix) {
-		// remove the prefix from the mds name
-		return mdsName[len(prefix):]
-	}
-
-	// return the original name if we did not find the prefix
-	return mdsName
 }

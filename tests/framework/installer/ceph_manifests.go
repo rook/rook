@@ -586,7 +586,7 @@ spec:
   - replicated:
       size: 1
   metadataServer:
-    activeCount: 1
+    activeCount: 2
     activeStandby: true`
 }
 

@@ -84,7 +84,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	}
 
 	assert.Equal(t, "a", pod.ObjectMeta.Name)
-	assert.Equal(t, appName, pod.ObjectMeta.Labels["app"])
+	assert.Nil(t, test_opceph.VerifyPodLabels("rook-ceph-mon", "ns", "mon", "a", pod.ObjectMeta.Labels))
 	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["mon_cluster"])
 
 	assert.Equal(t, 3, len(pod.Spec.InitContainers))

@@ -68,8 +68,8 @@ func TestPodSpec(t *testing.T) {
 	assert.Equal(t, 0, len(d.ObjectMeta.Annotations))
 
 	pod := d.Spec.Template
-	assert.Equal(t, appName, pod.ObjectMeta.Labels["app"])
-	assert.Equal(t, c.Namespace, pod.ObjectMeta.Labels["rook_cluster"])
+	assert.Nil(t, cephtest.VerifyPodLabels("rook-ceph-mgr", "ns", "mgr", "a", pod.ObjectMeta.Labels))
+	assert.Equal(t, "a", pod.ObjectMeta.Labels["instance"])
 	assert.Equal(t, 2, len(pod.ObjectMeta.Annotations))
 	assert.Equal(t, "true", pod.ObjectMeta.Annotations["prometheus.io/scrape"])
 	assert.Equal(t, strconv.Itoa(metricsPort), pod.ObjectMeta.Annotations["prometheus.io/port"])
