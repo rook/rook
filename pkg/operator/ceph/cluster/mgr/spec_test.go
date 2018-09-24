@@ -108,7 +108,7 @@ func TestPodSpec(t *testing.T) {
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 
 	daemonImage := "rook/rook:myversion"
-	daemonEnvs := 0
+	daemonEnvs := len(k8sutil.ClusterDaemonEnvVars())
 	daemonContainerDefinition := cephtest.ContainerTestDefinition{
 		Image: &daemonImage,
 		Command: []string{

@@ -129,6 +129,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 		tiniEnvVar,
 	}
+	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars()...)
 	configEnvVars := append(c.getConfigEnvVars(storeConfig, dataDir, location), []v1.EnvVar{
 		tiniEnvVar,
 		{Name: "ROOK_OSD_ID", Value: osdID},

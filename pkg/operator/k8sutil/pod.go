@@ -262,3 +262,12 @@ func deleteResourceAndWait(namespace, name, resourceType string,
 
 	return fmt.Errorf("gave up waiting for %s pods to be terminated", name)
 }
+
+// Environment variables used by storage cluster daemons
+func ClusterDaemonEnvVars() []v1.EnvVar {
+	return []v1.EnvVar{
+		{Name: "POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
+		{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}},
+		{Name: "NODE_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
+	}
+}

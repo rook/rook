@@ -23,6 +23,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -194,6 +195,8 @@ func TestStorageSpecDevicesAndDirectories(t *testing.T) {
 	require.Equal(t, 2, len(cont.VolumeMounts))
 	assert.Equal(t, "/var/lib/rook", cont.VolumeMounts[0].MountPath)
 	assert.Equal(t, "/etc/rook/config", cont.VolumeMounts[1].MountPath)
+
+	assert.Equal(t, (4 + len(k8sutil.ClusterDaemonEnvVars())), len(cont.Env))
 
 	require.Equal(t, 1, len(podSpec.InitContainers))
 	initCont = podSpec.InitContainers[0]
