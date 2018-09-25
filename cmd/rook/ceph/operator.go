@@ -43,7 +43,7 @@ func init() {
 	operatorCmd.Flags().DurationVar(&mon.HealthCheckInterval, "mon-healthcheck-interval", mon.HealthCheckInterval, "mon health check interval (duration)")
 	operatorCmd.Flags().DurationVar(&mon.MonOutTimeout, "mon-out-timeout", mon.MonOutTimeout, "mon out timeout (duration)")
 	flags.SetFlagsFromEnv(operatorCmd.Flags(), rook.RookEnvVarPrefix)
-
+	flags.SetLoggingFlags(operatorCmd.Flags())
 	operatorCmd.RunE = startOperator
 }
 
