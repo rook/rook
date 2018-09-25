@@ -22,10 +22,10 @@ import (
 	"fmt"
 	"net/rpc"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
-	"github.com/rook/rook/pkg/util/exec"
 	"github.com/spf13/cobra"
 	k8smount "k8s.io/kubernetes/pkg/util/mount"
 	"k8s.io/kubernetes/pkg/util/version"
@@ -140,8 +140,8 @@ func mountDevice(client *rpc.Client, mounter *k8smount.SafeFormatAndMount, devic
 	// formatted even though one does exist. K8s then proceeds to format the volume which would result in data loss. This logging is an attempt
 	// to understand why k8s believes the volume is not formatted. See https://github.com/rook/rook/issues/1553
 	log(client, fmt.Sprintf("Testing to see if device %s needs formatting...", devicePath), false)
-	executor := &exec.CommandExecutor{}
-	output, err := executor.ExecuteCommandWithOutput(false, "", "blkid", "-p", "-s", "TYPE", "-s", "PTTYPE", "-o", "export", devicePath)
+	cmd := exec.Command("blkid", "-p", "-s", "TYPE", "-s", "PTTYPE", "-o", "export", devicePath)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log(client, fmt.Sprintf("Formatting test (blkid -p -s TYPE -s PTTYPE -o export %s). Device may not be formatted. err: %+v", devicePath, err), false)
 	} else {
