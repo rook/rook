@@ -93,10 +93,9 @@ func (c *MinioController) makeMinioHeadlessService(name, namespace string, spec 
 
 	svc, err := coreV1Client.Services(namespace).Create(&v1.Service{
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name:            name,
-			Namespace:       namespace,
-			Labels:          map[string]string{k8sutil.AppAttr: minioLabel},
-			OwnerReferences: []meta_v1.OwnerReference{ownerRef},
+			Name:      name,
+			Namespace: namespace,
+			Labels:    map[string]string{k8sutil.AppAttr: minioLabel},
 		},
 		Spec: v1.ServiceSpec{
 			Selector:  map[string]string{k8sutil.AppAttr: minioLabel},
@@ -104,6 +103,7 @@ func (c *MinioController) makeMinioHeadlessService(name, namespace string, spec 
 			ClusterIP: v1.ClusterIPNone,
 		},
 	})
+	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &svc.ObjectMeta, &ownerRef)
 
 	return svc, err
 }
@@ -209,10 +209,9 @@ func (c *MinioController) makeMinioStatefulSet(name, namespace string, spec mini
 	nodeCount := int32(spec.Storage.NodeCount)
 	ss := v1beta2.StatefulSet{
 		ObjectMeta: meta_v1.ObjectMeta{
-			Name:            name,
-			Namespace:       namespace,
-			Labels:          map[string]string{k8sutil.AppAttr: minioLabel},
-			OwnerReferences: []meta_v1.OwnerReference{ownerRef},
+			Name:      name,
+			Namespace: namespace,
+			Labels:    map[string]string{k8sutil.AppAttr: minioLabel},
 		},
 		Spec: v1beta2.StatefulSetSpec{
 			Replicas: &nodeCount,
@@ -240,6 +239,7 @@ func (c *MinioController) makeMinioStatefulSet(name, namespace string, spec mini
 			// TODO: liveness probe
 		},
 	}
+	k8sutil.SetOwnerRef(c.context.Clientset, namespace, &ss.ObjectMeta, &ownerRef)
 
 	return appsClient.StatefulSets(namespace).Create(&ss)
 }

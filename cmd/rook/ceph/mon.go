@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package ceph
 
 import (
@@ -22,14 +23,15 @@ import (
 
 	"github.com/go-ini/ini"
 	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
 var monCmd = &cobra.Command{
-	Use:    "mon",
-	Short:  "Generates mon config and runs the mon daemon",
+	Use:    mondaemon.InitCommand,
+	Short:  "Generates mon config",
 	Hidden: true,
 }
 
@@ -45,10 +47,10 @@ func init() {
 
 	flags.SetFlagsFromEnv(monCmd.Flags(), rook.RookEnvVarPrefix)
 
-	monCmd.RunE = startMon
+	monCmd.RunE = initMon
 }
 
-func startMon(cmd *cobra.Command, args []string) error {
+func initMon(cmd *cobra.Command, args []string) error {
 	required := []string{"name", "fsid", "mon-secret", "admin-secret", "config-dir", "cluster-name"}
 	if err := flags.VerifyRequiredFlags(monCmd, required); err != nil {
 		return err
@@ -66,20 +68,20 @@ func startMon(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("missing mon port")
 	}
 
-	if err := compareMonSecret(clusterInfo.MonitorSecret, path.Join(cfg.dataDir, monName)); err != nil {
+	if err := compareMonSecret(clusterInfo.MonitorSecret, mondaemon.GetMonRunDirPath(cfg.dataDir, monName)); err != nil {
 		rook.TerminateFatal(err)
 	}
 
 	// at first start the local monitor needs to be added to the list of mons
-	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	clusterInfo.Monitors[monName] = mon.ToCephMon(monName, cfg.NetworkInfo().PublicAddr, monPort)
+	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
+	clusterInfo.Monitors[monName] = cephconfig.NewMonInfo(monName, cfg.NetworkInfo().PublicAddr, monPort)
 
-	monCfg := &mon.Config{
+	monCfg := &mondaemon.Config{
 		Name:    monName,
 		Cluster: &clusterInfo,
 		Port:    monPort,
 	}
-	err := mon.Run(createContext(), monCfg)
+	err := mondaemon.Initialize(createContext(), monCfg)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}

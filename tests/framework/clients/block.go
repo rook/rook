@@ -20,12 +20,14 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 )
 
 //BlockOperation is wrapper for k8s rook block operations
 type BlockOperation struct {
 	k8sClient *utils.K8sHelper
+	manifests installer.CephManifests
 }
 
 type BlockImage struct {
@@ -41,9 +43,9 @@ var (
 	readDataFromBlockPod = []string{"cat", "READ_DATA_CMD"}
 )
 
-// CreateK8BlockOperation - Constructor to create BlockOperation - client to perform rook Block operations on k8s
-func CreateK8BlockOperation(k8shelp *utils.K8sHelper) *BlockOperation {
-	return &BlockOperation{k8sClient: k8shelp}
+// CreateBlockOperation - Constructor to create BlockOperation - client to perform rook Block operations on k8s
+func CreateBlockOperation(k8shelp *utils.K8sHelper, manifests installer.CephManifests) *BlockOperation {
+	return &BlockOperation{k8shelp, manifests}
 }
 
 // BlockCreate Function to create a Block using Rook
@@ -60,6 +62,24 @@ func (b *BlockOperation) Create(manifest string, size int) (string, error) {
 	}
 	return result, nil
 
+}
+
+func (b *BlockOperation) CreatePvc(claimName, storageClassName, mode string) (string, error) {
+	return b.k8sClient.ResourceOperation("create", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode))
+}
+
+func (b *BlockOperation) CreateStorageClass(poolName, storageClassName, reclaimPolicy, namespace string, varClusterName bool) (string, error) {
+	return b.k8sClient.ResourceOperation("create", b.manifests.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, varClusterName))
+}
+
+func (b *BlockOperation) DeletePvc(claimName, storageClassName, mode string) error {
+	_, err := b.k8sClient.ResourceOperation("delete", b.manifests.GetBlockPvcDef(claimName, storageClassName, mode))
+	return err
+}
+
+func (b *BlockOperation) DeleteStorageClass(poolName, storageClassName, reclaimPolicy, namespace string) error {
+	_, err := b.k8sClient.ResourceOperation("delete", b.manifests.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false))
+	return err
 }
 
 // BlockDelete Function to delete a Block using Rook
@@ -117,80 +137,12 @@ func (b *BlockOperation) DeleteBlockImage(image BlockImage, namespace string) er
 // BlockMap Function to map a Block using Rook
 // Input parameters -
 // manifest - Pod definition  - pod should be defined to use a pvc that was created earlier
-// mountpath - not used in this impl since mountpath is defined in the pod definition
 // Output  - k8s create pod operation output and/or error
-func (b *BlockOperation) BlockMap(manifest string, mountpath string) (string, error) {
+func (b *BlockOperation) BlockMap(manifest string) (string, error) {
 	args := []string{"create", "-f", "-"}
 	result, err := b.k8sClient.KubectlWithStdin(manifest, args...)
 	if err != nil {
 		return "", fmt.Errorf("Unable to map block -- : %s", err)
-
-	}
-	return result, nil
-
-}
-
-// Write Function to write  data to block created by rook ,i.e. write data to a pod that is using a pvc
-// Input parameters -
-// manifest - path to a yaml file that creates a pod  - pod should be defined to use a pvc that was created earlier
-// mountpath - folder on the pod were data is supposed to be written(should match the mountpath described in the pod definition)
-// data - data to be written
-// filename - file where data is written to
-// namespace - optional param - namespace of the pod
-// Output  - k8s exec pod operation output and/or error
-func (b *BlockOperation) Write(name string, mountpath string, data string, filename string, namespace string) (string, error) {
-	wt := "echo \"" + data + "\">" + mountpath + "/" + filename
-	args := []string{"exec", name}
-
-	if namespace != "" {
-		args = append(args, "-n", namespace)
-	}
-	args = append(args, "--", "sh", "-c", wt)
-
-	result, err := b.k8sClient.Kubectl(args...)
-	if err != nil {
-		return "", fmt.Errorf("Unable to write data to pod --: %s", err)
-
-	}
-	return result, nil
-
-}
-
-// Read Function to read from block created by rook ,i.e. Read data from a pod that is using a pvc
-// Input parameters -
-// manifest - path to a yaml file that creates a pod  - pod should be defined to use a pvc that was created earlier
-// mountpath - folder on the pod were data is supposed to be written(should match the mountpath described in the pod definition)
-// filename - file to be read
-// namespace - optional param - namespace of the pod
-// Output  - k8s exec pod operation output and/or error
-func (b *BlockOperation) Read(name string, mountpath string, filename string, namespace string) (string, error) {
-	rd := mountpath + "/" + filename
-	args := []string{"exec", name}
-
-	if namespace != "" {
-		args = append(args, "-n", namespace)
-	}
-	args = append(args, "--", "cat", rd)
-
-	result, err := b.k8sClient.Kubectl(args...)
-	if err != nil {
-		return "", fmt.Errorf("Unable to read data to pod -- : %s", err)
-
-	}
-	return result, nil
-
-}
-
-// BlockUnmap Function to unmap a Block using Rook
-// Input parameters -
-// manifest - pod definition - the pod described in yaml file is deleted
-// mountpath - not used in this impl since mountpath is defined in the pod definition
-// Output  - k8s delete pod operation output and/or error
-func (b *BlockOperation) BlockUnmap(name string, mountpath string) (string, error) {
-	args := []string{"delete", "-f", "-"}
-	result, err := b.k8sClient.KubectlWithStdin(name, args...)
-	if err != nil {
-		return "", fmt.Errorf("Unable to unmap block -- : %s", err)
 
 	}
 	return result, nil

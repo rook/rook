@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
@@ -53,14 +54,16 @@ func (a *Agent) Run() error {
 		return fmt.Errorf("failed to create volume attachment controller: %+v", err)
 	}
 
-	volumeManager := ceph.NewVolumeManager(a.context)
+	volumeManager, err := ceph.NewVolumeManager(a.context)
+	if err != nil {
+		return fmt.Errorf("failed to create volume manager: %+v", err)
+	}
 
 	flexvolumeController := flexvolume.NewController(a.context, volumeAttachmentController, volumeManager)
 
 	flexvolumeServer := flexvolume.NewFlexvolumeServer(
 		a.context,
 		flexvolumeController,
-		volumeManager,
 	)
 
 	err = rpc.Register(flexvolumeController)
@@ -74,11 +77,20 @@ func (a *Agent) Run() error {
 	}
 
 	flexDriverVendors := []string{flexvolume.FlexvolumeVendor, flexvolume.FlexvolumeVendorLegacy}
-	for _, vendor := range flexDriverVendors {
+	for i, vendor := range flexDriverVendors {
+		if i > 0 {
+			// Wait before the next driver is registered. In 1.11 and newer there is a timing issue if flex drivers are registered too quickly.
+			// See https://github.com/rook/rook/issues/1501 and https://github.com/kubernetes/kubernetes/issues/60694
+			time.Sleep(500 * time.Millisecond)
+		}
+
 		err = flexvolumeServer.Start(vendor, driverName)
 		if err != nil {
 			return fmt.Errorf("failed to start flex volume server %s/%s, %+v", vendor, driverName, err)
 		}
+
+		// Wait before the next driver is registered
+		time.Sleep(500 * time.Millisecond)
 
 		// Register drivers both with the name of the namespace and the name "rook"
 		// for the volume plugins not based on the namespace.
@@ -92,8 +104,7 @@ func (a *Agent) Run() error {
 	clusterController := cluster.NewClusterController(
 		a.context,
 		flexvolumeController,
-		volumeAttachmentController,
-		volumeManager)
+		volumeAttachmentController)
 	stopChan := make(chan struct{})
 	clusterController.StartWatch(v1.NamespaceAll, stopChan)
 

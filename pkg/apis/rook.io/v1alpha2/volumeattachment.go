@@ -42,7 +42,7 @@ func NewVolume(name, namespace, node, podNamespace, podName, clusterName, mountD
 	return volumeAttachmentObj
 }
 
-// ConvertLegacyVolume takes a legacy rookv1alpha1 VolumeAttacment object and converts it to a current
+// ConvertLegacyVolume takes a legacy rookv1alpha1 VolumeAttachment object and converts it to a current
 // rookv1alpha2 Volume object.
 func ConvertLegacyVolume(legacyVolume rookv1alpha1.VolumeAttachment) *Volume {
 	va := &Volume{

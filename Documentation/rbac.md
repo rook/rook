@@ -23,7 +23,7 @@ If you have activated the [PodSecurityPolicy Admission Controller](https://kuber
 using [PodSecurityPolicies](https://kubernetes.io/docs/concepts/policy/pod-security-policy/), you will require additional `(Cluster)RoleBindings`
 for the different `ServiceAccounts` Rook uses to start the Rook Storage Pods.
 
-**Note**: You do not have to perform these steps if you do not have the `PodSecurityPolicy` Admission Controller activated!  
+**Note**: You do not have to perform these steps if you do not have the `PodSecurityPolicy` Admission Controller activated!
 
 ##### PodSecurityPolicy
 
@@ -55,15 +55,15 @@ spec:
 
 **Hint**: Allowing `hostNetwork` usage is required when using `hostNetwork: true` in the Cluster `CustomResourceDefinition`!
 You are then also required to allow the usage of `hostPorts` in the `PodSecurityPolicy`. The given port range is a minimal
-working recommendation for rook:
+working recommendation for a Rook Ceph cluster:
  ```yaml
- hostPorts:
-   # CEPH ports
-   - min: 6789
-     max: 7300
-   # rook-api port
-   - min: 8124
-     max: 8124
+   hostPorts:
+     # Ceph ports
+     - min: 6789
+       max: 7300
+     # Ceph MGR Prometheus Metrics
+     - min: 9283
+       max: 9283
 ```
 
 ##### ClusterRole and ClusterRoleBinding
@@ -93,7 +93,7 @@ and
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook-system
+  name: rook-ceph-system
 ---
 # Allow the rook-ceph-system serviceAccount to use the privileged PSP
 apiVersion: rbac.authorization.k8s.io/v1
@@ -107,7 +107,7 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: rook-ceph-system
-  namespace: rook-system
+  namespace: rook-ceph-system
 ```
 
 Save these definitions to one or multiple yaml files and create them by executing `kubectl apply -f <nameOfYourFile>.yaml`
@@ -119,9 +119,9 @@ Create these two `RoleBindings` in the Namespace you plan to deploy your Rook Cl
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: rook-ceph
 ---
-# Allow the default serviceAccount to use the priviliged PSP
+# Allow the default serviceAccount to use the privileged PSP
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:

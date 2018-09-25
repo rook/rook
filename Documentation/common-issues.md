@@ -16,8 +16,10 @@ If after trying the suggestions found on this page and the problem is not resolv
 - [Cluster failing to service requests](#cluster-failing-to-service-requests)
 - [Only a single monitor pod starts](#only-a-single-monitor-pod-starts)
 - [OSD pods are failing to start](#osd-pods-are-failing-to-start)
+- [OSDs are not created on my devices](#osd-pods-are-not-created-on-my-devices)
 - [Node hangs after reboot](#node-hangs-after-reboot)
 - [Rook Agent modprobe exec format error](#rook-agent-modprobe-exec-format-error)
+- [Rook Agent rbd module missing error](#rook-agent-rbd-module-missing-error)
 - [Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7](#using-multiple-shared-filesystem-cephfs-is-attempted-on-a-kernel-version-older-than-47)
 
 # Troubleshooting Techniques
@@ -47,11 +49,11 @@ After you verify the basic health of the running pods, next you will want to run
 ### Tools in the Rook Toolbox
  The [rook-ceph-tools pod](./toolbox.md) is a one-stop shop for both Ceph tools and other troubleshooting tools. Once the pod is up and running one connect to the pod to execute Ceph commands to evaluate that current state of the cluster.
  ```bash
- kubectl exec -it rook-ceph-tools bash
+ kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
  ```
 
 ### Tools in other pods
-The Ceph tools are found in all of the Rook pods where Ceph is running, such as the operator, monitors, and OSDs. Rather than starting the toolbox pod, you can connect to the existing pods to more quickly execute the Ceph tools. For example, to connect to the operator pod:
+The Ceph tools are found in all of the Rook pods where Ceph is running, such as the operator and monitors. Rather than starting the toolbox pod, you can connect to the existing pods to more quickly execute the Ceph tools. For example, to connect to the operator pod:
 
 ```bash
 kubectl -n rook-ceph-system exec -it $(kubectl -n rook-ceph-system get pods -l app=rook-operator -o jsonpath='{.items[0].metadata.name}') -- bash
@@ -59,7 +61,7 @@ kubectl -n rook-ceph-system exec -it $(kubectl -n rook-ceph-system get pods -l a
 
 Now from inside the operator pod you can execute the Ceph tools.
 
-It is preferred to connect to the operator pod rather than monitors and OSDs since the operator always has the latest configuration files. If you have multiple Rook clusters, it is preferred to connect to the Rook toolbox for a specific cluster. Otherwise, your ceph commands may connect to the wrong cluster.
+It is preferred to connect to the operator pod rather than monitors since the operator always has the latest configuration files. If you have multiple Rook clusters, it is preferred to connect to the Rook toolbox for a specific cluster. Otherwise, your ceph commands may connect to the wrong cluster.
 
 ### Ceph Commands
 Here are some common commands to troubleshoot the cluster.
@@ -150,7 +152,7 @@ A symptom of this can be found in the Kubelet's log/journal, with the following 
 ```console
 Oct 30 22:23:03 core-02 kubelet-wrapper[31926]: E1030 22:23:03.524159   31926 desired_state_of_world_populator.go:285] Failed to add volume "mysql-persistent-storage" (specName: "pvc-9f273fbc") for pod "9f2ff89a-bdbf" to desiredStateOfWorld. err=failed to get Plugin from volumeSpec for volume "pvc-9f273fbc" err=no volume plugin matched
 ```
-If you encounter this, just **restart the Kubelet process**, as described in the **[Restart Kubelet](./quickstart.md#restart-kubelet)** section of the Rook deployment guide.
+If you encounter this, just **restart the Kubelet process**, as described in the **[Restart Kubelet](./ceph-quickstart.md#restart-kubelet)** section of the Rook deployment guide.
 
 ### Volume Creation
 The volume must first be created in the Rook cluster and then bound to a volume claim before it can be mounted to a pod.
@@ -182,7 +184,7 @@ E0328 18:58:32.060893       5 controller.go:801] Failed to provision volume for 
 . output:
 ```
 
-The solution is to ensure that the [`clusterNamespace`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/rook-storageclass.yaml#L25) field matches the **namespace** of the Rook cluster when creating the `StorageClass`.
+The solution is to ensure that the [`clusterNamespace`](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/storageclass.yaml#L20) field matches the **namespace** of the Rook cluster when creating the `StorageClass`.
 
 ### Volume Mounting
 The final step in preparing Rook storage for your pod is for the `rook-ceph-agent` pod to mount and format it.
@@ -241,7 +243,7 @@ We want to help you get your storage working and learn from those lessons to pre
 Create a [rook-ceph-tools pod](./toolbox.md) to investigate the current state of CEPH. Here is an example of what one might see. In this case the `ceph status` command would just hang so a CTRL-C needed to be sent.
 
 ```console
-$ kubectl -n rook-ceph exec -it rook-ceph-tools bash
+$ kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
 root@rook-ceph-tools:/# ceph status
 ^CCluster connection interrupted or timed out
 ```
@@ -305,8 +307,8 @@ Second we need to verify if the mon pod started successfully.
 
 ```
 $ kubectl -n rook-ceph get pod -l app=rook-ceph-mon
-NAME                   READY     STATUS             RESTARTS   AGE
-rook-ceph-mon0-r8tbl   0/1       CrashLoopBackOff   2          47s
+NAME                                READY     STATUS               RESTARTS   AGE
+rook-ceph-mon-a-69fb9c78cd-58szd    1/1       CrashLoopBackOff     2          47s
 ```
 
 If the mon pod is failing as in this example, you will need to look at the mon pod status or logs to determine the cause. If the pod is in a crash loop backoff state,
@@ -365,6 +367,56 @@ This directory is the `dataDirHostPath` setting in the cluster CRD and is typica
 To fix the issue you will need to delete all components of Rook and then delete the contents of `/var/lib/rook` (or the directory specified by `dataDirHostPath`) on each of the hosts in the cluster.
 Then when the cluster CRD is applied to start a new cluster, the rook-operator should start all the pods as expected.
 
+
+# OSD pods are not created on my devices
+
+## Symptoms
+* No OSD pods are started in the cluster
+* Devices are not configured with OSDs even though specified in the Cluster CRD
+* One OSD pod is started on each node instead of multiple pods for each device
+
+## Investigation
+First, ensure that you have specified the devices correctly in the CRD.
+The [Cluster CRD](ceph-cluster-crd.md#storage-selection-settings) has several ways to specify the devices that are to be consumed by the Rook storage:
+- `useAllDevices: true`: Rook will consume all devices it determines to be available
+- `deviceFilter`: Consume all devices that match this regular expression
+- `devices`: Explicit list of device names on each node to consume
+
+Second, if Rook determines that a device is not available (has existing partitions or a formatted file system), Rook will skip consuming the devices.
+If Rook is not starting OSDs on the devices you expect, Rook may have skipped it for this reason. To see if a device was skipped, view the OSD preparation log
+on the node where the device was skipped.
+
+```
+# get the prepare pods in the cluster
+$ kubectl -n rook-ceph get pod -l app=rook-ceph-osd-prepare
+NAME                                   READY     STATUS      RESTARTS   AGE
+rook-ceph-osd-prepare-node1-fvmrp      0/1       Completed   0          18m
+rook-ceph-osd-prepare-node2-w9xv9      0/1       Completed   0          22m
+rook-ceph-osd-prepare-node3-7rgnv      0/1       Completed   0          22m
+
+# view the logs for the node of interest
+$ kubectl -n rook-ceph logs rook-ceph-osd-prepare-node1-fvmrp
+```
+
+Towards the beginning of the log you will see messages such as the following:
+```
+# message that the device sda was skipped
+cephosd: skipping device sda that is in use (not by rook)
+
+# message that the devices sdb and sdc are being configured
+cephosd: configuring osd devices: {"Entries":{"sdb":{"Data":-1,"Metadata":null},"sdc":{"Data":-1,"Metadata":null}}}
+```
+
+## Solution
+After you have either updated the CRD with the correct settings, or you have cleaned the partitions or file system from your devices,
+you can trigger the operator to analyze the devices again by restarting the operator. Each time the operator starts, it
+will ensure all the desired devices are configured.
+
+```
+# Restart the operator to ensure devices are configured. A new pod will automatically be started when the current operator pod is deleted.
+$ kubectl -n rook-ceph-system delete pod -l app=rook-ceph-operator
+```
+
 # Node hangs after reboot
 
 ## Symptoms
@@ -406,6 +458,37 @@ For both paths create a file called `rbd.conf` with the following content:
 rbd
 ```
 Now when a host is restarted, the module should be loaded automatically.
+
+# Rook Agent rbd module missing error
+## Symptoms
+* Rook Agent in `Error` or `CrashLoopBackOff` status when deploying the Rook operator with `kubectl create -f operator.yaml`:
+```
+$kubectl -n rook-ceph-system get pod
+NAME                                 READY     STATUS    RESTARTS   AGE
+rook-ceph-agent-gfrm5                0/1       Error     0          14s
+rook-ceph-operator-5f4866946-vmtff   1/1       Running   0          23s
+rook-discover-qhx6c                  1/1       Running   0          14s
+```
+* Rook Agent logs contain below messages:
+```
+2018-08-10 09:09:09.461798 I | exec: Running command: cat /lib/modules/4.15.2/modules.builtin
+2018-08-10 09:09:09.473858 I | exec: Running command: modinfo -F parm rbd
+2018-08-10 09:09:09.477215 N | ceph-volumeattacher: failed rbd single_major check, assuming it's unsupported: failed to check for rbd module single_major param: Failed to complete 'check kmod param': exit status 1. modinfo: ERROR: Module rbd not found.
+2018-08-10 09:09:09.477239 I | exec: Running command: modprobe rbd
+2018-08-10 09:09:09.480353 I | modprobe rbd: modprobe: FATAL: Module rbd not found.
+2018-08-10 09:09:09.480452 N | ceph-volumeattacher: failed to load kernel module rbd: failed to load kernel module rbd: Failed to complete 'modprobe rbd': exit status 1.
+failed to run rook ceph agent. failed to create volume manager: failed to load kernel module rbd: Failed to complete 'modprobe rbd': exit status 1.
+```
+
+## Solution
+From the log message of Agent, we can see that the `rbd` kernel module is not available in the current system, neither as a builtin nor a loadable external kernel module.
+
+In this case, you have to [re-configure and build](https://www.linuxjournal.com/article/6568) a new kernel to address this issue, there're two options:
+
+* Re-configure your kernel to make sure the `CONFIG_BLK_DEV_RBD=y` in the `.config` file, then build the kernel.
+* Re-configure your kernel to make sure the `CONFIG_BLK_DEV_RBD=m` in the `.config` file, then build the kernel.
+
+Rebooting the system to use the new kernel, this issue should be fixed: the Agent will be in normal `running` status if everything was done correctly.
 
 # Using multiple shared filesystem (CephFS) is attempted on a kernel version older than 4.7
 ## Symptoms

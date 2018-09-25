@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package mds
 
 import (
@@ -23,7 +24,7 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/util"
 )
 
@@ -43,7 +44,7 @@ type Config struct {
 	FilesystemID  string
 	ID            string
 	ActiveStandby bool
-	ClusterInfo   *mon.ClusterInfo
+	ClusterInfo   *cephconfig.ClusterInfo
 }
 
 func Run(context *clusterd.Context, config *Config) error {
@@ -63,7 +64,7 @@ func Run(context *clusterd.Context, config *Config) error {
 
 func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	// write the latest config to the config dir
-	if err := mon.GenerateAdminConnectionConfig(context, config.ClusterInfo); err != nil {
+	if err := cephconfig.GenerateAdminConnectionConfig(context, config.ClusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config. %+v", err)
 	}
 
@@ -80,7 +81,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	}
 
 	keyringPath := getMDSKeyringPath(context.ConfigDir)
-	_, err = mon.GenerateConfigFile(context, config.ClusterInfo, getMDSConfDir(context.ConfigDir),
+	_, err = cephconfig.GenerateConfigFile(context, config.ClusterInfo, getMDSConfDir(context.ConfigDir),
 		fmt.Sprintf("mds.%s", config.ID), keyringPath, nil, settings)
 	if err != nil {
 		return fmt.Errorf("failed to create mds config file. %+v", err)
@@ -91,7 +92,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		return r
 	}
 
-	err = mon.WriteKeyring(keyringPath, keyring, keyringEval)
+	err = cephconfig.WriteKeyring(keyringPath, keyring, keyringEval)
 	if err != nil {
 		return fmt.Errorf("failed to create mds keyring. %+v", err)
 	}

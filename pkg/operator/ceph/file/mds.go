@@ -21,10 +21,10 @@ import (
 	"fmt"
 	"strconv"
 
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	cephmds "github.com/rook/rook/pkg/daemon/ceph/mds"
+	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
@@ -33,6 +33,7 @@ import (
 	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
 )
 
 const (
@@ -40,7 +41,7 @@ const (
 )
 
 // Create the file system
-func CreateFilesystem(context *clusterd.Context, fs cephv1alpha1.Filesystem, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
+func CreateFilesystem(context *clusterd.Context, fs cephv1beta1.Filesystem, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
 	if err := validateFilesystem(context, fs); err != nil {
 		return err
 	}
@@ -49,7 +50,7 @@ func CreateFilesystem(context *clusterd.Context, fs cephv1alpha1.Filesystem, ver
 	for _, p := range fs.Spec.DataPools {
 		dataPools = append(dataPools, p.ToModel(""))
 	}
-	f := cephmds.NewFS(fs.Name, fs.Spec.MetadataPool.ToModel(""), dataPools, fs.Spec.MetadataServer.ActiveCount)
+	f := mdsdaemon.NewFS(fs.Name, fs.Spec.MetadataPool.ToModel(""), dataPools, fs.Spec.MetadataServer.ActiveCount)
 	if err := f.CreateFilesystem(context, fs.Namespace); err != nil {
 		return fmt.Errorf("failed to create file system %s: %+v", fs.Name, err)
 	}
@@ -62,7 +63,7 @@ func CreateFilesystem(context *clusterd.Context, fs cephv1alpha1.Filesystem, ver
 	logger.Infof("start running mds for file system %s", fs.Name)
 
 	// start the deployment
-	deployment := makeDeployment(fs, strconv.Itoa(filesystem.ID), version, hostNetwork, ownerRefs)
+	deployment := makeDeployment(context.Clientset, fs, strconv.Itoa(filesystem.ID), version, hostNetwork, ownerRefs)
 	_, err = context.Clientset.ExtensionsV1beta1().Deployments(fs.Namespace).Create(deployment)
 	if err != nil {
 		if !errors.IsAlreadyExists(err) {
@@ -77,7 +78,7 @@ func CreateFilesystem(context *clusterd.Context, fs cephv1alpha1.Filesystem, ver
 }
 
 // Delete the file system
-func DeleteFilesystem(context *clusterd.Context, fs cephv1alpha1.Filesystem) error {
+func DeleteFilesystem(context *clusterd.Context, fs cephv1beta1.Filesystem) error {
 	// Delete the mds deployment
 	k8sutil.DeleteDeployment(context.Clientset, fs.Namespace, instanceName(fs))
 
@@ -89,25 +90,25 @@ func DeleteFilesystem(context *clusterd.Context, fs cephv1alpha1.Filesystem) err
 	}
 
 	// Delete the ceph file system and pools
-	if err := cephmds.DeleteFilesystem(context, fs.Namespace, fs.Name); err != nil {
+	if err := mdsdaemon.DeleteFilesystem(context, fs.Namespace, fs.Name); err != nil {
 		return fmt.Errorf("failed to delete file system %s: %+v", fs.Name, err)
 	}
 
 	return nil
 }
 
-func instanceName(fs cephv1alpha1.Filesystem) string {
+func instanceName(fs cephv1beta1.Filesystem) string {
 	return fmt.Sprintf("%s-%s", AppName, fs.Name)
 }
 
-func makeDeployment(fs cephv1alpha1.Filesystem, filesystemID, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) *extensions.Deployment {
+func makeDeployment(clientset kubernetes.Interface, fs cephv1beta1.Filesystem, filesystemID, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) *extensions.Deployment {
 	deployment := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:            instanceName(fs),
-			Namespace:       fs.Namespace,
-			OwnerReferences: ownerRefs,
+			Name:      instanceName(fs),
+			Namespace: fs.Namespace,
 		},
 	}
+	k8sutil.SetOwnerRefs(clientset, fs.Namespace, &deployment.ObjectMeta, ownerRefs)
 
 	podSpec := v1.PodSpec{
 		Containers:    []v1.Container{mdsContainer(fs, filesystemID, version)},
@@ -140,7 +141,20 @@ func makeDeployment(fs cephv1alpha1.Filesystem, filesystemID, version string, ho
 	return deployment
 }
 
-func mdsContainer(fs cephv1alpha1.Filesystem, filesystemID, version string) v1.Container {
+func mdsContainer(fs cephv1beta1.Filesystem, filesystemID, version string) v1.Container {
+
+	envVars := []v1.EnvVar{
+		{Name: "ROOK_POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
+		{Name: "ROOK_FILESYSTEM_ID", Value: filesystemID},
+		{Name: "ROOK_ACTIVE_STANDBY", Value: strconv.FormatBool(fs.Spec.MetadataServer.ActiveStandby)},
+		opmon.ClusterNameEnvVar(fs.Namespace),
+		opmon.EndpointEnvVar(),
+		opmon.AdminSecretEnvVar(),
+		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
+		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
+		k8sutil.ConfigOverrideEnvVar(),
+	}
+	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars()...)
 
 	return v1.Container{
 		Args: []string{
@@ -154,22 +168,12 @@ func mdsContainer(fs cephv1alpha1.Filesystem, filesystemID, version string) v1.C
 			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
 			k8sutil.ConfigOverrideMount(),
 		},
-		Env: []v1.EnvVar{
-			{Name: "ROOK_POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
-			{Name: "ROOK_FILESYSTEM_ID", Value: filesystemID},
-			{Name: "ROOK_ACTIVE_STANDBY", Value: strconv.FormatBool(fs.Spec.MetadataServer.ActiveStandby)},
-			opmon.ClusterNameEnvVar(fs.Namespace),
-			opmon.EndpointEnvVar(),
-			opmon.AdminSecretEnvVar(),
-			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-			k8sutil.ConfigOverrideEnvVar(),
-		},
+		Env:       envVars,
 		Resources: fs.Spec.MetadataServer.Resources,
 	}
 }
 
-func getLabels(fs cephv1alpha1.Filesystem) map[string]string {
+func getLabels(fs cephv1beta1.Filesystem) map[string]string {
 	return map[string]string{
 		k8sutil.AppAttr:     AppName,
 		k8sutil.ClusterAttr: fs.Namespace,
@@ -177,7 +181,7 @@ func getLabels(fs cephv1alpha1.Filesystem) map[string]string {
 	}
 }
 
-func validateFilesystem(context *clusterd.Context, f cephv1alpha1.Filesystem) error {
+func validateFilesystem(context *clusterd.Context, f cephv1beta1.Filesystem) error {
 	if f.Name == "" {
 		return fmt.Errorf("missing name")
 	}

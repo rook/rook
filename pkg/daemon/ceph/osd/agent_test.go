@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package osd
 
 import (
@@ -27,7 +28,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/daemon/ceph/test"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -101,8 +102,6 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 		cmd := &exec.Cmd{Args: append([]string{command}, args...)}
 
 		switch {
-		case startCount < 2:
-			assert.Equal(t, "ceph-osd", command)
 		default:
 			assert.Fail(t, fmt.Sprintf("unexpected case %d", startCount))
 		}
@@ -153,28 +152,32 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 				// the osd mkfs for sdx
 				assert.Equal(t, "--mkfs", args[0])
 				createTestKeyring(t, configDir, args)
-			case execCount == 2: // all remaining execs are for partitioning sdy then mkfs sdy
+			case execCount == 2:
+				assert.Equal(t, "umount", command)
+			case execCount == 3: // all remaining execs are for partitioning sdy then mkfs sdy
 				assert.Equal(t, "sgdisk", command)
 				assert.Equal(t, "--zap-all", args[0])
 				assert.Equal(t, "/dev/"+nameSuffix, args[1])
-			case execCount == 3:
+			case execCount == 4:
 				assert.Equal(t, "sgdisk", command)
 				assert.Equal(t, "--clear", args[0])
 				assert.Equal(t, "/dev/"+nameSuffix, args[2])
-			case execCount == 4:
+			case execCount == 5:
 				// the partitioning for sdy.
 				assert.Equal(t, "sgdisk", command)
 				assert.Equal(t, "/dev/"+nameSuffix, args[4])
-			case execCount == 5:
+			case execCount == 6:
 				// mkfs.ext4 for sdy filestore
 				assert.Equal(t, "mkfs.ext4", command)
-			case execCount == 6:
+			case execCount == 7:
 				// the mount for sdy filestore
 				assert.Equal(t, "mount", command)
-			case execCount == 7:
+			case execCount == 8:
 				// the osd mkfs for sdy filestore
 				assert.Equal(t, "--mkfs", args[0])
 				createTestKeyring(t, configDir, args)
+			case execCount == 9:
+				assert.Equal(t, "umount", command)
 			default:
 				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
 			}
@@ -226,19 +229,18 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 		"sdx": {Data: -1},
 		"sdy": {Data: -1},
 	}}
-	err = agent.configureDevices(context, devices)
+	_, err = agent.configureDevices(context, devices)
 	assert.Nil(t, err)
 
 	assert.Equal(t, int32(0), agent.configCounter)
-	assert.Equal(t, 2, startCount) // 2 OSD procs should be started
-	assert.Equal(t, 2, len(agent.osdProc), fmt.Sprintf("procs=%+v", agent.osdProc))
+	assert.Equal(t, 0, startCount) // 2 OSD procs should be started
 
 	if storeConfig.StoreType == config.Bluestore {
 		assert.Equal(t, 11, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
 		assert.Equal(t, 5, execCount)        // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
 	} else {
 		assert.Equal(t, 9, outputExecCount)
-		assert.Equal(t, 8, execCount) // 1 for remount sdx, 1 osd mkfs for sdx, 3 partition steps for sdy, 1 mkfs for sdy, 1 mount for sdy, 1 osd mkfs for sdy
+		assert.Equal(t, 10, execCount) // 1 for remount sdx, 1 osd mkfs for sdx, 3 partition steps for sdy, 1 mkfs for sdy, 1 mount for sdy, 1 osd mkfs for sdy
 	}
 }
 
@@ -293,13 +295,12 @@ func TestOSDAgentNoDevices(t *testing.T) {
 		filepath.Join(configDir, "sdx"): -1,
 		filepath.Join(configDir, "sdy"): -1,
 	}
-	err = agent.configureDirs(context, dirs)
+	_, err = agent.configureDirs(context, dirs)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, runCount)
-	assert.Equal(t, 2, startCount)
+	assert.Equal(t, 0, startCount)
 	assert.Equal(t, 6, execWithOutputFileCount)
 	assert.Equal(t, 2, execWithOutputCount)
-	assert.Equal(t, 1, len(agent.osdProc))
 }
 
 func TestRemoveDevices(t *testing.T) {
@@ -350,7 +351,7 @@ func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeCon
 			return "{\"key\":\"mysecurekey\", \"osdid\":3.0}", nil
 		},
 	}
-	cluster := &mon.ClusterInfo{Name: "myclust"}
+	cluster := &cephconfig.ClusterInfo{Name: "myclust"}
 	context := &clusterd.Context{ConfigDir: configDir, Executor: executor, Clientset: testop.New(1)}
 	agent := NewAgent(context, devices, false, "", "", forceFormat, location, *storeConfig,
 		cluster, nodeName, mockKVStore())
@@ -382,7 +383,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 		{Name: "sdb", Size: 107374182400}, // 100 GB
 		{Name: "sdc", Size: 44158681088},  // 1 MB (starting offset) + 2 * (576 MB + 20 GB) = 41.125 GB
 	}
-	clusterInfo := &mon.ClusterInfo{Name: "myclust"}
+	clusterInfo := &cephconfig.ClusterInfo{Name: "myclust"}
 	a.cluster = clusterInfo
 
 	// mock monitor command to return an osd ID when the client registers/creates an osd
@@ -555,7 +556,7 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 	// mock the currently discovered hardware, note the device names have changed (e.g., across reboots) but their UUIDs are always static
 	a := &OsdAgent{devices: "sda-changed", kv: mockKVStore()}
 
-	// setup an existing partition schme with metadata on nvme01 and data on sda
+	// setup an existing partition scheme with metadata on nvme01 and data on sda
 	_, metadataUUID, sdaUUID := mockDistributedPartitionScheme(t, 1, "nvme01", "sda", a.kv, a.nodeName)
 
 	context.Devices = []*sys.LocalDisk{

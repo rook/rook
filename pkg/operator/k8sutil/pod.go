@@ -89,13 +89,16 @@ func NodeEnvVar() v1.EnvVar {
 }
 
 // ConfigDirEnvVar config dir env var
-func ConfigDirEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_CONFIG_DIR", Value: DataDir}
+func ConfigDirEnvVar(dataDir string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOK_CONFIG_DIR", Value: dataDir}
 }
 
 func GetContainerImage(pod *v1.Pod, name string) (string, error) {
+	return GetSpecContainerImage(pod.Spec, name)
+}
 
-	image, err := GetMatchingContainer(pod.Spec.Containers, name)
+func GetSpecContainerImage(spec v1.PodSpec, name string) (string, error) {
+	image, err := GetMatchingContainer(spec.Containers, name)
 	if err != nil {
 		return "", err
 	}
@@ -150,6 +153,21 @@ func MakeRookImage(version string) string {
 	return version
 }
 
+func PodsRunningWithLabel(clientset kubernetes.Interface, namespace, label string) (int, error) {
+	pods, err := clientset.CoreV1().Pods(namespace).List(metav1.ListOptions{LabelSelector: label})
+	if err != nil {
+		return 0, err
+	}
+
+	running := 0
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == v1.PodRunning {
+			running++
+		}
+	}
+	return running, nil
+}
+
 // GetPodPhaseMap takes a list of pods and returns a map of pod phases to the names of pods that are in that phase
 func GetPodPhaseMap(pods *v1.PodList) map[v1.PodPhase][]string {
 	podPhaseMap := map[v1.PodPhase][]string{} // status to list of pod names with that phase
@@ -170,7 +188,7 @@ func GetPodPhaseMap(pods *v1.PodList) map[v1.PodPhase][]string {
 
 // DeleteDeployment makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
 func DeleteDeployment(clientset kubernetes.Interface, namespace, name string) error {
-	logger.Infof("removing %s deployment if it exists", name)
+	logger.Debugf("removing %s deployment if it exists", name)
 	deleteAction := func(options *metav1.DeleteOptions) error {
 		return clientset.ExtensionsV1beta1().Deployments(namespace).Delete(name, options)
 	}
@@ -178,7 +196,19 @@ func DeleteDeployment(clientset kubernetes.Interface, namespace, name string) er
 		_, err := clientset.ExtensionsV1beta1().Deployments(namespace).Get(name, metav1.GetOptions{})
 		return err
 	}
-	return deletePodsAndWait(namespace, name, deleteAction, getAction)
+	return deleteResourceAndWait(namespace, name, "deployment", deleteAction, getAction)
+}
+
+// DeleteReplicaSet makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
+func DeleteReplicaSet(clientset kubernetes.Interface, namespace, name string) error {
+	deleteAction := func(options *metav1.DeleteOptions) error {
+		return clientset.ExtensionsV1beta1().ReplicaSets(namespace).Delete(name, options)
+	}
+	getAction := func() error {
+		_, err := clientset.ExtensionsV1beta1().ReplicaSets(namespace).Get(name, metav1.GetOptions{})
+		return err
+	}
+	return deleteResourceAndWait(namespace, name, "replicaset", deleteAction, getAction)
 }
 
 // DeleteDaemonset makes a best effort at deleting a daemonset and its pods, then waits for them to be deleted
@@ -191,11 +221,11 @@ func DeleteDaemonset(clientset kubernetes.Interface, namespace, name string) err
 		_, err := clientset.ExtensionsV1beta1().DaemonSets(namespace).Get(name, metav1.GetOptions{})
 		return err
 	}
-	return deletePodsAndWait(namespace, name, deleteAction, getAction)
+	return deleteResourceAndWait(namespace, name, "daemonset", deleteAction, getAction)
 }
 
-// deletePodsAndWait will delete a resource, then wait for it to be purged from the system
-func deletePodsAndWait(namespace, name string,
+// deleteResourceAndWait will delete a resource, then wait for it to be purged from the system
+func deleteResourceAndWait(namespace, name, resourceType string,
 	deleteAction func(*metav1.DeleteOptions) error,
 	getAction func() error) error {
 
@@ -203,16 +233,20 @@ func deletePodsAndWait(namespace, name string,
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 
-	// Delete the deployment if it exists
+	// Delete the resource if it exists
 	err := deleteAction(options)
-	if err != nil && !errors.IsNotFound(err) {
-		return fmt.Errorf("failed to delete %s. %+v", name, err)
+	if err != nil {
+		if !errors.IsNotFound(err) {
+			return fmt.Errorf("failed to delete %s. %+v", name, err)
+		}
+		return nil
 	}
+	logger.Infof("Removed %s %s", resourceType, name)
 
-	// wait for the daemonset and deployments to be deleted
+	// wait for the resource to be deleted
 	sleepTime := 2 * time.Second
 	for i := 0; i < 30; i++ {
-		// check for the existence of the deployment
+		// check for the existence of the resource
 		err = getAction()
 		if err != nil {
 			if errors.IsNotFound(err) {
@@ -227,4 +261,13 @@ func deletePodsAndWait(namespace, name string,
 	}
 
 	return fmt.Errorf("gave up waiting for %s pods to be terminated", name)
+}
+
+// Environment variables used by storage cluster daemons
+func ClusterDaemonEnvVars() []v1.EnvVar {
+	return []v1.EnvVar{
+		{Name: "POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
+		{Name: "POD_NAMESPACE", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.namespace"}}},
+		{Name: "NODE_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}},
+	}
 }

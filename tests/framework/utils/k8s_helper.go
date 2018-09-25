@@ -57,6 +57,8 @@ const (
 	RetryLoop = 30
 	//RetryInterval param for test - wait time while in RetryLoop
 	RetryInterval = 5
+	//TestMountPath is the path inside a test pod where storage is mounted
+	TestMountPath = "/tmp/testrook"
 )
 
 //CreateK8sHelper creates a instance of k8sHelper
@@ -96,23 +98,61 @@ func (k8sh *K8sHelper) VersionAtLeast(minVersion string) bool {
 	return v.AtLeast(version.MustParseSemantic(minVersion))
 }
 
-func (k8sh *K8sHelper) IsRookClientsetAvailable() bool {
-	return k8sh.VersionAtLeast("v1.8.0")
-}
-
 func (k8sh *K8sHelper) MakeContext() *clusterd.Context {
 	return &clusterd.Context{Clientset: k8sh.Clientset, RookClientset: k8sh.RookClientset, Executor: k8sh.executor}
 }
 
+func (k8sh *K8sHelper) GetDockerImage(image string) error {
+	return k8sh.executor.ExecuteCommand(false, "", "docker", "pull", image)
+}
+
+// SetDeploymentVersion sets the container version on the deployment. It is assumed to be the rook/ceph image.
+func (k8sh *K8sHelper) SetDeploymentVersion(namespace, deploymentName, containerName, version string) error {
+	_, err := k8sh.Kubectl("-n", namespace, "set", "image", "deploy/"+deploymentName, containerName+"=rook/ceph:"+version)
+	return err
+}
+
 //Kubectl is wrapper for executing kubectl commands
 func (k8sh *K8sHelper) Kubectl(args ...string) (string, error) {
-	result, err := k8sh.executor.ExecuteCommandWithTimeout(false, 10*time.Second, "kubectl", "kubectl", args...)
+	result, err := k8sh.executor.ExecuteCommandWithTimeout(false, 15*time.Second, "kubectl", "kubectl", args...)
 	if err != nil {
 		k8slogger.Errorf("Failed to execute: kubectl %+v : %+v. %s", args, err, result)
+		if args[0] == "delete" {
+			// allow the tests to continue if we were deleting a resource that timed out
+			return result, nil
+		}
 		return result, fmt.Errorf("Failed to run: kubectl %v : %v", args, err)
 	}
 	return result, nil
+}
 
+func (k8sh *K8sHelper) PurgeClusters() error {
+	// get all namespaces
+	namespaces, err := k8sh.Clientset.CoreV1().Namespaces().List(metav1.ListOptions{})
+	if err != nil {
+		return fmt.Errorf("failed to get namespaces to remove finalizers. %+v", err)
+	}
+
+	// look for the clusters in all namespaces
+	for _, n := range namespaces.Items {
+		namespace := n.Name
+		logger.Infof("looking in namespace %s for clusters to purge", namespace)
+		clusters, err := k8sh.RookClientset.CephV1beta1().Clusters(namespace).List(metav1.ListOptions{})
+		if err != nil {
+			logger.Warningf("failed to get clusters in namespace %s. %+v", namespace, err)
+			continue
+		}
+		for _, cluster := range clusters.Items {
+			logger.Infof("Ensuring rook cluster crd %s in namespace %s is deleted", cluster.Name, namespace)
+			if _, err := k8sh.Kubectl("patch", "clusters.ceph.rook.io", cluster.Name, "-n", namespace, "-p", `{"metadata":{"finalizers": []}}`, "--type=merge"); err != nil {
+				logger.Warningf("failed to remove finalizer from cluster %s. %+v", cluster.Name, err)
+			}
+			if err := k8sh.RookClientset.CephV1beta1().Clusters(namespace).Delete(cluster.Name, &metav1.DeleteOptions{}); err != nil {
+				logger.Warningf("failed to delete cluster %s", cluster.Name)
+			}
+		}
+	}
+	return nil
 }
 
 //KubectlWithStdin is wrapper for executing kubectl commands in stdin
@@ -272,32 +312,83 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinitio
 		return result, nil
 	}
 	logger.Errorf("Failed to execute kubectl %v %v -- %v", args, podDef, err)
-	return "", fmt.Errorf("Could Not create resource in args : %v  %v-- %v", args, podDef, err)
-
+	return "", fmt.Errorf("Could not %s resource in args : %v  %v-- %v", action, args, podDef, err)
 }
 
 //ResourceOperation performs a kubectl action on a pod definition
-func (k8sh *K8sHelper) ResourceOperation(action string, podDefiniton string) (string, error) {
-
+func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) (string, error) {
 	args := []string{action, "-f", "-"}
-	result, err := k8sh.KubectlWithStdin(podDefiniton, args...)
+	result, err := k8sh.KubectlWithStdin(manifest, args...)
 	if err == nil {
 		return result, nil
 	}
 	logger.Errorf("Failed to execute kubectl %v -- %v", args, err)
 	return "", fmt.Errorf("Could Not create resource in args : %v -- %v", args, err)
-
 }
 
-//DeleteResource performs a kubectl delete on give args
+//DeletePod performs a kubectl delete pod on the given pod
+func (k8sh *K8sHelper) DeletePod(namespace, name string) (string, error) {
+	args := append([]string{"--grace-period=0", "pod"}, name)
+	if namespace != "" {
+		args = append(args, []string{"-n", namespace}...)
+	}
+	return k8sh.DeleteResourceAndWait(true, args...)
+}
+
+//DeletePods performs a kubectl delete pod on the given pods
+func (k8sh *K8sHelper) DeletePods(pods ...string) (msg string, err error) {
+	for _, pod := range pods {
+		msg, err = k8sh.DeletePod("", pod)
+	}
+	return
+}
+
+//DeleteResource performs a kubectl delete on the given args
 func (k8sh *K8sHelper) DeleteResource(args ...string) (string, error) {
+	return k8sh.DeleteResourceAndWait(true, args...)
+}
+
+//WaitForCustomResourceDeletion waits for the CRD deletion
+func (k8sh *K8sHelper) WaitForCustomResourceDeletion(namespace string, checkerFunc func() error) error {
+	if !k8sh.VersionAtLeast("v1.8.0") {
+		// v1.7 has an intermittent issue with long delay to delete resources so we will skip waiting
+		return nil
+	}
+
+	// wait for the operator to finalize and delete the CRD
+	for i := 0; i < 10; i++ {
+		err := checkerFunc()
+		if err == nil {
+			logger.Infof("custom resource %s still exists", namespace)
+			time.Sleep(2 * time.Second)
+			continue
+		}
+		if errors.IsNotFound(err) {
+			logger.Infof("custom resource %s deleted", namespace)
+			return nil
+		}
+		return err
+	}
+	logger.Errorf("gave up deleting custom resource %s", namespace)
+	return nil
+}
+
+// DeleteResource performs a kubectl delete on give args.
+// If wait is false, a flag will be passed to indicate the delete should return immediately
+func (k8sh *K8sHelper) DeleteResourceAndWait(wait bool, args ...string) (string, error) {
+	if !wait {
+		// new flag in k8s 1.11
+		v := version.MustParseSemantic(k8sh.GetK8sServerVersion())
+		if v.AtLeast(version.MustParseSemantic("1.11.0")) {
+			args = append(args, "--wait=false")
+		}
+	}
 	args = append([]string{"delete"}, args...)
 	result, err := k8sh.Kubectl(args...)
 	if err == nil {
 		return result, nil
 	}
 	return "", fmt.Errorf("Could Not delete resource in k8s -- %v", err)
-
 }
 
 //GetResource performs a kubectl get on give args
@@ -363,22 +454,36 @@ func (k8sh *K8sHelper) IsPodWithLabelPresent(label string, namespace string) boo
 	return count > 0
 }
 
-//WaitForLabeledPodToRun returns true if a Pod is running status or goes to Running status within 90s else returns false
-func (k8sh *K8sHelper) WaitForLabeledPodToRun(label string, namespace string) error {
+//WaitForLabeledPodsToRun returns true if a Pod is running status or goes to Running status within 90s else returns false
+func (k8sh *K8sHelper) WaitForLabeledPodsToRun(label string, namespace string) error {
 	options := metav1.ListOptions{LabelSelector: label}
-	inc := 0
-	for inc < RetryLoop {
+	var lastPod v1.Pod
+	for i := 0; i < RetryLoop; i++ {
 		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
+		lastStatus := ""
+		running := 0
 		if err == nil && len(pods.Items) > 0 {
 			for _, pod := range pods.Items {
 				if pod.Status.Phase == "Running" {
-					return nil
+					running++
 				}
+				lastPod = pod
+				lastStatus = string(pod.Status.Phase)
+			}
+			if running == len(pods.Items) {
+				logger.Infof("All %d pod(s) with label %s are running", len(pods.Items), label)
+				return nil
 			}
 		}
-		inc++
-		logger.Infof("waiting for pod with label %s in namespace %s to be running. err=%+v", label, namespace, err)
+		logger.Infof("waiting for pod(s) with label %s in namespace %s to be running. status=%s, running=%d/%d, err=%+v",
+			label, namespace, lastStatus, running, len(pods.Items), err)
 		time.Sleep(RetryInterval * time.Second)
+	}
+
+	if len(lastPod.Name) == 0 {
+		logger.Infof("no pod was found with label %s", label)
+	} else {
+		k8sh.PrintPodDescribe(namespace, lastPod.Name)
 	}
 	return fmt.Errorf("Giving up waiting for pod with label %s in namespace %s to be running", label, namespace)
 }
@@ -386,8 +491,7 @@ func (k8sh *K8sHelper) WaitForLabeledPodToRun(label string, namespace string) er
 //WaitUntilPodWithLabelDeleted returns true if a Pod is deleted within 90s else returns false
 func (k8sh *K8sHelper) WaitUntilPodWithLabelDeleted(label string, namespace string) bool {
 	options := metav1.ListOptions{LabelSelector: label}
-	inc := 0
-	for inc < RetryLoop {
+	for i := 0; i < RetryLoop; i++ {
 		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
 		if errors.IsNotFound(err) {
 			logger.Infof("error Found err %v", err)
@@ -397,7 +501,6 @@ func (k8sh *K8sHelper) WaitUntilPodWithLabelDeleted(label string, namespace stri
 			return true
 		}
 
-		inc++
 		time.Sleep(RetryInterval * time.Second)
 		logger.Infof("waiting for pod with label %s in namespace %s to be deleted", label, namespace)
 
@@ -433,15 +536,14 @@ func (k8sh *K8sHelper) PrintPodDescribeForNamespace(namespace string) {
 	k8sh.PrintEventsForNamespace(namespace)
 }
 
-func (k8sh *K8sHelper) PrintPodDescribe(name, namespace string) {
-	pod, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+func (k8sh *K8sHelper) PrintPodDescribe(namespace string, args ...string) {
+	args = append([]string{"describe", "pod", "-n", namespace}, args...)
+	description, err := k8sh.Kubectl(args...)
 	if err != nil {
-		logger.Warningf("failed to get pod %s in namespace %s. %+v", name, namespace)
-		return
+		logger.Errorf("failed to describe pod. %v %+v", args, err)
+	} else {
+		logger.Infof("pod description:\n%s\n", description)
 	}
-	logger.Infof("pod %s in namespace %s: %+v", name, namespace, pod)
-
-	k8sh.PrintEventsForNamespace(namespace)
 }
 
 func (k8sh *K8sHelper) PrintEventsForNamespace(namespace string) {
@@ -542,6 +644,89 @@ func (k8sh *K8sHelper) IsCRDPresent(crdName string) bool {
 	}
 
 	return false
+}
+
+func (k8sh *K8sHelper) WriteToPod(namespace, podName, filename, message string) error {
+	return k8sh.WriteToPodRetry(namespace, podName, filename, message, 1)
+}
+
+func (k8sh *K8sHelper) WriteToPodRetry(namespace, podName, filename, message string, retries int) error {
+	logger.Infof("Writing file %s to pod %s", filename, podName)
+	var err error
+	for i := 0; i < retries; i++ {
+		if i > 0 {
+			logger.Infof("retrying write in 5s...")
+			time.Sleep(5 * time.Second)
+		}
+
+		err = k8sh.writeToPod(namespace, podName, filename, message)
+		if err == nil {
+			logger.Infof("write file %s in pod %s was successful", filename, podName)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("failed to write file %s to pod %s. %+v", filename, podName, err)
+}
+
+func (k8sh *K8sHelper) ReadFromPod(namespace, podName, filename, expectedMessage string) error {
+	return k8sh.ReadFromPodRetry(namespace, podName, filename, expectedMessage, 1)
+}
+
+func (k8sh *K8sHelper) ReadFromPodRetry(namespace, podName, filename, expectedMessage string, retries int) error {
+	logger.Infof("Reading file %s from pod %s", filename, podName)
+	var err error
+	for i := 0; i < retries; i++ {
+		if i > 0 {
+			logger.Infof("retrying read in 5s...")
+			time.Sleep(5 * time.Second)
+		}
+
+		var data string
+		data, err = k8sh.readFromPod(namespace, podName, filename)
+		if err == nil {
+			logger.Infof("read file %s from pod %s was successful after %d attempt(s)", filename, podName, (i + 1))
+			if !strings.Contains(data, expectedMessage) {
+				return fmt.Errorf(`file %s in pod %s returned message "%s" instead of "%s"`, filename, podName, data, expectedMessage)
+			}
+			return nil
+		}
+	}
+
+	return fmt.Errorf("failed to read file %s from pod %s. %+v", filename, podName, err)
+}
+
+func (k8sh *K8sHelper) writeToPod(namespace, name, filename, message string) error {
+	wt := "echo \"" + message + "\">" + path.Join(TestMountPath, filename)
+	args := []string{"exec", name}
+
+	if namespace != "" {
+		args = append(args, "-n", namespace)
+	}
+	args = append(args, "--", "sh", "-c", wt)
+
+	_, err := k8sh.Kubectl(args...)
+	if err != nil {
+		return fmt.Errorf("failed to write file %s to pod %s. %+v", filename, name, err)
+	}
+
+	return nil
+}
+
+func (k8sh *K8sHelper) readFromPod(namespace, name, filename string) (string, error) {
+	rd := path.Join(TestMountPath, filename)
+	args := []string{"exec", name}
+
+	if namespace != "" {
+		args = append(args, "-n", namespace)
+	}
+	args = append(args, "--", "cat", rd)
+
+	result, err := k8sh.Kubectl(args...)
+	if err != nil {
+		return "", fmt.Errorf("failed to read file %s from pod %s. %+v", filename, name, err)
+	}
+	return result, nil
 }
 
 // GetVolumeResourceName gets the Volume object name from the PVC
@@ -875,6 +1060,18 @@ func (k8sh *K8sHelper) GetPVCStatus(namespace string, name string) (v1.Persisten
 
 }
 
+//GetPVCVolumeName returns volume name of PVC
+func (k8sh *K8sHelper) GetPVCVolumeName(namespace string, name string) (string, error) {
+	getOpts := metav1.GetOptions{}
+
+	pvc, err := k8sh.Clientset.CoreV1().PersistentVolumeClaims(namespace).Get(name, getOpts)
+	if err != nil {
+		return "", fmt.Errorf("PVC %s not found,err->%v", name, err)
+	}
+
+	return pvc.Spec.VolumeName, nil
+}
+
 //GetPVCAccessModes returns AccessModes on PVC
 func (k8sh *K8sHelper) GetPVCAccessModes(namespace string, name string) ([]v1.PersistentVolumeAccessMode, error) {
 	getOpts := metav1.GetOptions{}
@@ -886,6 +1083,17 @@ func (k8sh *K8sHelper) GetPVCAccessModes(namespace string, name string) ([]v1.Pe
 
 	return pvc.Status.AccessModes, nil
 
+}
+
+//GetPV returns PV by name
+func (k8sh *K8sHelper) GetPV(name string) (*v1.PersistentVolume, error) {
+	getOpts := metav1.GetOptions{}
+
+	pv, err := k8sh.Clientset.CoreV1().PersistentVolumes().Get(name, getOpts)
+	if err != nil {
+		return nil, fmt.Errorf("PV %s not found,err->%v", name, err)
+	}
+	return pv, nil
 }
 
 //IsPodInExpectedState waits for 90s for a pod to be an expected state
@@ -928,7 +1136,7 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 		}
 
 		inc++
-		logger.Infof("waiting for %d pods with label app=%s,found %d", minExpected, podName, actualPodCount)
+		logger.Infof("waiting for %d pods with label app=%s, found %d", minExpected, podName, actualPodCount)
 		time.Sleep(RetryInterval * time.Second)
 	}
 	if !podCountCheck {
@@ -936,8 +1144,7 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 		return false
 	}
 
-	inc = 0
-	for inc < RetryLoop {
+	for i := 0; i < RetryLoop; i++ {
 		checkAllPodsStatus := true
 		pl, _ := k8sh.Clientset.CoreV1().Pods(namespace).List(listOpts)
 		for _, pod := range pl.Items {
@@ -949,11 +1156,11 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 		if checkAllPodsStatus {
 			return true
 		}
-		inc++
 		time.Sleep(RetryInterval * time.Second)
-
 	}
+
 	logger.Errorf("All pods with app Name %v not in %v phase ", podName, expectedPhase)
+	k8sh.PrintPodDescribe(namespace, "-l", listOpts.LabelSelector)
 	return false
 
 }
@@ -977,15 +1184,16 @@ func (k8sh *K8sHelper) WaitUntilPodInNamespaceIsDeleted(podNamePattern string, n
 
 //WaitUntilPodIsDeleted waits for 90s for a pod to be terminated
 //If the pod disappears within 90s true is returned,  if not false
-func (k8sh *K8sHelper) WaitUntilPodIsDeleted(podNamePattern string) bool {
+func (k8sh *K8sHelper) WaitUntilPodIsDeleted(name, namespace string) bool {
 	inc := 0
 	for inc < RetryLoop {
-		out, _ := k8sh.GetResource("pods", "-l", "app="+podNamePattern)
-		if !strings.Contains(out, podNamePattern) {
+		_, err := k8sh.Clientset.CoreV1().Pods(namespace).Get(name, metav1.GetOptions{})
+		if err != nil && errors.IsNotFound(err) {
 			return true
 		}
 
 		inc++
+		logger.Infof("pod %s in namespace %s is not deleted yet", name, namespace)
 		time.Sleep(RetryInterval * time.Second)
 	}
 	return false
@@ -1153,6 +1361,10 @@ func (k8sh *K8sHelper) GetRookLogs(podAppName string, hostType string, namespace
 	if err != nil {
 		logger.Errorf("Cannot get logs for app : %v in namespace %v, err: %v", podAppName, namespace, err)
 		return
+	}
+
+	if len(podList.Items) == 0 {
+		logger.Infof("no logs found for pod %s in namespace %s", podAppName, namespace)
 	}
 
 	for _, pod := range podList.Items {

@@ -18,20 +18,14 @@ include ../image.mk
 # Image Build Options
 
 CEPH_IMAGE = $(BUILD_REGISTRY)/ceph-$(GOARCH)
-IMAGES = $(CEPH_IMAGE)
 
-BASEIMAGE = $(CEPH_BASE_IMAGE)
+CEPH_VERSION = $(shell cat ceph_version)
+BASEIMAGE = $(CEPH_VERSION)-$(PLATFORM_ARCH)
 
 TEMP := $(shell mktemp -d)
 
 # ====================================================================================
 # Build Rook
-
-# since this is a leaf image we avoid leaving around a lot of dangling images
-# by removing the last build of the final ceph image
-OLD_IMAGE_ID := $(shell docker images -q $(CEPH_IMAGE))
-CURRENT_IMAGE_ID := $$(docker images -q $(CEPH_IMAGE))
-IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/ceph.tar.gz
 
 do.build:
 	@echo === docker build $(CEPH_IMAGE)
@@ -44,10 +38,4 @@ do.build:
 		--build-arg TINI_VERSION=$(TINI_VERSION) \
 		-t $(CEPH_IMAGE) \
 		$(TEMP)
-	@[ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] && [ -n "$(OLD_IMAGE_ID)" ] && docker rmi $(OLD_IMAGE_ID) || true
-	@if [ ! -e "$(IMAGE_FILENAME)" ] || [ "$(OLD_IMAGE_ID)" != "$(CURRENT_IMAGE_ID)" ] || [ -n "$(OLD_IMAGE_ID)" ]; then \
-		echo === saving image $(CEPH_IMAGE); \
-		mkdir -p $(IMAGE_OUTPUT_DIR); \
-		docker save $(CEPH_IMAGE) | gzip -c > $(IMAGE_FILENAME); \
-	fi
 	@rm -fr $(TEMP)

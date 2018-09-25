@@ -28,12 +28,14 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster"
 	"github.com/rook/rook/pkg/operator/ceph/provisioner/controller"
 	"k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 const (
 	attacherImageKey              = "attacherImage"
 	storageClassBetaAnnotationKey = "volume.beta.kubernetes.io/storage-class"
+	sizeMB                        = 1048576 // 1 MB
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-provisioner")
@@ -55,6 +57,9 @@ type provisionerConfig struct {
 
 	// Optional: File system type used for mounting the image. Default is `ext4`
 	fstype string
+
+	// Optional: For erasure coded pools the data pool must be given
+	dataPool string
 }
 
 // New creates RookVolumeProvisioner
@@ -90,8 +95,17 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 		return nil, err
 	}
 
-	if err := p.createVolume(imageName, cfg.pool, cfg.clusterNamespace, requestBytes); err != nil {
+	blockImage, err := p.createVolume(imageName, cfg.pool, cfg.dataPool, cfg.clusterNamespace, requestBytes)
+	if err != nil {
 		return nil, err
+	}
+
+	// since we can guarantee the size of the volume image generated have to be in `MB` boundary, so we can
+	// convert it to `MB` unit safely here
+	s := fmt.Sprintf("%dMi", blockImage.Size/sizeMB)
+	quantity, err := resource.ParseQuantity(s)
+	if err != nil {
+		return nil, fmt.Errorf("cannot parse '%v': %v", s, err)
 	}
 
 	driverName, err := flexvolume.RookDriverName(p.context)
@@ -108,10 +122,10 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 			PersistentVolumeReclaimPolicy: options.PersistentVolumeReclaimPolicy,
 			AccessModes:                   options.PVC.Spec.AccessModes,
 			Capacity: v1.ResourceList{
-				v1.ResourceName(v1.ResourceStorage): capacity,
+				v1.ResourceName(v1.ResourceStorage): quantity,
 			},
 			PersistentVolumeSource: v1.PersistentVolumeSource{
-				FlexVolume: &v1.FlexVolumeSource{
+				FlexVolume: &v1.FlexPersistentVolumeSource{
 					Driver: flexdriver,
 					FSType: cfg.fstype,
 					Options: map[string]string{
@@ -119,6 +133,7 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 						flexvolume.PoolKey:             cfg.pool,
 						flexvolume.ImageKey:            imageName,
 						flexvolume.ClusterNamespaceKey: cfg.clusterNamespace,
+						flexvolume.DataPoolKey:         cfg.dataPool,
 					},
 				},
 			},
@@ -129,18 +144,18 @@ func (p *RookVolumeProvisioner) Provision(options controller.VolumeOptions) (*v1
 }
 
 // createVolume creates a rook block volume.
-func (p *RookVolumeProvisioner) createVolume(image, pool string, clusterNamespace string, size int64) error {
+func (p *RookVolumeProvisioner) createVolume(image, pool, dataPool string, clusterNamespace string, size int64) (*ceph.CephBlockImage, error) {
 	if image == "" || pool == "" || clusterNamespace == "" || size == 0 {
-		return fmt.Errorf("image missing required fields (image=%s, pool=%s, clusterNamespace=%s, size=%d)", image, pool, clusterNamespace, size)
+		return nil, fmt.Errorf("image missing required fields (image=%s, pool=%s, clusterNamespace=%s, size=%d)", image, pool, clusterNamespace, size)
 	}
 
-	createdImage, err := ceph.CreateImage(p.context, clusterNamespace, image, pool, uint64(size))
+	createdImage, err := ceph.CreateImage(p.context, clusterNamespace, image, pool, dataPool, uint64(size))
 	if err != nil {
-		return fmt.Errorf("Failed to create rook block image %s/%s: %v", pool, image, err)
+		return nil, fmt.Errorf("Failed to create rook block image %s/%s: %v", pool, image, err)
 	}
-	logger.Infof("Rook block image created: %s", createdImage.Name)
+	logger.Infof("Rook block image created: %s, size = %d", createdImage.Name, createdImage.Size)
 
-	return nil
+	return createdImage, nil
 }
 
 // Delete removes the storage asset that was created by Provision represented
@@ -190,6 +205,8 @@ func parseClassParameters(params map[string]string) (*provisionerConfig, error) 
 			cfg.clusterNamespace = v
 		case "fstype":
 			cfg.fstype = v
+		case "datapool":
+			cfg.dataPool = v
 		default:
 			return nil, fmt.Errorf("invalid option %q for volume plugin %s", k, "rookVolumeProvisioner")
 		}

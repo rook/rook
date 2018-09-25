@@ -20,9 +20,8 @@ import (
 	"fmt"
 	"strconv"
 
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/daemon/ceph/model"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -31,24 +30,30 @@ import (
 
 //PoolOperation is a wrapper for rook pool operations
 type PoolOperation struct {
-	k8sh *utils.K8sHelper
+	k8sh      *utils.K8sHelper
+	manifests installer.CephManifests
 }
 
 // CreatePoolOperation creates a new pool client
-func CreatePoolOperation(k8sh *utils.K8sHelper) *PoolOperation {
-	return &PoolOperation{k8sh: k8sh}
+func CreatePoolOperation(k8sh *utils.K8sHelper, manifests installer.CephManifests) *PoolOperation {
+	return &PoolOperation{k8sh, manifests}
 }
 
-func (p *PoolOperation) Create(pool model.Pool, namespace string) (string, error) {
-	return p.createOrUpdatePool(pool, namespace, "create")
+func (p *PoolOperation) Create(name, namespace string, replicas int) (string, error) {
+	return p.createOrUpdatePool(name, namespace, "create", replicas)
 }
 
-func (p *PoolOperation) Update(pool model.Pool, namespace string) (string, error) {
-	return p.createOrUpdatePool(pool, namespace, "apply")
+func (p *PoolOperation) Delete(name string, namespace string) error {
+	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolDef(name, namespace, "1"))
+	return err
 }
 
-func (p *PoolOperation) createOrUpdatePool(pool model.Pool, namespace, action string) (string, error) {
-	return installer.BlockResourceOperation(p.k8sh, installer.GetBlockPoolDef(pool.Name, namespace, strconv.Itoa(int(pool.ReplicatedConfig.Size))), action)
+func (p *PoolOperation) Update(name, namespace string, replicas int) (string, error) {
+	return p.createOrUpdatePool(name, namespace, "apply", replicas)
+}
+
+func (p *PoolOperation) createOrUpdatePool(name, namespace, action string, replicas int) (string, error) {
+	return p.k8sh.ResourceOperation(action, p.manifests.GetBlockPoolDef(name, namespace, strconv.Itoa(replicas)))
 }
 
 func (p *PoolOperation) ListCephPools(namespace string) ([]client.CephStoragePoolSummary, error) {
@@ -69,8 +74,8 @@ func (p *PoolOperation) GetCephPoolDetails(namespace, name string) (client.CephS
 	return details, nil
 }
 
-func (p *PoolOperation) ListPoolCRDs(namespace string) ([]cephv1alpha1.Pool, error) {
-	pools, err := p.k8sh.RookClientset.CephV1alpha1().Pools(namespace).List(metav1.ListOptions{})
+func (p *PoolOperation) ListPoolCRDs(namespace string) ([]cephv1beta1.Pool, error) {
+	pools, err := p.k8sh.RookClientset.CephV1beta1().Pools(namespace).List(metav1.ListOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return nil, nil
@@ -82,7 +87,7 @@ func (p *PoolOperation) ListPoolCRDs(namespace string) ([]cephv1alpha1.Pool, err
 }
 
 func (p *PoolOperation) PoolCRDExists(namespace, name string) (bool, error) {
-	_, err := p.k8sh.RookClientset.CephV1alpha1().Pools(namespace).Get(name, metav1.GetOptions{})
+	_, err := p.k8sh.RookClientset.CephV1beta1().Pools(namespace).Get(name, metav1.GetOptions{})
 	if err != nil {
 		if errors.IsNotFound(err) {
 			return false, nil
@@ -103,4 +108,27 @@ func (p *PoolOperation) CephPoolExists(namespace, name string) (bool, error) {
 		}
 	}
 	return false, nil
+}
+
+func (p *PoolOperation) CreateStorageClassAndPvc(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) (string, error) {
+	return p.k8sh.ResourceOperation("create", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode))
+}
+
+func (p *PoolOperation) DeleteStorageClass(namespace, poolName, storageClassName, reclaimPolicy string) error {
+	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolStorageClass(namespace, poolName, storageClassName, reclaimPolicy))
+	return err
+}
+
+func (p *PoolOperation) DeleteStorageClassAndPvc(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode string) error {
+	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPoolStorageClassAndPvcDef(namespace, poolName, storageClassName, reclaimPolicy, blockName, mode))
+	return err
+}
+
+func (p *PoolOperation) DeletePvc(blockName, storageClassName, mode string) error {
+	_, err := p.k8sh.ResourceOperation("delete", p.manifests.GetBlockPvcDef(blockName, storageClassName, mode))
+	return err
+}
+
+func (p *PoolOperation) CreateStorageClass(namespace, poolName, storageClassName, reclaimPolicy string) (string, error) {
+	return p.k8sh.ResourceOperation("create", p.manifests.GetBlockPoolStorageClass(namespace, poolName, storageClassName, reclaimPolicy))
 }

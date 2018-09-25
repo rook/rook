@@ -5,20 +5,39 @@ indent: true
 ---
 
 # Ceph Cluster CRD
-Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs). The following settings are
-available for a Ceph cluster.
+Rook allows creation and customization of storage clusters through the custom resource definitions (CRDs).
+
+## Sample
+To get you started, here is a simple example of a CRD to configure a Ceph cluster with all nodes and all devices. More examples are included [later in this doc](#samples).
+
+```yaml
+apiVersion: ceph.rook.io/v1beta1
+kind: Cluster
+metadata:
+  name: rook-ceph
+  namespace: rook-ceph
+spec:
+  dataDirHostPath: /var/lib/rook
+  serviceAccount: rook-ceph-cluster
+  storage:
+    useAllNodes: true
+    useAllDevices: true
+```
+
+In addition to the CRD, you will also need to create a namespace, role, and role binding as seen in the [common cluster resources](#common-cluster-resources) below.
 
 ## Settings
 Settings can be specified at the global level to apply to the cluster as a whole, while other settings can be specified at more fine-grained levels.  If any setting is unspecified, a suitable default will be used automatically.
 
 ### Cluster metadata
+
 - `name`: The name that will be used internally for the Ceph cluster. Most commonly the name is the same as the namespace since multiple clusters are not supported in the same namespace.
 - `namespace`: The Kubernetes namespace that will be created for the Rook cluster. The services, pods, and other resources created by the operator will be added to this namespace. The common scenario is to create a single Rook cluster. If multiple clusters are created, they must not have conflicting devices or host paths.
 
 ### Cluster Settings
+
 - `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.
   - On **Minikube** environments, use `/data/rook`. Minikube boots into a tmpfs but it provides some [directories](https://github.com/kubernetes/minikube/blob/master/docs/persistent_volumes.md) where files can be persisted across reboots. Using one of these directories will ensure that Rook's data and configuration files are persisted and that enough storage space is available.
-  - If a path is not specified, an [empty dir](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir) will be used and the config will be lost when the pod or host is restarted. This option is **not recommended**.
   - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start.
 If this value is empty, each pod will get an ephemeral directory to store their config files that is tied to the lifetime of the pod running on that node. More details can be found in the Kubernetes [empty dir docs](https://kubernetes.io/docs/concepts/storage/volumes/#emptydir).
 - `dashboard`: Settings for the Ceph dashboard. To view the dashboard in your browser see the [dashboard guide](ceph-dashboard.md).
@@ -35,8 +54,8 @@ For more details on the mons and when to choose a number other than `3`, see the
   If individual nodes are specified under the `nodes` field below, then `useAllNodes` must be set to `false`.
   - `nodes`: Names of individual nodes in the cluster that should have their storage included in accordance with either the cluster level configuration specified above or any node specific overrides described in the next section below.
   `useAllNodes` must be set to `false` to use specific nodes and their config.
+  - `config`: Config settings applied to all OSDs on the node unless overridden by `devices` or `directories`. See the [config settings](#osd-configuration-settings) below.
   - [storage selection settings](#storage-selection-settings)
-  - [storage configuration settings](#storage-configuration-settings)
 
 #### Node Updates
 Nodes can be added and removed over time by updating the Cluster CRD, for example with `kubectl -n rook-ceph edit cluster.ceph.rook.io rook-ceph`.
@@ -44,19 +63,21 @@ This will bring up your default text editor and allow you to add and remove stor
 This feature is only available when `useAllNodes` has been set to `false`.
 
 ### Mon Settings
-- `count`: set the number of mons to be started. The number should be odd and between `1` and `9`. If not specified will be set to `3` and `allowMultiplePerNode` is also set to `true`.
+
+- `count`: set the number of mons to be started. The number should be odd and between `1` and `9`. If not specified the default is set to `3` and `allowMultiplePerNode` is also set to `true`.
 - `allowMultiplePerNode`: enable (`true`) or disable (`false`) the placement of multiple mons on one node. Default is `false`.
 
 ### Node Settings
 In addition to the cluster level settings specified above, each individual node can also specify configuration to override the cluster level settings and defaults.
 If a node does not specify any configuration then it will inherit the cluster level settings.
+
 - `name`: The name of the node, which should match its `kubernetes.io/hostname` label.
 - `config`: Config settings applied to all OSDs on the node unless overridden by `devices` or `directories`. See the [config settings](#osd-configuration-settings) below.
 - [storage selection settings](#storage-selection-settings)
-- [storage configuration settings](#storage-configuration-settings)
 
 ### Storage Selection Settings
 Below are the settings available, both at the cluster and individual node level, for selecting which storage resources will be included in the cluster.
+
 - `useAllDevices`: `true` or `false`, indicating whether all devices found on nodes in the cluster should be automatically consumed by OSDs. **Not recommended** unless you have a very controlled environment where you will not risk formatting of devices with existing data. When `true`, all devices will be used except those with partitions created or a local filesystem. Is overridden by `deviceFilter` if specified.
 - `deviceFilter`: A regular expression that allows selection of devices to be consumed by OSDs.  If individual devices have been specified for a node then this filter will be ignored.  This field uses [golang regular expression syntax](https://golang.org/pkg/regexp/syntax/). For example:
   - `sdb`: Only selects the `sdb` device if found
@@ -75,16 +96,18 @@ Below are the settings available, both at the cluster and individual node level,
 
 ### OSD Configuration Settings
 The following storage selection settings are specific to Ceph and do not apply to other backends. All variables are key-value pairs represented as strings.
-  - `metadataDevice`: Name of a device to use for the metadata of OSDs on each node.  Performance can be improved by using a low latency device (such as SSD or NVMe) as the metadata device, while other spinning platter (HDD) devices on a node are used to store data.
-  - `storeType`: `filestore` or `bluestore`, the underlying storage format to use for each OSD. The default is set dynamically to `bluestore` for devices, while `filestore` is the default for directories. Set this store type explicitly to override the default. Warning: Bluestore is **not** recommended for directories in production. Bluestore does not purge data from the directory and over time will grow without the ability to compact or shrink.
-  - `databaseSizeMB`:  The size in MB of a bluestore database. Include quotes around the size.
-  - `walSizeMB`:  The size in MB of a bluestore write ahead log (WAL). Include quotes around the size.
-  - `journalSizeMB`:  The size in MB of a filestore journal. Include quotes around the size.
+
+- `metadataDevice`: Name of a device to use for the metadata of OSDs on each node.  Performance can be improved by using a low latency device (such as SSD or NVMe) as the metadata device, while other spinning platter (HDD) devices on a node are used to store data.
+- `storeType`: `filestore` or `bluestore`, the underlying storage format to use for each OSD. The default is set dynamically to `bluestore` for devices, while `filestore` is the default for directories. Set this store type explicitly to override the default. Warning: Bluestore is **not** recommended for directories in production. Bluestore does not purge data from the directory and over time will grow without the ability to compact or shrink.
+- `databaseSizeMB`:  The size in MB of a bluestore database. Include quotes around the size.
+- `walSizeMB`:  The size in MB of a bluestore write ahead log (WAL). Include quotes around the size.
+- `journalSizeMB`:  The size in MB of a filestore journal. Include quotes around the size.
 
 ### Placement Configuration Settings
 Placement configuration for the cluster services. It includes the following keys: `mgr`, `mon`, `osd` and `all`. Each service will have its placement configuration generated by merging the generic configuration under `all` with the most specific one (which will override any attributes).
 
 A Placement configuration is specified (according to the kubernetes PodSpec) as:
+
 - `nodeAffinity`: kubernetes [NodeAffinity](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#node-affinity-beta-feature)
 - `podAffinity`: kubernetes [PodAffinity](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#inter-pod-affinity-and-anti-affinity-beta-feature)
 - `podAntiAffinity`: kubernetes [PodAntiAffinity](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#inter-pod-affinity-and-anti-affinity-beta-feature)
@@ -99,12 +122,14 @@ Resources should be specified so that the rook components are handled after [Kub
 This allows to keep rook components running when for example a node runs out of memory and the rook components are not killed depending on their Quality of Service class.
 
 You can set resource requests/limits for rook components through the [Resource Requirements/Limits](#resource-requirementslimits) structure in the following keys:
+
 - `mgr`: Set resource requests/limits for MGRs.
 - `mon`: Set resource requests/limits for Mons.
 - `osd`: Set resource requests/limits for OSDs.
 
 ### Resource Requirements/Limits
 For more information on resource requests/limits see the official Kubernetes documentation: [Kubernetes - Managing Compute Resources for Containers](https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/#resource-requests-and-limits-of-pod-and-container)
+
 - `requests`: Requests for cpu or memory.
   - `cpu`: Request for CPU (example: one CPU core `1`, 50% of one CPU core `500m`).
   - `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
@@ -113,23 +138,22 @@ For more information on resource requests/limits see the official Kubernetes doc
   - `memory`: Limit for Memory (example: one gigabyte of memory `1Gi`, half a gigabyte of memory `512Mi`).
 
 ## Samples
+Here are several samples for configuring Ceph clusters. Each of the samples must also include the namespace and corresponding access granted for management by the Ceph operator. See the [common cluster resources](#common-cluster-resources) below.
+
 ### Storage configuration: All devices
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
   dataDirHostPath: /var/lib/rook
+  serviceAccount: rook-ceph-cluster
+  network:
+    hostNetwork: false
   dashboard:
     enabled: true
-  serviceAccount: rook-ceph-cluster
   # cluster level storage configuration and selection
   storage:
     useAllNodes: true
@@ -147,12 +171,7 @@ Individual nodes and their config can be specified so that only the named nodes 
 Each node's 'name' field should match their 'kubernetes.io/hostname' label.
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
   name: rook-ceph
@@ -160,6 +179,10 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
+  network:
+    hostNetwork: false
+  dashboard:
+    enabled: true
   # cluster level storage configuration and selection
   storage:
     useAllNodes: false
@@ -189,12 +212,7 @@ This example is based up on the [Storage Configuration: Specific devices](#stora
 Individual nodes can override the cluster wide specified directories list.
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
   name: rook-ceph
@@ -202,6 +220,10 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
+  network:
+    hostNetwork: false
+  dashboard:
+    enabled: true
   # cluster level storage configuration and selection
   storage:
     useAllNodes: false
@@ -225,12 +247,7 @@ The example under 'all' would have all services scheduled on kubernetes nodes la
 tolerate taints with a key of 'storage-node'.
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
   name: rook-ceph
@@ -238,6 +255,10 @@ metadata:
 spec:
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
+  network:
+    hostNetwork: false
+  dashboard:
+    enabled: true
   placement:
     all:
       nodeAffinity:
@@ -269,12 +290,7 @@ You can override these requests/limits for OSDs per node when using `useAllNodes
 **WARNING** Before setting resource requests/limits, please take a look at the Ceph documentation for recommendations for each component: [Ceph - Hardware Recommendations](http://docs.ceph.com/docs/master/start/hardware-recommendations/).
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: rook-ceph
----
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
 metadata:
   name: rook-ceph
@@ -295,4 +311,60 @@ spec:
         requests:
           cpu: "2"
           memory: "4096Mi"
+```
+
+## Common Cluster Resources
+Each Ceph cluster must be created in a namespace and also give access to the Rook operator to manage the cluster in the namespace. Creating the namespace and these controls must be added to each of the examples previously shown.
+
+```yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rook-ceph
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: [ "get", "list", "watch", "create", "update", "delete" ]
+---
+# Allow the operator to create resources in this cluster's namespace
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster-mgmt
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-ceph-cluster-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-system
+  namespace: rook-ceph-system
+---
+# Allow the pods in this namespace to work with configmaps
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-ceph-cluster
+  namespace: rook-ceph
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: rook-ceph-cluster
+subjects:
+- kind: ServiceAccount
+  name: rook-ceph-cluster
+  namespace: rook-ceph
 ```

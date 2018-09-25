@@ -331,7 +331,7 @@ Also all rook pods except the rook operator pod should run using `rook-cluster` 
 
 Finally, we should support running multiple rook clusters in the same namespaces. While namespaces are a great organizational unit for pods etc. they are also a unit of policy and quotas. While we can force the cluster admin to go to an approach where they need to manage multiple namespaces, we would be better off if we give the option to cluster admin decide how they use namespace.
 
-For example, it should be possible to run rook-operator, rook-agent, and multiple independent rook clusters in a single namespace. This is going to require setting a prefix for pod names and other resources that could collide. 
+For example, it should be possible to run rook-operator, rook-agent, and multiple independent rook clusters in a single namespace. This is going to require setting a prefix for pod names and other resources that could collide.
 
 The following should be possible:
 

@@ -19,7 +19,7 @@ package integration
 import (
 	"errors"
 
-	"github.com/rook/rook/pkg/daemon/ceph/rgw"
+	rgwdaemon "github.com/rook/rook/pkg/daemon/ceph/rgw"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -82,13 +82,13 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	logger.Infof("Bucket created in Object store successfully")
 
 	logger.Infof("Step 4 : Put Object on bucket")
-	initObjSize, initObjNum, _ := getBucketSizeAndObjectes(bucketname, BucketsAfterCreate)
+	initObjSize, initObjNum, _ := getBucketSizeAndObjects(bucketname, BucketsAfterCreate)
 	require.Equal(s.T(), uint64(0), initObjSize)
 	require.Equal(s.T(), uint64(0), initObjNum)
 	_, poErr := s3client.PutObjectInBucket(bucketname, objBody, objectKey, contentType)
 	require.Nil(s.T(), poErr)
 	BucketsAfterPut, _ := helper.ObjectClient.ObjectBucketList(storeName)
-	ObjSize, ObjNum, _ := getBucketSizeAndObjectes(bucketname, BucketsAfterPut)
+	ObjSize, ObjNum, _ := getBucketSizeAndObjects(bucketname, BucketsAfterPut)
 	require.NotEmpty(s.T(), ObjSize)
 	require.Equal(s.T(), uint64(1), ObjNum)
 	logger.Infof("Object Created on bucket successfully")
@@ -103,7 +103,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	_, delobjErr := s3client.DeleteObjectInBucket(bucketname, objectKey)
 	require.Nil(s.T(), delobjErr)
 	BucketsAfterOjbDelete, _ := helper.ObjectClient.ObjectBucketList(storeName)
-	ObjSize1, ObjNum1, _ := getBucketSizeAndObjectes(bucketname, BucketsAfterOjbDelete)
+	ObjSize1, ObjNum1, _ := getBucketSizeAndObjects(bucketname, BucketsAfterOjbDelete)
 	require.Equal(s.T(), uint64(0), ObjSize1)
 	require.Equal(s.T(), uint64(0), ObjNum1)
 	logger.Infof("Object deleted on bucket successfully")
@@ -119,7 +119,7 @@ func runObjectE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite
 	usersBeforeDelete, _ := helper.ObjectClient.ObjectListUser(storeName)
 	helper.ObjectClient.DeleteUser(storeName, userid)
 	usersAfterDelete, _ := helper.ObjectClient.ObjectListUser(storeName)
-	require.Equal(s.T(), len(usersBeforeDelete)-1, len(usersAfterDelete), "Make sure user list count is reducd by 1")
+	require.Equal(s.T(), len(usersBeforeDelete)-1, len(usersAfterDelete), "Make sure user list count is reduced by 1")
 	logger.Infof("Object store user deleted successfully")
 	*/
 
@@ -167,7 +167,7 @@ func objectTestDataCleanUp(helper *clients.TestClient, k8sh *utils.K8sHelper, na
 	helper.ObjectClient.DeleteUser(storeName, userid)*/
 }
 
-func getBucket(bucketname string, bucketList []rgw.ObjectBucket) (rgw.ObjectBucket, error) {
+func getBucket(bucketname string, bucketList []rgwdaemon.ObjectBucket) (rgwdaemon.ObjectBucket, error) {
 
 	for _, bucket := range bucketList {
 		if bucket.Name == bucketname {
@@ -175,10 +175,10 @@ func getBucket(bucketname string, bucketList []rgw.ObjectBucket) (rgw.ObjectBuck
 		}
 	}
 
-	return rgw.ObjectBucket{}, errors.New("Bucket not found")
+	return rgwdaemon.ObjectBucket{}, errors.New("Bucket not found")
 }
 
-func getBucketSizeAndObjectes(bucketname string, bucketList []rgw.ObjectBucket) (uint64, uint64, error) {
+func getBucketSizeAndObjects(bucketname string, bucketList []rgwdaemon.ObjectBucket) (uint64, uint64, error) {
 	bkt, err := getBucket(bucketname, bucketList)
 	if err != nil {
 		return 0, 0, errors.New("Bucket not found")

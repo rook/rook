@@ -62,7 +62,7 @@ SED_CMD?=sed -i -e
 # set the version number. you should not need to do this
 # for the majority of scenarios.
 ifeq ($(origin VERSION), undefined)
-VERSION := $(shell git describe --dirty --always --tags | sed 's/-g/.g/g;s/-dirty/.dirty/g')
+VERSION := $(shell git describe --dirty --always --tags | sed 's/-/./2' | sed 's/-/./2' )
 endif
 export VERSION
 
@@ -93,6 +93,9 @@ endif
 ifeq ($(origin BUILD_REGISTRY), undefined)
 BUILD_REGISTRY := build-$(shell echo $(HOSTNAME)-$(ROOT_DIR) | shasum -a 256 | cut -c1-8)
 endif
+
+# Select which images (backends) to make; default to all possible images
+IMAGES ?= ceph ceph-toolbox cockroachdb minio nfs
 
 COMMA := ,
 SPACE :=

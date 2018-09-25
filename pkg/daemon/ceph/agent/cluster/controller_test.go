@@ -25,12 +25,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume"
 	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/attachment"
-	"github.com/rook/rook/pkg/daemon/ceph/agent/flexvolume/manager"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/operator/test"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -77,7 +76,6 @@ func TestClusterDeleteSingleAttachment(t *testing.T) {
 	deleteAttachmentCalled := false
 	removeAttachmentCalled := false
 
-	flexvolumeManager := &manager.FakeVolumeManager{}
 	volumeAttachmentController := &attachment.MockAttachment{
 		MockList: func(namespace string) (*rookv1alpha2.VolumeList, error) {
 			return existingVolAttachList, nil
@@ -107,12 +105,12 @@ func TestClusterDeleteSingleAttachment(t *testing.T) {
 		},
 	}
 
-	controller := NewClusterController(context, flexvolumeController, volumeAttachmentController, flexvolumeManager)
+	controller := NewClusterController(context, flexvolumeController, volumeAttachmentController)
 
 	// tell the cluster controller that a cluster has been deleted.  the controller will perform the cleanup
 	// async, but block and wait for it all to complete before returning to us, so there should be no races
 	// with the asserts later on.
-	clusterToDelete := &cephv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
+	clusterToDelete := &cephv1beta1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleClusterDelete(clusterToDelete, time.Millisecond)
 
 	// detaching, removing the attachment from the CRD, and deleting the CRD should have been called
@@ -160,7 +158,6 @@ func TestClusterDeleteAttachedToOtherNode(t *testing.T) {
 
 	getAttachInfoCalled := false
 
-	flexvolumeManager := &manager.FakeVolumeManager{}
 	volumeAttachmentController := &attachment.MockAttachment{
 		MockList: func(namespace string) (*rookv1alpha2.VolumeList, error) {
 			return existingVolAttachList, nil
@@ -173,10 +170,10 @@ func TestClusterDeleteAttachedToOtherNode(t *testing.T) {
 		},
 	}
 
-	controller := NewClusterController(context, flexvolumeController, volumeAttachmentController, flexvolumeManager)
+	controller := NewClusterController(context, flexvolumeController, volumeAttachmentController)
 
 	// delete the cluster, nothing should happen
-	clusterToDelete := &cephv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
+	clusterToDelete := &cephv1beta1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleClusterDelete(clusterToDelete, time.Millisecond)
 
 	// since the volume attachment was on a different node, nothing should have been called
@@ -226,8 +223,6 @@ func TestClusterDeleteMultiAttachmentRace(t *testing.T) {
 		},
 	}
 
-	flexvolumeManager := &manager.FakeVolumeManager{}
-
 	var lock sync.Mutex
 
 	deleteCount := 0
@@ -274,8 +269,8 @@ func TestClusterDeleteMultiAttachmentRace(t *testing.T) {
 	}
 
 	// kick off the cluster deletion process
-	controller := NewClusterController(context, flexvolumeController, volumeAttachmentController, flexvolumeManager)
-	clusterToDelete := &cephv1alpha1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
+	controller := NewClusterController(context, flexvolumeController, volumeAttachmentController)
+	clusterToDelete := &cephv1beta1.Cluster{ObjectMeta: metav1.ObjectMeta{Namespace: clusterName}}
 	controller.handleClusterDelete(clusterToDelete, time.Millisecond)
 
 	// both attachments should have made it all the way through the clean up process, meaing that Delete

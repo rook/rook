@@ -34,68 +34,68 @@ const (
 // ************************************************************************************************
 // HostPath provisioner functions
 // ************************************************************************************************
-func (h *InstallHelper) InstallHostPathProvisioner() error {
+func InstallHostPathProvisioner(k8shelper *utils.K8sHelper) error {
 	logger.Info("installing host path provisioner")
 
 	rbacResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerRBAC)
 	args := append(createArgs, rbacResourceURL)
-	out, err := h.k8shelper.Kubectl(args...)
+	out, err := k8shelper.Kubectl(args...)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create hostpath provisioner RBAC: %+v. %s", err, out)
 	}
 
 	deploymentResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerDeployment)
 	args = append(createArgs, deploymentResourceURL)
-	out, err = h.k8shelper.Kubectl(args...)
+	out, err = k8shelper.Kubectl(args...)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create hostpath provisioner deployment: %+v. %s", err, out)
 	}
 
 	storageClassResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerStorageClass)
 	args = append(createArgs, storageClassResourceURL)
-	out, err = h.k8shelper.Kubectl(args...)
+	out, err = k8shelper.Kubectl(args...)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		return fmt.Errorf("failed to create hostpath provisioner StorageClass: %+v. %s", err, out)
 	}
 
-	err = h.k8shelper.WaitForLabeledPodToRun("k8s-app=hostpath-provisioner", "kube-system")
+	err = k8shelper.WaitForLabeledPodsToRun("k8s-app=hostpath-provisioner", "kube-system")
 	if err != nil {
 		logger.Errorf("hostpath provisioner pod is not running: %+v", err)
-		h.k8shelper.PrintPodDescribeForNamespace("kube-system")
-		h.k8shelper.PrintStorageClasses(true /*detailed*/)
+		k8shelper.PrintPodDescribeForNamespace("kube-system")
+		k8shelper.PrintStorageClasses(true /*detailed*/)
 		return err
 	}
 
-	err = h.k8shelper.IsStorageClassPresent(hostPathStorageClassName)
+	err = k8shelper.IsStorageClassPresent(hostPathStorageClassName)
 	if err != nil {
 		logger.Errorf("storageClass %s not found: %+v", hostPathStorageClassName, err)
-		h.k8shelper.PrintStorageClasses(true /*detailed*/)
+		k8shelper.PrintStorageClasses(true /*detailed*/)
 		return err
 	}
 
 	return nil
 }
 
-func (h *InstallHelper) UninstallHostPathProvisioner() error {
+func UninstallHostPathProvisioner(k8shelper *utils.K8sHelper) error {
 	logger.Info("uninstalling host path provisioner")
 
 	storageClassResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerStorageClass)
 	args := append(deleteArgs, storageClassResourceURL)
-	out, err := h.k8shelper.Kubectl(args...)
+	out, err := k8shelper.Kubectl(args...)
 	if err != nil && !utils.IsKubectlErrorNotFound(out, err) {
 		return fmt.Errorf("failed to delete hostpath provisioner StorageClass: %+v. %s", err, out)
 	}
 
 	deploymentResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerDeployment)
 	args = append(deleteArgs, deploymentResourceURL)
-	out, err = h.k8shelper.Kubectl(args...)
+	out, err = k8shelper.Kubectl(args...)
 	if err != nil && !utils.IsKubectlErrorNotFound(out, err) {
 		return fmt.Errorf("failed to delete hostpath provisioner deployment: %+v. %s", err, out)
 	}
 
 	rbacResourceURL := fmt.Sprintf(hostPathProvisionerResourceBaseURL, hostPathProvisionerRBAC)
 	args = append(deleteArgs, rbacResourceURL)
-	out, err = h.k8shelper.Kubectl(args...)
+	out, err = k8shelper.Kubectl(args...)
 	if err != nil && !utils.IsKubectlErrorNotFound(out, err) {
 		return fmt.Errorf("failed to delete hostpath provisioner RBAC: %+v. %s", err, out)
 	}

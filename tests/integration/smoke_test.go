@@ -17,12 +17,12 @@ limitations under the License.
 package integration
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
-	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -68,19 +68,20 @@ func TestSmokeSuite(t *testing.T) {
 type SmokeSuite struct {
 	suite.Suite
 	helper    *clients.TestClient
-	op        contracts.Setup
+	op        *TestCluster
 	k8sh      *utils.K8sHelper
 	namespace string
 }
 
 func (suite *SmokeSuite) SetupSuite() {
 	suite.namespace = "smoke-ns"
-	suite.op, suite.k8sh = StartBaseTestOperations(suite.T, suite.namespace, "bluestore", "", false, false, 3)
-	suite.helper = GetTestClient(suite.k8sh, suite.namespace, suite.op, suite.T)
+	useDevices := true
+	suite.op, suite.k8sh = StartTestCluster(suite.T, suite.namespace, "bluestore", false, useDevices, 3, installer.VersionMaster)
+	suite.helper = clients.CreateTestClient(suite.k8sh, suite.op.installer.Manifests)
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
-	suite.op.TearDown()
+	suite.op.Teardown()
 }
 
 func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
@@ -125,4 +126,17 @@ func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
 	assert.True(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source"))
 	assert.False(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source env var"))
 	assert.False(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source default"))
+}
+
+func checkOrderedSubstrings(t *testing.T, input string, substrings ...string) {
+	if len(input) == 0 {
+		// Nothing to compare. An error was likely returned, which should be checked elsewhere.
+		return
+	}
+	original := input
+	for i, substring := range substrings {
+		assert.Contains(t, input, substring, fmt.Sprintf("missing substring %d. original=%s", i, original))
+		index := strings.Index(input, substring)
+		input = input[index+len(substring):]
+	}
 }

@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package object
 
 import (
@@ -21,7 +22,7 @@ import (
 	"os"
 	"testing"
 
-	cephv1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	testop "github.com/rook/rook/pkg/operator/test"
@@ -65,7 +66,7 @@ func TestStartRGW(t *testing.T) {
 	validateStart(t, store, clientset, true)
 }
 
-func validateStart(t *testing.T, store cephv1alpha1.ObjectStore, clientset *fake.Clientset, allNodes bool) {
+func validateStart(t *testing.T, store cephv1beta1.ObjectStore, clientset *fake.Clientset, allNodes bool) {
 	if !allNodes {
 		r, err := clientset.ExtensionsV1beta1().Deployments(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
 		assert.Nil(t, err)
@@ -128,6 +129,8 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, fmt.Sprintf("--rgw-name=%s", "default"), cont.Args[3])
 	assert.Equal(t, fmt.Sprintf("--rgw-port=%d", 123), cont.Args[4])
 	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 0), cont.Args[5])
+
+	assert.Equal(t, (7 + len(k8sutil.ClusterDaemonEnvVars())), len(cont.Env))
 
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
@@ -217,13 +220,13 @@ func TestValidateSpec(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func simpleStore() cephv1alpha1.ObjectStore {
-	return cephv1alpha1.ObjectStore{
+func simpleStore() cephv1beta1.ObjectStore {
+	return cephv1beta1.ObjectStore{
 		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "mycluster"},
-		Spec: cephv1alpha1.ObjectStoreSpec{
-			MetadataPool: cephv1alpha1.PoolSpec{Replicated: cephv1alpha1.ReplicatedSpec{Size: 1}},
-			DataPool:     cephv1alpha1.PoolSpec{ErasureCoded: cephv1alpha1.ErasureCodedSpec{CodingChunks: 1, DataChunks: 2}},
-			Gateway:      cephv1alpha1.GatewaySpec{Port: 123},
+		Spec: cephv1beta1.ObjectStoreSpec{
+			MetadataPool: cephv1beta1.PoolSpec{Replicated: cephv1beta1.ReplicatedSpec{Size: 1}},
+			DataPool:     cephv1beta1.PoolSpec{ErasureCoded: cephv1beta1.ErasureCodedSpec{CodingChunks: 1, DataChunks: 2}},
+			Gateway:      cephv1beta1.GatewaySpec{Port: 123},
 		},
 	}
 }

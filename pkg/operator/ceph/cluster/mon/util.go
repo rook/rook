@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package mon for the Ceph monitors.
 package mon
 
 import (
@@ -27,30 +26,32 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
-	helper "k8s.io/kubernetes/pkg/api/v1/helper"
+)
+
+const (
+	maxPerChar = 26
 )
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func LoadClusterInfo(context *clusterd.Context, namespace string) (*mon.ClusterInfo, int, *Mapping, error) {
+func LoadClusterInfo(context *clusterd.Context, namespace string) (*cephconfig.ClusterInfo, int, *Mapping, error) {
 	return CreateOrLoadClusterInfo(context, namespace, nil)
 }
 
 // CreateOrLoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
-func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*mon.ClusterInfo, int, *Mapping, error) {
+func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerRef *metav1.OwnerReference) (*cephconfig.ClusterInfo, int, *Mapping, error) {
 
-	var clusterInfo *mon.ClusterInfo
+	var clusterInfo *cephconfig.ClusterInfo
 	maxMonID := -1
 	monMapping := &Mapping{
 		Node: map[string]*NodeInfo{},
@@ -76,7 +77,7 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 			return nil, maxMonID, monMapping, err
 		}
 	} else {
-		clusterInfo = &mon.ClusterInfo{
+		clusterInfo = &cephconfig.ClusterInfo{
 			Name:          string(secrets.Data[clusterSecretName]),
 			FSID:          string(secrets.Data[fsidSecretName]),
 			MonitorSecret: string(secrets.Data[monSecretName]),
@@ -94,10 +95,10 @@ func CreateOrLoadClusterInfo(context *clusterd.Context, namespace string, ownerR
 	return clusterInfo, maxMonID, monMapping, nil
 }
 
-// WriteConnectionConfig save monitor connection config to disk
-func WriteConnectionConfig(context *clusterd.Context, clusterInfo *mon.ClusterInfo) error {
+// writeConnectionConfig save monitor connection config to disk
+func writeConnectionConfig(context *clusterd.Context, clusterInfo *cephconfig.ClusterInfo) error {
 	// write the latest config to the config dir
-	if err := mon.GenerateAdminConnectionConfig(context, clusterInfo); err != nil {
+	if err := cephconfig.GenerateAdminConnectionConfig(context, clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config. %+v", err)
 	}
 
@@ -105,9 +106,9 @@ func WriteConnectionConfig(context *clusterd.Context, clusterInfo *mon.ClusterIn
 }
 
 // loadMonConfig returns the monitor endpoints and maxMonID
-func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*mon.CephMonitorConfig, int, *Mapping, error) {
+func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string]*cephconfig.MonInfo, int, *Mapping, error) {
 
-	monEndpointMap := map[string]*mon.CephMonitorConfig{}
+	monEndpointMap := map[string]*cephconfig.MonInfo{}
 	maxMonID := -1
 	monMapping := &Mapping{
 		Node: map[string]*NodeInfo{},
@@ -125,7 +126,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 
 	// Parse the monitor List
 	if info, ok := cm.Data[EndpointDataKey]; ok {
-		monEndpointMap = mon.ParseMonEndpoints(info)
+		monEndpointMap = mondaemon.ParseMonEndpoints(info)
 	}
 
 	// Parse the max monitor id
@@ -138,7 +139,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 
 	// Make sure the max id is consistent with the current monitors
 	for _, m := range monEndpointMap {
-		id, _ := getMonID(m.Name)
+		id, _ := fullNameToIndex(m.Name)
 		if maxMonID < id {
 			maxMonID = id
 		}
@@ -153,19 +154,7 @@ func loadMonConfig(clientset kubernetes.Interface, namespace string) (map[string
 	return monEndpointMap, maxMonID, monMapping, nil
 }
 
-// get the ID of a monitor from its name
-func getMonID(name string) (int, error) {
-	if strings.Index(name, appName) != 0 || len(name) < len(appName) {
-		return -1, fmt.Errorf("unexpected mon name")
-	}
-	id, err := strconv.Atoi(name[len(appName):])
-	if err != nil {
-		return -1, err
-	}
-	return id, nil
-}
-
-func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *mon.ClusterInfo, ownerRef *metav1.OwnerReference) error {
+func createClusterAccessSecret(clientset kubernetes.Interface, namespace string, clusterInfo *cephconfig.ClusterInfo, ownerRef *metav1.OwnerReference) error {
 	logger.Infof("creating mon secrets for a new cluster")
 	var err error
 
@@ -184,9 +173,7 @@ func createClusterAccessSecret(clientset kubernetes.Interface, namespace string,
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	if ownerRef != nil {
-		secret.OwnerReferences = []metav1.OwnerReference{*ownerRef}
-	}
+	k8sutil.SetOwnerRef(clientset, namespace, &secret.ObjectMeta, ownerRef)
 
 	if _, err = clientset.CoreV1().Secrets(namespace).Create(secret); err != nil {
 		return fmt.Errorf("failed to save mon secrets. %+v", err)
@@ -204,59 +191,8 @@ func monInQuorum(monitor client.MonMapEntry, quorum []int) bool {
 	return false
 }
 
-func validNode(node v1.Node, placement rookalpha.Placement) bool {
-	// a node cannot be disabled
-	if node.Spec.Unschedulable {
-		return false
-	}
-
-	// a node matches the NodeAffinity configuration
-	// ignoring `PreferredDuringSchedulingIgnoredDuringExecution` terms: they
-	// should not be used to judge a node unusable
-	if placement.NodeAffinity != nil && placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution != nil {
-		nodeMatches := false
-		for _, req := range placement.NodeAffinity.RequiredDuringSchedulingIgnoredDuringExecution.NodeSelectorTerms {
-			nodeSelector, err := helper.NodeSelectorRequirementsAsSelector(req.MatchExpressions)
-			if err != nil {
-				logger.Infof("failed to parse MatchExpressions: %+v, regarding as not match.", req.MatchExpressions)
-				return false
-			}
-			if nodeSelector.Matches(labels.Set(node.Labels)) {
-				nodeMatches = true
-				break
-			}
-		}
-		if !nodeMatches {
-			return false
-		}
-	}
-
-	// a node is tainted and cannot be tolerated
-	for _, taint := range node.Spec.Taints {
-		isTolerated := false
-		for _, toleration := range placement.Tolerations {
-			if toleration.ToleratesTaint(&taint) {
-				isTolerated = true
-				break
-			}
-		}
-		if !isTolerated {
-			return false
-		}
-	}
-
-	// a node must be Ready
-	for _, c := range node.Status.Conditions {
-		if c.Type == v1.NodeReady {
-			return true
-		}
-	}
-	logger.Infof("node %s is not ready. %+v", node.Name, node.Status.Conditions)
-	return false
-}
-
 // create new cluster info (FSID, shared keys)
-func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*mon.ClusterInfo, error) {
+func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*cephconfig.ClusterInfo, error) {
 	fsid, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
@@ -280,7 +216,7 @@ func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*mon
 		return nil, err
 	}
 
-	return &mon.ClusterInfo{
+	return &cephconfig.ClusterInfo{
 		FSID:          fsid.String(),
 		MonitorSecret: monSecret,
 		AdminSecret:   adminSecret,
@@ -320,4 +256,23 @@ func extractKey(contents string) (string, error) {
 		return "", fmt.Errorf("failed to parse secret")
 	}
 	return secret, nil
+}
+
+// convert the mon name to the numeric mon ID
+func fullNameToIndex(name string) (int, error) {
+	prefix := appName + "-"
+	if strings.Index(name, prefix) != -1 && len(prefix) < len(name) {
+		return k8sutil.NameToIndex(name[len(prefix)+1:])
+	}
+
+	// attempt to parse the legacy mon name
+	legacyPrefix := appName
+	if strings.Index(name, legacyPrefix) == -1 || len(name) < len(appName) {
+		return -1, fmt.Errorf("unexpected mon name")
+	}
+	id, err := strconv.Atoi(name[len(legacyPrefix):])
+	if err != nil {
+		return -1, err
+	}
+	return id, nil
 }

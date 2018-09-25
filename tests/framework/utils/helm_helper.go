@@ -27,18 +27,19 @@ import (
 //HelmHelper is wrapper for running helm commands
 type HelmHelper struct {
 	executor *exec.CommandExecutor
+	HelmPath string
 }
 
 //NewHelmHelper creates a instance of HelmHelper
-func NewHelmHelper() *HelmHelper {
+func NewHelmHelper(helmPath string) *HelmHelper {
 	executor := &exec.CommandExecutor{}
-	return &HelmHelper{executor: executor}
+	return &HelmHelper{executor: executor, HelmPath: helmPath}
 
 }
 
 //Execute is wrapper for executing helm commands
 func (h *HelmHelper) Execute(args ...string) (string, error) {
-	result, err := h.executor.ExecuteCommandWithOutput(false, "", "helm", args...)
+	result, err := h.executor.ExecuteCommandWithOutput(false, "", h.HelmPath, args...)
 	if err != nil {
 		logger.Errorf("Errors Encountered while executing helm command %v: %v", result, err)
 		return result, fmt.Errorf("Failed to run helm commands on args %v : %v , err -> %v", args, result, err)

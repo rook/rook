@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package rgw
 
 import (
@@ -273,7 +274,7 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 			if isECPool {
 				// An EC pool backing an object store does not need to enable EC overwrites, so the pool is
 				// created with that property disabled to avoid unnecessary performance impact.
-				err = ceph.CreateECPoolForApp(context.context, context.ClusterName, cephConfig, appName, false /* enableECOverwrite */)
+				err = ceph.CreateECPoolForApp(context.context, context.ClusterName, cephConfig, appName, false /* enableECOverwrite */, poolSpec.ErasureCodedConfig)
 			} else {
 				err = ceph.CreateReplicatedPoolForApp(context.context, context.ClusterName, cephConfig, appName)
 			}

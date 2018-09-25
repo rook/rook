@@ -22,6 +22,7 @@ import (
 	"math/rand"
 	"strconv"
 	"time"
+
 	// import mysql driver
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/icrowley/fake"
@@ -32,7 +33,7 @@ type MySQLHelper struct {
 	DB *sql.DB
 }
 
-// CreateNewMySQLHelper creates a s3 client for specfied endpoint and creds
+// CreateNewMySQLHelper creates a s3 client for specified endpoint and creds
 func CreateNewMySQLHelper(username string, password string, url string, dbname string) *MySQLHelper {
 	dataSourceName := username + ":" + password + "@tcp(" + url + ")/" + dbname
 	db, err := sql.Open("mysql", dataSourceName)

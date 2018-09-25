@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package mon for the Ceph monitors.
 package mon
 
 import (
@@ -23,19 +22,21 @@ import (
 
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
+	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var (
-	// HealthCheckInterval interval to check the mons to be in quorum
+	// HealthCheckInterval is the interval to check if the mons are in quorum
 	HealthCheckInterval = 45 * time.Second
-	// MonOutTimeout the duration to wait before removing/failover to a new mon pod
+	// MonOutTimeout is the duration to wait before removing/failover to a new mon pod
 	MonOutTimeout = 300 * time.Second
 )
 
-// HealthChecker check health for the monitors
+// HealthChecker aggregates the mon/cluster info needed to check the health of the monitors
 type HealthChecker struct {
 	monCluster *Cluster
 }
@@ -47,12 +48,12 @@ func NewHealthChecker(monCluster *Cluster) *HealthChecker {
 	}
 }
 
-// Check periodically the health of the monitors
+// Check periodically checks the health of the monitors
 func (hc *HealthChecker) Check(stopCh chan struct{}) {
 	for {
 		select {
 		case <-stopCh:
-			logger.Infof("Stopping monitoring of cluster in namespace %s", hc.monCluster.Namespace)
+			logger.Infof("Stopping monitoring of mons in namespace %s", hc.monCluster.Namespace)
 			return
 
 		case <-time.After(HealthCheckInterval):
@@ -76,22 +77,22 @@ func (c *Cluster) checkHealth() error {
 	}
 	logger.Debugf("Mon status: %+v", status)
 
-	// Source of thruth of which mons should exist is our *clusterInfo*
+	// Source of truth of which mons should exist is our *clusterInfo*
 	monsNotFound := map[string]interface{}{}
 	for _, mon := range c.clusterInfo.Monitors {
 		monsNotFound[mon.Name] = struct{}{}
 	}
 
-	// first handle mons that are not in quorum but in the cecph mon map
-	//failover the unhealthy mons
+	// first handle mons that are not in quorum but in the ceph mon map
+	// failover the unhealthy mons
 	for _, mon := range status.MonMap.Mons {
 		inQuorum := monInQuorum(mon, status.Quorum)
 		// if the mon is in quorum remove it from our check for "existence"
-		//else see below condition
+		// else see below condition
 		if _, ok := monsNotFound[mon.Name]; ok {
 			delete(monsNotFound, mon.Name)
 		} else {
-			// when the mon isn't in the clusterInfo, but is in qorum and there are
+			// when the mon isn't in the clusterInfo, but is in quorum and there are
 			//enough mons, remove it else remove it on the next run
 			if inQuorum && len(status.MonMap.Mons) > c.Size {
 				logger.Warningf("mon %s not in source of truth but in quorum, removing", mon.Name)
@@ -137,7 +138,7 @@ func (c *Cluster) checkHealth() error {
 	}
 
 	// after all unhealthy mons have been removed/failovered
-	//handle all mons that haven't been in the Ceph mon map
+	// handle all mons that haven't been in the Ceph mon map
 	for mon := range monsNotFound {
 		logger.Warningf("mon %s NOT found in ceph mon map, failover", mon)
 		c.failMon(len(c.clusterInfo.Monitors), mon)
@@ -200,7 +201,10 @@ func (c *Cluster) checkMonsOnValidNodes() (bool, error) {
 			return true, err
 		}
 		// check if node the mon is on is still valid
-		if !validNode(*node, c.placement) {
+		valid, err := k8sutil.ValidNode(*node, c.placement)
+		if err != nil {
+			logger.Warning("failed to validate node %s %v", node.Name, err)
+		} else if !valid {
 			logger.Warningf("node %s isn't valid anymore, failover mon %s", nInfo.Name, mon)
 			c.failoverMon(mon)
 			return true, nil
@@ -210,7 +214,7 @@ func (c *Cluster) checkMonsOnValidNodes() (bool, error) {
 	return false, nil
 }
 
-// failMon monCount is compared against c.Size (wanted mon count)
+// failMon compares the monCount against c.Size (wanted mon count)
 func (c *Cluster) failMon(monCount int, name string) {
 	if monCount > c.Size {
 		// no need to create a new mon since we have an extra
@@ -229,8 +233,8 @@ func (c *Cluster) failoverMon(name string) error {
 	logger.Infof("Failing over monitor %s", name)
 
 	// Start a new monitor
-	m := &monConfig{Name: fmt.Sprintf("%s%d", appName, c.maxMonID+1), Port: int32(mon.DefaultPort)}
-	logger.Infof("starting new mon %s", m.Name)
+	m := newMonConfig(c.maxMonID + 1)
+	logger.Infof("starting new mon: %+v", m)
 
 	// Create the service endpoint
 	serviceIP, err := c.createService(m)
@@ -246,19 +250,19 @@ func (c *Cluster) failoverMon(name string) error {
 	}
 
 	if c.HostNetwork {
-		node, ok := c.mapping.Node[m.Name]
+		node, ok := c.mapping.Node[m.DaemonName]
 		if !ok {
-			return fmt.Errorf("mon %s doesn't exist in assignment map", m.Name)
+			return fmt.Errorf("mon %s doesn't exist in assignment map", m.DaemonName)
 		}
 		m.PublicIP = node.Address
 	} else {
 		m.PublicIP = serviceIP
 	}
-	c.clusterInfo.Monitors[m.Name] = mon.ToCephMon(m.Name, m.PublicIP, m.Port)
+	c.clusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 
-	// Start the pod
-	if err = c.startPods(mConf); err != nil {
-		return fmt.Errorf("failed to start new mon %s. %+v", m.Name, err)
+	// Start the deployment
+	if err = c.startDeployments(mConf, len(mConf)-1); err != nil {
+		return fmt.Errorf("failed to start new mon %s. %+v", m.DaemonName, err)
 	}
 
 	// Only increment the max mon id if the new pod started successfully
@@ -267,59 +271,61 @@ func (c *Cluster) failoverMon(name string) error {
 	return c.removeMon(name)
 }
 
-func (c *Cluster) removeMon(name string) error {
-	logger.Infof("ensuring removal of unhealthy monitor %s", name)
+func (c *Cluster) removeMon(daemonName string) error {
+	logger.Infof("ensuring removal of unhealthy monitor %s", daemonName)
+
+	resourceName := resourceName(daemonName)
 
 	// Remove the mon pod if it is still there
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-	if err := c.context.Clientset.Extensions().ReplicaSets(c.Namespace).Delete(name, options); err != nil {
+	if err := c.context.Clientset.Extensions().Deployments(c.Namespace).Delete(resourceName, options); err != nil {
 		if errors.IsNotFound(err) {
-			logger.Infof("dead mon %s was already gone", name)
+			logger.Infof("dead mon %s was already gone", resourceName)
 		} else {
-			return fmt.Errorf("failed to remove dead mon pod %s. %+v", name, err)
+			return fmt.Errorf("failed to remove dead mon deployment %s. %+v", resourceName, err)
 		}
 	}
 
 	// Remove the bad monitor from quorum
-	if err := removeMonitorFromQuorum(c.context, c.clusterInfo.Name, name); err != nil {
-		return fmt.Errorf("failed to remove mon %s from quorum. %+v", name, err)
+	if err := removeMonitorFromQuorum(c.context, c.clusterInfo.Name, daemonName); err != nil {
+		return fmt.Errorf("failed to remove mon %s from quorum. %+v", daemonName, err)
 	}
-	delete(c.clusterInfo.Monitors, name)
+	delete(c.clusterInfo.Monitors, daemonName)
 	// check if a mapping exists for the mon
-	if _, ok := c.mapping.Node[name]; ok {
-		nodeName := c.mapping.Node[name].Name
-		delete(c.mapping.Node, name)
+	if _, ok := c.mapping.Node[daemonName]; ok {
+		nodeName := c.mapping.Node[daemonName].Name
+		delete(c.mapping.Node, daemonName)
 		// if node->port "mapping" has been created, decrease or delete it
 		if port, ok := c.mapping.Port[nodeName]; ok {
-			if port == mon.DefaultPort {
+			if port == mondaemon.DefaultPort {
 				delete(c.mapping.Port, nodeName)
 			}
 			// don't clean up if a node port is higher than the default port, other
-			//mons could be on the same node with > DefaultPort ports, decreasing could
-			//cause port collsions
+			// mons could be on the same node with > DefaultPort ports, decreasing could
+			// cause port collisions
 			// This can be solved by using a map[nodeName][]int32 for the ports to
-			//even better check which ports are open for the HostNetwork mode
+			// even better check which ports are open for the HostNetwork mode
 		}
 	}
 
 	// Remove the service endpoint
-	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(name, options); err != nil {
+	if err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(resourceName, options); err != nil {
 		if errors.IsNotFound(err) {
-			logger.Infof("dead mon service %s was already gone", name)
+			logger.Infof("dead mon service %s was already gone", resourceName)
 		} else {
-			return fmt.Errorf("failed to remove dead mon pod %s. %+v", name, err)
+			return fmt.Errorf("failed to remove dead mon service %s. %+v", resourceName, err)
 		}
 	}
 
 	if err := c.saveMonConfig(); err != nil {
-		return fmt.Errorf("failed to save mon config after failing over mon %s. %+v", name, err)
+		return fmt.Errorf("failed to save mon config after failing over mon %s. %+v", daemonName, err)
 	}
 
 	// make sure to rewrite the config so NO new connections are made to the removed mon
-	if err := WriteConnectionConfig(c.context, c.clusterInfo); err != nil {
-		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", name, err)
+	if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
+		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", daemonName, err)
 	}
 
 	return nil

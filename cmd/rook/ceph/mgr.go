@@ -13,12 +13,13 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package ceph
 
 import (
 	"github.com/rook/rook/cmd/rook/rook"
-	"github.com/rook/rook/pkg/daemon/ceph/mgr"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	mgrdaemon "github.com/rook/rook/pkg/daemon/ceph/mgr"
+	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
@@ -29,23 +30,25 @@ var (
 )
 
 var mgrCmd = &cobra.Command{
-	Use:    "mgr",
-	Short:  "Generates mgr config and runs the mgr daemon",
+	Use:    mgrdaemon.InitCommand,
+	Short:  "Generates mgr config",
 	Hidden: true,
 }
 
 func init() {
-	mgrCmd.Flags().StringVar(&mgrName, "mgr-name", "", "the mgr name")
+	mgrCmd.Flags().StringVar(&mgrName, "mgr-name", "", "name of the mgr")
 	mgrCmd.Flags().StringVar(&mgrKeyring, "mgr-keyring", "", "the mgr keyring")
 	addCephFlags(mgrCmd)
 
 	flags.SetFlagsFromEnv(mgrCmd.Flags(), rook.RookEnvVarPrefix)
 
-	mgrCmd.RunE = startMgr
+	mgrCmd.RunE = initMgr
 }
 
-func startMgr(cmd *cobra.Command, args []string) error {
-	required := []string{"mon-endpoints", "cluster-name", "mon-secret", "admin-secret"}
+func initMgr(cmd *cobra.Command, args []string) error {
+	required := []string{
+		"mgr-name", "mgr-keyring",
+		"mon-endpoints", "cluster-name", "mon-secret", "admin-secret"}
 	if err := flags.VerifyRequiredFlags(mgrCmd, required); err != nil {
 		return err
 	}
@@ -58,14 +61,14 @@ func startMgr(cmd *cobra.Command, args []string) error {
 
 	rook.LogStartupInfo(mgrCmd.Flags())
 
-	clusterInfo.Monitors = mon.ParseMonEndpoints(cfg.monEndpoints)
-	config := &mgr.Config{
+	clusterInfo.Monitors = mondaemon.ParseMonEndpoints(cfg.monEndpoints)
+	config := &mgrdaemon.Config{
 		Name:        mgrName,
 		Keyring:     mgrKeyring,
 		ClusterInfo: &clusterInfo,
 	}
 
-	err := mgr.Run(createContext(), config)
+	err := mgrdaemon.Initialize(createContext(), config)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}

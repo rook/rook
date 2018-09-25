@@ -56,9 +56,7 @@ override BRANCH_NAME := pr/$(BRANCH_NAME)
 endif
 
 DOCKER_REGISTRY ?= rook
-QUAY_REGISTRY ?= quay.io/rook
-REGISTRIES ?= $(DOCKER_REGISTRY) $(QUAY_REGISTRY)
-IMAGES ?= ceph ceph-toolbox cockroachdb minio
+REGISTRIES ?= $(DOCKER_REGISTRY)
 IMAGE_ARCHS := $(subst linux_,,$(filter linux_%,$(PLATFORMS)))
 IMAGE_PLATFORMS := $(subst _,/,$(subst $(SPACE),$(COMMA),$(filter linux_%,$(PLATFORMS))))
 
@@ -154,7 +152,11 @@ promote.output:
 
 # 1: registry 2: image, 3: arch
 define repo.targets
-build.image.$(1).$(2).$(3): ; @docker tag $(BUILD_REGISTRY)/$(2)-$(3) $(1)/$(2)-$(3):$(VERSION)
+build.image.$(1).$(2).$(3):
+	@docker tag $(BUILD_REGISTRY)/$(2)-$(3) $(1)/$(2)-$(3):$(VERSION)
+	@# Save image as _output/images/linux_<arch>/<image>.tar.gz (no builds for darwin or windows)
+	@mkdir -p $(OUTPUT_DIR)/images/linux_$(3)
+	@docker save $(BUILD_REGISTRY)/$(2)-$(3) | gzip -c > $(OUTPUT_DIR)/images/linux_$(3)/$(2).tar.gz
 build.all.images: build.image.$(1).$(2).$(3)
 publish.image.$(1).$(2).$(3): ; @docker push $(1)/$(2)-$(3):$(VERSION)
 publish.all.images: publish.image.$(1).$(2).$(3)

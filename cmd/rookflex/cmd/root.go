@@ -35,7 +35,7 @@ const (
 )
 
 var RootCmd = &cobra.Command{
-	Use:           "rook",
+	Use:           "rookflex",
 	Short:         "Rook Flex volume plugin",
 	SilenceErrors: true,
 	SilenceUsage:  true,

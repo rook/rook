@@ -49,66 +49,66 @@ func TestCockroachDBSuite(t *testing.T) {
 
 type CockroachDBSuite struct {
 	suite.Suite
-	k8sHelper       *utils.K8sHelper
-	installHelper   *installer.InstallHelper
+	k8shelper       *utils.K8sHelper
+	installer       *installer.CockroachDBInstaller
 	namespace       string
 	systemNamespace string
 	instanceCount   int
 }
 
 func (suite *CockroachDBSuite) SetupSuite() {
-	suite.SetUp()
+	suite.Setup()
 }
 
 func (suite *CockroachDBSuite) TearDownSuite() {
-	suite.TearDown()
+	suite.Teardown()
 }
 
-func (suite *CockroachDBSuite) SetUp() {
+func (suite *CockroachDBSuite) Setup() {
 	suite.namespace = "cockroachdb-ns"
 	suite.systemNamespace = installer.SystemNamespace(suite.namespace)
 	suite.instanceCount = 1
 
-	k8sHelper, err := utils.CreateK8sHelper(suite.T)
+	k8shelper, err := utils.CreateK8sHelper(suite.T)
 	require.NoError(suite.T(), err)
-	suite.k8sHelper = k8sHelper
+	suite.k8shelper = k8shelper
 
-	k8sversion := suite.k8sHelper.GetK8sServerVersion()
+	k8sversion := suite.k8shelper.GetK8sServerVersion()
 	logger.Infof("Installing cockroachdb on k8s %s", k8sversion)
 
-	suite.installHelper = installer.NewK8sRookhelper(suite.k8sHelper.Clientset, suite.T)
+	suite.installer = installer.NewCockroachDBInstaller(suite.k8shelper, suite.T)
 
-	err = suite.installHelper.InstallCockroachDB(suite.systemNamespace, suite.namespace, suite.instanceCount)
+	err = suite.installer.InstallCockroachDB(suite.systemNamespace, suite.namespace, suite.instanceCount)
 	if err != nil {
 		logger.Errorf("cockroachdb was not installed successfully: %+v", err)
 		suite.T().Fail()
-		suite.TearDown()
+		suite.Teardown()
 		suite.T().FailNow()
 	}
 }
 
-func (suite *CockroachDBSuite) TearDown() {
+func (suite *CockroachDBSuite) Teardown() {
 	if suite.T().Failed() {
-		installer.GatherCockroachDBDebuggingInfo(suite.k8sHelper, suite.systemNamespace)
-		installer.GatherCockroachDBDebuggingInfo(suite.k8sHelper, suite.namespace)
-		suite.installHelper.GatherAllCockroachDBLogs(suite.systemNamespace, suite.namespace, suite.T().Name())
+		installer.GatherCRDObjectDebuggingInfo(suite.k8shelper, suite.systemNamespace)
+		installer.GatherCRDObjectDebuggingInfo(suite.k8shelper, suite.namespace)
+		suite.installer.GatherAllCockroachDBLogs(suite.systemNamespace, suite.namespace, suite.T().Name())
 	}
-	suite.installHelper.UninstallCockroachDB(suite.systemNamespace, suite.namespace)
+	suite.installer.UninstallCockroachDB(suite.systemNamespace, suite.namespace)
 }
 
 func (suite *CockroachDBSuite) TestCockroachDBClusterInstallation() {
 	logger.Infof("Verifying that all expected pods in cockroachdb cluster %s are running", suite.namespace)
 
 	// verify cockroachdb operator is running OK
-	assert.True(suite.T(), suite.k8sHelper.CheckPodCountAndState("rook-cockroachdb-operator", suite.systemNamespace, 1, "Running"),
+	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState("rook-cockroachdb-operator", suite.systemNamespace, 1, "Running"),
 		"1 rook-cockroachdb-operator must be in Running state")
 
 	// verify cockroachdb cluster instances are running OK
-	assert.True(suite.T(), suite.k8sHelper.CheckPodCountAndState("rook-cockroachdb", suite.namespace, suite.instanceCount, "Running"),
+	assert.True(suite.T(), suite.k8shelper.CheckPodCountAndState("rook-cockroachdb", suite.namespace, suite.instanceCount, "Running"),
 		fmt.Sprintf("%d rook-cockroachdb pods must be in Running state", suite.instanceCount))
 
 	// determine the cockroachdb operator pod name
-	podNames, err := suite.k8sHelper.GetPodNamesForApp("rook-cockroachdb-operator", suite.systemNamespace)
+	podNames, err := suite.k8shelper.GetPodNamesForApp("rook-cockroachdb-operator", suite.systemNamespace)
 	require.NoError(suite.T(), err)
 	require.Equal(suite.T(), 1, len(podNames))
 	operatorPodName := podNames[0]
@@ -123,7 +123,7 @@ func (suite *CockroachDBSuite) TestCockroachDBClusterInstallation() {
 	inc := 0
 	var result string
 	for inc < utils.RetryLoop {
-		result, err = suite.k8sHelper.Exec(suite.systemNamespace, operatorPodName, command, commandArgs)
+		result, err = suite.k8shelper.Exec(suite.systemNamespace, operatorPodName, command, commandArgs)
 		logger.Infof("cockroachdb sql command exited, err: %+v. result: %s", err, result)
 		if err == nil {
 			break

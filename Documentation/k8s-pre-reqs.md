@@ -9,7 +9,7 @@ Rook can be installed on any existing Kubernetes clusters as long as it meets th
 
 ## Minimum Version
 
-Kubernetes v1.7 or higher is supported by Rook.
+Kubernetes v1.8 or higher is supported by Rook.
 
 ## Privileges and RBAC
 
@@ -67,12 +67,12 @@ Then wait for the cluster to come up and verify that kubernetes is done initiali
 kubectl cluster-info
 ```
 
-Once you see a url response, your cluster is [ready for use by Rook](quickstart.md#deploy-rook).
+Once you see a url response, your cluster is [ready for use by Rook](ceph-quickstart.md#deploy-rook).
 
 
 ## Using Rook in Kubernetes
 
-Now that you have a Kubernetes cluster running, you can start using Rook with [these steps](quickstart.md#deploy-rook).
+Now that you have a Kubernetes cluster running, you can start using Rook with [these steps](ceph-quickstart.md#deploy-rook).
 
 ## Using Rook on Tectonic Bare Metal
 

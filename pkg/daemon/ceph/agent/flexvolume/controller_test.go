@@ -716,7 +716,7 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 		},
 		Spec: v1.PersistentVolumeSpec{
 			PersistentVolumeSource: v1.PersistentVolumeSource{
-				FlexVolume: &v1.FlexVolumeSource{
+				FlexVolume: &v1.FlexPersistentVolumeSource{
 					Driver:   "ceph.rook.io/rook",
 					FSType:   "ext4",
 					ReadOnly: false,
@@ -724,6 +724,7 @@ func TestGetAttachInfoFromMountDir(t *testing.T) {
 						StorageClassKey: "storageClass1",
 						PoolKey:         "pool123",
 						ImageKey:        "pvc-123",
+						DataPoolKey:     "",
 					},
 				},
 			},

@@ -7,7 +7,7 @@ indent: true
 # Tectonic Bare Metal
 Here is a running guide on how to implement Rook on Tectonic. A complete guide on how to install Tectonic is out of the scope of the Rook project. More info can be found on the [Tectonic website](https://coreos.com/tectonic/docs/latest/)
 
-## Prequisites
+## Prerequisites
 - An installed tectonic-installer. These steps are described on [the Tectonic website](https://coreos.com/tectonic/docs/latest/install/bare-metal/#4-tectonic-installer)
 - A running matchbox node which will do the provisioning (Matchbox is only required if you are running Tectonic on Bare metal)
 - You can run through all steps of the GUI installer, but in the last step, choose `Boot manually`. This way we can make the necessary changes first.
@@ -44,5 +44,5 @@ Visit the official [Tectonic manual boot](https://coreos.com/tectonic/docs/lates
 **Remark:** The Tectonic installer contains the correct terraform binary out of the box. This terraform binary can be found in following directory `~/tectonic/tectonic-installer/linux`.
 
 ## Start Rook
-After the Tectonic Installer ran and the Kubernetes cluster is started and ready, you can follow the [Rook installation guide](quickstart.md).
+After the Tectonic Installer ran and the Kubernetes cluster is started and ready, you can follow the [Rook installation guide](ceph-quickstart.md).
 If you want to specify which disks Rook uses, follow the instructions in [creating Rook clusters](ceph-cluster-crd.md)

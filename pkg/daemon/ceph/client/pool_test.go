@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/rook/rook/pkg/daemon/ceph/model"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 
@@ -39,10 +40,15 @@ func TestCreateECPoolWithOverwrites(t *testing.T) {
 				return "", nil
 			}
 			if args[2] == "set" {
-				assert.Equal(t, "mypool", args[3])
-				assert.Equal(t, "allow_ec_overwrites", args[4])
-				assert.Equal(t, "true", args[5])
-				return "", nil
+				if args[4] == "allow_ec_overwrites" {
+					assert.Equal(t, "mypool", args[3])
+					assert.Equal(t, "true", args[5])
+					return "", nil
+				} else if args[4] == "min_size" {
+					assert.Equal(t, "mypool", args[3])
+					assert.Equal(t, "1", args[5])
+					return "", nil
+				}
 			}
 			if args[2] == "application" {
 				assert.Equal(t, "enable", args[3])
@@ -54,7 +60,7 @@ func TestCreateECPoolWithOverwrites(t *testing.T) {
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
-	err := CreateECPoolForApp(context, "myns", p, "myapp", true)
+	err := CreateECPoolForApp(context, "myns", p, "myapp", true, model.ErasureCodedPoolConfig{DataChunkCount: 1})
 	assert.Nil(t, err)
 }
 
@@ -71,6 +77,12 @@ func TestCreateECPoolWithoutOverwrites(t *testing.T) {
 				assert.Equal(t, p.ErasureCodeProfile, args[6])
 				return "", nil
 			}
+			if args[2] == "set" {
+				assert.Equal(t, "mypool", args[3])
+				assert.Equal(t, "min_size", args[4])
+				assert.Equal(t, "1", args[5])
+				return "", nil
+			}
 			if args[2] == "application" {
 				assert.Equal(t, "enable", args[3])
 				assert.Equal(t, "mypool", args[4])
@@ -81,7 +93,7 @@ func TestCreateECPoolWithoutOverwrites(t *testing.T) {
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
-	err := CreateECPoolForApp(context, "myns", p, "myapp", false)
+	err := CreateECPoolForApp(context, "myns", p, "myapp", false, model.ErasureCodedPoolConfig{DataChunkCount: 1})
 	assert.Nil(t, err)
 }
 

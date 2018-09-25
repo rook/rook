@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package rgw
 
 import (
@@ -25,7 +26,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/util"
 )
 
@@ -38,7 +39,7 @@ type Config struct {
 	SecurePort      int
 	Keyring         string
 	CertificatePath string
-	ClusterInfo     *mon.ClusterInfo
+	ClusterInfo     *cephconfig.ClusterInfo
 }
 
 func Run(context *clusterd.Context, config *Config) error {
@@ -93,7 +94,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		"rgw_zone":                       config.Name,
 		"rgw_zonegroup":                  config.Name,
 	}
-	_, err := mon.GenerateConfigFile(context, config.ClusterInfo, getRGWConfDir(context.ConfigDir),
+	_, err := cephconfig.GenerateConfigFile(context, config.ClusterInfo, getRGWConfDir(context.ConfigDir),
 		"client.radosgw.gateway", getRGWKeyringPath(context.ConfigDir), nil, settings)
 	if err != nil {
 		return fmt.Errorf("failed to create config file. %+v", err)
@@ -104,7 +105,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	}
 
 	// create rgw config
-	err = mon.WriteKeyring(getRGWKeyringPath(context.ConfigDir), config.Keyring, keyringEval)
+	err = cephconfig.WriteKeyring(getRGWKeyringPath(context.ConfigDir), config.Keyring, keyringEval)
 	if err != nil {
 		return fmt.Errorf("failed to save keyring. %+v", err)
 	}

@@ -9,26 +9,6 @@ KUBE_INSTALL_VERSION="${KUBE_VERSION/v/$null_str}"-00
 # Disabling swap when installing k8s 1.8.x via kubeadm
 sudo swapoff -a
 
-# init flexvolume
-if [[ $KUBE_VERSION == v1.7* ]] ;
-then
-    sudo mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook
-    cat << EOF | sudo tee -a /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook/rook
-#!/bin/bash
-echo -ne '{"status": "Success", "capabilities": {"attach": false}}' >&1
-exit 0
-EOF
-    sudo chmod +x /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook/rook
-
-    sudo mkdir -p /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ceph.rook.io~rook
-    cat << EOF | sudo tee -a /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ceph.rook.io~rook/rook
-#!/bin/bash
-echo -ne '{"status": "Success", "capabilities": {"attach": false}}' >&1
-exit 0
-EOF
-    sudo chmod +x /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ceph.rook.io~rook/rook
-fi
-
 wait_for_dpkg_unlock() {
     #wait for dpkg lock to disappear.
     retry=0
@@ -74,3 +54,5 @@ sudo apt-get install -y kubelet="${KUBE_INSTALL_VERSION}"  && sudo apt-get insta
 wget "https://storage.googleapis.com/kubernetes-release/release/${KUBE_VERSION}/bin/linux/amd64/kubectl"
 chmod +x kubectl
 sudo cp kubectl /usr/local/bin
+
+sudo apt-get install -y nfs-common

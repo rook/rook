@@ -14,29 +14,31 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package test for the operator tests
+// Package test provides common resources useful for testing many operators. This includes functions
+// for creating fake/mock resources and functions for testing that resources match what is expected.
 package test
 
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 )
 
 // CreateConfigDir creates a test cluster
-func CreateConfigDir(mons int) *mon.ClusterInfo {
-	c := &mon.ClusterInfo{
+func CreateConfigDir(monCount int) *cephconfig.ClusterInfo {
+	c := &cephconfig.ClusterInfo{
 		FSID:          "12345",
 		Name:          "default",
 		MonitorSecret: "monsecret",
 		AdminSecret:   "adminsecret",
-		Monitors:      map[string]*mon.CephMonitorConfig{},
+		Monitors:      map[string]*cephconfig.MonInfo{},
 	}
-	for i := 1; i <= mons; i++ {
-		id := fmt.Sprintf("rook-ceph-mon%d", i)
-		c.Monitors[id] = &mon.CephMonitorConfig{
+	mons := []string{"a", "b", "c", "d", "e"}
+	for i := 0; i < monCount; i++ {
+		id := mons[i]
+		c.Monitors[id] = &cephconfig.MonInfo{
 			Name:     id,
-			Endpoint: fmt.Sprintf("1.2.3.%d:6790", i),
+			Endpoint: fmt.Sprintf("1.2.3.%d:6790", i+1),
 		}
 	}
 	return c

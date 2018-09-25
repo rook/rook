@@ -3,16 +3,24 @@ title: Ceph Shared File System
 weight: 35
 indent: true
 ---
-
+{% assign url = page.url | split: '/' %}
+{% assign currentVersion = url[3] %}
+{% if currentVersion != 'master' %}
+{% assign branchName = currentVersion | replace: 'v', '' | prepend: 'release-' %}
+{% else %}
+{% assign branchName = currentVersion %}
+{% endif %}
 # Ceph Shared File System CRD
 
 Rook allows creation and customization of shared file systems through the custom resource definitions (CRDs). The following settings are available
 for Ceph file systems.
 
-## Sample
+## Samples
+
+### Replicated
 
 ```yaml
-apiVersion: ceph.rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: Filesystem
 metadata:
   name: myfs
@@ -22,9 +30,8 @@ spec:
     replicated:
       size: 3
   dataPools:
-    - erasureCoded:
-       dataChunks: 2
-       codingChunks: 1
+    - replicated:
+        size: 3
   metadataServer:
     activeCount: 1
     activeStandby: true
@@ -51,6 +58,38 @@ spec:
     #    memory: "1024Mi"
 ```
 
+(These definitions can also be found in the [`filesystem.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/filesystem.yaml) file)
+
+### Erasure Coded
+
+If you want to use erasure coded pool with filesystem, your OSDs must use `bluestore` as their `storeType`.
+Additionally erasure coded can only be used as a data pool and not as a metadata pool. The metadata pool must still be a replicated pool.
+
+The sample below requires that you have at least 3 `bluestore` OSDs on different nodes.
+For erasure coded to make sense, you need **at least three OSDs for the below `dataPools` config** to work.
+
+```yaml
+apiVersion: ceph.rook.io/v1beta1
+kind: Filesystem
+metadata:
+  name: myfs-ec
+  namespace: rook-ceph
+spec:
+  metadataPool:
+    replicated:
+      size: 3
+  dataPools:
+    - erasureCoded:
+        dataChunks: 2
+        codingChunks: 1
+  metadataServer:
+    activeCount: 1
+    activeStandby: true
+```
+
+(These definitions can also be found in the [`ec-filesystem.yaml`](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/ec-filesystem.yaml) file)
+
+
 ## File System Settings
 
 ### Metadata
@@ -71,5 +110,5 @@ The metadata server settings correspond to the MDS daemon settings.
 
 - `activeCount`: The number of active MDS instances. As load increases, CephFS will automatically partition the file system across the MDS instances. Rook will create double the number of MDS instances as requested by the active count. The extra instances will be in standby mode for failover.
 - `activeStandby`: If true, the extra MDS instances will be in active standby mode and will keep a warm cache of the file system metadata for faster failover. The instances will be assigned by CephFS in failover pairs. If false, the extra MDS instances will all be on passive standby mode and will not maintain a warm cache of the metadata.
-- `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/ceph/cluster.yaml).
+- `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](https://github.com/rook/rook/blob/{{ branchName }}/cluster/examples/kubernetes/ceph/cluster.yaml).
 - `resources`: Set resource requests/limits for the Filesystem MDS Pod(s), see [Resource Requirements/Limits](ceph-cluster-crd.md#resource-requirementslimits).

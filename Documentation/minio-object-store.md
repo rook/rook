@@ -1,12 +1,12 @@
 ---
 title: Minio Object Store
-weight: 28
+weight: 6
 indent: true
 ---
 
-# Minio
+# Minio Object Store Quickstart
 
-Minio is a high performance distributed object storage server, designed for 
+Minio is a high performance distributed object storage server, designed for
 large-scale private cloud infrastructure.
 Rook provides an operator to deploy and manage Minio clusters.
 
@@ -30,7 +30,7 @@ You can check if the operator is up and running with:
 kubectl -n rook-minio-system get pod
 ```
 
-## Create and Initialize a Distributed Minio Object Store 
+## Create and Initialize a Distributed Minio Object Store
 
 Now that the operator is running, we can create an instance of a distributed Minio object store by creating an instance of the `objectstore.minio.rook.io` resource.
 Some of that resource's values are configurable, so feel free to browse `object-store.yaml` and tweak the settings to your liking.

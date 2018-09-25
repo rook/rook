@@ -23,7 +23,7 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/jbw976/go-ps"
+	ps "github.com/jbw976/go-ps"
 	"github.com/rook/rook/pkg/util/exec"
 )
 
@@ -175,7 +175,7 @@ func (p *ProcManager) checkProcessExists(binary, procSearchPattern string, polic
 		return true, nil
 	}
 
-	// we could't stop the existing process through our own managed proces set, try to stop the process
+	// we couldn't stop the existing process through our own managed process set, try to stop the process
 	// via a direct signal to its PID
 	if err := syscall.Kill(existingProc.Pid(), syscall.SIGKILL); err != nil {
 		return false, fmt.Errorf("failed to stop child process %d: %v", existingProc.Pid(), err)

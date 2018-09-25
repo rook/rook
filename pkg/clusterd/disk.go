@@ -35,7 +35,7 @@ func GetAvailableDevices(devices []*sys.LocalDisk) []string {
 	var available []string
 	for _, device := range devices {
 		logger.Debugf("Evaluating device %+v", device)
-		if getDeviceEmpty(device) {
+		if GetDeviceEmpty(device) {
 			logger.Debugf("Available device: %s", device.Name)
 			available = append(available, device.Name)
 		}
@@ -45,8 +45,8 @@ func GetAvailableDevices(devices []*sys.LocalDisk) []string {
 }
 
 // check whether a device is completely empty
-func getDeviceEmpty(device *sys.LocalDisk) bool {
-	return device.Parent == "" && (device.Type == sys.DiskType || device.Type == sys.SSDType || device.Type == sys.CryptType) && device.Filesystem == ""
+func GetDeviceEmpty(device *sys.LocalDisk) bool {
+	return device.Parent == "" && (device.Type == sys.DiskType || device.Type == sys.SSDType || device.Type == sys.CryptType || device.Type == sys.LVMType) && len(device.Partitions) == 0 && device.Filesystem == ""
 }
 
 func ignoreDevice(d string) bool {
@@ -120,8 +120,6 @@ func DiscoverDevices(executor exec.Executor) ([]*sys.LocalDisk, error) {
 		if val, ok := diskProps["PKNAME"]; ok {
 			disk.Parent = val
 		}
-
-		disk.Empty = getDeviceEmpty(disk)
 
 		// parse udev info output
 		if val, ok := udevInfo["DEVLINKS"]; ok {

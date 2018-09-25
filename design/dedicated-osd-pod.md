@@ -14,7 +14,7 @@ As observed, all Ceph OSDs are running in the same Pod.
 
 The limitations of current design are:
 
-- Reliability issue. One Pod for all OSDs doesn't have the highest reliability nor efficiency. If the Pod is deleted, accidentally or during maintenence, all OSDs are down till the ReplicaSet restart.
+- Reliability issue. One Pod for all OSDs doesn't have the highest reliability nor efficiency. If the Pod is deleted, accidentally or during maintenance, all OSDs are down till the ReplicaSet restart.
 - Efficiency issue. Resource limits cannot be set effectively on the OSDs since the number of osds per in the pod could vary from node to node. The operator cannot make decisions about the topology because it doesn't know in advance what devices are available on the nodes.
 - Tight Ceph coupling. The monolithic device discovery and provisioning code cannot be reused for other backends.
 - Process management issue. Rook's process management is very simple. Using Kubernetes pod management is much more reliable.
@@ -24,11 +24,11 @@ A more comprehensive discussions can be found at [this issue](https://github.com
 
 ## Terms
 
-- Device Discovery. A DaemonSet that discovers unformatted devices on the host. The DaemonSet populates a per node Raw Device Configmap with device information. The deamonSet is running on nodes that are labelled as storage nodes. The DaemonSet can start independently of Rook Operator. Device Discovery is storage backend agnostic.
+- Device Discovery. A DaemonSet that discovers unformatted devices on the host. The DaemonSet populates a per node Raw Device Configmap with device information. The daemonSet is running on nodes that are labelled as storage nodes. The DaemonSet can start independently of Rook Operator. Device Discovery is storage backend agnostic.
 
 - Device Provisioner. A Pod that is given device or directory paths upon start and make backend specific storage types. For instance, the provisioner prepares OSDs for Ceph backend. It is a Kubernetes batch job and exits after the devices are prepared.
 
-## Proposal   
+## Proposal
 
 We propose the following change to address the limitations.
 

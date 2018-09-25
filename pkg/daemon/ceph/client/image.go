@@ -18,12 +18,14 @@ package client
 import (
 	"encoding/json"
 	"fmt"
+	"syscall"
 
 	"strconv"
 
 	"regexp"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
 const (
@@ -61,7 +63,9 @@ func ListImages(context *clusterd.Context, clusterName, poolName string) ([]Ceph
 	return images, nil
 }
 
-func CreateImage(context *clusterd.Context, clusterName, name, poolName string, size uint64) (*CephBlockImage, error) {
+// CreateImage creates a block storage image.
+// If dataPoolName is not empty, the image will use poolName as the metadata pool and the dataPoolname for data.
+func CreateImage(context *clusterd.Context, clusterName, name, poolName, dataPoolName string, size uint64) (*CephBlockImage, error) {
 	if size > 0 && size < ImageMinSize {
 		// rbd tool uses MB as the smallest unit for size input.  0 is OK but anything else smaller
 		// than 1 MB should just be rounded up to 1 MB.
@@ -69,14 +73,28 @@ func CreateImage(context *clusterd.Context, clusterName, name, poolName string, 
 		size = ImageMinSize
 	}
 
-	sizeMB := int(size / 1024 / 1024)
+	// Roundup the size of the volume image since we only create images on 1MB bundaries and we should never create an image
+	// size that's smaller than the requested one, e.g, requested 1048698 bytes should be 2MB while not be truncated to 1MB
+	sizeMB := int((size + ImageMinSize - 1) / ImageMinSize)
+
 	imageSpec := getImageSpec(name, poolName)
 
 	args := []string{"create", imageSpec, "--size", strconv.Itoa(sizeMB)}
+
+	if dataPoolName != "" {
+		args = append(args, fmt.Sprintf("--data-pool=%s", dataPoolName))
+	}
+
 	buf, err := ExecuteRBDCommandNoFormat(context, clusterName, args)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create image %s in pool %s of size %d: %+v. output: %s",
-			name, poolName, size, err, string(buf))
+		cmdErr, ok := err.(*exec.CommandError)
+		if ok && cmdErr.ExitStatus() == int(syscall.EEXIST) {
+			// Image with the same name already exists in the given rbd pool. Continuing with the link to PV.
+			logger.Warningf("Requested image %s exists in pool %s. Continuing", name, poolName)
+		} else {
+			return nil, fmt.Errorf("failed to create image %s in pool %s of size %d: %+v. output: %s",
+				name, poolName, size, err, string(buf))
+		}
 	}
 
 	// now that the image is created, retrieve it
