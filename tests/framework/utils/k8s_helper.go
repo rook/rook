@@ -434,7 +434,7 @@ func (k8sh *K8sHelper) WaitForPodCount(label, namespace string, count int) error
 			return fmt.Errorf("failed to find pod with label %s. %+v", label, err)
 		}
 
-		if len(pods.Items) == count {
+		if len(pods.Items) >= count {
 			logger.Infof("found %d pods with label %s", count, label)
 			return nil
 		}

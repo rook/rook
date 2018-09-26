@@ -40,7 +40,7 @@ var osdCmd = &cobra.Command{
 	Hidden: true,
 }
 var osdConfigCmd = &cobra.Command{
-	Use:    "config",
+	Use:    "init",
 	Short:  "Updates ceph.conf for the osd",
 	Hidden: true,
 }
@@ -60,6 +60,7 @@ var (
 	mountSourcePath     string
 	mountPath           string
 	osdID               int
+	copyBinariesPath    string
 )
 
 func addOSDFlags(command *cobra.Command) {
@@ -74,8 +75,9 @@ func addOSDFlags(command *cobra.Command) {
 	provisionCmd.Flags().BoolVar(&cfg.forceFormat, "force-format", false,
 		"true to force the format of any specified devices, even if they already have a filesystem.  BE CAREFUL!")
 
-	// flags for generating the osd config file
+	// flags for generating the osd config
 	osdConfigCmd.Flags().IntVar(&osdID, "osd-id", -1, "osd id for which to generate config")
+	osdConfigCmd.Flags().StringVar(&copyBinariesPath, "copy-binaries-path", "", "If specified, copy the rook binaries to this path for use by the daemon container")
 
 	// flags for running filestore on a device
 	filestoreDeviceCmd.Flags().StringVar(&mountSourcePath, "source-path", "", "the source path of the device to mount")
@@ -171,6 +173,13 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 
 	if err := osddaemon.WriteConfigFile(context, &clusterInfo, kv, osdID, cfg.storeConfig, cfg.nodeName, crushLocation); err != nil {
 		logger.Errorf("failed to write osd config file. %+v", err)
+	}
+	if copyBinariesPath != "" {
+		if err := osddaemon.CopyBinariesForDaemon(copyBinariesPath); err != nil {
+			logger.Errorf("failed to copy rook binaries for filestore device. %+v", err)
+		} else {
+			logger.Infof("successfully copied rook binaries")
+		}
 	}
 	return nil
 }

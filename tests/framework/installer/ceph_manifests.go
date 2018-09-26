@@ -362,7 +362,7 @@ spec:
               fieldPath: metadata.namespace`
 }
 
-//GetRookCluster returns rook-cluster manifest
+//GetClusterRoles returns rook-cluster manifest
 func (m *CephManifestsMaster) GetClusterRoles(namespace, systemNamespace string) string {
 	return `apiVersion: v1
 kind: ServiceAccount
