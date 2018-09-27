@@ -193,6 +193,15 @@ rules:
   - update
   - delete
 - apiGroups:
+  - ""
+  resources:
+  # secret access is needed for mon failover used by csi storageclass 
+  resources:
+  - secrets
+  verbs:
+  - get
+  - update  
+- apiGroups:
   - storage.k8s.io
   resources:
   - storageclasses

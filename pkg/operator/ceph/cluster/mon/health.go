@@ -75,8 +75,8 @@ func (c *Cluster) checkHealth() error {
 	if err != nil {
 		return fmt.Errorf("failed to get mon status. %+v", err)
 	}
-	logger.Debugf("Mon status: %+v", status)
 
+	logger.Debugf("Mon status: %+v", status)
 	// Source of truth of which mons should exist is our *clusterInfo*
 	monsNotFound := map[string]interface{}{}
 	for _, mon := range c.clusterInfo.Monitors {
@@ -268,7 +268,12 @@ func (c *Cluster) failoverMon(name string) error {
 	// Only increment the max mon id if the new pod started successfully
 	c.maxMonID++
 
-	return c.removeMon(name)
+	err = c.removeMon(name)
+	if err != nil {
+		return fmt.Errorf("failed to remove mon %s: %v", name, err)
+	}
+
+	return nil
 }
 
 func (c *Cluster) removeMon(daemonName string) error {
@@ -326,6 +331,12 @@ func (c *Cluster) removeMon(daemonName string) error {
 	// make sure to rewrite the config so NO new connections are made to the removed mon
 	if err := writeConnectionConfig(c.context, c.clusterInfo); err != nil {
 		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", daemonName, err)
+	}
+
+	monAddr := monInfoString(c.clusterInfo.Monitors)
+	if err := updateMonValuesForSC(c.context, c.Namespace, monAddr); err != nil {
+		// just log the error
+		logger.Warningf("failed to update mon value used by storage class: %v", err)
 	}
 
 	return nil

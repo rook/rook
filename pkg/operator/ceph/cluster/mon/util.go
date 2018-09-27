@@ -31,6 +31,7 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	rookutil "github.com/rook/rook/pkg/util"
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
 	"k8s.io/api/core/v1"
@@ -41,6 +42,16 @@ import (
 
 const (
 	maxPerChar = 26
+	// csi driver storage class label selector
+	csiSCLabelSelector     = "ceph.rook.io/cluster"
+	csiSCMonParamName      = "monValueFromSecret"
+	csiSCSecretParamName   = "csiNodePublishSecretName"
+	csiSCSecretNSParamName = "csiNodePublishSecretNamespace"
+)
+
+var (
+	// supported csi plugins
+	csiProvisioners = rookutil.CreateSet([]string{"csi-rbdplugin"})
 )
 
 // LoadClusterInfo constructs or loads a clusterinfo and returns it along with the maxMonID
@@ -275,4 +286,71 @@ func fullNameToIndex(name string) (int, error) {
 		return -1, err
 	}
 	return id, nil
+}
+
+func monConfigString(mons []*monConfig) string {
+	monAddr := ""
+	for _, m := range mons {
+		a := fmt.Sprintf("%s:%d", m.PublicIP, m.Port)
+		if len(monAddr) > 0 {
+			monAddr = monAddr + "," + a
+		} else {
+			monAddr = a
+		}
+	}
+	return monAddr
+}
+
+func monInfoString(mons map[string]*cephconfig.MonInfo) string {
+	monAddr := ""
+	for _, m := range mons {
+		a := m.Endpoint
+		if len(monAddr) > 0 {
+			monAddr = monAddr + "," + a
+		} else {
+			monAddr = a
+		}
+	}
+	return monAddr
+
+}
+
+// ceph csi storage class can embed mon service in secret.
+// list all such storage classes and update their mon values
+func updateMonValuesForSC(context *clusterd.Context, clusterName string, monAddr string) error {
+	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", csiSCLabelSelector, clusterName)}
+	scs, err := context.Clientset.Storage().StorageClasses().List(listOpts)
+	if err != nil {
+		return fmt.Errorf("failed to list storage classes: %+v", err)
+	}
+	var lastErr error
+	for _, sc := range scs.Items {
+		if csiProvisioners.Contains(sc.Provisioner) {
+			logger.Debugf("checking storage class %s", sc.Name)
+			if monValFrom, ok := sc.Parameters[csiSCMonParamName]; ok {
+				// this sc supports mon failover
+				secretNS, ok := sc.Parameters[csiSCSecretNSParamName]
+				if !ok {
+					continue
+				}
+				secretName, ok := sc.Parameters[csiSCSecretParamName]
+				if !ok {
+					continue
+				}
+				secret, err := context.Clientset.Core().Secrets(secretNS).Get(secretName, metav1.GetOptions{})
+				if err != nil {
+					logger.Warningf("failed to get secret %s/%s", secretNS, secretName)
+					continue
+				}
+				oldVal := string(secret.Data[monValFrom])
+				secret.Data[monValFrom] = []byte(monAddr)
+				_, err = context.Clientset.Core().Secrets(secretNS).Update(secret)
+				logger.Infof("change mon data from %s to %s for cluster %s in sc %s: %v", oldVal, monAddr, clusterName, sc.Name, err)
+				if err != nil {
+					lastErr = err
+				}
+			}
+		}
+	}
+	return lastErr
 }

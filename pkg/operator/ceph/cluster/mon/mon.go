@@ -193,6 +193,9 @@ func (c *Cluster) startMons() error {
 		}
 	}
 
+	monAddr := monConfigString(mons)
+	updateMonValuesForSC(c.context, c.Namespace, monAddr)
+
 	logger.Debugf("mon endpoints used are: %s", mondaemon.FlattenMonEndpoints(c.clusterInfo.Monitors))
 	return nil
 }
@@ -264,7 +267,6 @@ func (c *Cluster) initMonIPs(mons []*monConfig) error {
 		}
 		c.clusterInfo.Monitors[m.DaemonName] = cephconfig.NewMonInfo(m.DaemonName, m.PublicIP, m.Port)
 	}
-
 	return nil
 }
 
