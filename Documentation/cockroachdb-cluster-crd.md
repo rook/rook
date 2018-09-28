@@ -6,7 +6,7 @@ indent: true
 
 # CockroachDB Cluster CRD
 
-CockroachDB database clusters can be created and configuring using the `clusters.cockroachdb.rook.io` custom resource definition (CRD).
+CockroachDB database clusters can be created and configured using the `clusters.cockroachdb.rook.io` custom resource definition (CRD).
 Please refer to the the [user guide walk-through](cockroachdb.md) for complete instructions.
 This page will explain all the available configuration options on the CockroachDB CRD.
 
