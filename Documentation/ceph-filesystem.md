@@ -71,27 +71,46 @@ As an example, we will start the kube-registry pod with the shared file system a
 Save the following spec as `kube-registry.yaml`:
 
 ```yaml
+---
+# Create a service account for the kube registry limited to the kube-system namespace
+# pod security policies can be bound to this service account if necessary
 apiVersion: v1
-kind: ReplicationController
+kind: ServiceAccount
 metadata:
-  name: kube-registry-v0
+  name: kube-registry
+  namespace: kube-system
+---
+# Create the HA registry
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: kube-registry-v1
   namespace: kube-system
   labels:
     k8s-app: kube-registry
-    version: v0
+    version: v1
     kubernetes.io/cluster-service: "true"
 spec:
   replicas: 3
   selector:
-    k8s-app: kube-registry
-    version: v0
+    matchLabels:
+      k8s-app: kube-registry
+      version: v1
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
   template:
     metadata:
       labels:
         k8s-app: kube-registry
-        version: v0
+        version: v1
         kubernetes.io/cluster-service: "true"
     spec:
+      serviceAccount: kube-registry
+      serviceAccountName: kube-registry
+      restartPolicy: Always
       containers:
       - name: registry
         image: registry:2
@@ -124,7 +143,67 @@ spec:
             # path: /some/path/inside/cephfs
 ```
 
-After creating it with `kubectl create -f kube-registry.yaml`, you now have a docker registry which is HA with persistent storage.
+After creating it with `kubectl create -f kube-registry.yaml`, you now have a HA docker registry
+with persistent storage.
+
+If your Kubernetes cluster has pod security policies enforced, you will also have to add permissions
+to the `kube-registry` service account. Save the following spec as `kube-registry-psp.yaml`:
+
+```yaml
+---
+apiVersion: extensions/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: kube-registry-psp
+spec:
+  fsGroup:
+    rule: RunAsAny
+  privileged: false
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - flexVolume
+  - secret
+  allowedFlexVolumes:
+  - driver: "ceph.rook.io/rook"
+  - driver: "ceph.rook.io/rook-ceph"
+  hostPID: false
+  hostIPC: false
+  hostNetwork: false
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: kube-registry-psp
+  namespace: kube-system
+rules:
+- apiGroups:
+  - extensions
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - kube-registry-psp
+  verbs:
+  - use
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: kube-registry-psp
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kube-registry-psp
+subjects:
+- kind: ServiceAccount
+  name: kube-registry
+  namespace: kube-system
+```
 
 #### Kernel Version Requirement
 If the Rook cluster has more than one filesystem and the application pod is scheduled to a node with kernel version older than 4.7, inconsistent results may arise since kernels older than 4.7 do not support specifying filesystem namespaces.

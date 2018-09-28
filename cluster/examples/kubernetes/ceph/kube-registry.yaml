@@ -1,24 +1,44 @@
+---
+# Create a service account for the kube registry limited to the kube-system namespace
+# pod security policies can be bound to this service account if necessary
 apiVersion: v1
-kind: ReplicationController
+kind: ServiceAccount
 metadata:
-  name: kube-registry-v0
+  name: kube-registry
+  namespace: kube-system
+---
+# Create the HA registry
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: kube-registry-v1
   namespace: kube-system
   labels:
     k8s-app: kube-registry
-    version: v0
+    version: v1
     kubernetes.io/cluster-service: "true"
 spec:
   replicas: 3
   selector:
-    k8s-app: kube-registry
-    version: v0
+    matchLabels:
+      k8s-app: kube-registry
+      version: v1
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
   template:
     metadata:
       labels:
         k8s-app: kube-registry
-        version: v0
+        version: v1
         kubernetes.io/cluster-service: "true"
     spec:
+      # Use the registry's service account, which may or may not have pod security configs
+      serviceAccount: kube-registry
+      serviceAccountName: kube-registry
+      restartPolicy: Always
       containers:
       - name: registry
         image: registry:2

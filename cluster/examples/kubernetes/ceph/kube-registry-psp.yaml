@@ -1,0 +1,66 @@
+# Example showing how to run the kube-registry application pod security policies.
+# Attempts have been made to make sure the policy, role, and binding in this example follow
+# best practices and are a minimal set of permissions; however, this is not a guarantee of a
+# minimal policy config.
+# Because the kube-registry service account is in the kube-registry.yaml file, that must be created
+# first or at the same time as this file.
+---
+# Create a pod security policy (psp) for the service account
+# that is as minimal as possible.
+apiVersion: extensions/v1beta1
+kind: PodSecurityPolicy
+metadata:
+  name: kube-registry-psp
+spec:
+  fsGroup:
+    rule: RunAsAny
+  privileged: false
+  runAsUser:
+    rule: RunAsAny
+  seLinux:
+    rule: RunAsAny
+  supplementalGroups:
+    rule: RunAsAny
+  volumes:
+  - flexVolume
+  - secret
+  allowedFlexVolumes:
+  - driver: "ceph.rook.io/rook"
+  - driver: "ceph.rook.io/rook-ceph"
+  hostPID: false
+  hostIPC: false
+  hostNetwork: false
+---
+# Create a role for the kube-registry that can use
+# the security policy
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: Role
+metadata:
+  name: kube-registry-psp
+  namespace: kube-system
+rules:
+- apiGroups:
+  - extensions
+  resources:
+  - podsecuritypolicies
+  resourceNames:
+  - kube-registry-psp
+  verbs:
+  - use
+---
+# Bind the role to the kube-registry service account so that
+# all pods created by controllers in in the service account
+# can create the resources allowed by the psp
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: kube-registry-psp
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: kube-registry-psp
+subjects:
+- kind: ServiceAccount
+  name: kube-registry
+  namespace: kube-system
