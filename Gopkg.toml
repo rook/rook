@@ -25,45 +25,55 @@ ignored = ["github.com/rook/rook/.cache","github.com/rook/rook/.work","github.co
 
 [[constraint]]
   name = "github.com/aws/aws-sdk-go"
+  version = ">=1.15.45"
 
 [[constraint]]
   name = "github.com/coreos/pkg"
+  version = ">=v4"
 
 [[constraint]]
   name = "github.com/ghodss/yaml"
+  version = ">=v1.0.0"
 
 [[constraint]]
   name = "github.com/go-ini/ini"
+  version = ">=v1.38.2"
 
 [[constraint]]
   name = "github.com/go-sql-driver/mysql"
+  version = ">=v1.4.0"
 
 [[constraint]]
   name = "github.com/google/uuid"
-
-[[constraint]]
-  name = "github.com/gorilla/mux"
+  version = ">=v1.0.0"
 
 [[constraint]]
   name = "github.com/icrowley/fake"
+  branch = "master"
 
 [[constraint]]
   name = "github.com/jbw976/go-ps"
+  branch = "master"
 
-[[constraint]]
+[[override]]
   name = "github.com/prometheus/client_golang"
+  version = ">=v0.8.0"
 
 [[constraint]]
   name = "github.com/spf13/cobra"
+  version = "=>v0.0.3"
 
 [[constraint]]
   name = "github.com/spf13/pflag"
+  version = "=>v1.0.2"
 
 [[constraint]]
   name = "github.com/stretchr/testify"
+  version = ">=v1.2.2"
 
-[[constraint]]
+[[override]]
   name = "k8s.io/utils"
+  branch = "master"
 
 [[override]]
   name = "github.com/docker/distribution"
@@ -95,7 +105,7 @@ ignored = ["github.com/rook/rook/.cache","github.com/rook/rook/.work","github.co
   name = "k8s.io/apimachinery"
   version = "kubernetes-1.11.3"
 
-[[constraint]]
+[[override]]
   name = "k8s.io/apiserver"
   version = "kubernetes-1.11.3"
 
