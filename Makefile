@@ -146,6 +146,7 @@ codegen:
 	@build/codegen/codegen.sh
 
 vendor: go.vendor
+vendor.check: go.vendor.check
 
 clean:
 	@$(MAKE) -C images clean
@@ -183,6 +184,7 @@ Targets:
     test               Runs unit tests.
     test-integration   Runs integration tests.
     vendor             Update vendor dependencies.
+    vendor.check       Checks if vendor dependencies changed.
     vet                Runs lint checks on go sources.
 
 Options:

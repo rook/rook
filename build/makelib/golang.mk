@@ -65,7 +65,7 @@ endif
 GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
-DEP_VERSION=v0.4.1
+DEP_VERSION=v0.5.0
 DEP := $(TOOLS_HOST_DIR)/dep-$(DEP_VERSION)
 GOLINT := $(TOOLS_HOST_DIR)/golint
 GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
@@ -176,7 +176,12 @@ go.vendor.lite: $(DEP)
 		$(MAKE) go.vendor; \
 	fi
 
-.PHONY: go.vendor
+.PHONY: go.vendor.check
+go.vendor.check: $(DEP)
+	@echo === checking if vendor deps changed
+	@$(DEP) check -skip-vendor
+	@echo === vendor deps have not changed
+
 go.vendor: $(DEP)
 	@echo === ensuring vendor dependencies are up to date
 	@$(DEP) ensure
