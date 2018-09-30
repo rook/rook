@@ -1,0 +1,41 @@
+godoc on Google App Engine
+==========================
+
+Prerequisites
+-------------
+
+* Google Cloud SDK
+  https://cloud.google.com/sdk/
+
+* Go sources under $GOROOT
+
+* Godoc sources inside $GOPATH
+  (go get -d golang.org/x/tools/cmd/godoc)
+
+
+Running in dev_appserver.py
+---------------------------
+
+Use dev_appserver.py to run the server in development mode:
+
+	dev_appserver.py app.dev.yaml
+
+To run the server with generated zip file and search index:
+
+	./generate-index.bash
+	dev_appserver.py app.prod.yaml
+
+godoc should come up at http://localhost:8080
+Use the --host and --port flags to listen on a different address.
+
+To clean up the index files, use git:
+
+	git clean -xn # n is dry run, replace with f
+
+
+Troubleshooting
+---------------
+
+Ensure the Cloud SDK is on your PATH and you have the app-engine-go component
+installed (gcloud components install app-engine-go) and your components are
+up-to-date (gcloud components update)

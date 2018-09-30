@@ -1,0 +1,6 @@
+apiVersion: myproject.io/v1alpha1
+kind: Sample
+metadata:
+  name: mysample
+spec:
+  hello: world

@@ -65,7 +65,7 @@ endif
 GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
-DEP_VERSION=v0.4.1
+DEP_VERSION=v0.5.0
 DEP := $(TOOLS_HOST_DIR)/dep-$(DEP_VERSION)
 GOLINT := $(TOOLS_HOST_DIR)/golint
 GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
@@ -90,6 +90,25 @@ ifeq ($(GOOS),windows)
 GO_OUT_EXT := .exe
 endif
 
+ifneq ($(shell $(GO) version | grep -q -E '\bgo($(GO_SUPPORTED_VERSIONS))\b' && echo 0 || echo 1), 0)
+$(error unsupported go version. Please make install one of the following supported version: '$(GO_SUPPORTED_VERSIONS)')
+endif
+ifneq ($(realpath ../../../..), $(realpath $(GOPATH)))
+$(warning WARNING: the source directory is not relative to the GOPATH at $(GOPATH) or you are you using symlinks. The build might run into issue. Please move the source directory to be at $(GOPATH)/src/$(GO_PROJECT))
+endif
+
+# CI is defined in Makefile to indicate a CI environment, default is no
+# if CI is yes and found vendor update, make would fail.
+# or vendor target will be enabled,
+HAVE_UPDATES := $(shell $(DEP) ensure -no-vendor 2>/dev/null ; $(DEP) check -q 2>/dev/null ; if [ $$? -ne 0 ] ; then echo 1; fi)
+ifneq ( $(HAVE_UPDATES), )
+CI_SHOUD_NOT_HAVE = yes
+endif
+
+ifeq ($(CI),$(CI_SHOUD_NOT_HAVE))
+$(error vendor dir is not up to date, please execute 'make vendor' before check in)
+endif
+
 # NOTE: the install suffixes are matched with the build container to speed up the
 # the build. Please keep them in sync.
 
@@ -106,21 +125,8 @@ GO_STATIC_FLAGS = $(GO_COMMON_FLAGS) $(GO_PKG_STATIC_FLAGS) -installsuffix stati
 # ====================================================================================
 # Targets
 
-ifeq ($(filter help clean distclean prune go.clean, $(MAKECMDGOALS)),)
-.PHONY: go.check
-go.check:
-ifneq ($(shell $(GO) version | grep -q -E '\bgo($(GO_SUPPORTED_VERSIONS))\b' && echo 0 || echo 1), 0)
-	$(error unsupported go version. Please make install one of the following supported version: '$(GO_SUPPORTED_VERSIONS)')
-endif
-ifneq ($(realpath ../../../..), $(realpath $(GOPATH)))
-	$(warning WARNING: the source directory is not relative to the GOPATH at $(GOPATH) or you are you using symlinks. The build might run into issue. Please move the source directory to be at $(GOPATH)/src/$(GO_PROJECT))
-endif
-
--include go.check
-endif
-
 .PHONY: go.init
-go.init: go.vendor.lite
+go.init: go.vendor
 	@:
 
 .PHONY: go.build
@@ -166,20 +172,12 @@ go.fmt: $(GOFMT)
 
 go.validate: go.vet go.fmt
 
-.PHONY: go.vendor.lite
-go.vendor.lite: $(DEP)
-#	dep ensure blindly updates the whole vendor tree causing everything to be rebuilt. This workaround
-#	will only call dep ensure if the .lock file changes or if the vendor dir is non-existent.
-	@if [ ! -d $(GO_VENDOR_DIR) ]; then \
-		$(MAKE) go.vendor; \
-	elif ! $(DEP) ensure -no-vendor -dry-run &> /dev/null; then \
-		$(MAKE) go.vendor; \
-	fi
-
 .PHONY: go.vendor
 go.vendor: $(DEP)
-	@echo === ensuring vendor dependencies are up to date
+ifneq ($(HAVE_UPDATES), )
+	@echo === found dependency update, update vendor dir
 	@$(DEP) ensure
+endif
 
 $(DEP):
 	@echo === installing dep
