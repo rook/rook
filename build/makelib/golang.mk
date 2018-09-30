@@ -182,9 +182,15 @@ go.vendor.check: $(DEP)
 	@$(DEP) check -skip-vendor
 	@echo === vendor deps have not changed
 
+.PHONY: go.vendor
 go.vendor: $(DEP)
 	@echo === ensuring vendor dependencies are up to date
 	@$(DEP) ensure
+
+.PHONY: go.vendor.update
+go.vendor.update: $(DEP)
+	@echo === updating vendor dependencies
+	@$(DEP) ensure -update -v
 
 $(DEP):
 	@echo === installing dep
