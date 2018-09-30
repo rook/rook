@@ -32,6 +32,7 @@ pipeline {
                     if (body.contains("[smoke only]")) {
                           env.smokeOnly = "true"
                     }
+                    env.CI = "yes"
                 }
             }
         }

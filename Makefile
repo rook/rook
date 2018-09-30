@@ -50,6 +50,9 @@ PLATFORMS ?= $(ALL_PLATFORMS)
 SERVER_PLATFORMS := $(filter linux_%,$(PLATFORMS))
 CLIENT_PLATFORMS := $(filter-out linux_%,$(PLATFORMS))
 
+# CI build flag to indicate build job is running on a CI build environment
+CI ?= no
+
 # server projects that we build on server platforms
 SERVER_PACKAGES = $(GO_PROJECT)/cmd/rook $(GO_PROJECT)/cmd/rookflex
 
