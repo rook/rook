@@ -40,6 +40,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	storagev1util "k8s.io/kubernetes/pkg/apis/storage/v1/util"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 	"k8s.io/kubernetes/pkg/util/version"
 )
 
@@ -57,6 +58,8 @@ const (
 	RetryLoop = 30
 	//RetryInterval param for test - wait time while in RetryLoop
 	RetryInterval = 5
+	//hostnameTestPrefix is a prefix added to the node hostname
+	hostnameTestPrefix = "testprefix-"
 )
 
 //CreateK8sHelper creates a instance of k8sHelper
@@ -1133,6 +1136,47 @@ func (k8sh *K8sHelper) GetExternalRGWServiceURL(storeName string, namespace stri
 	endpoint := hostip + ":" + nodePort
 	logger.Infof("external rgw endpoint: %s", endpoint)
 	return endpoint, err
+}
+
+// ChangeHostnames modifies the node hostname label to run tests in an environment where the node name is different from the hostname label
+func (k8sh *K8sHelper) ChangeHostnames() error {
+	nodes, err := k8sh.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	if err != nil {
+		return err
+	}
+	for _, node := range nodes.Items {
+		hostname := node.Labels[apis.LabelHostname]
+		if !strings.HasPrefix(hostname, hostnameTestPrefix) {
+			node.Labels[apis.LabelHostname] = hostnameTestPrefix + hostname
+			logger.Infof("changed hostname of node %s to %s", node.Name, node.Labels[apis.LabelHostname])
+			_, err := k8sh.Clientset.CoreV1().Nodes().Update(&node)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+// RestoreHostnames removes the test suffix from the node hostname labels
+func (k8sh *K8sHelper) RestoreHostnames() ([]string, error) {
+	nodes, err := k8sh.Clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+	for _, node := range nodes.Items {
+		hostname := node.Labels[apis.LabelHostname]
+		if strings.HasPrefix(hostname, hostnameTestPrefix) {
+			node.Labels[apis.LabelHostname] = hostname[len(hostnameTestPrefix):]
+			logger.Infof("restoring hostname of node %s to %s", node.Name, node.Labels[apis.LabelHostname])
+			_, err := k8sh.Clientset.CoreV1().Nodes().Update(&node)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return nil, nil
 }
 
 //IsRookInstalled returns true is rook-ceph-mgr service is running(indicating rook is installed)

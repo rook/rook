@@ -192,6 +192,15 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 
 // ListDevices lists all devices discovered on all nodes or specific node if node name is provided.
 func ListDevices(context *clusterd.Context, namespace, nodeName string) (map[string][]sys.LocalDisk, error) {
+	// convert the host name label to the k8s node name to look up the configmap  with the devices
+	if len(nodeName) > 0 {
+		var err error
+		nodeName, err = k8sutil.GetNodeNameFromHostname(context.Clientset, nodeName)
+		if err != nil {
+			logger.Warningf("failed to get node name from hostname. %+v", err)
+		}
+	}
+
 	var devices map[string][]sys.LocalDisk
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", k8sutil.AppAttr, discoverDaemon.AppName)}
 	// wait for device discovery configmaps

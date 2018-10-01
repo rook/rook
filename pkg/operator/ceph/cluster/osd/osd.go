@@ -151,9 +151,20 @@ func (c *Cluster) Start() error {
 			logger.Warningf("failed to get storage nodes from namespace %s: %v", rookSystemNS, err)
 			return err
 		}
+		hostnameMap, err := k8sutil.GetNodeHostNames(c.context.Clientset)
+		if err != nil {
+			logger.Warningf("failed to get node hostnames: %v", err)
+			return err
+		}
 		for nodeName := range allNodeDevices {
+			hostname, ok := hostnameMap[nodeName]
+			if !ok || nodeName == "" {
+				// fall back to the node name if no hostname is set
+				logger.Warningf("failed to get hostname for node %s. %+v", nodeName, err)
+				hostname = nodeName
+			}
 			storageNode := rookalpha.Node{
-				Name: nodeName,
+				Name: hostname,
 			}
 			c.Storage.Nodes = append(c.Storage.Nodes, storageNode)
 		}
