@@ -26,6 +26,7 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes"
 	helper "k8s.io/kubernetes/pkg/api/v1/helper"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 func ValidNode(node v1.Node, placement rookalpha.Placement) (bool, error) {
@@ -92,10 +93,16 @@ func GetValidNodes(rookNodes []rookalpha.Node, clientset kubernetes.Interface, p
 
 	for _, node := range allNodes.Items {
 		for _, rookNode := range rookNodes {
-			if rookNode.Name == node.Name {
+			hostname := node.Labels[apis.LabelHostname]
+			if len(hostname) == 0 {
+				// fall back to the node name if the hostname label is not set
+				hostname = node.Name
+			}
+			if rookNode.Name == hostname || rookNode.Name == node.Name {
+				rookNode.Name = hostname
 				valid, err := ValidNode(node, placement)
 				if err != nil {
-					logger.Warning("failed to validate node %s %v", node.Name, err)
+					logger.Warning("failed to validate node %s %v", rookNode.Name, err)
 				} else if valid {
 					validNodes = append(validNodes, rookNode)
 				}
@@ -104,4 +111,36 @@ func GetValidNodes(rookNodes []rookalpha.Node, clientset kubernetes.Interface, p
 		}
 	}
 	return validNodes
+}
+
+// GetNodeNameFromHostname returns the name of the node resource looked up by the hostname label
+// Typically these will be the same name, but sometimes they are not such as when nodes have a longer
+// dns name, but the hostname is short.
+func GetNodeNameFromHostname(clientset kubernetes.Interface, hostName string) (string, error) {
+	options := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", apis.LabelHostname, hostName)}
+	nodes, err := clientset.CoreV1().Nodes().List(options)
+	if err != nil {
+		return hostName, err
+	}
+
+	for _, node := range nodes.Items {
+		return node.Name, nil
+	}
+	return hostName, fmt.Errorf("node not found")
+}
+
+// GetNodeHostNames returns the name of the node resource mapped to their hostname label.
+// Typically these will be the same name, but sometimes they are not such as when nodes have a longer
+// dns name, but the hostname is short.
+func GetNodeHostNames(clientset kubernetes.Interface) (map[string]string, error) {
+	nodes, err := clientset.CoreV1().Nodes().List(metav1.ListOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	nodeMap := map[string]string{}
+	for _, node := range nodes.Items {
+		nodeMap[node.Name] = node.Labels[apis.LabelHostname]
+	}
+	return nodeMap, nil
 }

@@ -35,7 +35,7 @@ import (
 
 func TestPodContainer(t *testing.T) {
 	cluster := &Cluster{Namespace: "myosd", Version: "23"}
-	c, err := cluster.provisionPodTemplateSpec([]rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", v1.RestartPolicyAlways)
+	c, err := cluster.provisionPodTemplateSpec([]rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "node", "", v1.RestartPolicyAlways)
 	assert.NotNil(t, c)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(c.Spec.Containers))

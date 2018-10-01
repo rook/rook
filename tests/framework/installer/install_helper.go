@@ -87,6 +87,7 @@ type InstallHelper struct {
 	helmHelper       *utils.HelmHelper
 	Env              objects.EnvironmentManifest
 	k8sVersion       string
+	changeHostnames  bool
 	T                func() *testing.T
 }
 
@@ -110,6 +111,11 @@ func (h *InstallHelper) CreateK8sRookOperator(namespace string) (err error) {
 	//creating rook resources
 	if err = h.CreateK8sRookResources(); err != nil {
 		return err
+	}
+
+	if h.changeHostnames {
+		// give nodes a hostname that is different from its k8s node name to confirm that all the daemons will be initialized properly
+		h.k8shelper.ChangeHostnames()
 	}
 
 	rookOperator := h.installData.GetRookOperator(namespace)
@@ -459,6 +465,10 @@ func (h *InstallHelper) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 			logger.Infof("removing %s from node %s. err=%v", h.hostPathToDelete, node, err)
 		}
 	}
+	if h.changeHostnames {
+		// revert the hostname labels for the test
+		h.k8shelper.RestoreHostnames()
+	}
 }
 
 func (h *InstallHelper) cleanupDir(node, dir string) error {
@@ -528,12 +538,13 @@ func NewK8sRookhelper(clientset *kubernetes.Clientset, t func() *testing.T) *Ins
 		panic("failed to get kubectl client :" + err.Error())
 	}
 	ih := &InstallHelper{
-		k8shelper:   k8shelp,
-		installData: NewK8sInstallData(),
-		helmHelper:  utils.NewHelmHelper(),
-		Env:         objects.Env,
-		k8sVersion:  version.String(),
-		T:           t,
+		k8shelper:       k8shelp,
+		installData:     NewK8sInstallData(),
+		helmHelper:      utils.NewHelmHelper(),
+		Env:             objects.Env,
+		k8sVersion:      version.String(),
+		changeHostnames: k8shelp.VersionAtLeast("v1.11.0"),
+		T:               t,
 	}
 	flag.Parse()
 	return ih
