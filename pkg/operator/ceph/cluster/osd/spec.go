@@ -49,7 +49,7 @@ const (
 func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 	selection rookalpha.Selection, resources v1.ResourceRequirements, storeConfig config.StoreConfig, metadataDevice, location string) (*batch.Job, error) {
 
-	podSpec, err := c.provisionPodTemplateSpec(devices, selection, resources, storeConfig, metadataDevice, location, v1.RestartPolicyOnFailure)
+	podSpec, err := c.provisionPodTemplateSpec(devices, selection, resources, storeConfig, metadataDevice, nodeName, location, v1.RestartPolicyOnFailure)
 	if err != nil {
 		return nil, err
 	}
@@ -112,13 +112,13 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 	osdID := strconv.Itoa(osd.ID)
 	tiniEnvVar := v1.EnvVar{Name: "TINI_SUBREAPER", Value: ""}
 	envVars := []v1.EnvVar{
-		nodeNameEnvVar(),
+		nodeNameEnvVar(nodeName),
 		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
 		tiniEnvVar,
 	}
 	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars()...)
-	configEnvVars := append(c.getConfigEnvVars(storeConfig, dataDir, location), []v1.EnvVar{
+	configEnvVars := append(c.getConfigEnvVars(storeConfig, dataDir, nodeName, location), []v1.EnvVar{
 		tiniEnvVar,
 		{Name: "ROOK_OSD_ID", Value: osdID},
 	}...)
@@ -250,7 +250,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 }
 
 func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string, restart v1.RestartPolicy) (*v1.PodTemplateSpec, error) {
+	storeConfig config.StoreConfig, metadataDevice, nodeName, location string, restart v1.RestartPolicy) (*v1.PodTemplateSpec, error) {
 
 	volumes := opspec.PodVolumes(c.dataDirHostPath)
 
@@ -278,7 +278,7 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 
 	podSpec := v1.PodSpec{
 		ServiceAccountName: c.serviceAccount,
-		Containers:         []v1.Container{c.provisionOSDContainer(devices, selection, resources, storeConfig, metadataDevice, location)},
+		Containers:         []v1.Container{c.provisionOSDContainer(devices, selection, resources, storeConfig, metadataDevice, nodeName, location)},
 		RestartPolicy:      restart,
 		Volumes:            volumes,
 		HostNetwork:        c.HostNetwork,
@@ -301,9 +301,9 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 	}, nil
 }
 
-func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, location string) []v1.EnvVar {
+func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, nodeName, location string) []v1.EnvVar {
 	envVars := []v1.EnvVar{
-		nodeNameEnvVar(),
+		nodeNameEnvVar(nodeName),
 		{Name: "ROOK_CLUSTER_ID", Value: string(c.ownerRef.UID)},
 		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
@@ -339,9 +339,9 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, loca
 }
 
 func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string) v1.Container {
+	storeConfig config.StoreConfig, metadataDevice, nodeName, location string) v1.Container {
 
-	envVars := c.getConfigEnvVars(storeConfig, k8sutil.DataDir, location)
+	envVars := c.getConfigEnvVars(storeConfig, k8sutil.DataDir, nodeName, location)
 	devMountNeeded := false
 	privileged := false
 
@@ -412,8 +412,8 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 	}
 }
 
-func nodeNameEnvVar() v1.EnvVar {
-	return v1.EnvVar{Name: "ROOK_NODE_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "spec.nodeName"}}}
+func nodeNameEnvVar(name string) v1.EnvVar {
+	return v1.EnvVar{Name: "ROOK_NODE_NAME", Value: name}
 }
 
 func dataDevicesEnvVar(dataDevices string) v1.EnvVar {
