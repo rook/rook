@@ -55,6 +55,7 @@ type CephInstaller struct {
 	hostPathToDelete string
 	helmHelper       *utils.HelmHelper
 	k8sVersion       string
+	changeHostnames  bool
 	T                func() *testing.T
 }
 
@@ -110,6 +111,11 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 	//creating rook resources
 	if err = h.CreateCephCRDs(); err != nil {
 		return err
+	}
+
+	if h.changeHostnames {
+		// give nodes a hostname that is different from its k8s node name to confirm that all the daemons will be initialized properly
+		h.k8shelper.ChangeHostnames()
 	}
 
 	rookOperator := h.Manifests.GetRookOperator(namespace)
@@ -456,6 +462,10 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 			logger.Infof("removing %s from node %s. err=%v", h.hostPathToDelete, node, err)
 		}
 	}
+	if h.changeHostnames {
+		// revert the hostname labels for the test
+		h.k8shelper.RestoreHostnames()
+	}
 }
 
 func (h *CephInstaller) cleanupDir(node, dir string) error {
@@ -493,11 +503,12 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rook
 		panic("failed to get kubectl client :" + err.Error())
 	}
 	h := &CephInstaller{
-		Manifests:  NewCephManifests(rookVersion),
-		k8shelper:  k8shelp,
-		helmHelper: utils.NewHelmHelper(Env.Helm),
-		k8sVersion: version.String(),
-		T:          t,
+		Manifests:       NewCephManifests(rookVersion),
+		k8shelper:       k8shelp,
+		helmHelper:      utils.NewHelmHelper(Env.Helm),
+		k8sVersion:      version.String(),
+		changeHostnames: rookVersion != Version0_8 && k8shelp.VersionAtLeast("v1.11.0"),
+		T:               t,
 	}
 	flag.Parse()
 	return h
