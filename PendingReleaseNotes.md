@@ -12,6 +12,7 @@
 - The minimum version of Kubernetes supported by Rook changed from `1.7` to `1.8`.
 - `reclaimPolicy` parameter of `StorageClass` definition is now supported.
 - K8s client-go updated from version 1.8.2 to 1.11.3
+- The toolbox manifest now creates a deployment based on the `rook/ceph` image instead of creating a pod on a specialized `rook/ceph-toolbox` image.
 
 ## Breaking Changes
 - Ceph mons are [named consistently](https://github.com/rook/rook/issues/1751) with other daemons with the letters a, b, c, etc.

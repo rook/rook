@@ -100,7 +100,7 @@ ceph df
 rados df
 ```
 
-When you are done with the toolbox, remove the pod:
+When you are done with the toolbox, you can remove the deployment:
 ```bash
 kubectl -n rook-ceph delete deployment rook-ceph-tools
 ```
