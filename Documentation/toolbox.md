@@ -36,7 +36,9 @@ spec:
       dnsPolicy: ClusterFirstWithHostNet
       containers:
       - name: rook-ceph-tools
-        image: rook/ceph-toolbox:master
+        image: rook/ceph:master
+        command: ["/tini"]
+        args: ["-g", "--", "/usr/local/bin/toolbox.sh"]
         imagePullPolicy: IfNotPresent
         env:
           - name: ROOK_ADMIN_SECRET
@@ -55,7 +57,7 @@ spec:
             name: libmodules
           - name: mon-endpoint-volume
             mountPath: /etc/rook
-      # if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021      
+      # if hostNetwork: false, the "rbd map" command hangs, see https://github.com/rook/rook/issues/2021
       hostNetwork: true
       volumes:
         - name: dev

@@ -10,19 +10,18 @@ case "${1:-}" in
         case "${2:-}" in
             arm|arm64|amd64)
                 docker tag "${BUILD_REGISTRY}/ceph-$2:latest" rook/ceph:master
-                docker tag "${BUILD_REGISTRY}/ceph-toolbox-$2:latest" rook/ceph-toolbox:master
                 docker tag "${BUILD_REGISTRY}/cockroachdb-$2:latest" rook/cockroachdb:master
                 docker tag "${BUILD_REGISTRY}/nfs-$2:latest" rook/nfs:master
                 if [ ! -z "$3" ]
                 then
                     docker tag "${BUILD_REGISTRY}/ceph-$2:latest" "rook/ceph:$3"
-                    docker save -o "ceph-$2.tar" rook/ceph:master "rook/ceph:$3" rook/ceph-toolbox:master
+                    docker save -o "ceph-$2.tar" rook/ceph:master "rook/ceph:$3"
                     docker tag "${BUILD_REGISTRY}/cockroachdb-$2:latest" "rook/cockroachdb:$3"
                     docker save -o "cockroachdb-$2.tar" rook/cockroachdb:master "rook/cockroachdb:$3"
                     docker tag "${BUILD_REGISTRY}/nfs-$2:latest" "rook/nfs:$3"
                     docker save -o "nfs-$2.tar" rook/nfs:master "rook/nfs:$3"
                 else
-                    docker save -o "ceph-$2.tar" rook/ceph:master rook/ceph-toolbox:master
+                    docker save -o "ceph-$2.tar" rook/ceph:master
                     docker save -o "cockroachdb-$2.tar" rook/cockroachdb:master
                     docker save -o "nfs-$2.tar" rook/nfs:master
                 fi
@@ -50,7 +49,6 @@ case "${1:-}" in
             arm|arm64|amd64)
                 tag_version="${3:-"master"}"
                 docker tag "${BUILD_REGISTRY}/ceph-$2:latest" "rook/ceph:${tag_version}"
-                docker tag "${BUILD_REGISTRY}/ceph-toolbox-$2:latest" "rook/ceph-toolbox:${tag_version}"
                 docker tag "${BUILD_REGISTRY}/cockroachdb-$2:latest" "rook/cockroachdb:${tag_version}"
                 docker tag "${BUILD_REGISTRY}/nfs-$2:latest" "rook/nfs:${tag_version}"
                 ;;

@@ -15,8 +15,8 @@
 FROM BASEIMAGE
 
 RUN yum --assumeyes install \
-        net-tools \
-        nmap-ncat && \
+    net-tools \
+    nmap-ncat && \
     yum clean all && rm -rf /tmp/* /var/tmp/*
 
 ARG ARCH
@@ -26,7 +26,7 @@ ARG TINI_VERSION
 ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} /tini
 RUN chmod +x /tini
 
-ADD rook rookflex /usr/local/bin/
+COPY rook rookflex toolbox.sh /usr/local/bin/
 
 ENTRYPOINT ["/tini", "--", "/usr/local/bin/rook"]
 CMD [""]
