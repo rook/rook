@@ -1,0 +1,25 @@
+FROM BASEIMAGE
+MAINTAINER Sebastian Wagner "sebastian.wagner@suse.com"
+
+RUN ( \
+    echo 'zypper install' && \
+    zypper --non-interactive --gpg-auto-import-keys \
+        install --no-recommends --auto-agree-with-licenses --replacefiles --details \
+            ncat \
+            net-tools \
+            nmap \
+        && \
+    zypper --non-interactive --gpg-auto-import-keys clean --all \
+) || ( retval=$? && echo ' = zypper log = ' && cat /var/log/zypper.log && exit $retval )
+
+ARG ARCH
+ARG TINI_VERSION
+
+# Run tini as PID 1 and avoid signal handling issues
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} /tini
+RUN chmod +x /tini
+
+ADD rook rookflex /usr/local/bin/
+
+ENTRYPOINT ["/tini", "--", "/usr/local/bin/rook"]
+CMD [""]

@@ -21,19 +21,28 @@ CACHE_IMAGES = $(TOOLBOX_BASE_IMAGE)
 CEPH_VERSION = $(shell cat ../ceph/ceph_version)
 BASEIMAGE = $(CEPH_VERSION)-$(PLATFORM_ARCH)
 
+TEMP_BASE := $(shell mktemp -d)
 TEMP := $(shell mktemp -d)
+
+$(TEMP_BASE)/Dockerfile: Dockerfile.base Dockerfile.base.suse
+	@if [[ "$(BASEIMAGE)" =~ .*suse* ]] ; \
+	then \
+		echo DOCKER_HOST=$$DOCKER_HOST ; \
+		cp Dockerfile.base.suse $(TEMP_BASE)/Dockerfile ; \
+	else \
+		cp Dockerfile.base $(TEMP_BASE)/Dockerfile ; \
+	fi \
 
 # Split into base image and main image so that the base image may be cached on
 # the CI servers to speed up rebuilds.
-toolbox-base-image:
+toolbox-base-image: $(TEMP_BASE)/Dockerfile
 	@echo === docker build $(TOOLBOX_BASE_IMAGE)
-	@cp Dockerfile.base $(TEMP)/Dockerfile
-	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
+	@cd $(TEMP_BASE) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
 	@docker build $(BUILD_ARGS) \
 		--build-arg ARCH=$(GOARCH) \
 		--build-arg TINI_VERSION=$(TINI_VERSION) \
 		-t $(TOOLBOX_BASE_IMAGE) \
-		$(TEMP)
+		$(TEMP_BASE)
 
 do.build: toolbox-base-image
 	@echo === docker build $(TOOLBOX_IMAGE)

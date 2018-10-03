@@ -1,0 +1,34 @@
+FROM BASEIMAGE
+SHELL ["/bin/bash","-c"]
+
+MAINTAINER Sebastian Wagner "sebastian.wagner@suse.com"
+
+RUN ( \
+    zypper --non-interactive --gpg-auto-import-keys \
+        install --no-recommends --auto-agree-with-licenses --replacefiles --details \
+            binutils \
+            curl \
+            fio \
+            gdb \
+            iperf \
+            jq \
+            kmod \
+            less \
+            man \
+            ncat \
+            net-tools \
+            nmap \
+            vim \
+        && \
+    zypper --non-interactive --gpg-auto-import-keys clean --all \
+) || ( retval=$? && echo ' = zypper log = ' && cat /var/log/zypper.log && exit $retval )
+
+ARG ARCH
+ARG TINI_VERSION
+
+# Run tini as PID 1 and avoid signal handling issues
+ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} /tini
+RUN chmod +x /tini
+
+ENTRYPOINT ["/tini", "-g", "--"]
+CMD ["/bin/bash"]
