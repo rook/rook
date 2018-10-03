@@ -44,7 +44,7 @@ spec:
 
 ### Ceph Version
 
-The Ceph version is defined as the property `cephImage` in the Cluster CRD. All Ceph daemon containers launched by the Rook operator will use this image, including the mon, mgr,
+The Ceph version is defined under the property `cephVersion` in the Cluster CRD. All Ceph daemon containers launched by the Rook operator will use this image, including the mon, mgr,
 osd, rgw, and mds pods. The significance of this approach is that the Rook binary is not included in the daemon containers. All initialization performed by Rook to generate the Ceph config and prepare the daemons must be completed in an [init container](https://github.com/rook/rook/issues/2003). Once the Rook init containers complete their execution, the daemon container will run the Ceph image. The daemon container will no longer have Rook running.
 
 In the following Cluster CRD example, the Ceph version is Mimic 13.2.1.
@@ -56,14 +56,16 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
-  cephImage: ceph/ceph:v13.2.1
+  cephVersion:
+    image: ceph/ceph:v13.2.1
+    name: mimic
 ```
 
 ### Operator Requirements
 
 The operator needs to run the Ceph client tools to manage the cluster. For example, the `ceph` tool is needed for general Ceph configuration and status, while `radosgw-admin` is required for managing an object store. Therefore, all the necessary client tools will still be included in the Rook image.
 
-The client tools are tested by the Ceph team to be backward and forward compatible by two versions. Therefore, the operator can support a version of Ceph up to two versions older than the client tools it contains.
+The client tools are tested by the Ceph team to be backward and forward compatible by two versions. This means the operator can support a version of Ceph up to two versions older than the client tools it contains.
 With each Rook release, the tools will be included from the latest release of Ceph. For example, in 0.9 Rook will likely include the Mimic tools. Upgrades would be supported from Luminous to Mimic.
 Rook 0.9 can also be tested to support upgrades to Nautilus since they may be released in the same time frame. Since the Ceph tools are forward compatible, the Mimic tools will be sufficient to support upgrading to Nautilus.
 If Nautilus is released after Rook 0.9, a patch release can be made to 0.9 so that Rook can officially support the upgrade at that point. The changes in the patch release should be minimal since upgrading to Nautilus could have been mostly planned for in 0.9.
@@ -76,8 +78,8 @@ The operator will be made to understand differences in the Ceph versions that ar
 
 Rook will support a very specific list of major versions. Outside these versions, Rook will not be aware of the needs for configuring and upgrading the cluster.
 In v0.9, the supported versions will be:
-- Luminous (ceph/ceph:v12.2.x)
-- Mimic (ceph/ceph:v13.2.x)
+- luminous (ceph/ceph:v12.2.x)
+- mimic (ceph/ceph:v13.2.x)
 
 Depending on the timing of the 0.9 and Nautilus releases, Nautilus will likely be supported either in 0.9 or a patch release. Versions not yet officially supported
 can be tested with settings in the CRD to be mentioned below.
@@ -89,7 +91,7 @@ various Mimic patch releases.
 
 The flexibility during upgrades will now be improved since the upgrade of Rook will be independent from the upgrade to the Ceph version.
 - To upgrade Rook, update the version of the Rook operator container
-- To upgrade Ceph, make sure Rook is running the latest release, then update the `cephImage` in the cluster CRD
+- To upgrade Ceph, make sure Rook is running the latest release, then update the `cephVersion.image` in the cluster CRD
 
 The versions to be supported during upgrade will be a specific set for each version of Rook. In 0.9, it is anticipated that the only upgrade of Ceph
 supported would only be Luminous to Mimic. When Rook officially adds support for a release of Ceph (ie. Nautilus), the upgrade path will also be supported from one previous version.
@@ -117,23 +119,28 @@ To allow more control over the upgrade, we define `upgradePolicy` settings. They
 - Allow for testing of future versions that are not officially supported
 
 The settings in the CRD to accommodate the design include:
-- `newCephImage`: The version of the image to start applying to the daemons specified in the `upgrade` list. If `newCephImage` is not set, the operator will ensure that all daemons are running the version specified by the `cephImage` setting.
-- `upgrade`: A list of daemons that should be upgraded to the version `newCephImage`. The daemons include `mon`, `osd`, `mgr`, `rgw`, and `mds`. The ordering of the list will be ignored as Rook will only support ordering as it determines necessary for a version. If there are special upgrade actions in the future, they could be named and added to this list.
-- `allowUnrecognizedVersion`: If `false`, the operator would refuse to upgrade the Ceph version if it doesn't support or recognize that version. If `true`, Rook would go ahead and blindly set the image version and assume the pod specs should match `unrecognizedMajorVersion`. This would allow testing of upgrade to unreleased versions. The default is `false`.
-- `unrecognizedMajorVersion`: The version of pod spec to use when orchestrating an unrecognized version. Possible values are the names of versions that Rook understands: `luminous`, `mimic`, or `nautilus`.
+- `upgradePolicy.cephVersion`: The version of the image to start applying to the daemons specified in the `components` list.
+  - `allowUnrecognizedVersion`: If `false`, the operator would refuse to upgrade the Ceph version if it doesn't support or recognize that version. If `true`, Rook would go ahead and blindly set the image version and assume the pod specs should match `unrecognizedMajorVersion`. This would allow testing of upgrade to unreleased versions. The default is `false`.
+- `upgradePolicy.components`: A list of daemons or other components that should be upgraded to the version `newCephVersion`. The daemons include `mon`, `osd`, `mgr`, `rgw`, and `mds`. The ordering of the list will be ignored as Rook will only support ordering as it determines necessary for a version. If there are special upgrade actions in the future, they could be named and added to this list.
 
 For example, with the settings below the operator would only upgrade the mons to mimic, while other daemons would remain on luminous. When the admin is ready, he would add more daemons to the list.
 
 ```yaml
 spec:
-  cephImage: ceph/ceph:v12.2.7
+  cephVersion:
+    image: ceph/ceph:v12.2.7
+    name: luminous
+    allowUnrecognizedVersion: false
   upgradePolicy:
-    newCephImage: ceph/ceph:v13.2.1
-    upgrade:
+    cephVersion:
+      image: ceph/ceph:v13.2.1
+      name: mimic
+      allowUnrecognizedVersion: false
+    components:
     - mon
 ```
 
-When the admin is completed with the upgrade or he is ready to allow Rook to complete the full upgrade for all daemons, he would set `cephImage: ceph/ceph:v13.2.1`, and the operator would ignore the `upgradePolicy` since the `cephImage` and `newCephImage` match.
+When the admin is completed with the upgrade or he is ready to allow Rook to complete the full upgrade for all daemons, he would set `cephVersion.image: ceph/ceph:v13.2.1`, and the operator would ignore the `upgradePolicy` since the `cephVersion` and `upgradePolicy.cephVersion` match.
 
 If the admin wants to pause or otherwise control the upgrade closely, there are a couple of natural back doors:
 - Deleting the operator pod will effectively pause the upgrade. Starting the operator pod up again would resume the upgrade.
@@ -144,15 +151,15 @@ If the admin wants to pause or otherwise control the upgrade closely, there are 
 If a developer wants to test the upgrade from mimic to nautilus, he would first create the cluster based on mimic. Then he would update the crd with the "unrecognized version" attributes in the CRD to specify nautilus such as:
 ```yaml
 spec:
-  cephImage: ceph/ceph:v14.1.1
-  upgradePolicy:
+  cephVersion:
+    image: ceph/ceph:v14.1.1
+    name: nautilus
     allowUnrecognizedVersion: true
-    unrecognizedMajorVersion: nautilus
 ```
 
 ### Default Version
 
-For backward compatibility, if the `cephImage` property is empty, the operator will need to internally set a default version of Ceph.
+For backward compatibility, if the `cephVersion` property is not set, the operator will need to internally set a default version of Ceph.
 The operator will assume the desired Ceph version is Luminous 12.2.7, which was shipped with Rook v0.8.
 This default will allow the Rook upgrade from v0.8 to v0.9 to only impact the Rook version and hold the Ceph version at Luminous.
-After the Rook upgrade to v0.9, the user can choose to set the `cephImage` property to some newer version of Ceph such as Mimic.
+After the Rook upgrade to v0.9, the user can choose to set the `cephVersion` property to some newer version of Ceph such as mimic.

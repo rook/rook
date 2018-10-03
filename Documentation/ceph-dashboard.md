@@ -22,19 +22,19 @@ This is the default setting in the example manifests.
       enabled: true
 ```
 
-The Rook operator will enable the ceph-mgr dashboard module to listen on the default port 7000.
+The Rook operator will enable the ceph-mgr dashboard module to listen on the default port 8443.
 A K8s service will also be created to expose that port inside the cluster.
 ```bash
 kubectl -n rook-ceph get service
 NAME                               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
 rook-ceph-mgr                      ClusterIP   10.108.111.192   <none>        9283/TCP         3h
-rook-ceph-mgr-dashboard            ClusterIP   10.110.113.240   <none>        7000/TCP         3h
+rook-ceph-mgr-dashboard            ClusterIP   10.110.113.240   <none>        8443/TCP         3h
 ```
 
 The first service is for reporting the [Prometheus metrics](monitoring.md), while the latter service is for the dashboard.
 If you are on a node in the cluster, you will be able to connect to the dashboard by using either the
-DNS name of the service at `http://rook-ceph-mgr-dashboard:7000` or by connecting to the cluster IP,
-in this example at `http://10.110.113.240:7000`.
+DNS name of the service at `https://rook-ceph-mgr-dashboard:8443` or by connecting to the cluster IP,
+in this example at `https://10.110.113.240:8443`.
 
 ## Viewing the Dashboard External to the Cluster
 
@@ -46,12 +46,12 @@ You can use an [Ingress Controller](https://kubernetes.io/docs/concepts/services
 NodePort, LoadBalancer, or ExternalIPs.
 
 The simplest way to expose the service in minikube or similar environment is using the NodePort to open a port on the
-VM that can be accessed by the host. To create a service with the NodePort, save this yaml as `dashboard-external.yaml`:
+VM that can be accessed by the host. To create a service with the NodePort, save this yaml as `dashboard-external-https.yaml`:
 ```yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: rook-ceph-mgr-dashboard-external
+  name: rook-ceph-mgr-dashboard-external-https
   namespace: rook-ceph
   labels:
     app: rook-ceph-mgr
@@ -59,9 +59,9 @@ metadata:
 spec:
   ports:
   - name: dashboard
-    port: 7000
+    port: 8443
     protocol: TCP
-    targetPort: 7000
+    targetPort: 8443
   selector:
     app: rook-ceph-mgr
     rook_cluster: rook-ceph
@@ -71,18 +71,18 @@ spec:
 
 Now create the service:
 ```bash
-$ kubectl create -f dashboard-external.yaml
+$ kubectl create -f dashboard-external-https.yaml
 ```
 
 You will see the new service `rook-ceph-mgr-dashboard-external` created:
 ```bash
 $ kubectl -n rook-ceph get service
-NAME                               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
-rook-ceph-mgr                      ClusterIP   10.108.111.192   <none>        9283/TCP         4h
-rook-ceph-mgr-dashboard            ClusterIP   10.110.113.240   <none>        7000/TCP         4h
-rook-ceph-mgr-dashboard-external   NodePort    10.101.209.6     <none>        7000:31176/TCP   4h
+NAME                                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+rook-ceph-mgr                           ClusterIP   10.108.111.192   <none>        9283/TCP         4h
+rook-ceph-mgr-dashboard                 ClusterIP   10.110.113.240   <none>        8443/TCP         4h
+rook-ceph-mgr-dashboard-external-https  NodePort    10.101.209.6     <none>        8443:31176/TCP   4h
 ```
 
-In this example, port `31176` will be opened to expose port `7000` from the ceph-mgr pod. Find the ip address
-of the VM. If using minikube, you can `minikube ssh` to the machine and `ifconfig` to find the ip address.
-Now you can enter the URL in your browser such as `http://192.168.99.110:31176` and the dashboard will appear.
+In this example, port `31176` will be opened to expose port `8443` from the ceph-mgr pod. Find the ip address
+of the VM. If using minikube, you can `minikube ip` to find the ip address accessible to your host.
+Now you can enter the URL in your browser such as `http://192.168.99.103:31176` and the dashboard will appear.

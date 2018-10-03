@@ -57,9 +57,9 @@ metadata:
 spec:
   cephVersion:
     # The container image used to launch the Ceph daemon pods (mon, mgr, osd, mds, rgw)
-    image: ceph/ceph:v12.2.7
+    image: ceph/ceph:v13.2.2
     # The name of the major release of Ceph. Must be luminous, mimic, or nautilus
-    name: luminous
+    name: mimic
     # Whether to allow unsupported versions of Ceph. Currently only luminous and mimic are supported.
     # After nautilus is released, Rook will be updated to support nautilus.
     # Do not set to true in production.
