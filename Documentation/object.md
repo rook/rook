@@ -70,7 +70,14 @@ The object store is now available by using the creds of `rook-user`. Take note o
 
 Use an S3 compatible client to create a bucket in the object store.
 
-This section will allow you to test connecting to the object store and uploading and downloading from it. The `s3cmd` tool is included in the [Rook toolbox](toolbox.md) pod to simplify your testing. Run the following commands after you have connected to the toolbox.
+This section will allow you to test connecting to the object store and uploading and downloading from it. Run the following commands after you have connected to the [Rook toolbox](toolbox.md).
+
+### Install s3cmd
+
+To test the object store we will install the `s3cmd` tool into the toobox pod.
+```bash
+yum --assumeyes install s3cmd
+```
 
 ### Connection Environment Variables
 

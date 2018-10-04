@@ -47,7 +47,7 @@ Kubernetes status is the first line of investigating when something goes wrong w
 After you verify the basic health of the running pods, next you will want to run Ceph tools for status of the storage components. There are two ways to run the Ceph tools, either in the Rook toolbox or inside other Rook pods that are already running.
 
 ### Tools in the Rook Toolbox
- The [rook-ceph-tools pod](./toolbox.md) is a one-stop shop for both Ceph tools and other troubleshooting tools. Once the pod is up and running one connect to the pod to execute Ceph commands to evaluate that current state of the cluster.
+ The [rook-ceph-tools pod](./toolbox.md) provides a simple environment to run Ceph tools. Once the pod is up and running, connect to the pod to execute Ceph commands to evaluate that current state of the cluster.
  ```bash
  kubectl -n rook-ceph exec -it $(kubectl -n rook-ceph get pod -l "app=rook-ceph-tools" -o jsonpath='{.items[0].metadata.name}') bash
  ```

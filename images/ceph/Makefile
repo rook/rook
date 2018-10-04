@@ -30,6 +30,7 @@ TEMP := $(shell mktemp -d)
 do.build:
 	@echo === docker build $(CEPH_IMAGE)
 	@cp Dockerfile $(TEMP)
+	@cp toolbox.sh $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rookflex $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile

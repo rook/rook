@@ -93,9 +93,8 @@ function check_context() {
 
 function copy_images() {
     if [[ "$1" == "" || "$1" == "ceph" ]]; then
-      echo "copying ceph images"
+      echo "copying ceph image"
       copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" rook/ceph:master
-      copy_image_to_cluster "${BUILD_REGISTRY}/ceph-toolbox-amd64" rook/ceph-toolbox:master
     fi
 
     if [[ "$1" == "" || "$1" == "cockroachdb" ]]; then

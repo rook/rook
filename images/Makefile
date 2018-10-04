@@ -29,9 +29,6 @@ cross.%:
 ceph.%:
 	@$(MAKE) -C ceph PLATFORM=$*
 
-ceph-toolbox.%: ceph.%
-	@$(MAKE) -C ceph-toolbox PLATFORM=$*
-
 cockroachdb.%:
 	@$(MAKE) -C cockroachdb PLATFORM=$*
 

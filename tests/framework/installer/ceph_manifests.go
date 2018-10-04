@@ -451,8 +451,10 @@ spec:
   dnsPolicy: ClusterFirstWithHostNet
   containers:
   - name: rook-ceph-tools
-    image: rook/ceph-toolbox:` + m.imageTag + `
+    image: rook/ceph:` + m.imageTag + `
     imagePullPolicy: IfNotPresent
+    command: ["/tini"]
+    args: ["-g", "--", "/usr/local/bin/toolbox.sh"]
     env:
       - name: ROOK_ADMIN_SECRET
         valueFrom:
