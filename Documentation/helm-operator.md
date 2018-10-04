@@ -108,6 +108,8 @@ The following tables lists the configurable parameters of the rook-operator char
 | `nodeSelector`            | Kubernetes `nodeSelector` to add to the Deployment.             | <none>                                                 |
 | `tolerations`             | List of Kubernetes `tolerations` to add to the Deployment.      | `[]`                                                   |
 | `agent.flexVolumeDirPath` | Path where the Rook agent discovers the flex volume plugins (*) | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
+| `agent.libModulesDirPath` | Path where the Rook agent should look for kernel modules (*)    | `/lib/modules`                                         |
+| `agent.mounts`            | Additional paths to be mounted in the agent container           | <none>                                                 |
 | `agent.toleration`        | Toleration for the agent pods                                   | <none>                                                 |
 | `agent.tolerationKey`     | The specific key of the taint to tolerate                       | <none>                                                 |
 | `discover.toleration`     | Toleration for the discover pods                                | <none>                                                 |
@@ -116,6 +118,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `mon.monOutTimeout`       | The time to wait before failing over an unhealthy mon           | `300s`                                                 |
 
 &ast; For information on what to set `agent.flexVolumeDirPath` to, please refer to the [Rook flexvolume documentation](flexvolume.md)
+&ast; `agent.mounts` should have this format `mountname1=/host/path:/container/path,mountname2=/host/path2:/container/path2`
 
 ### Command Line
 You can pass the settings with helm command line parameters. Specify each parameter using the
