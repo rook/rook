@@ -25,13 +25,13 @@ import (
 
 func TestPodVolumes(t *testing.T) {
 	if err := test.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes("", "")); err != nil {
-		t.Errorf("PodVolumes(\"\") - data dir source is not EmptyDir: %s", err.Error())
+		t.Errorf("PodVolumes(\"\", \"\") - data dir source is not EmptyDir: %s", err.Error())
 	}
 	if err := test.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/sdb", PodVolumes("/dev/sdb", "")); err != nil {
-		t.Errorf("PodVolumes(\"/dev/sdb\") - data dir source is not HostPath: %s", err.Error())
+		t.Errorf("PodVolumes(\"/dev/sdb\", \"\") - data dir source is not HostPath: %s", err.Error())
 	}
-	if err := test.VolumeIsPersistentVolumeClaim(k8sutil.DataDirVolume, PodVolumes("", "my-pvc-datadir")); err != nil {
-		t.Errorf("PodVolumes(\"/dev/sdb\") - data dir source is not HostPath: %s", err.Error())
+	if err := test.VolumeIsPersistentVolumeClaim(k8sutil.DataDirVolume, PodVolumes("", "my-datadir-pvc")); err != nil {
+		t.Errorf("PodVolumes(\"\", \"my-datadir-pvc\") - data dir source is not HostPath: %s", err.Error())
 	}
 }
 
