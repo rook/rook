@@ -3,6 +3,20 @@ kind: Namespace
 metadata:
   name: rook-minio
 ---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: rook-minio-cluster-mgmt
+  namespace: rook-minio
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: rook-minio-mgmt
+subjects:
+- kind: ServiceAccount
+  name: rook-minio-system
+  namespace: rook-minio-operator
+---
 apiVersion: v1
 kind: Secret
 metadata:
