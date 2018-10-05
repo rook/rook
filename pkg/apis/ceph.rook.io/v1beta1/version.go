@@ -16,7 +16,8 @@ limitations under the License.
 package v1beta1
 
 const (
-	Luminous = "luminous"
-	Mimic    = "mimic"
-	Nautilus = "nautilus"
+	Luminous             = "luminous"
+	Mimic                = "mimic"
+	Nautilus             = "nautilus"
+	DefaultLuminousImage = "ceph/ceph:v12.2.7"
 )

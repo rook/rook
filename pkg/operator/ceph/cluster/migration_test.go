@@ -54,6 +54,40 @@ func TestGetClusterObject(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestDefaultClustervalues(t *testing.T) {
+	// the default ceph version should be set
+	cluster, _, err := getClusterObject(&cephv1beta1.Cluster{})
+	assert.NotNil(t, cluster)
+	assert.Nil(t, err)
+	assert.Equal(t, cephv1beta1.DefaultLuminousImage, cluster.Spec.CephVersion.Image)
+	assert.Equal(t, cephv1beta1.Luminous, cluster.Spec.CephVersion.Name)
+
+	// the correct ceph version name should be set based on the image
+	c := &cephv1beta1.Cluster{Spec: cephv1beta1.ClusterSpec{CephVersion: cephv1beta1.CephVersionSpec{Image: "ceph/ceph:v12.2.7"}}}
+	cluster, _, err = getClusterObject(c)
+	assert.NotNil(t, cluster)
+	assert.Nil(t, err)
+	assert.Equal(t, "ceph/ceph:v12.2.7", cluster.Spec.CephVersion.Image)
+	assert.Equal(t, cephv1beta1.Luminous, cluster.Spec.CephVersion.Name)
+
+	// the correct ceph version name should be set based on the image and override luminous
+	c.Spec.CephVersion.Image = "ceph/ceph:v13.2.1"
+	c.Spec.CephVersion.Name = cephv1beta1.Luminous
+	cluster, _, err = getClusterObject(c)
+	assert.NotNil(t, cluster)
+	assert.Nil(t, err)
+	assert.Equal(t, "ceph/ceph:v13.2.1", cluster.Spec.CephVersion.Image)
+	assert.Equal(t, cephv1beta1.Mimic, cluster.Spec.CephVersion.Name)
+
+	// the correct ceph version name should be set based on the image
+	c.Spec.CephVersion.Image = "ceph/ceph:v14.0.0"
+	cluster, _, err = getClusterObject(c)
+	assert.NotNil(t, cluster)
+	assert.Nil(t, err)
+	assert.Equal(t, "ceph/ceph:v14.0.0", cluster.Spec.CephVersion.Image)
+	assert.Equal(t, cephv1beta1.Nautilus, cluster.Spec.CephVersion.Name)
+}
+
 func TestMigrateClusterObject(t *testing.T) {
 	// create a legacy cluster that will get migrated
 	legacyCluster := &rookv1alpha1.Cluster{
