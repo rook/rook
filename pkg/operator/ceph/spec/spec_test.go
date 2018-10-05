@@ -24,10 +24,13 @@ import (
 )
 
 func TestPodVolumes(t *testing.T) {
-	if err := test.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes("")); err != nil {
+	if err := test.VolumeIsEmptyDir(k8sutil.DataDirVolume, PodVolumes("", "")); err != nil {
 		t.Errorf("PodVolumes(\"\") - data dir source is not EmptyDir: %s", err.Error())
 	}
-	if err := test.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/sdb", PodVolumes("/dev/sdb")); err != nil {
+	if err := test.VolumeIsHostPath(k8sutil.DataDirVolume, "/dev/sdb", PodVolumes("/dev/sdb", "")); err != nil {
+		t.Errorf("PodVolumes(\"/dev/sdb\") - data dir source is not HostPath: %s", err.Error())
+	}
+	if err := test.VolumeIsPersistentVolumeClaim(k8sutil.DataDirVolume, PodVolumes("", "my-pvc-datadir")); err != nil {
 		t.Errorf("PodVolumes(\"/dev/sdb\") - data dir source is not HostPath: %s", err.Error())
 	}
 }
@@ -35,7 +38,7 @@ func TestPodVolumes(t *testing.T) {
 func TestMountsMatchVolumes(t *testing.T) {
 	volsMountsTestDef := test.VolumesAndMountsTestDefinition{
 		VolumesSpec: &test.VolumesSpec{
-			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes("/dev/sdc")},
+			Moniker: "PodVolumes(\"/dev/sdc\")", Volumes: PodVolumes("/dev/sdc", "")},
 		MountsSpecItems: []*test.MountsSpec{
 			{Moniker: "CephVolumeMounts()", Mounts: CephVolumeMounts()},
 			{Moniker: "RookVolumeMounts()", Mounts: RookVolumeMounts()}},

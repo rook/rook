@@ -215,7 +215,7 @@ func TestOnAdd(t *testing.T) {
 	}
 	assert.Equal(t, expectedContainerPorts, container.Ports)
 
-	expectedVolumeMounts := []v1.VolumeMount{{Name: "datadir", MountPath: "/cockroach/cockroach-data"}}
+	expectedVolumeMounts := []v1.VolumeMount{{Name: "rook-cockroachdb-test", MountPath: "/cockroach/cockroach-data"}}
 	assert.Equal(t, expectedVolumeMounts, container.VolumeMounts)
 
 	expectedEnvVars := []v1.EnvVar{{Name: "COCKROACH_CHANNEL", Value: "kubernetes-insecure"}}

@@ -79,12 +79,8 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Nil(t, testop.VolumeExists(k8sutil.ConfigOverrideName, pod.Spec.Volumes))
 	if dataDir == "" {
 		assert.Nil(t, testop.VolumeIsEmptyDir(k8sutil.DataDirVolume, pod.Spec.Volumes))
-		assert.NotNil(t, pod.Spec.Volumes[1].EmptyDir)
-		assert.Nil(t, pod.Spec.Volumes[1].HostPath)
 	} else {
 		assert.Nil(t, testop.VolumeIsHostPath(k8sutil.DataDirVolume, dataDir, pod.Spec.Volumes))
-		assert.Nil(t, pod.Spec.Volumes[1].EmptyDir)
-		assert.Equal(t, dataDir, pod.Spec.Volumes[1].HostPath.Path)
 	}
 
 	assert.Equal(t, "a", pod.ObjectMeta.Name)
@@ -152,7 +148,6 @@ func testPodSpec(t *testing.T, dataDir string) {
 	monmapContDev.TestContainer(t, "monmap init", cont, logger)
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
-	// TODO Add test when pvc is used
 
 	// mon fs init container
 	monFsContDev := test_opceph.ContainerTestDefinition{

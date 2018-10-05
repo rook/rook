@@ -55,7 +55,7 @@ func (c *Cluster) makeJob(
 	metadataDevice,
 	location string,
 ) (*batch.Job, error) {
-	podSpec, err := c.provisionPodTemplateSpec(devices, selection, resources, storeConfig, metadataDevice, location, nodeName, v1.RestartPolicyOnFailure)
+	podSpec, err := c.provisionPodTemplateSpec(devices, selection, resources, storeConfig, metadataDevice, nodeName, location, v1.RestartPolicyOnFailure)
 	if err != nil {
 		return nil, err
 	}
@@ -524,7 +524,6 @@ func getDirectoriesFromContainer(osdContainer v1.Container) []rookalpha.Director
 	for dirNum, dir := range dirsList {
 		dirs[dirNum] = rookalpha.Directory{Path: dir}
 	}
-
 	return dirs
 }
 
@@ -545,6 +544,5 @@ func getConfigFromContainer(osdContainer v1.Container) map[string]string {
 			cfg[config.MetadataDeviceKey] = envVar.Value
 		}
 	}
-
 	return cfg
 }

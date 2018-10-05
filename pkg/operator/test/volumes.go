@@ -62,6 +62,13 @@ func VolumeIsHostPath(volumeName, path string, volumes []v1.Volume) error {
 	return err
 }
 
+// VolumeIsPersistentVolumeClaim returns a descriptive error if the volume does not eixst, is not
+// a PersistentVolumeClaim, or if the volume's Persitent Volume Claim is not as expected.
+func VolumeIsPersistentVolumeClaim(volumeName string, volumes []v1.Volume) error {
+	// TODO
+	return nil
+}
+
 // VolumeMountExists returns returns a descriptive error if the volume mount does not exist.
 func VolumeMountExists(mountName string, mounts []v1.VolumeMount) error {
 	_, err := getMount(mountName, mounts)
