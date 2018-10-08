@@ -40,12 +40,13 @@ const (
 	monmapFile = "monmap"
 )
 
-func (c *Cluster) getLabels(name string) map[string]string {
-	return map[string]string{
-		k8sutil.AppAttr: appName,
-		"mon":           name,
-		monClusterAttr:  c.Namespace,
-	}
+func (c *Cluster) getLabels(daemonName string) map[string]string {
+	// Mons have a service for each mon, so the additional pod data is relevant for its services
+	// Use pod labels to keep "mon: id" for legacy
+	labels := opspec.PodLabels(appName, c.Namespace, "mon", daemonName)
+	// Add "mon_cluster: <namespace>" for legacy
+	labels[monClusterAttr] = c.Namespace
+	return labels
 }
 
 func (c *Cluster) makeDeployment(monConfig *monConfig, hostname string) *extensions.Deployment {
@@ -241,6 +242,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 				"--foreground",
 				"--public-addr", joinHostPort(monConfig.PublicIP, monConfig.Port),
 				// --public-bind-addr is set in the config file at init time
+				// do not add the '--cluster/--conf/--keyring' flags; rook wants their default values
 			},
 			c.cephMonCommonArgs(monConfig)...,
 		),

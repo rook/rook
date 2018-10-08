@@ -14,194 +14,189 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package mds for file systems.
 package file
 
 import (
 	"fmt"
 	"strconv"
+	"time"
 
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
-	"github.com/rook/rook/pkg/daemon/ceph/model"
-	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
-	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 )
 
 const (
+	// AppName is the name of Rook's Ceph mds (File) sub-app
 	AppName = "rook-ceph-mds"
+
+	keyringSecretKeyName = "keyring"
+
+	// timeout if mds is not ready for upgrade after some time
+	fsUpgradePrepareTimeout = 3 * time.Minute
 )
 
-// Create the file system
-func CreateFilesystem(context *clusterd.Context, fs cephv1beta1.Filesystem, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
-	if err := validateFilesystem(context, fs); err != nil {
-		return err
-	}
-
-	var dataPools []*model.Pool
-	for _, p := range fs.Spec.DataPools {
-		dataPools = append(dataPools, p.ToModel(""))
-	}
-	f := mdsdaemon.NewFS(fs.Name, fs.Spec.MetadataPool.ToModel(""), dataPools, fs.Spec.MetadataServer.ActiveCount)
-	if err := f.CreateFilesystem(context, fs.Namespace); err != nil {
-		return fmt.Errorf("failed to create file system %s: %+v", fs.Name, err)
-	}
-
-	filesystem, err := client.GetFilesystem(context, fs.Namespace, fs.Name)
-	if err != nil {
-		return fmt.Errorf("failed to get file system %s. %+v", fs.Name, err)
-	}
-
-	logger.Infof("start running mds for file system %s", fs.Name)
-
-	// start the deployment
-	deployment := makeDeployment(context.Clientset, fs, strconv.Itoa(filesystem.ID), version, hostNetwork, ownerRefs)
-	_, err = context.Clientset.ExtensionsV1beta1().Deployments(fs.Namespace).Create(deployment)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return fmt.Errorf("failed to create mds deployment. %+v", err)
-		}
-		logger.Infof("mds deployment %s already exists", deployment.Name)
-	} else {
-		logger.Infof("mds deployment %s started", deployment.Name)
-	}
-
-	return nil
+type cluster struct {
+	context     *clusterd.Context
+	Version     string
+	HostNetwork bool
+	fs          cephv1beta1.Filesystem
+	fsID        string
+	ownerRefs   []metav1.OwnerReference
 }
 
-// Delete the file system
-func DeleteFilesystem(context *clusterd.Context, fs cephv1beta1.Filesystem) error {
-	// Delete the mds deployment
-	k8sutil.DeleteDeployment(context.Clientset, fs.Namespace, instanceName(fs))
-
-	// Delete the keyring
-	// Delete the rgw keyring
-	err := context.Clientset.CoreV1().Secrets(fs.Namespace).Delete(instanceName(fs), &metav1.DeleteOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		logger.Warningf("failed to delete mds secret. %+v", err)
-	}
-
-	// Delete the ceph file system and pools
-	if err := mdsdaemon.DeleteFilesystem(context, fs.Namespace, fs.Name); err != nil {
-		return fmt.Errorf("failed to delete file system %s: %+v", fs.Name, err)
-	}
-
-	return nil
-}
-
-func instanceName(fs cephv1beta1.Filesystem) string {
-	return fmt.Sprintf("%s-%s", AppName, fs.Name)
-}
-
-func makeDeployment(clientset kubernetes.Interface, fs cephv1beta1.Filesystem, filesystemID, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) *extensions.Deployment {
-	deployment := &extensions.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      instanceName(fs),
-			Namespace: fs.Namespace,
-		},
-	}
-	k8sutil.SetOwnerRefs(clientset, fs.Namespace, &deployment.ObjectMeta, ownerRefs)
-
-	podSpec := v1.PodSpec{
-		Containers:    []v1.Container{mdsContainer(fs, filesystemID, version)},
-		RestartPolicy: v1.RestartPolicyAlways,
-		Volumes: []v1.Volume{
-			{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
-			k8sutil.ConfigOverrideVolume(),
-		},
+func newCluster(
+	context *clusterd.Context,
+	version string,
+	hostNetwork bool,
+	fs cephv1beta1.Filesystem,
+	fsdetails *client.CephFilesystemDetails,
+	ownerRefs []metav1.OwnerReference,
+) *cluster {
+	return &cluster{
+		context:     context,
+		Version:     version,
 		HostNetwork: hostNetwork,
-	}
-	if hostNetwork {
-		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	}
-	fs.Spec.MetadataServer.Placement.ApplyToPodSpec(&podSpec)
-
-	podTemplateSpec := v1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        instanceName(fs),
-			Labels:      getLabels(fs),
-			Annotations: map[string]string{},
-		},
-		Spec: podSpec,
-	}
-
-	// double the number of MDS instances for failover
-	mdsCount := fs.Spec.MetadataServer.ActiveCount * 2
-
-	deployment.Spec = extensions.DeploymentSpec{Template: podTemplateSpec, Replicas: &mdsCount}
-
-	return deployment
-}
-
-func mdsContainer(fs cephv1beta1.Filesystem, filesystemID, version string) v1.Container {
-
-	envVars := []v1.EnvVar{
-		{Name: "ROOK_POD_NAME", ValueFrom: &v1.EnvVarSource{FieldRef: &v1.ObjectFieldSelector{FieldPath: "metadata.name"}}},
-		{Name: "ROOK_FILESYSTEM_ID", Value: filesystemID},
-		{Name: "ROOK_ACTIVE_STANDBY", Value: strconv.FormatBool(fs.Spec.MetadataServer.ActiveStandby)},
-		opmon.ClusterNameEnvVar(fs.Namespace),
-		opmon.EndpointEnvVar(),
-		opmon.AdminSecretEnvVar(),
-		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-		k8sutil.ConfigOverrideEnvVar(),
-	}
-	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars()...)
-
-	return v1.Container{
-		Args: []string{
-			"ceph",
-			"mds",
-			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-		},
-		Name:  instanceName(fs),
-		Image: k8sutil.MakeRookImage(version),
-		VolumeMounts: []v1.VolumeMount{
-			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
-			k8sutil.ConfigOverrideMount(),
-		},
-		Env:       envVars,
-		Resources: fs.Spec.MetadataServer.Resources,
+		fs:          fs,
+		fsID:        strconv.Itoa(fsdetails.ID),
+		ownerRefs:   ownerRefs,
 	}
 }
 
-func getLabels(fs cephv1beta1.Filesystem) map[string]string {
-	return map[string]string{
-		k8sutil.AppAttr:     AppName,
-		k8sutil.ClusterAttr: fs.Namespace,
-		"rook_file_system":  fs.Name,
-	}
+type mdsConfig struct {
+	ResourceName string
+	DaemonName   string
 }
 
-func validateFilesystem(context *clusterd.Context, f cephv1beta1.Filesystem) error {
-	if f.Name == "" {
-		return fmt.Errorf("missing name")
+// return true if an attempt was made to prepare the filesystem associated for upgrade
+func (c *cluster) deleteLegacyMdsDeployment() bool {
+	legacyName := fmt.Sprintf("%s-%s", AppName, c.fs.Name) // rook-ceph-mds-<fsname>
+	logger.Debugf("getting legacy mds deployment %s for filesystem %s if it exists", legacyName, c.fs.Name)
+	_, err := c.context.Clientset.Extensions().Deployments(c.fs.Namespace).Get(legacyName, metav1.GetOptions{})
+	if err != nil && errors.IsNotFound(err) {
+		logger.Infof("legacy mds deployment %s not found, no update needed", legacyName)
+		return false
+		// if any other error, failed to get legacy dep., but it exists, so still try deleting it.
 	}
-	if f.Namespace == "" {
-		return fmt.Errorf("missing namespace")
+	logger.Infof("deleting legacy mds deployment %s", legacyName)
+	if err := mdsdaemon.PrepareForDaemonUpgrade(c.context, c.fs.Namespace, c.fs.Name, fsUpgradePrepareTimeout); err != nil {
+		logger.Errorf("failed to prepare filesystem %s for mds upgrade while deleting legacy deployment %s, continuing anyway: %+v", c.fs.Name, legacyName, err)
 	}
-	if len(f.Spec.DataPools) == 0 {
-		return fmt.Errorf("at least one data pool required")
+	if err := k8sutil.DeleteDeployment(c.context.Clientset, c.fs.Namespace, legacyName); err != nil {
+		logger.Errorf("failed to delete legacy deployment %s, USER should delete the legacy mds deployment manually if it still exists: %+v", legacyName, err)
 	}
-	if err := pool.ValidatePoolSpec(context, f.Namespace, &f.Spec.MetadataPool); err != nil {
-		return fmt.Errorf("invalid metadata pool. %+v", err)
-	}
-	for _, p := range f.Spec.DataPools {
-		if err := pool.ValidatePoolSpec(context, f.Namespace, &p); err != nil {
-			return fmt.Errorf("Invalid data pool. %+v", err)
+	return true
+}
+
+func (c *cluster) start() error {
+	// If attempt was made to prepare daemons for upgrade, make sure that an attempt is made to
+	// bring fs state back to desired when this method returns with any error or success.
+	var fsPreparedForUpgrade = false
+	defer func() {
+		if fsPreparedForUpgrade {
+			if err := mdsdaemon.FinishedWithDaemonUpgrade(c.context, c.fs.Namespace, c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount); err != nil {
+				logger.Errorf("for filesystem %s, USER should make sure the Ceph fs max_mds property is set to %d: %+v",
+					c.fs.Name, c.fs.Spec.MetadataServer.ActiveCount, err)
+			}
 		}
-	}
-	if f.Spec.MetadataServer.ActiveCount < 1 {
-		return fmt.Errorf("MetadataServer.ActiveCount must be at least 1")
+	}()
+	// Delete legacy daemonset, and remove it if it exists.
+	// This is relevant to the upgrade from Rook 0.8 to 0.9.
+	fsPreparedForUpgrade = c.deleteLegacyMdsDeployment()
+
+	// Always create double the number of metadata servers to have standby mdses available
+	replicas := c.fs.Spec.MetadataServer.ActiveCount * 2
+	for i := 0; i < int(replicas); i++ {
+		daemonLetterID := k8sutil.IndexToName(i)
+		// Each mds is id'ed by <fsname>-<letterID>
+		daemonName := fmt.Sprintf("%s-%s", c.fs.Name, daemonLetterID)
+		// resource name is rook-ceph-mds-<fs_name>-<daemon_name>
+		resourceName := fmt.Sprintf("%s-%s-%s", AppName, c.fs.Name, daemonLetterID)
+
+		mdsConfig := &mdsConfig{
+			ResourceName: resourceName,
+			DaemonName:   daemonName,
+		}
+
+		// create unique key for each mds
+		if err := c.getOrCreateKeyring(mdsConfig); err != nil {
+			return fmt.Errorf("failed to create mds keyring for filesystem %s: %+v", c.fs.Name, err)
+		}
+
+		// start the deployment
+		d := c.makeDeployment(mdsConfig)
+		logger.Debugf("starting mds: %+v", d)
+		_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.fs.Namespace).Create(d)
+		if err != nil {
+			if !errors.IsAlreadyExists(err) {
+				return fmt.Errorf("failed to create mds deployment: %+v", err)
+			}
+			logger.Infof("mds deployment %s already exists", d.Name)
+		} else {
+			logger.Infof("mds deployment %s started", d.Name)
+		}
 	}
 
 	return nil
+}
+
+func (c *cluster) getOrCreateKeyring(mdsConfig *mdsConfig) error {
+	_, err := c.context.Clientset.CoreV1().Secrets(c.fs.Namespace).Get(
+		mdsConfig.ResourceName, metav1.GetOptions{})
+	if err == nil {
+		logger.Infof("the mds keyring was already generated")
+		return nil
+	}
+	if !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to get mds secrets: %+v", err)
+	}
+
+	// get or create key for the mds user
+	key, err := getOrCreateKey(c.context, c.fs.Namespace, mdsConfig.DaemonName)
+	if err != nil {
+		return err // there isn't any additional useful information to add here
+	}
+
+	// Store the keyring in a secret
+	secrets := map[string]string{
+		keyringSecretKeyName: key,
+	}
+	secret := &v1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      mdsConfig.ResourceName,
+			Namespace: c.fs.Namespace,
+		},
+		StringData: secrets,
+		Type:       k8sutil.RookType,
+	}
+	k8sutil.SetOwnerRefs(c.context.Clientset, c.fs.Namespace, &secret.ObjectMeta, c.ownerRefs)
+
+	_, err = c.context.Clientset.CoreV1().Secrets(c.fs.Namespace).Create(secret)
+	if err != nil {
+		return fmt.Errorf("failed to save mds secret: %+v", err)
+	}
+
+	return nil
+}
+
+// create a keyring for the mds cluster with a limited set of privileges
+func getOrCreateKey(context *clusterd.Context, clusterName, daemonName string) (string, error) {
+	access := []string{"osd", "allow *", "mds", "allow", "mon", "allow profile mds"}
+	username := fmt.Sprintf("mds.%s", daemonName)
+	// "mds."" without a letter ID creates a key that can work for all mdses. This also means that
+	// it *could* work for mdses serving a different filesystem, though we want to have a unique key
+	// for each filesystem so that access can be quickly revoked by deleting the secret.
+
+	// get-or-create-key for the user account
+	key, err := client.AuthGetOrCreateKey(context, clusterName, username, access)
+	if err != nil {
+		return "", fmt.Errorf("failed to get or create auth key for user %s: %+v", username, err)
+	}
+
+	return key, nil
 }

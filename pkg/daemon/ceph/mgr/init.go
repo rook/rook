@@ -84,7 +84,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
 	err = cephconfig.WriteKeyring(keyringPath, config.Keyring, keyringEval)
 	if err != nil {
-		return fmt.Errorf("failed to create mds keyring. %+v", err)
+		return fmt.Errorf("failed to create mgr keyring. %+v", err)
 	}
 
 	return nil
@@ -92,10 +92,6 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 
 func getMgrConfDir(dir, name string) string {
 	return path.Join(dir, fmt.Sprintf("mgr-%s", name))
-}
-
-func getMgrConfFilePath(dir, name, clusterName string) string {
-	return path.Join(getMgrConfDir(dir, name), fmt.Sprintf("%s.config", clusterName))
 }
 
 func getMgrKeyringPath(dir, name string) string {

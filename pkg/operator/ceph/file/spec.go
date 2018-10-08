@@ -1,5 +1,5 @@
 /*
-Copyright 2018 The Rook Authors. All rights reserved.
+Copyright 2016 The Rook Authors. All rights reserved.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,13 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package mgr
+package file
 
 import (
-	"fmt"
 	"strconv"
 
-	mgrdaemon "github.com/rook/rook/pkg/daemon/ceph/mgr"
+	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -30,24 +29,22 @@ import (
 )
 
 const (
-	mgrDaemonCommand = "ceph-mgr"
+	mdsDaemonCommand = "ceph-mds"
 )
 
-func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *extensions.Deployment {
+func (c *cluster) makeDeployment(mdsConfig *mdsConfig) *extensions.Deployment {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:   mgrConfig.ResourceName,
-			Labels: c.getPodLabels(mgrConfig.DaemonName),
-			Annotations: map[string]string{"prometheus.io/scrape": "true",
-				"prometheus.io/port": strconv.Itoa(metricsPort)},
+			Name:        mdsConfig.ResourceName,
+			Labels:      c.podLabels(mdsConfig),
+			Annotations: map[string]string{},
 		},
 		Spec: v1.PodSpec{
 			InitContainers: []v1.Container{
-				// Config file init performed by Rook
-				c.makeConfigInitContainer(mgrConfig),
+				c.makeConfigInitContainer(mdsConfig),
 			},
 			Containers: []v1.Container{
-				c.makeMgrDaemonContainer(mgrConfig),
+				c.makeMdsDaemonContainer(mdsConfig),
 			},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes:       opspec.PodVolumes(""),
@@ -57,90 +54,74 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *extensions.Deployment {
 	if c.HostNetwork {
 		podSpec.Spec.DNSPolicy = v1.DNSClusterFirstWithHostNet
 	}
-	c.placement.ApplyToPodSpec(&podSpec.Spec)
+	c.fs.Spec.MetadataServer.Placement.ApplyToPodSpec(&podSpec.Spec)
 
 	replicas := int32(1)
 	d := &extensions.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      mgrConfig.ResourceName,
-			Namespace: c.Namespace,
+			Name:      mdsConfig.ResourceName,
+			Namespace: c.fs.Namespace,
 		},
 		Spec: extensions.DeploymentSpec{Template: podSpec, Replicas: &replicas},
 	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &d.ObjectMeta, &c.ownerRef)
+	k8sutil.SetOwnerRefs(c.context.Clientset, c.fs.Namespace, &d.ObjectMeta, c.ownerRefs)
 	return d
 }
 
-func (c *Cluster) makeConfigInitContainer(mgrConfig *mgrConfig) v1.Container {
+func (c *cluster) makeConfigInitContainer(mdsConfig *mdsConfig) v1.Container {
 	return v1.Container{
 		Name: opspec.ConfigInitContainerName,
 		Args: []string{
 			"ceph",
-			mgrdaemon.InitCommand,
-			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--mgr-name=%s", mgrConfig.DaemonName),
+			mdsdaemon.InitCommand,
+			"--config-dir", k8sutil.DataDir,
+			"--mds-name", mdsConfig.DaemonName,
+			"--filesystem-id", c.fsID,
+			"--active-standby", strconv.FormatBool(c.fs.Spec.MetadataServer.ActiveStandby),
 		},
 		Image: k8sutil.MakeRookImage(c.Version),
 		Env: []v1.EnvVar{
-			// Set '--mgr-keyring' flag with an env var sourced from the secret
-			{Name: "ROOK_MGR_KEYRING",
+			// Set '--mds-keyring' flag with an env var sourced from the secret
+			{Name: "ROOK_MDS_KEYRING",
 				ValueFrom: &v1.EnvVarSource{
 					SecretKeyRef: &v1.SecretKeySelector{
-						LocalObjectReference: v1.LocalObjectReference{Name: mgrConfig.ResourceName},
+						LocalObjectReference: v1.LocalObjectReference{Name: mdsConfig.ResourceName},
 						Key:                  keyringSecretKeyName,
 					}}},
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-			opmon.ClusterNameEnvVar(c.Namespace),
+			opmon.ClusterNameEnvVar(c.fs.Namespace),
 			opmon.EndpointEnvVar(),
 			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
 			k8sutil.ConfigOverrideEnvVar(),
 		},
 		VolumeMounts: opspec.RookVolumeMounts(),
-		// config file creation does not require ports to be open
-		Resources: c.resources,
+		Resources:    c.fs.Spec.MetadataServer.Resources,
 	}
 }
 
-func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
+func (c *cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 	return v1.Container{
 		Name: "mgr",
 		Command: []string{
-			mgrDaemonCommand,
+			mdsDaemonCommand,
 		},
 		Args: []string{
 			"--foreground",
-			"--id", mgrConfig.DaemonName,
+			"--id", mdsConfig.DaemonName,
 			// do not add the '--cluster/--conf/--keyring' flags; rook wants their default values
 		},
 		Image:        k8sutil.MakeRookImage(c.Version),
+		Env:          k8sutil.ClusterDaemonEnvVars(),
 		VolumeMounts: opspec.CephVolumeMounts(),
-		Ports: []v1.ContainerPort{
-			{
-				Name:          "mgr",
-				ContainerPort: int32(6800),
-				Protocol:      v1.ProtocolTCP,
-			},
-			{
-				Name:          "http-metrics",
-				ContainerPort: int32(metricsPort),
-				Protocol:      v1.ProtocolTCP,
-			},
-			{
-				Name:          "dashboard",
-				ContainerPort: int32(dashboardPort),
-				Protocol:      v1.ProtocolTCP,
-			},
-		},
-		Env:       k8sutil.ClusterDaemonEnvVars(),
-		Resources: c.resources,
+		// TODO: mds doesn't need ports?
+		Resources: c.fs.Spec.MetadataServer.Resources,
 	}
 }
 
-func (c *Cluster) getPodLabels(daemonName string) map[string]string {
-	labels := opspec.PodLabels(appName, c.Namespace, "mgr", daemonName)
-	// leave "instance" key for legacy usage
-	labels["instance"] = daemonName
+func (c *cluster) podLabels(mdsConfig *mdsConfig) map[string]string {
+	labels := opspec.PodLabels(AppName, c.fs.Namespace, "mds", mdsConfig.DaemonName)
+	labels["rook_file_system"] = c.fs.Name
 	return labels
 }

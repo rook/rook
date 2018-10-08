@@ -121,3 +121,19 @@ func UpdateDeploymentAndWait(context *clusterd.Context, deployment *extensions.D
 
 	return fmt.Errorf("gave up waiting for deployment %s to update", deployment.Name)
 }
+
+// GetDeployments returns a list of deployment names labels matching a given selector
+// example of a label selector might be "app=rook-ceph-mon, mon!=b"
+// more: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
+func GetDeployments(clientset kubernetes.Interface, namespace, labelSelector string) ([]string, error) {
+	listOptions := metav1.ListOptions{LabelSelector: labelSelector}
+	deployments, err := clientset.Extensions().Deployments(namespace).List(listOptions)
+	if err != nil {
+		return []string{}, fmt.Errorf("failed to list deployments with labelSelector %s: %v", labelSelector, err)
+	}
+	dNames := []string{}
+	for _, d := range deployments.Items {
+		dNames = append(dNames, d.GetName())
+	}
+	return dNames, nil
+}

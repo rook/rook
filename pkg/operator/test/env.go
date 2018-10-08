@@ -14,27 +14,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package ceph
+package test
 
 import (
-	"testing"
+	"fmt"
 
-	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
 )
 
-func TestExtractMdsName(t *testing.T) {
-	name := extractMdsID("random")
-	assert.Equal(t, "random", name)
-
-	name = extractMdsID("rook-ceph-mds")
-	assert.Equal(t, "rook-ceph-mds", name)
-
-	name = extractMdsID("rook-ceph-mds-a")
-	assert.Equal(t, "a", name)
-
-	name = extractMdsID("rook-ceph-mds-rook-ceph-mds-foo")
-	assert.Equal(t, "rook-ceph-mds-foo", name)
-
-	name = extractMdsID("rook-ceph-mds-myfs-64b66569f6-5tz2s")
-	assert.Equal(t, "myfs-64b66569f6-5tz2s", name)
+// GetEnv finds returns the env var with the given name from a list of env vars.
+func GetEnv(name string, envs []v1.EnvVar) (*v1.EnvVar, error) {
+	for _, e := range envs {
+		if e.Name == name {
+			return &e, nil
+		}
+	}
+	return &v1.EnvVar{Name: "EnvVar was not found by GetEnv()"},
+		fmt.Errorf("volume mount %s does not exist in %+v", name, envs)
 }

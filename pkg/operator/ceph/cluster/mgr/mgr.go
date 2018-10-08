@@ -25,6 +25,7 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -35,7 +36,7 @@ var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-mgr")
 
 const (
 	appName              = "rook-ceph-mgr"
-	keyringName          = "keyring"
+	keyringSecretKeyName = "keyring"
 	prometheusModuleName = "prometheus"
 	dashboardModuleName  = "dashboard"
 	metricsPort          = 9283
@@ -161,7 +162,7 @@ func (c *Cluster) configureDashboard() error {
 }
 
 func (c *Cluster) makeMetricsService(name string) *v1.Service {
-	labels := c.getLabels()
+	labels := opspec.AppLabels(appName, c.Namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -186,7 +187,7 @@ func (c *Cluster) makeMetricsService(name string) *v1.Service {
 }
 
 func (c *Cluster) makeDashboardService(name string) *v1.Service {
-	labels := c.getLabels()
+	labels := opspec.AppLabels(appName, c.Namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      fmt.Sprintf("%s-dashboard", name),
@@ -227,7 +228,7 @@ func (c *Cluster) createKeyring(clusterName, name, daemonName string) error {
 
 	// Store the keyring in a secret
 	secrets := map[string]string{
-		keyringName: keyring,
+		keyringSecretKeyName: keyring,
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
