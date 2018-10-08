@@ -33,28 +33,36 @@ var (
 func MergeResourceRequirements(first, second v1.ResourceRequirements) v1.ResourceRequirements {
 	// if the first has a value not set check if second has and set it in first
 	if _, ok := first.Limits[v1.ResourceCPU]; !ok {
-		if first.Limits == nil {
-			first.Limits = v1.ResourceList{}
+		if _, ok = second.Limits[v1.ResourceCPU]; ok {
+			if first.Limits == nil {
+				first.Limits = v1.ResourceList{}
+			}
+			first.Limits[v1.ResourceCPU] = second.Limits[v1.ResourceCPU]
 		}
-		first.Limits[v1.ResourceCPU] = second.Limits[v1.ResourceCPU]
 	}
 	if _, ok := first.Limits[v1.ResourceMemory]; !ok {
-		if first.Limits == nil {
-			first.Limits = v1.ResourceList{}
+		if _, ok = second.Limits[v1.ResourceMemory]; ok {
+			if first.Limits == nil {
+				first.Limits = v1.ResourceList{}
+			}
+			first.Limits[v1.ResourceMemory] = second.Limits[v1.ResourceMemory]
 		}
-		first.Limits[v1.ResourceMemory] = second.Limits[v1.ResourceMemory]
 	}
 	if _, ok := first.Requests[v1.ResourceCPU]; !ok {
-		if first.Requests == nil {
-			first.Requests = v1.ResourceList{}
+		if _, ok = second.Requests[v1.ResourceCPU]; ok {
+			if first.Requests == nil {
+				first.Requests = v1.ResourceList{}
+			}
+			first.Requests[v1.ResourceCPU] = second.Requests[v1.ResourceCPU]
 		}
-		first.Requests[v1.ResourceCPU] = second.Requests[v1.ResourceCPU]
 	}
 	if _, ok := first.Requests[v1.ResourceMemory]; !ok {
-		if first.Requests == nil {
-			first.Requests = v1.ResourceList{}
+		if _, ok = second.Requests[v1.ResourceMemory]; ok {
+			if first.Requests == nil {
+				first.Requests = v1.ResourceList{}
+			}
+			first.Requests[v1.ResourceMemory] = second.Requests[v1.ResourceMemory]
 		}
-		first.Requests[v1.ResourceMemory] = second.Requests[v1.ResourceMemory]
 	}
 	return first
 }
