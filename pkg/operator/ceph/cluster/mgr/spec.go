@@ -91,7 +91,6 @@ func (c *Cluster) makeConfigInitContainer(mgrConfig *mgrConfig) v1.Container {
 					}}},
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-			opmon.ClusterNameEnvVar(c.Namespace),
 			opmon.EndpointEnvVar(),
 			opmon.SecretEnvVar(),
 			opmon.AdminSecretEnvVar(),
@@ -104,7 +103,7 @@ func (c *Cluster) makeConfigInitContainer(mgrConfig *mgrConfig) v1.Container {
 }
 
 func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
-	return v1.Container{
+	container := v1.Container{
 		Name: "mgr",
 		Command: []string{
 			mgrDaemonCommand,
@@ -136,6 +135,8 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 		Env:       k8sutil.ClusterDaemonEnvVars(),
 		Resources: c.resources,
 	}
+	container.Env = append(container.Env, opmon.ClusterNameEnvVar(c.Namespace))
+	return container
 }
 
 func (c *Cluster) getPodLabels(daemonName string) map[string]string {
