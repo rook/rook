@@ -193,8 +193,11 @@ func (c *Cluster) startMons() error {
 		}
 	}
 
-	monAddr := monConfigString(mons)
-	updateMonValuesForSC(c.context, c.Namespace, monAddr)
+	monAddr := flattenMonConfig(mons)
+	if err := updateStorageClassMonEndpoints(c.context, c.Namespace, monAddr); err != nil {
+		// log but don't return the error
+		logger.Warningf("updating mon endpoint for storage class failed: %v", err)
+	}
 
 	logger.Debugf("mon endpoints used are: %s", mondaemon.FlattenMonEndpoints(c.clusterInfo.Monitors))
 	return nil

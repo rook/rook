@@ -33,6 +33,22 @@ func FlattenMonEndpoints(mons map[string]*cephconfig.MonInfo) string {
 	return strings.Join(endpoints, ",")
 }
 
+// FlatternMonInfoForCSI returns a comma-delimited string of all mons in the form of
+// mon1Addr:port,mon2Addr:port
+func FlattenMonInfoForCSI(mons map[string]*cephconfig.MonInfo) string {
+	monAddr := ""
+	for _, m := range mons {
+		a := m.Endpoint
+		if len(monAddr) > 0 {
+			monAddr = monAddr + "," + a
+		} else {
+			monAddr = a
+		}
+	}
+	return monAddr
+
+}
+
 // ParseMonEndpoints parses a flattened representation of mons and endpoints in the form
 // <mon-name>=<mon-endpoint> and returns a list of Ceph mon configs.
 func ParseMonEndpoints(input string) map[string]*cephconfig.MonInfo {

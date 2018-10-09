@@ -192,15 +192,15 @@ rules:
   - create
   - update
   - delete
-- apiGroups:
-  - ""
-  resources:
-  # secret access is needed for mon failover used by csi storageclass 
-  resources:
-  - secrets
-  verbs:
-  - get
-  - update  
+# uncomment the following to allow operator to update mon address in secrets
+# used by csi driver storage class
+#- apiGroups:
+#  - ""
+#  resources:
+  #- secrets
+  #verbs:
+  #- get
+  #- update  
 - apiGroups:
   - storage.k8s.io
   resources:

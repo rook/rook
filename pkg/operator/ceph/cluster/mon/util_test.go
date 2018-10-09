@@ -33,8 +33,9 @@ const (
 )
 
 func createFakeSecret(name, ns string, clientset *fake.Clientset) error {
-	data := make(map[string][]byte, 1)
-	data[monValueFrom] = []byte("mon1:6790,mon2:6790")
+	data := map[string][]byte{
+		monValueFrom: []byte("mon1:6790,mon2:6790"),
+	}
 	s := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -98,8 +99,8 @@ func TestUpdateSC(t *testing.T) {
 	}
 
 	newMons := []*monConfig{mon1, mon2}
-	monAddr := monConfigString(newMons)
-	err = updateMonValuesForSC(context, "fakeCluster", monAddr)
+	monAddr := flattenMonConfig(newMons)
+	err = updateStorageClassMonEndpoints(context, "fakeCluster", monAddr)
 	assert.Nil(t, err)
 	val, err := getFakeSecretData("fakeSecret", "fakeNS", monValueFrom, clientset)
 	assert.Nil(t, err)

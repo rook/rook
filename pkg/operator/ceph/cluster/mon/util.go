@@ -288,7 +288,7 @@ func fullNameToIndex(name string) (int, error) {
 	return id, nil
 }
 
-func monConfigString(mons []*monConfig) string {
+func flattenMonConfig(mons []*monConfig) string {
 	monAddr := ""
 	for _, m := range mons {
 		a := fmt.Sprintf("%s:%d", m.PublicIP, m.Port)
@@ -301,23 +301,9 @@ func monConfigString(mons []*monConfig) string {
 	return monAddr
 }
 
-func monInfoString(mons map[string]*cephconfig.MonInfo) string {
-	monAddr := ""
-	for _, m := range mons {
-		a := m.Endpoint
-		if len(monAddr) > 0 {
-			monAddr = monAddr + "," + a
-		} else {
-			monAddr = a
-		}
-	}
-	return monAddr
-
-}
-
 // ceph csi storage class can embed mon service in secret.
 // list all such storage classes and update their mon values
-func updateMonValuesForSC(context *clusterd.Context, clusterName string, monAddr string) error {
+func updateStorageClassMonEndpoints(context *clusterd.Context, clusterName string, monAddr string) error {
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("%s=%s", csiSCLabelSelector, clusterName)}
 	scs, err := context.Clientset.Storage().StorageClasses().List(listOpts)
 	if err != nil {

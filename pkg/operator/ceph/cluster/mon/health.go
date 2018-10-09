@@ -268,8 +268,7 @@ func (c *Cluster) failoverMon(name string) error {
 	// Only increment the max mon id if the new pod started successfully
 	c.maxMonID++
 
-	err = c.removeMon(name)
-	if err != nil {
+	if err = c.removeMon(name); err != nil {
 		return fmt.Errorf("failed to remove mon %s: %v", name, err)
 	}
 
@@ -333,8 +332,8 @@ func (c *Cluster) removeMon(daemonName string) error {
 		return fmt.Errorf("failed to write connection config after failing over mon %s. %+v", daemonName, err)
 	}
 
-	monAddr := monInfoString(c.clusterInfo.Monitors)
-	if err := updateMonValuesForSC(c.context, c.Namespace, monAddr); err != nil {
+	monAddr := mondaemon.FlattenMonInfoForCSI(c.clusterInfo.Monitors)
+	if err := updateStorageClassMonEndpoints(c.context, c.Namespace, monAddr); err != nil {
 		// just log the error
 		logger.Warningf("failed to update mon value used by storage class: %v", err)
 	}
