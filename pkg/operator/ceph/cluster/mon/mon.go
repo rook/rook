@@ -171,6 +171,7 @@ func (c *Cluster) startMons() error {
 		if endIndex < c.Size {
 			endIndex++
 		}
+		logger.Infof("looping to start mons. i=%d, endIndex=%d, c.Size=%d", i, endIndex, c.Size)
 
 		// Init the mon IPs
 		if err := c.initMonIPs(mons[0:endIndex]); err != nil {
@@ -319,16 +320,16 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		return fmt.Errorf("failed to get available nodes for mons. %+v", err)
 	}
 
-	// if all nodes already have mons return error as we don't place two mons on one node
-	if len(availableNodes) == 0 {
-		return fmt.Errorf("no nodes available for mon placement")
-	}
-
 	nodeIndex := 0
 	for _, m := range mons {
 		if _, ok := c.mapping.Node[m.DaemonName]; ok {
 			logger.Debugf("mon %s already assigned to a node, no need to assign", m.DaemonName)
 			continue
+		}
+
+		// if we need to place a new mon and don't have any more nodes available, we fail to add the mon
+		if len(availableNodes) == 0 {
+			return fmt.Errorf("no nodes available for mon placement")
 		}
 
 		// pick one of the available nodes where the mon will be assigned
