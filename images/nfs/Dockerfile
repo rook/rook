@@ -47,7 +47,7 @@ COPY start.sh /
 
 EXPOSE 2049 38465-38467 662 111/udp 111
 
-ADD rook /usr/local/bin/
+COPY rook /usr/local/bin/
 
 ENTRYPOINT ["/usr/local/bin/rook"]
 CMD [""]
