@@ -7,6 +7,12 @@ tarfile="${WORK_DIR}/tests/${tarname}"
 
 export KUBE_VERSION=${KUBE_VERSION:-"v1.8.5"}
 
+if [[ $KUBE_VERSION == v1.12* ]] ; then
+    skippreflightcheck=--ignore-preflight-errors=all
+else
+    skippreflightcheck=--skip-preflight-checks
+fi
+
 usage(){
     echo "usage:" >&2
     echo "  $0 up " >&2
@@ -28,7 +34,7 @@ EOF
         sudo systemctl daemon-reload
     fi
 
-    sudo kubeadm init --skip-preflight-checks --kubernetes-version ${KUBE_VERSION}
+    sudo kubeadm init $skippreflightcheck --kubernetes-version ${KUBE_VERSION}
 
     sudo cp /etc/kubernetes/admin.conf $HOME/
     sudo chown $(id -u):$(id -g) $HOME/admin.conf
@@ -70,8 +76,8 @@ EOF
         sudo systemctl daemon-reload
     fi
 
-    echo "kubeadm join ${1} ${2} ${3} ${4} ${5} --skip-preflight-checks"
-    sudo kubeadm join ${1} ${2} ${3} ${4} ${5} --skip-preflight-checks || true
+    echo "kubeadm join ${1} ${2} ${3} ${4} ${5} $skippreflightcheck"
+    sudo kubeadm join ${1} ${2} ${3} ${4} ${5} $skippreflightcheck || true
 }
 
 #wait for all nodes in the cluster to be ready status
@@ -112,7 +118,7 @@ wait_for_ready(){
 
 kubeadm_reset() {
     kubectl delete -f "https://cloud.weave.works/k8s/net?k8s-version=$(kubectl version | base64 | tr -d '\n')"
-    sudo kubeadm reset --skip-preflight-checks
+    sudo kubeadm reset $skippreflightcheck
     sudo rm /usr/local/bin/kube*
     sudo rm kubectl
     rm $HOME/admin.conf
