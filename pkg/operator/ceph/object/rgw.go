@@ -19,20 +19,16 @@ package object
 
 import (
 	"fmt"
-	"path"
 
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
 	rgwdaemon "github.com/rook/rook/pkg/daemon/ceph/rgw"
-	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
-	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -66,7 +62,7 @@ func createOrUpdate(context *clusterd.Context, store cephv1beta1.ObjectStore, ve
 			logger.Infof("object store %s exists in namespace %s", store.Name, store.Namespace)
 			return nil
 		}
-		logger.Infof("object store %s exists in namespace %store. checking for updates", store.Name, store.Namespace)
+		logger.Infof("object store %s exists in namespace %s. checking for updates", store.Name, store.Namespace)
 	}
 
 	logger.Infof("creating object store %s in namespace %s", store.Name, store.Namespace)
@@ -248,178 +244,7 @@ func createKeyring(context *clusterd.Context, store cephv1beta1.ObjectStore, own
 }
 
 func instanceName(store cephv1beta1.ObjectStore) string {
-	return InstanceName(store.Name)
-}
-
-func InstanceName(name string) string {
-	return fmt.Sprintf("%s-%s", appName, name)
-}
-
-func makeRGWPodSpec(store cephv1beta1.ObjectStore, version string, hostNetwork bool) v1.PodTemplateSpec {
-	podSpec := v1.PodSpec{
-		Containers:    []v1.Container{rgwContainer(store, version)},
-		RestartPolicy: v1.RestartPolicyAlways,
-		Volumes: []v1.Volume{
-			{Name: k8sutil.DataDirVolume, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}},
-			k8sutil.ConfigOverrideVolume(),
-		},
-		HostNetwork: hostNetwork,
-	}
-	if hostNetwork {
-		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
-	}
-
-	// Set the ssl cert if specified
-	if store.Spec.Gateway.SSLCertificateRef != "" {
-		certVol := v1.Volume{Name: certVolumeName, VolumeSource: v1.VolumeSource{Secret: &v1.SecretVolumeSource{
-			SecretName: store.Spec.Gateway.SSLCertificateRef,
-			Items:      []v1.KeyToPath{{Key: certKeyName, Path: certFilename}},
-		}}}
-		podSpec.Volumes = append(podSpec.Volumes, certVol)
-	}
-
-	store.Spec.Gateway.Placement.ApplyToPodSpec(&podSpec)
-
-	return v1.PodTemplateSpec{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        instanceName(store),
-			Labels:      getLabels(store),
-			Annotations: map[string]string{},
-		},
-		Spec: podSpec,
-	}
-}
-
-func startDeployment(context *clusterd.Context, store cephv1beta1.ObjectStore, version string, replicas int32, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
-
-	deployment := &extensions.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      instanceName(store),
-			Namespace: store.Namespace,
-		},
-		Spec: extensions.DeploymentSpec{Template: makeRGWPodSpec(store, version, hostNetwork), Replicas: &replicas},
-	}
-	k8sutil.SetOwnerRefs(context.Clientset, store.Namespace, &deployment.ObjectMeta, ownerRefs)
-	_, err := context.Clientset.ExtensionsV1beta1().Deployments(store.Namespace).Create(deployment)
-	return err
-}
-
-func startDaemonset(context *clusterd.Context, store cephv1beta1.ObjectStore, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
-
-	daemonset := &extensions.DaemonSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      instanceName(store),
-			Namespace: store.Namespace,
-		},
-		Spec: extensions.DaemonSetSpec{
-			UpdateStrategy: extensions.DaemonSetUpdateStrategy{
-				Type: extensions.RollingUpdateDaemonSetStrategyType,
-			},
-			Template: makeRGWPodSpec(store, version, hostNetwork),
-		},
-	}
-	k8sutil.SetOwnerRefs(context.Clientset, store.Namespace, &daemonset.ObjectMeta, ownerRefs)
-
-	_, err := context.Clientset.ExtensionsV1beta1().DaemonSets(store.Namespace).Create(daemonset)
-	return err
-}
-
-func rgwContainer(store cephv1beta1.ObjectStore, version string) v1.Container {
-
-	envVars := []v1.EnvVar{
-		{Name: "ROOK_RGW_KEYRING", ValueFrom: &v1.EnvVarSource{SecretKeyRef: &v1.SecretKeySelector{LocalObjectReference: v1.LocalObjectReference{Name: instanceName(store)}, Key: keyringName}}},
-		k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
-		k8sutil.PodIPEnvVar(k8sutil.PublicIPEnvVar),
-		opmon.ClusterNameEnvVar(store.Namespace),
-		opmon.EndpointEnvVar(),
-		opmon.SecretEnvVar(),
-		k8sutil.ConfigOverrideEnvVar(),
-	}
-	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars()...)
-
-	container := v1.Container{
-		Args: []string{
-			"ceph",
-			"rgw",
-			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
-			fmt.Sprintf("--rgw-name=%s", store.Name),
-			fmt.Sprintf("--rgw-port=%d", store.Spec.Gateway.Port),
-			fmt.Sprintf("--rgw-secure-port=%d", store.Spec.Gateway.SecurePort),
-		},
-		Name:  instanceName(store),
-		Image: k8sutil.MakeRookImage(version),
-		VolumeMounts: []v1.VolumeMount{
-			{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
-			k8sutil.ConfigOverrideMount(),
-		},
-		Env:       envVars,
-		Resources: store.Spec.Gateway.Resources,
-	}
-
-	if store.Spec.Gateway.SSLCertificateRef != "" {
-		// Add a volume mount for the ssl certificate
-		mount := v1.VolumeMount{Name: certVolumeName, MountPath: certMountPath, ReadOnly: true}
-		container.VolumeMounts = append(container.VolumeMounts, mount)
-
-		// Pass the flag for using the ssl cert
-		path := path.Join(certMountPath, certFilename)
-		container.Args = append(container.Args, fmt.Sprintf("--rgw-cert=%s", path))
-	}
-
-	return container
-}
-
-func startService(context *clusterd.Context, store cephv1beta1.ObjectStore, hostNetwork bool, ownerRefs []metav1.OwnerReference) (string, error) {
-	labels := getLabels(store)
-	svc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      instanceName(store),
-			Namespace: store.Namespace,
-			Labels:    labels,
-		},
-		Spec: v1.ServiceSpec{
-			Selector: labels,
-		},
-	}
-	k8sutil.SetOwnerRefs(context.Clientset, store.Namespace, &svc.ObjectMeta, ownerRefs)
-	if hostNetwork {
-		svc.Spec.ClusterIP = v1.ClusterIPNone
-	}
-
-	addPort(svc, "http", store.Spec.Gateway.Port)
-	addPort(svc, "https", store.Spec.Gateway.SecurePort)
-
-	svc, err := context.Clientset.CoreV1().Services(store.Namespace).Create(svc)
-	if err != nil {
-		if !errors.IsAlreadyExists(err) {
-			return "", fmt.Errorf("failed to create rgw service. %+v", err)
-		}
-		logger.Infof("Gateway service already running")
-		return "", nil
-	}
-
-	logger.Infof("Gateway service running at %s:%d", svc.Spec.ClusterIP, store.Spec.Gateway.Port)
-	return svc.Spec.ClusterIP, nil
-}
-
-func addPort(service *v1.Service, name string, port int32) {
-	if port == 0 {
-		return
-	}
-	service.Spec.Ports = append(service.Spec.Ports, v1.ServicePort{
-		Name:       name,
-		Port:       port,
-		TargetPort: intstr.FromInt(int(port)),
-		Protocol:   v1.ProtocolTCP,
-	})
-}
-
-func getLabels(store cephv1beta1.ObjectStore) map[string]string {
-	return map[string]string{
-		k8sutil.AppAttr:     appName,
-		k8sutil.ClusterAttr: store.Namespace,
-		"rook_object_store": store.Name,
-	}
+	return fmt.Sprintf("%s-%s", appName, store.Name)
 }
 
 // create a keyring for the rgw client with a limited set of privileges
