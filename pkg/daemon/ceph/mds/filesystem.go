@@ -60,6 +60,15 @@ func (f *Filesystem) CreateFilesystem(context *clusterd.Context, clusterName str
 	_, err := client.GetFilesystem(context, clusterName, f.Name)
 	if err == nil {
 		logger.Infof("file system %s already exists", f.Name)
+		// Even if the fs already exists, the num active mdses may have changed
+		if err := client.SetNumMDSRanks(context, clusterName, f.Name, f.activeMDSCount); err != nil {
+			logger.Errorf(
+				fmt.Sprintf("failed to set num mds ranks (max_mds) to %d for filesystem %s, still continuing. ", f.activeMDSCount, f.Name) +
+					"this error is not critical, but mdses may not be as failure tolerant as desired. " +
+					fmt.Sprintf("USER should verify that the number of active mdses is %d with 'ceph fs get %s'", f.activeMDSCount, f.Name) +
+					fmt.Sprintf(": %+v", err),
+			)
+		}
 		return nil
 	}
 	if len(f.dataPools) == 0 {
@@ -151,60 +160,13 @@ func PrepareForDaemonUpgrade(
 	if err := client.SetNumMDSRanks(context, clusterName, fsName, 1); err != nil {
 		return fmt.Errorf("Could not Prepare filesystem %s for daemon upgrade: %+v", fsName, err)
 	}
-
-	ready := make(chan struct{})
-	quit := make(chan struct{})
-	defer close(ready)
-	defer close(quit)
-	go func() {
-		waitForNumMDSRanks(context, clusterName, fsName, 1, ready, quit)
-	}()
-	defer func() { quit <- struct{}{} }() // Don't leak resources; stop inf wait loop before exiting
-
-	logger.Infof("waiting %f minutes for number of active daemons for fs %s to drop to 1", float64(timeout/time.Minute), fsName)
-	t := time.NewTimer(timeout)
-	defer t.Stop() // clean up timer resources if exit before timer fires
-	select {
-	case <-ready:
-		logger.Infof("number of active daemons for fs %s is now 1", fsName) // nothing more to do
-	case <-t.C: // time.After could be used here, but its resources live until timer fires
-		return fmt.Errorf(
-			"timeout waiting for filesystem %s number active mds daemons to drop to 1", fsName)
+	if err := client.WaitForActiveRanks(context, clusterName, fsName, 1, false, timeout); err != nil {
+		return err
 	}
 	// * End of Noted section 1
 
 	logger.Infof("Filesystem %s successfully prepared for mds daemon upgrade", fsName)
 	return nil
-}
-
-// wait in inf loop for the number of mds ranks to equal the desired number
-func waitForNumMDSRanks(context *clusterd.Context, clusterName, fsName string, numRanks int,
-	ready chan<- struct{}, quit <-chan struct{},
-) {
-	t := time.NewTicker(3 * time.Second)
-	defer t.Stop()
-	for {
-		select {
-		case <-quit:
-			logger.Debugf("Quitting infinit wait-for-mds-ranks loop")
-			return
-		case <-t.C:
-			fs, err := client.GetFilesystem(context, clusterName, fsName)
-			if err != nil {
-				logger.Errorf(
-					"Error getting filesystem %s details while waiting for num mds ranks to become %d: %+v",
-					fsName, numRanks, err)
-			} else if fs.MDSMap.MaxMDS == numRanks && len(fs.MDSMap.Up) == numRanks {
-				// Both max_mds and number of up MDS daemons must equal desired number of ranks to
-				// prevent a false positive when Ceph has got the correct number of mdses up but is
-				// trying to change the number of mdses up to an undesired number.
-				logger.Debugf("mds ranks for filesystem %s successfully became %d", fsName, numRanks)
-				ready <- struct{}{}
-				// continue to inf loop after send ready; only return when get quit signal to
-				// prevent deadlock
-			}
-		}
-	}
 }
 
 // FinishedWithDaemonUpgrade performs all actions necessary to bring the filesystem back to its

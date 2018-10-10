@@ -37,14 +37,11 @@ func CreateFilesystemOperation(k8sh *utils.K8sHelper, manifests installer.CephMa
 	return &FilesystemOperation{k8sh, manifests}
 }
 
-// FSCreate Function to create a filesystem in rook
-// Input parameters -
-//  name -  name of the shared file system to be created
-//  Output - output returned by the ceph command
+// Create creates a filesystem in Rook
 func (f *FilesystemOperation) Create(name, namespace string) error {
 
 	logger.Infof("creating the filesystem via CRD")
-	if _, err := f.k8sh.ResourceOperation("create", f.manifests.GetFilesystem(namespace, name)); err != nil {
+	if _, err := f.k8sh.ResourceOperation("create", f.manifests.GetFilesystem(namespace, name, 2)); err != nil {
 		return err
 	}
 
@@ -53,22 +50,31 @@ func (f *FilesystemOperation) Create(name, namespace string) error {
 	assert.Nil(f.k8sh.T(), err)
 
 	assert.True(f.k8sh.T(), f.k8sh.CheckPodCountAndState("rook-ceph-mds", namespace, 4, "Running"),
+		"Make sure there are four rook-ceph-mds pods present in Running state")
+
+	return nil
+}
+
+// ScaleDown scales down the number of active metadata servers of a filesystem in Rook
+func (f *FilesystemOperation) ScaleDown(name, namespace string) error {
+	logger.Infof("scaling down the number of filesystem active metadata servers via CRD")
+	if _, err := f.k8sh.ResourceOperation("apply", f.manifests.GetFilesystem(namespace, name, 1)); err != nil {
+		return err
+	}
+
+	assert.True(f.k8sh.T(), f.k8sh.CheckPodCountAndState("rook-ceph-mds", namespace, 2, "Running"),
 		"Make sure there are two rook-ceph-mds pods present in Running state")
 
 	return nil
 }
 
-// Delete Function to delete a filesystem in rook
-// Input parameters -
-// name -  name of the shared file system to be deleted
-// Output - output returned by the call
+// Delete deletes a filesystem in Rook
 func (f *FilesystemOperation) Delete(name, namespace string) error {
 	options := &metav1.DeleteOptions{}
 	return f.k8sh.RookClientset.RookV1alpha1().Filesystems(namespace).Delete(name, options)
 }
 
-// List Function to list a filesystem in rook
-// Output - output returned by the call
+// List lists filesystems in Rook
 func (f *FilesystemOperation) List(namespace string) ([]client.CephFilesystem, error) {
 	context := f.k8sh.MakeContext()
 	filesystems, err := client.ListFilesystems(context, namespace)

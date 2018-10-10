@@ -43,6 +43,7 @@ func runFileE2ETest(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 	createFilesystem(helper, k8sh, s, namespace, filesystemName)
 	createFilesystemConsumerPod(helper, k8sh, s, namespace, filesystemName)
 	writeAndReadToFilesystem(helper, k8sh, s, namespace, "test_file")
+	downscaleMetadataServers(helper, k8sh, s, namespace, filesystemName)
 	cleanupFilesystemConsumer(helper, k8sh, s, namespace, filesystemName)
 }
 
@@ -67,6 +68,12 @@ func writeAndReadToFilesystem(helper *clients.TestClient, k8sh *utils.K8sHelper,
 	require.Nil(s.T(), err)
 
 	err = k8sh.ReadFromPod(namespace, filePodName, filename, message)
+	require.Nil(s.T(), err)
+}
+
+func downscaleMetadataServers(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.Suite, namespace, fsName string) {
+	logger.Infof("downscaling file system metadata servers")
+	err := helper.FSClient.ScaleDown(fsName, namespace)
 	require.Nil(s.T(), err)
 }
 

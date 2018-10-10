@@ -21,8 +21,10 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
+	"k8s.io/apimachinery/pkg/util/wait"
 )
 
 const (
@@ -167,7 +169,7 @@ func SetNumMDSRanks(context *clusterd.Context, clusterName, fsName string, activ
 	// Noted sections 1 and 2 are necessary for reducing max_mds in Luminous.
 	//   See more:   [1] http://docs.ceph.com/docs/luminous/cephfs/upgrading/
 	//               [2] https://tracker.ceph.com/issues/23172
-	// TODO: These two sections could be conditionally skipped if this function can be informed that
+	// TODO: These two sections SHOULD be conditionally skipped if this function can be informed that
 	//   the version of Ceph mdses currently running is >=13.0.0
 
 	// * Noted section 1 - See note at top of function
@@ -186,7 +188,7 @@ func SetNumMDSRanks(context *clusterd.Context, clusterName, fsName string, activ
 	// Now check the error to see if we can even determine whether we should reduce or not
 	if errAtStart != nil {
 		return fmt.Errorf(`failed to get filesystem %s info needed to ensure mds rank can be changed correctly,
-if Ceph version is Luminous (12.y.z) and num active mdses (max_mds) was lowered, user must deactivate extra active mdses manually: %v`,
+if Ceph version is Luminous (12.y.z) and num active mdses (max_mds) was lowered, USER should deactivate extra active mdses manually: %v`,
 			fsName, errAtStart)
 	}
 	if int(activeMDSCount) > fsAtStart.MDSMap.MaxMDS {
@@ -196,24 +198,88 @@ if Ceph version is Luminous (12.y.z) and num active mdses (max_mds) was lowered,
 	// Deactivate all mdses except desired number (N); arbitrarily choose first N to live
 	fs, err := GetFilesystem(context, clusterName, fsName)
 	if err != nil {
-		logger.Warningf(`Failed to get filesystem %s info needed to deactivate running mdses
-Using slightly stale info, this could (rarely) result in momentary loss of filesystem availability: %v`, fsName, err)
+		logger.Warningf(
+			fmt.Sprintf("Failed to get filesystem %s info needed to deactivate running mdses. ", fsName) +
+				"using slightly stale info, this could (rarely) result in momentary loss of filesystem availability" +
+				fmt.Sprintf(": %v", err),
+		)
 		fs = fsAtStart // <-- Do the best we can to disable mdses that were active when we started
 		// Effects of stale info should be non-destructive, & unlikely the info is actually bad
 	}
-	if len(fs.MDSMap.In) > int(activeMDSCount) {
-		// Only try to deactivate mdses if there are more than desired.
-		for _, gid := range fs.MDSMap.In[activeMDSCount:] {
-			args := []string{"mds", "deactivate", fmt.Sprintf("%s:%d", fsName, gid)}
-			if _, err := ExecuteCephCommand(context, clusterName, args); err != nil {
-				logger.Warningf(`Possibly failed to deactivate filesystem %s mds w/ gid %d
-In mimic+ this command does nothing; in luminous this is non-ideal but not necessarily critical: %v`,
-					fsName, gid, err)
-			}
+	// Deactivate any mdses with a higher rank than the desired max rank
+	// Ceph only allows mdses to be deactivated in reverse order starting with the highest rank
+	for gid := int(len(fs.MDSMap.In)) - 1; gid >= int(activeMDSCount); gid-- {
+		if err := deactivateMdsWithRetry(context, gid, clusterName, fsName); err != nil {
+			logger.Warningf("in mimic+ this error means nothing. in luminous this is non-ideal but not necessarily critical: %v", err)
 		}
-	} // ** End of noted section 2
+	}
+	// ** End of noted section 2
 
 	return nil
+}
+
+func deactivateMdsWithRetry(context *clusterd.Context, mdsGid int, namespace, fsName string) error {
+	retries := 10
+	retrySleep := 5 * time.Second
+	var err error
+	for i := 1; i <= retries; i++ {
+		args := []string{"mds", "deactivate", fmt.Sprintf("%s:%d", fsName, mdsGid)}
+		if _, err = ExecuteCephCommand(context, namespace, args); err == nil {
+			logger.Infof("successfully disabled mds with rank %d on attempt %d", mdsGid, i)
+			return nil
+		}
+		time.Sleep(retrySleep)
+	}
+	// report most recent error with additional err info
+	return fmt.Errorf("failed to deactivate mds w/ gid %d for filesystem %s: %+v", mdsGid, fsName, err)
+}
+
+// WaitForActiveRanks waits for the filesystem's number of active ranks to equal the desired count.
+// It times out with an error if the number of active ranks does not become desired in time.
+// Param 'moreIsOkay' will allow success condition if num of ranks is more than active count given.
+func WaitForActiveRanks(
+	context *clusterd.Context,
+	clusterName, fsName string,
+	desiredActiveRanks int32, moreIsOkay bool,
+	timeout time.Duration,
+) error {
+	countText := fmt.Sprintf("%d", desiredActiveRanks)
+	if moreIsOkay {
+		// If it's okay to have more active ranks than desired, indicate so in log messages
+		countText = fmt.Sprintf("%d or more", desiredActiveRanks)
+	}
+	logger.Infof("waiting %.2f second(s) for number of active mds daemons for fs %s to become %s",
+		float64(timeout/time.Second), fsName, countText)
+	err := wait.Poll(3*time.Second, timeout, func() (bool, error) {
+		fs, err := GetFilesystem(context, clusterName, fsName)
+		if err != nil {
+			logger.Errorf(
+				"Error getting filesystem %s details while waiting for num mds ranks to become %d: %+v",
+				fsName, desiredActiveRanks, err)
+		} else if fs.MDSMap.MaxMDS == int(desiredActiveRanks) &&
+			activeRanksSuccess(len(fs.MDSMap.Up), int(desiredActiveRanks), moreIsOkay) {
+			// Both max_mds and number of up MDS daemons must equal desired number of ranks to
+			// prevent a false positive when Ceph has got the correct number of mdses up but is
+			// trying to change the number of mdses up to an undesired number.
+			logger.Debugf("mds ranks for filesystem %s successfully became %d", fsName, desiredActiveRanks)
+			return true, nil
+			// continue to inf loop after send ready; only return when get quit signal to
+			// prevent deadlock
+		}
+		return false, nil
+	})
+	if err != nil {
+		return fmt.Errorf("timeout waiting for number active mds daemons for filesystem %s to become %s",
+			fsName, countText)
+	}
+	return nil
+}
+
+func activeRanksSuccess(upCount, desiredRanks int, moreIsOkay bool) bool {
+	if moreIsOkay {
+		return upCount >= desiredRanks
+	}
+	return upCount == desiredRanks
 }
 
 // MarkFilesystemAsDown marks a Ceph filesystem as down.
