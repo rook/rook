@@ -77,7 +77,7 @@ func SetLogLevel() {
 func LogStartupInfo(cmdFlags *pflag.FlagSet) {
 	// log the version number, arguments, and all final flag values (environment variable overrides
 	// have already been taken into account)
-	flagValues := flags.GetFlagsAndValues(cmdFlags, "secret")
+	flagValues := flags.GetFlagsAndValues(cmdFlags, "secret|keyring")
 	logger.Infof("starting Rook %s with arguments '%s'", version.Version, strings.Join(os.Args, " "))
 	logger.Infof("flag values: %s", strings.Join(flagValues, ", "))
 }

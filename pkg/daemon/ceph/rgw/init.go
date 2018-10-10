@@ -21,7 +21,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-
 	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
@@ -31,6 +30,14 @@ import (
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephrgw")
+
+const (
+	keyringTemplate = `[client.radosgw.gateway]
+key = %s
+caps mon = "allow rw"
+caps osd = "allow *"
+`
+)
 
 type Config struct {
 	Name            string
@@ -42,16 +49,11 @@ type Config struct {
 	ClusterInfo     *cephconfig.ClusterInfo
 }
 
-func Run(context *clusterd.Context, config *Config) error {
+func Initialize(context *clusterd.Context, config *Config) error {
 
 	err := generateConfigFiles(context, config)
 	if err != nil {
 		return fmt.Errorf("failed to generate rgw config files. %+v", err)
-	}
-
-	err = startRGW(context, config)
-	if err != nil {
-		return fmt.Errorf("failed to run rgw. %+v", err)
 	}
 
 	return err
@@ -94,11 +96,12 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 		"rgw_zone":                       config.Name,
 		"rgw_zonegroup":                  config.Name,
 	}
-	_, err := cephconfig.GenerateConfigFile(context, config.ClusterInfo, getRGWConfDir(context.ConfigDir),
+	configFile, err := cephconfig.GenerateConfigFile(context, config.ClusterInfo, getRGWConfDir(context.ConfigDir),
 		"client.radosgw.gateway", getRGWKeyringPath(context.ConfigDir), nil, settings)
 	if err != nil {
 		return fmt.Errorf("failed to create config file. %+v", err)
 	}
+	util.WriteFileToLog(logger, configFile)
 
 	keyringEval := func(key string) string {
 		return fmt.Sprintf(keyringTemplate, key)
@@ -111,39 +114,13 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	}
 
 	// write the mime types config
-	mimeTypesPath := getMimeTypesPath(context.ConfigDir)
-	logger.Debugf("Writing mime types to: %s", mimeTypesPath)
+	mimeTypesPath := GetMimeTypesPath(context.ConfigDir)
+	logger.Infof("Writing mime types to: %s", mimeTypesPath)
 	if err := ioutil.WriteFile(mimeTypesPath, []byte(mimeTypes), 0644); err != nil {
 		return fmt.Errorf("failed to write mime types to %s: %+v", mimeTypesPath, err)
 	}
 
 	return nil
-}
-
-func startRGW(context *clusterd.Context, config *Config) (err error) {
-	// start the monitor daemon in the foreground with the given config
-	logger.Infof("starting rgw")
-
-	confFile := getRGWConfFilePath(context.ConfigDir, config.ClusterInfo.Name)
-	util.WriteFileToLog(logger, confFile)
-
-	rgwNameArg := "--name=client.radosgw.gateway"
-	args := []string{
-		"--foreground",
-		rgwNameArg,
-		fmt.Sprintf("--cluster=%s", config.ClusterInfo.Name),
-		fmt.Sprintf("--conf=%s", confFile),
-		fmt.Sprintf("--keyring=%s", getRGWKeyringPath(context.ConfigDir)),
-		fmt.Sprintf("--rgw-mime-types-file=%s", getMimeTypesPath(context.ConfigDir)),
-	}
-	if err = context.Executor.ExecuteCommand(false, "rgw", "radosgw", args...); err != nil {
-		return fmt.Errorf("failed to start rgw: %+v", err)
-	}
-	return nil
-}
-
-func getRGWConfFilePath(configDir, clusterName string) string {
-	return path.Join(getRGWConfDir(configDir), fmt.Sprintf("%s.config", clusterName))
 }
 
 func getRGWConfDir(configDir string) string {
@@ -154,6 +131,6 @@ func getRGWKeyringPath(configDir string) string {
 	return path.Join(getRGWConfDir(configDir), "keyring")
 }
 
-func getMimeTypesPath(configDir string) string {
+func GetMimeTypesPath(configDir string) string {
 	return path.Join(getRGWConfDir(configDir), "mime.types")
 }
