@@ -33,8 +33,15 @@ rook-ceph-mgr-dashboard            ClusterIP   10.110.113.240   <none>        84
 
 The first service is for reporting the [Prometheus metrics](monitoring.md), while the latter service is for the dashboard.
 If you are on a node in the cluster, you will be able to connect to the dashboard by using either the
-DNS name of the service at `https://rook-ceph-mgr-dashboard:8443` or by connecting to the cluster IP,
-in this example at `https://10.110.113.240:8443`.
+DNS name of the service at `http://rook-ceph-mgr-dashboard:8443` or by connecting to the cluster IP,
+in this example at `http://10.110.113.240:8443`.
+
+After you connect to the dashboard you will need to login for secure access. Rook creates a default user named
+'admin' and generates a secret called `rook-ceph-dashboard-admin-password` in the namespace where rook is running.
+To retrieve the generated password, you can run the following:
+```
+kubectl -n rook-ceph get secret rook-ceph-dashboard-password -o yaml | grep "password:" | awk '{print $2}' | base64 --decode
+```
 
 ## Viewing the Dashboard External to the Cluster
 
@@ -46,12 +53,12 @@ You can use an [Ingress Controller](https://kubernetes.io/docs/concepts/services
 NodePort, LoadBalancer, or ExternalIPs.
 
 The simplest way to expose the service in minikube or similar environment is using the NodePort to open a port on the
-VM that can be accessed by the host. To create a service with the NodePort, save this yaml as `dashboard-external-https.yaml`:
+VM that can be accessed by the host. To create a service with the NodePort, save this yaml as `dashboard-external.yaml`:
 ```yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: rook-ceph-mgr-dashboard-external-https
+  name: rook-ceph-mgr-dashboard-external
   namespace: rook-ceph
   labels:
     app: rook-ceph-mgr
@@ -71,18 +78,18 @@ spec:
 
 Now create the service:
 ```bash
-$ kubectl create -f dashboard-external-https.yaml
+$ kubectl create -f dashboard-external.yaml
 ```
 
 You will see the new service `rook-ceph-mgr-dashboard-external` created:
 ```bash
 $ kubectl -n rook-ceph get service
-NAME                                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
-rook-ceph-mgr                           ClusterIP   10.108.111.192   <none>        9283/TCP         4h
-rook-ceph-mgr-dashboard                 ClusterIP   10.110.113.240   <none>        8443/TCP         4h
-rook-ceph-mgr-dashboard-external-https  NodePort    10.101.209.6     <none>        8443:31176/TCP   4h
+NAME                               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+rook-ceph-mgr                      ClusterIP   10.108.111.192   <none>        9283/TCP         4h
+rook-ceph-mgr-dashboard            ClusterIP   10.110.113.240   <none>        8443/TCP         4h
+rook-ceph-mgr-dashboard-external   NodePort    10.101.209.6     <none>        8443:31176/TCP   4h
 ```
 
 In this example, port `31176` will be opened to expose port `8443` from the ceph-mgr pod. Find the ip address
-of the VM. If using minikube, you can `minikube ip` to find the ip address accessible to your host.
-Now you can enter the URL in your browser such as `http://192.168.99.103:31176` and the dashboard will appear.
+of the VM. If using minikube, you can run `minikube ip` to find the ip address.
+Now you can enter the URL in your browser such as `http://192.168.99.110:31176` and the dashboard will appear.

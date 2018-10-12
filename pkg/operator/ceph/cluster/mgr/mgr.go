@@ -25,7 +25,6 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -38,9 +37,7 @@ const (
 	appName              = "rook-ceph-mgr"
 	keyringSecretKeyName = "keyring"
 	prometheusModuleName = "prometheus"
-	dashboardModuleName  = "dashboard"
 	metricsPort          = 9283
-	dashboardPort        = 7000
 )
 
 var mgrNames = []string{"a", "b"}
@@ -135,83 +132,6 @@ func (c *Cluster) Start() error {
 	return c.configureDashboard()
 }
 
-func (c *Cluster) configureDashboard() error {
-	// enable or disable the dashboard module
-	if err := c.configureDashboardModule(c.Namespace, c.dashboard.Enabled); err != nil {
-		return fmt.Errorf("failed to enable mgr dashboard module. %+v", err)
-	}
-
-	dashboardService := c.makeDashboardService(appName)
-	if c.dashboard.Enabled {
-		// expose the dashboard service
-		if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(dashboardService); err != nil {
-			if !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("failed to create dashboard mgr service. %+v", err)
-			}
-			logger.Infof("dashboard service already exists")
-		} else {
-			logger.Infof("dashboard service started")
-		}
-	} else {
-		// delete the dashboard service if it exists
-		err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(dashboardService.Name, &metav1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			return fmt.Errorf("failed to delete dashboard service. %+v", err)
-		}
-	}
-
-	return nil
-}
-
-func (c *Cluster) makeMetricsService(name string) *v1.Service {
-	labels := opspec.AppLabels(appName, c.Namespace)
-	svc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.Namespace,
-			Labels:    labels,
-		},
-		Spec: v1.ServiceSpec{
-			Selector: labels,
-			Type:     v1.ServiceTypeClusterIP,
-			Ports: []v1.ServicePort{
-				{
-					Name:     "http-metrics",
-					Port:     int32(metricsPort),
-					Protocol: v1.ProtocolTCP,
-				},
-			},
-		},
-	}
-
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
-	return svc
-}
-
-func (c *Cluster) makeDashboardService(name string) *v1.Service {
-	labels := opspec.AppLabels(appName, c.Namespace)
-	svc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-dashboard", name),
-			Namespace: c.Namespace,
-			Labels:    labels,
-		},
-		Spec: v1.ServiceSpec{
-			Selector: labels,
-			Type:     v1.ServiceTypeClusterIP,
-			Ports: []v1.ServicePort{
-				{
-					Name:     "http-dashboard",
-					Port:     int32(dashboardPort),
-					Protocol: v1.ProtocolTCP,
-				},
-			},
-		},
-	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
-	return svc
-}
-
 func (c *Cluster) createKeyring(clusterName, name, daemonName string) error {
 	_, err := c.context.Clientset.CoreV1().Secrets(c.Namespace).Get(name, metav1.GetOptions{})
 	if err == nil {
@@ -258,23 +178,9 @@ func (c *Cluster) enablePrometheusModule(clusterName string) error {
 	return nil
 }
 
-// Ceph docs about the dashboard module: http://docs.ceph.com/docs/luminous/mgr/dashboard/
-func (c *Cluster) configureDashboardModule(clusterName string, enable bool) error {
-	if enable {
-		if err := client.MgrEnableModule(c.context, clusterName, dashboardModuleName, true); err != nil {
-			return fmt.Errorf("failed to enable mgr dashboard module. %+v", err)
-		}
-	} else {
-		if err := client.MgrDisableModule(c.context, clusterName, dashboardModuleName); err != nil {
-			return fmt.Errorf("failed to disable mgr dashboard module. %+v", err)
-		}
-	}
-	return nil
-}
-
 func getKeyringProperties(name string) (string, []string) {
 	username := fmt.Sprintf("mgr.%s", name)
-	access := []string{"mon", "allow *"}
+	access := []string{"mon", "allow profile mgr", "mds", "allow *", "osd", "allow *"}
 	return username, access
 }
 

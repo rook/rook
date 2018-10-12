@@ -139,6 +139,55 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 	return container
 }
 
+func (c *Cluster) makeMetricsService(name string) *v1.Service {
+	labels := opspec.AppLabels(appName, c.Namespace)
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.Namespace,
+			Labels:    labels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: labels,
+			Type:     v1.ServiceTypeClusterIP,
+			Ports: []v1.ServicePort{
+				{
+					Name:     "http-metrics",
+					Port:     int32(metricsPort),
+					Protocol: v1.ProtocolTCP,
+				},
+			},
+		},
+	}
+
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	return svc
+}
+
+func (c *Cluster) makeDashboardService(name string) *v1.Service {
+	labels := opspec.AppLabels(appName, c.Namespace)
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-dashboard", name),
+			Namespace: c.Namespace,
+			Labels:    labels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: labels,
+			Type:     v1.ServiceTypeClusterIP,
+			Ports: []v1.ServicePort{
+				{
+					Name:     "https-dashboard",
+					Port:     int32(dashboardPort),
+					Protocol: v1.ProtocolTCP,
+				},
+			},
+		},
+	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	return svc
+}
+
 func (c *Cluster) getPodLabels(daemonName string) map[string]string {
 	labels := opspec.PodLabels(appName, c.Namespace, "mgr", daemonName)
 	// leave "instance" key for legacy usage
