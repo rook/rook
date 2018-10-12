@@ -19,7 +19,7 @@ const (
 	Luminous             = "luminous"
 	Mimic                = "mimic"
 	Nautilus             = "nautilus"
-	DefaultLuminousImage = "ceph/ceph:v12.2.7"
+	DefaultLuminousImage = "ceph/ceph:v12.2.9-20181026"
 )
 
 func VersionAtLeast(version, minimumVersion string) bool {

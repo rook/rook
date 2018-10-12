@@ -41,8 +41,10 @@ import (
 )
 
 const (
-	luminousTestImage      = "ceph/ceph:v12.2.7"
-	mimicTestImage         = "ceph/ceph:v13.2.2"
+	// test with the latest luminous build
+	luminousTestImage = "ceph/ceph:v12"
+	// test with the latest mimic build
+	mimicTestImage         = "ceph/ceph:v13"
 	rookOperatorCreatedCrd = "clusters.ceph.rook.io"
 	helmChartName          = "local/rook-ceph"
 	helmDeployName         = "rook-ceph"

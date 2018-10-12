@@ -47,7 +47,7 @@ spec:
 The Ceph version is defined under the property `cephVersion` in the Cluster CRD. All Ceph daemon containers launched by the Rook operator will use this image, including the mon, mgr,
 osd, rgw, and mds pods. The significance of this approach is that the Rook binary is not included in the daemon containers. All initialization performed by Rook to generate the Ceph config and prepare the daemons must be completed in an [init container](https://github.com/rook/rook/issues/2003). Once the Rook init containers complete their execution, the daemon container will run the Ceph image. The daemon container will no longer have Rook running.
 
-In the following Cluster CRD example, the Ceph version is Mimic 13.2.1.
+In the following Cluster CRD example, the Ceph version is Mimic `13.2.2` built on 23 Oct 2018.
 
 ```yaml
 apiVersion: ceph.rook.io/v1beta1
@@ -57,7 +57,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.1
+    image: ceph/ceph:v13.2.2-20181023
 ```
 
 ### Operator Requirements
@@ -119,7 +119,7 @@ To allow more control over the upgrade, we define `upgradePolicy` settings. They
 
 The settings in the CRD to accommodate the design include:
 - `upgradePolicy.cephVersion`: The version of the image to start applying to the daemons specified in the `components` list.
-  - `allowUnrecognizedVersion`: If `false`, the operator would refuse to upgrade the Ceph version if it doesn't support or recognize that version. If `true`, Rook would go ahead and blindly set the image version and assume the pod specs should match `unrecognizedMajorVersion`. This would allow testing of upgrade to unreleased versions. The default is `false`.
+  - `allowUnsupported`: If `false`, the operator would refuse to upgrade the Ceph version if it doesn't support or recognize that version. This would allow testing of upgrade to unreleased versions. The default is `false`.
 - `upgradePolicy.components`: A list of daemons or other components that should be upgraded to the version `newCephVersion`. The daemons include `mon`, `osd`, `mgr`, `rgw`, and `mds`. The ordering of the list will be ignored as Rook will only support ordering as it determines necessary for a version. If there are special upgrade actions in the future, they could be named and added to this list.
 
 For example, with the settings below the operator would only upgrade the mons to mimic, while other daemons would remain on luminous. When the admin is ready, he would add more daemons to the list.
@@ -127,17 +127,17 @@ For example, with the settings below the operator would only upgrade the mons to
 ```yaml
 spec:
   cephVersion:
-    image: ceph/ceph:v12.2.7
-    allowUnrecognizedVersion: false
+    image: ceph/ceph:v12.2.9-20181026
+    allowUnsupported: false
   upgradePolicy:
     cephVersion:
-      image: ceph/ceph:v13.2.1
-      allowUnrecognizedVersion: false
+      image: ceph/ceph:v13.2.2-20181023
+      allowUnsupported: false
     components:
     - mon
 ```
 
-When the admin is completed with the upgrade or he is ready to allow Rook to complete the full upgrade for all daemons, he would set `cephVersion.image: ceph/ceph:v13.2.1`, and the operator would ignore the `upgradePolicy` since the `cephVersion` and `upgradePolicy.cephVersion` match.
+When the admin is completed with the upgrade or he is ready to allow Rook to complete the full upgrade for all daemons, he would set `cephVersion.image: ceph/ceph:v13.2.2`, and the operator would ignore the `upgradePolicy` since the `cephVersion` and `upgradePolicy.cephVersion` match.
 
 If the admin wants to pause or otherwise control the upgrade closely, there are a couple of natural back doors:
 - Deleting the operator pod will effectively pause the upgrade. Starting the operator pod up again would resume the upgrade.
@@ -145,13 +145,15 @@ If the admin wants to pause or otherwise control the upgrade closely, there are 
 
 #### Developer controls
 
-If a developer wants to test the upgrade from mimic to nautilus, he would first create the cluster based on mimic. Then he would update the crd with the "unrecognized version" attributes in the CRD to specify nautilus such as:
+If a developer wants to test the upgrade from mimic to nautilus, he would first create the cluster based on mimic. Then he would update the crd with the "unrecognized version" attribute in the CRD to specify nautilus such as:
 ```yaml
 spec:
   cephVersion:
     image: ceph/ceph:v14.1.1
-    allowUnrecognizedVersion: true
+    allowUnsupported: true
 ```
+
+Until Nautilus builds are released, the latest Nautilus build can be tested by using the image `ceph/daemon-base:latest-master`.
 
 ### Default Version
 

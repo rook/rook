@@ -18,7 +18,8 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:13.2.2-20181011
+    # see the "Cluster Settings" section below for more details on which image of ceph to run
+    image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
   storage:
@@ -39,7 +40,11 @@ Settings can be specified at the global level to apply to the cluster as a whole
 ### Cluster Settings
 
 - `cephVersion`: The version information for launching the ceph daemons.
-  - `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v12.2.7` or `ceph/ceph:v13.2.2`.
+  - `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v12.2.9-20181026` or `ceph/ceph:v13.2.2-20181023`.
+  For the latest ceph images, see the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags/).
+  To ensure a consistent version of the image is running across all nodes in the cluster, it is recommended to use a very specific image version.
+  Tags also exist that would give the latest version, but they are only recommended for test environments. For example, the tag `v13` will be updated each time a new mimic build is released.
+  Using the `v13` or similar tag is not recommended in production because it may lead to inconsistent versions of the image running across different nodes in the cluster.
   - `allowUnsupported`: If `true`, allow an unsupported major version of the Ceph release. Currently only `luminous` and `mimic` are supported, so `nautilus` would require this to be set to `true`. Should be set to `false` in production.
 - `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.
   - On **Minikube** environments, use `/data/rook`. Minikube boots into a tmpfs but it provides some [directories](https://github.com/kubernetes/minikube/blob/master/docs/persistent_volumes.md) where files can be persisted across reboots. Using one of these directories will ensure that Rook's data and configuration files are persisted and that enough storage space is available.
@@ -161,7 +166,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:13.2.2-20181011
+    image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
   network:
@@ -192,7 +197,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:13.2.2-20181011
+    image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
   network:
@@ -235,7 +240,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:13.2.2-20181011
+    image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
   network:
@@ -272,7 +277,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:13.2.2-20181011
+    image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
   network:
@@ -317,7 +322,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:13.2.2-20181011
+    image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
   # cluster level resource requests/limits configuration

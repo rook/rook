@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM ceph/ceph-amd64:v13.2.2-20181011
+# the latest mimic release is the base image
+FROM ceph/ceph:v13
 
 ARG ARCH
 ARG TINI_VERSION

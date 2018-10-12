@@ -80,7 +80,7 @@ func TestStartSecureDashboard(t *testing.T) {
 		},
 	}
 	c := &Cluster{context: &clusterd.Context{Clientset: test.New(3), Executor: executor}, Namespace: "myns",
-		dashboard: cephv1beta1.DashboardSpec{Enabled: true}, cephVersion: cephv1beta1.CephVersionSpec{Name: cephv1beta1.Mimic, Image: "ceph/ceph:13.2.2"}}
+		dashboard: cephv1beta1.DashboardSpec{Enabled: true}, cephVersion: cephv1beta1.CephVersionSpec{Name: cephv1beta1.Mimic, Image: "ceph/ceph:v13.2.2"}}
 	dashboardInitWaitTime = 0
 	err := c.configureDashboard()
 	assert.Nil(t, err)
