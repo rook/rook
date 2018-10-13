@@ -18,7 +18,6 @@ package file
 
 import (
 	"fmt"
-	"strings"
 
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
@@ -26,8 +25,6 @@ import (
 	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
 	"github.com/rook/rook/pkg/daemon/ceph/model"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
-	"github.com/rook/rook/pkg/operator/k8sutil"
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -73,31 +70,8 @@ func deleteFilesystem(context *clusterd.Context, fs cephv1beta1.Filesystem) erro
 		// If the fs isn't deleted from Ceph, leave the daemons so it can still be used.
 		return fmt.Errorf("failed to delete filesystem %s: %+v", fs.Name, err)
 	}
-	// Next try to delete all mds deployments and secret keys serving the filesystem, and aggregate
-	// failures together to report all at once at the end.
-	fsLabelSelector := fmt.Sprintf("rook_file_system=%s", fs.Name)
-	dNames, err := k8sutil.GetDeployments(context.Clientset, fs.Namespace, fsLabelSelector)
-	if err != nil {
-		return fmt.Errorf("could not get deployments for filesystem %s: %+v", fs.Name, err)
-	}
-	errTexts := []string{}
-	// d should be the "ResourceName" field from the mdsConfig struct
-	for _, d := range dNames {
-		err := k8sutil.DeleteDeployment(context.Clientset, fs.Namespace, d)
-		if err != nil {
-			errTexts = append(errTexts,
-				fmt.Sprintf("failed to delete mds deployment %s for filesystem %s: %+v", d, fs.Name, err))
-		}
-		err = context.Clientset.CoreV1().Secrets(fs.Namespace).Delete(d, &metav1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			errTexts = append(errTexts,
-				fmt.Sprintf("failed to delete mds secret %s for filesystem %s: %+v", d, fs.Name, err))
-		}
-	}
-	if len(errTexts) > 0 {
-		return fmt.Errorf(strings.Join(errTexts, "\n"))
-	}
-	return nil
+
+	return deleteMdsCluster(context, fs.Namespace, fs.Name)
 }
 
 func validateFilesystem(context *clusterd.Context, f cephv1beta1.Filesystem) error {

@@ -27,6 +27,7 @@ import (
 	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
+	extensions "k8s.io/api/extensions/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -38,7 +39,7 @@ const (
 	keyringSecretKeyName = "keyring"
 
 	// timeout if mds is not ready for upgrade after some time
-	fsUpgradePrepareTimeout = 3 * time.Minute
+	fsWaitForActiveTimeout = 3 * time.Minute
 )
 
 type cluster struct {
@@ -84,7 +85,7 @@ func (c *cluster) deleteLegacyMdsDeployment() bool {
 		// if any other error, failed to get legacy dep., but it exists, so still try deleting it.
 	}
 	logger.Infof("deleting legacy mds deployment %s", legacyName)
-	if err := mdsdaemon.PrepareForDaemonUpgrade(c.context, c.fs.Namespace, c.fs.Name, fsUpgradePrepareTimeout); err != nil {
+	if err := mdsdaemon.PrepareForDaemonUpgrade(c.context, c.fs.Namespace, c.fs.Name, fsWaitForActiveTimeout); err != nil {
 		logger.Errorf("failed to prepare filesystem %s for mds upgrade while deleting legacy deployment %s, continuing anyway: %+v", c.fs.Name, legacyName, err)
 	}
 	if err := k8sutil.DeleteDeployment(c.context.Clientset, c.fs.Namespace, legacyName); err != nil {
@@ -111,6 +112,9 @@ func (c *cluster) start() error {
 
 	// Always create double the number of metadata servers to have standby mdses available
 	replicas := c.fs.Spec.MetadataServer.ActiveCount * 2
+	// keep list of deployments we want so unwanted ones can be deleted later
+	desiredDeployments := map[string]bool{} // improvised set
+	// Create/update deployments
 	for i := 0; i < int(replicas); i++ {
 		daemonLetterID := k8sutil.IndexToName(i)
 		// Each mds is id'ed by <fsname>-<letterID>
@@ -140,7 +144,53 @@ func (c *cluster) start() error {
 		} else {
 			logger.Infof("mds deployment %s started", d.Name)
 		}
+		desiredDeployments[d.GetName()] = true // add deployment name to improvised set
 	}
+
+	// Remove extraneous mds deployments if they exist
+	deps, err := getMdsDeployments(c.context, c.fs.Namespace, c.fs.Name)
+	if err != nil {
+		return fmt.Errorf(
+			fmt.Sprintf("cannot verify the removal of extraneous mds deployments for filesystem %s. ", c.fs.Name) +
+				fmt.Sprintf("USER should make sure that only deployments %+v exist which match the filesystem's label selector", desiredDeployments) +
+				fmt.Sprintf(": %+v", err),
+		)
+	}
+	if !(len(deps.Items) > int(replicas)) {
+		// It's possible to check if there are fewer deployments than desired here, but that's
+		// checked above, and if that condition exists here, it's likely the user's manual actions.
+		logger.Debugf("The number of mds deployments (%d) is not greater than the number desired (%d). no extraneous deployments to delete",
+			len(deps.Items), replicas)
+		return nil
+	}
+	errCount := 0
+	for _, d := range deps.Items {
+		if _, ok := desiredDeployments[d.GetName()]; !ok {
+			// if deployment name is NOT in improvised set, delete it
+			logger.Infof("Deleting extraneous mds deployment %s", d.GetName())
+			// if the extraneous mdses are the only ones active, Ceph may experience fs downtime
+			// if deleting them too quickly; therefore, wait until number of active mdses is desired
+			if err := client.WaitForActiveRanks(c.context, c.fs.Namespace, c.fs.Name,
+				c.fs.Spec.MetadataServer.ActiveCount, true, fsWaitForActiveTimeout); err != nil {
+				errCount++
+				logger.Errorf(
+					"number of active mds ranks is not as desired. it is potentially unsafe to continue with extraneous mds deletion, so stopping. " +
+						fmt.Sprintf("USER should delete undesired mds daemons once filesystem %s is healthy. ", c.fs.Name) +
+						fmt.Sprintf("desired mds deployments for this filesystem are %+v", desiredDeployments) +
+						fmt.Sprintf(": %+v", err),
+				)
+				break // stop trying to delete daemons, but continue to reporting any errors below
+			}
+			if err := deleteMdsDeployment(c.context, c.fs.Namespace, &d); err != nil {
+				errCount++
+				logger.Errorf("error during deletion of extraneous mds deployments: %+v", err)
+			}
+		}
+	}
+	if errCount > 0 {
+		return fmt.Errorf("%d error(s) during deletion of extraneous mds deployments, see logs above", errCount)
+	}
+	logger.Infof("successfully deleted extraneous mds deployments")
 
 	return nil
 }
@@ -199,4 +249,51 @@ func getOrCreateKey(context *clusterd.Context, clusterName, daemonName string) (
 	}
 
 	return key, nil
+}
+
+func deleteMdsCluster(context *clusterd.Context, namespace, fsName string) error {
+	// Try to delete all mds deployments and secret keys serving the filesystem, and aggregate
+	// failures together to report all at once at the end.
+	deps, err := getMdsDeployments(context, namespace, fsName)
+	if err != nil {
+		return err
+	}
+	errCount := 0
+	// d.GetName() should be the "ResourceName" field from the mdsConfig struct
+	for _, d := range deps.Items {
+		if err := deleteMdsDeployment(context, namespace, &d); err != nil {
+			errCount++
+			logger.Errorf("error during deletion of filesystem %s resources: %+v", fsName, err)
+		}
+	}
+	if errCount > 0 {
+		return fmt.Errorf("%d error(s) during deletion of mds cluster for filesystem %s, see logs above", errCount, fsName)
+	}
+	return nil
+}
+
+func getMdsDeployments(context *clusterd.Context, namespace, fsName string) (*extensions.DeploymentList, error) {
+	fsLabelSelector := fmt.Sprintf("rook_file_system=%s", fsName)
+	deps, err := k8sutil.GetDeployments(context.Clientset, namespace, fsLabelSelector)
+	if err != nil {
+		return nil, fmt.Errorf("could not get deployments for filesystem %s (matching label selector '%s'): %+v", fsName, fsLabelSelector, err)
+	}
+	return deps, nil
+}
+
+func deleteMdsDeployment(context *clusterd.Context, namespace string, deployment *extensions.Deployment) error {
+	errCount := 0
+	if err := k8sutil.DeleteDeployment(context.Clientset, namespace, deployment.GetName()); err != nil {
+		errCount++
+		logger.Errorf("failed to delete mds deployment %s: %+v", deployment.GetName(), err)
+	}
+	err := context.Clientset.CoreV1().Secrets(namespace).Delete(deployment.GetName(), &metav1.DeleteOptions{})
+	if err != nil && !errors.IsNotFound(err) {
+		errCount++
+		logger.Errorf("failed to delete mds secret %s: %+v", deployment.GetName(), err)
+	}
+	if errCount > 0 {
+		return fmt.Errorf("%d error(s) during deletion of mds deployment %s, see logs above", errCount, deployment.GetName())
+	}
+	return nil
 }

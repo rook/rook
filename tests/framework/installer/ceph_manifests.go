@@ -35,7 +35,7 @@ type CephManifests interface {
 	GetBlockPvcDef(claimName string, storageClassName string, accessModes string) string
 	GetBlockPoolStorageClassAndPvcDef(namespace string, poolName string, storageClassName string, reclaimPolicy string, blockName string, accessMode string) string
 	GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string
-	GetFilesystem(namepace, name string) string
+	GetFilesystem(namepace, name string, activeCount int) string
 	GetObjectStore(namespace, name string, replicaCount, port int) string
 }
 
@@ -572,7 +572,8 @@ func (m *CephManifestsMaster) GetBlockPoolStorageClass(namespace string, poolNam
 	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"), m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false))
 }
 
-func (m *CephManifestsMaster) GetFilesystem(namespace, name string) string {
+// GetFilesystem returns the manifest to create a Rook filesystem resource with the given config.
+func (m *CephManifestsMaster) GetFilesystem(namespace, name string, activeCount int) string {
 	return `apiVersion: ceph.rook.io/v1beta1
 kind: Filesystem
 metadata:
@@ -586,7 +587,7 @@ spec:
   - replicated:
       size: 1
   metadataServer:
-    activeCount: 2
+    activeCount: ` + strconv.Itoa(activeCount) + `
     activeStandby: true`
 }
 

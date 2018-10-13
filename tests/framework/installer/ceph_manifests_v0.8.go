@@ -533,7 +533,8 @@ func (m *CephManifestsV0_8) GetBlockPoolStorageClass(namespace string, poolName 
 	return concatYaml(m.GetBlockPoolDef(poolName, namespace, "1"), m.GetBlockStorageClassDef(poolName, storageClassName, reclaimPolicy, namespace, false))
 }
 
-func (m *CephManifestsV0_8) GetFilesystem(namespace, name string) string {
+// GetFilesystem returns the manifest to create a Rook filesystem resource with the given config.
+func (m *CephManifestsV0_8) GetFilesystem(namespace, name string, activeCount int) string {
 	return `apiVersion: ceph.rook.io/v1beta1
 kind: Filesystem
 metadata:
@@ -547,7 +548,7 @@ spec:
   - replicated:
       size: 1
   metadataServer:
-    activeCount: 2
+    activeCount: ` + strconv.Itoa(activeCount) + `
     activeStandby: true`
 }
 
