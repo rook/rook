@@ -18,8 +18,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:13.2.2
-    name: mimic
+    image: ceph/ceph:13.2.2-20181011
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
   storage:
@@ -41,8 +40,7 @@ Settings can be specified at the global level to apply to the cluster as a whole
 
 - `cephVersion`: The version information for launching the ceph daemons.
   - `image`: The image used for running the ceph daemons. For example, `ceph/ceph:v12.2.7` or `ceph/ceph:v13.2.2`.
-  - `name`: The name of the major release. Must be `luminous`, `mimic`, or `nautilus`.
-  - `allowUnsupported`: If `true`, allow an unsupported `name` of the Ceph release. Currently only `luminous` and `mimic` are supported, so `nautilus` would require this to be set to `true`. Should be set to `false` in production.
+  - `allowUnsupported`: If `true`, allow an unsupported major version of the Ceph release. Currently only `luminous` and `mimic` are supported, so `nautilus` would require this to be set to `true`. Should be set to `false` in production.
 - `dataDirHostPath`: The path on the host ([hostPath](https://kubernetes.io/docs/concepts/storage/volumes/#hostpath)) where config and data should be stored for each of the services. If the directory does not exist, it will be created. Because this directory persists on the host, it will remain after pods are deleted.
   - On **Minikube** environments, use `/data/rook`. Minikube boots into a tmpfs but it provides some [directories](https://github.com/kubernetes/minikube/blob/master/docs/persistent_volumes.md) where files can be persisted across reboots. Using one of these directories will ensure that Rook's data and configuration files are persisted and that enough storage space is available.
   - **WARNING**: For test scenarios, if you delete a cluster and start a new cluster on the same hosts, the path used by `dataDirHostPath` must be deleted. Otherwise, stale keys and other config will remain from the previous cluster and the new mons will fail to start.
@@ -162,6 +160,8 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
+  cephVersion:
+    image: ceph/ceph:13.2.2-20181011
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
   network:
@@ -191,6 +191,8 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
+  cephVersion:
+    image: ceph/ceph:13.2.2-20181011
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
   network:
@@ -232,6 +234,8 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
+  cephVersion:
+    image: ceph/ceph:13.2.2-20181011
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
   network:
@@ -267,6 +271,8 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
+  cephVersion:
+    image: ceph/ceph:13.2.2-20181011
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
   network:
@@ -310,6 +316,8 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
+  cephVersion:
+    image: ceph/ceph:13.2.2-20181011
   dataDirHostPath: /var/lib/rook
   serviceAccount: rook-ceph-cluster
   # cluster level resource requests/limits configuration

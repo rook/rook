@@ -22,7 +22,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/coreos/pkg/capnslog"
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
@@ -259,7 +258,7 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 			}
 		}
 
-		if !c.updateJob(job, n.Name, config, "provision") {
+		if !c.runJob(job, n.Name, config, "provision") {
 			if err = discover.FreeDevices(c.context, n.Name, c.Namespace); err != nil {
 				logger.Warningf("failed to free devices: %s", err)
 			}
@@ -267,27 +266,8 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 	}
 }
 
-func (c *Cluster) updateJob(job *batch.Job, nodeName string, config *provisionConfig, action string) bool {
-	// check if the job was already created and what its status is
-	existingJob, err := c.context.Clientset.Batch().Jobs(c.Namespace).Get(job.Name, metav1.GetOptions{})
-	if err != nil && !errors.IsNotFound(err) {
-		config.addError("failed to detect %s job for node %s. %+v", action, nodeName, err)
-	} else if err == nil {
-		// delete the job that already exists from a previous run
-		if existingJob.Status.Active > 0 {
-			logger.Infof("Found previous %s job for node %s. Status=%+v", action, nodeName, existingJob.Status)
-			return true
-		}
-
-		logger.Infof("Removing previous %s job for node %s to start a new one", action, nodeName)
-		err := c.deleteBatchJob(existingJob.Name)
-		if err != nil {
-			logger.Warningf("failed to remove job %s. %+v", nodeName, err)
-		}
-	}
-
-	_, err = c.context.Clientset.Batch().Jobs(c.Namespace).Create(job)
-	if err != nil {
+func (c *Cluster) runJob(job *batch.Job, nodeName string, config *provisionConfig, action string) bool {
+	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job); err != nil {
 		if !errors.IsAlreadyExists(err) {
 			// we failed to create job, update the orchestration status for this node
 			message := fmt.Sprintf("failed to create %s job for node %s. %+v", action, nodeName, err)
@@ -300,32 +280,6 @@ func (c *Cluster) updateJob(job *batch.Job, nodeName string, config *provisionCo
 
 	logger.Infof("osd %s job started for node %s", action, nodeName)
 	return true
-}
-
-func (c *Cluster) deleteBatchJob(name string) error {
-	propagation := metav1.DeletePropagationForeground
-	gracePeriod := int64(0)
-	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
-
-	if err := c.context.Clientset.Batch().Jobs(c.Namespace).Delete(name, options); err != nil {
-		return fmt.Errorf("failed to remove previous provisioning job for node %s. %+v", name, err)
-	}
-
-	retries := 20
-	sleepInterval := 2 * time.Second
-	for i := 0; i < retries; i++ {
-		_, err := c.context.Clientset.Batch().Jobs(c.Namespace).Get(name, metav1.GetOptions{})
-		if err != nil && errors.IsNotFound(err) {
-			logger.Infof("batch job %s deleted", name)
-			return nil
-		}
-
-		logger.Infof("batch job %s still exists", name)
-		time.Sleep(sleepInterval)
-	}
-
-	logger.Warningf("gave up waiting for batch job %s to be deleted", name)
-	return nil
 }
 
 func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig, configMap *v1.ConfigMap, status *OrchestrationStatus) {
@@ -465,7 +419,7 @@ func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushNam
 		return
 	}
 
-	if !c.updateJob(job, nodeName, config, "remove") {
+	if !c.runJob(job, nodeName, config, "remove") {
 		status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: fmt.Sprintf("failed to cleanup osd config on node %s", nodeName)}
 		if err := c.updateNodeStatus(nodeName, status); err != nil {
 			config.addError("failed to update node %s status. %+v", nodeName, err)

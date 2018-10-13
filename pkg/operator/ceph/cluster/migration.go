@@ -20,7 +20,6 @@ package cluster
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	opkit "github.com/rook/operator-kit"
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
@@ -71,32 +70,7 @@ func setClusterDefaults(cluster *cephv1beta1.Cluster) {
 	if cluster.Spec.CephVersion.Image == "" {
 		logger.Infof("setting default luminous image: %s", cephv1beta1.DefaultLuminousImage)
 		cluster.Spec.CephVersion.Image = cephv1beta1.DefaultLuminousImage
-		cluster.Spec.CephVersion.Name = cephv1beta1.Luminous
-	} else {
-		// validate the major version of the image
-		parts := strings.Split(cluster.Spec.CephVersion.Image, ":")
-		if len(parts) == 2 {
-			v := parts[1]
-			if strings.HasPrefix(v, "v12.") {
-				setVersionName(cluster, cephv1beta1.Luminous)
-			} else if strings.HasPrefix(v, "v13.") {
-				setVersionName(cluster, cephv1beta1.Mimic)
-			} else if strings.HasPrefix(v, "v14.") {
-				setVersionName(cluster, cephv1beta1.Nautilus)
-			}
-		}
 	}
-}
-
-func setVersionName(cluster *cephv1beta1.Cluster, name string) {
-	if cluster.Spec.CephVersion.Name == name {
-		// the major version name is already set
-		return
-	}
-	if cluster.Spec.CephVersion.Name != "" {
-		logger.Warningf("changing the major version to %s from %s to match the image version", name, cluster.Spec.CephVersion.Name)
-	}
-	cluster.Spec.CephVersion.Name = name
 }
 
 func (c *ClusterController) migrateClusterObject(clusterToMigrate *cephv1beta1.Cluster, legacyObj interface{}) error {

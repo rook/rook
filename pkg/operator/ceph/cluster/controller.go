@@ -182,6 +182,12 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
 
+	err = cluster.detectCephMajorVersion()
+	if err != nil {
+		logger.Errorf("unknown ceph major version. %+v", err)
+		return
+	}
+
 	// Start the Rook cluster components. Retry several times in case of failure.
 	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
 		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateCreating, ""); err != nil {

@@ -192,6 +192,7 @@ rules:
   resources:
   - secrets
   - pods
+  - pods/log
   - services
   - configmaps
   verbs:
@@ -423,7 +424,6 @@ metadata:
 spec:
   cephVersion:
     image: ` + settings.CephVersion.Image + `
-    name: ` + settings.CephVersion.Name + `
     allowUnsupported: ` + strconv.FormatBool(settings.CephVersion.AllowUnsupported) + `
   serviceAccount: rook-ceph-cluster
   dataDirHostPath: ` + settings.DataDirHostPath + `

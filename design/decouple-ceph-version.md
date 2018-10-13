@@ -58,7 +58,6 @@ metadata:
 spec:
   cephVersion:
     image: ceph/ceph:v13.2.1
-    name: mimic
 ```
 
 ### Operator Requirements
@@ -129,12 +128,10 @@ For example, with the settings below the operator would only upgrade the mons to
 spec:
   cephVersion:
     image: ceph/ceph:v12.2.7
-    name: luminous
     allowUnrecognizedVersion: false
   upgradePolicy:
     cephVersion:
       image: ceph/ceph:v13.2.1
-      name: mimic
       allowUnrecognizedVersion: false
     components:
     - mon
@@ -153,7 +150,6 @@ If a developer wants to test the upgrade from mimic to nautilus, he would first 
 spec:
   cephVersion:
     image: ceph/ceph:v14.1.1
-    name: nautilus
     allowUnrecognizedVersion: true
 ```
 

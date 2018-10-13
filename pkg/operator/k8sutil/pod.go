@@ -19,8 +19,10 @@ package k8sutil
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -184,6 +186,32 @@ func GetPodPhaseMap(pods *v1.PodList) map[v1.PodPhase][]string {
 	}
 
 	return podPhaseMap
+}
+
+// GetJobLog gets the logs for the pod. If there is more than one pod with the label selector, the logs from
+// the first pod will be returned.
+func GetPodLog(clientset kubernetes.Interface, namespace string, labelSelector string) (string, error) {
+	opts := metav1.ListOptions{
+		LabelSelector: labelSelector,
+	}
+	pods, err := clientset.CoreV1().Pods(namespace).List(opts)
+	if err != nil {
+		return "", fmt.Errorf("failed to get version pod. %+v", err)
+	}
+	for _, pod := range pods.Items {
+		req := clientset.CoreV1().Pods(namespace).GetLogs(pod.Name, &v1.PodLogOptions{})
+		readCloser, err := req.Stream()
+		if err != nil {
+			return "", fmt.Errorf("failed to read from stream. %+v", err)
+		}
+
+		builder := &strings.Builder{}
+		defer readCloser.Close()
+		_, err = io.Copy(builder, readCloser)
+		return builder.String(), err
+	}
+
+	return "this is a fake version", nil
 }
 
 // DeleteDeployment makes a best effort at deleting a deployment and its pods, then waits for them to be deleted

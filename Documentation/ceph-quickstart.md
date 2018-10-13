@@ -118,8 +118,7 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v13.2.2
-    name: mimic
+    image: ceph/ceph:13.2.2-20181011
   dataDirHostPath: /var/lib/rook
   dashboard:
     enabled: true
