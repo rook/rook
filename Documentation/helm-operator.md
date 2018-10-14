@@ -110,6 +110,7 @@ The following tables lists the configurable parameters of the rook-operator char
 | `agent.flexVolumeDirPath` | Path where the Rook agent discovers the flex volume plugins (*) | `/usr/libexec/kubernetes/kubelet-plugins/volume/exec/` |
 | `agent.libModulesDirPath` | Path where the Rook agent should look for kernel modules (*)    | `/lib/modules`                                         |
 | `agent.mounts`            | Additional paths to be mounted in the agent container           | <none>                                                 |
+| `agent.mountSecurityMode` | Mount Security Mode for the agent.                              | `Any`                                                  |
 | `agent.toleration`        | Toleration for the agent pods                                   | <none>                                                 |
 | `agent.tolerationKey`     | The specific key of the taint to tolerate                       | <none>                                                 |
 | `discover.toleration`     | Toleration for the discover pods                                | <none>                                                 |

@@ -34,8 +34,8 @@ import (
 // Start Rook and set up a storage class and pool.
 // Start multiple MySql databases that are using rook provisioned block storage.
 // First block volume is persistent(mounted once) all the other volumes are mounted and unmounted per test
-//NOTE: This tests doesn't clean up the cluster or volume after the run, the tests is designed
-//to reuse the same cluster and volume for multiple runs or over a period of time.
+// NOTE: This tests doesn't clean up the cluster or volume after the run, the tests is designed
+// to reuse the same cluster and volume for multiple runs or over a period of time.
 // It is recommended to run this test with -count test param (to repeat th test n number of times)
 // along with --load_parallel_runs params(number of concurrent operations per test) and
 //--load_volumes(number of volumes that are created per test
@@ -52,8 +52,8 @@ type BlockLongHaulSuite struct {
 	testClient *clients.TestClient
 }
 
-//Test set up - does the following in order
-//create pool and storage class, create a PVC, Create a MySQL app/service that uses pvc
+// Test set up - does the following in order
+// create pool and storage class, create a PVC, Create a MySQL app/service that uses pvc
 func (s *BlockLongHaulSuite) SetupSuite() {
 	s.namespace = "longhaul-ns"
 	s.op, s.kh, s.installer = StartLoadTestCluster(s.T, s.namespace)
@@ -61,9 +61,9 @@ func (s *BlockLongHaulSuite) SetupSuite() {
 	createStorageClassAndPool(s.T, s.testClient, s.kh, s.namespace, "rook-ceph-block", "rook-pool")
 }
 
-//create a n number  ofPVC, Create a MySQL app/service that uses pvc
-//The first PVC and mysql pod are persistent i.e. they are never deleted
-//All other PVC and mounts are created and deleted/unmounted per test
+// create a n number  ofPVC, Create a MySQL app/service that uses pvc
+// The first PVC and mysql pod are persistent i.e. they are never deleted
+// All other PVC and mounts are created and deleted/unmounted per test
 func (s *BlockLongHaulSuite) TestBlockLonghaulRun() {
 	var wg sync.WaitGroup
 	wg.Add(installer.Env.LoadVolumeNumber)
@@ -93,7 +93,7 @@ func BlockVolumeOperations(s *BlockLongHaulSuite, wg *sync.WaitGroup, storageCla
 }
 
 func (s *BlockLongHaulSuite) TearDownSuite() {
-	//clean up all ephemeral block storage, index 1 is persistent block storage which is going to be used among different test runs.
+	// clean up all ephemeral block storage, index 1 is persistent block storage which is going to be used among different test runs.
 	for i := 2; i <= installer.Env.LoadVolumeNumber; i++ {
 		mySqlPodOperation(s.kh, "rook-ceph-block", "mysqlapp-ephemeral-"+strconv.Itoa(i), "mysqldbeph"+strconv.Itoa(i), "mysql-ephemeral-claim"+strconv.Itoa(i), "delete")
 	}

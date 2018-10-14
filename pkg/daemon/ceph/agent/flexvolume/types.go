@@ -17,15 +17,17 @@ limitations under the License.
 package flexvolume
 
 const (
-	ReadOnly  = "ro"
+	// ReadOnly mount mode
+	ReadOnly = "ro"
+	// ReadWrite mount mode
 	ReadWrite = "rw"
 )
 
 // VolumeManager handles flexvolume plugin storage operations
 type VolumeManager interface {
 	Init() error
-	Attach(image, pool, clusterName string) (string, error)
-	Detach(image, pool, clusterName string, force bool) error
+	Attach(image, pool, id, key, clusterName string) (string, error)
+	Detach(image, pool, id, key, clusterName string, force bool) error
 }
 
 type VolumeController interface {
@@ -46,6 +48,8 @@ type AttachOptions struct {
 	MountDir         string `json:"mountDir"`
 	FsName           string `json:"fsName"`
 	Path             string `json:"path"` // Path within the CephFS to mount
+	MountUser        string `json:"mountUser"`
+	MountSecret      string `json:"mountSecret"`
 	RW               string `json:"kubernetes.io/readwrite"`
 	FsType           string `json:"kubernetes.io/fsType"`
 	VolumeName       string `json:"kubernetes.io/pvOrVolumeName"` // only available on 1.7

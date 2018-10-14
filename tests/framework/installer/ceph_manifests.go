@@ -51,7 +51,7 @@ type ClusterSettings struct {
 	CephVersion      cephv1beta1.CephVersionSpec
 }
 
-//CephManifestsMaster wraps rook yaml definitions
+// CephManifestsMaster wraps rook yaml definitions
 type CephManifestsMaster struct {
 	imageTag string
 }
@@ -155,9 +155,8 @@ spec:
   version: v1alpha2`
 }
 
-//GetRookOperator returns rook Operator  manifest
+// GetRookOperator returns rook Operator manifest
 func (m *CephManifestsMaster) GetRookOperator(namespace string) string {
-
 	return `kind: Namespace
 apiVersion: v1
 metadata:
@@ -314,6 +313,22 @@ rules:
   - list
   - watch
 ---
+# Aspects of Rook Ceph Agent that require access to secrets
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  name: rook-ceph-agent-mount
+  labels:
+    operator: rook
+    storage-backend: ceph
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - get
+---
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -398,7 +413,7 @@ spec:
               fieldPath: metadata.namespace`
 }
 
-//GetClusterRoles returns rook-cluster manifest
+// GetClusterRoles returns rook-cluster manifest
 func (m *CephManifestsMaster) GetClusterRoles(namespace, systemNamespace string) string {
 	return `apiVersion: v1
 kind: ServiceAccount
@@ -550,7 +565,7 @@ subjects:
 `
 }
 
-//GetRookCluster returns rook-cluster manifest
+// GetRookCluster returns rook-cluster manifest
 func (m *CephManifestsMaster) GetRookCluster(settings *ClusterSettings) string {
 	return `apiVersion: ceph.rook.io/v1beta1
 kind: Cluster
@@ -583,7 +598,7 @@ spec:
       journalSizeMB: "1024"`
 }
 
-//GetRookToolBox returns rook-toolbox manifest
+// GetRookToolBox returns rook-toolbox manifest
 func (m *CephManifestsMaster) GetRookToolBox(namespace string) string {
 	return `apiVersion: v1
 kind: Pod
@@ -634,7 +649,7 @@ spec:
           path: mon-endpoints`
 }
 
-//GetCleanupPod gets a cleanup Pod manifest
+// GetCleanupPod gets a cleanup Pod manifest
 func (m *CephManifestsMaster) GetCleanupPod(node, removalDir string) string {
 	return `apiVersion: batch/v1
 kind: Job

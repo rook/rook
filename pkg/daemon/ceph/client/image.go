@@ -138,12 +138,12 @@ func DeleteImage(context *clusterd.Context, clusterName, name, poolName string) 
 }
 
 // MapImage maps an RBD image using admin cephfx and returns the device path
-func MapImage(context *clusterd.Context, imageName, poolName, clusterName, keyring, monitors string) error {
+func MapImage(context *clusterd.Context, imageName, poolName, id, keyring, clusterName, monitors string) error {
 	imageSpec := getImageSpec(imageName, poolName)
 	args := []string{
 		"map",
 		imageSpec,
-		"--id", "admin",
+		fmt.Sprintf("--id=%s", id),
 		fmt.Sprintf("--cluster=%s", clusterName),
 		fmt.Sprintf("--keyring=%s", keyring),
 		"-m", monitors,
@@ -159,12 +159,12 @@ func MapImage(context *clusterd.Context, imageName, poolName, clusterName, keyri
 }
 
 // UnMapImage unmap an RBD image from the node
-func UnMapImage(context *clusterd.Context, imageName, poolName, clusterName, keyring, monitors string, force bool) error {
+func UnMapImage(context *clusterd.Context, imageName, poolName, id, keyring, clusterName, monitors string, force bool) error {
 	deviceImage := getImageSpec(imageName, poolName)
 	args := []string{
 		"unmap",
 		deviceImage,
-		"--id", "admin",
+		fmt.Sprintf("--id=%s", id),
 		fmt.Sprintf("--cluster=%s", clusterName),
 		fmt.Sprintf("--keyring=%s", keyring),
 		"-m", monitors,

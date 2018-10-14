@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-//PoolOperation is a wrapper for rook pool operations
+// PoolOperation is a wrapper for rook pool operations
 type PoolOperation struct {
 	k8sh      *utils.K8sHelper
 	manifests installer.CephManifests

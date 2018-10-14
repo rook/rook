@@ -24,7 +24,7 @@ import (
 	"github.com/rook/rook/tests/framework/utils"
 )
 
-//BlockOperation is wrapper for k8s rook block operations
+// BlockOperation is wrapper for k8s rook block operations
 type BlockOperation struct {
 	k8sClient *utils.K8sHelper
 	manifests installer.CephManifests

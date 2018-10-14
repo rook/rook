@@ -63,7 +63,6 @@ func NewClusterController(context *clusterd.Context, flexvolumeController flexvo
 
 // StartWatch will start the watching of cluster events by this controller
 func (c *ClusterController) StartWatch(namespace string, stopCh chan struct{}) error {
-
 	resourceHandlerFuncs := cache.ResourceEventHandlerFuncs{
 		DeleteFunc: c.onDelete,
 	}

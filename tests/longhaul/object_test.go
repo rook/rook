@@ -33,8 +33,8 @@ import (
 // Create object store bucket and perform CURD operations.
 // This Test creates 1 to n object stores - first object store is present throughout the run,
 // but all other object stores are deleted after each run.
-//NOTE: This tests doesn't clean up the cluster or volume after the run, the tests is designed
-//to reuse the same cluster and volume for multiple runs or over a period of time.
+// NOTE: This tests doesn't clean up the cluster or volume after the run, the tests is designed
+// to reuse the same cluster and volume for multiple runs or over a period of time.
 // It is recommended to run this test with -count test param (to repeat th test n number of times)
 // along with --load_parallel_runs params(number of concurrent operations per test) and
 //--load_volumes(number of volumes that are created per test

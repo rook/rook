@@ -24,20 +24,20 @@ import (
 	"github.com/rook/rook/pkg/util/sys"
 )
 
-//HelmHelper is wrapper for running helm commands
+// HelmHelper is wrapper for running helm commands
 type HelmHelper struct {
 	executor *exec.CommandExecutor
 	HelmPath string
 }
 
-//NewHelmHelper creates a instance of HelmHelper
+// NewHelmHelper creates a instance of HelmHelper
 func NewHelmHelper(helmPath string) *HelmHelper {
 	executor := &exec.CommandExecutor{}
 	return &HelmHelper{executor: executor, HelmPath: helmPath}
 
 }
 
-//Execute is wrapper for executing helm commands
+// Execute is wrapper for executing helm commands
 func (h *HelmHelper) Execute(args ...string) (string, error) {
 	result, err := h.executor.ExecuteCommandWithOutput(false, "", h.HelmPath, args...)
 	if err != nil {
@@ -49,7 +49,7 @@ func (h *HelmHelper) Execute(args ...string) (string, error) {
 
 }
 
-//GetLocalRookHelmChartVersion returns helm chart version for a given chart
+// GetLocalRookHelmChartVersion returns helm chart version for a given chart
 func (h *HelmHelper) GetLocalRookHelmChartVersion(chartName string) (string, error) {
 	cmdArgs := []string{"search", chartName}
 	result, err := h.Execute(cmdArgs...)
@@ -73,7 +73,7 @@ func (h *HelmHelper) GetLocalRookHelmChartVersion(chartName string) (string, err
 	return version, nil
 }
 
-//InstallLocalRookHelmChart installs a give helm chart
+// InstallLocalRookHelmChart installs a give helm chart
 func (h *HelmHelper) InstallLocalRookHelmChart(chartName string, deployName string, chartVersion string, namespace string) error {
 	cmdArgs := []string{"install", chartName, "--name", deployName, "--version", chartVersion}
 	if namespace != "" {
@@ -99,7 +99,7 @@ func (h *HelmHelper) InstallLocalRookHelmChart(chartName string, deployName stri
 	return fmt.Errorf("cannot install helm chart with name : %v, version: %v, namespace: %v - %v, err: %v", chartName, chartVersion, namespace, result, err)
 }
 
-//DeleteLocalRookHelmChart uninstalls a give helm deploy
+// DeleteLocalRookHelmChart uninstalls a give helm deploy
 func (h *HelmHelper) DeleteLocalRookHelmChart(deployName string) error {
 	cmdArgs := []string{"delete", "--purge", deployName}
 	_, err := h.Execute(cmdArgs...)

@@ -73,22 +73,24 @@ func (hs *HelmSuite) TearDownSuite() {
 	hs.op.Teardown()
 }
 
-//Test to make sure all rook components are installed and Running
+// Test to make sure all rook components are installed and Running
 func (hs *HelmSuite) TestRookInstallViaHelm() {
 	checkIfRookClusterIsInstalled(hs.Suite, hs.kh, hs.namespace, hs.namespace, 1)
 }
 
-//Test BlockCreation on Rook that was installed via Helm
+// Test BlockCreation on Rook that was installed via Helm
 func (hs *HelmSuite) TestBlockStoreOnRookInstalledViaHelm() {
 	runBlockE2ETestLite(hs.helper, hs.kh, hs.Suite, hs.namespace)
 }
 
-//Test File System Creation on Rook that was installed via helm
-func (hs *HelmSuite) TestFileStoreOnRookInstalledViaHelm() {
+// Test File System Creation on Rook that was installed via helm
+// The test func name has `Z` in its name to run as the last test, this needs to
+// be done as there were some issues that the operator "disappeared".
+func (hs *HelmSuite) TestZFileStoreOnRookInstalledViaHelm() {
 	runFileE2ETestLite(hs.helper, hs.kh, hs.Suite, hs.namespace, "testfs")
 }
 
-//Test Object StoreCreation on Rook that was installed via helm
+// Test Object StoreCreation on Rook that was installed via helm
 func (hs *HelmSuite) TestObjectStoreOnRookInstalledViaHelm() {
 	runObjectE2ETestLite(hs.helper, hs.kh, hs.Suite, hs.namespace, "default", 3)
 }

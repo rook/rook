@@ -66,7 +66,6 @@ func NewFlexvolumeServer(context *clusterd.Context, controller *Controller) *Fle
 
 // Start configures the flexvolume driver on the host and starts the unix domain socket server to communicate with the driver
 func (s *FlexvolumeServer) Start(driverVendor, driverName string) error {
-
 	// first install the flexvolume driver
 	// /usr/local/bin/rookflex
 	driverFile := path.Join(usrBinDir, flexvolumeDriverFileName)
@@ -112,7 +111,7 @@ func (s *FlexvolumeServer) Start(driverVendor, driverName string) error {
 	return nil
 }
 
-// Stop the unix domain socket server and deletes the socket file
+// StopAll Stop the unix domain socket server and deletes the socket file
 func (s *FlexvolumeServer) StopAll() {
 	logger.Infof("Stopping %d unix socket rpc server(s).", len(s.listeners))
 	for unixSocketFile, listener := range s.listeners {
@@ -129,6 +128,7 @@ func (s *FlexvolumeServer) StopAll() {
 	s.listeners = make(map[string]net.Listener)
 }
 
+// RookDriverName return the Kubernetes version appropriate Rook driver name
 func RookDriverName(context *clusterd.Context) (string, error) {
 	kubeVersion, err := k8sutil.GetK8SVersion(context.Clientset)
 	if err != nil {

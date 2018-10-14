@@ -27,7 +27,7 @@ import (
 	"github.com/rook/rook/pkg/clusterd"
 	cephclient "github.com/rook/rook/pkg/daemon/ceph/client"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	"github.com/rook/rook/pkg/daemon/ceph/util"
+	cephutil "github.com/rook/rook/pkg/daemon/ceph/util"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/util/sys"
 )
@@ -35,6 +35,10 @@ import (
 const (
 	findDevicePathMaxRetries = 10
 	rbdKernelModuleName      = "rbd"
+	keyringTemplate          = `
+[client.%s]
+key = %s
+`
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "ceph-volumeattacher")
@@ -96,9 +100,8 @@ func (vm *VolumeManager) Init() error {
 }
 
 // Attach a ceph image to the node
-func (vm *VolumeManager) Attach(image, pool, clusterNamespace string) (string, error) {
-
-	// check if the volume is already attached
+func (vm *VolumeManager) Attach(image, pool, id, key, clusterNamespace string) (string, error) {
+	// Check if the volume is already attached
 	devicePath, err := vm.isAttached(image, pool, clusterNamespace)
 	if err != nil {
 		return "", fmt.Errorf("failed to check if volume %s/%s is already attached: %+v", pool, image, err)
@@ -108,7 +111,11 @@ func (vm *VolumeManager) Attach(image, pool, clusterNamespace string) (string, e
 		return devicePath, nil
 	}
 
-	// attach and poll until volume is mapped
+	if id == "" && key == "" {
+		return "", fmt.Errorf("no id nor keyring given, can't mount without credentials")
+	}
+
+	// Attach and poll until volume is mapped
 	logger.Infof("attaching volume %s/%s cluster %s", pool, image, clusterNamespace)
 	monitors, keyring, err := getClusterInfo(vm.context, clusterNamespace)
 	defer os.Remove(keyring)
@@ -116,12 +123,23 @@ func (vm *VolumeManager) Attach(image, pool, clusterNamespace string) (string, e
 		return "", fmt.Errorf("failed to load cluster information from cluster %s: %+v", clusterNamespace, err)
 	}
 
-	err = cephclient.MapImage(vm.context, image, pool, clusterNamespace, keyring, monitors)
+	// Write the user given key to the keyring file
+	if key != "" {
+		keyringEval := func(key string) string {
+			r := fmt.Sprintf(keyringTemplate, id, key)
+			return r
+		}
+		if err = cephconfig.WriteKeyring(keyring, key, keyringEval); err != nil {
+			return "", fmt.Errorf("failed writing custom keyring for id %s. %+v", id, err)
+		}
+	}
+
+	err = cephclient.MapImage(vm.context, image, pool, id, keyring, clusterNamespace, monitors)
 	if err != nil {
 		return "", fmt.Errorf("failed to map image %s/%s cluster %s. %+v", pool, image, clusterNamespace, err)
 	}
 
-	// poll for device path
+	// Poll for device path
 	retryCount := 0
 	for {
 		devicePath, err := vm.devicePathFinder.FindDevicePath(image, pool, clusterNamespace)
@@ -144,7 +162,7 @@ func (vm *VolumeManager) Attach(image, pool, clusterNamespace string) (string, e
 }
 
 // Detach the volume
-func (vm *VolumeManager) Detach(image, pool, clusterNamespace string, force bool) error {
+func (vm *VolumeManager) Detach(image, pool, id, key, clusterNamespace string, force bool) error {
 	// check if the volume is attached
 	devicePath, err := vm.isAttached(image, pool, clusterNamespace)
 	if err != nil {
@@ -155,6 +173,10 @@ func (vm *VolumeManager) Detach(image, pool, clusterNamespace string, force bool
 		return nil
 	}
 
+	if id == "" && key == "" {
+		return fmt.Errorf("no id nor keyring given, can't unmount without credentials")
+	}
+
 	logger.Infof("detaching volume %s/%s cluster %s", pool, image, clusterNamespace)
 	monitors, keyring, err := getClusterInfo(vm.context, clusterNamespace)
 	defer os.Remove(keyring)
@@ -162,7 +184,19 @@ func (vm *VolumeManager) Detach(image, pool, clusterNamespace string, force bool
 		return fmt.Errorf("failed to load cluster information from cluster %s: %+v", clusterNamespace, err)
 	}
 
-	err = cephclient.UnMapImage(vm.context, image, pool, clusterNamespace, keyring, monitors, force)
+	// Write the user given key to the keyring file
+	if key != "" {
+		keyringEval := func(key string) string {
+			r := fmt.Sprintf(keyringTemplate, id, key)
+			return r
+		}
+
+		if err = cephconfig.WriteKeyring(keyring, key, keyringEval); err != nil {
+			return fmt.Errorf("failed writing custom keyring for id %s. %+v", id, err)
+		}
+	}
+
+	err = cephclient.UnMapImage(vm.context, image, pool, id, keyring, clusterNamespace, monitors, force)
 	if err != nil {
 		return fmt.Errorf("failed to detach volume %s/%s cluster %s. %+v", pool, image, clusterNamespace, err)
 	}
@@ -205,13 +239,13 @@ func getClusterInfo(context *clusterd.Context, clusterNamespace string) (string,
 
 // FindDevicePath polls and wait for the mapped ceph image device to show up
 func (f *devicePathFinder) FindDevicePath(image, pool, clusterNamespace string) (string, error) {
-	mappedFile, err := util.FindRBDMappedFile(image, pool, util.RBDSysBusPathDefault)
+	mappedFile, err := cephutil.FindRBDMappedFile(image, pool, cephutil.RBDSysBusPathDefault)
 	if err != nil {
 		return "", fmt.Errorf("failed to find mapped image: %+v", err)
 	}
 
 	if mappedFile != "" {
-		devicePath := util.RBDDevicePathPrefix + mappedFile
+		devicePath := cephutil.RBDDevicePathPrefix + mappedFile
 		if _, err := os.Lstat(devicePath); err != nil {
 			return "", fmt.Errorf("sysfs information for image '%s' in pool '%s' found but the rbd device path %s does not exist", image, pool, devicePath)
 		}

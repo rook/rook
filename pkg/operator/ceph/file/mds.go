@@ -286,10 +286,18 @@ func getMdsDeployments(context *clusterd.Context, namespace, fsName string) (*ex
 
 func deleteMdsDeployment(context *clusterd.Context, namespace string, deployment *extensions.Deployment) error {
 	errCount := 0
-	if err := k8sutil.DeleteDeployment(context.Clientset, namespace, deployment.GetName()); err != nil {
+
+	// Delete the mds deployment
+	logger.Infof("deleting mds deployment %s", deployment.Name)
+	var gracePeriod int64
+	propagation := metav1.DeletePropagationForeground
+	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
+	if err := context.Clientset.ExtensionsV1beta1().Deployments(namespace).Delete(deployment.GetName(), options); err != nil {
 		errCount++
 		logger.Errorf("failed to delete mds deployment %s: %+v", deployment.GetName(), err)
 	}
+
+	// Delete the mds secret
 	err := context.Clientset.CoreV1().Secrets(namespace).Delete(deployment.GetName(), &metav1.DeleteOptions{})
 	if err != nil && !errors.IsNotFound(err) {
 		errCount++

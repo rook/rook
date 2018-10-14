@@ -86,23 +86,5 @@ func writeKeyring(keyring, keyringPath string) error {
 	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0644); err != nil {
 		return fmt.Errorf("failed to write monitor keyring to %s: %+v", keyringPath, err)
 	}
-
-	// Save the keyring to the default path. This allows the user to any pod to easily execute Ceph commands.
-	// It is recommended to connect to the operator pod rather than monitors and OSDs since the operator always has the latest configuration files.
-	// The mon and OSD pods will only re-create the config files when the pod is restarted. If a monitor fails over, the config
-	// in the other mon and osd pods may be out of date. This could cause your ceph commands to timeout connecting to invalid mons.
-	// Note that the running mon and osd daemons are not affected by this issue because of their live connection to the mon quorum.
-	// If you have multiple Rook clusters, it is preferred to connect to the Rook toolbox for a specific cluster. Otherwise, your ceph commands
-	// may connect to the wrong cluster.
-	if err := os.MkdirAll(DefaultConfigDir, 0744); err != nil {
-		logger.Warningf("failed to create default directory %s: %+v", DefaultConfigDir, err)
-		return nil
-	}
-	defaultPath := DefaultKeyringFilePath()
-	if err := ioutil.WriteFile(defaultPath, []byte(keyring), 0644); err != nil {
-		logger.Warningf("failed to copy keyring to %s: %+v", defaultPath, err)
-		return nil
-	}
-
 	return nil
 }

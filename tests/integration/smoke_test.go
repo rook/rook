@@ -89,15 +89,21 @@ func (suite *SmokeSuite) TearDownSuite() {
 func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
 	runBlockE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
 }
+
 func (suite *SmokeSuite) TestFileStorage_SmokeTest() {
 	runFileE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace, "smoke-test-fs")
 }
+
+func (suite *SmokeSuite) TestFileStorageMountUser_SmokeTest() {
+	runFileMountUserE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace, "smoke-test-fs-mountuser")
+}
+
 func (suite *SmokeSuite) TestObjectStorage_SmokeTest() {
 	runObjectE2ETest(suite.helper, suite.k8sh, suite.Suite, suite.namespace)
 }
 
-//Test to make sure all rook components are installed and Running
-func (suite *SmokeSuite) TestRookClusterInstallation_smokeTest() {
+// Test to make sure all rook components are installed and Running
+func (suite *SmokeSuite) TestRookClusterInstallation_SmokeTest() {
 	checkIfRookClusterIsInstalled(suite.Suite, suite.k8sh, installer.SystemNamespace(suite.namespace), suite.namespace, 3)
 }
 
@@ -106,14 +112,14 @@ func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
 	if !v.LessThan(version.MustParseSemantic("1.9.0")) {
 		suite.T().Skip("Skipping test - known issues with k8s 1.9 (https://github.com/rook/rook/issues/1330)")
 	}
-	// get the operator pod
+	// Get the operator pod
 	sysNamespace := installer.SystemNamespace(suite.namespace)
 	listOpts := metav1.ListOptions{LabelSelector: "app=rook-ceph-operator"}
 	podList, err := suite.k8sh.Clientset.CoreV1().Pods(sysNamespace).List(listOpts)
 	require.Nil(suite.T(), err)
 	require.Equal(suite.T(), 1, len(podList.Items))
 
-	// get the raw log for the operator pod
+	// Get the raw log for the operator pod
 	opPodName := podList.Items[0].Name
 	rawLog, err := suite.k8sh.Clientset.CoreV1().Pods(sysNamespace).GetLogs(opPodName, &v1.PodLogOptions{}).Do().Raw()
 	require.Nil(suite.T(), err)
@@ -122,7 +128,7 @@ func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
 	logStmt := string(r.Find(rawLog))
 	logger.Infof("flexvolume discovery log statement: %s", logStmt)
 
-	// verify that the volume plugin dir was discovered by the operator pod and that it did not come from
+	// Verify that the volume plugin dir was discovered by the operator pod and that it did not come from
 	// an env var or the default
 	require.NotEmpty(suite.T(), logStmt)
 	assert.True(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source"))

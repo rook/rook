@@ -19,7 +19,7 @@ var (
 
 // Create StorageClass and poll if needed
 func createStorageClassAndPool(t func() *testing.T, testClient *clients.TestClient, kh *utils.K8sHelper, namespace string, storageClassName string, poolName string) {
-	//create storage class
+	// Create storage class
 	if err := kh.IsStorageClassPresent(storageClassName); err != nil {
 		logger.Infof("Install pool and storage class for rook block")
 		_, err := testClient.PoolClient.Create(poolName, namespace, 3)
@@ -27,7 +27,7 @@ func createStorageClassAndPool(t func() *testing.T, testClient *clients.TestClie
 		_, err = testClient.BlockClient.CreateStorageClass(poolName, storageClassName, "Delete", namespace, false)
 		require.NoError(t(), err)
 
-		//make sure storageclass is created
+		// make sure storageclass is created
 		err = kh.IsStorageClassPresent(storageClassName)
 		require.NoError(t(), err)
 	}
@@ -37,13 +37,13 @@ func createStorageClassAndPool(t func() *testing.T, testClient *clients.TestClie
 // All the set up is if needed.
 func createPVCAndMountMysqlPod(t func() *testing.T, kh *utils.K8sHelper, storageClassName string, appName string, appLabel string, pvcName string) *utils.MySQLHelper {
 
-	//create mysql pod
+	// Create mysql pod
 	if _, err := kh.GetPVCStatus(defaultNamespace, pvcName); err != nil {
 		logger.Infof("Create PVC")
 
 		mySqlPodOperation(kh, storageClassName, appName, appLabel, pvcName, "create")
 
-		//wait till mysql pod is up
+		// Wait till mysql pod is up
 		require.True(t(), kh.IsPodInExpectedState(appLabel, "", "Running"))
 		require.True(t(), kh.WaitUntilPVCIsBound(defaultNamespace, pvcName))
 	}
@@ -51,7 +51,7 @@ func createPVCAndMountMysqlPod(t func() *testing.T, kh *utils.K8sHelper, storage
 	require.Nil(t(), err)
 	dbPort, err := kh.GetServiceNodePort(appName, "default")
 	require.Nil(t(), err)
-	//create database connection
+	// Create database connection
 	db := utils.CreateNewMySQLHelper("mysql", "mysql", dbIP+":"+dbPort, "sample")
 
 	require.True(t(), db.PingSuccess())
@@ -61,7 +61,6 @@ func createPVCAndMountMysqlPod(t func() *testing.T, kh *utils.K8sHelper, storage
 	}
 
 	return db
-
 }
 
 func mySqlPodOperation(k8sh *utils.K8sHelper, storageClassName string, appName string, appLabel string, pvcName string, action string) (string, error) {
@@ -73,7 +72,6 @@ func mySqlPodOperation(k8sh *utils.K8sHelper, storageClassName string, appName s
 	}
 
 	result, err := k8sh.ResourceOperationFromTemplate(action, GetMySqlPodDef(), config)
-
 	return result, err
 
 }
@@ -115,7 +113,7 @@ func dbOperation(db *utils.MySQLHelper, wg *sync.WaitGroup, runtime int, loadSiz
 	start := time.Now()
 	elapsed := time.Since(start).Seconds()
 	for elapsed < float64(runtime) {
-		//InsertRandomData
+		// InsertRandomData
 		db.InsertRandomData(ds)
 		db.InsertRandomData(ds)
 		db.InsertRandomData(ds)
@@ -125,7 +123,7 @@ func dbOperation(db *utils.MySQLHelper, wg *sync.WaitGroup, runtime int, loadSiz
 		db.InsertRandomData(ds)
 		db.SelectRandomData(10)
 
-		//delete Data
+		// Delete Data
 		db.DeleteRandomRow()
 		db.SelectRandomData(20)
 		elapsed = time.Since(start).Seconds()
@@ -173,7 +171,7 @@ func (o LoadTestCluster) Setup() {
 	}
 }
 
-//TearDownRook is a wrapper for tearDown after suite
+// TearDownRook is a wrapper for tearDown after suite
 func (o LoadTestCluster) Teardown() {
 	// No Clean up for load test
 }

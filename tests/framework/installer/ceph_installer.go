@@ -53,7 +53,7 @@ var (
 	MimicVersion    = cephv1beta1.CephVersionSpec{Image: mimicTestImage, Name: cephv1beta1.Mimic}
 )
 
-//CephInstaller wraps installing and uninstalling rook on a platform
+// CephInstaller wraps installing and uninstalling rook on a platform
 type CephInstaller struct {
 	Manifests        CephManifests
 	k8shelper        *utils.K8sHelper
@@ -108,13 +108,13 @@ func (h *CephInstaller) CreateCephCRDs() error {
 	return err
 }
 
-//CreateCephOperator creates rook-operator via kubectl
+// CreateCephOperator creates rook-operator via kubectl
 func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 	logger.Infof("Starting Rook Operator")
-	//creating clusterrolebinding for kubeadm env.
+	// creating clusterrolebinding for kubeadm env.
 	h.k8shelper.CreateAnonSystemClusterBinding()
 
-	//creating rook resources
+	// creating rook resources
 	if err = h.CreateCephCRDs(); err != nil {
 		return err
 	}
@@ -140,9 +140,9 @@ func (h *CephInstaller) CreateCephOperator(namespace string) (err error) {
 	return nil
 }
 
-//CreateK8sRookOperatorViaHelm creates rook operator via Helm chart named local/rook present in local repo
+// CreateK8sRookOperatorViaHelm creates rook operator via Helm chart named local/rook present in local repo
 func (h *CephInstaller) CreateK8sRookOperatorViaHelm(namespace string) error {
-	//creating clusterrolebinding for kubeadm env.
+	// creating clusterrolebinding for kubeadm env.
 	h.k8shelper.CreateAnonSystemClusterBinding()
 
 	helmTag, err := h.helmHelper.GetLocalRookHelmChartVersion(helmChartName)
@@ -164,7 +164,7 @@ func (h *CephInstaller) CreateK8sRookOperatorViaHelm(namespace string) error {
 	return nil
 }
 
-//CreateK8sRookToolbox creates rook-ceph-tools via kubectl
+// CreateK8sRookToolbox creates rook-ceph-tools via kubectl
 func (h *CephInstaller) CreateK8sRookToolbox(namespace string) (err error) {
 	logger.Infof("Starting Rook toolbox")
 
@@ -191,7 +191,7 @@ func (h *CephInstaller) CreateK8sRookCluster(namespace, systemNamespace string, 
 		LuminousVersion)
 }
 
-//CreateK8sRookCluster creates rook cluster via kubectl
+// CreateK8sRookCluster creates rook cluster via kubectl
 func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType string,
 	useAllDevices bool, mon cephv1beta1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, cephVersion cephv1beta1.CephVersionSpec) error {
 
@@ -276,12 +276,12 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 	return names, nil
 }
 
-//InstallRookOnK8sWithHostPathAndDevices installs rook on k8s
+// InstallRookOnK8sWithHostPathAndDevices installs rook on k8s
 func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType string,
 	helmInstalled, useDevices bool, mon cephv1beta1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
 
 	var err error
-	//flag used for local debuggin purpose, when rook is pre-installed
+	// flag used for local debuggin purpose, when rook is pre-installed
 	if Env.SkipInstallRook {
 		return true, nil
 	}
@@ -291,7 +291,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	logger.Infof("Installing rook on k8s %s", k8sversion)
 
 	onamespace := namespace
-	//Create rook operator
+	// Create rook operator
 	if helmInstalled {
 		err = h.CreateK8sRookOperatorViaHelm(namespace)
 		if err != nil {
@@ -324,7 +324,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 		useDevices = IsAdditionalDeviceAvailableOnCluster()
 	}
 
-	//Create rook cluster
+	// Create rook cluster
 	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, onamespace, storeType,
 		useDevices, cephv1beta1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
 		rbdMirrorWorkers,
@@ -334,7 +334,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 		return false, err
 	}
 
-	//Create rook client
+	// Create rook client
 	err = h.CreateK8sRookToolbox(namespace)
 	if err != nil {
 		logger.Errorf("Rook toolbox in cluster %s not installed, error -> %v", namespace, err)
@@ -344,14 +344,14 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	return true, nil
 }
 
-//UninstallRookFromK8s uninstalls rook from k8s
+// UninstallRookFromK8s uninstalls rook from k8s
 func (h *CephInstaller) UninstallRook(helmInstalled bool, namespace string) {
 	h.UninstallRookFromMultipleNS(helmInstalled, SystemNamespace(namespace), namespace)
 }
 
-//UninstallRookFromK8s uninstalls rook from multiple namespaces in k8s
+// UninstallRookFromK8s uninstalls rook from multiple namespaces in k8s
 func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNamespace string, namespaces ...string) {
-	//flag used for local debugging purpose, when rook is pre-installed
+	// flag used for local debugging purpose, when rook is pre-installed
 	if Env.SkipInstallRook {
 		return
 	}
@@ -366,7 +366,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 		checkError(h.T(), err, fmt.Sprintf("cannot remove cluster %s", namespace))
 
 		crdCheckerFunc := func() error {
-			_, err := h.k8shelper.RookClientset.RookV1alpha1().Clusters(namespace).Get(namespace, metav1.GetOptions{})
+			_, err := h.k8shelper.RookClientset.CephV1beta1().Clusters(namespace).Get(namespace, metav1.GetOptions{})
 			return err
 		}
 		err = h.k8shelper.WaitForCustomResourceDeletion(namespace, crdCheckerFunc)

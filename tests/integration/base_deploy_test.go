@@ -40,7 +40,7 @@ var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "integrationTest")
 )
 
-//Test to make sure all rook components are installed and Running
+// Test to make sure all rook components are installed and Running
 func checkIfRookClusterIsInstalled(s suite.Suite, k8sh *utils.K8sHelper, opNamespace, clusterNamespace string, mons int) {
 	logger.Infof("Make sure all Pods in Rook Cluster %s are running", clusterNamespace)
 	assert.True(s.T(), k8sh.CheckPodCountAndState("rook-ceph-operator", opNamespace, 1, "Running"),
@@ -86,7 +86,7 @@ func HandlePanics(r interface{}, op installer.TestSuite, t func() *testing.T) {
 	}
 }
 
-//TestCluster struct for handling panic and test suite tear down
+// TestCluster struct for handling panic and test suite tear down
 type TestCluster struct {
 	installer        *installer.CephInstaller
 	kh               *utils.K8sHelper
@@ -120,7 +120,7 @@ func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInst
 	return op, kh
 }
 
-//SetUpRook is a wrapper for setting up rook
+// SetUpRook is a wrapper for setting up rook
 func (op *TestCluster) Setup() {
 	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType,
 		op.helmInstalled, op.useDevices, cephv1beta1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers)
@@ -137,11 +137,9 @@ func (op *TestCluster) Setup() {
 }
 
 // SetInstallData updates the installer helper based on the version of Rook desired
-func (op *TestCluster) SetInstallData(version string) {
+func (op *TestCluster) SetInstallData(version string) {}
 
-}
-
-//TearDownRook is a wrapper for tearDown after Suite
+// TearDownRook is a wrapper for tearDown after Suite
 func (op *TestCluster) Teardown() {
 	if op.installer.T().Failed() {
 		op.installer.GatherAllRookLogs(op.namespace, installer.SystemNamespace(op.namespace), op.installer.T().Name())

@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-//ReadWriteOperation is a wrapper for k8s rook file operations
+// ReadWriteOperation is a wrapper for k8s rook file operations
 type ReadWriteOperation struct {
 	k8sh *utils.K8sHelper
 }

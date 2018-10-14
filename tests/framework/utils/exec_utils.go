@@ -40,7 +40,7 @@ type CommandArgs struct {
 	EnvironmentVariable []string
 }
 
-//CommandOut is a wrapper for cmd out returned after executing command args
+// CommandOut is a wrapper for cmd out returned after executing command args
 type CommandOut struct {
 	StdOut   string
 	StdErr   string
@@ -48,7 +48,7 @@ type CommandOut struct {
 	Err      error
 }
 
-//ExecuteCommand executes a os command with stdin and returns output
+// ExecuteCommand executes a os command with stdin and returns output
 func ExecuteCommand(cmdStruct CommandArgs) CommandOut {
 	logger.Infof("Running %s %v", cmdStruct.Command, cmdStruct.CmdArgs)
 

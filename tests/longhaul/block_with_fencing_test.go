@@ -34,8 +34,8 @@ import (
 // Rook Block Storage fencing longhaul test
 // Create a PVC, mount a pod with readOnly= false and write some data and unmount pod
 // Then Mound n pods concurrently with readOnly=true and read  data.
-//NOTE: This tests doesn't clean up the cluster or volume after the run, the tests is designed
-//to reuse the same cluster and volume for multiple runs or over a period of time.
+// NOTE: This tests doesn't clean up the cluster or volume after the run, the tests is designed
+// to reuse the same cluster and volume for multiple runs or over a period of time.
 // It is recommended to run this test with -count test param (to repeat th test n number of times)
 // along with --load_parallel_runs params(number of concurrent operations per test)
 func TestBlockWithFencingLongHaul(t *testing.T) {
@@ -51,9 +51,9 @@ type BlockLongHaulSuiteWithFencing struct {
 	op         installer.TestSuite
 }
 
-//Test set up - does the following in order
-//create pool and storage class, Create a PVC and mount a pod with ReadOnly=false.
-//Write some data to the pvc and unmount the pod
+// Test set up - does the following in order
+// create pool and storage class, Create a PVC and mount a pod with ReadOnly=false.
+// Write some data to the pvc and unmount the pod
 func (s *BlockLongHaulSuiteWithFencing) SetupSuite() {
 	s.namespace = "longhaul-ns"
 	s.op, s.kh, s.installer = StartLoadTestCluster(s.T, s.namespace)
@@ -74,7 +74,7 @@ func (s *BlockLongHaulSuiteWithFencing) SetupSuite() {
 	}
 }
 
-//Mount n number of pods on the same PVC created earlier with readOnly=True.
+// Mount n number of pods on the same PVC created earlier with readOnly=True.
 func (s *BlockLongHaulSuiteWithFencing) TestBlockWithFencingLonghaulRun() {
 
 	var wg sync.WaitGroup
