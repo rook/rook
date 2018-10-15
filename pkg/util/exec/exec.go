@@ -154,7 +154,7 @@ func (*CommandExecutor) ExecuteCommandWithOutputFile(debug bool, actionName stri
 	cmdOut, err := cmd.CombinedOutput()
 	// if there was anything that went to stdout/stderr then log it, even before we return an error
 	if string(cmdOut) != "" {
-		logger.Infof(string(cmdOut))
+		logger.Info(string(cmdOut))
 	}
 	if err != nil {
 		return string(cmdOut), err
@@ -203,7 +203,7 @@ func logOutput(name string, stdout, stderr io.ReadCloser) {
 	lastLine := ""
 	for in.Scan() {
 		lastLine = in.Text()
-		childLogger.Infof(lastLine)
+		childLogger.Info(lastLine)
 	}
 }
 

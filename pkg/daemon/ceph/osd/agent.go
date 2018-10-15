@@ -208,7 +208,7 @@ func (a *OsdAgent) removeDevices(context *clusterd.Context, removedDevicesScheme
 
 	if len(errorMessages) > 0 {
 		// at least one OSD failed, return an overall error
-		return fmt.Errorf(strings.Join(errorMessages, "\n"))
+		return fmt.Errorf("%s", strings.Join(errorMessages, "\n"))
 	}
 
 	return nil

@@ -192,7 +192,7 @@ func (a *Agent) discoverFlexvolumeDir() (flexvolumeDirPath, source string) {
 	// determining where the path of the flexvolume dir on the node
 	nodeConfigURI, err := k8sutil.NodeConfigURI()
 	if err != nil {
-		logger.Warningf(err.Error())
+		logger.Warning(err.Error())
 		return getDefaultFlexvolumeDir()
 	}
 	nodeConfig, err := a.clientset.CoreV1().RESTClient().Get().RequestURI(nodeConfigURI).DoRaw()

@@ -98,11 +98,11 @@ func startRGWPods(context *clusterd.Context, store cephv1beta1.ObjectStore, vers
 	if update {
 		err := k8sutil.DeleteDeployment(context.Clientset, store.Namespace, instanceName(store))
 		if err != nil {
-			logger.Warningf(err.Error())
+			logger.Warning(err.Error())
 		}
 		err = k8sutil.DeleteDaemonset(context.Clientset, store.Namespace, instanceName(store))
 		if err != nil {
-			logger.Warningf(err.Error())
+			logger.Warning(err.Error())
 		}
 	}
 
@@ -157,11 +157,11 @@ func DeleteStore(context *clusterd.Context, store cephv1beta1.ObjectStore) error
 	// Make a best effort to delete the rgw pods
 	err = k8sutil.DeleteDeployment(context.Clientset, store.Namespace, instanceName(store))
 	if err != nil {
-		logger.Warningf(err.Error())
+		logger.Warning(err.Error())
 	}
 	err = k8sutil.DeleteDaemonset(context.Clientset, store.Namespace, instanceName(store))
 	if err != nil {
-		logger.Warningf(err.Error())
+		logger.Warning(err.Error())
 	}
 
 	// Delete the rgw keyring
