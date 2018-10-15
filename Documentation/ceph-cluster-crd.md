@@ -67,6 +67,13 @@ This feature is only available when `useAllNodes` has been set to `false`.
 - `count`: set the number of mons to be started. The number should be odd and between `1` and `9`. If not specified the default is set to `3` and `allowMultiplePerNode` is also set to `true`.
 - `allowMultiplePerNode`: enable (`true`) or disable (`false`) the placement of multiple mons on one node. Default is `false`.
 
+If these settings are changed in the CRD the operator will update the number of mons during a periodic check of the mon health, which by default is every 45 seconds.
+
+To change the defaults that the operator uses to determine the mon health and whether to failover a mon, the following environment variables can be changed in [operator.yaml](https://github.com/rook/rook/blob/master/cluster/examples/kubernetes/ceph/operator.yaml). The intervals should be small enough that you have confidence the mons will maintain quorum, while also being
+log enough to ignore network blips where mons are failed over too often.
+- ROOK_MON_HEALTHCHECK_INTERVAL: The frequency with which to check if mons are in quorum (default is 45 seconds)
+- ROOK_MON_OUT_TIMEOUT: The interval to wait before marking a mon as "out" and starting a new mon to replace it in the quroum (default is 5 minutes)
+
 ### Node Settings
 In addition to the cluster level settings specified above, each individual node can also specify configuration to override the cluster level settings and defaults.
 If a node does not specify any configuration then it will inherit the cluster level settings.

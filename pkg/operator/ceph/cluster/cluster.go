@@ -163,7 +163,7 @@ func (c *cluster) createInitialCrushMap() error {
 	return nil
 }
 
-func clusterChanged(oldCluster, newCluster cephv1beta1.ClusterSpec) bool {
+func clusterChanged(oldCluster, newCluster cephv1beta1.ClusterSpec, clusterRef *cluster) bool {
 	changeFound := false
 	oldStorage := oldCluster.Storage
 	newStorage := newCluster.Storage
@@ -179,6 +179,20 @@ func clusterChanged(oldCluster, newCluster cephv1beta1.ClusterSpec) bool {
 	if oldCluster.Dashboard.Enabled != newCluster.Dashboard.Enabled {
 		logger.Infof("dashboard enabled has changed from %t to %t", oldCluster.Dashboard.Enabled, newCluster.Dashboard.Enabled)
 		changeFound = true
+	}
+
+	if oldCluster.Mon.Count != newCluster.Mon.Count {
+		logger.Infof("number of mons have changed from %d to %d. The health check will update the mons...", oldCluster.Mon.Count, newCluster.Mon.Count)
+		clusterRef.mons.MonCountMutex.Lock()
+		clusterRef.mons.Count = newCluster.Mon.Count
+		clusterRef.mons.MonCountMutex.Unlock()
+	}
+
+	if oldCluster.Mon.AllowMultiplePerNode != newCluster.Mon.AllowMultiplePerNode {
+		logger.Infof("allow multiple mons per node changed from %t to %t. The health check will update the mons...", oldCluster.Mon.AllowMultiplePerNode, newCluster.Mon.AllowMultiplePerNode)
+		clusterRef.mons.MonCountMutex.Lock()
+		clusterRef.mons.AllowMultiplePerNode = newCluster.Mon.AllowMultiplePerNode
+		clusterRef.mons.MonCountMutex.Unlock()
 	}
 
 	return changeFound
