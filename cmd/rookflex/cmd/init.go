@@ -17,10 +17,11 @@ limitations under the License.
 package cmd
 
 import (
-	"fmt"
+	"encoding/json"
 	"os"
 
 	"github.com/spf13/cobra"
+	"k8s.io/kubernetes/pkg/volume/flexvolume"
 )
 
 var (
@@ -36,7 +37,17 @@ func init() {
 }
 
 func initPlugin(cmd *cobra.Command, args []string) error {
-	fmt.Println(`{"status":"Success", "capabilities": {"attach": false}}`)
+	status := flexvolume.DriverStatus{
+		Status: flexvolume.StatusSuccess,
+		Capabilities: &flexvolume.DriverCapabilities{
+			Attach: false,
+			// Required for cephfs (ReadWriteMany)
+			SELinuxRelabel: false,
+		},
+	}
+	if err := json.NewEncoder(os.Stdout).Encode(&status); err != nil {
+		return err
+	}
 	os.Exit(0)
 	return nil
 }

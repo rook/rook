@@ -92,6 +92,14 @@
   revision = "edc3ab29cdff8694dd6feb85cfeb4b5f1b38ed9c"
 
 [[projects]]
+  digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"
+  name = "github.com/fsnotify/fsnotify"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "c2828203cd70a50dcccfb2761f8b1f8ceef9a8e9"
+  version = "v1.4.7"
+
+[[projects]]
   digest = "1:2cd7915ab26ede7d95b8749e6b1f933f1c6d5398030684e6505940a10f31cfda"
   name = "github.com/ghodss/yaml"
   packages = ["."]
@@ -365,6 +373,17 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "36b0c11f5765bf475052768bb0ee7e685cad5606"
+
+[[projects]]
+  digest = "1:6a4a11ba764a56d2758899ec6f3848d24698d48442ebce85ee7a3f63284526cd"
+  name = "github.com/spf13/afero"
+  packages = [
+    ".",
+    "mem",
+  ]
+  pruneopts = "UT"
+  revision = "d40851caa0d747393da1ffb28f7f9d8b4eeffebd"
+  version = "v1.1.2"
 
 [[projects]]
   digest = "1:645cabccbb4fa8aab25a956cbcbdf6a6845ca736b2c64e197ca7cbb9d210b939"
@@ -834,7 +853,7 @@
   revision = "9dfdf9be683f61f82cda12362c44c784e0778b56"
 
 [[projects]]
-  digest = "1:2ea99852b32e9bc340b553f66b06180c28a046e4d32902d51dd2ba82f45517a4"
+  digest = "1:86e585e9a86e2be264c40dc05de46286a70d4c85bdd29e28537211351df27835"
   name = "k8s.io/kubernetes"
   packages = [
     "pkg/api/legacyscheme",
@@ -870,6 +889,7 @@
     "pkg/security/apparmor",
     "pkg/serviceaccount",
     "pkg/util/file",
+    "pkg/util/filesystem",
     "pkg/util/goroutinemap",
     "pkg/util/goroutinemap/exponentialbackoff",
     "pkg/util/hash",
@@ -879,9 +899,11 @@
     "pkg/util/nsenter",
     "pkg/util/parsers",
     "pkg/util/pointer",
+    "pkg/util/strings",
     "pkg/util/taints",
     "pkg/util/version",
     "pkg/volume",
+    "pkg/volume/flexvolume",
     "pkg/volume/util",
     "pkg/volume/util/fs",
     "pkg/volume/util/recyclerclient",
@@ -970,6 +992,7 @@
     "k8s.io/kubernetes/pkg/util/goroutinemap",
     "k8s.io/kubernetes/pkg/util/mount",
     "k8s.io/kubernetes/pkg/util/version",
+    "k8s.io/kubernetes/pkg/volume/flexvolume",
     "k8s.io/kubernetes/pkg/volume/util",
   ]
   solver-name = "gps-cdcl"
