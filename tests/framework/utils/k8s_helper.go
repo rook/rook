@@ -457,11 +457,16 @@ func (k8sh *K8sHelper) IsPodWithLabelPresent(label string, namespace string) boo
 	return count > 0
 }
 
+//WaitForLabelWaitForLabeledPodsToRun calls WaitForLabeledPodsToRunWithRetries with the default number of retries
+func (k8sh *K8sHelper) WaitForLabeledPodsToRun(label, namespace string) error {
+	return k8sh.WaitForLabeledPodsToRunWithRetries(label, namespace, RetryLoop)
+}
+
 //WaitForLabeledPodsToRun returns true if a Pod is running status or goes to Running status within 90s else returns false
-func (k8sh *K8sHelper) WaitForLabeledPodsToRun(label string, namespace string) error {
+func (k8sh *K8sHelper) WaitForLabeledPodsToRunWithRetries(label string, namespace string, retries int) error {
 	options := metav1.ListOptions{LabelSelector: label}
 	var lastPod v1.Pod
-	for i := 0; i < RetryLoop; i++ {
+	for i := 0; i < retries; i++ {
 		pods, err := k8sh.Clientset.CoreV1().Pods(namespace).List(options)
 		lastStatus := ""
 		running := 0

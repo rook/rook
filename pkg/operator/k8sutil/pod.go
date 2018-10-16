@@ -211,7 +211,7 @@ func GetPodLog(clientset kubernetes.Interface, namespace string, labelSelector s
 		return builder.String(), err
 	}
 
-	return "this is a fake version", nil
+	return "", fmt.Errorf("did not find any pods with label %s", labelSelector)
 }
 
 // DeleteDeployment makes a best effort at deleting a deployment and its pods, then waits for them to be deleted
