@@ -14,7 +14,7 @@
 
 FROM minio/minio:RELEASE.2018-04-19T22-54-58Z
 
-ADD rook /usr/local/bin/
+COPY rook /usr/local/bin/
 
 ENTRYPOINT ["/usr/local/bin/rook"]
 CMD [""]

@@ -49,8 +49,8 @@ ARG ARCH
 ARG TINI_VERSION
 
 # Run tini as PID 1 and avoid signal handling issues
-ADD https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} /tini
-RUN chmod +x /tini
+RUN curl -sSL --fail -o /tini https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} && \
+    chmod +x /tini
 
 # precompile the go standard library for all supported platforms and configurations
 # the install suffixes match those in golang.mk so please keep them in sync
