@@ -20,6 +20,14 @@ Rook requires privileges to manage the storage in your cluster. See the details 
 The Rook agent requires setup as a Flex volume plugin to manage the storage attachments in your cluster.
 See the [Flex Volume Configuration](flexvolume.md) topic to configure your Kubernetes deployment to load the Rook volume plugin.
 
+## Kernel modules directory configuration
+
+Normally, on Linux, kernel modules can be found in `/lib/modules`. However, there are some distributions that put them elsewhere. In that case the environment variable `LIB_MODULES_DIR_PATH` can be used to override the default. Also see the documentation in [helm-operator](helm-operator.md) on the parameter `agent.libModulesDirPath`. One notable distribution where this setting is useful would be [NixOS](https://nixos.org).
+
+## Extra agent mounts
+
+On certain distributions it may be necessary to mount additional directories into the agent container. That is what the environment variable `AGENT_MOUNTS` is for. Also see the documentation in [helm-operator](helm-operator.md) on the parameter `agent.mounts`. The format of the variable content should be `mountname1=/host/path1:/container/path1,mountname2=/host/path2:/container/path2`.
+
 ## Bootstrapping Kubernetes
 
 Rook will run wherever Kubernetes is running. Here are some simple environments to help you get started with Rook.
