@@ -13,6 +13,7 @@
 - `reclaimPolicy` parameter of `StorageClass` definition is now supported.
 - K8s client-go updated from version 1.8.2 to 1.11.3
 - The toolbox manifest now creates a deployment based on the `rook/ceph` image instead of creating a pod on a specialized `rook/ceph-toolbox` image.
+- The frequency of discovering devices on a node is reduced to 60 minutes by default, and is configurable with the setting `ROOK_DISCOVER_DEVICES_INTERVAL` in operator.yaml.
 
 ## Breaking Changes
 - Ceph mons are [named consistently](https://github.com/rook/rook/issues/1751) with other daemons with the letters a, b, c, etc.
