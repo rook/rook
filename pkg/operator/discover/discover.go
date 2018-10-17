@@ -32,7 +32,6 @@ import (
 	"github.com/rook/rook/pkg/util/sys"
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
-	"k8s.io/api/rbac/v1beta1"
 	kserrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -45,17 +44,10 @@ const (
 	deviceInUseCMName                 = "local-device-in-use-cluster-%s-node-%s"
 	deviceInUseAppName                = "rook-claimed-devices"
 	deviceInUseClusterAttr            = "rook.io/cluster"
+	discoverIntervalEnv               = "ROOK_DISCOVER_DEVICES_INTERVAL"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "op-discover")
-
-var accessRules = []v1beta1.PolicyRule{
-	{
-		APIGroups: []string{""},
-		Resources: []string{"configmaps"},
-		Verbs:     []string{"get", "list", "update", "create", "delete"},
-	},
-}
 
 // Discover reference to be deployed
 type Discover struct {
@@ -101,7 +93,7 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 						{
 							Name:  discoverDaemonsetName,
 							Image: discoverImage,
-							Args:  []string{"discover"},
+							Args:  []string{"discover", "--discover-interval", getDiscoverInterval()},
 							SecurityContext: &v1.SecurityContext{
 								Privileged: &privileged,
 							},
@@ -188,6 +180,15 @@ func (d *Discover) createDiscoverDaemonSet(namespace, discoverImage, securityAcc
 	}
 	return nil
 
+}
+
+func getDiscoverInterval() string {
+	discoverValue := os.Getenv(discoverIntervalEnv)
+	if discoverValue != "" {
+		return discoverValue
+	}
+	// Default is 60 minutes
+	return "60m"
 }
 
 // ListDevices lists all devices discovered on all nodes or specific node if node name is provided.

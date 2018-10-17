@@ -36,20 +36,23 @@ import (
 )
 
 var (
-	logger                                  = capnslog.NewPackageLogger("github.com/rook/rook", "rook-discover")
-	AppName                                 = "rook-discover"
-	NodeAttr                                = "rook.io/node"
-	LocalDiskCMData                         = "devices"
-	LocalDiskCMName                         = "local-device-"
-	probeInterval                           = 30 * time.Second
-	nodeName, namespace, lastDevice, cmName string
-	cm                                      *v1.ConfigMap
+	logger          = capnslog.NewPackageLogger("github.com/rook/rook", "rook-discover")
+	AppName         = "rook-discover"
+	NodeAttr        = "rook.io/node"
+	LocalDiskCMData = "devices"
+	LocalDiskCMName = "local-device-"
+	nodeName        string
+	namespace       string
+	lastDevice      string
+	cmName          string
+	cm              *v1.ConfigMap
 )
 
-func Run(context *clusterd.Context) error {
+func Run(context *clusterd.Context, probeInterval time.Duration) error {
 	if context == nil {
 		return fmt.Errorf("nil context")
 	}
+	logger.Infof("device discovery interval is %s", probeInterval.String())
 	nodeName = os.Getenv(k8sutil.NodeNameEnvVar)
 	namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
 	cmName = LocalDiskCMName + nodeName

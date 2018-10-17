@@ -17,22 +17,32 @@ package main
 
 import (
 	"fmt"
+	"time"
 
 	rook "github.com/rook/rook/cmd/rook/rook"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/pkg/util/exec"
+	"github.com/rook/rook/pkg/util/flags"
 	"github.com/spf13/cobra"
 )
 
-var discoverCmd = &cobra.Command{
-	Use:    "discover",
-	Short:  "Discover devices",
-	Hidden: true,
-}
+var (
+	discoverCmd = &cobra.Command{
+		Use:    "discover",
+		Short:  "Discover devices",
+		Hidden: true,
+	}
+
+	// interval between discovering devices
+	discoverDevicesInterval time.Duration
+)
 
 func init() {
+	discoverCmd.Flags().DurationVar(&discoverDevicesInterval, "discover-interval", 60*time.Minute, "interval between discovering devices (default 60m)")
+
+	flags.SetFlagsFromEnv(discoverCmd.Flags(), rook.RookEnvVarPrefix)
 	discoverCmd.RunE = startDiscover
 }
 
@@ -55,7 +65,7 @@ func startDiscover(cmd *cobra.Command, args []string) error {
 		RookClientset:         rookClientset,
 	}
 
-	err = discover.Run(context)
+	err = discover.Run(context, discoverDevicesInterval)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
