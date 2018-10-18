@@ -1,4 +1,3 @@
----
 title: Upgrades
 weight: 60
 ---
@@ -40,6 +39,9 @@ Review the [health verification section](#health-verification) in order to verif
 This persists metadata on host nodes, enabling pods to be terminated during the upgrade and for new pods to be created in their place.
 More details about `dataDirHostPath` can be found in the [Cluster CRD readme](./ceph-cluster-crd.md#cluster-settings).
 * All pods consuming Rook storage should be created, running, and in a steady state.  No Rook persistent volumes should be in the act of being created or deleted.
+  * If you are using rook release `v0.8.1` or older, you might have PVCs stuck in pending state. The issue is tracked [here](https://github.com/rook/rook/issues/2072). One of the two suggestions below might be a path forward.
+    * Upgrade operator to the latest release. On restart, track the logs to verify that PVCs are transitioned out of pending to bound state.
+    * Delete the pending PVCs and re-create them after the rook cluster has been upgraded.
 
 The minimal sample v0.7 Cluster spec that will be used in this guide can be found below (note that the specific configuration may not be applicable to all environments):
 ```
