@@ -182,10 +182,17 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
 
-	err = cluster.detectCephMajorVersion()
+	err = cluster.setCephMajorVersion(15 * time.Minute)
 	if err != nil {
 		logger.Errorf("unknown ceph major version. %+v", err)
 		return
+	}
+
+	if !cluster.Spec.CephVersion.AllowUnsupported {
+		if !versionSupported(cluster.Spec.CephVersion.Name) {
+			logger.Errorf("unsupported ceph version detected: %s. allowUnupported must be set to true to run with this version.", cluster.Spec.CephVersion.Name)
+			return
+		}
 	}
 
 	// Start the Rook cluster components. Retry several times in case of failure.

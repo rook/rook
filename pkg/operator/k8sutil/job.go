@@ -52,10 +52,11 @@ func RunReplaceableJob(clientset kubernetes.Interface, job *batch.Job) error {
 	return err
 }
 
-// WaitForJobCompletion waits for a job to reach the completed state
-func WaitForJobCompletion(clientset kubernetes.Interface, job *batch.Job) error {
+// WaitForJobCompletion waits for a job to reach the completed state.
+// Assumes that only one pod needs to complete.
+func WaitForJobCompletion(clientset kubernetes.Interface, job *batch.Job, timeout time.Duration) error {
 	logger.Infof("waiting for job %s to complete...", job.Name)
-	wait.Poll(5*time.Second, 15*time.Minute, func() (bool, error) {
+	return wait.Poll(5*time.Second, timeout, func() (bool, error) {
 		job, err := clientset.Batch().Jobs(job.Namespace).Get(job.Name, metav1.GetOptions{})
 		if err != nil {
 			return false, fmt.Errorf("failed to detect job %s. %+v", job.Name, err)
@@ -75,7 +76,6 @@ func WaitForJobCompletion(clientset kubernetes.Interface, job *batch.Job) error 
 		logger.Debugf("job is still initializing")
 		return false, nil
 	})
-	return nil
 }
 
 func DeleteBatchJob(clientset kubernetes.Interface, namespace, name string, wait bool) error {

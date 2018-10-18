@@ -22,6 +22,7 @@ import (
 	"reflect"
 	"sort"
 	"strings"
+	"time"
 
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -41,6 +42,13 @@ const (
 	detectVersionName = "rook-ceph-detect-version"
 )
 
+var (
+	// supportedVersions are production-ready versions that rook supports
+	supportedVersions = []string{cephv1beta1.Luminous, cephv1beta1.Mimic}
+	// allVersions includes all supportedVersions as well as unreleased versions that are being tested with rook
+	allVersions = append(supportedVersions, cephv1beta1.Nautilus)
+)
+
 type cluster struct {
 	context   *clusterd.Context
 	Namespace string
@@ -58,7 +66,26 @@ func newCluster(c *cephv1beta1.Cluster, context *clusterd.Context) *cluster {
 		ownerRef: ClusterOwnerRef(c.Namespace, string(c.UID))}
 }
 
-func (c *cluster) detectCephMajorVersion() error {
+func (c *cluster) setCephMajorVersion(timeout time.Duration) error {
+	version, err := c.detectCephMajorVersion(timeout)
+	if err != nil {
+		// Don't return the err yet here so we can override the failure with a setting in the crd below.
+		logger.Errorf("failed to detect ceph version. %+v", err)
+	} else {
+		logger.Infof("detected ceph version %s for image %s", version, c.Spec.CephVersion.Image)
+	}
+
+	if c.Spec.CephVersion.Name != "" {
+		// if the cephVersion.name is already set, override the detected version
+		logger.Warningf("overriding ceph version to %s specified in the CRD", c.Spec.CephVersion.Name)
+		return nil
+	}
+
+	c.Spec.CephVersion.Name = version
+	return err
+}
+
+func (c *cluster) detectCephMajorVersion(timeout time.Duration) (string, error) {
 	// get the major ceph version by running "ceph --version" in the ceph image
 	job := &batch.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -90,34 +117,26 @@ func (c *cluster) detectCephMajorVersion() error {
 
 	// run the job to detect the version
 	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job); err != nil {
-		return fmt.Errorf("failed to start version job. %+v", err)
+		return "", fmt.Errorf("failed to start version job. %+v", err)
 	}
 
-	if err := k8sutil.WaitForJobCompletion(c.context.Clientset, job); err != nil {
-		return fmt.Errorf("failed to complete version job. %+v", err)
+	if err := k8sutil.WaitForJobCompletion(c.context.Clientset, job, timeout); err != nil {
+		return "", fmt.Errorf("failed to complete version job. %+v", err)
 	}
 
 	log, err := k8sutil.GetPodLog(c.context.Clientset, c.Namespace, "job="+detectVersionName)
 	if err != nil {
-		return fmt.Errorf("failed to get version job log to detect version. %+v", err)
+		return "", fmt.Errorf("failed to get version job log to detect version. %+v", err)
 	}
 
 	version, err := extractCephVersion(log)
 	if err != nil {
-		return fmt.Errorf("failed to extract ceph version. %+v", err)
-	}
-
-	logger.Infof("detected ceph version %s for image %s", version, c.Spec.CephVersion.Image)
-	if c.Spec.CephVersion.Name != "" && c.Spec.CephVersion.Name != version {
-		// if the cephVersion.name is already set, override the detected version
-		logger.Warningf("overriding ceph version to %s specified in the CRD", c.Spec.CephVersion.Name)
-	} else {
-		c.Spec.CephVersion.Name = version
+		return "", fmt.Errorf("failed to extract ceph version. %+v", err)
 	}
 
 	// delete the job since we're done with it
 	k8sutil.DeleteBatchJob(c.context.Clientset, c.Namespace, job.Name, false)
-	return nil
+	return version, nil
 }
 
 func (c *cluster) createInstance(rookImage string) error {
@@ -267,13 +286,19 @@ func clusterChanged(oldCluster, newCluster cephv1beta1.ClusterSpec, clusterRef *
 }
 
 func extractCephVersion(version string) (string, error) {
-	switch {
-	case strings.Index(version, cephv1beta1.Luminous) != -1:
-		return cephv1beta1.Luminous, nil
-	case strings.Index(version, cephv1beta1.Mimic) != -1:
-		return cephv1beta1.Mimic, nil
-	case strings.Index(version, cephv1beta1.Nautilus) != -1:
-		return cephv1beta1.Nautilus, nil
+	for _, v := range allVersions {
+		if strings.Contains(version, v) {
+			return v, nil
+		}
 	}
 	return "", fmt.Errorf("failed to parse version from: %s", version)
+}
+
+func versionSupported(version string) bool {
+	for _, v := range supportedVersions {
+		if v == version {
+			return true
+		}
+	}
+	return false
 }
