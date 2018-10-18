@@ -1,3 +1,4 @@
+---
 title: Upgrades
 weight: 60
 ---
