@@ -289,8 +289,13 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 		c.removeFinalizer(newClust)
 		return
 	}
+	cluster, ok := c.clusterMap[newClust.Namespace]
+	if !ok {
+		logger.Errorf("Cannot update cluster %s that does not exist", newClust.Namespace)
+		return
+	}
 
-	if !clusterChanged(oldClust.Spec, newClust.Spec) {
+	if !clusterChanged(oldClust.Spec, newClust.Spec, cluster) {
 		logger.Infof("update event for cluster %s is not supported", newClust.Namespace)
 		return
 	}
@@ -299,11 +304,6 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	logger.Debugf("old cluster: %+v", oldClust.Spec)
 	logger.Debugf("new cluster: %+v", newClust.Spec)
 
-	cluster, ok := c.clusterMap[newClust.Namespace]
-	if !ok {
-		logger.Errorf("Cannot update cluster %s that does not exist", newClust.Namespace)
-		return
-	}
 	cluster.Spec = &newClust.Spec
 
 	// attempt to update the cluster.  note this is done outside of wait.Poll because that function

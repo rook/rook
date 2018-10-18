@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/daemon/ceph/config"
 )
 
 func MonInQuorumResponse() string {
@@ -30,6 +31,22 @@ func MonInQuorumResponse() string {
 			Rank:    0,
 			Address: "1.2.3.1",
 		},
+	}
+	serialized, _ := json.Marshal(resp)
+	return string(serialized)
+}
+
+func MonInQuorumResponseFromMons(mons map[string]*config.MonInfo) string {
+	resp := client.MonStatusResponse{Quorum: []int{}}
+	i := 0
+	for name := range mons {
+		resp.MonMap.Mons = append(resp.MonMap.Mons, client.MonMapEntry{
+			Name:    name,
+			Rank:    i,
+			Address: fmt.Sprintf("1.2.3.%d", i),
+		})
+		resp.Quorum = append(resp.Quorum, i)
+		i++
 	}
 	serialized, _ := json.Marshal(resp)
 	return string(serialized)

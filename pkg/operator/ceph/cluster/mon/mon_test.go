@@ -69,7 +69,7 @@ func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, r
 		context:              context,
 		Namespace:            namespace,
 		Version:              "myversion",
-		Size:                 3,
+		Count:                3,
 		AllowMultiplePerNode: true,
 		maxMonID:             -1,
 		waitForStart:         false,

@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
@@ -75,8 +76,9 @@ type Cluster struct {
 	Namespace            string
 	Keyring              string
 	Version              string
-	Size                 int
+	Count                int
 	AllowMultiplePerNode bool
+	MonCountMutex        sync.Mutex
 	Port                 int32
 	clusterInfo          *cephconfig.ClusterInfo
 	placement            rookalpha.Placement
@@ -126,7 +128,7 @@ func New(context *clusterd.Context, namespace, dataDirHostPath, version string, 
 		dataDirHostPath:      dataDirHostPath,
 		Namespace:            namespace,
 		Version:              version,
-		Size:                 mon.Count,
+		Count:                mon.Count,
 		AllowMultiplePerNode: mon.AllowMultiplePerNode,
 		maxMonID:             -1,
 		waitForStart:         true,
@@ -157,7 +159,7 @@ func (c *Cluster) Start() error {
 
 func (c *Cluster) startMons() error {
 	// init the mons config
-	mons := c.initMonConfig(c.Size)
+	mons := c.initMonConfig(c.Count)
 
 	// Assign the pods to nodes
 	if err := c.assignMons(mons); err != nil {
@@ -165,12 +167,13 @@ func (c *Cluster) startMons() error {
 	}
 
 	// Start one monitor at a time
-	for i := 0; i < c.Size; i++ {
+	for i := 0; i < c.Count; i++ {
 		logger.Infof("ensuring mon %s (%s) is started", mons[i].ResourceName, mons[i].DaemonName)
 		endIndex := len(c.clusterInfo.Monitors)
-		if endIndex < c.Size {
+		if endIndex < c.Count {
 			endIndex++
 		}
+		logger.Infof("looping to start mons. i=%d, endIndex=%d, c.Size=%d", i, endIndex, c.Count)
 
 		// Init the mon IPs
 		if err := c.initMonIPs(mons[0:endIndex]); err != nil {
@@ -319,16 +322,16 @@ func (c *Cluster) assignMons(mons []*monConfig) error {
 		return fmt.Errorf("failed to get available nodes for mons. %+v", err)
 	}
 
-	// if all nodes already have mons return error as we don't place two mons on one node
-	if len(availableNodes) == 0 {
-		return fmt.Errorf("no nodes available for mon placement")
-	}
-
 	nodeIndex := 0
 	for _, m := range mons {
 		if _, ok := c.mapping.Node[m.DaemonName]; ok {
 			logger.Debugf("mon %s already assigned to a node, no need to assign", m.DaemonName)
 			continue
+		}
+
+		// if we need to place a new mon and don't have any more nodes available, we fail to add the mon
+		if len(availableNodes) == 0 {
+			return fmt.Errorf("no nodes available for mon placement")
 		}
 
 		// pick one of the available nodes where the mon will be assigned
@@ -379,12 +382,13 @@ func (c *Cluster) startDeployments(mons []*monConfig, index int) error {
 		return fmt.Errorf("cannot start 0 mons")
 	}
 
-	// Start the last mon in the list. The others have already been started by a previous call.
-	m := mons[index]
-	node, _ := c.mapping.Node[m.DaemonName]
-	err := c.startMon(m, node.Hostname)
-	if err != nil {
-		return fmt.Errorf("failed to create mon %s. %+v", m.DaemonName, err)
+	// Ensure each of the mons have been created. If already created, it will be a no-op.
+	for i := 0; i < len(mons); i++ {
+		node, _ := c.mapping.Node[mons[i].DaemonName]
+		err := c.startMon(mons[i], node.Hostname)
+		if err != nil {
+			return fmt.Errorf("failed to create mon %s. %+v", mons[i].DaemonName, err)
+		}
 	}
 
 	logger.Infof("mons created: %d", len(mons))
@@ -554,7 +558,7 @@ func (c *Cluster) startMon(m *monConfig, hostname string) error {
 		if !errors.IsAlreadyExists(err) {
 			return fmt.Errorf("failed to create mon %s. %+v", m.ResourceName, err)
 		}
-		logger.Infof("mon %s already exists", m.ResourceName)
+		logger.Debugf("mon %s already exists", m.ResourceName)
 	}
 
 	return nil

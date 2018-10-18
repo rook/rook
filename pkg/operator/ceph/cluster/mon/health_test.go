@@ -20,9 +20,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"testing"
-
 	"os"
+	"testing"
 
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -199,7 +198,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	}
 
 	// initial health check should already see that there is more than one mon on one node (node0)
-	_, err := c.checkMonsOnSameNode()
+	_, err := c.checkMonsOnSameNode(3)
 	assert.Nil(t, err)
 	assert.Equal(t, "node0", c.mapping.Node["a"].Name)
 	assert.Equal(t, "node0", c.mapping.Node["b"].Name)
@@ -225,7 +224,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 	n.Name = "node2"
 	clientset.CoreV1().Nodes().Create(n)
 
-	_, err = c.checkMonsOnSameNode()
+	_, err = c.checkMonsOnSameNode(3)
 	assert.Nil(t, err)
 
 	// check that mon c exists
@@ -247,7 +246,7 @@ func TestCheckHealthTwoMonsOneNode(t *testing.T) {
 
 	// enable different ceph mon map output
 	executorNextMons = true
-	_, err = c.checkMonsOnSameNode()
+	_, err = c.checkMonsOnSameNode(3)
 	assert.Nil(t, err)
 
 	// check that nothing has changed
@@ -347,10 +346,11 @@ func TestCheckMonsValid(t *testing.T) {
 	assert.Equal(t, "node1", c.mapping.Node["b"].Name)
 }
 
-func TestCheckLessMonsStartNewMons(t *testing.T) {
+func TestAddRemoveMons(t *testing.T) {
+	monQuorumResponse := clienttest.MonInQuorumResponse()
 	executor := &exectest.MockExecutor{
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-			return clienttest.MonInQuorumResponse(), nil
+			return monQuorumResponse, nil
 		},
 	}
 	clientset := test.New(1)
@@ -368,7 +368,34 @@ func TestCheckLessMonsStartNewMons(t *testing.T) {
 	c.waitForStart = false
 	defer os.RemoveAll(c.context.ConfigDir)
 
+	// checking the health will increase the mons as desired all in one go
 	err := c.checkHealth()
 	assert.Nil(t, err)
 	assert.Equal(t, 5, len(c.clusterInfo.Monitors), fmt.Sprintf("mons: %v", c.clusterInfo.Monitors))
+
+	// reducing the mon count to 3 will reduce the mon count once each time we call checkHealth
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	c.Count = 3
+	err = c.checkHealth()
+	assert.Nil(t, err)
+	assert.Equal(t, 4, len(c.clusterInfo.Monitors))
+
+	// after the second call we will be down to the expected count of 3
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	err = c.checkHealth()
+	assert.Nil(t, err)
+	assert.Equal(t, 3, len(c.clusterInfo.Monitors))
+
+	// now attempt to reduce the mons down to quorum size 1
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	c.Count = 1
+	err = c.checkHealth()
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(c.clusterInfo.Monitors))
+
+	// cannot reduce from quorum size of 2 to 1
+	monQuorumResponse = clienttest.MonInQuorumResponseFromMons(c.clusterInfo.Monitors)
+	err = c.checkHealth()
+	assert.Nil(t, err)
+	assert.Equal(t, 2, len(c.clusterInfo.Monitors))
 }
