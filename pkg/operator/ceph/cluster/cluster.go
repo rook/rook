@@ -282,6 +282,11 @@ func clusterChanged(oldCluster, newCluster cephv1beta1.ClusterSpec, clusterRef *
 		clusterRef.mons.MonCountMutex.Unlock()
 	}
 
+	if oldCluster.CephVersion.AllowUnsupported != newCluster.CephVersion.AllowUnsupported {
+		logger.Infof("ceph version allowUnsupported has changed from %t to %t", oldCluster.CephVersion.AllowUnsupported, newCluster.CephVersion.AllowUnsupported)
+		changeFound = true
+	}
+
 	return changeFound
 }
 
