@@ -45,7 +45,7 @@ func TestOnAdd(t *testing.T) {
 					VolumeClaimTemplates: []v1.PersistentVolumeClaim{
 						{
 							ObjectMeta: metav1.ObjectMeta{
-								Name: "rook-cockroachdb-test1",
+								Name: "rook-minio-test1",
 							},
 							Spec: v1.PersistentVolumeClaimSpec{
 								AccessModes: []v1.PersistentVolumeAccessMode{
@@ -60,7 +60,7 @@ func TestOnAdd(t *testing.T) {
 						},
 						{
 							ObjectMeta: metav1.ObjectMeta{
-								Name: "rook-cockroachdb-test2",
+								Name: "rook-minio-test2",
 							},
 							Spec: v1.PersistentVolumeClaimSpec{
 								AccessModes: []v1.PersistentVolumeAccessMode{

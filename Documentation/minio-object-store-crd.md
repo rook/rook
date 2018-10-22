@@ -18,6 +18,14 @@ metadata:
 spec:
   scope:
     nodeCount: 4
+    volumeClaimTemplates:
+      - spec:
+          accessModes: [ "ReadWriteOnce" ]
+          # Set the storage class that will be used, otherwise Kubernetes' default storage class will be used.
+          #storageClassName: "my-storage-class"
+          resources:
+            requests:
+              storage: "8Gi"
   placement:
     tolerations:
     nodeAffinity:
@@ -27,7 +35,6 @@ spec:
   credentials:
     name: access-keys
     namespace: rook-minio
-  storageAmount: "10G"
 ```
 
 ## Cluster Settings

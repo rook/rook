@@ -138,7 +138,7 @@ spec:
 # Cluster level list of directories to use for storage. These values will be set for all nodes that have no `directories` set.
 #    directories:
 #    - path: /rook/storage-dir
-# Cluster level list of volumeClaimTemplates to be used for storage. Each volume claim in this list will be created per OSD,
+# Cluster level list of volumeClaimTemplates to be used for storage. Each volume claim in this list will be created per node,
 # e.g., 2 volumeClaimTemplates and 3 nodes will result in two volume claims to be created for each of the nodes (6 PVCs in total).
 # Please note that the `metdata.name` will be used in the resulting PVC name for the OSD (e.g., rook-ceph-osd-NODENAME-data-1)
 #      volumeClaimTemplates:
@@ -179,9 +179,9 @@ spec:
 #        storeType: filestore
 #    - name: "172.17.4.301"
 #      deviceFilter: "^sd."
+#    Specify volumeClaimTemplates on a per node basis, allowing arbitrary PVCs to be used as `directories`.
+#    Please note that the `metdata.name` will be used in the resulting PVC name for the OSD (e.g., rook-ceph-osd-generic-cloud-node-1-data-1)
 #    - name: "generic-cloud-node-1"
-# Specify volumeClaimTemplates on a per node basis, allowing arbitrary PVCs to be used as `directories`.
-# Please note that the `metdata.name` will be used in the resulting PVC name for the OSD (e.g., rook-ceph-osd-generic-cloud-node-1-data-1)
 #      volumeClaimTemplates:
 #      - metadata:
 #          name: data-1
