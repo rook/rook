@@ -50,7 +50,7 @@ func testDeploymentObject(hostNetwork bool) *extensions.Deployment {
 					},
 				}}}}
 	c := newCluster(
-		&clusterd.Context{Clientset: testop.New(1)},
+		&clusterd.Context{ConfigDir: "/var/lib/rook", Clientset: testop.New(1)},
 		"rook/rook:myversion",
 		cephv1.CephVersionSpec{Image: "ceph/ceph:testversion"},
 		hostNetwork,
@@ -94,7 +94,6 @@ func TestPodSpecs(t *testing.T) {
 		Args: [][]string{
 			{"ceph"},
 			{mdsdaemon.InitCommand},
-			{"--config-dir", "/var/lib/rook"},
 			{"--mds-name", "myfs-a"},
 			{"--filesystem-id", "15"},
 			{"--active-standby", "false"}},
@@ -122,7 +121,8 @@ func TestPodSpecs(t *testing.T) {
 			"ceph-mds"},
 		Args: [][]string{
 			{"--foreground"},
-			{"--id", "myfs-a"}},
+			{"--id", "myfs-a"},
+			{"--mds-data", "/var/lib/ceph/mds-myfs-a"}},
 		VolumeMountNames: []string{
 			"rook-data",
 			cephconfig.DefaultConfigMountName},

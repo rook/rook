@@ -18,12 +18,10 @@ package mgr
 
 import (
 	"fmt"
-	"path"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	"github.com/rook/rook/pkg/util"
 )
 
 var (
@@ -55,25 +53,15 @@ type Config struct {
 func Initialize(context *clusterd.Context, config *Config) error {
 	logger.Infof("Creating config for MGR %s with keyring %s", config.Name, config.Keyring)
 	config.ClusterInfo.Log(logger)
-	if err := generateConfigFiles(context, config); err != nil {
-		return fmt.Errorf("failed to generate mgr config files. %+v", err)
-	}
 
-	util.WriteFileToLog(logger, cephconfig.DefaultConfigFilePath())
-
-	return nil
-}
-
-func generateConfigFiles(context *clusterd.Context, config *Config) error {
-	keyringPath := getMgrKeyringPath(context.ConfigDir, config.Name)
-	confDir := getMgrConfDir(context.ConfigDir, config.Name)
+	configPath := cephconfig.DefaultConfigFilePath()
+	keyringPath := cephconfig.DaemonKeyringFilePath(cephconfig.VarLibCephDir, "mgr", config.Name)
+	runDir := cephconfig.DaemonRunDir(cephconfig.VarLibCephDir, "mgr", config.Name)
 	username := fmt.Sprintf("mgr.%s", config.Name)
-	settings := map[string]string{
-		"mgr data": confDir,
-	}
-	logger.Infof("Conf files: dir=%s keyring=%s", confDir, keyringPath)
-	_, err := cephconfig.GenerateConfigFile(context, config.ClusterInfo, confDir,
-		username, keyringPath, nil, settings)
+	settings := map[string]string{}
+
+	err := cephconfig.GenerateConfigFile(context, config.ClusterInfo,
+		configPath, username, keyringPath, runDir, nil, settings)
 	if err != nil {
 		return fmt.Errorf("failed to create config file. %+v", err)
 	}
@@ -81,19 +69,9 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 	keyringEval := func(key string) string {
 		return fmt.Sprintf(keyringTemplate, config.Name, key)
 	}
-
-	err = cephconfig.WriteKeyring(keyringPath, config.Keyring, keyringEval)
-	if err != nil {
+	if err = cephconfig.WriteKeyring(keyringPath, config.Keyring, keyringEval); err != nil {
 		return fmt.Errorf("failed to create mgr keyring. %+v", err)
 	}
 
 	return nil
-}
-
-func getMgrConfDir(dir, name string) string {
-	return path.Join(dir, fmt.Sprintf("mgr-%s", name))
-}
-
-func getMgrKeyringPath(dir, name string) string {
-	return path.Join(getMgrConfDir(dir, name), "keyring")
 }

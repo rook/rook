@@ -41,7 +41,12 @@ func TestPodSpecs(t *testing.T) {
 		},
 	}
 
-	c := &config{store: store, rookVersion: "rook/rook:myversion", cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.1"}, hostNetwork: true}
+	c := &config{
+		context:     &clusterd.Context{ConfigDir: "/var/lib/rook"},
+		store:       store,
+		rookVersion: "rook/rook:myversion",
+		cephVersion: cephv1.CephVersionSpec{Image: "ceph/ceph:v13.2.1"},
+		hostNetwork: true}
 	s := c.makeRGWPodSpec()
 	assert.NotNil(t, s)
 	//assert.Equal(t, instanceName(store), s.Name)
@@ -61,13 +66,12 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "rook/rook:myversion", cont.Image)
 	assert.Equal(t, 3, len(cont.VolumeMounts))
 	assert.Equal(t, 0, len(cont.Command))
-	assert.Equal(t, 6, len(cont.Args))
+	assert.Equal(t, 5, len(cont.Args))
 	assert.Equal(t, "ceph", cont.Args[0])
 	assert.Equal(t, "rgw", cont.Args[1])
-	assert.Equal(t, "--config-dir=/var/lib/rook", cont.Args[2])
-	assert.Equal(t, "--rgw-name=default", cont.Args[3])
-	assert.Equal(t, "--rgw-port=123", cont.Args[4])
-	assert.Equal(t, "--rgw-secure-port=0", cont.Args[5])
+	assert.Equal(t, "--rgw-name=default", cont.Args[2])
+	assert.Equal(t, "--rgw-port=123", cont.Args[3])
+	assert.Equal(t, "--rgw-secure-port=0", cont.Args[4])
 
 	cont = s.Spec.Containers[0]
 	assert.Equal(t, "ceph/ceph:v13.2.1", cont.Image)
@@ -75,10 +79,13 @@ func TestPodSpecs(t *testing.T) {
 
 	assert.Equal(t, 1, len(cont.Command))
 	assert.Equal(t, "radosgw", cont.Command[0])
-	assert.Equal(t, 3, len(cont.Args))
+	assert.Equal(t, 6, len(cont.Args))
 	assert.Equal(t, "--foreground", cont.Args[0])
 	assert.Equal(t, "--name=client.radosgw.gateway", cont.Args[1])
-	assert.Equal(t, "--rgw-mime-types-file=/var/lib/rook/rgw/mime.types", cont.Args[2])
+	assert.Equal(t, "--rgw-mime-types-file", cont.Args[2])
+	assert.Equal(t, "/var/lib/ceph/rgw-default/mime.types", cont.Args[3])
+	assert.Equal(t, "--rgw-data", cont.Args[4])
+	assert.Equal(t, "/var/lib/ceph/rgw-default", cont.Args[5])
 
 	assert.Equal(t, len(k8sutil.ClusterDaemonEnvVars()), len(cont.Env))
 
@@ -91,7 +98,11 @@ func TestSSLPodSpec(t *testing.T) {
 	store.Spec.Gateway.SSLCertificateRef = "mycert"
 	store.Spec.Gateway.SecurePort = 443
 
-	c := &config{store: store, rookVersion: "v1.0", hostNetwork: true}
+	c := &config{
+		context:     &clusterd.Context{ConfigDir: "/var/lib/rook"},
+		store:       store,
+		rookVersion: "v1.0",
+		hostNetwork: true}
 	s := c.makeRGWPodSpec()
 	assert.NotNil(t, s)
 	assert.Equal(t, c.instanceName(), s.Name)
@@ -105,9 +116,9 @@ func TestSSLPodSpec(t *testing.T) {
 	assert.Equal(t, certVolumeName, cont.VolumeMounts[3].Name)
 	assert.Equal(t, certMountPath, cont.VolumeMounts[3].MountPath)
 
-	assert.Equal(t, 7, len(cont.Args))
-	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 443), cont.Args[5])
-	assert.Equal(t, fmt.Sprintf("--rgw-cert=%s/%s", certMountPath, certFilename), cont.Args[6])
+	assert.Equal(t, 6, len(cont.Args))
+	assert.Equal(t, fmt.Sprintf("--rgw-secure-port=%d", 443), cont.Args[4])
+	assert.Equal(t, fmt.Sprintf("--rgw-cert=%s/%s", certMountPath, certFilename), cont.Args[5])
 }
 
 func TestValidateSpec(t *testing.T) {

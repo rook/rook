@@ -38,7 +38,7 @@ import (
 
 func TestPodSpec(t *testing.T) {
 	c := New(
-		&clusterd.Context{Clientset: testop.New(1)},
+		&clusterd.Context{ConfigDir: "/var/lib/rook", Clientset: testop.New(1)},
 		"ns",
 		"rook/rook:myversion",
 		cephv1.CephVersionSpec{Image: "ceph/ceph:myceph"},
@@ -91,7 +91,6 @@ func TestPodSpec(t *testing.T) {
 		Args: [][]string{
 			{"ceph"},
 			{mgrdaemon.InitCommand},
-			{"--config-dir=/var/lib/rook"},
 			{fmt.Sprintf("--mgr-name=%s", mgrTestConfig.DaemonName)}},
 		InOrderArgs: map[int]string{
 			0: "ceph",                 // ceph must be first arg
@@ -117,7 +116,8 @@ func TestPodSpec(t *testing.T) {
 			"ceph-mgr"},
 		Args: [][]string{
 			{"--foreground"},
-			{"--id", mgrTestConfig.DaemonName}},
+			{"--id", mgrTestConfig.DaemonName},
+			{"--mgr-data", "/var/lib/ceph/mgr-a"}},
 		VolumeMountNames: []string{
 			"rook-data",
 			cephconfig.DefaultConfigMountName},

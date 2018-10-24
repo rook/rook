@@ -19,6 +19,7 @@ package file
 import (
 	"strconv"
 
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	mdsdaemon "github.com/rook/rook/pkg/daemon/ceph/mds"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
@@ -80,7 +81,6 @@ func (c *cluster) makeConfigInitContainer(mdsConfig *mdsConfig) v1.Container {
 		Args: []string{
 			"ceph",
 			mdsdaemon.InitCommand,
-			"--config-dir", k8sutil.DataDir,
 			"--mds-name", mdsConfig.DaemonName,
 			"--filesystem-id", c.fsID,
 			"--active-standby", strconv.FormatBool(c.fs.Spec.MetadataServer.ActiveStandby),
@@ -116,6 +116,7 @@ func (c *cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 		Args: []string{
 			"--foreground",
 			"--id", mdsConfig.DaemonName,
+			"--mds-data", cephconfig.DaemonDataDir(cephconfig.VarLibCephDir, "mds", mdsConfig.DaemonName),
 			// do not add the '--cluster/--conf/--keyring' flags; rook wants their default values
 		},
 		Image:        c.cephVersion.Image,

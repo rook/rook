@@ -13,6 +13,9 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
+// Package client provides utilities for issuing commands to a Ceph cluster as a client as well as
+// helpers needed to connect appropriately.
 package client
 
 import (
@@ -24,19 +27,25 @@ import (
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 )
 
-// When running the e2e tests, all ceph commands need to be run in the toolbox.
-// Everywhere else, the ceph tools are assumed to be in the container where we can shell out.
+// RunAllCephCommandsInToolbox : When running the e2e tests, all ceph commands need to be run in the
+// toolbox. Everywhere else, the ceph tools are assumed to be in the container where we can shell out.
 var RunAllCephCommandsInToolbox = false
 
 const (
-	AdminUsername     = "client.admin"
-	CephTool          = "ceph"
-	RBDTool           = "rbd"
-	Kubectl           = "kubectl"
-	CrushTool         = "crushtool"
+	// CephTool is the command needed to run `ceph` commands.
+	CephTool = "ceph"
+	// RBDTool is the command needed to run `rbd` commands.
+	RBDTool = "rbd"
+	// Kubectl is the command needed to run `Kubectl` commands.
+	Kubectl = "kubectl"
+	// CrushTool is the command needed to run `crushtool` commands.
+	CrushTool = "crushtool"
+
 	cmdExecuteTimeout = 1 * time.Minute
 )
 
+// FinalizeCephCommandArgs converts the command to one run in the toolbox pod if commands are
+// configured to be run in the toolbox.
 func FinalizeCephCommandArgs(command string, args []string, configDir, clusterName string) (string, []string) {
 	// If the command should be run inside the toolbox pod, include the kubectl args to call the toolbox
 	if RunAllCephCommandsInToolbox {
@@ -59,20 +68,25 @@ func FinalizeCephCommandArgs(command string, args []string, configDir, clusterNa
 	return command, append(args, configArgs...)
 }
 
+// ExecuteCephCommandDebugLog executes a `ceph ...` command with debug activated.
 func ExecuteCephCommandDebugLog(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	return executeCephCommandWithOutputFile(context, clusterName, true, args)
 }
 
+// ExecuteCephCommand executes a `ceph ...` command with no formatting.
 func ExecuteCephCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	return executeCephCommandWithOutputFile(context, clusterName, false, args)
 }
 
+// ExecuteCephCommandPlain executes a `ceph ...` command with plain formatting.
 func ExecuteCephCommandPlain(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	command, args := FinalizeCephCommandArgs(CephTool, args, context.ConfigDir, clusterName)
 	args = append(args, "--format", "plain")
 	return executeCommandWithOutputFile(context, false, command, args)
 }
 
+// ExecuteCephCommandPlainNoOutputFile executes a `ceph ...` command with plain formatting and no
+// output file.
 func ExecuteCephCommandPlainNoOutputFile(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	command, args := FinalizeCephCommandArgs(CephTool, args, context.ConfigDir, clusterName)
 	args = append(args, "--format", "plain")
@@ -85,17 +99,20 @@ func executeCephCommandWithOutputFile(context *clusterd.Context, clusterName str
 	return executeCommandWithOutputFile(context, debug, command, args)
 }
 
+// ExecuteRBDCommand executes an `rbd ...` command with json formatting.
 func ExecuteRBDCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	command, args := FinalizeCephCommandArgs(RBDTool, args, context.ConfigDir, clusterName)
 	args = append(args, "--format", "json")
 	return executeCommand(context, command, args)
 }
 
+// ExecuteRBDCommandNoFormat executes an `rbd ...` command with no formatting.
 func ExecuteRBDCommandNoFormat(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	command, args := FinalizeCephCommandArgs(RBDTool, args, context.ConfigDir, clusterName)
 	return executeCommand(context, command, args)
 }
 
+// ExecuteRBDCommandWithTimeout executes an `rbd ...` command with no formatting and a command timeout.
 func ExecuteRBDCommandWithTimeout(context *clusterd.Context, clusterName string, args []string) (string, error) {
 	output, err := context.Executor.ExecuteCommandWithTimeout(false, cmdExecuteTimeout, "", RBDTool, args...)
 	return output, err

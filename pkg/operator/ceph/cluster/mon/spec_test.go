@@ -42,7 +42,7 @@ func TestPodSpecs(t *testing.T) {
 func monCommonExpectedArgs(name string, c *Cluster) [][]string {
 	return [][]string{
 		{"--name", fmt.Sprintf("mon.%s", name)},
-		{"--mon-data", mondaemon.GetMonDataDirPath(c.context.ConfigDir, name)},
+		{"--mon-data", fmt.Sprintf("/var/lib/ceph/mon-%s/data", name)},
 	}
 }
 
@@ -103,7 +103,6 @@ func testPodSpec(t *testing.T, dataDir string) {
 		Args: [][]string{
 			{"ceph"},
 			{mondaemon.InitCommand},
-			{"--config-dir=/var/lib/rook"},
 			{fmt.Sprintf("--name=%s", name)},
 			{"--port=6790"},
 			{fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID)}},
@@ -136,7 +135,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 		Command: []string{
 			"/usr/bin/monmaptool"},
 		Args: [][]string{
-			{"/var/lib/rook/mon-a/monmap"},
+			{"/etc/ceph/monmap"},
 			{"--create"},
 			{"--clobber"},
 			{"--fsid", c.clusterInfo.FSID}},
@@ -158,7 +157,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 		Args: append(
 			monCommonExpectedArgs(name, c),
 			[]string{"--mkfs"},
-			[]string{"--monmap", "/var/lib/rook/mon-a/monmap"}),
+			[]string{"--monmap", "/etc/ceph/monmap"}),
 		VolumeMountNames: cephVolumeMountNames,
 		EnvCount:         &cephEnvs,
 		Ports:            []v1.ContainerPort{},
