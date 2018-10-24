@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/rook/rook/pkg/clusterd"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 )
 
 // When running the e2e tests, all ceph commands need to be run in the toolbox.
@@ -43,18 +44,17 @@ func FinalizeCephCommandArgs(command string, args []string, configDir, clusterNa
 		return Kubectl, append(toolArgs, args...)
 	}
 
-	// No need to append the args if it's the default ceph cluster
-	if clusterName == "ceph" && configDir == "/etc" {
+	// No need to append the args if the config dir is that of daemon containers
+	// i.e., if this is a daemon container
+	if configDir == cephconfig.VarLibCephDir {
 		return command, args
 	}
 
 	// Append the args to find the config and keyring
-	confFile := fmt.Sprintf("%s.config", clusterName)
-	keyringFile := fmt.Sprintf("%s.keyring", AdminUsername)
+	nsConfigDir := cephconfig.NamespacedConfigDir(configDir, clusterName)
 	configArgs := []string{
-		fmt.Sprintf("--cluster=%s", clusterName),
-		fmt.Sprintf("--conf=%s", path.Join(configDir, clusterName, confFile)),
-		fmt.Sprintf("--keyring=%s", path.Join(configDir, clusterName, keyringFile)),
+		fmt.Sprintf("--conf=%s", path.Join(nsConfigDir, cephconfig.DefaultConfigFile)),
+		fmt.Sprintf("--keyring=%s", path.Join(nsConfigDir, cephconfig.AdminKeyringFile())),
 	}
 	return command, append(args, configArgs...)
 }

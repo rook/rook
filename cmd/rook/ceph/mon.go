@@ -51,7 +51,7 @@ func init() {
 }
 
 func initMon(cmd *cobra.Command, args []string) error {
-	required := []string{"name", "fsid", "mon-secret", "admin-secret", "config-dir", "cluster-name"}
+	required := []string{"name", "fsid", "mon-secret", "admin-secret", "cluster-name"}
 	if err := flags.VerifyRequiredFlags(monCmd, required); err != nil {
 		return err
 	}

@@ -32,5 +32,5 @@ func DefaultConfigVolume() v1.Volume {
 
 // DefaultConfigMount returns a volume mount to Ceph's default config path.
 func DefaultConfigMount() v1.VolumeMount {
-	return v1.VolumeMount{Name: DefaultConfigMountName, MountPath: DefaultConfigDir}
+	return v1.VolumeMount{Name: DefaultConfigMountName, MountPath: EtcCephDir}
 }

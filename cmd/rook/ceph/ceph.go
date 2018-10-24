@@ -72,8 +72,11 @@ func AddCommands(command *cobra.Command) {
 func createContext() *clusterd.Context {
 	executor := &exec.CommandExecutor{}
 	return &clusterd.Context{
-		Executor:           executor,
-		ConfigDir:          cfg.dataDir,
+		Executor: executor,
+		// Config dir for Ceph daemons is always /var/lib/ceph in the container
+		// In Ceph's case, the ConfigDir property refers to Ceph's "run" dir (or "data" dir), and
+		// not the directory where Ceph will store its ceph.conf (/etc/ceph)
+		ConfigDir:          cephconfig.VarLibCephDir,
 		ConfigFileOverride: cfg.cephConfigOverride,
 		LogLevel:           rook.Cfg.LogLevel,
 		NetworkInfo:        cfg.NetworkInfo(),
@@ -88,7 +91,6 @@ func addCephFlags(command *cobra.Command) {
 	command.Flags().StringVar(&clusterInfo.MonitorSecret, "mon-secret", "", "the cephx keyring for monitors")
 	command.Flags().StringVar(&clusterInfo.AdminSecret, "admin-secret", "", "secret for the admin user (random if not specified)")
 	command.Flags().StringVar(&cfg.monEndpoints, "mon-endpoints", "", "ceph mon endpoints")
-	command.Flags().StringVar(&cfg.dataDir, "config-dir", "/var/lib/rook", "directory for storing configuration")
 	command.Flags().StringVar(&cfg.cephConfigOverride, "ceph-config-override", "", "optional path to a ceph config file that will be appended to the config files that rook generates")
 
 	// deprecated ipv4 format address
