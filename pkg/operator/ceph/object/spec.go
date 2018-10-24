@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"path"
 
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	rgwdaemon "github.com/rook/rook/pkg/daemon/ceph/rgw"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
@@ -145,7 +146,6 @@ func (c *config) makeConfigInitContainer() v1.Container {
 		Args: []string{
 			"ceph",
 			"rgw",
-			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--rgw-name=%s", c.store.Name),
 			fmt.Sprintf("--rgw-port=%d", c.store.Spec.Gateway.Port),
 			fmt.Sprintf("--rgw-secure-port=%d", c.store.Spec.Gateway.SecurePort),
@@ -188,7 +188,9 @@ func (c *config) makeDaemonContainer() v1.Container {
 		Args: []string{
 			"--foreground",
 			"--name=client.radosgw.gateway",
-			fmt.Sprintf("--rgw-mime-types-file=%s", rgwdaemon.GetMimeTypesPath(k8sutil.DataDir)),
+			"--rgw-mime-types-file", rgwdaemon.GetMimeTypesPath(
+				cephconfig.DaemonRunDir(cephconfig.VarLibCephDir, "rgw", c.store.Name)),
+			"--rgw-data", cephconfig.DaemonDataDir(cephconfig.VarLibCephDir, "rgw", c.store.Name),
 		},
 		VolumeMounts: opspec.CephVolumeMounts(),
 		Env:          k8sutil.ClusterDaemonEnvVars(),

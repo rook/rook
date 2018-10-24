@@ -20,13 +20,11 @@ package mds
 
 import (
 	"fmt"
-	"path"
 	"strconv"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	"github.com/rook/rook/pkg/util"
 )
 
 const (
@@ -57,52 +55,30 @@ type Config struct {
 func Initialize(context *clusterd.Context, config *Config) error {
 	logger.Infof("Creating config for mds %s [filesystem ID: %s] [active standby?: %+v]",
 		config.Name, config.FilesystemID, config.ActiveStandby)
-	err := generateConfigFiles(context, config)
-	if err != nil {
-		return fmt.Errorf("failed to generate mds config files: %+v", err)
-	}
+	config.ClusterInfo.Log(logger)
 
-	util.WriteFileToLog(logger, cephconfig.DefaultConfigFilePath())
-
-	return err
-}
-
-func generateConfigFiles(context *clusterd.Context, config *Config) error {
-	// write the latest config to the config dir
-	if err := cephconfig.GenerateAdminConnectionConfig(context, config.ClusterInfo); err != nil {
-		return fmt.Errorf("failed to write connection config: %+v", err)
-	}
-
+	configPath := cephconfig.DefaultConfigFilePath()
+	keyringPath := cephconfig.DaemonKeyringFilePath(cephconfig.VarLibCephDir, "mds", config.Name)
+	runDir := cephconfig.DaemonRunDir(cephconfig.VarLibCephDir, "mds", config.Name)
+	username := fmt.Sprintf("mds.%s", config.Name)
 	settings := map[string]string{
 		"mds_standby_for_fscid": config.FilesystemID,
 		"mds_standby_replay":    strconv.FormatBool(config.ActiveStandby),
 	}
 
-	keyringPath := getMdsKeyringPath(context.ConfigDir, config.Name)
-	_, err := cephconfig.GenerateConfigFile(context, config.ClusterInfo,
-		getMdsConfDir(context.ConfigDir, config.Name), fmt.Sprintf("mds.%s", config.Name),
-		keyringPath, nil, settings)
+	err := cephconfig.GenerateConfigFile(context, config.ClusterInfo,
+		configPath, username, keyringPath, runDir, nil, settings)
 	if err != nil {
-		return fmt.Errorf("failed to create mds config file: %+v", err)
+		return fmt.Errorf("failed to create mds config file. %+v", err)
 	}
 
 	keyringEval := func(key string) string {
 		r := fmt.Sprintf(keyringTemplate, config.Name, key)
 		return r
 	}
-
-	err = cephconfig.WriteKeyring(keyringPath, config.Keyring, keyringEval)
-	if err != nil {
-		return fmt.Errorf("failed to create mds keyring: %+v", err)
+	if err := cephconfig.WriteKeyring(keyringPath, config.Keyring, keyringEval); err != nil {
+		return fmt.Errorf("failed to create mds keyring. %+v", err)
 	}
 
-	return nil
-}
-
-func getMdsConfDir(dir, name string) string {
-	return path.Join(dir, fmt.Sprintf("mds-%s", name))
-}
-
-func getMdsKeyringPath(dir, name string) string {
-	return path.Join(getMdsConfDir(dir, name), "keyring")
+	return err
 }

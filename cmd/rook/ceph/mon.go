@@ -68,7 +68,8 @@ func initMon(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("missing mon port")
 	}
 
-	if err := compareMonSecret(clusterInfo.MonitorSecret, mondaemon.GetMonRunDirPath(cfg.dataDir, monName)); err != nil {
+	err := compareMonSecret(clusterInfo.MonitorSecret, cephconfig.DaemonRunDir(cephconfig.VarLibCephDir, "mon", monName))
+	if err != nil {
 		rook.TerminateFatal(err)
 	}
 
@@ -81,7 +82,7 @@ func initMon(cmd *cobra.Command, args []string) error {
 		Cluster: &clusterInfo,
 		Port:    monPort,
 	}
-	err := mondaemon.Initialize(createContext(), monCfg)
+	err = mondaemon.Initialize(createContext(), monCfg)
 	if err != nil {
 		rook.TerminateFatal(err)
 	}
@@ -101,21 +102,22 @@ func compareMonSecret(secret, configDir string) error {
 
 	contents, err := ini.Load(cachedKeyringFile)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to read config file %s. %+v. Skipping check for cached keyring.\n", cachedKeyringFile, err)
+		fmt.Fprintf(os.Stderr, "failed to read config file %s. Skipping check for cached keyring. %+v", cachedKeyringFile, err)
 		return nil
 	}
 	section, err := contents.GetSection("mon.")
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to find mon section in the cached keyring. %+v. Skipping check for cached keyring.\n", err)
+		fmt.Fprintf(os.Stderr, "failed to find mon section in the cached keyring. Skipping check for cached keyring. %+v", err)
 		return nil
 	}
 	cachedKeyring, err := section.GetKey("key")
 	if err != nil || cachedKeyring == nil {
-		fmt.Fprintf(os.Stderr, "failed to find mon keyring in the cached file. %+v. Skipping check for cached keyring.\n", err)
+		fmt.Fprintf(os.Stderr, "failed to find mon keyring in the cached file. Skipping check for cached keyring. %+v", err)
 		return nil
 	}
 	if cachedKeyring.Value() != secret {
-		return fmt.Errorf("The keyring does not match the existing keyring in %s. You may need to delete the contents of dataDirHostPath on the host from a previous deployment.", cachedKeyringFile)
+		return fmt.Errorf("the keyring does not match the existing keyring in %s. "+
+			"You may need to delete the contents of dataDirHostPath on the host from a previous deployment", cachedKeyringFile)
 	}
 	logger.Infof("cached mon secret matches the expected keyring")
 	return nil

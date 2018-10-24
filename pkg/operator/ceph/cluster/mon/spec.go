@@ -22,6 +22,7 @@ import (
 	"os"
 	"path"
 
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	mondaemon "github.com/rook/rook/pkg/daemon/ceph/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -137,7 +138,6 @@ func (c *Cluster) makeConfigInitContainer(monConfig *monConfig) v1.Container {
 		Args: []string{
 			"ceph",
 			mondaemon.InitCommand,
-			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--name=%s", monConfig.DaemonName),
 			fmt.Sprintf("--port=%d", monConfig.Port),
 			fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID),
@@ -159,10 +159,9 @@ func (c *Cluster) makeConfigInitContainer(monConfig *monConfig) v1.Container {
 }
 
 func (c *Cluster) monmapFilePath(monConfig *monConfig) string {
-	return path.Join(
-		mondaemon.GetMonRunDirPath(c.context.ConfigDir, monConfig.DaemonName),
-		monmapFile,
-	)
+	// store in /etc/ceph/monmap because this gets regenerated each pod start and isn't beneficial
+	// to have stored to disk.
+	return path.Join(cephconfig.EtcCephDir, monmapFile)
 }
 
 func (c *Cluster) makeMonmapInitContainer(monConfig *monConfig) v1.Container {
@@ -198,7 +197,7 @@ func (c *Cluster) makeMonmapInitContainer(monConfig *monConfig) v1.Container {
 func (c *Cluster) cephMonCommonArgs(monConfig *monConfig) []string {
 	return []string{
 		"--name", fmt.Sprintf("mon.%s", monConfig.DaemonName),
-		"--mon-data", mondaemon.GetMonDataDirPath(c.context.ConfigDir, monConfig.DaemonName),
+		"--mon-data", cephconfig.DaemonDataDir(cephconfig.VarLibCephDir, "mon", monConfig.DaemonName),
 	}
 }
 

@@ -210,7 +210,7 @@ func createNamedClusterInfo(context *clusterd.Context, clusterName string) (*cep
 
 	// generate the admin secret if one was not provided at the command line
 	args := []string{"--cap", "mon", "'allow *'", "--cap", "osd", "'allow *'", "--cap", "mgr", "'allow *'", "--cap", "mds", "'allow'"}
-	adminSecret, err := genSecret(context.Executor, dir, client.AdminUsername, args)
+	adminSecret, err := genSecret(context.Executor, dir, cephconfig.AdminUsername, args)
 	if err != nil {
 		return nil, err
 	}

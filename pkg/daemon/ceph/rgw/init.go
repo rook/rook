@@ -26,7 +26,6 @@ import (
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	"github.com/rook/rook/pkg/util"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephrgw")
@@ -39,6 +38,7 @@ caps osd = "allow *"
 `
 )
 
+// Config contains the necessary parameters Rook needs to know to set up a rgw for a Ceph cluster.
 type Config struct {
 	Name            string
 	Host            string
@@ -49,18 +49,62 @@ type Config struct {
 	ClusterInfo     *cephconfig.ClusterInfo
 }
 
+// Initialize generates configuration files for a Ceph rgw.
 func Initialize(context *clusterd.Context, config *Config) error {
+	// log the arguments for the rgw without leaking sensitive cluster info.
+	logger.Infof("Creating config for rgw %s - config. %+v", config.Name,
+		copyConfigWithoutClusterInfo(config))
+	config.ClusterInfo.Log(logger) // log cluster info safely
 
-	err := generateConfigFiles(context, config)
+	configPath := cephconfig.DefaultConfigFilePath()
+	keyringPath := cephconfig.DaemonKeyringFilePath(cephconfig.VarLibCephDir, "rgw", config.Name)
+	runDir := cephconfig.DaemonRunDir(cephconfig.VarLibCephDir, "rgw", config.Name)
+	username := "client.radosgw.gateway"
+	settings := map[string]string{
+		"host":                           config.Host,
+		"rgw log nonexistent bucket":     "true",
+		"rgw intent log object name utc": "true",
+		"rgw enable usage log":           "true",
+		"rgw_frontends":                  fmt.Sprintf("civetweb port=%s", portString(config)),
+		"rgw_zone":                       config.Name,
+		"rgw_zonegroup":                  config.Name,
+	}
+	err := cephconfig.GenerateConfigFile(context, config.ClusterInfo,
+		configPath, username, keyringPath, runDir, nil, settings)
 	if err != nil {
-		return fmt.Errorf("failed to generate rgw config files. %+v", err)
+		return fmt.Errorf("failed to create config file. %+v", err)
 	}
 
-	return err
+	keyringEval := func(key string) string {
+		return fmt.Sprintf(keyringTemplate, key)
+	}
+	if err := cephconfig.WriteKeyring(keyringPath, config.Keyring, keyringEval); err != nil {
+		return fmt.Errorf("failed to save keyring. %+v", err)
+	}
+
+	// create the rgw run directory (where the mime types file goes)
+	if err := os.MkdirAll(runDir, 0744); err != nil {
+		logger.Warningf("failed to create data directory %s. %+v", runDir, err)
+	}
+
+	// write the mime types config
+	mimeTypesPath := GetMimeTypesPath(runDir)
+	logger.Infof("Writing mime types to %s", mimeTypesPath)
+	if err := ioutil.WriteFile(mimeTypesPath, []byte(mimeTypes), 0644); err != nil {
+		return fmt.Errorf("failed to write mime types to %s. %+v", mimeTypesPath, err)
+	}
+
+	return nil
+}
+
+func copyConfigWithoutClusterInfo(c *Config) *Config {
+	r := new(Config)
+	*r = *c
+	r.ClusterInfo = nil
+	return r
 }
 
 func portString(config *Config) string {
-
 	var portString string
 	if config.Port != 0 {
 		portString = strconv.Itoa(config.Port)
@@ -78,59 +122,7 @@ func portString(config *Config) string {
 	return portString
 }
 
-func generateConfigFiles(context *clusterd.Context, config *Config) error {
-
-	// create the rgw data directory
-	dataDir := path.Join(getRGWConfDir(context.ConfigDir), "data")
-	if err := os.MkdirAll(dataDir, 0744); err != nil {
-		logger.Warningf("failed to create data directory %s: %+v", dataDir, err)
-	}
-
-	settings := map[string]string{
-		"host":                           config.Host,
-		"rgw data":                       dataDir,
-		"rgw log nonexistent bucket":     "true",
-		"rgw intent log object name utc": "true",
-		"rgw enable usage log":           "true",
-		"rgw_frontends":                  fmt.Sprintf("civetweb port=%s", portString(config)),
-		"rgw_zone":                       config.Name,
-		"rgw_zonegroup":                  config.Name,
-	}
-	configFile, err := cephconfig.GenerateConfigFile(context, config.ClusterInfo, getRGWConfDir(context.ConfigDir),
-		"client.radosgw.gateway", getRGWKeyringPath(context.ConfigDir), nil, settings)
-	if err != nil {
-		return fmt.Errorf("failed to create config file. %+v", err)
-	}
-	util.WriteFileToLog(logger, configFile)
-
-	keyringEval := func(key string) string {
-		return fmt.Sprintf(keyringTemplate, key)
-	}
-
-	// create rgw config
-	err = cephconfig.WriteKeyring(getRGWKeyringPath(context.ConfigDir), config.Keyring, keyringEval)
-	if err != nil {
-		return fmt.Errorf("failed to save keyring. %+v", err)
-	}
-
-	// write the mime types config
-	mimeTypesPath := GetMimeTypesPath(context.ConfigDir)
-	logger.Infof("Writing mime types to: %s", mimeTypesPath)
-	if err := ioutil.WriteFile(mimeTypesPath, []byte(mimeTypes), 0644); err != nil {
-		return fmt.Errorf("failed to write mime types to %s: %+v", mimeTypesPath, err)
-	}
-
-	return nil
-}
-
-func getRGWConfDir(configDir string) string {
-	return path.Join(configDir, "rgw")
-}
-
-func getRGWKeyringPath(configDir string) string {
-	return path.Join(getRGWConfDir(configDir), "keyring")
-}
-
-func GetMimeTypesPath(configDir string) string {
-	return path.Join(getRGWConfDir(configDir), "mime.types")
+// GetMimeTypesPath returns the path to the mime types file for the rgw in its run dir.
+func GetMimeTypesPath(runDir string) string {
+	return path.Join(runDir, "mime.types")
 }

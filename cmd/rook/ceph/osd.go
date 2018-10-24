@@ -71,6 +71,7 @@ var (
 	mountSourcePath     string
 	mountPath           string
 	osdID               int
+	configDir           string
 	copyBinariesPath    string
 	osdStoreType        string
 	osdStringID         string
@@ -96,6 +97,7 @@ func addOSDFlags(command *cobra.Command) {
 
 	// flag for copying the rook binaries for use by a ceph container
 	copyBinariesCmd.Flags().StringVar(&copyBinariesPath, "path", "", "Copy the rook binaries to this path for use by a ceph container")
+	osdConfigCmd.Flags().StringVar(&configDir, "osd-config-dir", "", "config dir for the osd")
 
 	// flags for running filestore on a device
 	filestoreDeviceCmd.Flags().StringVar(&mountSourcePath, "source-path", "", "the source path of the device to mount")
@@ -206,15 +208,16 @@ func writeOSDConfig(cmd *cobra.Command, args []string) error {
 
 	clientset, _, _, err := rook.GetClientset()
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
+		rook.TerminateFatal(fmt.Errorf("failed to init k8s client. %+v", err))
 	}
 
 	context := createContext()
 	context.Clientset = clientset
+	context.ConfigDir = configDir
 	commonOSDInit(osdConfigCmd)
 	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("invalid location %s. %+v\n", cfg.location, err))
+		rook.TerminateFatal(fmt.Errorf("invalid location %s. %+v", cfg.location, err))
 	}
 	crushLocation := strings.Join(locArgs, " ")
 	kv := k8sutil.NewConfigMapKVStore(clusterInfo.Name, clientset, metav1.OwnerReference{})
@@ -250,7 +253,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 	var dataDevices []osddaemon.DesiredDevice
 	if osdDataDeviceFilter != "" {
 		if cfg.devices != "" {
-			return fmt.Errorf("Only one of --data-devices and --data-device-filter can be specified.")
+			return fmt.Errorf("only one of --data-devices and --data-device-filter can be specified")
 		}
 
 		dataDevices = []osddaemon.DesiredDevice{
@@ -266,7 +269,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	clientset, _, rookClientset, err := rook.GetClientset()
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("failed to init k8s client. %+v\n", err))
+		rook.TerminateFatal(fmt.Errorf("failed to init k8s client. %+v", err))
 	}
 
 	context := createContext()
@@ -276,7 +279,7 @@ func prepareOSD(cmd *cobra.Command, args []string) error {
 
 	locArgs, err := client.FormatLocation(cfg.location, cfg.nodeName)
 	if err != nil {
-		rook.TerminateFatal(fmt.Errorf("invalid location. %+v\n", err))
+		rook.TerminateFatal(fmt.Errorf("invalid location. %+v", err))
 	}
 	crushLocation := strings.Join(locArgs, " ")
 

@@ -179,14 +179,14 @@ func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluste
 	keyringFilePath := path.Join(root, AdminKeyringFile())
 	err := writeKeyring(AdminKeyring(cluster), keyringFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to write keyring to %s: %+v", keyringFilePath, err)
+		return fmt.Errorf("failed to write keyring to %s. %+v", keyringFilePath, err)
 	}
 
 	configPath := path.Join(root, DefaultConfigFile)
 	err = GenerateConfigFile(context, cluster,
 		configPath, AdminUsername, keyringFilePath, root, settings, nil)
 	if err != nil {
-		return fmt.Errorf("failed to write config to %s: %+v", configPath, err)
+		return fmt.Errorf("failed to write config to %s. %+v", configPath, err)
 	}
 	logger.Infof("generated admin config in %s", configPath)
 	return nil
@@ -209,7 +209,7 @@ func GenerateConfigFile(
 	// create the config directory
 	configDir := path.Dir(configFilePath)
 	if err := os.MkdirAll(configDir, 0744); err != nil {
-		logger.Warningf("failed to create config directory at %s: %+v", configDir, err)
+		logger.Warningf("failed to create config directory at %s. %+v", configDir, err)
 	}
 
 	configFile, err := createGlobalConfigFileSection(context, cluster, runDir, globalConfig)
@@ -227,7 +227,7 @@ func GenerateConfigFile(
 		err := configFile.Append(context.ConfigFileOverride)
 		if err != nil {
 			// log the config file override failure as a warning, but proceed without it
-			logger.Warningf("failed to add config file override from '%s': %+v", context.ConfigFileOverride, err)
+			logger.Warningf("failed to add config file override from '%s'. %+v", context.ConfigFileOverride, err)
 		}
 	}
 
@@ -332,7 +332,7 @@ func addClientConfigFileSection(configFile *ini.File, clientName, keyringFilePat
 
 	for key, val := range settings {
 		if _, err := s.NewKey(key, val); err != nil {
-			return fmt.Errorf("failed to add key %s. %v", key, err)
+			return fmt.Errorf("failed to add key %s. %+v", key, err)
 		}
 	}
 

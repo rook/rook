@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"strconv"
 
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	mgrdaemon "github.com/rook/rook/pkg/daemon/ceph/mgr"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
@@ -84,7 +85,6 @@ func (c *Cluster) makeConfigInitContainer(mgrConfig *mgrConfig) v1.Container {
 		Args: []string{
 			"ceph",
 			mgrdaemon.InitCommand,
-			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--mgr-name=%s", mgrConfig.DaemonName),
 		},
 		Image: k8sutil.MakeRookImage(c.rookVersion),
@@ -120,6 +120,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig, port int) v1.Cont
 		Args: []string{
 			"--foreground",
 			"--id", mgrConfig.DaemonName,
+			"--mgr-data", cephconfig.DaemonDataDir(cephconfig.VarLibCephDir, "mgr", mgrConfig.DaemonName),
 			// do not add the '--cluster/--conf/--keyring' flags; rook wants their default values
 		},
 		Image:        c.cephVersion.Image,

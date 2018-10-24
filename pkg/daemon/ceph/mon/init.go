@@ -17,13 +17,13 @@ package mon
 import (
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path/filepath"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
-	"github.com/rook/rook/pkg/util"
 )
 
 const (
@@ -32,6 +32,14 @@ const (
 
 	// DefaultPort is the default port Ceph mons use to communicate amongst themselves.
 	DefaultPort = 6790
+
+	// The final string field is for the admin keyring
+	monitorKeyringTemplate = `
+	[mon.]
+		key = %s
+		caps mon = "allow *"
+
+	%s`
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephmon")
@@ -47,33 +55,37 @@ type Config struct {
 func Initialize(context *clusterd.Context, config *Config) error {
 	logger.Infof("Creating config for MON %s with port %d", config.Name, config.Port)
 	config.Cluster.Log(logger)
-	err := generateConfigFiles(context, config)
-	if err != nil {
-		return fmt.Errorf("failed to generate mon config files. %+v", err)
+
+	configPath := cephconfig.DefaultConfigFilePath()
+	keyringPath := cephconfig.DaemonKeyringFilePath(cephconfig.EtcCephDir, "mon", config.Name)
+	runDir := cephconfig.DaemonRunDir(cephconfig.VarLibCephDir, "mon", config.Name)
+	username := fmt.Sprintf("mon.%s", config.Name)
+	// public_bind_addr is set from the pod IP which can only be known at runtime, so set this
+	// at config init int the Ceph config file.
+	// See pkg/operator/ceph/cluster/mon/spec.go - makeMonDaemonContainer() comment notes for more
+	privateAddr := net.JoinHostPort(context.NetworkInfo.ClusterAddr, fmt.Sprintf("%d", config.Port))
+	settings := map[string]string{
+		"public bind addr": privateAddr,
 	}
 
-	util.WriteFileToLog(logger, cephconfig.DefaultConfigFilePath())
-
-	return err
-}
-
-func generateConfigFiles(context *clusterd.Context, config *Config) error {
-	// write the keyring to disk
-	if err := writeMonKeyring(context, config.Cluster, config.Name); err != nil {
-		return err
+	err := cephconfig.GenerateConfigFile(context, config.Cluster,
+		configPath, username, keyringPath, runDir, nil, settings)
+	if err != nil {
+		return fmt.Errorf("failed to generate mon config file at %s. %+v", configPath, err)
 	}
 
-	// write the config file to disk
-	_, err := generateConnectionConfigFile(context, config,
-		GetMonRunDirPath(context.ConfigDir, config.Name), getMonKeyringPath(context.ConfigDir, config.Name))
-	if err != nil {
-		return err
+	keyringEval := func(_ string) string {
+		return fmt.Sprintf(monitorKeyringTemplate,
+			config.Cluster.MonitorSecret, cephconfig.AdminKeyring(config.Cluster))
+	}
+	if err := cephconfig.WriteKeyring(keyringPath, "", keyringEval); err != nil {
+		return fmt.Errorf("failed to write mon keyring to %s. %+v", keyringPath, err)
 	}
 
 	// create monitor data dir
-	monDataDir := GetMonDataDirPath(context.ConfigDir, config.Name)
+	monDataDir := cephconfig.DaemonDataDir(cephconfig.VarLibCephDir, "mon", config.Name)
 	if err := os.MkdirAll(monDataDir, 0744); err != nil {
-		logger.Warningf("failed to create monitor data directory at %s: %+v", monDataDir, err)
+		logger.Warningf("failed to create monitor data directory at %s. %+v", monDataDir, err)
 	}
 
 	// write the kv_backend file to force ceph to use rocksdb for the MON store
@@ -88,7 +100,7 @@ func generateConfigFiles(context *clusterd.Context, config *Config) error {
 func writeBackendFile(monDataDir, backend string) error {
 	backendPath := filepath.Join(monDataDir, "kv_backend")
 	if err := ioutil.WriteFile(backendPath, []byte(backend), 0644); err != nil {
-		return fmt.Errorf("failed to write kv_backend to %s: %+v", backendPath, err)
+		return fmt.Errorf("failed to write kv_backend to %s. %+v", backendPath, err)
 	}
 	return nil
 }
