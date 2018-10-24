@@ -61,7 +61,7 @@ func testCrushMapHelper(t *testing.T, storeConfig *config.StoreConfig) {
 
 	location := "root=default,dc=datacenter1,host=node1"
 
-	cfg := &osdConfig{id: 23, rootPath: "/"}
+	cfg := &osdConfig{id: 23, runDir: "/"}
 	if storeConfig.StoreType == config.Bluestore {
 		// if we're using bluestore, give some extra partition config info, the addOSDToCrushMap call will need it
 		cfg.partitionScheme = config.NewPerfSchemeEntry(storeConfig.StoreType)

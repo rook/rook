@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package osd
 
 import (
@@ -39,12 +40,12 @@ type Monitor struct {
 	lastStatus map[int]time.Time
 }
 
-// newMonitor instantiates OSD monitoring
+// NewMonitor instantiates OSD monitoring
 func NewMonitor(context *clusterd.Context, clusterName string) *Monitor {
 	return &Monitor{context, clusterName, make(map[int]time.Time)}
 }
 
-// Run runs monitoring logic for osds status at set intervals
+// Start runs monitoring logic for osds status at set intervals
 func (m *Monitor) Start(stopCh chan struct{}) {
 
 	for {
@@ -53,7 +54,7 @@ func (m *Monitor) Start(stopCh chan struct{}) {
 			logger.Debug("Checking osd processes status.")
 			err := m.osdStatus()
 			if err != nil {
-				logger.Warningf("Failed OSD status check: %+v", err)
+				logger.Warningf("Failed OSD status check. %+v", err)
 			}
 
 		case <-stopCh:

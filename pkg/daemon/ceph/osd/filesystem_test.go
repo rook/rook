@@ -25,6 +25,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/stretchr/testify/assert"
@@ -44,7 +45,7 @@ func TestIsOSDFilesystemCreated(t *testing.T) {
 func TestBackupOSDFileSystem(t *testing.T) {
 	configDir, err := ioutil.TempDir("", "TestBackupOSDFileSystem")
 	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
+		t.Fatalf("failed to create temp config dir. %+v", err)
 	}
 	defer os.RemoveAll(configDir)
 
@@ -53,7 +54,7 @@ func TestBackupOSDFileSystem(t *testing.T) {
 	kv := mockKVStore()
 
 	cfg := &osdConfig{
-		rootPath:        configDir,
+		runDir:          configDir,
 		id:              osdID,
 		partitionScheme: &config.PerfSchemeEntry{StoreType: config.Bluestore},
 		kv:              kv,
@@ -63,21 +64,17 @@ func TestBackupOSDFileSystem(t *testing.T) {
 	createMockMetadata(t, configDir, "foo", "bar")
 	createMockMetadata(t, configDir, "baz", "biz")
 
-	// create a rook config file that should get filtered out during the backup
-	configFileName := "rook123.config"
-	createMockMetadata(t, configDir, configFileName, "mock config")
-
 	// create a keyring file that should get filtered out during the backup
-	createMockMetadata(t, configDir, keyringFileName, "mock keyring")
+	createMockMetadata(t, configDir, cephconfig.DefaultKeyringFile, "mock keyring")
 
 	// create a file larger than the max size that should be skipped during the backup
 	oversizeFileName := "oversize.txt"
 	oversizeFile, err := os.Create(filepath.Join(configDir, oversizeFileName))
 	if err != nil {
-		t.Fatalf("failed to create oversized file: %+v", err)
+		t.Fatalf("failed to create oversized file. %+v", err)
 	}
 	if err := oversizeFile.Truncate(maxFileBackupSize + 1); err != nil {
-		t.Fatalf("failed to truncate oversized file: %+v", err)
+		t.Fatalf("failed to truncate oversized file. %+v", err)
 	}
 
 	// backup the OSD filesystem
@@ -87,8 +84,7 @@ func TestBackupOSDFileSystem(t *testing.T) {
 	// verify the backed up OSD filesystem (and the not backed up files too)
 	assertBackedUpFile(t, cfg, kv, "foo", "bar")
 	assertBackedUpFile(t, cfg, kv, "baz", "biz")
-	assertNotBackedUpFile(t, cfg, kv, configFileName)
-	assertNotBackedUpFile(t, cfg, kv, keyringFileName)
+	assertNotBackedUpFile(t, cfg, kv, cephconfig.DefaultKeyringFile)
 	assertNotBackedUpFile(t, cfg, kv, oversizeFileName)
 }
 
@@ -114,7 +110,7 @@ func assertNotBackedUpFile(t *testing.T, c *osdConfig, kv *k8sutil.ConfigMapKVSt
 func TestRepairOSDFileSystem(t *testing.T) {
 	configDir, err := ioutil.TempDir("", "TestRepairOSDFileSystem")
 	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
+		t.Fatalf("failed to create temp config dir. %+v", err)
 	}
 	defer os.RemoveAll(configDir)
 
@@ -123,7 +119,7 @@ func TestRepairOSDFileSystem(t *testing.T) {
 	kv := mockKVStore()
 	schemeEntry, _, _ := mockPartitionSchemeEntry(t, osdID, "sdf", &storeConfig, kv, "node3930")
 	cfg := &osdConfig{
-		rootPath:        configDir,
+		runDir:          configDir,
 		id:              osdID,
 		partitionScheme: schemeEntry,
 		kv:              kv,
@@ -150,14 +146,14 @@ func TestRepairOSDFileSystem(t *testing.T) {
 }
 
 func assertRepairedFile(t *testing.T, cfg *osdConfig, name, expectedContent string) {
-	content, err := ioutil.ReadFile(filepath.Join(cfg.rootPath, name))
+	content, err := ioutil.ReadFile(filepath.Join(cfg.runDir, name))
 	assert.Nil(t, err)
 	assert.Equal(t, expectedContent, string(content))
 }
 
 func assertBluestoreSymlink(t *testing.T, config *osdConfig, symlinkName, partUUID string) {
 	// assert that the symlink exists at the expected path and that it is actually a symlink
-	symlinkPath := filepath.Join(config.rootPath, symlinkName)
+	symlinkPath := filepath.Join(config.runDir, symlinkName)
 	fi, err := os.Lstat(symlinkPath)
 	assert.Nil(t, err)
 	assert.NotEqual(t, 0, fi.Mode()&os.ModeSymlink)

@@ -44,47 +44,46 @@ const (
 	unassignedOSDID = -1
 )
 
-type OsdAgent struct {
-	cluster        *cephconfig.ClusterInfo
-	nodeName       string
-	forceFormat    bool
-	location       string
-	osdProc        map[int]*proc.MonitoredProc
-	devices        []DesiredDevice
-	metadataDevice string
-	directories    string
-	procMan        *proc.ProcManager
-	storeConfig    config.StoreConfig
-	kv             *k8sutil.ConfigMapKVStore
-	configCounter  int32
-	osdsCompleted  chan struct{}
+// Agent is the brains of the Ceph osd provisioning agent. It knows how to (un-)configure osds.
+type Agent struct {
+	cluster           *cephconfig.ClusterInfo
+	nodeName          string
+	forceFormat       bool
+	location          string
+	osdProc           map[int]*proc.MonitoredProc
+	devices           string
+	usingDeviceFilter bool
+	metadataDevice    string
+	directories       string
+	procMan           *proc.ProcManager
+	storeConfig       config.StoreConfig
+	kv                *k8sutil.ConfigMapKVStore
+	configCounter     int32
+	osdsCompleted     chan struct{}
 }
 
-type device struct {
-	name     string
-	osdCount int
-}
+// NewAgent returns a new, configured osd agent.
+func NewAgent(context *clusterd.Context, devices string, usingDeviceFilter bool, metadataDevice, directories string, forceFormat bool,
+	location string, storeConfig config.StoreConfig, cluster *cephconfig.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore) *Agent {
 
-func NewAgent(context *clusterd.Context, devices []DesiredDevice, metadataDevice, directories string, forceFormat bool,
-	location string, storeConfig config.StoreConfig, cluster *cephconfig.ClusterInfo, nodeName string, kv *k8sutil.ConfigMapKVStore) *OsdAgent {
-
-	return &OsdAgent{
-		devices:        devices,
-		metadataDevice: metadataDevice,
-		directories:    directories,
-		forceFormat:    forceFormat,
-		location:       location,
-		storeConfig:    storeConfig,
-		cluster:        cluster,
-		nodeName:       nodeName,
-		kv:             kv,
-		procMan:        proc.New(context.Executor),
-		osdProc:        make(map[int]*proc.MonitoredProc),
+	return &Agent{
+		devices:           devices,
+		usingDeviceFilter: usingDeviceFilter,
+		metadataDevice:    metadataDevice,
+		directories:       directories,
+		forceFormat:       forceFormat,
+		location:          location,
+		storeConfig:       storeConfig,
+		cluster:           cluster,
+		nodeName:          nodeName,
+		kv:                kv,
+		procMan:           proc.New(context.Executor),
+		osdProc:           make(map[int]*proc.MonitoredProc),
 	}
 }
 
-func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int) ([]oposd.OSDInfo, error) {
-	var osds []oposd.OSDInfo
+func (a *Agent) configureDirs(context *clusterd.Context, dirs map[string]int) ([]oposd.Info, error) {
+	var osds []oposd.Info
 	if len(dirs) == 0 {
 		return osds, nil
 	}
@@ -92,7 +91,7 @@ func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 	succeeded := 0
 	var lastErr error
 	for dirPath, osdID := range dirs {
-		config := &osdConfig{id: osdID, configRoot: dirPath, dir: true, storeConfig: a.storeConfig,
+		config := &osdConfig{id: osdID, configDir: dirPath, dir: true, storeConfig: a.storeConfig,
 			kv: a.kv, storeName: config.GetConfigStoreName(a.nodeName)}
 
 		if config.id == unassignedOSDID {
@@ -121,7 +120,7 @@ func (a *OsdAgent) configureDirs(context *clusterd.Context, dirs map[string]int)
 	return osds, lastErr
 }
 
-func (a *OsdAgent) removeDirs(context *clusterd.Context, removedDirs map[string]int) error {
+func (a *Agent) removeDirs(context *clusterd.Context, removedDirs map[string]int) error {
 	if len(removedDirs) == 0 {
 		return nil
 	}
@@ -145,7 +144,7 @@ func (a *OsdAgent) removeDirs(context *clusterd.Context, removedDirs map[string]
 	return nil
 }
 
-func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
+func (a *Agent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.Info, error) {
 
 	cvSupported, err := getCephVolumeSupported(context)
 	if err != nil {
@@ -173,19 +172,19 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	scheme, cvDevices, err := a.getPartitionPerfScheme(context, devices, cvSupported)
 	logger.Debugf("partition scheme: %+v, err: %+v", scheme, err)
 	if err != nil {
-		return osds, fmt.Errorf("failed to get OSD partition scheme: %+v", err)
+		return osds, fmt.Errorf("failed to get OSD partition scheme. %+v", err)
 	}
 	if scheme.Metadata != nil {
 		// partition the dedicated metadata device
 		if err := partitionMetadata(context, scheme.Metadata, a.kv, config.GetConfigStoreName(a.nodeName)); err != nil {
-			return osds, fmt.Errorf("failed to partition metadata %+v: %+v", scheme.Metadata, err)
+			return osds, fmt.Errorf("failed to partition metadata %+v. %+v", scheme.Metadata, err)
 		}
 	}
 	// initialize and start all the desired OSDs using the computed scheme
 	succeeded := 0
 	nonCVTotal := len(scheme.Entries)
 	for _, entry := range scheme.Entries {
-		config := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configRoot: context.ConfigDir,
+		config := &osdConfig{id: entry.ID, uuid: entry.OsdUUID, configDir: context.ConfigDir,
 			partitionScheme: entry, storeConfig: a.storeConfig, kv: a.kv, storeName: config.GetConfigStoreName(a.nodeName)}
 		osd, err := a.prepareOSD(context, config)
 		if err != nil {
@@ -210,7 +209,7 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	return osds, nil
 }
 
-func (a *OsdAgent) removeDevices(context *clusterd.Context, removedDevicesScheme *config.PerfScheme) error {
+func (a *Agent) removeDevices(context *clusterd.Context, removedDevicesScheme *config.PerfScheme) error {
 	if removedDevicesScheme == nil || len(removedDevicesScheme.Entries) == 0 {
 		return nil
 	}
@@ -246,7 +245,7 @@ func (a *OsdAgent) removeDevices(context *clusterd.Context, removedDevicesScheme
 
 // computes a partitioning scheme for all the given desired devices.  This could be devices already in use,
 // devices dedicated to metadata, and devices with all bluestore partitions collocated.
-func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *DeviceOsdMapping, skipNewDevices bool) (*config.PerfScheme, *DeviceOsdMapping, error) {
+func (a *Agent) getPartitionPerfScheme(context *clusterd.Context, devices *DeviceOsdMapping, skipNewDevices bool) (*config.PerfScheme, *DeviceOsdMapping, error) {
 	skippedDevices := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 
 	// load the existing (committed) partition scheme from disk
@@ -262,7 +261,7 @@ func (a *OsdAgent) getPartitionPerfScheme(context *clusterd.Context, devices *De
 		}
 	}
 	for _, device := range context.Devices {
-		logger.Debugf("context.Device: %+v", device)
+		logger.Debugf("context.Device. %+v", device)
 	}
 
 	numDataNeeded := 0
@@ -414,8 +413,9 @@ func refreshDeviceInfo(name string, nameToUUID map[string]string, scheme *config
 	}
 }
 
-func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd.OSDInfo, error) {
-	cfg.rootPath = getOSDRootDir(cfg.configRoot, cfg.id)
+func (a *Agent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd.Info, error) {
+
+	cfg.runDir = osdRunDir(cfg.configDir, cfg.id)
 
 	// if the osd is using filestore on a device and it's previously been formatted/partitioned,
 	// go ahead and remount the device now.
@@ -435,7 +435,7 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 			// format and partition the device if needed
 			savedScheme, err := config.LoadScheme(a.kv, config.GetConfigStoreName(a.nodeName))
 			if err != nil {
-				return nil, fmt.Errorf("failed to load the saved partition scheme from %s: %+v", cfg.configRoot, err)
+				return nil, fmt.Errorf("failed to load the saved partition scheme from %s. %+v", cfg.configDir, err)
 			}
 
 			skipFormat := false
@@ -461,7 +461,7 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 		// osd_data_dir/ready does not exist yet, create/initialize the OSD
 		err := initializeOSD(cfg, context, a.cluster, a.location)
 		if err != nil {
-			return nil, fmt.Errorf("failed to initialize OSD at %s: %+v", cfg.rootPath, err)
+			return nil, fmt.Errorf("failed to initialize OSD at %s. %+v", cfg.runDir, err)
 		}
 	} else {
 		// update the osd config file
@@ -474,11 +474,11 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 		// look up some basic information about it so we can run it.
 		err = loadOSDInfo(cfg)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get OSD information from %s: %+v", cfg.rootPath, err)
+			return nil, fmt.Errorf("failed to get OSD information from %s. %+v", cfg.runDir, err)
 		}
 	}
 	osdInfo := getOSDInfo(a.cluster.Name, cfg, devPartInfo)
-	logger.Infof("completed preparing osd %v", osdInfo)
+	logger.Infof("completed preparing osd %+v", osdInfo)
 
 	if devPartInfo != nil {
 		sys.UnmountDevice(devPartInfo.pathToUnmount, context.Executor)
@@ -488,36 +488,36 @@ func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd
 }
 
 func prepareOSDRoot(cfg *osdConfig) (newOSD bool, err error) {
-	newOSD = isOSDDataNotExist(cfg.rootPath)
+	newOSD = isOSDDataNotExist(cfg.runDir)
 	if !newOSD {
 		// osd is not new (it's ready), nothing to prepare
-		logger.Infof("osd with path %s is not new, nothing to prepare", cfg.rootPath)
+		logger.Infof("osd with path %s is not new, nothing to prepare", cfg.runDir)
 		return newOSD, nil
 	}
 
 	// osd is new (it's not ready), make sure there is no stale state in the OSD dir by deleting the entire thing
-	logger.Infof("osd.%d appears to be new, cleaning the root dir at %s", cfg.id, cfg.rootPath)
-	if err := os.RemoveAll(cfg.rootPath); err != nil {
-		logger.Warningf("failed to clean osd.%d root dir at %s, will proceed with starting osd: %+v", cfg.id, cfg.rootPath, err)
+	logger.Infof("osd.%d appears to be new, cleaning the root dir at %s", cfg.id, cfg.runDir)
+	if err := os.RemoveAll(cfg.runDir); err != nil {
+		logger.Warningf("failed to clean osd.%d root dir at %s, will proceed with starting osd. %+v", cfg.id, cfg.runDir, err)
 	}
 
 	// prepare the osd dir by creating it now
-	if err := os.MkdirAll(cfg.rootPath, 0744); err != nil {
-		return newOSD, fmt.Errorf("failed to make osd.%d config at %s: %+v", cfg.id, cfg.rootPath, err)
+	if err := os.MkdirAll(cfg.runDir, 0744); err != nil {
+		return newOSD, fmt.Errorf("failed to make osd.%d config at %s. %+v", cfg.id, cfg.runDir, err)
 	}
 
 	return newOSD, nil
 }
 
-func getOSDInfo(clusterName string, config *osdConfig, devPartInfo *devicePartInfo) *oposd.OSDInfo {
-	confFile := getOSDConfFilePath(config.rootPath, clusterName)
+func getOSDInfo(clusterName string, config *osdConfig, devPartInfo *devicePartInfo) *oposd.Info {
+	confFile := config.configFilePath()
 	util.WriteFileToLog(logger, confFile)
-	osd := &oposd.OSDInfo{
+	osd := &oposd.Info{
 		ID:          config.id,
-		DataPath:    config.rootPath,
+		DataPath:    config.runDir,
 		Config:      confFile,
 		Cluster:     clusterName,
-		KeyringPath: getOSDKeyringPath(config.rootPath),
+		KeyringPath: config.keyringFilePath(),
 		UUID:        config.uuid.String(),
 		IsFileStore: isFilestore(config),
 		IsDirectory: config.dir,
@@ -527,17 +527,17 @@ func getOSDInfo(clusterName string, config *osdConfig, devPartInfo *devicePartIn
 	}
 
 	if isFilestore(config) {
-		osd.Journal = getOSDJournalPath(config.rootPath)
+		osd.Journal = config.journalPath()
 	}
 	return osd
 }
 
-func (a *OsdAgent) removeOSDConfigDir(configRoot string, id int) error {
+func (a *Agent) removeOSDConfigDir(configRoot string, id int) error {
 	// delete the OSD's local storage
-	osdRootDir := getOSDRootDir(configRoot, id)
+	osdRootDir := osdRunDir(configRoot, id)
 	logger.Infof("deleting osd dir: %s", osdRootDir)
 	if err := os.RemoveAll(osdRootDir); err != nil {
-		logger.Warningf("failed to delete osd.%d root dir from %s, it may need to be cleaned up manually: %+v",
+		logger.Warningf("failed to delete osd.%d root dir from %s, it may need to be cleaned up manually. %+v",
 			id, osdRootDir, err)
 	}
 
@@ -550,26 +550,26 @@ func isOSDDataNotExist(osdDataPath string) bool {
 }
 
 func loadOSDInfo(config *osdConfig) error {
-	idFile := filepath.Join(config.rootPath, "whoami")
+	idFile := filepath.Join(config.runDir, "whoami")
 	idContent, err := ioutil.ReadFile(idFile)
 	if err != nil {
-		return fmt.Errorf("failed to read OSD ID from %s: %+v", idFile, err)
+		return fmt.Errorf("failed to read OSD ID from %s. %+v", idFile, err)
 	}
 
 	osdID, err := strconv.Atoi(strings.TrimSpace(string(idContent[:])))
 	if err != nil {
-		return fmt.Errorf("failed to parse OSD ID from %s with content %s: %+v", idFile, idContent, err)
+		return fmt.Errorf("failed to parse OSD ID from %s with content %s. %+v", idFile, idContent, err)
 	}
 
-	uuidFile := filepath.Join(config.rootPath, "fsid")
+	uuidFile := filepath.Join(config.runDir, "fsid")
 	fsidContent, err := ioutil.ReadFile(uuidFile)
 	if err != nil {
-		return fmt.Errorf("failed to read UUID from %s: %+v", uuidFile, err)
+		return fmt.Errorf("failed to read UUID from %s. %+v", uuidFile, err)
 	}
 
 	osdUUID, err := uuid.Parse(strings.TrimSpace(string(fsidContent[:])))
 	if err != nil {
-		return fmt.Errorf("failed to parse UUID from %s with content %s: %+v", uuidFile, string(fsidContent[:]), err)
+		return fmt.Errorf("failed to parse UUID from %s with content %s. %+v", uuidFile, string(fsidContent[:]), err)
 	}
 
 	config.id = osdID

@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package osd for the Ceph OSDs.
 package osd
 
 import (
@@ -26,6 +25,7 @@ import (
 	"strings"
 
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	opmon "github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
@@ -76,32 +76,35 @@ func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
 	return job, nil
 }
 
-func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, location string, osd OSDInfo) (*extensions.Deployment, error) {
-
+func (c *Cluster) makeDeployment(
+	nodeName string,
+	devices []rookalpha.Device,
+	selection rookalpha.Selection,
+	resources v1.ResourceRequirements,
+	storeConfig config.StoreConfig,
+	metadataDevice,
+	location string,
+	osd Info,
+) (*extensions.Deployment, error) {
 	replicaCount := int32(1)
-	volumeMounts := opspec.CephVolumeMounts()
-	configVolumeMounts := opspec.RookVolumeMounts()
-	volumes := opspec.PodVolumes(c.dataDirHostPath)
 
-	var dataDir string
+	dataDirHostPath := c.dataDirHostPath
+	configDir := cephconfig.VarLibCephDir
 	if osd.IsDirectory {
-		// Mount the path to the directory-based osd
-		// osd.DataPath includes the osd subdirectory, so we want to mount the parent directory
+		// For directory-based osds, the normal dataDirHostPath is not used; instead, the specified
+		// osd dir location on the host is used in its place. This osd dir location in the container
+		// changes from /var/lib/ceph to be the same as the osd dir location on the host.
+		// osd.DataPath includes the osd subdirectory, so we want to mount the parent directory.
 		parentDir := filepath.Dir(osd.DataPath)
-		dataDir = parentDir
-		// Skip the mount if this is the default directory being mounted. Inside the container, the path
-		// will be mounted at "/var/lib/rook" even if the dataDirHostPath is a different path on the host.
-		if parentDir != k8sutil.DataDir {
-			volumeName := k8sutil.PathToVolumeName(parentDir)
-			dataDirSource := v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: parentDir}}
-			volumes = append(volumes, v1.Volume{Name: volumeName, VolumeSource: dataDirSource})
-			configVolumeMounts = append(configVolumeMounts, v1.VolumeMount{Name: volumeName, MountPath: parentDir})
-			volumeMounts = append(volumeMounts, v1.VolumeMount{Name: volumeName, MountPath: parentDir})
-		}
-	} else {
-		dataDir = k8sutil.DataDir
+		configDir = parentDir
+		dataDirHostPath = parentDir
+	}
 
+	volumes := opspec.PodVolumes(dataDirHostPath)
+	volumeMounts := opspec.CephOSDVolumeMounts(configDir)
+	configVolumeMounts := opspec.RookOSDVolumeMounts(configDir)
+
+	if !osd.IsDirectory {
 		// Create volume config for /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
 		volumes = append(volumes, devVolume)
@@ -132,9 +135,10 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		{Name: "ROOK_OSD_ID", Value: osdID},
 		{Name: "ROOK_OSD_STORE_TYPE", Value: storeType},
 	}...)
-	configEnvVars := append(c.getConfigEnvVars(storeConfig, dataDir, nodeName, location), []v1.EnvVar{
+	configEnvVars := append(c.getConfigEnvVars(storeConfig, nodeName, location), []v1.EnvVar{
 		tiniEnvVar,
 		{Name: "ROOK_OSD_ID", Value: osdID},
+		{Name: "ROOK_OSD_CONFIG_DIR", Value: configDir},
 	}...)
 
 	if !osd.IsDirectory {
@@ -144,10 +148,9 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 	commonArgs := []string{
 		"--foreground",
 		"--id", osdID,
+		// osds need the --conf param unlike other daemons??? Maybe untrue?
 		"--conf", osd.Config,
 		"--osd-data", osd.DataPath,
-		"--keyring", osd.KeyringPath,
-		"--cluster", osd.Cluster,
 		"--osd-uuid", osd.UUID,
 	}
 	if osd.IsFileStore {
@@ -347,7 +350,7 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 	}, nil
 }
 
-func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, nodeName, location string) []v1.EnvVar {
+func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, nodeName, location string) []v1.EnvVar {
 	envVars := []v1.EnvVar{
 		nodeNameEnvVar(nodeName),
 		{Name: "ROOK_CLUSTER_ID", Value: string(c.ownerRef.UID)},
@@ -357,7 +360,6 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 		opmon.EndpointEnvVar(),
 		opmon.SecretEnvVar(),
 		opmon.AdminSecretEnvVar(),
-		k8sutil.ConfigDirEnvVar(dataDir),
 		k8sutil.ConfigOverrideEnvVar(),
 		{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
 			SecretKeyRef: &v1.SecretKeySelector{
@@ -401,7 +403,7 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
 	storeConfig config.StoreConfig, metadataDevice, nodeName, location string, copyBinariesMount v1.VolumeMount) v1.Container {
 
-	envVars := c.getConfigEnvVars(storeConfig, k8sutil.DataDir, nodeName, location)
+	envVars := c.getConfigEnvVars(storeConfig, nodeName, location)
 	devMountNeeded := false
 	privileged := false
 

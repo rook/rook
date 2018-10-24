@@ -62,6 +62,27 @@ func RookVolumeMounts() []v1.VolumeMount {
 	)
 }
 
+// CephOSDVolumeMounts returns the common list of Kubernetes volume mounts for Ceph osd containers.
+// If an osd is directory-based instead of device-based, its in-container storage location may not
+// be /var/lib/ceph.
+func CephOSDVolumeMounts(osdConfigDir string) []v1.VolumeMount {
+	return []v1.VolumeMount{
+		{Name: k8sutil.DataDirVolume, MountPath: osdConfigDir},
+		cephconfig.DefaultConfigMount(),
+		// Rook doesn't run in ceph containers, so it doesn't need the config override mounted
+	}
+}
+
+// RookOSDVolumeMounts returns the common list of Kubernetes volume mounts for Rook osd containers.
+// If an osd is directory-based instead of device-based, its in-container storage location may not
+// be /var/lib/ceph.
+func RookOSDVolumeMounts(osdConfigDir string) []v1.VolumeMount {
+	return append(
+		CephOSDVolumeMounts(osdConfigDir),
+		k8sutil.ConfigOverrideMount(),
+	)
+}
+
 // AppLabels returns labels common for all Rook-Ceph applications which may be useful for admins.
 // App name is the name of the application: e.g., 'rook-ceph-mon', 'rook-ceph-mgr', etc.
 func AppLabels(appName, namespace string) map[string]string {

@@ -17,14 +17,13 @@ limitations under the License.
 package osd
 
 import (
-	"fmt"
 	"io"
 	"os"
+	"strconv"
 
 	"path"
 	"path/filepath"
 
-	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 )
 
@@ -45,16 +44,21 @@ func getOSDRootDir(root string, osdID int) string {
 // get the full path to the given OSD's config file
 func getOSDConfFilePath(osdDataPath, clusterName string) string {
 	return fmt.Sprintf("%s/%s.config", osdDataPath, clusterName)
+func (c *osdConfig) configFilePath() string {
+	return cephconfig.DefaultConfigFilePath()
 }
 
-// get the full path to the given OSD's keyring
-func getOSDKeyringPath(osdDataPath string) string {
-	return filepath.Join(osdDataPath, keyringFileName)
+func (c *osdConfig) keyringFilePath() string {
+	return path.Join(c.runDir, cephconfig.DefaultKeyringFile)
 }
 
-// get the full path to the given OSD's journal
-func getOSDJournalPath(osdDataPath string) string {
-	return filepath.Join(osdDataPath, "journal")
+func (c *osdConfig) journalPath() string {
+	return path.Join(c.runDir, "journal")
+}
+
+// osd config dir can be anything for directory-based OSDs
+func osdRunDir(configDir string, osdID int) string {
+	return cephconfig.DaemonRunDir(configDir, "osd", strconv.Itoa(osdID))
 }
 
 // get the full path to the given OSD's temporary mon map

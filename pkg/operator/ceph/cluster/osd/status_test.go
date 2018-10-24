@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package osd
 
 import (
@@ -75,7 +76,7 @@ func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatch
 				// the node has started orchestration, simulate its completion now by performing 2 tasks:
 				// 1) update the config map manually (which doesn't trigger a watch event, see https://github.com/kubernetes/kubernetes/issues/54075#issuecomment-337298950)
 				status = &OrchestrationStatus{
-					OSDs: []OSDInfo{
+					OSDs: []Info{
 						{
 							ID:          1,
 							DataPath:    "/tmp",
@@ -97,7 +98,7 @@ func mockNodeOrchestrationCompletion(c *Cluster, nodeName string, statusMapWatch
 				logger.Debugf("waiting for node %s orchestration to start. status: %+v", nodeName, *status)
 			}
 		} else {
-			logger.Warningf("failed to get node %s orchestration status, will try again: %+v", nodeName, err)
+			logger.Warningf("failed to get node %s orchestration status, will try again. %+v", nodeName, err)
 		}
 		<-time.After(50 * time.Millisecond)
 	}

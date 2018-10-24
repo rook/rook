@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package osd for the Ceph OSDs.
 package osd
 
 import (
@@ -51,35 +50,35 @@ func removeOSD(context *clusterd.Context, namespace, deploymentName string, id i
 		if ok && cmdErr.ExitStatus() == int(syscall.ENOENT) {
 			alreadyPurged = true
 		} else {
-			return fmt.Errorf("failed to reweight osd.%d to 0.0: %+v. %s", id, err, o)
+			return fmt.Errorf("failed to reweight osd.%d to 0.0. %+v: %s", id, err, o)
 		}
 	}
 
 	if !alreadyPurged {
 		// mark the OSD as out
 		if err := markOSDOut(context, namespace, id); err != nil {
-			return fmt.Errorf("failed to mark osd.%d out: %+v", id, err)
+			return fmt.Errorf("failed to mark osd.%d out. %+v", id, err)
 		}
 
 		// wait for the OSDs data to be migrated
 		if err := waitForRebalance(context, namespace, id, initialUsage); err != nil {
-			return fmt.Errorf("failed to wait for cluster rebalancing after removing osd.%d: %+v", id, err)
+			return fmt.Errorf("failed to wait for cluster rebalancing after removing osd.%d. %+v", id, err)
 		}
 	}
 
 	// data is migrated off the osd, we can delete the deployment now
 	if err := k8sutil.DeleteDeployment(context.Clientset, namespace, deploymentName); err != nil {
-		return fmt.Errorf("failed to delete deployment %s: %+v", deploymentName, err)
+		return fmt.Errorf("failed to delete deployment %s. %+v", deploymentName, err)
 	}
 
 	// purge the OSD from the cluster
 	if err := purgeOSD(context, namespace, id); err != nil {
-		return fmt.Errorf("failed to purge osd.%d from the cluster: %+v", id, err)
+		return fmt.Errorf("failed to purge osd.%d from the cluster. %+v", id, err)
 	}
 
 	// delete any backups of the OSD filesystem
 	if err := deleteOSDFileSystem(context.Clientset, namespace, id); err != nil {
-		logger.Warningf("failed to delete osd.%d filesystem, it may need to be cleaned up manually: %+v", id, err)
+		logger.Warningf("failed to delete osd.%d filesystem, it may need to be cleaned up manually. %+v", id, err)
 	}
 
 	return nil
@@ -239,7 +238,7 @@ func (c *Cluster) cleanUpNodeResources(nodeName, nodeCrushName string) error {
 	// clean up node config store
 	configStoreName := config.GetConfigStoreName(nodeName)
 	if err := c.kv.ClearStore(configStoreName); err != nil {
-		logger.Warningf("failed to delete node config store %s, may need to be cleaned up manually: %+v", configStoreName, err)
+		logger.Warningf("failed to delete node config store %s, may need to be cleaned up manually. %+v", configStoreName, err)
 	}
 
 	return nil

@@ -19,7 +19,6 @@ package osd
 import (
 	"fmt"
 	"os"
-	"path"
 	"regexp"
 
 	"strings"
@@ -62,6 +61,9 @@ func StartOSD(context *clusterd.Context, osdType, osdID, osdUUID string, cephArg
 	return nil
 }
 
+// RunFilestoreOnDevice runs a Ceph osd configured as a filestore daemon on a given device.
+// Filestore requires additional setup/teardown and thus requires the Rook binary to run in the
+// Ceph daemon container.
 func RunFilestoreOnDevice(context *clusterd.Context, mountSourcePath, mountPath string, cephArgs []string) error {
 	// start the OSD daemon in the foreground with the given config
 	logger.Infof("starting filestore osd on a device")
@@ -80,20 +82,36 @@ func RunFilestoreOnDevice(context *clusterd.Context, mountSourcePath, mountPath 
 	return nil
 }
 
-func Provision(context *clusterd.Context, agent *OsdAgent) error {
+// Provision starts a Ceph osd provisioning agent, which provisions all osds on a node.
+func Provision(context *clusterd.Context, agent *Agent) error {
 	// set the initial orchestration status
 	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
 	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
 		return err
 	}
 
+	// Generate a connection config file with the admin user for bootstrapping, but don't generate
+	// it as though this is an operator (i.e., calling cephconfig.GenerateAdminConnectionConfig...)
+	configPath := cephconfig.DefaultConfigFilePath()
+	// Use the default keyring path in /etc/ceph so the bootstrap key isn't persisted to disk
+	keyringPath := cephconfig.DefaultKeyringFilePath()
+	runDir := context.ConfigDir
+	username := cephconfig.AdminUsername
+	settings := map[string]string{}
 	// set the crush location in the osd config file
-	cephConfig := cephconfig.CreateDefaultCephConfig(context, agent.cluster, path.Join(context.ConfigDir, agent.cluster.Name))
+	cephConfig := cephconfig.CreateDefaultCephConfig(context, agent.cluster, runDir)
 	cephConfig.GlobalConfig.CrushLocation = agent.location
 
-	// write the latest config to the config dir
-	if err := cephconfig.GenerateAdminConnectionConfigWithSettings(context, agent.cluster, cephConfig); err != nil {
-		return fmt.Errorf("failed to write connection config. %+v", err)
+	err := cephconfig.GenerateConfigFile(context, agent.cluster, configPath, username, keyringPath, runDir, cephConfig, settings)
+	if err != nil {
+		return fmt.Errorf("failed to generate config file for osd provisioning agent. %+v", err)
+	}
+
+	keyringEval := func(_ string) string {
+		return cephconfig.AdminKeyring(agent.cluster)
+	}
+	if err := cephconfig.WriteKeyring(keyringPath, "", keyringEval); err != nil {
+		return fmt.Errorf("failed to generate keyring file for osd provisioning agent. %+v", err)
 	}
 
 	logger.Infof("discovering hardware")
@@ -114,7 +132,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	// determine the set of removed OSDs and the node's crush name (if needed)
 	removedDevicesScheme, _, err := getRemovedDevices(agent)
 	if err != nil {
-		return fmt.Errorf("failed to get removed devices: %+v", err)
+		return fmt.Errorf("failed to get removed devices. %+v", err)
 	}
 
 	// orchestration is about to start, update the status
@@ -161,7 +179,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 		return fmt.Errorf("failed to save osd dir map. %+v", err)
 	}
 
-	logger.Infof("device osds:%v\ndir osds: %v", deviceOSDs, dirOSDs)
+	logger.Infof("device osds:%+v\ndir osds: %+v", deviceOSDs, dirOSDs)
 	osds := append(deviceOSDs, dirOSDs...)
 
 	// orchestration is completed, update the status
@@ -252,7 +270,8 @@ func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desire
 
 	if len(dirList) == 0 && !devicesSpecified {
 		// user has not specified any dirs or any devices, give them the default dir at least
-		dirList = append(dirList, context.ConfigDir)
+		// In order to keep legacy behavior, this is hardcoded to /var/lib/rook.
+		dirList = append(dirList, "/var/lib/rook")
 	}
 
 	removedDirs = make(map[string]int)
@@ -269,7 +288,7 @@ func getDataDirs(context *clusterd.Context, kv *k8sutil.ConfigMapKVStore, desire
 
 	if !errors.IsNotFound(err) {
 		// real error when trying to load the osd dir map, return the err
-		return nil, nil, fmt.Errorf("failed to load OSD dir map: %+v", err)
+		return nil, nil, fmt.Errorf("failed to load OSD dir map. %+v", err)
 	}
 
 	// the osd dirs map doesn't exist yet
@@ -294,7 +313,7 @@ func addDirsToDirMap(dirList []string, dirMap *map[string]int) {
 	}
 }
 
-func getRemovedDevices(agent *OsdAgent) (*config.PerfScheme, *DeviceOsdMapping, error) {
+func getRemovedDevices(agent *Agent) (*config.PerfScheme, *DeviceOsdMapping, error) {
 	removedDevicesScheme := config.NewPerfScheme()
 	removedDevicesMapping := &DeviceOsdMapping{Entries: map[string]*DeviceOsdIDEntry{}}
 
@@ -305,7 +324,7 @@ func getRemovedDevices(agent *OsdAgent) (*config.PerfScheme, *DeviceOsdMapping, 
 
 	scheme, err := config.LoadScheme(agent.kv, config.GetConfigStoreName(agent.nodeName))
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to load agent's partition scheme: %+v", err)
+		return nil, nil, fmt.Errorf("failed to load agent's partition scheme. %+v", err)
 	}
 
 	for _, entry := range scheme.Entries {

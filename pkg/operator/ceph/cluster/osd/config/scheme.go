@@ -145,13 +145,13 @@ func (s *PerfScheme) SaveScheme(kv *k8sutil.ConfigMapKVStore, storeName string) 
 func RemoveFromScheme(e *PerfSchemeEntry, kv *k8sutil.ConfigMapKVStore, storeName string) error {
 	savedScheme, err := LoadScheme(kv, storeName)
 	if err != nil {
-		return fmt.Errorf("failed to load the saved partition scheme: %+v", err)
+		return fmt.Errorf("failed to load the saved partition scheme. %+v", err)
 	}
 	if err := savedScheme.DeleteSchemeEntry(e); err != nil {
-		return fmt.Errorf("failed to delete partition scheme entry: %+v", err)
+		return fmt.Errorf("failed to delete partition scheme entry. %+v", err)
 	}
 	if err := savedScheme.SaveScheme(kv, storeName); err != nil {
-		return fmt.Errorf("failed to save partition scheme: %+v", err)
+		return fmt.Errorf("failed to save partition scheme. %+v", err)
 	}
 
 	return nil

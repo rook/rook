@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package osd
 
 import (
@@ -274,17 +275,17 @@ func TestDiscoverOSDs(t *testing.T) {
 	node1 := "n1"
 	node2 := "n2"
 
-	osd1 := OSDInfo{ID: 0, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
+	osd1 := Info{ID: 0, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
 	d1, err := c.makeDeployment(node1, []rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd1)
 	assert.Nil(t, err)
 	assert.NotNil(t, d1)
 
-	osd2 := OSDInfo{ID: 101, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
+	osd2 := Info{ID: 101, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
 	d2, err := c.makeDeployment(node1, []rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd2)
 	assert.Nil(t, err)
 	assert.NotNil(t, d2)
 
-	osd3 := OSDInfo{ID: 23, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
+	osd3 := Info{ID: 23, IsDirectory: true, IsFileStore: true, DataPath: "/rook/path"}
 	d3, err := c.makeDeployment(node2, []rookalpha.Device{}, rookalpha.Selection{}, v1.ResourceRequirements{}, config.StoreConfig{}, "", "", osd3)
 	assert.Nil(t, err)
 	assert.NotNil(t, d3)

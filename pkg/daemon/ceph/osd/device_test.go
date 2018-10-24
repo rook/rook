@@ -36,7 +36,7 @@ func TestGetOSDInfo(t *testing.T) {
 	// error when no info is found on disk
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	config := &osdConfig{rootPath: configDir}
+	config := &osdConfig{runDir: configDir}
 
 	err := loadOSDInfo(config)
 	assert.NotNil(t, err)
@@ -85,7 +85,7 @@ func TestOverwriteRookOwnedPartitions(t *testing.T) {
 	// set up a temporary config directory that will be cleaned up after test
 	configDir, err := ioutil.TempDir("", "TestOverwriteRookOwnedPartitions")
 	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
+		t.Fatalf("failed to create temp config dir. %+v", err)
 	}
 	defer os.RemoveAll(configDir)
 
@@ -136,7 +136,7 @@ NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
 	context.Devices = []*sys.LocalDisk{
 		{Name: "sda", Size: 65},
 	}
-	config := &osdConfig{configRoot: configDir, rootPath: filepath.Join(configDir, "osd1"), id: entry.ID,
+	config := &osdConfig{configDir: configDir, runDir: filepath.Join(configDir, "osd1"), id: entry.ID,
 		uuid: entry.OsdUUID, dir: false, partitionScheme: entry, kv: mockKVStore(), storeName: config.GetConfigStoreName("node123")}
 
 	// ensure that our mocking makes it look like rook owns the partitions on sda
@@ -156,7 +156,7 @@ func TestPartitionBluestoreMetadata(t *testing.T) {
 	// set up a temporary config directory that will be cleaned up after test
 	configDir, err := ioutil.TempDir("", "TestPartitionBluestoreMetadata")
 	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
+		t.Fatalf("failed to create temp config dir. %+v", err)
 	}
 	defer os.RemoveAll(configDir)
 
@@ -212,7 +212,7 @@ func TestPartitionBluestoreMetadataSafe(t *testing.T) {
 	// set up a temporary config directory that will be cleaned up after test
 	configDir, err := ioutil.TempDir("", "TestPartitionBluestoreMetadataSafe")
 	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
+		t.Fatalf("failed to create temp config dir. %+v", err)
 	}
 	defer os.RemoveAll(configDir)
 
@@ -255,7 +255,7 @@ func testPartitionOSDHelper(t *testing.T, storeConfig config.StoreConfig) {
 	// set up a temporary config directory that will be cleaned up after test
 	configDir, err := ioutil.TempDir("", "TestPartitionBluestoreOSD")
 	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
+		t.Fatalf("failed to create temp config dir. %+v", err)
 	}
 	defer os.RemoveAll(configDir)
 
@@ -316,7 +316,7 @@ func testPartitionOSDHelper(t *testing.T, storeConfig config.StoreConfig) {
 	entry.OsdUUID = uuid.Must(uuid.NewRandom())
 	config.PopulateCollocatedPerfSchemeEntry(entry, "sda", storeConfig)
 
-	cfg := &osdConfig{configRoot: configDir, rootPath: filepath.Join(configDir, "osd1"), id: entry.ID,
+	cfg := &osdConfig{configDir: configDir, runDir: filepath.Join(configDir, "osd1"), id: entry.ID,
 		uuid: entry.OsdUUID, dir: false, partitionScheme: entry, kv: mockKVStore(), storeName: config.GetConfigStoreName("node123")}
 
 	// partition the OSD on sda now

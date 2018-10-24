@@ -37,19 +37,19 @@ const (
 
 // creates/initializes the OSD filesystem and journal via a child process
 func createOSDFileSystem(context *clusterd.Context, clusterName string, config *osdConfig) error {
-	logger.Infof("Initializing OSD %d file system at %s...", config.id, config.rootPath)
+	logger.Infof("Initializing OSD %d file system at %s...", config.id, config.runDir)
 
 	// get the current monmap, it will be needed for creating the OSD file system
 	monMap, err := getMonMap(context, clusterName)
 	if err != nil {
-		return fmt.Errorf("failed to get mon map: %+v", err)
+		return fmt.Errorf("failed to get mon map. %+v", err)
 	}
 
 	// the current monmap is needed to create the OSD, save it to a temp location so it is accessible
-	monMapTmpPath := getOSDTempMonMapPath(config.rootPath)
+	monMapTmpPath := getOSDTempMonMapPath(config.runDir)
 	monMapTmpDir := filepath.Dir(monMapTmpPath)
 	if err := os.MkdirAll(monMapTmpDir, 0744); err != nil {
-		return fmt.Errorf("failed to create monmap tmp file directory at %s: %+v", monMapTmpDir, err)
+		return fmt.Errorf("failed to create monmap tmp file directory at %s. %+v", monMapTmpDir, err)
 	}
 	if err := ioutil.WriteFile(monMapTmpPath, monMap, 0644); err != nil {
 		return fmt.Errorf("failed to write mon map to tmp file %s, %+v", monMapTmpPath, err)
@@ -58,29 +58,26 @@ func createOSDFileSystem(context *clusterd.Context, clusterName string, config *
 	options := []string{
 		"--mkfs",
 		fmt.Sprintf("--id=%d", config.id),
-		fmt.Sprintf("--cluster=%s", clusterName),
-		fmt.Sprintf("--conf=%s", cephconfig.GetConfFilePath(config.rootPath, clusterName)),
-		fmt.Sprintf("--osd-data=%s", config.rootPath),
+		fmt.Sprintf("--osd-data=%s", config.runDir),
 		fmt.Sprintf("--osd-uuid=%s", config.uuid.String()),
 		fmt.Sprintf("--monmap=%s", monMapTmpPath),
-		fmt.Sprintf("--keyring=%s", getOSDKeyringPath(config.rootPath)),
 	}
 
 	if isFilestore(config) {
-		options = append(options, fmt.Sprintf("--osd-journal=%s", getOSDJournalPath(config.rootPath)))
+		options = append(options, fmt.Sprintf("--osd-journal=%s", config.journalPath()))
 	}
 
 	// create the file system
 	logName := fmt.Sprintf("mkfs-osd%d", config.id)
 	if err = context.Executor.ExecuteCommand(false, logName, "ceph-osd", options...); err != nil {
-		return fmt.Errorf("failed osd mkfs for OSD ID %d, UUID %s, dataDir %s: %+v",
-			config.id, config.uuid.String(), config.rootPath, err)
+		return fmt.Errorf("failed osd mkfs for OSD ID %d, UUID %s, dataDir %s. %+v",
+			config.id, config.uuid.String(), config.runDir, err)
 	}
 
 	// now that the OSD filesystem has been created, back it up so it can be restored/repaired
 	// later on if needed.
 	if err := backupOSDFileSystem(config, clusterName); err != nil {
-		return fmt.Errorf("failed to backup OSD filesystem: %+v", err)
+		return fmt.Errorf("failed to backup OSD filesystem. %+v", err)
 	}
 
 	// update the scheme to indicate the OSD's filesystem has been created and backed up.
@@ -110,7 +107,7 @@ func markOSDFileSystemCreated(cfg *osdConfig) error {
 
 	savedScheme, err := osdconfig.LoadScheme(cfg.kv, cfg.storeName)
 	if err != nil {
-		return fmt.Errorf("failed to load the saved partition scheme: %+v", err)
+		return fmt.Errorf("failed to load the saved partition scheme. %+v", err)
 	}
 
 	// mark the OSD's filesystem as created and backed up.
@@ -120,7 +117,7 @@ func markOSDFileSystemCreated(cfg *osdConfig) error {
 	}
 
 	if err := savedScheme.SaveScheme(cfg.kv, cfg.storeName); err != nil {
-		return fmt.Errorf("failed to save partition scheme: %+v", err)
+		return fmt.Errorf("failed to save partition scheme. %+v", err)
 	}
 
 	return nil
@@ -131,7 +128,7 @@ func backupOSDFileSystem(config *osdConfig, clusterName string) error {
 		return nil
 	}
 
-	logger.Infof("Backing up OSD %d file system from %s", config.id, config.rootPath)
+	logger.Infof("Backing up OSD %d file system from %s", config.id, config.runDir)
 
 	storeName := fmt.Sprintf(osdconfig.OSDFSStoreNameFmt, config.id)
 
@@ -140,17 +137,15 @@ func backupOSDFileSystem(config *osdConfig, clusterName string) error {
 		return err
 	}
 
-	fis, err := ioutil.ReadDir(config.rootPath)
+	fis, err := ioutil.ReadDir(config.runDir)
 	if err != nil {
 		return err
 	}
 
 	filter := util.CreateSet([]string{
-		// filter out the rook.config file since it's always regenerated
-		filepath.Base(cephconfig.GetConfFilePath(config.rootPath, clusterName)),
 		// filter out the keyring since we recreate it with "auth get-or-create" and we don't want
 		// to store a secret in a non secret resource
-		keyringFileName,
+		cephconfig.DefaultKeyringFile,
 	})
 
 	for _, fi := range fis {
@@ -171,19 +166,19 @@ func backupOSDFileSystem(config *osdConfig, clusterName string) error {
 			continue
 		}
 
-		content, err := ioutil.ReadFile(filepath.Join(config.rootPath, fi.Name()))
+		content, err := ioutil.ReadFile(filepath.Join(config.runDir, fi.Name()))
 		if err != nil {
-			logger.Warningf("failed to read file %s: %+v", fi.Name(), err)
+			logger.Warningf("failed to read file %s. %+v", fi.Name(), err)
 			continue
 		}
 
 		if err := config.kv.SetValue(storeName, fi.Name(), string(content)); err != nil {
-			logger.Warningf("failed to backup file %s: %+v", fi.Name(), err)
+			logger.Warningf("failed to backup file %s. %+v", fi.Name(), err)
 			continue
 		}
 	}
 
-	logger.Infof("Completed backing up OSD %d file system from %s", config.id, config.rootPath)
+	logger.Infof("Completed backing up OSD %d file system from %s", config.id, config.runDir)
 
 	return nil
 }
@@ -195,7 +190,7 @@ func repairOSDFileSystem(config *osdConfig) error {
 		return nil
 	}
 
-	logger.Infof("Repairing OSD %d file system at %s", config.id, config.rootPath)
+	logger.Infof("Repairing OSD %d file system at %s", config.id, config.runDir)
 
 	storeName := fmt.Sprintf(osdconfig.OSDFSStoreNameFmt, config.id)
 	store, err := config.kv.GetStore(storeName)
@@ -204,9 +199,9 @@ func repairOSDFileSystem(config *osdConfig) error {
 	}
 
 	for fileName, content := range store {
-		filePath := filepath.Join(config.rootPath, fileName)
+		filePath := filepath.Join(config.runDir, fileName)
 		if err := ioutil.WriteFile(filePath, []byte(content), 0644); err != nil {
-			logger.Warningf("failed to restore file %s: %+v", filePath, err)
+			logger.Warningf("failed to restore file %s. %+v", filePath, err)
 			continue
 		}
 	}
@@ -227,13 +222,13 @@ func repairOSDFileSystem(config *osdConfig) error {
 		return err
 	}
 
-	logger.Infof("Completed repairing OSD %d file system at %s", config.id, config.rootPath)
+	logger.Infof("Completed repairing OSD %d file system at %s", config.id, config.runDir)
 
 	return nil
 }
 
 func createBluestoreSymlink(config *osdConfig, targetPath, symlinkName string) error {
-	symlinkPath := filepath.Join(config.rootPath, symlinkName)
+	symlinkPath := filepath.Join(config.runDir, symlinkName)
 	if err := os.Symlink(targetPath, symlinkPath); err != nil {
 		return fmt.Errorf("failed to create symlink from %s to %s", symlinkPath, targetPath)
 	}

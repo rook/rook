@@ -14,7 +14,9 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package osd for the Ceph OSDs.
+// Package osd provides methods for provisioning osds on hosts and starting osd daemons, for
+// monitoring osd statuses, for taking corrective actions if the status is non-ideal, and for
+// reporting osd failures.
 package osd
 
 import (
@@ -99,7 +101,8 @@ func New(
 	}
 }
 
-type OSDInfo struct {
+// Info contains configuration and information about a single osd.
+type Info struct {
 	ID                  int    `json:"id"`
 	DataPath            string `json:"data-path"`
 	Config              string `json:"conf"`
@@ -113,10 +116,11 @@ type OSDInfo struct {
 	CephVolumeInitiated bool   `json:"ceph-volume-initiated"`
 }
 
+// OrchestrationStatus is a collection of information about the status of osd orchestration.
 type OrchestrationStatus struct {
-	OSDs    []OSDInfo `json:"osds"`
-	Status  string    `json:"status"`
-	Message string    `json:"message"`
+	OSDs    []Info `json:"osds"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
 }
 
 // Start the osd management
@@ -129,11 +133,11 @@ func (c *Cluster) Start() error {
 
 	// disable scrubbing during orchestration and ensure it gets enabled again afterwards
 	if o, err := client.DisableScrubbing(c.context, c.Namespace); err != nil {
-		logger.Warningf("failed to disable scrubbing: %+v. %s", err, o)
+		logger.Warningf("failed to disable scrubbing. %+v: %s", err, o)
 	}
 	defer func() {
 		if o, err := client.EnableScrubbing(c.context, c.Namespace); err != nil {
-			logger.Warningf("failed to enable scrubbing: %+v. %s", err, o)
+			logger.Warningf("failed to enable scrubbing. %+v: %s", err, o)
 		}
 	}()
 
@@ -143,12 +147,12 @@ func (c *Cluster) Start() error {
 		rookSystemNS := os.Getenv(k8sutil.PodNamespaceEnvVar)
 		allNodeDevices, err := discover.ListDevices(c.context, rookSystemNS, "" /* all nodes */)
 		if err != nil {
-			logger.Warningf("failed to get storage nodes from namespace %s: %v", rookSystemNS, err)
+			logger.Warningf("failed to get storage nodes from namespace %s. %+v", rookSystemNS, err)
 			return err
 		}
 		hostnameMap, err := k8sutil.GetNodeHostNames(c.context.Clientset)
 		if err != nil {
-			logger.Warningf("failed to get node hostnames: %v", err)
+			logger.Warningf("failed to get node hostnames. %+v", err)
 			return err
 		}
 		for nodeName := range allNodeDevices {
@@ -163,7 +167,7 @@ func (c *Cluster) Start() error {
 			}
 			c.Storage.Nodes = append(c.Storage.Nodes, storageNode)
 		}
-		logger.Debugf("storage nodes: %+v", c.Storage.Nodes)
+		logger.Debugf("storage nodes. %+v", c.Storage.Nodes)
 	}
 	validNodes := k8sutil.GetValidNodes(c.Storage.Nodes, c.context.Clientset, c.placement)
 	// no valid node is ready to run an osd
@@ -193,7 +197,7 @@ func (c *Cluster) Start() error {
 	c.handleRemovedNodes(config)
 
 	if len(config.errorMessages) > 0 {
-		return fmt.Errorf("%d failures encountered while running osds in namespace %s: %+v",
+		return fmt.Errorf("%d failures encountered while running osds in namespace %s. %+v",
 			len(config.errorMessages), c.Namespace, strings.Join(config.errorMessages, "\n"))
 	}
 
@@ -221,16 +225,16 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 		// update the orchestration status of this node to the starting state
 		status := OrchestrationStatus{Status: OrchestrationStatusStarting}
 		if err := c.updateNodeStatus(n.Name, status); err != nil {
-			config.addError("failed to set orchestration starting status for node %s: %+v", n.Name, err)
+			config.addError("failed to set orchestration starting status for node %s. %+v", n.Name, err)
 			continue
 		}
 		config.devicesToUse[n.Name] = n.Devices
 		availDev, deviceErr := discover.GetAvailableDevices(c.context, n.Name, c.Namespace, n.Devices, n.Selection.DeviceFilter, n.Selection.GetUseAllDevices())
 		if deviceErr != nil {
-			logger.Warningf("failed to get devices for node %s cluster %s: %v", n.Name, c.Namespace, deviceErr)
+			logger.Warningf("failed to get devices for node %s cluster %s. %+v", n.Name, c.Namespace, deviceErr)
 		} else {
 			config.devicesToUse[n.Name] = availDev
-			logger.Infof("avail devices for node %s: %+v", n.Name, availDev)
+			logger.Infof("avail devices for node %s. %+v", n.Name, availDev)
 		}
 		if len(availDev) == 0 && len(c.dataDirHostPath) == 0 {
 			config.addError("empty volumes for node %s", n.Name)
@@ -242,7 +246,7 @@ func (c *Cluster) startProvisioning(config *provisionConfig) {
 		metadataDevice := osdconfig.MetadataDevice(n.Config)
 		job, err := c.makeJob(n.Name, config.devicesToUse[n.Name], n.Selection, n.Resources, storeConfig, metadataDevice, n.Location)
 		if err != nil {
-			message := fmt.Sprintf("failed to create prepare job node %s: %v", n.Name, err)
+			message := fmt.Sprintf("failed to create prepare job node %s. %+v", n.Name, err)
 			config.addError(message)
 			status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
 			if err := c.updateNodeStatus(n.Name, status); err != nil {
@@ -292,10 +296,10 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 
 	// start osds
 	for _, osd := range osds {
-		logger.Debugf("start osd %v", osd)
+		logger.Debugf("start osd %+v", osd)
 		dp, err := c.makeDeployment(n.Name, config.devicesToUse[n.Name], n.Selection, n.Resources, storeConfig, metadataDevice, n.Location, osd)
 		if err != nil {
-			errMsg := fmt.Sprintf("nil deployment for node %s: %v", n.Name, err)
+			errMsg := fmt.Sprintf("nil deployment for node %s. %+v", n.Name, err)
 			config.addError(errMsg)
 			err = discover.FreeDevices(c.context, n.Name, c.Namespace)
 			if err != nil {
@@ -312,7 +316,7 @@ func (c *Cluster) startOSDDaemonsOnNode(nodeName string, config *provisionConfig
 		if err != nil {
 			if !errors.IsAlreadyExists(err) {
 				// we failed to create job, update the orchestration status for this node
-				logger.Warningf("failed to create osd deployment for node %s, osd %v: %+v", n.Name, osd, err)
+				logger.Warningf("failed to create osd deployment for node %s, osd %v. %+v", n.Name, osd, err)
 				err = discover.FreeDevices(c.context, n.Name, c.Namespace)
 				if err != nil {
 					logger.Warningf("failed to free devices: %s", err)
@@ -338,14 +342,14 @@ func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
 	// find all removed nodes (if any) and start orchestration to remove them from the cluster
 	removedNodes, err := c.findRemovedNodes()
 	if err != nil {
-		config.addError("failed to find removed nodes: %+v", err)
+		config.addError("failed to find removed nodes. %+v", err)
 	}
 	logger.Infof("processing %d removed nodes", len(removedNodes))
 
 	for removedNode, osdDeployments := range removedNodes {
 		logger.Infof("processing removed node %s", removedNode)
 		if err := c.isSafeToRemoveNode(removedNode, osdDeployments); err != nil {
-			logger.Warningf("skipping the removal of node %s because it is not safe to do so: %+v", removedNode, err)
+			logger.Warningf("skipping the removal of node %s because it is not safe to do so. %+v", removedNode, err)
 			continue
 		}
 
@@ -366,7 +370,7 @@ func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
 			if nodeCrushName == "" {
 				nodeCrushName, err = client.GetCrushHostName(c.context, c.Namespace, id)
 				if err != nil {
-					config.addError("failed to get crush host name for osd.%d: %+v", id, err)
+					config.addError("failed to get crush host name for osd.%d. %+v", id, err)
 				}
 			}
 
@@ -378,7 +382,7 @@ func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
 		}
 
 		if err := c.updateNodeStatus(removedNode, OrchestrationStatus{Status: OrchestrationStatusCompleted}); err != nil {
-			config.addError("failed to set orchestration starting status for removed node %s: %+v", removedNode, err)
+			config.addError("failed to set orchestration starting status for removed node %s. %+v", removedNode, err)
 		}
 
 		if errorOnCurrentNode {
@@ -394,7 +398,7 @@ func (c *Cluster) handleRemovedNodes(config *provisionConfig) {
 func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushName string) {
 	// update the orchestration status of this removed node to the starting state
 	if err := c.updateNodeStatus(nodeName, OrchestrationStatus{Status: OrchestrationStatusStarting}); err != nil {
-		config.addError("failed to set orchestration starting status for removed node %s: %+v", nodeName, err)
+		config.addError("failed to set orchestration starting status for removed node %s. %+v", nodeName, err)
 		return
 	}
 
@@ -403,7 +407,7 @@ func (c *Cluster) cleanupRemovedNode(config *provisionConfig, nodeName, crushNam
 	job, err := c.makeJob(nodeName, []rookalpha.Device{}, rookalpha.Selection{DeviceFilter: "none"},
 		v1.ResourceRequirements{}, osdconfig.StoreConfig{}, "", "")
 	if err != nil {
-		message := fmt.Sprintf("failed to create prepare job node %s: %v", nodeName, err)
+		message := fmt.Sprintf("failed to create prepare job node %s. %+v", nodeName, err)
 		config.addError(message)
 		status := OrchestrationStatus{Status: OrchestrationStatusCompleted, Message: message}
 		if err := c.updateNodeStatus(nodeName, status); err != nil {
@@ -437,7 +441,7 @@ func (c *Cluster) discoverStorageNodes() (map[string][]*extensions.Deployment, e
 	listOpts := metav1.ListOptions{LabelSelector: fmt.Sprintf("app=%s", appName)}
 	osdDeployments, err := c.context.Clientset.Extensions().Deployments(c.Namespace).List(listOpts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to list osd deployment: %+v", err)
+		return nil, fmt.Errorf("failed to list osd deployment. %+v", err)
 	}
 	discoveredNodes := map[string][]*extensions.Deployment{}
 	for _, osdDeployment := range osdDeployments.Items {
@@ -446,7 +450,7 @@ func (c *Cluster) discoverStorageNodes() (map[string][]*extensions.Deployment, e
 		// get the node name from the node selector
 		nodeName, ok := osdPodSpec.NodeSelector[apis.LabelHostname]
 		if !ok || nodeName == "" {
-			return nil, fmt.Errorf("osd deployment %s doesn't have a node name on its node selector: %+v", osdDeployment.Name, osdPodSpec.NodeSelector)
+			return nil, fmt.Errorf("osd deployment %s doesn't have a node name on its node selector. %+v", osdDeployment.Name, osdPodSpec.NodeSelector)
 		}
 
 		if _, ok := discoveredNodes[nodeName]; !ok {
@@ -485,7 +489,7 @@ func (c *Cluster) isSafeToRemoveNode(nodeName string, osdDeployments []*extensio
 		if osdUsage != nil {
 			osdKB, err := osdUsage.UsedKB.Int64()
 			if err != nil {
-				logger.Warningf("osd.%d has invalid usage %+v: %+v", id, osdUsage.UsedKB, err)
+				logger.Warningf("osd.%d has invalid usage %+v. %+v", id, osdUsage.UsedKB, err)
 				continue
 			}
 

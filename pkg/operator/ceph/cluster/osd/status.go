@@ -14,7 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package osd for the Ceph OSDs.
 package osd
 
 import (
@@ -199,16 +198,16 @@ func (c *Cluster) completeOSDsForAllNodes(config *provisionConfig, configOSDs bo
 					w.Stop()
 					<-time.After(5 * time.Second)
 					leftNodes := 0
-					leftRemaingNodes := util.NewSet()
-					leftNodes, leftRemaingNodes, completed, statuses, err = c.checkNodesCompleted(selector, config, configOSDs)
+					leftRemainingNodes := util.NewSet()
+					leftNodes, leftRemainingNodes, completed, statuses, err = c.checkNodesCompleted(selector, config, configOSDs)
 					if err == nil {
 						if completed {
 							logger.Infof("additional %d/%d node(s) completed osd provisioning", leftNodes, originalNodes)
 							return true
 						}
-						remainingNodes = leftRemaingNodes
+						remainingNodes = leftRemainingNodes
 					} else {
-						logger.Warningf("failed to list orchestration configmap, status: %v", err)
+						logger.Warningf("failed to list orchestration configmap, status. %+v", err)
 					}
 					break ResultLoop
 				}
@@ -280,7 +279,7 @@ func (c *Cluster) findRemovedNodes() (map[string][]*extensions.Deployment, error
 	// first discover the storage nodes that are still running
 	discoveredNodes, err := c.discoverStorageNodes()
 	if err != nil {
-		return nil, fmt.Errorf("failed to discover storage nodes: %+v", err)
+		return nil, fmt.Errorf("failed to discover storage nodes. %+v", err)
 	}
 
 	for existingNode, osdDeployments := range discoveredNodes {

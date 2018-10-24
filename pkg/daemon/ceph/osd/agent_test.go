@@ -19,6 +19,7 @@ package osd
 import (
 	"fmt"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"path"
@@ -39,6 +40,28 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
+
+func createTempConfigDirs() (deferredCleanupFunc func()) {
+	// Create a temp dir for the methods that store ceph.conf in /etc/ceph
+	etcCeph, err := ioutil.TempDir("", "")
+	if err != nil {
+		log.Fatalf("failed to create temp /etc/ceph dir. %+v", err)
+	}
+	cephconfig.EtcCephDir = etcCeph
+
+	// Create a temp dir for the methods that store keyring in /var/lib/ceph
+	varLibCeph, err := ioutil.TempDir("", "")
+	if err != nil {
+		log.Fatalf("failed to create temp /var/lib/ceph dir. %+v", err)
+	}
+	cephconfig.VarLibCephDir = varLibCeph
+
+	deferredCleanupFunc = func() {
+		os.RemoveAll(etcCeph)
+		os.RemoveAll(varLibCeph)
+	}
+	return
+}
 
 func TestStoreTypeDefaults(t *testing.T) {
 	// A filestore dir
@@ -95,10 +118,13 @@ func TestOSDAgenCephVolumeFilestore(t *testing.T) {
 }
 
 func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig, legacyProvisioner bool) {
+	// Create temporary /etc/ceph and /var/lib/ceph dirs, and clean up after
+	cleanup := createTempConfigDirs()
+	defer cleanup()
 	// set up a temporary config directory that will be cleaned up after test
 	configDir, err := ioutil.TempDir("", "")
 	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
+		t.Fatalf("failed to create temp config dir. %+v", err)
 	}
 	defer os.RemoveAll(configDir)
 	cephConfigDir = configDir
@@ -273,6 +299,9 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig,
 }
 
 func TestOSDAgentNoDevices(t *testing.T) {
+	// Create temporary /etc/ceph and /var/lib/ceph dirs, and clean up after
+	cleanup := createTempConfigDirs()
+	defer cleanup()
 	// set up a temporary config directory that will be cleaned up after test
 	configDir, err := ioutil.TempDir("", "TestOSDAgentNoDevices")
 	require.NoError(t, err)
@@ -367,7 +396,7 @@ func TestRemoveDevices(t *testing.T) {
 	assert.Nil(t, err)
 }
 
-func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeConfig *config.StoreConfig) (*OsdAgent, *exectest.MockExecutor, *clusterd.Context) {
+func createTestAgent(t *testing.T, devices, configDir, nodeName string, storeConfig *config.StoreConfig) (*Agent, *exectest.MockExecutor, *clusterd.Context) {
 	location := "root=here"
 	forceFormat := false
 	if storeConfig == nil {
@@ -421,7 +450,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 	test.CreateConfigDir(configDir)
 
 	// 3 disks: 2 for data and 1 for the metadata of both disks (2 WALs and 2 DBs)
-	a := &OsdAgent{devices: []DesiredDevice{{Name: "sda"}, {Name: "sdb"}}, metadataDevice: "sdc", kv: mockKVStore(), nodeName: "a"}
+	a := &Agent{devices: []DesiredDevice{{Name: "sda"}, {Name: "sdb"}}, metadataDevice: "sdc", kv: mockKVStore(), nodeName: "a"}
 	context.Devices = []*sys.LocalDisk{
 		{Name: "sda", Size: 107374182400}, // 100 GB
 		{Name: "sdb", Size: 107374182400}, // 100 GB
@@ -504,7 +533,7 @@ func TestGetPartitionPerfScheme(t *testing.T) {
 func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 	configDir, err := ioutil.TempDir("", "TestGetPartitionPerfSchemeDiskInUse")
 	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
+		t.Fatalf("failed to create temp config dir. %+v", err)
 	}
 	defer os.RemoveAll(configDir)
 
@@ -533,7 +562,7 @@ func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 		Executor:  executor,
 	}
 
-	a := &OsdAgent{devices: []DesiredDevice{{Name: "sda"}}, kv: mockKVStore()}
+	a := &Agent{devices: []DesiredDevice{{Name: "sda"}}, kv: mockKVStore()}
 	_, _, sdaUUID := mockPartitionSchemeEntry(t, 1, "sda", nil, a.kv, a.nodeName)
 
 	context.Devices = []*sys.LocalDisk{
@@ -563,7 +592,7 @@ func TestGetPartitionSchemeDiskInUse(t *testing.T) {
 func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 	configDir, err := ioutil.TempDir("", "TestGetPartitionPerfSchemeDiskNameChanged")
 	if err != nil {
-		t.Fatalf("failed to create temp config dir: %+v", err)
+		t.Fatalf("failed to create temp config dir. %+v", err)
 	}
 	defer os.RemoveAll(configDir)
 
@@ -598,7 +627,7 @@ func TestGetPartitionSchemeDiskNameChanged(t *testing.T) {
 	}
 
 	// mock the currently discovered hardware, note the device names have changed (e.g., across reboots) but their UUIDs are always static
-	a := &OsdAgent{devices: []DesiredDevice{{Name: "sda-changed"}}, kv: mockKVStore()}
+	a := &Agent{devices: []DesiredDevice{{Name: "sda-changed"}}, kv: mockKVStore()}
 
 	// setup an existing partition scheme with metadata on nvme01 and data on sda
 	_, metadataUUID, sdaUUID := mockDistributedPartitionScheme(t, 1, "nvme01", "sda", a.kv, a.nodeName)
@@ -642,8 +671,8 @@ func TestPrepareOSDRoot(t *testing.T) {
 	defer os.RemoveAll(configDir)
 	os.MkdirAll(configDir, 0755)
 
-	cfg := &osdConfig{id: 516, configRoot: configDir}
-	cfg.rootPath = getOSDRootDir(cfg.configRoot, cfg.id)
+	cfg := &osdConfig{id: 516, configDir: configDir}
+	cfg.runDir = path.Join(configDir, "osd516")
 
 	// clean slate, definitely a new OSD
 	newOSD, err := prepareOSDRoot(cfg)
@@ -652,21 +681,21 @@ func TestPrepareOSDRoot(t *testing.T) {
 
 	// simulate the failure of a previous osd mkfs that left the osd dir in an intermediate state
 	// this should also be considered a new OSD and the previous (stale) state should have been cleaned
-	ioutil.WriteFile(filepath.Join(cfg.rootPath, "whoami"), []byte("516"), 0644)
+	ioutil.WriteFile(filepath.Join(cfg.runDir, "whoami"), []byte("516"), 0644)
 	newOSD, err = prepareOSDRoot(cfg)
 	assert.Nil(t, err)
 	assert.True(t, newOSD)
-	fis, err := ioutil.ReadDir(cfg.rootPath)
+	fis, err := ioutil.ReadDir(cfg.runDir)
 	assert.Nil(t, err)
 	assert.Equal(t, 0, len(fis)) // osd dir should have been cleaned
 
 	// simulate a completed osd mkfs, where the osd is ready.  this should not be considered a new
 	// osd and the osd dir should be left intact
-	ioutil.WriteFile(filepath.Join(cfg.rootPath, "ready"), []byte("ready"), 0644)
+	ioutil.WriteFile(filepath.Join(cfg.runDir, "ready"), []byte("ready"), 0644)
 	newOSD, err = prepareOSDRoot(cfg)
 	assert.Nil(t, err)
 	assert.False(t, newOSD)
-	fis, err = ioutil.ReadDir(cfg.rootPath)
+	fis, err = ioutil.ReadDir(cfg.runDir)
 	assert.Nil(t, err)
 	assert.Equal(t, 1, len(fis)) // osd dir should NOT have been cleaned
 }
