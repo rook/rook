@@ -27,10 +27,9 @@ func TestCephArgs(t *testing.T) {
 	args := []string{}
 	command, args := FinalizeCephCommandArgs(CephTool, args, "/etc", "a")
 	assert.Equal(t, CephTool, command)
-	assert.Equal(t, 3, len(args))
-	assert.Equal(t, "--cluster=a", args[0])
-	assert.Equal(t, "--conf=/etc/a/a.config", args[1])
-	assert.Equal(t, "--keyring=/etc/a/client.admin.keyring", args[2])
+	assert.Equal(t, 2, len(args))
+	assert.Equal(t, "--conf=/etc/a/ceph.conf", args[0])
+	assert.Equal(t, "--keyring=/etc/a/client.admin.keyring", args[1])
 
 	RunAllCephCommandsInToolbox = true
 	args = []string{}
@@ -50,15 +49,14 @@ func TestCephArgs(t *testing.T) {
 	args = []string{"myarg"}
 	command, args = FinalizeCephCommandArgs(RBDTool, args, "/var/lib/rook", "rook")
 	assert.Equal(t, RBDTool, command)
-	assert.Equal(t, 4, len(args))
+	assert.Equal(t, 3, len(args))
 	assert.Equal(t, "myarg", args[0])
-	assert.Equal(t, "--cluster=rook", args[1])
-	assert.Equal(t, "--conf=/var/lib/rook/rook/rook.config", args[2])
-	assert.Equal(t, "--keyring=/var/lib/rook/rook/client.admin.keyring", args[3])
+	assert.Equal(t, "--conf=/var/lib/rook/rook/ceph.conf", args[1])
+	assert.Equal(t, "--keyring=/var/lib/rook/rook/client.admin.keyring", args[2])
 
 	// the default ceph cluster will not need the config args
 	args = []string{"myarg"}
-	command, args = FinalizeCephCommandArgs(CephTool, args, "/etc", "ceph")
+	command, args = FinalizeCephCommandArgs(CephTool, args, "/var/lib/ceph", "ceph")
 	assert.Equal(t, CephTool, command)
 	assert.Equal(t, 1, len(args))
 	assert.Equal(t, "myarg", args[0])

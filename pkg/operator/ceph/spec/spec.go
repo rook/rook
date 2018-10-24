@@ -48,7 +48,7 @@ func PodVolumes(dataDirHostPath string) []v1.Volume {
 // CephVolumeMounts returns the common list of Kubernetes volume mounts for Ceph containers.
 func CephVolumeMounts() []v1.VolumeMount {
 	return []v1.VolumeMount{
-		{Name: k8sutil.DataDirVolume, MountPath: k8sutil.DataDir},
+		{Name: k8sutil.DataDirVolume, MountPath: cephconfig.VarLibCephDir},
 		cephconfig.DefaultConfigMount(),
 		// Rook doesn't run in ceph containers, so it doesn't need the config override mounted
 	}

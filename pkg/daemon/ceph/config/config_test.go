@@ -103,12 +103,14 @@ debug bluestore = 1234`
 	}
 
 	// generate the config file to disk now
-	configFilePath, err := GenerateConfigFile(context, clusterInfo, configDir, "myuser", filepath.Join(configDir, "mykeyring"), nil, nil)
+	configPath := filepath.Join(configDir, "ceph.conf")
+	keyringPath := filepath.Join(configDir, "mykeyring")
+	runDir := configDir
+	err = GenerateConfigFile(context, clusterInfo, configPath, "myuser", keyringPath, runDir, nil, nil)
 	assert.Nil(t, err)
-	assert.Equal(t, filepath.Join(configDir, "foo-cluster.config"), configFilePath)
 
 	// verify some of the contents of written config file by loading it from disk
-	actualConf, err := ini.Load(configFilePath)
+	actualConf, err := ini.Load(configPath)
 	assert.Nil(t, err)
 	verifyConfigValue(t, actualConf, "global", "fsid", clusterInfo.FSID)
 

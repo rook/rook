@@ -21,9 +21,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-
-	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
 const (
@@ -54,37 +51,41 @@ func WriteKeyring(keyringPath, authKey string, generateContents func(string) str
 	return writeKeyring(contents, keyringPath)
 }
 
-// CreateKeyring creates a keyring for access to the cluster with the desired set of privileges
-// and writes it to disk at the keyring path
-func CreateKeyring(context *clusterd.Context, clusterName, username, keyringPath string, access []string, generateContents func(string) string) error {
-	_, err := os.Stat(keyringPath)
-	if err == nil {
-		// no error, the file exists, bail out with no error
-		logger.Debugf("keyring already exists at %s", keyringPath)
-		return nil
-	} else if !os.IsNotExist(err) {
-		// some other error besides "does not exist", bail out with error
-		return fmt.Errorf("failed to stat %s: %+v", keyringPath, err)
-	}
-
-	// get-or-create-key for the user account
-	key, err := client.AuthGetOrCreateKey(context, clusterName, username, access)
-	if err != nil {
-		return fmt.Errorf("failed to get or create auth key for %s. %+v", username, err)
-	}
-
-	return WriteKeyring(keyringPath, key, generateContents)
-}
-
 // writes the keyring to disk
-// TODO: Write keyring only to the default ceph config location since we are in a container
+//
+// For all daemons except mon, the keyring file should be written to both the daemon's data dir
+// (e.g., /var/lib/ceph/mgr-a) as well as the default location. The mon keyring has the admin key on
+// it, so persisting it to disk is less secure. When specifying "keyring" in the Ceph config file or
+// "--keyring" on the CLI for the Ceph daemon, daemons still insist on looking for their keyring in
+// their data dir. Therefore, the keyring code cannot be simplified for daemons by writing the
+// keyring only to /etc/ceph. :sad-face:
 func writeKeyring(keyring, keyringPath string) error {
+	logger.Infof("writing keyring to %s", keyringPath)
 	// save the keyring to the given path
 	if err := os.MkdirAll(filepath.Dir(keyringPath), 0744); err != nil {
-		return fmt.Errorf("failed to create keyring directory for %s: %+v", keyringPath, err)
+		return fmt.Errorf("failed to create keyring directory for %s. %+v", keyringPath, err)
 	}
 	if err := ioutil.WriteFile(keyringPath, []byte(keyring), 0644); err != nil {
-		return fmt.Errorf("failed to write monitor keyring to %s: %+v", keyringPath, err)
+		return fmt.Errorf("failed to write monitor keyring to %s. %+v", keyringPath, err)
 	}
+
+	// Save the keyring to the default path. This allows the user to any pod to easily execute Ceph commands.
+	// It is recommended to connect to the operator pod rather than monitors and OSDs since the operator always has the latest configuration files.
+	// The mon and OSD pods will only re-create the config files when the pod is restarted. If a monitor fails over, the config
+	// in the other mon and osd pods may be out of date. This could cause your ceph commands to timeout connecting to invalid mons.
+	// Note that the running mon and osd daemons are not affected by this issue because of their live connection to the mon quorum.
+	// If you have multiple Rook clusters, it is preferred to connect to the Rook toolbox for a specific cluster. Otherwise, your ceph commands
+	// may connect to the wrong cluster.
+	if err := os.MkdirAll(EtcCephDir, 0744); err != nil {
+		logger.Warningf("failed to create default directory %s. %+v", EtcCephDir, err)
+		return nil
+	}
+	defaultPath := DefaultKeyringFilePath()
+	logger.Infof("copying keyring to default location %s", defaultPath)
+	if err := ioutil.WriteFile(defaultPath, []byte(keyring), 0644); err != nil {
+		logger.Warningf("failed to copy keyring to %s. %+v", defaultPath, err)
+		return nil
+	}
+
 	return nil
 }

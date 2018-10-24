@@ -21,19 +21,29 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/go-ini/ini"
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/pkg/util"
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephconfig")
 
+// EtcCephDir is the default dir where Ceph stores its configs.
+// This variable can be overridden with a temp dir for unit tests.
+var EtcCephDir = "/etc/ceph"
+
+// VarLibCephDir is the config dir used by Ceph daemons.
+// This variable can be overridden with a temp dir for unit tests.
+var VarLibCephDir = "/var/lib/ceph"
+
 const (
-	// DefaultConfigDir is the default dir where Ceph stores its configs
-	DefaultConfigDir = "/etc/ceph"
+	// AdminUsername is the fully qualified user name for the user able to connect to Ceph as admin.
+	AdminUsername = "client.admin"
+
 	// DefaultConfigFile is the default name of the file where Ceph stores its configs
 	DefaultConfigFile = "ceph.conf"
 	// DefaultKeyringFile is the default name of the file where Ceph stores its keyring info
@@ -86,17 +96,73 @@ type CephConfig struct {
 
 // DefaultConfigFilePath returns the full path to Ceph's default config file
 func DefaultConfigFilePath() string {
-	return path.Join(DefaultConfigDir, DefaultConfigFile)
+	return path.Join(EtcCephDir, DefaultConfigFile)
 }
 
 // DefaultKeyringFilePath returns the full path to Ceph's default keyring file
 func DefaultKeyringFilePath() string {
-	return path.Join(DefaultConfigDir, DefaultKeyringFile)
+	return path.Join(EtcCephDir, DefaultKeyringFile)
 }
 
-// GetConfFilePath gets the path of a given cluster's config file
-func GetConfFilePath(root, clusterName string) string {
-	return fmt.Sprintf("%s/%s.config", root, clusterName)
+// NamespacedConfigDir returns the config dir that is namespaced to avoid collisions between data
+// from different clusters (namespaces).
+func NamespacedConfigDir(configDir, namespace string) string {
+	return filepath.Join(configDir, namespace)
+}
+
+// DaemonRunDir returns the run dir for a daemon. Daemon type is one of mon, mgr, mds, rgw, osd.
+// Daemon ID is often referenced by Rook as "name".
+func DaemonRunDir(configDir, daemonType, daemonID string) string {
+	var daemonDir string
+	switch daemonType {
+	case "mon":
+		// mons follow the scheme "mon-<id>". Leave this as-is to support upgrades without requiring
+		// extra upgrade logic.
+		// To support legacy mons, do not prepend "mon-" to the daemon ID if the ID already
+		// contains the string "mon". (e.g., legacy mon name = "rook-ceph-mon0")
+		if strings.Contains(daemonID, "mon") {
+			daemonDir = daemonID
+			break
+		}
+		fallthrough // Use the same scheme for mon, mgr, mds, and rgw
+	case "mgr", "mds", "rgw":
+		// These daemons are stateless. If this parameter changes, there will be no ill effect, but
+		// use same scheme as mons for consistency and for this scheme's readability.
+		daemonDir = fmt.Sprintf("%s-%s", daemonType, daemonID)
+	case "osd":
+		// osds do not follow the naming scheme of the mon, as it does not have a dash between "osd"
+		// and the ID. Leave this as-is to support upgrades without requiring extra upgrade logic.
+		daemonDir = fmt.Sprintf("%s%s", daemonType, daemonID)
+	default:
+		// Should never occur during normal runtime and should quickly expose errors in development
+		panic(fmt.Sprintf("unknown daemon type: %s", daemonType))
+	}
+	return path.Join(configDir, daemonDir)
+}
+
+// DaemonDataDir returns the data dir for a daemon. Daemon type is one of mon, mgr, mds, rgw, osd.
+// Daemon ID is often referenced by Rook as "name".
+func DaemonDataDir(configDir, daemonType, daemonID string) string {
+	switch daemonType {
+	case "mon":
+		// mon data dir is not the run dir as it is with most daemons, it is a data dir in the run
+		// dir. Leave this as-is to support upgrades without requiring extra upgrade logic.
+		return path.Join(DaemonRunDir(configDir, daemonType, daemonID), "data")
+	default: // mgr, mds, rgw, osd
+		return DaemonRunDir(configDir, daemonType, daemonID)
+	}
+}
+
+// DaemonKeyringFilePath returns the keyring file path for a daemon. Daemon type is one of mon, mgr,
+// mds, rgw, osd. Daemon ID is often referenced by Rook as "name".
+// This is a shortcut for saying that the keyring is in the daemon run dir.
+func DaemonKeyringFilePath(configDir, daemonType, daemonID string) string {
+	return filepath.Join(DaemonRunDir(configDir, daemonType, daemonID), DefaultKeyringFile)
+}
+
+// AdminKeyringFile returns the name of the admin keyring file.
+func AdminKeyringFile() string {
+	return fmt.Sprintf("%s.keyring", AdminUsername)
 }
 
 // GenerateAdminConnectionConfig calls GenerateAdminConnectionConfigWithSettings with no settings
@@ -109,40 +175,51 @@ func GenerateAdminConnectionConfig(context *clusterd.Context, cluster *ClusterIn
 // the daemon to connect as an admin. Default config file settings can be overridden by specifying
 // some subset of settings.
 func GenerateAdminConnectionConfigWithSettings(context *clusterd.Context, cluster *ClusterInfo, settings *CephConfig) error {
-	root := path.Join(context.ConfigDir, cluster.Name)
-	keyringPath := path.Join(root, fmt.Sprintf("%s.keyring", client.AdminUsername))
-	err := writeKeyring(AdminKeyring(cluster), keyringPath)
+	root := NamespacedConfigDir(context.ConfigDir, cluster.Name)
+	keyringFilePath := path.Join(root, AdminKeyringFile())
+	err := writeKeyring(AdminKeyring(cluster), keyringFilePath)
 	if err != nil {
-		return fmt.Errorf("failed to write keyring to %s. %+v", root, err)
+		return fmt.Errorf("failed to write keyring to %s: %+v", keyringFilePath, err)
 	}
 
-	if _, err = GenerateConfigFile(context, cluster, root, client.AdminUsername, keyringPath, settings, nil); err != nil {
-		return fmt.Errorf("failed to write config to %s. %+v", root, err)
+	configPath := path.Join(root, DefaultConfigFile)
+	err = GenerateConfigFile(context, cluster,
+		configPath, AdminUsername, keyringFilePath, root, settings, nil)
+	if err != nil {
+		return fmt.Errorf("failed to write config to %s: %+v", configPath, err)
 	}
-	logger.Infof("generated admin config in %s", root)
+	logger.Infof("generated admin config in %s", configPath)
 	return nil
 }
 
 // GenerateConfigFile generates and writes a config file to disk.
-func GenerateConfigFile(context *clusterd.Context,
+// Params:
+// - Config file path is the full path including file name for the config file to be written. Ceph
+// daemons should use the default Ceph config location (/etc/ceph/ceph.conf), whereas the operator
+// should use a location which will prevent collisions of multiple clusters
+// (e.g., /var/lib/rook/<cluster-namespace>/ceph.conf)
+func GenerateConfigFile(
+	context *clusterd.Context,
 	cluster *ClusterInfo,
-	pathRoot, user, keyringPath string,
+	configFilePath, user, keyringFilePath, runDir string,
 	globalConfig *CephConfig,
-	clientSettings map[string]string) (string, error) {
+	clientSettings map[string]string,
+) error {
 
 	// create the config directory
-	if err := os.MkdirAll(pathRoot, 0744); err != nil {
-		logger.Warningf("failed to create config directory at %s: %+v", pathRoot, err)
+	configDir := path.Dir(configFilePath)
+	if err := os.MkdirAll(configDir, 0744); err != nil {
+		logger.Warningf("failed to create config directory at %s: %+v", configDir, err)
 	}
 
-	configFile, err := createGlobalConfigFileSection(context, cluster, pathRoot, globalConfig)
+	configFile, err := createGlobalConfigFileSection(context, cluster, runDir, globalConfig)
 	if err != nil {
-		return "", fmt.Errorf("failed to create global config section, %+v", err)
+		return fmt.Errorf("failed to create global config section, %+v", err)
 	}
 
 	qualifiedUser := getQualifiedUser(user)
-	if err := addClientConfigFileSection(configFile, qualifiedUser, keyringPath, clientSettings); err != nil {
-		return "", fmt.Errorf("failed to add admin client config section, %+v", err)
+	if err := addClientConfigFileSection(configFile, qualifiedUser, keyringFilePath, clientSettings); err != nil {
+		return fmt.Errorf("failed to add admin client config section, %+v", err)
 	}
 
 	// if there's a config file override path given, process the given config file
@@ -155,20 +232,14 @@ func GenerateConfigFile(context *clusterd.Context,
 	}
 
 	// write the entire config to disk
-	filePath := GetConfFilePath(pathRoot, cluster.Name)
-	logger.Infof("writing config file %s", filePath)
-	if err := configFile.SaveTo(filePath); err != nil {
-		return "", fmt.Errorf("failed to save config file %s. %+v", filePath, err)
+	logger.Infof("writing config file %s", configFilePath)
+	if err := configFile.SaveTo(configFilePath); err != nil {
+		return fmt.Errorf("failed to save config file %s. %+v", configFilePath, err)
 	}
 
-	// copy the config to /etc/ceph/ceph.conf
-	defaultPath := DefaultConfigFilePath()
-	logger.Infof("copying config to %s", defaultPath)
-	if err := configFile.SaveTo(defaultPath); err != nil {
-		logger.Warningf("failed to save config file %s. %+v", defaultPath, err)
-	}
+	util.WriteFileToLog(logger, configFilePath)
 
-	return filePath, nil
+	return nil
 }
 
 // prepends "client." if a user namespace is not already specified
@@ -197,7 +268,8 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 
 	return &CephConfig{
 		GlobalConfig: &GlobalConfig{
-			FSID:                   cluster.FSID,
+			FSID: cluster.FSID,
+			// run dir is /var/lib/ceph for daemons; operator/agent do not reference this field
 			RunDir:                 runDir,
 			MonMembers:             strings.Join(monMembers, " "),
 			MonHost:                strings.Join(monHosts, ","),
@@ -233,7 +305,6 @@ func CreateDefaultCephConfig(context *clusterd.Context, cluster *ClusterInfo, ru
 
 // create a config file with global settings configured, and return an ini file
 func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterInfo, runDir string, userConfig *CephConfig) (*ini.File, error) {
-
 	var ceph *CephConfig
 
 	if userConfig != nil {
@@ -249,13 +320,13 @@ func createGlobalConfigFileSection(context *clusterd.Context, cluster *ClusterIn
 }
 
 // add client config to the ini file
-func addClientConfigFileSection(configFile *ini.File, clientName, keyringPath string, settings map[string]string) error {
+func addClientConfigFileSection(configFile *ini.File, clientName, keyringFilePath string, settings map[string]string) error {
 	s, err := configFile.NewSection(clientName)
 	if err != nil {
 		return err
 	}
 
-	if _, err := s.NewKey("keyring", keyringPath); err != nil {
+	if _, err := s.NewKey("keyring", keyringFilePath); err != nil {
 		return err
 	}
 
