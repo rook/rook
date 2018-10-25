@@ -42,6 +42,11 @@
 - Ceph mon, mgr, mds, and rgw container names in pods have changed with the refactors to initialize the
   daemon environments via pod **InitContainers** and run the Ceph daemons directly from the
   container entrypoint.
+- Ceph daemons store configs and runtime data in different locations inside the container; locations
+  outside the container do not change. Ceph's config file is saved only to `/etc/ceph`, which is
+  never persisted to disk. Runtime data is saved to `/var/lib/ceph` inside the container, and data
+  persisted to disk still maps to the same host paths.
+
 - The Rook container images are no longer published to quay.io, they are published only to Docker Hub.  All manifests have referenced Docker Hub for multiple releases now, so we do not expect any directly affected users from this change.
 - Rook no longer supports kubernetes `1.7`. Users running Kubernetes `1.7` on their clusters are recommended to upgrade to Kubernetes `1.8` or higher. If you are using `kubeadm`, you can follow this [guide](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade-1-8/) to from Kubernetes `1.7` to `1.8`. If you are using `kops` or `kubespray` for managing your Kubernetes cluster, just follow the respective projects' `upgrade` guide.
 - Minio no longer exposes a configurable port for each distributed server instance to use.

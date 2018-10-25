@@ -38,14 +38,14 @@ good_mon_id=rook-ceph-mon-b
 monmap_path=/tmp/monmap
 
 # make sure the quorum lock file does not exist
-rm -f /var/lib/rook/${good_mon_id}/data/store.db/LOCK
+rm -f /var/lib/ceph/${good_mon_id}/data/store.db/LOCK
 
 # extract the monmap to a file
 ceph-mon -i ${good_mon_id} --extract-monmap ${monmap_path} \
-  --cluster=${cluster_namespace} --mon-data=/var/lib/rook/${good_mon_id}/data \
-  --conf=/var/lib/rook/${good_mon_id}/${cluster_namespace}.config \
-  --keyring=/var/lib/rook/${good_mon_id}/keyring \
-  --monmap=/var/lib/rook/${good_mon_id}/monmap
+  --mon-data=/var/lib/ceph/${good_mon_id}/data \
+  --conf=/var/lib/ceph/${good_mon_id}/${cluster_namespace}.config \
+  --keyring=/var/lib/ceph/${good_mon_id}/keyring \
+  --monmap=/var/lib/ceph/${good_mon_id}/monmap
 
 # review the contents of the monmap
 monmaptool --print /tmp/monmap
@@ -59,9 +59,9 @@ monmaptool ${monmap_path} --rm rook-ceph-mon-c
 
 # inject the monmap into the good mon
 ceph-mon -i ${good_mon_id} --inject-monmap ${monmap_path} \
-  --cluster=${cluster_namespace} --mon-data=/var/lib/rook/${good_mon_id}/data \
-  --conf=/var/lib/rook/${good_mon_id}/${cluster_namespace}.config \
-  --keyring=/var/lib/rook/${good_mon_id}/keyring
+  --mon-data=/var/lib/ceph/${good_mon_id}/data \
+  --conf=/var/lib/ceph/${good_mon_id}/${cluster_namespace}.config \
+  --keyring=/var/lib/ceph/${good_mon_id}/keyring
 ```
 
 Exit the shell to continue.
