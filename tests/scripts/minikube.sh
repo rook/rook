@@ -114,7 +114,8 @@ function copy_images() {
 }
 
 # configure minikube
-KUBE_VERSION=${KUBE_VERSION:-"v1.11.0"}
+# ** K8s v1.12 requires at least minikube v0.30.0 **
+KUBE_VERSION=${KUBE_VERSION:-"v1.12.2"}
 MEMORY=${MEMORY:-"3000"}
 
 case "${1:-}" in
