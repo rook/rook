@@ -81,7 +81,7 @@ func (a *Agent) Run() error {
 		if i > 0 {
 			// Wait before the next driver is registered. In 1.11 and newer there is a timing issue if flex drivers are registered too quickly.
 			// See https://github.com/rook/rook/issues/1501 and https://github.com/kubernetes/kubernetes/issues/60694
-			time.Sleep(500 * time.Millisecond)
+			time.Sleep(time.Second)
 		}
 
 		err = flexvolumeServer.Start(vendor, driverName)
@@ -90,7 +90,7 @@ func (a *Agent) Run() error {
 		}
 
 		// Wait before the next driver is registered
-		time.Sleep(500 * time.Millisecond)
+		time.Sleep(time.Second)
 
 		// Register drivers both with the name of the namespace and the name "rook"
 		// for the volume plugins not based on the namespace.
@@ -107,6 +107,7 @@ func (a *Agent) Run() error {
 		volumeAttachmentController)
 	stopChan := make(chan struct{})
 	clusterController.StartWatch(v1.NamespaceAll, stopChan)
+	go periodicallyRefreshFlexDrivers(driverName, stopChan)
 
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM)
@@ -117,6 +118,30 @@ func (a *Agent) Run() error {
 			flexvolumeServer.StopAll()
 			close(stopChan)
 			return nil
+		}
+	}
+}
+
+// In 1.11 and newer there is a timing issue loading flex drivers.
+// See https://github.com/rook/rook/issues/1501 and https://github.com/kubernetes/kubernetes/issues/60694
+// With this loop we constantly make sure the flex drivers are all loaded.
+func periodicallyRefreshFlexDrivers(driverName string, stopCh chan struct{}) {
+	waitTime := 2 * time.Minute
+	for {
+		logger.Debugf("waiting %s before refreshing flex", waitTime.String())
+		select {
+		case <-time.After(waitTime):
+			flexvolume.TouchFlexDrivers(flexvolume.FlexvolumeVendor, driverName)
+
+			// increase the wait time after the first few times we refresh
+			// at most the delay will be 32 minutes between each refresh of the flex drivers
+			if waitTime < 32*time.Minute {
+				waitTime = waitTime * 2
+			}
+			break
+		case <-stopCh:
+			logger.Infof("stopping flex driver refresh goroutine")
+			return
 		}
 	}
 }
