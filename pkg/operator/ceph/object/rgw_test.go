@@ -37,7 +37,7 @@ func TestStartRGW(t *testing.T) {
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
 			return `{"key":"mysecurekey"}`, nil
 		},
-		MockExecuteCommandWithCombinedOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
+		MockExecuteCommandWithOutput: func(debug bool, actionName string, command string, args ...string) (string, error) {
 			return `{"id":"test-id"}`, nil
 		},
 	}
@@ -90,10 +90,12 @@ func validateStart(t *testing.T, store cephv1beta1.ObjectStore, clientset *fake.
 }
 
 func TestCreateObjectStore(t *testing.T) {
+	commandWithOutputFunc := func(debug bool, actionName, command string, args ...string) (string, error) {
+		return `{"realms": []}`, nil
+	}
 	executor := &exectest.MockExecutor{
-		MockExecuteCommandWithCombinedOutput: func(debug bool, actionName, command string, args ...string) (string, error) {
-			return `{"realms": []}`, nil
-		},
+		MockExecuteCommandWithCombinedOutput: commandWithOutputFunc,
+		MockExecuteCommandWithOutput:         commandWithOutputFunc,
 		MockExecuteCommandWithOutputFile: func(debug bool, actionName, command, outfile string, args ...string) (string, error) {
 			logger.Infof("Command: %s %v", command, args)
 			if command == "ceph" {
