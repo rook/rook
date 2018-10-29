@@ -26,6 +26,7 @@ import (
 	"path"
 	"regexp"
 	"strings"
+	"time"
 
 	"k8s.io/kubernetes/pkg/util/version"
 
@@ -142,6 +143,18 @@ func RookDriverName(context *clusterd.Context) (string, error) {
 	}
 	// fall back to the rook driver name where multiple system namespaces are not supported
 	return FlexDriverName, nil
+}
+
+// TouchFlexDrivers causes k8s to reload the flex volumes. Needed periodically due to a k8s race condition with flex driver loading.
+func TouchFlexDrivers(vendor, driverName string) {
+	filename := path.Join(fmt.Sprintf(flexMountPath, vendor, driverName), driverName)
+	logger.Debugf("reloading flex drivers. touching %s", filename)
+
+	currenttime := time.Now().Local()
+	err := os.Chtimes(filename, currenttime, currenttime)
+	if err != nil {
+		logger.Warningf("failed to touch file %s", filename)
+	}
 }
 
 func configureFlexVolume(driverFile, driverDir, driverName string) error {
