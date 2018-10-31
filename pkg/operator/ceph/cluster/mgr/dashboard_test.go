@@ -82,7 +82,7 @@ func TestStartSecureDashboard(t *testing.T) {
 	c := &Cluster{context: &clusterd.Context{Clientset: test.New(3), Executor: executor}, Namespace: "myns",
 		dashboard: cephv1beta1.DashboardSpec{Enabled: true}, cephVersion: cephv1beta1.CephVersionSpec{Name: cephv1beta1.Mimic, Image: "ceph/ceph:v13.2.2"}}
 	dashboardInitWaitTime = 0
-	err := c.configureDashboard()
+	err := c.configureDashboard(dashboardPortHttp)
 	assert.Nil(t, err)
 	// the dashboard is enabled, then disabled and enabled again to restart it with the cert
 	assert.Equal(t, 2, enables)
@@ -94,7 +94,7 @@ func TestStartSecureDashboard(t *testing.T) {
 
 	// disable the dashboard
 	c.dashboard.Enabled = false
-	err = c.configureDashboard()
+	err = c.configureDashboard(dashboardPortHttp)
 	assert.Nil(t, err)
 	assert.Equal(t, 2, enables)
 	assert.Equal(t, 2, disables)

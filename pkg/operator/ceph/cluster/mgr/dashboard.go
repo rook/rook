@@ -34,7 +34,8 @@ import (
 
 const (
 	dashboardModuleName            = "dashboard"
-	dashboardPort                  = 8443
+	dashboardPortHttps             = 8443
+	dashboardPortHttp              = 7000
 	dashboardUsername              = "admin"
 	dashboardPasswordName          = "rook-ceph-dashboard-password"
 	passwordLength                 = 10
@@ -50,13 +51,13 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 }
 
-func (c *Cluster) configureDashboard() error {
+func (c *Cluster) configureDashboard(port int) error {
 	// enable or disable the dashboard module
 	if err := c.configureDashboardModule(); err != nil {
 		return fmt.Errorf("failed to enable mgr dashboard module. %+v", err)
 	}
 
-	dashboardService := c.makeDashboardService(appName)
+	dashboardService := c.makeDashboardService(appName, port)
 	if c.dashboard.Enabled {
 		// expose the dashboard service
 		if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(dashboardService); err != nil {

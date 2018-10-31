@@ -33,7 +33,7 @@ const (
 	mgrDaemonCommand = "ceph-mgr"
 )
 
-func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *extensions.Deployment {
+func (c *Cluster) makeDeployment(mgrConfig *mgrConfig, port int) *extensions.Deployment {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mgrConfig.ResourceName,
@@ -47,7 +47,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *extensions.Deployment {
 				c.makeConfigInitContainer(mgrConfig),
 			},
 			Containers: []v1.Container{
-				c.makeMgrDaemonContainer(mgrConfig),
+				c.makeMgrDaemonContainer(mgrConfig, port),
 			},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes:       opspec.PodVolumes(""),
@@ -102,7 +102,7 @@ func (c *Cluster) makeConfigInitContainer(mgrConfig *mgrConfig) v1.Container {
 	}
 }
 
-func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
+func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig, port int) v1.Container {
 	container := v1.Container{
 		Name: "mgr",
 		Command: []string{
@@ -128,7 +128,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 			{
 				Name:          "dashboard",
-				ContainerPort: int32(dashboardPort),
+				ContainerPort: int32(port),
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
@@ -164,7 +164,7 @@ func (c *Cluster) makeMetricsService(name string) *v1.Service {
 	return svc
 }
 
-func (c *Cluster) makeDashboardService(name string) *v1.Service {
+func (c *Cluster) makeDashboardService(name string, port int) *v1.Service {
 	labels := opspec.AppLabels(appName, c.Namespace)
 	svc := &v1.Service{
 		ObjectMeta: metav1.ObjectMeta{
@@ -178,7 +178,7 @@ func (c *Cluster) makeDashboardService(name string) *v1.Service {
 			Ports: []v1.ServicePort{
 				{
 					Name:     "https-dashboard",
-					Port:     int32(dashboardPort),
+					Port:     int32(port),
 					Protocol: v1.ProtocolTCP,
 				},
 			},

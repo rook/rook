@@ -61,7 +61,7 @@ func TestPodSpec(t *testing.T) {
 		ResourceName: "mgr-a",
 	}
 
-	d := c.makeDeployment(&mgrTestConfig)
+	d := c.makeDeployment(&mgrTestConfig, dashboardPortHttp)
 
 	assert.NotNil(t, d)
 	assert.Equal(t, "mgr-a", d.Name)
@@ -126,7 +126,7 @@ func TestPodSpec(t *testing.T) {
 				Protocol: v1.ProtocolTCP},
 			{ContainerPort: int32(metricsPort),
 				Protocol: v1.ProtocolTCP},
-			{ContainerPort: int32(dashboardPort),
+			{ContainerPort: int32(dashboardPortHttp),
 				Protocol: v1.ProtocolTCP}},
 		IsPrivileged: nil, // not set in spec
 	}
@@ -172,7 +172,7 @@ func TestHostNetwork(t *testing.T) {
 		ResourceName: "mgr-a",
 	}
 
-	d := c.makeDeployment(&mgrTestConfig)
+	d := c.makeDeployment(&mgrTestConfig, dashboardPortHttp)
 	assert.NotNil(t, d)
 
 	assert.Equal(t, true, d.Spec.Template.Spec.HostNetwork)

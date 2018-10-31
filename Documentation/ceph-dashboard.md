@@ -14,7 +14,7 @@ and more. Rook makes it simple to enable the dashboard.
 
 ## Enable the Dashboard
 
-The [dashboard](http://docs.ceph.com/docs/luminous/mgr/dashboard/) can be enabled with settings in the cluster CRD. The cluster CRD must have the dashboard `enabled` setting set to `true`.
+The [dashboard](http://docs.ceph.com/docs/mimic/mgr/dashboard/) can be enabled with settings in the cluster CRD. The cluster CRD must have the dashboard `enabled` setting set to `true`.
 This is the default setting in the example manifests.
 ```yaml
   spec:
@@ -22,19 +22,23 @@ This is the default setting in the example manifests.
       enabled: true
 ```
 
-The Rook operator will enable the ceph-mgr dashboard module to listen on the default port 8443.
-A K8s service will also be created to expose that port inside the cluster.
+The Rook operator will enable the ceph-mgr dashboard module. A K8s service will be created to expose that port inside the cluster. The ports enabled by Rook will depend
+on the version of Ceph that is running:
+- Luminous: Port 7000 on http
+- Mimic and newer: Port 8443 on https
+
+This example shows that port 8443 was configured for Mimic or newer.
 ```bash
 kubectl -n rook-ceph get service
-NAME                               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
-rook-ceph-mgr                      ClusterIP   10.108.111.192   <none>        9283/TCP         3h
-rook-ceph-mgr-dashboard            ClusterIP   10.110.113.240   <none>        8443/TCP         3h
+NAME                         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+rook-ceph-mgr                ClusterIP   10.108.111.192   <none>        9283/TCP         3h
+rook-ceph-mgr-dashboard      ClusterIP   10.110.113.240   <none>        8443/TCP         3h
 ```
 
 The first service is for reporting the [Prometheus metrics](monitoring.md), while the latter service is for the dashboard.
 If you are on a node in the cluster, you will be able to connect to the dashboard by using either the
-DNS name of the service at `http://rook-ceph-mgr-dashboard:8443` or by connecting to the cluster IP,
-in this example at `http://10.110.113.240:8443`.
+DNS name of the service at `https://rook-ceph-mgr-dashboard-https:8443` or by connecting to the cluster IP,
+in this example at `https://10.110.113.240:8443`.
 
 ### Credentials
 
@@ -55,12 +59,14 @@ You can use an [Ingress Controller](https://kubernetes.io/docs/concepts/services
 NodePort, LoadBalancer, or ExternalIPs.
 
 The simplest way to expose the service in minikube or similar environment is using the NodePort to open a port on the
-VM that can be accessed by the host. To create a service with the NodePort, save this yaml as `dashboard-external.yaml`:
+VM that can be accessed by the host. To create a service with the NodePort, save this yaml as `dashboard-external-https.yaml`.
+(For Luminous you will need to set the `port` and `targetPort` to 7000 and connect via `http`.)
+
 ```yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: rook-ceph-mgr-dashboard-external
+  name: rook-ceph-mgr-dashboard-external-https
   namespace: rook-ceph
   labels:
     app: rook-ceph-mgr
@@ -86,12 +92,12 @@ $ kubectl create -f dashboard-external.yaml
 You will see the new service `rook-ceph-mgr-dashboard-external` created:
 ```bash
 $ kubectl -n rook-ceph get service
-NAME                               TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
-rook-ceph-mgr                      ClusterIP   10.108.111.192   <none>        9283/TCP         4h
-rook-ceph-mgr-dashboard            ClusterIP   10.110.113.240   <none>        8443/TCP         4h
-rook-ceph-mgr-dashboard-external   NodePort    10.101.209.6     <none>        8443:31176/TCP   4h
+NAME                                    TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+rook-ceph-mgr                           ClusterIP   10.108.111.192   <none>        9283/TCP         4h
+rook-ceph-mgr-dashboard                 ClusterIP   10.110.113.240   <none>        8443/TCP         4h
+rook-ceph-mgr-dashboard-external-https  NodePort    10.101.209.6     <none>        8443:31176/TCP   4h
 ```
 
 In this example, port `31176` will be opened to expose port `8443` from the ceph-mgr pod. Find the ip address
 of the VM. If using minikube, you can run `minikube ip` to find the ip address.
-Now you can enter the URL in your browser such as `http://192.168.99.110:31176` and the dashboard will appear.
+Now you can enter the URL in your browser such as `https://192.168.99.110:31176` and the dashboard will appear.

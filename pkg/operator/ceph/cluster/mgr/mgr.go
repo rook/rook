@@ -85,6 +85,11 @@ func New(context *clusterd.Context, namespace, rookVersion string, cephVersion c
 func (c *Cluster) Start() error {
 	logger.Infof("start running mgr")
 
+	dashboardPort := dashboardPortHttps
+	if c.cephVersion.Name == cephv1beta1.Luminous {
+		dashboardPort = dashboardPortHttp
+	}
+
 	for i := 0; i < c.Replicas; i++ {
 		if i >= len(mgrNames) {
 			logger.Errorf("cannot have more than %d mgrs", len(mgrNames))
@@ -103,7 +108,7 @@ func (c *Cluster) Start() error {
 		}
 
 		// start the deployment
-		deployment := c.makeDeployment(mgrConfig)
+		deployment := c.makeDeployment(mgrConfig, dashboardPort)
 		if _, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment); err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create %s deployment. %+v", resourceName, err)
@@ -122,7 +127,7 @@ func (c *Cluster) Start() error {
 		logger.Errorf("failed to enable mgr prometheus module. %+v", err)
 	}
 
-	if err := c.configureDashboard(); err != nil {
+	if err := c.configureDashboard(dashboardPort); err != nil {
 		logger.Errorf("failed to enable mgr dashboard. %+v", err)
 	}
 
