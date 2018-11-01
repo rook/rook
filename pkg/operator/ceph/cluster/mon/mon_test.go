@@ -68,7 +68,7 @@ func newCluster(context *clusterd.Context, namespace string, hostNetwork bool, r
 		HostNetwork:          hostNetwork,
 		context:              context,
 		Namespace:            namespace,
-		Version:              "myversion",
+		rookVersion:          "myversion",
 		Count:                3,
 		AllowMultiplePerNode: true,
 		maxMonID:             -1,
@@ -166,7 +166,7 @@ func TestSaveMonEndpoints(t *testing.T) {
 	clientset := test.New(1)
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", "myversion",
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir}, "ns", "", "myversion", cephv1beta1.CephVersionSpec{},
 		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{}, false,
 		v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(1)
@@ -240,7 +240,7 @@ func TestNameToIndex(t *testing.T) {
 
 func TestAvailableMonNodes(t *testing.T) {
 	clientset := test.New(1)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1beta1.CephVersionSpec{},
 		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
 		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
@@ -267,7 +267,7 @@ func TestAvailableMonNodes(t *testing.T) {
 
 func TestAvailableNodesInUse(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1beta1.CephVersionSpec{},
 		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
 		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
@@ -308,7 +308,7 @@ func TestAvailableNodesInUse(t *testing.T) {
 
 func TestTaintedNodes(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1beta1.CephVersionSpec{},
 		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
 		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
@@ -343,7 +343,7 @@ func TestTaintedNodes(t *testing.T) {
 
 func TestNodeAffinity(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1beta1.CephVersionSpec{},
 		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
 		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
@@ -385,7 +385,7 @@ func TestNodeAffinity(t *testing.T) {
 
 func TestHostNetwork(t *testing.T) {
 	clientset := test.New(3)
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1beta1.CephVersionSpec{},
 		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
 		false, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
@@ -417,7 +417,7 @@ func TestGetNodeInfoFromNode(t *testing.T) {
 		},
 	}
 
-	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion",
+	c := New(&clusterd.Context{Clientset: clientset}, "ns", "", "myversion", cephv1beta1.CephVersionSpec{},
 		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true}, rookalpha.Placement{},
 		true, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
@@ -445,10 +445,8 @@ func TestHostNetworkPortIncrease(t *testing.T) {
 
 	configDir, _ := ioutil.TempDir("", "")
 	defer os.RemoveAll(configDir)
-	c := New(&clusterd.Context{
-		Clientset: clientset,
-		ConfigDir: configDir,
-	}, "ns", "", "myversion", cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
+	c := New(&clusterd.Context{Clientset: clientset, ConfigDir: configDir},
+		"ns", "", "myversion", cephv1beta1.CephVersionSpec{}, cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 		rookalpha.Placement{}, true, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	c.clusterInfo = test.CreateConfigDir(0)
 

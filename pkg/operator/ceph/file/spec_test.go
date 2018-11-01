@@ -52,6 +52,7 @@ func testDeploymentObject(hostNetwork bool) *extensions.Deployment {
 	c := newCluster(
 		&clusterd.Context{Clientset: testop.New(1)},
 		"rook/rook:myversion",
+		cephv1beta1.CephVersionSpec{Image: "ceph/ceph:testversion"},
 		hostNetwork,
 		fs,
 		&client.CephFilesystemDetails{ID: 15},
@@ -113,7 +114,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 
-	daemonImage := "rook/rook:myversion"
+	daemonImage := "ceph/ceph:testversion"
 	daemonEnvs := len(k8sutil.ClusterDaemonEnvVars())
 	daemonContainerDefinition := cephtest.ContainerTestDefinition{
 		Image: &daemonImage,

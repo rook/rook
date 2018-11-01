@@ -4,8 +4,10 @@
 
 ## Notable Features
 
+- Different versions of Ceph can be orchestrated by Rook. Both Luminous and Mimic are now supported, with Nautilus coming soon.
+The version of Ceph is specified in the cluster CRD with the cephVersion.image property. For example, to run Mimic you could use image `ceph/ceph:v13.2.2-20181023`
+or any other image found on the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags).
 - The `fsType` default for StorageClass examples are now using XFS to bring it in line with Ceph recommendations.
-- Ceph is updated from Luminous 12.2.5 to 12.2.7.
 - Ceph OSDs will be automatically updated by the operator when there is a change to the operator version or when the OSD configuration changes. See the [OSD upgrade notes](Documentation/upgrade-patch.md#object-storage-daemons-osds).
 - Rook Ceph block storage provisioner can now correctly create erasure coded block images. See [Advanced Example: Erasure Coded Block Storage](Documentation/block.md#advanced-example-erasure-coded-block-storage) for an example usage.
 - [Network File System (NFS)](https://github.com/nfs-ganesha/nfs-ganesha/wiki) is now supported by Rook with a new operator to deploy and manage this widely used server. NFS servers can be automatically deployed by creating an instance of the new `nfsservers.nfs.rook.io` custom resource. See the [NFS server user guide](Documentation/nfs.md) to get started with NFS.
@@ -19,7 +21,7 @@
 ## Breaking Changes
 - Ceph mons are [named consistently](https://github.com/rook/rook/issues/1751) with other daemons with the letters a, b, c, etc.
 - Ceph mons are now created with Deployments instead of ReplicaSets to improve the upgrade implementation.
-- Ceph mon, mgr, and mds container names in pods have changed with the refactors to initialize the
+- Ceph mon, mgr, mds, and rgw container names in pods have changed with the refactors to initialize the
   daemon environments via pod **InitContainers** and run the Ceph daemons directly from the
   container entrypoint.
 

@@ -33,7 +33,7 @@ const (
 	mgrDaemonCommand = "ceph-mgr"
 )
 
-func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *extensions.Deployment {
+func (c *Cluster) makeDeployment(mgrConfig *mgrConfig, port int) *extensions.Deployment {
 	podSpec := v1.PodTemplateSpec{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:   mgrConfig.ResourceName,
@@ -47,7 +47,7 @@ func (c *Cluster) makeDeployment(mgrConfig *mgrConfig) *extensions.Deployment {
 				c.makeConfigInitContainer(mgrConfig),
 			},
 			Containers: []v1.Container{
-				c.makeMgrDaemonContainer(mgrConfig),
+				c.makeMgrDaemonContainer(mgrConfig, port),
 			},
 			RestartPolicy: v1.RestartPolicyAlways,
 			Volumes:       opspec.PodVolumes(""),
@@ -80,7 +80,7 @@ func (c *Cluster) makeConfigInitContainer(mgrConfig *mgrConfig) v1.Container {
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--mgr-name=%s", mgrConfig.DaemonName),
 		},
-		Image: k8sutil.MakeRookImage(c.Version),
+		Image: k8sutil.MakeRookImage(c.rookVersion),
 		Env: []v1.EnvVar{
 			// Set '--mgr-keyring' flag with an env var sourced from the secret
 			{Name: "ROOK_MGR_KEYRING",
@@ -102,7 +102,7 @@ func (c *Cluster) makeConfigInitContainer(mgrConfig *mgrConfig) v1.Container {
 	}
 }
 
-func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
+func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig, port int) v1.Container {
 	container := v1.Container{
 		Name: "mgr",
 		Command: []string{
@@ -113,7 +113,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			"--id", mgrConfig.DaemonName,
 			// do not add the '--cluster/--conf/--keyring' flags; rook wants their default values
 		},
-		Image:        k8sutil.MakeRookImage(c.Version),
+		Image:        c.cephVersion.Image,
 		VolumeMounts: opspec.CephVolumeMounts(),
 		Ports: []v1.ContainerPort{
 			{
@@ -128,7 +128,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			},
 			{
 				Name:          "dashboard",
-				ContainerPort: int32(dashboardPort),
+				ContainerPort: int32(port),
 				Protocol:      v1.ProtocolTCP,
 			},
 		},
@@ -137,6 +137,55 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 	}
 	container.Env = append(container.Env, opmon.ClusterNameEnvVar(c.Namespace))
 	return container
+}
+
+func (c *Cluster) makeMetricsService(name string) *v1.Service {
+	labels := opspec.AppLabels(appName, c.Namespace)
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: c.Namespace,
+			Labels:    labels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: labels,
+			Type:     v1.ServiceTypeClusterIP,
+			Ports: []v1.ServicePort{
+				{
+					Name:     "http-metrics",
+					Port:     int32(metricsPort),
+					Protocol: v1.ProtocolTCP,
+				},
+			},
+		},
+	}
+
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	return svc
+}
+
+func (c *Cluster) makeDashboardService(name string, port int) *v1.Service {
+	labels := opspec.AppLabels(appName, c.Namespace)
+	svc := &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      fmt.Sprintf("%s-dashboard", name),
+			Namespace: c.Namespace,
+			Labels:    labels,
+		},
+		Spec: v1.ServiceSpec{
+			Selector: labels,
+			Type:     v1.ServiceTypeClusterIP,
+			Ports: []v1.ServicePort{
+				{
+					Name:     "https-dashboard",
+					Port:     int32(port),
+					Protocol: v1.ProtocolTCP,
+				},
+			},
+		},
+	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
+	return svc
 }
 
 func (c *Cluster) getPodLabels(daemonName string) map[string]string {

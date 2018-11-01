@@ -54,6 +54,14 @@ func TestGetClusterObject(t *testing.T) {
 	assert.NotNil(t, err)
 }
 
+func TestDefaultClusterValues(t *testing.T) {
+	// the default ceph version should be set
+	cluster, _, err := getClusterObject(&cephv1beta1.Cluster{})
+	assert.NotNil(t, cluster)
+	assert.Nil(t, err)
+	assert.Equal(t, cephv1beta1.DefaultLuminousImage, cluster.Spec.CephVersion.Image)
+}
+
 func TestMigrateClusterObject(t *testing.T) {
 	// create a legacy cluster that will get migrated
 	legacyCluster := &rookv1alpha1.Cluster{

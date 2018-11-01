@@ -21,6 +21,8 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
+	"time"
 
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookv1alpha2 "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
@@ -30,9 +32,21 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/mon"
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/k8sutil"
+	batch "k8s.io/api/batch/v1"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+)
+
+const (
+	detectVersionName = "rook-ceph-detect-version"
+)
+
+var (
+	// supportedVersions are production-ready versions that rook supports
+	supportedVersions = []string{cephv1beta1.Luminous, cephv1beta1.Mimic}
+	// allVersions includes all supportedVersions as well as unreleased versions that are being tested with rook
+	allVersions = append(supportedVersions, cephv1beta1.Nautilus)
 )
 
 type cluster struct {
@@ -50,6 +64,79 @@ func newCluster(c *cephv1beta1.Cluster, context *clusterd.Context) *cluster {
 	return &cluster{Namespace: c.Namespace, Spec: &c.Spec, context: context,
 		stopCh:   make(chan struct{}),
 		ownerRef: ClusterOwnerRef(c.Namespace, string(c.UID))}
+}
+
+func (c *cluster) setCephMajorVersion(timeout time.Duration) error {
+	version, err := c.detectCephMajorVersion(timeout)
+	if err != nil {
+		// Don't return the err yet here so we can override the failure with a setting in the crd below.
+		logger.Errorf("failed to detect ceph version. %+v", err)
+	} else {
+		logger.Infof("detected ceph version %s for image %s", version, c.Spec.CephVersion.Image)
+	}
+
+	if c.Spec.CephVersion.Name != "" {
+		// if the cephVersion.name is already set, override the detected version
+		logger.Warningf("overriding ceph version to %s specified in the CRD", c.Spec.CephVersion.Name)
+		return nil
+	}
+
+	c.Spec.CephVersion.Name = version
+	return err
+}
+
+func (c *cluster) detectCephMajorVersion(timeout time.Duration) (string, error) {
+	// get the major ceph version by running "ceph --version" in the ceph image
+	job := &batch.Job{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      detectVersionName,
+			Namespace: c.Namespace,
+		},
+		Spec: batch.JobSpec{
+			Template: v1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"job": detectVersionName,
+					},
+				},
+				Spec: v1.PodSpec{
+					Containers: []v1.Container{
+						{
+							Command: []string{"ceph"},
+							Args:    []string{"--version"},
+							Name:    "version",
+							Image:   c.Spec.CephVersion.Image,
+						},
+					},
+					RestartPolicy: v1.RestartPolicyOnFailure,
+				},
+			},
+		},
+	}
+	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &job.ObjectMeta, &c.ownerRef)
+
+	// run the job to detect the version
+	if err := k8sutil.RunReplaceableJob(c.context.Clientset, job); err != nil {
+		return "", fmt.Errorf("failed to start version job. %+v", err)
+	}
+
+	if err := k8sutil.WaitForJobCompletion(c.context.Clientset, job, timeout); err != nil {
+		return "", fmt.Errorf("failed to complete version job. %+v", err)
+	}
+
+	log, err := k8sutil.GetPodLog(c.context.Clientset, c.Namespace, "job="+detectVersionName)
+	if err != nil {
+		return "", fmt.Errorf("failed to get version job log to detect version. %+v", err)
+	}
+
+	version, err := extractCephVersion(log)
+	if err != nil {
+		return "", fmt.Errorf("failed to extract ceph version. %+v", err)
+	}
+
+	// delete the job since we're done with it
+	k8sutil.DeleteBatchJob(c.context.Clientset, c.Namespace, job.Name, false)
+	return version, nil
 }
 
 func (c *cluster) createInstance(rookImage string) error {
@@ -73,7 +160,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.Mon, cephv1beta1.GetMonPlacement(c.Spec.Placement),
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.CephVersion, c.Spec.Mon, cephv1beta1.GetMonPlacement(c.Spec.Placement),
 		c.Spec.Network.HostNetwork, cephv1beta1.GetMonResources(c.Spec.Resources), c.ownerRef)
 	err = c.mons.Start()
 	if err != nil {
@@ -85,7 +172,7 @@ func (c *cluster) createInstance(rookImage string) error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	c.mgrs = mgr.New(c.context, c.Namespace, rookImage, cephv1beta1.GetMgrPlacement(c.Spec.Placement),
+	c.mgrs = mgr.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1beta1.GetMgrPlacement(c.Spec.Placement),
 		c.Spec.Network.HostNetwork, c.Spec.Dashboard, cephv1beta1.GetMgrResources(c.Spec.Resources), c.ownerRef)
 	err = c.mgrs.Start()
 	if err != nil {
@@ -93,7 +180,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath,
+	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath,
 		cephv1beta1.GetOSDPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork, cephv1beta1.GetOSDResources(c.Spec.Resources), c.ownerRef)
 	err = c.osds.Start()
 	if err != nil {
@@ -195,5 +282,28 @@ func clusterChanged(oldCluster, newCluster cephv1beta1.ClusterSpec, clusterRef *
 		clusterRef.mons.MonCountMutex.Unlock()
 	}
 
+	if oldCluster.CephVersion.AllowUnsupported != newCluster.CephVersion.AllowUnsupported {
+		logger.Infof("ceph version allowUnsupported has changed from %t to %t", oldCluster.CephVersion.AllowUnsupported, newCluster.CephVersion.AllowUnsupported)
+		changeFound = true
+	}
+
 	return changeFound
+}
+
+func extractCephVersion(version string) (string, error) {
+	for _, v := range allVersions {
+		if strings.Contains(version, v) {
+			return v, nil
+		}
+	}
+	return "", fmt.Errorf("failed to parse version from: %s", version)
+}
+
+func versionSupported(version string) bool {
+	for _, v := range supportedVersions {
+		if v == version {
+			return true
+		}
+	}
+	return false
 }

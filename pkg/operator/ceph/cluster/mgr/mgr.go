@@ -25,7 +25,6 @@ import (
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -38,9 +37,7 @@ const (
 	appName              = "rook-ceph-mgr"
 	keyringSecretKeyName = "keyring"
 	prometheusModuleName = "prometheus"
-	dashboardModuleName  = "dashboard"
 	metricsPort          = 9283
-	dashboardPort        = 7000
 )
 
 var mgrNames = []string{"a", "b"}
@@ -48,7 +45,6 @@ var mgrNames = []string{"a", "b"}
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mgrs.
 type Cluster struct {
 	Namespace   string
-	Version     string
 	Replicas    int
 	placement   rookalpha.Placement
 	context     *clusterd.Context
@@ -57,6 +53,8 @@ type Cluster struct {
 	resources   v1.ResourceRequirements
 	ownerRef    metav1.OwnerReference
 	dashboard   cephv1beta1.DashboardSpec
+	cephVersion cephv1beta1.CephVersionSpec
+	rookVersion string
 }
 
 // mgrConfig for a single mgr
@@ -66,13 +64,14 @@ type mgrConfig struct {
 }
 
 // New creates an instance of the mgr
-func New(context *clusterd.Context, namespace, version string, placement rookalpha.Placement, hostNetwork bool, dashboard cephv1beta1.DashboardSpec,
+func New(context *clusterd.Context, namespace, rookVersion string, cephVersion cephv1beta1.CephVersionSpec, placement rookalpha.Placement, hostNetwork bool, dashboard cephv1beta1.DashboardSpec,
 	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:     context,
 		Namespace:   namespace,
 		placement:   placement,
-		Version:     version,
+		rookVersion: rookVersion,
+		cephVersion: cephVersion,
 		Replicas:    1,
 		dataDir:     k8sutil.DataDir,
 		dashboard:   dashboard,
@@ -85,6 +84,11 @@ func New(context *clusterd.Context, namespace, version string, placement rookalp
 // Start begins the process of running a cluster of Ceph mgrs.
 func (c *Cluster) Start() error {
 	logger.Infof("start running mgr")
+
+	dashboardPort := dashboardPortHttps
+	if c.cephVersion.Name == cephv1beta1.Luminous {
+		dashboardPort = dashboardPortHttp
+	}
 
 	for i := 0; i < c.Replicas; i++ {
 		if i >= len(mgrNames) {
@@ -104,7 +108,7 @@ func (c *Cluster) Start() error {
 		}
 
 		// start the deployment
-		deployment := c.makeDeployment(mgrConfig)
+		deployment := c.makeDeployment(mgrConfig, dashboardPort)
 		if _, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.Namespace).Create(deployment); err != nil {
 			if !errors.IsAlreadyExists(err) {
 				return fmt.Errorf("failed to create %s deployment. %+v", resourceName, err)
@@ -115,8 +119,16 @@ func (c *Cluster) Start() error {
 		}
 	}
 
+	if err := c.configureOrchestratorModules(); err != nil {
+		logger.Errorf("failed to enable orchestrator modules. %+v", err)
+	}
+
 	if err := c.enablePrometheusModule(c.Namespace); err != nil {
-		return fmt.Errorf("failed to enable mgr prometheus module. %+v", err)
+		logger.Errorf("failed to enable mgr prometheus module. %+v", err)
+	}
+
+	if err := c.configureDashboard(dashboardPort); err != nil {
+		logger.Errorf("failed to enable mgr dashboard. %+v", err)
 	}
 
 	// create the metrics service
@@ -130,84 +142,7 @@ func (c *Cluster) Start() error {
 		logger.Infof("mgr metrics service started")
 	}
 
-	return c.configureDashboard()
-}
-
-func (c *Cluster) configureDashboard() error {
-	// enable or disable the dashboard module
-	if err := c.configureDashboardModule(c.Namespace, c.dashboard.Enabled); err != nil {
-		return fmt.Errorf("failed to enable mgr dashboard module. %+v", err)
-	}
-
-	dashboardService := c.makeDashboardService(appName)
-	if c.dashboard.Enabled {
-		// expose the dashboard service
-		if _, err := c.context.Clientset.CoreV1().Services(c.Namespace).Create(dashboardService); err != nil {
-			if !errors.IsAlreadyExists(err) {
-				return fmt.Errorf("failed to create dashboard mgr service. %+v", err)
-			}
-			logger.Infof("dashboard service already exists")
-		} else {
-			logger.Infof("dashboard service started")
-		}
-	} else {
-		// delete the dashboard service if it exists
-		err := c.context.Clientset.CoreV1().Services(c.Namespace).Delete(dashboardService.Name, &metav1.DeleteOptions{})
-		if err != nil && !errors.IsNotFound(err) {
-			return fmt.Errorf("failed to delete dashboard service. %+v", err)
-		}
-	}
-
 	return nil
-}
-
-func (c *Cluster) makeMetricsService(name string) *v1.Service {
-	labels := opspec.AppLabels(appName, c.Namespace)
-	svc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: c.Namespace,
-			Labels:    labels,
-		},
-		Spec: v1.ServiceSpec{
-			Selector: labels,
-			Type:     v1.ServiceTypeClusterIP,
-			Ports: []v1.ServicePort{
-				{
-					Name:     "http-metrics",
-					Port:     int32(metricsPort),
-					Protocol: v1.ProtocolTCP,
-				},
-			},
-		},
-	}
-
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
-	return svc
-}
-
-func (c *Cluster) makeDashboardService(name string) *v1.Service {
-	labels := opspec.AppLabels(appName, c.Namespace)
-	svc := &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      fmt.Sprintf("%s-dashboard", name),
-			Namespace: c.Namespace,
-			Labels:    labels,
-		},
-		Spec: v1.ServiceSpec{
-			Selector: labels,
-			Type:     v1.ServiceTypeClusterIP,
-			Ports: []v1.ServicePort{
-				{
-					Name:     "http-dashboard",
-					Port:     int32(dashboardPort),
-					Protocol: v1.ProtocolTCP,
-				},
-			},
-		},
-	}
-	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &svc.ObjectMeta, &c.ownerRef)
-	return svc
 }
 
 func (c *Cluster) createKeyring(clusterName, name, daemonName string) error {
@@ -256,23 +191,9 @@ func (c *Cluster) enablePrometheusModule(clusterName string) error {
 	return nil
 }
 
-// Ceph docs about the dashboard module: http://docs.ceph.com/docs/luminous/mgr/dashboard/
-func (c *Cluster) configureDashboardModule(clusterName string, enable bool) error {
-	if enable {
-		if err := client.MgrEnableModule(c.context, clusterName, dashboardModuleName, true); err != nil {
-			return fmt.Errorf("failed to enable mgr dashboard module. %+v", err)
-		}
-	} else {
-		if err := client.MgrDisableModule(c.context, clusterName, dashboardModuleName); err != nil {
-			return fmt.Errorf("failed to disable mgr dashboard module. %+v", err)
-		}
-	}
-	return nil
-}
-
 func getKeyringProperties(name string) (string, []string) {
 	username := fmt.Sprintf("mgr.%s", name)
-	access := []string{"mon", "allow *"}
+	access := []string{"mon", "allow profile mgr", "mds", "allow *", "osd", "allow *"}
 	return username, access
 }
 

@@ -182,6 +182,19 @@ func (c *ClusterController) onAdd(obj interface{}) {
 		logger.Warningf("mon count is even (given: %d), should be uneven, continuing", cluster.Spec.Mon.Count)
 	}
 
+	err = cluster.setCephMajorVersion(15 * time.Minute)
+	if err != nil {
+		logger.Errorf("unknown ceph major version. %+v", err)
+		return
+	}
+
+	if !cluster.Spec.CephVersion.AllowUnsupported {
+		if !versionSupported(cluster.Spec.CephVersion.Name) {
+			logger.Errorf("unsupported ceph version detected: %s. allowUnupported must be set to true to run with this version.", cluster.Spec.CephVersion.Name)
+			return
+		}
+	}
+
 	// Start the Rook cluster components. Retry several times in case of failure.
 	err = wait.Poll(clusterCreateInterval, clusterCreateTimeout, func() (bool, error) {
 		if err := c.updateClusterStatus(clusterObj.Namespace, clusterObj.Name, cephv1beta1.ClusterStateCreating, ""); err != nil {
@@ -217,11 +230,11 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store CRD watcher
-	objectStoreController := object.NewObjectStoreController(c.context, c.rookImage, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
+	objectStoreController := object.NewObjectStoreController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
 	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start file system CRD watcher
-	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
+	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker

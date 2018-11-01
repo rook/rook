@@ -48,6 +48,9 @@ type ClusterList struct {
 }
 
 type ClusterSpec struct {
+	// The version information that instructs Rook to orchestrate a particular version of Ceph.
+	CephVersion CephVersionSpec `json:"cephVersion,omitempty"`
+
 	// A spec for available storage in the cluster and how it should be used
 	Storage rook.StorageScopeSpec `json:"storage,omitempty"`
 
@@ -71,6 +74,18 @@ type ClusterSpec struct {
 
 	// Dashboard settings
 	Dashboard DashboardSpec `json:"dashboard,omitempty"`
+}
+
+// VersionSpec represents the settings for the Ceph version that Rook is orchestrating.
+type CephVersionSpec struct {
+	// Image is the container image used to launch the ceph daemons, such as ceph/ceph:v12.2.7 or ceph/ceph:v13.2.1
+	Image string `json:"image,omitempty"`
+
+	// The name of the major release of Ceph: luminous, mimic, or nautilus
+	Name string `json:"name,omitempty"`
+
+	// Whether to allow unsupported versions (do not set to true in production)
+	AllowUnsupported bool `json:"allowUnsupported,omitempty"`
 }
 
 // DashboardSpec represents the settings for the Ceph dashboard

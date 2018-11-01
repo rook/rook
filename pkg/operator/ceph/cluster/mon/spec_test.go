@@ -53,6 +53,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 		"ns",
 		dataDir,
 		"rook/rook:myversion",
+		cephv1beta1.CephVersionSpec{Image: "ceph/ceph:myceph"},
 		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 		rookalpha.Placement{},
 		false,
@@ -123,7 +124,7 @@ func testPodSpec(t *testing.T, dataDir string) {
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
 
 	// All ceph images have the same image, no envs, and the same volume mounts
-	cephImage := "rook/rook:myversion"
+	cephImage := "ceph/ceph:myceph"
 	cephEnvs := 0
 	cephVolumeMountNames := []string{
 		"rook-data",

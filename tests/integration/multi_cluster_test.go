@@ -135,7 +135,7 @@ func NewMCTestOperations(t func() *testing.T, namespace1 string, namespace2 stri
 
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
-	i := installer.NewCephInstaller(t, kh.Clientset, installer.VersionMaster)
+	i := installer.NewCephInstaller(t, kh.Clientset, installer.VersionMaster, installer.LuminousVersion)
 
 	op := &MCTestOperations{i, kh, t, namespace1, namespace2, installer.SystemNamespace(namespace1)}
 	op.Setup()

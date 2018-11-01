@@ -32,9 +32,7 @@ import (
 	"flag"
 
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -43,9 +41,18 @@ import (
 )
 
 const (
+	// test with the latest luminous build
+	luminousTestImage = "ceph/ceph:v12"
+	// test with the latest mimic build
+	mimicTestImage         = "ceph/ceph:v13"
 	rookOperatorCreatedCrd = "clusters.ceph.rook.io"
 	helmChartName          = "local/rook-ceph"
 	helmDeployName         = "rook-ceph"
+)
+
+var (
+	LuminousVersion = cephv1beta1.CephVersionSpec{Image: luminousTestImage, Name: cephv1beta1.Luminous}
+	MimicVersion    = cephv1beta1.CephVersionSpec{Image: mimicTestImage, Name: cephv1beta1.Mimic}
 )
 
 //CephInstaller wraps installing and uninstalling rook on a platform
@@ -56,6 +63,7 @@ type CephInstaller struct {
 	helmHelper       *utils.HelmHelper
 	k8sVersion       string
 	changeHostnames  bool
+	cephVersion      cephv1beta1.CephVersionSpec
 	T                func() *testing.T
 }
 
@@ -180,12 +188,13 @@ func (h *CephInstaller) CreateK8sRookToolbox(namespace string) (err error) {
 
 func (h *CephInstaller) CreateK8sRookCluster(namespace, systemNamespace string, storeType string) (err error) {
 	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType, false,
-		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true /* startWithAllNodes */)
+		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true, /* startWithAllNodes */
+		LuminousVersion)
 }
 
 //CreateK8sRookCluster creates rook cluster via kubectl
 func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType string,
-	useAllDevices bool, mon cephv1beta1.MonSpec, startWithAllNodes bool) error {
+	useAllDevices bool, mon cephv1beta1.MonSpec, startWithAllNodes bool, cephVersion cephv1beta1.CephVersionSpec) error {
 
 	dataDirHostPath, err := h.initTestDir(namespace)
 	if err != nil {
@@ -207,71 +216,11 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 		return fmt.Errorf("Failed to create cluster roles. %+v", err)
 	}
 
-	// for increasing the test matrix, sometimes use the strongly typed client instead of the yaml
-	if h.k8shelper.VersionAtLeast("v1.10.0") {
-		logger.Infof("Starting Rook cluster with strongly typed clientset")
-
-		clust := &cephv1beta1.Cluster{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      namespace,
-				Namespace: namespace,
-			},
-			Spec: cephv1beta1.ClusterSpec{
-				ServiceAccount:  "rook-ceph-cluster",
-				DataDirHostPath: dataDirHostPath,
-				Mon: cephv1beta1.MonSpec{
-					Count:                mon.Count,
-					AllowMultiplePerNode: mon.AllowMultiplePerNode,
-				},
-				Storage: rookalpha.StorageScopeSpec{
-					UseAllNodes: startWithAllNodes,
-					Selection: rookalpha.Selection{
-						UseAllDevices: &useAllDevices,
-					},
-					Config: map[string]string{
-						config.StoreTypeKey:      storeType,
-						config.DatabaseSizeMBKey: "1024",
-						config.JournalSizeMBKey:  "1024",
-					},
-				},
-			},
-		}
-		_, err := h.k8shelper.RookClientset.CephV1beta1().Clusters(namespace).Create(clust)
-		if err != nil {
-			return fmt.Errorf("failed to create cluster %s. %+v", clust.Name, err)
-		}
-
-		if !startWithAllNodes {
-			// now that the cluster is created, let's get all the k8s nodes so we can update the cluster CRD with them
-			logger.Info("cluster was started without all nodes, will update cluster to add nodes now.")
-			nodeNames, err := h.GetNodeHostnames()
-			if err != nil {
-				return fmt.Errorf("failed to get k8s nodes to add to cluster CRD: %+v", err)
-			}
-
-			// add all discovered k8s nodes to the cluster CRD
-			rookNodes := make([]rookalpha.Node, len(nodeNames))
-			for i, hostname := range nodeNames {
-				rookNodes[i] = rookalpha.Node{Name: hostname}
-			}
-			clust, err = h.k8shelper.RookClientset.CephV1beta1().Clusters(namespace).Get(namespace, metav1.GetOptions{})
-			if err != nil {
-				return fmt.Errorf("failed to get rook cluster to add nodes to it: %+v", err)
-			}
-			clust.Spec.Storage.Nodes = rookNodes
-
-			// update the cluster CRD now
-			_, err = h.k8shelper.RookClientset.CephV1beta1().Clusters(namespace).Update(clust)
-			if err != nil {
-				return fmt.Errorf("failed to update cluster %s with nodes. %+v", clust.Name, err)
-			}
-		}
-	} else {
-		logger.Infof("Starting Rook Cluster with yaml")
-		rookCluster := h.Manifests.GetRookCluster(&ClusterSettings{namespace, storeType, dataDirHostPath, useAllDevices, mon.Count})
-		if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
-			return fmt.Errorf("Failed to create rook cluster : %v ", err)
-		}
+	logger.Infof("Starting Rook Cluster with yaml")
+	settings := &ClusterSettings{namespace, storeType, dataDirHostPath, useAllDevices, mon.Count, cephVersion}
+	rookCluster := h.Manifests.GetRookCluster(settings)
+	if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
+		return fmt.Errorf("Failed to create rook cluster : %v ", err)
 	}
 
 	if err := h.k8shelper.WaitForPodCount("app=rook-ceph-mon", namespace, mon.Count); err != nil {
@@ -372,7 +321,8 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 
 	//Create rook cluster
 	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, onamespace, storeType,
-		useDevices, cephv1beta1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes)
+		useDevices, cephv1beta1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
+		h.cephVersion)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
 		return false, err
@@ -488,7 +438,7 @@ func (h *CephInstaller) GatherAllRookLogs(namespace, systemNamespace string, tes
 }
 
 // NewCephInstaller creates new instance of CephInstaller
-func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rookVersion string) *CephInstaller {
+func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rookVersion string, cephVersion cephv1beta1.CephVersionSpec) *CephInstaller {
 
 	// All e2e tests should run ceph commands in the toolbox since we are not inside a container
 	client.RunAllCephCommandsInToolbox = true
@@ -502,11 +452,14 @@ func NewCephInstaller(t func() *testing.T, clientset *kubernetes.Clientset, rook
 	if err != nil {
 		panic("failed to get kubectl client :" + err.Error())
 	}
+	logger.Infof("Rook Version: %s", rookVersion)
+	logger.Infof("Ceph Version: %s (%s)", cephVersion.Image, cephVersion.Name)
 	h := &CephInstaller{
 		Manifests:       NewCephManifests(rookVersion),
 		k8shelper:       k8shelp,
 		helmHelper:      utils.NewHelmHelper(Env.Helm),
 		k8sVersion:      version.String(),
+		cephVersion:     cephVersion,
 		changeHostnames: rookVersion != Version0_8 && k8shelp.VersionAtLeast("v1.11.0"),
 		T:               t,
 	}

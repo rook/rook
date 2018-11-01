@@ -64,15 +64,17 @@ var ObjectStoreResourceRookLegacy = opkit.CustomResource{
 type ObjectStoreController struct {
 	context     *clusterd.Context
 	rookImage   string
+	cephVersion cephv1beta1.CephVersionSpec
 	hostNetwork bool
 	ownerRef    metav1.OwnerReference
 }
 
 // NewObjectStoreController create controller for watching object store custom resources created
-func NewObjectStoreController(context *clusterd.Context, rookImage string, hostNetwork bool, ownerRef metav1.OwnerReference) *ObjectStoreController {
+func NewObjectStoreController(context *clusterd.Context, rookImage string, cephVersion cephv1beta1.CephVersionSpec, hostNetwork bool, ownerRef metav1.OwnerReference) *ObjectStoreController {
 	return &ObjectStoreController{
 		context:     context,
 		rookImage:   rookImage,
+		cephVersion: cephVersion,
 		hostNetwork: hostNetwork,
 		ownerRef:    ownerRef,
 	}
@@ -111,7 +113,8 @@ func (c *ObjectStoreController) onAdd(obj interface{}) {
 		return
 	}
 
-	if err = CreateStore(c.context, *objectstore, c.rookImage, c.hostNetwork, c.storeOwners(objectstore)); err != nil {
+	cfg := config{c.context, *objectstore, c.rookImage, c.cephVersion, c.hostNetwork, c.storeOwners(objectstore)}
+	if err = cfg.createStore(); err != nil {
 		logger.Errorf("failed to create object store %s. %+v", objectstore.Name, err)
 	}
 }
@@ -142,7 +145,8 @@ func (c *ObjectStoreController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	logger.Infof("applying object store %s changes", newStore.Name)
-	if err = UpdateStore(c.context, *newStore, c.rookImage, c.hostNetwork, c.storeOwners(newStore)); err != nil {
+	cfg := config{c.context, *newStore, c.rookImage, c.cephVersion, c.hostNetwork, c.storeOwners(newStore)}
+	if err = cfg.updateStore(); err != nil {
 		logger.Errorf("failed to create (modify) object store %s. %+v", newStore.Name, err)
 	}
 }
@@ -159,7 +163,8 @@ func (c *ObjectStoreController) onDelete(obj interface{}) {
 		return
 	}
 
-	if err = DeleteStore(c.context, *objectstore); err != nil {
+	cfg := config{context: c.context, store: *objectstore}
+	if err = cfg.deleteStore(); err != nil {
 		logger.Errorf("failed to delete object store %s. %+v", objectstore.Name, err)
 	}
 }

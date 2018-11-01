@@ -44,7 +44,8 @@ const (
 
 type cluster struct {
 	context     *clusterd.Context
-	Version     string
+	rookVersion string
+	cephVersion cephv1beta1.CephVersionSpec
 	HostNetwork bool
 	fs          cephv1beta1.Filesystem
 	fsID        string
@@ -53,7 +54,8 @@ type cluster struct {
 
 func newCluster(
 	context *clusterd.Context,
-	version string,
+	rookVersion string,
+	cephVersion cephv1beta1.CephVersionSpec,
 	hostNetwork bool,
 	fs cephv1beta1.Filesystem,
 	fsdetails *client.CephFilesystemDetails,
@@ -61,7 +63,8 @@ func newCluster(
 ) *cluster {
 	return &cluster{
 		context:     context,
-		Version:     version,
+		rookVersion: rookVersion,
+		cephVersion: cephVersion,
 		HostNetwork: hostNetwork,
 		fs:          fs,
 		fsID:        strconv.Itoa(fsdetails.ID),

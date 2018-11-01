@@ -117,6 +117,9 @@ metadata:
   name: rook-ceph
   namespace: rook-ceph
 spec:
+  cephVersion:
+    # For the latest ceph images, see https://hub.docker.com/r/ceph/ceph/tags
+    image: ceph/ceph:v13.2.2-20181023
   dataDirHostPath: /var/lib/rook
   dashboard:
     enabled: true

@@ -76,7 +76,7 @@ type SmokeSuite struct {
 func (suite *SmokeSuite) SetupSuite() {
 	suite.namespace = "smoke-ns"
 	useDevices := true
-	suite.op, suite.k8sh = StartTestCluster(suite.T, suite.namespace, "bluestore", false, useDevices, 3, installer.VersionMaster)
+	suite.op, suite.k8sh = StartTestCluster(suite.T, suite.namespace, "bluestore", false, useDevices, 3, installer.VersionMaster, installer.MimicVersion)
 	suite.helper = clients.CreateTestClient(suite.k8sh, suite.op.installer.Manifests)
 }
 
@@ -135,7 +135,10 @@ func checkOrderedSubstrings(t *testing.T, input string, substrings ...string) {
 	}
 	original := input
 	for i, substring := range substrings {
-		assert.Contains(t, input, substring, fmt.Sprintf("missing substring %d. original=%s", i, original))
+		if !strings.Contains(input, substring) {
+			assert.Fail(t, fmt.Sprintf("missing substring %d. original=%s", i, original))
+			return
+		}
 		index := strings.Index(input, substring)
 		input = input[index+len(substring):]
 	}

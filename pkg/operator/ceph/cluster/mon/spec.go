@@ -142,7 +142,7 @@ func (c *Cluster) makeConfigInitContainer(monConfig *monConfig) v1.Container {
 			fmt.Sprintf("--port=%d", monConfig.Port),
 			fmt.Sprintf("--fsid=%s", c.clusterInfo.FSID),
 		},
-		Image: k8sutil.MakeRookImage(c.Version),
+		Image: k8sutil.MakeRookImage(c.rookVersion),
 		Env: []v1.EnvVar{
 			k8sutil.PodIPEnvVar(k8sutil.PrivateIPEnvVar),
 			{Name: k8sutil.PublicIPEnvVar, Value: monConfig.PublicIP},
@@ -186,7 +186,7 @@ func (c *Cluster) makeMonmapInitContainer(monConfig *monConfig) v1.Container {
 			},
 			monmapAddMonArgs...,
 		),
-		Image:           k8sutil.MakeRookImage(c.Version), // TODO: ceph:<vers> image
+		Image:           c.cephVersion.Image,
 		VolumeMounts:    opspec.CephVolumeMounts(),
 		SecurityContext: podSecurityContext(),
 		// monmap creation does not require ports to be exposed
@@ -215,7 +215,7 @@ func (c *Cluster) makeMonFSInitContainer(monConfig *monConfig) v1.Container {
 			},
 			c.cephMonCommonArgs(monConfig)...,
 		),
-		Image:           k8sutil.MakeRookImage(c.Version), // TODO: ceph:<vers> image
+		Image:           c.cephVersion.Image,
 		VolumeMounts:    opspec.CephVolumeMounts(),
 		SecurityContext: podSecurityContext(),
 		// filesystem creation does not require ports to be exposed
@@ -246,7 +246,7 @@ func (c *Cluster) makeMonDaemonContainer(monConfig *monConfig) v1.Container {
 			},
 			c.cephMonCommonArgs(monConfig)...,
 		),
-		Image:           k8sutil.MakeRookImage(c.Version), // TODO: ceph:<vers> image
+		Image:           c.cephVersion.Image,
 		VolumeMounts:    opspec.CephVolumeMounts(),
 		SecurityContext: podSecurityContext(),
 		Ports: []v1.ContainerPort{

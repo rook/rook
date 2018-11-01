@@ -83,7 +83,7 @@ func TestMigrateFilesystemObject(t *testing.T) {
 		Clientset:     clientset,
 		RookClientset: rookfake.NewSimpleClientset(legacyFilesystem),
 	}
-	controller := NewFilesystemController(context, "", false, metav1.OwnerReference{})
+	controller := NewFilesystemController(context, "", cephv1beta1.CephVersionSpec{}, false, metav1.OwnerReference{})
 
 	// convert the legacy filesystem object in memory and assert that a migration is needed
 	convertedFilesystem, migrationNeeded, err := getFilesystemObject(legacyFilesystem)

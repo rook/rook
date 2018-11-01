@@ -54,7 +54,7 @@ func (s *BlockCreateSuite) SetupSuite() {
 
 	var err error
 	s.namespace = "block-k8s-ns"
-	s.op, s.kh = StartTestCluster(s.T, s.namespace, "bluestore", false, false, 1, installer.VersionMaster)
+	s.op, s.kh = StartTestCluster(s.T, s.namespace, "bluestore", false, false, 1, installer.VersionMaster, installer.MimicVersion)
 	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
 	initialBlocks, err := s.testClient.BlockClient.List(s.namespace)
 	assert.Nil(s.T(), err)

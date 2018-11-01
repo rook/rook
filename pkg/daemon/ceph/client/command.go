@@ -59,6 +59,10 @@ func FinalizeCephCommandArgs(command string, args []string, configDir, clusterNa
 	return command, append(args, configArgs...)
 }
 
+func ExecuteCephCommandDebugLog(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
+	return executeCephCommandWithOutputFile(context, clusterName, true, args)
+}
+
 func ExecuteCephCommand(context *clusterd.Context, clusterName string, args []string) ([]byte, error) {
 	return executeCephCommandWithOutputFile(context, clusterName, false, args)
 }

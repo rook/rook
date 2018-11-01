@@ -21,6 +21,7 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 )
 
 type CephManifests interface {
@@ -45,6 +46,7 @@ type ClusterSettings struct {
 	DataDirHostPath string
 	UseAllDevices   bool
 	Mons            int
+	CephVersion     cephv1beta1.CephVersionSpec
 }
 
 //CephManifestsMaster wraps rook yaml definitions
@@ -190,6 +192,7 @@ rules:
   resources:
   - secrets
   - pods
+  - pods/log
   - services
   - configmaps
   verbs:
@@ -419,6 +422,9 @@ metadata:
   name: ` + settings.Namespace + `
   namespace: ` + settings.Namespace + `
 spec:
+  cephVersion:
+    image: ` + settings.CephVersion.Image + `
+    allowUnsupported: ` + strconv.FormatBool(settings.CephVersion.AllowUnsupported) + `
   serviceAccount: rook-ceph-cluster
   dataDirHostPath: ` + settings.DataDirHostPath + `
   network:
