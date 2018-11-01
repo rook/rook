@@ -69,7 +69,7 @@ func getOSDTempMonMapPath(osdDataPath string) string {
 // create a keyring for the bootstrap-osd client, it gets a limited set of privileges
 func createOSDBootstrapKeyring(context *clusterd.Context, clusterName string) error {
 	username := "client.bootstrap-osd"
-	keyringPath := getBootstrapOSDKeyringPath(context.ConfigDir, clusterName)
+	keyringPath := "/var/lib/ceph/bootstrap-osd/ceph.keyring"
 	access := []string{"mon", "allow profile bootstrap-osd"}
 	keyringEval := func(key string) string {
 		return fmt.Sprintf(bootstrapOSDKeyringTemplate, key)

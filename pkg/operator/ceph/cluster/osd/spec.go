@@ -99,6 +99,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		}
 	} else {
 		dataDir = k8sutil.DataDir
+		osd.CephVolumeInitiated = true
 
 		// Create volume config for /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}
@@ -120,10 +121,19 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		tiniEnvVar,
 	}
 	envVars = append(envVars, k8sutil.ClusterDaemonEnvVars()...)
+	envVars = append(envVars, []v1.EnvVar{
+		{Name: "ROOK_OSD_UUID", Value: osd.UUID},
+		{Name: "ROOK_OSD_ID", Value: osdID},
+		{Name: "ROOK_BLUESTORE", Value: strconv.FormatBool(!osd.IsFileStore)},
+	}...)
 	configEnvVars := append(c.getConfigEnvVars(storeConfig, dataDir, nodeName, location), []v1.EnvVar{
 		tiniEnvVar,
 		{Name: "ROOK_OSD_ID", Value: osdID},
 	}...)
+
+	if !osd.IsDirectory {
+		configEnvVars = append(configEnvVars, v1.EnvVar{Name: "ROOK_IS_DEVICE", Value: "true"})
+	}
 
 	commonArgs := []string{
 		"--foreground",
@@ -138,9 +148,13 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		commonArgs = append(commonArgs, fmt.Sprintf("--osd-journal=%s", osd.Journal))
 	}
 
+	// Add the volume to the spec and the mount to the daemon container
+	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
+	volumes = append(volumes, copyBinariesVolume)
+	volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
+
 	var command []string
 	var args []string
-	var copyBinariesContainer *v1.Container
 	if !osd.IsDirectory && osd.IsFileStore {
 		// All scenarios except one can call the ceph-osd daemon directly. The one different scenario is when
 		// filestore is running on a device. Rook needs to mount the device, run the ceph-osd daemon, and then
@@ -157,12 +171,19 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 			"--"},
 			commonArgs...)
 
-		var copyBinariesVolume v1.Volume
-		copyBinariesVolume, copyBinariesContainer = c.getCopyBinariesContainer()
-		// Add the volume to the spec and the mount to the daemon container
-		volumes = append(volumes, copyBinariesVolume)
-		volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
-
+	} else if osd.CephVolumeInitiated {
+		// if the osd was provisioned by ceph-volume, we need to launch it with rook as the parent process
+		command = []string{path.Join(rookBinariesMountPath, "tini")}
+		args = []string{
+			"--", path.Join(rookBinariesMountPath, "rook"),
+			"ceph", "osd", "start",
+			"--",
+			"--foreground",
+			"--id", osdID,
+			"--osd-uuid", osd.UUID,
+			"--conf", osd.Config,
+			"--cluster", "ceph",
+		}
 	} else {
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}
@@ -222,6 +243,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 							Env:             configEnvVars,
 							SecurityContext: securityContext,
 						},
+						*copyBinariesContainer,
 					},
 					Containers: []v1.Container{
 						{
@@ -240,9 +262,6 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 			},
 			Replicas: &replicaCount,
 		},
-	}
-	if copyBinariesContainer != nil {
-		deployment.Spec.Template.Spec.InitContainers = append(deployment.Spec.Template.Spec.InitContainers, *copyBinariesContainer)
 	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &deployment.ObjectMeta, &c.ownerRef)
 	c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
@@ -363,6 +382,11 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 	storeConfig config.StoreConfig, metadataDevice, nodeName, location string, copyBinariesMount v1.VolumeMount) v1.Container {
 
 	envVars := c.getConfigEnvVars(storeConfig, k8sutil.DataDir, nodeName, location)
+	envVars = append(envVars, v1.EnvVar{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
+		SecretKeyRef: &v1.SecretKeySelector{
+			LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-mon"},
+			Key:                  "fsid"},
+	}})
 	devMountNeeded := false
 	privileged := false
 

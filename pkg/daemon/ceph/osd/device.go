@@ -19,6 +19,7 @@ package osd
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -424,12 +425,16 @@ func getStoreSettings(cfg *osdConfig) (map[string]string, error) {
 	} else {
 		// devices are being used for bluestore, all we need is their paths
 		if cfg.partitionScheme == nil || cfg.partitionScheme.Partitions == nil {
-			return nil, fmt.Errorf("failed to find partitions from config for osd %d", cfg.id)
-		}
-
-		walPath, dbPath, blockPath, err = getBluestorePartitionPaths(cfg)
-		if err != nil {
-			return nil, err
+			basePath := fmt.Sprintf("/var/lib/ceph/osd/ceph-%d", cfg.id)
+			settings["bluestore block path"] = path.Join(basePath, "block")
+			settings["keyring"] = path.Join(basePath, "keyring")
+			return settings, nil
+			//FIX: return nil, fmt.Errorf("failed to find partitions from config for osd %d", cfg.id)
+		} else {
+			walPath, dbPath, blockPath, err = getBluestorePartitionPaths(cfg)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
@@ -440,7 +445,7 @@ func getStoreSettings(cfg *osdConfig) (map[string]string, error) {
 	return settings, nil
 }
 
-func WriteConfigFile(context *clusterd.Context, cluster *cephconfig.ClusterInfo, kv *k8sutil.ConfigMapKVStore, osdID int, storeConfig config.StoreConfig, nodeName, location string) error {
+func WriteConfigFile(context *clusterd.Context, cluster *cephconfig.ClusterInfo, kv *k8sutil.ConfigMapKVStore, osdID int, device bool, storeConfig config.StoreConfig, nodeName, location string) error {
 	scheme, err := config.LoadScheme(kv, config.GetConfigStoreName(nodeName))
 	if err != nil {
 		return fmt.Errorf("failed to load partition scheme: %+v", err)
@@ -450,10 +455,8 @@ func WriteConfigFile(context *clusterd.Context, cluster *cephconfig.ClusterInfo,
 		storeConfig: storeConfig, kv: kv, storeName: config.GetConfigStoreName(nodeName)}
 
 	// if a device, search the osd scheme for the requested osd id
-	device := false
 	for _, entry := range scheme.Entries {
 		if entry.ID == osdID {
-			device = true
 			cfg.partitionScheme = entry
 			cfg.uuid = entry.OsdUUID
 			logger.Infof("found osd %d in device map for uuid %s", osdID, cfg.uuid.String())

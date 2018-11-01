@@ -37,6 +37,26 @@ var (
 	logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephosd")
 )
 
+// StartOSD starts an OSD on a device that was provisioned by ceph-volume
+func StartOSD(context *clusterd.Context, bluestore bool, osdID, osdUUID string, cephArgs []string) error {
+	storeFlag := "--bluestore"
+	if !bluestore {
+		storeFlag = "--filestore"
+	}
+
+	// activate the osd with ceph-volume
+	if err := context.Executor.ExecuteCommand(false, "", "ceph-volume", "lvm", "activate", "--no-systemd", storeFlag, osdID, osdUUID); err != nil {
+		return fmt.Errorf("failed to activate osd. %+v", err)
+	}
+
+	// run the ceph-osd daemon
+	if err := context.Executor.ExecuteCommand(false, "", "ceph-osd", cephArgs...); err != nil {
+		return fmt.Errorf("failed to start osd. %+v", err)
+	}
+
+	return nil
+}
+
 func RunFilestoreOnDevice(context *clusterd.Context, mountSourcePath, mountPath string, cephArgs []string) error {
 	// start the OSD daemon in the foreground with the given config
 	logger.Infof("starting filestore osd on a device")
@@ -107,7 +127,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 
 	// start the desired OSDs on devices
 	logger.Infof("configuring osd devices: %+v", devices)
-	deviceOSDs, err := agent.configureDevices(context, devices)
+	deviceOSDs, err := agent.configureAllDevices(context, devices)
 	if err != nil {
 		return fmt.Errorf("failed to configure devices. %+v", err)
 	}

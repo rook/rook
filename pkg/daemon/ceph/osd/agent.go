@@ -142,10 +142,15 @@ func (a *OsdAgent) removeDirs(context *clusterd.Context, removedDirs map[string]
 	return nil
 }
 
-func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
+func (a *OsdAgent) configureAllDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
 	var osds []oposd.OSDInfo
 	if devices == nil || len(devices.Entries) == 0 {
 		return osds, nil
+	}
+
+	useCephVolume := true
+	if useCephVolume {
+		return a.configureDevices(context, devices)
 	}
 
 	// compute an OSD layout scheme that will optimize performance
@@ -154,14 +159,12 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 	if err != nil {
 		return osds, fmt.Errorf("failed to get OSD partition scheme: %+v", err)
 	}
-
 	if scheme.Metadata != nil {
 		// partition the dedicated metadata device
 		if err := partitionMetadata(context, scheme.Metadata, a.kv, config.GetConfigStoreName(a.nodeName)); err != nil {
 			return osds, fmt.Errorf("failed to partition metadata %+v: %+v", scheme.Metadata, err)
 		}
 	}
-
 	// initialize and start all the desired OSDs using the computed scheme
 	succeeded := 0
 	for _, entry := range scheme.Entries {

@@ -100,16 +100,17 @@ func New(
 }
 
 type OSDInfo struct {
-	ID             int    `json:"id"`
-	DataPath       string `json:"data-path"`
-	Config         string `json:"conf"`
-	Cluster        string `json:"cluster"`
-	KeyringPath    string `json:"keyring-path"`
-	UUID           string `json:"uuid"`
-	Journal        string `json:"journal"`
-	IsFileStore    bool   `json:"is-file-store"`
-	IsDirectory    bool   `json:"is-directory"`
-	DevicePartUUID string `json:"device-part-uuid"`
+	ID                  int    `json:"id"`
+	DataPath            string `json:"data-path"`
+	Config              string `json:"conf"`
+	Cluster             string `json:"cluster"`
+	KeyringPath         string `json:"keyring-path"`
+	UUID                string `json:"uuid"`
+	Journal             string `json:"journal"`
+	IsFileStore         bool   `json:"is-file-store"`
+	IsDirectory         bool   `json:"is-directory"`
+	DevicePartUUID      string `json:"device-part-uuid"`
+	CephVolumeInitiated bool   `json:"ceph-volume-initiated"`
 }
 
 type OrchestrationStatus struct {
@@ -172,6 +173,7 @@ func (c *Cluster) Start() error {
 	}
 	logger.Infof("%d of the %d storage nodes are valid", len(validNodes), len(c.Storage.Nodes))
 	c.Storage.Nodes = validNodes
+
 	// orchestrate individual nodes, starting with any that are still ongoing (in the case that we
 	// are resuming a previous orchestration attempt)
 	config := newProvisionConfig()
