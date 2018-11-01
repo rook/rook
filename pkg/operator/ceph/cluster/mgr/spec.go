@@ -80,7 +80,7 @@ func (c *Cluster) makeConfigInitContainer(mgrConfig *mgrConfig) v1.Container {
 			fmt.Sprintf("--config-dir=%s", k8sutil.DataDir),
 			fmt.Sprintf("--mgr-name=%s", mgrConfig.DaemonName),
 		},
-		Image: k8sutil.MakeRookImage(c.Version),
+		Image: k8sutil.MakeRookImage(c.rookVersion),
 		Env: []v1.EnvVar{
 			// Set '--mgr-keyring' flag with an env var sourced from the secret
 			{Name: "ROOK_MGR_KEYRING",
@@ -113,7 +113,7 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig) v1.Container {
 			"--id", mgrConfig.DaemonName,
 			// do not add the '--cluster/--conf/--keyring' flags; rook wants their default values
 		},
-		Image:        k8sutil.MakeRookImage(c.Version),
+		Image:        c.cephVersion.Image,
 		VolumeMounts: opspec.CephVolumeMounts(),
 		Ports: []v1.ContainerPort{
 			{

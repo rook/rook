@@ -45,7 +45,7 @@ func TestStartMGR(t *testing.T) {
 		Executor:  executor,
 		ConfigDir: configDir,
 		Clientset: testop.New(3)}
-	c := New(context, "ns", "myversion", rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{Enabled: true}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(context, "ns", "myversion", cephv1beta1.CephVersionSpec{}, rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{Enabled: true}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 	defer os.RemoveAll(c.dataDir)
 
 	// start a basic service

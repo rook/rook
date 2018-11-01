@@ -64,7 +64,8 @@ var filesystemResourceRookLegacy = opkit.CustomResource{
 // FilesystemController represents a controller for file system custom resources
 type FilesystemController struct {
 	context     *clusterd.Context
-	rookImage   string
+	rookVersion string
+	cephVersion cephv1beta1.CephVersionSpec
 	hostNetwork bool
 	ownerRef    metav1.OwnerReference
 }
@@ -72,13 +73,15 @@ type FilesystemController struct {
 // NewFilesystemController create controller for watching file system custom resources created
 func NewFilesystemController(
 	context *clusterd.Context,
-	rookImage string,
+	rookVersion string,
+	cephVersion cephv1beta1.CephVersionSpec,
 	hostNetwork bool,
 	ownerRef metav1.OwnerReference,
 ) *FilesystemController {
 	return &FilesystemController{
 		context:     context,
-		rookImage:   rookImage,
+		rookVersion: rookVersion,
+		cephVersion: cephVersion,
 		hostNetwork: hostNetwork,
 		ownerRef:    ownerRef,
 	}
@@ -117,7 +120,7 @@ func (c *FilesystemController) onAdd(obj interface{}) {
 		return
 	}
 
-	err = createFilesystem(c.context, *filesystem, c.rookImage, c.hostNetwork, c.filesystemOwners(filesystem))
+	err = createFilesystem(c.context, *filesystem, c.rookVersion, c.cephVersion, c.hostNetwork, c.filesystemOwners(filesystem))
 	if err != nil {
 		logger.Errorf("failed to create file system %s: %+v", filesystem.Name, err)
 	}
@@ -149,7 +152,7 @@ func (c *FilesystemController) onUpdate(oldObj, newObj interface{}) {
 
 	// if the file system is modified, allow the file system to be created if it wasn't already
 	logger.Infof("updating filesystem %s", newFS.Name)
-	err = createFilesystem(c.context, *newFS, c.rookImage, c.hostNetwork, c.filesystemOwners(newFS))
+	err = createFilesystem(c.context, *newFS, c.rookVersion, c.cephVersion, c.hostNetwork, c.filesystemOwners(newFS))
 	if err != nil {
 		logger.Errorf("failed to create (modify) file system %s: %+v", newFS.Name, err)
 	}

@@ -73,7 +73,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the mon pods
-	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.Mon, cephv1beta1.GetMonPlacement(c.Spec.Placement),
+	c.mons = mon.New(c.context, c.Namespace, c.Spec.DataDirHostPath, rookImage, c.Spec.CephVersion, c.Spec.Mon, cephv1beta1.GetMonPlacement(c.Spec.Placement),
 		c.Spec.Network.HostNetwork, cephv1beta1.GetMonResources(c.Spec.Resources), c.ownerRef)
 	err = c.mons.Start()
 	if err != nil {
@@ -85,7 +85,7 @@ func (c *cluster) createInstance(rookImage string) error {
 		return fmt.Errorf("failed to create initial crushmap: %+v", err)
 	}
 
-	c.mgrs = mgr.New(c.context, c.Namespace, rookImage, cephv1beta1.GetMgrPlacement(c.Spec.Placement),
+	c.mgrs = mgr.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, cephv1beta1.GetMgrPlacement(c.Spec.Placement),
 		c.Spec.Network.HostNetwork, c.Spec.Dashboard, cephv1beta1.GetMgrResources(c.Spec.Resources), c.ownerRef)
 	err = c.mgrs.Start()
 	if err != nil {
@@ -93,7 +93,7 @@ func (c *cluster) createInstance(rookImage string) error {
 	}
 
 	// Start the OSDs
-	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath,
+	c.osds = osd.New(c.context, c.Namespace, rookImage, c.Spec.CephVersion, c.Spec.ServiceAccount, c.Spec.Storage, c.Spec.DataDirHostPath,
 		cephv1beta1.GetOSDPlacement(c.Spec.Placement), c.Spec.Network.HostNetwork, cephv1beta1.GetOSDResources(c.Spec.Resources), c.ownerRef)
 	err = c.osds.Start()
 	if err != nil {

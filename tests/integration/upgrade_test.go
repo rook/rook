@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/operator/k8sutil"
 	"github.com/rook/rook/tests/framework/clients"
 	"github.com/rook/rook/tests/framework/installer"
@@ -61,7 +62,7 @@ func (s *UpgradeSuite) SetupSuite() {
 	s.namespace = "upgrade-ns"
 	useDevices := true
 
-	s.op, s.k8sh = StartTestCluster(s.T, s.namespace, "bluestore", false, useDevices, 3, installer.Version0_8)
+	s.op, s.k8sh = StartTestCluster(s.T, s.namespace, "bluestore", false, useDevices, 3, installer.Version0_8, installer.LuminousVersion)
 	s.helper = clients.CreateTestClient(s.k8sh, s.op.installer.Manifests)
 }
 
@@ -94,9 +95,9 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 
 	// verify that we're actually running 0.8 before the upgrade
 	operatorContainer := "rook-ceph-operator"
-	version, err := k8sutil.GetDeploymentVersion(s.k8sh.Clientset, systemNamespace, operatorContainer, operatorContainer)
+	version, err := k8sutil.GetDeploymentImage(s.k8sh.Clientset, systemNamespace, operatorContainer, operatorContainer)
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), "v0.8.1", version)
+	assert.Equal(s.T(), "rook/ceph:v0.8.3", version)
 
 	message := "my simple message"
 	preFilename := "pre-upgrade-file"
@@ -109,22 +110,22 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 	require.Nil(s.T(), s.k8sh.SetDeploymentVersion(systemNamespace, operatorContainer, operatorContainer, installer.VersionMaster))
 
 	// verify that the operator spec is updated
-	version, err = k8sutil.GetDeploymentVersion(s.k8sh.Clientset, systemNamespace, operatorContainer, operatorContainer)
+	version, err = k8sutil.GetDeploymentImage(s.k8sh.Clientset, systemNamespace, operatorContainer, operatorContainer)
 	assert.Nil(s.T(), err)
-	assert.Equal(s.T(), installer.VersionMaster, version)
+	assert.Equal(s.T(), "rook/ceph:"+installer.VersionMaster, version)
 
 	// wait for the legacy mon replicasets to be deleted
 	err = s.waitForLegacyMonReplicaSetDeletion()
 	require.Nil(s.T(), err)
 
 	// wait for the mon pods to be running
-	err = k8sutil.WaitForDeploymentVersion(s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon", "rook-ceph-mon", installer.VersionMaster)
+	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-mon", "mon", cephv1beta1.DefaultLuminousImage)
 	require.Nil(s.T(), err)
 
 	s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-mon", s.namespace)
 
 	// wait for the osd pods to be updated
-	err = k8sutil.WaitForDeploymentVersion(s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd", "rook-ceph-osd", installer.VersionMaster)
+	err = k8sutil.WaitForDeploymentImage(s.k8sh.Clientset, s.namespace, "app=rook-ceph-osd", "osd", cephv1beta1.DefaultLuminousImage)
 	require.Nil(s.T(), err)
 
 	s.k8sh.WaitForLabeledPodsToRun("app=rook-ceph-osd", s.namespace)
@@ -135,15 +136,15 @@ func (s *UpgradeSuite) TestUpgradeToMaster() {
 
 	// Test writing and reading from the pod with cephfs mounted that was created before the upgrade.
 	postFilename := "post-upgrade-file"
-	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry(s.namespace, filePodName, preFilename, message, 3))
-	assert.Nil(s.T(), s.k8sh.WriteToPodRetry(s.namespace, filePodName, postFilename, message, 3))
-	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry(s.namespace, filePodName, postFilename, message, 3))
+	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry(s.namespace, filePodName, preFilename, message, 5))
+	assert.Nil(s.T(), s.k8sh.WriteToPodRetry(s.namespace, filePodName, postFilename, message, 5))
+	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry(s.namespace, filePodName, postFilename, message, 5))
 
 	// Test writing and reading from the pod with rbd mounted that was created before the upgrade.
 	// There is some unreliability right after the upgrade when there is only one osd, so we will retry if needed
-	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry("", podName, preFilename, message, 3))
-	assert.Nil(s.T(), s.k8sh.WriteToPodRetry("", podName, postFilename, message, 3))
-	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry("", podName, postFilename, message, 3))
+	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry("", podName, preFilename, message, 5))
+	assert.Nil(s.T(), s.k8sh.WriteToPodRetry("", podName, postFilename, message, 5))
+	assert.Nil(s.T(), s.k8sh.ReadFromPodRetry("", podName, postFilename, message, 5))
 }
 
 func (s *UpgradeSuite) waitForLegacyMonReplicaSetDeletion() error {

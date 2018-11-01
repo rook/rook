@@ -44,6 +44,8 @@ const (
 	osdWalSizeEnvVarName        = "ROOK_OSD_WAL_SIZE"
 	osdJournalSizeEnvVarName    = "ROOK_OSD_JOURNAL_SIZE"
 	osdMetadataDeviceEnvVarName = "ROOK_METADATA_DEVICE"
+	rookBinariesMountPath       = "/rook"
+	rookBinariesVolumeName      = "rook-binaries"
 )
 
 func (c *Cluster) makeJob(nodeName string, devices []rookalpha.Device,
@@ -138,6 +140,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 
 	var command []string
 	var args []string
+	var copyBinariesContainer *v1.Container
 	if !osd.IsDirectory && osd.IsFileStore {
 		// All scenarios except one can call the ceph-osd daemon directly. The one different scenario is when
 		// filestore is running on a device. Rook needs to mount the device, run the ceph-osd daemon, and then
@@ -145,27 +148,21 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		// for this scenario, we will copy the binaries necessary to a mount, which will then be mounted
 		// to the daemon container.
 		sourcePath := path.Join("/dev/disk/by-partuuid", osd.DevicePartUUID)
-		mountPath := "/rook"
-		command = []string{path.Join(mountPath, "tini")}
+		command = []string{path.Join(rookBinariesMountPath, "tini")}
 		args = append([]string{
-			"--", path.Join(mountPath, "rook"),
+			"--", path.Join(rookBinariesMountPath, "rook"),
 			"ceph", "osd", "filestore-device",
 			"--source-path", sourcePath,
 			"--mount-path", osd.DataPath,
 			"--"},
 			commonArgs...)
 
-		// To get rook inside the container, the config init container needs to copy "tini" and "rook" binaries into a volume.
-		// Set the config flag so rook will copy the binaries.
-		configEnvVars = append(configEnvVars, v1.EnvVar{Name: "ROOK_COPY_BINARIES_PATH", Value: mountPath})
+		var copyBinariesVolume v1.Volume
+		copyBinariesVolume, copyBinariesContainer = c.getCopyBinariesContainer()
+		// Add the volume to the spec and the mount to the daemon container
+		volumes = append(volumes, copyBinariesVolume)
+		volumeMounts = append(volumeMounts, copyBinariesContainer.VolumeMounts[0])
 
-		// Create the volume and mount that will be shared between the init container and the daemon container
-		volumeName := "rookbinaries"
-		binariesVolume := v1.Volume{Name: volumeName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
-		volumes = append(volumes, binariesVolume)
-		binariesMount := v1.VolumeMount{Name: volumeName, MountPath: mountPath}
-		volumeMounts = append(volumeMounts, binariesMount)
-		configVolumeMounts = append(configVolumeMounts, binariesMount)
 	} else {
 		// other osds can launch the osd daemon directly
 		command = []string{"ceph-osd"}
@@ -220,7 +217,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 						{
 							Args:            []string{"ceph", "osd", "init"},
 							Name:            opspec.ConfigInitContainerName,
-							Image:           k8sutil.MakeRookImage(c.Version),
+							Image:           k8sutil.MakeRookImage(c.rookVersion),
 							VolumeMounts:    configVolumeMounts,
 							Env:             configEnvVars,
 							SecurityContext: securityContext,
@@ -231,7 +228,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 							Command:         command,
 							Args:            args,
 							Name:            "osd",
-							Image:           k8sutil.MakeRookImage(c.Version),
+							Image:           c.cephVersion.Image,
 							VolumeMounts:    volumeMounts,
 							Env:             envVars,
 							Resources:       resources,
@@ -244,15 +241,36 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 			Replicas: &replicaCount,
 		},
 	}
+	if copyBinariesContainer != nil {
+		deployment.Spec.Template.Spec.InitContainers = append(deployment.Spec.Template.Spec.InitContainers, *copyBinariesContainer)
+	}
 	k8sutil.SetOwnerRef(c.context.Clientset, c.Namespace, &deployment.ObjectMeta, &c.ownerRef)
 	c.placement.ApplyToPodSpec(&deployment.Spec.Template.Spec)
 	return deployment, nil
 }
 
+// To get rook inside the container, the config init container needs to copy "tini" and "rook" binaries into a volume.
+// Get the config flag so rook will copy the binaries and create the volume and mount that will be shared between
+// the init container and the daemon container
+func (c *Cluster) getCopyBinariesContainer() (v1.Volume, *v1.Container) {
+	volume := v1.Volume{Name: rookBinariesVolumeName, VolumeSource: v1.VolumeSource{EmptyDir: &v1.EmptyDirVolumeSource{}}}
+	mount := v1.VolumeMount{Name: rookBinariesVolumeName, MountPath: rookBinariesMountPath}
+
+	return volume, &v1.Container{
+		Args:         []string{"ceph", "osd", "copybins"},
+		Name:         "copy-bins",
+		Image:        k8sutil.MakeRookImage(c.rookVersion),
+		VolumeMounts: []v1.VolumeMount{mount},
+		Env:          []v1.EnvVar{{Name: "ROOK_PATH", Value: rookBinariesMountPath}},
+	}
+}
+
 func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
 	storeConfig config.StoreConfig, metadataDevice, nodeName, location string, restart v1.RestartPolicy) (*v1.PodTemplateSpec, error) {
 
-	volumes := opspec.PodVolumes(c.dataDirHostPath)
+	copyBinariesVolume, copyBinariesContainer := c.getCopyBinariesContainer()
+
+	volumes := append(opspec.PodVolumes(c.dataDirHostPath), copyBinariesVolume)
 
 	// by default, don't define any volume config unless it is required
 	if len(devices) > 0 || selection.DeviceFilter != "" || selection.GetUseAllDevices() || metadataDevice != "" {
@@ -278,10 +296,13 @@ func (c *Cluster) provisionPodTemplateSpec(devices []rookalpha.Device, selection
 
 	podSpec := v1.PodSpec{
 		ServiceAccountName: c.serviceAccount,
-		Containers:         []v1.Container{c.provisionOSDContainer(devices, selection, resources, storeConfig, metadataDevice, nodeName, location)},
-		RestartPolicy:      restart,
-		Volumes:            volumes,
-		HostNetwork:        c.HostNetwork,
+		Containers: []v1.Container{
+			*copyBinariesContainer,
+			c.provisionOSDContainer(devices, selection, resources, storeConfig, metadataDevice, nodeName, location, copyBinariesContainer.VolumeMounts[0]),
+		},
+		RestartPolicy: restart,
+		Volumes:       volumes,
+		HostNetwork:   c.HostNetwork,
 	}
 	if c.HostNetwork {
 		podSpec.DNSPolicy = v1.DNSClusterFirstWithHostNet
@@ -339,7 +360,7 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 }
 
 func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection rookalpha.Selection, resources v1.ResourceRequirements,
-	storeConfig config.StoreConfig, metadataDevice, nodeName, location string) v1.Container {
+	storeConfig config.StoreConfig, metadataDevice, nodeName, location string, copyBinariesMount v1.VolumeMount) v1.Container {
 
 	envVars := c.getConfigEnvVars(storeConfig, k8sutil.DataDir, nodeName, location)
 	devMountNeeded := false
@@ -366,7 +387,7 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 		devMountNeeded = true
 	}
 
-	volumeMounts := opspec.CephVolumeMounts()
+	volumeMounts := append(opspec.CephVolumeMounts(), copyBinariesMount)
 	if devMountNeeded {
 		devMount := v1.VolumeMount{Name: "devices", MountPath: "/dev"}
 		volumeMounts = append(volumeMounts, devMount)
@@ -395,11 +416,12 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 	runAsUser := int64(0)
 	runAsNonRoot := false
 	readOnlyRootFilesystem := false
+
 	return v1.Container{
-		// Set the hostname so we have the pod's host in the crush map rather than the pod container name
-		Args:         []string{"ceph", "osd", "provision"},
-		Name:         appName,
-		Image:        k8sutil.MakeRookImage(c.Version),
+		Command:      []string{path.Join(rookBinariesMountPath, "tini")},
+		Args:         []string{"--", path.Join(rookBinariesMountPath, "rook"), "ceph", "osd", "provision"},
+		Name:         "provision",
+		Image:        c.cephVersion.Image,
 		VolumeMounts: volumeMounts,
 		Env:          envVars,
 		SecurityContext: &v1.SecurityContext{

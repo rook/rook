@@ -48,7 +48,6 @@ var mgrNames = []string{"a", "b"}
 // Cluster represents the Rook and environment configuration settings needed to set up Ceph mgrs.
 type Cluster struct {
 	Namespace   string
-	Version     string
 	Replicas    int
 	placement   rookalpha.Placement
 	context     *clusterd.Context
@@ -57,6 +56,8 @@ type Cluster struct {
 	resources   v1.ResourceRequirements
 	ownerRef    metav1.OwnerReference
 	dashboard   cephv1beta1.DashboardSpec
+	cephVersion cephv1beta1.CephVersionSpec
+	rookVersion string
 }
 
 // mgrConfig for a single mgr
@@ -66,13 +67,14 @@ type mgrConfig struct {
 }
 
 // New creates an instance of the mgr
-func New(context *clusterd.Context, namespace, version string, placement rookalpha.Placement, hostNetwork bool, dashboard cephv1beta1.DashboardSpec,
+func New(context *clusterd.Context, namespace, rookVersion string, cephVersion cephv1beta1.CephVersionSpec, placement rookalpha.Placement, hostNetwork bool, dashboard cephv1beta1.DashboardSpec,
 	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:     context,
 		Namespace:   namespace,
 		placement:   placement,
-		Version:     version,
+		rookVersion: rookVersion,
+		cephVersion: cephVersion,
 		Replicas:    1,
 		dataDir:     k8sutil.DataDir,
 		dashboard:   dashboard,

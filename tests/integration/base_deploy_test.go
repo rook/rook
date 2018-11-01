@@ -100,11 +100,11 @@ type TestCluster struct {
 }
 
 // StartTestCluster creates new instance of TestCluster struct
-func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInstalled, useDevices bool, mons int, rookVersion string) (*TestCluster, *utils.K8sHelper) {
+func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInstalled, useDevices bool, mons int, rookVersion string, cephVersion cephv1beta1.CephVersionSpec) (*TestCluster, *utils.K8sHelper) {
 	kh, err := utils.CreateK8sHelper(t)
 	require.NoError(t(), err)
 
-	i := installer.NewCephInstaller(t, kh.Clientset, rookVersion)
+	i := installer.NewCephInstaller(t, kh.Clientset, rookVersion, cephVersion)
 
 	op := &TestCluster{i, kh, nil, t, namespace, storeType, helmInstalled, useDevices, mons}
 
@@ -113,6 +113,7 @@ func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInst
 		assert.NoError(t(), kh.GetDockerImage("rook/ceph:"+rookVersion))
 		assert.NoError(t(), kh.GetDockerImage("rook/ceph-toolbox:"+rookVersion))
 	}
+	assert.NoError(t(), kh.GetDockerImage(cephVersion.Image))
 
 	op.Setup()
 	return op, kh

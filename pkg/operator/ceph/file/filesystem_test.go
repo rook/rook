@@ -106,12 +106,12 @@ func TestCreateFilesystem(t *testing.T) {
 	}
 
 	// start a basic cluster
-	err := createFilesystem(context, fs, "v0.1", false, []metav1.OwnerReference{})
+	err := createFilesystem(context, fs, "v0.1", cephv1beta1.CephVersionSpec{}, false, []metav1.OwnerReference{})
 	assert.Nil(t, err)
 	validateStart(t, context, fs)
 
 	// starting again should be a no-op
-	err = createFilesystem(context, fs, "v0.1", false, []metav1.OwnerReference{})
+	err = createFilesystem(context, fs, "v0.1", cephv1beta1.CephVersionSpec{}, false, []metav1.OwnerReference{})
 	assert.Nil(t, err)
 	validateStart(t, context, fs)
 
@@ -130,7 +130,7 @@ func TestCreateFilesystem(t *testing.T) {
 		Clientset: testop.New(3)}
 
 	//Create another filesystem which should fail
-	err = createFilesystem(context, fs, "v0.1", false, []metav1.OwnerReference{})
+	err = createFilesystem(context, fs, "v0.1", cephv1beta1.CephVersionSpec{}, false, []metav1.OwnerReference{})
 	assert.Equal(t, "failed to create file system myfs: Cannot create multiple filesystems. Enable ROOK_ALLOW_MULTIPLE_FILESYSTEMS env variable to create more than one", err.Error())
 }
 

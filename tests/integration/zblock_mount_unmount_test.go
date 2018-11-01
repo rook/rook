@@ -86,7 +86,7 @@ func (s *BlockMountUnMountSuite) SetupSuite() {
 	s.pvcNameRWX = "block-persistent-rwx"
 	useHelm := false
 	useDevices := true
-	s.op, s.kh = StartTestCluster(s.T, s.namespace, "filestore", useHelm, useDevices, 1, installer.VersionMaster)
+	s.op, s.kh = StartTestCluster(s.T, s.namespace, "filestore", useHelm, useDevices, 1, installer.VersionMaster, installer.LuminousVersion)
 	s.testClient = clients.CreateTestClient(s.kh, s.op.installer.Manifests)
 	s.bc = s.testClient.BlockClient
 }

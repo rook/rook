@@ -41,6 +41,7 @@ func TestPodSpec(t *testing.T) {
 		&clusterd.Context{Clientset: testop.New(1)},
 		"ns",
 		"rook/rook:myversion",
+		cephv1beta1.CephVersionSpec{Image: "ceph/ceph:myceph"},
 		rookalpha.Placement{},
 		false,
 		cephv1beta1.DashboardSpec{},
@@ -106,8 +107,7 @@ func TestPodSpec(t *testing.T) {
 	configContainerDefinition.TestContainer(t, "config init", cont, logger)
 	assert.Equal(t, "100", cont.Resources.Limits.Cpu().String())
 	assert.Equal(t, "1337", cont.Resources.Requests.Memory().String())
-
-	daemonImage := "rook/rook:myversion"
+	daemonImage := "ceph/ceph:myceph"
 	// +1 for $ROOK_CLUSTER_NAME
 	daemonEnvs := len(k8sutil.ClusterDaemonEnvVars()) + 1
 	daemonContainerDefinition := cephtest.ContainerTestDefinition{
@@ -146,7 +146,7 @@ func TestPodSpec(t *testing.T) {
 }
 
 func TestServiceSpec(t *testing.T) {
-	c := New(&clusterd.Context{}, "ns", "myversion", rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
+	c := New(&clusterd.Context{}, "ns", "myversion", cephv1beta1.CephVersionSpec{}, rookalpha.Placement{}, false, cephv1beta1.DashboardSpec{}, v1.ResourceRequirements{}, metav1.OwnerReference{})
 
 	s := c.makeMetricsService("rook-mgr")
 	assert.NotNil(t, s)
@@ -159,6 +159,7 @@ func TestHostNetwork(t *testing.T) {
 		&clusterd.Context{Clientset: testop.New(1)},
 		"ns",
 		"myversion",
+		cephv1beta1.CephVersionSpec{},
 		rookalpha.Placement{},
 		true,
 		cephv1beta1.DashboardSpec{},

@@ -79,7 +79,7 @@ func (c *cluster) makeConfigInitContainer(mdsConfig *mdsConfig) v1.Container {
 			"--filesystem-id", c.fsID,
 			"--active-standby", strconv.FormatBool(c.fs.Spec.MetadataServer.ActiveStandby),
 		},
-		Image: k8sutil.MakeRookImage(c.Version),
+		Image: k8sutil.MakeRookImage(c.rookVersion),
 		Env: []v1.EnvVar{
 			// Set '--mds-keyring' flag with an env var sourced from the secret
 			{Name: "ROOK_MDS_KEYRING",
@@ -112,7 +112,7 @@ func (c *cluster) makeMdsDaemonContainer(mdsConfig *mdsConfig) v1.Container {
 			"--id", mdsConfig.DaemonName,
 			// do not add the '--cluster/--conf/--keyring' flags; rook wants their default values
 		},
-		Image:        k8sutil.MakeRookImage(c.Version),
+		Image:        c.cephVersion.Image,
 		Env:          k8sutil.ClusterDaemonEnvVars(),
 		VolumeMounts: opspec.CephVolumeMounts(),
 		// TODO: mds doesn't need ports?

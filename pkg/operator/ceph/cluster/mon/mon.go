@@ -75,7 +75,8 @@ type Cluster struct {
 	context              *clusterd.Context
 	Namespace            string
 	Keyring              string
-	Version              string
+	rookVersion          string
+	cephVersion          cephv1beta1.CephVersionSpec
 	Count                int
 	AllowMultiplePerNode bool
 	MonCountMutex        sync.Mutex
@@ -120,14 +121,15 @@ type NodeInfo struct {
 }
 
 // New creates an instance of a mon cluster
-func New(context *clusterd.Context, namespace, dataDirHostPath, version string, mon cephv1beta1.MonSpec, placement rookalpha.Placement, hostNetwork bool,
-	resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
+func New(context *clusterd.Context, namespace, dataDirHostPath, rookVersion string, cephVersion cephv1beta1.CephVersionSpec, mon cephv1beta1.MonSpec,
+	placement rookalpha.Placement, hostNetwork bool, resources v1.ResourceRequirements, ownerRef metav1.OwnerReference) *Cluster {
 	return &Cluster{
 		context:              context,
 		placement:            placement,
 		dataDirHostPath:      dataDirHostPath,
 		Namespace:            namespace,
-		Version:              version,
+		rookVersion:          rookVersion,
+		cephVersion:          cephVersion,
 		Count:                mon.Count,
 		AllowMultiplePerNode: mon.AllowMultiplePerNode,
 		maxMonID:             -1,

@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/coreos/pkg/capnslog"
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 	"github.com/rook/rook/pkg/clusterd"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
@@ -60,7 +61,8 @@ type Cluster struct {
 	Namespace       string
 	placement       rookalpha.Placement
 	Keyring         string
-	Version         string
+	rookVersion     string
+	cephVersion     cephv1beta1.CephVersionSpec
 	Storage         rookalpha.StorageScopeSpec
 	dataDirHostPath string
 	HostNetwork     bool
@@ -73,8 +75,9 @@ type Cluster struct {
 // New creates an instance of the OSD manager
 func New(
 	context *clusterd.Context,
-	namespace,
-	version,
+	namespace string,
+	rookVersion string,
+	cephVersion cephv1beta1.CephVersionSpec,
 	serviceAccount string,
 	storageSpec rookalpha.StorageScopeSpec,
 	dataDirHostPath string,
@@ -95,7 +98,8 @@ func New(
 		Namespace:       namespace,
 		serviceAccount:  serviceAccount,
 		placement:       placement,
-		Version:         version,
+		rookVersion:     rookVersion,
+		cephVersion:     cephVersion,
 		Storage:         storageSpec,
 		dataDirHostPath: dataDirHostPath,
 		HostNetwork:     hostNetwork,

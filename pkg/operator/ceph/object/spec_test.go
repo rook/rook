@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"testing"
 
+	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/clusterd"
 	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -40,7 +41,8 @@ func TestPodSpecs(t *testing.T) {
 		},
 	}
 
-	s := makeRGWPodSpec(store, "rook/rook:myversion", true)
+	c := &config{store: store, rookVersion: "rook/rook:myversion", cephVersion: cephv1beta1.CephVersionSpec{Image: "ceph/ceph:v13.2.1"}, hostNetwork: true}
+	s := c.makeRGWPodSpec()
 	assert.NotNil(t, s)
 	//assert.Equal(t, instanceName(store), s.Name)
 	assert.Equal(t, v1.RestartPolicyAlways, s.Spec.RestartPolicy)
@@ -48,7 +50,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "rook-data", s.Spec.Volumes[0].Name)
 	assert.Equal(t, cephconfig.DefaultConfigMountName, s.Spec.Volumes[1].Name)
 
-	assert.Equal(t, instanceName(store), s.ObjectMeta.Name)
+	assert.Equal(t, c.instanceName(), s.ObjectMeta.Name)
 	assert.Equal(t, appName, s.ObjectMeta.Labels["app"])
 	assert.Equal(t, store.Namespace, s.ObjectMeta.Labels["rook_cluster"])
 	assert.Equal(t, store.Name, s.ObjectMeta.Labels["rook_object_store"])
@@ -68,7 +70,7 @@ func TestPodSpecs(t *testing.T) {
 	assert.Equal(t, "--rgw-secure-port=0", cont.Args[5])
 
 	cont = s.Spec.Containers[0]
-	assert.Equal(t, "rook/rook:myversion", cont.Image)
+	assert.Equal(t, "ceph/ceph:v13.2.1", cont.Image)
 	assert.Equal(t, 2, len(cont.VolumeMounts))
 
 	assert.Equal(t, 1, len(cont.Command))
@@ -89,9 +91,10 @@ func TestSSLPodSpec(t *testing.T) {
 	store.Spec.Gateway.SSLCertificateRef = "mycert"
 	store.Spec.Gateway.SecurePort = 443
 
-	s := makeRGWPodSpec(store, "v1.0", true)
+	c := &config{store: store, rookVersion: "v1.0", hostNetwork: true}
+	s := c.makeRGWPodSpec()
 	assert.NotNil(t, s)
-	assert.Equal(t, instanceName(store), s.Name)
+	assert.Equal(t, c.instanceName(), s.Name)
 	assert.Equal(t, 4, len(s.Spec.Volumes))
 	assert.Equal(t, certVolumeName, s.Spec.Volumes[3].Name)
 	assert.True(t, s.Spec.HostNetwork)

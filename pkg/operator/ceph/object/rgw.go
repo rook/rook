@@ -40,67 +40,76 @@ const (
 	certFilename   = "rgw-cert.pem"
 )
 
+type config struct {
+	context     *clusterd.Context
+	store       cephv1beta1.ObjectStore
+	rookVersion string
+	cephVersion cephv1beta1.CephVersionSpec
+	hostNetwork bool
+	ownerRefs   []metav1.OwnerReference
+}
+
 // Start the rgw manager
-func CreateStore(context *clusterd.Context, store cephv1beta1.ObjectStore, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
-	return createOrUpdate(context, store, version, hostNetwork, false, ownerRefs)
+func (c *config) createStore() error {
+	return c.createOrUpdate(false)
 }
 
-func UpdateStore(context *clusterd.Context, store cephv1beta1.ObjectStore, version string, hostNetwork bool, ownerRefs []metav1.OwnerReference) error {
-	return createOrUpdate(context, store, version, hostNetwork, true, ownerRefs)
+func (c *config) updateStore() error {
+	return c.createOrUpdate(true)
 }
 
-func createOrUpdate(context *clusterd.Context, store cephv1beta1.ObjectStore, version string, hostNetwork, update bool, ownerRefs []metav1.OwnerReference) error {
+func (c *config) createOrUpdate(update bool) error {
 	// validate the object store settings
-	if err := validateStore(context, store); err != nil {
-		return fmt.Errorf("invalid object store %s arguments. %+v", store.Name, err)
+	if err := validateStore(c.context, c.store); err != nil {
+		return fmt.Errorf("invalid object store %s arguments. %+v", c.store.Name, err)
 	}
 
 	// check if the object store already exists
-	exists, err := storeExists(context, store)
+	exists, err := c.storeExists()
 	if err == nil && exists {
 		if !update {
-			logger.Infof("object store %s exists in namespace %s", store.Name, store.Namespace)
+			logger.Infof("object store %s exists in namespace %s", c.store.Name, c.store.Namespace)
 			return nil
 		}
-		logger.Infof("object store %s exists in namespace %s. checking for updates", store.Name, store.Namespace)
+		logger.Infof("object store %s exists in namespace %s. checking for updates", c.store.Name, c.store.Namespace)
 	}
 
-	logger.Infof("creating object store %s in namespace %s", store.Name, store.Namespace)
-	err = createKeyring(context, store, ownerRefs)
+	logger.Infof("creating object store %s in namespace %s", c.store.Name, c.store.Namespace)
+	err = c.createKeyring()
 	if err != nil {
 		return fmt.Errorf("failed to create rgw keyring. %+v", err)
 	}
 
 	// start the service
-	serviceIP, err := startService(context, store, hostNetwork, ownerRefs)
+	serviceIP, err := c.startService()
 	if err != nil {
 		return fmt.Errorf("failed to start rgw service. %+v", err)
 	}
 
 	// create the ceph artifacts for the object store
-	objContext := rgwdaemon.NewContext(context, store.Name, store.Namespace)
-	err = rgwdaemon.CreateObjectStore(objContext, *store.Spec.MetadataPool.ToModel(""), *store.Spec.DataPool.ToModel(""), serviceIP, store.Spec.Gateway.Port)
+	objContext := rgwdaemon.NewContext(c.context, c.store.Name, c.store.Namespace)
+	err = rgwdaemon.CreateObjectStore(objContext, *c.store.Spec.MetadataPool.ToModel(""), *c.store.Spec.DataPool.ToModel(""), serviceIP, c.store.Spec.Gateway.Port)
 	if err != nil {
 		return fmt.Errorf("failed to create pools. %+v", err)
 	}
 
-	if err := startRGWPods(context, store, version, hostNetwork, update, ownerRefs); err != nil {
+	if err := c.startRGWPods(update); err != nil {
 		return fmt.Errorf("failed to start pods. %+v", err)
 	}
 
-	logger.Infof("created object store %s", store.Name)
+	logger.Infof("created object store %s", c.store.Name)
 	return nil
 }
 
-func startRGWPods(context *clusterd.Context, store cephv1beta1.ObjectStore, version string, hostNetwork, update bool, ownerRefs []metav1.OwnerReference) error {
+func (c *config) startRGWPods(update bool) error {
 
 	// if intended to update, remove the old pods so they can be created with the new spec settings
 	if update {
-		err := k8sutil.DeleteDeployment(context.Clientset, store.Namespace, instanceName(store))
+		err := k8sutil.DeleteDeployment(c.context.Clientset, c.store.Namespace, c.instanceName())
 		if err != nil {
 			logger.Warning(err.Error())
 		}
-		err = k8sutil.DeleteDaemonset(context.Clientset, store.Namespace, instanceName(store))
+		err = k8sutil.DeleteDaemonset(c.context.Clientset, c.store.Namespace, c.instanceName())
 		if err != nil {
 			logger.Warning(err.Error())
 		}
@@ -109,12 +118,12 @@ func startRGWPods(context *clusterd.Context, store cephv1beta1.ObjectStore, vers
 	// start the deployment or daemonset
 	var rgwType string
 	var err error
-	if store.Spec.Gateway.AllNodes {
+	if c.store.Spec.Gateway.AllNodes {
 		rgwType = "daemonset"
-		err = startDaemonset(context, store, version, hostNetwork, ownerRefs)
+		err = c.startDaemonset()
 	} else {
 		rgwType = "deployment"
-		err = startDeployment(context, store, version, store.Spec.Gateway.Instances, hostNetwork, ownerRefs)
+		err = c.startDeployment()
 	}
 
 	if err != nil {
@@ -131,59 +140,59 @@ func startRGWPods(context *clusterd.Context, store cephv1beta1.ObjectStore, vers
 
 // Delete the object store.
 // WARNING: This is a very destructive action that deletes all metadata and data pools.
-func DeleteStore(context *clusterd.Context, store cephv1beta1.ObjectStore) error {
+func (c *config) deleteStore() error {
 	// check if the object store  exists
-	exists, err := storeExists(context, store)
+	exists, err := c.storeExists()
 	if err != nil {
 		return fmt.Errorf("failed to detect if there is an object store to delete. %+v", err)
 	}
 	if !exists {
-		logger.Infof("Object store %s does not exist in namespace %s", store.Name, store.Namespace)
+		logger.Infof("Object store %s does not exist in namespace %s", c.store.Name, c.store.Namespace)
 		return nil
 	}
 
-	logger.Infof("Deleting object store %s from namespace %s", store.Name, store.Namespace)
+	logger.Infof("Deleting object store %s from namespace %s", c.store.Name, c.store.Namespace)
 
 	var gracePeriod int64
 	propagation := metav1.DeletePropagationForeground
 	options := &metav1.DeleteOptions{GracePeriodSeconds: &gracePeriod, PropagationPolicy: &propagation}
 
 	// Delete the rgw service
-	err = context.Clientset.CoreV1().Services(store.Namespace).Delete(instanceName(store), options)
+	err = c.context.Clientset.CoreV1().Services(c.store.Namespace).Delete(c.instanceName(), options)
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Warningf("failed to delete rgw service. %+v", err)
 	}
 
 	// Make a best effort to delete the rgw pods
-	err = k8sutil.DeleteDeployment(context.Clientset, store.Namespace, instanceName(store))
+	err = k8sutil.DeleteDeployment(c.context.Clientset, c.store.Namespace, c.instanceName())
 	if err != nil {
 		logger.Warning(err.Error())
 	}
-	err = k8sutil.DeleteDaemonset(context.Clientset, store.Namespace, instanceName(store))
+	err = k8sutil.DeleteDaemonset(c.context.Clientset, c.store.Namespace, c.instanceName())
 	if err != nil {
 		logger.Warning(err.Error())
 	}
 
 	// Delete the rgw keyring
-	err = context.Clientset.CoreV1().Secrets(store.Namespace).Delete(instanceName(store), options)
+	err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Delete(c.instanceName(), options)
 	if err != nil && !errors.IsNotFound(err) {
 		logger.Warningf("failed to delete rgw secret. %+v", err)
 	}
 
 	// Delete the realm and pools
-	objContext := rgwdaemon.NewContext(context, store.Name, store.Namespace)
+	objContext := rgwdaemon.NewContext(c.context, c.store.Name, c.store.Namespace)
 	err = rgwdaemon.DeleteObjectStore(objContext)
 	if err != nil {
 		return fmt.Errorf("failed to delete the realm and pools. %+v", err)
 	}
 
-	logger.Infof("Completed deleting object store %s", store.Name)
+	logger.Infof("Completed deleting object store %s", c.store.Name)
 	return nil
 }
 
 // Check if the object store exists depending on either the deployment or the daemonset
-func storeExists(context *clusterd.Context, store cephv1beta1.ObjectStore) (bool, error) {
-	_, err := context.Clientset.ExtensionsV1beta1().Deployments(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
+func (c *config) storeExists() (bool, error) {
+	_, err := c.context.Clientset.ExtensionsV1beta1().Deployments(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 	if err == nil {
 		// the deployment was found
 		return true, nil
@@ -192,7 +201,7 @@ func storeExists(context *clusterd.Context, store cephv1beta1.ObjectStore) (bool
 		return false, err
 	}
 
-	_, err = context.Clientset.ExtensionsV1beta1().DaemonSets(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
+	_, err = c.context.Clientset.ExtensionsV1beta1().DaemonSets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 	if err == nil {
 		//  the daemonset was found
 		return true, nil
@@ -205,8 +214,8 @@ func storeExists(context *clusterd.Context, store cephv1beta1.ObjectStore) (bool
 	return false, nil
 }
 
-func createKeyring(context *clusterd.Context, store cephv1beta1.ObjectStore, ownerRefs []metav1.OwnerReference) error {
-	_, err := context.Clientset.CoreV1().Secrets(store.Namespace).Get(instanceName(store), metav1.GetOptions{})
+func (c *config) createKeyring() error {
+	_, err := c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Get(c.instanceName(), metav1.GetOptions{})
 	if err == nil {
 		logger.Infof("the rgw keyring was already generated")
 		return nil
@@ -217,7 +226,7 @@ func createKeyring(context *clusterd.Context, store cephv1beta1.ObjectStore, own
 
 	// create the keyring
 	logger.Infof("generating rgw keyring")
-	keyring, err := createRGWKeyring(context, store.Namespace)
+	keyring, err := c.createRGWKeyring()
 	if err != nil {
 		return fmt.Errorf("failed to create keyring. %+v", err)
 	}
@@ -228,14 +237,14 @@ func createKeyring(context *clusterd.Context, store cephv1beta1.ObjectStore, own
 	}
 	secret := &v1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      instanceName(store),
-			Namespace: store.Namespace,
+			Name:      c.instanceName(),
+			Namespace: c.store.Namespace,
 		},
 		StringData: secrets,
 		Type:       k8sutil.RookType,
 	}
-	k8sutil.SetOwnerRefs(context.Clientset, store.Namespace, &secret.ObjectMeta, ownerRefs)
-	_, err = context.Clientset.CoreV1().Secrets(store.Namespace).Create(secret)
+	k8sutil.SetOwnerRefs(c.context.Clientset, c.store.Namespace, &secret.ObjectMeta, c.ownerRefs)
+	_, err = c.context.Clientset.CoreV1().Secrets(c.store.Namespace).Create(secret)
 	if err != nil {
 		return fmt.Errorf("failed to save rgw secrets. %+v", err)
 	}
@@ -243,17 +252,17 @@ func createKeyring(context *clusterd.Context, store cephv1beta1.ObjectStore, own
 	return nil
 }
 
-func instanceName(store cephv1beta1.ObjectStore) string {
-	return fmt.Sprintf("%s-%s", appName, store.Name)
+func (c *config) instanceName() string {
+	return fmt.Sprintf("%s-%s", appName, c.store.Name)
 }
 
 // create a keyring for the rgw client with a limited set of privileges
-func createRGWKeyring(context *clusterd.Context, clusterName string) (string, error) {
+func (c *config) createRGWKeyring() (string, error) {
 	username := "client.radosgw.gateway"
 	access := []string{"osd", "allow rwx", "mon", "allow rw"}
 
 	// get-or-create-key for the user account
-	key, err := client.AuthGetOrCreateKey(context, clusterName, username, access)
+	key, err := client.AuthGetOrCreateKey(c.context, c.store.Namespace, username, access)
 	if err != nil {
 		return "", fmt.Errorf("failed to get or create auth key for %store. %+v", username, err)
 	}

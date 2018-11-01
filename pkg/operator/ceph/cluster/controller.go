@@ -217,11 +217,11 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	poolController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start object store CRD watcher
-	objectStoreController := object.NewObjectStoreController(c.context, c.rookImage, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
+	objectStoreController := object.NewObjectStoreController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
 	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start file system CRD watcher
-	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
+	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
 	fileController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start mon health checker
