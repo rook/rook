@@ -229,7 +229,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 		"sdx": {Data: -1},
 		"sdy": {Data: -1},
 	}}
-	_, err = agent.configureDevices(context, devices)
+	_, err = agent.configureAllDevices(context, devices)
 	assert.Nil(t, err)
 
 	assert.Equal(t, int32(0), agent.configCounter)

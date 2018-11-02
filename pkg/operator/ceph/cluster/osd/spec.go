@@ -99,7 +99,6 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 		}
 	} else {
 		dataDir = k8sutil.DataDir
-		osd.CephVolumeInitiated = true
 
 		// Create volume config for /dev so the pod can access devices on the host
 		devVolume := v1.Volume{Name: "devices", VolumeSource: v1.VolumeSource{HostPath: &v1.HostPathVolumeSource{Path: "/dev"}}}

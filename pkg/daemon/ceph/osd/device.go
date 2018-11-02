@@ -76,8 +76,9 @@ type DeviceOsdMapping struct {
 }
 
 type DeviceOsdIDEntry struct {
-	Data     int   // OSD ID that has data stored here
-	Metadata []int // OSD IDs (multiple) that have metadata stored here
+	Data                  int   // OSD ID that has data stored here
+	Metadata              []int // OSD IDs (multiple) that have metadata stored here
+	LegacyPartitionsFound bool  // Whether legacy rook partitions were found
 }
 
 type devicePartInfo struct {

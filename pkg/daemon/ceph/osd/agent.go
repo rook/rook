@@ -143,15 +143,18 @@ func (a *OsdAgent) removeDirs(context *clusterd.Context, removedDirs map[string]
 }
 
 func (a *OsdAgent) configureAllDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
-	var osds []oposd.OSDInfo
-	if devices == nil || len(devices.Entries) == 0 {
+
+	// prepare the OSDs with ceph-volume
+	osds, configured, err := a.configureDevices(context, devices)
+	if err != nil {
+		logger.Errorf("failed to configure devices with ceph-volume. %+v", err)
+	}
+
+	if devices == nil || len(devices.Entries) == 0 || configured {
 		return osds, nil
 	}
 
-	useCephVolume := true
-	if useCephVolume {
-		return a.configureDevices(context, devices)
-	}
+	// get info about legacy OSDs prepared without ceph-volume
 
 	// compute an OSD layout scheme that will optimize performance
 	scheme, err := a.getPartitionPerfScheme(context, devices)

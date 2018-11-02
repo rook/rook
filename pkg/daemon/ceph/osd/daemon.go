@@ -197,10 +197,10 @@ func getAvailableDevices(context *clusterd.Context, desiredDevices string, metad
 
 		if metadataDevice != "" && metadataDevice == device.Name {
 			// current device is desired as the metadata device
-			available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}}
+			available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID, Metadata: []int{}, LegacyPartitionsFound: ownPartitions}
 		} else if desiredDevices == "all" {
 			// user has specified all devices, use the current one for data
-			available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID}
+			available.Entries[device.Name] = &DeviceOsdIDEntry{Data: unassignedOSDID, LegacyPartitionsFound: ownPartitions}
 		} else if desiredDevices != "" {
 			var matched bool
 			var err error

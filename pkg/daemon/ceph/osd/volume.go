@@ -21,47 +21,81 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"syscall"
 
 	"github.com/rook/rook/pkg/clusterd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/util/exec"
 )
 
-func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, error) {
+func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, bool, error) {
+	var osds []oposd.OSDInfo
 
-	err := createOSDBootstrapKeyring(context, a.cluster.Name)
+	useCephVolume, err := getCephVolumeSupported(context)
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate osd keyring. %+v", err)
+		return nil, false, fmt.Errorf("failed to detect if ceph-volume is available. %+v", err)
+	}
+	if !useCephVolume {
+		return osds, false, nil
 	}
 
-	var osds []oposd.OSDInfo
 	if devices == nil || len(devices.Entries) == 0 {
-		return osds, nil
+		logger.Infof("no new devices to configure. returning devices already configured with ceph-volume.")
+		osds, err = getCephVolumeOSDs(context, a.cluster.Name)
+		if err != nil {
+			logger.Infof("failed to get devices already provisioned by ceph-volume. %+v", err)
+		}
+		return osds, true, nil
+	}
+
+	err = createOSDBootstrapKeyring(context, a.cluster.Name)
+	if err != nil {
+		return nil, true, fmt.Errorf("failed to generate osd keyring. %+v", err)
 	}
 
 	volumeArgs := []string{"lvm", "batch", "--prepare", "--bluestore", "--yes"}
 	configured := 0
 	for name, device := range devices.Entries {
+		if device.LegacyPartitionsFound {
+			logger.Infof("skipping device %s configured with legacy rook osd", name)
+			continue
+		}
 		if device.Data == -1 {
 			logger.Infof("configuring new device %s", name)
 			volumeArgs = append(volumeArgs, path.Join("/dev", name))
 			configured++
 		} else {
-			logger.Infof("skipping existing device %s: %d", name, device.Data)
+			logger.Infof("skipping device %s with osd %d already configured", name, device.Data)
 		}
 	}
 
-	if configured == 0 {
-		logger.Infof("no osd devices attempted configuration on this node")
-		return osds, nil
+	if configured > 0 {
+		err = context.Executor.ExecuteCommand(false, "", "ceph-volume", volumeArgs...)
+		if err != nil {
+			return osds, true, fmt.Errorf("failed ceph-volume. %+v", err)
+		}
 	}
 
-	err = context.Executor.ExecuteCommand(false, "", "ceph-volume", volumeArgs...)
+	osds, err = getCephVolumeOSDs(context, a.cluster.Name)
+	return osds, true, err
+}
+
+func getCephVolumeSupported(context *clusterd.Context) (bool, error) {
+	_, err := context.Executor.ExecuteCommandWithOutput(false, "", "ceph-volume", "lvm", "batch", "--prepare")
 	if err != nil {
-		logger.Errorf("failed ceph-volume. %+v", err)
-		return osds, nil
+		if cmdErr, ok := err.(*exec.CommandError); ok {
+			exitStatus := cmdErr.ExitStatus()
+			if exitStatus == int(syscall.ENOENT) {
+				logger.Infof("supported version of ceph-volume not available")
+				return false, nil
+			}
+			logger.Warningf("unknown return code from ceph-volume when checking for compatibility: %d", exitStatus)
+		}
+		logger.Warningf("unknown ceph-volume failure. %+v", err)
+		return false, nil
 	}
 
-	return getCephVolumeOSDs(context, a.cluster.Name)
+	return true, nil
 }
 
 func getCephVolumeOSDs(context *clusterd.Context, clusterName string) ([]oposd.OSDInfo, error) {
@@ -89,12 +123,13 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string) ([]oposd.O
 
 		configDir := "/var/lib/rook/osd" + name
 		osd := oposd.OSDInfo{
-			ID:          id,
-			DataPath:    configDir,
-			Config:      fmt.Sprintf("%s/%s.config", configDir, clusterName),
-			KeyringPath: path.Join(configDir, "keyring"),
-			Cluster:     "ceph",
-			UUID:        osdInfo[0].Tags.OSDFSID,
+			ID:                  id,
+			DataPath:            configDir,
+			Config:              fmt.Sprintf("%s/%s.config", configDir, clusterName),
+			KeyringPath:         path.Join(configDir, "keyring"),
+			Cluster:             "ceph",
+			UUID:                osdInfo[0].Tags.OSDFSID,
+			CephVolumeInitiated: true,
 		}
 		osds = append(osds, osd)
 	}
