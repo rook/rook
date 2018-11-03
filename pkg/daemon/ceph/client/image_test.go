@@ -57,8 +57,10 @@ func TestCreateImage(t *testing.T) {
 			createCalled = true
 			assert.Equal(t, expectedSizeArg, args[3])
 			return "", nil
-		case command == "rbd" && args[0] == "ls" && args[1] == "-l":
-			return `[{"image":"image1","size":1048576,"format":2}]`, nil
+		case command == "rbd" && args[0] == "info":
+			assert.Equal(t, "pool1/image1", args[1])
+			return `{"name":"image1","size":1048576,"objects":1,"order":20,"object_size":1048576,"block_name_prefix":"pool1_data.229226b8b4567",` +
+				`"format":2,"features":["layering"],"op_features":[],"flags":[],"create_timestamp":"Fri Oct  5 19:46:20 2018"}`, nil
 		}
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
@@ -93,6 +95,9 @@ func TestCreateImage(t *testing.T) {
 	assert.Nil(t, err)
 	assert.NotNil(t, image)
 	assert.True(t, createCalled)
+	assert.Equal(t, "image1", image.Name)
+	assert.Equal(t, uint64(sizeMB), image.Size)
+	assert.Equal(t, 2, image.Format)
 	createCalled = false
 
 	// (1 MB + 1 byte) --> 2 MB

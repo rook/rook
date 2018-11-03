@@ -54,8 +54,10 @@ func TestProvisionImage(t *testing.T) {
 				return `[{"image":"pvc-uid-1-1","size":1048576,"format":2}]`, nil
 			}
 
-			if command == "rbd" && args[0] == "ls" && args[1] == "-l" {
-				return `[{"image":"pvc-uid-1-1","size":1048576,"format":2}]`, nil
+			if command == "rbd" && args[0] == "info" {
+				assert.Equal(t, "testpool/pvc-uid-1-1", args[1])
+				return `{"name":"pvc-uid-1-1","size":1048576,"objects":1,"order":20,"object_size":1048576,"block_name_prefix":"testpool_data.229226b8b4567",` +
+					`"format":2,"features":["layering"],"op_features":[],"flags":[],"create_timestamp":"Fri Oct  5 19:46:20 2018"}`, nil
 			}
 			return "", nil
 		},
@@ -118,8 +120,10 @@ func TestReclaimPolicyForProvisionedImages(t *testing.T) {
 				return `[{"image":"pvc-uid-1-1","size":1048576,"format":2}]`, nil
 			}
 
-			if command == "rbd" && args[0] == "ls" && args[1] == "-l" {
-				return `[{"image":"pvc-uid-1-1","size":1048576,"format":2}]`, nil
+			if command == "rbd" && args[0] == "info" {
+				assert.Equal(t, "testpool/pvc-uid-1-1", args[1])
+				return `{"name":"pvc-uid-1-1","size":1048576,"objects":1,"order":20,"object_size":1048576,"block_name_prefix":"testpool_data.229226b8b4567",` +
+					`"format":2,"features":["layering"],"op_features":[],"flags":[],"create_timestamp":"Fri Oct  5 19:46:20 2018"}`, nil
 			}
 			return "", nil
 		},
