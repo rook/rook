@@ -41,8 +41,9 @@ func initPlugin(cmd *cobra.Command, args []string) error {
 		Status: flexvolume.StatusSuccess,
 		Capabilities: &flexvolume.DriverCapabilities{
 			Attach: false,
-			// Required for cephfs (ReadWriteMany)
+			// applying the selinux relabel and fsgroup is too expensive recursively, especially for shared file system
 			SELinuxRelabel: false,
+			FSGroup:        false,
 		},
 	}
 	if err := json.NewEncoder(os.Stdout).Encode(&status); err != nil {

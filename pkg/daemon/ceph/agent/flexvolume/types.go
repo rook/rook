@@ -48,6 +48,7 @@ type AttachOptions struct {
 	Path             string `json:"path"` // Path within the CephFS to mount
 	RW               string `json:"kubernetes.io/readwrite"`
 	FsType           string `json:"kubernetes.io/fsType"`
+	FsGroup          string `json:"kubernetes.io/fsGroup"`
 	VolumeName       string `json:"kubernetes.io/pvOrVolumeName"` // only available on 1.7
 	Pod              string `json:"kubernetes.io/pod.name"`
 	PodID            string `json:"kubernetes.io/pod.uid"`
