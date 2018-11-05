@@ -175,16 +175,18 @@ func (h *CephInstaller) CreateK8sRookToolbox(namespace string) (err error) {
 	return nil
 }
 
+// CreateK8sRookCluster creates a basic kubernetes Rook cluster with no storage
 func (h *CephInstaller) CreateK8sRookCluster(namespace, systemNamespace string, storeType string) (err error) {
 	return h.CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType, false,
-		cephv1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true, /* startWithAllNodes */
+		cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true}, true, /* startWithAllNodes */
 		1, /* rbd workers */
-		LuminousVersion)
+		LuminousVersion, []string{})
 }
 
-// CreateK8sRookCluster creates rook cluster via kubectl
+// CreateK8sRookClusterWithHostPathAndDevices creates rook cluster with hostpath set and devices via kubectl
 func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, systemNamespace, storeType string,
-	useAllDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int, cephVersion cephv1.CephVersionSpec) error {
+	useAllDevices bool, mon cephv1beta1.MonSpec, startWithAllNodes bool, cephVersion cephv1beta1.CephVersionSpec,
+	storageDirectories []string) error {
 
 	dataDirHostPath, err := h.initTestDir(namespace)
 	if err != nil {
@@ -207,8 +209,9 @@ func (h *CephInstaller) CreateK8sRookClusterWithHostPathAndDevices(namespace, sy
 	}
 
 	logger.Infof("Starting Rook Cluster with yaml")
-	settings := &ClusterSettings{namespace, storeType, dataDirHostPath, useAllDevices, mon.Count, rbdMirrorWorkers, cephVersion}
+	settings := &ClusterSettings{namespace, storeType, dataDirHostPath, useAllDevices, mon.Count, rbdMirrorWorkers, cephVersion, storageDirectories}
 	rookCluster := h.Manifests.GetRookCluster(settings)
+	logger.Infof("yaml:\n%s", rookCluster)
 	if _, err := h.k8shelper.KubectlWithStdin(rookCluster, createFromStdinArgs...); err != nil {
 		return fmt.Errorf("Failed to create rook cluster : %v ", err)
 	}
@@ -269,7 +272,8 @@ func (h *CephInstaller) GetNodeHostnames() ([]string, error) {
 
 // InstallRookOnK8sWithHostPathAndDevices installs rook on k8s
 func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeType string,
-	helmInstalled, useDevices bool, mon cephv1.MonSpec, startWithAllNodes bool, rbdMirrorWorkers int) (bool, error) {
+	helmInstalled, useDevices bool, mon cephv1.MonSpec, startWithAllNodes bool,
+	rbdMirrorWorkers int, intstorageDirectories []string) (bool, error) {
 
 	var err error
 	// flag used for local debuggin purpose, when rook is pre-installed
@@ -318,8 +322,7 @@ func (h *CephInstaller) InstallRookOnK8sWithHostPathAndDevices(namespace, storeT
 	// Create rook cluster
 	err = h.CreateK8sRookClusterWithHostPathAndDevices(namespace, onamespace, storeType,
 		useDevices, cephv1.MonSpec{Count: mon.Count, AllowMultiplePerNode: mon.AllowMultiplePerNode}, startWithAllNodes,
-		rbdMirrorWorkers,
-		h.cephVersion)
+		rbdMirrorWorkers, h.cephVersion, storageDirectories)
 	if err != nil {
 		logger.Errorf("Rook cluster %s not installed, error -> %v", namespace, err)
 		return false, err

@@ -123,7 +123,8 @@ func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInst
 // SetUpRook is a wrapper for setting up rook
 func (op *TestCluster) Setup() {
 	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType,
-		op.helmInstalled, op.useDevices, cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false /* startWithAllNodes */, op.rbdMirrorWorkers)
+		op.helmInstalled, op.useDevices, cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false, /* startWithAllNodes */
+		op.rbdMirrorWorkers, []string{"/var/lib/rook/ceph-osd"})
 
 	if !isRookInstalled || err != nil {
 		logger.Errorf("Rook was not installed successfully: %v", err)
