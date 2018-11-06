@@ -40,48 +40,15 @@ metadata:
     operator: rook
     storage-backend: edgefs
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - secrets
-  - pods
-  - nodes
-  - services
-  - configmaps
-  - endpoints
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - apps
-  resources:
-  - statefulsets
-  - statefulsets/scale
-  verbs:
-  - create
-  - delete
-  - deletecollection
-  - patch
-  - update
-- apiGroups:
-  - extensions
-  resources:
-  - deployments
-  - daemonsets
-  - replicasets
-  - statefulsets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
+- apiGroups: [""]
+  resources: ["secrets", "pods", "nodes", "services", "configmaps"]
+  verbs: ["get", "list", "watch", "patch", "create", "update", "delete"]
+- apiGroups: ["apps"]
+  resources: ["statefulsets", "statefulsets/scale"]
+  verbs: ["create", "delete", "deletecollection", "patch", "update"]
+- apiGroups: ["extensions"]
+  resources: ["deployments", "daemonsets", "replicasets", "statefulsets"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
 ---
 # The role for the operator to manage resources in the system namespace
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -93,31 +60,12 @@ metadata:
     operator: rook
     storage-backend: edgefs
 rules:
-- apiGroups:
-  - ""
-  resources:
-  - pods
-  - nodes
-  - configmaps
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - extensions
-  resources:
-  - daemonsets
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete
+- apiGroups: [""]
+  resources: ["pods", "nodes", "configmaps"]
+  verbs: ["get", "list", "watch", "patch", "create", "update", "delete"]
+- apiGroups: ["extensions"]
+  resources: ["daemonsets"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]
 ---
 # The cluster role for managing the Rook CRDs
 apiVersion: rbac.authorization.k8s.io/v1beta1
@@ -128,67 +76,27 @@ metadata:
     operator: rook
     storage-backend: edgefs
 rules:
-- apiGroups:
-  - ""
-  resources:
+- apiGroups: [""]
   # Pod access is needed for fencing
-  - pods
   # Node access is needed for determining nodes where mons should run
-  - nodes
-  - nodes/proxy
-  - endpoints
-  verbs:
-  - get
-  - list
-  - watch
-  - update
-  - patch
-- apiGroups:
-  - ""
-  resources:
-  - events
-    # PVs and PVCs are managed by the Rook provisioner
-  - persistentvolumes
-  - persistentvolumeclaims
-  verbs:
-  - get
-  - list
-  - watch
-  - patch
-  - create
-  - update
-  - delete
-- apiGroups:
-  - storage.k8s.io
-  resources:
-  - storageclasses
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - batch
-  resources:
-  - jobs
-  verbs:
-  - get
-  - list
-  - watch
-  - create
-  - update
-  - delete   
-- apiGroups:
-  - edgefs.rook.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
-- apiGroups:
-  - rook.io
-  resources:
-  - "*"
-  verbs:
-  - "*"
+  resources: ["pods", "nodes", "nodes/proxy"]
+  verbs: ["get", "list", "watch", "update", "patch"]
+- apiGroups: [""]
+  # PVs and PVCs are managed by the Rook provisioner
+  resources: ["events", "persistentvolumes", "persistentvolumeclaims"]
+  verbs: ["get", "list", "watch", "patch", "create", "update", "delete"]
+- apiGroups: ["storage.k8s.io"]
+  resources: ["storageclasses"]
+  verbs: ["get", "list", "watch"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["get", "list", "watch", "create", "update", "delete"]   
+- apiGroups: ["edgefs.rook.io"]
+  resources: ["*"]
+  verbs: ["*"]
+- apiGroups: ["rook.io"]
+  resources: ["*"]
+  verbs: ["*"]
 ---
 # The rook system service account used by the operator, agent, and discovery pods
 apiVersion: v1
@@ -255,7 +163,7 @@ spec:
       serviceAccountName: rook-edgefs-system
       containers:
       - name: rook-edgefs-operator
-        image: edgefs/edgefs-operator:latest
+        image: edgefs/edgefs-operator
         imagePullPolicy: "Always"
         args: ["edgefs", "operator"]
         env:
