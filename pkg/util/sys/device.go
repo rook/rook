@@ -303,8 +303,8 @@ func CheckIfDeviceAvailable(executor exec.Executor, name string) (bool, string, 
 	return ownPartitions, devFS, nil
 }
 
+// RookOwnsPartitions check if all partitions in list are owned by Rook
 func RookOwnsPartitions(partitions []Partition) bool {
-
 	// if there are partitions, they must all have the rook osd label
 	ownPartitions := true
 	for _, p := range partitions {

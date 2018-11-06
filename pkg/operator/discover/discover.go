@@ -299,7 +299,7 @@ func FreeDevices(context *clusterd.Context, nodeName, clusterName string) error 
 		return nil
 	}
 	namespace := os.Getenv(k8sutil.PodNamespaceEnvVar)
-	cmName := fmt.Sprintf(deviceInUseCMName, clusterName, nodeName)
+	cmName := k8sutil.TruncateNodeName(fmt.Sprintf(deviceInUseCMName, clusterName, "%s"), nodeName)
 	// delete configmap
 	err := context.Clientset.CoreV1().ConfigMaps(namespace).Delete(cmName, &metav1.DeleteOptions{})
 	if err != nil && !kserrors.IsNotFound(err) {
@@ -409,7 +409,7 @@ func GetAvailableDevices(context *clusterd.Context, nodeName, clusterName string
 
 		cm := &v1.ConfigMap{
 			ObjectMeta: metav1.ObjectMeta{
-				Name:      fmt.Sprintf(deviceInUseCMName, clusterName, nodeName),
+				Name:      k8sutil.TruncateNodeName(fmt.Sprintf(deviceInUseCMName, clusterName, "%s"), nodeName),
 				Namespace: namespace,
 				Labels: map[string]string{
 					k8sutil.AppAttr:         deviceInUseAppName,

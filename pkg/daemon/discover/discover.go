@@ -40,7 +40,7 @@ var (
 	AppName         = "rook-discover"
 	NodeAttr        = "rook.io/node"
 	LocalDiskCMData = "devices"
-	LocalDiskCMName = "local-device-"
+	LocalDiskCMName = "local-device-%s"
 	nodeName        string
 	namespace       string
 	lastDevice      string
@@ -55,7 +55,7 @@ func Run(context *clusterd.Context, probeInterval time.Duration) error {
 	logger.Infof("device discovery interval is %s", probeInterval.String())
 	nodeName = os.Getenv(k8sutil.NodeNameEnvVar)
 	namespace = os.Getenv(k8sutil.PodNamespaceEnvVar)
-	cmName = LocalDiskCMName + nodeName
+	cmName = k8sutil.TruncateNodeName(LocalDiskCMName, nodeName)
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, syscall.SIGTERM)
 	err := updateDeviceCM(context)

@@ -38,7 +38,6 @@ var (
 )
 
 func RunFilestoreOnDevice(context *clusterd.Context, mountSourcePath, mountPath string, cephArgs []string) error {
-
 	// start the OSD daemon in the foreground with the given config
 	logger.Infof("starting filestore osd on a device")
 
@@ -57,7 +56,6 @@ func RunFilestoreOnDevice(context *clusterd.Context, mountSourcePath, mountPath 
 }
 
 func Provision(context *clusterd.Context, agent *OsdAgent) error {
-
 	// set the initial orchestration status
 	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
 	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
@@ -94,7 +92,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 		return fmt.Errorf("failed to get removed devices: %+v", err)
 	}
 
-	// determine the set of directories that can/should be used for OSDs, with the default dir if no devices were specified.  save off the node's crush name if needed.
+	// determine the set of directories that can/should be used for OSDs, with the default dir if no devices were specified. save off the node's crush name if needed.
 	devicesSpecified := len(agent.devices) > 0
 	dirs, removedDirs, err := getDataDirs(context, agent.kv, agent.directories, devicesSpecified, agent.nodeName)
 	if err != nil {
@@ -150,7 +148,6 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 }
 
 func getAvailableDevices(context *clusterd.Context, desiredDevices string, metadataDevice string, usingDeviceFilter bool) (*DeviceOsdMapping, error) {
-
 	var deviceList []string
 	if !usingDeviceFilter {
 		deviceList = strings.Split(desiredDevices, ",")
