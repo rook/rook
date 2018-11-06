@@ -78,6 +78,8 @@ spec:
   # enable the ceph dashboard for viewing cluster status
   dashboard:
     enabled: true
+    # serve the dashboard under a subpath (useful when you are accessing the dashboard via a reverse proxy)
+    # urlPrefix: /ceph-dashboard
   network:
     # toggle to use hostNetwork
     hostNetwork: false

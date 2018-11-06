@@ -53,8 +53,8 @@ func init() {
 
 func (c *Cluster) configureDashboard(port int) error {
 	// enable or disable the dashboard module
-	if err := c.configureDashboardModule(); err != nil {
-		return fmt.Errorf("failed to enable mgr dashboard module. %+v", err)
+	if err := c.toggleDashboardModule(); err != nil {
+		return err
 	}
 
 	dashboardService := c.makeDashboardService(appName, port)
@@ -80,14 +80,18 @@ func (c *Cluster) configureDashboard(port int) error {
 }
 
 // Ceph docs about the dashboard module: http://docs.ceph.com/docs/luminous/mgr/dashboard/
-func (c *Cluster) configureDashboardModule() error {
+func (c *Cluster) toggleDashboardModule() error {
 	if c.dashboard.Enabled {
 		if err := client.MgrEnableModule(c.context, c.Namespace, dashboardModuleName, true); err != nil {
 			return fmt.Errorf("failed to enable mgr dashboard module. %+v", err)
 		}
 
-		if err := c.initializeDashboard(); err != nil {
+		if err := c.initializeSecureDashboard(); err != nil {
 			return fmt.Errorf("failed to initialize dashboard. %+v", err)
+		}
+
+		if err := c.configureDashboardModule(); err != nil {
+			return fmt.Errorf("failed to configure mgr dashboard module. %+v", err)
 		}
 	} else {
 		if err := client.MgrDisableModule(c.context, c.Namespace, dashboardModuleName); err != nil {
@@ -97,7 +101,19 @@ func (c *Cluster) configureDashboardModule() error {
 	return nil
 }
 
-func (c *Cluster) initializeDashboard() error {
+func (c *Cluster) configureDashboardModule() error {
+	hasChanged, err := client.MgrSetConfig(c.context, c.Namespace, c.cephVersion.Name, "mgr/dashboard/url_prefix", c.dashboard.UrlPrefix)
+	if err != nil {
+		return err
+	}
+	if hasChanged {
+		logger.Infof("dashboard config has changed")
+		return c.restartDashboard()
+	}
+	return nil
+}
+
+func (c *Cluster) initializeSecureDashboard() error {
 	if c.cephVersion.Name == cephv1beta1.Luminous || c.cephVersion.Name == "" {
 		logger.Infof("skipping cert and user configuration on luminous")
 		return nil

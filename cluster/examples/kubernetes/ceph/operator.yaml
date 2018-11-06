@@ -36,6 +36,8 @@ spec:
               properties:
                 enabled:
                   type: boolean
+                urlPrefix:
+                  type: string
             dataDirHostPath:
               pattern: ^/(\S+)
               type: string

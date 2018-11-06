@@ -49,6 +49,16 @@ To retrieve the generated password, you can run the following:
 kubectl -n rook-ceph get secret rook-ceph-dashboard-password -o yaml | grep "password:" | awk '{print $2}' | base64 --decode
 ```
 
+## Configure the Dashboard
+
+If you are accessing the dashboard via a reverse proxy, you may wish to serve it under a URL prefix.
+To get the dashboard to use hyperlinks that include your prefix, you can set the `urlPrefix` setting:
+```yaml
+  spec:
+    dashboard:
+      urlPrefix: /ceph-dashboard
+```
+
 ## Viewing the Dashboard External to the Cluster
 
 Commonly you will want to view the dashboard from outside the cluster. For example, on a development machine with the

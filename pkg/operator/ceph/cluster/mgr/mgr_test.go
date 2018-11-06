@@ -53,6 +53,11 @@ func TestStartMGR(t *testing.T) {
 	assert.Nil(t, err)
 	validateStart(t, c)
 
+	c.dashboard.UrlPrefix = "/test"
+	err = c.Start()
+	assert.Nil(t, err)
+	validateStart(t, c)
+
 	// starting again with more replicas
 	c.Replicas = 3
 	c.dashboard.Enabled = false
