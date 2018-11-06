@@ -19,3 +19,10 @@ has its own CRD defined.
 
 ## Minio
 - [Object Store](minio-object-store-crd.md): Minio is a high performance distributed object storage server, designed for large-scale private cloud infrastructure.
+
+## EdgeFS
+- [Cluster](edgefs-cluster-crd.md): EdgeFS is high-performance and low-latency object storage system with Geo-Transparent data access from on-prem, private/public clouds or small footprint edge (IoT) devices
+- [NFS](edgefs-nfs-crd.md): POSIX compliant Scale-Out NFS with file-level granularity snapshots and global data deduplication
+- [S3X](edgefs-s3x-crd.md): Extreamly low-latency, high-performance S3 compatible API designed for AI/ML workloads with ranged-writes capability, NOSQL record store and HTTP/2 streaming operations
+- [ISCSI](edgefs-iscsi-crd.md): iSCSI interface to EdgeFS object(s) presented as block device
+- [ISGW](edgefs-isgw-crd.md): EdgeFS Geo-site interconnect link, with support for bidirectional and many-to-many synchronizations over secured TCP/IP channel(s)

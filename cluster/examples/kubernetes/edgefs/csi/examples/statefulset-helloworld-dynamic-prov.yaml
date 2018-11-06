@@ -1,0 +1,56 @@
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: csi-sc-nedgeplugin
+provisioner: nexentaedge-csi-plugin
+parameters:
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: helloworld
+  labels:
+    app: nginx
+spec:
+  ports:
+  - port: 80
+    name: web
+  clusterIP: None
+  selector:
+    app: helloworld
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: helloworld-sc
+spec:
+  selector:
+    matchLabels:
+      app: helloworld # has to match .spec.template.metadata.labels
+  serviceName: "helloworld"
+  replicas: 1 # by default is 1
+  template:
+    metadata:
+      labels:
+        app: helloworld # has to match .spec.selector.matchLabels
+    spec:
+      terminationGracePeriodSeconds: 10
+      containers:
+      - name: rancher-helloworld
+        image: rancher/hello-world 
+        ports:
+        - containerPort: 80
+          name: web
+        volumeMounts:
+        - name: www
+          mountPath: /usr/share/helloworld
+  volumeClaimTemplates:
+  - metadata:
+      name: www
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      storageClassName: "csi-sc-nedgeplugin"
+      resources:
+        requests:
+          storage: 1Gi

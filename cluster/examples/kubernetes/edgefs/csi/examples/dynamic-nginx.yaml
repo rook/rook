@@ -1,0 +1,43 @@
+# This YAML file contains nginx & csi cinder driver objects,
+# which are necessary to run nginx with csi cinder driver.
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: csi-sc-nedgeplugin
+provisioner: edgefs-csi-plugin
+parameters:
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: csi-pvc-nedgeplugin
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: csi-sc-nedgeplugin
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx 
+spec:
+  containers:
+  - image: nginx
+    imagePullPolicy: IfNotPresent
+    name: nginx
+    ports:
+    - containerPort: 80
+      protocol: TCP
+    volumeMounts:
+      - mountPath: /var/lib/www/html
+        name: csi-data-nedgeplugin 
+  volumes:
+  - name: csi-data-nedgeplugin
+    persistentVolumeClaim:
+      claimName: csi-pvc-nedgeplugin
+      readOnly: false

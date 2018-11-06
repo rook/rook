@@ -1,0 +1,69 @@
+# This YAML file contains attacher & csi driver API objects,
+# which are necessary to run external csi provisioner for cinder.
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: csi-provisioner-edgefs
+  labels:
+    app: csi-provisioner-edgefs
+spec:
+  selector:
+    app: csi-provisioner-edgefs
+  ports:
+    - name: dummy
+      port: 12345
+
+---
+kind: StatefulSet
+apiVersion: apps/v1beta1
+metadata:
+  name: csi-provisioner-edgefs
+spec:
+  serviceName: "csi-provisioner"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: csi-provisioner-edgefs
+    spec:
+      serviceAccount: csi-provisioner
+      containers:
+        - name: csi-provisioner
+          image: quay.io/k8scsi/csi-provisioner:v0.4.1
+          args:
+            - "--connection-timeout=25s"
+            - "--provisioner=edgefs-csi-plugin"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: nfs
+          image: edgefs/edgefs-csi:latest
+          args :
+            - "--nodeid=$(NODE_ID)"
+            - "--endpoint=$(CSI_ENDPOINT)"
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://plugin/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /plugin
+            - name: secret
+              mountPath: /config
+              readOnly: true
+      volumes:
+        - name: socket-dir
+          emptyDir:
+        - name: secret
+          secret:
+            secretName: rook-edgefs-cluster
