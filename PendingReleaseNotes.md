@@ -5,8 +5,8 @@
 ## Notable Features
 
 - Different versions of Ceph can be orchestrated by Rook. Both Luminous and Mimic are now supported, with Nautilus coming soon.
-The version of Ceph is specified in the cluster CRD with the cephVersion.image property. For example, to run Mimic you could use image `ceph/ceph:v13.2.2-20181023`
-or any other image found on the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags).
+  The version of Ceph is specified in the cluster CRD with the cephVersion.image property. For example, to run Mimic you could use image `ceph/ceph:v13.2.2-20181023`
+  or any other image found on the [Ceph DockerHub](https://hub.docker.com/r/ceph/ceph/tags).
 - The `fsType` default for StorageClass examples are now using XFS to bring it in line with Ceph recommendations.
 - Ceph OSDs will be automatically updated by the operator when there is a change to the operator version or when the OSD configuration changes. See the [OSD upgrade notes](Documentation/upgrade-patch.md#object-storage-daemons-osds).
 - Rook Ceph block storage provisioner can now correctly create erasure coded block images. See [Advanced Example: Erasure Coded Block Storage](Documentation/block.md#advanced-example-erasure-coded-block-storage) for an example usage.
@@ -19,14 +19,17 @@ or any other image found on the [Ceph DockerHub](https://hub.docker.com/r/ceph/c
 - The number of mons can be changed by updating the `mon.count` in the cluster CRD.
 
 ## Breaking Changes
+
 - Ceph mons are [named consistently](https://github.com/rook/rook/issues/1751) with other daemons with the letters a, b, c, etc.
 - Ceph mons are now created with Deployments instead of ReplicaSets to improve the upgrade implementation.
 - Ceph mon, mgr, mds, and rgw container names in pods have changed with the refactors to initialize the
   daemon environments via pod **InitContainers** and run the Ceph daemons directly from the
   container entrypoint.
-
 - The Rook container images are no longer published to quay.io, they are published only to Docker Hub.  All manifests have referenced Docker Hub for multiple releases now, so we do not expect any directly affected users from this change.
 - Rook no longer supports kubernetes `1.7`. Users running Kubernetes `1.7` on their clusters are recommended to upgrade to Kubernetes `1.8` or higher. If you are using `kubeadm`, you can follow this [guide](https://kubernetes.io/docs/tasks/administer-cluster/kubeadm/kubeadm-upgrade-1-8/) to from Kubernetes `1.7` to `1.8`. If you are using `kops` or `kubespray` for managing your Kubernetes cluster, just follow the respective projects' `upgrade` guide.
+- Minio no longer exposes a configurable port for each distributed server instance to use.
+  This was an internal only port that should not need to be configured by the user.
+  All connections from users and clients are expected to come in through the [configurable Service instance](cluster/examples/kubernetes/minio/object-store.yaml#37).
 
 ## Known Issues
 

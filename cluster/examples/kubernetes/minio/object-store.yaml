@@ -28,11 +28,11 @@ spec:
     nodeAffinity:
     podAffinity:
     podAnyAffinity:
-  port: 9000
   credentials:
     name: access-keys
     namespace: rook-minio
   storageAmount: "10G"
+  clusterDomain:
 ---
 apiVersion: v1
 kind: Service

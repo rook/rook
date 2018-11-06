@@ -23,11 +23,11 @@ spec:
     nodeAffinity:
     podAffinity:
     podAnyAffinity:
-  port: 9000
   credentials:
     name: access-keys
     namespace: rook-minio
   storageAmount: "10G"
+  clusterDomain:
 ```
 
 ## Cluster Settings
@@ -36,9 +36,9 @@ spec:
 
 The settings below are specific to Minio object stores:
 
-* `port`: The internal port exposed internal to the cluster by the Minio service.
 * `credentials`: This accepts the `name` and `namespace` strings of an existing Secret to specify the access credentials for the object store.
 * `storageAmount`: The size of the volume that will be mounted at the data directory.
+* `clusterDomain`: The local cluster domain for this cluster. This should be set if an alternative cluster domain is in use.  If not set, then the default of cluster.local will be assumed.  This field is needed to workaround https://github.com/minio/minio/issues/6775, and is expected to be removed in the future.
 
 ### Storage Scope
 

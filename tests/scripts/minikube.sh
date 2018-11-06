@@ -93,8 +93,9 @@ function check_context() {
 
 function copy_images() {
     if [[ "$1" == "" || "$1" == "ceph" ]]; then
-      echo "copying ceph image"
+      echo "copying ceph images"
       copy_image_to_cluster "${BUILD_REGISTRY}/ceph-amd64" rook/ceph:master
+      copy_image_to_cluster ceph/ceph:v13 ceph/ceph:v13
     fi
 
     if [[ "$1" == "" || "$1" == "cockroachdb" ]]; then
@@ -155,6 +156,10 @@ case "${1:-}" in
     copy_image_to_cluster mysql:5.6 mysql:5.6
     copy_image_to_cluster wordpress:4.6.1-apache wordpress:4.6.1-apache
     ;;
+  cockroachdb-loadgen)
+    echo "copying the cockroachdb loadgen images"
+    copy_image_to_cluster cockroachdb/loadgen-kv:0.1 cockroachdb/loadgen-kv:0.1
+    ;;
   helm)
     echo " copying rook image for helm"
     helm_tag="$(cat _output/version)"
@@ -173,5 +178,6 @@ case "${1:-}" in
     echo "  $0 update [ceph | cockroachdb | minio | nfs]" >&2
     echo "  $0 restart <pod-name-regex> (the pod name is a regex to match e.g. restart ^rook-ceph-osd)" >&2
     echo "  $0 wordpress" >&2
+    echo "  $0 cockroachdb-loadgen" >&2
     echo "  $0 helm" >&2
 esac

@@ -794,7 +794,7 @@
   version = "v8.0.0"
 
 [[projects]]
-  digest = "1:f9b4cdfba254d53ac1f5b7e6391dff5dc6d15c82e867179041f4aae4cfd17cf1"
+  digest = "1:3b9c82e73290987c719062ba514f47cc95a7b1e10d9868b1e083e48044c0820b"
   name = "k8s.io/code-generator"
   packages = [
     "cmd/client-gen",
@@ -807,13 +807,13 @@
     "cmd/client-gen/types",
     "pkg/util",
   ]
-  pruneopts = "UT"
+  pruneopts = "T"
   revision = "8c97d6ab64da020f8b151e9d3ed8af3172f5c390"
   version = "kubernetes-1.11.3"
 
 [[projects]]
   branch = "master"
-  digest = "1:06920413ee44b5a5a23a8b682a39578532fd30474949cd631183650d6149b914"
+  digest = "1:f58422ce44ba581f34423e12c951061d139fa3518441b0e791b1f57a6494d603"
   name = "k8s.io/gengo"
   packages = [
     "args",
@@ -822,7 +822,7 @@
     "parser",
     "types",
   ]
-  pruneopts = "UT"
+  pruneopts = "T"
   revision = "4242d8e6c5dba56827bb7bcf14ad11cda38f3991"
 
 [[projects]]

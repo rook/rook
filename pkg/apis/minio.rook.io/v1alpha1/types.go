@@ -22,6 +22,11 @@ import (
 	rook "github.com/rook/rook/pkg/apis/rook.io/v1alpha2"
 )
 
+const (
+	// ClusterDomainDefault is the default local cluster domain
+	ClusterDomainDefault = "cluster.local"
+)
+
 // ***************************************************************************
 // IMPORTANT FOR CODE GENERATION
 // If the types in this file are updated, you will need to run
@@ -55,12 +60,17 @@ type ObjectStoreSpec struct {
 	// tolerations).
 	Placement rook.PlacementSpec `json:"placement,omitempty"`
 
-	// Port of operation for the Minio object store.
-	Port int32 `json:"port"`
-
 	// Minio cluster credential configuration.
 	Credentials v1.SecretReference `json:"credentials"`
 
 	// The amount of storage that will be available in the object store.
 	StorageSize string `json:"storageAmount"`
+
+	// ClusterDomain is the local cluster domain for this cluster. This should be set if an
+	// alternative cluster domain is in use.  If not set, then the default of cluster.local will
+	// be assumed.
+	//
+	// This field is needed to workaround https://github.com/minio/minio/issues/6775, and is
+	// expected to be removed in the future.
+	ClusterDomain string `json:"clusterDomain,omitempty"`
 }

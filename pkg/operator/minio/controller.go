@@ -43,8 +43,10 @@ const (
 	minioCtrName             = "minio"
 	minioLabel               = "minio"
 	minioPVCName             = "minio-pvc"
+	minioServerSuffixFmt     = "%s.svc.%s" // namespace.svc.clusterDomain, e.g., default.svc.cluster.local
 	minioVolumeName          = "data"
 	objectStoreDataDir       = "/data"
+	minioPort                = int32(9000)
 )
 
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "minio-op-object")
@@ -99,7 +101,7 @@ func (c *MinioController) makeMinioHeadlessService(name, namespace string, spec 
 		},
 		Spec: v1.ServiceSpec{
 			Selector:  map[string]string{k8sutil.AppAttr: minioLabel},
-			Ports:     []v1.ServicePort{{Port: spec.Port}},
+			Ports:     []v1.ServicePort{{Port: minioPort}},
 			ClusterIP: v1.ClusterIPNone,
 		},
 	})
@@ -108,18 +110,29 @@ func (c *MinioController) makeMinioHeadlessService(name, namespace string, spec 
 	return svc, err
 }
 
-func (c *MinioController) buildMinioCtrArgs(statefulSetPrefix, headlessServiceName, namespace string, serverCount int32) []string {
+func (c *MinioController) buildMinioCtrArgs(statefulSetPrefix, headlessServiceName, namespace, clusterDomain string, serverCount int32) []string {
+
 	args := []string{"server"}
 	for i := int32(0); i < serverCount; i++ {
-		serverAddress := fmt.Sprintf("http://%s-%d.%s.%s%s", statefulSetPrefix, i, headlessServiceName, namespace, objectStoreDataDir)
-		args = append(args, serverAddress)
+		args = append(args, makeServerAddress(statefulSetPrefix, headlessServiceName, namespace, clusterDomain, i))
 	}
 
 	logger.Infof("Building Minio container args: %v", args)
 	return args
 }
 
-func (c *MinioController) makeMinioPodSpec(name, namespace string, ctrName string, ctrImage string, port int32, envVars map[string]string, numServers int32) v1.PodTemplateSpec {
+// Generates the full server address for the given server params, e.g., http://my-store-0.my-store.rook-minio.svc.cluster.local/data
+func makeServerAddress(statefulSetPrefix, headlessServiceName, namespace, clusterDomain string, serverNum int32) string {
+	if clusterDomain == "" {
+		clusterDomain = miniov1alpha1.ClusterDomainDefault
+	}
+
+	dnsSuffix := fmt.Sprintf(minioServerSuffixFmt, namespace, clusterDomain)
+	return fmt.Sprintf("http://%s-%d.%s.%s%s", statefulSetPrefix, serverNum, headlessServiceName, dnsSuffix, objectStoreDataDir)
+}
+
+func (c *MinioController) makeMinioPodSpec(name, namespace string, ctrName string, ctrImage string, clusterDomain string, envVars map[string]string, numServers int32) v1.PodTemplateSpec {
+
 	var env []v1.EnvVar
 	for k, v := range envVars {
 		env = append(env, v1.EnvVar{Name: k, Value: v})
@@ -138,8 +151,8 @@ func (c *MinioController) makeMinioPodSpec(name, namespace string, ctrName strin
 					Image:   ctrImage,
 					Env:     env,
 					Command: []string{"/usr/bin/minio"},
-					Ports:   []v1.ContainerPort{{ContainerPort: port}},
-					Args:    c.buildMinioCtrArgs(name, name, namespace, numServers),
+					Ports:   []v1.ContainerPort{{ContainerPort: minioPort}},
+					Args:    c.buildMinioCtrArgs(name, name, namespace, clusterDomain, numServers),
 					VolumeMounts: []v1.VolumeMount{
 						{
 							Name:      minioVolumeName,
@@ -180,12 +193,7 @@ func validateObjectStoreSpec(spec miniov1alpha1.ObjectStoreSpec) error {
 	// Verify node count.
 	count := spec.Storage.NodeCount
 	if count < 4 || count%2 != 0 {
-		return fmt.Errorf("Node count must be greater than 3 and even.")
-	}
-
-	// Verify sane port.
-	if spec.Port < 1024 {
-		return fmt.Errorf("Invalid port %d", spec.Port)
+		return fmt.Errorf("node count must be greater than 3 and even")
 	}
 
 	return nil
@@ -204,7 +212,7 @@ func (c *MinioController) makeMinioStatefulSet(name, namespace string, spec mini
 		"MINIO_SECRET_KEY": secretKey,
 	}
 
-	podSpec := c.makeMinioPodSpec(name, namespace, minioCtrName, c.rookImage, spec.Port, envVars, int32(spec.Storage.NodeCount))
+	podSpec := c.makeMinioPodSpec(name, namespace, minioCtrName, c.rookImage, spec.ClusterDomain, envVars, int32(spec.Storage.NodeCount))
 
 	nodeCount := int32(spec.Storage.NodeCount)
 	ss := v1beta2.StatefulSet{

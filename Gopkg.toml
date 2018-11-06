@@ -42,6 +42,17 @@ ignored = [
   go-tests = true
   unused-packages = true
 
+  # we need "unused packages" for code generator related repos because
+  # the dependencies cannot all be captured in golang source code
+  # e.g., codegen.sh depends on generate-groups.sh
+  [[prune.project]]
+    name = "k8s.io/code-generator"
+    unused-packages = false
+
+  [[prune.project]]
+    name = "k8s.io/gengo"
+    unused-packages = false
+
 #
 # Kubernetes projects below should all be updated as a set 
 # as they are versioned together.
