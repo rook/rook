@@ -124,7 +124,7 @@ func StartTestCluster(t func() *testing.T, namespace, storeType string, helmInst
 func (op *TestCluster) Setup() {
 	isRookInstalled, err := op.installer.InstallRookOnK8sWithHostPathAndDevices(op.namespace, op.storeType,
 		op.helmInstalled, op.useDevices, cephv1.MonSpec{Count: op.mons, AllowMultiplePerNode: true}, false, /* startWithAllNodes */
-		op.rbdMirrorWorkers, []string{"/var/lib/rook/ceph-osd"})
+		op.rbdMirrorWorkers)
 
 	if !isRookInstalled || err != nil {
 		logger.Errorf("Rook was not installed successfully: %v", err)

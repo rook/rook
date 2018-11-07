@@ -159,8 +159,7 @@ func (o LoadTestCluster) Setup() {
 		isRookInstalled, err := o.installer.InstallRookOnK8sWithHostPathAndDevices(o.namespace, "bluestore",
 			false, true, cephv1beta1.MonSpec{Count: 3, AllowMultiplePerNode: true},
 			true, /* startWithAllNodes */
-			1,    /*rbd mirror workers*/
-			[]string{"/var/lib/rook/ceph-osd"})
+			1 /*rbd mirror workers*/)
 		require.NoError(o.T(), err)
 		require.True(o.T(), isRookInstalled)
 	}

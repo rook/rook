@@ -42,14 +42,13 @@ type CephManifests interface {
 }
 
 type ClusterSettings struct {
-	Namespace          string
-	StoreType          string
-	DataDirHostPath    string
-	UseAllDevices      bool
-	Mons               int
-	RBDMirrorWorkers   int
-	CephVersion        cephv1.CephVersionSpec
-	StorageDirectories []string
+	Namespace        string
+	StoreType        string
+	DataDirHostPath  string
+	UseAllDevices    bool
+	Mons             int
+	RBDMirrorWorkers int
+	CephVersion      cephv1.CephVersionSpec
 }
 
 // CephManifestsMaster wraps rook yaml definitions
@@ -639,17 +638,6 @@ subjects:
 
 // GetRookCluster returns rook-cluster manifest
 func (m *CephManifestsMaster) GetRookCluster(settings *ClusterSettings) string {
-	dirs := ""
-	if settings.StorageDirectories != nil && len(settings.StorageDirectories) > 0 {
-		// directories heading starts on the next line indented 4 spaces
-		dirs = `
-    directories:`
-		for _, dir := range settings.StorageDirectories {
-			// each dir item starts on the next line with a dash indented 4 spaces
-			dirs = dirs + `
-    - ` + dir
-		}
-	}
 	return `apiVersion: ceph.rook.io/v1
 kind: CephCluster
 metadata:
@@ -678,12 +666,7 @@ spec:
     config:
       storeType: "` + settings.StoreType + `"
       databaseSizeMB: "1024"
-      journalSizeMB: "1024"` + dirs
-	// dirs appended to the end, e.g.,
-	//    directories:
-	//    - /dir/number/one
-	//    - /dir/number/two
-	//    - etc.
+      journalSizeMB: "1024"`
 }
 
 // GetRookToolBox returns rook-toolbox manifest
