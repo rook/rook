@@ -27,6 +27,7 @@ import (
 	"k8s.io/api/core/v1"
 	extensions "k8s.io/api/extensions/v1beta1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 )
 
 const (
@@ -134,6 +135,15 @@ func (c *Cluster) makeMgrDaemonContainer(mgrConfig *mgrConfig, port int) v1.Cont
 		},
 		Env:       k8sutil.ClusterDaemonEnvVars(),
 		Resources: c.resources,
+		LivenessProbe: &v1.Probe{
+			Handler: v1.Handler{
+				HTTPGet: &v1.HTTPGetAction{
+					Path: "/",
+					Port: intstr.FromInt(metricsPort),
+				},
+			},
+			InitialDelaySeconds: 5,
+		},
 	}
 	container.Env = append(container.Env, opmon.ClusterNameEnvVar(c.Namespace))
 	return container
