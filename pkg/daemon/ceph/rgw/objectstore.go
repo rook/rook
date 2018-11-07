@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package rgw
 
 import (
@@ -21,7 +22,7 @@ import (
 	"strings"
 
 	ceph "github.com/rook/rook/pkg/daemon/ceph/client"
-	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/daemon/ceph/model"
 )
 
 const (
@@ -253,9 +254,11 @@ func createPools(context *Context, metadataSpec, dataSpec model.Pool) error {
 func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) error {
 	poolSpec.Name = context.Name
 	cephConfig := ceph.ModelPoolToCephPool(poolSpec)
-	if cephConfig.ErasureCodeProfile != "" {
+	isECPool := cephConfig.ErasureCodeProfile != ""
+	if isECPool {
 		// create a new erasure code profile for the new pool
-		if err := ceph.CreateErasureCodeProfile(context.context, context.ClusterName, poolSpec.ErasureCodedConfig, cephConfig.ErasureCodeProfile, poolSpec.FailureDomain); err != nil {
+		if err := ceph.CreateErasureCodeProfile(context.context, context.ClusterName, poolSpec.ErasureCodedConfig, cephConfig.ErasureCodeProfile,
+			poolSpec.FailureDomain, poolSpec.CrushRoot); err != nil {
 			return fmt.Errorf("failed to create erasure code profile for object store %s: %+v", context.Name, err)
 		}
 	}
@@ -265,7 +268,16 @@ func createSimilarPools(context *Context, pools []string, poolSpec model.Pool) e
 		name := poolName(context.Name, pool)
 		if _, err := ceph.GetPoolDetails(context.context, context.ClusterName, name); err != nil {
 			cephConfig.Name = name
-			err := ceph.CreatePoolForApp(context.context, context.ClusterName, cephConfig, appName)
+			// If the ceph config has an EC profile, an EC pool must be created. Otherwise, it's necessary
+			// to create a replicated pool.
+			var err error
+			if isECPool {
+				// An EC pool backing an object store does not need to enable EC overwrites, so the pool is
+				// created with that property disabled to avoid unnecessary performance impact.
+				err = ceph.CreateECPoolForApp(context.context, context.ClusterName, cephConfig, appName, false /* enableECOverwrite */, poolSpec.ErasureCodedConfig)
+			} else {
+				err = ceph.CreateReplicatedPoolForApp(context.context, context.ClusterName, cephConfig, appName)
+			}
 			if err != nil {
 				return fmt.Errorf("failed to create pool %s for object store %s", name, context.Name)
 			}

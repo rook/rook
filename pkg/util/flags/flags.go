@@ -16,6 +16,7 @@ limitations under the License.
 package flags
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"regexp"
@@ -31,6 +32,26 @@ func VerifyRequiredFlags(cmd *cobra.Command, requiredFlags []string) error {
 		val, err := cmd.Flags().GetString(reqFlag)
 		if err != nil || val == "" {
 			missingFlags = append(missingFlags, reqFlag)
+		}
+	}
+
+	return createRequiredFlagError(cmd.Name(), missingFlags)
+}
+
+type RenamedFlag struct {
+	NewFlagName string
+	OldFlagName string
+}
+
+func VerifyRenamedFlags(cmd *cobra.Command, renamedFlags []RenamedFlag) error {
+	var missingFlags []string
+	for _, renamedFlag := range renamedFlags {
+		val, err := cmd.Flags().GetString(renamedFlag.NewFlagName)
+		if err != nil || val == "" {
+			val, err := cmd.Flags().GetString(renamedFlag.OldFlagName)
+			if err != nil || val == "" {
+				missingFlags = append(missingFlags, renamedFlag.NewFlagName)
+			}
 		}
 	}
 
@@ -59,6 +80,14 @@ func createRequiredFlagError(name string, flags []string) error {
 	}
 
 	return fmt.Errorf("%s are required for %s", strings.Join(flags, ","), name)
+}
+
+func SetLoggingFlags(flags *pflag.FlagSet) {
+	//Add commandline flags to the flagset. We will always write to stderr
+	//and not to a file by default
+	flags.AddGoFlagSet(flag.CommandLine)
+	flags.Set("logtostderr", "true")
+	flags.Parse(nil)
 }
 
 func SetFlagsFromEnv(flags *pflag.FlagSet, prefix string) error {

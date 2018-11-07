@@ -17,12 +17,12 @@ limitations under the License.
 package integration
 
 import (
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/rook/rook/tests/framework/clients"
-	"github.com/rook/rook/tests/framework/contracts"
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kubernetes/pkg/util/version"
 )
 
 // ************************************************
@@ -51,7 +52,7 @@ import (
 // - Read/write to the file system
 // - Delete the file system
 // Object
-// - Create the object store via the REST API
+// - Create the object store via the CRD
 // - Create/delete buckets
 // - Create/delete users
 // - PUT/GET objects
@@ -67,19 +68,20 @@ func TestSmokeSuite(t *testing.T) {
 type SmokeSuite struct {
 	suite.Suite
 	helper    *clients.TestClient
-	op        contracts.Setup
+	op        *TestCluster
 	k8sh      *utils.K8sHelper
 	namespace string
 }
 
 func (suite *SmokeSuite) SetupSuite() {
 	suite.namespace = "smoke-ns"
-	suite.op, suite.k8sh = NewBaseTestOperations(suite.T, suite.namespace, "bluestore", "", false, false, 3)
-	suite.helper = GetTestClient(suite.k8sh, suite.namespace, suite.op, suite.T)
+	useDevices := true
+	suite.op, suite.k8sh = StartTestCluster(suite.T, suite.namespace, "bluestore", false, useDevices, 3, installer.VersionMaster, installer.MimicVersion)
+	suite.helper = clients.CreateTestClient(suite.k8sh, suite.op.installer.Manifests)
 }
 
 func (suite *SmokeSuite) TearDownSuite() {
-	suite.op.TearDown()
+	suite.op.Teardown()
 }
 
 func (suite *SmokeSuite) TestBlockStorage_SmokeTest() {
@@ -98,16 +100,20 @@ func (suite *SmokeSuite) TestRookClusterInstallation_smokeTest() {
 }
 
 func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
+	v := version.MustParseSemantic(suite.k8sh.GetK8sServerVersion())
+	if !v.LessThan(version.MustParseSemantic("1.9.0")) {
+		suite.T().Skip("Skipping test - known issues with k8s 1.9 (https://github.com/rook/rook/issues/1330)")
+	}
 	// get the operator pod
 	sysNamespace := installer.SystemNamespace(suite.namespace)
-	listOpts := metav1.ListOptions{LabelSelector: "app=rook-operator"}
-	podList, err := suite.k8sh.Clientset.Core().Pods(sysNamespace).List(listOpts)
+	listOpts := metav1.ListOptions{LabelSelector: "app=rook-ceph-operator"}
+	podList, err := suite.k8sh.Clientset.CoreV1().Pods(sysNamespace).List(listOpts)
 	require.Nil(suite.T(), err)
 	require.Equal(suite.T(), 1, len(podList.Items))
 
 	// get the raw log for the operator pod
 	opPodName := podList.Items[0].Name
-	rawLog, err := suite.k8sh.Clientset.Core().Pods(sysNamespace).GetLogs(opPodName, &v1.PodLogOptions{}).Do().Raw()
+	rawLog, err := suite.k8sh.Clientset.CoreV1().Pods(sysNamespace).GetLogs(opPodName, &v1.PodLogOptions{}).Do().Raw()
 	require.Nil(suite.T(), err)
 
 	r := regexp.MustCompile(`discovered flexvolume dir path from source.*\n`)
@@ -120,4 +126,20 @@ func (suite *SmokeSuite) TestOperatorGetFlexvolumePath() {
 	assert.True(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source"))
 	assert.False(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source env var"))
 	assert.False(suite.T(), strings.Contains(logStmt, "discovered flexvolume dir path from source default"))
+}
+
+func checkOrderedSubstrings(t *testing.T, input string, substrings ...string) {
+	if len(input) == 0 {
+		// Nothing to compare. An error was likely returned, which should be checked elsewhere.
+		return
+	}
+	original := input
+	for i, substring := range substrings {
+		if !strings.Contains(input, substring) {
+			assert.Fail(t, fmt.Sprintf("missing substring %d. original=%s", i, original))
+			return
+		}
+		index := strings.Index(input, substring)
+		input = input[index+len(substring):]
+	}
 }

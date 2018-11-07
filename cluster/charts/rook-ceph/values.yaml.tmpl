@@ -1,0 +1,68 @@
+# Default values for rook-ceph-operator
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+image:
+  prefix: rook
+  repository: rook/ceph
+  tag: %%VERSION%%
+  pullPolicy: IfNotPresent
+
+hyperkube:
+  repository: k8s.gcr.io/hyperkube
+  tag: v1.7.12
+  pullPolicy: IfNotPresent
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+nodeSelector:
+# Constraint rook-ceph-operator Deployment to nodes with label `disktype: ssd`.
+# For more info, see https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector
+#  disktype: ssd
+
+# Tolerations for the rook-ceph-operator to allow it to run on nodes with particular taints
+tolerations: []
+
+mon:
+  healthCheckInterval: "45s"
+  monOutTimeout: "300s"
+
+## Annotations to be added to pod
+annotations: {}
+
+## LogLevel can be set to: TRACE, DEBUG, INFO, NOTICE, WARNING, ERROR or CRITICAL
+logLevel: INFO
+
+## If true, create & use RBAC resources
+##
+rbacEnable: true
+
+## If true, create & use PSP resources
+##
+pspEnable: true
+
+## Rook Agent configuration
+## toleration: NoSchedule, PreferNoSchedule or NoExecute
+## tolerationKey: Set this to the specific key of the taint to tolerate
+## flexVolumeDirPath: The path where the Rook agent discovers the flex volume plugins
+## libModulesDirPath: The path where the Rook agent can find kernel modules
+# agent:
+#   toleration: NoSchedule
+#   tolerationKey: key
+## For information on FlexVolume path, please refer to https://rook.io/docs/rook/master/flexvolume.html
+#   flexVolumeDirPath: /usr/libexec/kubernetes/kubelet-plugins/volume/exec/
+#   libModulesDirPath: /lib/modules
+#   mounts: mount1=/host/path:/container/path,/host/path2:/container/path2
+
+## Rook Discover configuration
+## toleration: NoSchedule, PreferNoSchedule or NoExecute
+## tolerationKey: Set this to the specific key of the taint to tolerate
+# discover:
+#   toleration: NoSchedule
+#   tolerationKey: key

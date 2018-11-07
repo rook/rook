@@ -44,18 +44,3 @@ func testGrep(t *testing.T, input, searchFor, expected string) {
 	output := Grep(input, searchFor)
 	assert.Equal(t, expected, output)
 }
-
-func TestAwk(t *testing.T) {
-	testAwk(t, 0, "", "")
-	testAwk(t, 0, "hello world", "hello world")
-	testAwk(t, 1, "hello world", "hello")
-	testAwk(t, 1, "   hello 	  goodbye", "hello")
-	testAwk(t, 2, "goodbye", "")
-	testAwk(t, 2, "hello 	goodbye", "goodbye")
-	testAwk(t, 3, "hello 	goodbye", "")
-}
-
-func testAwk(t *testing.T, index int, input, expected string) {
-	out := Awk(input, index)
-	assert.Equal(t, expected, out)
-}

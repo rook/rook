@@ -1,0 +1,33 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name:  rook-nfs
+---
+# A default storageclass must be present
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: nfs-default-claim
+  namespace: rook-nfs
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: nfs.rook.io/v1alpha1
+kind: NFSServer
+metadata:
+  name: rook-nfs
+  namespace: rook-nfs
+spec:
+  replicas: 1
+  exports:
+  - name: nfs-share
+    server:
+      accessMode: ReadWrite
+      squash: "none"
+    # A Persistent Volume Claim must be created before creating NFS CRD instance.
+    persistentVolumeClaim:
+      claimName: nfs-default-claim

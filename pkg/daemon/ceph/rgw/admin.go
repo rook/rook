@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package rgw
 
 import (
@@ -33,10 +34,10 @@ func NewContext(context *clusterd.Context, name, clusterName string) *Context {
 }
 
 func runAdminCommandNoRealm(c *Context, args ...string) (string, error) {
-	options := client.AppendAdminConnectionArgs(args, c.context.ConfigDir, c.ClusterName)
+	command, args := client.FinalizeCephCommandArgs("radosgw-admin", args, c.context.ConfigDir, c.ClusterName)
 
 	// start the rgw admin command
-	output, err := c.context.Executor.ExecuteCommandWithCombinedOutput(false, "", "radosgw-admin", options...)
+	output, err := c.context.Executor.ExecuteCommandWithOutput(false, "", command, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to run radosgw-admin: %+v", err)
 	}

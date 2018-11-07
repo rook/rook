@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/rook/rook/pkg/model"
 	"github.com/stretchr/testify/require"
 )
 
@@ -29,17 +28,7 @@ func (suite *SmokeSuite) TestPoolResize() {
 	logger.Infof("Pool Resize Smoke Test")
 
 	poolName := "testpool"
-
-	pClient := suite.helper.GetPoolClient()
-
-	pool := model.Pool{
-		Name: poolName,
-		ReplicatedConfig: model.ReplicatedPoolConfig{
-			Size: 1,
-		},
-	}
-
-	out, err := pClient.PoolCreate(pool)
+	out, err := suite.helper.PoolClient.Create(poolName, suite.namespace, 1)
 	logger.Infof("poolCreate: %+v", out)
 	require.Nil(suite.T(), err)
 
@@ -47,7 +36,7 @@ func (suite *SmokeSuite) TestPoolResize() {
 
 	// Wait for pool to appear
 	for i := 0; i < 10; i++ {
-		pools, err := pClient.PoolList()
+		pools, err := suite.helper.PoolClient.ListCephPools(suite.namespace)
 		require.Nil(suite.T(), err)
 		for _, p := range pools {
 			if p.Name != poolName {
@@ -65,32 +54,23 @@ func (suite *SmokeSuite) TestPoolResize() {
 
 	require.Equal(suite.T(), true, poolFound, "pool not found")
 
-	pool.ReplicatedConfig.Size = 3
-
-	out, err = pClient.PoolCreate(pool)
+	_, err = suite.helper.PoolClient.Update(poolName, suite.namespace, 3)
 	logger.Infof("poolCreate (modify): %+v", out)
 	require.Nil(suite.T(), err)
 
 	poolFound = false
 	// Wait for pool resize to happen
 	for i := 0; i < 10; i++ {
-		pools, err := pClient.PoolList()
+
+		details, err := suite.helper.PoolClient.GetCephPoolDetails(suite.namespace, poolName)
 		require.Nil(suite.T(), err)
-		for _, p := range pools {
-			if p.Name != poolName {
-				continue
-			}
-			if p.ReplicatedConfig.Size > uint(1) {
-				logger.Infof("pool %s size got updated", poolName)
-				require.Equal(suite.T(), uint(3), p.ReplicatedConfig.Size)
-				poolFound = true
-				break
-			}
-			logger.Infof("pool %s size not updated yet", poolName)
-		}
-		if poolFound {
+		if details.Size > 1 {
+			logger.Infof("pool %s size got updated", poolName)
+			require.Equal(suite.T(), 3, int(details.Size))
+			poolFound = true
 			break
 		}
+		logger.Infof("pool %s size not updated yet. details: %+v", poolName, details)
 
 		logger.Infof("Waiting for pool %s resize to happen", poolName)
 		time.Sleep(2 * time.Second)

@@ -1,0 +1,55 @@
+apiVersion: extensions/v1beta1
+kind: DaemonSet
+metadata:
+  name: ceph-before-reboot-check
+  namespace: rook-ceph
+spec:
+  template:
+    metadata:
+      labels:
+        app: ceph-before-reboot-check
+    spec:
+      serviceAccountName: rook-node-annotator
+      nodeSelector:
+        container-linux-update.v1.coreos.com/before-reboot: "true"
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      containers:
+      - name: ceph-before-reboot-check
+        image: rook/ceph-toolbox:master
+        imagePullPolicy: IfNotPresent
+        command: ["/scripts/status-check.sh"]
+        env:
+          - name: ROOK_ADMIN_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: rook-ceph-mon
+                key: admin-secret
+          - name: NODE
+            valueFrom:
+               fieldRef:
+                  fieldPath: spec.nodeName
+        volumeMounts:
+          - mountPath: /lib/modules
+            name: libmodules
+          - name: mon-endpoint-volume
+            mountPath: /etc/rook
+          - name: status-script
+            mountPath: /scripts
+      hostNetwork: false
+      volumes:
+        - name: libmodules
+          hostPath:
+            path: /lib/modules
+        - name: mon-endpoint-volume
+          configMap:
+            name: rook-ceph-mon-endpoints
+            items:
+            - key: data
+              path: mon-endpoints
+        - name: status-script
+          configMap:
+            name: ceph-before-reboot-script
+            defaultMode: 0740

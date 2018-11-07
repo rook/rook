@@ -22,24 +22,24 @@ import (
 
 	"github.com/rook/rook/pkg/util/exec"
 	"github.com/rook/rook/pkg/util/sys"
-	"time"
 )
 
 //HelmHelper is wrapper for running helm commands
 type HelmHelper struct {
 	executor *exec.CommandExecutor
+	HelmPath string
 }
 
 //NewHelmHelper creates a instance of HelmHelper
-func NewHelmHelper() *HelmHelper {
+func NewHelmHelper(helmPath string) *HelmHelper {
 	executor := &exec.CommandExecutor{}
-	return &HelmHelper{executor: executor}
+	return &HelmHelper{executor: executor, HelmPath: helmPath}
 
 }
 
 //Execute is wrapper for executing helm commands
 func (h *HelmHelper) Execute(args ...string) (string, error) {
-	result, err := h.executor.ExecuteCommandWithOutput(false, "", "helm", args...)
+	result, err := h.executor.ExecuteCommandWithOutput(false, "", h.HelmPath, args...)
 	if err != nil {
 		logger.Errorf("Errors Encountered while executing helm command %v: %v", result, err)
 		return result, fmt.Errorf("Failed to run helm commands on args %v : %v , err -> %v", args, result, err)
@@ -49,7 +49,7 @@ func (h *HelmHelper) Execute(args ...string) (string, error) {
 
 }
 
-//GetLocalRookHelmChartVersion returns helm chart version for a give chart
+//GetLocalRookHelmChartVersion returns helm chart version for a given chart
 func (h *HelmHelper) GetLocalRookHelmChartVersion(chartName string) (string, error) {
 	cmdArgs := []string{"search", chartName}
 	result, err := h.Execute(cmdArgs...)
@@ -61,9 +61,16 @@ func (h *HelmHelper) GetLocalRookHelmChartVersion(chartName string) (string, err
 	if strings.Contains(result, "No results found") {
 		return "", fmt.Errorf("Failed to find helm chart  %v ", chartName)
 	}
-	cd := strings.Replace(sys.Grep(result, chartName), "\t", " ", 2)
 
-	return sys.Awk(cd, 2), nil
+	version := ""
+	slice := strings.Fields(sys.Grep(result, chartName))
+	if len(slice) >= 2 {
+		version = slice[1]
+	}
+	if version == "" {
+		return "", fmt.Errorf("Failed to find version for helm chart %v", chartName)
+	}
+	return version, nil
 }
 
 //InstallLocalRookHelmChart installs a give helm chart
@@ -74,23 +81,19 @@ func (h *HelmHelper) InstallLocalRookHelmChart(chartName string, deployName stri
 	}
 	var result string
 	var err error
-	inc := 0
-	for inc < RetryLoop {
-		result, err = h.Execute(cmdArgs...)
-		if err == nil {
-			return nil
-		}
-		logger.Infof("helm install for %s failed %v, err ->%v", chartName, result, err)
-		ls, _ := h.Execute([]string{"ls"}...)
-		logger.Infof("Helm ls result : %v", ls)
-		ss, _ := h.Execute([]string{"search"}...)
-		logger.Infof("Helm search result : %v", ss)
-		rl, _ := h.Execute([]string{"repo", "list"}...)
-		logger.Infof("Helm repo list result : %v", rl)
 
-		inc++
-		time.Sleep(RetryInterval * time.Second)
+	result, err = h.Execute(cmdArgs...)
+	if err == nil {
+		return nil
 	}
+
+	logger.Infof("helm install for %s failed %v, err ->%v", chartName, result, err)
+	ls, _ := h.Execute([]string{"ls"}...)
+	logger.Infof("Helm ls result : %v", ls)
+	ss, _ := h.Execute([]string{"search"}...)
+	logger.Infof("Helm search result : %v", ss)
+	rl, _ := h.Execute([]string{"repo", "list"}...)
+	logger.Infof("Helm repo list result : %v", rl)
 
 	logger.Errorf("cannot install helm chart with name : %v, version: %v, namespace: %v  - %v , err: %v", chartName, chartVersion, namespace, result, err)
 	return fmt.Errorf("cannot install helm chart with name : %v, version: %v, namespace: %v - %v, err: %v", chartName, chartVersion, namespace, result, err)

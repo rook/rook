@@ -20,7 +20,7 @@ import (
 
 	"github.com/coreos/pkg/capnslog"
 	"github.com/rook/rook/tests/framework/clients"
-	"github.com/rook/rook/tests/framework/contracts"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/suite"
 )
@@ -41,7 +41,7 @@ var (
 // - Create a pool in each cluster
 // - Mount/unmount a block device through the dynamic provisioner
 // File system
-// - Create a file system via the REST API
+// - Create a file system via the CRD
 // Object
 // - Create the object store via the CRD
 // ***************************************************
@@ -57,19 +57,18 @@ type HelmSuite struct {
 	suite.Suite
 	helper    *clients.TestClient
 	kh        *utils.K8sHelper
-	op        contracts.Setup
+	op        *TestCluster
 	namespace string
 }
 
 func (hs *HelmSuite) SetupSuite() {
 	hs.namespace = "helm-ns"
-	hs.op, hs.kh = NewBaseTestOperations(hs.T, hs.namespace, "bluestore", "", true, false, 3)
-	hs.helper = GetTestClient(hs.kh, hs.namespace, hs.op, hs.T)
-
+	hs.op, hs.kh = StartTestCluster(hs.T, hs.namespace, "bluestore", true, false, 1, installer.VersionMaster, installer.MimicVersion)
+	hs.helper = clients.CreateTestClient(hs.kh, hs.op.installer.Manifests)
 }
 
 func (hs *HelmSuite) TearDownSuite() {
-	hs.op.TearDown()
+	hs.op.Teardown()
 }
 
 //Test to make sure all rook components are installed and Running

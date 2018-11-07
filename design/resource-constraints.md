@@ -63,7 +63,7 @@ There will be a `resources` section added to their respective specification to a
 #### Special Case: OSD
 To allow per node/OSD configuration of resource constraints, a key is added to the `storage.nodes` item.
 It is named `resources` and contain a resource requirement object (see above).
-The `rook-agent` may be utilized in some way to detect how many stores are used.
+The `rook-ceph-agent` may be utilized in some way to detect how many stores are used.
 
 ### Example
 #### Cluster CRD
@@ -72,17 +72,19 @@ The requests/limits configured are as an example and not to be used in productio
 apiVersion: v1
 kind: Namespace
 metadata:
-  name: rook
+  name: rook-ceph
 ---
 apiVersion: rook.io/v1alpha1
 kind: Cluster
 metadata:
-  name: rook
-  namespace: rook
+  name: rook-ceph
+  namespace: rook-ceph
 spec:
   dataDirHostPath: /var/lib/rook
   hostNetwork: false
-  monCount: 3
+  mon:
+    count: 3
+    allowMultiplePerNode: false
   placement:
   resources:
     api:

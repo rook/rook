@@ -12,9 +12,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
-Some of the code below came from https://github.com/digitalocean/ceph_exporter
-which has the same license.
 */
 package client
 
@@ -25,7 +22,7 @@ import (
 	"strings"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/daemon/ceph/model"
 )
 
 const (
@@ -43,7 +40,8 @@ type CephStoragePoolDetails struct {
 	Number             int    `json:"pool_id"`
 	Size               uint   `json:"size"`
 	ErasureCodeProfile string `json:"erasure_code_profile"`
-	FailureDomain      string
+	FailureDomain      string `json:"failureDomain"`
+	CrushRoot          string `json:"crushRoot"`
 }
 
 type CephStoragePoolStats struct {
@@ -129,12 +127,26 @@ func CreatePoolWithProfile(context *clusterd.Context, clusterName string, newPoo
 	newPool := ModelPoolToCephPool(newPoolReq)
 	if newPoolReq.Type == model.ErasureCoded {
 		// create a new erasure code profile for the new pool
-		if err := CreateErasureCodeProfile(context, clusterName, newPoolReq.ErasureCodedConfig, newPool.ErasureCodeProfile, newPoolReq.FailureDomain); err != nil {
+		if err := CreateErasureCodeProfile(context, clusterName, newPoolReq.ErasureCodedConfig, newPool.ErasureCodeProfile,
+			newPoolReq.FailureDomain, newPoolReq.CrushRoot); err != nil {
+
 			return fmt.Errorf("failed to create erasure code profile for pool '%s': %+v", newPoolReq.Name, err)
 		}
 	}
 
-	return CreatePoolForApp(context, clusterName, newPool, appName)
+	isReplicatedPool := newPool.ErasureCodeProfile == "" && newPool.Size > 0
+	if isReplicatedPool {
+		return CreateReplicatedPoolForApp(context, clusterName, newPool, appName)
+	}
+	// If the pool is not a replicated pool, then the only other option is an erasure coded pool.
+	return CreateECPoolForApp(
+		context,
+		clusterName,
+		newPool,
+		appName,
+		true, /* enableECOverwrite */
+		newPoolReq.ErasureCodedConfig,
+	)
 }
 
 func DeletePool(context *clusterd.Context, clusterName string, name string) error {
@@ -163,55 +175,91 @@ func DeletePool(context *clusterd.Context, clusterName string, name string) erro
 	return nil
 }
 
-func CreatePool(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails) error {
-	// for a generic/custom pool, just reuse the pool name for its app name
-	return CreatePoolForApp(context, clusterName, newPool, newPool.Name)
+func givePoolAppTag(context *clusterd.Context, clusterName string, poolName string, appName string) error {
+	args := []string{"osd", "pool", "application", "enable", poolName, appName, confirmFlag}
+	_, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to enable application %s on pool %s. %+v", appName, poolName, err)
+	}
+
+	return nil
 }
 
-func CreatePoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string) error {
-	// create a crush rule for a replicated pool, if a failure domain is specified
-	replicated := newPool.ErasureCodeProfile == "" && newPool.Size > 0
-	ruleName := newPool.Name
-	if replicated && newPool.FailureDomain != "" {
-		args := []string{"osd", "crush", "rule", "create-simple", ruleName, "default", newPool.FailureDomain}
-		_, err := ExecuteCephCommand(context, clusterName, args)
-		if err != nil {
-			return fmt.Errorf("failed to crush rule %s. %+v", newPool.Name, err)
-		}
-	}
-
-	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number)}
-	if newPool.ErasureCodeProfile != "" {
-		args = append(args, "erasure", newPool.ErasureCodeProfile)
-	} else {
-		args = append(args, "replicated")
-
-		// Associate the crush rule created above with the new pool
-		if newPool.FailureDomain != "" {
-			args = append(args, ruleName)
-		}
-	}
+func CreateECPoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string, enableECOverwrite bool, erasureCodedConfig model.ErasureCodedPoolConfig) error {
+	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number), "erasure", newPool.ErasureCodeProfile}
 
 	buf, err := ExecuteCephCommand(context, clusterName, args)
 	if err != nil {
-		return fmt.Errorf("failed to create pool %s. %+v", newPool.Name, err)
+		return fmt.Errorf("failed to create EC pool %s. %+v", newPool.Name, err)
 	}
 
-	if replicated {
-		// the pool is type replicated, set the size for the pool now that it's been created
-		if err = SetPoolProperty(context, clusterName, newPool.Name, "size", strconv.FormatUint(uint64(newPool.Size), 10)); err != nil {
-			return err
+	if err = SetPoolProperty(context, clusterName, newPool.Name, "min_size", strconv.FormatUint(uint64(erasureCodedConfig.DataChunkCount), 10)); err != nil {
+		return fmt.Errorf("failed to set min size to %d for pool %s. %+v", erasureCodedConfig.DataChunkCount, newPool.Name, err)
+	}
+
+	if enableECOverwrite {
+		if err = SetPoolProperty(context, clusterName, newPool.Name, "allow_ec_overwrites", "true"); err != nil {
+			return fmt.Errorf("failed to allow EC overwrite for pool %s. %+v", newPool.Name, err)
 		}
 	}
 
-	// ensure that the newly created pool gets an application tag
-	args = []string{"osd", "pool", "application", "enable", newPool.Name, appName, confirmFlag}
-	_, err = ExecuteCephCommand(context, clusterName, args)
+	err = givePoolAppTag(context, clusterName, newPool.Name, appName)
 	if err != nil {
-		return fmt.Errorf("failed to enable application %s on pool %s. %+v", appName, newPool.Name, err)
+		return err
 	}
 
-	logger.Infof("creating pool %s succeeded, buf: %s", newPool.Name, string(buf))
+	logger.Infof("creating EC pool %s succeeded, buf: %s", newPool.Name, string(buf))
+	return nil
+}
+
+func CreateReplicatedPoolForApp(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, appName string) error {
+	// create a crush rule for a replicated pool, if a failure domain is specified
+	if err := createReplicationCrushRule(context, clusterName, newPool, newPool.Name); err != nil {
+		return err
+	}
+
+	args := []string{"osd", "pool", "create", newPool.Name, strconv.Itoa(newPool.Number), "replicated", newPool.Name}
+
+	buf, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to create replicated pool %s. %+v", newPool.Name, err)
+	}
+
+	// the pool is type replicated, set the size for the pool now that it's been created
+	if err = SetPoolProperty(context, clusterName, newPool.Name, "size", strconv.FormatUint(uint64(newPool.Size), 10)); err != nil {
+		return err
+	}
+
+	// ensure that the newly created pool gets an application tag
+	err = givePoolAppTag(context, clusterName, newPool.Name, appName)
+	if err != nil {
+		return err
+	}
+
+	logger.Infof("creating replicated pool %s succeeded, buf: %s", newPool.Name, string(buf))
+	return nil
+}
+
+func createReplicationCrushRule(context *clusterd.Context, clusterName string, newPool CephStoragePoolDetails, ruleName string) error {
+	failureDomain := newPool.FailureDomain
+	if failureDomain == "" {
+		failureDomain = "host"
+	}
+
+	// set the crush root to the default if not already specified
+	var crushRoot string
+	if newPool.CrushRoot != "" {
+		crushRoot = newPool.CrushRoot
+	} else {
+		crushRoot = "default"
+	}
+
+	args := []string{"osd", "crush", "rule", "create-simple", ruleName, crushRoot, failureDomain}
+	_, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return fmt.Errorf("failed to create crush rule %s. %+v", ruleName, err)
+	}
+
 	return nil
 }
 

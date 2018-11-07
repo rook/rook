@@ -20,7 +20,7 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/daemon/ceph/model"
 )
 
 type CephErasureCodeProfile struct {
@@ -29,6 +29,7 @@ type CephErasureCodeProfile struct {
 	Plugin           string `json:"plugin"`
 	Technique        string `json:"technique"`
 	FailureDomain    string `json:"crush-failure-domain"`
+	CrushRoot        string `json:"crush-root"`
 }
 
 func ListErasureCodeProfiles(context *clusterd.Context, clusterName string) ([]string, error) {
@@ -63,7 +64,7 @@ func GetErasureCodeProfileDetails(context *clusterd.Context, clusterName, name s
 	return ecProfileDetails, nil
 }
 
-func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, config model.ErasureCodedPoolConfig, name, failureDomain string) error {
+func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, config model.ErasureCodedPoolConfig, name, failureDomain, crushRoot string) error {
 	// look up the default profile so we can use the default plugin/technique
 	defaultProfile, err := GetErasureCodeProfileDetails(context, clusterName, "default")
 	if err != nil {
@@ -79,6 +80,9 @@ func CreateErasureCodeProfile(context *clusterd.Context, clusterName string, con
 	}
 	if failureDomain != "" {
 		profilePairs = append(profilePairs, fmt.Sprintf("crush-failure-domain=%s", failureDomain))
+	}
+	if crushRoot != "" {
+		profilePairs = append(profilePairs, fmt.Sprintf("crush-root=%s", crushRoot))
 	}
 
 	args := []string{"osd", "erasure-code-profile", "set", name}
@@ -107,6 +111,7 @@ func ModelPoolToCephPool(modelPool model.Pool) CephStoragePoolDetails {
 		Name:          modelPool.Name,
 		Number:        modelPool.Number,
 		FailureDomain: modelPool.FailureDomain,
+		CrushRoot:     modelPool.CrushRoot,
 	}
 
 	if modelPool.Type == model.Replicated {

@@ -124,3 +124,18 @@ func resolveInt(setting *int, parent, defaultVal int) {
 func newBool(val bool) *bool {
 	return &val
 }
+
+// NodesByName implements an interface to sort nodes by name
+type NodesByName []Node
+
+func (s NodesByName) Len() int {
+	return len(s)
+}
+
+func (s NodesByName) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+func (s NodesByName) Less(i, j int) bool {
+	return s[i].Name < s[j].Name
+}

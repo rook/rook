@@ -1,3 +1,19 @@
+/*
+Copyright 2016 The Rook Authors. All rights reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+	http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package longhaul
 
 import (
@@ -5,11 +21,13 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/rook/rook/tests/framework/contracts"
+	"github.com/rook/rook/tests/framework/clients"
+
+	"time"
+
 	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/suite"
-	"time"
 )
 
 // Rook Block Storage longhaul test
@@ -27,16 +45,20 @@ func TestBlockLongHaul(t *testing.T) {
 
 type BlockLongHaulSuite struct {
 	suite.Suite
-	kh        *utils.K8sHelper
-	installer *installer.InstallHelper
-	op        contracts.Setup
+	kh         *utils.K8sHelper
+	installer  *installer.CephInstaller
+	namespace  string
+	op         installer.TestSuite
+	testClient *clients.TestClient
 }
 
 //Test set up - does the following in order
 //create pool and storage class, create a PVC, Create a MySQL app/service that uses pvc
 func (s *BlockLongHaulSuite) SetupSuite() {
-	s.op, s.kh, s.installer = NewBaseLoadTestOperations(s.T, "longhaul-ns")
-	createStorageClassAndPool(s.T, s.kh, "longhaul-ns", "rook-block", "rook-pool")
+	s.namespace = "longhaul-ns"
+	s.op, s.kh, s.installer = StartLoadTestCluster(s.T, s.namespace)
+	s.testClient = clients.CreateTestClient(s.kh, s.installer.Manifests)
+	createStorageClassAndPool(s.T, s.testClient, s.kh, s.namespace, "rook-ceph-block", "rook-pool")
 }
 
 //create a n number  ofPVC, Create a MySQL app/service that uses pvc
@@ -44,12 +66,12 @@ func (s *BlockLongHaulSuite) SetupSuite() {
 //All other PVC and mounts are created and deleted/unmounted per test
 func (s *BlockLongHaulSuite) TestBlockLonghaulRun() {
 	var wg sync.WaitGroup
-	wg.Add(s.installer.Env.LoadVolumeNumber)
-	for i := 1; i <= s.installer.Env.LoadVolumeNumber; i++ {
+	wg.Add(installer.Env.LoadVolumeNumber)
+	for i := 1; i <= installer.Env.LoadVolumeNumber; i++ {
 		if i == 1 {
-			go BlockVolumeOperations(s, &wg, "rook-block", "mysqlapp-persist", "mysqldb", "mysql-persist-claim", false)
+			go BlockVolumeOperations(s, &wg, "rook-ceph-block", "mysqlapp-persist", "mysqldb", "mysql-persist-claim", false)
 		} else {
-			go BlockVolumeOperations(s, &wg, "rook-block", "mysqlapp-ephemeral-"+strconv.Itoa(i), "mysqldbeph"+strconv.Itoa(i), "mysql-ephemeral-claim"+strconv.Itoa(i), randomBool())
+			go BlockVolumeOperations(s, &wg, "rook-ceph-block", "mysqlapp-ephemeral-"+strconv.Itoa(i), "mysqldbeph"+strconv.Itoa(i), "mysql-ephemeral-claim"+strconv.Itoa(i), randomBool())
 
 		}
 
@@ -60,7 +82,7 @@ func (s *BlockLongHaulSuite) TestBlockLonghaulRun() {
 func BlockVolumeOperations(s *BlockLongHaulSuite, wg *sync.WaitGroup, storageClassName string, appName string, appLabel string, pvcName string, cleanup bool) {
 	defer wg.Done()
 	db := createPVCAndMountMysqlPod(s.T, s.kh, storageClassName, appName, appLabel, pvcName)
-	performBlockOperations(s.installer, db)
+	performBlockOperations(db)
 	if cleanup {
 		mySqlPodOperation(s.kh, storageClassName, appName, appLabel, pvcName, "delete")
 		s.kh.WaitUntilPodWithLabelDeleted(appLabel, "default")
@@ -72,8 +94,8 @@ func BlockVolumeOperations(s *BlockLongHaulSuite, wg *sync.WaitGroup, storageCla
 
 func (s *BlockLongHaulSuite) TearDownSuite() {
 	//clean up all ephemeral block storage, index 1 is persistent block storage which is going to be used among different test runs.
-	for i := 2; i <= s.installer.Env.LoadVolumeNumber; i++ {
-		mySqlPodOperation(s.kh, "rook-block", "mysqlapp-ephemeral-"+strconv.Itoa(i), "mysqldbeph"+strconv.Itoa(i), "mysql-ephemeral-claim"+strconv.Itoa(i), "delete")
+	for i := 2; i <= installer.Env.LoadVolumeNumber; i++ {
+		mySqlPodOperation(s.kh, "rook-ceph-block", "mysqlapp-ephemeral-"+strconv.Itoa(i), "mysqldbeph"+strconv.Itoa(i), "mysql-ephemeral-claim"+strconv.Itoa(i), "delete")
 	}
 	s.kh = nil
 	s = nil

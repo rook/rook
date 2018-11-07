@@ -1,0 +1,127 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ceph-after-reboot-script
+  namespace: rook-ceph
+data:
+  status-check.sh: |-
+    #!/bin/bash
+
+    # preflightCheck checks for existence of "dependencies"
+    preflightCheck() {
+        if [ ! -f "/var/run/secrets/kubernetes.io/serviceaccount/token" ]; then
+            echo "$(date) | No Kubernetes ServiceAccount token found."
+            exit 1
+        else
+            KUBE_TOKEN="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+            export KUBE_TOKEN
+        fi
+    }
+    # updateNodeRebootAnnotation sets the `ceph-reboot-finished` annotation to `true` on `$NODE`
+    updateNodeRebootAnnotation(){
+        export PATCH="[{ \"op\": \"add\", \"path\": \"/metadata/annotations/ceph-after-reboot-check\", \"value\": \"true\" }]"
+
+        TRIES=0
+        until [ $TRIES -eq 10 ]; do
+            if curl -sSk \
+                --fail \
+                -XPATCH \
+                -H "Authorization: Bearer $KUBE_TOKEN" \
+                -H "Accept: application/json" \
+                -H "Content-Type:application/json-patch+json" \
+                --data "$PATCH" \
+                "https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_PORT_443_TCP_PORT/api/v1/nodes/$NODE"; then
+                echo "$(date) | Annotation \"ceph-reboot-finished\" from node $NODE updated to \"true\". Reboot finished!"
+                return 0
+            else
+                echo "$(date) | Kubernetes API server connection error, will retry in 5 seconds..."
+                (( TRIES++ ))
+                /bin/sleep 5
+            fi
+        done
+        return 1
+    }
+
+    # deleteNooutAnnotation deletes the `ceph-no-noout` annotation from `$NODE`
+    deleteNooutAnnotation(){
+        export PATCH="[{ \"op\": \"remove\", \"path\": \"/metadata/annotations/ceph-no-noout\"}]"
+
+        TRIES=0
+        until [ $TRIES -eq 10 ]; do
+            if curl -sSk \
+                --fail \
+                -XPATCH \
+                -H "Authorization: Bearer $KUBE_TOKEN" \
+                -H "Accept: application/json" \
+                -H "Content-Type:application/json-patch+json" \
+                --data "$PATCH" \
+                "https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_PORT_443_TCP_PORT/api/v1/nodes/$NODE"; then
+                echo "$(date) | Annotation \"ceph-no-noout\" from node $NODE removed!"
+                return 0
+            else
+                echo "$(date) | Kubernetes API server connection error, will retry in 5 seconds..."
+                (( TRIES++ ))
+                /bin/sleep 5
+            fi
+        done
+        return 1
+    }
+
+    # Check if noout option should be set
+    checkForNoout() {
+
+        # Fetch the annotations list of the node
+        TRIES=0
+        until [ $TRIES -eq 10 ]; do
+            if NODE_ANNOTATIONS=$(curl -sSk \
+                --fail \
+                -H "Authorization: Bearer $KUBE_TOKEN" \
+                -H "Accept: application/json" \
+                "https://$KUBERNETES_SERVICE_HOST:$KUBERNETES_PORT_443_TCP_PORT/api/v1/nodes/$NODE" \
+                | jq ".metadata.annotations") ; then
+
+                echo "$(date) | Node annotations collected, looking for \"ceph-no-noout\" annotation"
+                if [ $(echo "$NODE_ANNOTATIONS" | jq '."ceph-no-noout"') != "null" ] ; then
+                    echo "$(date) | Node annotation \"ceph-no-noout\" exists, deleting the annotation on node $NODE"
+                    deleteNooutAnnotation
+                else
+                    echo "$(date) | Node annotation \"ceph-no-noout\" doesn't exist, unsetting Ceph noout flag"
+                    ceph osd unset noout
+                fi
+                return 0
+            else
+                echo "$(date) | Kubernetes API server connection error, will retry in 5 seconds..."
+                (( TRIES++ ))
+                /bin/sleep 5
+            fi
+        done
+        return 1
+    }
+
+    preflightCheck
+
+    echo "$(date) | Running the rook toolbox config initiation script..."
+    /usr/local/bin/toolbox.sh &
+
+    TRIES=0
+    until [ -f /etc/ceph/ceph.conf ]; do
+        [ $TRIES -eq 10 ] && { echo "$(date) | No Ceph config found after 10 tries. Exiting ..."; exit 1; }
+        echo "$(date) | Waiting for Ceph config (try $TRIES from 10) ..."
+        (( TRIES++ ))
+        sleep 3
+    done
+
+    while true; do
+        if checkForNoout; then
+            if updateNodeRebootAnnotation; then
+                echo "$(date) | Reboot from node $NODE completely finished!"
+                exit 0
+            else
+                echo "$(date) | Failed updating annotation for $NODE. Exiting."
+                exit 1
+            fi
+        else
+            echo "$(date) | Failed updating ceph noout flag or node annotation. Exiting."
+            exit 1
+        fi
+    done

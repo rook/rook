@@ -24,7 +24,7 @@ Replication can be 1 or more
 Erasure coding requires k >= 2 and m >= 1, where k is data chunks and m is coding chunks
 Erasure coding specifies a plugin (default=jerasure)
 Erasure coding specifies an encoding algorithm (default=reed_sol_van)
-A pool can set its failure domain using a CRUSH rule (default=host) 
+A pool can set its failure domain using a CRUSH rule (default=host)
 
 # Object Store
 The object store CRD defines desired settings for an object store

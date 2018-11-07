@@ -12,9 +12,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
-Some of the code below came from https://github.com/digitalocean/ceph_exporter
-which has the same license.
 */
 package client
 
@@ -23,7 +20,6 @@ import (
 	"fmt"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/model"
 )
 
 const (
@@ -36,6 +32,10 @@ const (
 	// CephHealthErr denotes the status of ceph cluster when unhealthy but usually needs
 	// manual intervention.
 	CephHealthErr = "HEALTH_ERR"
+)
+
+const (
+	clusterStateActiveClean = "active+clean"
 )
 
 type CephStatus struct {
@@ -136,25 +136,26 @@ func Status(context *clusterd.Context, clusterName string) (CephStatus, error) {
 	return status, nil
 }
 
-func StatusPlain(context *clusterd.Context, clusterName string) ([]byte, error) {
-	args := []string{"status"}
-	buf, err := ExecuteCephCommandPlain(context, clusterName, args)
+// IsClusterClean returns a value indicating if the cluster is fully clean yet (i.e., all placement
+// groups are in the active+clean state).
+func IsClusterClean(context *clusterd.Context, clusterName string) error {
+	status, err := Status(context, clusterName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get status: %+v", err)
+		return err
 	}
 
-	return buf, nil
-}
-
-func HealthToModelHealthStatus(cephHealth string) model.HealthStatus {
-	switch cephHealth {
-	case CephHealthOK:
-		return model.HealthOK
-	case CephHealthWarn:
-		return model.HealthWarning
-	case CephHealthErr:
-		return model.HealthError
-	default:
-		return model.HealthUnknown
+	if status.PgMap.NumPgs == 0 {
+		// there are no PGs yet, that still counts as clean
+		return nil
 	}
+
+	for _, pg := range status.PgMap.PgsByState {
+		if pg.StateName == clusterStateActiveClean && pg.Count == status.PgMap.NumPgs {
+			// all PGs in the cluster are in active+clean state, cluster is clean.
+			logger.Infof("all placement groups have reached the %s state: %+v", clusterStateActiveClean, status.PgMap.PgsByState)
+			return nil
+		}
+	}
+
+	return fmt.Errorf("cluster is not fully clean. PGs: %+v", status.PgMap.PgsByState)
 }

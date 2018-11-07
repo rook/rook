@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package osd
 
 import (
@@ -22,19 +23,19 @@ import (
 	"path/filepath"
 
 	"github.com/rook/rook/pkg/clusterd"
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
+	osdconfig "github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/util"
 )
 
 const (
 	maxFileBackupSize         = 1 * 1024 * 1024 // 1 MB
-	osdFSStoreNameFmt         = "rook-ceph-osd-%d-fs-backup"
 	bluestoreBlockSymlinkName = "block"
 	bluestoreDBSymlinkName    = "block.db"
 	bluestoreWalSymlinkName   = "block.wal"
 )
 
-// creates/initalizes the OSD filesystem and journal via a child process
+// creates/initializes the OSD filesystem and journal via a child process
 func createOSDFileSystem(context *clusterd.Context, clusterName string, config *osdConfig) error {
 	logger.Infof("Initializing OSD %d file system at %s...", config.id, config.rootPath)
 
@@ -58,7 +59,7 @@ func createOSDFileSystem(context *clusterd.Context, clusterName string, config *
 		"--mkfs",
 		fmt.Sprintf("--id=%d", config.id),
 		fmt.Sprintf("--cluster=%s", clusterName),
-		fmt.Sprintf("--conf=%s", mon.GetConfFilePath(config.rootPath, clusterName)),
+		fmt.Sprintf("--conf=%s", cephconfig.GetConfFilePath(config.rootPath, clusterName)),
 		fmt.Sprintf("--osd-data=%s", config.rootPath),
 		fmt.Sprintf("--osd-uuid=%s", config.uuid.String()),
 		fmt.Sprintf("--monmap=%s", monMapTmpPath),
@@ -102,23 +103,23 @@ func isOSDFilesystemCreated(config *osdConfig) bool {
 }
 
 // marks the given OSD's filesystem as created and backed up.
-func markOSDFileSystemCreated(config *osdConfig) error {
-	if config.partitionScheme == nil {
+func markOSDFileSystemCreated(cfg *osdConfig) error {
+	if cfg.partitionScheme == nil {
 		return nil
 	}
 
-	savedScheme, err := LoadScheme(config.kv, config.storeName)
+	savedScheme, err := osdconfig.LoadScheme(cfg.kv, cfg.storeName)
 	if err != nil {
 		return fmt.Errorf("failed to load the saved partition scheme: %+v", err)
 	}
 
 	// mark the OSD's filesystem as created and backed up.
-	config.partitionScheme.FSCreated = true
-	if err := savedScheme.updateSchemeEntry(config.partitionScheme); err != nil {
-		return fmt.Errorf("failed to update partition scheme entry %+v", config.partitionScheme)
+	cfg.partitionScheme.FSCreated = true
+	if err := savedScheme.UpdateSchemeEntry(cfg.partitionScheme); err != nil {
+		return fmt.Errorf("failed to update partition scheme entry %+v", cfg.partitionScheme)
 	}
 
-	if err := savedScheme.SaveScheme(config.kv, config.storeName); err != nil {
+	if err := savedScheme.SaveScheme(cfg.kv, cfg.storeName); err != nil {
 		return fmt.Errorf("failed to save partition scheme: %+v", err)
 	}
 
@@ -132,7 +133,7 @@ func backupOSDFileSystem(config *osdConfig, clusterName string) error {
 
 	logger.Infof("Backing up OSD %d file system from %s", config.id, config.rootPath)
 
-	storeName := fmt.Sprintf(osdFSStoreNameFmt, config.id)
+	storeName := fmt.Sprintf(osdconfig.OSDFSStoreNameFmt, config.id)
 
 	// ensure the store we are backing up to is clear first
 	if err := config.kv.ClearStore(storeName); err != nil {
@@ -146,7 +147,7 @@ func backupOSDFileSystem(config *osdConfig, clusterName string) error {
 
 	filter := util.CreateSet([]string{
 		// filter out the rook.config file since it's always regenerated
-		filepath.Base(mon.GetConfFilePath(config.rootPath, clusterName)),
+		filepath.Base(cephconfig.GetConfFilePath(config.rootPath, clusterName)),
 		// filter out the keyring since we recreate it with "auth get-or-create" and we don't want
 		// to store a secret in a non secret resource
 		keyringFileName,
@@ -196,7 +197,7 @@ func repairOSDFileSystem(config *osdConfig) error {
 
 	logger.Infof("Repairing OSD %d file system at %s", config.id, config.rootPath)
 
-	storeName := fmt.Sprintf(osdFSStoreNameFmt, config.id)
+	storeName := fmt.Sprintf(osdconfig.OSDFSStoreNameFmt, config.id)
 	store, err := config.kv.GetStore(storeName)
 	if err != nil {
 		return err

@@ -15,16 +15,16 @@
 include ../image.mk
 
 IMAGE = $(BUILD_REGISTRY)/cross-$(GOARCH)
-IMAGES := $(IMAGE)
-CACHE_IMAGES = $(IMAGES)
-
-BASEIMAGE = $(BUILD_REGISTRY)/base-$(GOARCH)
+CACHE_IMAGES = $(IMAGE)
 
 TEMP := $(shell mktemp -d)
 
 do.build:
 	@echo === docker build $(IMAGE)
 	@cp -a . $(TEMP)
-	@cd $(TEMP) && $(SED_CMD) 's|BASEIMAGE|$(BASEIMAGE)|g' Dockerfile
-	@docker build $(BUILD_ARGS) -t $(IMAGE) $(TEMP)
+	@docker build $(BUILD_ARGS) \
+		--build-arg ARCH=$(GOARCH) \
+		--build-arg TINI_VERSION=$(TINI_VERSION) \
+		-t $(IMAGE) \
+		$(TEMP)
 	@rm -fr $(TEMP)

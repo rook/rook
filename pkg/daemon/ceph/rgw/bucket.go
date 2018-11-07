@@ -13,6 +13,7 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
+
 package rgw
 
 import (
@@ -20,9 +21,23 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/rook/rook/pkg/model"
 )
+
+type ObjectBucketMetadata struct {
+	Owner     string    `json:"owner"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type ObjectBucketStats struct {
+	Size            uint64 `json:"size"`
+	NumberOfObjects uint64 `json:"numberOfObjects"`
+}
+
+type ObjectBucket struct {
+	Name string `json:"name"`
+	ObjectBucketMetadata
+	ObjectBucketStats
+}
 
 type rgwBucketStats struct {
 	Bucket string `json:"bucket"`
@@ -32,8 +47,22 @@ type rgwBucketStats struct {
 	}
 }
 
-func bucketStatsFromRGW(stats rgwBucketStats) model.ObjectBucketStats {
-	s := model.ObjectBucketStats{Size: 0, NumberOfObjects: 0}
+type ObjectBuckets []ObjectBucket
+
+func (slice ObjectBuckets) Len() int {
+	return len(slice)
+}
+
+func (slice ObjectBuckets) Less(i, j int) bool {
+	return slice[i].Name < slice[j].Name
+}
+
+func (slice ObjectBuckets) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+
+func bucketStatsFromRGW(stats rgwBucketStats) ObjectBucketStats {
+	s := ObjectBucketStats{Size: 0, NumberOfObjects: 0}
 	for _, usage := range stats.Usage {
 		s.Size = s.Size + usage.Size
 		s.NumberOfObjects = s.NumberOfObjects + usage.NumberOfObjects
@@ -41,7 +70,7 @@ func bucketStatsFromRGW(stats rgwBucketStats) model.ObjectBucketStats {
 	return s
 }
 
-func GetBucketStats(c *Context, bucketName string) (*model.ObjectBucketStats, bool, error) {
+func GetBucketStats(c *Context, bucketName string) (*ObjectBucketStats, bool, error) {
 	result, err := runAdminCommand(c,
 		"bucket",
 		"stats",
@@ -64,7 +93,7 @@ func GetBucketStats(c *Context, bucketName string) (*model.ObjectBucketStats, bo
 	return &stat, false, nil
 }
 
-func GetBucketsStats(c *Context) (map[string]model.ObjectBucketStats, error) {
+func GetBucketsStats(c *Context) (map[string]ObjectBucketStats, error) {
 	result, err := runAdminCommand(c,
 		"bucket",
 		"stats")
@@ -77,7 +106,7 @@ func GetBucketsStats(c *Context) (map[string]model.ObjectBucketStats, error) {
 		return nil, fmt.Errorf("failed to read buckets stats. %+v, result=%s", err, result)
 	}
 
-	stats := map[string]model.ObjectBucketStats{}
+	stats := map[string]ObjectBucketStats{}
 
 	for _, rgwStat := range rgwStats {
 		stats[rgwStat.Bucket] = bucketStatsFromRGW(rgwStat)
@@ -86,7 +115,7 @@ func GetBucketsStats(c *Context) (map[string]model.ObjectBucketStats, error) {
 	return stats, nil
 }
 
-func getBucketMetadata(c *Context, bucket string) (*model.ObjectBucketMetadata, bool, error) {
+func getBucketMetadata(c *Context, bucket string) (*ObjectBucketMetadata, bool, error) {
 	result, err := runAdminCommand(c,
 		"metadata",
 		"get",
@@ -114,10 +143,10 @@ func getBucketMetadata(c *Context, bucket string) (*model.ObjectBucketMetadata, 
 		return nil, false, fmt.Errorf("Error parsing date (%s): %+v", s.Data.CreationTime, err)
 	}
 
-	return &model.ObjectBucketMetadata{Owner: s.Data.Owner, CreatedAt: createdAt}, false, nil
+	return &ObjectBucketMetadata{Owner: s.Data.Owner, CreatedAt: createdAt}, false, nil
 }
 
-func ListBuckets(c *Context) ([]model.ObjectBucket, error) {
+func ListBuckets(c *Context) ([]ObjectBucket, error) {
 	logger.Infof("Listing buckets")
 
 	stats, err := GetBucketsStats(c)
@@ -125,7 +154,7 @@ func ListBuckets(c *Context) ([]model.ObjectBucket, error) {
 		return nil, fmt.Errorf("Failed to get bucket stats: %+v", err)
 	}
 
-	buckets := []model.ObjectBucket{}
+	buckets := []ObjectBucket{}
 
 	for bucket, stat := range stats {
 		metadata, _, err := getBucketMetadata(c, bucket)
@@ -133,13 +162,13 @@ func ListBuckets(c *Context) ([]model.ObjectBucket, error) {
 			return nil, err
 		}
 
-		buckets = append(buckets, model.ObjectBucket{Name: bucket, ObjectBucketMetadata: model.ObjectBucketMetadata{Owner: metadata.Owner, CreatedAt: metadata.CreatedAt}, ObjectBucketStats: stat})
+		buckets = append(buckets, ObjectBucket{Name: bucket, ObjectBucketMetadata: ObjectBucketMetadata{Owner: metadata.Owner, CreatedAt: metadata.CreatedAt}, ObjectBucketStats: stat})
 	}
 
 	return buckets, nil
 }
 
-func GetBucket(c *Context, bucket string) (*model.ObjectBucket, int, error) {
+func GetBucket(c *Context, bucket string) (*ObjectBucket, int, error) {
 	stat, notFound, err := GetBucketStats(c, bucket)
 	if notFound {
 		return nil, RGWErrorNotFound, fmt.Errorf("Bucket not found")
@@ -158,7 +187,7 @@ func GetBucket(c *Context, bucket string) (*model.ObjectBucket, int, error) {
 		return nil, RGWErrorUnknown, err
 	}
 
-	return &model.ObjectBucket{Name: bucket, ObjectBucketMetadata: model.ObjectBucketMetadata{Owner: metadata.Owner, CreatedAt: metadata.CreatedAt}, ObjectBucketStats: *stat}, RGWErrorNone, nil
+	return &ObjectBucket{Name: bucket, ObjectBucketMetadata: ObjectBucketMetadata{Owner: metadata.Owner, CreatedAt: metadata.CreatedAt}, ObjectBucketStats: *stat}, RGWErrorNone, nil
 }
 
 func DeleteBucket(c *Context, bucketName string, purge bool) (int, error) {

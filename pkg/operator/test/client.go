@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// Package test for the operator tests.
 package test
 
 import (
 	"fmt"
 
 	"k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
@@ -29,7 +29,11 @@ func New(nodes int) *fake.Clientset {
 	clientset := fake.NewSimpleClientset()
 	for i := 0; i < nodes; i++ {
 		ready := v1.NodeCondition{Type: v1.NodeReady}
+		name := fmt.Sprintf("node%d", i)
 		n := &v1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: name,
+			},
 			Status: v1.NodeStatus{
 				Conditions: []v1.NodeCondition{
 					ready,
@@ -42,7 +46,6 @@ func New(nodes int) *fake.Clientset {
 				},
 			},
 		}
-		n.Name = fmt.Sprintf("node%d", i)
 		clientset.CoreV1().Nodes().Create(n)
 	}
 	return clientset

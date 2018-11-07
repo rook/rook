@@ -17,8 +17,10 @@ limitations under the License.
 package clients
 
 import (
-	"github.com/rook/rook/pkg/model"
-	"github.com/rook/rook/tests/framework/contracts"
+	"fmt"
+
+	"github.com/rook/rook/pkg/daemon/ceph/client"
+	"github.com/rook/rook/tests/framework/installer"
 	"github.com/rook/rook/tests/framework/utils"
 )
 
@@ -28,11 +30,11 @@ var (
 
 //TestClient is a wrapper for test client, containing interfaces for all rook operations
 type TestClient struct {
-	blockClient  contracts.BlockOperator
-	fsClient     contracts.FileSystemOperator
-	objectClient contracts.ObjectOperator
-	poolClient   contracts.PoolOperator
-	restClient   contracts.RestAPIOperator
+	BlockClient  *BlockOperation
+	FSClient     *FilesystemOperation
+	ObjectClient *ObjectOperation
+	PoolClient   *PoolOperation
+	k8sh         *utils.K8sHelper
 }
 
 const (
@@ -40,58 +42,23 @@ const (
 )
 
 //CreateTestClient creates new instance of test client for a platform
-func CreateTestClient(k8sHelper *utils.K8sHelper, namespace string) (*TestClient, error) {
-	var blockClient contracts.BlockOperator
-	var fsClient contracts.FileSystemOperator
-	var objectClient contracts.ObjectOperator
-	var poolClient contracts.PoolOperator
-	rookRestClient := CreateRestAPIClient(k8sHelper, namespace)
-	blockClient = CreateK8BlockOperation(k8sHelper, rookRestClient)
-	fsClient = CreateK8sFilesystemOperation(k8sHelper, rookRestClient)
-	objectClient = CreateObjectOperation(rookRestClient)
-	poolClient = CreatePoolClient(rookRestClient)
+func CreateTestClient(k8sHelper *utils.K8sHelper, manifests installer.CephManifests) *TestClient {
 
 	return &TestClient{
-		blockClient,
-		fsClient,
-		objectClient,
-		poolClient,
-		rookRestClient,
-	}, nil
-
+		CreateBlockOperation(k8sHelper, manifests),
+		CreateFilesystemOperation(k8sHelper, manifests),
+		CreateObjectOperation(k8sHelper, manifests),
+		CreatePoolOperation(k8sHelper, manifests),
+		k8sHelper,
+	}
 }
 
 //Status returns rook status details
-func (c TestClient) Status() (model.StatusDetails, error) {
-	return c.restClient.GetStatusDetails()
-}
-
-//Node returns list of rook nodes
-func (c TestClient) Node() ([]model.Node, error) {
-	return c.restClient.GetNodes()
-}
-
-//GetBlockClient returns Block client for platform in context
-func (c TestClient) GetBlockClient() contracts.BlockOperator {
-	return c.blockClient
-}
-
-//GetFileSystemClient returns fileSystem client for platform in context
-func (c TestClient) GetFileSystemClient() contracts.FileSystemOperator {
-	return c.fsClient
-}
-
-//GetObjectClient returns Object client for platform in context
-func (c TestClient) GetObjectClient() contracts.ObjectOperator {
-	return c.objectClient
-}
-
-//GetPoolClient returns pool client for platform in context
-func (c TestClient) GetPoolClient() contracts.PoolOperator {
-	return c.poolClient
-}
-
-//GetRestAPIClient returns RestAPI client for platform in context
-func (c TestClient) GetRestAPIClient() contracts.RestAPIOperator {
-	return c.restClient
+func (c TestClient) Status(namespace string) (client.CephStatus, error) {
+	context := c.k8sh.MakeContext()
+	status, err := client.Status(context, namespace)
+	if err != nil {
+		return client.CephStatus{}, fmt.Errorf("failed to get status: %+v", err)
+	}
+	return status, nil
 }

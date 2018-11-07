@@ -21,18 +21,44 @@ import (
 )
 
 type NetworkInfo struct {
+	PublicAddr     string
+	ClusterAddr    string
+	PublicNetwork  string // public network and subnet mask in CIDR notation
+	ClusterNetwork string // cluster network and subnet mask in CIDR notation
+
+	// deprecated ipv4 format address
+	// TODO: remove these legacy fields in the future
 	PublicAddrIPv4  string
 	ClusterAddrIPv4 string
-	PublicNetwork   string // public network and subnet mask in CIDR notation
-	ClusterNetwork  string // cluster network and subnet mask in CIDR notation
+}
+
+// Simplify adapts deprecated fields
+// TODO: remove this function in the future
+func (in NetworkInfo) Simplify() NetworkInfo {
+	out := NetworkInfo{
+		PublicNetwork:  in.PublicNetwork,
+		ClusterNetwork: in.ClusterNetwork,
+	}
+	if in.PublicAddr != "" {
+		out.PublicAddr = in.PublicAddr
+	} else {
+		out.PublicAddr = in.PublicAddrIPv4
+	}
+
+	if in.ClusterAddr != "" {
+		out.ClusterAddr = in.ClusterAddr
+	} else {
+		out.ClusterAddr = in.ClusterAddrIPv4
+	}
+	return out
 }
 
 func VerifyNetworkInfo(networkInfo NetworkInfo) error {
-	if err := verifyIPAddr(networkInfo.PublicAddrIPv4); err != nil {
+	if err := verifyIPAddr(networkInfo.PublicAddr); err != nil {
 		return err
 	}
 
-	if err := verifyIPAddr(networkInfo.ClusterAddrIPv4); err != nil {
+	if err := verifyIPAddr(networkInfo.ClusterAddr); err != nil {
 		return err
 	}
 

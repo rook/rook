@@ -1,6 +1,6 @@
 ---
 title: Advanced Configuration
-weight: 61
+weight: 76
 indent: true
 ---
 
@@ -22,27 +22,27 @@ storage cluster.
 Most of the examples make use of the `ceph` client command.  A quick way to use
 the Ceph client suite is from a [Rook Toolbox container](toolbox.md).
 
-The Kubernetes based examples assume Rook OSD pods are in the `rook` namespace.
-If you run them in a different namespace, modify `kubectl -n rook [...]` to fit
+The Kubernetes based examples assume Rook OSD pods are in the `rook-ceph` namespace.
+If you run them in a different namespace, modify `kubectl -n rook-ceph [...]` to fit
 your situation.
 
 ## Log Collection
 
 All Rook logs can be collected in a Kubernetes environment with the following command:
 ```bash
-(for p in $(kubectl -n rook get pods -o jsonpath='{.items[*].metadata.name}')
+(for p in $(kubectl -n rook-ceph get pods -o jsonpath='{.items[*].metadata.name}')
 do
-    for c in $(kubectl -n rook get pod ${p} -o jsonpath='{.spec.containers[*].name}')
+    for c in $(kubectl -n rook-ceph get pod ${p} -o jsonpath='{.spec.containers[*].name}')
     do
         echo "BEGIN logs from pod: ${p} ${c}"
-        kubectl -n rook logs -c ${c} ${p}
+        kubectl -n rook-ceph logs -c ${c} ${p}
         echo "END logs from pod: ${p} ${c}"
     done
 done
-for i in $(kubectl -n rook-system get pods -o jsonpath='{.items[*].metadata.name}')
+for i in $(kubectl -n rook-ceph-system get pods -o jsonpath='{.items[*].metadata.name}')
 do
     echo "BEGIN logs from pod: ${i}"
-    kubectl -n rook-system logs ${i}
+    kubectl -n rook-ceph-system logs ${i}
     echo "END logs from pod: ${i}"
 done) | gzip > /tmp/rook-logs.gz
 ```
@@ -60,14 +60,14 @@ difficult.  The following scripts will clear things up quickly.
 # Get OSD Pods
 # This uses the example/default cluster name "rook"
 OSD_PODS=$(kubectl get pods --all-namespaces -l \
-  app=rook-ceph-osd,rook_cluster=rook -o jsonpath='{.items[*].metadata.name}')
+  app=rook-ceph-osd,rook_cluster=rook-ceph -o jsonpath='{.items[*].metadata.name}')
 
 # Find node and drive associations from OSD pods
 for pod in $(echo ${OSD_PODS})
 do
  echo "Pod:  ${pod}"
- echo "Node: $(kubectl -n rook get pod ${pod} -o jsonpath='{.spec.nodeName}')"
- kubectl -n rook exec ${pod} -- sh -c '\
+ echo "Node: $(kubectl -n rook-ceph get pod ${pod} -o jsonpath='{.spec.nodeName}')"
+ kubectl -n rook-ceph exec ${pod} -- sh -c '\
   for i in /var/lib/rook/osd*; do
     [ -f ${i}/ready ] || continue
     echo -ne "-$(basename ${i}) "
@@ -78,7 +78,7 @@ do
 done
 ```
 
-The output should look something like this:
+The output should look something like this. Note that OSDs on the same node will show duplicate information.
 
 ```bash
 Pod:  osd-m2fz2
@@ -122,7 +122,7 @@ In the following example we will separate SSD drives from spindle-based drives,
 a common practice for those looking to target certain workloads onto faster
 (database) or slower (file archive) storage.
 
-### CRUSH Heirarchy
+### CRUSH Hierarchy
 
 To see the CRUSH hierarchy of all your hosts and OSDs run:
 ```bash
@@ -213,7 +213,7 @@ ID WEIGHT  TYPE NAME          UP/DOWN REWEIGHT PRIMARY-AFFINITY
 
 Now we have a separate storage group for our SSDs, but we can't use that storage
 until we associate a pool with it.  The default group already has a pool called
-`rbd` in many cases.  If you [created a pool via CustomResourceDefinition](pool-crd.md),
+`rbd` in many cases.  If you [created a pool via CustomResourceDefinition](ceph-pool-crd.md),
 it will use the default storage group as well.
 
 Here's how to create new pools:
@@ -280,7 +280,7 @@ and OSDs in the `default` root hierarchy.
 The `size` setting of a pool tells the cluster how many copies of the data
 should be kept for redundancy.  By default the cluster will distribute these
 copies between `host` buckets in the CRUSH Map This can be set when [creating a
-pool via CustomResourceDefinition](pool-crd.md) or after creation with `ceph`.
+pool via CustomResourceDefinition](ceph-pool-crd.md) or after creation with `ceph`.
 
 So for example let's change the `size` of the `rbd` pool to three:
 
@@ -288,7 +288,7 @@ So for example let's change the `size` of the `rbd` pool to three:
 ceph osd pool set rbd size 3
 ```
 
-Now if you run `ceph -s` or `rookctl status` you may see "recovery" operations and
+Now if you run `ceph -s` you may see "recovery" operations and
 PGs in "undersized" and other "unclean" states.  The cluster is essentially
 fixing itself since the number of replicas has been increased, and should go
 back to "active/clean" state shortly, after data has been replicated between
@@ -300,7 +300,7 @@ Of course you will only have 1/3 the capacity as a tradeoff.
 ### Setting PG Count
 
 Be sure to read the [placement group sizing](#placement-group-sizing) section
-before changing the numner of PGs.
+before changing the number of PGs.
 
 ```bash
 # Set the number of PGs in the rbd pool to 512
@@ -330,12 +330,12 @@ The default override settings are blank. Cutting out the extraneous properties,
 we would see the following defaults after creating a cluster:
 
 ```bash
-$ kubectl -n rook get ConfigMap rook-config-override -o yaml
+$ kubectl -n rook-ceph get ConfigMap rook-config-override -o yaml
 kind: ConfigMap
 apiVersion: v1
 metadata:
   name: rook-config-override
-  namespace: rook
+  namespace: rook-ceph
 data:
   config: ""
 ```
@@ -345,7 +345,7 @@ The next time the daemon pod(s) start, the settings will be merged with the defa
 settings created by Rook.
 
 ```bash
-kubectl -n rook edit configmap rook-config-override
+kubectl -n rook-ceph edit configmap rook-config-override
 ```
 
 Modify the settings and save. Each line you add should be indented from the `config` property as such:
@@ -355,7 +355,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: rook-config-override
-  namespace: rook
+  namespace: rook-ceph
 data:
   config: |
     [global]

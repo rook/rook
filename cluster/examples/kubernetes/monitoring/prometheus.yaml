@@ -2,13 +2,13 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: prometheus
-  namespace: rook
+  namespace: rook-ceph
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRole
 metadata:
   name: prometheus
-  namespace: rook
+  namespace: rook-ceph
 rules:
 - apiGroups: [""]
   resources:
@@ -28,7 +28,7 @@ apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
 metadata:
   name: prometheus
-  namespace: rook
+  namespace: rook-ceph
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -36,13 +36,13 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: prometheus
-  namespace: rook
+  namespace: rook-ceph
 ---
 apiVersion: monitoring.coreos.com/v1
 kind: Prometheus
 metadata:
   name: rook-prometheus
-  namespace: rook
+  namespace: rook-ceph
   labels:
     prometheus: rook-prometheus
 spec:

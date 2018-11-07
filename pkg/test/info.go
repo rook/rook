@@ -20,21 +20,21 @@ package test
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/daemon/ceph/mon"
+	cephconfig "github.com/rook/rook/pkg/daemon/ceph/config"
 )
 
 // CreateConfigDir creates a test cluster
-func CreateConfigDir(mons int) *mon.ClusterInfo {
-	c := &mon.ClusterInfo{
+func CreateConfigDir(mons int) *cephconfig.ClusterInfo {
+	c := &cephconfig.ClusterInfo{
 		FSID:          "12345",
 		Name:          "default",
 		MonitorSecret: "monsecret",
 		AdminSecret:   "adminsecret",
-		Monitors:      map[string]*mon.CephMonitorConfig{},
+		Monitors:      map[string]*cephconfig.MonInfo{},
 	}
 	for i := 1; i <= mons; i++ {
 		id := fmt.Sprintf("mon%d", i)
-		c.Monitors[id] = &mon.CephMonitorConfig{
+		c.Monitors[id] = &cephconfig.MonInfo{
 			Name:     id,
 			Endpoint: fmt.Sprintf("1.2.3.%d:6790", i),
 		}

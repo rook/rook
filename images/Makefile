@@ -14,35 +14,32 @@
 
 include image.mk
 
-PLATFORMS ?= linux_amd64 linux_arm linux_arm64
+PLATFORMS ?= linux_amd64 linux_arm64
+
+# tini's version
+export TINI_VERSION = v0.16.1
 
 # ====================================================================================
 # Image Targets
 
-apt-cacher: apt-cacher.linux_amd64
-apt-cacher.%: base.%
-	@$(MAKE) -C apt-cacher PLATFORM=$*
-
-base.%:
-	@$(MAKE) -C base PLATFORM=$*
-
-ceph.%: cross-gnu.linux_amd64
-	@$(MAKE) -C ceph PLATFORM=$*
-
 cross: cross.linux_amd64
-cross.%: base.linux_amd64
+cross.%:
 	@$(MAKE) -C cross PLATFORM=$*
 
-cross-gnu.%: base.%
-	@$(MAKE) -C cross-gnu PLATFORM=$*
+ceph.%:
+	@$(MAKE) -C ceph PLATFORM=$*
 
-rook.%: ceph.% base.%
-	@$(MAKE) -C rook PLATFORM=$*
+cockroachdb.%:
+	@$(MAKE) -C cockroachdb PLATFORM=$*
 
-toolbox.%: rook.%
-	@$(MAKE) -C toolbox PLATFORM=$*
+minio.%:
+	@$(MAKE) -C minio PLATFORM=$*
 
-do.build.images.%: rook.% toolbox.% ;
+nfs.%:
+	@$(MAKE) -C nfs PLATFORM=$*
+
+do.build.images.%: $(foreach i,$(IMAGES), $(i).%);
+
 do.build: do.build.images.$(PLATFORM) ;
 build.all: $(foreach p,$(PLATFORMS), do.build.images.$(p)) ;
 

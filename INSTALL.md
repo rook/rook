@@ -16,30 +16,24 @@ The following tools are need on the host:
   - docker (1.12+) or Docker for Mac (17+)
   - git
   - make
+  - golang
   - rsync (if you're using the build container on mac)
 
 ## Build
 
-You can build Rook by simply running:
+You can build the Rook binaries and all container images for the host platform by simply running the
+command below. Building in parallel with the `-j` option is recommended.
 
 ```
 make -j4
 ```
 
-This will build the Rook binaries and container images for the host platform.
-
-You can also run the build for all supported platforms:
-
-```
-make -j4 build.all
-```
-
-See instructions below for setting up the build environment to support `arm` and `arm64` platforms.
-
-Or if you wanted to build all release artifacts run:
+Developers may often wish to make only images for a particular backend in their testing. This can
+be done by specifying the `IMAGES` environment variable with `make` as exemplified below. Possible
+values for are as defined by subdir names in the `/rook/images/` dir. Multiple images can be separated by a space.
 
 ```
-make -j4 release
+make -j4 IMAGES='ceph' build
 ```
 
 Run `make help` for more options.
@@ -65,6 +59,35 @@ build/reset
 ```
 
 ## Building for other platforms
+
+You can also run the build for all supported platforms:
+
+```
+make -j4 build.all
+```
+
+Or from the cross container:
+
+```
+build/run make -j4 build.all
+```
+
+Currently, only `amd64` platform supports this kind of 'cross' build. In order to make `build.all`
+succeed, we need to follow the steps specified by the below section `Building for other platforms`
+first.
+
+We suggest to use native `build` to create the binaries and container images on `arm{32,64}`
+platform, but if you do want to build those `arm{32,64}` binaries and images on `amd64` platform
+with `build.all` command, please make sure the multi-arch feature is supported. To test run the
+following:
+
+```
+> docker run --rm -ti arm32v7/ubuntu uname -a
+Linux bad621a75757 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 armv7l armv7l armv7l GNU/Linux
+
+> docker run --rm -ti arm64v8/ubuntu uname -a
+Linux f51ea93e76a2 4.8.0-58-generic #63~16.04.1-Ubuntu SMP Mon Jun 26 18:08:51 UTC 2017 aarch64 aarch64 aarch64 GNU/Linux
+```
 
 In order to build container images for these platforms we rely on cross-compilers and QEMU. Cross compiling is much faster than QEMU and so we lean heavily on it.
 
@@ -105,59 +128,11 @@ EOF
 systemctl enable update-binfmt.service
 ```
 
-### Checking if multi-arch is supported
-
-To test run the following:
-
-```
-> docker run --rm -ti armhf/ubuntu uname -a
-Linux dece9819612d 4.10.0-21-generic #23-Ubuntu SMP Fri Apr 28 16:14:22 UTC 2017 armv7l armv7l armv7l GNU/Linux
-
-> docker run --rm -ti aarch64/ubuntu uname -a
-Linux 7ed5f0d0b618 4.10.0-21-generic #23-Ubuntu SMP Fri Apr 28 16:14:22 UTC 2017 aarch64 aarch64 aarch64 GNU/Linux
-```
-
 # Improving Build Speed
-
-## Using CCache
-
-C++ code can take time to compile. CCache can increase the speed of compilation. To enable, make sure you have `ccache` installed:
-
-```
-DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends ccache
-```
-
-On a Mac, `ccache` can be installed using brew:
-```
-brew install --HEAD ccache
-```
-
-when building container images we will use `CCACHE_DIR` or `${HOME}/.ccache` by default.
-
-## Apt Package Caching
-
-When building container images numerous apt-get operations are performed which can slow down the build significantly. To speed things up install the apt-cacher-ng package which will cache apt packages on the host.
-
-On an Ubuntu host you can run the following:
-
-```
-DEBIAN_FRONTEND=noninteractive apt-get install -yq --no-install-recommends apt-cacher-ng
-```
-
-on other platforms you can run apt-cacher-ng in a container:
-
-```
-make -C images apt-cacher
-docker run -d --restart always --name apt-cacher-ng -p 3142:3142 -v ${HOME}/.apt-cacher:/var/cache/apt-cacher-ng apt-cacher-ng-amd64
-```
-
-Our base container image enables transparent proxy detection and will use the apt-cacher if available on the host. See images/base/Dockerfile for more information.
 
 ## Image Caching and Pruning
 
 Doing a complete build of Rook and the dependent packages can take a long time (more than an hour on a typical macbook). To speed things up we rely heavily on image caching in docker. Docker support content-addressable images by default and we use that effectively when building images. Images are factored to increase reusability across builds. We also tag and timestamp images that should remain in the cache to help future builds.
-
-Not all parts of our build, however, can rely on content-addressable image caching. For example to build Ceph using `docker build` would mean that we could not `ccache` and the build could take much longer. Instead we build Ceph by running the build process with `docker run` using a base image that has all the Ceph code and tools. To avoid building Ceph over and over, we create a container image with the output of the ceph build and add it to the docker image cache.
 
 ### Pruning the cache
 
@@ -169,16 +144,15 @@ To prune the number of cached images run `make prune`. There are two options tha
 ## CI workflow and options
 Every PR and every merge to master triggers the CI process in [Jenkins](http://jenkins.rook.io).
 The Jenkins CI will build, run unit tests, run integration tests and Publish artifacts- On every commit to PR and master.
-If any of the CI stages fail, then the process is aborted and no artifacts are published. 
-On every successful build Artifacts are pushed to a [s3 bucket](https://release.rook.io/). On every successful master build, 
-images are uploaded to quay and docker hub in addition.  
+If any of the CI stages fail, then the process is aborted and no artifacts are published.
+On every successful build Artifacts are pushed to a [s3 bucket](https://release.rook.io/). On every successful master build,
+images are uploaded to docker hub in addition.
 
 During Integration tests phase, all End to End Integration tests under [/tests/integration](/tests/integration) are run.
-It may take a while to run all Integration tests. Based on nature of the PR, it may not be required to run full regression 
+It may take a while to run all Integration tests. Based on nature of the PR, it may not be required to run full regression
 Or users may want to skip build all together for trivial changes like documentation changes. Based on the PR body text,Jenkins will skip the build or skip some tests
 
 1. [skip ci] - if this text is found in the body of PR, then Jenkins will skip the build process and accept the commit
 2. [smoke only] - if this text is found in the body of PR, then Jenkins will only run Smoke Test during integration test phase
 
 The above flags work only on PRs,The full regression is run on every merge to master.
- 

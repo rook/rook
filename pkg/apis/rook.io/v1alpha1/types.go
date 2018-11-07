@@ -33,7 +33,8 @@ import (
 type Cluster struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata"`
-	Spec              ClusterSpec `json:"spec"`
+	Spec              ClusterSpec   `json:"spec"`
+	Status            ClusterStatus `json:"status,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -66,6 +67,20 @@ type ClusterSpec struct {
 	// Resources set resource requests and limits
 	Resources ResourceSpec `json:"resources,omitempty"`
 }
+
+type ClusterStatus struct {
+	State   ClusterState `json:"state,omitempty"`
+	Message string       `json:"message,omitempty"`
+}
+
+type ClusterState string
+
+const (
+	ClusterStateCreating ClusterState = "Creating"
+	ClusterStateCreated  ClusterState = "Created"
+	ClusterStateUpdating ClusterState = "Updating"
+	ClusterStateError    ClusterState = "Error"
+)
 
 type ResourceSpec struct {
 	API v1.ResourceRequirements `json:"api,omitempty"`
@@ -155,10 +170,13 @@ type PoolSpec struct {
 	// The failure domain: osd or host (technically also any type in the crush map)
 	FailureDomain string `json:"failureDomain"`
 
+	// The root of the crush hierarchy utilized by the pool
+	CrushRoot string `json:"crushRoot"`
+
 	// The replication settings
 	Replicated ReplicatedSpec `json:"replicated"`
 
-	// The erasure code setteings
+	// The erasure code settings
 	ErasureCoded ErasureCodedSpec `json:"erasureCoded"`
 }
 
@@ -270,15 +288,6 @@ type ObjectStoreList struct {
 	Items           []ObjectStore `json:"items"`
 }
 
-// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
-
-// ObjectstoreList is the definition of a list of object stores for TPRs (pre-1.7)
-type ObjectstoreList struct {
-	metav1.TypeMeta `json:",inline"`
-	metav1.ListMeta `json:"metadata"`
-	Items           []ObjectStore `json:"items"`
-}
-
 // ObjectStoreSpec represent the spec of a pool
 type ObjectStoreSpec struct {
 	// The metadata pool settings
@@ -323,5 +332,5 @@ type Placement struct {
 	NodeAffinity    *v1.NodeAffinity    `json:"nodeAffinity,omitempty"`
 	PodAffinity     *v1.PodAffinity     `json:"podAffinity,omitempty"`
 	PodAntiAffinity *v1.PodAntiAffinity `json:"podAntiAffinity,omitempty"`
-	Tolerations     []v1.Toleration     `json:"tolerations,omitemtpy"`
+	Tolerations     []v1.Toleration     `json:"tolerations,omitempty"`
 }

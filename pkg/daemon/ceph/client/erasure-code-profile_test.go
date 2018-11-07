@@ -12,9 +12,6 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
-Some of the code below came from https://github.com/digitalocean/ceph_exporter
-which has the same license.
 */
 package client
 
@@ -22,7 +19,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/daemon/ceph/model"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 
@@ -30,14 +27,14 @@ import (
 )
 
 func TestCreateProfile(t *testing.T) {
-	testCreateProfile(t, "")
+	testCreateProfile(t, "", "myroot")
 }
 
 func TestCreateProfileWithFailureDomain(t *testing.T) {
-	testCreateProfile(t, "osd")
+	testCreateProfile(t, "osd", "")
 }
 
-func testCreateProfile(t *testing.T, failureDomain string) {
+func testCreateProfile(t *testing.T, failureDomain, crushRoot string) {
 	cfg := model.ErasureCodedPoolConfig{DataChunkCount: 2, CodingChunkCount: 3, Algorithm: "myalg"}
 
 	executor := &exectest.MockExecutor{}
@@ -55,8 +52,14 @@ func testCreateProfile(t *testing.T, failureDomain string) {
 				assert.Equal(t, fmt.Sprintf("m=%d", cfg.CodingChunkCount), args[5])
 				assert.Equal(t, "plugin=myplugin", args[6])
 				assert.Equal(t, "technique=t", args[7])
+				nextArg := 8
 				if failureDomain != "" {
-					assert.Equal(t, fmt.Sprintf("crush-failure-domain=%s", failureDomain), args[8])
+					assert.Equal(t, fmt.Sprintf("crush-failure-domain=%s", failureDomain), args[nextArg])
+					nextArg++
+				}
+				if crushRoot != "" {
+					assert.Equal(t, fmt.Sprintf("crush-root=%s", crushRoot), args[nextArg])
+					nextArg++
 				}
 				return "", nil
 			}
@@ -64,6 +67,6 @@ func testCreateProfile(t *testing.T, failureDomain string) {
 		return "", fmt.Errorf("unexpected ceph command '%v'", args)
 	}
 
-	err := CreateErasureCodeProfile(context, "myns", cfg, "myapp", failureDomain)
+	err := CreateErasureCodeProfile(context, "myns", cfg, "myapp", failureDomain, crushRoot)
 	assert.Nil(t, err)
 }

@@ -4,12 +4,14 @@ pipeline {
 
     parameters {
           choice(name: 'node', choices: 'gce-reg\ngce-load', description: 'select env to run tests in ')
-          choice(name: 'key', choices: 'master\nPR', description: 'Select master or a PR to run tests aganist - defaults to master')
+          choice(name: 'key', choices: 'master\nPR', description: 'Select master or a PR to run tests against - defaults to master')
           string(name: 'PR', defaultValue: '', description: 'PR number, required if key value is set to PR')
           string(name: 'version', defaultValue: '', description: 'Version to run tests against')
-          string(name: 'Load_test', defaultValue: 'TestBlockLongHaul', description: 'select a load test to run ')
+          string(name: 'Load_test', defaultValue: 'TestObjectLongHaul', description: 'select a load test to run ')
           string(name: 'load_factor', defaultValue: '20', description: 'load factor - number of concurrent threads running per test')
           string(name: 'load_time', defaultValue: '1800', description: 'load time - number of seconds each thread runs')
+          choice(name: 'load_size', choices: 'S\nM\nL', description: 'select load size')
+          choice(name: 'enable_chaos', choices: 'false\ntrue', description: 'enable deliberate chaos - kill pods randomly')
           string(name: 'volume_count', defaultValue: '3', description: 'volume count - number of concurrent volumes being create(file/block or object')
           string(name: 'runs', defaultValue: '20', description: 'number of test runs ')
           string(name: 'run_interval', defaultValue: '600', description: 'interval between test runs in seconds')
@@ -56,7 +58,7 @@ pipeline {
                             kubectl get nodes
                             chmod +x longhaul
                             mkdir -p _output/tests/
-                            ./longhaul -test.v -test.run '''+ "${env.Load_test}" + ''' -test.timeout 3600s --load_parallel_runs '''+"${env.load_factor}"+''' --load_volumes '''+"${env.volume_count}"+''' --load_time '''+"${env.load_time}"+ ''' 2>&1 | tee _output/tests/longHaulTest_'''+"$i"+'''.log
+                            ./longhaul -test.v -test.run '''+ "${env.Load_test}" + ''' -test.timeout 3600s --load_parallel_runs '''+"${env.load_factor}"+''' --load_volumes '''+"${env.volume_count}"+''' --load_time '''+"${env.load_time}"+''' --load_size '''+"${env.load_size}"+''' --enable_chaos='''+"${env.enable_chaos}"+''' 2>&1 | tee _output/tests/longHaulTest_'''+"$i"+'''.log
                              cat _output/tests/longHaulTest_''' + "$i"+'''.log | _output/go-junit-report > _output/tests/longHaulTest_'''+"$i"+'''.xml'''
                         }
                         finally{

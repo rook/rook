@@ -4,7 +4,7 @@ pipeline {
 
     parameters {
           choice(name: 'node', choices: 'gce-reg\ngce-load', description: 'select env to run tests in ')
-          choice(name: 'key', choices: 'master\nPR', description: 'Select master or a PR to run tests aganist - defaults to master')
+          choice(name: 'key', choices: 'master\nPR', description: 'Select master or a PR to run tests against - defaults to master')
           string(name: 'PR', defaultValue: '', description: 'PR number, required if key value is set to PR')
           string(name: 'version', defaultValue: '', description: 'Version to run tests against')
           string(name: 'kube_version', defaultValue: 'v1.8.2', description: 'Version of kubernetes to  tests against')
@@ -27,18 +27,20 @@ pipeline {
                             currentBuild.result = 'FAILURE'
                             error 'Exit pipeline need a pr number'
                         }
-                        sh "wget -O rook.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/rook.tar.gz"
-                        sh "wget -O toolbox.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/toolbox.tar.gz"
+                        sh "wget -O ceph.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/ceph.tar.gz"
+                        sh "wget -O cockroachdb.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/cockroachdb.tar.gz"
+                        sh "wget -O nfs.tar.gz https://release.rook.io/build/pr/${params.PR}/${params.version}/images/linux_amd64/nfs.tar.gz"
                         sh "wget -O version https://release.rook.io/build/pr/${params.PR}/${params.version}/version"
 
                     }else {
-                        sh "wget -O rook.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/rook.tar.gz"
-                        sh "wget -O toolbox.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/toolbox.tar.gz"
+                        sh "wget -O ceph.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/ceph.tar.gz"
+                        sh "wget -O cockroachdb.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/cockroachdb.tar.gz"
+                        sh "wget -O nfs.tar.gz https://release.rook.io/build/master/${params.version}/images/linux_amd64/nfs.tar.gz"
                         sh "wget -O version https://release.rook.io/build/master/${params.version}/version"
 
                      }
                stash name: 'test-scripts',includes: 'tests/scripts/'
-               stash name: 'test-images', includes: 'rook.tar.gz,toolbox.tar.gz,version'
+               stash name: 'test-images', includes: 'ceph.tar.gz,cockroachdb.tar.gz,nfs.tar.gz,version'
                }
             }
         }
@@ -96,16 +98,18 @@ def setUpRookImages(){
     env.versionId = readFile('version').trim()
     sh'''
           #!/bin/bash
-          docker load -i rook.tar.gz
-          docker load -i toolbox.tar.gz
+          docker load -i ceph.tar.gz
+          docker load -i cockroachdb.tar.gz
+          docker load -i nfs.tar.gz
           docker images
           rookImg=$(docker images |grep rook | awk '{print  $1}')
           echo $rookImg
-          toolboxImg=$(docker images |grep toolbox | awk '{print  $1}')
-          echo $toolboxImg
           echo "helm Image:"
           echo ${versionId}
-          docker tag $rookImg rook/rook:master
-          docker tag $rookImg rook/rook:${versionId}
-          docker tag $toolboxImg rook/toolbox:master'''
+          docker tag $rookImg rook/ceph:master
+          docker tag $rookImg rook/ceph:${versionId}
+          docker tag $rookImg rook/cockroachdb:master
+          docker tag $rookImg rook/cockroachdb:${versionId}
+          docker tag $rookImg rook/nfs:master
+          docker tag $rookImg rook/nfs:${versionId}
 }

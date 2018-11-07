@@ -49,7 +49,7 @@ GO_TEST_FLAGS ?=
 # ====================================================================================
 # Setup go environment
 
-GO_SUPPORTED_VERSIONS ?= 1.7|1.8|1.9
+GO_SUPPORTED_VERSIONS ?= 1.7|1.8|1.9|1.10|1.11
 
 GO_PACKAGES := $(foreach t,$(GO_SUBDIRS),$(GO_PROJECT)/$(t)/...)
 GO_INTEGRATION_TEST_PACKAGES := $(foreach t,$(GO_INTEGRATION_TESTS_SUBDIRS),$(GO_PROJECT)/$(t)/integration)
@@ -65,13 +65,23 @@ endif
 GOPATH := $(shell go env GOPATH)
 
 # setup tools used during the build
-DEP_VERSION=v0.3.2
+DEP_VERSION=v0.5.0
 DEP := $(TOOLS_HOST_DIR)/dep-$(DEP_VERSION)
 GOLINT := $(TOOLS_HOST_DIR)/golint
 GOJUNIT := $(TOOLS_HOST_DIR)/go-junit-report
 
 GO := go
 GOHOST := GOOS=$(GOHOSTOS) GOARCH=$(GOHOSTARCH) go
+GO_VERSION := $(shell $(GO) version | sed -ne 's/[^0-9]*\(\([0-9]\.\)\{0,4\}[0-9][^.]\).*/\1/p')
+
+# we use a consistent version of gofmt even while running different go compilers.
+# see https://github.com/golang/go/issues/26397 for more details
+GOFMT_VERSION := 1.11
+ifneq ($(findstring $(GOFMT_VERSION),$(GO_VERSION)),)
+GOFMT := $(shell which gofmt)
+else
+GOFMT := $(TOOLS_HOST_DIR)/gofmt$(GOFMT_VERSION)
+endif
 
 GO_OUT_DIR := $(abspath $(OUTPUT_DIR)/bin/$(PLATFORM))
 GO_TEST_OUTPUT := $(abspath $(OUTPUT_DIR)/tests/$(PLATFORM))
@@ -148,11 +158,11 @@ go.lint: $(GOLINT)
 .PHONY: go.vet
 go.vet:
 	@echo === go vet
-	@$(GOHOST) vet $(GO_COMMON_FLAGS) $(GO_PACKAGES) $(GO_INTEGRATION_TEST_PACKAGES)
+	@CGO_ENABLED=0 $(GOHOST) vet $(GO_COMMON_FLAGS) $(GO_PACKAGES) $(GO_INTEGRATION_TEST_PACKAGES)
 
 .PHONY: go.fmt
-go.fmt:
-	@gofmt_out=$$(gofmt -s -d -e $(GO_SUBDIRS) $(GO_INTEGRATION_TESTS_SUBDIRS) 2>&1) && [ -z "$${gofmt_out}" ] || (echo "$${gofmt_out}" 1>&2; exit 1)
+go.fmt: $(GOFMT)
+	@gofmt_out=$$($(GOFMT) -s -d -e $(GO_SUBDIRS) $(GO_INTEGRATION_TESTS_SUBDIRS) 2>&1) && [ -z "$${gofmt_out}" ] || (echo "$${gofmt_out}" 1>&2; exit 1)
 
 go.validate: go.vet go.fmt
 
@@ -160,26 +170,51 @@ go.validate: go.vet go.fmt
 go.vendor.lite: $(DEP)
 #	dep ensure blindly updates the whole vendor tree causing everything to be rebuilt. This workaround
 #	will only call dep ensure if the .lock file changes or if the vendor dir is non-existent.
-	@if [ ! -d $(GO_VENDOR_DIR) ] || [ ! $(DEP) ensure -no-vendor -dry-run &> /dev/null ]; then \
-		echo === updating vendor dependencies ;\
-		$(DEP) ensure ;\
+	@if [ ! -d $(GO_VENDOR_DIR) ]; then \
+		$(MAKE) go.vendor; \
+	elif ! $(DEP) ensure -no-vendor -dry-run &> /dev/null; then \
+		$(MAKE) go.vendor; \
 	fi
+
+.PHONY: go.vendor.check
+go.vendor.check: $(DEP)
+	@echo === checking if vendor deps changed
+	@$(DEP) check -skip-vendor
+	@echo === vendor deps have not changed
 
 .PHONY: go.vendor
 go.vendor: $(DEP)
 	@echo === ensuring vendor dependencies are up to date
 	@$(DEP) ensure
 
+.PHONY: go.vendor.update
+go.vendor.update: $(DEP)
+	@echo === updating vendor dependencies
+	@$(DEP) ensure -update -v
+
 $(DEP):
 	@echo === installing dep
-	@mkdir -p $(TOOLS_HOST_DIR)
-	@curl -sL -o $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-$(GOHOSTOS)-$(GOHOSTARCH)
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@if [ "$(GOHOSTARCH)" = "arm64" ]; then\
+		GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get -u github.com/golang/dep/cmd/dep;\
+		mv $(TOOLS_HOST_DIR)/dep $@;\
+	else \
+		curl -sL -o $(DEP) https://github.com/golang/dep/releases/download/$(DEP_VERSION)/dep-$(GOHOSTOS)-$(GOHOSTARCH);\
+	fi
 	@chmod +x $(DEP)
+	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
 $(GOLINT):
 	@echo === installing golint
 	@mkdir -p $(TOOLS_HOST_DIR)/tmp
 	@GOPATH=$(TOOLS_HOST_DIR)/tmp GOBIN=$(TOOLS_HOST_DIR) $(GOHOST) get github.com/golang/lint/golint
+	@rm -fr $(TOOLS_HOST_DIR)/tmp
+
+$(GOFMT):
+	@echo === installing gofmt$(GOFMT_VERSION)
+	@mkdir -p $(TOOLS_HOST_DIR)/tmp
+	@curl -sL https://dl.google.com/go/go$(GOFMT_VERSION).$(GOHOSTOS)-$(GOHOSTARCH).tar.gz | tar -xz -C $(TOOLS_HOST_DIR)/tmp
+	@mv $(TOOLS_HOST_DIR)/tmp/go/bin/gofmt $(GOFMT)
 	@rm -fr $(TOOLS_HOST_DIR)/tmp
 
 $(GOJUNIT):
@@ -191,4 +226,3 @@ $(GOJUNIT):
 .PHONY: go.distclean
 go.distclean:
 	@rm -rf $(GO_VENDOR_DIR)
-

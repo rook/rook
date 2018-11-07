@@ -4,7 +4,7 @@
 
 Currently in Rook, to consume a CephFS, the user will have to specify the CephFS volume plugin as well as the required inputs. Some of this inputs are very cumbersome and required hacky commands to obtain them. We should use the dynamic provision feature with PVCs and PVs to facilitate the consumption of CephFS. There are many benefits to this.
 Using PVCs allows us to deeply adhere to the Kubernetes API. That means, we get all the features that Kubernetes gives us like: setting reclaim policy on the volume, use RBAC on provisioning and defining accessmode.
-On consumption, the pod only has to reference the PVCs. That means, the pod manifest doesnt have to change whether you change the PVC to use block or filesystems.
+On consumption, the pod only has to reference the PVCs. That means, the pod manifest doesn't have to change whether you change the PVC to use block or filesystems.
 
 Another benefit is that it allows us to consume StorageClass that the admin users define and create. The users don't have to worry about metadataPool, erasureCoded, affinity, toleration etc. All they care is creating a filesystem PVC and referencing a storageClass that matches their filesystem needs.
 
@@ -59,7 +59,7 @@ To create a filesystem, you just create a PVC object. This is consistent with al
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: myfsData
+  name: myfsdata
 spec:
   storageClassName: rook-filesystem-simple
   path: /myData # Will use root path, "/", if not provided
@@ -94,7 +94,7 @@ spec:
       volumes:
       - name: mysql-persistent-storage
         persistentVolumeClaim:
-          claimName: myfsData
+          claimName: myfsdata
 ```
 
 Note that the consuming pod manifest looks the same whether it is mounting a filesystem or a block device.
@@ -114,7 +114,7 @@ parameters:
   fsName: myFS # Name of the filesystem to use.
 ```
 
-The referenced filesystem, `myFS`, would have to be also created by the admin using a [Filesystem CRD](/Documentation/pool-crd.md).
+The referenced filesystem, `myFS`, would have to be also created by the admin using a [Filesystem CRD](/Documentation/ceph-filesystem-crd.md).
 
 The admin could also have created a more detailed StorageClass for more a durable filesystem as follows. Lets call it `rook-filesystem-gold`:
 

@@ -46,35 +46,33 @@ export DIND_IMAGE="${DIND_IMAGE:-mirantis/kubeadm-dind-cluster:${KUBE_VERSION}}"
 export CNI_PLUGIN="${CNI_PLUGIN:-bridge}"
 
 case "${1:-}" in
-  up)
-    ${scriptdir}/dind-cluster.sh reup
-    ${scriptdir}/makeTestImages.sh save amd64 || true
-    copy_image_to_cluster rook/rook:master
-    copy_image_to_cluster rook/toolbox:master
-    set +e
-    copy_image_to_cluster ceph/base ceph/base:latest
-    set -e
-    copy_rbd
-    ;;
-  down)
-    ${scriptdir}/dind-cluster.sh down
-    ;;
-  clean)
-    ${scriptdir}/dind-cluster.sh clean
-    ;;
-  update)
-    copy_image_to_cluster rook/rook:master
-    copy_image_to_cluster rook/toolbox:master
-    ;;
-  wordpress)
-    copy_image_to_cluster mysql:5.6
-    copy_image_to_cluster wordpress:4.6.1-apache
-    ;;
-  *)
-    echo "usage:" >&2
-    echo "  $0 up" >&2
-    echo "  $0 down" >&2
-    echo "  $0 clean" >&2
-    echo "  $0 update" >&2
-    echo "  $0 wordpress" >&2
+    up)
+        ${scriptdir}/dind-cluster.sh reup
+        ${scriptdir}/makeTestImages.sh save amd64 || true
+        copy_image_to_cluster rook/ceph:master
+        set +e
+        copy_image_to_cluster ceph/base ceph/base:latest
+        set -e
+        copy_rbd
+        ;;
+    down)
+        ${scriptdir}/dind-cluster.sh down
+        ;;
+    clean)
+        ${scriptdir}/dind-cluster.sh clean
+        ;;
+    update)
+        copy_image_to_cluster rook/ceph:master
+        ;;
+    wordpress)
+        copy_image_to_cluster mysql:5.6
+        copy_image_to_cluster wordpress:4.6.1-apache
+        ;;
+    *)
+        echo "usage:" >&2
+        echo "  $0 up" >&2
+        echo "  $0 down" >&2
+        echo "  $0 clean" >&2
+        echo "  $0 update" >&2
+        echo "  $0 wordpress" >&2
 esac

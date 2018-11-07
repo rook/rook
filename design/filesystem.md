@@ -12,11 +12,11 @@ A Rook storage cluster must be configured and running in Kubernetes. In this exa
 
 When the storage admin is ready to create a shared file system, he will specify his desired configuration settings in a yaml file such as the following `filesystem.yaml`. This example is a simple configuration with metadata that is replicated across different hosts, and the data is erasure coded across multiple devices in the cluster. One active MDS instance is started, with one more MDS instance started in standby mode.
 ```yaml
-apiVersion: rook.io/v1alpha1
+apiVersion: ceph.rook.io/v1beta1
 kind: Filesystem
 metadata:
   name: myfs
-  namespace: rook
+  namespace: rook-ceph
 spec:
   metadataPool:
     replicated:
@@ -48,11 +48,11 @@ After the MDS pods start, the file system is ready to be mounted.
 
 ## File System CRD
 
-The file system settings are exposed to Rook as a Custom Resource Definition (CRD). The CRD is the Kubernetes-native means by which the Rook operator can watch for new resources. The operator stays in a control loop to watch for a new file system, changes to an existing file system, or requests to delete a file system. 
+The file system settings are exposed to Rook as a Custom Resource Definition (CRD). The CRD is the Kubernetes-native means by which the Rook operator can watch for new resources. The operator stays in a control loop to watch for a new file system, changes to an existing file system, or requests to delete a file system.
 
 ### Pools
 
-The pools are the backing data store for the file system and are created with specific names to be private to a file system. Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/pool-crd.md). The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` element and the `dataPools` elements of the file system CRD. 
+The pools are the backing data store for the file system and are created with specific names to be private to a file system. Pools can be configured with all of the settings that can be specified in the [Pool CRD](/Documentation/ceph-pool-crd.md). The underlying schema for pools defined by a pool CRD is the same as the schema under the `metadataPool` element and the `dataPools` elements of the file system CRD.
 
 ```yaml
   metadataPool:
@@ -73,7 +73,7 @@ Multiple data pools can be configured for the file system. Assigning users or fi
 The metadata server settings correspond to the MDS service.
 - `activeCount`: The number of active MDS instances. As load increases, CephFS will automatically partition the file system across the MDS instances. Rook will create double the number of MDS instances as requested by the active count. The extra instances will be in standby mode for failover.
 - `activeStandby`: If true, the extra MDS instances will be in active standby mode and will keep a warm cache of the file system metadata for faster failover. The instances will be assigned by CephFS in failover pairs. If false, the extra MDS instances will all be on passive standby mode and will not maintain a warm cache of the metadata.
-- `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/rook-cluster.yaml).
+- `placement`: The mds pods can be given standard Kubernetes placement restrictions with `nodeAffinity`, `tolerations`, `podAffinity`, and `podAntiAffinity` similar to placement defined for daemons configured by the [cluster CRD](/cluster/examples/kubernetes/ceph/cluster.yaml).
 
 ```yaml
   metadataServer:

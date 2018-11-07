@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM BASEIMAGE
+FROM ubuntu:16.04
 
 # install build tools, compilers and cross compilers for all supported platforms
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
@@ -37,17 +37,24 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get clean && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # install go-lang from the official repo
-RUN GO_VERSION=1.9.2 && \
-    GO_HASH=de874549d9a8d8d8062be05808509c09a88a248e77ec14eb77453530829ac02b && \
+RUN GO_VERSION=1.11 && \
+    GO_HASH=b3fcf280ff86558e0559e185b601c9eade0fd24c900b4c63cd14d1d38613e499 && \
     curl -fsSL https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz -o golang.tar.gz && \
     echo "${GO_HASH}  golang.tar.gz" | sha256sum -c - && \
     tar -C /usr/local -xzf golang.tar.gz && \
     rm golang.tar.gz
 ENV PATH /usr/local/go/bin:$PATH
 
+ARG ARCH
+ARG TINI_VERSION
+
+# Run tini as PID 1 and avoid signal handling issues
+RUN curl -sSL --fail -o /tini https://github.com/krallin/tini/releases/download/${TINI_VERSION}/tini-${ARCH} && \
+    chmod +x /tini
+
 # precompile the go standard library for all supported platforms and configurations
 # the install suffixes match those in golang.mk so please keep them in sync
-RUN platforms="darwin_amd64 windows_amd64 linux_arm linux_amd64 linux_arm64" && \
+RUN platforms="darwin_amd64 windows_amd64 linux_amd64 linux_arm64" && \
     for p in $platforms; do CGO_ENABLED=0 GOOS=${p%_*} GOARCH=${p##*_} GOARM=7 go install -installsuffix static -a std; done
 
 COPY run.sh rsyncd.sh /build/

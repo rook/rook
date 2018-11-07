@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/rook/rook/pkg/clusterd"
@@ -93,7 +94,7 @@ type CrushMap struct {
 			Weight int `json:"weight"`
 			Pos    int `json:"pos"`
 		} `json:"items"`
-	}
+	} `json:"buckets"`
 	Rules []struct {
 		ID      int    `json:"rule_id"`
 		Name    string `json:"rule_name"`
@@ -108,10 +109,20 @@ type CrushMap struct {
 			ItemName  string `json:"item_name"`
 			Type      string `json:"type"`
 		} `json:"steps"`
-	}
+	} `json:"rules"`
 	Tunables struct {
 		// Add if necessary
 	} `json:"tunables"`
+}
+
+type CrushFindResult struct {
+	ID       int    `json:"osd"`
+	IP       string `json:"ip"`
+	Location struct {
+		// add more crush location fields if needed
+		Root string `json:"root"`
+		Host string `json:"host"`
+	} `json:"crush_location"`
 }
 
 func GetCrushMap(context *clusterd.Context, clusterName string) (CrushMap, error) {
@@ -148,6 +159,47 @@ func SetCrushTunables(context *clusterd.Context, clusterName, profile string) (s
 	}
 
 	return string(buf), nil
+}
+
+func CrushReweight(context *clusterd.Context, clusterName string, id int, weight float64) (string, error) {
+	args := []string{"osd", "crush", "reweight", fmt.Sprintf("osd.%d", id), fmt.Sprintf("%.1f", weight)}
+	buf, err := ExecuteCephCommand(context, clusterName, args)
+
+	return string(buf), err
+}
+
+func CrushRemove(context *clusterd.Context, clusterName, name string) (string, error) {
+	args := []string{"osd", "crush", "rm", name}
+	buf, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return "", fmt.Errorf("failed to crush rm: %+v, %s", err, string(buf))
+	}
+
+	return string(buf), nil
+}
+
+func FindOSDInCrushMap(context *clusterd.Context, clusterName string, osdID int) (*CrushFindResult, error) {
+	args := []string{"osd", "find", strconv.Itoa(osdID)}
+	buf, err := ExecuteCephCommand(context, clusterName, args)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find osd.%d in crush map: %+v, %s", osdID, err, string(buf))
+	}
+
+	var result CrushFindResult
+	if err := json.Unmarshal(buf, &result); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal crush find result: %+v. raw: %s", err, string(buf))
+	}
+
+	return &result, nil
+}
+
+func GetCrushHostName(context *clusterd.Context, clusterName string, osdID int) (string, error) {
+	result, err := FindOSDInCrushMap(context, clusterName, osdID)
+	if err != nil {
+		return "", err
+	}
+
+	return result.Location.Host, nil
 }
 
 func CreateDefaultCrushMap(context *clusterd.Context, clusterName string) (string, error) {

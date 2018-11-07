@@ -1,1 +1,1 @@
-For documentation on running Rook in your Kubernetes cluster see the [Kubernetes Quickstart Guide](/Documentation/kubernetes.md)
+For documentation on running Rook in your Kubernetes cluster see the [Kubernetes Quickstart Guide](/Documentation/quickstart-toc.md)

@@ -17,11 +17,41 @@ package sys
 
 import (
 	"fmt"
+	"os/exec"
+	"strings"
 
-	"github.com/rook/rook/pkg/util/exec"
+	pkgexec "github.com/rook/rook/pkg/util/exec"
 )
 
-func LoadKernelModule(name string, options []string, executor exec.Executor) error {
+func getKernelVersion() (string, error) {
+	var output []byte
+	cmd := exec.Command("uname", "-r")
+	output, err := cmd.Output()
+	out := strings.TrimSpace(string(output))
+	if err != nil {
+		return out, err
+	}
+
+	return out, nil
+}
+
+func IsBuiltinKernelModule(name string, executor pkgexec.Executor) (bool, error) {
+	kv, err := getKernelVersion()
+	if err != nil {
+		return false, fmt.Errorf("failed to get kernel version: %+v", err)
+	}
+
+	kv = fmt.Sprintf("/lib/modules/%s/modules.builtin", kv)
+	out, err := executor.ExecuteCommandWithCombinedOutput(false, "check builtin kmod", "cat", kv)
+	if err != nil {
+		return false, fmt.Errorf("failed to cat %s: %+v", kv, err)
+	}
+
+	result := Grep(out, name)
+	return result != "", nil
+}
+
+func LoadKernelModule(name string, options []string, executor pkgexec.Executor) error {
 	if options == nil {
 		options = []string{}
 	}
@@ -35,7 +65,7 @@ func LoadKernelModule(name string, options []string, executor exec.Executor) err
 	return nil
 }
 
-func CheckKernelModuleParam(name, param string, executor exec.Executor) (bool, error) {
+func CheckKernelModuleParam(name, param string, executor pkgexec.Executor) (bool, error) {
 	out, err := executor.ExecuteCommandWithOutput(false, "check kmod param", "modinfo", "-F", "parm", name)
 	if err != nil {
 		return false, fmt.Errorf("failed to check for %s module %s param: %+v", name, param, err)

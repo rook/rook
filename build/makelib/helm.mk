@@ -13,9 +13,9 @@
 # limitations under the License.
 
 # the helm charts to build
-HELM_CHARTS ?= rook
+HELM_CHARTS ?= rook-ceph
 HELM_BASE_URL ?= https://charts.rook.io
-HELM_S3_BUCKET ?= rook-charts
+HELM_S3_BUCKET ?= rook.charts
 HELM_CHARTS_DIR ?= $(ROOT_DIR)/cluster/charts
 HELM_OUTPUT_DIR ?= $(OUTPUT_DIR)/charts
 

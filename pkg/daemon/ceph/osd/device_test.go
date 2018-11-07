@@ -25,8 +25,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/rook/rook/pkg/util/sys"
 	"github.com/stretchr/testify/assert"
@@ -92,26 +92,7 @@ func TestOverwriteRookOwnedPartitions(t *testing.T) {
 	defer os.RemoveAll(configDir)
 
 	// set up mock execute so we can verify the partitioning happens on sda
-	execCount := 0
 	executor := &exectest.MockExecutor{}
-	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
-		logger.Infof("RUN %d for '%s'. %s %+v", execCount, name, command, args)
-		assert.Equal(t, "sgdisk", command)
-		switch execCount {
-		case 0:
-			assert.Equal(t, []string{"--zap-all", "/dev/sda"}, args)
-		case 1:
-			assert.Equal(t, []string{"--clear", "--mbrtogpt", "/dev/sda"}, args)
-		case 2:
-			assert.Equal(t, 11, len(args))
-			assert.Equal(t, "--change-name=1:ROOK-OSD1-WAL", args[1])
-			assert.Equal(t, "--change-name=2:ROOK-OSD1-DB", args[4])
-			assert.Equal(t, "--change-name=3:ROOK-OSD1-BLOCK", args[7])
-			assert.Equal(t, "/dev/sda", args[10])
-		}
-		execCount++
-		return nil
-	}
 
 	// set up a mock function to return "rook owned" partitions on the device and it does not have a filesystem
 	outputExecCount := 0
@@ -119,55 +100,58 @@ func TestOverwriteRookOwnedPartitions(t *testing.T) {
 		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, name, command, args)
 		var output string
 		switch outputExecCount {
-		case 0, 4: // we'll call this twice, once explicitly below to verify rook owns the partitions and a 2nd time within formatDevice
+		case 0: // we'll call this twice, once explicitly below to verify rook owns the partitions and a 2nd time within formatDevice
 			assert.Equal(t, command, "lsblk")
 			output = `NAME="sda" SIZE="65" TYPE="disk" PKNAME=""
 NAME="sda1" SIZE="30" TYPE="part" PKNAME="sda"
 NAME="sda2" SIZE="10" TYPE="part" PKNAME="sda"
 NAME="sda3" SIZE="20" TYPE="part" PKNAME="sda"`
-		case 1, 5:
-			assert.Equal(t, "blkid /dev/sda1", name)
-			output = "ROOK-OSD0-WAL"
-		case 2, 6:
-			assert.Equal(t, "blkid /dev/sda2", name)
-			output = "ROOK-OSD0-DB"
-		case 3, 7:
-			assert.Equal(t, "blkid /dev/sda3", name)
-			output = "ROOK-OSD0-BLOCK"
-		case 8:
-			assert.Equal(t, command, "df")
+		case 1:
+			assert.Equal(t, "udevadm info sda1", name)
+			output = "ID_PART_ENTRY_NAME=ROOK-OSD0-WAL"
+		case 2:
+			assert.Equal(t, "udevadm info sda2", name)
+			output = "ID_PART_ENTRY_NAME=ROOK-OSD0-DB"
+		case 3:
+			assert.Equal(t, "udevadm info sda3", name)
+			output = "ID_PART_ENTRY_NAME=ROOK-OSD0-BLOCK"
+		case 4:
+			assert.Equal(t, "lsblk /dev/sda", name)
+			output = ""
+		case 5:
+			assert.Equal(t, "get filesystem type for sda", name)
 			output = ""
 		}
 		outputExecCount++
 		return output, nil
 	}
 
-	storeConfig := rookalpha.StoreConfig{StoreType: Bluestore}
+	storeConfig := config.StoreConfig{StoreType: config.Bluestore}
 
 	// set up a partition scheme entry for sda (collocated metadata and data)
-	entry := NewPerfSchemeEntry(storeConfig.StoreType)
+	entry := config.NewPerfSchemeEntry(storeConfig.StoreType)
 	entry.ID = 1
 	entry.OsdUUID = uuid.Must(uuid.NewRandom())
-	PopulateCollocatedPerfSchemeEntry(entry, "sda", storeConfig)
+	config.PopulateCollocatedPerfSchemeEntry(entry, "sda", storeConfig)
 
 	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
-	context.Devices = []*clusterd.LocalDisk{
+	context.Devices = []*sys.LocalDisk{
 		{Name: "sda", Size: 65},
 	}
 	config := &osdConfig{configRoot: configDir, rootPath: filepath.Join(configDir, "osd1"), id: entry.ID,
-		uuid: entry.OsdUUID, dir: false, partitionScheme: entry, kv: mockKVStore(), storeName: getConfigStoreName("node123")}
+		uuid: entry.OsdUUID, dir: false, partitionScheme: entry, kv: mockKVStore(), storeName: config.GetConfigStoreName("node123")}
 
 	// ensure that our mocking makes it look like rook owns the partitions on sda
 	partitions, _, err := sys.GetDevicePartitions("sda", context.Executor)
 	assert.Nil(t, err)
-	assert.True(t, rookOwnsPartitions(partitions))
+	assert.True(t, sys.RookOwnsPartitions(partitions))
 
 	// try to format the device.  even though the device has existing partitions, they are owned by rook, so it is safe
 	// to format and the format/partitioning will happen.
-	err = formatDevice(context, config, false, storeConfig)
+	devInfo, err := formatDevice(context, config, false, storeConfig)
+	assert.Nil(t, devInfo)
 	assert.Nil(t, err)
-	assert.Equal(t, 3, execCount)
-	assert.Equal(t, 9, outputExecCount)
+	assert.Equal(t, 6, outputExecCount)
 }
 
 func TestPartitionBluestoreMetadata(t *testing.T) {
@@ -204,21 +188,21 @@ func TestPartitionBluestoreMetadata(t *testing.T) {
 	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
 
 	// create metadata partition information for 2 OSDs (sdb, sdc) storing their metadata on device sda
-	storeConfig := rookalpha.StoreConfig{StoreType: Bluestore, WalSizeMB: 1, DatabaseSizeMB: 2}
-	metadata := NewMetadataDeviceInfo("sda")
+	storeConfig := config.StoreConfig{StoreType: config.Bluestore, WalSizeMB: 1, DatabaseSizeMB: 2}
+	metadata := config.NewMetadataDeviceInfo("sda")
 
-	e1 := NewPerfSchemeEntry(Bluestore)
+	e1 := config.NewPerfSchemeEntry(config.Bluestore)
 	e1.ID = 1
 	e1.OsdUUID = uuid.Must(uuid.NewRandom())
-	PopulateDistributedPerfSchemeEntry(e1, "sdb", metadata, storeConfig)
+	config.PopulateDistributedPerfSchemeEntry(e1, "sdb", metadata, storeConfig)
 
-	e2 := NewPerfSchemeEntry(Bluestore)
+	e2 := config.NewPerfSchemeEntry(config.Bluestore)
 	e2.ID = 2
 	e2.OsdUUID = uuid.Must(uuid.NewRandom())
-	PopulateDistributedPerfSchemeEntry(e2, "sdc", metadata, storeConfig)
+	config.PopulateDistributedPerfSchemeEntry(e2, "sdc", metadata, storeConfig)
 
 	// perform the metadata device partition
-	err = partitionMetadata(context, metadata, mockKVStore(), getConfigStoreName(nodeID))
+	err = partitionMetadata(context, metadata, mockKVStore(), config.GetConfigStoreName(nodeID))
 	assert.Nil(t, err)
 	assert.Equal(t, 3, execCount)
 
@@ -237,10 +221,10 @@ func TestPartitionBluestoreMetadataSafe(t *testing.T) {
 	nodeID := "node123"
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
-		if command == "df" {
-			// mock that the metadata device already has a filesytem, this should abort the partition effort
+		if command == "udevadm" {
+			// mock that the metadata device already has a filesystem, this should abort the partition effort
 			if strings.Index(name, "nvme01") != -1 {
-				return "/dev/nvme01 ext4", nil
+				return udevFSOutput, nil
 			}
 		}
 
@@ -250,26 +234,26 @@ func TestPartitionBluestoreMetadataSafe(t *testing.T) {
 	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
 
 	// create metadata partition information for 1 OSD (sda) storing its metadata on device nvme01
-	storeConfig := rookalpha.StoreConfig{StoreType: Bluestore, WalSizeMB: 1, DatabaseSizeMB: 2}
-	metadata := NewMetadataDeviceInfo("nvme01")
-	e1 := NewPerfSchemeEntry(Bluestore)
+	storeConfig := config.StoreConfig{StoreType: config.Bluestore, WalSizeMB: 1, DatabaseSizeMB: 2}
+	metadata := config.NewMetadataDeviceInfo("nvme01")
+	e1 := config.NewPerfSchemeEntry(config.Bluestore)
 	e1.ID = 1
 	e1.OsdUUID = uuid.Must(uuid.NewRandom())
-	PopulateDistributedPerfSchemeEntry(e1, "sda", metadata, storeConfig)
+	config.PopulateDistributedPerfSchemeEntry(e1, "sda", metadata, storeConfig)
 
 	// attempt to perform the metadata device partition.  this should fail because we should detect
 	// that the metadata device has a filesystem already (not safe to format)
-	err = partitionMetadata(context, metadata, mockKVStore(), getConfigStoreName(nodeID))
+	err = partitionMetadata(context, metadata, mockKVStore(), config.GetConfigStoreName(nodeID))
 	assert.NotNil(t, err)
 	assert.True(t, strings.Contains(err.Error(), "already in use (not by rook)"))
 }
 
 func TestPartitionOSD(t *testing.T) {
-	testPartitionOSDHelper(t, rookalpha.StoreConfig{StoreType: Bluestore, WalSizeMB: 1, DatabaseSizeMB: 2})
-	testPartitionOSDHelper(t, rookalpha.StoreConfig{StoreType: Filestore})
+	testPartitionOSDHelper(t, config.StoreConfig{StoreType: config.Bluestore, WalSizeMB: 1, DatabaseSizeMB: 2})
+	testPartitionOSDHelper(t, config.StoreConfig{StoreType: config.Filestore})
 }
 
-func testPartitionOSDHelper(t *testing.T, storeConfig rookalpha.StoreConfig) {
+func testPartitionOSDHelper(t *testing.T, storeConfig config.StoreConfig) {
 	// set up a temporary config directory that will be cleaned up after test
 	configDir, err := ioutil.TempDir("", "TestPartitionBluestoreOSD")
 	if err != nil {
@@ -282,35 +266,40 @@ func testPartitionOSDHelper(t *testing.T, storeConfig rookalpha.StoreConfig) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommand = func(debug bool, name string, command string, args ...string) error {
 		logger.Infof("RUN %d for '%s'. %s %+v", execCount, name, command, args)
-		if execCount <= 2 {
-			assert.Equal(t, "sgdisk", command)
-		}
 		switch execCount {
 		case 0:
+			assert.Equal(t, "sgdisk", command)
 			assert.Equal(t, []string{"--zap-all", "/dev/sda"}, args)
 		case 1:
+			assert.Equal(t, "sgdisk", command)
 			assert.Equal(t, []string{"--clear", "--mbrtogpt", "/dev/sda"}, args)
-		case 2:
-			if storeConfig.StoreType == Bluestore {
+		}
+
+		if storeConfig.StoreType == config.Bluestore {
+			switch execCount {
+			case 2:
 				assert.Equal(t, 11, len(args))
 				assert.Equal(t, "--change-name=1:ROOK-OSD1-WAL", args[1])
 				assert.Equal(t, "--change-name=2:ROOK-OSD1-DB", args[4])
 				assert.Equal(t, "--change-name=3:ROOK-OSD1-BLOCK", args[7])
-			} else {
+			case 3:
+				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
+			case 4:
+				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
+			case 5:
+				assert.Fail(t, "unexpected bluestore command")
+			}
+		} else { // filestore
+			switch execCount {
+			case 2:
 				assert.Equal(t, 5, len(args))
 				assert.Equal(t, "--change-name=1:ROOK-OSD1-FS-DATA", args[1])
-			}
-		case 3:
-			if storeConfig.StoreType == Bluestore {
-				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
-			} else {
+			case 3:
 				assert.Equal(t, "mkfs.ext4", command)
-			}
-		case 4:
-			if storeConfig.StoreType == Bluestore {
-				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
-			} else {
+			case 4:
 				assert.Equal(t, "mount", command)
+			case 5:
+				assert.Fail(t, "unexpected filestore command")
 			}
 		}
 		execCount++
@@ -319,31 +308,34 @@ func testPartitionOSDHelper(t *testing.T, storeConfig rookalpha.StoreConfig) {
 
 	// setup a context with 1 disk: sda
 	context := &clusterd.Context{Executor: executor, ConfigDir: configDir}
-	context.Devices = []*clusterd.LocalDisk{
+	context.Devices = []*sys.LocalDisk{
 		{Name: "sda", Size: 100},
 	}
 
 	// setup a partition scheme for data and metadata to be collocated on sda
-	entry := NewPerfSchemeEntry(storeConfig.StoreType)
+	entry := config.NewPerfSchemeEntry(storeConfig.StoreType)
 	entry.ID = 1
 	entry.OsdUUID = uuid.Must(uuid.NewRandom())
-	PopulateCollocatedPerfSchemeEntry(entry, "sda", storeConfig)
+	config.PopulateCollocatedPerfSchemeEntry(entry, "sda", storeConfig)
 
-	config := &osdConfig{configRoot: configDir, rootPath: filepath.Join(configDir, "osd1"), id: entry.ID,
-		uuid: entry.OsdUUID, dir: false, partitionScheme: entry, kv: mockKVStore(), storeName: getConfigStoreName("node123")}
+	cfg := &osdConfig{configRoot: configDir, rootPath: filepath.Join(configDir, "osd1"), id: entry.ID,
+		uuid: entry.OsdUUID, dir: false, partitionScheme: entry, kv: mockKVStore(), storeName: config.GetConfigStoreName("node123")}
 
 	// partition the OSD on sda now
-	err = partitionOSD(context, config)
+	devPartInfo, err := partitionOSD(context, cfg)
 	assert.Nil(t, err)
 
-	if storeConfig.StoreType == Bluestore {
+	if storeConfig.StoreType == config.Bluestore {
 		assert.Equal(t, 3, execCount)
+		assert.Nil(t, devPartInfo)
 	} else {
 		assert.Equal(t, 5, execCount)
+		assert.NotEqual(t, "", devPartInfo.deviceUUID)
+		assert.NotEqual(t, "", devPartInfo.pathToUnmount)
 	}
 
 	// verify that both the data and metadata have been associated with the device in etcd (since data/metadata are collocated)
-	dataDetails, err := getDataPartitionDetails(config)
+	dataDetails, err := getDataPartitionDetails(cfg)
 	assert.Nil(t, err)
 	assert.NotEqual(t, "", dataDetails.DiskUUID)
 }

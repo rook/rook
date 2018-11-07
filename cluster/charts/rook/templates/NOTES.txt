@@ -1,5 +1,0 @@
-The Rook Operator has been installed. Check its status by running:
-  kubectl --namespace {{ .Release.Namespace }} get pods -l "app=rook-operator"
-
-Visit https://rook.io/docs/rook/master for instructions on how
-to create & configure Rook clusters

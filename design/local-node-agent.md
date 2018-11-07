@@ -99,7 +99,7 @@ Furthermore, if users want to consume a Rook volume outside of the default names
 
 Both of these issues are handled by this proposed design for the Rook agent, greatly streamlining the Rook storage experience in Kubernetes and removing the common causes for errors and failure.  This is a big win for our users.
 
-This proposed design also allows Rook to normalize on a single path for providing persistent volumes across all Kubernetes versions that it supports (1.5+).
+This proposed design also allows Rook to normalize on a single path for providing persistent volumes across all Kubernetes versions that it supports.
 Since this design is fully out-of-tree for Kubernetes, it is not tied to Kubernetes release timelines.
 Updates, fixes and new features can be released through the normal Rook release process and timelines.
 
@@ -200,7 +200,7 @@ $ sudo umount <mount point>
 ```
 
 As mentioned above, each agent will be watching for events on cluster CRDs.
-Even in a large scale cluster, this is appropriate to have many watchers on the cluster CRDs for a couple reasons:  
+Even in a large scale cluster, this is appropriate to have many watchers on the cluster CRDs for a couple reasons:
 1. Cluster CRD events are relatively rare since they are tied to cluster lifecycles
 1. Each agent truly does need to be informed about cluster CRD events since they all may need to act on them
 

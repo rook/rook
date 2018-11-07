@@ -19,49 +19,66 @@ package clients
 import (
 	"fmt"
 
-	"github.com/rook/rook/pkg/model"
+	"github.com/rook/rook/pkg/daemon/ceph/client"
 )
 
 // IsClusterHealthy determines if the Rook cluster is currently healthy or not.
-func IsClusterHealthy(testClient *TestClient) (model.StatusDetails, error) {
+func IsClusterHealthy(testClient *TestClient, namespace string) error {
 
-	status, err := testClient.Status()
+	status, err := testClient.Status(namespace)
 	if err != nil {
-		return status, err
+		return err
 	}
+	logger.Infof("cluster status: %+v", status)
 
 	// verify all mons are in quorum
-	if len(status.Monitors) == 0 {
-		return status, fmt.Errorf("too few monitors: %+v", status)
+	if len(status.Quorum) == 0 {
+		return fmt.Errorf("too few monitors: %+v", status)
 	}
-	for _, m := range status.Monitors {
-		if !m.InQuorum {
-			return status, fmt.Errorf("mon %s not in quorum: %+v", m.Name, status)
+	for _, mon := range status.MonMap.Mons {
+		if !monInQuorum(mon, status.Quorum) {
+			return fmt.Errorf("mon %s not in quorum: %v", mon.Name, status.Quorum)
 		}
 	}
 
 	// verify there are OSDs and they are all up/in
-	if status.OSDs.Total == 0 {
-		return status, fmt.Errorf("no OSDs: %+v", status)
+	totalOSDs := status.OsdMap.OsdMap.NumOsd
+	if totalOSDs == 0 {
+		return fmt.Errorf("no OSDs: %+v", status)
 	}
-	if status.OSDs.NumberUp != status.OSDs.Total || status.OSDs.NumberIn != status.OSDs.Total {
-		return status, fmt.Errorf("not all OSDs are up/in: %+v", status)
+	if status.OsdMap.OsdMap.NumInOsd != totalOSDs || status.OsdMap.OsdMap.NumUpOsd != totalOSDs {
+		return fmt.Errorf("not all OSDs are up/in: %+v", status)
 	}
 
 	// verify MGRs are available
-	if !status.Mgrs.Available {
-		return status, fmt.Errorf("MGRs are not available: %+v", status)
+	if !status.MgrMap.Available {
+		return fmt.Errorf("MGRs are not available: %+v", status)
 	}
 
 	// verify that all PGs are in the active+clean state (0 PGs is OK because that means no pools
 	// have been created yet)
-	if status.PGs.Total > 0 {
-		activeCleanCount, ok := status.PGs.StateCounts["active+clean"]
-		if !ok || activeCleanCount != status.PGs.Total {
-			return status, fmt.Errorf("not all PGs are active+clean: %+v", status)
+	if status.PgMap.NumPgs > 0 {
+		activeCleanCount := 0
+		for _, pg := range status.PgMap.PgsByState {
+			if pg.StateName == "active+clean" {
+				activeCleanCount = pg.Count
+				break
+			}
+		}
+		if activeCleanCount != status.PgMap.NumPgs {
+			return fmt.Errorf("not all PGs are active+clean: %+v", status.PgMap)
 		}
 	}
 
 	// cluster passed all the basic health checks, seems healthy
-	return status, nil
+	return nil
+}
+
+func monInQuorum(mon client.MonMapEntry, quorum []int) bool {
+	for _, entry := range quorum {
+		if entry == mon.Rank {
+			return true
+		}
+	}
+	return false
 }

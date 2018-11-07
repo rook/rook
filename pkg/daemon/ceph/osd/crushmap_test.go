@@ -19,26 +19,26 @@ import (
 	"strings"
 	"testing"
 
-	rookalpha "github.com/rook/rook/pkg/apis/rook.io/v1alpha1"
 	"github.com/rook/rook/pkg/clusterd"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/util"
 	exectest "github.com/rook/rook/pkg/util/exec/test"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestCrushMap(t *testing.T) {
-	testCrushMapHelper(t, &rookalpha.StoreConfig{StoreType: Filestore})
-	testCrushMapHelper(t, &rookalpha.StoreConfig{StoreType: Bluestore})
+	testCrushMapHelper(t, &config.StoreConfig{StoreType: config.Filestore})
+	testCrushMapHelper(t, &config.StoreConfig{StoreType: config.Bluestore})
 }
 
-func testCrushMapHelper(t *testing.T, storeConfig *rookalpha.StoreConfig) {
+func testCrushMapHelper(t *testing.T, storeConfig *config.StoreConfig) {
 	executor := &exectest.MockExecutor{}
 	executor.MockExecuteCommandWithOutput = func(debug bool, name string, command string, args ...string) (string, error) {
 		logger.Infof("OUTPUT for %s. %s %+v", name, command, args)
 		if strings.HasPrefix(name, "lsblk /dev/disk/by-partuuid") {
 			// this is a call to get device properties so we figure out CRUSH weight, which should only be done for Bluestore
 			// (Filestore uses Statfs since it has a mounted filesystem)
-			assert.Equal(t, Bluestore, storeConfig.StoreType)
+			assert.Equal(t, config.Bluestore, storeConfig.StoreType)
 			return `SIZE="1234567890" TYPE="part"`, nil
 		}
 
@@ -61,13 +61,13 @@ func testCrushMapHelper(t *testing.T, storeConfig *rookalpha.StoreConfig) {
 
 	location := "root=default,dc=datacenter1,host=node1"
 
-	config := &osdConfig{id: 23, rootPath: "/"}
-	if storeConfig.StoreType == Bluestore {
+	cfg := &osdConfig{id: 23, rootPath: "/"}
+	if storeConfig.StoreType == config.Bluestore {
 		// if we're using bluestore, give some extra partition config info, the addOSDToCrushMap call will need it
-		config.partitionScheme = NewPerfSchemeEntry(storeConfig.StoreType)
-		PopulateCollocatedPerfSchemeEntry(config.partitionScheme, "sda", *storeConfig)
+		cfg.partitionScheme = config.NewPerfSchemeEntry(storeConfig.StoreType)
+		config.PopulateCollocatedPerfSchemeEntry(cfg.partitionScheme, "sda", *storeConfig)
 	}
 
-	err := addOSDToCrushMap(context, config, "rook", location)
+	err := addOSDToCrushMap(context, cfg, "rook", location)
 	assert.Nil(t, err)
 }
