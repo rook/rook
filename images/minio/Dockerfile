@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-FROM minio/minio:RELEASE.2018-04-19T22-54-58Z
+FROM minio/minio:RELEASE.2018-10-25T01-27-03Z
 
 COPY rook /usr/local/bin/
 
