@@ -241,6 +241,32 @@ type ObjectStoreSpec struct {
 	Gateway GatewaySpec `json:"gateway"`
 }
 
+// +genclient
+// +genclient:noStatus
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ObjectStoreUser struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata"`
+	Spec              ObjectStoreUserSpec `json:"spec"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+type ObjectStoreUserList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+	Items           []ObjectStoreUser `json:"items"`
+}
+
+// ObjectStoreUserSpec represent the spec of an Objectstoreuser
+type ObjectStoreUserSpec struct {
+	//The store the user will be created in
+	Store string `json:"store,omitempty"`
+	//The display name for the ceph users
+	DisplayName string `json:"displayName,omitempty"`
+}
+
 type GatewaySpec struct {
 	// The port the rgw service will be listening on (http)
 	Port int32 `json:"port"`

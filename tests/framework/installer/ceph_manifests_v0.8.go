@@ -574,3 +574,7 @@ spec:
     allNodes: false
 `
 }
+
+func (m *CephManifestsV0_8) GetObjectStoreUser(namespace, name string, displayName string, store string) string {
+	return ""
+}

@@ -38,6 +38,7 @@ type CephManifests interface {
 	GetBlockPoolStorageClass(namespace string, poolName string, storageClassName string, reclaimPolicy string) string
 	GetFilesystem(namepace, name string, activeCount int) string
 	GetObjectStore(namespace, name string, replicaCount, port int) string
+	GetObjectStoreUser(namespace, name string, displayName string, store string) string
 }
 
 type ClusterSettings struct {
@@ -105,6 +106,22 @@ spec:
     listKind: ObjectStoreList
     plural: objectstores
     singular: objectstore
+  scope: Namespaced
+  version: v1beta1
+---
+apiVersion: apiextensions.k8s.io/v1beta1
+kind: CustomResourceDefinition
+metadata:
+  name: objectstoreusers.ceph.rook.io
+spec:
+  group: ceph.rook.io
+  names:
+    kind: ObjectStoreUser
+    listKind: ObjectStoreUserList
+    plural: objectstoreusers
+    singular: objectstoreuser
+    shortNames:
+    - rcou
   scope: Namespaced
   version: v1beta1
 ---
@@ -618,4 +635,15 @@ spec:
     instances: ` + strconv.Itoa(replicaCount) + `
     allNodes: false
 `
+}
+
+func (m *CephManifestsMaster) GetObjectStoreUser(namespace, name string, displayName string, store string) string {
+	return `apiVersion: ceph.rook.io/v1beta1
+kind: ObjectStoreUser
+metadata:
+  name: ` + name + `
+  namespace: ` + namespace + `
+spec:
+  displayName: ` + displayName + `
+  store: ` + store
 }
