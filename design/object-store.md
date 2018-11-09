@@ -4,7 +4,7 @@
 
 An object store is a collection of resources and services that work together to serve HTTP requests to PUT and GET objects. Rook will automate the configuration of the Ceph resources and services that are necessary to start and maintain a highly available, durable, and performant object store.
 
-The Ceph object store supports S3 and Swift APIs and a multitude of features such as replication of object stores between different zones. The Rook object store is designed to support all of these features, though will take some time to implement them. We welcome contributions! In the meantime, features that are not yet implemented can can configured by using the [Rook toolbox](/Documentation/toolbox.md) to run the `radosgw-admin` and other tools for advanced configuration.
+The Ceph object store supports S3 and Swift APIs and a multitude of features such as replication of object stores between different zones. The Rook object store is designed to support all of these features, though will take some time to implement them. We welcome contributions! In the meantime, features that are not yet implemented can be configured by using the [Rook toolbox](/Documentation/toolbox.md) to run the `radosgw-admin` and other tools for advanced configuration.
 
 ### Prerequisites
 
