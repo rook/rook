@@ -38,12 +38,20 @@ OLD_IMAGE_ID := $(shell docker images -q $(NFS_IMAGE))
 CURRENT_IMAGE_ID := $$(docker images -q $(NFS_IMAGE))
 IMAGE_FILENAME := $(IMAGE_OUTPUT_DIR)/nfs.tar.gz
 
-do.build:
+do.build.multiarch:
 	@echo === docker build $(NFS_IMAGE)
 	@cp Dockerfile $(TEMP)
 	@cp start.sh $(TEMP)
 	@cp $(OUTPUT_DIR)/bin/linux_$(GOARCH)/rook $(TEMP)
 	@cd $(TEMP) && $(SED_CMD) 's|NFS_BASEIMAGE|$(NFS_BASEIMAGE)|g' Dockerfile
+	@if [ $(GOARCH) == arm64 ]; then \
+		docker run --rm --privileged multiarch/qemu-user-static:register --reset; \
+		wget -O $(TEMP)/qemu-aarch64-static \
+			https://github.com/multiarch/qemu-user-static/releases/download/v3.0.0/qemu-aarch64-static; \
+                        chmod a+x $(TEMP)/qemu-aarch64-static; \
+		sed -i '/FROM/a\COPY qemu-aarch64-static /usr/bin/' $(TEMP)/Dockerfile; \
+		sed -i '/ENTRYPOINT/i\RUN rm /usr/bin/qemu-aarch64-static -f' $(TEMP)/Dockerfile; \
+	fi;
 	@docker build $(BUILD_ARGS) \
 		-t $(NFS_IMAGE) \
 		$(TEMP)
@@ -54,3 +62,15 @@ do.build:
 		docker save $(NFS_IMAGE) | gzip -c > $(IMAGE_FILENAME); \
 	fi
 	@rm -fr $(TEMP)
+
+do.build:
+	@if [ $(GOARCH) == arm64 ]; then \
+		docker_major="$$(docker version -f "{{.Server.Version}}" | cut -d. -f1)"; \
+		if [ $${docker_major} -lt 18 ]; then \
+			echo "Docker version for NFS multi-arch building, need at least 18.00."; \
+		else \
+			${MAKE} do.build.multiarch;\
+		fi; \
+	else \
+		${MAKE} do.build.multiarch;\
+	fi;
