@@ -200,6 +200,10 @@ func setupBlockLite(helper *clients.TestClient, k8sh *utils.K8sHelper, s suite.S
 
 	logger.Infof("step : Create Pool,StorageClass and PVC")
 
+	//
+	// ERROR IS BELOW
+	//
+
 	res1, err := helper.PoolClient.CreateStorageClassAndPvc(clusterNamespace, poolName, storageClassName, "Delete", blockName, "ReadWriteOnce")
 	checkOrderedSubstrings(s.T(), res1, poolName, "created", storageClassName, "created", blockName, "created")
 	require.NoError(s.T(), err)
