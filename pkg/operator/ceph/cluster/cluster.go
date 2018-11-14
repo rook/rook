@@ -291,6 +291,11 @@ func clusterChanged(oldCluster, newCluster cephv1beta1.ClusterSpec, clusterRef *
 		changeFound = true
 	}
 
+	if oldCluster.CephVersion.Image != newCluster.CephVersion.Image {
+		logger.Infof("ceph version changing from %s to %s", oldCluster.CephVersion.Image, newCluster.CephVersion.Image)
+		changeFound = true
+	}
+
 	return changeFound
 }
 

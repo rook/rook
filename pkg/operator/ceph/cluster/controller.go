@@ -314,6 +314,19 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	}
 
 	logger.Infof("update event for cluster %s is supported, orchestrating update now", newClust.Namespace)
+
+	// if the image changed, we need to detect the new image version
+	if oldClust.Spec.CephVersion.Image != newClust.Spec.CephVersion.Image {
+		logger.Infof("the ceph version changed. detecting the new image version...")
+		if err := cluster.setCephMajorVersion(15 * time.Minute); err != nil {
+			logger.Errorf("unknown ceph major version. %+v", err)
+			return
+		}
+	} else {
+		logger.Infof("ceph version is still %s on image %s", cluster.Spec.CephVersion.Name, cluster.Spec.CephVersion.Image)
+		newClust.Spec.CephVersion.Name = cluster.Spec.CephVersion.Name
+	}
+
 	logger.Debugf("old cluster: %+v", oldClust.Spec)
 	logger.Debugf("new cluster: %+v", newClust.Spec)
 
@@ -321,13 +334,13 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 
 	// attempt to update the cluster.  note this is done outside of wait.Poll because that function
 	// will wait for the retry interval before trying for the first time.
-	done, _ := c.handleUpdate(newClust, cluster)
+	done, _ := c.handleUpdate(newClust.Name, cluster)
 	if done {
 		return
 	}
 
 	err = wait.Poll(updateClusterInterval, updateClusterTimeout, func() (bool, error) {
-		return c.handleUpdate(newClust, cluster)
+		return c.handleUpdate(newClust.Name, cluster)
 	})
 	if err != nil {
 		message := fmt.Sprintf("giving up trying to update cluster in namespace %s after %s", cluster.Namespace, updateClusterTimeout)
@@ -339,23 +352,23 @@ func (c *ClusterController) onUpdate(oldObj, newObj interface{}) {
 	}
 }
 
-func (c *ClusterController) handleUpdate(newClust *cephv1beta1.Cluster, cluster *cluster) (bool, error) {
-	if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1beta1.ClusterStateUpdating, ""); err != nil {
-		logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
+func (c *ClusterController) handleUpdate(crdName string, cluster *cluster) (bool, error) {
+	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1beta1.ClusterStateUpdating, ""); err != nil {
+		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		return false, nil
 	}
 
 	if err := cluster.createInstance(c.rookImage); err != nil {
-		logger.Errorf("failed to update cluster in namespace %s. %+v", newClust.Namespace, err)
+		logger.Errorf("failed to update cluster in namespace %s. %+v", cluster.Namespace, err)
 		return false, nil
 	}
 
-	if err := c.updateClusterStatus(newClust.Namespace, newClust.Name, cephv1beta1.ClusterStateCreated, ""); err != nil {
-		logger.Errorf("failed to update cluster status in namespace %s: %+v", newClust.Namespace, err)
+	if err := c.updateClusterStatus(cluster.Namespace, crdName, cephv1beta1.ClusterStateCreated, ""); err != nil {
+		logger.Errorf("failed to update cluster status in namespace %s: %+v", cluster.Namespace, err)
 		return false, nil
 	}
 
-	logger.Infof("succeeded updating cluster in namespace %s", newClust.Namespace)
+	logger.Infof("succeeded updating cluster in namespace %s", cluster.Namespace)
 	return true, nil
 }
 
