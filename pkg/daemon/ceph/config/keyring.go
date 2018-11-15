@@ -94,8 +94,8 @@ func writeKeyring(keyring, keyringPath string) error {
 	// Note that the running mon and osd daemons are not affected by this issue because of their live connection to the mon quorum.
 	// If you have multiple Rook clusters, it is preferred to connect to the Rook toolbox for a specific cluster. Otherwise, your ceph commands
 	// may connect to the wrong cluster.
-	if err := os.MkdirAll(DefaultConfigDir, 0744); err != nil {
-		logger.Warningf("failed to create default directory %s: %+v", DefaultConfigDir, err)
+	if err := os.MkdirAll(EtcCephDir, 0744); err != nil {
+		logger.Warningf("failed to create default directory %s: %+v", EtcCephDir, err)
 		return nil
 	}
 	defaultPath := DefaultKeyringFilePath()

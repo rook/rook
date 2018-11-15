@@ -32,12 +32,12 @@ import (
 var logger = capnslog.NewPackageLogger("github.com/rook/rook", "cephconfig")
 
 const (
-	// DefaultConfigDir is the default dir where Ceph stores its configs
-	DefaultConfigDir = "/etc/ceph"
-	// DefaultConfigFile is the default name of the file where Ceph stores its configs
-	DefaultConfigFile = "ceph.conf"
-	// DefaultKeyringFile is the default name of the file where Ceph stores its keyring info
-	DefaultKeyringFile = "keyring"
+	// EtcCephDir is the default dir where Ceph stores its configs
+	EtcCephDir = "/etc/ceph"
+	// ConfigFileName is the default name of the file where Ceph stores its configs
+	ConfigFileName = "ceph.conf"
+	// KeyringFileName is the default name of the file where Ceph stores its keyring info
+	KeyringFileName = "keyring"
 )
 
 // GlobalConfig represents the [global] sections of Ceph's config file.
@@ -86,12 +86,12 @@ type CephConfig struct {
 
 // DefaultConfigFilePath returns the full path to Ceph's default config file
 func DefaultConfigFilePath() string {
-	return path.Join(DefaultConfigDir, DefaultConfigFile)
+	return path.Join(EtcCephDir, ConfigFileName)
 }
 
 // DefaultKeyringFilePath returns the full path to Ceph's default keyring file
 func DefaultKeyringFilePath() string {
-	return path.Join(DefaultConfigDir, DefaultKeyringFile)
+	return path.Join(EtcCephDir, KeyringFileName)
 }
 
 // GetConfFilePath gets the path of a given cluster's config file

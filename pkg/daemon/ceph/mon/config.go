@@ -61,7 +61,7 @@ func writeMonKeyring(context *clusterd.Context, c *cephconfig.ClusterInfo, name 
 
 // getMonKeyringPath gets the path of a given monitor's keyring
 func getMonKeyringPath(configDir, monName string) string {
-	return filepath.Join(GetMonRunDirPath(configDir, monName), cephconfig.DefaultKeyringFile)
+	return filepath.Join(GetMonRunDirPath(configDir, monName), cephconfig.KeyringFileName)
 }
 
 // generateConnectionConfigFile generates and writes the monitor config file to disk
