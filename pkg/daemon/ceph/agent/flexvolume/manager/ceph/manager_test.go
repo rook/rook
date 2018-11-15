@@ -132,7 +132,6 @@ func TestAttach(t *testing.T) {
 			} else {
 				assert.Equal(t, "--id=user1", args[2])
 			}
-			assert.Equal(t, "--cluster=testCluster", args[3])
 			assert.True(t, strings.HasPrefix(args[4], "--keyring="))
 			assert.Contains(t, args[6], "10.0.0.1:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.1:6790"))
 			assert.Contains(t, args[6], "10.0.0.2:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.2:6790"))
@@ -261,8 +260,9 @@ func TestDetachCustomKeyring(t *testing.T) {
 			assert.Equal(t, "rbd", command)
 			assert.Equal(t, "unmap", args[0])
 			assert.Equal(t, "testpool/image1", args[1])
-			assert.Equal(t, "--id=user1", args[2])
-			assert.Equal(t, "--cluster=testCluster", args[3])
+			assert.Equal(t, "--id", args[2])
+			assert.Equal(t, "admin", args[3])
+			// assert.Equal(t, "--cluster=testCluster", args[4])
 			assert.True(t, strings.HasPrefix(args[4], "--keyring="))
 			assert.Contains(t, args[6], "10.0.0.1:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.1:6790"))
 			assert.Contains(t, args[6], "10.0.0.2:6790", fmt.Sprintf("But '%s' does contain '%s'", args[6], "10.0.0.2:6790"))

@@ -145,7 +145,6 @@ func MapImage(context *clusterd.Context, imageName, poolName, id, keyring, clust
 		"map",
 		imageSpec,
 		fmt.Sprintf("--id=%s", id),
-		fmt.Sprintf("--cluster=%s", clusterName),
 		fmt.Sprintf("--keyring=%s", keyring),
 		"-m", monitors,
 		"--conf=/dev/null", // no config file needed because we are passing all required config as arguments
@@ -166,7 +165,6 @@ func UnMapImage(context *clusterd.Context, imageName, poolName, id, keyring, clu
 		"unmap",
 		deviceImage,
 		fmt.Sprintf("--id=%s", id),
-		fmt.Sprintf("--cluster=%s", clusterName),
 		fmt.Sprintf("--keyring=%s", keyring),
 		"-m", monitors,
 		"--conf=/dev/null", // no config file needed because we are passing all required config as arguments
