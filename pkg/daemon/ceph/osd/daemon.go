@@ -19,6 +19,7 @@ package osd
 import (
 	"fmt"
 	"os"
+	"path"
 	"regexp"
 
 	"strings"
@@ -88,6 +89,15 @@ func Provision(context *clusterd.Context, agent *Agent) error {
 	status := oposd.OrchestrationStatus{Status: oposd.OrchestrationStatusComputingDiff}
 	if err := oposd.UpdateNodeStatus(agent.kv, agent.nodeName, status); err != nil {
 		return err
+	}
+
+	// Delete legacy config path which may be persisted to disk and are is longer needed. The legacy
+	// config path includes the admin keyring (security risk) and a potentially confusing old
+	// config. Needed for upgrade from Rook v0.8 to v0.9.
+	legacyConfigPath := path.Join(context.ConfigDir, agent.cluster.Name)
+	logger.Infof("Deleting legacy osd provisioning agent config path: %s", legacyConfigPath)
+	if err := os.RemoveAll(legacyConfigPath); err != nil && !os.IsNotExist(err) {
+		logger.Errorf("failed to delete legacy config file %s. %+v", legacyConfigPath, err)
 	}
 
 	// Generate a connection config file with the admin user for bootstrapping, but don't generate

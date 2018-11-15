@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"net"
 	"os"
+	"path"
 	"path/filepath"
 
 	"github.com/coreos/pkg/capnslog"
@@ -55,6 +56,22 @@ type Config struct {
 func Initialize(context *clusterd.Context, config *Config) error {
 	logger.Infof("Creating config for MON %s with port %d", config.Name, config.Port)
 	config.Cluster.Log(logger)
+
+	// Delete legacy config and keyring files which may be persisted to disk and are no longer
+	// needed. The legacy keyring contains the admin key, which is a security risk. The legacy
+	// config may just end up being confusing for users if it is left.  Needed for upgrade from
+	// Rook v0.8 to v0.9.
+	legacyConfigPath := path.Join(cephconfig.DaemonRunDir(cephconfig.VarLibCephDir, "mon", config.Name),
+		fmt.Sprintf("%s.config", config.Cluster.Name))
+	legacyKeyringPath := path.Join(cephconfig.DaemonRunDir(cephconfig.VarLibCephDir, "mon", config.Name), "keyring")
+	logger.Infof("Deleting legacy mon config file: %s", legacyConfigPath)
+	if err := os.Remove(legacyConfigPath); err != nil && !os.IsNotExist(err) {
+		logger.Errorf("failed to delete legacy mon config file %s. %+v", legacyConfigPath, err)
+	}
+	logger.Infof("Deleting legacy mon keyring file: %s", legacyKeyringPath)
+	if err := os.Remove(legacyKeyringPath); err != nil && !os.IsNotExist(err) {
+		logger.Errorf("failed to delete legacy mon keyring %s. %+v", legacyKeyringPath, err)
+	}
 
 	configPath := cephconfig.DefaultConfigFilePath()
 	keyringPath := cephconfig.DaemonKeyringFilePath(cephconfig.EtcCephDir, "mon", config.Name)

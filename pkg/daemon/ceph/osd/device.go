@@ -19,6 +19,7 @@ package osd
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -516,6 +517,15 @@ func writeConfigFile(cfg *osdConfig, context *clusterd.Context, cluster *cephcon
 		// http://docs.ceph.com/docs/jewel/rados/configuration/filesystem-recommendations/#not-recommended
 		cephConfig.GlobalConfig.OsdMaxObjectNameLen = 256
 		cephConfig.GlobalConfig.OsdMaxObjectNamespaceLen = 64
+	}
+
+	// Delete legacy config file which may be persisted to disk and are no longer needed. The legacy
+	// config may just end up being confusing for users if it is left. Needed for upgrade from
+	// Rook v0.8 to v0.9.
+	legacyConfigPath := path.Join(cfg.runDir, fmt.Sprintf("%s.config", cluster.Name))
+	logger.Infof("Deleting legacy osd config file: %s", legacyConfigPath)
+	if err := os.Remove(legacyConfigPath); err != nil && !os.IsNotExist(err) {
+		logger.Errorf("failed to delete legacy osd config file %s. %+v", legacyConfigPath, err)
 	}
 
 	configPath := cfg.configFilePath()
