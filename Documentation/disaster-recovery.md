@@ -82,6 +82,15 @@ Delete the bad mons from the list, for example to end up with a single good mon:
 ```
 data: rook-ceph-mon1=10.100.35.233:6790
 ```
+In the `mapping` element you will see three mons such as the following (or more depending on your `moncount`):
+```
+mapping: '{"node":{"rook-ceph-mon0":{"Name":"mon0.example.com","Hostname":"mon0.example.com","Address":"10.100.35.200"},"rook-ceph-mon1":{"Name":"mon1.example.com","Hostname":"mon1.example.com","Address":"10.100.35.23"},"rook-ceph-mon2":{"Name":"mon2.example.com","Hostname":"mon2.example.com","Address":"0.100.35.12"}},"port":{}}'
+```
+
+Delete the bad mons from the list, for example to end up with a single good mon:
+```
+mapping: '{"node":{"rook-ceph-mon1":{"Name":"mon1.example.com","Hostname":"mon1.example.com","Address":"10.100.35.23"},"port":{}}'
+```
 
 Save the file and exit.
 
