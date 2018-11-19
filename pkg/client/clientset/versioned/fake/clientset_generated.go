@@ -20,6 +20,8 @@ package fake
 
 import (
 	clientset "github.com/rook/rook/pkg/client/clientset/versioned"
+	cassandrav1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cassandra.rook.io/v1alpha1"
+	fakecassandrav1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/cassandra.rook.io/v1alpha1/fake"
 	cephv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1alpha1"
 	fakecephv1alpha1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1alpha1/fake"
 	cephv1beta1 "github.com/rook/rook/pkg/client/clientset/versioned/typed/ceph.rook.io/v1beta1"
@@ -82,6 +84,16 @@ func (c *Clientset) Discovery() discovery.DiscoveryInterface {
 }
 
 var _ clientset.Interface = &Clientset{}
+
+// CassandraV1alpha1 retrieves the CassandraV1alpha1Client
+func (c *Clientset) CassandraV1alpha1() cassandrav1alpha1.CassandraV1alpha1Interface {
+	return &fakecassandrav1alpha1.FakeCassandraV1alpha1{Fake: &c.Fake}
+}
+
+// Cassandra retrieves the CassandraV1alpha1Client
+func (c *Clientset) Cassandra() cassandrav1alpha1.CassandraV1alpha1Interface {
+	return &fakecassandrav1alpha1.FakeCassandraV1alpha1{Fake: &c.Fake}
+}
 
 // CephV1alpha1 retrieves the CephV1alpha1Client
 func (c *Clientset) CephV1alpha1() cephv1alpha1.CephV1alpha1Interface {

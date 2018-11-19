@@ -21,7 +21,8 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
+	v1alpha1 "github.com/rook/rook/pkg/apis/cassandra.rook.io/v1alpha1"
+	cephrookiov1alpha1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1alpha1"
 	v1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	cockroachdbrookiov1alpha1 "github.com/rook/rook/pkg/apis/cockroachdb.rook.io/v1alpha1"
 	miniorookiov1alpha1 "github.com/rook/rook/pkg/apis/minio.rook.io/v1alpha1"
@@ -58,14 +59,18 @@ func (f *genericInformer) Lister() cache.GenericLister {
 // TODO extend this to unknown resources with a client pool
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
-	// Group=ceph.rook.io, Version=v1alpha1
+	// Group=cassandra.rook.io, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("clusters"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Cassandra().V1alpha1().Clusters().Informer()}, nil
+
+		// Group=ceph.rook.io, Version=v1alpha1
+	case cephrookiov1alpha1.SchemeGroupVersion.WithResource("clusters"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1alpha1().Clusters().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("filesystems"):
+	case cephrookiov1alpha1.SchemeGroupVersion.WithResource("filesystems"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1alpha1().Filesystems().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("objectstores"):
+	case cephrookiov1alpha1.SchemeGroupVersion.WithResource("objectstores"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1alpha1().ObjectStores().Informer()}, nil
-	case v1alpha1.SchemeGroupVersion.WithResource("pools"):
+	case cephrookiov1alpha1.SchemeGroupVersion.WithResource("pools"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Ceph().V1alpha1().Pools().Informer()}, nil
 
 		// Group=ceph.rook.io, Version=v1beta1
