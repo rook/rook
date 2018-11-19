@@ -11,6 +11,7 @@
 - Ceph OSDs will be automatically updated by the operator when there is a change to the operator version or when the OSD configuration changes. See the [OSD upgrade notes](Documentation/upgrade-patch.md#object-storage-daemons-osds).
 - Rook Ceph block storage provisioner can now correctly create erasure coded block images. See [Advanced Example: Erasure Coded Block Storage](Documentation/block.md#advanced-example-erasure-coded-block-storage) for an example usage.
 - [Network File System (NFS)](https://github.com/nfs-ganesha/nfs-ganesha/wiki) is now supported by Rook with a new operator to deploy and manage this widely used server. NFS servers can be automatically deployed by creating an instance of the new `nfsservers.nfs.rook.io` custom resource. See the [NFS server user guide](Documentation/nfs.md) to get started with NFS.
+- [Cassandra](http://cassandra.apache.org/) and [Scylla](https://www.scylladb.com/) are now supported by Rook with the rook-cassandra operator. Users can now deploy, configure and manage Cassandra or Scylla clusters, by creating an instance of the `clusters.cassandra.rook.io` custom resource. See the [user guide](Documentation/cassandra.md) to get started.
 - Service account (`rook-ceph-mgr`) added for the mgr daemon to grant the mgr orchestrator modules access to the K8s APIs.
 - The minimum version of Kubernetes supported by Rook changed from `1.7` to `1.8`.
 - `reclaimPolicy` parameter of `StorageClass` definition is now supported.
@@ -21,6 +22,7 @@
 - RBD Mirroring is enabled by Rook. By setting the number of [rbd mirroring workers](Documentation/ceph-cluster-crd.md#cluster-settings), the daemon(s) will be started by rook. To configure the pools or images to be mirrored, use the Rook toolbox to run the [rbd mirror](http://docs.ceph.com/docs/mimic/rbd/rbd-mirroring/) configuration tool.
 - Object Store User creation via CRD for Ceph clusters.
 - Ceph MON, MGR, MDS, and RGW deployments (or DaemonSets) will be updated/upgraded automatically with updates to the Rook operator.
+
 
 ## Breaking Changes
 

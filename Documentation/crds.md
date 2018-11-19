@@ -19,3 +19,7 @@ has its own CRD defined.
 
 ## Minio
 - [Object Store](minio-object-store-crd.md): Minio is a high performance distributed object storage server, designed for large-scale private cloud infrastructure.
+
+## Cassandra / Scylla
+- [Cluster](cassandra-cluster-crd.md): [Cassandra](http://cassandra.apache.org/) is highly available, fault tolerant, peer-to-peer database featuring lightning fast performance and tunable consistency. It provides massive scalability with no single point of failure. 
+[Scylla](https://www.scylladb.com) is a close-to-the-hardware rewrite of Cassandra in C++. The rook operator supports both.
