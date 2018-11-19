@@ -103,6 +103,11 @@ function copy_images() {
       copy_image_to_cluster "${BUILD_REGISTRY}/cockroachdb-amd64" rook/cockroachdb:master
     fi
 
+    if [[ "$1" == "" || "$1" == "cassandra" ]]; then
+      echo "copying cassandra image"
+      copy_image_to_cluster "${BUILD_REGISTRY}/cassandra-amd64" rook/cassandra:master
+    fi
+
     if [[ "$1" == "" || "$1" == "minio" ]]; then
       echo "copying minio image"
       copy_image_to_cluster "${BUILD_REGISTRY}/minio-amd64" rook/minio:master
@@ -171,11 +176,11 @@ case "${1:-}" in
     ;;
   *)
     echo "usage:" >&2
-    echo "  $0 up [ceph | cockroachdb | minio | nfs]" >&2
+    echo "  $0 up [ceph | cockroachdb | cassandra | minio | nfs]" >&2
     echo "  $0 down" >&2
     echo "  $0 clean" >&2
     echo "  $0 ssh" >&2
-    echo "  $0 update [ceph | cockroachdb | minio | nfs]" >&2
+    echo "  $0 update [ceph | cockroachdb | cassandra | minio | nfs]" >&2
     echo "  $0 restart <pod-name-regex> (the pod name is a regex to match e.g. restart ^rook-ceph-osd)" >&2
     echo "  $0 wordpress" >&2
     echo "  $0 cockroachdb-loadgen" >&2
