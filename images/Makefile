@@ -38,6 +38,10 @@ minio.%:
 nfs.%:
 	@$(MAKE) -C nfs PLATFORM=$*
 
+cassandra.%:
+	@$(MAKE) -C cassandra PLATFORM=$*
+
+
 do.build.images.%: $(foreach i,$(IMAGES), $(i).%);
 
 do.build: do.build.images.$(PLATFORM) ;
