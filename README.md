@@ -71,6 +71,7 @@ Rook Framework|The framework for common storage specs and logic used to support 
 Ceph|[Ceph](https://ceph.com/) is a distributed storage system that provides file, block and object storage and is deployed in large scale production clusters.|ceph.rook.io/v1|Stable
 CockroachDB|[CockroachDB](https://www.cockroachlabs.com/product/cockroachdb/) is a cloud-native SQL database for building global, scalable cloud services that survive disasters.|cockroachdb.rook.io/v1alpha1|Alpha
 Cassandra| [Cassandra](http://cassandra.apache.org/) is a highly available NoSQL database featuring lightning fast performance, tunable consistency and massive scalability. [Scylla](https://www.scylladb.com) is a close-to-the-hardware rewrite of Cassandra in C++, which enables much lower latencies and higher throughput.|cassandra.rook.io/v1alpha1|Alpha
+EdgeFS|[EdgeFS](http://edgefs.io) is high-performance and low-latency object storage system with Geo-Transparent data access via standard protocols (S3, NFS, iSCSI) from on-prem, private/public clouds or small footprint edge (IoT) devices.|edgefs.rook.io/v1alpha1|Alpha
 Minio|[Minio](https://www.minio.io/) is a high performance distributed object storage server, designed for large-scale private cloud infrastructure.|minio.rook.io/v1alpha1|Alpha
 NFS|[Network File System (NFS)](https://github.com/nfs-ganesha/nfs-ganesha/wiki) allows remote hosts to mount file systems over a network and interact with those file systems as though they are mounted locally.|nfs.rook.io/v1alpha1|Alpha
 
