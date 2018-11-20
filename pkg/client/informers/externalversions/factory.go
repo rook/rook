@@ -27,6 +27,7 @@ import (
 	cassandrarookio "github.com/rook/rook/pkg/client/informers/externalversions/cassandra.rook.io"
 	cephrookio "github.com/rook/rook/pkg/client/informers/externalversions/ceph.rook.io"
 	cockroachdbrookio "github.com/rook/rook/pkg/client/informers/externalversions/cockroachdb.rook.io"
+	edgefsrookio "github.com/rook/rook/pkg/client/informers/externalversions/edgefs.rook.io"
 	internalinterfaces "github.com/rook/rook/pkg/client/informers/externalversions/internalinterfaces"
 	miniorookio "github.com/rook/rook/pkg/client/informers/externalversions/minio.rook.io"
 	nfsrookio "github.com/rook/rook/pkg/client/informers/externalversions/nfs.rook.io"
@@ -180,6 +181,7 @@ type SharedInformerFactory interface {
 	Cassandra() cassandrarookio.Interface
 	Ceph() cephrookio.Interface
 	Cockroachdb() cockroachdbrookio.Interface
+	Edgefs() edgefsrookio.Interface
 	Minio() miniorookio.Interface
 	Nfs() nfsrookio.Interface
 	Rook() rookio.Interface
@@ -195,6 +197,10 @@ func (f *sharedInformerFactory) Ceph() cephrookio.Interface {
 
 func (f *sharedInformerFactory) Cockroachdb() cockroachdbrookio.Interface {
 	return cockroachdbrookio.New(f, f.namespace, f.tweakListOptions)
+}
+
+func (f *sharedInformerFactory) Edgefs() edgefsrookio.Interface {
+	return edgefsrookio.New(f, f.namespace, f.tweakListOptions)
 }
 
 func (f *sharedInformerFactory) Minio() miniorookio.Interface {
