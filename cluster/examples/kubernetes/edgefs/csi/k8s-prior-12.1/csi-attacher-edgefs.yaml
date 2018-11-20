@@ -1,0 +1,68 @@
+# This YAML file contains attacher & csi driver API objects that are necessary
+# to run external CSI attacher for nfs
+
+kind: Service
+apiVersion: v1
+metadata:
+  name: csi-attacher-edgefs
+  labels:
+    app: csi-attacher-edgefs
+spec:
+  selector:
+    app: csi-attacher-edgefs
+  ports:
+    - name: dummy
+      port: 12345
+
+---
+kind: StatefulSet
+apiVersion: apps/v1beta1
+metadata:
+  name: csi-attacher-edgefs
+spec:
+  serviceName: "csi-attacher"
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: csi-attacher-edgefs
+    spec:
+      serviceAccount: csi-attacher
+      containers:
+        - name: csi-attacher
+          image: quay.io/k8scsi/csi-attacher:v0.4.0
+          args:
+            - "--v=5"
+            - "--csi-address=$(ADDRESS)"
+          env:
+            - name: ADDRESS
+              value: /var/lib/csi/sockets/pluginproxy/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: nfs
+          image: edgefs/edgefs-csi:latest
+          args :
+            - "--v=5"
+            - "--nodeid=$(NODE_ID)"
+            - "--endpoint=$(CSI_ENDPOINT)"
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: CSI_ENDPOINT
+              value: unix://plugin/csi.sock
+          imagePullPolicy: "Always"
+          volumeMounts:
+            - name: socket-dir
+              mountPath: /plugin
+            - name: secret
+              mountPath: /config
+      volumes:
+        - name: socket-dir
+          emptyDir:
+        - name: secret
+          secret:
+              secretName: rook-edgefs-cluster

@@ -1,6 +1,6 @@
 ---
 title: Monitoring
-weight: 40
+weight: 45
 ---
 
 # Monitoring
