@@ -154,7 +154,7 @@ func (c *Cluster) makeDeployment(nodeName string, devices []rookalpha.Device, se
 
 	var command []string
 	var args []string
-	if !osd.IsDirectory && osd.IsFileStore {
+	if !osd.IsDirectory && osd.IsFileStore && !osd.CephVolumeInitiated {
 		// All scenarios except one can call the ceph-osd daemon directly. The one different scenario is when
 		// filestore is running on a device. Rook needs to mount the device, run the ceph-osd daemon, and then
 		// when the daemon exits, rook needs to unmount the device. Since rook needs to be in the container
@@ -352,6 +352,12 @@ func (c *Cluster) getConfigEnvVars(storeConfig config.StoreConfig, dataDir, node
 		opmon.AdminSecretEnvVar(),
 		k8sutil.ConfigDirEnvVar(dataDir),
 		k8sutil.ConfigOverrideEnvVar(),
+		{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
+			SecretKeyRef: &v1.SecretKeySelector{
+				LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-mon"},
+				Key:                  "fsid",
+			},
+		}},
 	}
 
 	if storeConfig.StoreType != "" {
@@ -381,11 +387,6 @@ func (c *Cluster) provisionOSDContainer(devices []rookalpha.Device, selection ro
 	storeConfig config.StoreConfig, metadataDevice, nodeName, location string, copyBinariesMount v1.VolumeMount) v1.Container {
 
 	envVars := c.getConfigEnvVars(storeConfig, k8sutil.DataDir, nodeName, location)
-	envVars = append(envVars, v1.EnvVar{Name: "ROOK_FSID", ValueFrom: &v1.EnvVarSource{
-		SecretKeyRef: &v1.SecretKeySelector{
-			LocalObjectReference: v1.LocalObjectReference{Name: "rook-ceph-mon"},
-			Key:                  "fsid"},
-	}})
 	devMountNeeded := false
 	privileged := false
 

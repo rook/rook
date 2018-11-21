@@ -21,12 +21,16 @@ import (
 	"fmt"
 	"path"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/rook/rook/pkg/clusterd"
 	oposd "github.com/rook/rook/pkg/operator/ceph/cluster/osd"
+	"github.com/rook/rook/pkg/operator/ceph/cluster/osd/config"
 	"github.com/rook/rook/pkg/util/exec"
 )
+
+var cephConfigDir = "/var/lib/ceph"
 
 func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOsdMapping) ([]oposd.OSDInfo, bool, error) {
 	var osds []oposd.OSDInfo
@@ -48,18 +52,24 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 		return osds, true, nil
 	}
 
-	err = createOSDBootstrapKeyring(context, a.cluster.Name)
+	err = createOSDBootstrapKeyring(context, a.cluster.Name, cephConfigDir)
 	if err != nil {
 		return nil, true, fmt.Errorf("failed to generate osd keyring. %+v", err)
 	}
 
-	volumeArgs := []string{"lvm", "batch", "--prepare", "--bluestore", "--yes"}
+	storeFlag := "--bluestore"
+	if a.storeConfig.StoreType == config.Filestore {
+		storeFlag = "--filestore"
+	}
+
+	volumeArgs := []string{"lvm", "batch", "--prepare", storeFlag, "--yes"}
 	configured := 0
 	for name, device := range devices.Entries {
 		if device.LegacyPartitionsFound {
 			logger.Infof("skipping device %s configured with legacy rook osd", name)
 			continue
 		}
+
 		if device.Data == -1 {
 			logger.Infof("configuring new device %s", name)
 			volumeArgs = append(volumeArgs, path.Join("/dev", name))
@@ -117,9 +127,15 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string) ([]oposd.O
 			logger.Errorf("bad osd returned from ceph-volume: %s", name)
 			continue
 		}
-		if len(osdInfo) != 1 {
-			logger.Errorf("only expecting one element in the osdInfo array but there were %d", len(osdInfo))
+		var osdFSID string
+		isFilestore := false
+		for _, osd := range osdInfo {
+			osdFSID = osd.Tags.OSDFSID
+			if strings.HasPrefix(osd.Path, "/dev/ceph-filestore") {
+				isFilestore = true
+			}
 		}
+		logger.Infof("osdInfo has %d elements. %+v", len(osdInfo), osdInfo)
 
 		configDir := "/var/lib/rook/osd" + name
 		osd := oposd.OSDInfo{
@@ -128,8 +144,9 @@ func getCephVolumeOSDs(context *clusterd.Context, clusterName string) ([]oposd.O
 			Config:              fmt.Sprintf("%s/%s.config", configDir, clusterName),
 			KeyringPath:         path.Join(configDir, "keyring"),
 			Cluster:             "ceph",
-			UUID:                osdInfo[0].Tags.OSDFSID,
+			UUID:                osdFSID,
 			CephVolumeInitiated: true,
+			IsFileStore:         isFilestore,
 		}
 		osds = append(osds, osd)
 	}

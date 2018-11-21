@@ -18,6 +18,7 @@ package osd
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"regexp"
 
@@ -42,6 +43,13 @@ func StartOSD(context *clusterd.Context, bluestore bool, osdID, osdUUID string, 
 	storeFlag := "--bluestore"
 	if !bluestore {
 		storeFlag = "--filestore"
+	}
+
+	// ensure the config mount point exists
+	configDir := fmt.Sprintf("/var/lib/ceph/osd/ceph-%s", osdID)
+	err := os.Mkdir(configDir, 0755)
+	if err != nil {
+		logger.Errorf("failed to create config dir %s. %+v", configDir, err)
 	}
 
 	// activate the osd with ceph-volume

@@ -147,7 +147,7 @@ func (a *OsdAgent) configureAllDevices(context *clusterd.Context, devices *Devic
 	// prepare the OSDs with ceph-volume
 	osds, configured, err := a.configureDevices(context, devices)
 	if err != nil {
-		logger.Errorf("failed to configure devices with ceph-volume. %+v", err)
+		return nil, fmt.Errorf("failed to configure devices with ceph-volume. %+v", err)
 	}
 
 	if devices == nil || len(devices.Entries) == 0 || configured {

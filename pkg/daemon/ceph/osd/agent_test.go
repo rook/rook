@@ -78,21 +78,30 @@ func TestStoreTypeDefaults(t *testing.T) {
 	assert.False(t, isBluestoreDir(cfg))
 }
 
-func TestOSDAgentWithDevicesFilestore(t *testing.T) {
-	testOSDAgentWithDevicesHelper(t, config.StoreConfig{StoreType: config.Filestore})
+func TestOSDAgentLegacyFilestore(t *testing.T) {
+	testOSDAgentWithDevicesHelper(t, config.StoreConfig{StoreType: config.Filestore}, true)
 }
 
-func TestOSDAgentWithDevicesBluestore(t *testing.T) {
-	testOSDAgentWithDevicesHelper(t, config.StoreConfig{StoreType: config.Bluestore})
+func TestOSDAgentLegacyBluestore(t *testing.T) {
+	testOSDAgentWithDevicesHelper(t, config.StoreConfig{StoreType: config.Bluestore}, true)
 }
 
-func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig) {
+func TestOSDAgenCephVolumeBluestore(t *testing.T) {
+	testOSDAgentWithDevicesHelper(t, config.StoreConfig{StoreType: config.Bluestore}, false)
+}
+
+func TestOSDAgenCephVolumeFilestore(t *testing.T) {
+	testOSDAgentWithDevicesHelper(t, config.StoreConfig{StoreType: config.Filestore}, false)
+}
+
+func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig, legacyProvisioner bool) {
 	// set up a temporary config directory that will be cleaned up after test
 	configDir, err := ioutil.TempDir("", "")
 	if err != nil {
 		t.Fatalf("failed to create temp config dir: %+v", err)
 	}
 	defer os.RemoveAll(configDir)
+	cephConfigDir = configDir
 
 	agent, executor, _ := createTestAgent(t, "sdx,sdy", configDir, "node1891", &storeConfig)
 
@@ -118,7 +127,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 			nameSuffix = parts[1]
 		}
 
-		if storeConfig.StoreType == config.Bluestore {
+		if storeConfig.StoreType == config.Bluestore && legacyProvisioner {
 			switch {
 			case execCount == 0: // first exec is the osd mkfs for sdx
 				assert.Equal(t, "--mkfs", args[0])
@@ -142,7 +151,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 			default:
 				assert.Fail(t, fmt.Sprintf("unexpected case %d", execCount))
 			}
-		} else if storeConfig.StoreType == config.Filestore {
+		} else if storeConfig.StoreType == config.Filestore && legacyProvisioner {
 			switch {
 			case execCount == 0:
 				// first exec is the remounting of sdx because its partitions were created previously, we just need to remount it
@@ -189,7 +198,7 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 
 	outputExecCount := 0
 	executor.MockExecuteCommandWithOutputFile = func(debug bool, actionName string, command string, outFileArg string, args ...string) (string, error) {
-		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, actionName, command, args)
+		logger.Infof("OUTPUT %d. %s %+v", outputExecCount, command, args)
 		outputExecCount++
 		if args[0] == "auth" && args[1] == "get-or-create-key" {
 			return "{\"key\":\"mysecurekey\"}", nil
@@ -200,13 +209,22 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 		return "", nil
 	}
 	executor.MockExecuteCommandWithOutput = func(debug bool, actionName string, command string, args ...string) (string, error) {
-		logger.Infof("OUTPUT %d for %s. %s %+v", outputExecCount, actionName, command, args)
+		logger.Infof("OUTPUT %d. %s %+v", outputExecCount, command, args)
 		outputExecCount++
 		if strings.HasPrefix(actionName, "lsblk /dev/disk/by-partuuid") {
 			// this is a call to get device properties so we figure out CRUSH weight, which should only be done for Bluestore
 			// (Filestore uses Statfs since it has a mounted filesystem)
 			assert.Equal(t, config.Bluestore, storeConfig.StoreType)
 			return `SIZE="1234567890" TYPE="part"`, nil
+		}
+		if command == "ceph-volume" {
+			if args[1] == "list" {
+				return `{}`, nil
+			}
+			if len(args) == 3 && args[2] == "--prepare" && legacyProvisioner {
+				// return an error for ceph-volume so we use the legacy provisioner
+				return ``, fmt.Errorf("ceph-volume not supported")
+			}
 		}
 		return "", nil
 	}
@@ -235,11 +253,14 @@ func testOSDAgentWithDevicesHelper(t *testing.T, storeConfig config.StoreConfig)
 	assert.Equal(t, int32(0), agent.configCounter)
 	assert.Equal(t, 0, startCount) // 2 OSD procs should be started
 
-	if storeConfig.StoreType == config.Bluestore {
-		assert.Equal(t, 11, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
+	if !legacyProvisioner {
+		assert.Equal(t, 3, outputExecCount)
+		assert.Equal(t, 1, execCount)
+	} else if storeConfig.StoreType == config.Bluestore {
+		assert.Equal(t, 12, outputExecCount) // Bluestore has 2 extra output exec calls to get device properties of each device to determine CRUSH weight
 		assert.Equal(t, 5, execCount)        // 1 osd mkfs for sdx, 3 partition steps for sdy, 1 osd mkfs for sdy
 	} else {
-		assert.Equal(t, 9, outputExecCount)
+		assert.Equal(t, 10, outputExecCount)
 		assert.Equal(t, 10, execCount) // 1 for remount sdx, 1 osd mkfs for sdx, 3 partition steps for sdy, 1 mkfs for sdy, 1 mount for sdy, 1 osd mkfs for sdy
 	}
 }
