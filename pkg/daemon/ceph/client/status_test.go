@@ -57,3 +57,31 @@ func TestStatusMarshal(t *testing.T) {
 	assert.Equal(t, 101, status.PgMap.PgsByState[0].Count)
 	assert.Equal(t, "stale+active+clean", status.PgMap.PgsByState[0].StateName)
 }
+
+func TestIsClusterClean(t *testing.T) {
+	status := CephStatus{
+		PgMap: PgMap{
+			PgsByState: []PgStateEntry{
+				{StateName: activeClean, Count: 3},
+			},
+			NumPgs: 10,
+		},
+	}
+
+	// not a clean cluster with PGs not adding up
+	err := isClusterClean(status)
+	assert.NotNil(t, err)
+
+	// clean cluster
+	status.PgMap.PgsByState = append(status.PgMap.PgsByState,
+		PgStateEntry{StateName: activeCleanScrubbing, Count: 5})
+	status.PgMap.PgsByState = append(status.PgMap.PgsByState,
+		PgStateEntry{StateName: activeCleanScrubbingDeep, Count: 2})
+	err = isClusterClean(status)
+	assert.Nil(t, err)
+
+	// not a clean cluster with PGs in a bad state
+	status.PgMap.PgsByState[0].StateName = "notclean"
+	err = isClusterClean(status)
+	assert.NotNil(t, err)
+}
