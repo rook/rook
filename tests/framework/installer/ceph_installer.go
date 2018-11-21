@@ -350,6 +350,8 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 	logger.Infof("Uninstalling Rook")
 	var err error
 	for _, namespace := range namespaces {
+		h.k8shelper.PrintPodDescribeForNamespace(namespace)
+
 		roles := h.Manifests.GetClusterRoles(namespace, systemNamespace)
 		_, err = h.k8shelper.KubectlWithStdin(roles, deleteFromStdinArgs...)
 
