@@ -17,6 +17,7 @@ limitations under the License.
 package installer
 
 import (
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -26,18 +27,16 @@ import (
 	"testing"
 	"time"
 
-	"k8s.io/api/core/v1"
-	"k8s.io/kubernetes/pkg/kubelet/apis"
-
-	"flag"
-
 	cephv1beta1 "github.com/rook/rook/pkg/apis/ceph.rook.io/v1beta1"
 	"github.com/rook/rook/pkg/daemon/ceph/client"
+	opspec "github.com/rook/rook/pkg/operator/ceph/spec"
 	"github.com/rook/rook/tests/framework/utils"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/kubernetes/pkg/kubelet/apis"
 )
 
 const (
@@ -435,6 +434,11 @@ func (h *CephInstaller) GatherAllRookLogs(namespace, systemNamespace string, tes
 	h.k8shelper.GetRookLogs("rook-ceph-osd-prepare", Env.HostType, namespace, testName)
 	h.k8shelper.GetRookLogs("rook-ceph-rgw", Env.HostType, namespace, testName)
 	h.k8shelper.GetRookLogs("rook-ceph-mds", Env.HostType, namespace, testName)
+	h.k8shelper.GetRookContainerLogs("rook-ceph-mgr", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
+	h.k8shelper.GetRookContainerLogs("rook-ceph-mon", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
+	h.k8shelper.GetRookContainerLogs("rook-ceph-osd", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
+	h.k8shelper.GetRookContainerLogs("rook-ceph-rgw", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
+	h.k8shelper.GetRookContainerLogs("rook-ceph-mds", Env.HostType, namespace, testName, opspec.ConfigInitContainerName)
 }
 
 // NewCephInstaller creates new instance of CephInstaller
