@@ -382,7 +382,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 	}
 
 	logger.Infof("removing the operator from namespace %s", systemNamespace)
-	_, err = h.k8shelper.DeleteResource("crd", "clusters.ceph.rook.io", "pools.ceph.rook.io", "objectstores.ceph.rook.io", "filesystems.ceph.rook.io", "volumes.rook.io")
+	_, err = h.k8shelper.DeleteResource("crd", "clusters.ceph.rook.io", "pools.ceph.rook.io", "objectstores.ceph.rook.io", "objectstoreusers.ceph.rook.io", "filesystems.ceph.rook.io", "volumes.rook.io")
 	checkError(h.T(), err, "cannot delete CRDs")
 
 	if helmInstalled {

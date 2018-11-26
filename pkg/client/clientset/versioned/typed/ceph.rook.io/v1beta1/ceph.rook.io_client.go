@@ -30,6 +30,7 @@ type CephV1beta1Interface interface {
 	ClustersGetter
 	FilesystemsGetter
 	ObjectStoresGetter
+	ObjectStoreUsersGetter
 	PoolsGetter
 }
 
@@ -48,6 +49,10 @@ func (c *CephV1beta1Client) Filesystems(namespace string) FilesystemInterface {
 
 func (c *CephV1beta1Client) ObjectStores(namespace string) ObjectStoreInterface {
 	return newObjectStores(c, namespace)
+}
+
+func (c *CephV1beta1Client) ObjectStoreUsers(namespace string) ObjectStoreUserInterface {
+	return newObjectStoreUsers(c, namespace)
 }
 
 func (c *CephV1beta1Client) Pools(namespace string) PoolInterface {

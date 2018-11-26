@@ -35,7 +35,7 @@
     "private/protocol/restxml",
     "private/protocol/xml/xmlutil",
     "service/s3",
-    "service/sts",
+    "service/sts"
   ]
   pruneopts = "UT"
   revision = "a8ff9e4804fc89c994b731b1c057640ab2aecff3"
@@ -128,7 +128,7 @@
   name = "github.com/gogo/protobuf"
   packages = [
     "proto",
-    "sortkeys",
+    "sortkeys"
   ]
   pruneopts = "UT"
   revision = "636bf0302bc95575d69441b25a2603156ffdddf1"
@@ -158,7 +158,7 @@
     "ptypes",
     "ptypes/any",
     "ptypes/duration",
-    "ptypes/timestamp",
+    "ptypes/timestamp"
   ]
   pruneopts = "UT"
   revision = "aa810b61a9c79d51363740d207bb46cf8e620ed5"
@@ -194,7 +194,7 @@
   packages = [
     "OpenAPIv2",
     "compiler",
-    "extensions",
+    "extensions"
   ]
   pruneopts = "UT"
   revision = "7c663266750e7d82587642f65e60bc4083f1f84e"
@@ -206,7 +206,7 @@
   name = "github.com/gregjones/httpcache"
   packages = [
     ".",
-    "diskcache",
+    "diskcache"
   ]
   pruneopts = "UT"
   revision = "9cad4c3443a7200dd6400aef47183728de563a38"
@@ -216,7 +216,7 @@
   name = "github.com/hashicorp/golang-lru"
   packages = [
     ".",
-    "simplelru",
+    "simplelru"
   ]
   pruneopts = "UT"
   revision = "20f1fb78b0740ba8c3cb143a61e86ba5c8669768"
@@ -231,7 +231,6 @@
   revision = "4178557ae428460c3780a381c824a1f3aceb6325"
 
 [[projects]]
-  digest = "1:870d441fe217b8e689d7949fef6e43efbc787e50f200cb1e70dbca9204a1d6be"
   name = "github.com/inconshreveable/mousetrap"
   packages = ["."]
   pruneopts = "UT"
@@ -348,7 +347,7 @@
   packages = [
     "expfmt",
     "internal/bitbucket.org/ww/goautoneg",
-    "model",
+    "model"
   ]
   pruneopts = "UT"
   revision = "c7de2306084e37d54b8be01f3541a8464345e9a5"
@@ -407,7 +406,7 @@
   packages = [
     "assert",
     "require",
-    "suite",
+    "suite"
   ]
   pruneopts = "UT"
   revision = "f35b8ab0b5a2cef36673838d662e249dd9c94686"
@@ -632,7 +631,7 @@
     "pkg/version",
     "pkg/watch",
     "third_party/forked/golang/json",
-    "third_party/forked/golang/reflect",
+    "third_party/forked/golang/reflect"
   ]
   pruneopts = "UT"
   revision = "def12e63c512da17043b4f0293f52d1006603d9f"
@@ -839,7 +838,7 @@
     "generator",
     "namer",
     "parser",
-    "types",
+    "types"
   ]
   pruneopts = "T"
   revision = "4242d8e6c5dba56827bb7bcf14ad11cda38f3991"

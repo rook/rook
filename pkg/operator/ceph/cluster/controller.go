@@ -34,6 +34,7 @@ import (
 	"github.com/rook/rook/pkg/operator/ceph/cluster/osd"
 	"github.com/rook/rook/pkg/operator/ceph/file"
 	"github.com/rook/rook/pkg/operator/ceph/object"
+	"github.com/rook/rook/pkg/operator/ceph/object/user"
 	"github.com/rook/rook/pkg/operator/ceph/pool"
 	"github.com/rook/rook/pkg/operator/discover"
 	"github.com/rook/rook/pkg/operator/k8sutil"
@@ -232,6 +233,10 @@ func (c *ClusterController) onAdd(obj interface{}) {
 	// Start object store CRD watcher
 	objectStoreController := object.NewObjectStoreController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)
 	objectStoreController.StartWatch(cluster.Namespace, cluster.stopCh)
+
+	// Start object store user CRD watcher
+	objectStoreUserController := objectuser.NewObjectStoreUserController(c.context, cluster.ownerRef)
+	objectStoreUserController.StartWatch(cluster.Namespace, cluster.stopCh)
 
 	// Start file system CRD watcher
 	fileController := file.NewFilesystemController(c.context, c.rookImage, cluster.Spec.CephVersion, cluster.Spec.Network.HostNetwork, cluster.ownerRef)

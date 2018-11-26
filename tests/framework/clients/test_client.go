@@ -30,11 +30,12 @@ var (
 
 //TestClient is a wrapper for test client, containing interfaces for all rook operations
 type TestClient struct {
-	BlockClient  *BlockOperation
-	FSClient     *FilesystemOperation
-	ObjectClient *ObjectOperation
-	PoolClient   *PoolOperation
-	k8sh         *utils.K8sHelper
+	BlockClient      *BlockOperation
+	FSClient         *FilesystemOperation
+	ObjectClient     *ObjectOperation
+	ObjectUserClient *ObjectUserOperation
+	PoolClient       *PoolOperation
+	k8sh             *utils.K8sHelper
 }
 
 const (
@@ -48,6 +49,7 @@ func CreateTestClient(k8sHelper *utils.K8sHelper, manifests installer.CephManife
 		CreateBlockOperation(k8sHelper, manifests),
 		CreateFilesystemOperation(k8sHelper, manifests),
 		CreateObjectOperation(k8sHelper, manifests),
+		CreateObjectUserOperation(k8sHelper, manifests),
 		CreatePoolOperation(k8sHelper, manifests),
 		k8sHelper,
 	}

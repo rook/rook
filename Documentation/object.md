@@ -51,20 +51,46 @@ kubectl -n rook-ceph get pod -l app=rook-ceph-rgw
 
 ## Create a User
 
-Creating an object storage user requires running a `radosgw-admin` command with the [Rook toolbox](ceph-quickstart.md#tools) pod. This will be simplified in the future with a CRD for the object store users.
+Next we will create the object store user, which calls the RGW service in the cluster with the S3 API.
+Specify your desired settings for the object store user in the `object-user.yaml`. For more details on the settings see the [Object Store User CRD](ceph-object-store-user-crd.md).
+
+```yaml
+apiVersion: ceph.rook.io/v1beta1
+kind: ObjectStoreUser
+metadata:
+  name: my-user
+  namespace: rook-ceph
+spec:
+  store: my-store
+  displayName: "my display name"
+```
+
+When the object store user is created the Rook operator will create the RGW user on the object store specified, and store the Access Key and Secret Key in a kubernetes secret in the same namespace as the object store user.
 
 ```bash
-radosgw-admin user create --uid rook-user --display-name "A rook rgw User" --rgw-realm=my-store --rgw-zonegroup=my-store
+# Create the object store user
+kubectl create -f object-user.yaml
+
+# To confirm the object store user is configured, describe the secret
+kubectl -n rook-ceph describe secret rook-ceph-object-user-my-user
+
+Name:		rook-ceph-object-user-my-user
+Namespace:	rook-ceph
+Labels:			app=rook-ceph-rgw
+			      rook_cluster=rook-ceph
+			      rook_object_store=my-store
+Annotations:	<none>
+
+Type:	kubernetes.io/rook
+
+Data
+====
+AccessKey:	20 bytes
+SecretKey:	40 bytes
 ```
 
-The object store is now available by using the creds of `rook-user`. Take note of the `access_key` and `secret_key` printed by the user creation. For example:
-```json
-{
-    "user": "rook-user",
-    "access_key": "XEZDB3UJ6X7HVBE7X7MA",
-    "secret_key": "7yGIZON7EhFORz0I40BFniML36D2rl8CQQ5kXU6l"
-}
-```
+The AccessKey and SecretKey data fields can be mounted in a pod as an environment variable. More information on consuming
+kubernetes secrets can be found on [The kubernetes website](https://kubernetes.io/docs/concepts/configuration/secret/)
 
 ## Consume the Object Storage
 
