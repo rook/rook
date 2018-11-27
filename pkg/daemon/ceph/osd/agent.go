@@ -175,7 +175,6 @@ func (a *OsdAgent) configureDevices(context *clusterd.Context, devices *DeviceOs
 			osds = append(osds, *osd)
 		}
 	}
-
 	logger.Infof("%d/%d osd devices succeeded on this node", succeeded, len(scheme.Entries))
 	return osds, nil
 }
@@ -379,7 +378,6 @@ func refreshDeviceInfo(name string, nameToUUID map[string]string, scheme *config
 }
 
 func (a *OsdAgent) prepareOSD(context *clusterd.Context, cfg *osdConfig) (*oposd.OSDInfo, error) {
-
 	cfg.rootPath = getOSDRootDir(cfg.configRoot, cfg.id)
 
 	// if the osd is using filestore on a device and it's previously been formatted/partitioned,
@@ -456,6 +454,7 @@ func prepareOSDRoot(cfg *osdConfig) (newOSD bool, err error) {
 	newOSD = isOSDDataNotExist(cfg.rootPath)
 	if !newOSD {
 		// osd is not new (it's ready), nothing to prepare
+		logger.Infof("osd with path %s is not new, nothing to prepare", cfg.rootPath)
 		return newOSD, nil
 	}
 

@@ -61,7 +61,7 @@ const (
 	//TestMountPath is the path inside a test pod where storage is mounted
 	TestMountPath = "/tmp/testrook"
 	//hostnameTestPrefix is a prefix added to the node hostname
-	hostnameTestPrefix = "testprefix-"
+	hostnameTestPrefix = "test-prefix-this-is-a-very-long-hostname-"
 )
 
 //CreateK8sHelper creates a instance of k8sHelper
