@@ -352,6 +352,7 @@ func (h *CephInstaller) UninstallRookFromMultipleNS(helmInstalled bool, systemNa
 	logger.Infof("Uninstalling Rook")
 	var err error
 	for _, namespace := range namespaces {
+		h.k8shelper.PrintPodDescribeForNamespace(namespace)
 
 		if !h.k8shelper.VersionAtLeast("v1.8.0") {
 			_, err = h.k8shelper.DeleteResource("-n", namespace, "serviceaccount", "rook-ceph-cluster")

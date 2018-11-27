@@ -129,7 +129,7 @@ func formatDevice(context *clusterd.Context, config *osdConfig, forceFormat bool
 	if !dangerousToFormat || forceFormat {
 		devPartInfo, err = partitionOSD(context, config)
 		if err != nil {
-			return nil, fmt.Errorf("failed to partion device %s. %v", dataDetails.Device, err)
+			return nil, fmt.Errorf("failed to partion device %s. %+v", dataDetails.Device, err)
 		}
 	}
 

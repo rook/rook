@@ -116,7 +116,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 	logger.Infof("configuring osd dirs: %+v", dirs)
 	dirOSDs, err := agent.configureDirs(context, dirs)
 	if err != nil {
-		return fmt.Errorf("failed to configure dirs %v. %+v", dirs, err)
+		return fmt.Errorf("failed to configure dirs %+v. %+v", dirs, err)
 	}
 
 	// now we can start removing OSDs from devices and directories
@@ -135,7 +135,7 @@ func Provision(context *clusterd.Context, agent *OsdAgent) error {
 		return fmt.Errorf("failed to save osd dir map. %+v", err)
 	}
 
-	logger.Infof("device osds:%v\ndir osds: %v", deviceOSDs, dirOSDs)
+	logger.Infof("device osds:%+v\ndir osds: %+v", deviceOSDs, dirOSDs)
 	osds := append(deviceOSDs, dirOSDs...)
 
 	// orchestration is completed, update the status

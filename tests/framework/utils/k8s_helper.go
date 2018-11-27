@@ -321,6 +321,7 @@ func (k8sh *K8sHelper) ResourceOperationFromTemplate(action string, podDefinitio
 //ResourceOperation performs a kubectl action on a pod definition
 func (k8sh *K8sHelper) ResourceOperation(action string, manifest string) (string, error) {
 	args := []string{action, "-f", "-"}
+	logger.Infof("kubectl create manifest:\n%s", manifest)
 	result, err := k8sh.KubectlWithStdin(manifest, args...)
 	if err == nil {
 		return result, nil
@@ -1139,6 +1140,7 @@ func (k8sh *K8sHelper) CheckPodCountAndState(podName string, namespace string, m
 		}
 		actualPodCount = len(podList.Items)
 		if actualPodCount >= minExpected {
+			logger.Infof("%d of %d pods with label app=%s were found", actualPodCount, minExpected, podName)
 			podCountCheck = true
 			break
 		}
@@ -1216,6 +1218,7 @@ func (k8sh *K8sHelper) WaitUntilPVCIsBound(namespace string, pvcname string) boo
 		out, err := k8sh.GetPVCStatus(namespace, pvcname)
 		if err == nil {
 			if out == v1.PersistentVolumeClaimPhase(v1.ClaimBound) {
+				logger.Infof("PVC %s is bound", pvcname)
 				return true
 			}
 		}
