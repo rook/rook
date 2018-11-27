@@ -42,6 +42,14 @@ type ObjectStoreListerExpansion interface{}
 // ObjectStoreNamespaceLister.
 type ObjectStoreNamespaceListerExpansion interface{}
 
+// ObjectStoreUserListerExpansion allows custom methods to be added to
+// ObjectStoreUserLister.
+type ObjectStoreUserListerExpansion interface{}
+
+// ObjectStoreUserNamespaceListerExpansion allows custom methods to be added to
+// ObjectStoreUserNamespaceLister.
+type ObjectStoreUserNamespaceListerExpansion interface{}
+
 // PoolListerExpansion allows custom methods to be added to
 // PoolLister.
 type PoolListerExpansion interface{}
