@@ -90,6 +90,10 @@ func (s *StorageScopeSpec) resolveNodeSelection(node *Node) {
 	if len(node.Selection.Directories) == 0 {
 		node.Selection.Directories = s.Directories
 	}
+
+	if len(node.Selection.VolumeClaimTemplates) == 0 {
+		node.Selection.VolumeClaimTemplates = s.VolumeClaimTemplates
+	}
 }
 
 func (s *StorageScopeSpec) resolveNodeConfig(node *Node) {
@@ -105,6 +109,7 @@ func (s *StorageScopeSpec) resolveNodeConfig(node *Node) {
 	}
 }
 
+// GetUseAllDevices return if all devices should be used.
 func (s *Selection) GetUseAllDevices() bool {
 	return s.UseAllDevices != nil && *(s.UseAllDevices)
 }
