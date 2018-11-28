@@ -60,13 +60,14 @@ type Directory struct {
 type Selection struct {
 	// Whether to consume all the storage devices found on a machine
 	UseAllDevices *bool `json:"useAllDevices,omitempty"`
-
 	// A regular expression to allow more fine-grained selection of devices on nodes across the cluster
 	DeviceFilter string `json:"deviceFilter,omitempty"`
-
+	// List of devices to use as storage devices
 	Devices []Device `json:"devices,omitempty"`
-
+	// List of host directories to use as storage
 	Directories []Directory `json:"directories,omitempty"`
+	// PersistentVolumeClaims to use as storage
+	VolumeClaimTemplates []v1.PersistentVolumeClaim `json:"volumeClaimTemplates,omitempty"`
 }
 
 type PlacementSpec map[string]Placement
